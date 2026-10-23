@@ -8,8 +8,8 @@ import (
 )
 
 type Charger interface {
-	Grant(holder bonuses.Holder, kind bonuses.Kind, amount int)
-	Held(holder bonuses.Holder) bonuses.Held
+	Grant(ctx context.Context, holder bonuses.Holder, kind bonuses.Kind, amount int) error
+	Held(ctx context.Context, holder bonuses.Holder) (bonuses.Held, error)
 }
 
 type In struct {
@@ -31,7 +31,7 @@ type UseCase struct {
 	charger Charger
 }
 
-func (u *UseCase) Execute(_ context.Context, in In) (Out, error) {
+func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	holder, err := bonuses.ParseHolder(in.Account)
 	if err != nil {
 		return Out{}, fmt.Errorf("cannot grant: %w", err)
@@ -40,12 +40,21 @@ func (u *UseCase) Execute(_ context.Context, in In) (Out, error) {
 		return Out{}, fmt.Errorf("cannot grant: %w", err)
 	}
 
-	before := u.charger.Held(holder)
+	before, err := u.charger.Held(ctx, holder)
+	if err != nil {
+		return Out{}, err
+	}
 	for _, kind := range bonuses.Kinds {
 		if amount := in.Grant.Count(kind); amount > 0 {
-			u.charger.Grant(holder, kind, amount)
+			if err := u.charger.Grant(ctx, holder, kind, amount); err != nil {
+				return Out{}, err
+			}
 		}
 	}
+	after, err := u.charger.Held(ctx, holder)
+	if err != nil {
+		return Out{}, err
+	}
 
-	return Out{Holder: holder, Before: before, After: u.charger.Held(holder)}, nil
+	return Out{Holder: holder, Before: before, After: after}, nil
 }

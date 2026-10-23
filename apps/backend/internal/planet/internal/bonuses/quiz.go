@@ -1,6 +1,7 @@
 package bonuses
 
 import (
+	"context"
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/quizzes"
@@ -130,7 +131,7 @@ func (r *Registry) AnswerQuiz(token string, entrant Entrant, choice int) (Answer
 	return answered, true
 }
 
-func (r *Registry) sweepQuizzes(now time.Time) {
+func (r *Registry) sweepQuizzes(ctx context.Context, now time.Time) {
 	if !r.quizzing() {
 		return
 	}
@@ -142,7 +143,7 @@ func (r *Registry) sweepQuizzes(now time.Time) {
 			continue
 		}
 
-		kinds := r.offerable(entry, now)
+		kinds := r.offerable(ctx, entry, now)
 		if kinds.Empty() {
 			entry.nextQuizAt = now.Add(r.quizWindow())
 			continue

@@ -83,6 +83,9 @@ linters:
 
         - .Click(
         - .PlayError(
+        - .Held(
+        - .Grant(
+        - .Spend(
         - .GetMap(
         - .SendMessage(
         - .ListenForEvents(

@@ -169,7 +169,7 @@ const rememberSpent = 10 * time.Minute
 const eventBuffer = 32
 
 type Holdings interface {
-	Held(holder Holder) Held
+	Held(ctx context.Context, holder Holder) (Held, error)
 }
 
 func New(config Config, clock cptime.Clock, holdings Holdings) *Registry {
@@ -356,14 +356,14 @@ func (r *Registry) Run(ctx context.Context) {
 	for {
 		select {
 		case <-ticker.C:
-			r.sweep()
+			r.sweep(ctx)
 		case <-ctx.Done():
 			return
 		}
 	}
 }
 
-func (r *Registry) sweep() {
+func (r *Registry) sweep(ctx context.Context) {
 	now := r.clock.Now()
 
 	r.mu.Lock()
@@ -371,7 +371,7 @@ func (r *Registry) sweep() {
 
 	r.collectMisses(now)
 	r.forgetSpent(now)
-	r.sweepQuizzes(now)
+	r.sweepQuizzes(ctx, now)
 	r.forgetStale(now)
 
 	for entrant, entry := range r.callers {
@@ -379,7 +379,7 @@ func (r *Registry) sweep() {
 			continue
 		}
 
-		kinds := r.offerable(entry, now)
+		kinds := r.offerable(ctx, entry, now)
 		if kinds.Empty() {
 			entry.nextOfferAt = now.Add(r.window())
 			continue
@@ -402,7 +402,7 @@ func (r *Registry) due(entry *caller, now time.Time) bool {
 	return true
 }
 
-func (r *Registry) offerable(entry *caller, now time.Time) *cpcolls.Set[Kind] {
+func (r *Registry) offerable(ctx context.Context, entry *caller, now time.Time) *cpcolls.Set[Kind] {
 	kinds := cpcolls.NewSetWithCapacity[Kind](len(Kinds))
 
 	held := cpcolls.NewSet[Kind]()
@@ -411,7 +411,12 @@ func (r *Registry) offerable(entry *caller, now time.Time) *cpcolls.Set[Kind] {
 			delete(entry.players, holder)
 			continue
 		}
-		held.Add(r.holdings.Held(holder).Full(r.charges)...)
+		hand, err := r.holdings.Held(ctx, holder)
+		if err != nil {
+			// Offered nothing: the slot is lost, as an away player's.
+			return kinds
+		}
+		held.Add(hand.Full(r.charges)...)
 	}
 
 	if len(entry.players) == 0 || r.grantedWithinTheHour(entry, now) >= r.config.MaxChargesPerHour {

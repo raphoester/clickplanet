@@ -8,7 +8,7 @@ import (
 )
 
 type Charges interface {
-	Held(holder bonuses.Holder) bonuses.Held
+	Held(ctx context.Context, holder bonuses.Holder) (bonuses.Held, error)
 }
 
 func New(charges Charges) *UseCase {
@@ -19,6 +19,6 @@ type UseCase struct {
 	charges Charges
 }
 
-func (u *UseCase) Execute(ctx context.Context) bonuses.Held {
-	return u.charges.Held(bonuses.HolderOf(clicks.PayerOf(ctx)))
+func (u *UseCase) Execute(ctx context.Context) (bonuses.Held, error) {
+	return u.charges.Held(ctx, bonuses.HolderOf(clicks.PayerOf(ctx)))
 }

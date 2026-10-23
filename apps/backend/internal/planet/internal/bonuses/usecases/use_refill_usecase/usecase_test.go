@@ -18,23 +18,6 @@ import (
 
 var epoch = time.Date(2026, 9, 18, 12, 0, 0, 0, time.UTC)
 
-type stubRefills struct {
-	held  map[bonuses.Holder]bool
-	spent []bonuses.Holder
-}
-
-func (s *stubRefills) SpendRefill(holder bonuses.Holder) bool {
-	s.spent = append(s.spent, holder)
-	held := s.held[holder]
-	s.held[holder] = false
-
-	return held
-}
-
-func (s *stubRefills) Held(holder bonuses.Holder) bonuses.Held {
-	return bonuses.Held{Refill: s.held[holder]}
-}
-
 type onePrice struct{}
 
 func (onePrice) Price(string) clicks.Price { return clicks.Price{Slowdown: 1} }
@@ -42,19 +25,20 @@ func (onePrice) Price(string) clicks.Price { return clicks.Price{Slowdown: 1} }
 var config = clicks.ThrottleConfig{Config: cpratelimit.Config{PerSecond: 0.2, Burst: 60}, ScopeMultiplier: 10}
 
 type fixture struct {
-	refills *stubRefills
+	refills *bonuses.MemoryStore
 	limiter *cpratelimit.Limiter
 	useCase *use_refill_usecase.UseCase
 }
 
 func setup(held bool) fixture {
-	refills := &stubRefills{held: map[bonuses.Holder]bool{"a-guest": held}}
+	refills := bonuses.NewMemoryStore()
+	refills.Keep("a-guest", bonuses.Held{Refill: held})
 	limiter := cpratelimit.New("test", config.Config, cptime.NewFixedClock(epoch))
 
 	return fixture{
 		refills: refills,
 		limiter: limiter,
-		useCase: use_refill_usecase.New(refills, limiter, onePrice{}, config.Buckets()),
+		useCase: use_refill_usecase.New(bonuses.NewCharges(refills, bonuses.ChargesConfig{}), limiter, onePrice{}, config.Buckets()),
 	}
 }
 
@@ -84,7 +68,7 @@ func TestARefillFillsTheBankAndIsSpent(t *testing.T) {
 	assert.InDelta(t, 60, out.Budget.Tokens, 1e-9, "the bank is full")
 	assert.Equal(t, 60, out.Budget.Capacity, "and no bigger")
 	assert.Equal(t, bonuses.Held{}, out.Held)
-	assert.Equal(t, []bonuses.Holder{"a-guest"}, f.refills.spent)
+	assert.Equal(t, bonuses.Held{}, f.refills.Kept("a-guest"), "the refill is spent")
 }
 
 func TestAFullBankIsRefusedAndSpendsNothing(t *testing.T) {
@@ -93,7 +77,7 @@ func TestAFullBankIsRefusedAndSpendsNothing(t *testing.T) {
 	_, err := f.useCase.Execute(played(t), use_refill_usecase.In{CountryID: "fr"})
 
 	require.ErrorIs(t, err, use_refill_usecase.ErrBankFull)
-	assert.Empty(t, f.refills.spent, "a press on a full meter wastes nothing")
+	assert.True(t, f.refills.Kept("a-guest").Refill, "a press on a full meter wastes nothing")
 }
 
 func TestNoRefillFillsNothing(t *testing.T) {
@@ -113,7 +97,7 @@ func TestACallerWithNoAccountHasNoRefill(t *testing.T) {
 	_, err := f.useCase.Execute(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), use_refill_usecase.In{})
 
 	require.ErrorIs(t, err, use_refill_usecase.ErrNoRefill)
-	assert.Empty(t, f.refills.spent)
+	assert.True(t, f.refills.Kept("a-guest").Refill)
 }
 
 func TestTheScopesBucketIsNotFilled(t *testing.T) {
