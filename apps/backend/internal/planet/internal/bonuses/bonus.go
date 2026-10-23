@@ -253,6 +253,27 @@ func (r *Registry) leave(entrant Entrant, id uint64) {
 	entry.lastSeen = r.clock.Now()
 }
 
+// Every map stream attends, so the registry knows them all.
+type Audience struct {
+	Streams  int
+	Entrants int
+}
+
+func (r *Registry) Audience() Audience {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	var audience Audience
+	for _, entry := range r.callers {
+		if len(entry.streams) > 0 {
+			audience.Streams += len(entry.streams)
+			audience.Entrants++
+		}
+	}
+
+	return audience
+}
+
 func (r *Registry) Clicked(entrant Entrant, scope string, holder Holder) {
 	now := r.clock.Now()
 

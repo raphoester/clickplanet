@@ -238,6 +238,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", "player")))
 
+	getRoster := get_roster_handler.New(roster_query.NewMemoryQuery(inmemory_roster.New(visits, clock)))
 	playerService := playerv1controller.PlayerService{
 		GetProfileHandler: get_profile_handler.New(profile_query.NewPostgresQuery(db, inprocess_rename_rule.New())),
 		SetNameHandler: set_name_handler.New(
@@ -249,7 +250,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 			announce_usecase.New(authors, visits, cpcountries.New(), clock, tagSalt),
 		),
 		LeaveHandler:     leave_handler.New(forgetVisit),
-		GetRosterHandler: get_roster_handler.New(roster_query.NewMemoryQuery(inmemory_roster.New(visits, clock))),
+		GetRosterHandler: getRoster,
 		ListenForEventsHandler: listen_for_events_handler.New(
 			listen_for_events_usecase.New(visits, props.Server.StreamHeartbeat),
 			listen_for_titles_usecase.New(titleFeed, catalog),
@@ -287,6 +288,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		AdminGetPlayerHandler: admin_get_player_handler.New(
 			admin_player_query.NewPostgresQuery(db, titleCards, accounts, fronts, clock),
 		),
+		GetRosterHandler: getRoster,
 	}
 	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return playerv1connect.NewAdminServiceHandler(adminService, options...)

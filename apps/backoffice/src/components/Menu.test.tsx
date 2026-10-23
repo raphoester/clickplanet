@@ -30,7 +30,7 @@ describe("Menu", () => {
         const drawer = screen.getByRole("dialog", {name: "Menu"})
         expect(burger().getAttribute("aria-expanded")).toBe("true")
         expect(within(drawer).getAllByRole("heading").map(h => h.textContent))
-            .toEqual(["Feedback", "Moderation", "Map", "Ops"])
+            .toEqual(["Overview", "Feedback", "Moderation", "Map", "Ops"])
         expect(within(drawer).getByRole("button", {name: "Ideas and bugs"}).getAttribute("aria-current")).toBe("page")
         expect(document.activeElement).toBe(within(drawer).getByRole("button", {name: "Ideas and bugs"}))
     })

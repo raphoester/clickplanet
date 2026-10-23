@@ -6,6 +6,7 @@
 import { AdminGetPlayerRequest, AdminGetPlayerResponse, ReconcileTitlesRequest, ReconcileTitlesResponse } from "./admin_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 import { GetAuthorsRequest, GetAuthorsResponse } from "./internal_pb.js";
+import { GetRosterRequest, GetRosterResponse } from "./player_pb.js";
 
 /**
  * No authentication of its own: served on the console listener, and on the admin listener behind its gate. Never the public router.
@@ -44,6 +45,17 @@ export const AdminService = {
       name: "GetPlayer",
       I: AdminGetPlayerRequest,
       O: AdminGetPlayerResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * PlayerService/GetRoster, for the admin page's home: who is playing now.
+     *
+     * @generated from rpc player.v1.AdminService.GetRoster
+     */
+    getRoster: {
+      name: "GetRoster",
+      I: GetRosterRequest,
+      O: GetRosterResponse,
       kind: MethodKind.Unary,
     },
   }

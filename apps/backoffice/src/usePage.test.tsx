@@ -26,8 +26,8 @@ describe("pageOf", () => {
     })
 
     it("opens on the first page for an address that names none", () => {
-        expect(pageOf("")).toBe("notes")
-        expect(pageOf("#/nowhere")).toBe("notes")
+        expect(pageOf("")).toBe("home")
+        expect(pageOf("#/nowhere")).toBe("home")
     })
 })
 

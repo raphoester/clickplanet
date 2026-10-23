@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BanPlayerRequest, BanPlayerResponse, FindPlayersRequest, FindPlayersResponse, GetReplayRequest, GetReplayResponse, GrantChargesRequest, GrantChargesResponse, InspectPlayerRequest, InspectPlayerResponse, PaintRandomTilesRequest, PaintRandomTilesResponse, ReassignCountryRequest, ReassignCountryResponse, RevertPlayerRequest, RevertPlayerResponse, TopPlayersRequest, TopPlayersResponse, UnbanPlayerRequest, UnbanPlayerResponse } from "./admin_pb.js";
+import { BanPlayerRequest, BanPlayerResponse, FindPlayersRequest, FindPlayersResponse, GetActivityRequest, GetActivityResponse, GetReplayRequest, GetReplayResponse, GrantChargesRequest, GrantChargesResponse, InspectPlayerRequest, InspectPlayerResponse, PaintRandomTilesRequest, PaintRandomTilesResponse, ReassignCountryRequest, ReassignCountryResponse, RevertPlayerRequest, RevertPlayerResponse, TopPlayersRequest, TopPlayersResponse, UnbanPlayerRequest, UnbanPlayerResponse } from "./admin_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -102,6 +102,17 @@ export const AdminService = {
       name: "GetReplay",
       I: GetReplayRequest,
       O: GetReplayResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * What players did on the map over a span back from now, from the ledger in memory, and the map as it is now.
+     *
+     * @generated from rpc planet.v1.AdminService.GetActivity
+     */
+    getActivity: {
+      name: "GetActivity",
+      I: GetActivityRequest,
+      O: GetActivityResponse,
       kind: MethodKind.Unary,
     },
   }

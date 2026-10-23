@@ -16,6 +16,9 @@ service AdminService {
 
   // Everything the game keeps about one account, a guest's too. NotFound for an account it keeps nothing about.
   rpc GetPlayer(AdminGetPlayerRequest) returns (AdminGetPlayerResponse);
+
+  // PlayerService/GetRoster, for the admin page's home: who is playing now.
+  rpc GetRoster(GetRosterRequest) returns (GetRosterResponse);
 }
 
 message ReconcileTitlesRequest {}

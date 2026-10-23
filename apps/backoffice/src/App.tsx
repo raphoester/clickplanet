@@ -3,6 +3,7 @@ import {authAdmin} from "./api.ts"
 import {CLIENTS} from "./clients.ts"
 import {FailureNotice} from "./components/FailureNotice.tsx"
 import {Menu} from "./components/Menu.tsx"
+import {HomePage} from "./home/HomePage.tsx"
 import {PaintPanel} from "./map/PaintPanel.tsx"
 import {ReassignPanel} from "./map/ReassignPanel.tsx"
 import {ReplayPanel} from "./map/ReplayPanel.tsx"
@@ -72,6 +73,7 @@ function Console({operator, onSignedOut}: {operator: string, onSignedOut: () => 
                 }
             >
                 <h2 className="page-title">{titleOf(page)}</h2>
+                {page === "home" && <HomePage onGo={go}/>}
                 {page === "notes" && <NoteList/>}
                 {page === "reports" && <ReportsView/>}
                 {page === "players" && <PlayersPage opened={player} onOpen={setPlayer}/>}

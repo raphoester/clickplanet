@@ -8,6 +8,319 @@ import { Duration, Message, proto3, Timestamp } from "@bufbuild/protobuf";
 import { ChargesHeld, GetMapResponse, PlanetEvent } from "./planet_pb.js";
 
 /**
+ * @generated from message planet.v1.GetActivityRequest
+ */
+export class GetActivityRequest extends Message<GetActivityRequest> {
+  /**
+   * Unset is 24 hours; at most 72 hours, the ledger's retention.
+   *
+   * @generated from field: google.protobuf.Duration span = 1;
+   */
+  span?: Duration;
+
+  constructor(data?: PartialMessage<GetActivityRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetActivityRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "span", kind: "message", T: Duration },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetActivityRequest {
+    return new GetActivityRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetActivityRequest {
+    return new GetActivityRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetActivityRequest {
+    return new GetActivityRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetActivityRequest | PlainMessage<GetActivityRequest> | undefined, b: GetActivityRequest | PlainMessage<GetActivityRequest> | undefined): boolean {
+    return proto3.util.equals(GetActivityRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.GetActivityResponse
+ */
+export class GetActivityResponse extends Message<GetActivityResponse> {
+  /**
+   * The start of the first slot. The last slot ends at `until`, and is still filling.
+   *
+   * @generated from field: google.protobuf.Timestamp since = 1;
+   */
+  since?: Timestamp;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp until = 2;
+   */
+  until?: Timestamp;
+
+  /**
+   * @generated from field: google.protobuf.Duration step = 3;
+   */
+  step?: Duration;
+
+  /**
+   * Oldest first, one per step.
+   *
+   * @generated from field: repeated planet.v1.ActivitySlot slots = 4;
+   */
+  slots: ActivitySlot[] = [];
+
+  /**
+   * The accounts, and the addresses with no account, that took a tile in the span.
+   *
+   * @generated from field: uint32 players = 5;
+   */
+  players = 0;
+
+  /**
+   * @generated from field: planet.v1.ActivityHeatmap heatmap = 6;
+   */
+  heatmap?: ActivityHeatmap;
+
+  /**
+   * Every country that holds a tile now, or won or lost one in the span: most held first.
+   *
+   * @generated from field: repeated planet.v1.CountryActivity countries = 7;
+   */
+  countries: CountryActivity[] = [];
+
+  /**
+   * The live map streams open now, and the accounts or networks they are opened by.
+   *
+   * @generated from field: uint32 streams = 8;
+   */
+  streams = 0;
+
+  /**
+   * @generated from field: uint32 watchers = 9;
+   */
+  watchers = 0;
+
+  /**
+   * @generated from field: uint32 map_tiles = 10;
+   */
+  mapTiles = 0;
+
+  constructor(data?: PartialMessage<GetActivityResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetActivityResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "since", kind: "message", T: Timestamp },
+    { no: 2, name: "until", kind: "message", T: Timestamp },
+    { no: 3, name: "step", kind: "message", T: Duration },
+    { no: 4, name: "slots", kind: "message", T: ActivitySlot, repeated: true },
+    { no: 5, name: "players", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 6, name: "heatmap", kind: "message", T: ActivityHeatmap },
+    { no: 7, name: "countries", kind: "message", T: CountryActivity, repeated: true },
+    { no: 8, name: "streams", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 9, name: "watchers", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 10, name: "map_tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetActivityResponse {
+    return new GetActivityResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetActivityResponse {
+    return new GetActivityResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetActivityResponse {
+    return new GetActivityResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetActivityResponse | PlainMessage<GetActivityResponse> | undefined, b: GetActivityResponse | PlainMessage<GetActivityResponse> | undefined): boolean {
+    return proto3.util.equals(GetActivityResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.ActivitySlot
+ */
+export class ActivitySlot extends Message<ActivitySlot> {
+  /**
+   * Clicks that took a tile or struck a shield.
+   *
+   * @generated from field: uint32 clicks = 1;
+   */
+  clicks = 0;
+
+  /**
+   * Tiles that changed hands: by a click, a spread, an enclosure or a bomb.
+   *
+   * @generated from field: uint32 tiles = 2;
+   */
+  tiles = 0;
+
+  /**
+   * The accounts, and the addresses with no account, that took a tile in the slot.
+   *
+   * @generated from field: uint32 players = 3;
+   */
+  players = 0;
+
+  constructor(data?: PartialMessage<ActivitySlot>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.ActivitySlot";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "clicks", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "players", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ActivitySlot {
+    return new ActivitySlot().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ActivitySlot {
+    return new ActivitySlot().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ActivitySlot {
+    return new ActivitySlot().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ActivitySlot | PlainMessage<ActivitySlot> | undefined, b: ActivitySlot | PlainMessage<ActivitySlot> | undefined): boolean {
+    return proto3.util.equals(ActivitySlot, a, b);
+  }
+}
+
+/**
+ * A grid of latitudes and longitudes: row 0 is the north pole, column 0 is 180° west, one cell per degree.
+ *
+ * @generated from message planet.v1.ActivityHeatmap
+ */
+export class ActivityHeatmap extends Message<ActivityHeatmap> {
+  /**
+   * @generated from field: uint32 columns = 1;
+   */
+  columns = 0;
+
+  /**
+   * @generated from field: uint32 rows = 2;
+   */
+  rows = 0;
+
+  /**
+   * One byte per cell, row by row: the tiles drawn in it, at most 255. A tile far north or south is drawn in each cell it covers.
+   *
+   * @generated from field: bytes land = 3;
+   */
+  land = new Uint8Array(0);
+
+  /**
+   * Per cell, row by row: how often a tile drawn in it changed hands in the span.
+   *
+   * @generated from field: repeated uint32 changes = 4;
+   */
+  changes: number[] = [];
+
+  constructor(data?: PartialMessage<ActivityHeatmap>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.ActivityHeatmap";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "columns", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "rows", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "land", kind: "scalar", T: 12 /* ScalarType.BYTES */ },
+    { no: 4, name: "changes", kind: "scalar", T: 13 /* ScalarType.UINT32 */, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ActivityHeatmap {
+    return new ActivityHeatmap().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ActivityHeatmap {
+    return new ActivityHeatmap().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ActivityHeatmap {
+    return new ActivityHeatmap().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ActivityHeatmap | PlainMessage<ActivityHeatmap> | undefined, b: ActivityHeatmap | PlainMessage<ActivityHeatmap> | undefined): boolean {
+    return proto3.util.equals(ActivityHeatmap, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.CountryActivity
+ */
+export class CountryActivity extends Message<CountryActivity> {
+  /**
+   * @generated from field: string country_id = 1;
+   */
+  countryId = "";
+
+  /**
+   * @generated from field: uint32 held = 2;
+   */
+  held = 0;
+
+  /**
+   * Tiles taken for it, and from it, in the span. A reassign, a paint and a revert are not counted.
+   *
+   * @generated from field: uint32 won = 3;
+   */
+  won = 0;
+
+  /**
+   * @generated from field: uint32 lost = 4;
+   */
+  lost = 0;
+
+  constructor(data?: PartialMessage<CountryActivity>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.CountryActivity";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "held", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "won", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 4, name: "lost", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CountryActivity {
+    return new CountryActivity().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CountryActivity {
+    return new CountryActivity().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CountryActivity {
+    return new CountryActivity().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CountryActivity | PlainMessage<CountryActivity> | undefined, b: CountryActivity | PlainMessage<CountryActivity> | undefined): boolean {
+    return proto3.util.equals(CountryActivity, a, b);
+  }
+}
+
+/**
  * @generated from message planet.v1.GetReplayRequest
  */
 export class GetReplayRequest extends Message<GetReplayRequest> {

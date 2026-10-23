@@ -27,6 +27,59 @@ service AdminService {
   rpc GrantCharges(GrantChargesRequest) returns (GrantChargesResponse);
 
   rpc GetReplay(GetReplayRequest) returns (GetReplayResponse);
+
+  // What players did on the map over a span back from now, from the ledger in memory, and the map as it is now.
+  rpc GetActivity(GetActivityRequest) returns (GetActivityResponse);
+}
+
+message GetActivityRequest {
+  // Unset is 24 hours; at most 72 hours, the ledger's retention.
+  google.protobuf.Duration span = 1;
+}
+
+message GetActivityResponse {
+  // The start of the first slot. The last slot ends at `until`, and is still filling.
+  google.protobuf.Timestamp since = 1;
+  google.protobuf.Timestamp until = 2;
+  google.protobuf.Duration step = 3;
+  // Oldest first, one per step.
+  repeated ActivitySlot slots = 4;
+  // The accounts, and the addresses with no account, that took a tile in the span.
+  uint32 players = 5;
+  ActivityHeatmap heatmap = 6;
+  // Every country that holds a tile now, or won or lost one in the span: most held first.
+  repeated CountryActivity countries = 7;
+  // The live map streams open now, and the accounts or networks they are opened by.
+  uint32 streams = 8;
+  uint32 watchers = 9;
+  uint32 map_tiles = 10;
+}
+
+message ActivitySlot {
+  // Clicks that took a tile or struck a shield.
+  uint32 clicks = 1;
+  // Tiles that changed hands: by a click, a spread, an enclosure or a bomb.
+  uint32 tiles = 2;
+  // The accounts, and the addresses with no account, that took a tile in the slot.
+  uint32 players = 3;
+}
+
+// A grid of latitudes and longitudes: row 0 is the north pole, column 0 is 180° west, one cell per degree.
+message ActivityHeatmap {
+  uint32 columns = 1;
+  uint32 rows = 2;
+  // One byte per cell, row by row: the tiles drawn in it, at most 255. A tile far north or south is drawn in each cell it covers.
+  bytes land = 3;
+  // Per cell, row by row: how often a tile drawn in it changed hands in the span.
+  repeated uint32 changes = 4;
+}
+
+message CountryActivity {
+  string country_id = 1;
+  uint32 held = 2;
+  // Tiles taken for it, and from it, in the span. A reassign, a paint and a revert are not counted.
+  uint32 won = 3;
+  uint32 lost = 4;
 }
 
 message GetReplayRequest {

@@ -13,10 +13,15 @@ import {
     RemoveMessageResponse,
 } from "./gen/grpc/chat/v1/admin_pb.ts"
 import {
+    ActivityHeatmap,
+    ActivitySlot,
     BanPlayerRequest,
     BanPlayerResponse,
+    CountryActivity,
     FindPlayersRequest,
     FindPlayersResponse,
+    GetActivityRequest,
+    GetActivityResponse,
     GetReplayRequest,
     GetReplayResponse,
     GrantChargesRequest,
@@ -43,14 +48,17 @@ import {
     ReconcileTitlesResponse,
 } from "./gen/grpc/player/v1/admin_pb.ts"
 import {Author, GetAuthorsRequest, GetAuthorsResponse} from "./gen/grpc/player/v1/internal_pb.ts"
-import {CountryTiles, Stats} from "./gen/grpc/player/v1/player_pb.ts"
+import {CountryTiles, GetRosterRequest, GetRosterResponse, RosterEntry, Stats} from "./gen/grpc/player/v1/player_pb.ts"
 import {
     DecideReportRequest,
     DecideReportResponse,
     ListNotesRequest,
     ListNotesResponse,
+    ListReportsRequest,
+    ListReportsResponse,
     Note,
     NoteKind,
+    Report,
 } from "./gen/grpc/support/v1/admin_pb.ts"
 import {ChatAdmin, Clients, PlanetAdmin, PlayerAdmin, SupportAdmin} from "./clients.ts"
 
@@ -113,6 +121,32 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
             id: "note-idea", kind: NoteKind.SUGGESTION, accountId: "", text: "more flags",
             submittedAt: Timestamp.fromDate(new Date(AT.getTime() - 60_000)),
         }),
+    ]
+
+    reports = [new Report({id: "report-1", reporterAccountId: "account-reporter", reportedAccountId: "account-reported"})]
+    // A day of 15-minute slots, the last one still filling, and one cell of the map changing hands on 4 tiles.
+    activity = new GetActivityResponse({
+        since: Timestamp.fromDate(new Date(AT.getTime() - 95 * 900_000)),
+        until: Timestamp.fromDate(new Date(AT.getTime() + 300_000)),
+        step: new Duration({seconds: 900n}),
+        slots: Array.from({length: 96}, (_, i) => new ActivitySlot({clicks: 10 + (i % 8), tiles: 12, players: 3})),
+        players: 42,
+        heatmap: new ActivityHeatmap({
+            columns: 360, rows: 180,
+            land: Uint8Array.from({length: 360 * 180}, (_, cell) => cell === 44 * 360 + 182 ? 4 : 0),
+            changes: Array.from({length: 360 * 180}, (_, cell) => cell === 44 * 360 + 182 ? 30 : 0),
+        }),
+        countries: [
+            new CountryActivity({countryId: "fr", held: 1200, won: 300, lost: 40}),
+            new CountryActivity({countryId: "dz", held: 800, won: 50, lost: 290}),
+        ],
+        streams: 38,
+        watchers: 25,
+        mapTiles: 262119,
+    })
+    roster = [
+        new RosterEntry({key: "1", accountId: ACCOUNT, name: "BraveFox42", countryId: "fr"}),
+        new RosterEntry({key: "2", accountId: "account-guest", name: "guest_a1b2c3", countryId: "dz", guest: true}),
     ]
 
     clients(): Clients {
@@ -219,6 +253,14 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         }))
     }
 
+    getActivity(request: PartialMessage<GetActivityRequest>): Promise<GetActivityResponse> {
+        return this.answer("getActivity", request, this.activity)
+    }
+
+    getRoster(request: PartialMessage<GetRosterRequest>): Promise<GetRosterResponse> {
+        return this.answer("getRoster", request, new GetRosterResponse({entries: this.roster}))
+    }
+
     reconcileTitles(request: PartialMessage<ReconcileTitlesRequest>): Promise<ReconcileTitlesResponse> {
         return this.answer("reconcileTitles", request, new ReconcileTitlesResponse({granted: 12, revoked: 3}))
     }
@@ -237,6 +279,10 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         const kind = request.kind ?? NoteKind.UNSPECIFIED
         const notes = this.notes.filter(note => kind === NoteKind.UNSPECIFIED || note.kind === kind)
         return this.answer("listNotes", request, new ListNotesResponse({notes}))
+    }
+
+    listReports(request: PartialMessage<ListReportsRequest>): Promise<ListReportsResponse> {
+        return this.answer("listReports", request, new ListReportsResponse({reports: this.reports}))
     }
 
     decideReport(request: PartialMessage<DecideReportRequest>): Promise<DecideReportResponse> {

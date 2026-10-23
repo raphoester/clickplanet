@@ -60,6 +60,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/postgres_ledger_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/publishing_ledger_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/activity_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/anonymize_takes_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/ban_player_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/ban_player_usecase/audit_ban"
@@ -79,6 +80,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/click_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/drop_bomb_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/find_players_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_activity_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_bonus_rules_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_budget_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_charges_handler"
@@ -211,7 +213,8 @@ func NewModule(config Config) cpbootstrap.Module {
 					slog.Int("subjects", bank.Subjects()))
 			}
 
-			bombRules := bonuses.NewBombRules(config.Bonus.Bomb, geography.Spacing())
+			spacing := geography.Spacing()
+			bombRules := bonuses.NewBombRules(config.Bonus.Bomb, spacing)
 
 			var clickUseCase click_usecase.IUseCase = click_usecase.New(tilesChecker, writer, countries)
 			clickUseCase = spread_click.New(clickUseCase, charges, geography, writer, registry)
@@ -267,6 +270,8 @@ func NewModule(config Config) cpbootstrap.Module {
 				GrantChargesHandler: grant_charges_handler.New(
 					audit_grant_charges.New(grant_charges_usecase.New(charges), props.Logger)),
 				GetReplayHandler: get_replay_handler.New(replay_usecase.New(takings, tilesChecker, tilesStorage, clock)),
+				GetActivityHandler: get_activity_handler.New(activity_usecase.New(
+					takings, clicks.NewGrid(geography, spacing), tilesStorage, registry, clock), config.GameMap.MaxIndex),
 			}
 
 			if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {

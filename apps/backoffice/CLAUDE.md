@@ -8,6 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 reachable only over SSH before, and **every admin method has a place on it**. One page at a time, picked in the
 burger menu (see [The menu](#the-menu)), by group:
 
+- **Overview**: Home, how the game is doing now and over the last hours (see [The home page](#the-home-page)).
 - **Feedback**: Ideas and bugs, the notes players send, read only, each with who sent it (see
   [Who sent a note](#who-sent-a-note)) and its photos and videos (see
   [A note's photos and videos](#a-notes-photos-and-videos)).
@@ -101,8 +102,37 @@ title (`titleOf`), shown above it. `Console` in `App.tsx` shows the page picked.
 - **Picking Players while on it goes back to the list.** A report's "Every tool →" and a note's "Open player" go to
   Players with its account open (`OpenPlayer`).
 - **The page shown is in the address bar** (`#/reports`, `usePage`): a reload or a link opens it again, and Back
-  goes to the page before. An address that names no page opens Ideas and bugs. Only the page is kept, not the
+  goes to the page before. An address that names no page opens Home. Only the page is kept, not the
   player open on it.
+
+## The home page
+
+`src/home/`, the page the backoffice opens on. Three reads at once, each failing alone: `planet.v1.AdminService/GetActivity`
+for a span (the backend's `CLAUDE.md`, "GetActivity"), `player.v1.AdminService/GetRoster` for who plays now, and
+`ListReports` (open only) with `ListNotes` (the last 24 hours) for what waits for the operator. Up to 500 of each are
+counted, and 500 reads "500+".
+
+- **A span is picked above everything it scopes**: 6 hours, 24 hours (first) or 3 days. Every minute the page reads
+  all three again (`REFRESH_MS`), and Reload does now. **The last answer stays shown, dimmed, while the next is read**
+  (`useLast`), so a refresh never empties the page.
+- **The tiles**: who plays now (and how many signed in), the map tabs open now (and the networks or accounts they come
+  from), the clicks and the players of the span, the open reports and the notes of the day. The last two go to their
+  page.
+- **Two charts of one series each** (`ActivityCharts`): the clicks a slot, and the players taking tiles a slot. Never
+  one chart with two scales. A hover on either reads the same slot on both, in the line above them; the peak is
+  labelled; the slot still filling is a hollow dot, off the line, since its count is short. "Table" lists every slot.
+- **The heatmap** (`Heatmap`): the grid `GetActivity` answers, drawn on a canvas one pixel a cell and scaled by the
+  browser. Land is grey, sea paler, and a cell where tiles changed hands is colored by **its changes per tile**
+  (`heatOf`), so a cell far north, which holds fewer tiles, is not read as calmer. The scale is logarithmic from the
+  calmest cell to the busiest. The colors are tokens (`--map-*`, `--heat-0` to `--heat-3`), read when it draws, and
+  it draws again when the color scheme changes. The line under it names the busiest cell, or the cell under the
+  pointer.
+- **The countries** (`CountryTable`): the ten that hold the most, then all of them, with their share of the map and
+  the tiles they won and lost by play in the span; Won and Lost order them by that.
+- **Playing now** (`PlayingNow`): each signed-in player, which opens it on the player page (`OpenPlayer`), the guests
+  as a count, and the flags they play for.
+- **What it does not show yet**: HTTP requests. The clicks come from the ledger, which keeps 72 hours and survives a
+  restart; the backend's request counters are in-process, and the metrics poller's history is files on the server.
 
 ## Who sent a note
 
@@ -294,6 +324,7 @@ src/
   signIn/           callbackOf, SignInButton, SignInCallback, SignOutButton
   components/       Menu, ConfirmAction, FailureNotice, AccountId and Copyable (with Copy), Country, CountryField,
                     Fact, Person, When
+  home/             Home: the tiles, ActivityCharts, Heatmap, CountryTable, PlayingNow, over activity.ts and heat.ts
   support/          Ideas and bugs: NoteList, Attachments, labels.ts (names, outcomes, device lines, sizes)
   chat/             Conversation and TheirMessages, which reports/ and players/ show, over chatPages.ts (a page of
                     ListMessages, the parties a report names) and theirConversations.ts

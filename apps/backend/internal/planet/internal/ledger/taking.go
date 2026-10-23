@@ -92,6 +92,14 @@ func (t Taking) Cleared() bool {
 	return t.Country == ""
 }
 
+func (t Taking) Taker() Caller {
+	if t.Account != "" {
+		return Caller{Account: t.Account}
+	}
+
+	return Caller{Scope: t.Scope}
+}
+
 func (c Caller) Made(taking Taking) bool {
 	if c.Account != "" {
 		return taking.Account == c.Account

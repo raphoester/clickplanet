@@ -292,6 +292,22 @@ func TestReloadingCannotRerollTheSchedule(t *testing.T) {
 	assert.Nil(t, offered(t, events), "the wait carried over the reconnect")
 }
 
+func TestTheAudienceIsTheStreamsOpenAndWhoOpenedThem(t *testing.T) {
+	registry, _ := newTestRegistry()
+
+	attend(t, registry, "scope-a")
+	attend(t, registry, "scope-a")
+	_, leave := registry.Attend("scope-b")
+	_, gone := registry.Attend("scope-c")
+	gone()
+
+	assert.Equal(t, Audience{Streams: 3, Entrants: 2}, registry.Audience(),
+		"two tabs are two streams of one entrant, and an entrant whose stream closed is not watching")
+
+	leave()
+	assert.Equal(t, Audience{Streams: 2, Entrants: 1}, registry.Audience())
+}
+
 func TestAScheduleIsForgottenOnceTheCallerHasBeenGoneLongEnough(t *testing.T) {
 	registry, clock := newTestRegistry()
 

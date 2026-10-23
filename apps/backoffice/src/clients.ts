@@ -9,7 +9,7 @@ import {AdminService as SupportAdminService} from "./gen/grpc/support/v1/admin_c
 export type ChatAdmin = Pick<PromiseClient<typeof ChatAdminService>, "getMessage" | "listMessages" | "removeMessage" | "mute">
 export type PlanetAdmin = PromiseClient<typeof PlanetAdminService>
 export type PlayerAdmin = PromiseClient<typeof PlayerAdminService>
-export type SupportAdmin = Pick<PromiseClient<typeof SupportAdminService>, "listNotes" | "decideReport">
+export type SupportAdmin = Pick<PromiseClient<typeof SupportAdminService>, "listNotes" | "listReports" | "decideReport">
 
 export type Clients = {chat: ChatAdmin, planet: PlanetAdmin, player: PlayerAdmin, support: SupportAdmin}
 

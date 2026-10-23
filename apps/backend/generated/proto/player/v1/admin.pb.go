@@ -311,12 +311,13 @@ const file_player_v1_admin_proto_rawDesc = "" +
 	"worn_title\x18\n" +
 	" \x01(\v2\x10.player.v1.TitleR\twornTitle\x124\n" +
 	"\tplays_for\x18\v \x03(\v2\x17.player.v1.CountryTilesR\bplaysFor\x12<\n" +
-	"\rplays_against\x18\f \x03(\v2\x17.player.v1.CountryTilesR\fplaysAgainst2\x85\x02\n" +
+	"\rplays_against\x18\f \x03(\v2\x17.player.v1.CountryTilesR\fplaysAgainst2\xcd\x02\n" +
 	"\fAdminService\x12X\n" +
 	"\x0fReconcileTitles\x12!.player.v1.ReconcileTitlesRequest\x1a\".player.v1.ReconcileTitlesResponse\x12I\n" +
 	"\n" +
 	"GetAuthors\x12\x1c.player.v1.GetAuthorsRequest\x1a\x1d.player.v1.GetAuthorsResponse\x12P\n" +
-	"\tGetPlayer\x12 .player.v1.AdminGetPlayerRequest\x1a!.player.v1.AdminGetPlayerResponseB\xb2\x01\n" +
+	"\tGetPlayer\x12 .player.v1.AdminGetPlayerRequest\x1a!.player.v1.AdminGetPlayerResponse\x12F\n" +
+	"\tGetRoster\x12\x1b.player.v1.GetRosterRequest\x1a\x1c.player.v1.GetRosterResponseB\xb2\x01\n" +
 	"\rcom.player.v1B\n" +
 	"AdminProtoP\x01ZPgithub.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1;playerv1\xa2\x02\x03PXX\xaa\x02\tPlayer.V1\xca\x02\tPlayer\\V1\xe2\x02\x15Player\\V1\\GPBMetadata\xea\x02\n" +
 	"Player::V1b\x06proto3"
@@ -344,26 +345,30 @@ var file_player_v1_admin_proto_goTypes = []any{
 	(*Title)(nil),                   // 6: player.v1.Title
 	(*CountryTiles)(nil),            // 7: player.v1.CountryTiles
 	(*GetAuthorsRequest)(nil),       // 8: player.v1.GetAuthorsRequest
-	(*GetAuthorsResponse)(nil),      // 9: player.v1.GetAuthorsResponse
+	(*GetRosterRequest)(nil),        // 9: player.v1.GetRosterRequest
+	(*GetAuthorsResponse)(nil),      // 10: player.v1.GetAuthorsResponse
+	(*GetRosterResponse)(nil),       // 11: player.v1.GetRosterResponse
 }
 var file_player_v1_admin_proto_depIdxs = []int32{
-	4, // 0: player.v1.AdminGetPlayerResponse.color:type_name -> player.v1.NameColor
-	5, // 1: player.v1.AdminGetPlayerResponse.stats:type_name -> player.v1.Stats
-	6, // 2: player.v1.AdminGetPlayerResponse.titles:type_name -> player.v1.Title
-	6, // 3: player.v1.AdminGetPlayerResponse.worn_title:type_name -> player.v1.Title
-	7, // 4: player.v1.AdminGetPlayerResponse.plays_for:type_name -> player.v1.CountryTiles
-	7, // 5: player.v1.AdminGetPlayerResponse.plays_against:type_name -> player.v1.CountryTiles
-	0, // 6: player.v1.AdminService.ReconcileTitles:input_type -> player.v1.ReconcileTitlesRequest
-	8, // 7: player.v1.AdminService.GetAuthors:input_type -> player.v1.GetAuthorsRequest
-	2, // 8: player.v1.AdminService.GetPlayer:input_type -> player.v1.AdminGetPlayerRequest
-	1, // 9: player.v1.AdminService.ReconcileTitles:output_type -> player.v1.ReconcileTitlesResponse
-	9, // 10: player.v1.AdminService.GetAuthors:output_type -> player.v1.GetAuthorsResponse
-	3, // 11: player.v1.AdminService.GetPlayer:output_type -> player.v1.AdminGetPlayerResponse
-	9, // [9:12] is the sub-list for method output_type
-	6, // [6:9] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	4,  // 0: player.v1.AdminGetPlayerResponse.color:type_name -> player.v1.NameColor
+	5,  // 1: player.v1.AdminGetPlayerResponse.stats:type_name -> player.v1.Stats
+	6,  // 2: player.v1.AdminGetPlayerResponse.titles:type_name -> player.v1.Title
+	6,  // 3: player.v1.AdminGetPlayerResponse.worn_title:type_name -> player.v1.Title
+	7,  // 4: player.v1.AdminGetPlayerResponse.plays_for:type_name -> player.v1.CountryTiles
+	7,  // 5: player.v1.AdminGetPlayerResponse.plays_against:type_name -> player.v1.CountryTiles
+	0,  // 6: player.v1.AdminService.ReconcileTitles:input_type -> player.v1.ReconcileTitlesRequest
+	8,  // 7: player.v1.AdminService.GetAuthors:input_type -> player.v1.GetAuthorsRequest
+	2,  // 8: player.v1.AdminService.GetPlayer:input_type -> player.v1.AdminGetPlayerRequest
+	9,  // 9: player.v1.AdminService.GetRoster:input_type -> player.v1.GetRosterRequest
+	1,  // 10: player.v1.AdminService.ReconcileTitles:output_type -> player.v1.ReconcileTitlesResponse
+	10, // 11: player.v1.AdminService.GetAuthors:output_type -> player.v1.GetAuthorsResponse
+	3,  // 12: player.v1.AdminService.GetPlayer:output_type -> player.v1.AdminGetPlayerResponse
+	11, // 13: player.v1.AdminService.GetRoster:output_type -> player.v1.GetRosterResponse
+	10, // [10:14] is the sub-list for method output_type
+	6,  // [6:10] is the sub-list for method input_type
+	6,  // [6:6] is the sub-list for extension type_name
+	6,  // [6:6] is the sub-list for extension extendee
+	0,  // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_player_v1_admin_proto_init() }

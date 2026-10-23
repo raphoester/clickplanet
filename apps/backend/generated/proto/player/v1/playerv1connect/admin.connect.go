@@ -40,6 +40,8 @@ const (
 	AdminServiceGetAuthorsProcedure = "/player.v1.AdminService/GetAuthors"
 	// AdminServiceGetPlayerProcedure is the fully-qualified name of the AdminService's GetPlayer RPC.
 	AdminServiceGetPlayerProcedure = "/player.v1.AdminService/GetPlayer"
+	// AdminServiceGetRosterProcedure is the fully-qualified name of the AdminService's GetRoster RPC.
+	AdminServiceGetRosterProcedure = "/player.v1.AdminService/GetRoster"
 )
 
 // AdminServiceClient is a client for the player.v1.AdminService service.
@@ -49,6 +51,8 @@ type AdminServiceClient interface {
 	GetAuthors(context.Context, *connect.Request[v1.GetAuthorsRequest]) (*connect.Response[v1.GetAuthorsResponse], error)
 	// Everything the game keeps about one account, a guest's too. NotFound for an account it keeps nothing about.
 	GetPlayer(context.Context, *connect.Request[v1.AdminGetPlayerRequest]) (*connect.Response[v1.AdminGetPlayerResponse], error)
+	// PlayerService/GetRoster, for the admin page's home: who is playing now.
+	GetRoster(context.Context, *connect.Request[v1.GetRosterRequest]) (*connect.Response[v1.GetRosterResponse], error)
 }
 
 // NewAdminServiceClient constructs a client for the player.v1.AdminService service. By default, it
@@ -80,6 +84,12 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("GetPlayer")),
 			connect.WithClientOptions(opts...),
 		),
+		getRoster: connect.NewClient[v1.GetRosterRequest, v1.GetRosterResponse](
+			httpClient,
+			baseURL+AdminServiceGetRosterProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("GetRoster")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -88,6 +98,7 @@ type adminServiceClient struct {
 	reconcileTitles *connect.Client[v1.ReconcileTitlesRequest, v1.ReconcileTitlesResponse]
 	getAuthors      *connect.Client[v1.GetAuthorsRequest, v1.GetAuthorsResponse]
 	getPlayer       *connect.Client[v1.AdminGetPlayerRequest, v1.AdminGetPlayerResponse]
+	getRoster       *connect.Client[v1.GetRosterRequest, v1.GetRosterResponse]
 }
 
 // ReconcileTitles calls player.v1.AdminService.ReconcileTitles.
@@ -105,6 +116,11 @@ func (c *adminServiceClient) GetPlayer(ctx context.Context, req *connect.Request
 	return c.getPlayer.CallUnary(ctx, req)
 }
 
+// GetRoster calls player.v1.AdminService.GetRoster.
+func (c *adminServiceClient) GetRoster(ctx context.Context, req *connect.Request[v1.GetRosterRequest]) (*connect.Response[v1.GetRosterResponse], error) {
+	return c.getRoster.CallUnary(ctx, req)
+}
+
 // AdminServiceHandler is an implementation of the player.v1.AdminService service.
 type AdminServiceHandler interface {
 	ReconcileTitles(context.Context, *connect.Request[v1.ReconcileTitlesRequest]) (*connect.Response[v1.ReconcileTitlesResponse], error)
@@ -112,6 +128,8 @@ type AdminServiceHandler interface {
 	GetAuthors(context.Context, *connect.Request[v1.GetAuthorsRequest]) (*connect.Response[v1.GetAuthorsResponse], error)
 	// Everything the game keeps about one account, a guest's too. NotFound for an account it keeps nothing about.
 	GetPlayer(context.Context, *connect.Request[v1.AdminGetPlayerRequest]) (*connect.Response[v1.AdminGetPlayerResponse], error)
+	// PlayerService/GetRoster, for the admin page's home: who is playing now.
+	GetRoster(context.Context, *connect.Request[v1.GetRosterRequest]) (*connect.Response[v1.GetRosterResponse], error)
 }
 
 // NewAdminServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -139,6 +157,12 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(adminServiceMethods.ByName("GetPlayer")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServiceGetRosterHandler := connect.NewUnaryHandler(
+		AdminServiceGetRosterProcedure,
+		svc.GetRoster,
+		connect.WithSchema(adminServiceMethods.ByName("GetRoster")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/player.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AdminServiceReconcileTitlesProcedure:
@@ -147,6 +171,8 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 			adminServiceGetAuthorsHandler.ServeHTTP(w, r)
 		case AdminServiceGetPlayerProcedure:
 			adminServiceGetPlayerHandler.ServeHTTP(w, r)
+		case AdminServiceGetRosterProcedure:
+			adminServiceGetRosterHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -166,4 +192,8 @@ func (UnimplementedAdminServiceHandler) GetAuthors(context.Context, *connect.Req
 
 func (UnimplementedAdminServiceHandler) GetPlayer(context.Context, *connect.Request[v1.AdminGetPlayerRequest]) (*connect.Response[v1.AdminGetPlayerResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.AdminService.GetPlayer is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) GetRoster(context.Context, *connect.Request[v1.GetRosterRequest]) (*connect.Response[v1.GetRosterResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.AdminService.GetRoster is not implemented"))
 }
