@@ -16,6 +16,8 @@ service AdminService {
 
   // Everything the game keeps about one account, a guest's too. NotFound for an account it keeps nothing about.
   rpc GetPlayer(AdminGetPlayerRequest) returns (AdminGetPlayerResponse);
+
+  rpc FindAuthors(FindAuthorsRequest) returns (FindAuthorsResponse);
 }
 
 message ReconcileTitlesRequest {}
@@ -23,6 +25,16 @@ message ReconcileTitlesRequest {}
 message ReconcileTitlesResponse {
   uint32 granted = 1;
   uint32 revoked = 2;
+}
+
+message FindAuthorsRequest {
+  string name = 1;
+  uint32 limit = 2;
+}
+
+message FindAuthorsResponse {
+  repeated Author authors = 1;
+  uint32 total = 2;
 }
 
 message AdminGetPlayerRequest {

@@ -34,6 +34,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/admin_get_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/admin_get_player_handler/admin_player_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/announce_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/find_authors_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/find_authors_handler/names_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_author_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_authors_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_authors_handler/authors_query"
@@ -268,7 +270,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to mount player.v1.PlayerService: %w", err)
 	}
 
-	getAuthors := get_authors_handler.New(authors_query.NewPostgresQuery(db, titleCards, clock))
+	authorsQuery := authors_query.NewPostgresQuery(db, titleCards, clock)
+	getAuthors := get_authors_handler.New(authorsQuery)
 	internalService := playerv1controller.InternalService{
 		GetAuthorHandler:  get_author_handler.New(authors),
 		GetAuthorsHandler: getAuthors,
@@ -287,6 +290,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		AdminGetPlayerHandler: admin_get_player_handler.New(
 			admin_player_query.NewPostgresQuery(db, titleCards, accounts, fronts, clock),
 		),
+		FindAuthorsHandler: find_authors_handler.New(names_query.NewPostgresQuery(db), authorsQuery),
 	}
 	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return playerv1connect.NewAdminServiceHandler(adminService, options...)

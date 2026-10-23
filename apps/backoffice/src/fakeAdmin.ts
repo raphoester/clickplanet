@@ -39,6 +39,8 @@ import {ChargesHeld} from "./gen/grpc/planet/v1/planet_pb.ts"
 import {
     AdminGetPlayerRequest,
     AdminGetPlayerResponse,
+    FindAuthorsRequest,
+    FindAuthorsResponse,
     ReconcileTitlesRequest,
     ReconcileTitlesResponse,
 } from "./gen/grpc/player/v1/admin_pb.ts"
@@ -227,6 +229,12 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         const asked = new Set(request.accountIds)
         return this.answer("getAuthors", request,
             new GetAuthorsResponse({authors: this.authors.filter(author => asked.has(author.accountId))}))
+    }
+
+    findAuthors(request: PartialMessage<FindAuthorsRequest>): Promise<FindAuthorsResponse> {
+        const name = (request.name ?? "").trim().toLowerCase()
+        const found = this.authors.filter(author => author.name.toLowerCase().includes(name))
+        return this.answer("findAuthors", request, new FindAuthorsResponse({authors: found, total: found.length}))
     }
 
     getPlayer(request: PartialMessage<AdminGetPlayerRequest>): Promise<AdminGetPlayerResponse> {

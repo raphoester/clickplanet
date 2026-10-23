@@ -1459,8 +1459,10 @@ internal/player/internal/
     get_profile_handler/  set_name_handler/  set_color_handler/  get_stats_handler/  get_author_handler/  get_player_handler/
     get_authors_handler/  get_titles_handler/  wear_title_handler/  get_fronts_handler/
     announce_handler/  leave_handler/  get_roster_handler/  listen_for_events_handler/
-    reconcile_titles_handler/  admin_get_player_handler/   AdminService's own; it serves get_authors_handler too
+    reconcile_titles_handler/  admin_get_player_handler/  find_authors_handler/   AdminService's own; it serves
+                                    get_authors_handler too
       admin_get_player_handler/admin_player_query/   PostgresQuery: what the game keeps about one account, a guest's too
+      find_authors_handler/names_query/   PostgresQuery: the accounts a part of a name finds, then authors_query names them
     get_profile_handler/profile_query/  get_stats_handler/stats_query/  get_player_handler/player_query/
     get_titles_handler/titles_query/  get_authors_handler/authors_query/   PostgresQuery: the response straight from SQL
     get_roster_handler/roster_query/    MemoryQuery: the roster, from its Lines port
@@ -1509,7 +1511,7 @@ internal/player/internal/
 - **Only a linked account may hold one.** `set_name_usecase` checks the name first, so a name no account may hold costs no call, then asks its `Accounts` port whether the caller signed in with a provider: `rpc_account_reader` calls `auth.v1.InternalService/GetAccount` over the internal listener on every `SetName` (2s timeout), since an account links at any time and a name is chosen rarely. A guest is `PermissionDenied` (`ErrNotLinked`). Auth answers `linked` false for an unknown account or an id that is not one; **a failure to ask is a real error**, the error net's `internal`, never a guest. With `auth` off that call 404s, so no name can be set.
 - **A signed-in account is given a username** when it has none, so every player who signs in has one. On `auth.v1.SignedIn` (`player-names-sign-ins`), `name_account_usecase` asks `players.GeneratedNames.Assign`, which saves with `Store.CreateProfile`: an insert that refuses an account with a profile (`ErrProfileExists`), so a name chosen at the same moment is never replaced. `random_name_generator` draws an adjective, an animal and two digits (`BraveFox42`; 40 × 40 × 90 names, every one valid under `NameOf`, which its tests pin), and a name another account holds is drawn again, 10 draws at most as for guest codes (`ErrNoFreeName`, logged; the next sign-in tries again). Postgres decides what is taken: the unique index on `name_folded` refuses the second of two accounts saving one name at once, whatever both read before. `renaming_name_account` renames the roster line at once. The player changes it with `SetName` as any name. A guest is never named: it has not signed in.
 - **The operator reads players on `player.v1.AdminService`**, for the admin page's Players (see [Operator
-  tools](#operator-tools-adminservice)). Both are reads, and neither logs nor writes anything:
+  tools](#operator-tools-adminservice)). All three are reads, and none logs or writes anything:
   - **`GetAuthors(account_ids)` is the internal service's, handler and all**: the same `get_authors_handler`
     serves both, so the admin page names a page of players exactly as the chat and the season board do, and a
     read never draws a guest code. The planet's `TopPlayers` cannot name its rows itself: planet would have to ask
@@ -1524,6 +1526,15 @@ internal/player/internal/
     `NotFound` (`admin_player_query.ErrNoPlayer`) is an account with no profile, no guest code and no stats; an id
     that is not an account is `InvalidArgument`; a failure to ask auth or planet is the error net's `internal`.
     `no-store`.
+  - **`FindAuthors(name, limit)` finds an account by a part of its name**, for the player the operator only knows
+    from the chat: the ledger lists who played in its 72 hours, and a banned player has played nothing since. The
+    part is folded as a username is (`players.FoldedOf`, the same NFKC_Casefold), so `eire` finds `EIRE`, and
+    matched anywhere in `profiles.name_folded`, or in `guest_` and the code for an account with no username, as
+    `GetAuthors` names it: a code an account went by before it chose a name finds nothing. The same name first,
+    then the names it starts, then the shortest, then by name. `limit` is 20 when 0, 500 at most, and `total`
+    counts every account found. `names_query` reads the ids (a scan of both tables: no index serves a match
+    inside a name), and `authors_query` names them, so each is the `Author` `GetAuthors` answers. An
+    empty part is `InvalidArgument` (`ErrNoName`). `no-store`.
 - **Migration `20260918190000_unicode_usernames`** moves to this rule. Every name kept before is ASCII of 3 to 20, so only length breaks the new rule: **a name over 15 is cut to its first 15 characters**, the player keeping most of it. A cut name that another would then hold, ignoring case — a name of 15 or fewer, or an older cut name (`updated_at`, then `account_id`) — is **deleted** instead, and its player chooses again; an untouched name is never the one to go. Then it fills `name_folded` with an ASCII-only `translate()` (exact for these names, in any locale), replaces the `CHECK`, and moves `profiles_name_key` to `name_folded`. The down migration deletes the names the old rule refuses, drops the column and puts the old `CHECK` and the `lower(name)` index back; cut names stay cut. `migrations_test.go` migrates to the version before, writes names, and migrates the rest.
 - **Migration `20260917180000_usernames`** deletes the profiles whose name breaks the new rule, then, of names that differ only in case, every one but the oldest (`updated_at`, then `account_id`), replaces the name `CHECK` with the new pattern and adds the unique index. No client called `SetName` before usernames existed, so nothing a player chose is lost. The down migration drops the index and puts the old `CHECK` back; the deleted rows stay deleted.
 - **A guest code names an account that chose no username**: 6 lowercase hex characters (`players.GuestCode`), shown as `guest_` and the code (`players.DisplayNameOf`). It is drawn by `random_code_generator` the first time the account is shown (`players.GuestCodes.Assign`), kept in `player.guest_codes`, and deleted with the account, which frees it. **It is unique**: the table's `guest_codes_code_key` refuses a code another account holds, the store answers `ErrGuestCodeTaken`, and `Assign` draws again, up to 10 times (`ErrNoFreeGuestCode`). An account keeps its first code: a second save for it changes nothing, so two first announces at once leave one code. **It does not change with the network**, unlike the address, and says nothing about the account or the address. A linked account with no username keeps the code it had as a guest until it picks a name.

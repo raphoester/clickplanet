@@ -28,6 +28,7 @@ export type Authors = Map<string, Author>
 export type Named = {authors: Authors, unnamed: string | undefined}
 // A page of players and who each account is.
 export type Listed = Players & Named
+export type Found = {authors: Author[], total: number}
 export type Profile = AdminGetPlayerResponse
 
 export const NO_GRANT: Grant = {refill: false, bomb: false, enclosures: 0, spreadClicks: 0, shields: 0}
@@ -82,6 +83,12 @@ export async function findPlayers(
 ): Promise<Players> {
     const answer = await planet.findPlayers({flagCountryId: flag, areaCountryId: area, limit}, {signal})
     return {players: answer.players, total: answer.total}
+}
+
+// Every account whose username or guest code holds `name`: the same name first, then the names it starts.
+export async function findAuthors(player: PlayerAdmin, name: string, limit: number, signal?: AbortSignal): Promise<Found> {
+    const answer = await player.findAuthors({name, limit}, {signal})
+    return {authors: answer.authors, total: answer.total}
 }
 
 // Each account of a page by its username or its guest code. A page whose names cannot be read is still listed.
