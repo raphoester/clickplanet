@@ -57,20 +57,10 @@ export class GetLedgerRequest extends Message<GetLedgerRequest> {
  */
 export class GetLedgerResponse extends Message<GetLedgerResponse> {
   /**
-   * @generated from field: google.protobuf.Timestamp since = 1;
-   */
-  since?: Timestamp;
-
-  /**
-   * @generated from field: google.protobuf.Timestamp until = 2;
-   */
-  until?: Timestamp;
-
-  /**
    * Oldest first: a click that took a tile or struck its shield, a tile a spread, an enclosure or a bomb took or
    * emptied, a shield placed or raised. A shield a bomb struck is left out: it changed no hands.
    *
-   * @generated from field: repeated planet.v1.LedgerChange changes = 3;
+   * @generated from field: repeated planet.v1.LedgerChange changes = 1;
    */
   changes: LedgerChange[] = [];
 
@@ -82,9 +72,7 @@ export class GetLedgerResponse extends Message<GetLedgerResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "planet.v1.GetLedgerResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "since", kind: "message", T: Timestamp },
-    { no: 2, name: "until", kind: "message", T: Timestamp },
-    { no: 3, name: "changes", kind: "message", T: LedgerChange, repeated: true },
+    { no: 1, name: "changes", kind: "message", T: LedgerChange, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetLedgerResponse {
@@ -121,16 +109,11 @@ export class LedgerChange extends Message<LedgerChange> {
   update?: TileUpdate;
 
   /**
-   * Who made it: its account, or for a change with no account its address.
+   * Who made it, to compare and not to read: "account:<id>", or "scope:<address>" for a change with no account.
    *
-   * @generated from field: string account_id = 3;
+   * @generated from field: string by = 3;
    */
-  accountId = "";
-
-  /**
-   * @generated from field: string scope = 4;
-   */
-  scope = "";
+  by = "";
 
   constructor(data?: PartialMessage<LedgerChange>) {
     super();
@@ -142,8 +125,7 @@ export class LedgerChange extends Message<LedgerChange> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "at", kind: "message", T: Timestamp },
     { no: 2, name: "update", kind: "message", T: TileUpdate },
-    { no: 3, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "scope", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "by", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): LedgerChange {

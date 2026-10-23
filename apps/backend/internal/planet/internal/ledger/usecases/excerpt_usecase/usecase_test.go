@@ -33,8 +33,6 @@ func TestAnUnsetUntilIsNowAndOnlyTheWindowIsRead(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, excerpt_usecase.Out{
-		Since: now.Add(-24 * time.Hour),
-		Until: now,
 		Lines: []ledger.Line{{
 			At: now.Add(-2 * time.Hour), By: ledger.Caller{Account: "acc"},
 			Update: clicks.TileUpdate{Tile: 1, Value: "de", Previous: "fr", Clicked: true},

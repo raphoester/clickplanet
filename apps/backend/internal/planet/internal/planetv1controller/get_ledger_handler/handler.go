@@ -8,6 +8,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/excerpt_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/planetmessage"
 )
@@ -47,16 +48,19 @@ func (h GetLedgerHandler) GetLedger(
 	changes := make([]*planetv1.LedgerChange, len(out.Lines))
 	for i, line := range out.Lines {
 		changes[i] = &planetv1.LedgerChange{
-			At:        timestamppb.New(line.At),
-			Update:    planetmessage.TileUpdate(line.Update).GetTileUpdate(),
-			AccountId: line.By.Account,
-			Scope:     line.By.Scope,
+			At:     timestamppb.New(line.At),
+			Update: planetmessage.TileUpdate(line.Update).GetTileUpdate(),
+			By:     byOf(line.By),
 		}
 	}
 
-	return connect.NewResponse(&planetv1.GetLedgerResponse{
-		Since:   timestamppb.New(out.Since),
-		Until:   timestamppb.New(out.Until),
-		Changes: changes,
-	}), nil
+	return connect.NewResponse(&planetv1.GetLedgerResponse{Changes: changes}), nil
+}
+
+func byOf(caller ledger.Caller) string {
+	if caller.Account != "" {
+		return "account:" + caller.Account
+	}
+
+	return "scope:" + caller.Scope
 }

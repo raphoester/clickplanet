@@ -24,8 +24,6 @@ type In struct {
 }
 
 type Out struct {
-	Since time.Time
-	Until time.Time
 	Lines []ledger.Line
 }
 
@@ -50,5 +48,5 @@ func (u *UseCase) Execute(_ context.Context, in In) (Out, error) {
 	excerpt := ledger.NewExcerpt(in.Since, until)
 	u.ledger.Replay(excerpt.See)
 
-	return Out{Since: in.Since, Until: until, Lines: excerpt.Lines()}, nil
+	return Out{Lines: excerpt.Lines()}, nil
 }

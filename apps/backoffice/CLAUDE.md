@@ -116,8 +116,9 @@ page counts, charts and draws on its own side, so a new view of the game needs n
 failing alone:
 
 - `planet.v1.AdminService/GetLedger` for the span: every change the live stream showed, as the `TileUpdate` it sent,
-  with when and who (the backend's `CLAUDE.md`, "GetLedger"). It is asked for whole slots back from now
-  (`windowOf`): the last one starts on the step before now, and is still filling. `LONG_CALL_MS`: three days is a
+  with when and who (the backend's `CLAUDE.md`, "GetLedger"). It is asked for whole slots, from a step back to now
+  (`windowOf`, both bounds sent): the last one starts on the step before now, and is still filling. The page counts
+  from the window it asked for. `LONG_CALL_MS`: three days is a
   few MB compressed.
 - `GetTerritories` and `GetAudience` for the map now: the tiles each country holds, and the map streams open.
 - `player.v1.AdminService/GetRoster` for who plays now.
@@ -134,8 +135,8 @@ What the page does with them:
   in hours. Every minute the page reads it all again (`REFRESH_MS`), and Reload does now. **The last answer stays
   shown, dimmed, while the next is read** (`useLast`), so a refresh never empties the page.
 - **The counts** (`ledger.ts`): a click is a change marked `clicked` (a take or a strike); a tile changed hands when
-  its flag after is not its flag before; a player is who changed one, an account on every address, or an address
-  with no account.
+  its flag after is not its flag before; a player is who changed one (`by`, compared and never read), an account on
+  every address, or an address with no account.
 - **The tiles**: who plays now (and how many signed in), the map tabs open now (and the networks or accounts they come
   from), the clicks and the players of the span, the open reports and the notes of the day. The last two go to their
   page.

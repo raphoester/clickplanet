@@ -3469,10 +3469,11 @@ stream sent it. The frontend's clip generator plays it back (see its CLAUDE.md, 
   asked). A click that took a tile or struck its shield is marked `clicked`; a tile a spread, an enclosure or a bomb
   took or emptied, and a shield placed or raised, are changes of their own. A shield a bomb struck is left out: it
   changed no hands, and the blast does not say whose tile it stood on.
-  - **Who** is the account, or for a change with no account its address, as every operator tool names a player.
-    It names addresses, so it is an operator's read only: never the replay, which goes into the clips' public
+  - **Who** is the account, or for a change with no account its address, as every operator tool names a player, in
+    one string to compare and not to read: `account:<id>` or `scope:<address>`. It names addresses, so it is an operator's read only: never the replay, which goes into the clips' public
     artifacts and names nobody.
-  - **Each change is a `LedgerChange`**: when, the `TileUpdate` as the live stream sent it, and who. Plain messages
+  - **Each change is a `LedgerChange`**: when, the `TileUpdate` as the live stream sent it, and who. The answer is
+    the changes alone: the window is the caller's, so nothing of the request is sent back. Plain messages
     rather than columns of indexes, on purpose: the contract reads as what it is. Measured with production's volume
     (about 50,000 changes a day): 8 MB of JSON a day but 0.9 MB once Caddy compresses it, the same as columns or
     binary protobuf would send, decoded in about 100 ms in the browser (300 ms for 72 hours).

@@ -57,7 +57,7 @@ export function HomePage({clients = CLIENTS, onGo, places: readPlaces = loadPlac
     const inbox = useLast(inboxCall)
     const places = placesCall.state === "done" ? placesCall.value : undefined
 
-    const slots = useMemo(() => ledger === undefined ? [] : slotsOf(ledger.answer, ledger.count, ledger.span.step), [ledger])
+    const slots = useMemo(() => ledger === undefined ? [] : slotsOf(ledger.answer, ledger.window), [ledger])
     const players = useMemo(() => ledger === undefined ? 0 : playersOf(ledger.answer), [ledger])
     const countries = useMemo(
         () => ledger === undefined || map === undefined ? [] : countriesOf(ledger.answer, map.territories),
@@ -82,9 +82,7 @@ export function HomePage({clients = CLIENTS, onGo, places: readPlaces = loadPlac
                     ))}
                 </div>
                 <span className="toolbar-end">
-                    {ledger?.answer.until !== undefined && (
-                        <span className="muted">Updated {clockOf(ledger.answer.until.toDate())}</span>
-                    )}
+                    {ledger !== undefined && <span className="muted">Updated {clockOf(ledger.window.until)}</span>}
                     <button type="button" className="button" onClick={reload}>Reload</button>
                 </span>
             </div>
@@ -111,7 +109,7 @@ export function HomePage({clients = CLIENTS, onGo, places: readPlaces = loadPlac
             {ledger === undefined && ledgerCall.state === "loading" && <p className="muted">Loading…</p>}
             {ledger !== undefined && (
                 <>
-                    <ActivityCharts slots={slots} step={ledger.span.step} span={ledger.span} players={players}/>
+                    <ActivityCharts slots={slots} step={ledger.window.step} span={ledger.span} players={players}/>
                     {placesCall.state === "failed" && <FailureNotice failure={placesCall} onRetry={readPlacesAgain}/>}
                     {places !== undefined && changes !== undefined && <Heatmap places={places} changes={changes}/>}
                     {map !== undefined && <CountryTable countries={countries} mapTiles={map.tiles} span={ledger.span}/>}
@@ -154,9 +152,12 @@ function useLast<T>(call: Call<T>): T | undefined {
 }
 
 async function ledgerOf(planet: PlanetAdmin, span: Span, signal: AbortSignal) {
-    const {since, count} = windowOf(new Date(), span.hours, span.step)
-    const answer = await planet.getLedger({since: Timestamp.fromDate(since)}, {signal, timeoutMs: LONG_CALL_MS})
-    return {answer, count, span}
+    const window = windowOf(new Date(), span.hours, span.step)
+    const answer = await planet.getLedger(
+        {since: Timestamp.fromDate(window.since), until: Timestamp.fromDate(window.until)},
+        {signal, timeoutMs: LONG_CALL_MS},
+    )
+    return {answer, window, span}
 }
 
 async function mapOf(planet: PlanetAdmin, signal: AbortSignal) {

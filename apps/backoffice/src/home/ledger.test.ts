@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest"
-import {FakeAdmin} from "../fakeAdmin.ts"
+import {AT, FakeAdmin} from "../fakeAdmin.ts"
 import {changesOf, countriesBy, countriesOf, playersOf, slotsOf, windowOf} from "./ledger.ts"
 
 const MINUTE = 60_000
@@ -8,8 +8,9 @@ describe("windowOf", () => {
     it("ends on the slot still filling, and starts as many slots back as the span holds", () => {
         const until = new Date("2026-10-23T12:07:00Z")
 
-        expect(windowOf(until, 1, 5 * MINUTE)).toEqual({since: new Date("2026-10-23T11:10:00Z"), count: 12})
-        expect(windowOf(until, 24, 15 * MINUTE)).toEqual({since: new Date("2026-10-22T12:15:00Z"), count: 96})
+        expect(windowOf(until, 1, 5 * MINUTE)).toEqual({since: new Date("2026-10-23T11:10:00Z"), until, count: 12, step: 5 * MINUTE})
+        expect(windowOf(until, 24, 15 * MINUTE).since).toEqual(new Date("2026-10-22T12:15:00Z"))
+        expect(windowOf(until, 24, 15 * MINUTE).count).toBe(96)
     })
 })
 
@@ -18,7 +19,7 @@ describe("the ledger's counts", () => {
     const ledger = new FakeAdmin().ledger
 
     it("puts each change in its slot: a click is counted, and a tile that changed hands counts its taker", () => {
-        const slots = slotsOf(ledger, 3, 2 * MINUTE)
+        const slots = slotsOf(ledger, {since: new Date(AT.getTime() - 60 * MINUTE), until: AT, count: 3, step: 2 * MINUTE})
 
         expect(slots.map(slot => [slot.clicks, slot.tiles, slot.players])).toEqual([
             [1, 1, 1],

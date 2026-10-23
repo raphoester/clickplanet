@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import {Code} from "@connectrpc/connect"
 import {cleanup, fireEvent, render, screen, within} from "@testing-library/react"
-import {afterEach, describe, expect, it, vi} from "vitest"
-import {ACCOUNT, FakeAdmin} from "../fakeAdmin.ts"
+import {afterEach, describe, expect, it, onTestFinished, vi} from "vitest"
+import {ACCOUNT, AT, FakeAdmin} from "../fakeAdmin.ts"
 import {OpenPlayer} from "../navigation.ts"
 import {HomePage} from "./HomePage.tsx"
 import {Places} from "./places.ts"
@@ -34,6 +34,10 @@ function tile(label: string): HTMLElement {
 
 describe("the home page", () => {
     it("counts the clicks and the players of the span from the ledger, beside who plays and what waits", async () => {
+        vi.useFakeTimers({now: AT, toFake: ["Date"]})
+        onTestFinished(() => {
+            vi.useRealTimers()
+        })
         const admin = new FakeAdmin()
         show(admin)
 
@@ -47,7 +51,7 @@ describe("the home page", () => {
         expect(within(tile("Notes today")).getByText("2")).toBeTruthy()
     })
 
-    it("asks the ledger for whole slots back from now, and again for the span picked", async () => {
+    it("asks the ledger for whole slots back from now to now, and again for the span picked", async () => {
         vi.useFakeTimers({now: new Date("2026-10-23T12:07:00Z"), toFake: ["Date"]})
         try {
             const admin = new FakeAdmin()
@@ -57,11 +61,12 @@ describe("the home page", () => {
             fireEvent.click(screen.getByRole("button", {name: "6 hours"}))
             await screen.findByText(/^Last 6 hours:/)
 
-            const asked = admin.askedFor("getLedger") as {since: {toDate(): Date}}[]
-            expect(asked.map(request => request.since.toDate().toISOString())).toEqual([
-                "2026-10-22T12:15:00.000Z",
-                "2026-10-23T06:10:00.000Z",
-            ])
+            const asked = admin.askedFor("getLedger") as {since: {toDate(): Date}, until: {toDate(): Date}}[]
+            expect(asked.map(request => [request.since.toDate().toISOString(), request.until.toDate().toISOString()]))
+                .toEqual([
+                    ["2026-10-22T12:15:00.000Z", "2026-10-23T12:07:00.000Z"],
+                    ["2026-10-23T06:10:00.000Z", "2026-10-23T12:07:00.000Z"],
+                ])
         } finally {
             vi.useRealTimers()
         }

@@ -46,20 +46,17 @@ message GetLedgerRequest {
 }
 
 message GetLedgerResponse {
-  google.protobuf.Timestamp since = 1;
-  google.protobuf.Timestamp until = 2;
   // Oldest first: a click that took a tile or struck its shield, a tile a spread, an enclosure or a bomb took or
   // emptied, a shield placed or raised. A shield a bomb struck is left out: it changed no hands.
-  repeated LedgerChange changes = 3;
+  repeated LedgerChange changes = 1;
 }
 
 message LedgerChange {
   google.protobuf.Timestamp at = 1;
   // As the live stream sent it.
   TileUpdate update = 2;
-  // Who made it: its account, or for a change with no account its address.
-  string account_id = 3;
-  string scope = 4;
+  // Who made it, to compare and not to read: "account:<id>", or "scope:<address>" for a change with no account.
+  string by = 3;
 }
 
 message GetAudienceRequest {}

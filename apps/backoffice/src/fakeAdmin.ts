@@ -70,11 +70,11 @@ export const AT = new Date("2026-10-18T12:00:00Z")
 
 export const ACCOUNT = "0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10"
 
-// A change of the fake ledger, its minutes after the ledger's since.
-function change(minutes: number, accountId: string, scope: string, update: PartialMessage<TileUpdate>): LedgerChange {
+// A change of the fake ledger, its minutes into the hour before AT.
+function change(minutes: number, by: string, update: PartialMessage<TileUpdate>): LedgerChange {
     return new LedgerChange({
         at: Timestamp.fromDate(new Date(AT.getTime() - 3600_000 + minutes * 60_000)),
-        update: new TileUpdate(update), accountId, scope,
+        update: new TileUpdate(update), by,
     })
 }
 
@@ -138,14 +138,12 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
     reports = [new Report({id: "report-1", reporterAccountId: "account-reporter", reportedAccountId: "account-reported"})]
     // Four clicks of BraveFox42 (three taken, one struck), and a tile a guest's spread took back from France.
     ledger = new GetLedgerResponse({
-        since: Timestamp.fromDate(new Date(AT.getTime() - 3600_000)),
-        until: Timestamp.fromDate(AT),
         changes: [
-            change(1, ACCOUNT, "", {tileId: 1, countryId: "fr", clicked: true}),
-            change(2, ACCOUNT, "", {tileId: 2, countryId: "fr", previousCountryId: "dz", clicked: true}),
-            change(3, "", "203.0.113.7", {tileId: 2, countryId: "dz", previousCountryId: "fr"}),
-            change(4, ACCOUNT, "", {tileId: 3, countryId: "dz", previousCountryId: "dz", clicked: true, shields: 2}),
-            change(5, ACCOUNT, "", {tileId: 4, countryId: "fr", previousCountryId: "dz", clicked: true}),
+            change(1, `account:${ACCOUNT}`, {tileId: 1, countryId: "fr", clicked: true}),
+            change(2, `account:${ACCOUNT}`, {tileId: 2, countryId: "fr", previousCountryId: "dz", clicked: true}),
+            change(3, "scope:203.0.113.7", {tileId: 2, countryId: "dz", previousCountryId: "fr"}),
+            change(4, `account:${ACCOUNT}`, {tileId: 3, countryId: "dz", previousCountryId: "dz", clicked: true, shields: 2}),
+            change(5, `account:${ACCOUNT}`, {tileId: 4, countryId: "fr", previousCountryId: "dz", clicked: true}),
         ],
     })
     territories = new GetTerritoriesResponse({
