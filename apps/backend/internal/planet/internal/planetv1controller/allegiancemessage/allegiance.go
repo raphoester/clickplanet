@@ -25,7 +25,7 @@ func Refusal(err error) (*connect.Error, bool) {
 		return nil, false
 	}
 
-	refused := connect.NewError(connect.CodeFailedPrecondition, allegiances.ErrChangedTooSoon)
+	refused := connect.NewError(connect.CodeFailedPrecondition, refusal.Reason)
 	if detail, detailErr := connect.NewErrorDetail(Encode(refusal.Flag, refusal.Until)); detailErr == nil {
 		refused.AddDetail(detail)
 	}

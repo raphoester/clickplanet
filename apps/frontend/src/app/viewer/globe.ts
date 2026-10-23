@@ -15,6 +15,7 @@ import {BORDER_LINES_URL} from "./borderLinesAsset.ts";
 import {displayPointSize, flagPaint, tilePointSize} from "./pointSize.ts";
 import {regions} from "./atlas.ts";
 import {Country} from "../../domain/countries.ts";
+import {Allegiance} from "../../domain/allegiance.ts";
 import {MapView, Rendering} from "../../domain/displaySettings.ts";
 import {
     AllegianceLockedError,
@@ -159,6 +160,7 @@ export type GlobeOptions = {
     onVPNBlocked: () => void
     onBanned: (until: number) => void
     onSessionUnavailable: () => void
+    onAllegianceLocked: (allegiance: Allegiance) => void
     onBonusTaken: (taken: BonusCatch) => void
     onBonusWon: (reward: BonusReward) => void
     onCharges: (charges: Charges) => void
@@ -212,6 +214,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         onVPNBlocked,
         onBanned,
         onSessionUnavailable,
+        onAllegianceLocked,
         onBonusTaken,
         onBonusWon,
         onCharges,
@@ -546,8 +549,9 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         playSound("click")
 
         shielder.placeShield(tile, country.code).catch((e) => {
-            if (lifetime.signal.aborted || e instanceof ShieldRefusedError || e instanceof AllegianceLockedError) return
-            reportClaimFailure(e, {onSessionUnavailable, onBanned})
+            if (lifetime.signal.aborted || e instanceof ShieldRefusedError) return
+            if (e instanceof AllegianceLockedError) onAllegianceLocked(e.allegiance)
+            else reportClaimFailure(e, {onSessionUnavailable, onBanned})
         })
     }
 
@@ -738,7 +742,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         }, (e) => {
             if (lifetime.signal.aborted) return
             applyChanges(ownership.rollback(claim))
-            if (reportClickFailure(e, {onRateLimited, onVPNBlocked, onBanned, onSessionUnavailable})) playSound("refused")
+            if (reportClickFailure(e, {onRateLimited, onVPNBlocked, onBanned, onSessionUnavailable, onAllegianceLocked})) playSound("refused")
         })
     }, listenerOptions);
 
@@ -1071,13 +1075,15 @@ export function reportClickFailure(
         onVPNBlocked: () => void,
         onBanned: (until: number) => void,
         onSessionUnavailable: () => void,
+        onAllegianceLocked: (allegiance: Allegiance) => void,
     },
 ): boolean {
     if (error instanceof RateLimitedError) handlers.onRateLimited()
     else if (error instanceof VPNBlockedError) handlers.onVPNBlocked()
     else if (error instanceof BannedError) handlers.onBanned(error.until)
     else if (error instanceof SessionUnavailableError) handlers.onSessionUnavailable()
-    else if (!(error instanceof AllegianceLockedError)) {
+    else if (error instanceof AllegianceLockedError) handlers.onAllegianceLocked(error.allegiance)
+    else {
         console.error(error)
         return false
     }

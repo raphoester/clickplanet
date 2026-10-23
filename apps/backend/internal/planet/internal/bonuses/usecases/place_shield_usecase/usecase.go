@@ -28,7 +28,7 @@ type CountryChecker interface {
 }
 
 type Allegiances interface {
-	Pledge(ctx context.Context, payer clicks.Payer, flag string) error
+	PlayError(ctx context.Context, payer clicks.Payer, flag string) error
 }
 
 type In struct {
@@ -63,7 +63,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (bonuses.Held, error) {
 	}
 
 	payer := clicks.PayerOf(ctx)
-	if err := u.allegiances.Pledge(ctx, payer, in.CountryID); err != nil {
+	if err := u.allegiances.PlayError(ctx, payer, in.CountryID); err != nil {
 		return bonuses.Held{}, err
 	}
 

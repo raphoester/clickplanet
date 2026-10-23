@@ -25,6 +25,7 @@ import {
     ChargesHeld,
     ClickBudget as ClickBudgetMessage,
     GetAllegianceResponse,
+    PledgeAllegianceResponse,
     GetBonusRulesResponse,
     GetMapResponse,
     GlobePoint,
@@ -45,6 +46,19 @@ import type {Allegiance} from "../domain/allegiance.ts"
 
 function fixedSession(token: string): SessionProvider {
     return {token: async () => token, held: () => token, identity: async () => token, heldIdentity: () => token, invalidate: () => {}}
+}
+
+function sessionMinting(token: string): SessionProvider {
+    let minted: string | undefined
+    return {
+        token: async () => (minted = token),
+        held: () => minted,
+        identity: async () => minted,
+        heldIdentity: () => minted,
+        invalidate: () => {
+            minted = undefined
+        },
+    }
 }
 
 function rotatingSession(tokens: string[]) {
@@ -178,7 +192,8 @@ function bonusReads() {
     return {
         getBonusRules: vi.fn().mockResolvedValue(new GetBonusRulesResponse({blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3})),
         getCharges: vi.fn().mockResolvedValue({charges: new ChargesHeld()}),
-        getAllegiance: vi.fn().mockResolvedValue(new GetAllegianceResponse()),
+        getAllegiance: vi.fn().mockResolvedValue(new GetAllegianceResponse({allegiance: new AllegianceMessage({countryId: "fr"})})),
+        pledgeAllegiance: vi.fn().mockResolvedValue(new PledgeAllegianceResponse()),
     }
 }
 
@@ -1532,20 +1547,65 @@ describe("PlanetBackend allegiance", () => {
         backend.close()
     })
 
-    it("reads it again after a click goes out for another flag, and not for the same one", async () => {
+    it("pledges the flag clicked for before the first click of an account that holds none, and only then", async () => {
+        const calls: string[] = []
         const getAllegiance = vi.fn()
-            .mockResolvedValueOnce(held("fr"))
-            .mockResolvedValue(held("de", 1_700_000_000_000))
+            .mockImplementationOnce(async () => new GetAllegianceResponse())
+            .mockImplementationOnce(async () => new GetAllegianceResponse())
+            .mockImplementation(async () => held("de"))
+        const pledgeAllegiance = vi.fn().mockImplementation(async () => {
+            calls.push("pledge")
+            return new PledgeAllegianceResponse()
+        })
+        const click = vi.fn().mockImplementation(async () => {
+            calls.push("click")
+            return {}
+        })
+        const session = sessionMinting("session-1")
+        const backend = new PlanetBackend(clientWith({getAllegiance, pledgeAllegiance, click}), 1_000, session)
+        const seen = follow(backend)
+
+        await Promise.all([backend.clickTile(7, "de"), backend.clickTile(8, "de")])
+        await backend.clickTile(9, "de")
+
+        expect(calls).toEqual(["pledge", "click", "click", "click"])
+        expect(pledgeAllegiance.mock.calls[0][0]).toEqual({countryId: "de"})
+        expect((pledgeAllegiance.mock.calls[0][1] as {headers: Headers}).headers.get(SESSION_HEADER)).toBe("session-1")
+        expect(seen.at(-1)).toEqual({countryId: "de"})
+        backend.close()
+    })
+
+    it("pledges nothing before the click of an account that holds a flag", async () => {
+        const getAllegiance = vi.fn().mockResolvedValue(held("fr"))
+        const pledgeAllegiance = vi.fn()
         const click = vi.fn().mockResolvedValue({})
-        const backend = new PlanetBackend(clientWith({getAllegiance, click}), 1_000, fixedSession("session-1"))
+        const backend = new PlanetBackend(clientWith({getAllegiance, pledgeAllegiance, click}), 1_000, fixedSession("session-1"))
         const seen = follow(backend)
         await vi.waitFor(() => expect(seen.at(-1)).toEqual({countryId: "fr"}))
 
         await backend.clickTile(7, "fr")
-        expect(getAllegiance).toHaveBeenCalledTimes(1)
+        await backend.clickTile(8, "fr")
 
-        await backend.clickTile(8, "de")
-        await vi.waitFor(() => expect(seen.at(-1)).toEqual({countryId: "de", changeableAt: 1_700_000_000_000}))
+        expect(pledgeAllegiance).not.toHaveBeenCalled()
+        expect(getAllegiance).toHaveBeenCalledTimes(1)
+        expect(click).toHaveBeenCalledTimes(2)
+        backend.close()
+    })
+
+    it("sends no click when the pledge before it failed, and tries again on the next click", async () => {
+        const getAllegiance = vi.fn().mockResolvedValue(new GetAllegianceResponse())
+        const pledgeAllegiance = vi.fn()
+            .mockRejectedValueOnce(new ConnectError("bad flag", Code.InvalidArgument))
+            .mockResolvedValue(new PledgeAllegianceResponse())
+        const click = vi.fn().mockResolvedValue({})
+        const backend = new PlanetBackend(clientWith({getAllegiance, pledgeAllegiance, click}), 1_000, sessionMinting("session-1"))
+
+        await expect(backend.clickTile(7, "fr")).rejects.toBeDefined()
+        expect(click).not.toHaveBeenCalled()
+
+        await backend.clickTile(7, "fr")
+        expect(pledgeAllegiance).toHaveBeenCalledTimes(2)
+        expect(click).toHaveBeenCalledTimes(1)
         backend.close()
     })
 
@@ -1578,6 +1638,56 @@ describe("PlanetBackend allegiance", () => {
 
         expect(seen.at(-1)).toEqual({countryId: "de", changeableAt: 1_700_000_000_000})
         expect(charges.at(-1)?.shields).toBe(3)
+        backend.close()
+    })
+
+    it("pledges a flag as the identity the player holds, then holds the flag the server keeps", async () => {
+        const getAllegiance = vi.fn()
+            .mockResolvedValueOnce(held("fr"))
+            .mockResolvedValue(held("de", 1_700_000_000_000))
+        const pledgeAllegiance = vi.fn().mockResolvedValue(new PledgeAllegianceResponse())
+        const backend = new PlanetBackend(clientWith({getAllegiance, pledgeAllegiance}), 1_000, fixedSession("identity-1"))
+        const seen = follow(backend)
+        await vi.waitFor(() => expect(seen.at(-1)).toEqual({countryId: "fr"}))
+
+        await backend.pledgeAllegiance("de")
+
+        expect(pledgeAllegiance.mock.calls[0][0]).toEqual({countryId: "de"})
+        expect((pledgeAllegiance.mock.calls[0][1] as {headers: Headers}).headers.get(SESSION_HEADER)).toBe("identity-1")
+        expect(seen.at(-1)).toEqual({countryId: "de", changeableAt: 1_700_000_000_000})
+        backend.close()
+    })
+
+    it("pledges nothing for a visitor with no account: its first click will", async () => {
+        const pledgeAllegiance = vi.fn()
+        const backend = new PlanetBackend(clientWith({pledgeAllegiance}), 1_000, sessionMinting("session-1"))
+
+        await backend.pledgeAllegiance("de")
+
+        expect(pledgeAllegiance).not.toHaveBeenCalled()
+        backend.close()
+    })
+
+    it("turns a pledge refused into the flag held and until when", async () => {
+        const pledgeAllegiance = vi.fn().mockRejectedValue(lockedTo("fr", 1_700_000_000_000))
+        const backend = new PlanetBackend(clientWith({pledgeAllegiance}), 1_000, fixedSession("identity-1"))
+        const seen = follow(backend)
+
+        await expect(backend.pledgeAllegiance("de")).rejects.toBeInstanceOf(AllegianceLockedError)
+
+        expect(seen.at(-1)).toEqual({countryId: "fr", changeableAt: 1_700_000_000_000})
+        backend.close()
+    })
+
+    it("sends the click to a server that takes no pledge, as before", async () => {
+        const getAllegiance = vi.fn().mockResolvedValue(new GetAllegianceResponse())
+        const pledgeAllegiance = vi.fn().mockRejectedValue(new ConnectError("no such procedure", Code.Unimplemented))
+        const click = vi.fn().mockResolvedValue({})
+        const backend = new PlanetBackend(clientWith({getAllegiance, pledgeAllegiance, click}), 1_000, sessionMinting("session-1"))
+
+        await backend.clickTile(7, "de")
+
+        expect(click).toHaveBeenCalledTimes(1)
         backend.close()
     })
 

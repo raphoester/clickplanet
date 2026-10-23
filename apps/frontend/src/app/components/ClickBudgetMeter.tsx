@@ -4,6 +4,7 @@ import {factor} from "../../domain/clickPrice.ts"
 import {HourglassIcon, UsersIcon} from "./icons.tsx"
 import {useEscape} from "./useDialog.ts"
 import {offerText, SHARED_WITH} from "./clickOffer.ts"
+import Bubble from "./Bubble.tsx"
 import "./ClickBudgetMeter.css"
 
 export type ClickBudgetMeterProps = {
@@ -15,6 +16,7 @@ export type ClickBudgetMeterProps = {
     open?: boolean
     onToggleOpen?: () => void
     popover?: ReactNode
+    said?: {text: string, id: number}
 }
 
 const MAX_PIPS = 12
@@ -34,6 +36,7 @@ export default function ClickBudgetMeter({
     open = false,
     onToggleOpen,
     popover,
+    said,
 }: ClickBudgetMeterProps) {
     const root = useRef<HTMLDivElement>(null)
     const count = useRef<HTMLSpanElement>(null)
@@ -177,6 +180,8 @@ export default function ClickBudgetMeter({
         </div>
 
         {children}
+
+        {said && <Bubble key={said.id} anchor={root}>{said.text}</Bubble>}
 
         {open && !compact && popover && onToggleOpen && <Popover onClose={onToggleOpen}>{popover}</Popover>}
     </div>

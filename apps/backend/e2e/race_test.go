@@ -54,6 +54,7 @@ func TestTheRaceRanksTheCountriesByTheGroundTheyHoldToday(t *testing.T) {
 
 	player.click(1, "fr")
 	player.click(2, "fr")
+	require.NoError(t, player.tryPledge("de"))
 	player.click(3, "de")
 
 	race := game.raceWhere(t, func(race *seasonsv1.Race) bool {

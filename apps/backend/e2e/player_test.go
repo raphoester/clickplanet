@@ -16,8 +16,6 @@ import (
 
 	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1/authv1connect"
-	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth"
@@ -238,10 +236,7 @@ func (p *gamer) setColor(color playerv1.NameColor) error {
 func (p *gamer) click(tile uint32, country string) {
 	p.t.Helper()
 
-	req := connect.NewRequest(&planetv1.ClickRequest{TileId: tile, CountryId: country})
-	p.send(req.Header())
-	_, err := planetv1connect.NewClickServiceClient(http.DefaultClient, p.stack.baseURL).Click(p.t.Context(), req)
-	require.NoError(p.t, err)
+	require.NoError(p.t, p.tryClick(tile, country))
 }
 
 func (p *gamer) players() playerv1connect.PlayerServiceClient {

@@ -8,18 +8,27 @@ import (
 
 const changeEvery = time.Hour
 
-var ErrChangedTooSoon = errors.New("the flag was changed too recently to change again")
+var (
+	ErrChangedTooSoon = errors.New("the flag was changed too recently to change again")
+	ErrOtherFlag      = errors.New("the account plays for another flag")
+	ErrNoFlag         = errors.New("the account plays for no flag yet")
+	ErrNoAccount      = errors.New("only an account plays for a flag")
+)
 
 type Refusal struct {
-	Flag  string
-	Until time.Time
+	Flag   string
+	Until  time.Time
+	Reason error
 }
 
 func (r Refusal) Error() string {
-	return fmt.Sprintf("%s: it plays for %q until %s", ErrChangedTooSoon, r.Flag, r.Until.UTC().Format(time.RFC3339))
+	if r.Flag == "" {
+		return r.Reason.Error()
+	}
+	return fmt.Sprintf("%s: it plays for %q, changeable at %s", r.Reason, r.Flag, r.Until.UTC().Format(time.RFC3339))
 }
 
-func (r Refusal) Unwrap() error { return ErrChangedTooSoon }
+func (r Refusal) Unwrap() error { return r.Reason }
 
 type Change struct {
 	at time.Time

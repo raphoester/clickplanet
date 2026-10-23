@@ -42,8 +42,8 @@ import SharePreview from "../share/SharePreview.tsx";
 import {useSharePicture} from "../share/useSharePicture.ts";
 import {shareStats} from "../../domain/shareCard.ts";
 import {Countries, Country} from "../../domain/countries.ts";
-import {lockOf} from "../../domain/allegiance.ts";
 import {useAllegiance} from "./useAllegiance.ts";
+import {heldLine} from "../../domain/allegiance.ts";
 import {ClickBudgetSource, now as budgetNow, tokensAt} from "../../backends/clickBudget.ts";
 import {useClickBudget} from './useClickBudget.ts';
 import {useCountryStorage} from './useCountryStorage.ts';
@@ -116,10 +116,13 @@ export default function Viewer(props: ViewerProps) {
     const {countryState, handleSetCountry} = useCountryStorage(props.sharedCountry)
     const allegiance = useAllegiance(props.allegiance)
     useEffect(() => {
-        const locked = lockOf(allegiance, Date.now())
-        const held = locked && locked.countryId !== countryState.code ? Countries.get(locked.countryId) : undefined
+        const held = allegiance && allegiance.countryId !== countryState.code ? Countries.get(allegiance.countryId) : undefined
         if (held) handleSetCountry(held)
     }, [allegiance, countryState.code, handleSetCountry])
+    const pickCountry = async (country: Country) => {
+        if (country.code !== countryState.code) await props.allegiance?.pledgeAllegiance(country.code)
+        handleSetCountry(country)
+    }
     const clickBudget = useClickBudget(props.clickBudgetSource, countryState.code)
     const connection = useConnection(props.connection)
     const sound = useSound()
@@ -175,6 +178,7 @@ export default function Viewer(props: ViewerProps) {
         dismissBanned,
         sessionUnavailable,
         dismissSessionUnavailable,
+        lockedOut,
         award,
         dismissAward,
         charges,
@@ -258,7 +262,7 @@ export default function Viewer(props: ViewerProps) {
 
     const board = {
         country: countryState,
-        setCountry: handleSetCountry,
+        setCountry: pickCountry,
         allegiance,
         leaderboard,
         tileDeltas,
@@ -321,6 +325,7 @@ export default function Viewer(props: ViewerProps) {
 
         {ready && <ClickBudgetMeter budget={clickBudget}
                                     refusals={refusals}
+                                    said={lockedOut && {text: heldLine(lockedOut.allegiance, Date.now()), id: lockedOut.id}}
                                     onSignIn={openPitch}
                                     compact={compact}
                                     open={compact ? sheet === "clicks" : clicksOpen}

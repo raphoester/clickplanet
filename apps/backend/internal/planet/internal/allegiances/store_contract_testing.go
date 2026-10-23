@@ -53,6 +53,19 @@ func (s *StoreContractSuite) TestAChangeIsKeptAndSeenByTheNext() {
 	s.Equal("de", s.kept(s.Account(2)).Flag)
 }
 
+func (s *StoreContractSuite) TestAnAllegianceIsReadAsItWasKept() {
+	s.keep(s.Account(1), Snapshot{Flag: "de", ChangedAt: contractAt})
+
+	read, err := s.store.Allegiance(s.T().Context(), s.Account(1))
+	s.Require().NoError(err)
+	s.Equal("de", read.TakeSnapshot().Flag)
+	s.True(contractAt.Equal(read.TakeSnapshot().ChangedAt))
+
+	none, err := s.store.Allegiance(s.T().Context(), s.Account(2))
+	s.Require().NoError(err)
+	s.Equal(Snapshot{}, none.TakeSnapshot())
+}
+
 func (s *StoreContractSuite) TestAChangeReplacesWhatWasKept() {
 	s.keep(s.Account(1), Snapshot{Flag: "fr"})
 

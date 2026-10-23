@@ -41,6 +41,7 @@ func setup(t *testing.T, shields int) fixture {
 
 	clock := cptime.NewFixedClock(time.Date(2026, 10, 17, 12, 0, 0, 0, time.UTC))
 	book := allegiances.NewBook(allegiances.NewMemoryStore(), cpcountries.New(), clock)
+	require.NoError(t, book.Pledge(t.Context(), clicks.Payer{Account: string(caller)}, "fr"))
 
 	return fixture{
 		charges: charges,
@@ -134,17 +135,23 @@ func TestAShieldThatCouldNotBePlacedIsGivenBack(t *testing.T) {
 	assert.Equal(t, 3, f.charges.Kept(caller).Shields)
 }
 
-func TestAShieldForAnotherFlagWithinTheHourIsRefusedAndSpendsNothing(t *testing.T) {
+func TestAShieldForAnotherFlagThanTheOneHeldIsRefusedAndSpendsNothing(t *testing.T) {
 	f := setup(t, 3)
-	_, err := f.place(t, place_shield_usecase.In{TileID: 7, CountryID: "fr"})
-	require.NoError(t, err)
-	_, err = f.place(t, place_shield_usecase.In{TileID: 8, CountryID: "de"})
-	require.NoError(t, err, "the first change is free")
 
-	f.clock.Advance(30 * time.Minute)
-	_, err = f.place(t, place_shield_usecase.In{TileID: 7, CountryID: "fr"})
+	_, err := f.place(t, place_shield_usecase.In{TileID: 8, CountryID: "de"})
 
-	require.ErrorIs(t, err, allegiances.ErrChangedTooSoon)
-	assert.Equal(t, 1, f.charges.Kept(caller).Shields)
-	assert.Equal(t, 1, f.tiles.Shields(7))
+	require.ErrorIs(t, err, allegiances.ErrOtherFlag)
+	assert.Equal(t, 3, f.charges.Kept(caller).Shields)
+	assert.Equal(t, 0, f.tiles.Shields(8))
+}
+
+func TestAShieldWithNoFlagHeldIsRefusedAndSpendsNothing(t *testing.T) {
+	f := setup(t, 3)
+	book := allegiances.NewBook(allegiances.NewMemoryStore(), cpcountries.New(), f.clock)
+	useCase := place_shield_usecase.New(bonuses.NewCharges(f.charges, bonuses.ChargesConfig{Shields: 12}), f.tiles, cpcountries.New(), book, 2)
+
+	_, err := useCase.Execute(played(t), place_shield_usecase.In{TileID: 7, CountryID: "fr"})
+
+	require.ErrorIs(t, err, allegiances.ErrNoFlag)
+	assert.Equal(t, 3, f.charges.Kept(caller).Shields)
 }

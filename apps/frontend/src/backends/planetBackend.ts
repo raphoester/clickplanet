@@ -88,6 +88,8 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
 
     private allegiance: Allegiance | undefined
 
+    private flagged: {token: string, ready: Promise<void>} | undefined
+
     constructor(
         private client: PromiseClient<typeof ClickService>,
         batchUpdateDurationMs: number,
@@ -154,6 +156,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
 
     private async click(tileId: number, countryId: string, {spread, enclose}: Switches): Promise<void> {
         const token = await this.session.token()
+        await this.ensureFlag(token, countryId)
 
         const headers = new Headers()
         if (token) headers.set(SESSION_HEADER, token)
@@ -168,7 +171,6 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
             if (spread && this.charges.spreadClicksLeft > 0) {
                 this.holdCharges({...this.charges, spreadClicksLeft: this.charges.spreadClicksLeft - 1})
             }
-            if (this.allegiance?.countryId !== countryId) void this.readAllegiance(token)
         } catch (e) {
             this.anchorBudget(budgetDetailOf(e), countryId)
             this.holdRefusal(e)
@@ -407,11 +409,58 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         try {
             const res = await retrying(() => this.client.getAllegiance({}, {headers}), "getAllegiance")
             if (token !== this.streamToken && token !== this.session.heldIdentity()) return
-            this.holdAllegiance(allegianceOfMessage(res.allegiance))
+            const held = allegianceOfMessage(res.allegiance)
+            this.holdAllegiance(held)
+            if (held && token) this.flagged = {token, ready: Promise.resolve()}
         } catch (e) {
             if (e instanceof ConnectError && e.code === Code.Unimplemented) return
             console.error("could not read the flag played for", e)
         }
+    }
+
+    public async pledgeAllegiance(countryId: string): Promise<void> {
+        const token = await this.session.identity()
+        if (token) await this.pledge(token, countryId)
+    }
+
+    private ensureFlag(token: string | undefined, countryId: string): Promise<void> {
+        if (!token) return Promise.resolve()
+        if (this.flagged?.token === token) return this.flagged.ready
+
+        const flagged = {token, ready: this.claimFlag(token, countryId)}
+        this.flagged = flagged
+        flagged.ready.catch(() => {
+            if (this.flagged === flagged) this.flagged = undefined
+        })
+        return flagged.ready
+    }
+
+    private async claimFlag(token: string, countryId: string): Promise<void> {
+        if (await this.heldFor(token) === undefined) await this.pledge(token, countryId)
+    }
+
+    private async heldFor(token: string): Promise<Allegiance | undefined> {
+        const headers = new Headers({[SESSION_HEADER]: token})
+        const res = await retrying(() => this.client.getAllegiance({}, {headers}), "getAllegiance")
+        const held = allegianceOfMessage(res.allegiance)
+        this.holdAllegiance(held)
+        return held
+    }
+
+    private async pledge(token: string, countryId: string): Promise<void> {
+        const headers = new Headers({[SESSION_HEADER]: token})
+        try {
+            await retrying(() => this.client.pledgeAllegiance({countryId}, {headers}), "pledgeAllegiance")
+        } catch (e) {
+            if (e instanceof ConnectError && e.code === Code.Unimplemented) return
+            const locked = allegianceDetailOf(e)
+            if (!locked) throw e
+            this.holdAllegiance(locked)
+            throw new AllegianceLockedError(locked, {cause: e})
+        }
+
+        await this.heldFor(token)
+        this.flagged = {token, ready: Promise.resolve()}
     }
 
     private holdRefusal(e: unknown): void {
@@ -667,6 +716,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
 
     private async place(tileId: number, countryId: string): Promise<void> {
         const sessionToken = await this.session.token()
+        await this.ensureFlag(sessionToken, countryId)
 
         const headers = new Headers()
         if (sessionToken) headers.set(SESSION_HEADER, sessionToken)

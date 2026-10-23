@@ -82,7 +82,7 @@ linters:
         - cpbootstrap.Run(
 
         - .Click(
-        - .Pledge(
+        - .PlayError(
         - .Held(
         - .Grant(
         - .Spend(

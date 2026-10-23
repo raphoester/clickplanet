@@ -9,7 +9,7 @@ import {TileField} from "./tileField.ts"
 import {regions} from "./atlas.ts"
 
 function handlers() {
-    return {onRateLimited: vi.fn(), onVPNBlocked: vi.fn(), onBanned: vi.fn(), onSessionUnavailable: vi.fn()}
+    return {onRateLimited: vi.fn(), onVPNBlocked: vi.fn(), onBanned: vi.fn(), onSessionUnavailable: vi.fn(), onAllegianceLocked: vi.fn()}
 }
 
 describe("reportClickFailure", () => {
@@ -55,12 +55,13 @@ describe("reportClickFailure", () => {
         expect(h.onVPNBlocked).not.toHaveBeenCalled()
     })
 
-    it("plays a click refused for its flag as refused, with no dialog and no log", () => {
+    it("says which flag a click was refused for and until when, with no dialog and no log", () => {
         const h = handlers()
         const logged = vi.spyOn(console, "error").mockImplementation(() => {})
 
         expect(reportClickFailure(new AllegianceLockedError({countryId: "de", changeableAt: 1}), h)).toBe(true)
 
+        expect(h.onAllegianceLocked).toHaveBeenCalledWith({countryId: "de", changeableAt: 1})
         expect(logged).not.toHaveBeenCalled()
         expect(h.onRateLimited).not.toHaveBeenCalled()
         expect(h.onVPNBlocked).not.toHaveBeenCalled()

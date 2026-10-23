@@ -90,6 +90,10 @@
     margin-top: -3px;
 }
 
+.menu-change--locked {
+    color: var(--gold-light);
+}
+
 .menu-tabs {
     display: flex;
     gap: 3px;

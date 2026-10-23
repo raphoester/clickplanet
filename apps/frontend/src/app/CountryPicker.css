@@ -1,5 +1,25 @@
-.country-picker-locked {
-    margin: 0 0 var(--space-6);
+.country-picker-rule {
+    flex-shrink: 0;
+    margin: 0 0 var(--space-3);
     font-size: var(--text-m);
     color: var(--text-soft);
+}
+
+.country-picker-failed {
+    flex-shrink: 0;
+    margin: 0 0 var(--space-3);
+    font-size: var(--text-m);
+    color: var(--loss);
+}
+
+.country-picker-list {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex: 1 1 auto;
+}
+
+.country-picker-list[aria-busy="true"] {
+    opacity: 0.6;
+    pointer-events: none;
 }

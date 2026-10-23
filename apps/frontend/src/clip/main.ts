@@ -444,6 +444,7 @@ async function choose(): Promise<Chosen> {
             onVPNBlocked: () => {},
             onBanned: () => {},
             onSessionUnavailable: () => {},
+            onAllegianceLocked: () => {},
             onBonusTaken: () => {},
             onBonusWon: () => {},
             onCharges: () => {},

@@ -16,6 +16,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/map_density_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/open_quiz_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/place_shield_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/pledge_allegiance_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/use_refill_handler"
 )
 
@@ -35,6 +36,7 @@ type ClickService struct {
 	place_shield_handler.PlaceShieldHandler
 	get_fortresses_handler.GetFortressesHandler
 	get_allegiance_handler.GetAllegianceHandler
+	pledge_allegiance_handler.PledgeAllegianceHandler
 }
 
 var _ planetv1connect.ClickServiceHandler = ClickService{}

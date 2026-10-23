@@ -28,10 +28,21 @@ func (a Allegiance) Pledged(flag string, at time.Time) (Allegiance, error) {
 	}
 
 	if until := a.change.ChangeableAt(); at.Before(until) {
-		return Allegiance{}, Refusal{Flag: a.flag, Until: until}
+		return Allegiance{}, Refusal{Flag: a.flag, Until: until, Reason: ErrChangedTooSoon}
 	}
 
 	return Allegiance{flag: flag, change: ChangedAt(at)}, nil
+}
+
+func (a Allegiance) PlayError(flag string) error {
+	switch a.flag {
+	case flag:
+		return nil
+	case "":
+		return Refusal{Reason: ErrNoFlag}
+	}
+
+	return Refusal{Flag: a.flag, Until: a.change.ChangeableAt(), Reason: ErrOtherFlag}
 }
 
 func (a Allegiance) TakeSnapshot() Snapshot {

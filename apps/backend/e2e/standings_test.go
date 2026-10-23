@@ -91,6 +91,7 @@ func TestPlayersWithAUsernameAreRankedByTheirMainFlagAndOnTheBoardOfEveryFlagThe
 
 	ada.click(1, "fr")
 	ada.click(2, "fr")
+	require.NoError(t, ada.tryPledge("de"))
 	ada.click(3, "de")
 	cyd.click(4, "fr")
 

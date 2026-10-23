@@ -140,6 +140,8 @@ export interface Shielder {
 
 export interface AllegianceSource {
     listenForAllegiance(callback: (allegiance: Allegiance | undefined) => void): () => void
+
+    pledgeAllegiance(countryId: string): Promise<void>
 }
 
 export class AllegianceLockedError extends Error {
