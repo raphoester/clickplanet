@@ -176,3 +176,49 @@ func TestAnAnswerThatIsNotARaceIsAnError(t *testing.T) {
 		})
 	}
 }
+
+const seasoned = `{"season":{"number":0,"finaleStartsAtUnixMs":"1793480400000","endsAtUnixMs":"1793487600000"},"aFieldOfALaterBackend":true}`
+
+func TestTheSeasonIsAskedOfThePublicListenerOverSSH(t *testing.T) {
+	fake := ssh(t, seasoned, "", 0)
+	source, err := ssh_replay_source.New("deploy@vps.example", fake.client)
+	require.NoError(t, err)
+
+	season, err := source.Season(t.Context())
+
+	require.NoError(t, err)
+	assert.Equal(t, []string{
+		"--",
+		"deploy@vps.example",
+		"cd /opt/clickplanet/deploy/vps && docker compose exec -T backend wget -qO- --header 'Content-Type: application/json'" +
+			" --post-data '{}' http://127.0.0.1:8080/seasons.v1.SeasonService/GetSeason",
+	}, fake.asked(t))
+	assert.Equal(t, replays.Season{Document: []byte(seasoned), FinaleStartsAt: time.Date(2026, 10, 31, 21, 0, 0, 0, time.UTC)}, season)
+}
+
+func TestNoSeasonOnIsASeasonWithNoFinale(t *testing.T) {
+	source, err := ssh_replay_source.New("deploy@vps.example", ssh(t, `{}`, "", 0).client)
+	require.NoError(t, err)
+
+	season, err := source.Season(t.Context())
+
+	require.NoError(t, err)
+	assert.Equal(t, replays.Season{Document: []byte(`{}`)}, season)
+}
+
+func TestAnAnswerThatIsNotASeasonIsAnError(t *testing.T) {
+	for name, says := range map[string]string{
+		"nothing": "",
+		"a page":  "<html>502 Bad Gateway</html>",
+		"a list":  `[]`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			source, err := ssh_replay_source.New("deploy@vps.example", ssh(t, says, "", 0).client)
+			require.NoError(t, err)
+
+			_, err = source.Season(t.Context())
+
+			require.Error(t, err)
+		})
+	}
+}

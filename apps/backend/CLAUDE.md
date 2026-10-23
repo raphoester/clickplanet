@@ -3470,11 +3470,11 @@ For the patterns no watchdog catches but a person sees on the map. A player is a
 (`.github/workflows/clips.yml`; the frontend's CLAUDE.md, "Clips", has the four jobs and how a clip is made). The
 frontend's generator needs a browser, so it stays there. **Everything else is here**: the fetch of the replay,
 which clips, when each goes out, the client of the posting service, the retries and the run's summary. The two
-meet in files: the replay and the race this job saves for the generator, and `clips.v1.Shortlist` and
+meet in files: the replay, the race and the season this job saves for the generator, and `clips.v1.Shortlist` and
 `clips.v1.Clip` (`proto/clips/v1/clips.proto`), which the generator writes as JSON.
 
 ```
-clips fetch -out <replay.json> [-race <race.json>] [-ssh <user@host>] [-hours 72] [-until <2026-10-12T12:00:00Z>]
+clips fetch -out <replay.json> [-race <race.json>] [-season <season.json>] [-ssh <user@host>] [-hours 72] [-until <2026-10-12T12:00:00Z>]
 clips choose -shortlist <shortlist.json> [-count 6]
 clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-platforms tiktok,youtube] [-summary <file>]
 ```
@@ -3485,6 +3485,9 @@ clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-platforms tiktok,you
   **With `-race` it saves the season's race too** ([`GetRace`](#seasons-internalseasons)), from which the generator
   tells the day of the season closed in the replay, "FRANCE WINS DAY 5". **A race the backend does not answer is a
   warning, not a failure**: the run still has its replay, and tells no day. No race file is written then.
+  **With `-season` it saves the season's calendar** ([`GetSeason`](#seasons-internalseasons)) the same way: the
+  generator calls each country that can still win up to the Final Battle, in its own language, "POLSKA: 14 PUNKTÓW
+  STRATY". A season left out calls nobody up.
 - **`choose` prints the picks to render**, as a JSON array on the standard output (`[1,2]`, or `[]` on a quiet half
   day): the workflow makes one render job of each. The log goes to the standard error, with each story skipped as
   told. A pick is a story's place in the shortlist, from 1 (`posts.Pick`): what the generator's `--pick` takes.
@@ -3532,7 +3535,8 @@ clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-platforms tiktok,you
 - **The race is asked the same way, of the public listener** (`127.0.0.1:8080` in the container, `{}` for a body),
   and checked the same: it has to read as a `seasons.v1.GetRaceResponse`. A backend from before `GetRace` answers
   404, which `wget` turns into a failed ssh. `fetch_race_usecase` keeps it, and `log_fetch_race` logs the day closed
-  last, or warns that the race is left out: `clips.Fetch` goes on without it.
+  last, or warns that the race is left out: `clips.Fetch` goes on without it. The season is asked the same way, as
+  a `seasons.v1.GetSeasonResponse`, through `fetch_season_usecase` and `log_fetch_season`.
 - Its test runs a fake `ssh`, a shell script that keeps its arguments. No test runs the real one.
 
 **`internal/clips/internal/posts/` is the domain of the rest**, with no file, no HTTP and no clock of its own:
@@ -3546,8 +3550,10 @@ clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-platforms tiktok,you
     The keys and not the headlines: "ALGERIA STRIKES BACK" and "ALGERIA VS FRANCE" are one story. **The angle is
     what the story tells of its flag there** (`Angle`): what it did (`Deeds`, empty), how much of the place it holds
     (`Holding`, "CROATIA HOLDS 80% OF EUROPE"), or a day of the season it won (`DayWon`, "FRANCE WINS DAY 5", whose
-    key names the day too, `Round`, "1.5": France winning two days is two stories). So a holding is not the story of
-    what its flag did there. A key of a day with no day, or a day on another angle, is refused.
+    key names the day too, `Round`, "1.5": France winning two days is two stories), or the country called up to the
+    Final Battle after a day (`CallUp`, "POLSKA: 14 PUNKTÓW STRATY", keyed by the day it follows, so a country is called
+    up once a day at most). So a holding is not the story of what its flag did there. A key of a day with no day, a
+    day on another angle, or an angle this job does not know is refused.
   - **A headline told in the last week is skipped** (`reheadlining`), whatever its continent: the same words read
     as the same clip. Compared in upper case, spaces at the ends cut.
   - **A flag the last 6 posts showed goes after the flags they did not** (`lately`, half a day at 6 a run). **A

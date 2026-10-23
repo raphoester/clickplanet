@@ -63,3 +63,18 @@ type RaceSource interface {
 type RaceStore interface {
 	SaveRace(ctx context.Context, race Race) error
 }
+
+type Season struct {
+	// A seasons.v1.GetSeasonResponse in JSON, as the backend answered it.
+	Document []byte
+	// Zero when no season is on.
+	FinaleStartsAt time.Time
+}
+
+type SeasonSource interface {
+	Season(ctx context.Context) (Season, error)
+}
+
+type SeasonStore interface {
+	SaveSeason(ctx context.Context, season Season) error
+}

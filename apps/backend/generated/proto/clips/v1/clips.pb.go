@@ -284,9 +284,10 @@ type StoryKey struct {
 	// As the headlines name it: "Africa", "Middle East", "the world".
 	Continent string `protobuf:"bytes,2,opt,name=continent,proto3" json:"continent,omitempty"`
 	// What the clip tells of the flag there: empty for what it did (an attack, a battle, a flag thrown out),
-	// "holding" for how much of the place it holds, "round" for a day of the season it won.
+	// "holding" for how much of the place it holds, "round" for a day of the season it won, "callup" for a country
+	// called up to the Final Battle after a day.
 	Angle string `protobuf:"bytes,3,opt,name=angle,proto3" json:"angle,omitempty"`
-	// The day a "round" tells, as its season and its number: "1.5". Empty for any other angle.
+	// The day a "round" tells or a "callup" follows, as its season and its number: "1.5". Empty for any other angle.
 	Round         string `protobuf:"bytes,4,opt,name=round,proto3" json:"round,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

@@ -23,6 +23,8 @@ const (
 	Holding Angle = "holding"
 	// A day of the season the flag won: "FRANCE WINS DAY 5".
 	DayWon Angle = "round"
+	// A country that can still win the season, called to the Final Battle: "POLAND IS 14 POINTS BEHIND ALGERIA".
+	CallUp Angle = "callup"
 )
 
 // Two stories with one key are one story told twice, whatever their headlines.
@@ -30,12 +32,22 @@ type StoryKey struct {
 	Flag      string
 	Continent string
 	Angle     Angle
-	// The day a DayWon tells, as its season and its number: "1.5". France winning two days is two stories.
+	// The day a DayWon tells or a CallUp follows, as its season and its number: "1.5".
 	Round string
 }
 
 func (k StoryKey) known() bool {
-	return k.Flag != "" && k.Continent != "" && (k.Angle == DayWon) == (k.Round != "")
+	if k.Flag == "" || k.Continent == "" {
+		return false
+	}
+	switch k.Angle {
+	case Deeds, Holding:
+		return k.Round == ""
+	case DayWon, CallUp:
+		return k.Round != ""
+	default:
+		return false
+	}
 }
 
 type Story struct {

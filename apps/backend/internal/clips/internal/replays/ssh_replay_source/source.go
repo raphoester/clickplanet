@@ -24,10 +24,13 @@ const operatorTool = "cd /opt/clickplanet/deploy/vps && docker compose exec -T b
 	" --header 'Content-Type: application/json' --post-data '%s'" +
 	" http://127.0.0.1:8081/planet.v1.AdminService/GetReplay"
 
-// The race is the season stream's, public: the backend serves it on the listener every browser reaches.
-const raceTool = "cd /opt/clickplanet/deploy/vps && docker compose exec -T backend wget -qO-" +
-	" --header 'Content-Type: application/json' --post-data '{}'" +
-	" http://127.0.0.1:8080/seasons.v1.SeasonService/GetRace"
+// The race and the season are public: the backend serves them on the listener every browser reaches.
+const (
+	publicTool = "cd /opt/clickplanet/deploy/vps && docker compose exec -T backend wget -qO-" +
+		" --header 'Content-Type: application/json' --post-data '{}' http://127.0.0.1:8080/"
+	raceTool   = publicTool + "seasons.v1.SeasonService/GetRace"
+	seasonTool = publicTool + "seasons.v1.SeasonService/GetSeason"
+)
 
 var decoder = protojson.UnmarshalOptions{DiscardUnknown: true}
 
@@ -97,6 +100,26 @@ func (s *Source) Race(ctx context.Context) (replays.Race, error) {
 		Closed:   fmt.Sprintf("%d.%d", closed.GetSeason(), closed.GetNumber()),
 		EndedAt:  time.UnixMilli(closed.GetEndedAtUnixMs()).UTC(),
 	}, nil
+}
+
+var _ replays.SeasonSource = (*Source)(nil)
+
+func (s *Source) Season(ctx context.Context) (replays.Season, error) {
+	answered, err := s.ask(ctx, seasonTool)
+	if err != nil {
+		return replays.Season{}, err
+	}
+
+	var season seasonsv1.GetSeasonResponse
+	if err := decoder.Unmarshal(answered, &season); err != nil {
+		return replays.Season{}, fmt.Errorf("the backend answered what is not a seasons.v1.GetSeasonResponse: %w", err)
+	}
+
+	current := season.GetSeason()
+	if current == nil {
+		return replays.Season{Document: answered}, nil
+	}
+	return replays.Season{Document: answered, FinaleStartsAt: time.UnixMilli(current.GetFinaleStartsAtUnixMs()).UTC()}, nil
 }
 
 func (s *Source) ask(ctx context.Context, command string) ([]byte, error) {

@@ -375,6 +375,40 @@ func TestADayWonWithNoDayOrADayOnAnotherAngleIsRefused(t *testing.T) {
 	require.ErrorIs(t, dayOfAHolding, posts.ErrInvalidStory)
 }
 
+var polandCalledUp = showing("POLAND IS 14 POINTS BEHIND ALGERIA",
+	posts.StoryKey{Flag: "pl", Continent: "the world", Angle: posts.CallUp, Round: "0.15"}, "pl", "dz")
+
+func TestACallUpIsToldBesideWhatItsFlagDidAndTheDayItFollows(t *testing.T) {
+	told := []posts.Telling{shown(franceWinsDay5, time.Hour), toldAgo(posts.StoryKey{Flag: "pl", Continent: "Europe"}, "POLAND STRIKES BACK", 2*time.Hour)}
+
+	choice := shortlistOf(t, polandCalledUp).Best(6, told, theNightOfOct14)
+
+	assert.Equal(t, []string{"POLAND IS 14 POINTS BEHIND ALGERIA"}, titles(choice.Chosen))
+}
+
+func TestEachDayACountryIsCalledUpIsAStoryOfItsOwn(t *testing.T) {
+	yesterday := posts.Telling{
+		Key: posts.StoryKey{Flag: "pl", Continent: "the world", Angle: posts.CallUp, Round: "0.14"}, Title: "POLAND IS 20 POINTS BEHIND ALGERIA",
+		At: theNightOfOct14.Add(-24 * time.Hour),
+	}
+
+	choice := shortlistOf(t, polandCalledUp).Best(6, []posts.Telling{yesterday}, theNightOfOct14)
+
+	assert.Equal(t, []string{"POLAND IS 14 POINTS BEHIND ALGERIA"}, titles(choice.Chosen))
+}
+
+func TestACallUpWithNoDayOrAnAngleTheJobDoesNotKnowIsRefused(t *testing.T) {
+	_, noDay := posts.ShortlistOf(posts.Story{Title: "POLAND IS 14 POINTS BEHIND ALGERIA", Key: posts.StoryKey{
+		Flag: "pl", Continent: "the world", Angle: posts.CallUp,
+	}})
+	_, unknown := posts.ShortlistOf(posts.Story{Title: "POLAND IS 14 POINTS BEHIND ALGERIA", Key: posts.StoryKey{
+		Flag: "pl", Continent: "the world", Angle: "rally",
+	}})
+
+	require.ErrorIs(t, noDay, posts.ErrInvalidStory)
+	require.ErrorIs(t, unknown, posts.ErrInvalidStory)
+}
+
 // The run of Oct 18 12:34 skipped 8 of its 13 stories as told, nearly all one flag in Europe, and posted 3. Given a
 // day won and the holdings of that map, it posts 6: the day first, then each angle once, the freshest flag first.
 func TestTheRunOfOct18NoonPostsTheDayWonAndTheHoldingsBesideTheNews(t *testing.T) {

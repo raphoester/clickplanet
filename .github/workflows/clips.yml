@@ -27,7 +27,8 @@ jobs:
           cache-dependency-path: apps/backend/go.sum
 
       # No npm here: the VPS key is in no job that installs the frontend's dependencies.
-      # The race tells the day of the season closed in the replay; a backend that does not answer it leaves it out.
+      # The race tells the day of the season closed in the replay, and the season who is called up to its Final Battle;
+      # a backend that does not answer one leaves it out.
       - name: fetch the last 12 hours
         working-directory: apps/backend
         env:
@@ -39,7 +40,8 @@ jobs:
           ssh-add -q - <<< "$VPS_SSH_KEY"
           install -m 700 -d ~/.ssh
           ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts 2> /dev/null
-          go run ./cmd/clips fetch -hours 12 -out "$GITHUB_WORKSPACE/replay.json" -race "$GITHUB_WORKSPACE/race.json"
+          go run ./cmd/clips fetch -hours 12 -out "$GITHUB_WORKSPACE/replay.json" -race "$GITHUB_WORKSPACE/race.json" \
+            -season "$GITHUB_WORKSPACE/season.json"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -47,6 +49,7 @@ jobs:
           path: |
             replay.json
             race.json
+            season.json
           retention-days: 1
 
   shortlist:
@@ -74,7 +77,8 @@ jobs:
         working-directory: apps/frontend
         run: |
           race=$([ -f race.json ] && echo "--race race.json" || true)
-          npm run clip -- --replay replay.json $race --shortlist shortlist.json
+          season=$([ -f season.json ] && echo "--season season.json" || true)
+          npm run clip -- --replay replay.json $race $season --shortlist shortlist.json
 
       - uses: actions/upload-artifact@v4
         with:
@@ -152,7 +156,8 @@ jobs:
           PICK: ${{ matrix.pick }}
         run: |
           race=$([ -f race.json ] && echo "--race race.json" || true)
-          npm run clip -- --replay replay.json $race --pick "$PICK" --recorders 1
+          season=$([ -f season.json ] && echo "--season season.json" || true)
+          npm run clip -- --replay replay.json $race $season --pick "$PICK" --recorders 1
 
       - uses: actions/upload-artifact@v4
         with:
