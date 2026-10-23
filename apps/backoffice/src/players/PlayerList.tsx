@@ -9,13 +9,16 @@ import {Author} from "../gen/grpc/player/v1/internal_pb.ts"
 import {Opened} from "../navigation.ts"
 import {countOf} from "../support/labels.ts"
 import {useCall} from "../useCall.ts"
-import {findPlayers, LIMITS, topPlayers, withAuthors} from "./actions.ts"
+import {findAuthors, findPlayers, LIMITS, topPlayers, withAuthors} from "./actions.ts"
 import {PlayerName} from "./PlayerName.tsx"
 import {BanLine, PlayerStats} from "./PlayerStats.tsx"
 
 export type Query =
     | {kind: "top", limit: number}
     | {kind: "find", flag: string, area: string, limit: number}
+    | NameQuery
+
+type NameQuery = {kind: "name", name: string, limit: number}
 
 type Props = {
     planet: PlanetAdmin
@@ -26,11 +29,13 @@ type Props = {
 }
 
 // Who played in the ledger's 72 hours: the most takes over the whole map, or who painted one flag on one ground.
+// Or any account the game keeps, by its name.
 export function PlayerList({planet, player, query, onQuery, onOpen}: Props) {
     const [kind, setKind] = useState(query.kind)
     const [limit, setLimit] = useState(query.limit)
     const [flag, setFlag] = useState(query.kind === "find" ? query.flag : "")
     const [area, setArea] = useState(query.kind === "find" ? query.area : "")
+    const [name, setName] = useState(query.kind === "name" ? query.name : "")
 
     const showTop = (shown: number) => {
         setKind("top")
@@ -43,12 +48,18 @@ export function PlayerList({planet, player, query, onQuery, onOpen}: Props) {
         onQuery({kind: "find", flag: countryIdOf(flag), area: countryIdOf(area), limit})
     }
 
+    const findByName = (event: FormEvent) => {
+        event.preventDefault()
+        onQuery({kind: "name", name: name.trim(), limit})
+    }
+
     return (
         <section aria-label="Players" className="detail">
             <div className="toolbar">
                 <div className="segmented" role="group" aria-label="Which players">
                     <button type="button" aria-pressed={kind === "top"} onClick={() => showTop(limit)}>Top</button>
                     <button type="button" aria-pressed={kind === "find"} onClick={() => setKind("find")}>By flag</button>
+                    <button type="button" aria-pressed={kind === "name"} onClick={() => setKind("name")}>By name</button>
                 </div>
                 <label className="picker picker-inline">
                     <span className="muted">Show</span>
@@ -72,12 +83,35 @@ export function PlayerList({planet, player, query, onQuery, onOpen}: Props) {
                 </form>
             )}
 
-            {query.kind === kind && <Results planet={planet} player={player} query={query} onOpen={onOpen}/>}
+            {kind === "name" && (
+                <form className="panel" aria-label="Find players by name" onSubmit={findByName}>
+                    <label className="field">
+                        <span className="muted">Name</span>
+                        <input
+                            value={name}
+                            autoCapitalize="none"
+                            autoComplete="off"
+                            spellCheck={false}
+                            onChange={event => setName(event.target.value)}
+                        />
+                    </label>
+                    <button type="submit" className="button button-primary" disabled={name.trim() === ""}>Find</button>
+                </form>
+            )}
+
+            {query.kind === kind && (query.kind === "name"
+                ? <NameResults player={player} query={query} onOpen={onOpen}/>
+                : <Results planet={planet} player={player} query={query} onOpen={onOpen}/>)}
         </section>
     )
 }
 
-type ResultsProps = {planet: PlanetAdmin, player: PlayerAdmin, query: Query, onOpen: (opened: Opened) => void}
+type ResultsProps = {
+    planet: PlanetAdmin
+    player: PlayerAdmin
+    query: Exclude<Query, NameQuery>
+    onOpen: (opened: Opened) => void
+}
 
 function Results({planet, player, query, onOpen}: ResultsProps) {
     const list = useCallback(
@@ -129,6 +163,53 @@ function PlayerCard({row, author, onOpen}: CardProps) {
             <div className="card-foot">
                 <PlayerStats player={row}/>
                 <button type="button" className="button" onClick={() => onOpen({caller, name, row})}>Open</button>
+            </div>
+        </li>
+    )
+}
+
+type NameResultsProps = {player: PlayerAdmin, query: NameQuery, onOpen: (opened: Opened) => void}
+
+function NameResults({player, query, onOpen}: NameResultsProps) {
+    const find = useCallback(
+        (signal: AbortSignal) => findAuthors(player, query.name, query.limit, signal),
+        [player, query],
+    )
+    const [found, again] = useCall(find)
+
+    if (found.state === "loading") return <p className="muted">Loading…</p>
+    if (found.state === "failed") return <FailureNotice failure={found} onRetry={again}/>
+
+    const {authors, total} = found.value
+    return (
+        <>
+            <div className="toolbar">
+                <p className="muted">{authors.length < total ? `${authors.length} of ${total} accounts` : countOf(total, "account")}</p>
+                <button type="button" className="button" onClick={again}>Reload</button>
+            </div>
+            <ol className="cards">
+                {authors.map(author => <AuthorCard key={author.accountId} author={author} onOpen={onOpen}/>)}
+            </ol>
+        </>
+    )
+}
+
+// An account by its name alone: the ledger is not asked, so it may have taken nothing in its 72 hours.
+function AuthorCard({author, onOpen}: {author: Author, onOpen: (opened: Opened) => void}) {
+    return (
+        <li className="card">
+            <div className="card-head">
+                <PlayerName name={author.name} flag="" unnamed="Unnamed"/>
+                <span className="muted">{author.guest ? "guest code" : "username"}</span>
+            </div>
+            <div className="card-foot">
+                <button
+                    type="button"
+                    className="button"
+                    onClick={() => onOpen({caller: {accountId: author.accountId}, name: author.name})}
+                >
+                    Open
+                </button>
             </div>
         </li>
     )

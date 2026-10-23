@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AdminGetPlayerRequest, AdminGetPlayerResponse, ReconcileTitlesRequest, ReconcileTitlesResponse } from "./admin_pb.js";
+import { AdminGetPlayerRequest, AdminGetPlayerResponse, FindAuthorsRequest, FindAuthorsResponse, ReconcileTitlesRequest, ReconcileTitlesResponse } from "./admin_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 import { GetAuthorsRequest, GetAuthorsResponse } from "./internal_pb.js";
 
@@ -44,6 +44,15 @@ export const AdminService = {
       name: "GetPlayer",
       I: AdminGetPlayerRequest,
       O: AdminGetPlayerResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc player.v1.AdminService.FindAuthors
+     */
+    findAuthors: {
+      name: "FindAuthors",
+      I: FindAuthorsRequest,
+      O: FindAuthorsResponse,
       kind: MethodKind.Unary,
     },
   }
