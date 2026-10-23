@@ -64,7 +64,8 @@ somebody else's bomb, spread click or shield. `fakeBackend.takeLandmass(landmass
 takes a landmass for a flag, shields and all, and leaves the last `leave` tiles to
 click by hand (it answers them); the fake fortifies as the server does, and every
 landmass starts locked to France. `fakeBackend.shareClicks("guests")` (or
-`"network"`) reads the bucket as shared, and `fakeBackend.shareClicks()` as the
+`"network"`) reads the bucket as shared, and `fakeBackend.unlockFlag()` ends the
+wait for another flag (see [The flag played for](#the-flag-played-for)), and `fakeBackend.shareClicks()` as the
 player's own again. `fakeBackend.closeShapes(false)` makes every enclose click
 close nothing, for the bubble that says so, and `closeShapes(true)` puts it back.
 `fakeBackend.ban(90)` refuses this player's clicks, bombs and shields for 90
@@ -2463,6 +2464,28 @@ the click did land and only the response was lost, the stream's echo repaints
 it, and if the echo arrives first the rollback is already a no-op. A transport
 fault rolls back with no sound and no dialog; the card from
 [Connection health](#connection-health) is what says why.
+
+## The flag played for
+
+**The server holds each account to one flag for an hour after a change** (the
+backend's CLAUDE.md, Allegiance). A click or a shield for another flag in that hour
+is refused. The client says so before the player tries.
+
+- `AllegianceSource` (`backends/backend.ts`) is the flag held, `Allegiance` in
+  `domain/allegiance.ts`: the country and `changeableAt`, undefined for a flag
+  never changed. `lockOf` is whether it holds now.
+- **`PlanetBackend` reads `GetAllegiance`** at load with the identity token, again
+  when a click goes out under a new token (`followSession`), and after an accepted
+  click for another flag than the one it holds: that click is the change. A refusal
+  carries the flag held in its detail, which `PlanetBackend` keeps
+  (`allegianceDetailOf`) and turns into `AllegianceLockedError`. A server without
+  the procedure holds nobody to anything.
+- **While the flag is held, the picked flag is the held one**: `Viewer` sets the
+  country back to it (local storage, a share link, another device). The picker
+  (`CountryPicker`) shows no list then, only when another country may be played.
+- **A refused click is rolled back and plays the refusal**, with no dialog
+  (`reportClickFailure`); a refused shield says nothing. The country snaps back.
+- `FakeBackend` holds the flag the same way.
 
 ## Charges
 

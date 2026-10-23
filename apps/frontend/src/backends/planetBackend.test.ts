@@ -15,6 +15,7 @@ import {
 } from "./planetBackend.ts"
 import {Code, ConnectError} from "@connectrpc/connect"
 import {
+    Allegiance as AllegianceMessage,
     BanRefusal,
     BombDropped,
     BonusKind,
@@ -23,6 +24,7 @@ import {
     QuizOffered,
     ChargesHeld,
     ClickBudget as ClickBudgetMessage,
+    GetAllegianceResponse,
     GetBonusRulesResponse,
     GetMapResponse,
     GlobePoint,
@@ -35,10 +37,11 @@ import {
     TilesSpread,
     TileUpdate,
 } from "../gen/grpc/planet/v1/planet_pb.ts"
-import {BankFullError, BannedError, BonusLostError, ShieldRefusedError, RateLimitedError, VPNBlockedError} from "./backend.ts"
+import {AllegianceLockedError, BankFullError, BannedError, BonusLostError, ShieldRefusedError, RateLimitedError, VPNBlockedError} from "./backend.ts"
 import {SESSION_HEADER, type SessionProvider, SessionUnavailableError} from "./session.ts"
 import type {ClickBudget} from "./clickBudget.ts"
 import type {BonusRules, Charges} from "../domain/bonus.ts"
+import type {Allegiance} from "../domain/allegiance.ts"
 
 function fixedSession(token: string): SessionProvider {
     return {token: async () => token, held: () => token, identity: async () => token, heldIdentity: () => token, invalidate: () => {}}
@@ -175,6 +178,7 @@ function bonusReads() {
     return {
         getBonusRules: vi.fn().mockResolvedValue(new GetBonusRulesResponse({blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3})),
         getCharges: vi.fn().mockResolvedValue({charges: new ChargesHeld()}),
+        getAllegiance: vi.fn().mockResolvedValue(new GetAllegianceResponse()),
     }
 }
 
@@ -1497,6 +1501,93 @@ describe("the refill", () => {
         await expect(backend.useRefill("fr")).rejects.toBeInstanceOf(BonusLostError)
 
         expect(seen.at(-1)?.refill).toBe(false)
+        backend.close()
+    })
+})
+
+describe("PlanetBackend allegiance", () => {
+    const clientWith = (fields: Record<string, unknown>) =>
+        ({click: vi.fn(), getMap: vi.fn(), getBudget: noBudget(), ...bonusReads(), mapDensity: vi.fn(), listenForEvents: noEvents(), ...fields}) as never
+
+    const held = (countryId: string, changeableAt?: number) => new GetAllegianceResponse({
+        allegiance: new AllegianceMessage({countryId, changeableAtUnixMs: BigInt(changeableAt ?? 0)}),
+    })
+
+    const lockedTo = (countryId: string, changeableAt: number) => new ConnectError("too soon", Code.FailedPrecondition, undefined,
+        [new AllegianceMessage({countryId, changeableAtUnixMs: BigInt(changeableAt)})])
+
+    const follow = (backend: PlanetBackend) => {
+        const seen: (Allegiance | undefined)[] = []
+        backend.listenForAllegiance((allegiance) => seen.push(allegiance))
+        return seen
+    }
+
+    it("reads the flag played for at load, as the identity the player holds", async () => {
+        const getAllegiance = vi.fn().mockResolvedValue(held("fr"))
+        const backend = new PlanetBackend(clientWith({getAllegiance}), 1_000, fixedSession("identity-1"))
+        const seen = follow(backend)
+
+        await vi.waitFor(() => expect(seen.at(-1)).toEqual({countryId: "fr"}))
+        expect((getAllegiance.mock.calls[0][1] as {headers: Headers}).headers.get(SESSION_HEADER)).toBe("identity-1")
+        backend.close()
+    })
+
+    it("reads it again after a click goes out for another flag, and not for the same one", async () => {
+        const getAllegiance = vi.fn()
+            .mockResolvedValueOnce(held("fr"))
+            .mockResolvedValue(held("de", 1_700_000_000_000))
+        const click = vi.fn().mockResolvedValue({})
+        const backend = new PlanetBackend(clientWith({getAllegiance, click}), 1_000, fixedSession("session-1"))
+        const seen = follow(backend)
+        await vi.waitFor(() => expect(seen.at(-1)).toEqual({countryId: "fr"}))
+
+        await backend.clickTile(7, "fr")
+        expect(getAllegiance).toHaveBeenCalledTimes(1)
+
+        await backend.clickTile(8, "de")
+        await vi.waitFor(() => expect(seen.at(-1)).toEqual({countryId: "de", changeableAt: 1_700_000_000_000}))
+        backend.close()
+    })
+
+    it("turns a click refused for its flag into the flag held and until when", async () => {
+        const click = vi.fn().mockRejectedValue(lockedTo("de", 1_700_000_000_000))
+        const backend = new PlanetBackend(clientWith({click}), 1_000, fixedSession("session-1"))
+        const seen = follow(backend)
+
+        const clicking = backend.clickTile(7, "fr")
+
+        await expect(clicking).rejects.toBeInstanceOf(AllegianceLockedError)
+        await expect(clicking).rejects.toMatchObject({allegiance: {countryId: "de", changeableAt: 1_700_000_000_000}})
+        expect(seen.at(-1)).toEqual({countryId: "de", changeableAt: 1_700_000_000_000})
+        backend.close()
+    })
+
+    it("turns a shield refused for its flag into the flag held, and gives the shield back", async () => {
+        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({shields: 3})})
+        const placeShield = vi.fn().mockRejectedValue(lockedTo("de", 1_700_000_000_000))
+        const backend = new PlanetBackend(clientWith({getCharges, placeShield}), 1_000, fixedSession("session-1"))
+        const seen = follow(backend)
+        const charges: Charges[] = []
+        backend.listenForBonuses({
+            onOffered: () => {}, onTaken: () => {}, onEnclosed: () => {}, onSpread: () => {}, onRules: () => {},
+            onCharges: (held) => charges.push(held),
+        })
+        await vi.waitFor(() => expect(charges.at(-1)?.shields).toBe(3))
+
+        await expect(backend.placeShield(7, "fr")).rejects.toBeInstanceOf(AllegianceLockedError)
+
+        expect(seen.at(-1)).toEqual({countryId: "de", changeableAt: 1_700_000_000_000})
+        expect(charges.at(-1)?.shields).toBe(3)
+        backend.close()
+    })
+
+    it("holds no flag from a server that does not know one", async () => {
+        const getAllegiance = vi.fn().mockRejectedValue(new ConnectError("no such procedure", Code.Unimplemented))
+        const backend = new PlanetBackend(clientWith({getAllegiance}), 1_000, fixedSession("identity-1"))
+        const seen = follow(backend)
+
+        await vi.waitFor(() => expect(getAllegiance).toHaveBeenCalled())
+        expect(seen.at(-1)).toBeUndefined()
         backend.close()
     })
 })

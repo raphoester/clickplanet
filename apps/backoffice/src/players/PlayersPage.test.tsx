@@ -8,6 +8,7 @@ import {AROUND} from "../chat/theirConversations.ts"
 import {ACCOUNT, AT, FakeAdmin} from "../fakeAdmin.ts"
 import {KeptMessage} from "../gen/grpc/chat/v1/admin_pb.ts"
 import {InspectPlayerResponse} from "../gen/grpc/planet/v1/admin_pb.ts"
+import {Author} from "../gen/grpc/player/v1/internal_pb.ts"
 import {CountryTiles} from "../gen/grpc/player/v1/player_pb.ts"
 import {Opened} from "../navigation.ts"
 import {PlayersPage} from "./PlayersPage.tsx"
@@ -71,6 +72,47 @@ describe("the player list", () => {
 
         expect(await screen.findByText("2 players")).toBeTruthy()
         expect(admin.askedFor("findPlayers")).toEqual([{flagCountryId: "ps", areaCountryId: "il", limit: 20}])
+    })
+
+    it("finds any account by a part of its name, and opens it", async () => {
+        const admin = new FakeAdmin()
+        admin.authors.push(new Author({accountId: "5e0c1b2a-3d4e-4f60-8a71-9b2c3d4e5f60", name: "guest_a1b2c3", guest: true}))
+        render(<Page admin={admin}/>)
+        await screen.findByText("2 of 75 players")
+
+        fireEvent.click(screen.getByRole("button", {name: "By name"}))
+        const find = within(screen.getByRole("form", {name: "Find players by name"}))
+        expect(find.getByRole("button", {name: "Find"}).hasAttribute("disabled")).toBe(true)
+        fireEvent.change(find.getByRole("textbox", {name: "Name"}), {target: {value: " GUEST_A1 "}})
+        fireEvent.click(find.getByRole("button", {name: "Find"}))
+
+        expect(await screen.findByText("1 account")).toBeTruthy()
+        expect(within(screen.getByRole("listitem")).getByText("guest code")).toBeTruthy()
+        expect(admin.askedFor("searchPlayers")).toEqual([{name: "GUEST_A1", limit: 20}])
+
+        fireEvent.change(find.getByRole("textbox", {name: "Name"}), {target: {value: "brave"}})
+        fireEvent.click(find.getByRole("button", {name: "Find"}))
+        const card = within(await screen.findByRole("listitem"))
+        expect(await card.findByText("BraveFox42")).toBeTruthy()
+        expect(card.getByText("username")).toBeTruthy()
+
+        fireEvent.click(card.getByRole("button", {name: "Open"}))
+        expect(await screen.findByRole("heading", {name: "BraveFox42 France"})).toBeTruthy()
+        expect(admin.askedFor("inspectPlayer")).toEqual([{accountId: ACCOUNT}])
+    })
+
+    it("says when a name search fails, and tries again", async () => {
+        const admin = new FakeAdmin()
+        admin.refuse("searchPlayers", Code.Unavailable)
+        render(<Page admin={admin}/>)
+        await screen.findByText("2 of 75 players")
+
+        fireEvent.click(screen.getByRole("button", {name: "By name"}))
+        fireEvent.change(screen.getByRole("textbox", {name: "Name"}), {target: {value: "brave"}})
+        fireEvent.click(screen.getByRole("button", {name: "Find"}))
+
+        fireEvent.click(await screen.findByRole("button", {name: "Try again"}))
+        expect(admin.askedFor("searchPlayers")).toHaveLength(2)
     })
 
     it("opens a row by its account, and its address from there", async () => {

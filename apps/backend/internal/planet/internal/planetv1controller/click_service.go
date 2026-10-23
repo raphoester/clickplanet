@@ -6,6 +6,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/claim_bonus_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/click_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/drop_bomb_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_allegiance_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_bonus_rules_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_budget_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_charges_handler"
@@ -33,6 +34,7 @@ type ClickService struct {
 	answer_quiz_handler.AnswerQuizHandler
 	place_shield_handler.PlaceShieldHandler
 	get_fortresses_handler.GetFortressesHandler
+	get_allegiance_handler.GetAllegianceHandler
 }
 
 var _ planetv1connect.ClickServiceHandler = ClickService{}

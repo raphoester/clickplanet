@@ -353,6 +353,8 @@ internal/planet/internal/
     inmemory_charge_storage/
     postgres_charge_store/
     usecases/
+  allegiances/                    the flag each account plays for, and when it last changed it
+    postgres_allegiance_store/
   planetv1controller/             the edge: maps the wire to the use cases, nothing else
     get_takes_by_country_handler/takes_query/   InternalService's one read, straight from ledger_events
   subscribers/                    the edge for events: auth.v1.AccountDeleted → anonymize_takes_usecase
@@ -425,7 +427,7 @@ because it serves every concept over one Connect service. It only maps.
 | `bonuses/usecases/get_charges_usecase` | what the caller holds | `Charges` |
 | `bonuses/usecases/use_refill_usecase` | fills the caller's bank with its refill | `Refills`, `Bank`, `Pricer` |
 | `bonuses/usecases/grant_charges_usecase` | the operator gives an account charges | `Charger` |
-| `bonuses/usecases/place_shield_usecase` | spends a shield on a tile of the caller's flag | `Shields`, `Tiles`, `CountryChecker` |
+| `bonuses/usecases/place_shield_usecase` | spends a shield on a tile of the caller's flag | `Shields`, `Tiles`, `CountryChecker`, `Allegiances` |
 | `clicks/usecases/relay_fortifications_usecase` | follows the tile map and publishes `planet.v1.Fortified` for each fortify; a `Runner` | `Changes`, `Publisher` |
 
 **The interfaces in that last column are declared by the package that calls
@@ -437,7 +439,7 @@ these ports at once, which is why `module.go` hands it over several times.
 
 **`click_usecase` is the only one with an interface of its own (`IUseCase`)**,
 because the click chain decorates it — `prom_click`, `throttle_click`,
-`antibot_click`, `antibot_attempt_click`, and the bonus decorators `spread_click`, `enclose_click` and
+`antibot_click`, `antibot_attempt_click`, `allegiance_click`, and the bonus decorators `spread_click`, `enclose_click` and
 `bonus_click`. The counting is a wrapper rather than a line inside the rule, so
 a process that does not want it leaves it out and the rule does not change.
 
@@ -728,6 +730,7 @@ POST /planet.v1.ClickService/Click   [X-Session-Token: <the minted token>]
   → ClickService → click_handler
   → ban_click       (a banned caller is PermissionDenied, with a BanRefusal: when the ban ends)
   → antibot_attempt_click (times every try for the metronome; refuses nothing)
+  → allegiance_click (another flag within the hour of a change is refused, and spends nothing)
   → throttle_click  (spends from the account's bucket and its scope's together, or refuses)
   → antibot_click   (judges, and flags a caller it finds guilty; refuses nothing)
   → prom_click      (counts)
@@ -867,6 +870,45 @@ defence against taking back the last tile for a free refill, and it costs no tim
   map's channel and publishes `planet.v1.Fortified` for each fortify; the map is where it
   happened. It subscribes again a second after the map cuts it off. The chat announces
   the ones of `fortifyNewsTiles` (50) tiles or more.
+
+### Allegiance: one change of flag an hour
+
+**An account plays for one flag, and may change it once an hour.** Every click and
+every shield names a flag, and nothing else ties a player to one: before this, a
+player could paint for one country and defend another click to click.
+
+- **The rule is `Allegiance.Pledged(flag, at)`**, pure and tested in the
+  `allegiances` root. The first flag an account acts for is kept with no wait, so a
+  player who clicked for its time zone's flag can still pick its own. The next
+  change is free too, and starts the wait: another flag within `changeEvery` (1h) of
+  it is `allegiances.Refusal` (`ErrChangedTooSoon`), with the flag held and until
+  when. The same flag again changes nothing.
+- **`allegiances.Book.Pledge(ctx, payer, flag)`** applies it at the clock's time, in
+  the store's `Change`: one transaction under `pg_advisory_xact_lock` on the account,
+  so two tabs clicking two flags at once cannot both change it.
+  A caller with no account, and a flag that is no country, are held to nothing: the
+  click use case refuses the second.
+- **It is checked after the ban and before the throttle** (`allegiance_click`,
+  between `antibot_attempt_click` and `throttle_click`): a banned caller is told its
+  ban first and changes no flag, and a click refused for its flag spends no token.
+  `place_shield_usecase` pledges before it spends the shield. A bomb, a claim, a
+  quiz and a refill name a flag only for what they announce, and are not held.
+- **The refusal is `FailedPrecondition` with a `planet.v1.Allegiance` detail**
+  (`allegiancemessage.Refusal`): the flag held and `changeable_at_unix_ms`. The
+  client snaps back to that flag.
+- **`ClickService/GetAllegiance`** answers the caller's (`allegiance_query`, straight
+  from postgres), as `Identified`: unset for an account that never acted for a flag,
+  and `changeable_at_unix_ms` 0 for a flag never changed. Not `NO_SIDE_EFFECTS`.
+- **No memory copy: every click and every shield reads postgres**, and a change writes
+  it, in `planet.allegiances` (`account`, `flag`, `changed_at`, NULL for a first flag).
+  Only the tile map is kept in memory and flushed. A failing database fails the click,
+  as the error net's `internal`. `allegiances.StoreContractSuite` runs on postgres and
+  on `MemoryStore`, the fake the use cases are tested over (behind the tag).
+- **A row is never deleted**, not even with its account: without the row the next flag
+  is a first flag again, which would hand out a free change. The row names nobody once
+  the account is gone.
+- **Guests are held per account**, like the bank: a private tab is a new guest and
+  a new first flag.
 
 ### Chat (`internal/chat/`)
 
@@ -1461,8 +1503,10 @@ internal/player/internal/
     get_profile_handler/  set_name_handler/  set_color_handler/  get_stats_handler/  get_author_handler/  get_player_handler/
     get_authors_handler/  get_titles_handler/  wear_title_handler/  get_fronts_handler/
     announce_handler/  leave_handler/  get_roster_handler/  listen_for_events_handler/
-    reconcile_titles_handler/  admin_get_player_handler/   AdminService's own; it serves get_authors_handler too
+    reconcile_titles_handler/  admin_get_player_handler/  search_players_handler/   AdminService's own; it serves
+                                    get_authors_handler too
       admin_get_player_handler/admin_player_query/   PostgresQuery: what the game keeps about one account, a guest's too
+      search_players_handler/matches_query/   PostgresQuery: the accounts a part of a name finds, straight from SQL
     get_profile_handler/profile_query/  get_stats_handler/stats_query/  get_player_handler/player_query/
     get_titles_handler/titles_query/  get_authors_handler/authors_query/   PostgresQuery: the response straight from SQL
     get_roster_handler/roster_query/    MemoryQuery: the roster, from its Lines port
@@ -1511,7 +1555,7 @@ internal/player/internal/
 - **Only a linked account may hold one.** `set_name_usecase` checks the name first, so a name no account may hold costs no call, then asks its `Accounts` port whether the caller signed in with a provider: `rpc_account_reader` calls `auth.v1.InternalService/GetAccount` over the internal listener on every `SetName` (2s timeout), since an account links at any time and a name is chosen rarely. A guest is `PermissionDenied` (`ErrNotLinked`). Auth answers `linked` false for an unknown account or an id that is not one; **a failure to ask is a real error**, the error net's `internal`, never a guest. With `auth` off that call 404s, so no name can be set.
 - **A signed-in account is given a username** when it has none, so every player who signs in has one. On `auth.v1.SignedIn` (`player-names-sign-ins`), `name_account_usecase` asks `players.GeneratedNames.Assign`, which saves with `Store.CreateProfile`: an insert that refuses an account with a profile (`ErrProfileExists`), so a name chosen at the same moment is never replaced. `random_name_generator` draws an adjective, an animal and two digits (`BraveFox42`; 40 × 40 × 90 names, every one valid under `NameOf`, which its tests pin), and a name another account holds is drawn again, 10 draws at most as for guest codes (`ErrNoFreeName`, logged; the next sign-in tries again). Postgres decides what is taken: the unique index on `name_folded` refuses the second of two accounts saving one name at once, whatever both read before. `renaming_name_account` renames the roster line at once. The player changes it with `SetName` as any name. A guest is never named: it has not signed in.
 - **The operator reads players on `player.v1.AdminService`**, for the admin page's Players and its home (see [Operator
-  tools](#operator-tools-adminservice)). All three are reads, and none logs or writes anything:
+  tools](#operator-tools-adminservice)). All four are reads, and none logs or writes anything:
   - **`GetRoster` is the public service's, handler and all**: who is playing now. The admin page calls the admin
     listener alone, so the public route is out of its reach.
   - **`GetAuthors(account_ids)` is the internal service's, handler and all**: the same `get_authors_handler`
@@ -1528,6 +1572,19 @@ internal/player/internal/
     `NotFound` (`admin_player_query.ErrNoPlayer`) is an account with no profile, no guest code and no stats; an id
     that is not an account is `InvalidArgument`; a failure to ask auth or planet is the error net's `internal`.
     `no-store`.
+  - **`SearchPlayers(name, limit)` finds an account by a part of its name**, for the player the operator only knows
+    from the chat: the ledger lists who played in its 72 hours, and a banned player has played nothing since. The
+    part is folded as a username is (`players.FoldedOf`, the same NFKC_Casefold), so `eire` finds `EIRE`, and
+    matched anywhere in `profiles.name_folded`, or in `guest_` and the code for an account with no username, as
+    `GetAuthors` names it: a code an account went by before it chose a name finds nothing. The same name first,
+    then the names it starts, then the shortest, then by name. `limit` is 20 when 0, 500 at most, and `total`
+    counts every account found. Each is a `PlayerMatch`: its account id, its name and `guest`, all a row of the
+    search shows. `matches_query` reads them in one statement (a scan of both tables: no index serves a match
+    inside a name), and its test pins that each is named as `GetAuthors` names it. An empty part is
+    `InvalidArgument` (`ErrNoName`). `no-store`.
+  - **It was `FindAuthors` for a day** (#450), answering `Author`s through `authors_query`: the name followed the
+    chat's type it reused, and "author" means nothing to an operator browsing players. Only the back office called
+    it, so it was renamed in one step.
 - **Migration `20260918190000_unicode_usernames`** moves to this rule. Every name kept before is ASCII of 3 to 20, so only length breaks the new rule: **a name over 15 is cut to its first 15 characters**, the player keeping most of it. A cut name that another would then hold, ignoring case — a name of 15 or fewer, or an older cut name (`updated_at`, then `account_id`) — is **deleted** instead, and its player chooses again; an untouched name is never the one to go. Then it fills `name_folded` with an ASCII-only `translate()` (exact for these names, in any locale), replaces the `CHECK`, and moves `profiles_name_key` to `name_folded`. The down migration deletes the names the old rule refuses, drops the column and puts the old `CHECK` and the `lower(name)` index back; cut names stay cut. `migrations_test.go` migrates to the version before, writes names, and migrates the rest.
 - **Migration `20260917180000_usernames`** deletes the profiles whose name breaks the new rule, then, of names that differ only in case, every one but the oldest (`updated_at`, then `account_id`), replaces the name `CHECK` with the new pattern and adds the unique index. No client called `SetName` before usernames existed, so nothing a player chose is lost. The down migration drops the index and puts the old `CHECK` back; the deleted rows stay deleted.
 - **A guest code names an account that chose no username**: 6 lowercase hex characters (`players.GuestCode`), shown as `guest_` and the code (`players.DisplayNameOf`). It is drawn by `random_code_generator` the first time the account is shown (`players.GuestCodes.Assign`), kept in `player.guest_codes`, and deleted with the account, which frees it. **It is unique**: the table's `guest_codes_code_key` refuses a code another account holds, the store answers `ErrGuestCodeTaken`, and `Assign` draws again, up to 10 times (`ErrNoFreeGuestCode`). An account keeps its first code: a second save for it changes nothing, so two first announces at once leave one code. **It does not change with the network**, unlike the address, and says nothing about the account or the address. A linked account with no username keeps the code it had as a guest until it picks a name.

@@ -92,10 +92,13 @@ an `auth.secret` (`openssl rand -hex 32`). Postgres on `localhost:5432`. Then
 
 ## The menu
 
-**A burger at the top left opens a drawer from the left** (`components/Menu`), at every width: every page under
-its group, the page shown marked. `MENU` in `navigation.ts` is the only list of pages, and a page's label is its
-title (`titleOf`), shown above it. `Console` in `App.tsx` shows the page picked.
+**A burger at the top left opens a drawer from the left** (`components/Menu`) below 1024px: every page under its
+group, the page shown marked. **From 1024px the same list stays open in a sidebar** (`Sidebar`), with no burger,
+so a page is one click away (`useWide`, which follows the window as it is resized). `MENU` in `navigation.ts` is
+the only list of pages, and a page's label is its title (`titleOf`), shown above it. `Console` in `App.tsx` shows
+the page picked.
 
+- **The sidebar stays in place while the page scrolls**, and is not modal: nothing traps the focus or closes it.
 - **The drawer is modal**: it takes the focus to the page shown, keeps Tab inside it, and closes on Escape, its
   close button, a click beside it or a page picked, giving the focus back to the burger. The page behind does not
   scroll while it is open.
@@ -227,11 +230,16 @@ take either. An account id is a UUID; anything else typed is an address, which t
 address over IPv4, the /64 over IPv6) and checks.
 
 - **The list** (`PlayerList`): `TopPlayers` (most takes first, then most tiles held), or **By flag**,
-  `FindPlayers` with a flag and an optional ground. 20 by default, up to 500. Each row of the ledger's 72 hours is
+  `FindPlayers` with a flag and an optional ground, or **By name**. 20 by default, up to 500. Each row of the ledger's 72 hours is
   one account on every address it took from, shown with the address of its latest take (or one address, for takes
   with no account), with its takes, the tiles it still holds and their share of its takes (many takes
   and few tiles is a player painted over as fast as it paints), its rates and any ban. The list is read again on
   the way back from a player, as the reports are.
+- **By name** (`NameResults`) is `player.v1.AdminService/SearchPlayers` with what the operator typed: every account
+  whose username or guest code holds it, any case, the same name first. It reaches past the ledger's 72 hours, so a
+  banned player the lists no longer show is found by the name the chat gives it. A row is its name and whether it is
+  a username or a guest code, and opens its account (`MatchCard`); it carries no takes, since the ledger is not
+  asked.
 - **A row is shown by its flag and its name, never its account id** (`PlayerName`): the flag it took the most tiles
   for (`flag_country_id`), as an emoji and a name, then its username or its guest code, then its address. The
   planet's rows carry no name, and planet may not ask `player` (the backend's `CLAUDE.md`, "Player"), so
@@ -318,11 +326,12 @@ src/
   useCall.ts        one call's state, run on mount
   useAction.ts      one read's state, run on a click
   usePage.ts        the page shown, kept in the address bar
+  useWide.ts        whether the window is wide enough for the sidebar
   navigation.ts     MENU, the pages by group, and OpenPlayer
   countries.ts      a country id's name and its flag
   App.tsx           the callback, or WhoAmI first, then the page the menu picked
   signIn/           callbackOf, SignInButton, SignInCallback, SignOutButton
-  components/       Menu, ConfirmAction, FailureNotice, AccountId and Copyable (with Copy), Country, CountryField,
+  components/       Menu and Sidebar, ConfirmAction, FailureNotice, AccountId and Copyable (with Copy), Country, CountryField,
                     Fact, Person, When
   home/             Home: the tiles, ActivityCharts, Heatmap, CountryTable, PlayingNow, over activity.ts and heat.ts
   support/          Ideas and bugs: NoteList, Attachments, labels.ts (names, outcomes, device lines, sizes)

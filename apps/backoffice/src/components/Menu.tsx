@@ -77,31 +77,46 @@ export function Menu({page, onGo}: Props) {
                                 </svg>
                             </button>
                         </div>
-                        <nav aria-label="Pages">
-                            {MENU.map(group => (
-                                <div key={group.label} className="menu-group">
-                                    <h2 className="menu-heading">{group.label}</h2>
-                                    <ul>
-                                        {group.pages.map(item => (
-                                            <li key={item.page}>
-                                                <button
-                                                    type="button"
-                                                    className="menu-item"
-                                                    aria-current={item.page === page ? "page" : undefined}
-                                                    onClick={() => go(item.page)}
-                                                >
-                                                    {item.label}
-                                                </button>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            ))}
-                        </nav>
+                        <Pages page={page} onGo={go}/>
                     </div>
                 </>
             )}
         </>
+    )
+}
+
+// On a wide screen the pages stay beside the page shown, and need no burger.
+export function Sidebar({page, onGo}: Props) {
+    return (
+        <aside className="sidebar">
+            <Pages page={page} onGo={onGo}/>
+        </aside>
+    )
+}
+
+function Pages({page, onGo}: Props) {
+    return (
+        <nav aria-label="Pages">
+            {MENU.map(group => (
+                <div key={group.label} className="menu-group">
+                    <h2 className="menu-heading">{group.label}</h2>
+                    <ul>
+                        {group.pages.map(item => (
+                            <li key={item.page}>
+                                <button
+                                    type="button"
+                                    className="menu-item"
+                                    aria-current={item.page === page ? "page" : undefined}
+                                    onClick={() => onGo(item.page)}
+                                >
+                                    {item.label}
+                                </button>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            ))}
+        </nav>
     )
 }
 

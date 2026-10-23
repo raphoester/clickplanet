@@ -1,6 +1,6 @@
 import {describe, expect, it, vi} from "vitest"
 import {drawsFrame, reportClaimFailure, reportClickFailure, spinStep} from "./globe.ts"
-import {BannedError, BonusLostError, RateLimitedError, VPNBlockedError} from "../../backends/backend.ts"
+import {AllegianceLockedError, BannedError, BonusLostError, RateLimitedError, VPNBlockedError} from "../../backends/backend.ts"
 import {SessionUnavailableError} from "../../backends/session.ts"
 import {OwnerChange, TileOwnership} from "../../domain/tileOwnership.ts"
 import {LeaderboardEntry, rankCountries} from "../../domain/leaderboard.ts"
@@ -53,6 +53,19 @@ describe("reportClickFailure", () => {
         expect(h.onSessionUnavailable).toHaveBeenCalledTimes(1)
         expect(h.onRateLimited).not.toHaveBeenCalled()
         expect(h.onVPNBlocked).not.toHaveBeenCalled()
+    })
+
+    it("plays a click refused for its flag as refused, with no dialog and no log", () => {
+        const h = handlers()
+        const logged = vi.spyOn(console, "error").mockImplementation(() => {})
+
+        expect(reportClickFailure(new AllegianceLockedError({countryId: "de", changeableAt: 1}), h)).toBe(true)
+
+        expect(logged).not.toHaveBeenCalled()
+        expect(h.onRateLimited).not.toHaveBeenCalled()
+        expect(h.onVPNBlocked).not.toHaveBeenCalled()
+        expect(h.onSessionUnavailable).not.toHaveBeenCalled()
+        logged.mockRestore()
     })
 
     it("logs anything else and raises no dialog", () => {

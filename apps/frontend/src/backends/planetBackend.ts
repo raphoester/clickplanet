@@ -1,4 +1,6 @@
 import {
+    AllegianceLockedError,
+    AllegianceSource,
     BankFullError,
     BannedError,
     BombDrop,
@@ -27,7 +29,9 @@ import {
 } from "./backend.ts";
 import {ALL_OFF, BonusReward, BonusRules, Charges, NO_CHARGES, Switches} from "../domain/bonus.ts";
 import {QuizOffer, QuizOutcome, QuizQuestion} from "../domain/quiz.ts";
+import {Allegiance} from "../domain/allegiance.ts";
 import {
+    Allegiance as AllegianceMessage,
     BanRefusal,
     BonusKind,
     ChargesHeld,
@@ -56,7 +60,7 @@ export function newClickServiceClient(config: Config): PromiseClient<typeof Clic
     }))
 }
 
-export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller, Shielder {
+export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller, Shielder, AllegianceSource {
     private pendingUpdates: Update[] = []
     private readonly updateBatchCallbacks = new Map<string, (updates: Update[]) => void>()
     private readonly updateCallbacks = new Map<string, (update: Update) => void>()
@@ -66,6 +70,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
     private readonly budgetCallbacks = new Map<string, (budget: ClickBudget) => void>()
     private readonly resumeCallbacks = new Map<string, () => void>()
     private readonly fortificationCallbacks = new Map<string, (fortification: Fortification) => void>()
+    private readonly allegianceCallbacks = new Map<string, (allegiance: Allegiance | undefined) => void>()
     private readonly flushTimer: ReturnType<typeof setInterval>
     private stopListening: () => void
 
@@ -80,6 +85,8 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
     private rules: BonusRules | undefined
 
     private charges: Charges = NO_CHARGES
+
+    private allegiance: Allegiance | undefined
 
     constructor(
         private client: PromiseClient<typeof ClickService>,
@@ -117,6 +124,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         this.budgetCallbacks.clear()
         this.resumeCallbacks.clear()
         this.fortificationCallbacks.clear()
+        this.allegianceCallbacks.clear()
         this.pendingUpdates = []
     }
 
@@ -160,8 +168,10 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
             if (spread && this.charges.spreadClicksLeft > 0) {
                 this.holdCharges({...this.charges, spreadClicksLeft: this.charges.spreadClicksLeft - 1})
             }
+            if (this.allegiance?.countryId !== countryId) void this.readAllegiance(token)
         } catch (e) {
             this.anchorBudget(budgetDetailOf(e), countryId)
+            this.holdRefusal(e)
             throw e
         }
     }
@@ -337,7 +347,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
             this.followSession(token)
             return
         }
-        await this.readCharges(token)
+        await Promise.all([this.readCharges(token), this.readAllegiance(token)])
     }
 
     private followSession(token: string | undefined): void {
@@ -348,6 +358,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         this.stopListening = this.openEventStream()
 
         void this.readCharges(token)
+        void this.readAllegiance(token)
     }
 
     private async readRules(): Promise<void> {
@@ -387,6 +398,38 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
     private holdCharges(charges: Charges): void {
         this.charges = charges
         this.bonusCallbacks.forEach(handlers => handlers.onCharges(charges))
+    }
+
+    private async readAllegiance(token: string | undefined): Promise<void> {
+        const headers = new Headers()
+        if (token) headers.set(SESSION_HEADER, token)
+
+        try {
+            const res = await retrying(() => this.client.getAllegiance({}, {headers}), "getAllegiance")
+            if (token !== this.streamToken && token !== this.session.heldIdentity()) return
+            this.holdAllegiance(allegianceOfMessage(res.allegiance))
+        } catch (e) {
+            if (e instanceof ConnectError && e.code === Code.Unimplemented) return
+            console.error("could not read the flag played for", e)
+        }
+    }
+
+    private holdRefusal(e: unknown): void {
+        const locked = allegianceDetailOf(e)
+        if (locked) this.holdAllegiance(locked)
+    }
+
+    private holdAllegiance(allegiance: Allegiance | undefined): void {
+        this.allegiance = allegiance
+        this.allegianceCallbacks.forEach(callback => callback(allegiance))
+    }
+
+    public listenForAllegiance(callback: (allegiance: Allegiance | undefined) => void): () => void {
+        const id = generateUUID()
+        this.allegianceCallbacks.set(id, callback)
+        callback(this.allegiance)
+
+        return () => this.allegianceCallbacks.delete(id)
     }
 
     public listenForUpdates(callback: (update: Update) => void): () => void {
@@ -628,9 +671,14 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         const headers = new Headers()
         if (sessionToken) headers.set(SESSION_HEADER, sessionToken)
 
-        const res = await this.client.placeShield({tileId, countryId}, {headers})
-        this.followSession(sessionToken)
-        this.holdCharges(chargesOfMessage(res.charges))
+        try {
+            const res = await this.client.placeShield({tileId, countryId}, {headers})
+            this.followSession(sessionToken)
+            this.holdCharges(chargesOfMessage(res.charges))
+        } catch (e) {
+            this.holdRefusal(e)
+            throw e
+        }
     }
 
     public listenForUpdatesBatch(
@@ -770,6 +818,8 @@ function bannedOf(e: ConnectError): BannedError | undefined {
 }
 
 export function asShieldError(e: unknown): unknown {
+    const locked = allegianceDetailOf(e)
+    if (locked) return new AllegianceLockedError(locked, {cause: e})
     if (e instanceof ConnectError && e.code === Code.FailedPrecondition) return new ShieldRefusedError({cause: e})
 
     return asBonusError(e)
@@ -796,6 +846,19 @@ export function priceOf(budget: ClickBudgetMessage): ClickPrice | undefined {
     }
 }
 
+export function allegianceOfMessage(message: AllegianceMessage | undefined): Allegiance | undefined {
+    if (!message || message.countryId === "") return undefined
+
+    const changeableAt = Number(message.changeableAtUnixMs)
+    return changeableAt === 0 ? {countryId: message.countryId} : {countryId: message.countryId, changeableAt}
+}
+
+export function allegianceDetailOf(e: unknown): Allegiance | undefined {
+    if (!(e instanceof ConnectError) || e.code !== Code.FailedPrecondition) return undefined
+
+    return allegianceOfMessage(e.findDetails(AllegianceMessage)[0])
+}
+
 export function budgetDetailOf(e: unknown): ClickBudgetMessage | undefined {
     if (!(e instanceof ConnectError)) return undefined
 
@@ -804,6 +867,9 @@ export function budgetDetailOf(e: unknown): ClickBudgetMessage | undefined {
 
 export function asClickError(e: unknown): unknown {
     if (e instanceof SessionUnavailableError) return e
+
+    const locked = allegianceDetailOf(e)
+    if (locked) return new AllegianceLockedError(locked, {cause: e})
 
     if (e instanceof ConnectError) {
         if (e.code === Code.ResourceExhausted) return new RateLimitedError({cause: e})

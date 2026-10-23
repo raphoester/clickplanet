@@ -19,6 +19,7 @@ export default function App(props: AppProps) {
             bomber={props.bomber}
             refiller={props.refiller}
             shielder={props.shielder}
+            allegiance={props.allegiance}
             chatBackend={props.chatBackend}
             account={props.account}
             presence={props.presence}

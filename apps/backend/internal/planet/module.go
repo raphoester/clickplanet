@@ -13,6 +13,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances/postgres_allegiance_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/inmemory_charge_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/postgres_charge_store"
@@ -36,6 +38,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/postgres_tile_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/allegiance_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/antibot_attempt_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/antibot_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/ban_click"
@@ -81,6 +84,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/drop_bomb_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/find_players_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_activity_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_allegiance_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_allegiance_handler/allegiance_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_bonus_rules_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_budget_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_charges_handler"
@@ -192,6 +197,8 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			pricer := clicks.NewToll(config.Toll, tilesStorage)
 
+			book := allegiances.NewBook(postgres_allegiance_store.New(db), countries, clock)
+
 			shielding := clicks.NewShielding(tilesStorage)
 
 			writer := ledger.NewRecording(tilesStorage, clicks.NewClaiming(tilesStorage, config.Bonus.ShieldsPerTile()),
@@ -240,6 +247,9 @@ func NewModule(config Config) cpbootstrap.Module {
 			clickUseCase = bonus_click.New(clickUseCase, registry)
 
 			clickUseCase = throttle_click.New(clickUseCase, limiter, pricer, buckets)
+
+			// Outside the throttle, so a click refused for its flag spends nothing.
+			clickUseCase = allegiance_click.New(clickUseCase, book)
 
 			clickUseCase = antibot_attempt_click.New(clickUseCase, guard, geography, clock)
 
@@ -376,8 +386,9 @@ func NewModule(config Config) cpbootstrap.Module {
 				OpenQuizHandler:      open_quiz_handler.New(openQuiz),
 				AnswerQuizHandler:    answer_quiz_handler.New(answerQuiz),
 				PlaceShieldHandler: place_shield_handler.New(antibot_place_shield.New(
-					place_shield_usecase.New(charges, writer, countries, config.Bonus.ShieldsPerTile()), guard)),
+					place_shield_usecase.New(charges, writer, countries, book, config.Bonus.ShieldsPerTile()), guard)),
 				GetFortressesHandler: get_fortresses_handler.New(fortresses_query.NewMemoryQuery(tilesStorage)),
+				GetAllegianceHandler: get_allegiance_handler.New(allegiance_query.NewPostgresQuery(db)),
 			}
 
 			return props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {

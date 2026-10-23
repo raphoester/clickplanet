@@ -46,6 +46,29 @@ const button = (name: string | RegExp) => screen.getByRole("button", {name})
 const tab = (name: string) => screen.getByRole("tab", {name})
 
 describe("Menu", () => {
+    it("says when another country may be played while the flag is held, and offers none", async () => {
+        const user = userEvent.setup()
+        const changeableAt = Date.now() + 30 * 60 * 1000
+        render(<Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}
+                     allegiance={{countryId: "fr", changeableAt}}/>)
+
+        await user.click(button("Change"))
+
+        const time = new Intl.DateTimeFormat(undefined, {hour: "2-digit", minute: "2-digit"}).format(changeableAt)
+        expect(screen.getByRole("status").textContent).toBe(`You can play for another country at ${time}.`)
+        expect(countryPanel()).toBeNull()
+    })
+
+    it("offers every country once the wait is over", async () => {
+        const user = userEvent.setup()
+        render(<Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}
+                     allegiance={{countryId: "fr", changeableAt: Date.now() - 1}}/>)
+
+        await user.click(button("Change"))
+
+        expect(countryPanel()).not.toBeNull()
+    })
+
     it("starts on the leaderboard, with the picker and About closed", () => {
         setup([entry("fr", 500)])
 

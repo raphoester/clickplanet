@@ -109,6 +109,170 @@ func (x *ReconcileTitlesResponse) GetRevoked() uint32 {
 	return 0
 }
 
+type SearchPlayersRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Limit         uint32                 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SearchPlayersRequest) Reset() {
+	*x = SearchPlayersRequest{}
+	mi := &file_player_v1_admin_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SearchPlayersRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SearchPlayersRequest) ProtoMessage() {}
+
+func (x *SearchPlayersRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_player_v1_admin_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SearchPlayersRequest.ProtoReflect.Descriptor instead.
+func (*SearchPlayersRequest) Descriptor() ([]byte, []int) {
+	return file_player_v1_admin_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *SearchPlayersRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *SearchPlayersRequest) GetLimit() uint32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+type SearchPlayersResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Players       []*PlayerMatch         `protobuf:"bytes,1,rep,name=players,proto3" json:"players,omitempty"`
+	Total         uint32                 `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SearchPlayersResponse) Reset() {
+	*x = SearchPlayersResponse{}
+	mi := &file_player_v1_admin_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SearchPlayersResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SearchPlayersResponse) ProtoMessage() {}
+
+func (x *SearchPlayersResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_player_v1_admin_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SearchPlayersResponse.ProtoReflect.Descriptor instead.
+func (*SearchPlayersResponse) Descriptor() ([]byte, []int) {
+	return file_player_v1_admin_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *SearchPlayersResponse) GetPlayers() []*PlayerMatch {
+	if x != nil {
+		return x.Players
+	}
+	return nil
+}
+
+func (x *SearchPlayersResponse) GetTotal() uint32 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+type PlayerMatch struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Guest         bool                   `protobuf:"varint,3,opt,name=guest,proto3" json:"guest,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PlayerMatch) Reset() {
+	*x = PlayerMatch{}
+	mi := &file_player_v1_admin_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PlayerMatch) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PlayerMatch) ProtoMessage() {}
+
+func (x *PlayerMatch) ProtoReflect() protoreflect.Message {
+	mi := &file_player_v1_admin_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PlayerMatch.ProtoReflect.Descriptor instead.
+func (*PlayerMatch) Descriptor() ([]byte, []int) {
+	return file_player_v1_admin_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *PlayerMatch) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+func (x *PlayerMatch) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *PlayerMatch) GetGuest() bool {
+	if x != nil {
+		return x.Guest
+	}
+	return false
+}
+
 type AdminGetPlayerRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
@@ -118,7 +282,7 @@ type AdminGetPlayerRequest struct {
 
 func (x *AdminGetPlayerRequest) Reset() {
 	*x = AdminGetPlayerRequest{}
-	mi := &file_player_v1_admin_proto_msgTypes[2]
+	mi := &file_player_v1_admin_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -130,7 +294,7 @@ func (x *AdminGetPlayerRequest) String() string {
 func (*AdminGetPlayerRequest) ProtoMessage() {}
 
 func (x *AdminGetPlayerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_admin_proto_msgTypes[2]
+	mi := &file_player_v1_admin_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -143,7 +307,7 @@ func (x *AdminGetPlayerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminGetPlayerRequest.ProtoReflect.Descriptor instead.
 func (*AdminGetPlayerRequest) Descriptor() ([]byte, []int) {
-	return file_player_v1_admin_proto_rawDescGZIP(), []int{2}
+	return file_player_v1_admin_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *AdminGetPlayerRequest) GetAccountId() string {
@@ -173,7 +337,7 @@ type AdminGetPlayerResponse struct {
 
 func (x *AdminGetPlayerResponse) Reset() {
 	*x = AdminGetPlayerResponse{}
-	mi := &file_player_v1_admin_proto_msgTypes[3]
+	mi := &file_player_v1_admin_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -185,7 +349,7 @@ func (x *AdminGetPlayerResponse) String() string {
 func (*AdminGetPlayerResponse) ProtoMessage() {}
 
 func (x *AdminGetPlayerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_admin_proto_msgTypes[3]
+	mi := &file_player_v1_admin_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -198,7 +362,7 @@ func (x *AdminGetPlayerResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminGetPlayerResponse.ProtoReflect.Descriptor instead.
 func (*AdminGetPlayerResponse) Descriptor() ([]byte, []int) {
-	return file_player_v1_admin_proto_rawDescGZIP(), []int{3}
+	return file_player_v1_admin_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *AdminGetPlayerResponse) GetName() string {
@@ -293,7 +457,18 @@ const file_player_v1_admin_proto_rawDesc = "" +
 	"\x16ReconcileTitlesRequest\"M\n" +
 	"\x17ReconcileTitlesResponse\x12\x18\n" +
 	"\agranted\x18\x01 \x01(\rR\agranted\x12\x18\n" +
-	"\arevoked\x18\x02 \x01(\rR\arevoked\"6\n" +
+	"\arevoked\x18\x02 \x01(\rR\arevoked\"@\n" +
+	"\x14SearchPlayersRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
+	"\x05limit\x18\x02 \x01(\rR\x05limit\"_\n" +
+	"\x15SearchPlayersResponse\x120\n" +
+	"\aplayers\x18\x01 \x03(\v2\x16.player.v1.PlayerMatchR\aplayers\x12\x14\n" +
+	"\x05total\x18\x02 \x01(\rR\x05total\"V\n" +
+	"\vPlayerMatch\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x14\n" +
+	"\x05guest\x18\x03 \x01(\bR\x05guest\"6\n" +
 	"\x15AdminGetPlayerRequest\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\"\xe5\x03\n" +
@@ -311,13 +486,14 @@ const file_player_v1_admin_proto_rawDesc = "" +
 	"worn_title\x18\n" +
 	" \x01(\v2\x10.player.v1.TitleR\twornTitle\x124\n" +
 	"\tplays_for\x18\v \x03(\v2\x17.player.v1.CountryTilesR\bplaysFor\x12<\n" +
-	"\rplays_against\x18\f \x03(\v2\x17.player.v1.CountryTilesR\fplaysAgainst2\xcd\x02\n" +
+	"\rplays_against\x18\f \x03(\v2\x17.player.v1.CountryTilesR\fplaysAgainst2\xa1\x03\n" +
 	"\fAdminService\x12X\n" +
 	"\x0fReconcileTitles\x12!.player.v1.ReconcileTitlesRequest\x1a\".player.v1.ReconcileTitlesResponse\x12I\n" +
 	"\n" +
 	"GetAuthors\x12\x1c.player.v1.GetAuthorsRequest\x1a\x1d.player.v1.GetAuthorsResponse\x12P\n" +
 	"\tGetPlayer\x12 .player.v1.AdminGetPlayerRequest\x1a!.player.v1.AdminGetPlayerResponse\x12F\n" +
-	"\tGetRoster\x12\x1b.player.v1.GetRosterRequest\x1a\x1c.player.v1.GetRosterResponseB\xb2\x01\n" +
+	"\tGetRoster\x12\x1b.player.v1.GetRosterRequest\x1a\x1c.player.v1.GetRosterResponse\x12R\n" +
+	"\rSearchPlayers\x12\x1f.player.v1.SearchPlayersRequest\x1a .player.v1.SearchPlayersResponseB\xb2\x01\n" +
 	"\rcom.player.v1B\n" +
 	"AdminProtoP\x01ZPgithub.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1;playerv1\xa2\x02\x03PXX\xaa\x02\tPlayer.V1\xca\x02\tPlayer\\V1\xe2\x02\x15Player\\V1\\GPBMetadata\xea\x02\n" +
 	"Player::V1b\x06proto3"
@@ -334,41 +510,47 @@ func file_player_v1_admin_proto_rawDescGZIP() []byte {
 	return file_player_v1_admin_proto_rawDescData
 }
 
-var file_player_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_player_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_player_v1_admin_proto_goTypes = []any{
 	(*ReconcileTitlesRequest)(nil),  // 0: player.v1.ReconcileTitlesRequest
 	(*ReconcileTitlesResponse)(nil), // 1: player.v1.ReconcileTitlesResponse
-	(*AdminGetPlayerRequest)(nil),   // 2: player.v1.AdminGetPlayerRequest
-	(*AdminGetPlayerResponse)(nil),  // 3: player.v1.AdminGetPlayerResponse
-	(NameColor)(0),                  // 4: player.v1.NameColor
-	(*Stats)(nil),                   // 5: player.v1.Stats
-	(*Title)(nil),                   // 6: player.v1.Title
-	(*CountryTiles)(nil),            // 7: player.v1.CountryTiles
-	(*GetAuthorsRequest)(nil),       // 8: player.v1.GetAuthorsRequest
-	(*GetRosterRequest)(nil),        // 9: player.v1.GetRosterRequest
-	(*GetAuthorsResponse)(nil),      // 10: player.v1.GetAuthorsResponse
-	(*GetRosterResponse)(nil),       // 11: player.v1.GetRosterResponse
+	(*SearchPlayersRequest)(nil),    // 2: player.v1.SearchPlayersRequest
+	(*SearchPlayersResponse)(nil),   // 3: player.v1.SearchPlayersResponse
+	(*PlayerMatch)(nil),             // 4: player.v1.PlayerMatch
+	(*AdminGetPlayerRequest)(nil),   // 5: player.v1.AdminGetPlayerRequest
+	(*AdminGetPlayerResponse)(nil),  // 6: player.v1.AdminGetPlayerResponse
+	(NameColor)(0),                  // 7: player.v1.NameColor
+	(*Stats)(nil),                   // 8: player.v1.Stats
+	(*Title)(nil),                   // 9: player.v1.Title
+	(*CountryTiles)(nil),            // 10: player.v1.CountryTiles
+	(*GetAuthorsRequest)(nil),       // 11: player.v1.GetAuthorsRequest
+	(*GetRosterRequest)(nil),        // 12: player.v1.GetRosterRequest
+	(*GetAuthorsResponse)(nil),      // 13: player.v1.GetAuthorsResponse
+	(*GetRosterResponse)(nil),       // 14: player.v1.GetRosterResponse
 }
 var file_player_v1_admin_proto_depIdxs = []int32{
-	4,  // 0: player.v1.AdminGetPlayerResponse.color:type_name -> player.v1.NameColor
-	5,  // 1: player.v1.AdminGetPlayerResponse.stats:type_name -> player.v1.Stats
-	6,  // 2: player.v1.AdminGetPlayerResponse.titles:type_name -> player.v1.Title
-	6,  // 3: player.v1.AdminGetPlayerResponse.worn_title:type_name -> player.v1.Title
-	7,  // 4: player.v1.AdminGetPlayerResponse.plays_for:type_name -> player.v1.CountryTiles
-	7,  // 5: player.v1.AdminGetPlayerResponse.plays_against:type_name -> player.v1.CountryTiles
-	0,  // 6: player.v1.AdminService.ReconcileTitles:input_type -> player.v1.ReconcileTitlesRequest
-	8,  // 7: player.v1.AdminService.GetAuthors:input_type -> player.v1.GetAuthorsRequest
-	2,  // 8: player.v1.AdminService.GetPlayer:input_type -> player.v1.AdminGetPlayerRequest
-	9,  // 9: player.v1.AdminService.GetRoster:input_type -> player.v1.GetRosterRequest
-	1,  // 10: player.v1.AdminService.ReconcileTitles:output_type -> player.v1.ReconcileTitlesResponse
-	10, // 11: player.v1.AdminService.GetAuthors:output_type -> player.v1.GetAuthorsResponse
-	3,  // 12: player.v1.AdminService.GetPlayer:output_type -> player.v1.AdminGetPlayerResponse
-	11, // 13: player.v1.AdminService.GetRoster:output_type -> player.v1.GetRosterResponse
-	10, // [10:14] is the sub-list for method output_type
-	6,  // [6:10] is the sub-list for method input_type
-	6,  // [6:6] is the sub-list for extension type_name
-	6,  // [6:6] is the sub-list for extension extendee
-	0,  // [0:6] is the sub-list for field type_name
+	4,  // 0: player.v1.SearchPlayersResponse.players:type_name -> player.v1.PlayerMatch
+	7,  // 1: player.v1.AdminGetPlayerResponse.color:type_name -> player.v1.NameColor
+	8,  // 2: player.v1.AdminGetPlayerResponse.stats:type_name -> player.v1.Stats
+	9,  // 3: player.v1.AdminGetPlayerResponse.titles:type_name -> player.v1.Title
+	9,  // 4: player.v1.AdminGetPlayerResponse.worn_title:type_name -> player.v1.Title
+	10, // 5: player.v1.AdminGetPlayerResponse.plays_for:type_name -> player.v1.CountryTiles
+	10, // 6: player.v1.AdminGetPlayerResponse.plays_against:type_name -> player.v1.CountryTiles
+	0,  // 7: player.v1.AdminService.ReconcileTitles:input_type -> player.v1.ReconcileTitlesRequest
+	11, // 8: player.v1.AdminService.GetAuthors:input_type -> player.v1.GetAuthorsRequest
+	5,  // 9: player.v1.AdminService.GetPlayer:input_type -> player.v1.AdminGetPlayerRequest
+	12, // 10: player.v1.AdminService.GetRoster:input_type -> player.v1.GetRosterRequest
+	2,  // 11: player.v1.AdminService.SearchPlayers:input_type -> player.v1.SearchPlayersRequest
+	1,  // 12: player.v1.AdminService.ReconcileTitles:output_type -> player.v1.ReconcileTitlesResponse
+	13, // 13: player.v1.AdminService.GetAuthors:output_type -> player.v1.GetAuthorsResponse
+	6,  // 14: player.v1.AdminService.GetPlayer:output_type -> player.v1.AdminGetPlayerResponse
+	14, // 15: player.v1.AdminService.GetRoster:output_type -> player.v1.GetRosterResponse
+	3,  // 16: player.v1.AdminService.SearchPlayers:output_type -> player.v1.SearchPlayersResponse
+	12, // [12:17] is the sub-list for method output_type
+	7,  // [7:12] is the sub-list for method input_type
+	7,  // [7:7] is the sub-list for extension type_name
+	7,  // [7:7] is the sub-list for extension extendee
+	0,  // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_player_v1_admin_proto_init() }
@@ -386,7 +568,7 @@ func file_player_v1_admin_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_player_v1_admin_proto_rawDesc), len(file_player_v1_admin_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

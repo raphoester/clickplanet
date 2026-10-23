@@ -2,7 +2,7 @@ import {ReactNode, useCallback, useState} from "react"
 import {authAdmin} from "./api.ts"
 import {CLIENTS} from "./clients.ts"
 import {FailureNotice} from "./components/FailureNotice.tsx"
-import {Menu} from "./components/Menu.tsx"
+import {Menu, Sidebar} from "./components/Menu.tsx"
 import {HomePage} from "./home/HomePage.tsx"
 import {PaintPanel} from "./map/PaintPanel.tsx"
 import {ReassignPanel} from "./map/ReassignPanel.tsx"
@@ -18,6 +18,7 @@ import {SignOutButton} from "./signIn/SignOutButton.tsx"
 import {NoteList} from "./support/NoteList.tsx"
 import {useCall} from "./useCall.ts"
 import {usePage} from "./usePage.ts"
+import {useWide} from "./useWide.ts"
 
 export function App({callback}: {callback: Callback | undefined}) {
     const [returning, setReturning] = useState(callback)
@@ -44,9 +45,10 @@ function Operator() {
     }
 }
 
-// The signed-in page: the burger menu picks one page, and its title says which.
+// The signed-in page: the menu picks one page, and its title says which.
 function Console({operator, onSignedOut}: {operator: string, onSignedOut: () => void}) {
     const [page, setPage] = usePage()
+    const wide = useWide()
     const [player, setPlayer] = useState<Opened | undefined>(undefined)
 
     // A report opens its player on the Players page, where every tool on it is. The player already open keeps its row.
@@ -64,7 +66,8 @@ function Console({operator, onSignedOut}: {operator: string, onSignedOut: () => 
     return (
         <OpenPlayer.Provider value={openPlayer}>
             <Page
-                menu={<Menu page={page} onGo={go}/>}
+                menu={wide ? undefined : <Menu page={page} onGo={go}/>}
+                sidebar={wide ? <Sidebar page={page} onGo={go}/> : undefined}
                 header={
                     <>
                         <code className="mono muted" title="Your account">{operator}</code>
@@ -86,19 +89,22 @@ function Console({operator, onSignedOut}: {operator: string, onSignedOut: () => 
     )
 }
 
-type PageProps = {menu?: ReactNode, header: ReactNode, children: ReactNode}
+type PageProps = {menu?: ReactNode, sidebar?: ReactNode, header: ReactNode, children: ReactNode}
 
-function Page({menu, header, children}: PageProps) {
+function Page({menu, sidebar, header, children}: PageProps) {
     return (
-        <div className="page">
-            <header className="top">
-                <div className="brand">
-                    {menu}
-                    <h1>Clickplanet backoffice</h1>
-                </div>
-                {header !== null && <div className="who">{header}</div>}
-            </header>
-            <main>{children}</main>
+        <div className="shell">
+            {sidebar}
+            <div className="page">
+                <header className="top">
+                    <div className="brand">
+                        {menu}
+                        <h1>Clickplanet backoffice</h1>
+                    </div>
+                    {header !== null && <div className="who">{header}</div>}
+                </header>
+                <main>{children}</main>
+            </div>
         </div>
     )
 }

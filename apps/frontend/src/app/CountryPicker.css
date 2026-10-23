@@ -1,0 +1,5 @@
+.country-picker-locked {
+    margin: 0 0 var(--space-6);
+    font-size: var(--text-m);
+    color: var(--text-soft);
+}
