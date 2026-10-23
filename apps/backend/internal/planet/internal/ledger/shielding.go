@@ -19,10 +19,6 @@ type Shielding struct {
 	At      time.Time
 }
 
-func (s Shielding) By() Caller {
-	return callerOf(s.Scope, s.Account)
-}
-
 func (s Shielding) Replay(func(Taking)) {}
 
 func (s Shielding) Show(see func(Scene)) {

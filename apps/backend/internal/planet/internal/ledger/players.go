@@ -50,7 +50,10 @@ func (t *Tally) See(event Event) {
 			return
 		}
 
-		key := taking.By()
+		key := Caller{Scope: taking.Scope}
+		if taking.Account != "" {
+			key = Caller{Account: taking.Account}
+		}
 		index, ok := t.callers[key]
 		if !ok {
 			index = len(t.players)

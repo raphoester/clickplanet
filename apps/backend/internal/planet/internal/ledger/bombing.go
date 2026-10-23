@@ -25,10 +25,6 @@ type bombPayload struct {
 	Struck  []strikeJSON `json:"struck,omitempty"`
 }
 
-func (b Bombing) By() Caller {
-	return callerOf(b.Scope, b.Account)
-}
-
 func (b Bombing) Replay(see func(Taking)) {
 	for i, tile := range b.Blast.Cleared {
 		see(Taking{Tile: tile, Scope: b.Scope, Account: b.Account, Previous: b.Blast.Owners[i], At: b.At})

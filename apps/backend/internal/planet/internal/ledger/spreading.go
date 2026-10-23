@@ -17,10 +17,6 @@ type Spreading struct {
 	Impacts []clicks.Impact
 }
 
-func (s Spreading) By() Caller {
-	return callerOf(s.Scope, s.Account)
-}
-
 func (s Spreading) Replay(see func(Taking)) {
 	replayClaims(see, s.Impacts, Taking{Scope: s.Scope, Account: s.Account, Country: s.Country, At: s.At})
 }

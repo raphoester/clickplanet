@@ -357,6 +357,7 @@ internal/planet/internal/
     postgres_allegiance_store/
   planetv1controller/             the edge: maps the wire to the use cases, nothing else
     get_takes_by_country_handler/takes_query/   InternalService's one read, straight from ledger_events
+    get_ledger_handler/changes_query/           AdminService/GetLedger, straight from ledger_events too
   subscribers/                    the edge for events: auth.v1.AccountDeleted → anonymize_takes_usecase
 ```
 
@@ -366,7 +367,7 @@ internal/planet/internal/
   `Shielding` (what a click does to a tile and its shields), `Claiming` (a player's
   click written: the strike, then the owner it leaves, as an `Impact`), `Pacing` (how an
   operator's bulk change is spread out), `Geography` and `Borders`.
-- **`ledger/`** — every act of a player on the map, oldest first. Its root holds `Event` and its kinds (`Taking`, `Striking`, `Spreading`, `Enclosing`, `Bombing`, `Shielding`), `Entry`, `Scene`, `Footage`, `Excerpt`, `Player`, `Tally`, `Runs`,
+- **`ledger/`** — every act of a player on the map, oldest first. Its root holds `Event` and its kinds (`Taking`, `Striking`, `Spreading`, `Enclosing`, `Bombing`, `Shielding`), `Entry`, `Scene`, `Footage`, `Player`, `Tally`, `Runs`,
   the `Storage` port, `Recording` (the tile writer that records each act) and `Retention`. `FindPlayers`, `TopPlayers`, `BanPlayer`, `UnbanPlayer` and
   `RevertPlayer` live here: they are one moderation workflow — find, ban, undo.
   **The postgres copy is the whole history**: the memory keeps 72h, while `ledger_events` keeps every event and
@@ -420,7 +421,6 @@ because it serves every concept over one Connect service. It only maps.
 | `ledger/usecases/revert_player_usecase` | gives back what one caller still holds | `Ledger`, `Map` |
 | `ledger/usecases/anonymize_takes_usecase` | flushes the ledger, then takes a deleted account off every take postgres keeps | `Ledger`, `Takes` |
 | `ledger/usecases/replay_usecase` | the map as it was at a time, and every act on it since | `Ledger`, `MaxIndexReader`, `DenseMapReader`, `Clock` |
-| `ledger/usecases/excerpt_usecase` | every change the live stream showed in a window, and who made it | `Ledger`, `Clock` |
 | `bonuses/usecases/claim_bonus_usecase` | redeems a box | `Registry`, `Charger` |
 | `bonuses/usecases/drop_bomb_usecase` | spends a bomb where it was aimed | `Bombs`, `Map`, `Clearer` |
 | `bonuses/usecases/get_charges_usecase` | what the caller holds | `Charges` |
@@ -543,7 +543,7 @@ internal/chat/internal/
 **A read endpoint does not go through the write model.** Domain types are built for the rules a write checks, and
 a read that reuses them forces public fields onto them for its own sake. So a read is a query of its own. Chat
 (`GetHistory`, `GetMessage`, `ListMessages`), player (`GetProfile`, `GetStats`, `GetPlayer`, `GetTitles`, `GetAuthors`, `GetRoster`), planet
-(`GetTakesByCountry`, `GetTerritories`), auth
+(`GetTakesByCountry`, `GetTerritories`, `GetLedger`), auth
 (`GetMe`, `GetAccount`, `GetAccounts`), seasons (`GetStandings`, `GetMySeason`, the live race and `GetRace`) and support (`ListNotes`, `ListReports`) follow this so far. **A command may
 still answer a small struct** (`SetName`, `WearTitle`, `React`, `GetAuthor`, which draws a guest code,
 `signin.Admission`); the rule is for what only reads. Auth's `GetSignInOptions` and `GetVerifyingKey` already read
@@ -3464,11 +3464,15 @@ stream sent it. The frontend's clip generator plays it back (see its CLAUDE.md, 
 **What the admin page's home reads, none of it shaped for it**: the page counts, charts and draws on its own side
 (`apps/backoffice`'s `CLAUDE.md`, "The home page"), so a new view of the game needs no new endpoint.
 
-- **`GetLedger(since, until)`** runs `ledger/usecases/excerpt_usecase`: every change the live stream showed in the
-  window, oldest first, and who made it (`ledger.Excerpt`, through `Event.Show` and `Event.By`, so no kind is
-  asked). A click that took a tile or struck its shield is marked `clicked`; a tile a spread, an enclosure or a bomb
-  took or emptied, and a shield placed or raised, are changes of their own. A shield a bomb struck is left out: it
-  changed no hands, and the blast does not say whose tile it stood on.
+- **`GetLedger(since, until)`** is a query (`get_ledger_handler/changes_query`), as `takes_query` is: every change
+  the live stream showed in the window, oldest first, and who made it, straight from `planet.ledger_events` in SQL,
+  with no domain type on the way. A take and a strike are the click (`clicked`); the tiles a spread or an enclosure
+  took or struck, the tiles a bomb emptied, and a shield placed or raised, are changes of their own, unfolded from
+  each kind's payload. A shield a bomb struck is left out: the ledger keeps no owner for it.
+  - **A parity test runs every kind** (`ledger.Kinds()`) through the store and asks the query for what `Event.Show`
+    shows, so the SQL cannot drift from the stream. A new kind fails it until the SQL reads it.
+  - **It reads from the head on** (`ledger_head`): past it the address is blanked, so a change with no account would
+    have nobody. The primary key finds the window from there; `plan_test.go` pins it.
   - **Who** is the account, or for a change with no account its address, as every operator tool names a player, in
     one string to compare and not to read: `account:<id>` or `scope:<address>`. It names addresses, so it is an operator's read only: never the replay, which goes into the clips' public
     artifacts and names nobody.
@@ -3477,8 +3481,9 @@ stream sent it. The frontend's clip generator plays it back (see its CLAUDE.md, 
     rather than columns of indexes, on purpose: the contract reads as what it is. Measured with production's volume
     (about 50,000 changes a day): 8 MB of JSON a day but 0.9 MB once Caddy compresses it, the same as columns or
     binary protobuf would send, decoded in about 100 ms in the browser (300 ms for 72 hours).
-  - **A window of 72 hours at most**, the ledger's memory, and `since` before `until` (unset: now); anything else is
-    `InvalidArgument` (`excerpt_usecase.ErrInvalidWindow`). It reads memory, changes nothing and logs nothing.
+  - **A window of 72 hours at most**, the ledger's retention, and `since` before `until` (unset: now); anything else is
+    `InvalidArgument` (`changes_query.ErrInvalidWindow`). It changes nothing and logs nothing. The last second of
+    changes, not flushed yet, is not in it.
 - **`GetTerritories`** is the internal service's, handler and all: the tiles each country holds now, and the map's
   size.
 
