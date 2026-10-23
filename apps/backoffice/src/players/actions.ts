@@ -4,7 +4,7 @@ import {LONG_CALL_MS} from "../api.ts"
 import {ChatAdmin, PlanetAdmin, PlayerAdmin} from "../clients.ts"
 import {InspectPlayerResponse, Player} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {ChargesHeld} from "../gen/grpc/planet/v1/planet_pb.ts"
-import {AdminGetPlayerResponse} from "../gen/grpc/player/v1/admin_pb.ts"
+import {AdminGetPlayerResponse, PlayerMatch} from "../gen/grpc/player/v1/admin_pb.ts"
 import {Author} from "../gen/grpc/player/v1/internal_pb.ts"
 import {Meanings, wordsOf} from "../refusal.ts"
 import {Caller} from "./caller.ts"
@@ -18,7 +18,7 @@ export const LIMITS = [20, 50, 100, 500]
 
 export type Muted = {until: Date}
 export type Banned = {until: Date, offence: number, enforced: boolean}
-export type Unbanned = {offence: number, until: Date | undefined}
+export type Unbanned = {offence: number, until: Date | undefined, pardonedUntil: Date | undefined}
 export type Reverted = {touched: number, held: number, restored: number}
 export type Grant = {refill: boolean, bomb: boolean, enclosures: number, spreadClicks: number, shields: number}
 export type Granted = {before: ChargesHeld, after: ChargesHeld}
@@ -28,6 +28,7 @@ export type Authors = Map<string, Author>
 export type Named = {authors: Authors, unnamed: string | undefined}
 // A page of players and who each account is.
 export type Listed = Players & Named
+export type Matches = {players: PlayerMatch[], total: number}
 export type Profile = AdminGetPlayerResponse
 
 export const NO_GRANT: Grant = {refill: false, bomb: false, enclosures: 0, spreadClicks: 0, shields: 0}
@@ -47,7 +48,7 @@ export async function ban(planet: PlanetAdmin, caller: Caller, seconds: number):
 // Lifts the latest ban, running or ended, and forgets its offence. One call forgets one offence.
 export async function unban(planet: PlanetAdmin, caller: Caller): Promise<Unbanned> {
     const answer = await planet.unbanPlayer(caller)
-    return {offence: answer.offence, until: answer.bannedUntil?.toDate()}
+    return {offence: answer.offence, until: answer.bannedUntil?.toDate(), pardonedUntil: answer.pardonedUntil?.toDate()}
 }
 
 // Paced on the server, a tile at a time on the live stream: a big revert takes seconds.
@@ -81,6 +82,12 @@ export async function findPlayers(
     planet: PlanetAdmin, flag: string, area: string, limit: number, signal?: AbortSignal,
 ): Promise<Players> {
     const answer = await planet.findPlayers({flagCountryId: flag, areaCountryId: area, limit}, {signal})
+    return {players: answer.players, total: answer.total}
+}
+
+// Every account whose username or guest code holds `name`: the same name first, then the names it starts.
+export async function searchPlayers(player: PlayerAdmin, name: string, limit: number, signal?: AbortSignal): Promise<Matches> {
+    const answer = await player.searchPlayers({name, limit}, {signal})
     return {players: answer.players, total: answer.total}
 }
 

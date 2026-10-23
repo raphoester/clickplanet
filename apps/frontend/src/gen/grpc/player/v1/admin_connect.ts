@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AdminGetPlayerRequest, AdminGetPlayerResponse, ReconcileTitlesRequest, ReconcileTitlesResponse } from "./admin_pb.js";
+import { AdminGetPlayerRequest, AdminGetPlayerResponse, ReconcileTitlesRequest, ReconcileTitlesResponse, SearchPlayersRequest, SearchPlayersResponse } from "./admin_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 import { GetAuthorsRequest, GetAuthorsResponse } from "./internal_pb.js";
 
@@ -44,6 +44,17 @@ export const AdminService = {
       name: "GetPlayer",
       I: AdminGetPlayerRequest,
       O: AdminGetPlayerResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Every account whose username, or guest code until it chooses one, holds the name typed, in any case. InvalidArgument for an empty name.
+     *
+     * @generated from rpc player.v1.AdminService.SearchPlayers
+     */
+    searchPlayers: {
+      name: "SearchPlayers",
+      I: SearchPlayersRequest,
+      O: SearchPlayersResponse,
       kind: MethodKind.Unary,
     },
   }

@@ -15,6 +15,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/leave_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/reconcile_titles_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/search_players_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/set_color_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/set_name_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/wear_title_handler"
@@ -48,6 +49,7 @@ type AdminService struct {
 	reconcile_titles_handler.ReconcileTitlesHandler
 	get_authors_handler.GetAuthorsHandler
 	admin_get_player_handler.AdminGetPlayerHandler
+	search_players_handler.SearchPlayersHandler
 }
 
 var _ playerv1connect.AdminServiceHandler = AdminService{}

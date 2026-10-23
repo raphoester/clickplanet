@@ -18,8 +18,8 @@ type Props = {
     chat: ChatAdmin
     anchor: KeptMessage
     removedAt: Date | undefined
-    parties: Parties
-    // What the anchor is to the operator: "Reported message", "Their message".
+    parties: Parties | undefined
+    // What the anchor is to the operator: "Reported message", "This message".
     mark: string
 }
 
@@ -55,7 +55,7 @@ type PagesProps = {
     chat: ChatAdmin
     first: {before: Page, after: Page}
     reported: Reported
-    parties: Parties
+    parties: Parties | undefined
 }
 
 function Pages({chat, first, reported, parties}: PagesProps) {
@@ -118,7 +118,7 @@ type LinesProps = {
     before: KeptMessage[]
     reported: Reported
     after: KeptMessage[]
-    parties: Parties
+    parties: Parties | undefined
 }
 
 function Lines({before, reported, after, parties}: LinesProps) {
@@ -134,7 +134,7 @@ function Lines({before, reported, after, parties}: LinesProps) {
 
 type LineProps = {
     line: KeptMessage
-    // Who the report names, to tag what each said; none when every line is one party's.
+    // Who the report names, to tag what each said; none off a report, or when every line is one party's.
     parties: Parties | undefined
     // The anchor's day: a line sent on another one shows its date too, as the anchor does.
     day: Date | undefined

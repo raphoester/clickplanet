@@ -35,6 +35,7 @@ rateLimiter:
   perSecond: 0.2
   burst: 60
   scopeMultiplier: 10
+  v6ScopeMultiplier: 4
   guestScopeMultiplier: 1
   linkedMultiplier: 2
   newAccountClicks: 10

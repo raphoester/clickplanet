@@ -116,5 +116,9 @@ func scriptOf(r rune) string {
 }
 
 func (n Name) Folded() string {
-	return norm.NFKC.String(cases.Fold().String(norm.NFKD.String(string(n))))
+	return FoldedOf(string(n))
+}
+
+func FoldedOf(value string) string {
+	return norm.NFKC.String(cases.Fold().String(norm.NFKD.String(value)))
 }

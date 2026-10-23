@@ -39,8 +39,11 @@ import {ChargesHeld} from "./gen/grpc/planet/v1/planet_pb.ts"
 import {
     AdminGetPlayerRequest,
     AdminGetPlayerResponse,
+    PlayerMatch,
     ReconcileTitlesRequest,
     ReconcileTitlesResponse,
+    SearchPlayersRequest,
+    SearchPlayersResponse,
 } from "./gen/grpc/player/v1/admin_pb.ts"
 import {Author, GetAuthorsRequest, GetAuthorsResponse} from "./gen/grpc/player/v1/internal_pb.ts"
 import {CountryTiles, Stats} from "./gen/grpc/player/v1/player_pb.ts"
@@ -171,7 +174,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
 
     unbanPlayer(request: PartialMessage<UnbanPlayerRequest>): Promise<UnbanPlayerResponse> {
         return this.answer("unbanPlayer", request,
-            new UnbanPlayerResponse({offence: 2, bannedUntil: Timestamp.fromDate(AT)}))
+            new UnbanPlayerResponse({offence: 2, bannedUntil: Timestamp.fromDate(AT), pardonedUntil: Timestamp.fromDate(AT)}))
     }
 
     revertPlayer(request: PartialMessage<RevertPlayerRequest>): Promise<RevertPlayerResponse> {
@@ -227,6 +230,15 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         const asked = new Set(request.accountIds)
         return this.answer("getAuthors", request,
             new GetAuthorsResponse({authors: this.authors.filter(author => asked.has(author.accountId))}))
+    }
+
+    // The accounts the fake names, matched as the server does: in any case, anywhere in the name.
+    searchPlayers(request: PartialMessage<SearchPlayersRequest>): Promise<SearchPlayersResponse> {
+        const name = (request.name ?? "").trim().toLowerCase()
+        const players = this.authors
+            .filter(author => author.name.toLowerCase().includes(name))
+            .map(author => new PlayerMatch({accountId: author.accountId, name: author.name, guest: author.guest}))
+        return this.answer("searchPlayers", request, new SearchPlayersResponse({players, total: players.length}))
     }
 
     getPlayer(request: PartialMessage<AdminGetPlayerRequest>): Promise<AdminGetPlayerResponse> {

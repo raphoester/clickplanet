@@ -23,7 +23,7 @@ func (s *saying) Committed(detect.Click)                               {}
 func (s *saying) Watch(detect.Click) (detect.Verdict, detect.Evidence) { return s.verdict, s.evidence }
 
 func newJury(clock cptime.Clock, hooks Hooks, watchdog detect.Watchdog) *Jury {
-	banner := bans.NewBook(bans.Config{Enforce: true}, clock, bans.NewMemoryStore(), bans.NewMemoryStore())
+	banner := bans.NewBook(bans.Config{Enforce: true}, 72*time.Hour, clock, bans.NewMemoryStore(), bans.NewMemoryStore())
 	return New(Config{TrackWindow: time.Hour}, banner, clock, hooks, watchdog)
 }
 

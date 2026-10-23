@@ -16,6 +16,9 @@ service AdminService {
 
   // Everything the game keeps about one account, a guest's too. NotFound for an account it keeps nothing about.
   rpc GetPlayer(AdminGetPlayerRequest) returns (AdminGetPlayerResponse);
+
+  // Every account whose username, or guest code until it chooses one, holds the name typed, in any case. InvalidArgument for an empty name.
+  rpc SearchPlayers(SearchPlayersRequest) returns (SearchPlayersResponse);
 }
 
 message ReconcileTitlesRequest {}
@@ -23,6 +26,22 @@ message ReconcileTitlesRequest {}
 message ReconcileTitlesResponse {
   uint32 granted = 1;
   uint32 revoked = 2;
+}
+
+message SearchPlayersRequest {
+  string name = 1;
+  uint32 limit = 2;
+}
+
+message SearchPlayersResponse {
+  repeated PlayerMatch players = 1;
+  uint32 total = 2;
+}
+
+message PlayerMatch {
+  string account_id = 1;
+  string name = 2;
+  bool guest = 3;
 }
 
 message AdminGetPlayerRequest {

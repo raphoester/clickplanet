@@ -234,6 +234,7 @@ func TestTheExampleConfigReachesTheScopeMultiplier(t *testing.T) {
 	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
 
 	assert.InDelta(t, 10.0, config.Planet.RateLimiter.ScopeMultiplier, 1e-9)
+	assert.InDelta(t, 4.0, config.Planet.RateLimiter.V6ScopeMultiplier, 1e-9)
 	assert.InDelta(t, 1.0, config.Planet.RateLimiter.GuestScopeMultiplier, 1e-9)
 	assert.InDelta(t, 2.0, config.Planet.RateLimiter.LinkedMultiplier, 1e-9)
 	require.NotNil(t, config.Planet.RateLimiter.NewAccountClicks)

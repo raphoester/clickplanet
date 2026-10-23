@@ -979,7 +979,7 @@ func staminaBansAlone(config *antibot.Config) {
 	config.Metronome.Detector.Stamina.CertainBusy = 5*time.Hour + 30*time.Minute
 }
 
-func TestAnUnbanLeavesTheEvidenceSoTheJuryBansAgain(t *testing.T) {
+func TestAnUnbanPardonsTheCallerUntilTheEvidenceThatBannedItIsGone(t *testing.T) {
 	s := newStack(t, staminaBansAlone)
 
 	//nolint:gosec // seeded test PRNG
@@ -990,32 +990,39 @@ func TestAnUnbanLeavesTheEvidenceSoTheJuryBansAgain(t *testing.T) {
 		s.clock.Advance(4500*time.Millisecond + time.Duration(random.Int64N(int64(time.Second))))
 		return s.clickAs(scope, "night", 180000+uint32(random.IntN(60000)), "DZ")
 	}
-
-	start := s.clock.Now()
-	var caught bool
-	for !caught && s.clock.Now().Sub(start) < 8*time.Hour {
-		for i := 0; i < 300 && !caught; i++ {
-			caught = click()
-		}
-		if !caught {
+	playUntilCaught := func() bool {
+		start := s.clock.Now()
+		for s.clock.Now().Sub(start) < 8*time.Hour {
+			for range 300 {
+				if click() {
+					return true
+				}
+			}
 			s.clock.Advance(5 * time.Minute)
 		}
+		return false
 	}
-	require.True(t, caught)
 
-	unbannedAt := s.clock.Now()
+	require.True(t, playUntilCaught())
+	reports := len(s.reports)
+
 	s.unban(scope, "night")
+	unbannedAt := s.clock.Now()
 
-	var bannedAgainAfter time.Duration
-	for bannedAgainAfter == 0 && s.clock.Now().Sub(unbannedAt) < time.Hour {
-		if click() {
-			bannedAgainAfter = s.clock.Now().Sub(unbannedAt)
-		}
+	for s.clock.Now().Sub(unbannedAt) < time.Hour {
+		require.False(t, click(), "the evidence that banned it still reads, and it is pardoned")
 	}
+	assert.Len(t, s.reports, reports)
 
-	require.NotZero(t, bannedAgainAfter, "the watchdogs still read the evidence that banned it")
-	assert.GreaterOrEqual(t, bannedAgainAfter, 5*time.Minute, "not before the reflag interval")
-	assert.Less(t, bannedAgainAfter, 6*time.Minute)
+	examination := s.examine(scope, "night")
+	assert.True(t, examination.Guilty)
+	assert.False(t, examination.Banned)
+	assert.Equal(t, unbannedAt.Add(72*time.Hour), examination.PardonedUntil)
+
+	s.clock.Advance(72 * time.Hour)
+	assert.True(t, s.examine(scope, "night").PardonedUntil.IsZero())
+
+	require.True(t, playUntilCaught(), "the same play read again on new evidence bans again")
 	assert.Equal(t, 1, s.reports[len(s.reports)-1].Offence, "the lifted ban is no offence")
 }
 

@@ -1,5 +1,6 @@
 import {Timestamp} from "@bufbuild/protobuf"
 import {useState} from "react"
+import {TheirMessages} from "../chat/TheirMessages.tsx"
 import {Clients, CLIENTS} from "../clients.ts"
 import {Person} from "../components/Person.tsx"
 import {When} from "../components/When.tsx"
@@ -10,7 +11,6 @@ import {ActPanel} from "./ActPanel.tsx"
 import {DecideForm} from "./DecideForm.tsx"
 import {DecisionLine} from "./DecisionLine.tsx"
 import {MessagePanel} from "./MessagePanel.tsx"
-import {TheirMessages} from "./TheirMessages.tsx"
 
 type Props = {
     report: Report

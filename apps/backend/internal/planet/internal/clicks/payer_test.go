@@ -25,6 +25,24 @@ func TestTheScopeMultiplierDefaultsToTenAndRefusesLessThanOneAccount(t *testing.
 	}
 }
 
+func TestAnIPv6NetworkHasAScopeMultiplierOfItsOwn(t *testing.T) {
+	v6 := clicks.Payer{Scope: "2001:db8:1:2::/64", Account: "a-player", Linked: true}
+	v4 := clicks.Payer{Scope: "192.0.2.1", Account: "a-player", Linked: true}
+
+	unset := clicks.ThrottleConfig{ScopeMultiplier: 3}.Buckets()
+	assert.InDelta(t, 3.0, unset.Keys(v6, clicks.Price{})[1].Scale, 1e-9, "unset, a /64 takes the scope multiplier")
+
+	capped := clicks.ThrottleConfig{V6ScopeMultiplier: 4}.Buckets()
+	assert.Equal(t, cpratelimit.Key{Name: "scope:2001:db8:1:2::/64", Scale: 4}, capped.Keys(v6, clicks.Price{})[1])
+	assert.InDelta(t, 10.0, capped.Keys(v4, clicks.Price{})[1].Scale, 1e-9, "an IPv4 address can be a school's NAT")
+	assert.InDelta(t, 4.0, capped.Keys(clicks.Payer{Scope: "2001:db8:1:2::/64", Account: "a-guest"}, clicks.Price{})[2].Scale, 1e-9)
+
+	require.NoError(t, clicks.ThrottleConfig{V6ScopeMultiplier: 1}.Validate())
+	for _, bad := range []float64{0.5, -1, math.NaN()} {
+		assert.ErrorContains(t, clicks.ThrottleConfig{V6ScopeMultiplier: bad}.Validate(), "rateLimiter.v6ScopeMultiplier")
+	}
+}
+
 func TestASignedInAccountRefillsItsOwnBucketFasterAtTheSameSize(t *testing.T) {
 	guest := clicks.Payer{Scope: "1.2.3.4", Account: "an-account"}
 	linked := clicks.Payer{Scope: "1.2.3.4", Account: "an-account", Linked: true}

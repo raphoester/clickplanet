@@ -1,9 +1,14 @@
 // @vitest-environment jsdom
+import {Timestamp} from "@bufbuild/protobuf"
 import {Code} from "@connectrpc/connect"
 import {cleanup, fireEvent, render, screen, within} from "@testing-library/react"
 import {useState} from "react"
 import {afterEach, describe, expect, it} from "vitest"
-import {ACCOUNT, FakeAdmin} from "../fakeAdmin.ts"
+import {AROUND} from "../chat/theirConversations.ts"
+import {ACCOUNT, AT, FakeAdmin} from "../fakeAdmin.ts"
+import {KeptMessage} from "../gen/grpc/chat/v1/admin_pb.ts"
+import {InspectPlayerResponse} from "../gen/grpc/planet/v1/admin_pb.ts"
+import {Author} from "../gen/grpc/player/v1/internal_pb.ts"
 import {CountryTiles} from "../gen/grpc/player/v1/player_pb.ts"
 import {Opened} from "../navigation.ts"
 import {PlayersPage} from "./PlayersPage.tsx"
@@ -14,6 +19,13 @@ afterEach(cleanup)
 function Page({admin, first}: {admin: FakeAdmin, first?: Opened}) {
     const [opened, setOpened] = useState(first)
     return <PlayersPage opened={opened} onOpen={setOpened} clients={admin.clients()}/>
+}
+
+function said(n: number, accountId = ACCOUNT, authorName = "BraveFox42") {
+    return new KeptMessage({
+        messageId: `${accountId}-${n}`, accountId, authorName, text: `${authorName} ${n}`,
+        sentAt: Timestamp.fromDate(new Date(AT.getTime() + n * 60_000)), countryId: "fr",
+    })
 }
 
 function confirm(label: string, yes: string) {
@@ -60,6 +72,47 @@ describe("the player list", () => {
 
         expect(await screen.findByText("2 players")).toBeTruthy()
         expect(admin.askedFor("findPlayers")).toEqual([{flagCountryId: "ps", areaCountryId: "il", limit: 20}])
+    })
+
+    it("finds any account by a part of its name, and opens it", async () => {
+        const admin = new FakeAdmin()
+        admin.authors.push(new Author({accountId: "5e0c1b2a-3d4e-4f60-8a71-9b2c3d4e5f60", name: "guest_a1b2c3", guest: true}))
+        render(<Page admin={admin}/>)
+        await screen.findByText("2 of 75 players")
+
+        fireEvent.click(screen.getByRole("button", {name: "By name"}))
+        const find = within(screen.getByRole("form", {name: "Find players by name"}))
+        expect(find.getByRole("button", {name: "Find"}).hasAttribute("disabled")).toBe(true)
+        fireEvent.change(find.getByRole("textbox", {name: "Name"}), {target: {value: " GUEST_A1 "}})
+        fireEvent.click(find.getByRole("button", {name: "Find"}))
+
+        expect(await screen.findByText("1 account")).toBeTruthy()
+        expect(within(screen.getByRole("listitem")).getByText("guest code")).toBeTruthy()
+        expect(admin.askedFor("searchPlayers")).toEqual([{name: "GUEST_A1", limit: 20}])
+
+        fireEvent.change(find.getByRole("textbox", {name: "Name"}), {target: {value: "brave"}})
+        fireEvent.click(find.getByRole("button", {name: "Find"}))
+        const card = within(await screen.findByRole("listitem"))
+        expect(await card.findByText("BraveFox42")).toBeTruthy()
+        expect(card.getByText("username")).toBeTruthy()
+
+        fireEvent.click(card.getByRole("button", {name: "Open"}))
+        expect(await screen.findByRole("heading", {name: "BraveFox42 France"})).toBeTruthy()
+        expect(admin.askedFor("inspectPlayer")).toEqual([{accountId: ACCOUNT}])
+    })
+
+    it("says when a name search fails, and tries again", async () => {
+        const admin = new FakeAdmin()
+        admin.refuse("searchPlayers", Code.Unavailable)
+        render(<Page admin={admin}/>)
+        await screen.findByText("2 of 75 players")
+
+        fireEvent.click(screen.getByRole("button", {name: "By name"}))
+        fireEvent.change(screen.getByRole("textbox", {name: "Name"}), {target: {value: "brave"}})
+        fireEvent.click(screen.getByRole("button", {name: "Find"}))
+
+        fireEvent.click(await screen.findByRole("button", {name: "Try again"}))
+        expect(admin.askedFor("searchPlayers")).toHaveLength(2)
     })
 
     it("opens a row by its account, and its address from there", async () => {
@@ -136,6 +189,36 @@ describe("one player", () => {
         expect(admin.askedFor("getPlayer")).toHaveLength(1)
     })
 
+    it("shows what the account said in its conversations, read by its account id, no one tagged", async () => {
+        const admin = new FakeAdmin()
+        admin.chat = [said(1, "account-cleo", "Cleo"), said(2), said(3, "account-dan", "Dan")]
+        render(<Page admin={admin} first={account}/>)
+
+        const messages = within(await screen.findByRole("region", {name: "Their messages"}))
+        expect(await messages.findByRole("heading", {name: "What BraveFox42 said"})).toBeTruthy()
+        const list = await messages.findByRole("list", {name: "Their conversations, newest first"})
+        const shown = within(list).getAllByRole("list", {name: "A conversation"}).map(conversation =>
+            within(conversation).getAllByText(/^\w+ \d+$/, {selector: ".line-text"}).map(line => line.textContent))
+        expect(shown).toEqual([["Cleo 1", "BraveFox42 2", "Dan 3"]])
+        expect(messages.getByText("BraveFox42 2").closest("li")?.className).toContain("line-theirs")
+        expect(messages.queryByText("reported")).toBeNull()
+        expect(messages.queryByText("reporter")).toBeNull()
+        expect(admin.askedFor("listMessages")).toEqual([
+            {accountId: ACCOUNT, limit: 20},
+            {beforeMessageId: `${ACCOUNT}-2`, limit: AROUND},
+            {afterMessageId: `${ACCOUNT}-2`, limit: AROUND},
+        ])
+    })
+
+    it("reads no messages for an address: the chat keeps them by account", async () => {
+        const admin = new FakeAdmin()
+        render(<Page admin={admin} first={address}/>)
+
+        await screen.findByRole("heading", {name: "Ban"})
+        expect(screen.queryByRole("region", {name: "Their messages"})).toBeNull()
+        expect(admin.askedFor("listMessages")).toEqual([])
+    })
+
     it("says the antibot is off rather than failing", async () => {
         const admin = new FakeAdmin()
         admin.refuse("inspectPlayer", Code.FailedPrecondition)
@@ -156,12 +239,24 @@ describe("one player", () => {
         expect(admin.askedFor("inspectPlayer")).toHaveLength(2)
     })
 
+    it("shows a pardon only while one runs", async () => {
+        const admin = new FakeAdmin()
+        render(<Page admin={admin} first={account}/>)
+        await screen.findByText(/^42 in /)
+        expect(screen.queryByText("Pardoned")).toBeNull()
+        cleanup()
+
+        admin.inspection = new InspectPlayerResponse({clicks: 42, banned: false, pardonedUntil: Timestamp.fromDate(AT)})
+        render(<Page admin={admin} first={account}/>)
+        expect(await screen.findByText("Pardoned")).toBeTruthy()
+    })
+
     it("lifts the latest ban, and says when there is none", async () => {
         const admin = new FakeAdmin()
         render(<Page admin={admin} first={address}/>)
 
         confirm("Unban", "Yes, unban")
-        expect(await screen.findByText(/^Lifted offence 2: its ban was until /)).toBeTruthy()
+        expect(await screen.findByText(/^Lifted offence 2: its ban was until .*\. Pardoned until .*\.$/)).toBeTruthy()
         expect(admin.askedFor("unbanPlayer")).toEqual([{scope: "203.0.113.7"}])
 
         admin.refuse("unbanPlayer", Code.NotFound)

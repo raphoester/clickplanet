@@ -26,7 +26,7 @@ func (a *Audited) Execute(ctx context.Context, in unban_player_usecase.In) (unba
 	attrs := []any{
 		slog.String("asked", in.Scope), slog.String("askedAccount", in.Account),
 		slog.String("scope", out.Scope), slog.String("account", out.Account), slog.Int("offence", out.Offence),
-		slog.Time("bannedUntil", out.Until),
+		slog.Time("bannedUntil", out.Until), slog.Time("pardonedUntil", out.PardonedUntil),
 	}
 
 	if err != nil {

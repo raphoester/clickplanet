@@ -47,6 +47,13 @@ func (b banner) LastSentence(scope string) (bans.Sentence, bool) {
 	return sentence, found
 }
 
+func (b banner) Pardon(scope string) (bans.Pardon, bool) {
+	b.t.Helper()
+	pardon, found, err := b.inner.Pardon(b.t.Context(), scope)
+	require.NoError(b.t, err)
+	return pardon, found
+}
+
 func (b banner) Banned(scope string) bool {
 	b.t.Helper()
 	_, banned, err := b.inner.EnforcedSentence(b.t.Context(), scope)
@@ -99,6 +106,20 @@ func (b book) LastSentence(caller bans.Caller) (bans.Sentence, bool) {
 	sentence, found, err := b.inner.LastSentence(b.t.Context(), caller)
 	require.NoError(b.t, err)
 	return sentence, found
+}
+
+func (b book) Pardoned(caller bans.Caller) bool {
+	b.t.Helper()
+	pardoned, err := b.inner.Pardoned(b.t.Context(), caller)
+	require.NoError(b.t, err)
+	return pardoned
+}
+
+func (b book) Pardon(caller bans.Caller) (bans.Pardon, bool) {
+	b.t.Helper()
+	pardon, found, err := b.inner.Pardon(b.t.Context(), caller)
+	require.NoError(b.t, err)
+	return pardon, found
 }
 
 func (b book) Banned(caller bans.Caller) bool {

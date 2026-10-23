@@ -78,3 +78,33 @@ func (s *testSuite) TestAKeyThatIsNotAnAccountIsAnError() {
 	s.Require().NoError(err)
 	s.Zero(running)
 }
+
+func (s *testSuite) TestEveryPardonIsKept() {
+	s.purge()
+	ctx := s.T().Context()
+	const (
+		scope   = "2001:db8:1::/64"
+		account = "0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10"
+	)
+	keys := map[string]*postgres_ban_store.Store{
+		scope:   postgres_ban_store.NewScopes(s.db),
+		account: postgres_ban_store.NewAccounts(s.db),
+	}
+
+	for key, store := range keys {
+		for i := range 2 {
+			at := until.Add(time.Duration(i) * time.Hour)
+			s.Require().NoError(store.Change(ctx, key, func(record bans.Record, _ bool) (bans.Record, bool) {
+				record.ExpiresAt = at
+				record.Pardon = bans.Pardon{At: at, Lifted: bans.Sentence{Offence: 1, Until: at}, Until: at.Add(time.Hour)}
+				return record, true
+			}))
+		}
+	}
+
+	var pardons, accountPardons int
+	s.Require().NoError(s.db.QueryRowContext(ctx, `SELECT count(*) FROM pardons WHERE scope = $1`, scope).Scan(&pardons))
+	s.Require().NoError(s.db.QueryRowContext(ctx, `SELECT count(*) FROM account_pardons WHERE account = $1`, account).Scan(&accountPardons))
+	s.Equal(2, pardons)
+	s.Equal(2, accountPardons)
+}

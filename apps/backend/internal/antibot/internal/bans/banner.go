@@ -34,12 +34,13 @@ type Sentence struct {
 	Until   time.Time
 }
 
-func New(config Config, clock cptime.Clock, store Store) *Banner {
-	return &Banner{config: config.withDefaults(), clock: clock, store: store}
+func New(config Config, pardon time.Duration, clock cptime.Clock, store Store) *Banner {
+	return &Banner{config: config.withDefaults(), pardon: pardon, clock: clock, store: store}
 }
 
 type Banner struct {
 	config Config
+	pardon time.Duration
 	clock  cptime.Clock
 	store  Store
 }
@@ -52,6 +53,10 @@ func (r Record) liftable(now time.Time) bool {
 	return r.running(now) || r.Offences > 0
 }
 
+func (p Pardon) running(now time.Time) bool {
+	return now.Before(p.Until)
+}
+
 func (r Record) sentence() Sentence {
 	return Sentence{Flags: r.Flags, Offence: r.Offences, Until: r.ExpiresAt}
 }
@@ -61,6 +66,10 @@ func (r Record) extendedTo(until time.Time) Record {
 		r.ExpiresAt = until
 	}
 	return r
+}
+
+func (b *Banner) flaggable(record Record, now time.Time) bool {
+	return !record.Pardon.running(now) && !now.Before(record.LastFlaggedAt.Add(b.config.ReflagInterval))
 }
 
 func (b *Banner) flagged(record Record, now time.Time) Record {
@@ -84,7 +93,8 @@ func (b *Banner) banned(record Record, now time.Time, duration time.Duration) Re
 	return record.extendedTo(now.Add(duration))
 }
 
-func lifted(record Record, now time.Time) Record {
+func (b *Banner) lifted(record Record, now time.Time) Record {
+	record.Pardon = Pardon{At: now, Lifted: record.sentence(), Until: now.Add(b.pardon)}
 	record.Offences = max(record.Offences-1, 0)
 	if record.running(now) {
 		record.ExpiresAt = now
@@ -104,8 +114,8 @@ func (b *Banner) Flag(ctx context.Context, scope string) (Sentence, bool, error)
 		accepted bool
 	)
 
-	if err := b.store.Change(ctx, scope, func(record Record, found bool) (Record, bool) {
-		if found && now.Before(record.LastFlaggedAt.Add(b.config.ReflagInterval)) {
+	if err := b.store.Change(ctx, scope, func(record Record, _ bool) (Record, bool) {
+		if !b.flaggable(record, now) {
 			sentence = record.sentence()
 			return record, false
 		}
@@ -150,7 +160,7 @@ func (b *Banner) Unban(ctx context.Context, scope string) error {
 		if !found || !record.liftable(now) {
 			return record, false
 		}
-		return lifted(record, now), true
+		return b.lifted(record, now), true
 	}); err != nil {
 		return fmt.Errorf("failed to unban %q: %w", scope, err)
 	}
@@ -184,6 +194,22 @@ func (b *Banner) sentenceOf(
 	}
 
 	return record.sentence(), true, nil
+}
+
+func (b *Banner) Pardon(ctx context.Context, key string) (Pardon, bool, error) {
+	if key == "" {
+		return Pardon{}, false, nil
+	}
+
+	record, found, err := b.store.Record(ctx, key)
+	if err != nil {
+		return Pardon{}, false, fmt.Errorf("failed to read the pardon of %q: %w", key, err)
+	}
+	if !found || !record.Pardon.running(b.clock.Now()) {
+		return Pardon{}, false, nil
+	}
+
+	return record.Pardon, true, nil
 }
 
 func (b *Banner) duration(offence int) time.Duration {

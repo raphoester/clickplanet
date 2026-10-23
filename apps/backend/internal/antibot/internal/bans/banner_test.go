@@ -15,7 +15,10 @@ func newClock() *cptime.FixedClock {
 	return cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC))
 }
 
-const threeYears = 3 * 365 * 24 * time.Hour
+const (
+	threeYears = 3 * 365 * 24 * time.Hour
+	pardon     = 72 * time.Hour
+)
 
 func newBanner(t *testing.T, config bans.Config, clock cptime.Clock) banner {
 	t.Helper()
@@ -24,7 +27,7 @@ func newBanner(t *testing.T, config bans.Config, clock cptime.Clock) banner {
 
 func bannerOver(t *testing.T, config bans.Config, clock cptime.Clock, store bans.Store) banner {
 	t.Helper()
-	return banner{t: t, inner: bans.New(config, clock, store)}
+	return banner{t: t, inner: bans.New(config, pardon, clock, store)}
 }
 
 func config() bans.Config {
@@ -232,10 +235,82 @@ func TestAnUnbanEndsTheBanNowAndForgetsItsOffence(t *testing.T) {
 	assert.False(t, running)
 	assert.Equal(t, 0, banner.Flagged())
 
+	clock.Advance(pardon)
 	sentence, accepted := banner.Flag("player")
 	require.True(t, accepted)
 	assert.Equal(t, 1, sentence.Offence, "the next ban starts the ladder where the lifted one did")
 	assert.Equal(t, clock.Now().Add(time.Hour), sentence.Until)
+}
+
+func TestAnUnbanPardonsTheKeySoNoFlagBansItUntilThePardonEnds(t *testing.T) {
+	clock := newClock()
+	banner := newBanner(t, config(), clock)
+
+	banned, _ := banner.Flag("player")
+	clock.Advance(10 * time.Minute)
+	banner.Unban("player")
+	unbannedAt := clock.Now()
+
+	pardoned, found := banner.Pardon("player")
+	require.True(t, found)
+	assert.Equal(t, bans.Pardon{At: unbannedAt, Lifted: banned, Until: unbannedAt.Add(pardon)}, pardoned)
+
+	clock.Advance(pardon - time.Second)
+	_, accepted := banner.Flag("player")
+	assert.False(t, accepted)
+	assert.False(t, banner.Banned("player"))
+
+	clock.Advance(time.Second)
+	_, found = banner.Pardon("player")
+	assert.False(t, found, "a pardon that ended is no pardon")
+	_, accepted = banner.Flag("player")
+	assert.True(t, accepted)
+	assert.True(t, banner.Banned("player"))
+}
+
+func TestAnOperatorStillBansAPardonedKey(t *testing.T) {
+	clock := newClock()
+	banner := newBanner(t, config(), clock)
+
+	banner.Flag("player")
+	banner.Unban("player")
+
+	sentence := banner.Ban("player", time.Hour)
+	assert.Equal(t, 1, sentence.Offence)
+	assert.True(t, banner.Banned("player"))
+}
+
+func TestAPardonIsOnlyTheKeyItNames(t *testing.T) {
+	clock := newClock()
+	banner := newBanner(t, config(), clock)
+
+	banner.Flag("player")
+	banner.Unban("player")
+
+	_, found := banner.Pardon("")
+	assert.False(t, found)
+	_, found = banner.Pardon("nobody")
+	assert.False(t, found)
+	_, accepted := banner.Flag("neighbour")
+	assert.True(t, accepted)
+}
+
+func TestEachUnbanIsANewPardon(t *testing.T) {
+	clock := newClock()
+	banner := newBanner(t, config(), clock)
+
+	banner.Ban("player", 0)
+	clock.Advance(2 * time.Hour)
+	banner.Ban("player", 0)
+	banner.Unban("player")
+	clock.Advance(time.Hour)
+	banner.Unban("player")
+
+	pardoned, found := banner.Pardon("player")
+	require.True(t, found)
+	assert.Equal(t, clock.Now(), pardoned.At)
+	assert.Equal(t, clock.Now().Add(pardon), pardoned.Until)
+	assert.Equal(t, 1, pardoned.Lifted.Offence, "the second unban lifts the first offence")
 }
 
 func TestAnUnbanForgetsOnlyTheOffenceItLifts(t *testing.T) {
@@ -264,6 +339,7 @@ func TestAnUnbanOfAnEndedBanForgetsItsOffenceAndKeepsItsEnd(t *testing.T) {
 	assert.Equal(t, 0, store.Stored()["player"].Offences)
 	assert.Equal(t, banned.Until, store.Stored()["player"].ExpiresAt, "a ban that ended is not moved")
 
+	clock.Advance(pardon)
 	sentence, accepted := banner.Flag("player")
 	require.True(t, accepted)
 	assert.Equal(t, 1, sentence.Offence, "the next ban starts the ladder where the lifted one did")

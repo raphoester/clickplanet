@@ -830,6 +830,21 @@ func TestEachAccountOnOneScopeIsAPlayerOfItsOwn(t *testing.T) {
 	}, players)
 }
 
+func TestAnAccountIsOnePlayerAcrossScopesShownOnItsLatest(t *testing.T) {
+	players := tally([]ledger.Taking{
+		{Tile: 1, Scope: "phone", Account: "alice", Country: "ie", At: start},
+		{Tile: 2, Scope: "home", Account: "alice", Country: "ie", At: start.Add(time.Second)},
+		{Tile: 3, Scope: "phone", Account: "alice", Country: "ie", At: start.Add(2 * time.Second)},
+		{Tile: 4, Scope: "home", Account: "alice", Country: "ie", At: start.Add(2 * time.Second)},
+		{Tile: 5, Scope: "phone", Country: "ie", At: start.Add(3 * time.Second)},
+	}, owners{1: "ie", 2: "ie", 3: "ie", 4: "ie", 5: "ie"}, every)
+
+	assert.Equal(t, []ledger.Player{
+		{Scope: "phone", Flag: "ie", Tiles: 1, Takes: 1, FirstAt: start.Add(3 * time.Second), LastAt: start.Add(3 * time.Second)},
+		{Scope: "home", Account: "alice", Flag: "ie", Tiles: 4, Takes: 4, FirstAt: start, LastAt: start.Add(2 * time.Second)},
+	}, players, "a mobile network hands an account a new address every few hours, and a take with no account stays its scope's")
+}
+
 func TestARevertOfAnAccountFollowsItAcrossScopes(t *testing.T) {
 	b := newBoard(owners{7: "il", 8: "il"})
 	b.events = append(b.events,

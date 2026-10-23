@@ -17,7 +17,7 @@ type Props = {
     chat: ChatAdmin
     accountId: string
     name: string
-    parties: Parties
+    parties: Parties | undefined
 }
 
 type Built = {
@@ -34,8 +34,8 @@ async function theirPage(chat: ChatAdmin, accountId: string, before: string, sig
     return {newestFirst: [...page.messages].reverse(), more: page.more, oldest: page.messages[0]?.messageId ?? before}
 }
 
-// What the reported account said in the chat, in the conversations it said it in, whatever the report names: a
-// report from a player's card names no message.
+// What one account said in the chat, in the conversations it said it in, by its account id: a report from a
+// player's card names no message.
 export function TheirMessages({chat, accountId, name, parties}: Props) {
     const read = useCallback<Read>((ask, limit) => pageOf(chat, ask, limit), [chat])
     const first = useCallback(async (signal: AbortSignal): Promise<Built> => {
@@ -57,7 +57,7 @@ export function TheirMessages({chat, accountId, name, parties}: Props) {
     )
 }
 
-type ConversationsProps = {chat: ChatAdmin, accountId: string, first: Built, read: Read, parties: Parties}
+type ConversationsProps = {chat: ChatAdmin, accountId: string, first: Built, read: Read, parties: Parties | undefined}
 
 function Conversations({chat, accountId, first, read, parties}: ConversationsProps) {
     const [built, setBuilt] = useState(first)
@@ -101,7 +101,7 @@ type WindowProps = {
     chat: ChatAdmin
     window: Window
     accountId: string
-    parties: Parties
+    parties: Parties | undefined
     onGrown: (window: Window) => void
 }
 

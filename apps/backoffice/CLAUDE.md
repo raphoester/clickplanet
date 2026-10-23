@@ -16,8 +16,8 @@ burger menu (see [The menu](#the-menu)), by group:
 - **Map**: Reassign a country, Paint random tiles, Download a replay (see [The map tools](#the-map-tools)).
 - **Ops**: Reconcile titles, the run after a deploy (see [Ops](#ops)).
 
-What is left of the plan is a live chat view: `ListMessages` pages through the chat (the report page reads it),
-and no admin method streams it.
+What is left of the plan is a live chat view: `ListMessages` pages through the chat (the report and player pages
+read it), and no admin method streams it.
 
 It is a third app, not a page of the game: **it imports nothing from `apps/frontend`** and has no Three.js (see
 the root `CLAUDE.md`, "Independence of the apps").
@@ -91,10 +91,13 @@ an `auth.secret` (`openssl rand -hex 32`). Postgres on `localhost:5432`. Then
 
 ## The menu
 
-**A burger at the top left opens a drawer from the left** (`components/Menu`), at every width: every page under
-its group, the page shown marked. `MENU` in `navigation.ts` is the only list of pages, and a page's label is its
-title (`titleOf`), shown above it. `Console` in `App.tsx` shows the page picked.
+**A burger at the top left opens a drawer from the left** (`components/Menu`) below 1024px: every page under its
+group, the page shown marked. **From 1024px the same list stays open in a sidebar** (`Sidebar`), with no burger,
+so a page is one click away (`useWide`, which follows the window as it is resized). `MENU` in `navigation.ts` is
+the only list of pages, and a page's label is its title (`titleOf`), shown above it. `Console` in `App.tsx` shows
+the page picked.
 
+- **The sidebar stays in place while the page scrolls**, and is not modal: nothing traps the focus or closes it.
 - **The drawer is modal**: it takes the focus to the page shown, keeps Tab inside it, and closes on Escape, its
   close button, a click beside it or a page picked, giving the focus back to the burger. The page behind does not
   scroll while it is open.
@@ -144,20 +147,21 @@ note and keeps its text).
   the oldest or the newest message shown. A page shorter than asked is the end, and its button goes. The reported
   message shows while they load, marked ("Reported message", `aria-current`), and stays shown if they fail.
   `GetMessage` names no author, so its line takes the name the report gives its account.
-- **What the reported account said, in its conversations** (`TheirMessages`, "What Ana said"), for every report: a
-  report from a player's card names no message, and one line cannot be judged alone. `ListMessages` with the
-  account's id reads its messages, 20 at a time (`THEIR_PAGE`), then `moreConversations` (`theirConversations.ts`)
-  reads the whole chat around each, `AROUND` (5) messages each side, and shows them at once, newest first, three at a
-  time (`CONVERSATIONS`), "Show more conversations" for the next. **One of their messages a conversation already holds
-  gets none of its own, and a conversation that reaches the next one joins it**, so an exchange of three insults is
-  one conversation, read with two calls. Their lines are marked (`line-theirs`) and tagged `reported`, the reporter's
-  `reporter`. Each conversation grows with "Show earlier" and "Show later". Nothing kept is "Nothing they said in the
-  chat is kept."
+- **What the reported account said, in its conversations** (`chat/TheirMessages`, "What Ana said"), for every
+  report: a report from a player's card names no message, and one line cannot be judged alone. `ListMessages` with
+  the account's id reads its messages, 20 at a time (`THEIR_PAGE`), then `moreConversations`
+  (`theirConversations.ts`) reads the whole chat around each, `AROUND` (5) messages each side, and shows them at
+  once, newest first, three at a time (`CONVERSATIONS`), "Show more conversations" for the next. **One of their
+  messages a conversation already holds gets none of its own, and a conversation that reaches the next one joins
+  it**, so an exchange of three insults is one conversation, read with two calls. Their lines are marked
+  (`line-theirs`) and tagged `reported`, the reporter's `reporter`. Each conversation grows with "Show earlier" and
+  "Show later". Nothing kept is "Nothing they said in the chat is kept."
 - **Each line** has its author's name as the chat names it now, its country and its time (with the date when it
   is not the reported message's day), what it answers ("In reply to …"), and is struck through with when it was
   removed. **What the reporter and the reported account said is tagged** `reporter` and `reported`, by account
   id. An author's name opens it on the player page (`OpenPlayer`), so a third player in the conversation is a
-  click away. A page past the chat's retention is `not_found`: "That part of the chat is no longer kept."
+  click away; the player already open there stays open, with its row. A page past the chat's retention is
+  `not_found`: "That part of the chat is no longer kept."
 - **The actions, all on the reported account id**, never its name: remove the message (`RemoveMessage`, only while
   it is shown), mute (`Mute`, an hour by default), ban (`BanPlayer`, no duration by default, so the antibot's
   ladder picks the next step) and inspect (`InspectPlayer`). Then close the report (`DecideReport`): Acted or
@@ -196,10 +200,16 @@ take either. An account id is a UUID; anything else typed is an address, which t
 address over IPv4, the /64 over IPv6) and checks.
 
 - **The list** (`PlayerList`): `TopPlayers` (most takes first, then most tiles held), or **By flag**,
-  `FindPlayers` with a flag and an optional ground. 20 by default, up to 500. Each row of the ledger's 72 hours is
-  one account on one address, with its takes, the tiles it still holds and their share of its takes (many takes
+  `FindPlayers` with a flag and an optional ground, or **By name**. 20 by default, up to 500. Each row of the ledger's 72 hours is
+  one account on every address it took from, shown with the address of its latest take (or one address, for takes
+  with no account), with its takes, the tiles it still holds and their share of its takes (many takes
   and few tiles is a player painted over as fast as it paints), its rates and any ban. The list is read again on
   the way back from a player, as the reports are.
+- **By name** (`NameResults`) is `player.v1.AdminService/SearchPlayers` with what the operator typed: every account
+  whose username or guest code holds it, any case, the same name first. It reaches past the ledger's 72 hours, so a
+  banned player the lists no longer show is found by the name the chat gives it. A row is its name and whether it is
+  a username or a guest code, and opens its account (`MatchCard`); it carries no takes, since the ledger is not
+  asked.
 - **A row is shown by its flag and its name, never its account id** (`PlayerName`): the flag it took the most tiles
   for (`flag_country_id`), as an emoji and a name, then its username or its guest code, then its address. The
   planet's rows carry no name, and planet may not ask `player` (the backend's `CLAUDE.md`, "Player"), so
@@ -218,10 +228,14 @@ address over IPv4, the /64 over IPv6) and checks.
   heading is its flag and its name: the name the profile answers, which is the name it holds now, over the one the
   page that opened it knew; the flag of its row, or else the country it took the most tiles for. `not_found` is an
   account the game keeps nothing about. An address has no profile, and is not asked.
-- **The page inspects on open** (`InspectPlayer`): the antibot's readings, its ban and its clicks. The antibot off
+- **An account's page shows what it said, in its conversations** (`chat/TheirMessages`, as a report does): its
+  messages by its account id, the chat around each, three conversations at a time. Its lines are marked
+  (`line-theirs`), and no line is tagged: there is no report. An address has no messages, since the chat keeps them
+  by account, and is not asked.
+- **The page inspects on open** (`InspectPlayer`): the antibot's readings, its ban, its pardon and its clicks. The antibot off
   reads as such, not as a failure. A ban or an unban reads it again.
 - **The tools**: ban (`BanPlayer`, the ladder's next step by default), unban (`UnbanPlayer`, which forgets the
-  latest offence; `not_found` is no ban left), revert (`RevertPlayer`, dry run first), and for an account alone
+  latest offence and pardons the key, and says until when; `not_found` is no ban left), revert (`RevertPlayer`, dry run first), and for an account alone
   mute (`Mute`) and charges (`GrantCharges`: a refill, a bomb, enclosures, spread clicks, shields; the answer
   says what the account held before and after, since the caps hold).
 
@@ -282,15 +296,17 @@ src/
   useCall.ts        one call's state, run on mount
   useAction.ts      one read's state, run on a click
   usePage.ts        the page shown, kept in the address bar
+  useWide.ts        whether the window is wide enough for the sidebar
   navigation.ts     MENU, the pages by group, and OpenPlayer
   countries.ts      a country id's name and its flag
   App.tsx           the callback, or WhoAmI first, then the page the menu picked
   signIn/           callbackOf, SignInButton, SignInCallback, SignOutButton
-  components/       Menu, ConfirmAction, FailureNotice, AccountId and Copyable (with Copy), Country, CountryField,
+  components/       Menu and Sidebar, ConfirmAction, FailureNotice, AccountId and Copyable (with Copy), Country, CountryField,
                     Fact, Person, When
   support/          Ideas and bugs: NoteList, Attachments, labels.ts (names, outcomes, device lines, sizes)
-  reports/          Reports: list, detail, the report's own actions, Conversation and TheirMessages over
-                    chatPages.ts (a page of ListMessages, the parties a report names) and theirConversations.ts
+  chat/             Conversation and TheirMessages, which reports/ and players/ show, over chatPages.ts (a page of
+                    ListMessages, the parties a report names) and theirConversations.ts
+  reports/          Reports: list, detail, the report's own actions
   players/          Players: list, PlayerName, PlayerView, ProfilePanel, the tools on one player, actions.ts
   map/              Reassign a country, Paint random tiles, Download a replay
   ops/              Reconcile titles
