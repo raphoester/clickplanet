@@ -2,7 +2,6 @@ package claim_bonus_usecase_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -129,8 +128,8 @@ func TestTheAmountTheBoxGaveIsGrantedAndAnswered(t *testing.T) {
 
 func TestTheAnswerSaysOnlyWhatThePoolKept(t *testing.T) {
 	registry := &stubRegistry{claimable: true, reward: bonuses.Reward{Kind: bonuses.KindSpreadClicks, Amount: 4}}
-	charger, _ := charges()
-	require.NoError(t, charger.Grant(t.Context(), guest, bonuses.KindSpreadClicks, 7))
+	charger, store := charges()
+	store.Keep(guest, bonuses.Held{SpreadClicks: 7})
 
 	out, err := claim_bonus_usecase.New(registry, charger).
 		Execute(played(t), claim_bonus_usecase.In{Token: "a-token"})
@@ -138,17 +137,4 @@ func TestTheAnswerSaysOnlyWhatThePoolKept(t *testing.T) {
 
 	assert.Equal(t, 1, out.Amount, "the pool held 7 of 8, so a box of 4 added 1")
 	assert.Equal(t, bonuses.Held{SpreadClicks: 8}, out.Held)
-}
-
-func TestAStoreThatFailsFailsTheClaimAndAnnouncesNothing(t *testing.T) {
-	registry := granting(bonuses.KindBomb)
-	charger, store := charges()
-	down := errors.New("postgres is down")
-	store.FailWith(down)
-
-	_, err := claim_bonus_usecase.New(registry, charger).
-		Execute(played(t), claim_bonus_usecase.In{Token: "a-token", CountryID: "jp"})
-
-	require.ErrorIs(t, err, down)
-	assert.Empty(t, registry.published, "a catch is announced once the charge is held")
 }

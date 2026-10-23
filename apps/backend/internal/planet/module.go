@@ -16,7 +16,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances/postgres_allegiance_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/log_holdings"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/postgres_charge_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/answer_quiz_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/answer_quiz_usecase/prom_answer_quiz"
@@ -198,7 +197,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			chargeRules := config.Bonus.ChargesConfig()
 			charges := bonuses.NewCharges(postgres_charge_store.New(db), chargeRules)
 
-			registry := bonuses.New(config.Bonus, clock, log_holdings.New(charges, props.Logger))
+			registry := bonuses.New(config.Bonus, clock, charges)
 			props.Runners.Add(registry)
 
 			if config.Bonus.Quiz.Enabled {

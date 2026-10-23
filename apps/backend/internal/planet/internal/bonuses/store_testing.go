@@ -26,19 +26,15 @@ func (m *MemoryStore) Change(_ context.Context, holder Holder, change func(Held)
 	if m.failing != nil {
 		return m.failing
 	}
-	before := m.hands[holder]
-	after, err := change(before)
+	after, err := change(m.hands[holder])
 	if err != nil {
 		return err
 	}
-	if after == before {
-		return nil
-	}
 	if after.Empty() {
 		delete(m.hands, holder)
-		return nil
+	} else {
+		m.hands[holder] = after
 	}
-	m.hands[holder] = after
 	return nil
 }
 
@@ -46,10 +42,14 @@ func (m *MemoryStore) Held(_ context.Context, holder Holder) (Held, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if m.failing != nil {
-		return Held{}, m.failing
-	}
-	return m.hands[holder], nil
+	return m.hands[holder], m.failing
+}
+
+func (m *MemoryStore) Keep(holder Holder, held Held) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.hands[holder] = held
 }
 
 func (m *MemoryStore) Kept(holder Holder) Held {

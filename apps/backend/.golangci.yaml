@@ -85,11 +85,7 @@ linters:
         - .Pledge(
         - .Held(
         - .Grant(
-        - .SpendRefill(
-        - .SpendBomb(
-        - .SpendEnclose(
-        - .SpendSpreadClick(
-        - .SpendShield(
+        - .Spend(
         - .GetMap(
         - .SendMessage(
         - .ListenForEvents(

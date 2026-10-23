@@ -16,7 +16,7 @@ var (
 )
 
 type Refills interface {
-	SpendRefill(ctx context.Context, holder bonuses.Holder) error
+	Spend(ctx context.Context, holder bonuses.Holder, after func(bonuses.Held) (bonuses.Held, bool)) error
 	Held(ctx context.Context, holder bonuses.Holder) (bonuses.Held, error)
 }
 
@@ -61,7 +61,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 		return Out{}, ErrBankFull
 	}
 
-	if err := u.refills.SpendRefill(ctx, holder); err != nil {
+	if err := u.refills.Spend(ctx, holder, bonuses.Held.AfterRefill); err != nil {
 		if errors.Is(err, bonuses.ErrNotHeld) {
 			return Out{}, ErrNoRefill
 		}

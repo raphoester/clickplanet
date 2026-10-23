@@ -32,7 +32,6 @@ func (c Charges) Held(ctx context.Context, holder Holder) (Held, error) {
 	if err != nil {
 		return Held{}, fmt.Errorf("failed to read what %s holds: %w", holder, err)
 	}
-
 	return held, nil
 }
 
@@ -46,33 +45,12 @@ func (c Charges) Grant(ctx context.Context, holder Holder, kind Kind, amount int
 	}); err != nil {
 		return fmt.Errorf("failed to grant %s %d %s: %w", holder, amount, kind, err)
 	}
-
 	return nil
 }
 
-func (c Charges) SpendRefill(ctx context.Context, holder Holder) error {
-	return c.spend(ctx, holder, KindRefill, Held.AfterRefill)
-}
-
-func (c Charges) SpendBomb(ctx context.Context, holder Holder) error {
-	return c.spend(ctx, holder, KindBomb, Held.AfterBomb)
-}
-
-func (c Charges) SpendEnclose(ctx context.Context, holder Holder) error {
-	return c.spend(ctx, holder, KindEncloseClicks, Held.AfterEnclose)
-}
-
-func (c Charges) SpendSpreadClick(ctx context.Context, holder Holder) error {
-	return c.spend(ctx, holder, KindSpreadClicks, Held.AfterSpreadClick)
-}
-
-func (c Charges) SpendShield(ctx context.Context, holder Holder) error {
-	return c.spend(ctx, holder, KindShields, Held.AfterShield)
-}
-
-func (c Charges) spend(ctx context.Context, holder Holder, kind Kind, after func(Held) (Held, bool)) error {
+func (c Charges) Spend(ctx context.Context, holder Holder, after func(Held) (Held, bool)) error {
 	if holder == NoHolder {
-		return fmt.Errorf("%w: no account holds a %s", ErrNotHeld, kind)
+		return ErrNotHeld
 	}
 
 	if err := c.store.Change(ctx, holder, func(held Held) (Held, error) {
@@ -80,11 +58,9 @@ func (c Charges) spend(ctx context.Context, holder Holder, kind Kind, after func
 		if !ok {
 			return held, ErrNotHeld
 		}
-
 		return spent, nil
 	}); err != nil {
-		return fmt.Errorf("failed to spend %s's %s: %w", holder, kind, err)
+		return fmt.Errorf("failed to spend a charge of %s: %w", holder, err)
 	}
-
 	return nil
 }

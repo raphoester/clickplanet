@@ -351,7 +351,6 @@ internal/planet/internal/
     usecases/
   bonuses/                        the boxes, and what each one grants
     postgres_charge_store/
-    log_holdings/
     usecases/
   allegiances/                    the flag each account plays for, and when it last changed it
     postgres_allegiance_store/
@@ -376,8 +375,7 @@ internal/planet/internal/
   every kind of event through both. It is what `player` shows as "plays for" and "plays against".
 - **`bonuses/`** — the boxes, their schedule, and the running bonuses they grant.
   Its root also holds the rules a bonus plays by: `Terrain` and `Pocket` (what an
-  enclose closes), `BombRules` (where a bomb lands and what it clears), and
-  `Held` and `Charges` (what an account holds, over the `Store` port).
+  enclose closes) and `BombRules` (where a bomb lands and what it clears).
 
 **A concept's root is its domain.** The use cases under `usecases/` load, call
 the root, and persist; a rule that could be unit-tested without a port belongs
@@ -2144,7 +2142,7 @@ its own.
   stack of enclosures, a pool of spread clicks and a stack of shields. `Granted`,
   `AfterRefill`, `AfterBomb`, `AfterEnclose`, `AfterSpreadClick` and `AfterShield`
   build a new `Held` and change
-  nothing; `bonuses.Charges` keeps it, in the store's `Change`. `Count(kind)` is how many of a kind are held,
+  nothing; `bonuses.Charges` writes it. `Count(kind)` is how many of a kind are held,
   and `Full(config)` the kinds another box would add nothing to.
 - **How much fits.** A refill and a bomb are one: a second replaces the first,
   which is what stops a stockpile of bombs being dropped all at once. Enclosures
@@ -2158,10 +2156,7 @@ its own.
   itself, or every guest behind the scope. The schedule is by entrant and a charge
   is by account, so `bonus_click` tells the registry both on every accepted click,
   with the scope for the antibot: `Clicked(entrant, scope, holder)`. The registry reads the charges through
-  its `Holdings` port (`bonuses.Charges`, logged by `log_holdings`), **with its lock released**: the sweep
-  tidies under the lock, reads the hands of every caller due a box or a quiz, then locks again to offer.
-  Every click takes that lock (`Clicked`), so no click waits on postgres through it. A hand that cannot be
-  read is left out, and its caller is offered nothing until a sweep reads it.
+  its `Holdings` port, which `bonuses.Charges` satisfies: a hand it cannot read is offered nothing.
 - **Off by default, one at a time.** `ClickRequest.spread` and `enclose` say what
   the player switched on for this click, and `click_usecase.In` carries them.
   `spread_click` spends a spread click only with `Spread`, `enclose_click` an
@@ -2173,31 +2168,17 @@ its own.
 - **Nothing lapses.** Migration `20260919120000_charges_never_lapse` replaced the
   `*_until` columns with `refill` and `bomb` booleans and an `enclosures` count,
   keeping what was still in time. `bonus.chargeTTL` is gone.
-- **No memory copy: every grant, spend and read goes to postgres**, in
-  `planet.charges` (`refill`, `bomb`, `enclosures`, `spread_clicks`, `shields`),
-  one row per account. Only the tile map is kept in memory and flushed (decided
-  on 2026-10-23). `bonuses.Charges` holds the sizes and the `Store` port, whose
-  `Change` runs one transaction under `pg_advisory_xact_lock` on the account: it
-  reads the row, applies `Granted` or an `After…`, and writes what changed.
-  **An empty hand is no row**: a hand spent to nothing is deleted. A caller with
-  no account (`NoHolder`) is never asked about: it holds nothing and spends
-  nothing. A deleted account's row stays until something removes it. The rest of
-  the bonus state (schedules, offers, the hourly caps) is memory only, so a
-  restart gives everyone a fresh schedule.
-- **On the click path**, a click with spread on costs one transaction, and a click
-  with enclose on a read, then a transaction when it closes a shape. A click with
-  neither touches no charge.
-- **A failing database fails the call**, as the error net's `internal`: a claim or
-  a quiz answer (its box is spent all the same), a drop, a shield, a refill, a
-  grant, a read, and a click with spread or enclose on. A click with enclose on
-  reads its charges before it is written, so it fails whole; a click with spread on
-  spends after the rule wrote it, so it fails with its tile taken and no neighbour.
-- **Each spend is atomic**: `Charges`' `SpendRefill`, `SpendBomb`, `SpendEnclose`,
-  `SpendSpreadClick` and `SpendShield` check and take in one `Change`, under the
-  account's lock, so two tabs racing for the last one get one. The other gets
-  `bonuses.ErrNotHeld`, which each use case answers as its own (`ErrNoBomb`, …).
-- **`bonuses.StoreContractSuite`** runs on postgres and on `MemoryStore`, the fake the
-  use cases and the registry are tested over (behind the tag).
+- **No memory copy: every grant, spend and read goes to postgres**, one row per
+  account in `planet.charges` (`refill`, `bomb`, `enclosures`, `spread_clicks`,
+  `shields`). `bonuses.Charges` holds the sizes and the `Store` port, whose `Change`
+  runs one transaction under `pg_advisory_xact_lock` on the account. An empty hand
+  is no row. A failing database fails the call; a spread click fails with its tile
+  taken. A deleted account's row stays until something removes it. The rest
+  of the bonus state (schedules, offers, the hourly caps) is still memory only, so
+  a restart gives everyone a fresh schedule.
+- **Each spend is atomic**: `Charges.Spend` checks and takes in one `Change`, so two
+  tabs racing for the last one get one, and the other `bonuses.ErrNotHeld`.
+  `bonuses.StoreContractSuite` runs on postgres and on `MemoryStore` (behind the tag).
 - **Nothing pushes them.** They are not live news: `GetCharges` answers what the
   caller holds, read by the client at load and when its account changes, and
   `ClaimBonusResponse.charges` answers the claim, `PlaceShieldResponse.charges` a
@@ -3394,7 +3375,7 @@ Both chains order them the same way: error mapping outermost, then the blocklist
 - **Size.** 1M takes are 83 MB of table and 31 MB of indexes (the primary key and the account). Production made ~116,000 takes in 72h at the start of October 2026, ~40,000 a day: ~15M rows and ~1.7 GB a year. Each take is written twice, once by the `COPY` and once when its scope is blanked, and autovacuum reuses the space. No partitioning yet.
 - **One pool for every runner.** `cppg.CloseAfter(db, logger, tilesStorage, takings, deletions)` runs them together and closes the pool after the last flushes, and after the subscriber drained its buffer.
 
-**The charges and the allegiances have no memory copy**: every call reads and writes `planet.charges` and `planet.allegiances` on the same pool, under a lock on the account. See [Charges](#charges-refill-bomb-enclose-spread-shields) and [Allegiance](#allegiance-one-change-of-flag-an-hour).
+**The charges have no memory copy**: every call reads and writes `planet.charges`, on the same pool. See [Charges](#charges-refill-bomb-enclose-spread-shields).
 
 The antibot's evidence is in postgres too, in the `antibot` schema, the same way, and its bans are read and written there on every call — see [What survives a restart](#what-survives-a-restart). The player module's profiles and stats are in postgres too, in the `player` schema, but with no memory copy: each call reads or writes the table — see [Player](#player-internalplayer). The seasons module's standings are kept the same way, in the `seasons` schema — see [Seasons](#seasons-internalseasons). So are the support module's notes, in the `support` schema — see [Support](#support-internalsupport).
 

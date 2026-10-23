@@ -11,7 +11,7 @@ import (
 )
 
 type Spreads interface {
-	SpendSpreadClick(ctx context.Context, holder bonuses.Holder) error
+	Spend(ctx context.Context, holder bonuses.Holder, after func(bonuses.Held) (bonuses.Held, bool)) error
 }
 
 type Neighbours interface {
@@ -56,7 +56,7 @@ func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_useca
 		return out, err
 	}
 
-	if err := u.spreads.SpendSpreadClick(ctx, bonuses.HolderOf(clicks.PayerOf(ctx))); err != nil {
+	if err := u.spreads.Spend(ctx, bonuses.HolderOf(clicks.PayerOf(ctx)), bonuses.Held.AfterSpreadClick); err != nil {
 		if errors.Is(err, bonuses.ErrNotHeld) {
 			return out, nil
 		}

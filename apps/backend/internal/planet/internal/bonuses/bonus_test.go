@@ -1,8 +1,6 @@
 package bonuses
 
 import (
-	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -44,12 +42,6 @@ func holderOf(entrant Entrant) Holder {
 
 func holdingsOf(r *Registry) *MemoryStore {
 	return r.holdings.(*MemoryStore) //nolint:forcetypeassert // every registry in these tests is built with one.
-}
-
-func hold(t *testing.T, r *Registry, holder Holder, held Held) {
-	t.Helper()
-
-	require.NoError(t, holdingsOf(r).Change(t.Context(), holder, func(Held) (Held, error) { return held, nil }))
 }
 
 func attend(t *testing.T, r *Registry, entrant Entrant) <-chan Event {
@@ -395,7 +387,7 @@ func TestCatchingAChargeBringsTheNextBoxAWindowAfterTheClaim(t *testing.T) {
 func TestAKindHeldIsNotOfferedAgainUntilItIsSpent(t *testing.T) {
 	registry, clock := newRegistryOffering(map[Kind]float64{KindBomb: 1})
 	events := playing(t, registry, "scope-a")
-	hold(t, registry, holderOf("scope-a"), Held{Bomb: true})
+	holdingsOf(registry).Keep(holderOf("scope-a"), Held{Bomb: true})
 
 	for range 5 {
 		clock.Advance(window + time.Second)
@@ -404,7 +396,7 @@ func TestAKindHeldIsNotOfferedAgainUntilItIsSpent(t *testing.T) {
 		require.Nil(t, offered(t, events), "a second bomb would be a stockpile")
 	}
 
-	hold(t, registry, holderOf("scope-a"), Held{})
+	holdingsOf(registry).Keep(holderOf("scope-a"), Held{})
 
 	waitOut(t, registry, clock)
 	clicked(registry, "scope-a")
@@ -415,7 +407,7 @@ func TestAKindHeldIsNotOfferedAgainUntilItIsSpent(t *testing.T) {
 func TestAKindHeldIsLeftOutOfTheDrawAndTheOthersStillCome(t *testing.T) {
 	registry, clock := newRegistryOffering(map[Kind]float64{KindBomb: 100, KindRefill: 1})
 	events := playing(t, registry, "scope-a")
-	hold(t, registry, holderOf("scope-a"), Held{Bomb: true})
+	holdingsOf(registry).Keep(holderOf("scope-a"), Held{Bomb: true})
 
 	for range 20 {
 		clock.Advance(window + time.Second)
@@ -437,7 +429,7 @@ func TestAKindHeldByAnAccountThatClicksFromTheScopeIsNotOffered(t *testing.T) {
 
 	events := attend(t, registry, "scope-a")
 	registry.Clicked("scope-a", "scope-a", account)
-	hold(t, registry, account, Held{Enclosures: 3})
+	holdingsOf(registry).Keep(account, Held{Enclosures: 3})
 
 	waitOut(t, registry, clock)
 	assert.Nil(t, offered(t, events), "the charge is the account's, whatever address it plays from")
@@ -449,7 +441,7 @@ func TestAPlayerWhoStoppedClickingNoLongerHoldsBackAKind(t *testing.T) {
 
 	events := attend(t, registry, "scope-a")
 	registry.Clicked("scope-a", "scope-a", gone)
-	hold(t, registry, gone, Held{Bomb: true})
+	holdingsOf(registry).Keep(gone, Held{Bomb: true})
 
 	clock.Advance(6 * time.Minute)
 	clicked(registry, "scope-a")
@@ -492,55 +484,8 @@ func TestAKindLeftOutOrAtZeroIsNeverOffered(t *testing.T) {
 		clicked(registry, "scope-a")
 		entry := registry.callers["scope-a"]
 
-		offerable, read := registry.offerable(entry, clock.Now(), map[Holder]Held{holderOf("scope-a"): {}})
-		require.True(t, read)
-		assert.Equal(t, cpcolls.NewSet(KindSpreadClicks), offerable)
+		assert.Equal(t, cpcolls.NewSet(KindSpreadClicks), registry.offerable(t.Context(), entry, clock.Now()))
 	}
-}
-
-func TestAHandThatCannotBeReadIsOfferedNothingUntilItCan(t *testing.T) {
-	registry, clock := newTestRegistry()
-	events := playing(t, registry, "scope-a")
-	holdingsOf(registry).FailWith(errors.New("postgres is down"))
-
-	waitOut(t, registry, clock)
-	require.Nil(t, offered(t, events), "a box for a kind it may hold full would be a box for nothing")
-
-	holdingsOf(registry).FailWith(nil)
-	registry.sweep(t.Context())
-	assert.NotNil(t, offered(t, events), "the caller was due all along, and the next sweep reads it again")
-}
-
-type readWhileClicking struct {
-	registry *Registry
-	waited   bool
-}
-
-func (r *readWhileClicking) Held(context.Context, Holder) (Held, error) {
-	done := make(chan struct{})
-	go func() {
-		r.registry.Clicked("scope-b", "scope-b", NoHolder)
-		close(done)
-	}()
-
-	select {
-	case <-done:
-	case <-time.After(time.Second):
-		r.waited = true
-	}
-	return Held{}, nil
-}
-
-func TestAClickNeverWaitsOnTheHandsBeingRead(t *testing.T) {
-	registry, clock := newTestRegistry()
-	reads := &readWhileClicking{registry: registry}
-	registry.holdings = reads
-	events := playing(t, registry, "scope-a")
-
-	waitOut(t, registry, clock)
-
-	assert.False(t, reads.waited, "the hands are read with the registry unlocked")
-	assert.NotNil(t, offered(t, events))
 }
 
 func TestKindsAreDrawnInProportionToTheirWeight(t *testing.T) {

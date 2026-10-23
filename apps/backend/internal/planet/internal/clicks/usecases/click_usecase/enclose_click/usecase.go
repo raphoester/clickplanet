@@ -12,20 +12,8 @@ type Enclosures interface {
 	Held(ctx context.Context, holder bonuses.Holder) (bonuses.Held, error)
 }
 
-func New(
-	implementation click_usecase.IUseCase,
-	enclosures Enclosures,
-	terrain bonuses.Terrain,
-	annexer Annexer,
-	maxTiles int,
-) *UseCase {
-	return &UseCase{
-		implementation: implementation,
-		enclosures:     enclosures,
-		terrain:        terrain,
-		annexer:        annexer,
-		maxTiles:       maxTiles,
-	}
+func New(implementation click_usecase.IUseCase, enclosures Enclosures, terrain bonuses.Terrain, annexer Annexer, maxTiles int) *UseCase {
+	return &UseCase{implementation: implementation, enclosures: enclosures, terrain: terrain, annexer: annexer, maxTiles: maxTiles}
 }
 
 type UseCase struct {

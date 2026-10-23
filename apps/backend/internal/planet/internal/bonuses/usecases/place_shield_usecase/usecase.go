@@ -12,7 +12,7 @@ import (
 var ErrNoShield = errors.New("no shield to place")
 
 type Shields interface {
-	SpendShield(ctx context.Context, holder bonuses.Holder) error
+	Spend(ctx context.Context, holder bonuses.Holder, after func(bonuses.Held) (bonuses.Held, bool)) error
 	Grant(ctx context.Context, holder bonuses.Holder, kind bonuses.Kind, amount int) error
 	Held(ctx context.Context, holder bonuses.Holder) (bonuses.Held, error)
 }
@@ -68,7 +68,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (bonuses.Held, error) {
 	}
 
 	holder := bonuses.HolderOf(payer)
-	if err := u.shields.SpendShield(ctx, holder); err != nil {
+	if err := u.shields.Spend(ctx, holder, bonuses.Held.AfterShield); err != nil {
 		if errors.Is(err, bonuses.ErrNotHeld) {
 			return bonuses.Held{}, ErrNoShield
 		}

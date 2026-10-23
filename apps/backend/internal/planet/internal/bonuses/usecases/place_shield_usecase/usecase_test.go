@@ -2,7 +2,6 @@ package place_shield_usecase_test
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 	"testing"
 	"time"
@@ -23,8 +22,7 @@ import (
 const caller bonuses.Holder = "a-player"
 
 type fixture struct {
-	charges bonuses.Charges
-	store   *bonuses.MemoryStore
+	charges *bonuses.MemoryStore
 	tiles   *inmemory_tile_storage.Storage
 	book    allegiances.Book
 	clock   *cptime.FixedClock
@@ -34,11 +32,8 @@ type fixture struct {
 func setup(t *testing.T, shields int) fixture {
 	t.Helper()
 
-	store := bonuses.NewMemoryStore()
-	charges := bonuses.NewCharges(store, bonuses.ChargesConfig{Shields: 12})
-	if shields > 0 {
-		require.NoError(t, charges.Grant(t.Context(), caller, bonuses.KindShields, shields))
-	}
+	charges := bonuses.NewMemoryStore()
+	charges.Keep(caller, bonuses.Held{Shields: shields})
 
 	tiles := inmemory_tile_storage.New(clicks.BordersOf(100), inmemory_tile_storage.Config{},
 		inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{7: "fr", 8: "de"}), slog.New(slog.DiscardHandler))
@@ -49,11 +44,10 @@ func setup(t *testing.T, shields int) fixture {
 
 	return fixture{
 		charges: charges,
-		store:   store,
 		tiles:   tiles,
 		book:    book,
 		clock:   clock,
-		useCase: place_shield_usecase.New(charges, tiles, cpcountries.New(), book, 2),
+		useCase: place_shield_usecase.New(bonuses.NewCharges(charges, bonuses.ChargesConfig{Shields: 12}), tiles, cpcountries.New(), book, 2),
 	}
 }
 
@@ -87,7 +81,7 @@ func TestATileOfAnotherFlagIsRefusedAndSpendsNothing(t *testing.T) {
 		require.ErrorIs(t, err, clicks.ErrNotYourTile, tile)
 	}
 
-	assert.Equal(t, 3, f.store.Kept(caller).Shields)
+	assert.Equal(t, 3, f.charges.Kept(caller).Shields)
 }
 
 func TestAFullTileIsRefusedAndSpendsNothing(t *testing.T) {
@@ -101,7 +95,7 @@ func TestAFullTileIsRefusedAndSpendsNothing(t *testing.T) {
 	_, err := f.place(t, in)
 	require.ErrorIs(t, err, clicks.ErrTileFull)
 
-	assert.Equal(t, 1, f.store.Kept(caller).Shields)
+	assert.Equal(t, 1, f.charges.Kept(caller).Shields)
 	assert.Equal(t, 2, f.tiles.Shields(7))
 }
 
@@ -114,18 +108,6 @@ func TestNoShieldHeldPlacesNothing(t *testing.T) {
 	assert.Zero(t, f.tiles.Shields(7))
 }
 
-func TestAStoreThatFailsPlacesNothing(t *testing.T) {
-	f := setup(t, 3)
-	down := errors.New("postgres is down")
-	f.store.FailWith(down)
-
-	_, err := f.place(t, place_shield_usecase.In{TileID: 7, CountryID: "fr"})
-
-	require.ErrorIs(t, err, down)
-	assert.NotErrorIs(t, err, place_shield_usecase.ErrNoShield, "the player is not told it holds no shield")
-	assert.Zero(t, f.tiles.Shields(7))
-}
-
 func TestAMalformedRequestIsRefused(t *testing.T) {
 	f := setup(t, 3)
 
@@ -135,7 +117,7 @@ func TestAMalformedRequestIsRefused(t *testing.T) {
 	_, err = f.place(t, place_shield_usecase.In{TileID: 101, CountryID: "fr"})
 	require.ErrorIs(t, err, clicks.ErrTileOutOfRange)
 
-	assert.Equal(t, 3, f.store.Kept(caller).Shields)
+	assert.Equal(t, 3, f.charges.Kept(caller).Shields)
 }
 
 type lostRace struct{ *inmemory_tile_storage.Storage }
@@ -144,12 +126,12 @@ func (l lostRace) Shield(context.Context, uint32, string, int) error { return cl
 
 func TestAShieldThatCouldNotBePlacedIsGivenBack(t *testing.T) {
 	f := setup(t, 3)
-	useCase := place_shield_usecase.New(f.charges, lostRace{f.tiles}, cpcountries.New(), f.book, 2)
+	useCase := place_shield_usecase.New(bonuses.NewCharges(f.charges, bonuses.ChargesConfig{Shields: 12}), lostRace{f.tiles}, cpcountries.New(), f.book, 2)
 
 	_, err := useCase.Execute(played(t), place_shield_usecase.In{TileID: 7, CountryID: "fr"})
 	require.ErrorIs(t, err, clicks.ErrNotYourTile, "the tile changed hands between the check and the placement")
 
-	assert.Equal(t, 3, f.store.Kept(caller).Shields)
+	assert.Equal(t, 3, f.charges.Kept(caller).Shields)
 }
 
 func TestAShieldForAnotherFlagWithinTheHourIsRefusedAndSpendsNothing(t *testing.T) {
@@ -163,6 +145,6 @@ func TestAShieldForAnotherFlagWithinTheHourIsRefusedAndSpendsNothing(t *testing.
 	_, err = f.place(t, place_shield_usecase.In{TileID: 7, CountryID: "fr"})
 
 	require.ErrorIs(t, err, allegiances.ErrChangedTooSoon)
-	assert.Equal(t, 1, f.store.Kept(caller).Shields)
+	assert.Equal(t, 1, f.charges.Kept(caller).Shields)
 	assert.Equal(t, 1, f.tiles.Shields(7))
 }

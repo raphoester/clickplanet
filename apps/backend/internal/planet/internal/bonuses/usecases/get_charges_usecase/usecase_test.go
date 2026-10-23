@@ -1,7 +1,7 @@
 package get_charges_usecase_test
 
 import (
-	"errors"
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -12,42 +12,28 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
-func charges(t *testing.T) (bonuses.Charges, *bonuses.MemoryStore) {
-	t.Helper()
+type stubCharges map[bonuses.Holder]bonuses.Held
 
-	store := bonuses.NewMemoryStore()
-	charges := bonuses.NewCharges(store, bonuses.ChargesConfig{})
-	require.NoError(t, charges.Grant(t.Context(), "a-guest", bonuses.KindBomb, 1))
-
-	return charges, store
+func (s stubCharges) Held(_ context.Context, holder bonuses.Holder) (bonuses.Held, error) {
+	return s[holder], nil
 }
 
 func TestTheChargesReadAreTheAccounts(t *testing.T) {
-	charges, _ := charges(t)
+	charges := stubCharges{
+		"a-guest":        {Bomb: true},
+		bonuses.NoHolder: {SpreadClicks: 3},
+	}
 	ctx := cpctx.AddAccountToContext(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), "a-guest")
 
 	held, err := get_charges_usecase.New(charges).Execute(ctx)
 	require.NoError(t, err)
-
 	assert.Equal(t, bonuses.Held{Bomb: true}, held)
 }
 
 func TestWithNoAccountNothingIsHeld(t *testing.T) {
-	charges, _ := charges(t)
+	charges := stubCharges{bonuses.NoHolder: {SpreadClicks: 3}}
 
 	held, err := get_charges_usecase.New(charges).Execute(cpctx.AddIPToContext(t.Context(), "1.2.3.4"))
 	require.NoError(t, err)
-
-	assert.Equal(t, bonuses.Held{}, held)
-}
-
-func TestAStoreThatFailsFailsTheRead(t *testing.T) {
-	charges, store := charges(t)
-	down := errors.New("postgres is down")
-	store.FailWith(down)
-	ctx := cpctx.AddAccountToContext(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), "a-guest")
-
-	_, err := get_charges_usecase.New(charges).Execute(ctx)
-
-	require.ErrorIs(t, err, down)
+	assert.Equal(t, bonuses.Held{SpreadClicks: 3}, held, "the read goes to NoHolder, which the storage never grants anything")
 }

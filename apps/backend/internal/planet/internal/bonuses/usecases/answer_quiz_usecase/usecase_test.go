@@ -2,7 +2,6 @@ package answer_quiz_usecase_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -16,7 +15,7 @@ import (
 func asPlayer(t *testing.T) context.Context {
 	t.Helper()
 
-	return cpctx.AddAccountToContext(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), string(guest))
+	return cpctx.AddAccountToContext(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), "a-guest")
 }
 
 type fakeRegistry struct {
@@ -38,23 +37,24 @@ func (f *fakeRegistry) Publish(taken bonuses.Taken) {
 	f.published = append(f.published, taken)
 }
 
-const guest bonuses.Holder = "a-guest"
+type fakeCharger struct{ held bonuses.Held }
 
-type fixture struct {
-	charges bonuses.Charges
-	store   *bonuses.MemoryStore
+func (f *fakeCharger) Held(context.Context, bonuses.Holder) (bonuses.Held, error) { return f.held, nil }
+
+func (f *fakeCharger) Grant(_ context.Context, _ bonuses.Holder, kind bonuses.Kind, amount int) error {
+	f.held = f.held.Granted(kind, amount, bonuses.ChargesConfig{SpreadClicks: 8, Enclosures: 3})
+	return nil
 }
 
-func newUseCase(answered bonuses.Answered, known bool) (*answer_quiz_usecase.UseCase, *fakeRegistry, fixture) {
+func newUseCase(answered bonuses.Answered, known bool) (*answer_quiz_usecase.UseCase, *fakeRegistry, *fakeCharger) {
 	registry := &fakeRegistry{answered: answered, known: known}
-	store := bonuses.NewMemoryStore()
-	charges := bonuses.NewCharges(store, bonuses.ChargesConfig{SpreadClicks: 8, Enclosures: 3})
+	charger := &fakeCharger{}
 
-	return answer_quiz_usecase.New(registry, charges), registry, fixture{charges: charges, store: store}
+	return answer_quiz_usecase.New(registry, charger), registry, charger
 }
 
 func TestARightAnswerGrantsTheChargeAndTellsThePlanet(t *testing.T) {
-	useCase, registry, f := newUseCase(bonuses.Answered{
+	useCase, registry, charger := newUseCase(bonuses.Answered{
 		Correct:       true,
 		CorrectChoice: 2,
 		Reward:        bonuses.Reward{Kind: bonuses.KindSpreadClicks, Amount: 3},
@@ -68,7 +68,7 @@ func TestARightAnswerGrantsTheChargeAndTellsThePlanet(t *testing.T) {
 	assert.Equal(t, bonuses.KindSpreadClicks, out.Kind)
 	assert.Equal(t, 3, out.Amount)
 	assert.Equal(t, 3, out.Held.SpreadClicks)
-	assert.Equal(t, 3, f.store.Kept(guest).SpreadClicks, "the charge is held by the account that answered")
+	assert.Equal(t, 3, charger.held.SpreadClicks, "the charge is held by the account that answered")
 
 	require.Len(t, registry.published, 1)
 	assert.Equal(t, bonuses.Taken{
@@ -79,7 +79,7 @@ func TestARightAnswerGrantsTheChargeAndTellsThePlanet(t *testing.T) {
 }
 
 func TestAWrongAnswerChangesNothingAndTellsNobody(t *testing.T) {
-	useCase, registry, f := newUseCase(bonuses.Answered{CorrectChoice: 1}, true)
+	useCase, registry, charger := newUseCase(bonuses.Answered{CorrectChoice: 1}, true)
 
 	out, err := useCase.Execute(asPlayer(t), answer_quiz_usecase.In{Token: "t", Choice: 0, CountryID: "bg"})
 	require.NoError(t, err, "a wrong answer landed; it is not a failed call")
@@ -89,7 +89,7 @@ func TestAWrongAnswerChangesNothingAndTellsNobody(t *testing.T) {
 	assert.Empty(t, out.Kind)
 	assert.Zero(t, out.Amount)
 	assert.True(t, out.Held.Empty())
-	assert.True(t, f.store.Kept(guest).Empty())
+	assert.True(t, charger.held.Empty())
 	assert.Empty(t, registry.published, "nothing happened, so the planet is told nothing")
 }
 
@@ -102,29 +102,15 @@ func TestAQuizThatIsNotThisCallersIsNotFound(t *testing.T) {
 }
 
 func TestTheAmountIsWhatWasKeptNotWhatWasDrawn(t *testing.T) {
-	useCase, _, f := newUseCase(bonuses.Answered{
+	useCase, _, charger := newUseCase(bonuses.Answered{
 		Correct: true,
 		Reward:  bonuses.Reward{Kind: bonuses.KindEncloseClicks, Amount: 3},
 	}, true)
-	require.NoError(t, f.charges.Grant(t.Context(), guest, bonuses.KindEncloseClicks, 2))
+	charger.held = bonuses.Held{Enclosures: 2}
 
 	out, err := useCase.Execute(asPlayer(t), answer_quiz_usecase.In{Token: "t"})
 	require.NoError(t, err)
 
 	assert.Equal(t, 1, out.Amount, "the stack holds 3, and 2 were already in it")
 	assert.Equal(t, 3, out.Held.Enclosures)
-}
-
-func TestAStoreThatFailsFailsTheAnswerAndTellsNobody(t *testing.T) {
-	useCase, registry, f := newUseCase(bonuses.Answered{
-		Correct: true,
-		Reward:  bonuses.Reward{Kind: bonuses.KindBomb, Amount: 1},
-	}, true)
-	down := errors.New("postgres is down")
-	f.store.FailWith(down)
-
-	_, err := useCase.Execute(asPlayer(t), answer_quiz_usecase.In{Token: "t", CountryID: "bg"})
-
-	require.ErrorIs(t, err, down)
-	assert.Empty(t, registry.published)
 }

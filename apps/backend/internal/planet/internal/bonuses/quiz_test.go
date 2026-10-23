@@ -341,12 +341,12 @@ func TestAQuizIsNotOfferedForAKindTheCallerIsAlreadyHolding(t *testing.T) {
 	registry, clock := newQuizzingRegistry(t)
 	events := playing(t, registry, "scope-a")
 
-	hold(t, registry, holderOf("scope-a"), Held{Refill: true})
+	holdingsOf(registry).Keep(holderOf("scope-a"), Held{Refill: true})
 
 	waitOutQuiz(t, registry, clock)
 	assert.Nil(t, quizOffered(t, events), "there is nothing a right answer could be worth")
 
-	hold(t, registry, holderOf("scope-a"), Held{})
+	holdingsOf(registry).Keep(holderOf("scope-a"), Held{})
 	clicked(registry, "scope-a")
 	waitOutQuiz(t, registry, clock)
 	assert.NotNil(t, quizOffered(t, events))

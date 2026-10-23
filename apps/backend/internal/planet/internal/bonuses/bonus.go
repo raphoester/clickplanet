@@ -168,8 +168,6 @@ const rememberSpent = 10 * time.Minute
 
 const eventBuffer = 32
 
-const holdingsTimeout = 2 * time.Second
-
 type Holdings interface {
 	Held(ctx context.Context, holder Holder) (Held, error)
 }
@@ -365,75 +363,23 @@ func (r *Registry) Run(ctx context.Context) {
 	}
 }
 
-// The hands are read with the registry unlocked: a click waits on its lock, never on postgres.
 func (r *Registry) sweep(ctx context.Context) {
 	now := r.clock.Now()
 
-	r.tidy(now)
-	hands := r.hands(ctx, r.playersDue(now))
-	r.offerAll(now, hands)
-}
-
-func (r *Registry) tidy(now time.Time) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	r.collectMisses(now)
 	r.forgetSpent(now)
-	r.collectStaleQuizzes(now)
+	r.sweepQuizzes(ctx, now)
 	r.forgetStale(now)
-}
-
-func (r *Registry) playersDue(now time.Time) *cpcolls.Set[Holder] {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	players := cpcolls.NewSet[Holder]()
-	for _, entry := range r.callers {
-		if !entry.watching() || (now.Before(entry.nextOfferAt) && !r.quizWaiting(entry, now)) {
-			continue
-		}
-
-		for holder, clicked := range entry.players {
-			if now.Sub(clicked) <= r.config.ActiveWithin {
-				players.Add(holder)
-			}
-		}
-	}
-
-	return players
-}
-
-func (r *Registry) hands(ctx context.Context, players *cpcolls.Set[Holder]) map[Holder]Held {
-	ctx, cancel := context.WithTimeout(ctx, holdingsTimeout)
-	defer cancel()
-
-	hands := make(map[Holder]Held, players.Len())
-	players.ForEach(func(holder Holder) {
-		// A hand that cannot be read is left out, and its caller waits for the next sweep.
-		if held, err := r.holdings.Held(ctx, holder); err == nil {
-			hands[holder] = held
-		}
-	})
-
-	return hands
-}
-
-func (r *Registry) offerAll(now time.Time, hands map[Holder]Held) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	r.offerQuizzes(now, hands)
 
 	for entrant, entry := range r.callers {
 		if !r.due(entry, now) {
 			continue
 		}
 
-		kinds, read := r.offerable(entry, now, hands)
-		if !read {
-			continue
-		}
+		kinds := r.offerable(ctx, entry, now)
 		if kinds.Empty() {
 			entry.nextOfferAt = now.Add(r.window())
 			continue
@@ -456,7 +402,7 @@ func (r *Registry) due(entry *caller, now time.Time) bool {
 	return true
 }
 
-func (r *Registry) offerable(entry *caller, now time.Time, hands map[Holder]Held) (*cpcolls.Set[Kind], bool) {
+func (r *Registry) offerable(ctx context.Context, entry *caller, now time.Time) *cpcolls.Set[Kind] {
 	kinds := cpcolls.NewSetWithCapacity[Kind](len(Kinds))
 
 	held := cpcolls.NewSet[Kind]()
@@ -465,16 +411,16 @@ func (r *Registry) offerable(entry *caller, now time.Time, hands map[Holder]Held
 			delete(entry.players, holder)
 			continue
 		}
-
-		hand, read := hands[holder]
-		if !read {
-			return kinds, false
+		hand, err := r.holdings.Held(ctx, holder)
+		if err != nil {
+			// Offered nothing: the slot is lost, as an away player's.
+			return kinds
 		}
 		held.Add(hand.Full(r.charges)...)
 	}
 
 	if len(entry.players) == 0 || r.grantedWithinTheHour(entry, now) >= r.config.MaxChargesPerHour {
-		return kinds, true
+		return kinds
 	}
 
 	for _, kind := range Kinds {
@@ -483,7 +429,7 @@ func (r *Registry) offerable(entry *caller, now time.Time, hands map[Holder]Held
 		}
 	}
 
-	return kinds, true
+	return kinds
 }
 
 func (r *Registry) grantedWithinTheHour(entry *caller, now time.Time) int {

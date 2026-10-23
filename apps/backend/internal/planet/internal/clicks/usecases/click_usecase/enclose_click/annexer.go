@@ -14,7 +14,7 @@ type Encloser interface {
 }
 
 type Spender interface {
-	SpendEnclose(ctx context.Context, holder bonuses.Holder) error
+	Spend(ctx context.Context, holder bonuses.Holder, after func(bonuses.Held) (bonuses.Held, bool)) error
 }
 
 type Publisher interface {
@@ -35,7 +35,7 @@ func (a Annexer) Annex(ctx context.Context, entrant bonuses.Entrant, holder bonu
 	if len(pockets) == 0 {
 		return nil
 	}
-	if err := a.spender.SpendEnclose(ctx, holder); err != nil {
+	if err := a.spender.Spend(ctx, holder, bonuses.Held.AfterEnclose); err != nil {
 		if errors.Is(err, bonuses.ErrNotHeld) {
 			return nil
 		}
