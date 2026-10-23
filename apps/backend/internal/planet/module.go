@@ -16,7 +16,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances/postgres_allegiance_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/inmemory_charge_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/log_holdings"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/postgres_charge_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/answer_quiz_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/answer_quiz_usecase/prom_answer_quiz"
@@ -177,15 +177,8 @@ func NewModule(config Config) cpbootstrap.Module {
 				return fmt.Errorf("failed to subscribe the ledger to auth.v1.AccountDeleted: %w", err)
 			}
 
-			charges := inmemory_charge_storage.New(config.ChargeStorage, config.Bonus.ChargesConfig(),
-				postgres_charge_store.New(db), props.Logger)
-			if err := charges.Load(ctx); err != nil {
-				_ = db.Close()
-				return fmt.Errorf("failed to load the charges: %w", err)
-			}
-
 			// Not a closer: closers run before the runners' last flush.
-			props.Runners.Add(cppg.CloseAfter(db, props.Logger, tilesStorage, takings, charges, deletions))
+			props.Runners.Add(cppg.CloseAfter(db, props.Logger, tilesStorage, takings, deletions))
 			props.Runners.Add(ledger.NewRetention(config.Ledger, takings, clock))
 			props.Runners.Add(relay_fortifications_usecase.New(tilesStorage, props.Events, clock, props.Logger))
 
@@ -202,7 +195,10 @@ func NewModule(config Config) cpbootstrap.Module {
 			writer := ledger.NewRecording(tilesStorage, clicks.NewClaiming(tilesStorage, config.Bonus.ShieldsPerTile()),
 				publishing_ledger_storage.New(takings, props.Events), clock)
 
-			registry := bonuses.New(config.Bonus, clock, charges)
+			chargeRules := config.Bonus.ChargesConfig()
+			charges := bonuses.NewCharges(postgres_charge_store.New(db), chargeRules)
+
+			registry := bonuses.New(config.Bonus, clock, log_holdings.New(charges, props.Logger))
 			props.Runners.Add(registry)
 
 			if config.Bonus.Quiz.Enabled {
@@ -225,7 +221,8 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			clickUseCase = enclose_click.New(clickUseCase, charges,
 				bonuses.NewTerrain(geography, tilesStorage),
-				enclose_click.NewAnnexer(writer, charges, prom_enclose.New(registry, props.Metrics)))
+				enclose_click.NewAnnexer(writer, charges, prom_enclose.New(registry, props.Metrics)),
+				chargeRules.EnclosureMaxTiles)
 
 			clickUseCase = prom_click.New(clickUseCase, props.Metrics)
 
@@ -358,10 +355,10 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			rules := bonuses.Rules{
 				BlastRadius:       bombRules.Radius,
-				EnclosureMaxTiles: charges.EnclosureMaxTiles(),
-				SpreadClicks:      charges.SpreadClicks(),
-				Enclosures:        charges.Enclosures(),
-				Shields:           charges.Shields(),
+				EnclosureMaxTiles: chargeRules.EnclosureMaxTiles,
+				SpreadClicks:      chargeRules.SpreadClicks,
+				Enclosures:        chargeRules.Enclosures,
+				Shields:           chargeRules.Shields,
 				TileShields:       config.Bonus.ShieldsPerTile(),
 			}
 

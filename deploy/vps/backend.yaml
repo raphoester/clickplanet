@@ -24,9 +24,6 @@ tilesStorage:
 ledger:
   retention: 72h
 
-chargeStorage:
-  flushInterval: 1s
-
 ledgerStorage:
   flushInterval: 1s
   maxTakes: 4000000

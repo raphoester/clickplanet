@@ -17,8 +17,8 @@ type Registry interface {
 }
 
 type Charger interface {
-	Grant(holder bonuses.Holder, kind bonuses.Kind, amount int)
-	Held(holder bonuses.Holder) bonuses.Held
+	Grant(ctx context.Context, holder bonuses.Holder, kind bonuses.Kind, amount int) error
+	Held(ctx context.Context, holder bonuses.Holder) (bonuses.Held, error)
 }
 
 type In struct {
@@ -52,9 +52,17 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	}
 
 	holder := bonuses.HolderOf(payer)
-	before := u.charger.Held(holder)
-	u.charger.Grant(holder, reward.Kind, reward.Amount)
-	held := u.charger.Held(holder)
+	before, err := u.charger.Held(ctx, holder)
+	if err != nil {
+		return Out{}, err
+	}
+	if err := u.charger.Grant(ctx, holder, reward.Kind, reward.Amount); err != nil {
+		return Out{}, err
+	}
+	held, err := u.charger.Held(ctx, holder)
+	if err != nil {
+		return Out{}, err
+	}
 
 	u.registry.Publish(bonuses.Taken{CountryID: in.CountryID, Kind: reward.Kind})
 

@@ -130,19 +130,20 @@ func (r *Registry) AnswerQuiz(token string, entrant Entrant, choice int) (Answer
 	return answered, true
 }
 
-func (r *Registry) sweepQuizzes(now time.Time) {
+func (r *Registry) offerQuizzes(now time.Time, hands map[Holder]Held) {
 	if !r.quizzing() {
 		return
 	}
-
-	r.collectStaleQuizzes(now)
 
 	for entrant, entry := range r.callers {
 		if !r.quizDue(entry, now) {
 			continue
 		}
 
-		kinds := r.offerable(entry, now)
+		kinds, read := r.offerable(entry, now, hands)
+		if !read {
+			continue
+		}
 		if kinds.Empty() {
 			entry.nextQuizAt = now.Add(r.quizWindow())
 			continue
@@ -150,6 +151,10 @@ func (r *Registry) sweepQuizzes(now time.Time) {
 
 		r.offerQuiz(entrant, entry, now, r.drawKind(kinds))
 	}
+}
+
+func (r *Registry) quizWaiting(entry *caller, now time.Time) bool {
+	return r.quizzing() && !now.Before(entry.nextQuizAt)
 }
 
 func (r *Registry) quizDue(entry *caller, now time.Time) bool {

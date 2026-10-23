@@ -4,14 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/inmemory_charge_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/enclose_click"
@@ -123,28 +121,29 @@ type fixture struct {
 	grid      honeycomb
 	tiles     tiles
 	shields   shields
-	charges   *inmemory_charge_storage.Storage
+	store     *bonuses.MemoryStore
 	published *recorder
 	useCase   *enclose_click.UseCase
 }
 
-func setup(charged bool, err error) fixture {
+func setup(t *testing.T, charged bool, err error) fixture {
+	t.Helper()
+
 	f := fixture{
-		grid:    honeycomb{size: 12},
-		tiles:   tiles{},
-		shields: shields{},
-		charges: inmemory_charge_storage.New(inmemory_charge_storage.Config{},
-			bonuses.ChargesConfig{SpreadClicks: 8, Enclosures: 3, EnclosureMaxTiles: 10},
-			inmemory_charge_storage.NewMemoryPersistence(), slog.New(slog.DiscardHandler)),
+		grid:      honeycomb{size: 12},
+		tiles:     tiles{},
+		shields:   shields{},
+		store:     bonuses.NewMemoryStore(),
 		published: &recorder{},
 	}
+	charges := bonuses.NewCharges(f.store, bonuses.ChargesConfig{SpreadClicks: 8, Enclosures: 3, EnclosureMaxTiles: 10})
 	if charged {
-		f.charges.Grant(caller, bonuses.KindEncloseClicks, 1)
+		require.NoError(t, charges.Grant(t.Context(), caller, bonuses.KindEncloseClicks, 1))
 	}
 
 	claiming := clicks.NewClaiming(board{tiles: f.tiles, shields: f.shields}, 10)
-	f.useCase = enclose_click.New(rule{claiming: claiming, err: err}, f.charges,
-		bonuses.NewTerrain(f.grid, f.tiles), enclose_click.NewAnnexer(encloser{claiming: claiming}, f.charges, f.published))
+	f.useCase = enclose_click.New(rule{claiming: claiming, err: err}, charges,
+		bonuses.NewTerrain(f.grid, f.tiles), enclose_click.NewAnnexer(encloser{claiming: claiming}, charges, f.published), 10)
 
 	return f
 }
@@ -163,7 +162,7 @@ func (f fixture) own(country string, ids ...uint32) {
 }
 
 func TestClosingARingTakesTheTileInsideIt(t *testing.T) {
-	f := setup(true, nil)
+	f := setup(t, true, nil)
 	centre, ring := f.grid.id(5, 5), f.grid.ring(5, 5)
 	f.own("de", centre)
 	f.own("fr", ring[1:]...)
@@ -178,11 +177,11 @@ func TestClosingARingTakesTheTileInsideIt(t *testing.T) {
 	assert.Equal(t, ring[0], enclosed.ClosingTile)
 	assert.Equal(t, []uint32{centre}, enclosed.Filled)
 	assert.ElementsMatch(t, ring, enclosed.Wall)
-	assert.Zero(t, f.charges.Held(caller).Enclosures, "the charge is one shape, and this was it")
+	assert.Zero(t, f.store.Kept(caller).Enclosures, "the charge is one shape, and this was it")
 }
 
 func TestAShapeTakesUnownedTilesAndEveryoneElsesAlike(t *testing.T) {
-	f := setup(true, nil)
+	f := setup(t, true, nil)
 	inner := []uint32{f.grid.id(5, 5), f.grid.id(6, 5)}
 	f.own("de", inner[1])
 	closing := f.grid.id(4, 5)
@@ -202,7 +201,7 @@ func TestAShapeTakesUnownedTilesAndEveryoneElsesAlike(t *testing.T) {
 }
 
 func TestAShieldedTileInsideAShapeLosesAShieldAndIsNotTaken(t *testing.T) {
-	f := setup(true, nil)
+	f := setup(t, true, nil)
 	inner := []uint32{f.grid.id(5, 5), f.grid.id(6, 5)}
 	f.own("de", inner...)
 	f.shields[inner[0]] = 2
@@ -220,11 +219,11 @@ func TestAShieldedTileInsideAShapeLosesAShieldAndIsNotTaken(t *testing.T) {
 	assert.Equal(t, 1, f.shields[inner[0]])
 	assert.Equal(t, "fr", f.tiles[inner[1]])
 	require.Len(t, f.published.published, 1)
-	assert.Zero(t, f.charges.Held(caller).Enclosures)
+	assert.Zero(t, f.store.Kept(caller).Enclosures)
 }
 
 func TestAClickAShieldTookClosesNothing(t *testing.T) {
-	f := setup(true, nil)
+	f := setup(t, true, nil)
 	centre, ring := f.grid.id(5, 5), f.grid.ring(5, 5)
 	f.own("fr", ring[1:]...)
 	f.own("de", ring[0])
@@ -235,18 +234,18 @@ func TestAClickAShieldTookClosesNothing(t *testing.T) {
 	assert.Equal(t, "de", f.tiles[ring[0]])
 	assert.Empty(t, f.tiles[centre], "the tile inside was not taken")
 	assert.Empty(t, f.published.published)
-	assert.Equal(t, 1, f.charges.Held(caller).Enclosures, "a click that closes nothing keeps the charge")
+	assert.Equal(t, 1, f.store.Kept(caller).Enclosures, "a click that closes nothing keeps the charge")
 }
 
 func TestATriangleHasNoInsideAndCostsNothing(t *testing.T) {
-	f := setup(true, nil)
+	f := setup(t, true, nil)
 	a, b, c := f.grid.id(5, 5), f.grid.id(6, 5), f.grid.id(5, 6)
 	f.own("fr", a, b)
 
 	f.click(t, c)
 
 	assert.Empty(t, f.published.published)
-	assert.Equal(t, 1, f.charges.Held(caller).Enclosures, "a click that closes nothing keeps the charge")
+	assert.Equal(t, 1, f.store.Kept(caller).Enclosures, "a click that closes nothing keeps the charge")
 }
 
 func (f fixture) carve(closing uint32, hole []uint32) {
@@ -268,7 +267,7 @@ func (f fixture) row(q, r, n int) []uint32 {
 }
 
 func TestAShapeHoldingExactlyTheLimitIsTaken(t *testing.T) {
-	f := setup(true, nil)
+	f := setup(t, true, nil)
 	hole := f.row(1, 5, 10)
 	f.carve(f.grid.id(1, 4), hole)
 
@@ -279,18 +278,18 @@ func TestAShapeHoldingExactlyTheLimitIsTaken(t *testing.T) {
 }
 
 func TestAShapeBiggerThanTheLimitTakesNothingAndCostsNothing(t *testing.T) {
-	f := setup(true, nil)
+	f := setup(t, true, nil)
 	f.carve(f.grid.id(1, 4), append(f.row(1, 5, 10), f.grid.id(1, 6)))
 
 	f.click(t, f.grid.id(1, 4))
 
 	assert.Empty(t, f.published.published)
 	assert.Empty(t, f.tiles[f.grid.id(1, 5)], "nothing inside was taken")
-	assert.Equal(t, 1, f.charges.Held(caller).Enclosures)
+	assert.Equal(t, 1, f.store.Kept(caller).Enclosures)
 }
 
 func TestAShapeOpenToTheEdgeOfTheLandIsNotClosed(t *testing.T) {
-	f := setup(true, nil)
+	f := setup(t, true, nil)
 	hole := f.row(0, 5, 2)
 	f.carve(f.grid.id(1, 4), hole)
 
@@ -298,11 +297,11 @@ func TestAShapeOpenToTheEdgeOfTheLandIsNotClosed(t *testing.T) {
 
 	assert.Empty(t, f.published.published)
 	assert.Empty(t, f.tiles[hole[0]])
-	assert.Equal(t, 1, f.charges.Held(caller).Enclosures)
+	assert.Equal(t, 1, f.store.Kept(caller).Enclosures)
 }
 
 func TestClickingTheOutlineOfAShapeAlreadyClosedTakesNothing(t *testing.T) {
-	f := setup(true, nil)
+	f := setup(t, true, nil)
 	centre, ring := f.grid.id(5, 5), f.grid.ring(5, 5)
 	f.own("de", centre)
 	f.own("fr", ring...)
@@ -314,7 +313,7 @@ func TestClickingTheOutlineOfAShapeAlreadyClosedTakesNothing(t *testing.T) {
 }
 
 func TestOneClickClosingTwoShapesTakesTheFirstForItsOneCharge(t *testing.T) {
-	f := setup(true, nil)
+	f := setup(t, true, nil)
 	top, bottom := f.grid.id(5, 4), f.grid.id(4, 6)
 	f.carve(f.grid.id(5, 5), []uint32{top, bottom})
 
@@ -332,7 +331,7 @@ func TestOneClickClosingTwoShapesTakesTheFirstForItsOneCharge(t *testing.T) {
 }
 
 func TestAChargeSpentClosesNothingMore(t *testing.T) {
-	f := setup(true, nil)
+	f := setup(t, true, nil)
 	first, firstRing := f.grid.id(3, 3), f.grid.ring(3, 3)
 	second, secondRing := f.grid.id(8, 8), f.grid.ring(8, 8)
 	f.own("fr", firstRing[1:]...)
@@ -347,7 +346,7 @@ func TestAChargeSpentClosesNothingMore(t *testing.T) {
 }
 
 func TestWithoutTheBonusAClickClosesNothing(t *testing.T) {
-	f := setup(false, nil)
+	f := setup(t, false, nil)
 	centre, ring := f.grid.id(5, 5), f.grid.ring(5, 5)
 	f.own("fr", ring[1:]...)
 
@@ -359,7 +358,7 @@ func TestWithoutTheBonusAClickClosesNothing(t *testing.T) {
 
 func TestARefusedClickClosesNothing(t *testing.T) {
 	refused := errors.New("unknown country")
-	f := setup(true, refused)
+	f := setup(t, true, refused)
 	centre, ring := f.grid.id(5, 5), f.grid.ring(5, 5)
 	f.own("fr", ring...)
 
@@ -367,11 +366,11 @@ func TestARefusedClickClosesNothing(t *testing.T) {
 
 	require.ErrorIs(t, err, refused)
 	assert.Empty(t, f.tiles[centre])
-	assert.Equal(t, 1, f.charges.Held(caller).Enclosures)
+	assert.Equal(t, 1, f.store.Kept(caller).Enclosures)
 }
 
 func TestAClickWithEncloseSwitchedOffClosesNothingAndKeepsTheCharge(t *testing.T) {
-	f := setup(true, nil)
+	f := setup(t, true, nil)
 	centre, ring := f.grid.id(5, 5), f.grid.ring(5, 5)
 	f.own("de", centre)
 	f.own("fr", ring[1:]...)
@@ -381,5 +380,35 @@ func TestAClickWithEncloseSwitchedOffClosesNothingAndKeepsTheCharge(t *testing.T
 
 	assert.Equal(t, "de", f.tiles[centre])
 	assert.Empty(t, f.published.published)
-	assert.Equal(t, 1, f.charges.Held(caller).Enclosures, "the charge is used only when the player chooses")
+	assert.Equal(t, 1, f.store.Kept(caller).Enclosures, "the charge is used only when the player chooses")
+}
+
+func TestAClickWithEncloseOnFailsBeforeItIsWrittenWhenTheChargesCannotBeRead(t *testing.T) {
+	f := setup(t, true, nil)
+	centre, ring := f.grid.id(5, 5), f.grid.ring(5, 5)
+	f.own("de", centre)
+	f.own("fr", ring[1:]...)
+	down := errors.New("postgres is down")
+	f.store.FailWith(down)
+
+	_, err := f.useCase.Execute(played(t), click_usecase.In{TileID: ring[0], CountryID: "fr", Enclose: true})
+
+	require.ErrorIs(t, err, down)
+	assert.Empty(t, f.tiles[ring[0]], "the click was not written")
+	assert.Equal(t, "de", f.tiles[centre])
+	assert.Empty(t, f.published.published)
+}
+
+func TestACallerWithNoAccountEnclosesNothing(t *testing.T) {
+	f := setup(t, true, nil)
+	centre, ring := f.grid.id(5, 5), f.grid.ring(5, 5)
+	f.own("de", centre)
+	f.own("fr", ring[1:]...)
+
+	_, err := f.useCase.Execute(t.Context(), click_usecase.In{TileID: ring[0], CountryID: "fr", Enclose: true})
+	require.NoError(t, err)
+
+	assert.Equal(t, "fr", f.tiles[ring[0]])
+	assert.Equal(t, "de", f.tiles[centre])
+	assert.Empty(t, f.published.published)
 }

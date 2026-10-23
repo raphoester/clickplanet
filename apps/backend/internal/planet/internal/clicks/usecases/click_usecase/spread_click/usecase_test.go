@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/spread_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
@@ -28,18 +27,13 @@ func (s stubClick) Execute(ctx context.Context, in click_usecase.In) (click_usec
 	return click_usecase.Out{}, s.storage.Set(ctx, in.TileID, in.CountryID)
 }
 
-type stubSpreads struct{ left map[bonuses.Holder]int }
+const caller bonuses.Holder = "a-player"
 
-func (s stubSpreads) SpendSpreadClick(holder bonuses.Holder) bool {
-	if s.left[holder] <= 0 {
-		return false
-	}
-	s.left[holder]--
+func played(t *testing.T) context.Context {
+	t.Helper()
 
-	return true
+	return cpctx.AddAccountToContext(t.Context(), string(caller))
 }
-
-var caller = bonuses.HolderOf(clicks.PayerOf(context.Background()))
 
 type stubNeighbours map[uint32][]uint32
 
@@ -76,35 +70,49 @@ var honeycomb = stubNeighbours{
 	7:   nil,
 }
 
-func setup(spreading bool, err error) (*spread_click.UseCase, *recordingStorage) {
-	useCase, storage, _ := setupWithPublisher(spreading, err)
+func setup(t *testing.T, spreading bool, err error) (*spread_click.UseCase, *recordingStorage) {
+	t.Helper()
+
+	useCase, storage, _ := setupWithPublisher(t, spreading, err)
 	return useCase, storage
 }
 
-func setupWithPublisher(spreading bool, err error) (*spread_click.UseCase, *recordingStorage, *recordingPublisher) {
+func setupWithPublisher(t *testing.T, spreading bool, err error) (*spread_click.UseCase, *recordingStorage, *recordingPublisher) {
+	t.Helper()
+
 	clicksLeft := 0
 	if spreading {
 		clicksLeft = 8
 	}
 
-	useCase, storage, publisher, _ := setupWithClicks(clicksLeft, err)
+	useCase, storage, publisher, _ := setupWithClicks(t, clicksLeft, err)
 
 	return useCase, storage, publisher
 }
 
-func setupWithClicks(clicksLeft int, err error) (*spread_click.UseCase, *recordingStorage, *recordingPublisher, stubSpreads) {
+func setupWithClicks(
+	t *testing.T,
+	clicksLeft int,
+	err error,
+) (*spread_click.UseCase, *recordingStorage, *recordingPublisher, *bonuses.MemoryStore) {
+	t.Helper()
+
 	storage := &recordingStorage{tiles: map[uint32]string{}}
-	spreads := stubSpreads{left: map[bonuses.Holder]int{caller: clicksLeft}}
+	store := bonuses.NewMemoryStore()
+	spreads := bonuses.NewCharges(store, bonuses.ChargesConfig{SpreadClicks: 8})
+	if clicksLeft > 0 {
+		require.NoError(t, spreads.Grant(t.Context(), caller, bonuses.KindSpreadClicks, clicksLeft))
+	}
 	publisher := &recordingPublisher{}
 	useCase := spread_click.New(stubClick{storage: storage, err: err}, spreads, honeycomb, storage, publisher)
 
-	return useCase, storage, publisher, spreads
+	return useCase, storage, publisher, store
 }
 
 func TestASpreadingClickTakesTheTileAndEveryTileTouchingIt(t *testing.T) {
-	useCase, storage := setup(true, nil)
+	useCase, storage := setup(t, true, nil)
 
-	_, err := useCase.Execute(t.Context(), click_usecase.In{TileID: 100, CountryID: "fr", Spread: true})
+	_, err := useCase.Execute(played(t), click_usecase.In{TileID: 100, CountryID: "fr", Spread: true})
 	require.NoError(t, err)
 
 	assert.Equal(t, map[uint32]string{
@@ -113,19 +121,19 @@ func TestASpreadingClickTakesTheTileAndEveryTileTouchingIt(t *testing.T) {
 }
 
 func TestASpreadTheWriterFailsIsAnErrorAndIsNotAnnounced(t *testing.T) {
-	useCase, storage, publisher, _ := setupWithClicks(8, nil)
+	useCase, storage, publisher, _ := setupWithClicks(t, 8, nil)
 	storage.err = errors.New("out of range")
 
-	_, err := useCase.Execute(t.Context(), click_usecase.In{TileID: 100, CountryID: "fr", Spread: true})
+	_, err := useCase.Execute(played(t), click_usecase.In{TileID: 100, CountryID: "fr", Spread: true})
 
 	require.ErrorIs(t, err, storage.err)
 	assert.Empty(t, publisher.spreads)
 }
 
 func TestWithoutTheBonusAClickTakesOneTile(t *testing.T) {
-	useCase, storage := setup(false, nil)
+	useCase, storage := setup(t, false, nil)
 
-	_, err := useCase.Execute(t.Context(), click_usecase.In{TileID: 100, CountryID: "fr", Spread: true})
+	_, err := useCase.Execute(played(t), click_usecase.In{TileID: 100, CountryID: "fr", Spread: true})
 	require.NoError(t, err)
 
 	assert.Equal(t, map[uint32]string{100: "fr"}, storage.tiles)
@@ -133,53 +141,73 @@ func TestWithoutTheBonusAClickTakesOneTile(t *testing.T) {
 
 func TestARefusedClickSpreadsNothingAndCostsNoSpreadClick(t *testing.T) {
 	refused := errors.New("unknown country")
-	useCase, storage, _, spreads := setupWithClicks(8, refused)
+	useCase, storage, _, store := setupWithClicks(t, 8, refused)
 
-	_, err := useCase.Execute(t.Context(), click_usecase.In{TileID: 100, CountryID: "zz", Spread: true})
+	_, err := useCase.Execute(played(t), click_usecase.In{TileID: 100, CountryID: "zz", Spread: true})
 
 	require.ErrorIs(t, err, refused)
 	assert.Empty(t, storage.tiles)
-	assert.Equal(t, 8, spreads.left[caller])
+	assert.Equal(t, 8, store.Kept(caller).SpreadClicks)
 }
 
 func TestTheChargeSpreadsItsClicksAndNoMore(t *testing.T) {
-	useCase, _, publisher, spreads := setupWithClicks(2, nil)
+	useCase, _, publisher, store := setupWithClicks(t, 2, nil)
 
 	for range 3 {
-		_, err := useCase.Execute(t.Context(), click_usecase.In{TileID: 100, CountryID: "fr", Spread: true})
+		_, err := useCase.Execute(played(t), click_usecase.In{TileID: 100, CountryID: "fr", Spread: true})
 		require.NoError(t, err)
 	}
 
 	assert.Len(t, publisher.spreads, 2, "two clicks left spread two clicks, and the third takes one tile")
-	assert.Zero(t, spreads.left[caller])
+	assert.Zero(t, store.Kept(caller).SpreadClicks)
 }
 
 func TestTheSpreadSpentIsTheAccounts(t *testing.T) {
-	storage := &recordingStorage{tiles: map[uint32]string{}}
-	account := bonuses.HolderOf(clicks.Payer{Account: "a-guest"})
-	spreads := stubSpreads{left: map[bonuses.Holder]int{account: 8}}
-	useCase := spread_click.New(stubClick{storage: storage}, spreads, honeycomb, storage, &recordingPublisher{})
+	useCase, storage, _, store := setupWithClicks(t, 8, nil)
 
-	_, err := useCase.Execute(cpctx.AddAccountToContext(t.Context(), "a-guest"), click_usecase.In{TileID: 100, CountryID: "fr", Spread: true})
+	_, err := useCase.Execute(played(t), click_usecase.In{TileID: 100, CountryID: "fr", Spread: true})
 	require.NoError(t, err)
 
-	assert.Equal(t, 7, spreads.left[account])
+	assert.Equal(t, 7, store.Kept(caller).SpreadClicks)
 	assert.Len(t, storage.tiles, 7)
 }
 
-func TestALoneIslandTakesItselfAndNothingElse(t *testing.T) {
-	useCase, storage := setup(true, nil)
+func TestACallerWithNoAccountSpreadsNothing(t *testing.T) {
+	useCase, storage, publisher, store := setupWithClicks(t, 8, nil)
 
-	_, err := useCase.Execute(t.Context(), click_usecase.In{TileID: 7, CountryID: "fr", Spread: true})
+	_, err := useCase.Execute(t.Context(), click_usecase.In{TileID: 100, CountryID: "fr", Spread: true})
+	require.NoError(t, err)
+
+	assert.Equal(t, map[uint32]string{100: "fr"}, storage.tiles)
+	assert.Empty(t, publisher.spreads)
+	assert.Equal(t, 8, store.Kept(caller).SpreadClicks)
+}
+
+func TestASpreadTheStoreCannotSpendIsAnErrorAndTakesOneTile(t *testing.T) {
+	useCase, storage, publisher, store := setupWithClicks(t, 8, nil)
+	down := errors.New("postgres is down")
+	store.FailWith(down)
+
+	_, err := useCase.Execute(played(t), click_usecase.In{TileID: 100, CountryID: "fr", Spread: true})
+
+	require.ErrorIs(t, err, down)
+	assert.Equal(t, map[uint32]string{100: "fr"}, storage.tiles)
+	assert.Empty(t, publisher.spreads)
+}
+
+func TestALoneIslandTakesItselfAndNothingElse(t *testing.T) {
+	useCase, storage := setup(t, true, nil)
+
+	_, err := useCase.Execute(played(t), click_usecase.In{TileID: 7, CountryID: "fr", Spread: true})
 	require.NoError(t, err)
 
 	assert.Equal(t, map[uint32]string{7: "fr"}, storage.tiles)
 }
 
 func TestASpreadingClickIsAnnouncedWithTheTilesItTook(t *testing.T) {
-	useCase, _, publisher := setupWithPublisher(true, nil)
+	useCase, _, publisher := setupWithPublisher(t, true, nil)
 
-	_, err := useCase.Execute(t.Context(), click_usecase.In{TileID: 100, CountryID: "fr", Spread: true})
+	_, err := useCase.Execute(played(t), click_usecase.In{TileID: 100, CountryID: "fr", Spread: true})
 	require.NoError(t, err)
 
 	assert.Equal(t, []bonuses.Spread{{
@@ -190,9 +218,9 @@ func TestASpreadingClickIsAnnouncedWithTheTilesItTook(t *testing.T) {
 }
 
 func TestTheAnnouncementDoesNotShareTheMapsTable(t *testing.T) {
-	useCase, _, publisher := setupWithPublisher(true, nil)
+	useCase, _, publisher := setupWithPublisher(t, true, nil)
 
-	_, err := useCase.Execute(t.Context(), click_usecase.In{TileID: 100, CountryID: "fr", Spread: true})
+	_, err := useCase.Execute(played(t), click_usecase.In{TileID: 100, CountryID: "fr", Spread: true})
 	require.NoError(t, err)
 
 	publisher.spreads[0].Neighbours[0] = 0
@@ -200,12 +228,12 @@ func TestTheAnnouncementDoesNotShareTheMapsTable(t *testing.T) {
 }
 
 func TestNeitherAPlainNorARefusedClickIsAnnounced(t *testing.T) {
-	plain, _, quiet := setupWithPublisher(false, nil)
-	_, err := plain.Execute(t.Context(), click_usecase.In{TileID: 100, CountryID: "fr", Spread: true})
+	plain, _, quiet := setupWithPublisher(t, false, nil)
+	_, err := plain.Execute(played(t), click_usecase.In{TileID: 100, CountryID: "fr", Spread: true})
 	require.NoError(t, err)
 
-	refused, _, refusedQuiet := setupWithPublisher(true, errors.New("unknown country"))
-	_, err = refused.Execute(t.Context(), click_usecase.In{TileID: 100, CountryID: "zz", Spread: true})
+	refused, _, refusedQuiet := setupWithPublisher(t, true, errors.New("unknown country"))
+	_, err = refused.Execute(played(t), click_usecase.In{TileID: 100, CountryID: "zz", Spread: true})
 	require.Error(t, err)
 
 	assert.Empty(t, quiet.spreads)
@@ -213,12 +241,12 @@ func TestNeitherAPlainNorARefusedClickIsAnnounced(t *testing.T) {
 }
 
 func TestAClickWithSpreadSwitchedOffSpreadsNothingAndSpendsNothing(t *testing.T) {
-	useCase, storage, publisher, spreads := setupWithClicks(8, nil)
+	useCase, storage, publisher, store := setupWithClicks(t, 8, nil)
 
-	_, err := useCase.Execute(t.Context(), click_usecase.In{TileID: 100, CountryID: "fr"})
+	_, err := useCase.Execute(played(t), click_usecase.In{TileID: 100, CountryID: "fr"})
 	require.NoError(t, err)
 
 	assert.Equal(t, map[uint32]string{100: "fr"}, storage.tiles)
 	assert.Empty(t, publisher.spreads)
-	assert.Equal(t, 8, spreads.left[caller], "the pool is used only when the player chooses")
+	assert.Equal(t, 8, store.Kept(caller).SpreadClicks, "the pool is used only when the player chooses")
 }

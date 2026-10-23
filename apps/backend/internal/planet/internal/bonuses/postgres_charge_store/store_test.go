@@ -1,9 +1,10 @@
 package postgres_charge_store_test
 
 import (
-	"context"
+	"fmt"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
@@ -12,73 +13,39 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
-func TestRunSuite(t *testing.T) {
-	suite.Run(t, new(testSuite))
+func TestThePostgresStoreKeepsTheContract(t *testing.T) {
+	db := cppg.StartTestServer(t).OpenSchema(t, "planet", migrations.FS)
+
+	suite.Run(t, &bonuses.StoreContractSuite{
+		NewStore: func() bonuses.Store {
+			require.NoError(t, db.Purge(t.Context()))
+			return postgres_charge_store.New(db)
+		},
+		Holder: func(n int) bonuses.Holder {
+			return bonuses.Holder(fmt.Sprintf("01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e%02d", n))
+		},
+	})
 }
 
-type testSuite struct {
-	suite.Suite
-	db    *cppg.Postgres
-	store *postgres_charge_store.Store
-}
-
-func (s *testSuite) SetupSuite() {
-	s.db = cppg.StartTestServer(s.T()).OpenSchema(s.T(), "planet", migrations.FS)
-	s.store = postgres_charge_store.New(s.db)
-}
-
-func (s *testSuite) SetupTest() {
-	s.Require().NoError(s.db.Purge(s.T().Context()))
-}
-
-const (
-	alice bonuses.Holder = "01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e5f"
-	bob   bonuses.Holder = "01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e60"
-)
-
-func (s *testSuite) load() map[bonuses.Holder]bonuses.Held {
-	hands := map[bonuses.Holder]bonuses.Held{}
-	s.Require().NoError(s.store.Load(context.Background(), func(holder bonuses.Holder, hand bonuses.Held) {
-		hands[holder] = hand
-	}))
-	return hands
-}
-
-func (s *testSuite) TestAnEmptyStoreLoadsNothing() {
-	s.Empty(s.load())
-}
-
-func (s *testSuite) TestSaveThenLoadEveryHand() {
-	hands := map[bonuses.Holder]bonuses.Held{
-		alice: {Refill: true, Bomb: true, SpreadClicks: 5},
-		bob:   {Enclosures: 2, Shields: 12},
+func TestAnEmptyHandIsNoRow(t *testing.T) {
+	db := cppg.StartTestServer(t).OpenSchema(t, "planet", migrations.FS)
+	store := postgres_charge_store.New(db)
+	const alice bonuses.Holder = "01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e5f"
+	rows := func() int {
+		var n int
+		require.NoError(t, db.QueryRowContext(t.Context(), `SELECT count(*) FROM charges WHERE account = $1`,
+			string(alice)).Scan(&n))
+		return n
+	}
+	keep := func(held bonuses.Held) {
+		require.NoError(t, store.Change(t.Context(), alice, func(bonuses.Held) (bonuses.Held, error) {
+			return held, nil
+		}))
 	}
 
-	s.Require().NoError(s.store.Save(context.Background(), hands))
+	keep(bonuses.Held{Bomb: true})
+	require.Equal(t, 1, rows())
 
-	s.Equal(hands, s.load())
-}
-
-func (s *testSuite) TestASecondSaveReplacesTheHand() {
-	ctx := context.Background()
-	s.Require().NoError(s.store.Save(ctx, map[bonuses.Holder]bonuses.Held{alice: {Bomb: true, Enclosures: 1}}))
-
-	s.Require().NoError(s.store.Save(ctx, map[bonuses.Holder]bonuses.Held{alice: {Enclosures: 1}}))
-
-	s.Equal(map[bonuses.Holder]bonuses.Held{alice: {Enclosures: 1}}, s.load())
-}
-
-func (s *testSuite) TestAZeroHandDeletesTheRow() {
-	ctx := context.Background()
-	s.Require().NoError(s.store.Save(ctx, map[bonuses.Holder]bonuses.Held{alice: {Bomb: true}, bob: {Bomb: true}}))
-
-	s.Require().NoError(s.store.Save(ctx, map[bonuses.Holder]bonuses.Held{alice: {}}))
-
-	s.Equal(map[bonuses.Holder]bonuses.Held{bob: {Bomb: true}}, s.load())
-}
-
-func (s *testSuite) TestDeletingAHandNeverStoredIsNotAnError() {
-	s.Require().NoError(s.store.Save(context.Background(), map[bonuses.Holder]bonuses.Held{alice: {}}))
-
-	s.Empty(s.load())
+	keep(bonuses.Held{})
+	require.Zero(t, rows(), "a hand spent to nothing is deleted rather than kept")
 }

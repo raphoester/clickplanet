@@ -2,6 +2,7 @@ package claim_bonus_usecase_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -33,43 +34,11 @@ func (s *stubRegistry) Claim(token string, entrant bonuses.Entrant, scope string
 
 func (s *stubRegistry) Publish(taken bonuses.Taken) { s.published = append(s.published, taken) }
 
-type stubCharger struct {
-	granted    []grantedCharge
-	spreadPool int
-}
+const guest bonuses.Holder = "a-guest"
 
-type grantedCharge struct {
-	holder bonuses.Holder
-	kind   bonuses.Kind
-	amount int
-}
-
-func (s *stubCharger) Grant(holder bonuses.Holder, kind bonuses.Kind, amount int) {
-	s.granted = append(s.granted, grantedCharge{holder: holder, kind: kind, amount: amount})
-}
-
-func (s *stubCharger) Held(holder bonuses.Holder) bonuses.Held {
-	var held bonuses.Held
-	for _, g := range s.granted {
-		if g.holder != holder {
-			continue
-		}
-		switch g.kind {
-		case bonuses.KindRefill:
-			held.Refill = true
-		case bonuses.KindBomb:
-			held.Bomb = true
-		case bonuses.KindEncloseClicks:
-			held.Enclosures += g.amount
-		case bonuses.KindSpreadClicks:
-			held.SpreadClicks += g.amount
-			if s.spreadPool > 0 {
-				held.SpreadClicks = min(held.SpreadClicks, s.spreadPool)
-			}
-		}
-	}
-
-	return held
+func charges() (bonuses.Charges, *bonuses.MemoryStore) {
+	store := bonuses.NewMemoryStore()
+	return bonuses.NewCharges(store, bonuses.ChargesConfig{SpreadClicks: 8, Enclosures: 3, Shields: 12}), store
 }
 
 func granting(kind bonuses.Kind) *stubRegistry {
@@ -79,11 +48,12 @@ func granting(kind bonuses.Kind) *stubRegistry {
 func played(t *testing.T) context.Context {
 	t.Helper()
 
-	return cpctx.AddAccountToContext(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), "a-guest")
+	return cpctx.AddAccountToContext(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), string(guest))
 }
 
 func TestAClaimHandsTheChargeToTheAccount(t *testing.T) {
-	registry, charger := granting(bonuses.KindRefill), &stubCharger{}
+	registry := granting(bonuses.KindRefill)
+	charger, store := charges()
 
 	out, err := claim_bonus_usecase.New(registry, charger).
 		Execute(played(t), claim_bonus_usecase.In{Token: "a-token", CountryID: "fr"})
@@ -91,16 +61,17 @@ func TestAClaimHandsTheChargeToTheAccount(t *testing.T) {
 
 	assert.Equal(t, "a-token", registry.token)
 	assert.Equal(t, bonuses.Entrant("1.2.3.4"), registry.entrant, "a guest's offer is the scope's")
-	assert.Equal(t, []grantedCharge{{holder: "a-guest", kind: bonuses.KindRefill, amount: 1}}, charger.granted)
+	assert.Equal(t, bonuses.Held{Refill: true}, store.Kept(guest))
 	assert.Equal(t, bonuses.KindRefill, out.Kind)
 	assert.Equal(t, bonuses.Held{Refill: true}, out.Held)
 }
 
 func TestALinkedAccountClaimsWhatWasOfferedToTheAccount(t *testing.T) {
 	registry := granting(bonuses.KindRefill)
+	charger, _ := charges()
 	ctx := cpctx.AddLinkedToContext(cpctx.AddAccountToContext(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), "a-player"))
 
-	_, err := claim_bonus_usecase.New(registry, &stubCharger{}).
+	_, err := claim_bonus_usecase.New(registry, charger).
 		Execute(ctx, claim_bonus_usecase.In{Token: "a-token", CountryID: "fr"})
 	require.NoError(t, err)
 
@@ -110,20 +81,21 @@ func TestALinkedAccountClaimsWhatWasOfferedToTheAccount(t *testing.T) {
 
 func TestEveryKindIsGrantedAsACharge(t *testing.T) {
 	for _, kind := range bonuses.Kinds {
-		charger := &stubCharger{}
+		charger, store := charges()
 
 		_, err := claim_bonus_usecase.New(granting(kind), charger).
 			Execute(played(t), claim_bonus_usecase.In{Token: "a-token"})
 		require.NoError(t, err)
 
-		assert.Equal(t, []grantedCharge{{holder: "a-guest", kind: kind, amount: 1}}, charger.granted)
+		assert.Equal(t, 1, store.Kept(guest).Count(kind), kind)
 	}
 }
 
 func TestACatchIsAnnouncedWithTheCountryTheClaimNamed(t *testing.T) {
 	registry := granting(bonuses.KindBomb)
+	charger, _ := charges()
 
-	_, err := claim_bonus_usecase.New(registry, &stubCharger{}).
+	_, err := claim_bonus_usecase.New(registry, charger).
 		Execute(played(t), claim_bonus_usecase.In{Token: "a-token", CountryID: "jp"})
 	require.NoError(t, err)
 
@@ -131,33 +103,34 @@ func TestACatchIsAnnouncedWithTheCountryTheClaimNamed(t *testing.T) {
 }
 
 func TestARefusedClaimGrantsNothingAndAnnouncesNothing(t *testing.T) {
-	registry, charger := &stubRegistry{claimable: false}, &stubCharger{}
+	registry := &stubRegistry{claimable: false}
+	charger, store := charges()
 
 	_, err := claim_bonus_usecase.New(registry, charger).
 		Execute(played(t), claim_bonus_usecase.In{Token: "not-mine"})
 
 	require.ErrorIs(t, err, claim_bonus_usecase.ErrNoSuchBonus)
-	assert.Empty(t, charger.granted)
+	assert.Equal(t, bonuses.Held{}, store.Kept(guest))
 	assert.Empty(t, registry.published)
 }
 
 func TestTheAmountTheBoxGaveIsGrantedAndAnswered(t *testing.T) {
 	registry := &stubRegistry{claimable: true, reward: bonuses.Reward{Kind: bonuses.KindSpreadClicks, Amount: 3}}
-	charger := &stubCharger{}
+	charger, store := charges()
 
 	out, err := claim_bonus_usecase.New(registry, charger).
 		Execute(played(t), claim_bonus_usecase.In{Token: "a-token"})
 	require.NoError(t, err)
 
-	assert.Equal(t, []grantedCharge{{holder: "a-guest", kind: bonuses.KindSpreadClicks, amount: 3}}, charger.granted)
+	assert.Equal(t, bonuses.Held{SpreadClicks: 3}, store.Kept(guest))
 	assert.Equal(t, 3, out.Amount)
 	assert.Equal(t, bonuses.Held{SpreadClicks: 3}, out.Held)
 }
 
 func TestTheAnswerSaysOnlyWhatThePoolKept(t *testing.T) {
 	registry := &stubRegistry{claimable: true, reward: bonuses.Reward{Kind: bonuses.KindSpreadClicks, Amount: 4}}
-	charger := &stubCharger{spreadPool: 8}
-	charger.Grant("a-guest", bonuses.KindSpreadClicks, 7)
+	charger, _ := charges()
+	require.NoError(t, charger.Grant(t.Context(), guest, bonuses.KindSpreadClicks, 7))
 
 	out, err := claim_bonus_usecase.New(registry, charger).
 		Execute(played(t), claim_bonus_usecase.In{Token: "a-token"})
@@ -165,4 +138,17 @@ func TestTheAnswerSaysOnlyWhatThePoolKept(t *testing.T) {
 
 	assert.Equal(t, 1, out.Amount, "the pool held 7 of 8, so a box of 4 added 1")
 	assert.Equal(t, bonuses.Held{SpreadClicks: 8}, out.Held)
+}
+
+func TestAStoreThatFailsFailsTheClaimAndAnnouncesNothing(t *testing.T) {
+	registry := granting(bonuses.KindBomb)
+	charger, store := charges()
+	down := errors.New("postgres is down")
+	store.FailWith(down)
+
+	_, err := claim_bonus_usecase.New(registry, charger).
+		Execute(played(t), claim_bonus_usecase.In{Token: "a-token", CountryID: "jp"})
+
+	require.ErrorIs(t, err, down)
+	assert.Empty(t, registry.published, "a catch is announced once the charge is held")
 }

@@ -16,8 +16,8 @@ var (
 )
 
 type Refills interface {
-	SpendRefill(holder bonuses.Holder) bool
-	Held(holder bonuses.Holder) bonuses.Held
+	SpendRefill(ctx context.Context, holder bonuses.Holder) error
+	Held(ctx context.Context, holder bonuses.Holder) (bonuses.Held, error)
 }
 
 type Bank interface {
@@ -61,8 +61,11 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 		return Out{}, ErrBankFull
 	}
 
-	if !u.refills.SpendRefill(holder) {
-		return Out{}, ErrNoRefill
+	if err := u.refills.SpendRefill(ctx, holder); err != nil {
+		if errors.Is(err, bonuses.ErrNotHeld) {
+			return Out{}, ErrNoRefill
+		}
+		return Out{}, err
 	}
 	for _, key := range bank {
 		_, _ = u.bank.Fill(key)
@@ -75,7 +78,12 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 		states[i] = u.bank.Peek(key)
 	}
 
-	return Out{Budget: u.buckets.BudgetOf(payer, states, price), Held: u.refills.Held(holder)}, nil
+	held, err := u.refills.Held(ctx, holder)
+	if err != nil {
+		return Out{}, err
+	}
+
+	return Out{Budget: u.buckets.BudgetOf(payer, states, price), Held: held}, nil
 }
 
 func (u *UseCase) full(bank []cpratelimit.Key) bool {
