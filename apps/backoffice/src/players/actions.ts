@@ -4,7 +4,7 @@ import {LONG_CALL_MS} from "../api.ts"
 import {ChatAdmin, PlanetAdmin, PlayerAdmin} from "../clients.ts"
 import {InspectPlayerResponse, Player} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {ChargesHeld} from "../gen/grpc/planet/v1/planet_pb.ts"
-import {AdminGetPlayerResponse} from "../gen/grpc/player/v1/admin_pb.ts"
+import {AdminGetPlayerResponse, PlayerMatch} from "../gen/grpc/player/v1/admin_pb.ts"
 import {Author} from "../gen/grpc/player/v1/internal_pb.ts"
 import {Meanings, wordsOf} from "../refusal.ts"
 import {Caller} from "./caller.ts"
@@ -28,7 +28,7 @@ export type Authors = Map<string, Author>
 export type Named = {authors: Authors, unnamed: string | undefined}
 // A page of players and who each account is.
 export type Listed = Players & Named
-export type Found = {authors: Author[], total: number}
+export type Matches = {players: PlayerMatch[], total: number}
 export type Profile = AdminGetPlayerResponse
 
 export const NO_GRANT: Grant = {refill: false, bomb: false, enclosures: 0, spreadClicks: 0, shields: 0}
@@ -86,9 +86,9 @@ export async function findPlayers(
 }
 
 // Every account whose username or guest code holds `name`: the same name first, then the names it starts.
-export async function findAuthors(player: PlayerAdmin, name: string, limit: number, signal?: AbortSignal): Promise<Found> {
-    const answer = await player.findAuthors({name, limit}, {signal})
-    return {authors: answer.authors, total: answer.total}
+export async function searchPlayers(player: PlayerAdmin, name: string, limit: number, signal?: AbortSignal): Promise<Matches> {
+    const answer = await player.searchPlayers({name, limit}, {signal})
+    return {players: answer.players, total: answer.total}
 }
 
 // Each account of a page by its username or its guest code. A page whose names cannot be read is still listed.

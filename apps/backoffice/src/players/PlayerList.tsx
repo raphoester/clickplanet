@@ -5,11 +5,12 @@ import {FailureNotice} from "../components/FailureNotice.tsx"
 import {When} from "../components/When.tsx"
 import {countryIdOf} from "../countries.ts"
 import {Player} from "../gen/grpc/planet/v1/admin_pb.ts"
+import {PlayerMatch} from "../gen/grpc/player/v1/admin_pb.ts"
 import {Author} from "../gen/grpc/player/v1/internal_pb.ts"
 import {Opened} from "../navigation.ts"
 import {countOf} from "../support/labels.ts"
 import {useCall} from "../useCall.ts"
-import {findAuthors, findPlayers, LIMITS, topPlayers, withAuthors} from "./actions.ts"
+import {findPlayers, LIMITS, searchPlayers, topPlayers, withAuthors} from "./actions.ts"
 import {PlayerName} from "./PlayerName.tsx"
 import {BanLine, PlayerStats} from "./PlayerStats.tsx"
 
@@ -171,42 +172,42 @@ function PlayerCard({row, author, onOpen}: CardProps) {
 type NameResultsProps = {player: PlayerAdmin, query: NameQuery, onOpen: (opened: Opened) => void}
 
 function NameResults({player, query, onOpen}: NameResultsProps) {
-    const find = useCallback(
-        (signal: AbortSignal) => findAuthors(player, query.name, query.limit, signal),
+    const search = useCallback(
+        (signal: AbortSignal) => searchPlayers(player, query.name, query.limit, signal),
         [player, query],
     )
-    const [found, again] = useCall(find)
+    const [matches, again] = useCall(search)
 
-    if (found.state === "loading") return <p className="muted">Loading…</p>
-    if (found.state === "failed") return <FailureNotice failure={found} onRetry={again}/>
+    if (matches.state === "loading") return <p className="muted">Loading…</p>
+    if (matches.state === "failed") return <FailureNotice failure={matches} onRetry={again}/>
 
-    const {authors, total} = found.value
+    const {players, total} = matches.value
     return (
         <>
             <div className="toolbar">
-                <p className="muted">{authors.length < total ? `${authors.length} of ${total} accounts` : countOf(total, "account")}</p>
+                <p className="muted">{players.length < total ? `${players.length} of ${total} accounts` : countOf(total, "account")}</p>
                 <button type="button" className="button" onClick={again}>Reload</button>
             </div>
             <ol className="cards">
-                {authors.map(author => <AuthorCard key={author.accountId} author={author} onOpen={onOpen}/>)}
+                {players.map(match => <MatchCard key={match.accountId} match={match} onOpen={onOpen}/>)}
             </ol>
         </>
     )
 }
 
 // An account by its name alone: the ledger is not asked, so it may have taken nothing in its 72 hours.
-function AuthorCard({author, onOpen}: {author: Author, onOpen: (opened: Opened) => void}) {
+function MatchCard({match, onOpen}: {match: PlayerMatch, onOpen: (opened: Opened) => void}) {
     return (
         <li className="card">
             <div className="card-head">
-                <PlayerName name={author.name} flag="" unnamed="Unnamed"/>
-                <span className="muted">{author.guest ? "guest code" : "username"}</span>
+                <PlayerName name={match.name} flag="" unnamed="Unnamed"/>
+                <span className="muted">{match.guest ? "guest code" : "username"}</span>
             </div>
             <div className="card-foot">
                 <button
                     type="button"
                     className="button"
-                    onClick={() => onOpen({caller: {accountId: author.accountId}, name: author.name})}
+                    onClick={() => onOpen({caller: {accountId: match.accountId}, name: match.name})}
                 >
                     Open
                 </button>

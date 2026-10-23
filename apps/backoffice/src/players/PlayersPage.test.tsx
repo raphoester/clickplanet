@@ -88,7 +88,7 @@ describe("the player list", () => {
 
         expect(await screen.findByText("1 account")).toBeTruthy()
         expect(within(screen.getByRole("listitem")).getByText("guest code")).toBeTruthy()
-        expect(admin.askedFor("findAuthors")).toEqual([{name: "GUEST_A1", limit: 20}])
+        expect(admin.askedFor("searchPlayers")).toEqual([{name: "GUEST_A1", limit: 20}])
 
         fireEvent.change(find.getByRole("textbox", {name: "Name"}), {target: {value: "brave"}})
         fireEvent.click(find.getByRole("button", {name: "Find"}))
@@ -103,7 +103,7 @@ describe("the player list", () => {
 
     it("says when a name search fails, and tries again", async () => {
         const admin = new FakeAdmin()
-        admin.refuse("findAuthors", Code.Unavailable)
+        admin.refuse("searchPlayers", Code.Unavailable)
         render(<Page admin={admin}/>)
         await screen.findByText("2 of 75 players")
 
@@ -112,7 +112,7 @@ describe("the player list", () => {
         fireEvent.click(screen.getByRole("button", {name: "Find"}))
 
         fireEvent.click(await screen.findByRole("button", {name: "Try again"}))
-        expect(admin.askedFor("findAuthors")).toHaveLength(2)
+        expect(admin.askedFor("searchPlayers")).toHaveLength(2)
     })
 
     it("opens a row by its account, and its address from there", async () => {

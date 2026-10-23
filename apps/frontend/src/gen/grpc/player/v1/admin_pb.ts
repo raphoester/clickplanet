@@ -5,7 +5,6 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
-import { Author } from "./internal_pb.js";
 import { NameColor } from "./color_pb.js";
 import { CountryTiles, Stats } from "./player_pb.js";
 import { Title } from "./title_pb.js";
@@ -85,9 +84,9 @@ export class ReconcileTitlesResponse extends Message<ReconcileTitlesResponse> {
 }
 
 /**
- * @generated from message player.v1.FindAuthorsRequest
+ * @generated from message player.v1.SearchPlayersRequest
  */
-export class FindAuthorsRequest extends Message<FindAuthorsRequest> {
+export class SearchPlayersRequest extends Message<SearchPlayersRequest> {
   /**
    * @generated from field: string name = 1;
    */
@@ -98,75 +97,124 @@ export class FindAuthorsRequest extends Message<FindAuthorsRequest> {
    */
   limit = 0;
 
-  constructor(data?: PartialMessage<FindAuthorsRequest>) {
+  constructor(data?: PartialMessage<SearchPlayersRequest>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "player.v1.FindAuthorsRequest";
+  static readonly typeName = "player.v1.SearchPlayersRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "limit", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FindAuthorsRequest {
-    return new FindAuthorsRequest().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SearchPlayersRequest {
+    return new SearchPlayersRequest().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): FindAuthorsRequest {
-    return new FindAuthorsRequest().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SearchPlayersRequest {
+    return new SearchPlayersRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): FindAuthorsRequest {
-    return new FindAuthorsRequest().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SearchPlayersRequest {
+    return new SearchPlayersRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: FindAuthorsRequest | PlainMessage<FindAuthorsRequest> | undefined, b: FindAuthorsRequest | PlainMessage<FindAuthorsRequest> | undefined): boolean {
-    return proto3.util.equals(FindAuthorsRequest, a, b);
+  static equals(a: SearchPlayersRequest | PlainMessage<SearchPlayersRequest> | undefined, b: SearchPlayersRequest | PlainMessage<SearchPlayersRequest> | undefined): boolean {
+    return proto3.util.equals(SearchPlayersRequest, a, b);
   }
 }
 
 /**
- * @generated from message player.v1.FindAuthorsResponse
+ * @generated from message player.v1.SearchPlayersResponse
  */
-export class FindAuthorsResponse extends Message<FindAuthorsResponse> {
+export class SearchPlayersResponse extends Message<SearchPlayersResponse> {
   /**
-   * @generated from field: repeated player.v1.Author authors = 1;
+   * @generated from field: repeated player.v1.PlayerMatch players = 1;
    */
-  authors: Author[] = [];
+  players: PlayerMatch[] = [];
 
   /**
    * @generated from field: uint32 total = 2;
    */
   total = 0;
 
-  constructor(data?: PartialMessage<FindAuthorsResponse>) {
+  constructor(data?: PartialMessage<SearchPlayersResponse>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "player.v1.FindAuthorsResponse";
+  static readonly typeName = "player.v1.SearchPlayersResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "authors", kind: "message", T: Author, repeated: true },
+    { no: 1, name: "players", kind: "message", T: PlayerMatch, repeated: true },
     { no: 2, name: "total", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FindAuthorsResponse {
-    return new FindAuthorsResponse().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SearchPlayersResponse {
+    return new SearchPlayersResponse().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): FindAuthorsResponse {
-    return new FindAuthorsResponse().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SearchPlayersResponse {
+    return new SearchPlayersResponse().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): FindAuthorsResponse {
-    return new FindAuthorsResponse().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SearchPlayersResponse {
+    return new SearchPlayersResponse().fromJsonString(jsonString, options);
   }
 
-  static equals(a: FindAuthorsResponse | PlainMessage<FindAuthorsResponse> | undefined, b: FindAuthorsResponse | PlainMessage<FindAuthorsResponse> | undefined): boolean {
-    return proto3.util.equals(FindAuthorsResponse, a, b);
+  static equals(a: SearchPlayersResponse | PlainMessage<SearchPlayersResponse> | undefined, b: SearchPlayersResponse | PlainMessage<SearchPlayersResponse> | undefined): boolean {
+    return proto3.util.equals(SearchPlayersResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message player.v1.PlayerMatch
+ */
+export class PlayerMatch extends Message<PlayerMatch> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name = "";
+
+  /**
+   * @generated from field: bool guest = 3;
+   */
+  guest = false;
+
+  constructor(data?: PartialMessage<PlayerMatch>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.PlayerMatch";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "guest", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PlayerMatch {
+    return new PlayerMatch().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PlayerMatch {
+    return new PlayerMatch().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PlayerMatch {
+    return new PlayerMatch().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: PlayerMatch | PlainMessage<PlayerMatch> | undefined, b: PlayerMatch | PlainMessage<PlayerMatch> | undefined): boolean {
+    return proto3.util.equals(PlayerMatch, a, b);
   }
 }
 
