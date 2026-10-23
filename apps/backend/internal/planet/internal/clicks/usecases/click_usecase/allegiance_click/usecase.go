@@ -8,7 +8,7 @@ import (
 )
 
 type Allegiances interface {
-	Pledge(ctx context.Context, payer clicks.Payer, flag string) error
+	PlayError(ctx context.Context, payer clicks.Payer, flag string) error
 }
 
 func New(implementation click_usecase.IUseCase, allegiances Allegiances) *UseCase {
@@ -21,7 +21,7 @@ type UseCase struct {
 }
 
 func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_usecase.Out, error) {
-	if err := u.allegiances.Pledge(ctx, clicks.PayerOf(ctx), in.CountryID); err != nil {
+	if err := u.allegiances.PlayError(ctx, clicks.PayerOf(ctx), in.CountryID); err != nil {
 		return click_usecase.Out{}, err
 	}
 

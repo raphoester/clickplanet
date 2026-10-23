@@ -43,6 +43,7 @@ func TestADeletedAccountsTakesKeepTheirTileFlagAndTimeAndNameNoAccount(t *testin
 	ada.link("google-ada")
 	before := time.Now().Add(-time.Minute)
 	ada.click(1, "fr")
+	require.NoError(t, ada.tryPledge("de"))
 	ada.click(2, "de")
 
 	deletion := connect.NewRequest(&authv1.DeleteAccountRequest{})

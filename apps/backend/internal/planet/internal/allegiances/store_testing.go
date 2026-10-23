@@ -19,6 +19,16 @@ func NewMemoryStore() *MemoryStore {
 	return &MemoryStore{rows: map[Account]Snapshot{}}
 }
 
+func (m *MemoryStore) Allegiance(_ context.Context, account Account) (Allegiance, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.failing != nil {
+		return Allegiance{}, m.failing
+	}
+	return m.rows[account].Restore(), nil
+}
+
 func (m *MemoryStore) Change(_ context.Context, account Account, change func(Allegiance) (Allegiance, error)) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()

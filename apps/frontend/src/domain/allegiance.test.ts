@@ -35,5 +35,6 @@ describe("heldLine", () => {
 
         expect(heldLine({countryId: "de", changeableAt}, now)).toBe(`You play for Germany until ${describeEnd(changeableAt, now)}`)
         expect(heldLine({countryId: "de"}, now)).toBe("You play for Germany")
+        expect(heldLine({countryId: "de", changeableAt: now - 1}, now)).toBe("You play for Germany")
     })
 })

@@ -54,24 +54,38 @@ func TestEachAccountHasItsOwnFlag(t *testing.T) {
 	assert.Equal(t, "fr", store.Kept(bob).Flag)
 }
 
-func TestACallerWithNoAccountIsHeldToNothing(t *testing.T) {
+func TestACallerWithNoAccountPledgesNothingAndPlaysAnyFlag(t *testing.T) {
 	b, store, _ := book()
+	payer := clicks.Payer{Scope: "1.2.3.4"}
 
-	require.NoError(t, b.Pledge(t.Context(), clicks.Payer{Scope: "1.2.3.4"}, "fr"))
-	require.NoError(t, b.Pledge(t.Context(), clicks.Payer{Scope: "1.2.3.4"}, "de"))
+	require.ErrorIs(t, b.Pledge(t.Context(), payer, "fr"), allegiances.ErrNoAccount)
+	require.NoError(t, b.PlayError(t.Context(), payer, "de"))
 
 	assert.Equal(t, allegiances.Snapshot{}, store.Kept(allegiances.NoAccount))
 }
 
-func TestAFlagThatIsNoCountryIsNotKept(t *testing.T) {
+func TestAFlagThatIsNoCountryIsRefusedAndNotKept(t *testing.T) {
 	b, store, _ := book()
 	payer := clicks.Payer{Account: alice}
 	require.NoError(t, b.Pledge(t.Context(), payer, "fr"))
-	require.NoError(t, b.Pledge(t.Context(), payer, "de"))
 
-	require.NoError(t, b.Pledge(t.Context(), payer, "zz"))
+	require.ErrorIs(t, b.Pledge(t.Context(), payer, "zz"), clicks.ErrUnknownCountry)
 
-	assert.Equal(t, "de", store.Kept(alice).Flag)
+	assert.Equal(t, "fr", store.Kept(alice).Flag)
+}
+
+func TestAnAccountPlaysOnlyTheFlagItPledged(t *testing.T) {
+	b, _, clock := book()
+	payer := clicks.Payer{Account: alice}
+
+	require.ErrorIs(t, b.PlayError(t.Context(), payer, "fr"), allegiances.ErrNoFlag)
+
+	require.NoError(t, b.Pledge(t.Context(), payer, "fr"))
+	require.NoError(t, b.PlayError(t.Context(), payer, "fr"))
+
+	clock.Advance(2 * time.Hour)
+	require.ErrorIs(t, b.PlayError(t.Context(), payer, "de"), allegiances.ErrOtherFlag)
+	require.NoError(t, b.PlayError(t.Context(), payer, "zz"), "the click refuses a flag that is no country")
 }
 
 func TestAStoreThatFailsFailsThePledge(t *testing.T) {
@@ -80,4 +94,5 @@ func TestAStoreThatFailsFailsThePledge(t *testing.T) {
 	store.FailWith(down)
 
 	assert.ErrorIs(t, b.Pledge(t.Context(), clicks.Payer{Account: alice}, "fr"), down)
+	assert.ErrorIs(t, b.PlayError(t.Context(), clicks.Payer{Account: alice}, "fr"), down)
 }

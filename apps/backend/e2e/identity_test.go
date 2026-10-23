@@ -34,6 +34,10 @@ func (p *gamer) resumed() *gamer {
 func (p *gamer) tryClick(tile uint32, country string) error {
 	p.t.Helper()
 
+	if p.allegiance() == nil {
+		require.NoError(p.t, p.tryPledge(country), "the web client pledges the flag clicked for when it holds none")
+	}
+
 	req := connect.NewRequest(&planetv1.ClickRequest{TileId: tile, CountryId: country})
 	p.send(req.Header())
 	_, err := planetv1connect.NewClickServiceClient(http.DefaultClient, p.stack.baseURL).Click(p.t.Context(), req)

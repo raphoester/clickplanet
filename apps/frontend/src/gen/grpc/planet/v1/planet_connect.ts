@@ -158,7 +158,8 @@ export const ClickService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Refused like a click for another flag, within the hour after a change.
+     * The only way to set or change the flag: a click or a shield never does.
+     * Refused within the hour after a change, as a click for another flag is.
      *
      * @generated from rpc planet.v1.ClickService.PledgeAllegiance
      */

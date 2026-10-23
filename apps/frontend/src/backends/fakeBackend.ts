@@ -225,7 +225,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         if (this.sessionUnavailable) throw new SessionUnavailableError()
         this.refuseBanned()
         if (this.vpnBlocked) throw new VPNBlockedError()
-        this.pledge(countryId)
+        this.play(countryId)
 
         const allowed = this.allow(countryId)
         this.reportBudget()
@@ -353,6 +353,12 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 
     public async pledgeAllegiance(countryId: string): Promise<void> {
         this.pledge(countryId)
+    }
+
+    private play(countryId: string): void {
+        const held = this.allegiance
+        if (!held) this.holdAllegiance({countryId})
+        else if (held.countryId !== countryId) throw new AllegianceLockedError(held)
     }
 
     private pledge(countryId: string): void {
@@ -488,7 +494,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     public async placeShield(tileId: number, countryId: string): Promise<void> {
         if (this.sessionUnavailable) throw new SessionUnavailableError()
         this.refuseBanned()
-        this.pledge(countryId)
+        this.play(countryId)
         if (this.charges.shields === 0) throw new BonusLostError()
         if (!this.botShield(tileId, countryId)) throw new ShieldRefusedError()
 

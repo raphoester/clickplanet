@@ -193,13 +193,6 @@ export class PledgeAllegianceRequest extends Message<PledgeAllegianceRequest> {
  * @generated from message planet.v1.PledgeAllegianceResponse
  */
 export class PledgeAllegianceResponse extends Message<PledgeAllegianceResponse> {
-  /**
-   * Unset for a caller with no account.
-   *
-   * @generated from field: planet.v1.Allegiance allegiance = 1;
-   */
-  allegiance?: Allegiance;
-
   constructor(data?: PartialMessage<PledgeAllegianceResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -208,7 +201,6 @@ export class PledgeAllegianceResponse extends Message<PledgeAllegianceResponse> 
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "planet.v1.PledgeAllegianceResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "allegiance", kind: "message", T: Allegiance },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PledgeAllegianceResponse {
@@ -229,7 +221,8 @@ export class PledgeAllegianceResponse extends Message<PledgeAllegianceResponse> 
 }
 
 /**
- * Also the detail of a click, a shield or a pledge refused for another flag.
+ * Also the detail of a click, a shield or a pledge refused for its flag: with no
+ * country_id, the account plays for no flag yet and must pledge one.
  *
  * @generated from message planet.v1.Allegiance
  */

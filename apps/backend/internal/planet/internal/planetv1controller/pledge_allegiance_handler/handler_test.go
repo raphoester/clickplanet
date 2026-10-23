@@ -33,42 +33,28 @@ func (s *stubBook) Pledge(_ context.Context, payer clicks.Payer, flag string) er
 	return s.err
 }
 
-type stubQuery struct {
-	held    *planetv1.Allegiance
-	err     error
-	account allegiances.Account
-}
-
-func (s *stubQuery) Allegiance(_ context.Context, account allegiances.Account) (*planetv1.GetAllegianceResponse, error) {
-	s.account = account
-	return &planetv1.GetAllegianceResponse{Allegiance: s.held}, s.err
-}
-
-func pledge(t *testing.T, book *stubBook, query *stubQuery, flag string) (*connect.Response[planetv1.PledgeAllegianceResponse], error) {
+func pledge(t *testing.T, book *stubBook, flag string) error {
 	t.Helper()
 	ctx := cpctx.AddAccountToContext(t.Context(), ada)
 	req := connect.NewRequest(&planetv1.PledgeAllegianceRequest{CountryId: flag})
-	return pledge_allegiance_handler.New(book, query).PledgeAllegiance(ctx, req) //nolint:wrapcheck // the test reads the handler's own error.
+	_, err := pledge_allegiance_handler.New(book).PledgeAllegiance(ctx, req)
+	return err //nolint:wrapcheck // the test reads the handler's own error.
 }
 
-func TestAPledgeAnswersTheFlagNowHeld(t *testing.T) {
+func TestAPledgeIsForTheCallersAccount(t *testing.T) {
 	book := &stubBook{}
-	query := &stubQuery{held: &planetv1.Allegiance{CountryId: "de", ChangeableAtUnixMs: 1_700_000_000_000}}
 
-	res, err := pledge(t, book, query, "de")
+	require.NoError(t, pledge(t, book, "de"))
 
-	require.NoError(t, err)
 	assert.Equal(t, []string{"de"}, book.flags)
 	assert.Equal(t, ada, book.payer.Account)
-	assert.Equal(t, allegiances.Account(ada), query.account)
-	assert.True(t, proto.Equal(query.held, res.Msg.GetAllegiance()))
 }
 
 func TestAPledgeRefusedSaysWhichFlagAndUntilWhen(t *testing.T) {
 	until := time.Date(2026, 10, 23, 17, 0, 0, 0, time.UTC)
-	book := &stubBook{err: fmt.Errorf("wrapped: %w", allegiances.Refusal{Flag: "fr", Until: until})}
+	book := &stubBook{err: fmt.Errorf("wrapped: %w", allegiances.Refusal{Flag: "fr", Until: until, Reason: allegiances.ErrChangedTooSoon})}
 
-	_, err := pledge(t, book, &stubQuery{}, "de")
+	err := pledge(t, book, "de")
 
 	require.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
 	var refused *connect.Error
@@ -79,12 +65,16 @@ func TestAPledgeRefusedSaysWhichFlagAndUntilWhen(t *testing.T) {
 	assert.True(t, proto.Equal(&planetv1.Allegiance{CountryId: "fr", ChangeableAtUnixMs: until.UnixMilli()}, value))
 }
 
+func TestAPledgeWithNoAccountOrNoCountryIsTheCallersFault(t *testing.T) {
+	err := pledge(t, &stubBook{err: allegiances.ErrNoAccount}, "de")
+	require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
+
+	err = pledge(t, &stubBook{err: fmt.Errorf("%q: %w", "zz", clicks.ErrUnknownCountry)}, "zz")
+	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+}
+
 func TestAPledgeThatFailsIsLeftToTheErrorNet(t *testing.T) {
 	down := errors.New("postgres is down")
 
-	_, err := pledge(t, &stubBook{err: down}, &stubQuery{}, "de")
-	require.ErrorIs(t, err, down)
-
-	_, err = pledge(t, &stubBook{}, &stubQuery{err: down}, "de")
-	require.ErrorIs(t, err, down)
+	require.ErrorIs(t, pledge(t, &stubBook{err: down}, "de"), down)
 }

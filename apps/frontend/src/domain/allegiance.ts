@@ -18,6 +18,7 @@ export function minutesLeftOf(changeableAt: number, now: number): number {
 
 export function heldLine(allegiance: Allegiance, now: number): string {
     const name = Countries.get(allegiance.countryId)?.name ?? allegiance.countryId.toUpperCase()
-    if (allegiance.changeableAt === undefined) return `You play for ${name}`
-    return `You play for ${name} until ${describeEnd(allegiance.changeableAt, now)}`
+    const locked = lockOf(allegiance, now)?.changeableAt
+    if (locked === undefined) return `You play for ${name}`
+    return `You play for ${name} until ${describeEnd(locked, now)}`
 }

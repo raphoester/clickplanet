@@ -12,15 +12,23 @@ import (
 
 const allegianceLock = 0x616c6c65
 
-func New(db cppg.Beginner) *Store {
+func New(db cppg.QuerierBeginner) *Store {
 	return &Store{db: db}
 }
 
 type Store struct {
-	db cppg.Beginner
+	db cppg.QuerierBeginner
 }
 
 var _ allegiances.Store = (*Store)(nil)
+
+func (s *Store) Allegiance(ctx context.Context, account allegiances.Account) (allegiances.Allegiance, error) {
+	kept, err := keptOf(ctx, s.db, account)
+	if err != nil {
+		return allegiances.Allegiance{}, err
+	}
+	return kept.Restore(), nil
+}
 
 func (s *Store) Change(
 	ctx context.Context,
@@ -67,12 +75,12 @@ func (s *Store) Change(
 	return nil
 }
 
-func keptOf(ctx context.Context, tx *sql.Tx, account allegiances.Account) (allegiances.Snapshot, error) {
+func keptOf(ctx context.Context, db cppg.Querier, account allegiances.Account) (allegiances.Snapshot, error) {
 	var (
 		flag      string
 		changedAt sql.NullTime
 	)
-	err := tx.QueryRowContext(ctx, `SELECT flag, changed_at FROM allegiances WHERE account = $1`, string(account)).
+	err := db.QueryRowContext(ctx, `SELECT flag, changed_at FROM allegiances WHERE account = $1`, string(account)).
 		Scan(&flag, &changedAt)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):

@@ -383,10 +383,9 @@ func NewModule(config Config) cpbootstrap.Module {
 				AnswerQuizHandler:    answer_quiz_handler.New(answerQuiz),
 				PlaceShieldHandler: place_shield_handler.New(antibot_place_shield.New(
 					place_shield_usecase.New(charges, writer, countries, book, config.Bonus.ShieldsPerTile()), guard)),
-				GetFortressesHandler: get_fortresses_handler.New(fortresses_query.NewMemoryQuery(tilesStorage)),
-				GetAllegianceHandler: get_allegiance_handler.New(allegiance_query.NewPostgresQuery(db)),
-				PledgeAllegianceHandler: pledge_allegiance_handler.New(book,
-					allegiance_query.NewPostgresQuery(db)),
+				GetFortressesHandler:    get_fortresses_handler.New(fortresses_query.NewMemoryQuery(tilesStorage)),
+				GetAllegianceHandler:    get_allegiance_handler.New(allegiance_query.NewPostgresQuery(db)),
+				PledgeAllegianceHandler: pledge_allegiance_handler.New(book),
 			}
 
 			return props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {

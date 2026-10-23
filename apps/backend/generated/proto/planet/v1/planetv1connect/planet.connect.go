@@ -93,7 +93,8 @@ type ClickServiceClient interface {
 	GetFortresses(context.Context, *connect.Request[v1.GetFortressesRequest]) (*connect.Response[v1.GetFortressesResponse], error)
 	// Not NO_SIDE_EFFECTS: the answer is about one caller now, and a cached one lies.
 	GetAllegiance(context.Context, *connect.Request[v1.GetAllegianceRequest]) (*connect.Response[v1.GetAllegianceResponse], error)
-	// Refused like a click for another flag, within the hour after a change.
+	// The only way to set or change the flag: a click or a shield never does.
+	// Refused within the hour after a change, as a click for another flag is.
 	PledgeAllegiance(context.Context, *connect.Request[v1.PledgeAllegianceRequest]) (*connect.Response[v1.PledgeAllegianceResponse], error)
 }
 
@@ -331,7 +332,8 @@ type ClickServiceHandler interface {
 	GetFortresses(context.Context, *connect.Request[v1.GetFortressesRequest]) (*connect.Response[v1.GetFortressesResponse], error)
 	// Not NO_SIDE_EFFECTS: the answer is about one caller now, and a cached one lies.
 	GetAllegiance(context.Context, *connect.Request[v1.GetAllegianceRequest]) (*connect.Response[v1.GetAllegianceResponse], error)
-	// Refused like a click for another flag, within the hour after a change.
+	// The only way to set or change the flag: a click or a shield never does.
+	// Refused within the hour after a change, as a click for another flag is.
 	PledgeAllegiance(context.Context, *connect.Request[v1.PledgeAllegianceRequest]) (*connect.Response[v1.PledgeAllegianceResponse], error)
 }
 
