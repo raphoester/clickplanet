@@ -100,15 +100,49 @@ func TestACallerWithNoAccountHasNoRefill(t *testing.T) {
 	assert.True(t, f.refills.Kept("a-guest").Refill)
 }
 
-func TestTheScopesBucketIsNotFilled(t *testing.T) {
+var scope = config.Buckets().Ceiling(clicks.Payer{Scope: "1.2.3.4", Account: "a-guest"})[0]
+
+func (f fixture) drainScope(t *testing.T, n float64) {
+	t.Helper()
+
+	allowed, _ := f.limiter.TakeAll(n, scope)
+	require.True(t, allowed)
+}
+
+func TestTheScopesBucketIsGivenWhatTheRefillGave(t *testing.T) {
 	f := setup(true)
+	f.drainScope(t, 200)
 	f.spend(t, "a-guest", 50)
 
 	_, err := f.useCase.Execute(played(t), use_refill_usecase.In{CountryID: "fr"})
 	require.NoError(t, err)
 
-	scope := f.limiter.Peek(config.Buckets().Keys(clicks.Payer{Scope: "1.2.3.4", Account: "a-guest"}, clicks.Price{})[2])
-	assert.InDelta(t, 550, scope.Tokens, 1e-9, "the scope's bucket, shared by everyone behind the address, keeps its level")
+	assert.InDelta(t, 400, f.limiter.Peek(scope).Tokens, 1e-9,
+		"50 clicks given, so the scope everyone behind the address shares is no tighter for it, and no looser")
+}
+
+func TestARefillFillsWhatTheScopeLacksWhenItIsTheTighter(t *testing.T) {
+	f := setup(true)
+	f.drainScope(t, 576)
+
+	out, err := f.useCase.Execute(played(t), use_refill_usecase.In{CountryID: "fr"})
+	require.NoError(t, err, "its own bank is full, but the scope it spends from holds 24")
+
+	assert.InDelta(t, 60, out.Budget.Tokens, 1e-9, "a full bank to spend")
+	assert.Equal(t, 60, out.Budget.Capacity, "read against its own bank, not the scope's 600")
+	assert.InDelta(t, 60, f.limiter.Peek(scope).Tokens, 1e-9, "the scope is given the 36 the player lacked, no more")
+	assert.False(t, f.refills.Kept("a-guest").Refill, "the refill is spent")
+}
+
+func TestAFullBankOnAScopeHoldingABankIsRefused(t *testing.T) {
+	f := setup(true)
+	f.drainScope(t, 540)
+
+	_, err := f.useCase.Execute(played(t), use_refill_usecase.In{CountryID: "fr"})
+
+	require.ErrorIs(t, err, use_refill_usecase.ErrBankFull, "the scope still holds the bank the player can spend")
+	assert.InDelta(t, 60, f.limiter.Peek(scope).Tokens, 1e-9)
+	assert.True(t, f.refills.Kept("a-guest").Refill)
 }
 
 func TestARefillFillsTheBucketTheScopesGuestsShare(t *testing.T) {

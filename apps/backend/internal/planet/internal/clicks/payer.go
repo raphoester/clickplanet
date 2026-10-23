@@ -101,8 +101,12 @@ const (
 func (b Buckets) BudgetOf(payer Payer, states []cpratelimit.State, price Price) Budget {
 	i := tightest(states)
 
+	// Read against the payer's own bank, which pools lists first: a bucket it shares is a ceiling, not a bigger bank.
+	state := states[i]
+	state.Capacity = states[0].Capacity
+
 	return Budget{
-		State:            states[i],
+		State:            state,
 		SharedWith:       b.pools(payer, price)[i].sharedWith,
 		Price:            price,
 		LinkedMultiplier: b.linkedMultiplier,
@@ -140,6 +144,17 @@ func (b Buckets) Bank(payer Payer) []cpratelimit.Key {
 	var keys []cpratelimit.Key
 	for _, pool := range b.pools(payer, Price{}) {
 		if pool.sharedWith != SharedWithScope {
+			keys = append(keys, pool.key)
+		}
+	}
+
+	return keys
+}
+
+func (b Buckets) Ceiling(payer Payer) []cpratelimit.Key {
+	var keys []cpratelimit.Key
+	for _, pool := range b.pools(payer, Price{}) {
+		if pool.sharedWith == SharedWithScope {
 			keys = append(keys, pool.key)
 		}
 	}

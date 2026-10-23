@@ -149,6 +149,14 @@ func (l *Limiter) Peek(key Key) State {
 }
 
 func (l *Limiter) Fill(key Key) (bool, State) {
+	return l.add(key, math.Inf(1))
+}
+
+func (l *Limiter) Add(key Key, n float64) {
+	_, _ = l.add(key, n)
+}
+
+func (l *Limiter) add(key Key, n float64) (bool, State) {
 	now := l.clock.Now()
 
 	l.mu.Lock()
@@ -157,18 +165,16 @@ func (l *Limiter) Fill(key Key) (bool, State) {
 	b, ok := l.buckets[key.Name]
 	if !ok {
 		b = l.newBucket(key, now)
-		if b.tokens >= l.capacity(b) {
-			return false, l.state(b)
-		}
-		l.buckets[key.Name] = b
 	}
 
 	l.refill(b, now)
-	if b.tokens >= l.capacity(b) {
+	if n <= 0 || b.tokens >= l.capacity(b) {
+		// Not stored when unknown: a bucket with nothing added is the one a new key would make.
 		return false, l.state(b)
 	}
 
-	b.tokens = l.capacity(b)
+	b.tokens = math.Min(b.tokens+n, l.capacity(b))
+	l.buckets[key.Name] = b
 
 	return true, l.state(b)
 }
