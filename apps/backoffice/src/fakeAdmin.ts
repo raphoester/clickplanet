@@ -17,8 +17,6 @@ import {
     BanPlayerResponse,
     FindPlayersRequest,
     FindPlayersResponse,
-    GetAudienceRequest,
-    GetAudienceResponse,
     GetLedgerRequest,
     GetLedgerResponse,
     GetReplayRequest,
@@ -150,7 +148,6 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         tiles: 262119,
         territories: [new Territory({countryId: "fr", tiles: 1200}), new Territory({countryId: "dz", tiles: 800})],
     })
-    audience = new GetAudienceResponse({streams: 38, entrants: 25})
     roster = [
         new RosterEntry({key: "1", accountId: ACCOUNT, name: "BraveFox42", countryId: "fr"}),
         new RosterEntry({key: "2", accountId: "account-guest", name: "guest_a1b2c3", countryId: "dz", guest: true}),
@@ -266,10 +263,6 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
 
     getTerritories(request: PartialMessage<GetTerritoriesRequest>): Promise<GetTerritoriesResponse> {
         return this.answer("getTerritories", request, this.territories)
-    }
-
-    getAudience(request: PartialMessage<GetAudienceRequest>): Promise<GetAudienceResponse> {
-        return this.answer("getAudience", request, this.audience)
     }
 
     getRoster(request: PartialMessage<GetRosterRequest>): Promise<GetRosterResponse> {

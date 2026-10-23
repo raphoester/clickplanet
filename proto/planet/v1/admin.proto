@@ -34,9 +34,6 @@ service AdminService {
 
   // InternalService/GetTerritories, for the admin page: the tiles each country holds now.
   rpc GetTerritories(GetTerritoriesRequest) returns (GetTerritoriesResponse);
-
-  // The live map streams open now, and who opened them.
-  rpc GetAudience(GetAudienceRequest) returns (GetAudienceResponse);
 }
 
 message GetLedgerRequest {
@@ -57,14 +54,6 @@ message LedgerChange {
   TileUpdate update = 2;
   // Who made it, to compare and not to read: "account:<id>", or "scope:<address>" for a change with no account.
   string by = 3;
-}
-
-message GetAudienceRequest {}
-
-message GetAudienceResponse {
-  uint32 streams = 1;
-  // A signed-in account, or the guests behind one network, each opening one stream or more.
-  uint32 entrants = 2;
 }
 
 message GetReplayRequest {

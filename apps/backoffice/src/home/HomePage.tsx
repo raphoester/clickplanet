@@ -90,8 +90,6 @@ export function HomePage({clients = CLIENTS, onGo, places: readPlaces = loadPlac
             <ul className="tiles">
                 <Tile label="Playing now" value={roster?.length}
                       sub={roster === undefined ? undefined : `${wholeOf(roster.filter(entry => !entry.guest).length)} signed in`}/>
-                <Tile label="Map tabs open" value={map?.streams}
-                      sub={map === undefined ? undefined : `${wholeOf(map.entrants)} networks or accounts`}/>
                 <Tile label="Clicks" value={ledger === undefined ? undefined : totalsOf(slots).clicks}
                       sub={`last ${shownSpan.label}`}/>
                 <Tile label="Players" value={ledger === undefined ? undefined : players}
@@ -161,11 +159,8 @@ async function ledgerOf(planet: PlanetAdmin, span: Span, signal: AbortSignal) {
 }
 
 async function mapOf(planet: PlanetAdmin, signal: AbortSignal) {
-    const [territories, audience] = await Promise.all([
-        planet.getTerritories({}, {signal}),
-        planet.getAudience({}, {signal}),
-    ])
-    return {territories: territories.territories, tiles: territories.tiles, ...audience}
+    const {territories, tiles} = await planet.getTerritories({}, {signal})
+    return {territories, tiles}
 }
 
 async function inboxOf(support: SupportAdmin, signal: AbortSignal) {

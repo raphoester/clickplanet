@@ -120,7 +120,7 @@ failing alone:
   (`windowOf`, both bounds sent): the last one starts on the step before now, and is still filling. The page counts
   from the window it asked for. `LONG_CALL_MS`: three days is a
   few MB compressed.
-- `GetTerritories` and `GetAudience` for the map now: the tiles each country holds, and the map streams open.
+- `GetTerritories` for the map now: the tiles each country holds.
 - `player.v1.AdminService/GetRoster` for who plays now.
 - `ListReports` (open only) and `ListNotes` (the last 24 hours) for what waits for the operator. Up to 500 of each
   are counted, and 500 reads "500+".
@@ -137,9 +137,8 @@ What the page does with them:
 - **The counts** (`ledger.ts`): a click is a change marked `clicked` (a take or a strike); a tile changed hands when
   its flag after is not its flag before; a player is who changed one (`by`, compared and never read), an account on
   every address, or an address with no account.
-- **The tiles**: who plays now (and how many signed in), the map tabs open now (and the networks or accounts they come
-  from), the clicks and the players of the span, the open reports and the notes of the day. The last two go to their
-  page.
+- **The tiles**: who plays now (and how many signed in), the clicks and the players of the span, the open reports and
+  the notes of the day. The last two go to their page.
 - **Two charts of one series each** (`ActivityCharts`): the clicks a slot, and the players taking tiles a slot. Never
   one chart with two scales. A hover on either reads the same slot on both, in the line above them; the peak is
   labelled; the slot still filling is a hollow dot, off the line, since its count is short. "Table" lists every slot.

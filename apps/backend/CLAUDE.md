@@ -3459,7 +3459,7 @@ stream sent it. The frontend's clip generator plays it back (see its CLAUDE.md, 
 - **Nothing in it names a player**: no scope and no account goes out, as on the live stream.
 - A day of production is about 40,000 events, a few MB of JSON.
 
-#### `GetLedger`, `GetTerritories`, `GetAudience`
+#### `GetLedger`, `GetTerritories`
 
 **What the admin page's home reads, none of it shaped for it**: the page counts, charts and draws on its own side
 (`apps/backoffice`'s `CLAUDE.md`, "The home page"), so a new view of the game needs no new endpoint.
@@ -3481,9 +3481,6 @@ stream sent it. The frontend's clip generator plays it back (see its CLAUDE.md, 
     `InvalidArgument` (`excerpt_usecase.ErrInvalidWindow`). It reads memory, changes nothing and logs nothing.
 - **`GetTerritories`** is the internal service's, handler and all: the tiles each country holds now, and the map's
   size.
-- **`GetAudience`**: the map streams open now, and the entrants that opened them (`bonuses.Audience`): every
-  `ListenForEvents` attends the bonus registry, a tab each, and an entrant is a signed-in account or the guests
-  behind one network.
 
 #### `PaintRandomTiles`
 

@@ -45,8 +45,6 @@ describe("the home page", () => {
         expect(within(tile("Clicks")).getByText("4")).toBeTruthy()
         expect(within(tile("Players")).getByText("2")).toBeTruthy()
         expect(within(tile("Playing now")).getByText("1 signed in")).toBeTruthy()
-        expect(within(tile("Map tabs open")).getByText("38")).toBeTruthy()
-        expect(within(tile("Map tabs open")).getByText("25 networks or accounts")).toBeTruthy()
         expect(within(tile("Open reports")).getByText("1")).toBeTruthy()
         expect(within(tile("Notes today")).getByText("2")).toBeTruthy()
     })
@@ -116,6 +114,5 @@ describe("the home page", () => {
 
         expect(await screen.findByText("The call failed.")).toBeTruthy()
         expect(within(tile("Playing now")).getByText("2")).toBeTruthy()
-        expect(within(tile("Map tabs open")).getByText("38")).toBeTruthy()
     })
 })

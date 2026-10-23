@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BanPlayerRequest, BanPlayerResponse, FindPlayersRequest, FindPlayersResponse, GetAudienceRequest, GetAudienceResponse, GetLedgerRequest, GetLedgerResponse, GetReplayRequest, GetReplayResponse, GrantChargesRequest, GrantChargesResponse, InspectPlayerRequest, InspectPlayerResponse, PaintRandomTilesRequest, PaintRandomTilesResponse, ReassignCountryRequest, ReassignCountryResponse, RevertPlayerRequest, RevertPlayerResponse, TopPlayersRequest, TopPlayersResponse, UnbanPlayerRequest, UnbanPlayerResponse } from "./admin_pb.js";
+import { BanPlayerRequest, BanPlayerResponse, FindPlayersRequest, FindPlayersResponse, GetLedgerRequest, GetLedgerResponse, GetReplayRequest, GetReplayResponse, GrantChargesRequest, GrantChargesResponse, InspectPlayerRequest, InspectPlayerResponse, PaintRandomTilesRequest, PaintRandomTilesResponse, ReassignCountryRequest, ReassignCountryResponse, RevertPlayerRequest, RevertPlayerResponse, TopPlayersRequest, TopPlayersResponse, UnbanPlayerRequest, UnbanPlayerResponse } from "./admin_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 import { GetTerritoriesRequest, GetTerritoriesResponse } from "./internal_pb.js";
 
@@ -125,17 +125,6 @@ export const AdminService = {
       name: "GetTerritories",
       I: GetTerritoriesRequest,
       O: GetTerritoriesResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * The live map streams open now, and who opened them.
-     *
-     * @generated from rpc planet.v1.AdminService.GetAudience
-     */
-    getAudience: {
-      name: "GetAudience",
-      I: GetAudienceRequest,
-      O: GetAudienceResponse,
       kind: MethodKind.Unary,
     },
   }
