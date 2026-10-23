@@ -22,6 +22,10 @@ type shieldsPayload struct {
 	Shields int `json:"shields"`
 }
 
+func (s Striking) By() Caller {
+	return callerOf(s.Scope, s.Account)
+}
+
 func (s Striking) Replay(func(Taking)) {}
 
 func (s Striking) Show(see func(Scene)) {

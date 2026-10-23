@@ -1,7 +1,7 @@
 import {useState} from "react"
 import {Country} from "../components/Country.tsx"
-import {CountryActivity} from "../gen/grpc/planet/v1/admin_pb.ts"
-import {countriesBy, heldOf, Order, Span, wholeOf} from "./activity.ts"
+import {Span, wholeOf} from "./activity.ts"
+import {countriesBy, CountryRow, heldOf, Order} from "./ledger.ts"
 
 const SHOWN = 10
 
@@ -11,15 +11,16 @@ const ORDERS: {order: Order, label: string}[] = [
     {order: "lost", label: "Lost"},
 ]
 
-type Props = {countries: CountryActivity[], mapTiles: number, span: Span}
+type Props = {countries: CountryRow[], mapTiles: number, span: Span}
 
+// The bars are a histogram of the column the countries are ordered by.
 export function CountryTable({countries, mapTiles, span}: Props) {
     const [order, setOrder] = useState<Order>("held")
     const [all, setAll] = useState(false)
 
     const sorted = countriesBy(countries, order)
     const shown = all ? sorted : sorted.slice(0, SHOWN)
-    const most = Math.max(1, ...countries.map(country => country.held))
+    const most = Math.max(1, ...countries.map(country => country[order]))
     const held = heldOf(countries)
 
     return (
@@ -54,13 +55,15 @@ export function CountryTable({countries, mapTiles, span}: Props) {
                         <tbody>
                             {shown.map(country => (
                                 <tr key={country.countryId}>
-                                    <td><Country id={country.countryId}/></td>
+                                    <td>
+                                        <Country id={country.countryId}/>
+                                        <span className="share" aria-hidden="true">
+                                            <span style={{width: `${(100 * country[order]) / most}%`}}/>
+                                        </span>
+                                    </td>
                                     <td className="num">
                                         {wholeOf(country.held)}{" "}
                                         <span className="muted">{shareOf(country.held, mapTiles)}</span>
-                                        <span className="share" aria-hidden="true">
-                                            <span style={{width: `${(100 * country.held) / most}%`}}/>
-                                        </span>
                                     </td>
                                     <td className="num">{country.won > 0 ? `+${wholeOf(country.won)}` : "0"}</td>
                                     <td className="num">{country.lost > 0 ? `−${wholeOf(country.lost)}` : "0"}</td>

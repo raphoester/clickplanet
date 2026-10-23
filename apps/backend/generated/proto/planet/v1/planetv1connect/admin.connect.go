@@ -60,9 +60,14 @@ const (
 	AdminServiceGrantChargesProcedure = "/planet.v1.AdminService/GrantCharges"
 	// AdminServiceGetReplayProcedure is the fully-qualified name of the AdminService's GetReplay RPC.
 	AdminServiceGetReplayProcedure = "/planet.v1.AdminService/GetReplay"
-	// AdminServiceGetActivityProcedure is the fully-qualified name of the AdminService's GetActivity
+	// AdminServiceGetLedgerProcedure is the fully-qualified name of the AdminService's GetLedger RPC.
+	AdminServiceGetLedgerProcedure = "/planet.v1.AdminService/GetLedger"
+	// AdminServiceGetTerritoriesProcedure is the fully-qualified name of the AdminService's
+	// GetTerritories RPC.
+	AdminServiceGetTerritoriesProcedure = "/planet.v1.AdminService/GetTerritories"
+	// AdminServiceGetAudienceProcedure is the fully-qualified name of the AdminService's GetAudience
 	// RPC.
-	AdminServiceGetActivityProcedure = "/planet.v1.AdminService/GetActivity"
+	AdminServiceGetAudienceProcedure = "/planet.v1.AdminService/GetAudience"
 )
 
 // AdminServiceClient is a client for the planet.v1.AdminService service.
@@ -77,8 +82,12 @@ type AdminServiceClient interface {
 	InspectPlayer(context.Context, *connect.Request[v1.InspectPlayerRequest]) (*connect.Response[v1.InspectPlayerResponse], error)
 	GrantCharges(context.Context, *connect.Request[v1.GrantChargesRequest]) (*connect.Response[v1.GrantChargesResponse], error)
 	GetReplay(context.Context, *connect.Request[v1.GetReplayRequest]) (*connect.Response[v1.GetReplayResponse], error)
-	// What players did on the map over a span back from now, from the ledger in memory, and the map as it is now.
-	GetActivity(context.Context, *connect.Request[v1.GetActivityRequest]) (*connect.Response[v1.GetActivityResponse], error)
+	// Every change the live stream showed in a window of at most 72 hours, from the ledger in memory, and who made it.
+	GetLedger(context.Context, *connect.Request[v1.GetLedgerRequest]) (*connect.Response[v1.GetLedgerResponse], error)
+	// InternalService/GetTerritories, for the admin page: the tiles each country holds now.
+	GetTerritories(context.Context, *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error)
+	// The live map streams open now, and who opened them.
+	GetAudience(context.Context, *connect.Request[v1.GetAudienceRequest]) (*connect.Response[v1.GetAudienceResponse], error)
 }
 
 // NewAdminServiceClient constructs a client for the planet.v1.AdminService service. By default, it
@@ -152,10 +161,22 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("GetReplay")),
 			connect.WithClientOptions(opts...),
 		),
-		getActivity: connect.NewClient[v1.GetActivityRequest, v1.GetActivityResponse](
+		getLedger: connect.NewClient[v1.GetLedgerRequest, v1.GetLedgerResponse](
 			httpClient,
-			baseURL+AdminServiceGetActivityProcedure,
-			connect.WithSchema(adminServiceMethods.ByName("GetActivity")),
+			baseURL+AdminServiceGetLedgerProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("GetLedger")),
+			connect.WithClientOptions(opts...),
+		),
+		getTerritories: connect.NewClient[v1.GetTerritoriesRequest, v1.GetTerritoriesResponse](
+			httpClient,
+			baseURL+AdminServiceGetTerritoriesProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("GetTerritories")),
+			connect.WithClientOptions(opts...),
+		),
+		getAudience: connect.NewClient[v1.GetAudienceRequest, v1.GetAudienceResponse](
+			httpClient,
+			baseURL+AdminServiceGetAudienceProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("GetAudience")),
 			connect.WithClientOptions(opts...),
 		),
 	}
@@ -173,7 +194,9 @@ type adminServiceClient struct {
 	inspectPlayer    *connect.Client[v1.InspectPlayerRequest, v1.InspectPlayerResponse]
 	grantCharges     *connect.Client[v1.GrantChargesRequest, v1.GrantChargesResponse]
 	getReplay        *connect.Client[v1.GetReplayRequest, v1.GetReplayResponse]
-	getActivity      *connect.Client[v1.GetActivityRequest, v1.GetActivityResponse]
+	getLedger        *connect.Client[v1.GetLedgerRequest, v1.GetLedgerResponse]
+	getTerritories   *connect.Client[v1.GetTerritoriesRequest, v1.GetTerritoriesResponse]
+	getAudience      *connect.Client[v1.GetAudienceRequest, v1.GetAudienceResponse]
 }
 
 // ReassignCountry calls planet.v1.AdminService.ReassignCountry.
@@ -226,9 +249,19 @@ func (c *adminServiceClient) GetReplay(ctx context.Context, req *connect.Request
 	return c.getReplay.CallUnary(ctx, req)
 }
 
-// GetActivity calls planet.v1.AdminService.GetActivity.
-func (c *adminServiceClient) GetActivity(ctx context.Context, req *connect.Request[v1.GetActivityRequest]) (*connect.Response[v1.GetActivityResponse], error) {
-	return c.getActivity.CallUnary(ctx, req)
+// GetLedger calls planet.v1.AdminService.GetLedger.
+func (c *adminServiceClient) GetLedger(ctx context.Context, req *connect.Request[v1.GetLedgerRequest]) (*connect.Response[v1.GetLedgerResponse], error) {
+	return c.getLedger.CallUnary(ctx, req)
+}
+
+// GetTerritories calls planet.v1.AdminService.GetTerritories.
+func (c *adminServiceClient) GetTerritories(ctx context.Context, req *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error) {
+	return c.getTerritories.CallUnary(ctx, req)
+}
+
+// GetAudience calls planet.v1.AdminService.GetAudience.
+func (c *adminServiceClient) GetAudience(ctx context.Context, req *connect.Request[v1.GetAudienceRequest]) (*connect.Response[v1.GetAudienceResponse], error) {
+	return c.getAudience.CallUnary(ctx, req)
 }
 
 // AdminServiceHandler is an implementation of the planet.v1.AdminService service.
@@ -243,8 +276,12 @@ type AdminServiceHandler interface {
 	InspectPlayer(context.Context, *connect.Request[v1.InspectPlayerRequest]) (*connect.Response[v1.InspectPlayerResponse], error)
 	GrantCharges(context.Context, *connect.Request[v1.GrantChargesRequest]) (*connect.Response[v1.GrantChargesResponse], error)
 	GetReplay(context.Context, *connect.Request[v1.GetReplayRequest]) (*connect.Response[v1.GetReplayResponse], error)
-	// What players did on the map over a span back from now, from the ledger in memory, and the map as it is now.
-	GetActivity(context.Context, *connect.Request[v1.GetActivityRequest]) (*connect.Response[v1.GetActivityResponse], error)
+	// Every change the live stream showed in a window of at most 72 hours, from the ledger in memory, and who made it.
+	GetLedger(context.Context, *connect.Request[v1.GetLedgerRequest]) (*connect.Response[v1.GetLedgerResponse], error)
+	// InternalService/GetTerritories, for the admin page: the tiles each country holds now.
+	GetTerritories(context.Context, *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error)
+	// The live map streams open now, and who opened them.
+	GetAudience(context.Context, *connect.Request[v1.GetAudienceRequest]) (*connect.Response[v1.GetAudienceResponse], error)
 }
 
 // NewAdminServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -314,10 +351,22 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(adminServiceMethods.ByName("GetReplay")),
 		connect.WithHandlerOptions(opts...),
 	)
-	adminServiceGetActivityHandler := connect.NewUnaryHandler(
-		AdminServiceGetActivityProcedure,
-		svc.GetActivity,
-		connect.WithSchema(adminServiceMethods.ByName("GetActivity")),
+	adminServiceGetLedgerHandler := connect.NewUnaryHandler(
+		AdminServiceGetLedgerProcedure,
+		svc.GetLedger,
+		connect.WithSchema(adminServiceMethods.ByName("GetLedger")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServiceGetTerritoriesHandler := connect.NewUnaryHandler(
+		AdminServiceGetTerritoriesProcedure,
+		svc.GetTerritories,
+		connect.WithSchema(adminServiceMethods.ByName("GetTerritories")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServiceGetAudienceHandler := connect.NewUnaryHandler(
+		AdminServiceGetAudienceProcedure,
+		svc.GetAudience,
+		connect.WithSchema(adminServiceMethods.ByName("GetAudience")),
 		connect.WithHandlerOptions(opts...),
 	)
 	return "/planet.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -342,8 +391,12 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 			adminServiceGrantChargesHandler.ServeHTTP(w, r)
 		case AdminServiceGetReplayProcedure:
 			adminServiceGetReplayHandler.ServeHTTP(w, r)
-		case AdminServiceGetActivityProcedure:
-			adminServiceGetActivityHandler.ServeHTTP(w, r)
+		case AdminServiceGetLedgerProcedure:
+			adminServiceGetLedgerHandler.ServeHTTP(w, r)
+		case AdminServiceGetTerritoriesProcedure:
+			adminServiceGetTerritoriesHandler.ServeHTTP(w, r)
+		case AdminServiceGetAudienceProcedure:
+			adminServiceGetAudienceHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -393,6 +446,14 @@ func (UnimplementedAdminServiceHandler) GetReplay(context.Context, *connect.Requ
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.GetReplay is not implemented"))
 }
 
-func (UnimplementedAdminServiceHandler) GetActivity(context.Context, *connect.Request[v1.GetActivityRequest]) (*connect.Response[v1.GetActivityResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.GetActivity is not implemented"))
+func (UnimplementedAdminServiceHandler) GetLedger(context.Context, *connect.Request[v1.GetLedgerRequest]) (*connect.Response[v1.GetLedgerResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.GetLedger is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) GetTerritories(context.Context, *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.GetTerritories is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) GetAudience(context.Context, *connect.Request[v1.GetAudienceRequest]) (*connect.Response[v1.GetAudienceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.GetAudience is not implemented"))
 }

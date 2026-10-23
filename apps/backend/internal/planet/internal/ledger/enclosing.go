@@ -17,6 +17,10 @@ type Enclosing struct {
 	Impacts []clicks.Impact
 }
 
+func (e Enclosing) By() Caller {
+	return callerOf(e.Scope, e.Account)
+}
+
 func (e Enclosing) Replay(see func(Taking)) {
 	replayClaims(see, e.Impacts, Taking{Scope: e.Scope, Account: e.Account, Country: e.Country, At: e.At})
 }

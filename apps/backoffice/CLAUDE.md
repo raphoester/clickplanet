@@ -31,6 +31,7 @@ npm run build      # TypeScript check + Vite bundle → /dist
 npm test           # vitest, once (node; a .test.tsx opens with `// @vitest-environment jsdom`)
 npm run lint       # ESLint
 npm run proto      # Regenerate src/gen/grpc from the shared ../../proto
+npm run map        # Copy the tile coordinates from the shared ../../map into src/gen/map
 ```
 
 `.github/workflows/check-backoffice.yml` runs lint, build and tests on every PR touching this app or `proto/`.
@@ -110,28 +111,44 @@ the page picked.
 
 ## The home page
 
-`src/home/`, the page the backoffice opens on. Three reads at once, each failing alone: `planet.v1.AdminService/GetActivity`
-for a span (the backend's `CLAUDE.md`, "GetActivity"), `player.v1.AdminService/GetRoster` for who plays now, and
-`ListReports` (open only) with `ListNotes` (the last 24 hours) for what waits for the operator. Up to 500 of each are
-counted, and 500 reads "500+".
+`src/home/`, the page the backoffice opens on. **The backend sends what happened and what is, never a chart**: the
+page counts, charts and draws on its own side, so a new view of the game needs no new endpoint. It reads, each
+failing alone:
 
-- **A span is picked above everything it scopes**: 6 hours, 24 hours (first) or 3 days. Every minute the page reads
-  all three again (`REFRESH_MS`), and Reload does now. **The last answer stays shown, dimmed, while the next is read**
-  (`useLast`), so a refresh never empties the page.
+- `planet.v1.AdminService/GetLedger` for the span: every change the live stream showed, and who made it, in columns
+  (the backend's `CLAUDE.md`, "GetLedger"). It is asked for whole slots back from now (`windowOf`): the last one
+  starts on the step before now, and is still filling. `LONG_CALL_MS`: three days is a few MB.
+- `GetTerritories` and `GetAudience` for the map now: the tiles each country holds, and the map streams open.
+- `player.v1.AdminService/GetRoster` for who plays now.
+- `ListReports` (open only) and `ListNotes` (the last 24 hours) for what waits for the operator. Up to 500 of each
+  are counted, and 500 reads "500+".
+- **The tile coordinates** (`places.ts`), the map's own blob from `/map` (`npm run map` copies it into `src/gen/map`,
+  and Vite bundles it under `/assets/`): where each tile is, read once a page load, about 5 MB. Its latitude and
+  longitude are read as the map's generator reads a vertex: `asin(y)` and `atan2(z, -x)`. The CSP's `connect-src`
+  holds `'self'` for it.
+
+What the page does with them:
+
+- **A span is picked above everything it scopes**: 6 hours in slots of 5 minutes, 24 hours (first) in 15, or 3 days
+  in hours. Every minute the page reads it all again (`REFRESH_MS`), and Reload does now. **The last answer stays
+  shown, dimmed, while the next is read** (`useLast`), so a refresh never empties the page.
+- **The counts** (`ledger.ts`): a click is a change marked `clicked` (a take or a strike); a tile changed hands when
+  its flag after is not its flag before; a player is who changed one, an account on every address, or an address
+  with no account.
 - **The tiles**: who plays now (and how many signed in), the map tabs open now (and the networks or accounts they come
   from), the clicks and the players of the span, the open reports and the notes of the day. The last two go to their
   page.
 - **Two charts of one series each** (`ActivityCharts`): the clicks a slot, and the players taking tiles a slot. Never
   one chart with two scales. A hover on either reads the same slot on both, in the line above them; the peak is
   labelled; the slot still filling is a hollow dot, off the line, since its count is short. "Table" lists every slot.
-- **The heatmap** (`Heatmap`): the grid `GetActivity` answers, drawn on a canvas one pixel a cell and scaled by the
-  browser. Land is grey, sea paler, and a cell where tiles changed hands is colored by **its changes per tile**
-  (`heatOf`), so a cell far north, which holds fewer tiles, is not read as calmer. The scale is logarithmic from the
-  calmest cell to the busiest. The colors are tokens (`--map-*`, `--heat-0` to `--heat-3`), read when it draws, and
-  it draws again when the color scheme changes. The line under it names the busiest cell, or the cell under the
-  pointer.
-- **The countries** (`CountryTable`): the ten that hold the most, then all of them, with their share of the map and
-  the tiles they won and lost by play in the span; Won and Lost order them by that.
+- **The heatmap** (`Heatmap`, `heat.ts`): the map seen flat, 1440×720. Each tile is drawn where it is, as wide as
+  its longitude stretches far north; what changed hands glows over the land around it (a box blur, twice, round the
+  world from east to west), on a log scale up to the hottest pixel. The colors are tokens (`--map-*`, `--heat-0` to
+  `--heat-3`), read when it draws, and it draws again when the color scheme changes. The line under it names the
+  degree with the most changes, or the degree under the pointer, with its tiles.
+- **The countries** (`CountryTable`): what each holds now, its share of the map, and the tiles it won and lost by play
+  in the span. Held, Won and Lost order them, and **the bars are a histogram of the column picked**. The ten first,
+  then all.
 - **Playing now** (`PlayingNow`): each signed-in player, which opens it on the player page (`OpenPlayer`), the guests
   as a count, and the flags they play for.
 - **What it does not show yet**: HTTP requests. The clicks come from the ledger, which keeps 72 hours and survives a
@@ -307,7 +324,7 @@ to `proto/` alone ships nothing: the generated code is committed.
 `public/_headers` is the page's security:
 
 - **`Content-Security-Policy`**: scripts, styles and images from the page alone, calls to
-  `https://api.clickplanet.lol` alone, and no frame (`frame-ancestors 'none'`): the pages ban, revert and repaint
+  `https://api.clickplanet.lol` and the page's own `/assets/` (the tile coordinates) alone, and no frame (`frame-ancestors 'none'`): the pages ban, revert and repaint
   the map, and a framed page could be clicked through. **A new API host is a change here.**
 - **The support bucket's host is in `img-src` and `media-src`**, and no other: a note's photos and videos load
   straight from the R2 link `ListNotes` signs (`support.attachments.bucket.endpoint` in `deploy/vps/backend.yaml`).
@@ -333,7 +350,8 @@ src/
   signIn/           callbackOf, SignInButton, SignInCallback, SignOutButton
   components/       Menu and Sidebar, ConfirmAction, FailureNotice, AccountId and Copyable (with Copy), Country, CountryField,
                     Fact, Person, When
-  home/             Home: the tiles, ActivityCharts, Heatmap, CountryTable, PlayingNow, over activity.ts and heat.ts
+  home/             Home: the tiles, ActivityCharts, Heatmap, CountryTable, PlayingNow, over ledger.ts (the counts),
+                    heat.ts (the picture), places.ts (the tile coordinates) and activity.ts
   support/          Ideas and bugs: NoteList, Attachments, labels.ts (names, outcomes, device lines, sizes)
   chat/             Conversation and TheirMessages, which reports/ and players/ show, over chatPages.ts (a page of
                     ListMessages, the parties a report names) and theirConversations.ts
@@ -342,6 +360,7 @@ src/
   map/              Reassign a country, Paint random tiles, Download a replay
   ops/              Reconcile titles
   gen/grpc/         generated from ../../proto, committed
+  gen/map/          the tile coordinates, copied from ../../map, committed
 ```
 
 **An account is shown by its id, with Copy**, beside its name, wherever a tool takes it: a name can change hands,

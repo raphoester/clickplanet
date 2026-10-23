@@ -62,7 +62,8 @@ rotting.
 
 ## Shared map geometry
 
-`map/` is the **second thing the frontend and the backend share**, and the only other one: the tile coordinates blob,
+`map/` is the **second thing the frontend and the backend share**, and the only other one (the backoffice carries
+the coordinates too, to draw where tiles changed hands): the tile coordinates blob,
 which says where every tile is and therefore what a tile id means, and the borders blob, which says
 which country's ground each tile sits on. **They are written by one command from one oracle**, so
 "is this sea or land" and "which country is this" cannot disagree and a tile in no country cannot be
@@ -76,6 +77,7 @@ Docker build context is its own directory and neither can read the repo root at 
 cd apps/frontend && npm run map:generate   # rewrite both blobs in /map from Natural Earth
 cd apps/backend && make map    # → apps/backend/generated/map (embedded)
 cd apps/frontend && npm run map   # → apps/frontend/static (fetched at runtime)
+cd apps/backoffice && npm run map   # → apps/backoffice/src/gen/map (the coordinates alone, bundled)
 ```
 
 Each file is content-addressed, so all three copies carry the same name or one of them is stale.

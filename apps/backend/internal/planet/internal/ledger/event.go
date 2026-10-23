@@ -9,6 +9,7 @@ import (
 var ErrUnknownKind = errors.New("an event of a kind this ledger does not know")
 
 type Event interface {
+	By() Caller
 	Replay(see func(Taking))
 	Show(see func(Scene))
 	Entry() (Entry, error)

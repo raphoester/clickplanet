@@ -3,8 +3,9 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BanPlayerRequest, BanPlayerResponse, FindPlayersRequest, FindPlayersResponse, GetActivityRequest, GetActivityResponse, GetReplayRequest, GetReplayResponse, GrantChargesRequest, GrantChargesResponse, InspectPlayerRequest, InspectPlayerResponse, PaintRandomTilesRequest, PaintRandomTilesResponse, ReassignCountryRequest, ReassignCountryResponse, RevertPlayerRequest, RevertPlayerResponse, TopPlayersRequest, TopPlayersResponse, UnbanPlayerRequest, UnbanPlayerResponse } from "./admin_pb.js";
+import { BanPlayerRequest, BanPlayerResponse, FindPlayersRequest, FindPlayersResponse, GetAudienceRequest, GetAudienceResponse, GetLedgerRequest, GetLedgerResponse, GetReplayRequest, GetReplayResponse, GrantChargesRequest, GrantChargesResponse, InspectPlayerRequest, InspectPlayerResponse, PaintRandomTilesRequest, PaintRandomTilesResponse, ReassignCountryRequest, ReassignCountryResponse, RevertPlayerRequest, RevertPlayerResponse, TopPlayersRequest, TopPlayersResponse, UnbanPlayerRequest, UnbanPlayerResponse } from "./admin_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
+import { GetTerritoriesRequest, GetTerritoriesResponse } from "./internal_pb.js";
 
 /**
  * No authentication of its own: served on the console listener, and on the admin listener behind its gate. Never the public router.
@@ -105,14 +106,36 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
-     * What players did on the map over a span back from now, from the ledger in memory, and the map as it is now.
+     * Every change the live stream showed in a window of at most 72 hours, from the ledger in memory, and who made it.
      *
-     * @generated from rpc planet.v1.AdminService.GetActivity
+     * @generated from rpc planet.v1.AdminService.GetLedger
      */
-    getActivity: {
-      name: "GetActivity",
-      I: GetActivityRequest,
-      O: GetActivityResponse,
+    getLedger: {
+      name: "GetLedger",
+      I: GetLedgerRequest,
+      O: GetLedgerResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * InternalService/GetTerritories, for the admin page: the tiles each country holds now.
+     *
+     * @generated from rpc planet.v1.AdminService.GetTerritories
+     */
+    getTerritories: {
+      name: "GetTerritories",
+      I: GetTerritoriesRequest,
+      O: GetTerritoriesResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * The live map streams open now, and who opened them.
+     *
+     * @generated from rpc planet.v1.AdminService.GetAudience
+     */
+    getAudience: {
+      name: "GetAudience",
+      I: GetAudienceRequest,
+      O: GetAudienceResponse,
       kind: MethodKind.Unary,
     },
   }

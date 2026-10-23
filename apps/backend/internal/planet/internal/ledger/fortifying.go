@@ -27,6 +27,10 @@ func fortifyingOfImpact(by Caller, at time.Time, flag string, fortified *clicks.
 	}
 }
 
+func (f Fortifying) By() Caller {
+	return callerOf(f.Scope, f.Account)
+}
+
 func (f Fortifying) Replay(func(Taking)) {}
 
 func (f Fortifying) Show(see func(Scene)) {

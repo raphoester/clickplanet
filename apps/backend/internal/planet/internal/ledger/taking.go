@@ -92,12 +92,17 @@ func (t Taking) Cleared() bool {
 	return t.Country == ""
 }
 
-func (t Taking) Taker() Caller {
-	if t.Account != "" {
-		return Caller{Account: t.Account}
+func (t Taking) By() Caller {
+	return callerOf(t.Scope, t.Account)
+}
+
+// An account is one caller on every scope it played from.
+func callerOf(scope, account string) Caller {
+	if account != "" {
+		return Caller{Account: account}
 	}
 
-	return Caller{Scope: t.Scope}
+	return Caller{Scope: scope}
 }
 
 func (c Caller) Made(taking Taking) bool {

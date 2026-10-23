@@ -1,28 +1,35 @@
 import {PointerEvent, useEffect, useMemo, useRef, useState} from "react"
 import {wholeOf} from "./activity.ts"
-import {colorAt, Grid, Heat, heatOf, placeOf, Rgb, rgbOf} from "./heat.ts"
+import {busiestOf, cellOf, Cells, cellsOf, colorAt, levelsOf, Picture, pictureOf, placeOf, Rgb, rgbOf} from "./heat.ts"
+import {Places} from "./places.ts"
 
+const WIDTH = 1440
 const HEAT_STOPS = ["--heat-0", "--heat-1", "--heat-2", "--heat-3"]
-// The calmest change is still drawn above the bare land.
-const FLOOR = 0.12
+// A faint glow is a tint of the land, and the land is all glow from here up.
+const FULL = 0.5
 
-export function Heatmap({grid}: {grid: Grid}) {
+type Props = {places: Places, changes: Uint32Array}
+
+export function Heatmap({places, changes}: Props) {
     const canvas = useRef<HTMLCanvasElement>(null)
-    const heat = useMemo(() => heatOf(grid), [grid])
+    const picture = useMemo(() => pictureOf(places, changes, WIDTH), [places, changes])
+    const levels = useMemo(() => levelsOf(picture), [picture])
+    const cells = useMemo(() => cellsOf(places, changes), [places, changes])
     const [hovered, setHovered] = useState<number | undefined>(undefined)
     const dark = useDarkScheme()
 
     useEffect(() => {
-        if (canvas.current !== null) draw(canvas.current, grid, heat)
-    }, [grid, heat, dark])
+        if (canvas.current !== null) draw(canvas.current, picture, levels)
+    }, [picture, levels, dark])
 
     const hover = (event: PointerEvent<HTMLCanvasElement>) => {
         const box = event.currentTarget.getBoundingClientRect()
-        const column = Math.floor(((event.clientX - box.left) / box.width) * grid.columns)
-        const row = Math.floor(((event.clientY - box.top) / box.height) * grid.rows)
-        const inside = column >= 0 && column < grid.columns && row >= 0 && row < grid.rows
-        setHovered(inside ? row * grid.columns + column : undefined)
+        const longitude = ((event.clientX - box.left) / box.width) * 360 - 180
+        const latitude = 90 - ((event.clientY - box.top) / box.height) * 180
+        setHovered(Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180 ? cellOf(latitude, longitude) : undefined)
     }
+
+    const busiest = busiestOf(cells)
 
     return (
         <section className="panel" aria-label="Where tiles changed hands">
@@ -30,41 +37,34 @@ export function Heatmap({grid}: {grid: Grid}) {
             <canvas
                 ref={canvas}
                 className="heatmap"
-                width={grid.columns}
-                height={grid.rows}
+                width={picture.width}
+                height={picture.height}
                 role="img"
-                aria-label={heat.hottest === undefined ? "No tile changed hands" : `Busiest around ${placeOf(heat.hottest, grid.columns)}`}
+                aria-label={busiest === undefined ? "No tile changed hands" : `Busiest around ${placeOf(busiest)}`}
                 onPointerMove={hover}
                 onPointerLeave={() => setHovered(undefined)}
             />
-            <p className="readout" aria-live="polite">{readoutOf(grid, heat, hovered)}</p>
-            {heat.busiest > 0 && (
-                <div className="heat-scale">
-                    <span>{rateOf(heat.calmest)}</span>
-                    <span className="heat-ramp" aria-hidden="true"/>
-                    <span>{rateOf(heat.busiest)} changes a tile</span>
+            <p className="readout" aria-live="polite">{readoutOf(cells, hovered ?? busiest, hovered === undefined)}</p>
+            {busiest !== undefined && (
+                <div className="heat-scale" aria-hidden="true">
+                    <span>Fewer changes</span>
+                    <span className="heat-ramp"/>
+                    <span>More</span>
                 </div>
             )}
         </section>
     )
 }
 
-function readoutOf(grid: Grid, heat: Heat, hovered: number | undefined): string {
-    const cell = hovered ?? heat.hottest
+function readoutOf(cells: Cells, cell: number | undefined, busiest: boolean): string {
     if (cell === undefined) return "No tile changed hands."
+    if (cells.tiles[cell] === 0) return `${placeOf(cell)}: sea`
 
-    const land = grid.land[cell] ?? 0
-    if (land === 0) return `${placeOf(cell, grid.columns)}: sea`
-
-    const line = `${placeOf(cell, grid.columns)}: ${wholeOf(grid.changes[cell] ?? 0)} changes on ${wholeOf(land)} tiles`
-    return hovered === undefined ? `Busiest: ${line}` : line
+    const line = `${placeOf(cell)}: ${wholeOf(cells.changes[cell])} changes on ${wholeOf(cells.tiles[cell])} tiles`
+    return busiest ? `Busiest: ${line}` : line
 }
 
-function rateOf(rate: number): string {
-    return rate >= 10 ? wholeOf(Math.round(rate)) : rate.toFixed(rate >= 1 ? 1 : 2)
-}
-
-function draw(canvas: HTMLCanvasElement, grid: Grid, heat: Heat) {
+function draw(canvas: HTMLCanvasElement, picture: Picture, levels: Float32Array) {
     const context = canvas.getContext("2d")
     if (context === null) return
 
@@ -73,15 +73,18 @@ function draw(canvas: HTMLCanvasElement, grid: Grid, heat: Heat) {
     const land = rgbOf(style.getPropertyValue("--map-land"))
     const stops = HEAT_STOPS.map(name => rgbOf(style.getPropertyValue(name)))
 
-    const image = context.createImageData(grid.columns, grid.rows)
-    for (let cell = 0; cell < grid.columns * grid.rows; cell++) {
-        const level = heat.levels[cell]
-        const color: Rgb = (grid.changes[cell] ?? 0) > 0
-            ? colorAt(FLOOR + (1 - FLOOR) * level, stops)
-            : (grid.land[cell] ?? 0) > 0 ? land : sea
-        image.data.set([...color, 255], cell * 4)
+    const image = context.createImageData(picture.width, picture.height)
+    for (let pixel = 0; pixel < picture.land.length; pixel++) {
+        const level = levels[pixel]
+        const color: Rgb = picture.land[pixel] === 0 ? sea
+            : level > 0 ? mix(land, colorAt(level, stops), Math.min(1, level / FULL)) : land
+        image.data.set([...color, 255], pixel * 4)
     }
     context.putImageData(image, 0, 0)
+}
+
+function mix(from: Rgb, to: Rgb, share: number): Rgb {
+    return [0, 1, 2].map(c => Math.round(from[c] + (to[c] - from[c]) * share)) as Rgb
 }
 
 // The canvas reads its colors when it draws, so it draws again when the scheme changes.

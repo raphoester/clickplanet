@@ -63,10 +63,10 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/postgres_ledger_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/publishing_ledger_storage"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/activity_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/anonymize_takes_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/ban_player_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/ban_player_usecase/audit_ban"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/excerpt_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/find_players_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/inspect_player_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/replay_usecase"
@@ -83,14 +83,15 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/click_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/drop_bomb_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/find_players_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_activity_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_allegiance_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_allegiance_handler/allegiance_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_audience_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_bonus_rules_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_budget_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_charges_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_fortresses_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_fortresses_handler/fortresses_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_ledger_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_map_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_replay_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_takes_by_country_handler"
@@ -220,8 +221,7 @@ func NewModule(config Config) cpbootstrap.Module {
 					slog.Int("subjects", bank.Subjects()))
 			}
 
-			spacing := geography.Spacing()
-			bombRules := bonuses.NewBombRules(config.Bonus.Bomb, spacing)
+			bombRules := bonuses.NewBombRules(config.Bonus.Bomb, geography.Spacing())
 
 			var clickUseCase click_usecase.IUseCase = click_usecase.New(tilesChecker, writer, countries)
 			clickUseCase = spread_click.New(clickUseCase, charges, geography, writer, registry)
@@ -262,6 +262,8 @@ func NewModule(config Config) cpbootstrap.Module {
 			}
 			pace := clicks.Pacing{Batch: adminBatch, Pause: 50 * time.Millisecond}
 
+			getTerritories := get_territories_handler.New(
+				territories_query.NewMemoryQuery(tilesStorage, config.GameMap.MaxIndex))
 			adminService := planetv1controller.AdminService{
 				ReassignCountryHandler: reassign_country_handler.New(audit_reassign.New(
 					reassign_country_usecase.New(tilesStorage, countries, pace), props.Logger)),
@@ -279,9 +281,10 @@ func NewModule(config Config) cpbootstrap.Module {
 					props.Logger)),
 				GrantChargesHandler: grant_charges_handler.New(
 					audit_grant_charges.New(grant_charges_usecase.New(charges), props.Logger)),
-				GetReplayHandler: get_replay_handler.New(replay_usecase.New(takings, tilesChecker, tilesStorage, clock)),
-				GetActivityHandler: get_activity_handler.New(activity_usecase.New(
-					takings, clicks.NewGrid(geography, spacing), tilesStorage, registry, clock), config.GameMap.MaxIndex),
+				GetReplayHandler:      get_replay_handler.New(replay_usecase.New(takings, tilesChecker, tilesStorage, clock)),
+				GetLedgerHandler:      get_ledger_handler.New(excerpt_usecase.New(takings, clock)),
+				GetTerritoriesHandler: getTerritories,
+				GetAudienceHandler:    get_audience_handler.New(registry),
 			}
 
 			if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
@@ -292,8 +295,7 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			internalService := planetv1controller.InternalService{
 				GetTakesByCountryHandler: get_takes_by_country_handler.New(takes_query.NewPostgresQuery(db)),
-				GetTerritoriesHandler: get_territories_handler.New(
-					territories_query.NewMemoryQuery(tilesStorage, config.GameMap.MaxIndex)),
+				GetTerritoriesHandler:    getTerritories,
 			}
 			if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 				return planetv1connect.NewInternalServiceHandler(internalService, options...)

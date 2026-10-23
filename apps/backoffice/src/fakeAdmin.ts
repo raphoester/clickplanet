@@ -13,15 +13,14 @@ import {
     RemoveMessageResponse,
 } from "./gen/grpc/chat/v1/admin_pb.ts"
 import {
-    ActivityHeatmap,
-    ActivitySlot,
     BanPlayerRequest,
     BanPlayerResponse,
-    CountryActivity,
     FindPlayersRequest,
     FindPlayersResponse,
-    GetActivityRequest,
-    GetActivityResponse,
+    GetAudienceRequest,
+    GetAudienceResponse,
+    GetLedgerRequest,
+    GetLedgerResponse,
     GetReplayRequest,
     GetReplayResponse,
     GrantChargesRequest,
@@ -40,6 +39,7 @@ import {
     UnbanPlayerRequest,
     UnbanPlayerResponse,
 } from "./gen/grpc/planet/v1/admin_pb.ts"
+import {GetTerritoriesRequest, GetTerritoriesResponse, Territory} from "./gen/grpc/planet/v1/internal_pb.ts"
 import {ChargesHeld} from "./gen/grpc/planet/v1/planet_pb.ts"
 import {
     AdminGetPlayerRequest,
@@ -127,26 +127,27 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
     ]
 
     reports = [new Report({id: "report-1", reporterAccountId: "account-reporter", reportedAccountId: "account-reported"})]
-    // A day of 15-minute slots, the last one still filling, and one cell of the map changing hands on 4 tiles.
-    activity = new GetActivityResponse({
-        since: Timestamp.fromDate(new Date(AT.getTime() - 95 * 900_000)),
-        until: Timestamp.fromDate(new Date(AT.getTime() + 300_000)),
-        step: new Duration({seconds: 900n}),
-        slots: Array.from({length: 96}, (_, i) => new ActivitySlot({clicks: 10 + (i % 8), tiles: 12, players: 3})),
-        players: 42,
-        heatmap: new ActivityHeatmap({
-            columns: 360, rows: 180,
-            land: Uint8Array.from({length: 360 * 180}, (_, cell) => cell === 44 * 360 + 182 ? 4 : 0),
-            changes: Array.from({length: 360 * 180}, (_, cell) => cell === 44 * 360 + 182 ? 30 : 0),
-        }),
-        countries: [
-            new CountryActivity({countryId: "fr", held: 1200, won: 300, lost: 40}),
-            new CountryActivity({countryId: "dz", held: 800, won: 50, lost: 290}),
-        ],
-        streams: 38,
-        watchers: 25,
-        mapTiles: 262119,
+    // Four clicks of BraveFox42 (three taken, one struck), and a tile a guest's spread took back from France.
+    ledger = new GetLedgerResponse({
+        since: Timestamp.fromDate(new Date(AT.getTime() - 3600_000)),
+        until: Timestamp.fromDate(AT),
+        countries: ["", "fr", "dz"],
+        accounts: ["", ACCOUNT],
+        scopes: ["", "203.0.113.7"],
+        at: [60_000, 120_000, 180_000, 240_000, 300_000],
+        tile: [1, 2, 2, 3, 4],
+        owner: [1, 1, 2, 2, 1],
+        previous: [0, 2, 1, 2, 2],
+        shields: [0, 0, 0, 2, 0],
+        clicked: new Uint8Array([1, 1, 0, 1, 1]),
+        account: [1, 1, 0, 1, 1],
+        scope: [0, 0, 1, 0, 0],
     })
+    territories = new GetTerritoriesResponse({
+        tiles: 262119,
+        territories: [new Territory({countryId: "fr", tiles: 1200}), new Territory({countryId: "dz", tiles: 800})],
+    })
+    audience = new GetAudienceResponse({streams: 38, entrants: 25})
     roster = [
         new RosterEntry({key: "1", accountId: ACCOUNT, name: "BraveFox42", countryId: "fr"}),
         new RosterEntry({key: "2", accountId: "account-guest", name: "guest_a1b2c3", countryId: "dz", guest: true}),
@@ -256,8 +257,16 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         }))
     }
 
-    getActivity(request: PartialMessage<GetActivityRequest>): Promise<GetActivityResponse> {
-        return this.answer("getActivity", request, this.activity)
+    getLedger(request: PartialMessage<GetLedgerRequest>): Promise<GetLedgerResponse> {
+        return this.answer("getLedger", request, this.ledger)
+    }
+
+    getTerritories(request: PartialMessage<GetTerritoriesRequest>): Promise<GetTerritoriesResponse> {
+        return this.answer("getTerritories", request, this.territories)
+    }
+
+    getAudience(request: PartialMessage<GetAudienceRequest>): Promise<GetAudienceResponse> {
+        return this.answer("getAudience", request, this.audience)
     }
 
     getRoster(request: PartialMessage<GetRosterRequest>): Promise<GetRosterResponse> {

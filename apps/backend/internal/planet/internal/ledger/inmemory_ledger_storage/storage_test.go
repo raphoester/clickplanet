@@ -236,6 +236,8 @@ func TestBombingsSpanChunks(t *testing.T) {
 
 type unwritable struct{}
 
+func (unwritable) By() ledger.Caller { return ledger.Caller{Scope: "a"} }
+
 func (unwritable) Replay(func(ledger.Taking)) {}
 
 func (unwritable) Show(func(ledger.Scene)) {}

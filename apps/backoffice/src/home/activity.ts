@@ -1,46 +1,14 @@
-import {Duration, Timestamp} from "@bufbuild/protobuf"
-import {CountryActivity, GetActivityResponse} from "../gen/grpc/planet/v1/admin_pb.ts"
-
-export type Span = {hours: number, label: string}
+export type Span = {hours: number, label: string, step: number}
 
 export const SPANS: Span[] = [
-    {hours: 6, label: "6 hours"},
-    {hours: 24, label: "24 hours"},
-    {hours: 72, label: "3 days"},
+    {hours: 6, label: "6 hours", step: 5 * 60_000},
+    {hours: 24, label: "24 hours", step: 15 * 60_000},
+    {hours: 72, label: "3 days", step: 3600_000},
 ]
 
 export const FIRST_SPAN = SPANS[1]
 
-export function durationOf(span: Span): Duration {
-    return new Duration({seconds: BigInt(span.hours * 3600)})
-}
-
 export type Slot = {start: Date, end: Date, clicks: number, tiles: number, players: number, filling: boolean}
-
-export function slotsOf(activity: GetActivityResponse): Slot[] {
-    const since = dateOf(activity.since)
-    const until = dateOf(activity.until)
-    const step = millisOf(activity.step)
-
-    return activity.slots.map((slot, i) => {
-        const start = new Date(since.getTime() + i * step)
-        const end = new Date(start.getTime() + step)
-        return {start, end, clicks: slot.clicks, tiles: slot.tiles, players: slot.players, filling: end > until}
-    })
-}
-
-export function stepOf(activity: GetActivityResponse): number {
-    return millisOf(activity.step)
-}
-
-function dateOf(at: Timestamp | undefined): Date {
-    return at === undefined ? new Date(0) : at.toDate()
-}
-
-function millisOf(duration: Duration | undefined): number {
-    if (duration === undefined) return 0
-    return Number(duration.seconds) * 1000 + duration.nanos / 1e6
-}
 
 export function ticksOf(highest: number): number[] {
     if (highest <= 0) return [0, 1]
@@ -94,15 +62,4 @@ export type Totals = {clicks: number, tiles: number}
 
 export function totalsOf(slots: Slot[]): Totals {
     return slots.reduce((sum, slot) => ({clicks: sum.clicks + slot.clicks, tiles: sum.tiles + slot.tiles}), {clicks: 0, tiles: 0})
-}
-
-export type Order = "held" | "won" | "lost"
-
-export function countriesBy(countries: CountryActivity[], order: Order): CountryActivity[] {
-    if (order === "held") return countries
-    return [...countries].sort((a, b) => b[order] - a[order] || b.held - a.held)
-}
-
-export function heldOf(countries: CountryActivity[]): number {
-    return countries.reduce((sum, country) => sum + country.held, 0)
 }

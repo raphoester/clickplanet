@@ -365,9 +365,8 @@ internal/planet/internal/
   port: `Board` (which tile ids exist), `Toll` (what a click costs), `Outcome` and
   `Shielding` (what a click does to a tile and its shields), `Claiming` (a player's
   click written: the strike, then the owner it leaves, as an `Impact`), `Pacing` (how an
-  operator's bulk change is spread out), `Geography`, `Borders` and `Grid` (the map on a grid of latitudes and
-  longitudes, for counting where things happen).
-- **`ledger/`** — every act of a player on the map, oldest first. Its root holds `Event` and its kinds (`Taking`, `Striking`, `Spreading`, `Enclosing`, `Bombing`, `Shielding`), `Entry`, `Scene`, `Footage`, `Activity`, `Player`, `Tally`, `Runs`,
+  operator's bulk change is spread out), `Geography` and `Borders`.
+- **`ledger/`** — every act of a player on the map, oldest first. Its root holds `Event` and its kinds (`Taking`, `Striking`, `Spreading`, `Enclosing`, `Bombing`, `Shielding`), `Entry`, `Scene`, `Footage`, `Excerpt`, `Player`, `Tally`, `Runs`,
   the `Storage` port, `Recording` (the tile writer that records each act) and `Retention`. `FindPlayers`, `TopPlayers`, `BanPlayer`, `UnbanPlayer` and
   `RevertPlayer` live here: they are one moderation workflow — find, ban, undo.
   **The postgres copy is the whole history**: the memory keeps 72h, while `ledger_events` keeps every event and
@@ -421,7 +420,7 @@ because it serves every concept over one Connect service. It only maps.
 | `ledger/usecases/revert_player_usecase` | gives back what one caller still holds | `Ledger`, `Map` |
 | `ledger/usecases/anonymize_takes_usecase` | flushes the ledger, then takes a deleted account off every take postgres keeps | `Ledger`, `Takes` |
 | `ledger/usecases/replay_usecase` | the map as it was at a time, and every act on it since | `Ledger`, `MaxIndexReader`, `DenseMapReader`, `Clock` |
-| `ledger/usecases/activity_usecase` | what players did over a span back from now, slot by slot and on a grid of the map, and the map now | `Ledger`, `Grid`, `Territories`, `Audience`, `Clock` |
+| `ledger/usecases/excerpt_usecase` | every change the live stream showed in a window, and who made it | `Ledger`, `Clock` |
 | `bonuses/usecases/claim_bonus_usecase` | redeems a box | `Registry`, `Charger` |
 | `bonuses/usecases/drop_bomb_usecase` | spends a bomb where it was aimed | `Bombs`, `Map`, `Clearer` |
 | `bonuses/usecases/get_charges_usecase` | what the caller holds | `Charges` |
@@ -3460,27 +3459,30 @@ stream sent it. The frontend's clip generator plays it back (see its CLAUDE.md, 
 - **Nothing in it names a player**: no scope and no account goes out, as on the live stream.
 - A day of production is about 40,000 events, a few MB of JSON.
 
-#### `GetActivity`
+#### `GetLedger`, `GetTerritories`, `GetAudience`
 
-`GetActivity(span)` runs `ledger/usecases/activity_usecase`, for the admin page's home: what players did on the map
-over a span back from now, and the map as it is now. It changes nothing and logs nothing.
+**What the admin page's home reads, none of it shaped for it**: the page counts, charts and draws on its own side
+(`apps/backoffice`'s `CLAUDE.md`, "The home page"), so a new view of the game needs no new endpoint.
 
-- **The span is cut into slots** (`ledger.Activity`): 5 minutes up to 6 hours, 15 up to a day, an hour up to 72
-  hours, the ledger's retention. No span is a day; past 72 hours, or nothing, is `InvalidArgument`
-  (`ledger.ErrInvalidSpan`). The slots start on their step, so the last one is still filling.
-- **Each slot counts three things**: the clicks that took a tile or struck a shield (a `Scene` the click marked,
-  read through `Event.Show`, so no kind is asked), the tiles that changed hands (every `Taking` the events replay: a
-  spread's, an enclosure's and a bomb's included), and the accounts, or addresses with no account, that took one.
-- **Each country's tiles won and lost by play** in the span, beside what it holds now (`Territories`). A reassign, a
-  paint and a revert write no event, so they move what it holds and not what it won.
-- **Where tiles changed hands is a grid of one cell per degree** (`clicks.Grid`, built once at boot from the
-  geography, ~30ms): row 0 is the north pole, column 0 is 180° west, and longitudes come from the map's own convention
-  (`atan2(z, -x)`). A tile is drawn in every cell its disc covers, a little wider than half the spacing, so a tile far
-  north covers the longitudes it stretches over and no cell of land is left empty. `land` is the tiles drawn in each
-  cell (a byte, at most 255; 59 on the real map), `changes` how often they changed hands.
-- **The map streams open now** (`streams`), and the accounts or networks that opened them (`watchers`), from the bonus
-  registry (`bonuses.Audience`): every `ListenForEvents` attends it, a tab each.
-- It reads memory, like the other tools here: 72 hours at most.
+- **`GetLedger(since, until)`** runs `ledger/usecases/excerpt_usecase`: every change the live stream showed in the
+  window, oldest first, and who made it (`ledger.Excerpt`, through `Event.Show` and `Event.By`, so no kind is
+  asked). A click that took a tile or struck its shield is marked `clicked`; a tile a spread, an enclosure or a bomb
+  took or emptied, and a shield placed or raised, are changes of their own. A shield a bomb struck is left out: it
+  changed no hands, and the blast does not say whose tile it stood on.
+  - **Who** is the account, or for a change with no account its address, as every operator tool names a player.
+    It names addresses, so it is an operator's read only: never the replay, which goes into the clips' public
+    artifacts and names nobody.
+  - **In columns**, each string once: the countries, accounts and addresses are tables, and each change is an index
+    of every column (its time in milliseconds after `since`, its tile, its flag after and before, its shields, a
+    byte for `clicked`, and who). About 35 bytes a change in JSON before Caddy compresses it: a day of production,
+    about 50,000 changes, is under 2 MB.
+  - **A window of 72 hours at most**, the ledger's memory, and `since` before `until` (unset: now); anything else is
+    `InvalidArgument` (`excerpt_usecase.ErrInvalidWindow`). It reads memory, changes nothing and logs nothing.
+- **`GetTerritories`** is the internal service's, handler and all: the tiles each country holds now, and the map's
+  size.
+- **`GetAudience`**: the map streams open now, and the entrants that opened them (`bonuses.Audience`): every
+  `ListenForEvents` attends the bonus registry, a tab each, and an entrant is a signed-in account or the guests
+  behind one network.
 
 #### `PaintRandomTiles`
 

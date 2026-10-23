@@ -4,6 +4,7 @@ package planet.v1;
 
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
+import "planet/v1/internal.proto";
 import "planet/v1/planet.proto";
 
 // No authentication of its own: served on the console listener, and on the admin listener behind its gate. Never the public router.
@@ -28,58 +29,54 @@ service AdminService {
 
   rpc GetReplay(GetReplayRequest) returns (GetReplayResponse);
 
-  // What players did on the map over a span back from now, from the ledger in memory, and the map as it is now.
-  rpc GetActivity(GetActivityRequest) returns (GetActivityResponse);
+  // Every change the live stream showed in a window of at most 72 hours, from the ledger in memory, and who made it.
+  rpc GetLedger(GetLedgerRequest) returns (GetLedgerResponse);
+
+  // InternalService/GetTerritories, for the admin page: the tiles each country holds now.
+  rpc GetTerritories(GetTerritoriesRequest) returns (GetTerritoriesResponse);
+
+  // The live map streams open now, and who opened them.
+  rpc GetAudience(GetAudienceRequest) returns (GetAudienceResponse);
 }
 
-message GetActivityRequest {
-  // Unset is 24 hours; at most 72 hours, the ledger's retention.
-  google.protobuf.Duration span = 1;
+message GetLedgerRequest {
+  google.protobuf.Timestamp since = 1;
+  // Unset is now.
+  google.protobuf.Timestamp until = 2;
 }
 
-message GetActivityResponse {
-  // The start of the first slot. The last slot ends at `until`, and is still filling.
+// One change per index of every column, oldest first: a click that took a tile or struck its shield, a tile a spread,
+// an enclosure or a bomb took or emptied, or a shield placed or raised. A shield a bomb struck is left out: it changed
+// no hands.
+message GetLedgerResponse {
   google.protobuf.Timestamp since = 1;
   google.protobuf.Timestamp until = 2;
-  google.protobuf.Duration step = 3;
-  // Oldest first, one per step.
-  repeated ActivitySlot slots = 4;
-  // The accounts, and the addresses with no account, that took a tile in the span.
-  uint32 players = 5;
-  ActivityHeatmap heatmap = 6;
-  // Every country that holds a tile now, or won or lost one in the span: most held first.
-  repeated CountryActivity countries = 7;
-  // The live map streams open now, and the accounts or networks they are opened by.
-  uint32 streams = 8;
-  uint32 watchers = 9;
-  uint32 map_tiles = 10;
+  // The strings the columns index. Index 0 of each is "": no flag, no account, no address.
+  repeated string countries = 3;
+  repeated string accounts = 4;
+  repeated string scopes = 5;
+
+  // Milliseconds after since.
+  repeated uint32 at = 6;
+  repeated uint32 tile = 7;
+  // The tile's flag after the change and before it, as indexes of countries.
+  repeated uint32 owner = 8;
+  repeated uint32 previous = 9;
+  // The tile's shields after the change.
+  repeated uint32 shields = 10;
+  // One byte a change: 1 for the tile a click named.
+  bytes clicked = 11;
+  // Who made it: its account, or for a change with no account its address, as indexes of accounts and scopes.
+  repeated uint32 account = 12;
+  repeated uint32 scope = 13;
 }
 
-message ActivitySlot {
-  // Clicks that took a tile or struck a shield.
-  uint32 clicks = 1;
-  // Tiles that changed hands: by a click, a spread, an enclosure or a bomb.
-  uint32 tiles = 2;
-  // The accounts, and the addresses with no account, that took a tile in the slot.
-  uint32 players = 3;
-}
+message GetAudienceRequest {}
 
-// A grid of latitudes and longitudes: row 0 is the north pole, column 0 is 180° west, one cell per degree.
-message ActivityHeatmap {
-  uint32 columns = 1;
-  uint32 rows = 2;
-  // One byte per cell, row by row: the tiles drawn in it, at most 255. A tile far north or south is drawn in each cell it covers.
-  bytes land = 3;
-  // Per cell, row by row: how often a tile drawn in it changed hands in the span.
-  repeated uint32 changes = 4;
-}
-
-message CountryActivity {
-  string country_id = 1;
-  uint32 held = 2;
-  // Tiles taken for it, and from it, in the span. A reassign, a paint and a revert are not counted.
-  uint32 won = 3;
-  uint32 lost = 4;
+message GetAudienceResponse {
+  uint32 streams = 1;
+  // A signed-in account, or the guests behind one network, each opening one stream or more.
+  uint32 entrants = 2;
 }
 
 message GetReplayRequest {

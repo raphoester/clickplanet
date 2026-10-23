@@ -10,6 +10,7 @@ build time:
 | --- | --- | --- |
 | frontend | `apps/frontend/static/<blob>`, fetched at runtime | `npm run map` |
 | backend | `apps/backend/generated/map/<blob>`, embedded | `make map` |
+| backoffice | `apps/backoffice/src/gen/map/coordinates-<hash>.bin` alone, bundled by Vite | `npm run map` |
 
 All three copies of each blob are committed and byte-identical, so git stores the bytes once.
 
