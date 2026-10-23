@@ -91,10 +91,13 @@ an `auth.secret` (`openssl rand -hex 32`). Postgres on `localhost:5432`. Then
 
 ## The menu
 
-**A burger at the top left opens a drawer from the left** (`components/Menu`), at every width: every page under
-its group, the page shown marked. `MENU` in `navigation.ts` is the only list of pages, and a page's label is its
-title (`titleOf`), shown above it. `Console` in `App.tsx` shows the page picked.
+**A burger at the top left opens a drawer from the left** (`components/Menu`) below 1024px: every page under its
+group, the page shown marked. **From 1024px the same list stays open in a sidebar** (`Sidebar`), with no burger,
+so a page is one click away (`useWide`, which follows the window as it is resized). `MENU` in `navigation.ts` is
+the only list of pages, and a page's label is its title (`titleOf`), shown above it. `Console` in `App.tsx` shows
+the page picked.
 
+- **The sidebar stays in place while the page scrolls**, and is not modal: nothing traps the focus or closes it.
 - **The drawer is modal**: it takes the focus to the page shown, keeps Tab inside it, and closes on Escape, its
   close button, a click beside it or a page picked, giving the focus back to the burger. The page behind does not
   scroll while it is open.
@@ -293,11 +296,12 @@ src/
   useCall.ts        one call's state, run on mount
   useAction.ts      one read's state, run on a click
   usePage.ts        the page shown, kept in the address bar
+  useWide.ts        whether the window is wide enough for the sidebar
   navigation.ts     MENU, the pages by group, and OpenPlayer
   countries.ts      a country id's name and its flag
   App.tsx           the callback, or WhoAmI first, then the page the menu picked
   signIn/           callbackOf, SignInButton, SignInCallback, SignOutButton
-  components/       Menu, ConfirmAction, FailureNotice, AccountId and Copyable (with Copy), Country, CountryField,
+  components/       Menu and Sidebar, ConfirmAction, FailureNotice, AccountId and Copyable (with Copy), Country, CountryField,
                     Fact, Person, When
   support/          Ideas and bugs: NoteList, Attachments, labels.ts (names, outcomes, device lines, sizes)
   chat/             Conversation and TheirMessages, which reports/ and players/ show, over chatPages.ts (a page of
