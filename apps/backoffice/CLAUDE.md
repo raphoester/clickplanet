@@ -198,7 +198,8 @@ address over IPv4, the /64 over IPv6) and checks.
 
 - **The list** (`PlayerList`): `TopPlayers` (most takes first, then most tiles held), or **By flag**,
   `FindPlayers` with a flag and an optional ground. 20 by default, up to 500. Each row of the ledger's 72 hours is
-  one account on one address, with its takes, the tiles it still holds and their share of its takes (many takes
+  one account on every address it took from, shown with the address of its latest take (or one address, for takes
+  with no account), with its takes, the tiles it still holds and their share of its takes (many takes
   and few tiles is a player painted over as fast as it paints), its rates and any ban. The list is read again on
   the way back from a player, as the reports are.
 - **A row is shown by its flag and its name, never its account id** (`PlayerName`): the flag it took the most tiles
