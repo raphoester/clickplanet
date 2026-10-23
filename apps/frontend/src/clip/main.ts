@@ -35,7 +35,7 @@ import {mulberry32} from "../app/viewer/stars.ts"
 import {installVirtualClock} from "./virtualClock.ts"
 import {createOverlay, hashtagsOf, nameOf, placeName, wordsOf} from "./overlay.ts"
 import {shortlistOf} from "./shortlist.ts"
-import {featuresOf} from "./features.ts"
+import {clipRecordOf} from "./clipRecord.ts"
 import {dayOf} from "./race.ts"
 
 export type Recording = {
@@ -477,8 +477,8 @@ async function choose(): Promise<Chosen> {
         const flagTilesAtEnd = [...ownersAfter(backend.opening, backend.changes())]
             .filter(([tile, owner]) => inArea(tile) && sideOf(owner) === key.flag).length
         const effects = backend.effects().filter(({tile}) => inSight(tile))
-        const features = featuresOf({
-            story, seconds: timeline.seconds, music, look: world ? undefined : look, since: backend.since, until: backend.until,
+        const clipRecord = clipRecordOf({
+            story, generator: params.get("commit") ?? "", seconds: timeline.seconds, music, look: world ? undefined : look, since: backend.since, until: backend.until,
             tilesChanged: changes.length, storyTilesChanged: front.changes.length, placeTiles,
             flagTiles: {start: opening.get(key.flag) ?? 0, end: flagTilesAtEnd}, landmassesFlipped: flips.length,
             bombs: drops.length, spreads: effects.filter(({kind}) => kind === "spread").length,
@@ -506,7 +506,8 @@ async function choose(): Promise<Chosen> {
             teasers: words.teasers,
             clip: new Clip({
                 pick, title: words.headline, key, teasers: words.teasers,
-                countries: hashtags.countries, continentTag: hashtags.continent ?? "", credit: music?.credit ?? "", features,
+                countries: hashtags.countries, continentTag: hashtags.continent ?? "", credit: music?.credit ?? "", record: clipRecord,
+                teaserNames: words.teaserNames,
             }).toJson(),
             music,
         }

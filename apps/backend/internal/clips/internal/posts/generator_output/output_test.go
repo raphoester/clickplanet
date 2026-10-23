@@ -146,14 +146,12 @@ func TestAFolderGivesEachClipWithItsVideo(t *testing.T) {
 	}, clips[0].TakeSnapshot())
 }
 
-func TestAClipKeepsWhatItWasAndOneWrittenBeforeThatHasNothing(t *testing.T) {
+func TestAClipKeepsWhatItWasAndTheNamesOfItsTeasersAndOneWrittenBeforeThatHasNeither(t *testing.T) {
 	folder := t.TempDir()
-	// As the generator writes it: a value at its zero, a tour's stops here, is left out.
 	write(t, folder, "clip-1.json", `{"pick": 1, "title": "FRANCE VS PALAU", "key": {"flag": "fr", "continent": "Europe"},
-		"teasers": ["FRANCE TAKES ON PALAU"], "features": {"durationSeconds": 12.37, "music": "fr", "musicStartSeconds": 31.25,
-		"camera": "front", "look": "dive", "storyKind": "battle", "spanMinutes": 120.3, "tilesChanged": 1480,
-		"storyTilesChanged": 1210, "placeTiles": 6120, "flagTilesStart": 2900, "flagTilesEnd": 3640, "landmassesFlipped": 2,
-		"bombs": 3, "spreads": 41, "enclosures": 1, "screensCrossed": 2.46, "language": "en", "solidity": 0.91}}`)
+		"teasers": ["WAR FOR FRANCE: FRANCE VS PALAU", "FRANCE AND PALAU FIGHT FOR FRANCE"], "teaserNames": ["war-for", "fight-for"],
+		"record": {"format": "globe-replay", "generator": "8dc31d2", "common": {"durationSeconds": 12.37, "music": "fr"},
+		"globe": {"camera": "front", "tilesChanged": 1480}, "addedLater": true}}`)
 	write(t, folder, "clip-1.mp4", "the video")
 	write(t, folder, "clip-2.json", writtenClip)
 	write(t, folder, "clip-2.mp4", "the video")
@@ -162,13 +160,12 @@ func TestAClipKeepsWhatItWasAndOneWrittenBeforeThatHasNothing(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Len(t, clips, 2)
-	assert.Equal(t, posts.Features{
-		DurationSeconds: 12.37, Music: "fr", MusicStartSeconds: 31.25, Camera: "front", Look: "dive", StoryKind: "battle",
-		SpanMinutes: 120.3, TilesChanged: 1480, StoryTilesChanged: 1210, PlaceTiles: 6120, FlagTilesStart: 2900,
-		FlagTilesEnd: 3640, LandmassesFlipped: 2, Bombs: 3, Spreads: 41, Enclosures: 1, ScreensCrossed: 2.46, Language: "en",
-		Solidity: 0.91,
-	}, clips[0].TakeSnapshot().Features)
-	assert.False(t, clips[1].TakeSnapshot().Features.Recorded())
+	named := clips[0].TakeSnapshot()
+	assert.Equal(t, []string{"war-for", "fight-for"}, named.TeaserNames)
+	assert.JSONEq(t, `{"format": "globe-replay", "generator": "8dc31d2", "common": {"durationSeconds": 12.37, "music": "fr"},
+		"globe": {"camera": "front", "tilesChanged": 1480}}`, string(named.Record))
+	assert.Empty(t, clips[1].TakeSnapshot().TeaserNames)
+	assert.Empty(t, clips[1].TakeSnapshot().Record)
 }
 
 func TestAFolderWithNoClipGivesNone(t *testing.T) {

@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package clips.v1;
 
+import "google/protobuf/timestamp.proto";
+
 message Shortlist {
   // Best first: a story's place, from 1, is what the generator's --pick takes.
   repeated Story stories = 1;
@@ -28,51 +30,91 @@ message Clip {
   string continent_tag = 8;
   // What the licence of the clip's music asks the caption to say; empty when none.
   string credit = 9;
-  // What the generator chose and what the clip shows, kept with the post and never published: what a clip was, to set
-  // beside how its post did. Absent from a clip written before it.
-  ClipFeatures features = 10;
+  // What the clip was, as the generator made it: the job keeps it with the post and never publishes it.
+  ClipRecord record = 10;
+  // The name of each teaser's wording, in the same order: "invades", "under-attack-from".
+  repeated string teaser_names = 11;
 }
 
-// One flat value a field, each in the unit its name says, so each is a column. What the generator knows, never a guess.
-message ClipFeatures {
+// What a clip was, to set beside how its post did. Every code is a word that says what it means; a number is a quantity
+// in the unit its name says. Additive only: a change that is not is a new message, under a new name.
+message ClipRecord {
+  // What kind of video it is, which names the section below that describes it: "globe-replay" (globe).
+  string format = 1;
+  // The commit of this repository that made it, or "unknown".
+  string generator = 2;
+  // What every format has.
+  ClipCommon common = 3;
+  GlobeReplay globe = 4;
+  // The arm of each experiment the clip is in, by experiment: {"end-card": "podium"}. Empty while none runs.
+  map<string, string> variants = 5;
+}
+
+message ClipCommon {
   // The whole clip, call to act included.
   double duration_seconds = 1;
-  // The country code of the anthem under the clip ("fr", "eu" for Europe's); empty when it plays none.
+  // The country code of the anthem under the clip ("fr", "eu" for Europe's), or "none".
   string music = 2;
   // Where in the anthem the clip starts it.
   double music_start_seconds = 3;
+  // The language of its words: "en", or the country's own for a call-up ("pl").
+  string language = 4;
+}
+
+// The game's own globe playing back a stretch of the replay.
+message GlobeReplay {
   // "front" follows the fighting of one place, "tour" flies over the continents of a flag taking the world.
-  string camera = 4;
-  // When a front's camera comes back out of the tiles: "dive" at the end, "flags" halfway. Empty on a tour.
-  string look = 5;
+  string camera = 1;
+  // When a front's camera comes back out of the tiles: "dive" at the end, "flags" halfway; "none" on a tour.
+  string look = 2;
   // What the story is, finer than its key's angle: "attack", "invasion", "comeback", "kickout", "rout", "battle",
   // "holding", "round", "callup".
-  string story_kind = 6;
+  string story_kind = 3;
   // How much of the replay's time the clip plays, quiet stretches included.
-  double span_minutes = 7;
+  double span_minutes = 4;
   // Every tile that changed hands in that time, where the story is told (a bomb's cleared tiles too).
-  uint32 tiles_changed = 8;
+  uint32 tiles_changed = 5;
   // The changes the camera follows: the story's own fighting.
-  uint32 story_tiles_changed = 9;
+  uint32 story_tiles_changed = 6;
   // The size of the place the headline names and the counter counts in: a country, two, a continent or the world.
-  uint32 place_tiles = 10;
+  uint32 place_tiles = 7;
   // The tiles the key's flag holds in the place when the clip starts and when it ends: the counter.
-  uint32 flag_tiles_start = 11;
-  uint32 flag_tiles_end = 12;
+  uint32 flag_tiles_start = 8;
+  uint32 flag_tiles_end = 9;
   // Landmasses whose painted flag changed in the clip: what can be seen changing from far.
-  uint32 landmasses_flipped = 13;
+  uint32 landmasses_flipped = 10;
   // The effects played in sight of the story: a bomb going off, a spread click, a shape closed.
-  uint32 bombs = 14;
-  uint32 spreads = 15;
-  uint32 enclosures = 16;
+  uint32 bombs = 11;
+  uint32 spreads = 12;
+  uint32 enclosures = 13;
   // How far the camera travels up close, in screens; 0 on a tour.
-  double screens_crossed = 17;
+  double screens_crossed = 14;
   // The continents a tour stops at; 0 for a front.
-  uint32 tour_stops = 18;
-  // The language the clip's words are in: "en", or the country's own for a call-up ("pl").
-  string language = 19;
+  uint32 tour_stops = 15;
   // How solid the land taken is, from 0 (lines drawn on the map) to 1 (land taken whole).
-  double solidity = 20;
+  double solidity = 16;
+}
+
+// What the job keeps with a post in its Zernio metadata, under "record", written by protojson: what the clip was, and
+// what the job made of it. Never published, never read back by the job.
+message PostRecord {
+  // Which message this document is: "clips.v1.PostRecord".
+  string schema = 1;
+  // Absent for a clip written before the generator kept one.
+  ClipRecord clip = 2;
+  PostFacts post = 3;
+}
+
+message PostFacts {
+  // The name of the teaser the caption opens with ("invades"), or "unnamed" for a clip whose teasers have none.
+  string teaser = 1;
+  // The call to act the caption ends with ("join-the-battle").
+  string call_to_action = 2;
+  // When the job scheduled it: the dashboard can move the post, this does not move.
+  google.protobuf.Timestamp scheduled_at = 3;
+  // Its place in its run, from 1, in the order the run's posts go out, and how many the run has.
+  uint32 run_position = 4;
+  uint32 run_size = 5;
 }
 
 message TaggedCountry {

@@ -13,6 +13,9 @@ export type Words = {
     link: string
     // The headline said in other words, for the caption: the posting job picks one.
     teasers: string[]
+    // The name of each teaser's wording, in the same order: the same for every flag and every language, so the posts
+    // can be compared by it ("invades", "under-attack-from").
+    teaserNames: string[]
     table?: Standing[]
     when?: string
     speech?: Speech
@@ -123,7 +126,10 @@ export function hashtagsOf(story: Story): Hashtags {
     }
 }
 
-const loud = (lines: string[]) => lines.map((line) => line.toUpperCase())
+const named = (teasers: [name: string, line: string][]) => ({
+    teasers: teasers.map(([, line]) => line.toUpperCase()),
+    teaserNames: teasers.map(([name]) => name),
+})
 
 export function wordsOf(story: Story, headline?: string): Words {
     if (story.kind === "callup") return callUpWordsOf(story, {nameOf, said}, headline)
@@ -145,10 +151,11 @@ export function wordsOf(story: Story, headline?: string): Words {
             call: world ? "FIGHT BACK" : `TAKE ${place} BACK`.toUpperCase(),
             callFlags: world ? [] : placeFlags(story.place),
             link: country === undefined ? SITE : `${SITE}/?f=${country}`,
-            teasers: loud([
-                `${percent} of ${place} flies the flag of ${attacker}`,
-                world ? `the biggest empire on earth: ${attacker}`
-                    : share >= 0.5 ? `${attacker} rules ${place}` : `${attacker} is the biggest power in ${place}`,
+            ...named([
+                ["flies-the-flag-of", `${percent} of ${place} flies the flag of ${attacker}`],
+                world ? ["biggest-empire-on-earth", `the biggest empire on earth: ${attacker}`]
+                    : share >= 0.5 ? ["rules", `${attacker} rules ${place}`]
+                        : ["biggest-power-in", `${attacker} is the biggest power in ${place}`],
             ]),
         }
     }
@@ -166,7 +173,7 @@ export function wordsOf(story: Story, headline?: string): Words {
             call: day.finale ? "PLAY FOR YOUR COUNTRY" : `WHO WINS DAY ${day.number + 1}?`,
             callFlags: [],
             link: SITE,
-            teasers: loud([`${attacker} takes ${won}`, `${won} goes to ${attacker}`]),
+            ...named([["takes-the-day", `${attacker} takes ${won}`], ["day-goes-to", `${won} goes to ${attacker}`]]),
         }
     }
 
@@ -182,10 +189,11 @@ export function wordsOf(story: Story, headline?: string): Words {
             call: sides.length === 2 ? "PICK A SIDE" : `FIGHT FOR ${loser}`.toUpperCase(),
             callFlags: sides,
             link: sides.length === 2 ? SITE : `${SITE}/?f=${sides[0]}`,
-            teasers: loud(ownCountry ? [`the fall of ${loser}`, `${loser} collapses`]
-                : home ? [`${loser} loses ground in ${place}`, `${loser} is in trouble in ${place}`]
-                    : takerAtHome ? [`${attacker} retakes its land from ${loser}`, `generational downfall of ${loser}`]
-                        : [`generational downfall of ${loser}`, `${loser} loses ${place}`]),
+            ...named(ownCountry ? [["the-fall-of", `the fall of ${loser}`], ["collapses", `${loser} collapses`]]
+                : home ? [["loses-ground-in", `${loser} loses ground in ${place}`], ["in-trouble-in", `${loser} is in trouble in ${place}`]]
+                    : takerAtHome ? [["retakes-its-land-from", `${attacker} retakes its land from ${loser}`],
+                        ["generational-downfall", `generational downfall of ${loser}`]]
+                        : [["generational-downfall", `generational downfall of ${loser}`], ["loses-place", `${loser} loses ${place}`]]),
         }
     }
 
@@ -197,8 +205,8 @@ export function wordsOf(story: Story, headline?: string): Words {
             call: `FIGHT FOR ${team}`.toUpperCase(),
             callFlags: sides,
             link: SITE,
-            teasers: loud(victim === undefined ? [`${team} fights back`, `${team} unites`]
-                : [`${team} unites against ${victim}`, `${team} fights back against ${victim}`]),
+            ...named(victim === undefined ? [["fights-back", `${team} fights back`], ["unites", `${team} unites`]]
+                : [["unites-against", `${team} unites against ${victim}`], ["fights-back-against", `${team} fights back against ${victim}`]]),
         }
     }
 
@@ -212,9 +220,9 @@ export function wordsOf(story: Story, headline?: string): Words {
             call: "PICK A SIDE",
             callFlags: sides,
             link: SITE,
-            teasers: loud(story.kind === "kickout"
-                ? [`${attacker} takes ${place} from ${other}`, `${other} loses ${place} to ${attacker}`]
-                : [`war for ${place}: ${attacker} vs ${other}`, `${attacker} and ${other} fight for ${place}`]),
+            ...named(story.kind === "kickout"
+                ? [["takes-place-from", `${attacker} takes ${place} from ${other}`], ["loses-place-to", `${other} loses ${place} to ${attacker}`]]
+                : [["war-for", `war for ${place}: ${attacker} vs ${other}`], ["fight-for", `${attacker} and ${other} fight for ${place}`]]),
         }
     }
 
@@ -226,9 +234,9 @@ export function wordsOf(story: Story, headline?: string): Words {
             call: `FIGHT FOR ${attacker}`.toUpperCase(),
             callFlags: [story.attacker],
             link: `${SITE}/?f=${story.attacker}`,
-            teasers: loud(ownCountry && victim !== undefined
-                ? [`${attacker} retakes its land from ${victim}`, `${attacker} fights back against ${victim}`]
-                : [`${attacker} fights back in ${place}`, `${attacker} is back in ${place}`]),
+            ...named(ownCountry && victim !== undefined
+                ? [["retakes-its-land-from", `${attacker} retakes its land from ${victim}`], ["fights-back-against", `${attacker} fights back against ${victim}`]]
+                : [["fights-back-in", `${attacker} fights back in ${place}`], ["is-back-in", `${attacker} is back in ${place}`]]),
         }
     }
 
@@ -243,11 +251,11 @@ export function wordsOf(story: Story, headline?: string): Words {
         call: world ? "FIGHT BACK" : `DEFEND ${place}`.toUpperCase(),
         callFlags: placeFlags(story.place),
         link: defended === undefined ? SITE : `${SITE}/?f=${defended}`,
-        teasers: loud(world ? [`${attacker} takes over the world`, `nobody can stop ${attacker}`]
+        ...named(world ? [["takes-over-the-world", `${attacker} takes over the world`], ["nobody-can-stop", `nobody can stop ${attacker}`]]
             : story.kind === "invasion"
-                ? [kicked ? `${attacker} invades ${place} and kicks out ${victim}` : `${attacker} invades ${place}`,
-                    `${place} is under attack from ${attacker}`]
-                : [`${attacker} takes over ${place}`, `${place} is under attack from ${attacker}`]),
+                ? [kicked ? ["invades-and-kicks-out", `${attacker} invades ${place} and kicks out ${victim}`] : ["invades", `${attacker} invades ${place}`],
+                    ["under-attack-from", `${place} is under attack from ${attacker}`]]
+                : [["takes-over", `${attacker} takes over ${place}`], ["under-attack-from", `${place} is under attack from ${attacker}`]]),
     }
 }
 

@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3 } from "@bufbuild/protobuf";
+import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 
 /**
  * @generated from message clips.v1.Shortlist
@@ -142,12 +142,18 @@ export class Clip extends Message<Clip> {
   credit = "";
 
   /**
-   * What the generator chose and what the clip shows, kept with the post and never published: what a clip was, to set
-   * beside how its post did. Absent from a clip written before it.
+   * What the clip was, as the generator made it: the job keeps it with the post and never publishes it.
    *
-   * @generated from field: clips.v1.ClipFeatures features = 10;
+   * @generated from field: clips.v1.ClipRecord record = 10;
    */
-  features?: ClipFeatures;
+  record?: ClipRecord;
+
+  /**
+   * The name of each teaser's wording, in the same order: "invades", "under-attack-from".
+   *
+   * @generated from field: repeated string teaser_names = 11;
+   */
+  teaserNames: string[] = [];
 
   constructor(data?: PartialMessage<Clip>) {
     super();
@@ -164,7 +170,8 @@ export class Clip extends Message<Clip> {
     { no: 7, name: "countries", kind: "message", T: TaggedCountry, repeated: true },
     { no: 8, name: "continent_tag", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 9, name: "credit", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 10, name: "features", kind: "message", T: ClipFeatures },
+    { no: 10, name: "record", kind: "message", T: ClipRecord },
+    { no: 11, name: "teaser_names", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Clip {
@@ -185,11 +192,81 @@ export class Clip extends Message<Clip> {
 }
 
 /**
- * One flat value a field, each in the unit its name says, so each is a column. What the generator knows, never a guess.
+ * What a clip was, to set beside how its post did. Every code is a word that says what it means; a number is a quantity
+ * in the unit its name says. Additive only: a change that is not is a new message, under a new name.
  *
- * @generated from message clips.v1.ClipFeatures
+ * @generated from message clips.v1.ClipRecord
  */
-export class ClipFeatures extends Message<ClipFeatures> {
+export class ClipRecord extends Message<ClipRecord> {
+  /**
+   * What kind of video it is, which names the section below that describes it: "globe-replay" (globe).
+   *
+   * @generated from field: string format = 1;
+   */
+  format = "";
+
+  /**
+   * The commit of this repository that made it, or "unknown".
+   *
+   * @generated from field: string generator = 2;
+   */
+  generator = "";
+
+  /**
+   * What every format has.
+   *
+   * @generated from field: clips.v1.ClipCommon common = 3;
+   */
+  common?: ClipCommon;
+
+  /**
+   * @generated from field: clips.v1.GlobeReplay globe = 4;
+   */
+  globe?: GlobeReplay;
+
+  /**
+   * The arm of each experiment the clip is in, by experiment: {"end-card": "podium"}. Empty while none runs.
+   *
+   * @generated from field: map<string, string> variants = 5;
+   */
+  variants: { [key: string]: string } = {};
+
+  constructor(data?: PartialMessage<ClipRecord>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "clips.v1.ClipRecord";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "format", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "generator", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "common", kind: "message", T: ClipCommon },
+    { no: 4, name: "globe", kind: "message", T: GlobeReplay },
+    { no: 5, name: "variants", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "scalar", T: 9 /* ScalarType.STRING */} },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ClipRecord {
+    return new ClipRecord().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ClipRecord {
+    return new ClipRecord().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ClipRecord {
+    return new ClipRecord().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ClipRecord | PlainMessage<ClipRecord> | undefined, b: ClipRecord | PlainMessage<ClipRecord> | undefined): boolean {
+    return proto3.util.equals(ClipRecord, a, b);
+  }
+}
+
+/**
+ * @generated from message clips.v1.ClipCommon
+ */
+export class ClipCommon extends Message<ClipCommon> {
   /**
    * The whole clip, call to act included.
    *
@@ -198,7 +275,7 @@ export class ClipFeatures extends Message<ClipFeatures> {
   durationSeconds = 0;
 
   /**
-   * The country code of the anthem under the clip ("fr", "eu" for Europe's); empty when it plays none.
+   * The country code of the anthem under the clip ("fr", "eu" for Europe's), or "none".
    *
    * @generated from field: string music = 2;
    */
@@ -212,16 +289,60 @@ export class ClipFeatures extends Message<ClipFeatures> {
   musicStartSeconds = 0;
 
   /**
+   * The language of its words: "en", or the country's own for a call-up ("pl").
+   *
+   * @generated from field: string language = 4;
+   */
+  language = "";
+
+  constructor(data?: PartialMessage<ClipCommon>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "clips.v1.ClipCommon";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "duration_seconds", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 2, name: "music", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "music_start_seconds", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 4, name: "language", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ClipCommon {
+    return new ClipCommon().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ClipCommon {
+    return new ClipCommon().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ClipCommon {
+    return new ClipCommon().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ClipCommon | PlainMessage<ClipCommon> | undefined, b: ClipCommon | PlainMessage<ClipCommon> | undefined): boolean {
+    return proto3.util.equals(ClipCommon, a, b);
+  }
+}
+
+/**
+ * The game's own globe playing back a stretch of the replay.
+ *
+ * @generated from message clips.v1.GlobeReplay
+ */
+export class GlobeReplay extends Message<GlobeReplay> {
+  /**
    * "front" follows the fighting of one place, "tour" flies over the continents of a flag taking the world.
    *
-   * @generated from field: string camera = 4;
+   * @generated from field: string camera = 1;
    */
   camera = "";
 
   /**
-   * When a front's camera comes back out of the tiles: "dive" at the end, "flags" halfway. Empty on a tour.
+   * When a front's camera comes back out of the tiles: "dive" at the end, "flags" halfway; "none" on a tour.
    *
-   * @generated from field: string look = 5;
+   * @generated from field: string look = 2;
    */
   look = "";
 
@@ -229,146 +350,260 @@ export class ClipFeatures extends Message<ClipFeatures> {
    * What the story is, finer than its key's angle: "attack", "invasion", "comeback", "kickout", "rout", "battle",
    * "holding", "round", "callup".
    *
-   * @generated from field: string story_kind = 6;
+   * @generated from field: string story_kind = 3;
    */
   storyKind = "";
 
   /**
    * How much of the replay's time the clip plays, quiet stretches included.
    *
-   * @generated from field: double span_minutes = 7;
+   * @generated from field: double span_minutes = 4;
    */
   spanMinutes = 0;
 
   /**
    * Every tile that changed hands in that time, where the story is told (a bomb's cleared tiles too).
    *
-   * @generated from field: uint32 tiles_changed = 8;
+   * @generated from field: uint32 tiles_changed = 5;
    */
   tilesChanged = 0;
 
   /**
    * The changes the camera follows: the story's own fighting.
    *
-   * @generated from field: uint32 story_tiles_changed = 9;
+   * @generated from field: uint32 story_tiles_changed = 6;
    */
   storyTilesChanged = 0;
 
   /**
    * The size of the place the headline names and the counter counts in: a country, two, a continent or the world.
    *
-   * @generated from field: uint32 place_tiles = 10;
+   * @generated from field: uint32 place_tiles = 7;
    */
   placeTiles = 0;
 
   /**
    * The tiles the key's flag holds in the place when the clip starts and when it ends: the counter.
    *
-   * @generated from field: uint32 flag_tiles_start = 11;
+   * @generated from field: uint32 flag_tiles_start = 8;
    */
   flagTilesStart = 0;
 
   /**
-   * @generated from field: uint32 flag_tiles_end = 12;
+   * @generated from field: uint32 flag_tiles_end = 9;
    */
   flagTilesEnd = 0;
 
   /**
    * Landmasses whose painted flag changed in the clip: what can be seen changing from far.
    *
-   * @generated from field: uint32 landmasses_flipped = 13;
+   * @generated from field: uint32 landmasses_flipped = 10;
    */
   landmassesFlipped = 0;
 
   /**
    * The effects played in sight of the story: a bomb going off, a spread click, a shape closed.
    *
-   * @generated from field: uint32 bombs = 14;
+   * @generated from field: uint32 bombs = 11;
    */
   bombs = 0;
 
   /**
-   * @generated from field: uint32 spreads = 15;
+   * @generated from field: uint32 spreads = 12;
    */
   spreads = 0;
 
   /**
-   * @generated from field: uint32 enclosures = 16;
+   * @generated from field: uint32 enclosures = 13;
    */
   enclosures = 0;
 
   /**
    * How far the camera travels up close, in screens; 0 on a tour.
    *
-   * @generated from field: double screens_crossed = 17;
+   * @generated from field: double screens_crossed = 14;
    */
   screensCrossed = 0;
 
   /**
    * The continents a tour stops at; 0 for a front.
    *
-   * @generated from field: uint32 tour_stops = 18;
+   * @generated from field: uint32 tour_stops = 15;
    */
   tourStops = 0;
 
   /**
-   * The language the clip's words are in: "en", or the country's own for a call-up ("pl").
-   *
-   * @generated from field: string language = 19;
-   */
-  language = "";
-
-  /**
    * How solid the land taken is, from 0 (lines drawn on the map) to 1 (land taken whole).
    *
-   * @generated from field: double solidity = 20;
+   * @generated from field: double solidity = 16;
    */
   solidity = 0;
 
-  constructor(data?: PartialMessage<ClipFeatures>) {
+  constructor(data?: PartialMessage<GlobeReplay>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "clips.v1.ClipFeatures";
+  static readonly typeName = "clips.v1.GlobeReplay";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "duration_seconds", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
-    { no: 2, name: "music", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "music_start_seconds", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
-    { no: 4, name: "camera", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 5, name: "look", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 6, name: "story_kind", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 7, name: "span_minutes", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
-    { no: 8, name: "tiles_changed", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 9, name: "story_tiles_changed", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 10, name: "place_tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 11, name: "flag_tiles_start", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 12, name: "flag_tiles_end", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 13, name: "landmasses_flipped", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 14, name: "bombs", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 15, name: "spreads", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 16, name: "enclosures", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 17, name: "screens_crossed", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
-    { no: 18, name: "tour_stops", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 19, name: "language", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 20, name: "solidity", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 1, name: "camera", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "look", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "story_kind", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "span_minutes", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 5, name: "tiles_changed", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 6, name: "story_tiles_changed", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 7, name: "place_tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 8, name: "flag_tiles_start", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 9, name: "flag_tiles_end", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 10, name: "landmasses_flipped", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 11, name: "bombs", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 12, name: "spreads", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 13, name: "enclosures", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 14, name: "screens_crossed", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 15, name: "tour_stops", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 16, name: "solidity", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ClipFeatures {
-    return new ClipFeatures().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GlobeReplay {
+    return new GlobeReplay().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ClipFeatures {
-    return new ClipFeatures().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GlobeReplay {
+    return new GlobeReplay().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ClipFeatures {
-    return new ClipFeatures().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GlobeReplay {
+    return new GlobeReplay().fromJsonString(jsonString, options);
   }
 
-  static equals(a: ClipFeatures | PlainMessage<ClipFeatures> | undefined, b: ClipFeatures | PlainMessage<ClipFeatures> | undefined): boolean {
-    return proto3.util.equals(ClipFeatures, a, b);
+  static equals(a: GlobeReplay | PlainMessage<GlobeReplay> | undefined, b: GlobeReplay | PlainMessage<GlobeReplay> | undefined): boolean {
+    return proto3.util.equals(GlobeReplay, a, b);
+  }
+}
+
+/**
+ * What the job keeps with a post in its Zernio metadata, under "record", written by protojson: what the clip was, and
+ * what the job made of it. Never published, never read back by the job.
+ *
+ * @generated from message clips.v1.PostRecord
+ */
+export class PostRecord extends Message<PostRecord> {
+  /**
+   * Which message this document is: "clips.v1.PostRecord".
+   *
+   * @generated from field: string schema = 1;
+   */
+  schema = "";
+
+  /**
+   * Absent for a clip written before the generator kept one.
+   *
+   * @generated from field: clips.v1.ClipRecord clip = 2;
+   */
+  clip?: ClipRecord;
+
+  /**
+   * @generated from field: clips.v1.PostFacts post = 3;
+   */
+  post?: PostFacts;
+
+  constructor(data?: PartialMessage<PostRecord>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "clips.v1.PostRecord";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "schema", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "clip", kind: "message", T: ClipRecord },
+    { no: 3, name: "post", kind: "message", T: PostFacts },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PostRecord {
+    return new PostRecord().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PostRecord {
+    return new PostRecord().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PostRecord {
+    return new PostRecord().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: PostRecord | PlainMessage<PostRecord> | undefined, b: PostRecord | PlainMessage<PostRecord> | undefined): boolean {
+    return proto3.util.equals(PostRecord, a, b);
+  }
+}
+
+/**
+ * @generated from message clips.v1.PostFacts
+ */
+export class PostFacts extends Message<PostFacts> {
+  /**
+   * The name of the teaser the caption opens with ("invades"), or "unnamed" for a clip whose teasers have none.
+   *
+   * @generated from field: string teaser = 1;
+   */
+  teaser = "";
+
+  /**
+   * The call to act the caption ends with ("join-the-battle").
+   *
+   * @generated from field: string call_to_action = 2;
+   */
+  callToAction = "";
+
+  /**
+   * When the job scheduled it: the dashboard can move the post, this does not move.
+   *
+   * @generated from field: google.protobuf.Timestamp scheduled_at = 3;
+   */
+  scheduledAt?: Timestamp;
+
+  /**
+   * Its place in its run, from 1, in the order the run's posts go out, and how many the run has.
+   *
+   * @generated from field: uint32 run_position = 4;
+   */
+  runPosition = 0;
+
+  /**
+   * @generated from field: uint32 run_size = 5;
+   */
+  runSize = 0;
+
+  constructor(data?: PartialMessage<PostFacts>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "clips.v1.PostFacts";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "teaser", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "call_to_action", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "scheduled_at", kind: "message", T: Timestamp },
+    { no: 4, name: "run_position", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 5, name: "run_size", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PostFacts {
+    return new PostFacts().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PostFacts {
+    return new PostFacts().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PostFacts {
+    return new PostFacts().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: PostFacts | PlainMessage<PostFacts> | undefined, b: PostFacts | PlainMessage<PostFacts> | undefined): boolean {
+    return proto3.util.equals(PostFacts, a, b);
   }
 }
 

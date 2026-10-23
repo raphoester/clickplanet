@@ -63,6 +63,11 @@ func (f Folder) Rendered(_ context.Context) ([]posts.Clip, error) {
 			return nil, fmt.Errorf("%s is not a clips.v1.Clip: %w", filepath.Base(path), err)
 		}
 
+		record, err := recordOf(written.GetRecord())
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", filepath.Base(path), err)
+		}
+
 		video := strings.TrimSuffix(path, clipSuffix) + videoSuffix
 		if _, err := os.Stat(video); err != nil {
 			return nil, fmt.Errorf("%w: %s", ErrNoVideo, filepath.Base(video))
@@ -72,7 +77,7 @@ func (f Folder) Rendered(_ context.Context) ([]posts.Clip, error) {
 			Pick: posts.Pick(written.GetPick()), Title: written.GetTitle(), Key: keyOf(written.GetKey()),
 			Teasers: written.GetTeasers(), Countries: countriesOf(written.GetCountries()),
 			ContinentTag: written.GetContinentTag(), Attribution: written.GetCredit(), Video: posts.VideoFile(video),
-			Features: featuresOf(written.GetFeatures()),
+			TeaserNames: written.GetTeaserNames(), Record: record,
 		}.Restore()
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", filepath.Base(path), err)
@@ -88,18 +93,16 @@ func keyOf(written *clipsv1.StoryKey) posts.StoryKey {
 	}
 }
 
-// Zero for a clip written before the generator kept them.
-func featuresOf(written *clipsv1.ClipFeatures) posts.Features {
-	return posts.Features{
-		DurationSeconds: written.GetDurationSeconds(), Music: written.GetMusic(), MusicStartSeconds: written.GetMusicStartSeconds(),
-		Camera: written.GetCamera(), Look: written.GetLook(), StoryKind: written.GetStoryKind(), SpanMinutes: written.GetSpanMinutes(),
-		TilesChanged: int(written.GetTilesChanged()), StoryTilesChanged: int(written.GetStoryTilesChanged()),
-		PlaceTiles: int(written.GetPlaceTiles()), FlagTilesStart: int(written.GetFlagTilesStart()),
-		FlagTilesEnd: int(written.GetFlagTilesEnd()), LandmassesFlipped: int(written.GetLandmassesFlipped()),
-		Bombs: int(written.GetBombs()), Spreads: int(written.GetSpreads()), Enclosures: int(written.GetEnclosures()),
-		ScreensCrossed: written.GetScreensCrossed(), TourStops: int(written.GetTourStops()), Language: written.GetLanguage(),
-		Solidity: written.GetSolidity(),
+// Kept as the generator wrote it, in protojson; none for a clip written before the generator kept one.
+func recordOf(written *clipsv1.ClipRecord) (posts.ClipRecord, error) {
+	if written == nil {
+		return nil, nil
 	}
+	record, err := protojson.Marshal(written)
+	if err != nil {
+		return nil, fmt.Errorf("failed to keep what the clip was: %w", err)
+	}
+	return record, nil
 }
 
 func countriesOf(written []*clipsv1.TaggedCountry) []posts.TaggedCountry {

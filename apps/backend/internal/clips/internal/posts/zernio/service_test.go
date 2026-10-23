@@ -122,10 +122,10 @@ func post(t *testing.T, platforms ...posts.Platform) posts.Post {
 func postOf(t *testing.T, key posts.StoryKey, platforms ...posts.Platform) posts.Post {
 	t.Helper()
 
-	return postWith(t, key, posts.Features{}, platforms...)
+	return postWith(t, key, nil, "", platforms...)
 }
 
-func postWith(t *testing.T, key posts.StoryKey, features posts.Features, platforms ...posts.Platform) posts.Post {
+func postWith(t *testing.T, key posts.StoryKey, record posts.ClipRecord, teaser string, platforms ...posts.Platform) posts.Post {
 	t.Helper()
 
 	if len(platforms) == 0 {
@@ -135,13 +135,27 @@ func postWith(t *testing.T, key posts.StoryKey, features posts.Features, platfor
 	require.NoError(t, os.WriteFile(video, []byte("the video"), 0o600))
 	clip, err := posts.ClipSnapshot{
 		Pick: 1, Title: "FRANCE IS ATTACKING EUROPE", Teasers: []string{"FRANCE TAKES OVER EUROPE"}, Countries: []posts.TaggedCountry{{Code: "fr", Tag: "france"}},
-		ContinentTag: "europe", Key: key, Video: posts.VideoFile(video), Features: features,
+		ContinentTag: "europe", Key: key, Video: posts.VideoFile(video), Record: record, TeaserNames: namesOf(teaser),
 	}.Restore()
 	require.NoError(t, err)
 
 	planned := posts.Plan{Review: 4 * time.Hour, Platforms: platforms}.Posts([]posts.Clip{clip}, at.Add(-4*time.Hour), posts.LoadedDice(0))
 	require.Equal(t, at, planned[0].TakeSnapshot().At)
 	return planned[0]
+}
+
+// The one teaser's name, or none.
+func namesOf(teaser string) []string {
+	if teaser == "" {
+		return nil
+	}
+	return []string{teaser}
+}
+
+// What a post of a clip with no record and no teaser names keeps.
+var unnamedPost = map[string]any{
+	"teaser": "unnamed", "callToAction": "join-the-battle", "scheduledAt": "2026-10-12T16:40:00Z",
+	"runPosition": float64(1), "runSize": float64(1),
 }
 
 func schedule(t *testing.T, fake *zernioFake, platforms ...posts.Platform) (posts.Scheduled, error) {
@@ -198,8 +212,7 @@ func TestAClipIsUploadedOnceThenScheduledAsOnePostOnTikTokAndYouTube(t *testing.
 		"scheduledFor": "2026-10-12T16:40:00Z",
 		"metadata": map[string]any{
 			"storyFlag": "fr", "storyContinent": "Europe", "storyCountries": []any{"fr"}, "callToAction": "join-the-battle",
-			"featuresVersion": float64(1), "postTeaser": float64(1), "postScheduledAt": "2026-10-12T16:40:00Z",
-			"postRunPosition": float64(1), "postRunSize": float64(1),
+			"record": map[string]any{"schema": "clips.v1.PostRecord", "post": unnamedPost},
 		},
 	}, fake.sent)
 }
@@ -216,36 +229,49 @@ func TestWhatAStoryTellsOfItsFlagAndItsDayAreKeptWithThePost(t *testing.T) {
 	assert.Equal(t, map[string]any{
 		"storyFlag": "fr", "storyContinent": "the world", "storyAngle": "round", "storyRound": "1.5",
 		"storyCountries": []any{"fr"}, "callToAction": "join-the-battle",
-		"featuresVersion": float64(1), "postTeaser": float64(1), "postScheduledAt": "2026-10-12T16:40:00Z",
-		"postRunPosition": float64(1), "postRunSize": float64(1),
+		"record": map[string]any{"schema": "clips.v1.PostRecord", "post": unnamedPost},
 	}, fake.sent["metadata"])
 }
 
-func TestWhatAClipWasIsKeptWithThePostAsFlatValuesAndNoneWhenItHasNone(t *testing.T) {
+func TestWhatThePostWasIsOneDocumentUnderOneKeyWithTheClipAsTheGeneratorWroteIt(t *testing.T) {
 	fake := newFake()
 	server := fake.serve(t)
 	service, err := zernio.New(zernio.Config{APIKey: "the-key", BaseURL: server.URL}, server.Client())
 	require.NoError(t, err)
-	tour := posts.Features{
-		DurationSeconds: 17.4, Camera: "tour", StoryKind: "attack", SpanMinutes: 300, TilesChanged: 5200,
-		StoryTilesChanged: 3100, PlaceTiles: 262144, FlagTilesStart: 400, FlagTilesEnd: 3500, LandmassesFlipped: 6,
-		Bombs: 2, TourStops: 3, Language: "en", Solidity: 0.88,
-	}
+	record := posts.ClipRecord(`{"format":"globe-replay","generator":"8dc31d2","common":{"durationSeconds":17.4,"music":"none",` +
+		`"language":"en"},"globe":{"camera":"tour","look":"none","tilesChanged":5200,"tourStops":3},"variants":{"end-card":"podium"}}`)
 
-	_, err = service.Schedule(t.Context(), postWith(t, posts.StoryKey{Flag: "pt", Continent: "the world"}, tour))
+	_, err = service.Schedule(t.Context(), postWith(t, posts.StoryKey{Flag: "pt", Continent: "the world"}, record, "takes-over-the-world"))
 
 	require.NoError(t, err)
+	metadata, ok := fake.sent["metadata"].(map[string]any)
+	require.True(t, ok)
 	assert.Equal(t, map[string]any{
-		"storyFlag": "pt", "storyContinent": "the world", "storyCountries": []any{"fr"}, "callToAction": "join-the-battle",
-		"featuresVersion": float64(1), "postTeaser": float64(1), "postScheduledAt": "2026-10-12T16:40:00Z",
-		"postRunPosition": float64(1), "postRunSize": float64(1),
-		"clipDurationSeconds": 17.4, "clipMusic": "none", "clipMusicStartSeconds": float64(0), "clipCamera": "tour",
-		"clipLook": "none", "clipStoryKind": "attack", "clipSpanMinutes": float64(300), "clipTilesChanged": float64(5200),
-		"clipStoryTilesChanged": float64(3100), "clipPlaceTiles": float64(262144), "clipFlagTilesStart": float64(400),
-		"clipFlagTilesEnd": float64(3500), "clipLandmassesFlipped": float64(6), "clipBombs": float64(2),
-		"clipSpreads": float64(0), "clipEnclosures": float64(0), "clipScreensCrossed": float64(0),
-		"clipTourStops": float64(3), "clipLanguage": "en", "clipSolidity": 0.88,
-	}, fake.sent["metadata"])
+		"schema": "clips.v1.PostRecord",
+		"clip": map[string]any{
+			"format": "globe-replay", "generator": "8dc31d2",
+			"common":   map[string]any{"durationSeconds": 17.4, "music": "none", "language": "en"},
+			"globe":    map[string]any{"camera": "tour", "look": "none", "tilesChanged": float64(5200), "tourStops": float64(3)},
+			"variants": map[string]any{"end-card": "podium"},
+		},
+		"post": map[string]any{
+			"teaser": "takes-over-the-world", "callToAction": "join-the-battle", "scheduledAt": "2026-10-12T16:40:00Z",
+			"runPosition": float64(1), "runSize": float64(1),
+		},
+	}, metadata["record"])
+	assert.Equal(t, "pt", metadata["storyFlag"])
+}
+
+func TestARecordThatIsNotAClipRecordUploadsNothing(t *testing.T) {
+	fake := newFake()
+	server := fake.serve(t)
+	service, err := zernio.New(zernio.Config{APIKey: "the-key", BaseURL: server.URL}, server.Client())
+	require.NoError(t, err)
+
+	_, err = service.Schedule(t.Context(), postWith(t, posts.StoryKey{Flag: "fr", Continent: "Europe"}, posts.ClipRecord(`{"format":3}`), "invades"))
+
+	require.Error(t, err)
+	assert.Equal(t, []string{"GET /v1/accounts"}, fake.calls)
 }
 
 func TestAPostForTikTokAloneHasNoYouTubeTargetAndNoTags(t *testing.T) {

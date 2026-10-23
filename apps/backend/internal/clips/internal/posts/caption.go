@@ -36,14 +36,18 @@ type Dice interface {
 
 type wording struct {
 	teaser string
-	// From 1: which of the clip's teasers it is.
-	teaserNumber int
-	call         CallToAction
+	// The name of its wording.
+	teaserName string
+	call       CallToAction
 }
 
 func wordingOf(clip Clip, dice Dice) wording {
 	teaser := dice.IntN(len(clip.teasers))
-	return wording{teaser: clip.teasers[teaser], teaserNumber: teaser + 1, call: callsToAction[dice.IntN(len(callsToAction))]}
+	name := unnamedTeaser
+	if len(clip.teaserNames) == len(clip.teasers) {
+		name = clip.teaserNames[teaser]
+	}
+	return wording{teaser: clip.teasers[teaser], teaserName: name, call: callsToAction[dice.IntN(len(callsToAction))]}
 }
 
 type TikTokWords struct {

@@ -169,7 +169,18 @@ describe("the teasers of a caption", () => {
             expect(words.teasers.length).toBeGreaterThanOrEqual(2)
             expect(words.teasers).not.toContain(words.headline)
             for (const teaser of words.teasers) expect(teaser).toBe(teaser.toUpperCase())
+            expect(words.teaserNames).toHaveLength(words.teasers.length)
+            expect(new Set(words.teaserNames).size).toBe(words.teaserNames.length)
+            for (const name of words.teaserNames) expect(name).toMatch(/^[a-z]+(-[a-z]+)*$/)
         }
+    })
+
+    it("name each wording the same whatever the flags, so the posts can be compared by it", () => {
+        const portugal = wordsOf({...story("invasion", {country: "fr"}), attacker: "pt", victims: ["fr"]})
+        const palestine = wordsOf({...story("invasion", {country: "tr"}), victims: ["tr"]})
+
+        expect(portugal.teaserNames).toEqual(["invades", "under-attack-from"])
+        expect(palestine.teaserNames).toEqual(portugal.teaserNames)
     })
 
     it("keep the article of a name", () => {

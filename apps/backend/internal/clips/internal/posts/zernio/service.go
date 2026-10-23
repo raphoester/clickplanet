@@ -19,6 +19,10 @@ import (
 	"time"
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
+	clipsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/clips/v1"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpzernio"
@@ -39,9 +43,8 @@ const (
 	// Absent on a post of what a flag did, and on every post made before them.
 	angleKey = "storyAngle"
 	roundKey = "storyRound"
-	// What a post was, to set beside how it did: see featuresOf.
-	featuresVersionKey = "featuresVersion"
-	featuresVersion    = 1
+	// What the post was, to set beside how it did: a clips.v1.PostRecord.
+	recordKey = "record"
 	// Four posts a day: a page this long holds the week the choice reads, and more.
 	pageOfPosts = 500
 )
@@ -94,6 +97,10 @@ func (s *Service) Schedule(ctx context.Context, post posts.Post) (posts.Schedule
 	if err != nil {
 		return posts.Scheduled{}, err
 	}
+	metadata, err := metadataOf(snapshot)
+	if err != nil {
+		return posts.Scheduled{}, err
+	}
 	if len(targets) == 0 {
 		return posts.Scheduled{Refused: refused}, nil
 	}
@@ -112,7 +119,7 @@ func (s *Service) Schedule(ctx context.Context, post posts.Post) (posts.Schedule
 			MediaItems:   &[]cpzernio.MediaItem{{Type: new(cpzernio.MediaItemTypeVideo), Url: &media}},
 			Platforms:    &targets,
 			ScheduledFor: new(snapshot.At.UTC()),
-			Metadata:     metadataOf(snapshot),
+			Metadata:     metadata,
 			Tags:         tagsOf(snapshot, accounts),
 		})
 	if err != nil {
@@ -177,12 +184,16 @@ func targetOf(snapshot posts.PostSnapshot, platform posts.Platform, account stri
 	return target, nil
 }
 
-// What the choice reads back of the post: its key and its countries; and the call to act and the post's features, to
-// compare posts on their numbers. Never published.
-func metadataOf(snapshot posts.PostSnapshot) *map[string]any {
+// What the choice reads back of the post: its key and its countries; and the call to act, to compare the calls on the
+// posts' numbers. Beside them, what the post was, as one document (recordKey). Never published.
+func metadataOf(snapshot posts.PostSnapshot) (*map[string]any, error) {
+	record, err := recordOf(snapshot)
+	if err != nil {
+		return nil, err
+	}
 	metadata := map[string]any{
 		flagKey: snapshot.Key.Flag, continentKey: snapshot.Key.Continent, countriesKey: snapshot.Countries,
-		callKey: snapshot.CallToAction,
+		callKey: snapshot.CallToAction, recordKey: record,
 	}
 	if snapshot.Key.Angle != posts.Deeds {
 		metadata[angleKey] = string(snapshot.Key.Angle)
@@ -190,46 +201,34 @@ func metadataOf(snapshot posts.PostSnapshot) *map[string]any {
 	if snapshot.Key.Round != "" {
 		metadata[roundKey] = snapshot.Key.Round
 	}
-	for key, value := range featuresOf(snapshot) {
-		metadata[key] = value
-	}
-	return &metadata
+	return &metadata, nil
 }
 
-// Flat values under stable names, each with its unit, so each is a column: "post…" from this job, "clip…" from the
-// generator, which a clip written before it kept them has none of. A value the clip has none of is "none", not left out.
-func featuresOf(snapshot posts.PostSnapshot) map[string]any {
-	features := map[string]any{
-		featuresVersionKey: featuresVersion,
-		"postTeaser":       snapshot.Teaser,
-		"postScheduledAt":  snapshot.At.UTC().Format(time.RFC3339),
-		"postRunPosition":  snapshot.RunPosition,
-		"postRunSize":      snapshot.RunSize,
+// A clips.v1.PostRecord as protojson writes it, under one key: what the clip was as the generator wrote it, and what
+// this job made of it. Its shape is the proto's, not Zernio's, and it grows there.
+func recordOf(snapshot posts.PostSnapshot) (map[string]any, error) {
+	record := &clipsv1.PostRecord{
+		Schema: string((&clipsv1.PostRecord{}).ProtoReflect().Descriptor().FullName()),
+		Post: &clipsv1.PostFacts{
+			Teaser: snapshot.Teaser, CallToAction: snapshot.CallToAction, ScheduledAt: timestamppb.New(snapshot.At),
+			RunPosition: uint32(snapshot.RunPosition), RunSize: uint32(snapshot.RunSize), //nolint:gosec // 6 a run.
+		},
 	}
-	clip := snapshot.Features
-	if !clip.Recorded() {
-		return features
+	if len(snapshot.Record) != 0 {
+		record.Clip = &clipsv1.ClipRecord{}
+		if err := protojson.Unmarshal(snapshot.Record, record.Clip); err != nil {
+			return nil, fmt.Errorf("what the clip was is not a clips.v1.ClipRecord: %w", err)
+		}
 	}
-	for key, value := range map[string]any{
-		"clipDurationSeconds": clip.DurationSeconds, "clipMusic": orNone(clip.Music),
-		"clipMusicStartSeconds": clip.MusicStartSeconds, "clipCamera": clip.Camera, "clipLook": orNone(clip.Look),
-		"clipStoryKind": clip.StoryKind, "clipSpanMinutes": clip.SpanMinutes, "clipTilesChanged": clip.TilesChanged,
-		"clipStoryTilesChanged": clip.StoryTilesChanged, "clipPlaceTiles": clip.PlaceTiles,
-		"clipFlagTilesStart": clip.FlagTilesStart, "clipFlagTilesEnd": clip.FlagTilesEnd,
-		"clipLandmassesFlipped": clip.LandmassesFlipped, "clipBombs": clip.Bombs, "clipSpreads": clip.Spreads,
-		"clipEnclosures": clip.Enclosures, "clipScreensCrossed": clip.ScreensCrossed, "clipTourStops": clip.TourStops,
-		"clipLanguage": clip.Language, "clipSolidity": clip.Solidity,
-	} {
-		features[key] = value
+	written, err := protojson.Marshal(record)
+	if err != nil {
+		return nil, fmt.Errorf("failed to write what the post was: %w", err)
 	}
-	return features
-}
-
-func orNone(value string) string {
-	if value == "" {
-		return "none"
+	var document map[string]any
+	if err := json.Unmarshal(written, &document); err != nil {
+		return nil, fmt.Errorf("failed to read back what the post was: %w", err)
 	}
-	return value
+	return document, nil
 }
 
 // Zernio sends them to YouTube alone.

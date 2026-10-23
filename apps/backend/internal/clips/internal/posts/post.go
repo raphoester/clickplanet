@@ -29,7 +29,7 @@ func (p Post) TakeSnapshot() PostSnapshot {
 	return PostSnapshot{
 		Title: p.clip.title, CallToAction: p.wording.call.ID, Key: p.clip.key, Countries: p.clip.countryCodes(),
 		Video: p.clip.video, At: p.at, Platforms: p.platforms, TikTok: p.wording.tiktok(p.clip), YouTube: p.wording.youtube(p.clip),
-		Features: p.clip.features, Teaser: p.wording.teaserNumber, RunPosition: p.position, RunSize: p.ofRun,
+		Record: p.clip.record, Teaser: p.wording.teaserName, RunPosition: p.position, RunSize: p.ofRun,
 	}
 }
 
@@ -44,10 +44,10 @@ type PostSnapshot struct {
 	Platforms []Platform
 	TikTok    TikTokWords
 	YouTube   YouTubeWords
-	// What the clip was, and what this job made of it, kept with the post to compare posts by: which of the clip's
-	// teasers was rolled (from 1), and the post's place in its run (from 1) of how many.
-	Features    Features
-	Teaser      int
+	// What the clip was, and what this job made of it, kept with the post to compare posts by: the name of the teaser
+	// rolled ("invades", or "unnamed"), and the post's place in its run, from 1, of how many.
+	Record      ClipRecord
+	Teaser      string
 	RunPosition int
 	RunSize     int
 }
