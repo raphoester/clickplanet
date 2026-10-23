@@ -353,6 +353,8 @@ internal/planet/internal/
     inmemory_charge_storage/
     postgres_charge_store/
     usecases/
+  allegiances/                    the flag each account plays for, and when it last changed it
+    postgres_allegiance_store/
   planetv1controller/             the edge: maps the wire to the use cases, nothing else
     get_takes_by_country_handler/takes_query/   InternalService's one read, straight from ledger_events
   subscribers/                    the edge for events: auth.v1.AccountDeleted → anonymize_takes_usecase
@@ -423,7 +425,7 @@ because it serves every concept over one Connect service. It only maps.
 | `bonuses/usecases/get_charges_usecase` | what the caller holds | `Charges` |
 | `bonuses/usecases/use_refill_usecase` | fills the caller's bank with its refill | `Refills`, `Bank`, `Pricer` |
 | `bonuses/usecases/grant_charges_usecase` | the operator gives an account charges | `Charger` |
-| `bonuses/usecases/place_shield_usecase` | spends a shield on a tile of the caller's flag | `Shields`, `Tiles`, `CountryChecker` |
+| `bonuses/usecases/place_shield_usecase` | spends a shield on a tile of the caller's flag | `Shields`, `Tiles`, `CountryChecker`, `Allegiances` |
 | `clicks/usecases/relay_fortifications_usecase` | follows the tile map and publishes `planet.v1.Fortified` for each fortify; a `Runner` | `Changes`, `Publisher` |
 
 **The interfaces in that last column are declared by the package that calls
@@ -435,7 +437,7 @@ these ports at once, which is why `module.go` hands it over several times.
 
 **`click_usecase` is the only one with an interface of its own (`IUseCase`)**,
 because the click chain decorates it — `prom_click`, `throttle_click`,
-`antibot_click`, `antibot_attempt_click`, and the bonus decorators `spread_click`, `enclose_click` and
+`antibot_click`, `antibot_attempt_click`, `allegiance_click`, and the bonus decorators `spread_click`, `enclose_click` and
 `bonus_click`. The counting is a wrapper rather than a line inside the rule, so
 a process that does not want it leaves it out and the rule does not change.
 
@@ -726,6 +728,7 @@ POST /planet.v1.ClickService/Click   [X-Session-Token: <the minted token>]
   → ClickService → click_handler
   → ban_click       (a banned caller is PermissionDenied, with a BanRefusal: when the ban ends)
   → antibot_attempt_click (times every try for the metronome; refuses nothing)
+  → allegiance_click (another flag within the hour of a change is refused, and spends nothing)
   → throttle_click  (spends from the account's bucket and its scope's together, or refuses)
   → antibot_click   (judges, and flags a caller it finds guilty; refuses nothing)
   → prom_click      (counts)
@@ -865,6 +868,45 @@ defence against taking back the last tile for a free refill, and it costs no tim
   map's channel and publishes `planet.v1.Fortified` for each fortify; the map is where it
   happened. It subscribes again a second after the map cuts it off. The chat announces
   the ones of `fortifyNewsTiles` (50) tiles or more.
+
+### Allegiance: one change of flag an hour
+
+**An account plays for one flag, and may change it once an hour.** Every click and
+every shield names a flag, and nothing else ties a player to one: before this, a
+player could paint for one country and defend another click to click.
+
+- **The rule is `Allegiance.Pledged(flag, at)`**, pure and tested in the
+  `allegiances` root. The first flag an account acts for is kept with no wait, so a
+  player who clicked for its time zone's flag can still pick its own. The next
+  change is free too, and starts the wait: another flag within `changeEvery` (1h) of
+  it is `allegiances.Refusal` (`ErrChangedTooSoon`), with the flag held and until
+  when. The same flag again changes nothing.
+- **`allegiances.Book.Pledge(ctx, payer, flag)`** applies it at the clock's time, in
+  the store's `Change`: one transaction under `pg_advisory_xact_lock` on the account,
+  so two tabs clicking two flags at once cannot both change it.
+  A caller with no account, and a flag that is no country, are held to nothing: the
+  click use case refuses the second.
+- **It is checked after the ban and before the throttle** (`allegiance_click`,
+  between `antibot_attempt_click` and `throttle_click`): a banned caller is told its
+  ban first and changes no flag, and a click refused for its flag spends no token.
+  `place_shield_usecase` pledges before it spends the shield. A bomb, a claim, a
+  quiz and a refill name a flag only for what they announce, and are not held.
+- **The refusal is `FailedPrecondition` with a `planet.v1.Allegiance` detail**
+  (`allegiancemessage.Refusal`): the flag held and `changeable_at_unix_ms`. The
+  client snaps back to that flag.
+- **`ClickService/GetAllegiance`** answers the caller's (`allegiance_query`, straight
+  from postgres), as `Identified`: unset for an account that never acted for a flag,
+  and `changeable_at_unix_ms` 0 for a flag never changed. Not `NO_SIDE_EFFECTS`.
+- **No memory copy: every click and every shield reads postgres**, and a change writes
+  it, in `planet.allegiances` (`account`, `flag`, `changed_at`, NULL for a first flag).
+  Only the tile map is kept in memory and flushed. A failing database fails the click,
+  as the error net's `internal`. `allegiances.StoreContractSuite` runs on postgres and
+  on `MemoryStore`, the fake the use cases are tested over (behind the tag).
+- **A row is never deleted**, not even with its account: without the row the next flag
+  is a first flag again, which would hand out a free change. The row names nobody once
+  the account is gone.
+- **Guests are held per account**, like the bank: a private tab is a new guest and
+  a new first flag.
 
 ### Chat (`internal/chat/`)
 

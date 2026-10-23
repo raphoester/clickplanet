@@ -407,11 +407,9 @@ func TestAPlayerKeepsItsCardWhenAnotherTakesTheNameItLeft(t *testing.T) {
 
 func TestAPlayerReadsEveryCountryItPlaysAgainstAndAnybodyTheTopThree(t *testing.T) {
 	game := startGame(t)
-	ada := game.newPlayer(t)
-	ada.click(1, "fr")
-	ada.click(2, "it")
-	ada.click(3, "es")
-	ada.click(4, "pt")
+	for tile, flag := range []string{"fr", "it", "es", "pt"} {
+		game.newPlayer(t).click(uint32(tile)+1, flag)
+	}
 	bob := game.newPlayer(t)
 	bob.link("google-bob")
 	_, err := bob.setName("Bob_B")
@@ -516,8 +514,9 @@ func TestAnOperatorReadsWhoPlayersAreAndAGuestsProfileOnTheAdminListenerOnly(t *
 	require.NoError(t, err)
 	guest := game.newPlayer(t)
 	require.NoError(t, guest.announce("de"))
-	for tile, country := range []string{"de", "fr", "it", "es"} {
-		guest.click(uint32(tile)+1, country) //nolint:gosec // four tiles.
+	for tile, country := range []string{"fr", "it", "es", "pt"} {
+		game.newPlayer(t).click(uint32(tile)+1, country) //nolint:gosec // four tiles.
+		guest.click(uint32(tile)+1, "de")                //nolint:gosec // four tiles.
 	}
 
 	names := connect.NewRequest(&playerv1.GetAuthorsRequest{AccountIds: []string{ada.account(), guest.account()}})
@@ -534,13 +533,13 @@ func TestAnOperatorReadsWhoPlayersAreAndAGuestsProfileOnTheAdminListenerOnly(t *
 
 	asked := connect.NewRequest(&playerv1.AdminGetPlayerRequest{AccountId: guest.account()})
 	everyCountry := []*playerv1.CountryTiles{
-		{CountryId: "de", Tiles: 1}, {CountryId: "es", Tiles: 1}, {CountryId: "fr", Tiles: 1}, {CountryId: "it", Tiles: 1},
+		{CountryId: "es", Tiles: 1}, {CountryId: "fr", Tiles: 1}, {CountryId: "it", Tiles: 1}, {CountryId: "pt", Tiles: 1},
 	}
 	require.Eventually(t, func() bool {
 		res, err := admin.GetPlayer(t.Context(), asked)
 		return err == nil && res.Msg.GetStats().GetTilesTaken() == 4 && proto.Equal(
-			&playerv1.AdminGetPlayerResponse{PlaysFor: everyCountry},
-			&playerv1.AdminGetPlayerResponse{PlaysFor: res.Msg.GetPlaysFor()},
+			&playerv1.AdminGetPlayerResponse{PlaysFor: []*playerv1.CountryTiles{{CountryId: "de", Tiles: 4}}, PlaysAgainst: everyCountry},
+			&playerv1.AdminGetPlayerResponse{PlaysFor: res.Msg.GetPlaysFor(), PlaysAgainst: res.Msg.GetPlaysAgainst()},
 		)
 	}, 5*time.Second, 20*time.Millisecond, "every country, where the public card has three and a guest no card at all")
 	profile, err := admin.GetPlayer(t.Context(), asked)

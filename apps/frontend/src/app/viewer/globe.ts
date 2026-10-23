@@ -17,6 +17,7 @@ import {regions} from "./atlas.ts";
 import {Country} from "../../domain/countries.ts";
 import {MapView, Rendering} from "../../domain/displaySettings.ts";
 import {
+    AllegianceLockedError,
     BannedError,
     BombDrop,
     Bomber,
@@ -545,7 +546,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         playSound("click")
 
         shielder.placeShield(tile, country.code).catch((e) => {
-            if (lifetime.signal.aborted || e instanceof ShieldRefusedError) return
+            if (lifetime.signal.aborted || e instanceof ShieldRefusedError || e instanceof AllegianceLockedError) return
             reportClaimFailure(e, {onSessionUnavailable, onBanned})
         })
     }
@@ -1076,7 +1077,7 @@ export function reportClickFailure(
     else if (error instanceof VPNBlockedError) handlers.onVPNBlocked()
     else if (error instanceof BannedError) handlers.onBanned(error.until)
     else if (error instanceof SessionUnavailableError) handlers.onSessionUnavailable()
-    else {
+    else if (!(error instanceof AllegianceLockedError)) {
         console.error(error)
         return false
     }

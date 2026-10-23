@@ -65,6 +65,9 @@ const (
 	// ClickServiceGetFortressesProcedure is the fully-qualified name of the ClickService's
 	// GetFortresses RPC.
 	ClickServiceGetFortressesProcedure = "/planet.v1.ClickService/GetFortresses"
+	// ClickServiceGetAllegianceProcedure is the fully-qualified name of the ClickService's
+	// GetAllegiance RPC.
+	ClickServiceGetAllegianceProcedure = "/planet.v1.ClickService/GetAllegiance"
 )
 
 // ClickServiceClient is a client for the planet.v1.ClickService service.
@@ -85,6 +88,8 @@ type ClickServiceClient interface {
 	AnswerQuiz(context.Context, *connect.Request[v1.AnswerQuizRequest]) (*connect.Response[v1.AnswerQuizResponse], error)
 	PlaceShield(context.Context, *connect.Request[v1.PlaceShieldRequest]) (*connect.Response[v1.PlaceShieldResponse], error)
 	GetFortresses(context.Context, *connect.Request[v1.GetFortressesRequest]) (*connect.Response[v1.GetFortressesResponse], error)
+	// Not NO_SIDE_EFFECTS: the answer is about one caller now, and a cached one lies.
+	GetAllegiance(context.Context, *connect.Request[v1.GetAllegianceRequest]) (*connect.Response[v1.GetAllegianceResponse], error)
 }
 
 // NewClickServiceClient constructs a client for the planet.v1.ClickService service. By default, it
@@ -186,6 +191,12 @@ func NewClickServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		getAllegiance: connect.NewClient[v1.GetAllegianceRequest, v1.GetAllegianceResponse](
+			httpClient,
+			baseURL+ClickServiceGetAllegianceProcedure,
+			connect.WithSchema(clickServiceMethods.ByName("GetAllegiance")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -205,6 +216,7 @@ type clickServiceClient struct {
 	answerQuiz      *connect.Client[v1.AnswerQuizRequest, v1.AnswerQuizResponse]
 	placeShield     *connect.Client[v1.PlaceShieldRequest, v1.PlaceShieldResponse]
 	getFortresses   *connect.Client[v1.GetFortressesRequest, v1.GetFortressesResponse]
+	getAllegiance   *connect.Client[v1.GetAllegianceRequest, v1.GetAllegianceResponse]
 }
 
 // Click calls planet.v1.ClickService.Click.
@@ -277,6 +289,11 @@ func (c *clickServiceClient) GetFortresses(ctx context.Context, req *connect.Req
 	return c.getFortresses.CallUnary(ctx, req)
 }
 
+// GetAllegiance calls planet.v1.ClickService.GetAllegiance.
+func (c *clickServiceClient) GetAllegiance(ctx context.Context, req *connect.Request[v1.GetAllegianceRequest]) (*connect.Response[v1.GetAllegianceResponse], error) {
+	return c.getAllegiance.CallUnary(ctx, req)
+}
+
 // ClickServiceHandler is an implementation of the planet.v1.ClickService service.
 type ClickServiceHandler interface {
 	Click(context.Context, *connect.Request[v1.ClickRequest]) (*connect.Response[v1.ClickResponse], error)
@@ -295,6 +312,8 @@ type ClickServiceHandler interface {
 	AnswerQuiz(context.Context, *connect.Request[v1.AnswerQuizRequest]) (*connect.Response[v1.AnswerQuizResponse], error)
 	PlaceShield(context.Context, *connect.Request[v1.PlaceShieldRequest]) (*connect.Response[v1.PlaceShieldResponse], error)
 	GetFortresses(context.Context, *connect.Request[v1.GetFortressesRequest]) (*connect.Response[v1.GetFortressesResponse], error)
+	// Not NO_SIDE_EFFECTS: the answer is about one caller now, and a cached one lies.
+	GetAllegiance(context.Context, *connect.Request[v1.GetAllegianceRequest]) (*connect.Response[v1.GetAllegianceResponse], error)
 }
 
 // NewClickServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -392,6 +411,12 @@ func NewClickServiceHandler(svc ClickServiceHandler, opts ...connect.HandlerOpti
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	clickServiceGetAllegianceHandler := connect.NewUnaryHandler(
+		ClickServiceGetAllegianceProcedure,
+		svc.GetAllegiance,
+		connect.WithSchema(clickServiceMethods.ByName("GetAllegiance")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/planet.v1.ClickService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ClickServiceClickProcedure:
@@ -422,6 +447,8 @@ func NewClickServiceHandler(svc ClickServiceHandler, opts ...connect.HandlerOpti
 			clickServicePlaceShieldHandler.ServeHTTP(w, r)
 		case ClickServiceGetFortressesProcedure:
 			clickServiceGetFortressesHandler.ServeHTTP(w, r)
+		case ClickServiceGetAllegianceProcedure:
+			clickServiceGetAllegianceHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -485,4 +512,8 @@ func (UnimplementedClickServiceHandler) PlaceShield(context.Context, *connect.Re
 
 func (UnimplementedClickServiceHandler) GetFortresses(context.Context, *connect.Request[v1.GetFortressesRequest]) (*connect.Response[v1.GetFortressesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.GetFortresses is not implemented"))
+}
+
+func (UnimplementedClickServiceHandler) GetAllegiance(context.Context, *connect.Request[v1.GetAllegianceRequest]) (*connect.Response[v1.GetAllegianceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.GetAllegiance is not implemented"))
 }
