@@ -202,10 +202,10 @@ address over IPv4, the /64 over IPv6) and checks.
   with no account), with its takes, the tiles it still holds and their share of its takes (many takes
   and few tiles is a player painted over as fast as it paints), its rates and any ban. The list is read again on
   the way back from a player, as the reports are.
-- **By name** (`NameResults`) is `player.v1.AdminService/FindAuthors` with what the operator typed: every account
+- **By name** (`NameResults`) is `player.v1.AdminService/SearchPlayers` with what the operator typed: every account
   whose username or guest code holds it, any case, the same name first. It reaches past the ledger's 72 hours, so a
   banned player the lists no longer show is found by the name the chat gives it. A row is its name and whether it is
-  a username or a guest code, and opens its account (`AuthorCard`); it carries no takes, since the ledger is not
+  a username or a guest code, and opens its account (`MatchCard`); it carries no takes, since the ledger is not
   asked.
 - **A row is shown by its flag and its name, never its account id** (`PlayerName`): the flag it took the most tiles
   for (`flag_country_id`), as an emoji and a name, then its username or its guest code, then its address. The

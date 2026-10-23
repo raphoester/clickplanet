@@ -39,10 +39,11 @@ import {ChargesHeld} from "./gen/grpc/planet/v1/planet_pb.ts"
 import {
     AdminGetPlayerRequest,
     AdminGetPlayerResponse,
-    FindAuthorsRequest,
-    FindAuthorsResponse,
+    PlayerMatch,
     ReconcileTitlesRequest,
     ReconcileTitlesResponse,
+    SearchPlayersRequest,
+    SearchPlayersResponse,
 } from "./gen/grpc/player/v1/admin_pb.ts"
 import {Author, GetAuthorsRequest, GetAuthorsResponse} from "./gen/grpc/player/v1/internal_pb.ts"
 import {CountryTiles, Stats} from "./gen/grpc/player/v1/player_pb.ts"
@@ -231,10 +232,13 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
             new GetAuthorsResponse({authors: this.authors.filter(author => asked.has(author.accountId))}))
     }
 
-    findAuthors(request: PartialMessage<FindAuthorsRequest>): Promise<FindAuthorsResponse> {
+    // The accounts the fake names, matched as the server does: in any case, anywhere in the name.
+    searchPlayers(request: PartialMessage<SearchPlayersRequest>): Promise<SearchPlayersResponse> {
         const name = (request.name ?? "").trim().toLowerCase()
-        const found = this.authors.filter(author => author.name.toLowerCase().includes(name))
-        return this.answer("findAuthors", request, new FindAuthorsResponse({authors: found, total: found.length}))
+        const players = this.authors
+            .filter(author => author.name.toLowerCase().includes(name))
+            .map(author => new PlayerMatch({accountId: author.accountId, name: author.name, guest: author.guest}))
+        return this.answer("searchPlayers", request, new SearchPlayersResponse({players, total: players.length}))
     }
 
     getPlayer(request: PartialMessage<AdminGetPlayerRequest>): Promise<AdminGetPlayerResponse> {

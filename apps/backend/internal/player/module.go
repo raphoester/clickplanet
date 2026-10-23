@@ -34,8 +34,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/admin_get_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/admin_get_player_handler/admin_player_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/announce_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/find_authors_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/find_authors_handler/names_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_author_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_authors_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_authors_handler/authors_query"
@@ -58,6 +56,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/reconcile_titles_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/rpc_planet_fronts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/rpc_planet_fronts/caching_fronts"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/search_players_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/search_players_handler/matches_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/set_color_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/set_name_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/wear_title_handler"
@@ -270,8 +270,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to mount player.v1.PlayerService: %w", err)
 	}
 
-	authorsQuery := authors_query.NewPostgresQuery(db, titleCards, clock)
-	getAuthors := get_authors_handler.New(authorsQuery)
+	getAuthors := get_authors_handler.New(authors_query.NewPostgresQuery(db, titleCards, clock))
 	internalService := playerv1controller.InternalService{
 		GetAuthorHandler:  get_author_handler.New(authors),
 		GetAuthorsHandler: getAuthors,
@@ -290,7 +289,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		AdminGetPlayerHandler: admin_get_player_handler.New(
 			admin_player_query.NewPostgresQuery(db, titleCards, accounts, fronts, clock),
 		),
-		FindAuthorsHandler: find_authors_handler.New(names_query.NewPostgresQuery(db), authorsQuery),
+		SearchPlayersHandler: search_players_handler.New(matches_query.NewPostgresQuery(db)),
 	}
 	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return playerv1connect.NewAdminServiceHandler(adminService, options...)

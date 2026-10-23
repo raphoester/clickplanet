@@ -1459,10 +1459,10 @@ internal/player/internal/
     get_profile_handler/  set_name_handler/  set_color_handler/  get_stats_handler/  get_author_handler/  get_player_handler/
     get_authors_handler/  get_titles_handler/  wear_title_handler/  get_fronts_handler/
     announce_handler/  leave_handler/  get_roster_handler/  listen_for_events_handler/
-    reconcile_titles_handler/  admin_get_player_handler/  find_authors_handler/   AdminService's own; it serves
+    reconcile_titles_handler/  admin_get_player_handler/  search_players_handler/   AdminService's own; it serves
                                     get_authors_handler too
       admin_get_player_handler/admin_player_query/   PostgresQuery: what the game keeps about one account, a guest's too
-      find_authors_handler/names_query/   PostgresQuery: the accounts a part of a name finds, then authors_query names them
+      search_players_handler/matches_query/   PostgresQuery: the accounts a part of a name finds, straight from SQL
     get_profile_handler/profile_query/  get_stats_handler/stats_query/  get_player_handler/player_query/
     get_titles_handler/titles_query/  get_authors_handler/authors_query/   PostgresQuery: the response straight from SQL
     get_roster_handler/roster_query/    MemoryQuery: the roster, from its Lines port
@@ -1526,15 +1526,19 @@ internal/player/internal/
     `NotFound` (`admin_player_query.ErrNoPlayer`) is an account with no profile, no guest code and no stats; an id
     that is not an account is `InvalidArgument`; a failure to ask auth or planet is the error net's `internal`.
     `no-store`.
-  - **`FindAuthors(name, limit)` finds an account by a part of its name**, for the player the operator only knows
+  - **`SearchPlayers(name, limit)` finds an account by a part of its name**, for the player the operator only knows
     from the chat: the ledger lists who played in its 72 hours, and a banned player has played nothing since. The
     part is folded as a username is (`players.FoldedOf`, the same NFKC_Casefold), so `eire` finds `EIRE`, and
     matched anywhere in `profiles.name_folded`, or in `guest_` and the code for an account with no username, as
     `GetAuthors` names it: a code an account went by before it chose a name finds nothing. The same name first,
     then the names it starts, then the shortest, then by name. `limit` is 20 when 0, 500 at most, and `total`
-    counts every account found. `names_query` reads the ids (a scan of both tables: no index serves a match
-    inside a name), and `authors_query` names them, so each is the `Author` `GetAuthors` answers. An
-    empty part is `InvalidArgument` (`ErrNoName`). `no-store`.
+    counts every account found. Each is a `PlayerMatch`: its account id, its name and `guest`, all a row of the
+    search shows. `matches_query` reads them in one statement (a scan of both tables: no index serves a match
+    inside a name), and its test pins that each is named as `GetAuthors` names it. An empty part is
+    `InvalidArgument` (`ErrNoName`). `no-store`.
+  - **It was `FindAuthors` for a day** (#450), answering `Author`s through `authors_query`: the name followed the
+    chat's type it reused, and "author" means nothing to an operator browsing players. Only the back office called
+    it, so it was renamed in one step.
 - **Migration `20260918190000_unicode_usernames`** moves to this rule. Every name kept before is ASCII of 3 to 20, so only length breaks the new rule: **a name over 15 is cut to its first 15 characters**, the player keeping most of it. A cut name that another would then hold, ignoring case — a name of 15 or fewer, or an older cut name (`updated_at`, then `account_id`) — is **deleted** instead, and its player chooses again; an untouched name is never the one to go. Then it fills `name_folded` with an ASCII-only `translate()` (exact for these names, in any locale), replaces the `CHECK`, and moves `profiles_name_key` to `name_folded`. The down migration deletes the names the old rule refuses, drops the column and puts the old `CHECK` and the `lower(name)` index back; cut names stay cut. `migrations_test.go` migrates to the version before, writes names, and migrates the rest.
 - **Migration `20260917180000_usernames`** deletes the profiles whose name breaks the new rule, then, of names that differ only in case, every one but the oldest (`updated_at`, then `account_id`), replaces the name `CHECK` with the new pattern and adds the unique index. No client called `SetName` before usernames existed, so nothing a player chose is lost. The down migration drops the index and puts the old `CHECK` back; the deleted rows stay deleted.
 - **A guest code names an account that chose no username**: 6 lowercase hex characters (`players.GuestCode`), shown as `guest_` and the code (`players.DisplayNameOf`). It is drawn by `random_code_generator` the first time the account is shown (`players.GuestCodes.Assign`), kept in `player.guest_codes`, and deleted with the account, which frees it. **It is unique**: the table's `guest_codes_code_key` refuses a code another account holds, the store answers `ErrGuestCodeTaken`, and `Assign` draws again, up to 10 times (`ErrNoFreeGuestCode`). An account keeps its first code: a second save for it changes nothing, so two first announces at once leave one code. **It does not change with the network**, unlike the address, and says nothing about the account or the address. A linked account with no username keeps the code it had as a guest until it picks a name.
