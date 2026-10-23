@@ -1201,7 +1201,9 @@ Either way the decorator decides the policy and the handler decides how to say i
 
 **Every reading also carries `linked_multiplier`**, what signing in multiplies the refill by (`Buckets.BudgetOf`). It is the same for every caller, so the client can tell a guest what signing in is worth with no number of its own.
 
-**The reading is the tighter bucket** (`Buckets.BudgetOf`): the one with fewer tokens, on a tie the smaller one, and on a full tie the payer's own. A player behind a busy campus sees the scope's limit rather than a full meter that refuses. The reading is still one bucket's `Capacity`, `PerSecond` and `Tokens`, so the client arithmetic does not change. `TestTheBudgetIsTheTighterBucket` pins it.
+**The reading is the tighter bucket** (`Buckets.BudgetOf`): the one with fewer tokens, on a tie the smaller one, and on a full tie the payer's own. A player behind a busy campus sees the scope's limit rather than a full meter that refuses. The reading is that bucket's `Tokens` and `PerSecond`, so the client arithmetic does not change. `TestTheBudgetIsTheTighterBucket` pins it.
+
+**Its `Capacity` is always the payer's own bank**, whichever bucket is tighter. A shared bucket is a ceiling, not a bigger bank: on 2026-10-23 two signed-in players on one IPv6 line read "24 of 240", and the client, replaying the scope's rate up to its capacity, would have counted past the 60 either of them could spend. The tighter bucket never holds more than the payer's own, so the count always fits under it.
 
 **It says who else spends from that bucket** (`ClickBudget.shared_with`: nobody, the guests behind the address, or every player behind it). Without it a guest whose other tab, or a stranger on the same carrier address, spent the bank sees its count drop by clicks it never made. A guest alone on its network holds as much in its own bucket as in its guests', and the full tie goes to its own, so it is never told it shares.
 
@@ -1908,7 +1910,7 @@ per kind — a kind's chance is its weight over the sum of the weights, so the
 strong ones can be made rare (production runs 5 : 3 : 1 : 2 : 3):
 
 - **`refill`** — a charge: fills the caller's click bank to full, when the
-  caller chooses. Up to one bank, 60 clicks. See [What a refill does to the bucket](#what-a-refill-does-to-the-bucket).
+  caller chooses, and gives the network's bucket as much. Up to one bank, 60 clicks. See [What a refill does to the bucket](#what-a-refill-does-to-the-bucket).
 - **`spread_clicks`** — 1 to `bonus.spread.maxPerBox` (4) clicks added to a pool
   of at most `bonus.spread.clicks` (8). While the player switches spread on, each
   click spends one and also takes the tiles touching the one clicked. See [What a spread does to a click](#what-a-spread-does-to-a-click).
@@ -2377,22 +2379,34 @@ closed: `bonus_enclosures_total` and `bonus_enclosed_tiles_total`.
 
 #### What a refill does to the bucket
 
-`UseRefill` spends it, through `use_refill_usecase`, and `cpratelimit.Limiter.Fill(key)`
-tops the bucket up to its capacity. **It fills the account's bucket and, for a
-guest, its scope's guests' — never the scope's** (`Buckets.Bank`): the scope's
-is shared with every other player behind the address, so a refill that filled it
-would be a refill for all of them. The guests' is filled because the guests on
-one network are one bank: a refill that left it empty would be a refill of
-nothing. A guest's boxes are already offered per scope, so this is no new
-allowance. A refilled player still spends from the scope's bucket, so it is
-bounded by it — `TestARefillDoesNotFillTheScopesBucket`. The bank never grows past its size, and
-the pace is left as it was. `Fill` is **additive**: nothing that never calls it
-can tell it exists, which matters because the same limiter type throttles chat
-and session mints.
+`UseRefill` spends it, through `use_refill_usecase`. **A refill is a full bank
+the player can spend**: what it gives is what the player lacks of one, its own
+bank's size less the emptiest bucket it spends from (`lack`).
 
+- **It fills the bank** (`Buckets.Bank`): the account's bucket and, for a guest,
+  its scope's guests', topped up to capacity by `cpratelimit.Limiter.Fill(key)`.
+  The guests' is filled because the guests on one network are one bank: a
+  refill that left it empty would be a refill of nothing. A guest's boxes are
+  already offered per scope, so this is no new allowance.
+- **It gives the scope's bucket what it gave, never more** (`Buckets.Ceiling`,
+  `Limiter.Add(key, lack)`), and never past its capacity. The scope's is shared
+  with every other player behind the address, so filling it would be a refill
+  for all of them; leaving it alone made the refill drain it instead. Two
+  signed-in players on one IPv6 line exactly fill a /64's 4× at their pace, so
+  each refill left the scope one bank lower than the banks behind it, until it
+  was the tighter bucket: the meter read the scope, the refill filled a bank
+  that was already full, and was refused as one (2026-10-23). Given what the
+  refill gave, the scope is no tighter for anyone else, and the refilled player
+  can spend all of it. `TestARefillGivesABankWhenTheNetworksBucketIsTheTighter`
+  replays that household over HTTP.
+- The bank never grows past its size, and the pace is left as it was. `Fill`
+  and `Add` are **additive**: nothing that never calls them can tell they exist,
+  which matters because the same limiter type throttles chat and session mints.
 - **A full bank is refused before the charge is touched**: `ErrBankFull`,
-  answered `FailedPrecondition`, spends nothing. The client checks first and says
-  "Bank already full" without asking; the server check is what holds.
+  answered `FailedPrecondition`, spends nothing. Full is a `lack` of 0: the bank
+  full and the scope holding at least a bank, which is the reading the client
+  sees full. The client checks first and says "Bank already full" without
+  asking; the server check is what holds.
 - **No refill, or no account**: `ErrNoRefill`, answered `NotFound`.
 - **The answer carries the budget**, full, and the charges, so the meter jumps at
   once rather than on the next click.

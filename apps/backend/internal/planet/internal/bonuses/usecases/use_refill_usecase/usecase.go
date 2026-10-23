@@ -3,6 +3,7 @@ package use_refill_usecase
 import (
 	"context"
 	"errors"
+	"math"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
@@ -23,6 +24,7 @@ type Refills interface {
 type Bank interface {
 	Peek(key cpratelimit.Key) cpratelimit.State
 	Fill(key cpratelimit.Key) (bool, cpratelimit.State)
+	Add(key cpratelimit.Key, n float64)
 }
 
 type Pricer interface {
@@ -56,8 +58,9 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 		return Out{}, ErrNoRefill
 	}
 
-	bank := u.buckets.Bank(payer)
-	if u.full(bank) {
+	bank, ceiling := u.buckets.Bank(payer), u.buckets.Ceiling(payer)
+	lack := u.lack(bank, ceiling)
+	if lack <= 0 {
 		return Out{}, ErrBankFull
 	}
 
@@ -69,6 +72,9 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	}
 	for _, key := range bank {
 		_, _ = u.bank.Fill(key)
+	}
+	for _, key := range ceiling {
+		u.bank.Add(key, lack)
 	}
 
 	price := u.pricer.Price(in.CountryID)
@@ -86,11 +92,16 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	return Out{Budget: u.buckets.BudgetOf(payer, states, price), Held: held}, nil
 }
 
-func (u *UseCase) full(bank []cpratelimit.Key) bool {
+// lack is how far what the payer can spend is from a full bank: the size of its own, less the emptiest bucket it spends from.
+func (u *UseCase) lack(bank, ceiling []cpratelimit.Key) float64 {
+	size, spendable := math.Inf(1), math.Inf(1)
 	for _, key := range bank {
-		if state := u.bank.Peek(key); state.Tokens < float64(state.Capacity) {
-			return false
-		}
+		state := u.bank.Peek(key)
+		size, spendable = min(size, float64(state.Capacity)), min(spendable, state.Tokens)
 	}
-	return true
+	for _, key := range ceiling {
+		spendable = min(spendable, u.bank.Peek(key).Tokens)
+	}
+
+	return size - spendable
 }

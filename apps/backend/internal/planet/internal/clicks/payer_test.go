@@ -120,14 +120,19 @@ func TestANewAccountsOwnBucketEarnsItsBankFromWhenItWasMade(t *testing.T) {
 	}
 }
 
-func TestARefillFillsTheBankNeverTheScopes(t *testing.T) {
+func TestARefillFillsTheBankAndTheScopesIsItsCeiling(t *testing.T) {
 	buckets := clicks.ThrottleConfig{}.Buckets()
+	guest := clicks.Payer{Scope: "1.2.3.4", Account: "a-guest"}
+	linked := clicks.Payer{Scope: "1.2.3.4", Account: "a-player", Linked: true}
 
 	assert.Equal(t, []cpratelimit.Key{{Name: "account:a-guest", Scale: 1, Pace: 1}, {Name: "guests:1.2.3.4", Scale: 1, Pace: 1}},
-		buckets.Bank(clicks.Payer{Scope: "1.2.3.4", Account: "a-guest"}))
-	assert.Equal(t, []cpratelimit.Key{{Name: "account:a-player", Scale: 1, Pace: 2}},
-		buckets.Bank(clicks.Payer{Scope: "1.2.3.4", Account: "a-player", Linked: true}))
+		buckets.Bank(guest))
+	assert.Equal(t, []cpratelimit.Key{{Name: "account:a-player", Scale: 1, Pace: 2}}, buckets.Bank(linked))
 	assert.Equal(t, []cpratelimit.Key{{Name: "1.2.3.4", Scale: 1, Pace: 1}}, buckets.Bank(clicks.Payer{Scope: "1.2.3.4"}))
+
+	assert.Equal(t, []cpratelimit.Key{{Name: "scope:1.2.3.4", Scale: 10}}, buckets.Ceiling(guest))
+	assert.Equal(t, []cpratelimit.Key{{Name: "scope:1.2.3.4", Scale: 10}}, buckets.Ceiling(linked))
+	assert.Empty(t, buckets.Ceiling(clicks.Payer{Scope: "1.2.3.4"}), "no account spends from no shared bucket")
 }
 
 func TestTheBudgetIsTheTightestBucketAndSaysWhoShares(t *testing.T) {
@@ -144,7 +149,8 @@ func TestTheBudgetIsTheTightestBucketAndSaysWhoShares(t *testing.T) {
 	assert.Equal(t, clicks.SharedWithGuests, budget.SharedWith)
 
 	budget = buckets.BudgetOf(linked, []cpratelimit.State{own, scope}, clicks.Price{})
-	assert.Equal(t, scope, budget.State)
+	assert.Equal(t, cpratelimit.State{Tokens: 4, Capacity: 10, PerSecond: 10}, budget.State,
+		"the scope's count and rate, read against the player's own bank")
 	assert.Equal(t, clicks.SharedWithScope, budget.SharedWith)
 
 	fullScope := cpratelimit.State{Tokens: 8, Capacity: 100, PerSecond: 10}
