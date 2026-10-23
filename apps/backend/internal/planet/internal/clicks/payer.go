@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"net/netip"
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
@@ -15,6 +16,8 @@ type ThrottleConfig struct {
 	cpratelimit.Config `koanf:",squash"`
 
 	ScopeMultiplier float64
+
+	V6ScopeMultiplier float64
 
 	GuestScopeMultiplier float64
 
@@ -49,15 +52,26 @@ func (c ThrottleConfig) Validate() error {
 		}
 	}
 
+	if v6 := c.V6ScopeMultiplier; math.IsNaN(v6) || v6 < 0 || (v6 > 0 && v6 < 1) {
+		return fmt.Errorf("rateLimiter.v6ScopeMultiplier is %v: it must be 1 or more, or unset for scopeMultiplier", v6)
+	}
+
 	return nil
 }
 
 func (c ThrottleConfig) Buckets() Buckets {
+	scope := orDefault(c.ScopeMultiplier, defaultScopeMultiplier)
+	v6Scope := c.V6ScopeMultiplier
+	if v6Scope <= 0 {
+		v6Scope = scope
+	}
+
 	return Buckets{
-		scopeMultiplier:  orDefault(c.ScopeMultiplier, defaultScopeMultiplier),
-		guestMultiplier:  orDefault(c.GuestScopeMultiplier, defaultGuestScopeMultiplier),
-		linkedMultiplier: orDefault(c.LinkedMultiplier, defaultLinkedMultiplier),
-		newAccountClicks: c.NewAccountClicks,
+		scopeMultiplier:   scope,
+		v6ScopeMultiplier: v6Scope,
+		guestMultiplier:   orDefault(c.GuestScopeMultiplier, defaultGuestScopeMultiplier),
+		linkedMultiplier:  orDefault(c.LinkedMultiplier, defaultLinkedMultiplier),
+		newAccountClicks:  c.NewAccountClicks,
 	}
 }
 
@@ -69,10 +83,11 @@ func orDefault(value float64, defaultValue int) float64 {
 }
 
 type Buckets struct {
-	scopeMultiplier  float64
-	guestMultiplier  float64
-	linkedMultiplier float64
-	newAccountClicks *float64
+	scopeMultiplier   float64
+	v6ScopeMultiplier float64
+	guestMultiplier   float64
+	linkedMultiplier  float64
+	newAccountClicks  *float64
 }
 
 type SharedWith int
@@ -145,7 +160,7 @@ func (b Buckets) pools(payer Payer, price Price) []pool {
 		return []pool{{key: cpratelimit.Key{Name: payer.Scope, Scale: 1, Pace: pace}, sharedWith: SharedWithNobody}}
 	}
 
-	scope := pool{key: cpratelimit.Key{Name: "scope:" + payer.Scope, Scale: b.scopeMultiplier}, sharedWith: SharedWithScope}
+	scope := pool{key: cpratelimit.Key{Name: "scope:" + payer.Scope, Scale: b.scopeScale(payer.Scope)}, sharedWith: SharedWithScope}
 
 	if payer.Linked {
 		return []pool{{key: b.own(payer, pace*b.linkedMultiplier), sharedWith: SharedWithNobody}, scope}
@@ -156,6 +171,13 @@ func (b Buckets) pools(payer Payer, price Price) []pool {
 		{key: cpratelimit.Key{Name: "guests:" + payer.Scope, Scale: b.guestMultiplier, Pace: pace}, sharedWith: SharedWithGuests},
 		scope,
 	}
+}
+
+func (b Buckets) scopeScale(scope string) float64 {
+	if prefix, err := netip.ParsePrefix(scope); err == nil && prefix.Addr().Is6() {
+		return b.v6ScopeMultiplier
+	}
+	return b.scopeMultiplier
 }
 
 func (b Buckets) own(payer Payer, pace float64) cpratelimit.Key {

@@ -256,6 +256,31 @@ func TestManyAccountsOnOneScopeShareTheScopesBucket(t *testing.T) {
 	require.NoError(t, err, "the same account elsewhere may click")
 }
 
+func TestTwoSignedInAccountsFillAnIPv6NetworkAndNotAnIPv4One(t *testing.T) {
+	server, _, _ := accountServer(t, clicks.ThrottleConfig{
+		Config: cpratelimit.Config{PerSecond: 1, Burst: 10}, V6ScopeMultiplier: 2,
+	})
+
+	for i, address := range []string{"2001:db8::1", "2001:db8::2"} {
+		for click := range 10 {
+			_, err := clickWithToken(t, server, address, linkedPrefix+accountNumber(i).String())
+			require.NoErrorf(t, err, "account %d click %d", i, click)
+		}
+	}
+
+	_, err := clickWithToken(t, server, "2001:db8::3", linkedPrefix+accountNumber(2).String())
+	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err), "a third account on the same /64 adds no clicks")
+	require.Equal(t, uint32(20), budgetDetail(t, err).GetCapacity())
+	require.Equal(t, planetv1.SharedWith_SHARED_WITH_NETWORK, budgetDetail(t, err).GetSharedWith())
+
+	for i := range 3 {
+		for click := range 10 {
+			_, err := clickWithToken(t, server, "192.0.2.1", linkedPrefix+accountNumber(10+i).String())
+			require.NoErrorf(t, err, "account %d click %d behind one IPv4 address", i, click)
+		}
+	}
+}
+
 func TestGuestsOnOneScopeShareOneBank(t *testing.T) {
 	server, _, _ := accountServer(t, clicks.ThrottleConfig{Config: cpratelimit.Config{PerSecond: 1, Burst: 10}})
 
