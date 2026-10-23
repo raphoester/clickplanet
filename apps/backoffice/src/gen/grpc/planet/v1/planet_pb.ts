@@ -153,7 +153,83 @@ export class GetAllegianceResponse extends Message<GetAllegianceResponse> {
 }
 
 /**
- * Also the detail of a click or a shield refused for another flag.
+ * @generated from message planet.v1.PledgeAllegianceRequest
+ */
+export class PledgeAllegianceRequest extends Message<PledgeAllegianceRequest> {
+  /**
+   * @generated from field: string country_id = 1;
+   */
+  countryId = "";
+
+  constructor(data?: PartialMessage<PledgeAllegianceRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.PledgeAllegianceRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PledgeAllegianceRequest {
+    return new PledgeAllegianceRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PledgeAllegianceRequest {
+    return new PledgeAllegianceRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PledgeAllegianceRequest {
+    return new PledgeAllegianceRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: PledgeAllegianceRequest | PlainMessage<PledgeAllegianceRequest> | undefined, b: PledgeAllegianceRequest | PlainMessage<PledgeAllegianceRequest> | undefined): boolean {
+    return proto3.util.equals(PledgeAllegianceRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.PledgeAllegianceResponse
+ */
+export class PledgeAllegianceResponse extends Message<PledgeAllegianceResponse> {
+  /**
+   * Unset for a caller with no account.
+   *
+   * @generated from field: planet.v1.Allegiance allegiance = 1;
+   */
+  allegiance?: Allegiance;
+
+  constructor(data?: PartialMessage<PledgeAllegianceResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.PledgeAllegianceResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "allegiance", kind: "message", T: Allegiance },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PledgeAllegianceResponse {
+    return new PledgeAllegianceResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PledgeAllegianceResponse {
+    return new PledgeAllegianceResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PledgeAllegianceResponse {
+    return new PledgeAllegianceResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: PledgeAllegianceResponse | PlainMessage<PledgeAllegianceResponse> | undefined, b: PledgeAllegianceResponse | PlainMessage<PledgeAllegianceResponse> | undefined): boolean {
+    return proto3.util.equals(PledgeAllegianceResponse, a, b);
+  }
+}
+
+/**
+ * Also the detail of a click, a shield or a pledge refused for another flag.
  *
  * @generated from message planet.v1.Allegiance
  */

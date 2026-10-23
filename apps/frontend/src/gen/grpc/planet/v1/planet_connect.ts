@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AnswerQuizRequest, AnswerQuizResponse, ClaimBonusRequest, ClaimBonusResponse, ClickRequest, ClickResponse, DropBombRequest, DropBombResponse, GetAllegianceRequest, GetAllegianceResponse, GetBonusRulesRequest, GetBonusRulesResponse, GetBudgetRequest, GetBudgetResponse, GetChargesRequest, GetChargesResponse, GetFortressesRequest, GetFortressesResponse, GetMapRequest, GetMapResponse, ListenForEventsRequest, MapDensityRequest, MapDensityResponse, OpenQuizRequest, OpenQuizResponse, PlaceShieldRequest, PlaceShieldResponse, PlanetEvent, UseRefillRequest, UseRefillResponse } from "./planet_pb.js";
+import { AnswerQuizRequest, AnswerQuizResponse, ClaimBonusRequest, ClaimBonusResponse, ClickRequest, ClickResponse, DropBombRequest, DropBombResponse, GetAllegianceRequest, GetAllegianceResponse, GetBonusRulesRequest, GetBonusRulesResponse, GetBudgetRequest, GetBudgetResponse, GetChargesRequest, GetChargesResponse, GetFortressesRequest, GetFortressesResponse, GetMapRequest, GetMapResponse, ListenForEventsRequest, MapDensityRequest, MapDensityResponse, OpenQuizRequest, OpenQuizResponse, PlaceShieldRequest, PlaceShieldResponse, PlanetEvent, PledgeAllegianceRequest, PledgeAllegianceResponse, UseRefillRequest, UseRefillResponse } from "./planet_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -155,6 +155,17 @@ export const ClickService = {
       name: "GetAllegiance",
       I: GetAllegianceRequest,
       O: GetAllegianceResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Refused like a click for another flag, within the hour after a change.
+     *
+     * @generated from rpc planet.v1.ClickService.PledgeAllegiance
+     */
+    pledgeAllegiance: {
+      name: "PledgeAllegiance",
+      I: PledgeAllegianceRequest,
+      O: PledgeAllegianceResponse,
       kind: MethodKind.Unary,
     },
   }

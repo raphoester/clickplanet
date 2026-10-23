@@ -49,3 +49,32 @@ func TestAPlayerChangesItsFlagOnceAndIsThenHeldToIt(t *testing.T) {
 	require.NoError(t, ada.tryClick(3, "de"), "the flag held still plays")
 	require.NoError(t, game.newPlayer(t).tryClick(4, "fr"), "another player is not held to it")
 }
+
+func (p *gamer) tryPledge(flag string) (*planetv1.Allegiance, error) {
+	p.t.Helper()
+
+	req := connect.NewRequest(&planetv1.PledgeAllegianceRequest{CountryId: flag})
+	p.send(req.Header())
+	res, err := planetv1connect.NewClickServiceClient(http.DefaultClient, p.stack.baseURL).PledgeAllegiance(p.t.Context(), req)
+	if err != nil {
+		return nil, err //nolint:wrapcheck // the test reads the code.
+	}
+
+	return res.Msg.GetAllegiance(), nil
+}
+
+func TestAPlayerChangesItsFlagBeforeItClicks(t *testing.T) {
+	game := startGame(t)
+	ada := game.newPlayer(t)
+	ada.click(1, "fr")
+
+	changed, err := ada.tryPledge("de")
+	require.NoError(t, err)
+	assert.Equal(t, "de", changed.GetCountryId())
+	assert.NotZero(t, changed.GetChangeableAtUnixMs(), "the change starts the wait, with no click")
+
+	_, err = ada.tryPledge("fr")
+	require.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
+	require.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(ada.tryClick(2, "fr")))
+	require.NoError(t, ada.tryClick(2, "de"))
+}

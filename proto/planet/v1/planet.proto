@@ -43,6 +43,9 @@ service ClickService {
 
   // Not NO_SIDE_EFFECTS: the answer is about one caller now, and a cached one lies.
   rpc GetAllegiance(GetAllegianceRequest) returns (GetAllegianceResponse);
+
+  // Refused like a click for another flag, within the hour after a change.
+  rpc PledgeAllegiance(PledgeAllegianceRequest) returns (PledgeAllegianceResponse);
 }
 
 message GetAllegianceRequest {}
@@ -52,7 +55,16 @@ message GetAllegianceResponse {
   Allegiance allegiance = 1;
 }
 
-// Also the detail of a click or a shield refused for another flag.
+message PledgeAllegianceRequest {
+  string country_id = 1;
+}
+
+message PledgeAllegianceResponse {
+  // Unset for a caller with no account.
+  Allegiance allegiance = 1;
+}
+
+// Also the detail of a click, a shield or a pledge refused for another flag.
 message Allegiance {
   string country_id = 1;
 

@@ -897,6 +897,11 @@ player could paint for one country and defend another click to click.
 - **`ClickService/GetAllegiance`** answers the caller's (`allegiance_query`, straight
   from postgres), as `Identified`: unset for an account that never acted for a flag,
   and `changeable_at_unix_ms` 0 for a flag never changed. Not `NO_SIDE_EFFECTS`.
+- **`ClickService/PledgeAllegiance(country_id)`** changes the flag with no click:
+  `Book.Pledge`, then the flag held, read by `allegiance_query`. Refused as a click is.
+  `Identified`, since it writes only the caller's own state. A caller with no account
+  and a flag that is no country change nothing, and the answer is the flag held. The
+  web client pledges when the player picks a country, so the wait starts at the pick.
 - **No memory copy: every click and every shield reads postgres**, and a change writes
   it, in `planet.allegiances` (`account`, `flag`, `changed_at`, NULL for a first flag).
   Only the tile map is kept in memory and flushed. A failing database fails the click,
