@@ -83,6 +83,9 @@ linters:
 
         - .Click(
         - .Pledge(
+        - .Held(
+        - .Grant(
+        - .Spend(
         - .GetMap(
         - .SendMessage(
         - .ListenForEvents(

@@ -10,7 +10,7 @@ import (
 )
 
 type UseCase interface {
-	Execute(ctx context.Context) bonuses.Held
+	Execute(ctx context.Context) (bonuses.Held, error)
 }
 
 func New(useCase UseCase) GetChargesHandler {
@@ -25,5 +25,10 @@ func (h GetChargesHandler) GetCharges(
 	ctx context.Context,
 	_ *connect.Request[planetv1.GetChargesRequest],
 ) (*connect.Response[planetv1.GetChargesResponse], error) {
-	return connect.NewResponse(&planetv1.GetChargesResponse{Charges: chargesheld.Encode(h.useCase.Execute(ctx))}), nil
+	held, err := h.useCase.Execute(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return connect.NewResponse(&planetv1.GetChargesResponse{Charges: chargesheld.Encode(held)}), nil
 }

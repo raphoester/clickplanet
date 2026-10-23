@@ -45,7 +45,7 @@ func TestTwoLinkedAccountsBehindOneAddressAreEachOfferedAndClaimTheirOwnBox(t *t
 	registry, clock := newTestRegistry()
 	hers, his := playingAs(t, registry, alice), playingAs(t, registry, bob)
 
-	waitOut(registry, clock)
+	waitOut(t, registry, clock)
 
 	herOffer, hisOffer := offered(t, hers), offered(t, his)
 	require.NotNil(t, herOffer)
@@ -65,7 +65,7 @@ func TestAGuestBehindTheAddressOfALinkedAccountIsOnTheAddressSchedule(t *testing
 	registry, clock := newTestRegistry()
 	hers, theirs := playingAs(t, registry, alice), playingAs(t, registry, guest)
 
-	waitOut(registry, clock)
+	waitOut(t, registry, clock)
 
 	herOffer, theirOffer := offered(t, hers), offered(t, theirs)
 	require.NotNil(t, herOffer)
@@ -84,7 +84,7 @@ func TestALinkedAccountsCatchIsReportedToTheAntibotByItsNetwork(t *testing.T) {
 	registry.Observe(Report{Caught: func(scope string, _ time.Duration) { caughtBy = append(caughtBy, scope) }})
 
 	events := playingAs(t, registry, alice)
-	waitOut(registry, clock)
+	waitOut(t, registry, clock)
 	offer := offered(t, events)
 	require.NotNil(t, offer)
 
@@ -101,11 +101,11 @@ func TestALinkedAccountsMissIsReportedToTheAntibotByItsNetwork(t *testing.T) {
 	registry.Observe(Report{Lapsed: func(scope string) { missedBy = append(missedBy, scope) }})
 
 	events := playingAs(t, registry, alice)
-	waitOut(registry, clock)
+	waitOut(t, registry, clock)
 	require.NotNil(t, offered(t, events))
 
 	clock.Advance(registry.config.OfferTTL + time.Second)
-	registry.sweep()
+	registry.sweep(t.Context())
 
 	assert.Equal(t, []string{sharedAddress}, missedBy)
 }
@@ -114,7 +114,7 @@ func TestTwoLinkedAccountsBehindOneAddressAreEachAskedTheirOwnQuiz(t *testing.T)
 	registry, clock := newQuizzingRegistry(t)
 	hers, his := playingAs(t, registry, alice), playingAs(t, registry, bob)
 
-	waitOutQuiz(registry, clock)
+	waitOutQuiz(t, registry, clock)
 
 	herQuiz, hisQuiz := quizOffered(t, hers), quizOffered(t, his)
 	require.NotNil(t, herQuiz)

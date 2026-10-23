@@ -16,8 +16,8 @@ type Registry interface {
 }
 
 type Charger interface {
-	Grant(holder bonuses.Holder, kind bonuses.Kind, amount int)
-	Held(holder bonuses.Holder) bonuses.Held
+	Grant(ctx context.Context, holder bonuses.Holder, kind bonuses.Kind, amount int) error
+	Held(ctx context.Context, holder bonuses.Holder) (bonuses.Held, error)
 }
 
 type In struct {
@@ -56,15 +56,22 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	}
 
 	holder := bonuses.HolderOf(payer)
-	out := Out{Correct: answered.Correct, CorrectChoice: answered.CorrectChoice, Held: u.charger.Held(holder)}
+	before, err := u.charger.Held(ctx, holder)
+	if err != nil {
+		return Out{}, err
+	}
+	out := Out{Correct: answered.Correct, CorrectChoice: answered.CorrectChoice, Held: before}
 
 	if !answered.Correct {
 		return out, nil
 	}
 
-	before := out.Held
-	u.charger.Grant(holder, answered.Reward.Kind, answered.Reward.Amount)
-	out.Held = u.charger.Held(holder)
+	if err := u.charger.Grant(ctx, holder, answered.Reward.Kind, answered.Reward.Amount); err != nil {
+		return Out{}, err
+	}
+	if out.Held, err = u.charger.Held(ctx, holder); err != nil {
+		return Out{}, err
+	}
 	out.Kind = answered.Reward.Kind
 	out.Amount = out.Held.Count(answered.Reward.Kind) - before.Count(answered.Reward.Kind)
 

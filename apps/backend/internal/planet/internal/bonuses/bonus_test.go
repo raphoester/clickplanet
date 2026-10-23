@@ -33,42 +33,15 @@ func newRegistryOffering(kinds map[Kind]float64) (*Registry, *cptime.FixedClock)
 		ForgetAfter:       5 * time.Minute,
 		MaxChargesPerHour: 6,
 		SweepInterval:     time.Second,
-	}, clock, newFakeHoldings()), clock
+	}, clock, NewMemoryStore()), clock
 }
 
 func holderOf(entrant Entrant) Holder {
 	return HolderOf(clicks.Payer{Scope: string(entrant), Account: "acc-" + string(entrant)})
 }
 
-type fakeHoldings struct{ held map[Holder]Held }
-
-func newFakeHoldings() *fakeHoldings {
-	return &fakeHoldings{held: map[Holder]Held{}}
-}
-
-func (f *fakeHoldings) Held(holder Holder) Held { return f.held[holder] }
-
-func (f *fakeHoldings) grant(holder Holder, kind Kind) {
-	held := f.held[holder]
-	switch kind {
-	case KindRefill:
-		held.Refill = true
-	case KindBomb:
-		held.Bomb = true
-	case KindEncloseClicks:
-		held.Enclosures = 3
-	case KindSpreadClicks:
-		held.SpreadClicks = 8
-	}
-	f.held[holder] = held
-}
-
-func (f *fakeHoldings) take(holder Holder) {
-	delete(f.held, holder)
-}
-
-func holdingsOf(r *Registry) *fakeHoldings {
-	return r.holdings.(*fakeHoldings) //nolint:forcetypeassert // every registry in these tests is built with one.
+func holdingsOf(r *Registry) *MemoryStore {
+	return r.holdings.(*MemoryStore) //nolint:forcetypeassert // every registry in these tests is built with one.
 }
 
 func attend(t *testing.T, r *Registry, entrant Entrant) <-chan Event {
@@ -119,9 +92,11 @@ func drain(events <-chan Event) {
 	}
 }
 
-func waitOut(r *Registry, clock *cptime.FixedClock) {
+func waitOut(t *testing.T, r *Registry, clock *cptime.FixedClock) {
+	t.Helper()
+
 	clock.Advance(window + time.Second)
-	r.sweep()
+	r.sweep(t.Context())
 }
 
 func TestABoxGoesToAnAttendingCallerOnceTheWindowPasses(t *testing.T) {
@@ -130,7 +105,7 @@ func TestABoxGoesToAnAttendingCallerOnceTheWindowPasses(t *testing.T) {
 
 	require.Nil(t, offered(t, events), "nothing is due yet")
 
-	waitOut(registry, clock)
+	waitOut(t, registry, clock)
 
 	assert.NotNil(t, offered(t, events))
 }
@@ -143,7 +118,7 @@ func TestEveryCallerIsOnTheirOwnScheduleRatherThanSharingOne(t *testing.T) {
 		channels[entrant] = playing(t, registry, entrant)
 	}
 
-	waitOut(registry, clock)
+	waitOut(t, registry, clock)
 
 	for entrant, events := range channels {
 		assert.NotNilf(t, offered(t, events), "%s was not offered a box on its own turn", entrant)
@@ -156,7 +131,7 @@ func TestABoxReachesNobodyButTheCallerItWasDrawnFor(t *testing.T) {
 	mine := playing(t, registry, "scope-a")
 	theirs := attend(t, registry, "scope-b")
 
-	waitOut(registry, clock)
+	waitOut(t, registry, clock)
 
 	assert.NotNil(t, offered(t, mine))
 	assert.Nil(t, offered(t, theirs))
@@ -170,7 +145,7 @@ func TestEveryTabOfOneCallerIsSentTheBox(t *testing.T) {
 
 	require.Len(t, registry.callers, 1, "tabs are one entrant, not many")
 
-	waitOut(registry, clock)
+	waitOut(t, registry, clock)
 
 	one, two := offered(t, first), offered(t, second)
 	require.NotNil(t, one)
@@ -183,7 +158,7 @@ func TestNothingIsOfferedToACallerWhoIsNotClicking(t *testing.T) {
 
 	events := attend(t, registry, "scope-a")
 
-	waitOut(registry, clock)
+	waitOut(t, registry, clock)
 
 	assert.Nil(t, offered(t, events), "a tab left open is not playing")
 }
@@ -193,14 +168,14 @@ func TestATurnThatCameUpWhileAwayIsLostRatherThanBanked(t *testing.T) {
 	events := playing(t, registry, "scope-a")
 
 	clock.Advance(10 * time.Minute)
-	registry.sweep()
+	registry.sweep(t.Context())
 	require.Nil(t, offered(t, events))
 
 	clicked(registry, "scope-a")
-	registry.sweep()
+	registry.sweep(t.Context())
 	assert.Nil(t, offered(t, events), "the slot was lost, not saved up")
 
-	waitOut(registry, clock)
+	waitOut(t, registry, clock)
 	assert.NotNil(t, offered(t, events))
 }
 
@@ -208,11 +183,11 @@ func TestOnlyOneBoxIsOutstandingAtATime(t *testing.T) {
 	registry, clock := newTestRegistry()
 	events := playing(t, registry, "scope-a")
 
-	waitOut(registry, clock)
+	waitOut(t, registry, clock)
 	require.NotNil(t, offered(t, events))
 
 	clock.Advance(time.Second)
-	registry.sweep()
+	registry.sweep(t.Context())
 
 	assert.Nil(t, offered(t, events))
 }
@@ -221,15 +196,15 @@ func TestAMissedBoxBringsTheNextOneForwardOnce(t *testing.T) {
 	registry, clock := newTestRegistry()
 	events := playing(t, registry, "scope-a")
 
-	waitOut(registry, clock)
+	waitOut(t, registry, clock)
 	require.NotNil(t, offered(t, events))
 
 	clock.Advance(16 * time.Second)
-	registry.sweep()
+	registry.sweep(t.Context())
 	require.Nil(t, offered(t, events))
 
 	clock.Advance(21 * time.Second)
-	registry.sweep()
+	registry.sweep(t.Context())
 
 	assert.NotNil(t, offered(t, events), "a missed box should come back sooner")
 }
@@ -239,17 +214,17 @@ func TestASecondMissInARowWaitsTheOrdinaryWindow(t *testing.T) {
 	events := playing(t, registry, "scope-a")
 
 	for range 2 {
-		waitOut(registry, clock)
+		waitOut(t, registry, clock)
 		require.NotNil(t, offered(t, events))
 		clock.Advance(16 * time.Second)
-		registry.sweep()
+		registry.sweep(t.Context())
 	}
 
 	clock.Advance(21 * time.Second)
-	registry.sweep()
+	registry.sweep(t.Context())
 	assert.Nil(t, offered(t, events), "the second miss is not accelerated")
 
-	waitOut(registry, clock)
+	waitOut(t, registry, clock)
 	assert.NotNil(t, offered(t, events))
 }
 
@@ -257,13 +232,13 @@ func TestCatchingOneClearsTheMissThatCameBefore(t *testing.T) {
 	registry, clock := newTestRegistry()
 	events := playing(t, registry, "scope-a")
 
-	waitOut(registry, clock)
+	waitOut(t, registry, clock)
 	require.NotNil(t, offered(t, events))
 	clock.Advance(16 * time.Second)
-	registry.sweep()
+	registry.sweep(t.Context())
 
 	clock.Advance(21 * time.Second)
-	registry.sweep()
+	registry.sweep(t.Context())
 	offer := offered(t, events)
 	require.NotNil(t, offer)
 
@@ -288,7 +263,7 @@ func TestReloadingCannotRerollTheSchedule(t *testing.T) {
 	assert.Equal(t, due, registry.callers["scope-a"].nextOfferAt)
 
 	clock.Advance(29 * time.Second)
-	registry.sweep()
+	registry.sweep(t.Context())
 	assert.Nil(t, offered(t, events), "the wait carried over the reconnect")
 }
 
@@ -299,11 +274,11 @@ func TestAScheduleIsForgottenOnceTheCallerHasBeenGoneLongEnough(t *testing.T) {
 	leave()
 
 	clock.Advance(4 * time.Minute)
-	registry.sweep()
+	registry.sweep(t.Context())
 	require.Len(t, registry.callers, 1)
 
 	clock.Advance(2 * time.Minute)
-	registry.sweep()
+	registry.sweep(t.Context())
 	assert.Empty(t, registry.callers)
 }
 
@@ -314,7 +289,7 @@ func TestTheHourlyCapStopsTheOffers(t *testing.T) {
 	for range 6 {
 		clock.Advance(window + time.Second)
 		clicked(registry, "scope-a")
-		registry.sweep()
+		registry.sweep(t.Context())
 
 		offer := offered(t, events)
 		require.NotNil(t, offer)
@@ -326,13 +301,13 @@ func TestTheHourlyCapStopsTheOffers(t *testing.T) {
 	for range 5 {
 		clock.Advance(window + time.Second)
 		clicked(registry, "scope-a")
-		registry.sweep()
+		registry.sweep(t.Context())
 		require.Nil(t, offered(t, events), "the cap should hold")
 	}
 
 	clock.Advance(time.Hour)
 	clicked(registry, "scope-a")
-	registry.sweep()
+	registry.sweep(t.Context())
 	assert.NotNil(t, offered(t, events))
 }
 
@@ -340,7 +315,7 @@ func TestTheWaitIsDrawnFromTheConfiguredWindow(t *testing.T) {
 	clock := cptime.NewFixedClock(epoch)
 	registry := New(Config{
 		MinInterval: time.Minute, MaxInterval: 3 * time.Minute,
-	}, clock, newFakeHoldings())
+	}, clock, NewMemoryStore())
 
 	seen := cpcolls.NewSet[time.Duration]()
 	for range 200 {
@@ -355,7 +330,7 @@ func TestTheWaitIsDrawnFromTheConfiguredWindow(t *testing.T) {
 }
 
 func TestEveryKindConfiguredIsOffered(t *testing.T) {
-	registry := New(Config{}, cptime.NewFixedClock(epoch), newFakeHoldings())
+	registry := New(Config{}, cptime.NewFixedClock(epoch), NewMemoryStore())
 
 	seen := cpcolls.NewSet[Kind]()
 	for range 200 {
@@ -366,7 +341,7 @@ func TestEveryKindConfiguredIsOffered(t *testing.T) {
 }
 
 func TestAnEmptyKindsTakesTheDefaultWeights(t *testing.T) {
-	registry := New(Config{}, cptime.NewFixedClock(epoch), newFakeHoldings())
+	registry := New(Config{}, cptime.NewFixedClock(epoch), NewMemoryStore())
 
 	assert.Equal(t, map[Kind]float64{
 		KindRefill:        5,
@@ -382,7 +357,7 @@ func TestEveryKindIsClaimedAsItself(t *testing.T) {
 		registry, clock := newRegistryOffering(map[Kind]float64{kind: 1})
 		events := playing(t, registry, "scope-a")
 
-		waitOut(registry, clock)
+		waitOut(t, registry, clock)
 		offer := offered(t, events)
 		require.NotNil(t, offer)
 		assert.Equal(t, kind, offer.Kind)
@@ -398,7 +373,7 @@ func TestCatchingAChargeBringsTheNextBoxAWindowAfterTheClaim(t *testing.T) {
 	registry, clock := newRegistryOffering(map[Kind]float64{KindBomb: 1})
 	events := playing(t, registry, "scope-a")
 
-	waitOut(registry, clock)
+	waitOut(t, registry, clock)
 	offer := offered(t, events)
 	require.NotNil(t, offer)
 
@@ -412,39 +387,39 @@ func TestCatchingAChargeBringsTheNextBoxAWindowAfterTheClaim(t *testing.T) {
 func TestAKindHeldIsNotOfferedAgainUntilItIsSpent(t *testing.T) {
 	registry, clock := newRegistryOffering(map[Kind]float64{KindBomb: 1})
 	events := playing(t, registry, "scope-a")
-	holdingsOf(registry).grant(holderOf("scope-a"), KindBomb)
+	holdingsOf(registry).Keep(holderOf("scope-a"), Held{Bomb: true})
 
 	for range 5 {
 		clock.Advance(window + time.Second)
 		clicked(registry, "scope-a")
-		registry.sweep()
+		registry.sweep(t.Context())
 		require.Nil(t, offered(t, events), "a second bomb would be a stockpile")
 	}
 
-	holdingsOf(registry).take(holderOf("scope-a"))
+	holdingsOf(registry).Keep(holderOf("scope-a"), Held{})
 
-	waitOut(registry, clock)
+	waitOut(t, registry, clock)
 	clicked(registry, "scope-a")
-	registry.sweep()
+	registry.sweep(t.Context())
 	assert.NotNil(t, offered(t, events), "a bomb dropped is a bomb that may be offered again")
 }
 
 func TestAKindHeldIsLeftOutOfTheDrawAndTheOthersStillCome(t *testing.T) {
 	registry, clock := newRegistryOffering(map[Kind]float64{KindBomb: 100, KindRefill: 1})
 	events := playing(t, registry, "scope-a")
-	holdingsOf(registry).grant(holderOf("scope-a"), KindBomb)
+	holdingsOf(registry).Keep(holderOf("scope-a"), Held{Bomb: true})
 
 	for range 20 {
 		clock.Advance(window + time.Second)
 		clicked(registry, "scope-a")
-		registry.sweep()
+		registry.sweep(t.Context())
 
 		offer := offered(t, events)
 		require.NotNil(t, offer)
 		require.Equal(t, KindRefill, offer.Kind)
 
 		clock.Advance(16 * time.Second)
-		registry.sweep()
+		registry.sweep(t.Context())
 	}
 }
 
@@ -454,9 +429,9 @@ func TestAKindHeldByAnAccountThatClicksFromTheScopeIsNotOffered(t *testing.T) {
 
 	events := attend(t, registry, "scope-a")
 	registry.Clicked("scope-a", "scope-a", account)
-	holdingsOf(registry).grant(account, KindEncloseClicks)
+	holdingsOf(registry).Keep(account, Held{Enclosures: 3})
 
-	waitOut(registry, clock)
+	waitOut(t, registry, clock)
 	assert.Nil(t, offered(t, events), "the charge is the account's, whatever address it plays from")
 }
 
@@ -466,14 +441,14 @@ func TestAPlayerWhoStoppedClickingNoLongerHoldsBackAKind(t *testing.T) {
 
 	events := attend(t, registry, "scope-a")
 	registry.Clicked("scope-a", "scope-a", gone)
-	holdingsOf(registry).grant(gone, KindBomb)
+	holdingsOf(registry).Keep(gone, Held{Bomb: true})
 
 	clock.Advance(6 * time.Minute)
 	clicked(registry, "scope-a")
 
-	waitOut(registry, clock)
+	waitOut(t, registry, clock)
 	clicked(registry, "scope-a")
-	registry.sweep()
+	registry.sweep(t.Context())
 	assert.NotNil(t, offered(t, events), "a bomb held by somebody who left is not this player's")
 }
 
@@ -484,7 +459,7 @@ func TestACallerWithNoAccountIsOfferedNothing(t *testing.T) {
 	for range 5 {
 		clock.Advance(window + time.Second)
 		registry.Clicked("scope-a", "scope-a", NoHolder)
-		registry.sweep()
+		registry.sweep(t.Context())
 
 		require.Nil(t, offered(t, events), "every bonus is a charge, and only an account can hold one")
 	}
@@ -509,14 +484,14 @@ func TestAKindLeftOutOrAtZeroIsNeverOffered(t *testing.T) {
 		clicked(registry, "scope-a")
 		entry := registry.callers["scope-a"]
 
-		assert.Equal(t, cpcolls.NewSet(KindSpreadClicks), registry.offerable(entry, clock.Now()))
+		assert.Equal(t, cpcolls.NewSet(KindSpreadClicks), registry.offerable(t.Context(), entry, clock.Now()))
 	}
 }
 
 func TestKindsAreDrawnInProportionToTheirWeight(t *testing.T) {
 	registry := New(Config{
 		Kinds: map[Kind]float64{KindRefill: 9, KindSpreadClicks: 1},
-	}, cptime.NewFixedClock(epoch), newFakeHoldings())
+	}, cptime.NewFixedClock(epoch), NewMemoryStore())
 
 	const draws = 20_000
 	spreads := 0
@@ -543,7 +518,7 @@ func TestAClaimByTheCallerItWasOfferedToSucceeds(t *testing.T) {
 	registry, clock := newTestRegistry()
 	events := playing(t, registry, "scope-a")
 
-	waitOut(registry, clock)
+	waitOut(t, registry, clock)
 	offer := offered(t, events)
 	require.NotNil(t, offer)
 
@@ -564,7 +539,7 @@ func TestACatchIsReportedWithHowLongItTook(t *testing.T) {
 
 	events := playing(t, registry, "scope-a")
 
-	waitOut(registry, clock)
+	waitOut(t, registry, clock)
 	offer := offered(t, events)
 	require.NotNil(t, offer)
 
@@ -584,7 +559,7 @@ func TestARefusedClaimIsNotACatch(t *testing.T) {
 
 	events := playing(t, registry, "scope-a")
 
-	waitOut(registry, clock)
+	waitOut(t, registry, clock)
 	offer := offered(t, events)
 	require.NotNil(t, offer)
 
@@ -602,11 +577,11 @@ func TestALapsedBoxIsReportedAgainstItsCaller(t *testing.T) {
 
 	events := playing(t, registry, "scope-a")
 
-	waitOut(registry, clock)
+	waitOut(t, registry, clock)
 	require.NotNil(t, offered(t, events))
 
 	clock.Advance(16 * time.Second)
-	registry.sweep()
+	registry.sweep(t.Context())
 
 	assert.Equal(t, []string{"scope-a"}, missedBy)
 }
@@ -615,7 +590,7 @@ func TestATokenIsWorthNothingToAnybodyElse(t *testing.T) {
 	registry, clock := newTestRegistry()
 	events := playing(t, registry, "scope-a")
 
-	waitOut(registry, clock)
+	waitOut(t, registry, clock)
 	offer := offered(t, events)
 	require.NotNil(t, offer)
 
@@ -630,7 +605,7 @@ func TestATokenIsSpentExactlyOnce(t *testing.T) {
 	registry, clock := newTestRegistry()
 	events := playing(t, registry, "scope-a")
 
-	waitOut(registry, clock)
+	waitOut(t, registry, clock)
 	offer := offered(t, events)
 	require.NotNil(t, offer)
 
@@ -645,7 +620,7 @@ func TestALapsedTokenIsRefused(t *testing.T) {
 	registry, clock := newTestRegistry()
 	events := playing(t, registry, "scope-a")
 
-	waitOut(registry, clock)
+	waitOut(t, registry, clock)
 	offer := offered(t, events)
 	require.NotNil(t, offer)
 
@@ -674,7 +649,7 @@ func TestClaimingABoxOfferedToAnotherCallerIsReported(t *testing.T) {
 	claims := foreign(registry)
 	events := playing(t, registry, "scope-a")
 
-	waitOut(registry, clock)
+	waitOut(t, registry, clock)
 	offer := offered(t, events)
 	require.NotNil(t, offer)
 
@@ -703,7 +678,7 @@ func TestClaimingYourOwnBoxTwiceOrLateIsNotReported(t *testing.T) {
 	claims := foreign(registry)
 	events := playing(t, registry, "scope-a")
 
-	waitOut(registry, clock)
+	waitOut(t, registry, clock)
 	first := offered(t, events)
 	require.NotNil(t, first)
 
@@ -712,13 +687,13 @@ func TestClaimingYourOwnBoxTwiceOrLateIsNotReported(t *testing.T) {
 	require.True(t, once)
 	require.False(t, twice)
 
-	waitOut(registry, clock)
+	waitOut(t, registry, clock)
 	second := offered(t, events)
 	require.NotNil(t, second)
 
 	clock.Advance(16 * time.Second)
 	_, beforeTheSweep := registry.Claim(second.Token, "scope-a", "scope-a")
-	registry.sweep()
+	registry.sweep(t.Context())
 	_, afterTheSweep := registry.Claim(second.Token, "scope-a", "scope-a")
 
 	assert.False(t, beforeTheSweep)
@@ -730,14 +705,14 @@ func TestASpentTokenIsForgottenAfterAWhile(t *testing.T) {
 	registry, clock := newTestRegistry()
 	events := playing(t, registry, "scope-a")
 
-	waitOut(registry, clock)
+	waitOut(t, registry, clock)
 	offer := offered(t, events)
 	require.NotNil(t, offer)
 	_, claimed := registry.Claim(offer.Token, "scope-a", "scope-a")
 	require.True(t, claimed)
 
 	clock.Advance(rememberSpent + time.Second)
-	registry.sweep()
+	registry.sweep(t.Context())
 
 	assert.Empty(t, registry.spent)
 }
@@ -746,11 +721,11 @@ func TestLapsedTokensAreForgottenRatherThanKept(t *testing.T) {
 	registry, clock := newTestRegistry()
 	events := playing(t, registry, "scope-a")
 
-	waitOut(registry, clock)
+	waitOut(t, registry, clock)
 	require.NotNil(t, offered(t, events))
 
 	clock.Advance(16 * time.Second)
-	registry.sweep()
+	registry.sweep(t.Context())
 
 	assert.Empty(t, registry.offers)
 }
@@ -763,7 +738,7 @@ func TestEveryTokenIsDifferent(t *testing.T) {
 	for range 20 {
 		clock.Advance(window + time.Second)
 		clicked(registry, "scope-a")
-		registry.sweep()
+		registry.sweep(t.Context())
 
 		offer := offered(t, events)
 		require.NotNil(t, offer)
@@ -771,7 +746,7 @@ func TestEveryTokenIsDifferent(t *testing.T) {
 		seen.Add(offer.Token)
 
 		clock.Advance(16 * time.Second)
-		registry.sweep()
+		registry.sweep(t.Context())
 	}
 }
 
@@ -827,7 +802,7 @@ func TestACallerThatIsNotReadingIsDroppedRatherThanBlocking(t *testing.T) {
 }
 
 func TestTheDefaultsFillInWhatTheFileLeavesOut(t *testing.T) {
-	registry := New(Config{}, cptime.NewFixedClock(epoch), newFakeHoldings())
+	registry := New(Config{}, cptime.NewFixedClock(epoch), NewMemoryStore())
 
 	assert.Equal(t, defaultMinInterval, registry.config.MinInterval)
 	assert.Equal(t, defaultMaxInterval, registry.config.MaxInterval)
@@ -837,7 +812,7 @@ func TestTheDefaultsFillInWhatTheFileLeavesOut(t *testing.T) {
 func TestAMaxBelowTheMinIsNotAWindow(t *testing.T) {
 	registry := New(Config{
 		MinInterval: 10 * time.Minute, MaxInterval: time.Second,
-	}, cptime.NewFixedClock(epoch), newFakeHoldings())
+	}, cptime.NewFixedClock(epoch), NewMemoryStore())
 
 	assert.GreaterOrEqual(t, registry.config.MaxInterval, registry.config.MinInterval)
 	assert.Equal(t, 10*time.Minute, registry.window())

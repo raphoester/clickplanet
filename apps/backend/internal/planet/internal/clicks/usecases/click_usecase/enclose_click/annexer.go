@@ -2,6 +2,7 @@ package enclose_click
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
@@ -13,7 +14,7 @@ type Encloser interface {
 }
 
 type Spender interface {
-	SpendEnclose(holder bonuses.Holder) bool
+	Spend(ctx context.Context, holder bonuses.Holder, after func(bonuses.Held) (bonuses.Held, bool)) error
 }
 
 type Publisher interface {
@@ -31,8 +32,14 @@ func NewAnnexer(encloser Encloser, spender Spender, publisher Publisher) Annexer
 }
 
 func (a Annexer) Annex(ctx context.Context, entrant bonuses.Entrant, holder bonuses.Holder, closing click_usecase.In, pockets []bonuses.Pocket) error {
-	if len(pockets) == 0 || !a.spender.SpendEnclose(holder) {
+	if len(pockets) == 0 {
 		return nil
+	}
+	if err := a.spender.Spend(ctx, holder, bonuses.Held.AfterEnclose); err != nil {
+		if errors.Is(err, bonuses.ErrNotHeld) {
+			return nil
+		}
+		return err
 	}
 
 	pocket := pockets[0]

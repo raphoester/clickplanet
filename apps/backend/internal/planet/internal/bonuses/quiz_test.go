@@ -50,14 +50,18 @@ func (fixedBank) Draw() quizzes.Round {
 	}
 }
 
-func waitOutQuiz(r *Registry, clock *cptime.FixedClock) {
+func waitOutQuiz(t *testing.T, r *Registry, clock *cptime.FixedClock) {
+	t.Helper()
+
 	clock.Advance(quizWindow + time.Second)
-	r.sweep()
+	r.sweep(t.Context())
 }
 
-func letTheBannerLapse(r *Registry, clock *cptime.FixedClock) {
+func letTheBannerLapse(t *testing.T, r *Registry, clock *cptime.FixedClock) {
+	t.Helper()
+
 	clock.Advance(bannerFor + time.Second)
-	r.sweep()
+	r.sweep(t.Context())
 }
 
 func quizOffered(t *testing.T, events <-chan Event) *QuizOffer {
@@ -79,7 +83,7 @@ func takeQuiz(t *testing.T, r *Registry, clock *cptime.FixedClock, entrant Entra
 	t.Helper()
 
 	events := playing(t, r, entrant)
-	waitOutQuiz(r, clock)
+	waitOutQuiz(t, r, clock)
 
 	offer := quizOffered(t, events)
 	require.NotNil(t, offer, "expected a quiz")
@@ -94,10 +98,10 @@ func TestAQuizGoesToAnAttendingCallerOnceItsOwnWindowPasses(t *testing.T) {
 	registry, clock := newQuizzingRegistry(t)
 	events := playing(t, registry, "scope-a")
 
-	registry.sweep()
+	registry.sweep(t.Context())
 	assert.Nil(t, quizOffered(t, events), "nothing is due yet")
 
-	waitOutQuiz(registry, clock)
+	waitOutQuiz(t, registry, clock)
 
 	offer := quizOffered(t, events)
 	require.NotNil(t, offer)
@@ -178,7 +182,7 @@ func TestAnAnswerPastTheDeadlineIsWorthNothing(t *testing.T) {
 func TestAQuizCannotBeAnsweredWithoutBeingRead(t *testing.T) {
 	registry, clock := newQuizzingRegistry(t)
 	events := playing(t, registry, "scope-a")
-	waitOutQuiz(registry, clock)
+	waitOutQuiz(t, registry, clock)
 
 	offer := quizOffered(t, events)
 	require.NotNil(t, offer)
@@ -212,19 +216,19 @@ func TestAQuizIsAnsweredOnce(t *testing.T) {
 func TestABannerNobodyOpensLapsesAndFreesTheSlot(t *testing.T) {
 	registry, clock := newQuizzingRegistry(t)
 	events := playing(t, registry, "scope-a")
-	waitOutQuiz(registry, clock)
+	waitOutQuiz(t, registry, clock)
 
 	offer := quizOffered(t, events)
 	require.NotNil(t, offer)
 
 	clock.Advance(bannerFor + time.Second)
-	registry.sweep()
+	registry.sweep(t.Context())
 
 	_, ok := registry.OpenQuiz(offer.Token, "scope-a")
 	assert.False(t, ok)
 
 	clicked(registry, "scope-a")
-	waitOutQuiz(registry, clock)
+	waitOutQuiz(t, registry, clock)
 	assert.NotNil(t, quizOffered(t, events), "the caller is due another once its window passes")
 }
 
@@ -232,14 +236,14 @@ func TestAMissedQuizBringsTheNextOneForwardOnce(t *testing.T) {
 	registry, clock := newQuizzingRegistry(t)
 	events := playing(t, registry, "scope-a")
 
-	waitOutQuiz(registry, clock)
+	waitOutQuiz(t, registry, clock)
 	require.NotNil(t, quizOffered(t, events))
 
-	letTheBannerLapse(registry, clock)
+	letTheBannerLapse(t, registry, clock)
 	require.Nil(t, quizOffered(t, events))
 
 	clock.Advance(quizRetry + time.Second)
-	registry.sweep()
+	registry.sweep(t.Context())
 
 	assert.NotNil(t, quizOffered(t, events), "a missed quiz should come back sooner")
 }
@@ -248,21 +252,21 @@ func TestASecondMissedQuizInARowWaitsTheOrdinaryWindow(t *testing.T) {
 	registry, clock := newQuizzingRegistry(t)
 	events := playing(t, registry, "scope-a")
 
-	waitOutQuiz(registry, clock)
+	waitOutQuiz(t, registry, clock)
 	require.NotNil(t, quizOffered(t, events))
-	letTheBannerLapse(registry, clock)
+	letTheBannerLapse(t, registry, clock)
 
 	clock.Advance(quizRetry + time.Second)
-	registry.sweep()
+	registry.sweep(t.Context())
 	require.NotNil(t, quizOffered(t, events))
-	letTheBannerLapse(registry, clock)
+	letTheBannerLapse(t, registry, clock)
 
 	clock.Advance(quizRetry + time.Second)
-	registry.sweep()
+	registry.sweep(t.Context())
 	assert.Nil(t, quizOffered(t, events), "the second miss is not brought forward")
 
 	clicked(registry, "scope-a")
-	waitOutQuiz(registry, clock)
+	waitOutQuiz(t, registry, clock)
 	assert.NotNil(t, quizOffered(t, events))
 }
 
@@ -270,7 +274,7 @@ func TestAQuestionOpenedAndLeftCountsAsAMiss(t *testing.T) {
 	registry, clock := newQuizzingRegistry(t)
 	events := playing(t, registry, "scope-a")
 
-	waitOutQuiz(registry, clock)
+	waitOutQuiz(t, registry, clock)
 	offer := quizOffered(t, events)
 	require.NotNil(t, offer)
 
@@ -278,10 +282,10 @@ func TestAQuestionOpenedAndLeftCountsAsAMiss(t *testing.T) {
 	require.True(t, ok)
 
 	clock.Advance(answerIn + time.Second)
-	registry.sweep()
+	registry.sweep(t.Context())
 
 	clock.Advance(quizRetry + time.Second)
-	registry.sweep()
+	registry.sweep(t.Context())
 
 	assert.NotNil(t, quizOffered(t, events))
 }
@@ -290,12 +294,12 @@ func TestAnsweringClearsTheQuizMissThatCameBefore(t *testing.T) {
 	registry, clock := newQuizzingRegistry(t)
 	events := playing(t, registry, "scope-a")
 
-	waitOutQuiz(registry, clock)
+	waitOutQuiz(t, registry, clock)
 	require.NotNil(t, quizOffered(t, events))
-	letTheBannerLapse(registry, clock)
+	letTheBannerLapse(t, registry, clock)
 
 	clock.Advance(quizRetry + time.Second)
-	registry.sweep()
+	registry.sweep(t.Context())
 	offer := quizOffered(t, events)
 	require.NotNil(t, offer)
 
@@ -313,7 +317,7 @@ func TestAQuestionOpenedAndLeftLapsesAtItsDeadline(t *testing.T) {
 	offer, asked := takeQuiz(t, registry, clock, "scope-a")
 
 	clock.Advance(answerIn + time.Second)
-	registry.sweep()
+	registry.sweep(t.Context())
 
 	_, ok := registry.AnswerQuiz(offer.Token, "scope-a", indexOf(asked.Options, rightAnswer))
 	assert.False(t, ok, "the sweep took it: there is nothing left to answer")
@@ -323,12 +327,12 @@ func TestQuizzesAndBoxesRunOnSeparateClocks(t *testing.T) {
 	registry, clock := newQuizzingRegistry(t)
 	events := playing(t, registry, "scope-a")
 
-	waitOut(registry, clock)
+	waitOut(t, registry, clock)
 	require.NotNil(t, offered(t, events), "the box is due")
 
 	drain(events)
 	clicked(registry, "scope-a")
-	waitOutQuiz(registry, clock)
+	waitOutQuiz(t, registry, clock)
 
 	assert.NotNil(t, quizOffered(t, events), "and the quiz on its own clock, not instead of a box")
 }
@@ -337,14 +341,14 @@ func TestAQuizIsNotOfferedForAKindTheCallerIsAlreadyHolding(t *testing.T) {
 	registry, clock := newQuizzingRegistry(t)
 	events := playing(t, registry, "scope-a")
 
-	holdingsOf(registry).grant(holderOf("scope-a"), KindRefill)
+	holdingsOf(registry).Keep(holderOf("scope-a"), Held{Refill: true})
 
-	waitOutQuiz(registry, clock)
+	waitOutQuiz(t, registry, clock)
 	assert.Nil(t, quizOffered(t, events), "there is nothing a right answer could be worth")
 
-	holdingsOf(registry).take(holderOf("scope-a"))
+	holdingsOf(registry).Keep(holderOf("scope-a"), Held{})
 	clicked(registry, "scope-a")
-	waitOutQuiz(registry, clock)
+	waitOutQuiz(t, registry, clock)
 	assert.NotNil(t, quizOffered(t, events))
 }
 
@@ -352,7 +356,7 @@ func TestAQuizGoesOnlyToACallerWhoIsPlaying(t *testing.T) {
 	registry, clock := newQuizzingRegistry(t)
 
 	events := attend(t, registry, "scope-a")
-	waitOutQuiz(registry, clock)
+	waitOutQuiz(t, registry, clock)
 
 	assert.Nil(t, quizOffered(t, events))
 }
@@ -363,7 +367,7 @@ func TestQuizzesStopAtTheirOwnHourlyCap(t *testing.T) {
 
 	for range 6 {
 		clicked(registry, "scope-a")
-		waitOutQuiz(registry, clock)
+		waitOutQuiz(t, registry, clock)
 
 		offer := quizOffered(t, events)
 		require.NotNil(t, offer)
@@ -377,12 +381,12 @@ func TestQuizzesStopAtTheirOwnHourlyCap(t *testing.T) {
 	}
 
 	clicked(registry, "scope-a")
-	waitOutQuiz(registry, clock)
+	waitOutQuiz(t, registry, clock)
 	assert.Nil(t, quizOffered(t, events), "six an hour, and no more")
 
 	clock.Advance(time.Hour)
 	clicked(registry, "scope-a")
-	registry.sweep()
+	registry.sweep(t.Context())
 	assert.NotNil(t, quizOffered(t, events))
 }
 
@@ -392,7 +396,7 @@ func TestNoQuizIsOfferedWithoutABank(t *testing.T) {
 
 	for range 10 {
 		clicked(registry, "scope-a")
-		waitOutQuiz(registry, clock)
+		waitOutQuiz(t, registry, clock)
 	}
 
 	for {
@@ -410,14 +414,14 @@ func TestForgettingACallerTakesItsQuizWithIt(t *testing.T) {
 
 	events, leave := registry.Attend("scope-a")
 	clicked(registry, "scope-a")
-	waitOutQuiz(registry, clock)
+	waitOutQuiz(t, registry, clock)
 
 	offer := quizOffered(t, events)
 	require.NotNil(t, offer)
 	leave()
 
 	clock.Advance(6 * time.Minute)
-	registry.sweep()
+	registry.sweep(t.Context())
 
 	_, ok := registry.OpenQuiz(offer.Token, "scope-a")
 	assert.False(t, ok, "a token left behind would be answerable by whoever next got this scope")
