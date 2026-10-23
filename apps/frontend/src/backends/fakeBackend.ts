@@ -351,6 +351,10 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         return () => this.allegianceCallbacks.delete(id)
     }
 
+    public async pledgeAllegiance(countryId: string): Promise<void> {
+        this.pledge(countryId)
+    }
+
     private pledge(countryId: string): void {
         const held = this.allegiance
         if (held?.countryId === countryId) return

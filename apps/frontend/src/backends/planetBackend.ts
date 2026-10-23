@@ -414,6 +414,26 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         }
     }
 
+    public async pledgeAllegiance(countryId: string): Promise<void> {
+        const token = await this.session.identity()
+        const headers = new Headers()
+        if (token) headers.set(SESSION_HEADER, token)
+
+        try {
+            const res = await retrying(() => this.client.pledgeAllegiance({countryId}, {headers}), "pledgeAllegiance")
+            this.holdAllegiance(allegianceOfMessage(res.allegiance))
+        } catch (e) {
+            if (e instanceof ConnectError && e.code === Code.Unimplemented) {
+                this.holdAllegiance(undefined)
+                return
+            }
+            const locked = allegianceDetailOf(e)
+            if (!locked) throw e
+            this.holdAllegiance(locked)
+            throw new AllegianceLockedError(locked, {cause: e})
+        }
+    }
+
     private holdRefusal(e: unknown): void {
         const locked = allegianceDetailOf(e)
         if (locked) this.holdAllegiance(locked)

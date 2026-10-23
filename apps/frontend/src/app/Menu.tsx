@@ -4,12 +4,13 @@ import {LeaderboardEntry, rankOf} from "../domain/leaderboard.ts";
 import {countryLines, CountryOrder, shownOrder} from "../domain/race.ts";
 import {NO_TILE_DELTAS, TileDeltas} from "../domain/tileDeltas.ts";
 import {Race} from "../backends/standings.ts";
-import {Allegiance} from "../domain/allegiance.ts";
+import {Allegiance, lockOf, minutesLeftOf} from "../domain/allegiance.ts";
+import {describeEnd} from "../domain/endTime.ts";
 import Leaderboard, {OrderSwitch} from "./Leaderboard.tsx";
 import CountryPicker from "./CountryPicker.tsx";
 import MenuPanel from "./components/MenuPanel.tsx";
 import CountryFlag from "./components/CountryFlag.tsx";
-import {SwapIcon} from "./components/icons.tsx";
+import {LockIcon, SwapIcon} from "./components/icons.tsx";
 import SettingsPlace, {SettingsPlaceProps} from "./settings/SettingsPlace.tsx";
 import {AccountStore} from "./account/accountStore.ts";
 import {useAccount} from "./account/useAccount.ts";
@@ -22,13 +23,14 @@ import {youLabel} from "./youLabel.ts"
 import BoardViews, {BoardHeading, BoardStandings} from "./standings/BoardViews.tsx"
 import Sheet from "./hud/Sheet.tsx"
 import {ListenForClicks} from "./viewer/acceptedClicks.ts"
+import {useNow} from "./season/useNow.ts"
 import "./Menu.css"
 
 export type MenuTab = "board" | "you" | "share" | "settings"
 
 export type BoardPlaceProps = {
     country: Country,
-    setCountry: (country: Country) => void,
+    setCountry: (country: Country) => Promise<void> | void,
     allegiance?: Allegiance,
     leaderboard: LeaderboardEntry[],
     tileDeltas?: TileDeltas,
@@ -81,14 +83,15 @@ export default function Menu(props: MenuProps) {
         </div>
 
         <PlayingFor country={props.country}
+                    allegiance={props.allegiance}
                     rank={rankShown(props)}
                     changeRef={picker.opener}
                     onChange={picker.open}/>
 
         {picker.picking
             ? <MenuPanel title="Change country" onClose={picker.close}>
-                <CountryPicker country={props.country} allegiance={props.allegiance} setCountry={(country) => {
-                    props.setCountry(country)
+                <CountryPicker country={props.country} allegiance={props.allegiance} setCountry={async (country) => {
+                    await props.setCountry(country)
                     picker.close()
                 }}/>
             </MenuPanel>
@@ -144,13 +147,14 @@ function usePicker() {
 
 type PlayingForProps = {
     country: Country,
+    allegiance?: Allegiance,
     rank: number | null,
     changeRef: React.Ref<HTMLButtonElement>,
     onChange: () => void,
     slim?: boolean,
 }
 
-function PlayingFor({country, rank, changeRef, onChange, slim}: PlayingForProps) {
+function PlayingFor({country, allegiance, rank, changeRef, onChange, slim}: PlayingForProps) {
     return <div className={slim ? "menu-playing menu-playing--slim" : "menu-playing panel-box"}>
         <div className="menu-playing-what">
             <span className="menu-label">{slim ? "Playing for" : "You’re playing for"}</span>
@@ -162,14 +166,24 @@ function PlayingFor({country, rank, changeRef, onChange, slim}: PlayingForProps)
                 </span>
             </span>
         </div>
-        <button ref={changeRef}
-                type="button"
-                className="button button-mini button-secondary menu-change"
-                onClick={onChange}>
-            <SwapIcon/>
-            <span>Change</span>
-        </button>
+        <ChangeButton allegiance={allegiance} changeRef={changeRef} onChange={onChange}/>
     </div>
+}
+
+function ChangeButton({allegiance, changeRef, onChange}: Pick<PlayingForProps, "allegiance" | "changeRef" | "onChange">) {
+    useNow()
+    const now = Date.now()
+    const locked = lockOf(allegiance, now)?.changeableAt
+
+    return <button ref={changeRef}
+                   type="button"
+                   className={locked === undefined ? "button button-mini button-secondary menu-change" : "button button-mini button-secondary menu-change menu-change--locked"}
+                   aria-label={locked === undefined ? undefined : `Change country, next change at ${describeEnd(locked, now)}`}
+                   onClick={onChange}>
+        {locked === undefined
+            ? <><SwapIcon/><span>Change</span></>
+            : <><LockIcon/><span>{minutesLeftOf(locked, now)} min</span></>}
+    </button>
 }
 
 export function BoardPlace(props: BoardPlaceProps & {headless?: boolean}) {
@@ -207,13 +221,14 @@ export function BoardSheet({onClose, ...props}: BoardPlaceProps & {onClose: () =
     return <Sheet title="Leaderboard" head={head} className="board-sheet" onClose={onClose}>
         {picker.picking
             ? <MenuPanel title="Change country" onClose={picker.close}>
-                <CountryPicker country={props.country} allegiance={props.allegiance} setCountry={(country) => {
-                    props.setCountry(country)
+                <CountryPicker country={props.country} allegiance={props.allegiance} setCountry={async (country) => {
+                    await props.setCountry(country)
                     picker.close()
                 }}/>
             </MenuPanel>
             : <>
                 <PlayingFor country={props.country}
+                            allegiance={props.allegiance}
                             rank={rankShown(props)}
                             changeRef={picker.opener}
                             onChange={picker.open}

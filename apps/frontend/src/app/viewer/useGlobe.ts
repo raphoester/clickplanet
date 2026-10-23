@@ -12,6 +12,8 @@ import {PlaySound} from '../sound/soundPlayer.ts';
 import {AcceptedClick} from './acceptedClicks.ts';
 import {CloseToFortify, Fortified} from '../../domain/fortify.ts';
 import {ClickBudgetSource} from '../../backends/clickBudget.ts';
+import {Allegiance} from '../../domain/allegiance.ts';
+import {BUBBLE_MS} from '../components/Bubble.tsx';
 
 export type GlobeStatus =
     | {state: 'loading', territories?: number}
@@ -55,6 +57,16 @@ export function useGlobe(options: UseGlobeOptions) {
     const [bannedUntil, setBannedUntil] = useState<number>()
 
     const [sessionUnavailable, setSessionUnavailable] = useState(false)
+
+    const [lockedOut, setLockedOut] = useState<{allegiance: Allegiance, id: number} | undefined>()
+    const recordLockedOut = useCallback((allegiance: Allegiance) => {
+        setLockedOut((previous) => ({allegiance, id: (previous?.id ?? 0) + 1}))
+    }, [])
+    useEffect(() => {
+        if (!lockedOut) return
+        const timer = setTimeout(() => setLockedOut(undefined), BUBBLE_MS)
+        return () => clearTimeout(timer)
+    }, [lockedOut])
 
     const [award, setAward] = useState<BonusReward | undefined>()
     const [charges, setCharges] = useState<Charges>(NO_CHARGES)
@@ -116,6 +128,7 @@ export function useGlobe(options: UseGlobeOptions) {
             onVPNBlocked: () => setVPNBlocked(true),
             onBanned: setBannedUntil,
             onSessionUnavailable: () => setSessionUnavailable(true),
+            onAllegianceLocked: recordLockedOut,
             onBonusWon: takeBonus,
             onBonusTaken: recordCatch,
             onCharges: setCharges,
@@ -157,7 +170,7 @@ export function useGlobe(options: UseGlobeOptions) {
             globeRef.current?.dispose()
             globeRef.current = null
         }
-    }, [container, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, bomber, shielder, playSound, onClickAccepted, rendering, recordLeaderboard, publishLeaderboard, takeBonus, recordCatch, recordBomb, recordFortified, recordClose, notify])
+    }, [container, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, bomber, shielder, playSound, onClickAccepted, rendering, recordLeaderboard, publishLeaderboard, takeBonus, recordCatch, recordBomb, recordFortified, recordClose, notify, recordLockedOut])
 
     useEffect(() => {
         initialCountry.current = country
@@ -203,6 +216,7 @@ export function useGlobe(options: UseGlobeOptions) {
         dismissBanned: () => setBannedUntil(undefined),
         sessionUnavailable,
         dismissSessionUnavailable: () => setSessionUnavailable(false),
+        lockedOut,
         award,
         dismissAward,
         charges,

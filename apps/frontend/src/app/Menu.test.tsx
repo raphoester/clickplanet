@@ -18,6 +18,7 @@ import {SETTLE_MS} from "./viewer/useAcceptedClicks.ts"
 import {Race} from "../backends/standings.ts"
 import {BUILD} from "./support/pageContext.ts"
 import {NO_ATTACHMENTS} from "../backends/support.ts"
+import {AllegianceLockedError} from "../backends/backend.ts"
 
 const france = Countries.get("fr")!
 const RACE: Race = {
@@ -46,27 +47,50 @@ const button = (name: string | RegExp) => screen.getByRole("button", {name})
 const tab = (name: string) => screen.getByRole("tab", {name})
 
 describe("Menu", () => {
-    it("says when another country may be played while the flag is held, and offers none", async () => {
+    it("shows on the Change button how long the flag is held, and in the picker until when", async () => {
         const user = userEvent.setup()
         const changeableAt = Date.now() + 30 * 60 * 1000
         render(<Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}
                      allegiance={{countryId: "fr", changeableAt}}/>)
 
-        await user.click(button("Change"))
-
         const time = new Intl.DateTimeFormat(undefined, {hour: "2-digit", minute: "2-digit"}).format(changeableAt)
-        expect(screen.getByRole("status").textContent).toBe(`You can play for another country at ${time}.`)
+        const change = button(`Change country, next change at ${time}`)
+        expect(change.textContent).toBe("30 min")
+
+        await user.click(change)
+
+        expect(screen.getByRole("status").textContent).toBe(`You can change country once an hour. Next change at ${time}.`)
         expect(countryPanel()).toBeNull()
     })
 
-    it("offers every country once the wait is over", async () => {
+    it("offers every country once the wait is over, under the rule", async () => {
         const user = userEvent.setup()
         render(<Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}
                      allegiance={{countryId: "fr", changeableAt: Date.now() - 1}}/>)
 
         await user.click(button("Change"))
 
+        expect(screen.getByRole("status").textContent).toBe("You can change country once an hour.")
         expect(countryPanel()).not.toBeNull()
+    })
+
+    it("stays in the picker when the change is refused, and says so when it failed", async () => {
+        const user = userEvent.setup()
+        const setCountry = vi.fn()
+            .mockRejectedValueOnce(new AllegianceLockedError({countryId: "fr", changeableAt: Date.now() + 60_000}))
+            .mockRejectedValueOnce(new Error("the network fell over"))
+        vi.spyOn(console, "error").mockImplementation(() => {})
+        render(<Menu country={france} setCountry={setCountry} leaderboard={[]} tilesCount={1000}/>)
+
+        await user.click(button("Change"))
+        await user.click(screen.getByRole("option", {name: "Japan"}))
+        expect(screen.queryByRole("alert")).toBeNull()
+        expect(countryPanel()).not.toBeNull()
+
+        await user.click(screen.getByRole("option", {name: "Japan"}))
+        expect(screen.getByRole("alert").textContent).toBe("Could not change country. Try again.")
+        expect(countryPanel()).not.toBeNull()
+        vi.mocked(console.error).mockRestore()
     })
 
     it("starts on the leaderboard, with the picker and About closed", () => {
