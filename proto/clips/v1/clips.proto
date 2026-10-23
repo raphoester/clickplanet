@@ -28,6 +28,51 @@ message Clip {
   string continent_tag = 8;
   // What the licence of the clip's music asks the caption to say; empty when none.
   string credit = 9;
+  // What the generator chose and what the clip shows, kept with the post and never published: what a clip was, to set
+  // beside how its post did. Absent from a clip written before it.
+  ClipFeatures features = 10;
+}
+
+// One flat value a field, each in the unit its name says, so each is a column. What the generator knows, never a guess.
+message ClipFeatures {
+  // The whole clip, call to act included.
+  double duration_seconds = 1;
+  // The country code of the anthem under the clip ("fr", "eu" for Europe's); empty when it plays none.
+  string music = 2;
+  // Where in the anthem the clip starts it.
+  double music_start_seconds = 3;
+  // "front" follows the fighting of one place, "tour" flies over the continents of a flag taking the world.
+  string camera = 4;
+  // When a front's camera comes back out of the tiles: "dive" at the end, "flags" halfway. Empty on a tour.
+  string look = 5;
+  // What the story is, finer than its key's angle: "attack", "invasion", "comeback", "kickout", "rout", "battle",
+  // "holding", "round", "callup".
+  string story_kind = 6;
+  // How much of the replay's time the clip plays, quiet stretches included.
+  double span_minutes = 7;
+  // Every tile that changed hands in that time, where the story is told (a bomb's cleared tiles too).
+  uint32 tiles_changed = 8;
+  // The changes the camera follows: the story's own fighting.
+  uint32 story_tiles_changed = 9;
+  // The size of the place the headline names and the counter counts in: a country, two, a continent or the world.
+  uint32 place_tiles = 10;
+  // The tiles the key's flag holds in the place when the clip starts and when it ends: the counter.
+  uint32 flag_tiles_start = 11;
+  uint32 flag_tiles_end = 12;
+  // Landmasses whose painted flag changed in the clip: what can be seen changing from far.
+  uint32 landmasses_flipped = 13;
+  // The effects played in sight of the story: a bomb going off, a spread click, a shape closed.
+  uint32 bombs = 14;
+  uint32 spreads = 15;
+  uint32 enclosures = 16;
+  // How far the camera travels up close, in screens; 0 on a tour.
+  double screens_crossed = 17;
+  // The continents a tour stops at; 0 for a front.
+  uint32 tour_stops = 18;
+  // The language the clip's words are in: "en", or the country's own for a call-up ("pl").
+  string language = 19;
+  // How solid the land taken is, from 0 (lines drawn on the map) to 1 (land taken whole).
+  double solidity = 20;
 }
 
 message TaggedCountry {

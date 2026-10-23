@@ -3093,6 +3093,29 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   continent's hashtag, and the credit of its music. **The job writes the caption** from them (the backend's
   CLAUDE.md, "The clips job"): this app has the names, the job has the platform. The repo is public and so are a
   run's logs and artifacts: a clip can be watched there before it is out.
+- **A `Clip` also says what the clip was** (`features`, a `ClipFeatures`, written by `featuresOf` in
+  `src/clip/features.ts`): the job keeps it with the post, never published, so a later step can set it beside the
+  post's numbers on TikTok and YouTube and learn what makes a clip do well. **It records, and chooses nothing**:
+  every value is one `record()` already worked out for the clip, read once it is all decided, and the same replay
+  gives the same video, teasers and `Clip` byte for byte as before it, `features` aside (checked on 2026-10-23 against a
+  render of the commit before). One flat value a field, in the unit its name says, since each becomes a column:
+  - `durationSeconds`; `music`, the anthem's country code (`eu` for Europe's), empty with none, and
+    `musicStartSeconds`, where in it the clip starts;
+  - `camera`, `front` or `tour`, and `look`, `dive` or `flags` (empty on a tour); `screensCrossed` up close (0 on a
+    tour), `tourStops` (0 for a front);
+  - `storyKind`, finer than the key's angle (`attack`, `invasion`, `comeback`, `kickout`, `rout`, `battle`,
+    `holding`, `round`, `callup`), and `language`, `en` but for a call-up in its country's own (`voiceOf`);
+  - how much of the map changed: `spanMinutes` of the replay played, `tilesChanged` there where the story is told
+    (a bomb's cleared tiles too), `storyTilesChanged`, the fighting the camera follows, `placeTiles`, the size of
+    the place the headline names, `flagTilesStart` and `flagTilesEnd`, the counter's numbers for the key's flag,
+    and `landmassesFlipped`, the painted flags that changed;
+  - the effects in sight of the story, as `--plan` counts its bombs (`inSightOf`): `bombs`, `spreads` and
+    `enclosures` (`ReplayBackend.effects`, on the tile a spread clicked and the tile that closed a shape);
+  - `solidity`, from 0 for lines drawn on the map to 1 for land taken whole.
+
+  A value protojson leaves out is its zero (`flagTilesStart` for a flag that held none of the place). A new
+  feature is a field at the end of `ClipFeatures`, a line in `featuresOf` and one in the backend's
+  `generator_output`; never a choice made for the sake of measuring it.
 
 - **The replay is the backend's** (`planet.v1.AdminService/GetReplay`, see the backend's CLAUDE.md): the map as it
   was at the start, and every act after it as the live stream sent it. The backend's job asks for the last

@@ -14,6 +14,7 @@ func rendered(pick posts.Pick, title string) posts.ClipSnapshot {
 		Pick: pick, Title: title, Teasers: []string{"ALGERIA TAKES " + title, "ALGERIA INVADES " + title},
 		Countries: []posts.TaggedCountry{{Code: "dz", Tag: "algeria"}}, ContinentTag: "africa",
 		Key: posts.StoryKey{Flag: "dz", Continent: title}, Video: posts.VideoFile("clip-" + title + ".mp4"),
+		Features: posts.Features{DurationSeconds: 12.5, Camera: "front", Look: "dive", StoryKind: "invasion", Language: "en"},
 	}
 }
 

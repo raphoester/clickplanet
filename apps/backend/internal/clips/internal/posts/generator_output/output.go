@@ -72,6 +72,7 @@ func (f Folder) Rendered(_ context.Context) ([]posts.Clip, error) {
 			Pick: posts.Pick(written.GetPick()), Title: written.GetTitle(), Key: keyOf(written.GetKey()),
 			Teasers: written.GetTeasers(), Countries: countriesOf(written.GetCountries()),
 			ContinentTag: written.GetContinentTag(), Attribution: written.GetCredit(), Video: posts.VideoFile(video),
+			Features: featuresOf(written.GetFeatures()),
 		}.Restore()
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", filepath.Base(path), err)
@@ -84,6 +85,20 @@ func (f Folder) Rendered(_ context.Context) ([]posts.Clip, error) {
 func keyOf(written *clipsv1.StoryKey) posts.StoryKey {
 	return posts.StoryKey{
 		Flag: written.GetFlag(), Continent: written.GetContinent(), Angle: posts.Angle(written.GetAngle()), Round: written.GetRound(),
+	}
+}
+
+// Zero for a clip written before the generator kept them.
+func featuresOf(written *clipsv1.ClipFeatures) posts.Features {
+	return posts.Features{
+		DurationSeconds: written.GetDurationSeconds(), Music: written.GetMusic(), MusicStartSeconds: written.GetMusicStartSeconds(),
+		Camera: written.GetCamera(), Look: written.GetLook(), StoryKind: written.GetStoryKind(), SpanMinutes: written.GetSpanMinutes(),
+		TilesChanged: int(written.GetTilesChanged()), StoryTilesChanged: int(written.GetStoryTilesChanged()),
+		PlaceTiles: int(written.GetPlaceTiles()), FlagTilesStart: int(written.GetFlagTilesStart()),
+		FlagTilesEnd: int(written.GetFlagTilesEnd()), LandmassesFlipped: int(written.GetLandmassesFlipped()),
+		Bombs: int(written.GetBombs()), Spreads: int(written.GetSpreads()), Enclosures: int(written.GetEnclosures()),
+		ScreensCrossed: written.GetScreensCrossed(), TourStops: int(written.GetTourStops()), Language: written.GetLanguage(),
+		Solidity: written.GetSolidity(),
 	}
 }
 

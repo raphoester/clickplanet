@@ -121,6 +121,16 @@ export class ReplayBackend implements OwnershipsGetter, UpdatesListener, BonusLi
         })
     }
 
+    // The other effects it plays, each on the tile it went off at: the tile a spread clicked, the tile that closed a shape.
+    effects(): {at: number, kind: "spread" | "enclosure", tile: number}[] {
+        return this.steps.flatMap(({at, event}): {at: number, kind: "spread" | "enclosure", tile: number}[] => {
+            const spread = spreadOf(event)
+            if (spread) return [{at, kind: "spread", tile: spread.tile}]
+            const enclosure = enclosureOf(event)
+            return enclosure ? [{at, kind: "enclosure", tile: enclosure.closingTile}] : []
+        })
+    }
+
     advanceTo(at: number) {
         let updates: Update[] = []
         const flush = () => {

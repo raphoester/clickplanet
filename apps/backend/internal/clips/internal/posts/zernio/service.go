@@ -39,6 +39,9 @@ const (
 	// Absent on a post of what a flag did, and on every post made before them.
 	angleKey = "storyAngle"
 	roundKey = "storyRound"
+	// What a post was, to set beside how it did: see featuresOf.
+	featuresVersionKey = "featuresVersion"
+	featuresVersion    = 1
 	// Four posts a day: a page this long holds the week the choice reads, and more.
 	pageOfPosts = 500
 )
@@ -174,8 +177,8 @@ func targetOf(snapshot posts.PostSnapshot, platform posts.Platform, account stri
 	return target, nil
 }
 
-// What the choice reads back of the post: its key and its countries; and the call to act, to compare the calls on the
-// posts' numbers. Never published.
+// What the choice reads back of the post: its key and its countries; and the call to act and the post's features, to
+// compare posts on their numbers. Never published.
 func metadataOf(snapshot posts.PostSnapshot) *map[string]any {
 	metadata := map[string]any{
 		flagKey: snapshot.Key.Flag, continentKey: snapshot.Key.Continent, countriesKey: snapshot.Countries,
@@ -187,7 +190,46 @@ func metadataOf(snapshot posts.PostSnapshot) *map[string]any {
 	if snapshot.Key.Round != "" {
 		metadata[roundKey] = snapshot.Key.Round
 	}
+	for key, value := range featuresOf(snapshot) {
+		metadata[key] = value
+	}
 	return &metadata
+}
+
+// Flat values under stable names, each with its unit, so each is a column: "post…" from this job, "clip…" from the
+// generator, which a clip written before it kept them has none of. A value the clip has none of is "none", not left out.
+func featuresOf(snapshot posts.PostSnapshot) map[string]any {
+	features := map[string]any{
+		featuresVersionKey: featuresVersion,
+		"postTeaser":       snapshot.Teaser,
+		"postScheduledAt":  snapshot.At.UTC().Format(time.RFC3339),
+		"postRunPosition":  snapshot.RunPosition,
+		"postRunSize":      snapshot.RunSize,
+	}
+	clip := snapshot.Features
+	if !clip.Recorded() {
+		return features
+	}
+	for key, value := range map[string]any{
+		"clipDurationSeconds": clip.DurationSeconds, "clipMusic": orNone(clip.Music),
+		"clipMusicStartSeconds": clip.MusicStartSeconds, "clipCamera": clip.Camera, "clipLook": orNone(clip.Look),
+		"clipStoryKind": clip.StoryKind, "clipSpanMinutes": clip.SpanMinutes, "clipTilesChanged": clip.TilesChanged,
+		"clipStoryTilesChanged": clip.StoryTilesChanged, "clipPlaceTiles": clip.PlaceTiles,
+		"clipFlagTilesStart": clip.FlagTilesStart, "clipFlagTilesEnd": clip.FlagTilesEnd,
+		"clipLandmassesFlipped": clip.LandmassesFlipped, "clipBombs": clip.Bombs, "clipSpreads": clip.Spreads,
+		"clipEnclosures": clip.Enclosures, "clipScreensCrossed": clip.ScreensCrossed, "clipTourStops": clip.TourStops,
+		"clipLanguage": clip.Language, "clipSolidity": clip.Solidity,
+	} {
+		features[key] = value
+	}
+	return features
+}
+
+func orNone(value string) string {
+	if value == "" {
+		return "none"
+	}
+	return value
 }
 
 // Zernio sends them to YouTube alone.

@@ -122,6 +122,12 @@ func post(t *testing.T, platforms ...posts.Platform) posts.Post {
 func postOf(t *testing.T, key posts.StoryKey, platforms ...posts.Platform) posts.Post {
 	t.Helper()
 
+	return postWith(t, key, posts.Features{}, platforms...)
+}
+
+func postWith(t *testing.T, key posts.StoryKey, features posts.Features, platforms ...posts.Platform) posts.Post {
+	t.Helper()
+
 	if len(platforms) == 0 {
 		platforms = []posts.Platform{posts.TikTok, posts.YouTube}
 	}
@@ -129,7 +135,7 @@ func postOf(t *testing.T, key posts.StoryKey, platforms ...posts.Platform) posts
 	require.NoError(t, os.WriteFile(video, []byte("the video"), 0o600))
 	clip, err := posts.ClipSnapshot{
 		Pick: 1, Title: "FRANCE IS ATTACKING EUROPE", Teasers: []string{"FRANCE TAKES OVER EUROPE"}, Countries: []posts.TaggedCountry{{Code: "fr", Tag: "france"}},
-		ContinentTag: "europe", Key: key, Video: posts.VideoFile(video),
+		ContinentTag: "europe", Key: key, Video: posts.VideoFile(video), Features: features,
 	}.Restore()
 	require.NoError(t, err)
 
@@ -192,6 +198,8 @@ func TestAClipIsUploadedOnceThenScheduledAsOnePostOnTikTokAndYouTube(t *testing.
 		"scheduledFor": "2026-10-12T16:40:00Z",
 		"metadata": map[string]any{
 			"storyFlag": "fr", "storyContinent": "Europe", "storyCountries": []any{"fr"}, "callToAction": "join-the-battle",
+			"featuresVersion": float64(1), "postTeaser": float64(1), "postScheduledAt": "2026-10-12T16:40:00Z",
+			"postRunPosition": float64(1), "postRunSize": float64(1),
 		},
 	}, fake.sent)
 }
@@ -208,6 +216,35 @@ func TestWhatAStoryTellsOfItsFlagAndItsDayAreKeptWithThePost(t *testing.T) {
 	assert.Equal(t, map[string]any{
 		"storyFlag": "fr", "storyContinent": "the world", "storyAngle": "round", "storyRound": "1.5",
 		"storyCountries": []any{"fr"}, "callToAction": "join-the-battle",
+		"featuresVersion": float64(1), "postTeaser": float64(1), "postScheduledAt": "2026-10-12T16:40:00Z",
+		"postRunPosition": float64(1), "postRunSize": float64(1),
+	}, fake.sent["metadata"])
+}
+
+func TestWhatAClipWasIsKeptWithThePostAsFlatValuesAndNoneWhenItHasNone(t *testing.T) {
+	fake := newFake()
+	server := fake.serve(t)
+	service, err := zernio.New(zernio.Config{APIKey: "the-key", BaseURL: server.URL}, server.Client())
+	require.NoError(t, err)
+	tour := posts.Features{
+		DurationSeconds: 17.4, Camera: "tour", StoryKind: "attack", SpanMinutes: 300, TilesChanged: 5200,
+		StoryTilesChanged: 3100, PlaceTiles: 262144, FlagTilesStart: 400, FlagTilesEnd: 3500, LandmassesFlipped: 6,
+		Bombs: 2, TourStops: 3, Language: "en", Solidity: 0.88,
+	}
+
+	_, err = service.Schedule(t.Context(), postWith(t, posts.StoryKey{Flag: "pt", Continent: "the world"}, tour))
+
+	require.NoError(t, err)
+	assert.Equal(t, map[string]any{
+		"storyFlag": "pt", "storyContinent": "the world", "storyCountries": []any{"fr"}, "callToAction": "join-the-battle",
+		"featuresVersion": float64(1), "postTeaser": float64(1), "postScheduledAt": "2026-10-12T16:40:00Z",
+		"postRunPosition": float64(1), "postRunSize": float64(1),
+		"clipDurationSeconds": 17.4, "clipMusic": "none", "clipMusicStartSeconds": float64(0), "clipCamera": "tour",
+		"clipLook": "none", "clipStoryKind": "attack", "clipSpanMinutes": float64(300), "clipTilesChanged": float64(5200),
+		"clipStoryTilesChanged": float64(3100), "clipPlaceTiles": float64(262144), "clipFlagTilesStart": float64(400),
+		"clipFlagTilesEnd": float64(3500), "clipLandmassesFlipped": float64(6), "clipBombs": float64(2),
+		"clipSpreads": float64(0), "clipEnclosures": float64(0), "clipScreensCrossed": float64(0),
+		"clipTourStops": float64(3), "clipLanguage": "en", "clipSolidity": 0.88,
 	}, fake.sent["metadata"])
 }
 

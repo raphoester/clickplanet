@@ -3687,6 +3687,24 @@ clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-platforms tiktok,you
   (`listPosts`, `fromDate` is a date, so the domain filters to the hour). So a clip cancelled in the dashboard still
   counts as told, nothing can disagree with what Zernio holds, and a post made by hand, with no key, counts for
   nothing. **A history that cannot be read fails the run**, rather than tell a story twice.
+- **Each post also keeps what it was, to be set beside its numbers** (`featuresOf` in `posts/zernio`): a later step
+  joins it with the post's TikTok and YouTube analytics to learn what makes a clip do well. **It records and decides
+  nothing**: the dice are rolled in the same order as before, so the captions, the times and the order are what
+  they were, and the tests pin the request body whole. Flat values under stable names, each with its unit, since
+  each becomes a column: `featuresVersion` (1; a later step reads a post by it), then what this job made of the clip,
+  `postTeaser` (which of the clip's teasers was rolled, from 1), `postScheduledAt` (the time planned, RFC 3339 in
+  UTC: the dashboard can move the post, this cannot), `postRunPosition` (from 1, in the order the run's posts go
+  out) and `postRunSize`; then what the generator chose and the clip shows, its `clips.v1.ClipFeatures` (the
+  frontend's CLAUDE.md, "Clips"), each as `clip` and the field's name: `clipDurationSeconds`, `clipMusic`,
+  `clipMusicStartSeconds`, `clipCamera`, `clipLook`, `clipStoryKind`, `clipSpanMinutes`, `clipTilesChanged`,
+  `clipStoryTilesChanged`, `clipPlaceTiles`, `clipFlagTilesStart`, `clipFlagTilesEnd`, `clipLandmassesFlipped`,
+  `clipBombs`, `clipSpreads`, `clipEnclosures`, `clipScreensCrossed`, `clipTourStops`, `clipLanguage`,
+  `clipSolidity`. A clip with no anthem, or a tour with no look, says `none`, never an empty string. A clip written
+  before the generator kept them has no `clip…` key at all (`Features.Recorded`: every clip lasts), never zeros
+  that would read as data. The story's key, its angle, continent and countries and the call to act are the keys
+  above, not repeated. Zernio's `metadata` takes any JSON object and states no size, but for three keys of its own
+  (`usageCounted`, `usageRefunded`, `hidden`), none of which this job writes. Posts made before them have none, and
+  none is filled in after.
 - **`Plan.Posts(clips, now, dice)`** is when and where: the best clip a `Review` from now (4 hours), each next one a
   `Spacing` later (2 hours), on a whole minute and never sooner than the review, each to all the `Platforms` at
   once. So a run at 12:17 UTC that renders in 20 minutes posts near 16:40, then every 2 hours until 02:40. It also

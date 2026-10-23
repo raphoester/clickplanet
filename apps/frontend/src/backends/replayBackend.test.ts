@@ -1,7 +1,7 @@
 import {Timestamp} from "@bufbuild/protobuf"
 import {describe, expect, it} from "vitest"
 import {GetReplayResponse, ReplayedEvent} from "../gen/grpc/planet/v1/admin_pb.ts"
-import {BombDropped, GetMapResponse, PlanetEvent, TileUpdate, TilesSpread} from "../gen/grpc/planet/v1/planet_pb.ts"
+import {BombDropped, GetMapResponse, PlanetEvent, TileUpdate, TilesEnclosed, TilesSpread} from "../gen/grpc/planet/v1/planet_pb.ts"
 import {BombDrop, SpreadClick, Update} from "./backend.ts"
 import {ReplayBackend} from "./replayBackend.ts"
 
@@ -91,6 +91,21 @@ describe("a replay", () => {
         const backend = replay(update(1, 1, "pl", "de"), bomb(2, [1, 2]))
 
         expect(backend.drops().map(({at, drop}) => [at, drop.tile, drop.cleared])).toEqual([[SINCE + 2_000, 1, [1, 2]]])
+    })
+
+    it("lists its spreads and its shapes closed, each on its tile", () => {
+        const enclosed = new ReplayedEvent({
+            at: at(4),
+            event: new PlanetEvent({event: {case: "tilesEnclosed", value: new TilesEnclosed({
+                countryId: "fr", closingTileId: 7, wallTileIds: [7, 8], filledTileIds: [9],
+            })}}),
+        })
+        const backend = replay(update(1, 1, "pl", "de"), spread(2), bomb(3, [1]), enclosed)
+
+        expect(backend.effects()).toEqual([
+            {at: SINCE + 2_000, kind: "spread", tile: 1},
+            {at: SINCE + 4_000, kind: "enclosure", tile: 7},
+        ])
     })
 
     it("cuts a window that opens on the map as it was at its start", async () => {

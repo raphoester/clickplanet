@@ -141,6 +141,14 @@ export class Clip extends Message<Clip> {
    */
   credit = "";
 
+  /**
+   * What the generator chose and what the clip shows, kept with the post and never published: what a clip was, to set
+   * beside how its post did. Absent from a clip written before it.
+   *
+   * @generated from field: clips.v1.ClipFeatures features = 10;
+   */
+  features?: ClipFeatures;
+
   constructor(data?: PartialMessage<Clip>) {
     super();
     proto3.util.initPartial(data, this);
@@ -156,6 +164,7 @@ export class Clip extends Message<Clip> {
     { no: 7, name: "countries", kind: "message", T: TaggedCountry, repeated: true },
     { no: 8, name: "continent_tag", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 9, name: "credit", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 10, name: "features", kind: "message", T: ClipFeatures },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Clip {
@@ -172,6 +181,194 @@ export class Clip extends Message<Clip> {
 
   static equals(a: Clip | PlainMessage<Clip> | undefined, b: Clip | PlainMessage<Clip> | undefined): boolean {
     return proto3.util.equals(Clip, a, b);
+  }
+}
+
+/**
+ * One flat value a field, each in the unit its name says, so each is a column. What the generator knows, never a guess.
+ *
+ * @generated from message clips.v1.ClipFeatures
+ */
+export class ClipFeatures extends Message<ClipFeatures> {
+  /**
+   * The whole clip, call to act included.
+   *
+   * @generated from field: double duration_seconds = 1;
+   */
+  durationSeconds = 0;
+
+  /**
+   * The country code of the anthem under the clip ("fr", "eu" for Europe's); empty when it plays none.
+   *
+   * @generated from field: string music = 2;
+   */
+  music = "";
+
+  /**
+   * Where in the anthem the clip starts it.
+   *
+   * @generated from field: double music_start_seconds = 3;
+   */
+  musicStartSeconds = 0;
+
+  /**
+   * "front" follows the fighting of one place, "tour" flies over the continents of a flag taking the world.
+   *
+   * @generated from field: string camera = 4;
+   */
+  camera = "";
+
+  /**
+   * When a front's camera comes back out of the tiles: "dive" at the end, "flags" halfway. Empty on a tour.
+   *
+   * @generated from field: string look = 5;
+   */
+  look = "";
+
+  /**
+   * What the story is, finer than its key's angle: "attack", "invasion", "comeback", "kickout", "rout", "battle",
+   * "holding", "round", "callup".
+   *
+   * @generated from field: string story_kind = 6;
+   */
+  storyKind = "";
+
+  /**
+   * How much of the replay's time the clip plays, quiet stretches included.
+   *
+   * @generated from field: double span_minutes = 7;
+   */
+  spanMinutes = 0;
+
+  /**
+   * Every tile that changed hands in that time, where the story is told (a bomb's cleared tiles too).
+   *
+   * @generated from field: uint32 tiles_changed = 8;
+   */
+  tilesChanged = 0;
+
+  /**
+   * The changes the camera follows: the story's own fighting.
+   *
+   * @generated from field: uint32 story_tiles_changed = 9;
+   */
+  storyTilesChanged = 0;
+
+  /**
+   * The size of the place the headline names and the counter counts in: a country, two, a continent or the world.
+   *
+   * @generated from field: uint32 place_tiles = 10;
+   */
+  placeTiles = 0;
+
+  /**
+   * The tiles the key's flag holds in the place when the clip starts and when it ends: the counter.
+   *
+   * @generated from field: uint32 flag_tiles_start = 11;
+   */
+  flagTilesStart = 0;
+
+  /**
+   * @generated from field: uint32 flag_tiles_end = 12;
+   */
+  flagTilesEnd = 0;
+
+  /**
+   * Landmasses whose painted flag changed in the clip: what can be seen changing from far.
+   *
+   * @generated from field: uint32 landmasses_flipped = 13;
+   */
+  landmassesFlipped = 0;
+
+  /**
+   * The effects played in sight of the story: a bomb going off, a spread click, a shape closed.
+   *
+   * @generated from field: uint32 bombs = 14;
+   */
+  bombs = 0;
+
+  /**
+   * @generated from field: uint32 spreads = 15;
+   */
+  spreads = 0;
+
+  /**
+   * @generated from field: uint32 enclosures = 16;
+   */
+  enclosures = 0;
+
+  /**
+   * How far the camera travels up close, in screens; 0 on a tour.
+   *
+   * @generated from field: double screens_crossed = 17;
+   */
+  screensCrossed = 0;
+
+  /**
+   * The continents a tour stops at; 0 for a front.
+   *
+   * @generated from field: uint32 tour_stops = 18;
+   */
+  tourStops = 0;
+
+  /**
+   * The language the clip's words are in: "en", or the country's own for a call-up ("pl").
+   *
+   * @generated from field: string language = 19;
+   */
+  language = "";
+
+  /**
+   * How solid the land taken is, from 0 (lines drawn on the map) to 1 (land taken whole).
+   *
+   * @generated from field: double solidity = 20;
+   */
+  solidity = 0;
+
+  constructor(data?: PartialMessage<ClipFeatures>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "clips.v1.ClipFeatures";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "duration_seconds", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 2, name: "music", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "music_start_seconds", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 4, name: "camera", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "look", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 6, name: "story_kind", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 7, name: "span_minutes", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 8, name: "tiles_changed", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 9, name: "story_tiles_changed", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 10, name: "place_tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 11, name: "flag_tiles_start", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 12, name: "flag_tiles_end", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 13, name: "landmasses_flipped", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 14, name: "bombs", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 15, name: "spreads", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 16, name: "enclosures", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 17, name: "screens_crossed", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 18, name: "tour_stops", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 19, name: "language", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 20, name: "solidity", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ClipFeatures {
+    return new ClipFeatures().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ClipFeatures {
+    return new ClipFeatures().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ClipFeatures {
+    return new ClipFeatures().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ClipFeatures | PlainMessage<ClipFeatures> | undefined, b: ClipFeatures | PlainMessage<ClipFeatures> | undefined): boolean {
+    return proto3.util.equals(ClipFeatures, a, b);
   }
 }
 

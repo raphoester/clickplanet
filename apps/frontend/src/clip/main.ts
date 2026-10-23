@@ -35,6 +35,7 @@ import {mulberry32} from "../app/viewer/stars.ts"
 import {installVirtualClock} from "./virtualClock.ts"
 import {createOverlay, hashtagsOf, nameOf, placeName, wordsOf} from "./overlay.ts"
 import {shortlistOf} from "./shortlist.ts"
+import {featuresOf} from "./features.ts"
 import {dayOf} from "./race.ts"
 
 export type Recording = {
@@ -47,8 +48,9 @@ export type Recording = {
     until: string
     look: string
     skipped: string[]
-    // The anthem to play under the clip: where it is, its title, whose it is, and the credit its licence asks for.
-    music: {url: string, title: string, whose: string, from: number, credit?: string} | undefined
+    // The anthem to play under the clip: where it is, its title, whose it is, its country's code, and the credit its
+    // licence asks for.
+    music: {url: string, title: string, whose: string, code: string, from: number, credit?: string} | undefined
     place: string
     headline: string
     line: string
@@ -130,7 +132,7 @@ function musicOf(story: Story, seconds: number): Recording["music"] {
     const code = anthemOf(story, (anthem) => anthem in RECORDED)
     if (code === undefined) return undefined
     const recording = RECORDED[code]
-    return {...recording, whose: story.team ?? nameOf(code), from: startOf(HIGHLIGHTS[recording.url], seconds)}
+    return {...recording, whose: story.team ?? nameOf(code), code, from: startOf(HIGHLIGHTS[recording.url], seconds)}
 }
 
 function lookParam(): Look | undefined {
@@ -370,8 +372,8 @@ async function choose(): Promise<Chosen> {
             : (tile: number) => inPlace(story.place, groundAt(tile), regionOf)
         // A holding's counter is the share of the place its flag holds. A day was won on a day's average, not on the
         // map now: its counter counts tiles, as any clip's, and the podium says the points.
-        const ground = story.kind === "holding"
-            ? Array.from({length: borders.assignment.length}, (_, i) => i + 1).filter(inArea).length : undefined
+        const placeTiles = Array.from({length: borders.assignment.length}, (_, i) => i + 1).filter(inArea).length
+        const ground = story.kind === "holding" ? placeTiles : undefined
         // What the map is opens on all its flag holds there.
         const seasonal = story.kind === "round" || story.kind === "callup"
         const shared = story.kind === "holding" || seasonal
@@ -421,6 +423,7 @@ async function choose(): Promise<Chosen> {
         backend.listenForUpdates((update) => own(update.tile, update.newCountry))
         backend.listenForBombs((drop) => drop.cleared.forEach((tile) => own(tile, undefined)))
 
+        const key = storyKeyOf(story, regionOf)
         const words = wordsOf(story, params.get("headline") ?? undefined)
         const overlay = createOverlay(root, story, words, opening, ground)
         const music = params.has("silent") ? undefined : musicOf(story, timeline.seconds)
@@ -470,6 +473,18 @@ async function choose(): Promise<Chosen> {
             overlay.show({replayAt, played, held, ending: Math.min(1, Math.max(0, (seconds - ending) / 0.5))})
         }
 
+        // The counter's numbers for the key's flag, at the start and at the end.
+        const flagTilesAtEnd = [...ownersAfter(backend.opening, backend.changes())]
+            .filter(([tile, owner]) => inArea(tile) && sideOf(owner) === key.flag).length
+        const effects = backend.effects().filter(({tile}) => inSight(tile))
+        const features = featuresOf({
+            story, seconds: timeline.seconds, music, look: world ? undefined : look, since: backend.since, until: backend.until,
+            tilesChanged: changes.length, storyTilesChanged: front.changes.length, placeTiles,
+            flagTiles: {start: opening.get(key.flag) ?? 0, end: flagTilesAtEnd}, landmassesFlipped: flips.length,
+            bombs: drops.length, spreads: effects.filter(({kind}) => kind === "spread").length,
+            enclosures: effects.filter(({kind}) => kind === "enclosure").length, screens, tourStops: stops.length, solidity,
+        })
+
         return {
             pick,
             stories: worth.length,
@@ -490,8 +505,8 @@ async function choose(): Promise<Chosen> {
             link: words.link,
             teasers: words.teasers,
             clip: new Clip({
-                pick, title: words.headline, key: storyKeyOf(story, regionOf), teasers: words.teasers,
-                countries: hashtags.countries, continentTag: hashtags.continent ?? "", credit: music?.credit ?? "",
+                pick, title: words.headline, key, teasers: words.teasers,
+                countries: hashtags.countries, continentTag: hashtags.continent ?? "", credit: music?.credit ?? "", features,
             }).toJson(),
             music,
         }

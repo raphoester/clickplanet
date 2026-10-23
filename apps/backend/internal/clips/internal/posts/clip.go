@@ -24,6 +24,7 @@ type Clip struct {
 	continentTag string
 	attribution  string
 	video        VideoFile
+	features     Features
 }
 
 func (c Clip) countryCodes() []string {
@@ -37,7 +38,7 @@ func (c Clip) countryCodes() []string {
 func (c Clip) TakeSnapshot() ClipSnapshot {
 	return ClipSnapshot{
 		Pick: c.pick, Title: c.title, Key: c.key, Teasers: c.teasers, Countries: c.countries,
-		ContinentTag: c.continentTag, Attribution: c.attribution, Video: c.video,
+		ContinentTag: c.continentTag, Attribution: c.attribution, Video: c.video, Features: c.features,
 	}
 }
 
@@ -52,6 +53,8 @@ type ClipSnapshot struct {
 	// What the licence of the clip's music asks the caption to say; empty when none.
 	Attribution string
 	Video       VideoFile
+	// What the clip was; zero for a clip written before the generator kept it.
+	Features Features
 }
 
 func (s ClipSnapshot) Restore() (Clip, error) {
@@ -79,6 +82,6 @@ func (s ClipSnapshot) Restore() (Clip, error) {
 	}
 	return Clip{
 		pick: s.Pick, title: s.Title, key: s.Key, teasers: s.Teasers, countries: s.Countries,
-		continentTag: s.ContinentTag, attribution: s.Attribution, video: s.Video,
+		continentTag: s.ContinentTag, attribution: s.Attribution, video: s.Video, features: s.Features,
 	}, nil
 }
