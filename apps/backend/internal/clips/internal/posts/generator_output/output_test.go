@@ -146,6 +146,28 @@ func TestAFolderGivesEachClipWithItsVideo(t *testing.T) {
 	}, clips[0].TakeSnapshot())
 }
 
+func TestAClipKeepsWhatItWasAndTheNamesOfItsTeasersAndOneWrittenBeforeThatHasNeither(t *testing.T) {
+	folder := t.TempDir()
+	write(t, folder, "clip-1.json", `{"pick": 1, "title": "FRANCE VS PALAU", "key": {"flag": "fr", "continent": "Europe"},
+		"teasers": ["WAR FOR FRANCE: FRANCE VS PALAU", "FRANCE AND PALAU FIGHT FOR FRANCE"], "teaserNames": ["war-for", "fight-for"],
+		"record": {"format": "globe-replay", "generator": "8dc31d2", "common": {"durationSeconds": 12.37, "music": "fr"},
+		"globe": {"camera": "front", "tilesChanged": 1480}, "addedLater": true}}`)
+	write(t, folder, "clip-1.mp4", "the video")
+	write(t, folder, "clip-2.json", writtenClip)
+	write(t, folder, "clip-2.mp4", "the video")
+
+	clips, err := generator_output.Folder(folder).Rendered(t.Context())
+
+	require.NoError(t, err)
+	require.Len(t, clips, 2)
+	named := clips[0].TakeSnapshot()
+	assert.Equal(t, []string{"war-for", "fight-for"}, named.TeaserNames)
+	assert.JSONEq(t, `{"format": "globe-replay", "generator": "8dc31d2", "common": {"durationSeconds": 12.37, "music": "fr"},
+		"globe": {"camera": "front", "tilesChanged": 1480}}`, string(named.Record))
+	assert.Empty(t, clips[1].TakeSnapshot().TeaserNames)
+	assert.Empty(t, clips[1].TakeSnapshot().Record)
+}
+
 func TestAFolderWithNoClipGivesNone(t *testing.T) {
 	clips, err := generator_output.Folder(t.TempDir()).Rendered(t.Context())
 

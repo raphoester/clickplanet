@@ -214,6 +214,13 @@ function localNameOf(code: string, language: string, english: (code: string) => 
     return english(code)
 }
 
+// What each language's teasers say, in their order, whatever words it says them in.
+const CALL_UP_TEASERS: Readonly<Record<"behind" | "ahead" | "level", string[]>> = {
+    behind: ["can-still-win-the-season", "gap-to-first-place"],
+    ahead: ["can-anyone-stop", "clear-at-the-top"],
+    level: ["shares-first-place", "season-up-for-grabs"],
+}
+
 export type Naming = {
     nameOf(code: string): string
     said(name: string): string
@@ -244,6 +251,7 @@ export function callUpWordsOf(story: Story, naming: Naming, headline?: string): 
     const points = Math.abs(own.points - other.points)
     const gap = counted(points, words.points)
     const country = subject(story.attacker)
+    const place = points === 0 ? "level" : leads ? "ahead" : "behind"
 
     const when = upper(new Intl.DateTimeFormat(voice.locale, {
         weekday: "long", day: "numeric", month: "long", hour: "numeric", minute: "2-digit", timeZone: voice.timeZone,
@@ -268,8 +276,8 @@ export function callUpWordsOf(story: Story, naming: Naming, headline?: string): 
         call: words.call(voice.region),
         callFlags: [story.attacker],
         link: `${SITE}/?f=${story.attacker}`,
-        teasers: points === 0 ? words.teasers.level(country)
-            : leads ? words.teasers.ahead(country, gap) : words.teasers.behind(country, gap),
+        teasers: words.teasers[place](country, gap),
+        teaserNames: CALL_UP_TEASERS[place],
         table: (leads ? [own, other] : [other, own]).map(standing),
         when: words.finale(when),
         speech,

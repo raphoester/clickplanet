@@ -96,7 +96,14 @@ describe("a country called up to the Final Battle", () => {
             const words = wordsOf(calledUp(country))
             expect(words.teasers.length).toBeGreaterThanOrEqual(2)
             expect(words.teasers).not.toContain(words.headline)
+            expect(words.teaserNames).toHaveLength(words.teasers.length)
         }
+    })
+
+    it("names its teasers the same in every language", () => {
+        expect(wordsOf(calledUp("pl")).teaserNames).toEqual(["can-still-win-the-season", "gap-to-first-place"])
+        expect(wordsOf(calledUp("gb")).teaserNames).toEqual(wordsOf(calledUp("pl")).teaserNames)
+        expect(wordsOf(calledUp("dz")).teaserNames).toEqual(["can-anyone-stop", "clear-at-the-top"])
     })
 })
 

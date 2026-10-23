@@ -3093,6 +3093,34 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   continent's hashtag, and the credit of its music. **The job writes the caption** from them (the backend's
   CLAUDE.md, "The clips job"): this app has the names, the job has the platform. The repo is public and so are a
   run's logs and artifacts: a clip can be watched there before it is out.
+- **A `Clip` also says what the clip was** (`record`, a `ClipRecord`, written by `clipRecordOf` in
+  `src/clip/clipRecord.ts`): the job keeps it with the post, never published, so a later step can set it beside the
+  post's numbers on TikTok and YouTube and learn what makes a clip do well. **It records, and chooses nothing**:
+  every value is one `record()` already worked out, read once the clip is decided, and the same replay gives the same
+  video, teasers and `Clip` byte for byte as before it, `record` and `teaserNames` aside (checked on 2026-10-23
+  against a render of `main`). **It is shaped to outlive this kind of clip**, since the clips will be experimented on:
+  - **`format` names the kind of video**, and the section that describes it: `globe-replay`, the game's globe, in
+    `globe`. A clip made another way (another layout, a video made by AI) is a new format with a section of its own,
+    beside `common`, what every format has.
+  - **Every code is a word that says what it means**, never a number standing for one: `camera` is `front` or
+    `tour`, `look` `dive`, `flags` or `none` (a tour has none), `music` the anthem's country code or `none`,
+    `storyKind` the story's kind, `language` `en` or a call-up's own (`voiceOf`). **A number is a quantity**, in the
+    unit its name says: `durationSeconds`, `musicStartSeconds`, `spanMinutes` of the replay played, `tilesChanged`
+    where the story is told (a bomb's cleared tiles too), `storyTilesChanged` (the fighting the camera follows),
+    `placeTiles` (the place the headline names), `flagTilesStart` and `flagTilesEnd` (the counter, for the key's
+    flag), `landmassesFlipped`, the effects in sight of the story as `--plan` counts its bombs (`bombs`, `spreads`,
+    `enclosures`, from `ReplayBackend.effects`), `screensCrossed`, `tourStops` and `solidity`. One protojson leaves out
+    is its zero.
+  - **`generator` is the commit that made it**: `render.mjs` passes the workflow's `GITHUB_SHA`, else the checkout's
+    `HEAD`, to the page as `commit`; `unknown` without either.
+  - **`variants` is the arm of each experiment the clip is in**, by name (`{"end-card": "podium"}`): a free map of
+    words, so an experiment needs no change of shape. Empty while none runs.
+  - **Additive only**: a new value is a field at the end of its message. A change that is not is a new message
+    under a new name, since the job names the message it writes (the backend's CLAUDE.md, "The clips job").
+- **Each teaser has a name** (`Words.teaserNames`, beside `teasers`, in the same order): the name of its wording, the
+  same for every flag and every language, `invades` and `under-attack-from` for an invasion, `can-anyone-stop` for a
+  call-up's leader in any of its languages. The `Clip` carries them (`teaserNames`), so the job can say which wording
+  a post opens with and the posts can be compared by it. A test checks every kind names each of its teasers once.
 
 - **The replay is the backend's** (`planet.v1.AdminService/GetReplay`, see the backend's CLAUDE.md): the map as it
   was at the start, and every act after it as the live stream sent it. The backend's job asks for the last

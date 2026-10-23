@@ -24,6 +24,7 @@ func (p Plan) Posts(clips []Clip, now time.Time, dice Dice) []Post {
 	for i, clip := range ranked {
 		posts = append(posts, Post{
 			clip: clip, at: first.Add(time.Duration(i) * p.Spacing), platforms: p.Platforms, wording: wordingOf(clip, dice),
+			position: i + 1, ofRun: len(ranked),
 		})
 	}
 	return posts

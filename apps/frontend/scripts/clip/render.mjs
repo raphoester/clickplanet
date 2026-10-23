@@ -1,4 +1,4 @@
-import {spawn} from "node:child_process"
+import {execFileSync, spawn} from "node:child_process"
 import {createReadStream, existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync} from "node:fs"
 import {availableParallelism, tmpdir} from "node:os"
 import {basename, dirname, join, resolve} from "node:path"
@@ -220,8 +220,20 @@ async function openRecorder(speaks) {
 
 let skippedTold = false
 
+// The commit that makes the clip, kept in what the clip was: the workflow's, else the checkout's.
+function commitOf() {
+    if (process.env.GITHUB_SHA) return process.env.GITHUB_SHA
+    try {
+        return execFileSync("git", ["rev-parse", "HEAD"], {encoding: "utf8", stdio: ["ignore", "pipe", "ignore"]}).trim()
+    } catch {
+        return "unknown"
+    }
+}
+
+const COMMIT = commitOf()
+
 function pageOf(pick) {
-    const query = new URLSearchParams({fps: flag("fps", "30"), pick: String(pick)})
+    const query = new URLSearchParams({fps: flag("fps", "30"), pick: String(pick), commit: COMMIT})
     for (const name of ["since", "until", "hours", "seconds", "country", "focus", "headline", "hold"]) {
         if (flag(name)) query.set(name, flag(name))
     }

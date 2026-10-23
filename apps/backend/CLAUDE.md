@@ -3687,6 +3687,25 @@ clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-platforms tiktok,you
   (`listPosts`, `fromDate` is a date, so the domain filters to the hour). So a clip cancelled in the dashboard still
   counts as told, nothing can disagree with what Zernio holds, and a post made by hand, with no key, counts for
   nothing. **A history that cannot be read fails the run**, rather than tell a story twice.
+- **Each post also keeps what it was, to be set beside its numbers**, under one key of its Zernio `metadata`,
+  `record` (`recordOf` in `posts/zernio`): a later step joins it with the post's TikTok and YouTube analytics to learn
+  what makes a clip do well. **It records and decides nothing**: the dice are rolled in the same order as before, so
+  the captions, the times and the order are what they were, and the tests pin the request body whole.
+  - **It is one document, a `clips.v1.PostRecord` as protojson writes it**, not keys of Zernio's top level: its
+    shape is the proto's and it grows there, with nothing to move in Zernio. `schema` names the message it is,
+    `clips.v1.PostRecord`; a change that is not additive is a new message under a new name, so a reader always knows
+    what it holds. `clip` is what the generator wrote (`clips.v1.ClipRecord`: its format, its commit, what every
+    format has, its format's own section, its experiments' arms; the frontend's CLAUDE.md, "Clips"), kept as written
+    (`posts.ClipRecord`, which the job never reads); absent for a clip written before the generator kept one. `post`
+    is what this job made of the clip: `teaser`, the name of the teaser rolled (`invades`; `unnamed` for a clip whose
+    teasers have none), `callToAction`, `scheduledAt` (the time planned: the dashboard can move the post, this
+    does not move), and `runPosition` and `runSize`, its place in its run from 1 and how many it has.
+  - **Every code in it is a word that says what it means; a number is a quantity.** The flat columns of a table are
+    the reader's to make, not the document's.
+  - The story's key, its countries and the call to act stay where they were, as keys of their own: `choose` reads
+    them from a week of posts already out. A record that is not a `ClipRecord` fails the post before its video is
+    uploaded. Zernio's `metadata` takes any JSON object and states no size, but for three keys of its own
+    (`usageCounted`, `usageRefunded`, `hidden`). Posts made before the record have none, and none is filled in after.
 - **`Plan.Posts(clips, now, dice)`** is when and where: the best clip a `Review` from now (4 hours), each next one a
   `Spacing` later (2 hours), on a whole minute and never sooner than the review, each to all the `Platforms` at
   once. So a run at 12:17 UTC that renders in 20 minutes posts near 16:40, then every 2 hours until 02:40. It also

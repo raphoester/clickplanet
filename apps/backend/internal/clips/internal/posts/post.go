@@ -16,6 +16,9 @@ type Post struct {
 	at        time.Time
 	platforms []Platform
 	wording   wording
+	// From 1: the order the run's posts go out in, and how many it has.
+	position int
+	ofRun    int
 }
 
 func (p Post) Reviewable(now time.Time) bool {
@@ -26,6 +29,7 @@ func (p Post) TakeSnapshot() PostSnapshot {
 	return PostSnapshot{
 		Title: p.clip.title, CallToAction: p.wording.call.ID, Key: p.clip.key, Countries: p.clip.countryCodes(),
 		Video: p.clip.video, At: p.at, Platforms: p.platforms, TikTok: p.wording.tiktok(p.clip), YouTube: p.wording.youtube(p.clip),
+		Record: p.clip.record, Teaser: p.wording.teaserName, RunPosition: p.position, RunSize: p.ofRun,
 	}
 }
 
@@ -40,6 +44,12 @@ type PostSnapshot struct {
 	Platforms []Platform
 	TikTok    TikTokWords
 	YouTube   YouTubeWords
+	// What the clip was, and what this job made of it, kept with the post to compare posts by: the name of the teaser
+	// rolled ("invades", or "unnamed"), and the post's place in its run, from 1, of how many.
+	Record      ClipRecord
+	Teaser      string
+	RunPosition int
+	RunSize     int
 }
 
 type Scheduled struct {
