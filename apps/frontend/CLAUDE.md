@@ -23,6 +23,7 @@ npm run mobile     # Screenshot/inspect a URL as a phone (see "Debugging mobile 
 npm run clip -- --replay replay.json --count 3  # The 3 best stories in it, as vertical videos with what to post
 npm run clip -- --replay replay.json --shortlist shortlist.json  # Only the list of its stories, as data
 npm run clip -- --replay replay.json --race race.json --plan  # With the season's race: the day it closed is a story too
+npm run clip -- --replay replay.json --race race.json --season season.json --plan  # And the countries called up after it
 npm run clip:anthems # Vendor the anthems only the clips play (Europe's, Palestine's) into scripts/clip/anthems
 npm run clip:highlights # Measure where each anthem a clip plays is worth starting (run by both anthem scripts)
 npm run regions    # Rewrite each country's continent (Asia's part of it) from Natural Earth, for the clips' headlines
@@ -3025,10 +3026,10 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
 **Twice a day a workflow posts the best ones with no person and no laptop** (`.github/workflows/clips.yml`, at
 00:17 and 12:17 UTC, or by hand with `workflow_dispatch`). Four jobs:
 
-1. **fetch**: the backend's `clips fetch -hours 12 -race race.json` over SSH, with the deploy's `VPS_*` secrets. The
-   job runs no npm at all, so the key to the VPS is in no job that installs this app's dependencies. The replay and
-   the season's race go on as an artifact; both are the public streams' data. A race that could not be fetched is no
-   file, and the run goes on without a day to tell.
+1. **fetch**: the backend's `clips fetch -hours 12 -race race.json -season season.json` over SSH, with the deploy's
+   `VPS_*` secrets. The job runs no npm at all, so the key to the VPS is in no job that installs this app's
+   dependencies. The replay, the season's race and its calendar go on as an artifact; all are public data. A race or
+   a season that could not be fetched is no file, and the run goes on without a day to tell or a country to call up.
 2. **shortlist** and **choose**: `npm run clip -- --shortlist shortlist.json`, then, in a job of its own (it holds
    the Zernio key, and runs no npm), the backend's `clips choose` reads it and prints the picks to render, up to 6, `[1,2,4]`.
    **It skips a story told in the last 3 days**, by its key below, and a headline told in the last week, puts a
@@ -3054,11 +3055,13 @@ What chooses, when a clip goes out, the client of the service and the run's summ
 - **`--race <path>`** is the season's race, a `seasons.v1.GetRaceResponse` as the backend's `GetRace` answers it,
   served to the page at `/__clip/race.json` (`src/clip/race.ts` reads its closed round). With none, that path
   answers 404, never the app's fallback page, and no day is told.
+- **`--season <path>`** is the season, a `seasons.v1.GetSeasonResponse`, served at `/__clip/season.json` the same
+  way: when its Final Battle starts. With none, nobody is called up.
 - **A story's key says which story it is, the headline never does** (`storyKeyOf`, `domain/clip/story.ts`): the
   flag the clip is about and the continent it is told on, `{flag: "dz", continent: "Africa"}`. "ALGERIA STRIKES
   BACK" and "ALGERIA VS FRANCE" are one key. **Its angle says what the story tells of the flag there**: none for what
-  it did, `holding` for what it holds, `round` for a day it won, with the day (`round: "1.5"`, season and number). So
-  "CROATIA HOLDS 80% OF EUROPE" is not "CROATIA IS ATTACKING EUROPE" told again, and France winning day 5 and day 6 is
+  it did, `holding` for what it holds, `round` for a day it won, with the day (`round: "1.5"`, season and number),
+  `callup` for a country called up after a day, with that day. So "CROATIA HOLDS 80% OF EUROPE" is not "CROATIA IS ATTACKING EUROPE" told again, and France winning day 5 and day 6 is
   two stories. On Oct 18 a run of 13 stories skipped 8 as told already, nearly all one flag in Europe: every story was
   what changed, so a flag had one story a continent every 3 days. The flag is the first of `sidesOf`: the loser of a rout, a continent's
   own flag when it strikes back together. The continent is the place's (Asia's parts as the headlines name them,
@@ -3219,6 +3222,18 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   the cutoff, the winner's fighting (anyone's when it fought none), opens on all the winner holds, counts its tiles
   (not its share of the map: a day is won on its average, which the podium's points say), and ends on the podium, the places that scored with their points, then "WHO WINS DAY 6?". The ending
   lasts 4s instead of 2.5, to read it.
+- **`callup.ts` calls up each country that can still win the season** (`--race` and `--season`), after the day the
+  race closed last, told by the same run as the day: a country contends when winning every day left and the Final
+  Battle, the leader second each time, brings it level. By pure points, 25 countries could still win on day 15, the
+  UK 288 points behind; with this rule two did. A leader nobody can catch is no call-up. **It speaks the country's
+  language** (`src/clip/callUp.ts`): CLDR's likely language for the country (`Intl.Locale.maximize`), when the clip
+  has words for it (English, French, Spanish, Portuguese, Italian, German, Dutch, Polish, Romanian, Turkish,
+  Hungarian), else English. The words never put a country's name where a language would decline it ("POLSKA: 14
+  PUNKTÓW STRATY", not "behind Algeria" in Polish), names come from CLDR in that language, numbers and plurals from
+  `Intl`. The Final Battle's time is the one most of the country's zones read, with the zone named when they
+  disagree ("18:00 BRT"). It plays as a day does, and ends on the leader's row and the country's, "YOUR COUNTRY
+  NEEDS YOU" in its language, and the Final Battle's time. **Luckiest Guy draws Latin-1 only**: a clip with any
+  other letter ("Ł", "Ț", "İ") is set in Rubik Black, never in two fonts.
 - **`score.ts` ranks the candidates**: the tiles taken from another flag, over the square root of the hours, times
   the countries they were taken in (up to 4). A short war over several countries beats a long filling of one. A
   story already told by a better candidate (same attacker, same front) is dropped.

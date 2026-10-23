@@ -243,14 +243,15 @@ export class StoryKey extends Message<StoryKey> {
 
   /**
    * What the clip tells of the flag there: empty for what it did (an attack, a battle, a flag thrown out),
-   * "holding" for how much of the place it holds, "round" for a day of the season it won.
+   * "holding" for how much of the place it holds, "round" for a day of the season it won, "callup" for a country
+   * called up to the Final Battle after a day.
    *
    * @generated from field: string angle = 3;
    */
   angle = "";
 
   /**
-   * The day a "round" tells, as its season and its number: "1.5". Empty for any other angle.
+   * The day a "round" tells or a "callup" follows, as its season and its number: "1.5". Empty for any other angle.
    *
    * @generated from field: string round = 4;
    */

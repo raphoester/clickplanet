@@ -23,6 +23,8 @@ if (!replay || has("help")) {
   --shortlist <path>  write the stories worth a clip, best first, as JSON (clips.v1.Shortlist), and make none
   --race <path>       the season's race (seasons.v1.GetRaceResponse): the day it closed last is a story when its
                       cutoff is in the window
+  --season <path>     the season (seasons.v1.GetSeasonResponse): with the race, each country that can still win it is
+                      called up to its Final Battle
   --silent            no anthem under the clip, for a sound added where it is posted
   --preview <s>       only the first s seconds of each clip
 
@@ -61,11 +63,16 @@ if (!existsSync(replayPath)) {
     console.error(`no replay at ${replayPath}`)
     process.exit(1)
 }
-const racePath = flag("race") === undefined ? undefined : resolve(flag("race"))
-if (racePath !== undefined && !existsSync(racePath)) {
-    console.error(`no race at ${racePath}`)
-    process.exit(1)
+const optionalPath = (name) => {
+    const path = flag(name) === undefined ? undefined : resolve(flag(name))
+    if (path !== undefined && !existsSync(path)) {
+        console.error(`no ${name} at ${path}`)
+        process.exit(1)
+    }
+    return path
 }
+const racePath = optionalPath("race")
+const seasonPath = optionalPath("season")
 
 const server = await createServer({
     root: APP,
@@ -80,17 +87,20 @@ const server = await createServer({
                 res.setHeader("Content-Length", statSync(replayPath).size)
                 createReadStream(replayPath).pipe(res)
             })
-            // Answered either way: with no race, a day is no story, and the page must not read the app's fallback page.
-            vite.middlewares.use("/__clip/race.json", (_req, res) => {
-                if (racePath === undefined) {
+            // Answered either way: with no race or no season, a day or a call-up is no story, and the page must not read
+            // the app's fallback page.
+            const optional = (path) => (_req, res) => {
+                if (path === undefined) {
                     res.statusCode = 404
                     res.end()
                     return
                 }
                 res.setHeader("Content-Type", "application/json")
-                res.setHeader("Content-Length", statSync(racePath).size)
-                createReadStream(racePath).pipe(res)
-            })
+                res.setHeader("Content-Length", statSync(path).size)
+                createReadStream(path).pipe(res)
+            }
+            vite.middlewares.use("/__clip/race.json", optional(racePath))
+            vite.middlewares.use("/__clip/season.json", optional(seasonPath))
         },
     }],
 })

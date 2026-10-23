@@ -4,7 +4,7 @@ import * as THREE from "three"
 import type {JsonValue} from "@bufbuild/protobuf"
 import {Clip} from "../gen/grpc/clips/v1/clips_pb.ts"
 import {GetReplayResponse} from "../gen/grpc/planet/v1/admin_pb.ts"
-import {GetRaceResponse} from "../gen/grpc/seasons/v1/seasons_pb.ts"
+import {GetRaceResponse, GetSeasonResponse} from "../gen/grpc/seasons/v1/seasons_pb.ts"
 import {ReplayBackend} from "../backends/replayBackend.ts"
 import {createGlobe} from "../app/viewer/globe.ts"
 import {loadPointGeometryData} from "../app/viewer/points.ts"
@@ -23,6 +23,7 @@ import {Candidate, candidatesOf, inCandidate, newsSince, Window} from "../domain
 import {Front, frontOf, FRONT_RADIANS, inSightOf, sameFront, spanOf} from "../domain/clip/front.ts"
 import {Holding, holdingsOf, inHolding} from "../domain/clip/holding.ts"
 import {ROUND_PLAY_MS, roundStoryOf} from "../domain/clip/round.ts"
+import {callUpsOf} from "../domain/clip/callup.ts"
 import {castOf, inPlace, leadsTheWorld, lossOf, placeOf, routOf, sameStory, Story, storyKeyOf, storyOf, teamFlagOf, THE_WORLD, widerThan} from "../domain/clip/story.ts"
 import {scoreOf} from "../domain/clip/score.ts"
 import {Flip, flipsOf, Look, lookOf} from "../domain/clip/look.ts"
@@ -164,6 +165,9 @@ async function choose(): Promise<Chosen> {
     // The race, when the run fetched one: the day it closed last is a story of the run whose window holds its cutoff.
     const race = await fetch("/__clip/race.json")
     const day = race.ok ? dayOf(GetRaceResponse.fromJson(await race.json(), {ignoreUnknownFields: true}).race?.closed) : undefined
+    const calendar = await fetch("/__clip/season.json")
+    const finale = calendar.ok ? GetSeasonResponse.fromJson(await calendar.json(), {ignoreUnknownFields: true}).season : undefined
+    const finaleAt = finale === undefined ? undefined : Number(finale.finaleStartsAtUnixMs)
 
     const attacker = countryParam("country")
     const focus = countryParam("focus")
@@ -304,7 +308,7 @@ async function choose(): Promise<Chosen> {
             solidity: solidityAfter(story.attacker, front, end), skipped: undefined,
         }
     }
-    // The clip of a day plays the run-up to its cutoff: its winner's fighting, else everyone's.
+    // The clip of a day, or of a country called up after it, plays the run-up to its cutoff: its flag's fighting, else everyone's.
     const roundReviewOf = (story: Story): Review => {
         const cutoff = story.day?.endedAt ?? until
         const backend = replay.cut(Math.max(replay.since, cutoff - ROUND_PLAY_MS), cutoff)
@@ -320,6 +324,9 @@ async function choose(): Promise<Chosen> {
     }
     const told = focus === undefined ? roundStoryOf(day, since, until) : undefined
     const days = told === undefined || (attacker !== undefined && told.attacker !== attacker) ? [] : [roundReviewOf(told)]
+    const callUps = (focus === undefined ? callUpsOf(day, finaleAt, since, until) : [])
+        .filter((story) => attacker === undefined || story.attacker === attacker)
+        .map(roundReviewOf)
 
     const reviewed = stories.map(reviewOf)
     const kept = reviewed.filter(({skipped}) => skipped === undefined)
@@ -328,14 +335,15 @@ async function choose(): Promise<Chosen> {
         && sameStory(other.story, review.story, placeName, regionOf)
         && (widerThan(other.story.place, review.story.place)
             || (!widerThan(review.story.place, other.story.place) && kept.indexOf(other) < kept.indexOf(review))))
-    // The day first, the run's news; then what changed, best first; then what the map is, the biggest holding first.
+    // The day first, the run's news, then its call-ups; then what changed, best first; then what the map is, the biggest first.
     const worth = [
         ...days.filter(({skipped}) => skipped === undefined),
+        ...callUps.filter(({skipped}) => skipped === undefined),
         ...kept.filter((review) => tellerOf(review) === undefined),
         ...holdings.filter(({short}) => short === undefined).map(holdingReviewOf),
     ]
     const skipped = [
-        ...days.flatMap(({story: told, skipped: why}) => why === undefined ? [] : [`${wordsOf(told).headline}: ${why}`]),
+        ...[...days, ...callUps].flatMap(({story: told, skipped: why}) => why === undefined ? [] : [`${wordsOf(told).headline}: ${why}`]),
         // A country's top holder short of most of it is every country of a war: only the near misses are worth a line.
         ...holdings.flatMap(({story: held, short}) => short === undefined || ("country" in held.place && short.startsWith("too little"))
             || short === "mostly its own country" ? [] : [`${wordsOf(held).headline}: ${short}`]),
@@ -365,7 +373,8 @@ async function choose(): Promise<Chosen> {
         const ground = story.kind === "holding"
             ? Array.from({length: borders.assignment.length}, (_, i) => i + 1).filter(inArea).length : undefined
         // What the map is opens on all its flag holds there.
-        const shared = story.kind === "holding" || story.kind === "round"
+        const seasonal = story.kind === "round" || story.kind === "callup"
+        const shared = story.kind === "holding" || seasonal
         const territory = shared ? [...ownersAfter(backend.opening, backend.changes())]
             .flatMap(([tile, owner]) => owner === story.attacker && inArea(tile) ? [pointAt(tile)] : []) : []
 
@@ -383,7 +392,7 @@ async function choose(): Promise<Chosen> {
         const pace = paceOf(front.changes.map(({at}) => at), backend.since, backend.until)
         const stops = world ? stopsOf(visitsOf(front, story.attacker, pace.shareOf), aspect) : []
         const timeline = world ? timelineFor(tourSecondsOf(stops.length), numberParam("seconds"))
-            : timelineOf(screens, numberParam("seconds"), story.kind === "round" ? PODIUM_ENDING_SECONDS : undefined)
+            : timelineOf(screens, numberParam("seconds"), seasonal ? PODIUM_ENDING_SECONDS : undefined)
         const camera = world ? tourOf(stops, aspect, timeline.seconds - timeline.ending, flagsZoomOf(root.clientHeight))
             : cameraOf(first, front.changes.map(({tile, at}) => ({share: pace.shareOf(at), point: pointAt(tile)})), {
                 close,

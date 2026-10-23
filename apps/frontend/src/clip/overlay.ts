@@ -1,6 +1,7 @@
 import {Countries} from "../domain/countries.ts"
 import {inPlace, Place, sidesOf, Story, storyCountriesOf, THE_WORLD} from "../domain/clip/story.ts"
 import {flagOfContinent, regionOf} from "../domain/regions.ts"
+import {callUpWordsOf} from "./callUp.ts"
 
 export type Words = {
     headline: string
@@ -12,6 +13,17 @@ export type Words = {
     link: string
     // The headline said in other words, for the caption: the posting job picks one.
     teasers: string[]
+    table?: Standing[]
+    when?: string
+    speech?: Speech
+}
+
+export type Standing = {rank: number, country: string, name: string, points: string}
+
+export type Speech = {
+    tiles(count: number): string
+    number(count: number): string
+    clock(at: number): string
 }
 
 // The words of a hashtag, with no #.
@@ -70,7 +82,7 @@ function countriesOf(place: Place): string[] {
 // The UK, the Netherlands: a name said with its article.
 const SAID_WITH_THE = /^(UK|USA|UAE|Gambia|Middle East)$|(lands|ines|amas|ives|oros|elles|Republic|Territories)$/
 
-function said(name: string): string {
+export function said(name: string): string {
     return SAID_WITH_THE.test(name) ? `the ${name}` : name
 }
 
@@ -114,6 +126,8 @@ export function hashtagsOf(story: Story): Hashtags {
 const loud = (lines: string[]) => lines.map((line) => line.toUpperCase())
 
 export function wordsOf(story: Story, headline?: string): Words {
+    if (story.kind === "callup") return callUpWordsOf(story, {nameOf, said}, headline)
+
     const attacker = said(nameOf(story.attacker))
     const place = placeSaid(story.place)
     const sides = sidesOf(story)
@@ -251,6 +265,9 @@ function flag(code: string, className: string, parent: HTMLElement) {
     return image
 }
 
+// Luckiest Guy draws Latin-1 and little more: "ŁOTWA" in it would mix two fonts in one word.
+const DISPLAY_FONT_DRAWS = /^[\u0020-\u00ff\u0131\u0152\u0153\u2000-\u206f\u20ac\u2122]*$/u
+
 // A share of a place, to a tenth of a point, never more than it is: 79.96% is 79.9%.
 function shareOf(count: number, ground: number): string {
     return `${(Math.floor(count / Math.max(1, ground) * 1000) / 10).toFixed(1)}%`
@@ -265,6 +282,12 @@ export function createOverlay(
     ground?: number,
 ): Overlay {
     const sides = sidesOf(story)
+    const speech = words.speech
+    const said = [
+        words.headline, words.call, words.when ?? "", ...(words.table ?? []).map(({name, points}) => `${name} ${points}`),
+        ...speech === undefined ? [] : [0, 1, 2, 5, 22, 1234].map(speech.tiles),
+    ]
+    if (!said.every((text) => DISPLAY_FONT_DRAWS.test(text))) root.classList.add("clip--fallback-font")
 
     const top = element("header", "clip-top", root)
     const headline = element("h1", "clip-headline", top)
@@ -291,7 +314,16 @@ export function createOverlay(
     const ending = element("section", "clip-ending", root)
     const endingFlags = element("div", "clip-ending-flags", ending)
     for (const called of words.callFlags) flag(called, "clip-ending-flag", endingFlags)
-    if (story.day !== undefined) {
+    if (words.table !== undefined) {
+        const table = element("ol", "clip-podium", ending)
+        for (const {rank, country, name, points} of words.table) {
+            const place = element("li", `clip-podium-place clip-podium-place--${rank === 1 ? 1 : "next"}`, table)
+            element("span", "clip-podium-rank", place).textContent = `#${rank}`
+            flag(country, "clip-podium-flag", place)
+            element("span", "clip-podium-name", place).textContent = name
+            element("span", "clip-podium-points", place).textContent = points
+        }
+    } else if (story.day !== undefined) {
         const podium = element("ol", "clip-podium", ending)
         for (const {country, rank, points} of story.day.podium) {
             const place = element("li", `clip-podium-place clip-podium-place--${rank}`, podium)
@@ -302,6 +334,7 @@ export function createOverlay(
         }
     }
     element("p", "clip-call", ending).textContent = words.call
+    if (words.when !== undefined) element("p", "clip-when", ending).textContent = words.when
     element("p", "clip-url", ending).textContent = "clickplanet.lol"
 
     return {
@@ -310,13 +343,14 @@ export function createOverlay(
                 const count = held.get(side) ?? 0
                 const moved = count - (opening.get(side) ?? 0)
                 tiles.textContent = ground !== undefined ? shareOf(count, ground)
-                    : `${NUMBER.format(count)} ${count === 1 ? "tile" : "tiles"}`
-                const by = ground !== undefined ? shareOf(Math.abs(moved), ground) : NUMBER.format(Math.abs(moved))
+                    : speech?.tiles(count) ?? `${NUMBER.format(count)} ${count === 1 ? "tile" : "tiles"}`
+                const by = ground !== undefined ? shareOf(Math.abs(moved), ground)
+                    : speech?.number(Math.abs(moved)) ?? NUMBER.format(Math.abs(moved))
                 delta.textContent = moved === 0 || by === "0.0%" ? "" : `${moved > 0 ? "+" : "−"}${by}`
                 delta.classList.toggle("clip-counter-delta--gain", moved > 0)
                 delta.classList.toggle("clip-counter-delta--loss", moved < 0)
             }
-            time.textContent = `${TIME.format(new Date(replayAt))} UTC`
+            time.textContent = speech?.clock(replayAt) ?? `${TIME.format(new Date(replayAt))} UTC`
             progress.style.transform = `scaleX(${played})`
             ending.style.opacity = String(over)
             top.style.opacity = String(1 - over)

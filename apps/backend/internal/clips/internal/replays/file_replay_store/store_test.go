@@ -43,3 +43,19 @@ func TestARaceThatCannotBeWrittenIsAnError(t *testing.T) {
 
 	require.Error(t, file_replay_store.RaceStore(path).SaveRace(t.Context(), replays.Race{Document: []byte(`{}`)}))
 }
+
+func TestASeasonIsWrittenAsTheBackendAnsweredIt(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "season.json")
+
+	require.NoError(t, file_replay_store.SeasonStore(path).SaveSeason(t.Context(), replays.Season{Document: []byte(`{"season":{}}`)}))
+
+	written, err := os.ReadFile(path) //nolint:gosec // the file the test wrote.
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"season":{}}`, string(written))
+}
+
+func TestASeasonThatCannotBeWrittenIsAnError(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "no-such-folder", "season.json")
+
+	require.Error(t, file_replay_store.SeasonStore(path).SaveSeason(t.Context(), replays.Season{Document: []byte(`{}`)}))
+}

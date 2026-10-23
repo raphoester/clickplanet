@@ -29,3 +29,14 @@ func (s RaceStore) SaveRace(_ context.Context, race replays.Race) error {
 	}
 	return nil
 }
+
+type SeasonStore string
+
+var _ replays.SeasonStore = SeasonStore("")
+
+func (s SeasonStore) SaveSeason(_ context.Context, season replays.Season) error {
+	if err := os.WriteFile(string(s), season.Document, 0o600); err != nil {
+		return fmt.Errorf("failed to write the season: %w", err)
+	}
+	return nil
+}

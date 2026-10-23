@@ -23,6 +23,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/usecases/fetch_race_usecase/log_fetch_race"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/usecases/fetch_replay_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/usecases/fetch_replay_usecase/log_fetch_replay"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/usecases/fetch_season_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/usecases/fetch_season_usecase/log_fetch_season"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -94,9 +96,9 @@ func (c Config) withDefaults() Config {
 	return c
 }
 
-// race: where the race is written, or empty for none. A race the backend does not answer is no error: the replay is
-// what the run needs, and the race only adds the day of the season closed in it.
-func Fetch(ctx context.Context, out, race string, config Config, logger *slog.Logger) error {
+// race, season: where each is written, or empty for none. One the backend does not answer is no error: the replay is
+// what the run needs, and they only add the day of the season closed in it and the countries called up.
+func Fetch(ctx context.Context, out, race, season string, config Config, logger *slog.Logger) error {
 	config = config.withDefaults()
 
 	source, err := ssh_replay_source.New(config.Replay.SSH, ssh_replay_source.OpenSSH)
@@ -109,12 +111,17 @@ func Fetch(ctx context.Context, out, race string, config Config, logger *slog.Lo
 		cptime.SystemClock{}, source, file_replay_store.Store(out),
 	), logger)
 
-	if _, err := fetch.Execute(ctx); err != nil || race == "" {
+	if _, err := fetch.Execute(ctx); err != nil {
 		return err
 	}
 
-	// Its decorator warns that the race is left out.
-	_, _ = log_fetch_race.New(fetch_race_usecase.New(source, file_replay_store.RaceStore(race)), logger).Execute(ctx)
+	// Their decorators warn that the race or the season is left out.
+	if race != "" {
+		_, _ = log_fetch_race.New(fetch_race_usecase.New(source, file_replay_store.RaceStore(race)), logger).Execute(ctx)
+	}
+	if season != "" {
+		_, _ = log_fetch_season.New(fetch_season_usecase.New(source, file_replay_store.SeasonStore(season)), logger).Execute(ctx)
+	}
 	return nil
 }
 
