@@ -3,8 +3,9 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BanPlayerRequest, BanPlayerResponse, FindPlayersRequest, FindPlayersResponse, GetReplayRequest, GetReplayResponse, GrantChargesRequest, GrantChargesResponse, InspectPlayerRequest, InspectPlayerResponse, PaintRandomTilesRequest, PaintRandomTilesResponse, ReassignCountryRequest, ReassignCountryResponse, RevertPlayerRequest, RevertPlayerResponse, TopPlayersRequest, TopPlayersResponse, UnbanPlayerRequest, UnbanPlayerResponse } from "./admin_pb.js";
+import { BanPlayerRequest, BanPlayerResponse, FindPlayersRequest, FindPlayersResponse, GetLedgerRequest, GetLedgerResponse, GetReplayRequest, GetReplayResponse, GrantChargesRequest, GrantChargesResponse, InspectPlayerRequest, InspectPlayerResponse, PaintRandomTilesRequest, PaintRandomTilesResponse, ReassignCountryRequest, ReassignCountryResponse, RevertPlayerRequest, RevertPlayerResponse, TopPlayersRequest, TopPlayersResponse, UnbanPlayerRequest, UnbanPlayerResponse } from "./admin_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
+import { GetTerritoriesRequest, GetTerritoriesResponse } from "./internal_pb.js";
 
 /**
  * No authentication of its own: served on the console listener, and on the admin listener behind its gate. Never the public router.
@@ -102,6 +103,28 @@ export const AdminService = {
       name: "GetReplay",
       I: GetReplayRequest,
       O: GetReplayResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Every change the live stream showed in a window of at most 72 hours, from the ledger in memory, and who made it.
+     *
+     * @generated from rpc planet.v1.AdminService.GetLedger
+     */
+    getLedger: {
+      name: "GetLedger",
+      I: GetLedgerRequest,
+      O: GetLedgerResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * InternalService/GetTerritories, for the admin page: the tiles each country holds now.
+     *
+     * @generated from rpc planet.v1.AdminService.GetTerritories
+     */
+    getTerritories: {
+      name: "GetTerritories",
+      I: GetTerritoriesRequest,
+      O: GetTerritoriesResponse,
       kind: MethodKind.Unary,
     },
   }

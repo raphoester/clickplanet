@@ -49,6 +49,7 @@ type AdminService struct {
 	reconcile_titles_handler.ReconcileTitlesHandler
 	get_authors_handler.GetAuthorsHandler
 	admin_get_player_handler.AdminGetPlayerHandler
+	get_roster_handler.GetRosterHandler
 	search_players_handler.SearchPlayersHandler
 }
 

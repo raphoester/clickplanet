@@ -1,5 +1,5 @@
 /*
-  Content-Security-Policy: default-src 'self'; connect-src https://api.clickplanet.lol; img-src 'self' data: https://76f6f3883c3a531ae90d1dc4b96bf810.r2.cloudflarestorage.com; media-src https://76f6f3883c3a531ae90d1dc4b96bf810.r2.cloudflarestorage.com; frame-ancestors 'none'; base-uri 'none'; form-action 'none'
+  Content-Security-Policy: default-src 'self'; connect-src 'self' https://api.clickplanet.lol; img-src 'self' data: https://76f6f3883c3a531ae90d1dc4b96bf810.r2.cloudflarestorage.com; media-src https://76f6f3883c3a531ae90d1dc4b96bf810.r2.cloudflarestorage.com; frame-ancestors 'none'; base-uri 'none'; form-action 'none'
   Referrer-Policy: no-referrer
   X-Robots-Tag: noindex
 

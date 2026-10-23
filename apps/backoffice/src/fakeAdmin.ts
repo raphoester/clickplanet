@@ -17,7 +17,10 @@ import {
     BanPlayerResponse,
     FindPlayersRequest,
     FindPlayersResponse,
+    GetLedgerRequest,
+    GetLedgerResponse,
     GetReplayRequest,
+    LedgerChange,
     GetReplayResponse,
     GrantChargesRequest,
     GrantChargesResponse,
@@ -35,7 +38,8 @@ import {
     UnbanPlayerRequest,
     UnbanPlayerResponse,
 } from "./gen/grpc/planet/v1/admin_pb.ts"
-import {ChargesHeld} from "./gen/grpc/planet/v1/planet_pb.ts"
+import {GetTerritoriesRequest, GetTerritoriesResponse, Territory} from "./gen/grpc/planet/v1/internal_pb.ts"
+import {ChargesHeld, TileUpdate} from "./gen/grpc/planet/v1/planet_pb.ts"
 import {
     AdminGetPlayerRequest,
     AdminGetPlayerResponse,
@@ -46,20 +50,31 @@ import {
     SearchPlayersResponse,
 } from "./gen/grpc/player/v1/admin_pb.ts"
 import {Author, GetAuthorsRequest, GetAuthorsResponse} from "./gen/grpc/player/v1/internal_pb.ts"
-import {CountryTiles, Stats} from "./gen/grpc/player/v1/player_pb.ts"
+import {CountryTiles, GetRosterRequest, GetRosterResponse, RosterEntry, Stats} from "./gen/grpc/player/v1/player_pb.ts"
 import {
     DecideReportRequest,
     DecideReportResponse,
     ListNotesRequest,
     ListNotesResponse,
+    ListReportsRequest,
+    ListReportsResponse,
     Note,
     NoteKind,
+    Report,
 } from "./gen/grpc/support/v1/admin_pb.ts"
 import {ChatAdmin, Clients, PlanetAdmin, PlayerAdmin, SupportAdmin} from "./clients.ts"
 
 export const AT = new Date("2026-10-18T12:00:00Z")
 
 export const ACCOUNT = "0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10"
+
+// A change of the fake ledger, its minutes into the hour before AT.
+function change(minutes: number, by: string, update: PartialMessage<TileUpdate>): LedgerChange {
+    return new LedgerChange({
+        at: Timestamp.fromDate(new Date(AT.getTime() - 3600_000 + minutes * 60_000)),
+        update: new TileUpdate(update), by,
+    })
+}
 
 // What each fake was asked, and a refusal to answer with instead, by method.
 export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAdmin {
@@ -116,6 +131,26 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
             id: "note-idea", kind: NoteKind.SUGGESTION, accountId: "", text: "more flags",
             submittedAt: Timestamp.fromDate(new Date(AT.getTime() - 60_000)),
         }),
+    ]
+
+    reports = [new Report({id: "report-1", reporterAccountId: "account-reporter", reportedAccountId: "account-reported"})]
+    // Four clicks of BraveFox42 (three taken, one struck), and a tile a guest's spread took back from France.
+    ledger = new GetLedgerResponse({
+        changes: [
+            change(1, `account:${ACCOUNT}`, {tileId: 1, countryId: "fr", clicked: true}),
+            change(2, `account:${ACCOUNT}`, {tileId: 2, countryId: "fr", previousCountryId: "dz", clicked: true}),
+            change(3, "scope:203.0.113.7", {tileId: 2, countryId: "dz", previousCountryId: "fr"}),
+            change(4, `account:${ACCOUNT}`, {tileId: 3, countryId: "dz", previousCountryId: "dz", clicked: true, shields: 2}),
+            change(5, `account:${ACCOUNT}`, {tileId: 4, countryId: "fr", previousCountryId: "dz", clicked: true}),
+        ],
+    })
+    territories = new GetTerritoriesResponse({
+        tiles: 262119,
+        territories: [new Territory({countryId: "fr", tiles: 1200}), new Territory({countryId: "dz", tiles: 800})],
+    })
+    roster = [
+        new RosterEntry({key: "1", accountId: ACCOUNT, name: "BraveFox42", countryId: "fr"}),
+        new RosterEntry({key: "2", accountId: "account-guest", name: "guest_a1b2c3", countryId: "dz", guest: true}),
     ]
 
     clients(): Clients {
@@ -222,6 +257,18 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         }))
     }
 
+    getLedger(request: PartialMessage<GetLedgerRequest>): Promise<GetLedgerResponse> {
+        return this.answer("getLedger", request, this.ledger)
+    }
+
+    getTerritories(request: PartialMessage<GetTerritoriesRequest>): Promise<GetTerritoriesResponse> {
+        return this.answer("getTerritories", request, this.territories)
+    }
+
+    getRoster(request: PartialMessage<GetRosterRequest>): Promise<GetRosterResponse> {
+        return this.answer("getRoster", request, new GetRosterResponse({entries: this.roster}))
+    }
+
     reconcileTitles(request: PartialMessage<ReconcileTitlesRequest>): Promise<ReconcileTitlesResponse> {
         return this.answer("reconcileTitles", request, new ReconcileTitlesResponse({granted: 12, revoked: 3}))
     }
@@ -249,6 +296,10 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         const kind = request.kind ?? NoteKind.UNSPECIFIED
         const notes = this.notes.filter(note => kind === NoteKind.UNSPECIFIED || note.kind === kind)
         return this.answer("listNotes", request, new ListNotesResponse({notes}))
+    }
+
+    listReports(request: PartialMessage<ListReportsRequest>): Promise<ListReportsResponse> {
+        return this.answer("listReports", request, new ListReportsResponse({reports: this.reports}))
     }
 
     decideReport(request: PartialMessage<DecideReportRequest>): Promise<DecideReportResponse> {

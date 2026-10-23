@@ -88,6 +88,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_charges_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_fortresses_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_fortresses_handler/fortresses_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_ledger_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_ledger_handler/changes_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_map_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_replay_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_takes_by_country_handler"
@@ -256,6 +258,8 @@ func NewModule(config Config) cpbootstrap.Module {
 			}
 			pace := clicks.Pacing{Batch: adminBatch, Pause: 50 * time.Millisecond}
 
+			getTerritories := get_territories_handler.New(
+				territories_query.NewMemoryQuery(tilesStorage, config.GameMap.MaxIndex))
 			adminService := planetv1controller.AdminService{
 				ReassignCountryHandler: reassign_country_handler.New(audit_reassign.New(
 					reassign_country_usecase.New(tilesStorage, countries, pace), props.Logger)),
@@ -273,7 +277,9 @@ func NewModule(config Config) cpbootstrap.Module {
 					props.Logger)),
 				GrantChargesHandler: grant_charges_handler.New(
 					audit_grant_charges.New(grant_charges_usecase.New(charges), props.Logger)),
-				GetReplayHandler: get_replay_handler.New(replay_usecase.New(takings, tilesChecker, tilesStorage, clock)),
+				GetReplayHandler:      get_replay_handler.New(replay_usecase.New(takings, tilesChecker, tilesStorage, clock)),
+				GetLedgerHandler:      get_ledger_handler.New(changes_query.NewPostgresQuery(db, clock)),
+				GetTerritoriesHandler: getTerritories,
 			}
 
 			if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
@@ -284,8 +290,7 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			internalService := planetv1controller.InternalService{
 				GetTakesByCountryHandler: get_takes_by_country_handler.New(takes_query.NewPostgresQuery(db)),
-				GetTerritoriesHandler: get_territories_handler.New(
-					territories_query.NewMemoryQuery(tilesStorage, config.GameMap.MaxIndex)),
+				GetTerritoriesHandler:    getTerritories,
 			}
 			if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 				return planetv1connect.NewInternalServiceHandler(internalService, options...)

@@ -40,6 +40,8 @@ const (
 	AdminServiceGetAuthorsProcedure = "/player.v1.AdminService/GetAuthors"
 	// AdminServiceGetPlayerProcedure is the fully-qualified name of the AdminService's GetPlayer RPC.
 	AdminServiceGetPlayerProcedure = "/player.v1.AdminService/GetPlayer"
+	// AdminServiceGetRosterProcedure is the fully-qualified name of the AdminService's GetRoster RPC.
+	AdminServiceGetRosterProcedure = "/player.v1.AdminService/GetRoster"
 	// AdminServiceSearchPlayersProcedure is the fully-qualified name of the AdminService's
 	// SearchPlayers RPC.
 	AdminServiceSearchPlayersProcedure = "/player.v1.AdminService/SearchPlayers"
@@ -52,6 +54,8 @@ type AdminServiceClient interface {
 	GetAuthors(context.Context, *connect.Request[v1.GetAuthorsRequest]) (*connect.Response[v1.GetAuthorsResponse], error)
 	// Everything the game keeps about one account, a guest's too. NotFound for an account it keeps nothing about.
 	GetPlayer(context.Context, *connect.Request[v1.AdminGetPlayerRequest]) (*connect.Response[v1.AdminGetPlayerResponse], error)
+	// PlayerService/GetRoster, for the admin page's home: who is playing now.
+	GetRoster(context.Context, *connect.Request[v1.GetRosterRequest]) (*connect.Response[v1.GetRosterResponse], error)
 	// Every account whose username, or guest code until it chooses one, holds the name typed, in any case. InvalidArgument for an empty name.
 	SearchPlayers(context.Context, *connect.Request[v1.SearchPlayersRequest]) (*connect.Response[v1.SearchPlayersResponse], error)
 }
@@ -85,6 +89,12 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("GetPlayer")),
 			connect.WithClientOptions(opts...),
 		),
+		getRoster: connect.NewClient[v1.GetRosterRequest, v1.GetRosterResponse](
+			httpClient,
+			baseURL+AdminServiceGetRosterProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("GetRoster")),
+			connect.WithClientOptions(opts...),
+		),
 		searchPlayers: connect.NewClient[v1.SearchPlayersRequest, v1.SearchPlayersResponse](
 			httpClient,
 			baseURL+AdminServiceSearchPlayersProcedure,
@@ -99,6 +109,7 @@ type adminServiceClient struct {
 	reconcileTitles *connect.Client[v1.ReconcileTitlesRequest, v1.ReconcileTitlesResponse]
 	getAuthors      *connect.Client[v1.GetAuthorsRequest, v1.GetAuthorsResponse]
 	getPlayer       *connect.Client[v1.AdminGetPlayerRequest, v1.AdminGetPlayerResponse]
+	getRoster       *connect.Client[v1.GetRosterRequest, v1.GetRosterResponse]
 	searchPlayers   *connect.Client[v1.SearchPlayersRequest, v1.SearchPlayersResponse]
 }
 
@@ -117,6 +128,11 @@ func (c *adminServiceClient) GetPlayer(ctx context.Context, req *connect.Request
 	return c.getPlayer.CallUnary(ctx, req)
 }
 
+// GetRoster calls player.v1.AdminService.GetRoster.
+func (c *adminServiceClient) GetRoster(ctx context.Context, req *connect.Request[v1.GetRosterRequest]) (*connect.Response[v1.GetRosterResponse], error) {
+	return c.getRoster.CallUnary(ctx, req)
+}
+
 // SearchPlayers calls player.v1.AdminService.SearchPlayers.
 func (c *adminServiceClient) SearchPlayers(ctx context.Context, req *connect.Request[v1.SearchPlayersRequest]) (*connect.Response[v1.SearchPlayersResponse], error) {
 	return c.searchPlayers.CallUnary(ctx, req)
@@ -129,6 +145,8 @@ type AdminServiceHandler interface {
 	GetAuthors(context.Context, *connect.Request[v1.GetAuthorsRequest]) (*connect.Response[v1.GetAuthorsResponse], error)
 	// Everything the game keeps about one account, a guest's too. NotFound for an account it keeps nothing about.
 	GetPlayer(context.Context, *connect.Request[v1.AdminGetPlayerRequest]) (*connect.Response[v1.AdminGetPlayerResponse], error)
+	// PlayerService/GetRoster, for the admin page's home: who is playing now.
+	GetRoster(context.Context, *connect.Request[v1.GetRosterRequest]) (*connect.Response[v1.GetRosterResponse], error)
 	// Every account whose username, or guest code until it chooses one, holds the name typed, in any case. InvalidArgument for an empty name.
 	SearchPlayers(context.Context, *connect.Request[v1.SearchPlayersRequest]) (*connect.Response[v1.SearchPlayersResponse], error)
 }
@@ -158,6 +176,12 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(adminServiceMethods.ByName("GetPlayer")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServiceGetRosterHandler := connect.NewUnaryHandler(
+		AdminServiceGetRosterProcedure,
+		svc.GetRoster,
+		connect.WithSchema(adminServiceMethods.ByName("GetRoster")),
+		connect.WithHandlerOptions(opts...),
+	)
 	adminServiceSearchPlayersHandler := connect.NewUnaryHandler(
 		AdminServiceSearchPlayersProcedure,
 		svc.SearchPlayers,
@@ -172,6 +196,8 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 			adminServiceGetAuthorsHandler.ServeHTTP(w, r)
 		case AdminServiceGetPlayerProcedure:
 			adminServiceGetPlayerHandler.ServeHTTP(w, r)
+		case AdminServiceGetRosterProcedure:
+			adminServiceGetRosterHandler.ServeHTTP(w, r)
 		case AdminServiceSearchPlayersProcedure:
 			adminServiceSearchPlayersHandler.ServeHTTP(w, r)
 		default:
@@ -193,6 +219,10 @@ func (UnimplementedAdminServiceHandler) GetAuthors(context.Context, *connect.Req
 
 func (UnimplementedAdminServiceHandler) GetPlayer(context.Context, *connect.Request[v1.AdminGetPlayerRequest]) (*connect.Response[v1.AdminGetPlayerResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.AdminService.GetPlayer is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) GetRoster(context.Context, *connect.Request[v1.GetRosterRequest]) (*connect.Response[v1.GetRosterResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.AdminService.GetRoster is not implemented"))
 }
 
 func (UnimplementedAdminServiceHandler) SearchPlayers(context.Context, *connect.Request[v1.SearchPlayersRequest]) (*connect.Response[v1.SearchPlayersResponse], error) {

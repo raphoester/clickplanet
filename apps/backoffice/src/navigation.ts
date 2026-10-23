@@ -2,12 +2,13 @@ import {createContext, useContext} from "react"
 import {Player} from "./gen/grpc/planet/v1/admin_pb.ts"
 import {Caller} from "./players/caller.ts"
 
-export type PageId = "notes" | "reports" | "players" | "reassign" | "paint" | "replay" | "titles"
+export type PageId = "home" | "notes" | "reports" | "players" | "reassign" | "paint" | "replay" | "titles"
 
 export type MenuGroup = {label: string, pages: {page: PageId, label: string}[]}
 
 // Every page, as the burger menu lists them. A page's label is its title too.
 export const MENU: MenuGroup[] = [
+    {label: "Overview", pages: [{page: "home", label: "Home"}]},
     {label: "Feedback", pages: [{page: "notes", label: "Ideas and bugs"}]},
     {label: "Moderation", pages: [{page: "reports", label: "Reports"}, {page: "players", label: "Players"}]},
     {
@@ -23,7 +24,7 @@ export const MENU: MenuGroup[] = [
 
 const PAGES: PageId[] = MENU.flatMap(group => group.pages.map(item => item.page))
 
-export const FIRST_PAGE: PageId = "notes"
+export const FIRST_PAGE: PageId = "home"
 
 export function titleOf(page: PageId): string {
     return MENU.flatMap(group => group.pages).find(item => item.page === page)?.label ?? page

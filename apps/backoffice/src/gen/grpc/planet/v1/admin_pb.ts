@@ -5,7 +5,145 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Duration, Message, proto3, Timestamp } from "@bufbuild/protobuf";
-import { ChargesHeld, GetMapResponse, PlanetEvent } from "./planet_pb.js";
+import { ChargesHeld, GetMapResponse, PlanetEvent, TileUpdate } from "./planet_pb.js";
+
+/**
+ * @generated from message planet.v1.GetLedgerRequest
+ */
+export class GetLedgerRequest extends Message<GetLedgerRequest> {
+  /**
+   * @generated from field: google.protobuf.Timestamp since = 1;
+   */
+  since?: Timestamp;
+
+  /**
+   * Unset is now.
+   *
+   * @generated from field: google.protobuf.Timestamp until = 2;
+   */
+  until?: Timestamp;
+
+  constructor(data?: PartialMessage<GetLedgerRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetLedgerRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "since", kind: "message", T: Timestamp },
+    { no: 2, name: "until", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetLedgerRequest {
+    return new GetLedgerRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetLedgerRequest {
+    return new GetLedgerRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetLedgerRequest {
+    return new GetLedgerRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetLedgerRequest | PlainMessage<GetLedgerRequest> | undefined, b: GetLedgerRequest | PlainMessage<GetLedgerRequest> | undefined): boolean {
+    return proto3.util.equals(GetLedgerRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.GetLedgerResponse
+ */
+export class GetLedgerResponse extends Message<GetLedgerResponse> {
+  /**
+   * Oldest first: a click that took a tile or struck its shield, a tile a spread, an enclosure or a bomb took or
+   * emptied, a shield placed or raised. A shield a bomb struck is left out: it changed no hands.
+   *
+   * @generated from field: repeated planet.v1.LedgerChange changes = 1;
+   */
+  changes: LedgerChange[] = [];
+
+  constructor(data?: PartialMessage<GetLedgerResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetLedgerResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "changes", kind: "message", T: LedgerChange, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetLedgerResponse {
+    return new GetLedgerResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetLedgerResponse {
+    return new GetLedgerResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetLedgerResponse {
+    return new GetLedgerResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetLedgerResponse | PlainMessage<GetLedgerResponse> | undefined, b: GetLedgerResponse | PlainMessage<GetLedgerResponse> | undefined): boolean {
+    return proto3.util.equals(GetLedgerResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.LedgerChange
+ */
+export class LedgerChange extends Message<LedgerChange> {
+  /**
+   * @generated from field: google.protobuf.Timestamp at = 1;
+   */
+  at?: Timestamp;
+
+  /**
+   * As the live stream sent it.
+   *
+   * @generated from field: planet.v1.TileUpdate update = 2;
+   */
+  update?: TileUpdate;
+
+  /**
+   * Who made it, to compare and not to read: "account:<id>", or "scope:<address>" for a change with no account.
+   *
+   * @generated from field: string by = 3;
+   */
+  by = "";
+
+  constructor(data?: PartialMessage<LedgerChange>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.LedgerChange";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "at", kind: "message", T: Timestamp },
+    { no: 2, name: "update", kind: "message", T: TileUpdate },
+    { no: 3, name: "by", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): LedgerChange {
+    return new LedgerChange().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): LedgerChange {
+    return new LedgerChange().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): LedgerChange {
+    return new LedgerChange().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: LedgerChange | PlainMessage<LedgerChange> | undefined, b: LedgerChange | PlainMessage<LedgerChange> | undefined): boolean {
+    return proto3.util.equals(LedgerChange, a, b);
+  }
+}
 
 /**
  * @generated from message planet.v1.GetReplayRequest

@@ -356,6 +356,7 @@ internal/planet/internal/
     postgres_allegiance_store/
   planetv1controller/             the edge: maps the wire to the use cases, nothing else
     get_takes_by_country_handler/takes_query/   InternalService's one read, straight from ledger_events
+    get_ledger_handler/changes_query/           AdminService/GetLedger, straight from ledger_events too
   subscribers/                    the edge for events: auth.v1.AccountDeleted → anonymize_takes_usecase
 ```
 
@@ -541,7 +542,7 @@ internal/chat/internal/
 **A read endpoint does not go through the write model.** Domain types are built for the rules a write checks, and
 a read that reuses them forces public fields onto them for its own sake. So a read is a query of its own. Chat
 (`GetHistory`, `GetMessage`, `ListMessages`), player (`GetProfile`, `GetStats`, `GetPlayer`, `GetTitles`, `GetAuthors`, `GetRoster`), planet
-(`GetTakesByCountry`, `GetTerritories`), auth
+(`GetTakesByCountry`, `GetTerritories`, `GetLedger`), auth
 (`GetMe`, `GetAccount`, `GetAccounts`), seasons (`GetStandings`, `GetMySeason`, the live race and `GetRace`) and support (`ListNotes`, `ListReports`) follow this so far. **A command may
 still answer a small struct** (`SetName`, `WearTitle`, `React`, `GetAuthor`, which draws a guest code,
 `signin.Admission`); the rule is for what only reads. Auth's `GetSignInOptions` and `GetVerifyingKey` already read
@@ -1561,8 +1562,10 @@ internal/player/internal/
 - **The table's `CHECK` holds what it can say without the locale**: 3 to 15 `char_length`, `IS NFC NORMALIZED` (a UTF8 database), no space at either end or two in a row, no ASCII but letters, digits, `_` and space, no C0 or C1 control, and none of the zero-width, bidi and other invisible format characters (a range list in the migration); and `name_folded` not empty and not starting with `guest_`. Letter categories and scripts are Go's alone: postgres' regex classes depend on the locale too.
 - **Only a linked account may hold one.** `set_name_usecase` checks the name first, so a name no account may hold costs no call, then asks its `Accounts` port whether the caller signed in with a provider: `rpc_account_reader` calls `auth.v1.InternalService/GetAccount` over the internal listener on every `SetName` (2s timeout), since an account links at any time and a name is chosen rarely. A guest is `PermissionDenied` (`ErrNotLinked`). Auth answers `linked` false for an unknown account or an id that is not one; **a failure to ask is a real error**, the error net's `internal`, never a guest. With `auth` off that call 404s, so no name can be set.
 - **A signed-in account is given a username** when it has none, so every player who signs in has one. On `auth.v1.SignedIn` (`player-names-sign-ins`), `name_account_usecase` asks `players.GeneratedNames.Assign`, which saves with `Store.CreateProfile`: an insert that refuses an account with a profile (`ErrProfileExists`), so a name chosen at the same moment is never replaced. `random_name_generator` draws an adjective, an animal and two digits (`BraveFox42`; 40 × 40 × 90 names, every one valid under `NameOf`, which its tests pin), and a name another account holds is drawn again, 10 draws at most as for guest codes (`ErrNoFreeName`, logged; the next sign-in tries again). Postgres decides what is taken: the unique index on `name_folded` refuses the second of two accounts saving one name at once, whatever both read before. `renaming_name_account` renames the roster line at once. The player changes it with `SetName` as any name. A guest is never named: it has not signed in.
-- **The operator reads players on `player.v1.AdminService`**, for the admin page's Players (see [Operator
-  tools](#operator-tools-adminservice)). All three are reads, and none logs or writes anything:
+- **The operator reads players on `player.v1.AdminService`**, for the admin page's Players and its home (see [Operator
+  tools](#operator-tools-adminservice)). All four are reads, and none logs or writes anything:
+  - **`GetRoster` is the public service's, handler and all**: who is playing now. The admin page calls the admin
+    listener alone, so the public route is out of its reach.
   - **`GetAuthors(account_ids)` is the internal service's, handler and all**: the same `get_authors_handler`
     serves both, so the admin page names a page of players exactly as the chat and the season board do, and a
     read never draws a guest code. The planet's `TopPlayers` cannot name its rows itself: planet would have to ask
@@ -3422,7 +3425,7 @@ origin with auth off refuses the boot.
 Caddy sends `/<package>.v1.AdminService/*` on the API's domain to it, so `cp_admin`, which is host-only on that
 domain, travels from the admin page, a page of the same site.
 
-The admin page is `apps/backoffice` (its `CLAUDE.md`). `planet.v1.AdminService` is the main one, in `proto/planet/v1/admin.proto`; `player.v1.AdminService` (`proto/player/v1/admin.proto`) has `ReconcileTitles`, and the reads that name players, `GetAuthors` and `GetPlayer` — see [Player](#player-internalplayer); `chat.v1.AdminService` (`proto/chat/v1/admin.proto`) has `Mute`, `RemoveMessage`, `GetMessage` and `ListMessages` — see [Mutes](#mutes) and [Removals](#removals); `support.v1.AdminService` (`proto/support/v1/admin.proto`) has `ListNotes`, `ListReports` and `DecideReport` — see [Support](#support-internalsupport); `auth.v1.AdminService` (`proto/auth/v1/admin.proto`) has the admin page's own sign-in and `WhoAmI` — see [Operators](#operators). `planetv1controller.AdminService` is its bag of handlers, the way `ClickService` is. `ReassignCountry` runs `clicks/usecases/reassign_country_usecase`, wrapped in `audit_reassign`: every tile `from_country_id` holds goes to `to_country_id`, while the game runs.
+The admin page is `apps/backoffice` (its `CLAUDE.md`). `planet.v1.AdminService` is the main one, in `proto/planet/v1/admin.proto`; `player.v1.AdminService` (`proto/player/v1/admin.proto`) has `ReconcileTitles`, and the reads that name players, `GetAuthors` and `GetPlayer`, and who plays now, `GetRoster` — see [Player](#player-internalplayer); `chat.v1.AdminService` (`proto/chat/v1/admin.proto`) has `Mute`, `RemoveMessage`, `GetMessage` and `ListMessages` — see [Mutes](#mutes) and [Removals](#removals); `support.v1.AdminService` (`proto/support/v1/admin.proto`) has `ListNotes`, `ListReports` and `DecideReport` — see [Support](#support-internalsupport); `auth.v1.AdminService` (`proto/auth/v1/admin.proto`) has the admin page's own sign-in and `WhoAmI` — see [Operators](#operators). `planetv1controller.AdminService` is its bag of handlers, the way `ClickService` is. `ReassignCountry` runs `clicks/usecases/reassign_country_usecase`, wrapped in `audit_reassign`: every tile `from_country_id` holds goes to `to_country_id`, while the game runs.
 
 - **The move is paced.** `inmemory_tile_storage.Reassign` moves one batch under the lock and returns where to resume; the use case sleeps 50ms between batches. A batch is a quarter of `tilesStorage.subscriberBuffer`, because each tile is one update on every open stream, the clicks still arriving need the rest of the buffer, and a stream that overflows it is closed.
 - **Each tile is an ordinary `TileUpdate`** with `Previous` set, not a new event kind: open clients repaint with no frontend release, `counts` move so the toll prices the next click right, and `dirty` puts it in the next flush.
@@ -3461,6 +3464,34 @@ stream sent it. The frontend's clip generator plays it back (see its CLAUDE.md, 
   `InvalidArgument` (`replay_usecase.ErrInvalidWindow`).
 - **Nothing in it names a player**: no scope and no account goes out, as on the live stream.
 - A day of production is about 40,000 events, a few MB of JSON.
+
+#### `GetLedger`, `GetTerritories`
+
+**What the admin page's home reads, none of it shaped for it**: the page counts, charts and draws on its own side
+(`apps/backoffice`'s `CLAUDE.md`, "The home page"), so a new view of the game needs no new endpoint.
+
+- **`GetLedger(since, until)`** is a query (`get_ledger_handler/changes_query`), as `takes_query` is: every change
+  the live stream showed in the window, oldest first, and who made it, straight from `planet.ledger_events` in SQL,
+  with no domain type on the way. A take and a strike are the click (`clicked`); the tiles a spread or an enclosure
+  took or struck, the tiles a bomb emptied, and a shield placed or raised, are changes of their own, unfolded from
+  each kind's payload. A shield a bomb struck is left out: the ledger keeps no owner for it.
+  - **A parity test runs every kind** (`ledger.Kinds()`) through the store and asks the query for what `Event.Show`
+    shows, so the SQL cannot drift from the stream. A new kind fails it until the SQL reads it.
+  - **It reads from the head on** (`ledger_head`): past it the address is blanked, so a change with no account would
+    have nobody. The primary key finds the window from there; `plan_test.go` pins it.
+  - **Who** is the account, or for a change with no account its address, as every operator tool names a player, in
+    one string to compare and not to read: `account:<id>` or `scope:<address>`. It names addresses, so it is an operator's read only: never the replay, which goes into the clips' public
+    artifacts and names nobody.
+  - **Each change is a `LedgerChange`**: when, the `TileUpdate` as the live stream sent it, and who. The answer is
+    the changes alone: the window is the caller's, so nothing of the request is sent back. Plain messages
+    rather than columns of indexes, on purpose: the contract reads as what it is. Measured with production's volume
+    (about 50,000 changes a day): 8 MB of JSON a day but 0.9 MB once Caddy compresses it, the same as columns or
+    binary protobuf would send, decoded in about 100 ms in the browser (300 ms for 72 hours).
+  - **A window of 72 hours at most**, the ledger's retention, and `since` before `until` (unset: now); anything else is
+    `InvalidArgument` (`changes_query.ErrInvalidWindow`). It changes nothing and logs nothing. The last second of
+    changes, not flushed yet, is not in it.
+- **`GetTerritories`** is the internal service's, handler and all: the tiles each country holds now, and the map's
+  size.
 
 #### `PaintRandomTiles`
 
