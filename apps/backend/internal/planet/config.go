@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances/inmemory_allegiance_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/inmemory_charge_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
@@ -27,8 +26,6 @@ type Config struct {
 	Bonus        bonuses.Config
 
 	ChargeStorage inmemory_charge_storage.Config
-
-	AllegianceStorage inmemory_allegiance_storage.Config
 
 	Ledger        ledger.Config
 	LedgerStorage inmemory_ledger_storage.Config

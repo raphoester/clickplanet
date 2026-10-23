@@ -1,6 +1,7 @@
 package allegiances
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
@@ -8,7 +9,8 @@ import (
 )
 
 type Store interface {
-	Change(account Account, change func(Allegiance) (Allegiance, error)) error
+	// Change runs under a lock on the account, and keeps what it answers when that differs from what it was handed.
+	Change(ctx context.Context, account Account, change func(Allegiance) (Allegiance, error)) error
 }
 
 type CountryChecker interface {
@@ -25,14 +27,14 @@ type Book struct {
 	clock     cptime.Clock
 }
 
-func (b Book) Pledge(payer clicks.Payer, flag string) error {
+func (b Book) Pledge(ctx context.Context, payer clicks.Payer, flag string) error {
 	account := AccountOf(payer)
 	if account == NoAccount || !b.countries.CheckCountry(flag) {
 		return nil
 	}
 
 	at := b.clock.Now()
-	if err := b.store.Change(account, func(allegiance Allegiance) (Allegiance, error) {
+	if err := b.store.Change(ctx, account, func(allegiance Allegiance) (Allegiance, error) {
 		return allegiance.Pledged(flag, at)
 	}); err != nil {
 		return fmt.Errorf("account %s may not play for %q: %w", account, flag, err)

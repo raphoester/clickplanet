@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances/inmemory_allegiance_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/inmemory_charge_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/place_shield_usecase"
@@ -45,8 +44,7 @@ func setup(t *testing.T, shields int) fixture {
 	require.NoError(t, tiles.Load(t.Context()))
 
 	clock := cptime.NewFixedClock(time.Date(2026, 10, 17, 12, 0, 0, 0, time.UTC))
-	book := allegiances.NewBook(inmemory_allegiance_storage.New(inmemory_allegiance_storage.Config{},
-		inmemory_allegiance_storage.NewMemoryPersistence(), slog.New(slog.DiscardHandler)), cpcountries.New(), clock)
+	book := allegiances.NewBook(allegiances.NewMemoryStore(), cpcountries.New(), clock)
 
 	return fixture{
 		charges: charges,

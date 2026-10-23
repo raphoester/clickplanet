@@ -2,7 +2,6 @@ package allegiance_click_test
 
 import (
 	"context"
-	"log/slog"
 	"testing"
 	"time"
 
@@ -10,7 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances/inmemory_allegiance_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/allegiance_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
@@ -32,12 +30,10 @@ func (c *countingClicks) Execute(_ context.Context, in click_usecase.In) (click_
 func setup(t *testing.T) (*allegiance_click.UseCase, *countingClicks, *cptime.FixedClock) {
 	t.Helper()
 
-	storage := inmemory_allegiance_storage.New(inmemory_allegiance_storage.Config{},
-		inmemory_allegiance_storage.NewMemoryPersistence(), slog.New(slog.DiscardHandler))
 	clock := cptime.NewFixedClock(time.Date(2026, 10, 17, 12, 0, 0, 0, time.UTC))
 	inner := &countingClicks{}
 
-	return allegiance_click.New(inner, allegiances.NewBook(storage, cpcountries.New(), clock)), inner, clock
+	return allegiance_click.New(inner, allegiances.NewBook(allegiances.NewMemoryStore(), cpcountries.New(), clock)), inner, clock
 }
 
 func clickFor(t *testing.T, useCase *allegiance_click.UseCase, flag string) error {

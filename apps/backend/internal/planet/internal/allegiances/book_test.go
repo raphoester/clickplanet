@@ -1,7 +1,7 @@
 package allegiances_test
 
 import (
-	"log/slog"
+	"errors"
 	"testing"
 	"time"
 
@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances/inmemory_allegiance_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -20,60 +19,65 @@ const (
 	bob   = "01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e60"
 )
 
-func book(t *testing.T) (allegiances.Book, *inmemory_allegiance_storage.Storage, *cptime.FixedClock) {
-	t.Helper()
-
-	storage := inmemory_allegiance_storage.New(inmemory_allegiance_storage.Config{},
-		inmemory_allegiance_storage.NewMemoryPersistence(), slog.New(slog.DiscardHandler))
+func book() (allegiances.Book, *allegiances.MemoryStore, *cptime.FixedClock) {
+	store := allegiances.NewMemoryStore()
 	clock := cptime.NewFixedClock(at)
 
-	return allegiances.NewBook(storage, cpcountries.New(), clock), storage, clock
+	return allegiances.NewBook(store, cpcountries.New(), clock), store, clock
 }
 
 func TestAnAccountIsHeldToItsFlagForAnHourAfterAChange(t *testing.T) {
-	b, storage, clock := book(t)
+	b, store, clock := book()
 	payer := clicks.Payer{Account: alice}
 
-	require.NoError(t, b.Pledge(payer, "fr"))
-	require.NoError(t, b.Pledge(payer, "de"))
+	require.NoError(t, b.Pledge(t.Context(), payer, "fr"))
+	require.NoError(t, b.Pledge(t.Context(), payer, "de"))
 
 	clock.Advance(59 * time.Minute)
-	err := b.Pledge(payer, "fr")
+	err := b.Pledge(t.Context(), payer, "fr")
 	require.ErrorIs(t, err, allegiances.ErrChangedTooSoon)
-	assert.Equal(t, allegiances.Snapshot{Flag: "de", ChangedAt: at}, storage.Snapshot(alice))
+	assert.Equal(t, allegiances.Snapshot{Flag: "de", ChangedAt: at}, store.Kept(alice))
 
 	clock.Advance(time.Minute)
-	require.NoError(t, b.Pledge(payer, "fr"))
-	assert.Equal(t, allegiances.Snapshot{Flag: "fr", ChangedAt: at.Add(time.Hour)}, storage.Snapshot(alice))
+	require.NoError(t, b.Pledge(t.Context(), payer, "fr"))
+	assert.Equal(t, allegiances.Snapshot{Flag: "fr", ChangedAt: at.Add(time.Hour)}, store.Kept(alice))
 }
 
 func TestEachAccountHasItsOwnFlag(t *testing.T) {
-	b, storage, _ := book(t)
+	b, store, _ := book()
 
-	require.NoError(t, b.Pledge(clicks.Payer{Account: alice, Scope: "1.2.3.4"}, "fr"))
-	require.NoError(t, b.Pledge(clicks.Payer{Account: alice, Scope: "1.2.3.4"}, "de"))
-	require.NoError(t, b.Pledge(clicks.Payer{Account: bob, Scope: "1.2.3.4"}, "fr"))
+	require.NoError(t, b.Pledge(t.Context(), clicks.Payer{Account: alice, Scope: "1.2.3.4"}, "fr"))
+	require.NoError(t, b.Pledge(t.Context(), clicks.Payer{Account: alice, Scope: "1.2.3.4"}, "de"))
+	require.NoError(t, b.Pledge(t.Context(), clicks.Payer{Account: bob, Scope: "1.2.3.4"}, "fr"))
 
-	assert.Equal(t, "de", storage.Snapshot(alice).Flag)
-	assert.Equal(t, "fr", storage.Snapshot(bob).Flag)
+	assert.Equal(t, "de", store.Kept(alice).Flag)
+	assert.Equal(t, "fr", store.Kept(bob).Flag)
 }
 
 func TestACallerWithNoAccountIsHeldToNothing(t *testing.T) {
-	b, storage, _ := book(t)
+	b, store, _ := book()
 
-	require.NoError(t, b.Pledge(clicks.Payer{Scope: "1.2.3.4"}, "fr"))
-	require.NoError(t, b.Pledge(clicks.Payer{Scope: "1.2.3.4"}, "de"))
+	require.NoError(t, b.Pledge(t.Context(), clicks.Payer{Scope: "1.2.3.4"}, "fr"))
+	require.NoError(t, b.Pledge(t.Context(), clicks.Payer{Scope: "1.2.3.4"}, "de"))
 
-	assert.Equal(t, allegiances.Snapshot{}, storage.Snapshot(allegiances.NoAccount))
+	assert.Equal(t, allegiances.Snapshot{}, store.Kept(allegiances.NoAccount))
 }
 
 func TestAFlagThatIsNoCountryIsNotKept(t *testing.T) {
-	b, storage, _ := book(t)
+	b, store, _ := book()
 	payer := clicks.Payer{Account: alice}
-	require.NoError(t, b.Pledge(payer, "fr"))
-	require.NoError(t, b.Pledge(payer, "de"))
+	require.NoError(t, b.Pledge(t.Context(), payer, "fr"))
+	require.NoError(t, b.Pledge(t.Context(), payer, "de"))
 
-	require.NoError(t, b.Pledge(payer, "zz"))
+	require.NoError(t, b.Pledge(t.Context(), payer, "zz"))
 
-	assert.Equal(t, "de", storage.Snapshot(alice).Flag)
+	assert.Equal(t, "de", store.Kept(alice).Flag)
+}
+
+func TestAStoreThatFailsFailsThePledge(t *testing.T) {
+	b, store, _ := book()
+	down := errors.New("postgres is down")
+	store.FailWith(down)
+
+	assert.ErrorIs(t, b.Pledge(t.Context(), clicks.Payer{Account: alice}, "fr"), down)
 }

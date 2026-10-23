@@ -11,7 +11,7 @@ import (
 )
 
 type Query interface {
-	Allegiance(account allegiances.Account) *planetv1.GetAllegianceResponse
+	Allegiance(ctx context.Context, account allegiances.Account) (*planetv1.GetAllegianceResponse, error)
 }
 
 func New(query Query) GetAllegianceHandler {
@@ -26,5 +26,9 @@ func (h GetAllegianceHandler) GetAllegiance(
 	ctx context.Context,
 	_ *connect.Request[planetv1.GetAllegianceRequest],
 ) (*connect.Response[planetv1.GetAllegianceResponse], error) {
-	return connect.NewResponse(h.query.Allegiance(allegiances.AccountOf(clicks.PayerOf(ctx)))), nil
+	allegiance, err := h.query.Allegiance(ctx, allegiances.AccountOf(clicks.PayerOf(ctx)))
+	if err != nil {
+		return nil, err //nolint:wrapcheck // the error net answers what is not the caller's fault.
+	}
+	return connect.NewResponse(allegiance), nil
 }

@@ -354,7 +354,6 @@ internal/planet/internal/
     postgres_charge_store/
     usecases/
   allegiances/                    the flag each account plays for, and when it last changed it
-    inmemory_allegiance_storage/
     postgres_allegiance_store/
   planetv1controller/             the edge: maps the wire to the use cases, nothing else
     get_takes_by_country_handler/takes_query/   InternalService's one read, straight from ledger_events
@@ -882,8 +881,9 @@ player could paint for one country and defend another click to click.
   change is free too, and starts the wait: another flag within `changeEvery` (1h) of
   it is `allegiances.Refusal` (`ErrChangedTooSoon`), with the flag held and until
   when. The same flag again changes nothing.
-- **`allegiances.Book.Pledge(payer, flag)`** applies it at the clock's time, under
-  the storage's lock, so two tabs clicking two flags at once cannot both change it.
+- **`allegiances.Book.Pledge(ctx, payer, flag)`** applies it at the clock's time, in
+  the store's `Change`: one transaction under `pg_advisory_xact_lock` on the account,
+  so two tabs clicking two flags at once cannot both change it.
   A caller with no account, and a flag that is no country, are held to nothing: the
   click use case refuses the second.
 - **It is checked after the ban and before the throttle** (`allegiance_click`,
@@ -894,15 +894,17 @@ player could paint for one country and defend another click to click.
 - **The refusal is `FailedPrecondition` with a `planet.v1.Allegiance` detail**
   (`allegiancemessage.Refusal`): the flag held and `changeable_at_unix_ms`. The
   client snaps back to that flag.
-- **`ClickService/GetAllegiance`** answers the caller's (`allegiance_query`, from
-  memory), as `Identified`: unset for an account that never acted for a flag, and
-  `changeable_at_unix_ms` 0 for a flag never changed. Not `NO_SIDE_EFFECTS`.
-- **Kept like the charges**: `inmemory_allegiance_storage` holds every account's
-  in memory, and flushes the ones that changed to `planet.allegiances`
-  (`account`, `flag`, `changed_at`, NULL for a first flag) every
-  `allegianceStorage.flushInterval`. **A row is never deleted**, not even with its
-  account: without the row the next flag is a first flag again, which would hand
-  out a free change. The row names nobody once the account is gone.
+- **`ClickService/GetAllegiance`** answers the caller's (`allegiance_query`, straight
+  from postgres), as `Identified`: unset for an account that never acted for a flag,
+  and `changeable_at_unix_ms` 0 for a flag never changed. Not `NO_SIDE_EFFECTS`.
+- **No memory copy: every click and every shield reads postgres**, and a change writes
+  it, in `planet.allegiances` (`account`, `flag`, `changed_at`, NULL for a first flag).
+  Only the tile map is kept in memory and flushed. A failing database fails the click,
+  as the error net's `internal`. `allegiances.StoreContractSuite` runs on postgres and
+  on `MemoryStore`, the fake the use cases are tested over (behind the tag).
+- **A row is never deleted**, not even with its account: without the row the next flag
+  is a first flag again, which would hand out a free change. The row names nobody once
+  the account is gone.
 - **Guests are held per account**, like the bank: a private tab is a new guest and
   a new first flag.
 
@@ -3356,8 +3358,6 @@ Both chains order them the same way: error mapping outermost, then the blocklist
 - **Size.** 1M takes are 83 MB of table and 31 MB of indexes (the primary key and the account). Production made ~116,000 takes in 72h at the start of October 2026, ~40,000 a day: ~15M rows and ~1.7 GB a year. Each take is written twice, once by the `COPY` and once when its scope is blanked, and autovacuum reuses the space. No partitioning yet.
 - **One pool for every runner.** `cppg.CloseAfter(db, logger, tilesStorage, takings, charges, deletions)` runs them together and closes the pool after the last flushes, and after the subscriber drained its buffer.
 
-**The allegiances do too**, through `inmemory_allegiance_storage.Persistence` and `allegiances/postgres_allegiance_store`, on the same pool: one row per account in `planet.allegiances`. See [Allegiance](#allegiance-one-change-of-flag-an-hour).
-
 **The charges follow it too**, through `inmemory_charge_storage.Persistence` and `bonuses/postgres_charge_store`, on the same pool: one row per account in `planet.charges`, written every `chargeStorage.flushInterval`. See [Charges](#charges-refill-bomb-enclose-spread-shields).
 
 The antibot's evidence is in postgres too, in the `antibot` schema, the same way, and its bans are read and written there on every call — see [What survives a restart](#what-survives-a-restart). The player module's profiles and stats are in postgres too, in the `player` schema, but with no memory copy: each call reads or writes the table — see [Player](#player-internalplayer). The seasons module's standings are kept the same way, in the `seasons` schema — see [Seasons](#seasons-internalseasons). So are the support module's notes, in the `support` schema — see [Support](#support-internalsupport).
@@ -3950,7 +3950,6 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `bonus.enclose.held`, `bonus.enclose.maxPerBox`, `bonus.enclose.maxTiles` — the most enclosures held (3), the most one box adds (3; it draws 1 to that), and the most tiles one shape may take (25)
 - `bonus.shield.held`, `bonus.shield.minPerBox`, `bonus.shield.maxPerBox`, `bonus.shield.perTile` — the most shields held (30), the fewest and the most one box adds (5 and 20; it draws evenly between them), and the most one tile holds (10)
 - `chargeStorage.flushInterval` — how often the charges that changed are written to postgres (default 1s); also flushed on shutdown
-- `allegianceStorage.flushInterval` — how often the flags that changed are written to postgres (default 1s); also flushed on shutdown
 - `bonus.maxChargesPerHour` — the most charges one caller may be granted per hour (12); past it the slot is lost
 - `antiBot.enabled` — off registers nothing and measures nothing
 - `antiBot.bans.enforce` — off judges, logs and counts without refusing; the mode to deploy in

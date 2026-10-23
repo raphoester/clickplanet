@@ -14,7 +14,6 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances/inmemory_allegiance_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances/postgres_allegiance_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/inmemory_charge_storage"
@@ -185,15 +184,8 @@ func NewModule(config Config) cpbootstrap.Module {
 				return fmt.Errorf("failed to load the charges: %w", err)
 			}
 
-			allegianceStorage := inmemory_allegiance_storage.New(config.AllegianceStorage,
-				postgres_allegiance_store.New(db), props.Logger)
-			if err := allegianceStorage.Load(ctx); err != nil {
-				_ = db.Close()
-				return fmt.Errorf("failed to load the allegiances: %w", err)
-			}
-
 			// Not a closer: closers run before the runners' last flush.
-			props.Runners.Add(cppg.CloseAfter(db, props.Logger, tilesStorage, takings, charges, allegianceStorage, deletions))
+			props.Runners.Add(cppg.CloseAfter(db, props.Logger, tilesStorage, takings, charges, deletions))
 			props.Runners.Add(ledger.NewRetention(config.Ledger, takings, clock))
 			props.Runners.Add(relay_fortifications_usecase.New(tilesStorage, props.Events, clock, props.Logger))
 
@@ -203,7 +195,7 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			pricer := clicks.NewToll(config.Toll, tilesStorage)
 
-			book := allegiances.NewBook(allegianceStorage, countries, clock)
+			book := allegiances.NewBook(postgres_allegiance_store.New(db), countries, clock)
 
 			shielding := clicks.NewShielding(tilesStorage)
 
@@ -391,7 +383,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				PlaceShieldHandler: place_shield_handler.New(antibot_place_shield.New(
 					place_shield_usecase.New(charges, writer, countries, book, config.Bonus.ShieldsPerTile()), guard)),
 				GetFortressesHandler: get_fortresses_handler.New(fortresses_query.NewMemoryQuery(tilesStorage)),
-				GetAllegianceHandler: get_allegiance_handler.New(allegiance_query.NewMemoryQuery(allegianceStorage)),
+				GetAllegianceHandler: get_allegiance_handler.New(allegiance_query.NewPostgresQuery(db)),
 			}
 
 			return props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {

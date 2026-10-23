@@ -1,9 +1,10 @@
 package postgres_allegiance_store_test
 
 import (
+	"fmt"
 	"testing"
-	"time"
 
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances"
@@ -12,67 +13,31 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
-func TestRunSuite(t *testing.T) {
-	suite.Run(t, new(testSuite))
+func TestThePostgresStoreKeepsTheContract(t *testing.T) {
+	db := cppg.StartTestServer(t).OpenSchema(t, "planet", migrations.FS)
+
+	suite.Run(t, &allegiances.StoreContractSuite{
+		NewStore: func() allegiances.Store {
+			require.NoError(t, db.Purge(t.Context()))
+			return postgres_allegiance_store.New(db)
+		},
+		Account: func(n int) allegiances.Account {
+			return allegiances.Account(fmt.Sprintf("01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e%02d", n))
+		},
+	})
 }
 
-type testSuite struct {
-	suite.Suite
-	db    *cppg.Postgres
-	store *postgres_allegiance_store.Store
-}
+func TestAFirstFlagIsKeptWithNoTime(t *testing.T) {
+	db := cppg.StartTestServer(t).OpenSchema(t, "planet", migrations.FS)
+	store := postgres_allegiance_store.New(db)
+	const alice allegiances.Account = "01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e5f"
 
-func (s *testSuite) SetupSuite() {
-	s.db = cppg.StartTestServer(s.T()).OpenSchema(s.T(), "planet", migrations.FS)
-	s.store = postgres_allegiance_store.New(s.db)
-}
-
-func (s *testSuite) SetupTest() {
-	s.Require().NoError(s.db.Purge(s.T().Context()))
-}
-
-const (
-	alice allegiances.Account = "01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e5f"
-	bob   allegiances.Account = "01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e60"
-)
-
-var at = time.Date(2026, 10, 17, 12, 0, 0, 0, time.UTC)
-
-func (s *testSuite) load() map[allegiances.Account]allegiances.Snapshot {
-	kept := map[allegiances.Account]allegiances.Snapshot{}
-	s.Require().NoError(s.store.Load(s.T().Context(), func(account allegiances.Account, allegiance allegiances.Snapshot) {
-		kept[account] = allegiance
+	require.NoError(t, store.Change(t.Context(), alice, func(allegiances.Allegiance) (allegiances.Allegiance, error) {
+		return allegiances.Snapshot{Flag: "fr"}.Restore(), nil
 	}))
-	return kept
-}
 
-func (s *testSuite) TestAnEmptyStoreLoadsNothing() {
-	s.Empty(s.load())
-}
-
-func (s *testSuite) TestSaveThenLoadEveryAllegiance() {
-	kept := map[allegiances.Account]allegiances.Snapshot{
-		alice: {Flag: "fr"},
-		bob:   {Flag: "de", ChangedAt: at},
-	}
-
-	s.Require().NoError(s.store.Save(s.T().Context(), kept))
-
-	loaded := s.load()
-	s.Equal("fr", loaded[alice].Flag)
-	s.True(loaded[alice].ChangedAt.IsZero(), "a first flag keeps no time")
-	s.Equal("de", loaded[bob].Flag)
-	s.True(at.Equal(loaded[bob].ChangedAt))
-}
-
-func (s *testSuite) TestASecondSaveReplacesTheAllegiance() {
-	ctx := s.T().Context()
-	s.Require().NoError(s.store.Save(ctx, map[allegiances.Account]allegiances.Snapshot{alice: {Flag: "fr"}}))
-
-	s.Require().NoError(s.store.Save(ctx, map[allegiances.Account]allegiances.Snapshot{alice: {Flag: "de", ChangedAt: at}}))
-
-	loaded := s.load()
-	s.Len(loaded, 1)
-	s.Equal("de", loaded[alice].Flag)
-	s.True(at.Equal(loaded[alice].ChangedAt))
+	var changedAt *string
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT changed_at::text FROM allegiances WHERE account = $1`,
+		string(alice)).Scan(&changedAt))
+	require.Nil(t, changedAt)
 }
