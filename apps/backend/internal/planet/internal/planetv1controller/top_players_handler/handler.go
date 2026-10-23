@@ -33,6 +33,6 @@ func (h TopPlayersHandler) TopPlayers(
 
 	return connect.NewResponse(&planetv1.TopPlayersResponse{
 		Players: adminplayer.Encode(out.Players),
-		Total:   uint32(out.Total), //nolint:gosec // a scope count, bounded by the map.
+		Total:   uint32(out.Total), //nolint:gosec // a player count, bounded by the ledger.
 	}), nil
 }
