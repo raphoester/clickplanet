@@ -15,6 +15,8 @@ import {
 import {
     BanPlayerRequest,
     BanPlayerResponse,
+    ClearAreaRequest,
+    ClearAreaResponse,
     FindPlayersRequest,
     FindPlayersResponse,
     GetReplayRequest,
@@ -28,6 +30,8 @@ import {
     Player,
     ReassignCountryRequest,
     ReassignCountryResponse,
+    RestoreAreaRequest,
+    RestoreAreaResponse,
     RevertPlayerRequest,
     RevertPlayerResponse,
     TopPlayersRequest,
@@ -217,6 +221,14 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
             since: request.since ?? Timestamp.fromDate(AT),
             until: request.until ?? Timestamp.fromDate(AT),
         }))
+    }
+
+    restoreArea(request: PartialMessage<RestoreAreaRequest>): Promise<RestoreAreaResponse> {
+        return this.answer("restoreArea", request, new RestoreAreaResponse({tiles: 37, changed: 12}))
+    }
+
+    clearArea(request: PartialMessage<ClearAreaRequest>): Promise<ClearAreaResponse> {
+        return this.answer("clearArea", request, new ClearAreaResponse({tiles: 37, owned: 20}))
     }
 
     reconcileTitles(request: PartialMessage<ReconcileTitlesRequest>): Promise<ReconcileTitlesResponse> {

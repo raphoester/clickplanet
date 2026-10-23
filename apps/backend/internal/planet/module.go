@@ -35,6 +35,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/embedded_geodesic_map"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/postgres_tile_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/clear_area_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/clear_area_usecase/audit_clear_area"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/antibot_attempt_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/antibot_click"
@@ -66,6 +68,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/find_players_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/inspect_player_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/replay_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/restore_area_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/restore_area_usecase/audit_restore_area"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/revert_player_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/revert_player_usecase/audit_revert"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/top_players_usecase"
@@ -76,6 +80,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/answer_quiz_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/ban_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/claim_bonus_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/clear_area_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/click_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/drop_bomb_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/find_players_handler"
@@ -98,6 +103,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/paint_random_tiles_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/place_shield_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/reassign_country_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/restore_area_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/revert_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/top_players_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/unban_player_handler"
@@ -211,7 +217,8 @@ func NewModule(config Config) cpbootstrap.Module {
 					slog.Int("subjects", bank.Subjects()))
 			}
 
-			bombRules := bonuses.NewBombRules(config.Bonus.Bomb, geography.Spacing())
+			spacing := geography.Spacing()
+			bombRules := bonuses.NewBombRules(config.Bonus.Bomb, spacing)
 
 			var clickUseCase click_usecase.IUseCase = click_usecase.New(tilesChecker, writer, countries)
 			clickUseCase = spread_click.New(clickUseCase, charges, geography, writer, registry)
@@ -248,6 +255,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				adminBatch = 256
 			}
 			pace := clicks.Pacing{Batch: adminBatch, Pause: 50 * time.Millisecond}
+			areas := clicks.NewAreas(geography, spacing)
 
 			adminService := planetv1controller.AdminService{
 				ReassignCountryHandler: reassign_country_handler.New(audit_reassign.New(
@@ -267,6 +275,10 @@ func NewModule(config Config) cpbootstrap.Module {
 				GrantChargesHandler: grant_charges_handler.New(
 					audit_grant_charges.New(grant_charges_usecase.New(charges), props.Logger)),
 				GetReplayHandler: get_replay_handler.New(replay_usecase.New(takings, tilesChecker, tilesStorage, clock)),
+				RestoreAreaHandler: restore_area_handler.New(audit_restore_area.New(restore_area_usecase.New(
+					takings, tilesStorage, areas, ledger.NewReach(config.Ledger, clock), pace), props.Logger)),
+				ClearAreaHandler: clear_area_handler.New(audit_clear_area.New(
+					clear_area_usecase.New(tilesStorage, areas, pace), props.Logger)),
 			}
 
 			if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {

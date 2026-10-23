@@ -1,13 +1,15 @@
 import {Code, ConnectError, createPromiseClient, PromiseClient} from "@connectrpc/connect";
 import {createConnectTransport} from "@connectrpc/connect-web";
 import {SupportService} from "../gen/grpc/support/v1/support_connect.ts";
-import {ReportReason as ReportReasonPb} from "../gen/grpc/support/v1/support_pb.ts";
+import {PlaceReportReason as PlaceReportReasonPb, ReportReason as ReportReasonPb} from "../gen/grpc/support/v1/support_pb.ts";
 import {putFile, PutFile} from "./putFile.ts";
 import {SESSION_HEADER, SessionProvider} from "./session.ts";
 import {
     AttachmentRules,
     NO_ATTACHMENTS,
     PageContext,
+    PlaceReport,
+    PlaceReportReason,
     PlayerReport,
     ReportReason,
     SupportBackend,
@@ -33,6 +35,12 @@ const REASONS: Record<ReportReason, ReportReasonPb> = {
     "chat-abuse": ReportReasonPb.CHAT_ABUSE,
     "bad-name": ReportReasonPb.BAD_NAME,
     "other": ReportReasonPb.OTHER,
+}
+
+const PLACE_REASONS: Record<PlaceReportReason, PlaceReportReasonPb> = {
+    "hate": PlaceReportReasonPb.HATE,
+    "sexual": PlaceReportReasonPb.SEXUAL,
+    "other": PlaceReportReasonPb.OTHER,
 }
 
 export class ConnectSupportBackend implements SupportBackend {
@@ -79,6 +87,14 @@ export class ConnectSupportBackend implements SupportBackend {
             reason: REASONS[report.reason],
             text: report.text,
             messageId: report.messageId ?? "",
+        }, {headers}))
+    }
+
+    public async reportPlace(report: PlaceReport): Promise<void> {
+        await this.send((headers) => this.client.reportPlace({
+            tileId: report.tileId,
+            reason: PLACE_REASONS[report.reason],
+            text: report.text,
         }, {headers}))
     }
 

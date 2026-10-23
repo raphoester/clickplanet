@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes"
-	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/reports"
 )
 
 var (
@@ -33,47 +32,48 @@ func (o Outcome) known() bool {
 	}
 }
 
-// What the operator did about a report, and why. It goes with its report.
-type Decision struct {
-	report  reports.ReportID
+// What the operator did about a report, of a player or of a place (R, its id), and why. It goes with its report.
+type Decision[R comparable] struct {
+	report  R
 	outcome Outcome
 	comment string
 	at      time.Time
 }
 
-func NewDecision(report reports.ReportID, outcome Outcome, comment string, at time.Time) (Decision, error) {
-	return Snapshot{Report: report, Outcome: outcome, Comment: comment, At: at}.Restore()
+func NewDecision[R comparable](report R, outcome Outcome, comment string, at time.Time) (Decision[R], error) {
+	return Snapshot[R]{Report: report, Outcome: outcome, Comment: comment, At: at}.Restore()
 }
 
-func (d Decision) TakeSnapshot() Snapshot {
-	return Snapshot{Report: d.report, Outcome: d.outcome, Comment: d.comment, At: d.at}
+func (d Decision[R]) TakeSnapshot() Snapshot[R] {
+	return Snapshot[R]{Report: d.report, Outcome: d.outcome, Comment: d.comment, At: d.at}
 }
 
 // The state of a Decision, for a store. It holds no rule: Restore does.
-type Snapshot struct {
-	Report  reports.ReportID
+type Snapshot[R comparable] struct {
+	Report  R
 	Outcome Outcome
 	// Optional.
 	Comment string
 	At      time.Time
 }
 
-func (s Snapshot) Restore() (Decision, error) {
+func (s Snapshot[R]) Restore() (Decision[R], error) {
+	var none R
 	switch {
-	case s.Report == reports.ReportID{}:
-		return Decision{}, fmt.Errorf("%w: no report", ErrInvalidDecision)
+	case s.Report == none:
+		return Decision[R]{}, fmt.Errorf("%w: no report", ErrInvalidDecision)
 	case s.At.IsZero():
-		return Decision{}, fmt.Errorf("%w: no time", ErrInvalidDecision)
+		return Decision[R]{}, fmt.Errorf("%w: no time", ErrInvalidDecision)
 	case !s.Outcome.known():
-		return Decision{}, fmt.Errorf("%w: %q", ErrUnknownOutcome, string(s.Outcome))
+		return Decision[R]{}, fmt.Errorf("%w: %q", ErrUnknownOutcome, string(s.Outcome))
 	}
 
 	comment, err := commentOf(s.Comment)
 	if err != nil {
-		return Decision{}, err
+		return Decision[R]{}, err
 	}
 
-	return Decision{report: s.Report, outcome: s.Outcome, comment: comment, at: s.At}, nil
+	return Decision[R]{report: s.Report, outcome: s.Outcome, comment: comment, at: s.At}, nil
 }
 
 func commentOf(text string) (string, error) {
@@ -89,7 +89,7 @@ func commentOf(text string) (string, error) {
 }
 
 // A report decided again keeps the last decision.
-type Storage interface {
+type Storage[R comparable] interface {
 	// ErrUnknownReport for a report no longer kept.
-	Save(ctx context.Context, decision Decision) error
+	Save(ctx context.Context, decision Decision[R]) error
 }

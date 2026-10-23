@@ -5,7 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, protoInt64, Timestamp } from "@bufbuild/protobuf";
-import { PageContext, ReportReason } from "./support_pb.js";
+import { PageContext, PlaceReportReason, ReportReason } from "./support_pb.js";
 
 /**
  * @generated from enum support.v1.NoteKind
@@ -612,6 +612,271 @@ export class DecideReportResponse extends Message<DecideReportResponse> {
 
   static equals(a: DecideReportResponse | PlainMessage<DecideReportResponse> | undefined, b: DecideReportResponse | PlainMessage<DecideReportResponse> | undefined): boolean {
     return proto3.util.equals(DecideReportResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message support.v1.ListPlaceReportsRequest
+ */
+export class ListPlaceReportsRequest extends Message<ListPlaceReportsRequest> {
+  /**
+   * Unset is every report kept.
+   *
+   * @generated from field: google.protobuf.Timestamp since = 1;
+   */
+  since?: Timestamp;
+
+  /**
+   * Unset is 100; at most 500.
+   *
+   * @generated from field: uint32 limit = 2;
+   */
+  limit = 0;
+
+  /**
+   * Only the reports nobody decided yet.
+   *
+   * @generated from field: bool open_only = 3;
+   */
+  openOnly = false;
+
+  constructor(data?: PartialMessage<ListPlaceReportsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "support.v1.ListPlaceReportsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "since", kind: "message", T: Timestamp },
+    { no: 2, name: "limit", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "open_only", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListPlaceReportsRequest {
+    return new ListPlaceReportsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListPlaceReportsRequest {
+    return new ListPlaceReportsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListPlaceReportsRequest {
+    return new ListPlaceReportsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListPlaceReportsRequest | PlainMessage<ListPlaceReportsRequest> | undefined, b: ListPlaceReportsRequest | PlainMessage<ListPlaceReportsRequest> | undefined): boolean {
+    return proto3.util.equals(ListPlaceReportsRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message support.v1.ListPlaceReportsResponse
+ */
+export class ListPlaceReportsResponse extends Message<ListPlaceReportsResponse> {
+  /**
+   * @generated from field: repeated support.v1.PlaceReport reports = 1;
+   */
+  reports: PlaceReport[] = [];
+
+  constructor(data?: PartialMessage<ListPlaceReportsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "support.v1.ListPlaceReportsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "reports", kind: "message", T: PlaceReport, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListPlaceReportsResponse {
+    return new ListPlaceReportsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListPlaceReportsResponse {
+    return new ListPlaceReportsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListPlaceReportsResponse {
+    return new ListPlaceReportsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListPlaceReportsResponse | PlainMessage<ListPlaceReportsResponse> | undefined, b: ListPlaceReportsResponse | PlainMessage<ListPlaceReportsResponse> | undefined): boolean {
+    return proto3.util.equals(ListPlaceReportsResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message support.v1.PlaceReport
+ */
+export class PlaceReport extends Message<PlaceReport> {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id = "";
+
+  /**
+   * Empty once the reporter's account is deleted, or past the retention.
+   *
+   * @generated from field: string reporter_account_id = 2;
+   */
+  reporterAccountId = "";
+
+  /**
+   * The name the game shows for the reporter now; empty for an account it can no longer name.
+   *
+   * @generated from field: string reporter_name = 3;
+   */
+  reporterName = "";
+
+  /**
+   * @generated from field: uint32 tile_id = 4;
+   */
+  tileId = 0;
+
+  /**
+   * @generated from field: support.v1.PlaceReportReason reason = 5;
+   */
+  reason = PlaceReportReason.UNSPECIFIED;
+
+  /**
+   * @generated from field: string text = 6;
+   */
+  text = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp created_at = 7;
+   */
+  createdAt?: Timestamp;
+
+  /**
+   * Unset while the report is open.
+   *
+   * @generated from field: support.v1.ReportDecision decision = 8;
+   */
+  decision?: ReportDecision;
+
+  constructor(data?: PartialMessage<PlaceReport>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "support.v1.PlaceReport";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "reporter_account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "reporter_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 5, name: "reason", kind: "enum", T: proto3.getEnumType(PlaceReportReason) },
+    { no: 6, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 7, name: "created_at", kind: "message", T: Timestamp },
+    { no: 8, name: "decision", kind: "message", T: ReportDecision },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PlaceReport {
+    return new PlaceReport().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PlaceReport {
+    return new PlaceReport().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PlaceReport {
+    return new PlaceReport().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: PlaceReport | PlainMessage<PlaceReport> | undefined, b: PlaceReport | PlainMessage<PlaceReport> | undefined): boolean {
+    return proto3.util.equals(PlaceReport, a, b);
+  }
+}
+
+/**
+ * @generated from message support.v1.DecidePlaceReportRequest
+ */
+export class DecidePlaceReportRequest extends Message<DecidePlaceReportRequest> {
+  /**
+   * @generated from field: string report_id = 1;
+   */
+  reportId = "";
+
+  /**
+   * @generated from field: support.v1.ReportOutcome outcome = 2;
+   */
+  outcome = ReportOutcome.UNSPECIFIED;
+
+  /**
+   * Optional: why, in the operator's words.
+   *
+   * @generated from field: string comment = 3;
+   */
+  comment = "";
+
+  constructor(data?: PartialMessage<DecidePlaceReportRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "support.v1.DecidePlaceReportRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "report_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "outcome", kind: "enum", T: proto3.getEnumType(ReportOutcome) },
+    { no: 3, name: "comment", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DecidePlaceReportRequest {
+    return new DecidePlaceReportRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DecidePlaceReportRequest {
+    return new DecidePlaceReportRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DecidePlaceReportRequest {
+    return new DecidePlaceReportRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DecidePlaceReportRequest | PlainMessage<DecidePlaceReportRequest> | undefined, b: DecidePlaceReportRequest | PlainMessage<DecidePlaceReportRequest> | undefined): boolean {
+    return proto3.util.equals(DecidePlaceReportRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message support.v1.DecidePlaceReportResponse
+ */
+export class DecidePlaceReportResponse extends Message<DecidePlaceReportResponse> {
+  /**
+   * @generated from field: google.protobuf.Timestamp decided_at = 1;
+   */
+  decidedAt?: Timestamp;
+
+  constructor(data?: PartialMessage<DecidePlaceReportResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "support.v1.DecidePlaceReportResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "decided_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DecidePlaceReportResponse {
+    return new DecidePlaceReportResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DecidePlaceReportResponse {
+    return new DecidePlaceReportResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DecidePlaceReportResponse {
+    return new DecidePlaceReportResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DecidePlaceReportResponse | PlainMessage<DecidePlaceReportResponse> | undefined, b: DecidePlaceReportResponse | PlainMessage<DecidePlaceReportResponse> | undefined): boolean {
+    return proto3.util.equals(DecidePlaceReportResponse, a, b);
   }
 }
 

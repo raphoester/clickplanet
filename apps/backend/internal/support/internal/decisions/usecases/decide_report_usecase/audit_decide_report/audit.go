@@ -2,30 +2,37 @@ package audit_decide_report
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"time"
-
-	"github.com/google/uuid"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/decisions/usecases/decide_report_usecase"
 )
 
-type UseCase interface {
-	Execute(ctx context.Context, in decide_report_usecase.In) (time.Time, error)
+type Report interface {
+	comparable
+	fmt.Stringer
 }
 
-func New(inner UseCase, logger *slog.Logger) *Audited {
-	return &Audited{inner: inner, logger: logger}
+type UseCase[R Report] interface {
+	Execute(ctx context.Context, in decide_report_usecase.In[R]) (time.Time, error)
 }
 
-type Audited struct {
-	inner  UseCase
+// kind names the report decided in the log line: a player's or a place's.
+func New[R Report](inner UseCase[R], kind string, logger *slog.Logger) *Audited[R] {
+	return &Audited[R]{inner: inner, kind: kind, logger: logger}
+}
+
+type Audited[R Report] struct {
+	inner  UseCase[R]
+	kind   string
 	logger *slog.Logger
 }
 
-func (a *Audited) Execute(ctx context.Context, in decide_report_usecase.In) (time.Time, error) {
+func (a *Audited[R]) Execute(ctx context.Context, in decide_report_usecase.In[R]) (time.Time, error) {
 	attributes := []any{
-		slog.String("report", uuid.UUID(in.Report).String()),
+		slog.String("kind", a.kind),
+		slog.String("report", in.Report.String()),
 		slog.String("outcome", string(in.Outcome)),
 		slog.String("comment", in.Comment),
 	}

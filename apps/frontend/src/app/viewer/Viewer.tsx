@@ -48,6 +48,8 @@ import {GlobeStatus, useGlobe} from './useGlobe.ts';
 import {useSound} from '../sound/useSound.ts';
 import {useDisplaySettings} from './useDisplaySettings.ts';
 import SettingsPlace from "../settings/SettingsPlace.tsx";
+import PlacePicking from "../support/PlacePicking.tsx";
+import ReportPlaceModal from "../support/ReportPlaceModal.tsx";
 import AnthemControls from "../anthem/AnthemControls.tsx";
 import {useAnthem} from "../anthem/useAnthem.ts";
 import {AccountStore} from "../account/accountStore.ts";
@@ -88,6 +90,8 @@ type SheetName = "board" | "chat" | "you" | "share" | "settings" | "season" | "c
 
 export type ViewerProps = {
     sharedCountry?: Country
+    // The tile the globe opens on: a link to a place.
+    lookingAt?: number
     tileClicker: TileClicker
     ownershipsGetter: OwnershipsGetter
     updatesListener: UpdatesListener
@@ -139,6 +143,7 @@ export default function Viewer(props: ViewerProps) {
     const [menuTab, setMenuTab] = useState<MenuTab>("board")
     const [seasonOpen, setSeasonOpen] = useState(false)
     const [clicksOpen, setClicksOpen] = useState(false)
+    const [reportedTile, setReportedTile] = useState<number>()
     const [unread, setUnread] = useState(0)
     const [boardView, setBoardView] = useState<BoardView>("countries")
     const [accepted] = useState(acceptedClicks)
@@ -171,6 +176,9 @@ export default function Viewer(props: ViewerProps) {
         rules,
         bombArmed,
         toggleBomb,
+        picking,
+        pickTile,
+        cancelPick,
         switches,
         toggleSwitch,
         notice,
@@ -195,6 +203,7 @@ export default function Viewer(props: ViewerProps) {
         clickHue: hueOf(color),
         mapView: display.settings.mapView,
         rendering: display.settings.rendering,
+        lookingAt: props.lookingAt,
     })
 
     const bonusGuide = useBonusGuide()
@@ -278,6 +287,10 @@ export default function Viewer(props: ViewerProps) {
         sound: {settings: sound.settings, onChange: sound.setSettings, preview: sound.preview},
         support: props.support,
         pageContext: () => pageContextOf(window, graphics(), connection === "down"),
+        onReportPlace: props.support && (() => {
+            closeSheet()
+            pickTile(setReportedTile)
+        }),
     }
     const clicks = <ClicksPanel budget={clickBudget}
                                 countryName={countryState.name}
@@ -365,6 +378,12 @@ export default function Viewer(props: ViewerProps) {
                     unread={unread}
                     you={account.kind === 'ready' ? (linked ? "player" : "guest") : undefined}/>
         </>}
+
+        {ready && picking && <PlacePicking lowered={quiz.state.phase !== 'idle'} onCancel={cancelPick}/>}
+
+        {reportedTile !== undefined && props.support && <ReportPlaceModal tileId={reportedTile}
+                                                                          reporter={props.support}
+                                                                          onClose={() => setReportedTile(undefined)}/>}
 
         {shot && <SharePreview shot={shot}
                                stats={stats}

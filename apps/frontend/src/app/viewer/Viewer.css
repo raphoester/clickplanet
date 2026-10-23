@@ -76,7 +76,8 @@
     height: 100vh;
 }
 
-.viewer-canvas--armed {
+.viewer-canvas--armed,
+.viewer-canvas--picking {
     cursor: crosshair;
     -webkit-touch-callout: none;
     -webkit-user-select: none;

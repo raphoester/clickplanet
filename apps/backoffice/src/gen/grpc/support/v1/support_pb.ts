@@ -45,6 +45,40 @@ proto3.util.setEnumType(ReportReason, "support.v1.ReportReason", [
 ]);
 
 /**
+ * @generated from enum support.v1.PlaceReportReason
+ */
+export enum PlaceReportReason {
+  /**
+   * @generated from enum value: PLACE_REPORT_REASON_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * A hateful symbol or hateful words.
+   *
+   * @generated from enum value: PLACE_REPORT_REASON_HATE = 1;
+   */
+  HATE = 1,
+
+  /**
+   * @generated from enum value: PLACE_REPORT_REASON_SEXUAL = 2;
+   */
+  SEXUAL = 2,
+
+  /**
+   * @generated from enum value: PLACE_REPORT_REASON_OTHER = 3;
+   */
+  OTHER = 3,
+}
+// Retrieve enum metadata with: proto3.getEnumType(PlaceReportReason)
+proto3.util.setEnumType(PlaceReportReason, "support.v1.PlaceReportReason", [
+  { no: 0, name: "PLACE_REPORT_REASON_UNSPECIFIED" },
+  { no: 1, name: "PLACE_REPORT_REASON_HATE" },
+  { no: 2, name: "PLACE_REPORT_REASON_SEXUAL" },
+  { no: 3, name: "PLACE_REPORT_REASON_OTHER" },
+]);
+
+/**
  * @generated from message support.v1.SuggestFeatureRequest
  */
 export class SuggestFeatureRequest extends Message<SuggestFeatureRequest> {
@@ -588,6 +622,90 @@ export class ReportPlayerResponse extends Message<ReportPlayerResponse> {
 
   static equals(a: ReportPlayerResponse | PlainMessage<ReportPlayerResponse> | undefined, b: ReportPlayerResponse | PlainMessage<ReportPlayerResponse> | undefined): boolean {
     return proto3.util.equals(ReportPlayerResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message support.v1.ReportPlaceRequest
+ */
+export class ReportPlaceRequest extends Message<ReportPlaceRequest> {
+  /**
+   * A tile of the drawing, the one the reporter picked.
+   *
+   * @generated from field: uint32 tile_id = 1;
+   */
+  tileId = 0;
+
+  /**
+   * @generated from field: support.v1.PlaceReportReason reason = 2;
+   */
+  reason = PlaceReportReason.UNSPECIFIED;
+
+  /**
+   * Optional.
+   *
+   * @generated from field: string text = 3;
+   */
+  text = "";
+
+  constructor(data?: PartialMessage<ReportPlaceRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "support.v1.ReportPlaceRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "reason", kind: "enum", T: proto3.getEnumType(PlaceReportReason) },
+    { no: 3, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ReportPlaceRequest {
+    return new ReportPlaceRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ReportPlaceRequest {
+    return new ReportPlaceRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ReportPlaceRequest {
+    return new ReportPlaceRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ReportPlaceRequest | PlainMessage<ReportPlaceRequest> | undefined, b: ReportPlaceRequest | PlainMessage<ReportPlaceRequest> | undefined): boolean {
+    return proto3.util.equals(ReportPlaceRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message support.v1.ReportPlaceResponse
+ */
+export class ReportPlaceResponse extends Message<ReportPlaceResponse> {
+  constructor(data?: PartialMessage<ReportPlaceResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "support.v1.ReportPlaceResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ReportPlaceResponse {
+    return new ReportPlaceResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ReportPlaceResponse {
+    return new ReportPlaceResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ReportPlaceResponse {
+    return new ReportPlaceResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ReportPlaceResponse | PlainMessage<ReportPlaceResponse> | undefined, b: ReportPlaceResponse | PlainMessage<ReportPlaceResponse> | undefined): boolean {
+    return proto3.util.equals(ReportPlaceResponse, a, b);
   }
 }
 

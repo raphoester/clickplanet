@@ -1068,6 +1068,17 @@ the foot of Settings, and a report of another player, from that player's card.
   report.
 - The fakes name one account per name (`backends/fakeAccounts.ts`), so a fake
   chat message, roster line and standing agree on who a player is.
+- **A drawing on the map is reported by a tile of it** (`ReportPlace`). "Report
+  a drawing" sits in the Settings foot beside Feedback (`onReportPlace`): it
+  closes the sheet, and the globe's next tap picks the tile instead of painting
+  it (`Globe.setPicking`, `useGlobe`'s `pickTile` and `cancelPick`).
+  `PlacePicking` says so at the top, with Cancel, under the quiz's banner when
+  one shows; Escape, the bomb and a sea tap call it off or do nothing. The tile
+  opens `ReportPlaceModal`, `NoteModal` with three reasons ("A hateful symbol or
+  words", "Something sexual", "Something else") and optional details.
+- **`?tile=<id>` opens the globe on a tile, close up** (`domain/tileLink.ts`,
+  `lookingAt`, at zoom 8): the operator's page links a reported drawing so. It
+  is read once, and `main.tsx` takes it out of the address, as `?f=`.
 
 **A note carries photos and videos**, an idea as a bug: `FeedbackModal` hands
 `NoteModal` the backend as `files`, and the picker is under the text whatever

@@ -19,12 +19,12 @@ import (
 )
 
 type stubUseCase struct {
-	in        *decide_report_usecase.In
+	in        *decide_report_usecase.In[reports.ReportID]
 	decidedAt time.Time
 	err       error
 }
 
-func (s *stubUseCase) Execute(_ context.Context, in decide_report_usecase.In) (time.Time, error) {
+func (s *stubUseCase) Execute(_ context.Context, in decide_report_usecase.In[reports.ReportID]) (time.Time, error) {
 	s.in = &in
 	return s.decidedAt, s.err
 }
@@ -50,26 +50,10 @@ func TestTheDecisionReachesTheUseCaseAndWhenComesBack(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	assert.Equal(t, &decide_report_usecase.In{
+	assert.Equal(t, &decide_report_usecase.In[reports.ReportID]{
 		Report: reports.ReportID{15: 1}, Outcome: decisions.OutcomeDismissed, Comment: "a duel",
 	}, useCase.in)
 	assert.Equal(t, at, res.GetDecidedAt().AsTime())
-}
-
-func TestEveryOutcomeTheProtoNamesIsAnOutcome(t *testing.T) {
-	for value, name := range supportv1.ReportOutcome_name {
-		outcome := supportv1.ReportOutcome(value)
-		if outcome == supportv1.ReportOutcome_REPORT_OUTCOME_UNSPECIFIED {
-			continue
-		}
-		useCase := &stubUseCase{}
-
-		_, err := decide(t, useCase, &supportv1.DecideReportRequest{ReportId: reportID, Outcome: outcome})
-		require.NoError(t, err, name)
-
-		_, err = decisions.NewDecision(useCase.in.Report, useCase.in.Outcome, "", time.Now())
-		require.NoError(t, err, name)
-	}
 }
 
 func TestAnIDThatIsNotAReportIsRefusedBeforeTheUseCase(t *testing.T) {

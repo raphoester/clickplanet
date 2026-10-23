@@ -60,6 +60,11 @@ const (
 	AdminServiceGrantChargesProcedure = "/planet.v1.AdminService/GrantCharges"
 	// AdminServiceGetReplayProcedure is the fully-qualified name of the AdminService's GetReplay RPC.
 	AdminServiceGetReplayProcedure = "/planet.v1.AdminService/GetReplay"
+	// AdminServiceRestoreAreaProcedure is the fully-qualified name of the AdminService's RestoreArea
+	// RPC.
+	AdminServiceRestoreAreaProcedure = "/planet.v1.AdminService/RestoreArea"
+	// AdminServiceClearAreaProcedure is the fully-qualified name of the AdminService's ClearArea RPC.
+	AdminServiceClearAreaProcedure = "/planet.v1.AdminService/ClearArea"
 )
 
 // AdminServiceClient is a client for the planet.v1.AdminService service.
@@ -74,6 +79,10 @@ type AdminServiceClient interface {
 	InspectPlayer(context.Context, *connect.Request[v1.InspectPlayerRequest]) (*connect.Response[v1.InspectPlayerResponse], error)
 	GrantCharges(context.Context, *connect.Request[v1.GrantChargesRequest]) (*connect.Response[v1.GrantChargesResponse], error)
 	GetReplay(context.Context, *connect.Request[v1.GetReplayRequest]) (*connect.Response[v1.GetReplayResponse], error)
+	// Who painted the area around a tile since a time, and what putting the area back as it was then changes. Restores it unless dry_run.
+	RestoreArea(context.Context, *connect.Request[v1.RestoreAreaRequest]) (*connect.Response[v1.RestoreAreaResponse], error)
+	// Gives every tile of the area around a tile to nobody, for a drawing older than the ledger keeps. Clears it unless dry_run.
+	ClearArea(context.Context, *connect.Request[v1.ClearAreaRequest]) (*connect.Response[v1.ClearAreaResponse], error)
 }
 
 // NewAdminServiceClient constructs a client for the planet.v1.AdminService service. By default, it
@@ -147,6 +156,18 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("GetReplay")),
 			connect.WithClientOptions(opts...),
 		),
+		restoreArea: connect.NewClient[v1.RestoreAreaRequest, v1.RestoreAreaResponse](
+			httpClient,
+			baseURL+AdminServiceRestoreAreaProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("RestoreArea")),
+			connect.WithClientOptions(opts...),
+		),
+		clearArea: connect.NewClient[v1.ClearAreaRequest, v1.ClearAreaResponse](
+			httpClient,
+			baseURL+AdminServiceClearAreaProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("ClearArea")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -162,6 +183,8 @@ type adminServiceClient struct {
 	inspectPlayer    *connect.Client[v1.InspectPlayerRequest, v1.InspectPlayerResponse]
 	grantCharges     *connect.Client[v1.GrantChargesRequest, v1.GrantChargesResponse]
 	getReplay        *connect.Client[v1.GetReplayRequest, v1.GetReplayResponse]
+	restoreArea      *connect.Client[v1.RestoreAreaRequest, v1.RestoreAreaResponse]
+	clearArea        *connect.Client[v1.ClearAreaRequest, v1.ClearAreaResponse]
 }
 
 // ReassignCountry calls planet.v1.AdminService.ReassignCountry.
@@ -214,6 +237,16 @@ func (c *adminServiceClient) GetReplay(ctx context.Context, req *connect.Request
 	return c.getReplay.CallUnary(ctx, req)
 }
 
+// RestoreArea calls planet.v1.AdminService.RestoreArea.
+func (c *adminServiceClient) RestoreArea(ctx context.Context, req *connect.Request[v1.RestoreAreaRequest]) (*connect.Response[v1.RestoreAreaResponse], error) {
+	return c.restoreArea.CallUnary(ctx, req)
+}
+
+// ClearArea calls planet.v1.AdminService.ClearArea.
+func (c *adminServiceClient) ClearArea(ctx context.Context, req *connect.Request[v1.ClearAreaRequest]) (*connect.Response[v1.ClearAreaResponse], error) {
+	return c.clearArea.CallUnary(ctx, req)
+}
+
 // AdminServiceHandler is an implementation of the planet.v1.AdminService service.
 type AdminServiceHandler interface {
 	ReassignCountry(context.Context, *connect.Request[v1.ReassignCountryRequest]) (*connect.Response[v1.ReassignCountryResponse], error)
@@ -226,6 +259,10 @@ type AdminServiceHandler interface {
 	InspectPlayer(context.Context, *connect.Request[v1.InspectPlayerRequest]) (*connect.Response[v1.InspectPlayerResponse], error)
 	GrantCharges(context.Context, *connect.Request[v1.GrantChargesRequest]) (*connect.Response[v1.GrantChargesResponse], error)
 	GetReplay(context.Context, *connect.Request[v1.GetReplayRequest]) (*connect.Response[v1.GetReplayResponse], error)
+	// Who painted the area around a tile since a time, and what putting the area back as it was then changes. Restores it unless dry_run.
+	RestoreArea(context.Context, *connect.Request[v1.RestoreAreaRequest]) (*connect.Response[v1.RestoreAreaResponse], error)
+	// Gives every tile of the area around a tile to nobody, for a drawing older than the ledger keeps. Clears it unless dry_run.
+	ClearArea(context.Context, *connect.Request[v1.ClearAreaRequest]) (*connect.Response[v1.ClearAreaResponse], error)
 }
 
 // NewAdminServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -295,6 +332,18 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(adminServiceMethods.ByName("GetReplay")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServiceRestoreAreaHandler := connect.NewUnaryHandler(
+		AdminServiceRestoreAreaProcedure,
+		svc.RestoreArea,
+		connect.WithSchema(adminServiceMethods.ByName("RestoreArea")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServiceClearAreaHandler := connect.NewUnaryHandler(
+		AdminServiceClearAreaProcedure,
+		svc.ClearArea,
+		connect.WithSchema(adminServiceMethods.ByName("ClearArea")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/planet.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AdminServiceReassignCountryProcedure:
@@ -317,6 +366,10 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 			adminServiceGrantChargesHandler.ServeHTTP(w, r)
 		case AdminServiceGetReplayProcedure:
 			adminServiceGetReplayHandler.ServeHTTP(w, r)
+		case AdminServiceRestoreAreaProcedure:
+			adminServiceRestoreAreaHandler.ServeHTTP(w, r)
+		case AdminServiceClearAreaProcedure:
+			adminServiceClearAreaHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -364,4 +417,12 @@ func (UnimplementedAdminServiceHandler) GrantCharges(context.Context, *connect.R
 
 func (UnimplementedAdminServiceHandler) GetReplay(context.Context, *connect.Request[v1.GetReplayRequest]) (*connect.Response[v1.GetReplayResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.GetReplay is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) RestoreArea(context.Context, *connect.Request[v1.RestoreAreaRequest]) (*connect.Response[v1.RestoreAreaResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.RestoreArea is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) ClearArea(context.Context, *connect.Request[v1.ClearAreaRequest]) (*connect.Response[v1.ClearAreaResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.ClearArea is not implemented"))
 }

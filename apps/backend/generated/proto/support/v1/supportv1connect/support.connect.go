@@ -42,6 +42,9 @@ const (
 	// SupportServiceReportPlayerProcedure is the fully-qualified name of the SupportService's
 	// ReportPlayer RPC.
 	SupportServiceReportPlayerProcedure = "/support.v1.SupportService/ReportPlayer"
+	// SupportServiceReportPlaceProcedure is the fully-qualified name of the SupportService's
+	// ReportPlace RPC.
+	SupportServiceReportPlaceProcedure = "/support.v1.SupportService/ReportPlace"
 	// SupportServiceGetAttachmentRulesProcedure is the fully-qualified name of the SupportService's
 	// GetAttachmentRules RPC.
 	SupportServiceGetAttachmentRulesProcedure = "/support.v1.SupportService/GetAttachmentRules"
@@ -55,6 +58,8 @@ type SupportServiceClient interface {
 	SuggestFeature(context.Context, *connect.Request[v1.SuggestFeatureRequest]) (*connect.Response[v1.SuggestFeatureResponse], error)
 	ReportBug(context.Context, *connect.Request[v1.ReportBugRequest]) (*connect.Response[v1.ReportBugResponse], error)
 	ReportPlayer(context.Context, *connect.Request[v1.ReportPlayerRequest]) (*connect.Response[v1.ReportPlayerResponse], error)
+	// A drawing on the map, by a tile of it: the operator reads it and may put the area back as it was.
+	ReportPlace(context.Context, *connect.Request[v1.ReportPlaceRequest]) (*connect.Response[v1.ReportPlaceResponse], error)
 	GetAttachmentRules(context.Context, *connect.Request[v1.GetAttachmentRulesRequest]) (*connect.Response[v1.GetAttachmentRulesResponse], error)
 	CreateUpload(context.Context, *connect.Request[v1.CreateUploadRequest]) (*connect.Response[v1.CreateUploadResponse], error)
 }
@@ -88,6 +93,12 @@ func NewSupportServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(supportServiceMethods.ByName("ReportPlayer")),
 			connect.WithClientOptions(opts...),
 		),
+		reportPlace: connect.NewClient[v1.ReportPlaceRequest, v1.ReportPlaceResponse](
+			httpClient,
+			baseURL+SupportServiceReportPlaceProcedure,
+			connect.WithSchema(supportServiceMethods.ByName("ReportPlace")),
+			connect.WithClientOptions(opts...),
+		),
 		getAttachmentRules: connect.NewClient[v1.GetAttachmentRulesRequest, v1.GetAttachmentRulesResponse](
 			httpClient,
 			baseURL+SupportServiceGetAttachmentRulesProcedure,
@@ -109,6 +120,7 @@ type supportServiceClient struct {
 	suggestFeature     *connect.Client[v1.SuggestFeatureRequest, v1.SuggestFeatureResponse]
 	reportBug          *connect.Client[v1.ReportBugRequest, v1.ReportBugResponse]
 	reportPlayer       *connect.Client[v1.ReportPlayerRequest, v1.ReportPlayerResponse]
+	reportPlace        *connect.Client[v1.ReportPlaceRequest, v1.ReportPlaceResponse]
 	getAttachmentRules *connect.Client[v1.GetAttachmentRulesRequest, v1.GetAttachmentRulesResponse]
 	createUpload       *connect.Client[v1.CreateUploadRequest, v1.CreateUploadResponse]
 }
@@ -128,6 +140,11 @@ func (c *supportServiceClient) ReportPlayer(ctx context.Context, req *connect.Re
 	return c.reportPlayer.CallUnary(ctx, req)
 }
 
+// ReportPlace calls support.v1.SupportService.ReportPlace.
+func (c *supportServiceClient) ReportPlace(ctx context.Context, req *connect.Request[v1.ReportPlaceRequest]) (*connect.Response[v1.ReportPlaceResponse], error) {
+	return c.reportPlace.CallUnary(ctx, req)
+}
+
 // GetAttachmentRules calls support.v1.SupportService.GetAttachmentRules.
 func (c *supportServiceClient) GetAttachmentRules(ctx context.Context, req *connect.Request[v1.GetAttachmentRulesRequest]) (*connect.Response[v1.GetAttachmentRulesResponse], error) {
 	return c.getAttachmentRules.CallUnary(ctx, req)
@@ -143,6 +160,8 @@ type SupportServiceHandler interface {
 	SuggestFeature(context.Context, *connect.Request[v1.SuggestFeatureRequest]) (*connect.Response[v1.SuggestFeatureResponse], error)
 	ReportBug(context.Context, *connect.Request[v1.ReportBugRequest]) (*connect.Response[v1.ReportBugResponse], error)
 	ReportPlayer(context.Context, *connect.Request[v1.ReportPlayerRequest]) (*connect.Response[v1.ReportPlayerResponse], error)
+	// A drawing on the map, by a tile of it: the operator reads it and may put the area back as it was.
+	ReportPlace(context.Context, *connect.Request[v1.ReportPlaceRequest]) (*connect.Response[v1.ReportPlaceResponse], error)
 	GetAttachmentRules(context.Context, *connect.Request[v1.GetAttachmentRulesRequest]) (*connect.Response[v1.GetAttachmentRulesResponse], error)
 	CreateUpload(context.Context, *connect.Request[v1.CreateUploadRequest]) (*connect.Response[v1.CreateUploadResponse], error)
 }
@@ -172,6 +191,12 @@ func NewSupportServiceHandler(svc SupportServiceHandler, opts ...connect.Handler
 		connect.WithSchema(supportServiceMethods.ByName("ReportPlayer")),
 		connect.WithHandlerOptions(opts...),
 	)
+	supportServiceReportPlaceHandler := connect.NewUnaryHandler(
+		SupportServiceReportPlaceProcedure,
+		svc.ReportPlace,
+		connect.WithSchema(supportServiceMethods.ByName("ReportPlace")),
+		connect.WithHandlerOptions(opts...),
+	)
 	supportServiceGetAttachmentRulesHandler := connect.NewUnaryHandler(
 		SupportServiceGetAttachmentRulesProcedure,
 		svc.GetAttachmentRules,
@@ -193,6 +218,8 @@ func NewSupportServiceHandler(svc SupportServiceHandler, opts ...connect.Handler
 			supportServiceReportBugHandler.ServeHTTP(w, r)
 		case SupportServiceReportPlayerProcedure:
 			supportServiceReportPlayerHandler.ServeHTTP(w, r)
+		case SupportServiceReportPlaceProcedure:
+			supportServiceReportPlaceHandler.ServeHTTP(w, r)
 		case SupportServiceGetAttachmentRulesProcedure:
 			supportServiceGetAttachmentRulesHandler.ServeHTTP(w, r)
 		case SupportServiceCreateUploadProcedure:
@@ -216,6 +243,10 @@ func (UnimplementedSupportServiceHandler) ReportBug(context.Context, *connect.Re
 
 func (UnimplementedSupportServiceHandler) ReportPlayer(context.Context, *connect.Request[v1.ReportPlayerRequest]) (*connect.Response[v1.ReportPlayerResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("support.v1.SupportService.ReportPlayer is not implemented"))
+}
+
+func (UnimplementedSupportServiceHandler) ReportPlace(context.Context, *connect.Request[v1.ReportPlaceRequest]) (*connect.Response[v1.ReportPlaceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("support.v1.SupportService.ReportPlace is not implemented"))
 }
 
 func (UnimplementedSupportServiceHandler) GetAttachmentRules(context.Context, *connect.Request[v1.GetAttachmentRulesRequest]) (*connect.Response[v1.GetAttachmentRulesResponse], error) {

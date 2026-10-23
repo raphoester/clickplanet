@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { DecideReportRequest, DecideReportResponse, ListNotesRequest, ListNotesResponse, ListReportsRequest, ListReportsResponse } from "./admin_pb.js";
+import { DecidePlaceReportRequest, DecidePlaceReportResponse, DecideReportRequest, DecideReportResponse, ListNotesRequest, ListNotesResponse, ListPlaceReportsRequest, ListPlaceReportsResponse, ListReportsRequest, ListReportsResponse } from "./admin_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -41,6 +41,28 @@ export const AdminService = {
       name: "DecideReport",
       I: DecideReportRequest,
       O: DecideReportResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Newest first, as ListReports.
+     *
+     * @generated from rpc support.v1.AdminService.ListPlaceReports
+     */
+    listPlaceReports: {
+      name: "ListPlaceReports",
+      I: ListPlaceReportsRequest,
+      O: ListPlaceReportsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * As DecideReport, for a report of a place.
+     *
+     * @generated from rpc support.v1.AdminService.DecidePlaceReport
+     */
+    decidePlaceReport: {
+      name: "DecidePlaceReport",
+      I: DecidePlaceReportRequest,
+      O: DecidePlaceReportResponse,
       kind: MethodKind.Unary,
     },
   }

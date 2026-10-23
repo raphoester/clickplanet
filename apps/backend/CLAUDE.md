@@ -317,7 +317,7 @@ The events today:
 | `planet.v1.TileTaken{account_id, tile_id, country, taken_at}` | `planet`, `ledger/publishing_ledger_storage` | each take the ledger records with an account: a click, a spread or an enclose, one event per tile | `player`, for the stats; `seasons`, for the standings |
 | `planet.v1.BombLanded{country, tile_id, ground, cleared, landed_at}` | `planet`, `drop_bomb_usecase/publishing_drop_bomb` | each bomb that went off, on land or in the sea; a refused drop publishes nothing | `chat`, which announces it |
 | `planet.v1.Fortified{country, landmass_id, tiles, ground, fortified_at}` | `planet`, `relay_fortifications_usecase` | each landmass a player's take fortified (see [Fortify](#fortify)) | `chat`, which announces the ones of 50 tiles or more |
-| `auth.v1.AccountDeleted{account_id}` | `auth`, `delete_account_usecase` and `prune_guests_usecase` | after the account row is deleted; a pruned guest is a deleted account | `player`, which forgets the profile, the stats, the titles, the title worn and the visit; `seasons`, which forgets the account's standings; `planet`, which takes the account off every take postgres keeps; `chat`, which forgets the seen mark; `support`, which takes the account off the notes it sent and deletes the reports that name it |
+| `auth.v1.AccountDeleted{account_id}` | `auth`, `delete_account_usecase` and `prune_guests_usecase` | after the account row is deleted; a pruned guest is a deleted account | `player`, which forgets the profile, the stats, the titles, the title worn and the visit; `seasons`, which forgets the account's standings; `planet`, which takes the account off every take postgres keeps; `chat`, which forgets the seen mark; `support`, which takes the account off the notes it sent and the places it reported, and deletes the reports that name it |
 | `auth.v1.SignedIn{previous_account_id, account_id}` | `auth`, `signin.Admitter`, for `complete_sign_in_usecase` and `complete_email_sign_in_usecase` | after a sign-in or a link is saved; `previous_account_id` is empty for a browser that had no live session | `player`, which moves the browser's visit to the account, and gives the account a username when it has none |
 | `auth.v1.SignedOut{account_id}` | `auth`, `sign_out_usecase` and `sign_out_everywhere_usecase` | after the session, or every session, is deleted; a cookie with no session publishes nothing | `player`, which takes the account off the roster |
 | `chat.v1.MessageSent{message_id, account_id, sent_at}` | `chat`, `send_message_usecase/publishing_send_message` | after each message is kept; a refused or failed post publishes nothing | `player`, for the stats |
@@ -363,8 +363,9 @@ internal/planet/internal/
   port: `Board` (which tile ids exist), `Toll` (what a click costs), `Outcome` and
   `Shielding` (what a click does to a tile and its shields), `Claiming` (a player's
   click written: the strike, then the owner it leaves, as an `Impact`), `Pacing` (how an
-  operator's bulk change is spread out), `Geography` and `Borders`.
-- **`ledger/`** — every act of a player on the map, oldest first. Its root holds `Event` and its kinds (`Taking`, `Striking`, `Spreading`, `Enclosing`, `Bombing`, `Shielding`), `Entry`, `Scene`, `Footage`, `Player`, `Tally`, `Runs`,
+  operator's bulk change is spread out), `Areas` and `Emptying` (an area around a tile, and giving it to nobody),
+  `Geography` and `Borders`.
+- **`ledger/`** — every act of a player on the map, oldest first. Its root holds `Event` and its kinds (`Taking`, `Striking`, `Spreading`, `Enclosing`, `Bombing`, `Shielding`), `Entry`, `Scene`, `Footage`, `Rewind` and `Reach` (an area as it was at a time, and how far back memory goes), `Player`, `Tally`, `Runs`,
   the `Storage` port, `Recording` (the tile writer that records each act) and `Retention`. `FindPlayers`, `TopPlayers`, `BanPlayer`, `UnbanPlayer` and
   `RevertPlayer` live here: they are one moderation workflow — find, ban, undo.
   **The postgres copy is the whole history**: the memory keeps 72h, while `ledger_events` keeps every event and
@@ -418,6 +419,8 @@ because it serves every concept over one Connect service. It only maps.
 | `ledger/usecases/revert_player_usecase` | gives back what one caller still holds | `Ledger`, `Map` |
 | `ledger/usecases/anonymize_takes_usecase` | flushes the ledger, then takes a deleted account off every take postgres keeps | `Ledger`, `Takes` |
 | `ledger/usecases/replay_usecase` | the map as it was at a time, and every act on it since | `Ledger`, `MaxIndexReader`, `DenseMapReader`, `Clock` |
+| `ledger/usecases/restore_area_usecase` | who painted an area since a time, and puts it back as it was then | `Ledger`, `Map`, `Areas` |
+| `clicks/usecases/clear_area_usecase` | gives every tile of an area to nobody | `Map`, `Areas` |
 | `bonuses/usecases/claim_bonus_usecase` | redeems a box | `Registry`, `Charger` |
 | `bonuses/usecases/drop_bomb_usecase` | spends a bomb where it was aimed | `Bombs`, `Map`, `Clearer` |
 | `bonuses/usecases/get_charges_usecase` | what the caller holds | `Charges` |
@@ -1600,7 +1603,7 @@ internal/player/internal/
 
 ### Support (`internal/support/`)
 
-**What a player sends the operator.** Today that is a feature suggestion, a bug report, or a report of another player. Always on. It publishes nothing. It asks `auth` for the click token's key, and `player` how to name the accounts of a report when the operator reads it.
+**What a player sends the operator.** Today that is a feature suggestion, a bug report, a report of another player, or a report of a drawing on the map. Always on. It publishes nothing. It asks `auth` for the click token's key, and `player` how to name the accounts of a report when the operator reads it.
 
 ```
 internal/support/internal/
@@ -1638,13 +1641,23 @@ internal/support/internal/
     usecases/report_player_usecase/     reads what was filed, draws an id, builds the report, keeps it — IDProvider, Reports
     usecases/forget_reports_usecase/    reads the reports that name an account, forgets them, saves — Reports
     usecases/prune_reports_usecase/     reads the reports past retention, forgets them, saves — Reports
-  decisions/                        Decision (NewDecision, TakeSnapshot), Snapshot (Restore), Outcome; the Storage port
-    postgres_decision_store/        Storage, over support.report_decisions
+  places/                           Report (NewReport, Anonymized, TakeSnapshot), Snapshot (Restore), Complaint, ReportID
+                                    (ReportIDOf), TileID, Reason; the Storage and IDProvider ports
+    postgres_place_report_store/    Storage, over support.place_reports
+    uuid_id_provider/               IDProvider: a UUIDv7 per report
+    usecases/report_place_usecase/  draws an id, builds the report, keeps it — IDProvider, Saver
+    usecases/anonymize_place_reports_usecase/   reads the places an account reported, anonymizes them, saves — Reports
+    usecases/prune_place_reports_usecase/       reads the reports past retention with a reporter, anonymizes them — Reports
+  decisions/                        Decision[R] (NewDecision, TakeSnapshot), Snapshot[R] (Restore), Outcome; the Storage port:
+                                    one rule for the reports of players and of places, R the report's id
+    postgres_decision_store/        Storage, ForReports over support.report_decisions, ForPlaces over place_report_decisions
     usecases/decide_report_usecase/ builds the decision and keeps it — Saver
-      audit_decide_report/          logs every decision at Warn
+      audit_decide_report/          logs every decision at Warn, with its kind
   supportv1controller/              SupportService and AdminService (bags), the interceptors
     suggest_feature_handler/  report_bug_handler/  report_player_handler/  get_attachment_rules_handler/
-    create_upload_handler/  decide_report_handler/
+    create_upload_handler/  decide_report_handler/  report_place_handler/  decide_place_report_handler/
+    list_place_reports_handler/place_reports_query/   PostgresQuery: ListPlaceReportsResponse, decided or not, named — Authors
+    reportoutcome/                  Of: the wire's outcome as the decision's, for both decide handlers
     list_notes_handler/notes_query/ PostgresQuery: ListNotesResponse straight from SQL, with a link to each file — Links
     list_reports_handler/reports_query/   PostgresQuery: ListReportsResponse from SQL, decided or not, named — Authors
       rpc_player_authors/           Authors, from player.v1.InternalService/GetAuthors, as player.v1.Author
@@ -1719,7 +1732,25 @@ internal/support/internal/
   (the store reads the foreign key's refusal as `decisions.ErrUnknownReport`).
 - **`ListReports` carries each decision** (`Report.decision`, unset while open), and `open_only` leaves out the
   decided ones. A stored outcome the wire cannot carry refuses the read (`reports_query.ErrUnknownOutcome`).
-- With no internal listener the boot is refused: the module dials it once, at build, for `player`, which names the accounts in `ListReports`.
+- With no internal listener the boot is refused: the module dials it once, at build, for `player`, which names the accounts in `ListReports` and `ListPlaceReports`.
+
+**A report of a drawing is a concept of its own** (`places/`): it names a tile, not a player, and what it is about
+is the map, so it is kept beside the reports of players and never in their table.
+
+- **`ReportPlace(tile_id, reason, text)`**, `Attested`, under the service's limiter like the other reports. The
+  tile is the one the player tapped in the drawing. **The module does not know the map**: a tile above 0 is kept,
+  and the operator's tools check it. Reasons are `hate` (a hateful symbol or words), `sexual` and `other`
+  (`places.Reason`, the type `place_report_reason`); the text is optional and follows `notes.TextOf`.
+- **No rule per day**: the limiter bounds it, and reporting a drawing again costs nobody anything.
+- **The reporter goes, the notice stays**: a report is the notice the operator acted on or not, so it is
+  anonymized, never deleted. `auth.v1.AccountDeleted` blanks the reporter at once (`support-places-accounts`), and
+  the prune past `support.retention`. Kept in `support.place_reports` (`reporter_account_id` NULL once
+  anonymized; migration `20261020120000_place_reports`).
+- **`AdminService/ListPlaceReports(since, limit, open_only)`** and **`DecidePlaceReport(report_id, outcome,
+  comment)`**, as their player twins. The decision is the same rule (`decisions.Decision[places.ReportID]`), in
+  `support.place_report_decisions`, and goes with its report.
+- `tile_id` is what `planet.v1.AdminService/RestoreArea` and `ClearArea` take, and `https://clickplanet.lol/?tile=`
+  opens the game on it.
 - `reports.StorageContractSuite` runs on `inmemory_report_storage` and on postgres, through the same `Kept` hook of snapshots.
 
 ### Seasons (`internal/seasons/`)
@@ -3359,7 +3390,7 @@ origin with auth off refuses the boot.
 Caddy sends `/<package>.v1.AdminService/*` on the API's domain to it, so `cp_admin`, which is host-only on that
 domain, travels from the admin page, a page of the same site.
 
-The admin page is `apps/backoffice` (its `CLAUDE.md`). `planet.v1.AdminService` is the main one, in `proto/planet/v1/admin.proto`; `player.v1.AdminService` (`proto/player/v1/admin.proto`) has `ReconcileTitles`, and the reads that name players, `GetAuthors` and `GetPlayer` — see [Player](#player-internalplayer); `chat.v1.AdminService` (`proto/chat/v1/admin.proto`) has `Mute`, `RemoveMessage`, `GetMessage` and `ListMessages` — see [Mutes](#mutes) and [Removals](#removals); `support.v1.AdminService` (`proto/support/v1/admin.proto`) has `ListNotes`, `ListReports` and `DecideReport` — see [Support](#support-internalsupport); `auth.v1.AdminService` (`proto/auth/v1/admin.proto`) has the admin page's own sign-in and `WhoAmI` — see [Operators](#operators). `planetv1controller.AdminService` is its bag of handlers, the way `ClickService` is. `ReassignCountry` runs `clicks/usecases/reassign_country_usecase`, wrapped in `audit_reassign`: every tile `from_country_id` holds goes to `to_country_id`, while the game runs.
+The admin page is `apps/backoffice` (its `CLAUDE.md`). `planet.v1.AdminService` is the main one, in `proto/planet/v1/admin.proto`; `player.v1.AdminService` (`proto/player/v1/admin.proto`) has `ReconcileTitles`, and the reads that name players, `GetAuthors` and `GetPlayer` — see [Player](#player-internalplayer); `chat.v1.AdminService` (`proto/chat/v1/admin.proto`) has `Mute`, `RemoveMessage`, `GetMessage` and `ListMessages` — see [Mutes](#mutes) and [Removals](#removals); `support.v1.AdminService` (`proto/support/v1/admin.proto`) has `ListNotes`, `ListReports`, `DecideReport`, `ListPlaceReports` and `DecidePlaceReport` — see [Support](#support-internalsupport); `auth.v1.AdminService` (`proto/auth/v1/admin.proto`) has the admin page's own sign-in and `WhoAmI` — see [Operators](#operators). `planetv1controller.AdminService` is its bag of handlers, the way `ClickService` is. `ReassignCountry` runs `clicks/usecases/reassign_country_usecase`, wrapped in `audit_reassign`: every tile `from_country_id` holds goes to `to_country_id`, while the game runs.
 
 - **The move is paced.** `inmemory_tile_storage.Reassign` moves one batch under the lock and returns where to resume; the use case sleeps 50ms between batches. A batch is a quarter of `tilesStorage.subscriberBuffer`, because each tile is one update on every open stream, the clicks still arriving need the rest of the buffer, and a stream that overflows it is closed.
 - **Each tile is an ordinary `TileUpdate`** with `Previous` set, not a new event kind: open clients repaint with no frontend release, `counts` move so the toll prices the next click right, and `dirty` puts it in the next flush.
@@ -3407,6 +3438,28 @@ stream sent it. The frontend's clip generator plays it back (see its CLAUDE.md, 
 - **`clicks.Pick` is the rule.** Before each draw, with probability `proximity`, it takes an eligible tile touching one already picked (`Geography.Neighbours`); otherwise a seed. 0 is uniform over the area; 1 grows one patch and draws a new seed only when the patch is walled in. Between the two you get a few patches. When the seeds run out, patches keep growing; `picked` is below `count` only when nothing is left.
 - **The paint is `Restore`**, the revert's compare-and-set, against the owner read at the pick. A tile somebody takes in between stays theirs, so `painted` can be below `picked`. Paced like the reassign, each tile an ordinary `TileUpdate`. It does not write the ledger, like the reassign.
 - The draw is `clicks.SystemRandom`, math/rand/v2's global source; tests pass a seeded `*rand.Rand`.
+
+#### `RestoreArea` and `ClearArea`
+
+For a drawing on the map that a player reported (see [Support](#support-internalsupport)): it is many tiles and
+often many accounts, so the revert of one player is not the tool.
+
+- **An area is every tile within `rings` tile spacings of one** (`clicks.Areas`, a bomb's circle; 1 to 50,
+  `ErrInvalidArea`). `Around` reads `Geography.Within`, and the spacing is measured once at boot.
+- **`RestoreArea(tile_id, rings, before, dry_run)` puts each tile back as it was at `before`**: `ledger.Rewind` is
+  the replay's rule, each tile's owner before its first change since, kept for the area alone. It is a
+  compare-and-set against the owner read now, paced like a revert, so a tile taken during it stays taken. It also
+  answers **who painted the area since `before`** (`painters`, a `ledger.Tally` of the takes in it, most first, 50
+  at most), for the bans. The ledger in memory keeps whole seconds, so `before` is cut to its second.
+- **`before` past the retention is `FailedPrecondition`** (`ErrPastTheLedger`): memory cannot rewind what it no
+  longer holds, and `kept_since` says from when it can. A reassign, a paint or a revert wrote no event, so a tile
+  one of them changed is not rewound.
+- **`ClearArea(tile_id, rings, dry_run)` gives every owned tile of the area to nobody** (`clicks.Emptying`), for a
+  drawing older than the ledger keeps. Also paced and compare-and-set.
+- Neither writes the ledger, like a revert. `audit_restore_area` and `audit_clear_area` log every call at Warn, dry
+  runs included.
+- `e2e/map_drawing_test.go` paints a tile over another flag, sees the painter and the tile in a dry run, restores
+  it, and clears an area.
 
 #### Manual bans: `FindPlayers`, `TopPlayers`, `BanPlayer`, `UnbanPlayer`, `RevertPlayer`, `InspectPlayer`
 

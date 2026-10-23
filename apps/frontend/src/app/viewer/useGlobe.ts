@@ -36,10 +36,12 @@ export type UseGlobeOptions = {
     mapView: MapView
     // A change rebuilds the globe: antialiasing is fixed when the context is made.
     rendering: Rendering
+    // Read when the globe is first made: a link to a place.
+    lookingAt?: number
 }
 
 export function useGlobe(options: UseGlobeOptions) {
-    const {container, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, bomber, shielder, playSound, onClickAccepted, country, clickHue, mapView, rendering} = options
+    const {container, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, bomber, shielder, playSound, onClickAccepted, country, clickHue, mapView, rendering, lookingAt} = options
 
     const [status, setStatus] = useState<GlobeStatus>({state: 'loading'})
     const [tilesCount, setTilesCount] = useState(0)
@@ -60,6 +62,7 @@ export function useGlobe(options: UseGlobeOptions) {
     const [charges, setCharges] = useState<Charges>(NO_CHARGES)
     const [rules, setRules] = useState<BonusRules | undefined>()
     const [bombArmed, setBombArmed] = useState(false)
+    const [picking, setPicking] = useState(false)
     const [switches, setSwitches] = useState<Switches>(ALL_OFF)
 
     const [lastCatch, setLastCatch] = useState<BonusCatch | undefined>()
@@ -89,6 +92,7 @@ export function useGlobe(options: UseGlobeOptions) {
     const initialCountry = useRef(country)
     const latestClickHue = useRef(clickHue)
     const latestMapView = useRef(mapView)
+    const initialLookingAt = useRef(lookingAt)
 
     useEffect(() => {
         const element = container.current
@@ -125,6 +129,8 @@ export function useGlobe(options: UseGlobeOptions) {
             bomber,
             onBombDropped: recordBomb,
             onArmedChange: setBombArmed,
+            onPickingChange: setPicking,
+            lookingAt: initialLookingAt.current,
             shielder,
             onNotice: notify,
             onClickAccepted,
@@ -184,6 +190,8 @@ export function useGlobe(options: UseGlobeOptions) {
 
     const dismissAward = useCallback(() => setAward(undefined), [])
     const toggleBomb = useCallback(() => globeRef.current?.setArmed(!bombArmed), [bombArmed])
+    const pickTile = useCallback((onPicked: (tile: number) => void) => globeRef.current?.setPicking(onPicked), [])
+    const cancelPick = useCallback(() => globeRef.current?.setPicking(undefined), [])
     const toggleSwitch = useCallback((name: keyof Switches) => globeRef.current?.setSwitch(name, !switches[name]), [switches])
     const dismissBomb = useCallback(() => setLastBomb(undefined), [])
     const dismissFortified = useCallback(() => setLastFortified(undefined), [])
@@ -209,6 +217,9 @@ export function useGlobe(options: UseGlobeOptions) {
         rules,
         bombArmed,
         toggleBomb,
+        picking,
+        pickTile,
+        cancelPick,
         switches,
         toggleSwitch,
         notice,

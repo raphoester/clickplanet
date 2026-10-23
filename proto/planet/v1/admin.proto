@@ -27,6 +27,51 @@ service AdminService {
   rpc GrantCharges(GrantChargesRequest) returns (GrantChargesResponse);
 
   rpc GetReplay(GetReplayRequest) returns (GetReplayResponse);
+
+  // Who painted the area around a tile since a time, and what putting the area back as it was then changes. Restores it unless dry_run.
+  rpc RestoreArea(RestoreAreaRequest) returns (RestoreAreaResponse);
+
+  // Gives every tile of the area around a tile to nobody, for a drawing older than the ledger keeps. Clears it unless dry_run.
+  rpc ClearArea(ClearAreaRequest) returns (ClearAreaResponse);
+}
+
+message RestoreAreaRequest {
+  uint32 tile_id = 1;
+  // The area is every tile within this many tile spacings of the tile, as a bomb's blast is. 1 to 50.
+  uint32 rings = 2;
+  // Each tile of the area goes back to what it held then. FailedPrecondition past the ledger's retention.
+  google.protobuf.Timestamp before = 3;
+  bool dry_run = 4;
+}
+
+message RestoreAreaResponse {
+  // In the area.
+  uint32 tiles = 1;
+  // That a restore changes: a tile changed since before and not back to what it held then.
+  uint32 changed = 2;
+  // That changed: a tile somebody took during the restore stays theirs.
+  uint32 restored = 3;
+  // Who took tiles of the area since before, most takes first, 50 at most. Tiles and takes count the area alone.
+  repeated Player painters = 4;
+  // The oldest before the ledger can rewind to.
+  google.protobuf.Timestamp kept_since = 5;
+  uint32 painters_total = 6;
+}
+
+message ClearAreaRequest {
+  uint32 tile_id = 1;
+  // As RestoreArea's.
+  uint32 rings = 2;
+  bool dry_run = 3;
+}
+
+message ClearAreaResponse {
+  // In the area.
+  uint32 tiles = 1;
+  // That a flag holds.
+  uint32 owned = 2;
+  // That were given to nobody: a tile somebody took during the clear stays theirs.
+  uint32 cleared = 3;
 }
 
 message GetReplayRequest {
