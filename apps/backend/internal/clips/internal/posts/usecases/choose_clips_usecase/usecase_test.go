@@ -67,7 +67,7 @@ var room = choose_clips_usecase.Room{
 }
 
 func choosing(w written, h *history) *choose_clips_usecase.UseCase {
-	return choose_clips_usecase.New(w, h, h, cptime.NewFixedClock(now), room)
+	return choose_clips_usecase.New(w, h, h, cptime.NewFixedClock(now), room, nil, posts.LoadedDice(0))
 }
 
 func TestARunTakesTheBestStoriesNotToldLately(t *testing.T) {
@@ -138,4 +138,30 @@ func TestAFeedThatCannotBeReadFailsTheRunRatherThanPostOverTheCap(t *testing.T) 
 	_, err := choosing(written{shortlist: shortlistOf(t)}, &history{feedErr: unreachable}).Execute(t.Context())
 
 	require.ErrorIs(t, err, unreachable)
+}
+
+func TestEachStoryChosenIsPutInAnArmOfEveryExperimentAndNoneOtherIs(t *testing.T) {
+	length := posts.Experiments{{Name: "length", Arms: posts.EvenArms("as-chosen", "short"), Control: "as-chosen"}}
+	past := &history{}
+
+	choice, err := choose_clips_usecase.New(
+		written{shortlist: shortlistOf(t)}, past, past, cptime.NewFixedClock(now), room, length, &posts.RolledDice{Faces: []int{1, 0}},
+	).Execute(t.Context())
+
+	require.NoError(t, err)
+	require.Len(t, choice.Chosen, 2)
+	assert.Equal(t, []posts.Assignment{
+		{Pick: choice.Chosen[0].Pick, Variants: posts.Variants{"length": "short"}},
+		{Pick: choice.Chosen[1].Pick, Variants: posts.Variants{"length": "as-chosen"}},
+	}, choice.Assigned)
+}
+
+func TestWithNoExperimentEachStoryChosenIsInNoArm(t *testing.T) {
+	choice, err := choosing(written{shortlist: shortlistOf(t)}, &history{}).Execute(t.Context())
+
+	require.NoError(t, err)
+	require.NotEmpty(t, choice.Assigned)
+	for _, assignment := range choice.Assigned {
+		assert.Equal(t, posts.Variants{}, assignment.Variants)
+	}
 }

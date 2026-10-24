@@ -3585,15 +3585,19 @@ clips schedule -clips <folder> [-review 0] [-spacing 1h] [-platforms tiktok,yout
   three files 0.8 MB zipped, and the whole step, ssh, `go run`'s build and the race and the season included, 17s. The
   ledger answers from memory. 12 hours and not 2: a story is found by the first run that sees it and skipped as told
   by the next ones, and the generator searches its last 12 hours anyway (`newsSince`).
-- **`choose` prints the picks to render**, as a JSON array on the standard output (`[1,2]`, or `[]` on a quiet run or
-  a full day): the workflow makes one render job of each. The log goes to the standard error, with each story skipped as
-  told. A pick is a story's place in the shortlist, from 1 (`posts.Pick`): what the generator's `--pick` takes.
-  It needs `ZERNIO_API_KEY`, to read what was told and what each platform holds. `-platforms` is `schedule`'s, so it
-  counts the room of the platforms the clips will go to.
+- **`choose` prints the picks to render**, as a JSON array on the standard output, each with the arm of every
+  experiment its clip is in (`[{"pick":1,"variants":{"length":"short"}}]`, or `[]` on a quiet run or a full day): the
+  workflow makes one render job of each. The log goes to the standard error, with each story skipped as told and each
+  one chosen with its arms. A pick is a story's place in the shortlist, from 1 (`posts.Pick`): what the generator's
+  `--pick` takes, and the arms are what its `--variants` takes (below, "Experiments"). It needs `ZERNIO_API_KEY`, to
+  read what was told and what each platform holds. `-platforms` is `schedule`'s, so it counts the room of the
+  platforms the clips will go to.
 - **`schedule` sends every clip of the folder** (`clip-<n>.json` with its `clip-<n>.mp4` beside it) to the posting
   service, **as one post on every platform that has room left in its day** (`-platforms`, default all:
-  `tiktok,youtube`), and adds a table to the summary: a row for each clip on each platform, its time, and whether it is
-  scheduled there, or one row for a clip held because every platform has posted its day. It exits 1 when a
+  `tiktok,youtube`), and adds a table to the summary: a row for each clip on each platform, its arms, its time, and
+  whether it is scheduled there, or one row for a clip held because every platform has posted its day. **A clip in an
+  experiment that does not run, or in an arm it has not, fails the run before anything is posted**
+  (`posts.ErrUnknownVariant`): once out, it would be counted in the wrong arm. It exits 1 when a
   platform did not take a clip, when the folder holds none, or when the summary cannot be written. **Platforms are
   independent**: a platform that refuses does not stop the others, and a clip refused does not stop the next one.
   The workflow passes the repository variable `CLIPS_PLATFORMS` (Settings → Variables), so `tiktok` alone turns
@@ -3605,16 +3609,59 @@ clips schedule -clips <folder> [-review 0] [-spacing 1h] [-platforms tiktok,yout
     the domain (`clips.PlatformsOf`: each known, each once). No flag pointer leaves it.
     Flags and not `cpconfigs`: the job has a few settings and one secret, and a workflow passes them on the
     command line.
-  - **The work returns values and prints nothing**: `clips.Fetch`, `clips.Choose` (the picks) and
+  - **The work returns values and prints nothing**: `clips.Fetch`, `clips.Choose` (the picks, each with its arms) and
     `clips.Schedule` (the `Report`), in `internal/clips/job.go`, which wires the objects as a `module.go` does.
     A clip or a platform the service refused is in the report, not in the error: the error is for a run that
     could not be made at all.
   - **The display owns the output and says how it went** (`cmd/clips/internal/display`): `display.Picks`
-    writes the array, `display.Report` writes the table, to the summary file when one is named, and answers
+    writes the array (a clip in no experiment has `"variants":{}`, never `null`), `display.Report` writes the table, to the summary file when one is named, and answers
     whether every clip is scheduled on each of its platforms. It does not turn that into an error: `schedule` in `main.go` decides, and
     exits 1 on `errUnsent`.
   - **The dispatch acts on `fetch`, `choose` and `schedule`, and on nothing else**: any other command is
     `errUnknownCommand`, and nothing is fetched, printed or posted.
+
+**Experiments run on the clips, to learn what makes one do well, and the job alone decides who is in which arm**
+(`internal/clips/experiments.go`, `posts/experiment.go`). The posts' numbers are set beside what each clip was (its
+`record`, below), and an experiment is what makes that comparison fair: the arm is a coin, not a choice made from the
+story, so a short clip is not short because its story was small.
+
+- **`running` in `experiments.go` is the one list of the experiments that run.** Each has a name, its arms with their
+  weights (`posts.EvenArms` for an even split, or `posts.Arm{Name, Weight}`: 3 to 1 is three clips in four), and its
+  control, **the arm that is exactly what a clip was before the experiment**. `posts.ExperimentsOf` refuses a list
+  with no name or one name twice, an experiment of fewer than two arms, an arm with no name, twice or with no weight,
+  or a control that is no arm; `choose` and `schedule` both fail then. **Stopping an experiment is taking its entry
+  out, and nothing else**: the generator renders as before with no arm, and a clip in it rendered by that run's
+  commit is still checked by that commit.
+- **`choose` flips one coin per experiment for each story chosen** (`Experiments.AssignEach`, with
+  `posts.SystemDice`, in the order of the list), after the stories are chosen and apart from them: an arm never
+  changes which story is told. A coin of its own per experiment makes two experiments at once a factorial design,
+  every pair of arms in about the share of their weights, so each one's effect is read across the other's.
+- **The arms travel with the clip, as data**: `choose` prints them with the pick; the workflow's render job of the
+  pick hands them to the generator (`--variants '{"length":"short"}'`), which applies the ones it acts on, refuses
+  one it does not know, and writes them all into the clip's `ClipRecord.variants` (the frontend's CLAUDE.md,
+  "Clips"); `schedule` reads them back from `clip-<n>.json` (`posts.ClipSnapshot.Variants`), checks every clip
+  against `running` before it posts any, carries them on each post (`posts.PostSnapshot.Variants`) and writes them in
+  the summary. The record, and so the post's Zernio metadata, keeps them as the generator wrote them: what the
+  analysis reads.
+- **An arm acts where its difference is made.** At render time, in the generator (the length below); at post time,
+  in the job: an adapter reads `PostSnapshot.Variants` and changes what it sends, for the platform the experiment is
+  about. **None acts at post time yet**, and a test pins that a clip in any arm sends Zernio the same body as a clip
+  in none, its record aside. The generator still lists an experiment it has nothing to apply for, so it refuses an
+  arm nobody knows on every experiment, and carries the arms of the rest to `schedule`.
+- **Adding one** is an entry in `running`, its name and arms in the generator's `src/clip/experiments.ts`, and the
+  code that acts on its arms, never on its control. For the next one, TikTok's sound (the anthem against a trending
+  track of TikTok's Commercial Music Library): `{Name: "sound", Arms: posts.EvenArms("anthem", "trending"), Control:
+  "anthem"}`, `sound: ["anthem", "trending"]` in the generator, which renders the anthem in both, and in
+  `posts/zernio` the TikTok target of a `trending` post gets `musicSoundInfo` and `videoOriginalSoundVolume: 0`
+  (the operation's fields in the generated client: `oapi-codegen.yaml` may need them named). YouTube's target is
+  left as it is: the arm is recorded on the whole post, and the analysis reads it per platform.
+- **The first is `length`** (started 2026-10-24): `as-chosen`, the control, as long as the camera has somewhere to
+  go (8.5 to 17.5s for a front, by how far its fighting moves, 10 to 19 with a day's podium, 9 to 20.5 for a tour, by
+  its stops), against `short`, the shortest a story of its kind plays: 8.5s for a front, 10 with a day's podium. **A
+  tour is already its shortest**, each stop its flight and its stay, so `short` leaves it as it is, and a front whose
+  fighting stays in one place is already 8.5s: both still record the arm, and `durationSeconds` in the record keeps
+  the real length, so the analysis compares on the length a clip had as well as on its arm. The teaser rolled when
+  posting is an experiment of its own already, at random and recorded (`teaser`), and the arms do not touch it.
 
 **`internal/clips/internal/replays/` is the fetch**, a concept of its own beside `posts`:
 
@@ -3718,7 +3765,8 @@ clips schedule -clips <folder> [-review 0] [-spacing 1h] [-platforms tiktok,yout
   nothing. **A history that cannot be read fails the run**, rather than tell a story twice.
 - **Each post also keeps what it was, to be set beside its numbers**, under one key of its Zernio `metadata`,
   `record` (`recordOf` in `posts/zernio`): a later step joins it with the post's TikTok and YouTube analytics to learn
-  what makes a clip do well. **It records and decides nothing**: the dice are rolled in the same order as before, so
+  what makes a clip do well. **It records and decides nothing**: the dice are rolled in the same order as before (the
+  arms of the experiments above are `choose`'s coins, not these), so
   the captions, the times and the order are what they were, and the tests pin the request body whole.
   - **It is one document, a `clips.v1.PostRecord` as protojson writes it**, not keys of Zernio's top level: its
     shape is the proto's and it grows there, with nothing to move in Zernio. `schema` names the message it is,

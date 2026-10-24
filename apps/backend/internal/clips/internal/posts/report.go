@@ -6,7 +6,9 @@ import (
 )
 
 type Outcome struct {
-	Title     string
+	Title string
+	// The arm of each experiment the clip is in.
+	Variants  Variants
 	At        time.Time
 	Post      PostID
 	Platforms []PlatformOutcome
@@ -23,7 +25,7 @@ type Report []Outcome
 
 // failure: the post was made on no platform.
 func (r Report) With(post Post, scheduled Scheduled, failure error) Report {
-	outcome := Outcome{Title: post.clip.title, At: post.at, Post: scheduled.ID}
+	outcome := Outcome{Title: post.clip.title, Variants: post.clip.variants, At: post.at, Post: scheduled.ID}
 	if failure != nil {
 		outcome.Post = ""
 	}
@@ -38,7 +40,7 @@ func (r Report) With(post Post, scheduled Scheduled, failure error) Report {
 }
 
 func (r Report) WithHeld(clip Clip) Report {
-	return append(slices.Clone(r), Outcome{Title: clip.title, Held: true})
+	return append(slices.Clone(r), Outcome{Title: clip.title, Variants: clip.variants, Held: true})
 }
 
 // A clip held for a full day is not missing.

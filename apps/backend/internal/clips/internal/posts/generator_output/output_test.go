@@ -204,3 +204,20 @@ func TestAFileThatIsNotAClipIsAnError(t *testing.T) {
 
 	require.ErrorContains(t, err, "clip-1.json is not a clips.v1.Clip")
 }
+
+func TestAClipKeepsTheArmsItWasMadeIn(t *testing.T) {
+	folder := t.TempDir()
+	write(t, folder, "clip-1.json", `{"pick": 1, "title": "FRANCE VS PALAU", "key": {"flag": "fr", "continent": "Europe"},
+		"teasers": ["WAR FOR FRANCE"], "record": {"format": "globe-replay", "variants": {"length": "short"}}}`)
+	write(t, folder, "clip-1.mp4", "the video")
+	write(t, folder, "clip-2.json", writtenClip)
+	write(t, folder, "clip-2.mp4", "the video")
+
+	clips, err := generator_output.Folder(folder).Rendered(t.Context())
+
+	require.NoError(t, err)
+	require.Len(t, clips, 2)
+	assert.Equal(t, posts.Variants{"length": "short"}, clips[0].TakeSnapshot().Variants)
+	assert.JSONEq(t, `{"format": "globe-replay", "variants": {"length": "short"}}`, string(clips[0].TakeSnapshot().Record))
+	assert.Empty(t, clips[1].TakeSnapshot().Variants)
+}

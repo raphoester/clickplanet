@@ -34,16 +34,24 @@ type Executor interface {
 	Execute(ctx context.Context) (posts.Choice, error)
 }
 
-func New(shortlists Shortlists, history History, feeds Feeds, clock cptime.Clock, room Room) *UseCase {
-	return &UseCase{shortlists: shortlists, history: history, feeds: feeds, clock: clock, room: room}
+// dice: the coins that put each story chosen in an arm of every experiment.
+func New(
+	shortlists Shortlists, history History, feeds Feeds, clock cptime.Clock, room Room, experiments posts.Experiments,
+	dice posts.Dice,
+) *UseCase {
+	return &UseCase{
+		shortlists: shortlists, history: history, feeds: feeds, clock: clock, room: room, experiments: experiments, dice: dice,
+	}
 }
 
 type UseCase struct {
-	shortlists Shortlists
-	history    History
-	feeds      Feeds
-	clock      cptime.Clock
-	room       Room
+	shortlists  Shortlists
+	history     History
+	feeds       Feeds
+	clock       cptime.Clock
+	room        Room
+	experiments posts.Experiments
+	dice        posts.Dice
 }
 
 var _ Executor = (*UseCase)(nil)
@@ -63,5 +71,7 @@ func (u *UseCase) Execute(ctx context.Context) (posts.Choice, error) {
 	if err != nil {
 		return posts.Choice{}, fmt.Errorf("failed to read what each platform holds: %w", err)
 	}
-	return shortlist.Best(u.room.Budget.Clips(u.room.PerRun, u.room.Platforms, feed, now), told, now), nil
+	choice := shortlist.Best(u.room.Budget.Clips(u.room.PerRun, u.room.Platforms, feed, now), told, now)
+	choice.Assigned = u.experiments.AssignEach(choice.Chosen, u.dice)
+	return choice, nil
 }

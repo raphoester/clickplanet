@@ -27,11 +27,14 @@ if (!replay || has("help")) {
                       called up to its Final Battle
   --silent            no anthem under the clip, for a sound added where it is posted
   --preview <s>       only the first s seconds of each clip
+  --variants <json>   the arm of each experiment the clip is in, as the posting job assigned it: {"length":"short"}.
+                      An experiment or an arm the generator does not know fails the clip
 
 Everything below is chosen from the replay when left out:
   --since, --until    the window to play, as ISO times; default the shortest one with a lot of action in one place
   --hours <n>         the window's length, its busiest stretch
-  --seconds <n>       the clip's length, from 14 to 22 by how much happens
+  --seconds <n>       the clip's length, at most 22; default 8.5 to 17.5 by how far the fighting moves (10 to 19 with a
+                      day's podium), 9 to 20.5 for a tour by its stops. Not with the experiment "length"
   --country <code>    the attacker, default the flag that took the most where the action is
   --focus <code>      only what changed hands on that country's ground
   --flags             come back out of the tiles halfway, to watch the painted flags change
@@ -234,7 +237,7 @@ const COMMIT = commitOf()
 
 function pageOf(pick) {
     const query = new URLSearchParams({fps: flag("fps", "30"), pick: String(pick), commit: COMMIT})
-    for (const name of ["since", "until", "hours", "seconds", "country", "focus", "headline", "hold"]) {
+    for (const name of ["since", "until", "hours", "seconds", "country", "focus", "headline", "hold", "variants"]) {
         if (flag(name)) query.set(name, flag(name))
     }
     for (const name of ["flags", "dive", "silent"]) {
@@ -257,6 +260,8 @@ async function record(recorders, pick, chosenOut) {
         `  place: ${recording.place}, ${recording.seconds}s`,
         `  look: ${recording.look}`,
         `  music: ${recording.music ? `${recording.music.title}, the anthem of ${recording.music.whose}, from ${recording.music.from.toFixed(1)}s` : "none"}`,
+        ...Object.keys(recording.variants).length > 0
+            ? [`  arms: ${Object.entries(recording.variants).map(([name, arm]) => `${name} ${arm}`).join(", ")}`] : [],
     ].join("\n"))
     if (has("plan")) return recording
 

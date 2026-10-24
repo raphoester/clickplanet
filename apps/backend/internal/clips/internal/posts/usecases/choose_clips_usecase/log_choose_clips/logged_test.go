@@ -91,3 +91,17 @@ func TestAFailureSaysNothing(t *testing.T) {
 	require.Error(t, err)
 	assert.Empty(t, logs)
 }
+
+func TestEachChosenStoryIsLoggedWithTheArmsOfItsClip(t *testing.T) {
+	logs, err := run(t, stubExecutor{choice: posts.Choice{
+		Chosen: posts.Shortlist{
+			{Pick: 1, Title: "BEST", Key: posts.StoryKey{Flag: "dz", Continent: "Africa"}},
+			{Pick: 2, Title: "SECOND", Key: posts.StoryKey{Flag: "fr", Continent: "Europe"}},
+		},
+		Assigned: []posts.Assignment{{Pick: 1, Variants: posts.Variants{"length": "short"}}, {Pick: 2, Variants: posts.Variants{}}},
+	}})
+
+	require.NoError(t, err)
+	assert.Contains(t, logs, `title=BEST flag=dz continent=Africa countries="" arms="length short"`)
+	assert.Contains(t, logs, `title=SECOND flag=fr continent=Europe countries=""`+"\n")
+}

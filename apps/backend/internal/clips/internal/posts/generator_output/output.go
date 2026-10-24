@@ -77,7 +77,7 @@ func (f Folder) Rendered(_ context.Context) ([]posts.Clip, error) {
 			Pick: posts.Pick(written.GetPick()), Title: written.GetTitle(), Key: keyOf(written.GetKey()),
 			Teasers: written.GetTeasers(), Countries: countriesOf(written.GetCountries()),
 			ContinentTag: written.GetContinentTag(), Attribution: written.GetCredit(), Video: posts.VideoFile(video),
-			TeaserNames: written.GetTeaserNames(), Record: record,
+			TeaserNames: written.GetTeaserNames(), Record: record, Variants: written.GetRecord().GetVariants(),
 		}.Restore()
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", filepath.Base(path), err)

@@ -36,6 +36,7 @@ import {installVirtualClock} from "./virtualClock.ts"
 import {createOverlay, hashtagsOf, nameOf, placeName, wordsOf} from "./overlay.ts"
 import {shortlistOf} from "./shortlist.ts"
 import {clipRecordOf} from "./clipRecord.ts"
+import {Variants, variantsOf} from "./experiments.ts"
 import {dayOf} from "./race.ts"
 
 export type Recording = {
@@ -57,6 +58,8 @@ export type Recording = {
     call: string
     link: string
     teasers: string[]
+    // The arm of each experiment the clip is in.
+    variants: Variants
     // What to post with the clip, as a clips.v1.Clip.
     clip: JsonValue
 }
@@ -359,6 +362,11 @@ async function choose(): Promise<Chosen> {
     ]
 
     const record = async (): Promise<Recording> => {
+        // The arms the job put the clip in, read before anything is built: an arm nobody knows fails the clip.
+        const variants = variantsOf(params.get("variants"))
+        if (variants.length !== undefined && params.has("seconds")) {
+            throw new Error(`--seconds and the arm "${variants.length}" of the experiment "length" both set the clip's length`)
+        }
         const pick = numberParam("pick") ?? 1
         const picked = worth[pick - 1]
         if (!picked) {
@@ -393,8 +401,9 @@ async function choose(): Promise<Chosen> {
         const screens = screensOf(front.changes.map(({tile}, i) => ({share: i / front.changes.length, point: pointAt(tile)})), close)
         const pace = paceOf(front.changes.map(({at}) => at), backend.since, backend.until)
         const stops = world ? stopsOf(visitsOf(front, story.attacker, pace.shareOf), aspect) : []
+        // A tour is already as short as it plays: each stop is its flight and its stay, so "short" leaves it as it is.
         const timeline = world ? timelineFor(tourSecondsOf(stops.length), numberParam("seconds"))
-            : timelineOf(screens, numberParam("seconds"), seasonal ? PODIUM_ENDING_SECONDS : undefined)
+            : timelineOf(screens, numberParam("seconds"), seasonal ? PODIUM_ENDING_SECONDS : undefined, variants.length)
         const camera = world ? tourOf(stops, aspect, timeline.seconds - timeline.ending, flagsZoomOf(root.clientHeight))
             : cameraOf(first, front.changes.map(({tile, at}) => ({share: pace.shareOf(at), point: pointAt(tile)})), {
                 close,
@@ -483,6 +492,7 @@ async function choose(): Promise<Chosen> {
             flagTiles: {start: opening.get(key.flag) ?? 0, end: flagTilesAtEnd}, landmassesFlipped: flips.length,
             bombs: drops.length, spreads: effects.filter(({kind}) => kind === "spread").length,
             enclosures: effects.filter(({kind}) => kind === "enclosure").length, screens, tourStops: stops.length, solidity,
+            variants,
         })
 
         return {
@@ -504,6 +514,7 @@ async function choose(): Promise<Chosen> {
             call: words.call,
             link: words.link,
             teasers: words.teasers,
+            variants,
             clip: new Clip({
                 pick, title: words.headline, key, teasers: words.teasers,
                 countries: hashtags.countries, continentTag: hashtags.continent ?? "", credit: music?.credit ?? "", record: clipRecord,

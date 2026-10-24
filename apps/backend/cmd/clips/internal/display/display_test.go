@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -26,24 +27,37 @@ func (brokenPage) Write([]byte) (int, error) {
 	return 0, errors.New("the disk is full")
 }
 
-func TestThePicksAreAJSONArrayOnOneLine(t *testing.T) {
+func TestThePicksAreAJSONArrayOnOneLineOfEachPickWithItsArms(t *testing.T) {
 	var out bytes.Buffer
 
-	require.NoError(t, display.Picks(&out, []clips.Pick{1, 2}))
+	require.NoError(t, display.Picks(&out, []clips.Assignment{
+		{Pick: 1, Variants: clips.Variants{"length": "short"}},
+		{Pick: 2, Variants: clips.Variants{"length": "as-chosen"}},
+	}))
 
-	assert.Equal(t, "[1,2]\n", out.String())
+	assert.JSONEq(t, `[{"pick":1,"variants":{"length":"short"}},{"pick":2,"variants":{"length":"as-chosen"}}]`, out.String())
+	assert.Equal(t, 1, strings.Count(out.String(), "\n"))
+	assert.True(t, strings.HasSuffix(out.String(), "\n"))
+}
+
+func TestAPickInNoExperimentHasNoArmsNeverNull(t *testing.T) {
+	var out bytes.Buffer
+
+	require.NoError(t, display.Picks(&out, []clips.Assignment{{Pick: 3}}))
+
+	assert.JSONEq(t, `[{"pick":3,"variants":{}}]`, out.String())
 }
 
 func TestNoPickIsAnEmptyArrayNeverNull(t *testing.T) {
 	var out bytes.Buffer
 
-	require.NoError(t, display.Picks(&out, []clips.Pick{}))
+	require.NoError(t, display.Picks(&out, []clips.Assignment{}))
 
 	assert.Equal(t, "[]\n", out.String())
 }
 
 func TestPicksThatCannotBeWrittenAreAnError(t *testing.T) {
-	require.Error(t, display.Picks(brokenPage{}, []clips.Pick{1}))
+	require.Error(t, display.Picks(brokenPage{}, []clips.Assignment{{Pick: 1}}))
 }
 
 func TestTheReportIsATableOfEachClipOnEachPlatformItsTimeAndWhatBecameOfIt(t *testing.T) {
@@ -51,19 +65,22 @@ func TestTheReportIsATableOfEachClipOnEachPlatformItsTimeAndWhatBecameOfIt(t *te
 
 	scheduled, err := display.Report("", &out, clips.Report{
 		{Title: "KOSOVO IS ATTACKING THE MIDDLE EAST", At: at, Post: "post-1", Platforms: everywhere},
-		{Title: "FRANCE IS ATTACKING EUROPE", At: at.Add(2 * time.Hour), Post: "post-2", Platforms: []clips.PlatformOutcome{
-			{Platform: "tiktok"}, {Platform: "youtube", Failure: "zernio answered 400 to POST /posts: a | b\nc"},
-		}},
+		{
+			Title: "FRANCE IS ATTACKING EUROPE", Variants: clips.Variants{"length": "short"}, At: at.Add(2 * time.Hour), Post: "post-2",
+			Platforms: []clips.PlatformOutcome{
+				{Platform: "tiktok"}, {Platform: "youtube", Failure: "zernio answered 400 to POST /posts: a | b\nc"},
+			},
+		},
 	})
 
 	require.NoError(t, err)
 	assert.False(t, scheduled)
-	assert.Equal(t, `| Clip | Platform | Goes out | |
-|---|---|---|---|
-| KOSOVO IS ATTACKING THE MIDDLE EAST | tiktok | Mon 12 Oct, 16:40 UTC | scheduled |
-| KOSOVO IS ATTACKING THE MIDDLE EAST | youtube | Mon 12 Oct, 16:40 UTC | scheduled |
-| FRANCE IS ATTACKING EUROPE | tiktok | Mon 12 Oct, 18:40 UTC | scheduled |
-| FRANCE IS ATTACKING EUROPE | youtube | Mon 12 Oct, 18:40 UTC | **not scheduled**: zernio answered 400 to POST /posts: a \| b c |
+	assert.Equal(t, `| Clip | Arms | Platform | Goes out | |
+|---|---|---|---|---|
+| KOSOVO IS ATTACKING THE MIDDLE EAST | none | tiktok | Mon 12 Oct, 16:40 UTC | scheduled |
+| KOSOVO IS ATTACKING THE MIDDLE EAST | none | youtube | Mon 12 Oct, 16:40 UTC | scheduled |
+| FRANCE IS ATTACKING EUROPE | length short | tiktok | Mon 12 Oct, 18:40 UTC | scheduled |
+| FRANCE IS ATTACKING EUROPE | length short | youtube | Mon 12 Oct, 18:40 UTC | **not scheduled**: zernio answered 400 to POST /posts: a \| b c |
 `, out.String())
 }
 
@@ -81,12 +98,12 @@ func TestAClipHeldForAFullDayIsARowOfItsOwnAndStillScheduled(t *testing.T) {
 
 	scheduled, err := display.Report("", &out, clips.Report{
 		{Title: "KOSOVO IS ATTACKING THE MIDDLE EAST", At: at, Post: "post-1", Platforms: everywhere},
-		{Title: "FRANCE IS ATTACKING EUROPE", Held: true},
+		{Title: "FRANCE IS ATTACKING EUROPE", Variants: clips.Variants{"length": "short"}, Held: true},
 	})
 
 	require.NoError(t, err)
 	assert.True(t, scheduled)
-	assert.Contains(t, out.String(), "| FRANCE IS ATTACKING EUROPE | none | | held: every platform has posted its day |\n")
+	assert.Contains(t, out.String(), "| FRANCE IS ATTACKING EUROPE | length short | none | | held: every platform has posted its day |\n")
 }
 
 func TestATimeIsSaidInUTCWhateverItsZone(t *testing.T) {

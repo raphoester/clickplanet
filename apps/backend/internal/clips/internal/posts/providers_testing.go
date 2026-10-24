@@ -48,6 +48,20 @@ func (s *ScriptedService) Schedule(_ context.Context, post Post) (Scheduled, err
 	return Scheduled{ID: PostID("post-" + post.clip.title), Refused: s.Refusing}, nil
 }
 
+// Dice that show these faces in turn, then the first again, each within the faces of the roll.
+type RolledDice struct {
+	Faces []int
+	rolls int
+}
+
+var _ Dice = (*RolledDice)(nil)
+
+func (d *RolledDice) IntN(n int) int {
+	face := d.Faces[d.rolls%len(d.Faces)]
+	d.rolls++
+	return face % n
+}
+
 // A dice that always shows the same face.
 type LoadedDice int
 
