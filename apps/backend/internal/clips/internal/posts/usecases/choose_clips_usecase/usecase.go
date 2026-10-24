@@ -18,19 +18,32 @@ type History interface {
 	Told(ctx context.Context, since time.Time) ([]posts.Telling, error)
 }
 
+type Feeds interface {
+	// Every post, by hand or not, that goes out at since or later on each platform, and maybe some before.
+	Posted(ctx context.Context, since time.Time) (posts.Feed, error)
+}
+
+// How many clips a run makes: perRun at most, within each platform's day.
+type Room struct {
+	PerRun    int
+	Budget    posts.Budget
+	Platforms []posts.Platform
+}
+
 type Executor interface {
 	Execute(ctx context.Context) (posts.Choice, error)
 }
 
-func New(shortlists Shortlists, history History, clock cptime.Clock, perRun int) *UseCase {
-	return &UseCase{shortlists: shortlists, history: history, clock: clock, perRun: perRun}
+func New(shortlists Shortlists, history History, feeds Feeds, clock cptime.Clock, room Room) *UseCase {
+	return &UseCase{shortlists: shortlists, history: history, feeds: feeds, clock: clock, room: room}
 }
 
 type UseCase struct {
 	shortlists Shortlists
 	history    History
+	feeds      Feeds
 	clock      cptime.Clock
-	perRun     int
+	room       Room
 }
 
 var _ Executor = (*UseCase)(nil)
@@ -46,5 +59,9 @@ func (u *UseCase) Execute(ctx context.Context) (posts.Choice, error) {
 	if err != nil {
 		return posts.Choice{}, fmt.Errorf("failed to read the stories already told: %w", err)
 	}
-	return shortlist.Best(u.perRun, told, now), nil
+	feed, err := u.feeds.Posted(ctx, posts.PostedSince(now))
+	if err != nil {
+		return posts.Choice{}, fmt.Errorf("failed to read what each platform holds: %w", err)
+	}
+	return shortlist.Best(u.room.Budget.Clips(u.room.PerRun, u.room.Platforms, feed, now), told, now), nil
 }

@@ -93,6 +93,9 @@ message GlobeReplay {
   uint32 tour_stops = 15;
   // How solid the land taken is, from 0 (lines drawn on the map) to 1 (land taken whole).
   double solidity = 16;
+  // When the stretch it plays ends: the newest moment of the story. The post's scheduled_at minus this is how long the
+  // story took to reach the feed.
+  google.protobuf.Timestamp story_ended_at = 17;
 }
 
 // What the job keeps with a post in its Zernio metadata, under "record", written by protojson: what the clip was, and

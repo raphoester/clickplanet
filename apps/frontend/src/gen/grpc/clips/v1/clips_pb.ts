@@ -439,6 +439,14 @@ export class GlobeReplay extends Message<GlobeReplay> {
    */
   solidity = 0;
 
+  /**
+   * When the stretch it plays ends: the newest moment of the story. The post's scheduled_at minus this is how long the
+   * story took to reach the feed.
+   *
+   * @generated from field: google.protobuf.Timestamp story_ended_at = 17;
+   */
+  storyEndedAt?: Timestamp;
+
   constructor(data?: PartialMessage<GlobeReplay>) {
     super();
     proto3.util.initPartial(data, this);
@@ -463,6 +471,7 @@ export class GlobeReplay extends Message<GlobeReplay> {
     { no: 14, name: "screens_crossed", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
     { no: 15, name: "tour_stops", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 16, name: "solidity", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 17, name: "story_ended_at", kind: "message", T: Timestamp },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GlobeReplay {

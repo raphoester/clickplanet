@@ -49,9 +49,18 @@ func TestARunThatScheduledEveryClipOnEveryPlatformIsComplete(t *testing.T) {
 }
 
 func TestAClipThatIsNoPostIsNeverComplete(t *testing.T) {
-	planned := posts.Plan{}.Posts([]posts.Clip{clip(t, 1, "BEST")}, now, posts.LoadedDice(0))
+	planned := plan.Posts([]posts.Clip{clip(t, 1, "BEST")}, now, posts.LoadedDice(0))
 
 	assert.False(t, posts.Report{}.With(planned[0], posts.Scheduled{}, nil).Complete())
+}
+
+func TestAClipHeldForAFullDayIsInTheReportAndIsNoFailure(t *testing.T) {
+	planned := plan.Posts([]posts.Clip{clip(t, 1, "BEST")}, now, posts.LoadedDice(0))
+
+	report := posts.Report{}.With(planned[0], posts.Scheduled{ID: "post-1"}, nil).WithHeld(clip(t, 2, "SECOND"))
+
+	assert.Equal(t, posts.Outcome{Title: "SECOND", Held: true}, report[1])
+	assert.True(t, report.Complete())
 }
 
 func TestAddingToAReportLeavesItAsItWas(t *testing.T) {

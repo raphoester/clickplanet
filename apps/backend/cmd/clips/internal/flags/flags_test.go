@@ -72,6 +72,13 @@ func TestScheduleFlagsSayWhichClipsWhenAndWhereTheSummaryGoes(t *testing.T) {
 	assert.Equal(t, flags.Config{Command: flags.Schedule, ClipsFolder: "clips", SummaryFile: "summary.md", Job: job}, parsed)
 }
 
+func TestChooseCountsTheRoomOfThePlatformsItIsGiven(t *testing.T) {
+	parsed, err := flags.Parse([]string{"choose", "-shortlist", "shortlist.json", "-platforms", "tiktok"})
+
+	require.NoError(t, err)
+	assert.Equal(t, []clips.Platform{"tiktok"}, parsed.Job.Platforms)
+}
+
 func TestScheduleFlagsSayWhichPlatformsEachClipGoesTo(t *testing.T) {
 	for given, platforms := range map[string][]clips.Platform{
 		"youtube":         {"youtube"},
@@ -101,6 +108,7 @@ func TestFlagsWithAPartMissingOrWrongSayHowToCallTheCommand(t *testing.T) {
 		"fetch, wrong hours":         {"fetch", "-ssh", "deploy@vps.example", "-out", "replay.json", "-hours", "many"},
 		"choose, no shortlist":       {"choose"},
 		"choose, a wrong count":      {"choose", "-shortlist", "shortlist.json", "-count", "two"},
+		"choose, no such platform":   {"choose", "-shortlist", "shortlist.json", "-platforms", "instagram"},
 		"schedule, no folder":        {"schedule"},
 		"schedule, a wrong gap":      {"schedule", "-clips", "clips", "-spacing", "soon"},
 		"schedule, no such platform": {"schedule", "-clips", "clips", "-platforms", "tiktok,instagram"},

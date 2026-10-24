@@ -23,6 +23,7 @@ describe("what a clip was", () => {
                 camera: "front", look: "dive", storyKind: "battle", spanMinutes: 120.3, tilesChanged: 1_480,
                 storyTilesChanged: 1_210, placeTiles: 6_120, flagTilesStart: 2_900, flagTilesEnd: 3_640, landmassesFlipped: 2,
                 bombs: 3, spreads: 41, enclosures: 1, screensCrossed: 2.46, solidity: 0.91,
+                storyEndedAt: "2026-10-23T11:00:15Z",
             },
         })
     })
@@ -33,6 +34,11 @@ describe("what a clip was", () => {
         expect([tour.globe?.camera, tour.globe?.look, tour.globe?.tourStops, tour.globe?.screensCrossed])
             .toEqual(["tour", "none", 3, 0])
         expect([tour.common?.music, tour.common?.musicStartSeconds]).toEqual(["none", 0])
+    })
+
+    it("says when the stretch it plays ends, so the post's time tells how fresh the story was", () => {
+        expect(clipRecordOf({...shown, until: Date.parse("2026-10-23T11:42:07.250Z")}).globe?.storyEndedAt?.toDate())
+            .toEqual(new Date("2026-10-23T11:42:07.250Z"))
     })
 
     it("names an unknown commit", () => {

@@ -64,3 +64,11 @@ func TestARunThatReadNoClipSaysNothing(t *testing.T) {
 	require.ErrorIs(t, err, posts.ErrInvalidClip)
 	assert.Empty(t, logs)
 }
+
+func TestAHeldClipIsLoggedAsHeldNotAsAFailure(t *testing.T) {
+	logs, err := run(t, stubExecutor{report: posts.Report{{Title: "FRANCE IS ATTACKING EUROPE", Held: true}}})
+
+	require.NoError(t, err)
+	assert.Contains(t, logs, `level=INFO msg="held a clip: every platform has posted its day" clip="FRANCE IS ATTACKING EUROPE"`)
+	assert.NotContains(t, logs, "ERROR")
+}

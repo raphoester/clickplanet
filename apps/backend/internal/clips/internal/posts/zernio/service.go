@@ -45,7 +45,7 @@ const (
 	roundKey = "storyRound"
 	// What the post was, to set beside how it did: a clips.v1.PostRecord.
 	recordKey = "record"
-	// Four posts a day: a page this long holds the week the choice reads, and more.
+	// About ten posts a day: a page this long holds the week the choice reads, and more.
 	pageOfPosts = 500
 )
 
@@ -211,7 +211,7 @@ func recordOf(snapshot posts.PostSnapshot) (map[string]any, error) {
 		Schema: string((&clipsv1.PostRecord{}).ProtoReflect().Descriptor().FullName()),
 		Post: &clipsv1.PostFacts{
 			Teaser: snapshot.Teaser, CallToAction: snapshot.CallToAction, ScheduledAt: timestamppb.New(snapshot.At),
-			RunPosition: uint32(snapshot.RunPosition), RunSize: uint32(snapshot.RunSize), //nolint:gosec // 6 a run.
+			RunPosition: uint32(snapshot.RunPosition), RunSize: uint32(snapshot.RunSize), //nolint:gosec // 2 a run.
 		},
 	}
 	if len(snapshot.Record) != 0 {
@@ -247,18 +247,13 @@ func on(post cpzernio.Post, platform posts.Platform) bool {
 
 // The posts made by hand carry no story key, and are left out.
 func (s *Service) Told(ctx context.Context, since time.Time) ([]posts.Telling, error) {
-	answer, err := s.api.ListPostsWithResponse(ctx, &cpzernio.ListPostsParams{
-		FromDate: &openapi_types.Date{Time: since.UTC()}, Limit: new(pageOfPosts),
-	})
+	listed, err := s.list(ctx, since)
 	if err != nil {
-		return nil, unreachable(err)
-	}
-	if answer.JSON200 == nil || answer.JSON200.Posts == nil {
-		return nil, refusal(answer.HTTPResponse, answer.Body, "the list of posts")
+		return nil, err
 	}
 
-	told := make([]posts.Telling, 0, len(*answer.JSON200.Posts))
-	for _, post := range *answer.JSON200.Posts {
+	told := make([]posts.Telling, 0, len(listed))
+	for _, post := range listed {
 		key, keyed := keyOf(post)
 		if !keyed || post.ScheduledFor == nil {
 			continue
@@ -269,6 +264,78 @@ func (s *Service) Told(ctx context.Context, since time.Time) ([]posts.Telling, e
 		})
 	}
 	return told, nil
+}
+
+// Every post, by hand or not, on each platform it is to go out on, or went out on, at that platform's time: Zernio
+// moves a TikTok target held over the cap to when it will go out. A draft, a post cancelled or failed, and a target
+// that failed or was unpublished count for nothing.
+func (s *Service) Posted(ctx context.Context, since time.Time) (posts.Feed, error) {
+	listed, err := s.list(ctx, since)
+	if err != nil {
+		return nil, err
+	}
+
+	var feed posts.Feed
+	for _, post := range listed {
+		switch valueOf(post.Status) {
+		case cpzernio.PostStatusDraft, cpzernio.PostStatusCancelled, cpzernio.PostStatusFailed:
+			continue
+		}
+		feed = append(feed, postingsOf(post)...)
+	}
+	return feed, nil
+}
+
+// One for each time the post's targets go out at, most often one.
+func postingsOf(post cpzernio.Post) []posts.Posting {
+	if post.Platforms == nil {
+		return nil
+	}
+	var postings []posts.Posting
+	for _, target := range *post.Platforms {
+		platform, err := posts.PlatformsOf(valueOf(target.Platform))
+		if err != nil {
+			continue
+		}
+		switch valueOf(target.Status) {
+		case "failed", "cancelled":
+			continue
+		}
+		at := firstTimeOf(target.ScheduledFor, post.ScheduledFor, target.PublishedAt)
+		if at.IsZero() {
+			continue
+		}
+		i := slices.IndexFunc(postings, func(posting posts.Posting) bool { return posting.At.Equal(at) })
+		if i < 0 {
+			postings = append(postings, posts.Posting{At: at})
+			i = len(postings) - 1
+		}
+		postings[i].Platforms = append(postings[i].Platforms, platform...)
+	}
+	return postings
+}
+
+// A post published at once by hand may have no scheduled time, only the time it went out.
+func firstTimeOf(times ...*time.Time) time.Time {
+	for _, at := range times {
+		if at != nil && !at.IsZero() {
+			return *at
+		}
+	}
+	return time.Time{}
+}
+
+func (s *Service) list(ctx context.Context, since time.Time) ([]cpzernio.Post, error) {
+	answer, err := s.api.ListPostsWithResponse(ctx, &cpzernio.ListPostsParams{
+		FromDate: &openapi_types.Date{Time: since.UTC()}, Limit: new(pageOfPosts),
+	})
+	if err != nil {
+		return nil, unreachable(err)
+	}
+	if answer.JSON200 == nil || answer.JSON200.Posts == nil {
+		return nil, refusal(answer.HTTPResponse, answer.Body, "the list of posts")
+	}
+	return *answer.JSON200.Posts, nil
 }
 
 func failureOf(post cpzernio.Post) string {

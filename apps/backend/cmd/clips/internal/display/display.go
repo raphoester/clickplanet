@@ -39,6 +39,10 @@ func table(page io.Writer, report clips.Report) (bool, error) {
 	var rows strings.Builder
 	rows.WriteString("| Clip | Platform | Goes out | |\n|---|---|---|---|\n")
 	for _, outcome := range report {
+		if outcome.Held {
+			fmt.Fprintf(&rows, "| %s | none | | held: every platform has posted its day |\n", cell(outcome.Title))
+			continue
+		}
 		for _, platform := range outcome.Platforms {
 			state := "scheduled"
 			if platform.Failure != "" {
