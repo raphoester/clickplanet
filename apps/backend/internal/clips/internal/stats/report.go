@@ -28,10 +28,11 @@ type TikTokLane struct {
 	BusinessRows int
 }
 
-// Live when TikTok calls it a business account and its lane answers: the commercial music library, or a business
-// metric on one of its posts.
+// Live when its lane answers: the commercial music library, or a business metric on one of its posts. Not its Type,
+// which is what TikTok said when the account was connected: on 2026-10-24 an account Zernio still called personal
+// answered both, with business metrics on 80 of its rows.
 func (l TikTokLane) Live() bool {
-	return l.Type == "business" && (l.CommercialMusic || l.BusinessRows > 0)
+	return l.CommercialMusic || l.BusinessRows > 0
 }
 
 type Unread struct {

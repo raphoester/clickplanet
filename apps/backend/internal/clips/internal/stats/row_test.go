@@ -86,11 +86,12 @@ func TestBusinessMetricsAreTheOnesOnlyTikTokForBusinessGives(t *testing.T) {
 	}
 }
 
-func TestATikTokLaneIsLiveOnABusinessAccountWhoseLaneAnswers(t *testing.T) {
+func TestATikTokLaneIsLiveWhenItsLaneAnswersWhateverTheTypeSaid(t *testing.T) {
 	accounts := stats.Accounts{AnalyticsAccess: true, TikTok: []stats.TikTokAccount{
 		{ID: "tt-1", Username: "clickplanet", Type: "business"},
 		{ID: "tt-2", Type: "business", CommercialMusic: true},
 		{ID: "tt-3", Type: "personal", CommercialMusic: true},
+		{ID: "tt-4", Type: "business"},
 	}}
 	rows := []stats.Row{
 		{Platform: "tiktok", AccountID: "tt-1", Analytics: json.RawMessage(`{"analytics":{"completionRate":0.4}}`)},
@@ -103,12 +104,13 @@ func TestATikTokLaneIsLiveOnABusinessAccountWhoseLaneAnswers(t *testing.T) {
 
 	report := stats.ReportOf(accounts, rows)
 
-	require.Len(t, report.TikTokAccounts, 3)
+	require.Len(t, report.TikTokAccounts, 4)
 	assert.Equal(t, 2, report.TikTokAccounts[0].Rows)
 	assert.Equal(t, 1, report.TikTokAccounts[0].BusinessRows)
 	assert.True(t, report.TikTokAccounts[0].Live(), "a business metric came")
 	assert.True(t, report.TikTokAccounts[1].Live(), "the music library answers")
-	assert.False(t, report.TikTokAccounts[2].Live(), "TikTok calls it personal")
+	assert.True(t, report.TikTokAccounts[2].Live(), "the lane answers, whatever TikTok called the account when it was connected")
+	assert.False(t, report.TikTokAccounts[3].Live(), "a business account whose lane gives nothing yet")
 	assert.Equal(t, map[string]int{"tiktok": 2, "youtube": 1}, report.Rows)
 	assert.Equal(t, 3, report.RowCount())
 	assert.Equal(t, 2, report.Syncing)

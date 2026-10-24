@@ -154,7 +154,7 @@ export class TikTokAccount extends Message<TikTokAccount> {
   businessRows = 0;
 
   /**
-   * A business account whose lane answers: the music library, or a business metric on a post.
+   * Whether its lane answers: the music library, or a business metric on a post, whatever account_type says.
    *
    * @generated from field: bool live = 8;
    */
