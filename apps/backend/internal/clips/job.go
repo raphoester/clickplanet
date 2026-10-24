@@ -74,8 +74,8 @@ var (
 	defaultBackoff   = posts.Backoff{time.Minute, 5 * time.Minute, 15 * time.Minute}
 	defaultPlatforms = []Platform{posts.TikTok, posts.YouTube}
 	// Posts in a trailing 24 hours. TikTok holds a post over 15 on an account of its Business app, and Zernio counts
-	// those 15 over the same window; YouTube lets a channel upload about 10 a day.
-	dailyBudget = posts.Budget{posts.TikTok: 10, posts.YouTube: 8}
+	// those 15 over the same window: 14 leaves one for a post made by hand. YouTube lets a channel upload about 10 a day.
+	dailyBudget = posts.Budget{posts.TikTok: 14, posts.YouTube: 8}
 )
 
 func PlatformsOf(names ...string) ([]Platform, error) {

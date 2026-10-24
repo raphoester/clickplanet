@@ -236,11 +236,7 @@ func TestChoosingGivesTheBestStoriesOfDifferentFlagsOrContinents(t *testing.T) {
 }
 
 func TestARunAfterADayOfPostsOnEveryPlatformChoosesNothing(t *testing.T) {
-	posts := make([]sentPost, 10)
-	for i := range posts {
-		posts[i].ScheduledFor = time.Now().Add(-time.Duration(i+1) * time.Hour).UTC().Format(time.RFC3339)
-		posts[i].Platforms = []sentTarget{{Platform: "tiktok"}, {Platform: "youtube"}}
-	}
+	posts := day(14, "tiktok", "youtube")
 	var logs bytes.Buffer
 
 	picks, err := clips.Choose(t.Context(), shortlist(t), configFor(zernio(t, &posts)), slog.New(slog.NewTextHandler(&logs, nil)))
@@ -248,6 +244,33 @@ func TestARunAfterADayOfPostsOnEveryPlatformChoosesNothing(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, picks)
 	assert.Contains(t, logs.String(), `msg="every platform has posted its day already"`)
+}
+
+func TestTikTokTakesFourteenADayLeavingOneOfItsFifteenForAPostByHand(t *testing.T) {
+	for given, want := range map[int]int{10: 2, 13: 1, 14: 0} {
+		t.Run(fmt.Sprint(given), func(t *testing.T) {
+			posts := day(given, "tiktok")
+			config := configFor(zernio(t, &posts))
+			config.Platforms = []clips.Platform{"tiktok"}
+
+			picks, err := clips.Choose(t.Context(), shortlist(t), config, slog.New(slog.DiscardHandler))
+
+			require.NoError(t, err)
+			assert.Len(t, picks, want)
+		})
+	}
+}
+
+// count posts on the platforms, an hour apart, the newest an hour ago.
+func day(count int, platforms ...string) []sentPost {
+	posts := make([]sentPost, count)
+	for i := range posts {
+		posts[i].ScheduledFor = time.Now().Add(-time.Duration(i+1) * time.Hour).UTC().Format(time.RFC3339)
+		for _, platform := range platforms {
+			posts[i].Platforms = append(posts[i].Platforms, sentTarget{Platform: platform})
+		}
+	}
+	return posts
 }
 
 func TestAStoryOneRunScheduledIsNotChosenByTheNext(t *testing.T) {

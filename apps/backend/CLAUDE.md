@@ -3656,7 +3656,7 @@ clips schedule -clips <folder> [-review 0] [-spacing 1h] [-platforms tiktok,yout
     day on another angle, or an angle this job does not know is refused.
   - **A headline told in the last week is skipped** (`reheadlining`), whatever its continent: the same words read
     as the same clip. Compared in upper case, spaces at the ends cut.
-  - **A flag the last 6 posts showed goes after the flags they did not** (`lately`, about 14 hours at 10 posts a day). **A
+  - **A flag the last 6 posts showed goes after the flags they did not** (`lately`, about 10 hours at 14 posts a day). **A
     post shows its key's flag and every country of its story** (`Countries`, as the generator writes them: the
     place, both sides, the flags it takes from): "FRANCE VS PALAU" and "VATICAN CITY VS PALAU" both show Palau. A
     story ranks by its key's flag, then by the country of it the last posts showed most, then by the generator's
@@ -3664,8 +3664,8 @@ clips schedule -clips <folder> [-review 0] [-spacing 1h] [-platforms tiktok,yout
     key's flag only.
   - **A flag that 2 of the last 6 posts showed waits** (`mostLately`): it is a third of the feed at most. **Both stay
     counts of posts when the job posts more often** (2026-10-24): the feed a viewer scrolls is posts, not hours, so a
-    third of the last 6 is still a third of what they see. At 6 a run twice a day they covered about a day; at about 10
-    a day they cover about 14 hours, and a flag waits that much less. So a
+    third of the last 6 is still a third of what they see. At 6 a run twice a day they covered about a day; at up to 14
+    a day they cover about 10 hours, and a flag waits that much less. So a
     shortlist of one flag gives 2 clips in any 6 posts. Ranking alone was not enough at 6 a run: on Oct 15 a shortlist of
     Palau and one other flag gave 5 clips of Palau. **Only the key's flag waits, not each country of the story**:
     Palau and France defend in nearly every story of Oct 15–17, and waiting on all of them left 6 clips in those
@@ -3689,11 +3689,12 @@ clips schedule -clips <folder> [-review 0] [-spacing 1h] [-platforms tiktok,yout
   scheduled run 20 to 40 minutes late, as the runs of Oct 22–24 did), its render (10 to 35 minutes) and 5 minutes of
   lead: **2 to 3 hours**, and an hour more for the second clip of a run. Replayed over Oct 14–17, a 12-hour window held 5
   to 11 stories of different keys, so 2 every 2 hours is not short of stories; a quiet run posts nothing.
-  - **`Budget` is posts in a trailing 24 hours, per platform: 10 on TikTok, 8 on YouTube** (`dailyBudget` in
+  - **`Budget` is posts in a trailing 24 hours, per platform: 14 on TikTok, 8 on YouTube** (`dailyBudget` in
     `job.go`). TikTok holds a video over 15 a trailing day on an account of its Business app, which every new Zernio
     connection is, and Zernio does not refuse it: it moves the post to when the oldest leaves the window, which
-    would quietly undo the speed. 10 leaves room for posts made by hand. YouTube lets a channel upload about 10 a day.
-    So a day of news is 8 clips on both and 2 more on TikTok alone, the rest held; 12 runs of 2 would be 24.
+    would quietly undo the speed. 14 leaves room for one post made by hand (it shipped at 10 on 2026-10-24, and was
+    raised the same day: one by hand is all the room needed). YouTube lets a channel upload about 10 a day.
+    So a day of news is 8 clips on both and 6 more on TikTok alone, the rest held; 12 runs of 2 would be 24.
   - **What counts is Zernio's post list** (`Service.Posted`, a `Feed` of `Posting`s): every post on the platform in
     the trailing day, **made by hand or not**, and every one still to go out, at the platform's own time (a TikTok
     target held over the cap carries the time it will go out). A draft, a post cancelled or failed, and a target that
