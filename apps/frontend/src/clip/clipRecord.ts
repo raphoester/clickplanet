@@ -2,6 +2,7 @@ import {ClipRecord} from "../gen/grpc/clips/v1/clips_pb.ts"
 import {Story} from "../domain/clip/story.ts"
 import {Look} from "../domain/clip/look.ts"
 import {voiceOf} from "./callUp.ts"
+import {Variants} from "./experiments.ts"
 
 // What a clip was, as the generator chose it and the replay played it: numbers it already worked out, never new ones.
 export type Shown = {
@@ -25,6 +26,8 @@ export type Shown = {
     screens: number
     tourStops: number
     solidity: number
+    // The arm of each experiment the clip was made in, as applied: none when it is in none.
+    variants: Variants
 }
 
 const NONE = "none"
@@ -65,5 +68,6 @@ export function clipRecordOf(shown: Shown): ClipRecord {
             tourStops: tour ? shown.tourStops : 0,
             solidity: rounded(shown.solidity, 2),
         },
+        variants: {...shown.variants},
     })
 }

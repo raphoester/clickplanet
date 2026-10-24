@@ -112,6 +112,8 @@ type Choice struct {
 	// Not told, but its flag is in 2 of the last posts, or a story after it was chosen: its flags in fewer of them, or
 	// an angle the run had not told.
 	Passed Shortlist
+	// Each story chosen, in the same order, with the arm of each experiment its clip is in: what the run renders.
+	Assigned []Assignment
 }
 
 // A day of the season won goes first, whatever the posts showed: it is the day's news. Then a run tells each angle it

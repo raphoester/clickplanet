@@ -30,6 +30,8 @@ import (
 
 type (
 	Pick            = posts.Pick
+	Assignment      = posts.Assignment
+	Variants        = posts.Variants
 	Platform        = posts.Platform
 	Report          = posts.Report
 	PlatformOutcome = posts.PlatformOutcome
@@ -125,8 +127,14 @@ func Fetch(ctx context.Context, out, race, season string, config Config, logger 
 	return nil
 }
 
-func Choose(ctx context.Context, shortlist string, config Config, logger *slog.Logger) ([]Pick, error) {
+// Each story to render, with the arm of each experiment that runs its clip is in.
+func Choose(ctx context.Context, shortlist string, config Config, logger *slog.Logger) ([]Assignment, error) {
 	config = config.withDefaults()
+
+	experiments, err := posts.ExperimentsOf(running...)
+	if err != nil {
+		return nil, fmt.Errorf("the experiments that run: %w", err)
+	}
 
 	history, err := zernio.New(config.Zernio, &http.Client{Timeout: historyTimeout})
 	if err != nil {
@@ -135,18 +143,24 @@ func Choose(ctx context.Context, shortlist string, config Config, logger *slog.L
 
 	choose := log_choose_clips.New(choose_clips_usecase.New(
 		generator_output.ShortlistFile(shortlist), log_history.New(history, logger), cptime.SystemClock{}, config.PerRun,
+		experiments, posts.SystemDice{},
 	), logger)
 
 	choice, err := choose.Execute(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return choice.Chosen.Picks(), nil
+	return choice.Assigned, nil
 }
 
 func Schedule(ctx context.Context, folder string, config Config, logger *slog.Logger) (Report, error) {
 	config = config.withDefaults()
 	clock := cptime.SystemClock{}
+
+	experiments, err := posts.ExperimentsOf(running...)
+	if err != nil {
+		return nil, fmt.Errorf("the experiments that run: %w", err)
+	}
 
 	service, err := zernio.New(config.Zernio, &http.Client{Timeout: serviceTimeout})
 	if err != nil {
@@ -157,7 +171,7 @@ func Schedule(ctx context.Context, folder string, config Config, logger *slog.Lo
 	schedule := log_schedule_clips.New(schedule_clips_usecase.New(
 		generator_output.Folder(folder),
 		posts.Plan{Review: config.Review, Spacing: config.Spacing, Platforms: config.Platforms},
-		clock, posts.SystemDice{}, sender,
+		clock, posts.SystemDice{}, sender, experiments,
 	), logger)
 
 	return schedule.Execute(ctx)

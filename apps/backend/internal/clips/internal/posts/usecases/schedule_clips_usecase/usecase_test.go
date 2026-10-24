@@ -20,6 +20,7 @@ var (
 	plan   = posts.Plan{Review: 4 * time.Hour, Spacing: 2 * time.Hour, Platforms: []posts.Platform{posts.TikTok, posts.YouTube}}
 	first  = now.Add(4 * time.Hour)
 	second = now.Add(6 * time.Hour)
+	length = posts.Experiments{{Name: "length", Arms: posts.EvenArms("as-chosen", "short"), Control: "as-chosen"}}
 )
 
 type folder struct {
@@ -38,7 +39,15 @@ func key(title string) posts.StoryKey {
 func clip(t *testing.T, pick posts.Pick, title string) posts.Clip {
 	t.Helper()
 
-	restored, err := posts.ClipSnapshot{Pick: pick, Title: title, Teasers: []string{title + " 1", title + " 2"}, Key: key(title), Video: "clip.mp4"}.Restore()
+	return clipIn(t, pick, title, nil)
+}
+
+func clipIn(t *testing.T, pick posts.Pick, title string, variants posts.Variants) posts.Clip {
+	t.Helper()
+
+	restored, err := posts.ClipSnapshot{
+		Pick: pick, Title: title, Teasers: []string{title + " 1", title + " 2"}, Key: key(title), Video: "clip.mp4", Variants: variants,
+	}.Restore()
 	require.NoError(t, err)
 	return restored
 }
@@ -52,7 +61,7 @@ func scheduling(clips folder, refusals ...error) run {
 	clock := cptime.NewFixedClock(now)
 	service := posts.NewScriptedService(refusals...)
 	sender := posts.NewSender(service, posts.Backoff{time.Minute}, posts.NewRecordedPause(clock), clock)
-	return run{service: service, usecase: schedule_clips_usecase.New(clips, plan, clock, posts.LoadedDice(1), sender)}
+	return run{service: service, usecase: schedule_clips_usecase.New(clips, plan, clock, posts.LoadedDice(1), sender, length)}
 }
 
 func on(failures ...string) []posts.PlatformOutcome {
@@ -122,4 +131,47 @@ func TestClipsThatCannotBeReadFailTheRun(t *testing.T) {
 
 	require.ErrorIs(t, err, unreadable)
 	assert.Empty(t, r.service.Scheduled)
+}
+
+func TestTheArmsOfEachClipReachItsPostAndTheReport(t *testing.T) {
+	r := scheduling(folder{clips: []posts.Clip{clipIn(t, 1, "BEST", posts.Variants{"length": "short"}), clip(t, 2, "SECOND")}})
+
+	report, err := r.usecase.Execute(t.Context())
+
+	require.NoError(t, err)
+	assert.Equal(t, posts.Variants{"length": "short"}, report[0].Variants)
+	assert.Empty(t, report[1].Variants)
+	assert.Equal(t, posts.Variants{"length": "short"}, r.service.Scheduled[0].Variants)
+}
+
+// The control is what a clip was before the experiment: the same post, word for word, at the same time.
+func TestAClipInTheControlArmIsPostedAsAClipInNoExperiment(t *testing.T) {
+	control := scheduling(folder{clips: []posts.Clip{clipIn(t, 1, "BEST", posts.Variants{"length": "as-chosen"})}})
+	before := scheduling(folder{clips: []posts.Clip{clip(t, 1, "BEST")}})
+
+	_, err := control.usecase.Execute(t.Context())
+	require.NoError(t, err)
+	_, err = before.usecase.Execute(t.Context())
+	require.NoError(t, err)
+
+	posted := control.service.Scheduled[0]
+	posted.Variants = nil
+	assert.Equal(t, before.service.Scheduled[0], posted)
+}
+
+func TestAClipInAnArmNobodyRunsFailsTheRunBeforeAnyPost(t *testing.T) {
+	for name, variants := range map[string]posts.Variants{
+		"an experiment that does not run": {"end-card": "podium"},
+		"an arm the experiment has not":   {"length": "long"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			r := scheduling(folder{clips: []posts.Clip{clip(t, 1, "BEST"), clipIn(t, 2, "SECOND", variants)}})
+
+			_, err := r.usecase.Execute(t.Context())
+
+			require.ErrorIs(t, err, posts.ErrUnknownVariant)
+			assert.Contains(t, err.Error(), "SECOND")
+			assert.Empty(t, r.service.Scheduled)
+		})
+	}
 }

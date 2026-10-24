@@ -189,6 +189,18 @@ func configFor(server *httptest.Server) clips.Config {
 	return config
 }
 
+// The picks, each in an arm of the length experiment: the coins are the system's, so which arm is not known.
+func picksOf(t *testing.T, assignments []clips.Assignment) []clips.Pick {
+	t.Helper()
+
+	picks := make([]clips.Pick, 0, len(assignments))
+	for _, assignment := range assignments {
+		assert.Contains(t, []string{"as-chosen", "short"}, assignment.Variants["length"])
+		picks = append(picks, assignment.Pick)
+	}
+	return picks
+}
+
 func TestChoosingGivesTheBestStoriesOfDifferentFlagsOrContinents(t *testing.T) {
 	var posts []sentPost
 	var logs bytes.Buffer
@@ -196,7 +208,7 @@ func TestChoosingGivesTheBestStoriesOfDifferentFlagsOrContinents(t *testing.T) {
 	picks, err := clips.Choose(t.Context(), shortlist(t), configFor(zernio(t, &posts)), slog.New(slog.NewTextHandler(&logs, nil)))
 
 	require.NoError(t, err)
-	assert.Equal(t, []clips.Pick{1, 3, 4}, picks)
+	assert.Equal(t, []clips.Pick{1, 3, 4}, picksOf(t, picks))
 	assert.Contains(t, logs.String(), `msg="skipped a story told already" pick=2 title="ALGERIA VS FRANCE"`)
 }
 
@@ -211,7 +223,7 @@ func TestAStoryOneRunScheduledIsNotChosenByTheNext(t *testing.T) {
 	picks, err := clips.Choose(t.Context(), shortlist(t), configFor(server), slog.New(slog.DiscardHandler))
 
 	require.NoError(t, err)
-	assert.Equal(t, []clips.Pick{3, 4}, picks)
+	assert.Equal(t, []clips.Pick{3, 4}, picksOf(t, picks))
 }
 
 func TestAFlagTheLastRunShowedTwiceWaitsThoughNeitherClipWasAboutIt(t *testing.T) {
@@ -230,5 +242,40 @@ func TestAFlagTheLastRunShowedTwiceWaitsThoughNeitherClipWasAboutIt(t *testing.T
 	picks, err := clips.Choose(t.Context(), path, configFor(server), slog.New(slog.DiscardHandler))
 
 	require.NoError(t, err)
-	assert.Equal(t, []clips.Pick{2}, picks)
+	assert.Equal(t, []clips.Pick{2}, picksOf(t, picks))
+}
+
+func renderedIn(t *testing.T, folder string, pick int, title, variants string) {
+	t.Helper()
+
+	clip := fmt.Sprintf(`{"pick": %d, "title": %q, "teasers": [%q], "key": {"flag": "dz", "continent": "Africa"}, `+
+		`"record": {"format": "globe-replay", "variants": %s}}`, pick, title, "SAID ANOTHER WAY: "+title, variants)
+	require.NoError(t, os.WriteFile(filepath.Join(folder, fmt.Sprintf("clip-%d.json", pick)), []byte(clip), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(folder, fmt.Sprintf("clip-%d.mp4", pick)), []byte(title), 0o600))
+}
+
+func TestTheArmsAClipWasMadeInAreKeptWithItsPostAndReported(t *testing.T) {
+	var posts []sentPost
+	folder := t.TempDir()
+	renderedIn(t, folder, 1, "ALGERIA STRIKES BACK", `{"length": "short"}`)
+
+	report, err := clips.Schedule(t.Context(), folder, configFor(zernio(t, &posts)), slog.New(slog.DiscardHandler))
+
+	require.NoError(t, err)
+	require.Len(t, posts, 1)
+	record, ok := posts[0].Metadata["record"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, map[string]any{"length": "short"}, record["clip"].(map[string]any)["variants"])
+	assert.Equal(t, clips.Variants{"length": "short"}, report[0].Variants)
+}
+
+func TestAClipInAnArmThatDoesNotRunIsNotPosted(t *testing.T) {
+	var posts []sentPost
+	folder := t.TempDir()
+	renderedIn(t, folder, 1, "ALGERIA STRIKES BACK", `{"length": "long"}`)
+
+	_, err := clips.Schedule(t.Context(), folder, configFor(zernio(t, &posts)), slog.New(slog.DiscardHandler))
+
+	require.ErrorContains(t, err, `the experiment "length" has no arm "long"`)
+	assert.Empty(t, posts)
 }

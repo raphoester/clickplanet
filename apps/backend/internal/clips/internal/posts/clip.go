@@ -26,6 +26,7 @@ type Clip struct {
 	video        VideoFile
 	teaserNames  []string
 	record       ClipRecord
+	variants     Variants
 }
 
 func (c Clip) countryCodes() []string {
@@ -40,6 +41,7 @@ func (c Clip) TakeSnapshot() ClipSnapshot {
 	return ClipSnapshot{
 		Pick: c.pick, Title: c.title, Key: c.key, Teasers: c.teasers, Countries: c.countries,
 		ContinentTag: c.continentTag, Attribution: c.attribution, Video: c.video, TeaserNames: c.teaserNames, Record: c.record,
+		Variants: c.variants,
 	}
 }
 
@@ -57,6 +59,8 @@ type ClipSnapshot struct {
 	// The name of each teaser's wording, in the same order; none for a clip written before they were named.
 	TeaserNames []string
 	Record      ClipRecord
+	// The arm of each experiment the clip is in, as the generator applied or carried it: none when it is in none.
+	Variants Variants
 }
 
 func (s ClipSnapshot) Restore() (Clip, error) {
@@ -93,5 +97,6 @@ func (s ClipSnapshot) Restore() (Clip, error) {
 	return Clip{
 		pick: s.Pick, title: s.Title, key: s.Key, teasers: s.Teasers, countries: s.Countries,
 		continentTag: s.ContinentTag, attribution: s.Attribution, video: s.Video, teaserNames: s.TeaserNames, record: s.Record,
+		variants: s.Variants,
 	}, nil
 }

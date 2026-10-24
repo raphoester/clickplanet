@@ -3050,13 +3050,14 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
    dependencies. The replay, the season's race and its calendar go on as an artifact; all are public data. A race or
    a season that could not be fetched is no file, and the run goes on without a day to tell or a country to call up.
 2. **shortlist** and **choose**: `npm run clip -- --shortlist shortlist.json`, then, in a job of its own (it holds
-   the Zernio key, and runs no npm), the backend's `clips choose` reads it and prints the picks to render, up to 6, `[1,2,4]`.
+   the Zernio key, and runs no npm), the backend's `clips choose` reads it and prints the picks to render, up to 6, each with the arm of every
+   experiment it put the clip in, `[{"pick":1,"variants":{"length":"short"}}]`.
    **It skips a story told in the last 3 days**, by its key below, and a headline told in the last week, puts a
    flag the last 6 posts showed after the others, and holds back a flag 2 of them showed, as their key or as one of
    their countries: on Oct 13–17 Algeria in Africa was told three times and Palau in half the clips. **A day won goes
    first**, whatever the posts showed, **then a run tells each angle it has once before any twice** (what changed,
    what a flag holds). None is a quiet half day: the run ends there, green.
-3. **render**: one job per pick, side by side, `--pick <n> --recorders 1`. A runner has 4 cores and no GPU: Chrome
+3. **render**: one job per pick, side by side, `--pick <n> --variants <its arms> --recorders 1`. A runner has 4 cores and no GPU: Chrome
    draws with SwiftShader, **1.9 to 3.1s a frame, by the runner it lands on** (measured 2026-10-12: the same 12s
    clip in 11.5 minutes, then in 18.5; a 22s one would take 21 to 34), the same picture as with a GPU. More
    recorders do not help there: each one draws every frame.
@@ -3113,10 +3114,25 @@ What chooses, when a clip goes out, the client of the service and the run's summ
     is its zero.
   - **`generator` is the commit that made it**: `render.mjs` passes the workflow's `GITHUB_SHA`, else the checkout's
     `HEAD`, to the page as `commit`; `unknown` without either.
-  - **`variants` is the arm of each experiment the clip is in**, by name (`{"end-card": "podium"}`): a free map of
-    words, so an experiment needs no change of shape. Empty while none runs.
+  - **`variants` is the arm of each experiment the clip is in**, by name (`{"length": "short"}`): a free map of
+    words, so an experiment needs no change of shape. Empty for a clip in none, as one made by hand.
   - **Additive only**: a new value is a field at the end of its message. A change that is not is a new message
     under a new name, since the job names the message it writes (the backend's CLAUDE.md, "The clips job").
+- **`--variants <json>` is the arm of each experiment the clip is in**, as the job's `choose` assigned it
+  (`{"length":"short"}`). **Which experiments run, and which arm a clip is in, is the job's alone** (the backend's
+  CLAUDE.md, "Experiments"): a coin, not something this app picks from the story, or the arms would not compare.
+  `src/clip/experiments.ts` lists every experiment this app knows and its arms (`EXPERIMENTS`); `variantsOf` reads
+  them when the clip is recorded, before anything is built, and **an experiment or an arm it does not know fails the
+  clip**, which the run then does not post. It applies the arms it acts on, and writes every arm it was given into
+  `record.variants`, the ones it applied and the ones the job acts on when posting, which it lists with nothing to
+  apply: so `schedule` reads them all from `clip-<n>.json`. With no `--variants` a clip is in no experiment and is
+  made as before; `--seconds` with an arm of `length` is refused, since both set the length. `--plan` prints the arms.
+  - **`length`**: `as-chosen`, the control, is exactly the length `pace.ts` gives (below); `short` is the shortest a
+    story of its kind plays (`timelineOf(…, "short")`): 8.5s for a front, however far its fighting moves, 10 with a
+    day's podium. **A tour is already its shortest**, each stop a flight and a stay, and is left as it is, as is a
+    front whose fighting stays in one place: the arm is still recorded, and `durationSeconds` keeps the real length.
+    The camera fits the play it is given either way. Checked on 2026-10-24 on a replay of three invasions: `short`
+    made 10s and 9s clips 8.5s, and `as-chosen` kept them at 10 and 9.
 - **Each teaser has a name** (`Words.teaserNames`, beside `teasers`, in the same order): the name of its wording, the
   same for every flag and every language, `invades` and `under-attack-from` for an invasion, `can-anyone-stop` for a
   call-up's leader in any of its languages. The `Clip` carries them (`teaserNames`), so the job can say which wording
@@ -3312,6 +3328,8 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   go**: 6s for a fight in one place, however many hours it lasted (room for the dive, the close-ups and the pull back
   out), and 1.2s more for every screen the fighting
   crosses up close (`screensOf`, on the camera's smoothed path), up to 15s. A bomb adds nothing. The last 2.5s are the call to act, and nothing runs past 22s.
+  So a front runs 8.5 to 17.5s (10 to 19 with a day's 4s podium) and a tour 9 to 20.5, by its stops; only `--seconds`
+  reaches 22. The experiment `length` tries the shortest of each against it (above).
 
 **`scripts/clip/render.mjs` is the recorder**: it starts Vite, serves the replay at `/__clip/replay.json`, opens
 headless Chrome at 540×960 at 2×, waits for `window.clip.record()`, then for each frame calls `window.clip.frame(i)`,

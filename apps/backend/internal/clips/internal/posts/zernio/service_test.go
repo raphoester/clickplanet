@@ -128,6 +128,15 @@ func postOf(t *testing.T, key posts.StoryKey, platforms ...posts.Platform) posts
 func postWith(t *testing.T, key posts.StoryKey, record posts.ClipRecord, teaser string, platforms ...posts.Platform) posts.Post {
 	t.Helper()
 
+	return postIn(t, nil, key, record, teaser, platforms...)
+}
+
+// variants: the arms of the clip, which the generator also wrote into its record.
+func postIn(
+	t *testing.T, variants posts.Variants, key posts.StoryKey, record posts.ClipRecord, teaser string, platforms ...posts.Platform,
+) posts.Post {
+	t.Helper()
+
 	if len(platforms) == 0 {
 		platforms = []posts.Platform{posts.TikTok, posts.YouTube}
 	}
@@ -136,6 +145,7 @@ func postWith(t *testing.T, key posts.StoryKey, record posts.ClipRecord, teaser 
 	clip, err := posts.ClipSnapshot{
 		Pick: 1, Title: "FRANCE IS ATTACKING EUROPE", Teasers: []string{"FRANCE TAKES OVER EUROPE"}, Countries: []posts.TaggedCountry{{Code: "fr", Tag: "france"}},
 		ContinentTag: "europe", Key: key, Video: posts.VideoFile(video), Record: record, TeaserNames: namesOf(teaser),
+		Variants: variants,
 	}.Restore()
 	require.NoError(t, err)
 
@@ -594,4 +604,24 @@ func TestAListOfPostsWithNoPostsInItIsAnError(t *testing.T) {
 	_, err := told(t, fake, at)
 
 	require.Error(t, err)
+}
+
+// No arm acts when a clip is posted yet: a clip in the control, or in the short arm, is sent as it was before the
+// experiments, its record aside, which carries its arms as the generator wrote them.
+func TestAClipInAnArmOfTheLengthExperimentIsSentAsAClipInNone(t *testing.T) {
+	record := posts.ClipRecord(`{"format":"globe-replay","variants":{"length":"as-chosen"}}`)
+	sent := func(variants posts.Variants) map[string]any {
+		fake := newFake()
+		server := fake.serve(t)
+		service, err := zernio.New(zernio.Config{APIKey: "the-key", BaseURL: server.URL}, server.Client())
+		require.NoError(t, err)
+		_, err = service.Schedule(t.Context(), postIn(t, variants, posts.StoryKey{Flag: "fr", Continent: "Europe"}, record, "takes-over"))
+		require.NoError(t, err)
+		return fake.sent
+	}
+
+	before := sent(nil)
+
+	assert.Equal(t, before, sent(posts.Variants{"length": "as-chosen"}))
+	assert.Equal(t, before, sent(posts.Variants{"length": "short"}))
 }

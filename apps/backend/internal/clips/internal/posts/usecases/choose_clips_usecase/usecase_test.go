@@ -56,7 +56,7 @@ func (h *history) Told(_ context.Context, since time.Time) ([]posts.Telling, err
 func TestARunTakesTheBestStoriesNotToldLately(t *testing.T) {
 	past := &history{told: []posts.Telling{{Key: algeriaInAfrica, At: now.Add(-4 * time.Hour)}}}
 
-	choice, err := choose_clips_usecase.New(written{shortlist: shortlistOf(t)}, past, cptime.NewFixedClock(now), 2).Execute(t.Context())
+	choice, err := choose_clips_usecase.New(written{shortlist: shortlistOf(t)}, past, cptime.NewFixedClock(now), 2, nil, posts.LoadedDice(0)).Execute(t.Context())
 
 	require.NoError(t, err)
 	assert.Equal(t, []posts.Pick{3, 4}, choice.Chosen.Picks())
@@ -65,7 +65,7 @@ func TestARunTakesTheBestStoriesNotToldLately(t *testing.T) {
 }
 
 func TestARunWithNoStoryWorthAClipTakesNone(t *testing.T) {
-	choice, err := choose_clips_usecase.New(written{}, &history{}, cptime.NewFixedClock(now), 2).Execute(t.Context())
+	choice, err := choose_clips_usecase.New(written{}, &history{}, cptime.NewFixedClock(now), 2, nil, posts.LoadedDice(0)).Execute(t.Context())
 
 	require.NoError(t, err)
 	assert.Empty(t, choice.Chosen)
@@ -74,7 +74,7 @@ func TestARunWithNoStoryWorthAClipTakesNone(t *testing.T) {
 func TestAShortlistThatCannotBeReadFailsTheRun(t *testing.T) {
 	unreadable := errors.New("the file is gone")
 
-	_, err := choose_clips_usecase.New(written{err: unreadable}, &history{}, cptime.NewFixedClock(now), 2).Execute(t.Context())
+	_, err := choose_clips_usecase.New(written{err: unreadable}, &history{}, cptime.NewFixedClock(now), 2, nil, posts.LoadedDice(0)).Execute(t.Context())
 
 	require.ErrorIs(t, err, unreadable)
 }
@@ -82,7 +82,28 @@ func TestAShortlistThatCannotBeReadFailsTheRun(t *testing.T) {
 func TestAHistoryThatCannotBeReadFailsTheRunRatherThanTellAStoryTwice(t *testing.T) {
 	unreachable := errors.New("zernio could not be reached")
 
-	_, err := choose_clips_usecase.New(written{shortlist: shortlistOf(t)}, &history{err: unreachable}, cptime.NewFixedClock(now), 2).Execute(t.Context())
+	_, err := choose_clips_usecase.New(written{shortlist: shortlistOf(t)}, &history{err: unreachable}, cptime.NewFixedClock(now), 2, nil, posts.LoadedDice(0)).Execute(t.Context())
 
 	require.ErrorIs(t, err, unreachable)
+}
+
+func TestEachStoryChosenIsPutInAnArmOfEveryExperimentAndNoneOtherIs(t *testing.T) {
+	length := posts.Experiments{{Name: "length", Arms: posts.EvenArms("as-chosen", "short"), Control: "as-chosen"}}
+
+	choice, err := choose_clips_usecase.New(
+		written{shortlist: shortlistOf(t)}, &history{}, cptime.NewFixedClock(now), 2, length, &posts.RolledDice{Faces: []int{1, 0}},
+	).Execute(t.Context())
+
+	require.NoError(t, err)
+	assert.Equal(t, []posts.Assignment{
+		{Pick: 1, Variants: posts.Variants{"length": "short"}},
+		{Pick: 3, Variants: posts.Variants{"length": "as-chosen"}},
+	}, choice.Assigned)
+}
+
+func TestWithNoExperimentEachStoryChosenIsInNoArm(t *testing.T) {
+	choice, err := choose_clips_usecase.New(written{shortlist: shortlistOf(t)}, &history{}, cptime.NewFixedClock(now), 2, nil, posts.LoadedDice(0)).Execute(t.Context())
+
+	require.NoError(t, err)
+	assert.Equal(t, []posts.Assignment{{Pick: 1, Variants: posts.Variants{}}, {Pick: 3, Variants: posts.Variants{}}}, choice.Assigned)
 }

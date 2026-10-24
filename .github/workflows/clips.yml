@@ -105,6 +105,7 @@ jobs:
         with:
           name: shortlist
 
+      # Each pick with the arm of each experiment its clip is in: [{"pick":1,"variants":{"length":"short"}}].
       - name: choose the clips of the run
         id: choose
         working-directory: apps/backend
@@ -120,12 +121,13 @@ jobs:
   render:
     needs: choose
     if: needs.choose.outputs.picks != '[]'
+    name: render ${{ matrix.clip.pick }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
-        pick: ${{ fromJSON(needs.choose.outputs.picks) }}
+        clip: ${{ fromJSON(needs.choose.outputs.picks) }}
     defaults:
       run:
         working-directory: apps/frontend
@@ -150,21 +152,23 @@ jobs:
           name: replay
           path: apps/frontend
 
-      # One recorder: with no GPU each one draws every frame, so a second one adds nothing.
+      # One recorder: with no GPU each one draws every frame, so a second one adds nothing. The generator applies the
+      # arms it acts on, and writes every arm into the clip's record for schedule.
       - name: render the clip
         env:
-          PICK: ${{ matrix.pick }}
+          PICK: ${{ matrix.clip.pick }}
+          VARIANTS: ${{ toJSON(matrix.clip.variants) }}
         run: |
           race=$([ -f race.json ] && echo "--race race.json" || true)
           season=$([ -f season.json ] && echo "--season season.json" || true)
-          npm run clip -- --replay replay.json $race $season --pick "$PICK" --recorders 1
+          npm run clip -- --replay replay.json $race $season --pick "$PICK" --variants "$VARIANTS" --recorders 1
 
       - uses: actions/upload-artifact@v4
         with:
-          name: clip-${{ matrix.pick }}
+          name: clip-${{ matrix.clip.pick }}
           path: |
-            apps/frontend/clip-${{ matrix.pick }}.mp4
-            apps/frontend/clip-${{ matrix.pick }}.json
+            apps/frontend/clip-${{ matrix.clip.pick }}.mp4
+            apps/frontend/clip-${{ matrix.clip.pick }}.json
           if-no-files-found: error
           retention-days: 3
 

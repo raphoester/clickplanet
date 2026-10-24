@@ -35,8 +35,12 @@ func (l *Logged) Execute(ctx context.Context) (posts.Choice, error) {
 	if len(choice.Chosen) == 0 {
 		l.logger.Info("no story is worth a clip")
 	}
-	for _, story := range choice.Chosen {
-		l.logger.Info("chose a story", attributesOf(story)...)
+	for i, story := range choice.Chosen {
+		attributes := attributesOf(story)
+		if i < len(choice.Assigned) && len(choice.Assigned[i].Variants) > 0 {
+			attributes = append(attributes, slog.String("arms", choice.Assigned[i].Variants.String()))
+		}
+		l.logger.Info("chose a story", attributes...)
 	}
 
 	return choice, nil

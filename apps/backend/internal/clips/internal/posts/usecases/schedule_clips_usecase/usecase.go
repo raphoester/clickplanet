@@ -24,16 +24,20 @@ type Executor interface {
 	Execute(ctx context.Context) (posts.Report, error)
 }
 
-func New(clips Clips, plan posts.Plan, clock cptime.Clock, dice posts.Dice, sender Sender) *UseCase {
-	return &UseCase{clips: clips, plan: plan, clock: clock, dice: dice, sender: sender}
+// experiments: the ones that run, which every clip's arms are checked against before any is posted.
+func New(
+	clips Clips, plan posts.Plan, clock cptime.Clock, dice posts.Dice, sender Sender, experiments posts.Experiments,
+) *UseCase {
+	return &UseCase{clips: clips, plan: plan, clock: clock, dice: dice, sender: sender, experiments: experiments}
 }
 
 type UseCase struct {
-	clips  Clips
-	plan   posts.Plan
-	clock  cptime.Clock
-	dice   posts.Dice
-	sender Sender
+	clips       Clips
+	plan        posts.Plan
+	clock       cptime.Clock
+	dice        posts.Dice
+	sender      Sender
+	experiments posts.Experiments
 }
 
 var _ Executor = (*UseCase)(nil)
@@ -45,6 +49,13 @@ func (u *UseCase) Execute(ctx context.Context) (posts.Report, error) {
 	}
 	if len(rendered) == 0 {
 		return nil, ErrNoClip
+	}
+	// Before any post: a clip in an arm nobody runs fails the run, rather than be counted wrong once it is out.
+	for _, clip := range rendered {
+		snapshot := clip.TakeSnapshot()
+		if err := u.experiments.Check(snapshot.Variants); err != nil {
+			return nil, fmt.Errorf("the clip %q: %w", snapshot.Title, err)
+		}
 	}
 
 	report := posts.Report{}
