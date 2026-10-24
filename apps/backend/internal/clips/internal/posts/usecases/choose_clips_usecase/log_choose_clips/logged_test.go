@@ -70,11 +70,19 @@ func TestEachStoryPassedForAFlagToldLessIsLogged(t *testing.T) {
 		`msg="passed a story for a flag or an angle told less lately" pick=2 title="PALAU VS FRANCE" flag=pw continent=Europe countries=pw,fr`)
 }
 
-func TestAQuietHalfDayIsLoggedAsSuch(t *testing.T) {
-	logs, err := run(t, stubExecutor{})
+func TestAQuietRunIsLoggedAsSuch(t *testing.T) {
+	logs, err := run(t, stubExecutor{choice: posts.Choice{Room: 2}})
 
 	require.NoError(t, err)
 	assert.Contains(t, logs, `msg="no story is worth a clip"`)
+}
+
+func TestARunWithNoRoomLeftSaysSoRatherThanThatNothingHappened(t *testing.T) {
+	logs, err := run(t, stubExecutor{})
+
+	require.NoError(t, err)
+	assert.Contains(t, logs, `msg="every platform has posted its day already"`)
+	assert.NotContains(t, logs, "no story is worth a clip")
 }
 
 func TestAFailureSaysNothing(t *testing.T) {

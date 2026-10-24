@@ -10,6 +10,8 @@ type Outcome struct {
 	At        time.Time
 	Post      PostID
 	Platforms []PlatformOutcome
+	// Not sent: every platform's day was full. Not a failure: its story is still untold, for a later run.
+	Held bool
 }
 
 type PlatformOutcome struct {
@@ -35,9 +37,15 @@ func (r Report) With(post Post, scheduled Scheduled, failure error) Report {
 	return append(slices.Clone(r), outcome)
 }
 
+func (r Report) WithHeld(clip Clip) Report {
+	return append(slices.Clone(r), Outcome{Title: clip.title, Held: true})
+}
+
+// A clip held for a full day is not missing.
 func (r Report) Complete() bool {
 	return !slices.ContainsFunc(r, func(outcome Outcome) bool {
-		return outcome.Post == "" || slices.ContainsFunc(outcome.Platforms, func(platform PlatformOutcome) bool { return platform.Failure != "" })
+		return !outcome.Held && (outcome.Post == "" ||
+			slices.ContainsFunc(outcome.Platforms, func(platform PlatformOutcome) bool { return platform.Failure != "" }))
 	})
 }
 

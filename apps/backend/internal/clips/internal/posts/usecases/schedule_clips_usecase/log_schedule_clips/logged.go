@@ -23,6 +23,10 @@ func (l *Logged) Execute(ctx context.Context) (posts.Report, error) {
 	report, err := l.inner.Execute(ctx)
 
 	for _, outcome := range report {
+		if outcome.Held {
+			l.logger.Info("held a clip: every platform has posted its day", slog.String("clip", outcome.Title))
+			continue
+		}
 		for _, platform := range outcome.Platforms {
 			attributes := []any{slog.String("clip", outcome.Title), slog.String("platform", string(platform.Platform)), slog.Time("at", outcome.At)}
 			if platform.Failure != "" {

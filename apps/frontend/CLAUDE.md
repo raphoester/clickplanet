@@ -3042,27 +3042,30 @@ length. Each comes with a `.json` holding what to post with it, as data for the 
 person to pick one; `--plan` prints what they would be and renders nothing, and `--preview 3` renders only the
 first 3 seconds; every choice can be forced (`npm run clip -- --help`).
 
-**Twice a day a workflow posts the best ones with no person and no laptop** (`.github/workflows/clips.yml`, at
-00:17 and 12:17 UTC, or by hand with `workflow_dispatch`). Four jobs:
+**Every 2 hours a workflow posts the best ones with no person and no laptop** (`.github/workflows/clips.yml`, at
+17 past every even hour UTC, or by hand with `workflow_dispatch`), so a story reaches the feed 2 to 3 hours after it
+happened rather than 10 to 20 under the two runs a day before (2026-10-24). Four jobs:
 
 1. **fetch**: the backend's `clips fetch -hours 12 -race race.json -season season.json` over SSH, with the deploy's
    `VPS_*` secrets. The job runs no npm at all, so the key to the VPS is in no job that installs this app's
    dependencies. The replay, the season's race and its calendar go on as an artifact; all are public data. A race or
    a season that could not be fetched is no file, and the run goes on without a day to tell or a country to call up.
 2. **shortlist** and **choose**: `npm run clip -- --shortlist shortlist.json`, then, in a job of its own (it holds
-   the Zernio key, and runs no npm), the backend's `clips choose` reads it and prints the picks to render, up to 6, `[1,2,4]`.
+   the Zernio key, and runs no npm), the backend's `clips choose` reads it and prints the picks to render, up to 2, `[1,4]`,
+   and no more than the platforms have left of their day (10 posts in a trailing 24 hours on TikTok, 8 on YouTube).
    **It skips a story told in the last 3 days**, by its key below, and a headline told in the last week, puts a
    flag the last 6 posts showed after the others, and holds back a flag 2 of them showed, as their key or as one of
    their countries: on Oct 13–17 Algeria in Africa was told three times and Palau in half the clips. **A day won goes
    first**, whatever the posts showed, **then a run tells each angle it has once before any twice** (what changed,
-   what a flag holds). None is a quiet half day: the run ends there, green.
+   what a flag holds). None is a quiet run, or a full day: the run ends there, green.
 3. **render**: one job per pick, side by side, `--pick <n> --recorders 1`. A runner has 4 cores and no GPU: Chrome
    draws with SwiftShader, **1.9 to 3.1s a frame, by the runner it lands on** (measured 2026-10-12: the same 12s
    clip in 11.5 minutes, then in 18.5; a 22s one would take 21 to 34), the same picture as with a GPU. More
    recorders do not help there: each one draws every frame.
-4. **schedule**: the backend's `clips schedule` sends each clip to the posting service, for a time hours ahead, as
-   one post on TikTok and YouTube Shorts. **Nothing is ever published at once**: the review is to cancel a clip in
-   the service's dashboard before its time, which stops it on both.
+4. **schedule**: the backend's `clips schedule` sends each clip to the posting service as one post on TikTok and
+   YouTube Shorts, **for 5 minutes ahead, an hour after the last post on each**. There is no review: nobody cancels
+   clips in the dashboard, so the 4 hours one cost were 4 hours of the story getting old. A clip can still be
+   cancelled in the service's dashboard before its time, which stops it on both.
 
 What chooses, when a clip goes out, the client of the service and the run's summary are Go, in the backend
 (its CLAUDE.md, "The clips job"). **This app keeps only what needs the browser**, and hands the rest over as data,
@@ -3111,6 +3114,9 @@ What chooses, when a clip goes out, the client of the service and the run's summ
     flag), `landmassesFlipped`, the effects in sight of the story as `--plan` counts its bombs (`bombs`, `spreads`,
     `enclosures`, from `ReplayBackend.effects`), `screensCrossed`, `tourStops` and `solidity`. One protojson leaves out
     is its zero.
+  - **`storyEndedAt` is when the stretch it plays ends**, the newest moment of the story, as a time (the stretch's
+    `until`, so the cutoff for a day or a call-up). The post's `scheduledAt` minus it is how long the story took to
+    reach the feed, which is what running every 2 hours set out to cut.
   - **`generator` is the commit that made it**: `render.mjs` passes the workflow's `GITHUB_SHA`, else the checkout's
     `HEAD`, to the page as `commit`; `unknown` without either.
   - **`variants` is the arm of each experiment the clip is in**, by name (`{"end-card": "podium"}`): a free map of
@@ -3265,7 +3271,8 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   guesses made with no production data, to tune from those lines.
 - **`round.ts` tells a day of the season** from the race (`--race`): **"FRANCE WINS DAY 5"**, or **"FRANCE WINS THE
   FINAL BATTLE"**, with where it leaves the winner in the season ("Leads the season with 86 points"). Only the run
-  whose window holds the cutoff tells it: the 00:17 run, for the day that closed at 21:00. It plays the 3 hours before
+  whose window holds the cutoff tells it: the 21:17 run, for the day that closed at 21:00, and the runs after it skip it
+  as told. It plays the 3 hours before
   the cutoff, the winner's fighting (anyone's when it fought none), opens on all the winner holds, counts its tiles
   (not its share of the map: a day is won on its average, which the podium's points say), and ends on the podium, the places that scored with their points, then "WHO WINS DAY 6?". The ending
   lasts 4s instead of 2.5, to read it.

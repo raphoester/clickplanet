@@ -38,10 +38,12 @@ type (
 type Config struct {
 	Replay ReplayConfig
 
-	PerRun  int
-	Review  time.Duration
+	PerRun int
+	// Zero is none: a post goes out as soon as its clip is rendered.
+	Review time.Duration
+	// The least time between two posts on one platform.
 	Spacing time.Duration
-	// Each clip is one post on all of them.
+	// Each clip is one post on all of them that have room left in their day.
 	Platforms []Platform
 
 	Zernio zernio.Config
@@ -59,9 +61,9 @@ const (
 	// The ledger keeps this much in memory: a replay cannot reach further back.
 	defaultSpan = 72 * time.Hour
 
-	defaultPerRun  = 6
-	defaultReview  = 4 * time.Hour
-	defaultSpacing = 2 * time.Hour
+	// A run every 2 hours: 2 a run is 24 a day at most, which the budget below brings down.
+	defaultPerRun  = 2
+	defaultSpacing = time.Hour
 
 	// A 22s clip is about 80 MB to upload.
 	serviceTimeout = 10 * time.Minute
@@ -71,6 +73,9 @@ const (
 var (
 	defaultBackoff   = posts.Backoff{time.Minute, 5 * time.Minute, 15 * time.Minute}
 	defaultPlatforms = []Platform{posts.TikTok, posts.YouTube}
+	// Posts in a trailing 24 hours. TikTok holds a post over 15 on an account of its Business app, and Zernio counts
+	// those 15 over the same window; YouTube lets a channel upload about 10 a day.
+	dailyBudget = posts.Budget{posts.TikTok: 10, posts.YouTube: 8}
 )
 
 func PlatformsOf(names ...string) ([]Platform, error) {
@@ -84,9 +89,7 @@ func (c Config) withDefaults() Config {
 	if c.PerRun <= 0 {
 		c.PerRun = defaultPerRun
 	}
-	if c.Review <= 0 {
-		c.Review = defaultReview
-	}
+	c.Review = max(c.Review, 0)
 	if c.Spacing <= 0 {
 		c.Spacing = defaultSpacing
 	}
@@ -134,7 +137,8 @@ func Choose(ctx context.Context, shortlist string, config Config, logger *slog.L
 	}
 
 	choose := log_choose_clips.New(choose_clips_usecase.New(
-		generator_output.ShortlistFile(shortlist), log_history.New(history, logger), cptime.SystemClock{}, config.PerRun,
+		generator_output.ShortlistFile(shortlist), log_history.New(history, logger), history, cptime.SystemClock{},
+		choose_clips_usecase.Room{PerRun: config.PerRun, Budget: dailyBudget, Platforms: config.Platforms},
 	), logger)
 
 	choice, err := choose.Execute(ctx)
@@ -155,8 +159,8 @@ func Schedule(ctx context.Context, folder string, config Config, logger *slog.Lo
 	sender := posts.NewSender(log_service.New(service, logger), defaultBackoff, posts.SystemPause{}, clock)
 
 	schedule := log_schedule_clips.New(schedule_clips_usecase.New(
-		generator_output.Folder(folder),
-		posts.Plan{Review: config.Review, Spacing: config.Spacing, Platforms: config.Platforms},
+		generator_output.Folder(folder), service,
+		posts.Plan{Review: config.Review, Spacing: config.Spacing, Platforms: config.Platforms, Budget: dailyBudget},
 		clock, posts.SystemDice{}, sender,
 	), logger)
 

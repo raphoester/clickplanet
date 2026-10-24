@@ -27,7 +27,10 @@ const (
 		`"message":"Post scheduled successfully"}`
 )
 
-var at = time.Date(2026, 10, 12, 16, 40, 0, 0, time.UTC)
+var (
+	at     = time.Date(2026, 10, 12, 16, 40, 0, 0, time.UTC)
+	budget = posts.Budget{posts.TikTok: 10, posts.YouTube: 8}
+)
 
 type zernioFake struct {
 	accounts answer
@@ -139,7 +142,7 @@ func postWith(t *testing.T, key posts.StoryKey, record posts.ClipRecord, teaser 
 	}.Restore()
 	require.NoError(t, err)
 
-	planned := posts.Plan{Review: 4 * time.Hour, Platforms: platforms}.Posts([]posts.Clip{clip}, at.Add(-4*time.Hour), posts.LoadedDice(0))
+	planned := posts.Plan{Review: 4 * time.Hour, Platforms: platforms, Budget: budget}.Posts([]posts.Clip{clip}, at.Add(-4*time.Hour), posts.LoadedDice(0))
 	require.Equal(t, at, planned[0].TakeSnapshot().At)
 	return planned[0]
 }
@@ -239,7 +242,8 @@ func TestWhatThePostWasIsOneDocumentUnderOneKeyWithTheClipAsTheGeneratorWroteIt(
 	service, err := zernio.New(zernio.Config{APIKey: "the-key", BaseURL: server.URL}, server.Client())
 	require.NoError(t, err)
 	record := posts.ClipRecord(`{"format":"globe-replay","generator":"8dc31d2","common":{"durationSeconds":17.4,"music":"none",` +
-		`"language":"en"},"globe":{"camera":"tour","look":"none","tilesChanged":5200,"tourStops":3},"variants":{"end-card":"podium"}}`)
+		`"language":"en"},"globe":{"camera":"tour","look":"none","tilesChanged":5200,"tourStops":3,"storyEndedAt":"2026-10-12T14:12:30Z"},` +
+		`"variants":{"end-card":"podium"}}`)
 
 	_, err = service.Schedule(t.Context(), postWith(t, posts.StoryKey{Flag: "pt", Continent: "the world"}, record, "takes-over-the-world"))
 
@@ -250,8 +254,10 @@ func TestWhatThePostWasIsOneDocumentUnderOneKeyWithTheClipAsTheGeneratorWroteIt(
 		"schema": "clips.v1.PostRecord",
 		"clip": map[string]any{
 			"format": "globe-replay", "generator": "8dc31d2",
-			"common":   map[string]any{"durationSeconds": 17.4, "music": "none", "language": "en"},
-			"globe":    map[string]any{"camera": "tour", "look": "none", "tilesChanged": float64(5200), "tourStops": float64(3)},
+			"common": map[string]any{"durationSeconds": 17.4, "music": "none", "language": "en"},
+			"globe": map[string]any{
+				"camera": "tour", "look": "none", "tilesChanged": float64(5200), "tourStops": float64(3), "storyEndedAt": "2026-10-12T14:12:30Z",
+			},
 			"variants": map[string]any{"end-card": "podium"},
 		},
 		"post": map[string]any{
@@ -507,7 +513,7 @@ func TestAVideoThatIsNotThereIsAnError(t *testing.T) {
 	}.Restore()
 	require.NoError(t, err)
 
-	_, err = service.Schedule(t.Context(), posts.Plan{Review: 4 * time.Hour, Platforms: []posts.Platform{posts.TikTok}}.Posts([]posts.Clip{clip}, at, posts.LoadedDice(0))[0])
+	_, err = service.Schedule(t.Context(), posts.Plan{Review: 4 * time.Hour, Platforms: []posts.Platform{posts.TikTok}, Budget: budget}.Posts([]posts.Clip{clip}, at, posts.LoadedDice(0))[0])
 
 	require.ErrorContains(t, err, "failed to read the video")
 	assert.Empty(t, fake.calls)
@@ -594,4 +600,54 @@ func TestAListOfPostsWithNoPostsInItIsAnError(t *testing.T) {
 	_, err := told(t, fake, at)
 
 	require.Error(t, err)
+}
+
+func posted(t *testing.T, fake *zernioFake, since time.Time) (posts.Feed, error) {
+	t.Helper()
+
+	server := fake.serve(t)
+	service, err := zernio.New(zernio.Config{APIKey: "the-key", BaseURL: server.URL}, server.Client())
+	require.NoError(t, err)
+	return service.Posted(t.Context(), since) //nolint:wrapcheck // the test reads the service's own error.
+}
+
+func TestWhatEachPlatformHoldsIsEveryPostOnItByHandOrNotAtThatPlatformsTime(t *testing.T) {
+	fake := newFake()
+	fake.listed = answer{status: http.StatusOK, body: `{"posts":[` +
+		`{"_id":"p-1","status":"scheduled","scheduledFor":"2026-10-24T15:00:00Z","metadata":{"storyFlag":"dz","storyContinent":"Africa"},` +
+		`"platforms":[{"platform":"tiktok","status":"pending"},{"platform":"youtube","status":"pending"}]},` +
+		`{"_id":"p-2","status":"published","scheduledFor":"2026-10-24T09:00:00Z","content":"a post made by hand",` +
+		`"platforms":[{"platform":"tiktok","status":"published"},{"platform":"instagram","status":"published"}]},` +
+		// Over TikTok's cap: Zernio holds its TikTok target until the oldest post leaves the window.
+		`{"_id":"p-3","status":"partial","scheduledFor":"2026-10-24T12:00:00Z",` +
+		`"platforms":[{"platform":"youtube","status":"published"},{"platform":"tiktok","status":"pending","scheduledFor":"2026-10-24T19:30:00Z"}]},` +
+		`{"_id":"p-4","status":"partial","scheduledFor":"2026-10-24T10:00:00Z",` +
+		`"platforms":[{"platform":"youtube","status":"published"},{"platform":"tiktok","status":"failed"}]},` +
+		`{"_id":"p-5","status":"failed","scheduledFor":"2026-10-24T08:00:00Z","platforms":[{"platform":"tiktok","status":"failed"}]},` +
+		`{"_id":"p-6","status":"cancelled","scheduledFor":"2026-10-24T07:00:00Z","platforms":[{"platform":"tiktok","status":"cancelled"}]},` +
+		`{"_id":"p-7","status":"draft","platforms":[{"platform":"tiktok"}]},` +
+		`{"_id":"p-8","status":"published","platforms":[{"platform":"youtube","status":"published","publishedAt":"2026-10-24T11:00:00Z"}]}` +
+		`],"pagination":{"page":1}}`}
+
+	feed, err := posted(t, fake, time.Date(2026, 10, 23, 15, 0, 0, 0, time.UTC))
+
+	require.NoError(t, err)
+	assert.Equal(t, posts.Feed{
+		{At: time.Date(2026, 10, 24, 15, 0, 0, 0, time.UTC), Platforms: []posts.Platform{posts.TikTok, posts.YouTube}},
+		{At: time.Date(2026, 10, 24, 9, 0, 0, 0, time.UTC), Platforms: []posts.Platform{posts.TikTok}},
+		{At: time.Date(2026, 10, 24, 12, 0, 0, 0, time.UTC), Platforms: []posts.Platform{posts.YouTube}},
+		{At: time.Date(2026, 10, 24, 19, 30, 0, 0, time.UTC), Platforms: []posts.Platform{posts.TikTok}},
+		{At: time.Date(2026, 10, 24, 10, 0, 0, 0, time.UTC), Platforms: []posts.Platform{posts.YouTube}},
+		{At: time.Date(2026, 10, 24, 11, 0, 0, 0, time.UTC), Platforms: []posts.Platform{posts.YouTube}},
+	}, feed)
+	assert.Equal(t, url.Values{"fromDate": {"2026-10-23"}, "limit": {"500"}}, fake.queries["GET /v1/posts"])
+}
+
+func TestWhatEachPlatformHoldsCannotBeReadWhenZernioRefusesTheList(t *testing.T) {
+	fake := newFake()
+	fake.listed = answer{status: http.StatusUnauthorized, body: `{"error":"Invalid API key"}`}
+
+	_, err := posted(t, fake, at)
+
+	require.ErrorContains(t, err, "zernio answered 401 to the list of posts: Invalid API key")
 }

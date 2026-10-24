@@ -76,6 +76,19 @@ func TestAReportWithEveryClipScheduledOnEveryPlatformSaysSo(t *testing.T) {
 	assert.True(t, scheduled)
 }
 
+func TestAClipHeldForAFullDayIsARowOfItsOwnAndStillScheduled(t *testing.T) {
+	var out bytes.Buffer
+
+	scheduled, err := display.Report("", &out, clips.Report{
+		{Title: "KOSOVO IS ATTACKING THE MIDDLE EAST", At: at, Post: "post-1", Platforms: everywhere},
+		{Title: "FRANCE IS ATTACKING EUROPE", Held: true},
+	})
+
+	require.NoError(t, err)
+	assert.True(t, scheduled)
+	assert.Contains(t, out.String(), "| FRANCE IS ATTACKING EUROPE | none | | held: every platform has posted its day |\n")
+}
+
 func TestATimeIsSaidInUTCWhateverItsZone(t *testing.T) {
 	var out bytes.Buffer
 	sofia := time.FixedZone("EEST", 3*60*60)
