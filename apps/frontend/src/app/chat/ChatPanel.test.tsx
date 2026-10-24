@@ -1237,6 +1237,23 @@ describe("ChatPanel's players", () => {
         expect(await screen.findByText("who took Brittany")).toBeDefined()
     })
 
+    it("counts on the Chat tab what lands while the list is shown, until the chat is shown again", async () => {
+        const T = 1_700_000_000_000
+        const {backend, broadcast} = stubBackend([message("a", "who took Brittany", T)], [], T)
+        const user = userEvent.setup()
+        render(<ChatPanel backend={backend} country={france} players={players}/>)
+        await screen.findByText("who took Brittany")
+        await user.click(screen.getByRole("tab", {name: "2 players online"}))
+
+        act(() => broadcast(message("b", "we did", T + 1_000)))
+        act(() => broadcast(message("c", "and Normandy", T + 2_000)))
+
+        expect(await screen.findByRole("tab", {name: "Chat, 2 new messages"})).toBeDefined()
+        await user.click(screen.getByRole("tab", {name: /Chat/}))
+        expect(await screen.findByText("and Normandy")).toBeDefined()
+        expect(screen.getByRole("tab", {name: "Chat"})).toBeDefined()
+    })
+
     it("counts one player in the singular", () => {
         render(<ChatPanel backend={stubBackend().backend} country={france} players={players.slice(0, 1)}/>)
         expect(screen.getByRole("tab", {name: "1 player online"})).toBeDefined()

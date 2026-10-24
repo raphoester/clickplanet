@@ -70,3 +70,21 @@ var _ Dice = LoadedDice(0)
 func (d LoadedDice) IntN(n int) int {
 	return int(d) % n
 }
+
+// The posts of a run on an empty feed, each planned once the one before it is taken everywhere, as the run plans them.
+func (p Plan) Posts(clips []Clip, now time.Time, dice Dice) []Post {
+	var (
+		planned []Post
+		feed    Feed
+	)
+	ranked := Ranked(clips)
+	for i, clip := range ranked {
+		post, room := p.Next(clip, i+1, len(ranked), feed, now, dice)
+		if !room {
+			continue
+		}
+		planned = append(planned, post)
+		feed = feed.With(post, Scheduled{ID: "planned"})
+	}
+	return planned
+}

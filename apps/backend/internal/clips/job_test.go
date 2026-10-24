@@ -27,10 +27,12 @@ type sentPost struct {
 	MediaItems   []struct {
 		URL string `json:"url"`
 	} `json:"mediaItems"`
-	Platforms []struct {
-		Platform      string `json:"platform"`
-		CustomContent string `json:"customContent"`
-	} `json:"platforms"`
+	Platforms []sentTarget `json:"platforms"`
+}
+
+type sentTarget struct {
+	Platform      string `json:"platform"`
+	CustomContent string `json:"customContent"`
 }
 
 type keptPost struct {
@@ -38,6 +40,11 @@ type keptPost struct {
 	Status       string         `json:"status"`
 	ScheduledFor string         `json:"scheduledFor"`
 	Metadata     map[string]any `json:"metadata"`
+	Platforms    []keptTarget   `json:"platforms"`
+}
+
+type keptTarget struct {
+	Platform string `json:"platform"`
 }
 
 func zernio(t *testing.T, posts *[]sentPost) *httptest.Server {
@@ -68,7 +75,13 @@ func zernio(t *testing.T, posts *[]sentPost) *httptest.Server {
 		case "GET /v1/posts":
 			kept := make([]keptPost, 0, len(*posts))
 			for i, post := range *posts {
-				kept = append(kept, keptPost{ID: fmt.Sprintf("post-%d", i+1), Status: "scheduled", ScheduledFor: post.ScheduledFor, Metadata: post.Metadata})
+				targets := make([]keptTarget, 0, len(post.Platforms))
+				for _, target := range post.Platforms {
+					targets = append(targets, keptTarget{Platform: target.Platform})
+				}
+				kept = append(kept, keptPost{
+					ID: fmt.Sprintf("post-%d", i+1), Status: "scheduled", ScheduledFor: post.ScheduledFor, Metadata: post.Metadata, Platforms: targets,
+				})
 			}
 			assert.NoError(t, json.NewEncoder(w).Encode(map[string]any{"posts": kept}))
 		default:
@@ -93,7 +106,7 @@ func rendered(t *testing.T, folder string, pick int, title, flag string, countri
 	require.NoError(t, os.WriteFile(filepath.Join(folder, fmt.Sprintf("clip-%d.mp4", pick)), []byte(title), 0o600))
 }
 
-func TestARunSchedulesEveryClipOfTheFolderHoursAheadAndReportsEachOne(t *testing.T) {
+func TestARunSchedulesEveryClipOfTheFolderAtOnceAnHourApartAndReportsEachOne(t *testing.T) {
 	var posts []sentPost
 	server := zernio(t, &posts)
 	folder := t.TempDir()
@@ -129,9 +142,9 @@ func TestARunSchedulesEveryClipOfTheFolderHoursAheadAndReportsEachOne(t *testing
 	require.NoError(t, err)
 	second, err := time.Parse(time.RFC3339, posts[1].ScheduledFor)
 	require.NoError(t, err)
-	assert.WithinDuration(t, before.Add(4*time.Hour), first, 2*time.Minute)
-	assert.False(t, first.Before(before.Add(4*time.Hour)))
-	assert.Equal(t, 2*time.Hour, second.Sub(first))
+	assert.WithinDuration(t, before.Add(5*time.Minute), first, 2*time.Minute)
+	assert.False(t, first.Before(before.Add(5*time.Minute)))
+	assert.Equal(t, time.Hour, second.Sub(first))
 
 	require.Len(t, report, 2)
 	assert.Equal(t, "KOSOVO IS ATTACKING THE MIDDLE EAST", report[0].Title)
@@ -147,8 +160,12 @@ func TestARunSchedulesEveryClipOfTheFolderHoursAheadAndReportsEachOne(t *testing
 }
 
 func TestARunThatZernioRefusesReportsWhyForEachClip(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+		if r.Method+" "+r.URL.Path == "GET /v1/posts" {
+			_, _ = fmt.Fprint(w, `{"posts":[]}`)
+			return
+		}
 		w.WriteHeader(http.StatusUnauthorized)
 		_, _ = fmt.Fprint(w, `{"error":"Invalid API key"}`)
 	}))
@@ -168,6 +185,24 @@ func TestARunThatZernioRefusesReportsWhyForEachClip(t *testing.T) {
 	require.Len(t, report[0].Platforms, 2)
 	assert.Contains(t, report[0].Platforms[1].Failure, "zernio answered 401 to the list of accounts: Invalid API key")
 	assert.Contains(t, logs.String(), `level=ERROR msg="failed to schedule a clip"`)
+}
+
+func TestARunThatCannotReadWhatThePlatformsHoldSendsNothing(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.Method+" "+r.URL.Path != "GET /v1/posts" {
+			t.Errorf("zernio was asked %s %s", r.Method, r.URL.Path)
+		}
+		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = fmt.Fprint(w, `{"error":"Invalid API key"}`)
+	}))
+	t.Cleanup(server.Close)
+	folder := t.TempDir()
+	rendered(t, folder, 1, "KOSOVO IS ATTACKING THE MIDDLE EAST", "xk")
+
+	_, err := clips.Schedule(t.Context(), folder, configFor(server), slog.New(slog.DiscardHandler))
+
+	require.ErrorContains(t, err, "zernio answered 401 to the list of posts: Invalid API key")
 }
 
 func shortlist(t *testing.T) string {
@@ -208,8 +243,23 @@ func TestChoosingGivesTheBestStoriesOfDifferentFlagsOrContinents(t *testing.T) {
 	picks, err := clips.Choose(t.Context(), shortlist(t), configFor(zernio(t, &posts)), slog.New(slog.NewTextHandler(&logs, nil)))
 
 	require.NoError(t, err)
-	assert.Equal(t, []clips.Pick{1, 3, 4}, picksOf(t, picks))
+	assert.Equal(t, []clips.Pick{1, 3}, picksOf(t, picks))
 	assert.Contains(t, logs.String(), `msg="skipped a story told already" pick=2 title="ALGERIA VS FRANCE"`)
+}
+
+func TestARunAfterADayOfPostsOnEveryPlatformChoosesNothing(t *testing.T) {
+	posts := make([]sentPost, 10)
+	for i := range posts {
+		posts[i].ScheduledFor = time.Now().Add(-time.Duration(i+1) * time.Hour).UTC().Format(time.RFC3339)
+		posts[i].Platforms = []sentTarget{{Platform: "tiktok"}, {Platform: "youtube"}}
+	}
+	var logs bytes.Buffer
+
+	picks, err := clips.Choose(t.Context(), shortlist(t), configFor(zernio(t, &posts)), slog.New(slog.NewTextHandler(&logs, nil)))
+
+	require.NoError(t, err)
+	assert.Empty(t, picks)
+	assert.Contains(t, logs.String(), `msg="every platform has posted its day already"`)
 }
 
 func TestAStoryOneRunScheduledIsNotChosenByTheNext(t *testing.T) {

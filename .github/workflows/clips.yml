@@ -1,8 +1,9 @@
 name: clips
 
 on:
+  # Every 2 hours, on a minute nobody else picks: GitHub starts a scheduled run late when many start on the hour.
   schedule:
-    - cron: '17 0,12 * * *'
+    - cron: '17 */2 * * *'
   workflow_dispatch:
 
 permissions:
@@ -105,18 +106,22 @@ jobs:
         with:
           name: shortlist
 
-      # Each pick with the arm of each experiment its clip is in: [{"pick":1,"variants":{"length":"short"}}].
+      # Up to 2, within what each platform has left of its trailing day, each with the arm of each experiment its
+      # clip is in: [{"pick":1,"variants":{"length":"short"}}].
       - name: choose the clips of the run
         id: choose
         working-directory: apps/backend
         env:
           ZERNIO_API_KEY: ${{ secrets.ZERNIO_API_KEY }}
+          PLATFORMS: ${{ vars.CLIPS_PLATFORMS }}
         run: |
-          picks=$(go run ./cmd/clips choose -shortlist "$GITHUB_WORKSPACE/shortlist.json")
+          picks=$(go run ./cmd/clips choose -shortlist "$GITHUB_WORKSPACE/shortlist.json" -platforms "$PLATFORMS")
           echo "picks=$picks" >> "$GITHUB_OUTPUT"
 
       - if: steps.choose.outputs.picks == '[]'
-        run: echo "No new story worth a clip in the last 12 hours." >> "$GITHUB_STEP_SUMMARY"
+        run: |
+          echo "No clip this run: no new story worth one in the last 12 hours, or every platform has posted its day (the log says which)." \
+            >> "$GITHUB_STEP_SUMMARY"
 
   render:
     needs: choose

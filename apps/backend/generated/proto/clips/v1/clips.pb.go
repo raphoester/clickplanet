@@ -427,7 +427,10 @@ type GlobeReplay struct {
 	// The continents a tour stops at; 0 for a front.
 	TourStops uint32 `protobuf:"varint,15,opt,name=tour_stops,json=tourStops,proto3" json:"tour_stops,omitempty"`
 	// How solid the land taken is, from 0 (lines drawn on the map) to 1 (land taken whole).
-	Solidity      float64 `protobuf:"fixed64,16,opt,name=solidity,proto3" json:"solidity,omitempty"`
+	Solidity float64 `protobuf:"fixed64,16,opt,name=solidity,proto3" json:"solidity,omitempty"`
+	// When the stretch it plays ends: the newest moment of the story. The post's scheduled_at minus this is how long the
+	// story took to reach the feed.
+	StoryEndedAt  *timestamppb.Timestamp `protobuf:"bytes,17,opt,name=story_ended_at,json=storyEndedAt,proto3" json:"story_ended_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -572,6 +575,13 @@ func (x *GlobeReplay) GetSolidity() float64 {
 		return x.Solidity
 	}
 	return 0
+}
+
+func (x *GlobeReplay) GetStoryEndedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.StoryEndedAt
+	}
+	return nil
 }
 
 // What the job keeps with a post in its Zernio metadata, under "record", written by protojson: what the clip was, and
@@ -884,7 +894,7 @@ const file_clips_v1_clips_proto_rawDesc = "" +
 	"\x10duration_seconds\x18\x01 \x01(\x01R\x0fdurationSeconds\x12\x14\n" +
 	"\x05music\x18\x02 \x01(\tR\x05music\x12.\n" +
 	"\x13music_start_seconds\x18\x03 \x01(\x01R\x11musicStartSeconds\x12\x1a\n" +
-	"\blanguage\x18\x04 \x01(\tR\blanguage\"\xa4\x04\n" +
+	"\blanguage\x18\x04 \x01(\tR\blanguage\"\xe6\x04\n" +
 	"\vGlobeReplay\x12\x16\n" +
 	"\x06camera\x18\x01 \x01(\tR\x06camera\x12\x12\n" +
 	"\x04look\x18\x02 \x01(\tR\x04look\x12\x1d\n" +
@@ -907,7 +917,8 @@ const file_clips_v1_clips_proto_rawDesc = "" +
 	"\x0fscreens_crossed\x18\x0e \x01(\x01R\x0escreensCrossed\x12\x1d\n" +
 	"\n" +
 	"tour_stops\x18\x0f \x01(\rR\ttourStops\x12\x1a\n" +
-	"\bsolidity\x18\x10 \x01(\x01R\bsolidity\"w\n" +
+	"\bsolidity\x18\x10 \x01(\x01R\bsolidity\x12@\n" +
+	"\x0estory_ended_at\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampR\fstoryEndedAt\"w\n" +
 	"\n" +
 	"PostRecord\x12\x16\n" +
 	"\x06schema\x18\x01 \x01(\tR\x06schema\x12(\n" +
@@ -966,14 +977,15 @@ var file_clips_v1_clips_proto_depIdxs = []int32{
 	4,  // 5: clips.v1.ClipRecord.common:type_name -> clips.v1.ClipCommon
 	5,  // 6: clips.v1.ClipRecord.globe:type_name -> clips.v1.GlobeReplay
 	10, // 7: clips.v1.ClipRecord.variants:type_name -> clips.v1.ClipRecord.VariantsEntry
-	3,  // 8: clips.v1.PostRecord.clip:type_name -> clips.v1.ClipRecord
-	7,  // 9: clips.v1.PostRecord.post:type_name -> clips.v1.PostFacts
-	11, // 10: clips.v1.PostFacts.scheduled_at:type_name -> google.protobuf.Timestamp
-	11, // [11:11] is the sub-list for method output_type
-	11, // [11:11] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	11, // 8: clips.v1.GlobeReplay.story_ended_at:type_name -> google.protobuf.Timestamp
+	3,  // 9: clips.v1.PostRecord.clip:type_name -> clips.v1.ClipRecord
+	7,  // 10: clips.v1.PostRecord.post:type_name -> clips.v1.PostFacts
+	11, // 11: clips.v1.PostFacts.scheduled_at:type_name -> google.protobuf.Timestamp
+	12, // [12:12] is the sub-list for method output_type
+	12, // [12:12] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_clips_v1_clips_proto_init() }

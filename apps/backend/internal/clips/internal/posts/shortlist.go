@@ -78,7 +78,8 @@ const (
 	retelling = 72 * time.Hour
 	// Longer than a key: the same headline on another continent reads as the same clip.
 	reheadlining = 7 * 24 * time.Hour
-	// Half a day of posts at 6 a run.
+	// What a viewer scrolling the profile sees, about 14 hours of it at 10 posts a day: a share of the feed is a share
+	// of posts, not of hours, so it stays a count when the job posts more often.
 	lately = 6
 	// A third of them: a team of two players is not the feed.
 	mostLately = 2
@@ -112,6 +113,8 @@ type Choice struct {
 	// Not told, but its flag is in 2 of the last posts, or a story after it was chosen: its flags in fewer of them, or
 	// an angle the run had not told.
 	Passed Shortlist
+	// How many the run could make: 0 when every platform's day is full.
+	Room int
 	// Each story chosen, in the same order, with the arm of each experiment its clip is in: what the run renders.
 	Assigned []Assignment
 }
@@ -135,7 +138,7 @@ func (s Shortlist) Best(count int, told []Telling, now time.Time) Choice {
 		past.tell(story)
 	}
 
-	var choice Choice
+	choice := Choice{Room: count}
 	for _, story := range s {
 		switch {
 		case chosen.Contains(story.Pick):

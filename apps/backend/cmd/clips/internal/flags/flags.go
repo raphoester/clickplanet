@@ -14,8 +14,8 @@ import (
 
 const usage = `usage:
   clips fetch -out <replay.json> [-race <race.json>] [-season <season.json>] [-ssh <user@host>] [-hours 72] [-until <2026-10-12T12:00:00Z>]
-  clips choose -shortlist <shortlist.json> [-count 6]
-  clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-platforms tiktok,youtube] [-summary <file>]
+  clips choose -shortlist <shortlist.json> [-count 2] [-platforms tiktok,youtube]
+  clips schedule -clips <folder> [-review 0] [-spacing 1h] [-platforms tiktok,youtube] [-summary <file>]
 
 fetch asks the production backend's operator tool for a replay, over ssh: CLICKPLANET_SSH stands in for -ssh, and
 the ledger keeps 72 hours in memory, so a replay cannot reach further back. With -race and -season it asks for the
@@ -23,8 +23,10 @@ season's race and calendar too, and leaves each out with a warning when the back
 the picks of the stories to render, as a JSON array, each in an arm of every experiment that runs: a day of the season
 won first, then each angle once before any twice; it skips a story the posting service holds a post of from the last 3
 days, or a headline from the last week, puts a flag of the last 6 posts after the others, and holds back a flag in 2 of
-them. schedule sends every clip of the folder to the posting service, each for its time, as one post on every
-platform, and refuses a clip in an arm no experiment has. Both need ZERNIO_API_KEY.`
+them. It takes no more than the platform with the most room left in its day takes: 10 posts in a trailing 24 hours on
+TikTok, 8 on YouTube. schedule sends every clip of the folder to the posting service as one post on every platform with
+room left, as soon as it can with no -review, and never sooner than -spacing after the last post on each; it refuses a
+clip in an arm no experiment has. Both need ZERNIO_API_KEY.`
 
 type Command string
 
@@ -108,14 +110,15 @@ func parseChoose(args []string) (Config, error) {
 
 	flags := flag.NewFlagSet(string(Choose), flag.ContinueOnError)
 	flags.StringVar(&parsed.ShortlistFile, "shortlist", "", "the file the generator's --shortlist wrote")
-	flags.IntVar(&parsed.Job.PerRun, "count", 0, "how many clips a run schedules")
+	flags.IntVar(&parsed.Job.PerRun, "count", 0, "how many clips a run schedules at most")
+	platforms := flags.String("platforms", "", "where each clip goes, default every platform")
 	if err := flags.Parse(args); err != nil {
 		return Config{}, misused(err)
 	}
 	if parsed.ShortlistFile == "" {
 		return Config{}, misused(ErrArguments)
 	}
-	return parsed, nil
+	return withPlatforms(parsed, *platforms)
 }
 
 func parseSchedule(args []string) (Config, error) {
@@ -125,8 +128,8 @@ func parseSchedule(args []string) (Config, error) {
 	flags := flag.NewFlagSet(string(Schedule), flag.ContinueOnError)
 	flags.StringVar(&parsed.ClipsFolder, "clips", "", "the folder the clips were rendered in")
 	flags.StringVar(&parsed.SummaryFile, "summary", "", "the file the summary of the run is added to, default the standard output")
-	flags.DurationVar(&parsed.Job.Review, "review", 0, "how long before the first clip goes out")
-	flags.DurationVar(&parsed.Job.Spacing, "spacing", 0, "between two clips of one run")
+	flags.DurationVar(&parsed.Job.Review, "review", 0, "how long after the run a clip goes out at the soonest, default none")
+	flags.DurationVar(&parsed.Job.Spacing, "spacing", 0, "the least time between two posts on one platform, default 1h")
 	platforms := flags.String("platforms", "", "where each clip goes, default every platform")
 	if err := flags.Parse(args); err != nil {
 		return Config{}, misused(err)
@@ -134,8 +137,12 @@ func parseSchedule(args []string) (Config, error) {
 	if parsed.ClipsFolder == "" {
 		return Config{}, misused(ErrArguments)
 	}
+	return withPlatforms(parsed, *platforms)
+}
 
-	if names := strings.FieldsFunc(*platforms, isSeparator); len(names) > 0 {
+// Empty is every platform.
+func withPlatforms(parsed Config, platforms string) (Config, error) {
+	if names := strings.FieldsFunc(platforms, isSeparator); len(names) > 0 {
 		chosen, err := clips.PlatformsOf(names...)
 		if err != nil {
 			return Config{}, misused(err)

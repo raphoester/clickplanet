@@ -46,6 +46,10 @@ type history struct {
 	told  []posts.Telling
 	err   error
 	since []time.Time
+	// What each platform holds, and since when it was asked.
+	feed       posts.Feed
+	feedErr    error
+	postedFrom []time.Time
 }
 
 func (h *history) Told(_ context.Context, since time.Time) ([]posts.Telling, error) {
@@ -53,10 +57,23 @@ func (h *history) Told(_ context.Context, since time.Time) ([]posts.Telling, err
 	return h.told, h.err
 }
 
+func (h *history) Posted(_ context.Context, since time.Time) (posts.Feed, error) {
+	h.postedFrom = append(h.postedFrom, since)
+	return h.feed, h.feedErr
+}
+
+var room = choose_clips_usecase.Room{
+	PerRun: 2, Budget: posts.Budget{posts.TikTok: 10, posts.YouTube: 8}, Platforms: []posts.Platform{posts.TikTok, posts.YouTube},
+}
+
+func choosing(w written, h *history) *choose_clips_usecase.UseCase {
+	return choose_clips_usecase.New(w, h, h, cptime.NewFixedClock(now), room, nil, posts.LoadedDice(0))
+}
+
 func TestARunTakesTheBestStoriesNotToldLately(t *testing.T) {
 	past := &history{told: []posts.Telling{{Key: algeriaInAfrica, At: now.Add(-4 * time.Hour)}}}
 
-	choice, err := choose_clips_usecase.New(written{shortlist: shortlistOf(t)}, past, cptime.NewFixedClock(now), 2, nil, posts.LoadedDice(0)).Execute(t.Context())
+	choice, err := choosing(written{shortlist: shortlistOf(t)}, past).Execute(t.Context())
 
 	require.NoError(t, err)
 	assert.Equal(t, []posts.Pick{3, 4}, choice.Chosen.Picks())
@@ -65,7 +82,7 @@ func TestARunTakesTheBestStoriesNotToldLately(t *testing.T) {
 }
 
 func TestARunWithNoStoryWorthAClipTakesNone(t *testing.T) {
-	choice, err := choose_clips_usecase.New(written{}, &history{}, cptime.NewFixedClock(now), 2, nil, posts.LoadedDice(0)).Execute(t.Context())
+	choice, err := choosing(written{}, &history{}).Execute(t.Context())
 
 	require.NoError(t, err)
 	assert.Empty(t, choice.Chosen)
@@ -74,7 +91,7 @@ func TestARunWithNoStoryWorthAClipTakesNone(t *testing.T) {
 func TestAShortlistThatCannotBeReadFailsTheRun(t *testing.T) {
 	unreadable := errors.New("the file is gone")
 
-	_, err := choose_clips_usecase.New(written{err: unreadable}, &history{}, cptime.NewFixedClock(now), 2, nil, posts.LoadedDice(0)).Execute(t.Context())
+	_, err := choosing(written{err: unreadable}, &history{}).Execute(t.Context())
 
 	require.ErrorIs(t, err, unreadable)
 }
@@ -82,28 +99,69 @@ func TestAShortlistThatCannotBeReadFailsTheRun(t *testing.T) {
 func TestAHistoryThatCannotBeReadFailsTheRunRatherThanTellAStoryTwice(t *testing.T) {
 	unreachable := errors.New("zernio could not be reached")
 
-	_, err := choose_clips_usecase.New(written{shortlist: shortlistOf(t)}, &history{err: unreachable}, cptime.NewFixedClock(now), 2, nil, posts.LoadedDice(0)).Execute(t.Context())
+	_, err := choosing(written{shortlist: shortlistOf(t)}, &history{err: unreachable}).Execute(t.Context())
+
+	require.ErrorIs(t, err, unreachable)
+}
+
+// count posts on every platform, an hour apart, the newest an hour ago.
+func hourly(count int) posts.Feed {
+	feed := make(posts.Feed, 0, count)
+	for i := range count {
+		feed = append(feed, posts.Posting{At: now.Add(-time.Duration(i+1) * time.Hour), Platforms: room.Platforms})
+	}
+	return feed
+}
+
+func TestARunTakesNoMoreStoriesThanThePlatformsHaveRoomFor(t *testing.T) {
+	past := &history{feed: hourly(9)}
+
+	choice, err := choosing(written{shortlist: shortlistOf(t)}, past).Execute(t.Context())
+
+	require.NoError(t, err)
+	assert.Equal(t, []posts.Pick{1}, choice.Chosen.Picks())
+	assert.Equal(t, 1, choice.Room)
+	assert.Equal(t, []time.Time{now.Add(-24 * time.Hour)}, past.postedFrom)
+}
+
+func TestARunWhoseEveryPlatformPostedItsDayTakesNone(t *testing.T) {
+	choice, err := choosing(written{shortlist: shortlistOf(t)}, &history{feed: hourly(10)}).Execute(t.Context())
+
+	require.NoError(t, err)
+	assert.Empty(t, choice.Chosen)
+	assert.Equal(t, 0, choice.Room)
+}
+
+func TestAFeedThatCannotBeReadFailsTheRunRatherThanPostOverTheCap(t *testing.T) {
+	unreachable := errors.New("zernio could not be reached")
+
+	_, err := choosing(written{shortlist: shortlistOf(t)}, &history{feedErr: unreachable}).Execute(t.Context())
 
 	require.ErrorIs(t, err, unreachable)
 }
 
 func TestEachStoryChosenIsPutInAnArmOfEveryExperimentAndNoneOtherIs(t *testing.T) {
 	length := posts.Experiments{{Name: "length", Arms: posts.EvenArms("as-chosen", "short"), Control: "as-chosen"}}
+	past := &history{}
 
 	choice, err := choose_clips_usecase.New(
-		written{shortlist: shortlistOf(t)}, &history{}, cptime.NewFixedClock(now), 2, length, &posts.RolledDice{Faces: []int{1, 0}},
+		written{shortlist: shortlistOf(t)}, past, past, cptime.NewFixedClock(now), room, length, &posts.RolledDice{Faces: []int{1, 0}},
 	).Execute(t.Context())
 
 	require.NoError(t, err)
+	require.Len(t, choice.Chosen, 2)
 	assert.Equal(t, []posts.Assignment{
-		{Pick: 1, Variants: posts.Variants{"length": "short"}},
-		{Pick: 3, Variants: posts.Variants{"length": "as-chosen"}},
+		{Pick: choice.Chosen[0].Pick, Variants: posts.Variants{"length": "short"}},
+		{Pick: choice.Chosen[1].Pick, Variants: posts.Variants{"length": "as-chosen"}},
 	}, choice.Assigned)
 }
 
 func TestWithNoExperimentEachStoryChosenIsInNoArm(t *testing.T) {
-	choice, err := choose_clips_usecase.New(written{shortlist: shortlistOf(t)}, &history{}, cptime.NewFixedClock(now), 2, nil, posts.LoadedDice(0)).Execute(t.Context())
+	choice, err := choosing(written{shortlist: shortlistOf(t)}, &history{}).Execute(t.Context())
 
 	require.NoError(t, err)
-	assert.Equal(t, []posts.Assignment{{Pick: 1, Variants: posts.Variants{}}, {Pick: 3, Variants: posts.Variants{}}}, choice.Assigned)
+	require.NotEmpty(t, choice.Assigned)
+	for _, assignment := range choice.Assigned {
+		assert.Equal(t, posts.Variants{}, assignment.Variants)
+	}
 }

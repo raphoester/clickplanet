@@ -32,7 +32,10 @@ func (l *Logged) Execute(ctx context.Context) (posts.Choice, error) {
 	for _, story := range choice.Passed {
 		l.logger.Info("passed a story for a flag or an angle told less lately", attributesOf(story)...)
 	}
-	if len(choice.Chosen) == 0 {
+	switch {
+	case choice.Room == 0:
+		l.logger.Info("every platform has posted its day already")
+	case len(choice.Chosen) == 0:
 		l.logger.Info("no story is worth a clip")
 	}
 	for i, story := range choice.Chosen {

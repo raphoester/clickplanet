@@ -8,8 +8,9 @@ import (
 
 type PostID string
 
-// Under this, nobody has the time to cancel a post, and a service publishes a time already past at once.
-const leastReview = time.Hour
+// How far ahead a post is scheduled at the soonest: a service publishes a time already past at once, inside the request,
+// and the job counts a post only when the service keeps it as scheduled.
+const leastLead = 5 * time.Minute
 
 type Post struct {
 	clip      Clip
@@ -21,8 +22,12 @@ type Post struct {
 	ofRun    int
 }
 
-func (p Post) Reviewable(now time.Time) bool {
-	return p.at.Sub(now) >= leastReview
+// The post as it is sent at now: at its time, or leastLead from now when a wait ate the lead.
+func (p Post) Rescheduled(now time.Time) Post {
+	if p.at.Sub(now) < leastLead {
+		p.at = wholeMinuteFrom(now.Add(leastLead))
+	}
+	return p
 }
 
 func (p Post) TakeSnapshot() PostSnapshot {

@@ -3559,7 +3559,7 @@ For the patterns no watchdog catches but a person sees on the map. A player is a
 
 ### The clips job (`internal/clips/`, `cmd/clips`)
 
-**Twice a day a workflow makes the best clips of the last 12 hours and schedules them on TikTok and YouTube Shorts**
+**Every 2 hours a workflow makes the best clips of the last 12 hours and posts them on TikTok and YouTube Shorts**
 (`.github/workflows/clips.yml`; the frontend's CLAUDE.md, "Clips", has the four jobs and how a clip is made). The
 frontend's generator needs a browser, so it stays there. **Everything else is here**: the fetch of the replay,
 which clips, when each goes out, the client of the posting service, the retries and the run's summary. The two
@@ -3568,8 +3568,8 @@ meet in files: the replay, the race and the season this job saves for the genera
 
 ```
 clips fetch -out <replay.json> [-race <race.json>] [-season <season.json>] [-ssh <user@host>] [-hours 72] [-until <2026-10-12T12:00:00Z>]
-clips choose -shortlist <shortlist.json> [-count 6]
-clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-platforms tiktok,youtube] [-summary <file>]
+clips choose -shortlist <shortlist.json> [-count 2] [-platforms tiktok,youtube]
+clips schedule -clips <folder> [-review 0] [-spacing 1h] [-platforms tiktok,youtube] [-summary <file>]
 ```
 
 - **`fetch` saves a replay**: it asks the production backend's operator tool for one
@@ -3581,15 +3581,21 @@ clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-platforms tiktok,you
   **With `-season` it saves the season's calendar** ([`GetSeason`](#seasons-internalseasons)) the same way: the
   generator calls each country that can still win up to the Final Battle, in its own language, "POLSKA: 14 PUNKTÓW
   STRATY". A season left out calls nobody up.
+  **It is cheap enough to run 12 times a day**: on 2026-10-24 the 12 hours of the noon run were 40,820 events, the
+  three files 0.8 MB zipped, and the whole step, ssh, `go run`'s build and the race and the season included, 17s. The
+  ledger answers from memory. 12 hours and not 2: a story is found by the first run that sees it and skipped as told
+  by the next ones, and the generator searches its last 12 hours anyway (`newsSince`).
 - **`choose` prints the picks to render**, as a JSON array on the standard output, each with the arm of every
-  experiment its clip is in (`[{"pick":1,"variants":{"length":"short"}}]`, or `[]` on a quiet half day): the workflow
-  makes one render job of each. The log goes to the standard error, with each story skipped as told and each one
-  chosen with its arms. A pick is a story's place in the shortlist, from 1 (`posts.Pick`): what the generator's
+  experiment its clip is in (`[{"pick":1,"variants":{"length":"short"}}]`, or `[]` on a quiet run or a full day): the
+  workflow makes one render job of each. The log goes to the standard error, with each story skipped as told and each
+  one chosen with its arms. A pick is a story's place in the shortlist, from 1 (`posts.Pick`): what the generator's
   `--pick` takes, and the arms are what its `--variants` takes (below, "Experiments"). It needs `ZERNIO_API_KEY`, to
-  read what was told.
+  read what was told and what each platform holds. `-platforms` is `schedule`'s, so it counts the room of the
+  platforms the clips will go to.
 - **`schedule` sends every clip of the folder** (`clip-<n>.json` with its `clip-<n>.mp4` beside it) to the posting
-  service, **as one post on every platform** (`-platforms`, default all: `tiktok,youtube`), and adds a table to the
-  summary: a row for each clip on each platform, its arms, its time, and whether it is scheduled there. **A clip in an
+  service, **as one post on every platform that has room left in its day** (`-platforms`, default all:
+  `tiktok,youtube`), and adds a table to the summary: a row for each clip on each platform, its arms, its time, and
+  whether it is scheduled there, or one row for a clip held because every platform has posted its day. **A clip in an
   experiment that does not run, or in an arm it has not, fails the run before anything is posted**
   (`posts.ErrUnknownVariant`): once out, it would be counted in the wrong arm. It exits 1 when a
   platform did not take a clip, when the folder holds none, or when the summary cannot be written. **Platforms are
@@ -3681,8 +3687,9 @@ story, so a short clip is not short because its story was small.
 
 **`internal/clips/internal/posts/` is the domain of the rest**, with no file, no HTTP and no clock of its own:
 
-- **`Shortlist.Best(count, told, now)`** is which clips: `count` stories, all of them when there are fewer, 6 a
-  run (`Config.PerRun`), **never a story told already, and never mostly one flag**. Four rules, from the week of
+- **`Shortlist.Best(count, told, now)`** is which clips: `count` stories, all of them when there are fewer, 2 a
+  run at most (`Config.PerRun`) and fewer when the platforms' day is nearly full (`Budget.Clips`, below), **never a
+  story told already, and never mostly one flag**. Four rules, from the week of
   Oct 13–17, when 18 clips told "ALGERIA STRIKES BACK" three times, "PALAU IS TAKING OVER THE WORLD" twice right
   after the old one-day window, and Palau (two players on five accounts) in about half of them:
   - **A key told in the last 3 days is skipped** (`retelling`): a `StoryKey` (a flag, a continent and an angle,
@@ -3696,14 +3703,17 @@ story, so a short clip is not short because its story was small.
     day on another angle, or an angle this job does not know is refused.
   - **A headline told in the last week is skipped** (`reheadlining`), whatever its continent: the same words read
     as the same clip. Compared in upper case, spaces at the ends cut.
-  - **A flag the last 6 posts showed goes after the flags they did not** (`lately`, half a day at 6 a run). **A
+  - **A flag the last 6 posts showed goes after the flags they did not** (`lately`, about 14 hours at 10 posts a day). **A
     post shows its key's flag and every country of its story** (`Countries`, as the generator writes them: the
     place, both sides, the flags it takes from): "FRANCE VS PALAU" and "VATICAN CITY VS PALAU" both show Palau. A
     story ranks by its key's flag, then by the country of it the last posts showed most, then by the generator's
     order. A story chosen counts as the newest post. A post made before the posts kept their countries shows its
     key's flag only.
-  - **A flag that 2 of the last 6 posts showed waits** (`mostLately`): it is a third of the feed at most. So a
-    shortlist of one flag gives 2 clips, not 6. Ranking alone was not enough at 6 a run: on Oct 15 a shortlist of
+  - **A flag that 2 of the last 6 posts showed waits** (`mostLately`): it is a third of the feed at most. **Both stay
+    counts of posts when the job posts more often** (2026-10-24): the feed a viewer scrolls is posts, not hours, so a
+    third of the last 6 is still a third of what they see. At 6 a run twice a day they covered about a day; at about 10
+    a day they cover about 14 hours, and a flag waits that much less. So a
+    shortlist of one flag gives 2 clips in any 6 posts. Ranking alone was not enough at 6 a run: on Oct 15 a shortlist of
     Palau and one other flag gave 5 clips of Palau. **Only the key's flag waits, not each country of the story**:
     Palau and France defend in nearly every story of Oct 15–17, and waiting on all of them left 6 clips in those
     2.5 days, none on the night of Oct 16.
@@ -3720,13 +3730,31 @@ story, so a short clip is not short because its story was small.
   told whose flag 2 of the last posts showed, or that a story after them was chosen over, for a flag told less
   lately or an angle the run had not told (`Passed`), which the log shows. A story with no key is refused when the
   shortlist is read. With a day won and three holdings added to it by hand, the shortlist of Oct 18 gives 6 (a test of `Best`); what a real run gives is for its log to say.
-- **6 a run, because the finder is not what runs short.** Replayed over Oct 14–17, a 12-hour window held 5 to 11
-  stories of different keys, and the one-day rule let about 10 a day out; 2 a run posted 4. Six is the most the
-  `Plan` below fits between two runs: the sixth goes out 14 hours after a run starts, and the next run's first
-  16 hours after it. A seventh would go out together with that one. **The rules above post fewer**: replayed over
-  Oct 15–17 at 6 a run, 15 clips with 4 of Palau and no repeat, against 21 with 9 of Palau and 3 repeats under the
-  one-day rule alone; and once the posts count every country, 13 clips with 2 about Palau. Palau still shows in about
-  half of them, as the flag the others take from.
+- **2 a run, every 2 hours, within a daily budget per platform** (2026-10-24, from 6 a run twice a day). A story's
+  stretch ended 10 to 20 hours before its post then: up to 12 hours waiting for the run, 4 for the review, and up to
+  10 more for the sixth clip's turn. Now a story waits for the next run (an hour on average, plus GitHub starting a
+  scheduled run 20 to 40 minutes late, as the runs of Oct 22–24 did), its render (10 to 35 minutes) and 5 minutes of
+  lead: **2 to 3 hours**, and an hour more for the second clip of a run. Replayed over Oct 14–17, a 12-hour window held 5
+  to 11 stories of different keys, so 2 every 2 hours is not short of stories; a quiet run posts nothing.
+  - **`Budget` is posts in a trailing 24 hours, per platform: 10 on TikTok, 8 on YouTube** (`dailyBudget` in
+    `job.go`). TikTok holds a video over 15 a trailing day on an account of its Business app, which every new Zernio
+    connection is, and Zernio does not refuse it: it moves the post to when the oldest leaves the window, which
+    would quietly undo the speed. 10 leaves room for posts made by hand. YouTube lets a channel upload about 10 a day.
+    So a day of news is 8 clips on both and 2 more on TikTok alone, the rest held; 12 runs of 2 would be 24.
+  - **What counts is Zernio's post list** (`Service.Posted`, a `Feed` of `Posting`s): every post on the platform in
+    the trailing day, **made by hand or not**, and every one still to go out, at the platform's own time (a TikTok
+    target held over the cap carries the time it will go out). A draft, a post cancelled or failed, and a target that
+    failed or was unpublished count for nothing. One list of posts serves this and what was told. **A feed that
+    cannot be read fails the run**, rather than post over the cap.
+  - **Known effect, not handled**: the budget is spent as the news comes, so a busy morning can fill the day, and once
+    it is full a slot frees when yesterday's post leaves the window, so the posting hours follow yesterday's. The run
+    that gets the slot still tells the freshest story it has.
+  - **`choose` makes as many clips as the platform with the most room takes** (`Budget.Clips`), so a clip goes to
+    every platform that still has room, and a clip nobody has room for is never rendered. `schedule` reads the feed
+    again and leaves a full platform out of the post; a clip with no platform left is held (`Report.WithHeld`): in the
+    report, not a failure, and its story untold for a later run. Between the two only a post made by hand can fill a day.
+  - **A full day says so**: `choose` logs `every platform has posted its day already` rather than that no story was
+    worth a clip (`Choice.Room`).
 - **What was told is Zernio's post list, not a table of ours**: each post keeps its key and its story's countries in
   its Zernio `metadata` (`storyFlag`, `storyContinent`, `storyCountries`, and `storyAngle` and `storyRound` when it
   has them, never published; a post with none is of what a flag did), and `choose` lists
@@ -3747,18 +3775,31 @@ story, so a short clip is not short because its story was small.
     (`posts.ClipRecord`, which the job never reads); absent for a clip written before the generator kept one. `post`
     is what this job made of the clip: `teaser`, the name of the teaser rolled (`invades`; `unnamed` for a clip whose
     teasers have none), `callToAction`, `scheduledAt` (the time planned: the dashboard can move the post, this
-    does not move), and `runPosition` and `runSize`, its place in its run from 1 and how many it has.
+    does not move), and `runPosition` and `runSize`, its place in its run from 1 and how many it has. **How fresh a
+    story was** is `scheduledAt` minus the clip's `globe.storyEndedAt`, when the stretch it plays ends, which the
+    generator writes.
   - **Every code in it is a word that says what it means; a number is a quantity.** The flat columns of a table are
     the reader's to make, not the document's.
   - The story's key, its countries and the call to act stay where they were, as keys of their own: `choose` reads
     them from a week of posts already out. A record that is not a `ClipRecord` fails the post before its video is
     uploaded. Zernio's `metadata` takes any JSON object and states no size, but for three keys of its own
     (`usageCounted`, `usageRefunded`, `hidden`). Posts made before the record have none, and none is filled in after.
-- **`Plan.Posts(clips, now, dice)`** is when and where: the best clip a `Review` from now (4 hours), each next one a
-  `Spacing` later (2 hours), on a whole minute and never sooner than the review, each to all the `Platforms` at
-  once. So a run at 12:17 UTC that renders in 20 minutes posts near 16:40, then every 2 hours until 02:40. It also
-  rolls each post's words (`Dice`, `SystemDice`), so no post exists without them. **A platform is a `Platform`**
-  (`tiktok`, `youtube`), and `PlatformsOf` is the only way from a name to one: each known, each once.
+- **`Plan.Next(clip, place, ofRun, feed, now, dice)`** is when and where: **on every platform with room left in its
+  day, as soon as it can**: `Review` from now (none by default: `-review 0` and no flag are both none) and never under
+  the 5-minute lead, on a whole minute, and **a `Spacing` (an hour) after the last post on each of its platforms**,
+  whoever made it. False when no platform has room. It also rolls the post's words (`Dice`, `SystemDice`), so no post
+  exists without them. `schedule` plans each clip once the one before it is sent, best first (`Ranked`), with the
+  sent post added to the feed (`Feed.With`): a wait that moved a post later moves the next one too, and a clip
+  refused takes no place, so the next one goes in it. **A platform is a `Platform`** (`tiktok`, `youtube`), and
+  `PlatformsOf` is the only way from a name to one: each known, each once.
+  - **Why an hour between two posts on a platform.** Without one, a run 2 hours after the last would post on top of
+    the second clip of that run, which goes out an hour after its first, and two clips minutes apart split the first
+    hour of reach that both TikTok and YouTube judge a Short on, among the same followers. An hour lets each have
+    its first hour alone. It still fits the cadence: a run's 2 clips go out an hour apart, both before the next run
+    renders, so nothing queues from run to run. 2 hours would push the second clip of every run past the next run's
+    first, and 12 posts at most a day was already more than the budget.
+  - **Timing**: the run of 12:17 UTC, started by GitHub at 12:34 and rendered at 12:53, posts its first clip at
+    12:58 and its second at 13:58; the run of 14:17, rendered at 14:52, posts at 14:58, an hour after 13:58, then at 15:58.
 - **The words of each platform are written here**, from what the generator gives (its teasers, the countries with
   their hashtags, the continent's, the music's credit), since the platform is the job's business. One teaser and
   one call per post, the same on every platform. **TikTok's caption** (`caption.go`):
@@ -3785,10 +3826,13 @@ story, so a short clip is not short because its story was small.
   past that YouTube ignores every hashtag of the video. The tags are the same words with no `#`, the first that fit
   in 500 characters with a comma between two, as YouTube counts them. **No `#Shorts`**: a vertical video of 3
   minutes or less is a Short by itself. No TikTok community tag either.
-- **Review is opt-out, so nothing is ever sent for a time too close.** `Post.Reviewable(now)` is false under an hour
-  ahead (`leastReview`), and `Sender` then refuses the post (`ErrNoTimeToReview`) rather than send it: nobody could
-  cancel it, and the service publishes a time already past **at once**. It is checked before every try, since a
-  wait eats the review.
+- **No review, and nothing sent for a time already past** (2026-10-24). The review was 4 hours to cancel a clip in
+  the dashboard before its time, and nobody did, so it is off; `-review` puts it back. **A post goes out 5 minutes
+  ahead** (`leastLead`), not now: Zernio publishes a `publishNow` post, and one whose `scheduledFor` is already past,
+  inside the request, answering each platform's result (a 207 when one fails), and the YouTube upload with it. 5
+  minutes ahead keeps the request short and the post `scheduled`, which is what the adapter counts as taken, and is
+  checked before every try: `Post.Rescheduled(now)` moves a post whose lead a wait ate to 5 minutes from then,
+  later and never sooner. `Sender.Send` answers the post as it was sent, which the report and the feed read.
 - **`Sender` tries again only when the service is busy**: an adapter answers a `*BusyError` for "not now" (a rate
   limit, a server error, no answer) and any other error for "no" (a refused caption, a wrong key). `Backoff` waits
   1, 5 then 15 minutes, or as long as the service said when that is longer; a service that asks for longer than
@@ -3821,8 +3865,9 @@ for now** (2026-10-17): a third account is 6 USD a month. A change of service is
   made**, the bug its issue 4 reported in August. A pinned version breaks when the API grows; ours ignores what
   it does not know, and two tests pin that (`…FieldsAddedLater…`). It is also 36 MB of Go in one package.
 - **Four calls a clip**: `GET /v1/accounts`, `POST /v1/media/presign`, a `PUT` of the video to the address that
-  answers (the storage, not the API: raw HTTP, and no key), then `POST /v1/posts` with `scheduledFor`. **Never
-  `publishNow`.**
+  answers (the storage, not the API: raw HTTP, and no key), then `POST /v1/posts` with `scheduledFor`, 5 minutes
+  ahead at the soonest. **Never `publishNow`**: it publishes inside the request (see "No review" above). And one
+  `GET /v1/posts` a run, for what each platform holds; `choose` makes it twice, for what was told too.
 - **One clip is one Zernio post, with a target for each platform**, so one cancel in the dashboard stops it
   everywhere. Each target carries its own words (`customContent`) and its own settings (`platformSpecificData`), so
   a change for one platform (TikTok's sound) touches no other. Zernio publishes each target on its own: one
@@ -3831,8 +3876,8 @@ for now** (2026-10-17): a third account is 6 USD a month. A change of service is
   - YouTube: public, category Gaming (`20`), and **not made for kids**, sent every time since YouTube may block the
     views of a video with no answer. It is the user's legal choice (2026-10-17): "made for kids" turns comments
     off for good. The tags go at the root of the post, where Zernio sends them to YouTube alone. Zernio uploads a
-    scheduled video to YouTube up to 15 minutes before its time, private until then: **cancel a clip earlier than
-    that**.
+    scheduled video to YouTube up to 15 minutes before its time, private until then: with 5 minutes of lead a clip
+    is on YouTube as soon as it is scheduled, and **cancelling it there means deleting it on YouTube**.
 - **It posts to the one connected account of each platform**, and refuses to guess between two: no account id is
   configured. A platform with none or two is refused (`Refused`), and the post still goes to the others; with no
   platform left there is no upload and no post. An account per country will need an id.
@@ -3850,7 +3895,7 @@ for now** (2026-10-17): a third account is 6 USD a month. A change of service is
   and never to the storage, and **an error never carries a URL**: the address a video is uploaded to is a
   credential for an hour, and Go's `url.Error` prints it. `unreachable` keeps the cause and drops the address;
   a test pins it.
-- **A post a platform refuses at its time is seen by the next run**, hours after its own ended: the history `choose`
+- **A post a platform refuses at its time is seen by the next run**, about 2 hours after its own ended: the history `choose`
   reads holds each post's state and each platform's error, and `log_history` logs every post of the last week,
   a refused one as a warning with why (`a post of the last week was refused … failure="tiktok: …"`).
 - The tests run it against `httptest`, with the requests and the answers of Zernio's OpenAPI document.
