@@ -151,7 +151,7 @@ type TikTokAccount struct {
 	// Its rows of the snapshot, and how many of them hold a metric only the business lane gives.
 	Rows         uint32 `protobuf:"varint,6,opt,name=rows,proto3" json:"rows,omitempty"`
 	BusinessRows uint32 `protobuf:"varint,7,opt,name=business_rows,json=businessRows,proto3" json:"business_rows,omitempty"`
-	// A business account whose lane answers: the music library, or a business metric on a post.
+	// Whether its lane answers: the music library, or a business metric on a post, whatever account_type says.
 	Live          bool `protobuf:"varint,8,opt,name=live,proto3" json:"live,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

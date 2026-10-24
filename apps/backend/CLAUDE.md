@@ -3994,9 +3994,9 @@ for good:
   TikTok said the account was when it was connected to Zernio: `business`, `personal`, `unknown`), how many of its
   rows of the snapshot hold a business metric (`Row.BusinessMetrics`: a completion rate, a profile view or a watch
   time above 0, or any source, country or retention point), and whether `GET /v1/accounts/{id}/tiktok/commercial-music`
-  answers, which it does only for an account connected through TikTok for Business. **Live** is a business account
-  with either. The account was personal until the switch of October 2026: once TikTok verifies it as a business
-  account, it has to be connected again in Zernio for the lane to open.
+  answers, which it does only for an account connected through TikTok for Business. **Live** is either, whatever the
+  type says: the type is what TikTok said at the connection, and goes stale. The first snapshot (2026-10-24) found
+  the account still `personal` to Zernio, the music library answering, and business metrics on 80 of its rows.
 - **The store is the backend** (`ssh_stats_store`): `clips.v1.AdminService/KeepSnapshot` on the console
   listener, over ssh, as `fetch` asks for a replay (`docker compose exec -T backend wget … --post-file=/dev/stdin`).
   **The body comes on ssh's standard input, never the command line**: a part is far longer than a command may be,

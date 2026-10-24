@@ -54,7 +54,7 @@ message TikTokAccount {
   // Its rows of the snapshot, and how many of them hold a metric only the business lane gives.
   uint32 rows = 6;
   uint32 business_rows = 7;
-  // A business account whose lane answers: the music library, or a business metric on a post.
+  // Whether its lane answers: the music library, or a business metric on a post, whatever account_type says.
   bool live = 8;
 }
 

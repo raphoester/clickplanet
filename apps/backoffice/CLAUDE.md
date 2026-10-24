@@ -318,8 +318,9 @@ Zernio answered, as it came, and what the clip was.
 
 - **Whether TikTok's business lane is live**, from the last snapshot (`ListSnapshots`): each TikTok account, the type
   TikTok said it was when it was connected to Zernio, how many of its rows hold a number only the business lane gives,
-  whether the commercial music library answers (its refusal on hover), and **live** or not. It turns live once the
-  account is a business account connected again in Zernio.
+  whether the commercial music library answers (its refusal on hover), and **live** or not: live is the library
+  answering or a business number on a post, whatever the type says, since the type is what TikTok said when the
+  account was connected to Zernio and goes stale.
 - **The snapshots of the last fortnight**: when each was taken, the clips read (and how many not out yet), its rows,
   those still syncing, YouTube's retention curves, and the clips lost that day (why, on hover). A day with no line is
   a day the workflow did not keep.
