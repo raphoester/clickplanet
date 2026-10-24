@@ -190,13 +190,17 @@ export default function ChatPanel(props: ChatPanelProps) {
         return failed === undefined
     }
 
+    const missed = view !== "chat" && unread > 0
+
     const tabs = players && <div className="chat-tabs" role="tablist" aria-label="Chat">
         <button type="button"
                 role="tab"
                 aria-selected={view === "chat"}
+                aria-label={missed ? `Chat, ${newMessages(unread)}` : undefined}
                 className={view === "chat" ? "chat-tab chat-tab--on" : "chat-tab"}
                 onClick={() => setView("chat")}>
             Chat
+            {missed && <span className="chip chat-badge" key={unread} aria-hidden="true">{badgeCount(unread)}</span>}
         </button>
         <button type="button"
                 role="tab"
@@ -299,8 +303,8 @@ export default function ChatPanel(props: ChatPanelProps) {
                     {waiting &&
                         <span className="chip chat-badge"
                               key={unread}
-                              aria-label={unread === 1 ? "1 new message" : `${unread} new messages`}>
-                            {unread > UNREAD_CAP ? `${UNREAD_CAP}+` : unread}
+                              aria-label={newMessages(unread)}>
+                            {badgeCount(unread)}
                         </span>}
                     <span className="chat-chevron">
                         <ChevronIcon/>
@@ -321,6 +325,14 @@ export default function ChatPanel(props: ChatPanelProps) {
 
         {isOpen && <div className="chat-body" id={bodyId}>{body}</div>}
     </section>
+}
+
+function newMessages(unread: number): string {
+    return unread === 1 ? "1 new message" : `${unread} new messages`
+}
+
+function badgeCount(unread: number): string {
+    return unread > UNREAD_CAP ? `${UNREAD_CAP}+` : `${unread}`
 }
 
 function panelClass(isOpen: boolean, waiting: boolean): string {
