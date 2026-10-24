@@ -3058,7 +3058,7 @@ happened rather than 10 to 20 under the two runs a day before (2026-10-24). Four
    a season that could not be fetched is no file, and the run goes on without a day to tell or a country to call up.
 2. **shortlist** and **choose**: `npm run clip -- --shortlist shortlist.json`, then, in a job of its own (it holds
    the Zernio key, and runs no npm), the backend's `clips choose` reads it and prints the picks to render, up to 2,
-   and no more than the platforms have left of their day (10 posts in a trailing 24 hours on TikTok, 8 on YouTube),
+   and no more than the platforms have left of their day (14 posts in a trailing 24 hours on TikTok, 8 on YouTube),
    each with the arm of every experiment it put the clip in, `[{"pick":1,"variants":{"length":"short"}}]`.
    **It skips a story told in the last 3 days**, by its key below, and a headline told in the last week, puts a
    flag the last 6 posts showed after the others, and holds back a flag 2 of them showed, as their key or as one of

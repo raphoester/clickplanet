@@ -23,7 +23,7 @@ season's race and calendar too, and leaves each out with a warning when the back
 the picks of the stories to render, as a JSON array, each in an arm of every experiment that runs: a day of the season
 won first, then each angle once before any twice; it skips a story the posting service holds a post of from the last 3
 days, or a headline from the last week, puts a flag of the last 6 posts after the others, and holds back a flag in 2 of
-them. It takes no more than the platform with the most room left in its day takes: 10 posts in a trailing 24 hours on
+them. It takes no more than the platform with the most room left in its day takes: 14 posts in a trailing 24 hours on
 TikTok, 8 on YouTube. schedule sends every clip of the folder to the posting service as one post on every platform with
 room left, as soon as it can with no -review, and never sooner than -spacing after the last post on each; it refuses a
 clip in an arm no experiment has. Both need ZERNIO_API_KEY.`

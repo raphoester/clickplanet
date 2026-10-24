@@ -78,7 +78,7 @@ const (
 	retelling = 72 * time.Hour
 	// Longer than a key: the same headline on another continent reads as the same clip.
 	reheadlining = 7 * 24 * time.Hour
-	// What a viewer scrolling the profile sees, about 14 hours of it at 10 posts a day: a share of the feed is a share
+	// What a viewer scrolling the profile sees, about 10 hours of it at 14 posts a day: a share of the feed is a share
 	// of posts, not of hours, so it stays a count when the job posts more often.
 	lately = 6
 	// A third of them: a team of two players is not the feed.
