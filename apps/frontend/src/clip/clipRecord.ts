@@ -1,3 +1,4 @@
+import {Timestamp} from "@bufbuild/protobuf"
 import {ClipRecord} from "../gen/grpc/clips/v1/clips_pb.ts"
 import {Story} from "../domain/clip/story.ts"
 import {Look} from "../domain/clip/look.ts"
@@ -64,6 +65,7 @@ export function clipRecordOf(shown: Shown): ClipRecord {
             screensCrossed: tour ? 0 : rounded(shown.screens, 2),
             tourStops: tour ? shown.tourStops : 0,
             solidity: rounded(shown.solidity, 2),
+            storyEndedAt: Timestamp.fromDate(new Date(shown.until)),
         },
     })
 }
