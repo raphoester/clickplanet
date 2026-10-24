@@ -76,3 +76,13 @@ support:
     dbName: postgres
     sslMode: disable
     schema: support
+
+clips:
+  database:
+    host: postgres
+    port: "5432"
+    user: postgres
+    password: postgres
+    dbName: postgres
+    sslMode: disable
+    schema: clips

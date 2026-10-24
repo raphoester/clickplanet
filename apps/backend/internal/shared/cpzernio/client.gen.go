@@ -18,6 +18,186 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
+// Defines values for AnalyticsListResponsePostsMediaItemsType.
+const (
+	AnalyticsListResponsePostsMediaItemsTypeImage AnalyticsListResponsePostsMediaItemsType = "image"
+	AnalyticsListResponsePostsMediaItemsTypeVideo AnalyticsListResponsePostsMediaItemsType = "video"
+)
+
+// Valid indicates whether the value is a known member of the AnalyticsListResponsePostsMediaItemsType enum.
+func (e AnalyticsListResponsePostsMediaItemsType) Valid() bool {
+	switch e {
+	case AnalyticsListResponsePostsMediaItemsTypeImage:
+		return true
+	case AnalyticsListResponsePostsMediaItemsTypeVideo:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AnalyticsListResponsePostsMediaType.
+const (
+	AnalyticsListResponsePostsMediaTypeCarousel AnalyticsListResponsePostsMediaType = "carousel"
+	AnalyticsListResponsePostsMediaTypeDocument AnalyticsListResponsePostsMediaType = "document"
+	AnalyticsListResponsePostsMediaTypeGif      AnalyticsListResponsePostsMediaType = "gif"
+	AnalyticsListResponsePostsMediaTypeImage    AnalyticsListResponsePostsMediaType = "image"
+	AnalyticsListResponsePostsMediaTypeText     AnalyticsListResponsePostsMediaType = "text"
+	AnalyticsListResponsePostsMediaTypeVideo    AnalyticsListResponsePostsMediaType = "video"
+)
+
+// Valid indicates whether the value is a known member of the AnalyticsListResponsePostsMediaType enum.
+func (e AnalyticsListResponsePostsMediaType) Valid() bool {
+	switch e {
+	case AnalyticsListResponsePostsMediaTypeCarousel:
+		return true
+	case AnalyticsListResponsePostsMediaTypeDocument:
+		return true
+	case AnalyticsListResponsePostsMediaTypeGif:
+		return true
+	case AnalyticsListResponsePostsMediaTypeImage:
+		return true
+	case AnalyticsListResponsePostsMediaTypeText:
+		return true
+	case AnalyticsListResponsePostsMediaTypeVideo:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AnalyticsSinglePostResponseMediaItemsMediaStatus.
+const (
+	AnalyticsSinglePostResponseMediaItemsMediaStatusAvailable   AnalyticsSinglePostResponseMediaItemsMediaStatus = "available"
+	AnalyticsSinglePostResponseMediaItemsMediaStatusUnavailable AnalyticsSinglePostResponseMediaItemsMediaStatus = "unavailable"
+)
+
+// Valid indicates whether the value is a known member of the AnalyticsSinglePostResponseMediaItemsMediaStatus enum.
+func (e AnalyticsSinglePostResponseMediaItemsMediaStatus) Valid() bool {
+	switch e {
+	case AnalyticsSinglePostResponseMediaItemsMediaStatusAvailable:
+		return true
+	case AnalyticsSinglePostResponseMediaItemsMediaStatusUnavailable:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AnalyticsSinglePostResponseMediaItemsType.
+const (
+	AnalyticsSinglePostResponseMediaItemsTypeImage AnalyticsSinglePostResponseMediaItemsType = "image"
+	AnalyticsSinglePostResponseMediaItemsTypeVideo AnalyticsSinglePostResponseMediaItemsType = "video"
+)
+
+// Valid indicates whether the value is a known member of the AnalyticsSinglePostResponseMediaItemsType enum.
+func (e AnalyticsSinglePostResponseMediaItemsType) Valid() bool {
+	switch e {
+	case AnalyticsSinglePostResponseMediaItemsTypeImage:
+		return true
+	case AnalyticsSinglePostResponseMediaItemsTypeVideo:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AnalyticsSinglePostResponseMediaItemsUnavailableReason.
+const (
+	AnalyticsSinglePostResponseMediaItemsUnavailableReasonPlatformWithheld AnalyticsSinglePostResponseMediaItemsUnavailableReason = "platform_withheld"
+)
+
+// Valid indicates whether the value is a known member of the AnalyticsSinglePostResponseMediaItemsUnavailableReason enum.
+func (e AnalyticsSinglePostResponseMediaItemsUnavailableReason) Valid() bool {
+	switch e {
+	case AnalyticsSinglePostResponseMediaItemsUnavailableReasonPlatformWithheld:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AnalyticsSinglePostResponseMediaType.
+const (
+	AnalyticsSinglePostResponseMediaTypeCarousel AnalyticsSinglePostResponseMediaType = "carousel"
+	AnalyticsSinglePostResponseMediaTypeImage    AnalyticsSinglePostResponseMediaType = "image"
+	AnalyticsSinglePostResponseMediaTypeText     AnalyticsSinglePostResponseMediaType = "text"
+	AnalyticsSinglePostResponseMediaTypeVideo    AnalyticsSinglePostResponseMediaType = "video"
+)
+
+// Valid indicates whether the value is a known member of the AnalyticsSinglePostResponseMediaType enum.
+func (e AnalyticsSinglePostResponseMediaType) Valid() bool {
+	switch e {
+	case AnalyticsSinglePostResponseMediaTypeCarousel:
+		return true
+	case AnalyticsSinglePostResponseMediaTypeImage:
+		return true
+	case AnalyticsSinglePostResponseMediaTypeText:
+		return true
+	case AnalyticsSinglePostResponseMediaTypeVideo:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AnalyticsSinglePostResponseStatus.
+const (
+	AnalyticsSinglePostResponseStatusCancelled  AnalyticsSinglePostResponseStatus = "cancelled"
+	AnalyticsSinglePostResponseStatusDraft      AnalyticsSinglePostResponseStatus = "draft"
+	AnalyticsSinglePostResponseStatusFailed     AnalyticsSinglePostResponseStatus = "failed"
+	AnalyticsSinglePostResponseStatusPartial    AnalyticsSinglePostResponseStatus = "partial"
+	AnalyticsSinglePostResponseStatusPublished  AnalyticsSinglePostResponseStatus = "published"
+	AnalyticsSinglePostResponseStatusPublishing AnalyticsSinglePostResponseStatus = "publishing"
+	AnalyticsSinglePostResponseStatusScheduled  AnalyticsSinglePostResponseStatus = "scheduled"
+)
+
+// Valid indicates whether the value is a known member of the AnalyticsSinglePostResponseStatus enum.
+func (e AnalyticsSinglePostResponseStatus) Valid() bool {
+	switch e {
+	case AnalyticsSinglePostResponseStatusCancelled:
+		return true
+	case AnalyticsSinglePostResponseStatusDraft:
+		return true
+	case AnalyticsSinglePostResponseStatusFailed:
+		return true
+	case AnalyticsSinglePostResponseStatusPartial:
+		return true
+	case AnalyticsSinglePostResponseStatusPublished:
+		return true
+	case AnalyticsSinglePostResponseStatusPublishing:
+		return true
+	case AnalyticsSinglePostResponseStatusScheduled:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AnalyticsSinglePostResponseSyncStatus.
+const (
+	AnalyticsSinglePostResponseSyncStatusPartial     AnalyticsSinglePostResponseSyncStatus = "partial"
+	AnalyticsSinglePostResponseSyncStatusPending     AnalyticsSinglePostResponseSyncStatus = "pending"
+	AnalyticsSinglePostResponseSyncStatusSynced      AnalyticsSinglePostResponseSyncStatus = "synced"
+	AnalyticsSinglePostResponseSyncStatusUnavailable AnalyticsSinglePostResponseSyncStatus = "unavailable"
+)
+
+// Valid indicates whether the value is a known member of the AnalyticsSinglePostResponseSyncStatus enum.
+func (e AnalyticsSinglePostResponseSyncStatus) Valid() bool {
+	switch e {
+	case AnalyticsSinglePostResponseSyncStatusPartial:
+		return true
+	case AnalyticsSinglePostResponseSyncStatusPending:
+		return true
+	case AnalyticsSinglePostResponseSyncStatusSynced:
+		return true
+	case AnalyticsSinglePostResponseSyncStatusUnavailable:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CommerceMenuItemType.
 const (
 	CommerceMenuItemTypeArticle             CommerceMenuItemType = "article"
@@ -702,6 +882,69 @@ func (e MediaItemType) Valid() bool {
 	case MediaItemTypeImage:
 		return true
 	case MediaItemTypeVideo:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PlatformAnalyticsErrorCode.
+const (
+	PlatformAnalyticsErrorCodeLessThannil       PlatformAnalyticsErrorCode = "<nil>"
+	PlatformAnalyticsErrorCodeNotPostOwner      PlatformAnalyticsErrorCode = "not_post_owner"
+	PlatformAnalyticsErrorCodePermissionMissing PlatformAnalyticsErrorCode = "permission_missing"
+	PlatformAnalyticsErrorCodePostNotFound      PlatformAnalyticsErrorCode = "post_not_found"
+)
+
+// Valid indicates whether the value is a known member of the PlatformAnalyticsErrorCode enum.
+func (e PlatformAnalyticsErrorCode) Valid() bool {
+	switch e {
+	case PlatformAnalyticsErrorCodeLessThannil:
+		return true
+	case PlatformAnalyticsErrorCodeNotPostOwner:
+		return true
+	case PlatformAnalyticsErrorCodePermissionMissing:
+		return true
+	case PlatformAnalyticsErrorCodePostNotFound:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PlatformAnalyticsStatus.
+const (
+	PlatformAnalyticsStatusFailed    PlatformAnalyticsStatus = "failed"
+	PlatformAnalyticsStatusPublished PlatformAnalyticsStatus = "published"
+)
+
+// Valid indicates whether the value is a known member of the PlatformAnalyticsStatus enum.
+func (e PlatformAnalyticsStatus) Valid() bool {
+	switch e {
+	case PlatformAnalyticsStatusFailed:
+		return true
+	case PlatformAnalyticsStatusPublished:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PlatformAnalyticsSyncStatus.
+const (
+	PlatformAnalyticsSyncStatusPending     PlatformAnalyticsSyncStatus = "pending"
+	PlatformAnalyticsSyncStatusSynced      PlatformAnalyticsSyncStatus = "synced"
+	PlatformAnalyticsSyncStatusUnavailable PlatformAnalyticsSyncStatus = "unavailable"
+)
+
+// Valid indicates whether the value is a known member of the PlatformAnalyticsSyncStatus enum.
+func (e PlatformAnalyticsSyncStatus) Valid() bool {
+	switch e {
+	case PlatformAnalyticsSyncStatusPending:
+		return true
+	case PlatformAnalyticsSyncStatusSynced:
+		return true
+	case PlatformAnalyticsSyncStatusUnavailable:
 		return true
 	default:
 		return false
@@ -1509,6 +1752,111 @@ func (e ListAccountsParamsOrder) Valid() bool {
 	}
 }
 
+// Defines values for GetAnalyticsParamsSource.
+const (
+	GetAnalyticsParamsSourceAll      GetAnalyticsParamsSource = "all"
+	GetAnalyticsParamsSourceExternal GetAnalyticsParamsSource = "external"
+	GetAnalyticsParamsSourceLate     GetAnalyticsParamsSource = "late"
+)
+
+// Valid indicates whether the value is a known member of the GetAnalyticsParamsSource enum.
+func (e GetAnalyticsParamsSource) Valid() bool {
+	switch e {
+	case GetAnalyticsParamsSourceAll:
+		return true
+	case GetAnalyticsParamsSourceExternal:
+		return true
+	case GetAnalyticsParamsSourceLate:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetAnalyticsParamsSortBy.
+const (
+	GetAnalyticsParamsSortByClicks                    GetAnalyticsParamsSortBy = "clicks"
+	GetAnalyticsParamsSortByComments                  GetAnalyticsParamsSortBy = "comments"
+	GetAnalyticsParamsSortByCompletionRate            GetAnalyticsParamsSortBy = "completion_rate"
+	GetAnalyticsParamsSortByDate                      GetAnalyticsParamsSortBy = "date"
+	GetAnalyticsParamsSortByEngagement                GetAnalyticsParamsSortBy = "engagement"
+	GetAnalyticsParamsSortByFollows                   GetAnalyticsParamsSortBy = "follows"
+	GetAnalyticsParamsSortByIgReelsAvgWatchTime       GetAnalyticsParamsSortBy = "ig_reels_avg_watch_time"
+	GetAnalyticsParamsSortByIgReelsVideoViewTotalTime GetAnalyticsParamsSortBy = "ig_reels_video_view_total_time"
+	GetAnalyticsParamsSortByImpressions               GetAnalyticsParamsSortBy = "impressions"
+	GetAnalyticsParamsSortByLikes                     GetAnalyticsParamsSortBy = "likes"
+	GetAnalyticsParamsSortByProfileViews              GetAnalyticsParamsSortBy = "profile_views"
+	GetAnalyticsParamsSortByReach                     GetAnalyticsParamsSortBy = "reach"
+	GetAnalyticsParamsSortByReelsSkipRate             GetAnalyticsParamsSortBy = "reels_skip_rate"
+	GetAnalyticsParamsSortByReposts                   GetAnalyticsParamsSortBy = "reposts"
+	GetAnalyticsParamsSortBySaves                     GetAnalyticsParamsSortBy = "saves"
+	GetAnalyticsParamsSortByShares                    GetAnalyticsParamsSortBy = "shares"
+	GetAnalyticsParamsSortByViews                     GetAnalyticsParamsSortBy = "views"
+	GetAnalyticsParamsSortByWebsiteClicks             GetAnalyticsParamsSortBy = "website_clicks"
+)
+
+// Valid indicates whether the value is a known member of the GetAnalyticsParamsSortBy enum.
+func (e GetAnalyticsParamsSortBy) Valid() bool {
+	switch e {
+	case GetAnalyticsParamsSortByClicks:
+		return true
+	case GetAnalyticsParamsSortByComments:
+		return true
+	case GetAnalyticsParamsSortByCompletionRate:
+		return true
+	case GetAnalyticsParamsSortByDate:
+		return true
+	case GetAnalyticsParamsSortByEngagement:
+		return true
+	case GetAnalyticsParamsSortByFollows:
+		return true
+	case GetAnalyticsParamsSortByIgReelsAvgWatchTime:
+		return true
+	case GetAnalyticsParamsSortByIgReelsVideoViewTotalTime:
+		return true
+	case GetAnalyticsParamsSortByImpressions:
+		return true
+	case GetAnalyticsParamsSortByLikes:
+		return true
+	case GetAnalyticsParamsSortByProfileViews:
+		return true
+	case GetAnalyticsParamsSortByReach:
+		return true
+	case GetAnalyticsParamsSortByReelsSkipRate:
+		return true
+	case GetAnalyticsParamsSortByReposts:
+		return true
+	case GetAnalyticsParamsSortBySaves:
+		return true
+	case GetAnalyticsParamsSortByShares:
+		return true
+	case GetAnalyticsParamsSortByViews:
+		return true
+	case GetAnalyticsParamsSortByWebsiteClicks:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetAnalyticsParamsOrder.
+const (
+	GetAnalyticsParamsOrderAsc  GetAnalyticsParamsOrder = "asc"
+	GetAnalyticsParamsOrderDesc GetAnalyticsParamsOrder = "desc"
+)
+
+// Valid indicates whether the value is a known member of the GetAnalyticsParamsOrder enum.
+func (e GetAnalyticsParamsOrder) Valid() bool {
+	switch e {
+	case GetAnalyticsParamsOrderAsc:
+		return true
+	case GetAnalyticsParamsOrderDesc:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListPostsParamsSource.
 const (
 	ListPostsParamsSourceExternal ListPostsParamsSource = "external"
@@ -1634,6 +1982,176 @@ type AccountsListResponse_StatusCounts struct {
 	// Disconnected Of those, the accounts that need reconnection.
 	Disconnected int `json:"disconnected"`
 }
+
+// AnalyticsListResponse defines model for AnalyticsListResponse.
+type AnalyticsListResponse struct {
+	// Accounts Connected accounts (followerCount and followersLastUpdated only included if user has analytics add-on)
+	Accounts *[]SocialAccount `json:"accounts,omitempty"`
+
+	// HasAnalyticsAccess Whether user has analytics add-on access
+	HasAnalyticsAccess *bool                          `json:"hasAnalyticsAccess,omitempty"`
+	Overview           *AnalyticsOverview             `json:"overview,omitempty"`
+	Pagination         *Pagination                    `json:"pagination,omitempty"`
+	Posts              *[]AnalyticsListResponse_Posts `json:"posts,omitempty"`
+}
+
+// AnalyticsListResponsePostsMediaItemsType defines model for AnalyticsListResponse.Posts.MediaItems.Type.
+type AnalyticsListResponsePostsMediaItemsType string
+
+// AnalyticsListResponse_Posts_MediaItems defines model for AnalyticsListResponse.Posts.MediaItems.
+type AnalyticsListResponse_Posts_MediaItems struct {
+	// AltText Accessibility alt text set on the media, when present.
+	AltText *string `json:"altText,omitempty"`
+
+	// Thumbnail Thumbnail URL (same as url for images)
+	Thumbnail *string                                   `json:"thumbnail,omitempty"`
+	Type      *AnalyticsListResponsePostsMediaItemsType `json:"type,omitempty"`
+
+	// Url Direct URL to the media
+	Url *string `json:"url,omitempty"`
+}
+
+// AnalyticsListResponsePostsMediaType defines model for AnalyticsListResponse.Posts.MediaType.
+type AnalyticsListResponsePostsMediaType string
+
+// AnalyticsListResponse_Posts defines model for AnalyticsListResponse.Posts.
+type AnalyticsListResponse_Posts struct {
+	UnderscoreId *string        `json:"_id,omitempty"`
+	Analytics    *PostAnalytics `json:"analytics,omitempty"`
+	Content      *string        `json:"content,omitempty"`
+
+	// IsAd True when this post's metrics include paid delivery, so organic reporting should exclude it. Set for LinkedIn dark posts and for TikTok posts that one of your TikTok ads promotes (Spark / boosted). TikTok exposes no ad flag of its own, so a video created by an uploaded-asset (non-Spark) TikTok ad is posted to the profile with a fresh organic id and cannot be detected: those still report as false.
+	IsAd *bool `json:"isAd,omitempty"`
+
+	// IsAiGenerated Instagram only: whether Instagram labeled the media as AI-generated. Absent when the platform did not report it.
+	IsAiGenerated *bool `json:"isAiGenerated,omitempty"`
+	IsExternal    *bool `json:"isExternal,omitempty"`
+
+	// IsSharedToFeed Instagram reels only: whether the reel is also shared to the main feed. Absent when the platform did not report it.
+	IsSharedToFeed *bool `json:"isSharedToFeed,omitempty"`
+
+	// LatePostId Original Zernio post ID if scheduled via Zernio
+	LatePostId *string `json:"latePostId,omitempty"`
+
+	// MediaAudioType Instagram only: audio type of the media (MUSIC or ORIGINAL_SOUND). Absent when the platform did not report it.
+	MediaAudioType *string `json:"mediaAudioType,omitempty"`
+
+	// MediaItems All media items for this post. Carousel posts contain one entry per slide. Facebook and Instagram images and video covers whose Meta CDN links expired are re-read and served from Zernio storage (non-expiring). Facebook and Instagram video file URLs, and LinkedIn media URLs, stay the platform's signed links and are refreshed on read once they lapse.
+	MediaItems *[]AnalyticsListResponse_Posts_MediaItems `json:"mediaItems,omitempty"`
+
+	// MediaProductType Instagram only: the platform media product type (e.g. FEED, REELS, STORY, AD). Absent when the platform did not report it.
+	MediaProductType *string                              `json:"mediaProductType,omitempty"`
+	MediaType        *AnalyticsListResponsePostsMediaType `json:"mediaType,omitempty"`
+	Platform         *string                              `json:"platform,omitempty"`
+	PlatformPostUrl  *string                              `json:"platformPostUrl,omitempty"`
+	Platforms        *[]PlatformAnalytics                 `json:"platforms,omitempty"`
+	ProfileId        *string                              `json:"profileId,omitempty"`
+	PublishedAt      *time.Time                           `json:"publishedAt,omitempty"`
+	ScheduledFor     *time.Time                           `json:"scheduledFor,omitempty"`
+	Status           *string                              `json:"status,omitempty"`
+
+	// ThumbnailUrl Cover image URL. Facebook and Instagram covers whose Meta CDN link expired are re-read from Meta and served from Zernio storage, so that URL does not expire and can be cached.
+	ThumbnailUrl *string `json:"thumbnailUrl,omitempty"`
+}
+
+// AnalyticsOverview defines model for AnalyticsOverview.
+type AnalyticsOverview struct {
+	DataStaleness  *AnalyticsOverview_DataStaleness `json:"dataStaleness,omitempty"`
+	LastSync       *time.Time                       `json:"lastSync,omitempty"`
+	PublishedPosts *int                             `json:"publishedPosts,omitempty"`
+	ScheduledPosts *int                             `json:"scheduledPosts,omitempty"`
+	TotalPosts     *int                             `json:"totalPosts,omitempty"`
+}
+
+// AnalyticsOverview_DataStaleness defines model for AnalyticsOverview.DataStaleness.
+type AnalyticsOverview_DataStaleness struct {
+	// StaleAccountCount Number of accounts with stale analytics data
+	StaleAccountCount *int `json:"staleAccountCount,omitempty"`
+
+	// SyncTriggered Whether a background sync was triggered for stale accounts
+	SyncTriggered *bool `json:"syncTriggered,omitempty"`
+}
+
+// AnalyticsSinglePostResponse defines model for AnalyticsSinglePostResponse.
+type AnalyticsSinglePostResponse struct {
+	Analytics *PostAnalytics `json:"analytics,omitempty"`
+	Content   *string        `json:"content,omitempty"`
+
+	// IsAiGenerated Instagram only: whether Instagram labeled the media as AI-generated. Absent when the platform did not report it.
+	IsAiGenerated *bool `json:"isAiGenerated,omitempty"`
+	IsExternal    *bool `json:"isExternal,omitempty"`
+
+	// IsSharedToFeed Instagram reels only: whether the reel is also shared to the main feed. Absent when the platform did not report it.
+	IsSharedToFeed *bool `json:"isSharedToFeed,omitempty"`
+
+	// LatePostId Original Zernio post ID if scheduled via Zernio
+	LatePostId *string `json:"latePostId,omitempty"`
+
+	// MediaAudioType Instagram only: audio type of the media (MUSIC or ORIGINAL_SOUND). Absent when the platform did not report it.
+	MediaAudioType *string `json:"mediaAudioType,omitempty"`
+
+	// MediaItems All media items for this post. Carousel posts contain one entry per slide. Facebook and Instagram images and video covers whose Meta CDN links expired are re-read and served from Zernio storage (non-expiring). Facebook and Instagram video file URLs, and LinkedIn media URLs, stay the platform's signed links and are refreshed on read once they lapse.
+	MediaItems *[]AnalyticsSinglePostResponse_MediaItems `json:"mediaItems,omitempty"`
+
+	// MediaProductType Instagram only: the platform media product type (e.g. FEED, REELS, STORY, AD). Absent when the platform did not report it.
+	MediaProductType *string                               `json:"mediaProductType,omitempty"`
+	MediaType        *AnalyticsSinglePostResponseMediaType `json:"mediaType,omitempty"`
+
+	// Message Human-readable status message for pending, partial, or failed states
+	Message           *string              `json:"message,omitempty"`
+	Platform          *string              `json:"platform,omitempty"`
+	PlatformAnalytics *[]PlatformAnalytics `json:"platformAnalytics,omitempty"`
+	PlatformPostUrl   *string              `json:"platformPostUrl,omitempty"`
+	PostId            *string              `json:"postId,omitempty"`
+	PublishedAt       *time.Time           `json:"publishedAt,omitempty"`
+	ScheduledFor      *time.Time           `json:"scheduledFor,omitempty"`
+
+	// Status Overall post status. "partial" when some platforms published and others failed. While any platform is still pending or processing, the post's own status is returned instead (usually scheduled or publishing), even if another platform already published. A post with no published or failed platform (for example every platform cancelled) returns its own status with syncStatus unavailable and no platformAnalytics.
+	Status *AnalyticsSinglePostResponseStatus `json:"status,omitempty"`
+
+	// SyncStatus Overall sync state across all platforms
+	SyncStatus *AnalyticsSinglePostResponseSyncStatus `json:"syncStatus,omitempty"`
+
+	// ThumbnailUrl Cover image URL. Facebook and Instagram covers whose Meta CDN link expired are re-read from Meta and served from Zernio storage, so that URL does not expire and can be cached.
+	ThumbnailUrl *string `json:"thumbnailUrl,omitempty"`
+}
+
+// AnalyticsSinglePostResponseMediaItemsMediaStatus unavailable means the media file could not be retrieved (url is null or, for LinkedIn videos, a cover image standing in for the file). available or absent means the file is available at url (older synced items omit the field).
+type AnalyticsSinglePostResponseMediaItemsMediaStatus string
+
+// AnalyticsSinglePostResponseMediaItemsType defines model for AnalyticsSinglePostResponse.MediaItems.Type.
+type AnalyticsSinglePostResponseMediaItemsType string
+
+// AnalyticsSinglePostResponseMediaItemsUnavailableReason Why the file is missing. platform_withheld means the platform declined to return it and retrying will not help.
+type AnalyticsSinglePostResponseMediaItemsUnavailableReason string
+
+// AnalyticsSinglePostResponse_MediaItems defines model for AnalyticsSinglePostResponse.MediaItems.
+type AnalyticsSinglePostResponse_MediaItems struct {
+	// AltText Accessibility alt text set on the media, when present.
+	AltText *string `json:"altText,omitempty"`
+
+	// MediaStatus unavailable means the media file could not be retrieved (url is null or, for LinkedIn videos, a cover image standing in for the file). available or absent means the file is available at url (older synced items omit the field).
+	MediaStatus *AnalyticsSinglePostResponseMediaItemsMediaStatus `json:"mediaStatus,omitempty"`
+
+	// Thumbnail Thumbnail URL (same as url for images). Still present when url is null.
+	Thumbnail *string                                    `json:"thumbnail,omitempty"`
+	Type      *AnalyticsSinglePostResponseMediaItemsType `json:"type,omitempty"`
+
+	// UnavailableReason Why the file is missing. platform_withheld means the platform declined to return it and retrying will not help.
+	UnavailableReason *AnalyticsSinglePostResponseMediaItemsUnavailableReason `json:"unavailableReason,omitempty"`
+
+	// Url 'Direct URL to the media file. Null when the platform withholds it: check mediaStatus before downloading. Instagram omits the video file for Reels it flags as containing copyrighted material (its docs name audio as the usual cause), so type stays "video" while the file is permanently unreachable.'
+	Url *string `json:"url,omitempty"`
+}
+
+// AnalyticsSinglePostResponseMediaType defines model for AnalyticsSinglePostResponse.MediaType.
+type AnalyticsSinglePostResponseMediaType string
+
+// AnalyticsSinglePostResponseStatus Overall post status. "partial" when some platforms published and others failed. While any platform is still pending or processing, the post's own status is returned instead (usually scheduled or publishing), even if another platform already published. A post with no published or failed platform (for example every platform cancelled) returns its own status with syncStatus unavailable and no platformAnalytics.
+type AnalyticsSinglePostResponseStatus string
+
+// AnalyticsSinglePostResponseSyncStatus Overall sync state across all platforms
+type AnalyticsSinglePostResponseSyncStatus string
 
 // BlueskyPlatformData Bluesky post settings. Supports text posts with up to 4 images or a single video. threadItems creates a reply chain (Bluesky thread). Images exceeding 1MB are automatically compressed. Alt text supported via mediaItem properties. Use langs to tag post language for feed-generator filtering.
 type BlueskyPlatformData struct {
@@ -2480,6 +2998,40 @@ type PinterestPlatformData struct {
 	Title *string `json:"title,omitempty"`
 }
 
+// PlatformAnalytics defines model for PlatformAnalytics.
+type PlatformAnalytics struct {
+	AccountId       *string        `json:"accountId,omitempty"`
+	AccountUsername *string        `json:"accountUsername,omitempty"`
+	Analytics       *PostAnalytics `json:"analytics,omitempty"`
+
+	// ErrorCode Stable machine-readable reason for errorMessage. post_not_found: the post was deleted or is no longer visible to the account. not_post_owner: the post is owned by another Page or user (collab or visitor post); its analytics cannot be read with this Page's token. permission_missing: the last analytics sync of the Facebook account failed because the Page no longer grants pages_read_engagement (pending entries only). null: no stable code, read errorMessage. New values may be added.
+	ErrorCode *PlatformAnalyticsErrorCode `json:"errorCode,omitempty"`
+
+	// ErrorMessage Failure detail. On failed entries, why the post failed to publish. On unavailable entries, why analytics cannot be synced (e.g. Google Business Profile, a TikTok upload that never received a video id). On pending entries, the most recent analytics sync error for the account (null while no sync has failed), cleared after the next successful sync.
+	ErrorMessage *string `json:"errorMessage,omitempty"`
+
+	// IsOwner Facebook only: true when the connected Page authored the post, false when Facebook reports another author (a collab post), null when unknown or for other platforms.
+	IsOwner  *bool   `json:"isOwner,omitempty"`
+	Platform *string `json:"platform,omitempty"`
+
+	// PlatformPostId The native post ID on the platform (e.g. Instagram media ID, tweet ID)
+	PlatformPostId  *string                  `json:"platformPostId,omitempty"`
+	PlatformPostUrl *string                  `json:"platformPostUrl,omitempty"`
+	Status          *PlatformAnalyticsStatus `json:"status,omitempty"`
+
+	// SyncStatus Sync state of analytics for this platform
+	SyncStatus *PlatformAnalyticsSyncStatus `json:"syncStatus,omitempty"`
+}
+
+// PlatformAnalyticsErrorCode Stable machine-readable reason for errorMessage. post_not_found: the post was deleted or is no longer visible to the account. not_post_owner: the post is owned by another Page or user (collab or visitor post); its analytics cannot be read with this Page's token. permission_missing: the last analytics sync of the Facebook account failed because the Page no longer grants pages_read_engagement (pending entries only). null: no stable code, read errorMessage. New values may be added.
+type PlatformAnalyticsErrorCode string
+
+// PlatformAnalyticsStatus defines model for PlatformAnalytics.Status.
+type PlatformAnalyticsStatus string
+
+// PlatformAnalyticsSyncStatus Sync state of analytics for this platform
+type PlatformAnalyticsSyncStatus string
+
 // PlatformTarget defines model for PlatformTarget.
 type PlatformTarget struct {
 	AccountId *PlatformTarget_AccountId `json:"accountId,omitempty"`
@@ -2609,6 +3161,67 @@ type Post_UserId struct {
 
 // PostVisibility defines model for Post.Visibility.
 type PostVisibility string
+
+// PostAnalytics defines model for PostAnalytics.
+type PostAnalytics struct {
+	// AudienceCountries TikTok accounts connected through the TikTok for Business app only: share of views by viewer country as fractions 0 to 1, keyed by upper-case ISO-3166 alpha-2 code (T+24-48h, only for posts active in the last 7 days). At most 20 country keys plus `other`: the catch-all bucket TikTok sends, any country below 0.001 and anything past the twentieth all sum into `other`, so the values still add up to 1. Empty object when TikTok reports nothing, and for other platforms. Views-weighted across accounts like impressionSources.
+	AudienceCountries *map[string]float32 `json:"audienceCountries,omitempty"`
+
+	// AudienceTypes TikTok accounts connected through the TikTok for Business app only: two viewer splits as fractions 0 to 1 (T+24-48h). Each pair sums to 1 when present, `follower` + `nonFollower` and `newViewer` + `returnViewer`; TikTok can report one pair without the other. Empty object when TikTok reports nothing, and for other platforms. Views-weighted across accounts like impressionSources.
+	AudienceTypes *map[string]float32 `json:"audienceTypes,omitempty"`
+
+	// Clicks Link clicks where the platform reports them. Always 0 on Facebook Page stories: Meta exposes no link-click metric for stories.
+	Clicks   *int `json:"clicks,omitempty"`
+	Comments *int `json:"comments,omitempty"`
+
+	// CompletionRate TikTok accounts connected through the TikTok for Business app only: share of viewers who watched the video to the end, 0 to 1, as TikTok reports it (T+24-48h, only for posts active in the last 7 days). 0 for other platforms. When a post is published to several accounts, the aggregate is weighted by views.
+	CompletionRate *float32 `json:"completionRate,omitempty"`
+
+	// EngagementRate Percentage, rounded to 2 decimals: (likes + comments + shares + saves) / (impressions or reach or views) * 100. Clicks and follows are never counted. The denominator is the FIRST of impressions, reach, views that is non-zero, so it is not the same basis on every post: a post with impressions divides by impressions, one without falls back to reach, then to views. If you need a single consistent basis (e.g. interactions / reach), compute it from the raw fields above. When this object is the post-level roll-up of a cross-posted post, the denominator is the SUM of the denominators resolved per platform entry: an entry reporting none of impressions, reach or views is excluded from both sides of the ratio. Each platformAnalytics entry below keeps its own single denominator. The engagementRate on the LinkedIn account endpoints is a different formula.
+	EngagementRate *float32 `json:"engagementRate,omitempty"`
+
+	// Follows Accounts that started following from this post. Instagram feed posts and stories (organic follows), Facebook Reels (Meta post_video_followers) and the TikTok business lane. Null on Instagram Reels and non-Reels video and on Facebook posts that are not Reels, where Meta does not expose this metric for the media. 0 for other platforms.
+	Follows *int `json:"follows,omitempty"`
+
+	// IgReelsAvgWatchTime Average watch time per play, in milliseconds, for Instagram Reels, Facebook Reels and TikTok videos (business accounts). On Facebook it includes replays within a play, so it can exceed the Reel length. 0 for other media and platforms, including regular Facebook videos.
+	IgReelsAvgWatchTime *int `json:"igReelsAvgWatchTime,omitempty"`
+
+	// IgReelsVideoViewTotalTime Total watch time including replays, in milliseconds, for Instagram Reels, Facebook Reels and TikTok videos (business accounts). 0 for other media and platforms, including regular Facebook videos.
+	IgReelsVideoViewTotalTime *int `json:"igReelsVideoViewTotalTime,omitempty"`
+
+	// ImpressionSources TikTok accounts connected through the TikTok for Business app only: share of views by surface, as fractions 0 to 1 (T+24-48h, only for posts active in the last 7 days). Keys: `forYou`, `follow`, `search`, `personalProfile`, `sound`, `directMessage`, `other`; a surface TikTok adds later appears under a camelCase key derived from its name. Empty object when TikTok reports nothing, and for other platforms. When a post is published to several accounts, each share is weighted by views.
+	ImpressionSources *map[string]float32 `json:"impressionSources,omitempty"`
+	Impressions       *int                `json:"impressions,omitempty"`
+	LastUpdated       *time.Time          `json:"lastUpdated,omitempty"`
+	Likes             *int                `json:"likes,omitempty"`
+
+	// ProfileViews TikTok accounts connected through the TikTok for Business app only: profile views from users who reached the profile through this post (T+24-48h). 0 for other platforms.
+	ProfileViews *int `json:"profileViews,omitempty"`
+	Reach        *int `json:"reach,omitempty"`
+
+	// ReelsSkipRate Instagram Reels only: percentage (0-100) of initial views that skipped the reel within its first 3 seconds, as reported by Meta. Meta labels the metric estimated and in development, so it can move between syncs. 0 for non-Reels media and other platforms. When a post is published to several accounts, the aggregate is weighted by views.
+	ReelsSkipRate *float32 `json:"reelsSkipRate,omitempty"`
+
+	// Replays Facebook Reels only: plays that were replays (Meta fb_reels_replay_count). Summed across accounts. 0 for other media and platforms.
+	Replays *int `json:"replays,omitempty"`
+
+	// Reposts Instagram accounts connected with Facebook Login only: reposts of the media by other users, minus deleted reposts, on feed posts, reels and stories. Meta does not expose this metric for accounts connected with Instagram Login, so those always report 0. 0 for other platforms, including Threads, where reposts are counted in shares instead.
+	Reposts *int `json:"reposts,omitempty"`
+
+	// RetentionCurve Facebook Reels and TikTok business lane: share still watching at each second of playback, fractions 0 to 1. Keys are whole seconds from the start of a play ("3" is the share still watching at 3 s). Facebook Reels (Meta post_video_retention_graph): the base is a subset of plays that Meta selects and does not expose, on small Reels it can be far below views (6 of 51 measured), so a value is a share of that subset, not of all plays; loops count as continued playback, so a short Reels curve runs past its length (an 8 s Reel has keys "0" to "12"); Meta returns at most 41 points, so a long Reel covers only its first 40 s. TikTok accounts connected through the TikTok for Business app (TikTok video_view_retention): one point per whole second, at most 61 points, thinned evenly on videos longer than 60 s. Empty object for other media and platforms. On a cross-posted post this is the curve of the account with the most views among those reporting one, never a blend: curves from different platforms and accounts measure different audiences and different seconds. Each platformAnalytics entry keeps its own curve.
+	RetentionCurve *map[string]float32 `json:"retentionCurve,omitempty"`
+
+	// Saves Number of saves/bookmarks (Instagram, Pinterest, X)
+	Saves  *int `json:"saves,omitempty"`
+	Shares *int `json:"shares,omitempty"`
+
+	// VideoDurationSeconds Video length in seconds. Currently Instagram Reels only; combine with igReelsAvgWatchTime (ms) to estimate retention. Null when unknown (other platforms, non-video media, or when Instagram does not expose the media URL, e.g. reels with copyrighted audio).
+	VideoDurationSeconds *int `json:"videoDurationSeconds,omitempty"`
+	Views                *int `json:"views,omitempty"`
+
+	// WebsiteClicks TikTok accounts connected through the TikTok for Business app only: clicks on the profile website link attributed to this post (T+24-48h). Also counted inside `clicks`, which sums every profile-link type (website, phone, email, address, app download). 0 for other platforms.
+	WebsiteClicks *int `json:"websiteClicks,omitempty"`
+}
 
 // PostCreateResponse defines model for PostCreateResponse.
 type PostCreateResponse struct {
@@ -3463,6 +4076,85 @@ type YouTubePlatformData struct {
 // YouTubePlatformDataVisibility Video visibility: public (default, anyone can watch), unlisted (link only), private (invite only)
 type YouTubePlatformDataVisibility string
 
+// YouTubeScopeMissingResponse defines model for YouTubeScopeMissingResponse.
+type YouTubeScopeMissingResponse struct {
+	Code        *string                                  `json:"code,omitempty"`
+	Error       *string                                  `json:"error,omitempty"`
+	ScopeStatus *YouTubeScopeMissingResponse_ScopeStatus `json:"scopeStatus,omitempty"`
+	Success     *bool                                    `json:"success,omitempty"`
+}
+
+// YouTubeScopeMissingResponse_ScopeStatus defines model for YouTubeScopeMissingResponse.ScopeStatus.
+type YouTubeScopeMissingResponse_ScopeStatus struct {
+	HasAnalyticsScope *bool `json:"hasAnalyticsScope,omitempty"`
+
+	// ReauthorizeUrl URL to redirect user for reauthorization
+	ReauthorizeUrl          *string `json:"reauthorizeUrl,omitempty"`
+	RequiresReauthorization *bool   `json:"requiresReauthorization,omitempty"`
+}
+
+// YouTubeVideoRetentionResponse defines model for YouTubeVideoRetentionResponse.
+type YouTubeVideoRetentionResponse struct {
+	// AccountId The Zernio account ID for the YouTube account
+	AccountId *string                                  `json:"accountId,omitempty"`
+	DateRange *YouTubeVideoRetentionResponse_DateRange `json:"dateRange,omitempty"`
+
+	// DurationSeconds Video length in seconds (from YouTube contentDetails.duration)
+	DurationSeconds *int `json:"durationSeconds,omitempty"`
+
+	// Note Present only when the curve is empty, explaining why
+	Note *string `json:"note,omitempty"`
+
+	// ProvisionalSince Present only when the range reaches into YouTube's ~3-day processing window: the first date whose numbers are provisional and may still be revised by YouTube.
+	ProvisionalSince *openapi_types.Date `json:"provisionalSince,omitempty"`
+
+	// PublishedAt When the video was published on YouTube
+	PublishedAt *time.Time `json:"publishedAt,omitempty"`
+
+	// RetentionCurve Up to 100 points covering the video timeline, aggregated over the date range. Can be empty when YouTube has no retention data for the video in the given range.
+	RetentionCurve *[]YouTubeVideoRetentionResponse_RetentionCurve `json:"retentionCurve,omitempty"`
+	ScopeStatus    *YouTubeVideoRetentionResponse_ScopeStatus      `json:"scopeStatus,omitempty"`
+	Success        *bool                                           `json:"success,omitempty"`
+
+	// Title Video title
+	Title *string `json:"title,omitempty"`
+
+	// VideoId The YouTube video ID
+	VideoId *string `json:"videoId,omitempty"`
+}
+
+// YouTubeVideoRetentionResponse_DateRange defines model for YouTubeVideoRetentionResponse.DateRange.
+type YouTubeVideoRetentionResponse_DateRange struct {
+	EndDate   *openapi_types.Date `json:"endDate,omitempty"`
+	StartDate *openapi_types.Date `json:"startDate,omitempty"`
+}
+
+// YouTubeVideoRetentionResponse_RetentionCurve defines model for YouTubeVideoRetentionResponse.RetentionCurve.
+type YouTubeVideoRetentionResponse_RetentionCurve struct {
+	// AudienceWatchRatio Absolute share of viewers watching at this point. Can exceed 1 (rewinds/looping, common on Shorts).
+	AudienceWatchRatio *float32 `json:"audienceWatchRatio,omitempty"`
+
+	// ElapsedVideoTimeRatio Position in the video as a ratio (0.01-1.0, exclusive end of each interval)
+	ElapsedVideoTimeRatio *float32 `json:"elapsedVideoTimeRatio,omitempty"`
+
+	// RelativeRetentionPerformance Retention vs videos of similar length (0 = worst, 0.5 = median, 1 = best)
+	RelativeRetentionPerformance *float32 `json:"relativeRetentionPerformance,omitempty"`
+
+	// StartedWatching Viewers who started watching in this segment. 0 when YouTube has no segment-level data for the video.
+	StartedWatching *int `json:"startedWatching,omitempty"`
+
+	// StoppedWatching Viewers who stopped watching in this segment. 0 when YouTube has no segment-level data for the video.
+	StoppedWatching *int `json:"stoppedWatching,omitempty"`
+
+	// TotalSegmentImpressions Total views of this segment, including rewatches
+	TotalSegmentImpressions *int `json:"totalSegmentImpressions,omitempty"`
+}
+
+// YouTubeVideoRetentionResponse_ScopeStatus defines model for YouTubeVideoRetentionResponse.ScopeStatus.
+type YouTubeVideoRetentionResponse_ScopeStatus struct {
+	HasAnalyticsScope *bool `json:"hasAnalyticsScope,omitempty"`
+}
+
 // PageParam defines model for PageParam.
 type PageParam = int
 
@@ -3472,6 +4164,18 @@ type PageParam = int
 // platform_error`), `platformError` carries the provider's raw payload
 // verbatim (for Meta: `error_subcode`, `error_user_title`, `error_user_msg`).
 type BadRequest = ErrorResponse
+
+// NotFound defines model for NotFound.
+type NotFound struct {
+	Error *string `json:"error,omitempty"`
+}
+
+// RateLimited Canonical error envelope. `error` is the human-readable message; `type`,
+// `code`, `param`, `platform`, and `platformError` are top-level siblings
+// for programmatic handling. For upstream platform failures (`type:
+// platform_error`), `platformError` carries the provider's raw payload
+// verbatim (for Meta: `error_subcode`, `error_user_title`, `error_user_msg`).
+type RateLimited = ErrorResponse
 
 // TemporarilyUnavailable Canonical error envelope. `error` is the human-readable message; `type`,
 // `code`, `param`, `platform`, and `platformError` are top-level siblings
@@ -3556,6 +4260,167 @@ type ListAccountsParamsSort string
 
 // ListAccountsParamsOrder defines parameters for ListAccounts.
 type ListAccountsParamsOrder string
+
+// ListTikTokCommercialMusicParams defines parameters for ListTikTokCommercialMusic.
+type ListTikTokCommercialMusicParams struct {
+	// CountryCode Two-letter ISO 3166-1 country code of the chart to read (for example ES). Defaults to TikTok's global chart.
+	CountryCode *string `form:"countryCode,omitempty" json:"countryCode,omitempty"`
+}
+
+// ListTikTokCommercialMusic200JSONResponseBody_Tracks_Clip defines parameters for ListTikTokCommercialMusic.
+type ListTikTokCommercialMusic200JSONResponseBody_Tracks_Clip struct {
+	DurationSec *int    `json:"durationSec,omitempty"`
+	Id          *string `json:"id,omitempty"`
+	PreviewUrl  *string `json:"previewUrl,omitempty"`
+}
+
+// ListTikTokCommercialMusic200JSONResponseBody_Tracks defines parameters for ListTikTokCommercialMusic.
+type ListTikTokCommercialMusic200JSONResponseBody_Tracks struct {
+	Artist *string `json:"artist,omitempty"`
+
+	// Clip The trending excerpt of the track, when TikTok provides one. Send clip.id as musicSoundId: it publishes and its sound page opens for viewers, unlike the full-track id (observed from Germany, 2026-10-06).
+	Clip *ListTikTokCommercialMusic200JSONResponseBody_Tracks_Clip `json:"clip,omitempty"`
+
+	// CommercialMusicId TikTok's commercial_music_id, for reference only
+	CommercialMusicId *string   `json:"commercialMusicId,omitempty"`
+	DurationSec       *int      `json:"durationSec,omitempty"`
+	Genres            *[]string `json:"genres,omitempty"`
+
+	// Id The full track's song clip id. Accepted as musicSoundId, but prefer clip.id: posts published with this id have shown viewers a sound page saying the song is not available in their country (observed from Germany). TikTok rejects the commercial music id itself at publish time.
+	Id   *string `json:"id,omitempty"`
+	Name *string `json:"name,omitempty"`
+
+	// PreviewUrl Preview audio of the full track
+	PreviewUrl *string `json:"previewUrl,omitempty"`
+
+	// Rank Position in the trending chart, 1 first
+	Rank         *int    `json:"rank,omitempty"`
+	ThumbnailUrl *string `json:"thumbnailUrl,omitempty"`
+}
+
+// ListTikTokCommercialMusic200JSONResponseBody defines parameters for ListTikTokCommercialMusic.
+type ListTikTokCommercialMusic200JSONResponseBody struct {
+	Tracks *[]ListTikTokCommercialMusic200JSONResponseBody_Tracks `json:"tracks,omitempty"`
+}
+
+// GetAnalyticsParams defines parameters for GetAnalytics.
+type GetAnalyticsParams struct {
+	// PostId Returns analytics for a single post. Accepts both Zernio Post IDs and External Post IDs. Zernio IDs are auto-resolved to External Post analytics.
+	PostId *string `form:"postId,omitempty" json:"postId,omitempty"`
+
+	// Platform Filter by platform (default "all")
+	Platform *string `form:"platform,omitempty" json:"platform,omitempty"`
+
+	// ProfileId Filter by profile ID (default "all")
+	ProfileId *string `form:"profileId,omitempty" json:"profileId,omitempty"`
+
+	// AccountId Filter by account ID
+	AccountId *string `form:"accountId,omitempty" json:"accountId,omitempty"`
+
+	// Source Filter by post source: late (posted via Zernio API), external (synced from platform), all (default)
+	Source *GetAnalyticsParamsSource `form:"source,omitempty" json:"source,omitempty"`
+
+	// FromDate Inclusive lower bound (YYYY-MM-DD). Defaults to 90 days ago if omitted. Max range is 366 days.
+	FromDate *openapi_types.Date `form:"fromDate,omitempty" json:"fromDate,omitempty"`
+
+	// ToDate Inclusive upper bound (YYYY-MM-DD). Defaults to today if omitted.
+	ToDate *openapi_types.Date `form:"toDate,omitempty" json:"toDate,omitempty"`
+
+	// Limit Page size (default 50)
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Page Page number (default 1)
+	Page *int `form:"page,omitempty" json:"page,omitempty"`
+
+	// SortBy Sort by date, engagement, or a specific metric. Platform-specific metrics (follows, reposts, reels_skip_rate, ig_reels_*, completion_rate, profile_views, website_clicks) sort a null value as 0.
+	SortBy *GetAnalyticsParamsSortBy `form:"sortBy,omitempty" json:"sortBy,omitempty"`
+
+	// Order Sort order
+	Order *GetAnalyticsParamsOrder `form:"order,omitempty" json:"order,omitempty"`
+}
+
+// GetAnalyticsParamsSource defines parameters for GetAnalytics.
+type GetAnalyticsParamsSource string
+
+// GetAnalyticsParamsSortBy defines parameters for GetAnalytics.
+type GetAnalyticsParamsSortBy string
+
+// GetAnalyticsParamsOrder defines parameters for GetAnalytics.
+type GetAnalyticsParamsOrder string
+
+// GetAnalytics200JSONResponseBody defines parameters for GetAnalytics.
+type GetAnalytics200JSONResponseBody struct {
+	union json.RawMessage
+}
+
+// GetAnalytics400JSONResponseBody defines parameters for GetAnalytics.
+type GetAnalytics400JSONResponseBody struct {
+	// Details Detailed validation errors
+	Details *map[string]interface{} `json:"details,omitempty"`
+	Error   *string                 `json:"error,omitempty"`
+}
+
+// GetAnalytics402JSONResponseBody defines parameters for GetAnalytics.
+type GetAnalytics402JSONResponseBody struct {
+	Code  *string `json:"code,omitempty"`
+	Error *string `json:"error,omitempty"`
+}
+
+// GetYouTubeVideoRetentionParams defines parameters for GetYouTubeVideoRetention.
+type GetYouTubeVideoRetentionParams struct {
+	// VideoId The YouTube video ID (e.g., "dQw4w9WgXcQ")
+	VideoId string `form:"videoId" json:"videoId"`
+
+	// AccountId The Zernio account ID for the YouTube account
+	AccountId string `form:"accountId" json:"accountId"`
+
+	// FromDate Start date (YYYY-MM-DD). Defaults to the video's publish date (lifetime curve).
+	FromDate *openapi_types.Date `form:"fromDate,omitempty" json:"fromDate,omitempty"`
+
+	// ToDate End date (YYYY-MM-DD). Defaults to 3 days ago, the newest fully finalized day
+	// (YouTube finalizes analytics with a ~3-day delay). An explicit toDate is honored
+	// up to today: days inside the delay window are provisional and may still be revised
+	// by YouTube (see provisionalSince in the response).
+	ToDate *openapi_types.Date `form:"toDate,omitempty" json:"toDate,omitempty"`
+
+	// StartDate Alias of fromDate, kept for existing callers
+	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
+	StartDate *openapi_types.Date `form:"startDate,omitempty" json:"startDate,omitempty"`
+
+	// EndDate Alias of toDate, kept for existing callers
+	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
+	EndDate *openapi_types.Date `form:"endDate,omitempty" json:"endDate,omitempty"`
+}
+
+// GetYouTubeVideoRetention400JSONResponseBody defines parameters for GetYouTubeVideoRetention.
+type GetYouTubeVideoRetention400JSONResponseBody struct {
+	Error *string `json:"error,omitempty"`
+}
+
+// GetYouTubeVideoRetention402JSONResponseBody defines parameters for GetYouTubeVideoRetention.
+type GetYouTubeVideoRetention402JSONResponseBody struct {
+	Code  *string `json:"code,omitempty"`
+	Error *string `json:"error,omitempty"`
+}
+
+// GetYouTubeVideoRetention403JSONResponseBody defines parameters for GetYouTubeVideoRetention.
+type GetYouTubeVideoRetention403JSONResponseBody struct {
+	Error *string `json:"error,omitempty"`
+}
+
+// GetYouTubeVideoRetention404JSONResponseBody defines parameters for GetYouTubeVideoRetention.
+type GetYouTubeVideoRetention404JSONResponseBody struct {
+	Code  *string `json:"code,omitempty"`
+	Error *string `json:"error,omitempty"`
+	Param *string `json:"param,omitempty"`
+	Type  *string `json:"type,omitempty"`
+}
+
+// GetYouTubeVideoRetention500JSONResponseBody defines parameters for GetYouTubeVideoRetention.
+type GetYouTubeVideoRetention500JSONResponseBody struct {
+	Error   *string `json:"error,omitempty"`
+	Success *bool   `json:"success,omitempty"`
+}
 
 // GetMediaPresignedUrlJSONBody defines parameters for GetMediaPresignedUrl.
 type GetMediaPresignedUrlJSONBody struct {
@@ -4308,6 +5173,68 @@ func (t *XArticleEntity) UnmarshalJSON(b []byte) error {
 	return err
 }
 
+// AsAnalyticsSinglePostResponse returns the union data inside the GetAnalytics200JSONResponseBody as a AnalyticsSinglePostResponse
+func (t GetAnalytics200JSONResponseBody) AsAnalyticsSinglePostResponse() (AnalyticsSinglePostResponse, error) {
+	var body AnalyticsSinglePostResponse
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromAnalyticsSinglePostResponse overwrites any union data inside the GetAnalytics200JSONResponseBody as the provided AnalyticsSinglePostResponse
+func (t *GetAnalytics200JSONResponseBody) FromAnalyticsSinglePostResponse(v AnalyticsSinglePostResponse) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeAnalyticsSinglePostResponse performs a merge with any union data inside the GetAnalytics200JSONResponseBody, using the provided AnalyticsSinglePostResponse
+func (t *GetAnalytics200JSONResponseBody) MergeAnalyticsSinglePostResponse(v AnalyticsSinglePostResponse) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsAnalyticsListResponse returns the union data inside the GetAnalytics200JSONResponseBody as a AnalyticsListResponse
+func (t GetAnalytics200JSONResponseBody) AsAnalyticsListResponse() (AnalyticsListResponse, error) {
+	var body AnalyticsListResponse
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromAnalyticsListResponse overwrites any union data inside the GetAnalytics200JSONResponseBody as the provided AnalyticsListResponse
+func (t *GetAnalytics200JSONResponseBody) FromAnalyticsListResponse(v AnalyticsListResponse) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeAnalyticsListResponse performs a merge with any union data inside the GetAnalytics200JSONResponseBody, using the provided AnalyticsListResponse
+func (t *GetAnalytics200JSONResponseBody) MergeAnalyticsListResponse(v AnalyticsListResponse) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t GetAnalytics200JSONResponseBody) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *GetAnalytics200JSONResponseBody) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
 // AsTwitterPlatformData returns the union data inside the CreatePostJSONBody_Platforms_PlatformSpecificData as a TwitterPlatformData
 func (t CreatePostJSONBody_Platforms_PlatformSpecificData) AsTwitterPlatformData() (TwitterPlatformData, error) {
 	var body TwitterPlatformData
@@ -4853,6 +5780,44 @@ type ClientInterface interface {
 	// Corresponds with GET /v1/accounts (the `ListAccounts` operationId).
 	ListAccounts(ctx context.Context, params *ListAccountsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListTikTokCommercialMusic List trending commercial music
+	//
+	// Returns the 100 currently trending tracks of TikTok's Commercial Music Library for a TikTok account connected through the TikTok for Business app. Send a track's clip.id as tiktokSettings.musicSoundInfo.musicSoundId when creating a post; fall back to id only when the track has no clip. Both publish, but with the full-track id TikTok has shown viewers "This song is not available in your country" on the sound page (observed from Germany, 2026-10-06), while the clip id gave a working sound page for the same track. The list is not paged; countryCode selects the country chart.
+	//
+	// Corresponds with GET /v1/accounts/{accountId}/tiktok/commercial-music (the `ListTikTokCommercialMusic` operationId).
+	ListTikTokCommercialMusic(ctx context.Context, accountId string, params *ListTikTokCommercialMusicParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetAnalytics Get post analytics
+	//
+	// Returns analytics for posts. With postId, returns a single post. Without it, returns a paginated list with overview stats.
+	// Accepts both Zernio Post IDs and External Post IDs (auto-resolved). fromDate defaults to 90 days ago if omitted, max range 366 days.
+	// Single post lookups may return 202 (sync pending) or 424 (all platforms failed). For follower stats, use /v1/accounts/follower-stats.
+	//
+	// LinkedIn personal accounts: Analytics are only available for posts published through Zernio. LinkedIn's API only returns metrics for posts authored by the authenticated user. Organization/company page analytics work for all posts.
+	//
+	// Facebook Page stories: stories on a connected Page, published through Zernio or natively, are collected while they are live and returned like any other post (platformPostUrl points to the story). Their lifetime metrics refresh about hourly, with a final reading shortly before the story expires at 24 hours; after that the values stay at that last reading. Mapping: impressions = story impressions, reach = story reach, views = story media views, likes = story reactions, comments = story replies, shares = story shares. Meta exposes no link-click metric for stories, so clicks is always 0. Metrics for a story published through Zernio are available on its Zernio post ID.
+	//
+	// Corresponds with GET /v1/analytics (the `GetAnalytics` operationId).
+	GetAnalytics(ctx context.Context, params *GetAnalyticsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetYouTubeVideoRetention Get YouTube video retention curve
+	//
+	// Returns the audience retention curve for a single YouTube video, plus the video's
+	// duration for rendering the curve on a time axis. The curve has up to 100 points
+	// (elapsedVideoTimeRatio 0.01-1.0) aggregated over the whole date range; YouTube does
+	// not support per-day retention breakdowns.
+	//
+	// audienceWatchRatio is the absolute share of viewers watching at that point in the
+	// video and can exceed 1 (rewinds and looping, common on Shorts). relativeRetentionPerformance
+	// compares against videos of similar length (0 = worst, 0.5 = median, 1 = best).
+	// YouTube returns an empty curve for videos with very few views or before analytics
+	// processing completes (2-3 day delay).
+	//
+	// Requires yt-analytics.readonly scope (re-authorization may be needed).
+	//
+	// Corresponds with GET /v1/analytics/youtube/video-retention (the `GetYouTubeVideoRetention` operationId).
+	GetYouTubeVideoRetention(ctx context.Context, params *GetYouTubeVideoRetentionParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetMediaPresignedUrlWithBody Get upload URL
 	//
 	// Get a presigned URL to upload files directly to cloud storage (up to 5GB). Returns an uploadUrl and publicUrl. PUT your file to the uploadUrl, then use the publicUrl in your posts.
@@ -4996,6 +5961,74 @@ type ClientInterface interface {
 // Corresponds with GET /v1/accounts (the `ListAccounts` operationId).
 func (c *Client) ListAccounts(ctx context.Context, params *ListAccountsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListAccountsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListTikTokCommercialMusic List trending commercial music
+//
+// Returns the 100 currently trending tracks of TikTok's Commercial Music Library for a TikTok account connected through the TikTok for Business app. Send a track's clip.id as tiktokSettings.musicSoundInfo.musicSoundId when creating a post; fall back to id only when the track has no clip. Both publish, but with the full-track id TikTok has shown viewers "This song is not available in your country" on the sound page (observed from Germany, 2026-10-06), while the clip id gave a working sound page for the same track. The list is not paged; countryCode selects the country chart.
+//
+// Corresponds with GET /v1/accounts/{accountId}/tiktok/commercial-music (the `ListTikTokCommercialMusic` operationId).
+func (c *Client) ListTikTokCommercialMusic(ctx context.Context, accountId string, params *ListTikTokCommercialMusicParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListTikTokCommercialMusicRequest(c.Server, accountId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetAnalytics Get post analytics
+//
+// Returns analytics for posts. With postId, returns a single post. Without it, returns a paginated list with overview stats.
+// Accepts both Zernio Post IDs and External Post IDs (auto-resolved). fromDate defaults to 90 days ago if omitted, max range 366 days.
+// Single post lookups may return 202 (sync pending) or 424 (all platforms failed). For follower stats, use /v1/accounts/follower-stats.
+//
+// LinkedIn personal accounts: Analytics are only available for posts published through Zernio. LinkedIn's API only returns metrics for posts authored by the authenticated user. Organization/company page analytics work for all posts.
+//
+// Facebook Page stories: stories on a connected Page, published through Zernio or natively, are collected while they are live and returned like any other post (platformPostUrl points to the story). Their lifetime metrics refresh about hourly, with a final reading shortly before the story expires at 24 hours; after that the values stay at that last reading. Mapping: impressions = story impressions, reach = story reach, views = story media views, likes = story reactions, comments = story replies, shares = story shares. Meta exposes no link-click metric for stories, so clicks is always 0. Metrics for a story published through Zernio are available on its Zernio post ID.
+//
+// Corresponds with GET /v1/analytics (the `GetAnalytics` operationId).
+func (c *Client) GetAnalytics(ctx context.Context, params *GetAnalyticsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetAnalyticsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetYouTubeVideoRetention Get YouTube video retention curve
+//
+// Returns the audience retention curve for a single YouTube video, plus the video's
+// duration for rendering the curve on a time axis. The curve has up to 100 points
+// (elapsedVideoTimeRatio 0.01-1.0) aggregated over the whole date range; YouTube does
+// not support per-day retention breakdowns.
+//
+// audienceWatchRatio is the absolute share of viewers watching at that point in the
+// video and can exceed 1 (rewinds and looping, common on Shorts). relativeRetentionPerformance
+// compares against videos of similar length (0 = worst, 0.5 = median, 1 = best).
+// YouTube returns an empty curve for videos with very few views or before analytics
+// processing completes (2-3 day delay).
+//
+// Requires yt-analytics.readonly scope (re-authorization may be needed).
+//
+// Corresponds with GET /v1/analytics/youtube/video-retention (the `GetYouTubeVideoRetention` operationId).
+func (c *Client) GetYouTubeVideoRetention(ctx context.Context, params *GetYouTubeVideoRetentionParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetYouTubeVideoRetentionRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -5388,6 +6421,347 @@ func NewListAccountsRequest(server string, params *ListAccountsParams) (*http.Re
 		if params.PerProfile != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "perProfile", *params.PerProfile, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListTikTokCommercialMusicRequest constructs an http.Request for the ListTikTokCommercialMusic method
+func NewListTikTokCommercialMusicRequest(server string, accountId string, params *ListTikTokCommercialMusicParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "accountId", accountId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v1/accounts/%s/tiktok/commercial-music", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.CountryCode != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "countryCode", *params.CountryCode, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetAnalyticsRequest constructs an http.Request for the GetAnalytics method
+func NewGetAnalyticsRequest(server string, params *GetAnalyticsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v1/analytics")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.PostId != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "postId", *params.PostId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Platform != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "platform", *params.Platform, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.ProfileId != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "profileId", *params.ProfileId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.AccountId != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "accountId", *params.AccountId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Source != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "source", *params.Source, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.FromDate != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "fromDate", *params.FromDate, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "date"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.ToDate != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "toDate", *params.ToDate, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "date"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Page != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "page", *params.Page, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.SortBy != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "sortBy", *params.SortBy, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Order != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "order", *params.Order, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetYouTubeVideoRetentionRequest constructs an http.Request for the GetYouTubeVideoRetention method
+func NewGetYouTubeVideoRetentionRequest(server string, params *GetYouTubeVideoRetentionParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v1/analytics/youtube/video-retention")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "videoId", params.VideoId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+			return nil, err
+		} else {
+			for _, qp := range strings.Split(queryFrag, "&") {
+				rawQueryFragments = append(rawQueryFragments, qp)
+			}
+		}
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "accountId", params.AccountId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+			return nil, err
+		} else {
+			for _, qp := range strings.Split(queryFrag, "&") {
+				rawQueryFragments = append(rawQueryFragments, qp)
+			}
+		}
+
+		if params.FromDate != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "fromDate", *params.FromDate, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "date"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.ToDate != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "toDate", *params.ToDate, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "date"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.StartDate != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "startDate", *params.StartDate, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "date"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.EndDate != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "endDate", *params.EndDate, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "date"}); err != nil {
 				return nil, err
 			} else {
 				for _, qp := range strings.Split(queryFrag, "&") {
@@ -5818,6 +7192,50 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /v1/accounts (the `ListAccounts` operationId).
 	ListAccountsWithResponse(ctx context.Context, params *ListAccountsParams, reqEditors ...RequestEditorFn) (*ListAccountsResponse, error)
 
+	// ListTikTokCommercialMusicWithResponse List trending commercial music
+	//
+	// Returns the 100 currently trending tracks of TikTok's Commercial Music Library for a TikTok account connected through the TikTok for Business app. Send a track's clip.id as tiktokSettings.musicSoundInfo.musicSoundId when creating a post; fall back to id only when the track has no clip. Both publish, but with the full-track id TikTok has shown viewers "This song is not available in your country" on the sound page (observed from Germany, 2026-10-06), while the clip id gave a working sound page for the same track. The list is not paged; countryCode selects the country chart.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /v1/accounts/{accountId}/tiktok/commercial-music (the `ListTikTokCommercialMusic` operationId).
+	ListTikTokCommercialMusicWithResponse(ctx context.Context, accountId string, params *ListTikTokCommercialMusicParams, reqEditors ...RequestEditorFn) (*ListTikTokCommercialMusicResponse, error)
+
+	// GetAnalyticsWithResponse Get post analytics
+	//
+	// Returns analytics for posts. With postId, returns a single post. Without it, returns a paginated list with overview stats.
+	// Accepts both Zernio Post IDs and External Post IDs (auto-resolved). fromDate defaults to 90 days ago if omitted, max range 366 days.
+	// Single post lookups may return 202 (sync pending) or 424 (all platforms failed). For follower stats, use /v1/accounts/follower-stats.
+	//
+	// LinkedIn personal accounts: Analytics are only available for posts published through Zernio. LinkedIn's API only returns metrics for posts authored by the authenticated user. Organization/company page analytics work for all posts.
+	//
+	// Facebook Page stories: stories on a connected Page, published through Zernio or natively, are collected while they are live and returned like any other post (platformPostUrl points to the story). Their lifetime metrics refresh about hourly, with a final reading shortly before the story expires at 24 hours; after that the values stay at that last reading. Mapping: impressions = story impressions, reach = story reach, views = story media views, likes = story reactions, comments = story replies, shares = story shares. Meta exposes no link-click metric for stories, so clicks is always 0. Metrics for a story published through Zernio are available on its Zernio post ID.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /v1/analytics (the `GetAnalytics` operationId).
+	GetAnalyticsWithResponse(ctx context.Context, params *GetAnalyticsParams, reqEditors ...RequestEditorFn) (*GetAnalyticsResponse, error)
+
+	// GetYouTubeVideoRetentionWithResponse Get YouTube video retention curve
+	//
+	// Returns the audience retention curve for a single YouTube video, plus the video's
+	// duration for rendering the curve on a time axis. The curve has up to 100 points
+	// (elapsedVideoTimeRatio 0.01-1.0) aggregated over the whole date range; YouTube does
+	// not support per-day retention breakdowns.
+	//
+	// audienceWatchRatio is the absolute share of viewers watching at that point in the
+	// video and can exceed 1 (rewinds and looping, common on Shorts). relativeRetentionPerformance
+	// compares against videos of similar length (0 = worst, 0.5 = median, 1 = best).
+	// YouTube returns an empty curve for videos with very few views or before analytics
+	// processing completes (2-3 day delay).
+	//
+	// Requires yt-analytics.readonly scope (re-authorization may be needed).
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /v1/analytics/youtube/video-retention (the `GetYouTubeVideoRetention` operationId).
+	GetYouTubeVideoRetentionWithResponse(ctx context.Context, params *GetYouTubeVideoRetentionParams, reqEditors ...RequestEditorFn) (*GetYouTubeVideoRetentionResponse, error)
+
 	// GetMediaPresignedUrlWithBodyWithResponse Get upload URL
 	//
 	// Get a presigned URL to upload files directly to cloud storage (up to 5GB). Returns an uploadUrl and publicUrl. PUT your file to the uploadUrl, then use the publicUrl in your posts.
@@ -6017,6 +7435,248 @@ func (r ListAccountsResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ListAccountsResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListTikTokCommercialMusicResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ListTikTokCommercialMusic200JSONResponseBody
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *BadRequest
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListTikTokCommercialMusicResponse) GetJSON200() *ListTikTokCommercialMusic200JSONResponseBody {
+	return r.JSON200
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r ListTikTokCommercialMusicResponse) GetJSON400() *BadRequest {
+	return r.JSON400
+}
+
+// GetBody returns the raw response body bytes
+func (r ListTikTokCommercialMusicResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListTikTokCommercialMusicResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListTikTokCommercialMusicResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListTikTokCommercialMusicResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetAnalyticsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *GetAnalytics200JSONResponseBody
+	// JSON202 the response for an HTTP 202 `application/json` response
+	JSON202 *AnalyticsSinglePostResponse
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *GetAnalytics400JSONResponseBody
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Unauthorized
+	// JSON402 the response for an HTTP 402 `application/json` response
+	JSON402 *GetAnalytics402JSONResponseBody
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
+	// JSON424 the response for an HTTP 424 `application/json` response
+	JSON424 *AnalyticsSinglePostResponse
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *ErrorResponse
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetAnalyticsResponse) GetJSON200() *GetAnalytics200JSONResponseBody {
+	return r.JSON200
+}
+
+// GetJSON202 returns the response for an HTTP 202 `application/json` response
+func (r GetAnalyticsResponse) GetJSON202() *AnalyticsSinglePostResponse {
+	return r.JSON202
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r GetAnalyticsResponse) GetJSON400() *GetAnalytics400JSONResponseBody {
+	return r.JSON400
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetAnalyticsResponse) GetJSON401() *Unauthorized {
+	return r.JSON401
+}
+
+// GetJSON402 returns the response for an HTTP 402 `application/json` response
+func (r GetAnalyticsResponse) GetJSON402() *GetAnalytics402JSONResponseBody {
+	return r.JSON402
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r GetAnalyticsResponse) GetJSON404() *NotFound {
+	return r.JSON404
+}
+
+// GetJSON424 returns the response for an HTTP 424 `application/json` response
+func (r GetAnalyticsResponse) GetJSON424() *AnalyticsSinglePostResponse {
+	return r.JSON424
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r GetAnalyticsResponse) GetJSON500() *ErrorResponse {
+	return r.JSON500
+}
+
+// GetBody returns the raw response body bytes
+func (r GetAnalyticsResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetAnalyticsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetAnalyticsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetAnalyticsResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+// GetYouTubeVideoRetentionResponse429Headers the declared response headers of an HTTP 429 response for GetYouTubeVideoRetention
+type GetYouTubeVideoRetentionResponse429Headers struct {
+	RetryAfter *int
+}
+
+type GetYouTubeVideoRetentionResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *YouTubeVideoRetentionResponse
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *GetYouTubeVideoRetention400JSONResponseBody
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Unauthorized
+	// JSON402 the response for an HTTP 402 `application/json` response
+	JSON402 *GetYouTubeVideoRetention402JSONResponseBody
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *GetYouTubeVideoRetention403JSONResponseBody
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *GetYouTubeVideoRetention404JSONResponseBody
+	// JSON412 the response for an HTTP 412 `application/json` response
+	JSON412 *YouTubeScopeMissingResponse
+	// JSON429 the response for an HTTP 429 `application/json` response
+	JSON429 *RateLimited
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *GetYouTubeVideoRetention500JSONResponseBody
+	// Headers429 the parsed response headers for an HTTP 429 response
+	Headers429 *GetYouTubeVideoRetentionResponse429Headers
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetYouTubeVideoRetentionResponse) GetJSON200() *YouTubeVideoRetentionResponse {
+	return r.JSON200
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r GetYouTubeVideoRetentionResponse) GetJSON400() *GetYouTubeVideoRetention400JSONResponseBody {
+	return r.JSON400
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetYouTubeVideoRetentionResponse) GetJSON401() *Unauthorized {
+	return r.JSON401
+}
+
+// GetJSON402 returns the response for an HTTP 402 `application/json` response
+func (r GetYouTubeVideoRetentionResponse) GetJSON402() *GetYouTubeVideoRetention402JSONResponseBody {
+	return r.JSON402
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetYouTubeVideoRetentionResponse) GetJSON403() *GetYouTubeVideoRetention403JSONResponseBody {
+	return r.JSON403
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r GetYouTubeVideoRetentionResponse) GetJSON404() *GetYouTubeVideoRetention404JSONResponseBody {
+	return r.JSON404
+}
+
+// GetJSON412 returns the response for an HTTP 412 `application/json` response
+func (r GetYouTubeVideoRetentionResponse) GetJSON412() *YouTubeScopeMissingResponse {
+	return r.JSON412
+}
+
+// GetJSON429 returns the response for an HTTP 429 `application/json` response
+func (r GetYouTubeVideoRetentionResponse) GetJSON429() *RateLimited {
+	return r.JSON429
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r GetYouTubeVideoRetentionResponse) GetJSON500() *GetYouTubeVideoRetention500JSONResponseBody {
+	return r.JSON500
+}
+
+// GetBody returns the raw response body bytes
+func (r GetYouTubeVideoRetentionResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetYouTubeVideoRetentionResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetYouTubeVideoRetentionResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetYouTubeVideoRetentionResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -6250,6 +7910,68 @@ func (c *ClientWithResponses) ListAccountsWithResponse(ctx context.Context, para
 	return ParseListAccountsResponse(rsp)
 }
 
+// ListTikTokCommercialMusicWithResponse List trending commercial music
+//
+// Returns the 100 currently trending tracks of TikTok's Commercial Music Library for a TikTok account connected through the TikTok for Business app. Send a track's clip.id as tiktokSettings.musicSoundInfo.musicSoundId when creating a post; fall back to id only when the track has no clip. Both publish, but with the full-track id TikTok has shown viewers "This song is not available in your country" on the sound page (observed from Germany, 2026-10-06), while the clip id gave a working sound page for the same track. The list is not paged; countryCode selects the country chart.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /v1/accounts/{accountId}/tiktok/commercial-music (the `ListTikTokCommercialMusic` operationId).
+func (c *ClientWithResponses) ListTikTokCommercialMusicWithResponse(ctx context.Context, accountId string, params *ListTikTokCommercialMusicParams, reqEditors ...RequestEditorFn) (*ListTikTokCommercialMusicResponse, error) {
+	rsp, err := c.ListTikTokCommercialMusic(ctx, accountId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListTikTokCommercialMusicResponse(rsp)
+}
+
+// GetAnalyticsWithResponse Get post analytics
+//
+// Returns analytics for posts. With postId, returns a single post. Without it, returns a paginated list with overview stats.
+// Accepts both Zernio Post IDs and External Post IDs (auto-resolved). fromDate defaults to 90 days ago if omitted, max range 366 days.
+// Single post lookups may return 202 (sync pending) or 424 (all platforms failed). For follower stats, use /v1/accounts/follower-stats.
+//
+// LinkedIn personal accounts: Analytics are only available for posts published through Zernio. LinkedIn's API only returns metrics for posts authored by the authenticated user. Organization/company page analytics work for all posts.
+//
+// Facebook Page stories: stories on a connected Page, published through Zernio or natively, are collected while they are live and returned like any other post (platformPostUrl points to the story). Their lifetime metrics refresh about hourly, with a final reading shortly before the story expires at 24 hours; after that the values stay at that last reading. Mapping: impressions = story impressions, reach = story reach, views = story media views, likes = story reactions, comments = story replies, shares = story shares. Meta exposes no link-click metric for stories, so clicks is always 0. Metrics for a story published through Zernio are available on its Zernio post ID.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /v1/analytics (the `GetAnalytics` operationId).
+func (c *ClientWithResponses) GetAnalyticsWithResponse(ctx context.Context, params *GetAnalyticsParams, reqEditors ...RequestEditorFn) (*GetAnalyticsResponse, error) {
+	rsp, err := c.GetAnalytics(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetAnalyticsResponse(rsp)
+}
+
+// GetYouTubeVideoRetentionWithResponse Get YouTube video retention curve
+//
+// Returns the audience retention curve for a single YouTube video, plus the video's
+// duration for rendering the curve on a time axis. The curve has up to 100 points
+// (elapsedVideoTimeRatio 0.01-1.0) aggregated over the whole date range; YouTube does
+// not support per-day retention breakdowns.
+//
+// audienceWatchRatio is the absolute share of viewers watching at that point in the
+// video and can exceed 1 (rewinds and looping, common on Shorts). relativeRetentionPerformance
+// compares against videos of similar length (0 = worst, 0.5 = median, 1 = best).
+// YouTube returns an empty curve for videos with very few views or before analytics
+// processing completes (2-3 day delay).
+//
+// Requires yt-analytics.readonly scope (re-authorization may be needed).
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /v1/analytics/youtube/video-retention (the `GetYouTubeVideoRetention` operationId).
+func (c *ClientWithResponses) GetYouTubeVideoRetentionWithResponse(ctx context.Context, params *GetYouTubeVideoRetentionParams, reqEditors ...RequestEditorFn) (*GetYouTubeVideoRetentionResponse, error) {
+	rsp, err := c.GetYouTubeVideoRetention(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetYouTubeVideoRetentionResponse(rsp)
+}
+
 // GetMediaPresignedUrlWithBodyWithResponse Get upload URL
 //
 // Get a presigned URL to upload files directly to cloud storage (up to 5GB). Returns an uploadUrl and publicUrl. PUT your file to the uploadUrl, then use the publicUrl in your posts.
@@ -6470,6 +8192,212 @@ func ParseListAccountsResponse(rsp *http.Response) (*ListAccountsResponse, error
 			headers.RetryAfter = &value
 		}
 		response.Headers503 = &headers
+	}
+
+	return response, nil
+}
+
+// ParseListTikTokCommercialMusicResponse parses an HTTP response from a ListTikTokCommercialMusicWithResponse call
+func ParseListTikTokCommercialMusicResponse(rsp *http.Response) (*ListTikTokCommercialMusicResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListTikTokCommercialMusicResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ListTikTokCommercialMusic200JSONResponseBody
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case rsp.StatusCode == 404:
+		break // No content-type
+
+	}
+
+	return response, nil
+}
+
+// ParseGetAnalyticsResponse parses an HTTP response from a GetAnalyticsWithResponse call
+func ParseGetAnalyticsResponse(rsp *http.Response) (*GetAnalyticsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetAnalyticsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest GetAnalytics200JSONResponseBody
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest AnalyticsSinglePostResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest GetAnalytics400JSONResponseBody
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 402:
+		var dest GetAnalytics402JSONResponseBody
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON402 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 424:
+		var dest AnalyticsSinglePostResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON424 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetYouTubeVideoRetentionResponse parses an HTTP response from a GetYouTubeVideoRetentionWithResponse call
+func ParseGetYouTubeVideoRetentionResponse(rsp *http.Response) (*GetYouTubeVideoRetentionResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetYouTubeVideoRetentionResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest YouTubeVideoRetentionResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest GetYouTubeVideoRetention400JSONResponseBody
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 402:
+		var dest GetYouTubeVideoRetention402JSONResponseBody
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON402 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest GetYouTubeVideoRetention403JSONResponseBody
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest GetYouTubeVideoRetention404JSONResponseBody
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 412:
+		var dest YouTubeScopeMissingResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON412 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 429:
+		var dest RateLimited
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON429 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest GetYouTubeVideoRetention500JSONResponseBody
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	switch {
+	case rsp.StatusCode == 429:
+		var headers GetYouTubeVideoRetentionResponse429Headers
+		if values := rsp.Header.Values("Retry-After"); len(values) > 0 {
+			var value int
+			if err := runtime.BindStyledParameterWithOptions("simple", "Retry-After", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.RetryAfter = &value
+		}
+		response.Headers429 = &headers
 	}
 
 	return response, nil
