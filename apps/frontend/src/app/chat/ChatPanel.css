@@ -250,6 +250,11 @@
     box-shadow: inset 0 0 0 var(--outline-thin) var(--ink);
 }
 
+.chat-tab .chat-badge {
+    margin-left: var(--space-1);
+    vertical-align: 1px;
+}
+
 .chat-fold {
     flex-shrink: 0;
     margin-left: auto;

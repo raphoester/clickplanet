@@ -523,6 +523,8 @@ the unread count up through `onUnread`, for the tab's badge.
 
 **The chat and who is online share the panel**: with a roster wired, its header
 is two tabs, Chat and "Online · N" (see [Who is playing](#who-is-playing)).
+While the list is shown, the Chat tab wears the unread badge: the log is not on
+screen, so nothing is marked seen, and the open panel has no other badge.
 
 **A Discord bar sits over the log** (`DiscordBar`), on a desktop and in the
 phone's sheet: a link to `DISCORD_INVITE`, then TikTok and Instagram as two
