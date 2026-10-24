@@ -6,6 +6,11 @@
 export const EXPERIMENTS = {
     // as-chosen: as long as its camera has somewhere to go (`pace.ts`). short: the shortest a story of its kind is.
     length: ["as-chosen", "short"],
+    // Which stories a run tells and their headlines, decided by the job before it chooses, once per run: rules, as
+    // before, or a model choosing among what the rules let through and writing each headline, which reaches this app
+    // as --headline. fell-back is a run the model was drawn for that the rules made, its answer missing or refused.
+    // Nothing to apply here: the headline is a flag of its own.
+    editor: ["rules", "model", "fell-back"],
 } as const satisfies Record<string, readonly string[]>
 
 type Experiments = typeof EXPERIMENTS

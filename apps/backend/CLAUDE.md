@@ -56,6 +56,8 @@ make dBuild
 go run ./cmd/clips fetch -ssh <user@host> -out ../frontend/replay.json
 go run ./cmd/clips choose -shortlist ../frontend/shortlist.json
 ZERNIO_API_KEY=... go run ./cmd/clips schedule -clips ../frontend/clips
+# The model editor on a saved shortlist: -prompt prints what it would be sent and asks nothing (see "The editor")
+ANTHROPIC_API_KEY=... go run ./cmd/clips edit -shortlist ../frontend/shortlist.json [-prompt]
 ```
 
 ## Architecture
@@ -3568,8 +3570,9 @@ meet in files: the replay, the race and the season this job saves for the genera
 
 ```
 clips fetch -out <replay.json> [-race <race.json>] [-season <season.json>] [-ssh <user@host>] [-hours 72] [-until <2026-10-12T12:00:00Z>]
-clips choose -shortlist <shortlist.json> [-count 2] [-platforms tiktok,youtube]
+clips choose -shortlist <shortlist.json> [-count 2] [-platforms tiktok,youtube] [-summary <file>]
 clips schedule -clips <folder> [-review 0] [-spacing 1h] [-platforms tiktok,youtube] [-summary <file>]
+clips edit -shortlist <shortlist.json> [-count 2] [-prompt]
 ```
 
 - **`fetch` saves a replay**: it asks the production backend's operator tool for one
@@ -3591,7 +3594,16 @@ clips schedule -clips <folder> [-review 0] [-spacing 1h] [-platforms tiktok,yout
   one chosen with its arms. A pick is a story's place in the shortlist, from 1 (`posts.Pick`): what the generator's
   `--pick` takes, and the arms are what its `--variants` takes (below, "Experiments"). It needs `ZERNIO_API_KEY`, to
   read what was told and what each platform holds. `-platforms` is `schedule`'s, so it counts the room of the
-  platforms the clips will go to.
+  platforms the clips will go to. **On a run the experiment `editor` draws for the model** (below, "The editor") a
+  pick also carries the model's headline (`"headline":"BRAZIL STORMS ARGENTINA"`, left out for the generator's own),
+  which the render job hands the generator as `--headline`; `ANTHROPIC_API_KEY` is the model's key, and `-summary`
+  adds who chose the run, and what the call cost, to that file (the workflow's step summary). Its standard output
+  stays the picks alone.
+- **`edit` tries the editor by hand on a saved shortlist**, outside any run: no coin, `-count` clips (2), what was
+  told read from Zernio when `ZERNIO_API_KEY` is set and nothing told otherwise. It prints the instructions and the
+  run's JSON as the model would get them, their size (counted by the API's free `count_tokens` with a key, else
+  guessed at 4 characters a token), then what the model chose and what it cost, or why it fell back. **`-prompt`
+  stops after the prompt and asks the model nothing.**
 - **`schedule` sends every clip of the folder** (`clip-<n>.json` with its `clip-<n>.mp4` beside it) to the posting
   service, **as one post on every platform that has room left in its day** (`-platforms`, default all:
   `tiktok,youtube`), and adds a table to the summary: a row for each clip on each platform, its arms, its time, and
@@ -3605,19 +3617,20 @@ clips schedule -clips <folder> [-review 0] [-spacing 1h] [-platforms tiktok,yout
 - **`cmd/clips` is three stages, and `run` only names them**: parse, work, display (see [A command's `run` is a
   table of contents](#a-commands-run-is-a-table-of-contents)). `main.go` holds no stage.
   - **`flags.Parse`** (`cmd/clips/internal/flags`) answers one typed `flags.Config`: the command, its files, and
-    the job's `clips.Config` with `CLICKPLANET_SSH` and `ZERNIO_API_KEY` read into it, and `-platforms` checked by
+    the job's `clips.Config` with `CLICKPLANET_SSH`, `ZERNIO_API_KEY` and `ANTHROPIC_API_KEY` read into it, and `-platforms` checked by
     the domain (`clips.PlatformsOf`: each known, each once). No flag pointer leaves it.
-    Flags and not `cpconfigs`: the job has a few settings and one secret, and a workflow passes them on the
+    Flags and not `cpconfigs`: the job has a few settings and two secrets, and a workflow passes them on the
     command line.
-  - **The work returns values and prints nothing**: `clips.Fetch`, `clips.Choose` (the picks, each with its arms) and
+  - **The work returns values and prints nothing**: `clips.Fetch`, `clips.Choose` (the picks, each with its arms, and who chose), `clips.Edit` (the editor's trial) and
     `clips.Schedule` (the `Report`), in `internal/clips/job.go`, which wires the objects as a `module.go` does.
     A clip or a platform the service refused is in the report, not in the error: the error is for a run that
     could not be made at all.
   - **The display owns the output and says how it went** (`cmd/clips/internal/display`): `display.Picks`
-    writes the array (a clip in no experiment has `"variants":{}`, never `null`), `display.Report` writes the table, to the summary file when one is named, and answers
+    writes the array (a clip in no experiment has `"variants":{}`, never `null`), `display.Editorial` adds who chose
+    the run to the summary, `display.Trial` prints `edit`'s, `display.Report` writes the table, to the summary file when one is named, and answers
     whether every clip is scheduled on each of its platforms. It does not turn that into an error: `schedule` in `main.go` decides, and
     exits 1 on `errUnsent`.
-  - **The dispatch acts on `fetch`, `choose` and `schedule`, and on nothing else**: any other command is
+  - **The dispatch acts on `fetch`, `choose`, `schedule` and `edit`, and on nothing else**: any other command is
     `errUnknownCommand`, and nothing is fetched, printed or posted.
 
 **Experiments run on the clips, to learn what makes one do well, and the job alone decides who is in which arm**
@@ -3636,6 +3649,16 @@ story, so a short clip is not short because its story was small.
   `posts.SystemDice`, in the order of the list), after the stories are chosen and apart from them: an arm never
   changes which story is told. A coin of its own per experiment makes two experiments at once a factorial design,
   every pair of arms in about the share of their weights, so each one's effect is read across the other's.
+- **The one exception is an experiment on which stories are told** (`PerRun`): its coin is the run's, flipped once
+  before anything is chosen (`Experiments.AssignRun`, first of the dice), and every clip of the run carries its arm
+  beside its own. **Deliberately**: `editor` exists to change the choice, so a coin flipped after it would have
+  nothing left to decide, and a coin per clip would let one run mix two editors' stories, each choice leaning on the
+  other (a flag's share of the feed counts across the run). The arm is still a coin and not something read from the
+  stories, so the runs compare: what differs between them is who chose. The run's clips share their run's news, so
+  the analysis reads it per run as well as per clip.
+- **An arm of weight 0 is never drawn** (`posts.Arm{Name, Weight: 0}`): it is where a clip goes when the arm it was
+  drawn for could not be applied, so it is still checked and counted, apart (`editor`'s `fell-back`). An experiment
+  needs two arms a coin draws.
 - **The arms travel with the clip, as data**: `choose` prints them with the pick; the workflow's render job of the
   pick hands them to the generator (`--variants '{"length":"short"}'`), which applies the ones it acts on, refuses
   one it does not know, and writes them all into the clip's `ClipRecord.variants` (the frontend's CLAUDE.md,
@@ -3662,6 +3685,63 @@ story, so a short clip is not short because its story was small.
   fighting stays in one place is already 8.5s: both still record the arm, and `durationSeconds` in the record keeps
   the real length, so the analysis compares on the length a clip had as well as on its arm. The teaser rolled when
   posting is an experiment of its own already, at random and recorded (`teaser`), and the arms do not touch it.
+- **The second is `editor`** (started 2026-10-24, per run, even): `rules`, the control, is the run as before;
+  `model` is Claude Haiku choosing among the stories the rules let through and writing their headlines (below);
+  `fell-back` is a run drawn for the model that the rules made. Intent to treat is `model` and `fell-back` together;
+  what the model's choices did is `model` alone. A run drawn for the model with nothing to decide (a quiet run, a full
+  day, or a day won filling it) asks nothing and stays `model`: it is what the model's arm does then.
+
+**The editor: a model chooses the run's stories and writes their headlines, within the rules** (`posts/editor.go`,
+`posts/claude_editor/`, 2026-10-24). Step 1 of a model directing the clips: it picks and words, the renderer and its
+camera are as they were, and the rules stay the baseline to beat.
+
+- **The rules decide what may be told; the model only ranks it.** `Shortlist.Offer` is what it is offered: the
+  stories `Best` could tell (no key of the last 3 days, no headline of the last week, a flag in fewer than 2 of the
+  last 6 posts), the days won apart, told first whatever it says, how many clips the run makes (the budgets' count,
+  as before), the posts of the last 3 days, and how many of the last 6 showed each flag. **`Shortlist.Edited` walks
+  the run as `Best` does**, its next story the model's next one instead of the freshest flag: a day won first, then
+  the model's order, each story still skipped when an earlier one of the run filled its flag's share, then the
+  stories it left out, in the rules' order. So a run makes as many clips as the rules would, and never one they would
+  not tell. The angle-once and freshest-flag orders are the rules' taste, which the model replaces. **The run's two
+  clips still go out in the shortlist's order** (`Ranked`, by pick), whichever the model ranked first: the order of
+  posting is left as it was, and each post's `runPosition` records it.
+- **One call a run, and only when there is something to decide** (`Offer.Open`: room left after the days won, and a
+  story offered). A quiet run asks nothing.
+- **Its answer has to hold, or the run is the rules'**: every pick one offered, once; every headline upper case
+  once written (`headlineFrom`), 60 letters at most, starting with a letter or a digit (so `--headline` never reads
+  as a flag), only letters of any script, digits and `! ? ' ’ % : , . & -`; not a headline of the last week, not
+  another story's, not one of the story's own teasers (the caption never repeats the clip). **No key, an API error,
+  a refusal, an answer cut short or not JSON, or one that does not hold all fall back to the rules**
+  (`choose_clips_usecase.Edit`): the run is never failed for it, its clips are recorded `editor: fell-back`, and the
+  reason goes to the log and the summary.
+- **What it is sent** (`claude_editor.PromptOf`): the instructions, then the run's offer as compact JSON: `now`,
+  `slots`, `toldFirst`, each story with its pick, headline, key, countries, teasers and `facts`
+  (`clips.v1.StoryFacts`, which the generator's `--shortlist` now writes; the frontend's CLAUDE.md, "Clips"),
+  `recentPosts` and `shownLately`. **The instructions are `claude_editor/instructions.md`, embedded**: prose on what
+  makes a story worth telling and a headline good, from the lessons of this section and of the frontend's. **Tuning
+  that file is how the model's taste is shaped**; a change ships with the next commit, and the record's `generator`
+  names the commit, so the analysis can tell the versions apart.
+- **Claude Haiku 5.5** (`claude-haiku-5-5`), through Anthropic's Go SDK: adaptive thinking at effort `medium`,
+  `max_tokens` 8,000, the answer held to a JSON schema by structured outputs (`why`, then `stories` of `pick` and
+  `headline`), 2 minutes and one retry. **A refusal is the end of it**: Haiku has no fallback model on the server,
+  so `stop_reason: "refusal"` (with its category) falls back to the rules like any other failure.
+- **What it costs, said every run**: the call's tokens (in, written to the cache, read from it, out) and their price
+  at $0.10 and $0.50 a million in and out (5 times both past 100K tokens of prompt, a cache write 1.25 times the
+  input, a read 0.1 times) go to the log and the summary (`posts.Spend`, `claude_editor.SpendOf`). Measured on the
+  run of 2026-10-24 18:28 (its 25 stories and 71 posts, from its log): 8 stories offered, 32 recent posts, about
+  1,700 tokens of instructions and 4,300 of run, so about 6,000 in, guessed from characters with no key at hand;
+  about $0.0006 in and, with its thinking, about $0.001 out a call. A run a model's in two, 12 runs a day, is about
+  $0.30 a month; every run would be $0.60. The owner's ceiling for all AI calls is $10 a month.
+- **The instructions are marked for caching** (`cache_control` on the system prompt), as the owner asked. **No run
+  reads it back today**: a cache entry lives 5 minutes (an hour at most) and runs are 2 hours apart, so each call
+  writes it again, about $0.00004 more a call. It pays once a call follows another within minutes (`clips edit`
+  tried twice, or more calls a run).
+- **The key is a secret of the `choose` job alone** (`ANTHROPIC_API_KEY`), which runs no npm, as `ZERNIO_API_KEY`.
+  An error never carries the request (`unreachable`): the SDK's error dumps its headers, and the logs of a public
+  repo are public. **The headline is the model's text**: the render job passes it through the environment, never
+  into the script.
+- **Tests never call the API**: the use case runs a fake `Editor`, and `claude_editor` a fake Messages API on
+  `httptest` (`Config.BaseURL`), which pins the request whole: the cached instructions, the schema, the prompt.
 
 **`internal/clips/internal/replays/` is the fetch**, a concept of its own beside `posts`:
 

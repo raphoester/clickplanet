@@ -14,6 +14,11 @@ var (
 	music  = posts.Experiment{
 		Name: "music", Arms: []posts.Arm{{Name: "anthem", Weight: 3}, {Name: "trending", Weight: 1}}, Control: "anthem",
 	}
+	editor = posts.Experiment{
+		Name:    posts.EditorExperiment,
+		Arms:    []posts.Arm{{Name: posts.ByRules, Weight: 1}, {Name: posts.ByModel, Weight: 1}, {Name: posts.FellBack}},
+		Control: posts.ByRules, PerRun: true,
+	}
 )
 
 func experimentsOf(t *testing.T, experiments ...posts.Experiment) posts.Experiments {
@@ -71,7 +76,7 @@ func TestEachStoryChosenIsPutInItsOwnArmsInTheOrderOfTheRun(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	assigned := experimentsOf(t, length).AssignEach(chosen, &posts.RolledDice{Faces: []int{1, 0}})
+	assigned := experimentsOf(t, length).AssignEach(chosen, nil, nil, &posts.RolledDice{Faces: []int{1, 0}})
 
 	assert.Equal(t, []posts.Assignment{
 		{Pick: 1, Variants: posts.Variants{"length": "short"}},
@@ -79,16 +84,49 @@ func TestEachStoryChosenIsPutInItsOwnArmsInTheOrderOfTheRun(t *testing.T) {
 	}, assigned)
 }
 
+// The editor changes which stories are told: its coin is the run's, flipped before them, and every clip carries it.
+func TestARunExperimentIsFlippedOnceForTheRunAndCarriedByEachOfItsClips(t *testing.T) {
+	experiments := experimentsOf(t, editor, length)
+	chosen, err := posts.ShortlistOf(
+		posts.Story{Title: "A", Key: posts.StoryKey{Flag: "fr", Continent: "Europe"}},
+		posts.Story{Title: "B", Key: posts.StoryKey{Flag: "dz", Continent: "Africa"}},
+	)
+	require.NoError(t, err)
+	dice := &posts.RolledDice{Faces: []int{1, 1, 0}}
+
+	run := experiments.AssignRun(dice)
+	assigned := experiments.AssignEach(chosen, run, map[posts.Pick]string{2: "ALGERIA IS EVERYWHERE"}, dice)
+
+	assert.Equal(t, posts.Variants{"editor": "model"}, run)
+	assert.Equal(t, []posts.Assignment{
+		{Pick: 1, Variants: posts.Variants{"editor": "model", "length": "short"}},
+		{Pick: 2, Variants: posts.Variants{"editor": "model", "length": "as-chosen"}, Headline: "ALGERIA IS EVERYWHERE"},
+	}, assigned)
+}
+
+func TestAnArmOfNoWeightIsNeverDrawnButIsAnArmAClipCanBeIn(t *testing.T) {
+	experiments := experimentsOf(t, editor)
+
+	drawn := map[string]int{}
+	for face := range 2 {
+		drawn[experiments.AssignRun(posts.LoadedDice(face))[posts.EditorExperiment]]++
+	}
+
+	assert.Equal(t, map[string]int{"rules": 1, "model": 1}, drawn)
+	require.NoError(t, experiments.Check(posts.Variants{"editor": "fell-back"}))
+}
+
 func TestAnExperimentThatCannotRunIsRefused(t *testing.T) {
 	for name, experiments := range map[string][]posts.Experiment{
-		"no name":            {{Arms: posts.EvenArms("a", "b"), Control: "a"}},
-		"two of one name":    {length, length},
-		"one arm":            {{Name: "x", Arms: posts.EvenArms("a"), Control: "a"}},
-		"an arm twice":       {{Name: "x", Arms: posts.EvenArms("a", "a"), Control: "a"}},
-		"an arm of no name":  {{Name: "x", Arms: posts.EvenArms("a", ""), Control: "a"}},
-		"an arm of no share": {{Name: "x", Arms: []posts.Arm{{Name: "a", Weight: 1}, {Name: "b"}}, Control: "a"}},
-		"no control":         {{Name: "x", Arms: posts.EvenArms("a", "b")}},
-		"a control no arm":   {{Name: "x", Arms: posts.EvenArms("a", "b"), Control: "c"}},
+		"no name":           {{Arms: posts.EvenArms("a", "b"), Control: "a"}},
+		"two of one name":   {length, length},
+		"one arm":           {{Name: "x", Arms: posts.EvenArms("a"), Control: "a"}},
+		"an arm twice":      {{Name: "x", Arms: posts.EvenArms("a", "a"), Control: "a"}},
+		"an arm of no name": {{Name: "x", Arms: posts.EvenArms("a", ""), Control: "a"}},
+		"one arm drawn":     {{Name: "x", Arms: []posts.Arm{{Name: "a", Weight: 1}, {Name: "b"}}, Control: "a"}},
+		"a weight under 0":  {{Name: "x", Arms: []posts.Arm{{Name: "a", Weight: 1}, {Name: "b", Weight: 1}, {Name: "c", Weight: -1}}, Control: "a"}},
+		"no control":        {{Name: "x", Arms: posts.EvenArms("a", "b")}},
+		"a control no arm":  {{Name: "x", Arms: posts.EvenArms("a", "b"), Control: "c"}},
 	} {
 		t.Run(name, func(t *testing.T) {
 			_, err := posts.ExperimentsOf(experiments...)

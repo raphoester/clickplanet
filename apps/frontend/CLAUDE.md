@@ -3064,8 +3064,11 @@ happened rather than 10 to 20 under the two runs a day before (2026-10-24). Four
    flag the last 6 posts showed after the others, and holds back a flag 2 of them showed, as their key or as one of
    their countries: on Oct 13–17 Algeria in Africa was told three times and Palau in half the clips. **A day won goes
    first**, whatever the posts showed, **then a run tells each angle it has once before any twice** (what changed,
-   what a flag holds). None is a quiet run, or a full day: the run ends there, green.
-3. **render**: one job per pick, side by side, `--pick <n> --variants <its arms> --recorders 1`. A runner has 4 cores and no GPU: Chrome
+   what a flag holds). None is a quiet run, or a full day: the run ends there, green. **On half the runs a model
+   chooses instead, within those rules**, and writes each headline (the experiment `editor`, the backend's CLAUDE.md,
+   "The editor"); the job holds its key too.
+3. **render**: one job per pick, side by side, `--pick <n> --variants <its arms> --recorders 1`, and
+   `--headline <the model's>` when the model wrote one. A runner has 4 cores and no GPU: Chrome
    draws with SwiftShader, **1.9 to 3.1s a frame, by the runner it lands on** (measured 2026-10-12: the same 12s
    clip in 11.5 minutes, then in 18.5; a 22s one would take 21 to 34), the same picture as with a GPU. More
    recorders do not help there: each one draws every frame.
@@ -3081,6 +3084,13 @@ What chooses, when a clip goes out, the client of the service and the run's summ
 - **`--shortlist <path>`** writes a `Shortlist` (`src/clip/shortlist.ts`): the title, the key and the countries of
   every story worth a clip, best first, so a story's place from 1 is its `--pick`: a day won first, then what changed,
   best first, then what flags hold, the biggest holding first. One page load, no globe, 6s. With no story it is `{}`, not an error.
+  **Each story also carries what the job's model editor judges it by** (2026-10-24): its `teasers`, which a headline of
+  the model's must not repeat, and its `facts` (`StoryFacts`, `storyFactsOf`): its kind, place, camera, sides and the
+  flags it takes from, how each code is said, its line and language, and the numbers its clip would record, the span
+  and when it ended, the tiles changed, the place's size, the counter at the start and the end, the effects in sight,
+  the solidity, a holding's share and the generator's score. **They are the numbers `record()` already works out,
+  measured once by `measuredOf`**, which the clip's record now reads too, so a story's facts and its clip's record
+  cannot disagree; no camera is built for them (the look, the screens crossed and a tour's stops stay the record's).
 - **`--race <path>`** is the season's race, a `seasons.v1.GetRaceResponse` as the backend's `GetRace` answers it,
   served to the page at `/__clip/race.json` (`src/clip/race.ts` reads its closed round). With none, that path
   answers 404, never the app's fallback page, and no day is told.
@@ -3139,6 +3149,10 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   `record.variants`, the ones it applied and the ones the job acts on when posting, which it lists with nothing to
   apply: so `schedule` reads them all from `clip-<n>.json`. With no `--variants` a clip is in no experiment and is
   made as before; `--seconds` with an arm of `length` is refused, since both set the length. `--plan` prints the arms.
+  - **`editor`**: `rules`, `model` or `fell-back`, the job's coin for the whole run, flipped before it chooses (the
+    backend's CLAUDE.md, "The editor"). Nothing to apply here: the model's headline comes as `--headline`, which
+    `wordsOf` already takes, a bridge until the model writes a whole clip script. The teasers are left as they are,
+    an experiment of their own.
   - **`length`**: `as-chosen`, the control, is exactly the length `pace.ts` gives (below); `short` is the shortest a
     story of its kind plays (`timelineOf(…, "short")`): 8.5s for a front, however far its fighting moves, 10 with a
     day's podium. **A tour is already its shortest**, each stop a flight and a stay, and is left as it is, as is a

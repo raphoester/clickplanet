@@ -17,6 +17,8 @@ const timeLayout = "Mon 2 Jan, 15:04 UTC"
 type assigned struct {
 	Pick     clips.Pick     `json:"pick"`
 	Variants clips.Variants `json:"variants"`
+	// The editor's, for the generator's --headline; left out for the generator's own.
+	Headline string `json:"headline,omitempty"`
 }
 
 // A JSON array on one line, `[{"pick":1,"variants":{"length":"short"}}]`: the workflow makes one render job of each.
@@ -28,7 +30,7 @@ func Picks(out io.Writer, assignments []clips.Assignment) error {
 		if variants == nil {
 			variants = clips.Variants{}
 		}
-		picks = append(picks, assigned{Pick: assignment.Pick, Variants: variants})
+		picks = append(picks, assigned{Pick: assignment.Pick, Variants: variants, Headline: assignment.Headline})
 	}
 	if err := json.NewEncoder(out).Encode(picks); err != nil {
 		return fmt.Errorf("failed to write the picks: %w", err)

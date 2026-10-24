@@ -23,7 +23,9 @@ func (v Variants) String() string {
 
 type Arm struct {
 	Name string
-	// Its share of the clips is its weight over the sum of the experiment's.
+	// Its share of the clips is its weight over the sum of the experiment's. 0 is an arm no coin draws: what a clip is
+	// moved to when the arm it was drawn for could not be applied (the model's run that the rules made), so it is still
+	// counted, apart.
 	Weight int
 }
 
@@ -41,6 +43,9 @@ type Experiment struct {
 	Arms []Arm
 	// The arm that is exactly what a clip was before the experiment.
 	Control string
+	// One coin for the whole run, flipped before the stories are chosen, and every clip of the run in its arm: for an
+	// experiment on which stories are told. Otherwise a coin per clip, after: an arm never changes which story is told.
+	PerRun bool
 }
 
 func (e Experiment) arm(name string) bool {
@@ -79,16 +84,19 @@ func ExperimentsOf(experiments ...Experiment) (Experiments, error) {
 		}
 		named.Add(experiment.Name)
 
-		if len(experiment.Arms) < 2 {
-			return nil, fmt.Errorf("%w: %q has fewer than two arms", ErrInvalidExperiment, experiment.Name)
-		}
-		arms := cpcolls.NewSet[string]()
+		arms, drawn := cpcolls.NewSet[string](), 0
 		for _, arm := range experiment.Arms {
-			if arm.Name == "" || arms.Contains(arm.Name) || arm.Weight <= 0 {
-				return nil, fmt.Errorf("%w: %q has an arm %q with no name, twice, or with no weight",
+			if arm.Name == "" || arms.Contains(arm.Name) || arm.Weight < 0 {
+				return nil, fmt.Errorf("%w: %q has an arm %q with no name, twice, or with a weight under 0",
 					ErrInvalidExperiment, experiment.Name, arm.Name)
 			}
 			arms.Add(arm.Name)
+			if arm.Weight > 0 {
+				drawn++
+			}
+		}
+		if drawn < 2 {
+			return nil, fmt.Errorf("%w: %q has fewer than two arms a coin draws", ErrInvalidExperiment, experiment.Name)
 		}
 		if !arms.Contains(experiment.Control) {
 			return nil, fmt.Errorf("%w: %q has no arm %q for its control", ErrInvalidExperiment, experiment.Name, experiment.Control)
@@ -97,11 +105,23 @@ func ExperimentsOf(experiments ...Experiment) (Experiments, error) {
 	return experiments, nil
 }
 
-// An arm of each experiment, in the order they are listed, so the same dice put a clip in the same arms.
+// An arm of each experiment flipped per clip, in the order they are listed, so the same dice put a clip in the same
+// arms.
 func (e Experiments) Assign(dice Dice) Variants {
+	return e.assign(dice, false)
+}
+
+// An arm of each experiment flipped once a run, before its stories are chosen.
+func (e Experiments) AssignRun(dice Dice) Variants {
+	return e.assign(dice, true)
+}
+
+func (e Experiments) assign(dice Dice, perRun bool) Variants {
 	variants := make(Variants, len(e))
 	for _, experiment := range e {
-		variants[experiment.Name] = experiment.flip(dice)
+		if experiment.PerRun == perRun {
+			variants[experiment.Name] = experiment.flip(dice)
+		}
 	}
 	return variants
 }
@@ -125,12 +145,17 @@ func (e Experiments) Check(variants Variants) error {
 type Assignment struct {
 	Pick     Pick
 	Variants Variants
+	// The editor's headline, for the generator's --headline; empty for the generator's own.
+	Headline string
 }
 
-func (e Experiments) AssignEach(chosen Shortlist, dice Dice) []Assignment {
+// run: the arms of the run, which every clip carries beside its own. headlines: the editor's, by pick.
+func (e Experiments) AssignEach(chosen Shortlist, run Variants, headlines map[Pick]string, dice Dice) []Assignment {
 	assignments := make([]Assignment, 0, len(chosen))
 	for _, story := range chosen {
-		assignments = append(assignments, Assignment{Pick: story.Pick, Variants: e.Assign(dice)})
+		variants := e.Assign(dice)
+		maps.Copy(variants, run)
+		assignments = append(assignments, Assignment{Pick: story.Pick, Variants: variants, Headline: headlines[story.Pick]})
 	}
 	return assignments
 }

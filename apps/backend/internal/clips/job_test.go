@@ -224,13 +224,16 @@ func configFor(server *httptest.Server) clips.Config {
 	return config
 }
 
-// The picks, each in an arm of the length experiment: the coins are the system's, so which arm is not known.
-func picksOf(t *testing.T, assignments []clips.Assignment) []clips.Pick {
+// The picks, each in an arm of the length experiment: the coins are the system's, so which arm is not known. With no
+// ANTHROPIC_API_KEY a run drawn for the model falls back to the rules, so the picks are the rules' either way.
+func picksOf(t *testing.T, choice clips.Choice) []clips.Pick {
 	t.Helper()
 
-	picks := make([]clips.Pick, 0, len(assignments))
-	for _, assignment := range assignments {
+	picks := make([]clips.Pick, 0, len(choice.Assigned))
+	for _, assignment := range choice.Assigned {
 		assert.Contains(t, []string{"as-chosen", "short"}, assignment.Variants["length"])
+		assert.Contains(t, []string{"rules", "fell-back"}, assignment.Variants["editor"])
+		assert.Empty(t, assignment.Headline)
 		picks = append(picks, assignment.Pick)
 	}
 	return picks
@@ -254,7 +257,8 @@ func TestARunAfterADayOfPostsOnEveryPlatformChoosesNothing(t *testing.T) {
 	picks, err := clips.Choose(t.Context(), shortlist(t), configFor(zernio(t, &posts)), slog.New(slog.NewTextHandler(&logs, nil)))
 
 	require.NoError(t, err)
-	assert.Empty(t, picks)
+	assert.Empty(t, picks.Assigned)
+	assert.False(t, picks.Editorial.Asked)
 	assert.Contains(t, logs.String(), `msg="every platform has posted its day already"`)
 }
 
@@ -268,7 +272,7 @@ func TestTikTokTakesFourteenADayLeavingOneOfItsFifteenForAPostByHand(t *testing.
 			picks, err := clips.Choose(t.Context(), shortlist(t), config, slog.New(slog.DiscardHandler))
 
 			require.NoError(t, err)
-			assert.Len(t, picks, want)
+			assert.Len(t, picks.Assigned, want)
 		})
 	}
 }

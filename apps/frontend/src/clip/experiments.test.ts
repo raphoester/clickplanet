@@ -11,6 +11,7 @@ describe("the arms a clip is made in", () => {
     it("are the arm of each experiment, as the job wrote them", () => {
         expect(variantsOf(`{"length": "short"}`)).toEqual({length: "short"})
         expect(variantsOf(`{"length": "as-chosen"}`)).toEqual({length: "as-chosen"})
+        expect(variantsOf(`{"length": "short", "editor": "fell-back"}`)).toEqual({length: "short", editor: "fell-back"})
     })
 
     it("refuse an experiment the generator does not know, so no clip is counted in an arm it was not made in", () => {

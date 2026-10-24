@@ -49,6 +49,8 @@ func runCommand(ctx context.Context, parsed flags.Config, out io.Writer, logger 
 		return choose(ctx, parsed, out, logger)
 	case flags.Schedule:
 		return schedule(ctx, parsed, out, logger)
+	case flags.Edit:
+		return edit(ctx, parsed, out, logger)
 	default:
 		return fmt.Errorf("%w: %q", errUnknownCommand, parsed.Command)
 	}
@@ -62,11 +64,22 @@ func fetch(ctx context.Context, parsed flags.Config, logger *slog.Logger) error 
 }
 
 func choose(ctx context.Context, parsed flags.Config, out io.Writer, logger *slog.Logger) error {
-	picks, err := clips.Choose(ctx, parsed.ShortlistFile, parsed.Job, logger)
+	choice, err := clips.Choose(ctx, parsed.ShortlistFile, parsed.Job, logger)
 	if err != nil {
 		return fmt.Errorf("failed to choose the clips of the run: %w", err)
 	}
-	return display.Picks(out, picks) //nolint:wrapcheck // the display already named what it could not write.
+	if err := display.Editorial(parsed.SummaryFile, choice.Editorial); err != nil {
+		return err //nolint:wrapcheck // the display already named what it could not write.
+	}
+	return display.Picks(out, choice.Assigned) //nolint:wrapcheck // the display already named what it could not write.
+}
+
+func edit(ctx context.Context, parsed flags.Config, out io.Writer, logger *slog.Logger) error {
+	trial, err := clips.Edit(ctx, parsed.ShortlistFile, parsed.PromptOnly, parsed.Job, logger)
+	if err != nil {
+		return fmt.Errorf("failed to try the editor: %w", err)
+	}
+	return display.Trial(out, trial, parsed.PromptOnly) //nolint:wrapcheck // the display already named what it could not write.
 }
 
 func schedule(ctx context.Context, parsed flags.Config, out io.Writer, logger *slog.Logger) error {
