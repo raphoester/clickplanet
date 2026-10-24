@@ -401,7 +401,7 @@ async function choose(): Promise<Chosen> {
         if (!picked) {
             throw new Error([`no story number ${pick}: this replay has ${worth.length} worth a clip`, ...skipped].join("\n  skipped "))
         }
-        const {front, story, backend, world} = picked
+        const {front, story, backend, world, solidity} = picked
         const {measured, changes, inArea, placeTiles, sideOf, opening, key, drops} = measuredOf(picked)
 
         // A holding's counter is the share of the place its flag holds. A day was won on a day's average, not on the
