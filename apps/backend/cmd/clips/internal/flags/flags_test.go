@@ -130,3 +130,34 @@ func TestAMissingPartIsToldApartFromAFlagThatDoesNotParse(t *testing.T) {
 	require.ErrorIs(t, missing, flags.ErrArguments)
 	require.NotErrorIs(t, unparsed, flags.ErrArguments)
 }
+
+func TestStatsFlagsSayWhereTheSnapshotsAreKeptAndFromWhichDay(t *testing.T) {
+	t.Setenv(flags.KeyVariable, "the-key")
+
+	parsed, err := flags.Parse([]string{"stats", "-out", "clips-stats", "-since", "2026-10-13", "-summary", "summary.md"})
+
+	require.NoError(t, err)
+	var job clips.Config
+	job.Zernio.APIKey = "the-key"
+	job.StatsSince = time.Date(2026, 10, 13, 0, 0, 0, 0, time.UTC)
+	assert.Equal(t, flags.Config{Command: flags.Stats, StatsFolder: "clips-stats", SummaryFile: "summary.md", Job: job}, parsed)
+}
+
+func TestStatsWithNoDayReadTheDefaultWindow(t *testing.T) {
+	parsed, err := flags.Parse([]string{"stats", "-out", "clips-stats"})
+
+	require.NoError(t, err)
+	assert.True(t, parsed.Job.StatsSince.IsZero())
+}
+
+func TestStatsWithNoFolderOrADayThatIsNoDayIsRefused(t *testing.T) {
+	for _, args := range [][]string{
+		{"stats"},
+		{"stats", "-out", "clips-stats", "-since", "13/10/2026"},
+		{"stats", "-out", "clips-stats", "-since", "2026-10-13T00:00:00Z"},
+	} {
+		_, err := flags.Parse(args)
+
+		require.ErrorContains(t, err, "usage:", args)
+	}
+}

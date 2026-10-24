@@ -17,6 +17,7 @@ import (
 
 var (
 	errUnsent         = errors.New("a clip was not scheduled")
+	errUnread         = errors.New("a post was not read whole, and its snapshot is lost")
 	errUnknownCommand = errors.New("no such command")
 )
 
@@ -49,6 +50,8 @@ func runCommand(ctx context.Context, parsed flags.Config, out io.Writer, logger 
 		return choose(ctx, parsed, out, logger)
 	case flags.Schedule:
 		return schedule(ctx, parsed, out, logger)
+	case flags.Stats:
+		return snapshot(ctx, parsed, out, logger)
 	default:
 		return fmt.Errorf("%w: %q", errUnknownCommand, parsed.Command)
 	}
@@ -81,6 +84,22 @@ func schedule(ctx context.Context, parsed flags.Config, out io.Writer, logger *s
 	}
 	if !scheduled {
 		return errUnsent
+	}
+	return nil
+}
+
+func snapshot(ctx context.Context, parsed flags.Config, out io.Writer, logger *slog.Logger) error {
+	report, err := clips.Stats(ctx, parsed.StatsFolder, parsed.Job, logger)
+	if err != nil {
+		return fmt.Errorf("failed to take a snapshot of the posts' numbers: %w", err)
+	}
+
+	whole, err := display.Stats(parsed.SummaryFile, out, report)
+	if err != nil {
+		return err //nolint:wrapcheck // the display already named what it could not write.
+	}
+	if !whole {
+		return errUnread
 	}
 	return nil
 }

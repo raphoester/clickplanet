@@ -3104,8 +3104,9 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   CLAUDE.md, "The clips job"): this app has the names, the job has the platform. The repo is public and so are a
   run's logs and artifacts: a clip can be watched there before it is out.
 - **A `Clip` also says what the clip was** (`record`, a `ClipRecord`, written by `clipRecordOf` in
-  `src/clip/clipRecord.ts`): the job keeps it with the post, never published, so a later step can set it beside the
-  post's numbers on TikTok and YouTube and learn what makes a clip do well. **It records, and chooses nothing**:
+  `src/clip/clipRecord.ts`): the job keeps it with the post, never published, and the backend's `clips stats` sets
+  it beside the post's numbers on TikTok and YouTube every day (`.github/workflows/clips-stats.yml`; the backend's
+  CLAUDE.md, "The clips job"), to learn what makes a clip do well. **It records, and chooses nothing**:
   every value is one `record()` already worked out, read once the clip is decided, and the same replay gives the same
   video, teasers and `Clip` byte for byte as before it, `record` and `teaserNames` aside (checked on 2026-10-23
   against a render of `main`). **It is shaped to outlive this kind of clip**, since the clips will be experimented on:

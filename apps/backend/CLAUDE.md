@@ -201,7 +201,7 @@ func run(logger *slog.Logger) error {
 - **Package `main` stays thin: `main`, `run`, and nothing that does the work of a stage.** The stages live in packages of their own. A parser or a table that sits in `main` beside `run` is the monolith again, in three files.
 - **A dispatch names every value it acts on, and anything else is an error.** No `default:` that runs a command: a value nobody expected then does the last thing in the list, and here that is posting.
 
-**`cmd/clips` follows it** (see [The clips job](#the-clips-job-internalclips-cmdclips)): `flags.Parse` in `cmd/clips/internal/flags`, the work in `internal/clips/job.go`, `display.Picks` and `display.Report` in `cmd/clips/internal/display`. `main.go` is `main`, `run`, the dispatch and one short function per command. What it settled:
+**`cmd/clips` follows it** (see [The clips job](#the-clips-job-internalclips-cmdclips)): `flags.Parse` in `cmd/clips/internal/flags`, the work in `internal/clips/job.go`, `display.Picks`, `display.Report` and `display.Stats` in `cmd/clips/internal/display`. `main.go` is `main`, `run`, the dispatch and one short function per command. What it settled:
 
 - **With subcommands, `run` parses, then picks the command**, and each command is its own short list of stages: work, then display. The dispatch has a `case` per command and fails on any other (`errUnknownCommand`), though the parser already refused it.
 - **The parser and the display are the tool's own, under `cmd/clips/internal/`**: Go keeps them out of reach of everything but this command, and they import the module, never the reverse.
@@ -3570,6 +3570,7 @@ meet in files: the replay, the race and the season this job saves for the genera
 clips fetch -out <replay.json> [-race <race.json>] [-season <season.json>] [-ssh <user@host>] [-hours 72] [-until <2026-10-12T12:00:00Z>]
 clips choose -shortlist <shortlist.json> [-count 2] [-platforms tiktok,youtube]
 clips schedule -clips <folder> [-review 0] [-spacing 1h] [-platforms tiktok,youtube] [-summary <file>]
+clips stats -out <folder> [-since 2026-10-13] [-summary <file>]
 ```
 
 - **`fetch` saves a replay**: it asks the production backend's operator tool for one
@@ -3602,6 +3603,10 @@ clips schedule -clips <folder> [-review 0] [-spacing 1h] [-platforms tiktok,yout
   independent**: a platform that refuses does not stop the others, and a clip refused does not stop the next one.
   The workflow passes the repository variable `CLIPS_PLATFORMS` (Settings → Variables), so `tiktok` alone turns
   YouTube off with no commit; unset is every platform.
+- **`stats` keeps a snapshot of the numbers of every post of the job**, once a day in a workflow of its own
+  (`.github/workflows/clips-stats.yml`), so the experiments can be read from them: a row of JSON for each platform
+  of each post, with what the post was beside it, and a table of every row (below, "`stats/` is what became of the
+  posts"). It exits 1 when a post could not be read whole, after keeping the others.
 - **`cmd/clips` is three stages, and `run` only names them**: parse, work, display (see [A command's `run` is a
   table of contents](#a-commands-run-is-a-table-of-contents)). `main.go` holds no stage.
   - **`flags.Parse`** (`cmd/clips/internal/flags`) answers one typed `flags.Config`: the command, its files, and
@@ -3609,16 +3614,18 @@ clips schedule -clips <folder> [-review 0] [-spacing 1h] [-platforms tiktok,yout
     the domain (`clips.PlatformsOf`: each known, each once). No flag pointer leaves it.
     Flags and not `cpconfigs`: the job has a few settings and one secret, and a workflow passes them on the
     command line.
-  - **The work returns values and prints nothing**: `clips.Fetch`, `clips.Choose` (the picks, each with its arms) and
-    `clips.Schedule` (the `Report`), in `internal/clips/job.go`, which wires the objects as a `module.go` does.
+  - **The work returns values and prints nothing**: `clips.Fetch`, `clips.Choose` (the picks, each with its arms),
+    `clips.Schedule` (the `Report`) and `clips.Stats` (the `StatsReport`), in `internal/clips/job.go`, which wires
+    the objects as a `module.go` does.
     A clip or a platform the service refused is in the report, not in the error: the error is for a run that
     could not be made at all.
   - **The display owns the output and says how it went** (`cmd/clips/internal/display`): `display.Picks`
     writes the array (a clip in no experiment has `"variants":{}`, never `null`), `display.Report` writes the table, to the summary file when one is named, and answers
     whether every clip is scheduled on each of its platforms. It does not turn that into an error: `schedule` in `main.go` decides, and
-    exits 1 on `errUnsent`.
-  - **The dispatch acts on `fetch`, `choose` and `schedule`, and on nothing else**: any other command is
-    `errUnknownCommand`, and nothing is fetched, printed or posted.
+    exits 1 on `errUnsent`. `display.Stats` writes what a snapshot kept the same way, and answers whether every
+    post was read whole: `snapshot` exits 1 on `errUnread`.
+  - **The dispatch acts on `fetch`, `choose`, `schedule` and `stats`, and on nothing else**: any other command is
+    `errUnknownCommand`, and nothing is fetched, printed, posted or kept.
 
 **Experiments run on the clips, to learn what makes one do well, and the job alone decides who is in which arm**
 (`internal/clips/experiments.go`, `posts/experiment.go`). The posts' numbers are set beside what each clip was (its
@@ -3764,9 +3771,10 @@ story, so a short clip is not short because its story was small.
   counts as told, nothing can disagree with what Zernio holds, and a post made by hand, with no key, counts for
   nothing. **A history that cannot be read fails the run**, rather than tell a story twice.
 - **Each post also keeps what it was, to be set beside its numbers**, under one key of its Zernio `metadata`,
-  `record` (`recordOf` in `posts/zernio`): a later step joins it with the post's TikTok and YouTube analytics to learn
-  what makes a clip do well. **It records and decides nothing**: the dice are rolled in the same order as before (the
-  arms of the experiments above are `choose`'s coins, not these), so
+  `record` (`recordOf` in `posts/zernio`): `clips stats` keeps it beside the post's TikTok and YouTube analytics
+  every day (below, "`stats/` is what became of the posts"), to learn what makes a clip do well. **It records and
+  decides nothing**: the dice are rolled in the same order as before (the arms of the experiments above are
+  `choose`'s coins, not these), so
   the captions, the times and the order are what they were, and the tests pin the request body whole.
   - **It is one document, a `clips.v1.PostRecord` as protojson writes it**, not keys of Zernio's top level: its
     shape is the proto's and it grows there, with nothing to move in Zernio. `schema` names the message it is,
@@ -3855,8 +3863,10 @@ for now** (2026-10-17): a third account is 6 USD a month. A change of service is
 - **The HTTP client is generated, not written, and lives in `shared/cpzernio`** with all that makes it:
   `client.gen.go`, by oapi-codegen (pinned in the `Makefile`) from Zernio's own OpenAPI document, vendored
   beside it as `openapi.json`. `make zernio-spec` fetches the document Zernio builds its SDKs from, `make zernio`
-  generates. `oapi-codegen.yaml` names the three operations the job calls, so the client holds those and the
-  types they reach, not the 631 paths of the document; `overlay.yaml` drops its webhooks. The adapter keeps what
+  generates. `oapi-codegen.yaml` names the seven operations the job calls (`include-operation-ids`): four to post,
+  and `getAnalytics`, `getYouTubeVideoRetention` and `listTikTokCommercialMusic` for the snapshot. So the client
+  holds those and the types they reach, not the 631 paths of the document; `overlay.yaml` drops its webhooks. **An
+  operation not named there is not in the client**: a new call is a line there and `make zernio`. The adapter keeps what
   no document says: which account, the upload, the idempotency key, and which answer is "busy".
 - **Not Zernio's official Go SDK** (`github.com/zernio-dev/zernio-go`, looked at on 2026-10-13, v0.1.969). It is
   alive: a bot regenerates it from the same document several times a day, and its one maintainer fixed a
@@ -3900,6 +3910,67 @@ for now** (2026-10-17): a third account is 6 USD a month. A change of service is
   reads holds each post's state and each platform's error, and `log_history` logs every post of the last week,
   a refused one as a warning with why (`a post of the last week was refused … failure="tiktok: …"`).
 - The tests run it against `httptest`, with the requests and the answers of Zernio's OpenAPI document.
+
+**`internal/clips/internal/stats/` is what became of the posts**, a concept of its own beside `replays` and `posts`,
+for the experiments: what a clip was is in its post's `record`, and how it did is here, side by side. A view count read
+once tells nothing of a clip's first day, and TikTok's best numbers do not wait, so it is **a snapshot a day**, kept
+for good:
+
+- **Why daily**: on a TikTok account connected through the TikTok for Business app, Zernio's `completionRate`,
+  `impressionSources`, `audienceTypes`, `audienceCountries`, `retentionCurve`, `follows`, `profileViews`,
+  `websiteClicks` and the watch times (`igReelsAvgWatchTime`, `igReelsVideoViewTotalTime`) come **24 to 48 hours
+  after a post, and only for posts active in the last 7 days**. A day missed is lost for good. A post's age in
+  hours is on every row, so the curve of a clip's first week can be drawn.
+- **One row per platform per post per snapshot** (`stats.Row`): the Zernio post id, the platform, the account, the
+  platform's id and address of the video, when it went out there, its age at the snapshot, the post's answer
+  (`answer`: its HTTP status, a 200, a 202 while a platform still syncs, or a 424 when every platform failed; the
+  post's status, its sync status and message), **the platform's entry of the answer as it came** (`analytics`,
+  every metric in it, the ones no code here knows too), YouTube's retention curve (`retention`, below) and **the
+  post's metadata as it came** (`metadata`: the story key, the countries, the call to act and the `record`).
+  `version` is the shape of the row: a change that is not additive is a new version.
+- **Which posts**: those with a story key, as `choose` reads them (`Told`), scheduled in the last 4 weeks
+  (`DefaultSince`) or since `-since`, paged 500 at a time. A post out on no platform yet has nothing to measure and
+  is counted, not kept; a platform it failed on is no row. 4 weeks: TikTok's business metrics stop at 7 days, and a
+  Short's views have about settled by then. **The backfill is the same command** with `-since 2026-10-13`, the day
+  the job started: the views and the likes are still there, the business metrics are not.
+- **YouTube's retention** (`GET /v1/analytics/youtube/video-retention`, the platform's post id as `videoId`) is
+  asked up to the day of the snapshot (`toDate`), the newest curve YouTube has, which it may still revise for 3
+  days. **Any answer is kept as it came** (`Retention`: its status and its body), up to 100 points with
+  `audienceWatchRatio` and `relativeRetentionPerformance`, or the 412 `youtube_analytics_scope_missing` that asks
+  for the channel to be connected again, which the summary says plainly. YouTube has no curve for a video with few
+  views or under 2 to 3 days old: an empty one is `empty`.
+- **No analytics, no snapshot.** They need Zernio's Analytics add-on: `GET /v1/accounts` says
+  `hasAnalyticsAccess`, and **false fails the run before any post is read, and nothing is written**
+  (`stats.ErrNoAnalyticsAccess`, which says to turn it on). A 402 on a post's analytics is the same error, and
+  fails the run whole. Any other post that cannot be read (a 404 for a post deleted, a service busy past the
+  `Backoff`) is in the report's `Unread`: the others are kept, then the run fails.
+- **Is TikTok's business lane live?** The summary has a row for each TikTok account: `tiktokAccountType` (what
+  TikTok said the account was when it was connected to Zernio: `business`, `personal`, `unknown`), how many of its
+  rows of the snapshot hold a business metric (`Row.BusinessMetrics`: a completion rate, a profile view or a watch
+  time above 0, or any source, country or retention point), and whether `GET /v1/accounts/{id}/tiktok/commercial-music`
+  answers, which it does only for an account connected through TikTok for Business. **Live** is a business account
+  with either. The account was personal until the switch of October 2026: once TikTok verifies it as a business
+  account, it has to be connected again in Zernio for the lane to open.
+- **The store is a folder** (`file_stats_store`): `snapshots/<time>.jsonl`, a row a line, one file a snapshot,
+  **the source of truth**; and `clips-stats.csv`, **made again from every snapshot each time one is kept**, so it is
+  never edited and a column added is filled for every row that has it. `stats.Table` makes it: the rows' own
+  columns first, then one for each metric (`metrics.views`, `metrics.impressionSources.forYou`), each part of the
+  metadata (`meta.storyFlag`, `meta.record.clip.variants.<experiment>`: an arm is a column with no code) and
+  YouTube's curve (`youtube.points`, `youtube.meanRelativeRetentionPerformance`, the mean of its points, and the
+  curve itself). A list, and the two maps with a key a country or a second (`audienceCountries`, TikTok's
+  `retentionCurve`), are one cell of JSON. Numbers are written as Zernio wrote them.
+- **Nothing of it is public.** Completion rates, audience countries and profile views are not public numbers, and
+  this repository, its artifacts and its logs are. The workflow keeps the folder in a **private repository**
+  (`vars.CLIPS_STATS_REPO`), checked out and pushed with a deploy key of that repository alone
+  (`secrets.CLIPS_STATS_DEPLOY_KEY`), and uploads no artifact. **The summary and the logs carry counts and
+  states, never a metric**: rows kept, posts not out, rows syncing, curves, each TikTok account's lane, and the
+  posts lost with why. The workflow fails at its first step, before anything is read, when either is not set.
+- **The workflow** runs every day at 05:41 UTC, and by hand with `since`. It is one job: it holds the Zernio key
+  and the deploy key and runs no npm, as the clips workflow's jobs do. A snapshot that lost a post is still kept
+  and pushed, then the run is red.
+- `take_snapshot_usecase` reads, `log_take_snapshot` logs each TikTok lane and each post lost, and the adapter is
+  `posts/zernio`'s `Service` again (`stats.go`): the one package that knows the service. Its tests run it against
+  `httptest` with the answers of Zernio's document; the use case's against a scripted source.
 
 `posts/generator_output/` reads the generator's files (`protojson`, unknown fields dropped, so the generator can
 add one first), and both use cases log in a decorator
