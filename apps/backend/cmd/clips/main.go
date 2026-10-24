@@ -51,7 +51,7 @@ func runCommand(ctx context.Context, parsed flags.Config, out io.Writer, logger 
 	case flags.Schedule:
 		return schedule(ctx, parsed, out, logger)
 	case flags.Stats:
-		return snapshot(ctx, parsed, out, logger)
+		return snapshot(ctx, parsed, logger)
 	default:
 		return fmt.Errorf("%w: %q", errUnknownCommand, parsed.Command)
 	}
@@ -88,17 +88,13 @@ func schedule(ctx context.Context, parsed flags.Config, out io.Writer, logger *s
 	return nil
 }
 
-func snapshot(ctx context.Context, parsed flags.Config, out io.Writer, logger *slog.Logger) error {
+// No display: the backoffice shows the snapshots, and the log says what was kept and what was lost.
+func snapshot(ctx context.Context, parsed flags.Config, logger *slog.Logger) error {
 	report, err := clips.Stats(ctx, parsed.Job, logger)
 	if err != nil {
 		return fmt.Errorf("failed to take a snapshot of the posts' numbers: %w", err)
 	}
-
-	whole, err := display.Stats(parsed.SummaryFile, out, report)
-	if err != nil {
-		return err //nolint:wrapcheck // the display already named what it could not write.
-	}
-	if !whole {
+	if !report.Complete() {
 		return errUnread
 	}
 	return nil

@@ -209,9 +209,9 @@ func run(logger *slog.Logger) error {
 - **Package `main` stays thin: `main`, `run`, and nothing that does the work of a stage.** The stages live in packages of their own. A parser or a table that sits in `main` beside `run` is the monolith again, in three files.
 - **A dispatch names every value it acts on, and anything else is an error.** No `default:` that runs a command: a value nobody expected then does the last thing in the list, and here that is posting.
 
-**`cmd/clips` follows it** (see [The clips job](#the-clips-job-internalclips-cmdclips)): `flags.Parse` in `cmd/clips/internal/flags`, the work in `internal/clips/job.go`, `display.Picks`, `display.Report` and `display.Stats` in `cmd/clips/internal/display`. `main.go` is `main`, `run`, the dispatch and one short function per command. What it settled:
+**`cmd/clips` follows it** (see [The clips job](#the-clips-job-internalclips-cmdclips)): `flags.Parse` in `cmd/clips/internal/flags`, the work in `internal/clips/job.go`, `display.Picks` and `display.Report` in `cmd/clips/internal/display`. `main.go` is `main`, `run`, the dispatch and one short function per command. What it settled:
 
-- **With subcommands, `run` parses, then picks the command**, and each command is its own short list of stages: work, then display. The dispatch has a `case` per command and fails on any other (`errUnknownCommand`), though the parser already refused it.
+- **With subcommands, `run` parses, then picks the command**, and each command is its own short list of stages: work, then display. `stats` has no display: what it keeps is read in the backoffice, so it is work, then the exit status. The dispatch has a `case` per command and fails on any other (`errUnknownCommand`), though the parser already refused it.
 - **The parser and the display are the tool's own, under `cmd/clips/internal/`**: Go keeps them out of reach of everything but this command, and they import the module, never the reverse.
 - **A display that writes can fail**, so it answers an `error` beside its `bool`: `display.Report(summaryFile, out, report) (bool, error)`. The `bool` is still what the report says (every clip is scheduled), and the `error` only that the summary could not be written.
 
@@ -3614,7 +3614,7 @@ meet in files: the replay, the race and the season this job saves for the genera
 clips fetch -out <replay.json> [-race <race.json>] [-season <season.json>] [-ssh <user@host>] [-hours 72] [-until <2026-10-12T12:00:00Z>]
 clips choose -shortlist <shortlist.json> [-count 2] [-platforms tiktok,youtube]
 clips schedule -clips <folder> [-review 0] [-spacing 1h] [-platforms tiktok,youtube] [-summary <file>]
-clips stats [-ssh <user@host>] [-since 2026-10-13] [-summary <file>]
+clips stats [-ssh <user@host>] [-since 2026-10-13]
 ```
 
 - **`fetch` saves a replay**: it asks the production backend's operator tool for one
@@ -3667,8 +3667,9 @@ clips stats [-ssh <user@host>] [-since 2026-10-13] [-summary <file>]
   - **The display owns the output and says how it went** (`cmd/clips/internal/display`): `display.Picks`
     writes the array (a clip in no experiment has `"variants":{}`, never `null`), `display.Report` writes the table, to the summary file when one is named, and answers
     whether every clip is scheduled on each of its platforms. It does not turn that into an error: `schedule` in `main.go` decides, and
-    exits 1 on `errUnsent`. `display.Stats` writes what a snapshot kept the same way, and answers whether every
-    post was read whole: `snapshot` exits 1 on `errUnread`.
+    exits 1 on `errUnsent`. **`stats` has no display**: the backoffice shows the snapshots (its `CLAUDE.md`, "Clip
+    stats"), and the log says what was kept and lost (`log_take_snapshot`). `snapshot` in `main.go` exits 1 on
+    `errUnread` when a post was not read whole.
   - **The dispatch acts on `fetch`, `choose`, `schedule` and `stats`, and on nothing else**: any other command is
     `errUnknownCommand`, and nothing is fetched, printed, posted or kept.
 
@@ -3989,7 +3990,7 @@ for good:
   (`stats.ErrNoAnalyticsAccess`, which says to turn it on). A 402 on a post's analytics is the same error, and
   fails the run whole. Any other post that cannot be read (a 404 for a post deleted, a service busy past the
   `Backoff`) is in the report's `Unread`: the others are kept, then the run fails.
-- **Is TikTok's business lane live?** The summary has a row for each TikTok account: `tiktokAccountType` (what
+- **Is TikTok's business lane live?** The snapshot keeps it for each TikTok account, and the backoffice shows it: `tiktokAccountType` (what
   TikTok said the account was when it was connected to Zernio: `business`, `personal`, `unknown`), how many of its
   rows of the snapshot hold a business metric (`Row.BusinessMetrics`: a completion rate, a profile view or a watch
   time above 0, or any source, country or retention point), and whether `GET /v1/accounts/{id}/tiktok/commercial-music`
@@ -4008,8 +4009,10 @@ for good:
   "Clip stats", for the table.
 - **Nothing of it is public.** Completion rates, audience countries and profile views are not public numbers, and
   this repository, its artifacts and its logs are. The rows go to postgres, behind the console listener and the
-  admin gate, and the workflow uploads no artifact. **The summary and the logs carry counts and states, never a
-  metric**: rows kept, posts not out, rows syncing, curves, each TikTok account's lane, and the posts lost with why.
+  admin gate, and the workflow uploads no artifact and writes no summary. **The log carries counts and states, never
+  a metric**: rows kept, posts not out, rows syncing, each TikTok account's lane, the posts lost with why, and why
+  YouTube gave no curve (a warning for `youtube_analytics_scope_missing`, which asks for the channel to be connected
+  again in Zernio).
 - **The workflow** runs every day at 05:41 UTC, and by hand with `since`. It is one job: it holds the Zernio key
   and the VPS's (`VPS_*`, as `fetch`) and runs no npm, as the clips workflow's jobs do. A snapshot that lost a post
   is still kept, then the run is red.

@@ -40,9 +40,6 @@ type (
 	Report          = posts.Report
 	PlatformOutcome = posts.PlatformOutcome
 	StatsReport     = stats.Report
-	TikTokLane      = stats.TikTokLane
-	TikTokAccount   = stats.TikTokAccount
-	Unread          = stats.Unread
 )
 
 type Config struct {

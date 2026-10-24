@@ -49,4 +49,4 @@ jobs:
           ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts 2> /dev/null
           since=()
           if [ -n "$SINCE" ]; then since=(-since "$SINCE"); fi
-          go run ./cmd/clips stats "${since[@]}" -summary "$GITHUB_STEP_SUMMARY"
+          go run ./cmd/clips stats "${since[@]}"

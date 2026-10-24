@@ -1,9 +1,6 @@
 package stats
 
-import (
-	"sort"
-	"time"
-)
+import "time"
 
 // What a snapshot read and kept: counts and states, never a metric. The run's summary is public.
 type Report struct {
@@ -53,15 +50,6 @@ func (r Report) RowCount() int {
 		total += count
 	}
 	return total
-}
-
-func (r Report) Platforms() []string {
-	platforms := make([]string, 0, len(r.Rows))
-	for platform := range r.Rows {
-		platforms = append(platforms, platform)
-	}
-	sort.Strings(platforms)
-	return platforms
 }
 
 func ReportOf(accounts Accounts, rows []Row) Report {

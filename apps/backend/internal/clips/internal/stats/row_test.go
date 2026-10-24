@@ -111,7 +111,6 @@ func TestATikTokLaneIsLiveOnABusinessAccountWhoseLaneAnswers(t *testing.T) {
 	assert.False(t, report.TikTokAccounts[2].Live(), "TikTok calls it personal")
 	assert.Equal(t, map[string]int{"tiktok": 2, "youtube": 1}, report.Rows)
 	assert.Equal(t, 3, report.RowCount())
-	assert.Equal(t, []string{"tiktok", "youtube"}, report.Platforms())
 	assert.Equal(t, 2, report.Syncing)
 	assert.Equal(t, map[string]int{"412 youtube_analytics_scope_missing": 1}, report.CurvesRefused)
 	assert.True(t, report.Complete())

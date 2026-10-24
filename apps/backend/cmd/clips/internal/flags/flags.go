@@ -16,7 +16,7 @@ const usage = `usage:
   clips fetch -out <replay.json> [-race <race.json>] [-season <season.json>] [-ssh <user@host>] [-hours 72] [-until <2026-10-12T12:00:00Z>]
   clips choose -shortlist <shortlist.json> [-count 2] [-platforms tiktok,youtube]
   clips schedule -clips <folder> [-review 0] [-spacing 1h] [-platforms tiktok,youtube] [-summary <file>]
-  clips stats [-ssh <user@host>] [-since 2026-10-13] [-summary <file>]
+  clips stats [-ssh <user@host>] [-since 2026-10-13]
 
 fetch asks the production backend's operator tool for a replay, over ssh: CLICKPLANET_SSH stands in for -ssh, and
 the ledger keeps 72 hours in memory, so a replay cannot reach further back. With -race and -season it asks for the
@@ -164,7 +164,6 @@ func parseStats(args []string) (Config, error) {
 
 	flags := flag.NewFlagSet(string(Stats), flag.ContinueOnError)
 	flags.StringVar(&parsed.Job.Replay.SSH, "ssh", os.Getenv(HostVariable), "user@host of the machine the backend runs on")
-	flags.StringVar(&parsed.SummaryFile, "summary", "", "the file the summary of the run is added to, default the standard output")
 	since := flags.String("since", "", "the day of the first post read, default 4 weeks ago")
 	if err := flags.Parse(args); err != nil {
 		return Config{}, misused(err)

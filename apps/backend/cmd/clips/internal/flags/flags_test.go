@@ -135,14 +135,14 @@ func TestStatsFlagsSayWhichBackendKeepsTheSnapshotsAndFromWhichDay(t *testing.T)
 	t.Setenv(flags.KeyVariable, "the-key")
 	t.Setenv(flags.HostVariable, "")
 
-	parsed, err := flags.Parse([]string{"stats", "-ssh", "deploy@vps.example", "-since", "2026-10-13", "-summary", "summary.md"})
+	parsed, err := flags.Parse([]string{"stats", "-ssh", "deploy@vps.example", "-since", "2026-10-13"})
 
 	require.NoError(t, err)
 	var job clips.Config
 	job.Zernio.APIKey = "the-key"
 	job.Replay.SSH = "deploy@vps.example"
 	job.StatsSince = time.Date(2026, 10, 13, 0, 0, 0, 0, time.UTC)
-	assert.Equal(t, flags.Config{Command: flags.Stats, SummaryFile: "summary.md", Job: job}, parsed)
+	assert.Equal(t, flags.Config{Command: flags.Stats, Job: job}, parsed)
 }
 
 func TestStatsTakeTheirHostFromTheEnvironmentAndReadTheDefaultWindowWithNoDay(t *testing.T) {

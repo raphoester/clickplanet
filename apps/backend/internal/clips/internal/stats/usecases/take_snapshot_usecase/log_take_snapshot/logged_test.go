@@ -36,12 +36,14 @@ func TestASnapshotLogsItsCountsEachTikTokLaneAndEachPostLost(t *testing.T) {
 		Posts: 5, NotOut: 1, Rows: map[string]int{"tiktok": 4, "youtube": 3}, Syncing: 2,
 		TikTokAccounts: []stats.TikTokLane{{TikTokAccount: stats.TikTokAccount{Username: "clickplanet", Type: "business", CommercialMusic: true}, BusinessRows: 2}},
 		Unread:         []stats.Unread{{PostID: "post-9", Reason: "gone"}},
+		CurvesRefused:  map[string]int{"412 youtube_analytics_scope_missing": 3},
 	}})
 
 	require.NoError(t, err)
 	assert.Contains(t, logs, `level=WARN msg="a post of the job could not be read whole, and its snapshot is lost" post=post-9 reason=gone`)
 	assert.Contains(t, logs, `msg="a tiktok account" username=clickplanet type=business commercialMusic=true businessRows=2 businessLaneLive=true`)
 	assert.Contains(t, logs, `msg="took a snapshot of the posts of the job" posts=5 notOut=1 rows=7 syncing=2`)
+	assert.Contains(t, logs, `level=WARN msg="youtube gave no retention curve" why="412 youtube_analytics_scope_missing: connect the YouTube account again in Zernio to grant the analytics scope" videos=3`)
 }
 
 func TestAFailedSnapshotLogsNothing(t *testing.T) {
