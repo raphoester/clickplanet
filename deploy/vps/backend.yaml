@@ -394,7 +394,7 @@ support:
       secretAccessKey: env://SUPPORT_BUCKET_SECRET
 
 # The numbers of the clips the clips job posted: `clips stats` sends a snapshot a day over ssh, the backoffice reads them.
-clipStats:
+clips:
   database:
     host: postgres
     password: env://POSTGRES_PASSWORD
@@ -402,6 +402,6 @@ clipStats:
     user: clickplanet
     dbName: clickplanet
     sslMode: disable
-    schema: clipstats
+    schema: clips
     pool:
       maxOpenConns: 2

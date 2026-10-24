@@ -1,7 +1,7 @@
 import {Timestamp} from "@bufbuild/protobuf"
 import {LONG_CALL_MS} from "../api.ts"
-import {ClipStatsAdmin} from "../clients.ts"
-import {Snapshot} from "../gen/grpc/clipstats/v1/admin_pb.ts"
+import {ClipsAdmin} from "../clients.ts"
+import {StatsSnapshot} from "../gen/grpc/clips/v1/admin_pb.ts"
 import {csvOf, tableOf} from "./table.ts"
 
 export type Window = {since: Date | undefined, until: Date | undefined}
@@ -11,7 +11,7 @@ export type Span = "last" | "week" | "month" | "all"
 const DAY_MS = 24 * 60 * 60 * 1000
 
 // The window of the snapshots asked: the last one alone is from its own time on.
-export function windowOf(span: Span, latest: Snapshot | undefined, now: Date): Window {
+export function windowOf(span: Span, latest: StatsSnapshot | undefined, now: Date): Window {
     switch (span) {
         case "last":
             return {since: latest?.takenAt?.toDate(), until: undefined}
@@ -27,11 +27,11 @@ export function windowOf(span: Span, latest: Snapshot | undefined, now: Date): W
 export type Table = {name: string, csv: string, rows: number}
 
 // Every row of the snapshots taken in the window, page after page, as the backend keeps them.
-export async function documentsOf(clipStats: ClipStatsAdmin, window: Window, signal?: AbortSignal): Promise<string[]> {
+export async function documentsOf(clips: ClipsAdmin, window: Window, signal?: AbortSignal): Promise<string[]> {
     const documents: string[] = []
     let page = ""
     do {
-        const answer = await clipStats.listRows({
+        const answer = await clips.listRows({
             since: window.since === undefined ? undefined : Timestamp.fromDate(window.since),
             until: window.until === undefined ? undefined : Timestamp.fromDate(window.until),
             limit: 2000,
@@ -43,8 +43,8 @@ export async function documentsOf(clipStats: ClipStatsAdmin, window: Window, sig
     return documents
 }
 
-export async function tableFileOf(clipStats: ClipStatsAdmin, window: Window, now: Date): Promise<Table> {
-    const documents = await documentsOf(clipStats, window)
+export async function tableFileOf(clips: ClipsAdmin, window: Window, now: Date): Promise<Table> {
+    const documents = await documentsOf(clips, window)
     return {
         name: `clip-stats-${stampOf(window.since)}-${stampOf(window.until ?? now)}.csv`,
         csv: csvOf(tableOf(documents)),

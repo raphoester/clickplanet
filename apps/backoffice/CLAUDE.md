@@ -312,7 +312,7 @@ address over IPv4, the /64 over IPv6) and checks.
 ## Clip stats
 
 `src/clips/`, one page (`ClipStatsPage`). **The backend keeps the rows, the page makes the table**, as the home page
-counts from the ledger: `clipstats.v1.AdminService` (the backend's `CLAUDE.md`, "Clip stats") holds a snapshot a day
+counts from the ledger: `clips.v1.AdminService` (the backend's `CLAUDE.md`, "Clip stats") holds a snapshot a day
 of each clip on each platform, which the clips job's `clips stats` sends, each row the JSON the job wrote: what
 Zernio answered, as it came, and what the clip was.
 

@@ -84,7 +84,7 @@ function Console({operator, onSignedOut}: {operator: string, onSignedOut: () => 
                 {page === "reassign" && <ReassignPanel planet={CLIENTS.planet}/>}
                 {page === "paint" && <PaintPanel planet={CLIENTS.planet}/>}
                 {page === "replay" && <ReplayPanel planet={CLIENTS.planet}/>}
-                {page === "clips" && <ClipStatsPage clipStats={CLIENTS.clipStats}/>}
+                {page === "clips" && <ClipStatsPage clips={CLIENTS.clips}/>}
                 {page === "titles" && <TitlesPanel player={CLIENTS.player}/>}
             </Page>
         </OpenPlayer.Provider>

@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protojson"
 
-	clipstatsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/clipstats/v1"
+	clipsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/clips/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/stats"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/stats/ssh_stats_store"
 )
@@ -26,14 +26,14 @@ type fakeSSH struct {
 }
 
 // Call n's arguments, one a line, and what came on its standard input.
-func (f fakeSSH) call(t *testing.T, n int) ([]string, *clipstatsv1.KeepSnapshotRequest) {
+func (f fakeSSH) call(t *testing.T, n int) ([]string, *clipsv1.KeepSnapshotRequest) {
 	t.Helper()
 
 	args, err := os.ReadFile(filepath.Join(f.folder, fmt.Sprintf("args-%d", n)))
 	require.NoError(t, err)
 	body, err := os.ReadFile(filepath.Join(f.folder, fmt.Sprintf("body-%d", n)))
 	require.NoError(t, err)
-	var request clipstatsv1.KeepSnapshotRequest
+	var request clipsv1.KeepSnapshotRequest
 	require.NoError(t, protojson.Unmarshal(body, &request))
 	return strings.Split(strings.TrimSuffix(string(args), "\n"), "\n"), &request
 }
@@ -103,7 +103,7 @@ func TestASnapshotIsSentToTheOperatorToolOverSSHOnItsStandardInput(t *testing.T)
 		"--",
 		"deploy@vps.example",
 		"cd /opt/clickplanet/deploy/vps && docker compose exec -T backend wget -qO- --header 'Content-Type: application/json'" +
-			" --post-file=/dev/stdin http://127.0.0.1:8081/clipstats.v1.AdminService/KeepSnapshot",
+			" --post-file=/dev/stdin http://127.0.0.1:8081/clips.v1.AdminService/KeepSnapshot",
 	}, args)
 	summary := request.GetSnapshot()
 	assert.Equal(t, takenAt, summary.GetTakenAt().AsTime())
@@ -186,7 +186,7 @@ func TestAnAnswerThatIsNoResponseFailsTheSnapshot(t *testing.T) {
 
 	err = store.Keep(t.Context(), aReport(2), rows(2))
 
-	require.ErrorContains(t, err, "not a clipstats.v1.KeepSnapshotResponse")
+	require.ErrorContains(t, err, "not a clips.v1.KeepSnapshotResponse")
 }
 
 func TestNoHostIsRefused(t *testing.T) {

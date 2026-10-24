@@ -978,7 +978,7 @@ rm -f ~/backups/tiles-*.tar.gz
 
 `httpServer.consoleBindAddress` serves the backend's operator services
 (`planet.v1.AdminService`, `player.v1.AdminService`, `chat.v1.AdminService`, `support.v1.AdminService`,
-`clipstats.v1.AdminService`) on `127.0.0.1:8081`, inside the container. They are
+`clips.v1.AdminService`) on `127.0.0.1:8081`, inside the container. They are
 not behind Caddy and have **no authentication**: loopback is their whole
 protection, so a non-loopback address refuses the boot. Reach them from the box
 with `docker compose exec`. They are ordinary Connect RPCs, so a request is a

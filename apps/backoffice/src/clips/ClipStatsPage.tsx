@@ -1,8 +1,8 @@
 import {useCallback, useState} from "react"
-import {ClipStatsAdmin} from "../clients.ts"
+import {ClipsAdmin} from "../clients.ts"
 import {FailureNotice} from "../components/FailureNotice.tsx"
 import {When} from "../components/When.tsx"
-import {Snapshot, TikTokAccount} from "../gen/grpc/clipstats/v1/admin_pb.ts"
+import {StatsSnapshot, TikTokAccount} from "../gen/grpc/clips/v1/admin_pb.ts"
 import {saveText} from "../map/download.ts"
 import {wordsOf} from "../refusal.ts"
 import {countOf} from "../support/labels.ts"
@@ -24,12 +24,12 @@ export type Save = (name: string, text: string, type: string) => void
 
 // The numbers of the clips the clips job posted, a snapshot a day (`clips stats`), and a table of them for a
 // spreadsheet. A read: the job keeps them, over ssh.
-export function ClipStatsPage({clipStats, save = saveText, now = () => new Date()}: {
-    clipStats: ClipStatsAdmin, save?: Save, now?: () => Date,
+export function ClipStatsPage({clips, save = saveText, now = () => new Date()}: {
+    clips: ClipsAdmin, save?: Save, now?: () => Date,
 }) {
     const list = useCallback(
-        async (signal: AbortSignal) => (await clipStats.listSnapshots({limit: SHOWN}, {signal})).snapshots,
-        [clipStats],
+        async (signal: AbortSignal) => (await clips.listSnapshots({limit: SHOWN}, {signal})).snapshots,
+        [clips],
     )
     const [snapshots, again] = useCall(list)
 
@@ -44,7 +44,7 @@ export function ClipStatsPage({clipStats, save = saveText, now = () => new Date(
             {snapshots.state === "failed" && <FailureNotice failure={snapshots} onRetry={again}/>}
             {snapshots.state === "done" && (
                 <>
-                    <Download clipStats={clipStats} latest={snapshots.value[0]} save={save} now={now}/>
+                    <Download clips={clips} latest={snapshots.value[0]} save={save} now={now}/>
                     {snapshots.value.length === 0
                         ? <p className="muted">No snapshot yet: the first comes with the next run of the clips stats workflow.</p>
                         : <>
@@ -57,14 +57,14 @@ export function ClipStatsPage({clipStats, save = saveText, now = () => new Date(
     )
 }
 
-function Download({clipStats, latest, save, now}: {
-    clipStats: ClipStatsAdmin, latest: Snapshot | undefined, save: Save, now: () => Date,
+function Download({clips, latest, save, now}: {
+    clips: ClipsAdmin, latest: StatsSnapshot | undefined, save: Save, now: () => Date,
 }) {
     const [span, setSpan] = useState<Span>("last")
     const [saved, start] = useAction<Table>(wordsOf)
 
     const download = () => start(async () => {
-        const table = await tableFileOf(clipStats, windowOf(span, latest, now()), now())
+        const table = await tableFileOf(clips, windowOf(span, latest, now()), now())
         save(table.name, table.csv, "text/csv")
         return table
     })
@@ -109,7 +109,7 @@ function Download({clipStats, latest, save, now}: {
 }
 
 // Whether TikTok's business lane is live, as the last snapshot saw it.
-function TikTokLanes({snapshot}: {snapshot: Snapshot}) {
+function TikTokLanes({snapshot}: {snapshot: StatsSnapshot}) {
     if (snapshot.tiktokAccounts.length === 0) return <p className="muted">No TikTok account was connected.</p>
     return (
         <section className="panel" aria-label="TikTok business lane">
@@ -143,7 +143,7 @@ function Lane({account}: {account: TikTokAccount}) {
     )
 }
 
-function Snapshots({snapshots}: {snapshots: Snapshot[]}) {
+function Snapshots({snapshots}: {snapshots: StatsSnapshot[]}) {
     return (
         <section className="panel" aria-label="Snapshots">
             <table className="table">

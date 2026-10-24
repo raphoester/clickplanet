@@ -71,9 +71,9 @@ This is a Go backend for a collaborative map-clicking game. It follows **hexagon
 - **`internal/seasons/`** — the season calendar, each season's player standings and its daily rounds between countries, above the game. See [Seasons](#seasons-internalseasons).
 - **`internal/support/`** — what a player sends the operator: a feature suggestion, a bug report or a report of another player. See [Support](#support-internalsupport).
 
-Beside them, **`internal/clipstats/`** keeps the numbers of the clips the clips job posts, for the operator alone: an
-admin service and its tables, no public route, no event, and nothing it asks of another module. See
-[Clip stats](#clip-stats-internalclipstats).
+Beside them, **`internal/clips/`** is a module of the server too, for one thing: it keeps the numbers of the clips
+the clips job posts, for the operator alone. An admin service and its tables, no public route, no event, and nothing
+it asks of another module. See [Clip stats](#clip-stats-internalclips-in-the-server).
 
 They share the process, the transport and the country list, and **nothing else**. None imports another; each owns its own domain types, its own proto package, its own storage adapter (where it has one) and its own edge.
 
@@ -90,11 +90,13 @@ shared package because "is this caller a bot" is the business this game is in,
 while `shared` is for things that would read the same in any other program.
 `planet` → `antibot` is the only module-to-module import in the backend.
 
-**`internal/clips/` is not a context of the server either: it is a job, with a binary of its own** (`cmd/clips`).
-It shares no process, no config and no data with the six, and imports only `shared`: what it asks of the
-server (a replay, the race, the season) and what it gives it (the snapshots of `stats`, to `clipstats`) goes over
-ssh to the console listener, as an operator's call. See [The clips
-job](#the-clips-job-internalclips-cmdclips).
+**`internal/clips/` is mostly a job, with a binary of its own** (`cmd/clips`), and a small module of the server
+beside it. The job shares no process and no config with the server, and imports only `shared`: what it asks of the
+server (a replay, the race, the season) and what it gives it (the snapshots of `stats`, which the clips module keeps)
+goes over ssh to the console listener, as an operator's call. **One package, two roots**: `clips.Config` and
+`Fetch`, `Choose`, `Schedule`, `Stats` are the job's, `clips.ModuleConfig` and `NewModule` the server's, and only
+`NewModule` is wired into `cmd/api`. The clips are one concept, so their numbers live with them rather than in a
+module of their own. See [The clips job](#the-clips-job-internalclips-cmdclips).
 
 #### A module publishes its root package and hides the rest
 
@@ -116,9 +118,8 @@ root package**:
 | `player` | `Config`, `NewModule` |
 | `seasons` | `Config`, `NewModule` |
 | `support` | `Config`, `NewModule` |
-| `clipstats` | `Config`, `NewModule` |
 | `antibot` | `Config`, `Observer`, `Guard`, `New`, `Description`, `Click`, `Report`, `Sentence`, `Pardon`, `Examination`, `Reading` |
-| `clips` | `Config`, `ReplayConfig`, `Fetch`, `Choose`, `Schedule`, `Stats`, `Pick`, `Platform`, `PlatformsOf`, `Report`, `PlatformOutcome`, `StatsReport`, `TikTokLane`, `TikTokAccount`, `Unread` |
+| `clips` | `ModuleConfig`, `NewModule` (the server's); `Config`, `ReplayConfig`, `Fetch`, `Choose`, `Schedule`, `Stats`, `Pick`, `Platform`, `PlatformsOf`, `Report`, `PlatformOutcome`, `StatsReport`, `TikTokLane`, `TikTokAccount`, `Unread` |
 
 That holds for `cmd/api` too: the composition root lists modules and cannot
 reach a domain type, a storage adapter or a controller even if it wanted to. A
@@ -2420,19 +2421,22 @@ bank's size less the emptiest bucket it spends from (`lack`).
 - `UseRefill` is session-gated like `Click` and `DropBomb`, and not throttled:
   holding the refill the server granted is the gate.
 
-### Clip stats (`internal/clipstats/`)
+### Clip stats (`internal/clips/`, in the server)
 
 **Where the numbers of the clips are kept**: a snapshot a day of each post of the clips job on each platform, which
 the job's `clips stats` sends (see [The clips job](#the-clips-job-internalclips-cmdclips), "`stats/` is what became
-of the posts") and the backoffice reads and makes a table of (its `CLAUDE.md`, "Clip stats"). It is a context of the
-server because the data has to be private and kept: postgres is both, and a file in a public repository, its
-artifacts or its logs is neither. Chosen 2026-10-24 over a private repository the workflow would push to, which
-needs a key of its own and has no page to read it from.
+of the posts") and the backoffice reads and makes a table of (its `CLAUDE.md`, "Clip stats"). It is in the server
+because the data has to be private and kept: postgres is both, and a file in a public repository, its artifacts or
+its logs is neither. Chosen 2026-10-24 over a private repository the workflow would push to, which needs a key of its
+own and has no page to read it from. **It is the clips package's own module** (`clips.NewModule`), not a module of
+its own: its pieces sit beside the job's, `internal/clips/internal/stats/snapshots/` (the domain of what is kept, its
+postgres store and its use case), `internal/clipsv1controller/` and `internal/migrations/`. The proto package is the
+clips' too: `clips.v1.AdminService`, in `proto/clips/v1/admin.proto`, beside the files the generator writes.
 
-**`clipstats.v1.AdminService` alone, nothing on the public router.** The job reaches it over ssh on the console
+**`clips.v1.AdminService` alone, nothing on the public router.** The job reaches it over ssh on the console
 listener, and the backoffice on the admin listener, behind the gate (see [Operator tools](#operator-tools-adminservice)).
 
-- **`KeepSnapshot` keeps a part of a snapshot**: its summary (`clipstats.v1.Snapshot`: when, since when, the counts,
+- **`KeepSnapshot` keeps a part of a snapshot**: its summary (`clips.v1.StatsSnapshot`: when, since when, the counts,
   each TikTok account's lane and the posts lost) and some of its rows, in one transaction. A snapshot is its
   `taken_at`; a row is its snapshot, its post and its platform, and **a row or a summary kept again replaces the one
   kept**, so the parts of one snapshot, or a run made again, are kept once. `snapshots.NewPart` refuses a row of
@@ -2446,7 +2450,7 @@ listener, and the backoffice on the admin listener, behind the gate (see [Operat
   with whether TikTok's business lane is live. **`ListRows`** is the rows of the snapshots taken in `[since, until)`,
   oldest first, by the primary key, a page at a time (500, at most 2000): `next_page` is the key of the page's last
   row, opaque to the caller; a page this query did not give is `InvalidArgument`.
-- **Its tables** (`clipstats` schema, migration `20261025090000_snapshots`): `snapshots(taken_at, summary)` and
+- **Its tables** (`clips` schema, migration `20261025090000_snapshots`): `snapshots(taken_at, summary)` and
   `snapshot_rows(taken_at, post_id, platform, document)`, a row deleted with its snapshot. Nothing prunes them: a
   day is about 2 MB at 4 weeks of posts read daily, compressed by postgres.
 - **The pool is a closer**, not `cppg.CloseAfter`: the module runs nothing in the background, and `CloseAfter` of
@@ -3445,7 +3449,7 @@ Both chains order them the same way: error mapping outermost, then the blocklist
 
 **The charges have no memory copy**: every call reads and writes `planet.charges`, on the same pool. See [Charges](#charges-refill-bomb-enclose-spread-shields).
 
-The antibot's evidence is in postgres too, in the `antibot` schema, the same way, and its bans are read and written there on every call — see [What survives a restart](#what-survives-a-restart). The player module's profiles and stats are in postgres too, in the `player` schema, but with no memory copy: each call reads or writes the table — see [Player](#player-internalplayer). The seasons module's standings are kept the same way, in the `seasons` schema — see [Seasons](#seasons-internalseasons). So are the support module's notes, in the `support` schema — see [Support](#support-internalsupport) — and the clips' daily numbers, in the `clipstats` schema — see [Clip stats](#clip-stats-internalclipstats).
+The antibot's evidence is in postgres too, in the `antibot` schema, the same way, and its bans are read and written there on every call — see [What survives a restart](#what-survives-a-restart). The player module's profiles and stats are in postgres too, in the `player` schema, but with no memory copy: each call reads or writes the table — see [Player](#player-internalplayer). The seasons module's standings are kept the same way, in the `seasons` schema — see [Seasons](#seasons-internalseasons). So are the support module's notes, in the `support` schema — see [Support](#support-internalsupport) — and the clips' daily numbers, in the `clips` schema — see [Clip stats](#clip-stats-internalclips-in-the-server).
 
 Nothing lives in files any more: the container mounts no state volume.
 
@@ -3479,7 +3483,7 @@ origin with auth off refuses the boot.
 Caddy sends `/<package>.v1.AdminService/*` on the API's domain to it, so `cp_admin`, which is host-only on that
 domain, travels from the admin page, a page of the same site.
 
-The admin page is `apps/backoffice` (its `CLAUDE.md`). `planet.v1.AdminService` is the main one, in `proto/planet/v1/admin.proto`; `player.v1.AdminService` (`proto/player/v1/admin.proto`) has `ReconcileTitles`, and the reads that name players, `GetAuthors` and `GetPlayer`, and who plays now, `GetRoster` — see [Player](#player-internalplayer); `chat.v1.AdminService` (`proto/chat/v1/admin.proto`) has `Mute`, `RemoveMessage`, `GetMessage` and `ListMessages` — see [Mutes](#mutes) and [Removals](#removals); `support.v1.AdminService` (`proto/support/v1/admin.proto`) has `ListNotes`, `ListReports` and `DecideReport` — see [Support](#support-internalsupport); `clipstats.v1.AdminService` (`proto/clipstats/v1/admin.proto`) has `KeepSnapshot`, which the clips job calls over ssh, and `ListSnapshots` and `ListRows`, which the admin page reads — see [Clip stats](#clip-stats-internalclipstats); `auth.v1.AdminService` (`proto/auth/v1/admin.proto`) has the admin page's own sign-in and `WhoAmI` — see [Operators](#operators). `planetv1controller.AdminService` is its bag of handlers, the way `ClickService` is. `ReassignCountry` runs `clicks/usecases/reassign_country_usecase`, wrapped in `audit_reassign`: every tile `from_country_id` holds goes to `to_country_id`, while the game runs.
+The admin page is `apps/backoffice` (its `CLAUDE.md`). `planet.v1.AdminService` is the main one, in `proto/planet/v1/admin.proto`; `player.v1.AdminService` (`proto/player/v1/admin.proto`) has `ReconcileTitles`, and the reads that name players, `GetAuthors` and `GetPlayer`, and who plays now, `GetRoster` — see [Player](#player-internalplayer); `chat.v1.AdminService` (`proto/chat/v1/admin.proto`) has `Mute`, `RemoveMessage`, `GetMessage` and `ListMessages` — see [Mutes](#mutes) and [Removals](#removals); `support.v1.AdminService` (`proto/support/v1/admin.proto`) has `ListNotes`, `ListReports` and `DecideReport` — see [Support](#support-internalsupport); `clips.v1.AdminService` (`proto/clips/v1/admin.proto`) has `KeepSnapshot`, which the clips job calls over ssh, and `ListSnapshots` and `ListRows`, which the admin page reads — see [Clip stats](#clip-stats-internalclips-in-the-server); `auth.v1.AdminService` (`proto/auth/v1/admin.proto`) has the admin page's own sign-in and `WhoAmI` — see [Operators](#operators). `planetv1controller.AdminService` is its bag of handlers, the way `ClickService` is. `ReassignCountry` runs `clicks/usecases/reassign_country_usecase`, wrapped in `audit_reassign`: every tile `from_country_id` holds goes to `to_country_id`, while the game runs.
 
 - **The move is paced.** `inmemory_tile_storage.Reassign` moves one batch under the lock and returns where to resume; the use case sleeps 50ms between batches. A batch is a quarter of `tilesStorage.subscriberBuffer`, because each tile is one update on every open stream, the clicks still arriving need the rest of the buffer, and a stream that overflows it is closed.
 - **Each tile is an ordinary `TileUpdate`** with `Previous` set, not a new event kind: open clients repaint with no frontend release, `counts` move so the toll prices the next click right, and `dirty` puts it in the next flush.
@@ -3645,7 +3649,7 @@ clips stats [-ssh <user@host>] [-since 2026-10-13] [-summary <file>]
   YouTube off with no commit; unset is every platform.
 - **`stats` keeps a snapshot of the numbers of every post of the job**, once a day in a workflow of its own
   (`.github/workflows/clips-stats.yml`), so the experiments can be read from them: a row for each platform of each
-  post, with what the post was beside it, **sent over ssh to the backend's `clipstats` module**, which keeps it in
+  post, with what the post was beside it, **sent over ssh to the server's clips module**, which keeps it in
   postgres, and the backoffice makes the table (below, "`stats/` is what became of the posts"). `CLICKPLANET_SSH`
   stands in for `-ssh`, as for `fetch`. It exits 1 when a post could not be read whole, after keeping the others.
 - **`cmd/clips` is three stages, and `run` only names them**: parse, work, display (see [A command's `run` is a
@@ -3992,15 +3996,15 @@ for good:
   answers, which it does only for an account connected through TikTok for Business. **Live** is a business account
   with either. The account was personal until the switch of October 2026: once TikTok verifies it as a business
   account, it has to be connected again in Zernio for the lane to open.
-- **The store is the backend** (`ssh_stats_store`): `clipstats.v1.AdminService/KeepSnapshot` on the console
+- **The store is the backend** (`ssh_stats_store`): `clips.v1.AdminService/KeepSnapshot` on the console
   listener, over ssh, as `fetch` asks for a replay (`docker compose exec -T backend wget … --post-file=/dev/stdin`).
   **The body comes on ssh's standard input, never the command line**: a part is far longer than a command may be,
   and it holds what Zernio wrote, which no shell should read. **A snapshot goes in parts of 200 rows** (about 3 KB
   a row), each with the whole snapshot's summary; the backend keeps a row again (snapshot, post, platform) and a
   summary again as one, so a run made again or a part sent twice keeps one snapshot. A part the backend kept less
-  of than it was sent fails the run. The row goes as the job wrote it (`clipstats.v1.Row.document`, the JSON of
+  of than it was sent fails the run. The row goes as the job wrote it (`clips.v1.StatsRow.document`, the JSON of
   `stats.Row`), so a metric Zernio adds is kept with no change to the proto or the table. See
-  [Clip stats](#clip-stats-internalclipstats) for what the backend does with it, and the backoffice's `CLAUDE.md`,
+  [Clip stats](#clip-stats-internalclips-in-the-server) for what the backend does with it, and the backoffice's `CLAUDE.md`,
   "Clip stats", for the table.
 - **Nothing of it is public.** Completion rates, audience countries and profile views are not public numbers, and
   this repository, its artifacts and its logs are. The rows go to postgres, behind the console listener and the
@@ -4320,7 +4324,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `seasons.snapshot.interval` — how often a snapshot of what each country holds is added to the round in progress (default 1m)
 - `seasons.database.*` — the standings and the rounds, same shape as `database`, schema `seasons`; required. `seasons.database.password` belongs in the environment
 - `support.database.*` — what players send the operator, same shape as `database`, schema `support`; required. `support.database.password` belongs in the environment
-- `clipStats.database.*` — the daily snapshots of the clips' numbers, same shape as `database`, schema `clipstats`; required. `clipStats.database.password` belongs in the environment
+- `clips.database.*` — the daily snapshots of the clips' numbers, same shape as `database`, schema `clips`; required. `clips.database.password` belongs in the environment
 - `support.retention`, `support.pruneInterval` — how long a note keeps its sender (default 90 days; the text is kept after) and how long a report is kept, and how often the prune runs (1h)
 - `support.rateLimiter.*` — the per-IP throttle on the notes and the reports, same shape as `rateLimiter` (default one a minute, three in hand)
 - `support.noteLimiter.*` — suggestions and bug reports a day, per account and per address together, same shape (default a burst of 10, refilled over a day: unset, `perSecond` is the burst over a day)

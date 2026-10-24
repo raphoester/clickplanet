@@ -43,10 +43,10 @@ import {
     ListRowsResponse,
     ListSnapshotsRequest,
     ListSnapshotsResponse,
-    Row,
-    Snapshot,
+    StatsRow,
+    StatsSnapshot,
     TikTokAccount,
-} from "./gen/grpc/clipstats/v1/admin_pb.ts"
+} from "./gen/grpc/clips/v1/admin_pb.ts"
 import {GetTerritoriesRequest, GetTerritoriesResponse, Territory} from "./gen/grpc/planet/v1/internal_pb.ts"
 import {ChargesHeld, TileUpdate} from "./gen/grpc/planet/v1/planet_pb.ts"
 import {
@@ -71,7 +71,7 @@ import {
     NoteKind,
     Report,
 } from "./gen/grpc/support/v1/admin_pb.ts"
-import {ChatAdmin, ClipStatsAdmin, Clients, PlanetAdmin, PlayerAdmin, SupportAdmin} from "./clients.ts"
+import {ChatAdmin, ClipsAdmin, Clients, PlanetAdmin, PlayerAdmin, SupportAdmin} from "./clients.ts"
 
 export const AT = new Date("2026-10-18T12:00:00Z")
 
@@ -86,7 +86,7 @@ function change(minutes: number, by: string, update: PartialMessage<TileUpdate>)
 }
 
 // What each fake was asked, and a refusal to answer with instead, by method.
-export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAdmin, ClipStatsAdmin {
+export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAdmin, ClipsAdmin {
     readonly kind = "fake admin"
     readonly asked: {method: string, request: unknown}[] = []
     readonly refusals = new Map<string, Code>()
@@ -164,18 +164,18 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
 
     // Yesterday's snapshot, TikTok still personal; and the one of the day before.
     snapshots = [
-        new Snapshot({
+        new StatsSnapshot({
             takenAt: Timestamp.fromDate(AT), posts: 40, notOut: 3, rows: 73, syncing: 4, curves: 30,
             tiktokAccounts: [new TikTokAccount({
                 accountId: "tt-1", username: "clickplanet.lol", accountType: "personal", rows: 37,
                 commercialMusicRefusal: "zernio answered 400 to the commercial music library: Not a business account",
             })],
         }),
-        new Snapshot({takenAt: Timestamp.fromDate(new Date(AT.getTime() - 86_400_000)), posts: 38, rows: 70}),
+        new StatsSnapshot({takenAt: Timestamp.fromDate(new Date(AT.getTime() - 86_400_000)), posts: 38, rows: 70}),
     ]
     // ListRows answers them a page at a time, the page token is the index of the page.
-    rowPages: Row[][] = [[
-        new Row({
+    rowPages: StatsRow[][] = [[
+        new StatsRow({
             takenAt: Timestamp.fromDate(AT), postId: "post-1", platform: "tiktok",
             document: JSON.stringify({
                 takenAt: AT.toISOString(), postId: "post-1", platform: "tiktok", ageHours: 12.5,
@@ -186,7 +186,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
     ]]
 
     clients(): Clients {
-        return {chat: this, planet: this, player: this, support: this, clipStats: this}
+        return {chat: this, planet: this, player: this, support: this, clips: this}
     }
 
     refuse(method: string, code: Code) {

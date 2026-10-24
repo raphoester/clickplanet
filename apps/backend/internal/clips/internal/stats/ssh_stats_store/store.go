@@ -12,7 +12,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	clipstatsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/clipstats/v1"
+	clipsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/clips/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/stats"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/stats/usecases/take_snapshot_usecase"
 )
@@ -23,7 +23,7 @@ const OpenSSH = "ssh"
 // what Zernio wrote, which no shell should read.
 const operatorTool = "cd /opt/clickplanet/deploy/vps && docker compose exec -T backend wget -qO-" +
 	" --header 'Content-Type: application/json' --post-file=/dev/stdin" +
-	" http://127.0.0.1:8081/clipstats.v1.AdminService/KeepSnapshot"
+	" http://127.0.0.1:8081/clips.v1.AdminService/KeepSnapshot"
 
 // A part is a call: about 3 KB a row, so under a megabyte.
 const rowsAPart = 200
@@ -58,14 +58,14 @@ func (s *Store) Keep(ctx context.Context, report stats.Report, rows []stats.Row)
 	return nil
 }
 
-func (s *Store) keep(ctx context.Context, summary *clipstatsv1.Snapshot, rows []stats.Row) error {
-	request := &clipstatsv1.KeepSnapshotRequest{Snapshot: summary}
+func (s *Store) keep(ctx context.Context, summary *clipsv1.StatsSnapshot, rows []stats.Row) error {
+	request := &clipsv1.KeepSnapshotRequest{Snapshot: summary}
 	for _, row := range rows {
 		document, err := json.Marshal(row)
 		if err != nil {
 			return fmt.Errorf("failed to write the row of %s on %s: %w", row.PostID, row.Platform, err)
 		}
-		request.Rows = append(request.Rows, &clipstatsv1.Row{
+		request.Rows = append(request.Rows, &clipsv1.StatsRow{
 			TakenAt: timestamppb.New(row.TakenAt), PostId: string(row.PostID), Platform: row.Platform, Document: string(document),
 		})
 	}
@@ -78,9 +78,9 @@ func (s *Store) keep(ctx context.Context, summary *clipstatsv1.Snapshot, rows []
 	if err != nil {
 		return err
 	}
-	var kept clipstatsv1.KeepSnapshotResponse
+	var kept clipsv1.KeepSnapshotResponse
 	if err := decoder.Unmarshal(answered, &kept); err != nil {
-		return fmt.Errorf("the backend answered what is not a clipstats.v1.KeepSnapshotResponse: %w", err)
+		return fmt.Errorf("the backend answered what is not a clips.v1.KeepSnapshotResponse: %w", err)
 	}
 	if int(kept.GetRows()) != len(rows) {
 		return fmt.Errorf("the backend kept %d rows of %d", kept.GetRows(), len(rows))
@@ -88,21 +88,21 @@ func (s *Store) keep(ctx context.Context, summary *clipstatsv1.Snapshot, rows []
 	return nil
 }
 
-func summaryOf(report stats.Report) *clipstatsv1.Snapshot {
-	summary := &clipstatsv1.Snapshot{
+func summaryOf(report stats.Report) *clipsv1.StatsSnapshot {
+	summary := &clipsv1.StatsSnapshot{
 		TakenAt: timestamppb.New(report.TakenAt), Since: timestamppb.New(report.Since),
 		Posts: count(report.Posts), NotOut: count(report.NotOut), Rows: count(report.RowCount()),
 		Syncing: count(report.Syncing), Curves: count(report.Curves),
 	}
 	for _, lane := range report.TikTokAccounts {
-		summary.TiktokAccounts = append(summary.TiktokAccounts, &clipstatsv1.TikTokAccount{
+		summary.TiktokAccounts = append(summary.TiktokAccounts, &clipsv1.TikTokAccount{
 			AccountId: lane.ID, Username: lane.Username, AccountType: lane.Type,
 			CommercialMusic: lane.CommercialMusic, CommercialMusicRefusal: lane.CommercialMusicRefusal,
 			Rows: count(lane.Rows), BusinessRows: count(lane.BusinessRows), Live: lane.Live(),
 		})
 	}
 	for _, unread := range report.Unread {
-		summary.Unread = append(summary.Unread, &clipstatsv1.UnreadPost{PostId: string(unread.PostID), Reason: unread.Reason})
+		summary.Unread = append(summary.Unread, &clipsv1.UnreadPost{PostId: string(unread.PostID), Reason: unread.Reason})
 	}
 	return summary
 }

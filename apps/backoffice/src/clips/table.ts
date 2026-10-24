@@ -1,4 +1,4 @@
-// The table of the clips' numbers, made in the page from the rows the backend keeps (clipstats.v1.Row.document, the
+// The table of the clips' numbers, made in the page from the rows the backend keeps (clips.v1.StatsRow.document, the
 // row as `clips stats` wrote it): the backend sends what Zernio answered, never a table, so a column needs no change
 // there. The CSV is for a spreadsheet; the rows themselves stay the source of truth.
 
