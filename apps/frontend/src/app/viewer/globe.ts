@@ -587,12 +587,12 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         shake.set(0, 0, 0)
     }
 
-    const canvasPosition = (event: MouseEvent) => {
+    const canvasPosition = (at: Pick<MouseEvent, "clientX" | "clientY">) => {
         const canvas = renderer.domElement
         const rect = canvas.getBoundingClientRect()
         return {
-            x: (event.clientX - rect.left) * (canvas.width / rect.width),
-            y: (event.clientY - rect.top) * (canvas.height / rect.height),
+            x: (at.clientX - rect.left) * (canvas.width / rect.width),
+            y: (at.clientY - rect.top) * (canvas.height / rect.height),
         }
     }
 
@@ -648,6 +648,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         eventTarget.addEventListener(ending, (event: PointerEvent) => hold.end(event.pointerId), listenerOptions);
     }
 
+    eventTarget.addEventListener('pointerup', (event: PointerEvent) => press.end(event), listenerOptions);
+
     eventTarget.addEventListener('click', (event: MouseEvent) => {
         if (!loaded || !event.isTrusted) return;
 
@@ -656,9 +658,10 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             return
         }
 
-        if (press.dragged) return
+        const spot = press.spotOf(event)
+        if (!spot) return
 
-        const {x, y} = canvasPosition(event)
+        const {x, y} = canvasPosition(spot)
 
         if (offered && monotonicNow() >= offered.expiresAt - CLAIM_MARGIN_MS) {
             offered = undefined
