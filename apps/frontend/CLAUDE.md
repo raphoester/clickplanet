@@ -3132,7 +3132,8 @@ What chooses, when a clip goes out, the client of the service and the run's summ
     day's podium. **A tour is already its shortest**, each stop a flight and a stay, and is left as it is, as is a
     front whose fighting stays in one place: the arm is still recorded, and `durationSeconds` keeps the real length.
     The camera fits the play it is given either way. Checked on 2026-10-24 on a replay of three invasions: `short`
-    made 10s and 9s clips 8.5s, and `as-chosen` kept them at 10 and 9.
+    made 10s and 9s clips 8.5s, and `as-chosen` rendered the same video and teasers as `main`, byte for byte, and the
+    same `Clip` but for `record.variants`.
 - **Each teaser has a name** (`Words.teaserNames`, beside `teasers`, in the same order): the name of its wording, the
   same for every flag and every language, `invades` and `under-attack-from` for an invasion, `can-anyone-stop` for a
   call-up's leader in any of its languages. The `Clip` carries them (`teaserNames`), so the job can say which wording
