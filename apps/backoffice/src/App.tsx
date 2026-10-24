@@ -7,6 +7,7 @@ import {HomePage} from "./home/HomePage.tsx"
 import {PaintPanel} from "./map/PaintPanel.tsx"
 import {ReassignPanel} from "./map/ReassignPanel.tsx"
 import {ReplayPanel} from "./map/ReplayPanel.tsx"
+import {ClipStatsPage} from "./clips/ClipStatsPage.tsx"
 import {OpenPlayer, Opened, PageId, titleOf} from "./navigation.ts"
 import {TitlesPanel} from "./ops/TitlesPanel.tsx"
 import {idOf} from "./players/caller.ts"
@@ -83,6 +84,7 @@ function Console({operator, onSignedOut}: {operator: string, onSignedOut: () => 
                 {page === "reassign" && <ReassignPanel planet={CLIENTS.planet}/>}
                 {page === "paint" && <PaintPanel planet={CLIENTS.planet}/>}
                 {page === "replay" && <ReplayPanel planet={CLIENTS.planet}/>}
+                {page === "clips" && <ClipStatsPage clips={CLIENTS.clips}/>}
                 {page === "titles" && <TitlesPanel player={CLIENTS.player}/>}
             </Page>
         </OpenPlayer.Provider>

@@ -2,7 +2,7 @@ import {createContext, useContext} from "react"
 import {Player} from "./gen/grpc/planet/v1/admin_pb.ts"
 import {Caller} from "./players/caller.ts"
 
-export type PageId = "home" | "notes" | "reports" | "players" | "reassign" | "paint" | "replay" | "titles"
+export type PageId = "home" | "notes" | "reports" | "players" | "reassign" | "paint" | "replay" | "clips" | "titles"
 
 export type MenuGroup = {label: string, pages: {page: PageId, label: string}[]}
 
@@ -19,6 +19,7 @@ export const MENU: MenuGroup[] = [
             {page: "replay", label: "Download a replay"},
         ],
     },
+    {label: "Clips", pages: [{page: "clips", label: "Clip stats"}]},
     {label: "Ops", pages: [{page: "titles", label: "Reconcile titles"}]},
 ]
 

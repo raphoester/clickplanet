@@ -9,6 +9,7 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons"
@@ -27,6 +28,8 @@ type Config struct {
 	Player  player.Config
 	Seasons seasons.Config
 	Support support.Config
+	// The numbers of the clips the clips job posted.
+	Clips clips.ModuleConfig
 }
 
 func main() {
@@ -68,6 +71,7 @@ func describeModules(config Config) []cpbootstrap.Module {
 		player.NewModule(config.Player),
 		seasons.NewModule(config.Seasons),
 		support.NewModule(config.Support),
+		clips.NewModule(config.Clips),
 	}
 }
 
@@ -89,5 +93,6 @@ func (c Config) Validate() error {
 		c.Player.Validate(),
 		c.Seasons.Validate(),
 		c.Support.Validate(),
+		c.Clips.Validate(),
 	)
 }

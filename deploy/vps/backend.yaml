@@ -392,3 +392,16 @@ support:
       name: clickplanet-support
       accessKeyId: 9ec4cd4fdf48006b2944c522219f1eea
       secretAccessKey: env://SUPPORT_BUCKET_SECRET
+
+# The numbers of the clips the clips job posted: `clips stats` sends a snapshot a day over ssh, the backoffice reads them.
+clips:
+  database:
+    host: postgres
+    password: env://POSTGRES_PASSWORD
+    port: "5432"
+    user: clickplanet
+    dbName: clickplanet
+    sslMode: disable
+    schema: clips
+    pool:
+      maxOpenConns: 2

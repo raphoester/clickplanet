@@ -30,7 +30,7 @@ describe("Menu", () => {
         const drawer = screen.getByRole("dialog", {name: "Menu"})
         expect(burger().getAttribute("aria-expanded")).toBe("true")
         expect(within(drawer).getAllByRole("heading").map(h => h.textContent))
-            .toEqual(["Overview", "Feedback", "Moderation", "Map", "Ops"])
+            .toEqual(["Overview", "Feedback", "Moderation", "Map", "Clips", "Ops"])
         expect(within(drawer).getByRole("button", {name: "Ideas and bugs"}).getAttribute("aria-current")).toBe("page")
         expect(document.activeElement).toBe(within(drawer).getByRole("button", {name: "Ideas and bugs"}))
     })
@@ -87,7 +87,7 @@ describe("Sidebar", () => {
         const pages = screen.getByRole("navigation", {name: "Pages"})
         expect(screen.queryByRole("button", {name: "Menu"})).toBeNull()
         expect(within(pages).getAllByRole("heading").map(h => h.textContent))
-            .toEqual(["Overview", "Feedback", "Moderation", "Map", "Ops"])
+            .toEqual(["Overview", "Feedback", "Moderation", "Map", "Clips", "Ops"])
         expect(within(pages).getByRole("button", {name: "Ideas and bugs"}).getAttribute("aria-current")).toBe("page")
 
         fireEvent.click(within(pages).getByRole("button", {name: "Reports"}))

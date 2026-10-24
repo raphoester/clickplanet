@@ -17,6 +17,7 @@ const usage = `usage:
   clips choose -shortlist <shortlist.json> [-count 2] [-platforms tiktok,youtube] [-summary <file>]
   clips edit -shortlist <shortlist.json> [-count 2] [-prompt]
   clips schedule -clips <folder> [-review 0] [-spacing 1h] [-platforms tiktok,youtube] [-summary <file>]
+  clips stats [-ssh <user@host>] [-since 2026-10-13]
 
 fetch asks the production backend's operator tool for a replay, over ssh: CLICKPLANET_SSH stands in for -ssh, and
 the ledger keeps 72 hours in memory, so a replay cannot reach further back. With -race and -season it asks for the
@@ -27,11 +28,13 @@ days, or a headline from the last week, puts a flag of the last 6 posts after th
 them. It takes no more than the platform with the most room left in its day takes: 14 posts in a trailing 24 hours on
 TikTok, 8 on YouTube. schedule sends every clip of the folder to the posting service as one post on every platform with
 room left, as soon as it can with no -review, and never sooner than -spacing after the last post on each; it refuses a
-clip in an arm no experiment has. Both need ZERNIO_API_KEY. On a run the experiment "editor" draws for the model, choose
-asks Claude (ANTHROPIC_API_KEY) to rank the stories the rules let through and write their headlines, and makes the run
-by the rules when it cannot; -summary adds who chose, and what the call cost, to that file. edit tries the editor on a
-saved shortlist, as many clips as -count, the told stories read when ZERNIO_API_KEY is set: -prompt prints what it would
-be sent, counted when ANTHROPIC_API_KEY is set, and asks for no answer.`
+clip in an arm no experiment has. stats keeps a snapshot of the numbers of every post of the job scheduled since the
+date, default the last 4 weeks, in the backend's postgres, over ssh as fetch asks: a row for each platform of each
+post. All three need ZERNIO_API_KEY. On a run the experiment "editor" draws for the model, choose asks Claude
+(ANTHROPIC_API_KEY) to rank the stories the rules let through and write their headlines, and makes the run by the
+rules when it cannot; -summary adds who chose, and what the call cost, to that file. edit tries the editor on a saved
+shortlist, as many clips as -count, the told stories read when ZERNIO_API_KEY is set: -prompt prints what it would be
+sent, counted when ANTHROPIC_API_KEY is set, and asks for no answer.`
 
 type Command string
 
@@ -40,6 +43,7 @@ const (
 	Choose   Command = "choose"
 	Schedule Command = "schedule"
 	Edit     Command = "edit"
+	Stats    Command = "stats"
 )
 
 const (
@@ -82,6 +86,8 @@ func Parse(args []string) (Config, error) {
 		return parseSchedule(args[1:])
 	case Edit:
 		return parseEdit(args[1:])
+	case Stats:
+		return parseStats(args[1:])
 	default:
 		return Config{}, misused(ErrArguments)
 	}
@@ -179,6 +185,30 @@ func withPlatforms(parsed Config, platforms string) (Config, error) {
 			return Config{}, misused(err)
 		}
 		parsed.Job.Platforms = chosen
+	}
+	return parsed, nil
+}
+
+func parseStats(args []string) (Config, error) {
+	parsed := Config{Command: Stats}
+	parsed.Job.Zernio.APIKey = os.Getenv(KeyVariable)
+
+	flags := flag.NewFlagSet(string(Stats), flag.ContinueOnError)
+	flags.StringVar(&parsed.Job.Replay.SSH, "ssh", os.Getenv(HostVariable), "user@host of the machine the backend runs on")
+	since := flags.String("since", "", "the day of the first post read, default 4 weeks ago")
+	if err := flags.Parse(args); err != nil {
+		return Config{}, misused(err)
+	}
+	if parsed.Job.Replay.SSH == "" {
+		return Config{}, misused(ErrArguments)
+	}
+
+	if *since != "" {
+		day, err := time.Parse(time.DateOnly, *since)
+		if err != nil {
+			return Config{}, misused(err)
+		}
+		parsed.Job.StatsSince = day
 	}
 	return parsed, nil
 }

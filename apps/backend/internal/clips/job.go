@@ -26,6 +26,10 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/usecases/fetch_replay_usecase/log_fetch_replay"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/usecases/fetch_season_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/usecases/fetch_season_usecase/log_fetch_season"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/stats"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/stats/ssh_stats_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/stats/usecases/take_snapshot_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/stats/usecases/take_snapshot_usecase/log_take_snapshot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -38,6 +42,7 @@ type (
 	Platform        = posts.Platform
 	Report          = posts.Report
 	PlatformOutcome = posts.PlatformOutcome
+	StatsReport     = stats.Report
 )
 
 type Config struct {
@@ -50,13 +55,15 @@ type Config struct {
 	Spacing time.Duration
 	// Each clip is one post on all of them that have room left in their day.
 	Platforms []Platform
+	// The posts a snapshot of their numbers reads: those scheduled since then. Zero is the last 4 weeks.
+	StatsSince time.Time
 
 	Zernio zernio.Config
 	Editor claude_editor.Config
 }
 
 type ReplayConfig struct {
-	// user@host of the machine the backend runs on.
+	// user@host of the machine the backend runs on: where the replay is asked, and the snapshots of stats kept.
 	SSH  string
 	Span time.Duration
 	// Zero is now.
@@ -74,6 +81,7 @@ const (
 	// A 22s clip is about 80 MB to upload.
 	serviceTimeout = 10 * time.Minute
 	historyTimeout = time.Minute
+	statsTimeout   = time.Minute
 )
 
 var (
@@ -234,4 +242,24 @@ func Schedule(ctx context.Context, folder string, config Config, logger *slog.Lo
 	), logger)
 
 	return schedule.Execute(ctx)
+}
+
+// Keeps a snapshot of the numbers of every post of the job in the backend's postgres, over ssh, with what each post
+// was. A post that could not be read is in the report, not the error: the error is for a snapshot that could not be
+// taken or kept at all.
+func Stats(ctx context.Context, config Config, logger *slog.Logger) (StatsReport, error) {
+	source, err := zernio.New(config.Zernio, &http.Client{Timeout: statsTimeout})
+	if err != nil {
+		return StatsReport{}, fmt.Errorf("failed to build the posting service: %w", err)
+	}
+	store, err := ssh_stats_store.New(config.Replay.SSH, ssh_stats_store.OpenSSH)
+	if err != nil {
+		return StatsReport{}, fmt.Errorf("failed to build the store of the snapshots: %w", err)
+	}
+
+	snapshot := log_take_snapshot.New(take_snapshot_usecase.New(
+		source, store, cptime.SystemClock{}, config.StatsSince, defaultBackoff, posts.SystemPause{},
+	), logger)
+
+	return snapshot.Execute(ctx)
 }

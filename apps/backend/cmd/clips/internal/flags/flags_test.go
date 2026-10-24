@@ -157,3 +157,41 @@ func TestAMissingPartIsToldApartFromAFlagThatDoesNotParse(t *testing.T) {
 	require.ErrorIs(t, missing, flags.ErrArguments)
 	require.NotErrorIs(t, unparsed, flags.ErrArguments)
 }
+
+func TestStatsFlagsSayWhichBackendKeepsTheSnapshotsAndFromWhichDay(t *testing.T) {
+	t.Setenv(flags.KeyVariable, "the-key")
+	t.Setenv(flags.HostVariable, "")
+
+	parsed, err := flags.Parse([]string{"stats", "-ssh", "deploy@vps.example", "-since", "2026-10-13"})
+
+	require.NoError(t, err)
+	var job clips.Config
+	job.Zernio.APIKey = "the-key"
+	job.Replay.SSH = "deploy@vps.example"
+	job.StatsSince = time.Date(2026, 10, 13, 0, 0, 0, 0, time.UTC)
+	assert.Equal(t, flags.Config{Command: flags.Stats, Job: job}, parsed)
+}
+
+func TestStatsTakeTheirHostFromTheEnvironmentAndReadTheDefaultWindowWithNoDay(t *testing.T) {
+	t.Setenv(flags.HostVariable, "deploy@vps.example")
+
+	parsed, err := flags.Parse([]string{"stats"})
+
+	require.NoError(t, err)
+	assert.Equal(t, "deploy@vps.example", parsed.Job.Replay.SSH)
+	assert.True(t, parsed.Job.StatsSince.IsZero())
+}
+
+func TestStatsWithNoHostOrADayThatIsNoDayIsRefused(t *testing.T) {
+	t.Setenv(flags.HostVariable, "")
+
+	for _, args := range [][]string{
+		{"stats"},
+		{"stats", "-ssh", "deploy@vps.example", "-since", "13/10/2026"},
+		{"stats", "-ssh", "deploy@vps.example", "-since", "2026-10-13T00:00:00Z"},
+	} {
+		_, err := flags.Parse(args)
+
+		require.ErrorContains(t, err, "usage:", args)
+	}
+}

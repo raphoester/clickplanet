@@ -11,6 +11,9 @@ output-options:
     - getMediaPresignedUrl
     - createPost
     - listPosts
+    - getAnalytics
+    - getYouTubeVideoRetention
+    - listTikTokCommercialMusic
   generate-types-for-anonymous-schemas: true
   overlay:
     path: internal/shared/cpzernio/overlay.yaml
