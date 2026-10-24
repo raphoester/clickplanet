@@ -169,6 +169,8 @@ seasons:
   database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: seasons}
 support:
   database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: support}
+clipStats:
+  database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: clipstats}
 auth:
   enabled: true
   enforce: true
@@ -340,6 +342,18 @@ func TestTheExampleConfigReachesTheSupportBlock(t *testing.T) {
 
 func TestTheSupportModuleWithNoDatabaseIsRefused(t *testing.T) {
 	assert.ErrorContains(t, Config{}.Validate(), "support.database")
+}
+
+func TestTheExampleConfigReachesTheClipStatsBlock(t *testing.T) {
+	var config Config
+	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
+
+	assert.Equal(t, "clipstats", config.ClipStats.Database.Schema)
+	require.NoError(t, config.ClipStats.Validate())
+}
+
+func TestTheClipStatsModuleWithNoDatabaseIsRefused(t *testing.T) {
+	assert.ErrorContains(t, Config{}.Validate(), "clipstats.database")
 }
 
 func TestSeasonsThatDoNotCountUpAreRefused(t *testing.T) {

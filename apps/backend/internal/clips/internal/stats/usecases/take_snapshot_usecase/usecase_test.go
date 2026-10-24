@@ -65,13 +65,13 @@ func (s *source) Retention(_ context.Context, account, video string, asOf time.T
 }
 
 type store struct {
-	kept    []stats.Row
-	takenAt time.Time
-	calls   int
+	kept   []stats.Row
+	report stats.Report
+	calls  int
 }
 
-func (s *store) Keep(_ context.Context, takenAt time.Time, rows []stats.Row) error {
-	s.kept, s.takenAt = rows, takenAt
+func (s *store) Keep(_ context.Context, report stats.Report, rows []stats.Row) error {
+	s.kept, s.report = rows, report
 	s.calls++
 	return nil
 }
@@ -120,7 +120,7 @@ func TestEveryPostOutIsARowForEachPlatformWithYouTubesCurve(t *testing.T) {
 	assert.Equal(t, []stats.PostID{"post-1", "post-3"}, from.asked, "a post not out has nothing to read")
 	assert.Equal(t, []string{"yt-1/abc-post-1@2026-10-24", "yt-1/abc-post-3@2026-10-24"}, from.curvesOf)
 	require.Len(t, kept.kept, 4)
-	assert.Equal(t, now, kept.takenAt)
+	assert.Equal(t, report, kept.report, "the store keeps the report beside the rows")
 	assert.Equal(t, "youtube", kept.kept[1].Platform)
 	assert.True(t, kept.kept[1].Retention.Curve())
 	assert.Nil(t, kept.kept[0].Retention)
@@ -142,7 +142,7 @@ func TestTheDayAskedForIsWhereTheSnapshotStarts(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, since, from.since)
-	assert.Equal(t, 1, kept.calls, "a snapshot of nothing still makes the table again")
+	assert.Equal(t, 1, kept.calls, "a snapshot of nothing is still kept: the day it was taken shows")
 }
 
 func TestAPostThatCannotBeReadIsReportedAndTheOthersAreStillKept(t *testing.T) {

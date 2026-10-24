@@ -23,7 +23,8 @@ type Source interface {
 }
 
 type Store interface {
-	Keep(ctx context.Context, takenAt time.Time, rows []stats.Row) error
+	// The report says what the rows are of: when, and what was read.
+	Keep(ctx context.Context, report stats.Report, rows []stats.Row) error
 }
 
 type Executor interface {
@@ -85,12 +86,12 @@ func (u *UseCase) Execute(ctx context.Context) (stats.Report, error) {
 		}
 	}
 
-	if err := u.store.Keep(ctx, takenAt, rows); err != nil {
-		return stats.Report{}, fmt.Errorf("failed to keep the snapshot: %w", err)
-	}
-
 	report := stats.ReportOf(accounts, rows)
 	report.TakenAt, report.Since, report.Posts, report.NotOut, report.Unread = takenAt, since, len(all), notOut, unread
+
+	if err := u.store.Keep(ctx, report, rows); err != nil {
+		return stats.Report{}, fmt.Errorf("failed to keep the snapshot: %w", err)
+	}
 	return report, nil
 }
 

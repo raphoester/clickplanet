@@ -131,30 +131,37 @@ func TestAMissingPartIsToldApartFromAFlagThatDoesNotParse(t *testing.T) {
 	require.NotErrorIs(t, unparsed, flags.ErrArguments)
 }
 
-func TestStatsFlagsSayWhereTheSnapshotsAreKeptAndFromWhichDay(t *testing.T) {
+func TestStatsFlagsSayWhichBackendKeepsTheSnapshotsAndFromWhichDay(t *testing.T) {
 	t.Setenv(flags.KeyVariable, "the-key")
+	t.Setenv(flags.HostVariable, "")
 
-	parsed, err := flags.Parse([]string{"stats", "-out", "clips-stats", "-since", "2026-10-13", "-summary", "summary.md"})
+	parsed, err := flags.Parse([]string{"stats", "-ssh", "deploy@vps.example", "-since", "2026-10-13", "-summary", "summary.md"})
 
 	require.NoError(t, err)
 	var job clips.Config
 	job.Zernio.APIKey = "the-key"
+	job.Replay.SSH = "deploy@vps.example"
 	job.StatsSince = time.Date(2026, 10, 13, 0, 0, 0, 0, time.UTC)
-	assert.Equal(t, flags.Config{Command: flags.Stats, StatsFolder: "clips-stats", SummaryFile: "summary.md", Job: job}, parsed)
+	assert.Equal(t, flags.Config{Command: flags.Stats, SummaryFile: "summary.md", Job: job}, parsed)
 }
 
-func TestStatsWithNoDayReadTheDefaultWindow(t *testing.T) {
-	parsed, err := flags.Parse([]string{"stats", "-out", "clips-stats"})
+func TestStatsTakeTheirHostFromTheEnvironmentAndReadTheDefaultWindowWithNoDay(t *testing.T) {
+	t.Setenv(flags.HostVariable, "deploy@vps.example")
+
+	parsed, err := flags.Parse([]string{"stats"})
 
 	require.NoError(t, err)
+	assert.Equal(t, "deploy@vps.example", parsed.Job.Replay.SSH)
 	assert.True(t, parsed.Job.StatsSince.IsZero())
 }
 
-func TestStatsWithNoFolderOrADayThatIsNoDayIsRefused(t *testing.T) {
+func TestStatsWithNoHostOrADayThatIsNoDayIsRefused(t *testing.T) {
+	t.Setenv(flags.HostVariable, "")
+
 	for _, args := range [][]string{
 		{"stats"},
-		{"stats", "-out", "clips-stats", "-since", "13/10/2026"},
-		{"stats", "-out", "clips-stats", "-since", "2026-10-13T00:00:00Z"},
+		{"stats", "-ssh", "deploy@vps.example", "-since", "13/10/2026"},
+		{"stats", "-ssh", "deploy@vps.example", "-since", "2026-10-13T00:00:00Z"},
 	} {
 		_, err := flags.Parse(args)
 

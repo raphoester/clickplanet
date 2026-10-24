@@ -15,6 +15,8 @@ burger menu (see [The menu](#the-menu)), by group:
 - **Moderation**: Reports, which the operator acts on and closes (see [Acting on a report](#acting-on-a-report)),
   and Players, who played and every tool on one player (see [The player page](#the-player-page)).
 - **Map**: Reassign a country, Paint random tiles, Download a replay (see [The map tools](#the-map-tools)).
+- **Clips**: Clip stats, the daily numbers of the clips the clips job posts, and a CSV of them (see
+  [Clip stats](#clip-stats)).
 - **Ops**: Reconcile titles, the run after a deploy (see [Ops](#ops)).
 
 What is left of the plan is a live chat view: `ListMessages` pages through the chat (the report and player pages
@@ -306,6 +308,32 @@ address over IPv4, the /64 over IPv6) and checks.
 - **Replay** (`GetReplay`): a span back from an end (empty: now), saved as `replay-<since>-<until>.json`, the
   answer as protobuf JSON, which the frontend's `npm run clip` reads as it reads what `clips fetch` saves. The
   ledger keeps 72 hours. The file is made in memory (`download.ts`, a `blob:` link), which the CSP allows.
+
+## Clip stats
+
+`src/clips/`, one page (`ClipStatsPage`). **The backend keeps the rows, the page makes the table**, as the home page
+counts from the ledger: `clipstats.v1.AdminService` (the backend's `CLAUDE.md`, "Clip stats") holds a snapshot a day
+of each clip on each platform, which the clips job's `clips stats` sends, each row the JSON the job wrote: what
+Zernio answered, as it came, and what the clip was.
+
+- **Whether TikTok's business lane is live**, from the last snapshot (`ListSnapshots`): each TikTok account, the type
+  TikTok said it was when it was connected to Zernio, how many of its rows hold a number only the business lane gives,
+  whether the commercial music library answers (its refusal on hover), and **live** or not. It turns live once the
+  account is a business account connected again in Zernio.
+- **The snapshots of the last fortnight**: when each was taken, the clips read (and how many not out yet), its rows,
+  those still syncing, YouTube's retention curves, and the clips lost that day (why, on hover). A day with no line is
+  a day the workflow did not keep.
+- **Download CSV** (`tableFileOf` in `actions.ts`): the rows of the last snapshot (each clip once, at its latest age),
+  the last 7 or 30 days, or everything, every page of `ListRows` (2000 a page), saved as
+  `clip-stats-<since>-<until>.csv` from memory (`saveText`, as the replay is). **`tableOf` (`table.ts`) makes the
+  columns from the rows**: the row's own first (`takenAt`, `postId`, `platform`, `ageHours`, …), then one for each
+  metric (`metrics.views`, `metrics.impressionSources.forYou`), each part of the metadata (`meta.storyFlag`,
+  `meta.record.clip.variants.<experiment>`: an arm is a column with no code) and YouTube's curve (`youtube.points`,
+  `youtube.meanRelativeRetentionPerformance`, the mean of its points, and the curve itself). A list, and the two maps
+  with a key a country or a second (`audienceCountries`, TikTok's `retentionCurve`), are one cell of JSON. **A metric
+  Zernio adds is a column at once**: nothing on the way names a metric. `csvOf` quotes as RFC 4180 says.
+- **The numbers are not public**, unlike the rest of the clips job's output: they live behind the admin gate, and
+  nowhere in the repository or its workflows.
 
 ## Ops
 

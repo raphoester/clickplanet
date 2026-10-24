@@ -25,18 +25,14 @@ func TestChooseWithNoKeyFailsBeforeItAsksTheServiceAnything(t *testing.T) {
 	assert.Empty(t, out.String())
 }
 
-func TestStatsWithNoKeyFailsBeforeItAsksTheServiceAnythingAndKeepsNothing(t *testing.T) {
+func TestStatsWithNoKeyFailsBeforeItAsksTheServiceAnything(t *testing.T) {
 	t.Setenv(flags.KeyVariable, "")
 	var out bytes.Buffer
-	folder := t.TempDir()
 
-	err := run(t.Context(), []string{"stats", "-out", folder}, &out)
+	err := run(t.Context(), []string{"stats", "-ssh", "deploy@vps.example"}, &out)
 
 	require.ErrorContains(t, err, "the zernio api key is empty")
 	assert.Empty(t, out.String())
-	left, err := os.ReadDir(folder)
-	require.NoError(t, err)
-	assert.Empty(t, left)
 }
 
 func TestACommandNoStageIsWrittenForIsAnErrorAndDoesNothing(t *testing.T) {

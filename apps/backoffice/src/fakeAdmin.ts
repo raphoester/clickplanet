@@ -38,6 +38,15 @@ import {
     UnbanPlayerRequest,
     UnbanPlayerResponse,
 } from "./gen/grpc/planet/v1/admin_pb.ts"
+import {
+    ListRowsRequest,
+    ListRowsResponse,
+    ListSnapshotsRequest,
+    ListSnapshotsResponse,
+    Row,
+    Snapshot,
+    TikTokAccount,
+} from "./gen/grpc/clipstats/v1/admin_pb.ts"
 import {GetTerritoriesRequest, GetTerritoriesResponse, Territory} from "./gen/grpc/planet/v1/internal_pb.ts"
 import {ChargesHeld, TileUpdate} from "./gen/grpc/planet/v1/planet_pb.ts"
 import {
@@ -62,7 +71,7 @@ import {
     NoteKind,
     Report,
 } from "./gen/grpc/support/v1/admin_pb.ts"
-import {ChatAdmin, Clients, PlanetAdmin, PlayerAdmin, SupportAdmin} from "./clients.ts"
+import {ChatAdmin, ClipStatsAdmin, Clients, PlanetAdmin, PlayerAdmin, SupportAdmin} from "./clients.ts"
 
 export const AT = new Date("2026-10-18T12:00:00Z")
 
@@ -77,7 +86,7 @@ function change(minutes: number, by: string, update: PartialMessage<TileUpdate>)
 }
 
 // What each fake was asked, and a refusal to answer with instead, by method.
-export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAdmin {
+export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAdmin, ClipStatsAdmin {
     readonly kind = "fake admin"
     readonly asked: {method: string, request: unknown}[] = []
     readonly refusals = new Map<string, Code>()
@@ -153,8 +162,31 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         new RosterEntry({key: "2", accountId: "account-guest", name: "guest_a1b2c3", countryId: "dz", guest: true}),
     ]
 
+    // Yesterday's snapshot, TikTok still personal; and the one of the day before.
+    snapshots = [
+        new Snapshot({
+            takenAt: Timestamp.fromDate(AT), posts: 40, notOut: 3, rows: 73, syncing: 4, curves: 30,
+            tiktokAccounts: [new TikTokAccount({
+                accountId: "tt-1", username: "clickplanet.lol", accountType: "personal", rows: 37,
+                commercialMusicRefusal: "zernio answered 400 to the commercial music library: Not a business account",
+            })],
+        }),
+        new Snapshot({takenAt: Timestamp.fromDate(new Date(AT.getTime() - 86_400_000)), posts: 38, rows: 70}),
+    ]
+    // ListRows answers them a page at a time, the page token is the index of the page.
+    rowPages: Row[][] = [[
+        new Row({
+            takenAt: Timestamp.fromDate(AT), postId: "post-1", platform: "tiktok",
+            document: JSON.stringify({
+                takenAt: AT.toISOString(), postId: "post-1", platform: "tiktok", ageHours: 12.5,
+                answer: {httpStatus: 200}, analytics: {analytics: {views: 812}},
+                metadata: {storyFlag: "fr", record: {clip: {variants: {length: "short"}}}},
+            }),
+        }),
+    ]]
+
     clients(): Clients {
-        return {chat: this, planet: this, player: this, support: this}
+        return {chat: this, planet: this, player: this, support: this, clipStats: this}
     }
 
     refuse(method: string, code: Code) {
@@ -169,6 +201,16 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         this.asked.push({method, request})
         const code = this.refusals.get(method)
         return code === undefined ? Promise.resolve(value) : Promise.reject(new ConnectError("refused", code))
+    }
+
+    listSnapshots(request: PartialMessage<ListSnapshotsRequest>): Promise<ListSnapshotsResponse> {
+        return this.answer("listSnapshots", request, new ListSnapshotsResponse({snapshots: this.snapshots}))
+    }
+
+    listRows(request: PartialMessage<ListRowsRequest>): Promise<ListRowsResponse> {
+        const index = request.page ? Number(request.page) : 0
+        const next = index + 1 < this.rowPages.length ? String(index + 1) : ""
+        return this.answer("listRows", request, new ListRowsResponse({rows: this.rowPages[index] ?? [], nextPage: next}))
     }
 
     getMessage(request: PartialMessage<GetMessageRequest>): Promise<GetMessageResponse> {

@@ -423,3 +423,16 @@ support:
       name: clickplanet-support
       accessKeyId: ""
       secretAccessKey: ""
+
+# The numbers of the clips the clips job posted: `clips stats` sends a snapshot a day over ssh, the backoffice reads them.
+clipStats:
+  database:
+    host: localhost
+    port: "5432"
+    user: postgres
+    password: postgres
+    dbName: postgres
+    sslMode: disable
+    schema: clipstats
+    pool:
+      maxOpenConns: 2

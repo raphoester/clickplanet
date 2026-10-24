@@ -89,7 +89,7 @@ func schedule(ctx context.Context, parsed flags.Config, out io.Writer, logger *s
 }
 
 func snapshot(ctx context.Context, parsed flags.Config, out io.Writer, logger *slog.Logger) error {
-	report, err := clips.Stats(ctx, parsed.StatsFolder, parsed.Job, logger)
+	report, err := clips.Stats(ctx, parsed.Job, logger)
 	if err != nil {
 		return fmt.Errorf("failed to take a snapshot of the posts' numbers: %w", err)
 	}
