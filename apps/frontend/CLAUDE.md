@@ -226,7 +226,11 @@ app/       components
   claimed the tile under the cursor on release. A press that moves more than
   6px (12px for a finger, which rolls as it lifts), or that a second finger
   joins, is a drag, and `globe.ts` drops the click that ends it — the bonus box
-  included.
+  included. **A click lands where its press lifted** (`pointerup`), not where
+  the `click` event says: iOS puts the click of a quick second tap where the
+  first tap was (WebKit bug 216681, set off by the `dblclick` listener React
+  keeps on its root), so a tap on each of two tiles side by side took the first
+  one twice.
 - `warnOnce.ts` — for things that would otherwise warn on every frame.
 
 ### `src/backends/` — three contracts, one transport
