@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {act, cleanup, fireEvent, render, screen} from "@testing-library/react"
-import SeasonChip, {SeasonDetails} from "./SeasonChip.tsx"
+import SeasonChip, {ChampionChip, SeasonDetails} from "./SeasonChip.tsx"
 import {TURN_MS} from "./useRotation.ts"
 import {STATUS_BOTTOM} from "../hud/StatusBar.tsx"
 import {finaleWindow} from "../../domain/seasonClock.ts"
@@ -224,5 +224,44 @@ describe("SeasonDetails", () => {
         expect(screen.getByRole("timer", {name: "Final Battle ends in"}).textContent).toBe("1h 00m 00s")
         expect(screen.getByText("Power-ups for all")).toBeDefined()
         expect(finaleLine()).toBeNull()
+    })
+})
+
+describe("ChampionChip", () => {
+    const germany = {season: 0, countryCodes: ["de"]}
+
+    it("shows the champion of the season that ended", () => {
+        render(<ChampionChip champion={germany} compact={false}/>)
+
+        const chip = screen.getByRole("region", {name: "Germany wins Season 0"})
+        expect(chip.textContent).toContain("Season 0 champion")
+        expect(chip.textContent).toContain("Germany")
+        expect(chip.textContent).toContain("🏆")
+    })
+
+    it("names champions together", () => {
+        render(<ChampionChip champion={{season: 0, countryCodes: ["de", "fr"]}} compact/>)
+
+        expect(screen.getByRole("region", {name: "Germany and France win Season 0"})).toBeDefined()
+    })
+
+    it("tells the moments at the top where it ends, as the countdown did", () => {
+        vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 16, 376, 51.4))
+        const bottom = () => document.documentElement.style.getPropertyValue(STATUS_BOTTOM)
+
+        const {unmount} = render(<ChampionChip champion={germany} compact={false}/>)
+        expect(bottom()).toBe("68px")
+
+        unmount()
+        expect(bottom()).toBe("")
+    })
+
+    it("on a phone, is the trophy and the flag, and leaves the moments to the status bar", () => {
+        render(<ChampionChip champion={germany} compact/>)
+
+        const chip = screen.getByRole("region", {name: "Germany wins Season 0"})
+        expect(chip.textContent).toBe("🏆")
+        expect(chip.querySelectorAll(".country-flag")).toHaveLength(1)
+        expect(document.documentElement.style.getPropertyValue(STATUS_BOTTOM)).toBe("")
     })
 })

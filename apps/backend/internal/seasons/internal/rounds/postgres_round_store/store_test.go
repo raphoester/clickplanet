@@ -26,26 +26,6 @@ func (s *testSuite) SetupSuite() {
 	s.db = cppg.StartTestServer(s.T()).OpenSchema(s.T(), "seasons", migrations.FS)
 	store := postgres_round_store.New(s.db)
 	s.NewStore = func() rounds.Store { return store }
-	s.ResultsOf = func(_ rounds.Store, round rounds.Round) []rounds.Result {
-		return s.resultsOf(round)
-	}
-}
-
-func (s *testSuite) resultsOf(round rounds.Round) []rounds.Result {
-	rows, err := s.db.QueryContext(s.T().Context(), `
-		SELECT country, rank, points FROM round_results WHERE season = $1 AND ends_at = $2 ORDER BY rank, country
-	`, int64(round.Season), round.EndsAt)
-	s.Require().NoError(err)
-	defer func() { _ = rows.Close() }()
-
-	var results []rounds.Result
-	for rows.Next() {
-		var result rounds.Result
-		s.Require().NoError(rows.Scan(&result.Country, &result.Rank, &result.Points))
-		results = append(results, result)
-	}
-	s.Require().NoError(rows.Err())
-	return results
 }
 
 func (s *testSuite) SetupTest() {

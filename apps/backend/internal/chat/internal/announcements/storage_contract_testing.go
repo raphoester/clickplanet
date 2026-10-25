@@ -46,6 +46,29 @@ func (s *StorageContractSuite) TestAnIDIsKeptOnce() {
 	s.Error(s.storage.Append(context.Background(), contractAnnouncement("boom", contractStart.Add(time.Hour))))
 }
 
+func (s *StorageContractSuite) TestAnAnnouncementAppendedOnceIsKeptTheFirstTime() {
+	appended, err := s.storage.AppendOnce(context.Background(), contractAnnouncement("champion", contractStart))
+	s.Require().NoError(err)
+	s.True(appended)
+
+	appended, err = s.storage.AppendOnce(context.Background(), contractAnnouncement("champion", contractStart.Add(time.Hour)))
+	s.Require().NoError(err)
+	s.False(appended, "its id is kept already")
+
+	deleted, err := s.storage.DeleteBefore(context.Background(), contractStart.Add(24*time.Hour))
+	s.Require().NoError(err)
+	s.Equal(int64(1), deleted)
+}
+
+func (s *StorageContractSuite) TestAnAnnouncementAppendedOnceIsNotAppendedOverOneAppended() {
+	s.append("boom")
+
+	appended, err := s.storage.AppendOnce(context.Background(), contractAnnouncement("boom", contractStart.Add(time.Hour)))
+	s.Require().NoError(err)
+
+	s.False(appended)
+}
+
 func (s *StorageContractSuite) TestDeleteBeforeRemovesWhatIsOlderAndCountsIt() {
 	s.append("a", "b", "c")
 

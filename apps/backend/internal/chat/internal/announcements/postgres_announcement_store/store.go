@@ -33,6 +33,24 @@ func (s *Store) Append(ctx context.Context, announcement announcements.Announcem
 	return nil
 }
 
+func (s *Store) AppendOnce(ctx context.Context, announcement announcements.Announcement) (bool, error) {
+	result, err := s.db.ExecContext(ctx, `
+		INSERT INTO announcements (id, kind, payload, announced_at)
+		VALUES ($1, $2::announcement_kind, $3, $4)
+		ON CONFLICT (id) DO NOTHING
+	`,
+		uuid.UUID(announcement.ID()), string(announcement.Kind()), string(announcement.Payload()), announcement.At().UTC(),
+	)
+	if err != nil {
+		return false, fmt.Errorf("failed to insert an announcement: %w", err)
+	}
+	appended, err := result.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("failed to count the announcement inserted: %w", err)
+	}
+	return appended == 1, nil
+}
+
 func (s *Store) DeleteBefore(ctx context.Context, cutoff time.Time) (int64, error) {
 	result, err := s.db.ExecContext(ctx, `DELETE FROM announcements WHERE announced_at < $1`, cutoff)
 	if err != nil {
