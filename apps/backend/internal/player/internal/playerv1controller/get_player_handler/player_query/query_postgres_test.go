@@ -122,12 +122,22 @@ func (s *testSuite) TestAnAccountKeepsItsCardWhenAnotherTakesTheNameItLeft() {
 	s.Zero(s.player(bob).GetStats().GetTilesTaken())
 }
 
-func (s *testSuite) TestAnAccountWithNoUsernameIsNoPlayer() {
+func (s *testSuite) TestAGuestIsItsNameAlone() {
 	guest := players.AccountID{15: 3}
 	s.Require().NoError(s.players.Record(s.T().Context(), guest, players.TakeAt(monday)))
 	s.Require().NoError(s.players.SaveGuestCode(s.T().Context(), guest, "a1b2c3"))
 
-	for _, account := range []players.AccountID{guest, {15: 4}} {
+	answer, err := s.query().Player(s.T().Context(), guest)
+
+	s.Require().NoError(err)
+	s.True(proto.Equal(&playerv1.Player{Name: "guest_a1b2c3", Guest: true}, answer.GetPlayer()), "%v", answer.GetPlayer())
+}
+
+func (s *testSuite) TestAnAccountTheGameNeverNamedIsNoPlayer() {
+	unnamed := players.AccountID{15: 4}
+	s.Require().NoError(s.players.Record(s.T().Context(), unnamed, players.TakeAt(monday)))
+
+	for _, account := range []players.AccountID{unnamed, {15: 5}} {
 		_, err := s.query().Player(s.T().Context(), account)
 
 		s.ErrorIs(err, player_query.ErrNoPlayer, "%s", account)

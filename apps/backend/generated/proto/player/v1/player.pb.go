@@ -1266,8 +1266,10 @@ type Player struct {
 	WornTitle       *Title                 `protobuf:"bytes,7,opt,name=worn_title,json=wornTitle,proto3" json:"worn_title,omitempty"`
 	PlaysFor        []*CountryTiles        `protobuf:"bytes,8,rep,name=plays_for,json=playsFor,proto3" json:"plays_for,omitempty"`
 	PlaysAgainst    []*CountryTiles        `protobuf:"bytes,9,rep,name=plays_against,json=playsAgainst,proto3" json:"plays_against,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// A guest is its name alone: every other field is unset.
+	Guest         bool `protobuf:"varint,10,opt,name=guest,proto3" json:"guest,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Player) Reset() {
@@ -1361,6 +1363,13 @@ func (x *Player) GetPlaysAgainst() []*CountryTiles {
 		return x.PlaysAgainst
 	}
 	return nil
+}
+
+func (x *Player) GetGuest() bool {
+	if x != nil {
+		return x.Guest
+	}
+	return false
 }
 
 type CountryTiles struct {
@@ -1935,7 +1944,7 @@ const file_player_v1_player_proto_rawDesc = "" +
 	"\n" +
 	"account_id\x18\x02 \x01(\tR\taccountIdJ\x04\b\x01\x10\x02R\x04name\">\n" +
 	"\x11GetPlayerResponse\x12)\n" +
-	"\x06player\x18\x01 \x01(\v2\x11.player.v1.PlayerR\x06player\"\x82\x03\n" +
+	"\x06player\x18\x01 \x01(\v2\x11.player.v1.PlayerR\x06player\"\x98\x03\n" +
 	"\x06Player\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12&\n" +
 	"\x05stats\x18\x02 \x01(\v2\x10.player.v1.StatsR\x05stats\x12+\n" +
@@ -1946,7 +1955,9 @@ const file_player_v1_player_proto_rawDesc = "" +
 	"\n" +
 	"worn_title\x18\a \x01(\v2\x10.player.v1.TitleR\twornTitle\x124\n" +
 	"\tplays_for\x18\b \x03(\v2\x17.player.v1.CountryTilesR\bplaysFor\x12<\n" +
-	"\rplays_against\x18\t \x03(\v2\x17.player.v1.CountryTilesR\fplaysAgainst\"C\n" +
+	"\rplays_against\x18\t \x03(\v2\x17.player.v1.CountryTilesR\fplaysAgainst\x12\x14\n" +
+	"\x05guest\x18\n" +
+	" \x01(\bR\x05guest\"C\n" +
 	"\fCountryTiles\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x01 \x01(\tR\tcountryId\x12\x14\n" +
