@@ -55,7 +55,7 @@ import {BlastUniforms, blastUniforms, createBlasts} from "./blasts.ts";
 import {IMPACT_DELAY} from "../../domain/blast.ts";
 import {HoldToDrop} from "../../domain/holdToDrop.ts";
 import {ClickOrDrag} from "../../domain/clickOrDrag.ts";
-import {Peek, TilePeek} from "../../domain/tilePeek.ts";
+import {Peek, Peeked, Point, TilePeek} from "../../domain/tilePeek.ts";
 import {OwnClicks} from "../../domain/ownClicks.ts";
 import {ShieldChange, outcomeOf, placementOf, TileShields} from "../../domain/shields.ts";
 import {Landmasses} from "../../domain/landmasses.ts";
@@ -179,6 +179,7 @@ export type GlobeOptions = {
     onFortified?: (fortified: Fortified) => void
     onCloseToFortify?: (close: CloseToFortify) => void
     onPeek?: (peek: Peek) => void
+    onPeekEnd?: () => void
     playSound?: PlaySound
     director?: Director
     signal: AbortSignal
@@ -234,6 +235,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         onFortified = () => {},
         onCloseToFortify = () => {},
         onPeek = () => {},
+        onPeekEnd = () => {},
         playSound = () => {},
         director,
         signal,
@@ -422,10 +424,20 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     const peek = new TilePeek(PEEK_RULES)
     let mouse = false
+    let pointerAt: Point = {x: 0, y: 0}
+    let peeking: number | undefined
 
-    const peekAt = (tile: number) => {
+    const peekAt = ({tile, point, touch}: Peeked) => {
         const owner = ownership.ownerOf(tile)
-        if (owner) onPeek({tile, countryCode: owner})
+        if (!owner) return
+        peeking = tile
+        onPeek({tile, countryCode: owner, point, touch})
+    }
+
+    const endPeek = () => {
+        if (peeking === undefined) return
+        peeking = undefined
+        onPeekEnd()
     }
 
     const cancelCharge = () => {
@@ -627,17 +639,20 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     eventTarget.addEventListener('mousemove', (event: MouseEvent) => {
         pendingPointer = canvasPosition(event)
+        pointerAt = {x: event.clientX, y: event.clientY}
     }, listenerOptions);
 
     eventTarget.addEventListener('mouseleave', () => {
         pendingPointer = undefined
         field.setHover(undefined)
-        peek.hover(undefined, 0)
+        peek.hover(undefined, 0, pointerAt)
+        endPeek()
         if (armed && !hold.holding) aimAt(undefined)
     }, listenerOptions);
 
     eventTarget.addEventListener('pointerdown', (event: PointerEvent) => {
         press.begin(event)
+        endPeek()
         const pressed = loaded && !armed && event.pointerType !== "mouse" ? canvasPosition(event) : undefined
         peek.begin(event, pressed && picker.pick(camera, pressed.x, pressed.y), performance.now() / 1000)
         if (!loaded || !armed || !event.isTrusted || !event.isPrimary || event.button !== 0) return
@@ -893,7 +908,10 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             return true
         }
         const hovered = picker.pick(camera, x, y)
-        if (mouse) peek.hover(hovered, seconds)
+        if (mouse) {
+            peek.hover(hovered, seconds, pointerAt)
+            if (hovered !== peeking) endPeek()
+        }
         return field.setHover(hovered) || boxed || blasting
     }, () => {
         undoShake()

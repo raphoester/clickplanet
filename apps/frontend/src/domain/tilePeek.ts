@@ -1,8 +1,18 @@
 import type {TileHolder} from "../backends/backend.ts"
 
+export type Point = {x: number, y: number}
+
 export type Peek = {
     tile: number
     countryCode: string
+    point: Point
+    touch: boolean
+}
+
+export type Peeked = {
+    tile: number
+    point: Point
+    touch: boolean
 }
 
 export type PeekRules = {
@@ -18,7 +28,7 @@ export type PeekPointer = {
     isPrimary: boolean
 }
 
-type Rest = {tile: number, since: number, told: boolean}
+type Rest = {tile: number, since: number, told: boolean, point: Point}
 
 type Press = {pointerId: number, x: number, y: number, tile: number, since: number}
 
@@ -33,9 +43,12 @@ export class TilePeek {
         return this.peekedByPress
     }
 
-    hover(tile: number | undefined, at: number) {
-        if (tile === this.rest?.tile) return
-        this.rest = tile === undefined ? undefined : {tile, since: at, told: false}
+    hover(tile: number | undefined, at: number, point: Point) {
+        if (this.rest && tile === this.rest.tile) {
+            this.rest.point = point
+            return
+        }
+        this.rest = tile === undefined ? undefined : {tile, since: at, told: false, point}
     }
 
     clicked() {
@@ -58,16 +71,16 @@ export class TilePeek {
         if (this.press?.pointerId === pointerId) this.press = undefined
     }
 
-    tick(at: number): number | undefined {
+    tick(at: number): Peeked | undefined {
         if (this.press && at - this.press.since >= this.rules.holdSeconds - 1e-9) {
-            const {tile} = this.press
+            const {tile, x, y} = this.press
             this.press = undefined
             this.peekedByPress = true
-            return tile
+            return {tile, point: {x, y}, touch: true}
         }
         if (this.rest && !this.rest.told && at - this.rest.since >= this.rules.restSeconds - 1e-9) {
             this.rest.told = true
-            return this.rest.tile
+            return {tile: this.rest.tile, point: this.rest.point, touch: false}
         }
         return undefined
     }

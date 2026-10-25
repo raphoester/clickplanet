@@ -232,7 +232,8 @@ app/       components
   keeps on its root), so a tap on each of two tiles side by side took the first
   one twice.
 - `tilePeek.ts` — `TilePeek`, when a pointer asks who holds a tile: a mouse resting
-  on one, or a finger holding one still. See [Who holds a tile](#who-holds-a-tile).
+  on one, or a finger holding one still. `cardPlacement.ts` puts the card beside
+  the pointer. See [Who holds a tile](#who-holds-a-tile).
 - `warnOnce.ts` — for things that would otherwise warn on every frame.
 
 ### `src/backends/` — three contracts, one transport
@@ -510,6 +511,8 @@ this is where each zone lives. `Viewer` composes them, and `useCompact`
   inside the menu or a sheet covers the page and not its panel.
 - **The other player's card** is the same `Modal`; on a phone its CSS makes it a
   bottom sheet as tall as the card.
+- **The card on who holds a tile is the one exception**: it opens beside the
+  pointer, not in a zone. See [Who holds a tile](#who-holds-a-tile).
 
 ### Live chat
 
@@ -984,29 +987,41 @@ the other's next announce, at most 30s later.
 ### Who holds a tile
 
 **A mouse resting on a tile for half a second, or a finger holding one still for
-half a second, names the player whose take holds it**, in the Moments zone: the
-flag, the name in its colour, the medal and the name of the title it wears, and
-how long ago. A tap takes a tile, so a tap cannot ask: a hold is the one press a
-tap never is, and the bomb's hold-to-drop is already one. A finger covers the tile,
-so the line is at the top, not under it.
+half a second, opens a card beside the pointer on the player whose take holds
+it** (`HolderCard`): the medal and name of the title it wears, the name in its
+colour with its crown and streak, the flag it took the tile for and how long ago;
+then, from its public card (`GetPlayer`), the tiles it took, its best streak, the
+month it started and the first flags it fought for; and "View profile", which
+opens that card. A guest shows its name, the flag and the time alone: a guest has
+no public card. A tap takes a tile, so a tap cannot ask: a hold is the one press a
+tap never is, and the bomb's hold-to-drop is already one.
 
-- `TilePeek` (`domain/tilePeek.ts`) holds both: `hover` starts a rest per tile, and
-  a tile just clicked starts none; `begin`, `move` and `end` follow a finger, 12px
-  of slack, a second finger cancelling it. The click that ends a hold is swallowed
-  (`peeked`). `globe.ts` feeds it, hovers from a mouse alone, and calls `onPeek`
-  for a tile with a flag; nothing while a bomb is armed.
+- **It is the one thing drawn over the globe outside the four zones**, because it
+  is about the tile under the pointer: below and right of a mouse, above a
+  finger, which covers what is under it, turned and kept on screen at the edges
+  (`domain/cardPlacement.ts`). A portal on the body, under the modals.
+- **It stays while the pointer is on the tile or on the card**, and goes
+  `LEAVE_GRACE_MS` (300ms) after it left both, so a mouse can reach the button.
+  A press on the globe ends it at once, and so does Escape. On a phone it stays
+  after the finger lifts, until the next tap.
+- `TilePeek` (`domain/tilePeek.ts`) holds both gestures: `hover` starts a rest per
+  tile, and a tile just clicked starts none; `begin`, `move` and `end` follow a
+  finger, 12px of slack, a second finger cancelling it. The click that ends a
+  hold is swallowed (`peeked`). `globe.ts` feeds it, hovers from a mouse alone,
+  and calls `onPeek` with the pointer's place for a tile with a flag, and
+  `onPeekEnd` when the mouse leaves that tile or the globe, or any press starts;
+  nothing while a bomb is armed.
 - `useTileHolder` asks `TileHolders.tileHolder` (`ClickService/GetTileHolder`), then
   `PlayerLinesBackend.playerLine` (`PlayerService/GetAuthors`, which names a guest
-  too). Neither needs a token. A new peek aborts the last one.
-- **The line shows only while the tile wears the flag of its last take**
+  too); the card reads `GetPlayer` itself (`usePlayerInfo`). None needs a token.
+  A new peek aborts the last one.
+- **The card shows only while the tile wears the flag of its last take**
   (`holderShown`): the ledger is a second behind, and an operator's write keeps no
   take, so a tile that changed hands since says nothing rather than the wrong
   player. Nor does a tile the player itself holds.
-- `TileHolderNews` is a moment like the bomb's: the newest shows. Its name opens
-  the card. It lives as long as its CSS animation, which a pointer on it pauses so
-  the name can be reached, and `animationend` dismisses it.
 - The fake planet names one of the fake roster for each take of its bots
   (`FAKE_TAKERS`), and the player's own takes after an account it cannot name.
+  In `npm run dev`, a hot reload can leave a card behind; reload the page.
 
 ### Support
 

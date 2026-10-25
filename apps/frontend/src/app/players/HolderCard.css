@@ -1,0 +1,109 @@
+.holder-card {
+    position: fixed;
+    z-index: 200;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    width: 300px;
+    max-width: calc(100vw - 16px);
+    padding: var(--space-3);
+    text-align: left;
+    animation: holder-card-in 0.16s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.holder-card-head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-width: 0;
+}
+
+.holder-card-who {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.holder-card-name {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    min-width: 0;
+    font-family: var(--font-text);
+    font-weight: 700;
+    font-size: var(--text-l);
+    color: hsl(var(--author-hue, 0) calc(var(--author-saturation) * var(--author-chroma, 1)) var(--author-name-lightness));
+}
+
+.holder-card-name-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.holder-card-title {
+    font-family: var(--font-display);
+    font-size: var(--display-s);
+    color: var(--gold);
+    text-shadow: var(--text-drop);
+}
+
+.holder-card-take,
+.holder-card-fronts,
+.holder-card-note {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-1);
+    margin: 0;
+    color: var(--text-soft);
+    font-size: var(--text-s);
+}
+
+.holder-card-take .country-flag,
+.holder-card-fronts .country-flag {
+    margin-right: 0;
+}
+
+.holder-card-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+    gap: var(--space-1);
+    margin: 0;
+}
+
+.holder-card-stats > div {
+    padding: var(--space-1) var(--space-2);
+}
+
+.holder-card-stats dt {
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+    white-space: nowrap;
+}
+
+.holder-card-stats dd {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: var(--display-s);
+    color: var(--text);
+    white-space: nowrap;
+}
+
+.holder-card-profile {
+    align-self: stretch;
+}
+
+@keyframes holder-card-in {
+    from {
+        opacity: 0;
+        translate: 0 4px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .holder-card {
+        animation: none;
+    }
+}

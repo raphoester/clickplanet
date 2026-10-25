@@ -59,7 +59,7 @@ import {useAccount} from "../account/useAccount.ts";
 import {hueOf} from "../../domain/authorColor.ts";
 import {PlayerInfoBackend, PlayerLine, PlayerLinesBackend, PlayerTitle, PresenceBackend} from "../../backends/player.ts";
 import PlayerCard from "../players/PlayerCard.tsx";
-import TileHolderNews from "../players/TileHolderNews.tsx";
+import HolderCard from "../players/HolderCard.tsx";
 import {useTileHolder} from "../players/useTileHolder.ts";
 import TitleUnlocked from "../titles/TitleUnlocked.tsx";
 import {usePresence} from "../players/usePresence.ts";
@@ -199,7 +199,7 @@ export default function Viewer(props: ViewerProps) {
         dismissFortified,
         lastClose,
         dismissClose,
-        lastPeek,
+        pointing,
     } = useGlobe({
         container,
         tileClicker: props.tileClicker,
@@ -217,7 +217,7 @@ export default function Viewer(props: ViewerProps) {
         rendering: display.settings.rendering,
     })
 
-    const tileHolder = useTileHolder(props.tileHolders, props.playerLines, lastPeek, ownAccountId)
+    const tileHolder = useTileHolder(props.tileHolders, props.playerLines, pointing, ownAccountId)
 
     const bonusGuide = useBonusGuide()
 
@@ -229,7 +229,7 @@ export default function Viewer(props: ViewerProps) {
         return () => clearTimeout(timer)
     }, [lastFortified, fortifyGuide.seen])
     // Moments show one at a time: the newest of them.
-    const newest = [lastBomb, lastFortified, lastClose, tileHolder.holder].reduce<{at: number} | undefined>(
+    const newest = [lastBomb, lastFortified, lastClose].reduce<{at: number} | undefined>(
         (latest, moment) => moment && (!latest || moment.at > latest.at) ? moment : latest, undefined)
 
     const refiller = props.refiller
@@ -400,6 +400,16 @@ export default function Viewer(props: ViewerProps) {
             multiplier={clickBudget.linkedMultiplier}
             onClose={() => setPitchOpen(false)}/>}
 
+        {tileHolder.holder && props.playerInfo && <HolderCard key={tileHolder.holder.id}
+                                                              holder={tileHolder.holder}
+                                                              backend={props.playerInfo}
+                                                              onHold={tileHolder.hold}
+                                                              onOpenPlayer={onOpenPlayer && ((player) => {
+                                                                  tileHolder.dismiss()
+                                                                  onOpenPlayer(player)
+                                                              })}
+                                                              onClose={tileHolder.dismiss}/>}
+
         {openPlayer && props.playerInfo && <PlayerCard key={openPlayer.accountId}
                                                        player={openPlayer}
                                                        backend={props.playerInfo}
@@ -439,15 +449,6 @@ export default function Viewer(props: ViewerProps) {
             fortified={lastFortified.fortified}
             lowered={quiz.state.phase !== 'idle'}
             onDone={dismissFortified}
-        />}
-
-        {tileHolder.holder && newest === tileHolder.holder && <TileHolderNews
-            key={`holder-${tileHolder.holder.id}`}
-            line={tileHolder.holder.line}
-            takenAt={tileHolder.holder.takenAt}
-            lowered={quiz.state.phase !== 'idle'}
-            onOpenPlayer={onOpenPlayer}
-            onDone={tileHolder.dismiss}
         />}
 
         {fortifyCard && <FortifyCard fortified={fortifyCard} onDone={() => {

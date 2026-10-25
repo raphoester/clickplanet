@@ -1,41 +1,54 @@
 import {useCallback, useEffect, useState} from "react"
 import {TileHolders} from "../../backends/backend.ts"
 import {PlayerLine, PlayerLinesBackend} from "../../backends/player.ts"
-import {holderShown, Peek} from "../../domain/tilePeek.ts"
+import {holderShown, Peek, Point} from "../../domain/tilePeek.ts"
 
-export type HolderMoment = {
+export const LEAVE_GRACE_MS = 300
+
+export type HolderShown = {
     line: PlayerLine
     takenAt: number
+    point: Point
+    touch: boolean
     id: number
-    at: number
 }
 
 export function useTileHolder(
     holders: TileHolders | undefined,
     players: PlayerLinesBackend | undefined,
-    peeked: {peek: Peek, id: number} | undefined,
+    pointing: {peek: Peek, id: number} | undefined,
     ownAccountId: string | undefined,
-): {holder: HolderMoment | undefined, dismiss: () => void} {
-    const [holder, setHolder] = useState<HolderMoment>()
+): {holder: HolderShown | undefined, hold: (held: boolean) => void, dismiss: () => void} {
+    const [holder, setHolder] = useState<HolderShown>()
+    const [heldId, setHeldId] = useState<number>()
 
     useEffect(() => {
-        if (!peeked || !holders || !players) return
+        if (!pointing || !holders || !players) return
 
+        const {peek, id} = pointing
         const asking = new AbortController()
         const ask = async () => {
-            const held = holderShown(await holders.tileHolder(peeked.peek.tile, asking.signal), peeked.peek, ownAccountId)
-            if (!held) return
-            const line = await players.playerLine(held.accountId, held.countryCode, asking.signal)
-            if (!line || asking.signal.aborted) return
-            setHolder((was) => ({line, takenAt: held.takenAt, id: (was?.id ?? 0) + 1, at: performance.now()}))
+            const held = holderShown(await holders.tileHolder(peek.tile, asking.signal), peek, ownAccountId)
+            const line = held && await players.playerLine(held.accountId, held.countryCode, asking.signal)
+            if (asking.signal.aborted) return
+            setHolder(held && line ? {line, takenAt: held.takenAt, point: peek.point, touch: peek.touch, id} : undefined)
         }
         ask().catch((e) => {
             if (!asking.signal.aborted) console.error("could not read who holds the tile", e)
         })
         return () => asking.abort()
-    }, [holders, players, peeked, ownAccountId])
+    }, [holders, players, pointing, ownAccountId])
 
+    const held = holder !== undefined && heldId === holder.id
+    useEffect(() => {
+        if (pointing || held || !holder) return
+        const timer = setTimeout(() => setHolder(undefined), LEAVE_GRACE_MS)
+        return () => clearTimeout(timer)
+    }, [pointing, held, holder])
+
+    const id = holder?.id
+    const hold = useCallback((on: boolean) => setHeldId(on ? id : undefined), [id])
     const dismiss = useCallback(() => setHolder(undefined), [])
 
-    return {holder, dismiss}
+    return {holder, hold, dismiss}
 }

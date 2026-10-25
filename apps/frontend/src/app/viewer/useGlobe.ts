@@ -95,10 +95,10 @@ export function useGlobe(options: UseGlobeOptions) {
         setLastClose((previous) => ({close, id: (previous?.id ?? 0) + 1, at: performance.now()}))
     }, [])
 
-    const [lastPeek, setLastPeek] = useState<{peek: Peek, id: number} | undefined>()
-    const recordPeek = useCallback((peek: Peek) => {
-        setLastPeek((previous) => ({peek, id: (previous?.id ?? 0) + 1}))
-    }, [])
+    const [pointing, setPointing] = useState<{peek: Peek, id: number} | undefined>()
+    const peekCount = useRef(0)
+    const recordPeek = useCallback((peek: Peek) => setPointing({peek, id: ++peekCount.current}), [])
+    const endPeek = useCallback(() => setPointing(undefined), [])
 
     const takeBonus = useCallback((reward: BonusReward) => setAward(reward), [])
 
@@ -150,6 +150,7 @@ export function useGlobe(options: UseGlobeOptions) {
             onFortified: recordFortified,
             onCloseToFortify: recordClose,
             onPeek: recordPeek,
+            onPeekEnd: endPeek,
             playSound,
             signal: abortController.signal,
         }).then((globe) => {
@@ -177,7 +178,7 @@ export function useGlobe(options: UseGlobeOptions) {
             globeRef.current?.dispose()
             globeRef.current = null
         }
-    }, [container, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, bomber, shielder, playSound, onClickAccepted, rendering, recordLeaderboard, publishLeaderboard, takeBonus, recordCatch, recordBomb, recordFortified, recordClose, recordPeek, notify, recordLockedOut])
+    }, [container, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, bomber, shielder, playSound, onClickAccepted, rendering, recordLeaderboard, publishLeaderboard, takeBonus, recordCatch, recordBomb, recordFortified, recordClose, recordPeek, endPeek, notify, recordLockedOut])
 
     useEffect(() => {
         initialCountry.current = country
@@ -240,7 +241,7 @@ export function useGlobe(options: UseGlobeOptions) {
         dismissFortified,
         lastClose,
         dismissClose,
-        lastPeek,
+        pointing,
     }
 }
 
