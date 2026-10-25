@@ -42,13 +42,18 @@ type gameStack struct {
 
 const adminOrigin = "https://backoffice.clickplanet.lol"
 
+type stackConfigs struct {
+	planet  *planet.Config
+	support *support.Config
+}
+
 func startGame(t *testing.T) gameStack {
 	t.Helper()
 
-	return startGameWith(t, func(*support.Config) {})
+	return startGameWith(t, func(stackConfigs) {})
 }
 
-func startGameWith(t *testing.T, adjust func(*support.Config)) gameStack {
+func startGameWith(t *testing.T, adjust func(stackConfigs)) gameStack {
 	t.Helper()
 
 	postgres := cppg.StartTestServer(t)
@@ -92,7 +97,7 @@ func startGameWith(t *testing.T, adjust func(*support.Config)) gameStack {
 	supportConfig.Attachments.Bucket.Name = "support"
 	supportConfig.Attachments.Bucket.AccessKeyID = "the-key-id"
 	supportConfig.Attachments.Bucket.SecretAccessKey = "the-secret-key"
-	adjust(&supportConfig)
+	adjust(stackConfigs{planet: &planetConfig, support: &supportConfig})
 
 	authModule, fakes := auth.NewModuleWithFakeProviders(authConfig)
 

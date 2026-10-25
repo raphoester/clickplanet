@@ -17,7 +17,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1/authv1connect"
 	supportv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/support/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/support/v1/supportv1connect"
-	"github.com/raphoester/clickplanet.lol-backend/internal/support"
 )
 
 func (p *gamer) support() supportv1connect.SupportServiceClient {
@@ -515,9 +514,9 @@ func rulesOf(t *testing.T, game gameStack) *supportv1.GetAttachmentRulesResponse
 }
 
 func TestAnAddressSendsTenNotesADayWhicheverAccountSendsThem(t *testing.T) {
-	game := startGameWith(t, func(config *support.Config) {
-		config.RateLimiter.Burst = 100
-		config.RateLimiter.PerSecond = 100
+	game := startGameWith(t, func(configs stackConfigs) {
+		configs.support.RateLimiter.Burst = 100
+		configs.support.RateLimiter.PerSecond = 100
 	})
 	first, second := game.newPlayer(t), game.newPlayer(t)
 
@@ -534,7 +533,7 @@ func TestAnAddressSendsTenNotesADayWhicheverAccountSendsThem(t *testing.T) {
 }
 
 func TestTheBucketTakesNoMoreBytesThanItsShelfAndThePageIsToldSo(t *testing.T) {
-	game := startGameWith(t, func(config *support.Config) { config.Attachments.MaxStoredBytes = 50 })
+	game := startGameWith(t, func(configs stackConfigs) { configs.support.Attachments.MaxStoredBytes = 50 })
 	guest := game.newPlayer(t)
 
 	assert.Equal(t, uint64(50), rulesOf(t, game).GetMaxBytes())

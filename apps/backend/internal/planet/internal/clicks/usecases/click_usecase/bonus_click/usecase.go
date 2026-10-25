@@ -9,7 +9,7 @@ import (
 )
 
 type Presence interface {
-	Clicked(entrant bonuses.Entrant, scope string, holder bonuses.Holder)
+	Clicked(click bonuses.Click)
 }
 
 func New(implementation click_usecase.IUseCase, presence Presence) *UseCase {
@@ -24,8 +24,7 @@ type UseCase struct {
 func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_usecase.Out, error) {
 	out, err := u.implementation.Execute(ctx, in)
 	if err == nil {
-		payer := clicks.PayerOf(ctx)
-		u.presence.Clicked(bonuses.EntrantOf(payer), payer.Scope, bonuses.HolderOf(payer))
+		u.presence.Clicked(bonuses.ClickOf(clicks.PayerOf(ctx), out.Limited && out.Budget.Empty()))
 	}
 
 	return out, err

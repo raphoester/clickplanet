@@ -78,6 +78,16 @@ type Reward struct {
 	Amount int
 }
 
+type Click struct {
+	Entrant Entrant
+	Scope   string
+	Holder  Holder
+
+	Born time.Time
+
+	Dry bool
+}
+
 type caller struct {
 	streams map[uint64]chan Event
 
@@ -94,10 +104,14 @@ type caller struct {
 
 	grants []time.Time
 
+	owedBox Kind
+
 	nextQuizAt      time.Time
 	outstandingQuiz string
 	quizMisses      int
 	quizGrants      []time.Time
+
+	owedQuiz Kind
 }
 
 func (c *caller) watching() bool {
@@ -148,6 +162,8 @@ type Registry struct {
 
 	quizOffers map[string]*pendingQuiz
 
+	newcomers map[Holder]*newcomer
+
 	nextID uint64
 }
 
@@ -188,6 +204,7 @@ func New(config Config, clock cptime.Clock, holdings Holdings) *Registry {
 		offers:     make(map[string]*pending),
 		spent:      make(map[string]spentOffer),
 		quizOffers: make(map[string]*pendingQuiz),
+		newcomers:  make(map[Holder]*newcomer),
 	}
 }
 
@@ -253,18 +270,21 @@ func (r *Registry) leave(entrant Entrant, id uint64) {
 	entry.lastSeen = r.clock.Now()
 }
 
-func (r *Registry) Clicked(entrant Entrant, scope string, holder Holder) {
+func (r *Registry) Clicked(click Click) {
 	now := r.clock.Now()
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	entry := r.caller(entrant, now)
-	entry.scope = scope
+	entry := r.caller(click.Entrant, now)
+	entry.scope = click.Scope
 	entry.lastClickAt = now
-	if holder != NoHolder {
-		entry.players[holder] = now
+	if click.Holder == NoHolder {
+		return
 	}
+
+	entry.players[click.Holder] = now
+	r.welcome(entry, click, now)
 }
 
 func (r *Registry) Claim(token string, entrant Entrant, scope string) (Reward, bool) {
@@ -373,13 +393,15 @@ func (r *Registry) sweep(ctx context.Context) {
 	r.forgetSpent(now)
 	r.sweepQuizzes(ctx, now)
 	r.forgetStale(now)
+	r.forgetNewcomers(now)
 
 	for entrant, entry := range r.callers {
 		if !r.due(entry, now) {
 			continue
 		}
 
-		kinds := r.offerable(ctx, entry, now)
+		kinds := drawable(entry.owedBox, r.offerable(ctx, entry, now))
+		entry.owedBox = ""
 		if kinds.Empty() {
 			entry.nextOfferAt = now.Add(r.window())
 			continue
@@ -538,6 +560,18 @@ func drawWindow(shortest, longest time.Duration) time.Duration {
 	}
 
 	return shortest + time.Duration(n.Int64())
+}
+
+func drawable(owed Kind, kinds *cpcolls.Set[Kind]) *cpcolls.Set[Kind] {
+	if owed == "" {
+		return kinds
+	}
+
+	if kinds.Contains(owed) {
+		return cpcolls.NewSet(owed)
+	}
+
+	return cpcolls.NewSet[Kind]()
 }
 
 func (r *Registry) drawKind(kinds *cpcolls.Set[Kind]) Kind {

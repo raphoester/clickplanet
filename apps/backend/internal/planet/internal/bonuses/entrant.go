@@ -13,3 +13,13 @@ func EntrantOf(payer clicks.Payer) Entrant {
 
 	return Entrant(payer.Scope)
 }
+
+func ClickOf(payer clicks.Payer, dry bool) Click {
+	return Click{
+		Entrant: EntrantOf(payer),
+		Scope:   payer.Scope,
+		Holder:  HolderOf(payer),
+		Born:    payer.Created,
+		Dry:     dry,
+	}
+}

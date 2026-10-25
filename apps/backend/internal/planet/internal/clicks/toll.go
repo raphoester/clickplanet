@@ -48,6 +48,10 @@ type Budget struct {
 	LinkedMultiplier float64
 }
 
+func (b Budget) Empty() bool {
+	return b.Tokens < 1
+}
+
 type ShareReader interface {
 	Share(country string) float64
 }
