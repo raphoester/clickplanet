@@ -24,11 +24,3 @@ func CareersOf(page []players.Stats, accounts map[players.AccountID]players.Acco
 	}
 	return careers
 }
-
-func AccountsOf(page []players.Stats) []players.AccountID {
-	accounts := make([]players.AccountID, 0, len(page))
-	for _, stats := range page {
-		accounts = append(accounts, stats.Account())
-	}
-	return accounts
-}

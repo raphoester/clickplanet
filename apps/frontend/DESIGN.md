@@ -125,7 +125,8 @@ Every title is a medal, and the medals obey the same rules as everything else:
 - **Ink**: an outline on the ring, the center and the icon, and a hard drop
   under the whole medal.
 - **The track names the center and the ribbon**: Conquest navy and red, Chatter
-  teal, Devotion brown and orange, OG violet.
+  teal, Devotion brown and orange, Defense slate and steel, Bombs char and yellow,
+  Loot plum and pink, Quiz green and blue, OG violet.
 - **The icon** is in the metal and `--cream`, outlined in ink.
 - **A locked medal** is a grey ring, a sunk center and a padlock.
 
