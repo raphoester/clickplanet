@@ -15,6 +15,7 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts/usecases/choose_clips_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpanthropic"
 )
 
 // What makes a story worth telling and a headline good: the prose the owner tunes, sent first and cached.
@@ -33,56 +34,35 @@ const (
 	retries = 1
 )
 
-type Config struct {
-	// Empty is no editor: every run drawn for the model falls back to the rules, and says why.
-	APIKey string
-	// Empty is DefaultModel.
-	Model string
-	// Empty is Anthropic's API: a test's fake.
-	BaseURL string
-}
-
 type Editor struct {
-	client anthropic.Client
+	client *anthropic.Client
 	model  string
-	keyed  bool
 }
 
 var _ choose_clips_usecase.Editor = (*Editor)(nil)
 
-func New(config Config) *Editor {
-	model := config.Model
-	if model == "" {
-		model = DefaultModel
-	}
-	options := []option.RequestOption{
-		option.WithAPIKey(config.APIKey), option.WithRequestTimeout(timeout), option.WithMaxRetries(retries),
-	}
-	if config.BaseURL != "" {
-		options = append(options, option.WithBaseURL(config.BaseURL))
-	}
-	return &Editor{client: anthropic.NewClient(options...), model: model, keyed: config.APIKey != ""}
+func New(client *anthropic.Client, model string) *Editor {
+	return &Editor{client: client, model: model}
 }
 
 var (
-	ErrNoKey    = errors.New("no ANTHROPIC_API_KEY")
 	ErrRefused  = errors.New("the model refused")
 	ErrNoAnswer = errors.New("the model gave no answer the run can read")
 )
 
+// The editor's own patience, on the client it is given.
+var requestOptions = []option.RequestOption{option.WithRequestTimeout(timeout), option.WithMaxRetries(retries)}
+
 func (e *Editor) Edit(ctx context.Context, offer posts.Offer) (posts.Edition, posts.Spend, error) {
-	if !e.keyed {
-		return posts.Edition{}, posts.Spend{}, ErrNoKey
-	}
 	prompt, err := PromptOf(offer)
 	if err != nil {
 		return posts.Edition{}, posts.Spend{}, err
 	}
 
-	message, err := e.client.Messages.New(ctx, e.paramsOf(prompt))
+	message, err := e.client.Messages.New(ctx, e.paramsOf(prompt), requestOptions...)
 	if err != nil {
 		// Sent, and billed as nothing that can be known here.
-		return posts.Edition{}, posts.Spend{Model: e.model}, fmt.Errorf("the model could not be asked: %w", unreachable(err))
+		return posts.Edition{}, posts.Spend{Model: e.model}, fmt.Errorf("the model could not be asked: %w", cpanthropic.Redacted(err))
 	}
 	spend := spendOf(e.model, message.Usage)
 
@@ -114,9 +94,6 @@ func (e *Editor) paramsOf(prompt string) anthropic.MessageNewParams {
 
 // The prompt's size, as the model counts it, with no answer asked for: what `clips edit -prompt` shows.
 func (e *Editor) Count(ctx context.Context, offer posts.Offer) (int64, error) {
-	if !e.keyed {
-		return 0, ErrNoKey
-	}
 	prompt, err := PromptOf(offer)
 	if err != nil {
 		return 0, err
@@ -127,9 +104,9 @@ func (e *Editor) Count(ctx context.Context, offer posts.Offer) (int64, error) {
 		System:       anthropic.MessageCountTokensParamsSystemUnion{OfTextBlockArray: params.System},
 		Messages:     params.Messages,
 		OutputConfig: params.OutputConfig,
-	})
+	}, requestOptions...)
 	if err != nil {
-		return 0, fmt.Errorf("the prompt could not be counted: %w", unreachable(err))
+		return 0, fmt.Errorf("the prompt could not be counted: %w", cpanthropic.Redacted(err))
 	}
 	return counted.InputTokens, nil
 }
@@ -182,18 +159,6 @@ func editionOf(content []anthropic.ContentBlockUnion) (posts.Edition, error) {
 		return edition, nil
 	}
 	return posts.Edition{}, fmt.Errorf("%w: no text", ErrNoAnswer)
-}
-
-// The SDK's error carries the request it failed on, whose headers hold the key: the logs of a public repo are public.
-func unreachable(err error) error {
-	var failed *anthropic.Error
-	if errors.As(err, &failed) {
-		return fmt.Errorf("HTTP %d: %s", failed.StatusCode, failed.Type())
-	}
-	if errors.Is(err, context.DeadlineExceeded) {
-		return context.DeadlineExceeded
-	}
-	return errors.New("no answer")
 }
 
 func cmpOr(value, otherwise string) string {

@@ -124,7 +124,7 @@ func parseFetch(args []string) (Config, error) {
 func parseChoose(args []string) (Config, error) {
 	parsed := Config{Command: Choose}
 	parsed.Job.Zernio.APIKey = os.Getenv(KeyVariable)
-	parsed.Job.Editor.APIKey = os.Getenv(EditorKeyVariable)
+	parsed.Job.Anthropic.APIKey = os.Getenv(EditorKeyVariable)
 
 	flags := flag.NewFlagSet(string(Choose), flag.ContinueOnError)
 	flags.StringVar(&parsed.ShortlistFile, "shortlist", "", "the file the generator's --shortlist wrote")
@@ -143,7 +143,7 @@ func parseChoose(args []string) (Config, error) {
 func parseEdit(args []string) (Config, error) {
 	parsed := Config{Command: Edit}
 	parsed.Job.Zernio.APIKey = os.Getenv(KeyVariable)
-	parsed.Job.Editor.APIKey = os.Getenv(EditorKeyVariable)
+	parsed.Job.Anthropic.APIKey = os.Getenv(EditorKeyVariable)
 
 	flags := flag.NewFlagSet(string(Edit), flag.ContinueOnError)
 	flags.StringVar(&parsed.ShortlistFile, "shortlist", "", "the file the generator's --shortlist wrote")

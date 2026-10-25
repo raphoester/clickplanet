@@ -2,6 +2,7 @@ package clips
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -30,6 +31,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/stats/ssh_stats_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/stats/usecases/take_snapshot_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/stats/usecases/take_snapshot_usecase/log_take_snapshot"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpanthropic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -59,7 +61,8 @@ type Config struct {
 	StatsSince time.Time
 
 	Zernio zernio.Config
-	Editor claude_editor.Config
+	// The editor's. No key is no editor: every run drawn for the model falls back to the rules, and says why.
+	Anthropic cpanthropic.Config
 }
 
 type ReplayConfig struct {
@@ -162,14 +165,36 @@ func Choose(ctx context.Context, shortlist string, config Config, logger *slog.L
 	if err != nil {
 		return Choice{}, fmt.Errorf("failed to build the posting service: %w", err)
 	}
+	editor, err := editorOf(config.Anthropic)
+	if err != nil {
+		return Choice{}, err
+	}
 
 	choose := log_choose_clips.New(choose_clips_usecase.New(
 		generator_output.ShortlistFile(shortlist), log_history.New(history, logger), history, cptime.SystemClock{},
 		choose_clips_usecase.Room{PerRun: config.PerRun, Budget: dailyBudget, Platforms: config.Platforms},
-		experiments, posts.SystemDice{}, claude_editor.New(config.Editor),
+		experiments, posts.SystemDice{}, editor,
 	), logger)
 
 	return choose.Execute(ctx) //nolint:wrapcheck // the use case already named what failed.
+}
+
+// What chooses a run drawn for the model, and counts its prompt for `clips edit`.
+type editor interface {
+	choose_clips_usecase.Editor
+	Count(ctx context.Context, offer posts.Offer) (int64, error)
+}
+
+// The editor on a client of Anthropic's API built here; with no key, one that sends nothing and always falls back.
+func editorOf(config cpanthropic.Config) (editor, error) {
+	client, err := cpanthropic.NewClient(config)
+	if errors.Is(err, cpanthropic.ErrNoKey) {
+		return claude_editor.Unkeyed{}, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to build the client of Anthropic's API: %w", err)
+	}
+	return claude_editor.New(client, claude_editor.DefaultModel), nil
 }
 
 // What the editor would make of a saved shortlist: the prompt it is sent, its size as the model counts it (0 with
@@ -206,7 +231,10 @@ func Edit(ctx context.Context, shortlist string, promptOnly bool, config Config,
 		logger.Warn("no ZERNIO_API_KEY: nothing counts as told")
 	}
 
-	editor := claude_editor.New(config.Editor)
+	editor, err := editorOf(config.Anthropic)
+	if err != nil {
+		return Trial{}, err
+	}
 	trial := Trial{Instructions: claude_editor.Instructions, Offer: stories.Offer(config.PerRun, told, now)}
 	if trial.Prompt, err = claude_editor.PromptOf(trial.Offer); err != nil {
 		return Trial{}, err //nolint:wrapcheck // the editor already said what it could not write.

@@ -3790,11 +3790,17 @@ camera are as they were, and the rules stay the baseline to beat.
   writes it again, about $0.00004 more a call. It pays once a call follows another within minutes (`clips edit`
   tried twice, or more calls a run).
 - **The key is a secret of the `choose` job alone** (`ANTHROPIC_API_KEY`), which runs no npm, as `ZERNIO_API_KEY`.
-  An error never carries the request (`unreachable`): the SDK's error dumps its headers, and the logs of a public
-  repo are public. **The headline is the model's text**: the render job passes it through the environment, never
-  into the script.
-- **Tests never call the API**: the use case runs a fake `Editor`, and `claude_editor` a fake Messages API on
-  `httptest` (`Config.BaseURL`), which pins the request whole: the cached instructions, the schema, the prompt.
+  An error never carries the request (`cpanthropic.Redacted`): the SDK's error dumps its headers, and the logs of a
+  public repo are public. **The headline is the model's text**: the render job passes it through the environment,
+  never into the script.
+- **The client is built in `job.go` and handed to the editor** (`editorOf`), as `job.go` builds every other
+  dependency: `cpanthropic.NewClient` makes it from `Config.Anthropic`, and `claude_editor.New(client, model)` never
+  makes one of its own. The editor keeps only what is its own on each request: 2 minutes and one retry. **No key is
+  an editor of its own, chosen there**: `claude_editor.Unkeyed` sends nothing and answers `cpanthropic.ErrNoKey`, so
+  every run drawn for the model falls back and says why.
+- **Tests never call the API**: the use case runs a fake `Editor`, and `claude_editor` a client pointed at a fake
+  Messages API on `httptest` (`cpanthropic.Config.BaseURL`), which pins the request whole: the cached instructions,
+  the schema, the prompt.
 
 **`internal/clips/internal/replays/` is the fetch**, a concept of its own beside `posts`:
 
@@ -4109,7 +4115,7 @@ went).
 
 ### Shared (`internal/shared/`)
 
-Shared infrastructure: `cpbootstrap` (the composite layer), `cpcountries`, `cpconfigs` (YAML + env config via koanf), `cphttpserver` (middleware, formats), `cpprom` (Prometheus), `cptime`, `cpctx`, `cpconnect`, `cpratelimit`, `cpipblock`, `cpipscope`, `cpsession`, `cpsessionverifier`, `cpsecrets`, `cppg` (postgres — see [Durability](#durability)), `cpcolls` (collections), `cpzernio` (the client of the posting service).
+Shared infrastructure: `cpbootstrap` (the composite layer), `cpcountries`, `cpconfigs` (YAML + env config via koanf), `cphttpserver` (middleware, formats), `cpprom` (Prometheus), `cptime`, `cpctx`, `cpconnect`, `cpratelimit`, `cpipblock`, `cpipscope`, `cpsession`, `cpsessionverifier`, `cpsecrets`, `cppg` (postgres — see [Durability](#durability)), `cpcolls` (collections), `cpzernio` (the client of the posting service), `cpanthropic` (the client of Anthropic's API).
 
 **Every package here is prefixed `cp`, and a new one must be.** A call site reads
 `cptime.SystemClock{}` or `cpctx.GetSourceIP(ctx)`, so the prefix says the
@@ -4148,6 +4154,10 @@ The siteverify client it is fed by is **not** here. `turnstile` sat here on the 
 
 `cpipscope` decides what a scope's bucket is keyed on, and every throttle goes through it. Over IPv4 that is the address; over IPv6 it is the surrounding **/64**, because the smallest allocation a subscriber receives is a /64 and most receive far more — a bucket per v6 address is one the same line walks out of by picking its next address, turning one home connection into thousands of callers with a throttle each. The session token binds to the same unit, so the address a token is valid for and the address that spends a budget cannot diverge. Blocking deliberately does **not** use it: the VPN and datacenter lists are precise prefixes already, and widening a hit to the surrounding /64 would refuse neighbours who are not on them.
 `cpzernio` is Zernio's HTTP API as Go: a generated client, the vendored OpenAPI document it is generated from, and the two files that configure the generation, all in the one directory, as `cpipblock` keeps its lists in `cpdata`. **Nothing in it is written by hand but the two config files**: `make zernio-spec` refreshes `openapi.json`, `make zernio` writes `client.gen.go`. It knows nothing of clips or of this game, which is why it is here and not in the module: the clips job's `posts/zernio` adapter is its one caller today, and holds everything that is ours (see [The clips job](#the-clips-job-internalclips-cmdclips)). The linters, gofumpt and `make deadcode` leave `client.gen.go` alone by its generated header, not by its path.
+`cpanthropic` builds the client of Anthropic's API (`NewClient`, from a key and, for a test, a base URL; no key is
+`ErrNoKey`) and says what a failed call went wrong with, the request left out (`Redacted`): the SDK's error dumps
+the request it failed on, key and all. **It knows no model, no prompt and no timeout**: those are each caller's, set
+per request, so one client serves calls of any length. The clips job's editor is its one caller today.
 `cpcolls` holds the collections the standard library does not — today `Set[T]`. **A set is a `*cpcolls.Set`, never a map.** A `map[T]struct{}` or a `map[T]bool` written `m[k] = true` fails `make lint`: a ruleguard rule in `tools/ruleguard/rules.go`, run by gocritic, reports both everywhere but in `cpcolls` itself. A nil `*Set` reads as empty, like a nil map, so a lookup in a map of sets needs no `ok` check.
 
 ### Map geography

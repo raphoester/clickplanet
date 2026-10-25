@@ -14,6 +14,7 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts/claude_editor"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpanthropic"
 )
 
 const key = "sk-ant-test-key"
@@ -74,15 +75,19 @@ func message(stop string, text string) map[string]any {
 	}
 }
 
-func editorOf(server *httptest.Server) *claude_editor.Editor {
-	return claude_editor.New(claude_editor.Config{APIKey: key, BaseURL: server.URL})
+func editorOf(t *testing.T, server *httptest.Server) *claude_editor.Editor {
+	t.Helper()
+
+	client, err := cpanthropic.NewClient(cpanthropic.Config{APIKey: key, BaseURL: server.URL})
+	require.NoError(t, err)
+	return claude_editor.New(client, claude_editor.DefaultModel)
 }
 
 func TestTheModelsAnswerIsTheEditionAndItsCost(t *testing.T) {
 	api := &fake{status: http.StatusOK, answer: message("end_turn",
 		`{"why":"Brazil is fresher.","stories":[{"pick":4,"headline":"BRAZIL STORMS ARGENTINA"},{"pick":2,"headline":"FRANCE VS GERMANY"}]}`)}
 
-	edition, spend, err := editorOf(api.serve(t)).Edit(t.Context(), offer)
+	edition, spend, err := editorOf(t, api.serve(t)).Edit(t.Context(), offer)
 
 	require.NoError(t, err)
 	assert.Equal(t, posts.Edition{Why: "Brazil is fresher.", Edits: []posts.Edit{
@@ -98,7 +103,7 @@ func TestTheModelsAnswerIsTheEditionAndItsCost(t *testing.T) {
 func TestTheRequestCachesTheInstructionsAndAsksForTheAnswersShape(t *testing.T) {
 	api := &fake{status: http.StatusOK, answer: message("end_turn", `{"why":"","stories":[]}`)}
 
-	_, _, err := editorOf(api.serve(t)).Edit(t.Context(), offer)
+	_, _, err := editorOf(t, api.serve(t)).Edit(t.Context(), offer)
 
 	require.NoError(t, err)
 	require.Len(t, api.requests, 1)
@@ -124,7 +129,7 @@ func TestARefusalIsNoEditionButItsCostIsKept(t *testing.T) {
 	refused["stop_details"] = map[string]any{"type": "refusal", "category": "general_harms", "explanation": "no"}
 	api := &fake{status: http.StatusOK, answer: refused}
 
-	_, spend, err := editorOf(api.serve(t)).Edit(t.Context(), offer)
+	_, spend, err := editorOf(t, api.serve(t)).Edit(t.Context(), offer)
 
 	require.ErrorIs(t, err, claude_editor.ErrRefused)
 	assert.Contains(t, err.Error(), "general_harms")
@@ -139,7 +144,7 @@ func TestAnAnswerCutShortOrNotJSONIsNoEdition(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			api := &fake{status: http.StatusOK, answer: answer}
 
-			_, _, err := editorOf(api.serve(t)).Edit(t.Context(), offer)
+			_, _, err := editorOf(t, api.serve(t)).Edit(t.Context(), offer)
 
 			require.ErrorIs(t, err, claude_editor.ErrNoAnswer)
 		})
@@ -152,7 +157,7 @@ func TestAnAPIErrorSaysItsStatusAndNeverTheKey(t *testing.T) {
 		"type": "error", "error": map[string]any{"type": "invalid_request_error", "message": "bad"},
 	}}
 
-	_, spend, err := editorOf(api.serve(t)).Edit(t.Context(), offer)
+	_, spend, err := editorOf(t, api.serve(t)).Edit(t.Context(), offer)
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "HTTP 400")
@@ -160,15 +165,13 @@ func TestAnAPIErrorSaysItsStatusAndNeverTheKey(t *testing.T) {
 	assert.Equal(t, posts.Spend{Model: claude_editor.DefaultModel}, spend, "sent, at no cost known")
 }
 
-func TestWithNoKeyNothingIsSent(t *testing.T) {
-	api := &fake{status: http.StatusOK, answer: message("end_turn", `{"why":"","stories":[]}`)}
-	server := api.serve(t)
+func TestWithNoKeyNothingIsSentAndTheRunFallsBack(t *testing.T) {
+	_, spend, err := claude_editor.Unkeyed{}.Edit(t.Context(), offer)
+	_, countErr := claude_editor.Unkeyed{}.Count(t.Context(), offer)
 
-	_, spend, err := claude_editor.New(claude_editor.Config{BaseURL: server.URL}).Edit(t.Context(), offer)
-
-	require.ErrorIs(t, err, claude_editor.ErrNoKey)
-	assert.Empty(t, api.requests)
-	assert.Equal(t, posts.Spend{}, spend)
+	require.ErrorIs(t, err, cpanthropic.ErrNoKey)
+	require.ErrorIs(t, countErr, cpanthropic.ErrNoKey)
+	assert.Equal(t, posts.Spend{}, spend, "nothing sent, nothing asked")
 }
 
 func TestThePromptHoldsTheStoriesTheirFactsAndTheRecentPosts(t *testing.T) {

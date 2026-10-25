@@ -67,7 +67,7 @@ func TestChooseTakesTheEditorsKeyAndWhereItSaysWhoChose(t *testing.T) {
 	parsed, err := flags.Parse([]string{"choose", "-shortlist", "shortlist.json", "-summary", "summary.md"})
 
 	require.NoError(t, err)
-	assert.Equal(t, "sk-ant-key", parsed.Job.Editor.APIKey)
+	assert.Equal(t, "sk-ant-key", parsed.Job.Anthropic.APIKey)
 	assert.Equal(t, "summary.md", parsed.SummaryFile)
 }
 
@@ -79,7 +79,7 @@ func TestEditFlagsSayWhichShortlistHowManyClipsAndWhetherOnlyThePrompt(t *testin
 
 	require.NoError(t, err)
 	job := clips.Config{PerRun: 3}
-	job.Editor.APIKey = "sk-ant-key"
+	job.Anthropic.APIKey = "sk-ant-key"
 	assert.Equal(t, flags.Config{Command: flags.Edit, ShortlistFile: "shortlist.json", PromptOnly: true, Job: job}, parsed)
 
 	_, err = flags.Parse([]string{"edit"})
