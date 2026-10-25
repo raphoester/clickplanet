@@ -187,12 +187,13 @@ message GetTileHolderRequest {
 }
 
 message GetTileHolderResponse {
-  // Unset when the last change of the tile emptied it, or names no account.
+  // Unset when the last change of the tile emptied it.
   TileHolder holder = 1;
 }
 
 // The last take of the tile: a tile that shows another flag changed hands since.
 message TileHolder {
+  // Empty when the take names no account, as once its account is deleted.
   string account_id = 1;
   string country_id = 2;
   int64 taken_at_unix_ms = 3;

@@ -2,7 +2,7 @@
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {act, cleanup, renderHook, waitFor} from "@testing-library/react"
 import {StrictMode} from "react"
-import {LEAVE_GRACE_MS, useTileHolder} from "./useTileHolder.ts"
+import {DELETED_ACCOUNT, LEAVE_GRACE_MS, useTileHolder} from "./useTileHolder.ts"
 import {TileHolder} from "../../backends/backend.ts"
 import {NameColor, PlayerInfo, PlayerLine} from "../../backends/player.ts"
 import {Peek} from "../../domain/tilePeek.ts"
@@ -52,6 +52,18 @@ describe("useTileHolder", () => {
         await waitFor(() => expect(holders.tileHolder).toHaveBeenCalled())
         expect(players.playerInfo).not.toHaveBeenCalled()
         expect(result.current.holder).toBeUndefined()
+    })
+
+    it("shows a take whose account was deleted as a deleted account, and reads no card", async () => {
+        const players = playersOf(ANA_INFO)
+
+        const {result} = renderHook(() => useTileHolder(holdersOf({...ANAS_TILE, accountId: ""}), players, {peek: PEEK, id: 1}, undefined))
+
+        await waitFor(() => expect(result.current.holder).toEqual({
+            line: {accountId: "", name: DELETED_ACCOUNT, countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED, streak: 0},
+            playsFor: [], takenAt: 1_000, point: PEEK.point, touch: false, id: 1,
+        }))
+        expect(players.playerInfo).not.toHaveBeenCalled()
     })
 
     it("goes a moment after the pointer leaves the tile, unless the pointer is on the card", async () => {

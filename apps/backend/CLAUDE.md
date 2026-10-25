@@ -390,7 +390,8 @@ internal/planet/internal/
   every kind of event through both. It is what `player` shows as "plays for" and "plays against".
   **`ClickService/GetTileHolder(tile_id)` reads it there too** (`holder_query`): the last change `Taking.Replay`
   makes of the tile (a take, a tile a spread or an enclose took, a bomb's clear), as `{account_id, country_id,
-  taken_at_unix_ms}`. A clear, or a take with no account, is no holder. It needs no token. It knows no name: the
+  taken_at_unix_ms}`. A clear is no holder. **A take with no account still holds the tile**, with no `account_id`:
+  a deleted account's takes keep their flag and time, and the client shows it as a deleted account. It needs no token. It knows no name: the
   client names the account with `player.v1.PlayerService/GetPlayer`, as the admin page joins `TopPlayers`. A
   reassign, a paint or a revert writes no event, and the last second is not flushed yet, so the client shows the
   holder only while the tile still wears its `country_id`. A parity test runs every kind through both.

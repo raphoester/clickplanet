@@ -3,6 +3,8 @@ export function fakeAccountId(name: string): string {
     return `account-${name}`
 }
 
-export const FAKE_TAKERS = ["Ana", "kiran_07", "Mateus", "zoe_nz", "guest_91aa3d", "guest_3b7f02"].map(fakeAccountId)
+const DELETED = ""
+
+export const FAKE_TAKERS = [...["Ana", "kiran_07", "Mateus", "zoe_nz", "guest_91aa3d", "guest_3b7f02"].map(fakeAccountId), DELETED]
 
 export const FAKE_YOU = fakeAccountId("you")
