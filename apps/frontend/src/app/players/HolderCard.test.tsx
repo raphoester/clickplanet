@@ -24,6 +24,8 @@ const FOX_INFO: PlayerInfo = {
     playsFor: [{countryCode: "fr", tiles: 9_000}, {countryCode: "be", tiles: 300}], playsAgainst: [],
 }
 
+const pressed = (pointerType: string) => Object.assign(new Event("pointerdown", {bubbles: true}), {pointerType})
+
 const shown = (line: PlayerLine): HolderShown => ({line, takenAt: NOW - 3 * 60_000, point: {x: 300, y: 200}, touch: false, id: 1})
 
 const backendOf = (info: PlayerInfo | undefined) => ({playerInfo: vi.fn(async () => info)}) satisfies PlayerInfoBackend
@@ -86,5 +88,46 @@ describe("HolderCard", () => {
 
         expect(onHold.mock.calls).toEqual([[true], [false]])
         expect(onClose).toHaveBeenCalledTimes(1)
+    })
+
+    it("closes from its close button, and not on a press inside it", () => {
+        const onClose = vi.fn()
+        show(FOX, {onClose})
+
+        document.querySelector(".holder-card-name")!.dispatchEvent(pressed("touch"))
+        expect(onClose).not.toHaveBeenCalled()
+
+        fireEvent.click(screen.getByRole("button", {name: "Close"}))
+        expect(onClose).toHaveBeenCalledTimes(1)
+    })
+
+    it("closes on a tap anywhere else, and that tap does not reach what is under it", () => {
+        const onClose = vi.fn()
+        const globe = vi.fn()
+        const outside = document.body.appendChild(document.createElement("div"))
+        outside.addEventListener("click", globe)
+        show(FOX, {onClose})
+
+        outside.dispatchEvent(pressed("touch"))
+        fireEvent.click(outside)
+
+        expect(onClose).toHaveBeenCalledTimes(1)
+        expect(globe).not.toHaveBeenCalled()
+        outside.remove()
+    })
+
+    it("closes on a mouse press elsewhere and lets that click through, for a click that paints", () => {
+        const onClose = vi.fn()
+        const globe = vi.fn()
+        const outside = document.body.appendChild(document.createElement("div"))
+        outside.addEventListener("click", globe)
+        show(FOX, {onClose})
+
+        outside.dispatchEvent(pressed("mouse"))
+        fireEvent.click(outside)
+
+        expect(onClose).toHaveBeenCalledTimes(1)
+        expect(globe).toHaveBeenCalledTimes(1)
+        outside.remove()
     })
 })

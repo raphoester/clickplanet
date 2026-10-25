@@ -22,7 +22,12 @@
 .holder-card-who {
     display: flex;
     flex-direction: column;
+    flex: 1;
     min-width: 0;
+}
+
+.holder-card-close {
+    align-self: flex-start;
 }
 
 .holder-card-name {

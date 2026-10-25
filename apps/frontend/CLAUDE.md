@@ -1002,8 +1002,10 @@ tap never is, and the bomb's hold-to-drop is already one.
   (`domain/cardPlacement.ts`). A portal on the body, under the modals.
 - **It stays while the pointer is on the tile or on the card**, and goes
   `LEAVE_GRACE_MS` (300ms) after it left both, so a mouse can reach the button.
-  A press on the globe ends it at once, and so does Escape. On a phone it stays
-  after the finger lifts, until the next tap.
+  On a phone it stays after the finger lifts. Its close button, Escape and a
+  press anywhere outside it close it. **A tap that closes it does nothing else**
+  (`swallowNextClick`), so closing the card never takes a tile; a mouse click
+  goes through, so a painter's click still paints.
 - `TilePeek` (`domain/tilePeek.ts`) holds both gestures: `hover` starts a rest per
   tile, and a tile just clicked starts none; `begin`, `move` and `end` follow a
   finger, 12px of slack, a second finger cancelling it. The click that ends a

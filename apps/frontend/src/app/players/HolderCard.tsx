@@ -1,4 +1,4 @@
-import {CSSProperties, useLayoutEffect, useRef, useState} from "react"
+import {CSSProperties, useEffect, useLayoutEffect, useRef, useState} from "react"
 import {createPortal} from "react-dom"
 import {PlayerInfoBackend, PlayerLine} from "../../backends/player.ts"
 import {cardPlacement} from "../../domain/cardPlacement.ts"
@@ -7,6 +7,7 @@ import {agoOf, Point} from "../../domain/tilePeek.ts"
 import {authorStyle} from "../chat/authorStyle.ts"
 import AdminCrown from "../components/AdminCrown.tsx"
 import CountryFlag from "../components/CountryFlag.tsx"
+import {CloseIcon} from "../components/icons.tsx"
 import StreakFlame from "../components/StreakFlame.tsx"
 import {useEscape} from "../components/useDialog.ts"
 import {days} from "../days.ts"
@@ -18,6 +19,8 @@ import "./HolderCard.css"
 
 const NAME_MAX_LENGTH = 18
 const FLAGS_SHOWN = 3
+
+const CLICK_AFTER_TAP_MS = 600
 
 const count = new Intl.NumberFormat()
 const month = new Intl.DateTimeFormat(undefined, {month: "short", year: "numeric"})
@@ -47,6 +50,16 @@ export default function HolderCard({holder, backend, now = Date.now(), onHold, o
 
     useEscape(onClose)
 
+    useEffect(() => {
+        const outside = (event: PointerEvent) => {
+            if (card.current?.contains(event.target as Node)) return
+            if (event.pointerType !== "mouse") swallowNextClick()
+            onClose()
+        }
+        document.addEventListener("pointerdown", outside, true)
+        return () => document.removeEventListener("pointerdown", outside, true)
+    }, [onClose])
+
     const style = {
         ...authorStyle(line),
         left: `${place?.x ?? 0}px`,
@@ -71,6 +84,9 @@ export default function HolderCard({holder, backend, now = Date.now(), onHold, o
                     </span>
                     {line.wornTitle && <span className="holder-card-title">{line.wornTitle.name}</span>}
                 </div>
+                <button type="button" className="icon-button holder-card-close" aria-label="Close" onClick={onClose}>
+                    <CloseIcon/>
+                </button>
             </div>
 
             <p className="holder-card-take">
@@ -108,4 +124,14 @@ export default function HolderCard({holder, backend, now = Date.now(), onHold, o
             </button>}
         </section>,
         document.body)
+}
+
+// A tap that closes the card is not also a tap on what is under it: on the globe it would take a tile.
+function swallowNextClick() {
+    const swallow = (event: MouseEvent) => {
+        event.stopPropagation()
+        event.preventDefault()
+    }
+    window.addEventListener("click", swallow, {capture: true, once: true})
+    setTimeout(() => window.removeEventListener("click", swallow, {capture: true}), CLICK_AFTER_TAP_MS)
 }
