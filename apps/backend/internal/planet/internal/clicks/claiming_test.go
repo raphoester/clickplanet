@@ -70,6 +70,7 @@ func TestAClaimThatMakesALandmassWholeFortifiesIt(t *testing.T) {
 	require.NotNil(t, impact.Fortified)
 	assert.Equal(t, clicks.LandmassID(1), impact.Fortified.Landmass)
 	assert.Equal(t, "fr", impact.Fortified.Country)
+	assert.Equal(t, uint32(22), impact.Fortified.Tile, "the take that made it whole")
 	assert.Equal(t, 1, impact.Shields)
 	assert.Equal(t, []int{1, 1, 1}, []int{tiles.Shields(20), tiles.Shields(21), tiles.Shields(22)})
 }

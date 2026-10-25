@@ -103,6 +103,11 @@ func TestTheChallengeCookieLivesAsLongAsTheChallenge(t *testing.T) {
 	assert.Equal(t, 600, cookie.MaxAge)
 	assert.True(t, cookie.HttpOnly)
 	assert.True(t, cookie.Secure)
+
+	cleared, err := http.ParseSetCookie(signin.ExpiredChallengeCookie())
+	require.NoError(t, err)
+	assert.Equal(t, "cp_email", cleared.Name)
+	assert.Negative(t, cleared.MaxAge)
 }
 
 func TestTheLetterCarriesTheCodeInEveryPart(t *testing.T) {

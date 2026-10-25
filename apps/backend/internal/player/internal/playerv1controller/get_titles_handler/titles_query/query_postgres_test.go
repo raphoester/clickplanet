@@ -2,6 +2,7 @@ package titles_query_test
 
 import (
 	"context"
+	"slices"
 	"testing"
 	"time"
 
@@ -138,6 +139,22 @@ func (s *testSuite) TestEachStepSaysItsThresholdAndWhetherItIsEarned() {
 	s.Equal(uint64(100), conquest.GetSteps()[0].GetThreshold())
 	s.True(conquest.GetSteps()[0].GetEarned())
 	s.False(conquest.GetSteps()[1].GetEarned())
+}
+
+func (s *testSuite) TestTheBombsTracksFirstStepIsEarnedOnceBomberIsHeld() {
+	s.Require().NoError(s.players.Record(s.T().Context(), ada, players.BombAt(0)))
+	s.Require().NoError(s.titles.Grant(s.T().Context(), titles.Holdings{ada: {"bomber"}}, monday))
+
+	tracks := s.dashboard(cptime.NewFixedClock(monday)).GetTracks()
+
+	index := slices.IndexFunc(tracks, func(track *playerv1.Track) bool { return track.GetId() == "bombs" })
+	s.Require().NotEqual(-1, index)
+	bombs := tracks[index]
+	s.Require().Len(bombs.GetSteps(), 4)
+	s.Equal("bomber", bombs.GetSteps()[0].GetTitle().GetId())
+	s.Equal(uint64(1), bombs.GetSteps()[0].GetThreshold())
+	s.True(bombs.GetSteps()[0].GetEarned())
+	s.False(bombs.GetSteps()[1].GetEarned())
 }
 
 func (s *testSuite) TestAFailedReadIsAnError() {
