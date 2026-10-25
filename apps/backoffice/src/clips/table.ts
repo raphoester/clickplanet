@@ -42,9 +42,14 @@ type Document = {
     publishedAt?: string, ageHours?: number,
     answer?: {httpStatus?: number, status?: string, syncStatus?: string},
     analytics?: {syncStatus?: string, errorMessage?: string | null, analytics?: unknown} | null,
-    retention?: {httpStatus?: number, body?: unknown},
+    retention?: Retention,
+    retentionMissing?: string,
     metadata?: unknown,
 }
+
+// The curve the row holds, read at its snapshot or carried from an earlier one: readAt and ageHours say when it was
+// read and how old the video was then. A row from before 2026-10-25 has neither, and was read with its row.
+type Retention = {httpStatus?: number, body?: unknown, readAt?: string, ageHours?: number}
 
 function cellsOf(text: string): Cells {
     const row = JSON.parse(text) as Document
@@ -65,13 +70,17 @@ function cellsOf(text: string): Cells {
     }
     flatten(cells, "meta", row.metadata)
     if (row.retention !== undefined) retentionCells(cells, row.retention)
+    // Why the curve due at this snapshot was not read: the rest of the row is whole.
+    if (row.retentionMissing) cells.set("youtube.retentionMissing", row.retentionMissing)
     return cells
 }
 
 type Point = {relativeRetentionPerformance?: number}
 
-function retentionCells(cells: Cells, retention: {httpStatus?: number, body?: unknown}) {
+function retentionCells(cells: Cells, retention: Retention) {
     cells.set("youtube.retentionStatus", textOf(retention.httpStatus))
+    if (retention.readAt) cells.set("youtube.retentionReadAt", retention.readAt)
+    if (retention.ageHours !== undefined) cells.set("youtube.retentionAgeHours", textOf(retention.ageHours))
     const body = retention.body
     if (body === null || typeof body !== "object" || Array.isArray(body)) return
 

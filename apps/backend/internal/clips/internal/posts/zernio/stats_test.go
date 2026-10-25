@@ -185,3 +185,35 @@ func TestARetentionTheServiceCouldNotAnswerIsBusy(t *testing.T) {
 	var waiting *posts.BusyError
 	require.ErrorAs(t, err, &waiting)
 }
+
+func TestARetentionRefusedForTheDailyQuotaIsThatErrorAndNotBusy(t *testing.T) {
+	quota := `{"error":"YouTube Analytics daily quota exhausted. Analytics requests succeed again after midnight Pacific Time.","code":"rate_limited"}`
+	for name, headers := range map[string]map[string]string{
+		"with no Retry-After":         nil,
+		"with a Retry-After to night": {"Retry-After": "30000"},
+	} {
+		service, _ := statsFake{"GET /v1/analytics/youtube/video-retention": {status: http.StatusTooManyRequests, body: quota, headers: headers}}.serve(t)
+
+		_, err := service.Retention(t.Context(), "yt-1", "abc", time.Now())
+
+		require.ErrorIs(t, err, stats.ErrRetentionQuota, name)
+		require.ErrorContains(t, err, "daily quota exhausted", name)
+		var waiting *posts.BusyError
+		assert.NotErrorAs(t, err, &waiting, name)
+	}
+}
+
+func TestARetentionRateLimitedForAMomentIsBusy(t *testing.T) {
+	for name, fake := range map[string]answer{
+		"no quota named":          {status: http.StatusTooManyRequests, body: `{"error":"slow down"}`},
+		"a quota back in a while": {status: http.StatusTooManyRequests, body: `{"error":"quota per minute"}`, headers: map[string]string{"Retry-After": "60"}},
+	} {
+		service, _ := statsFake{"GET /v1/analytics/youtube/video-retention": fake}.serve(t)
+
+		_, err := service.Retention(t.Context(), "yt-1", "abc", time.Now())
+
+		var waiting *posts.BusyError
+		require.ErrorAs(t, err, &waiting, name)
+		assert.NotErrorIs(t, err, stats.ErrRetentionQuota, name)
+	}
+}

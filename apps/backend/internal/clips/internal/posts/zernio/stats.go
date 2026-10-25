@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
@@ -171,6 +173,28 @@ func answerOf(status int, body []byte) (stats.Answer, error) {
 	return answer, nil
 }
 
+// Whether a 429 says YouTube's daily analytics quota is spent, and in its words: "YouTube Analytics daily quota
+// exhausted. Analytics requests succeed again after midnight Pacific Time." (2026-10-25). Not a busy service: asking
+// again before midnight Pacific spends nothing and gets nothing. A 429 that names no quota, or comes back within the
+// hour, stays busy and is tried again.
+func quotaSpent(res *http.Response, body []byte) string {
+	if res == nil || res.StatusCode != http.StatusTooManyRequests {
+		return ""
+	}
+	var said struct {
+		Error string `json:"error"`
+		Code  string `json:"code"`
+	}
+	_ = json.Unmarshal(body, &said)
+	if !strings.Contains(strings.ToLower(said.Error+" "+said.Code), "quota") {
+		return ""
+	}
+	if seconds, err := strconv.Atoi(res.Header.Get("Retry-After")); err == nil && time.Duration(seconds)*time.Second <= time.Hour {
+		return ""
+	}
+	return said.Error
+}
+
 // Up to the day asked, which YouTube may still revise for 3 days: the newest curve it has. Any answer but a busy one is
 // kept as it came, a 412 that asks for YouTube to be connected again too.
 func (s *Service) Retention(ctx context.Context, account, video string, asOf time.Time) (stats.Retention, error) {
@@ -182,6 +206,9 @@ func (s *Service) Retention(ctx context.Context, account, video string, asOf tim
 	}
 
 	status := answer.StatusCode()
+	if spent := quotaSpent(answer.HTTPResponse, answer.Body); spent != "" {
+		return stats.Retention{}, fmt.Errorf("%w: zernio answered 429 to the retention of the video %s: %s", stats.ErrRetentionQuota, video, spent)
+	}
 	if status == http.StatusTooManyRequests || status/100 == 5 {
 		return stats.Retention{}, refusal(answer.HTTPResponse, answer.Body, "the retention of the video "+video)
 	}

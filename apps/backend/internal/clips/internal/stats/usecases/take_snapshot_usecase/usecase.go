@@ -25,6 +25,8 @@ type Source interface {
 type Store interface {
 	// The report says what the rows are of: when, and what was read.
 	Keep(ctx context.Context, report stats.Report, rows []stats.Row) error
+	// The rows of the last snapshot kept, none before the first: the curves they hold are carried until the next is due.
+	Last(ctx context.Context) ([]stats.Row, error)
 }
 
 type Executor interface {
@@ -68,6 +70,12 @@ func (u *UseCase) Execute(ctx context.Context) (stats.Report, error) {
 		return stats.Report{}, fmt.Errorf("failed to read the posts of the job: %w", err)
 	}
 
+	last, err := u.store.Last(ctx)
+	if err != nil {
+		return stats.Report{}, fmt.Errorf("failed to read the last snapshot: %w", err)
+	}
+	curves := &curves{UseCase: u, held: stats.HeldRetentions(last), takenAt: takenAt}
+
 	var rows []stats.Row
 	var unread []stats.Unread
 	notOut := 0
@@ -76,7 +84,7 @@ func (u *UseCase) Execute(ctx context.Context) (stats.Report, error) {
 			notOut++
 			continue
 		}
-		postRows, failure, err := u.snapshot(ctx, post, takenAt)
+		postRows, failure, err := u.snapshot(ctx, post, curves, takenAt)
 		if err != nil {
 			return stats.Report{}, err
 		}
@@ -88,6 +96,7 @@ func (u *UseCase) Execute(ctx context.Context) (stats.Report, error) {
 
 	report := stats.ReportOf(accounts, rows)
 	report.TakenAt, report.Since, report.Posts, report.NotOut, report.Unread = takenAt, since, len(all), notOut, unread
+	report.RetentionAsked = curves.asked
 
 	if err := u.store.Keep(ctx, report, rows); err != nil {
 		return stats.Report{}, fmt.Errorf("failed to keep the snapshot: %w", err)
@@ -95,8 +104,9 @@ func (u *UseCase) Execute(ctx context.Context) (stats.Report, error) {
 	return report, nil
 }
 
-// The rows of one post, and what of it could not be read. The error is for the run: the add-on is off, or it was cancelled.
-func (u *UseCase) snapshot(ctx context.Context, post stats.Post, takenAt time.Time) ([]stats.Row, string, error) {
+// The rows of one post, and what of it could not be read. The error is for the run: the add-on is off, or it was
+// cancelled. A curve that could not be read loses nothing else: the row says why it is missing.
+func (u *UseCase) snapshot(ctx context.Context, post stats.Post, curves *curves, takenAt time.Time) ([]stats.Row, string, error) {
 	var answer stats.Answer
 	err := u.retried(ctx, func() (err error) {
 		answer, err = u.source.Analytics(ctx, post.ID)
@@ -109,32 +119,56 @@ func (u *UseCase) snapshot(ctx context.Context, post stats.Post, takenAt time.Ti
 		return nil, err.Error(), nil
 	}
 
-	var failures []error
-	retentions := map[string]*stats.Retention{}
+	retentions := map[string]stats.RetentionState{}
 	for _, target := range post.Targets {
 		if target.Platform != string(posts.YouTube) || !target.Out() || target.PlatformPostID == "" {
 			continue
 		}
-		var retention stats.Retention
-		err := u.retried(ctx, func() (err error) {
-			retention, err = u.source.Retention(ctx, target.AccountID, target.PlatformPostID, takenAt)
-			return err //nolint:wrapcheck // a pure delegation: the service already named what failed.
-		})
+		state, err := curves.of(ctx, target)
 		if err != nil {
-			if ctx.Err() != nil {
-				return nil, "", ctx.Err() //nolint:wrapcheck // the context's own error says why the run ended.
-			}
-			failures = append(failures, fmt.Errorf("the retention of %s: %w", target.PlatformPostID, err))
-			continue
+			return nil, "", err
 		}
-		retentions[target.PlatformPostID] = &retention
+		retentions[target.PlatformPostID] = state
+	}
+	return stats.RowsOf(post, answer, retentions, takenAt), "", nil
+}
+
+// The curves of one run: those the last snapshot held, and whether YouTube's quota is spent, after which none is asked.
+type curves struct {
+	*UseCase
+	held    map[string]*stats.Retention
+	takenAt time.Time
+	asked   int
+	spent   bool
+}
+
+// The curve a video's row holds: read when one is due, else carried. The error is the context's alone.
+func (c *curves) of(ctx context.Context, target stats.Target) (stats.RetentionState, error) {
+	held := c.held[target.PlatformPostID]
+	if !stats.RetentionDue(c.takenAt.Sub(target.PublishedAt), held) {
+		return stats.RetentionState{Retention: held}, nil
+	}
+	if c.spent {
+		return stats.RetentionState{Retention: held, Missing: stats.QuotaSpent}, nil
 	}
 
-	rows := stats.RowsOf(post, answer, retentions, takenAt)
-	if len(failures) > 0 {
-		return rows, errors.Join(failures...).Error(), nil
+	var retention stats.Retention
+	err := c.retried(ctx, func() (err error) {
+		c.asked++
+		retention, err = c.source.Retention(ctx, target.AccountID, target.PlatformPostID, c.takenAt)
+		return err //nolint:wrapcheck // a pure delegation: the service already named what failed.
+	})
+	switch {
+	case err == nil:
+		return stats.RetentionAfter(held, retention.ReadOn(target, c.takenAt)), nil
+	case ctx.Err() != nil:
+		return stats.RetentionState{}, ctx.Err() //nolint:wrapcheck // the context's own error says why the run ended.
+	case errors.Is(err, stats.ErrRetentionQuota):
+		c.spent = true
+		return stats.RetentionState{Retention: held, Missing: stats.QuotaSpent}, nil
+	default:
+		return stats.RetentionState{Retention: held, Missing: err.Error()}, nil
 	}
-	return rows, "", nil
 }
 
 // Tries again while the service is busy, as the sender does.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -18,7 +19,8 @@ import (
 
 var (
 	now = time.Date(2026, 10, 24, 5, 41, 0, 0, time.UTC)
-	out = now.Add(-30 * time.Hour)
+	// Past 2 days, so a curve is due.
+	out = now.Add(-50 * time.Hour)
 )
 
 type source struct {
@@ -65,10 +67,13 @@ func (s *source) Retention(_ context.Context, account, video string, asOf time.T
 }
 
 type store struct {
+	last   []stats.Row
 	kept   []stats.Row
 	report stats.Report
 	calls  int
 }
+
+func (s *store) Last(context.Context) ([]stats.Row, error) { return s.last, nil }
 
 func (s *store) Keep(_ context.Context, report stats.Report, rows []stats.Row) error {
 	s.kept, s.report = rows, report
@@ -89,10 +94,16 @@ func postOn(id stats.PostID, published bool) stats.Post {
 
 func snapshot(t *testing.T, from *source, since time.Time) (stats.Report, *store, *posts.RecordedPause, error) {
 	t.Helper()
+	return snapshotAfter(t, from, since, nil)
+}
+
+// last: the rows of the snapshot kept before.
+func snapshotAfter(t *testing.T, from *source, since time.Time, last []stats.Row) (stats.Report, *store, *posts.RecordedPause, error) {
+	t.Helper()
 
 	clock := cptime.NewFixedClock(now)
 	pause := posts.NewRecordedPause(clock)
-	kept := &store{}
+	kept := &store{last: last}
 	report, err := take_snapshot_usecase.New(from, kept, clock, since, posts.Backoff{time.Minute, 5 * time.Minute}, pause).Execute(t.Context())
 	return report, kept, pause, err
 }
@@ -161,7 +172,7 @@ func TestAPostThatCannotBeReadIsReportedAndTheOthersAreStillKept(t *testing.T) {
 	assert.False(t, report.Complete())
 }
 
-func TestAPostWhoseCurveCannotBeReadIsKeptWithoutItAndReported(t *testing.T) {
+func TestAPostWhoseCurveCannotBeReadKeepsItsRowWithWhyTheCurveIsMissing(t *testing.T) {
 	from := &source{
 		accounts:   stats.Accounts{AnalyticsAccess: true},
 		posts:      []stats.Post{postOn("post-1", true)},
@@ -172,9 +183,83 @@ func TestAPostWhoseCurveCannotBeReadIsKeptWithoutItAndReported(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Len(t, kept.kept, 2)
+	assert.Equal(t, 200, kept.kept[1].Answer.HTTPStatus, "the rest of the row is kept")
+	assert.InDelta(t, 50, kept.kept[1].AgeHours, 0.01)
 	assert.Nil(t, kept.kept[1].Retention)
-	require.Len(t, report.Unread, 1)
-	assert.Equal(t, "the retention of abc-post-1: no", report.Unread[0].Reason)
+	assert.Equal(t, "no", kept.kept[1].RetentionMissing)
+	assert.True(t, report.Complete(), "a curve missing loses no post")
+	assert.Equal(t, map[string]int{"no": 1}, report.RetentionMissing)
+}
+
+func TestOnceYouTubesQuotaIsSpentNoCurveIsAskedAgain(t *testing.T) {
+	from := &source{
+		accounts:   stats.Accounts{AnalyticsAccess: true},
+		posts:      []stats.Post{postOn("post-1", true), postOn("post-2", true), postOn("post-3", true)},
+		retentions: []error{nil, fmt.Errorf("%w: daily quota exhausted", stats.ErrRetentionQuota)},
+	}
+
+	report, kept, pause, err := snapshot(t, from, time.Time{})
+
+	require.NoError(t, err)
+	assert.Len(t, from.curvesOf, 2, "the third video is not asked")
+	assert.Empty(t, pause.Waited, "a quota spent is not waited out")
+	assert.Equal(t, 2, report.RetentionAsked)
+	require.Len(t, kept.kept, 6)
+	assert.True(t, kept.kept[1].Retention.Curve())
+	assert.Equal(t, stats.QuotaSpent, kept.kept[3].RetentionMissing)
+	assert.Equal(t, stats.QuotaSpent, kept.kept[5].RetentionMissing)
+	assert.Equal(t, 200, kept.kept[5].Answer.HTTPStatus)
+	assert.Equal(t, map[string]int{stats.QuotaSpent: 2}, report.RetentionMissing)
+	assert.True(t, report.Complete())
+}
+
+func TestAVideoUnderTwoDaysOldIsNotAskedForItsCurve(t *testing.T) {
+	young := postOn("post-1", true)
+	for i := range young.Targets {
+		young.Targets[i].PublishedAt = now.Add(-30 * time.Hour)
+	}
+	from := &source{accounts: stats.Accounts{AnalyticsAccess: true}, posts: []stats.Post{young}}
+
+	report, kept, _, err := snapshot(t, from, time.Time{})
+
+	require.NoError(t, err)
+	assert.Empty(t, from.curvesOf)
+	assert.Nil(t, kept.kept[1].Retention)
+	assert.Empty(t, kept.kept[1].RetentionMissing, "a curve not due is not missing")
+	assert.Zero(t, report.RetentionAsked)
+}
+
+func TestACurveReadPastTheAgeItWasDueAtIsCarriedAndNotAskedAgain(t *testing.T) {
+	read := now.Add(-time.Hour)
+	last := []stats.Row{{
+		TakenAt: read, Platform: "youtube", PlatformPostID: "abc-post-1", AgeHours: 49,
+		Retention: &stats.Retention{HTTPStatus: 200, Body: json.RawMessage(`{"retentionCurve":[{}]}`)},
+	}}
+	from := &source{accounts: stats.Accounts{AnalyticsAccess: true}, posts: []stats.Post{postOn("post-1", true)}}
+
+	report, kept, _, err := snapshotAfter(t, from, time.Time{}, last)
+
+	require.NoError(t, err)
+	assert.Empty(t, from.curvesOf)
+	require.True(t, kept.kept[1].Retention.Curve(), "the curve is carried")
+	assert.Equal(t, read, kept.kept[1].Retention.ReadAt, "and says when it was read")
+	assert.False(t, kept.kept[1].RetentionRead())
+	assert.Equal(t, 1, report.Curves)
+}
+
+func TestACurveTheLastSnapshotLacksIsAskedAgain(t *testing.T) {
+	last := []stats.Row{{
+		TakenAt: now.Add(-24 * time.Hour), Platform: "youtube", PlatformPostID: "abc-post-1", AgeHours: 26,
+		RetentionMissing: stats.QuotaSpent,
+	}}
+	from := &source{accounts: stats.Accounts{AnalyticsAccess: true}, posts: []stats.Post{postOn("post-1", true)}}
+
+	_, kept, _, err := snapshotAfter(t, from, time.Time{}, last)
+
+	require.NoError(t, err)
+	assert.Len(t, from.curvesOf, 1)
+	assert.True(t, kept.kept[1].RetentionRead())
+	assert.InDelta(t, 50, kept.kept[1].Retention.AgeHours, 0.01)
 }
 
 func TestTheAddOnTurnedOffMidRunFailsTheRunAndKeepsNothing(t *testing.T) {

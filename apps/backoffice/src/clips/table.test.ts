@@ -70,6 +70,22 @@ describe("tableOf", () => {
         expect(second["youtube.retentionCurve"]).toContain(`"audienceWatchRatio":1.25`)
     })
 
+    it("says when a curve carried was read, and why the one due is missing", () => {
+        const carried = JSON.stringify({
+            ...JSON.parse(youtube),
+            retention: {...JSON.parse(youtube).retention, readAt: "2026-10-23T08:23:00Z", ageHours: 49.5},
+            retentionMissing: "youtube's daily analytics quota is spent",
+        })
+
+        const row = cellsOf(tableOf([carried]), 0)
+
+        expect(row["youtube.retentionReadAt"]).toBe("2026-10-23T08:23:00Z")
+        expect(row["youtube.retentionAgeHours"]).toBe("49.5")
+        expect(row["youtube.retentionMissing"]).toBe("youtube's daily analytics quota is spent")
+        expect(row["youtube.points"]).toBe("2")
+        expect(row.httpStatus).toBe("202")
+    })
+
     it("is its header alone with no row", () => {
         expect(tableOf([])).toEqual({header: FIXED_COLUMNS, records: []})
     })

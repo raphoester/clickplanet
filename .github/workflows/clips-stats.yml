@@ -4,9 +4,13 @@ name: clips stats
 # the backoffice: the metrics TikTok gives a business account come 24 to 48 hours after a post and only for posts
 # active in the last 7 days, so a day missed is lost for good. Never in this repository, its artifacts or its logs:
 # they are public, and some of the numbers are not.
+#
+# At 08:23 UTC: just after midnight Pacific, 01:23 under PDT and 00:23 under PST (from 2026-11-01), when YouTube's
+# analytics quota is fresh. It is a Pacific day's: at 05:41 UTC, 22:41 Pacific, the run of 2026-10-25 fell in the
+# same Pacific day as the backfill of the afternoon, and found it spent. A run by hand spends the same day's quota.
 on:
   schedule:
-    - cron: '41 5 * * *'
+    - cron: '23 8 * * *'
   workflow_dispatch:
     inputs:
       since:
@@ -33,7 +37,8 @@ jobs:
           go-version-file: apps/backend/go.mod
           cache-dependency-path: apps/backend/go.sum
 
-      # It keeps what it read even when a post could not be read, then fails.
+      # It keeps what it read even when a post could not be read, then fails. A retention curve missing fails nothing:
+      # the row is kept without it, the log warns, and the next run asks for it again.
       - name: take the snapshot
         working-directory: apps/backend
         env:
