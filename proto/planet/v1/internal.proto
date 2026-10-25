@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package planet.v1;
 
+import "planet/v1/planet.proto";
+
 service InternalService {
   rpc GetTakesByCountry(GetTakesByCountryRequest) returns (GetTakesByCountryResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
@@ -10,6 +12,12 @@ service InternalService {
   rpc GetTerritories(GetTerritoriesRequest) returns (GetTerritoriesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+
+  rpc GetGrounds(GetGroundsRequest) returns (GetGroundsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  rpc GrantCharge(GrantChargeRequest) returns (GrantChargeResponse);
 }
 
 message GetTakesByCountryRequest {
@@ -36,4 +44,26 @@ message GetTerritoriesResponse {
 message Territory {
   string country_id = 1;
   uint32 tiles = 2;
+}
+
+message GetGroundsRequest {}
+
+message GetGroundsResponse {
+  repeated Ground grounds = 1;
+}
+
+message Ground {
+  string country_id = 1;
+  uint32 tiles = 2;
+}
+
+message GrantChargeRequest {
+  string account_id = 1;
+  BonusKind kind = 2;
+  uint32 amount = 3;
+}
+
+// 0 when the account already holds as much of the kind as it may.
+message GrantChargeResponse {
+  uint32 kept = 1;
 }

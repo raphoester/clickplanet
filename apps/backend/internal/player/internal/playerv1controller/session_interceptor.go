@@ -35,6 +35,8 @@ func NewSessionInterceptor(verifier cpconnect.SessionVerifier, clock cptime.Cloc
 		cpconnect.Identified(playerv1connect.PlayerServiceGetTitlesProcedure),
 		cpconnect.Attested(playerv1connect.PlayerServiceWearTitleProcedure),
 		cpconnect.Identified(playerv1connect.PlayerServiceGetFrontsProcedure),
+		cpconnect.Identified(playerv1connect.PlayerServiceGetMissionsProcedure),
+		cpconnect.Attested(playerv1connect.PlayerServiceCollectMissionProcedure),
 	)
 }
 

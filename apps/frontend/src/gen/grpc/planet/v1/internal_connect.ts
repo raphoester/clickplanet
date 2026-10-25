@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetTakesByCountryRequest, GetTakesByCountryResponse, GetTerritoriesRequest, GetTerritoriesResponse } from "./internal_pb.js";
+import { GetGroundsRequest, GetGroundsResponse, GetTakesByCountryRequest, GetTakesByCountryResponse, GetTerritoriesRequest, GetTerritoriesResponse, GrantChargeRequest, GrantChargeResponse } from "./internal_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -31,6 +31,25 @@ export const InternalService = {
       O: GetTerritoriesResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * @generated from rpc planet.v1.InternalService.GetGrounds
+     */
+    getGrounds: {
+      name: "GetGrounds",
+      I: GetGroundsRequest,
+      O: GetGroundsResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * @generated from rpc planet.v1.InternalService.GrantCharge
+     */
+    grantCharge: {
+      name: "GrantCharge",
+      I: GrantChargeRequest,
+      O: GrantChargeResponse,
+      kind: MethodKind.Unary,
     },
   }
 } as const;

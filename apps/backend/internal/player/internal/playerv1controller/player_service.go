@@ -4,9 +4,11 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/admin_get_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/announce_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/collect_mission_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_author_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_authors_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_fronts_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_missions_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_profile_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_roster_handler"
@@ -34,6 +36,8 @@ type PlayerService struct {
 	get_titles_handler.GetTitlesHandler
 	wear_title_handler.WearTitleHandler
 	get_fronts_handler.GetFrontsHandler
+	get_missions_handler.GetMissionsHandler
+	collect_mission_handler.CollectMissionHandler
 }
 
 var _ playerv1connect.PlayerServiceHandler = PlayerService{}

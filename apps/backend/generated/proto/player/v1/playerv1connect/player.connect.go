@@ -59,6 +59,12 @@ const (
 	PlayerServiceWearTitleProcedure = "/player.v1.PlayerService/WearTitle"
 	// PlayerServiceGetFrontsProcedure is the fully-qualified name of the PlayerService's GetFronts RPC.
 	PlayerServiceGetFrontsProcedure = "/player.v1.PlayerService/GetFronts"
+	// PlayerServiceGetMissionsProcedure is the fully-qualified name of the PlayerService's GetMissions
+	// RPC.
+	PlayerServiceGetMissionsProcedure = "/player.v1.PlayerService/GetMissions"
+	// PlayerServiceCollectMissionProcedure is the fully-qualified name of the PlayerService's
+	// CollectMission RPC.
+	PlayerServiceCollectMissionProcedure = "/player.v1.PlayerService/CollectMission"
 )
 
 // PlayerServiceClient is a client for the player.v1.PlayerService service.
@@ -75,6 +81,9 @@ type PlayerServiceClient interface {
 	GetTitles(context.Context, *connect.Request[v1.GetTitlesRequest]) (*connect.Response[v1.GetTitlesResponse], error)
 	WearTitle(context.Context, *connect.Request[v1.WearTitleRequest]) (*connect.Response[v1.WearTitleResponse], error)
 	GetFronts(context.Context, *connect.Request[v1.GetFrontsRequest]) (*connect.Response[v1.GetFrontsResponse], error)
+	GetMissions(context.Context, *connect.Request[v1.GetMissionsRequest]) (*connect.Response[v1.GetMissionsResponse], error)
+	// A guest is refused: it signs in to collect what it did.
+	CollectMission(context.Context, *connect.Request[v1.CollectMissionRequest]) (*connect.Response[v1.CollectMissionResponse], error)
 }
 
 // NewPlayerServiceClient constructs a client for the player.v1.PlayerService service. By default,
@@ -162,6 +171,18 @@ func NewPlayerServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(playerServiceMethods.ByName("GetFronts")),
 			connect.WithClientOptions(opts...),
 		),
+		getMissions: connect.NewClient[v1.GetMissionsRequest, v1.GetMissionsResponse](
+			httpClient,
+			baseURL+PlayerServiceGetMissionsProcedure,
+			connect.WithSchema(playerServiceMethods.ByName("GetMissions")),
+			connect.WithClientOptions(opts...),
+		),
+		collectMission: connect.NewClient[v1.CollectMissionRequest, v1.CollectMissionResponse](
+			httpClient,
+			baseURL+PlayerServiceCollectMissionProcedure,
+			connect.WithSchema(playerServiceMethods.ByName("CollectMission")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -179,6 +200,8 @@ type playerServiceClient struct {
 	getTitles       *connect.Client[v1.GetTitlesRequest, v1.GetTitlesResponse]
 	wearTitle       *connect.Client[v1.WearTitleRequest, v1.WearTitleResponse]
 	getFronts       *connect.Client[v1.GetFrontsRequest, v1.GetFrontsResponse]
+	getMissions     *connect.Client[v1.GetMissionsRequest, v1.GetMissionsResponse]
+	collectMission  *connect.Client[v1.CollectMissionRequest, v1.CollectMissionResponse]
 }
 
 // GetProfile calls player.v1.PlayerService.GetProfile.
@@ -241,6 +264,16 @@ func (c *playerServiceClient) GetFronts(ctx context.Context, req *connect.Reques
 	return c.getFronts.CallUnary(ctx, req)
 }
 
+// GetMissions calls player.v1.PlayerService.GetMissions.
+func (c *playerServiceClient) GetMissions(ctx context.Context, req *connect.Request[v1.GetMissionsRequest]) (*connect.Response[v1.GetMissionsResponse], error) {
+	return c.getMissions.CallUnary(ctx, req)
+}
+
+// CollectMission calls player.v1.PlayerService.CollectMission.
+func (c *playerServiceClient) CollectMission(ctx context.Context, req *connect.Request[v1.CollectMissionRequest]) (*connect.Response[v1.CollectMissionResponse], error) {
+	return c.collectMission.CallUnary(ctx, req)
+}
+
 // PlayerServiceHandler is an implementation of the player.v1.PlayerService service.
 type PlayerServiceHandler interface {
 	GetProfile(context.Context, *connect.Request[v1.GetProfileRequest]) (*connect.Response[v1.GetProfileResponse], error)
@@ -255,6 +288,9 @@ type PlayerServiceHandler interface {
 	GetTitles(context.Context, *connect.Request[v1.GetTitlesRequest]) (*connect.Response[v1.GetTitlesResponse], error)
 	WearTitle(context.Context, *connect.Request[v1.WearTitleRequest]) (*connect.Response[v1.WearTitleResponse], error)
 	GetFronts(context.Context, *connect.Request[v1.GetFrontsRequest]) (*connect.Response[v1.GetFrontsResponse], error)
+	GetMissions(context.Context, *connect.Request[v1.GetMissionsRequest]) (*connect.Response[v1.GetMissionsResponse], error)
+	// A guest is refused: it signs in to collect what it did.
+	CollectMission(context.Context, *connect.Request[v1.CollectMissionRequest]) (*connect.Response[v1.CollectMissionResponse], error)
 }
 
 // NewPlayerServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -338,6 +374,18 @@ func NewPlayerServiceHandler(svc PlayerServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(playerServiceMethods.ByName("GetFronts")),
 		connect.WithHandlerOptions(opts...),
 	)
+	playerServiceGetMissionsHandler := connect.NewUnaryHandler(
+		PlayerServiceGetMissionsProcedure,
+		svc.GetMissions,
+		connect.WithSchema(playerServiceMethods.ByName("GetMissions")),
+		connect.WithHandlerOptions(opts...),
+	)
+	playerServiceCollectMissionHandler := connect.NewUnaryHandler(
+		PlayerServiceCollectMissionProcedure,
+		svc.CollectMission,
+		connect.WithSchema(playerServiceMethods.ByName("CollectMission")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/player.v1.PlayerService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case PlayerServiceGetProfileProcedure:
@@ -364,6 +412,10 @@ func NewPlayerServiceHandler(svc PlayerServiceHandler, opts ...connect.HandlerOp
 			playerServiceWearTitleHandler.ServeHTTP(w, r)
 		case PlayerServiceGetFrontsProcedure:
 			playerServiceGetFrontsHandler.ServeHTTP(w, r)
+		case PlayerServiceGetMissionsProcedure:
+			playerServiceGetMissionsHandler.ServeHTTP(w, r)
+		case PlayerServiceCollectMissionProcedure:
+			playerServiceCollectMissionHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -419,4 +471,12 @@ func (UnimplementedPlayerServiceHandler) WearTitle(context.Context, *connect.Req
 
 func (UnimplementedPlayerServiceHandler) GetFronts(context.Context, *connect.Request[v1.GetFrontsRequest]) (*connect.Response[v1.GetFrontsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.PlayerService.GetFronts is not implemented"))
+}
+
+func (UnimplementedPlayerServiceHandler) GetMissions(context.Context, *connect.Request[v1.GetMissionsRequest]) (*connect.Response[v1.GetMissionsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.PlayerService.GetMissions is not implemented"))
+}
+
+func (UnimplementedPlayerServiceHandler) CollectMission(context.Context, *connect.Request[v1.CollectMissionRequest]) (*connect.Response[v1.CollectMissionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.PlayerService.CollectMission is not implemented"))
 }

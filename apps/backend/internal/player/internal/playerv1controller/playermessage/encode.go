@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"time"
 
+	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/missions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
@@ -81,4 +83,41 @@ func RosterEntries(roster []presence.Entry) []*playerv1.RosterEntry {
 		entries = append(entries, RosterEntry(entry))
 	}
 	return entries
+}
+
+func Mission(mission missions.MissionSnapshot, sheet missions.SheetSnapshot) *playerv1.Mission {
+	return &playerv1.Mission{
+		Slot:            uint32(mission.Slot),
+		Kind:            MissionKind(mission.Kind),
+		TargetCountryId: mission.Target,
+		Goal:            mission.Goal,
+		Progress:        sheet.Taken[mission.Slot],
+		Collected:       sheet.Collected.Contains(mission.Slot),
+		RewardKind:      RewardKind(mission.Reward.Kind),
+		RewardAmount:    mission.Reward.Amount,
+	}
+}
+
+func MissionKind(kind missions.Kind) playerv1.MissionKind {
+	switch kind {
+	case missions.KindTakeFor:
+		return playerv1.MissionKind_MISSION_KIND_TAKE_FOR
+	case missions.KindTakeFrom:
+		return playerv1.MissionKind_MISSION_KIND_TAKE_FROM
+	case missions.KindTakeIn:
+		return playerv1.MissionKind_MISSION_KIND_TAKE_IN
+	}
+	return playerv1.MissionKind_MISSION_KIND_UNSPECIFIED
+}
+
+func RewardKind(kind missions.RewardKind) planetv1.BonusKind {
+	switch kind {
+	case missions.RewardShields:
+		return planetv1.BonusKind_BONUS_KIND_SHIELDS
+	case missions.RewardSpreadClicks:
+		return planetv1.BonusKind_BONUS_KIND_SPREAD_CLICKS
+	case missions.RewardBomb:
+		return planetv1.BonusKind_BONUS_KIND_BOMB
+	}
+	return planetv1.BonusKind_BONUS_KIND_UNSPECIFIED
 }

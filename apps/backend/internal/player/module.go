@@ -14,6 +14,14 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/migrations"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/missions"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/missions/postgres_mission_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/missions/rpc_planet_charges"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/missions/rpc_planet_world"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/missions/usecases/collect_mission_usecase"
+	forget_missions_usecase "github.com/raphoester/clickplanet.lol-backend/internal/player/internal/missions/usecases/forget_account_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/missions/usecases/get_missions_usecase"
+	record_mission_take_usecase "github.com/raphoester/clickplanet.lol-backend/internal/player/internal/missions/usecases/record_take_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/postgres_player_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/random_code_generator"
@@ -34,10 +42,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/admin_get_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/admin_get_player_handler/admin_player_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/announce_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/collect_mission_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_author_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_authors_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_authors_handler/authors_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_fronts_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_missions_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_player_handler/player_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_profile_handler"
@@ -69,6 +79,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/account_deleted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/message_sent_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/mission_take_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/signed_in_account_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/signed_in_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/signed_out_subscriber"
@@ -125,7 +136,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("the player module asks auth about accounts and planet about takes: %w", err)
 	}
 	auth := authv1connect.NewInternalServiceClient(internal, baseURL)
-	fronts := rpc_planet_fronts.New(planetv1connect.NewInternalServiceClient(internal, baseURL))
+	planet := planetv1connect.NewInternalServiceClient(internal, baseURL)
+	fronts := rpc_planet_fronts.New(planet)
 
 	tagSalt := config.TagSalt
 	if tagSalt == "" {
@@ -159,6 +171,10 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	authors := get_author_usecase.New(store, players.NewGuestCodes(store, random_code_generator.Generator{}), wardrobe, clock)
 
+	calendar := missions.NewCalendar(config.Missions)
+	missionStore := postgres_mission_store.New(db)
+	briefing := missions.NewBriefing(missionStore, rpc_planet_world.New(planet))
+
 	visits := inmemory_visit_storage.New(clock)
 	generatedNames := players.NewGeneratedNames(store, random_name_generator.Generator{})
 	props.Runners.Add(visits)
@@ -170,6 +186,20 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	if err != nil {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to planet.v1.TileTaken: %w", err)
+	}
+	missionTakes, err := cpbootstrap.Subscribe(props.Events, "player-missions", tileTakenBuffer,
+		log_subscriber.New(mission_take_subscriber.New(
+			record_mission_take_usecase.New(calendar, briefing, missionStore),
+		), props.Logger))
+	if err != nil {
+		_ = db.Close()
+		return fmt.Errorf("failed to subscribe the missions to planet.v1.TileTaken: %w", err)
+	}
+	forgottenMissions, err := cpbootstrap.Subscribe(props.Events, "player-missions-accounts", accountDeletedBuffer,
+		log_subscriber.New(account_deleted_subscriber.New(forget_missions_usecase.New(missionStore)), props.Logger))
+	if err != nil {
+		_ = db.Close()
+		return fmt.Errorf("failed to subscribe the missions to auth.v1.AccountDeleted: %w", err)
 	}
 	posts, err := cpbootstrap.Subscribe(props.Events, "player-stats-messages", messageSentBuffer,
 		log_subscriber.New(message_sent_subscriber.New(
@@ -236,7 +266,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	props.Runners.Add(signOuts)
 	props.Runners.Add(gone)
 
-	props.Runners.Add(cppg.CloseAfter(db, props.Logger, takes, posts, awards, deletions, forgottenTitles, forgottenChoices, signIns, namings))
+	props.Runners.Add(cppg.CloseAfter(db, props.Logger, takes, missionTakes, posts, awards, deletions, forgottenTitles,
+		forgottenChoices, forgottenMissions, signIns, namings))
 
 	verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", "player")))
 
@@ -263,6 +294,12 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		GetTitlesHandler: get_titles_handler.New(titles_query.NewPostgresQuery(db, titleCards, clock)),
 		WearTitleHandler: wear_title_handler.New(dressing_wear_title.New(wear_title_usecase.New(wardrobe, clock), visits)),
 		GetFrontsHandler: get_fronts_handler.New(fronts),
+		GetMissionsHandler: get_missions_handler.New(
+			get_missions_usecase.New(calendar, clock, missionStore, briefing, cpcountries.New()),
+		),
+		CollectMissionHandler: collect_mission_handler.New(
+			collect_mission_usecase.New(calendar, clock, missionStore, briefing, rpc_planet_charges.New(planet)),
+		),
 	}
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return playerv1connect.NewPlayerServiceHandler(playerService, options...)
@@ -308,11 +345,16 @@ type Config struct {
 	Database cppg.Config
 
 	TagSalt string
+
+	Missions missions.Config
 }
 
 func (c Config) Validate() error {
 	if err := c.Database.Validate(); err != nil {
 		return fmt.Errorf("player.database: %w", err)
+	}
+	if err := c.Missions.Validate(); err != nil {
+		return fmt.Errorf("player: %w", err)
 	}
 	return nil
 }

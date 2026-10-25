@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package player.v1;
 
+import "planet/v1/planet.proto";
 import "player/v1/color.proto";
 import "player/v1/title.proto";
 
@@ -30,6 +31,11 @@ service PlayerService {
   rpc WearTitle(WearTitleRequest) returns (WearTitleResponse);
 
   rpc GetFronts(GetFrontsRequest) returns (GetFrontsResponse);
+
+  rpc GetMissions(GetMissionsRequest) returns (GetMissionsResponse);
+
+  // A guest is refused: it signs in to collect what it did.
+  rpc CollectMission(CollectMissionRequest) returns (CollectMissionResponse);
 }
 
 message Profile {
@@ -197,4 +203,49 @@ message WearTitleRequest {
 
 message WearTitleResponse {
   Title worn = 1;
+}
+
+message GetMissionsRequest {
+  string country_id = 1;
+}
+
+// The day's missions are for the flag of the day's first take, and for country_id until then.
+message GetMissionsResponse {
+  string country_id = 1;
+  bool enlisted = 2;
+  int64 ends_at_unix_ms = 3;
+  repeated Mission missions = 4;
+}
+
+message Mission {
+  uint32 slot = 1;
+  MissionKind kind = 2;
+  string target_country_id = 3;
+  uint32 goal = 4;
+  uint32 progress = 5;
+  bool collected = 6;
+  planet.v1.BonusKind reward_kind = 7;
+  uint32 reward_amount = 8;
+}
+
+enum MissionKind {
+  MISSION_KIND_UNSPECIFIED = 0;
+
+  // Take goal tiles for target_country_id, the day's flag.
+  MISSION_KIND_TAKE_FOR = 1;
+
+  // Take goal tiles that target_country_id held.
+  MISSION_KIND_TAKE_FROM = 2;
+
+  // Take goal tiles on target_country_id's ground.
+  MISSION_KIND_TAKE_IN = 3;
+}
+
+message CollectMissionRequest {
+  uint32 slot = 1;
+}
+
+message CollectMissionResponse {
+  planet.v1.BonusKind kind = 1;
+  uint32 amount = 2;
 }

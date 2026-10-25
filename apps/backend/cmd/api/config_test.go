@@ -225,6 +225,7 @@ func TestTheExampleConfigReachesThePlayerBlock(t *testing.T) {
 
 	assert.Equal(t, "player", config.Player.Database.Schema)
 	require.NoError(t, config.Player.Database.Validate())
+	assert.Equal(t, 21*time.Hour, config.Player.Missions.Cutoff, "the missions turn when the daily round closes")
 }
 
 func TestThePlayerModuleWithNoDatabaseIsRefused(t *testing.T) {

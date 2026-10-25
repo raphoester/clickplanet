@@ -9,6 +9,8 @@ message TileTaken {
   uint32 tile_id = 2;
   string country = 3;
   google.protobuf.Timestamp taken_at = 4;
+  string previous = 5;
+  string ground = 6;
 }
 
 message BombLanded {

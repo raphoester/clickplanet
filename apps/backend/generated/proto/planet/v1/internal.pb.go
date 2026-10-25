@@ -309,11 +309,248 @@ func (x *Territory) GetTiles() uint32 {
 	return 0
 }
 
+type GetGroundsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetGroundsRequest) Reset() {
+	*x = GetGroundsRequest{}
+	mi := &file_planet_v1_internal_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetGroundsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetGroundsRequest) ProtoMessage() {}
+
+func (x *GetGroundsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_internal_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetGroundsRequest.ProtoReflect.Descriptor instead.
+func (*GetGroundsRequest) Descriptor() ([]byte, []int) {
+	return file_planet_v1_internal_proto_rawDescGZIP(), []int{6}
+}
+
+type GetGroundsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Grounds       []*Ground              `protobuf:"bytes,1,rep,name=grounds,proto3" json:"grounds,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetGroundsResponse) Reset() {
+	*x = GetGroundsResponse{}
+	mi := &file_planet_v1_internal_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetGroundsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetGroundsResponse) ProtoMessage() {}
+
+func (x *GetGroundsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_internal_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetGroundsResponse.ProtoReflect.Descriptor instead.
+func (*GetGroundsResponse) Descriptor() ([]byte, []int) {
+	return file_planet_v1_internal_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *GetGroundsResponse) GetGrounds() []*Ground {
+	if x != nil {
+		return x.Grounds
+	}
+	return nil
+}
+
+type Ground struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CountryId     string                 `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	Tiles         uint32                 `protobuf:"varint,2,opt,name=tiles,proto3" json:"tiles,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Ground) Reset() {
+	*x = Ground{}
+	mi := &file_planet_v1_internal_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Ground) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Ground) ProtoMessage() {}
+
+func (x *Ground) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_internal_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Ground.ProtoReflect.Descriptor instead.
+func (*Ground) Descriptor() ([]byte, []int) {
+	return file_planet_v1_internal_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *Ground) GetCountryId() string {
+	if x != nil {
+		return x.CountryId
+	}
+	return ""
+}
+
+func (x *Ground) GetTiles() uint32 {
+	if x != nil {
+		return x.Tiles
+	}
+	return 0
+}
+
+type GrantChargeRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	Kind          BonusKind              `protobuf:"varint,2,opt,name=kind,proto3,enum=planet.v1.BonusKind" json:"kind,omitempty"`
+	Amount        uint32                 `protobuf:"varint,3,opt,name=amount,proto3" json:"amount,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GrantChargeRequest) Reset() {
+	*x = GrantChargeRequest{}
+	mi := &file_planet_v1_internal_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GrantChargeRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GrantChargeRequest) ProtoMessage() {}
+
+func (x *GrantChargeRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_internal_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GrantChargeRequest.ProtoReflect.Descriptor instead.
+func (*GrantChargeRequest) Descriptor() ([]byte, []int) {
+	return file_planet_v1_internal_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *GrantChargeRequest) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+func (x *GrantChargeRequest) GetKind() BonusKind {
+	if x != nil {
+		return x.Kind
+	}
+	return BonusKind_BONUS_KIND_UNSPECIFIED
+}
+
+func (x *GrantChargeRequest) GetAmount() uint32 {
+	if x != nil {
+		return x.Amount
+	}
+	return 0
+}
+
+// 0 when the account already holds as much of the kind as it may.
+type GrantChargeResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Kept          uint32                 `protobuf:"varint,1,opt,name=kept,proto3" json:"kept,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GrantChargeResponse) Reset() {
+	*x = GrantChargeResponse{}
+	mi := &file_planet_v1_internal_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GrantChargeResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GrantChargeResponse) ProtoMessage() {}
+
+func (x *GrantChargeResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_internal_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GrantChargeResponse.ProtoReflect.Descriptor instead.
+func (*GrantChargeResponse) Descriptor() ([]byte, []int) {
+	return file_planet_v1_internal_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *GrantChargeResponse) GetKept() uint32 {
+	if x != nil {
+		return x.Kept
+	}
+	return 0
+}
+
 var File_planet_v1_internal_proto protoreflect.FileDescriptor
 
 const file_planet_v1_internal_proto_rawDesc = "" +
 	"\n" +
-	"\x18planet/v1/internal.proto\x12\tplanet.v1\"9\n" +
+	"\x18planet/v1/internal.proto\x12\tplanet.v1\x1a\x16planet/v1/planet.proto\"9\n" +
 	"\x18GetTakesByCountryRequest\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\"\x89\x01\n" +
@@ -332,10 +569,27 @@ const file_planet_v1_internal_proto_rawDesc = "" +
 	"\tTerritory\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x01 \x01(\tR\tcountryId\x12\x14\n" +
-	"\x05tiles\x18\x02 \x01(\rR\x05tiles2\xd2\x01\n" +
+	"\x05tiles\x18\x02 \x01(\rR\x05tiles\"\x13\n" +
+	"\x11GetGroundsRequest\"A\n" +
+	"\x12GetGroundsResponse\x12+\n" +
+	"\agrounds\x18\x01 \x03(\v2\x11.planet.v1.GroundR\agrounds\"=\n" +
+	"\x06Ground\x12\x1d\n" +
+	"\n" +
+	"country_id\x18\x01 \x01(\tR\tcountryId\x12\x14\n" +
+	"\x05tiles\x18\x02 \x01(\rR\x05tiles\"u\n" +
+	"\x12GrantChargeRequest\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\x12(\n" +
+	"\x04kind\x18\x02 \x01(\x0e2\x14.planet.v1.BonusKindR\x04kind\x12\x16\n" +
+	"\x06amount\x18\x03 \x01(\rR\x06amount\")\n" +
+	"\x13GrantChargeResponse\x12\x12\n" +
+	"\x04kept\x18\x01 \x01(\rR\x04kept2\xf0\x02\n" +
 	"\x0fInternalService\x12c\n" +
 	"\x11GetTakesByCountry\x12#.planet.v1.GetTakesByCountryRequest\x1a$.planet.v1.GetTakesByCountryResponse\"\x03\x90\x02\x01\x12Z\n" +
-	"\x0eGetTerritories\x12 .planet.v1.GetTerritoriesRequest\x1a!.planet.v1.GetTerritoriesResponse\"\x03\x90\x02\x01B\xb5\x01\n" +
+	"\x0eGetTerritories\x12 .planet.v1.GetTerritoriesRequest\x1a!.planet.v1.GetTerritoriesResponse\"\x03\x90\x02\x01\x12N\n" +
+	"\n" +
+	"GetGrounds\x12\x1c.planet.v1.GetGroundsRequest\x1a\x1d.planet.v1.GetGroundsResponse\"\x03\x90\x02\x01\x12L\n" +
+	"\vGrantCharge\x12\x1d.planet.v1.GrantChargeRequest\x1a\x1e.planet.v1.GrantChargeResponseB\xb5\x01\n" +
 	"\rcom.planet.v1B\rInternalProtoP\x01ZPgithub.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1;planetv1\xa2\x02\x03PXX\xaa\x02\tPlanet.V1\xca\x02\tPlanet\\V1\xe2\x02\x15Planet\\V1\\GPBMetadata\xea\x02\n" +
 	"Planet::V1b\x06proto3"
 
@@ -351,7 +605,7 @@ func file_planet_v1_internal_proto_rawDescGZIP() []byte {
 	return file_planet_v1_internal_proto_rawDescData
 }
 
-var file_planet_v1_internal_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_planet_v1_internal_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_planet_v1_internal_proto_goTypes = []any{
 	(*GetTakesByCountryRequest)(nil),  // 0: planet.v1.GetTakesByCountryRequest
 	(*GetTakesByCountryResponse)(nil), // 1: planet.v1.GetTakesByCountryResponse
@@ -359,20 +613,32 @@ var file_planet_v1_internal_proto_goTypes = []any{
 	(*GetTerritoriesRequest)(nil),     // 3: planet.v1.GetTerritoriesRequest
 	(*GetTerritoriesResponse)(nil),    // 4: planet.v1.GetTerritoriesResponse
 	(*Territory)(nil),                 // 5: planet.v1.Territory
+	(*GetGroundsRequest)(nil),         // 6: planet.v1.GetGroundsRequest
+	(*GetGroundsResponse)(nil),        // 7: planet.v1.GetGroundsResponse
+	(*Ground)(nil),                    // 8: planet.v1.Ground
+	(*GrantChargeRequest)(nil),        // 9: planet.v1.GrantChargeRequest
+	(*GrantChargeResponse)(nil),       // 10: planet.v1.GrantChargeResponse
+	(BonusKind)(0),                    // 11: planet.v1.BonusKind
 }
 var file_planet_v1_internal_proto_depIdxs = []int32{
-	2, // 0: planet.v1.GetTakesByCountryResponse.taken_for:type_name -> planet.v1.CountryTakes
-	2, // 1: planet.v1.GetTakesByCountryResponse.taken_from:type_name -> planet.v1.CountryTakes
-	5, // 2: planet.v1.GetTerritoriesResponse.territories:type_name -> planet.v1.Territory
-	0, // 3: planet.v1.InternalService.GetTakesByCountry:input_type -> planet.v1.GetTakesByCountryRequest
-	3, // 4: planet.v1.InternalService.GetTerritories:input_type -> planet.v1.GetTerritoriesRequest
-	1, // 5: planet.v1.InternalService.GetTakesByCountry:output_type -> planet.v1.GetTakesByCountryResponse
-	4, // 6: planet.v1.InternalService.GetTerritories:output_type -> planet.v1.GetTerritoriesResponse
-	5, // [5:7] is the sub-list for method output_type
-	3, // [3:5] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	2,  // 0: planet.v1.GetTakesByCountryResponse.taken_for:type_name -> planet.v1.CountryTakes
+	2,  // 1: planet.v1.GetTakesByCountryResponse.taken_from:type_name -> planet.v1.CountryTakes
+	5,  // 2: planet.v1.GetTerritoriesResponse.territories:type_name -> planet.v1.Territory
+	8,  // 3: planet.v1.GetGroundsResponse.grounds:type_name -> planet.v1.Ground
+	11, // 4: planet.v1.GrantChargeRequest.kind:type_name -> planet.v1.BonusKind
+	0,  // 5: planet.v1.InternalService.GetTakesByCountry:input_type -> planet.v1.GetTakesByCountryRequest
+	3,  // 6: planet.v1.InternalService.GetTerritories:input_type -> planet.v1.GetTerritoriesRequest
+	6,  // 7: planet.v1.InternalService.GetGrounds:input_type -> planet.v1.GetGroundsRequest
+	9,  // 8: planet.v1.InternalService.GrantCharge:input_type -> planet.v1.GrantChargeRequest
+	1,  // 9: planet.v1.InternalService.GetTakesByCountry:output_type -> planet.v1.GetTakesByCountryResponse
+	4,  // 10: planet.v1.InternalService.GetTerritories:output_type -> planet.v1.GetTerritoriesResponse
+	7,  // 11: planet.v1.InternalService.GetGrounds:output_type -> planet.v1.GetGroundsResponse
+	10, // 12: planet.v1.InternalService.GrantCharge:output_type -> planet.v1.GrantChargeResponse
+	9,  // [9:13] is the sub-list for method output_type
+	5,  // [5:9] is the sub-list for method input_type
+	5,  // [5:5] is the sub-list for extension type_name
+	5,  // [5:5] is the sub-list for extension extendee
+	0,  // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_planet_v1_internal_proto_init() }
@@ -380,13 +646,14 @@ func file_planet_v1_internal_proto_init() {
 	if File_planet_v1_internal_proto != nil {
 		return
 	}
+	file_planet_v1_planet_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_planet_v1_internal_proto_rawDesc), len(file_planet_v1_internal_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

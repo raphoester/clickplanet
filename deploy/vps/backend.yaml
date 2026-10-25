@@ -353,6 +353,8 @@ player:
     pool:
       maxOpenConns: 4
   tagSalt: env://CHAT_TAG_SALT
+  missions:
+    cutoff: 21h
 
 seasons:
   list:

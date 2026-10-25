@@ -26,7 +26,7 @@ func setUp() (publishing_ledger_storage.Storage, *inmemory_ledger_storage.Storag
 	inner := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence(),
 		slog.New(slog.DiscardHandler))
 	events := cpbootstrap.NewRecordedEvents()
-	return publishing_ledger_storage.New(inner, events), inner, events
+	return publishing_ledger_storage.New(inner, clicks.BordersOf(64, []uint32{42}), events), inner, events
 }
 
 func TestATakeWithAnAccountIsRecordedThenPublished(t *testing.T) {
@@ -43,8 +43,8 @@ func TestATakeWithAnAccountIsRecordedThenPublished(t *testing.T) {
 	published := events.Published()
 	require.Len(t, published, 1)
 	assert.True(t, proto.Equal(&planetv1.TileTaken{
-		AccountId: account, TileId: 42, Country: "fr", TakenAt: timestamppb.New(start),
-	}, published[0]))
+		AccountId: account, TileId: 42, Country: "fr", TakenAt: timestamppb.New(start), Previous: "de", Ground: "l1",
+	}, published[0]), "the take says whose tile it was and whose ground it is on")
 }
 
 func TestATakeWithNoAccountIsRecordedAndNotPublished(t *testing.T) {

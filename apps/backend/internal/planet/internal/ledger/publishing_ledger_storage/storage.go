@@ -12,13 +12,18 @@ type Publisher interface {
 	Publish(event proto.Message)
 }
 
-func New(inner ledger.Storage, events Publisher) Storage {
-	return Storage{Storage: inner, events: events}
+type Grounds interface {
+	CountryOf(tile uint32) string
+}
+
+func New(inner ledger.Storage, grounds Grounds, events Publisher) Storage {
+	return Storage{Storage: inner, grounds: grounds, events: events}
 }
 
 type Storage struct {
 	ledger.Storage
-	events Publisher
+	grounds Grounds
+	events  Publisher
 }
 
 var _ ledger.Storage = Storage{}
@@ -36,6 +41,8 @@ func (s Storage) Append(event ledger.Event) {
 			TileId:    taking.Tile,
 			Country:   taking.Country,
 			TakenAt:   timestamppb.New(taking.At),
+			Previous:  taking.Previous,
+			Ground:    s.grounds.CountryOf(taking.Tile),
 		})
 	})
 }

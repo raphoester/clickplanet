@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AnnounceRequest, AnnounceResponse, GetFrontsRequest, GetFrontsResponse, GetPlayerRequest, GetPlayerResponse, GetProfileRequest, GetProfileResponse, GetRosterRequest, GetRosterResponse, GetStatsRequest, GetStatsResponse, GetTitlesRequest, GetTitlesResponse, LeaveRequest, LeaveResponse, ListenForEventsRequest, PlayerEvent, SetColorRequest, SetColorResponse, SetNameRequest, SetNameResponse, WearTitleRequest, WearTitleResponse } from "./player_pb.js";
+import { AnnounceRequest, AnnounceResponse, CollectMissionRequest, CollectMissionResponse, GetFrontsRequest, GetFrontsResponse, GetMissionsRequest, GetMissionsResponse, GetPlayerRequest, GetPlayerResponse, GetProfileRequest, GetProfileResponse, GetRosterRequest, GetRosterResponse, GetStatsRequest, GetStatsResponse, GetTitlesRequest, GetTitlesResponse, LeaveRequest, LeaveResponse, ListenForEventsRequest, PlayerEvent, SetColorRequest, SetColorResponse, SetNameRequest, SetNameResponse, WearTitleRequest, WearTitleResponse } from "./player_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -120,6 +120,26 @@ export const PlayerService = {
       name: "GetFronts",
       I: GetFrontsRequest,
       O: GetFrontsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc player.v1.PlayerService.GetMissions
+     */
+    getMissions: {
+      name: "GetMissions",
+      I: GetMissionsRequest,
+      O: GetMissionsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * A guest is refused: it signs in to collect what it did.
+     *
+     * @generated from rpc player.v1.PlayerService.CollectMission
+     */
+    collectMission: {
+      name: "CollectMission",
+      I: CollectMissionRequest,
+      O: CollectMissionResponse,
       kind: MethodKind.Unary,
     },
   }

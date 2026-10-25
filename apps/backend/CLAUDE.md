@@ -79,7 +79,7 @@ it asks of another module. See [Clip stats](#clip-stats-internalclips-in-the-ser
 
 They share the process, the transport and the country list, and **nothing else**. None imports another; each owns its own domain types, its own proto package, its own storage adapter (where it has one) and its own edge.
 
-**A module never calls another module's code or reads its data in its own stack trace.** When one needs an answer from another it asks over Connect, on a loopback listener — see [Calling another module](#calling-another-module). Five do: `planet`, `player`, `chat`, `seasons` and `support` take the click token's verifying key from `auth`, `player` asks `auth` whether an account is linked and `planet` which countries an account took tiles for and from, `chat` asks `player` who posts: the username, or the guest code, `seasons` asks `player` who has a username and `planet` what each country holds, and `support` asks `player` how to name the accounts of a report. When one only has to say that something happened, it publishes an event in process and never learns who listens — see [Telling other modules what happened](#telling-other-modules-what-happened). `planet` publishes `TileTaken`, `auth` publishes `AccountDeleted`, `SignedIn` and `SignedOut`, `chat` publishes `MessageSent` and `AccountMuted`, `player` publishes `StatsChanged`, and `seasons` publishes `RoundClosed`; `player` hears all six but `AccountMuted`, which `chat` hears itself, `seasons` hears `TileTaken` and `AccountDeleted`, `planet`, `chat` and `support` hear `AccountDeleted` too, and `chat` hears `RoundClosed`.
+**A module never calls another module's code or reads its data in its own stack trace.** When one needs an answer from another it asks over Connect, on a loopback listener — see [Calling another module](#calling-another-module). Five do: `planet`, `player`, `chat`, `seasons` and `support` take the click token's verifying key from `auth`, `player` asks `auth` whether an account is linked and `planet` which countries an account took tiles for and from, what each flag holds and how big each country is, and to grant a mission's reward, `chat` asks `player` who posts: the username, or the guest code, `seasons` asks `player` who has a username and `planet` what each country holds, and `support` asks `player` how to name the accounts of a report. When one only has to say that something happened, it publishes an event in process and never learns who listens — see [Telling other modules what happened](#telling-other-modules-what-happened). `planet` publishes `TileTaken`, `auth` publishes `AccountDeleted`, `SignedIn` and `SignedOut`, `chat` publishes `MessageSent` and `AccountMuted`, `player` publishes `StatsChanged`, and `seasons` publishes `RoundClosed`; `player` hears all six but `AccountMuted`, which `chat` hears itself, `seasons` hears `TileTaken` and `AccountDeleted`, `planet`, `chat` and `support` hear `AccountDeleted` too, and `chat` hears `RoundClosed`.
 
 Bonus boxes live inside `internal/planet/` rather than beside it: what they grant
 is click allowance, and what carries them is the planet stream. A context of
@@ -286,6 +286,8 @@ return []bootstrap.Module{
 | `support` | `player.v1.InternalService/GetAuthors` | the name of each account a page of reports names, on each `ListReports` | `list_reports_handler/reports_query/rpc_player_authors` |
 | `auth`'s admin gate, which `main` builds | `auth.v1.InternalService/GetOperator` | who calls the admin listener, and whether that account operates, on each admin call | `admingate/admission/rpc_operators` |
 | `player` | `planet.v1.InternalService/GetTakesByCountry` | the flags an account took tiles for and the flags that held them, from the ledger, on each `GetFronts`, on each `GetPlayer` the cache does not answer, and on each operator's `AdminService/GetPlayer` | `playerv1controller/rpc_planet_fronts` |
+| `player` | `planet.v1.InternalService/GetTerritories` and `GetGrounds` | what each flag holds and how many tiles each country's ground has, once per flag and day, to draw its missions | `missions/rpc_planet_world` |
+| `player` | `planet.v1.InternalService/GrantCharge` | the charge a mission pays, on each `CollectMission` | `missions/rpc_planet_charges` |
 
 A module cannot import another's interior, so the key client all five need is `shared/cpsessionverifier` rather than a copy in each.
 
@@ -324,7 +326,7 @@ The events today:
 
 | event | published by | when | heard by |
 |---|---|---|---|
-| `planet.v1.TileTaken{account_id, tile_id, country, taken_at}` | `planet`, `ledger/publishing_ledger_storage` | each take the ledger records with an account: a click, a spread or an enclose, one event per tile | `player`, for the stats; `seasons`, for the standings |
+| `planet.v1.TileTaken{account_id, tile_id, country, taken_at, previous, ground}` | `planet`, `ledger/publishing_ledger_storage` | each take the ledger records with an account: a click, a spread or an enclose, one event per tile; `previous` is the flag that held it, `ground` the country it is on (`clicks.Borders`) | `player`, for the stats and the day's missions; `seasons`, for the standings |
 | `planet.v1.BombLanded{country, tile_id, ground, cleared, landed_at}` | `planet`, `drop_bomb_usecase/publishing_drop_bomb` | each bomb that went off, on land or in the sea; a refused drop publishes nothing | `chat`, which announces it |
 | `planet.v1.Fortified{country, landmass_id, tiles, ground, fortified_at}` | `planet`, `relay_fortifications_usecase` | each landmass a player's take fortified (see [Fortify](#fortify)) | `chat`, which announces the ones of 50 tiles or more |
 | `auth.v1.AccountDeleted{account_id}` | `auth`, `delete_account_usecase` and `prune_guests_usecase` | after the account row is deleted; a pruned guest is a deleted account | `player`, which forgets the profile, the stats, the titles, the title worn and the visit; `seasons`, which forgets the account's standings; `planet`, which takes the account off every take postgres keeps; `chat`, which forgets the seen mark; `support`, which takes the account off the notes it sent and deletes the reports that name it |
@@ -1510,6 +1512,13 @@ internal/player/internal/
       award_titles_usecase/notifying_award_titles/  publishes what was granted to the feed
     usecases/reconcile_titles_usecase/  — every account the titles the rules give it, no more; player.v1.AdminService/ReconcileTitles
       reconcile_titles_usecase/audit_reconcile_titles/  logs every reconciliation at Warn
+  missions/                         Calendar and Day (the cutoff), Take, Slot, Kind, Mission (one type per kind), Brief, Draw and World,
+                                    Sheet (an account's day), Briefing; the Store port and its contract suite
+    postgres_mission_store/         the Store over player.mission_briefs, mission_sheets, mission_progress and mission_collections
+    inmemory_mission_store/         the same port in maps, behind the testing tag
+    rpc_planet_world/               what each flag holds and each ground's size, from planet.v1.InternalService
+    rpc_planet_charges/             a mission's reward, through planet.v1.InternalService/GrantCharge
+    usecases/record_take_usecase/  get_missions_usecase/  collect_mission_usecase/  forget_account_usecase/
   wearing/                          the title a player wears: WornOf, Wearable, Showcase (ShowcaseOf), Wardrobe, Author; the Store port and
                                     its contract suite
     postgres_worn_title_store/      the Store over player.worn_titles
@@ -1529,6 +1538,7 @@ internal/player/internal/
       search_players_handler/matches_query/   PostgresQuery: the accounts a part of a name finds, straight from SQL
     get_profile_handler/profile_query/  get_stats_handler/stats_query/  get_player_handler/player_query/
     get_titles_handler/titles_query/  get_authors_handler/authors_query/   PostgresQuery: the response straight from SQL
+    get_missions_handler/  collect_mission_handler/   the day's missions, and collecting one
     get_roster_handler/roster_query/    MemoryQuery: the roster, from its Lines port
       inmemory_roster/              Lines from the visits in memory (presence.RosterOf)
     inprocess_title_catalog/        the Titles port of three queries: shown, worn and each track, from titles.Catalog
@@ -1669,6 +1679,31 @@ internal/player/internal/
   holds the calendar, so it would pass the interval. Until then, from season 1 the top flag on the card can differ
   from the flag on the board. Neither list adds up to `tiles_taken`, which counts from 2026-09-17 and only what the
   event bus delivered.
+- **Every flag has three missions a day, the same for each of its players** (`missions/`). A day ends at
+  `player.missions.cutoff` (21:00 UTC in production), the time the daily round closes, and is named by the date it ends
+  on. **The rules are objects**: a `Mission` is a slot, a goal, a reward and one order, `takeFor` (tiles for the flag),
+  `takeFrom` (tiles another flag held) or `takeIn` (tiles on a country's ground), each with its own `counts(Take)`.
+  - **`Draw(day, flag, world)` is the brief**, seeded by the day and the flag: 1. take 60 tiles (one bank) for the flag,
+    for 10 shields; 2. take 40 tiles from whoever holds the most ground but the flag, so every flag but the leader aims
+    at the leader, for 4 spread clicks (with no other flag holding 400 tiles, 120 for the flag); 3. take 200 tiles on a
+    ground of 1,000 tiles or more that is not the flag's, for a bomb (with none, 200 for the flag). **Never a refill**:
+    a mission pays what multiplies or guards clicks, not clicks. The world is planet's (`GetTerritories`, and
+    `GetGrounds`, `clicks.Borders.Grounds`).
+  - **`Briefing.Of(day, flag)` draws once and keeps it**: the store's first `KeepBrief` wins, so two takes racing to
+    draw a flag's day read one brief, and a map that moves later never changes it.
+  - **A day is locked to the flag of its first take** (`Sheet.WithTake`): a take for another flag counts nothing, so a
+    change of flag cannot farm a second set. Until that take, `GetMissions(country_id)` answers the asked flag's, not
+    enlisted. **Progress is counted from `TileTaken`** (`player-missions`, `mission_take_subscriber`), up to each goal,
+    in one transaction under `pg_advisory_xact_lock` per take, with nothing written once nothing changed. **Not from the
+    ledger**: `ledger_events` has no time index, and an account's takes since the cutoff would read every take it ever
+    made. Like the stats, a dropped event is a tile the missions never count.
+  - **A guest's progress counts and is kept**, so a guest who signs in that day collects it. **`CollectMission(slot)`
+    pays only a signed-in account** (the click token's linked byte; `PermissionDenied` otherwise), once per slot and
+    day: `mission_collections` is written in a transaction that commits only if `GrantCharge` kept something. A full
+    stack (a bomb held) is `FailedPrecondition` and the mission stays to collect later; so is a mission not done or
+    collected already. The answer is what fit.
+  - **`GetMissions` is `Identified`, `CollectMission` `Attested`.** `auth.v1.AccountDeleted` deletes the account's
+    sheets, progress and collections (`player-missions-accounts`). The briefs name nobody and stay.
 - **`auth.v1.AccountDeleted` deletes both rows.** A take that arrives after, on a token minted before the delete, makes a new stats row; the token lives an hour at most.
 - **Events are at most once.** A take dropped by a full buffer (`events_dropped_total`) or lost in a crash is a tile the stats never count. Stats start the day the module is turned on: takes before are not replayed.
 - **No memory copy: every call reads or writes postgres.** This is not the tile map's pattern on purpose. The map is in memory so a click never waits on the database; a take reaches this module over the event bus, so a click already never waits on it, and the calls are few (production is ~15 takes a second at peak). A memory copy would load every account that ever took a tile at boot, and cost a dirty set, a flush loop and a window a hard kill loses.
@@ -4443,6 +4478,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `chat.blockedIPs` — prefixes refused every chat RPC, parsed by `shared/cpipblock` exactly as `vpnBlocklist.allow` is
 - `player.tagSalt` — salts the hash of an address the roster caps its visits with. It is never shown, so empty, which generates one at boot, costs nothing. Production reads it from `CHAT_TAG_SALT`, the chat's old variable
 - `player.database.*` — profiles and stats, same shape as `database`, schema `player`; required. `player.database.password` belongs in the environment
+- `player.missions.cutoff` — the time of day, in UTC, a mission day ends (production 21h, the daily round's; unset, midnight). From 0 up to 24h, or the boot is refused
 - `seasons.list` — each season's `number` (0 up), `endsAt` (RFC 3339) and `finale` (a duration); empty is no season
 - `seasons.snapshot.interval` — how often a snapshot of what each country holds is added to the round in progress (default 1m)
 - `seasons.database.*` — the standings and the rounds, same shape as `database`, schema `seasons`; required. `seasons.database.password` belongs in the environment

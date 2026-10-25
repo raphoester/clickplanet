@@ -5,6 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
+import { BonusKind } from "./planet_pb.js";
 
 /**
  * @generated from message planet.v1.GetTakesByCountryRequest
@@ -243,6 +244,205 @@ export class Territory extends Message<Territory> {
 
   static equals(a: Territory | PlainMessage<Territory> | undefined, b: Territory | PlainMessage<Territory> | undefined): boolean {
     return proto3.util.equals(Territory, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.GetGroundsRequest
+ */
+export class GetGroundsRequest extends Message<GetGroundsRequest> {
+  constructor(data?: PartialMessage<GetGroundsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetGroundsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetGroundsRequest {
+    return new GetGroundsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetGroundsRequest {
+    return new GetGroundsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetGroundsRequest {
+    return new GetGroundsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetGroundsRequest | PlainMessage<GetGroundsRequest> | undefined, b: GetGroundsRequest | PlainMessage<GetGroundsRequest> | undefined): boolean {
+    return proto3.util.equals(GetGroundsRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.GetGroundsResponse
+ */
+export class GetGroundsResponse extends Message<GetGroundsResponse> {
+  /**
+   * @generated from field: repeated planet.v1.Ground grounds = 1;
+   */
+  grounds: Ground[] = [];
+
+  constructor(data?: PartialMessage<GetGroundsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetGroundsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "grounds", kind: "message", T: Ground, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetGroundsResponse {
+    return new GetGroundsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetGroundsResponse {
+    return new GetGroundsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetGroundsResponse {
+    return new GetGroundsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetGroundsResponse | PlainMessage<GetGroundsResponse> | undefined, b: GetGroundsResponse | PlainMessage<GetGroundsResponse> | undefined): boolean {
+    return proto3.util.equals(GetGroundsResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.Ground
+ */
+export class Ground extends Message<Ground> {
+  /**
+   * @generated from field: string country_id = 1;
+   */
+  countryId = "";
+
+  /**
+   * @generated from field: uint32 tiles = 2;
+   */
+  tiles = 0;
+
+  constructor(data?: PartialMessage<Ground>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.Ground";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Ground {
+    return new Ground().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Ground {
+    return new Ground().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Ground {
+    return new Ground().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Ground | PlainMessage<Ground> | undefined, b: Ground | PlainMessage<Ground> | undefined): boolean {
+    return proto3.util.equals(Ground, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.GrantChargeRequest
+ */
+export class GrantChargeRequest extends Message<GrantChargeRequest> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  /**
+   * @generated from field: planet.v1.BonusKind kind = 2;
+   */
+  kind = BonusKind.UNSPECIFIED;
+
+  /**
+   * @generated from field: uint32 amount = 3;
+   */
+  amount = 0;
+
+  constructor(data?: PartialMessage<GrantChargeRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GrantChargeRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "kind", kind: "enum", T: proto3.getEnumType(BonusKind) },
+    { no: 3, name: "amount", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GrantChargeRequest {
+    return new GrantChargeRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GrantChargeRequest {
+    return new GrantChargeRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GrantChargeRequest {
+    return new GrantChargeRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GrantChargeRequest | PlainMessage<GrantChargeRequest> | undefined, b: GrantChargeRequest | PlainMessage<GrantChargeRequest> | undefined): boolean {
+    return proto3.util.equals(GrantChargeRequest, a, b);
+  }
+}
+
+/**
+ * 0 when the account already holds as much of the kind as it may.
+ *
+ * @generated from message planet.v1.GrantChargeResponse
+ */
+export class GrantChargeResponse extends Message<GrantChargeResponse> {
+  /**
+   * @generated from field: uint32 kept = 1;
+   */
+  kept = 0;
+
+  constructor(data?: PartialMessage<GrantChargeResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GrantChargeResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "kept", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GrantChargeResponse {
+    return new GrantChargeResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GrantChargeResponse {
+    return new GrantChargeResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GrantChargeResponse {
+    return new GrantChargeResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GrantChargeResponse | PlainMessage<GrantChargeResponse> | undefined, b: GrantChargeResponse | PlainMessage<GrantChargeResponse> | undefined): boolean {
+    return proto3.util.equals(GrantChargeResponse, a, b);
   }
 }
 

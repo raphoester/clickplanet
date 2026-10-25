@@ -376,6 +376,8 @@ player:
     pool:
       maxOpenConns: 2
   tagSalt: ""
+  missions:
+    cutoff: 21h
 
 seasons:
   list:

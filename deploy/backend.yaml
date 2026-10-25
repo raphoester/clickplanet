@@ -52,6 +52,8 @@ player:
     sslMode: disable
     schema: player
   tagSalt: "local-development-salt"
+  missions:
+    cutoff: 21h
 
 seasons:
   list:
