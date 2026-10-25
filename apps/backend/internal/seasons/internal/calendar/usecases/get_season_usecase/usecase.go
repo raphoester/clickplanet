@@ -16,6 +16,15 @@ func New(seasons calendar.Calendar, clock cptime.Clock) *UseCase {
 	return &UseCase{seasons: seasons, clock: clock}
 }
 
-func (u *UseCase) Execute(context.Context) (calendar.Season, bool) {
-	return u.seasons.Current(u.clock.Now())
+// Execute answers the season in play and the next to start, nil for none.
+func (u *UseCase) Execute(context.Context) (current, next *calendar.Season) {
+	now := u.clock.Now()
+	return found(u.seasons.Current(now)), found(u.seasons.Next(now))
+}
+
+func found(season calendar.Season, ok bool) *calendar.Season {
+	if !ok {
+		return nil
+	}
+	return &season
 }

@@ -256,6 +256,8 @@ message RuleSet {
   // How many times faster than rateLimiter.perSecond every bucket refills.
   double tempo = 2;
   BoxPace boxes = 3;
+  // No player writes on the map, and no box or quiz is offered.
+  bool frozen = 4;
 }
 
 message BoxPace {

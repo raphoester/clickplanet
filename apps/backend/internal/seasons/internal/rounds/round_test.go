@@ -58,3 +58,45 @@ func TestThereIsNoRoundAfterTheLastSeason(t *testing.T) {
 
 	assert.False(t, ok)
 }
+
+func nov(day, hour, minute, second int) time.Time {
+	return time.Date(2026, 11, day, hour, minute, second, 0, time.UTC)
+}
+
+var withAGap = calendar.New(calendar.Config{List: []calendar.Entry{
+	{Number: 0, EndsAt: utc(31, 23, 0, 0), Finale: 2 * time.Hour},
+	{Number: 1, StartsAt: nov(1, 19, 0, 0), EndsAt: time.Date(2026, 12, 5, 23, 0, 0, 0, time.UTC), Finale: 2 * time.Hour},
+}})
+
+func TestThereIsNoRoundBetweenTwoSeasons(t *testing.T) {
+	for _, at := range []time.Time{utc(31, 23, 0, 0), nov(1, 18, 59, 59)} {
+		_, ok := rounds.Current(withAGap, at)
+
+		assert.False(t, ok, at)
+	}
+}
+
+func TestAFirstDayShorterThanHalfADayJoinsTheNext(t *testing.T) {
+	for _, at := range []time.Time{nov(1, 19, 0, 0), nov(1, 21, 0, 0), nov(2, 20, 59, 59)} {
+		round, ok := rounds.Current(withAGap, at)
+
+		require.True(t, ok, at)
+		assert.Equal(t, rounds.Round{Season: 1, EndsAt: nov(2, 21, 0, 0)}, round, at)
+	}
+
+	round, ok := rounds.Current(withAGap, nov(2, 21, 0, 0))
+	require.True(t, ok)
+	assert.Equal(t, rounds.Round{Season: 1, EndsAt: nov(3, 21, 0, 0)}, round)
+}
+
+func TestASeasonWhoseOnlyDayIsShortKeepsIt(t *testing.T) {
+	short := calendar.New(calendar.Config{List: []calendar.Entry{
+		{Number: 0, EndsAt: utc(31, 23, 0, 0), Finale: 2 * time.Hour},
+		{Number: 1, StartsAt: nov(1, 19, 0, 0), EndsAt: nov(1, 23, 0, 0), Finale: 2 * time.Hour},
+	}})
+
+	round, ok := rounds.Current(short, nov(1, 19, 30, 0))
+
+	require.True(t, ok)
+	assert.Equal(t, rounds.Round{Season: 1, EndsAt: nov(1, 21, 0, 0)}, round)
+}

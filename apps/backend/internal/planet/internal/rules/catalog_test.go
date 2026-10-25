@@ -52,6 +52,21 @@ func TestWhatASetLeavesOutIsTheDefaults(t *testing.T) {
 	assert.Equal(t, 4*time.Minute, boxes.Boxes.MinInterval)
 }
 
+func TestASetFreezesTheMapOnlyWhenItSaysSo(t *testing.T) {
+	catalog, err := rules.NewCatalog(rules.Config{Sets: map[rules.SetName]rules.SetConfig{
+		"frozen": {Frozen: true},
+	}}, defaults)
+	require.NoError(t, err)
+
+	frozen, err := catalog.Set("frozen")
+	require.NoError(t, err)
+	assert.Equal(t, rules.Set{Name: "frozen", Tempo: 1, Boxes: defaults.Boxes, Frozen: true}, frozen)
+
+	open, err := catalog.Set(rules.Default)
+	require.NoError(t, err)
+	assert.False(t, open.Frozen)
+}
+
 func TestTheDefaultSetIsTheConfigsOwnRules(t *testing.T) {
 	catalog, err := rules.NewCatalog(rushConfig, defaults)
 	require.NoError(t, err)

@@ -16,6 +16,8 @@ type SetConfig struct {
 	Tempo float64
 
 	Boxes BoxesConfig
+
+	Frozen bool
 }
 
 type BoxesConfig struct {

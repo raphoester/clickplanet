@@ -315,14 +315,16 @@ func TestTheExampleConfigReachesTheSeasonsBlock(t *testing.T) {
 	var config Config
 	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
 
-	require.Len(t, config.Seasons.Calendar.List, 1)
+	require.Len(t, config.Seasons.Calendar.List, 2)
 	season := config.Seasons.Calendar.List[0]
 	assert.Zero(t, season.Number)
+	assert.True(t, season.StartsAt.IsZero())
 	assert.True(t, time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC).Equal(season.EndsAt))
 	assert.Equal(t, 2*time.Hour, season.Finale)
+	assert.True(t, time.Date(2026, 11, 1, 19, 0, 0, 0, time.UTC).Equal(config.Seasons.Calendar.List[1].StartsAt))
 	assert.Equal(t, "default", config.Seasons.RuleSets.Days)
 	assert.Equal(t, "rush", config.Seasons.RuleSets.Finale)
-	assert.Equal(t, "default", config.Seasons.RuleSets.Over)
+	assert.Equal(t, "frozen", config.Seasons.RuleSets.Over)
 	assert.Equal(t, "seasons", config.Seasons.Database.Schema)
 	require.NoError(t, config.Seasons.Database.Validate())
 }
@@ -337,6 +339,7 @@ func TestTheExampleConfigReachesTheRuleSets(t *testing.T) {
 	assert.Equal(t, time.Minute, rush.Boxes.MinInterval)
 	assert.Equal(t, 2*time.Minute, rush.Boxes.MaxInterval)
 	assert.Equal(t, 30, rush.Boxes.MaxChargesPerHour)
+	assert.True(t, config.Planet.Rules.Sets["frozen"].Frozen)
 	require.NoError(t, config.Planet.Rules.Validate())
 }
 
@@ -426,6 +429,22 @@ func TestTheProductionConfigEnforcesBans(t *testing.T) {
 	assert.True(t, config.Planet.AntiBot.Enabled)
 	assert.True(t, config.Planet.AntiBot.Bans.Enforce, "a key the config does not read leaves bans off without a word")
 	assert.Equal(t, []time.Duration{24 * time.Hour, 7 * 24 * time.Hour, 3 * 365 * 24 * time.Hour}, config.Planet.AntiBot.Bans.BanDurations)
+}
+
+func TestTheProductionMapFreezesFromSeasonZerosEndToSeasonOnesStart(t *testing.T) {
+	config := productionConfig(t)
+	require.NoError(t, config.Seasons.Validate())
+
+	list := config.Seasons.Calendar.List
+	require.Len(t, list, 2)
+	assert.True(t, time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC).Equal(list[0].EndsAt))
+	assert.True(t, time.Date(2026, 11, 1, 19, 0, 0, 0, time.UTC).Equal(list[1].StartsAt))
+	assert.True(t, time.Date(2026, 12, 5, 23, 0, 0, 0, time.UTC).Equal(list[1].EndsAt))
+	assert.Equal(t, 2*time.Hour, list[1].Finale)
+
+	assert.Equal(t, "frozen", config.Seasons.RuleSets.Over)
+	assert.Equal(t, "default", config.Seasons.RuleSets.Days)
+	assert.True(t, config.Planet.Rules.Sets["frozen"].Frozen)
 }
 
 func TestTheProductionConfigTakesFilesInItsBucketAndNeedsItsSecret(t *testing.T) {

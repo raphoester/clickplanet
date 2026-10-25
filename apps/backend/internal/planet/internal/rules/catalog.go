@@ -9,7 +9,7 @@ func NewCatalog(config Config, defaults Set) (Catalog, error) {
 	sets := map[SetName]Set{Default: {Name: Default, Tempo: defaults.Tempo, Boxes: defaults.Boxes}}
 
 	for name, configured := range config.Sets {
-		set := Set{Name: name, Tempo: defaults.Tempo, Boxes: defaults.Boxes}
+		set := Set{Name: name, Tempo: defaults.Tempo, Boxes: defaults.Boxes, Frozen: configured.Frozen}
 		if configured.Tempo > 0 {
 			set.Tempo = configured.Tempo
 		}

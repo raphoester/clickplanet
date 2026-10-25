@@ -48,6 +48,23 @@ func TestATakeInNoSeasonCountsNowhere(t *testing.T) {
 	assert.False(t, ok, "an empty calendar has no season")
 }
 
+func TestATakeBetweenTwoSeasonsCountsNowhere(t *testing.T) {
+	seasonOneStarts := seasonZeroEnds.Add(20 * time.Hour)
+	withAGap := calendar.New(calendar.Config{List: []calendar.Entry{
+		{Number: 0, EndsAt: seasonZeroEnds, Finale: 2 * time.Hour},
+		{Number: 1, StartsAt: seasonOneStarts, EndsAt: seasonOneEnds, Finale: 2 * time.Hour},
+	}})
+
+	for _, at := range []time.Time{seasonZeroEnds, seasonOneStarts.Add(-time.Nanosecond)} {
+		_, ok := standings.Take{At: at}.Season(withAGap)
+		assert.False(t, ok, at)
+	}
+
+	season, ok := standings.Take{At: seasonOneStarts}.Season(withAGap)
+	require.True(t, ok)
+	assert.Equal(t, calendar.Number(1), season)
+}
+
 func TestAnAccountIDIsAUUIDThatIsNotNil(t *testing.T) {
 	account, err := standings.AccountIDOf("0b6d4f7e-5d7c-4a36-9a51-3f1f8f0c2a11")
 	require.NoError(t, err)

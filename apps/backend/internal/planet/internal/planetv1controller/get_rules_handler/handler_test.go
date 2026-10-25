@@ -35,6 +35,7 @@ func TestTheRulesAreEverySetWithItsValuesAndTheChanges(t *testing.T) {
 	sets := stubSets{
 		{Name: rules.Default, Tempo: 1, Boxes: bonuses.Pace{MinInterval: 4 * time.Minute, MaxInterval: 8 * time.Minute, MaxChargesPerHour: 12}},
 		{Name: "rush", Tempo: 3, Boxes: bonuses.Pace{MinInterval: time.Minute, MaxInterval: 2 * time.Minute, MaxChargesPerHour: 30}},
+		{Name: "frozen", Tempo: 1, Boxes: bonuses.Pace{MinInterval: 4 * time.Minute, MaxInterval: 8 * time.Minute, MaxChargesPerHour: 12}, Frozen: true},
 	}
 	changes := []*planetv1.RuleChange{{RequestId: "season-0:finale", RuleSet: "rush"}}
 
@@ -50,6 +51,9 @@ func TestTheRulesAreEverySetWithItsValuesAndTheChanges(t *testing.T) {
 			{Name: "rush", Tempo: 3, Boxes: &planetv1.BoxPace{
 				MinInterval: durationpb.New(time.Minute), MaxInterval: durationpb.New(2 * time.Minute), MaxChargesPerHour: 30,
 			}},
+			{Name: "frozen", Tempo: 1, Boxes: &planetv1.BoxPace{
+				MinInterval: durationpb.New(4 * time.Minute), MaxInterval: durationpb.New(8 * time.Minute), MaxChargesPerHour: 12,
+			}, Frozen: true},
 		},
 		Changes: changes,
 	}

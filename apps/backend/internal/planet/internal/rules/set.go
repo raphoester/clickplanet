@@ -18,4 +18,6 @@ type Set struct {
 	Tempo float64
 
 	Boxes bonuses.Pace
+
+	Frozen bool
 }

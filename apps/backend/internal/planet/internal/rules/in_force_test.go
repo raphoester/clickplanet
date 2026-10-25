@@ -15,9 +15,14 @@ type recordedTempo struct{ set []float64 }
 
 func (r *recordedTempo) SetTempo(tempo float64) { r.set = append(r.set, tempo) }
 
-type recordedSchedule struct{ set []bonuses.Pace }
+type recordedSchedule struct {
+	set    []bonuses.Pace
+	frozen []bool
+}
 
 func (r *recordedSchedule) SetPace(pace bonuses.Pace) { r.set = append(r.set, pace) }
+
+func (r *recordedSchedule) SetFrozen(frozen bool) { r.frozen = append(r.frozen, frozen) }
 
 var rush = rules.Set{
 	Name:  "rush",
@@ -30,8 +35,10 @@ func TestTheRulesInForceStartAsGivenAndTellNobody(t *testing.T) {
 	inForce := rules.NewInForce(defaults, tempo, schedule)
 
 	assert.InDelta(t, 1.0, inForce.Tempo(), 1e-9)
+	assert.False(t, inForce.Frozen())
 	assert.Empty(t, tempo.set)
 	assert.Empty(t, schedule.set)
+	assert.Empty(t, schedule.frozen)
 }
 
 func TestASetEnforcedSetsTheTempoAndTheBoxes(t *testing.T) {
@@ -43,6 +50,20 @@ func TestASetEnforcedSetsTheTempoAndTheBoxes(t *testing.T) {
 	assert.InDelta(t, 3.0, inForce.Tempo(), 1e-9)
 	assert.Equal(t, []float64{3}, tempo.set)
 	assert.Equal(t, []bonuses.Pace{rush.Boxes}, schedule.set)
+	assert.Equal(t, []bool{false}, schedule.frozen)
+}
+
+func TestAFrozenSetFreezesTheMapAndTheBoxesUntilTheNextSet(t *testing.T) {
+	schedule := &recordedSchedule{}
+	inForce := rules.NewInForce(defaults, &recordedTempo{}, schedule)
+
+	inForce.Enforce(rules.Set{Name: "frozen", Tempo: 1, Boxes: defaults.Boxes, Frozen: true})
+	assert.True(t, inForce.Frozen())
+
+	inForce.Enforce(defaults)
+	assert.False(t, inForce.Frozen())
+
+	assert.Equal(t, []bool{true, false}, schedule.frozen)
 }
 
 func TestEveryWatcherHearsOfEachSetEnforced(t *testing.T) {

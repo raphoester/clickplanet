@@ -154,6 +154,7 @@ type Pace struct {
 type Registry struct {
 	config   Config
 	pace     Pace
+	frozen   bool
 	clock    cptime.Clock
 	report   Report
 	holdings Holdings
@@ -237,6 +238,14 @@ func (r *Registry) SetPace(pace Pace) {
 			entry.nextOfferAt = now.Add(r.window())
 		}
 	}
+}
+
+// SetFrozen offers nothing while frozen, and every offer standing lapses at the next sweep.
+func (r *Registry) SetFrozen(frozen bool) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.frozen = frozen
 }
 
 func (r *Registry) counted(hook func()) {
@@ -419,6 +428,10 @@ func (r *Registry) sweep(ctx context.Context) {
 	r.forgetStale(now)
 	r.forgetNewcomers(now)
 
+	if r.frozen {
+		return
+	}
+
 	for entrant, entry := range r.callers {
 		if !r.due(entry, now) {
 			continue
@@ -523,7 +536,7 @@ func (r *Registry) offer(entrant Entrant, entry *caller, now time.Time, kinds *c
 
 func (r *Registry) collectMisses(now time.Time) {
 	for token, offer := range r.offers {
-		if now.Before(offer.expiresAt) {
+		if !r.frozen && now.Before(offer.expiresAt) {
 			continue
 		}
 
