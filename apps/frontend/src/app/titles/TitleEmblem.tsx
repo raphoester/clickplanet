@@ -17,6 +17,24 @@ const FLAME_INNER = "M50 50 C55 56 59 60 59 65 C59 71 55 74 50 74 C45 74 41 71 4
 const BUBBLE = "M28 32 Q28 26 34 26 H66 Q72 26 72 32 V54 Q72 60 66 60 H48 L37 71 V60 H34 Q28 60 28 54 Z"
 const HEART = "M50 53 C40 46 37 41 40 36.5 C43 32 48.5 33 50 37.5 C51.5 33 57 32 60 36.5 C63 41 60 46 50 53 Z"
 const STAR = "M50 32 L52.7 39.3 L60.5 39.6 L54.4 44.4 L56.5 51.9 L50 47.6 L43.5 51.9 L45.6 44.4 L39.5 39.6 L47.3 39.3 Z"
+const SHIELD = "M50 27 L69 33 V48 C69 61 61 69 50 74 C39 69 31 61 31 48 V33 Z"
+const SHIELD_INNER = "M50 37 L60 40 V48 C60 55 56 60 50 63 C44 60 40 55 40 48 V40 Z"
+const TOWER = "M37 73 V42 H35 V31 H41 V36 H47 V31 H53 V36 H59 V31 H65 V42 H63 V73 Z"
+const CASTLE = "M30 73 V38 H34 V42 H38 V38 H42 V52 H58 V38 H62 V42 H66 V38 H70 V73 Z"
+const GATE = "M44 73 V63 C44 57 56 57 56 63 V73 Z"
+const BOMB = "M33 57 A14 14 0 1 0 61 57 A14 14 0 1 0 33 57 Z"
+const BOMB_CAP = "M53 40 L60 47 L64 43 L57 36 Z"
+const FUSE = "M60 39 Q63 31 70 29"
+const SPARK = "M70.0 22.0 L71.8 26.6 L76.7 26.8 L72.9 29.9 L74.1 34.7 L70.0 32.0 L65.9 34.7 L67.1 29.9 L63.3 26.8 L68.2 26.6 Z"
+const BLAST = "M50.0 26.0 L54.6 38.9 L67.0 33.0 L61.1 45.4 L74.0 50.0 L61.1 54.6 L67.0 67.0 L54.6 61.1 L50.0 74.0 L45.4 61.1 L33.0 67.0 L38.9 54.6 L26.0 50.0 L38.9 45.4 L33.0 33.0 L45.4 38.9 Z"
+const BLAST_INNER = "M50.0 38.0 L52.3 44.5 L58.5 41.5 L55.5 47.7 L62.0 50.0 L55.5 52.3 L58.5 58.5 L52.3 55.5 L50.0 62.0 L47.7 55.5 L41.5 58.5 L44.5 52.3 L38.0 50.0 L44.5 47.7 L41.5 41.5 L47.7 44.5 Z"
+const BOX = "M32 38 H68 V70 H32 Z"
+const SACK = "M43 33 H57 L53 41 C64 45 69 54 68 62 C67 70 59 74 50 74 C41 74 33 70 32 62 C31 54 36 45 47 41 Z"
+const CHEST = "M30 50 H70 V71 H30 Z"
+const CHEST_LID = "M30 50 V43 C30 33 70 33 70 43 V50 Z"
+const COMPASS = "M30 50 A20 20 0 1 0 70 50 A20 20 0 1 0 30 50"
+const GLOBE = "M31 50 A19 19 0 1 0 69 50 A19 19 0 1 0 31 50 Z"
+const MAP = "M29 37 L42 32 L58 38 L71 33 V63 L58 68 L42 62 L29 67 Z"
 const SMALLER = "translate(50 49) scale(0.9) translate(-50 -49)"
 const LOYAL = "translate(50 52) scale(0.82) translate(-50 -52)"
 const UNBROKEN = "translate(50 52) scale(0.7) translate(-50 -52)"
@@ -42,6 +60,21 @@ function Shape({d, color, width = 3, transform}: {d: string, color: string, widt
 
 function Dots({xs, y, r}: {xs: number[], y: number, r: number}) {
     return <>{xs.map((x) => <circle key={x} cx={x} cy={y} r={r} style={{fill: INK}}/>)}</>
+}
+
+function Bomb({accent, cream}: {accent: string, cream: string}) {
+    return <>
+        <Line d={FUSE} color={cream} width={3}/>
+        <Shape d={BOMB_CAP} color={cream} width={2.5}/>
+        <Shape d={BOMB} color={accent}/>
+        <path d="M39 52 C40 49 42 47 45 46" style={{stroke: LIGHT}} strokeOpacity="0.85" strokeWidth="3"
+              strokeLinecap="round" fill="none"/>
+    </>
+}
+
+function Meridians() {
+    return <path d="M50 31 C41 37 41 63 50 69 M50 31 C59 37 59 63 50 69 M31 50 H69" style={{stroke: INK}}
+                 strokeWidth="2.5" fill="none"/>
 }
 
 function Letters({text, color}: {text: string, color: string}) {
@@ -123,6 +156,89 @@ function icon(title: PlayerTitle, accent: string, cream: string): ReactNode {
             return <g transform={SMALLER}>
                 <Shape d={BUBBLE} color={accent}/>
                 <Shape d={STAR} color={cream} width={2.5}/>
+            </g>
+        case "guard":
+            return <Shape d={SHIELD} color={accent}/>
+        case "defender":
+            return <>
+                <Shape d={SHIELD} color={accent}/>
+                <Shape d={SHIELD_INNER} color={cream} width={2.5}/>
+            </>
+        case "protector":
+            return <>
+                <Shape d={TOWER} color={accent}/>
+                <Shape d={GATE} color={cream} width={2.5}/>
+            </>
+        case "warden":
+            return <>
+                <Line d="M50 52 V24" color={cream} width={3}/>
+                <Shape d="M52 24 L65 29 L52 34 Z" color={cream} width={2.5}/>
+                <Shape d={CASTLE} color={accent}/>
+                <Shape d={GATE} color={cream} width={2.5}/>
+            </>
+        case "bomber":
+            return <Bomb accent={accent} cream={cream}/>
+        case "blaster":
+            return <>
+                <Bomb accent={accent} cream={cream}/>
+                <Shape d={SPARK} color={accent} width={2.5}/>
+            </>
+        case "wrecker":
+            return <>
+                <Shape d={BLAST} color={accent}/>
+                <circle cx="50" cy="50" r="6" style={{fill: cream, stroke: INK}} strokeWidth="2.5"/>
+            </>
+        case "destroyer":
+            return <>
+                <circle cx="50" cy="50" r="29" style={{stroke: cream}} strokeWidth="3" strokeDasharray="5 6" fill="none"/>
+                <Shape d={BLAST} color={accent}/>
+                <Shape d={BLAST_INNER} color={cream} width={2.5}/>
+            </>
+        case "looter":
+            return <>
+                <Shape d={BOX} color={accent}/>
+                <Letters text="?" color={cream}/>
+            </>
+        case "hunter":
+            return <>
+                <Shape d={SACK} color={accent}/>
+                <Line d="M44 41 H56" color={cream} width={3}/>
+            </>
+        case "pirate":
+            return <>
+                <Shape d={CHEST_LID} color={accent}/>
+                <Shape d={CHEST} color={accent}/>
+                <Shape d="M45 46 H55 V57 H45 Z" color={cream} width={2.5}/>
+            </>
+        case "captain":
+            return <>
+                <Shape d={CHEST_LID} color={accent}/>
+                <Shape d={CHEST} color={accent}/>
+                <Shape d={STAR} color={cream} width={2.5} transform="translate(0 14)"/>
+            </>
+        case "student":
+            return <>
+                <Line d={COMPASS} color={cream} width={3.5}/>
+                <Shape d="M50 32 L56 50 L44 50 Z" color={accent} width={2.5}/>
+                <Shape d="M50 68 L56 50 L44 50 Z" color={cream} width={2.5}/>
+            </>
+        case "expert":
+            return <>
+                <Shape d={GLOBE} color={accent}/>
+                <Meridians/>
+            </>
+        case "professor":
+            return <>
+                <Shape d={MAP} color={accent}/>
+                <path d="M42 32 V62 M58 38 V68" style={{stroke: INK}} strokeWidth="2.5" fill="none"/>
+                <Line d="M47 44 L53 50 M53 44 L47 50" color={cream} width={3}/>
+            </>
+        case "genius":
+            return <g transform="translate(50 46) scale(0.85) translate(-50 -50)">
+                <Line d="M30 34 A26 26 0 0 0 68 72" color={cream} width={3.5}/>
+                <Shape d={GLOBE} color={accent}/>
+                <Meridians/>
+                <Line d="M50 76 V84 M40 86 H60" color={cream} width={3.5}/>
             </g>
         default:
             return <Letters text={title.name.slice(0, 1)} color={accent}/>

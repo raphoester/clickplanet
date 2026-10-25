@@ -36,6 +36,9 @@ const (
 	// AdminServiceReconcileTitlesProcedure is the fully-qualified name of the AdminService's
 	// ReconcileTitles RPC.
 	AdminServiceReconcileTitlesProcedure = "/player.v1.AdminService/ReconcileTitles"
+	// AdminServiceRecountStatsProcedure is the fully-qualified name of the AdminService's RecountStats
+	// RPC.
+	AdminServiceRecountStatsProcedure = "/player.v1.AdminService/RecountStats"
 	// AdminServiceGetAuthorsProcedure is the fully-qualified name of the AdminService's GetAuthors RPC.
 	AdminServiceGetAuthorsProcedure = "/player.v1.AdminService/GetAuthors"
 	// AdminServiceGetPlayerProcedure is the fully-qualified name of the AdminService's GetPlayer RPC.
@@ -50,6 +53,8 @@ const (
 // AdminServiceClient is a client for the player.v1.AdminService service.
 type AdminServiceClient interface {
 	ReconcileTitles(context.Context, *connect.Request[v1.ReconcileTitlesRequest]) (*connect.Response[v1.ReconcileTitlesResponse], error)
+	// Every account's bombs dropped and tiles fortified, set to what planet's ledger holds. Harmless twice.
+	RecountStats(context.Context, *connect.Request[v1.RecountStatsRequest]) (*connect.Response[v1.RecountStatsResponse], error)
 	// InternalService/GetAuthors, for the admin page naming a page of players.
 	GetAuthors(context.Context, *connect.Request[v1.GetAuthorsRequest]) (*connect.Response[v1.GetAuthorsResponse], error)
 	// Everything the game keeps about one account, a guest's too. NotFound for an account it keeps nothing about.
@@ -75,6 +80,12 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			httpClient,
 			baseURL+AdminServiceReconcileTitlesProcedure,
 			connect.WithSchema(adminServiceMethods.ByName("ReconcileTitles")),
+			connect.WithClientOptions(opts...),
+		),
+		recountStats: connect.NewClient[v1.RecountStatsRequest, v1.RecountStatsResponse](
+			httpClient,
+			baseURL+AdminServiceRecountStatsProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("RecountStats")),
 			connect.WithClientOptions(opts...),
 		),
 		getAuthors: connect.NewClient[v1.GetAuthorsRequest, v1.GetAuthorsResponse](
@@ -107,6 +118,7 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 // adminServiceClient implements AdminServiceClient.
 type adminServiceClient struct {
 	reconcileTitles *connect.Client[v1.ReconcileTitlesRequest, v1.ReconcileTitlesResponse]
+	recountStats    *connect.Client[v1.RecountStatsRequest, v1.RecountStatsResponse]
 	getAuthors      *connect.Client[v1.GetAuthorsRequest, v1.GetAuthorsResponse]
 	getPlayer       *connect.Client[v1.AdminGetPlayerRequest, v1.AdminGetPlayerResponse]
 	getRoster       *connect.Client[v1.GetRosterRequest, v1.GetRosterResponse]
@@ -116,6 +128,11 @@ type adminServiceClient struct {
 // ReconcileTitles calls player.v1.AdminService.ReconcileTitles.
 func (c *adminServiceClient) ReconcileTitles(ctx context.Context, req *connect.Request[v1.ReconcileTitlesRequest]) (*connect.Response[v1.ReconcileTitlesResponse], error) {
 	return c.reconcileTitles.CallUnary(ctx, req)
+}
+
+// RecountStats calls player.v1.AdminService.RecountStats.
+func (c *adminServiceClient) RecountStats(ctx context.Context, req *connect.Request[v1.RecountStatsRequest]) (*connect.Response[v1.RecountStatsResponse], error) {
+	return c.recountStats.CallUnary(ctx, req)
 }
 
 // GetAuthors calls player.v1.AdminService.GetAuthors.
@@ -141,6 +158,8 @@ func (c *adminServiceClient) SearchPlayers(ctx context.Context, req *connect.Req
 // AdminServiceHandler is an implementation of the player.v1.AdminService service.
 type AdminServiceHandler interface {
 	ReconcileTitles(context.Context, *connect.Request[v1.ReconcileTitlesRequest]) (*connect.Response[v1.ReconcileTitlesResponse], error)
+	// Every account's bombs dropped and tiles fortified, set to what planet's ledger holds. Harmless twice.
+	RecountStats(context.Context, *connect.Request[v1.RecountStatsRequest]) (*connect.Response[v1.RecountStatsResponse], error)
 	// InternalService/GetAuthors, for the admin page naming a page of players.
 	GetAuthors(context.Context, *connect.Request[v1.GetAuthorsRequest]) (*connect.Response[v1.GetAuthorsResponse], error)
 	// Everything the game keeps about one account, a guest's too. NotFound for an account it keeps nothing about.
@@ -162,6 +181,12 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		AdminServiceReconcileTitlesProcedure,
 		svc.ReconcileTitles,
 		connect.WithSchema(adminServiceMethods.ByName("ReconcileTitles")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServiceRecountStatsHandler := connect.NewUnaryHandler(
+		AdminServiceRecountStatsProcedure,
+		svc.RecountStats,
+		connect.WithSchema(adminServiceMethods.ByName("RecountStats")),
 		connect.WithHandlerOptions(opts...),
 	)
 	adminServiceGetAuthorsHandler := connect.NewUnaryHandler(
@@ -192,6 +217,8 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		switch r.URL.Path {
 		case AdminServiceReconcileTitlesProcedure:
 			adminServiceReconcileTitlesHandler.ServeHTTP(w, r)
+		case AdminServiceRecountStatsProcedure:
+			adminServiceRecountStatsHandler.ServeHTTP(w, r)
 		case AdminServiceGetAuthorsProcedure:
 			adminServiceGetAuthorsHandler.ServeHTTP(w, r)
 		case AdminServiceGetPlayerProcedure:
@@ -211,6 +238,10 @@ type UnimplementedAdminServiceHandler struct{}
 
 func (UnimplementedAdminServiceHandler) ReconcileTitles(context.Context, *connect.Request[v1.ReconcileTitlesRequest]) (*connect.Response[v1.ReconcileTitlesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.AdminService.ReconcileTitles is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) RecountStats(context.Context, *connect.Request[v1.RecountStatsRequest]) (*connect.Response[v1.RecountStatsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.AdminService.RecountStats is not implemented"))
 }
 
 func (UnimplementedAdminServiceHandler) GetAuthors(context.Context, *connect.Request[v1.GetAuthorsRequest]) (*connect.Response[v1.GetAuthorsResponse], error) {

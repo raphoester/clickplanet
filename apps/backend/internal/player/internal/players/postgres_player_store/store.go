@@ -32,7 +32,8 @@ func (s *Store) Profile(ctx context.Context, account players.AccountID) (players
 		admin     bool
 		color     int32
 	)
-	err := s.db.QueryRowContext(ctx,
+	err := s.db.QueryRowContext(
+		ctx,
 		`SELECT name, updated_at, name_chosen_at, admin, color FROM profiles WHERE account_id = $1`, uuid.UUID(account),
 	).Scan(&name, &updatedAt, &chosenAt, &admin, &color)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -143,7 +144,8 @@ func (s *Store) SaveGuestCode(ctx context.Context, account players.AccountID, co
 	return nil
 }
 
-const statsColumns = `account_id, tiles_taken, streak_current, streak_best, streak_last_day, messages_sent`
+const statsColumns = `account_id, tiles_taken, streak_current, streak_best, streak_last_day, messages_sent,
+	bombs_dropped, tiles_fortified, bonuses_claimed, right_answers`
 
 func (s *Store) Stats(ctx context.Context, account players.AccountID) (players.Stats, error) {
 	return statsOf(s.db.QueryRowContext(ctx, `SELECT `+statsColumns+` FROM stats WHERE account_id = $1`, uuid.UUID(account)))
@@ -151,15 +153,7 @@ func (s *Store) Stats(ctx context.Context, account players.AccountID) (players.S
 
 const statsLock = 0x706c6179
 
-func (s *Store) RecordTake(ctx context.Context, account players.AccountID, at time.Time) error {
-	return s.record(ctx, account, func(stats players.Stats) players.Stats { return stats.WithTake(at) })
-}
-
-func (s *Store) RecordMessage(ctx context.Context, account players.AccountID) error {
-	return s.record(ctx, account, players.Stats.WithMessage)
-}
-
-func (s *Store) record(ctx context.Context, account players.AccountID, change func(players.Stats) players.Stats) (err error) {
+func (s *Store) Record(ctx context.Context, account players.AccountID, change func(players.Stats) players.Stats) (err error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin changing the stats: %w", err)
@@ -183,19 +177,24 @@ func (s *Store) record(ctx context.Context, account players.AccountID, change fu
 		return err
 	}
 
-	next := change(current)
+	next := change(current).TakeSnapshot()
 	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO stats (`+statsColumns+`)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 		ON CONFLICT (account_id) DO UPDATE SET
 			tiles_taken = excluded.tiles_taken,
 			streak_current = excluded.streak_current,
 			streak_best = excluded.streak_best,
 			streak_last_day = excluded.streak_last_day,
-			messages_sent = excluded.messages_sent
-	`, uuid.UUID(account), int64(next.TilesTaken()), //nolint:gosec // one a tile taken: never past int64.
-		int64(next.Streak().Days()), int64(next.StreakBest()), nullableDay(next.Streak().LastDay()),
-		int64(next.MessagesSent())); err != nil { //nolint:gosec // one a message sent: never past int64.
+			messages_sent = excluded.messages_sent,
+			bombs_dropped = excluded.bombs_dropped,
+			tiles_fortified = excluded.tiles_fortified,
+			bonuses_claimed = excluded.bonuses_claimed,
+			right_answers = excluded.right_answers
+	`, uuid.UUID(account), int64(next.TilesTaken), //nolint:gosec // counted an act at a time: never past int64.
+		int64(next.Streak.Days()), int64(next.StreakBest), nullableDay(next.Streak.LastDay()),
+		int64(next.MessagesSent), int64(next.BombsDropped), int64(next.TilesFortified), //nolint:gosec // as above.
+		int64(next.BonusesClaimed), int64(next.RightAnswers)); err != nil { //nolint:gosec // as above.
 		return fmt.Errorf("failed to save the stats: %w", err)
 	}
 
@@ -262,11 +261,11 @@ type scanner interface {
 
 func statsOf(row scanner) (players.Stats, error) {
 	var (
-		account                        uuid.UUID
-		tiles, current, best, messages int64
-		lastDay                        sql.NullTime
+		account                                                          uuid.UUID
+		tiles, current, best, messages, bombs, fortified, claimed, right int64
+		lastDay                                                          sql.NullTime
 	)
-	err := row.Scan(&account, &tiles, &current, &best, &lastDay, &messages)
+	err := row.Scan(&account, &tiles, &current, &best, &lastDay, &messages, &bombs, &fortified, &claimed, &right)
 	if errors.Is(err, sql.ErrNoRows) {
 		return players.Stats{}, players.ErrNoStats
 	}
@@ -278,13 +277,17 @@ func statsOf(row scanner) (players.Stats, error) {
 	if lastDay.Valid {
 		day = players.DayOf(lastDay.Time)
 	}
-	return players.StatsOf(
-		players.AccountID(account),
-		uint64(tiles),                          //nolint:gosec // CHECK (tiles_taken >= 0).
-		players.StreakOf(uint32(current), day), //nolint:gosec // CHECK (streak_current >= 0), and one a day.
-		uint32(best),                           //nolint:gosec // as above.
-		uint64(messages),                       //nolint:gosec // CHECK (messages_sent >= 0).
-	), nil
+	return players.StatsSnapshot{
+		Account:        players.AccountID(account),
+		TilesTaken:     uint64(tiles),                          //nolint:gosec // every counter has a CHECK (>= 0).
+		Streak:         players.StreakOf(uint32(current), day), //nolint:gosec // as above, and one a day.
+		StreakBest:     uint32(best),                           //nolint:gosec // as above.
+		MessagesSent:   uint64(messages),                       //nolint:gosec // as above.
+		BombsDropped:   uint64(bombs),                          //nolint:gosec // as above.
+		TilesFortified: uint64(fortified),                      //nolint:gosec // as above.
+		BonusesClaimed: uint64(claimed),                        //nolint:gosec // as above.
+		RightAnswers:   uint64(right),                          //nolint:gosec // as above.
+	}.Restore(), nil
 }
 
 func nullableDay(day players.Day) sql.NullString {

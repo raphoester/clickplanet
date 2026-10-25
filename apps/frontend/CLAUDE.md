@@ -1128,8 +1128,10 @@ the backend's CLAUDE.md). `app/titles/` draws them and `app/account/ProgressTab.
 is the player's own view.
 
 - **Most titles are ranks on a track** (`TitleRank`: the track, the rank's
-  number, how many ranks). Conquest counts tiles taken, Devotion the streak; OG
-  stands alone. **Only the highest rank of each track is ever shown or worn**, so
+  number, how many ranks). Conquest counts tiles taken, Devotion the streak,
+  Chatter messages, Defense fortified tiles, Bombs bombs dropped, Loot boxes
+  caught and Quiz right answers; OG stands alone. A track this build does
+  not know is drawn in Conquest's colors, and its steps as bare numbers. **Only the highest rank of each track is ever shown or worn**, so
   the client never filters: it draws what the server sends, in its order.
 - **Every title is a medal** (`TitleEmblem`): an SVG per id, drawn by the
   medal rules of [`DESIGN.md`](DESIGN.md), in the metal `titleArt.ts` gives it

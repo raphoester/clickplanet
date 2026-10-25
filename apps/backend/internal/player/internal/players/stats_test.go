@@ -22,7 +22,7 @@ func taken(at ...time.Time) players.Stats {
 func TestTheFirstTakeStartsAStreakOfOne(t *testing.T) {
 	stats := taken(beforeMidnight)
 
-	assert.Equal(t, players.StatsOf(players.AccountID{}, 1, players.StreakOf(1, players.DayOf(beforeMidnight)), 1, 0), stats)
+	assert.Equal(t, players.StatsSnapshot{TilesTaken: 1, Streak: players.StreakOf(1, players.DayOf(beforeMidnight)), StreakBest: 1}.Restore(), stats)
 }
 
 func TestATakeOnTheSameDayCountsATileAndNotADay(t *testing.T) {
@@ -83,8 +83,28 @@ func TestNoTakeIsNoDay(t *testing.T) {
 }
 
 func TestAMessageCountsAMessageAndLeavesTheTilesAndTheStreakAlone(t *testing.T) {
-	want := players.StatsOf(players.AccountID{}, 1, players.StreakOf(1, players.DayOf(beforeMidnight)), 1, 2)
+	want := players.StatsSnapshot{
+		TilesTaken: 1, Streak: players.StreakOf(1, players.DayOf(beforeMidnight)), StreakBest: 1, MessagesSent: 2,
+	}.Restore()
 
 	assert.Equal(t, want, taken(beforeMidnight).WithMessage().WithMessage())
 	assert.True(t, players.Stats{}.WithMessage().Streak().LastDay().Empty(), "a message is no take, so it starts no streak")
+}
+
+func TestEachCounterCountsItsOwnActAndLeavesTheStreakAlone(t *testing.T) {
+	stats := players.Stats{}.WithBomb().WithFortify(137).WithFortify(1).WithBonus().WithBonus().WithRightAnswer()
+
+	assert.Equal(t, players.StatsSnapshot{BombsDropped: 1, TilesFortified: 138, BonusesClaimed: 2, RightAnswers: 1}, stats.TakeSnapshot())
+	assert.True(t, stats.Streak().LastDay().Empty(), "none of them is a take")
+}
+
+func TestARecountSetsTheBombsAndTheTilesFortifiedAndNothingElse(t *testing.T) {
+	stats := taken(beforeMidnight).WithBomb().WithFortify(3).WithBonus()
+
+	recounted := stats.Recounted(players.Recount{BombsDropped: 4, TilesFortified: 140})
+
+	assert.Equal(t, players.StatsSnapshot{
+		TilesTaken: 1, Streak: players.StreakOf(1, players.DayOf(beforeMidnight)), StreakBest: 1,
+		BombsDropped: 4, TilesFortified: 140, BonusesClaimed: 1,
+	}, recounted.TakeSnapshot())
 }

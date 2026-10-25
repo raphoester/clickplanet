@@ -9,3 +9,9 @@ export async function reconcileTitles(player: PlayerAdmin): Promise<Reconciled> 
     const answer = await player.reconcileTitles({}, {timeoutMs: LONG_CALL_MS})
     return {granted: answer.granted, revoked: answer.revoked}
 }
+
+// Every account's bombs dropped and tiles fortified set to what planet's ledger holds. A second run changes nothing.
+export async function recountStats(player: PlayerAdmin): Promise<number> {
+    const answer = await player.recountStats({}, {timeoutMs: LONG_CALL_MS})
+    return answer.recounted
+}

@@ -72,6 +72,25 @@ describe("TrackPath", () => {
         expect(screen.getByText((1_000).toLocaleString() + " messages")).toBeDefined()
     })
 
+    it("counts bombs, boxes, fortified tiles and right answers, one or many", () => {
+        const track = (id: string, progress: number, threshold: number) => ({
+            id, name: id, progress, steps: [{title: {id: `${id}-1`, name: "Next"}, threshold, earned: false}],
+        })
+
+        render(<>
+            <TrackPath track={track("bombs", 0, 1)}/>
+            <TrackPath track={track("loot", 8, 10)}/>
+            <TrackPath track={track("defense", 40, 100)}/>
+            <TrackPath track={track("quiz", 9, 10)}/>
+        </>)
+
+        expect(screen.getByText("1 bomb to Next")).toBeDefined()
+        expect(screen.getByText("2 boxes to Next")).toBeDefined()
+        expect(screen.getByText("60 fortified tiles to Next")).toBeDefined()
+        expect(screen.getByText("1 right answer to Next")).toBeDefined()
+        expect(screen.getByText("100 fortified tiles")).toBeDefined()
+    })
+
     it("says nothing is left once every rank is held", () => {
         render(<TrackPath track={conquest(12_000, 3)}/>)
 

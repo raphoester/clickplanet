@@ -16,6 +16,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase/publishing_drop_bomb"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -39,12 +40,12 @@ func TestABombOnLandIsPublishedWithTheGroundItHit(t *testing.T) {
 	inner := stubUseCase{blast: clicks.Blast{Tile: 42, CountryID: "fr", Cleared: []uint32{41, 42, 43}}}
 
 	_, err := publishing_drop_bomb.New(inner, borders{42: "de"}, events, cptime.NewFixedClock(now)).
-		Execute(t.Context(), drop_bomb_usecase.In{CountryID: "fr"})
+		Execute(cpctx.AddAccountToContext(t.Context(), "ada"), drop_bomb_usecase.In{CountryID: "fr"})
 
 	require.NoError(t, err)
 	require.Len(t, events.Published(), 1)
 	assert.True(t, proto.Equal(&planetv1.BombLanded{
-		Country: "fr", TileId: 42, Ground: "de", Cleared: 3, LandedAt: timestamppb.New(now),
+		Country: "fr", TileId: 42, Ground: "de", Cleared: 3, LandedAt: timestamppb.New(now), AccountId: "ada",
 	}, events.Published()[0]))
 }
 

@@ -51,7 +51,7 @@ func (f fixture) awarded(t *testing.T, catalog titles.Catalog) (titles.IDs, erro
 func TestTheAnswerIsWhatThisTakeGranted(t *testing.T) {
 	f := setUp()
 	for range 3 {
-		require.NoError(t, f.stats.RecordTake(t.Context(), ada, monday))
+		require.NoError(t, f.stats.Record(t.Context(), ada, players.TakeAt(monday)))
 	}
 	require.NoError(t, f.titles.Grant(t.Context(), titles.Holdings{ada: {"first"}}, monday))
 
@@ -75,12 +75,12 @@ func (f fixture) held(t *testing.T) titles.IDs {
 func TestTheTakeThatReachesATitleGrantsIt(t *testing.T) {
 	f := setUp()
 	for range 2 {
-		require.NoError(t, f.stats.RecordTake(t.Context(), ada, monday))
+		require.NoError(t, f.stats.Record(t.Context(), ada, players.TakeAt(monday)))
 	}
 	require.NoError(t, f.award(t, catalog))
 	require.Equal(t, titles.IDs{"first"}, f.held(t))
 
-	require.NoError(t, f.stats.RecordTake(t.Context(), ada, monday))
+	require.NoError(t, f.stats.Record(t.Context(), ada, players.TakeAt(monday)))
 	require.NoError(t, f.award(t, catalog))
 
 	assert.Equal(t, titles.IDs{"first", "third"}, f.held(t))
@@ -89,7 +89,7 @@ func TestTheTakeThatReachesATitleGrantsIt(t *testing.T) {
 func TestANewAccountMadeBeforeNovemberIsOGAtItsFirstTake(t *testing.T) {
 	f := setUp()
 	f.accounts.Create(ada, players.AccountOf(true, time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC)))
-	require.NoError(t, f.stats.RecordTake(t.Context(), ada, monday))
+	require.NoError(t, f.stats.Record(t.Context(), ada, players.TakeAt(monday)))
 
 	require.NoError(t, f.award(t, titles.NewCatalog()))
 
@@ -100,7 +100,7 @@ func TestAGuestsTakeGrantsNothing(t *testing.T) {
 	f := setUp()
 	f.accounts.Create(ada, players.AccountOf(false, time.Date(2026, 9, 20, 0, 0, 0, 0, time.UTC)))
 	for range 3 {
-		require.NoError(t, f.stats.RecordTake(t.Context(), ada, monday))
+		require.NoError(t, f.stats.Record(t.Context(), ada, players.TakeAt(monday)))
 	}
 
 	require.NoError(t, f.award(t, titles.NewCatalog()))
@@ -119,7 +119,7 @@ func TestAnAccountWithNoStatsEarnsNothing(t *testing.T) {
 
 func TestAStatsFailureIsAnError(t *testing.T) {
 	f := setUp()
-	require.NoError(t, f.stats.RecordTake(t.Context(), ada, monday))
+	require.NoError(t, f.stats.Record(t.Context(), ada, players.TakeAt(monday)))
 	f.stats.FailWith(errors.New("postgres is down"))
 
 	assert.Error(t, f.award(t, catalog))
@@ -127,7 +127,7 @@ func TestAStatsFailureIsAnError(t *testing.T) {
 
 func TestAnAuthFailureIsAnErrorAndGrantsNothing(t *testing.T) {
 	f := setUp()
-	require.NoError(t, f.stats.RecordTake(t.Context(), ada, monday))
+	require.NoError(t, f.stats.Record(t.Context(), ada, players.TakeAt(monday)))
 	f.accounts.FailWith(errors.New("auth is down"))
 
 	require.Error(t, f.award(t, catalog))
