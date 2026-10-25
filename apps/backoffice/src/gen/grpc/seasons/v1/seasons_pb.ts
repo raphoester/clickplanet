@@ -895,3 +895,128 @@ export class GetRaceResponse extends Message<GetRaceResponse> {
   }
 }
 
+/**
+ * @generated from message seasons.v1.GetHallOfFameRequest
+ */
+export class GetHallOfFameRequest extends Message<GetHallOfFameRequest> {
+  constructor(data?: PartialMessage<GetHallOfFameRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "seasons.v1.GetHallOfFameRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetHallOfFameRequest {
+    return new GetHallOfFameRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetHallOfFameRequest {
+    return new GetHallOfFameRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetHallOfFameRequest {
+    return new GetHallOfFameRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetHallOfFameRequest | PlainMessage<GetHallOfFameRequest> | undefined, b: GetHallOfFameRequest | PlainMessage<GetHallOfFameRequest> | undefined): boolean {
+    return proto3.util.equals(GetHallOfFameRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message seasons.v1.GetHallOfFameResponse
+ */
+export class GetHallOfFameResponse extends Message<GetHallOfFameResponse> {
+  /**
+   * Newest first.
+   *
+   * @generated from field: repeated seasons.v1.EndedSeason seasons = 1;
+   */
+  seasons: EndedSeason[] = [];
+
+  constructor(data?: PartialMessage<GetHallOfFameResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "seasons.v1.GetHallOfFameResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "seasons", kind: "message", T: EndedSeason, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetHallOfFameResponse {
+    return new GetHallOfFameResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetHallOfFameResponse {
+    return new GetHallOfFameResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetHallOfFameResponse {
+    return new GetHallOfFameResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetHallOfFameResponse | PlainMessage<GetHallOfFameResponse> | undefined, b: GetHallOfFameResponse | PlainMessage<GetHallOfFameResponse> | undefined): boolean {
+    return proto3.util.equals(GetHallOfFameResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message seasons.v1.EndedSeason
+ */
+export class EndedSeason extends Message<EndedSeason> {
+  /**
+   * @generated from field: uint32 number = 1;
+   */
+  number = 0;
+
+  /**
+   * @generated from field: int64 ended_at_unix_ms = 2;
+   */
+  endedAtUnixMs = protoInt64.zero;
+
+  /**
+   * @generated from field: repeated seasons.v1.Score scores = 3;
+   */
+  scores: Score[] = [];
+
+  /**
+   * @generated from field: repeated seasons.v1.Standing standings = 4;
+   */
+  standings: Standing[] = [];
+
+  constructor(data?: PartialMessage<EndedSeason>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "seasons.v1.EndedSeason";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "number", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "ended_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 3, name: "scores", kind: "message", T: Score, repeated: true },
+    { no: 4, name: "standings", kind: "message", T: Standing, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): EndedSeason {
+    return new EndedSeason().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): EndedSeason {
+    return new EndedSeason().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): EndedSeason {
+    return new EndedSeason().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: EndedSeason | PlainMessage<EndedSeason> | undefined, b: EndedSeason | PlainMessage<EndedSeason> | undefined): boolean {
+    return proto3.util.equals(EndedSeason, a, b);
+  }
+}
+

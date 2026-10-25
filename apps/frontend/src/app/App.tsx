@@ -27,6 +27,7 @@ export default function App(props: AppProps) {
             season={props.season}
             standings={props.standings}
             support={props.support}
+            hallOfFame={props.hallOfFame}
         />
     </>
 }

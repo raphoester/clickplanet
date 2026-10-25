@@ -20,6 +20,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/usecases/take_snapshot_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/usecases/take_snapshot_usecase/log_take_snapshot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_hall_of_fame_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_hall_of_fame_handler/hall_of_fame_query"
+	hall_of_fame_authors "github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_hall_of_fame_handler/hall_of_fame_query/rpc_player_authors"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_my_season_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_my_season_handler/my_season_query"
 	my_season_authors "github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_my_season_handler/my_season_query/rpc_player_authors"
@@ -121,6 +124,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		)),
 		ListenForEventsHandler: listen_for_events_handler.New(boards, races, countries, props.Server.StreamHeartbeat),
 		GetRaceHandler:         get_race_handler.New(race),
+		GetHallOfFameHandler:   get_hall_of_fame_handler.New(hall_of_fame_query.NewPostgresQuery(db, hall_of_fame_authors.New(player))),
 	}
 	verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", "seasons")))
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {

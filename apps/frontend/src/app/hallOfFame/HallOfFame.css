@@ -1,0 +1,107 @@
+.hall-of-fame-button {
+    position: absolute;
+    top: 16px;
+    left: 50%;
+    z-index: 128;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 49px;
+    height: 49px;
+    padding: 0;
+    cursor: pointer;
+    transition: filter 0.12s ease;
+}
+
+.hall-of-fame-button:hover,
+.hall-of-fame-button:focus-visible {
+    filter: brightness(1.12);
+}
+
+/* The season chip is 368px wide, centred. */
+.hall-of-fame-button--beside {
+    left: calc(50% + 184px + var(--space-2));
+    transform: none;
+}
+
+.hall-of-fame-button--compact {
+    position: static;
+    transform: none;
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    box-shadow: var(--drop-s);
+}
+
+.hall-of-fame-button .season-art {
+    width: 30px;
+    height: 30px;
+}
+
+.hall-of-fame {
+    max-width: 420px;
+}
+
+.hall-of-fame .modal-body {
+    text-align: left;
+}
+
+.hall-season + .hall-season {
+    margin-top: var(--space-5);
+}
+
+.hall-champion {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3);
+}
+
+.hall-trophy {
+    display: flex;
+    flex-shrink: 0;
+}
+
+.hall-trophy .season-art {
+    width: 64px;
+    height: 64px;
+}
+
+.hall-champion-what {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    min-width: 0;
+}
+
+.hall-champion-name {
+    padding-top: 4px;
+    font-family: var(--font-display);
+    font-size: var(--display-xl);
+    line-height: 1;
+    color: var(--gold);
+    text-shadow: var(--text-drop);
+    overflow-wrap: anywhere;
+}
+
+.hall-champion-name .country-flag {
+    margin-right: 0.3em;
+}
+
+.hall-heading {
+    margin: var(--space-4) 0 var(--space-1);
+    padding-top: 3px;
+    text-align: left;
+    font-size: var(--display-m);
+    color: var(--gold);
+}
+
+.hall-table .leaderboard-table-rank,
+.hall-table .leaderboard-entry-index {
+    padding-inline: var(--space-1);
+}
+
+.hall-table .leaderboard-table-number {
+    padding-right: var(--space-2);
+}

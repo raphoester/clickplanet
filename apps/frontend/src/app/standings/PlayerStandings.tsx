@@ -74,7 +74,7 @@ type StandingsTableProps = {
     onOpenPlayer?: (player: PlayerLine) => void
 }
 
-function StandingsTable({label, standings, accountId, own, onOpenPlayer}: StandingsTableProps) {
+export function StandingsTable({label, standings, accountId, own, onOpenPlayer}: StandingsTableProps) {
     if (standings.length === 0 && !own) return <p className="standings-empty">Nobody yet.</p>
 
     return <table className="leaderboard-table standings-table" aria-label={label}>

@@ -14,6 +14,8 @@ import {FakeChatBackend} from "./backends/fakeChatBackend.ts"
 import {FakePresenceBackend} from "./backends/fakePresenceBackend.ts"
 import {FakeSeasonBackend, SEASON_ZERO} from "./backends/fakeSeasonBackend.ts"
 import {ConnectSeasonBackend, newSeasonServiceClient} from "./backends/seasonBackend.ts"
+import {FakeHallOfFameBackend, sampleEndedSeason} from "./backends/fakeHallOfFameBackend.ts"
+import {ConnectHallOfFameBackend} from "./backends/hallOfFameBackend.ts"
 import {API_BASE_URL} from "./backends/transport.ts"
 import {ConnectionHealth, connectionInterceptor, followBrowser} from "./backends/connection.ts"
 import {FakeStandingsBackend} from "./backends/fakeStandingsBackend.ts"
@@ -132,6 +134,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     season={fakeSeason}
                     standings={fakeStandings}
                     support={fakeSupport}
+                    hallOfFame={new FakeHallOfFameBackend([sampleEndedSeason()])}
                 />
             </SignInGate>
         </StrictMode>,
@@ -143,6 +146,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     const player = new ConnectPlayerBackend(newPlayerServiceClient(config), session, newKeepalivePlayerServiceClient(config))
     const standings = new ConnectStandingsBackend(newSeasonServiceClient(config), session)
     const support = new ConnectSupportBackend(newSupportServiceClient(config), session)
+    const hallOfFame = new ConnectHallOfFameBackend(newSeasonServiceClient(config))
     const account = new AccountStore(new ConnectAccountBackend(authClient, attest), player, session, {
         navigate: (url) => window.location.assign(url),
         remember: rememberSignIn,
@@ -171,6 +175,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     season={season}
                     standings={standings}
                     support={support}
+                    hallOfFame={hallOfFame}
                 />
             </SignInGate>
         </StrictMode>,

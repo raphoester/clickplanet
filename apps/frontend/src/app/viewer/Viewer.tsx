@@ -66,6 +66,10 @@ import {LeaderboardEntry, rankOf} from "../../domain/leaderboard.ts";
 import {SeasonBackend} from "../../backends/season.ts";
 import {useSeason} from "../season/useSeason.ts";
 import SeasonChip, {SeasonDetails} from "../season/SeasonChip.tsx";
+import {HallOfFameBackend} from "../../backends/hallOfFame.ts";
+import {useHallOfFame} from "../hallOfFame/useHallOfFame.ts";
+import HallOfFame from "../hallOfFame/HallOfFame.tsx";
+import HallOfFameButton from "../hallOfFame/HallOfFameButton.tsx";
 import {useCompact} from "../compact.ts";
 import Sheet from "../hud/Sheet.tsx";
 import StatusBar from "../hud/StatusBar.tsx";
@@ -109,6 +113,7 @@ export type ViewerProps = {
     season?: SeasonBackend
     standings?: StandingsBackend
     support?: SupportBackend
+    hallOfFame?: HallOfFameBackend
 }
 
 export default function Viewer(props: ViewerProps) {
@@ -140,6 +145,8 @@ export default function Viewer(props: ViewerProps) {
     const season = useSeason(props.season)
     const race = useRace(props.standings)
     const reveal = useRoundReveal(race)
+    const hall = useHallOfFame(props.hallOfFame, race?.closed?.finale ? race.closed.season : undefined)
+    const [hallOpen, setHallOpen] = useState(false)
     const [countryOrder, setCountryOrder] = useState<CountryOrder>("season")
     const boardGuide = useBoardGuide()
     const [pitchOpen, setPitchOpen] = useState(false)
@@ -301,6 +308,9 @@ export default function Viewer(props: ViewerProps) {
                                 onSignIn={openPitch}/>
 
     const ready = status.state === 'ready'
+    const fame = (compact: boolean) => hall && hall.length > 0 && <HallOfFameButton compact={compact}
+                                                                                    besideSeason={season !== undefined}
+                                                                                    onOpen={() => setHallOpen(true)}/>
 
     return <>
         <div ref={container} className="viewer-canvas"/>
@@ -308,6 +318,8 @@ export default function Viewer(props: ViewerProps) {
         {!ready && <StatusCard status={status}/>}
 
         {ready && !compact && <Menu {...board} {...you} {...share} {...settings} tab={menuTab} onTab={setMenuTab}/>}
+
+        {ready && !compact && fame(false)}
 
         {ready && !compact && season && <SeasonChip season={season}
                                                     compact={false}
@@ -318,10 +330,13 @@ export default function Viewer(props: ViewerProps) {
                                         rank={rankOf(lines, countryState)}
                                         boardOpen={sheet === "board"}
                                         onOpenBoard={() => toggleSheet("board")}
-                                        trailing={season && <SeasonChip season={season}
-                                                                        compact
-                                                                        open={sheet === "season"}
-                                                                        onToggle={() => toggleSheet("season")}/>}/>}
+                                        trailing={<>
+                                            {fame(true)}
+                                            {season && <SeasonChip season={season}
+                                                                   compact
+                                                                   open={sheet === "season"}
+                                                                   onToggle={() => toggleSheet("season")}/>}
+                                        </>}/>}
 
         {ready && <ClickBudgetMeter budget={clickBudget}
                                     refusals={refusals}
@@ -391,6 +406,15 @@ export default function Viewer(props: ViewerProps) {
             store={props.account}
             multiplier={clickBudget.linkedMultiplier}
             onClose={() => setPitchOpen(false)}/>}
+
+        {hallOpen && hall && <HallOfFame hall={hall}
+                                         countryCode={countryState.code}
+                                         accountId={ownAccountId}
+                                         onOpenPlayer={onOpenPlayer && ((player) => {
+                                             setHallOpen(false)
+                                             onOpenPlayer(player)
+                                         })}
+                                         onClose={() => setHallOpen(false)}/>}
 
         {openPlayer && props.playerInfo && <PlayerCard key={openPlayer.accountId}
                                                        player={openPlayer}

@@ -553,7 +553,7 @@ internal/chat/internal/
 a read that reuses them forces public fields onto them for its own sake. So a read is a query of its own. Chat
 (`GetHistory`, `GetMessage`, `ListMessages`), player (`GetProfile`, `GetStats`, `GetPlayer`, `GetTitles`, `GetAuthors`, `GetRoster`), planet
 (`GetTakesByCountry`, `GetTerritories`, `GetLedger`), auth
-(`GetMe`, `GetAccount`, `GetAccounts`), seasons (`GetStandings`, `GetMySeason`, the live race and `GetRace`) and support (`ListNotes`, `ListReports`) follow this so far. **A command may
+(`GetMe`, `GetAccount`, `GetAccounts`), seasons (`GetStandings`, `GetMySeason`, the live race, `GetRace` and `GetHallOfFame`) and support (`ListNotes`, `ListReports`) follow this so far. **A command may
 still answer a small struct** (`SetName`, `WearTitle`, `React`, `GetAuthor`, which draws a guest code,
 `signin.Admission`); the rule is for what only reads. Auth's `GetSignInOptions` and `GetVerifyingKey` already read
 through ports of plain values (`Names()`, `PublicKey()`) and stay as they are.
@@ -1840,6 +1840,9 @@ internal/seasons/internal/
       race_query/                 PostgresQuery: the Race from SQL, ranked by rounds.Round.Results and rounds.TableOf
     get_my_season_handler/my_season_query/   PostgresQuery: GetMySeasonResponse from SQL, ranked — Authors
       rpc_player_authors/         the same adapter, for this query
+    get_hall_of_fame_handler/hall_of_fame_query/   PostgresQuery: each season ended, its table by rounds.TableOf and
+                                  its top players, named — Authors
+      rpc_player_authors/         the same adapter, for this query
     caller/                       the account on the context, or Unauthenticated
   subscribers/                    tile_taken_subscriber/  account_deleted_subscriber/  log_subscriber/
   migrations/
@@ -1890,7 +1893,7 @@ standings rank players, the rounds rank countries.
   round that failed to close is not published, and is closed and published by the next snapshot. The chat announces
   it — see [Announcements](#announcements).
 - **`rounds.TableOf` ranks the season**: points, then rounds won, then the finale's points. Countries level on all
-  three share the rank. The trophy and the titles at the season's end are a later slice; they read the same table.
+  three share the rank. The Hall of Fame reads the same table; the titles at the season's end are a later slice.
 - **Kept in `seasons.rounds`** (`season`, `ends_at`, `finale`, `samples`, `map_tiles`, `closed`), **`round_holdings`**
   (the sum of each country's counts) and **`round_results`** (`rank`, `points`), migration `20261009120000_rounds`. The
   rule stays in Go: SQL keeps the sums and what `Results` said.
@@ -1909,6 +1912,13 @@ standings rank players, the rounds rank countries.
   last (see [The clips job](#the-clips-job-internalclips-cmdclips)). It needs no token, is a GET (`NO_SIDE_EFFECTS`)
   and answers `public, max-age=10`. It reads through `race_query` itself, logged by `log_race_reader` as the feed is,
   and never through the feed: a feed with no stream holds no race.
+- **`GetHallOfFame` is every season that ended**, newest first: a season is in it once its finale round is closed,
+  so before Season 0's finale closes the answer is empty. Each is its number, its end, its final table
+  (`rounds.TableOf` over the results of its closed rounds, every country with points) and its top 10 players by
+  their main flag's tiles, signed-in only, named and ranked as `GetStandings` does. Raw facts: the client crowns the
+  countries ranked 1. It needs no token, is a GET (`NO_SIDE_EFFECTS`) and answers `public, max-age=60`.
+  `hall_of_fame_query` reads `seasons.rounds` and `seasons.contributions` itself; its tests seed through
+  `postgres_round_store` and `postgres_contribution_store`.
 - `rounds.StoreContractSuite` runs on `inmemory_round_store` and on postgres. `e2e/race_test.go` clicks for two flags
   and reads the race off the stream.
 - `standings.StoreContractSuite` runs on `inmemory_contribution_store` and on postgres. It reads what a store kept through a `TallyOf` hook each adapter's test fills, since the write side reads nothing back. The use cases are tested over the in-memory one; the queries on postgres, seeded through `postgres_contribution_store`.

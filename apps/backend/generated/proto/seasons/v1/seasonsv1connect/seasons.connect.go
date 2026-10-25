@@ -46,6 +46,9 @@ const (
 	SeasonServiceListenForEventsProcedure = "/seasons.v1.SeasonService/ListenForEvents"
 	// SeasonServiceGetRaceProcedure is the fully-qualified name of the SeasonService's GetRace RPC.
 	SeasonServiceGetRaceProcedure = "/seasons.v1.SeasonService/GetRace"
+	// SeasonServiceGetHallOfFameProcedure is the fully-qualified name of the SeasonService's
+	// GetHallOfFame RPC.
+	SeasonServiceGetHallOfFameProcedure = "/seasons.v1.SeasonService/GetHallOfFame"
 )
 
 // SeasonServiceClient is a client for the seasons.v1.SeasonService service.
@@ -56,6 +59,7 @@ type SeasonServiceClient interface {
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest]) (*connect.ServerStreamForClient[v1.SeasonEvent], error)
 	// The race the stream sends, once: for a reader that does not follow it, the clips job.
 	GetRace(context.Context, *connect.Request[v1.GetRaceRequest]) (*connect.Response[v1.GetRaceResponse], error)
+	GetHallOfFame(context.Context, *connect.Request[v1.GetHallOfFameRequest]) (*connect.Response[v1.GetHallOfFameResponse], error)
 }
 
 // NewSeasonServiceClient constructs a client for the seasons.v1.SeasonService service. By default,
@@ -102,6 +106,13 @@ func NewSeasonServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		getHallOfFame: connect.NewClient[v1.GetHallOfFameRequest, v1.GetHallOfFameResponse](
+			httpClient,
+			baseURL+SeasonServiceGetHallOfFameProcedure,
+			connect.WithSchema(seasonServiceMethods.ByName("GetHallOfFame")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -112,6 +123,7 @@ type seasonServiceClient struct {
 	getMySeason     *connect.Client[v1.GetMySeasonRequest, v1.GetMySeasonResponse]
 	listenForEvents *connect.Client[v1.ListenForEventsRequest, v1.SeasonEvent]
 	getRace         *connect.Client[v1.GetRaceRequest, v1.GetRaceResponse]
+	getHallOfFame   *connect.Client[v1.GetHallOfFameRequest, v1.GetHallOfFameResponse]
 }
 
 // GetSeason calls seasons.v1.SeasonService.GetSeason.
@@ -139,6 +151,11 @@ func (c *seasonServiceClient) GetRace(ctx context.Context, req *connect.Request[
 	return c.getRace.CallUnary(ctx, req)
 }
 
+// GetHallOfFame calls seasons.v1.SeasonService.GetHallOfFame.
+func (c *seasonServiceClient) GetHallOfFame(ctx context.Context, req *connect.Request[v1.GetHallOfFameRequest]) (*connect.Response[v1.GetHallOfFameResponse], error) {
+	return c.getHallOfFame.CallUnary(ctx, req)
+}
+
 // SeasonServiceHandler is an implementation of the seasons.v1.SeasonService service.
 type SeasonServiceHandler interface {
 	GetSeason(context.Context, *connect.Request[v1.GetSeasonRequest]) (*connect.Response[v1.GetSeasonResponse], error)
@@ -147,6 +164,7 @@ type SeasonServiceHandler interface {
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest], *connect.ServerStream[v1.SeasonEvent]) error
 	// The race the stream sends, once: for a reader that does not follow it, the clips job.
 	GetRace(context.Context, *connect.Request[v1.GetRaceRequest]) (*connect.Response[v1.GetRaceResponse], error)
+	GetHallOfFame(context.Context, *connect.Request[v1.GetHallOfFameRequest]) (*connect.Response[v1.GetHallOfFameResponse], error)
 }
 
 // NewSeasonServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -189,6 +207,13 @@ func NewSeasonServiceHandler(svc SeasonServiceHandler, opts ...connect.HandlerOp
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	seasonServiceGetHallOfFameHandler := connect.NewUnaryHandler(
+		SeasonServiceGetHallOfFameProcedure,
+		svc.GetHallOfFame,
+		connect.WithSchema(seasonServiceMethods.ByName("GetHallOfFame")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/seasons.v1.SeasonService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case SeasonServiceGetSeasonProcedure:
@@ -201,6 +226,8 @@ func NewSeasonServiceHandler(svc SeasonServiceHandler, opts ...connect.HandlerOp
 			seasonServiceListenForEventsHandler.ServeHTTP(w, r)
 		case SeasonServiceGetRaceProcedure:
 			seasonServiceGetRaceHandler.ServeHTTP(w, r)
+		case SeasonServiceGetHallOfFameProcedure:
+			seasonServiceGetHallOfFameHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -228,4 +255,8 @@ func (UnimplementedSeasonServiceHandler) ListenForEvents(context.Context, *conne
 
 func (UnimplementedSeasonServiceHandler) GetRace(context.Context, *connect.Request[v1.GetRaceRequest]) (*connect.Response[v1.GetRaceResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("seasons.v1.SeasonService.GetRace is not implemented"))
+}
+
+func (UnimplementedSeasonServiceHandler) GetHallOfFame(context.Context, *connect.Request[v1.GetHallOfFameRequest]) (*connect.Response[v1.GetHallOfFameResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("seasons.v1.SeasonService.GetHallOfFame is not implemented"))
 }

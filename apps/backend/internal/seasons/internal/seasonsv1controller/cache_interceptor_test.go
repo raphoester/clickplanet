@@ -16,6 +16,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/calendar"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/calendar/usecases/get_season_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_hall_of_fame_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_race_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_season_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -67,4 +68,30 @@ func TestTheRaceIsAGetAnyCacheMayKeepForTenSeconds(t *testing.T) {
 
 	assert.Equal(t, "public, max-age=10", res.Header().Get("Cache-Control"))
 	assert.Equal(t, uint32(5), res.Msg.GetRace().GetClosed().GetNumber())
+}
+
+type hall struct{}
+
+func (hall) HallOfFame(context.Context) (*seasonsv1.GetHallOfFameResponse, error) {
+	return &seasonsv1.GetHallOfFameResponse{Seasons: []*seasonsv1.EndedSeason{{Number: 0}}}, nil
+}
+
+func TestTheHallOfFameIsAGetAnyCacheMayKeepForAMinute(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.Handle(seasonsv1connect.NewSeasonServiceHandler(seasonsv1controller.SeasonService{GetHallOfFameHandler: get_hall_of_fame_handler.New(hall{})},
+		connect.WithInterceptors(seasonsv1controller.NewCacheInterceptor())))
+	methods := make(chan string, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		methods <- r.Method
+		mux.ServeHTTP(w, r)
+	}))
+	t.Cleanup(server.Close)
+
+	client := seasonsv1connect.NewSeasonServiceClient(server.Client(), server.URL, connect.WithHTTPGet())
+	res, err := client.GetHallOfFame(t.Context(), connect.NewRequest(&seasonsv1.GetHallOfFameRequest{}))
+	require.NoError(t, err)
+
+	assert.Equal(t, http.MethodGet, <-methods)
+	assert.Equal(t, "public, max-age=60", res.Header().Get("Cache-Control"))
+	assert.Len(t, res.Msg.GetSeasons(), 1)
 }
