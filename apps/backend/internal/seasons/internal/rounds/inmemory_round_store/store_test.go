@@ -19,7 +19,4 @@ type testSuite struct {
 
 func (s *testSuite) SetupSuite() {
 	s.NewStore = func() rounds.Store { return inmemory_round_store.New() }
-	s.ResultsOf = func(store rounds.Store, round rounds.Round) []rounds.Result {
-		return store.(*inmemory_round_store.Store).Results(round) //nolint:forcetypeassert // NewStore built it.
-	}
 }

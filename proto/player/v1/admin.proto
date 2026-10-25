@@ -11,9 +11,6 @@ import "player/v1/title.proto";
 service AdminService {
   rpc ReconcileTitles(ReconcileTitlesRequest) returns (ReconcileTitlesResponse);
 
-  // Every account's bombs dropped and tiles fortified, set to what planet's ledger holds. Harmless twice.
-  rpc RecountStats(RecountStatsRequest) returns (RecountStatsResponse);
-
   // InternalService/GetAuthors, for the admin page naming a page of players.
   rpc GetAuthors(GetAuthorsRequest) returns (GetAuthorsResponse);
 
@@ -32,12 +29,6 @@ message ReconcileTitlesRequest {}
 message ReconcileTitlesResponse {
   uint32 granted = 1;
   uint32 revoked = 2;
-}
-
-message RecountStatsRequest {}
-
-message RecountStatsResponse {
-  uint32 recounted = 1;
 }
 
 message SearchPlayersRequest {
