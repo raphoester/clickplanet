@@ -10,7 +10,7 @@ export type MissionsState =
 
 export function useMissions(
     backend: MissionsBackend | undefined,
-    countryCode: string,
+    pledged: string | undefined,
     listenForClicks: ListenForClicks | undefined,
 ): [MissionsState, () => void] {
     const [state, setState] = useState<MissionsState>({kind: "loading"})
@@ -21,7 +21,7 @@ export function useMissions(
     useEffect(() => {
         if (!backend) return
         let stale = false
-        backend.missions(countryCode).then(
+        backend.missions().then(
             (day) => {
                 if (!stale) setState({kind: "ready", day})
             },
@@ -33,7 +33,7 @@ export function useMissions(
         return () => {
             stale = true
         }
-    }, [backend, countryCode, read, reads])
+    }, [backend, pledged, read, reads])
 
     useEffect(() => {
         if (endsAt === undefined) return

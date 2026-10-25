@@ -14,6 +14,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/postgres_mission_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/rpc_planet_allegiance"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/rpc_planet_charges"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/rpc_planet_world"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/usecases/collect_mission_usecase"
@@ -27,7 +28,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/tile_taken_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsessionverifier"
@@ -95,7 +95,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	service := missionsv1controller.MissionService{
 		GetMissionsHandler: get_missions_handler.New(
-			get_missions_usecase.New(calendar, clock, store, briefing, cpcountries.New()),
+			get_missions_usecase.New(calendar, clock, store, briefing, rpc_planet_allegiance.New(planet)),
 		),
 		CollectMissionHandler: collect_mission_handler.New(
 			collect_mission_usecase.New(calendar, clock, store, briefing, rpc_planet_charges.New(planet)),

@@ -79,7 +79,6 @@ func (MissionKind) EnumDescriptor() ([]byte, []int) {
 
 type GetMissionsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	CountryId     string                 `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -114,14 +113,7 @@ func (*GetMissionsRequest) Descriptor() ([]byte, []int) {
 	return file_missions_v1_missions_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *GetMissionsRequest) GetCountryId() string {
-	if x != nil {
-		return x.CountryId
-	}
-	return ""
-}
-
-// The day's missions are for the flag of the day's first take, and for country_id until then.
+// The day's missions are for the flag of the day's first take, and for the caller's pledged flag until then.
 type GetMissionsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	CountryId     string                 `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
@@ -390,10 +382,8 @@ var File_missions_v1_missions_proto protoreflect.FileDescriptor
 
 const file_missions_v1_missions_proto_rawDesc = "" +
 	"\n" +
-	"\x1amissions/v1/missions.proto\x12\vmissions.v1\x1a\x16planet/v1/planet.proto\"3\n" +
-	"\x12GetMissionsRequest\x12\x1d\n" +
-	"\n" +
-	"country_id\x18\x01 \x01(\tR\tcountryId\"\xa9\x01\n" +
+	"\x1amissions/v1/missions.proto\x12\vmissions.v1\x1a\x16planet/v1/planet.proto\"\x14\n" +
+	"\x12GetMissionsRequest\"\xa9\x01\n" +
 	"\x13GetMissionsResponse\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x01 \x01(\tR\tcountryId\x12\x1a\n" +

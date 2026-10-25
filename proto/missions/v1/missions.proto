@@ -11,11 +11,9 @@ service MissionService {
   rpc CollectMission(CollectMissionRequest) returns (CollectMissionResponse);
 }
 
-message GetMissionsRequest {
-  string country_id = 1;
-}
+message GetMissionsRequest {}
 
-// The day's missions are for the flag of the day's first take, and for country_id until then.
+// The day's missions are for the flag of the day's first take, and for the caller's pledged flag until then.
 message GetMissionsResponse {
   string country_id = 1;
   bool enlisted = 2;

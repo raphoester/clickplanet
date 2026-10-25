@@ -18,6 +18,10 @@ service InternalService {
   }
 
   rpc GrantCharge(GrantChargeRequest) returns (GrantChargeResponse);
+
+  rpc GetAllegianceOf(GetAllegianceOfRequest) returns (GetAllegianceOfResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 }
 
 message GetTakesByCountryRequest {
@@ -66,5 +70,14 @@ message GrantChargeRequest {
 // 0 when the account already holds as much of the kind as it may.
 message GrantChargeResponse {
   uint32 kept = 1;
+}
+
+message GetAllegianceOfRequest {
+  string account_id = 1;
+}
+
+// Unset for an account that never pledged a flag.
+message GetAllegianceOfResponse {
+  Allegiance allegiance = 1;
 }
 

@@ -75,14 +75,16 @@ func (s *testSuite) TestAPlayerDoesAMissionAndCollectsItsReward() {
 	t := s.T()
 	ada := s.game.newPlayer(t)
 	ada.link("google-missions")
-	first := ada.missions("it")[0]
+	ada.pledge("it")
+	first := ada.missions()[0]
 	require.Equal(t, missionsv1.MissionKind_MISSION_KIND_TAKE_FOR, first.GetKind(),
-		"missions asks planet for the map to draw the day")
+		"missions asks planet for the pledged flag and the map to draw the day")
+	require.Equal(t, "it", first.GetTargetCountryId())
 
 	for tile := range first.GetGoal() {
 		ada.click(1000+tile, "it")
 	}
-	require.Eventually(t, func() bool { return ada.missions("it")[0].GetProgress() == first.GetGoal() },
+	require.Eventually(t, func() bool { return ada.missions()[0].GetProgress() == first.GetGoal() },
 		5*time.Second, 20*time.Millisecond, "planet relays each take to missions")
 
 	kept := ada.collect(first.GetSlot())
@@ -156,7 +158,7 @@ func (s *testSuite) TestADeletedAccountIsForgottenByEveryModule() {
 	leaving.reportBug("a bug before leaving")
 	require.Eventually(t, func() bool {
 		return leaving.stats().GetTilesTaken() == 1 && leaving.mySeason().GetTiles() == 1 &&
-			leaving.missions("es")[0].GetProgress() == 1
+			leaving.missions()[0].GetProgress() == 1
 	}, 5*time.Second, 20*time.Millisecond)
 	require.NotZero(t, leaving.history().GetSeenUntilUnixMs())
 	require.Equal(t, leaving.account(), s.game.noteOf(t, "a bug before leaving").GetAccountId())
@@ -169,7 +171,9 @@ func (s *testSuite) TestADeletedAccountIsForgottenByEveryModule() {
 		assert.Zero(c, leaving.stats().GetTilesTaken(), "player")
 		assert.Zero(c, leaving.mySeason().GetTiles(), "seasons")
 		assert.Zero(c, leaving.history().GetSeenUntilUnixMs(), "chat")
-		assert.Zero(c, leaving.missions("es")[0].GetProgress(), "missions")
+		for _, mission := range leaving.missions() {
+			assert.Zero(c, mission.GetProgress(), "missions")
+		}
 		note := s.game.noteOf(t, "a bug before leaving")
 		require.NotNil(c, note, "support keeps the note")
 		assert.Empty(c, note.GetAccountId(), "and names no account")

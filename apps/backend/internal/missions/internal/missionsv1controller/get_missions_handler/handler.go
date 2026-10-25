@@ -2,7 +2,6 @@ package get_missions_handler
 
 import (
 	"context"
-	"errors"
 
 	"connectrpc.com/connect"
 
@@ -26,18 +25,15 @@ type GetMissionsHandler struct {
 
 func (h GetMissionsHandler) GetMissions(
 	ctx context.Context,
-	req *connect.Request[missionsv1.GetMissionsRequest],
+	_ *connect.Request[missionsv1.GetMissionsRequest],
 ) (*connect.Response[missionsv1.GetMissionsResponse], error) {
 	account, err := caller.AccountOf(ctx)
 	if err != nil {
 		return nil, err //nolint:wrapcheck // already the connect error the caller reads.
 	}
 
-	out, err := h.useCase.Execute(ctx, get_missions_usecase.In{Account: account, Country: req.Msg.GetCountryId()})
-	switch {
-	case errors.Is(err, get_missions_usecase.ErrUnknownCountry):
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
-	case err != nil:
+	out, err := h.useCase.Execute(ctx, get_missions_usecase.In{Account: account})
+	if err != nil {
 		return nil, err //nolint:wrapcheck // the error net answers what is not the caller's fault.
 	}
 

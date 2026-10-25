@@ -69,7 +69,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     const fakeMissions = new FakeMissionsBackend((kind) => {
         if (kind === "bomb") fake.grantBomb()
         else fake.grantBonus(kind)
-    })
+    }, fake)
     Object.assign(window, {
         fakeBackend: fake,
         connection,

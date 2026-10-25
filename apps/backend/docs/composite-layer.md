@@ -65,6 +65,7 @@ return []bootstrap.Module{
 | `auth`'s admin gate, which `main` builds | `auth.v1.InternalService/GetOperator` | who calls the admin listener, and whether that account operates, on each admin call | `admingate/admission/rpc_operators` |
 | `player` | `planet.v1.InternalService/GetTakesByCountry` | the flags an account took tiles for and the flags that held them, from the ledger, on each `GetFronts`, on each `GetPlayer` the cache does not answer, and on each operator's `AdminService/GetPlayer` | `playerv1controller/rpc_planet_fronts` |
 | `missions` | `planet.v1.InternalService/GetTerritories` and `GetGrounds` | what each flag holds and how many tiles each country's ground has, once per flag and day, to draw its missions | `missions/rpc_planet_world` |
+| `missions` | `planet.v1.InternalService/GetAllegianceOf` | the flag the caller pledged, on each `GetMissions` before the day's first take | `missions/rpc_planet_allegiance` |
 | `missions` | `planet.v1.InternalService/GrantCharge` | the charge a mission pays, on each `CollectMission` | `missions/rpc_planet_charges` |
 
 A module cannot import another's interior, so the key client all five need is `shared/cpsessionverifier` rather than a copy in each.

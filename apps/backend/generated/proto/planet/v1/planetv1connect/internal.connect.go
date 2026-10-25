@@ -45,6 +45,9 @@ const (
 	// InternalServiceGrantChargeProcedure is the fully-qualified name of the InternalService's
 	// GrantCharge RPC.
 	InternalServiceGrantChargeProcedure = "/planet.v1.InternalService/GrantCharge"
+	// InternalServiceGetAllegianceOfProcedure is the fully-qualified name of the InternalService's
+	// GetAllegianceOf RPC.
+	InternalServiceGetAllegianceOfProcedure = "/planet.v1.InternalService/GetAllegianceOf"
 )
 
 // InternalServiceClient is a client for the planet.v1.InternalService service.
@@ -53,6 +56,7 @@ type InternalServiceClient interface {
 	GetTerritories(context.Context, *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error)
 	GetGrounds(context.Context, *connect.Request[v1.GetGroundsRequest]) (*connect.Response[v1.GetGroundsResponse], error)
 	GrantCharge(context.Context, *connect.Request[v1.GrantChargeRequest]) (*connect.Response[v1.GrantChargeResponse], error)
+	GetAllegianceOf(context.Context, *connect.Request[v1.GetAllegianceOfRequest]) (*connect.Response[v1.GetAllegianceOfResponse], error)
 }
 
 // NewInternalServiceClient constructs a client for the planet.v1.InternalService service. By
@@ -93,6 +97,13 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(internalServiceMethods.ByName("GrantCharge")),
 			connect.WithClientOptions(opts...),
 		),
+		getAllegianceOf: connect.NewClient[v1.GetAllegianceOfRequest, v1.GetAllegianceOfResponse](
+			httpClient,
+			baseURL+InternalServiceGetAllegianceOfProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("GetAllegianceOf")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -102,6 +113,7 @@ type internalServiceClient struct {
 	getTerritories    *connect.Client[v1.GetTerritoriesRequest, v1.GetTerritoriesResponse]
 	getGrounds        *connect.Client[v1.GetGroundsRequest, v1.GetGroundsResponse]
 	grantCharge       *connect.Client[v1.GrantChargeRequest, v1.GrantChargeResponse]
+	getAllegianceOf   *connect.Client[v1.GetAllegianceOfRequest, v1.GetAllegianceOfResponse]
 }
 
 // GetTakesByCountry calls planet.v1.InternalService.GetTakesByCountry.
@@ -124,12 +136,18 @@ func (c *internalServiceClient) GrantCharge(ctx context.Context, req *connect.Re
 	return c.grantCharge.CallUnary(ctx, req)
 }
 
+// GetAllegianceOf calls planet.v1.InternalService.GetAllegianceOf.
+func (c *internalServiceClient) GetAllegianceOf(ctx context.Context, req *connect.Request[v1.GetAllegianceOfRequest]) (*connect.Response[v1.GetAllegianceOfResponse], error) {
+	return c.getAllegianceOf.CallUnary(ctx, req)
+}
+
 // InternalServiceHandler is an implementation of the planet.v1.InternalService service.
 type InternalServiceHandler interface {
 	GetTakesByCountry(context.Context, *connect.Request[v1.GetTakesByCountryRequest]) (*connect.Response[v1.GetTakesByCountryResponse], error)
 	GetTerritories(context.Context, *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error)
 	GetGrounds(context.Context, *connect.Request[v1.GetGroundsRequest]) (*connect.Response[v1.GetGroundsResponse], error)
 	GrantCharge(context.Context, *connect.Request[v1.GrantChargeRequest]) (*connect.Response[v1.GrantChargeResponse], error)
+	GetAllegianceOf(context.Context, *connect.Request[v1.GetAllegianceOfRequest]) (*connect.Response[v1.GetAllegianceOfResponse], error)
 }
 
 // NewInternalServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -166,6 +184,13 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 		connect.WithSchema(internalServiceMethods.ByName("GrantCharge")),
 		connect.WithHandlerOptions(opts...),
 	)
+	internalServiceGetAllegianceOfHandler := connect.NewUnaryHandler(
+		InternalServiceGetAllegianceOfProcedure,
+		svc.GetAllegianceOf,
+		connect.WithSchema(internalServiceMethods.ByName("GetAllegianceOf")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/planet.v1.InternalService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case InternalServiceGetTakesByCountryProcedure:
@@ -176,6 +201,8 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 			internalServiceGetGroundsHandler.ServeHTTP(w, r)
 		case InternalServiceGrantChargeProcedure:
 			internalServiceGrantChargeHandler.ServeHTTP(w, r)
+		case InternalServiceGetAllegianceOfProcedure:
+			internalServiceGetAllegianceOfHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -199,4 +226,8 @@ func (UnimplementedInternalServiceHandler) GetGrounds(context.Context, *connect.
 
 func (UnimplementedInternalServiceHandler) GrantCharge(context.Context, *connect.Request[v1.GrantChargeRequest]) (*connect.Response[v1.GrantChargeResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.GrantCharge is not implemented"))
+}
+
+func (UnimplementedInternalServiceHandler) GetAllegianceOf(context.Context, *connect.Request[v1.GetAllegianceOfRequest]) (*connect.Response[v1.GetAllegianceOfResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.GetAllegianceOf is not implemented"))
 }

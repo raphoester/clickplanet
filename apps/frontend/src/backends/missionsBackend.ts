@@ -23,9 +23,9 @@ export class ConnectMissionsBackend implements MissionsBackend {
     ) {
     }
 
-    public async missions(countryCode: string): Promise<DayMissions> {
+    public async missions(): Promise<DayMissions> {
         const res = await this.authenticated((headers) =>
-            retrying(() => this.client.getMissions({countryId: countryCode}, {headers}), "GetMissions"))
+            retrying(() => this.client.getMissions({}, {headers}), "GetMissions"))
         return {
             countryCode: res.countryId,
             enlisted: res.enlisted,

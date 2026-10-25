@@ -36,11 +36,11 @@ var (
 	day = missions.NewCalendar(missions.Config{Cutoff: 21 * time.Hour}).DayOf(time.Date(2026, 10, 26, 12, 0, 0, 0, time.UTC))
 )
 
-func ask(t *testing.T, useCase *stubUseCase, country string) (*missionsv1.GetMissionsResponse, error) {
+func ask(t *testing.T, useCase *stubUseCase) (*missionsv1.GetMissionsResponse, error) {
 	t.Helper()
 
 	res, err := get_missions_handler.New(useCase).GetMissions(cpctx.AddAccountToContext(t.Context(), ada.String()),
-		connect.NewRequest(&missionsv1.GetMissionsRequest{CountryId: country}))
+		connect.NewRequest(&missionsv1.GetMissionsRequest{}))
 	if err != nil {
 		return nil, err //nolint:wrapcheck // the tests read the connect error.
 	}
@@ -59,10 +59,10 @@ func TestEachMissionIsAnsweredWithHowFarItWent(t *testing.T) {
 		}),
 	}}
 
-	res, err := ask(t, useCase, "de")
+	res, err := ask(t, useCase)
 
 	require.NoError(t, err)
-	assert.Equal(t, get_missions_usecase.In{Account: ada, Country: "de"}, useCase.in)
+	assert.Equal(t, get_missions_usecase.In{Account: ada}, useCase.in)
 	assert.True(t, proto.Equal(&missionsv1.GetMissionsResponse{
 		CountryId: "fr", Enlisted: true, EndsAtUnixMs: time.Date(2026, 10, 26, 21, 0, 0, 0, time.UTC).UnixMilli(),
 		Missions: []*missionsv1.Mission{
@@ -79,22 +79,19 @@ func TestEachMissionIsAnsweredWithHowFarItWent(t *testing.T) {
 }
 
 func TestAnAnswerBeforeAnyFlagHasNoMissions(t *testing.T) {
-	res, err := ask(t, &stubUseCase{out: get_missions_usecase.Out{Day: day, Sheet: missions.SheetOf(missions.SheetSnapshot{})}}, "")
+	res, err := ask(t, &stubUseCase{out: get_missions_usecase.Out{Day: day, Sheet: missions.SheetOf(missions.SheetSnapshot{})}})
 
 	require.NoError(t, err)
 	assert.False(t, res.GetEnlisted())
 	assert.Empty(t, res.GetMissions())
 }
 
-func TestErrorsMapToTheirCodes(t *testing.T) {
-	for err, code := range map[error]connect.Code{
-		get_missions_usecase.ErrUnknownCountry: connect.CodeInvalidArgument,
-		errors.New("boom"):                     connect.CodeUnknown,
-	} {
-		_, got := ask(t, &stubUseCase{err: err}, "zz")
+func TestAFailedReadIsTheErrorNets(t *testing.T) {
+	failure := errors.New("planet is down")
 
-		assert.Equal(t, code, connect.CodeOf(got), err.Error())
-	}
+	_, err := ask(t, &stubUseCase{err: failure})
+
+	assert.ErrorIs(t, err, failure)
 }
 
 func TestACallerWithNoAccountIsUnauthenticated(t *testing.T) {

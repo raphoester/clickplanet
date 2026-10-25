@@ -5,7 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
-import { BonusKind } from "./planet_pb.js";
+import { Allegiance, BonusKind } from "./planet_pb.js";
 
 /**
  * @generated from message planet.v1.GetTakesByCountryRequest
@@ -443,6 +443,82 @@ export class GrantChargeResponse extends Message<GrantChargeResponse> {
 
   static equals(a: GrantChargeResponse | PlainMessage<GrantChargeResponse> | undefined, b: GrantChargeResponse | PlainMessage<GrantChargeResponse> | undefined): boolean {
     return proto3.util.equals(GrantChargeResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.GetAllegianceOfRequest
+ */
+export class GetAllegianceOfRequest extends Message<GetAllegianceOfRequest> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  constructor(data?: PartialMessage<GetAllegianceOfRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetAllegianceOfRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetAllegianceOfRequest {
+    return new GetAllegianceOfRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetAllegianceOfRequest {
+    return new GetAllegianceOfRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetAllegianceOfRequest {
+    return new GetAllegianceOfRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetAllegianceOfRequest | PlainMessage<GetAllegianceOfRequest> | undefined, b: GetAllegianceOfRequest | PlainMessage<GetAllegianceOfRequest> | undefined): boolean {
+    return proto3.util.equals(GetAllegianceOfRequest, a, b);
+  }
+}
+
+/**
+ * Unset for an account that never pledged a flag.
+ *
+ * @generated from message planet.v1.GetAllegianceOfResponse
+ */
+export class GetAllegianceOfResponse extends Message<GetAllegianceOfResponse> {
+  /**
+   * @generated from field: planet.v1.Allegiance allegiance = 1;
+   */
+  allegiance?: Allegiance;
+
+  constructor(data?: PartialMessage<GetAllegianceOfResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetAllegianceOfResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "allegiance", kind: "message", T: Allegiance },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetAllegianceOfResponse {
+    return new GetAllegianceOfResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetAllegianceOfResponse {
+    return new GetAllegianceOfResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetAllegianceOfResponse {
+    return new GetAllegianceOfResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetAllegianceOfResponse | PlainMessage<GetAllegianceOfResponse> | undefined, b: GetAllegianceOfResponse | PlainMessage<GetAllegianceOfResponse> | undefined): boolean {
+    return proto3.util.equals(GetAllegianceOfResponse, a, b);
   }
 }
 

@@ -10,7 +10,7 @@ flag, tiles from the leader, tiles on a country's ground, each for a charge. The
   the same rows and **Sign in to collect**, which opens the sign-in pitch: its progress is kept
   for the day. "Ends in" is the day's own end, 21:00 UTC.
 - **`useMissions` lives in `Viewer`, not in the place**, so the tab's badge (`collectable`) is
-  right with the tab closed. It reads `GetMissions(country)` at load, on a change of flag, after
+  right with the tab closed. It reads `GetMissions` at load, on a change of the pledged flag (`useAllegiance`), after
   each run of clicks (`useReadsAfterClicks`) and once the day ends.
 - **Collecting is the box's moment**: `collectMission` answers the kind and the amount kept;
   `Viewer` shows it as a `BonusAward` (`awardOf`) and asks the planet backend for the charges

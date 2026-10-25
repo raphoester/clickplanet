@@ -1,5 +1,5 @@
 import {ChargeKind} from "../domain/bonus.ts"
-import {TileClicker} from "./backend.ts"
+import {AllegianceSource, TileClicker} from "./backend.ts"
 import {DayMissions, Mission, MissionError, MissionReward, MissionsBackend} from "./missions.ts"
 
 const DAY_MS = 24 * 3600_000
@@ -8,13 +8,18 @@ const CUTOFF_MS = 21 * 3600_000
 export class FakeMissionsBackend implements MissionsBackend {
     private taken = 0
     private flag?: string
+    private pledged?: string
     private finished = false
     private readonly collected = new Set<number>()
 
     constructor(
         private readonly grant: (kind: ChargeKind) => void,
+        allegiance: AllegianceSource,
         private readonly now: () => number = Date.now,
     ) {
+        allegiance.listenForAllegiance((held) => {
+            this.pledged = held?.countryId
+        })
     }
 
     public counting(clicker: TileClicker): TileClicker {
@@ -31,12 +36,13 @@ export class FakeMissionsBackend implements MissionsBackend {
         this.finished = true
     }
 
-    public async missions(countryCode: string): Promise<DayMissions> {
+    public async missions(): Promise<DayMissions> {
+        const flag = this.flag ?? this.pledged
         return {
-            countryCode: this.flag ?? countryCode,
+            countryCode: flag ?? "",
             enlisted: this.flag !== undefined,
             endsAt: this.endOfDay(),
-            missions: this.brief(this.flag ?? countryCode),
+            missions: flag ? this.brief(flag) : [],
         }
     }
 

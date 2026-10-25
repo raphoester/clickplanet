@@ -49,11 +49,6 @@ proto3.util.setEnumType(MissionKind, "missions.v1.MissionKind", [
  * @generated from message missions.v1.GetMissionsRequest
  */
 export class GetMissionsRequest extends Message<GetMissionsRequest> {
-  /**
-   * @generated from field: string country_id = 1;
-   */
-  countryId = "";
-
   constructor(data?: PartialMessage<GetMissionsRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -62,7 +57,6 @@ export class GetMissionsRequest extends Message<GetMissionsRequest> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "missions.v1.GetMissionsRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetMissionsRequest {
@@ -83,7 +77,7 @@ export class GetMissionsRequest extends Message<GetMissionsRequest> {
 }
 
 /**
- * The day's missions are for the flag of the day's first take, and for country_id until then.
+ * The day's missions are for the flag of the day's first take, and for the caller's pledged flag until then.
  *
  * @generated from message missions.v1.GetMissionsResponse
  */

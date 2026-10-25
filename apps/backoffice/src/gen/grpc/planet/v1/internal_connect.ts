@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetGroundsRequest, GetGroundsResponse, GetTakesByCountryRequest, GetTakesByCountryResponse, GetTerritoriesRequest, GetTerritoriesResponse, GrantChargeRequest, GrantChargeResponse } from "./internal_pb.js";
+import { GetAllegianceOfRequest, GetAllegianceOfResponse, GetGroundsRequest, GetGroundsResponse, GetTakesByCountryRequest, GetTakesByCountryResponse, GetTerritoriesRequest, GetTerritoriesResponse, GrantChargeRequest, GrantChargeResponse } from "./internal_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -50,6 +50,16 @@ export const InternalService = {
       I: GrantChargeRequest,
       O: GrantChargeResponse,
       kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc planet.v1.InternalService.GetAllegianceOf
+     */
+    getAllegianceOf: {
+      name: "GetAllegianceOf",
+      I: GetAllegianceOfRequest,
+      O: GetAllegianceOfResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
     },
   }
 } as const;

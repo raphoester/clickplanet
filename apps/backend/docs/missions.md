@@ -1,7 +1,7 @@
 # Missions (`internal/missions/`)
 
 **Every flag has three missions a day, the same for each of its players, and what collecting one pays.** It reads
-planet's facts (`TileTaken`, `GetTerritories`, `GetGrounds`) and asks planet to grant a reward (`GrantCharge`), as
+planet's facts (`TileTaken`, `GetTerritories`, `GetGrounds`, `GetAllegianceOf`) and asks planet to grant a reward (`GrantCharge`), as
 seasons asks planet what each country holds: planet never imports, calls or hears it.
 Its public route, `/missions.v1.MissionService/*`, is listed in `deploy/vps/caddy/Caddyfile`, as every service's is.
 
@@ -13,6 +13,7 @@ internal/missions/internal/
     inmemory_mission_store/         the same port in maps, behind the testing tag
     rpc_planet_world/               what each flag holds and each ground's size, from planet.v1.InternalService
     rpc_planet_charges/             a mission's reward, through planet.v1.InternalService/GrantCharge
+    rpc_planet_allegiance/          the flag an account pledged, from planet.v1.InternalService/GetAllegianceOf
     usecases/record_take_usecase/  get_missions_usecase/  collect_mission_usecase/  forget_account_usecase/
   missionsv1controller/             MissionService (a bag), the session interceptor, the caller, missionmessage
     get_missions_handler/  collect_mission_handler/
@@ -33,8 +34,9 @@ internal/missions/internal/
   - **`Briefing.Of(day, flag)` draws once and keeps it**: the store's first `KeepBrief` wins, so two takes racing to
     draw a flag's day read one brief, and a map that moves later never changes it.
   - **A day is locked to the flag of its first take** (`Sheet.WithTake`): a take for another flag counts nothing, so a
-    change of flag cannot farm a second set. Until that take, `GetMissions(country_id)` answers the asked flag's, not
-    enlisted. **Progress is counted from `TileTaken`** (`missions-progress`, `tile_taken_subscriber`), up to each goal,
+    change of flag cannot farm a second set. Until that take, `GetMissions` answers the flag the caller pledged
+    (`rpc_planet_allegiance`, planet's `GetAllegianceOf`), not enlisted, and no missions for an account that never
+    pledged one. The client never names the flag. **Progress is counted from `TileTaken`** (`missions-progress`, `tile_taken_subscriber`), up to each goal,
     in one transaction under `pg_advisory_xact_lock` per take, with nothing written once nothing changed. **Not from the
     ledger**: `ledger_events` has no time index, and an account's takes since the cutoff would read every take it ever
     made. **A take told twice counts once**: Redis delivers at least once, and the sheet keeps the ledger position after

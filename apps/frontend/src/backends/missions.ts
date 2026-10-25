@@ -34,7 +34,7 @@ export class MissionError extends Error {
 }
 
 export interface MissionsBackend {
-    missions(countryCode: string): Promise<DayMissions>
+    missions(): Promise<DayMissions>
 
     collectMission(slot: number): Promise<MissionReward>
 }

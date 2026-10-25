@@ -2,6 +2,7 @@ package get_missions_usecase_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -11,7 +12,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/inmemory_mission_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/usecases/get_missions_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -21,16 +21,28 @@ func (fixedPlanet) World(context.Context) (missions.World, error) {
 	return missions.World{Territories: []missions.Holding{{Country: "dz", Tiles: 9_000}}}, nil
 }
 
+type pledges map[missions.AccountID]string
+
+func (p pledges) FlagOf(_ context.Context, account missions.AccountID) (string, error) {
+	return p[account], nil
+}
+
+type failingPledges struct{}
+
+func (failingPledges) FlagOf(context.Context, missions.AccountID) (string, error) {
+	return "", errors.New("planet is down")
+}
+
 var (
 	calendar = missions.NewCalendar(missions.Config{Cutoff: 21 * time.Hour})
 	now      = time.Date(2026, 10, 26, 12, 0, 0, 0, time.UTC)
 	ada      = missions.AccountID{15: 1}
 )
 
-func setUp() (*get_missions_usecase.UseCase, *inmemory_mission_store.Store) {
+func setUp(allegiances get_missions_usecase.Allegiances) (*get_missions_usecase.UseCase, *inmemory_mission_store.Store) {
 	store := inmemory_mission_store.New()
 	return get_missions_usecase.New(calendar, cptime.NewFixedClock(now), store,
-		missions.NewBriefing(store, fixedPlanet{}), cpcountries.New()), store
+		missions.NewBriefing(store, fixedPlanet{}), allegiances), store
 }
 
 func enlist(t *testing.T, store *inmemory_mission_store.Store, flag string) {
@@ -41,10 +53,10 @@ func enlist(t *testing.T, store *inmemory_mission_store.Store, flag string) {
 	}))
 }
 
-func TestBeforeTheDaysFirstTakeTheMissionsAreTheAskedFlags(t *testing.T) {
-	useCase, _ := setUp()
+func TestBeforeTheDaysFirstTakeTheMissionsAreThePledgedFlags(t *testing.T) {
+	useCase, _ := setUp(pledges{ada: "fr"})
 
-	out, err := useCase.Execute(t.Context(), get_missions_usecase.In{Account: ada, Country: "fr"})
+	out, err := useCase.Execute(t.Context(), get_missions_usecase.In{Account: ada})
 
 	require.NoError(t, err)
 	assert.Equal(t, "fr", out.Flag)
@@ -55,11 +67,11 @@ func TestBeforeTheDaysFirstTakeTheMissionsAreTheAskedFlags(t *testing.T) {
 	assert.Equal(t, time.Date(2026, 10, 26, 21, 0, 0, 0, time.UTC), out.Day.EndsAt())
 }
 
-func TestOnceEnlistedTheMissionsAreTheDaysFlagsWhateverIsAsked(t *testing.T) {
-	useCase, store := setUp()
+func TestOnceEnlistedTheMissionsAreTheDaysFlagsWhateverIsPledgedSince(t *testing.T) {
+	useCase, store := setUp(pledges{ada: "de"})
 	enlist(t, store, "fr")
 
-	out, err := useCase.Execute(t.Context(), get_missions_usecase.In{Account: ada, Country: "de"})
+	out, err := useCase.Execute(t.Context(), get_missions_usecase.In{Account: ada})
 
 	require.NoError(t, err)
 	assert.Equal(t, "fr", out.Flag)
@@ -68,8 +80,8 @@ func TestOnceEnlistedTheMissionsAreTheDaysFlagsWhateverIsAsked(t *testing.T) {
 	assert.Equal(t, "fr", out.Brief.Snapshot()[0].Target)
 }
 
-func TestWithNoFlagThereAreNoMissions(t *testing.T) {
-	useCase, _ := setUp()
+func TestWithNoFlagPledgedThereAreNoMissions(t *testing.T) {
+	useCase, _ := setUp(pledges{})
 
 	out, err := useCase.Execute(t.Context(), get_missions_usecase.In{Account: ada})
 
@@ -77,10 +89,10 @@ func TestWithNoFlagThereAreNoMissions(t *testing.T) {
 	assert.Empty(t, out.Brief.Snapshot())
 }
 
-func TestACountryThatIsNoneIsRefused(t *testing.T) {
-	useCase, _ := setUp()
+func TestAPlanetThatFailsIsAnError(t *testing.T) {
+	useCase, _ := setUp(failingPledges{})
 
-	_, err := useCase.Execute(t.Context(), get_missions_usecase.In{Account: ada, Country: "zz"})
+	_, err := useCase.Execute(t.Context(), get_missions_usecase.In{Account: ada})
 
-	assert.ErrorIs(t, err, get_missions_usecase.ErrUnknownCountry)
+	assert.Error(t, err)
 }

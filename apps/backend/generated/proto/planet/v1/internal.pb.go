@@ -546,6 +546,95 @@ func (x *GrantChargeResponse) GetKept() uint32 {
 	return 0
 }
 
+type GetAllegianceOfRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAllegianceOfRequest) Reset() {
+	*x = GetAllegianceOfRequest{}
+	mi := &file_planet_v1_internal_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAllegianceOfRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAllegianceOfRequest) ProtoMessage() {}
+
+func (x *GetAllegianceOfRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_internal_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAllegianceOfRequest.ProtoReflect.Descriptor instead.
+func (*GetAllegianceOfRequest) Descriptor() ([]byte, []int) {
+	return file_planet_v1_internal_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *GetAllegianceOfRequest) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+// Unset for an account that never pledged a flag.
+type GetAllegianceOfResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Allegiance    *Allegiance            `protobuf:"bytes,1,opt,name=allegiance,proto3" json:"allegiance,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAllegianceOfResponse) Reset() {
+	*x = GetAllegianceOfResponse{}
+	mi := &file_planet_v1_internal_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAllegianceOfResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAllegianceOfResponse) ProtoMessage() {}
+
+func (x *GetAllegianceOfResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_internal_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAllegianceOfResponse.ProtoReflect.Descriptor instead.
+func (*GetAllegianceOfResponse) Descriptor() ([]byte, []int) {
+	return file_planet_v1_internal_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *GetAllegianceOfResponse) GetAllegiance() *Allegiance {
+	if x != nil {
+		return x.Allegiance
+	}
+	return nil
+}
+
 var File_planet_v1_internal_proto protoreflect.FileDescriptor
 
 const file_planet_v1_internal_proto_rawDesc = "" +
@@ -583,13 +672,21 @@ const file_planet_v1_internal_proto_rawDesc = "" +
 	"\x04kind\x18\x02 \x01(\x0e2\x14.planet.v1.BonusKindR\x04kind\x12\x16\n" +
 	"\x06amount\x18\x03 \x01(\rR\x06amount\")\n" +
 	"\x13GrantChargeResponse\x12\x12\n" +
-	"\x04kept\x18\x01 \x01(\rR\x04kept2\xf0\x02\n" +
+	"\x04kept\x18\x01 \x01(\rR\x04kept\"7\n" +
+	"\x16GetAllegianceOfRequest\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\"P\n" +
+	"\x17GetAllegianceOfResponse\x125\n" +
+	"\n" +
+	"allegiance\x18\x01 \x01(\v2\x15.planet.v1.AllegianceR\n" +
+	"allegiance2\xcf\x03\n" +
 	"\x0fInternalService\x12c\n" +
 	"\x11GetTakesByCountry\x12#.planet.v1.GetTakesByCountryRequest\x1a$.planet.v1.GetTakesByCountryResponse\"\x03\x90\x02\x01\x12Z\n" +
 	"\x0eGetTerritories\x12 .planet.v1.GetTerritoriesRequest\x1a!.planet.v1.GetTerritoriesResponse\"\x03\x90\x02\x01\x12N\n" +
 	"\n" +
 	"GetGrounds\x12\x1c.planet.v1.GetGroundsRequest\x1a\x1d.planet.v1.GetGroundsResponse\"\x03\x90\x02\x01\x12L\n" +
-	"\vGrantCharge\x12\x1d.planet.v1.GrantChargeRequest\x1a\x1e.planet.v1.GrantChargeResponseB\xb5\x01\n" +
+	"\vGrantCharge\x12\x1d.planet.v1.GrantChargeRequest\x1a\x1e.planet.v1.GrantChargeResponse\x12]\n" +
+	"\x0fGetAllegianceOf\x12!.planet.v1.GetAllegianceOfRequest\x1a\".planet.v1.GetAllegianceOfResponse\"\x03\x90\x02\x01B\xb5\x01\n" +
 	"\rcom.planet.v1B\rInternalProtoP\x01ZPgithub.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1;planetv1\xa2\x02\x03PXX\xaa\x02\tPlanet.V1\xca\x02\tPlanet\\V1\xe2\x02\x15Planet\\V1\\GPBMetadata\xea\x02\n" +
 	"Planet::V1b\x06proto3"
 
@@ -605,7 +702,7 @@ func file_planet_v1_internal_proto_rawDescGZIP() []byte {
 	return file_planet_v1_internal_proto_rawDescData
 }
 
-var file_planet_v1_internal_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_planet_v1_internal_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_planet_v1_internal_proto_goTypes = []any{
 	(*GetTakesByCountryRequest)(nil),  // 0: planet.v1.GetTakesByCountryRequest
 	(*GetTakesByCountryResponse)(nil), // 1: planet.v1.GetTakesByCountryResponse
@@ -618,27 +715,33 @@ var file_planet_v1_internal_proto_goTypes = []any{
 	(*Ground)(nil),                    // 8: planet.v1.Ground
 	(*GrantChargeRequest)(nil),        // 9: planet.v1.GrantChargeRequest
 	(*GrantChargeResponse)(nil),       // 10: planet.v1.GrantChargeResponse
-	(BonusKind)(0),                    // 11: planet.v1.BonusKind
+	(*GetAllegianceOfRequest)(nil),    // 11: planet.v1.GetAllegianceOfRequest
+	(*GetAllegianceOfResponse)(nil),   // 12: planet.v1.GetAllegianceOfResponse
+	(BonusKind)(0),                    // 13: planet.v1.BonusKind
+	(*Allegiance)(nil),                // 14: planet.v1.Allegiance
 }
 var file_planet_v1_internal_proto_depIdxs = []int32{
 	2,  // 0: planet.v1.GetTakesByCountryResponse.taken_for:type_name -> planet.v1.CountryTakes
 	2,  // 1: planet.v1.GetTakesByCountryResponse.taken_from:type_name -> planet.v1.CountryTakes
 	5,  // 2: planet.v1.GetTerritoriesResponse.territories:type_name -> planet.v1.Territory
 	8,  // 3: planet.v1.GetGroundsResponse.grounds:type_name -> planet.v1.Ground
-	11, // 4: planet.v1.GrantChargeRequest.kind:type_name -> planet.v1.BonusKind
-	0,  // 5: planet.v1.InternalService.GetTakesByCountry:input_type -> planet.v1.GetTakesByCountryRequest
-	3,  // 6: planet.v1.InternalService.GetTerritories:input_type -> planet.v1.GetTerritoriesRequest
-	6,  // 7: planet.v1.InternalService.GetGrounds:input_type -> planet.v1.GetGroundsRequest
-	9,  // 8: planet.v1.InternalService.GrantCharge:input_type -> planet.v1.GrantChargeRequest
-	1,  // 9: planet.v1.InternalService.GetTakesByCountry:output_type -> planet.v1.GetTakesByCountryResponse
-	4,  // 10: planet.v1.InternalService.GetTerritories:output_type -> planet.v1.GetTerritoriesResponse
-	7,  // 11: planet.v1.InternalService.GetGrounds:output_type -> planet.v1.GetGroundsResponse
-	10, // 12: planet.v1.InternalService.GrantCharge:output_type -> planet.v1.GrantChargeResponse
-	9,  // [9:13] is the sub-list for method output_type
-	5,  // [5:9] is the sub-list for method input_type
-	5,  // [5:5] is the sub-list for extension type_name
-	5,  // [5:5] is the sub-list for extension extendee
-	0,  // [0:5] is the sub-list for field type_name
+	13, // 4: planet.v1.GrantChargeRequest.kind:type_name -> planet.v1.BonusKind
+	14, // 5: planet.v1.GetAllegianceOfResponse.allegiance:type_name -> planet.v1.Allegiance
+	0,  // 6: planet.v1.InternalService.GetTakesByCountry:input_type -> planet.v1.GetTakesByCountryRequest
+	3,  // 7: planet.v1.InternalService.GetTerritories:input_type -> planet.v1.GetTerritoriesRequest
+	6,  // 8: planet.v1.InternalService.GetGrounds:input_type -> planet.v1.GetGroundsRequest
+	9,  // 9: planet.v1.InternalService.GrantCharge:input_type -> planet.v1.GrantChargeRequest
+	11, // 10: planet.v1.InternalService.GetAllegianceOf:input_type -> planet.v1.GetAllegianceOfRequest
+	1,  // 11: planet.v1.InternalService.GetTakesByCountry:output_type -> planet.v1.GetTakesByCountryResponse
+	4,  // 12: planet.v1.InternalService.GetTerritories:output_type -> planet.v1.GetTerritoriesResponse
+	7,  // 13: planet.v1.InternalService.GetGrounds:output_type -> planet.v1.GetGroundsResponse
+	10, // 14: planet.v1.InternalService.GrantCharge:output_type -> planet.v1.GrantChargeResponse
+	12, // 15: planet.v1.InternalService.GetAllegianceOf:output_type -> planet.v1.GetAllegianceOfResponse
+	11, // [11:16] is the sub-list for method output_type
+	6,  // [6:11] is the sub-list for method input_type
+	6,  // [6:6] is the sub-list for extension type_name
+	6,  // [6:6] is the sub-list for extension extendee
+	0,  // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_planet_v1_internal_proto_init() }
@@ -653,7 +756,7 @@ func file_planet_v1_internal_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_planet_v1_internal_proto_rawDesc), len(file_planet_v1_internal_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   11,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

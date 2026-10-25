@@ -195,16 +195,22 @@ func (p *gamer) click(tile uint32, country string) {
 	allegiance, err := p.clicks().GetAllegiance(p.t.Context(), held)
 	require.NoError(p.t, err)
 	if allegiance.Msg.GetAllegiance() == nil {
-		pledge := connect.NewRequest(&planetv1.PledgeAllegianceRequest{CountryId: country})
-		p.send(pledge.Header())
-		_, err := p.clicks().PledgeAllegiance(p.t.Context(), pledge)
-		require.NoError(p.t, err, "the web client pledges the flag clicked for when it holds none")
+		p.pledge(country)
 	}
 
 	req := connect.NewRequest(&planetv1.ClickRequest{TileId: tile, CountryId: country})
 	p.send(req.Header())
 	_, err = p.clicks().Click(p.t.Context(), req)
 	require.NoError(p.t, err)
+}
+
+func (p *gamer) pledge(country string) {
+	p.t.Helper()
+
+	req := connect.NewRequest(&planetv1.PledgeAllegianceRequest{CountryId: country})
+	p.send(req.Header())
+	_, err := p.clicks().PledgeAllegiance(p.t.Context(), req)
+	require.NoError(p.t, err, "the web client pledges the flag clicked for when it holds none")
 }
 
 func (p *gamer) charges() *planetv1.ChargesHeld {
@@ -221,10 +227,10 @@ func (p *gamer) missionDesk() missionsv1connect.MissionServiceClient {
 	return missionsv1connect.NewMissionServiceClient(http.DefaultClient, p.stack.baseURL)
 }
 
-func (p *gamer) missions(country string) []*missionsv1.Mission {
+func (p *gamer) missions() []*missionsv1.Mission {
 	p.t.Helper()
 
-	req := connect.NewRequest(&missionsv1.GetMissionsRequest{CountryId: country})
+	req := connect.NewRequest(&missionsv1.GetMissionsRequest{})
 	p.send(req.Header())
 	res, err := p.missionDesk().GetMissions(p.t.Context(), req)
 	require.NoError(p.t, err)

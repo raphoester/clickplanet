@@ -292,7 +292,7 @@ export default function Viewer(props: ViewerProps) {
         guided: boardGuide.guided,
         onGuided: boardGuide.markGuided,
     }
-    const [missionsState, rereadMissions] = useMissions(props.missions, countryState.code, accepted.listenForClicks)
+    const [missionsState, rereadMissions] = useMissions(props.missions, allegiance?.countryId, accepted.listenForClicks)
     const missionsBackend = props.missions
     const missions: MissionsPlaceProps | undefined = missionsBackend && {
         state: missionsState,
