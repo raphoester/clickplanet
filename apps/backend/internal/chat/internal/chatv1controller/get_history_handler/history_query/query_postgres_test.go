@@ -481,7 +481,7 @@ func (s *testSuite) TestAReactionTheProtoDoesNotNameIsAnError() {
 }
 
 func (s *testSuite) TestAnAnnouncementOfAKindNobodyKnowsIsAnError() {
-	_, err := s.db.ExecContext(s.T().Context(), `ALTER TYPE announcement_kind ADD VALUE IF NOT EXISTS 'meteor'`)
+	_, err := s.db.On(s.T().Context()).ExecContext(s.T().Context(), `ALTER TYPE announcement_kind ADD VALUE IF NOT EXISTS 'meteor'`)
 	s.Require().NoError(err)
 	s.announced(latest, announcements.Kind("meteor"), now.Add(-time.Hour))
 

@@ -50,7 +50,7 @@ func (s *testSuite) guest(account accounts.AccountID, token string, at time.Time
 func (s *testSuite) signUp(account accounts.AccountID, provider string, token string, at time.Time) {
 	identity := accounts.NewIdentity(provider, accounts.ClaimOf(provider+"-user", "", false), account, at)
 	session := accounts.LinkedSession(account, accounts.TokenOf(token), lifetime, at)
-	s.Require().NoError(s.store.SaveSignIn(s.T().Context(), accounts.NewSignIn(session).WithNewAccount().WithIdentity(identity), &authv1.SignedIn{}))
+	s.Require().NoError(s.store.SaveSignIn(s.T().Context(), accounts.NewSignIn(session).WithNewAccount().WithIdentity(identity)))
 }
 
 func (s *testSuite) accounts(asked ...accounts.AccountID) *authv1.GetAccountsResponse {

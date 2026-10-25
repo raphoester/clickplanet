@@ -7,16 +7,12 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/suite"
-	"google.golang.org/protobuf/proto"
-
-	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
 )
 
 type StoreContractSuite struct {
 	suite.Suite
 
 	NewStore func() Store
-	Told     func() []proto.Message
 
 	store Store
 }
@@ -30,12 +26,6 @@ var (
 	contractLifetime = Lifetime{GuestTTL: time.Hour, LinkedTTL: 30 * time.Minute, ExtendEvery: time.Minute}
 	contractClaim    = Claim{subject: "google-user", email: "player@example.com", emailVerified: true}
 )
-
-var contractTold = &authv1.SignedIn{AccountId: "the account a sign-in tells of"}
-
-func deletedOf(account AccountID) proto.Message {
-	return &authv1.AccountDeleted{AccountId: account.String()}
-}
 
 func (s *StoreContractSuite) guest(account byte, token string) *Session {
 	return GuestSession(AccountID{15: account}, TokenOf(token), contractLifetime, contractStart)
@@ -53,7 +43,7 @@ func (s *StoreContractSuite) signIn(account byte, provider string, subject strin
 	session := LinkedSession(identity.account, TokenOf(token), contractLifetime, contractStart)
 	s.Require().NoError(s.store.SaveSignIn(s.T().Context(), SignIn{
 		newAccount: errors.Is(err, ErrAccountNotFound), identity: identity, session: session,
-	}, contractTold))
+	}))
 	return identity, session
 }
 
@@ -63,7 +53,7 @@ func (s *StoreContractSuite) signInWith(account byte, provider string, claim Cla
 	s.Require().NoError(s.store.SaveSignIn(s.T().Context(), SignIn{
 		newAccount: errors.Is(err, ErrAccountNotFound), identity: identity,
 		session: LinkedSession(identity.account, TokenOf(token), contractLifetime, at),
-	}, contractTold))
+	}))
 }
 
 func (s *StoreContractSuite) stored(tokenHash TokenHash) *Session {
@@ -140,7 +130,7 @@ func (s *StoreContractSuite) TestASignInToANewAccountCreatesItLinked() {
 	identity := NewIdentity("google", contractClaim, AccountID{15: 1}, contractStart)
 	session := LinkedSession(identity.account, TokenOf("a-token"), contractLifetime, contractStart)
 
-	s.Require().NoError(s.store.SaveSignIn(s.T().Context(), SignIn{newAccount: true, identity: identity, session: session}, contractTold))
+	s.Require().NoError(s.store.SaveSignIn(s.T().Context(), SignIn{newAccount: true, identity: identity, session: session}))
 
 	s.Equal(&Account{id: identity.account, createdAt: contractStart, identities: []Identity{*identity}}, s.account(1))
 	s.Equal(session, s.stored(session.tokenHash))
@@ -154,7 +144,7 @@ func (s *StoreContractSuite) TestLinkingAGuestReplacesItsSession() {
 	identity := NewIdentity("discord", Claim{subject: "discord-user"}, guest.account, contractStart.Add(time.Minute))
 	session := LinkedSession(guest.account, TokenOf("linked-token"), contractLifetime, contractStart.Add(time.Minute))
 
-	s.Require().NoError(s.store.SaveSignIn(s.T().Context(), SignIn{identity: identity, session: session, replaces: guest.tokenHash}, contractTold))
+	s.Require().NoError(s.store.SaveSignIn(s.T().Context(), SignIn{identity: identity, session: session, replaces: guest.tokenHash}))
 
 	_, err := s.store.Session(s.T().Context(), guest.tokenHash)
 	s.Require().ErrorIs(err, ErrSessionNotFound)
@@ -167,7 +157,7 @@ func (s *StoreContractSuite) TestProvidersAreListedOldestLinkFirst() {
 	s.signIn(1, "google", "google-user", "first-token")
 	later := NewIdentity("discord", Claim{subject: "discord-user"}, AccountID{15: 1}, contractStart.Add(time.Hour))
 	session := LinkedSession(later.account, TokenOf("second-token"), contractLifetime, contractStart.Add(time.Hour))
-	s.Require().NoError(s.store.SaveSignIn(s.T().Context(), SignIn{identity: later, session: session}, contractTold))
+	s.Require().NoError(s.store.SaveSignIn(s.T().Context(), SignIn{identity: later, session: session}))
 
 	s.Equal([]string{"google", "discord"}, s.account(1).Providers())
 }
@@ -176,7 +166,7 @@ func (s *StoreContractSuite) TestProvidersLinkedAtTheSameTimeAreListedByName() {
 	s.signIn(1, "google", "google-user", "first-token")
 	same := NewIdentity("discord", Claim{subject: "discord-user"}, AccountID{15: 1}, contractStart)
 	session := LinkedSession(same.account, TokenOf("second-token"), contractLifetime, contractStart)
-	s.Require().NoError(s.store.SaveSignIn(s.T().Context(), SignIn{identity: same, session: session}, contractTold))
+	s.Require().NoError(s.store.SaveSignIn(s.T().Context(), SignIn{identity: same, session: session}))
 
 	s.Equal([]string{"discord", "google"}, s.account(1).Providers())
 }
@@ -186,7 +176,7 @@ func (s *StoreContractSuite) TestASignInToAKnownIdentityOnlyStartsASession() {
 	guest := s.createGuest(2, "guest-token")
 	session := LinkedSession(AccountID{15: 1}, TokenOf("second-token"), contractLifetime, contractStart)
 
-	s.Require().NoError(s.store.SaveSignIn(s.T().Context(), SignIn{session: session, replaces: guest.tokenHash}, contractTold))
+	s.Require().NoError(s.store.SaveSignIn(s.T().Context(), SignIn{session: session, replaces: guest.tokenHash}))
 
 	s.Equal(session, s.stored(session.tokenHash))
 	s.Equal([]string{"google"}, s.account(1).Providers())
@@ -198,7 +188,7 @@ func (s *StoreContractSuite) TestAnIdentityLinkedTwiceIsTakenAndWritesNothing() 
 	identity := NewIdentity("google", Claim{subject: "google-user"}, AccountID{15: 2}, contractStart)
 	session := LinkedSession(identity.account, TokenOf("second-token"), contractLifetime, contractStart)
 
-	err := s.store.SaveSignIn(s.T().Context(), SignIn{newAccount: true, identity: identity, session: session}, contractTold)
+	err := s.store.SaveSignIn(s.T().Context(), SignIn{newAccount: true, identity: identity, session: session})
 
 	s.Require().ErrorIs(err, ErrIdentityTaken)
 	_, err = s.store.Account(s.T().Context(), identity.account)
@@ -219,7 +209,7 @@ func (s *StoreContractSuite) TestASessionOfALinkedAccountIsLinked() {
 func (s *StoreContractSuite) TestSigningOutDeletesOnlyThatSession() {
 	_, first := s.signIn(1, "google", "google-user", "first-token")
 	second := LinkedSession(AccountID{15: 1}, TokenOf("second-token"), contractLifetime, contractStart)
-	s.Require().NoError(s.store.SaveSignIn(s.T().Context(), SignIn{session: second}, contractTold))
+	s.Require().NoError(s.store.SaveSignIn(s.T().Context(), SignIn{session: second}))
 
 	s.Require().NoError(s.store.DeleteSession(s.T().Context(), first.tokenHash))
 	s.Require().NoError(s.store.DeleteSession(s.T().Context(), first.tokenHash), "twice is not an error")
@@ -232,7 +222,7 @@ func (s *StoreContractSuite) TestSigningOutDeletesOnlyThatSession() {
 func (s *StoreContractSuite) TestSigningOutEverywhereDeletesEverySessionOfTheAccountAndNoOther() {
 	_, first := s.signIn(1, "google", "google-user", "first-token")
 	second := LinkedSession(AccountID{15: 1}, TokenOf("second-token"), contractLifetime, contractStart)
-	s.Require().NoError(s.store.SaveSignIn(s.T().Context(), SignIn{session: second}, contractTold))
+	s.Require().NoError(s.store.SaveSignIn(s.T().Context(), SignIn{session: second}))
 	other := s.createGuest(2, "other-token")
 
 	s.Require().NoError(s.store.DeleteSessions(s.T().Context(), AccountID{15: 1}))
@@ -249,8 +239,8 @@ func (s *StoreContractSuite) TestADeletedAccountTakesItsIdentitiesAndSessions() 
 	_, session := s.signIn(1, "google", "google-user", "a-token")
 	other := s.createGuest(2, "other-token")
 
-	s.Require().NoError(s.store.DeleteAccount(s.T().Context(), AccountID{15: 1}, deletedOf(AccountID{15: 1})))
-	s.Require().NoError(s.store.DeleteAccount(s.T().Context(), AccountID{15: 1}, deletedOf(AccountID{15: 1})), "twice is not an error")
+	s.Require().NoError(s.store.DeleteAccount(s.T().Context(), AccountID{15: 1}))
+	s.Require().NoError(s.store.DeleteAccount(s.T().Context(), AccountID{15: 1}), "twice is not an error")
 
 	_, err := s.store.Account(s.T().Context(), AccountID{15: 1})
 	s.Require().ErrorIs(err, ErrAccountNotFound)
@@ -267,7 +257,7 @@ func (s *StoreContractSuite) TestThePruneDeletesIdleGuestsOnly() {
 	recent := s.createGuest(3, "recent-token")
 	s.Require().NoError(s.store.SaveSession(s.T().Context(), recent.Extended(contractStart.Add(time.Hour), contractLifetime)))
 
-	pruned, err := s.store.PruneGuests(s.T().Context(), contractStart.Add(time.Minute), 100, deletedOf)
+	pruned, err := s.store.PruneGuests(s.T().Context(), contractStart.Add(time.Minute), 100)
 
 	s.Require().NoError(err)
 	s.Equal([]AccountID{idle.account}, pruned)
@@ -284,11 +274,11 @@ func (s *StoreContractSuite) TestThePruneStopsAtItsLimit() {
 		s.createGuest(account+1, string(rune('a'+account)))
 	}
 
-	pruned, err := s.store.PruneGuests(s.T().Context(), contractStart.Add(time.Minute), 2, deletedOf)
+	pruned, err := s.store.PruneGuests(s.T().Context(), contractStart.Add(time.Minute), 2)
 	s.Require().NoError(err)
 	s.Len(pruned, 2)
 
-	pruned, err = s.store.PruneGuests(s.T().Context(), contractStart.Add(time.Minute), 2, deletedOf)
+	pruned, err = s.store.PruneGuests(s.T().Context(), contractStart.Add(time.Minute), 2)
 	s.Require().NoError(err)
 	s.Len(pruned, 1)
 }
@@ -321,47 +311,4 @@ func (s *StoreContractSuite) TestTheOldestLinkOwnsAnAddressTwoAccountsHold() {
 
 	s.Require().NoError(err)
 	s.Equal(AccountID{15: 1}, found.id)
-}
-
-func (s *StoreContractSuite) told() []string {
-	var told []string
-	for _, event := range s.Told() {
-		switch event := event.(type) {
-		case *authv1.SignedIn:
-			told = append(told, "signed in "+event.GetAccountId())
-		case *authv1.AccountDeleted:
-			told = append(told, "deleted "+event.GetAccountId())
-		}
-	}
-	return told
-}
-
-func (s *StoreContractSuite) TestASignInKeepsWhatItTells() {
-	s.signIn(1, "google", "google-user", "a-token")
-
-	s.Equal([]string{"signed in the account a sign-in tells of"}, s.told())
-}
-
-func (s *StoreContractSuite) TestASignInRefusedTellsNothing() {
-	s.signIn(1, "google", "google-user", "first-token")
-	identity := NewIdentity("google", Claim{subject: "google-user"}, AccountID{15: 2}, contractStart)
-	session := LinkedSession(identity.account, TokenOf("second-token"), contractLifetime, contractStart)
-
-	s.Require().ErrorIs(s.store.SaveSignIn(s.T().Context(), SignIn{newAccount: true, identity: identity, session: session},
-		&authv1.SignedIn{AccountId: "refused"}), ErrIdentityTaken)
-
-	s.Equal([]string{"signed in the account a sign-in tells of"}, s.told())
-}
-
-func (s *StoreContractSuite) TestADeletionAndAPruneKeepWhatTheyTell() {
-	s.signIn(1, "google", "google-user", "a-token")
-	idle := s.createGuest(2, "idle-token")
-
-	s.Require().NoError(s.store.DeleteAccount(s.T().Context(), AccountID{15: 1}, deletedOf(AccountID{15: 1})))
-	_, err := s.store.PruneGuests(s.T().Context(), contractStart.Add(time.Minute), 100, deletedOf)
-	s.Require().NoError(err)
-
-	s.Equal([]string{
-		"signed in the account a sign-in tells of", "deleted " + AccountID{15: 1}.String(), "deleted " + idle.account.String(),
-	}, s.told())
 }

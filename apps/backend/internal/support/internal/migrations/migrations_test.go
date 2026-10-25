@@ -20,11 +20,11 @@ func TestANoteKeptBeforeDiagnosticsIsReadWithEmptyOnes(t *testing.T) {
 	db := cppg.StartTestServer(t).OpenSchema(t, "support", cppg.MigrationsBefore(t, migrations.FS, noteDiagnostics))
 	ada := notes.AccountID{15: 1}
 	at := time.Date(2026, 10, 11, 12, 0, 0, 0, time.UTC)
-	_, err := db.ExecContext(t.Context(),
+	_, err := db.On(t.Context()).ExecContext(t.Context(),
 		`INSERT INTO notes (id, kind, account_id, text, submitted_at) VALUES ($1, 'suggestion', $2, 'a night mode', $3)`,
 		uuid.UUID{15: 1}, uuid.UUID(ada), at)
 	require.NoError(t, err)
-	_, err = db.ExecContext(t.Context(),
+	_, err = db.On(t.Context()).ExecContext(t.Context(),
 		`INSERT INTO notes (id, kind, text, submitted_at) VALUES ($1, 'suggestion', 'more flags', $2)`,
 		uuid.UUID{15: 2}, at.Add(time.Minute))
 	require.NoError(t, err)
@@ -39,6 +39,6 @@ func TestANoteKeptBeforeDiagnosticsIsReadWithEmptyOnes(t *testing.T) {
 	}, sent[0].TakeSnapshot())
 
 	var empty int
-	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT count(*) FROM notes WHERE diagnostics = '{}'`).Scan(&empty))
+	require.NoError(t, db.On(t.Context()).QueryRowContext(t.Context(), `SELECT count(*) FROM notes WHERE diagnostics = '{}'`).Scan(&empty))
 	assert.Equal(t, 2, empty, "the anonymized note too")
 }

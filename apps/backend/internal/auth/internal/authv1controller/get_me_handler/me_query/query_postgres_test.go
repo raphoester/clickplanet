@@ -52,7 +52,7 @@ func (s *testSuite) guest(account accounts.AccountID, token string) *accounts.Se
 func (s *testSuite) link(account accounts.AccountID, provider string, subject string, token string, at time.Time) {
 	identity := accounts.NewIdentity(provider, accounts.ClaimOf(subject, "", false), account, at)
 	session := accounts.LinkedSession(account, accounts.TokenOf(token), lifetime, at)
-	s.Require().NoError(s.store.SaveSignIn(s.T().Context(), accounts.NewSignIn(session).WithIdentity(identity), &authv1.SignedIn{}))
+	s.Require().NoError(s.store.SaveSignIn(s.T().Context(), accounts.NewSignIn(session).WithIdentity(identity)))
 }
 
 func (s *testSuite) me(cookieHeader string, at time.Time) (*authv1.GetMeResponse, error) {
@@ -111,7 +111,7 @@ func (s *testSuite) TestNoLiveSessionIsNoAccount() {
 
 func (s *testSuite) TestADeletedAccountIsNoAccount() {
 	s.guest(ada, "token-1")
-	s.Require().NoError(s.store.DeleteAccount(s.T().Context(), ada, &authv1.AccountDeleted{}))
+	s.Require().NoError(s.store.DeleteAccount(s.T().Context(), ada))
 
 	_, err := s.me("cp_sid=token-1", start)
 
@@ -119,7 +119,7 @@ func (s *testSuite) TestADeletedAccountIsNoAccount() {
 }
 
 func (s *testSuite) TestAProviderTheProtoDoesNotNameIsAnError() {
-	_, err := s.db.ExecContext(s.T().Context(), `ALTER TYPE identity_provider ADD VALUE IF NOT EXISTS 'github'`)
+	_, err := s.db.On(s.T().Context()).ExecContext(s.T().Context(), `ALTER TYPE identity_provider ADD VALUE IF NOT EXISTS 'github'`)
 	s.Require().NoError(err)
 	s.guest(ada, "token-1")
 	s.link(ada, "github", "gh", "token-2", start)

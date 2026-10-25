@@ -56,7 +56,7 @@ func (s *testSuite) TestAGuestIsNotLinkedAndSaysWhenItWasMadeToTheMillisecond() 
 func (s *testSuite) TestAnAccountWithAnIdentityIsLinkedAndKeepsTheDayItWasMade() {
 	identity := accounts.NewIdentity("discord", accounts.ClaimOf("discord-user", "", false), ada, start.Add(time.Hour))
 	session := accounts.LinkedSession(ada, accounts.TokenOf("token-2"), lifetime, start.Add(time.Hour))
-	s.Require().NoError(s.store.SaveSignIn(s.T().Context(), accounts.NewSignIn(session).WithIdentity(identity), &authv1.SignedIn{}))
+	s.Require().NoError(s.store.SaveSignIn(s.T().Context(), accounts.NewSignIn(session).WithIdentity(identity)))
 
 	s.True(proto.Equal(&authv1.GetAccountResponse{Linked: true, CreatedAtUnixMs: start.UnixMilli()}, s.account(ada)),
 		"got %v", s.account(ada))
@@ -65,7 +65,7 @@ func (s *testSuite) TestAnAccountWithAnIdentityIsLinkedAndKeepsTheDayItWasMade()
 func (s *testSuite) TestAnUnknownOrDeletedAccountIsAnEmptyAnswer() {
 	s.Empty(s.account(accounts.AccountID{15: 9}).String())
 
-	s.Require().NoError(s.store.DeleteAccount(s.T().Context(), ada, &authv1.AccountDeleted{}))
+	s.Require().NoError(s.store.DeleteAccount(s.T().Context(), ada))
 	s.Empty(s.account(ada).String())
 }
 

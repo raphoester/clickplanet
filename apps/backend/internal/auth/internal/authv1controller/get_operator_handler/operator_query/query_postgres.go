@@ -23,12 +23,12 @@ var (
 	ErrNotAnOperator = errors.New("not an operator")
 )
 
-func NewPostgresQuery(db cppg.Querier, clock cptime.Clock) *PostgresQuery {
+func NewPostgresQuery(db cppg.Conn, clock cptime.Clock) *PostgresQuery {
 	return &PostgresQuery{db: db, clock: clock}
 }
 
 type PostgresQuery struct {
-	db    cppg.Querier
+	db    cppg.Conn
 	clock cptime.Clock
 }
 
@@ -52,7 +52,7 @@ func (q *PostgresQuery) Operator(ctx context.Context, cookieHeader string) (*aut
 	)
 	// Postgres keeps microseconds and rounds what it is sent: truncated, "now < expires_at" stays exact.
 	now := q.clock.Now().UTC().Truncate(time.Microsecond)
-	err := q.db.QueryRowContext(ctx, operator, hash, now).Scan(&account, &operates)
+	err := q.db.On(ctx).QueryRowContext(ctx, operator, hash, now).Scan(&account, &operates)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("%w: no live admin session for this cookie", ErrNoSession)
 	}

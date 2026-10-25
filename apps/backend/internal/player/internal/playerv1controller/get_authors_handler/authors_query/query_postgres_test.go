@@ -105,7 +105,7 @@ func (s *testSuite) TestAGuestIsToldApartFromAUsername() {
 }
 
 func (s *testSuite) TestAnAdminCarriesItsMark() {
-	_, err := s.db.ExecContext(s.T().Context(), `UPDATE profiles SET admin = true WHERE account_id = $1`, uuid.UUID(ada))
+	_, err := s.db.On(s.T().Context()).ExecContext(s.T().Context(), `UPDATE profiles SET admin = true WHERE account_id = $1`, uuid.UUID(ada))
 	s.Require().NoError(err)
 
 	authors := s.authors(ada, bob)
@@ -209,7 +209,7 @@ func (s *testSuite) TestEachAuthorIsWhatGetAuthorAnswersForIt() {
 	s.named(cy, "Cyd")
 	s.named(dan, "Dan")
 	s.Require().NoError(s.players.SaveGuestCode(s.T().Context(), eve, "0d0e0f"))
-	_, err := s.db.ExecContext(s.T().Context(), `UPDATE profiles SET admin = true WHERE account_id = $1`, uuid.UUID(ada))
+	_, err := s.db.On(s.T().Context()).ExecContext(s.T().Context(), `UPDATE profiles SET admin = true WHERE account_id = $1`, uuid.UUID(ada))
 	s.Require().NoError(err)
 	s.Require().NoError(s.players.SaveColor(s.T().Context(), ada, players.Color(playerv1.NameColor_NAME_COLOR_PINK)))
 	takes := map[players.AccountID][]time.Time{

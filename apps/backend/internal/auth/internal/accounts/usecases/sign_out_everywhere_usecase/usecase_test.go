@@ -27,8 +27,8 @@ func TestEverySessionOfTheAccountEndsAndNoOther(t *testing.T) {
 	laptop := accounts.LinkedSession(identity.Account(), accounts.TokenOf("laptop"), lifetime, start)
 	phone := accounts.LinkedSession(identity.Account(), accounts.TokenOf("phone"), lifetime, start)
 	other := accounts.GuestSession(accounts.AccountID{15: 2}, accounts.TokenOf("other"), lifetime, start)
-	require.NoError(t, store.SaveSignIn(t.Context(), accounts.NewSignIn(laptop).WithNewAccount().WithIdentity(identity), &authv1.SignedIn{}))
-	require.NoError(t, store.SaveSignIn(t.Context(), accounts.NewSignIn(phone), &authv1.SignedIn{}))
+	require.NoError(t, store.SaveSignIn(t.Context(), accounts.NewSignIn(laptop).WithNewAccount().WithIdentity(identity)))
+	require.NoError(t, store.SaveSignIn(t.Context(), accounts.NewSignIn(phone)))
 	require.NoError(t, store.CreateGuest(t.Context(), other))
 
 	events := cpredis.NewRecordedEvents()

@@ -227,7 +227,7 @@ func (p *gamer) setName(name string) (*playerv1.Profile, error) {
 func (p *gamer) choseItsNameAWeekAgo() {
 	p.t.Helper()
 
-	_, err := p.stack.schema(p.t, "player").ExecContext(p.t.Context(),
+	_, err := p.stack.schema(p.t, "player").On(p.t.Context()).ExecContext(p.t.Context(),
 		`UPDATE profiles SET name_chosen_at = name_chosen_at - interval '7 days' WHERE account_id = $1`, p.account())
 	require.NoError(p.t, err)
 }

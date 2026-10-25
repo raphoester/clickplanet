@@ -17,12 +17,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
-func New(db cppg.QuerierBeginner) *Store {
+func New(db cppg.Conn) *Store {
 	return &Store{db: db}
 }
 
 type Store struct {
-	db cppg.QuerierBeginner
+	db cppg.Conn
 }
 
 var _ inmemory_ledger_storage.Persistence = (*Store)(nil)
@@ -30,7 +30,7 @@ var _ inmemory_ledger_storage.Persistence = (*Store)(nil)
 func (s *Store) Load(ctx context.Context, visit func(inmemory_ledger_storage.Stored)) (inmemory_ledger_storage.Marks, error) {
 	marks := inmemory_ledger_storage.Marks{Forgotten: map[ledger.Caller]ledger.Position{}}
 
-	head, err := storedHead(ctx, s.db)
+	head, err := storedHead(ctx, s.db.On(ctx))
 	if err != nil {
 		return marks, err
 	}
@@ -59,7 +59,7 @@ func (s *Store) loadForgotten(
 	forgotten map[ledger.Caller]ledger.Position,
 	callerOf func(string) ledger.Caller,
 ) error {
-	rows, err := s.db.QueryContext(ctx, query)
+	rows, err := s.db.On(ctx).QueryContext(ctx, query)
 	if err != nil {
 		return fmt.Errorf("failed to read forgotten callers: %w", err)
 	}
@@ -94,7 +94,7 @@ func storedHead(ctx context.Context, db cppg.Querier) (int64, error) {
 
 func (s *Store) Relayed(ctx context.Context) (ledger.Position, error) {
 	var position int64
-	err := s.db.QueryRowContext(ctx, `SELECT position FROM ledger_relayed`).Scan(&position)
+	err := s.db.On(ctx).QueryRowContext(ctx, `SELECT position FROM ledger_relayed`).Scan(&position)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return 0, fmt.Errorf("failed to read how far the ledger was told: %w", err)
 	}
@@ -102,7 +102,7 @@ func (s *Store) Relayed(ctx context.Context) (ledger.Position, error) {
 }
 
 func (s *Store) SaveRelayed(ctx context.Context, position ledger.Position) error {
-	if _, err := s.db.ExecContext(ctx, `
+	if _, err := s.db.On(ctx).ExecContext(ctx, `
 		INSERT INTO ledger_relayed (position) VALUES ($1)
 		ON CONFLICT (singleton) DO UPDATE SET position = excluded.position
 	`, int64(position)); err != nil { //nolint:gosec // a ledger position fits in int64.
@@ -112,7 +112,7 @@ func (s *Store) SaveRelayed(ctx context.Context, position ledger.Position) error
 }
 
 func (s *Store) loadEvents(ctx context.Context, head int64, visit func(inmemory_ledger_storage.Stored)) error {
-	rows, err := s.db.QueryContext(ctx, `
+	rows, err := s.db.On(ctx).QueryContext(ctx, `
 		SELECT position, kind, tile, scope, account::text, country, previous, taken_at, payload
 		FROM ledger_events
 		WHERE position >= $1
@@ -146,59 +146,48 @@ func (s *Store) loadEvents(ctx context.Context, head int64, visit func(inmemory_
 }
 
 func (s *Store) Save(ctx context.Context, changes inmemory_ledger_storage.Changes) error {
-	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to save the ledger: %w", err)
-	}
-	defer func() { _ = tx.Rollback() }()
+	return s.db.InTx(ctx, func(ctx context.Context) error {
+		tx := s.db.On(ctx)
+		head := int64(changes.Marks.Head) //nolint:gosec // a position fits a bigint.
 
-	head := int64(changes.Marks.Head) //nolint:gosec // a position fits a bigint.
-
-	kept, err := storedHead(ctx, tx)
-	if err != nil {
-		return err
-	}
-
-	// Rows at or past From come from a flush whose commit answer was lost.
-	if _, err := tx.ExecContext(ctx,
-		`DELETE FROM ledger_events WHERE position >= $1`,
-		int64(changes.From), //nolint:gosec // a position fits a bigint.
-	); err != nil {
-		return fmt.Errorf("failed to delete events: %w", err)
-	}
-
-	if err := copyEvents(ctx, tx, changes); err != nil {
-		return err
-	}
-
-	if head > kept {
-		if _, err := tx.ExecContext(ctx,
-			`UPDATE ledger_events SET scope = NULL WHERE position >= $1 AND position < $2`, kept, head,
-		); err != nil {
-			return fmt.Errorf("failed to blank the scopes behind the head: %w", err)
+		kept, err := storedHead(ctx, tx)
+		if err != nil {
+			return err
 		}
-	}
 
-	if _, err := tx.ExecContext(ctx, `
-		INSERT INTO ledger_head (head) VALUES ($1)
-		ON CONFLICT (singleton) DO UPDATE SET head = EXCLUDED.head
-	`, head); err != nil {
-		return fmt.Errorf("failed to write the ledger head: %w", err)
-	}
+		// Rows at or past From come from a flush whose commit answer was lost.
+		if _, err := tx.ExecContext(ctx,
+			`DELETE FROM ledger_events WHERE position >= $1`,
+			int64(changes.From), //nolint:gosec // a position fits a bigint.
+		); err != nil {
+			return fmt.Errorf("failed to delete events: %w", err)
+		}
 
-	if err := saveForgotten(ctx, tx, changes.Marks, head); err != nil {
-		return err
-	}
+		if err := copyEvents(ctx, tx, changes); err != nil {
+			return err
+		}
 
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit the ledger: %w", err)
-	}
+		if head > kept {
+			if _, err := tx.ExecContext(ctx,
+				`UPDATE ledger_events SET scope = NULL WHERE position >= $1 AND position < $2`, kept, head,
+			); err != nil {
+				return fmt.Errorf("failed to blank the scopes behind the head: %w", err)
+			}
+		}
 
-	return nil
+		if _, err := tx.ExecContext(ctx, `
+			INSERT INTO ledger_head (head) VALUES ($1)
+			ON CONFLICT (singleton) DO UPDATE SET head = EXCLUDED.head
+		`, head); err != nil {
+			return fmt.Errorf("failed to write the ledger head: %w", err)
+		}
+
+		return saveForgotten(ctx, tx, changes.Marks, head)
+	})
 }
 
 func (s *Store) AnonymizeTakes(ctx context.Context, account ledger.AccountID) error {
-	if _, err := s.db.ExecContext(ctx,
+	if _, err := s.db.On(ctx).ExecContext(ctx,
 		`UPDATE ledger_events SET account = NULL WHERE account = $1`, uuid.UUID(account),
 	); err != nil {
 		return fmt.Errorf("failed to anonymize an account's takes: %w", err)
@@ -206,7 +195,7 @@ func (s *Store) AnonymizeTakes(ctx context.Context, account ledger.AccountID) er
 	return nil
 }
 
-func copyEvents(ctx context.Context, tx *sql.Tx, changes inmemory_ledger_storage.Changes) error {
+func copyEvents(ctx context.Context, tx cppg.Querier, changes inmemory_ledger_storage.Changes) error {
 	stmt, err := tx.PrepareContext(ctx, pq.CopyIn("ledger_events",
 		"position", "kind", "tile", "scope", "account", "country", "previous", "taken_at", "payload"))
 	if err != nil {
@@ -238,7 +227,7 @@ func copyEvents(ctx context.Context, tx *sql.Tx, changes inmemory_ledger_storage
 	return nil
 }
 
-func saveForgotten(ctx context.Context, tx *sql.Tx, marks inmemory_ledger_storage.Marks, head int64) error {
+func saveForgotten(ctx context.Context, tx cppg.Querier, marks inmemory_ledger_storage.Marks, head int64) error {
 	if _, err := tx.ExecContext(ctx, `DELETE FROM ledger_forgotten WHERE before_position <= $1`, head); err != nil {
 		return fmt.Errorf("failed to delete forgotten scopes: %w", err)
 	}

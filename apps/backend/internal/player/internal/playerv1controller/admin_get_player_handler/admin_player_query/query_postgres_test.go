@@ -99,7 +99,7 @@ func (s *testSuite) TestAUsernameIsReadWithEverythingTheGameKeepsAboutIt() {
 	s.Require().NoError(s.players.Record(ctx, ada, players.TakeAt(1, monday)))
 	s.Require().NoError(s.players.Record(ctx, ada, players.MessageAt(monday)))
 	s.Require().NoError(s.players.SaveColor(ctx, ada, players.Color(playerv1.NameColor_NAME_COLOR_TEAL)))
-	_, err := s.db.ExecContext(ctx, `UPDATE profiles SET admin = true WHERE account_id = $1`, uuid.UUID(ada))
+	_, err := s.db.On(ctx).ExecContext(ctx, `UPDATE profiles SET admin = true WHERE account_id = $1`, uuid.UUID(ada))
 	s.Require().NoError(err)
 	s.Require().NoError(s.titles.Grant(ctx, titles.Holdings{ada: {"settler", "og"}}, monday))
 	s.Require().NoError(s.worn.Wear(ctx, ada, "og", monday))

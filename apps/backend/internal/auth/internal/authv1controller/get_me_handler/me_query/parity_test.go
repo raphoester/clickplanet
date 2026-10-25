@@ -43,7 +43,7 @@ func (s *testSuite) TestGetMeFindsTheCallerTheCommandsFind() {
 	s.link(bob, "discord", "d", "token-4", start.Add(time.Hour))
 	cara := accounts.AccountID{15: 3}
 	s.guest(cara, "token-5")
-	s.Require().NoError(s.store.DeleteAccount(s.T().Context(), cara, &authv1.AccountDeleted{}))
+	s.Require().NoError(s.store.DeleteAccount(s.T().Context(), cara))
 
 	headers := []string{
 		s.sentBack(guest, "token-1"), "theme=dark; cp_sid=token-2", "cp_sid=token-3", "cp_sid=token-5",

@@ -33,7 +33,7 @@ func (s *testSuite) SetupSuite() {
 }
 
 func (s *testSuite) tallyOf(season calendar.Number, account standings.AccountID) standings.Tally {
-	rows, err := s.db.QueryContext(s.T().Context(),
+	rows, err := s.db.On(s.T().Context()).QueryContext(s.T().Context(),
 		`SELECT country, tiles, main, counted_takes_below FROM contributions WHERE season = $1 AND account_id = $2`,
 		int64(season), uuid.UUID(account))
 	s.Require().NoError(err)
@@ -70,7 +70,7 @@ func (s *testSuite) TestOneRowIsMainPerAccountAndSeason() {
 	}
 
 	var mains, rows int
-	s.Require().NoError(s.db.QueryRowContext(s.T().Context(),
+	s.Require().NoError(s.db.On(s.T().Context()).QueryRowContext(s.T().Context(),
 		`SELECT count(*) FILTER (WHERE main), count(*) FROM contributions`).Scan(&mains, &rows))
 	s.Equal(1, mains)
 	s.Equal(3, rows)

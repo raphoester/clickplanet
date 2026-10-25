@@ -6,10 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/timestamppb"
-
-	seasonsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/seasons/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/calendar"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -22,10 +18,10 @@ type Territory interface {
 type Rounds interface {
 	RecordSnapshot(ctx context.Context, round rounds.Round, snapshot rounds.Snapshot) error
 	Unclosed(ctx context.Context, endedBy time.Time) ([]rounds.Round, error)
-	Held(ctx context.Context, round rounds.Round) (map[rounds.Country]uint64, error)
-	Number(ctx context.Context, round rounds.Round) (uint32, error)
-	Close(ctx context.Context, round rounds.Round, results []rounds.Result, told ...proto.Message) error
-	ClosedIn(ctx context.Context, season calendar.Number) ([]rounds.Closed, error)
+}
+
+type Closer interface {
+	Execute(ctx context.Context, round rounds.Round) (rounds.Closed, error)
 }
 
 type Executor interface {
@@ -48,13 +44,14 @@ func (c Config) WithDefaults() Config {
 	return c
 }
 
-func New(territory Territory, store Rounds, seasons calendar.Calendar, clock cptime.Clock) *UseCase {
-	return &UseCase{territory: territory, store: store, seasons: seasons, clock: clock}
+func New(territory Territory, store Rounds, closer Closer, seasons calendar.Calendar, clock cptime.Clock) *UseCase {
+	return &UseCase{territory: territory, store: store, closer: closer, seasons: seasons, clock: clock}
 }
 
 type UseCase struct {
 	territory Territory
 	store     Rounds
+	closer    Closer
 	seasons   calendar.Calendar
 	clock     cptime.Clock
 }
@@ -78,65 +75,13 @@ func (u *UseCase) close(ctx context.Context, now time.Time) ([]rounds.Closed, er
 
 	closed := make([]rounds.Closed, 0, len(ended))
 	for _, round := range ended {
-		held, err := u.store.Held(ctx, round)
+		closing, err := u.closer.Execute(ctx, round)
 		if err != nil {
-			return closed, fmt.Errorf("failed to read what each country held in the round: %w", err)
-		}
-		number, err := u.store.Number(ctx, round)
-		if err != nil {
-			return closed, fmt.Errorf("failed to number the round: %w", err)
-		}
-		earlier, err := u.store.ClosedIn(ctx, round.Season)
-		if err != nil {
-			return closed, fmt.Errorf("failed to read the rounds the season closed: %w", err)
-		}
-		closing := round.Closed(number, held)
-		told := []proto.Message{eventOf(closing)}
-		if end, over := closing.SeasonEnd(earlier); over {
-			told = append(told, seasonEventOf(end))
-		}
-		if err := u.store.Close(ctx, round, closing.Results, told...); err != nil {
 			return closed, fmt.Errorf("failed to close the round: %w", err)
 		}
 		closed = append(closed, closing)
 	}
 	return closed, nil
-}
-
-func eventOf(closed rounds.Closed) *seasonsv1.RoundClosed {
-	results := make([]*seasonsv1.RoundResult, 0, len(closed.Results))
-	for _, result := range closed.Results {
-		results = append(results, &seasonsv1.RoundResult{
-			Country: string(result.Country),
-			Rank:    result.Rank,
-			Points:  result.Points,
-		})
-	}
-	return &seasonsv1.RoundClosed{
-		Season:  uint32(closed.Round.Season),
-		Number:  closed.Number,
-		Finale:  closed.Round.Finale,
-		EndedAt: timestamppb.New(closed.Round.EndsAt),
-		Results: results,
-	}
-}
-
-func seasonEventOf(end rounds.SeasonEnd) *seasonsv1.SeasonClosed {
-	table := make([]*seasonsv1.SeasonPlace, 0, len(end.Table))
-	for _, placed := range end.Table {
-		table = append(table, &seasonsv1.SeasonPlace{
-			Country:      string(placed.Country),
-			Rank:         placed.Rank,
-			Points:       uint32(placed.Points), //nolint:gosec // 25 a day for a few weeks.
-			RoundsWon:    placed.RoundsWon,
-			FinalePoints: uint32(placed.FinalePoints), //nolint:gosec // 75 a finale.
-		})
-	}
-	return &seasonsv1.SeasonClosed{
-		Season:  uint32(end.Season),
-		EndedAt: timestamppb.New(end.EndedAt),
-		Table:   table,
-	}
 }
 
 func (u *UseCase) count(ctx context.Context, now time.Time) error {

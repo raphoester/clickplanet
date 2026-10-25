@@ -17,6 +17,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/postgres_round_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/rpc_planet_territories"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/usecases/close_round_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/usecases/take_snapshot_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/usecases/take_snapshot_usecase/log_take_snapshot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller"
@@ -111,8 +112,10 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	race := log_race_reader.New(race_query.NewPostgresQuery(db, seasons, clock), props.Logger)
 	races := inprocess_race_feed.New(race)
+	roundStore := postgres_round_store.New(db)
 	snapshot := take_snapshot_usecase.NewRunner(config.Snapshot, log_take_snapshot.New(
-		take_snapshot_usecase.New(rpc_planet_territories.New(planet), postgres_round_store.New(db), seasons, clock),
+		take_snapshot_usecase.New(rpc_planet_territories.New(planet), roundStore,
+			close_round_usecase.New(db, roundStore, cpoutbox.New(db)), seasons, clock),
 		props.Logger,
 	))
 

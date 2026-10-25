@@ -54,7 +54,7 @@ func (s *testSuite) TestTheSenderIsStored() {
 	s.keep(s.sent("hello", "Bob", start))
 
 	var ip, userAgent, authorID string
-	s.Require().NoError(s.db.QueryRowContext(context.Background(),
+	s.Require().NoError(s.db.On(context.Background()).QueryRowContext(context.Background(),
 		`SELECT ip, user_agent, author_id FROM messages`).Scan(&ip, &userAgent, &authorID))
 
 	s.Equal([]string{"203.0.113.7", "test-agent", "some-uuid"}, []string{ip, userAgent, authorID})
@@ -66,7 +66,7 @@ func (s *testSuite) TestOnlyAReplyKeepsTheMessageItRepliesTo() {
 	s.keep(question)
 	s.keep(s.sent("reply", "Ada", start.Add(time.Minute)).Answering(question))
 
-	rows, err := s.db.QueryContext(ctx, `SELECT COALESCE(reply_to, 'none') FROM messages ORDER BY seq`)
+	rows, err := s.db.On(ctx).QueryContext(ctx, `SELECT COALESCE(reply_to, 'none') FROM messages ORDER BY seq`)
 	s.Require().NoError(err)
 	defer func() { _ = rows.Close() }()
 
@@ -96,12 +96,12 @@ func (s *testSuite) TestTheBackfillPrefixesOnlyTheMessagesFromBeforeUsernames() 
 func (s *testSuite) runMigration(name string) {
 	query, err := migrations.FS.ReadFile(name)
 	s.Require().NoError(err)
-	_, err = s.db.ExecContext(context.Background(), string(query))
+	_, err = s.db.On(context.Background()).ExecContext(context.Background(), string(query))
 	s.Require().NoError(err)
 }
 
 func (s *testSuite) names() []string {
-	rows, err := s.db.QueryContext(context.Background(), `SELECT name FROM messages ORDER BY seq`)
+	rows, err := s.db.On(context.Background()).QueryContext(context.Background(), `SELECT name FROM messages ORDER BY seq`)
 	s.Require().NoError(err)
 	defer func() { _ = rows.Close() }()
 

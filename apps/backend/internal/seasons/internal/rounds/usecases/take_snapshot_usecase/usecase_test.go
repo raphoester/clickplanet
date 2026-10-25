@@ -15,7 +15,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/calendar"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/inmemory_round_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/usecases/close_round_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/usecases/take_snapshot_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -41,20 +43,26 @@ func (s *stubTerritory) Snapshot(context.Context) (rounds.Snapshot, error) {
 type fixture struct {
 	territory *stubTerritory
 	store     *inmemory_round_store.Store
+	outbox    *cpatomic.FakeOutbox
 	clock     *cptime.FixedClock
 	useCase   *take_snapshot_usecase.UseCase
 }
 
+func (f fixture) on(store close_round_usecase.Rounds) *take_snapshot_usecase.UseCase {
+	closer := close_round_usecase.New(cpatomic.FakeTransactioner{}, store, f.outbox)
+	return take_snapshot_usecase.New(f.territory, f.store, closer, seasonZero, f.clock)
+}
+
 func newFixture(now time.Time) fixture {
 	territory := &stubTerritory{held: map[rounds.Country]uint32{"fr": 3, "de": 1}}
-	store := inmemory_round_store.New()
-	clock := cptime.NewFixedClock(now)
-	return fixture{
+	f := fixture{
 		territory: territory,
-		store:     store,
-		clock:     clock,
-		useCase:   take_snapshot_usecase.New(territory, store, seasonZero, clock),
+		store:     inmemory_round_store.New(),
+		outbox:    &cpatomic.FakeOutbox{},
+		clock:     cptime.NewFixedClock(now),
 	}
+	f.useCase = f.on(f.store)
+	return f
 }
 
 func (f fixture) held(t *testing.T, round rounds.Round) map[rounds.Country]uint64 {
@@ -120,7 +128,7 @@ func TestClosingARoundTellsTheOtherModulesItsResults(t *testing.T) {
 	_, err = f.useCase.Execute(t.Context())
 
 	require.NoError(t, err)
-	published := f.store.Told()
+	published := f.outbox.Recorded()
 	require.Len(t, published, 2)
 	assert.True(t, proto.Equal(&seasonsv1.RoundClosed{
 		Season:  0,
@@ -146,7 +154,7 @@ func TestClosingTheFinaleTellsTheOtherModulesTheSeasonsTable(t *testing.T) {
 	_, err = f.useCase.Execute(t.Context())
 
 	require.NoError(t, err)
-	published := f.store.Told()
+	published := f.outbox.Recorded()
 	require.Len(t, published, 3)
 	assert.True(t, proto.Equal(&seasonsv1.SeasonClosed{
 		Season:  0,
@@ -174,7 +182,7 @@ func (u *unreadSeasons) ClosedIn(ctx context.Context, season calendar.Number) ([
 func TestAFinaleWhoseSeasonCouldNotBeReadClosesAtTheNextSnapshotAndIsToldOnce(t *testing.T) {
 	f := newFixture(utc(31, 22, 0))
 	store := &unreadSeasons{Store: f.store}
-	useCase := take_snapshot_usecase.New(f.territory, store, seasonZero, f.clock)
+	useCase := f.on(store)
 	_, err := useCase.Execute(t.Context())
 	require.NoError(t, err)
 
@@ -182,7 +190,7 @@ func TestAFinaleWhoseSeasonCouldNotBeReadClosesAtTheNextSnapshotAndIsToldOnce(t 
 	f.clock.Advance(time.Hour)
 	_, err = useCase.Execute(t.Context())
 	require.Error(t, err)
-	assert.Empty(t, f.store.Told())
+	assert.Empty(t, f.outbox.Recorded())
 	assert.Empty(t, f.closedIn(t), "the finale is left to close")
 
 	store.err = nil
@@ -193,7 +201,7 @@ func TestAFinaleWhoseSeasonCouldNotBeReadClosesAtTheNextSnapshotAndIsToldOnce(t 
 	_, err = useCase.Execute(t.Context())
 	require.NoError(t, err)
 
-	published := f.store.Told()
+	published := f.outbox.Recorded()
 	require.Len(t, published, 2)
 	assert.IsType(t, &seasonsv1.RoundClosed{}, published[0])
 	assert.IsType(t, &seasonsv1.SeasonClosed{}, published[1])
@@ -209,7 +217,7 @@ func TestARoundThatFailedToCloseTellsNothing(t *testing.T) {
 	_, err = f.useCase.Execute(t.Context())
 
 	require.Error(t, err)
-	assert.Empty(t, f.store.Told())
+	assert.Empty(t, f.outbox.Recorded())
 }
 
 func TestAfterTheLastSeasonNothingIsCountedAndTheFinaleStillCloses(t *testing.T) {

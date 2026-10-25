@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/wrapperspb"
@@ -71,21 +70,29 @@ func (s *OutboxSuite) SetupTest() {
 	s.Require().NoError(s.db.Purge(s.T().Context()))
 }
 
-func (s *OutboxSuite) write(commit bool, values ...string) {
-	tx, err := s.db.BeginTx(s.T().Context(), nil)
-	s.Require().NoError(err)
+var errRolledBack = errors.New("rolled back")
 
+func (s *OutboxSuite) write(commit bool, values ...string) {
 	events := make([]proto.Message, len(values))
 	for i, value := range values {
 		events[i] = wrapperspb.String(value)
 	}
-	s.Require().NoError(cpoutbox.Append(s.T().Context(), tx, events...))
+
+	err := s.db.InTx(s.T().Context(), func(ctx context.Context) error {
+		if err := cpoutbox.New(s.db).Record(ctx, events...); err != nil {
+			return err //nolint:wrapcheck // a test.
+		}
+		if !commit {
+			return errRolledBack
+		}
+		return nil
+	})
 
 	if commit {
-		s.Require().NoError(tx.Commit())
+		s.Require().NoError(err)
 		return
 	}
-	s.Require().NoError(tx.Rollback())
+	s.Require().ErrorIs(err, errRolledBack)
 }
 
 func (s *OutboxSuite) relay(events *sender) func() {
@@ -104,7 +111,7 @@ func (s *OutboxSuite) relay(events *sender) func() {
 
 func (s *OutboxSuite) kept() int {
 	var rows int
-	s.Require().NoError(s.db.QueryRowContext(s.T().Context(), `SELECT count(*) FROM outbox`).Scan(&rows))
+	s.Require().NoError(s.db.On(s.T().Context()).QueryRowContext(s.T().Context(), `SELECT count(*) FROM outbox`).Scan(&rows))
 	return rows
 }
 
@@ -153,9 +160,8 @@ func (s *OutboxSuite) TestTheShutdownSendsWhatIsLeft() {
 
 func TestAnEventTheOutboxTypeDoesNotHoldIsRefusedWithTheWrite(t *testing.T) {
 	db := cppg.StartTestServer(t).OpenSchema(t, "outbox", migrations)
-	tx, err := db.BeginTx(t.Context(), nil)
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = tx.Rollback() })
 
-	assert.Error(t, cpoutbox.Append(t.Context(), tx, wrapperspb.Int64(7)))
+	assert.Error(t, db.InTx(t.Context(), func(ctx context.Context) error {
+		return cpoutbox.New(db).Record(ctx, wrapperspb.Int64(7))
+	}))
 }

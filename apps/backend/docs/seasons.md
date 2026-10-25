@@ -13,12 +13,15 @@ internal/seasons/internal/
     usecases/record_take_usecase/  forget_account_usecase/
   rounds/                         Country, Round (Current, Results, Closed), Snapshot, Result, Closed (SeasonEnd),
                                   Score (ScoresOf), Placed (TableOf), SeasonEnd; the Store port (RecordSnapshot,
-                                  Unclosed, Held, Number, Close, ClosedIn) and its contract suite
+                                  Unclosed, Held, Number, Close, ClosedIn) and its contract suite; Close answers
+                                  whether this call closed the round
     postgres_round_store/         the Store over seasons.rounds, round_holdings and round_results
     inmemory_round_store/         the same port in maps, behind the testing tag
     rpc_planet_territories/         the snapshot, from planet.v1.InternalService/GetTerritories
-    usecases/take_snapshot_usecase/ closes the rounds that ended, telling each and the season's end with its finale
-                                  through the outbox, then counts the round in progress; Runner
+    usecases/close_round_usecase/  closes one round and records it, and the season's end with its finale, in the
+                                  outbox, in one transaction
+    usecases/take_snapshot_usecase/ closes the rounds that ended through close_round_usecase, then counts the round in
+                                  progress; Runner
       log_take_snapshot/            logs each round closed, and a snapshot that failed
   seasonsv1controller/            SeasonService (a bag), the cache interceptor, the session interceptor
     get_season_handler/

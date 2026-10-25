@@ -30,6 +30,8 @@ and says what is in it. Read the doc before you change its area.
 - [Inside the chat module](docs/chat-module.md) — the same shape, for chat's seven concepts.
 - [Reads are queries](docs/queries.md) — a read endpoint does not go through the write model.
 - [Adapters](docs/adapters.md) — the primary (Connect handlers) and secondary (stores) adapters.
+- [Transactions](docs/transactions.md) — a use case opens one with `InTx` and records its events in it; a store
+  reaches postgres only through `db.On(ctx)`.
 - [Every id is a type of its own](docs/ids.md) — never a bare `uuid.UUID`, `string` or `[]byte` in a signature.
 - [Manipulators are verbs, builders are nouns](docs/verbs-and-nouns.md) — a name says if calling it changes
   anything.

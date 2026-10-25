@@ -11,12 +11,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
-func NewPostgresQuery(db cppg.Querier) *PostgresQuery {
+func NewPostgresQuery(db cppg.Conn) *PostgresQuery {
 	return &PostgresQuery{db: db}
 }
 
 type PostgresQuery struct {
-	db cppg.Querier
+	db cppg.Conn
 }
 
 // The tiles ledger.Taking replays for the account: a take's own row, and each tile a spread or an enclose took.
@@ -36,7 +36,7 @@ const takes = `
 `
 
 func (q *PostgresQuery) TakesByCountry(ctx context.Context, account cpsession.AccountID) (*planetv1.GetTakesByCountryResponse, error) {
-	rows, err := q.db.QueryContext(ctx, takes, uuid.UUID(account))
+	rows, err := q.db.On(ctx).QueryContext(ctx, takes, uuid.UUID(account))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the account's takes by country: %w", err)
 	}

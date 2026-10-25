@@ -13,6 +13,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/inmemory_account_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/delete_account_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -25,11 +26,12 @@ func TestTheCallersAccountIsDeletedWithEverythingItHolds(t *testing.T) {
 	store := inmemory_account_store.New()
 	identity := accounts.NewIdentity("google", accounts.ClaimOf("user", "", false), accounts.AccountID{15: 1}, start)
 	session := accounts.LinkedSession(identity.Account(), accounts.TokenOf("token-1"), lifetime, start)
-	require.NoError(t, store.SaveSignIn(t.Context(), accounts.NewSignIn(session).WithNewAccount().WithIdentity(identity), &authv1.SignedIn{}))
+	require.NoError(t, store.SaveSignIn(t.Context(), accounts.NewSignIn(session).WithNewAccount().WithIdentity(identity)))
 
-	seeded := len(store.Told())
+	outbox := &cpatomic.FakeOutbox{}
 
-	out, err := delete_account_usecase.New(store, cptime.NewFixedClock(start)).Execute(t.Context(), "cp_sid=token-1")
+	out, err := delete_account_usecase.New(cpatomic.FakeTransactioner{}, store, outbox, cptime.NewFixedClock(start)).
+		Execute(t.Context(), "cp_sid=token-1")
 
 	require.NoError(t, err)
 	assert.Equal(t, &delete_account_usecase.Out{Account: identity.Account(), SetCookie: accounts.ExpiredSessionCookie()}, out)
@@ -37,28 +39,30 @@ func TestTheCallersAccountIsDeletedWithEverythingItHolds(t *testing.T) {
 	require.ErrorIs(t, err, accounts.ErrAccountNotFound)
 	_, err = store.Identity(t.Context(), "google", "user")
 	require.ErrorIs(t, err, accounts.ErrIdentityNotFound)
-	told := store.Told()[seeded:]
-	require.Len(t, told, 1, "kept with the deletion")
-	assert.True(t, proto.Equal(&authv1.AccountDeleted{AccountId: identity.Account().String()}, told[0]))
+	require.Len(t, outbox.Recorded(), 1, "recorded with the deletion")
+	assert.True(t, proto.Equal(&authv1.AccountDeleted{AccountId: identity.Account().String()}, outbox.Recorded()[0]))
 }
 
 func TestNoCookieDeletesNothing(t *testing.T) {
-	store := inmemory_account_store.New()
+	outbox := &cpatomic.FakeOutbox{}
 
-	out, err := delete_account_usecase.New(store, cptime.NewFixedClock(start)).Execute(t.Context(), "theme=dark")
+	out, err := delete_account_usecase.New(cpatomic.FakeTransactioner{}, inmemory_account_store.New(), outbox, cptime.NewFixedClock(start)).
+		Execute(t.Context(), "theme=dark")
 
 	require.ErrorIs(t, err, accounts.ErrNoAccount)
 	assert.Nil(t, out)
-	assert.Empty(t, store.Told())
+	assert.Empty(t, outbox.Recorded())
 }
 
 func TestAStoreFailureIsNotNoAccount(t *testing.T) {
 	store := inmemory_account_store.New()
 	store.FailWith(errors.New("postgres is down"))
+	outbox := &cpatomic.FakeOutbox{}
 
-	_, err := delete_account_usecase.New(store, cptime.NewFixedClock(start)).Execute(t.Context(), "cp_sid=token-1")
+	_, err := delete_account_usecase.New(cpatomic.FakeTransactioner{}, store, outbox, cptime.NewFixedClock(start)).
+		Execute(t.Context(), "cp_sid=token-1")
 
 	require.Error(t, err)
 	assert.NotErrorIs(t, err, accounts.ErrNoAccount)
-	assert.Empty(t, store.Told(), "nothing was deleted")
+	assert.Empty(t, outbox.Recorded(), "nothing was deleted")
 }

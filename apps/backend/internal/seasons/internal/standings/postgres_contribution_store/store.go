@@ -2,7 +2,6 @@ package postgres_contribution_store
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -12,60 +11,49 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
-func New(db cppg.QuerierBeginner) *Store {
+func New(db cppg.Conn) *Store {
 	return &Store{db: db}
 }
 
 type Store struct {
-	db cppg.QuerierBeginner
+	db cppg.Conn
 }
 
 var _ standings.Store = (*Store)(nil)
 
 const takeLock = 0x73656173
 
-func (s *Store) RecordTake(ctx context.Context, season calendar.Number, take standings.Take) (err error) {
-	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to begin counting the take: %w", err)
-	}
-	defer func() {
+func (s *Store) RecordTake(ctx context.Context, season calendar.Number, take standings.Take) error {
+	return s.db.InTx(ctx, func(ctx context.Context) error {
+		tx := s.db.On(ctx)
+		if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock($1, hashtext($2))`, takeLock, take.Account.String()); err != nil {
+			return fmt.Errorf("failed to lock the account's contributions: %w", err)
+		}
+
+		tally, err := tallyOf(ctx, tx, season, take.Account)
 		if err != nil {
-			_ = tx.Rollback()
+			return err
 		}
-	}()
+		next := tally.WithTake(take)
 
-	if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock($1, hashtext($2))`, takeLock, take.Account.String()); err != nil {
-		return fmt.Errorf("failed to lock the account's contributions: %w", err)
-	}
-
-	tally, err := tallyOf(ctx, tx, season, take.Account)
-	if err != nil {
-		return err
-	}
-	next := tally.WithTake(take)
-
-	if tally.Main != "" && next.Main != tally.Main {
+		if tally.Main != "" && next.Main != tally.Main {
+			if _, err := tx.ExecContext(ctx, `
+				UPDATE contributions SET main = false WHERE season = $1 AND account_id = $2 AND country = $3
+			`, int64(season), uuid.UUID(take.Account), string(tally.Main)); err != nil {
+				return fmt.Errorf("failed to move the main flag: %w", err)
+			}
+		}
 		if _, err := tx.ExecContext(ctx, `
-			UPDATE contributions SET main = false WHERE season = $1 AND account_id = $2 AND country = $3
-		`, int64(season), uuid.UUID(take.Account), string(tally.Main)); err != nil {
-			return fmt.Errorf("failed to move the main flag: %w", err)
+			INSERT INTO contributions (season, account_id, country, tiles, main, counted_takes_below) VALUES ($1, $2, $3, $4, $5, $6)
+			ON CONFLICT (season, account_id, country) DO UPDATE
+			SET tiles = excluded.tiles, main = excluded.main, counted_takes_below = excluded.counted_takes_below
+		`, int64(season), uuid.UUID(take.Account), string(take.Country),
+			int64(next.Tiles[take.Country]), next.Main == take.Country, //nolint:gosec // one a tile taken: never past int64.
+			int64(next.TakesBelow)); err != nil { //nolint:gosec // a ledger position fits in int64.
+			return fmt.Errorf("failed to save the take: %w", err)
 		}
-	}
-	if _, err := tx.ExecContext(ctx, `
-		INSERT INTO contributions (season, account_id, country, tiles, main, counted_takes_below) VALUES ($1, $2, $3, $4, $5, $6)
-		ON CONFLICT (season, account_id, country) DO UPDATE
-		SET tiles = excluded.tiles, main = excluded.main, counted_takes_below = excluded.counted_takes_below
-	`, int64(season), uuid.UUID(take.Account), string(take.Country),
-		int64(next.Tiles[take.Country]), next.Main == take.Country, //nolint:gosec // one a tile taken: never past int64.
-		int64(next.TakesBelow)); err != nil { //nolint:gosec // a ledger position fits in int64.
-		return fmt.Errorf("failed to save the take: %w", err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit the take: %w", err)
-	}
-	return nil
+		return nil
+	})
 }
 
 func tallyOf(ctx context.Context, db cppg.Querier, season calendar.Number, account standings.AccountID) (standings.Tally, error) {
@@ -101,7 +89,7 @@ func tallyOf(ctx context.Context, db cppg.Querier, season calendar.Number, accou
 }
 
 func (s *Store) DeleteAccount(ctx context.Context, account standings.AccountID) error {
-	if _, err := s.db.ExecContext(ctx, `DELETE FROM contributions WHERE account_id = $1`, uuid.UUID(account)); err != nil {
+	if _, err := s.db.On(ctx).ExecContext(ctx, `DELETE FROM contributions WHERE account_id = $1`, uuid.UUID(account)); err != nil {
 		return fmt.Errorf("failed to delete the account's contributions: %w", err)
 	}
 	return nil

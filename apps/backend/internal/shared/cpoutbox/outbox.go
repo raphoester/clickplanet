@@ -17,7 +17,27 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
-func Append(ctx context.Context, tx cppg.Querier, events ...proto.Message) error {
+func New(db Conn) Outbox {
+	return Outbox{db: db}
+}
+
+type Conn interface {
+	cppg.Conn
+	InOpenTx(ctx context.Context, do func(ctx context.Context) error) error
+}
+
+type Outbox struct {
+	db Conn
+}
+
+// Record keeps events in the transaction ctx carries, and refuses outside one: an event is sent only with what it tells of.
+func (o Outbox) Record(ctx context.Context, events ...proto.Message) error {
+	return o.db.InOpenTx(ctx, func(ctx context.Context) error { //nolint:wrapcheck // the error names the event.
+		return keep(ctx, o.db.On(ctx), events...)
+	})
+}
+
+func keep(ctx context.Context, tx cppg.Querier, events ...proto.Message) error {
 	for _, event := range events {
 		name := event.ProtoReflect().Descriptor().FullName()
 		payload, err := proto.Marshal(event)
@@ -41,7 +61,7 @@ const (
 	interval = time.Second
 )
 
-func NewRelay(name string, db cppg.QuerierBeginner, events Sender, logger *slog.Logger) cpbootstrap.Runner {
+func NewRelay(name string, db cppg.Conn, events Sender, logger *slog.Logger) cpbootstrap.Runner {
 	return runner{name: name, relay: logged{inner: relay{db: db, events: events}, logger: logger.With(slog.String("outbox", name))}}
 }
 
@@ -50,46 +70,44 @@ type executor interface {
 }
 
 type relay struct {
-	db     cppg.QuerierBeginner
+	db     cppg.Conn
 	events Sender
 }
 
 // The rows read stay locked until they are sent and deleted, or the transaction rolls back.
-func (r relay) Execute(ctx context.Context) (_ int, err error) {
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return 0, fmt.Errorf("failed to begin reading the outbox: %w", err)
-	}
-	defer func() {
+func (r relay) Execute(ctx context.Context) (int, error) {
+	var (
+		sent   int
+		unread []error
+	)
+	err := r.db.InTx(ctx, func(ctx context.Context) error {
+		tx := r.db.On(ctx)
+		rows, err := tx.QueryContext(ctx,
+			`SELECT position, event::text, payload FROM outbox ORDER BY position LIMIT $1 FOR UPDATE SKIP LOCKED`, batch)
 		if err != nil {
-			_ = tx.Rollback()
+			return fmt.Errorf("failed to read the outbox: %w", err)
 		}
-	}()
+		positions, events, dropped, err := read(rows)
+		if err != nil {
+			return err
+		}
+		if len(positions) == 0 {
+			return nil
+		}
 
-	rows, err := tx.QueryContext(ctx,
-		`SELECT position, event::text, payload FROM outbox ORDER BY position LIMIT $1 FOR UPDATE SKIP LOCKED`, batch)
-	if err != nil {
-		return 0, fmt.Errorf("failed to read the outbox: %w", err)
-	}
-	positions, events, unread, err := read(rows)
+		if err := r.events.Send(ctx, events...); err != nil {
+			return fmt.Errorf("failed to send %d events of the outbox: %w", len(events), err)
+		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM outbox WHERE position = ANY($1)`, pq.Array(positions)); err != nil {
+			return fmt.Errorf("failed to clear what the outbox sent: %w", err)
+		}
+		sent, unread = len(positions), dropped
+		return nil
+	})
 	if err != nil {
 		return 0, err
 	}
-	if len(positions) == 0 {
-		return 0, tx.Rollback() //nolint:wrapcheck // nothing was read.
-	}
-
-	if err := r.events.Send(ctx, events...); err != nil {
-		return 0, fmt.Errorf("failed to send %d events of the outbox: %w", len(events), err)
-	}
-	if _, err := tx.ExecContext(ctx, `DELETE FROM outbox WHERE position = ANY($1)`, pq.Array(positions)); err != nil {
-		return 0, fmt.Errorf("failed to clear what the outbox sent: %w", err)
-	}
-	if err := tx.Commit(); err != nil {
-		return 0, fmt.Errorf("failed to clear what the outbox sent: %w", err)
-	}
-
-	return len(positions), errors.Join(unread...)
+	return sent, errors.Join(unread...)
 }
 
 // A row that does not read back is cleared with the others and reported: kept, it would hold every row behind it.
@@ -162,13 +180,15 @@ func (r runner) Run(ctx context.Context) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
+	// The shutdown does not cut a batch off between its send and its delete, which would send it twice.
+	working := context.WithoutCancel(ctx)
 	for {
-		r.empty(ctx)
+		r.empty(working)
 
 		select {
 		case <-ticker.C:
 		case <-ctx.Done():
-			r.empty(context.WithoutCancel(ctx))
+			r.empty(working)
 			return
 		}
 	}

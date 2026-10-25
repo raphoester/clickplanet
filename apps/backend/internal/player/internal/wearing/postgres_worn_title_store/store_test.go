@@ -41,6 +41,6 @@ func (s *testSuite) TestTheTimeOfTheLastChoiceIsKept() {
 	s.Require().NoError(s.store.Wear(s.T().Context(), players.AccountID{15: 1}, "og", at.Add(time.Hour)))
 
 	var wornAt time.Time
-	s.Require().NoError(s.db.QueryRowContext(s.T().Context(), `SELECT worn_at FROM worn_titles`).Scan(&wornAt))
+	s.Require().NoError(s.db.On(s.T().Context()).QueryRowContext(s.T().Context(), `SELECT worn_at FROM worn_titles`).Scan(&wornAt))
 	s.Equal(at.Add(time.Hour), wornAt.UTC())
 }

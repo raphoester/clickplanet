@@ -7,8 +7,6 @@ import (
 	"testing"
 	"time"
 
-	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -181,7 +179,7 @@ func TestALinkedSessionIsExtendedByTheLinkedLifetime(t *testing.T) {
 	f := setUp(t)
 	identity := accounts.NewIdentity("google", accounts.ClaimOf("user", "", false), accounts.AccountID{15: 9}, start)
 	linked := accounts.LinkedSession(identity.Account(), accounts.TokenOf("linked"), accounts.Lifetime{}.WithDefaults(), start)
-	require.NoError(t, f.sessions.SaveSignIn(t.Context(), accounts.NewSignIn(linked).WithNewAccount().WithIdentity(identity), &authv1.SignedIn{}))
+	require.NoError(t, f.sessions.SaveSignIn(t.Context(), accounts.NewSignIn(linked).WithNewAccount().WithIdentity(identity)))
 
 	f.clock.Advance(25 * time.Hour)
 	out := f.create(t, f.useCase(open_attester.New()), "cp_sid=linked")
@@ -194,7 +192,7 @@ func TestTheTokenSaysWhetherTheAccountSignedInWithAProvider(t *testing.T) {
 	f := setUp(t)
 	identity := accounts.NewIdentity("discord", accounts.ClaimOf("user", "", false), accounts.AccountID{15: 9}, start)
 	linked := accounts.LinkedSession(identity.Account(), accounts.TokenOf("linked"), accounts.Lifetime{}.WithDefaults(), start)
-	require.NoError(t, f.sessions.SaveSignIn(t.Context(), accounts.NewSignIn(linked).WithNewAccount().WithIdentity(identity), &authv1.SignedIn{}))
+	require.NoError(t, f.sessions.SaveSignIn(t.Context(), accounts.NewSignIn(linked).WithNewAccount().WithIdentity(identity)))
 	useCase := f.useCase(open_attester.New())
 
 	for name, tc := range map[string]struct {

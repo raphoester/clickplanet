@@ -21,12 +21,12 @@ type Titles interface {
 	Tracks(held []string, career playerread.Career) []*playerv1.Track
 }
 
-func NewPostgresQuery(db cppg.Querier, titles Titles, clock cptime.Clock) *PostgresQuery {
+func NewPostgresQuery(db cppg.Conn, titles Titles, clock cptime.Clock) *PostgresQuery {
 	return &PostgresQuery{db: db, titles: titles, clock: clock}
 }
 
 type PostgresQuery struct {
-	db     cppg.Querier
+	db     cppg.Conn
 	titles Titles
 	clock  cptime.Clock
 }
@@ -56,7 +56,7 @@ func (q *PostgresQuery) Titles(ctx context.Context, account cpsession.AccountID)
 		choice   string
 		held     []string
 	)
-	if err := q.db.QueryRowContext(ctx, career, uuid.UUID(account), q.clock.Now().UTC().Format(time.DateOnly)).Scan(
+	if err := q.db.On(ctx).QueryRowContext(ctx, career, uuid.UUID(account), q.clock.Now().UTC().Format(time.DateOnly)).Scan(
 		&progress.TilesTaken, &progress.StreakNow, &progress.MessagesSent,
 		&progress.BombsDropped, &progress.TilesFortified, &progress.BonusesClaimed, &progress.RightAnswers,
 		&choice, pq.Array(&held),

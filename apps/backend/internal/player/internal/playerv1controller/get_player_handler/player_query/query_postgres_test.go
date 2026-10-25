@@ -145,7 +145,7 @@ func (s *testSuite) TestAnAccountTheGameNeverNamedIsNoPlayer() {
 }
 
 func (s *testSuite) TestAnAdminIsSaidToBeOne() {
-	_, err := s.db.ExecContext(s.T().Context(), `UPDATE profiles SET admin = true WHERE account_id = $1`, uuid.UUID(ada))
+	_, err := s.db.On(s.T().Context()).ExecContext(s.T().Context(), `UPDATE profiles SET admin = true WHERE account_id = $1`, uuid.UUID(ada))
 	s.Require().NoError(err)
 
 	s.True(s.player(ada).GetAdmin())

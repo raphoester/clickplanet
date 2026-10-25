@@ -6,10 +6,9 @@ import (
 	"fmt"
 	"time"
 
-	"google.golang.org/protobuf/proto"
-
 	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 )
 
 type IdentityStore interface {
@@ -17,18 +16,29 @@ type IdentityStore interface {
 	accounts.AccountFinder
 	Identity(ctx context.Context, provider string, subject string) (*accounts.Identity, error)
 	AccountOfEmail(ctx context.Context, address string) (*accounts.Account, error)
-	SaveSignIn(ctx context.Context, signIn accounts.SignIn, told proto.Message) error
+	SaveSignIn(ctx context.Context, signIn accounts.SignIn) error
 }
 
 type Admitter struct {
-	store    IdentityStore
-	ids      accounts.IDProvider
-	tokens   accounts.TokenGenerator
-	lifetime accounts.Lifetime
+	transactioner cpatomic.Transactioner
+	store         IdentityStore
+	outbox        cpatomic.Outbox
+	ids           accounts.IDProvider
+	tokens        accounts.TokenGenerator
+	lifetime      accounts.Lifetime
 }
 
-func NewAdmitter(store IdentityStore, ids accounts.IDProvider, tokens accounts.TokenGenerator, lifetime accounts.Lifetime) *Admitter {
-	return &Admitter{store: store, ids: ids, tokens: tokens, lifetime: lifetime.WithDefaults()}
+func NewAdmitter(
+	transactioner cpatomic.Transactioner,
+	store IdentityStore,
+	outbox cpatomic.Outbox,
+	ids accounts.IDProvider,
+	tokens accounts.TokenGenerator,
+	lifetime accounts.Lifetime,
+) *Admitter {
+	return &Admitter{
+		transactioner: transactioner, store: store, outbox: outbox, ids: ids, tokens: tokens, lifetime: lifetime.WithDefaults(),
+	}
 }
 
 type Visitor struct {
@@ -144,8 +154,17 @@ func (a *Admitter) admit(
 	if current != nil {
 		signedIn.PreviousAccountId = current.ID().String()
 	}
-	if err := a.store.SaveSignIn(ctx, signIn, signedIn); err != nil {
-		return nil, fmt.Errorf("failed to save the sign-in: %w", err)
+	err = a.transactioner.InTx(ctx, func(ctx context.Context) error {
+		if err := a.store.SaveSignIn(ctx, signIn); err != nil {
+			return fmt.Errorf("failed to save the sign-in: %w", err)
+		}
+		if err := a.outbox.Record(ctx, signedIn); err != nil {
+			return fmt.Errorf("failed to record the sign-in: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	return &Admission{account: account, outcome: outcome, setCookie: session.Cookie(token, now)}, nil

@@ -7,9 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/suite"
-	"google.golang.org/protobuf/proto"
 
-	seasonsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/seasons/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/calendar"
 )
 
@@ -17,7 +15,6 @@ type StoreContractSuite struct {
 	suite.Suite
 
 	NewStore func() Store
-	Told     func() []proto.Message
 
 	store Store
 }
@@ -95,8 +92,10 @@ func (s *StoreContractSuite) TestAClosedRoundKeepsItsResultsAndIsNoLongerUnclose
 	s.snapshot(contractDay, map[Country]uint32{"fr": 2, "de": 1})
 	results := []Result{{Country: "fr", Rank: 1, Points: 25}, {Country: "de", Rank: 2, Points: 18}}
 
-	s.Require().NoError(s.store.Close(s.T().Context(), contractDay, results))
+	closed, err := s.store.Close(s.T().Context(), contractDay, results)
 
+	s.Require().NoError(err)
+	s.True(closed)
 	s.Equal([]Closed{{Round: contractDay, Number: 1, Results: results}}, s.closedIn(0))
 	s.Empty(s.unclosed(contractNextDay.EndsAt))
 }
@@ -104,24 +103,13 @@ func (s *StoreContractSuite) TestAClosedRoundKeepsItsResultsAndIsNoLongerUnclose
 func (s *StoreContractSuite) TestASecondCloseChangesNothing() {
 	s.snapshot(contractDay, map[Country]uint32{"fr": 2, "de": 1})
 	first := []Result{{Country: "fr", Rank: 1, Points: 25}, {Country: "de", Rank: 2, Points: 18}}
-	s.Require().NoError(s.store.Close(s.T().Context(), contractDay, first))
+	s.close(contractDay, first...)
 
-	s.Require().NoError(s.store.Close(s.T().Context(), contractDay, []Result{{Country: "de", Rank: 1, Points: 25}}))
+	closed, err := s.store.Close(s.T().Context(), contractDay, []Result{{Country: "de", Rank: 1, Points: 25}})
 
+	s.Require().NoError(err)
+	s.False(closed, "only the first close closes the round")
 	s.Equal([]Closed{{Round: contractDay, Number: 1, Results: first}}, s.closedIn(0))
-}
-
-func (s *StoreContractSuite) TestACloseKeepsWhatItTellsAndASecondOneTellsNothing() {
-	s.snapshot(contractFinale, map[Country]uint32{"fr": 2})
-	told := []proto.Message{&seasonsv1.RoundClosed{Number: 16, Finale: true}, &seasonsv1.SeasonClosed{Season: 0}}
-
-	s.Require().NoError(s.store.Close(s.T().Context(), contractFinale, []Result{{Country: "fr", Rank: 1, Points: 75}}, told...))
-	s.Require().NoError(s.store.Close(s.T().Context(), contractFinale, nil, &seasonsv1.RoundClosed{Number: 99}))
-
-	kept := s.Told()
-	s.Require().Len(kept, 2)
-	s.True(proto.Equal(told[0], kept[0]))
-	s.True(proto.Equal(told[1], kept[1]))
 }
 
 func (s *StoreContractSuite) closedIn(season calendar.Number) []Closed {
@@ -131,7 +119,8 @@ func (s *StoreContractSuite) closedIn(season calendar.Number) []Closed {
 }
 
 func (s *StoreContractSuite) close(round Round, results ...Result) {
-	s.Require().NoError(s.store.Close(s.T().Context(), round, results))
+	_, err := s.store.Close(s.T().Context(), round, results)
+	s.Require().NoError(err)
 }
 
 func (s *StoreContractSuite) TestASeasonListsTheRoundsItClosedInTheirOrder() {

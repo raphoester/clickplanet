@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/suite"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/inmemory_round_store"
@@ -24,5 +23,4 @@ func (s *testSuite) SetupSuite() {
 		store = inmemory_round_store.New()
 		return store
 	}
-	s.Told = func() []proto.Message { return store.Told() }
 }

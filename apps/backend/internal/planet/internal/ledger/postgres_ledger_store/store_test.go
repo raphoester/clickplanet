@@ -118,7 +118,7 @@ type row struct {
 }
 
 func (s *testSuite) rows() []row {
-	rows, err := s.db.QueryContext(context.Background(),
+	rows, err := s.db.On(context.Background()).QueryContext(context.Background(),
 		`SELECT position, tile, scope, account::text, country, previous, taken_at FROM ledger_events ORDER BY position`)
 	s.Require().NoError(err)
 	defer func() { s.Require().NoError(rows.Close()) }()
@@ -247,7 +247,7 @@ func (s *testSuite) TestATakesAccountComesBackAndNoneIsNull() {
 	s.Require().NoError(s.store.Save(ctx, changes(0, 0, map[ledger.Caller]ledger.Position{}, withAccount, without)))
 
 	var nulls int
-	s.Require().NoError(s.db.QueryRowContext(ctx, `SELECT count(*) FROM ledger_events WHERE account IS NULL`).Scan(&nulls))
+	s.Require().NoError(s.db.On(ctx).QueryRowContext(ctx, `SELECT count(*) FROM ledger_events WHERE account IS NULL`).Scan(&nulls))
 	s.Equal(1, nulls)
 
 	takes, _ := s.load()
@@ -275,7 +275,7 @@ func withPayload(position ledger.Position, kind, payload string) inmemory_ledger
 
 func (s *testSuite) TestAnEntryOfAnyKindComesBackWithItsPayload() {
 	ctx := context.Background()
-	_, err := s.db.ExecContext(ctx, `ALTER TYPE ledger_event_kind ADD VALUE IF NOT EXISTS 'quake'`)
+	_, err := s.db.On(ctx).ExecContext(ctx, `ALTER TYPE ledger_event_kind ADD VALUE IF NOT EXISTS 'quake'`)
 	s.Require().NoError(err)
 	quake := withPayload(1, "quake", `{"magnitude": 7}`)
 	quake.Entry.Account = guest
@@ -320,7 +320,7 @@ func (s *testSuite) TestAPayloadIsKeptAsJSONBesideTheTileItIsAbout() {
 		s.rows())
 
 	var kind, payload string
-	s.Require().NoError(s.db.QueryRowContext(ctx, `SELECT kind, payload->'cleared'->0->>'owner' FROM ledger_events`).Scan(&kind, &payload))
+	s.Require().NoError(s.db.On(ctx).QueryRowContext(ctx, `SELECT kind, payload->'cleared'->0->>'owner' FROM ledger_events`).Scan(&kind, &payload))
 	s.Equal("bomb", kind)
 	s.Equal("il", payload)
 }
@@ -333,7 +333,7 @@ func (s *testSuite) TestATakeIsARowOfItsKindWithNoPayload() {
 		kind    string
 		payload sql.NullString
 	)
-	s.Require().NoError(s.db.QueryRowContext(ctx, `SELECT kind, payload::text FROM ledger_events`).Scan(&kind, &payload))
+	s.Require().NoError(s.db.On(ctx).QueryRowContext(ctx, `SELECT kind, payload::text FROM ledger_events`).Scan(&kind, &payload))
 	s.Equal("take", kind)
 	s.False(payload.Valid)
 }

@@ -10,8 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"google.golang.org/protobuf/proto"
-
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/calendar"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds"
 )
@@ -35,15 +33,7 @@ type kept struct {
 type Store struct {
 	mu       sync.Mutex
 	rounds   map[key]*kept
-	told     []proto.Message
 	failWith error
-}
-
-func (s *Store) Told() []proto.Message {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	return slices.Clone(s.told)
 }
 
 var _ rounds.Store = (*Store)(nil)
@@ -132,21 +122,20 @@ func (s *Store) numberOf(round rounds.Round) uint32 {
 	return number
 }
 
-func (s *Store) Close(_ context.Context, round rounds.Round, results []rounds.Result, told ...proto.Message) error {
+func (s *Store) Close(_ context.Context, round rounds.Round, results []rounds.Result) (bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if s.failWith != nil {
-		return s.failWith
+		return false, s.failWith
 	}
 	at, known := s.rounds[keyOf(round)]
 	if !known || at.closed {
-		return nil
+		return false, nil
 	}
 	at.closed = true
 	at.results = slices.Clone(results)
-	s.told = append(s.told, told...)
-	return nil
+	return true, nil
 }
 
 func (s *Store) ClosedIn(_ context.Context, season calendar.Number) ([]rounds.Closed, error) {

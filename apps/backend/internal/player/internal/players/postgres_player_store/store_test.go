@@ -31,7 +31,7 @@ func (s *testSuite) SetupSuite() {
 	s.store = postgres_player_store.New(s.db)
 	s.NewStore = func() players.Store { return s.store }
 	s.MakeAdmin = func(_ players.Store, account players.AccountID) {
-		_, err := s.db.ExecContext(s.T().Context(), `UPDATE profiles SET admin = true WHERE account_id = $1`, uuid.UUID(account))
+		_, err := s.db.On(s.T().Context()).ExecContext(s.T().Context(), `UPDATE profiles SET admin = true WHERE account_id = $1`, uuid.UUID(account))
 		s.Require().NoError(err)
 	}
 }
@@ -70,7 +70,7 @@ func (s *testSuite) TestTheStreakDayIsStoredAsADate() {
 	s.Require().NoError(s.store.Record(s.T().Context(), players.AccountID{15: 1}, players.TakeAt(0, at)))
 
 	var day string
-	s.Require().NoError(s.db.QueryRowContext(s.T().Context(), `SELECT streak_last_day::text FROM stats`).Scan(&day))
+	s.Require().NoError(s.db.On(s.T().Context()).QueryRowContext(s.T().Context(), `SELECT streak_last_day::text FROM stats`).Scan(&day))
 	s.Equal("2026-09-17", day)
 }
 
