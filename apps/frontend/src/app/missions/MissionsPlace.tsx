@@ -10,7 +10,7 @@ import "./Missions.css"
 
 export type MissionsPlaceProps = {
     state: MissionsState
-    onCollect: (slot: number) => Promise<void>
+    onCollect: (id: string) => Promise<void>
     onSignIn?: () => void
 }
 
@@ -24,7 +24,7 @@ export default function MissionsPlace({state, onCollect, onSignIn}: MissionsPlac
     return <div className="missions">
         <p className="missions-left">Ends in {timeLeft(state.day.endsAt, now)}</p>
         <ol className="missions-list">
-            {state.day.missions.map((mission) => <MissionRow key={mission.slot}
+            {state.day.missions.map((mission) => <MissionRow key={mission.id}
                                                                mission={mission}
                                                                onCollect={onCollect}
                                                                onSignIn={onSignIn}/>)}
@@ -34,7 +34,7 @@ export default function MissionsPlace({state, onCollect, onSignIn}: MissionsPlac
 
 type MissionRowProps = {
     mission: Mission
-    onCollect: (slot: number) => Promise<void>
+    onCollect: (id: string) => Promise<void>
     onSignIn?: () => void
 }
 
@@ -46,7 +46,7 @@ function MissionRow({mission, onCollect, onSignIn}: MissionRowProps) {
 
     const collect = () => {
         setCollecting(true)
-        onCollect(mission.slot)
+        onCollect(mission.id)
             .catch((e) => {
                 if (e instanceof MissionError && e.failure === "full") setFull(true)
                 else if (e instanceof MissionError && e.failure === "guest") onSignIn?.()

@@ -36,12 +36,12 @@ func (h CollectMissionHandler) CollectMission(
 	}
 
 	out, err := h.useCase.Execute(ctx, collect_mission_usecase.In{
-		Account: account, Linked: cpctx.GetLinked(ctx), Slot: req.Msg.GetSlot(),
+		Account: account, Linked: cpctx.GetLinked(ctx), Mission: req.Msg.GetMissionId(),
 	})
 	switch {
 	case errors.Is(err, collect_mission_usecase.ErrNotLinked):
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
-	case errors.Is(err, missions.ErrNoSlot):
+	case errors.Is(err, missions.ErrNoMission):
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	case errors.Is(err, missions.ErrNotDone), errors.Is(err, missions.ErrCollected),
 		errors.Is(err, collect_mission_usecase.ErrNoRoom):

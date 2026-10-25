@@ -8,12 +8,12 @@ import (
 
 func Mission(mission missions.MissionSnapshot, sheet missions.SheetSnapshot) *missionsv1.Mission {
 	return &missionsv1.Mission{
-		Slot:            uint32(mission.Slot),
+		Id:              mission.ID.String(),
 		Kind:            MissionKind(mission.Kind),
 		TargetCountryId: mission.Target,
 		Goal:            mission.Goal,
-		Progress:        sheet.Taken[mission.Slot],
-		Collected:       sheet.Collected.Contains(mission.Slot),
+		Progress:        sheet.Taken[mission.ID],
+		Collected:       sheet.Collected.Contains(mission.ID),
 		RewardKind:      RewardKind(mission.Reward.Kind),
 		RewardAmount:    mission.Reward.Amount,
 	}

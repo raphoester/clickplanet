@@ -34,10 +34,10 @@ export class ConnectMissionsBackend implements MissionsBackend {
         }
     }
 
-    public async collectMission(slot: number): Promise<MissionReward> {
+    public async collectMission(id: string): Promise<MissionReward> {
         let res
         try {
-            res = await this.authenticated((headers) => this.client.collectMission({slot}, {headers}))
+            res = await this.authenticated((headers) => this.client.collectMission({missionId: id}, {headers}))
         } catch (e) {
             throw new MissionError(missionFailureOf(e), {cause: e})
         }
@@ -77,7 +77,7 @@ function missionOf(mission: MissionPb): Mission | undefined {
     const reward = chargeKindOf(mission.rewardKind)
     if (!kind || !reward) return undefined
     return {
-        slot: mission.slot,
+        id: mission.id,
         kind,
         target: mission.targetCountryId,
         goal: mission.goal,

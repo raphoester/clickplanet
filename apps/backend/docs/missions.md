@@ -7,7 +7,7 @@ Its public route, `/missions.v1.MissionService/*`, is listed in `deploy/vps/cadd
 
 ```
 internal/missions/internal/
-  missions/                         AccountID, Calendar and Day (the cutoff), Take, Slot, Kind, Mission (one type per kind),
+  missions/                         AccountID, Calendar and Day (the cutoff), Take, MissionID, Kind, Mission (one type per kind),
                                     Brief, Draw and World, Sheet (an account's day), Briefing; the Store port and its contract suite
     postgres_mission_store/         the Store over missions.mission_briefs, mission_sheets, mission_progress and mission_collections
     inmemory_mission_store/         the same port in maps, behind the testing tag
@@ -22,7 +22,7 @@ internal/missions/internal/
 ```
 
 - **A day ends at `missions.cutoff`** (21:00 UTC in production), the time the daily round closes, and is named by the
-  date it ends on. **The rules are objects**: a `Mission` is a slot, a goal, a reward and one order, `takeFor` (tiles
+  date it ends on. **The rules are objects**: a `Mission` is an id, a goal, a reward and one order, `takeFor` (tiles
   for the flag), `takeFrom` (tiles another flag held) or `takeIn` (tiles on a country's ground), each with its own
   `counts(Take)`.
   - **`Draw(day, flag, world)` is the brief**, seeded by the day and the flag: 1. take 60 tiles (one bank) for the flag,
@@ -33,6 +33,12 @@ internal/missions/internal/
     `GetGrounds`, `clicks.Borders.Grounds`).
   - **`Briefing.Of(day, flag)` draws once and keeps it**: the store's first `KeepBrief` wins, so two takes racing to
     draw a flag's day read one brief, and a map that moves later never changes it.
+  - **A mission is named by its `MissionID`**, a UUID the draw derives from the day, the flag and its place in the
+    brief (`drawnID`), so the same draw names it the same. Progress, collections and `CollectMission` point at it,
+    and nothing caps how many missions a brief holds.
+  - **A brief is one `jsonb` array per day and flag** (`mission_briefs.missions`), the missions in the order drawn.
+    Each is its id, kind, goal and reward, then its kind's own fields (`target` today, `omitempty`): a kind with
+    other fields, or none, needs code and no migration.
   - **A day is locked to the flag of its first take** (`Sheet.WithTake`): a take for another flag counts nothing, so a
     change of flag cannot farm a second set. Until that take, `GetMissions` answers the flag the caller pledged
     (`rpc_planet_allegiance`, planet's `GetAllegianceOf`), not enlisted, and no missions for an account that never
@@ -41,9 +47,8 @@ internal/missions/internal/
     ledger**: `ledger_events` has no time index, and an account's takes since the cutoff would read every take it ever
     made. **A take told twice counts once**: Redis delivers at least once, and the sheet keeps the ledger position after
     the last take it counted (`counted_takes_below`), so one below it counts nothing.
-  - **A guest's progress counts and is kept**, so a guest who signs in that day collects it. **`CollectMission(slot)`
-    pays only a signed-in account** (the click token's linked byte; `PermissionDenied` otherwise), once per slot and
-    day: `mission_collections` is written in a transaction that commits only if `GrantCharge` kept something. A full
+  - **A guest's progress counts and is kept**, so a guest who signs in that day collects it. **`CollectMission(mission_id)`
+    pays only a signed-in account** (the click token's linked byte; `PermissionDenied` otherwise), once per mission: `mission_collections` is written in a transaction that commits only if `GrantCharge` kept something. A full
     stack (a bomb held) is `FailedPrecondition` and the mission stays to collect later; so is a mission not done or
     collected already. The answer is what fit.
   - **`GetMissions` is `Identified`, `CollectMission` `Attested`.** `auth.v1.AccountDeleted` deletes the account's

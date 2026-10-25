@@ -45,11 +45,15 @@ func setUp(allegiances get_missions_usecase.Allegiances) (*get_missions_usecase.
 		missions.NewBriefing(store, fixedPlanet{}), allegiances), store
 }
 
+func bankOf(flag string) missions.MissionID {
+	return missions.Draw(calendar.DayOf(now), flag, missions.World{Territories: []missions.Holding{{Country: "dz", Tiles: 9_000}}}).Snapshot()[0].ID
+}
+
 func enlist(t *testing.T, store *inmemory_mission_store.Store, flag string) {
 	t.Helper()
 
 	require.NoError(t, store.ChangeSheet(t.Context(), calendar.DayOf(now), ada, func(missions.Sheet) missions.Sheet {
-		return missions.SheetOf(missions.SheetSnapshot{Flag: flag, Taken: map[missions.Slot]uint32{1: 7}})
+		return missions.SheetOf(missions.SheetSnapshot{Flag: flag, Taken: map[missions.MissionID]uint32{bankOf(flag): 7}})
 	}))
 }
 
@@ -76,7 +80,7 @@ func TestOnceEnlistedTheMissionsAreTheDaysFlagsWhateverIsPledgedSince(t *testing
 	require.NoError(t, err)
 	assert.Equal(t, "fr", out.Flag)
 	assert.True(t, out.Sheet.Enlisted())
-	assert.Equal(t, uint32(7), out.Sheet.Snapshot().Taken[1])
+	assert.Equal(t, uint32(7), out.Sheet.Snapshot().Taken[bankOf("fr")])
 	assert.Equal(t, "fr", out.Brief.Snapshot()[0].Target)
 }
 

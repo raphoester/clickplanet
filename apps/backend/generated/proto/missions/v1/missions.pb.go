@@ -184,7 +184,7 @@ func (x *GetMissionsResponse) GetMissions() []*Mission {
 
 type Mission struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
-	Slot            uint32                 `protobuf:"varint,1,opt,name=slot,proto3" json:"slot,omitempty"`
+	Id              string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Kind            MissionKind            `protobuf:"varint,2,opt,name=kind,proto3,enum=missions.v1.MissionKind" json:"kind,omitempty"`
 	TargetCountryId string                 `protobuf:"bytes,3,opt,name=target_country_id,json=targetCountryId,proto3" json:"target_country_id,omitempty"`
 	Goal            uint32                 `protobuf:"varint,4,opt,name=goal,proto3" json:"goal,omitempty"`
@@ -226,11 +226,11 @@ func (*Mission) Descriptor() ([]byte, []int) {
 	return file_missions_v1_missions_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *Mission) GetSlot() uint32 {
+func (x *Mission) GetId() string {
 	if x != nil {
-		return x.Slot
+		return x.Id
 	}
-	return 0
+	return ""
 }
 
 func (x *Mission) GetKind() MissionKind {
@@ -284,7 +284,7 @@ func (x *Mission) GetRewardAmount() uint32 {
 
 type CollectMissionRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Slot          uint32                 `protobuf:"varint,1,opt,name=slot,proto3" json:"slot,omitempty"`
+	MissionId     string                 `protobuf:"bytes,1,opt,name=mission_id,json=missionId,proto3" json:"mission_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -319,11 +319,11 @@ func (*CollectMissionRequest) Descriptor() ([]byte, []int) {
 	return file_missions_v1_missions_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *CollectMissionRequest) GetSlot() uint32 {
+func (x *CollectMissionRequest) GetMissionId() string {
 	if x != nil {
-		return x.Slot
+		return x.MissionId
 	}
-	return 0
+	return ""
 }
 
 type CollectMissionResponse struct {
@@ -389,9 +389,9 @@ const file_missions_v1_missions_proto_rawDesc = "" +
 	"country_id\x18\x01 \x01(\tR\tcountryId\x12\x1a\n" +
 	"\benlisted\x18\x02 \x01(\bR\benlisted\x12%\n" +
 	"\x0fends_at_unix_ms\x18\x03 \x01(\x03R\fendsAtUnixMs\x120\n" +
-	"\bmissions\x18\x04 \x03(\v2\x14.missions.v1.MissionR\bmissions\"\xa1\x02\n" +
-	"\aMission\x12\x12\n" +
-	"\x04slot\x18\x01 \x01(\rR\x04slot\x12,\n" +
+	"\bmissions\x18\x04 \x03(\v2\x14.missions.v1.MissionR\bmissions\"\x9d\x02\n" +
+	"\aMission\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12,\n" +
 	"\x04kind\x18\x02 \x01(\x0e2\x18.missions.v1.MissionKindR\x04kind\x12*\n" +
 	"\x11target_country_id\x18\x03 \x01(\tR\x0ftargetCountryId\x12\x12\n" +
 	"\x04goal\x18\x04 \x01(\rR\x04goal\x12\x1a\n" +
@@ -399,9 +399,10 @@ const file_missions_v1_missions_proto_rawDesc = "" +
 	"\tcollected\x18\x06 \x01(\bR\tcollected\x125\n" +
 	"\vreward_kind\x18\a \x01(\x0e2\x14.planet.v1.BonusKindR\n" +
 	"rewardKind\x12#\n" +
-	"\rreward_amount\x18\b \x01(\rR\frewardAmount\"+\n" +
-	"\x15CollectMissionRequest\x12\x12\n" +
-	"\x04slot\x18\x01 \x01(\rR\x04slot\"Z\n" +
+	"\rreward_amount\x18\b \x01(\rR\frewardAmount\"6\n" +
+	"\x15CollectMissionRequest\x12\x1d\n" +
+	"\n" +
+	"mission_id\x18\x01 \x01(\tR\tmissionId\"Z\n" +
 	"\x16CollectMissionResponse\x12(\n" +
 	"\x04kind\x18\x01 \x01(\x0e2\x14.planet.v1.BonusKindR\x04kind\x12\x16\n" +
 	"\x06amount\x18\x02 \x01(\rR\x06amount*|\n" +

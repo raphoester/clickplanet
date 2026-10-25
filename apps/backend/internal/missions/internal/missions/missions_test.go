@@ -31,14 +31,6 @@ func take(flag, previous, ground string) missions.Take {
 	return missions.Take{Account: ada, Flag: flag, Previous: previous, Ground: ground, At: monday, Position: position}
 }
 
-func snapshotsOf(brief missions.Brief) map[missions.Slot]missions.MissionSnapshot {
-	snapshots := map[missions.Slot]missions.MissionSnapshot{}
-	for _, snapshot := range brief.Snapshot() {
-		snapshots[snapshot.Slot] = snapshot
-	}
-	return snapshots
-}
-
 func TestADayEndsAtTheCutoff(t *testing.T) {
 	before := calendar.DayOf(time.Date(2026, 10, 26, 20, 59, 59, 0, time.UTC))
 	at := calendar.DayOf(time.Date(2026, 10, 26, 21, 0, 0, 0, time.UTC))
@@ -61,10 +53,10 @@ func TestACutoffIsATimeOfDay(t *testing.T) {
 }
 
 func TestTheFirstMissionIsOneBankForTheFlag(t *testing.T) {
-	first := snapshotsOf(missions.Draw(calendar.DayOf(monday), "fr", world))[1]
+	first := missions.Draw(calendar.DayOf(monday), "fr", world).Snapshot()[0]
 
 	assert.Equal(t, missions.MissionSnapshot{
-		Slot: 1, Kind: missions.KindTakeFor, Target: "fr", Goal: 60,
+		ID: first.ID, Kind: missions.KindTakeFor, Target: "fr", Goal: 60,
 		Reward: missions.Reward{Kind: missions.RewardShields, Amount: 10},
 	}, first)
 }
@@ -72,17 +64,19 @@ func TestTheFirstMissionIsOneBankForTheFlag(t *testing.T) {
 func TestTheSecondMissionAimsAtTheLeaderOrTheRunnerUpForTheLeader(t *testing.T) {
 	day := calendar.DayOf(monday)
 
+	second := missions.Draw(day, "fr", world).Snapshot()[1]
+
 	assert.Equal(t, missions.MissionSnapshot{
-		Slot: 2, Kind: missions.KindTakeFrom, Target: "dz", Goal: 40,
+		ID: second.ID, Kind: missions.KindTakeFrom, Target: "dz", Goal: 40,
 		Reward: missions.Reward{Kind: missions.RewardSpreadClicks, Amount: 4},
-	}, snapshotsOf(missions.Draw(day, "fr", world))[2])
-	assert.Equal(t, "pw", snapshotsOf(missions.Draw(day, "dz", world))[2].Target)
+	}, second)
+	assert.Equal(t, "pw", missions.Draw(day, "dz", world).Snapshot()[1].Target)
 }
 
 func TestWithNoRivalBigEnoughTheSecondMissionIsTwoBanks(t *testing.T) {
 	empty := missions.World{Territories: []missions.Holding{{Country: "de", Tiles: 399}}}
 
-	second := snapshotsOf(missions.Draw(calendar.DayOf(monday), "fr", empty))[2]
+	second := missions.Draw(calendar.DayOf(monday), "fr", empty).Snapshot()[1]
 
 	assert.Equal(t, missions.KindTakeFor, second.Kind)
 	assert.Equal(t, "fr", second.Target)
@@ -92,7 +86,7 @@ func TestWithNoRivalBigEnoughTheSecondMissionIsTwoBanks(t *testing.T) {
 func TestTheThirdMissionIsABigGroundThatIsNotTheFlags(t *testing.T) {
 	for _, flag := range []string{"fr", "br", "is", "dz"} {
 		for days := range 30 {
-			third := snapshotsOf(missions.Draw(calendar.DayOf(monday.AddDate(0, 0, days)), flag, world))[3]
+			third := missions.Draw(calendar.DayOf(monday.AddDate(0, 0, days)), flag, world).Snapshot()[2]
 
 			assert.Equal(t, missions.KindTakeIn, third.Kind)
 			assert.Contains(t, []string{"br", "fr", "is"}, third.Target, "no ground under 1,000 tiles")
@@ -110,6 +104,18 @@ func TestTheSameDayAndFlagDrawTheSameBrief(t *testing.T) {
 	assert.Equal(t, first.Snapshot(), again.Snapshot())
 }
 
+func TestEachMissionDrawnHasAnIDOfItsOwn(t *testing.T) {
+	seen := cpcolls.NewSet[missions.MissionID]()
+	for _, flag := range []string{"fr", "dz"} {
+		for days := range 2 {
+			for _, mission := range missions.Draw(calendar.DayOf(monday.AddDate(0, 0, days)), flag, world).Snapshot() {
+				assert.False(t, seen.Contains(mission.ID), "%s, day %d", flag, days)
+				seen.Add(mission.ID)
+			}
+		}
+	}
+}
+
 func TestABriefReadsBackFromItsSnapshot(t *testing.T) {
 	drawn := missions.Draw(calendar.DayOf(monday), "fr", world)
 
@@ -120,18 +126,30 @@ func TestABriefReadsBackFromItsSnapshot(t *testing.T) {
 }
 
 func TestAKindNoMissionHasIsRefused(t *testing.T) {
-	_, err := missions.BriefOf([]missions.MissionSnapshot{{Slot: 1, Kind: "fortify", Target: "is", Goal: 1}})
+	_, err := missions.BriefOf([]missions.MissionSnapshot{{ID: bank, Kind: "fortify", Target: "is", Goal: 1}})
 
 	assert.ErrorIs(t, err, missions.ErrUnknownKind)
 }
 
-func TestOnlyThreeSlotsExist(t *testing.T) {
-	slot, err := missions.SlotOf(3)
+func TestAMissionIDReadsBackFromItsString(t *testing.T) {
+	id, err := missions.MissionIDOf(bank.String())
 	require.NoError(t, err)
-	assert.Equal(t, missions.Slot(3), slot)
+	assert.Equal(t, bank, id)
 
-	_, err = missions.SlotOf(4)
-	assert.ErrorIs(t, err, missions.ErrNoSlot)
+	for _, value := range []string{"", "3", "00000000-0000-0000-0000-000000000000"} {
+		_, err := missions.MissionIDOf(value)
+		assert.ErrorIs(t, err, missions.ErrNoMission, "%q", value)
+	}
+}
+
+func TestABriefFindsItsMissionByID(t *testing.T) {
+	brief := briefOf(t, frBrief...)
+
+	found, err := brief.Mission(rival)
+	require.NoError(t, err)
+	assert.Equal(t, "dz", found.Snapshot().Target)
+	_, err = brief.Mission(missions.MissionID{15: 9})
+	assert.ErrorIs(t, err, missions.ErrNoMission)
 }
 
 func briefOf(t *testing.T, snapshots ...missions.MissionSnapshot) missions.Brief {
@@ -142,10 +160,16 @@ func briefOf(t *testing.T, snapshots ...missions.MissionSnapshot) missions.Brief
 	return brief
 }
 
+var (
+	bank   = missions.MissionID{15: 1}
+	rival  = missions.MissionID{15: 2}
+	ground = missions.MissionID{15: 3}
+)
+
 var frBrief = []missions.MissionSnapshot{
-	{Slot: 1, Kind: missions.KindTakeFor, Target: "fr", Goal: 2},
-	{Slot: 2, Kind: missions.KindTakeFrom, Target: "dz", Goal: 5},
-	{Slot: 3, Kind: missions.KindTakeIn, Target: "br", Goal: 5},
+	{ID: bank, Kind: missions.KindTakeFor, Target: "fr", Goal: 2},
+	{ID: rival, Kind: missions.KindTakeFrom, Target: "dz", Goal: 5},
+	{ID: ground, Kind: missions.KindTakeIn, Target: "br", Goal: 5},
 }
 
 func TestTheFirstTakeOfTheDayEnlistsItsFlag(t *testing.T) {
@@ -157,7 +181,7 @@ func TestTheFirstTakeOfTheDayEnlistsItsFlag(t *testing.T) {
 
 	assert.True(t, sheet.Enlisted())
 	assert.Equal(t, missions.SheetSnapshot{
-		Flag: "fr", Taken: map[missions.Slot]uint32{1: 1}, Collected: cpcolls.NewSet[missions.Slot](),
+		Flag: "fr", Taken: map[missions.MissionID]uint32{bank: 1}, Collected: cpcolls.NewSet[missions.MissionID](),
 		TakesBelow: first.Position + 1,
 	}, sheet.Snapshot())
 }
@@ -165,7 +189,7 @@ func TestTheFirstTakeOfTheDayEnlistsItsFlag(t *testing.T) {
 func TestATakeCountsForEveryMissionItFits(t *testing.T) {
 	sheet := missions.SheetOf(missions.SheetSnapshot{}).WithTake(take("fr", "dz", "br"), briefOf(t, frBrief...))
 
-	assert.Equal(t, map[missions.Slot]uint32{1: 1, 2: 1, 3: 1}, sheet.Snapshot().Taken)
+	assert.Equal(t, map[missions.MissionID]uint32{bank: 1, rival: 1, ground: 1}, sheet.Snapshot().Taken)
 }
 
 func TestATakeForAnotherFlagThanTheDaysCountsNothing(t *testing.T) {
@@ -173,8 +197,8 @@ func TestATakeForAnotherFlagThanTheDaysCountsNothing(t *testing.T) {
 
 	sheet = sheet.WithTake(take("de", "dz", "br"), briefOf(
 		t,
-		missions.MissionSnapshot{Slot: 1, Kind: missions.KindTakeFor, Target: "de", Goal: 60},
-		missions.MissionSnapshot{Slot: 2, Kind: missions.KindTakeFrom, Target: "dz", Goal: 60},
+		missions.MissionSnapshot{ID: bank, Kind: missions.KindTakeFor, Target: "de", Goal: 60},
+		missions.MissionSnapshot{ID: rival, Kind: missions.KindTakeFrom, Target: "dz", Goal: 60},
 	))
 
 	assert.Equal(t, "fr", sheet.Snapshot().Flag, "the day's flag is kept")
@@ -187,7 +211,7 @@ func TestAMissionCountsNoFurtherThanItsGoal(t *testing.T) {
 		sheet = sheet.WithTake(take("fr", "", ""), briefOf(t, frBrief...))
 	}
 
-	assert.Equal(t, uint32(2), sheet.Snapshot().Taken[1])
+	assert.Equal(t, uint32(2), sheet.Snapshot().Taken[bank])
 }
 
 func TestATakeToldTwiceCountsOnce(t *testing.T) {
@@ -196,7 +220,7 @@ func TestATakeToldTwiceCountsOnce(t *testing.T) {
 
 	sheet := missions.SheetOf(missions.SheetSnapshot{}).WithTake(told, brief).WithTake(told, brief)
 
-	assert.Equal(t, map[missions.Slot]uint32{1: 1, 2: 1}, sheet.Snapshot().Taken)
+	assert.Equal(t, map[missions.MissionID]uint32{bank: 1, rival: 1}, sheet.Snapshot().Taken)
 	assert.Equal(t, told.Position+1, sheet.Snapshot().TakesBelow)
 }
 
@@ -227,14 +251,14 @@ func TestAWithTakeLeavesTheSheetItWasCalledOnAlone(t *testing.T) {
 
 func TestAMissionIsCollectedOnceAndOnlyWhenDone(t *testing.T) {
 	brief := briefOf(t, frBrief...)
-	first, err := brief.Mission(1)
+	first, err := brief.Mission(bank)
 	require.NoError(t, err)
 
-	assert.ErrorIs(t, missions.SheetOf(missions.SheetSnapshot{Flag: "fr", Taken: map[missions.Slot]uint32{1: 1}}).
+	assert.ErrorIs(t, missions.SheetOf(missions.SheetSnapshot{Flag: "fr", Taken: map[missions.MissionID]uint32{bank: 1}}).
 		CollectError(first), missions.ErrNotDone)
-	require.NoError(t, missions.SheetOf(missions.SheetSnapshot{Flag: "fr", Taken: map[missions.Slot]uint32{1: 2}}).
+	require.NoError(t, missions.SheetOf(missions.SheetSnapshot{Flag: "fr", Taken: map[missions.MissionID]uint32{bank: 2}}).
 		CollectError(first))
 	assert.ErrorIs(t, missions.SheetOf(missions.SheetSnapshot{
-		Flag: "fr", Taken: map[missions.Slot]uint32{1: 2}, Collected: cpcolls.NewSet[missions.Slot](1),
+		Flag: "fr", Taken: map[missions.MissionID]uint32{bank: 2}, Collected: cpcolls.NewSet(bank),
 	}).CollectError(first), missions.ErrCollected)
 }

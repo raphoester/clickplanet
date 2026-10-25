@@ -8,7 +8,7 @@ export type MissionReward = {
 }
 
 export type Mission = {
-    slot: number
+    id: string
     kind: MissionKind
     target: string
     goal: number
@@ -36,5 +36,5 @@ export class MissionError extends Error {
 export interface MissionsBackend {
     missions(): Promise<DayMissions>
 
-    collectMission(slot: number): Promise<MissionReward>
+    collectMission(id: string): Promise<MissionReward>
 }

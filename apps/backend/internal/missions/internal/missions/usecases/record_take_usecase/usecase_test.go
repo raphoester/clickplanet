@@ -41,8 +41,10 @@ func TestATakeCountsOnTheMissionsOfItsDay(t *testing.T) {
 
 	sheet, err := store.Sheet(t.Context(), calendar.DayOf(at), ada)
 	require.NoError(t, err)
+	drawn := missions.Draw(calendar.DayOf(at), "fr", missions.World{Territories: []missions.Holding{{Country: "dz", Tiles: 9_000}}}).Snapshot()
 	assert.Equal(t, missions.SheetSnapshot{
-		Flag: "fr", Taken: map[missions.Slot]uint32{1: 1, 2: 1, 3: 1}, Collected: cpcolls.NewSet[missions.Slot](),
+		Flag: "fr", Taken: map[missions.MissionID]uint32{drawn[0].ID: 1, drawn[1].ID: 1, drawn[2].ID: 1},
+		Collected:  cpcolls.NewSet[missions.MissionID](),
 		TakesBelow: 42,
 	}, sheet.Snapshot(), "with no ground big enough, the third mission is the flag's too")
 }

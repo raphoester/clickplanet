@@ -96,7 +96,7 @@ func (s *Store) ChangeSheet(
 }
 
 func (s *Store) Collect(
-	ctx context.Context, day missions.Day, account missions.AccountID, slot missions.Slot, _ time.Time,
+	ctx context.Context, day missions.Day, account missions.AccountID, mission missions.MissionID, _ time.Time,
 	pay func(context.Context) error,
 ) error {
 	s.mu.Lock()
@@ -107,13 +107,13 @@ func (s *Store) Collect(
 	}
 	key := sheetKey{day: day.String(), account: account}
 	sheet := missions.SheetOf(s.sheets[key]).Snapshot()
-	if sheet.Collected.Contains(slot) {
+	if sheet.Collected.Contains(mission) {
 		return missions.ErrCollected
 	}
 	if err := pay(ctx); err != nil {
 		return err
 	}
-	sheet.Collected.Add(slot)
+	sheet.Collected.Add(mission)
 	s.sheets[key] = sheet
 	return nil
 }

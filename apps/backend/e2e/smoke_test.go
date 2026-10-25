@@ -87,7 +87,7 @@ func (s *testSuite) TestAPlayerDoesAMissionAndCollectsItsReward() {
 	require.Eventually(t, func() bool { return ada.missions()[0].GetProgress() == first.GetGoal() },
 		5*time.Second, 20*time.Millisecond, "planet relays each take to missions")
 
-	kept := ada.collect(first.GetSlot())
+	kept := ada.collect(first.GetId())
 
 	assert.Equal(t, planetv1.BonusKind_BONUS_KIND_SHIELDS, kept.GetKind())
 	assert.Equal(t, first.GetRewardAmount(), ada.charges().GetShields(), "planet holds what missions granted")

@@ -65,6 +65,10 @@ func (s *StoreContractSuite) takeFor(day Day, account byte, take Take) {
 
 func paid(context.Context) error { return nil }
 
+func (s *StoreContractSuite) frMission(n int) MissionID {
+	return Draw(contractDay, "fr", contractWorld).Snapshot()[n].ID
+}
+
 func (s *StoreContractSuite) TestNoBriefWasDrawnForADayAndFlagNeverKept() {
 	_, err := s.store.Brief(s.T().Context(), contractDay, "fr")
 
@@ -79,6 +83,20 @@ func (s *StoreContractSuite) TestAKeptBriefReadsBack() {
 	read, err := s.store.Brief(s.T().Context(), contractDay, "fr")
 	s.Require().NoError(err)
 	s.Equal(drawn.Snapshot(), read.Snapshot())
+}
+
+func (s *StoreContractSuite) TestABriefKeepsAsManyMissionsAsItHas() {
+	snapshots := make([]MissionSnapshot, 0, 5)
+	for n := range 5 {
+		snapshots = append(snapshots, MissionSnapshot{
+			ID: drawnID(contractDay, "fr", n), Kind: KindTakeFor, Target: "fr", Goal: uint32(10 + n),
+			Reward: Reward{Kind: RewardShields, Amount: 1},
+		})
+	}
+	brief, err := BriefOf(snapshots)
+	s.Require().NoError(err)
+
+	s.Equal(snapshots, s.keep(contractDay, "fr", brief).Snapshot(), "in the order drawn")
 }
 
 func (s *StoreContractSuite) TestTheFirstBriefKeptForADayAndFlagWins() {
@@ -100,7 +118,7 @@ func (s *StoreContractSuite) TestBriefsAreKeptByDayAndFlag() {
 }
 
 func (s *StoreContractSuite) TestASheetNeverChangedIsEmpty() {
-	s.Equal(SheetSnapshot{Taken: map[Slot]uint32{}, Collected: cpcolls.NewSet[Slot]()}, s.sheet(contractDay, 1))
+	s.Equal(SheetSnapshot{Taken: map[MissionID]uint32{}, Collected: cpcolls.NewSet[MissionID]()}, s.sheet(contractDay, 1))
 }
 
 func (s *StoreContractSuite) TestChangesToASheetAddUp() {
@@ -108,7 +126,8 @@ func (s *StoreContractSuite) TestChangesToASheetAddUp() {
 	s.takeFor(contractDay, 1, Take{Flag: "fr", Ground: "es", At: contractAt})
 
 	s.Equal(SheetSnapshot{
-		Flag: "fr", Taken: map[Slot]uint32{1: 2, 2: 1}, Collected: cpcolls.NewSet[Slot](), TakesBelow: 3,
+		Flag: "fr", Taken: map[MissionID]uint32{s.frMission(0): 2, s.frMission(1): 1}, Collected: cpcolls.NewSet[MissionID](),
+		TakesBelow: 3,
 	}, s.sheet(contractDay, 1))
 }
 
@@ -117,7 +136,7 @@ func (s *StoreContractSuite) TestTheMarkOfTheLastTakeCountedIsKept() {
 	s.takeFor(contractDay, 1, Take{Flag: "fr", At: contractAt, Position: 41})
 
 	s.Equal(uint64(42), s.sheet(contractDay, 1).TakesBelow)
-	s.Equal(uint32(1), s.sheet(contractDay, 1).Taken[1], "the second telling counted nothing")
+	s.Equal(uint32(1), s.sheet(contractDay, 1).Taken[s.frMission(0)], "the second telling counted nothing")
 }
 
 func (s *StoreContractSuite) TestASheetIsKeptByDayAndAccount() {
@@ -130,28 +149,28 @@ func (s *StoreContractSuite) TestASheetIsKeptByDayAndAccount() {
 func (s *StoreContractSuite) TestACollectionIsKeptOnceItIsPaid() {
 	s.takeFor(contractDay, 1, Take{Flag: "fr", At: contractAt})
 
-	s.Require().NoError(s.store.Collect(s.T().Context(), contractDay, s.account(1), 1, contractAt, paid))
+	s.Require().NoError(s.store.Collect(s.T().Context(), contractDay, s.account(1), s.frMission(0), contractAt, paid))
 
-	s.Equal(cpcolls.NewSet[Slot](1), s.sheet(contractDay, 1).Collected)
+	s.Equal(cpcolls.NewSet(s.frMission(0)), s.sheet(contractDay, 1).Collected)
 }
 
 func (s *StoreContractSuite) TestACollectionThatCouldNotBePaidIsNotKept() {
 	s.takeFor(contractDay, 1, Take{Flag: "fr", At: contractAt})
 	unpaid := errors.New("the planet is down")
 
-	err := s.store.Collect(s.T().Context(), contractDay, s.account(1), 1, contractAt,
+	err := s.store.Collect(s.T().Context(), contractDay, s.account(1), s.frMission(0), contractAt,
 		func(context.Context) error { return unpaid })
 
 	s.ErrorIs(err, unpaid)
 	s.True(s.sheet(contractDay, 1).Collected.Empty())
 }
 
-func (s *StoreContractSuite) TestASlotIsCollectedOncePaidOnce() {
+func (s *StoreContractSuite) TestAMissionIsCollectedOncePaidOnce() {
 	s.takeFor(contractDay, 1, Take{Flag: "fr", At: contractAt})
-	s.Require().NoError(s.store.Collect(s.T().Context(), contractDay, s.account(1), 1, contractAt, paid))
+	s.Require().NoError(s.store.Collect(s.T().Context(), contractDay, s.account(1), s.frMission(0), contractAt, paid))
 
 	payments := 0
-	err := s.store.Collect(s.T().Context(), contractDay, s.account(1), 1, contractAt,
+	err := s.store.Collect(s.T().Context(), contractDay, s.account(1), s.frMission(0), contractAt,
 		func(context.Context) error { payments++; return nil })
 
 	s.ErrorIs(err, ErrCollected)
@@ -161,7 +180,7 @@ func (s *StoreContractSuite) TestASlotIsCollectedOncePaidOnce() {
 func (s *StoreContractSuite) TestDeletingAnAccountForgetsItsDays() {
 	s.takeFor(contractDay, 1, Take{Flag: "fr", At: contractAt})
 	s.takeFor(contractDay, 2, Take{Flag: "fr", At: contractAt})
-	s.Require().NoError(s.store.Collect(s.T().Context(), contractDay, s.account(1), 1, contractAt, paid))
+	s.Require().NoError(s.store.Collect(s.T().Context(), contractDay, s.account(1), s.frMission(0), contractAt, paid))
 
 	s.Require().NoError(s.store.DeleteAccount(s.T().Context(), s.account(1)))
 

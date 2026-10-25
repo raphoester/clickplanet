@@ -1,9 +1,12 @@
 package missions
 
 import (
+	"fmt"
 	"hash/fnv"
 	"math/rand/v2"
 	"slices"
+
+	"github.com/google/uuid"
 )
 
 type Holding struct {
@@ -31,13 +34,20 @@ func Draw(day Day, flag string, world World) Brief {
 	random := rand.New(rand.NewPCG(seed.Sum64(), 0)) //nolint:gosec // a draw every player can see, not a secret.
 
 	return Brief{missions: []Mission{
-		{slot: 1, order: takeFor{flag: flag}, goal: bankGoal, reward: Reward{Kind: RewardShields, Amount: 10}},
-		rivalOf(flag, world),
-		groundOf(flag, world, random),
+		{id: drawnID(day, flag, 1), order: takeFor{flag: flag}, goal: bankGoal, reward: Reward{Kind: RewardShields, Amount: 10}},
+		rivalOf(drawnID(day, flag, 2), flag, world),
+		groundOf(drawnID(day, flag, 3), flag, world, random),
 	}}
 }
 
-func rivalOf(flag string, world World) Mission {
+var drawnSpace = uuid.MustParse("4d697373-696f-4e73-8000-6d697373696f")
+
+// The same draw names its missions the same, so two racing draws of one day agree.
+func drawnID(day Day, flag string, n int) MissionID {
+	return MissionID(uuid.NewSHA1(drawnSpace, fmt.Appendf(nil, "%s/%s/%d", day, flag, n)))
+}
+
+func rivalOf(id MissionID, flag string, world World) Mission {
 	reward := Reward{Kind: RewardSpreadClicks, Amount: 4}
 
 	var rival Holding
@@ -47,12 +57,12 @@ func rivalOf(flag string, world World) Mission {
 		}
 	}
 	if rival.Tiles < rivalAtLeast {
-		return Mission{slot: 2, order: takeFor{flag: flag}, goal: 2 * bankGoal, reward: reward}
+		return Mission{id: id, order: takeFor{flag: flag}, goal: 2 * bankGoal, reward: reward}
 	}
-	return Mission{slot: 2, order: takeFrom{flag: rival.Country}, goal: rivalGoal, reward: reward}
+	return Mission{id: id, order: takeFrom{flag: rival.Country}, goal: rivalGoal, reward: reward}
 }
 
-func groundOf(flag string, world World, random *rand.Rand) Mission {
+func groundOf(id MissionID, flag string, world World, random *rand.Rand) Mission {
 	reward := Reward{Kind: RewardBomb, Amount: 1}
 
 	var grounds []string
@@ -62,8 +72,8 @@ func groundOf(flag string, world World, random *rand.Rand) Mission {
 		}
 	}
 	if len(grounds) == 0 {
-		return Mission{slot: 3, order: takeFor{flag: flag}, goal: groundGoal, reward: reward}
+		return Mission{id: id, order: takeFor{flag: flag}, goal: groundGoal, reward: reward}
 	}
 	slices.Sort(grounds)
-	return Mission{slot: 3, order: takeIn{ground: grounds[random.IntN(len(grounds))]}, goal: groundGoal, reward: reward}
+	return Mission{id: id, order: takeIn{ground: grounds[random.IntN(len(grounds))]}, goal: groundGoal, reward: reward}
 }

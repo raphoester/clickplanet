@@ -31,9 +31,9 @@ func (s *stubUseCase) Execute(_ context.Context, in collect_mission_usecase.In) 
 
 var ada = missions.AccountID{15: 1}
 
-func collect(ctx context.Context, useCase *stubUseCase, slot uint32) (*missionsv1.CollectMissionResponse, error) {
+func collect(ctx context.Context, useCase *stubUseCase, mission string) (*missionsv1.CollectMissionResponse, error) {
 	res, err := collect_mission_handler.New(useCase).CollectMission(ctx,
-		connect.NewRequest(&missionsv1.CollectMissionRequest{Slot: slot}))
+		connect.NewRequest(&missionsv1.CollectMissionRequest{MissionId: mission}))
 	if err != nil {
 		return nil, err //nolint:wrapcheck // the tests read the connect error.
 	}
@@ -44,10 +44,10 @@ func TestTheRewardKeptIsAnswered(t *testing.T) {
 	useCase := &stubUseCase{out: collect_mission_usecase.Out{Reward: missions.Reward{Kind: missions.RewardSpreadClicks, Amount: 3}}}
 	ctx := cpctx.AddLinkedToContext(cpctx.AddAccountToContext(t.Context(), ada.String()))
 
-	res, err := collect(ctx, useCase, 2)
+	res, err := collect(ctx, useCase, "the-mission")
 
 	require.NoError(t, err)
-	assert.Equal(t, collect_mission_usecase.In{Account: ada, Linked: true, Slot: 2}, useCase.in)
+	assert.Equal(t, collect_mission_usecase.In{Account: ada, Linked: true, Mission: "the-mission"}, useCase.in)
 	assert.Equal(t, planetv1.BonusKind_BONUS_KIND_SPREAD_CLICKS, res.GetKind())
 	assert.Equal(t, uint32(3), res.GetAmount())
 }
@@ -55,7 +55,7 @@ func TestTheRewardKeptIsAnswered(t *testing.T) {
 func TestAGuestsTokenSaysItIsNotLinked(t *testing.T) {
 	useCase := &stubUseCase{}
 
-	_, err := collect(cpctx.AddAccountToContext(t.Context(), ada.String()), useCase, 1)
+	_, err := collect(cpctx.AddAccountToContext(t.Context(), ada.String()), useCase, "the-mission")
 
 	require.NoError(t, err)
 	assert.False(t, useCase.in.Linked)
@@ -65,20 +65,20 @@ func TestErrorsMapToTheirCodes(t *testing.T) {
 	ctx := cpctx.AddAccountToContext(t.Context(), ada.String())
 	for err, code := range map[error]connect.Code{
 		collect_mission_usecase.ErrNotLinked:                   connect.CodePermissionDenied,
-		fmt.Errorf("%w: 4", missions.ErrNoSlot):                connect.CodeInvalidArgument,
+		fmt.Errorf("%w: 4", missions.ErrNoMission):             connect.CodeInvalidArgument,
 		missions.ErrNotDone:                                    connect.CodeFailedPrecondition,
 		missions.ErrCollected:                                  connect.CodeFailedPrecondition,
 		fmt.Errorf("x: %w", collect_mission_usecase.ErrNoRoom): connect.CodeFailedPrecondition,
 		errors.New("boom"):                                     connect.CodeUnknown,
 	} {
-		_, got := collect(ctx, &stubUseCase{err: err}, 1)
+		_, got := collect(ctx, &stubUseCase{err: err}, "the-mission")
 
 		assert.Equal(t, code, connect.CodeOf(got), err.Error())
 	}
 }
 
 func TestACallerWithNoAccountIsUnauthenticated(t *testing.T) {
-	_, err := collect(t.Context(), &stubUseCase{}, 1)
+	_, err := collect(t.Context(), &stubUseCase{}, "the-mission")
 
 	assert.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
 }

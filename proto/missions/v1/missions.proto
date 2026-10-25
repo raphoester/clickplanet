@@ -22,7 +22,7 @@ message GetMissionsResponse {
 }
 
 message Mission {
-  uint32 slot = 1;
+  string id = 1;
   MissionKind kind = 2;
   string target_country_id = 3;
   uint32 goal = 4;
@@ -46,7 +46,7 @@ enum MissionKind {
 }
 
 message CollectMissionRequest {
-  uint32 slot = 1;
+  string mission_id = 1;
 }
 
 message CollectMissionResponse {

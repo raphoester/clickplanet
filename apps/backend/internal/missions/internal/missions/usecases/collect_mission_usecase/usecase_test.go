@@ -45,22 +45,24 @@ func setUp(charger *recordingCharger) (*collect_mission_usecase.UseCase, *inmemo
 		missions.NewBriefing(store, fixedPlanet{}), charger), store
 }
 
+var bank = missions.Draw(calendar.DayOf(now), "fr", missions.World{Territories: []missions.Holding{{Country: "dz", Tiles: 9_000}}}).Snapshot()[0].ID
+
 func took(t *testing.T, store *inmemory_mission_store.Store, taken uint32) {
 	t.Helper()
 
 	require.NoError(t, store.ChangeSheet(t.Context(), calendar.DayOf(now), ada, func(missions.Sheet) missions.Sheet {
-		return missions.SheetOf(missions.SheetSnapshot{Flag: "fr", Taken: map[missions.Slot]uint32{1: taken}})
+		return missions.SheetOf(missions.SheetSnapshot{Flag: "fr", Taken: map[missions.MissionID]uint32{bank: taken}})
 	}))
 }
 
-func collect(t *testing.T, useCase *collect_mission_usecase.UseCase, slot uint32) (missions.Reward, error) {
+func collect(t *testing.T, useCase *collect_mission_usecase.UseCase, mission string) (missions.Reward, error) {
 	t.Helper()
 
-	out, err := useCase.Execute(t.Context(), collect_mission_usecase.In{Account: ada, Linked: true, Slot: slot})
+	out, err := useCase.Execute(t.Context(), collect_mission_usecase.In{Account: ada, Linked: true, Mission: mission})
 	return out.Reward, err
 }
 
-func collected(t *testing.T, store *inmemory_mission_store.Store) *cpcolls.Set[missions.Slot] {
+func collected(t *testing.T, store *inmemory_mission_store.Store) *cpcolls.Set[missions.MissionID] {
 	t.Helper()
 
 	sheet, err := store.Sheet(t.Context(), calendar.DayOf(now), ada)
@@ -73,12 +75,12 @@ func TestADoneMissionPaysWhatFit(t *testing.T) {
 	useCase, store := setUp(charger)
 	took(t, store, 60)
 
-	reward, err := collect(t, useCase, 1)
+	reward, err := collect(t, useCase, bank.String())
 
 	require.NoError(t, err)
 	assert.Equal(t, []missions.Reward{{Kind: missions.RewardShields, Amount: 10}}, charger.granted)
 	assert.Equal(t, missions.Reward{Kind: missions.RewardShields, Amount: 7}, reward, "a stack that had room for 7")
-	assert.Equal(t, cpcolls.NewSet[missions.Slot](1), collected(t, store))
+	assert.Equal(t, cpcolls.NewSet(bank), collected(t, store))
 }
 
 func TestAGuestIsPaidNothing(t *testing.T) {
@@ -86,7 +88,7 @@ func TestAGuestIsPaidNothing(t *testing.T) {
 	useCase, store := setUp(charger)
 	took(t, store, 60)
 
-	_, err := useCase.Execute(t.Context(), collect_mission_usecase.In{Account: ada, Slot: 1})
+	_, err := useCase.Execute(t.Context(), collect_mission_usecase.In{Account: ada, Mission: bank.String()})
 
 	require.ErrorIs(t, err, collect_mission_usecase.ErrNotLinked)
 	assert.Empty(t, charger.granted)
@@ -100,7 +102,7 @@ func TestAMissionNotDoneIsNotPaid(t *testing.T) {
 			took(t, store, taken)
 		}
 
-		_, err := collect(t, useCase, 1)
+		_, err := collect(t, useCase, bank.String())
 
 		require.ErrorIs(t, err, missions.ErrNotDone, name)
 		assert.Empty(t, charger.granted, name)
@@ -111,10 +113,10 @@ func TestAMissionIsPaidOnce(t *testing.T) {
 	charger := &recordingCharger{kept: 10}
 	useCase, store := setUp(charger)
 	took(t, store, 60)
-	_, err := collect(t, useCase, 1)
+	_, err := collect(t, useCase, bank.String())
 	require.NoError(t, err)
 
-	_, err = collect(t, useCase, 1)
+	_, err = collect(t, useCase, bank.String())
 
 	require.ErrorIs(t, err, missions.ErrCollected)
 	assert.Len(t, charger.granted, 1)
@@ -125,12 +127,12 @@ func TestAFullStackKeepsTheMissionToCollectLater(t *testing.T) {
 	useCase, store := setUp(charger)
 	took(t, store, 60)
 
-	_, err := collect(t, useCase, 1)
+	_, err := collect(t, useCase, bank.String())
 	require.ErrorIs(t, err, collect_mission_usecase.ErrNoRoom)
 	assert.True(t, collected(t, store).Empty())
 
 	charger.kept = 10
-	_, err = collect(t, useCase, 1)
+	_, err = collect(t, useCase, bank.String())
 	assert.NoError(t, err)
 }
 
@@ -138,17 +140,19 @@ func TestAPlanetThatFailsKeepsTheMissionToCollectLater(t *testing.T) {
 	useCase, store := setUp(&recordingCharger{err: errors.New("down")})
 	took(t, store, 60)
 
-	_, err := collect(t, useCase, 1)
+	_, err := collect(t, useCase, bank.String())
 
 	require.Error(t, err)
 	assert.True(t, collected(t, store).Empty())
 }
 
-func TestASlotNoMissionHasIsRefused(t *testing.T) {
+func TestAnIDNoMissionOfTheDayHasIsRefused(t *testing.T) {
 	useCase, store := setUp(&recordingCharger{kept: 1})
 	took(t, store, 60)
 
-	_, err := collect(t, useCase, 4)
+	for _, id := range []string{"4", missions.MissionID{15: 4}.String()} {
+		_, err := collect(t, useCase, id)
 
-	assert.ErrorIs(t, err, missions.ErrNoSlot)
+		assert.ErrorIs(t, err, missions.ErrNoMission, id)
+	}
 }

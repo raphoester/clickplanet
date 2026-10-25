@@ -13,22 +13,22 @@ var (
 
 type SheetSnapshot struct {
 	Flag       string
-	Taken      map[Slot]uint32
-	Collected  *cpcolls.Set[Slot]
+	Taken      map[MissionID]uint32
+	Collected  *cpcolls.Set[MissionID]
 	TakesBelow uint64
 }
 
 type Sheet struct {
 	flag       string
-	taken      map[Slot]uint32
-	collected  *cpcolls.Set[Slot]
+	taken      map[MissionID]uint32
+	collected  *cpcolls.Set[MissionID]
 	takesBelow uint64
 }
 
 func SheetOf(snapshot SheetSnapshot) Sheet {
-	sheet := Sheet{flag: snapshot.Flag, taken: map[Slot]uint32{}, collected: cpcolls.NewSet[Slot](), takesBelow: snapshot.TakesBelow}
-	for slot, taken := range snapshot.Taken {
-		sheet.taken[slot] = taken
+	sheet := Sheet{flag: snapshot.Flag, taken: map[MissionID]uint32{}, collected: cpcolls.NewSet[MissionID](), takesBelow: snapshot.TakesBelow}
+	for id, taken := range snapshot.Taken {
+		sheet.taken[id] = taken
 	}
 	if snapshot.Collected != nil {
 		sheet.collected.AddSet(snapshot.Collected)
@@ -57,8 +57,8 @@ func (s Sheet) WithTake(take Take, brief Brief) Sheet {
 	next.flag = take.Flag
 	changed := s.flag == ""
 	for _, mission := range brief.missions {
-		if mission.Counts(take) && next.taken[mission.slot] < mission.goal {
-			next.taken[mission.slot]++
+		if mission.Counts(take) && next.taken[mission.id] < mission.goal {
+			next.taken[mission.id]++
 			changed = true
 		}
 	}
@@ -71,9 +71,9 @@ func (s Sheet) WithTake(take Take, brief Brief) Sheet {
 
 func (s Sheet) CollectError(mission Mission) error {
 	switch {
-	case s.collected.Contains(mission.slot):
+	case s.collected.Contains(mission.id):
 		return ErrCollected
-	case s.taken[mission.slot] < mission.goal:
+	case s.taken[mission.id] < mission.goal:
 		return ErrNotDone
 	}
 	return nil

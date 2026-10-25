@@ -4,10 +4,12 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 var (
-	ErrNoSlot      = errors.New("no mission has that slot")
+	ErrNoMission   = errors.New("no mission of the day has that id")
 	ErrUnknownKind = errors.New("not a kind of mission")
 )
 
@@ -20,18 +22,17 @@ type Take struct {
 	Position uint64
 }
 
-type Slot uint8
+type MissionID uuid.UUID
 
-var Slots = []Slot{1, 2, 3}
-
-func SlotOf(n uint32) (Slot, error) {
-	for _, slot := range Slots {
-		if uint32(slot) == n {
-			return slot, nil
-		}
+func MissionIDOf(value string) (MissionID, error) {
+	id, err := uuid.Parse(value)
+	if err != nil || id == uuid.Nil {
+		return MissionID{}, fmt.Errorf("%w: %q", ErrNoMission, value)
 	}
-	return 0, fmt.Errorf("%w: %d", ErrNoSlot, n)
+	return MissionID(id), nil
 }
+
+func (id MissionID) String() string { return uuid.UUID(id).String() }
 
 type Kind string
 
@@ -55,7 +56,7 @@ type Reward struct {
 }
 
 type MissionSnapshot struct {
-	Slot   Slot
+	ID     MissionID
 	Kind   Kind
 	Target string
 	Goal   uint32
@@ -63,7 +64,7 @@ type MissionSnapshot struct {
 }
 
 type Mission struct {
-	slot   Slot
+	id     MissionID
 	order  order
 	goal   uint32
 	reward Reward
@@ -105,13 +106,13 @@ func MissionOf(snapshot MissionSnapshot) (Mission, error) {
 	default:
 		return Mission{}, fmt.Errorf("%w: %q", ErrUnknownKind, snapshot.Kind)
 	}
-	return Mission{slot: snapshot.Slot, order: rule, goal: snapshot.Goal, reward: snapshot.Reward}, nil
+	return Mission{id: snapshot.ID, order: rule, goal: snapshot.Goal, reward: snapshot.Reward}, nil
 }
 
 func (m Mission) Counts(take Take) bool { return m.order.counts(take) }
 
 func (m Mission) Snapshot() MissionSnapshot {
-	return MissionSnapshot{Slot: m.slot, Kind: m.order.kind(), Target: m.order.target(), Goal: m.goal, Reward: m.reward}
+	return MissionSnapshot{ID: m.id, Kind: m.order.kind(), Target: m.order.target(), Goal: m.goal, Reward: m.reward}
 }
 
 type Brief struct {
@@ -130,13 +131,13 @@ func BriefOf(snapshots []MissionSnapshot) (Brief, error) {
 	return brief, nil
 }
 
-func (b Brief) Mission(slot Slot) (Mission, error) {
+func (b Brief) Mission(id MissionID) (Mission, error) {
 	for _, mission := range b.missions {
-		if mission.slot == slot {
+		if mission.id == id {
 			return mission, nil
 		}
 	}
-	return Mission{}, fmt.Errorf("%w: %d", ErrNoSlot, slot)
+	return Mission{}, fmt.Errorf("%w: %s", ErrNoMission, id)
 }
 
 func (b Brief) Snapshot() []MissionSnapshot {

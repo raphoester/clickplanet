@@ -296,8 +296,8 @@ export default function Viewer(props: ViewerProps) {
     const missionsBackend = props.missions
     const missions: MissionsPlaceProps | undefined = missionsBackend && {
         state: missionsState,
-        onCollect: async (slot) => {
-            const reward = await missionsBackend.collectMission(slot)
+        onCollect: async (id) => {
+            const reward = await missionsBackend.collectMission(id)
             if (rules) showAward(awardOf(reward, rules))
             props.chargesRefresher?.refreshCharges().catch((e) => console.error("could not read the charges held", e))
             rereadMissions()

@@ -237,10 +237,10 @@ func (p *gamer) missions() []*missionsv1.Mission {
 	return res.Msg.GetMissions()
 }
 
-func (p *gamer) collect(slot uint32) *missionsv1.CollectMissionResponse {
+func (p *gamer) collect(mission string) *missionsv1.CollectMissionResponse {
 	p.t.Helper()
 
-	req := connect.NewRequest(&missionsv1.CollectMissionRequest{Slot: slot})
+	req := connect.NewRequest(&missionsv1.CollectMissionRequest{MissionId: mission})
 	p.send(req.Header())
 	res, err := p.missionDesk().CollectMission(p.t.Context(), req)
 	require.NoError(p.t, err)

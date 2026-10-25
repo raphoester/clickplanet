@@ -3,6 +3,7 @@ package postgres_mission_store
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -26,46 +27,61 @@ var _ missions.Store = (*Store)(nil)
 
 const sheetLock = 0x6d697373
 
-func (s *Store) Brief(ctx context.Context, day missions.Day, flag string) (missions.Brief, error) {
-	rows, err := s.db.On(ctx).QueryContext(ctx, `
-		SELECT slot, kind, target, goal, reward, reward_amount
-		FROM mission_briefs
-		WHERE day = $1::date AND flag = $2
-		ORDER BY slot
-	`, day.String(), flag)
-	if err != nil {
-		return missions.Brief{}, fmt.Errorf("failed to read %s's brief: %w", flag, err)
-	}
-	defer func() { _ = rows.Close() }()
+// A kind's own fields are omitempty, so a new kind adds fields and no column.
+type missionRecord struct {
+	ID     uuid.UUID `json:"id"`
+	Kind   string    `json:"kind"`
+	Goal   uint32    `json:"goal"`
+	Reward string    `json:"reward"`
+	Amount uint32    `json:"amount"`
+	Target string    `json:"target,omitempty"`
+}
 
-	var snapshots []missions.MissionSnapshot
-	for rows.Next() {
-		var snapshot missions.MissionSnapshot
-		if err := rows.Scan(&snapshot.Slot, &snapshot.Kind, &snapshot.Target, &snapshot.Goal,
-			&snapshot.Reward.Kind, &snapshot.Reward.Amount); err != nil {
-			return missions.Brief{}, fmt.Errorf("failed to scan a mission of %s's brief: %w", flag, err)
-		}
-		snapshots = append(snapshots, snapshot)
-	}
-	if err := rows.Err(); err != nil {
+func (s *Store) Brief(ctx context.Context, day missions.Day, flag string) (missions.Brief, error) {
+	var kept []byte
+	err := s.db.On(ctx).QueryRowContext(ctx, `
+		SELECT missions FROM mission_briefs WHERE day = $1::date AND flag = $2
+	`, day.String(), flag).Scan(&kept)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return missions.Brief{}, missions.ErrNoBrief
+	case err != nil:
 		return missions.Brief{}, fmt.Errorf("failed to read %s's brief: %w", flag, err)
 	}
-	if len(snapshots) == 0 {
-		return missions.Brief{}, missions.ErrNoBrief
+
+	var records []missionRecord
+	if err := json.Unmarshal(kept, &records); err != nil {
+		return missions.Brief{}, fmt.Errorf("failed to decode %s's brief: %w", flag, err)
+	}
+	snapshots := make([]missions.MissionSnapshot, 0, len(records))
+	for _, record := range records {
+		snapshots = append(snapshots, missions.MissionSnapshot{
+			ID: missions.MissionID(record.ID), Kind: missions.Kind(record.Kind), Target: record.Target, Goal: record.Goal,
+			Reward: missions.Reward{Kind: missions.RewardKind(record.Reward), Amount: record.Amount},
+		})
 	}
 	return missions.BriefOf(snapshots) //nolint:wrapcheck // the domain named it.
 }
 
 func (s *Store) KeepBrief(ctx context.Context, day missions.Day, flag string, brief missions.Brief) (missions.Brief, error) {
-	for _, mission := range brief.Snapshot() {
-		if _, err := s.db.On(ctx).ExecContext(ctx, `
-			INSERT INTO mission_briefs (day, flag, slot, kind, target, goal, reward, reward_amount)
-			VALUES ($1::date, $2, $3, $4, $5, $6, $7, $8)
-			ON CONFLICT (day, flag, slot) DO NOTHING
-		`, day.String(), flag, int16(mission.Slot), string(mission.Kind), mission.Target, int64(mission.Goal),
-			string(mission.Reward.Kind), int64(mission.Reward.Amount)); err != nil {
-			return missions.Brief{}, fmt.Errorf("failed to keep %s's brief: %w", flag, err)
-		}
+	drawn := brief.Snapshot()
+	records := make([]missionRecord, 0, len(drawn))
+	for _, mission := range drawn {
+		records = append(records, missionRecord{
+			ID: uuid.UUID(mission.ID), Kind: string(mission.Kind), Goal: mission.Goal,
+			Reward: string(mission.Reward.Kind), Amount: mission.Reward.Amount, Target: mission.Target,
+		})
+	}
+	encoded, err := json.Marshal(records)
+	if err != nil {
+		return missions.Brief{}, fmt.Errorf("failed to encode %s's brief: %w", flag, err)
+	}
+
+	if _, err := s.db.On(ctx).ExecContext(ctx, `
+		INSERT INTO mission_briefs (day, flag, missions) VALUES ($1::date, $2, $3::jsonb)
+		ON CONFLICT (day, flag) DO NOTHING
+	`, day.String(), flag, encoded); err != nil {
+		return missions.Brief{}, fmt.Errorf("failed to keep %s's brief: %w", flag, err)
 	}
 	return s.Brief(ctx, day, flag)
 }
@@ -75,7 +91,7 @@ func (s *Store) Sheet(ctx context.Context, day missions.Day, account missions.Ac
 }
 
 func sheetOf(ctx context.Context, db cppg.Querier, day missions.Day, account missions.AccountID) (missions.Sheet, error) {
-	snapshot := missions.SheetSnapshot{Taken: map[missions.Slot]uint32{}, Collected: cpcolls.NewSet[missions.Slot]()}
+	snapshot := missions.SheetSnapshot{Taken: map[missions.MissionID]uint32{}, Collected: cpcolls.NewSet[missions.MissionID]()}
 
 	var below int64
 	err := db.QueryRowContext(ctx, `
@@ -86,21 +102,21 @@ func sheetOf(ctx context.Context, db cppg.Querier, day missions.Day, account mis
 	}
 	snapshot.TakesBelow = uint64(below) //nolint:gosec // CHECK (counted_takes_below >= 0).
 
-	if err := slots(ctx, db, `SELECT slot, taken FROM mission_progress WHERE day = $1::date AND account_id = $2`,
-		day, account, func(slot missions.Slot, taken uint32) { snapshot.Taken[slot] = taken }); err != nil {
+	if err := perMission(ctx, db, `SELECT mission_id, taken FROM mission_progress WHERE day = $1::date AND account_id = $2`,
+		day, account, func(id missions.MissionID, taken uint32) { snapshot.Taken[id] = taken }); err != nil {
 		return missions.Sheet{}, fmt.Errorf("failed to read the day's progress: %w", err)
 	}
-	if err := slots(ctx, db, `SELECT slot, 1 FROM mission_collections WHERE day = $1::date AND account_id = $2`,
-		day, account, func(slot missions.Slot, _ uint32) { snapshot.Collected.Add(slot) }); err != nil {
+	if err := perMission(ctx, db, `SELECT mission_id, 1 FROM mission_collections WHERE day = $1::date AND account_id = $2`,
+		day, account, func(id missions.MissionID, _ uint32) { snapshot.Collected.Add(id) }); err != nil {
 		return missions.Sheet{}, fmt.Errorf("failed to read the day's collections: %w", err)
 	}
 
 	return missions.SheetOf(snapshot), nil
 }
 
-func slots(
+func perMission(
 	ctx context.Context, db cppg.Querier, query string, day missions.Day, account missions.AccountID,
-	see func(missions.Slot, uint32),
+	see func(missions.MissionID, uint32),
 ) error {
 	rows, err := db.QueryContext(ctx, query, day.String(), uuid.UUID(account))
 	if err != nil {
@@ -110,13 +126,13 @@ func slots(
 
 	for rows.Next() {
 		var (
-			slot  missions.Slot
+			id    uuid.UUID
 			count uint32
 		)
-		if err := rows.Scan(&slot, &count); err != nil {
+		if err := rows.Scan(&id, &count); err != nil {
 			return err //nolint:wrapcheck // the caller says what was read.
 		}
-		see(slot, count)
+		see(missions.MissionID(id), count)
 	}
 	return rows.Err() //nolint:wrapcheck // the caller says what was read.
 }
@@ -144,15 +160,15 @@ func (s *Store) ChangeSheet(
 				return fmt.Errorf("failed to keep the day's flag: %w", err)
 			}
 		}
-		for slot, taken := range after.Taken {
-			if taken == before.Taken[slot] {
+		for id, taken := range after.Taken {
+			if taken == before.Taken[id] {
 				continue
 			}
 			if _, err := tx.ExecContext(ctx, `
-				INSERT INTO mission_progress (day, account_id, slot, taken) VALUES ($1::date, $2, $3, $4)
-				ON CONFLICT (day, account_id, slot) DO UPDATE SET taken = excluded.taken
-			`, day.String(), uuid.UUID(account), int16(slot), int64(taken)); err != nil {
-				return fmt.Errorf("failed to keep the progress of mission %d: %w", slot, err)
+				INSERT INTO mission_progress (day, account_id, mission_id, taken) VALUES ($1::date, $2, $3, $4)
+				ON CONFLICT (day, account_id, mission_id) DO UPDATE SET taken = excluded.taken
+			`, day.String(), uuid.UUID(account), uuid.UUID(id), int64(taken)); err != nil {
+				return fmt.Errorf("failed to keep the progress of mission %s: %w", id, err)
 			}
 		}
 		return nil
@@ -160,20 +176,20 @@ func (s *Store) ChangeSheet(
 }
 
 func (s *Store) Collect(
-	ctx context.Context, day missions.Day, account missions.AccountID, slot missions.Slot, at time.Time,
+	ctx context.Context, day missions.Day, account missions.AccountID, mission missions.MissionID, at time.Time,
 	pay func(context.Context) error,
 ) error {
 	return s.db.InTx(ctx, func(ctx context.Context) error {
 		kept, err := s.db.On(ctx).ExecContext(ctx, `
-			INSERT INTO mission_collections (day, account_id, slot, collected_at) VALUES ($1::date, $2, $3, $4)
-			ON CONFLICT (day, account_id, slot) DO NOTHING
-		`, day.String(), uuid.UUID(account), int16(slot), at)
+			INSERT INTO mission_collections (day, account_id, mission_id, collected_at) VALUES ($1::date, $2, $3, $4)
+			ON CONFLICT (day, account_id, mission_id) DO NOTHING
+		`, day.String(), uuid.UUID(account), uuid.UUID(mission), at)
 		if err != nil {
-			return fmt.Errorf("failed to keep the collection of mission %d: %w", slot, err)
+			return fmt.Errorf("failed to keep the collection of mission %s: %w", mission, err)
 		}
 		rows, err := kept.RowsAffected()
 		if err != nil {
-			return fmt.Errorf("failed to read whether mission %d was collected: %w", slot, err)
+			return fmt.Errorf("failed to read whether mission %s was collected: %w", mission, err)
 		}
 		if rows == 0 {
 			return missions.ErrCollected

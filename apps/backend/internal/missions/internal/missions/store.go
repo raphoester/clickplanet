@@ -17,7 +17,7 @@ type Store interface {
 	Sheet(ctx context.Context, day Day, account AccountID) (Sheet, error)
 	ChangeSheet(ctx context.Context, day Day, account AccountID, change func(Sheet) Sheet) error
 	// Keeps the collection only if pay succeeds; ErrCollected when the slot was collected already.
-	Collect(ctx context.Context, day Day, account AccountID, slot Slot, at time.Time,
+	Collect(ctx context.Context, day Day, account AccountID, mission MissionID, at time.Time,
 		pay func(context.Context) error) error
 
 	DeleteAccount(ctx context.Context, account AccountID) error

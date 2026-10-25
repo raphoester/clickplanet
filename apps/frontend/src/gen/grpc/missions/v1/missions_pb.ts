@@ -138,9 +138,9 @@ export class GetMissionsResponse extends Message<GetMissionsResponse> {
  */
 export class Mission extends Message<Mission> {
   /**
-   * @generated from field: uint32 slot = 1;
+   * @generated from field: string id = 1;
    */
-  slot = 0;
+  id = "";
 
   /**
    * @generated from field: missions.v1.MissionKind kind = 2;
@@ -185,7 +185,7 @@ export class Mission extends Message<Mission> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "missions.v1.Mission";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "slot", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "kind", kind: "enum", T: proto3.getEnumType(MissionKind) },
     { no: 3, name: "target_country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "goal", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
@@ -217,9 +217,9 @@ export class Mission extends Message<Mission> {
  */
 export class CollectMissionRequest extends Message<CollectMissionRequest> {
   /**
-   * @generated from field: uint32 slot = 1;
+   * @generated from field: string mission_id = 1;
    */
-  slot = 0;
+  missionId = "";
 
   constructor(data?: PartialMessage<CollectMissionRequest>) {
     super();
@@ -229,7 +229,7 @@ export class CollectMissionRequest extends Message<CollectMissionRequest> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "missions.v1.CollectMissionRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "slot", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 1, name: "mission_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CollectMissionRequest {

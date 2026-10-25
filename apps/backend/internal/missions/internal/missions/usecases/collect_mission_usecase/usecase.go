@@ -17,7 +17,7 @@ var (
 
 type Sheets interface {
 	Sheet(ctx context.Context, day missions.Day, account missions.AccountID) (missions.Sheet, error)
-	Collect(ctx context.Context, day missions.Day, account missions.AccountID, slot missions.Slot, at time.Time,
+	Collect(ctx context.Context, day missions.Day, account missions.AccountID, mission missions.MissionID, at time.Time,
 		pay func(context.Context) error) error
 }
 
@@ -32,7 +32,7 @@ type Charger interface {
 type In struct {
 	Account missions.AccountID
 	Linked  bool
-	Slot    uint32
+	Mission string
 }
 
 type Out struct {
@@ -55,7 +55,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	if !in.Linked {
 		return Out{}, ErrNotLinked
 	}
-	slot, err := missions.SlotOf(in.Slot)
+	id, err := missions.MissionIDOf(in.Mission)
 	if err != nil {
 		return Out{}, err //nolint:wrapcheck // the domain named it.
 	}
@@ -74,7 +74,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	if err != nil {
 		return Out{}, fmt.Errorf("failed to read the day's missions: %w", err)
 	}
-	mission, err := brief.Mission(slot)
+	mission, err := brief.Mission(id)
 	if err != nil {
 		return Out{}, err //nolint:wrapcheck // the domain named it.
 	}
@@ -83,7 +83,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	}
 
 	reward := mission.Snapshot().Reward
-	if err := u.sheets.Collect(ctx, day, in.Account, slot, now, func(ctx context.Context) error {
+	if err := u.sheets.Collect(ctx, day, in.Account, id, now, func(ctx context.Context) error {
 		kept, err := u.charger.Grant(ctx, in.Account, reward)
 		if err != nil {
 			return err //nolint:wrapcheck // the charger named it.
@@ -94,7 +94,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 		reward.Amount = kept
 		return nil
 	}); err != nil {
-		return Out{}, fmt.Errorf("failed to collect mission %d: %w", slot, err)
+		return Out{}, fmt.Errorf("failed to collect mission %s: %w", id, err)
 	}
 
 	return Out{Reward: reward}, nil

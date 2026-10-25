@@ -29,10 +29,10 @@ describe("ConnectMissionsBackend", () => {
             countryId: "fr", enlisted: true, endsAtUnixMs: 1_000n,
             missions: [
                 new MissionPb({
-                    slot: 2, kind: MissionKindPb.TAKE_FROM, targetCountryId: "dz", goal: 40, progress: 12,
+                    id: "m-2", kind: MissionKindPb.TAKE_FROM, targetCountryId: "dz", goal: 40, progress: 12,
                     rewardKind: BonusKindPb.SPREAD_CLICKS, rewardAmount: 4,
                 }),
-                new MissionPb({slot: 4, kind: MissionKindPb.UNSPECIFIED, rewardKind: BonusKindPb.SHIELDS}),
+                new MissionPb({id: "m-4", kind: MissionKindPb.UNSPECIFIED, rewardKind: BonusKindPb.SHIELDS}),
             ],
         }))
 
@@ -43,7 +43,7 @@ describe("ConnectMissionsBackend", () => {
         expect(day).toEqual({
             countryCode: "fr", enlisted: true, endsAt: 1_000,
             missions: [{
-                slot: 2, kind: "takeFrom", target: "dz", goal: 40, progress: 12, collected: false,
+                id: "m-2", kind: "takeFrom", target: "dz", goal: 40, progress: 12, collected: false,
                 reward: {kind: "spreadClicks", amount: 4},
             }],
         })
@@ -52,8 +52,8 @@ describe("ConnectMissionsBackend", () => {
     it("answers what a collected mission paid", async () => {
         const collectMission = vi.fn(async () => new CollectMissionResponsePb({kind: BonusKindPb.BOMB, amount: 1}))
 
-        expect(await backendWith({collectMission}).collectMission(3)).toEqual({kind: "bomb", amount: 1})
-        expect((collectMission.mock.calls[0] as unknown[])[0]).toEqual({slot: 3})
+        expect(await backendWith({collectMission}).collectMission("m-3")).toEqual({kind: "bomb", amount: 1})
+        expect((collectMission.mock.calls[0] as unknown[])[0]).toEqual({missionId: "m-3"})
     })
 
     it("reads a guest refused, and a reward that did not fit", async () => {
@@ -62,7 +62,7 @@ describe("ConnectMissionsBackend", () => {
                 throw new ConnectError("no", code)
             })
 
-            const failed = await backendWith({collectMission: refusing}).collectMission(1).catch((e: unknown) => e)
+            const failed = await backendWith({collectMission: refusing}).collectMission("m-1").catch((e: unknown) => e)
 
             expect(failed).toBeInstanceOf(MissionError)
             expect((failed as MissionError).failure).toBe(failure)

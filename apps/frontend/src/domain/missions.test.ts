@@ -3,7 +3,7 @@ import {Mission} from "../backends/missions.ts"
 import {awardOf, collectable, done, orderOf, timeLeft} from "./missions.ts"
 
 const mission = (overrides: Partial<Mission> = {}): Mission => ({
-    slot: 1,
+    id: "bank",
     kind: "takeFor",
     target: "fr",
     goal: 60,
@@ -24,9 +24,9 @@ describe("orderOf", () => {
 describe("collectable", () => {
     it("counts the missions done and not collected", () => {
         expect(collectable([
-            mission({slot: 1, progress: 60}),
-            mission({slot: 2, progress: 60, collected: true}),
-            mission({slot: 3, progress: 59}),
+            mission({id: "bank", progress: 60}),
+            mission({id: "rival", progress: 60, collected: true}),
+            mission({id: "ground", progress: 59}),
         ])).toBe(1)
         expect(done(mission({progress: 59}))).toBe(false)
     })

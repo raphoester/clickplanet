@@ -7,7 +7,7 @@ import {DayMissions, Mission, MissionError} from "../../backends/missions.ts"
 const now = Date.UTC(2026, 9, 26, 12, 0)
 
 const mission = (overrides: Partial<Mission>): Mission => ({
-    slot: 1,
+    id: "bank",
     kind: "takeFor",
     target: "fr",
     goal: 60,
@@ -31,9 +31,9 @@ describe("MissionsPlace", () => {
     it("lists each mission with its country, how far it went and when the day ends", () => {
         vi.useFakeTimers({now})
         render(<MissionsPlace state={day(
-            mission({slot: 1, progress: 37}),
-            mission({slot: 2, kind: "takeFrom", target: "dz", goal: 40, progress: 3, reward: {kind: "spreadClicks", amount: 4}}),
-            mission({slot: 3, kind: "takeIn", target: "br", goal: 200, reward: {kind: "bomb", amount: 1}}),
+            mission({id: "bank", progress: 37}),
+            mission({id: "rival", kind: "takeFrom", target: "dz", goal: 40, progress: 3, reward: {kind: "spreadClicks", amount: 4}}),
+            mission({id: "ground", kind: "takeIn", target: "br", goal: 200, reward: {kind: "bomb", amount: 1}}),
         )} onCollect={vi.fn()}/>)
 
         expect(screen.getByText("Ends in 9h 00m")).toBeDefined()
@@ -46,11 +46,11 @@ describe("MissionsPlace", () => {
 
     it("collects a mission that is done", async () => {
         const onCollect = vi.fn(async () => {})
-        render(<MissionsPlace state={day(mission({slot: 2, progress: 60}))} onCollect={onCollect}/>)
+        render(<MissionsPlace state={day(mission({id: "rival", progress: 60}))} onCollect={onCollect}/>)
 
         await act(async () => fireEvent.click(screen.getByRole("button", {name: "Collect"})))
 
-        expect(onCollect).toHaveBeenCalledWith(2)
+        expect(onCollect).toHaveBeenCalledWith("rival")
     })
 
     it("says a stack is full when the reward did not fit", async () => {

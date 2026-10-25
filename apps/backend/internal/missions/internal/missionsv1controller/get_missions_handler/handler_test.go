@@ -32,8 +32,10 @@ func (s *stubUseCase) Execute(_ context.Context, in get_missions_usecase.In) (ge
 }
 
 var (
-	ada = missions.AccountID{15: 1}
-	day = missions.NewCalendar(missions.Config{Cutoff: 21 * time.Hour}).DayOf(time.Date(2026, 10, 26, 12, 0, 0, 0, time.UTC))
+	ada    = missions.AccountID{15: 1}
+	bank   = missions.MissionID{15: 1}
+	ground = missions.MissionID{15: 3}
+	day    = missions.NewCalendar(missions.Config{Cutoff: 21 * time.Hour}).DayOf(time.Date(2026, 10, 26, 12, 0, 0, 0, time.UTC))
 )
 
 func ask(t *testing.T, useCase *stubUseCase) (*missionsv1.GetMissionsResponse, error) {
@@ -49,13 +51,13 @@ func ask(t *testing.T, useCase *stubUseCase) (*missionsv1.GetMissionsResponse, e
 
 func TestEachMissionIsAnsweredWithHowFarItWent(t *testing.T) {
 	brief, err := missions.BriefOf([]missions.MissionSnapshot{
-		{Slot: 1, Kind: missions.KindTakeFor, Target: "fr", Goal: 60, Reward: missions.Reward{Kind: missions.RewardShields, Amount: 10}},
-		{Slot: 3, Kind: missions.KindTakeIn, Target: "br", Goal: 200, Reward: missions.Reward{Kind: missions.RewardBomb, Amount: 1}},
+		{ID: bank, Kind: missions.KindTakeFor, Target: "fr", Goal: 60, Reward: missions.Reward{Kind: missions.RewardShields, Amount: 10}},
+		{ID: ground, Kind: missions.KindTakeIn, Target: "br", Goal: 200, Reward: missions.Reward{Kind: missions.RewardBomb, Amount: 1}},
 	})
 	require.NoError(t, err)
 	useCase := &stubUseCase{out: get_missions_usecase.Out{
 		Day: day, Flag: "fr", Brief: brief, Sheet: missions.SheetOf(missions.SheetSnapshot{
-			Flag: "fr", Taken: map[missions.Slot]uint32{1: 60, 3: 12}, Collected: cpcolls.NewSet[missions.Slot](1),
+			Flag: "fr", Taken: map[missions.MissionID]uint32{bank: 60, ground: 12}, Collected: cpcolls.NewSet(bank),
 		}),
 	}}
 
@@ -67,11 +69,11 @@ func TestEachMissionIsAnsweredWithHowFarItWent(t *testing.T) {
 		CountryId: "fr", Enlisted: true, EndsAtUnixMs: time.Date(2026, 10, 26, 21, 0, 0, 0, time.UTC).UnixMilli(),
 		Missions: []*missionsv1.Mission{
 			{
-				Slot: 1, Kind: missionsv1.MissionKind_MISSION_KIND_TAKE_FOR, TargetCountryId: "fr", Goal: 60, Progress: 60,
+				Id: bank.String(), Kind: missionsv1.MissionKind_MISSION_KIND_TAKE_FOR, TargetCountryId: "fr", Goal: 60, Progress: 60,
 				Collected: true, RewardKind: planetv1.BonusKind_BONUS_KIND_SHIELDS, RewardAmount: 10,
 			},
 			{
-				Slot: 3, Kind: missionsv1.MissionKind_MISSION_KIND_TAKE_IN, TargetCountryId: "br", Goal: 200, Progress: 12,
+				Id: ground.String(), Kind: missionsv1.MissionKind_MISSION_KIND_TAKE_IN, TargetCountryId: "br", Goal: 200, Progress: 12,
 				RewardKind: planetv1.BonusKind_BONUS_KIND_BOMB, RewardAmount: 1,
 			},
 		},
