@@ -21,7 +21,7 @@ type PostgresQuery struct {
 
 // The last of the changes ledger.Taking replays for the tile: a take, a tile a spread or an enclose took, or a bomb's clear.
 const lastChange = `
-	SELECT account::text, country, taken_at FROM (
+	SELECT COALESCE(account::text, ''), country, taken_at FROM (
 		(SELECT position, account, country, taken_at FROM ledger_events
 		WHERE kind = 'take' AND tile = $1
 		ORDER BY position DESC LIMIT 1)
@@ -37,7 +37,7 @@ const lastChange = `
 		ORDER BY position DESC LIMIT 1)
 		ORDER BY position DESC LIMIT 1
 	) last
-	WHERE country <> '' AND account IS NOT NULL
+	WHERE country <> ''
 `
 
 func (q *PostgresQuery) TileHolder(ctx context.Context, tile uint32) (*planetv1.GetTileHolderResponse, error) {

@@ -124,10 +124,20 @@ func (s *testSuite) TestAStrikeAShieldOrAFortifyLeavesTheTileWithItsTaker() {
 	s.True(proto.Equal(&planetv1.TileHolder{AccountId: ada, CountryId: "fr", TakenAtUnixMs: minute(8).UnixMilli()}, s.holder(8)))
 }
 
-func (s *testSuite) TestATakeThatNamesNoAccountShowsNobody() {
+func (s *testSuite) TestATakeThatNamesNoAccountIsHeldWithNoAccount() {
 	s.record(everyKind()...)
 
-	s.Nil(s.holder(9))
+	s.True(proto.Equal(&planetv1.TileHolder{CountryId: "fr", TakenAtUnixMs: minute(12).UnixMilli()}, s.holder(9)))
+}
+
+func (s *testSuite) TestADeletedAccountsTakeStillHoldsTheTile() {
+	s.record(everyKind()...)
+	account, err := ledger.AccountIDOf(bob)
+	s.Require().NoError(err)
+	s.Require().NoError(s.store.AnonymizeTakes(s.T().Context(), account))
+
+	s.True(proto.Equal(&planetv1.TileHolder{CountryId: "de", TakenAtUnixMs: minute(1).UnixMilli()}, s.holder(1)))
+	s.True(proto.Equal(&planetv1.TileHolder{CountryId: "de", TakenAtUnixMs: minute(3).UnixMilli()}, s.holder(3)))
 }
 
 func (s *testSuite) TestATileNobodyEverTookIsHeldByNobody() {
@@ -147,7 +157,7 @@ func (s *testSuite) TestTheHolderIsTheLastTakeTheLedgerReplaysForEachTile() {
 
 	for tile := uint32(1); tile <= 11; tile++ {
 		taking, changed := last[tile]
-		if !changed || taking.Cleared() || taking.Account == "" {
+		if !changed || taking.Cleared() {
 			s.Nil(s.holder(tile), "tile %d", tile)
 			continue
 		}

@@ -7,7 +7,7 @@ import (
 
 // TODO(broker): seasons tells planet its phase with a loopback call, sent again every second until planet answers,
 // and again after each boot; planet drops a request id it applied already. That loop and that dedupe stand in for a
-// message broker, which must replace them soon. See apps/backend/CLAUDE.md, "Rules".
+// message broker, which must replace them soon. See apps/backend/docs/rules.md.
 type Runner struct {
 	interval time.Duration
 	executor Executor

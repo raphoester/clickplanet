@@ -2,7 +2,7 @@
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {cleanup, fireEvent, render, screen, within} from "@testing-library/react"
 import HolderCard from "./HolderCard.tsx"
-import {HolderShown} from "./useTileHolder.ts"
+import {DELETED_ACCOUNT, HolderShown} from "./useTileHolder.ts"
 import {NameColor, PlayerLine} from "../../backends/player.ts"
 
 const NOW = 1_761_393_600_000
@@ -73,6 +73,14 @@ describe("HolderCard", () => {
         expect(screen.getByRole("region", {name: "guest_91aa3d"}).textContent).toContain("Took it 3 min ago")
         expect(screen.queryByRole("button", {name: "View profile"})).toBeNull()
         expect(screen.queryByRole("group", {name: "Fought for"})).toBeNull()
+    })
+
+    it("shows a deleted account by that alone, with no profile to open", () => {
+        const deleted: PlayerLine = {...GUEST, accountId: "", name: DELETED_ACCOUNT, countryCode: "tr", guest: false}
+        render(<HolderCard holder={{...shown(deleted), playsFor: []}} now={NOW} onHold={() => {}} onClose={() => {}} onOpenPlayer={vi.fn()}/>)
+
+        expect(screen.getByRole("region", {name: "Deleted account"}).textContent).toContain("Took it 3 min ago")
+        expect(screen.queryByRole("button", {name: "View profile"})).toBeNull()
     })
 
     it("says when the pointer is on it, and closes on Escape", () => {
