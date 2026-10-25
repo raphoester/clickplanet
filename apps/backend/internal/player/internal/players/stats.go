@@ -156,16 +156,6 @@ func (s Stats) WithRightAnswer() Stats {
 	return s
 }
 
-type Recount struct {
-	BombsDropped   uint64
-	TilesFortified uint64
-}
-
-func (s Stats) Recounted(recount Recount) Stats {
-	s.bombsDropped, s.tilesFortified = recount.BombsDropped, recount.TilesFortified
-	return s
-}
-
 func (s Stats) AsOf(today Day) Stats {
 	s.streak = s.streak.AsOf(today)
 	return s
