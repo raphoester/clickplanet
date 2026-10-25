@@ -18,12 +18,12 @@ type Renames interface {
 	RenamableAt(chosenAt time.Time) int64
 }
 
-func NewPostgresQuery(db cppg.Querier, renames Renames) *PostgresQuery {
+func NewPostgresQuery(db cppg.Conn, renames Renames) *PostgresQuery {
 	return &PostgresQuery{db: db, renames: renames}
 }
 
 type PostgresQuery struct {
-	db      cppg.Querier
+	db      cppg.Conn
 	renames Renames
 }
 
@@ -39,7 +39,7 @@ func (q *PostgresQuery) Profile(ctx context.Context, account cpsession.AccountID
 		color    int32
 		chosenAt sql.NullTime
 	)
-	if err := q.db.QueryRowContext(ctx, profile, uuid.UUID(account)).Scan(&name, &color, &chosenAt); err != nil {
+	if err := q.db.On(ctx).QueryRowContext(ctx, profile, uuid.UUID(account)).Scan(&name, &color, &chosenAt); err != nil {
 		return nil, fmt.Errorf("failed to read the profile: %w", err)
 	}
 

@@ -42,12 +42,12 @@ var outcomes = map[string]supportv1.ReportOutcome{
 	"dismissed": supportv1.ReportOutcome_REPORT_OUTCOME_DISMISSED,
 }
 
-func NewPostgresQuery(db cppg.Querier, authors Authors) *PostgresQuery {
+func NewPostgresQuery(db cppg.Conn, authors Authors) *PostgresQuery {
 	return &PostgresQuery{db: db, authors: authors}
 }
 
 type PostgresQuery struct {
-	db      cppg.Querier
+	db      cppg.Conn
 	authors Authors
 }
 
@@ -90,7 +90,7 @@ func (q *PostgresQuery) Reports(
 }
 
 func (q *PostgresQuery) rows(ctx context.Context, since time.Time, limit uint32, openOnly bool) ([]row, error) {
-	found, err := q.db.QueryContext(ctx, reports,
+	found, err := q.db.On(ctx).QueryContext(ctx, reports,
 		sql.NullTime{Time: since.UTC(), Valid: !since.IsZero()}, limitOf(limit), openOnly)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the reports: %w", err)

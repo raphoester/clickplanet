@@ -15,4 +15,5 @@ message AccountMuted {
   string account_id = 1;
   google.protobuf.Timestamp muted_at = 2;
   google.protobuf.Duration duration = 3;
+  string mute_id = 4;
 }

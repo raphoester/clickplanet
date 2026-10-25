@@ -11,16 +11,16 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
-func NewPostgresQuery(db cppg.Querier) *PostgresQuery {
+func NewPostgresQuery(db cppg.Conn) *PostgresQuery {
 	return &PostgresQuery{db: db}
 }
 
 type PostgresQuery struct {
-	db cppg.Querier
+	db cppg.Conn
 }
 
 func (q *PostgresQuery) Sets(ctx context.Context) ([]*planetv1.RuleSet, error) {
-	rows, err := q.db.QueryContext(ctx, `
+	rows, err := q.db.On(ctx).QueryContext(ctx, `
 		SELECT name, tempo, box_min_interval_ms, box_max_interval_ms, box_max_charges_per_hour, crowd
 		FROM rule_sets ORDER BY name <> 'default', name
 	`)

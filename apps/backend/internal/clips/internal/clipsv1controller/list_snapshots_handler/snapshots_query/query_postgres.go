@@ -17,12 +17,12 @@ const (
 	MaxLimit     = 500
 )
 
-func NewPostgresQuery(db cppg.Querier) *PostgresQuery {
+func NewPostgresQuery(db cppg.Conn) *PostgresQuery {
 	return &PostgresQuery{db: db}
 }
 
 type PostgresQuery struct {
-	db cppg.Querier
+	db cppg.Conn
 }
 
 const snapshots = `
@@ -39,7 +39,7 @@ var kept = protojson.UnmarshalOptions{DiscardUnknown: true}
 
 // A zero since or until is no bound; a zero limit is DefaultLimit, and none passes MaxLimit.
 func (q *PostgresQuery) Snapshots(ctx context.Context, since, until time.Time, limit uint32) (*clipsv1.ListSnapshotsResponse, error) {
-	rows, err := q.db.QueryContext(ctx, snapshots, bound(since), bound(until), limitOf(limit, DefaultLimit, MaxLimit))
+	rows, err := q.db.On(ctx).QueryContext(ctx, snapshots, bound(since), bound(until), limitOf(limit, DefaultLimit, MaxLimit))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the snapshots: %w", err)
 	}

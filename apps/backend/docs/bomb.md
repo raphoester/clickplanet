@@ -47,8 +47,8 @@ reasons it is not one `TileUpdate` per tile:
 
 `DropBomb` is session-gated like `Click` and `ClaimBonus` — it writes the map.
 It is not throttled: holding a bomb the server granted is the gate.
-**Every bomb that went off is told to the other modules** as `planet.v1.BombLanded`
-by `publishing_drop_bomb`, inside the count, and the chat announces it — see
+**Every bomb that went off is told to the other modules** as `planet.v1.BombLanded`,
+by the ledger relay once the ledger flushed it, and the chat announces it — see
 [Announcements](chat.md#announcements).
 **And the ledger keeps it**: the drop clears through `ledger.Recording`, so every
 bomb that went off is one event in `planet.ledger_events`, with the flag each tile

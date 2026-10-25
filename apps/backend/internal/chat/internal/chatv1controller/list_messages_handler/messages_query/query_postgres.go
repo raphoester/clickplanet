@@ -40,12 +40,12 @@ type Cursor struct {
 	After  string
 }
 
-func NewPostgresQuery(db cppg.Querier, authors Authors, clock cptime.Clock, retention time.Duration) *PostgresQuery {
+func NewPostgresQuery(db cppg.Conn, authors Authors, clock cptime.Clock, retention time.Duration) *PostgresQuery {
 	return &PostgresQuery{db: db, authors: authors, clock: clock, retention: retention}
 }
 
 type PostgresQuery struct {
-	db        cppg.Querier
+	db        cppg.Conn
 	authors   Authors
 	clock     cptime.Clock
 	retention time.Duration
@@ -189,7 +189,7 @@ func statementOf(backward bool, author cpsession.AccountID) (string, []any) {
 
 func (q *PostgresQuery) seqOf(ctx context.Context, id string, since time.Time) (int64, error) {
 	var seq int64
-	err := q.db.QueryRowContext(ctx, keptSeq, id, since).Scan(&seq)
+	err := q.db.On(ctx).QueryRowContext(ctx, keptSeq, id, since).Scan(&seq)
 	if errors.Is(err, sql.ErrNoRows) {
 		return 0, fmt.Errorf("%w: %q", ErrNoMessage, id)
 	}
@@ -200,7 +200,7 @@ func (q *PostgresQuery) seqOf(ctx context.Context, id string, since time.Time) (
 }
 
 func (q *PostgresQuery) rows(ctx context.Context, statement string, args ...any) ([]row, error) {
-	found, err := q.db.QueryContext(ctx, statement, args...)
+	found, err := q.db.On(ctx).QueryContext(ctx, statement, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read a page of messages: %w", err)
 	}

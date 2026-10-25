@@ -106,7 +106,7 @@ because it serves every concept over one Connect service. It only maps.
 | `bonuses/usecases/place_shield_usecase` | spends a shield on a tile of the caller's flag | `Shields`, `Tiles`, `CountryChecker`, `Allegiances` |
 | `rules/usecases/enforce_rules_usecase` | plays the set postgres keeps, when its values changed; a `Runner` | `Sets`, `Rules` |
 | `rules/usecases/save_rule_set_usecase` | the operator makes a set or replaces its values | `Sets` |
-| `clicks/usecases/relay_fortifications_usecase` | follows the tile map and publishes `planet.v1.Fortified` for each fortify; a `Runner` | `Changes`, `Publisher` |
+| `ledger/usecases/relay_ledger_usecase` | tells the other modules what the ledger flushed past its cursor, in ledger order: `TileTaken`, `BombLanded`, `Fortified`, each with its position; a `Runner` | `Ledger`, `Cursor`, `Borders`, `Sender` |
 
 **The interfaces in that last column are declared by the package that calls
 them**, not gathered in a `gateways.go` every use case imports. A shared port

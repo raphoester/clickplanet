@@ -13,6 +13,8 @@ const kindFortify = "fortify"
 type Fortifying struct {
 	Tile     uint32
 	Landmass clicks.LandmassID
+	Ground   string
+	Tiles    int
 	Scope    string
 	Account  string
 	Country  string
@@ -22,8 +24,8 @@ type Fortifying struct {
 
 func fortifyingOfImpact(by Caller, at time.Time, flag string, fortified *clicks.Fortification) Fortifying {
 	return Fortifying{
-		Tile: fortified.Tile, Landmass: fortified.Landmass, Scope: by.Scope, Account: by.Account, Country: flag, At: at,
-		Raised: fortified.Raised,
+		Tile: fortified.Tile, Landmass: fortified.Landmass, Ground: fortified.Ground, Tiles: fortified.Tiles,
+		Scope: by.Scope, Account: by.Account, Country: flag, At: at, Raised: fortified.Raised,
 	}
 }
 
@@ -45,6 +47,8 @@ type raisedJSON struct {
 
 type fortifyPayload struct {
 	Landmass clicks.LandmassID `json:"landmass"`
+	Ground   string            `json:"ground,omitempty"`
+	Tiles    int               `json:"tiles,omitempty"`
 	Raised   []raisedJSON      `json:"raised"`
 }
 
@@ -54,7 +58,7 @@ func (f Fortifying) Entry() (Entry, error) {
 		raised[i] = raisedJSON{Tile: tile.Tile, Shields: tile.Shields}
 	}
 
-	payload, err := json.Marshal(fortifyPayload{Landmass: f.Landmass, Raised: raised})
+	payload, err := json.Marshal(fortifyPayload{Landmass: f.Landmass, Ground: f.Ground, Tiles: f.Tiles, Raised: raised})
 	if err != nil {
 		return Entry{}, fmt.Errorf("failed to write down the fortify of landmass %d: %w", f.Landmass, err)
 	}
@@ -77,7 +81,7 @@ func fortifyingOf(entry Entry) (Event, error) {
 	}
 
 	return Fortifying{
-		Tile: entry.Tile, Landmass: payload.Landmass, Scope: entry.Scope, Account: entry.Account, Country: entry.Country,
-		At: entry.At, Raised: raised,
+		Tile: entry.Tile, Landmass: payload.Landmass, Ground: payload.Ground, Tiles: payload.Tiles,
+		Scope: entry.Scope, Account: entry.Account, Country: entry.Country, At: entry.At, Raised: raised,
 	}, nil
 }

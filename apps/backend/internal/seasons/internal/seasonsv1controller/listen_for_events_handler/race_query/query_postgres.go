@@ -16,12 +16,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-func NewPostgresQuery(db cppg.Querier, seasons calendar.Calendar, clock cptime.Clock) *PostgresQuery {
+func NewPostgresQuery(db cppg.Conn, seasons calendar.Calendar, clock cptime.Clock) *PostgresQuery {
 	return &PostgresQuery{db: db, seasons: seasons, clock: clock}
 }
 
 type PostgresQuery struct {
-	db      cppg.Querier
+	db      cppg.Conn
 	seasons calendar.Calendar
 	clock   cptime.Clock
 }
@@ -55,7 +55,7 @@ func (q *PostgresQuery) closed(ctx context.Context) (*seasonsv1.ClosedRound, err
 		season, earlier, samples, mapTiles int64
 		round                              rounds.Round
 	)
-	err := q.db.QueryRowContext(ctx, `
+	err := q.db.On(ctx).QueryRowContext(ctx, `
 		SELECT round.season, round.ends_at, round.finale, round.samples, round.map_tiles,
 		       (SELECT count(*) FROM rounds AS earlier WHERE earlier.season = round.season AND earlier.ends_at < round.ends_at)
 		FROM rounds AS round WHERE round.closed ORDER BY round.ends_at DESC, round.season DESC LIMIT 1
@@ -94,7 +94,7 @@ func (q *PostgresQuery) closed(ctx context.Context) (*seasonsv1.ClosedRound, err
 }
 
 func (q *PostgresQuery) results(ctx context.Context, round rounds.Round, counted int64) ([]*seasonsv1.RoundStanding, error) {
-	rows, err := q.db.QueryContext(ctx, `
+	rows, err := q.db.On(ctx).QueryContext(ctx, `
 		SELECT result.rank, result.country, result.points, coalesce(held.tiles, 0)
 		FROM round_results AS result LEFT JOIN round_holdings AS held USING (season, ends_at, country)
 		WHERE result.season = $1 AND result.ends_at = $2 AND result.points > 0
@@ -136,7 +136,7 @@ func (q *PostgresQuery) round(ctx context.Context, round rounds.Round) (*seasons
 		earlier           int64
 		samples, mapTiles sql.NullInt64
 	)
-	if err := q.db.QueryRowContext(ctx, `
+	if err := q.db.On(ctx).QueryRowContext(ctx, `
 		SELECT count(*) FILTER (WHERE ends_at < $2), max(samples) FILTER (WHERE ends_at = $2), max(map_tiles) FILTER (WHERE ends_at = $2)
 		FROM rounds WHERE season = $1
 	`, int64(round.Season), round.EndsAt).Scan(&earlier, &samples, &mapTiles); err != nil {
@@ -169,7 +169,7 @@ func (q *PostgresQuery) round(ctx context.Context, round rounds.Round) (*seasons
 }
 
 func (q *PostgresQuery) held(ctx context.Context, round rounds.Round) (map[rounds.Country]uint64, error) {
-	rows, err := q.db.QueryContext(ctx, `
+	rows, err := q.db.On(ctx).QueryContext(ctx, `
 		SELECT country, tiles FROM round_holdings WHERE season = $1 AND ends_at = $2
 	`, int64(round.Season), round.EndsAt)
 	if err != nil {
@@ -202,7 +202,7 @@ const (
 )
 
 func (q *PostgresQuery) scores(ctx context.Context, season calendar.Number, bound bound, at time.Time) ([]*seasonsv1.Score, error) {
-	rows, err := q.db.QueryContext(ctx, `
+	rows, err := q.db.On(ctx).QueryContext(ctx, `
 		SELECT result.country,
 		       sum(result.points),
 		       count(*) FILTER (WHERE result.rank = 1),

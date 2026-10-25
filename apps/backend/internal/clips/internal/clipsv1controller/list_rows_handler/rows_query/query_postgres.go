@@ -22,12 +22,12 @@ const (
 
 var ErrInvalidPage = errors.New("not a page this query gave")
 
-func NewPostgresQuery(db cppg.Querier) *PostgresQuery {
+func NewPostgresQuery(db cppg.Conn) *PostgresQuery {
 	return &PostgresQuery{db: db}
 }
 
 type PostgresQuery struct {
-	db cppg.Querier
+	db cppg.Conn
 }
 
 // After the last row of the page before, in the order of the primary key.
@@ -57,7 +57,7 @@ func (q *PostgresQuery) Rows(ctx context.Context, since, until time.Time, limit 
 	size := limitOf(limit)
 
 	// One more than the page: whether there is a next one.
-	read, err := q.db.QueryContext(ctx, rows, bound(since), bound(until),
+	read, err := q.db.On(ctx).QueryContext(ctx, rows, bound(since), bound(until),
 		bound(after.TakenAt), after.PostID, after.Platform, size+1)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the rows: %w", err)

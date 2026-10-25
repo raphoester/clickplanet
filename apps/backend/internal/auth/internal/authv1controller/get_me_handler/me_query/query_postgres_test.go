@@ -119,7 +119,7 @@ func (s *testSuite) TestADeletedAccountIsNoAccount() {
 }
 
 func (s *testSuite) TestAProviderTheProtoDoesNotNameIsAnError() {
-	_, err := s.db.ExecContext(s.T().Context(), `ALTER TYPE identity_provider ADD VALUE IF NOT EXISTS 'github'`)
+	_, err := s.db.On(s.T().Context()).ExecContext(s.T().Context(), `ALTER TYPE identity_provider ADD VALUE IF NOT EXISTS 'github'`)
 	s.Require().NoError(err)
 	s.guest(ada, "token-1")
 	s.link(ada, "github", "gh", "token-2", start)
