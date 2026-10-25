@@ -174,3 +174,50 @@ func (s *Store) Close(ctx context.Context, round rounds.Round, results []rounds.
 	}
 	return nil
 }
+
+func (s *Store) ClosedIn(ctx context.Context, season calendar.Number) ([]rounds.Closed, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		WITH numbered AS (
+			SELECT season, ends_at, finale, closed, row_number() OVER (ORDER BY ends_at) AS number
+			FROM rounds WHERE season = $1
+		)
+		SELECT round.ends_at, round.finale, round.number, result.country, result.rank, result.points
+		FROM numbered AS round LEFT JOIN round_results AS result USING (season, ends_at)
+		WHERE round.closed
+		ORDER BY round.ends_at, result.rank, result.country
+	`, int64(season))
+	if err != nil {
+		return nil, fmt.Errorf("failed to read the rounds the season closed: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var closed []rounds.Closed
+	for rows.Next() {
+		var (
+			endsAt       time.Time
+			finale       bool
+			number       int64
+			country      sql.NullString
+			rank, points sql.NullInt64
+		)
+		if err := rows.Scan(&endsAt, &finale, &number, &country, &rank, &points); err != nil {
+			return nil, fmt.Errorf("failed to read a result of a round the season closed: %w", err)
+		}
+		round := rounds.Round{Season: season, EndsAt: endsAt.UTC(), Finale: finale}
+		if len(closed) == 0 || !closed[len(closed)-1].Round.EndsAt.Equal(round.EndsAt) {
+			closed = append(closed, rounds.Closed{Round: round, Number: uint32(number)}) //nolint:gosec // a round a day.
+		}
+		if country.Valid {
+			last := &closed[len(closed)-1]
+			last.Results = append(last.Results, rounds.Result{
+				Country: rounds.Country(country.String),
+				Rank:    uint32(rank.Int64),   //nolint:gosec // a few hundred countries at most.
+				Points:  uint32(points.Int64), //nolint:gosec // 75 a round at most.
+			})
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to read the rounds the season closed: %w", err)
+	}
+	return closed, nil
+}

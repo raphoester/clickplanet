@@ -319,6 +319,23 @@ describe("decodedAnnouncement", () => {
         expect(decodedAnnouncement(bomb(`{"number":5}`, "round"))).toBeUndefined()
     })
 
+    it("reads a season's champion", () => {
+        expect(decodedAnnouncement(bomb(`{"season":0,"countries":["de"]}`, "champion"))).toEqual({
+            kind: "champion",
+            id: "announcement-1",
+            announcedAt: 1_700_000_000_000,
+            season: 0,
+            countries: ["de"],
+        })
+    })
+
+    it("drops a champion with no season or no country", () => {
+        expect(decodedAnnouncement(bomb(`{"countries":["de"]}`, "champion"))).toBeUndefined()
+        expect(decodedAnnouncement(bomb(`{"season":0,"countries":[]}`, "champion"))).toBeUndefined()
+        expect(decodedAnnouncement(bomb(`{"season":0,"countries":[""]}`, "champion"))).toBeUndefined()
+        expect(decodedAnnouncement(bomb(`{"season":0}`, "champion"))).toBeUndefined()
+    })
+
     it("drops a kind it does not know, and a payload that is not the kind's", () => {
         expect(decodedAnnouncement(bomb(`{"country":"fr"}`, "meteor"))).toBeUndefined()
         expect(decodedAnnouncement(bomb(`not json`))).toBeUndefined()

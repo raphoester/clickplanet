@@ -116,3 +116,113 @@ export class RoundResult extends Message<RoundResult> {
   }
 }
 
+/**
+ * @generated from message seasons.v1.SeasonClosed
+ */
+export class SeasonClosed extends Message<SeasonClosed> {
+  /**
+   * @generated from field: uint32 season = 1;
+   */
+  season = 0;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp ended_at = 2;
+   */
+  endedAt?: Timestamp;
+
+  /**
+   * @generated from field: repeated seasons.v1.SeasonPlace table = 3;
+   */
+  table: SeasonPlace[] = [];
+
+  constructor(data?: PartialMessage<SeasonClosed>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "seasons.v1.SeasonClosed";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "season", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "ended_at", kind: "message", T: Timestamp },
+    { no: 3, name: "table", kind: "message", T: SeasonPlace, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SeasonClosed {
+    return new SeasonClosed().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SeasonClosed {
+    return new SeasonClosed().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SeasonClosed {
+    return new SeasonClosed().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SeasonClosed | PlainMessage<SeasonClosed> | undefined, b: SeasonClosed | PlainMessage<SeasonClosed> | undefined): boolean {
+    return proto3.util.equals(SeasonClosed, a, b);
+  }
+}
+
+/**
+ * @generated from message seasons.v1.SeasonPlace
+ */
+export class SeasonPlace extends Message<SeasonPlace> {
+  /**
+   * @generated from field: string country = 1;
+   */
+  country = "";
+
+  /**
+   * @generated from field: uint32 rank = 2;
+   */
+  rank = 0;
+
+  /**
+   * @generated from field: uint32 points = 3;
+   */
+  points = 0;
+
+  /**
+   * @generated from field: uint32 rounds_won = 4;
+   */
+  roundsWon = 0;
+
+  /**
+   * @generated from field: uint32 finale_points = 5;
+   */
+  finalePoints = 0;
+
+  constructor(data?: PartialMessage<SeasonPlace>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "seasons.v1.SeasonPlace";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "country", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "rank", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "points", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 4, name: "rounds_won", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 5, name: "finale_points", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SeasonPlace {
+    return new SeasonPlace().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SeasonPlace {
+    return new SeasonPlace().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SeasonPlace {
+    return new SeasonPlace().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SeasonPlace | PlainMessage<SeasonPlace> | undefined, b: SeasonPlace | PlainMessage<SeasonPlace> | undefined): boolean {
+    return proto3.util.equals(SeasonPlace, a, b);
+  }
+}
+
