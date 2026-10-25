@@ -75,10 +75,11 @@ func TestAFlagThatIsNoCountryIsRefusedAndNotKept(t *testing.T) {
 }
 
 func TestAnAccountPlaysOnlyTheFlagItPledged(t *testing.T) {
-	b, _, clock := book()
+	b, store, clock := book()
 	payer := clicks.Payer{Account: alice}
 
 	require.ErrorIs(t, b.PlayError(t.Context(), payer, "fr"), allegiances.ErrNoFlag)
+	assert.Equal(t, allegiances.Snapshot{}, store.Kept(alice), "a refused click pledges nothing")
 
 	require.NoError(t, b.Pledge(t.Context(), payer, "fr"))
 	require.NoError(t, b.PlayError(t.Context(), payer, "fr"))

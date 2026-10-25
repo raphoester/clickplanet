@@ -12,7 +12,8 @@ and says what is in it. Read the doc before you change its area.
   `make lint`, `make tidy`, `make check-format`, `go run ./cmd/api`, `make proto`, the vendoring targets (`quiz`,
   `map`, `vpn-lists`, `disposable-domains`, `zernio`), `make dBuild`, and `cmd/clips`.
 - [Configuration](docs/configuration.md) — `cpconfigs` loads YAML and environment with koanf; the full schema.
-- [Testing](docs/testing.md) — testify; which suites need Docker (postgres, S3, Redis); the `testing` tag.
+- [Testing](docs/testing.md) — testify; which suites need Docker (postgres, S3, Redis); `e2e/` holds smoke tests
+  only, rules go in lower tests; the `testing` tag.
 - [Linting](docs/linting.md) — golangci-lint at a pinned version, gofumpt, `.golangci.yaml`, and the linters left
   off on purpose.
 - [Git hooks](docs/git-hooks.md) — what the repo's hooks run for this app.
