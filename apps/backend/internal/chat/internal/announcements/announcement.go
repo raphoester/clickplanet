@@ -16,15 +16,16 @@ type AnnouncementID uuid.UUID
 type Kind string
 
 const (
-	KindBomb    Kind = "bomb"
-	KindMute    Kind = "mute"
-	KindRound   Kind = "round"
-	KindFortify Kind = "fortify"
+	KindBomb     Kind = "bomb"
+	KindMute     Kind = "mute"
+	KindRound    Kind = "round"
+	KindFortify  Kind = "fortify"
+	KindChampion Kind = "champion"
 )
 
 var ErrUnknownKind = errors.New("an announcement of a kind nobody knows")
 
-func Kinds() []Kind { return []Kind{KindBomb, KindMute, KindRound, KindFortify} }
+func Kinds() []Kind { return []Kind{KindBomb, KindMute, KindRound, KindFortify, KindChampion} }
 
 func (k Kind) Known() bool { return slices.Contains(Kinds(), k) }
 
@@ -178,7 +179,40 @@ func (r Round) Payload() (json.RawMessage, error) {
 	return payload, nil
 }
 
+type Champion struct {
+	season    uint32
+	countries []string
+}
+
+func ChampionOf(season uint32, table []Place) Champion {
+	var countries []string
+	for _, place := range table {
+		if place.rank == 1 && place.points > 0 {
+			countries = append(countries, place.country)
+		}
+	}
+	return Champion{season: season, countries: countries}
+}
+
+func (c Champion) Crowned() bool { return len(c.countries) > 0 }
+
+type championPayload struct {
+	Season    uint32   `json:"season"`
+	Countries []string `json:"countries"`
+}
+
+// The id is the season's, so a season is announced once however often it is told.
+func (c Champion) Announcement(at time.Time) (Announcement, error) {
+	payload, err := json.Marshal(championPayload{Season: c.season, Countries: c.countries})
+	if err != nil {
+		return Announcement{}, fmt.Errorf("failed to encode a champion announcement: %w", err)
+	}
+	id := uuid.NewSHA1(uuid.NameSpaceURL, fmt.Appendf(nil, "https://clickplanet.lol/seasons/%d/champion", c.season))
+	return NewAnnouncement(AnnouncementID(id), KindChampion, at, payload), nil
+}
+
 type Storage interface {
 	Append(ctx context.Context, announcement Announcement) error
+	AppendOnce(ctx context.Context, announcement Announcement) (bool, error)
 	DeleteBefore(ctx context.Context, cutoff time.Time) (int64, error)
 }

@@ -44,6 +44,7 @@ const adminOrigin = "https://backoffice.clickplanet.lol"
 
 type stackConfigs struct {
 	planet  *planet.Config
+	seasons *seasons.Config
 	support *support.Config
 }
 
@@ -97,7 +98,7 @@ func startGameWith(t *testing.T, adjust func(stackConfigs)) gameStack {
 	supportConfig.Attachments.Bucket.Name = "support"
 	supportConfig.Attachments.Bucket.AccessKeyID = "the-key-id"
 	supportConfig.Attachments.Bucket.SecretAccessKey = "the-secret-key"
-	adjust(stackConfigs{planet: &planetConfig, support: &supportConfig})
+	adjust(stackConfigs{planet: &planetConfig, seasons: &seasonsConfig, support: &supportConfig})
 
 	authModule, fakes := auth.NewModuleWithFakeProviders(authConfig)
 

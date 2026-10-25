@@ -109,13 +109,17 @@ func (s *Store) Number(_ context.Context, round rounds.Round) (uint32, error) {
 	if s.failWith != nil {
 		return 0, s.failWith
 	}
+	return s.numberOf(round), nil
+}
+
+func (s *Store) numberOf(round rounds.Round) uint32 {
 	number := uint32(1)
 	for _, at := range s.rounds {
 		if at.round.Season == round.Season && at.round.EndsAt.Before(round.EndsAt) {
 			number++
 		}
 	}
-	return number, nil
+	return number
 }
 
 func (s *Store) Close(_ context.Context, round rounds.Round, results []rounds.Result) error {
@@ -134,13 +138,19 @@ func (s *Store) Close(_ context.Context, round rounds.Round, results []rounds.Re
 	return nil
 }
 
-func (s *Store) Results(round rounds.Round) []rounds.Result {
+func (s *Store) ClosedIn(_ context.Context, season calendar.Number) ([]rounds.Closed, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	at, known := s.rounds[keyOf(round)]
-	if !known {
-		return nil
+	if s.failWith != nil {
+		return nil, s.failWith
 	}
-	return slices.Clone(at.results)
+	var closed []rounds.Closed
+	for _, at := range s.rounds {
+		if at.round.Season == season && at.closed {
+			closed = append(closed, rounds.Closed{Round: at.round, Number: s.numberOf(at.round), Results: append([]rounds.Result(nil), at.results...)})
+		}
+	}
+	slices.SortFunc(closed, func(a, b rounds.Closed) int { return a.Round.EndsAt.Compare(b.Round.EndsAt) })
+	return closed, nil
 }

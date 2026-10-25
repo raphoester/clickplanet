@@ -7,13 +7,14 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/suite"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/calendar"
 )
 
 type StoreContractSuite struct {
 	suite.Suite
 
-	NewStore  func() Store
-	ResultsOf func(store Store, round Round) []Result
+	NewStore func() Store
 
 	store Store
 }
@@ -93,7 +94,7 @@ func (s *StoreContractSuite) TestAClosedRoundKeepsItsResultsAndIsNoLongerUnclose
 
 	s.Require().NoError(s.store.Close(s.T().Context(), contractDay, results))
 
-	s.Equal(results, s.ResultsOf(s.store, contractDay))
+	s.Equal([]Closed{{Round: contractDay, Number: 1, Results: results}}, s.closedIn(0))
 	s.Empty(s.unclosed(contractNextDay.EndsAt))
 }
 
@@ -104,7 +105,47 @@ func (s *StoreContractSuite) TestASecondCloseChangesNothing() {
 
 	s.Require().NoError(s.store.Close(s.T().Context(), contractDay, []Result{{Country: "de", Rank: 1, Points: 25}}))
 
-	s.Equal(first, s.ResultsOf(s.store, contractDay))
+	s.Equal([]Closed{{Round: contractDay, Number: 1, Results: first}}, s.closedIn(0))
+}
+
+func (s *StoreContractSuite) closedIn(season calendar.Number) []Closed {
+	closed, err := s.store.ClosedIn(s.T().Context(), season)
+	s.Require().NoError(err)
+	return closed
+}
+
+func (s *StoreContractSuite) close(round Round, results ...Result) {
+	s.Require().NoError(s.store.Close(s.T().Context(), round, results))
+}
+
+func (s *StoreContractSuite) TestASeasonListsTheRoundsItClosedInTheirOrder() {
+	nextSeason := Round{Season: 1, EndsAt: contractFinale.EndsAt.Add(Length)}
+	for _, round := range []Round{contractDay, contractNextDay, contractFinale, nextSeason} {
+		s.snapshot(round, map[Country]uint32{"fr": 2, "de": 1})
+	}
+	day := []Result{{Country: "fr", Rank: 1, Points: 25}, {Country: "de", Rank: 2, Points: 18}}
+	nextDay := []Result{{Country: "de", Rank: 1, Points: 25}}
+	s.close(contractNextDay, nextDay...)
+	s.close(contractDay, day...)
+	s.close(nextSeason, day...)
+
+	s.Equal([]Closed{
+		{Round: contractDay, Number: 1, Results: day},
+		{Round: contractNextDay, Number: 2, Results: nextDay},
+	}, s.closedIn(0), "the finale is not closed yet, and the next season is its own")
+}
+
+func (s *StoreContractSuite) TestARoundClosedWithNoResultsIsListedWithNone() {
+	s.snapshot(contractDay, map[Country]uint32{})
+	s.close(contractDay)
+
+	s.Equal([]Closed{{Round: contractDay, Number: 1}}, s.closedIn(0))
+}
+
+func (s *StoreContractSuite) TestASeasonWithNoRoundClosedListsNone() {
+	s.snapshot(contractDay, map[Country]uint32{"fr": 1})
+
+	s.Empty(s.closedIn(0))
 }
 
 func (s *StoreContractSuite) number(round Round) uint32 {

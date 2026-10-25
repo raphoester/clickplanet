@@ -200,3 +200,29 @@ func (s *testSuite) TestTheFinaleClosedIsShownAsTheFinale() {
 	s.True(closed.GetFinale())
 	s.Equal(finale.EndsAt.UnixMilli(), closed.GetEndedAtUnixMs())
 }
+
+func (s *testSuite) TestTheTableAfterTheFinaleIsTheTableTheSeasonEndsWith() {
+	s.closed(fourteenth, rounds.Result{Country: "fr", Rank: 1, Points: 25}, rounds.Result{Country: "de", Rank: 2, Points: 18})
+	s.closed(fifteenth, rounds.Result{Country: "de", Rank: 1, Points: 25}, rounds.Result{Country: "fr", Rank: 2, Points: 18})
+	s.closed(sixteenth, rounds.Result{Country: "it", Rank: 1, Points: 25}, rounds.Result{Country: "nz", Rank: 11})
+	earlier, err := s.store.ClosedIn(s.T().Context(), 0)
+	s.Require().NoError(err)
+	results := []rounds.Result{{Country: "de", Rank: 1, Points: 75}, {Country: "it", Rank: 2, Points: 54}, {Country: "fr", Rank: 2, Points: 54}}
+	s.closed(finale, results...)
+	s.at(utc(31, 23).Add(time.Minute))
+
+	end, over := rounds.Closed{Round: finale, Number: 4, Results: results}.SeasonEnd(earlier)
+
+	s.Require().True(over)
+	ended := make([]*seasonsv1.Score, 0, len(end.Table))
+	for _, placed := range end.Table {
+		ended = append(ended, &seasonsv1.Score{
+			Rank: placed.Rank, CountryId: string(placed.Country), Points: uint32(placed.Points), RoundsWon: placed.RoundsWon,
+		})
+	}
+	after := s.race().GetClosed().GetAfter()
+	s.Len(after, len(ended))
+	for i := range ended {
+		s.True(proto.Equal(ended[i], after[i]), "the race shows %v, the season ends with %v", after[i], ended[i])
+	}
+}
