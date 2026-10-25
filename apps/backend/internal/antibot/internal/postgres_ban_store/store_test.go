@@ -103,8 +103,8 @@ func (s *testSuite) TestEveryPardonIsKept() {
 	}
 
 	var pardons, accountPardons int
-	s.Require().NoError(s.db.QueryRowContext(ctx, `SELECT count(*) FROM pardons WHERE scope = $1`, scope).Scan(&pardons))
-	s.Require().NoError(s.db.QueryRowContext(ctx, `SELECT count(*) FROM account_pardons WHERE account = $1`, account).Scan(&accountPardons))
+	s.Require().NoError(s.db.On(ctx).QueryRowContext(ctx, `SELECT count(*) FROM pardons WHERE scope = $1`, scope).Scan(&pardons))
+	s.Require().NoError(s.db.On(ctx).QueryRowContext(ctx, `SELECT count(*) FROM account_pardons WHERE account = $1`, account).Scan(&accountPardons))
 	s.Equal(2, pardons)
 	s.Equal(2, accountPardons)
 }

@@ -8,13 +8,20 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes"
 )
 
-func TestAMuteSaysWhoAndForHowManySeconds(t *testing.T) {
-	payload, err := announcements.MutedOf("guest_a1b2c3", time.Hour).Payload()
+func payloadOf(t *testing.T, told func(time.Time) (announcements.Announcement, error)) string {
+	t.Helper()
 
+	announcement, err := told(at)
 	require.NoError(t, err)
-	assert.JSONEq(t, `{"name":"guest_a1b2c3","seconds":3600}`, string(payload))
+	return string(announcement.Payload())
+}
+
+func TestAMuteSaysWhoAndForHowManySeconds(t *testing.T) {
+	assert.JSONEq(t, `{"name":"guest_a1b2c3","seconds":3600}`,
+		payloadOf(t, announcements.MutedOf(mutes.MuteID{15: 1}, "guest_a1b2c3", time.Hour).Announcement))
 }
 
 func TestAMuteIsAKindTheChatKnows(t *testing.T) {
@@ -22,42 +29,37 @@ func TestAMuteIsAKindTheChatKnows(t *testing.T) {
 }
 
 func TestARoundNamesItsPodium(t *testing.T) {
-	payload, err := announcements.RoundOf(5, false, []announcements.Place{
+	round := announcements.RoundOf(0, 5, false, []announcements.Place{
 		announcements.PlaceOf("fr", 1, 25),
 		announcements.PlaceOf("de", 2, 18),
 		announcements.PlaceOf("es", 3, 15),
 		announcements.PlaceOf("it", 4, 12),
-	}).Payload()
+	})
 
-	require.NoError(t, err)
 	assert.JSONEq(t, `{"number":5,"podium":[
 		{"country":"fr","rank":1,"points":25},
 		{"country":"de","rank":2,"points":18},
 		{"country":"es","rank":3,"points":15}
-	]}`, string(payload))
+	]}`, payloadOf(t, round.Announcement))
 }
 
 func TestCountriesTiedOnThePodiumAreAllNamed(t *testing.T) {
-	payload, err := announcements.RoundOf(23, true, []announcements.Place{
+	round := announcements.RoundOf(0, 23, true, []announcements.Place{
 		announcements.PlaceOf("fr", 1, 75),
 		announcements.PlaceOf("de", 2, 54),
 		announcements.PlaceOf("it", 2, 54),
 		announcements.PlaceOf("es", 4, 36),
-	}).Payload()
+	})
 
-	require.NoError(t, err)
 	assert.JSONEq(t, `{"number":23,"finale":true,"podium":[
 		{"country":"fr","rank":1,"points":75},
 		{"country":"de","rank":2,"points":54},
 		{"country":"it","rank":2,"points":54}
-	]}`, string(payload))
+	]}`, payloadOf(t, round.Announcement))
 }
 
 func TestARoundNobodyHeldGroundInHasAnEmptyPodium(t *testing.T) {
-	payload, err := announcements.RoundOf(1, false, nil).Payload()
-
-	require.NoError(t, err)
-	assert.JSONEq(t, `{"number":1,"podium":[]}`, string(payload))
+	assert.JSONEq(t, `{"number":1,"podium":[]}`, payloadOf(t, announcements.RoundOf(0, 1, false, nil).Announcement))
 }
 
 func TestARoundIsAKindTheChatKnows(t *testing.T) {
@@ -106,4 +108,27 @@ func TestAChampionIsAnnouncedUnderItsSeasonsID(t *testing.T) {
 
 	assert.Equal(t, first.ID(), again.ID())
 	assert.NotEqual(t, first.ID(), next.ID())
+}
+
+func TestAFactIsAnnouncedUnderAnIDOfItsOwn(t *testing.T) {
+	ids := map[announcements.AnnouncementID]string{}
+	for name, told := range map[string]func(time.Time) (announcements.Announcement, error){
+		"bomb 7":        announcements.BombOf(7, "fr", "de", 42, 3).Announcement,
+		"bomb 8":        announcements.BombOf(8, "fr", "de", 42, 3).Announcement,
+		"fortify 7":     announcements.FortifyOf(7, "fr", "is", 3, 60).Announcement,
+		"mute 1":        announcements.MutedOf(mutes.MuteID{15: 1}, "guest_a1b2c3", time.Hour).Announcement,
+		"round 5":       announcements.RoundOf(0, 5, false, nil).Announcement,
+		"round 5 of 1":  announcements.RoundOf(1, 5, false, nil).Announcement,
+		"champion of 0": announcements.ChampionOf(0, nil).Announcement,
+	} {
+		first, err := told(at)
+		require.NoError(t, err)
+		again, err := told(at.Add(time.Hour))
+		require.NoError(t, err)
+
+		assert.Equal(t, first.ID(), again.ID(), "%s told twice", name)
+		ids[first.ID()] += name
+	}
+
+	assert.Len(t, ids, 7, "each fact has an id no other fact has")
 }

@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements"
-	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/usecases/announce_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes"
 )
 
 type Authors interface {
@@ -15,10 +15,11 @@ type Authors interface {
 }
 
 type Announcer interface {
-	Execute(ctx context.Context, in announce_usecase.In) error
+	Execute(ctx context.Context, announcement announcements.Announcement) error
 }
 
 type In struct {
+	Mute     mutes.MuteID
 	Account  messages.AccountID
 	At       time.Time
 	Duration time.Duration
@@ -39,10 +40,10 @@ func (u *UseCase) Execute(ctx context.Context, in In) error {
 		return fmt.Errorf("failed to name the muted account: %w", err)
 	}
 
-	payload, err := announcements.MutedOf(author.Name(), in.Duration).Payload()
+	announcement, err := announcements.MutedOf(in.Mute, author.Name(), in.Duration).Announcement(in.At)
 	if err != nil {
 		return fmt.Errorf("cannot announce the mute: %w", err)
 	}
 
-	return u.announcer.Execute(ctx, announce_usecase.In{Kind: announcements.KindMute, At: in.At, Payload: payload})
+	return u.announcer.Execute(ctx, announcement)
 }

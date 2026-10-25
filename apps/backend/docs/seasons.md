@@ -13,12 +13,15 @@ internal/seasons/internal/
     usecases/record_take_usecase/  forget_account_usecase/
   rounds/                         Country, Round (Current, Results, Closed), Snapshot, Result, Closed (SeasonEnd),
                                   Score (ScoresOf), Placed (TableOf), SeasonEnd; the Store port (RecordSnapshot,
-                                  Unclosed, Held, Number, Close, ClosedIn) and its contract suite
+                                  Unclosed, Held, Number, Close, ClosedIn) and its contract suite; Close answers
+                                  whether this call closed the round
     postgres_round_store/         the Store over seasons.rounds, round_holdings and round_results
     inmemory_round_store/         the same port in maps, behind the testing tag
     rpc_planet_territories/         the snapshot, from planet.v1.InternalService/GetTerritories
-    usecases/take_snapshot_usecase/ closes the rounds that ended and publishes each, and the season's end with its
-                                  finale, then counts the round in progress; Runner
+    usecases/close_round_usecase/  closes one round and records it, and the season's end with its finale, in the
+                                  outbox, in one transaction
+    usecases/take_snapshot_usecase/ closes the rounds that ended through close_round_usecase, then counts the round in
+                                  progress; Runner
       log_take_snapshot/            logs each round closed, and a snapshot that failed
   seasonsv1controller/            SeasonService (a bag), the cache interceptor, the session interceptor
     get_season_handler/
@@ -51,7 +54,7 @@ internal/seasons/internal/
 **A player's season score is the tiles it took this season for its main flag**, the flag it took the most tiles for, so a player cannot add up several flags. **A country's board is every player who took tiles for that country, ranked by those tiles**, so a player is on the board of each flag it took for, and a change of flag shows at the first take rather than when the main flag moves.
 
 - **`standings.Tally` is the rule**: an account's tiles per flag in one season, and its main flag. `WithTake` adds one tile and makes the flag the main one when it has strictly more tiles than the main one; a tie keeps the flag that got there first. **The season of a take is the one whose interval holds `taken_at`** (`Take.Season`, over `Calendar.Current`); a take after the last season counts nothing. `tally_test.go` and `take_test.go` pin both.
-- **Takes come from `planet.v1.TileTaken`** (`seasons-standings`), one tile per event. A strike on a shield, a click the ban refuses (it never reaches the ledger) and a revert publish nothing, so they change no score. Takes before this module had a database are not replayed: counting started the day it shipped.
+- **Takes come from `planet.v1.TileTaken`** (`seasons-standings`), one tile per event, in ledger order. The tally keeps the position after the last take it counted (`Tally.TakesBelow`, `counted_takes_below` on each row), so a take told twice counts once. A strike on a shield, a click the ban refuses (it never reaches the ledger) and a revert publish nothing, so they change no score. Takes before this module had a database are not replayed: counting started the day it shipped.
 - **One transaction per take**, under `pg_advisory_xact_lock` on the account: read the account's rows for the season, apply `WithTake`, upsert the flag's row and move `main`. The rule stays in Go; the column only keeps what it said.
 - **Kept in `seasons.contributions`** (`season`, `account_id`, `country`, `tiles`, `main`; primary key `(season, account_id, country)`), with its own block, `seasons.database`, its own pool and migrations. `main` marks one row per account and season (a partial unique index). A partial index on it serves the whole map's board, and `contributions_country_board` (`season, country, tiles DESC, account_id`, every row) serves a country's.
 - **`auth.v1.AccountDeleted`** (`seasons-standings-accounts`) deletes the account's rows in every season.
@@ -123,9 +126,9 @@ standings rank players, the rounds rank countries.
   countries ranked 1. It needs no token, is a GET (`NO_SIDE_EFFECTS`) and answers `public, max-age=60`.
   `hall_of_fame_query` reads `seasons.rounds` and `seasons.contributions` itself; its tests seed through
   `postgres_round_store` and `postgres_contribution_store`.
-- `rounds.StoreContractSuite` runs on `inmemory_round_store` and on postgres. `e2e/race_test.go` clicks for two flags
-  and reads the race off the stream. `e2e/champion_test.go` runs a season of 8 seconds and sees the chat name its
-  champion, the one the race puts first.
+- `rounds.StoreContractSuite` runs on `inmemory_round_store` and on postgres. `race_query`'s suite ranks a
+  round from its snapshots, `take_snapshot_usecase` closes the finale and tells the season's table, and chat's
+  `season_closed_subscriber` names the champion once.
 - `standings.StoreContractSuite` runs on `inmemory_contribution_store` and on postgres. It reads what a store kept through a `TallyOf` hook each adapter's test fills, since the write side reads nothing back. The use cases are tested over the in-memory one; the queries on postgres, seeded through `postgres_contribution_store`.
 
 

@@ -18,5 +18,9 @@ type testSuite struct {
 }
 
 func (s *testSuite) SetupSuite() {
-	s.NewStore = func() accounts.Store { return inmemory_account_store.New() }
+	var store *inmemory_account_store.Store
+	s.NewStore = func() accounts.Store {
+		store = inmemory_account_store.New()
+		return store
+	}
 }

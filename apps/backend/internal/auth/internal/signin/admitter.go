@@ -6,10 +6,9 @@ import (
 	"fmt"
 	"time"
 
-	"google.golang.org/protobuf/proto"
-
 	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 )
 
 type IdentityStore interface {
@@ -20,22 +19,26 @@ type IdentityStore interface {
 	SaveSignIn(ctx context.Context, signIn accounts.SignIn) error
 }
 
-type Publisher interface {
-	Publish(event proto.Message)
-}
-
 type Admitter struct {
-	store    IdentityStore
-	ids      accounts.IDProvider
-	tokens   accounts.TokenGenerator
-	lifetime accounts.Lifetime
-	events   Publisher
+	transactioner cpatomic.Transactioner
+	store         IdentityStore
+	outbox        cpatomic.Outbox
+	ids           accounts.IDProvider
+	tokens        accounts.TokenGenerator
+	lifetime      accounts.Lifetime
 }
 
 func NewAdmitter(
-	store IdentityStore, ids accounts.IDProvider, tokens accounts.TokenGenerator, lifetime accounts.Lifetime, events Publisher,
+	transactioner cpatomic.Transactioner,
+	store IdentityStore,
+	outbox cpatomic.Outbox,
+	ids accounts.IDProvider,
+	tokens accounts.TokenGenerator,
+	lifetime accounts.Lifetime,
 ) *Admitter {
-	return &Admitter{store: store, ids: ids, tokens: tokens, lifetime: lifetime.WithDefaults(), events: events}
+	return &Admitter{
+		transactioner: transactioner, store: store, outbox: outbox, ids: ids, tokens: tokens, lifetime: lifetime.WithDefaults(),
+	}
 }
 
 type Visitor struct {
@@ -147,16 +150,22 @@ func (a *Admitter) admit(
 		signIn = signIn.WithIdentity(accounts.NewIdentity(provider, claim, account, now))
 	}
 
-	if err := a.store.SaveSignIn(ctx, signIn); err != nil {
-		return nil, fmt.Errorf("failed to save the sign-in: %w", err)
-	}
-
 	signedIn := &authv1.SignedIn{AccountId: account.String()}
 	if current != nil {
 		signedIn.PreviousAccountId = current.ID().String()
 	}
-	// After the sign-in is saved: a subscriber moves what it keeps for the old account.
-	a.events.Publish(signedIn)
+	err = a.transactioner.InTx(ctx, func(ctx context.Context) error {
+		if err := a.store.SaveSignIn(ctx, signIn); err != nil {
+			return fmt.Errorf("failed to save the sign-in: %w", err)
+		}
+		if err := a.outbox.Record(ctx, signedIn); err != nil {
+			return fmt.Errorf("failed to record the sign-in: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
 
 	return &Admission{account: account, outcome: outcome, setCookie: session.Cookie(token, now)}, nil
 }

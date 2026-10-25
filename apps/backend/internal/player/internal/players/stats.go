@@ -34,6 +34,17 @@ type Stats struct {
 	tilesFortified uint64
 	bonusesClaimed uint64
 	rightAnswers   uint64
+	counted        Counted
+}
+
+// A fact can be told twice: one before its kind's mark was counted already. Ledger facts come in ledger order.
+type Counted struct {
+	TakesBelow     uint64
+	BombsBelow     uint64
+	FortifiesBelow uint64
+	MessagesUntil  time.Time
+	BonusesUntil   time.Time
+	AnswersUntil   time.Time
 }
 
 type StatsSnapshot struct {
@@ -46,6 +57,7 @@ type StatsSnapshot struct {
 	TilesFortified uint64
 	BonusesClaimed uint64
 	RightAnswers   uint64
+	Counted        Counted
 }
 
 func (s StatsSnapshot) Restore() Stats {
@@ -59,6 +71,7 @@ func (s StatsSnapshot) Restore() Stats {
 		tilesFortified: s.TilesFortified,
 		bonusesClaimed: s.BonusesClaimed,
 		rightAnswers:   s.RightAnswers,
+		counted:        s.Counted,
 	}
 }
 
@@ -73,6 +86,7 @@ func (s Stats) TakeSnapshot() StatsSnapshot {
 		TilesFortified: s.tilesFortified,
 		BonusesClaimed: s.bonusesClaimed,
 		RightAnswers:   s.rightAnswers,
+		Counted:        s.counted,
 	}
 }
 
@@ -106,11 +120,39 @@ func (s Stats) BonusesClaimed() uint64 { return s.bonusesClaimed }
 
 func (s Stats) RightAnswers() uint64 { return s.rightAnswers }
 
-func TakeAt(at time.Time) func(Stats) Stats {
-	return func(s Stats) Stats { return s.WithTake(at) }
+func TakeAt(position uint64, at time.Time) func(Stats) Stats {
+	return func(s Stats) Stats { return s.WithTake(position, at) }
 }
 
-func (s Stats) WithTake(at time.Time) Stats {
+func MessageAt(at time.Time) func(Stats) Stats {
+	return func(s Stats) Stats { return s.WithMessage(at) }
+}
+
+func BombAt(position uint64) func(Stats) Stats {
+	return func(s Stats) Stats { return s.WithBomb(position) }
+}
+
+func FortifyAt(position uint64, tiles uint64) func(Stats) Stats {
+	return func(s Stats) Stats { return s.WithFortify(position, tiles) }
+}
+
+func BonusAt(at time.Time) func(Stats) Stats {
+	return func(s Stats) Stats { return s.WithBonus(at) }
+}
+
+func RightAnswerAt(at time.Time) func(Stats) Stats {
+	return func(s Stats) Stats { return s.WithRightAnswer(at) }
+}
+
+// Postgres keeps a time to the microsecond: a fact told again must compare equal to the one kept.
+func momentOf(at time.Time) time.Time { return at.UTC().Truncate(time.Microsecond) }
+
+func (s Stats) WithTake(position uint64, at time.Time) Stats {
+	if position < s.counted.TakesBelow {
+		return s
+	}
+	s.counted.TakesBelow = position + 1
+
 	day := DayOf(at)
 	s.tilesTaken++
 
@@ -131,27 +173,47 @@ func (s Stats) WithTake(at time.Time) Stats {
 	return s
 }
 
-func (s Stats) WithMessage() Stats {
+func (s Stats) WithMessage(at time.Time) Stats {
+	if !momentOf(at).After(s.counted.MessagesUntil) {
+		return s
+	}
+	s.counted.MessagesUntil = momentOf(at)
 	s.messagesSent++
 	return s
 }
 
-func (s Stats) WithBomb() Stats {
+func (s Stats) WithBomb(position uint64) Stats {
+	if position < s.counted.BombsBelow {
+		return s
+	}
+	s.counted.BombsBelow = position + 1
 	s.bombsDropped++
 	return s
 }
 
-func (s Stats) WithFortify(tiles uint64) Stats {
+func (s Stats) WithFortify(position uint64, tiles uint64) Stats {
+	if position < s.counted.FortifiesBelow {
+		return s
+	}
+	s.counted.FortifiesBelow = position + 1
 	s.tilesFortified += tiles
 	return s
 }
 
-func (s Stats) WithBonus() Stats {
+func (s Stats) WithBonus(at time.Time) Stats {
+	if !momentOf(at).After(s.counted.BonusesUntil) {
+		return s
+	}
+	s.counted.BonusesUntil = momentOf(at)
 	s.bonusesClaimed++
 	return s
 }
 
-func (s Stats) WithRightAnswer() Stats {
+func (s Stats) WithRightAnswer(at time.Time) Stats {
+	if !momentOf(at).After(s.counted.AnswersUntil) {
+		return s
+	}
+	s.counted.AnswersUntil = momentOf(at)
 	s.rightAnswers++
 	return s
 }

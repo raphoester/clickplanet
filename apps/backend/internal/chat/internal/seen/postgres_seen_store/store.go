@@ -12,18 +12,18 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
-func New(db cppg.QuerierBeginner) *Store {
+func New(db cppg.Conn) *Store {
 	return &Store{db: db}
 }
 
 type Store struct {
-	db cppg.QuerierBeginner
+	db cppg.Conn
 }
 
 var _ seen.Storage = (*Store)(nil)
 
 func (s *Store) SaveSeen(ctx context.Context, account messages.AccountID, until time.Time) error {
-	if _, err := s.db.ExecContext(ctx, `
+	if _, err := s.db.On(ctx).ExecContext(ctx, `
 		INSERT INTO seen (account_id, seen_until)
 		VALUES ($1, $2)
 		ON CONFLICT (account_id) DO UPDATE SET seen_until = GREATEST(seen.seen_until, EXCLUDED.seen_until)
@@ -34,7 +34,7 @@ func (s *Store) SaveSeen(ctx context.Context, account messages.AccountID, until 
 }
 
 func (s *Store) DeleteSeen(ctx context.Context, account messages.AccountID) error {
-	if _, err := s.db.ExecContext(ctx, `DELETE FROM seen WHERE account_id = $1`, uuid.UUID(account)); err != nil {
+	if _, err := s.db.On(ctx).ExecContext(ctx, `DELETE FROM seen WHERE account_id = $1`, uuid.UUID(account)); err != nil {
 		return fmt.Errorf("failed to delete what the account has seen: %w", err)
 	}
 	return nil

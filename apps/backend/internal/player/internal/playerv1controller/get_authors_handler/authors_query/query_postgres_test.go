@@ -97,6 +97,13 @@ func (s *testSuite) TestAUsernameWinsOverTheGuestCodeItNoLongerGoesBy() {
 	s.Equal(map[string]string{ada.String(): "Ada"}, names(s.authors(ada)))
 }
 
+func (s *testSuite) TestARenamedPlayerIsNamedByItsNewNameAndNotByWhoTookItsOldOne() {
+	s.named(ada, "Ada_Lovelace")
+	s.named(bob, "Ada")
+
+	s.Equal(map[string]string{ada.String(): "Ada_Lovelace", bob.String(): "Ada"}, names(s.authors(ada, bob)))
+}
+
 func (s *testSuite) TestAGuestIsToldApartFromAUsername() {
 	authors := s.authors(ada, guest)
 
@@ -105,7 +112,7 @@ func (s *testSuite) TestAGuestIsToldApartFromAUsername() {
 }
 
 func (s *testSuite) TestAnAdminCarriesItsMark() {
-	_, err := s.db.ExecContext(s.T().Context(), `UPDATE profiles SET admin = true WHERE account_id = $1`, uuid.UUID(ada))
+	_, err := s.db.On(s.T().Context()).ExecContext(s.T().Context(), `UPDATE profiles SET admin = true WHERE account_id = $1`, uuid.UUID(ada))
 	s.Require().NoError(err)
 
 	authors := s.authors(ada, bob)
@@ -116,7 +123,7 @@ func (s *testSuite) TestAnAdminCarriesItsMark() {
 
 func (s *testSuite) TestAnAccountNobodyCanNameIsLeftOut() {
 	unnamed := players.AccountID{15: 4}
-	s.Require().NoError(s.players.Record(s.T().Context(), unnamed, players.TakeAt(today)))
+	s.Require().NoError(s.players.Record(s.T().Context(), unnamed, players.TakeAt(0, today)))
 
 	s.Equal(map[string]string{ada.String(): "Ada"}, names(s.authors(ada, unnamed, players.AccountID{15: 5})),
 		"an account with neither a profile nor a code is absent, and so is an unknown one")
@@ -155,10 +162,10 @@ func (s *testSuite) TestARepeatedAccountIsAnsweredOnceInTheOrderAsked() {
 func (s *testSuite) TestEachAuthorCarriesItsColorAndItsStreakAsOfToday() {
 	s.Require().NoError(s.players.SaveColor(s.T().Context(), ada, players.Color(playerv1.NameColor_NAME_COLOR_PINK)))
 	for _, account := range []players.AccountID{ada, guest} {
-		s.Require().NoError(s.players.Record(s.T().Context(), account, players.TakeAt(today.AddDate(0, 0, -1))))
-		s.Require().NoError(s.players.Record(s.T().Context(), account, players.TakeAt(today)))
+		s.Require().NoError(s.players.Record(s.T().Context(), account, players.TakeAt(0, today.AddDate(0, 0, -1))))
+		s.Require().NoError(s.players.Record(s.T().Context(), account, players.TakeAt(1, today)))
 	}
-	s.Require().NoError(s.players.Record(s.T().Context(), bob, players.TakeAt(today.AddDate(0, 0, -3))))
+	s.Require().NoError(s.players.Record(s.T().Context(), bob, players.TakeAt(2, today.AddDate(0, 0, -3))))
 
 	authors := s.authors(ada, bob, guest)
 
@@ -170,7 +177,7 @@ func (s *testSuite) TestEachAuthorCarriesItsColorAndItsStreakAsOfToday() {
 }
 
 func (s *testSuite) TestAnAuthorWhoOnlyPostedHasNoStreak() {
-	s.Require().NoError(s.players.Record(s.T().Context(), ada, players.Stats.WithMessage))
+	s.Require().NoError(s.players.Record(s.T().Context(), ada, players.MessageAt(today)))
 
 	s.Zero(s.authors(ada)[ada.String()].GetStreak())
 }
@@ -209,7 +216,7 @@ func (s *testSuite) TestEachAuthorIsWhatGetAuthorAnswersForIt() {
 	s.named(cy, "Cyd")
 	s.named(dan, "Dan")
 	s.Require().NoError(s.players.SaveGuestCode(s.T().Context(), eve, "0d0e0f"))
-	_, err := s.db.ExecContext(s.T().Context(), `UPDATE profiles SET admin = true WHERE account_id = $1`, uuid.UUID(ada))
+	_, err := s.db.On(s.T().Context()).ExecContext(s.T().Context(), `UPDATE profiles SET admin = true WHERE account_id = $1`, uuid.UUID(ada))
 	s.Require().NoError(err)
 	s.Require().NoError(s.players.SaveColor(s.T().Context(), ada, players.Color(playerv1.NameColor_NAME_COLOR_PINK)))
 	takes := map[players.AccountID][]time.Time{
@@ -219,11 +226,11 @@ func (s *testSuite) TestEachAuthorIsWhatGetAuthorAnswersForIt() {
 		dan:   {today.AddDate(0, 0, 1)},
 	}
 	for account, at := range takes {
-		for _, take := range at {
-			s.Require().NoError(s.players.Record(s.T().Context(), account, players.TakeAt(take)))
+		for position, take := range at {
+			s.Require().NoError(s.players.Record(s.T().Context(), account, players.TakeAt(uint64(position), take)))
 		}
 	}
-	s.Require().NoError(s.players.Record(s.T().Context(), cy, players.Stats.WithMessage))
+	s.Require().NoError(s.players.Record(s.T().Context(), cy, players.MessageAt(today)))
 	s.Require().NoError(s.titles.Grant(s.T().Context(), titles.Holdings{
 		ada: {"og", "settler"}, bob: {"settler", "raider", "loyal"}, guest: {"og"}, dan: {"retired", "og"},
 	}, today))

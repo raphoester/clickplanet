@@ -74,6 +74,11 @@ export class AccountMuted extends Message<AccountMuted> {
    */
   duration?: Duration;
 
+  /**
+   * @generated from field: string mute_id = 4;
+   */
+  muteId = "";
+
   constructor(data?: PartialMessage<AccountMuted>) {
     super();
     proto3.util.initPartial(data, this);
@@ -85,6 +90,7 @@ export class AccountMuted extends Message<AccountMuted> {
     { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "muted_at", kind: "message", T: Timestamp },
     { no: 3, name: "duration", kind: "message", T: Duration },
+    { no: 4, name: "mute_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AccountMuted {

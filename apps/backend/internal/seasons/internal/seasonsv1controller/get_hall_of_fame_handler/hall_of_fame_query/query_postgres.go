@@ -25,12 +25,12 @@ const (
 	page  = 200
 )
 
-func NewPostgresQuery(db cppg.Querier, authors Authors) *PostgresQuery {
+func NewPostgresQuery(db cppg.Conn, authors Authors) *PostgresQuery {
 	return &PostgresQuery{db: db, authors: authors}
 }
 
 type PostgresQuery struct {
-	db      cppg.Querier
+	db      cppg.Conn
 	authors Authors
 }
 
@@ -58,7 +58,7 @@ func (q *PostgresQuery) HallOfFame(ctx context.Context) (*seasonsv1.GetHallOfFam
 }
 
 func (q *PostgresQuery) ended(ctx context.Context) ([]*seasonsv1.EndedSeason, error) {
-	rows, err := q.db.QueryContext(ctx, `
+	rows, err := q.db.On(ctx).QueryContext(ctx, `
 		SELECT season, ends_at FROM rounds WHERE finale AND closed ORDER BY season DESC
 	`)
 	if err != nil {
@@ -87,7 +87,7 @@ func (q *PostgresQuery) ended(ctx context.Context) ([]*seasonsv1.EndedSeason, er
 }
 
 func (q *PostgresQuery) scores(ctx context.Context, season uint32) ([]*seasonsv1.Score, error) {
-	rows, err := q.db.QueryContext(ctx, `
+	rows, err := q.db.On(ctx).QueryContext(ctx, `
 		SELECT result.country,
 		       sum(result.points),
 		       count(*) FILTER (WHERE result.rank = 1),
@@ -181,7 +181,7 @@ type line struct {
 var start = line{tiles: math.MaxInt64}
 
 func (q *PostgresQuery) lines(ctx context.Context, season uint32, after line) ([]line, error) {
-	rows, err := q.db.QueryContext(ctx, `
+	rows, err := q.db.On(ctx).QueryContext(ctx, `
 		SELECT account_id, country, tiles
 		FROM contributions
 		WHERE season = $1 AND main AND (tiles < $2 OR (tiles = $2 AND account_id > $3))

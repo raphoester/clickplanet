@@ -67,6 +67,7 @@ type testSuite struct {
 	rounds        *postgres_round_store.Store
 	contributions *postgres_contribution_store.Store
 	authors       *fakeAuthors
+	taken         uint64
 }
 
 func (s *testSuite) SetupSuite() {
@@ -86,7 +87,8 @@ func (s *testSuite) counted(round rounds.Round) {
 
 func (s *testSuite) closed(round rounds.Round, results ...rounds.Result) {
 	s.counted(round)
-	s.Require().NoError(s.rounds.Close(s.T().Context(), round, results))
+	_, err := s.rounds.Close(s.T().Context(), round, results)
+	s.Require().NoError(err)
 }
 
 func account(n int) standings.AccountID {
@@ -95,7 +97,9 @@ func account(n int) standings.AccountID {
 
 func (s *testSuite) take(season calendar.Number, n int, country standings.Country, tiles int) {
 	for range tiles {
-		s.Require().NoError(s.contributions.RecordTake(s.T().Context(), season, standings.Take{Account: account(n), Country: country}))
+		s.taken++
+		s.Require().NoError(s.contributions.RecordTake(s.T().Context(), season,
+			standings.Take{Account: account(n), Country: country, Position: s.taken}))
 	}
 }
 

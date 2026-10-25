@@ -13,8 +13,8 @@ import (
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/claim_bonus_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -65,7 +65,7 @@ func TestAClaimHandsTheChargeToTheAccount(t *testing.T) {
 	registry := granting(bonuses.KindRefill)
 	charger, store := charges()
 
-	out, err := claim_bonus_usecase.New(registry, charger, cpbootstrap.NewRecordedEvents(), clock).
+	out, err := claim_bonus_usecase.New(registry, charger, cpredis.NewRecordedEvents(), clock).
 		Execute(played(t), claim_bonus_usecase.In{Token: "a-token", CountryID: "fr"})
 	require.NoError(t, err)
 
@@ -81,7 +81,7 @@ func TestALinkedAccountClaimsWhatWasOfferedToTheAccount(t *testing.T) {
 	charger, _ := charges()
 	ctx := cpctx.AddLinkedToContext(cpctx.AddAccountToContext(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), "a-player"))
 
-	_, err := claim_bonus_usecase.New(registry, charger, cpbootstrap.NewRecordedEvents(), clock).
+	_, err := claim_bonus_usecase.New(registry, charger, cpredis.NewRecordedEvents(), clock).
 		Execute(ctx, claim_bonus_usecase.In{Token: "a-token", CountryID: "fr"})
 	require.NoError(t, err)
 
@@ -93,7 +93,7 @@ func TestEveryKindIsGrantedAsACharge(t *testing.T) {
 	for _, kind := range bonuses.Kinds {
 		charger, store := charges()
 
-		_, err := claim_bonus_usecase.New(granting(kind), charger, cpbootstrap.NewRecordedEvents(), clock).
+		_, err := claim_bonus_usecase.New(granting(kind), charger, cpredis.NewRecordedEvents(), clock).
 			Execute(played(t), claim_bonus_usecase.In{Token: "a-token"})
 		require.NoError(t, err)
 
@@ -105,7 +105,7 @@ func TestACatchIsAnnouncedWithTheCountryTheClaimNamed(t *testing.T) {
 	registry := granting(bonuses.KindBomb)
 	charger, _ := charges()
 
-	_, err := claim_bonus_usecase.New(registry, charger, cpbootstrap.NewRecordedEvents(), clock).
+	_, err := claim_bonus_usecase.New(registry, charger, cpredis.NewRecordedEvents(), clock).
 		Execute(played(t), claim_bonus_usecase.In{Token: "a-token", CountryID: "jp"})
 	require.NoError(t, err)
 
@@ -114,7 +114,7 @@ func TestACatchIsAnnouncedWithTheCountryTheClaimNamed(t *testing.T) {
 
 func TestACatchIsToldToTheOtherModulesWithTheAccountThatCaughtIt(t *testing.T) {
 	charger, _ := charges()
-	events := cpbootstrap.NewRecordedEvents()
+	events := cpredis.NewRecordedEvents()
 
 	_, err := claim_bonus_usecase.New(granting(bonuses.KindBomb), charger, events, clock).
 		Execute(played(t), claim_bonus_usecase.In{Token: "a-token", CountryID: "jp"})
@@ -128,7 +128,7 @@ func TestACatchIsToldToTheOtherModulesWithTheAccountThatCaughtIt(t *testing.T) {
 func TestARefusedClaimGrantsNothingAndAnnouncesNothing(t *testing.T) {
 	registry := &stubRegistry{claimable: false}
 	charger, store := charges()
-	events := cpbootstrap.NewRecordedEvents()
+	events := cpredis.NewRecordedEvents()
 
 	_, err := claim_bonus_usecase.New(registry, charger, events, clock).
 		Execute(played(t), claim_bonus_usecase.In{Token: "not-mine"})
@@ -143,7 +143,7 @@ func TestTheAmountTheBoxGaveIsGrantedAndAnswered(t *testing.T) {
 	registry := &stubRegistry{claimable: true, reward: bonuses.Reward{Kind: bonuses.KindSpreadClicks, Amount: 3}}
 	charger, store := charges()
 
-	out, err := claim_bonus_usecase.New(registry, charger, cpbootstrap.NewRecordedEvents(), clock).
+	out, err := claim_bonus_usecase.New(registry, charger, cpredis.NewRecordedEvents(), clock).
 		Execute(played(t), claim_bonus_usecase.In{Token: "a-token"})
 	require.NoError(t, err)
 
@@ -157,7 +157,7 @@ func TestTheAnswerSaysOnlyWhatThePoolKept(t *testing.T) {
 	charger, store := charges()
 	store.Keep(guest, bonuses.Held{SpreadClicks: 7})
 
-	out, err := claim_bonus_usecase.New(registry, charger, cpbootstrap.NewRecordedEvents(), clock).
+	out, err := claim_bonus_usecase.New(registry, charger, cpredis.NewRecordedEvents(), clock).
 		Execute(played(t), claim_bonus_usecase.In{Token: "a-token"})
 	require.NoError(t, err)
 

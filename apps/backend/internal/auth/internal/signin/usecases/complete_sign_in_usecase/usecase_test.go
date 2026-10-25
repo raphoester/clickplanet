@@ -19,7 +19,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/aes_flow_sealer"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/usecases/complete_sign_in_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/usecases/start_sign_in_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -33,8 +33,9 @@ type fixture struct {
 	sealer     *aes_flow_sealer.Sealer
 	google     *signin.FakeProvider
 	store      *inmemory_account_store.Store
+	outbox     *cpatomic.FakeOutbox
 	clock      *cptime.FixedClock
-	events     *cpbootstrap.RecordedEvents
+	seeded     int
 	start      *start_sign_in_usecase.UseCase
 	completion *complete_sign_in_usecase.UseCase
 }
@@ -44,7 +45,7 @@ func setUp(t *testing.T) *fixture {
 
 	sealer, err := aes_flow_sealer.New(bytes.Repeat([]byte{1}, 32))
 	require.NoError(t, err)
-	f := &fixture{sealer: sealer, google: signin.NewFakeProvider(signin.Google), store: inmemory_account_store.New(), clock: cptime.NewFixedClock(start), events: cpbootstrap.NewRecordedEvents()}
+	f := &fixture{sealer: sealer, google: signin.NewFakeProvider(signin.Google), store: inmemory_account_store.New(), outbox: &cpatomic.FakeOutbox{}, clock: cptime.NewFixedClock(start)}
 	providers := signin.Providers{signin.Google: f.google}
 	f.start = start_sign_in_usecase.New(providers, f.store, &signin.SequentialSecrets{}, sealer, f.clock)
 	f.completion = complete_sign_in_usecase.New(providers, sealer, f.admitter(), f.clock)
@@ -52,7 +53,7 @@ func setUp(t *testing.T) *fixture {
 }
 
 func (f *fixture) admitter() *signin.Admitter {
-	return signin.NewAdmitter(f.store, &accounts.SequentialIDs{}, &accounts.SequentialTokens{}, lifetime, f.events)
+	return signin.NewAdmitter(cpatomic.FakeTransactioner{}, f.store, f.outbox, &accounts.SequentialIDs{}, &accounts.SequentialTokens{}, lifetime)
 }
 
 func (f *fixture) guest(t *testing.T, account byte, token string) {
@@ -103,6 +104,7 @@ func (f *fixture) linkedAccount(t *testing.T, account byte, provider string, sub
 	identity := accounts.NewIdentity(provider, accounts.ClaimOf(subject, "", false), accounts.AccountID{15: account}, start)
 	linked := accounts.LinkedSession(identity.Account(), accounts.TokenOf(token), lifetime, start)
 	require.NoError(t, f.store.SaveSignIn(t.Context(), accounts.NewSignIn(linked).WithNewAccount().WithIdentity(identity)))
+	f.seeded = len(f.outbox.Recorded())
 }
 
 func TestAGoogleSignInJoinsTheAccountThatHoldsItsAddress(t *testing.T) {
@@ -110,12 +112,14 @@ func TestAGoogleSignInJoinsTheAccountThatHoldsItsAddress(t *testing.T) {
 	identity := accounts.NewIdentity(signin.Email, accounts.ClaimOf("a@example.com", "a@example.com", true), accounts.AccountID{15: 9}, start)
 	linked := accounts.LinkedSession(identity.Account(), accounts.TokenOf("email-token"), lifetime, start)
 	require.NoError(t, f.store.SaveSignIn(t.Context(), accounts.NewSignIn(linked).WithNewAccount().WithIdentity(identity)))
+	f.seeded = len(f.outbox.Recorded())
 
 	out, err := f.complete(t, "")
 	require.NoError(t, err)
 
 	assert.Equal(t, accounts.AccountID{15: 9}, out.Account())
 	assert.Equal(t, accounts.Joined, out.Outcome())
+	assert.Equal(t, out.Account(), f.sessionAccount(t, out.SetCookie()), "the next mint carries the account joined")
 	google, err := f.store.Identity(t.Context(), signin.Google, "google-user")
 	require.NoError(t, err)
 	assert.Equal(t, accounts.AccountID{15: 9}, google.Account())
@@ -126,6 +130,7 @@ func TestAnUnverifiedAddressJoinsNothing(t *testing.T) {
 	identity := accounts.NewIdentity(signin.Email, accounts.ClaimOf("a@example.com", "a@example.com", true), accounts.AccountID{15: 9}, start)
 	linked := accounts.LinkedSession(identity.Account(), accounts.TokenOf("email-token"), lifetime, start)
 	require.NoError(t, f.store.SaveSignIn(t.Context(), accounts.NewSignIn(linked).WithNewAccount().WithIdentity(identity)))
+	f.seeded = len(f.outbox.Recorded())
 
 	out, err := f.finish(t, accounts.IntentSignIn, "", accounts.ClaimOf("google-user", "a@example.com", false))
 	require.NoError(t, err)
@@ -137,7 +142,7 @@ func TestAnUnverifiedAddressJoinsNothing(t *testing.T) {
 func (f *fixture) assertPublished(t *testing.T, want ...proto.Message) {
 	t.Helper()
 
-	published := f.events.Published()
+	published := f.outbox.Recorded()[f.seeded:]
 	require.Len(t, published, len(want))
 	for i := range want {
 		assert.True(t, proto.Equal(want[i], published[i]), "event %d: want %v, got %v", i, want[i], published[i])
@@ -150,6 +155,14 @@ func cookieValue(t *testing.T, setCookie string) string {
 	cookie, err := http.ParseSetCookie(setCookie)
 	require.NoError(t, err)
 	return cookie.Value
+}
+
+func (f *fixture) sessionAccount(t *testing.T, setCookie string) accounts.AccountID {
+	t.Helper()
+
+	session, err := f.store.Session(t.Context(), accounts.TokenOf(cookieValue(t, setCookie)).Hash())
+	require.NoError(t, err)
+	return session.Account()
 }
 
 func TestANewIdentityLinksToTheGuestAndReplacesItsSession(t *testing.T) {
@@ -165,6 +178,7 @@ func TestANewIdentityLinksToTheGuestAndReplacesItsSession(t *testing.T) {
 	session, err := f.store.Session(t.Context(), accounts.TokenOf("token-1").Hash())
 	require.NoError(t, err)
 	assert.Equal(t, start.Add(30*24*time.Hour), session.ExpiresAt(), "a linked session lasts the linked lifetime")
+	assert.Equal(t, out.Account(), session.Account(), "the next mint carries the account signed in")
 	_, err = f.store.Session(t.Context(), accounts.TokenOf("guest-token").Hash())
 	require.ErrorIs(t, err, accounts.ErrSessionNotFound)
 	identity, err := f.store.Identity(t.Context(), signin.Google, "google-user")
@@ -184,6 +198,7 @@ func TestAKnownIdentitySignsInToItsAccountAndLeavesTheGuestAsItWas(t *testing.T)
 
 	assert.Equal(t, accounts.AccountID{15: 1}, out.Account())
 	assert.Equal(t, accounts.SignedIn, out.Outcome())
+	assert.Equal(t, out.Account(), f.sessionAccount(t, out.SetCookie()), "the next mint carries the account signed in, not the guest")
 	guest, err := f.store.Account(t.Context(), accounts.AccountID{15: 7})
 	require.NoError(t, err)
 	assert.Empty(t, guest.Providers(), "nothing is merged, and the guest gains no identity")
@@ -202,6 +217,7 @@ func TestABrowserWithNoAccountGetsANewOne(t *testing.T) {
 
 	assert.Equal(t, accounts.AccountID{15: 1}, out.Account())
 	assert.Equal(t, accounts.Created, out.Outcome())
+	assert.Equal(t, out.Account(), f.sessionAccount(t, out.SetCookie()), "the next mint carries the account made")
 	f.assertPublished(t, &authv1.SignedIn{AccountId: accounts.AccountID{15: 1}.String()})
 	made, err := f.store.Account(t.Context(), out.Account())
 	require.NoError(t, err)
@@ -225,6 +241,7 @@ func TestAGoogleSignInJoinsTheDiscordAccountWithItsVerifiedAddress(t *testing.T)
 	identity := accounts.NewIdentity("discord", accounts.ClaimOf("discord-user", claim.VerifiedEmail(), true), accounts.AccountID{15: 7}, start)
 	linked := accounts.LinkedSession(identity.Account(), accounts.TokenOf("discord"), lifetime, start)
 	require.NoError(t, f.store.SaveSignIn(t.Context(), accounts.NewSignIn(linked).WithNewAccount().WithIdentity(identity)))
+	f.seeded = len(f.outbox.Recorded())
 
 	out, err := f.complete(t, "")
 	require.NoError(t, err)
@@ -279,7 +296,7 @@ func TestLinkingAnIdentityAnotherAccountUsesIsRefusedAndWritesNothing(t *testing
 	current, err := f.store.Account(t.Context(), accounts.AccountID{15: 7})
 	require.NoError(t, err)
 	assert.Equal(t, []string{"discord"}, current.Providers())
-	assert.Empty(t, f.events.Published(), "a refusal moves no browser")
+	assert.Empty(t, f.outbox.Recorded()[f.seeded:], "a refusal moves no browser")
 }
 
 func TestLinkingASecondUserOfAProviderIsRefused(t *testing.T) {

@@ -18,12 +18,12 @@ type Titles interface {
 	Worn(held []string, choice string) *playerv1.Title
 }
 
-func NewPostgresQuery(db cppg.Querier, titles Titles, clock cptime.Clock) *PostgresQuery {
+func NewPostgresQuery(db cppg.Conn, titles Titles, clock cptime.Clock) *PostgresQuery {
 	return &PostgresQuery{db: db, titles: titles, clock: clock}
 }
 
 type PostgresQuery struct {
-	db     cppg.Querier
+	db     cppg.Conn
 	titles Titles
 	clock  cptime.Clock
 }
@@ -60,7 +60,7 @@ func (q *PostgresQuery) Authors(ctx context.Context, accounts []cpsession.Accoun
 		ids = append(ids, account.String())
 	}
 
-	rows, err := q.db.QueryContext(ctx, authors, pq.Array(ids), q.clock.Now().UTC().Format(time.DateOnly))
+	rows, err := q.db.On(ctx).QueryContext(ctx, authors, pq.Array(ids), q.clock.Now().UTC().Format(time.DateOnly))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the authors: %w", err)
 	}

@@ -68,6 +68,8 @@ linters:
         - json.Unmarshal(
         - json.Marshal(
 
+        - .InTx(
+        - .InOpenTx(
         - .Execute(
         - .Post(
         - .Create(

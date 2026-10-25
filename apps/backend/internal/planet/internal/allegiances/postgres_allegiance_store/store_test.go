@@ -37,7 +37,7 @@ func TestAFirstFlagIsKeptWithNoTime(t *testing.T) {
 	}))
 
 	var changedAt *string
-	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT changed_at::text FROM allegiances WHERE account = $1`,
+	require.NoError(t, db.On(t.Context()).QueryRowContext(t.Context(), `SELECT changed_at::text FROM allegiances WHERE account = $1`,
 		string(alice)).Scan(&changedAt))
 	require.Nil(t, changedAt)
 }

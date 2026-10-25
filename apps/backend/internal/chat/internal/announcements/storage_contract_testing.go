@@ -35,15 +35,11 @@ func contractAnnouncement(name string, at time.Time) Announcement {
 
 func (s *StorageContractSuite) append(names ...string) {
 	for i, name := range names {
-		s.Require().NoError(s.storage.Append(context.Background(),
-			contractAnnouncement(name, contractStart.Add(time.Duration(i)*time.Hour))))
+		appended, err := s.storage.AppendOnce(context.Background(),
+			contractAnnouncement(name, contractStart.Add(time.Duration(i)*time.Hour)))
+		s.Require().NoError(err)
+		s.Require().True(appended)
 	}
-}
-
-func (s *StorageContractSuite) TestAnIDIsKeptOnce() {
-	s.append("boom")
-
-	s.Error(s.storage.Append(context.Background(), contractAnnouncement("boom", contractStart.Add(time.Hour))))
 }
 
 func (s *StorageContractSuite) TestAnAnnouncementAppendedOnceIsKeptTheFirstTime() {
@@ -58,15 +54,6 @@ func (s *StorageContractSuite) TestAnAnnouncementAppendedOnceIsKeptTheFirstTime(
 	deleted, err := s.storage.DeleteBefore(context.Background(), contractStart.Add(24*time.Hour))
 	s.Require().NoError(err)
 	s.Equal(int64(1), deleted)
-}
-
-func (s *StorageContractSuite) TestAnAnnouncementAppendedOnceIsNotAppendedOverOneAppended() {
-	s.append("boom")
-
-	appended, err := s.storage.AppendOnce(context.Background(), contractAnnouncement("boom", contractStart.Add(time.Hour)))
-	s.Require().NoError(err)
-
-	s.False(appended)
 }
 
 func (s *StorageContractSuite) TestDeleteBeforeRemovesWhatIsOlderAndCountsIt() {
