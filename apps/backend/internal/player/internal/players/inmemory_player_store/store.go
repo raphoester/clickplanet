@@ -7,7 +7,6 @@ import (
 	"context"
 	"slices"
 	"sync"
-	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 )
@@ -163,7 +162,7 @@ func (s *Store) Stats(_ context.Context, account players.AccountID) (players.Sta
 	return stats, nil
 }
 
-func (s *Store) RecordTake(_ context.Context, account players.AccountID, at time.Time) error {
+func (s *Store) Record(_ context.Context, account players.AccountID, change func(players.Stats) players.Stats) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -174,22 +173,7 @@ func (s *Store) RecordTake(_ context.Context, account players.AccountID, at time
 	if !ok {
 		stats = players.NewStats(account)
 	}
-	s.stats[account] = stats.WithTake(at)
-	return nil
-}
-
-func (s *Store) RecordMessage(_ context.Context, account players.AccountID) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if s.failWith != nil {
-		return s.failWith
-	}
-	stats, ok := s.stats[account]
-	if !ok {
-		stats = players.NewStats(account)
-	}
-	s.stats[account] = stats.WithMessage()
+	s.stats[account] = change(stats)
 	return nil
 }
 

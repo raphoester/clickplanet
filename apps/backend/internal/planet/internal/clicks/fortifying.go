@@ -13,9 +13,10 @@ type Fortification struct {
 	// The country whose ground the landmass is.
 	Ground  string
 	Country string
-	// The tile whose take made the landmass whole.
-	Tile  uint32
-	Tiles int
+	// The tile whose take made the landmass whole, and the account that took it.
+	Tile    uint32
+	Account string
+	Tiles   int
 	// A tile already at the most it holds gains none.
 	Raised []TileShields
 }

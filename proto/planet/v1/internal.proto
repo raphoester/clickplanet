@@ -18,6 +18,10 @@ service InternalService {
   }
 
   rpc GrantCharge(GrantChargeRequest) returns (GrantChargeResponse);
+
+  rpc GetBombsAndFortifies(GetBombsAndFortifiesRequest) returns (GetBombsAndFortifiesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 }
 
 message GetTakesByCountryRequest {
@@ -66,4 +70,18 @@ message GrantChargeRequest {
 // 0 when the account already holds as much of the kind as it may.
 message GrantChargeResponse {
   uint32 kept = 1;
+}
+
+message GetBombsAndFortifiesRequest {
+  repeated string account_ids = 1;
+}
+
+message GetBombsAndFortifiesResponse {
+  repeated BombsAndFortifies accounts = 1;
+}
+
+message BombsAndFortifies {
+  string account_id = 1;
+  uint64 bombs_dropped = 2;
+  uint64 tiles_fortified = 3;
 }

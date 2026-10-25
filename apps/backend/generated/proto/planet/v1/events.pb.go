@@ -113,6 +113,7 @@ type BombLanded struct {
 	Ground        string                 `protobuf:"bytes,3,opt,name=ground,proto3" json:"ground,omitempty"`
 	Cleared       uint32                 `protobuf:"varint,4,opt,name=cleared,proto3" json:"cleared,omitempty"`
 	LandedAt      *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=landed_at,json=landedAt,proto3" json:"landed_at,omitempty"`
+	AccountId     string                 `protobuf:"bytes,6,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -182,6 +183,13 @@ func (x *BombLanded) GetLandedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *BombLanded) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
 type Fortified struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Country       string                 `protobuf:"bytes,1,opt,name=country,proto3" json:"country,omitempty"`
@@ -189,6 +197,7 @@ type Fortified struct {
 	Tiles         uint32                 `protobuf:"varint,3,opt,name=tiles,proto3" json:"tiles,omitempty"`
 	FortifiedAt   *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=fortified_at,json=fortifiedAt,proto3" json:"fortified_at,omitempty"`
 	Ground        string                 `protobuf:"bytes,5,opt,name=ground,proto3" json:"ground,omitempty"`
+	AccountId     string                 `protobuf:"bytes,6,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -258,6 +267,125 @@ func (x *Fortified) GetGround() string {
 	return ""
 }
 
+func (x *Fortified) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+type BonusClaimed struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	ClaimedAt     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=claimed_at,json=claimedAt,proto3" json:"claimed_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BonusClaimed) Reset() {
+	*x = BonusClaimed{}
+	mi := &file_planet_v1_events_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BonusClaimed) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BonusClaimed) ProtoMessage() {}
+
+func (x *BonusClaimed) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_events_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BonusClaimed.ProtoReflect.Descriptor instead.
+func (*BonusClaimed) Descriptor() ([]byte, []int) {
+	return file_planet_v1_events_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *BonusClaimed) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+func (x *BonusClaimed) GetClaimedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ClaimedAt
+	}
+	return nil
+}
+
+type QuizAnswered struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	Correct       bool                   `protobuf:"varint,2,opt,name=correct,proto3" json:"correct,omitempty"`
+	AnsweredAt    *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=answered_at,json=answeredAt,proto3" json:"answered_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *QuizAnswered) Reset() {
+	*x = QuizAnswered{}
+	mi := &file_planet_v1_events_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *QuizAnswered) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*QuizAnswered) ProtoMessage() {}
+
+func (x *QuizAnswered) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_events_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use QuizAnswered.ProtoReflect.Descriptor instead.
+func (*QuizAnswered) Descriptor() ([]byte, []int) {
+	return file_planet_v1_events_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *QuizAnswered) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+func (x *QuizAnswered) GetCorrect() bool {
+	if x != nil {
+		return x.Correct
+	}
+	return false
+}
+
+func (x *QuizAnswered) GetAnsweredAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.AnsweredAt
+	}
+	return nil
+}
+
 var File_planet_v1_events_proto protoreflect.FileDescriptor
 
 const file_planet_v1_events_proto_rawDesc = "" +
@@ -270,21 +398,36 @@ const file_planet_v1_events_proto_rawDesc = "" +
 	"\acountry\x18\x03 \x01(\tR\acountry\x125\n" +
 	"\btaken_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\atakenAt\x12\x1a\n" +
 	"\bprevious\x18\x05 \x01(\tR\bprevious\x12\x16\n" +
-	"\x06ground\x18\x06 \x01(\tR\x06ground\"\xaa\x01\n" +
+	"\x06ground\x18\x06 \x01(\tR\x06ground\"\xc9\x01\n" +
 	"\n" +
 	"BombLanded\x12\x18\n" +
 	"\acountry\x18\x01 \x01(\tR\acountry\x12\x17\n" +
 	"\atile_id\x18\x02 \x01(\rR\x06tileId\x12\x16\n" +
 	"\x06ground\x18\x03 \x01(\tR\x06ground\x12\x18\n" +
 	"\acleared\x18\x04 \x01(\rR\acleared\x127\n" +
-	"\tlanded_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\blandedAt\"\xb3\x01\n" +
+	"\tlanded_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\blandedAt\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x06 \x01(\tR\taccountId\"\xd2\x01\n" +
 	"\tFortified\x12\x18\n" +
 	"\acountry\x18\x01 \x01(\tR\acountry\x12\x1f\n" +
 	"\vlandmass_id\x18\x02 \x01(\rR\n" +
 	"landmassId\x12\x14\n" +
 	"\x05tiles\x18\x03 \x01(\rR\x05tiles\x12=\n" +
 	"\ffortified_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\vfortifiedAt\x12\x16\n" +
-	"\x06ground\x18\x05 \x01(\tR\x06groundB\xb3\x01\n" +
+	"\x06ground\x18\x05 \x01(\tR\x06ground\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x06 \x01(\tR\taccountId\"h\n" +
+	"\fBonusClaimed\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\x129\n" +
+	"\n" +
+	"claimed_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tclaimedAt\"\x84\x01\n" +
+	"\fQuizAnswered\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\x12\x18\n" +
+	"\acorrect\x18\x02 \x01(\bR\acorrect\x12;\n" +
+	"\vanswered_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"answeredAtB\xb3\x01\n" +
 	"\rcom.planet.v1B\vEventsProtoP\x01ZPgithub.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1;planetv1\xa2\x02\x03PXX\xaa\x02\tPlanet.V1\xca\x02\tPlanet\\V1\xe2\x02\x15Planet\\V1\\GPBMetadata\xea\x02\n" +
 	"Planet::V1b\x06proto3"
 
@@ -300,22 +443,26 @@ func file_planet_v1_events_proto_rawDescGZIP() []byte {
 	return file_planet_v1_events_proto_rawDescData
 }
 
-var file_planet_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_planet_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_planet_v1_events_proto_goTypes = []any{
 	(*TileTaken)(nil),             // 0: planet.v1.TileTaken
 	(*BombLanded)(nil),            // 1: planet.v1.BombLanded
 	(*Fortified)(nil),             // 2: planet.v1.Fortified
-	(*timestamppb.Timestamp)(nil), // 3: google.protobuf.Timestamp
+	(*BonusClaimed)(nil),          // 3: planet.v1.BonusClaimed
+	(*QuizAnswered)(nil),          // 4: planet.v1.QuizAnswered
+	(*timestamppb.Timestamp)(nil), // 5: google.protobuf.Timestamp
 }
 var file_planet_v1_events_proto_depIdxs = []int32{
-	3, // 0: planet.v1.TileTaken.taken_at:type_name -> google.protobuf.Timestamp
-	3, // 1: planet.v1.BombLanded.landed_at:type_name -> google.protobuf.Timestamp
-	3, // 2: planet.v1.Fortified.fortified_at:type_name -> google.protobuf.Timestamp
-	3, // [3:3] is the sub-list for method output_type
-	3, // [3:3] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	5, // 0: planet.v1.TileTaken.taken_at:type_name -> google.protobuf.Timestamp
+	5, // 1: planet.v1.BombLanded.landed_at:type_name -> google.protobuf.Timestamp
+	5, // 2: planet.v1.Fortified.fortified_at:type_name -> google.protobuf.Timestamp
+	5, // 3: planet.v1.BonusClaimed.claimed_at:type_name -> google.protobuf.Timestamp
+	5, // 4: planet.v1.QuizAnswered.answered_at:type_name -> google.protobuf.Timestamp
+	5, // [5:5] is the sub-list for method output_type
+	5, // [5:5] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_planet_v1_events_proto_init() }
@@ -329,7 +476,7 @@ func file_planet_v1_events_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_planet_v1_events_proto_rawDesc), len(file_planet_v1_events_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

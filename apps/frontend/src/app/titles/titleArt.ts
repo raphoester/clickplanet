@@ -2,7 +2,9 @@ import {PlayerTitle, TitleTrack} from "../../backends/player.ts"
 
 export type Metal = "bronze" | "silver" | "gold" | "platinum" | "prism" | "holo"
 
-type Track = "conquest" | "chatter" | "devotion" | "og"
+const TRACKS = ["conquest", "chatter", "devotion", "defense", "bombs", "loot", "quiz"] as const
+
+type Track = typeof TRACKS[number] | "og"
 
 export const METALS: Record<Metal, string> = {
     bronze: "var(--bronze)",
@@ -32,6 +34,22 @@ const TITLE_METALS: Partial<Record<string, Metal>> = {
     chatterbox: "silver",
     socialite: "gold",
     icon: "prism",
+    guard: "bronze",
+    defender: "silver",
+    protector: "gold",
+    warden: "prism",
+    bomber: "bronze",
+    blaster: "silver",
+    wrecker: "gold",
+    destroyer: "prism",
+    looter: "bronze",
+    hunter: "silver",
+    pirate: "gold",
+    captain: "prism",
+    student: "bronze",
+    expert: "silver",
+    professor: "gold",
+    genius: "prism",
 }
 
 export function metalOf(title: PlayerTitle): Metal {
@@ -39,10 +57,8 @@ export function metalOf(title: PlayerTitle): Metal {
 }
 
 function trackOf(title: PlayerTitle): Track {
-    if (title.rank?.trackId === "devotion") return "devotion"
-    if (title.rank?.trackId === "chatter") return "chatter"
-    if (title.rank) return "conquest"
-    return "og"
+    if (!title.rank) return "og"
+    return TRACKS.find((track) => track === title.rank?.trackId) ?? "conquest"
 }
 
 export function enamelOf(title: PlayerTitle): string {
@@ -86,6 +102,22 @@ const TRACK_UNITS: Partial<Record<string, {step: (n: string) => string, left: (n
     chatter: {
         step: (n) => `${n} messages`,
         left: (n, next) => `${n} messages to ${next}`,
+    },
+    defense: {
+        step: (n) => `${n} fortified tiles`,
+        left: (n, next) => `${n} fortified tiles to ${next}`,
+    },
+    bombs: {
+        step: (n) => `${n} ${n === "1" ? "bomb" : "bombs"}`,
+        left: (n, next) => `${n} ${n === "1" ? "bomb" : "bombs"} to ${next}`,
+    },
+    loot: {
+        step: (n) => `${n} boxes`,
+        left: (n, next) => `${n} ${n === "1" ? "box" : "boxes"} to ${next}`,
+    },
+    quiz: {
+        step: (n) => `${n} right answers`,
+        left: (n, next) => `${n} ${n === "1" ? "right answer" : "right answers"} to ${next}`,
     },
 }
 

@@ -27,14 +27,14 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/random_code_generator"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/random_name_generator"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/rpc_account_reader"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/rpc_planet_recounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/forget_account_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_author_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/name_account_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/name_account_usecase/renaming_name_account"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/record_message_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/record_message_usecase/publishing_record_message"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/record_take_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/record_take_usecase/publishing_record_take"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/record_stats_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/recount_stats_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/recount_stats_usecase/audit_recount_stats"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/set_color_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/set_name_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/set_name_usecase/renaming_set_name"
@@ -64,6 +64,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/leave_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/reconcile_titles_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/recount_stats_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/rpc_planet_fronts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/rpc_planet_fronts/caching_fronts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/search_players_handler"
@@ -77,9 +78,13 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/usecases/listen_for_events_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/usecases/move_visit_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/account_deleted_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/bomb_landed_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/bonus_claimed_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/fortified_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/message_sent_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/mission_take_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/quiz_answered_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/signed_in_account_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/signed_in_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/signed_out_subscriber"
@@ -116,6 +121,7 @@ const (
 	accountDeletedBuffer = 2048
 	signInBuffer         = 256
 	messageSentBuffer    = 256
+	bonusBuffer          = 256
 )
 
 func NewModule(config Config) cpbootstrap.Module {
@@ -179,10 +185,9 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	generatedNames := players.NewGeneratedNames(store, random_name_generator.Generator{})
 	props.Runners.Add(visits)
 
+	recordStats := record_stats_usecase.New(store, props.Events)
 	takes, err := cpbootstrap.Subscribe(props.Events, "player-stats", tileTakenBuffer,
-		log_subscriber.New(tile_taken_subscriber.New(
-			publishing_record_take.New(record_take_usecase.New(store), props.Events),
-		), props.Logger))
+		log_subscriber.New(tile_taken_subscriber.New(recordStats), props.Logger))
 	if err != nil {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to planet.v1.TileTaken: %w", err)
@@ -202,12 +207,34 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to subscribe the missions to auth.v1.AccountDeleted: %w", err)
 	}
 	posts, err := cpbootstrap.Subscribe(props.Events, "player-stats-messages", messageSentBuffer,
-		log_subscriber.New(message_sent_subscriber.New(
-			publishing_record_message.New(record_message_usecase.New(store), props.Events),
-		), props.Logger))
+		log_subscriber.New(message_sent_subscriber.New(recordStats), props.Logger))
 	if err != nil {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to chat.v1.MessageSent: %w", err)
+	}
+	bombs, err := cpbootstrap.Subscribe(props.Events, "player-stats-bombs", bonusBuffer,
+		log_subscriber.New(bomb_landed_subscriber.New(recordStats), props.Logger))
+	if err != nil {
+		_ = db.Close()
+		return fmt.Errorf("failed to subscribe to planet.v1.BombLanded: %w", err)
+	}
+	fortifies, err := cpbootstrap.Subscribe(props.Events, "player-stats-fortifies", bonusBuffer,
+		log_subscriber.New(fortified_subscriber.New(recordStats), props.Logger))
+	if err != nil {
+		_ = db.Close()
+		return fmt.Errorf("failed to subscribe to planet.v1.Fortified: %w", err)
+	}
+	claims, err := cpbootstrap.Subscribe(props.Events, "player-stats-bonuses", bonusBuffer,
+		log_subscriber.New(bonus_claimed_subscriber.New(recordStats), props.Logger))
+	if err != nil {
+		_ = db.Close()
+		return fmt.Errorf("failed to subscribe to planet.v1.BonusClaimed: %w", err)
+	}
+	answers, err := cpbootstrap.Subscribe(props.Events, "player-stats-quizzes", bonusBuffer,
+		log_subscriber.New(quiz_answered_subscriber.New(recordStats), props.Logger))
+	if err != nil {
+		_ = db.Close()
+		return fmt.Errorf("failed to subscribe to planet.v1.QuizAnswered: %w", err)
 	}
 	awards, err := cpbootstrap.Subscribe(props.Events, "player-titles", tileTakenBuffer,
 		log_subscriber.New(stats_changed_subscriber.New(notifying_award_titles.New(
@@ -266,8 +293,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	props.Runners.Add(signOuts)
 	props.Runners.Add(gone)
 
-	props.Runners.Add(cppg.CloseAfter(db, props.Logger, takes, missionTakes, posts, awards, deletions, forgottenTitles,
-		forgottenChoices, forgottenMissions, signIns, namings))
+	props.Runners.Add(cppg.CloseAfter(db, props.Logger, takes, missionTakes, posts, bombs, fortifies, claims, answers,
+		awards, deletions, forgottenTitles, forgottenChoices, forgottenMissions, signIns, namings))
 
 	verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", "player")))
 
@@ -329,6 +356,9 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		),
 		GetRosterHandler:     getRoster,
 		SearchPlayersHandler: search_players_handler.New(matches_query.NewPostgresQuery(db)),
+		RecountStatsHandler: recount_stats_handler.New(audit_recount_stats.New(
+			recount_stats_usecase.New(store, rpc_planet_recounts.New(planet), props.Events), props.Logger,
+		)),
 	}
 	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return playerv1connect.NewAdminServiceHandler(adminService, options...)

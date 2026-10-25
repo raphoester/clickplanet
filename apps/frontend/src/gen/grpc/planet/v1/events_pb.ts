@@ -102,6 +102,11 @@ export class BombLanded extends Message<BombLanded> {
    */
   landedAt?: Timestamp;
 
+  /**
+   * @generated from field: string account_id = 6;
+   */
+  accountId = "";
+
   constructor(data?: PartialMessage<BombLanded>) {
     super();
     proto3.util.initPartial(data, this);
@@ -115,6 +120,7 @@ export class BombLanded extends Message<BombLanded> {
     { no: 3, name: "ground", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "cleared", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 5, name: "landed_at", kind: "message", T: Timestamp },
+    { no: 6, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BombLanded {
@@ -163,6 +169,11 @@ export class Fortified extends Message<Fortified> {
    */
   ground = "";
 
+  /**
+   * @generated from field: string account_id = 6;
+   */
+  accountId = "";
+
   constructor(data?: PartialMessage<Fortified>) {
     super();
     proto3.util.initPartial(data, this);
@@ -176,6 +187,7 @@ export class Fortified extends Message<Fortified> {
     { no: 3, name: "tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 4, name: "fortified_at", kind: "message", T: Timestamp },
     { no: 5, name: "ground", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 6, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Fortified {
@@ -192,6 +204,98 @@ export class Fortified extends Message<Fortified> {
 
   static equals(a: Fortified | PlainMessage<Fortified> | undefined, b: Fortified | PlainMessage<Fortified> | undefined): boolean {
     return proto3.util.equals(Fortified, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.BonusClaimed
+ */
+export class BonusClaimed extends Message<BonusClaimed> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp claimed_at = 2;
+   */
+  claimedAt?: Timestamp;
+
+  constructor(data?: PartialMessage<BonusClaimed>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.BonusClaimed";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "claimed_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BonusClaimed {
+    return new BonusClaimed().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BonusClaimed {
+    return new BonusClaimed().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BonusClaimed {
+    return new BonusClaimed().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BonusClaimed | PlainMessage<BonusClaimed> | undefined, b: BonusClaimed | PlainMessage<BonusClaimed> | undefined): boolean {
+    return proto3.util.equals(BonusClaimed, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.QuizAnswered
+ */
+export class QuizAnswered extends Message<QuizAnswered> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  /**
+   * @generated from field: bool correct = 2;
+   */
+  correct = false;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp answered_at = 3;
+   */
+  answeredAt?: Timestamp;
+
+  constructor(data?: PartialMessage<QuizAnswered>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.QuizAnswered";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "correct", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 3, name: "answered_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): QuizAnswered {
+    return new QuizAnswered().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): QuizAnswered {
+    return new QuizAnswered().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): QuizAnswered {
+    return new QuizAnswered().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: QuizAnswered | PlainMessage<QuizAnswered> | undefined, b: QuizAnswered | PlainMessage<QuizAnswered> | undefined): boolean {
+    return proto3.util.equals(QuizAnswered, a, b);
   }
 }
 
