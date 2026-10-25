@@ -72,6 +72,55 @@ func (RuleChangeSource) EnumDescriptor() ([]byte, []int) {
 	return file_planet_v1_admin_proto_rawDescGZIP(), []int{0}
 }
 
+type FillSource int32
+
+const (
+	FillSource_FILL_SOURCE_UNSPECIFIED FillSource = 0
+	FillSource_FILL_SOURCE_INTERNAL    FillSource = 1
+	FillSource_FILL_SOURCE_OPERATOR    FillSource = 2
+)
+
+// Enum value maps for FillSource.
+var (
+	FillSource_name = map[int32]string{
+		0: "FILL_SOURCE_UNSPECIFIED",
+		1: "FILL_SOURCE_INTERNAL",
+		2: "FILL_SOURCE_OPERATOR",
+	}
+	FillSource_value = map[string]int32{
+		"FILL_SOURCE_UNSPECIFIED": 0,
+		"FILL_SOURCE_INTERNAL":    1,
+		"FILL_SOURCE_OPERATOR":    2,
+	}
+)
+
+func (x FillSource) Enum() *FillSource {
+	p := new(FillSource)
+	*p = x
+	return p
+}
+
+func (x FillSource) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (FillSource) Descriptor() protoreflect.EnumDescriptor {
+	return file_planet_v1_admin_proto_enumTypes[1].Descriptor()
+}
+
+func (FillSource) Type() protoreflect.EnumType {
+	return &file_planet_v1_admin_proto_enumTypes[1]
+}
+
+func (x FillSource) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use FillSource.Descriptor instead.
+func (FillSource) EnumDescriptor() ([]byte, []int) {
+	return file_planet_v1_admin_proto_rawDescGZIP(), []int{1}
+}
+
 type GetLedgerRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Since *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=since,proto3" json:"since,omitempty"`
@@ -2213,6 +2262,165 @@ func (x *RuleChange) GetAppliedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+type GetChargeFillsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetChargeFillsRequest) Reset() {
+	*x = GetChargeFillsRequest{}
+	mi := &file_planet_v1_admin_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetChargeFillsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetChargeFillsRequest) ProtoMessage() {}
+
+func (x *GetChargeFillsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_admin_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetChargeFillsRequest.ProtoReflect.Descriptor instead.
+func (*GetChargeFillsRequest) Descriptor() ([]byte, []int) {
+	return file_planet_v1_admin_proto_rawDescGZIP(), []int{32}
+}
+
+type GetChargeFillsResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Newest first, at most 20.
+	Fills         []*ChargeFill `protobuf:"bytes,1,rep,name=fills,proto3" json:"fills,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetChargeFillsResponse) Reset() {
+	*x = GetChargeFillsResponse{}
+	mi := &file_planet_v1_admin_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetChargeFillsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetChargeFillsResponse) ProtoMessage() {}
+
+func (x *GetChargeFillsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_admin_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetChargeFillsResponse.ProtoReflect.Descriptor instead.
+func (*GetChargeFillsResponse) Descriptor() ([]byte, []int) {
+	return file_planet_v1_admin_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *GetChargeFillsResponse) GetFills() []*ChargeFill {
+	if x != nil {
+		return x.Fills
+	}
+	return nil
+}
+
+type ChargeFill struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	RequestId string                 `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	Source    FillSource             `protobuf:"varint,2,opt,name=source,proto3,enum=planet.v1.FillSource" json:"source,omitempty"`
+	// Every account the ledger names before it is filled.
+	StartedAt      *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	AccountsFilled uint32                 `protobuf:"varint,4,opt,name=accounts_filled,json=accountsFilled,proto3" json:"accounts_filled,omitempty"`
+	// Unset while the fill runs.
+	FinishedAt    *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=finished_at,json=finishedAt,proto3" json:"finished_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ChargeFill) Reset() {
+	*x = ChargeFill{}
+	mi := &file_planet_v1_admin_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ChargeFill) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ChargeFill) ProtoMessage() {}
+
+func (x *ChargeFill) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_admin_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ChargeFill.ProtoReflect.Descriptor instead.
+func (*ChargeFill) Descriptor() ([]byte, []int) {
+	return file_planet_v1_admin_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *ChargeFill) GetRequestId() string {
+	if x != nil {
+		return x.RequestId
+	}
+	return ""
+}
+
+func (x *ChargeFill) GetSource() FillSource {
+	if x != nil {
+		return x.Source
+	}
+	return FillSource_FILL_SOURCE_UNSPECIFIED
+}
+
+func (x *ChargeFill) GetStartedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.StartedAt
+	}
+	return nil
+}
+
+func (x *ChargeFill) GetAccountsFilled() uint32 {
+	if x != nil {
+		return x.AccountsFilled
+	}
+	return 0
+}
+
+func (x *ChargeFill) GetFinishedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.FinishedAt
+	}
+	return nil
+}
+
 var File_planet_v1_admin_proto protoreflect.FileDescriptor
 
 const file_planet_v1_admin_proto_rawDesc = "" +
@@ -2400,11 +2608,30 @@ const file_planet_v1_admin_proto_rawDesc = "" +
 	"\brule_set\x18\x02 \x01(\tR\aruleSet\x123\n" +
 	"\x06source\x18\x03 \x01(\x0e2\x1b.planet.v1.RuleChangeSourceR\x06source\x129\n" +
 	"\n" +
-	"applied_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tappliedAt*x\n" +
+	"applied_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tappliedAt\"\x17\n" +
+	"\x15GetChargeFillsRequest\"E\n" +
+	"\x16GetChargeFillsResponse\x12+\n" +
+	"\x05fills\x18\x01 \x03(\v2\x15.planet.v1.ChargeFillR\x05fills\"\xfb\x01\n" +
+	"\n" +
+	"ChargeFill\x12\x1d\n" +
+	"\n" +
+	"request_id\x18\x01 \x01(\tR\trequestId\x12-\n" +
+	"\x06source\x18\x02 \x01(\x0e2\x15.planet.v1.FillSourceR\x06source\x129\n" +
+	"\n" +
+	"started_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\x12'\n" +
+	"\x0faccounts_filled\x18\x04 \x01(\rR\x0eaccountsFilled\x12;\n" +
+	"\vfinished_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"finishedAt*x\n" +
 	"\x10RuleChangeSource\x12\"\n" +
 	"\x1eRULE_CHANGE_SOURCE_UNSPECIFIED\x10\x00\x12\x1f\n" +
 	"\x1bRULE_CHANGE_SOURCE_INTERNAL\x10\x01\x12\x1f\n" +
-	"\x1bRULE_CHANGE_SOURCE_OPERATOR\x10\x022\xe7\b\n" +
+	"\x1bRULE_CHANGE_SOURCE_OPERATOR\x10\x02*]\n" +
+	"\n" +
+	"FillSource\x12\x1b\n" +
+	"\x17FILL_SOURCE_UNSPECIFIED\x10\x00\x12\x18\n" +
+	"\x14FILL_SOURCE_INTERNAL\x10\x01\x12\x18\n" +
+	"\x14FILL_SOURCE_OPERATOR\x10\x022\x8c\n" +
+	"\n" +
 	"\fAdminService\x12X\n" +
 	"\x0fReassignCountry\x12!.planet.v1.ReassignCountryRequest\x1a\".planet.v1.ReassignCountryResponse\x12L\n" +
 	"\vFindPlayers\x12\x1d.planet.v1.FindPlayersRequest\x1a\x1e.planet.v1.FindPlayersResponse\x12I\n" +
@@ -2420,7 +2647,9 @@ const file_planet_v1_admin_proto_rawDesc = "" +
 	"\tGetLedger\x12\x1b.planet.v1.GetLedgerRequest\x1a\x1c.planet.v1.GetLedgerResponse\x12U\n" +
 	"\x0eGetTerritories\x12 .planet.v1.GetTerritoriesRequest\x1a!.planet.v1.GetTerritoriesResponse\x12O\n" +
 	"\fApplyRuleSet\x12\x1e.planet.v1.ApplyRuleSetRequest\x1a\x1f.planet.v1.ApplyRuleSetResponse\x12C\n" +
-	"\bGetRules\x12\x1a.planet.v1.GetRulesRequest\x1a\x1b.planet.v1.GetRulesResponseB\xb2\x01\n" +
+	"\bGetRules\x12\x1a.planet.v1.GetRulesRequest\x1a\x1b.planet.v1.GetRulesResponse\x12L\n" +
+	"\vFillCharges\x12\x1d.planet.v1.FillChargesRequest\x1a\x1e.planet.v1.FillChargesResponse\x12U\n" +
+	"\x0eGetChargeFills\x12 .planet.v1.GetChargeFillsRequest\x1a!.planet.v1.GetChargeFillsResponseB\xb2\x01\n" +
 	"\rcom.planet.v1B\n" +
 	"AdminProtoP\x01ZPgithub.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1;planetv1\xa2\x02\x03PXX\xaa\x02\tPlanet.V1\xca\x02\tPlanet\\V1\xe2\x02\x15Planet\\V1\\GPBMetadata\xea\x02\n" +
 	"Planet::V1b\x06proto3"
@@ -2437,127 +2666,141 @@ func file_planet_v1_admin_proto_rawDescGZIP() []byte {
 	return file_planet_v1_admin_proto_rawDescData
 }
 
-var file_planet_v1_admin_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_planet_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 32)
+var file_planet_v1_admin_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_planet_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 35)
 var file_planet_v1_admin_proto_goTypes = []any{
 	(RuleChangeSource)(0),            // 0: planet.v1.RuleChangeSource
-	(*GetLedgerRequest)(nil),         // 1: planet.v1.GetLedgerRequest
-	(*GetLedgerResponse)(nil),        // 2: planet.v1.GetLedgerResponse
-	(*LedgerChange)(nil),             // 3: planet.v1.LedgerChange
-	(*GetReplayRequest)(nil),         // 4: planet.v1.GetReplayRequest
-	(*GetReplayResponse)(nil),        // 5: planet.v1.GetReplayResponse
-	(*ReplayedEvent)(nil),            // 6: planet.v1.ReplayedEvent
-	(*GrantChargesRequest)(nil),      // 7: planet.v1.GrantChargesRequest
-	(*GrantChargesResponse)(nil),     // 8: planet.v1.GrantChargesResponse
-	(*PaintRandomTilesRequest)(nil),  // 9: planet.v1.PaintRandomTilesRequest
-	(*PaintRandomTilesResponse)(nil), // 10: planet.v1.PaintRandomTilesResponse
-	(*InspectPlayerRequest)(nil),     // 11: planet.v1.InspectPlayerRequest
-	(*InspectPlayerResponse)(nil),    // 12: planet.v1.InspectPlayerResponse
-	(*WatchdogReading)(nil),          // 13: planet.v1.WatchdogReading
-	(*FindPlayersRequest)(nil),       // 14: planet.v1.FindPlayersRequest
-	(*FindPlayersResponse)(nil),      // 15: planet.v1.FindPlayersResponse
-	(*TopPlayersRequest)(nil),        // 16: planet.v1.TopPlayersRequest
-	(*TopPlayersResponse)(nil),       // 17: planet.v1.TopPlayersResponse
-	(*Player)(nil),                   // 18: planet.v1.Player
-	(*BanPlayerRequest)(nil),         // 19: planet.v1.BanPlayerRequest
-	(*BanPlayerResponse)(nil),        // 20: planet.v1.BanPlayerResponse
-	(*UnbanPlayerRequest)(nil),       // 21: planet.v1.UnbanPlayerRequest
-	(*UnbanPlayerResponse)(nil),      // 22: planet.v1.UnbanPlayerResponse
-	(*RevertPlayerRequest)(nil),      // 23: planet.v1.RevertPlayerRequest
-	(*RevertPlayerResponse)(nil),     // 24: planet.v1.RevertPlayerResponse
-	(*ReassignCountryRequest)(nil),   // 25: planet.v1.ReassignCountryRequest
-	(*ReassignCountryResponse)(nil),  // 26: planet.v1.ReassignCountryResponse
-	(*GetRulesRequest)(nil),          // 27: planet.v1.GetRulesRequest
-	(*GetRulesResponse)(nil),         // 28: planet.v1.GetRulesResponse
-	(*RuleSet)(nil),                  // 29: planet.v1.RuleSet
-	(*AntiBotRules)(nil),             // 30: planet.v1.AntiBotRules
-	(*BoxPace)(nil),                  // 31: planet.v1.BoxPace
-	(*RuleChange)(nil),               // 32: planet.v1.RuleChange
-	(*timestamppb.Timestamp)(nil),    // 33: google.protobuf.Timestamp
-	(*TileUpdate)(nil),               // 34: planet.v1.TileUpdate
-	(*GetMapResponse)(nil),           // 35: planet.v1.GetMapResponse
-	(*PlanetEvent)(nil),              // 36: planet.v1.PlanetEvent
-	(*ChargesHeld)(nil),              // 37: planet.v1.ChargesHeld
-	(*durationpb.Duration)(nil),      // 38: google.protobuf.Duration
-	(*GetTerritoriesRequest)(nil),    // 39: planet.v1.GetTerritoriesRequest
-	(*ApplyRuleSetRequest)(nil),      // 40: planet.v1.ApplyRuleSetRequest
-	(*GetTerritoriesResponse)(nil),   // 41: planet.v1.GetTerritoriesResponse
-	(*ApplyRuleSetResponse)(nil),     // 42: planet.v1.ApplyRuleSetResponse
+	(FillSource)(0),                  // 1: planet.v1.FillSource
+	(*GetLedgerRequest)(nil),         // 2: planet.v1.GetLedgerRequest
+	(*GetLedgerResponse)(nil),        // 3: planet.v1.GetLedgerResponse
+	(*LedgerChange)(nil),             // 4: planet.v1.LedgerChange
+	(*GetReplayRequest)(nil),         // 5: planet.v1.GetReplayRequest
+	(*GetReplayResponse)(nil),        // 6: planet.v1.GetReplayResponse
+	(*ReplayedEvent)(nil),            // 7: planet.v1.ReplayedEvent
+	(*GrantChargesRequest)(nil),      // 8: planet.v1.GrantChargesRequest
+	(*GrantChargesResponse)(nil),     // 9: planet.v1.GrantChargesResponse
+	(*PaintRandomTilesRequest)(nil),  // 10: planet.v1.PaintRandomTilesRequest
+	(*PaintRandomTilesResponse)(nil), // 11: planet.v1.PaintRandomTilesResponse
+	(*InspectPlayerRequest)(nil),     // 12: planet.v1.InspectPlayerRequest
+	(*InspectPlayerResponse)(nil),    // 13: planet.v1.InspectPlayerResponse
+	(*WatchdogReading)(nil),          // 14: planet.v1.WatchdogReading
+	(*FindPlayersRequest)(nil),       // 15: planet.v1.FindPlayersRequest
+	(*FindPlayersResponse)(nil),      // 16: planet.v1.FindPlayersResponse
+	(*TopPlayersRequest)(nil),        // 17: planet.v1.TopPlayersRequest
+	(*TopPlayersResponse)(nil),       // 18: planet.v1.TopPlayersResponse
+	(*Player)(nil),                   // 19: planet.v1.Player
+	(*BanPlayerRequest)(nil),         // 20: planet.v1.BanPlayerRequest
+	(*BanPlayerResponse)(nil),        // 21: planet.v1.BanPlayerResponse
+	(*UnbanPlayerRequest)(nil),       // 22: planet.v1.UnbanPlayerRequest
+	(*UnbanPlayerResponse)(nil),      // 23: planet.v1.UnbanPlayerResponse
+	(*RevertPlayerRequest)(nil),      // 24: planet.v1.RevertPlayerRequest
+	(*RevertPlayerResponse)(nil),     // 25: planet.v1.RevertPlayerResponse
+	(*ReassignCountryRequest)(nil),   // 26: planet.v1.ReassignCountryRequest
+	(*ReassignCountryResponse)(nil),  // 27: planet.v1.ReassignCountryResponse
+	(*GetRulesRequest)(nil),          // 28: planet.v1.GetRulesRequest
+	(*GetRulesResponse)(nil),         // 29: planet.v1.GetRulesResponse
+	(*RuleSet)(nil),                  // 30: planet.v1.RuleSet
+	(*AntiBotRules)(nil),             // 31: planet.v1.AntiBotRules
+	(*BoxPace)(nil),                  // 32: planet.v1.BoxPace
+	(*RuleChange)(nil),               // 33: planet.v1.RuleChange
+	(*GetChargeFillsRequest)(nil),    // 34: planet.v1.GetChargeFillsRequest
+	(*GetChargeFillsResponse)(nil),   // 35: planet.v1.GetChargeFillsResponse
+	(*ChargeFill)(nil),               // 36: planet.v1.ChargeFill
+	(*timestamppb.Timestamp)(nil),    // 37: google.protobuf.Timestamp
+	(*TileUpdate)(nil),               // 38: planet.v1.TileUpdate
+	(*GetMapResponse)(nil),           // 39: planet.v1.GetMapResponse
+	(*PlanetEvent)(nil),              // 40: planet.v1.PlanetEvent
+	(*ChargesHeld)(nil),              // 41: planet.v1.ChargesHeld
+	(*durationpb.Duration)(nil),      // 42: google.protobuf.Duration
+	(*GetTerritoriesRequest)(nil),    // 43: planet.v1.GetTerritoriesRequest
+	(*ApplyRuleSetRequest)(nil),      // 44: planet.v1.ApplyRuleSetRequest
+	(*FillChargesRequest)(nil),       // 45: planet.v1.FillChargesRequest
+	(*GetTerritoriesResponse)(nil),   // 46: planet.v1.GetTerritoriesResponse
+	(*ApplyRuleSetResponse)(nil),     // 47: planet.v1.ApplyRuleSetResponse
+	(*FillChargesResponse)(nil),      // 48: planet.v1.FillChargesResponse
 }
 var file_planet_v1_admin_proto_depIdxs = []int32{
-	33, // 0: planet.v1.GetLedgerRequest.since:type_name -> google.protobuf.Timestamp
-	33, // 1: planet.v1.GetLedgerRequest.until:type_name -> google.protobuf.Timestamp
-	3,  // 2: planet.v1.GetLedgerResponse.changes:type_name -> planet.v1.LedgerChange
-	33, // 3: planet.v1.LedgerChange.at:type_name -> google.protobuf.Timestamp
-	34, // 4: planet.v1.LedgerChange.update:type_name -> planet.v1.TileUpdate
-	33, // 5: planet.v1.GetReplayRequest.since:type_name -> google.protobuf.Timestamp
-	33, // 6: planet.v1.GetReplayRequest.until:type_name -> google.protobuf.Timestamp
-	35, // 7: planet.v1.GetReplayResponse.opening:type_name -> planet.v1.GetMapResponse
-	6,  // 8: planet.v1.GetReplayResponse.events:type_name -> planet.v1.ReplayedEvent
-	33, // 9: planet.v1.GetReplayResponse.since:type_name -> google.protobuf.Timestamp
-	33, // 10: planet.v1.GetReplayResponse.until:type_name -> google.protobuf.Timestamp
-	33, // 11: planet.v1.ReplayedEvent.at:type_name -> google.protobuf.Timestamp
-	36, // 12: planet.v1.ReplayedEvent.event:type_name -> planet.v1.PlanetEvent
-	37, // 13: planet.v1.GrantChargesResponse.before:type_name -> planet.v1.ChargesHeld
-	37, // 14: planet.v1.GrantChargesResponse.after:type_name -> planet.v1.ChargesHeld
-	33, // 15: planet.v1.InspectPlayerResponse.banned_until:type_name -> google.protobuf.Timestamp
-	33, // 16: planet.v1.InspectPlayerResponse.pardoned_until:type_name -> google.protobuf.Timestamp
-	13, // 17: planet.v1.InspectPlayerResponse.readings:type_name -> planet.v1.WatchdogReading
-	38, // 18: planet.v1.InspectPlayerResponse.active_for:type_name -> google.protobuf.Duration
-	38, // 19: planet.v1.InspectPlayerResponse.longest_gap:type_name -> google.protobuf.Duration
-	33, // 20: planet.v1.InspectPlayerResponse.last_click_at:type_name -> google.protobuf.Timestamp
-	33, // 21: planet.v1.WatchdogReading.at:type_name -> google.protobuf.Timestamp
-	18, // 22: planet.v1.FindPlayersResponse.players:type_name -> planet.v1.Player
-	18, // 23: planet.v1.TopPlayersResponse.players:type_name -> planet.v1.Player
-	33, // 24: planet.v1.Player.first_at:type_name -> google.protobuf.Timestamp
-	33, // 25: planet.v1.Player.last_at:type_name -> google.protobuf.Timestamp
-	33, // 26: planet.v1.Player.banned_until:type_name -> google.protobuf.Timestamp
-	38, // 27: planet.v1.Player.active_for:type_name -> google.protobuf.Duration
-	38, // 28: planet.v1.BanPlayerRequest.duration:type_name -> google.protobuf.Duration
-	33, // 29: planet.v1.BanPlayerResponse.banned_until:type_name -> google.protobuf.Timestamp
-	33, // 30: planet.v1.UnbanPlayerResponse.banned_until:type_name -> google.protobuf.Timestamp
-	33, // 31: planet.v1.UnbanPlayerResponse.pardoned_until:type_name -> google.protobuf.Timestamp
-	29, // 32: planet.v1.GetRulesResponse.sets:type_name -> planet.v1.RuleSet
-	32, // 33: planet.v1.GetRulesResponse.changes:type_name -> planet.v1.RuleChange
-	31, // 34: planet.v1.RuleSet.boxes:type_name -> planet.v1.BoxPace
-	30, // 35: planet.v1.RuleSet.anti_bot:type_name -> planet.v1.AntiBotRules
-	38, // 36: planet.v1.BoxPace.min_interval:type_name -> google.protobuf.Duration
-	38, // 37: planet.v1.BoxPace.max_interval:type_name -> google.protobuf.Duration
+	37, // 0: planet.v1.GetLedgerRequest.since:type_name -> google.protobuf.Timestamp
+	37, // 1: planet.v1.GetLedgerRequest.until:type_name -> google.protobuf.Timestamp
+	4,  // 2: planet.v1.GetLedgerResponse.changes:type_name -> planet.v1.LedgerChange
+	37, // 3: planet.v1.LedgerChange.at:type_name -> google.protobuf.Timestamp
+	38, // 4: planet.v1.LedgerChange.update:type_name -> planet.v1.TileUpdate
+	37, // 5: planet.v1.GetReplayRequest.since:type_name -> google.protobuf.Timestamp
+	37, // 6: planet.v1.GetReplayRequest.until:type_name -> google.protobuf.Timestamp
+	39, // 7: planet.v1.GetReplayResponse.opening:type_name -> planet.v1.GetMapResponse
+	7,  // 8: planet.v1.GetReplayResponse.events:type_name -> planet.v1.ReplayedEvent
+	37, // 9: planet.v1.GetReplayResponse.since:type_name -> google.protobuf.Timestamp
+	37, // 10: planet.v1.GetReplayResponse.until:type_name -> google.protobuf.Timestamp
+	37, // 11: planet.v1.ReplayedEvent.at:type_name -> google.protobuf.Timestamp
+	40, // 12: planet.v1.ReplayedEvent.event:type_name -> planet.v1.PlanetEvent
+	41, // 13: planet.v1.GrantChargesResponse.before:type_name -> planet.v1.ChargesHeld
+	41, // 14: planet.v1.GrantChargesResponse.after:type_name -> planet.v1.ChargesHeld
+	37, // 15: planet.v1.InspectPlayerResponse.banned_until:type_name -> google.protobuf.Timestamp
+	37, // 16: planet.v1.InspectPlayerResponse.pardoned_until:type_name -> google.protobuf.Timestamp
+	14, // 17: planet.v1.InspectPlayerResponse.readings:type_name -> planet.v1.WatchdogReading
+	42, // 18: planet.v1.InspectPlayerResponse.active_for:type_name -> google.protobuf.Duration
+	42, // 19: planet.v1.InspectPlayerResponse.longest_gap:type_name -> google.protobuf.Duration
+	37, // 20: planet.v1.InspectPlayerResponse.last_click_at:type_name -> google.protobuf.Timestamp
+	37, // 21: planet.v1.WatchdogReading.at:type_name -> google.protobuf.Timestamp
+	19, // 22: planet.v1.FindPlayersResponse.players:type_name -> planet.v1.Player
+	19, // 23: planet.v1.TopPlayersResponse.players:type_name -> planet.v1.Player
+	37, // 24: planet.v1.Player.first_at:type_name -> google.protobuf.Timestamp
+	37, // 25: planet.v1.Player.last_at:type_name -> google.protobuf.Timestamp
+	37, // 26: planet.v1.Player.banned_until:type_name -> google.protobuf.Timestamp
+	42, // 27: planet.v1.Player.active_for:type_name -> google.protobuf.Duration
+	42, // 28: planet.v1.BanPlayerRequest.duration:type_name -> google.protobuf.Duration
+	37, // 29: planet.v1.BanPlayerResponse.banned_until:type_name -> google.protobuf.Timestamp
+	37, // 30: planet.v1.UnbanPlayerResponse.banned_until:type_name -> google.protobuf.Timestamp
+	37, // 31: planet.v1.UnbanPlayerResponse.pardoned_until:type_name -> google.protobuf.Timestamp
+	30, // 32: planet.v1.GetRulesResponse.sets:type_name -> planet.v1.RuleSet
+	33, // 33: planet.v1.GetRulesResponse.changes:type_name -> planet.v1.RuleChange
+	32, // 34: planet.v1.RuleSet.boxes:type_name -> planet.v1.BoxPace
+	31, // 35: planet.v1.RuleSet.anti_bot:type_name -> planet.v1.AntiBotRules
+	42, // 36: planet.v1.BoxPace.min_interval:type_name -> google.protobuf.Duration
+	42, // 37: planet.v1.BoxPace.max_interval:type_name -> google.protobuf.Duration
 	0,  // 38: planet.v1.RuleChange.source:type_name -> planet.v1.RuleChangeSource
-	33, // 39: planet.v1.RuleChange.applied_at:type_name -> google.protobuf.Timestamp
-	25, // 40: planet.v1.AdminService.ReassignCountry:input_type -> planet.v1.ReassignCountryRequest
-	14, // 41: planet.v1.AdminService.FindPlayers:input_type -> planet.v1.FindPlayersRequest
-	16, // 42: planet.v1.AdminService.TopPlayers:input_type -> planet.v1.TopPlayersRequest
-	19, // 43: planet.v1.AdminService.BanPlayer:input_type -> planet.v1.BanPlayerRequest
-	21, // 44: planet.v1.AdminService.UnbanPlayer:input_type -> planet.v1.UnbanPlayerRequest
-	23, // 45: planet.v1.AdminService.RevertPlayer:input_type -> planet.v1.RevertPlayerRequest
-	9,  // 46: planet.v1.AdminService.PaintRandomTiles:input_type -> planet.v1.PaintRandomTilesRequest
-	11, // 47: planet.v1.AdminService.InspectPlayer:input_type -> planet.v1.InspectPlayerRequest
-	7,  // 48: planet.v1.AdminService.GrantCharges:input_type -> planet.v1.GrantChargesRequest
-	4,  // 49: planet.v1.AdminService.GetReplay:input_type -> planet.v1.GetReplayRequest
-	1,  // 50: planet.v1.AdminService.GetLedger:input_type -> planet.v1.GetLedgerRequest
-	39, // 51: planet.v1.AdminService.GetTerritories:input_type -> planet.v1.GetTerritoriesRequest
-	40, // 52: planet.v1.AdminService.ApplyRuleSet:input_type -> planet.v1.ApplyRuleSetRequest
-	27, // 53: planet.v1.AdminService.GetRules:input_type -> planet.v1.GetRulesRequest
-	26, // 54: planet.v1.AdminService.ReassignCountry:output_type -> planet.v1.ReassignCountryResponse
-	15, // 55: planet.v1.AdminService.FindPlayers:output_type -> planet.v1.FindPlayersResponse
-	17, // 56: planet.v1.AdminService.TopPlayers:output_type -> planet.v1.TopPlayersResponse
-	20, // 57: planet.v1.AdminService.BanPlayer:output_type -> planet.v1.BanPlayerResponse
-	22, // 58: planet.v1.AdminService.UnbanPlayer:output_type -> planet.v1.UnbanPlayerResponse
-	24, // 59: planet.v1.AdminService.RevertPlayer:output_type -> planet.v1.RevertPlayerResponse
-	10, // 60: planet.v1.AdminService.PaintRandomTiles:output_type -> planet.v1.PaintRandomTilesResponse
-	12, // 61: planet.v1.AdminService.InspectPlayer:output_type -> planet.v1.InspectPlayerResponse
-	8,  // 62: planet.v1.AdminService.GrantCharges:output_type -> planet.v1.GrantChargesResponse
-	5,  // 63: planet.v1.AdminService.GetReplay:output_type -> planet.v1.GetReplayResponse
-	2,  // 64: planet.v1.AdminService.GetLedger:output_type -> planet.v1.GetLedgerResponse
-	41, // 65: planet.v1.AdminService.GetTerritories:output_type -> planet.v1.GetTerritoriesResponse
-	42, // 66: planet.v1.AdminService.ApplyRuleSet:output_type -> planet.v1.ApplyRuleSetResponse
-	28, // 67: planet.v1.AdminService.GetRules:output_type -> planet.v1.GetRulesResponse
-	54, // [54:68] is the sub-list for method output_type
-	40, // [40:54] is the sub-list for method input_type
-	40, // [40:40] is the sub-list for extension type_name
-	40, // [40:40] is the sub-list for extension extendee
-	0,  // [0:40] is the sub-list for field type_name
+	37, // 39: planet.v1.RuleChange.applied_at:type_name -> google.protobuf.Timestamp
+	36, // 40: planet.v1.GetChargeFillsResponse.fills:type_name -> planet.v1.ChargeFill
+	1,  // 41: planet.v1.ChargeFill.source:type_name -> planet.v1.FillSource
+	37, // 42: planet.v1.ChargeFill.started_at:type_name -> google.protobuf.Timestamp
+	37, // 43: planet.v1.ChargeFill.finished_at:type_name -> google.protobuf.Timestamp
+	26, // 44: planet.v1.AdminService.ReassignCountry:input_type -> planet.v1.ReassignCountryRequest
+	15, // 45: planet.v1.AdminService.FindPlayers:input_type -> planet.v1.FindPlayersRequest
+	17, // 46: planet.v1.AdminService.TopPlayers:input_type -> planet.v1.TopPlayersRequest
+	20, // 47: planet.v1.AdminService.BanPlayer:input_type -> planet.v1.BanPlayerRequest
+	22, // 48: planet.v1.AdminService.UnbanPlayer:input_type -> planet.v1.UnbanPlayerRequest
+	24, // 49: planet.v1.AdminService.RevertPlayer:input_type -> planet.v1.RevertPlayerRequest
+	10, // 50: planet.v1.AdminService.PaintRandomTiles:input_type -> planet.v1.PaintRandomTilesRequest
+	12, // 51: planet.v1.AdminService.InspectPlayer:input_type -> planet.v1.InspectPlayerRequest
+	8,  // 52: planet.v1.AdminService.GrantCharges:input_type -> planet.v1.GrantChargesRequest
+	5,  // 53: planet.v1.AdminService.GetReplay:input_type -> planet.v1.GetReplayRequest
+	2,  // 54: planet.v1.AdminService.GetLedger:input_type -> planet.v1.GetLedgerRequest
+	43, // 55: planet.v1.AdminService.GetTerritories:input_type -> planet.v1.GetTerritoriesRequest
+	44, // 56: planet.v1.AdminService.ApplyRuleSet:input_type -> planet.v1.ApplyRuleSetRequest
+	28, // 57: planet.v1.AdminService.GetRules:input_type -> planet.v1.GetRulesRequest
+	45, // 58: planet.v1.AdminService.FillCharges:input_type -> planet.v1.FillChargesRequest
+	34, // 59: planet.v1.AdminService.GetChargeFills:input_type -> planet.v1.GetChargeFillsRequest
+	27, // 60: planet.v1.AdminService.ReassignCountry:output_type -> planet.v1.ReassignCountryResponse
+	16, // 61: planet.v1.AdminService.FindPlayers:output_type -> planet.v1.FindPlayersResponse
+	18, // 62: planet.v1.AdminService.TopPlayers:output_type -> planet.v1.TopPlayersResponse
+	21, // 63: planet.v1.AdminService.BanPlayer:output_type -> planet.v1.BanPlayerResponse
+	23, // 64: planet.v1.AdminService.UnbanPlayer:output_type -> planet.v1.UnbanPlayerResponse
+	25, // 65: planet.v1.AdminService.RevertPlayer:output_type -> planet.v1.RevertPlayerResponse
+	11, // 66: planet.v1.AdminService.PaintRandomTiles:output_type -> planet.v1.PaintRandomTilesResponse
+	13, // 67: planet.v1.AdminService.InspectPlayer:output_type -> planet.v1.InspectPlayerResponse
+	9,  // 68: planet.v1.AdminService.GrantCharges:output_type -> planet.v1.GrantChargesResponse
+	6,  // 69: planet.v1.AdminService.GetReplay:output_type -> planet.v1.GetReplayResponse
+	3,  // 70: planet.v1.AdminService.GetLedger:output_type -> planet.v1.GetLedgerResponse
+	46, // 71: planet.v1.AdminService.GetTerritories:output_type -> planet.v1.GetTerritoriesResponse
+	47, // 72: planet.v1.AdminService.ApplyRuleSet:output_type -> planet.v1.ApplyRuleSetResponse
+	29, // 73: planet.v1.AdminService.GetRules:output_type -> planet.v1.GetRulesResponse
+	48, // 74: planet.v1.AdminService.FillCharges:output_type -> planet.v1.FillChargesResponse
+	35, // 75: planet.v1.AdminService.GetChargeFills:output_type -> planet.v1.GetChargeFillsResponse
+	60, // [60:76] is the sub-list for method output_type
+	44, // [44:60] is the sub-list for method input_type
+	44, // [44:44] is the sub-list for extension type_name
+	44, // [44:44] is the sub-list for extension extendee
+	0,  // [0:44] is the sub-list for field type_name
 }
 
 func init() { file_planet_v1_admin_proto_init() }
@@ -2574,8 +2817,8 @@ func file_planet_v1_admin_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_planet_v1_admin_proto_rawDesc), len(file_planet_v1_admin_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   32,
+			NumEnums:      2,
+			NumMessages:   35,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

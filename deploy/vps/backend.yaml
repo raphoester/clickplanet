@@ -374,6 +374,8 @@ seasons:
     days: default
     finale: rush
     over: default
+  fills:
+    finale: true
   database:
     host: postgres
     password: env://POSTGRES_PASSWORD

@@ -5,7 +5,7 @@ import {Clients, CLIENTS, PlanetAdmin, SupportAdmin} from "../clients.ts"
 import {clockOf} from "../components/time.ts"
 import {FailureNotice} from "../components/FailureNotice.tsx"
 import {PageId} from "../navigation.ts"
-import {Call, useCall} from "../useCall.ts"
+import {useCall, useLast} from "../useCall.ts"
 import {ActivityCharts} from "./ActivityCharts.tsx"
 import {FIRST_SPAN, Span, SPANS, totalsOf, wholeOf} from "./activity.ts"
 import {CountryTable} from "./CountryTable.tsx"
@@ -139,16 +139,6 @@ function Tile({label, value, sub, more = false, onGo}: TileProps) {
 }
 
 // The last answer stays shown, dimmed, while the next one is read.
-function useLast<T>(call: Call<T>): T | undefined {
-    const [last, setLast] = useState<T | undefined>(undefined)
-
-    useEffect(() => {
-        if (call.state === "done") setLast(call.value)
-    }, [call])
-
-    return call.state === "done" ? call.value : last
-}
-
 async function ledgerOf(planet: PlanetAdmin, span: Span, signal: AbortSignal) {
     const window = windowOf(new Date(), span.hours, span.step)
     const answer = await planet.getLedger(

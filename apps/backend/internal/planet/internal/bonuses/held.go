@@ -17,6 +17,8 @@ var (
 
 type Holder string
 
+type FillID string
+
 const NoHolder Holder = ""
 
 func HolderOf(payer clicks.Payer) Holder {
@@ -41,6 +43,9 @@ type Held struct {
 	SpreadClicks int
 
 	Shields int
+
+	// Kept on a hand spent to nothing too, or the fill sent again would fill it again.
+	LastFill FillID
 }
 
 type ChargesConfig struct {
@@ -126,6 +131,22 @@ func (h Held) Granted(kind Kind, amount int, config ChargesConfig) Held {
 	}
 
 	return h
+}
+
+// Filled is the hand full, unless fill filled it already: a fill gives once, whatever was spent since.
+func (h Held) Filled(fill FillID, config ChargesConfig) Held {
+	if h.LastFill == fill {
+		return h
+	}
+
+	return Held{
+		Refill:       true,
+		Bomb:         true,
+		Enclosures:   config.Enclosures,
+		SpreadClicks: config.SpreadClicks,
+		Shields:      config.Shields,
+		LastFill:     fill,
+	}
 }
 
 func (h Held) AfterRefill() (Held, bool) {

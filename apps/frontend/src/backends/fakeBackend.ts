@@ -389,6 +389,10 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         this.shapesClose = close
     }
 
+    public fillCharges(): void {
+        this.hold({refill: true, bomb: true, enclosures: ENCLOSURES, spreadClicksLeft: SPREAD_CLICKS, shields: SHIELDS})
+    }
+
     public setTempo(tempo: number): void {
         this.refill()
         this.tempo = tempo

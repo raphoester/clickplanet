@@ -79,6 +79,12 @@ func (r *recorder) seen() []listen_for_events_usecase.Event {
 	return append([]listen_for_events_usecase.Event(nil), r.events...)
 }
 
+type fillingFeed struct{ events chan bonuses.Event }
+
+func (f fillingFeed) Attend(bonuses.Entrant) (<-chan bonuses.Event, func()) {
+	return f.events, func() {}
+}
+
 type attendedFeed struct{ entrants []bonuses.Entrant }
 
 func (f *attendedFeed) Attend(entrant bonuses.Entrant) (<-chan bonuses.Event, func()) {
@@ -277,4 +283,24 @@ func TestAChangeOfRulesIsCarriedToTheSink(t *testing.T) {
 	require.NoError(t, <-done)
 
 	require.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true}, {RulesChanged: true}}, sink.seen())
+}
+
+func TestAFillIsCarriedToTheSink(t *testing.T) {
+	events := make(chan bonuses.Event, 1)
+	events <- bonuses.Event{Filled: true}
+
+	ctx, cancel := context.WithCancel(t.Context())
+	sink := &recorder{fed: make(chan struct{}), stopped: ctx.Done()}
+	done := make(chan error, 1)
+	go func() {
+		done <- listen_for_events_usecase.New(stubSubscriber{}, time.Hour, fillingFeed{events: events}, quietRules{}).
+			Execute(ctx, sink)
+	}()
+
+	<-sink.fed
+	<-sink.fed
+	cancel()
+	require.NoError(t, <-done)
+
+	require.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true}, {ChargesFilled: true}}, sink.seen())
 }

@@ -177,11 +177,16 @@ message PlanetEvent {
     LandmassFortified landmass_fortified = 9;
 
     RulesChanged rules_changed = 10;
+
+    ChargesFilled charges_filled = 11;
   }
 }
 
 // The budget's rate may have moved: read it again.
 message RulesChanged {}
+
+// The charges held may have grown: read them again.
+message ChargesFilled {}
 
 message GetFortressesRequest {}
 

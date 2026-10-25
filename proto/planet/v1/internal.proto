@@ -15,6 +15,11 @@ service InternalService {
   rpc ApplyRuleSet(ApplyRuleSetRequest) returns (ApplyRuleSetResponse) {
     option idempotency_level = IDEMPOTENT;
   }
+
+  // Fills every account that played before it to full, once per request id, so a caller may send it again.
+  rpc FillCharges(FillChargesRequest) returns (FillChargesResponse) {
+    option idempotency_level = IDEMPOTENT;
+  }
 }
 
 message GetTakesByCountryRequest {
@@ -49,3 +54,9 @@ message ApplyRuleSetRequest {
 }
 
 message ApplyRuleSetResponse {}
+
+message FillChargesRequest {
+  string request_id = 1;
+}
+
+message FillChargesResponse {}

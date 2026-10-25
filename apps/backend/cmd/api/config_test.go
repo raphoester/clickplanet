@@ -323,6 +323,8 @@ func TestTheExampleConfigReachesTheSeasonsBlock(t *testing.T) {
 	assert.Equal(t, "default", config.Seasons.RuleSets.Days)
 	assert.Equal(t, "rush", config.Seasons.RuleSets.Finale)
 	assert.Equal(t, "default", config.Seasons.RuleSets.Over)
+	assert.True(t, config.Seasons.Fills.Finale, "every hand is filled when the finale starts")
+	assert.False(t, config.Seasons.Fills.Days || config.Seasons.Fills.Over)
 	assert.Equal(t, "seasons", config.Seasons.Database.Schema)
 	require.NoError(t, config.Seasons.Database.Validate())
 }

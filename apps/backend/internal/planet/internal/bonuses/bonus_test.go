@@ -790,6 +790,22 @@ func TestASpreadClickIsAnnouncedToEveryone(t *testing.T) {
 	}
 }
 
+func TestAFillIsToldToEveryone(t *testing.T) {
+	registry, _ := newTestRegistry()
+
+	watchers := []<-chan Event{playing(t, registry, "scope-a"), playing(t, registry, "scope-b")}
+	for _, events := range watchers {
+		drain(events)
+	}
+
+	registry.PublishFilled()
+
+	for _, events := range watchers {
+		require.Len(t, events, 1)
+		assert.Equal(t, Event{Filled: true}, <-events)
+	}
+}
+
 func TestACallerThatIsNotReadingIsDroppedRatherThanBlocking(t *testing.T) {
 	registry, _ := newTestRegistry()
 	events := playing(t, registry, "scope-a")

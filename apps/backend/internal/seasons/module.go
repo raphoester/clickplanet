@@ -14,6 +14,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/seasons/v1/seasonsv1connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/calendar"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/calendar/rpc_planet_fills"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/calendar/rpc_planet_rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/calendar/usecases/get_season_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/calendar/usecases/play_phase_usecase"
@@ -118,6 +119,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger, takes, deletions, boards, races, snapshot))
 	props.Runners.Add(play_phase_usecase.NewRunner(phaseCheck, log_play_phase.New(
 		play_phase_usecase.New(seasons, rpc_planet_rules.New(planet, config.RuleSets), clock), props.Logger)))
+	props.Runners.Add(play_phase_usecase.NewRunner(phaseCheck, log_play_phase.New(
+		play_phase_usecase.New(seasons, rpc_planet_fills.New(planet, config.Fills), clock), props.Logger)))
 
 	service := seasonsv1controller.SeasonService{
 		GetSeasonHandler: get_season_handler.New(
@@ -147,6 +150,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 type Config struct {
 	Calendar calendar.Config `koanf:",squash"`
 	RuleSets rpc_planet_rules.Config
+	Fills    rpc_planet_fills.Config
 	Snapshot take_snapshot_usecase.Config
 	Database cppg.Config
 }

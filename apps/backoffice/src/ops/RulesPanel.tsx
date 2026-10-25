@@ -6,6 +6,7 @@ import {When} from "../components/When.tsx"
 import {GetRulesResponse} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {wordsOf} from "../refusal.ts"
 import {useCall} from "../useCall.ts"
+import {ChargeFills} from "./ChargeFills.tsx"
 import {applyRuleSet, boxesOf, crowdOf, inForceOf, sourceOf, tempoOf} from "./rules.ts"
 
 // The rule set in force, every set the config holds, and who changed it when.
@@ -22,6 +23,7 @@ export function RulesPanel({planet}: {planet: PlanetAdmin}) {
             {rules.state === "loading" && <p className="muted">Loading…</p>}
             {rules.state === "failed" && <FailureNotice failure={rules} onRetry={again}/>}
             {rules.state === "done" && <Rules rules={rules.value} planet={planet} onChanged={again}/>}
+            <ChargeFills planet={planet}/>
         </section>
     )
 }

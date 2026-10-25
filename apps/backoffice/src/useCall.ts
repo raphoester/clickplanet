@@ -28,3 +28,14 @@ export function useCall<T>(run: (signal: AbortSignal) => Promise<T>): [Call<T>, 
     const again = useCallback(() => setAttempt(n => n + 1), [])
     return [call, again]
 }
+
+// What the call answered last, kept on screen while it runs again.
+export function useLast<T>(call: Call<T>): T | undefined {
+    const [last, setLast] = useState<T | undefined>(undefined)
+
+    useEffect(() => {
+        if (call.state === "done") setLast(call.value)
+    }, [call])
+
+    return call.state === "done" ? call.value : last
+}

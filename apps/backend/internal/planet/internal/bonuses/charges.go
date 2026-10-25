@@ -48,6 +48,15 @@ func (c Charges) Grant(ctx context.Context, holder Holder, kind Kind, amount int
 	return nil
 }
 
+func (c Charges) Fill(ctx context.Context, holder Holder, fill FillID) error {
+	if err := c.store.Change(ctx, holder, func(held Held) (Held, error) {
+		return held.Filled(fill, c.config), nil
+	}); err != nil {
+		return fmt.Errorf("failed to fill the charges of %s: %w", holder, err)
+	}
+	return nil
+}
+
 func (c Charges) Spend(ctx context.Context, holder Holder, after func(Held) (Held, bool)) error {
 	if holder == NoHolder {
 		return ErrNotHeld
