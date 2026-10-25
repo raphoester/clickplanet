@@ -10,6 +10,8 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/inmemory_player_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/seasons"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/seasons/inmemory_season_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/inmemory_title_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/usecases/award_titles_usecase"
@@ -26,10 +28,14 @@ type fixture struct {
 	stats    *inmemory_player_store.Store
 	titles   *inmemory_title_store.Store
 	accounts *titles.FakeAccounts
+	seasons  *inmemory_season_store.Store
 }
 
 func setUp() fixture {
-	f := fixture{stats: inmemory_player_store.New(), titles: inmemory_title_store.New(), accounts: titles.NewFakeAccounts()}
+	f := fixture{
+		stats: inmemory_player_store.New(), titles: inmemory_title_store.New(),
+		accounts: titles.NewFakeAccounts(), seasons: inmemory_season_store.New(),
+	}
 	f.accounts.Create(ada, players.AccountOf(true, monday))
 	return f
 }
@@ -44,7 +50,7 @@ func (f fixture) award(t *testing.T, catalog titles.Catalog) error {
 func (f fixture) awarded(t *testing.T, catalog titles.Catalog) (titles.IDs, error) {
 	t.Helper()
 
-	useCase := award_titles_usecase.New(f.stats, f.accounts, titles.NewBook(f.titles, catalog), cptime.NewFixedClock(monday))
+	useCase := award_titles_usecase.New(f.stats, titles.NewCareers(f.accounts, f.seasons), titles.NewBook(f.titles, catalog), cptime.NewFixedClock(monday))
 	return useCase.Execute(t.Context(), ada) //nolint:wrapcheck // the tests read the use case's error.
 }
 
@@ -129,6 +135,28 @@ func TestAnAuthFailureIsAnErrorAndGrantsNothing(t *testing.T) {
 	f := setUp()
 	require.NoError(t, f.stats.Record(t.Context(), ada, players.TakeAt(monday)))
 	f.accounts.FailWith(errors.New("auth is down"))
+
+	require.Error(t, f.award(t, catalog))
+
+	assert.Empty(t, f.held(t))
+}
+
+func TestAPlayerOfTheChampionsFlagIsAVeteranAndAChampion(t *testing.T) {
+	f := setUp()
+	require.NoError(t, f.stats.Record(t.Context(), ada, players.TakeAt(monday)))
+	require.NoError(t, f.seasons.Save(t.Context(), seasons.NewRecord(ada).With(seasons.Season{Number: 0, Flag: "fr", Won: true})))
+	season := titles.CatalogOf([]titles.Title{titles.Champion{Season: 0}, titles.Veteran{Season: 0}})
+
+	granted, err := f.awarded(t, season)
+
+	require.NoError(t, err)
+	assert.Equal(t, titles.IDs{"champion_s0", "veteran_s0"}, granted)
+}
+
+func TestASeasonsFailureIsAnErrorAndGrantsNothing(t *testing.T) {
+	f := setUp()
+	require.NoError(t, f.stats.Record(t.Context(), ada, players.TakeAt(monday)))
+	f.seasons.FailWith(errors.New("postgres is down"))
 
 	require.Error(t, f.award(t, catalog))
 

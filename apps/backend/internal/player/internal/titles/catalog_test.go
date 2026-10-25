@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/seasons"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
@@ -15,7 +16,7 @@ import (
 var member = players.AccountOf(true, time.Time{})
 
 func careerOf(stats players.StatsSnapshot) titles.Career {
-	return titles.CareerOf(stats.Restore(), member)
+	return titles.CareerOf(stats.Restore(), member, seasons.Record{})
 }
 
 func tiles(n uint64) titles.Career { return careerOf(players.StatsSnapshot{TilesTaken: n}) }
@@ -79,9 +80,32 @@ func TestAStreakTitleCountsTheBestStreakNotTheCurrentOne(t *testing.T) {
 func TestAnAccountMadeBeforeNovemberIsOG(t *testing.T) {
 	november := time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)
 
-	assert.True(t, titles.OG{}.EarnedBy(titles.CareerOf(players.Stats{}, players.AccountOf(true, november.Add(-time.Millisecond)))))
-	assert.False(t, titles.OG{}.EarnedBy(titles.CareerOf(players.Stats{}, players.AccountOf(true, november))))
+	assert.True(t, titles.OG{}.EarnedBy(titles.CareerOf(players.Stats{}, players.AccountOf(true, november.Add(-time.Millisecond)), seasons.Record{})))
+	assert.False(t, titles.OG{}.EarnedBy(titles.CareerOf(players.Stats{}, players.AccountOf(true, november), seasons.Record{})))
 	assert.False(t, titles.OG{}.EarnedBy(titles.Career{}), "an account auth does not know has no date")
+}
+
+func TestASeasonPlayedMakesAVeteranAndItsFlagWinningAChampion(t *testing.T) {
+	played := func(season seasons.Season) titles.Career {
+		return titles.CareerOf(players.Stats{}, member, seasons.NewRecord(players.AccountID{}).With(season))
+	}
+	won, lost, later := played(seasons.Season{Number: 0, Flag: "fr", Won: true}), played(seasons.Season{Number: 0, Flag: "de"}),
+		played(seasons.Season{Number: 1, Flag: "fr", Won: true})
+
+	assert.True(t, titles.Veteran{Season: 0}.EarnedBy(won))
+	assert.True(t, titles.Veteran{Season: 0}.EarnedBy(lost))
+	assert.False(t, titles.Veteran{Season: 0}.EarnedBy(later))
+	assert.False(t, titles.Veteran{Season: 0}.EarnedBy(tiles(1_000)), "tiles taken outside a season told")
+	assert.True(t, titles.Champion{Season: 0}.EarnedBy(won))
+	assert.False(t, titles.Champion{Season: 0}.EarnedBy(lost))
+	assert.False(t, titles.Champion{Season: 0}.EarnedBy(later))
+}
+
+func TestEachSeasonTitleNamesItsSeason(t *testing.T) {
+	assert.Equal(t, titles.ID("veteran_s0"), titles.Veteran{Season: 0}.ID())
+	assert.Equal(t, "Veteran · S0", titles.Veteran{Season: 0}.Name())
+	assert.Equal(t, titles.ID("champion_s1"), titles.Champion{Season: 1}.ID())
+	assert.Equal(t, "Champion · S1", titles.Champion{Season: 1}.Name())
 }
 
 func TestEachTrackClimbsItsRanksByItsOwnMeasure(t *testing.T) {
@@ -102,7 +126,7 @@ func TestEachTrackClimbsItsRanksByItsOwnMeasure(t *testing.T) {
 				TilesTaken: n, StreakBest: uint32(n), MessagesSent: n,
 				BombsDropped: n, TilesFortified: n, BonusesClaimed: n, RightAnswers: n,
 			}.Restore()
-			assert.True(t, rank.EarnedBy(titles.CareerOf(reached, players.Account{})),
+			assert.True(t, rank.EarnedBy(titles.CareerOf(reached, players.Account{}, seasons.Record{})),
 				"%s: %s is earned at its threshold", track.ID(), rank.ID())
 			previous = rank.Threshold()
 		}
@@ -111,7 +135,7 @@ func TestEachTrackClimbsItsRanksByItsOwnMeasure(t *testing.T) {
 	career := titles.CareerOf(players.StatsSnapshot{
 		TilesTaken: 14_468, Streak: players.StreakOf(4, players.Day{}), StreakBest: 7, MessagesSent: 312,
 		TilesFortified: 2_046, BombsDropped: 9, BonusesClaimed: 61, RightAnswers: 23,
-	}.Restore(), players.Account{})
+	}.Restore(), players.Account{}, seasons.Record{})
 	assert.Equal(t, uint64(14_468), titles.Conquest{}.Progress(career))
 	assert.Equal(t, uint64(4), titles.Devotion{}.Progress(career), "the streak a player is on now, not its best")
 	assert.Equal(t, uint64(312), titles.Chatter{}.Progress(career))
@@ -122,7 +146,7 @@ func TestEachTrackClimbsItsRanksByItsOwnMeasure(t *testing.T) {
 }
 
 func TestEveryTitleHasItsOwnIDTheStoreTakesAndAName(t *testing.T) {
-	pattern := regexp.MustCompile(`^[a-z_]+$`)
+	pattern := regexp.MustCompile(`^[a-z0-9_]+$`)
 	seen := cpcolls.NewSet[titles.ID]()
 
 	for _, title := range titles.NewCatalog().Titles() {

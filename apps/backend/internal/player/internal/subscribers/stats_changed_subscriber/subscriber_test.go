@@ -10,6 +10,7 @@ import (
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/inmemory_player_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/seasons/inmemory_season_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/stats_changed_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/inmemory_title_store"
@@ -23,7 +24,7 @@ func subscriber(stats *inmemory_player_store.Store, held *inmemory_title_store.S
 	accounts := titles.NewFakeAccounts()
 	accounts.Create(linked, players.AccountOf(true, now))
 	book := titles.NewBook(held, titles.CatalogOf([]titles.Title{titles.FakeTitle{Key: "first", Tiles: 1}}))
-	return stats_changed_subscriber.New(award_titles_usecase.New(stats, accounts, book, cptime.NewFixedClock(now)))
+	return stats_changed_subscriber.New(award_titles_usecase.New(stats, titles.NewCareers(accounts, inmemory_season_store.New()), book, cptime.NewFixedClock(now)))
 }
 
 func TestChangedStatsAreCheckedForTitles(t *testing.T) {

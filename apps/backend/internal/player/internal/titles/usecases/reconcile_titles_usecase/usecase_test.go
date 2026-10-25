@@ -11,6 +11,8 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/inmemory_player_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/seasons"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/seasons/inmemory_season_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/inmemory_title_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/usecases/reconcile_titles_usecase"
@@ -33,10 +35,14 @@ type fixture struct {
 	stats    *inmemory_player_store.Store
 	titles   *inmemory_title_store.Store
 	accounts *titles.FakeAccounts
+	seasons  *inmemory_season_store.Store
 }
 
 func setUp() fixture {
-	return fixture{stats: inmemory_player_store.New(), titles: inmemory_title_store.New(), accounts: titles.NewFakeAccounts()}
+	return fixture{
+		stats: inmemory_player_store.New(), titles: inmemory_title_store.New(),
+		accounts: titles.NewFakeAccounts(), seasons: inmemory_season_store.New(),
+	}
 }
 
 func (f fixture) player(t *testing.T, i, tiles int, known players.Account) {
@@ -59,7 +65,7 @@ func (f fixture) held(t *testing.T, i int) titles.IDs {
 func (f fixture) reconcile(t *testing.T, store reconcile_titles_usecase.Titles, catalog titles.Catalog) (reconcile_titles_usecase.Reconciled, error) {
 	t.Helper()
 
-	return reconcile_titles_usecase.New(f.stats, f.accounts, store, catalog, cptime.NewFixedClock(now)).Execute(t.Context()) //nolint:wrapcheck // the tests read the use case's error.
+	return reconcile_titles_usecase.New(f.stats, titles.NewCareers(f.accounts, f.seasons), store, catalog, cptime.NewFixedClock(now)).Execute(t.Context()) //nolint:wrapcheck // the tests read the use case's error.
 }
 
 func TestEveryLinkedAccountGetsTheTitlesItsCareerEarnsAcrossPages(t *testing.T) {
@@ -116,6 +122,31 @@ func TestTheLinkedAccountsMadeBeforeNovemberAreOG(t *testing.T) {
 	assert.Equal(t, titles.IDs{"og"}, f.held(t, 1))
 	assert.Empty(t, f.held(t, 2), "made on the first of November")
 	assert.Empty(t, f.held(t, 3), "a guest")
+}
+
+func TestTheSeasonTitlesGoToTheLinkedAccountsThatPlayedIt(t *testing.T) {
+	f := setUp()
+	f.player(t, 1, 1, linked)
+	f.player(t, 2, 1, linked)
+	f.player(t, 3, 1, players.AccountOf(false, now))
+	f.player(t, 4, 1, linked)
+	f.played(t, 1, seasons.Season{Number: 0, Flag: "fr", Won: true})
+	f.played(t, 2, seasons.Season{Number: 0, Flag: "de"})
+	f.played(t, 3, seasons.Season{Number: 0, Flag: "fr", Won: true})
+
+	_, err := f.reconcile(t, f.titles, titles.CatalogOf([]titles.Title{titles.Champion{Season: 0}, titles.Veteran{Season: 0}}))
+
+	require.NoError(t, err)
+	assert.Equal(t, titles.IDs{"champion_s0", "veteran_s0"}, f.held(t, 1))
+	assert.Equal(t, titles.IDs{"veteran_s0"}, f.held(t, 2))
+	assert.Empty(t, f.held(t, 3), "a guest, until it signs in")
+	assert.Empty(t, f.held(t, 4), "played no season")
+}
+
+func (f fixture) played(t *testing.T, i int, season seasons.Season) {
+	t.Helper()
+
+	require.NoError(t, f.seasons.Save(t.Context(), seasons.NewRecord(account(i)).With(season)))
 }
 
 func TestASecondRunChangesNothing(t *testing.T) {

@@ -67,6 +67,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/usecases/forget_visit_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/usecases/listen_for_events_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/usecases/move_visit_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/seasons/postgres_season_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/seasons/usecases/forget_seasons_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/seasons/usecases/record_season_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/account_deleted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/bomb_landed_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/bonus_claimed_subscriber"
@@ -74,6 +77,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/message_sent_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/quiz_answered_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/season_played_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/season_recorded_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/signed_in_account_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/signed_in_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/signed_out_subscriber"
@@ -111,6 +116,7 @@ const (
 	signInBuffer         = 256
 	messageSentBuffer    = 256
 	bonusBuffer          = 256
+	seasonPlayedBuffer   = 65536
 )
 
 func NewModule(config Config) cpbootstrap.Module {
@@ -163,6 +169,9 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	wornTitleStore := postgres_worn_title_store.New(db)
 	wardrobe := wearing.NewWardrobe(wornTitleStore, titleBook, catalog)
 	titleCards := inprocess_title_catalog.New(catalog)
+	seasonStore := postgres_season_store.New(db)
+	careers := titles.NewCareers(accounts, seasonStore)
+	award := notifying_award_titles.New(award_titles_usecase.New(store, careers, titleBook, clock), titleFeed)
 
 	authors := get_author_usecase.New(store, players.NewGuestCodes(store, random_code_generator.Generator{}), wardrobe, clock)
 
@@ -208,12 +217,28 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to subscribe to planet.v1.QuizAnswered: %w", err)
 	}
 	awards, err := cpbootstrap.Subscribe(props.Events, "player-titles", tileTakenBuffer,
-		log_subscriber.New(stats_changed_subscriber.New(notifying_award_titles.New(
-			award_titles_usecase.New(store, accounts, titleBook, clock), titleFeed,
-		)), props.Logger))
+		log_subscriber.New(stats_changed_subscriber.New(award), props.Logger))
 	if err != nil {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to player.v1.StatsChanged: %w", err)
+	}
+	seasonsPlayed, err := cpbootstrap.Subscribe(props.Events, "player-seasons", seasonPlayedBuffer,
+		log_subscriber.New(season_played_subscriber.New(record_season_usecase.New(seasonStore, props.Events)), props.Logger))
+	if err != nil {
+		_ = db.Close()
+		return fmt.Errorf("failed to subscribe to seasons.v1.SeasonPlayed: %w", err)
+	}
+	seasonAwards, err := cpbootstrap.Subscribe(props.Events, "player-titles-seasons", seasonPlayedBuffer,
+		log_subscriber.New(season_recorded_subscriber.New(award), props.Logger))
+	if err != nil {
+		_ = db.Close()
+		return fmt.Errorf("failed to subscribe to player.v1.SeasonRecorded: %w", err)
+	}
+	signInAwards, err := cpbootstrap.Subscribe(props.Events, "player-titles-sign-ins", signInBuffer,
+		log_subscriber.New(signed_in_account_subscriber.New(award), props.Logger))
+	if err != nil {
+		_ = db.Close()
+		return fmt.Errorf("failed to subscribe the titles to auth.v1.SignedIn: %w", err)
 	}
 	deletions, err := cpbootstrap.Subscribe(props.Events, "player-accounts", accountDeletedBuffer,
 		log_subscriber.New(account_deleted_subscriber.New(forget_account_usecase.New(store)), props.Logger))
@@ -232,6 +257,12 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	if err != nil {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe the worn titles to auth.v1.AccountDeleted: %w", err)
+	}
+	forgottenSeasons, err := cpbootstrap.Subscribe(props.Events, "player-seasons-accounts", accountDeletedBuffer,
+		log_subscriber.New(account_deleted_subscriber.New(forget_seasons_usecase.New(seasonStore)), props.Logger))
+	if err != nil {
+		_ = db.Close()
+		return fmt.Errorf("failed to subscribe the seasons played to auth.v1.AccountDeleted: %w", err)
 	}
 
 	forgetVisit := forget_visit_usecase.New(visits)
@@ -265,7 +296,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	props.Runners.Add(gone)
 
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger, takes, posts, bombs, fortifies, claims, answers, awards, deletions,
-		forgottenTitles, forgottenChoices, signIns, namings))
+		forgottenTitles, forgottenChoices, signIns, namings, seasonsPlayed, seasonAwards, signInAwards, forgottenSeasons))
 
 	verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", "player")))
 
@@ -313,7 +344,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	adminService := playerv1controller.AdminService{
 		ReconcileTitlesHandler: reconcile_titles_handler.New(audit_reconcile_titles.New(
-			reconcile_titles_usecase.New(store, accounts, titleStore, catalog, clock), props.Logger,
+			reconcile_titles_usecase.New(store, careers, titleStore, catalog, clock), props.Logger,
 		)),
 		GetAuthorsHandler: getAuthors,
 		AdminGetPlayerHandler: admin_get_player_handler.New(

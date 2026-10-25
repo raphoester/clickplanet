@@ -1,8 +1,11 @@
 package titles
 
 import (
+	"fmt"
 	"slices"
 	"time"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/seasons"
 )
 
 type Catalog struct {
@@ -11,7 +14,7 @@ type Catalog struct {
 }
 
 func NewCatalog() Catalog {
-	return CatalogOf([]Title{OG{}}, Conquest{}, Devotion{}, Chatter{}, Defense{}, Bombs{}, Loot{}, Quiz{})
+	return CatalogOf([]Title{OG{}, Champion{Season: 0}, Veteran{Season: 0}}, Conquest{}, Devotion{}, Chatter{}, Defense{}, Bombs{}, Loot{}, Quiz{})
 }
 
 func CatalogOf(standalone []Title, tracks ...Track) Catalog {
@@ -152,6 +155,26 @@ func (OG) Name() string { return "OG" }
 func (OG) EarnedBy(career Career) bool {
 	return !career.account.CreatedAt().IsZero() && career.account.CreatedAt().Before(ogCutoff)
 }
+
+type Veteran struct {
+	Season seasons.Number
+}
+
+func (v Veteran) ID() ID { return ID(fmt.Sprintf("veteran_s%d", v.Season)) }
+
+func (v Veteran) Name() string { return fmt.Sprintf("Veteran · S%d", v.Season) }
+
+func (v Veteran) EarnedBy(career Career) bool { return career.seasons.Played(v.Season) }
+
+type Champion struct {
+	Season seasons.Number
+}
+
+func (c Champion) ID() ID { return ID(fmt.Sprintf("champion_s%d", c.Season)) }
+
+func (c Champion) Name() string { return fmt.Sprintf("Champion · S%d", c.Season) }
+
+func (c Champion) EarnedBy(career Career) bool { return career.seasons.Won(c.Season) }
 
 type Settler struct{}
 

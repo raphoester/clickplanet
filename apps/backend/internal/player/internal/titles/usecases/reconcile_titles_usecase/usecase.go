@@ -14,8 +14,8 @@ type Stats interface {
 	StatsAfter(ctx context.Context, after players.AccountID, limit int) ([]players.Stats, error)
 }
 
-type Accounts interface {
-	Accounts(ctx context.Context, accounts []players.AccountID) (map[players.AccountID]players.Account, error)
+type Careers interface {
+	Page(ctx context.Context, page []players.Stats) ([]titles.Career, error)
 }
 
 type Titles interface {
@@ -36,17 +36,17 @@ type Reconciled struct {
 const pageSize = 500
 
 type UseCase struct {
-	stats    Stats
-	accounts Accounts
-	titles   Titles
-	catalog  titles.Catalog
-	clock    cptime.Clock
+	stats   Stats
+	careers Careers
+	titles  Titles
+	catalog titles.Catalog
+	clock   cptime.Clock
 }
 
 var _ Executor = (*UseCase)(nil)
 
-func New(stats Stats, accounts Accounts, titles Titles, catalog titles.Catalog, clock cptime.Clock) *UseCase {
-	return &UseCase{stats: stats, accounts: accounts, titles: titles, catalog: catalog, clock: clock}
+func New(stats Stats, careers Careers, titles Titles, catalog titles.Catalog, clock cptime.Clock) *UseCase {
+	return &UseCase{stats: stats, careers: careers, titles: titles, catalog: catalog, clock: clock}
 }
 
 func (u *UseCase) Execute(ctx context.Context) (Reconciled, error) {
@@ -61,17 +61,16 @@ func (u *UseCase) Execute(ctx context.Context) (Reconciled, error) {
 			return reconciled, fmt.Errorf("failed to read a page of stats: %w", err)
 		}
 
-		accounts := players.AccountsOf(page)
-		known, err := u.accounts.Accounts(ctx, accounts)
+		careers, err := u.careers.Page(ctx, page)
 		if err != nil {
-			return reconciled, fmt.Errorf("failed to ask auth about a page of accounts: %w", err)
+			return reconciled, fmt.Errorf("failed to read the careers of a page: %w", err)
 		}
-		held, err := u.titles.Holdings(ctx, accounts)
+		held, err := u.titles.Holdings(ctx, players.AccountsOf(page))
 		if err != nil {
 			return reconciled, fmt.Errorf("failed to read the titles of a page: %w", err)
 		}
 
-		reconciliation := u.catalog.ReconciliationOf(titles.CareersOf(page, known), held)
+		reconciliation := u.catalog.ReconciliationOf(careers, held)
 		if err := u.titles.Grant(ctx, reconciliation.Grants(), at); err != nil {
 			return reconciled, fmt.Errorf("failed to grant the titles: %w", err)
 		}

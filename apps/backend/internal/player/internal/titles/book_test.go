@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/seasons"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/inmemory_title_store"
 )
@@ -37,7 +38,7 @@ func TestAGuestEarnsNothingAndNoStoreIsRead(t *testing.T) {
 	store := inmemory_title_store.New()
 	store.FailWith(errors.New("postgres is down"))
 
-	unheld, err := titles.NewBook(store, catalog).Unheld(t.Context(), ada, titles.CareerOf(players.StatsSnapshot{TilesTaken: 3}.Restore(), players.Account{}))
+	unheld, err := titles.NewBook(store, catalog).Unheld(t.Context(), ada, titles.CareerOf(players.StatsSnapshot{TilesTaken: 3}.Restore(), players.Account{}, seasons.Record{}))
 
 	require.NoError(t, err)
 	assert.Empty(t, unheld)

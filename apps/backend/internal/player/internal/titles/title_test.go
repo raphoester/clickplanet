@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/seasons"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
 )
 
@@ -94,7 +95,7 @@ func TestAGuestEarnsNothing(t *testing.T) {
 	guest := titles.CareerOf(players.StatsSnapshot{
 		TilesTaken: 1_000_000, StreakBest: 1_000, MessagesSent: 1_000_000, BombsDropped: 1_000_000,
 		TilesFortified: 1_000_000, BonusesClaimed: 1_000_000, RightAnswers: 1_000_000,
-	}.Restore(), players.Account{})
+	}.Restore(), players.Account{}, seasons.NewRecord(players.AccountID{}).With(seasons.Season{Number: 0, Flag: "fr", Won: true}))
 
 	assert.Empty(t, catalog.EarnedBy(guest))
 	assert.Empty(t, titles.NewCatalog().EarnedBy(guest))
@@ -103,7 +104,7 @@ func TestAGuestEarnsNothing(t *testing.T) {
 func TestTheReconciliationGrantsWhatIsEarnedAndRevokesWhatIsNot(t *testing.T) {
 	career := func(account byte, taken uint64, linked bool) titles.Career {
 		return titles.CareerOf(players.StatsSnapshot{Account: players.AccountID{15: account}, TilesTaken: taken}.Restore(),
-			players.AccountOf(linked, time.Time{}))
+			players.AccountOf(linked, time.Time{}), seasons.Record{})
 	}
 
 	reconciliation := catalog.ReconciliationOf([]titles.Career{

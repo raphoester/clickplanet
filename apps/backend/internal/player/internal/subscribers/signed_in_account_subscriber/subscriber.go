@@ -9,21 +9,21 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 )
 
-type UseCase interface {
-	Execute(ctx context.Context, account players.AccountID) (players.Profile, error)
+type UseCase[R any] interface {
+	Execute(ctx context.Context, account players.AccountID) (R, error)
 }
 
-func New(useCase UseCase) Subscriber {
-	return Subscriber{useCase: useCase}
+func New[R any](useCase UseCase[R]) Subscriber[R] {
+	return Subscriber[R]{useCase: useCase}
 }
 
-type Subscriber struct {
-	useCase UseCase
+type Subscriber[R any] struct {
+	useCase UseCase[R]
 }
 
-var _ cpbootstrap.Handler[*authv1.SignedIn] = Subscriber{}
+var _ cpbootstrap.Handler[*authv1.SignedIn] = Subscriber[players.Profile]{}
 
-func (s Subscriber) Handle(ctx context.Context, event *authv1.SignedIn) error {
+func (s Subscriber[R]) Handle(ctx context.Context, event *authv1.SignedIn) error {
 	account, err := players.AccountIDOf(event.GetAccountId())
 	if err != nil {
 		return err //nolint:wrapcheck // the sentinel already says what is wrong.
