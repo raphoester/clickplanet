@@ -224,19 +224,6 @@ func NewModule(config Config) cpbootstrap.Module {
 					slog.Int("subjects", bank.Subjects()))
 			}
 
-			ruleDefaults := rules.Set{Name: rules.Default, Tempo: 1, Boxes: config.Bonus.Pace()}
-			ruleCatalog, err := rules.NewCatalog(config.Rules, ruleDefaults)
-			if err != nil {
-				return fmt.Errorf("failed to read the rule sets: %w", err)
-			}
-			inForce := rules.NewInForce(ruleDefaults, limiter, registry)
-			ruleChanges := postgres_rule_change_store.New(db)
-			if err := restore_rules_usecase.New(ruleChanges, ruleCatalog, inForce).Execute(ctx); err != nil {
-				return fmt.Errorf("failed to restore the rules in force: %w", err)
-			}
-			applyRuleSet := audit_apply_rule_set.New(
-				apply_rule_set_usecase.New(ruleCatalog, ruleChanges, inForce, clock), props.Logger)
-
 			bombRules := bonuses.NewBombRules(config.Bonus.Bomb, geography.Spacing())
 
 			var clickUseCase click_usecase.IUseCase = click_usecase.New(tilesChecker, writer, countries)
@@ -258,6 +245,21 @@ func NewModule(config Config) cpbootstrap.Module {
 				return fmt.Errorf("failed to load the antibot state: %w", err)
 			}
 			props.Runners.Add(guard)
+
+			ruleDefaults := rules.Set{
+				Name: rules.Default, Tempo: 1, Boxes: config.Bonus.Pace(), AntiBot: rules.AntiBot{Crowd: config.AntiBot.Crowd()},
+			}
+			ruleCatalog, err := rules.NewCatalog(config.Rules, ruleDefaults)
+			if err != nil {
+				return fmt.Errorf("failed to read the rule sets: %w", err)
+			}
+			inForce := rules.NewInForce(ruleDefaults, limiter, registry, guard)
+			ruleChanges := postgres_rule_change_store.New(db)
+			if err := restore_rules_usecase.New(ruleChanges, ruleCatalog, inForce).Execute(ctx); err != nil {
+				return fmt.Errorf("failed to restore the rules in force: %w", err)
+			}
+			applyRuleSet := audit_apply_rule_set.New(
+				apply_rule_set_usecase.New(ruleCatalog, ruleChanges, inForce, clock), props.Logger)
 
 			clickUseCase = antibot_click.New(clickUseCase, guard, tilesStorage, shielding, inForce, clock, props.Metrics)
 

@@ -12,13 +12,18 @@ import (
 )
 
 var defaults = rules.Set{
-	Name:  rules.Default,
-	Tempo: 1,
-	Boxes: bonuses.Pace{MinInterval: 4 * time.Minute, MaxInterval: 8 * time.Minute, MaxChargesPerHour: 12},
+	Name:    rules.Default,
+	Tempo:   1,
+	Boxes:   bonuses.Pace{MinInterval: 4 * time.Minute, MaxInterval: 8 * time.Minute, MaxChargesPerHour: 12},
+	AntiBot: rules.AntiBot{Crowd: 6},
 }
 
 var rushConfig = rules.Config{Sets: map[rules.SetName]rules.SetConfig{
-	"rush": {Tempo: 3, Boxes: rules.BoxesConfig{MinInterval: time.Minute, MaxInterval: 2 * time.Minute, MaxChargesPerHour: 30}},
+	"rush": {
+		Tempo:   3,
+		Boxes:   rules.BoxesConfig{MinInterval: time.Minute, MaxInterval: 2 * time.Minute, MaxChargesPerHour: 30},
+		AntiBot: rules.AntiBotConfig{Crowd: 50},
+	},
 }}
 
 func TestASetConfiguredInFullIsTakenAsIs(t *testing.T) {
@@ -28,9 +33,10 @@ func TestASetConfiguredInFullIsTakenAsIs(t *testing.T) {
 	rush, err := catalog.Set("rush")
 	require.NoError(t, err)
 	assert.Equal(t, rules.Set{
-		Name:  "rush",
-		Tempo: 3,
-		Boxes: bonuses.Pace{MinInterval: time.Minute, MaxInterval: 2 * time.Minute, MaxChargesPerHour: 30},
+		Name:    "rush",
+		Tempo:   3,
+		Boxes:   bonuses.Pace{MinInterval: time.Minute, MaxInterval: 2 * time.Minute, MaxChargesPerHour: 30},
+		AntiBot: rules.AntiBot{Crowd: 50},
 	}, rush)
 }
 
@@ -43,7 +49,7 @@ func TestWhatASetLeavesOutIsTheDefaults(t *testing.T) {
 
 	quick, err := catalog.Set("quick")
 	require.NoError(t, err)
-	assert.Equal(t, rules.Set{Name: "quick", Tempo: 2, Boxes: defaults.Boxes}, quick)
+	assert.Equal(t, rules.Set{Name: "quick", Tempo: 2, Boxes: defaults.Boxes, AntiBot: defaults.AntiBot}, quick)
 
 	boxes, err := catalog.Set("boxes")
 	require.NoError(t, err)
@@ -113,6 +119,7 @@ func TestTheConfigRefusesWhatCannotBeASet(t *testing.T) {
 		"bad name":          {Sets: map[rules.SetName]rules.SetConfig{"Rush!": {Tempo: 2}}},
 		"negative tempo":    {Sets: map[rules.SetName]rules.SetConfig{"slow": {Tempo: -1}}},
 		"negative boxes":    {Sets: map[rules.SetName]rules.SetConfig{"slow": {Boxes: rules.BoxesConfig{MaxChargesPerHour: -1}}}},
+		"negative crowd":    {Sets: map[rules.SetName]rules.SetConfig{"slow": {AntiBot: rules.AntiBotConfig{Crowd: -1}}}},
 	} {
 		t.Run(name, func(t *testing.T) {
 			require.Error(t, config.Validate())

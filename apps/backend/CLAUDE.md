@@ -945,8 +945,9 @@ player could paint for one country and defend another click to click. **Only
 ### Rules: the game's rule sets (`internal/planet/internal/rules/`)
 
 **The game can change its rules at once for every player, and planet says so in its own words.** A rule set is a
-name and what it sets: how fast every bucket refills (`tempo`), and the boxes' wait and their hourly cap. The
-`default` set is the config's own rules (`tempo` 1, `bonus.minInterval`, `maxInterval`, `maxChargesPerHour`); the
+name and what it sets: how fast every bucket refills (`tempo`), the boxes' wait and their hourly cap, and how many
+networks of one prefix the anti-bot bans as a crowd (`antiBot.crowd`). The `default` set is the config's own rules
+(`tempo` 1, `bonus.minInterval`, `maxInterval`, `maxChargesPerHour`, `antiBot.cohort.detector.certainMembers`); the
 other sets are named in `rules.sets`, each leaving out what it keeps of the default:
 
 ```yaml
@@ -955,6 +956,7 @@ rules:
     rush:              # the Final Battle's: refill 3 times as fast, a box every 1 to 2 minutes, 30 an hour
       tempo: 3
       boxes: {minInterval: 1m, maxInterval: 2m, maxChargesPerHour: 30}
+      antiBot: {crowd: 50}
 ```
 
 **Planet never learns why a set is asked for.** The relationship is Customer–Supplier with an Open Host Service and
@@ -979,7 +981,9 @@ event planet listens to.
   `cpratelimit.Limiter.SetTempo` (every bucket, the account's, the guests' and the scope's, is multiplied from then
   on, and what each earned before was refilled at the tempo it had, so `GetBudget` reads the new rate at once) and
   `bonuses.Registry.SetPace` (every wait is drawn at the new pace, and a box due later than the new longest wait is
-  brought in). The toll and the linked multiplier still apply on top of the tempo. `Tempo()` is read by the
+  brought in) and `antibot.Guard.SetCrowd` (the `cohort` watchdog's `crowd`, never under `minMembers`; nothing with
+  `cohort` off). **The anti-bot runs inside planet**, which builds it and hands it every click, so its bounds for a
+  moment of the game are a rule like the pace, not a deploy. The toll and the linked multiplier still apply on top of the tempo. `Tempo()` is read by the
   antibot's click reports (see [Anti-bot](#anti-bot-internalantibot)), and `Watch()` by each planet stream, which
   sends `PlanetEvent.rules_changed`: the client reads `GetBudget` again, so an open tab shows the faster refill with
   no reload.
@@ -3072,11 +3076,12 @@ under 400ms and it makes 1,080 tries in 30 minutes.
   retakes, `hopper` angles, `scraper` and `churner` maps read and accounts born, `rotator` 5-minute slots. At 3× they
   reach their counts sooner, never on less. `catcher` reads the delay of each catch: boxes every 1 to 2 minutes bring
   its 5 catches in 5 to 10 minutes rather than 20 to 40, on the same bounds.
-- **Known risk: `cohort` at the start of a battle.** It has nothing to do with the tempo: players who start within
-  `startWindow` (5s) of each other, for one flag, at paces within `rateRatio`, are in step, and `certainMembers` (6) of
-  them from one /24 or /44 read `crowd`, `Certain` alone. A countdown makes people start on the second, and a
-  country on one carrier's NAT (Algeria) can put six on one /24. The tempo makes them pace alike, since everyone
-  waits on the same refill.
+- **`cohort` at the start of a battle is a rule of the set**: players who start within `startWindow` (5s) of each
+  other, for one flag, at paces within `rateRatio`, are in step, and `certainMembers` (6) of them from one /24 or /44
+  read `crowd`, `Certain` alone. A countdown makes people start on the second, a country on one carrier's NAT
+  (Algeria) can put six on one /24, and the tempo makes them pace alike. So `rush` sets `antiBot.crowd` to 50 while
+  it is in force (`Guard.SetCrowd`); `chain` and `lockstep` are untouched, and the default comes back with the
+  default set.
 - A run saved before this decodes with no length, so its `sustained` starts again at the deploy; its gaps and clicks
   are kept. `tempo_test.go` pins all of it at production's bounds.
 
@@ -3176,7 +3181,7 @@ since a pool starts its tries together and the throttle only blurs that.
   no crowd produces. The prefix is what separates it from a raid — waves of people
   answering one link start together too, but from all over, and
   `TestARaidFromAllOverIsNeverCertain` pins that they never reach it.
-- **`Certain` (`crowd`)** is `certainMembers` scopes in step in one group from one prefix.
+- **`Certain` (`crowd`)** is `certainMembers` scopes in step in one group from one prefix. A rule set can raise it while it is in force (`antiBot.crowd`, `Watchdog.SetCrowd`; see [Rules](#rules-the-games-rule-sets-internalplanetinternalrules)): the Final Battle's start is a crowd of real players.
 
 **How a finding reaches every member.** The jury asks per click of one scope, and
 nothing here is pushed to anyone. The watchdog keeps one table of every scope,

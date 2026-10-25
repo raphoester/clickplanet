@@ -1603,6 +1603,11 @@ export class RuleSet extends Message<RuleSet> {
    */
   boxes?: BoxPace;
 
+  /**
+   * @generated from field: planet.v1.AntiBotRules anti_bot = 4;
+   */
+  antiBot?: AntiBotRules;
+
   constructor(data?: PartialMessage<RuleSet>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1614,6 +1619,7 @@ export class RuleSet extends Message<RuleSet> {
     { no: 1, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "tempo", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
     { no: 3, name: "boxes", kind: "message", T: BoxPace },
+    { no: 4, name: "anti_bot", kind: "message", T: AntiBotRules },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RuleSet {
@@ -1630,6 +1636,45 @@ export class RuleSet extends Message<RuleSet> {
 
   static equals(a: RuleSet | PlainMessage<RuleSet> | undefined, b: RuleSet | PlainMessage<RuleSet> | undefined): boolean {
     return proto3.util.equals(RuleSet, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.AntiBotRules
+ */
+export class AntiBotRules extends Message<AntiBotRules> {
+  /**
+   * How many networks of one prefix, starting and clicking in step, are banned as a crowd.
+   *
+   * @generated from field: uint32 crowd = 1;
+   */
+  crowd = 0;
+
+  constructor(data?: PartialMessage<AntiBotRules>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.AntiBotRules";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "crowd", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AntiBotRules {
+    return new AntiBotRules().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AntiBotRules {
+    return new AntiBotRules().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AntiBotRules {
+    return new AntiBotRules().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: AntiBotRules | PlainMessage<AntiBotRules> | undefined, b: AntiBotRules | PlainMessage<AntiBotRules> | undefined): boolean {
+    return proto3.util.equals(AntiBotRules, a, b);
   }
 }
 

@@ -16,6 +16,12 @@ type SetConfig struct {
 	Tempo float64
 
 	Boxes BoxesConfig
+
+	AntiBot AntiBotConfig
+}
+
+type AntiBotConfig struct {
+	Crowd int
 }
 
 type BoxesConfig struct {
@@ -50,6 +56,9 @@ func (c SetConfig) validate() error {
 	}
 	if c.Boxes.MinInterval < 0 || c.Boxes.MaxInterval < 0 || c.Boxes.MaxChargesPerHour < 0 {
 		return errors.New("boxes must not be negative")
+	}
+	if c.AntiBot.Crowd < 0 {
+		return fmt.Errorf("antiBot.crowd is %d: it must be above 0, or unset for the config's", c.AntiBot.Crowd)
 	}
 
 	return nil

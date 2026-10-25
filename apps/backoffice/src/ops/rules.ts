@@ -28,6 +28,11 @@ function spanOf(duration: Duration | undefined): string {
     return seconds % 60 === 0 ? `${seconds / 60} min` : `${seconds} s`
 }
 
+export function crowdOf(set: RuleSet): string {
+    const crowd = set.antiBot?.crowd ?? 0
+    return crowd > 0 ? `A crowd from ${crowd} networks` : "—"
+}
+
 export function sourceOf(source: RuleChangeSource): string {
     switch (source) {
         case RuleChangeSource.INTERNAL:

@@ -30,6 +30,7 @@ describe("the game rules page", () => {
         const rush = rowOf("rush")
         expect(within(rush).getByText("3× as fast")).toBeTruthy()
         expect(within(rush).getByText("Every 1 min to 2 min, 30 an hour at most")).toBeTruthy()
+        expect(within(rush).getByText("A crowd from 50 networks")).toBeTruthy()
         expect(within(rush).getByText("In force")).toBeTruthy()
         expect(screen.queryByRole("button", {name: "Apply rush"})).toBeNull()
         expect(screen.getByRole("button", {name: "Apply default"})).toBeTruthy()

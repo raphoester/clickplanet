@@ -1053,3 +1053,21 @@ func TestABanStoreThatFailsLetsTheClickThroughAndSaysSo(t *testing.T) {
 	assert.False(t, s.banned("1.2.3.4", ""))
 	assert.Len(t, s.errors, 2, "each ban it could not read is reported")
 }
+
+func TestACrowdIsCohortsCertainMembersAndTheDefaultWithNone(t *testing.T) {
+	var config antibot.Config
+	assert.Equal(t, 6, config.Crowd())
+
+	config.Cohort.Detector.CertainMembers = 9
+	assert.Equal(t, 9, config.Crowd())
+}
+
+func TestACrowdSetWithCohortOffChangesNothing(t *testing.T) {
+	guard, err := antibot.New(antibot.Config{}, cptime.SystemClock{}, antibot.Observer{})
+	require.NoError(t, err)
+
+	guard.SetCrowd(50)
+
+	_, banned := guard.EnforcedSentence(t.Context(), "1.2.3.4", "a-guest")
+	assert.False(t, banned)
+}
