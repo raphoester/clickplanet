@@ -64,14 +64,16 @@ func progress(dashboard *playerv1.GetTitlesResponse) map[string]uint64 {
 }
 
 func (s *testSuite) TestTheDashboardMeasuresTheStreakAsOfToday() {
-	s.Require().NoError(s.players.RecordTake(s.T().Context(), ada, monday))
-	s.Require().NoError(s.players.RecordTake(s.T().Context(), ada, monday.Add(24*time.Hour)))
+	s.Require().NoError(s.players.Record(s.T().Context(), ada, players.TakeAt(monday)))
+	s.Require().NoError(s.players.Record(s.T().Context(), ada, players.TakeAt(monday.Add(24*time.Hour))))
 	s.Require().NoError(s.titles.Grant(s.T().Context(), titles.Holdings{ada: {"settler"}}, monday))
 	clock := cptime.NewFixedClock(monday.Add(24 * time.Hour))
 
 	dashboard := s.dashboard(clock)
 	s.Equal("settler", dashboard.GetWorn().GetId())
-	s.Equal(map[string]uint64{"conquest": 2, "devotion": 2, "chatter": 0}, progress(dashboard), "the streak on its second day")
+	s.Equal(map[string]uint64{
+		"conquest": 2, "devotion": 2, "chatter": 0, "defense": 0, "bombs": 0, "loot": 0, "quiz": 0,
+	}, progress(dashboard), "the streak on its second day")
 
 	clock.Advance(72 * time.Hour)
 	s.Equal(uint64(0), progress(s.dashboard(clock))["devotion"], "a streak broken since reads zero")
@@ -79,10 +81,25 @@ func (s *testSuite) TestTheDashboardMeasuresTheStreakAsOfToday() {
 
 func (s *testSuite) TestTheChatterTrackCountsTheMessagesSent() {
 	for range 3 {
-		s.Require().NoError(s.players.RecordMessage(s.T().Context(), ada))
+		s.Require().NoError(s.players.Record(s.T().Context(), ada, players.Stats.WithMessage))
 	}
 
 	s.Equal(uint64(3), progress(s.dashboard(cptime.NewFixedClock(monday)))["chatter"])
+}
+
+func (s *testSuite) TestTheBonusTracksCountWhatTheStatsKept() {
+	for _, change := range []func(players.Stats) players.Stats{
+		players.Stats.WithBomb, players.Stats.WithBonus, players.Stats.WithBonus, players.Stats.WithRightAnswer,
+		func(stats players.Stats) players.Stats { return stats.WithFortify(137) },
+	} {
+		s.Require().NoError(s.players.Record(s.T().Context(), ada, change))
+	}
+
+	by := progress(s.dashboard(cptime.NewFixedClock(monday)))
+	s.Equal(uint64(137), by["defense"])
+	s.Equal(uint64(1), by["bombs"])
+	s.Equal(uint64(2), by["loot"])
+	s.Equal(uint64(1), by["quiz"])
 }
 
 func (s *testSuite) TestAnAccountWithNoStatsStartsEveryTrackAtZero() {
@@ -90,7 +107,9 @@ func (s *testSuite) TestAnAccountWithNoStatsStartsEveryTrackAtZero() {
 
 	s.Nil(dashboard.GetWorn())
 	s.Empty(dashboard.GetWearable())
-	s.Equal(map[string]uint64{"conquest": 0, "devotion": 0, "chatter": 0}, progress(dashboard))
+	s.Equal(map[string]uint64{
+		"conquest": 0, "devotion": 0, "chatter": 0, "defense": 0, "bombs": 0, "loot": 0, "quiz": 0,
+	}, progress(dashboard))
 }
 
 func (s *testSuite) TestTheDashboardWearsTheChoiceAndOffersWhatIsShown() {

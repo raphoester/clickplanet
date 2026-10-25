@@ -18,7 +18,7 @@ burger menu (see [The menu](#the-menu)), by group:
 - **Map**: Reassign a country, Paint random tiles, Download a replay (see [The map tools](#the-map-tools)).
 - **Clips**: Clip stats, the daily numbers of the clips the clips job posts, and a CSV of them (see
   [Clip stats](#clip-stats)).
-- **Ops**: Reconcile titles, the run after a deploy (see [Ops](#ops)).
+- **Ops**: Reconcile titles and recount bombs and fortifies, the runs after a deploy (see [Ops](#ops)).
 
 What is left of the plan is a live chat view: `ListMessages` pages through the chat (the report and player pages
 read it), and no admin method streams it.
@@ -372,8 +372,9 @@ Zernio answered, as it came, and what the clip was.
 
 ## Ops
 
-`src/ops/`: `ReconcileTitles` (`TitlesPanel`, after a deploy that adds a title or changes a rule). It asks first, and
-it is harmless twice.
+`src/ops/`: `ReconcileTitles` (`TitlesPanel`, after a deploy that adds a title or changes a rule), and `RecountStats`
+beside it, which sets each player's bombs and fortified tiles to what planet's ledger holds (once after the deploy
+that brought those tracks). Each asks first, and each is harmless twice.
 
 ## Deploy
 

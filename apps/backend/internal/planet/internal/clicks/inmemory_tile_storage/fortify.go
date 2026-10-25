@@ -6,9 +6,10 @@ import (
 	"math"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
-func (s *Storage) Fortify(_ context.Context, tile uint32, flag string, most int) (clicks.Fortification, error) {
+func (s *Storage) Fortify(ctx context.Context, tile uint32, flag string, most int) (clicks.Fortification, error) {
 	landmass := s.landmasses.of(tile)
 
 	s.mu.RLock()
@@ -37,7 +38,7 @@ func (s *Storage) Fortify(_ context.Context, tile uint32, flag string, most int)
 
 	fortification := clicks.Fortification{
 		Landmass: landmass, Ground: s.landmasses.groundOf(tile), Country: flag, Tile: tile,
-		Tiles: len(members), Raised: raised,
+		Account: cpctx.GetAccount(ctx), Tiles: len(members), Raised: raised,
 	}
 	s.feed.publish(clicks.Change{Fortification: &fortification})
 

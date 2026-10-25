@@ -4,8 +4,13 @@ import (
 	"context"
 	"errors"
 
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
+	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 // One error for every failure: telling them apart helps a script guessing tokens.
@@ -21,6 +26,10 @@ type Charger interface {
 	Held(ctx context.Context, holder bonuses.Holder) (bonuses.Held, error)
 }
 
+type Publisher interface {
+	Publish(event proto.Message)
+}
+
 type In struct {
 	Token     string
 	CountryID string
@@ -34,13 +43,15 @@ type Out struct {
 	Held bonuses.Held
 }
 
-func New(registry Registry, charger Charger) *UseCase {
-	return &UseCase{registry: registry, charger: charger}
+func New(registry Registry, charger Charger, events Publisher, clock cptime.Clock) *UseCase {
+	return &UseCase{registry: registry, charger: charger, events: events, clock: clock}
 }
 
 type UseCase struct {
 	registry Registry
 	charger  Charger
+	events   Publisher
+	clock    cptime.Clock
 }
 
 func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
@@ -65,6 +76,9 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	}
 
 	u.registry.Publish(bonuses.Taken{CountryID: in.CountryID, Kind: reward.Kind})
+	if holder != bonuses.NoHolder {
+		u.events.Publish(&planetv1.BonusClaimed{AccountId: string(holder), ClaimedAt: timestamppb.New(u.clock.Now())})
+	}
 
 	return Out{Kind: reward.Kind, Amount: held.Count(reward.Kind) - before.Count(reward.Kind), Held: held}, nil
 }

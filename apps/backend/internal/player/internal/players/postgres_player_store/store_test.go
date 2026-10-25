@@ -67,7 +67,7 @@ func (s *testSuite) TestTheTableTakesTheNamesTheRuleTakes() {
 }
 
 func (s *testSuite) TestTheStreakDayIsStoredAsADate() {
-	s.Require().NoError(s.store.RecordTake(s.T().Context(), players.AccountID{15: 1}, at))
+	s.Require().NoError(s.store.Record(s.T().Context(), players.AccountID{15: 1}, players.TakeAt(at)))
 
 	var day string
 	s.Require().NoError(s.db.QueryRowContext(s.T().Context(), `SELECT streak_last_day::text FROM stats`).Scan(&day))
@@ -80,7 +80,7 @@ func (s *testSuite) TestConcurrentFirstTakesAreAllCounted() {
 	for range 20 {
 		wg.Go(func() {
 			<-start
-			s.NoError(s.store.RecordTake(s.T().Context(), players.AccountID{15: 1}, at))
+			s.NoError(s.store.Record(s.T().Context(), players.AccountID{15: 1}, players.TakeAt(at)))
 		})
 	}
 	close(start)

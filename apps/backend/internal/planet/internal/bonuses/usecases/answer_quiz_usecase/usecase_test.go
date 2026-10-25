@@ -3,14 +3,22 @@ package answer_quiz_usecase_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
+	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/answer_quiz_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
+
+var now = time.Date(2026, 10, 25, 12, 0, 0, 0, time.UTC)
 
 func asPlayer(t *testing.T) context.Context {
 	t.Helper()
@@ -50,7 +58,7 @@ func newUseCase(answered bonuses.Answered, known bool) (*answer_quiz_usecase.Use
 	registry := &fakeRegistry{answered: answered, known: known}
 	charger := &fakeCharger{}
 
-	return answer_quiz_usecase.New(registry, charger), registry, charger
+	return answer_quiz_usecase.New(registry, charger, cpbootstrap.NewRecordedEvents(), cptime.NewFixedClock(now)), registry, charger
 }
 
 func TestARightAnswerGrantsTheChargeAndTellsThePlanet(t *testing.T) {
@@ -91,6 +99,22 @@ func TestAWrongAnswerChangesNothingAndTellsNobody(t *testing.T) {
 	assert.True(t, out.Held.Empty())
 	assert.True(t, charger.held.Empty())
 	assert.Empty(t, registry.published, "nothing happened, so the planet is told nothing")
+}
+
+func TestEveryAnswerIsToldToTheOtherModulesRightOrWrong(t *testing.T) {
+	for _, correct := range []bool{true, false} {
+		events := cpbootstrap.NewRecordedEvents()
+		registry := &fakeRegistry{answered: bonuses.Answered{Correct: correct, Reward: bonuses.Reward{Kind: bonuses.KindRefill, Amount: 1}}, known: true}
+
+		_, err := answer_quiz_usecase.New(registry, &fakeCharger{}, events, cptime.NewFixedClock(now)).
+			Execute(asPlayer(t), answer_quiz_usecase.In{Token: "t"})
+		require.NoError(t, err)
+
+		require.Len(t, events.Published(), 1)
+		assert.True(t, proto.Equal(&planetv1.QuizAnswered{
+			AccountId: "a-guest", Correct: correct, AnsweredAt: timestamppb.New(now),
+		}, events.Published()[0]), "correct: %v", correct)
+	}
 }
 
 func TestAQuizThatIsNotThisCallersIsNotFound(t *testing.T) {
