@@ -151,7 +151,7 @@ antiBot:
       v4Bits: 24
       v6Bits: 44
       certainCohorts: 3
-      certainMembers: 6
+      # How many networks of one prefix make a crowd is the rule set's, kept in postgres (planet.rule_sets).
       chainWindow: 30m
       trackWindow: 30m
       sweepInterval: 1m
@@ -208,10 +208,8 @@ antiBot:
       minSlots: 24
       sweepInterval: 1m
 
+# The box waits and the hourly cap are the rule set's, kept in postgres (planet.rule_sets).
 bonus:
-  minInterval: 4m
-  maxInterval: 8m
-
   missRetry: 2m
 
   kinds:
@@ -248,8 +246,6 @@ bonus:
   activeWithin: 2m
 
   forgetAfter: 5m
-
-  maxChargesPerHour: 12
 
   sweepInterval: 1s
 

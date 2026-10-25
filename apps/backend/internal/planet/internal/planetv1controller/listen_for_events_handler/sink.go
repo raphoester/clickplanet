@@ -26,6 +26,10 @@ func (s Sink) Send(event listen_for_events_usecase.Event) error {
 	switch {
 	case event.Heartbeat:
 		return s.stream.Send(heartbeatEvent())
+	case event.RulesChanged:
+		return s.stream.Send(&planetv1.PlanetEvent{
+			Event: &planetv1.PlanetEvent_RulesChanged{RulesChanged: &planetv1.RulesChanged{}},
+		})
 	case event.Offer != nil:
 		return s.stream.Send(bonusOfferedEvent(event.Offer))
 	case event.Quiz != nil:

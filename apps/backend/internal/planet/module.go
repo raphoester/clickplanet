@@ -92,6 +92,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_ledger_handler/changes_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_map_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_replay_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_rules_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_rules_handler/rule_sets_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_takes_by_country_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_takes_by_country_handler/takes_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_territories_handler"
@@ -108,10 +110,17 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/pledge_allegiance_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/reassign_country_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/revert_player_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/save_rule_set_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/top_players_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/unban_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/use_refill_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/quizzes"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/postgres_rule_set_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/usecases/enforce_rules_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/usecases/enforce_rules_usecase/log_enforce_rules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/usecases/save_rule_set_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/usecases/save_rule_set_usecase/audit_save_rule_set"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/account_deleted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
@@ -240,7 +249,15 @@ func NewModule(config Config) cpbootstrap.Module {
 			}
 			props.Runners.Add(guard)
 
-			clickUseCase = antibot_click.New(clickUseCase, guard, tilesStorage, shielding, clock, props.Metrics)
+			ruleSets := postgres_rule_set_store.New(db)
+			inForce := rules.NewInForce(limiter, registry, guard)
+			enforceRules := log_enforce_rules.New(enforce_rules_usecase.New(ruleSets, inForce), props.Logger)
+			if _, err := enforceRules.Execute(ctx); err != nil {
+				return fmt.Errorf("failed to enforce the rules postgres keeps: %w", err)
+			}
+			props.Runners.Add(enforce_rules_usecase.NewRunner(time.Second, enforceRules))
+
+			clickUseCase = antibot_click.New(clickUseCase, guard, tilesStorage, shielding, inForce, clock, props.Metrics)
 
 			clickUseCase = throttle_click.New(clickUseCase, limiter, pricer, buckets)
 
@@ -250,7 +267,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			// Outside the throttle, so a click refused for its flag spends nothing.
 			clickUseCase = allegiance_click.New(clickUseCase, book)
 
-			clickUseCase = antibot_attempt_click.New(clickUseCase, guard, geography, clock)
+			clickUseCase = antibot_attempt_click.New(clickUseCase, guard, geography, inForce, clock)
 
 			// Outside the throttle: a refused click must not spend a token, or the client shows a 429.
 			clickUseCase = ban_click.New(clickUseCase, guard, props.Metrics)
@@ -283,6 +300,9 @@ func NewModule(config Config) cpbootstrap.Module {
 				GetReplayHandler:      get_replay_handler.New(replay_usecase.New(takings, tilesChecker, tilesStorage, clock)),
 				GetLedgerHandler:      get_ledger_handler.New(changes_query.NewPostgresQuery(db, clock)),
 				GetTerritoriesHandler: getTerritories,
+				GetRulesHandler:       get_rules_handler.New(rule_sets_query.NewPostgresQuery(db)),
+				SaveRuleSetHandler: save_rule_set_handler.New(
+					audit_save_rule_set.New(save_rule_set_usecase.New(ruleSets), props.Logger)),
 			}
 
 			if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
@@ -361,7 +381,7 @@ func NewModule(config Config) cpbootstrap.Module {
 					guard),
 				props.Metrics)
 
-			rules := bonuses.Rules{
+			bonusRules := bonuses.Rules{
 				BlastRadius:       bombRules.Radius,
 				EnclosureMaxTiles: chargeRules.EnclosureMaxTiles,
 				SpreadClicks:      chargeRules.SpreadClicks,
@@ -377,12 +397,12 @@ func NewModule(config Config) cpbootstrap.Module {
 				GetMapHandler: get_map_handler.New(
 					antibot_get_map.New(get_map_usecase.New(tilesChecker, tilesStorage), guard, tilesChecker)),
 				ListenForEventsHandler: listen_for_events_handler.New(antibot_listen_for_events.New(
-					listen_for_events_usecase.New(tilesStorage, props.Server.StreamHeartbeat, registry), guard)),
+					listen_for_events_usecase.New(tilesStorage, props.Server.StreamHeartbeat, registry, inForce), guard)),
 				ClaimBonusHandler:    claim_bonus_handler.New(claimBonus),
 				DropBombHandler:      drop_bomb_handler.New(dropBomb),
 				UseRefillHandler:     use_refill_handler.New(use_refill_usecase.New(charges, limiter, pricer, buckets)),
 				GetChargesHandler:    get_charges_handler.New(get_charges_usecase.New(charges)),
-				GetBonusRulesHandler: get_bonus_rules_handler.New(rules, pricer),
+				GetBonusRulesHandler: get_bonus_rules_handler.New(bonusRules, pricer),
 				OpenQuizHandler:      open_quiz_handler.New(openQuiz),
 				AnswerQuizHandler:    answer_quiz_handler.New(answerQuiz),
 				PlaceShieldHandler: place_shield_handler.New(antibot_place_shield.New(

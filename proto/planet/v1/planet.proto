@@ -179,6 +179,8 @@ message PlanetEvent {
     QuizOffered quiz_offered = 8;
 
     LandmassFortified landmass_fortified = 9;
+
+    RulesChanged rules_changed = 10;
   }
 }
 
@@ -197,6 +199,9 @@ message TileHolder {
   string country_id = 2;
   int64 taken_at_unix_ms = 3;
 }
+
+// The budget's rate may have moved: read it again.
+message RulesChanged {}
 
 message GetFortressesRequest {}
 

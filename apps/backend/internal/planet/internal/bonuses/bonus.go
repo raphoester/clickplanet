@@ -144,8 +144,17 @@ type Report struct {
 	QuizAnswered func(scope string, correct bool, after time.Duration)
 }
 
+// Pace is the rule set's: until one is set, the waits are zero and the hourly cap offers nothing.
+type Pace struct {
+	MinInterval time.Duration
+	MaxInterval time.Duration
+
+	MaxChargesPerHour int
+}
+
 type Registry struct {
 	config   Config
+	pace     Pace
 	clock    cptime.Clock
 	report   Report
 	holdings Holdings
@@ -213,6 +222,21 @@ func (r *Registry) Observe(report Report) {
 	defer r.mu.Unlock()
 
 	r.report = report
+}
+
+// SetPace draws every wait from now on with the pace, and brings in a box due later than its longest wait.
+func (r *Registry) SetPace(pace Pace) {
+	now := r.clock.Now()
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.pace = pace
+	for _, entry := range r.callers {
+		if entry.nextOfferAt.After(now.Add(pace.MaxInterval)) {
+			entry.nextOfferAt = now.Add(r.window())
+		}
+	}
 }
 
 func (r *Registry) counted(hook func()) {
@@ -441,7 +465,7 @@ func (r *Registry) offerable(ctx context.Context, entry *caller, now time.Time) 
 		held.Add(hand.Full(r.charges)...)
 	}
 
-	if len(entry.players) == 0 || r.grantedWithinTheHour(entry, now) >= r.config.MaxChargesPerHour {
+	if len(entry.players) == 0 || r.grantedWithinTheHour(entry, now) >= r.pace.MaxChargesPerHour {
 		return kinds
 	}
 
@@ -545,7 +569,7 @@ func (r *Registry) forgetStale(now time.Time) {
 }
 
 func (r *Registry) window() time.Duration {
-	return drawWindow(r.config.MinInterval, r.config.MaxInterval)
+	return drawWindow(r.pace.MinInterval, r.pace.MaxInterval)
 }
 
 func drawWindow(shortest, longest time.Duration) time.Duration {

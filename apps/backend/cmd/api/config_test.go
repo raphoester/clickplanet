@@ -31,7 +31,6 @@ func TestTheExampleConfigStillReachesTheStructs(t *testing.T) {
 	assert.Equal(t, 30, config.Planet.Bonus.Shield.Held)
 	assert.Equal(t, 5, config.Planet.Bonus.Shield.MinPerBox)
 	assert.Equal(t, 20, config.Planet.Bonus.Shield.MaxPerBox)
-	assert.Equal(t, 12, config.Planet.Bonus.MaxChargesPerHour)
 
 	quiz := config.Planet.Bonus.Quiz
 	assert.True(t, quiz.Enabled)

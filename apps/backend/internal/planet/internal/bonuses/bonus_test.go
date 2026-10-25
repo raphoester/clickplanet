@@ -23,17 +23,17 @@ func newTestRegistry() (*Registry, *cptime.FixedClock) {
 func newRegistryOffering(kinds map[Kind]float64) (*Registry, *cptime.FixedClock) {
 	clock := cptime.NewFixedClock(epoch)
 
-	return New(Config{
-		MinInterval:       window,
-		MaxInterval:       window,
-		MissRetry:         20 * time.Second,
-		OfferTTL:          15 * time.Second,
-		Kinds:             kinds,
-		ActiveWithin:      5 * time.Minute,
-		ForgetAfter:       5 * time.Minute,
-		MaxChargesPerHour: 6,
-		SweepInterval:     time.Second,
-	}, clock, NewMemoryStore()), clock
+	registry := New(Config{
+		MissRetry:     20 * time.Second,
+		OfferTTL:      15 * time.Second,
+		Kinds:         kinds,
+		ActiveWithin:  5 * time.Minute,
+		ForgetAfter:   5 * time.Minute,
+		SweepInterval: time.Second,
+	}, clock, NewMemoryStore())
+	registry.SetPace(Pace{MinInterval: window, MaxInterval: window, MaxChargesPerHour: 6})
+
+	return registry, clock
 }
 
 func holderOf(entrant Entrant) Holder {
@@ -313,9 +313,8 @@ func TestTheHourlyCapStopsTheOffers(t *testing.T) {
 
 func TestTheWaitIsDrawnFromTheConfiguredWindow(t *testing.T) {
 	clock := cptime.NewFixedClock(epoch)
-	registry := New(Config{
-		MinInterval: time.Minute, MaxInterval: 3 * time.Minute,
-	}, clock, NewMemoryStore())
+	registry := New(Config{}, clock, NewMemoryStore())
+	registry.SetPace(Pace{MinInterval: time.Minute, MaxInterval: 3 * time.Minute, MaxChargesPerHour: 12})
 
 	seen := cpcolls.NewSet[time.Duration]()
 	for range 200 {
@@ -799,23 +798,6 @@ func TestACallerThatIsNotReadingIsDroppedRatherThanBlocking(t *testing.T) {
 	}
 
 	assert.Len(t, events, eventBuffer)
-}
-
-func TestTheDefaultsFillInWhatTheFileLeavesOut(t *testing.T) {
-	registry := New(Config{}, cptime.NewFixedClock(epoch), NewMemoryStore())
-
-	assert.Equal(t, defaultMinInterval, registry.config.MinInterval)
-	assert.Equal(t, defaultMaxInterval, registry.config.MaxInterval)
-	assert.Equal(t, defaultMaxChargesPerHour, registry.config.MaxChargesPerHour)
-}
-
-func TestAMaxBelowTheMinIsNotAWindow(t *testing.T) {
-	registry := New(Config{
-		MinInterval: 10 * time.Minute, MaxInterval: time.Second,
-	}, cptime.NewFixedClock(epoch), NewMemoryStore())
-
-	assert.GreaterOrEqual(t, registry.config.MaxInterval, registry.config.MinInterval)
-	assert.Equal(t, 10*time.Minute, registry.window())
 }
 
 func TestAClosedShapeReachesEveryoneAndOnlyItsCloserIsToldItIsTheirs(t *testing.T) {

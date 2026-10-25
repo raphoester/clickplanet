@@ -13,8 +13,10 @@ import {
     RemoveMessageResponse,
 } from "./gen/grpc/chat/v1/admin_pb.ts"
 import {
+    AntiBotRules,
     BanPlayerRequest,
     BanPlayerResponse,
+    BoxPace,
     FindPlayersRequest,
     FindPlayersResponse,
     GetLedgerRequest,
@@ -22,6 +24,8 @@ import {
     GetReplayRequest,
     LedgerChange,
     GetReplayResponse,
+    GetRulesRequest,
+    GetRulesResponse,
     GrantChargesRequest,
     GrantChargesResponse,
     InspectPlayerRequest,
@@ -33,6 +37,9 @@ import {
     ReassignCountryResponse,
     RevertPlayerRequest,
     RevertPlayerResponse,
+    RuleSet,
+    SaveRuleSetRequest,
+    SaveRuleSetResponse,
     TopPlayersRequest,
     TopPlayersResponse,
     UnbanPlayerRequest,
@@ -156,6 +163,17 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
     territories = new GetTerritoriesResponse({
         tiles: 262119,
         territories: [new Territory({countryId: "fr", tiles: 1200}), new Territory({countryId: "dz", tiles: 800})],
+    })
+    // The set the migration keeps: the game's own rules.
+    rules = new GetRulesResponse({
+        sets: [new RuleSet({
+            name: "default",
+            tempo: 1,
+            boxes: new BoxPace({
+                minInterval: new Duration({seconds: 240n}), maxInterval: new Duration({seconds: 480n}), maxChargesPerHour: 12,
+            }),
+            antiBot: new AntiBotRules({crowd: 6}),
+        })],
     })
     roster = [
         new RosterEntry({key: "1", accountId: ACCOUNT, name: "BraveFox42", countryId: "fr"}),
@@ -305,6 +323,24 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
 
     getTerritories(request: PartialMessage<GetTerritoriesRequest>): Promise<GetTerritoriesResponse> {
         return this.answer("getTerritories", request, this.territories)
+    }
+
+    getRules(request: PartialMessage<GetRulesRequest>): Promise<GetRulesResponse> {
+        return this.answer("getRules", request, this.rules)
+    }
+
+    // Kept as the server keeps it: a set of the same name is replaced.
+    saveRuleSet(request: PartialMessage<SaveRuleSetRequest>): Promise<SaveRuleSetResponse> {
+        const answer = this.answer("saveRuleSet", request, new SaveRuleSetResponse())
+        if (!this.refusals.has("saveRuleSet") && request.set !== undefined) {
+            const saved = new RuleSet(request.set)
+            const others = this.rules.sets.filter(set => set.name !== saved.name)
+            this.rules = new GetRulesResponse({
+                sets: [...others, saved].sort((a, b) => Number(a.name !== "default") - Number(b.name !== "default") ||
+                    a.name.localeCompare(b.name)),
+            })
+        }
+        return answer
     }
 
     getRoster(request: PartialMessage<GetRosterRequest>): Promise<GetRosterResponse> {

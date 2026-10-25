@@ -46,6 +46,7 @@ func New(name string, config Config, clock cptime.Clock) *Limiter {
 		config:  config.withDefaults(),
 		clock:   clock,
 		buckets: make(map[string]*bucket),
+		tempo:   1,
 	}
 }
 
@@ -56,6 +57,7 @@ type Limiter struct {
 
 	mu      sync.Mutex
 	buckets map[string]*bucket
+	tempo   float64
 }
 
 type bucket struct {
@@ -148,6 +150,19 @@ func (l *Limiter) Peek(key Key) State {
 	return l.state(b)
 }
 
+// SetTempo multiplies every bucket's rate from now on; what each earned before is refilled at the tempo it had.
+func (l *Limiter) SetTempo(tempo float64) {
+	now := l.clock.Now()
+
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	for _, b := range l.buckets {
+		l.refill(b, now)
+	}
+	l.tempo = tempo
+}
+
 func (l *Limiter) Fill(key Key) (bool, State) {
 	return l.add(key, math.Inf(1))
 }
@@ -208,7 +223,7 @@ func (l *Limiter) capacity(b *bucket) float64 {
 }
 
 func (l *Limiter) rate(b *bucket) float64 {
-	return l.config.PerSecond * b.scale * b.pace
+	return l.config.PerSecond * b.scale * b.pace * l.tempo
 }
 
 func (l *Limiter) Name() string { return l.name }

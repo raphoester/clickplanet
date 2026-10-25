@@ -34,6 +34,11 @@ service AdminService {
 
   // InternalService/GetTerritories, for the admin page: the tiles each country holds now.
   rpc GetTerritories(GetTerritoriesRequest) returns (GetTerritoriesResponse);
+
+  rpc GetRules(GetRulesRequest) returns (GetRulesResponse);
+
+  // Makes a set, or replaces the values of one. The game follows a set in force within a second.
+  rpc SaveRuleSet(SaveRuleSetRequest) returns (SaveRuleSetResponse);
 }
 
 message GetLedgerRequest {
@@ -236,3 +241,35 @@ message ReassignCountryResponse {
   uint32 from_after = 4;
   uint32 to_after = 5;
 }
+
+message GetRulesRequest {}
+
+message GetRulesResponse {
+  // Every set postgres keeps, "default" first. "default" is in force.
+  repeated RuleSet sets = 1;
+}
+
+message RuleSet {
+  string name = 1;
+  // How many times faster than rateLimiter.perSecond every bucket refills.
+  double tempo = 2;
+  BoxPace boxes = 3;
+  AntiBotRules anti_bot = 4;
+}
+
+message BoxPace {
+  google.protobuf.Duration min_interval = 1;
+  google.protobuf.Duration max_interval = 2;
+  uint32 max_charges_per_hour = 3;
+}
+
+message AntiBotRules {
+  // How many networks of one prefix, starting and clicking in step, are banned as a crowd.
+  uint32 crowd = 1;
+}
+
+message SaveRuleSetRequest {
+  RuleSet set = 1;
+}
+
+message SaveRuleSetResponse {}

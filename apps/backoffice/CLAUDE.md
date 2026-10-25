@@ -17,7 +17,7 @@ burger menu (see [The menu](#the-menu)), by group:
 - **Map**: Reassign a country, Paint random tiles, Download a replay (see [The map tools](#the-map-tools)).
 - **Clips**: Clip stats, the daily numbers of the clips the clips job posts, and a CSV of them (see
   [Clip stats](#clip-stats)).
-- **Ops**: Reconcile titles, the run after a deploy (see [Ops](#ops)).
+- **Ops**: Reconcile titles, the run after a deploy, and Game rules, the rule sets the game plays by (see [Ops](#ops)).
 
 What is left of the plan is a live chat view: `ListMessages` pages through the chat (the report and player pages
 read it), and no admin method streams it.
@@ -341,6 +341,13 @@ Zernio answered, as it came, and what the clip was.
 `src/ops/`: `ReconcileTitles` (`TitlesPanel`, after a deploy that adds a title or changes a rule). It asks first, and
 it is harmless twice.
 
+**Game rules** (`RulesPanel`, `rules.ts`) is `planet.v1.AdminService/GetRules` and `SaveRuleSet` (the backend's
+`CLAUDE.md`, "Rules"): every set postgres keeps, `default` first, with its refill (`3× as fast`), its boxes and how
+many networks make a crowd. **Edit** opens a set in a form, its name fixed; **New set** opens an empty one. The waits
+are in seconds. Save asks first (`ConfirmAction`) and is off until every value is a number and the set has a name;
+the server holds the rest (a refusal quotes it, and the form stays). The game plays `default`, and follows an edit
+of it within a second, for every player.
+
 ## Deploy
 
 **A Cloudflare Worker with static assets, `clickplanet-backoffice`** (`wrangler.jsonc`), like the game's. Its
@@ -388,7 +395,7 @@ src/
   reports/          Reports: list, detail, the report's own actions
   players/          Players: list, PlayerName, PlayerView, ProfilePanel, the tools on one player, actions.ts
   map/              Reassign a country, Paint random tiles, Download a replay
-  ops/              Reconcile titles
+  ops/              Reconcile titles, Game rules
   gen/grpc/         generated from ../../proto, committed
   gen/map/          the tile coordinates, copied from ../../map, committed
 ```

@@ -10,9 +10,6 @@ import (
 )
 
 type Config struct {
-	MinInterval time.Duration
-	MaxInterval time.Duration
-
 	MissRetry time.Duration
 
 	Kinds map[Kind]float64
@@ -31,8 +28,6 @@ type Config struct {
 	ActiveWithin time.Duration
 
 	ForgetAfter time.Duration
-
-	MaxChargesPerHour int
 
 	SweepInterval time.Duration
 }
@@ -60,14 +55,11 @@ type ShieldConfig struct {
 }
 
 const (
-	defaultMinInterval       = 4 * time.Minute
-	defaultMaxInterval       = 8 * time.Minute
-	defaultMissRetry         = 2 * time.Minute
-	defaultOfferTTL          = 15 * time.Second
-	defaultActiveWithin      = 2 * time.Minute
-	defaultForgetAfter       = 5 * time.Minute
-	defaultMaxChargesPerHour = 12
-	defaultSweepInterval     = time.Second
+	defaultMissRetry     = 2 * time.Minute
+	defaultOfferTTL      = 15 * time.Second
+	defaultActiveWithin  = 2 * time.Minute
+	defaultForgetAfter   = 5 * time.Minute
+	defaultSweepInterval = time.Second
 
 	defaultSpreadClicks    = 8
 	defaultSpreadPerBox    = 4
@@ -82,12 +74,6 @@ const (
 )
 
 func (c Config) withDefaults() Config {
-	if c.MinInterval <= 0 {
-		c.MinInterval = defaultMinInterval
-	}
-	if c.MaxInterval < c.MinInterval {
-		c.MaxInterval = max(c.MinInterval, defaultMaxInterval)
-	}
 	if len(c.Kinds) == 0 {
 		c.Kinds = defaultKinds()
 	}
@@ -102,9 +88,6 @@ func (c Config) withDefaults() Config {
 	}
 	if c.ForgetAfter <= 0 {
 		c.ForgetAfter = defaultForgetAfter
-	}
-	if c.MaxChargesPerHour <= 0 {
-		c.MaxChargesPerHour = defaultMaxChargesPerHour
 	}
 	if c.SweepInterval <= 0 {
 		c.SweepInterval = defaultSweepInterval

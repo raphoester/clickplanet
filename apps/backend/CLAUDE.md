@@ -367,6 +367,9 @@ internal/planet/internal/
     usecases/
   allegiances/                    the flag each account plays for, and when it last changed it
     postgres_allegiance_store/
+  rules/                          the rule sets, and the one the game plays
+    postgres_rule_set_store/
+    usecases/
   planetv1controller/             the edge: maps the wire to the use cases, nothing else
     get_takes_by_country_handler/takes_query/   InternalService's one read, straight from ledger_events
     get_ledger_handler/changes_query/           AdminService/GetLedger, straight from ledger_events too
@@ -446,6 +449,8 @@ because it serves every concept over one Connect service. It only maps.
 | `bonuses/usecases/use_refill_usecase` | fills the caller's bank with its refill | `Refills`, `Bank`, `Pricer` |
 | `bonuses/usecases/grant_charges_usecase` | the operator gives an account charges | `Charger` |
 | `bonuses/usecases/place_shield_usecase` | spends a shield on a tile of the caller's flag | `Shields`, `Tiles`, `CountryChecker`, `Allegiances` |
+| `rules/usecases/enforce_rules_usecase` | plays the set postgres keeps, when its values changed; a `Runner` | `Sets`, `Rules` |
+| `rules/usecases/save_rule_set_usecase` | the operator makes a set or replaces its values | `Sets` |
 | `clicks/usecases/relay_fortifications_usecase` | follows the tile map and publishes `planet.v1.Fortified` for each fortify; a `Runner` | `Changes`, `Publisher` |
 
 **The interfaces in that last column are declared by the package that calls
@@ -943,6 +948,41 @@ player could paint for one country and defend another click to click. **Only
 - **Guests are held per account**, like the bank: a private tab is a new guest and
   a new first flag.
 
+### Rules: the game's rule sets (`internal/planet/internal/rules/`)
+
+**What can change while the game runs is kept in postgres, not in the config.** A rule set is a name and every
+value a moment of the game may change: how fast every bucket refills (`tempo`, times `rateLimiter.perSecond`), the
+boxes' shortest and longest wait and their hourly cap, and how many networks of one prefix the anti-bot bans as a
+crowd. Each is one row of `planet.rule_sets` (migration `20261025130000_rule_sets`), every value written: no set
+inherits from another, and the config no longer holds `bonus.minInterval`, `bonus.maxInterval`,
+`bonus.maxChargesPerHour` or `antiBot.cohort.detector.certainMembers`. **The migration keeps the game's own rules as
+`default`**, production's values on 25 October 2026 (tempo 1, a box every 4 to 8 minutes, 12 an hour, a crowd of
+6); every other set is made from the backoffice. The game plays `default`.
+
+- **`rules.Set` is the rule** (snapshot pattern): `Snapshot.Restore` refuses a name that is not a lowercase word
+  (`ErrInvalidSet`), a tempo that is not above 0, a shortest wait of 0 or a longest one under it, an hourly cap of 0
+  and a crowd under 2. `postgres_rule_set_store` finds a set by name (`ErrUnknownSet`) and upserts one;
+  `rules.StoreContractSuite` runs on it and on `MemoryStore`.
+- **What postgres keeps is the truth, and the game follows it** (`enforce_rules_usecase`): it reads `default` and,
+  when its values changed, hands it to `rules.InForce`. It runs once while the module is built, and **a missing
+  `default` refuses the boot**, then every second (`planet-rules`). So an edit reaches the game within a second, and
+  a restart plays what was kept. A read that fails changes nothing and is logged; `log_enforce_rules` logs each set
+  enforced at Warn, with its values.
+- **`rules.InForce` pushes a set to what plays it, under one lock**: `cpratelimit.Limiter.SetTempo` (every bucket
+  is multiplied from then on, and what each earned before was refilled at the tempo it had, so `GetBudget` reads the
+  new rate at once), `bonuses.Registry.SetPace` (each wait is drawn at the new pace, and a box due later than the new
+  longest wait is brought in) and `antibot.Guard.SetCrowd`. **The anti-bot runs inside planet**, which builds it and
+  hands it every click, so its bound for a moment of the game is a rule like the pace. Before the first set the
+  limiter is at its own tempo, no box is offered (an hourly cap of 0) and no crowd is banned: the boot enforces
+  before anything is served. `Tempo()` is read by the anti-bot's click reports (see [Anti-bot](#anti-bot-internalantibot)),
+  and `Watch()` by each planet stream, which sends `PlanetEvent.rules_changed`: the client reads `GetBudget` again,
+  so an open tab shows a new refill with no reload.
+- **An operator writes them**: `AdminService/SaveRuleSet` makes a set or replaces its values (`audit_save_rule_set`
+  logs every save at Warn, with its values; a set that cannot play is `InvalidArgument`), and `GetRules` lists every
+  set, `default` first (`rule_sets_query`, straight from postgres). The backoffice's Game rules page calls both.
+- `e2e/rules_test.go` edits `default` to a tempo of 3 and sees the refill go from 100 to 300 a second on a stream
+  opened before, and refuses a set with no tempo.
+
 ### Chat (`internal/chat/`)
 
 Chat is a separate bounded context, not a feature of the tile game: it shares the process, the transport and the country list, and has its own proto package, domain, storage and edge. Nothing under `internal/chat/` imports `internal/planet/`, and the reverse holds too — and since each module's interior sits behind its own `internal/`, neither now can.
@@ -1213,7 +1253,7 @@ while it was away: the badge counts it, and the lines light up as the chat opens
   - Only the account's own bucket: the guests' and the scope's have no age. A fresh account is still bounded by them. `TestAFreshGuestOnAFreshAddressEveryMinuteIsNoFreshBank` replays the phone over HTTP.
 - **A click is refused when either bucket is empty, and a refusal spends from neither.** `Limiter.TakeAll` checks every bucket and spends from all or none under one lock, so a player refused for a busy scope keeps its own tokens.
 - **A token with no account spends one bucket, the scope's at 1×** — exactly the throttle from before accounts. The deprecated `session.v1` mint, an invalid token while `auth.enforce` is off, and `auth.enabled` false all land here. It is a separate bucket from the scope's shared one, because a key never changes its scale.
-- **One limiter holds both.** A bucket's `Scale` is set when it is made and multiplies its burst and rate for good; `clicks.Buckets` names the keys (`account:<id>` at 1, `scope:<scope>` at the scope multiplier, or the bare scope at 1 with no account). **A key's `Pace` multiplies the payer's own bucket's rate from that take on, and leaves its burst alone**: the linked multiplier for a signed-in account, divided by the country's slowdown (see [A big country refills slower](#a-big-country-refills-slower-clickstoll)). The scope's bucket takes no pace. `clicks.PayerOf(ctx)` reads the scope and the account off the context, so the throttle, `GetBudget` and a bonus claim cannot disagree on who pays.
+- **One limiter holds both.** A bucket's `Scale` is set when it is made and multiplies its burst and rate for good; `clicks.Buckets` names the keys (`account:<id>` at 1, `scope:<scope>` at the scope multiplier, or the bare scope at 1 with no account). **A key's `Pace` multiplies the payer's own bucket's rate from that take on, and leaves its burst alone**: the linked multiplier for a signed-in account, divided by the country's slowdown (see [A big country refills slower](#a-big-country-refills-slower-clickstoll)). The scope's bucket takes no pace. **The limiter's tempo multiplies every bucket** on top of its pace (`SetTempo`, from the rule set in force; see [Rules](#rules-the-games-rule-sets-internalplanetinternalrules)). `clicks.PayerOf(ctx)` reads the scope and the account off the context, so the throttle, `GetBudget` and a bonus claim cannot disagree on who pays.
 - **What this buys.** Before accounts, one address was one allowance, so a campus played as one player and a bot farm with many cookies on one address was no worse off than one tab. Now each signed-in player behind an address has its own allowance, bounded together by the scope's, the guests behind it share one, and a bot moving across addresses keeps spending one account's.
 - `TestManyAccountsOnOneScopeShareTheScopesBucket` and `TestOneAccountOnManyScopesSpendsOneAllowance` pin both halves over HTTP.
 
@@ -1981,6 +2021,8 @@ the player.
 
 Boxes are always on: there is no switch.
 
+**The waits and the hourly cap are the rule set's** (`bonuses.Pace`, see [Rules](#rules-the-games-rule-sets-internalplanetinternalrules)), not the config's: `Registry.SetPace` changes them for every caller at once.
+
 **The server picks who gets one, and that is the whole design.** A box broadcast
 to everyone is caught by whichever client reacts fastest, and that is a script
 every time: it reads the event off the stream and answers in twenty milliseconds
@@ -2026,7 +2068,7 @@ the instant they come back.
 tab and opening it again draws a fresh wait, and a player could reload until
 they got a short one.
 
-**`maxChargesPerHour` bounds what a caller can be granted.** Nothing here is a
+**The rule set's hourly cap bounds what a caller can be granted.** Nothing here is a
 race any more, but catch rate is where an advantage is left: a script catches
 every box it is offered where a person catches some. This makes the worst case
 a number you choose rather than a function of reflexes. Past 12 charges in the
@@ -2983,6 +3025,34 @@ tiles, and every watchdog read `clear`.
 - It is a rule of `metronome` and not a watchdog for the reason `shape` is: a loop at
   pace also reads on `cadence`, and two timing watchdogs could ban on one behaviour.
 
+**At a faster tempo the metronome reads the game as it would be at the plain one, since 2026-10-25.** Each click
+report carries the tempo in force (`detect.Click.Tempo`, from `rules.InForce`; 0 is plain), so a rule set that
+refills 3 times as fast (see [Rules](#rules-the-games-rule-sets-internalplanetinternalrules)) does not turn its
+players into suspects. Measured at production's bounds, before the change, a guest clicking each click as it came
+back at 3× (gaps of 1.67s and a reaction of up to 300ms) read `Certain` on `cadence` within two hours: its jitter is
+under 400ms and it makes 1,080 tries in 30 minutes.
+
+- **`cadence` and `shape` read each gap times the tempo**, and the run's length (`sustained`, kept as the sum of its
+  gaps) the same way. A hand's jitter is in proportion to its gap, so at 3× it reads three times wider and clears;
+  a timer at ±20ms reads ±60ms and is still `Certain` within 30 minutes, and `Suspect` as soon as at the plain pace.
+  `maxGap` 7s ends a run at a real 2.3s gap at 3×. `shape`'s skew does not move with a scale. The evidence's
+  durations are at the plain tempo.
+- **`stamina`'s slice is busy at `clicks` times the fastest tempo it saw** (kept with the slice): a slice at 3× is
+  busy at 120 clicks, so busy still means a third of the allowance or more. A player at the full pace of the battle
+  is busy, as at the plain pace.
+- `clock` (unset in production) reads wall time, which a tempo does not change.
+- **The rest read no rate**: `retaker` a reflex, `sequencer` the steps between tiles, `defender` a share of
+  retakes, `hopper` angles, `scraper` and `churner` maps read and accounts born, `rotator` 5-minute slots. At 3× they
+  reach their counts sooner, never on less. `catcher` reads the delay of each catch: boxes every 1 to 2 minutes bring
+  its 5 catches in 5 to 10 minutes rather than 20 to 40, on the same bounds.
+- **`cohort`'s crowd is a value of the rule set** (`crowd`): players who start within `startWindow` (5s) of each
+  other, for one flag, at paces within `rateRatio`, are in step, and `crowd` of them from one /24 or /44 read
+  `crowd`, `Certain` alone. A countdown makes people start on the second, a country on one carrier's NAT (Algeria)
+  can put six on one /24, and a fast tempo makes them pace alike: a set for such a moment raises it
+  (`Guard.SetCrowd`). `chain` and `lockstep` do not move.
+- A run saved before this decodes with no length, so its `sustained` starts again at the deploy; its gaps and clicks
+  are kept. `tempo_test.go` pins all of it at production's bounds.
+
 **`defender`: what is clicked, not when.** The bots of 2026-09-14 retook from a
 queue behind the throttle: tiles came back 0.4s, 1.5s, 2.5s … 40s after they were
 lost, one refill at a time, so the retaker's reaction window saw almost none of
@@ -3079,7 +3149,7 @@ since a pool starts its tries together and the throttle only blurs that.
   no crowd produces. The prefix is what separates it from a raid — waves of people
   answering one link start together too, but from all over, and
   `TestARaidFromAllOverIsNeverCertain` pins that they never reach it.
-- **`Certain` (`crowd`)** is `certainMembers` scopes in step in one group from one prefix.
+- **`Certain` (`crowd`)** is `crowd` scopes in step in one group from one prefix, a value of the rule set in force (`Watchdog.SetCrowd`; see [Rules](#rules-the-games-rule-sets-internalplanetinternalrules)). With none set, nothing is a crowd.
 
 **How a finding reaches every member.** The jury asks per click of one scope, and
 nothing here is pushed to anyone. The watchdog keeps one table of every scope,
@@ -3595,6 +3665,10 @@ stream sent it. The frontend's clip generator plays it back (see its CLAUDE.md, 
   `InvalidArgument` (`replay_usecase.ErrInvalidWindow`).
 - **Nothing in it names a player**: no scope and no account goes out, as on the live stream.
 - A day of production is about 40,000 events, a few MB of JSON.
+
+#### `GetRules`, `SaveRuleSet`
+
+The rule sets an operator reads and writes: see [Rules](#rules-the-games-rule-sets-internalplanetinternalrules). The backoffice's Game rules page calls both.
 
 #### `GetLedger`, `GetTerritories`
 
@@ -4425,13 +4499,12 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `rateLimiter.guestScopeMultiplier` — the bucket every guest behind one address shares, over one account's (default 1: the guests on one network are one bank). Below 1 refuses the boot. See [Two buckets per click](#two-buckets-per-click)
 - `rateLimiter.newAccountClicks` — the bank of an account just made, which earns the rest at the plain rate (unset: full). Negative refuses the boot. See [Two buckets per click](#two-buckets-per-click)
 - `vpnBlocklist.enabled`, `vpnBlocklist.includeDatacenters`, `vpnBlocklist.allow` — the VPN refusal (see [VPN blocklist](#vpn-blocklist)); disabled parses nothing and allocates nothing
-- `bonus.interval` — how often a box is put in front of somebody; a ceiling, since nothing is offered while nobody is watching
+- How often a box is put in front of somebody, and the most charges one caller may be granted an hour, are the rule set's, kept in postgres: see [Rules](#rules-the-games-rule-sets-internalplanetinternalrules)
 - `bonus.offerTTL` — how long the token stays good; **must outlast the flight the client draws**, or a box caught on its last frame is refused
 - `bonus.kinds` — a weight per kind (`refill`, `spread_clicks`, `bomb`, `enclose_clicks`, `shields`); a kind's chance is its weight over the sum. Left out or 0 is never offered, empty offers every kind equally, and an unknown kind, a negative weight or all zeros refuse the boot
 - `bonus.spread.clicks`, `bonus.spread.maxPerBox` — the most spread clicks held (8, about 56 tiles, a bomb's worth), and the most one box adds (4; it draws 1 to that). A count, not a time: a timed spread let a full bank of clicks be dumped inside it
 - `bonus.enclose.held`, `bonus.enclose.maxPerBox`, `bonus.enclose.maxTiles` — the most enclosures held (3), the most one box adds (3; it draws 1 to that), and the most tiles one shape may take (25)
 - `bonus.shield.held`, `bonus.shield.minPerBox`, `bonus.shield.maxPerBox`, `bonus.shield.perTile` — the most shields held (30), the fewest and the most one box adds (5 and 20; it draws evenly between them), and the most one tile holds (10)
-- `bonus.maxChargesPerHour` — the most charges one caller may be granted per hour (12); past it the slot is lost
 - `bonus.welcome.within`, `bonus.welcome.boxAfter` — how young an account is welcomed (production 10m; 0, the default, is off), and how long after it was made its spread box comes (1m). Negative refuses the boot. See [A newcomer's first box and first quiz](#a-newcomers-first-box-and-first-quiz-bonuseswelcomego)
 - `antiBot.enabled` — off registers nothing and measures nothing
 - `antiBot.bans.enforce` — off judges, logs and counts without refusing; the mode to deploy in
@@ -4446,8 +4519,8 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `antiBot.metronome.enabled`, `detector.maxGap`, `maxSpread`, `minClicks`, `certainFor`, `certainClicks` — what ends a run, how tight its gaps must be, and how long it must hold; `detector.shape.maxGap`, `clicks`, `maxSkew`, `certainClicks`, `certainSkew` — the longest gap sampled, and the skew of the last gaps that reads each level (unset, it only measures); `detector.stamina.slice`, `clicks`, `window`, `minBusy`, `certainBusy` — what makes a slice busy, and the busy time inside the window that reads each level (unset, it only measures)
 - `antiBot.defender.enabled`, `detector.retakeWindow`, `minClicks`, `minShare`, `certainClicks`, `certainShare` — what counts as a retake, and the share of takes that reads `suspect` then `certain`; a zero share never reads
 - `antiBot.cohort.enabled`, `detector.startWindow`, `minClicks`, `minFlagShare`, `rateRatio`, `lengthRatio`, `quietAfter`, `minMembers` — what makes two scopes in step, and how many of them read `suspect`
-- `antiBot.cohort.detector.v4Bits`, `v6Bits`, `certainCohorts`, `certainMembers`, `chainWindow` — the prefix a chain must share, and how many groups, or scopes in one group, read `certain`. Its `trackWindow` is raised to `chainWindow` if shorter; bad bounds refuse the boot
-- `antiBot.catcher.enabled`, `detector.minCatches`, `maxMedian`, `certainMedian` — how many boxes in a row must all be caught, and the median offer-to-claim delay that reads `suspect` then `certain`. Its `trackWindow` must hold `minCatches` boxes at `bonus.maxInterval` plus `bonus.offerTTL`
+- `antiBot.cohort.detector.v4Bits`, `v6Bits`, `certainCohorts`, `chainWindow` — the prefix a chain must share, and how many groups read `certain` (how many scopes of one group read `crowd` is the rule set's). Its `trackWindow` is raised to `chainWindow` if shorter; bad bounds refuse the boot
+- `antiBot.catcher.enabled`, `detector.minCatches`, `maxMedian`, `certainMedian` — how many boxes in a row must all be caught, and the median offer-to-claim delay that reads `suspect` then `certain`. Its `trackWindow` must hold `minCatches` boxes at the rule set's longest box wait plus `bonus.offerTTL`
 - `antiBot.scraper.enabled`, `detector.minMaps`, `certainMaps` — the whole maps read beyond one per stream opened, inside `trackWindow`, that read `suspect` then `certain`
 - `antiBot.scraper.detector.certainOffMap` — the reads off the map, inside `trackWindow`, that read `certain` however little was read; one stray read is forgiven
 - `antiBot.rotator.enabled`, `detector.slot`, `window`, `minSeconds`, `minByChance`, `maxShare` — the length of a slot, how far back slots count, the seconds each account must click in for a pair to share a slot, the shared seconds chance must have given before a pair is read, and the share of them a rotating pair stays under

@@ -859,6 +859,12 @@ export class PlanetEvent extends Message<PlanetEvent> {
      */
     value: LandmassFortified;
     case: "landmassFortified";
+  } | {
+    /**
+     * @generated from field: planet.v1.RulesChanged rules_changed = 10;
+     */
+    value: RulesChanged;
+    case: "rulesChanged";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<PlanetEvent>) {
@@ -878,6 +884,7 @@ export class PlanetEvent extends Message<PlanetEvent> {
     { no: 7, name: "tiles_spread", kind: "message", T: TilesSpread, oneof: "event" },
     { no: 8, name: "quiz_offered", kind: "message", T: QuizOffered, oneof: "event" },
     { no: 9, name: "landmass_fortified", kind: "message", T: LandmassFortified, oneof: "event" },
+    { no: 10, name: "rules_changed", kind: "message", T: RulesChanged, oneof: "event" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PlanetEvent {
@@ -1021,6 +1028,39 @@ export class TileHolder extends Message<TileHolder> {
 
   static equals(a: TileHolder | PlainMessage<TileHolder> | undefined, b: TileHolder | PlainMessage<TileHolder> | undefined): boolean {
     return proto3.util.equals(TileHolder, a, b);
+  }
+}
+
+/**
+ * The budget's rate may have moved: read it again.
+ *
+ * @generated from message planet.v1.RulesChanged
+ */
+export class RulesChanged extends Message<RulesChanged> {
+  constructor(data?: PartialMessage<RulesChanged>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.RulesChanged";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RulesChanged {
+    return new RulesChanged().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RulesChanged {
+    return new RulesChanged().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RulesChanged {
+    return new RulesChanged().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RulesChanged | PlainMessage<RulesChanged> | undefined, b: RulesChanged | PlainMessage<RulesChanged> | undefined): boolean {
+    return proto3.util.equals(RulesChanged, a, b);
   }
 }
 

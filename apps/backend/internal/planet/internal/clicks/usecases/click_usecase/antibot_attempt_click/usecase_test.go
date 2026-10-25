@@ -29,6 +29,10 @@ func (p positions) Position(tile uint32) (clicks.Vec3, bool) {
 	return at, ok
 }
 
+type tempo float64
+
+func (t tempo) Tempo() float64 { return float64(t) }
+
 type throttled struct{}
 
 func (throttled) Execute(context.Context, click_usecase.In) (click_usecase.Out, error) {
@@ -41,14 +45,14 @@ func TestAntiBotAttemptClick(t *testing.T) {
 		clock := cptime.NewFixedClock(time.Date(2026, 9, 14, 18, 0, 0, 0, time.UTC))
 		ctx := cpctx.AddIPToContext(t.Context(), "2001:db8::dead:beef")
 
-		useCase := antibot_attempt_click.New(throttled{}, guard, positions{}, clock)
+		useCase := antibot_attempt_click.New(throttled{}, guard, positions{}, tempo(1), clock)
 
 		out, err := useCase.Execute(ctx, click_usecase.In{TileID: 42, CountryID: "BG"})
 
 		require.ErrorIs(t, err, clicks.ErrThrottled, "the answer is the inner one, untouched")
 		assert.True(t, out.Limited)
 		require.Len(t, guard.attempted, 1)
-		assert.Equal(t, antibot.Click{Scope: "2001:db8::/64", Tile: 42, Country: "BG", At: clock.Now()}, guard.attempted[0])
+		assert.Equal(t, antibot.Click{Scope: "2001:db8::/64", Tile: 42, Country: "BG", At: clock.Now(), Tempo: 1}, guard.attempted[0])
 	})
 
 	t.Run("shows the guard a linked account as signed in", func(t *testing.T) {
@@ -56,13 +60,15 @@ func TestAntiBotAttemptClick(t *testing.T) {
 		clock := cptime.NewFixedClock(time.Date(2026, 9, 14, 18, 0, 0, 0, time.UTC))
 		ctx := cpctx.AddLinkedToContext(cpctx.AddAccountToContext(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), "a-player"))
 
-		useCase := antibot_attempt_click.New(throttled{}, guard, positions{}, clock)
+		useCase := antibot_attempt_click.New(throttled{}, guard, positions{}, tempo(1), clock)
 
 		_, err := useCase.Execute(ctx, click_usecase.In{TileID: 42, CountryID: "BG"})
 
 		require.ErrorIs(t, err, clicks.ErrThrottled)
 		require.Len(t, guard.attempted, 1)
-		assert.Equal(t, antibot.Click{Scope: "1.2.3.4", Account: "a-player", SignedIn: true, Tile: 42, Country: "BG", At: clock.Now()}, guard.attempted[0])
+		assert.Equal(t, antibot.Click{
+			Scope: "1.2.3.4", Account: "a-player", SignedIn: true, Tile: 42, Country: "BG", At: clock.Now(), Tempo: 1,
+		}, guard.attempted[0])
 	})
 
 	t.Run("shows the guard where on the globe the tile is", func(t *testing.T) {
@@ -71,12 +77,25 @@ func TestAntiBotAttemptClick(t *testing.T) {
 		ctx := cpctx.AddIPToContext(t.Context(), "192.0.2.1")
 		globe := positions{42: {X: 0.1, Y: -0.98, Z: 0.1}}
 
-		useCase := antibot_attempt_click.New(throttled{}, guard, globe, clock)
+		useCase := antibot_attempt_click.New(throttled{}, guard, globe, tempo(1), clock)
 
 		_, err := useCase.Execute(ctx, click_usecase.In{TileID: 42, CountryID: "FR"})
 
 		require.ErrorIs(t, err, clicks.ErrThrottled)
 		require.Len(t, guard.attempted, 1)
 		assert.Equal(t, antibot.Point{X: 0.1, Y: -0.98, Z: 0.1}, guard.attempted[0].Position)
+	})
+
+	t.Run("shows the guard the tempo the game refills at", func(t *testing.T) {
+		guard := &fakeGuard{}
+		clock := cptime.NewFixedClock(time.Date(2026, 10, 31, 21, 0, 0, 0, time.UTC))
+
+		useCase := antibot_attempt_click.New(throttled{}, guard, positions{}, tempo(3), clock)
+
+		_, err := useCase.Execute(cpctx.AddIPToContext(t.Context(), "192.0.2.1"), click_usecase.In{TileID: 42, CountryID: "DZ"})
+
+		require.ErrorIs(t, err, clicks.ErrThrottled)
+		require.Len(t, guard.attempted, 1)
+		assert.InDelta(t, 3.0, guard.attempted[0].Tempo, 1e-9)
 	})
 }

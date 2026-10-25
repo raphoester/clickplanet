@@ -2,7 +2,7 @@ import {createContext, useContext} from "react"
 import {Player} from "./gen/grpc/planet/v1/admin_pb.ts"
 import {Caller} from "./players/caller.ts"
 
-export type PageId = "home" | "notes" | "reports" | "players" | "reassign" | "paint" | "replay" | "clips" | "titles"
+export type PageId = "home" | "notes" | "reports" | "players" | "reassign" | "paint" | "replay" | "clips" | "titles" | "rules"
 
 export type MenuGroup = {label: string, pages: {page: PageId, label: string}[]}
 
@@ -20,7 +20,7 @@ export const MENU: MenuGroup[] = [
         ],
     },
     {label: "Clips", pages: [{page: "clips", label: "Clip stats"}]},
-    {label: "Ops", pages: [{page: "titles", label: "Reconcile titles"}]},
+    {label: "Ops", pages: [{page: "titles", label: "Reconcile titles"}, {page: "rules", label: "Game rules"}]},
 ]
 
 const PAGES: PageId[] = MENU.flatMap(group => group.pages.map(item => item.page))
