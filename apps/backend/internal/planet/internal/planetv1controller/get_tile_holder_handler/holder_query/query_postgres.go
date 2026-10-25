@@ -11,12 +11,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
-func NewPostgresQuery(db cppg.Querier) *PostgresQuery {
+func NewPostgresQuery(db cppg.Conn) *PostgresQuery {
 	return &PostgresQuery{db: db}
 }
 
 type PostgresQuery struct {
-	db cppg.Querier
+	db cppg.Conn
 }
 
 // The last of the changes ledger.Taking replays for the tile: a take, a tile a spread or an enclose took, or a bomb's clear.
@@ -45,7 +45,7 @@ func (q *PostgresQuery) TileHolder(ctx context.Context, tile uint32) (*planetv1.
 		holder  = &planetv1.TileHolder{}
 		takenAt time.Time
 	)
-	err := q.db.QueryRowContext(ctx, lastChange, tile).Scan(&holder.AccountId, &holder.CountryId, &takenAt)
+	err := q.db.On(ctx).QueryRowContext(ctx, lastChange, tile).Scan(&holder.AccountId, &holder.CountryId, &takenAt)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		return &planetv1.GetTileHolderResponse{}, nil

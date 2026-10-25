@@ -14,12 +14,12 @@ import (
 
 var _ convictions.Store = (*Store)(nil)
 
-func New(db cppg.Querier) *Store {
+func New(db cppg.Conn) *Store {
 	return &Store{db: db}
 }
 
 type Store struct {
-	db cppg.Querier
+	db cppg.Conn
 }
 
 type reading struct {
@@ -43,7 +43,7 @@ func (s *Store) Keep(ctx context.Context, conviction convictions.Conviction) err
 		return fmt.Errorf("failed to encode the readings of a conviction: %w", err)
 	}
 
-	if _, err := s.db.ExecContext(ctx, `
+	if _, err := s.db.On(ctx).ExecContext(ctx, `
 		INSERT INTO convictions (convicted_at, scope, account, alongside, flags, offence, banned_until, readings,
 			clicks, active_for, longest_gap, top_country, top_country_clicks)
 		VALUES ($1, $2, NULLIF($3, '')::uuid, NULLIF($4, '')::uuid, $5, $6, $7, $8,
@@ -58,7 +58,7 @@ func (s *Store) Keep(ctx context.Context, conviction convictions.Conviction) err
 }
 
 func (s *Store) Between(ctx context.Context, since, until time.Time) ([]convictions.Conviction, error) {
-	rows, err := s.db.QueryContext(ctx, `
+	rows, err := s.db.On(ctx).QueryContext(ctx, `
 		SELECT convicted_at, scope, COALESCE(account::text, ''), COALESCE(alongside::text, ''), flags, offence,
 			banned_until, readings, clicks, (EXTRACT(EPOCH FROM active_for) * 1000000)::bigint,
 			(EXTRACT(EPOCH FROM longest_gap) * 1000000)::bigint, top_country, top_country_clicks

@@ -30,13 +30,13 @@ func TestATakeCountsForItsFlagAtTheTimeItWasTaken(t *testing.T) {
 	store := inmemory_contribution_store.New()
 
 	err := subscriber(store).Handle(t.Context(), &planetv1.TileTaken{
-		AccountId: account, TileId: 42, Country: "fr", TakenAt: timestamppb.New(seasonZeroEnds.Add(-time.Hour)),
+		AccountId: account, TileId: 42, Country: "fr", TakenAt: timestamppb.New(seasonZeroEnds.Add(-time.Hour)), Position: 9,
 	})
 
 	require.NoError(t, err)
 	id, err := standings.AccountIDOf(account)
 	require.NoError(t, err)
-	assert.Equal(t, standings.Tally{Main: "fr", Tiles: map[standings.Country]uint64{"fr": 1}}, store.Tally(0, id))
+	assert.Equal(t, standings.Tally{Main: "fr", Tiles: map[standings.Country]uint64{"fr": 1}, TakesBelow: 10}, store.Tally(0, id))
 }
 
 func TestAnEventWithNoAccountNoCountryOrNoTimeIsRefused(t *testing.T) {

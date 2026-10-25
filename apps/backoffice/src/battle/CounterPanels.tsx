@@ -15,6 +15,7 @@ import {
 
 const PERCENT = new Intl.NumberFormat("en", {style: "percent", maximumFractionDigits: 0})
 const MB = 1024 * 1024
+const LOST_EVENTS = ["events_unpublished_total", "events_dead_total"]
 
 type Props = {samples: Sample[]}
 
@@ -78,11 +79,12 @@ export function BoxPanel({samples}: Props) {
     )
 }
 
-// How the server holds up: the process's CPU and memory, and what the event bus dropped.
+// How the server holds up: the process's CPU and memory, and the events between modules that wait or were lost.
 export function ServerPanel({samples}: Props) {
     const cpu = lastMinuteOf(samples, named("process_cpu_seconds_total"))
     const memory = nowOf(samples, named("process_resident_memory_bytes"))
     const goroutines = nowOf(samples, named("go_goroutines"))
+    const waiting = nowOf(samples, named("events_lag"))
     return (
         <section className="panel" aria-label="Server">
             <div className="panel-head">
@@ -92,7 +94,8 @@ export function ServerPanel({samples}: Props) {
                 <Fact label="CPU">{cpu === undefined ? "…" : `${PERCENT.format(cpu / 60)} of a core`}</Fact>
                 <Fact label="Memory">{memory === undefined ? "…" : `${wholeOf(Math.round(memory / MB))} MB`}</Fact>
                 <Fact label="Goroutines">{countOf(goroutines)}</Fact>
-                <Rate label="Events dropped" samples={samples} select={named("events_dropped_total")}/>
+                <Fact label="Events not read yet">{countOf(waiting)}</Fact>
+                <Rate label="Events lost" samples={samples} select={metric => LOST_EVENTS.includes(metric.name)}/>
             </dl>
         </section>
     )

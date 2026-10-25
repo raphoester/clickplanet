@@ -47,6 +47,30 @@ services:
       options:
         tag: cp-postgres
 
+  redis:
+    image: redis:7.4-alpine
+    container_name: cp-redis
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?set REDIS_PASSWORD in .env (openssl rand -hex 32)}
+      REDISCLI_AUTH: ${REDIS_PASSWORD}
+    # noeviction: a full redis refuses an event rather than drop a stream nobody has read yet.
+    command:
+      - sh
+      - -c
+      - exec redis-server --requirepass "$$REDIS_PASSWORD" --appendonly yes --appendfsync everysec --maxmemory 64mb --maxmemory-policy noeviction
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+    logging:
+      driver: journald
+      options:
+        tag: cp-redis
+
   backend:
     image: ${BACKEND_IMAGE:-ghcr.io/raphoester/clickplanet-backend:latest}
     container_name: cp-backend
@@ -56,6 +80,8 @@ services:
       - "8083"
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     env_file: .env.backend
     environment:
@@ -94,7 +120,7 @@ services:
           if wget -qO- --timeout=10 http://backend:8080/metrics > /tmp/scrape; then
             # Keep || true: grep exits 1 on no match, and set -e would kill the loop.
             { echo "# $$stamp"
-              grep -E '^(click_reaction_seconds|click_retake_share|click_busy_hours|banned_|ban_flags|antibot_opinions|blocked_clicks|throttled_clicks|click_session_checks)' /tmp/scrape || true
+              grep -E '^(click_reaction_seconds|click_retake_share|click_busy_hours|banned_|ban_flags|antibot_opinions|blocked_clicks|throttled_clicks|click_session_checks|events_)' /tmp/scrape || true
               echo
             } >> "$$file"
           else
@@ -113,4 +139,5 @@ volumes:
   caddy_config:
   caddy_logs:
   pg_data:
+  redis_data:
   metrics_history:

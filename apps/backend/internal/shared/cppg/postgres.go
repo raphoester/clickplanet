@@ -25,18 +25,18 @@ type Querier interface {
 	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
 	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
 	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+	PrepareContext(ctx context.Context, query string) (*sql.Stmt, error)
 }
 
-type Beginner interface {
-	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
+// Conn is a database whose queries follow the transaction their context carries.
+type Conn interface {
+	On(ctx context.Context) Querier
+	InTx(ctx context.Context, do func(ctx context.Context) error) error
 }
 
-type QuerierBeginner interface {
-	Querier
-	Beginner
-}
+var _ Conn = (*Postgres)(nil)
 
-var _ QuerierBeginner = (*Postgres)(nil)
+var ErrNoTransaction = errors.New("no transaction is open on this database")
 
 type PoolConfig struct {
 	MaxOpenConns    *int
@@ -97,32 +97,49 @@ type Postgres struct {
 	sqlClient *sql.DB
 }
 
-func (p *Postgres) BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error) {
-	tx, err := p.sqlClient.BeginTx(ctx, opts)
-	if err != nil {
-		return nil, fmt.Errorf("failed to begin transaction: %w", err)
+type txKey struct{ db *Postgres }
+
+// On is the transaction ctx carries for this database, or the pool.
+func (p *Postgres) On(ctx context.Context) Querier {
+	if tx, open := ctx.Value(txKey{p}).(*sql.Tx); open {
+		return tx
 	}
-	return tx, nil
+	return p.sqlClient
 }
 
-func (p *Postgres) ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error) {
-	result, err := p.sqlClient.ExecContext(ctx, query, args...)
-	if err != nil {
-		return nil, fmt.Errorf("failed to exec query: %w", err)
+// InTx runs do in the transaction ctx carries for this database, or in a new one.
+func (p *Postgres) InTx(ctx context.Context, do func(ctx context.Context) error) error {
+	if _, open := ctx.Value(txKey{p}).(*sql.Tx); open {
+		return do(ctx)
 	}
-	return result, nil
+
+	tx, err := p.sqlClient.BeginTx(ctx, &sql.TxOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to begin a transaction: %w", err)
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+		}
+	}()
+
+	if err := do(context.WithValue(ctx, txKey{p}, tx)); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit: %w", err)
+	}
+	committed = true
+	return nil
 }
 
-func (p *Postgres) QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
-	rows, err := p.sqlClient.QueryContext(ctx, query, args...)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query: %w", err)
+// InOpenTx runs do only in the transaction ctx carries for this database.
+func (p *Postgres) InOpenTx(ctx context.Context, do func(ctx context.Context) error) error {
+	if _, open := ctx.Value(txKey{p}).(*sql.Tx); !open {
+		return ErrNoTransaction
 	}
-	return rows, nil
-}
-
-func (p *Postgres) QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row {
-	return p.sqlClient.QueryRowContext(ctx, query, args...)
+	return do(ctx)
 }
 
 func (p *Postgres) dsn() string {
@@ -202,7 +219,7 @@ func (p *Postgres) Close() error {
 }
 
 func (p *Postgres) Migrate(ctx context.Context, migrations fs.FS) error {
-	if _, err := p.ExecContext(ctx, "CREATE SCHEMA IF NOT EXISTS "+pq.QuoteIdentifier(p.config.Schema)); err != nil {
+	if _, err := p.sqlClient.ExecContext(ctx, "CREATE SCHEMA IF NOT EXISTS "+pq.QuoteIdentifier(p.config.Schema)); err != nil {
 		return fmt.Errorf("failed to create schema %s: %w", p.config.Schema, err)
 	}
 

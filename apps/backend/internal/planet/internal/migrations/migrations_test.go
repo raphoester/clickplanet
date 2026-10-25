@@ -30,11 +30,11 @@ func seed(t *testing.T, db *cppg.Postgres) {
 	at := time.Date(2026, 9, 20, 12, 0, 0, 0, time.UTC)
 	position := 0
 	for _, old := range append(keys(moved), gone...) {
-		_, err := db.ExecContext(t.Context(),
+		_, err := db.On(t.Context()).ExecContext(t.Context(),
 			`INSERT INTO tiles (id, country) VALUES ($1, $2)`, old, "fr")
 		require.NoError(t, err)
 
-		_, err = db.ExecContext(t.Context(),
+		_, err = db.On(t.Context()).ExecContext(t.Context(),
 			`INSERT INTO ledger_takes (position, tile, scope, country, previous, taken_at)
 			 VALUES ($1, $2, $3, $4, $5, $6)`,
 			position, old, "203.0.113.7", "fr", "de", at)
@@ -55,7 +55,7 @@ func TestTheRemapFollowsEveryOwnedTileToItsNewID(t *testing.T) {
 
 	for _, id := range ids {
 		var country string
-		require.NoError(t, db.QueryRowContext(t.Context(),
+		require.NoError(t, db.On(t.Context()).QueryRowContext(t.Context(),
 			`SELECT country FROM tiles WHERE id = $1`, id).Scan(&country))
 		assert.Equal(t, "fr", country, "tile %d keeps its owner", id)
 	}
@@ -93,7 +93,7 @@ func TestTheRemapGoesBack(t *testing.T) {
 
 	down, err := fs.ReadFile(migrations.FS, remapTiles+"_remap_tiles.down.sql")
 	require.NoError(t, err)
-	_, err = db.ExecContext(t.Context(), string(down))
+	_, err = db.On(t.Context()).ExecContext(t.Context(), string(down))
 	require.NoError(t, err)
 
 	ids := scan(t, db, `SELECT id FROM tiles ORDER BY id`)
@@ -105,18 +105,18 @@ const keepEveryTake = "20261004120000"
 func TestKeepingEveryTakeGoesBackWithoutTheTakesThatLostTheirScope(t *testing.T) {
 	db := cppg.StartTestServer(t).OpenSchema(t, "planet", before(t, ledgerEvents))
 	at := time.Date(2026, 10, 4, 12, 0, 0, 0, time.UTC)
-	_, err := db.ExecContext(t.Context(),
+	_, err := db.On(t.Context()).ExecContext(t.Context(),
 		`INSERT INTO ledger_takes (position, tile, scope, country, previous, taken_at)
 		 VALUES (0, 1, NULL, 'fr', '', $1), (1, 2, '203.0.113.7', 'fr', '', $1)`, at)
 	require.NoError(t, err)
 
 	down, err := fs.ReadFile(migrations.FS, keepEveryTake+"_keep_every_take.down.sql")
 	require.NoError(t, err)
-	_, err = db.ExecContext(t.Context(), string(down))
+	_, err = db.On(t.Context()).ExecContext(t.Context(), string(down))
 	require.NoError(t, err)
 
 	assert.Equal(t, []int{2}, scan(t, db, `SELECT tile FROM ledger_takes`))
-	_, err = db.ExecContext(t.Context(),
+	_, err = db.On(t.Context()).ExecContext(t.Context(),
 		`INSERT INTO ledger_takes (position, tile, scope, country, previous, taken_at) VALUES (2, 3, NULL, 'fr', '', $1)`, at)
 	assert.Error(t, err, "a scope is required again")
 }
@@ -126,7 +126,7 @@ const ledgerEvents = "20261006130000"
 func TestEveryTakeKeptBeforeTheEventsIsATake(t *testing.T) {
 	db := cppg.StartTestServer(t).OpenSchema(t, "planet", before(t, ledgerEvents))
 	at := time.Date(2026, 10, 6, 12, 0, 0, 0, time.UTC)
-	_, err := db.ExecContext(t.Context(),
+	_, err := db.On(t.Context()).ExecContext(t.Context(),
 		`INSERT INTO ledger_takes (position, tile, scope, country, previous, taken_at)
 		 VALUES (0, 1, NULL, 'fr', '', $1), (1, 2, '203.0.113.7', 'fr', 'de', $1)`, at)
 	require.NoError(t, err)
@@ -138,23 +138,23 @@ func TestEveryTakeKeptBeforeTheEventsIsATake(t *testing.T) {
 
 	insert := `INSERT INTO ledger_events (position, kind, tile, scope, country, previous, taken_at, payload)
 		VALUES ($1, $2, 3, '203.0.113.7', '', '', $3, $4)`
-	_, err = db.ExecContext(t.Context(), insert, 2, "", at, nil)
+	_, err = db.On(t.Context()).ExecContext(t.Context(), insert, 2, "", at, nil)
 	require.Error(t, err, "an event has a kind")
-	_, err = db.ExecContext(t.Context(), insert, 3, "bomb", at, `{"cleared": []}`)
+	_, err = db.On(t.Context()).ExecContext(t.Context(), insert, 3, "bomb", at, `{"cleared": []}`)
 	require.NoError(t, err, "which the table leaves to the ledger")
 }
 
 func TestTheEventsGoBackToTakesWithoutTheBombs(t *testing.T) {
 	db := cppg.StartTestServer(t).OpenSchema(t, "planet", before(t, ledgerEventKind))
 	at := time.Date(2026, 10, 6, 12, 0, 0, 0, time.UTC)
-	_, err := db.ExecContext(t.Context(),
+	_, err := db.On(t.Context()).ExecContext(t.Context(),
 		`INSERT INTO ledger_events (position, kind, tile, scope, country, previous, taken_at, payload)
 		 VALUES (0, 'take', 1, '203.0.113.7', 'fr', '', $1, NULL), (1, 'bomb', 1, '203.0.113.7', '', 'fr', $1, '{}')`, at)
 	require.NoError(t, err)
 
 	down, err := fs.ReadFile(migrations.FS, ledgerEvents+"_ledger_events.down.sql")
 	require.NoError(t, err)
-	_, err = db.ExecContext(t.Context(), string(down))
+	_, err = db.On(t.Context()).ExecContext(t.Context(), string(down))
 	require.NoError(t, err)
 
 	assert.Equal(t, []int{0}, scan(t, db, `SELECT position FROM ledger_takes`))
@@ -169,7 +169,7 @@ func TestEveryEventKeptBeforeTheTypeKeepsItsKind(t *testing.T) {
 	insert := `INSERT INTO ledger_events (position, kind, tile, scope, country, previous, taken_at)
 		VALUES ($1, $2, 1, NULL, 'fr', '', $3)`
 	for position, kind := range kinds {
-		_, err := db.ExecContext(t.Context(), insert, position, kind, at)
+		_, err := db.On(t.Context()).ExecContext(t.Context(), insert, position, kind, at)
 		require.NoError(t, err)
 	}
 
@@ -177,13 +177,13 @@ func TestEveryEventKeptBeforeTheTypeKeepsItsKind(t *testing.T) {
 
 	for position, kind := range kinds {
 		var kept string
-		require.NoError(t, db.QueryRowContext(t.Context(),
+		require.NoError(t, db.On(t.Context()).QueryRowContext(t.Context(),
 			`SELECT kind FROM ledger_events WHERE position = $1`, position).Scan(&kept))
 		assert.Equal(t, kind, kept)
 	}
-	_, err := db.ExecContext(t.Context(), insert, len(kinds), "quake", at)
+	_, err := db.On(t.Context()).ExecContext(t.Context(), insert, len(kinds), "quake", at)
 	require.Error(t, err, "a kind is a value of the type before an event has it")
-	_, err = db.ExecContext(t.Context(), insert, len(kinds), "", at)
+	_, err = db.On(t.Context()).ExecContext(t.Context(), insert, len(kinds), "", at)
 	require.Error(t, err, "an event still has a kind")
 }
 
@@ -194,7 +194,7 @@ func TestTheAccountKindIndexRunsAgainWhenItsVersionIsForcedBack(t *testing.T) {
 	up, err := fs.ReadFile(migrations.FS, ledgerEventsAccountKind+"_ledger_events_account_kind.up.sql")
 	require.NoError(t, err)
 
-	_, err = db.ExecContext(t.Context(), string(up))
+	_, err = db.On(t.Context()).ExecContext(t.Context(), string(up))
 
 	require.NoError(t, err, "a run killed after the build committed leaves the index there")
 }
@@ -218,7 +218,7 @@ func values(m map[int]int) []int {
 func scan(t *testing.T, db *cppg.Postgres, query string) []int {
 	t.Helper()
 
-	rows, err := db.QueryContext(t.Context(), query)
+	rows, err := db.On(t.Context()).QueryContext(t.Context(), query)
 	require.NoError(t, err)
 	defer func() { require.NoError(t, rows.Close()) }()
 
@@ -230,4 +230,23 @@ func scan(t *testing.T, db *cppg.Postgres, query string) []int {
 	}
 	require.NoError(t, rows.Err())
 	return out
+}
+
+const ledgerRelayed = "20261025180000"
+
+func TestTheLedgerIsToldFromTheFirstEventTheOldServerDidNotPublish(t *testing.T) {
+	db := cppg.StartTestServer(t).OpenSchema(t, "planet", before(t, ledgerRelayed))
+	for position := range 3 {
+		_, err := db.On(t.Context()).ExecContext(t.Context(), `
+			INSERT INTO ledger_events (position, kind, tile, scope, country, previous, taken_at)
+			VALUES ($1, 'take', 1, '203.0.113.7', 'fr', '', now())
+		`, position)
+		require.NoError(t, err)
+	}
+
+	require.NoError(t, db.Migrate(t.Context(), migrations.FS))
+
+	var relayed int64
+	require.NoError(t, db.On(t.Context()).QueryRowContext(t.Context(), `SELECT position FROM ledger_relayed`).Scan(&relayed))
+	assert.Equal(t, int64(3), relayed, "it published every take it made, at the take")
 }

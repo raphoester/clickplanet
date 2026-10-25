@@ -162,7 +162,9 @@ export function metricsAt(seconds: number, minutes: number): GetMetricsResponse 
             counter("process_cpu_seconds_total", 30 * minutes),
             gauge("process_resident_memory_bytes", 300 * 1024 * 1024),
             gauge("go_goroutines", 420),
-            counter("events_dropped_total", 0, {event: "planet.v1.TileTaken", subscriber: "seasons-standings"}),
+            gauge("events_lag", 3, {event: "planet.v1.TileTaken", subscriber: "seasons-standings"}),
+            counter("events_unpublished_total", 0, {event: "planet.v1.TileTaken"}),
+            counter("events_dead_total", minutes, {event: "planet.v1.TileTaken", subscriber: "seasons-standings"}),
         ],
     })
 }

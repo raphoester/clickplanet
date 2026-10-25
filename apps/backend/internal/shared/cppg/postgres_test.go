@@ -51,19 +51,19 @@ func TestEachSchemaHoldsItsOwnTablesAndMigrationHistory(t *testing.T) {
 	first := server.OpenSchema(t, "first", migrations)
 	second := server.OpenSchema(t, "second", migrations)
 
-	_, err := first.ExecContext(ctx, `INSERT INTO things VALUES (1)`)
+	_, err := first.On(ctx).ExecContext(ctx, `INSERT INTO things VALUES (1)`)
 	require.NoError(t, err)
 
 	var count int
-	require.NoError(t, second.QueryRowContext(ctx, `SELECT count(*) FROM things`).Scan(&count))
+	require.NoError(t, second.On(ctx).QueryRowContext(ctx, `SELECT count(*) FROM things`).Scan(&count))
 	assert.Zero(t, count, "the same unqualified table name is a different table in each schema")
 
 	var inPublic *string
-	require.NoError(t, first.QueryRowContext(ctx, `SELECT to_regclass('public.things')::text`).Scan(&inPublic))
+	require.NoError(t, first.On(ctx).QueryRowContext(ctx, `SELECT to_regclass('public.things')::text`).Scan(&inPublic))
 	assert.Nil(t, inPublic, "nothing lands in public")
 
 	var version int
-	require.NoError(t, second.QueryRowContext(ctx, `SELECT version FROM second.schema_migrations`).Scan(&version))
+	require.NoError(t, second.On(ctx).QueryRowContext(ctx, `SELECT version FROM second.schema_migrations`).Scan(&version))
 	assert.Equal(t, 1, version)
 }
 
@@ -94,6 +94,6 @@ func TestCloseAfterClosesThePoolOnceEveryRunnerStopped(t *testing.T) {
 
 	assert.Equal(t, int32(2), stopped.Load())
 	assert.Equal(t, "tiles+ledger", runner.Name())
-	_, err := db.ExecContext(t.Context(), `SELECT 1`)
+	_, err := db.On(t.Context()).ExecContext(t.Context(), `SELECT 1`)
 	require.ErrorContains(t, err, "database is closed")
 }

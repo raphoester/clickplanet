@@ -31,7 +31,7 @@ var ErrUnknownCountry = errors.New("not a country")
 const page = 500
 
 func NewPostgresQuery(
-	db cppg.Querier,
+	db cppg.Conn,
 	authors Authors,
 	seasons calendar.Calendar,
 	clock cptime.Clock,
@@ -41,7 +41,7 @@ func NewPostgresQuery(
 }
 
 type PostgresQuery struct {
-	db        cppg.Querier
+	db        cppg.Conn
 	authors   Authors
 	seasons   calendar.Calendar
 	clock     cptime.Clock
@@ -115,7 +115,7 @@ func (q *PostgresQuery) tiles(
 		mine                  = &seasonsv1.GetMySeasonResponse{}
 		tiles, tilesOfCountry int64
 	)
-	err := q.db.QueryRowContext(ctx, tilesOfMine, int64(season), uuid.UUID(account), country).
+	err := q.db.On(ctx).QueryRowContext(ctx, tilesOfMine, int64(season), uuid.UUID(account), country).
 		Scan(&mine.CountryId, &tiles, &tilesOfCountry)
 	if errors.Is(err, sql.ErrNoRows) {
 		return mine, nil
@@ -165,7 +165,7 @@ func (q *PostgresQuery) rank(ctx context.Context, above string, args ...any) (ui
 }
 
 func (q *PostgresQuery) above(ctx context.Context, query string, args []any) ([]standings.AccountID, error) {
-	rows, err := q.db.QueryContext(ctx, query, args...)
+	rows, err := q.db.On(ctx).QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read who is above the caller: %w", err)
 	}

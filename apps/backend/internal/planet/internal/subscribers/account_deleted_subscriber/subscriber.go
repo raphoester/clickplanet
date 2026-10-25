@@ -6,7 +6,7 @@ import (
 	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 )
 
 type UseCase interface {
@@ -21,7 +21,7 @@ type Subscriber struct {
 	useCase UseCase
 }
 
-var _ cpbootstrap.Handler[*authv1.AccountDeleted] = Subscriber{}
+var _ cpredis.Handler[*authv1.AccountDeleted] = Subscriber{}
 
 func (s Subscriber) Handle(ctx context.Context, event *authv1.AccountDeleted) error {
 	account, err := ledger.AccountIDOf(event.GetAccountId())

@@ -157,6 +157,10 @@ describe("the battle page", () => {
         const server = screen.getByRole("region", {name: "Server"})
         expect(within(server).getByText("50% of a core")).toBeTruthy()
         expect(within(server).getByText("300 MB")).toBeTruthy()
+        const lost = within(server).getByText("Events lost").closest("div")
+        expect(lost?.querySelector("dd")?.textContent, "a minute, then since the page opened").toBe("1, 1")
+        const waiting = within(server).getByText("Events not read yet").closest("div")
+        expect(waiting?.querySelector("dd")?.textContent).toBe("3")
     })
 
     it("shows who plays now", async () => {

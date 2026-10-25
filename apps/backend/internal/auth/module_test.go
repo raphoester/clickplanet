@@ -9,6 +9,7 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
@@ -17,6 +18,7 @@ func validConfig() auth.Config {
 	config := auth.Config{
 		SignerConfig: cpsession.SignerConfig{Enabled: true, Secret: secret},
 		Database:     cppg.Config{Host: "localhost", Port: "5432", User: "postgres", DBName: "postgres", SSLMode: "disable", Schema: "auth"},
+		Redis:        cpredis.Config{Address: "localhost:6379"},
 	}
 	config.SignIn.Enabled = true
 	config.SignIn.RedirectURL = "https://clickplanet.lol/auth/callback"
@@ -30,7 +32,7 @@ func TestAConfigWithOneProviderIsValid(t *testing.T) {
 }
 
 func TestSignInOffChecksNoProvider(t *testing.T) {
-	config := auth.Config{SignerConfig: validConfig().SignerConfig, Database: validConfig().Database}
+	config := auth.Config{SignerConfig: validConfig().SignerConfig, Database: validConfig().Database, Redis: validConfig().Redis}
 
 	assert.NoError(t, config.Validate())
 }

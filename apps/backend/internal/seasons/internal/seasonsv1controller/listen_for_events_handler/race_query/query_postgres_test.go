@@ -62,7 +62,8 @@ func (s *testSuite) snapshot(round rounds.Round, held map[rounds.Country]uint32)
 
 func (s *testSuite) closed(round rounds.Round, results ...rounds.Result) {
 	s.snapshot(round, map[rounds.Country]uint32{"fr": 1})
-	s.Require().NoError(s.store.Close(s.T().Context(), round, results))
+	_, err := s.store.Close(s.T().Context(), round, results)
+	s.Require().NoError(err)
 }
 
 func (s *testSuite) race() *seasonsv1.Race {
@@ -156,11 +157,12 @@ func (s *testSuite) TestTheRoundClosedLastCarriesItsResultsAndTheTableBeforeAndA
 		rounds.Result{Country: "fr", Rank: 2, Points: 18})
 	s.snapshot(fifteenth, map[rounds.Country]uint32{"fr": 30, "de": 10, "es": 1})
 	s.snapshot(fifteenth, map[rounds.Country]uint32{"fr": 20, "de": 10, "es": 1})
-	s.Require().NoError(s.store.Close(s.T().Context(), fifteenth, []rounds.Result{
+	_, err := s.store.Close(s.T().Context(), fifteenth, []rounds.Result{
 		{Country: "fr", Rank: 1, Points: 25},
 		{Country: "de", Rank: 2, Points: 18},
 		{Country: "es", Rank: 11, Points: 0},
-	}))
+	})
+	s.Require().NoError(err)
 	s.snapshot(sixteenth, map[rounds.Country]uint32{"it": 99})
 
 	s.True(proto.Equal(&seasonsv1.ClosedRound{

@@ -32,7 +32,7 @@ const (
 )
 
 func NewPostgresQuery(
-	db cppg.Querier,
+	db cppg.Conn,
 	authors Authors,
 	seasons calendar.Calendar,
 	clock cptime.Clock,
@@ -42,7 +42,7 @@ func NewPostgresQuery(
 }
 
 type PostgresQuery struct {
-	db        cppg.Querier
+	db        cppg.Conn
 	authors   Authors
 	seasons   calendar.Calendar
 	clock     cptime.Clock
@@ -140,7 +140,7 @@ func (q *PostgresQuery) lines(ctx context.Context, season calendar.Number, count
 		query, args = linesOfCountry, append(args, country)
 	}
 
-	rows, err := q.db.QueryContext(ctx, query, args...)
+	rows, err := q.db.On(ctx).QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the standings: %w", err)
 	}

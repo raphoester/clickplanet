@@ -8,11 +8,11 @@ and says what is in it. Read the doc before you change its area.
 
 ## Working on it
 
-- [Commands](docs/commands.md) — `make test` (Docker for the postgres tests), `-race`, `make deadcode`,
+- [Commands](docs/commands.md) — `make test` (Docker for the postgres and Redis tests), `-race`, `make deadcode`,
   `make lint`, `make tidy`, `make check-format`, `go run ./cmd/api`, `make proto`, the vendoring targets (`quiz`,
   `map`, `vpn-lists`, `disposable-domains`, `zernio`), `make dBuild`, and `cmd/clips`.
 - [Configuration](docs/configuration.md) — `cpconfigs` loads YAML and environment with koanf; the full schema.
-- [Testing](docs/testing.md) — testify; which suites need Docker (postgres, S3); the `testing` tag.
+- [Testing](docs/testing.md) — testify; which suites need Docker (postgres, S3, Redis); the `testing` tag.
 - [Linting](docs/linting.md) — golangci-lint at a pinned version, gofumpt, `.golangci.yaml`, and the linters left
   off on purpose.
 - [Git hooks](docs/git-hooks.md) — what the repo's hooks run for this app.
@@ -23,12 +23,15 @@ and says what is in it. Read the doc before you change its area.
 - [Six bounded contexts, one process](docs/bounded-contexts.md) — planet, chat, auth, player, seasons, support.
   A module publishes its root package and hides the rest.
 - [The composite layer](docs/composite-layer.md) — each context wires itself in its `module.go`; how a module
-  calls another one, and how it tells the others what happened.
+  calls another one, and how it tells the others what happened: Redis Streams, the idempotent receivers, the
+  outboxes.
 - [Inside the planet module](docs/planet-module.md) — one directory per concept, no `domain` or `adapters` layer;
   use cases.
 - [Inside the chat module](docs/chat-module.md) — the same shape, for chat's seven concepts.
 - [Reads are queries](docs/queries.md) — a read endpoint does not go through the write model.
 - [Adapters](docs/adapters.md) — the primary (Connect handlers) and secondary (stores) adapters.
+- [Transactions](docs/transactions.md) — a use case opens one with `InTx` and records its events in it; a store
+  reaches postgres only through `db.On(ctx)`.
 - [Every id is a type of its own](docs/ids.md) — never a bare `uuid.UUID`, `string` or `[]byte` in a signature.
 - [Manipulators are verbs, builders are nouns](docs/verbs-and-nouns.md) — a name says if calling it changes
   anything.

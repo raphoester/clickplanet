@@ -9,7 +9,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/record_stats_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 )
 
 type UseCase interface {
@@ -24,7 +24,7 @@ type Subscriber struct {
 	useCase UseCase
 }
 
-var _ cpbootstrap.Handler[*planetv1.TileTaken] = Subscriber{}
+var _ cpredis.Handler[*planetv1.TileTaken] = Subscriber{}
 
 var errNoTime = errors.New("the take has no time")
 
@@ -40,5 +40,5 @@ func (s Subscriber) Handle(ctx context.Context, event *planetv1.TileTaken) error
 	ctx, cancel := context.WithTimeout(ctx, subscribers.Timeout)
 	defer cancel()
 
-	return s.useCase.Execute(ctx, record_stats_usecase.In{Account: account, Change: players.TakeAt(event.GetTakenAt().AsTime())}) //nolint:wrapcheck // the use case named it.
+	return s.useCase.Execute(ctx, record_stats_usecase.In{Account: account, Change: players.TakeAt(event.GetPosition(), event.GetTakenAt().AsTime())}) //nolint:wrapcheck // the use case named it.
 }

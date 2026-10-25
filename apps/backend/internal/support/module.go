@@ -16,6 +16,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsessionverifier"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/decisions/postgres_decision_store"
@@ -58,8 +59,6 @@ import (
 
 const moduleName = "support"
 
-const accountDeletedBuffer = 256
-
 const bucketTimeout = 4 * time.Second
 
 func NewModule(config Config) cpbootstrap.Module {
@@ -90,6 +89,16 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to migrate the %s schema: %w", config.Database.Schema, err)
 	}
 
+	streams := cpredis.New(config.Redis, props.Metrics)
+	if err := streams.ConnectCtx(ctx); err != nil {
+		_ = db.Close()
+		return fmt.Errorf("failed to connect the support module to redis: %w", err)
+	}
+	closeStores := func() {
+		_ = streams.Close()
+		_ = db.Close()
+	}
+
 	noteStore := postgres_note_store.New(db)
 	reportStore := postgres_report_store.New(db)
 	uploadStore := postgres_upload_store.New(db)
@@ -97,7 +106,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	bucket, err := s3_attachment_bucket.New(config.Attachments.bucket(), config.Attachments.lifetimes(), clock,
 		&http.Client{Timeout: bucketTimeout})
 	if err != nil {
-		_ = db.Close()
+		closeStores()
 		return fmt.Errorf("failed to build the bucket of the attachments: %w", err)
 	}
 	rules := config.Attachments.rules()
@@ -110,23 +119,24 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	unsentDiscard := log_prune.New(discard_unsent_usecase.New(config.Attachments.KeepUnsent, clock, uploadStore, bucket),
 		props.Logger.With(slog.String("pruned", "unsent files")))
 
-	noteDeletions, err := cpbootstrap.Subscribe(props.Events, "support-notes-accounts", accountDeletedBuffer,
+	noteDeletions, err := cpredis.Subscribe(ctx, streams, "support-notes-accounts",
 		log_subscriber.New(account_deleted_subscriber.New(anonymize_notes_usecase.New(noteStore)), props.Logger))
 	if err != nil {
-		_ = db.Close()
+		closeStores()
 		return fmt.Errorf("failed to subscribe to auth.v1.AccountDeleted: %w", err)
 	}
 
-	reportDeletions, err := cpbootstrap.Subscribe(props.Events, "support-reports-accounts", accountDeletedBuffer,
+	reportDeletions, err := cpredis.Subscribe(ctx, streams, "support-reports-accounts",
 		log_subscriber.New(account_deleted_subscriber.New(forget_reports_usecase.New(reportStore)), props.Logger))
 	if err != nil {
-		_ = db.Close()
+		closeStores()
 		return fmt.Errorf("failed to subscribe to auth.v1.AccountDeleted: %w", err)
 	}
 
 	// Not a closer: closers run before the runners stop, and the runners use the pool.
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger,
-		prune_usecase.NewRunner(config.PruneInterval, notePrune, reportPrune, unsentDiscard), noteDeletions, reportDeletions))
+		prune_usecase.NewRunner(config.PruneInterval, notePrune, reportPrune, unsentDiscard),
+		cpredis.CloseAfter(streams, props.Logger, noteDeletions, reportDeletions)))
 
 	limiter := cpratelimit.New("support-limiter", config.RateLimiter, clock)
 	props.Runners.Add(limiter)
@@ -177,6 +187,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 type Config struct {
 	Database cppg.Config
+	Redis    cpredis.Config
 
 	Retention     time.Duration
 	PruneInterval time.Duration
@@ -302,6 +313,9 @@ func (c Config) Validate() error {
 	var errs []error
 	if err := c.Database.Validate(); err != nil {
 		errs = append(errs, fmt.Errorf("support.database: %w", err))
+	}
+	if err := c.Redis.Validate(); err != nil {
+		errs = append(errs, fmt.Errorf("support.redis: %w", err))
 	}
 	if !c.Attachments.Enabled {
 		return errors.Join(errs...)

@@ -13,7 +13,7 @@ import (
 
 func TestTheHolderOfOneTileIsFoundThroughTheIndexes(t *testing.T) {
 	db := cppg.StartTestServer(t).OpenSchema(t, "planet", migrations.FS)
-	_, err := db.ExecContext(t.Context(), `
+	_, err := db.On(t.Context()).ExecContext(t.Context(), `
 		INSERT INTO ledger_events (position, kind, tile, scope, country, previous, taken_at, account, payload)
 		SELECT n,
 			CASE n % 10 WHEN 0 THEN 'spread' WHEN 1 THEN 'bomb' ELSE 'take' END::ledger_event_kind,
@@ -24,7 +24,7 @@ func TestTheHolderOfOneTileIsFoundThroughTheIndexes(t *testing.T) {
 			END
 		FROM generate_series(0, 199999) n`)
 	require.NoError(t, err)
-	_, err = db.ExecContext(t.Context(), `VACUUM ANALYZE ledger_events`)
+	_, err = db.On(t.Context()).ExecContext(t.Context(), `VACUUM ANALYZE ledger_events`)
 	require.NoError(t, err)
 
 	plan := explain(t, db, 4242)
@@ -37,7 +37,7 @@ func TestTheHolderOfOneTileIsFoundThroughTheIndexes(t *testing.T) {
 func explain(t *testing.T, db *cppg.Postgres, tile uint32) string {
 	t.Helper()
 
-	rows, err := db.QueryContext(t.Context(), "EXPLAIN "+lastChange, tile)
+	rows, err := db.On(t.Context()).QueryContext(t.Context(), "EXPLAIN "+lastChange, tile)
 	require.NoError(t, err)
 	defer func() { require.NoError(t, rows.Close()) }()
 

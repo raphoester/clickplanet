@@ -14,6 +14,18 @@ import (
 
 type MuteID uuid.UUID
 
+func (id MuteID) String() string { return uuid.UUID(id).String() }
+
+var ErrInvalidMute = errors.New("not a mute id")
+
+func MuteIDOf(value string) (MuteID, error) {
+	id, err := uuid.Parse(value)
+	if err != nil {
+		return MuteID{}, fmt.Errorf("%w: %q", ErrInvalidMute, value)
+	}
+	return MuteID(id), nil
+}
+
 type Scope string
 
 const NoScope Scope = ""

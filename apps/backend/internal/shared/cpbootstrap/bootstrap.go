@@ -42,8 +42,6 @@ type Props struct {
 
 	InternalRPC RPCRegistrar
 	Internal    InternalDialer
-
-	Events EventBus
 }
 
 type InternalDialer interface {
@@ -202,17 +200,14 @@ func run(ctx context.Context, options Options, listen listenFunc) error {
 	internalRoutes := newRPCRoutes(errorNet, drainNet)
 	runners := newRunnerRegistry()
 	closers := newCloserRegistry()
-	events := newEventBus(metrics)
 
-	registrars := registrars{routes: routes, admin: adminRoutes, internal: internalRoutes, events: events}
+	registrars := registrars{routes: routes, admin: adminRoutes, internal: internalRoutes}
 	if err := buildModules(ctx, options, metrics, registrars, runners, closers); err != nil {
 		return err
 	}
 	if err := mountMetricsAdmin(adminRoutes, metrics); err != nil {
 		return err
 	}
-	// Before any runner starts: a subscriber registered later could miss boot events.
-	events.seal()
 
 	router := http.NewServeMux()
 	routes.mountOn(router, cphttpserver.MiddlewareStack(
@@ -274,7 +269,6 @@ type registrars struct {
 	routes   *rpcRoutes
 	admin    *rpcRoutes
 	internal *rpcRoutes
-	events   *eventBus
 }
 
 func buildModules(
@@ -304,7 +298,6 @@ func buildModules(
 			AdminRPC:    registrars.admin.forModule(module.Name),
 			InternalRPC: registrars.internal.forModule(module.Name),
 			Internal:    internalDialer{address: options.Server.InternalBindAddress},
-			Events:      registrars.events,
 			Runners:     runners,
 			Closers:     closers,
 		})

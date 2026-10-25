@@ -28,5 +28,6 @@ minutes.
 - **Antibot**, **Boxes**, **Server** (`CounterPanels`): callers each watchdog reads at suspect and certain now
   (`antibot_opinions_standing`) and the bans each argued for (`ban_flags`); the boxes offered, caught, lapsed and
   claimed for another a minute, and the share caught within a second (`bonus_catch_seconds`); the process's CPU,
-  memory, goroutines and the events the bus dropped. **Every counter** lists the rest.
+  memory, goroutines, the events between modules not read yet (`events_lag`) and those lost
+  (`events_unpublished_total`, `events_dead_total`). **Every counter** lists the rest.
 - **Playing now** is Home's (`PlayingNow`).

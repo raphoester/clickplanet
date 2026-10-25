@@ -28,7 +28,7 @@ func TestUnicodeUsernamesCutTheLongNamesAndDeleteTheOnesACutWouldTake(t *testing
 		{"BOB_THE_BUILDER_2", time.Hour},
 		{"Carol_Carolyn_Carr", 0},
 	} {
-		_, err := db.ExecContext(t.Context(),
+		_, err := db.On(t.Context()).ExecContext(t.Context(),
 			`INSERT INTO profiles (account_id, name, updated_at) VALUES ($1, $2, $3)`,
 			fmt.Sprintf("00000000-0000-0000-0000-%012d", i+1), row.name, at.Add(-row.age))
 		require.NoError(t, err)
@@ -36,7 +36,7 @@ func TestUnicodeUsernamesCutTheLongNamesAndDeleteTheOnesACutWouldTake(t *testing
 
 	require.NoError(t, db.Migrate(t.Context(), migrations.FS))
 
-	rows, err := db.QueryContext(t.Context(), `SELECT name, name_folded FROM profiles ORDER BY name`)
+	rows, err := db.On(t.Context()).QueryContext(t.Context(), `SELECT name, name_folded FROM profiles ORDER BY name`)
 	require.NoError(t, err)
 	defer func() { _ = rows.Close() }()
 	var kept []string
