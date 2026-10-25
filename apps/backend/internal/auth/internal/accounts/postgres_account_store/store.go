@@ -13,12 +13,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
-func New(db cppg.QuerierBeginner) *Store {
+func New(db cppg.Conn) *Store {
 	return &Store{db: db}
 }
 
 type Store struct {
-	db cppg.QuerierBeginner
+	db cppg.Conn
 }
 
 var _ accounts.Store = (*Store)(nil)
@@ -29,7 +29,7 @@ func (s *Store) Session(ctx context.Context, tokenHash accounts.TokenHash) (*acc
 		extendedAt, expiresAt time.Time
 		linked                bool
 	)
-	err := s.db.QueryRowContext(ctx, `
+	err := s.db.On(ctx).QueryRowContext(ctx, `
 		SELECT account_id, extended_at, expires_at,
 		       EXISTS (SELECT 1 FROM identities WHERE identities.account_id = sessions.account_id)
 		FROM sessions WHERE token_hash = $1
@@ -45,7 +45,8 @@ func (s *Store) Session(ctx context.Context, tokenHash accounts.TokenHash) (*acc
 }
 
 func (s *Store) CreateGuest(ctx context.Context, session *accounts.Session) error {
-	return s.inTx(ctx, func(tx *sql.Tx) error {
+	return s.db.InTx(ctx, func(ctx context.Context) error {
+		tx := s.db.On(ctx)
 		if err := insertAccount(ctx, tx, session.Account(), session.ExtendedAt()); err != nil {
 			return err
 		}
@@ -54,7 +55,8 @@ func (s *Store) CreateGuest(ctx context.Context, session *accounts.Session) erro
 }
 
 func (s *Store) SaveSession(ctx context.Context, session *accounts.Session) error {
-	return s.inTx(ctx, func(tx *sql.Tx) error {
+	return s.db.InTx(ctx, func(ctx context.Context) error {
+		tx := s.db.On(ctx)
 		result, err := tx.ExecContext(ctx, `
 			UPDATE sessions SET extended_at = $2, expires_at = $3 WHERE token_hash = $1
 		`, session.TokenHash(), session.ExtendedAt().UTC(), session.ExpiresAt().UTC())
@@ -74,14 +76,14 @@ func (s *Store) SaveSession(ctx context.Context, session *accounts.Session) erro
 }
 
 func (s *Store) DeleteSession(ctx context.Context, tokenHash accounts.TokenHash) error {
-	if _, err := s.db.ExecContext(ctx, `DELETE FROM sessions WHERE token_hash = $1`, tokenHash); err != nil {
+	if _, err := s.db.On(ctx).ExecContext(ctx, `DELETE FROM sessions WHERE token_hash = $1`, tokenHash); err != nil {
 		return fmt.Errorf("failed to delete the session: %w", err)
 	}
 	return nil
 }
 
 func (s *Store) DeleteSessions(ctx context.Context, account accounts.AccountID) error {
-	if _, err := s.db.ExecContext(ctx, `DELETE FROM sessions WHERE account_id = $1`, uuid.UUID(account)); err != nil {
+	if _, err := s.db.On(ctx).ExecContext(ctx, `DELETE FROM sessions WHERE account_id = $1`, uuid.UUID(account)); err != nil {
 		return fmt.Errorf("failed to delete the account's sessions: %w", err)
 	}
 	return nil
@@ -89,7 +91,7 @@ func (s *Store) DeleteSessions(ctx context.Context, account accounts.AccountID) 
 
 func (s *Store) Account(ctx context.Context, account accounts.AccountID) (*accounts.Account, error) {
 	var createdAt time.Time
-	err := s.db.QueryRowContext(ctx, `SELECT created_at FROM accounts WHERE id = $1`, uuid.UUID(account)).Scan(&createdAt)
+	err := s.db.On(ctx).QueryRowContext(ctx, `SELECT created_at FROM accounts WHERE id = $1`, uuid.UUID(account)).Scan(&createdAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, accounts.ErrAccountNotFound
 	}
@@ -97,7 +99,7 @@ func (s *Store) Account(ctx context.Context, account accounts.AccountID) (*accou
 		return nil, fmt.Errorf("failed to select the account: %w", err)
 	}
 
-	rows, err := s.db.QueryContext(ctx, `
+	rows, err := s.db.On(ctx).QueryContext(ctx, `
 		SELECT provider, subject, account_id, COALESCE(email, ''), email_verified, linked_at
 		FROM identities WHERE account_id = $1 ORDER BY linked_at, provider::text
 	`, uuid.UUID(account))
@@ -121,7 +123,7 @@ func (s *Store) Account(ctx context.Context, account accounts.AccountID) (*accou
 }
 
 func (s *Store) Identity(ctx context.Context, provider string, subject string) (*accounts.Identity, error) {
-	identity, err := scanIdentity(s.db.QueryRowContext(ctx, `
+	identity, err := scanIdentity(s.db.On(ctx).QueryRowContext(ctx, `
 		SELECT provider, subject, account_id, COALESCE(email, ''), email_verified, linked_at
 		FROM identities WHERE provider = $1::identity_provider AND subject = $2
 	`, provider, subject))
@@ -133,7 +135,7 @@ func (s *Store) Identity(ctx context.Context, provider string, subject string) (
 
 func (s *Store) AccountOfEmail(ctx context.Context, address string) (*accounts.Account, error) {
 	var account uuid.UUID
-	err := s.db.QueryRowContext(ctx, `
+	err := s.db.On(ctx).QueryRowContext(ctx, `
 		SELECT account_id FROM identities
 		WHERE email_verified AND lower(email) = lower($1)
 		ORDER BY linked_at, provider::text LIMIT 1
@@ -149,7 +151,8 @@ func (s *Store) AccountOfEmail(ctx context.Context, address string) (*accounts.A
 
 func (s *Store) SaveSignIn(ctx context.Context, signIn accounts.SignIn) error {
 	session := signIn.Session()
-	return s.inTx(ctx, func(tx *sql.Tx) error {
+	return s.db.InTx(ctx, func(ctx context.Context) error {
+		tx := s.db.On(ctx)
 		if signIn.NewAccount() {
 			if err := insertAccount(ctx, tx, session.Account(), session.ExtendedAt()); err != nil {
 				return err
@@ -173,14 +176,18 @@ func (s *Store) SaveSignIn(ctx context.Context, signIn accounts.SignIn) error {
 }
 
 func (s *Store) DeleteAccount(ctx context.Context, account accounts.AccountID) error {
-	if _, err := s.db.ExecContext(ctx, `DELETE FROM accounts WHERE id = $1`, uuid.UUID(account)); err != nil {
+	if _, err := s.db.On(ctx).ExecContext(ctx, `DELETE FROM accounts WHERE id = $1`, uuid.UUID(account)); err != nil {
 		return fmt.Errorf("failed to delete the account: %w", err)
 	}
 	return nil
 }
 
 func (s *Store) PruneGuests(ctx context.Context, idleSince time.Time, limit int) ([]accounts.AccountID, error) {
-	rows, err := s.db.QueryContext(ctx, `
+	return pruneGuests(ctx, s.db.On(ctx), idleSince, limit)
+}
+
+func pruneGuests(ctx context.Context, tx cppg.Querier, idleSince time.Time, limit int) ([]accounts.AccountID, error) {
+	rows, err := tx.QueryContext(ctx, `
 		DELETE FROM accounts WHERE id IN (
 			SELECT id FROM accounts
 			WHERE last_seen_at < $1
@@ -208,7 +215,7 @@ func (s *Store) PruneGuests(ctx context.Context, idleSince time.Time, limit int)
 	return pruned, nil
 }
 
-func insertAccount(ctx context.Context, tx *sql.Tx, account accounts.AccountID, at time.Time) error {
+func insertAccount(ctx context.Context, tx cppg.Querier, account accounts.AccountID, at time.Time) error {
 	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO accounts (id, created_at, last_seen_at) VALUES ($1, $2, $2)
 	`, uuid.UUID(account), at.UTC()); err != nil {
@@ -217,7 +224,7 @@ func insertAccount(ctx context.Context, tx *sql.Tx, account accounts.AccountID, 
 	return nil
 }
 
-func insertSession(ctx context.Context, tx *sql.Tx, session *accounts.Session) error {
+func insertSession(ctx context.Context, tx cppg.Querier, session *accounts.Session) error {
 	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO sessions (token_hash, account_id, created_at, extended_at, expires_at) VALUES ($1, $2, $3, $3, $4)
 	`, session.TokenHash(), uuid.UUID(session.Account()), session.ExtendedAt().UTC(), session.ExpiresAt().UTC()); err != nil {
@@ -226,7 +233,7 @@ func insertSession(ctx context.Context, tx *sql.Tx, session *accounts.Session) e
 	return nil
 }
 
-func insertIdentity(ctx context.Context, tx *sql.Tx, identity *accounts.Identity) error {
+func insertIdentity(ctx context.Context, tx cppg.Querier, identity *accounts.Identity) error {
 	var email sql.NullString
 	if identity.Email() != "" {
 		email = sql.NullString{String: identity.Email(), Valid: true}
@@ -250,7 +257,7 @@ func insertIdentity(ctx context.Context, tx *sql.Tx, identity *accounts.Identity
 	return nil
 }
 
-func markSeen(ctx context.Context, tx *sql.Tx, account accounts.AccountID, at time.Time) error {
+func markSeen(ctx context.Context, tx cppg.Querier, account accounts.AccountID, at time.Time) error {
 	if _, err := tx.ExecContext(ctx, `UPDATE accounts SET last_seen_at = $2 WHERE id = $1`, uuid.UUID(account), at.UTC()); err != nil {
 		return fmt.Errorf("failed to mark the account seen: %w", err)
 	}
@@ -272,21 +279,4 @@ func scanIdentity(row scanner) (*accounts.Identity, error) {
 		return nil, fmt.Errorf("failed to scan the identity: %w", err)
 	}
 	return accounts.IdentityOf(provider, subject, accounts.AccountID(account), email, emailVerified, linkedAt.UTC()), nil
-}
-
-func (s *Store) inTx(ctx context.Context, do func(tx *sql.Tx) error) error {
-	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to begin a transaction: %w", err)
-	}
-
-	if err := do(tx); err != nil {
-		_ = tx.Rollback()
-		return err
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit: %w", err)
-	}
-	return nil
 }

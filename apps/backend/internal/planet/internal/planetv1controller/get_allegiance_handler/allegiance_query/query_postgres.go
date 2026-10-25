@@ -12,12 +12,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
-func NewPostgresQuery(db cppg.Querier) *PostgresQuery {
+func NewPostgresQuery(db cppg.Conn) *PostgresQuery {
 	return &PostgresQuery{db: db}
 }
 
 type PostgresQuery struct {
-	db cppg.Querier
+	db cppg.Conn
 }
 
 func (q *PostgresQuery) Allegiance(ctx context.Context, account allegiances.Account) (*planetv1.GetAllegianceResponse, error) {
@@ -29,7 +29,7 @@ func (q *PostgresQuery) Allegiance(ctx context.Context, account allegiances.Acco
 		flag      string
 		changedAt sql.NullTime
 	)
-	err := q.db.QueryRowContext(ctx, `SELECT flag, changed_at FROM allegiances WHERE account = $1`, string(account)).
+	err := q.db.On(ctx).QueryRowContext(ctx, `SELECT flag, changed_at FROM allegiances WHERE account = $1`, string(account)).
 		Scan(&flag, &changedAt)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):

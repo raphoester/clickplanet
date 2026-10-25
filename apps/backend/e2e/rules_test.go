@@ -124,7 +124,7 @@ func TestASetThatCannotPlayIsRefusedAndAnotherIsKept(t *testing.T) {
 
 func TestTheFinalePlaysTheRushBaselineAndTheEndPlaysTheDefaultAgain(t *testing.T) {
 	const finale = 4 * time.Second
-	starts := time.Now().Add(8 * time.Second)
+	starts := time.Now().Add(20 * time.Second)
 
 	game := startGameWith(t, func(configs stackConfigs) {
 		configs.seasons.Calendar.List[0].EndsAt = starts.Add(finale)

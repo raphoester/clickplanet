@@ -15,16 +15,16 @@ import (
 
 const shownBaselines = 20
 
-func NewPostgresQuery(db cppg.Querier) *PostgresQuery {
+func NewPostgresQuery(db cppg.Conn) *PostgresQuery {
 	return &PostgresQuery{db: db}
 }
 
 type PostgresQuery struct {
-	db cppg.Querier
+	db cppg.Conn
 }
 
 func (q *PostgresQuery) Baselines(ctx context.Context) ([]*planetv1.RuleBaseline, error) {
-	rows, err := q.db.QueryContext(ctx, `
+	rows, err := q.db.On(ctx).QueryContext(ctx, `
 		SELECT request, rule_set, applied_at FROM rule_baselines ORDER BY applied_at DESC, seq DESC LIMIT $1
 	`, shownBaselines)
 	if err != nil {
@@ -57,7 +57,7 @@ func (q *PostgresQuery) Override(ctx context.Context) (*planetv1.RuleOverride, e
 		set          string
 		starts, ends time.Time
 	)
-	err := q.db.QueryRowContext(ctx, `SELECT rule_set, starts_at, ends_at FROM rule_override`).Scan(&set, &starts, &ends)
+	err := q.db.On(ctx).QueryRowContext(ctx, `SELECT rule_set, starts_at, ends_at FROM rule_override`).Scan(&set, &starts, &ends)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		return nil, nil //nolint:nilnil // no override ever set is no message on the wire.

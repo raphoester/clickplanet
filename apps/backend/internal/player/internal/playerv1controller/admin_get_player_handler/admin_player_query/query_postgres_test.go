@@ -95,11 +95,11 @@ func (s *testSuite) player(account players.AccountID) *playerv1.AdminGetPlayerRe
 
 func (s *testSuite) TestAUsernameIsReadWithEverythingTheGameKeepsAboutIt() {
 	ctx := s.T().Context()
-	s.Require().NoError(s.players.Record(ctx, ada, players.TakeAt(monday.Add(-24*time.Hour))))
-	s.Require().NoError(s.players.Record(ctx, ada, players.TakeAt(monday)))
-	s.Require().NoError(s.players.Record(ctx, ada, players.Stats.WithMessage))
+	s.Require().NoError(s.players.Record(ctx, ada, players.TakeAt(0, monday.Add(-24*time.Hour))))
+	s.Require().NoError(s.players.Record(ctx, ada, players.TakeAt(1, monday)))
+	s.Require().NoError(s.players.Record(ctx, ada, players.MessageAt(monday)))
 	s.Require().NoError(s.players.SaveColor(ctx, ada, players.Color(playerv1.NameColor_NAME_COLOR_TEAL)))
-	_, err := s.db.ExecContext(ctx, `UPDATE profiles SET admin = true WHERE account_id = $1`, uuid.UUID(ada))
+	_, err := s.db.On(ctx).ExecContext(ctx, `UPDATE profiles SET admin = true WHERE account_id = $1`, uuid.UUID(ada))
 	s.Require().NoError(err)
 	s.Require().NoError(s.titles.Grant(ctx, titles.Holdings{ada: {"settler", "og"}}, monday))
 	s.Require().NoError(s.worn.Wear(ctx, ada, "og", monday))
@@ -121,7 +121,7 @@ func (s *testSuite) TestAUsernameIsReadWithEverythingTheGameKeepsAboutIt() {
 
 func (s *testSuite) TestAGuestIsReadUnderItsCodeWithTheStreakItKeeps() {
 	s.Require().NoError(s.players.SaveGuestCode(s.T().Context(), guest, "a1b2c3"))
-	s.Require().NoError(s.players.Record(s.T().Context(), guest, players.TakeAt(monday)))
+	s.Require().NoError(s.players.Record(s.T().Context(), guest, players.TakeAt(2, monday)))
 
 	player := s.player(guest)
 
@@ -133,7 +133,7 @@ func (s *testSuite) TestAGuestIsReadUnderItsCodeWithTheStreakItKeeps() {
 }
 
 func (s *testSuite) TestAnAccountThatOnlyTookTilesHasNoName() {
-	s.Require().NoError(s.players.Record(s.T().Context(), guest, players.TakeAt(monday)))
+	s.Require().NoError(s.players.Record(s.T().Context(), guest, players.TakeAt(3, monday)))
 
 	player := s.player(guest)
 

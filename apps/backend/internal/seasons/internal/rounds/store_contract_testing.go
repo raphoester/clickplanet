@@ -92,8 +92,10 @@ func (s *StoreContractSuite) TestAClosedRoundKeepsItsResultsAndIsNoLongerUnclose
 	s.snapshot(contractDay, map[Country]uint32{"fr": 2, "de": 1})
 	results := []Result{{Country: "fr", Rank: 1, Points: 25}, {Country: "de", Rank: 2, Points: 18}}
 
-	s.Require().NoError(s.store.Close(s.T().Context(), contractDay, results))
+	closed, err := s.store.Close(s.T().Context(), contractDay, results)
 
+	s.Require().NoError(err)
+	s.True(closed)
 	s.Equal([]Closed{{Round: contractDay, Number: 1, Results: results}}, s.closedIn(0))
 	s.Empty(s.unclosed(contractNextDay.EndsAt))
 }
@@ -101,10 +103,12 @@ func (s *StoreContractSuite) TestAClosedRoundKeepsItsResultsAndIsNoLongerUnclose
 func (s *StoreContractSuite) TestASecondCloseChangesNothing() {
 	s.snapshot(contractDay, map[Country]uint32{"fr": 2, "de": 1})
 	first := []Result{{Country: "fr", Rank: 1, Points: 25}, {Country: "de", Rank: 2, Points: 18}}
-	s.Require().NoError(s.store.Close(s.T().Context(), contractDay, first))
+	s.close(contractDay, first...)
 
-	s.Require().NoError(s.store.Close(s.T().Context(), contractDay, []Result{{Country: "de", Rank: 1, Points: 25}}))
+	closed, err := s.store.Close(s.T().Context(), contractDay, []Result{{Country: "de", Rank: 1, Points: 25}})
 
+	s.Require().NoError(err)
+	s.False(closed, "only the first close closes the round")
 	s.Equal([]Closed{{Round: contractDay, Number: 1, Results: first}}, s.closedIn(0))
 }
 
@@ -115,7 +119,8 @@ func (s *StoreContractSuite) closedIn(season calendar.Number) []Closed {
 }
 
 func (s *StoreContractSuite) close(round Round, results ...Result) {
-	s.Require().NoError(s.store.Close(s.T().Context(), round, results))
+	_, err := s.store.Close(s.T().Context(), round, results)
+	s.Require().NoError(err)
 }
 
 func (s *StoreContractSuite) TestASeasonListsTheRoundsItClosedInTheirOrder() {

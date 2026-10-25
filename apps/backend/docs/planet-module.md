@@ -110,7 +110,7 @@ because it serves every concept over one Connect service. It only maps.
 | `rules/usecases/apply_rule_set_usecase` | keeps a set as the baseline, once per request id | `Sets`, `Baselines`, `Clock` |
 | `rules/usecases/override_rules_usecase` | the operator puts a set over the baseline until a time | `Sets`, `Overrides`, `Clock` |
 | `rules/usecases/end_override_usecase` | the operator ends the override running | `Overrides`, `Clock` |
-| `clicks/usecases/relay_fortifications_usecase` | follows the tile map and publishes `planet.v1.Fortified` for each fortify; a `Runner` | `Changes`, `Publisher` |
+| `ledger/usecases/relay_ledger_usecase` | tells the other modules what the ledger flushed past its cursor, in ledger order: `TileTaken`, `BombLanded`, `Fortified`, each with its position; a `Runner` | `Ledger`, `Cursor`, `Borders`, `Sender` |
 
 **The interfaces in that last column are declared by the package that calls
 them**, not gathered in a `gateways.go` every use case imports. A shared port

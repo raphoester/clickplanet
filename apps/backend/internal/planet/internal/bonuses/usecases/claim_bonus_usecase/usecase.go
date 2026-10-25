@@ -27,7 +27,7 @@ type Charger interface {
 }
 
 type Publisher interface {
-	Publish(event proto.Message)
+	Publish(events ...proto.Message)
 }
 
 type In struct {

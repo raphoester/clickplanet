@@ -32,9 +32,7 @@ defence against taking back the last tile for a free refill, and it costs no tim
   `ClickService/GetFortresses` (`NO_SIDE_EFFECTS`, cached 5s) is every lock now, read
   through `fortresses_query`, for the pulse on the tiles a flag still misses.
 - **In the ledger**: a `fortify` event after the take that earned it (see
-  [Durability](durability.md)), so a replay shows each shield it raised.
-- **To the other modules**: `relay_fortifications_usecase` is a runner that follows the
-  map's channel and publishes `planet.v1.Fortified` for each fortify; the map is where it
-  happened. The storage reads the account off the take's context into `Fortification.Account`,
-  so the event names who made the landmass whole. It subscribes again a second after the map cuts it off. The chat announces
-  the ones of `fortifyNewsTiles` (50) tiles or more.
+  [Durability](durability.md)), with the landmass's ground and size, so a replay shows each shield it raised.
+- **To the other modules**: the ledger relay tells `planet.v1.Fortified` from that event once it is flushed,
+  with its ledger position (see [What may not be lost](composite-layer.md#what-may-not-be-lost-the-outbox)). The event's
+  `account_id` is the account that took the last tile. The chat announces the ones of `fortifyNewsTiles` (50) tiles or more.

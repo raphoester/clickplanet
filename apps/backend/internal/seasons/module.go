@@ -21,6 +21,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/postgres_round_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/rpc_planet_territories"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/usecases/close_round_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/usecases/take_snapshot_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/usecases/take_snapshot_usecase/log_take_snapshot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller"
@@ -46,19 +47,16 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/subscribers/tile_taken_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpoutbox"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsessionverifier"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 const moduleName = "seasons"
 
-const (
-	tileTakenBuffer      = 8192
-	accountDeletedBuffer = 2048
-
-	phaseCheck = time.Second
-)
+const phaseCheck = time.Second
 
 func NewModule(config Config) cpbootstrap.Module {
 	return cpbootstrap.Module{
@@ -91,31 +89,44 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to migrate the %s schema: %w", config.Database.Schema, err)
 	}
 
+	streams := cpredis.New(config.Redis, props.Metrics)
+	if err := streams.ConnectCtx(ctx); err != nil {
+		_ = db.Close()
+		return fmt.Errorf("failed to connect the seasons module to redis: %w", err)
+	}
+	closeStores := func() {
+		_ = streams.Close()
+		_ = db.Close()
+	}
+
 	contributions := postgres_contribution_store.New(db)
 	standingsQuery := standings_query.NewPostgresQuery(db, standings_authors.New(player), seasons, clock, countries)
 	boards := inprocess_board_feed.New(log_board_reader.New(standingsQuery, props.Logger), clock)
 
-	takes, err := cpbootstrap.Subscribe(props.Events, "seasons-standings", tileTakenBuffer,
+	takes, err := cpredis.Subscribe(ctx, streams, "seasons-standings",
 		log_subscriber.New(tile_taken_subscriber.New(record_take_usecase.New(seasons, contributions)), props.Logger))
 	if err != nil {
-		_ = db.Close()
+		closeStores()
 		return fmt.Errorf("failed to subscribe to planet.v1.TileTaken: %w", err)
 	}
-	deletions, err := cpbootstrap.Subscribe(props.Events, "seasons-standings-accounts", accountDeletedBuffer,
+	deletions, err := cpredis.Subscribe(ctx, streams, "seasons-standings-accounts",
 		log_subscriber.New(account_deleted_subscriber.New(forget_account_usecase.New(contributions)), props.Logger))
 	if err != nil {
-		_ = db.Close()
+		closeStores()
 		return fmt.Errorf("failed to subscribe to auth.v1.AccountDeleted: %w", err)
 	}
 
 	race := log_race_reader.New(race_query.NewPostgresQuery(db, seasons, clock), props.Logger)
 	races := inprocess_race_feed.New(race)
+	roundStore := postgres_round_store.New(db)
 	snapshot := take_snapshot_usecase.NewRunner(config.Snapshot, log_take_snapshot.New(
-		take_snapshot_usecase.New(rpc_planet_territories.New(planet), postgres_round_store.New(db), props.Events, seasons, clock),
+		take_snapshot_usecase.New(rpc_planet_territories.New(planet), roundStore,
+			close_round_usecase.New(db, roundStore, cpoutbox.New(db)), seasons, clock),
 		props.Logger,
 	))
 
-	props.Runners.Add(cppg.CloseAfter(db, props.Logger, takes, deletions, boards, races, snapshot))
+	props.Runners.Add(cppg.CloseAfter(db, props.Logger, boards, races, snapshot, cpredis.CloseAfter(streams, props.Logger,
+		takes, deletions, cpoutbox.NewRelay("seasons-outbox", db, streams, props.Logger))))
 	props.Runners.Add(play_phase_usecase.NewRunner(phaseCheck, log_play_phase.New(
 		play_phase_usecase.New(seasons, rpc_planet_rules.New(planet, config.RuleSets), clock), props.Logger)))
 
@@ -149,6 +160,7 @@ type Config struct {
 	RuleSets rpc_planet_rules.Config
 	Snapshot take_snapshot_usecase.Config
 	Database cppg.Config
+	Redis    cpredis.Config
 }
 
 func (c Config) Validate() error {
@@ -157,6 +169,9 @@ func (c Config) Validate() error {
 	}
 	if err := c.Database.Validate(); err != nil {
 		return fmt.Errorf("seasons.database: %w", err)
+	}
+	if err := c.Redis.Validate(); err != nil {
+		return fmt.Errorf("seasons.redis: %w", err)
 	}
 	return nil
 }

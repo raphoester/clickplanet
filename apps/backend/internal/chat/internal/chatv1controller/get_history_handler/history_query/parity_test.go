@@ -231,13 +231,13 @@ func (s *testSuite) TestAReplyReadsBackAsSendMessageAnsweredIt() {
 }
 
 func (s *testSuite) TestEveryKindTheChatAnnouncesIsReadBack() {
-	announce := announce_usecase.New(s.announcements, silentFeed{}, &announcements.SequentialIDs{})
+	announce := announce_usecase.New(s.announcements, silentFeed{})
 	kinds := announcements.Kinds()
 	read := make([]announcements.Kind, 0, len(kinds))
 	for i, kind := range kinds {
-		s.Require().NoError(announce.Execute(s.T().Context(), announce_usecase.In{
-			Kind: kind, At: now.Add(-time.Duration(len(kinds)-i) * time.Minute), Payload: json.RawMessage(`{"country":"fr"}`),
-		}))
+		s.Require().NoError(announce.Execute(s.T().Context(), announcements.NewAnnouncement(
+			announcements.AnnouncementID{15: byte(i + 1)}, kind, now.Add(-time.Duration(len(kinds)-i)*time.Minute),
+			json.RawMessage(`{"country":"fr"}`))))
 		shown := s.history(ada).GetAnnouncements()
 		s.Require().NotEmpty(shown)
 		read = append(read, announcements.Kind(shown[len(shown)-1].GetKind()))

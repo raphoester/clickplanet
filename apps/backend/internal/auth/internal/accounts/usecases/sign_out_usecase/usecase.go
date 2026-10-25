@@ -17,7 +17,7 @@ type Sessions interface {
 }
 
 type Publisher interface {
-	Publish(event proto.Message)
+	Publish(events ...proto.Message)
 }
 
 type UseCase struct {

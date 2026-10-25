@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconfigs"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
@@ -160,14 +161,19 @@ httpServer:
 gameMap:
   maxIndex: 100
 database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: planet}
+redis: {address: localhost:6379}
 chat:
   database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: chat}
+  redis: {address: localhost:6379}
 player:
   database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: player}
+  redis: {address: localhost:6379}
 seasons:
   database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: seasons}
+  redis: {address: localhost:6379}
 support:
   database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: support}
+  redis: {address: localhost:6379}
 clips:
   database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: clips}
 auth:
@@ -176,6 +182,7 @@ auth:
   secret: "%s"
   ttl: 2h
   database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: auth}
+  redis: {address: localhost:6379}
 `, secret), 0o600))
 
 	return path
@@ -430,4 +437,17 @@ func TestTheProductionConfigTakesFilesInItsBucketAndNeedsItsSecret(t *testing.T)
 	config.Support.Attachments.Bucket.SecretAccessKey = ""
 	require.ErrorContains(t, config.Support.Validate(), "secretAccessKey",
 		"a deploy before SUPPORT_BUCKET_SECRET is set refuses the boot")
+}
+
+func TestEveryModuleOfProductionTalksToTheSameRedis(t *testing.T) {
+	config := productionConfig(t)
+
+	for name, redis := range map[string]cpredis.Config{
+		"auth": config.Auth.Redis, "chat": config.Chat.Redis, "player": config.Player.Redis,
+		"seasons": config.Seasons.Redis, "support": config.Support.Redis,
+	} {
+		assert.Equal(t, config.Planet.Redis, redis, "%s.redis is the planet's block", name)
+	}
+	assert.Equal(t, "redis:6379", config.Planet.Redis.Address)
+	assert.Equal(t, "a-secret", config.Planet.Redis.Password, "from REDIS_PASSWORD")
 }

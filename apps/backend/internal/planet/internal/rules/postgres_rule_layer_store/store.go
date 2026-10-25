@@ -10,12 +10,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
-func New(db cppg.Querier) *Store {
+func New(db cppg.Conn) *Store {
 	return &Store{db: db}
 }
 
 type Store struct {
-	db cppg.Querier
+	db cppg.Conn
 }
 
 var _ rules.LayerStore = (*Store)(nil)
@@ -34,7 +34,7 @@ func (s *Store) LatestBaseline(ctx context.Context) (rules.Baseline, error) {
 
 func (s *Store) baseline(ctx context.Context, query string, args ...any) (rules.Baseline, error) {
 	var kept rules.BaselineSnapshot
-	err := s.db.QueryRowContext(ctx, query, args...).Scan(&kept.Request, &kept.Set, &kept.AppliedAt)
+	err := s.db.On(ctx).QueryRowContext(ctx, query, args...).Scan(&kept.Request, &kept.Set, &kept.AppliedAt)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		return rules.Baseline{}, nil
@@ -47,7 +47,7 @@ func (s *Store) baseline(ctx context.Context, query string, args ...any) (rules.
 
 func (s *Store) SaveBaseline(ctx context.Context, baseline rules.Baseline) error {
 	kept := baseline.TakeSnapshot()
-	if _, err := s.db.ExecContext(ctx, `
+	if _, err := s.db.On(ctx).ExecContext(ctx, `
 		INSERT INTO rule_baselines (request, rule_set, applied_at) VALUES ($1, $2, $3)
 		ON CONFLICT (request) DO NOTHING
 	`, string(kept.Request), string(kept.Set), kept.AppliedAt); err != nil {
@@ -59,7 +59,7 @@ func (s *Store) SaveBaseline(ctx context.Context, baseline rules.Baseline) error
 
 func (s *Store) Override(ctx context.Context) (rules.Override, error) {
 	var kept rules.OverrideSnapshot
-	err := s.db.QueryRowContext(ctx, `
+	err := s.db.On(ctx).QueryRowContext(ctx, `
 		SELECT rule_set, starts_at, ends_at FROM rule_override
 	`).Scan(&kept.Set, &kept.StartsAt, &kept.EndsAt)
 	switch {
@@ -74,7 +74,7 @@ func (s *Store) Override(ctx context.Context) (rules.Override, error) {
 
 func (s *Store) SaveOverride(ctx context.Context, override rules.Override) error {
 	kept := override.TakeSnapshot()
-	if _, err := s.db.ExecContext(ctx, `
+	if _, err := s.db.On(ctx).ExecContext(ctx, `
 		INSERT INTO rule_override (rule_set, starts_at, ends_at) VALUES ($1, $2, $3)
 		ON CONFLICT (only_one) DO UPDATE SET rule_set = EXCLUDED.rule_set, starts_at = EXCLUDED.starts_at,
 			ends_at = EXCLUDED.ends_at

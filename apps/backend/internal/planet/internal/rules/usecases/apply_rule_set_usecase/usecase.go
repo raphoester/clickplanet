@@ -40,7 +40,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) error {
 		return fmt.Errorf("cannot apply request %q: %w", in.Request, err)
 	}
 
-	// TODO(broker): this dedupe stands in for a message broker's: a caller sends its request again until it is answered.
+	// TODO(broker): a caller sends its request again until it is answered; a command stream on Redis replaces this.
 	kept, err := u.baselines.Baseline(ctx, in.Request)
 	if err != nil {
 		return fmt.Errorf("could not tell whether request %q was applied: %w", in.Request, err)

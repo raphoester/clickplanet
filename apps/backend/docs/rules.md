@@ -30,11 +30,11 @@ the baseline, then `default`** when no baseline was ever applied.
   `apply_rule_set_usecase` answers as success). So a caller sends it again with no harm, and a baseline applied since
   stands. An unknown set, an empty request id or one past 128 characters is `InvalidArgument`. `audit_apply_rule_set`
   logs every request at Warn.
-- **Known debt: the delivery is a stopgap.** Messages between modules live in the process, so a command sent while
-  the server is down is never sent. `seasons` sends the phase of now again at each boot and at each change, and
-  planet ignores a request it already applied. The user called this a poor solution on 2026-10-25: **a real message
-  broker must replace it soon**, and the code marks the places with `TODO(broker)`. Until then every module that
-  needs a durable command between modules repeats this resend and dedupe.
+- **Known debt: the delivery is a stopgap.** Facts between modules go over Redis Streams, but this command still
+  goes over the loopback call, so a command sent while planet cannot answer is sent again. `seasons` sends the phase
+  of now again at each boot and at each change, and planet ignores a request it already applied. The user called
+  this a poor solution on 2026-10-25: **it must move to a command stream of planet's on Redis**, and the code marks
+  the places with `TODO(broker)`.
 
 - **`rules.Set` is the rule** (snapshot pattern): `Snapshot.Restore` refuses a name that is not a lowercase word
   (`ErrInvalidSet`), a tempo that is not above 0, a shortest wait of 0 or a longest one under it, an hourly cap of 0
@@ -64,7 +64,7 @@ the baseline, then `default`** when no baseline was ever applied.
   postgres. **What plays now is not on the wire**: the backoffice's Game rules page works it out from those facts, as
   planet does.
 - `e2e/rules_test.go` edits `default` to a tempo of 3 and sees the refill go from 100 to 300 a second on a stream
-  opened before, and refuses a set with no tempo; boots with a finale 8 seconds away and sees the refill go from 100
+  opened before, and refuses a set with no tempo; boots with a finale 20 seconds away and sees the refill go from 100
   to 300 and back, with the baselines `season-0:days`, `season-0:finale` and `season-0:over`; runs an override to its
   end and ends another by hand; and sends a request again. **`make finale`** runs `cmd/api` with `example.yaml` and
   Season 0's finale `FINALE_IN` minutes away (2 by default) and `FINALE_FOR` long (5), to rehearse it; the `rush` set

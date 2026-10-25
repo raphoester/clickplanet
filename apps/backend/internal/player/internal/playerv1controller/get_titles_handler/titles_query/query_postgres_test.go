@@ -64,8 +64,8 @@ func progress(dashboard *playerv1.GetTitlesResponse) map[string]uint64 {
 }
 
 func (s *testSuite) TestTheDashboardMeasuresTheStreakAsOfToday() {
-	s.Require().NoError(s.players.Record(s.T().Context(), ada, players.TakeAt(monday)))
-	s.Require().NoError(s.players.Record(s.T().Context(), ada, players.TakeAt(monday.Add(24*time.Hour))))
+	s.Require().NoError(s.players.Record(s.T().Context(), ada, players.TakeAt(0, monday)))
+	s.Require().NoError(s.players.Record(s.T().Context(), ada, players.TakeAt(1, monday.Add(24*time.Hour))))
 	s.Require().NoError(s.titles.Grant(s.T().Context(), titles.Holdings{ada: {"settler"}}, monday))
 	clock := cptime.NewFixedClock(monday.Add(24 * time.Hour))
 
@@ -80,8 +80,8 @@ func (s *testSuite) TestTheDashboardMeasuresTheStreakAsOfToday() {
 }
 
 func (s *testSuite) TestTheChatterTrackCountsTheMessagesSent() {
-	for range 3 {
-		s.Require().NoError(s.players.Record(s.T().Context(), ada, players.Stats.WithMessage))
+	for i := range 3 {
+		s.Require().NoError(s.players.Record(s.T().Context(), ada, players.MessageAt(monday.Add(time.Duration(i)*time.Second))))
 	}
 
 	s.Equal(uint64(3), progress(s.dashboard(cptime.NewFixedClock(monday)))["chatter"])
@@ -89,8 +89,8 @@ func (s *testSuite) TestTheChatterTrackCountsTheMessagesSent() {
 
 func (s *testSuite) TestTheBonusTracksCountWhatTheStatsKept() {
 	for _, change := range []func(players.Stats) players.Stats{
-		players.Stats.WithBomb, players.Stats.WithBonus, players.Stats.WithBonus, players.Stats.WithRightAnswer,
-		func(stats players.Stats) players.Stats { return stats.WithFortify(137) },
+		players.BombAt(0), players.BonusAt(monday), players.BonusAt(monday.Add(time.Second)), players.RightAnswerAt(monday),
+		players.FortifyAt(1, 137),
 	} {
 		s.Require().NoError(s.players.Record(s.T().Context(), ada, change))
 	}

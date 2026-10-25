@@ -20,7 +20,7 @@ func TestEveryAnnouncementKeptBeforeTheTypeKeepsItsKind(t *testing.T) {
 	kinds := []string{"bomb", "mute", "round", "fortify"}
 	insert := `INSERT INTO announcements (id, kind, payload, announced_at) VALUES ($1, $2, '{}', $3)`
 	for i, kind := range kinds {
-		_, err := db.ExecContext(t.Context(), insert, uuid.UUID{15: byte(i)}, kind, at)
+		_, err := db.On(t.Context()).ExecContext(t.Context(), insert, uuid.UUID{15: byte(i)}, kind, at)
 		require.NoError(t, err)
 	}
 
@@ -28,10 +28,10 @@ func TestEveryAnnouncementKeptBeforeTheTypeKeepsItsKind(t *testing.T) {
 
 	for i, kind := range kinds {
 		var kept string
-		require.NoError(t, db.QueryRowContext(t.Context(),
+		require.NoError(t, db.On(t.Context()).QueryRowContext(t.Context(),
 			`SELECT kind FROM announcements WHERE id = $1`, uuid.UUID{15: byte(i)}).Scan(&kept))
 		assert.Equal(t, kind, kept)
 	}
-	_, err := db.ExecContext(t.Context(), insert, uuid.UUID{15: byte(len(kinds))}, "meteor", at)
+	_, err := db.On(t.Context()).ExecContext(t.Context(), insert, uuid.UUID{15: byte(len(kinds))}, "meteor", at)
 	require.Error(t, err, "a kind is a value of the type before an announcement has it")
 }

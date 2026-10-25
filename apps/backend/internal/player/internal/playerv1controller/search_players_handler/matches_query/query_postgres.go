@@ -8,12 +8,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
-func NewPostgresQuery(db cppg.Querier) *PostgresQuery {
+func NewPostgresQuery(db cppg.Conn) *PostgresQuery {
 	return &PostgresQuery{db: db}
 }
 
 type PostgresQuery struct {
-	db cppg.Querier
+	db cppg.Conn
 }
 
 // An account goes by its username, or by its guest code until it chooses one, as GetAuthors names it.
@@ -31,7 +31,7 @@ const matches = `
 `
 
 func (q *PostgresQuery) Search(ctx context.Context, folded string, limit int) (*playerv1.SearchPlayersResponse, error) {
-	rows, err := q.db.QueryContext(ctx, matches, folded, limit)
+	rows, err := q.db.On(ctx).QueryContext(ctx, matches, folded, limit)
 	if err != nil {
 		return nil, fmt.Errorf("failed to search the players: %w", err)
 	}

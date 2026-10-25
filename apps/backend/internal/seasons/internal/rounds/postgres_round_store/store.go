@@ -13,12 +13,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
-func New(db cppg.QuerierBeginner) *Store {
+func New(db cppg.Conn) *Store {
 	return &Store{db: db}
 }
 
 type Store struct {
-	db cppg.QuerierBeginner
+	db cppg.Conn
 }
 
 var _ rounds.Store = (*Store)(nil)
@@ -33,38 +33,27 @@ func (s *Store) RecordSnapshot(ctx context.Context, round rounds.Round, snapshot
 		}
 	}
 
-	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to begin counting the snapshot: %w", err)
-	}
-	defer func() {
-		if err != nil {
-			_ = tx.Rollback()
+	return s.db.InTx(ctx, func(ctx context.Context) error {
+		tx := s.db.On(ctx)
+		if _, err := tx.ExecContext(ctx, `
+			INSERT INTO rounds (season, ends_at, finale, samples, map_tiles) VALUES ($1, $2, $3, 1, $4)
+			ON CONFLICT (season, ends_at) DO UPDATE SET samples = rounds.samples + 1, map_tiles = excluded.map_tiles
+		`, int64(round.Season), round.EndsAt, round.Finale, int64(snapshot.Tiles)); err != nil {
+			return fmt.Errorf("failed to count the snapshot in its round: %w", err)
 		}
-	}()
-
-	if _, err := tx.ExecContext(ctx, `
-		INSERT INTO rounds (season, ends_at, finale, samples, map_tiles) VALUES ($1, $2, $3, 1, $4)
-		ON CONFLICT (season, ends_at) DO UPDATE SET samples = rounds.samples + 1, map_tiles = excluded.map_tiles
-	`, int64(round.Season), round.EndsAt, round.Finale, int64(snapshot.Tiles)); err != nil {
-		return fmt.Errorf("failed to count the snapshot in its round: %w", err)
-	}
-	if _, err := tx.ExecContext(ctx, `
-		INSERT INTO round_holdings (season, ends_at, country, tiles)
-		SELECT $1, $2, held.country, held.tiles FROM unnest($3::text[], $4::bigint[]) AS held (country, tiles)
-		ON CONFLICT (season, ends_at, country) DO UPDATE SET tiles = round_holdings.tiles + excluded.tiles
-	`, int64(round.Season), round.EndsAt, pq.Array(countries), pq.Array(tiles)); err != nil {
-		return fmt.Errorf("failed to add what each country held: %w", err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit the snapshot: %w", err)
-	}
-	return nil
+		if _, err := tx.ExecContext(ctx, `
+			INSERT INTO round_holdings (season, ends_at, country, tiles)
+			SELECT $1, $2, held.country, held.tiles FROM unnest($3::text[], $4::bigint[]) AS held (country, tiles)
+			ON CONFLICT (season, ends_at, country) DO UPDATE SET tiles = round_holdings.tiles + excluded.tiles
+		`, int64(round.Season), round.EndsAt, pq.Array(countries), pq.Array(tiles)); err != nil {
+			return fmt.Errorf("failed to add what each country held: %w", err)
+		}
+		return nil
+	})
 }
 
 func (s *Store) Unclosed(ctx context.Context, endedBy time.Time) ([]rounds.Round, error) {
-	rows, err := s.db.QueryContext(ctx, `
+	rows, err := s.db.On(ctx).QueryContext(ctx, `
 		SELECT season, ends_at, finale FROM rounds WHERE NOT closed AND ends_at <= $1 ORDER BY ends_at, season
 	`, endedBy)
 	if err != nil {
@@ -92,7 +81,7 @@ func (s *Store) Unclosed(ctx context.Context, endedBy time.Time) ([]rounds.Round
 }
 
 func (s *Store) Held(ctx context.Context, round rounds.Round) (map[rounds.Country]uint64, error) {
-	rows, err := s.db.QueryContext(ctx, `
+	rows, err := s.db.On(ctx).QueryContext(ctx, `
 		SELECT country, tiles FROM round_holdings WHERE season = $1 AND ends_at = $2
 	`, int64(round.Season), round.EndsAt)
 	if err != nil {
@@ -119,7 +108,7 @@ func (s *Store) Held(ctx context.Context, round rounds.Round) (map[rounds.Countr
 
 func (s *Store) Number(ctx context.Context, round rounds.Round) (uint32, error) {
 	var earlier int64
-	if err := s.db.QueryRowContext(ctx, `
+	if err := s.db.On(ctx).QueryRowContext(ctx, `
 		SELECT count(*) FROM rounds WHERE season = $1 AND ends_at < $2
 	`, int64(round.Season), round.EndsAt).Scan(&earlier); err != nil {
 		return 0, fmt.Errorf("failed to count the rounds before this one: %w", err)
@@ -127,7 +116,8 @@ func (s *Store) Number(ctx context.Context, round rounds.Round) (uint32, error) 
 	return uint32(earlier + 1), nil //nolint:gosec // a round a day.
 }
 
-func (s *Store) Close(ctx context.Context, round rounds.Round, results []rounds.Result) (err error) {
+// Close answers whether this call closed the round: one closed before writes nothing.
+func (s *Store) Close(ctx context.Context, round rounds.Round, results []rounds.Result) (bool, error) {
 	countries := make([]string, 0, len(results))
 	ranks := make([]int64, 0, len(results))
 	points := make([]int64, 0, len(results))
@@ -137,46 +127,38 @@ func (s *Store) Close(ctx context.Context, round rounds.Round, results []rounds.
 		points = append(points, int64(result.Points))
 	}
 
-	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to begin closing the round: %w", err)
-	}
-	defer func() {
+	closed := false
+	err := s.db.InTx(ctx, func(ctx context.Context) error {
+		tx := s.db.On(ctx)
+		closing, err := tx.ExecContext(ctx, `
+			UPDATE rounds SET closed = true WHERE season = $1 AND ends_at = $2 AND NOT closed
+		`, int64(round.Season), round.EndsAt)
 		if err != nil {
-			_ = tx.Rollback()
+			return fmt.Errorf("failed to close the round: %w", err)
 		}
-	}()
+		updated, err := closing.RowsAffected()
+		if err != nil {
+			return fmt.Errorf("failed to close the round: %w", err)
+		}
+		if updated == 0 {
+			return nil
+		}
 
-	closing, err := tx.ExecContext(ctx, `
-		UPDATE rounds SET closed = true WHERE season = $1 AND ends_at = $2 AND NOT closed
-	`, int64(round.Season), round.EndsAt)
-	if err != nil {
-		return fmt.Errorf("failed to close the round: %w", err)
-	}
-	closed, err := closing.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to close the round: %w", err)
-	}
-	if closed == 0 {
-		return tx.Rollback() //nolint:wrapcheck // nothing was written.
-	}
-
-	if _, err := tx.ExecContext(ctx, `
-		INSERT INTO round_results (season, ends_at, country, rank, points)
-		SELECT $1, $2, result.country, result.rank, result.points
-		FROM unnest($3::text[], $4::integer[], $5::integer[]) AS result (country, rank, points)
-	`, int64(round.Season), round.EndsAt, pq.Array(countries), pq.Array(ranks), pq.Array(points)); err != nil {
-		return fmt.Errorf("failed to keep the round's results: %w", err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit the round's results: %w", err)
-	}
-	return nil
+		if _, err := tx.ExecContext(ctx, `
+			INSERT INTO round_results (season, ends_at, country, rank, points)
+			SELECT $1, $2, result.country, result.rank, result.points
+			FROM unnest($3::text[], $4::integer[], $5::integer[]) AS result (country, rank, points)
+		`, int64(round.Season), round.EndsAt, pq.Array(countries), pq.Array(ranks), pq.Array(points)); err != nil {
+			return fmt.Errorf("failed to keep the round's results: %w", err)
+		}
+		closed = true
+		return nil
+	})
+	return closed, err
 }
 
 func (s *Store) ClosedIn(ctx context.Context, season calendar.Number) ([]rounds.Closed, error) {
-	rows, err := s.db.QueryContext(ctx, `
+	rows, err := s.db.On(ctx).QueryContext(ctx, `
 		WITH numbered AS (
 			SELECT season, ends_at, finale, closed, row_number() OVER (ORDER BY ends_at) AS number
 			FROM rounds WHERE season = $1

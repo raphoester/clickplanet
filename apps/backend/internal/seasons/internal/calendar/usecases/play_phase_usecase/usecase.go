@@ -31,7 +31,7 @@ type UseCase struct {
 	game    Game
 	clock   cptime.Clock
 
-	// TODO(broker): in memory, so each boot sends the phase again; a broker delivers a command once.
+	// TODO(broker): in memory, so each boot sends the phase again; a command stream delivers it once.
 	played calendar.Phase
 }
 

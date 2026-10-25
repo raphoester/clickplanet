@@ -37,7 +37,8 @@ func TestAPruneDeletesMessagesReactionsAndAnnouncementsPastRetention(t *testing.
 		require.NoError(t, sent.Append(t.Context(),
 			messages.NewRecord(messages.Restored(t, messages.Snapshot{ID: id, SentAt: at}), "", "", "")))
 		require.NoError(t, given.Save(t.Context(), reactions.On(id, 1, "guest:a", at)))
-		require.NoError(t, announced.Append(t.Context(), announcements.NewAnnouncement(announcements.AnnouncementID(uuid.New()), announcements.KindBomb, at, nil)))
+		_, err := announced.AppendOnce(t.Context(), announcements.NewAnnouncement(announcements.AnnouncementID(uuid.New()), announcements.KindBomb, at, nil))
+		require.NoError(t, err)
 	}
 
 	deleted, err := prune_usecase.New(24*time.Hour, cptime.NewFixedClock(now), sent, given, announced).

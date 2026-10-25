@@ -34,6 +34,7 @@ func (c Config) Validate() error {
 The binary never reads inside a block to check it, so a new bound is added in the module that owns it and nothing here changes. `errors.Join` also means a broken file reports **everything** wrong at once rather than one line per restart.
 
 - `cpbootstrap.ServerConfig` — `bindAddress` empty listens on port 80; `consoleBindAddress` set to anything but loopback
+- `shared/cpredis.Config` — an `address` that is not a `host:port`, or a negative limit. Each module checks its own `redis` block, as it checks its database block
 - `shared/cppg.Config` — a connection setting or the schema left empty, or a schema that is not a plain lowercase identifier. Each module checks its own block, starting with `planet.Config`
 - `planet.Config` — `gameMap.maxIndex` zero is a map that refuses every click, plus whatever `bonus` and `antiBot` refuse of their own
 - `shared/cpsession.SignerConfig` — `secret` empty, not hex or not 32 bytes while `enabled`, and a negative `ttl`. Checked by `auth.Config`, which is the only block that declares it. `cpsession.VerifierConfig`, which planet declares, has nothing to check: two switches and no key
@@ -45,6 +46,11 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 **Each module owns its own config struct** — `planet.Config`, `chat.Config`, `auth.Config`, `player.Config` — and `app.Config` is the four of them plus `httpServer`. The planet keys stayed at the top level of the file rather than moving under a `planet:` section: `app.Config` squashes that struct (`koanf:",squash"`), so the file and every `deploy/` environment variable are unchanged.
 
 - `httpServer.bindAddress` — the encoding is negotiated per request, so there is no format setting.
+- `redis` — each module's own block (`redis` at the top level for planet, `auth.redis`, `chat.redis`, `player.redis`, `seasons.redis`, `support.redis`): the Redis it tells the others what happened through and hears them on (see [Telling other modules what happened](composite-layer.md#telling-other-modules-what-happened)). **Every block names the same Redis**, or a module publishes where nobody listens; `TestEveryModuleOfProductionTalksToTheSameRedis` pins it for `deploy/vps/backend.yaml`. Each module connects on its own, and one that cannot reach Redis refuses the boot
+- `redis.address`, `redis.password` — production reads the password from `REDIS_PASSWORD`
+- `redis.maxLen` — the most entries one stream keeps (100k), for a stream whose subscriber stopped; the trim keeps them far fewer while every subscriber keeps up
+- `redis.publishTimeout` — how long a click or any other publish waits on Redis (500ms); past it the event is lost and counted
+- `redis.retryAfter`, `redis.maxDeliveries` — the first wait before a module's failed event is handled again (2s, doubling up to 64 times that), and how many tries before it is buried in `events:dead` (8)
 - `httpServer.streamHeartbeat` — how often a silent live stream sends a heartbeat (default 30s), after the one it opens with. **Must stay well under the proxy's idle cut**: Cloudflare answers 524 at ~125s, and a stream that never speaks is one it kills.
 - `httpServer.startupTimeout` — how long building every module may take, the loads included (default 1m). A boot that passes it fails, and the container's restart policy boots it again. See [Durability](durability.md) for why it is not 5s.
 - `httpServer.consoleBindAddress` — where the operator services listen for a shell on the box, with no session (see [Operator tools](admin.md)); empty serves none, and a non-loopback address refuses the boot
