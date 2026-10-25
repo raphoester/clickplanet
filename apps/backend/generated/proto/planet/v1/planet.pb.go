@@ -1228,7 +1228,7 @@ func (x *GetTileHolderRequest) GetTileId() uint32 {
 
 type GetTileHolderResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Unset when the last change of the tile emptied it, or names no account.
+	// Unset when the last change of the tile emptied it.
 	Holder        *TileHolder `protobuf:"bytes,1,opt,name=holder,proto3" json:"holder,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1273,10 +1273,11 @@ func (x *GetTileHolderResponse) GetHolder() *TileHolder {
 
 // The last take of the tile: a tile that shows another flag changed hands since.
 type TileHolder struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
-	CountryId     string                 `protobuf:"bytes,2,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
-	TakenAtUnixMs int64                  `protobuf:"varint,3,opt,name=taken_at_unix_ms,json=takenAtUnixMs,proto3" json:"taken_at_unix_ms,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Empty when the take names no account, as once its account is deleted.
+	AccountId     string `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	CountryId     string `protobuf:"bytes,2,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	TakenAtUnixMs int64  `protobuf:"varint,3,opt,name=taken_at_unix_ms,json=takenAtUnixMs,proto3" json:"taken_at_unix_ms,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
