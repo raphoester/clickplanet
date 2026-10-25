@@ -6,10 +6,12 @@ import (
 )
 
 func NewCatalog(config Config, defaults Set) (Catalog, error) {
-	sets := map[SetName]Set{Default: {Name: Default, Tempo: defaults.Tempo, Boxes: defaults.Boxes}}
+	sets := map[SetName]Set{Default: {Name: Default, Tempo: defaults.Tempo, Boxes: defaults.Boxes, AntiBot: defaults.AntiBot}}
 
 	for name, configured := range config.Sets {
-		set := Set{Name: name, Tempo: defaults.Tempo, Boxes: defaults.Boxes, Frozen: configured.Frozen}
+		set := Set{
+			Name: name, Tempo: defaults.Tempo, Boxes: defaults.Boxes, AntiBot: defaults.AntiBot, Frozen: configured.Frozen,
+		}
 		if configured.Tempo > 0 {
 			set.Tempo = configured.Tempo
 		}
@@ -21,6 +23,9 @@ func NewCatalog(config Config, defaults Set) (Catalog, error) {
 		}
 		if configured.Boxes.MaxChargesPerHour > 0 {
 			set.Boxes.MaxChargesPerHour = configured.Boxes.MaxChargesPerHour
+		}
+		if configured.AntiBot.Crowd > 0 {
+			set.AntiBot.Crowd = configured.AntiBot.Crowd
 		}
 		if set.Boxes.MinInterval > set.Boxes.MaxInterval {
 			return Catalog{}, fmt.Errorf("rules.sets.%s: its boxes wait %s at least and %s at most", name,

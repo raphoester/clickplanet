@@ -47,7 +47,8 @@ func (h GetRulesHandler) GetRules(
 				MaxInterval:       durationpb.New(set.Boxes.MaxInterval),
 				MaxChargesPerHour: uint32(max(set.Boxes.MaxChargesPerHour, 0)), //nolint:gosec // capped below.
 			},
-			Frozen: set.Frozen,
+			AntiBot: &planetv1.AntiBotRules{Crowd: uint32(max(set.AntiBot.Crowd, 0))}, //nolint:gosec // capped below.
+			Frozen:  set.Frozen,
 		})
 	}
 

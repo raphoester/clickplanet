@@ -1,8 +1,8 @@
 import {Duration} from "@bufbuild/protobuf"
 import {describe, expect, it} from "vitest"
-import {BoxPace, GetRulesResponse, RuleChange, RuleChangeSource, RuleSet} from "../gen/grpc/planet/v1/admin_pb.ts"
+import {AntiBotRules, BoxPace, GetRulesResponse, RuleChange, RuleChangeSource, RuleSet} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {FakeAdmin} from "../fakeAdmin.ts"
-import {applyRuleSet, boxesOf, inForceOf, sourceOf, tempoOf} from "./rules.ts"
+import {applyRuleSet, boxesOf, crowdOf, inForceOf, sourceOf, tempoOf} from "./rules.ts"
 
 const minutes = (n: number) => new Duration({seconds: BigInt(n * 60)})
 
@@ -31,6 +31,11 @@ describe("the rules", () => {
         }))).toBe("Every 90 s to 2 min, 30 an hour at most")
         expect(paced(undefined)).toBe("—")
         expect(paced(new BoxPace({minInterval: minutes(4), maxInterval: minutes(4), maxChargesPerHour: 12}), true)).toBe("—")
+    })
+
+    it("says from how many networks of one range a crowd is banned", () => {
+        expect(crowdOf(new RuleSet({antiBot: new AntiBotRules({crowd: 50})}))).toBe("A crowd from 50 networks")
+        expect(crowdOf(new RuleSet())).toBe("—")
     })
 
     it("names who changed them", () => {

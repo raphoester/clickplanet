@@ -299,3 +299,30 @@ func TestValidateRefusesBoundsThatCannotMeanAnything(t *testing.T) {
 		assert.Error(t, config.Validate(), name)
 	}
 }
+
+func TestARaisedCrowdBoundLeavesSixInStepSuspectAndTheConfigsPutsItBack(t *testing.T) {
+	identities := make([]identity, 0, 6)
+	for i := range 6 {
+		identities = append(identities, poolBot(fmt.Sprintf("2a00:8c40:f0c%x:%x::/64", i, 0x100+i), "19:00:00.000"))
+	}
+
+	raised := newWatchdog()
+	raised.SetCrowd(50)
+	for scope, r := range run(raised, replay(9, identities...)) {
+		assert.Equal(t, detect.Suspect, r.verdict, scope)
+	}
+
+	again := newWatchdog()
+	again.SetCrowd(50)
+	again.SetCrowd(0)
+	for scope, r := range run(again, replay(9, identities...)) {
+		require.Equal(t, detect.Certain, r.verdict, scope)
+		assert.Equal(t, "crowd", r.evidence.Rule)
+	}
+}
+
+func TestTheCrowdOfAConfigIsItsCertainMembersOrTheDefault(t *testing.T) {
+	assert.Equal(t, 6, cohort.Config{}.Crowd())
+	assert.Equal(t, 9, cohort.Config{CertainMembers: 9}.Crowd())
+	assert.Equal(t, 4, cohort.Config{MinMembers: 4, CertainMembers: 3}.Crowd())
+}

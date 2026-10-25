@@ -15,14 +15,19 @@ type Schedule interface {
 	SetFrozen(frozen bool)
 }
 
-// NewInForce holds set without telling tempo or schedule: they start from the same config.
-func NewInForce(set Set, tempo Tempo, schedule Schedule) *InForce {
-	return &InForce{set: set, tempo: tempo, schedule: schedule, watchers: make(map[uint64]chan Set)}
+type Guard interface {
+	SetCrowd(members int)
+}
+
+// NewInForce holds set without telling tempo, schedule or guard: they start from the same config.
+func NewInForce(set Set, tempo Tempo, schedule Schedule, guard Guard) *InForce {
+	return &InForce{set: set, tempo: tempo, schedule: schedule, guard: guard, watchers: make(map[uint64]chan Set)}
 }
 
 type InForce struct {
 	tempo    Tempo
 	schedule Schedule
+	guard    Guard
 
 	mu       sync.Mutex
 	set      Set
@@ -38,6 +43,7 @@ func (f *InForce) Enforce(set Set) {
 	f.tempo.SetTempo(set.Tempo)
 	f.schedule.SetPace(set.Boxes)
 	f.schedule.SetFrozen(set.Frozen)
+	f.guard.SetCrowd(set.AntiBot.Crowd)
 
 	for _, watcher := range f.watchers {
 		select {

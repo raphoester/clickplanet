@@ -56,6 +56,8 @@ rules:
         minInterval: 1m
         maxInterval: 2m
         maxChargesPerHour: 30
+      antiBot:
+        crowd: 50
     frozen:
       frozen: true
 
