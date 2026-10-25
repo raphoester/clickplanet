@@ -59,6 +59,11 @@ type Config struct {
 	Rotator   rotatorConfig
 }
 
+// Crowd is how many networks of one prefix, in step, are a crowd under this config.
+func (c Config) Crowd() int {
+	return c.Cohort.Detector.Crowd()
+}
+
 func (c Config) Validate() error {
 	if !c.Enabled {
 		return nil
@@ -284,6 +289,7 @@ func build(
 		watchdogs = append(watchdogs, watchdog)
 		sections = append(sections, watchdog)
 		names = append(names, cohort.Name)
+		g.cohort = watchdog
 	}
 
 	if config.Scraper.Enabled {
@@ -398,12 +404,21 @@ type Guard struct {
 	evidence    *evidence.Store
 	database    database
 	catcher     *catcher.Watchdog
+	cohort      *cohort.Watchdog
 	scraper     *scraper.Watchdog
 	runners     []func(context.Context)
 	description Description
 	onStart     func(Description)
 
 	onStateError func(error)
+}
+
+// SetCrowd makes members networks of one prefix, in step, a crowd from now on; 0 is the config's. With cohort off,
+// there is no crowd to set.
+func (g *Guard) SetCrowd(members int) {
+	if g.cohort != nil {
+		g.cohort.SetCrowd(members)
+	}
 }
 
 func (g *Guard) Attempted(click Click) {

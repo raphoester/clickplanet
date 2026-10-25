@@ -76,6 +76,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/answer_quiz_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/apply_rule_set_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/ban_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/claim_bonus_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/click_handler"
@@ -92,6 +93,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_ledger_handler/changes_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_map_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_replay_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_rules_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_rules_handler/rule_changes_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_takes_by_country_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_takes_by_country_handler/takes_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_territories_handler"
@@ -110,6 +113,11 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/unban_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/use_refill_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/quizzes"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/postgres_rule_change_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/usecases/apply_rule_set_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/usecases/apply_rule_set_usecase/audit_apply_rule_set"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/usecases/restore_rules_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/account_deleted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
@@ -238,7 +246,22 @@ func NewModule(config Config) cpbootstrap.Module {
 			}
 			props.Runners.Add(guard)
 
-			clickUseCase = antibot_click.New(clickUseCase, guard, tilesStorage, shielding, clock, props.Metrics)
+			ruleDefaults := rules.Set{
+				Name: rules.Default, Tempo: 1, Boxes: config.Bonus.Pace(), AntiBot: rules.AntiBot{Crowd: config.AntiBot.Crowd()},
+			}
+			ruleCatalog, err := rules.NewCatalog(config.Rules, ruleDefaults)
+			if err != nil {
+				return fmt.Errorf("failed to read the rule sets: %w", err)
+			}
+			inForce := rules.NewInForce(ruleDefaults, limiter, registry, guard)
+			ruleChanges := postgres_rule_change_store.New(db)
+			if err := restore_rules_usecase.New(ruleChanges, ruleCatalog, inForce).Execute(ctx); err != nil {
+				return fmt.Errorf("failed to restore the rules in force: %w", err)
+			}
+			applyRuleSet := audit_apply_rule_set.New(
+				apply_rule_set_usecase.New(ruleCatalog, ruleChanges, inForce, clock), props.Logger)
+
+			clickUseCase = antibot_click.New(clickUseCase, guard, tilesStorage, shielding, inForce, clock, props.Metrics)
 
 			clickUseCase = throttle_click.New(clickUseCase, limiter, pricer, buckets)
 
@@ -248,7 +271,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			// Outside the throttle, so a click refused for its flag spends nothing.
 			clickUseCase = allegiance_click.New(clickUseCase, book)
 
-			clickUseCase = antibot_attempt_click.New(clickUseCase, guard, geography, clock)
+			clickUseCase = antibot_attempt_click.New(clickUseCase, guard, geography, inForce, clock)
 
 			// Outside the throttle: a refused click must not spend a token, or the client shows a 429.
 			clickUseCase = ban_click.New(clickUseCase, guard, props.Metrics)
@@ -281,6 +304,8 @@ func NewModule(config Config) cpbootstrap.Module {
 				GetReplayHandler:      get_replay_handler.New(replay_usecase.New(takings, tilesChecker, tilesStorage, clock)),
 				GetLedgerHandler:      get_ledger_handler.New(changes_query.NewPostgresQuery(db, clock)),
 				GetTerritoriesHandler: getTerritories,
+				ApplyRuleSetHandler:   apply_rule_set_handler.New(applyRuleSet, rules.SourceOperator),
+				GetRulesHandler:       get_rules_handler.New(ruleCatalog, rule_changes_query.NewPostgresQuery(db)),
 			}
 
 			if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
@@ -292,6 +317,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			internalService := planetv1controller.InternalService{
 				GetTakesByCountryHandler: get_takes_by_country_handler.New(takes_query.NewPostgresQuery(db)),
 				GetTerritoriesHandler:    getTerritories,
+				ApplyRuleSetHandler:      apply_rule_set_handler.New(applyRuleSet, rules.SourceInternal),
 			}
 			if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 				return planetv1connect.NewInternalServiceHandler(internalService, options...)
@@ -359,7 +385,7 @@ func NewModule(config Config) cpbootstrap.Module {
 					guard),
 				props.Metrics)
 
-			rules := bonuses.Rules{
+			bonusRules := bonuses.Rules{
 				BlastRadius:       bombRules.Radius,
 				EnclosureMaxTiles: chargeRules.EnclosureMaxTiles,
 				SpreadClicks:      chargeRules.SpreadClicks,
@@ -375,12 +401,12 @@ func NewModule(config Config) cpbootstrap.Module {
 				GetMapHandler: get_map_handler.New(
 					antibot_get_map.New(get_map_usecase.New(tilesChecker, tilesStorage), guard, tilesChecker)),
 				ListenForEventsHandler: listen_for_events_handler.New(antibot_listen_for_events.New(
-					listen_for_events_usecase.New(tilesStorage, props.Server.StreamHeartbeat, registry), guard)),
+					listen_for_events_usecase.New(tilesStorage, props.Server.StreamHeartbeat, registry, inForce), guard)),
 				ClaimBonusHandler:    claim_bonus_handler.New(claimBonus),
 				DropBombHandler:      drop_bomb_handler.New(dropBomb),
 				UseRefillHandler:     use_refill_handler.New(use_refill_usecase.New(charges, limiter, pricer, buckets)),
 				GetChargesHandler:    get_charges_handler.New(get_charges_usecase.New(charges)),
-				GetBonusRulesHandler: get_bonus_rules_handler.New(rules, pricer),
+				GetBonusRulesHandler: get_bonus_rules_handler.New(bonusRules, pricer),
 				OpenQuizHandler:      open_quiz_handler.New(openQuiz),
 				AnswerQuizHandler:    answer_quiz_handler.New(answerQuiz),
 				PlaceShieldHandler: place_shield_handler.New(antibot_place_shield.New(

@@ -1,4 +1,4 @@
-.PHONY: proto map quiz test lint lint-ci tidy check-format check-quiz setup-tools deadcode dBuild dRun dRm vpn-lists disposable-domains zernio zernio-spec metrics
+.PHONY: proto map quiz finale test lint lint-ci tidy check-format check-quiz setup-tools deadcode dBuild dRun dRm vpn-lists disposable-domains zernio zernio-spec metrics
 
 TEST_TAG := testing
 
@@ -31,6 +31,20 @@ check-quiz:
 		echo "$(QUIZ_ASSET_DIR)/bank.json is not $(QUIZ_DIR)/bank.json. Run 'make quiz'." >&2; \
 		exit 1; \
 	}
+
+FINALE_IN ?= 2
+FINALE_FOR ?= 5
+
+# The example config with Season 0's finale FINALE_IN minutes away and FINALE_FOR long, to rehearse it.
+finale:
+	@ends=$$(( $$(date +%s) + ($(FINALE_IN) + $(FINALE_FOR)) * 60 )); \
+	at=$$(date -u -r $$ends +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -d @$$ends +%Y-%m-%dT%H:%M:%SZ); \
+	config=$$(mktemp -d)/finale.yaml; \
+	sed -e "s/^\( *\)endsAt: .*/\1endsAt: $$at/" -e "s/^\( *\)finale: [0-9].*/\1finale: $(FINALE_FOR)m/" \
+		cmd/api/example.yaml > $$config; \
+	grep -q "endsAt: $$at" $$config || { echo "finale: example.yaml has no season to move" >&2; exit 1; }; \
+	echo "Season 0's finale starts in $(FINALE_IN)m and ends at $$at ($$config)"; \
+	go run ./cmd/api -config $$config
 
 dBuild:
 	@docker build -t clickplanet-back:local .

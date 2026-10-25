@@ -134,6 +134,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private tokens = CLICK_BURST
     private lastRefillMs = Date.now()
     private pace = 1
+    private tempo = 1
     private sharedWith: SharedBy | undefined
     private shapesClose = true
     private bannedUntil: number | undefined
@@ -388,6 +389,12 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         this.shapesClose = close
     }
 
+    public setTempo(tempo: number): void {
+        this.refill()
+        this.tempo = tempo
+        this.reportBudget()
+    }
+
     public shareClicks(sharedWith?: SharedBy): void {
         this.sharedWith = sharedWith
         this.reportBudget()
@@ -404,7 +411,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         return {
             tokens: this.tokens,
             capacity: CLICK_BURST,
-            perSecond: CLICKS_PER_SECOND * this.pace,
+            perSecond: CLICKS_PER_SECOND * this.pace * this.tempo,
             price: this.price(this.budgetCountry),
             sharedWith: this.sharedWith,
             readAt: budgetNow(),
@@ -526,7 +533,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         const now = Date.now()
         this.tokens = Math.min(
             CLICK_BURST,
-            this.tokens + ((now - this.lastRefillMs) / 1000) * CLICKS_PER_SECOND * this.pace,
+            this.tokens + ((now - this.lastRefillMs) / 1000) * CLICKS_PER_SECOND * this.pace * this.tempo,
         )
         this.lastRefillMs = now
     }

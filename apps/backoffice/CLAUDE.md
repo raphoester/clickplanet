@@ -17,7 +17,7 @@ burger menu (see [The menu](#the-menu)), by group:
 - **Map**: Reassign a country, Paint random tiles, Download a replay (see [The map tools](#the-map-tools)).
 - **Clips**: Clip stats, the daily numbers of the clips the clips job posts, and a CSV of them (see
   [Clip stats](#clip-stats)).
-- **Ops**: Reconcile titles, the run after a deploy (see [Ops](#ops)).
+- **Ops**: Reconcile titles, the run after a deploy, and Game rules, the rule set in force (see [Ops](#ops)).
 
 What is left of the plan is a live chat view: `ListMessages` pages through the chat (the report and player pages
 read it), and no admin method streams it.
@@ -341,6 +341,15 @@ Zernio answered, as it came, and what the clip was.
 `src/ops/`: `ReconcileTitles` (`TitlesPanel`, after a deploy that adds a title or changes a rule). It asks first, and
 it is harmless twice.
 
+**Game rules** (`RulesPanel`, `rules.ts`) is `planet.v1.AdminService/GetRules` and `ApplyRuleSet` (the backend's
+`CLAUDE.md`, "Rules"): the set in force, which is the newest change's or `default` with none, since when and by
+whom; every set the config holds, with its refill (`3× as fast`), its boxes and the networks a crowd needs; and the last 50 changes, each with
+its request id. **A set is applied from its row**, behind `ConfirmAction`, under a request id of its own
+(`crypto.randomUUID()`), so a press sent twice changes the game once, and the page reads the rules again. Seasons
+puts the finale's set in force when it starts and `default` when the season ends; a set applied here holds until
+the season's next phase. It is how the Final Battle's rules are tried in production by hand, and the backup if the
+season's change does not come. Refresh reads them again.
+
 ## Deploy
 
 **A Cloudflare Worker with static assets, `clickplanet-backoffice`** (`wrangler.jsonc`), like the game's. Its
@@ -388,7 +397,7 @@ src/
   reports/          Reports: list, detail, the report's own actions
   players/          Players: list, PlayerName, PlayerView, ProfilePanel, the tools on one player, actions.ts
   map/              Reassign a country, Paint random tiles, Download a replay
-  ops/              Reconcile titles
+  ops/              Reconcile titles, Game rules
   gen/grpc/         generated from ../../proto, committed
   gen/map/          the tile coordinates, copied from ../../map, committed
 ```

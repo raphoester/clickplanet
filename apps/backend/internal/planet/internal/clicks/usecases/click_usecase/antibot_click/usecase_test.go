@@ -63,6 +63,10 @@ func (g fakeShields) Strike(_ context.Context, tile uint32, _ string) bool {
 	return true
 }
 
+type tempo float64
+
+func (t tempo) Tempo() float64 { return float64(t) }
+
 func execute(
 	t *testing.T,
 	ctx context.Context,
@@ -87,7 +91,7 @@ func executeOn(
 
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC))
 
-	useCase := antibot_click.New(inner, guard, owner, clicks.NewShielding(held), clock, prometheus.NewRegistry())
+	useCase := antibot_click.New(inner, guard, owner, clicks.NewShielding(held), tempo(3), clock, prometheus.NewRegistry())
 
 	_, executeErr := useCase.Execute(ctx, click_usecase.In{TileID: 42, CountryID: "PS"})
 
@@ -112,6 +116,14 @@ func TestAntiBotClick(t *testing.T) {
 		require.Error(t, execute(t, t.Context(), guard, fakeOwner{}, inner))
 		require.Len(t, guard.seen, 1)
 		require.Empty(t, guard.committed, "a refused click changed no tile")
+	})
+
+	t.Run("tells the guard the tempo the game refills at", func(t *testing.T) {
+		guard := &fakeGuard{}
+
+		require.NoError(t, execute(t, t.Context(), guard, fakeOwner{}, &fakeClick{}))
+		require.Len(t, guard.seen, 1)
+		assert.InDelta(t, 3.0, guard.seen[0].Tempo, 1e-9)
 	})
 
 	t.Run("charges the same scope the throttle is charged to", func(t *testing.T) {

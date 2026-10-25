@@ -109,6 +109,11 @@ func (c Config) Validate() error {
 	return errors.Join(errs...)
 }
 
+// Crowd is how many scopes of one prefix in step read as a crowd, defaults applied.
+func (c Config) Crowd() int {
+	return c.withDefaults().CertainMembers
+}
+
 func (c Config) withDefaults() Config {
 	if c.StartWindow <= 0 {
 		c.StartWindow = defaultStartWindow
@@ -163,8 +168,10 @@ func New(config Config, clock cptime.Clock, onInStep func(scopes int)) *Watchdog
 		clock = cptime.SystemClock{}
 	}
 
+	config = config.withDefaults()
 	return &Watchdog{
-		config:   config.withDefaults(),
+		config:   config,
+		crowd:    config.CertainMembers,
 		clock:    clock,
 		onInStep: onInStep,
 		members:  make(map[string]*member),
@@ -179,6 +186,7 @@ type Watchdog struct {
 	onInStep func(int)
 
 	mu      sync.Mutex
+	crowd   int
 	members map[string]*member
 
 	starts   map[int64]*cpcolls.Set[string]
@@ -186,6 +194,20 @@ type Watchdog struct {
 }
 
 var _ detect.Watchdog = (*Watchdog)(nil)
+
+// SetCrowd makes members scopes of one prefix in step a crowd from now on: 0 is the config's, and never under
+// minMembers.
+func (w *Watchdog) SetCrowd(members int) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	switch {
+	case members <= 0:
+		w.crowd = w.config.CertainMembers
+	default:
+		w.crowd = max(members, w.config.MinMembers)
+	}
+}
 
 type member struct {
 	scope  string
@@ -293,7 +315,7 @@ func (w *Watchdog) judgeLocked(m *member, now time.Time) (detect.Verdict, detect
 		}
 	}
 
-	if sharing >= w.config.CertainMembers {
+	if sharing >= w.crowd {
 		return detect.Certain, detect.Evidence{
 			Rule:   "crowd",
 			Fields: append(fields, detect.Field{Key: "prefix", Value: m.prefix}),

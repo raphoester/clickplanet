@@ -22,6 +22,9 @@ type Click struct {
 	NoOp bool
 
 	Shielded bool
+
+	// How many times faster than plain the game refilled when the click was made; 0 is plain.
+	Tempo float64
 }
 
 type Point struct{ X, Y, Z float64 }

@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetTakesByCountryRequest, GetTakesByCountryResponse, GetTerritoriesRequest, GetTerritoriesResponse } from "./internal_pb.js";
+import { ApplyRuleSetRequest, ApplyRuleSetResponse, GetTakesByCountryRequest, GetTakesByCountryResponse, GetTerritoriesRequest, GetTerritoriesResponse } from "./internal_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -31,6 +31,18 @@ export const InternalService = {
       O: GetTerritoriesResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * A request id already applied changes nothing, so a caller may send it again.
+     *
+     * @generated from rpc planet.v1.InternalService.ApplyRuleSet
+     */
+    applyRuleSet: {
+      name: "ApplyRuleSet",
+      I: ApplyRuleSetRequest,
+      O: ApplyRuleSetResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.Idempotent,
     },
   }
 } as const;

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"connectrpc.com/connect"
 
@@ -13,7 +14,10 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/seasons/v1/seasonsv1connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/calendar"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/calendar/rpc_planet_rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/calendar/usecases/get_season_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/calendar/usecases/play_phase_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/calendar/usecases/play_phase_usecase/log_play_phase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/postgres_round_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/rpc_planet_territories"
@@ -52,6 +56,8 @@ const moduleName = "seasons"
 const (
 	tileTakenBuffer      = 8192
 	accountDeletedBuffer = 2048
+
+	phaseCheck = time.Second
 )
 
 func NewModule(config Config) cpbootstrap.Module {
@@ -110,6 +116,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	))
 
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger, takes, deletions, boards, races, snapshot))
+	props.Runners.Add(play_phase_usecase.NewRunner(phaseCheck, log_play_phase.New(
+		play_phase_usecase.New(seasons, rpc_planet_rules.New(planet, config.RuleSets), clock), props.Logger)))
 
 	service := seasonsv1controller.SeasonService{
 		GetSeasonHandler: get_season_handler.New(
@@ -138,6 +146,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 type Config struct {
 	Calendar calendar.Config `koanf:",squash"`
+	RuleSets rpc_planet_rules.Config
 	Snapshot take_snapshot_usecase.Config
 	Database cppg.Config
 }
