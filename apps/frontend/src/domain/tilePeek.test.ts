@@ -78,13 +78,12 @@ describe("holderShown", () => {
     const holder = {accountId: "account-ana", countryCode: "fr", takenAt: 0}
 
     it("is the holder of a tile that still wears its flag", () => {
-        expect(holderShown(holder, peek, "account-me")).toBe(holder)
+        expect(holderShown(holder, peek)).toBe(holder)
     })
 
-    it("is nobody for a tile that changed hands since, or that the player holds itself", () => {
-        expect(holderShown(holder, {...peek, countryCode: "de"}, "account-me")).toBeUndefined()
-        expect(holderShown(holder, peek, "account-ana")).toBeUndefined()
-        expect(holderShown(undefined, peek, "account-me")).toBeUndefined()
+    it("is nobody for a tile that changed hands since its last take was kept", () => {
+        expect(holderShown(holder, {...peek, countryCode: "de"})).toBeUndefined()
+        expect(holderShown(undefined, peek)).toBeUndefined()
     })
 })
 

@@ -223,11 +223,11 @@ func (p *gamer) setName(name string) (*playerv1.Profile, error) {
 	return res.Msg.GetProfile(), nil
 }
 
-func (p *gamer) choseItsNameAMonthAgo() {
+func (p *gamer) choseItsNameAWeekAgo() {
 	p.t.Helper()
 
 	_, err := p.stack.schema(p.t, "player").ExecContext(p.t.Context(),
-		`UPDATE profiles SET name_chosen_at = name_chosen_at - interval '30 days' WHERE account_id = $1`, p.account())
+		`UPDATE profiles SET name_chosen_at = name_chosen_at - interval '7 days' WHERE account_id = $1`, p.account())
 	require.NoError(p.t, err)
 }
 
@@ -315,12 +315,12 @@ func TestAUsernameAnotherPlayerHoldsIsAlreadyExists(t *testing.T) {
 	_, err = bob.setName("ada_l")
 
 	assert.Equal(t, connect.CodeAlreadyExists, connect.CodeOf(err))
-	ada.choseItsNameAMonthAgo()
+	ada.choseItsNameAWeekAgo()
 	_, err = ada.setName("ADA_L")
 	assert.NoError(t, err, "a player sets its own name again in another case")
 }
 
-func TestASecondChangeWithinThirtyDaysIsRefusedAndSaysWhenOneIsAllowed(t *testing.T) {
+func TestASecondChangeWithinAWeekIsRefusedAndSaysWhenOneIsAllowed(t *testing.T) {
 	game := startGame(t)
 	ada := game.newPlayer(t)
 	ada.link("google-ada")
@@ -329,7 +329,7 @@ func TestASecondChangeWithinThirtyDaysIsRefusedAndSaysWhenOneIsAllowed(t *testin
 	chosen, err := ada.setName("Ada_L")
 	require.NoError(t, err, "a name given at sign-in is not a choice")
 	renamable := time.UnixMilli(chosen.GetRenamableAtUnixMs())
-	assert.WithinRange(t, renamable, before.Add(30*24*time.Hour).Add(-time.Second), time.Now().Add(30*24*time.Hour))
+	assert.WithinRange(t, renamable, before.Add(7*24*time.Hour).Add(-time.Second), time.Now().Add(7*24*time.Hour))
 
 	_, err = ada.setName("Ada_Lovelace")
 
@@ -350,7 +350,7 @@ func TestASecondChangeWithinThirtyDaysIsRefusedAndSaysWhenOneIsAllowed(t *testin
 	require.NoError(t, err)
 	assert.Equal(t, chosen.GetRenamableAtUnixMs(), res.Msg.GetProfile().GetRenamableAtUnixMs())
 
-	ada.choseItsNameAMonthAgo()
+	ada.choseItsNameAWeekAgo()
 	_, err = ada.setName("Ada_Lovelace")
 	require.NoError(t, err)
 	assert.Equal(t, "Ada_Lovelace", ada.name())
@@ -396,7 +396,7 @@ func TestAPlayerKeepsItsCardWhenAnotherTakesTheNameItLeft(t *testing.T) {
 	require.NoError(t, err)
 	ada.click(1, "fr")
 	require.Eventually(t, func() bool { return ada.stats().GetTilesTaken() == 1 }, 5*time.Second, 20*time.Millisecond)
-	ada.choseItsNameAMonthAgo()
+	ada.choseItsNameAWeekAgo()
 	_, err = ada.setName("Ada_Lovelace")
 	require.NoError(t, err)
 	bob := game.newPlayer(t)

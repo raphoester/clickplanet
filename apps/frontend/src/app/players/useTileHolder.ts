@@ -1,13 +1,16 @@
 import {useCallback, useEffect, useState} from "react"
 import {TileHolder, TileHolders} from "../../backends/backend.ts"
-import {CountryTiles, PlayerInfo, PlayerInfoBackend, PlayerLine} from "../../backends/player.ts"
+import {CountryTiles, NameColor, PlayerInfo, PlayerInfoBackend, PlayerLine} from "../../backends/player.ts"
 import {holderShown, Peek, Point} from "../../domain/tilePeek.ts"
 
 export const LEAVE_GRACE_MS = 300
 
+export const DELETED_ACCOUNT = "Deleted account"
+
 export type HolderShown = {
     line: PlayerLine
     playsFor: CountryTiles[]
+    mine: boolean
     takenAt: number
     point: Point
     touch: boolean
@@ -29,11 +32,14 @@ export function useTileHolder(
         const {peek, id} = pointing
         const asking = new AbortController()
         const ask = async () => {
-            const held = holderShown(await holders.tileHolder(peek.tile, asking.signal), peek, ownAccountId)
-            const info = held && await players.playerInfo(held.accountId)
+            const held = holderShown(await holders.tileHolder(peek.tile, asking.signal), peek)
+            const player = held && await playerOf(held, players)
             if (asking.signal.aborted) return
-            setHolder(held && info
-                ? {line: lineOf(held, info), playsFor: info.playsFor, takenAt: held.takenAt, point: peek.point, touch: peek.touch, id}
+            setHolder(held && player
+                ? {
+                    ...player, mine: held.accountId === ownAccountId,
+                    takenAt: held.takenAt, point: peek.point, touch: peek.touch, id,
+                }
                 : undefined)
         }
         ask().catch((e) => {
@@ -54,6 +60,24 @@ export function useTileHolder(
     const dismiss = useCallback(() => setHolder(undefined), [])
 
     return {holder, hold, dismiss}
+}
+
+async function playerOf(held: TileHolder, players: PlayerInfoBackend): Promise<{line: PlayerLine, playsFor: CountryTiles[]} | undefined> {
+    if (!held.accountId) return {line: deletedLineOf(held), playsFor: []}
+    const info = await players.playerInfo(held.accountId)
+    return info && {line: lineOf(held, info), playsFor: info.playsFor}
+}
+
+function deletedLineOf({countryCode}: TileHolder): PlayerLine {
+    return {
+        accountId: "",
+        name: DELETED_ACCOUNT,
+        countryCode,
+        guest: false,
+        admin: false,
+        color: NameColor.UNSPECIFIED,
+        streak: 0,
+    }
 }
 
 function lineOf({accountId, countryCode}: TileHolder, info: PlayerInfo): PlayerLine {

@@ -2,7 +2,7 @@
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {cleanup, fireEvent, render, screen, within} from "@testing-library/react"
 import HolderCard from "./HolderCard.tsx"
-import {HolderShown} from "./useTileHolder.ts"
+import {DELETED_ACCOUNT, HolderShown} from "./useTileHolder.ts"
 import {NameColor, PlayerLine} from "../../backends/player.ts"
 
 const NOW = 1_761_393_600_000
@@ -23,7 +23,7 @@ const pressed = (pointerType: string) => Object.assign(new Event("pointerdown", 
 const FRONTS = [{countryCode: "fr", tiles: 9_000}, {countryCode: "be", tiles: 300}]
 
 const shown = (line: PlayerLine): HolderShown => ({
-    line, playsFor: line.guest ? [] : FRONTS, takenAt: NOW - 3 * 60_000, point: {x: 300, y: 200}, touch: false, id: 1,
+    line, playsFor: line.guest ? [] : FRONTS, mine: false, takenAt: NOW - 3 * 60_000, point: {x: 300, y: 200}, touch: false, id: 1,
 })
 
 function show(line: PlayerLine, props: Partial<Parameters<typeof HolderCard>[0]> = {}) {
@@ -43,6 +43,12 @@ describe("HolderCard", () => {
         expect(screen.getByText(/Took it 3 min ago/)).toBeTruthy()
         expect(card.style.left).toBe("316px")
         expect(card.style.top).toBe("216px")
+    })
+
+    it("says the player took the tile itself when it is its own", () => {
+        show(FOX, {holder: {...shown(FOX), mine: true}})
+
+        expect(screen.getByText(/You took it 3 min ago/)).toBeTruthy()
     })
 
     it("shows the first flags the player fought for", () => {
@@ -67,6 +73,14 @@ describe("HolderCard", () => {
         expect(screen.getByRole("region", {name: "guest_91aa3d"}).textContent).toContain("Took it 3 min ago")
         expect(screen.queryByRole("button", {name: "View profile"})).toBeNull()
         expect(screen.queryByRole("group", {name: "Fought for"})).toBeNull()
+    })
+
+    it("shows a deleted account by that alone, with no profile to open", () => {
+        const deleted: PlayerLine = {...GUEST, accountId: "", name: DELETED_ACCOUNT, countryCode: "tr", guest: false}
+        render(<HolderCard holder={{...shown(deleted), playsFor: []}} now={NOW} onHold={() => {}} onClose={() => {}} onOpenPlayer={vi.fn()}/>)
+
+        expect(screen.getByRole("region", {name: "Deleted account"}).textContent).toContain("Took it 3 min ago")
+        expect(screen.queryByRole("button", {name: "View profile"})).toBeNull()
     })
 
     it("says when the pointer is on it, and closes on Escape", () => {

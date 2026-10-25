@@ -1,0 +1,3 @@
+# Independence of the apps
+
+Each app under `apps/` keeps its own dependency manifest (`package.json` / `go.mod`) and is built from its own directory as the Docker or Workers build context — nothing at the repo root is required to build or run any app in isolation. **`apps/backoffice` imports nothing from `apps/frontend`**, though both are React: it is a third app with its own Worker, not a page of the game. That is why `proto/`, `map/` and `quiz/` all generate a committed copy into the app that needs them instead of being read from the root at build time. Don't introduce root-level build tooling (Nx/Turborepo/etc.) unless the apps actually start sharing more than the proto contract, the map geometry and the quiz bank.
