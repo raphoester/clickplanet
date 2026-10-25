@@ -29,6 +29,8 @@ const DAY: ClosedRound = {
     after: [score(1, "de", 68), score(2, "fr", 55), score(3, "es", 15)],
 }
 
+const FINALE: ClosedRound = {...DAY, number: 23, finale: true}
+
 const user = () => userEvent.setup({advanceTimers: vi.advanceTimersByTime})
 
 const after = (seconds: number) => act(() => vi.advanceTimersByTime(seconds * 1000))
@@ -95,6 +97,54 @@ describe("RoundReveal", () => {
         await user().click(screen.getByRole("button", {name: "Close"}))
 
         expect(onClose).toHaveBeenCalledOnce()
+    })
+
+    it("ends the Final Battle on the season's champion", async () => {
+        const onClose = vi.fn()
+        render(<RoundReveal closed={FINALE} countryCode="fr" play={vi.fn()} onClose={onClose}/>)
+        after(ROUND_REVEAL.podium)
+        after(ROUND_REVEAL.slide + ROUND_REVEAL.settle)
+        expect(screen.queryByRole("button", {name: "Close"})).toBeNull()
+
+        after(ROUND_REVEAL.hold)
+
+        const dialog = screen.getByRole("dialog", {name: "Germany wins Season 0"})
+        expect(within(dialog).getByText("🏆")).toBeDefined()
+        expect(screen.queryByRole("button", {name: "Close"})).toBeNull()
+        after(ROUND_REVEAL.champion)
+        await user().click(screen.getByRole("button", {name: "Close"}))
+        expect(onClose).toHaveBeenCalledOnce()
+    })
+
+    it("plays the fanfare again for the champion", () => {
+        const play = vi.fn()
+        render(<RoundReveal closed={FINALE} countryCode="fr" play={play} onClose={vi.fn()}/>)
+        after(ROUND_REVEAL.podium)
+        after(ROUND_REVEAL.slide + ROUND_REVEAL.settle)
+        after(ROUND_REVEAL.hold)
+
+        expect(play).toHaveBeenCalledTimes(2)
+    })
+
+    it("can skip the table to the champion", async () => {
+        render(<RoundReveal closed={FINALE} countryCode="fr" play={vi.fn()} onClose={vi.fn()}/>)
+
+        await user().click(screen.getByRole("button", {name: "Next"}))
+        await user().click(screen.getByRole("button", {name: "Next"}))
+
+        expect(screen.getByRole("dialog", {name: "Germany wins Season 0"})).toBeDefined()
+        expect(screen.queryByRole("button", {name: "Next"})).toBeNull()
+    })
+
+    it("crowns nobody after a day", () => {
+        render(<RoundReveal closed={DAY} countryCode="fr" play={vi.fn()} onClose={vi.fn()}/>)
+        after(ROUND_REVEAL.podium)
+        after(ROUND_REVEAL.slide + ROUND_REVEAL.settle)
+        after(ROUND_REVEAL.hold)
+
+        expect(screen.queryByText("🏆")).toBeNull()
+        expect(screen.getByText("Season 0")).toBeDefined()
+        expect(screen.getByRole("button", {name: "Close"})).toBeDefined()
     })
 
     it("goes straight to the season when nobody scored the day", () => {

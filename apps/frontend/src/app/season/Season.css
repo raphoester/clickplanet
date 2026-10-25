@@ -77,6 +77,42 @@
     font-size: var(--display-s);
 }
 
+.season-chip--champion .season-chip-head {
+    cursor: default;
+}
+
+.season-chip--champion .season-chip-head:hover {
+    background: none;
+}
+
+.season-chip--compact.season-chip--champion {
+    cursor: default;
+}
+
+.season-chip-trophy {
+    flex-shrink: 0;
+    font-size: 26px;
+    line-height: 1;
+}
+
+.season-chip--champion .season-chip-left {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+.season-chip-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.season-chip--champion .country-flag {
+    flex-shrink: 0;
+    margin: 0;
+}
+
 .season-chip-faces {
     display: grid;
 }

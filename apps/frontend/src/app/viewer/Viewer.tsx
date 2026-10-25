@@ -65,7 +65,7 @@ import SignInPitchModal from "../account/SignInPitchModal.tsx";
 import {LeaderboardEntry, rankOf} from "../../domain/leaderboard.ts";
 import {SeasonBackend} from "../../backends/season.ts";
 import {useSeason} from "../season/useSeason.ts";
-import SeasonChip, {SeasonDetails} from "../season/SeasonChip.tsx";
+import SeasonChip, {ChampionChip, SeasonDetails} from "../season/SeasonChip.tsx";
 import {HallOfFameBackend} from "../../backends/hallOfFame.ts";
 import {useHallOfFame} from "../hallOfFame/useHallOfFame.ts";
 import HallOfFame from "../hallOfFame/HallOfFame.tsx";
@@ -82,6 +82,7 @@ import {useRace} from "../standings/useRace.ts";
 import RoundReveal from "../season/RoundReveal.tsx";
 import {useRoundReveal} from "../season/useRoundReveal.ts";
 import {revealKeyOf} from "../../domain/roundReveal.ts";
+import {reigningChampionOf} from "../../domain/champion.ts";
 import {countryLines, CountryOrder, shownOrder} from "../../domain/race.ts";
 import {acceptedClicks} from "./acceptedClicks.ts";
 import "./Viewer.css"
@@ -145,6 +146,7 @@ export default function Viewer(props: ViewerProps) {
     const season = useSeason(props.season)
     const race = useRace(props.standings)
     const reveal = useRoundReveal(race)
+    const champion = reigningChampionOf(season, race?.closed)
     const hall = useHallOfFame(props.hallOfFame, race?.closed?.finale ? race.closed.season : undefined)
     const [hallOpen, setHallOpen] = useState(false)
     const [countryOrder, setCountryOrder] = useState<CountryOrder>("season")
@@ -309,7 +311,7 @@ export default function Viewer(props: ViewerProps) {
 
     const ready = status.state === 'ready'
     const fame = (compact: boolean) => hall && hall.length > 0 && <HallOfFameButton compact={compact}
-                                                                                    besideSeason={season !== undefined}
+                                                                                    besideSeason={champion !== undefined || season !== undefined}
                                                                                     onOpen={() => setHallOpen(true)}/>
 
     return <>
@@ -321,10 +323,11 @@ export default function Viewer(props: ViewerProps) {
 
         {ready && !compact && fame(false)}
 
-        {ready && !compact && season && <SeasonChip season={season}
-                                                    compact={false}
-                                                    open={seasonOpen}
-                                                    onToggle={() => setSeasonOpen((open) => !open)}/>}
+        {ready && !compact && champion && <ChampionChip champion={champion} compact={false}/>}
+        {ready && !compact && !champion && season && <SeasonChip season={season}
+                                                                 compact={false}
+                                                                 open={seasonOpen}
+                                                                 onToggle={() => setSeasonOpen((open) => !open)}/>}
 
         {ready && compact && <StatusBar country={countryState}
                                         rank={rankOf(lines, countryState)}
@@ -332,10 +335,12 @@ export default function Viewer(props: ViewerProps) {
                                         onOpenBoard={() => toggleSheet("board")}
                                         trailing={<>
                                             {fame(true)}
-                                            {season && <SeasonChip season={season}
-                                                                   compact
-                                                                   open={sheet === "season"}
-                                                                   onToggle={() => toggleSheet("season")}/>}
+                                            {champion
+                                                ? <ChampionChip champion={champion} compact/>
+                                                : season && <SeasonChip season={season}
+                                                                        compact
+                                                                        open={sheet === "season"}
+                                                                        onToggle={() => toggleSheet("season")}/>}
                                         </>}/>}
 
         {ready && <ClickBudgetMeter budget={clickBudget}

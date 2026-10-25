@@ -717,10 +717,8 @@ button.chat-quote:hover {
     color: var(--text-faint);
 }
 
-.chat-announcement-round {
-    flex-direction: column;
-    align-items: stretch;
-    gap: var(--space-1);
+.chat-announcement-round,
+.chat-announcement-champion {
     margin: var(--space-2);
     padding: var(--space-2) var(--space-3);
     border: var(--outline-thin) solid var(--gold);
@@ -728,6 +726,19 @@ button.chat-quote:hover {
     background: color-mix(in srgb, var(--gold) 14%, var(--panel));
     font-size: var(--text-s);
     color: var(--text);
+}
+
+.chat-announcement-round {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-1);
+}
+
+.chat-announcement-champion .chat-announcement-text {
+    font-family: var(--font-display);
+    font-weight: 400;
+    color: var(--gold);
+    text-shadow: var(--text-outline);
 }
 
 .chat-round-head {
