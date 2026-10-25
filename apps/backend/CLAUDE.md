@@ -281,6 +281,7 @@ return []bootstrap.Module{
 | `chat` | `player.v1.InternalService/GetAuthor` | the name a sender is shown under, on each `SendMessage` | `messages/rpc_player_authors` |
 | `chat` | `player.v1.InternalService/GetAuthors` | who everyone in the window is, once per `GetHistory`; who reacted, once per `React`; who wrote each message of a page, once per `ListMessages` | `get_history_handler/history_query/rpc_player_authors`, `messages/rpc_player_authors`, `list_messages_handler/messages_query/rpc_player_authors` |
 | `seasons` | `planet.v1.InternalService/GetTerritories` | the tiles each country holds and the size of the map, for each snapshot (once a minute) | `rounds/rpc_planet_territories` |
+| `seasons` | `planet.v1.InternalService/ApplyRuleSet` | the rule set each phase of a season plays by, at boot and at each change of phase (see [Rules](#rules-the-games-rule-sets-internalplanetinternalrules)) | `calendar/rpc_planet_rules` |
 | `seasons` | `player.v1.InternalService/GetAuthors` | the name and color of each account of a page of standings, and whether it is a guest, on each `GetStandings` and `GetMySeason`, and each read of a live board | `get_standings_handler/standings_query/rpc_player_authors`, `get_my_season_handler/my_season_query/rpc_player_authors` |
 | `support` | `player.v1.InternalService/GetAuthors` | the name of both accounts of each report of a page, on each `ListReports` | `list_reports_handler/reports_query/rpc_player_authors` |
 | `support` | `player.v1.InternalService/GetAuthors` | the name of each account a page of reports names, on each `ListReports` | `list_reports_handler/reports_query/rpc_player_authors` |
@@ -364,6 +365,9 @@ internal/planet/internal/
     usecases/
   allegiances/                    the flag each account plays for, and when it last changed it
     postgres_allegiance_store/
+  rules/                          the rule sets, the one in force and every change of it
+    postgres_rule_change_store/
+    usecases/
   planetv1controller/             the edge: maps the wire to the use cases, nothing else
     get_takes_by_country_handler/takes_query/   InternalService's one read, straight from ledger_events
     get_ledger_handler/changes_query/           AdminService/GetLedger, straight from ledger_events too
@@ -436,6 +440,8 @@ because it serves every concept over one Connect service. It only maps.
 | `bonuses/usecases/use_refill_usecase` | fills the caller's bank with its refill | `Refills`, `Bank`, `Pricer` |
 | `bonuses/usecases/grant_charges_usecase` | the operator gives an account charges | `Charger` |
 | `bonuses/usecases/place_shield_usecase` | spends a shield on a tile of the caller's flag | `Shields`, `Tiles`, `CountryChecker`, `Allegiances` |
+| `rules/usecases/apply_rule_set_usecase` | keeps a change of rule set once per request, then enforces it | `Catalog`, `Changes`, `Rules` |
+| `rules/usecases/restore_rules_usecase` | at boot, enforces the set the newest change put in force | `Changes`, `Catalog`, `Rules` |
 | `clicks/usecases/relay_fortifications_usecase` | follows the tile map and publishes `planet.v1.Fortified` for each fortify; a `Runner` | `Changes`, `Publisher` |
 
 **The interfaces in that last column are declared by the package that calls
@@ -928,6 +934,60 @@ player could paint for one country and defend another click to click. **Only
 - **Guests are held per account**, like the bank: a private tab is a new guest and
   a new first flag.
 
+### Rules: the game's rule sets (`internal/planet/internal/rules/`)
+
+**The game can change its rules at once for every player, and planet says so in its own words.** A rule set is a
+name and what it sets: how fast every bucket refills (`tempo`), and the boxes' wait and their hourly cap. The
+`default` set is the config's own rules (`tempo` 1, `bonus.minInterval`, `maxInterval`, `maxChargesPerHour`); the
+other sets are named in `rules.sets`, each leaving out what it keeps of the default:
+
+```yaml
+rules:
+  sets:
+    rush:              # the Final Battle's: refill 3 times as fast, a box every 1 to 2 minutes, 30 an hour
+      tempo: 3
+      boxes: {minInterval: 1m, maxInterval: 2m, maxChargesPerHour: 30}
+```
+
+**Planet never learns why a set is asked for.** The relationship is Customer–Supplier with an Open Host Service and
+a Published Language: planet publishes its rule sets and `planet.v1.InternalService/ApplyRuleSet{request_id,
+rule_set}`, and a module downstream translates its own concepts into them in its own anticorruption adapter.
+`seasons` is that module (see [Seasons](#seasons-internalseasons)): its finale plays `rush`. It is a command, an
+intent in planet's words, not a fact being told, so the rule of [Telling other modules what
+happened](#telling-other-modules-what-happened) holds: planet hears no word of seasons, and seasons publishes no
+event planet listens to.
+
+- **What is in force is kept**: each change is a row of `planet.rule_changes` (`request_id`, `rule_set`, `source`, an
+  enum of `internal` and `operator`, and `applied_at`; migration `20261025120000_rule_changes`). **The newest is in
+  force**, and with none the default. At boot `restore_rules_usecase` enforces it; a set the config no longer holds
+  refuses the boot, as a map that does not match does. `postgres_rule_change_store` is the `rules.Store` (find by
+  request, the latest, save); `rules.StoreContractSuite` runs on it and on `MemoryStore`.
+- **A request applies once** (`rules.NewChange` refuses a request the store kept, `ErrAppliedAlready`, which
+  `apply_rule_set_usecase` answers as success). So a caller sends it again with no harm, and a set an operator
+  applied since stands. One apply at a time, so what is in force is always the change kept last. An unknown set,
+  an empty request id or one past 128 characters is `InvalidArgument`; a change that could not be kept is not
+  enforced, and the next send tries again. `audit_apply_rule_set` logs every request at Warn, with its source.
+- **`rules.InForce` holds the set in force and tells who acts on it**, at once and under one lock:
+  `cpratelimit.Limiter.SetTempo` (every bucket, the account's, the guests' and the scope's, is multiplied from then
+  on, and what each earned before was refilled at the tempo it had, so `GetBudget` reads the new rate at once) and
+  `bonuses.Registry.SetPace` (every wait is drawn at the new pace, and a box due later than the new longest wait is
+  brought in). The toll and the linked multiplier still apply on top of the tempo. `Tempo()` is read by the
+  antibot's click reports (see [Anti-bot](#anti-bot-internalantibot)), and `Watch()` by each planet stream, which
+  sends `PlanetEvent.rules_changed`: the client reads `GetBudget` again, so an open tab shows the faster refill with
+  no reload.
+- **Known debt: the delivery is a stopgap.** Messages between modules live in the process, so a command sent while
+  the server is down is never sent. `seasons` sends the phase of now again at each boot and at each change, and
+  planet ignores a request it already applied. The user called this a poor solution on 2026-10-25 and wants a real
+  message broker eventually; until then every module that needs a durable command between modules repeats this
+  resend and dedupe.
+- **An operator applies a set by hand**: `AdminService/ApplyRuleSet` (the same request, kept as `operator`) and
+  `GetRules`, every set with its values and the last 50 changes, newest first (`rule_changes_query`, straight from
+  postgres). The backoffice's Game rules page calls both. A set applied by hand holds until the next phase of the
+  season, since the phase's request is a new one; the one already applied is not sent again.
+- `e2e/rules_test.go` boots with a finale 8 seconds away and sees the refill go from 100 to 300 a second and back,
+  on a stream opened before; and applies sets by hand. **`make finale`** runs `cmd/api` with `example.yaml` and Season
+  0's finale `FINALE_IN` minutes away (2 by default) and `FINALE_FOR` long (5), to rehearse it.
+
 ### Chat (`internal/chat/`)
 
 Chat is a separate bounded context, not a feature of the tile game: it shares the process, the transport and the country list, and has its own proto package, domain, storage and edge. Nothing under `internal/chat/` imports `internal/planet/`, and the reverse holds too — and since each module's interior sits behind its own `internal/`, neither now can.
@@ -1190,7 +1250,7 @@ while it was away: the badge counts it, and the lines light up as the chat opens
   - Only the account's own bucket: the guests' and the scope's have no age. A fresh account is still bounded by them. `TestAFreshGuestOnAFreshAddressEveryMinuteIsNoFreshBank` replays the phone over HTTP.
 - **A click is refused when either bucket is empty, and a refusal spends from neither.** `Limiter.TakeAll` checks every bucket and spends from all or none under one lock, so a player refused for a busy scope keeps its own tokens.
 - **A token with no account spends one bucket, the scope's at 1×** — exactly the throttle from before accounts. The deprecated `session.v1` mint, an invalid token while `auth.enforce` is off, and `auth.enabled` false all land here. It is a separate bucket from the scope's shared one, because a key never changes its scale.
-- **One limiter holds both.** A bucket's `Scale` is set when it is made and multiplies its burst and rate for good; `clicks.Buckets` names the keys (`account:<id>` at 1, `scope:<scope>` at the scope multiplier, or the bare scope at 1 with no account). **A key's `Pace` multiplies the payer's own bucket's rate from that take on, and leaves its burst alone**: the linked multiplier for a signed-in account, divided by the country's slowdown (see [A big country refills slower](#a-big-country-refills-slower-clickstoll)). The scope's bucket takes no pace. `clicks.PayerOf(ctx)` reads the scope and the account off the context, so the throttle, `GetBudget` and a bonus claim cannot disagree on who pays.
+- **One limiter holds both.** A bucket's `Scale` is set when it is made and multiplies its burst and rate for good; `clicks.Buckets` names the keys (`account:<id>` at 1, `scope:<scope>` at the scope multiplier, or the bare scope at 1 with no account). **A key's `Pace` multiplies the payer's own bucket's rate from that take on, and leaves its burst alone**: the linked multiplier for a signed-in account, divided by the country's slowdown (see [A big country refills slower](#a-big-country-refills-slower-clickstoll)). The scope's bucket takes no pace. **The limiter's tempo multiplies every bucket** on top of its pace (`SetTempo`, 1 unless a rule set says otherwise; see [Rules](#rules-the-games-rule-sets-internalplanetinternalrules)). `clicks.PayerOf(ctx)` reads the scope and the account off the context, so the throttle, `GetBudget` and a bonus claim cannot disagree on who pays.
 - **What this buys.** Before accounts, one address was one allowance, so a campus played as one player and a bot farm with many cookies on one address was no worse off than one tab. Now each signed-in player behind an address has its own allowance, bounded together by the scope's, the guests behind it share one, and a bot moving across addresses keeps spending one account's.
 - `TestManyAccountsOnOneScopeShareTheScopesBucket` and `TestOneAccountOnManyScopesSpendsOneAllowance` pin both halves over HTTP.
 
@@ -1809,8 +1869,11 @@ internal/support/internal/
 
 ```
 internal/seasons/internal/
-  calendar/                       Number, Season, Entry, Config (its Validate), Calendar (Current)
+  calendar/                       Number, Season, Entry, Config (its Validate), Calendar (Current, PhaseAt), Phase, Stage
+    rpc_planet_rules/             the phase, in planet's words: planet.v1.InternalService/ApplyRuleSet
     usecases/get_season_usecase/  the calendar and the clock
+    usecases/play_phase_usecase/  tells the game the phase of now when it changes, and after each boot; Runner
+      log_play_phase/             logs each phase played, and a failure
   standings/                      AccountID, Country, Take (Season), Tally (WithTake); the Store port (RecordTake,
                                   DeleteAccount) and its contract suite
     postgres_contribution_store/  the Store over seasons.contributions
@@ -1846,6 +1909,17 @@ internal/seasons/internal/
 ```
 
 - **The calendar is the config**, `seasons.list`. An empty list is no season.
+- **A season is played in phases** (`Calendar.PhaseAt`): its `days` until its finale starts, its `finale`, and, past
+  the last season, `over`. An empty calendar has none. **Each phase plays a rule set of planet's**
+  (`seasons.ruleSets`, `days`, `finale` and `over`, each a set's name in planet's words, `default` when unset;
+  production plays `rush` in the finale). Seasons decides when, planet what a set does (see
+  [Rules](#rules-the-games-rule-sets-internalplanetinternalrules)).
+- **`play_phase_usecase` tells planet** once a second (`seasons-phases`): the phase of now, when it is not the one
+  it last played, through `rpc_planet_rules`, the anticorruption adapter that turns a phase into planet's
+  `ApplyRuleSet`, its set and the request `season-<n>:<stage>`. **It plays the phase again after each boot**, since
+  in-process messages are lost while the server is down (the known debt in Rules): planet keeps the change it made
+  the first time, so a set an operator applied since is not undone. A refusal is logged (`log_play_phase`) and sent
+  again on the next tick.
 - **`Calendar.Current(now)` is the first season whose end is after now.** A season starts when the one before it ends; the first started before anything.
 - **The boot is refused** when the numbers do not count up from 0, the ends do not go up, or a finale is not above 0 and shorter than its season.
 - **`GetSeason` is a GET** (`NO_SIDE_EFFECTS`), answered `public, max-age=60`. No current season is an empty answer.
@@ -1944,6 +2018,8 @@ country's pace. The refill is the same good, clicks, with the moment chosen by
 the player.
 
 Boxes are always on: there is no switch.
+
+**The waits and the hourly cap are the rule set's** (`bonuses.Pace`, see [Rules](#rules-the-games-rule-sets-internalplanetinternalrules)): the config's `minInterval`, `maxInterval` and `maxChargesPerHour` are the `default` set's, and `Registry.SetPace` changes them for every caller at once.
 
 **The server picks who gets one, and that is the whole design.** A box broadcast
 to everyone is caught by whichever client reacts fastest, and that is a script
@@ -2945,6 +3021,34 @@ tiles, and every watchdog read `clear`.
 - It is a rule of `metronome` and not a watchdog for the reason `shape` is: a loop at
   pace also reads on `cadence`, and two timing watchdogs could ban on one behaviour.
 
+**At a faster tempo the metronome reads the game as it would be at the plain one, since 2026-10-25.** Each click
+report carries the tempo in force (`detect.Click.Tempo`, from `rules.InForce`; 0 is plain), so a rule set that
+refills 3 times as fast (see [Rules](#rules-the-games-rule-sets-internalplanetinternalrules)) does not turn its
+players into suspects. Measured at production's bounds, before the change, a guest clicking each click as it came
+back at 3× (gaps of 1.67s and a reaction of up to 300ms) read `Certain` on `cadence` within two hours: its jitter is
+under 400ms and it makes 1,080 tries in 30 minutes.
+
+- **`cadence` and `shape` read each gap times the tempo**, and the run's length (`sustained`, kept as the sum of its
+  gaps) the same way. A hand's jitter is in proportion to its gap, so at 3× it reads three times wider and clears;
+  a timer at ±20ms reads ±60ms and is still `Certain` within 30 minutes, and `Suspect` as soon as at the plain pace.
+  `maxGap` 7s ends a run at a real 2.3s gap at 3×. `shape`'s skew does not move with a scale. The evidence's
+  durations are at the plain tempo.
+- **`stamina`'s slice is busy at `clicks` times the fastest tempo it saw** (kept with the slice): a slice at 3× is
+  busy at 120 clicks, so busy still means a third of the allowance or more. A player at the full pace of the battle
+  is busy, as at the plain pace.
+- `clock` (unset in production) reads wall time, which a tempo does not change.
+- **The rest read no rate**: `retaker` a reflex, `sequencer` the steps between tiles, `defender` a share of
+  retakes, `hopper` angles, `scraper` and `churner` maps read and accounts born, `rotator` 5-minute slots. At 3× they
+  reach their counts sooner, never on less. `catcher` reads the delay of each catch: boxes every 1 to 2 minutes bring
+  its 5 catches in 5 to 10 minutes rather than 20 to 40, on the same bounds.
+- **Known risk: `cohort` at the start of a battle.** It has nothing to do with the tempo: players who start within
+  `startWindow` (5s) of each other, for one flag, at paces within `rateRatio`, are in step, and `certainMembers` (6) of
+  them from one /24 or /44 read `crowd`, `Certain` alone. A countdown makes people start on the second, and a
+  country on one carrier's NAT (Algeria) can put six on one /24. The tempo makes them pace alike, since everyone
+  waits on the same refill.
+- A run saved before this decodes with no length, so its `sustained` starts again at the deploy; its gaps and clicks
+  are kept. `tempo_test.go` pins all of it at production's bounds.
+
 **`defender`: what is clicked, not when.** The bots of 2026-09-14 retook from a
 queue behind the throttle: tiles came back 0.4s, 1.5s, 2.5s … 40s after they were
 lost, one refill at a time, so the retaker's reaction window saw almost none of
@@ -3553,6 +3657,11 @@ stream sent it. The frontend's clip generator plays it back (see its CLAUDE.md, 
   `InvalidArgument` (`replay_usecase.ErrInvalidWindow`).
 - **Nothing in it names a player**: no scope and no account goes out, as on the live stream.
 - A day of production is about 40,000 events, a few MB of JSON.
+
+#### `ApplyRuleSet`, `GetRules`
+
+An operator puts a rule set in force by hand, and reads every set and the last 50 changes: see
+[Rules](#rules-the-games-rule-sets-internalplanetinternalrules). The backoffice's Game rules page calls both.
 
 #### `GetLedger`, `GetTerritories`
 

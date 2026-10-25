@@ -10,6 +10,11 @@ service InternalService {
   rpc GetTerritories(GetTerritoriesRequest) returns (GetTerritoriesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+
+  // A request id already applied changes nothing, so a caller may send it again.
+  rpc ApplyRuleSet(ApplyRuleSetRequest) returns (ApplyRuleSetResponse) {
+    option idempotency_level = IDEMPOTENT;
+  }
 }
 
 message GetTakesByCountryRequest {
@@ -37,3 +42,10 @@ message Territory {
   string country_id = 1;
   uint32 tiles = 2;
 }
+
+message ApplyRuleSetRequest {
+  string request_id = 1;
+  string rule_set = 2;
+}
+
+message ApplyRuleSetResponse {}

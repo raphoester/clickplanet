@@ -71,6 +71,8 @@ player's own again. `fakeBackend.closeShapes(false)` makes every enclose click
 close nothing, for the bubble that says so, and `closeShapes(true)` puts it back.
 `fakeBackend.ban(90)` refuses this player's clicks, bombs and shields for 90
 minutes, as a ban does, and `fakeBackend.ban(0)` lifts it.
+`fakeBackend.setTempo(3)` refills the bank three times as fast, as the rules of
+the Final Battle do, and `fakeBackend.setTempo(1)` puts it back.
 `localStorage.removeItem("clickplanet-bonus-guide")` makes the bonuses new again.
 `fakeSupport.refuse("rate-limited")` (or `"rejected"`, `"no-session"`,
 `"reported-already"`, `"failed"`) refuses what Settings and a player's card
@@ -384,9 +386,13 @@ message per click. Every click answer re-anchors it, which is why the error can
 never accumulate: it is exact again the moment the player does the thing the
 counter is about.
 
-`PlanetBackend` learns it three ways — `GetBudget` at load and on a switch of
-country, `ClickResponse.budget` on every accepted click, and a **connect error
-detail** on a refused one, which is the reading that matters most. **`GetBudget`
+`PlanetBackend` learns it four ways — `GetBudget` at load and on a switch of
+country, `ClickResponse.budget` on every accepted click, a **connect error
+detail** on a refused one, which is the reading that matters most, and
+`GetBudget` again when the planet stream says the rules changed
+(`rulesChanged`): the server can switch the whole game to a faster refill at
+once, as the Final Battle does (the backend's CLAUDE.md, Rules), and only a
+reading says by how much. **`GetBudget`
 carries the token already held** (`SessionProvider.held()`, never a mint):
 without it the server reads the bucket of an address with no account, which is
 never spent and always full, and the next click contradicts it. It also subtracts its own clicks in

@@ -228,7 +228,8 @@ var _ detect.Watchdog = (*Watchdog)(nil)
 type payer struct {
 	lastSeen time.Time
 
-	runStart  time.Time
+	// ran is the run's length at the plain tempo, the outages left out.
+	ran       time.Duration
 	runClicks int
 
 	gaps []time.Duration
@@ -247,6 +248,7 @@ type spender struct {
 type slice struct {
 	index  int64
 	clicks int
+	tempo  float64
 }
 
 func (w *Watchdog) Name() string { return Name }
@@ -270,7 +272,7 @@ func (w *Watchdog) Attempted(click detect.Click) {
 	w.tried(p, click.At)
 
 	across := w.outage.Across(p.lastSeen, click.At)
-	gap := w.outage.Gap(p.lastSeen, click.At)
+	gap := atPlainTempo(w.outage.Gap(p.lastSeen, click.At), click.Tempo)
 	p.lastSeen = click.At
 
 	if !across && gap >= 0 && gap <= w.config.Shape.MaxGap {
@@ -286,9 +288,9 @@ func (w *Watchdog) Attempted(click detect.Click) {
 	}
 
 	p.runClicks++
+	p.ran += gap
 
 	if across {
-		p.runStart = p.runStart.Add(w.outage.Length())
 		return
 	}
 
@@ -315,7 +317,7 @@ func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 	defer w.mu.Unlock()
 
 	key := click.Payer()
-	w.spend(key, click.At)
+	w.spend(key, click.At, click.Tempo)
 	stamina, staminaEvidence := w.stamina(w.spenders[key])
 
 	p, ok := w.payers[key]
@@ -336,7 +338,7 @@ func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 	return verdict, evidence
 }
 
-func (w *Watchdog) spend(key string, at time.Time) {
+func (w *Watchdog) spend(key string, at time.Time, tempo float64) {
 	s, ok := w.spenders[key]
 	if !ok {
 		s = &spender{}
@@ -347,8 +349,9 @@ func (w *Watchdog) spend(key string, at time.Time) {
 	index := w.sliceOf(at)
 	if last := len(s.slices) - 1; last >= 0 && index <= s.slices[last].index {
 		s.slices[last].clicks++
+		s.slices[last].tempo = max(s.slices[last].tempo, plainTempo(tempo))
 	} else {
-		s.slices = append(s.slices, slice{index: index, clicks: 1})
+		s.slices = append(s.slices, slice{index: index, clicks: 1, tempo: plainTempo(tempo)})
 	}
 
 	s.forget(w.firstSliceOf(index))
@@ -389,9 +392,10 @@ func (w *Watchdog) firstSliceOf(index int64) int64 {
 	return index - int64(w.config.Stamina.Window/w.config.Stamina.Slice) + 1
 }
 
+// A slice is busy at atLeast clicks at the plain tempo, so at the fastest tempo it saw, atLeast that many times over.
 func (s *spender) tally(atLeast int) (busy, clicks int) {
 	for _, counted := range s.slices {
-		if counted.clicks >= atLeast {
+		if float64(counted.clicks) >= float64(atLeast)*plainTempo(counted.tempo) {
 			busy++
 		}
 		clicks += counted.clicks
@@ -417,7 +421,7 @@ func (w *Watchdog) cadence(p *payer) (detect.Verdict, detect.Evidence) {
 		return detect.Clear, detect.Evidence{}
 	}
 
-	sustained := p.lastSeen.Sub(p.runStart)
+	sustained := p.ran
 
 	verdict := detect.Suspect
 	if sustained >= w.config.CertainFor && p.runClicks >= w.config.CertainClicks {
@@ -573,9 +577,21 @@ func (w *Watchdog) capacity() int {
 
 func (p *payer) restart(at time.Time) {
 	p.lastSeen = at
-	p.runStart = at
+	p.ran = 0
 	p.runClicks = 1
 	p.gaps = p.gaps[:0]
+}
+
+// atPlainTempo is gap as it would read in a game that refills at the plain rate: tempo times longer.
+func atPlainTempo(gap time.Duration, tempo float64) time.Duration {
+	return time.Duration(float64(gap) * plainTempo(tempo))
+}
+
+func plainTempo(tempo float64) float64 {
+	if tempo <= 0 {
+		return 1
+	}
+	return tempo
 }
 
 func (w *Watchdog) Run(ctx context.Context) {

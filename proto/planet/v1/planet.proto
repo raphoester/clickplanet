@@ -175,8 +175,13 @@ message PlanetEvent {
     QuizOffered quiz_offered = 8;
 
     LandmassFortified landmass_fortified = 9;
+
+    RulesChanged rules_changed = 10;
   }
 }
+
+// The budget's rate may have moved: read it again.
+message RulesChanged {}
 
 message GetFortressesRequest {}
 

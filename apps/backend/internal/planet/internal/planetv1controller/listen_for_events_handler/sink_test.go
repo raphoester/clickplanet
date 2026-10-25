@@ -78,6 +78,17 @@ func TestSinkFramesAHeartbeat(t *testing.T) {
 	assert.Nil(t, stream.sent[0].GetTileUpdate())
 }
 
+func TestSinkFramesAChangeOfRules(t *testing.T) {
+	stream := &recorder{}
+
+	err := listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{RulesChanged: true})
+
+	require.NoError(t, err)
+	require.Len(t, stream.sent, 1)
+	assert.NotNil(t, stream.sent[0].GetRulesChanged())
+	assert.Nil(t, stream.sent[0].GetTileUpdate())
+}
+
 func TestSinkReportsAFailedSend(t *testing.T) {
 	stream := &recorder{err: assert.AnError}
 

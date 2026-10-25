@@ -26,6 +26,15 @@ antiBot:
     sslMode: disable
     schema: antibot
 
+rules:
+  sets:
+    rush:
+      tempo: 3
+      boxes:
+        minInterval: 1m
+        maxInterval: 2m
+        maxChargesPerHour: 30
+
 vpnBlocklist:
   enabled: false
 
@@ -58,6 +67,10 @@ seasons:
     - number: 0
       endsAt: 2026-10-31T23:00:00Z
       finale: 2h
+  ruleSets:
+    days: default
+    finale: rush
+    over: default
   database:
     host: postgres
     port: "5432"

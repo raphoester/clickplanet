@@ -32,6 +32,7 @@ import {
     Heartbeat,
     LandmassFortified,
     PlanetEvent,
+    RulesChanged,
     SharedWith,
     TilesEnclosed,
     TileShields,
@@ -470,6 +471,30 @@ describe("PlanetBackend click budget", () => {
         await vi.waitFor(() => expect(getBudget).toHaveBeenCalledTimes(1))
 
         expect(watch(backend)).toEqual([7])
+        backend.close()
+    })
+
+    it("reads the allowance again when the rules change, so the meter follows the new pace", async () => {
+        const getBudget = vi.fn()
+            .mockResolvedValueOnce({budget: budget(4, 10, 0.2)})
+            .mockResolvedValueOnce({budget: budget(4, 10, 0.6)})
+        let changeRules = () => {}
+        const listenForEvents = vi.fn(async function* () {
+            yield new PlanetEvent({event: {case: "heartbeat", value: new Heartbeat()}})
+            await new Promise<void>(resolve => changeRules = resolve)
+            yield new PlanetEvent({event: {case: "rulesChanged", value: new RulesChanged()}})
+            await new Promise(() => {})
+        })
+        const backend = new PlanetBackend(
+            {click: vi.fn(), getMap: vi.fn(), getBudget, ...bonusReads(), mapDensity: vi.fn(), listenForEvents} as never,
+            1_000)
+        const rates: number[] = []
+        backend.watchClickBudget(b => rates.push(b.perSecond))
+        await vi.waitFor(() => expect(rates).toEqual([0.2]))
+
+        changeRules()
+
+        await vi.waitFor(() => expect(rates).toEqual([0.2, 0.6]))
         backend.close()
     })
 

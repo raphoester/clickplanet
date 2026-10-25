@@ -3,9 +3,9 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BanPlayerRequest, BanPlayerResponse, FindPlayersRequest, FindPlayersResponse, GetLedgerRequest, GetLedgerResponse, GetReplayRequest, GetReplayResponse, GrantChargesRequest, GrantChargesResponse, InspectPlayerRequest, InspectPlayerResponse, PaintRandomTilesRequest, PaintRandomTilesResponse, ReassignCountryRequest, ReassignCountryResponse, RevertPlayerRequest, RevertPlayerResponse, TopPlayersRequest, TopPlayersResponse, UnbanPlayerRequest, UnbanPlayerResponse } from "./admin_pb.js";
+import { BanPlayerRequest, BanPlayerResponse, FindPlayersRequest, FindPlayersResponse, GetLedgerRequest, GetLedgerResponse, GetReplayRequest, GetReplayResponse, GetRulesRequest, GetRulesResponse, GrantChargesRequest, GrantChargesResponse, InspectPlayerRequest, InspectPlayerResponse, PaintRandomTilesRequest, PaintRandomTilesResponse, ReassignCountryRequest, ReassignCountryResponse, RevertPlayerRequest, RevertPlayerResponse, TopPlayersRequest, TopPlayersResponse, UnbanPlayerRequest, UnbanPlayerResponse } from "./admin_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
-import { GetTerritoriesRequest, GetTerritoriesResponse } from "./internal_pb.js";
+import { ApplyRuleSetRequest, ApplyRuleSetResponse, GetTerritoriesRequest, GetTerritoriesResponse } from "./internal_pb.js";
 
 /**
  * No authentication of its own: served on the console listener, and on the admin listener behind its gate. Never the public router.
@@ -125,6 +125,26 @@ export const AdminService = {
       name: "GetTerritories",
       I: GetTerritoriesRequest,
       O: GetTerritoriesResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * InternalService/ApplyRuleSet, kept as an operator's change.
+     *
+     * @generated from rpc planet.v1.AdminService.ApplyRuleSet
+     */
+    applyRuleSet: {
+      name: "ApplyRuleSet",
+      I: ApplyRuleSetRequest,
+      O: ApplyRuleSetResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc planet.v1.AdminService.GetRules
+     */
+    getRules: {
+      name: "GetRules",
+      I: GetRulesRequest,
+      O: GetRulesResponse,
       kind: MethodKind.Unary,
     },
   }

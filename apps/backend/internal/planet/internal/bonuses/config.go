@@ -213,6 +213,12 @@ func (c Config) ChargesConfig() ChargesConfig {
 	}
 }
 
+func (c Config) Pace() Pace {
+	c = c.withDefaults()
+
+	return Pace{MinInterval: c.MinInterval, MaxInterval: c.MaxInterval, MaxChargesPerHour: c.MaxChargesPerHour}
+}
+
 func (c Config) ShieldsPerTile() int {
 	return c.Shield.withDefaults().PerTile
 }

@@ -31,11 +31,16 @@ type Rule interface {
 	Outcome(tile uint32, owner, flag string) clicks.Outcome
 }
 
+type Tempo interface {
+	Tempo() float64
+}
+
 func New(
 	implementation click_usecase.IUseCase,
 	guard ClickGuard,
 	owner TileOwner,
 	rule Rule,
+	tempo Tempo,
 	clock cptime.Clock,
 	registerer prometheus.Registerer,
 ) *UseCase {
@@ -62,6 +67,7 @@ func New(
 		guard:          guard,
 		owner:          owner,
 		rule:           rule,
+		tempo:          tempo,
 		clock:          clock,
 	}
 }
@@ -71,6 +77,7 @@ type UseCase struct {
 	guard          ClickGuard
 	owner          TileOwner
 	rule           Rule
+	tempo          Tempo
 	clock          cptime.Clock
 }
 
@@ -82,6 +89,7 @@ func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_useca
 		Tile:     in.TileID,
 		Country:  in.CountryID,
 		At:       u.clock.Now(),
+		Tempo:    u.tempo.Tempo(),
 	}
 
 	if held, known := u.owner.Owner(observed.Tile); known {

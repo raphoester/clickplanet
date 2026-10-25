@@ -34,6 +34,11 @@ service AdminService {
 
   // InternalService/GetTerritories, for the admin page: the tiles each country holds now.
   rpc GetTerritories(GetTerritoriesRequest) returns (GetTerritoriesResponse);
+
+  // InternalService/ApplyRuleSet, kept as an operator's change.
+  rpc ApplyRuleSet(ApplyRuleSetRequest) returns (ApplyRuleSetResponse);
+
+  rpc GetRules(GetRulesRequest) returns (GetRulesResponse);
 }
 
 message GetLedgerRequest {
@@ -235,4 +240,39 @@ message ReassignCountryResponse {
   uint32 moved = 3;
   uint32 from_after = 4;
   uint32 to_after = 5;
+}
+
+message GetRulesRequest {}
+
+message GetRulesResponse {
+  // Every set the config holds, "default" first.
+  repeated RuleSet sets = 1;
+  // Newest first, at most 50. With none, "default" is in force.
+  repeated RuleChange changes = 2;
+}
+
+message RuleSet {
+  string name = 1;
+  // How many times faster than rateLimiter.perSecond every bucket refills.
+  double tempo = 2;
+  BoxPace boxes = 3;
+}
+
+message BoxPace {
+  google.protobuf.Duration min_interval = 1;
+  google.protobuf.Duration max_interval = 2;
+  uint32 max_charges_per_hour = 3;
+}
+
+message RuleChange {
+  string request_id = 1;
+  string rule_set = 2;
+  RuleChangeSource source = 3;
+  google.protobuf.Timestamp applied_at = 4;
+}
+
+enum RuleChangeSource {
+  RULE_CHANGE_SOURCE_UNSPECIFIED = 0;
+  RULE_CHANGE_SOURCE_INTERNAL = 1;
+  RULE_CHANGE_SOURCE_OPERATOR = 2;
 }

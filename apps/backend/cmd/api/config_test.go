@@ -320,8 +320,24 @@ func TestTheExampleConfigReachesTheSeasonsBlock(t *testing.T) {
 	assert.Zero(t, season.Number)
 	assert.True(t, time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC).Equal(season.EndsAt))
 	assert.Equal(t, 2*time.Hour, season.Finale)
+	assert.Equal(t, "default", config.Seasons.RuleSets.Days)
+	assert.Equal(t, "rush", config.Seasons.RuleSets.Finale)
+	assert.Equal(t, "default", config.Seasons.RuleSets.Over)
 	assert.Equal(t, "seasons", config.Seasons.Database.Schema)
 	require.NoError(t, config.Seasons.Database.Validate())
+}
+
+func TestTheExampleConfigReachesTheRuleSets(t *testing.T) {
+	var config Config
+	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
+
+	rush, ok := config.Planet.Rules.Sets["rush"]
+	require.True(t, ok)
+	assert.InDelta(t, 3, rush.Tempo, 1e-9)
+	assert.Equal(t, time.Minute, rush.Boxes.MinInterval)
+	assert.Equal(t, 2*time.Minute, rush.Boxes.MaxInterval)
+	assert.Equal(t, 30, rush.Boxes.MaxChargesPerHour)
+	require.NoError(t, config.Planet.Rules.Validate())
 }
 
 func TestTheSeasonsModuleWithNoDatabaseIsRefused(t *testing.T) {

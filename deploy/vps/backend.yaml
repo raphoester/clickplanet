@@ -48,6 +48,15 @@ vpnBlocklist:
   includeDatacenters: true
   allow: []
 
+rules:
+  sets:
+    rush:
+      tempo: 3
+      boxes:
+        minInterval: 1m
+        maxInterval: 2m
+        maxChargesPerHour: 30
+
 antiBot:
   enabled: true
 
@@ -359,6 +368,10 @@ seasons:
     - number: 0
       endsAt: 2026-10-31T23:00:00Z
       finale: 2h
+  ruleSets:
+    days: default
+    finale: rush
+    over: default
   database:
     host: postgres
     password: env://POSTGRES_PASSWORD

@@ -7,6 +7,7 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
 )
 
 // Must stay well under Cloudflare's ~125s idle cut, which kills a silent stream.
@@ -21,6 +22,7 @@ type Event struct {
 	Blast         *clicks.Blast
 	Fortification *clicks.Fortification
 	Heartbeat     bool
+	RulesChanged  bool
 
 	Offer    *bonuses.Offer
 	Quiz     *bonuses.QuizOffer
@@ -33,11 +35,15 @@ type BonusFeed interface {
 	Attend(entrant bonuses.Entrant) (<-chan bonuses.Event, func())
 }
 
+type RulesFeed interface {
+	Watch() (<-chan rules.Set, func())
+}
+
 type Sink interface {
 	Send(event Event) error
 }
 
-func New(subscriber UpdatesSubscriber, heartbeat time.Duration, bonuses BonusFeed) *UseCase {
+func New(subscriber UpdatesSubscriber, heartbeat time.Duration, bonuses BonusFeed, rules RulesFeed) *UseCase {
 	if heartbeat <= 0 {
 		heartbeat = DefaultHeartbeat
 	}
@@ -46,6 +52,7 @@ func New(subscriber UpdatesSubscriber, heartbeat time.Duration, bonuses BonusFee
 		subscriber: subscriber,
 		heartbeat:  heartbeat,
 		bonuses:    bonuses,
+		rules:      rules,
 	}
 }
 
@@ -53,6 +60,7 @@ type UseCase struct {
 	subscriber UpdatesSubscriber
 	heartbeat  time.Duration
 	bonuses    BonusFeed
+	rules      RulesFeed
 }
 
 func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
@@ -63,6 +71,9 @@ func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 
 	boxes, leave := u.bonuses.Attend(bonuses.EntrantOf(clicks.PayerOf(ctx)))
 	defer leave()
+
+	changes, stopWatching := u.rules.Watch()
+	defer stopWatching()
 
 	// Connect writes nothing until the first Send, and the client resyncs on a stream's first event.
 	if err := sink.Send(Event{Heartbeat: true}); err != nil {
@@ -88,6 +99,11 @@ func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 			}
 
 			if err := sink.Send(eventOf(change)); err != nil {
+				return err
+			}
+
+		case <-changes:
+			if err := sink.Send(Event{RulesChanged: true}); err != nil {
 				return err
 			}
 

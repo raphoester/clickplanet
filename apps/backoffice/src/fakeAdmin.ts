@@ -15,6 +15,7 @@ import {
 import {
     BanPlayerRequest,
     BanPlayerResponse,
+    BoxPace,
     FindPlayersRequest,
     FindPlayersResponse,
     GetLedgerRequest,
@@ -22,6 +23,8 @@ import {
     GetReplayRequest,
     LedgerChange,
     GetReplayResponse,
+    GetRulesRequest,
+    GetRulesResponse,
     GrantChargesRequest,
     GrantChargesResponse,
     InspectPlayerRequest,
@@ -33,6 +36,9 @@ import {
     ReassignCountryResponse,
     RevertPlayerRequest,
     RevertPlayerResponse,
+    RuleChange,
+    RuleChangeSource,
+    RuleSet,
     TopPlayersRequest,
     TopPlayersResponse,
     UnbanPlayerRequest,
@@ -47,7 +53,13 @@ import {
     StatsSnapshot,
     TikTokAccount,
 } from "./gen/grpc/clips/v1/admin_pb.ts"
-import {GetTerritoriesRequest, GetTerritoriesResponse, Territory} from "./gen/grpc/planet/v1/internal_pb.ts"
+import {
+    ApplyRuleSetRequest,
+    ApplyRuleSetResponse,
+    GetTerritoriesRequest,
+    GetTerritoriesResponse,
+    Territory,
+} from "./gen/grpc/planet/v1/internal_pb.ts"
 import {ChargesHeld, TileUpdate} from "./gen/grpc/planet/v1/planet_pb.ts"
 import {
     AdminGetPlayerRequest,
@@ -156,6 +168,23 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
     territories = new GetTerritoriesResponse({
         tiles: 262119,
         territories: [new Territory({countryId: "fr", tiles: 1200}), new Territory({countryId: "dz", tiles: 800})],
+    })
+    // The default and the finale's rush, and the finale started by seasons.
+    rules = new GetRulesResponse({
+        sets: [
+            new RuleSet({name: "default", tempo: 1, boxes: new BoxPace({
+                minInterval: new Duration({seconds: 240n}), maxInterval: new Duration({seconds: 480n}), maxChargesPerHour: 12,
+            })}),
+            new RuleSet({name: "rush", tempo: 3, boxes: new BoxPace({
+                minInterval: new Duration({seconds: 60n}), maxInterval: new Duration({seconds: 120n}), maxChargesPerHour: 30,
+            })}),
+        ],
+        changes: [
+            new RuleChange({
+                requestId: "season-0:finale", ruleSet: "rush", source: RuleChangeSource.INTERNAL,
+                appliedAt: Timestamp.fromDate(AT),
+            }),
+        ],
     })
     roster = [
         new RosterEntry({key: "1", accountId: ACCOUNT, name: "BraveFox42", countryId: "fr"}),
@@ -305,6 +334,25 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
 
     getTerritories(request: PartialMessage<GetTerritoriesRequest>): Promise<GetTerritoriesResponse> {
         return this.answer("getTerritories", request, this.territories)
+    }
+
+    getRules(request: PartialMessage<GetRulesRequest>): Promise<GetRulesResponse> {
+        return this.answer("getRules", request, this.rules)
+    }
+
+    // Kept as the server keeps it: a request already applied changes nothing.
+    applyRuleSet(request: PartialMessage<ApplyRuleSetRequest>): Promise<ApplyRuleSetResponse> {
+        const answer = this.answer("applyRuleSet", request, new ApplyRuleSetResponse())
+        if (!this.refusals.has("applyRuleSet") && !this.rules.changes.some(change => change.requestId === request.requestId)) {
+            this.rules = new GetRulesResponse({
+                sets: this.rules.sets,
+                changes: [new RuleChange({
+                    requestId: request.requestId, ruleSet: request.ruleSet, source: RuleChangeSource.OPERATOR,
+                    appliedAt: Timestamp.fromDate(new Date(AT.getTime() + 60_000)),
+                }), ...this.rules.changes],
+            })
+        }
+        return answer
     }
 
     getRoster(request: PartialMessage<GetRosterRequest>): Promise<GetRosterResponse> {
