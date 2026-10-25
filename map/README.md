@@ -130,14 +130,14 @@ The frontend draws a black outline along the tile boundary between two countries
 geometry for it in a blob of its own — `apps/frontend/static/borderLines-<hash>.bin`, written by
 `npm run borderLines`. It is derived from both blobs here and from nothing else, so **regenerate it
 after these**; it stays out of `/map` because the backend has no use for it. See
-[`apps/frontend/CLAUDE.md`](../apps/frontend/CLAUDE.md), "The countries' outlines".
+[`apps/frontend/docs/country-outlines.md`](../apps/frontend/docs/country-outlines.md).
 
 ## The grid is a regular honeycomb
 
 The tiles are the land vertices of `THREE.IcosahedronGeometry(1, 300)`, deduplicated by position.
 That makes them a geodesic sphere's vertices, so **every interior vertex has exactly 6 neighbours**
 and the 12 icosahedron corners have 5 — which is what lets the backend compute adjacency exactly
-rather than by searching. See [apps/backend/CLAUDE.md](../apps/backend/CLAUDE.md), "Map geography".
+rather than by searching. See [`apps/backend/docs/map-geography.md`](../apps/backend/docs/map-geography.md).
 
 | | |
 | --- | --- |
