@@ -6,6 +6,8 @@ import {
     NameColor,
     PlayerInfo,
     PlayerInfoBackend,
+    PlayerLine,
+    PlayerLinesBackend,
     PlayerTitle,
     Presence,
     PresenceBackend,
@@ -69,7 +71,7 @@ const PLAYERS: RosterEntry[] = [
     {key: "8", accountId: fakeAccountId("guest_7e21c9"), name: "guest_7e21c9", countryCode: "ng", guest: true, admin: false, color: NameColor.UNSPECIFIED, streak: 0},
 ]
 
-export class FakePresenceBackend implements PresenceBackend, PlayerInfoBackend {
+export class FakePresenceBackend implements PresenceBackend, PlayerInfoBackend, PlayerLinesBackend {
     private own?: {presence: Presence, at: number}
     private readonly titleListeners = new Set<(title: PlayerTitle) => void>()
 
@@ -157,6 +159,22 @@ export class FakePresenceBackend implements PresenceBackend, PlayerInfoBackend {
             streakCurrent: player.streak,
             admin: player.admin,
             color: player.color,
+        }
+    }
+
+    public async playerLine(accountId: string, countryCode: string): Promise<PlayerLine | undefined> {
+        const player = PLAYERS.find((p) => p.accountId === accountId)
+        if (!player) return undefined
+
+        return {
+            accountId: player.accountId,
+            name: player.name,
+            countryCode,
+            guest: player.guest,
+            admin: player.admin,
+            color: player.color,
+            streak: player.streak,
+            wornTitle: player.guest ? undefined : this.career(player).wornTitle,
         }
     }
 

@@ -231,6 +231,8 @@ app/       components
   first tap was (WebKit bug 216681, set off by the `dblclick` listener React
   keeps on its root), so a tap on each of two tiles side by side took the first
   one twice.
+- `tilePeek.ts` — `TilePeek`, when a pointer asks who holds a tile: a mouse resting
+  on one, or a finger holding one still. See [Who holds a tile](#who-holds-a-tile).
 - `warnOnce.ts` — for things that would otherwise warn on every frame.
 
 ### `src/backends/` — three contracts, one transport
@@ -978,6 +980,33 @@ client whose `fetch` sets `keepalive` (`newKeepalivePlayerServiceClient`), so it
 is still sent after the page is gone. The server takes the account off at once.
 Two tabs of one browser are one account: closing one takes the line off until
 the other's next announce, at most 30s later.
+
+### Who holds a tile
+
+**A mouse resting on a tile for half a second, or a finger holding one still for
+half a second, names the player whose take holds it**, in the Moments zone: the
+flag, the name in its colour, the medal and the name of the title it wears, and
+how long ago. A tap takes a tile, so a tap cannot ask: a hold is the one press a
+tap never is, and the bomb's hold-to-drop is already one. A finger covers the tile,
+so the line is at the top, not under it.
+
+- `TilePeek` (`domain/tilePeek.ts`) holds both: `hover` starts a rest per tile, and
+  a tile just clicked starts none; `begin`, `move` and `end` follow a finger, 12px
+  of slack, a second finger cancelling it. The click that ends a hold is swallowed
+  (`peeked`). `globe.ts` feeds it, hovers from a mouse alone, and calls `onPeek`
+  for a tile with a flag; nothing while a bomb is armed.
+- `useTileHolder` asks `TileHolders.tileHolder` (`ClickService/GetTileHolder`), then
+  `PlayerLinesBackend.playerLine` (`PlayerService/GetAuthors`, which names a guest
+  too). Neither needs a token. A new peek aborts the last one.
+- **The line shows only while the tile wears the flag of its last take**
+  (`holderShown`): the ledger is a second behind, and an operator's write keeps no
+  take, so a tile that changed hands since says nothing rather than the wrong
+  player. Nor does a tile the player itself holds.
+- `TileHolderNews` is a moment like the bomb's: the newest shows. Its name opens
+  the card. It lives as long as its CSS animation, which a pointer on it pauses so
+  the name can be reached, and `animationend` dismisses it.
+- The fake planet names one of the fake roster for each take of its bots
+  (`FAKE_TAKERS`), and the player's own takes after an account it cannot name.
 
 ### Support
 

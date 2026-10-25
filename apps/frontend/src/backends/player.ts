@@ -170,3 +170,7 @@ export type CountryTiles = {
 export interface PlayerInfoBackend {
     playerInfo(accountId: string): Promise<PlayerInfo | undefined>
 }
+
+export interface PlayerLinesBackend {
+    playerLine(accountId: string, countryCode: string, signal?: AbortSignal): Promise<PlayerLine | undefined>
+}

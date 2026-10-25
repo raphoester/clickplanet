@@ -10,6 +10,7 @@ import {
     Refiller,
     Shielder,
     TileClicker,
+    TileHolders,
     UpdatesListener,
 } from "../../backends/backend.ts";
 import BombNews from "../components/BombNews.tsx";
@@ -56,8 +57,10 @@ import {useAnthem} from "../anthem/useAnthem.ts";
 import {AccountStore} from "../account/accountStore.ts";
 import {useAccount} from "../account/useAccount.ts";
 import {hueOf} from "../../domain/authorColor.ts";
-import {PlayerInfoBackend, PlayerLine, PlayerTitle, PresenceBackend} from "../../backends/player.ts";
+import {PlayerInfoBackend, PlayerLine, PlayerLinesBackend, PlayerTitle, PresenceBackend} from "../../backends/player.ts";
 import PlayerCard from "../players/PlayerCard.tsx";
+import TileHolderNews from "../players/TileHolderNews.tsx";
+import {useTileHolder} from "../players/useTileHolder.ts";
 import TitleUnlocked from "../titles/TitleUnlocked.tsx";
 import {usePresence} from "../players/usePresence.ts";
 import {useRoster} from "../players/useRoster.ts";
@@ -106,6 +109,8 @@ export type ViewerProps = {
     account?: AccountStore
     presence?: PresenceBackend
     playerInfo?: PlayerInfoBackend
+    playerLines?: PlayerLinesBackend
+    tileHolders?: TileHolders
     season?: SeasonBackend
     standings?: StandingsBackend
     support?: SupportBackend
@@ -194,6 +199,7 @@ export default function Viewer(props: ViewerProps) {
         dismissFortified,
         lastClose,
         dismissClose,
+        lastPeek,
     } = useGlobe({
         container,
         tileClicker: props.tileClicker,
@@ -211,6 +217,8 @@ export default function Viewer(props: ViewerProps) {
         rendering: display.settings.rendering,
     })
 
+    const tileHolder = useTileHolder(props.tileHolders, props.playerLines, lastPeek, ownAccountId)
+
     const bonusGuide = useBonusGuide()
 
     const fortifyGuide = useFortifyGuide()
@@ -221,7 +229,7 @@ export default function Viewer(props: ViewerProps) {
         return () => clearTimeout(timer)
     }, [lastFortified, fortifyGuide.seen])
     // Moments show one at a time: the newest of them.
-    const newest = [lastBomb, lastFortified, lastClose].reduce<{at: number} | undefined>(
+    const newest = [lastBomb, lastFortified, lastClose, tileHolder.holder].reduce<{at: number} | undefined>(
         (latest, moment) => moment && (!latest || moment.at > latest.at) ? moment : latest, undefined)
 
     const refiller = props.refiller
@@ -431,6 +439,15 @@ export default function Viewer(props: ViewerProps) {
             fortified={lastFortified.fortified}
             lowered={quiz.state.phase !== 'idle'}
             onDone={dismissFortified}
+        />}
+
+        {tileHolder.holder && newest === tileHolder.holder && <TileHolderNews
+            key={`holder-${tileHolder.holder.id}`}
+            line={tileHolder.holder.line}
+            takenAt={tileHolder.holder.takenAt}
+            lowered={quiz.state.phase !== 'idle'}
+            onOpenPlayer={onOpenPlayer}
+            onDone={tileHolder.dismiss}
         />}
 
         {fortifyCard && <FortifyCard fortified={fortifyCard} onDone={() => {

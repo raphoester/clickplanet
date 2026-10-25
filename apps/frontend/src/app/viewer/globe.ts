@@ -55,6 +55,7 @@ import {BlastUniforms, blastUniforms, createBlasts} from "./blasts.ts";
 import {IMPACT_DELAY} from "../../domain/blast.ts";
 import {HoldToDrop} from "../../domain/holdToDrop.ts";
 import {ClickOrDrag} from "../../domain/clickOrDrag.ts";
+import {Peek, TilePeek} from "../../domain/tilePeek.ts";
 import {OwnClicks} from "../../domain/ownClicks.ts";
 import {ShieldChange, outcomeOf, placementOf, TileShields} from "../../domain/shields.ts";
 import {Landmasses} from "../../domain/landmasses.ts";
@@ -87,6 +88,8 @@ const HOLD_TO_DROP_SECONDS = 0.7
 const HOLD_TOLERANCE_PX = 6
 
 const CLICK_TOLERANCE = {mousePx: 6, touchPx: 12}
+
+const PEEK_RULES = {restSeconds: 0.5, holdSeconds: 0.5, tolerancePx: CLICK_TOLERANCE.touchPx}
 
 const DISTANT_BOMB_VOLUME = 0.45
 
@@ -175,6 +178,7 @@ export type GlobeOptions = {
     onClickAccepted?: (click: AcceptedClick) => void
     onFortified?: (fortified: Fortified) => void
     onCloseToFortify?: (close: CloseToFortify) => void
+    onPeek?: (peek: Peek) => void
     playSound?: PlaySound
     director?: Director
     signal: AbortSignal
@@ -229,6 +233,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         onClickAccepted = () => {},
         onFortified = () => {},
         onCloseToFortify = () => {},
+        onPeek = () => {},
         playSound = () => {},
         director,
         signal,
@@ -414,6 +419,14 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     let swallowClick = false
 
     const press = new ClickOrDrag(CLICK_TOLERANCE)
+
+    const peek = new TilePeek(PEEK_RULES)
+    let mouse = false
+
+    const peekAt = (tile: number) => {
+        const owner = ownership.ownerOf(tile)
+        if (owner) onPeek({tile, countryCode: owner})
+    }
 
     const cancelCharge = () => {
         hold.cancel()
@@ -619,11 +632,14 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     eventTarget.addEventListener('mouseleave', () => {
         pendingPointer = undefined
         field.setHover(undefined)
+        peek.hover(undefined, 0)
         if (armed && !hold.holding) aimAt(undefined)
     }, listenerOptions);
 
     eventTarget.addEventListener('pointerdown', (event: PointerEvent) => {
         press.begin(event)
+        const pressed = loaded && !armed && event.pointerType !== "mouse" ? canvasPosition(event) : undefined
+        peek.begin(event, pressed && picker.pick(camera, pressed.x, pressed.y), performance.now() / 1000)
         if (!loaded || !armed || !event.isTrusted || !event.isPrimary || event.button !== 0) return
 
         const {x, y} = canvasPosition(event)
@@ -642,10 +658,15 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     eventTarget.addEventListener('pointermove', (event: PointerEvent) => {
         press.move(event)
         hold.move(event.pointerId, event.clientX, event.clientY)
+        peek.move(event)
+        mouse = event.pointerType === "mouse"
     }, listenerOptions);
 
     for (const ending of ['pointerup', 'pointercancel'] as const) {
-        eventTarget.addEventListener(ending, (event: PointerEvent) => hold.end(event.pointerId), listenerOptions);
+        eventTarget.addEventListener(ending, (event: PointerEvent) => {
+            hold.end(event.pointerId)
+            peek.end(event.pointerId)
+        }, listenerOptions);
     }
 
     eventTarget.addEventListener('pointerup', (event: PointerEvent) => press.end(event), listenerOptions);
@@ -657,6 +678,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             swallowClick = false
             return
         }
+
+        if (peek.peeked) return
 
         const spot = press.spotOf(event)
         if (!spot) return
@@ -688,6 +711,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
         const tile = picker.pick(camera, x, y)
         if (tile === undefined) return
+        peek.clicked()
 
         if (!regions.get(country.code)) {
             warnOnce(`No sprite region for country "${country.code}", ignoring the click`)
@@ -857,6 +881,9 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         const blasting = driveBlasts(seconds) || fortifying
         outline.update(camera.zoom, renderer.domElement.width, renderer.domElement.height, renderer.getPixelRatio(), mapView)
 
+        const peeked = armed ? undefined : peek.tick(seconds)
+        if (peeked !== undefined) peekAt(peeked)
+
         if (pendingPointer === undefined) return boxed || blasting
         const {x, y} = pendingPointer
         pendingPointer = undefined
@@ -865,7 +892,9 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             if (!hold.holding) aimAt(surfacePoint(x, y))
             return true
         }
-        return field.setHover(picker.pick(camera, x, y)) || boxed || blasting
+        const hovered = picker.pick(camera, x, y)
+        if (mouse) peek.hover(hovered, seconds)
+        return field.setHover(hovered) || boxed || blasting
     }, () => {
         undoShake()
         if (captureRequests.length === 0) return

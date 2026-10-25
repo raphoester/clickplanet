@@ -14,6 +14,7 @@ import {CloseToFortify, Fortified} from '../../domain/fortify.ts';
 import {ClickBudgetSource} from '../../backends/clickBudget.ts';
 import {Allegiance} from '../../domain/allegiance.ts';
 import {BUBBLE_MS} from '../components/Bubble.tsx';
+import {Peek} from '../../domain/tilePeek.ts';
 
 export type GlobeStatus =
     | {state: 'loading', territories?: number}
@@ -94,6 +95,11 @@ export function useGlobe(options: UseGlobeOptions) {
         setLastClose((previous) => ({close, id: (previous?.id ?? 0) + 1, at: performance.now()}))
     }, [])
 
+    const [lastPeek, setLastPeek] = useState<{peek: Peek, id: number} | undefined>()
+    const recordPeek = useCallback((peek: Peek) => {
+        setLastPeek((previous) => ({peek, id: (previous?.id ?? 0) + 1}))
+    }, [])
+
     const takeBonus = useCallback((reward: BonusReward) => setAward(reward), [])
 
     const globeRef = useRef<Globe | null>(null)
@@ -143,6 +149,7 @@ export function useGlobe(options: UseGlobeOptions) {
             onClickAccepted,
             onFortified: recordFortified,
             onCloseToFortify: recordClose,
+            onPeek: recordPeek,
             playSound,
             signal: abortController.signal,
         }).then((globe) => {
@@ -170,7 +177,7 @@ export function useGlobe(options: UseGlobeOptions) {
             globeRef.current?.dispose()
             globeRef.current = null
         }
-    }, [container, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, bomber, shielder, playSound, onClickAccepted, rendering, recordLeaderboard, publishLeaderboard, takeBonus, recordCatch, recordBomb, recordFortified, recordClose, notify, recordLockedOut])
+    }, [container, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, bomber, shielder, playSound, onClickAccepted, rendering, recordLeaderboard, publishLeaderboard, takeBonus, recordCatch, recordBomb, recordFortified, recordClose, recordPeek, notify, recordLockedOut])
 
     useEffect(() => {
         initialCountry.current = country
@@ -233,6 +240,7 @@ export function useGlobe(options: UseGlobeOptions) {
         dismissFortified,
         lastClose,
         dismissClose,
+        lastPeek,
     }
 }
 
