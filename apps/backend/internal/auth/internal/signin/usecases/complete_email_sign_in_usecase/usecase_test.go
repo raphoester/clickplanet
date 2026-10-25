@@ -97,6 +97,14 @@ func cookieValue(t *testing.T, setCookie string) string {
 	return cookie.Value
 }
 
+func (f *fixture) sessionAccount(t *testing.T, setCookie string) accounts.AccountID {
+	t.Helper()
+
+	session, err := f.store.Session(t.Context(), accounts.TokenOf(cookieValue(t, setCookie)).Hash())
+	require.NoError(t, err)
+	return session.Account()
+}
+
 func TestTheRightCodeMakesAnAccountForANewAddress(t *testing.T) {
 	f := setUp(t)
 
@@ -113,6 +121,7 @@ func TestTheRightCodeMakesAnAccountForANewAddress(t *testing.T) {
 	session, err := f.store.Session(t.Context(), accounts.TokenOf(cookieValue(t, out.SetCookie())).Hash())
 	require.NoError(t, err)
 	assert.True(t, session.Linked(), "an email account clicks as fast as one signed in with a provider")
+	assert.Equal(t, out.Account(), session.Account(), "the next mint carries the account made")
 	require.Len(t, f.outbox.Recorded()[f.seeded:], 1)
 	assert.True(t, proto.Equal(&authv1.SignedIn{AccountId: out.Account().String()}, f.outbox.Recorded()[f.seeded:][0]))
 }
@@ -126,6 +135,7 @@ func TestTheRightCodeLinksTheAddressToTheGuest(t *testing.T) {
 
 	assert.Equal(t, accounts.AccountID{15: 7}, out.Account())
 	assert.Equal(t, accounts.Linked, out.Outcome())
+	assert.Equal(t, out.Account(), f.sessionAccount(t, out.SetCookie()), "the next mint carries the account linked")
 	_, err = f.store.Session(t.Context(), accounts.TokenOf("guest").Hash())
 	assert.ErrorIs(t, err, accounts.ErrSessionNotFound, "the guest's session is replaced")
 }
@@ -141,6 +151,7 @@ func TestAKnownAddressSignsInToItsAccount(t *testing.T) {
 
 	assert.Equal(t, first.Account(), out.Account())
 	assert.Equal(t, accounts.SignedIn, out.Outcome())
+	assert.Equal(t, out.Account(), f.sessionAccount(t, out.SetCookie()), "the next mint carries the account signed in, not the guest")
 }
 
 func (f *fixture) googleAccount(t *testing.T, account byte, email string) {
@@ -162,6 +173,7 @@ func TestAnAddressAGoogleAccountHoldsSignsInToThatAccount(t *testing.T) {
 
 	assert.Equal(t, accounts.AccountID{15: 9}, out.Account())
 	assert.Equal(t, accounts.Joined, out.Outcome())
+	assert.Equal(t, out.Account(), f.sessionAccount(t, out.SetCookie()), "the next mint carries the account joined")
 	identity, err := f.store.Identity(t.Context(), signin.Email, address)
 	require.NoError(t, err)
 	assert.Equal(t, accounts.AccountID{15: 9}, identity.Account(), "the next code finds the account directly")
