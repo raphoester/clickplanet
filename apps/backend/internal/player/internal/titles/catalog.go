@@ -11,7 +11,7 @@ type Catalog struct {
 }
 
 func NewCatalog() Catalog {
-	return CatalogOf([]Title{OG{}}, Conquest{}, Devotion{}, Chatter{})
+	return CatalogOf([]Title{OG{}}, Conquest{}, Devotion{}, Chatter{}, Defense{}, Bombs{}, Loot{}, Quiz{})
 }
 
 func CatalogOf(standalone []Title, tracks ...Track) Catalog {
@@ -278,3 +278,175 @@ func (Icon) Name() string { return "Icon" }
 func (Icon) Threshold() uint64 { return 1_000 }
 
 func (i Icon) EarnedBy(career Career) bool { return career.stats.MessagesSent() >= i.Threshold() }
+
+type Guard struct{}
+
+func (Guard) ID() ID { return "guard" }
+
+func (Guard) Name() string { return "Guard" }
+
+func (Guard) Threshold() uint64 { return 100 }
+
+func (g Guard) EarnedBy(career Career) bool { return career.stats.TilesFortified() >= g.Threshold() }
+
+type Defender struct{}
+
+func (Defender) ID() ID { return "defender" }
+
+func (Defender) Name() string { return "Defender" }
+
+func (Defender) Threshold() uint64 { return 1_000 }
+
+func (d Defender) EarnedBy(career Career) bool { return career.stats.TilesFortified() >= d.Threshold() }
+
+type Protector struct{}
+
+func (Protector) ID() ID { return "protector" }
+
+func (Protector) Name() string { return "Protector" }
+
+func (Protector) Threshold() uint64 { return 10_000 }
+
+func (p Protector) EarnedBy(career Career) bool {
+	return career.stats.TilesFortified() >= p.Threshold()
+}
+
+type Warden struct{}
+
+func (Warden) ID() ID { return "warden" }
+
+func (Warden) Name() string { return "Warden" }
+
+func (Warden) Threshold() uint64 { return 100_000 }
+
+func (w Warden) EarnedBy(career Career) bool {
+	return career.stats.TilesFortified() >= w.Threshold()
+}
+
+type Bomber struct{}
+
+func (Bomber) ID() ID { return "bomber" }
+
+func (Bomber) Name() string { return "Bomber" }
+
+func (Bomber) Threshold() uint64 { return 1 }
+
+func (b Bomber) EarnedBy(career Career) bool { return career.stats.BombsDropped() >= b.Threshold() }
+
+type Blaster struct{}
+
+func (Blaster) ID() ID { return "blaster" }
+
+func (Blaster) Name() string { return "Blaster" }
+
+func (Blaster) Threshold() uint64 { return 10 }
+
+func (b Blaster) EarnedBy(career Career) bool { return career.stats.BombsDropped() >= b.Threshold() }
+
+type Wrecker struct{}
+
+func (Wrecker) ID() ID { return "wrecker" }
+
+func (Wrecker) Name() string { return "Wrecker" }
+
+func (Wrecker) Threshold() uint64 { return 50 }
+
+func (w Wrecker) EarnedBy(career Career) bool { return career.stats.BombsDropped() >= w.Threshold() }
+
+type Destroyer struct{}
+
+func (Destroyer) ID() ID { return "destroyer" }
+
+func (Destroyer) Name() string { return "Destroyer" }
+
+func (Destroyer) Threshold() uint64 { return 250 }
+
+func (d Destroyer) EarnedBy(career Career) bool { return career.stats.BombsDropped() >= d.Threshold() }
+
+type Looter struct{}
+
+func (Looter) ID() ID { return "looter" }
+
+func (Looter) Name() string { return "Looter" }
+
+func (Looter) Threshold() uint64 { return 10 }
+
+func (l Looter) EarnedBy(career Career) bool {
+	return career.stats.BonusesClaimed() >= l.Threshold()
+}
+
+type Hunter struct{}
+
+func (Hunter) ID() ID { return "hunter" }
+
+func (Hunter) Name() string { return "Hunter" }
+
+func (Hunter) Threshold() uint64 { return 100 }
+
+func (h Hunter) EarnedBy(career Career) bool { return career.stats.BonusesClaimed() >= h.Threshold() }
+
+type Pirate struct{}
+
+func (Pirate) ID() ID { return "pirate" }
+
+func (Pirate) Name() string { return "Pirate" }
+
+func (Pirate) Threshold() uint64 { return 500 }
+
+func (p Pirate) EarnedBy(career Career) bool {
+	return career.stats.BonusesClaimed() >= p.Threshold()
+}
+
+type Captain struct{}
+
+func (Captain) ID() ID { return "captain" }
+
+func (Captain) Name() string { return "Captain" }
+
+func (Captain) Threshold() uint64 { return 2_500 }
+
+func (c Captain) EarnedBy(career Career) bool {
+	return career.stats.BonusesClaimed() >= c.Threshold()
+}
+
+type Student struct{}
+
+func (Student) ID() ID { return "student" }
+
+func (Student) Name() string { return "Student" }
+
+func (Student) Threshold() uint64 { return 10 }
+
+func (s Student) EarnedBy(career Career) bool { return career.stats.RightAnswers() >= s.Threshold() }
+
+type Expert struct{}
+
+func (Expert) ID() ID { return "expert" }
+
+func (Expert) Name() string { return "Expert" }
+
+func (Expert) Threshold() uint64 { return 50 }
+
+func (e Expert) EarnedBy(career Career) bool { return career.stats.RightAnswers() >= e.Threshold() }
+
+type Professor struct{}
+
+func (Professor) ID() ID { return "professor" }
+
+func (Professor) Name() string { return "Professor" }
+
+func (Professor) Threshold() uint64 { return 250 }
+
+func (p Professor) EarnedBy(career Career) bool {
+	return career.stats.RightAnswers() >= p.Threshold()
+}
+
+type Genius struct{}
+
+func (Genius) ID() ID { return "genius" }
+
+func (Genius) Name() string { return "Genius" }
+
+func (Genius) Threshold() uint64 { return 1_000 }
+
+func (g Genius) EarnedBy(career Career) bool { return career.stats.RightAnswers() >= g.Threshold() }

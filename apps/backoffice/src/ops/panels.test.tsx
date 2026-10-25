@@ -23,6 +23,16 @@ describe("the ops runs", () => {
         expect(admin.askedFor("reconcileTitles")).toEqual([{}])
     })
 
+    it("recounts the bombs and fortifies once confirmed, and says how many players moved", async () => {
+        const admin = new FakeAdmin()
+        render(<TitlesPanel player={admin}/>)
+
+        confirm("Recount bombs and fortifies", "Yes, recount bombs and fortifies")
+
+        expect(await screen.findByText("Recounted 164 players.")).toBeTruthy()
+        expect(admin.askedFor("recountStats")).toEqual([{}])
+    })
+
     it("says a session that ended", async () => {
         const admin = new FakeAdmin()
         admin.refuse("reconcileTitles", Code.Unauthenticated)

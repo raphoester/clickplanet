@@ -16,6 +16,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/relay_fortifications_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -39,7 +40,7 @@ func TestEachFortifyOnTheMapIsToldToTheOtherModules(t *testing.T) {
 		require.NoError(t, tiles.Set(ctx, 7, flag))
 		require.NoError(t, tiles.Set(ctx, 20, flag))
 		require.NoError(t, tiles.Set(ctx, 21, flag))
-		_, err := tiles.Fortify(ctx, 21, flag, 10)
+		_, err := tiles.Fortify(cpctx.AddAccountToContext(ctx, "ada"), 21, flag, 10)
 		require.NoError(t, err)
 		return len(events.Published()) > 0
 	}, time.Second, 20*time.Millisecond, "the relay hears a fortify once it follows the map")
@@ -48,6 +49,6 @@ func TestEachFortifyOnTheMapIsToldToTheOtherModules(t *testing.T) {
 	last := published[len(published)-1].(*planetv1.Fortified) //nolint:forcetypeassert // the relay publishes nothing else.
 	assert.Contains(t, flags, last.GetCountry())
 	assert.True(t, proto.Equal(&planetv1.Fortified{
-		Country: last.GetCountry(), Ground: "l1", LandmassId: 1, Tiles: 2, FortifiedAt: timestamppb.New(at),
+		Country: last.GetCountry(), Ground: "l1", LandmassId: 1, Tiles: 2, FortifiedAt: timestamppb.New(at), AccountId: "ada",
 	}, last))
 }
