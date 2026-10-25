@@ -14,17 +14,23 @@ import (
 
 var member = players.AccountOf(true, time.Time{})
 
-func tiles(n uint64) titles.Career {
-	return titles.CareerOf(players.StatsOf(players.AccountID{}, n, players.StreakOf(0, players.Day{}), 0, 0), member)
+func careerOf(stats players.StatsSnapshot) titles.Career {
+	return titles.CareerOf(stats.Restore(), member)
 }
 
-func streak(days uint32) titles.Career {
-	return titles.CareerOf(players.StatsOf(players.AccountID{}, 0, players.StreakOf(0, players.Day{}), days, 0), member)
-}
+func tiles(n uint64) titles.Career { return careerOf(players.StatsSnapshot{TilesTaken: n}) }
 
-func messages(n uint64) titles.Career {
-	return titles.CareerOf(players.StatsOf(players.AccountID{}, 0, players.StreakOf(0, players.Day{}), 0, n), member)
-}
+func streak(days uint32) titles.Career { return careerOf(players.StatsSnapshot{StreakBest: days}) }
+
+func messages(n uint64) titles.Career { return careerOf(players.StatsSnapshot{MessagesSent: n}) }
+
+func fortified(n uint64) titles.Career { return careerOf(players.StatsSnapshot{TilesFortified: n}) }
+
+func bombs(n uint64) titles.Career { return careerOf(players.StatsSnapshot{BombsDropped: n}) }
+
+func bonuses(n uint64) titles.Career { return careerOf(players.StatsSnapshot{BonusesClaimed: n}) }
+
+func answers(n uint64) titles.Career { return careerOf(players.StatsSnapshot{RightAnswers: n}) }
 
 func TestEachTitleIsEarnedAtItsThresholdAndNotBefore(t *testing.T) {
 	for _, c := range []struct {
@@ -43,6 +49,22 @@ func TestEachTitleIsEarnedAtItsThresholdAndNotBefore(t *testing.T) {
 		{titles.Chatterbox{}, messages(29), messages(30)},
 		{titles.Socialite{}, messages(99), messages(100)},
 		{titles.Icon{}, messages(999), messages(1_000)},
+		{titles.Guard{}, fortified(99), fortified(100)},
+		{titles.Defender{}, fortified(999), fortified(1_000)},
+		{titles.Protector{}, fortified(9_999), fortified(10_000)},
+		{titles.Warden{}, fortified(99_999), fortified(100_000)},
+		{titles.Bomber{}, bombs(0), bombs(1)},
+		{titles.Blaster{}, bombs(9), bombs(10)},
+		{titles.Wrecker{}, bombs(49), bombs(50)},
+		{titles.Destroyer{}, bombs(249), bombs(250)},
+		{titles.Looter{}, bonuses(9), bonuses(10)},
+		{titles.Hunter{}, bonuses(99), bonuses(100)},
+		{titles.Pirate{}, bonuses(499), bonuses(500)},
+		{titles.Captain{}, bonuses(2_499), bonuses(2_500)},
+		{titles.Student{}, answers(9), answers(10)},
+		{titles.Expert{}, answers(49), answers(50)},
+		{titles.Professor{}, answers(249), answers(250)},
+		{titles.Genius{}, answers(999), answers(1_000)},
 	} {
 		assert.False(t, c.title.EarnedBy(c.before), "%s at %+v", c.title.ID(), c.before)
 		assert.True(t, c.title.EarnedBy(c.after), "%s at %+v", c.title.ID(), c.after)
@@ -50,8 +72,8 @@ func TestEachTitleIsEarnedAtItsThresholdAndNotBefore(t *testing.T) {
 }
 
 func TestAStreakTitleCountsTheBestStreakNotTheCurrentOne(t *testing.T) {
-	assert.False(t, titles.Devoted{}.EarnedBy(titles.CareerOf(players.StatsOf(players.AccountID{}, 0, players.StreakOf(30, players.Day{}), 1, 0), players.Account{})))
-	assert.True(t, titles.Devoted{}.EarnedBy(titles.CareerOf(players.StatsOf(players.AccountID{}, 0, players.StreakOf(0, players.Day{}), 30, 0), players.Account{})))
+	assert.False(t, titles.Devoted{}.EarnedBy(careerOf(players.StatsSnapshot{Streak: players.StreakOf(30, players.Day{}), StreakBest: 1})))
+	assert.True(t, titles.Devoted{}.EarnedBy(careerOf(players.StatsSnapshot{StreakBest: 30})))
 }
 
 func TestAnAccountMadeBeforeNovemberIsOG(t *testing.T) {
@@ -63,21 +85,40 @@ func TestAnAccountMadeBeforeNovemberIsOG(t *testing.T) {
 }
 
 func TestEachTrackClimbsItsRanksByItsOwnMeasure(t *testing.T) {
-	for _, track := range []titles.Track{titles.Conquest{}, titles.Devotion{}, titles.Chatter{}} {
+	for _, track := range []titles.Track{
+		titles.Conquest{},
+		titles.Devotion{},
+		titles.Chatter{},
+		titles.Defense{},
+		titles.Bombs{},
+		titles.Loot{},
+		titles.Quiz{},
+	} {
 		var previous uint64
 		for _, rank := range track.Ranks() {
 			assert.Greater(t, rank.Threshold(), previous, "%s: %s", track.ID(), rank.ID())
-			reached := players.StatsOf(players.AccountID{}, rank.Threshold(), players.StreakOf(0, players.Day{}), uint32(rank.Threshold()), rank.Threshold())
+			n := rank.Threshold()
+			reached := players.StatsSnapshot{
+				TilesTaken: n, StreakBest: uint32(n), MessagesSent: n,
+				BombsDropped: n, TilesFortified: n, BonusesClaimed: n, RightAnswers: n,
+			}.Restore()
 			assert.True(t, rank.EarnedBy(titles.CareerOf(reached, players.Account{})),
 				"%s: %s is earned at its threshold", track.ID(), rank.ID())
 			previous = rank.Threshold()
 		}
 	}
 
-	career := titles.CareerOf(players.StatsOf(players.AccountID{}, 14_468, players.StreakOf(4, players.Day{}), 7, 312), players.Account{})
+	career := titles.CareerOf(players.StatsSnapshot{
+		TilesTaken: 14_468, Streak: players.StreakOf(4, players.Day{}), StreakBest: 7, MessagesSent: 312,
+		TilesFortified: 2_046, BombsDropped: 9, BonusesClaimed: 61, RightAnswers: 23,
+	}.Restore(), players.Account{})
 	assert.Equal(t, uint64(14_468), titles.Conquest{}.Progress(career))
 	assert.Equal(t, uint64(4), titles.Devotion{}.Progress(career), "the streak a player is on now, not its best")
 	assert.Equal(t, uint64(312), titles.Chatter{}.Progress(career))
+	assert.Equal(t, uint64(2_046), titles.Defense{}.Progress(career))
+	assert.Equal(t, uint64(9), titles.Bombs{}.Progress(career))
+	assert.Equal(t, uint64(61), titles.Loot{}.Progress(career))
+	assert.Equal(t, uint64(23), titles.Quiz{}.Progress(career))
 }
 
 func TestEveryTitleHasItsOwnIDTheStoreTakesAndAName(t *testing.T) {

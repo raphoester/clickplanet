@@ -42,10 +42,11 @@ func (d *Decorator) Execute(ctx context.Context, in drop_bomb_usecase.In) (click
 	}
 
 	landed := &planetv1.BombLanded{
-		Country:  blast.CountryID,
-		TileId:   blast.Tile,
-		Cleared:  uint32(len(blast.Cleared)), //nolint:gosec // bounded by the map.
-		LandedAt: timestamppb.New(d.clock.Now()),
+		Country:   blast.CountryID,
+		TileId:    blast.Tile,
+		Cleared:   uint32(len(blast.Cleared)), //nolint:gosec // bounded by the map.
+		LandedAt:  timestamppb.New(d.clock.Now()),
+		AccountId: clicks.PayerOf(ctx).Account,
 	}
 	if blast.Tile != 0 {
 		landed.Ground = d.borders.CountryOf(blast.Tile)

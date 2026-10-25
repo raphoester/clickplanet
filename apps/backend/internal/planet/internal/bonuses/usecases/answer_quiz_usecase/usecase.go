@@ -4,8 +4,13 @@ import (
 	"context"
 	"errors"
 
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
+	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 var ErrNoSuchQuiz = errors.New("no quiz to answer")
@@ -18,6 +23,10 @@ type Registry interface {
 type Charger interface {
 	Grant(ctx context.Context, holder bonuses.Holder, kind bonuses.Kind, amount int) error
 	Held(ctx context.Context, holder bonuses.Holder) (bonuses.Held, error)
+}
+
+type Publisher interface {
+	Publish(event proto.Message)
 }
 
 type In struct {
@@ -38,13 +47,15 @@ type Out struct {
 	Held bonuses.Held
 }
 
-func New(registry Registry, charger Charger) *UseCase {
-	return &UseCase{registry: registry, charger: charger}
+func New(registry Registry, charger Charger, events Publisher, clock cptime.Clock) *UseCase {
+	return &UseCase{registry: registry, charger: charger, events: events, clock: clock}
 }
 
 type UseCase struct {
 	registry Registry
 	charger  Charger
+	events   Publisher
+	clock    cptime.Clock
 }
 
 func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
@@ -63,6 +74,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	out := Out{Correct: answered.Correct, CorrectChoice: answered.CorrectChoice, Held: before}
 
 	if !answered.Correct {
+		u.publishAnswer(holder, false)
 		return out, nil
 	}
 
@@ -80,6 +92,16 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 		Kind:        answered.Reward.Kind,
 		QuizSubject: answered.Subject,
 	})
+	u.publishAnswer(holder, true)
 
 	return out, nil
+}
+
+func (u *UseCase) publishAnswer(holder bonuses.Holder, correct bool) {
+	if holder == bonuses.NoHolder {
+		return
+	}
+	u.events.Publish(&planetv1.QuizAnswered{
+		AccountId: string(holder), Correct: correct, AnsweredAt: timestamppb.New(u.clock.Now()),
+	})
 }

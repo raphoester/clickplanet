@@ -84,6 +84,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/find_players_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_allegiance_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_allegiance_handler/allegiance_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_bombs_and_fortifies_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_bombs_and_fortifies_handler/bombs_and_fortifies_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_bonus_rules_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_budget_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_charges_handler"
@@ -315,7 +317,9 @@ func NewModule(config Config) cpbootstrap.Module {
 			internalService := planetv1controller.InternalService{
 				GetTakesByCountryHandler: get_takes_by_country_handler.New(takes_query.NewPostgresQuery(db)),
 				GetTerritoriesHandler:    getTerritories,
-				ApplyRuleSetHandler:      apply_rule_set_handler.New(applyRuleSet, rules.SourceInternal),
+				GetBombsAndFortifiesHandler: get_bombs_and_fortifies_handler.New(
+					bombs_and_fortifies_query.NewPostgresQuery(db, borders)),
+				ApplyRuleSetHandler: apply_rule_set_handler.New(applyRuleSet, rules.SourceInternal),
 			}
 			if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 				return planetv1connect.NewInternalServiceHandler(internalService, options...)
@@ -345,12 +349,12 @@ func NewModule(config Config) cpbootstrap.Module {
 			}
 
 			claimBonus, counters := prom_claim_bonus.New(
-				claim_bonus_usecase.New(registry, charges),
+				claim_bonus_usecase.New(registry, charges, props.Events, clock),
 				props.Metrics)
 
 			openQuiz := open_quiz_usecase.New(registry)
 			answerQuiz, quizCounters := prom_answer_quiz.New(
-				answer_quiz_usecase.New(registry, charges),
+				answer_quiz_usecase.New(registry, charges, props.Events, clock),
 				props.Metrics)
 
 			registry.Observe(bonuses.Report{
