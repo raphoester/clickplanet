@@ -23,7 +23,7 @@ const pressed = (pointerType: string) => Object.assign(new Event("pointerdown", 
 const FRONTS = [{countryCode: "fr", tiles: 9_000}, {countryCode: "be", tiles: 300}]
 
 const shown = (line: PlayerLine): HolderShown => ({
-    line, playsFor: line.guest ? [] : FRONTS, takenAt: NOW - 3 * 60_000, point: {x: 300, y: 200}, touch: false, id: 1,
+    line, playsFor: line.guest ? [] : FRONTS, mine: false, takenAt: NOW - 3 * 60_000, point: {x: 300, y: 200}, touch: false, id: 1,
 })
 
 function show(line: PlayerLine, props: Partial<Parameters<typeof HolderCard>[0]> = {}) {
@@ -43,6 +43,12 @@ describe("HolderCard", () => {
         expect(screen.getByText(/Took it 3 min ago/)).toBeTruthy()
         expect(card.style.left).toBe("316px")
         expect(card.style.top).toBe("216px")
+    })
+
+    it("says the player took the tile itself when it is its own", () => {
+        show(FOX, {holder: {...shown(FOX), mine: true}})
+
+        expect(screen.getByText(/You took it 3 min ago/)).toBeTruthy()
     })
 
     it("shows the first flags the player fought for", () => {

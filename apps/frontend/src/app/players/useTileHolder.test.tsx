@@ -38,9 +38,16 @@ describe("useTileHolder", () => {
         )
 
         await waitFor(() => expect(result.current.holder).toEqual({
-            line: ANA, playsFor: ANA_INFO.playsFor, takenAt: 1_000, point: PEEK.point, touch: false, id: 1,
+            line: ANA, playsFor: ANA_INFO.playsFor, mine: false, takenAt: 1_000, point: PEEK.point, touch: false, id: 1,
         }))
         expect(players.playerInfo).toHaveBeenLastCalledWith("account-ana")
+    })
+
+    it("says so when the tile pointed at is the player's own", async () => {
+        const {result} = renderHook(() => useTileHolder(holdersOf(ANAS_TILE), playersOf(ANA_INFO), {peek: PEEK, id: 1}, "account-ana"))
+
+        await waitFor(() => expect(result.current.holder?.mine).toBe(true))
+        expect(result.current.holder?.line).toEqual(ANA)
     })
 
     it("names nobody on a tile that changed hands since its last take was kept", async () => {
