@@ -20,8 +20,9 @@ Read the relevant app's `CLAUDE.md` before working inside `apps/` — this file 
 - `proto/chat/v1/chat.proto` — the live chat (`ChatService`)
 - `proto/auth/v1/auth.proto` — who a caller is (`AuthService`): the mint that gates `Click`, the identity token resumed from the cookie, the caller's account, sign-in with Google, Discord or an emailed code, sign-out and deletion
 - `proto/session/v1/session.proto` — the deprecated mint (`SessionService`), served by the same auth module until no client calls it
-- `proto/player/v1/player.proto` — a player's name, color, stats, titles, the countries it plays for and against and its day's missions, and who is playing (`PlayerService`); the colors themselves are `NameColor` in `color.proto`, and a title is `Title` in `title.proto`, which `chat.proto` and `seasons.proto` import too
+- `proto/player/v1/player.proto` — a player's name, color, stats, titles and the countries it plays for and against, and who is playing (`PlayerService`); the colors themselves are `NameColor` in `color.proto`, and a title is `Title` in `title.proto`, which `chat.proto` and `seasons.proto` import too
 - `proto/seasons/v1/seasons.proto` — when the current season ends and its finale starts, who leads it, and the countries' daily rounds (`SeasonService`)
+- `proto/missions/v1/missions.proto` — the day's three missions of a flag, how far the caller took them, and collecting one (`MissionService`); a reward is a `planet.v1.BonusKind`
 - `proto/support/v1/support.proto` — what a player sends the operator: a feature suggestion or a bug report, with photos or videos, or a report of another player (`SupportService`)
 - `proto/clips/v1/clips.proto` — what the frontend's clip generator hands the backend's job that posts its clips: the stories worth a clip with the facts its model editor judges them by, and what to post with each one. No service: both are written as JSON files in one workflow run. Beside it, `admin.proto` is the numbers of the clips the job posted, a snapshot a day (`clips.v1.AdminService`): the job's `clips stats` keeps them over ssh, the backoffice reads them and makes the table
 

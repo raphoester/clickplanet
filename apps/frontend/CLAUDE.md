@@ -2652,7 +2652,7 @@ The dock glows while something is on or aimed.
 
 Three missions a day for the flag played, the same for each of its players: one bank for the
 flag, tiles from the leader, tiles on a country's ground, each for a charge. The backend's
-CLAUDE.md (Player) has the rules; the client only shows them and collects.
+CLAUDE.md (Missions) has the rules; the client only shows them and collects.
 
 - **A place of its own**: the Missions tab (phone) and menu tab (desktop), `app/missions/MissionsPlace.tsx`.
   Each row is the order (`orderOf`: "Take 40 tiles from", then the flag and the name), its
@@ -2667,7 +2667,7 @@ CLAUDE.md (Player) has the rules; the client only shows them and collects.
   again (`ChargesRefresher.refreshCharges`), since the player module granted them through
   planet and no stream says so. A reward that did not fit (a bomb held) reads `Full` on the
   button and stays to collect.
-- `backends/missions.ts` is the contract, `ConnectPlayerBackend` the real one,
+- `backends/missions.ts` is the contract, `ConnectMissionsBackend` (`missions.v1.MissionService`) the real one,
   `FakeMissionsBackend` the fake: it counts this tab's takes for its first flag, and
   `finishMissions()` in the console makes every mission done.
 

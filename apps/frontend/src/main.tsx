@@ -26,6 +26,7 @@ import type {Globe} from "./app/viewer/globe.ts"
 import App from "./app/App.tsx"
 import {ConnectAccountBackend} from "./backends/accountBackend.ts"
 import {ConnectPlayerBackend, newKeepalivePlayerServiceClient, newPlayerServiceClient} from "./backends/playerBackend.ts"
+import {ConnectMissionsBackend, newMissionServiceClient} from "./backends/missionsBackend.ts"
 import {AccountStore} from "./app/account/accountStore.ts"
 import {rememberSignIn} from "./app/account/rememberedSignIn.ts"
 import SignInGate from "./app/account/SignInGate.tsx"
@@ -154,6 +155,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     const season = new ConnectSeasonBackend(newSeasonServiceClient(config))
     const player = new ConnectPlayerBackend(newPlayerServiceClient(config), session, newKeepalivePlayerServiceClient(config))
     const standings = new ConnectStandingsBackend(newSeasonServiceClient(config), session)
+    const missions = new ConnectMissionsBackend(newMissionServiceClient(config), session)
     const support = new ConnectSupportBackend(newSupportServiceClient(config), session)
     const account = new AccountStore(new ConnectAccountBackend(authClient, attest), player, session, {
         navigate: (url) => window.location.assign(url),
@@ -183,7 +185,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     season={season}
                     standings={standings}
                     support={support}
-                    missions={player}
+                    missions={missions}
                     chargesRefresher={backend}
                 />
             </SignInGate>

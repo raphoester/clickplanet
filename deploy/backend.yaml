@@ -52,8 +52,6 @@ player:
     sslMode: disable
     schema: player
   tagSalt: "local-development-salt"
-  missions:
-    cutoff: 21h
 
 seasons:
   list:
@@ -68,6 +66,17 @@ seasons:
     dbName: postgres
     sslMode: disable
     schema: seasons
+
+missions:
+  cutoff: 21h
+  database:
+    host: postgres
+    port: "5432"
+    user: postgres
+    password: postgres
+    dbName: postgres
+    sslMode: disable
+    schema: missions
 
 support:
   database:

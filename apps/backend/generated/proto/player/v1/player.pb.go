@@ -7,7 +7,6 @@
 package playerv1
 
 import (
-	v1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -21,61 +20,6 @@ const (
 	// Verify that runtime/protoimpl is sufficiently up-to-date.
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
-
-type MissionKind int32
-
-const (
-	MissionKind_MISSION_KIND_UNSPECIFIED MissionKind = 0
-	// Take goal tiles for target_country_id, the day's flag.
-	MissionKind_MISSION_KIND_TAKE_FOR MissionKind = 1
-	// Take goal tiles that target_country_id held.
-	MissionKind_MISSION_KIND_TAKE_FROM MissionKind = 2
-	// Take goal tiles on target_country_id's ground.
-	MissionKind_MISSION_KIND_TAKE_IN MissionKind = 3
-)
-
-// Enum value maps for MissionKind.
-var (
-	MissionKind_name = map[int32]string{
-		0: "MISSION_KIND_UNSPECIFIED",
-		1: "MISSION_KIND_TAKE_FOR",
-		2: "MISSION_KIND_TAKE_FROM",
-		3: "MISSION_KIND_TAKE_IN",
-	}
-	MissionKind_value = map[string]int32{
-		"MISSION_KIND_UNSPECIFIED": 0,
-		"MISSION_KIND_TAKE_FOR":    1,
-		"MISSION_KIND_TAKE_FROM":   2,
-		"MISSION_KIND_TAKE_IN":     3,
-	}
-)
-
-func (x MissionKind) Enum() *MissionKind {
-	p := new(MissionKind)
-	*p = x
-	return p
-}
-
-func (x MissionKind) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (MissionKind) Descriptor() protoreflect.EnumDescriptor {
-	return file_player_v1_player_proto_enumTypes[0].Descriptor()
-}
-
-func (MissionKind) Type() protoreflect.EnumType {
-	return &file_player_v1_player_proto_enumTypes[0]
-}
-
-func (x MissionKind) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use MissionKind.Descriptor instead.
-func (MissionKind) EnumDescriptor() ([]byte, []int) {
-	return file_player_v1_player_proto_rawDescGZIP(), []int{0}
-}
 
 type Profile struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
@@ -1915,320 +1859,11 @@ func (x *WearTitleResponse) GetWorn() *Title {
 	return nil
 }
 
-type GetMissionsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	CountryId     string                 `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetMissionsRequest) Reset() {
-	*x = GetMissionsRequest{}
-	mi := &file_player_v1_player_proto_msgTypes[36]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetMissionsRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetMissionsRequest) ProtoMessage() {}
-
-func (x *GetMissionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_player_proto_msgTypes[36]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetMissionsRequest.ProtoReflect.Descriptor instead.
-func (*GetMissionsRequest) Descriptor() ([]byte, []int) {
-	return file_player_v1_player_proto_rawDescGZIP(), []int{36}
-}
-
-func (x *GetMissionsRequest) GetCountryId() string {
-	if x != nil {
-		return x.CountryId
-	}
-	return ""
-}
-
-// The day's missions are for the flag of the day's first take, and for country_id until then.
-type GetMissionsResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	CountryId     string                 `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
-	Enlisted      bool                   `protobuf:"varint,2,opt,name=enlisted,proto3" json:"enlisted,omitempty"`
-	EndsAtUnixMs  int64                  `protobuf:"varint,3,opt,name=ends_at_unix_ms,json=endsAtUnixMs,proto3" json:"ends_at_unix_ms,omitempty"`
-	Missions      []*Mission             `protobuf:"bytes,4,rep,name=missions,proto3" json:"missions,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetMissionsResponse) Reset() {
-	*x = GetMissionsResponse{}
-	mi := &file_player_v1_player_proto_msgTypes[37]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetMissionsResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetMissionsResponse) ProtoMessage() {}
-
-func (x *GetMissionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_player_proto_msgTypes[37]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetMissionsResponse.ProtoReflect.Descriptor instead.
-func (*GetMissionsResponse) Descriptor() ([]byte, []int) {
-	return file_player_v1_player_proto_rawDescGZIP(), []int{37}
-}
-
-func (x *GetMissionsResponse) GetCountryId() string {
-	if x != nil {
-		return x.CountryId
-	}
-	return ""
-}
-
-func (x *GetMissionsResponse) GetEnlisted() bool {
-	if x != nil {
-		return x.Enlisted
-	}
-	return false
-}
-
-func (x *GetMissionsResponse) GetEndsAtUnixMs() int64 {
-	if x != nil {
-		return x.EndsAtUnixMs
-	}
-	return 0
-}
-
-func (x *GetMissionsResponse) GetMissions() []*Mission {
-	if x != nil {
-		return x.Missions
-	}
-	return nil
-}
-
-type Mission struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	Slot            uint32                 `protobuf:"varint,1,opt,name=slot,proto3" json:"slot,omitempty"`
-	Kind            MissionKind            `protobuf:"varint,2,opt,name=kind,proto3,enum=player.v1.MissionKind" json:"kind,omitempty"`
-	TargetCountryId string                 `protobuf:"bytes,3,opt,name=target_country_id,json=targetCountryId,proto3" json:"target_country_id,omitempty"`
-	Goal            uint32                 `protobuf:"varint,4,opt,name=goal,proto3" json:"goal,omitempty"`
-	Progress        uint32                 `protobuf:"varint,5,opt,name=progress,proto3" json:"progress,omitempty"`
-	Collected       bool                   `protobuf:"varint,6,opt,name=collected,proto3" json:"collected,omitempty"`
-	RewardKind      v1.BonusKind           `protobuf:"varint,7,opt,name=reward_kind,json=rewardKind,proto3,enum=planet.v1.BonusKind" json:"reward_kind,omitempty"`
-	RewardAmount    uint32                 `protobuf:"varint,8,opt,name=reward_amount,json=rewardAmount,proto3" json:"reward_amount,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
-}
-
-func (x *Mission) Reset() {
-	*x = Mission{}
-	mi := &file_player_v1_player_proto_msgTypes[38]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *Mission) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*Mission) ProtoMessage() {}
-
-func (x *Mission) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_player_proto_msgTypes[38]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use Mission.ProtoReflect.Descriptor instead.
-func (*Mission) Descriptor() ([]byte, []int) {
-	return file_player_v1_player_proto_rawDescGZIP(), []int{38}
-}
-
-func (x *Mission) GetSlot() uint32 {
-	if x != nil {
-		return x.Slot
-	}
-	return 0
-}
-
-func (x *Mission) GetKind() MissionKind {
-	if x != nil {
-		return x.Kind
-	}
-	return MissionKind_MISSION_KIND_UNSPECIFIED
-}
-
-func (x *Mission) GetTargetCountryId() string {
-	if x != nil {
-		return x.TargetCountryId
-	}
-	return ""
-}
-
-func (x *Mission) GetGoal() uint32 {
-	if x != nil {
-		return x.Goal
-	}
-	return 0
-}
-
-func (x *Mission) GetProgress() uint32 {
-	if x != nil {
-		return x.Progress
-	}
-	return 0
-}
-
-func (x *Mission) GetCollected() bool {
-	if x != nil {
-		return x.Collected
-	}
-	return false
-}
-
-func (x *Mission) GetRewardKind() v1.BonusKind {
-	if x != nil {
-		return x.RewardKind
-	}
-	return v1.BonusKind(0)
-}
-
-func (x *Mission) GetRewardAmount() uint32 {
-	if x != nil {
-		return x.RewardAmount
-	}
-	return 0
-}
-
-type CollectMissionRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Slot          uint32                 `protobuf:"varint,1,opt,name=slot,proto3" json:"slot,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *CollectMissionRequest) Reset() {
-	*x = CollectMissionRequest{}
-	mi := &file_player_v1_player_proto_msgTypes[39]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *CollectMissionRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*CollectMissionRequest) ProtoMessage() {}
-
-func (x *CollectMissionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_player_proto_msgTypes[39]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use CollectMissionRequest.ProtoReflect.Descriptor instead.
-func (*CollectMissionRequest) Descriptor() ([]byte, []int) {
-	return file_player_v1_player_proto_rawDescGZIP(), []int{39}
-}
-
-func (x *CollectMissionRequest) GetSlot() uint32 {
-	if x != nil {
-		return x.Slot
-	}
-	return 0
-}
-
-type CollectMissionResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Kind          v1.BonusKind           `protobuf:"varint,1,opt,name=kind,proto3,enum=planet.v1.BonusKind" json:"kind,omitempty"`
-	Amount        uint32                 `protobuf:"varint,2,opt,name=amount,proto3" json:"amount,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *CollectMissionResponse) Reset() {
-	*x = CollectMissionResponse{}
-	mi := &file_player_v1_player_proto_msgTypes[40]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *CollectMissionResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*CollectMissionResponse) ProtoMessage() {}
-
-func (x *CollectMissionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_player_proto_msgTypes[40]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use CollectMissionResponse.ProtoReflect.Descriptor instead.
-func (*CollectMissionResponse) Descriptor() ([]byte, []int) {
-	return file_player_v1_player_proto_rawDescGZIP(), []int{40}
-}
-
-func (x *CollectMissionResponse) GetKind() v1.BonusKind {
-	if x != nil {
-		return x.Kind
-	}
-	return v1.BonusKind(0)
-}
-
-func (x *CollectMissionResponse) GetAmount() uint32 {
-	if x != nil {
-		return x.Amount
-	}
-	return 0
-}
-
 var File_player_v1_player_proto protoreflect.FileDescriptor
 
 const file_player_v1_player_proto_rawDesc = "" +
 	"\n" +
-	"\x16player/v1/player.proto\x12\tplayer.v1\x1a\x16planet/v1/planet.proto\x1a\x15player/v1/color.proto\x1a\x15player/v1/title.proto\"m\n" +
+	"\x16player/v1/player.proto\x12\tplayer.v1\x1a\x15player/v1/color.proto\x1a\x15player/v1/title.proto\"m\n" +
 	"\aProfile\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12\x12\n" +
@@ -2339,36 +1974,7 @@ const file_player_v1_player_proto_rawDesc = "" +
 	"\x10WearTitleRequest\x12\x19\n" +
 	"\btitle_id\x18\x01 \x01(\tR\atitleId\"9\n" +
 	"\x11WearTitleResponse\x12$\n" +
-	"\x04worn\x18\x01 \x01(\v2\x10.player.v1.TitleR\x04worn\"3\n" +
-	"\x12GetMissionsRequest\x12\x1d\n" +
-	"\n" +
-	"country_id\x18\x01 \x01(\tR\tcountryId\"\xa7\x01\n" +
-	"\x13GetMissionsResponse\x12\x1d\n" +
-	"\n" +
-	"country_id\x18\x01 \x01(\tR\tcountryId\x12\x1a\n" +
-	"\benlisted\x18\x02 \x01(\bR\benlisted\x12%\n" +
-	"\x0fends_at_unix_ms\x18\x03 \x01(\x03R\fendsAtUnixMs\x12.\n" +
-	"\bmissions\x18\x04 \x03(\v2\x12.player.v1.MissionR\bmissions\"\x9f\x02\n" +
-	"\aMission\x12\x12\n" +
-	"\x04slot\x18\x01 \x01(\rR\x04slot\x12*\n" +
-	"\x04kind\x18\x02 \x01(\x0e2\x16.player.v1.MissionKindR\x04kind\x12*\n" +
-	"\x11target_country_id\x18\x03 \x01(\tR\x0ftargetCountryId\x12\x12\n" +
-	"\x04goal\x18\x04 \x01(\rR\x04goal\x12\x1a\n" +
-	"\bprogress\x18\x05 \x01(\rR\bprogress\x12\x1c\n" +
-	"\tcollected\x18\x06 \x01(\bR\tcollected\x125\n" +
-	"\vreward_kind\x18\a \x01(\x0e2\x14.planet.v1.BonusKindR\n" +
-	"rewardKind\x12#\n" +
-	"\rreward_amount\x18\b \x01(\rR\frewardAmount\"+\n" +
-	"\x15CollectMissionRequest\x12\x12\n" +
-	"\x04slot\x18\x01 \x01(\rR\x04slot\"Z\n" +
-	"\x16CollectMissionResponse\x12(\n" +
-	"\x04kind\x18\x01 \x01(\x0e2\x14.planet.v1.BonusKindR\x04kind\x12\x16\n" +
-	"\x06amount\x18\x02 \x01(\rR\x06amount*|\n" +
-	"\vMissionKind\x12\x1c\n" +
-	"\x18MISSION_KIND_UNSPECIFIED\x10\x00\x12\x19\n" +
-	"\x15MISSION_KIND_TAKE_FOR\x10\x01\x12\x1a\n" +
-	"\x16MISSION_KIND_TAKE_FROM\x10\x02\x12\x18\n" +
-	"\x14MISSION_KIND_TAKE_IN\x10\x032\x8e\b\n" +
+	"\x04worn\x18\x01 \x01(\v2\x10.player.v1.TitleR\x04worn2\xe9\x06\n" +
 	"\rPlayerService\x12I\n" +
 	"\n" +
 	"GetProfile\x12\x1c.player.v1.GetProfileRequest\x1a\x1d.player.v1.GetProfileResponse\x12@\n" +
@@ -2382,9 +1988,7 @@ const file_player_v1_player_proto_rawDesc = "" +
 	"\tGetPlayer\x12\x1b.player.v1.GetPlayerRequest\x1a\x1c.player.v1.GetPlayerResponse\"\x03\x90\x02\x01\x12F\n" +
 	"\tGetTitles\x12\x1b.player.v1.GetTitlesRequest\x1a\x1c.player.v1.GetTitlesResponse\x12F\n" +
 	"\tWearTitle\x12\x1b.player.v1.WearTitleRequest\x1a\x1c.player.v1.WearTitleResponse\x12F\n" +
-	"\tGetFronts\x12\x1b.player.v1.GetFrontsRequest\x1a\x1c.player.v1.GetFrontsResponse\x12L\n" +
-	"\vGetMissions\x12\x1d.player.v1.GetMissionsRequest\x1a\x1e.player.v1.GetMissionsResponse\x12U\n" +
-	"\x0eCollectMission\x12 .player.v1.CollectMissionRequest\x1a!.player.v1.CollectMissionResponseB\xb3\x01\n" +
+	"\tGetFronts\x12\x1b.player.v1.GetFrontsRequest\x1a\x1c.player.v1.GetFrontsResponseB\xb3\x01\n" +
 	"\rcom.player.v1B\vPlayerProtoP\x01ZPgithub.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1;playerv1\xa2\x02\x03PXX\xaa\x02\tPlayer.V1\xca\x02\tPlayer\\V1\xe2\x02\x15Player\\V1\\GPBMetadata\xea\x02\n" +
 	"Player::V1b\x06proto3"
 
@@ -2400,124 +2004,108 @@ func file_player_v1_player_proto_rawDescGZIP() []byte {
 	return file_player_v1_player_proto_rawDescData
 }
 
-var file_player_v1_player_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_player_v1_player_proto_msgTypes = make([]protoimpl.MessageInfo, 41)
+var file_player_v1_player_proto_msgTypes = make([]protoimpl.MessageInfo, 36)
 var file_player_v1_player_proto_goTypes = []any{
-	(MissionKind)(0),               // 0: player.v1.MissionKind
-	(*Profile)(nil),                // 1: player.v1.Profile
-	(*GetProfileRequest)(nil),      // 2: player.v1.GetProfileRequest
-	(*GetProfileResponse)(nil),     // 3: player.v1.GetProfileResponse
-	(*SetNameRequest)(nil),         // 4: player.v1.SetNameRequest
-	(*SetNameResponse)(nil),        // 5: player.v1.SetNameResponse
-	(*RenameRefusal)(nil),          // 6: player.v1.RenameRefusal
-	(*SetColorRequest)(nil),        // 7: player.v1.SetColorRequest
-	(*SetColorResponse)(nil),       // 8: player.v1.SetColorResponse
-	(*Stats)(nil),                  // 9: player.v1.Stats
-	(*GetStatsRequest)(nil),        // 10: player.v1.GetStatsRequest
-	(*GetStatsResponse)(nil),       // 11: player.v1.GetStatsResponse
-	(*AnnounceRequest)(nil),        // 12: player.v1.AnnounceRequest
-	(*AnnounceResponse)(nil),       // 13: player.v1.AnnounceResponse
-	(*LeaveRequest)(nil),           // 14: player.v1.LeaveRequest
-	(*LeaveResponse)(nil),          // 15: player.v1.LeaveResponse
-	(*GetRosterRequest)(nil),       // 16: player.v1.GetRosterRequest
-	(*GetRosterResponse)(nil),      // 17: player.v1.GetRosterResponse
-	(*RosterEntry)(nil),            // 18: player.v1.RosterEntry
-	(*ListenForEventsRequest)(nil), // 19: player.v1.ListenForEventsRequest
-	(*PlayerEvent)(nil),            // 20: player.v1.PlayerEvent
-	(*Roster)(nil),                 // 21: player.v1.Roster
-	(*PlayerLeft)(nil),             // 22: player.v1.PlayerLeft
-	(*Heartbeat)(nil),              // 23: player.v1.Heartbeat
-	(*GetPlayerRequest)(nil),       // 24: player.v1.GetPlayerRequest
-	(*GetPlayerResponse)(nil),      // 25: player.v1.GetPlayerResponse
-	(*Player)(nil),                 // 26: player.v1.Player
-	(*CountryTiles)(nil),           // 27: player.v1.CountryTiles
-	(*GetFrontsRequest)(nil),       // 28: player.v1.GetFrontsRequest
-	(*GetFrontsResponse)(nil),      // 29: player.v1.GetFrontsResponse
-	(*TitleEarned)(nil),            // 30: player.v1.TitleEarned
-	(*GetTitlesRequest)(nil),       // 31: player.v1.GetTitlesRequest
-	(*GetTitlesResponse)(nil),      // 32: player.v1.GetTitlesResponse
-	(*Track)(nil),                  // 33: player.v1.Track
-	(*Step)(nil),                   // 34: player.v1.Step
-	(*WearTitleRequest)(nil),       // 35: player.v1.WearTitleRequest
-	(*WearTitleResponse)(nil),      // 36: player.v1.WearTitleResponse
-	(*GetMissionsRequest)(nil),     // 37: player.v1.GetMissionsRequest
-	(*GetMissionsResponse)(nil),    // 38: player.v1.GetMissionsResponse
-	(*Mission)(nil),                // 39: player.v1.Mission
-	(*CollectMissionRequest)(nil),  // 40: player.v1.CollectMissionRequest
-	(*CollectMissionResponse)(nil), // 41: player.v1.CollectMissionResponse
-	(NameColor)(0),                 // 42: player.v1.NameColor
-	(*Title)(nil),                  // 43: player.v1.Title
-	(v1.BonusKind)(0),              // 44: planet.v1.BonusKind
+	(*Profile)(nil),                // 0: player.v1.Profile
+	(*GetProfileRequest)(nil),      // 1: player.v1.GetProfileRequest
+	(*GetProfileResponse)(nil),     // 2: player.v1.GetProfileResponse
+	(*SetNameRequest)(nil),         // 3: player.v1.SetNameRequest
+	(*SetNameResponse)(nil),        // 4: player.v1.SetNameResponse
+	(*RenameRefusal)(nil),          // 5: player.v1.RenameRefusal
+	(*SetColorRequest)(nil),        // 6: player.v1.SetColorRequest
+	(*SetColorResponse)(nil),       // 7: player.v1.SetColorResponse
+	(*Stats)(nil),                  // 8: player.v1.Stats
+	(*GetStatsRequest)(nil),        // 9: player.v1.GetStatsRequest
+	(*GetStatsResponse)(nil),       // 10: player.v1.GetStatsResponse
+	(*AnnounceRequest)(nil),        // 11: player.v1.AnnounceRequest
+	(*AnnounceResponse)(nil),       // 12: player.v1.AnnounceResponse
+	(*LeaveRequest)(nil),           // 13: player.v1.LeaveRequest
+	(*LeaveResponse)(nil),          // 14: player.v1.LeaveResponse
+	(*GetRosterRequest)(nil),       // 15: player.v1.GetRosterRequest
+	(*GetRosterResponse)(nil),      // 16: player.v1.GetRosterResponse
+	(*RosterEntry)(nil),            // 17: player.v1.RosterEntry
+	(*ListenForEventsRequest)(nil), // 18: player.v1.ListenForEventsRequest
+	(*PlayerEvent)(nil),            // 19: player.v1.PlayerEvent
+	(*Roster)(nil),                 // 20: player.v1.Roster
+	(*PlayerLeft)(nil),             // 21: player.v1.PlayerLeft
+	(*Heartbeat)(nil),              // 22: player.v1.Heartbeat
+	(*GetPlayerRequest)(nil),       // 23: player.v1.GetPlayerRequest
+	(*GetPlayerResponse)(nil),      // 24: player.v1.GetPlayerResponse
+	(*Player)(nil),                 // 25: player.v1.Player
+	(*CountryTiles)(nil),           // 26: player.v1.CountryTiles
+	(*GetFrontsRequest)(nil),       // 27: player.v1.GetFrontsRequest
+	(*GetFrontsResponse)(nil),      // 28: player.v1.GetFrontsResponse
+	(*TitleEarned)(nil),            // 29: player.v1.TitleEarned
+	(*GetTitlesRequest)(nil),       // 30: player.v1.GetTitlesRequest
+	(*GetTitlesResponse)(nil),      // 31: player.v1.GetTitlesResponse
+	(*Track)(nil),                  // 32: player.v1.Track
+	(*Step)(nil),                   // 33: player.v1.Step
+	(*WearTitleRequest)(nil),       // 34: player.v1.WearTitleRequest
+	(*WearTitleResponse)(nil),      // 35: player.v1.WearTitleResponse
+	(NameColor)(0),                 // 36: player.v1.NameColor
+	(*Title)(nil),                  // 37: player.v1.Title
 }
 var file_player_v1_player_proto_depIdxs = []int32{
-	1,  // 0: player.v1.GetProfileResponse.profile:type_name -> player.v1.Profile
-	42, // 1: player.v1.GetProfileResponse.color:type_name -> player.v1.NameColor
-	1,  // 2: player.v1.SetNameResponse.profile:type_name -> player.v1.Profile
-	42, // 3: player.v1.SetColorRequest.color:type_name -> player.v1.NameColor
-	42, // 4: player.v1.SetColorResponse.color:type_name -> player.v1.NameColor
-	9,  // 5: player.v1.GetStatsResponse.stats:type_name -> player.v1.Stats
-	18, // 6: player.v1.GetRosterResponse.entries:type_name -> player.v1.RosterEntry
-	42, // 7: player.v1.RosterEntry.color:type_name -> player.v1.NameColor
-	43, // 8: player.v1.RosterEntry.worn_title:type_name -> player.v1.Title
-	21, // 9: player.v1.PlayerEvent.roster:type_name -> player.v1.Roster
-	18, // 10: player.v1.PlayerEvent.entry:type_name -> player.v1.RosterEntry
-	22, // 11: player.v1.PlayerEvent.left:type_name -> player.v1.PlayerLeft
-	23, // 12: player.v1.PlayerEvent.heartbeat:type_name -> player.v1.Heartbeat
-	30, // 13: player.v1.PlayerEvent.title_earned:type_name -> player.v1.TitleEarned
-	18, // 14: player.v1.Roster.entries:type_name -> player.v1.RosterEntry
-	26, // 15: player.v1.GetPlayerResponse.player:type_name -> player.v1.Player
-	9,  // 16: player.v1.Player.stats:type_name -> player.v1.Stats
-	42, // 17: player.v1.Player.color:type_name -> player.v1.NameColor
-	43, // 18: player.v1.Player.titles:type_name -> player.v1.Title
-	43, // 19: player.v1.Player.worn_title:type_name -> player.v1.Title
-	27, // 20: player.v1.Player.plays_for:type_name -> player.v1.CountryTiles
-	27, // 21: player.v1.Player.plays_against:type_name -> player.v1.CountryTiles
-	27, // 22: player.v1.GetFrontsResponse.plays_for:type_name -> player.v1.CountryTiles
-	27, // 23: player.v1.GetFrontsResponse.plays_against:type_name -> player.v1.CountryTiles
-	43, // 24: player.v1.TitleEarned.title:type_name -> player.v1.Title
-	43, // 25: player.v1.GetTitlesResponse.worn:type_name -> player.v1.Title
-	43, // 26: player.v1.GetTitlesResponse.wearable:type_name -> player.v1.Title
-	33, // 27: player.v1.GetTitlesResponse.tracks:type_name -> player.v1.Track
-	34, // 28: player.v1.Track.steps:type_name -> player.v1.Step
-	43, // 29: player.v1.Step.title:type_name -> player.v1.Title
-	43, // 30: player.v1.WearTitleResponse.worn:type_name -> player.v1.Title
-	39, // 31: player.v1.GetMissionsResponse.missions:type_name -> player.v1.Mission
-	0,  // 32: player.v1.Mission.kind:type_name -> player.v1.MissionKind
-	44, // 33: player.v1.Mission.reward_kind:type_name -> planet.v1.BonusKind
-	44, // 34: player.v1.CollectMissionResponse.kind:type_name -> planet.v1.BonusKind
-	2,  // 35: player.v1.PlayerService.GetProfile:input_type -> player.v1.GetProfileRequest
-	4,  // 36: player.v1.PlayerService.SetName:input_type -> player.v1.SetNameRequest
-	7,  // 37: player.v1.PlayerService.SetColor:input_type -> player.v1.SetColorRequest
-	10, // 38: player.v1.PlayerService.GetStats:input_type -> player.v1.GetStatsRequest
-	12, // 39: player.v1.PlayerService.Announce:input_type -> player.v1.AnnounceRequest
-	14, // 40: player.v1.PlayerService.Leave:input_type -> player.v1.LeaveRequest
-	16, // 41: player.v1.PlayerService.GetRoster:input_type -> player.v1.GetRosterRequest
-	19, // 42: player.v1.PlayerService.ListenForEvents:input_type -> player.v1.ListenForEventsRequest
-	24, // 43: player.v1.PlayerService.GetPlayer:input_type -> player.v1.GetPlayerRequest
-	31, // 44: player.v1.PlayerService.GetTitles:input_type -> player.v1.GetTitlesRequest
-	35, // 45: player.v1.PlayerService.WearTitle:input_type -> player.v1.WearTitleRequest
-	28, // 46: player.v1.PlayerService.GetFronts:input_type -> player.v1.GetFrontsRequest
-	37, // 47: player.v1.PlayerService.GetMissions:input_type -> player.v1.GetMissionsRequest
-	40, // 48: player.v1.PlayerService.CollectMission:input_type -> player.v1.CollectMissionRequest
-	3,  // 49: player.v1.PlayerService.GetProfile:output_type -> player.v1.GetProfileResponse
-	5,  // 50: player.v1.PlayerService.SetName:output_type -> player.v1.SetNameResponse
-	8,  // 51: player.v1.PlayerService.SetColor:output_type -> player.v1.SetColorResponse
-	11, // 52: player.v1.PlayerService.GetStats:output_type -> player.v1.GetStatsResponse
-	13, // 53: player.v1.PlayerService.Announce:output_type -> player.v1.AnnounceResponse
-	15, // 54: player.v1.PlayerService.Leave:output_type -> player.v1.LeaveResponse
-	17, // 55: player.v1.PlayerService.GetRoster:output_type -> player.v1.GetRosterResponse
-	20, // 56: player.v1.PlayerService.ListenForEvents:output_type -> player.v1.PlayerEvent
-	25, // 57: player.v1.PlayerService.GetPlayer:output_type -> player.v1.GetPlayerResponse
-	32, // 58: player.v1.PlayerService.GetTitles:output_type -> player.v1.GetTitlesResponse
-	36, // 59: player.v1.PlayerService.WearTitle:output_type -> player.v1.WearTitleResponse
-	29, // 60: player.v1.PlayerService.GetFronts:output_type -> player.v1.GetFrontsResponse
-	38, // 61: player.v1.PlayerService.GetMissions:output_type -> player.v1.GetMissionsResponse
-	41, // 62: player.v1.PlayerService.CollectMission:output_type -> player.v1.CollectMissionResponse
-	49, // [49:63] is the sub-list for method output_type
-	35, // [35:49] is the sub-list for method input_type
-	35, // [35:35] is the sub-list for extension type_name
-	35, // [35:35] is the sub-list for extension extendee
-	0,  // [0:35] is the sub-list for field type_name
+	0,  // 0: player.v1.GetProfileResponse.profile:type_name -> player.v1.Profile
+	36, // 1: player.v1.GetProfileResponse.color:type_name -> player.v1.NameColor
+	0,  // 2: player.v1.SetNameResponse.profile:type_name -> player.v1.Profile
+	36, // 3: player.v1.SetColorRequest.color:type_name -> player.v1.NameColor
+	36, // 4: player.v1.SetColorResponse.color:type_name -> player.v1.NameColor
+	8,  // 5: player.v1.GetStatsResponse.stats:type_name -> player.v1.Stats
+	17, // 6: player.v1.GetRosterResponse.entries:type_name -> player.v1.RosterEntry
+	36, // 7: player.v1.RosterEntry.color:type_name -> player.v1.NameColor
+	37, // 8: player.v1.RosterEntry.worn_title:type_name -> player.v1.Title
+	20, // 9: player.v1.PlayerEvent.roster:type_name -> player.v1.Roster
+	17, // 10: player.v1.PlayerEvent.entry:type_name -> player.v1.RosterEntry
+	21, // 11: player.v1.PlayerEvent.left:type_name -> player.v1.PlayerLeft
+	22, // 12: player.v1.PlayerEvent.heartbeat:type_name -> player.v1.Heartbeat
+	29, // 13: player.v1.PlayerEvent.title_earned:type_name -> player.v1.TitleEarned
+	17, // 14: player.v1.Roster.entries:type_name -> player.v1.RosterEntry
+	25, // 15: player.v1.GetPlayerResponse.player:type_name -> player.v1.Player
+	8,  // 16: player.v1.Player.stats:type_name -> player.v1.Stats
+	36, // 17: player.v1.Player.color:type_name -> player.v1.NameColor
+	37, // 18: player.v1.Player.titles:type_name -> player.v1.Title
+	37, // 19: player.v1.Player.worn_title:type_name -> player.v1.Title
+	26, // 20: player.v1.Player.plays_for:type_name -> player.v1.CountryTiles
+	26, // 21: player.v1.Player.plays_against:type_name -> player.v1.CountryTiles
+	26, // 22: player.v1.GetFrontsResponse.plays_for:type_name -> player.v1.CountryTiles
+	26, // 23: player.v1.GetFrontsResponse.plays_against:type_name -> player.v1.CountryTiles
+	37, // 24: player.v1.TitleEarned.title:type_name -> player.v1.Title
+	37, // 25: player.v1.GetTitlesResponse.worn:type_name -> player.v1.Title
+	37, // 26: player.v1.GetTitlesResponse.wearable:type_name -> player.v1.Title
+	32, // 27: player.v1.GetTitlesResponse.tracks:type_name -> player.v1.Track
+	33, // 28: player.v1.Track.steps:type_name -> player.v1.Step
+	37, // 29: player.v1.Step.title:type_name -> player.v1.Title
+	37, // 30: player.v1.WearTitleResponse.worn:type_name -> player.v1.Title
+	1,  // 31: player.v1.PlayerService.GetProfile:input_type -> player.v1.GetProfileRequest
+	3,  // 32: player.v1.PlayerService.SetName:input_type -> player.v1.SetNameRequest
+	6,  // 33: player.v1.PlayerService.SetColor:input_type -> player.v1.SetColorRequest
+	9,  // 34: player.v1.PlayerService.GetStats:input_type -> player.v1.GetStatsRequest
+	11, // 35: player.v1.PlayerService.Announce:input_type -> player.v1.AnnounceRequest
+	13, // 36: player.v1.PlayerService.Leave:input_type -> player.v1.LeaveRequest
+	15, // 37: player.v1.PlayerService.GetRoster:input_type -> player.v1.GetRosterRequest
+	18, // 38: player.v1.PlayerService.ListenForEvents:input_type -> player.v1.ListenForEventsRequest
+	23, // 39: player.v1.PlayerService.GetPlayer:input_type -> player.v1.GetPlayerRequest
+	30, // 40: player.v1.PlayerService.GetTitles:input_type -> player.v1.GetTitlesRequest
+	34, // 41: player.v1.PlayerService.WearTitle:input_type -> player.v1.WearTitleRequest
+	27, // 42: player.v1.PlayerService.GetFronts:input_type -> player.v1.GetFrontsRequest
+	2,  // 43: player.v1.PlayerService.GetProfile:output_type -> player.v1.GetProfileResponse
+	4,  // 44: player.v1.PlayerService.SetName:output_type -> player.v1.SetNameResponse
+	7,  // 45: player.v1.PlayerService.SetColor:output_type -> player.v1.SetColorResponse
+	10, // 46: player.v1.PlayerService.GetStats:output_type -> player.v1.GetStatsResponse
+	12, // 47: player.v1.PlayerService.Announce:output_type -> player.v1.AnnounceResponse
+	14, // 48: player.v1.PlayerService.Leave:output_type -> player.v1.LeaveResponse
+	16, // 49: player.v1.PlayerService.GetRoster:output_type -> player.v1.GetRosterResponse
+	19, // 50: player.v1.PlayerService.ListenForEvents:output_type -> player.v1.PlayerEvent
+	24, // 51: player.v1.PlayerService.GetPlayer:output_type -> player.v1.GetPlayerResponse
+	31, // 52: player.v1.PlayerService.GetTitles:output_type -> player.v1.GetTitlesResponse
+	35, // 53: player.v1.PlayerService.WearTitle:output_type -> player.v1.WearTitleResponse
+	28, // 54: player.v1.PlayerService.GetFronts:output_type -> player.v1.GetFrontsResponse
+	43, // [43:55] is the sub-list for method output_type
+	31, // [31:43] is the sub-list for method input_type
+	31, // [31:31] is the sub-list for extension type_name
+	31, // [31:31] is the sub-list for extension extendee
+	0,  // [0:31] is the sub-list for field type_name
 }
 
 func init() { file_player_v1_player_proto_init() }
@@ -2539,14 +2127,13 @@ func file_player_v1_player_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_player_v1_player_proto_rawDesc), len(file_player_v1_player_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   41,
+			NumEnums:      0,
+			NumMessages:   36,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_player_v1_player_proto_goTypes,
 		DependencyIndexes: file_player_v1_player_proto_depIdxs,
-		EnumInfos:         file_player_v1_player_proto_enumTypes,
 		MessageInfos:      file_player_v1_player_proto_msgTypes,
 	}.Build()
 	File_player_v1_player_proto = out.File

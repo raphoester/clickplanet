@@ -167,6 +167,8 @@ player:
   database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: player}
 seasons:
   database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: seasons}
+missions:
+  database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: missions}
 support:
   database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: support}
 clips:
@@ -225,7 +227,19 @@ func TestTheExampleConfigReachesThePlayerBlock(t *testing.T) {
 
 	assert.Equal(t, "player", config.Player.Database.Schema)
 	require.NoError(t, config.Player.Database.Validate())
-	assert.Equal(t, 21*time.Hour, config.Player.Missions.Cutoff, "the missions turn when the daily round closes")
+}
+
+func TestTheExampleConfigReachesTheMissionsBlock(t *testing.T) {
+	var config Config
+	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
+
+	assert.Equal(t, 21*time.Hour, config.Missions.Calendar.Cutoff, "the missions turn when the daily round closes")
+	assert.Equal(t, "missions", config.Missions.Database.Schema)
+	require.NoError(t, config.Missions.Validate())
+}
+
+func TestTheMissionsModuleWithNoDatabaseIsRefused(t *testing.T) {
+	assert.ErrorContains(t, Config{}.Validate(), "missions.database")
 }
 
 func TestThePlayerModuleWithNoDatabaseIsRefused(t *testing.T) {

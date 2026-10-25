@@ -9,27 +9,28 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	missionsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/missions/v1"
+	"github.com/raphoester/clickplanet.lol-backend/generated/proto/missions/v1/missionsv1connect"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
-	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 )
 
-func (p *gamer) missions(country string) *playerv1.GetMissionsResponse {
+func (p *gamer) missions(country string) *missionsv1.GetMissionsResponse {
 	p.t.Helper()
 
-	req := connect.NewRequest(&playerv1.GetMissionsRequest{CountryId: country})
+	req := connect.NewRequest(&missionsv1.GetMissionsRequest{CountryId: country})
 	p.send(req.Header())
-	res, err := p.players().GetMissions(p.t.Context(), req)
+	res, err := missionsv1connect.NewMissionServiceClient(http.DefaultClient, p.stack.baseURL).GetMissions(p.t.Context(), req)
 	require.NoError(p.t, err)
 	return res.Msg
 }
 
-func (p *gamer) collect(slot uint32) (*playerv1.CollectMissionResponse, error) {
+func (p *gamer) collect(slot uint32) (*missionsv1.CollectMissionResponse, error) {
 	p.t.Helper()
 
-	req := connect.NewRequest(&playerv1.CollectMissionRequest{Slot: slot})
+	req := connect.NewRequest(&missionsv1.CollectMissionRequest{Slot: slot})
 	p.send(req.Header())
-	res, err := p.players().CollectMission(p.t.Context(), req)
+	res, err := missionsv1connect.NewMissionServiceClient(http.DefaultClient, p.stack.baseURL).CollectMission(p.t.Context(), req)
 	if err != nil {
 		return nil, err //nolint:wrapcheck // the test reads the code.
 	}
@@ -55,7 +56,7 @@ func TestASignedInPlayerTakesItsBankForItsFlagAndCollectsShields(t *testing.T) {
 	require.Len(t, before.GetMissions(), 3)
 	assert.False(t, before.GetEnlisted())
 	first := before.GetMissions()[0]
-	require.Equal(t, playerv1.MissionKind_MISSION_KIND_TAKE_FOR, first.GetKind())
+	require.Equal(t, missionsv1.MissionKind_MISSION_KIND_TAKE_FOR, first.GetKind())
 	require.Equal(t, "fr", first.GetTargetCountryId())
 
 	for tile := uint32(1); tile <= first.GetGoal(); tile++ {

@@ -353,8 +353,6 @@ player:
     pool:
       maxOpenConns: 4
   tagSalt: env://CHAT_TAG_SALT
-  missions:
-    cutoff: 21h
 
 seasons:
   list:
@@ -369,6 +367,19 @@ seasons:
     dbName: clickplanet
     sslMode: disable
     schema: seasons
+    pool:
+      maxOpenConns: 2
+
+missions:
+  cutoff: 21h
+  database:
+    host: postgres
+    password: env://POSTGRES_PASSWORD
+    port: "5432"
+    user: clickplanet
+    dbName: clickplanet
+    sslMode: disable
+    schema: missions
     pool:
       maxOpenConns: 2
 
