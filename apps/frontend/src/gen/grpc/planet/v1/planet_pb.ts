@@ -898,6 +898,135 @@ export class PlanetEvent extends Message<PlanetEvent> {
 }
 
 /**
+ * @generated from message planet.v1.GetTileHolderRequest
+ */
+export class GetTileHolderRequest extends Message<GetTileHolderRequest> {
+  /**
+   * @generated from field: uint32 tile_id = 1;
+   */
+  tileId = 0;
+
+  constructor(data?: PartialMessage<GetTileHolderRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetTileHolderRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetTileHolderRequest {
+    return new GetTileHolderRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetTileHolderRequest {
+    return new GetTileHolderRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetTileHolderRequest {
+    return new GetTileHolderRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetTileHolderRequest | PlainMessage<GetTileHolderRequest> | undefined, b: GetTileHolderRequest | PlainMessage<GetTileHolderRequest> | undefined): boolean {
+    return proto3.util.equals(GetTileHolderRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.GetTileHolderResponse
+ */
+export class GetTileHolderResponse extends Message<GetTileHolderResponse> {
+  /**
+   * Unset when the last change of the tile emptied it.
+   *
+   * @generated from field: planet.v1.TileHolder holder = 1;
+   */
+  holder?: TileHolder;
+
+  constructor(data?: PartialMessage<GetTileHolderResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetTileHolderResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "holder", kind: "message", T: TileHolder },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetTileHolderResponse {
+    return new GetTileHolderResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetTileHolderResponse {
+    return new GetTileHolderResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetTileHolderResponse {
+    return new GetTileHolderResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetTileHolderResponse | PlainMessage<GetTileHolderResponse> | undefined, b: GetTileHolderResponse | PlainMessage<GetTileHolderResponse> | undefined): boolean {
+    return proto3.util.equals(GetTileHolderResponse, a, b);
+  }
+}
+
+/**
+ * The last take of the tile: a tile that shows another flag changed hands since.
+ *
+ * @generated from message planet.v1.TileHolder
+ */
+export class TileHolder extends Message<TileHolder> {
+  /**
+   * Empty when the take names no account, as once its account is deleted.
+   *
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  /**
+   * @generated from field: string country_id = 2;
+   */
+  countryId = "";
+
+  /**
+   * @generated from field: int64 taken_at_unix_ms = 3;
+   */
+  takenAtUnixMs = protoInt64.zero;
+
+  constructor(data?: PartialMessage<TileHolder>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.TileHolder";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "taken_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TileHolder {
+    return new TileHolder().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): TileHolder {
+    return new TileHolder().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): TileHolder {
+    return new TileHolder().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: TileHolder | PlainMessage<TileHolder> | undefined, b: TileHolder | PlainMessage<TileHolder> | undefined): boolean {
+    return proto3.util.equals(TileHolder, a, b);
+  }
+}
+
+/**
  * @generated from message planet.v1.GetFortressesRequest
  */
 export class GetFortressesRequest extends Message<GetFortressesRequest> {

@@ -152,6 +152,8 @@ message Player {
   Title worn_title = 7;
   repeated CountryTiles plays_for = 8;
   repeated CountryTiles plays_against = 9;
+  // A guest is its name alone: every other field is unset.
+  bool guest = 10;
 }
 
 message CountryTiles {

@@ -774,7 +774,7 @@ describe("Menu", () => {
         it("shows a signed-in player its own stats on its progress", async () => {
             const playerInfo = {
                 playerInfo: vi.fn(async () => ({
-                    name: "ana", tilesTaken: 14_212, streakCurrent: 31, streakBest: 31, admin: false,
+                    name: "ana", guest: false, tilesTaken: 14_212, streakCurrent: 31, streakBest: 31, admin: false,
                     color: NameColor.UNSPECIFIED, titles: [], playsFor: [], playsAgainst: [],
                 })),
             }
@@ -790,7 +790,7 @@ describe("Menu", () => {
         it("counts the tiles a player takes into its stats at once, and reads its titles again once its clicks settle", async () => {
             const playerInfo = {
                 playerInfo: vi.fn(async () => ({
-                    name: "ana", tilesTaken: 14_212, streakCurrent: 31, streakBest: 31, admin: false,
+                    name: "ana", guest: false, tilesTaken: 14_212, streakCurrent: 31, streakBest: 31, admin: false,
                     color: NameColor.UNSPECIFIED, titles: [], playsFor: [], playsAgainst: [],
                 })),
             }

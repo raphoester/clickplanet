@@ -41,6 +41,10 @@ service ClickService {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 
+  rpc GetTileHolder(GetTileHolderRequest) returns (GetTileHolderResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
   // Not NO_SIDE_EFFECTS: the answer is about one caller now, and a cached one lies.
   rpc GetAllegiance(GetAllegianceRequest) returns (GetAllegianceResponse);
 
@@ -176,6 +180,23 @@ message PlanetEvent {
 
     LandmassFortified landmass_fortified = 9;
   }
+}
+
+message GetTileHolderRequest {
+  uint32 tile_id = 1;
+}
+
+message GetTileHolderResponse {
+  // Unset when the last change of the tile emptied it.
+  TileHolder holder = 1;
+}
+
+// The last take of the tile: a tile that shows another flag changed hands since.
+message TileHolder {
+  // Empty when the take names no account, as once its account is deleted.
+  string account_id = 1;
+  string country_id = 2;
+  int64 taken_at_unix_ms = 3;
 }
 
 message GetFortressesRequest {}
