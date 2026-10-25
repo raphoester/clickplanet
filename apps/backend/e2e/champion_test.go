@@ -23,7 +23,7 @@ func (p *gamer) champions() []*chatv1.Announcement {
 	return champions
 }
 
-func TestTheChatAnnouncesTheCountryThatWonTheSeasonOnce(t *testing.T) {
+func TestTheChatAnnouncesTheCountryThatWonTheSeason(t *testing.T) {
 	game := startGameWith(t, func(configs stackConfigs) {
 		configs.seasons.Calendar.List[0].EndsAt = time.Now().Add(8 * time.Second)
 		configs.seasons.Calendar.List[0].Finale = 6 * time.Second
@@ -39,7 +39,5 @@ func TestTheChatAnnouncesTheCountryThatWonTheSeasonOnce(t *testing.T) {
 	race := game.raceWhere(t, func(race *seasonsv1.Race) bool { return race.GetClosed().GetFinale() })
 	require.NotEmpty(t, race.GetClosed().GetAfter())
 	assert.Equal(t, "fr", race.GetClosed().GetAfter()[0].GetCountryId(), "the race crowns who the chat does")
-
-	assert.Never(t, func() bool { return len(player.champions()) > 1 }, time.Second, 100*time.Millisecond,
-		"the snapshots after the end tell nothing more")
+	assert.Len(t, player.champions(), 1)
 }

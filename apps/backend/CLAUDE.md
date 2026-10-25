@@ -1945,7 +1945,7 @@ standings rank players, the rounds rank countries.
   and never through the feed: a feed with no stream holds no race.
 - `rounds.StoreContractSuite` runs on `inmemory_round_store` and on postgres. `e2e/race_test.go` clicks for two flags
   and reads the race off the stream. `e2e/champion_test.go` runs a season of 8 seconds and sees the chat name its
-  champion once, the one the race puts first.
+  champion, the one the race puts first.
 - `standings.StoreContractSuite` runs on `inmemory_contribution_store` and on postgres. It reads what a store kept through a `TallyOf` hook each adapter's test fills, since the write side reads nothing back. The use cases are tested over the in-memory one; the queries on postgres, seeded through `postgres_contribution_store`.
 
 
