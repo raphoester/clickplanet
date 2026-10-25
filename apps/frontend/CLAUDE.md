@@ -1030,7 +1030,10 @@ tap never is, and the bomb's hold-to-drop is already one.
 - **The card shows only while the tile wears the flag of its last take**
   (`holderShown`): the ledger is a second behind, and an operator's write keeps no
   take, so a tile that changed hands since says nothing rather than the wrong
-  player. Nor does a tile the player itself holds.
+  player.
+- **A tile the player holds itself says "You took it"** (`HolderShown.mine`): the
+  holder is the account `AccountStore` reads, which it reads for a signed-in
+  player alone, so a guest sees its own tile under its guest name.
 - The fake planet names one of the fake roster for each take of its bots
   (`FAKE_TAKERS`), and the player's own takes after an account it cannot name.
   In `npm run dev`, a hot reload can leave a card behind; reload the page.

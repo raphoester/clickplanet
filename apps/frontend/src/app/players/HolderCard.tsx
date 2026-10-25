@@ -29,7 +29,7 @@ export type HolderCardProps = {
 }
 
 export default function HolderCard({holder, now = Date.now(), onHold, onOpenPlayer, onClose}: HolderCardProps) {
-    const {line, playsFor, takenAt, point, touch} = holder
+    const {line, playsFor, mine, takenAt, point, touch} = holder
     const country = Countries.get(line.countryCode)?.name ?? line.countryCode
 
     const card = useRef<HTMLElement>(null)
@@ -94,7 +94,7 @@ export default function HolderCard({holder, now = Date.now(), onHold, onOpenPlay
             </div>
             <p className="holder-card-take">
                 <span role="img" aria-label={country} title={country}><CountryFlag code={line.countryCode}/></span>
-                Took it {agoOf(takenAt, now)}
+                {mine ? "You took it" : "Took it"} {agoOf(takenAt, now)}
             </p>
         </section>,
         document.body)
