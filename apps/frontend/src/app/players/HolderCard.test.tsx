@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import {afterEach, describe, expect, it, vi} from "vitest"
-import {cleanup, fireEvent, render, screen} from "@testing-library/react"
+import {cleanup, fireEvent, render, screen, within} from "@testing-library/react"
 import HolderCard from "./HolderCard.tsx"
 import {HolderShown} from "./useTileHolder.ts"
 import {NameColor, PlayerInfo, PlayerInfoBackend, PlayerLine} from "../../backends/player.ts"
@@ -44,18 +44,18 @@ describe("HolderCard", () => {
 
         const card = screen.getByRole("region", {name: "BraveFox42"})
         expect(card.textContent).toContain("BraveFox42")
-        expect(card.textContent).toContain("Warlord")
+        expect(screen.getByRole("img", {name: "Warlord"})).toBeTruthy()
+        expect(card.textContent).not.toContain("Warlord")
         expect(screen.getByText(/Took it 3 min ago/)).toBeTruthy()
         expect(card.style.left).toBe("316px")
         expect(card.style.top).toBe("216px")
     })
 
-    it("then says what the player did, read from its public card", async () => {
+    it("then shows the first flags the player fought for, read from its public card", async () => {
         const backend = show(FOX)
 
-        expect(await screen.findByText("12,345")).toBeTruthy()
-        expect(screen.getByText("30 days")).toBeTruthy()
-        expect(screen.getByRole("img", {name: "Belgium"})).toBeTruthy()
+        const flags = await screen.findByRole("group", {name: "Fought for"})
+        expect(within(flags).getAllByRole("img").map((flag) => flag.getAttribute("aria-label"))).toEqual(["France", "Belgium"])
         expect(backend.playerInfo).toHaveBeenCalledWith("account-fox")
     })
 

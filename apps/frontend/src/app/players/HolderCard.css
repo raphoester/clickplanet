@@ -4,7 +4,7 @@
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
-    gap: var(--space-2);
+    gap: var(--space-3);
     width: 300px;
     max-width: calc(100vw - 16px);
     padding: var(--space-3);
@@ -13,24 +13,30 @@
 }
 
 .holder-card-head {
-    display: flex;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+        "medal name close"
+        "medal links links";
     align-items: center;
-    gap: var(--space-2);
-    min-width: 0;
+    column-gap: var(--space-2);
+    row-gap: var(--space-1);
 }
 
-.holder-card-who {
+.holder-card-head:not(:has(.holder-card-medal)) {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+        "name close"
+        "links links";
+}
+
+.holder-card-medal {
+    grid-area: medal;
     display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-width: 0;
-}
-
-.holder-card-close {
-    align-self: flex-start;
 }
 
 .holder-card-name {
+    grid-area: name;
     display: flex;
     align-items: center;
     gap: var(--space-1);
@@ -48,61 +54,40 @@
     white-space: nowrap;
 }
 
-.holder-card-title {
-    font-family: var(--font-display);
-    font-size: var(--display-s);
-    color: var(--gold);
-    text-shadow: var(--text-drop);
+.holder-card-close {
+    grid-area: close;
 }
 
-.holder-card-take,
-.holder-card-fronts,
-.holder-card-note {
+.holder-card-links {
+    grid-area: links;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-width: 0;
+}
+
+.holder-card-flags {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+}
+
+.holder-card-flags .country-flag,
+.holder-card-take .country-flag {
+    margin-right: 0;
+}
+
+.holder-card-profile {
+    margin-left: auto;
+}
+
+.holder-card-take {
     display: flex;
     align-items: baseline;
     gap: var(--space-1);
     margin: 0;
     color: var(--text-soft);
     font-size: var(--text-s);
-}
-
-.holder-card-take .country-flag,
-.holder-card-fronts .country-flag {
-    margin-right: 0;
-}
-
-.holder-card-stats {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
-    gap: var(--space-1);
-    margin: 0;
-}
-
-.holder-card-stats > div {
-    padding: var(--space-1) var(--space-2);
-}
-
-.holder-card-stats dt {
-    font-weight: 600;
-    color: var(--text-muted);
-    font-size: var(--text-xs);
-    white-space: nowrap;
-}
-
-.holder-card-stats dd {
-    margin: 6px 0 0;
-    padding-top: 2px;
-    font-family: var(--font-display);
-    font-size: var(--display-s);
-    line-height: 1;
-    font-variant-numeric: tabular-nums;
-    color: var(--text);
-    text-shadow: var(--text-drop);
-    white-space: nowrap;
-}
-
-.holder-card-profile {
-    align-self: stretch;
 }
 
 @keyframes holder-card-in {
