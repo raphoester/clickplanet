@@ -79,7 +79,7 @@ it asks of another module. See [Clip stats](#clip-stats-internalclips-in-the-ser
 
 They share the process, the transport and the country list, and **nothing else**. None imports another; each owns its own domain types, its own proto package, its own storage adapter (where it has one) and its own edge.
 
-**A module never calls another module's code or reads its data in its own stack trace.** When one needs an answer from another it asks over Connect, on a loopback listener — see [Calling another module](#calling-another-module). Five do: `planet`, `player`, `chat`, `seasons` and `support` take the click token's verifying key from `auth`, `player` asks `auth` whether an account is linked and `planet` which countries an account took tiles for and from, `chat` asks `player` who posts: the username, or the guest code, `seasons` asks `player` who has a username and `planet` what each country holds, and `support` asks `player` how to name the accounts of a report. When one only has to say that something happened, it publishes an event in process and never learns who listens — see [Telling other modules what happened](#telling-other-modules-what-happened). `planet` publishes `TileTaken`, `BombLanded`, `Fortified`, `BonusClaimed` and `QuizAnswered`, `auth` publishes `AccountDeleted`, `SignedIn` and `SignedOut`, `chat` publishes `MessageSent` and `AccountMuted`, `player` publishes `StatsChanged`, and `seasons` publishes `RoundClosed` and `SeasonClosed`; `player` hears every one of them but `AccountMuted`, `RoundClosed` and `SeasonClosed`, `chat` hears `AccountMuted`, `BombLanded`, `Fortified`, `RoundClosed` and `SeasonClosed`, `seasons` hears `TileTaken` and `AccountDeleted`, and `planet`, `chat` and `support` hear `AccountDeleted` too.
+**A module never calls another module's code or reads its data in its own stack trace.** When one needs an answer from another it asks over Connect, on a loopback listener — see [Calling another module](#calling-another-module). Five do: `planet`, `player`, `chat`, `seasons` and `support` take the click token's verifying key from `auth`, `player` asks `auth` whether an account is linked and `planet` which countries an account took tiles for and from, `chat` asks `player` who posts: the username, or the guest code, `seasons` asks `player` who has a username and `planet` what each country holds, and `support` asks `player` how to name the accounts of a report. When one only has to say that something happened, it publishes an event on Redis Streams and never learns who listens — see [Telling other modules what happened](#telling-other-modules-what-happened). `planet` publishes `TileTaken`, `BombLanded`, `Fortified`, `BonusClaimed` and `QuizAnswered`, `auth` publishes `AccountDeleted`, `SignedIn` and `SignedOut`, `chat` publishes `MessageSent` and `AccountMuted`, `player` publishes `StatsChanged`, and `seasons` publishes `RoundClosed` and `SeasonClosed`; `player` hears every one of them but `AccountMuted`, `RoundClosed` and `SeasonClosed`, `chat` hears `AccountMuted`, `BombLanded`, `Fortified`, `RoundClosed` and `SeasonClosed`, `seasons` hears `TileTaken` and `AccountDeleted`, and `planet`, `chat` and `support` hear `AccountDeleted` too.
 
 Bonus boxes live inside `internal/planet/` rather than beside it: what they grant
 is click allowance, and what carries them is the planet stream. A context of
@@ -227,7 +227,7 @@ Each context wires **itself**, in a `module.go` at its root (`internal/planet/mo
 - `props.AdminRPC.Mount(build, interceptors...)` — the same, for an operator service: served on the loopback console listener, and on the admin listener behind `Options.AdminGate` — see [Operator tools](#operator-tools-adminservice)
 - `props.InternalRPC.Mount(build, interceptors...)` — the same again, for what other modules call: served only on the loopback internal listener
 - `props.Internal.Dial()` — the HTTP client and base URL a generated `New<Service>Client` takes, to call another module — see [Calling another module](#calling-another-module)
-- `props.Events` — the in-process event bus: `props.Events.Publish(message)`, and `cpbootstrap.Subscribe(props.Events, name, buffer, handler)` for the runner that delivers one type — see [Telling other modules what happened](#telling-other-modules-what-happened)
+- `props.Events` — the event bus, over Redis Streams: `props.Events.Publish(events...)`, `props.Events.Send(ctx, events...)` for a relay, and `cpbootstrap.Subscribe(props.Events, name, handler)` for the runner that delivers one type — see [Telling other modules what happened](#telling-other-modules-what-happened)
 - `props.Runners.Add(runner)` — a `Runner` (`Name()` and `Run(ctx)`), run as a goroutine with the process-lifetime context
 - `props.Closers.Add(name, close)` — a cleanup, run in reverse registration order
 - `props.Logger`, `props.Metrics`
@@ -237,7 +237,7 @@ Each context wires **itself**, in a `module.go` at its root (`internal/planet/mo
 
 A module never sees the router, the signal handler or another module's objects. **There is no mutable app object and nothing to leave a half-built dependency on**: `internal/shared/cpbootstrap` builds every module in order, then serves.
 
-**Shutdown goes in this order**: end every open stream, `http.Server.Shutdown` (the public server, then the console, admin and internal ones — a public call in flight may still be waiting on an internal one), the closers in reverse order, then cancel and wait on the runners. The first step is the drain interceptor — see [Ending the streams on shutdown](#ending-the-streams-on-shutdown). There are no storage closers left: the tile map, the ledger and the antibot's evidence all flush from their runners, after the closers, once the server has stopped taking writes.
+**Shutdown goes in this order**: end every open stream, `http.Server.Shutdown` (the public server, then the console, admin and internal ones — a public call in flight may still be waiting on an internal one), the closers in reverse order, then cancel and wait on the runners, then close the Redis client. The first step is the drain interceptor — see [Ending the streams on shutdown](#ending-the-streams-on-shutdown). There are no storage closers left: the tile map, the ledger and the antibot's evidence all flush from their runners, after the closers, once the server has stopped taking writes.
 
 **`cmd/api/main.go` is the composition root, and the server's only one** — there is no `internal/app`, because a package whose whole job is to be called once by `main` was a level of indirection and nothing else. It does three things: load the config, build the admin gate (`auth.NewAdminGate`, see [Operator tools](#operator-tools-adminservice)), and list the modules. It builds no other object, derives nothing, and reads inside no block.
 
@@ -302,47 +302,79 @@ The proto sits beside the public one in the module's package (`proto/auth/v1/int
 
 #### Telling other modules what happened
 
-**Over Go channels, in process.** There is no broker, and a modular monolith still needs messaging. An emitter publishes an event and never knows who listens, so it has no reason to load a listener's config, and the problem the loopback rule solves does not arise. A loopback stream would buy nothing here: it adds encoding, reconnects and an address the subscriber must hold, and it loses events on a crash exactly as a channel does.
+**Over Redis Streams.** An emitter publishes an event and never knows who listens, so it has no reason to load a listener's config, and the problem the loopback rule solves does not arise. Redis keeps what was published until every subscriber has handled it: a restart, a crash or a slow subscriber loses nothing that reached it.
 
-- **The payload is a proto-generated message**, declared in the emitter's proto package (`proto/<name>/v1/events.proto`). A subscriber imports `generated/proto`, never the emitter's root package, which would also hand it the emitter's `Config`. The proto is also the schema, if AsyncAPI or a real broker ever comes.
-- **Each subscriber gets its own copy.** A proto message is a pointer: the emitter builds a fresh one per event and never touches it again, and nothing shared is mutated.
-- **Each subscriber reads its own buffered channel, in its own goroutine.** No subscriber code runs in the emitter's stack trace, so a click never waits on a listener.
-- **A full buffer drops the event and counts it.** Delivery is at most once and not durable: a crash or a restart loses what was in flight. A flow that cannot lose an event (money, rewards) needs a durable path of its own, not this.
-- **Subscribers register while modules are built**, before any runner starts, so no event is published to nobody at boot.
+- **The payload is a proto-generated message**, declared in the emitter's proto package (`proto/<name>/v1/events.proto`), and travels as its protobuf bytes. A subscriber imports `generated/proto`, never the emitter's root package, which would also hand it the emitter's `Config`.
+- **One stream per type of event** (`events:planet.v1.TileTaken`), not per emitter: a subscriber hears one type, so it reads only that one, and each stream is trimmed at the pace of its own subscribers. In one stream per emitter, the 40k takes a day would push planet's rare bombs out of the trim window.
+- **One consumer group per subscriber**, so each gets every event, in its own copy, in order, in its own runner. No subscriber code runs in the emitter's stack trace: a click waits on one `XADD`, never on a listener.
+- **Delivery is at least once and in order per subscriber.** A handler's error is tried again in place after `events.retryAfter` (2s), doubling up to 64 times that, and the events behind it wait, so the order holds. After `events.maxDeliveries` (8, about four minutes) the event is buried in `events:dead` with its subscriber and the next one is read. A crash leaves what was read pending; the next boot takes it back first (`XAUTOCLAIM` from `0-0`, whatever consumer held it), before anything new.
+- **So a handler sometimes runs twice, and must be safe to.** The bus does not dedupe: no event id, no inbox table. **The domain models the uncertainty**: a fact that may come twice carries the identity of what happened, and the receiver's own state remembers what it applied. See [Idempotent receivers](#idempotent-receivers).
+- **A publish Redis does not take is lost, and counted** (`events_unpublished_total{event}`). A fact whose loss would leave two modules disagreeing for good goes through an outbox instead — see [What may not be lost](#what-may-not-be-lost-the-outbox).
 - **A relationship on the context map is one integration, not one pair of modules.** `chat` asks `player` who posts, so `player` is upstream of `chat` for authors; `chat` publishes `MessageSent`, so `chat` is upstream of `player` for messages. Two modules linked both ways is fine. What is not: a shared model, or a synchronous call cycle — `player` never calls `chat`. The context where a thing happens publishes it in its own language, and the listener translates it at its edge (`message_sent_subscriber`), as it does `TileTaken`. A downstream module never calls its upstream to report a fact instead.
 
 **`cpbootstrap` holds the bus** (`events.go`), and a module reaches it as `props.Events`:
 
-- **Publish** takes any proto message and never blocks: a non-blocking send to each subscriber of that message's type. The first subscriber gets the message, each other one a `proto.Clone`.
-- **`cpbootstrap.Subscribe[T](props.Events, name, buffer, handler)`** registers a channel of `buffer` events for type `T` and answers the `Runner` that reads it and calls `handler.Handle(ctx, event)`. The module adds that runner. A second subscriber of one type with the same name refuses the boot, and so does a zero buffer.
-- **Registering after the runners start is refused.** `Run` seals the bus once every module is built. An event published while modules are built (or before the runner starts) waits in the buffer, so the order of modules in `cmd/api` does not matter.
-- **`events_dropped_total{event, subscriber}`** counts what a full buffer dropped, and **`events_failed_total{event, subscriber}`** what a handler answered with an error. The bus logs nothing: a subscriber that wants a log line wraps its handler in a decorator (`player`'s `log_subscriber`).
-- **A subscriber's runner drains its buffer when it stops**, so what was published before the server stopped is still handled. A store it writes to must outlive it: `cppg.CloseAfter` closes the pool once the runners returned.
-- **Tests:** `events_test.go` pins order per subscriber, a copy each, drop and count, no subscriber code in the publisher's stack trace, register-before-run, and the drain at shutdown. `cpbootstrap.RecordedEvents` (behind the tag) stands in for the bus where a use case only publishes.
+- **`Publish(events...)`** is one pipelined `XADD` per call, bounded by `events.publishTimeout` (500ms), and never fails to its caller: what Redis did not take is counted. **`Send(ctx, events...)`** is the same with an error, for a relay that keeps the events until they are sent.
+- **`cpbootstrap.Subscribe[T](props.Events, name, handler)`** registers subscriber `name` for type `T` and answers the `Runner` that reads its group and calls `handler.Handle(ctx, event)`. The module adds that runner. A second subscriber of one type with the same name refuses the boot, and so does an empty `events.address`.
+- **The groups are made when the bus is sealed**, once every module is built and before any runner starts, from the start of the stream: what a module published while the others were built is read too, so the order of modules in `cmd/api` does not matter. A group nobody subscribes with any more is destroyed, or it would hold its stream's trim back forever. Subscribing after the runners start is refused. Publishing a type nobody subscribes to adds nothing.
+- **Memory is bounded twice.** Every minute (`events-trim`) each stream is cut (`XTRIM MINID ~`) to the oldest entry one of its groups has not handled, so a stream holds only what is still in hand while every subscriber keeps up. And each `XADD` caps its stream at `events.maxLen` (100k, ~15 MB of takes), for a stream whose subscriber stopped. Redis runs with 64 MB and `noeviction`: a full Redis refuses events, counted as unpublished, rather than drop unread ones.
+- **Metrics**: `events_failed_total{event, subscriber}` what a handler refused, `events_dead_total{event, subscriber}` what was buried, `events_lag{event, subscriber}` what is in the stream unread, `events_pending{event, subscriber}` what was read and not acked (read from `XINFO GROUPS` at each scrape), and `events_unpublished_total{event}`. The bus logs nothing: a subscriber that wants a log line wraps its handler in a decorator (`player`'s `log_subscriber`).
+- **At shutdown** a runner finishes and acks what it read, reads what is left without waiting (ten batches at most), and stops; what it does not reach waits in Redis for the next boot. A handler runs on a context the shutdown does not cancel. A store a handler writes to must outlive it: `cppg.CloseAfter` closes the pool once the runners returned, and `cpbootstrap` closes the Redis client after every runner.
+- **Tests:** `events_test.go` runs against a real Redis (`cpbootstrap.StartTestRedis`, behind the tag, a `redis:7.4-alpine` container per test): order per subscriber, a copy each, no subscriber code in the publisher's stack trace, register-before-run, no Redis refuses a subscriber, a failure tried again before the events behind it, a poison event buried where `XRANGE events:dead` shows it, what a crash left pending handled first at the next boot, and the shutdown. `events_internal_test.go` pins the trim and the stale group. `cpbootstrap.RecordedEvents` (behind the tag) stands in for the bus where a use case only publishes.
+
+##### Idempotent receivers
+
+| subscriber | why a second delivery changes nothing |
+|---|---|
+| `player-stats`, `player-stats-bombs`, `player-stats-fortifies` | `planet` tells its map facts in ledger order with their `position`. The stats row keeps the position after the last take, bomb and fortify it counted (`players.Counted`); one below it was counted already |
+| `player-stats-messages`, `player-stats-bonuses`, `player-stats-quizzes` | the same with the time of the last message, box and right answer counted, compared to the microsecond postgres keeps |
+| `seasons-standings` | the tally keeps the position after the last take it counted (`standings.Tally.TakesBelow`: a column of each contributions row, the highest is the tally's) |
+| `chat-announcements-*` | an announcement is named after the fact it tells (the bomb's or the fortify's ledger position, the mute's id, the round's season and number, the champion's season) and kept with `AppendOnce`: a second one is neither kept nor shown |
+| `player-titles` | grants only what the account does not hold |
+| `player-names-sign-ins` | names only an account that has no name |
+| each `AccountDeleted` subscriber | deletes or blanks what is left, which is nothing the second time |
+| `player-presence-*` | moves or forgets a visit in memory; a second time finds nothing to move |
+
+The marks need each source in order per account, which is why the map facts come from the ledger relay and not from each click: two clicks of one account could reach Redis in the other order. **What stays uncertain, on purpose**: two messages, boxes or answers of one account in the same microsecond, or a clock that jumps back, count once.
+
+##### What may not be lost: the outbox
+
+A fact goes through an outbox when its loss would leave the modules disagreeing for good, with nothing to tell it again:
+
+- `auth.v1.AccountDeleted`: a lost one keeps a deleted player's personal data in every other module. `DeleteAccount` and `PruneGuests` append it in the transaction that deletes the account.
+- `auth.v1.SignedIn`: a lost one leaves a linked account with no username, shown as a guest, until its next sign-in. `SaveSignIn` appends it with the sign-in.
+- `seasons.v1.RoundClosed` and `SeasonClosed`: the round is marked closed, so a lost one is never sent again and the chat never announces that podium or that champion. `rounds.Store.Close` appends them in the transaction that closes the round.
+- `planet.v1.TileTaken`, `BombLanded` and `Fortified`: **the ledger is their outbox.** `ledger/usecases/relay_ledger_usecase` reads what the ledger flushed past `planet.ledger_relayed`, sends it, then moves the row. A take a hard kill loses before its flush is never told, so the stats and the standings never count what the ledger does not hold; a crash between the send and the move tells the batch again, which the marks make harmless. The migration put the row after the last take the old server had published.
+
+Not in an outbox, because a loss is harmless or the next event repairs it: `SignedOut` (the roster drops the visit when it expires), `MessageSent`, `BonusClaimed` and `QuizAnswered` (a stat short by one), `AccountMuted` (an announcement missed), `StatsChanged` (the next one grants the title).
+
+**`shared/cpoutbox`** is the mechanism. `cpoutbox.Append(ctx, tx, events...)` inserts each event in the module's `outbox` table (`position bigserial`, `event outbox_event`, `payload bytea`), in the caller's transaction. `outbox_event` is an enum of the events that module keeps there, so a new one is a migration. `cpoutbox.NewRelay(name, db, props.Events, logger)` is a runner that, every second and once more at shutdown, locks the oldest rows (`FOR UPDATE SKIP LOCKED`, 100 at a time), `Send`s them in order and deletes them in the same transaction: Redis down keeps the rows for the next tick. A row that does not decode is dropped and logged rather than left to hold every row behind it. `cpoutbox/outbox_test.go` pins it, and each store's contract (`Told`, read with `cpoutbox.Kept`) pins what a write keeps.
+
+**In process still, on purpose**: the live fanouts to open browser streams (the tile map, the chat feed, the roster and the titles, the season boards and the race) are not module-to-module; they are lossy by design, and a client reads again when its stream reopens. **Next**: the `seasons` → `planet` rule-set command (#475) and its resend loop should move to a command stream once it merges.
 
 The events today:
 
 | event | published by | when | heard by |
 |---|---|---|---|
-| `planet.v1.TileTaken{account_id, tile_id, country, taken_at}` | `planet`, `ledger/publishing_ledger_storage` | each take the ledger records with an account: a click, a spread or an enclose, one event per tile | `player`, for the stats; `seasons`, for the standings |
-| `planet.v1.BombLanded{country, tile_id, ground, cleared, landed_at, account_id}` | `planet`, `drop_bomb_usecase/publishing_drop_bomb` | each bomb that went off, on land or in the sea; a refused drop publishes nothing | `chat`, which announces it; `player`, for the stats |
-| `planet.v1.Fortified{country, landmass_id, tiles, ground, fortified_at, account_id}` | `planet`, `relay_fortifications_usecase` | each landmass a player's take fortified (see [Fortify](#fortify)); `account_id` is the account that took the last tile, empty for a click with no account | `chat`, which announces the ones of 50 tiles or more; `player`, for the stats |
+| `planet.v1.TileTaken{account_id, tile_id, country, taken_at, position}` | `planet`, `ledger/usecases/relay_ledger_usecase` | each take the ledger flushed with an account: a click, a spread or an enclose, one event per tile, in ledger order | `player`, for the stats; `seasons`, for the standings |
+| `planet.v1.BombLanded{country, tile_id, ground, cleared, landed_at, account_id, position}` | `planet`, `ledger/usecases/relay_ledger_usecase` | each bomb the ledger flushed, on land or in the sea; a refused drop is not in the ledger | `chat`, which announces it; `player`, for the stats |
+| `planet.v1.Fortified{country, landmass_id, tiles, ground, fortified_at, account_id, position}` | `planet`, `ledger/usecases/relay_ledger_usecase` | each landmass a take fortified (see [Fortify](#fortify)); `account_id` is the account that took the last tile, empty for a click with no account | `chat`, which announces the ones of 50 tiles or more; `player`, for the stats |
 | `planet.v1.BonusClaimed{account_id, claimed_at}` | `planet`, `claim_bonus_usecase` | after a caught box's charge is held; a refused claim, or a caller with no account, publishes nothing | `player`, for the stats |
 | `planet.v1.QuizAnswered{account_id, correct, answered_at}` | `planet`, `answer_quiz_usecase` | each quiz answered, right or wrong, by a caller with an account; a right answer after its charge is held | `player`, which counts the right ones |
-| `auth.v1.AccountDeleted{account_id}` | `auth`, `delete_account_usecase` and `prune_guests_usecase` | after the account row is deleted; a pruned guest is a deleted account | `player`, which forgets the profile, the stats, the titles, the title worn and the visit; `seasons`, which forgets the account's standings; `planet`, which takes the account off every take postgres keeps; `chat`, which forgets the seen mark; `support`, which takes the account off the notes it sent and deletes the reports that name it |
-| `auth.v1.SignedIn{previous_account_id, account_id}` | `auth`, `signin.Admitter`, for `complete_sign_in_usecase` and `complete_email_sign_in_usecase` | after a sign-in or a link is saved; `previous_account_id` is empty for a browser that had no live session | `player`, which moves the browser's visit to the account, and gives the account a username when it has none |
+| `auth.v1.AccountDeleted{account_id}` | `auth`, through its outbox, from `delete_account_usecase` and `prune_guests_usecase` | with the account row's deletion; a pruned guest is a deleted account | `player`, which forgets the profile, the stats, the titles, the title worn and the visit; `seasons`, which forgets the account's standings; `planet`, which takes the account off every take postgres keeps; `chat`, which forgets the seen mark; `support`, which takes the account off the notes it sent and deletes the reports that name it |
+| `auth.v1.SignedIn{previous_account_id, account_id}` | `auth`, through its outbox, from `signin.Admitter`, for `complete_sign_in_usecase` and `complete_email_sign_in_usecase` | with a sign-in or a link; `previous_account_id` is empty for a browser that had no live session | `player`, which moves the browser's visit to the account, and gives the account a username when it has none |
 | `auth.v1.SignedOut{account_id}` | `auth`, `sign_out_usecase` and `sign_out_everywhere_usecase` | after the session, or every session, is deleted; a cookie with no session publishes nothing | `player`, which takes the account off the roster |
 | `chat.v1.MessageSent{message_id, account_id, sent_at}` | `chat`, `send_message_usecase/publishing_send_message` | after each message is kept; a refused or failed post publishes nothing | `player`, for the stats |
-| `chat.v1.AccountMuted{account_id, muted_at, duration}` | `chat`, `mute_usecase/publishing_mute` | after each mute is kept; a refused or failed mute publishes nothing. Never the network it holds | `chat`, which announces it |
+| `chat.v1.AccountMuted{account_id, muted_at, duration, mute_id}` | `chat`, `mute_usecase/publishing_mute` | after each mute is kept; a refused or failed mute publishes nothing. Never the network it holds | `chat`, which announces it |
 | `player.v1.StatsChanged{account_id}` | `player`, `record_stats_usecase` | after each take, message, bomb, fortify, box or right answer is counted on the account's stats; a failed write publishes nothing | `player`, which grants the titles the stats now earn |
-| `seasons.v1.RoundClosed{season, number, finale, ended_at, results}` | `seasons`, `take_snapshot_usecase` | after each round's results are kept; a failed close publishes nothing | `chat`, which announces the podium |
-| `seasons.v1.SeasonClosed{season, ended_at, table}` | `seasons`, `take_snapshot_usecase` | after the finale's results are kept, right after its `RoundClosed`: the season's whole table, ranked by `rounds.TableOf`, the champion first; a failed close publishes nothing | `chat`, which announces the champion |
+| `seasons.v1.RoundClosed{season, number, finale, ended_at, results}` | `seasons`, through its outbox, from `take_snapshot_usecase` | with each round's results | `chat`, which announces the podium |
+| `seasons.v1.SeasonClosed{season, ended_at, table}` | `seasons`, through its outbox, from `take_snapshot_usecase` | with the finale's results, right after its `RoundClosed`: the season's whole table, ranked by `rounds.TableOf`, the champion first | `chat`, which announces the champion |
 
 Adding a context that callers talk to means a `proto/<name>/v1`, an `internal/<name>/` with a `module.go`, and one line in the slice. Connect derives the route from the proto package, so there is no prefix to allocate and no router to edit.
 
 **`cmd/api`** is the server, and the only binary the image holds: `main.go` is the composition root, about 85 lines of config and a module list, and `cpbootstrap` is the rest. **`cmd/clips`** is the other binary, a job a workflow runs with `go run` — see [The clips job](#the-clips-job-internalclips-cmdclips).
 
-It runs as **one container beside a postgres**: the tile map lives in process, and postgres is where it is kept between boots — see [Durability](#durability). There is no cache and no second API process.
+It runs as **one container beside a postgres and a Redis**: the tile map lives in process, and postgres is where it is kept between boots — see [Durability](#durability); Redis carries the events between modules and nothing else — see [Telling other modules what happened](#telling-other-modules-what-happened). There is no cache and no second API process.
 
 ### Inside the planet module: concepts, not layers
 
@@ -446,7 +478,7 @@ because it serves every concept over one Connect service. It only maps.
 | `bonuses/usecases/use_refill_usecase` | fills the caller's bank with its refill | `Refills`, `Bank`, `Pricer` |
 | `bonuses/usecases/grant_charges_usecase` | the operator gives an account charges | `Charger` |
 | `bonuses/usecases/place_shield_usecase` | spends a shield on a tile of the caller's flag | `Shields`, `Tiles`, `CountryChecker`, `Allegiances` |
-| `clicks/usecases/relay_fortifications_usecase` | follows the tile map and publishes `planet.v1.Fortified` for each fortify; a `Runner` | `Changes`, `Publisher` |
+| `ledger/usecases/relay_ledger_usecase` | tells the other modules what the ledger flushed past its cursor, in ledger order: `TileTaken`, `BombLanded`, `Fortified`, each with its position; a `Runner` | `Ledger`, `Cursor`, `Borders`, `Sender` |
 
 **The interfaces in that last column are declared by the package that calls
 them**, not gathered in a `gateways.go` every use case imports. A shared port
@@ -500,16 +532,12 @@ internal/chat/internal/
     usecases/react_usecase/             puts a reaction on or off, publishes the tally — Messages, Board, Publisher, Authors
       muting_react/                     refuses a muted caller before anything else — Mutes
   announcements/                        Announcement, AnnouncementID, Kind (Kinds, Known: announce_usecase refuses
-                                        any other), Bomb, Muted and Round (payloads), Champion (its own Announcement,
-                                        under its season's id), the Storage and IDProvider ports, the suite and
-                                        SequentialIDs
+                                        any other), Bomb, Fortify, Muted, Round and Champion: each builds its
+                                        Announcement, named after the fact it tells; the Storage port and the suite
     postgres_announcement_store/        Storage, over chat.announcements
     inmemory_announcement_storage/      Storage in a slice — behind the testing tag, tests only
-    uuid_id_provider/                   IDProvider: a random UUID
-    usecases/announce_usecase/          keeps an announcement, then publishes it — Appender, Publisher, IDProvider
-    usecases/announce_mute_usecase/     names a muted account, announces it as a Muted payload — Authors, Announcer
-    usecases/announce_champion_usecase/ keeps a season's champion once, publishes it the first time — Appender,
-                                        Publisher
+    usecases/announce_usecase/          keeps an announcement once, publishes it the first time — Appender, Publisher
+    usecases/announce_mute_usecase/     names a muted account, announces it as a Muted — Authors, Announcer
   seen/                                 Until (the rule on a mark's time), ErrNoTime, the Storage port: writes only
     postgres_seen_store/                Storage, over chat.seen; what it keeps is tested through history_query
     inmemory_seen_storage/              Storage in a map, and Kept for a test — behind the testing tag, tests only
@@ -547,17 +575,18 @@ internal/chat/internal/
     chatannouncement/                   Encode, for the stream
     chatmute/                           Refusal: a mute as PermissionDenied with a MuteRefusal detail
   subscribers/                          Timeout
-    bomb_landed_subscriber/             planet.v1.BombLanded → announce_usecase, as a Bomb payload
+    bomb_landed_subscriber/             planet.v1.BombLanded → announce_usecase, as a Bomb
+    fortified_subscriber/               planet.v1.Fortified → announce_usecase, as a Fortify of 50 tiles or more
     account_muted_subscriber/           chat.v1.AccountMuted → announce_mute_usecase
-    round_closed_subscriber/            seasons.v1.RoundClosed → announce_usecase, as a Round payload
-    season_closed_subscriber/           seasons.v1.SeasonClosed → announce_champion_usecase
+    round_closed_subscriber/            seasons.v1.RoundClosed → announce_usecase, as a Round
+    season_closed_subscriber/           seasons.v1.SeasonClosed → announce_usecase, as a Champion
     account_deleted_subscriber/         auth.v1.AccountDeleted → forget_seen_usecase
     log_subscriber/                     logs an event a subscriber refused (player's, copied)
   migrations/                           the chat schema
 ```
 
 - **The rules that need no port are in the `messages` root**: `Limits` (runes, UTF-8, control characters), `AccountIDOf` (the context's account, or `cpsession.NoAccount`) and `NewRecord` (truncates the author id and user agent). They are tested there, not through the use case.
-- **Ids are injected** (`messages.IDProvider`, `announcements.IDProvider`, `mutes.IDProvider`), like the clock. Tests use each concept's `SequentialIDs` (behind the tag), so they assert exact ids. `messages.Drafts` holds the ids, the clock, the `Limits` and the country list, and builds a new `Message` from what was sent; `messages.Thread` holds what a reply needs (see [Replies](#replies)). So `send_message_usecase` stays at five ports. A message id is still a UUID string: `chat.messages.id` is text, with no unique constraint.
+- **Ids are injected** (`messages.IDProvider`, `mutes.IDProvider`), like the clock. Tests use each concept's `SequentialIDs` (behind the tag), so they assert exact ids. An announcement draws none: its id is the fact's (see [Announcements](#announcements)). `messages.Drafts` holds the ids, the clock, the `Limits` and the country list, and builds a new `Message` from what was sent; `messages.Thread` holds what a reply needs (see [Replies](#replies)). So `send_message_usecase` stays at five ports. A message id is still a UUID string: `chat.messages.id` is text, with no unique constraint.
 - **`send_message_usecase.Config` stays under `chat.Config.Service`**, so the `chat.service.*` keys do not change.
 - **`chatv1controller`'s root tests are about the chain** (error net, blocklist, throttle). Each handler package tests its own mapping.
 
@@ -886,12 +915,10 @@ defence against taking back the last tile for a free refill, and it costs no tim
   `ClickService/GetFortresses` (`NO_SIDE_EFFECTS`, cached 5s) is every lock now, read
   through `fortresses_query`, for the pulse on the tiles a flag still misses.
 - **In the ledger**: a `fortify` event after the take that earned it (see
-  [Durability](#durability)), so a replay shows each shield it raised.
-- **To the other modules**: `relay_fortifications_usecase` is a runner that follows the
-  map's channel and publishes `planet.v1.Fortified` for each fortify; the map is where it
-  happened. The storage reads the account off the take's context into `Fortification.Account`,
-  so the event names who made the landmass whole. It subscribes again a second after the map cuts it off. The chat announces
-  the ones of `fortifyNewsTiles` (50) tiles or more.
+  [Durability](#durability)), with the landmass's ground and size, so a replay shows each shield it raised.
+- **To the other modules**: the ledger relay tells `planet.v1.Fortified` from that event once it is flushed,
+  with its ledger position (see [What may not be lost](#what-may-not-be-lost-the-outbox)). The event's
+  `account_id` is the account that took the last tile. The chat announces the ones of `fortifyNewsTiles` (50) tiles or more.
 
 ### Allegiance: one change of flag an hour
 
@@ -992,9 +1019,13 @@ won a season.
   optional in the other. So `announcements.Announcement` is `{ID, Kind, At, Payload}`, in `chat.announcements`
   (`id uuid` primary key, `kind` of the type `announcement_kind`, `payload jsonb`, `announced_at`), with its own store, its own contract suite and
   its own case on the wire (`chat.v1.Announcement`: `kind` and `payload` as a JSON string).
-- **The id is a real key**, `announcements.AnnouncementID` (`type AnnouncementID uuid.UUID`), made by the server.
-  A message's id is `text` with a `seq` beside it because it is not trusted to be unique; nothing here has that
-  history. A read orders by `announced_at`, then `id`.
+- **The id is the fact's**, `announcements.AnnouncementID` (`type AnnouncementID uuid.UUID`): a SHA-1 UUID of what
+  the line tells (`https://clickplanet.lol/ledger/<position>/bomb`, `…/fortify`, `mutes/<mute id>`,
+  `seasons/<n>/rounds/<n>`, `seasons/<n>/champion`), built by each value's `Announcement(at)`. So a fact told twice
+  is one row: `announce_usecase` keeps it with `Storage.AppendOnce` (`ON CONFLICT DO NOTHING`, saying whether it did)
+  and publishes it only the first time. That is what makes an event the bus delivers again harmless here. A message's
+  id is `text` with a `seq` beside it because it is not trusted to be unique; nothing here has that history. A read
+  orders by `announced_at`, then `id`.
 - **The payload is the template's values, not the sentence.** The client writes the line, so a new wording, or
   a translation, needs no migration. Each kind owns its payload's shape: `announcements.Bomb` is
   `{country, ground, tile, cleared}`, `ground` and `tile` absent in the sea. **A client shows nothing for a kind
@@ -1002,22 +1033,19 @@ won a season.
   it is a value added to `announcement_kind` in a migration, a constant in `announcements.Kinds` and a name in
   `history_query`'s `kinds`; the parity test writes every one of `announcements.Kinds` through the store and reads
   it back.
-- **How a bomb gets here**: `planet`'s `publishing_drop_bomb` decorator publishes `planet.v1.BombLanded` once the
-  blast is cleared, with the ground read off `clicks.Borders`; `bomb_landed_subscriber` turns it into a `Bomb`
-  payload and `announce_usecase` inserts it, then publishes it on `inprocess_feed`. The announcement's time is
-  the event's `landed_at`. **Delivery is at most once**, like every event: a full buffer (256) or a restart loses
-  the line, never the bomb.
-- **How a round gets here**: `seasons` publishes `seasons.v1.RoundClosed` once a round's results are kept;
-  `round_closed_subscriber` turns it into a `Round` payload, `{number, finale, podium}`, and `announce_usecase`
+- **How a bomb gets here**: the ledger relay tells `planet.v1.BombLanded` once the ledger flushed the bomb, with its
+  position and the ground read off `clicks.Borders`; `bomb_landed_subscriber` turns it into a `Bomb` and
+  `announce_usecase` keeps it, then publishes it on `inprocess_feed`. The announcement's time is the event's
+  `landed_at`, to the second the ledger keeps. A bomb Redis did not take is a line missed, never a bomb.
+- **How a round gets here**: `seasons` keeps `seasons.v1.RoundClosed` in its outbox with the round's results;
+  `round_closed_subscriber` turns it into a `Round`, payload `{number, finale, podium}`, and `announce_usecase`
   keeps it. The podium is `announcements.RoundOf`'s rule: the places ranked 3rd or better, ties included. The
   announcement's time is the round's end, not the minute it closed.
-- **How a champion gets here, once**: `seasons` publishes `seasons.v1.SeasonClosed` right after the finale's
-  `RoundClosed`; `season_closed_subscriber` keeps the countries ranked 1st (`announcements.ChampionOf`; level on
-  everything, they win together) and `announce_champion_usecase` keeps a `{season, countries}` payload at the
-  season's end. A season nobody scored in announces nothing. **Its id is the season's** (a SHA-1 UUID of its
-  number, `Champion.Announcement`), and `Storage.AppendOnce` inserts with `ON CONFLICT DO NOTHING` and says whether
-  it did: the line is published only the first time. So a second `SeasonClosed` for a season, from a restart or a
-  retried close, shows nothing new.
+- **How a champion gets here, once**: `seasons` keeps `seasons.v1.SeasonClosed` in its outbox right after the
+  finale's `RoundClosed`; `season_closed_subscriber` keeps the countries ranked 1st (`announcements.ChampionOf`;
+  level on everything, they win together) and `announce_usecase` keeps a `{season, countries}` payload at the
+  season's end. A season nobody scored in announces nothing. Its id is the season's, so a second `SeasonClosed`,
+  from a relay that sent it again or a retried close, shows nothing new.
 - **`GetHistory` returns them beside the messages**, in `announcements`, the newest `historySize` within
   `retention`, bounded apart from the messages so a burst of bombs never pushes one out. The client puts the two
   lists in one by time. **Once the messages fill the window, none is older than the oldest of them**
@@ -1050,12 +1078,12 @@ duration)`, on the admin listener (see [Operator tools](#operator-tools-adminser
   that ends later.
 - **Every mute is announced, after it is kept, by an event.** `mute_usecase` only keeps the mute, with an id from
   its `IDProvider` (`uuid_id_provider`; tests use `mutes.SequentialIDs`). `publishing_mute` then publishes
-  `chat.v1.AccountMuted`, and the chat hears it itself (`chat-announcements-mutes`): `account_muted_subscriber`
-  hands it to `announce_mute_usecase`, which names the account (`GetAuthor`) and gives an `announcements.Muted`
-  payload, `{name, seconds}`, to `announce_usecase`. So the operator's call never fails on the announcement, and a
-  mute that was not kept is never announced. The client writes "<name> has been muted for one hour", under the name
-  the account had when the event was heard. **Delivery is at most once**, like every event: a full buffer (64) or a
-  restart loses the line, never the mute; a failure to name the account is logged by `log_subscriber`.
+  `chat.v1.AccountMuted` with that id, and the chat hears it itself (`chat-announcements-mutes`):
+  `account_muted_subscriber` hands it to `announce_mute_usecase`, which names the account (`GetAuthor`) and gives an
+  `announcements.Muted`, payload `{name, seconds}`, named after the mute, to `announce_usecase`. So the operator's
+  call never fails on the announcement, and a mute that was not kept is never announced. The client writes "<name>
+  has been muted for one hour", under the name the account had when the event was heard. A mute Redis did not take
+  is a line missed, never the mute; a failure to name the account is tried again, logged by `log_subscriber`.
 - **`audit_mute` logs every call at Warn** (`admin chat mute`), with the network it holds.
 - **Kept in `chat.mutes`** (`id`, `account_id`, `scope`, `muted_at`, `muted_until`). The network is personal data,
   so the prune deletes a mute that ended more than `retention` ago. There is no unmute RPC: deleting the rows ends
@@ -1646,7 +1674,7 @@ internal/player/internal/
 - **Stats come from `planet.v1.TileTaken`**, one event per tile, so a spread of seven is seven tiles. A strike on a shield takes no tile and is never published. **The streak day is UTC**: a take on the day after `streak_last_day` extends the streak, a take on the same day changes nothing, a gap starts it again at 1, and a late event older than the last day counts a tile and leaves the streak alone (`Stats.WithTake`). `GetStats` reads it as of today: a streak whose last day is before yesterday reads 0, and `streak_best` keeps it. The rule is `Stats.AsOf` for the commands and the same `CASE` in each query's SQL; `stats_test.go` and the queries' tests pin it across UTC midnight.
 - **Messages sent come from `chat.v1.MessageSent`**, one event per message kept (`Stats.WithMessage`, `stats.messages_sent`, migration `20261003140000_messages_sent`). Every message counts: the chat's own rate limit is the only bound. A message is no take, so it neither starts nor extends a streak, and a row made by a message alone has no `streak_last_day` (the migration made it nullable). It is not on the wire as a stat: the `Chatter` track's progress is where a player sees it. Counting started with that migration; messages sent before it are not replayed.
 - **What a player did with the bonuses comes from planet's events**, one counter each in `player.stats` (migration `20261025120000_title_tracks`): `bombs_dropped` from `planet.v1.BombLanded` (`Stats.WithBomb`), `tiles_fortified` from `planet.v1.Fortified`, the landmass's whole size (`Stats.WithFortify`), so a 1-tile island taken back and forth is worth one tile each time, `bonuses_claimed` from `planet.v1.BonusClaimed`, a caught box (`Stats.WithBonus`), and `right_answers` from `planet.v1.QuizAnswered` when `correct` (`Stats.WithRightAnswer`). A bomb or a fortify with no account counts for nobody. None is a take, so none touches the streak, and none is on the wire as a stat: each is a track's progress. Counting started with that migration. Bombs and fortifies before it were brought in once from planet's ledger, on 2026-10-25, by an operator call since removed; boxes and quizzes before it are nowhere.
-- **One way to change the stats.** Each subscriber turns its event into a rule on `Stats` (`players.TakeAt(at)`, `Stats.WithMessage`, …) and hands it to `record_stats_usecase`, which calls `Store.Record(account, change)` and then publishes `StatsChanged`. `Stats` is built from a `StatsSnapshot` (`Restore`) and saved from one (`TakeSnapshot`).
+- **One way to change the stats.** Each subscriber turns its event into a rule on `Stats` (`players.TakeAt(position, at)`, `players.MessageAt(at)`, `players.BombAt(position)`, …) and hands it to `record_stats_usecase`, which calls `Store.Record(account, change)` and then publishes `StatsChanged`. `Stats` is built from a `StatsSnapshot` (`Restore`) and saved from one (`TakeSnapshot`).
 - **An admin of the game is `player.profiles.admin`**, false by default. **The game never sets it**: an operator flips it in the database (below), and `SaveProfile` never writes it, so a rename keeps it. It only means something beside a username: `GetAuthor` and `GetAuthors` answer `admin` for the chat, which shows the crown on a message whose account is an admin **now** — it is read when the message is shown, not stamped on it, so a player that stops being an admin stops looking like one on what it already said; `presence.RosterOf` sets `Admin` on a roster entry only when it is not a guest; `GetPlayer` answers it too. The frontend draws a crown on all three. An announce reads the profile, so a new admin shows on the roster within 30s, and in the chat the moment anybody reloads it.
 
   ```bash
@@ -1696,12 +1724,12 @@ internal/player/internal/
   from the flag on the board. Neither list adds up to `tiles_taken`, which counts from 2026-09-17 and only what the
   event bus delivered.
 - **`auth.v1.AccountDeleted` deletes both rows.** A take that arrives after, on a token minted before the delete, makes a new stats row; the token lives an hour at most.
-- **Events are at most once.** A take dropped by a full buffer (`events_dropped_total`) or lost in a crash is a tile the stats never count. Stats start the day the module is turned on: takes before are not replayed.
+- **An event may come twice; it counts once.** The stats row keeps a mark per kind of fact (`players.Counted`): the position after the last take, bomb and fortify of the ledger it counted, and the time of the last message, box and right answer, to the microsecond. A fact at or before its mark was counted already, so a redelivery changes nothing (see [Idempotent receivers](#idempotent-receivers)). A take is counted once the ledger flushed it, so the stats never count a take the ledger lost. Stats start the day the module is turned on: takes before are not replayed.
 - **No memory copy: every call reads or writes postgres.** This is not the tile map's pattern on purpose. The map is in memory so a click never waits on the database; a take reaches this module over the event bus, so a click already never waits on it, and the calls are few (production is ~15 takes a second at peak). A memory copy would load every account that ever took a tile at boot, and cost a dirty set, a flush loop and a window a hard kill loses.
-- **`RecordTake` and `RecordMessage` are one transaction each**, through the same path, under `pg_advisory_xact_lock` on the account: read the stats, apply `Stats.WithTake` or `Stats.WithMessage`, upsert. The rule stays in Go, and two takes never read the same stats. An advisory lock rather than `FOR UPDATE`, because a first take has no row to lock; `TestConcurrentFirstTakesAreAllCounted` fails without it.
-- **Errors are real errors.** Every `Store` method returns one; absence is `ErrNoProfile` or `ErrNoStats`, which the use cases answer as an empty profile or empty stats. On a request a database error is the error net's `internal`. On an event it is counted in `events_failed_total`, logged by `log_subscriber`, and the take is lost. Each event's write has a 5s timeout (`subscribers.Timeout`), so a stuck database cannot hold a subscriber.
+- **`RecordTake` and `RecordMessage` are one transaction each**, through the same path, under `pg_advisory_xact_lock` on the account: read the stats, apply `Stats.WithTake` or `Stats.WithMessage`, upsert. The rule stays in Go, and two takes never read the same stats. An advisory lock rather than `FOR UPDATE`, because a first take has no row to lock; `TestFactsEachSubscriberCountsAtOnceAreAllKept`, the six subscribers writing one account at once, fails without it.
+- **Errors are real errors.** Every `Store` method returns one; absence is `ErrNoProfile` or `ErrNoStats`, which the use cases answer as an empty profile or empty stats. On a request a database error is the error net's `internal`. On an event it is counted in `events_failed_total`, logged by `log_subscriber`, and the event tried again, then buried in `events:dead`. Each event's write has a 5s timeout (`subscribers.Timeout`), so a stuck database cannot hold a subscriber.
 - **`players.StoreContractSuite`** is the port's behaviour, run on `inmemory_player_store` and on postgres. The use cases are tested over the in-memory one, which can `FailWith` an error.
-- **The pool closes after the subscribers stop** (`cppg.CloseAfter`), so what they drain from their buffers at shutdown is still written.
+- **The pool closes after the subscribers stop** (`cppg.CloseAfter`), so what they read before the shutdown is still written.
 - **No foreign key to `auth.accounts`**: the schemas are each module's own, and the event is how a deletion crosses.
 - **If takes ever outgrow one transaction each**, the subscriber can batch them; nothing else changes.
 
@@ -1848,8 +1876,8 @@ internal/seasons/internal/
     postgres_round_store/         the Store over seasons.rounds, round_holdings and round_results
     inmemory_round_store/         the same port in maps, behind the testing tag
     rpc_planet_territories/         the snapshot, from planet.v1.InternalService/GetTerritories
-    usecases/take_snapshot_usecase/ closes the rounds that ended and publishes each, and the season's end with its
-                                  finale, then counts the round in progress; Runner
+    usecases/take_snapshot_usecase/ closes the rounds that ended, telling each and the season's end with its finale
+                                  through the outbox, then counts the round in progress; Runner
       log_take_snapshot/            logs each round closed, and a snapshot that failed
   seasonsv1controller/            SeasonService (a bag), the cache interceptor, the session interceptor
     get_season_handler/
@@ -1879,7 +1907,7 @@ internal/seasons/internal/
 **A player's season score is the tiles it took this season for its main flag**, the flag it took the most tiles for, so a player cannot add up several flags. **A country's board is every player who took tiles for that country, ranked by those tiles**, so a player is on the board of each flag it took for, and a change of flag shows at the first take rather than when the main flag moves.
 
 - **`standings.Tally` is the rule**: an account's tiles per flag in one season, and its main flag. `WithTake` adds one tile and makes the flag the main one when it has strictly more tiles than the main one; a tie keeps the flag that got there first. **The season of a take is the one whose interval holds `taken_at`** (`Take.Season`, over `Calendar.Current`); a take after the last season counts nothing. `tally_test.go` and `take_test.go` pin both.
-- **Takes come from `planet.v1.TileTaken`** (`seasons-standings`), one tile per event. A strike on a shield, a click the ban refuses (it never reaches the ledger) and a revert publish nothing, so they change no score. Takes before this module had a database are not replayed: counting started the day it shipped.
+- **Takes come from `planet.v1.TileTaken`** (`seasons-standings`), one tile per event, in ledger order. The tally keeps the position after the last take it counted (`Tally.TakesBelow`, `counted_takes_below` on each row), so a take told twice counts once. A strike on a shield, a click the ban refuses (it never reaches the ledger) and a revert publish nothing, so they change no score. Takes before this module had a database are not replayed: counting started the day it shipped.
 - **One transaction per take**, under `pg_advisory_xact_lock` on the account: read the account's rows for the season, apply `WithTake`, upsert the flag's row and move `main`. The rule stays in Go; the column only keeps what it said.
 - **Kept in `seasons.contributions`** (`season`, `account_id`, `country`, `tiles`, `main`; primary key `(season, account_id, country)`), with its own block, `seasons.database`, its own pool and migrations. `main` marks one row per account and season (a partial unique index). A partial index on it serves the whole map's board, and `contributions_country_board` (`season, country, tiles DESC, account_id`, every row) serves a country's.
 - **`auth.v1.AccountDeleted`** (`seasons-standings-accounts`) deletes the account's rows in every season.
@@ -2383,8 +2411,8 @@ reasons it is not one `TileUpdate` per tile:
 
 `DropBomb` is session-gated like `Click` and `ClaimBonus` — it writes the map.
 It is not throttled: holding a bomb the server granted is the gate.
-**Every bomb that went off is told to the other modules** as `planet.v1.BombLanded`
-by `publishing_drop_bomb`, inside the count, and the chat announces it — see
+**Every bomb that went off is told to the other modules** as `planet.v1.BombLanded`,
+by the ledger relay once the ledger flushed it, and the chat announces it — see
 [Announcements](#announcements).
 **And the ledger keeps it**: the drop clears through `ledger.Recording`, so every
 bomb that went off is one event in `planet.ledger_events`, with the flag each tile
@@ -3512,13 +3540,14 @@ Both chains order them the same way: error mapping outermost, then the blocklist
 - **The boot has `httpServer.startupTimeout` (1m) for all of it**, every module included. Production is about ten times slower than a laptop. On 2026-10-08, with 255k owned tiles and 180k takes, a boot that came right after another took 3.6s: geography 0.9s, tile map 0.6s, ledger 1.5s. The first boot after a stop is 2 to 3 times slower at each step, because the 1 GB droplet reads its pages back from swap and disk. Postgres alone takes ~2s to send the ledger window and ~1s to send the tiles, so the time is the box, not the Go code. The old 5s deadline made the first boot fail four times between Oct 6 and Oct 8, each time on whatever step was running at 5s (once the player module's ping). At ~8µs a take, the 4M cap would load in ~30s on a warm boot.
 - **A flush appends, it never rewrites a take.** Every `ledgerStorage.flushInterval` (1s), `Flush` hands the takes past the last flush to `Save`: one transaction that `COPY`s them in, blanks the scope of the takes between the head postgres held and the new one (what the retention or the cap dropped from memory), moves the head, and upserts the marks set since. It first deletes any row at or past the first new position, so a flush whose commit answer was lost writes again without a conflict. A take dropped before it was flushed is never written, in memory or in postgres. A failed save keeps it all for the next tick; each flush has a 10s timeout, and shutdown flushes once more.
 - **The address does not outlive the retention.** A scope is personal data, so every row behind the head has none and every row from it on has one: the boot never loads a row with no scope. Blanking runs at ~100k rows a second on a laptop, so a cut of `ledger.retention` that drops a million takes at once passes the 10s flush timeout, and so does every retry; at today's volume the whole window is ~120k.
-- **A deleted account stops being named.** `planet` hears `auth.v1.AccountDeleted` (`planet-ledger-accounts`, `subscribers/account_deleted_subscriber`, `anonymize_takes_usecase`): it flushes the ledger, then sets `account` to NULL on every row of that account, on the partial index `ledger_events_account_kind`. The flush comes first, or a take still in memory would be written after the update with the account on it. The takes keep their tile, flag and time. **What still names it**: memory, until the take ages out (72h at most); a revert mark, until the head passes it; a take made after the delete on a click token minted before it (an hour at most), as for the player's stats; and every take of an event the bus dropped (full buffer, crash). The subscriber's timeout is a minute, not 5s: the update grows with the account's history.
+- **A deleted account stops being named.** `planet` hears `auth.v1.AccountDeleted` (`planet-ledger-accounts`, `subscribers/account_deleted_subscriber`, `anonymize_takes_usecase`): it flushes the ledger, then sets `account` to NULL on every row of that account, on the partial index `ledger_events_account_kind`. The flush comes first, or a take still in memory would be written after the update with the account on it. The takes keep their tile, flag and time. **What still names it**: memory, until the take ages out (72h at most); a revert mark, until the head passes it; a take made after the delete on a click token minted before it (an hour at most), as for the player's stats; and every take of an event buried in `events:dead` after `events.maxDeliveries` failed tries. The subscriber's timeout is a minute, not 5s: the update grows with the account's history.
 - **Size.** 1M takes are 83 MB of table and 31 MB of indexes (the primary key and the account). `GetTileHolder`'s two
   add about 35 MB and 20 MB per million events (measured at 1.6M): `ledger_events_tile_take`, `(tile, position)` on
   the takes, so the last one is one row backwards; and `ledger_events_tile_payload`, a `jsonb_path_ops` GIN on the
   payloads of spreads, encloses and bombs. `(tile)` alone deduplicates to a third of the size, but a tile taken
   thousands of times then reads every take, or the table backwards. Production made ~116,000 takes in 72h at the start of October 2026, ~40,000 a day: ~15M rows and ~1.7 GB a year. Each take is written twice, once by the `COPY` and once when its scope is blanked, and autovacuum reuses the space. No partitioning yet.
-- **One pool for every runner.** `cppg.CloseAfter(db, logger, tilesStorage, takings, deletions)` runs them together and closes the pool after the last flushes, and after the subscriber drained its buffer.
+- **One pool for every runner.** `cppg.CloseAfter(db, logger, tilesStorage, takings, deletions, relay)` runs them together and closes the pool after the last flushes, after the subscriber handled what it read, and after the ledger relay's last pass.
+- **The ledger is the outbox of the map's facts.** `ledger/usecases/relay_ledger_usecase` runs every second: it reads what the ledger flushed past `ledger_relayed` (one row, the next position to tell) from memory (`ReplaySaved`), sends a `TileTaken` per take with an account, a `BombLanded` per bomb and a `Fortified` per fortify, each with its position, in ledger order, and then moves the row. A batch is 1,000 events; a failed send keeps the row, so the next tick sends them again. Memory holds everything from the head on, so a row behind the retention only skips what is gone. See [What may not be lost](#what-may-not-be-lost-the-outbox).
 
 **The charges have no memory copy**: every call reads and writes `planet.charges`, on the same pool. See [Charges](#charges-refill-bomb-enclose-spread-shields).
 
@@ -4186,7 +4215,7 @@ went).
 
 ### Shared (`internal/shared/`)
 
-Shared infrastructure: `cpbootstrap` (the composite layer), `cpcountries`, `cpconfigs` (YAML + env config via koanf), `cphttpserver` (middleware, formats), `cpprom` (Prometheus), `cptime`, `cpctx`, `cpconnect`, `cpratelimit`, `cpipblock`, `cpipscope`, `cpsession`, `cpsessionverifier`, `cpsecrets`, `cppg` (postgres — see [Durability](#durability)), `cpcolls` (collections), `cpzernio` (the client of the posting service), `cpanthropic` (the client of Anthropic's API).
+Shared infrastructure: `cpbootstrap` (the composite layer, and the event bus over Redis), `cpoutbox` (the outbox a store writes in its transaction, and its relay — see [What may not be lost](#what-may-not-be-lost-the-outbox)), `cpcountries`, `cpconfigs` (YAML + env config via koanf), `cphttpserver` (middleware, formats), `cpprom` (Prometheus), `cptime`, `cpctx`, `cpconnect`, `cpratelimit`, `cpipblock`, `cpipscope`, `cpsession`, `cpsessionverifier`, `cpsecrets`, `cppg` (postgres — see [Durability](#durability)), `cpcolls` (collections), `cpzernio` (the client of the posting service), `cpanthropic` (the client of Anthropic's API).
 
 **Every package here is prefixed `cp`, and a new one must be.** A call site reads
 `cptime.SystemClock{}` or `cpctx.GetSourceIP(ctx)`, so the prefix says the
@@ -4392,6 +4421,7 @@ func (c Config) Validate() error {
 The binary never reads inside a block to check it, so a new bound is added in the module that owns it and nothing here changes. `errors.Join` also means a broken file reports **everything** wrong at once rather than one line per restart.
 
 - `cpbootstrap.ServerConfig` — `bindAddress` empty listens on port 80; `consoleBindAddress` set to anything but loopback
+- `cpbootstrap.EventsConfig` — an `address` that is not a `host:port`, or a negative limit. An empty `address` is no bus at all, so a module that subscribes refuses the boot
 - `shared/cppg.Config` — a connection setting or the schema left empty, or a schema that is not a plain lowercase identifier. Each module checks its own block, starting with `planet.Config`
 - `planet.Config` — `gameMap.maxIndex` zero is a map that refuses every click, plus whatever `bonus` and `antiBot` refuse of their own
 - `shared/cpsession.SignerConfig` — `secret` empty, not hex or not 32 bytes while `enabled`, and a negative `ttl`. Checked by `auth.Config`, which is the only block that declares it. `cpsession.VerifierConfig`, which planet declares, has nothing to check: two switches and no key
@@ -4403,6 +4433,10 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 **Each module owns its own config struct** — `planet.Config`, `chat.Config`, `auth.Config`, `player.Config` — and `app.Config` is the four of them plus `httpServer`. The planet keys stayed at the top level of the file rather than moving under a `planet:` section: `app.Config` squashes that struct (`koanf:",squash"`), so the file and every `deploy/` environment variable are unchanged.
 
 - `httpServer.bindAddress` — the encoding is negotiated per request, so there is no format setting.
+- `events.address`, `events.password` — the Redis the modules tell each other what happened through (see [Telling other modules what happened](#telling-other-modules-what-happened)); production reads the password from `REDIS_PASSWORD`. A Redis the boot cannot reach refuses it
+- `events.maxLen` — the most entries one stream keeps (100k), for a stream whose subscriber stopped; the trim keeps them far fewer while every subscriber keeps up
+- `events.publishTimeout` — how long a click or any other publish waits on Redis (500ms); past it the event is lost and counted
+- `events.retryAfter`, `events.maxDeliveries` — the first wait before a failed event is handled again (2s, doubling up to 64 times that), and how many tries before it is buried in `events:dead` (8)
 - `httpServer.streamHeartbeat` — how often a silent live stream sends a heartbeat (default 30s), after the one it opens with. **Must stay well under the proxy's idle cut**: Cloudflare answers 524 at ~125s, and a stream that never speaks is one it kills.
 - `httpServer.startupTimeout` — how long building every module may take, the loads included (default 1m). A boot that passes it fails, and the container's restart policy boots it again. See [Durability](#durability) for why it is not 5s.
 - `httpServer.consoleBindAddress` — where the operator services listen for a shell on the box, with no session (see [Operator tools](#operator-tools-adminservice)); empty serves none, and a non-loopback address refuses the boot
@@ -4504,7 +4538,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 
 ### Protobuf
 
-API contracts live in the monorepo-shared [`/proto`](../../proto) (also used by the frontend), one package per bounded context: [`planet/v1/planet.proto`](../../proto/planet/v1/planet.proto), [`chat/v1/chat.proto`](../../proto/chat/v1/chat.proto), [`auth/v1/auth.proto`](../../proto/auth/v1/auth.proto), [`player/v1/player.proto`](../../proto/player/v1/player.proto) and [`support/v1/support.proto`](../../proto/support/v1/support.proto); [`clips/v1/clips.proto`](../../proto/clips/v1/clips.proto) has no service, only the two messages the clip generator writes for [the clips job](#the-clips-job-internalclips-cmdclips). A module's in-process events sit beside them in `events.proto` (`planet/v1`, `auth/v1`, `chat/v1`, `seasons/v1`), and what other modules call in `internal.proto`. Generated code goes to `generated/proto/`. Use `make proto` to regenerate after editing `.proto` files (requires the `buf` CLI, plus `protoc-gen-go` and `protoc-gen-connect-go` on `PATH`).
+API contracts live in the monorepo-shared [`/proto`](../../proto) (also used by the frontend), one package per bounded context: [`planet/v1/planet.proto`](../../proto/planet/v1/planet.proto), [`chat/v1/chat.proto`](../../proto/chat/v1/chat.proto), [`auth/v1/auth.proto`](../../proto/auth/v1/auth.proto), [`player/v1/player.proto`](../../proto/player/v1/player.proto) and [`support/v1/support.proto`](../../proto/support/v1/support.proto); [`clips/v1/clips.proto`](../../proto/clips/v1/clips.proto) has no service, only the two messages the clip generator writes for [the clips job](#the-clips-job-internalclips-cmdclips). A module's events sit beside them in `events.proto` (`planet/v1`, `auth/v1`, `chat/v1`, `player/v1`, `seasons/v1`), and what other modules call in `internal.proto`. Generated code goes to `generated/proto/`. Use `make proto` to regenerate after editing `.proto` files (requires the `buf` CLI, plus `protoc-gen-go` and `protoc-gen-connect-go` on `PATH`).
 
 `generated/` is for everything the root owns and this app carries a committed copy of, because the Docker build context is this directory: `generated/proto` from [`/proto`](../../proto) via `make proto`, and `generated/map` from [`/map`](../../map) via `make map` — see [Map geography](#map-geography). Nothing in there is edited by hand; run the target.
 
@@ -4512,13 +4546,13 @@ The proto package is the **only** version number: Connect derives each route fro
 
 ### Testing
 
-Tests use `testify`. **A postgres store's own tests need Docker**, and so do `s3_attachment_bucket`'s, which start an S3 server (see [Support](#support-internalsupport)); nothing else does: a suite starts one `postgres:16-alpine` container in `SetupSuite` with `cppg.StartTestServer(t)` (behind the `testing` tag), opens and migrates its schema with `OpenSchema(t, schema, migrations.FS)`, and empties it in `SetupTest` with `Purge`. The container stops when the suite ends. There is no container shared across packages: `go test` runs each package as its own process, up to `-p` (GOMAXPROCS) at once. Everything above a store is tested against a fake of its port (`inmemory_tile_storage.MemoryPersistence`), so it runs without Docker.
+Tests use `testify`. **A postgres store's own tests need Docker**, and so do `s3_attachment_bucket`'s, which start an S3 server (see [Support](#support-internalsupport)), `cpoutbox`'s, and the event tests of `cpbootstrap`, which start a `redis:7.4-alpine` with `cpbootstrap.StartTestRedis(t)` (behind the tag; it answers the `EventsConfig` to boot with, retries every 50ms); nothing else does: a suite starts one `postgres:16-alpine` container in `SetupSuite` with `cppg.StartTestServer(t)` (behind the `testing` tag), opens and migrates its schema with `OpenSchema(t, schema, migrations.FS)`, and empties it in `SetupTest` with `Purge`. The container stops when the suite ends. There is no container shared across packages: `go test` runs each package as its own process, up to `-p` (GOMAXPROCS) at once. Everything above a store is tested against a fake of its port (`inmemory_tile_storage.MemoryPersistence`), so it runs without Docker.
 
-**A path through a booted module is tested in `e2e/`**, never in `cmd/api`, which only holds the config and the module list. A test there boots the modules it needs with `cpbootstrap.RunOn` on a test postgres (`TestServer.ConfigFor(schema)`) and calls them over the wire. `RunOn` serves on listeners the test already holds, bound to `127.0.0.1:0`: a port picked free and closed again can be taken by another process before the server binds it. Under `RunOn`, `cpbootstrap` binds nothing, and an address with no held listener fails the boot. `accounts_test.go` mints a guest account, brings it back with its cookie, and checks the deprecated `session.v1` path still mints with none; `sign_in_test.go` links a provider, signs in to a known identity, signs out and deletes, over fake providers; `player_test.go` boots auth (with fake providers), planet, player and chat, clicks with a guest's token and reads `GetStats`, links an account to set a username (and sees a guest refused and a taken name refused), and deletes the account to see both go; `chat_test.go` posts on the same stack as a player with a username and a guest, sees the guest keep one code, and a sender with no token refused; `standings_test.go` boots the game stack with seasons (one season ending in 30 days), clicks as two players with a username and a guest, and reads `GetStandings` and `GetMySeason`; `race_test.go` takes a snapshot every 50ms on that stack and reads the race off the season stream; `support_test.go` sends a suggestion and a bug report as a guest on that stack, reads them on the admin listener, uploads files to a fake bucket and then sends a note naming them, opens them from the operator's links, sees a note naming a file never uploaded refused and not kept, sees an address refused its eleventh note of the day whichever account sends it, sees the bucket refuse a file past its shelf and the page told the room left, and deletes the account to see the notes stay with their files and no account; it also reports a player and a guest by the account id their chat message carries, sees a report follow a player who renamed, and sees a second report the same day refused.
+**A path through a booted module is tested in `e2e/`**, never in `cmd/api`, which only holds the config and the module list. A test there boots the modules it needs with `cpbootstrap.RunOn` on a test postgres (`TestServer.ConfigFor(schema)`) and a test Redis of its own (`StartTestRedis`), and calls them over the wire. `RunOn` serves on listeners the test already holds, bound to `127.0.0.1:0`: a port picked free and closed again can be taken by another process before the server binds it. Under `RunOn`, `cpbootstrap` binds nothing, and an address with no held listener fails the boot. `accounts_test.go` mints a guest account, brings it back with its cookie, and checks the deprecated `session.v1` path still mints with none; `sign_in_test.go` links a provider, signs in to a known identity, signs out and deletes, over fake providers; `player_test.go` boots auth (with fake providers), planet, player and chat, clicks with a guest's token and reads `GetStats`, links an account to set a username (and sees a guest refused and a taken name refused), and deletes the account to see both go; `chat_test.go` posts on the same stack as a player with a username and a guest, sees the guest keep one code, and a sender with no token refused; `standings_test.go` boots the game stack with seasons (one season ending in 30 days), clicks as two players with a username and a guest, and reads `GetStandings` and `GetMySeason`; `race_test.go` takes a snapshot every 50ms on that stack and reads the race off the season stream; `support_test.go` sends a suggestion and a bug report as a guest on that stack, reads them on the admin listener, uploads files to a fake bucket and then sends a note naming them, opens them from the operator's links, sees a note naming a file never uploaded refused and not kept, sees an address refused its eleventh note of the day whichever account sends it, sees the bucket refuse a file past its shelf and the page told the room left, and deletes the account to see the notes stay with their files and no account; it also reports a player and a guest by the account id their chat message carries, sees a report follow a player who renamed, and sees a second report the same day refused.
 
-On macOS, testcontainers asks the Docker credential helper before it pulls an image, and that can hang with no prompt in a non-interactive shell. `docker pull postgres:16-alpine` once from a terminal avoids it.
+On macOS, testcontainers asks the Docker credential helper before it pulls an image, and that can hang with no prompt in a non-interactive shell. `docker pull postgres:16-alpine` and `docker pull redis:7.4-alpine` once from a terminal avoid it.
 
-**Tests build with `-tags testing`, so use `make test` rather than a bare `go test ./...`.** Anything else that loads test files needs the tag too: `go vet -tags testing ./...`, and an editor's language server (`gopls` `buildFlags: ["-tags=testing"]`, or `go.buildTags` in VS Code), which otherwise reports the helpers as undefined. A helper that more than one package needs cannot live in a `_test.go` file, so it lives in an ordinary `.go` file carrying `//go:build testing`. The tag, not a filename convention, is what keeps such a helper out of the production binary — and what lets `make deadcode` tell a helper apart from production code. `cpctx.GetSessionID`, `cpconfigs.FromFile`, `cppg.StartTestServer`, `cpsession.TestKeyPair` (one fixed Ed25519 pair, so a test names both halves without carrying two magic strings), `cpbootstrap.RecordedEvents` (the bus, for a use case that only publishes), `cpbootstrap.RunOn` (the boot, on listeners the test holds) and `cptime.FixedClock` — the stand-still clock a dozen test packages drive time with — are the shared ones.
+**Tests build with `-tags testing`, so use `make test` rather than a bare `go test ./...`.** Anything else that loads test files needs the tag too: `go vet -tags testing ./...`, and an editor's language server (`gopls` `buildFlags: ["-tags=testing"]`, or `go.buildTags` in VS Code), which otherwise reports the helpers as undefined. A helper that more than one package needs cannot live in a `_test.go` file, so it lives in an ordinary `.go` file carrying `//go:build testing`. The tag, not a filename convention, is what keeps such a helper out of the production binary — and what lets `make deadcode` tell a helper apart from production code. `cpctx.GetSessionID`, `cpconfigs.FromFile`, `cppg.StartTestServer`, `cpsession.TestKeyPair` (one fixed Ed25519 pair, so a test names both halves without carrying two magic strings), `cpbootstrap.RecordedEvents` (the bus, for a use case that only publishes), `cpbootstrap.StartTestRedis` (a Redis for the bus), `cpoutbox.Kept` (what an outbox holds, for a store's contract), `cpbootstrap.RunOn` (the boot, on listeners the test holds) and `cptime.FixedClock` — the stand-still clock a dozen test packages drive time with — are the shared ones.
 
 ### Linting
 
