@@ -84,6 +84,74 @@ export class ReconcileTitlesResponse extends Message<ReconcileTitlesResponse> {
 }
 
 /**
+ * @generated from message player.v1.RecountStatsRequest
+ */
+export class RecountStatsRequest extends Message<RecountStatsRequest> {
+  constructor(data?: PartialMessage<RecountStatsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.RecountStatsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RecountStatsRequest {
+    return new RecountStatsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RecountStatsRequest {
+    return new RecountStatsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RecountStatsRequest {
+    return new RecountStatsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RecountStatsRequest | PlainMessage<RecountStatsRequest> | undefined, b: RecountStatsRequest | PlainMessage<RecountStatsRequest> | undefined): boolean {
+    return proto3.util.equals(RecountStatsRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message player.v1.RecountStatsResponse
+ */
+export class RecountStatsResponse extends Message<RecountStatsResponse> {
+  /**
+   * @generated from field: uint32 recounted = 1;
+   */
+  recounted = 0;
+
+  constructor(data?: PartialMessage<RecountStatsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.RecountStatsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "recounted", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RecountStatsResponse {
+    return new RecountStatsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RecountStatsResponse {
+    return new RecountStatsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RecountStatsResponse {
+    return new RecountStatsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RecountStatsResponse | PlainMessage<RecountStatsResponse> | undefined, b: RecountStatsResponse | PlainMessage<RecountStatsResponse> | undefined): boolean {
+    return proto3.util.equals(RecountStatsResponse, a, b);
+  }
+}
+
+/**
  * @generated from message player.v1.SearchPlayersRequest
  */
 export class SearchPlayersRequest extends Message<SearchPlayersRequest> {

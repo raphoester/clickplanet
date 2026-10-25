@@ -67,6 +67,7 @@ func (u *UseCase) relay(changes <-chan clicks.Change) {
 			LandmassId:  uint32(fortified.Landmass),
 			Tiles:       uint32(fortified.Tiles), //nolint:gosec // a landmass's tiles, bounded by the map.
 			FortifiedAt: timestamppb.New(u.clock.Now()),
+			AccountId:   fortified.Account,
 		})
 	}
 }

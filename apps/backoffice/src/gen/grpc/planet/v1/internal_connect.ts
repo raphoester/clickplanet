@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetTakesByCountryRequest, GetTakesByCountryResponse, GetTerritoriesRequest, GetTerritoriesResponse } from "./internal_pb.js";
+import { GetBombsAndFortifiesRequest, GetBombsAndFortifiesResponse, GetTakesByCountryRequest, GetTakesByCountryResponse, GetTerritoriesRequest, GetTerritoriesResponse } from "./internal_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -29,6 +29,16 @@ export const InternalService = {
       name: "GetTerritories",
       I: GetTerritoriesRequest,
       O: GetTerritoriesResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * @generated from rpc planet.v1.InternalService.GetBombsAndFortifies
+     */
+    getBombsAndFortifies: {
+      name: "GetBombsAndFortifies",
+      I: GetBombsAndFortifiesRequest,
+      O: GetBombsAndFortifiesResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
     },
