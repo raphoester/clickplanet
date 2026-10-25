@@ -1,5 +1,6 @@
 import {ReactNode, useCallback, useState} from "react"
 import {authAdmin} from "./api.ts"
+import {BattlePage} from "./battle/BattlePage.tsx"
 import {CLIENTS} from "./clients.ts"
 import {FailureNotice} from "./components/FailureNotice.tsx"
 import {Menu, Sidebar} from "./components/Menu.tsx"
@@ -78,6 +79,7 @@ function Console({operator, onSignedOut}: {operator: string, onSignedOut: () => 
             >
                 <h2 className="page-title">{titleOf(page)}</h2>
                 {page === "home" && <HomePage onGo={go}/>}
+                {page === "battle" && <BattlePage/>}
                 {page === "notes" && <NoteList/>}
                 {page === "reports" && <ReportsView/>}
                 {page === "players" && <PlayersPage opened={player} onOpen={setPlayer}/>}

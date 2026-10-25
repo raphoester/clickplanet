@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/bans"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/convictions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 
@@ -46,7 +47,7 @@ func inspect(t *testing.T, j *Jury, click detect.Click) {
 func TestSweepForgetsIdleCallers(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC))
 
-	j := New(Config{TrackWindow: time.Minute}, stubBanner{}, clock, Hooks{})
+	j := New(Config{TrackWindow: time.Minute}, stubBanner{}, convictions.NewMemoryStore(), clock, Hooks{})
 
 	inspect(t, j, detect.Click{Scope: "caller", Tile: 1, Country: "FR", At: clock.Now()})
 	require.Len(t, j.callers, 1)
@@ -60,7 +61,7 @@ func TestSweepForgetsIdleCallers(t *testing.T) {
 func TestTheCountryTallyIsCapped(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC))
 
-	j := New(Config{}, stubBanner{}, clock, Hooks{})
+	j := New(Config{}, stubBanner{}, convictions.NewMemoryStore(), clock, Hooks{})
 
 	for i := range 100 {
 		inspect(t, j, detect.Click{
@@ -78,7 +79,7 @@ func TestTheCountryTallyIsCapped(t *testing.T) {
 func TestOnlyTheLastFewTilesAreKept(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC))
 
-	j := New(Config{}, stubBanner{}, clock, Hooks{})
+	j := New(Config{}, stubBanner{}, convictions.NewMemoryStore(), clock, Hooks{})
 
 	for i := range uint32(100) {
 		inspect(t, j, detect.Click{Scope: "caller", Tile: i, Country: "FR", At: clock.Now()})
@@ -95,7 +96,7 @@ func TestTheSweepReportsWhoIsStanding(t *testing.T) {
 	unsure := &fixedWatchdog{name: "unsure", verdict: detect.Suspect}
 	sure := &fixedWatchdog{name: "sure", verdict: detect.Clear}
 
-	j := New(Config{SuspicionWindow: 10 * time.Minute, TrackWindow: time.Hour}, stubBanner{}, clock, Hooks{
+	j := New(Config{SuspicionWindow: 10 * time.Minute, TrackWindow: time.Hour}, stubBanner{}, convictions.NewMemoryStore(), clock, Hooks{
 		OnStanding: func(watchdog string, level detect.Verdict, callers int) {
 			standing[watchdog+" "+level.String()] = callers
 		},

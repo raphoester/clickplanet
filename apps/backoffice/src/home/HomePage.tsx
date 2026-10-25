@@ -121,7 +121,7 @@ export function HomePage({clients = CLIENTS, onGo, places: readPlaces = loadPlac
 
 type TileProps = {label: string, value: number | undefined, sub?: string, more?: boolean, onGo?: () => void}
 
-function Tile({label, value, sub, more = false, onGo}: TileProps) {
+export function Tile({label, value, sub, more = false, onGo}: TileProps) {
     const body: ReactNode = (
         <>
             <span className="tile-label">{label}</span>

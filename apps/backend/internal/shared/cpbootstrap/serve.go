@@ -14,10 +14,13 @@ import (
 	"syscall"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/prometheus/client_golang/prometheus"
 
+	"github.com/raphoester/clickplanet.lol-backend/generated/proto/metrics/v1/metricsv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cphttpserver"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpprom"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 func mountMetrics(router *http.ServeMux, metrics *prometheus.Registry, logger *slog.Logger) {
@@ -27,6 +30,14 @@ func mountMetrics(router *http.ServeMux, metrics *prometheus.Registry, logger *s
 	router.Handle("/metrics", cphttpserver.MiddlewareStack(
 		cphttpserver.NewLoggingMiddleware(logger),
 	)(metricsRouter))
+}
+
+// The admin page's read of /metrics, on the admin routes: /metrics itself is on no listener Caddy reaches.
+func mountMetricsAdmin(routes *rpcRoutes, metrics *prometheus.Registry) error {
+	service := cpprom.NewAdminService(metrics, time.Now(), cptime.SystemClock{})
+	return routes.forModule("metrics").Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
+		return metricsv1connect.NewAdminServiceHandler(service, options...)
+	})
 }
 
 type sideServer struct {

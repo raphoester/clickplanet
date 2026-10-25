@@ -34,6 +34,37 @@ service AdminService {
 
   // InternalService/GetTerritories, for the admin page: the tiles each country holds now.
   rpc GetTerritories(GetTerritoriesRequest) returns (GetTerritoriesResponse);
+
+  // Every ban the antibot's jury passed in a window, oldest first, with what it read. An operator's ban is not one.
+  rpc ListConvictions(ListConvictionsRequest) returns (ListConvictionsResponse);
+}
+
+message ListConvictionsRequest {
+  google.protobuf.Timestamp since = 1;
+  // Unset is now.
+  google.protobuf.Timestamp until = 2;
+}
+
+message ListConvictionsResponse {
+  repeated Conviction convictions = 1;
+}
+
+// The antibot ban line, kept: the sentence, every watchdog as the jury read it, and the click summary.
+message Conviction {
+  google.protobuf.Timestamp at = 1;
+  string scope = 2;
+  string account_id = 3;
+  // The account whose click convicted this one, when it fell as that account's accomplice.
+  string alongside_account_id = 4;
+  uint32 flags = 5;
+  uint32 offence = 6;
+  google.protobuf.Timestamp banned_until = 7;
+  repeated WatchdogReading readings = 8;
+  uint32 clicks = 9;
+  google.protobuf.Duration active_for = 10;
+  google.protobuf.Duration longest_gap = 11;
+  string top_country = 12;
+  uint32 top_country_clicks = 13;
 }
 
 message GetLedgerRequest {

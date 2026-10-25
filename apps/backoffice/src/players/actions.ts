@@ -2,6 +2,7 @@ import {Duration} from "@bufbuild/protobuf"
 import {Code, ConnectError} from "@connectrpc/connect"
 import {LONG_CALL_MS} from "../api.ts"
 import {ChatAdmin, PlanetAdmin, PlayerAdmin} from "../clients.ts"
+import {timeOf} from "../components/time.ts"
 import {InspectPlayerResponse, Player} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {ChargesHeld} from "../gen/grpc/planet/v1/planet_pb.ts"
 import {AdminGetPlayerResponse, PlayerMatch} from "../gen/grpc/player/v1/admin_pb.ts"
@@ -49,6 +50,13 @@ export async function ban(planet: PlanetAdmin, caller: Caller, seconds: number):
 export async function unban(planet: PlanetAdmin, caller: Caller): Promise<Unbanned> {
     const answer = await planet.unbanPlayer(caller)
     return {offence: answer.offence, until: answer.bannedUntil?.toDate(), pardonedUntil: answer.pardonedUntil?.toDate()}
+}
+
+// What an unban lifted, in the operator's words.
+export function unbannedWords(lifted: Unbanned): string {
+    const until = lifted.until === undefined ? "" : `: its ban was until ${timeOf(lifted.until)}`
+    const pardoned = lifted.pardonedUntil === undefined ? "" : ` Pardoned until ${timeOf(lifted.pardonedUntil)}.`
+    return `Lifted offence ${lifted.offence}${until}.${pardoned}`
 }
 
 // Paced on the server, a tile at a time on the live stream: a big revert takes seconds.

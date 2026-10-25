@@ -47,6 +47,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/prom_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/spread_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/throttle_click"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/throttle_click/prom_throttle"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_budget_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_map_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_map_usecase/antibot_get_map"
@@ -98,6 +99,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_territories_handler/territories_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/grant_charges_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/inspect_player_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/list_convictions_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/map_density_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/open_quiz_handler"
@@ -240,7 +242,7 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			clickUseCase = antibot_click.New(clickUseCase, guard, tilesStorage, shielding, clock, props.Metrics)
 
-			clickUseCase = throttle_click.New(clickUseCase, limiter, pricer, buckets)
+			clickUseCase = prom_throttle.New(throttle_click.New(clickUseCase, limiter, pricer, buckets), props.Metrics)
 
 			// Outside the throttle, so it reads the bank the click left.
 			clickUseCase = bonus_click.New(clickUseCase, registry)
@@ -278,9 +280,10 @@ func NewModule(config Config) cpbootstrap.Module {
 					props.Logger)),
 				GrantChargesHandler: grant_charges_handler.New(
 					audit_grant_charges.New(grant_charges_usecase.New(charges), props.Logger)),
-				GetReplayHandler:      get_replay_handler.New(replay_usecase.New(takings, tilesChecker, tilesStorage, clock)),
-				GetLedgerHandler:      get_ledger_handler.New(changes_query.NewPostgresQuery(db, clock)),
-				GetTerritoriesHandler: getTerritories,
+				GetReplayHandler:       get_replay_handler.New(replay_usecase.New(takings, tilesChecker, tilesStorage, clock)),
+				GetLedgerHandler:       get_ledger_handler.New(changes_query.NewPostgresQuery(db, clock)),
+				GetTerritoriesHandler:  getTerritories,
+				ListConvictionsHandler: list_convictions_handler.New(guard, clock),
 			}
 
 			if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {

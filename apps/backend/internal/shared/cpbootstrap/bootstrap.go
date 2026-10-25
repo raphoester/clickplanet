@@ -208,6 +208,9 @@ func run(ctx context.Context, options Options, listen listenFunc) error {
 	if err := buildModules(ctx, options, metrics, registrars, runners, closers); err != nil {
 		return err
 	}
+	if err := mountMetricsAdmin(adminRoutes, metrics); err != nil {
+		return err
+	}
 	// Before any runner starts: a subscriber registered later could miss boot events.
 	events.seal()
 

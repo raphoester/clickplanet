@@ -15,6 +15,7 @@ import {
 import {
     BanPlayerRequest,
     BanPlayerResponse,
+    Conviction,
     FindPlayersRequest,
     FindPlayersResponse,
     GetLedgerRequest,
@@ -26,6 +27,8 @@ import {
     GrantChargesResponse,
     InspectPlayerRequest,
     InspectPlayerResponse,
+    ListConvictionsRequest,
+    ListConvictionsResponse,
     PaintRandomTilesRequest,
     PaintRandomTilesResponse,
     Player,
@@ -37,6 +40,7 @@ import {
     TopPlayersResponse,
     UnbanPlayerRequest,
     UnbanPlayerResponse,
+    WatchdogReading,
 } from "./gen/grpc/planet/v1/admin_pb.ts"
 import {
     ListRowsRequest,
@@ -47,6 +51,14 @@ import {
     StatsSnapshot,
     TikTokAccount,
 } from "./gen/grpc/clips/v1/admin_pb.ts"
+import {
+    Bucket,
+    GetMetricsRequest,
+    GetMetricsResponse,
+    Histogram,
+    Label,
+    Metric,
+} from "./gen/grpc/metrics/v1/admin_pb.ts"
 import {GetTerritoriesRequest, GetTerritoriesResponse, Territory} from "./gen/grpc/planet/v1/internal_pb.ts"
 import {ChargesHeld, TileUpdate} from "./gen/grpc/planet/v1/planet_pb.ts"
 import {
@@ -60,6 +72,7 @@ import {
 } from "./gen/grpc/player/v1/admin_pb.ts"
 import {Author, GetAuthorsRequest, GetAuthorsResponse} from "./gen/grpc/player/v1/internal_pb.ts"
 import {CountryTiles, GetRosterRequest, GetRosterResponse, RosterEntry, Stats} from "./gen/grpc/player/v1/player_pb.ts"
+import {GetRaceRequest, GetRaceResponse, Race, Round, RoundStanding, Score} from "./gen/grpc/seasons/v1/seasons_pb.ts"
 import {
     DecideReportRequest,
     DecideReportResponse,
@@ -71,7 +84,16 @@ import {
     NoteKind,
     Report,
 } from "./gen/grpc/support/v1/admin_pb.ts"
-import {ChatAdmin, ClipsAdmin, Clients, PlanetAdmin, PlayerAdmin, SupportAdmin} from "./clients.ts"
+import {
+    ChatAdmin,
+    ClipsAdmin,
+    Clients,
+    MetricsAdmin,
+    PlanetAdmin,
+    PlayerAdmin,
+    SeasonsAdmin,
+    SupportAdmin,
+} from "./clients.ts"
 
 export const AT = new Date("2026-10-18T12:00:00Z")
 
@@ -85,8 +107,68 @@ function change(minutes: number, by: string, update: PartialMessage<TileUpdate>)
     })
 }
 
+function at(seconds: number): Timestamp {
+    return Timestamp.fromDate(new Date(AT.getTime() + seconds * 1000))
+}
+
+function counter(name: string, value: number, labels: Record<string, string> = {}): Metric {
+    return new Metric({
+        name, value: {case: "counter", value},
+        labels: Object.entries(labels).map(([key, label]) => new Label({name: key, value: label})),
+    })
+}
+
+function gauge(name: string, value: number, labels: Record<string, string> = {}): Metric {
+    return new Metric({
+        name, value: {case: "gauge", value},
+        labels: Object.entries(labels).map(([key, label]) => new Label({name: key, value: label})),
+    })
+}
+
+// /metrics as the server reads it `seconds` after AT, `minutes` minutes of play after the fake process started.
+export function metricsAt(seconds: number, minutes: number): GetMetricsResponse {
+    return new GetMetricsResponse({
+        startedAt: at(-3600), readAt: at(seconds),
+        metrics: [
+            counter("clicks_total", 300 * minutes, {country_id: "fr", status: "ok"}),
+            counter("clicks_total", 100 * minutes, {country_id: "dz", status: "ok"}),
+            counter("throttled_clicks", 30 * minutes),
+            counter("banned_clicks", 3 * minutes),
+            counter("blocked_clicks", 0),
+            gauge("banned_callers", 2),
+            gauge("antibot_opinions_standing", 4, {watchdog: "metronome", level: "suspect"}),
+            gauge("antibot_opinions_standing", 1, {watchdog: "metronome", level: "certain"}),
+            gauge("antibot_opinions_standing", 1, {watchdog: "catcher", level: "suspect"}),
+            gauge("antibot_opinions_standing", 0, {watchdog: "catcher", level: "certain"}),
+            counter("ban_flags", minutes, {watchdog: "catcher"}),
+            counter("bonus_offers_total", 20 * minutes),
+            counter("bonus_claims_total", 12 * minutes, {outcome: "granted"}),
+            counter("bonus_claims_total", minutes, {outcome: "refused"}),
+            counter("bonus_lapsed_total", 8 * minutes),
+            counter("bonus_claims_foreign_total", minutes),
+            new Metric({
+                name: "bonus_catch_seconds",
+                value: {
+                    case: "histogram", value: new Histogram({
+                        count: BigInt(12 * minutes), sum: 18 * minutes,
+                        buckets: [
+                            new Bucket({upperBound: 0.5, count: BigInt(minutes)}),
+                            new Bucket({upperBound: 1, count: BigInt(3 * minutes)}),
+                            new Bucket({upperBound: 3, count: BigInt(12 * minutes)}),
+                        ],
+                    }),
+                },
+            }),
+            counter("process_cpu_seconds_total", 30 * minutes),
+            gauge("process_resident_memory_bytes", 300 * 1024 * 1024),
+            gauge("go_goroutines", 420),
+            counter("events_dropped_total", 0, {event: "planet.v1.TileTaken", subscriber: "seasons-standings"}),
+        ],
+    })
+}
+
 // What each fake was asked, and a refusal to answer with instead, by method.
-export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAdmin, ClipsAdmin {
+export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAdmin, ClipsAdmin, MetricsAdmin, SeasonsAdmin {
     readonly kind = "fake admin"
     readonly asked: {method: string, request: unknown}[] = []
     readonly refusals = new Map<string, Code>()
@@ -157,6 +239,45 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         tiles: 262119,
         territories: [new Territory({countryId: "fr", tiles: 1200}), new Territory({countryId: "dz", tiles: 800})],
     })
+    // BraveFox42 caught every box, the guest it rotates with fell beside it, and an address with no account walked the ids.
+    convictions = [
+        new Conviction({
+            at: at(-600), scope: "203.0.113.7", accountId: ACCOUNT, flags: 1, offence: 1, bannedUntil: at(86_400),
+            readings: [
+                new WatchdogReading({watchdog: "retaker", level: "clear"}),
+                new WatchdogReading({watchdog: "catcher", level: "certain", evidence: "catch median=400ms", at: at(-610)}),
+                new WatchdogReading({watchdog: "metronome", level: "suspect", evidence: "stamina busy=5h40m", at: at(-620)}),
+            ],
+            clicks: 900, activeFor: new Duration({seconds: 1800n}), longestGap: new Duration({seconds: 2n}),
+            topCountry: "fr", topCountryClicks: 880,
+        }),
+        new Conviction({
+            at: at(-600), scope: "203.0.113.7", accountId: "account-guest", alongsideAccountId: ACCOUNT, flags: 1,
+            offence: 1, bannedUntil: at(86_400),
+            readings: [new WatchdogReading({watchdog: "catcher", level: "certain", evidence: "catch median=400ms", at: at(-610)})],
+            clicks: 900, topCountry: "fr", topCountryClicks: 880,
+        }),
+        new Conviction({
+            at: at(-60), scope: "2001:db8:1:2::/64", flags: 1, offence: 2, bannedUntil: at(604_800),
+            readings: [new WatchdogReading({watchdog: "sequencer", level: "certain", evidence: "walk steps=200", at: at(-61)})],
+            clicks: 240, topCountry: "dz", topCountryClicks: 240,
+        }),
+    ]
+    // GetMetrics answers each in turn, then the last again.
+    metricReads = [metricsAt(-60, 59), metricsAt(0, 60)]
+    race = new Race({
+        round: new Round({
+            number: 12, endsAtUnixMs: BigInt(AT.getTime() + 3600_000), finale: true,
+            standings: [
+                new RoundStanding({rank: 1, countryId: "fr", share: 0.31, points: 25}),
+                new RoundStanding({rank: 2, countryId: "dz", share: 0.22, points: 18}),
+            ],
+        }),
+        scores: [
+            new Score({rank: 1, countryId: "dz", points: 210, roundsWon: 6}),
+            new Score({rank: 2, countryId: "fr", points: 190, roundsWon: 4}),
+        ],
+    })
     roster = [
         new RosterEntry({key: "1", accountId: ACCOUNT, name: "BraveFox42", countryId: "fr"}),
         new RosterEntry({key: "2", accountId: "account-guest", name: "guest_a1b2c3", countryId: "dz", guest: true}),
@@ -186,7 +307,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
     ]]
 
     clients(): Clients {
-        return {chat: this, planet: this, player: this, support: this, clips: this}
+        return {chat: this, planet: this, player: this, support: this, clips: this, metrics: this, seasons: this}
     }
 
     refuse(method: string, code: Code) {
@@ -301,6 +422,19 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
 
     getLedger(request: PartialMessage<GetLedgerRequest>): Promise<GetLedgerResponse> {
         return this.answer("getLedger", request, this.ledger)
+    }
+
+    listConvictions(request: PartialMessage<ListConvictionsRequest>): Promise<ListConvictionsResponse> {
+        return this.answer("listConvictions", request, new ListConvictionsResponse({convictions: this.convictions}))
+    }
+
+    getMetrics(request: PartialMessage<GetMetricsRequest>): Promise<GetMetricsResponse> {
+        const read = this.metricReads.length > 1 ? this.metricReads.shift() : this.metricReads[0]
+        return this.answer("getMetrics", request, read ?? new GetMetricsResponse())
+    }
+
+    getRace(request: PartialMessage<GetRaceRequest>): Promise<GetRaceResponse> {
+        return this.answer("getRace", request, new GetRaceResponse({race: this.race}))
     }
 
     getTerritories(request: PartialMessage<GetTerritoriesRequest>): Promise<GetTerritoriesResponse> {

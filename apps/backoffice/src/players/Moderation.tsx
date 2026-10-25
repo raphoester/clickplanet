@@ -2,7 +2,7 @@ import {useState} from "react"
 import {ChatAdmin, PlanetAdmin} from "../clients.ts"
 import {ConfirmAction} from "../components/ConfirmAction.tsx"
 import {timeOf} from "../components/time.ts"
-import {ban, Banned, DEFAULT_MUTE_SECONDS, LADDER, mute, refusalOf, unban, Unbanned} from "./actions.ts"
+import {ban, Banned, DEFAULT_MUTE_SECONDS, LADDER, mute, refusalOf, unban, unbannedWords} from "./actions.ts"
 import {Caller} from "./caller.ts"
 import {BAN_CHOICES, Choice, labelOf, MUTE_CHOICES} from "./durations.ts"
 
@@ -66,12 +66,6 @@ export function UnbanAction({planet, caller, who, onDone}: BanProps) {
 function bannedWords(banned: Banned): string {
     return `Banned until ${timeOf(banned.until)}, offence ${banned.offence}.`
         + (banned.enforced ? "" : " Not enforced: the antibot only watches on this server.")
-}
-
-function unbannedWords(lifted: Unbanned): string {
-    const until = lifted.until === undefined ? "" : `: its ban was until ${timeOf(lifted.until)}`
-    const pardoned = lifted.pardonedUntil === undefined ? "" : ` Pardoned until ${timeOf(lifted.pardonedUntil)}.`
-    return `Lifted offence ${lifted.offence}${until}.${pardoned}`
 }
 
 type PickerProps = {label: string, choices: Choice[], value: number, onChange: (seconds: number) => void}

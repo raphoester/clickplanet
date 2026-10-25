@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/bans"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/convictions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -24,7 +25,7 @@ func (s *saying) Watch(detect.Click) (detect.Verdict, detect.Evidence) { return 
 
 func newJury(clock cptime.Clock, hooks Hooks, watchdog detect.Watchdog) *Jury {
 	banner := bans.NewBook(bans.Config{Enforce: true}, 72*time.Hour, clock, bans.NewMemoryStore(), bans.NewMemoryStore())
-	return New(Config{TrackWindow: time.Hour}, banner, clock, hooks, watchdog)
+	return New(Config{TrackWindow: time.Hour}, banner, convictions.NewMemoryStore(), clock, hooks, watchdog)
 }
 
 func TestTheCallerAndItsOpinionsSurviveASaveAndLoad(t *testing.T) {

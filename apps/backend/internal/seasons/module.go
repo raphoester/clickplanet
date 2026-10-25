@@ -130,6 +130,11 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	); err != nil {
 		return fmt.Errorf("failed to mount seasons.v1.SeasonService: %w", err)
 	}
+	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
+		return seasonsv1connect.NewAdminServiceHandler(seasonsv1controller.AdminService{GetRaceHandler: service.GetRaceHandler}, options...)
+	}); err != nil {
+		return fmt.Errorf("failed to mount seasons.v1.AdminService: %w", err)
+	}
 
 	props.Logger.Info("seasons built", slog.Int("seasons", len(config.Calendar.List)), slog.String("schema", config.Database.Schema))
 

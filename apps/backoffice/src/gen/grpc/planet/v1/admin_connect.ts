@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BanPlayerRequest, BanPlayerResponse, FindPlayersRequest, FindPlayersResponse, GetLedgerRequest, GetLedgerResponse, GetReplayRequest, GetReplayResponse, GrantChargesRequest, GrantChargesResponse, InspectPlayerRequest, InspectPlayerResponse, PaintRandomTilesRequest, PaintRandomTilesResponse, ReassignCountryRequest, ReassignCountryResponse, RevertPlayerRequest, RevertPlayerResponse, TopPlayersRequest, TopPlayersResponse, UnbanPlayerRequest, UnbanPlayerResponse } from "./admin_pb.js";
+import { BanPlayerRequest, BanPlayerResponse, FindPlayersRequest, FindPlayersResponse, GetLedgerRequest, GetLedgerResponse, GetReplayRequest, GetReplayResponse, GrantChargesRequest, GrantChargesResponse, InspectPlayerRequest, InspectPlayerResponse, ListConvictionsRequest, ListConvictionsResponse, PaintRandomTilesRequest, PaintRandomTilesResponse, ReassignCountryRequest, ReassignCountryResponse, RevertPlayerRequest, RevertPlayerResponse, TopPlayersRequest, TopPlayersResponse, UnbanPlayerRequest, UnbanPlayerResponse } from "./admin_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 import { GetTerritoriesRequest, GetTerritoriesResponse } from "./internal_pb.js";
 
@@ -125,6 +125,17 @@ export const AdminService = {
       name: "GetTerritories",
       I: GetTerritoriesRequest,
       O: GetTerritoriesResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Every ban the antibot's jury passed in a window, oldest first, with what it read. An operator's ban is not one.
+     *
+     * @generated from rpc planet.v1.AdminService.ListConvictions
+     */
+    listConvictions: {
+      name: "ListConvictions",
+      I: ListConvictionsRequest,
+      O: ListConvictionsResponse,
       kind: MethodKind.Unary,
     },
   }

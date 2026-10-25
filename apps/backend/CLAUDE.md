@@ -1188,6 +1188,8 @@ while it was away: the badge counts it, and the lines light up as the chat opens
   - **Planet reads the age off the id.** Auth makes every account id a UUIDv7, whose first 48 bits are when it was made, so `cpsession.AccountID.CreatedAt` needs no call and no change to the token. The session interceptor puts it on the context beside the account, and `clicks.PayerOf` reads it into `Payer.Created`. An id of another version says nothing and starts full. `uuid_id_provider`'s test pins that the ids it makes say when.
   - **The limiter computes it when it makes the bucket** (`cpratelimit.Key.Since` and `Start`): `Start` plus what the plain rate earned since `Since`, never past the burst. So a restart, a sweep or a `Peek` cannot hand the bank over early, and nothing is stored per account. The sweep keeps a bucket a refill topped up early until it has earned its burst, or it would come back short.
   - Only the account's own bucket: the guests' and the scope's have no age. A fresh account is still bounded by them. `TestAFreshGuestOnAFreshAddressEveryMinuteIsNoFreshBank` replays the phone over HTTP.
+- **A refused click is counted in `throttled_clicks`** (`prom_throttle`, around the throttle), beside `banned_clicks`
+  and `blocked_clicks`: the admin page charts every counter named `<reason>_clicks` as a reason a click was refused.
 - **A click is refused when either bucket is empty, and a refusal spends from neither.** `Limiter.TakeAll` checks every bucket and spends from all or none under one lock, so a player refused for a busy scope keeps its own tokens.
 - **A token with no account spends one bucket, the scope's at 1×** — exactly the throttle from before accounts. The deprecated `session.v1` mint, an invalid token while `auth.enforce` is off, and `auth.enabled` false all land here. It is a separate bucket from the scope's shared one, because a key never changes its scale.
 - **One limiter holds both.** A bucket's `Scale` is set when it is made and multiplies its burst and rate for good; `clicks.Buckets` names the keys (`account:<id>` at 1, `scope:<scope>` at the scope multiplier, or the bare scope at 1 with no account). **A key's `Pace` multiplies the payer's own bucket's rate from that take on, and leaves its burst alone**: the linked multiplier for a signed-in account, divided by the country's slowdown (see [A big country refills slower](#a-big-country-refills-slower-clickstoll)). The scope's bucket takes no pace. `clicks.PayerOf(ctx)` reads the scope and the account off the context, so the throttle, `GetBudget` and a bonus claim cannot disagree on who pays.
@@ -2494,13 +2496,13 @@ What is left after sessions. A player who solves Turnstile in a real browser and
 then runs a userscript holds a genuine session, and no address- or token-based
 check can tell them from a player. The signal that survives is **behavioural**.
 
-**The whole of its API is twelve names**, and `internal/antibot/antibot.go` is all
+**The whole of its API is thirteen names**, and `internal/antibot/antibot.go` is all
 of it: `Config`, `Observer`, `Guard`, `New` and `Description` to wire it, plus
-`Click`, `Point`, `Report`, `Sentence`, `Pardon`, `Examination` and `Reading` — the types a caller writes down, because it builds two
+`Click`, `Point`, `Report`, `Sentence`, `Pardon`, `Conviction`, `Examination` and `Reading` — the types a caller writes down, because it builds two
 and is handed the others. A caller hands over the block and the two hooks it wants
 findings reported through, and gets back a `Guard` — one that refuses and bans nothing when the block is off, so
 the DI sequence wires it the same way either way — that answers `Attempted`, `Inspect`, `Committed`, `Caught`, `Missed`, `Fetched`, `Listened`, `Flagged`, `EnforcedSentence`, `LoadState`, `Run` and `Enabled`, plus `Ban`,
-`Unban`, `Sentence`, `Pardon`, `Enforcing` and `Examine` for the operator tools (see [Operator tools](#operator-tools-adminservice)). It is
+`Unban`, `Sentence`, `Pardon`, `Enforcing`, `Examine` and `Convictions` for the operator tools (see [Operator tools](#operator-tools-adminservice)). It is
 **one** `Run` whatever the file turned on: how many sweepers there are is this
 package's business, which is why `planet` registers one runner rather than one per sweeper.
 
@@ -2562,6 +2564,22 @@ rules banned in October 2026 were people (`stamina` on Oct 7, `cadence` on Oct 9
   metrics poller's history files before that day carry the old names. The config block was
   `antiBot.shadowBan` and the package `antibot/internal/shadowban`.
 - `TestABannedCallerIsToldUntilWhenAndSpendsNoToken` pins it over HTTP.
+
+#### A ban is kept with its reasons
+
+**Every ban the jury passes is a row of `antibot.convictions`**, beside the `antibot ban` log line, since journald
+is no page an operator watches a battle from. It is the line's facts: when, the scope, the account and the account
+whose click convicted it (`alongside`, for an accomplice), the sentence, every watchdog's reading in words, and the
+click summary. The tiles the line logs are left out.
+
+- **The jury writes it** (`jury.Convictions`, `convictions.Store`), after each flag the banner accepted and in the
+  same call, so a flag inside `reflagInterval` writes nothing. A write that fails is reported like a failed flag
+  (`OnStateError`), and the ban stands.
+- **An operator's `BanPlayer` writes none**: it has no reading to keep, and the operator knows it.
+- **Read with `Guard.Convictions(since, until)`**, oldest first, which `ListConvictions` serves (see
+  [The battle reads](#the-battle-reads-listconvictions-getmetrics-getrace)). Postgres directly, no copy in memory.
+- **A row is never deleted**, like the bans: it holds an address as `antibot.bans` does.
+  `TestABanTheJuryPassesIsListedWithWhatItReadAndAnOperatorsIsNot` pins it.
 
 #### Ten watchdogs, one jury
 
@@ -3514,7 +3532,7 @@ origin with auth off refuses the boot.
 Caddy sends `/<package>.v1.AdminService/*` on the API's domain to it, so `cp_admin`, which is host-only on that
 domain, travels from the admin page, a page of the same site.
 
-The admin page is `apps/backoffice` (its `CLAUDE.md`). `planet.v1.AdminService` is the main one, in `proto/planet/v1/admin.proto`; `player.v1.AdminService` (`proto/player/v1/admin.proto`) has `ReconcileTitles`, and the reads that name players, `GetAuthors` and `GetPlayer`, and who plays now, `GetRoster` — see [Player](#player-internalplayer); `chat.v1.AdminService` (`proto/chat/v1/admin.proto`) has `Mute`, `RemoveMessage`, `GetMessage` and `ListMessages` — see [Mutes](#mutes) and [Removals](#removals); `support.v1.AdminService` (`proto/support/v1/admin.proto`) has `ListNotes`, `ListReports` and `DecideReport` — see [Support](#support-internalsupport); `clips.v1.AdminService` (`proto/clips/v1/admin.proto`) has `KeepSnapshot`, which the clips job calls over ssh, and `ListSnapshots` and `ListRows`, which the admin page reads — see [Clip stats](#clip-stats-internalclips-in-the-server); `auth.v1.AdminService` (`proto/auth/v1/admin.proto`) has the admin page's own sign-in and `WhoAmI` — see [Operators](#operators). `planetv1controller.AdminService` is its bag of handlers, the way `ClickService` is. `ReassignCountry` runs `clicks/usecases/reassign_country_usecase`, wrapped in `audit_reassign`: every tile `from_country_id` holds goes to `to_country_id`, while the game runs.
+The admin page is `apps/backoffice` (its `CLAUDE.md`). `planet.v1.AdminService` is the main one, in `proto/planet/v1/admin.proto`; `player.v1.AdminService` (`proto/player/v1/admin.proto`) has `ReconcileTitles`, and the reads that name players, `GetAuthors` and `GetPlayer`, and who plays now, `GetRoster` — see [Player](#player-internalplayer); `chat.v1.AdminService` (`proto/chat/v1/admin.proto`) has `Mute`, `RemoveMessage`, `GetMessage` and `ListMessages` — see [Mutes](#mutes) and [Removals](#removals); `support.v1.AdminService` (`proto/support/v1/admin.proto`) has `ListNotes`, `ListReports` and `DecideReport` — see [Support](#support-internalsupport); `clips.v1.AdminService` (`proto/clips/v1/admin.proto`) has `KeepSnapshot`, which the clips job calls over ssh, and `ListSnapshots` and `ListRows`, which the admin page reads — see [Clip stats](#clip-stats-internalclips-in-the-server); `auth.v1.AdminService` (`proto/auth/v1/admin.proto`) has the admin page's own sign-in and `WhoAmI` — see [Operators](#operators); `seasons.v1.AdminService` (`proto/seasons/v1/admin.proto`) has `GetRace`, and `metrics.v1.AdminService` (`proto/metrics/v1/admin.proto`) `GetMetrics` — see [The battle reads](#the-battle-reads-listconvictions-getmetrics-getrace). `planetv1controller.AdminService` is its bag of handlers, the way `ClickService` is. `ReassignCountry` runs `clicks/usecases/reassign_country_usecase`, wrapped in `audit_reassign`: every tile `from_country_id` holds goes to `to_country_id`, while the game runs.
 
 - **The move is paced.** `inmemory_tile_storage.Reassign` moves one batch under the lock and returns where to resume; the use case sleeps 50ms between batches. A batch is a quarter of `tilesStorage.subscriberBuffer`, because each tile is one update on every open stream, the clicks still arriving need the rest of the buffer, and a stream that overflows it is closed.
 - **Each tile is an ordinary `TileUpdate`** with `Previous` set, not a new event kind: open clients repaint with no frontend release, `counts` move so the toll prices the next click right, and `dirty` puts it in the next flush.
@@ -3581,6 +3599,27 @@ stream sent it. The frontend's clip generator plays it back (see its CLAUDE.md, 
     changes, not flushed yet, is not in it.
 - **`GetTerritories`** is the internal service's, handler and all: the tiles each country holds now, and the map's
   size.
+
+#### The battle reads: `ListConvictions`, `GetMetrics`, `GetRace`
+
+**What the admin page's Battle page reads, besides `GetLedger` and `GetRoster`** (`apps/backoffice`'s `CLAUDE.md`,
+"The battle page"). Each is a raw read; the page counts and charts.
+
+- **`planet.v1.AdminService/ListConvictions(since, until)`**: every ban the jury passed in the window, oldest first,
+  with its readings and its click summary (see [A ban is kept with its reasons](#a-ban-is-kept-with-its-reasons)).
+  Unset `until` is now; no `since`, or one not before `until`, is `InvalidArgument`; the antibot off is
+  `FailedPrecondition`. `list_convictions_handler` maps `Guard.Convictions` straight onto the wire.
+- **`metrics.v1.AdminService/GetMetrics`**: every series the process's registry gathers, as `/metrics` would say it,
+  with `started_at` (when the counters started) and `read_at`. **The page subtracts two answers**, as one reads the
+  metrics poller's files, and never two with different `started_at`. It is served by `cpbootstrap`
+  (`cpprom.AdminService`, `mountMetricsAdmin`) on the admin routes, since the registry is the process's, not a
+  module's; `/metrics` itself is on the public router, which Caddy does not route. A type the wire cannot carry
+  (untyped) is an error (`cpprom.ErrUnknownType`). **The registry carries the Go and process collectors**
+  (`cpprom.NewRegistry`): goroutines, CPU seconds, resident memory. The poller's `grep` keeps them out of its files.
+- **`seasons.v1.AdminService/GetRace`** is `SeasonService/GetRace`'s handler mounted again: Caddy answers CORS on the
+  game's routes for the game's origin alone, so the admin page cannot read the public one.
+- `e2e/battle_test.go` signs an operator in, lets a quick `sequencer` ban a guest walking the ids, and reads all
+  three from the page.
 
 #### `PaintRandomTiles`
 

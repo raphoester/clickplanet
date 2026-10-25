@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/bans"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/convictions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/jury"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -45,20 +46,25 @@ func (w *stubWatchdog) Committed(detect.Click) { w.committed++ }
 func (w *stubWatchdog) Attempted(detect.Click) { w.attempted++ }
 
 type harness struct {
-	t       *testing.T
-	jury    *jury.Jury
-	banner  *bans.Book
-	clock   *cptime.FixedClock
-	reports []detect.Report
-	rises   []string
+	t           *testing.T
+	jury        *jury.Jury
+	banner      *bans.Book
+	convictions *convictions.MemoryStore
+	clock       *cptime.FixedClock
+	reports     []detect.Report
+	rises       []string
 }
 
 func newHarness(t *testing.T, config jury.Config, ban bans.Config, watchdogs ...detect.Watchdog) *harness {
 	t.Helper()
-	h := &harness{t: t, clock: cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC))}
+	h := &harness{
+		t:           t,
+		clock:       cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC)),
+		convictions: convictions.NewMemoryStore(),
+	}
 
 	h.banner = bans.NewBook(ban, pardon, h.clock, bans.NewMemoryStore(), bans.NewMemoryStore())
-	h.jury = jury.New(config, h.banner, h.clock, jury.Hooks{
+	h.jury = jury.New(config, h.banner, h.convictions, h.clock, jury.Hooks{
 		OnFlag: func(report detect.Report) {
 			h.reports = append(h.reports, report)
 		},
@@ -651,10 +657,40 @@ func TestAFlagThatCannotBeKeptIsReported(t *testing.T) {
 	cause := errors.New("postgres is down")
 	store.FailWith(cause)
 
-	j := jury.New(juryConfig(), bans.NewBook(banConfig(), pardon, clock, store, store), clock, jury.Hooks{},
+	j := jury.New(juryConfig(), bans.NewBook(banConfig(), pardon, clock, store, store), convictions.NewMemoryStore(), clock,
+		jury.Hooks{},
 		&stubWatchdog{name: "sure", verdict: detect.Certain})
 
 	err := j.Inspect(t.Context(), detect.Click{Scope: "caller", Tile: 1, Country: "FR", At: clock.Now()})
 
 	require.ErrorIs(t, err, cause)
+}
+
+func TestEveryBanTheJuryPassesIsKeptAsItIsReported(t *testing.T) {
+	ring := &stubWatchdog{name: "ring", verdict: detect.Certain, accomplices: []detect.Accomplice{{Account: "second", SignedIn: true}}}
+	h := newHarness(t, juryConfig(), banConfig(), ring)
+
+	h.inspect(detect.Click{Scope: "campus", Account: "first", SignedIn: true, Tile: 1, Country: "FR", At: h.clock.Now()})
+	h.clock.Advance(time.Second)
+	h.inspect(detect.Click{Scope: "campus", Account: "first", SignedIn: true, Tile: 1, Country: "FR", At: h.clock.Now()})
+
+	require.Len(t, h.reports, 2, "the second click is inside the reflag interval")
+	at := h.clock.Now().Add(-time.Second)
+	assert.Equal(t, []convictions.Conviction{convictions.Of(h.reports[0], at), convictions.Of(h.reports[1], at)},
+		h.convictions.Stored())
+	assert.Equal(t, "first", h.convictions.Stored()[1].Alongside)
+}
+
+func TestAConvictionThatCannotBeKeptIsReportedAndTheBanStillFalls(t *testing.T) {
+	h := newHarness(t, juryConfig(), banConfig(), &stubWatchdog{name: "sure", verdict: detect.Certain})
+	cause := errors.New("postgres is down")
+	h.convictions.FailWith(cause)
+
+	err := h.jury.Inspect(t.Context(), detect.Click{Scope: "caller", Tile: 1, Country: "FR", At: h.clock.Now()})
+
+	require.ErrorIs(t, err, cause)
+	assert.Len(t, h.reports, 1, "the log line is still written")
+	_, banned, err := h.banner.EnforcedSentence(t.Context(), bans.Caller{Scope: "caller"})
+	require.NoError(t, err)
+	assert.True(t, banned)
 }

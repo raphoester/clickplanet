@@ -65,6 +65,9 @@ const (
 	// AdminServiceGetTerritoriesProcedure is the fully-qualified name of the AdminService's
 	// GetTerritories RPC.
 	AdminServiceGetTerritoriesProcedure = "/planet.v1.AdminService/GetTerritories"
+	// AdminServiceListConvictionsProcedure is the fully-qualified name of the AdminService's
+	// ListConvictions RPC.
+	AdminServiceListConvictionsProcedure = "/planet.v1.AdminService/ListConvictions"
 )
 
 // AdminServiceClient is a client for the planet.v1.AdminService service.
@@ -83,6 +86,8 @@ type AdminServiceClient interface {
 	GetLedger(context.Context, *connect.Request[v1.GetLedgerRequest]) (*connect.Response[v1.GetLedgerResponse], error)
 	// InternalService/GetTerritories, for the admin page: the tiles each country holds now.
 	GetTerritories(context.Context, *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error)
+	// Every ban the antibot's jury passed in a window, oldest first, with what it read. An operator's ban is not one.
+	ListConvictions(context.Context, *connect.Request[v1.ListConvictionsRequest]) (*connect.Response[v1.ListConvictionsResponse], error)
 }
 
 // NewAdminServiceClient constructs a client for the planet.v1.AdminService service. By default, it
@@ -168,6 +173,12 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("GetTerritories")),
 			connect.WithClientOptions(opts...),
 		),
+		listConvictions: connect.NewClient[v1.ListConvictionsRequest, v1.ListConvictionsResponse](
+			httpClient,
+			baseURL+AdminServiceListConvictionsProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("ListConvictions")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -185,6 +196,7 @@ type adminServiceClient struct {
 	getReplay        *connect.Client[v1.GetReplayRequest, v1.GetReplayResponse]
 	getLedger        *connect.Client[v1.GetLedgerRequest, v1.GetLedgerResponse]
 	getTerritories   *connect.Client[v1.GetTerritoriesRequest, v1.GetTerritoriesResponse]
+	listConvictions  *connect.Client[v1.ListConvictionsRequest, v1.ListConvictionsResponse]
 }
 
 // ReassignCountry calls planet.v1.AdminService.ReassignCountry.
@@ -247,6 +259,11 @@ func (c *adminServiceClient) GetTerritories(ctx context.Context, req *connect.Re
 	return c.getTerritories.CallUnary(ctx, req)
 }
 
+// ListConvictions calls planet.v1.AdminService.ListConvictions.
+func (c *adminServiceClient) ListConvictions(ctx context.Context, req *connect.Request[v1.ListConvictionsRequest]) (*connect.Response[v1.ListConvictionsResponse], error) {
+	return c.listConvictions.CallUnary(ctx, req)
+}
+
 // AdminServiceHandler is an implementation of the planet.v1.AdminService service.
 type AdminServiceHandler interface {
 	ReassignCountry(context.Context, *connect.Request[v1.ReassignCountryRequest]) (*connect.Response[v1.ReassignCountryResponse], error)
@@ -263,6 +280,8 @@ type AdminServiceHandler interface {
 	GetLedger(context.Context, *connect.Request[v1.GetLedgerRequest]) (*connect.Response[v1.GetLedgerResponse], error)
 	// InternalService/GetTerritories, for the admin page: the tiles each country holds now.
 	GetTerritories(context.Context, *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error)
+	// Every ban the antibot's jury passed in a window, oldest first, with what it read. An operator's ban is not one.
+	ListConvictions(context.Context, *connect.Request[v1.ListConvictionsRequest]) (*connect.Response[v1.ListConvictionsResponse], error)
 }
 
 // NewAdminServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -344,6 +363,12 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(adminServiceMethods.ByName("GetTerritories")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServiceListConvictionsHandler := connect.NewUnaryHandler(
+		AdminServiceListConvictionsProcedure,
+		svc.ListConvictions,
+		connect.WithSchema(adminServiceMethods.ByName("ListConvictions")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/planet.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AdminServiceReassignCountryProcedure:
@@ -370,6 +395,8 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 			adminServiceGetLedgerHandler.ServeHTTP(w, r)
 		case AdminServiceGetTerritoriesProcedure:
 			adminServiceGetTerritoriesHandler.ServeHTTP(w, r)
+		case AdminServiceListConvictionsProcedure:
+			adminServiceListConvictionsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -425,4 +452,8 @@ func (UnimplementedAdminServiceHandler) GetLedger(context.Context, *connect.Requ
 
 func (UnimplementedAdminServiceHandler) GetTerritories(context.Context, *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.GetTerritories is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) ListConvictions(context.Context, *connect.Request[v1.ListConvictionsRequest]) (*connect.Response[v1.ListConvictionsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.ListConvictions is not implemented"))
 }

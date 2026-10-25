@@ -10,6 +10,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/catcher"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/churner"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/cohort"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/convictions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/defender"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/evidence"
@@ -18,6 +19,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/metronome"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/postgres_ban_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/postgres_conviction_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/postgres_evidence_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/retaker"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rotator"
@@ -33,6 +35,8 @@ type (
 	Report   = detect.Report
 	Sentence = bans.Sentence
 	Pardon   = bans.Pardon
+
+	Conviction = convictions.Conviction
 
 	Examination = detect.Examination
 	Reading     = detect.Reading
@@ -171,7 +175,8 @@ func New(config Config, clock cptime.Clock, observer Observer) (*Guard, error) {
 	db := cppg.New(config.Database)
 
 	return build(config, clock, observer, postgres{db: db},
-		postgres_ban_store.NewScopes(db), postgres_ban_store.NewAccounts(db), postgres_evidence_store.New(db))
+		postgres_ban_store.NewScopes(db), postgres_ban_store.NewAccounts(db), postgres_conviction_store.New(db),
+		postgres_evidence_store.New(db))
 }
 
 type database interface {
@@ -203,6 +208,7 @@ func build(
 	db database,
 	scopeBans bans.Store,
 	accountBans bans.Store,
+	convicted convictions.Store,
 	evidences evidence.Persistence,
 ) (*Guard, error) {
 	if clock == nil {
@@ -214,7 +220,7 @@ func build(
 		onStateError = func(error) {}
 	}
 
-	g := &Guard{onStart: observer.OnStart, onStateError: onStateError, database: db}
+	g := &Guard{onStart: observer.OnStart, onStateError: onStateError, database: db, convictions: convicted}
 
 	var (
 		watchdogs []detect.Watchdog
@@ -353,7 +359,7 @@ func build(
 	banner := bans.NewBook(config.Bans, config.Evidence.WithDefaults().Retention, clock, scopeBans, accountBans)
 
 	g.banner = banner
-	g.jury = jury.New(juryConfig, banner, clock, juryHooks(observer), watchdogs...)
+	g.jury = jury.New(juryConfig, banner, convicted, clock, juryHooks(observer), watchdogs...)
 	g.runners = append(g.runners, g.jury.Run)
 
 	g.evidence = evidence.New(config.Evidence, clock, evidences, onStateError, append(sections, g.jury)...)
@@ -395,6 +401,7 @@ type Description struct {
 type Guard struct {
 	jury        *jury.Jury
 	banner      *bans.Book
+	convictions convictions.Store
 	evidence    *evidence.Store
 	database    database
 	catcher     *catcher.Watchdog
@@ -560,6 +567,15 @@ func (g *Guard) Examine(ctx context.Context, scope, account string) (Examination
 	}
 
 	return examination, nil
+}
+
+// From since, until before until, oldest first.
+func (g *Guard) Convictions(ctx context.Context, since, until time.Time) ([]Conviction, error) {
+	if !g.Enabled() {
+		return nil, nil
+	}
+
+	return g.convictions.Between(ctx, since, until) //nolint:wrapcheck // the store already named what failed.
 }
 
 func (g *Guard) Enforcing() bool { return g.Enabled() && g.banner.Enforcing() }

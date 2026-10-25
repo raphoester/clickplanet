@@ -8,7 +8,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 reachable only over SSH before, and **every admin method has a place on it**. One page at a time, picked in the
 burger menu (see [The menu](#the-menu)), by group:
 
-- **Overview**: Home, how the game is doing now and over the last hours (see [The home page](#the-home-page)).
+- **Overview**: Home, how the game is doing now and over the last hours (see [The home page](#the-home-page)), and
+  Battle, the minutes of a busy stretch as they happen (see [The battle page](#the-battle-page)).
 - **Feedback**: Ideas and bugs, the notes players send, read only, each with who sent it (see
   [Who sent a note](#who-sent-a-note)) and its photos and videos (see
   [A note's photos and videos](#a-notes-photos-and-videos)).
@@ -157,6 +158,39 @@ What the page does with them:
 - **What it does not show yet**: HTTP requests. The clicks come from the ledger, which keeps 72 hours and survives a
   restart; the backend's request counters are in-process, and the metrics poller's history is files on the server.
 
+## The battle page
+
+`src/battle/`, for watching a rush live, the Final Battle first: bans as they fall, clicks and refused clicks a
+minute, the race, the antibot, the boxes and the server. **The backend sends raw reads, the page counts**, as on Home.
+Every read refreshes every 15 seconds (`REFRESH_MS`, `usePolling`), never twice at once, each failing alone, the last
+answer shown while the next is read. A span is picked above: 30 minutes, 1 hour, 2 hours (first) or 3 hours, in
+minutes.
+
+- **Bans** (`BanList`): `planet.v1.AdminService/ListConvictions` over the span, the latest first. Each ban names its
+  player (`namesOf`, its flag the country it clicked for most), the watchdogs that fired with their evidence (a
+  watchdog that read clear is no reason, and is left out), its offence and end, who it fell with (`alongside`), and
+  its clicks. **Open player** opens it on the player page; **Unban account** and **Unban address** lift each key apart,
+  since a guest the jury banned is banned on both. The antibot off says so, not "nobody".
+- **Clicks a minute** come from the ledger (`tail.ts`): the first read takes the span, each next one the minutes since
+  the last (`fromOf`), 5 seconds behind now (`LAG_MS`), since the last second is not flushed yet. The changes that leave
+  the span are dropped (`joined`); a wider span reads again whole. Then `slotsOf`, as on Home, in minutes.
+- **Refused a minute** come from the process's counters (`metrics.v1.AdminService/GetMetrics`, `counters.ts`). **The
+  history starts when the page opens**: the counters are in process, so the page keeps its own answers for the span
+  (`keptSamples`) and subtracts them, spread over the minutes between two reads (`perSlotOf`); a restart (another
+  `started_at`) counts from zero. **A reason is every counter named `<reason>_clicks`** (`reasonsOf`): throttled,
+  banned, blocked, then any new one, frozen first, with no change here. The tile is the last minute's rate
+  (`lastMinuteOf`) and its share of every click the counters saw.
+- **The two charts** (`MinuteChart`) share one hover and one scale each: clicks alone, then one line a reason, in the
+  palette's slots from the second on (`--series-2` to `--series-5`), with a legend and a table. A minute no two reads
+  span has no point.
+- **Race** (`RacePanel`): `seasons.v1.AdminService/GetRace`, the round's standings and the season's points, as the
+  players see them.
+- **Antibot**, **Boxes**, **Server** (`CounterPanels`): callers each watchdog reads at suspect and certain now
+  (`antibot_opinions_standing`) and the bans each argued for (`ban_flags`); the boxes offered, caught, lapsed and
+  claimed for another a minute, and the share caught within a second (`bonus_catch_seconds`); the process's CPU,
+  memory, goroutines and the events the bus dropped. **Every counter** lists the rest.
+- **Playing now** is Home's (`PlayingNow`).
+
 ## Who sent a note
 
 **A note is sent from an account, always**: `SuggestFeature` and `ReportBug` refuse a caller with no session, and
@@ -239,7 +273,7 @@ note and keeps its text).
 - **The long calls take `LONG_CALL_MS`** (`api.ts`, 2 minutes) instead of the transport's 10s: a revert, a
   reassign and a paint are paced on the server, a replay is MBs, and the two ops runs page through every player.
 - **Every page takes its clients** (`clients.ts`: `ChatAdmin`, `PlanetAdmin`, `PlayerAdmin`, `SupportAdmin`,
-  defaulting to `CLIENTS`), so a test hands it `FakeAdmin` (`fakeAdmin.ts`), which answers every method, records
+  `ClipsAdmin`, `MetricsAdmin`, `SeasonsAdmin`, defaulting to `CLIENTS`), so a test hands it `FakeAdmin` (`fakeAdmin.ts`), which answers every method, records
   each request (`askedFor`) and can refuse a method with a code. The jsdom tests drive each action through its
   page.
 
@@ -382,6 +416,8 @@ src/
                     Fact, Person, When
   home/             Home: the tiles, ActivityCharts, Heatmap, CountryTable, PlayingNow, over ledger.ts (the counts),
                     heat.ts (the picture), places.ts (the tile coordinates) and activity.ts
+  battle/           Battle: BanList, MinuteChart, RacePanel, CounterPanels, over tail.ts (the ledger read on),
+                    counters.ts (the process's counters) and usePolling
   support/          Ideas and bugs: NoteList, Attachments, labels.ts (names, outcomes, device lines, sizes)
   chat/             Conversation and TheirMessages, which reports/ and players/ show, over chatPages.ts (a page of
                     ListMessages, the parties a report names) and theirConversations.ts

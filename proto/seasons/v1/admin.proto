@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package seasons.v1;
+
+import "seasons/v1/seasons.proto";
+
+// No authentication of its own: served on the console listener, and on the admin listener behind its gate. Never the public router.
+service AdminService {
+  // SeasonService/GetRace, for the admin page: the public service answers the game's origin alone.
+  rpc GetRace(GetRaceRequest) returns (GetRaceResponse);
+}
