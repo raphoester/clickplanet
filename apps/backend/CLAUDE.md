@@ -79,7 +79,7 @@ it asks of another module. See [Clip stats](#clip-stats-internalclips-in-the-ser
 
 They share the process, the transport and the country list, and **nothing else**. None imports another; each owns its own domain types, its own proto package, its own storage adapter (where it has one) and its own edge.
 
-**A module never calls another module's code or reads its data in its own stack trace.** When one needs an answer from another it asks over Connect, on a loopback listener — see [Calling another module](#calling-another-module). Five do: `planet`, `player`, `chat`, `seasons` and `support` take the click token's verifying key from `auth`, `player` asks `auth` whether an account is linked and `planet` which countries an account took tiles for and from, `chat` asks `player` who posts: the username, or the guest code, `seasons` asks `player` who has a username and `planet` what each country holds, and `support` asks `player` how to name the accounts of a report. When one only has to say that something happened, it publishes an event in process and never learns who listens — see [Telling other modules what happened](#telling-other-modules-what-happened). `planet` publishes `TileTaken`, `BombLanded`, `Fortified`, `BonusClaimed` and `QuizAnswered`, `auth` publishes `AccountDeleted`, `SignedIn` and `SignedOut`, `chat` publishes `MessageSent` and `AccountMuted`, `player` publishes `StatsChanged`, and `seasons` publishes `RoundClosed`; `player` hears every one of them but `AccountMuted` and `RoundClosed`, `chat` hears `AccountMuted`, `BombLanded`, `Fortified` and `RoundClosed`, `seasons` hears `TileTaken` and `AccountDeleted`, and `planet`, `chat` and `support` hear `AccountDeleted` too.
+**A module never calls another module's code or reads its data in its own stack trace.** When one needs an answer from another it asks over Connect, on a loopback listener — see [Calling another module](#calling-another-module). Five do: `planet`, `player`, `chat`, `seasons` and `support` take the click token's verifying key from `auth`, `player` asks `auth` whether an account is linked and `planet` which countries an account took tiles for and from, `chat` asks `player` who posts: the username, or the guest code, `seasons` asks `player` who has a username and `planet` what each country holds, and `support` asks `player` how to name the accounts of a report. When one only has to say that something happened, it publishes an event in process and never learns who listens — see [Telling other modules what happened](#telling-other-modules-what-happened). `planet` publishes `TileTaken`, `BombLanded`, `Fortified`, `BonusClaimed` and `QuizAnswered`, `auth` publishes `AccountDeleted`, `SignedIn` and `SignedOut`, `chat` publishes `MessageSent` and `AccountMuted`, `player` publishes `StatsChanged`, and `seasons` publishes `RoundClosed` and `SeasonClosed`; `player` hears every one of them but `AccountMuted`, `RoundClosed` and `SeasonClosed`, `chat` hears `AccountMuted`, `BombLanded`, `Fortified`, `RoundClosed` and `SeasonClosed`, `seasons` hears `TileTaken` and `AccountDeleted`, and `planet`, `chat` and `support` hear `AccountDeleted` too.
 
 Bonus boxes live inside `internal/planet/` rather than beside it: what they grant
 is click allowance, and what carries them is the planet stream. A context of
@@ -288,7 +288,6 @@ return []bootstrap.Module{
 | `support` | `player.v1.InternalService/GetAuthors` | the name of each account a page of reports names, on each `ListReports` | `list_reports_handler/reports_query/rpc_player_authors` |
 | `auth`'s admin gate, which `main` builds | `auth.v1.InternalService/GetOperator` | who calls the admin listener, and whether that account operates, on each admin call | `admingate/admission/rpc_operators` |
 | `player` | `planet.v1.InternalService/GetTakesByCountry` | the flags an account took tiles for and the flags that held them, from the ledger, on each `GetFronts`, on each `GetPlayer` the cache does not answer, and on each operator's `AdminService/GetPlayer` | `playerv1controller/rpc_planet_fronts` |
-| `player` | `planet.v1.InternalService/GetBombsAndFortifies` | each account's bombs and the tiles of every landmass it fortified, from the ledger, once per page of an operator's `AdminService/RecountStats` | `players/rpc_planet_recounts` |
 
 A module cannot import another's interior, so the key client all five need is `shared/cpsessionverifier` rather than a copy in each.
 
@@ -339,6 +338,7 @@ The events today:
 | `chat.v1.AccountMuted{account_id, muted_at, duration}` | `chat`, `mute_usecase/publishing_mute` | after each mute is kept; a refused or failed mute publishes nothing. Never the network it holds | `chat`, which announces it |
 | `player.v1.StatsChanged{account_id}` | `player`, `record_stats_usecase` | after each take, message, bomb, fortify, box or right answer is counted on the account's stats; a failed write publishes nothing | `player`, which grants the titles the stats now earn |
 | `seasons.v1.RoundClosed{season, number, finale, ended_at, results}` | `seasons`, `take_snapshot_usecase` | after each round's results are kept; a failed close publishes nothing | `chat`, which announces the podium |
+| `seasons.v1.SeasonClosed{season, ended_at, table}` | `seasons`, `take_snapshot_usecase` | after the finale's results are kept, right after its `RoundClosed`: the season's whole table, ranked by `rounds.TableOf`, the champion first; a failed close publishes nothing | `chat`, which announces the champion |
 
 Adding a context that callers talk to means a `proto/<name>/v1`, an `internal/<name>/` with a `module.go`, and one line in the slice. Connect derives the route from the proto package, so there is no prefix to allocate and no router to edit.
 
@@ -506,13 +506,16 @@ internal/chat/internal/
     usecases/react_usecase/             puts a reaction on or off, publishes the tally — Messages, Board, Publisher, Authors
       muting_react/                     refuses a muted caller before anything else — Mutes
   announcements/                        Announcement, AnnouncementID, Kind (Kinds, Known: announce_usecase refuses
-                                        any other), Bomb, Muted and Round (payloads), the Storage and IDProvider ports,
-                                        the suite and SequentialIDs
+                                        any other), Bomb, Muted and Round (payloads), Champion (its own Announcement,
+                                        under its season's id), the Storage and IDProvider ports, the suite and
+                                        SequentialIDs
     postgres_announcement_store/        Storage, over chat.announcements
     inmemory_announcement_storage/      Storage in a slice — behind the testing tag, tests only
     uuid_id_provider/                   IDProvider: a random UUID
     usecases/announce_usecase/          keeps an announcement, then publishes it — Appender, Publisher, IDProvider
     usecases/announce_mute_usecase/     names a muted account, announces it as a Muted payload — Authors, Announcer
+    usecases/announce_champion_usecase/ keeps a season's champion once, publishes it the first time — Appender,
+                                        Publisher
   seen/                                 Until (the rule on a mark's time), ErrNoTime, the Storage port: writes only
     postgres_seen_store/                Storage, over chat.seen; what it keeps is tested through history_query
     inmemory_seen_storage/              Storage in a map, and Kept for a test — behind the testing tag, tests only
@@ -553,6 +556,7 @@ internal/chat/internal/
     bomb_landed_subscriber/             planet.v1.BombLanded → announce_usecase, as a Bomb payload
     account_muted_subscriber/           chat.v1.AccountMuted → announce_mute_usecase
     round_closed_subscriber/            seasons.v1.RoundClosed → announce_usecase, as a Round payload
+    season_closed_subscriber/           seasons.v1.SeasonClosed → announce_champion_usecase
     account_deleted_subscriber/         auth.v1.AccountDeleted → forget_seen_usecase
     log_subscriber/                     logs an event a subscriber refused (player's, copied)
   migrations/                           the chat schema
@@ -1076,10 +1080,11 @@ The table holds **personal data** — IPs next to user-authored text — so the 
 #### Announcements
 
 **The chat also says things on its own**: a line between the messages with no sender, which the client draws
-without a bubble. Four kinds today: `bomb`, every bomb that went off, on land or in the sea, `mute`, every
-mute an operator gave (see [Mutes](#mutes)), `round`, every round of a season that closed, and `fortify`, every
+without a bubble. Five kinds today: `bomb`, every bomb that went off, on land or in the sea, `mute`, every
+mute an operator gave (see [Mutes](#mutes)), `round`, every round of a season that closed, `fortify`, every
 landmass of 50 tiles or more a flag fortified (`{country, ground, landmass, tiles}`: the client names the landmass
-from its own table, `ground` for a country's main one; see [Fortify](#fortify)).
+from its own table, `ground` for a country's main one; see [Fortify](#fortify)), and `champion`, the country that
+won a season.
 
 - **A separate type and a separate table, not a message with no author.** An announcement has no name, tag, IP,
   text or reactions, and a message has no kind or payload; sharing a base would make every column of one
@@ -1105,6 +1110,13 @@ from its own table, `ground` for a country's main one; see [Fortify](#fortify)).
   `round_closed_subscriber` turns it into a `Round` payload, `{number, finale, podium}`, and `announce_usecase`
   keeps it. The podium is `announcements.RoundOf`'s rule: the places ranked 3rd or better, ties included. The
   announcement's time is the round's end, not the minute it closed.
+- **How a champion gets here, once**: `seasons` publishes `seasons.v1.SeasonClosed` right after the finale's
+  `RoundClosed`; `season_closed_subscriber` keeps the countries ranked 1st (`announcements.ChampionOf`; level on
+  everything, they win together) and `announce_champion_usecase` keeps a `{season, countries}` payload at the
+  season's end. A season nobody scored in announces nothing. **Its id is the season's** (a SHA-1 UUID of its
+  number, `Champion.Announcement`), and `Storage.AppendOnce` inserts with `ON CONFLICT DO NOTHING` and says whether
+  it did: the line is published only the first time. So a second `SeasonClosed` for a season, from a restart or a
+  retried close, shows nothing new.
 - **`GetHistory` returns them beside the messages**, in `announcements`, the newest `historySize` within
   `retention`, bounded apart from the messages so a burst of bombs never pushes one out. The client puts the two
   lists in one by time. **Once the messages fill the window, none is older than the oldest of them**
@@ -1604,13 +1616,9 @@ internal/player/internal/
     inmemory_player_store/          the same port in maps, behind the testing tag
     rpc_account_reader/             whether an account is linked and when it was made, from auth.v1.InternalService/GetAccount,
                                     and the same of a page at once, from GetAccounts (players.Account)
-    rpc_planet_recounts/            a page of accounts' bombs and tiles fortified, from planet.v1.InternalService/GetBombsAndFortifies
-                                    (players.Recount)
     usecases/set_name_usecase/  set_color_usecase/  get_author_usecase/
       set_name_usecase/renaming_set_name/   shows a kept name on the roster at once
     usecases/record_stats_usecase/  — one change to an account's stats, then player.v1.StatsChanged
-    usecases/recount_stats_usecase/  — every account's bombs and tiles fortified set to the ledger's; player.v1.AdminService/RecountStats
-      recount_stats_usecase/audit_recount_stats/   logs every recount at Warn
     usecases/forget_account_usecase/
     usecases/name_account_usecase/  — a username for an account signed in to with none; on auth.v1.SignedIn
       name_account_usecase/renaming_name_account/   shows the name on the roster at once
@@ -1637,7 +1645,7 @@ internal/player/internal/
     get_profile_handler/  set_name_handler/  set_color_handler/  get_stats_handler/  get_author_handler/  get_player_handler/
     get_authors_handler/  get_titles_handler/  wear_title_handler/  get_fronts_handler/
     announce_handler/  leave_handler/  get_roster_handler/  listen_for_events_handler/
-    reconcile_titles_handler/  recount_stats_handler/  admin_get_player_handler/  search_players_handler/   AdminService's own; it serves
+    reconcile_titles_handler/  admin_get_player_handler/  search_players_handler/   AdminService's own; it serves
                                     get_authors_handler too
       admin_get_player_handler/admin_player_query/   PostgresQuery: what the game keeps about one account, a guest's too
       search_players_handler/matches_query/   PostgresQuery: the accounts a part of a name finds, straight from SQL
@@ -1736,8 +1744,7 @@ internal/player/internal/
   - **A sign-in, a new name, a sign-out and a deletion change the roster at once, with no announce.** The client drops its click token on each of these, and a new one waits for a click, so waiting for its next announce left a guest line on the roster, or two lines, for up to 90s. So: `auth.v1.SignedIn` moves the browser's visit to the account it is on now, under that account's name (its username, or its own guest code), over any visit the account held (`move_visit_usecase`, `Storage.Move`; one account before and after changes nothing, and reads nothing). `SetName` renames the caller's visit once the name is kept (`renaming_set_name`, `Storage.Rename`). `auth.v1.SignedOut` and `auth.v1.AccountDeleted` take the account off (`forget_visit_usecase`, `Storage.Forget`); another device still signed in announces again within 30s. An account with no visit is left off by all of them: its browser never announced.
 - **Stats come from `planet.v1.TileTaken`**, one event per tile, so a spread of seven is seven tiles. A strike on a shield takes no tile and is never published. **The streak day is UTC**: a take on the day after `streak_last_day` extends the streak, a take on the same day changes nothing, a gap starts it again at 1, and a late event older than the last day counts a tile and leaves the streak alone (`Stats.WithTake`). `GetStats` reads it as of today: a streak whose last day is before yesterday reads 0, and `streak_best` keeps it. The rule is `Stats.AsOf` for the commands and the same `CASE` in each query's SQL; `stats_test.go` and the queries' tests pin it across UTC midnight.
 - **Messages sent come from `chat.v1.MessageSent`**, one event per message kept (`Stats.WithMessage`, `stats.messages_sent`, migration `20261003140000_messages_sent`). Every message counts: the chat's own rate limit is the only bound. A message is no take, so it neither starts nor extends a streak, and a row made by a message alone has no `streak_last_day` (the migration made it nullable). It is not on the wire as a stat: the `Chatter` track's progress is where a player sees it. Counting started with that migration; messages sent before it are not replayed.
-- **What a player did with the bonuses comes from planet's events**, one counter each in `player.stats` (migration `20261025120000_title_tracks`): `bombs_dropped` from `planet.v1.BombLanded` (`Stats.WithBomb`), `tiles_fortified` from `planet.v1.Fortified`, the landmass's whole size (`Stats.WithFortify`), so a 1-tile island taken back and forth is worth one tile each time, `bonuses_claimed` from `planet.v1.BonusClaimed`, a caught box (`Stats.WithBonus`), and `right_answers` from `planet.v1.QuizAnswered` when `correct` (`Stats.WithRightAnswer`). A bomb or a fortify with no account counts for nobody. None is a take, so none touches the streak, and none is on the wire as a stat: each is a track's progress. Counting started with that migration. Boxes and quizzes before it are nowhere; bombs and fortifies are in planet's ledger (with their account since 2026-10-01), and an operator's `RecountStats` brings them in (below).
-- **`player.v1.AdminService/RecountStats` sets each account's `bombs_dropped` and `tiles_fortified` to what planet's ledger holds.** Run it once after the deploy that brought those counters; it is harmless twice. `recount_stats_usecase` pages through `player.stats` as the reconciliation does (500 accounts at a time), asks planet for each page (`GetBombsAndFortifies`, one call), and for each account whose counts differ applies `Stats.Recounted` through `Store.Record` and publishes `StatsChanged`, so the titles follow at once, announced as a live grant is; no `ReconcileTitles` is needed after it. An account the ledger holds nothing for is set to 0. It sets rather than adds, so it never counts an event twice; the price is that a bomb or a fortify the ledger has not flushed to postgres yet (`ledgerStorage.flushInterval`, 1s) is overwritten, and the next run gives it back. The answer is how many accounts changed (`recounted`); `audit_recount_stats` logs every call at Warn.
+- **What a player did with the bonuses comes from planet's events**, one counter each in `player.stats` (migration `20261025120000_title_tracks`): `bombs_dropped` from `planet.v1.BombLanded` (`Stats.WithBomb`), `tiles_fortified` from `planet.v1.Fortified`, the landmass's whole size (`Stats.WithFortify`), so a 1-tile island taken back and forth is worth one tile each time, `bonuses_claimed` from `planet.v1.BonusClaimed`, a caught box (`Stats.WithBonus`), and `right_answers` from `planet.v1.QuizAnswered` when `correct` (`Stats.WithRightAnswer`). A bomb or a fortify with no account counts for nobody. None is a take, so none touches the streak, and none is on the wire as a stat: each is a track's progress. Counting started with that migration. Bombs and fortifies before it were brought in once from planet's ledger, on 2026-10-25, by an operator call since removed; boxes and quizzes before it are nowhere.
 - **One way to change the stats.** Each subscriber turns its event into a rule on `Stats` (`players.TakeAt(at)`, `Stats.WithMessage`, …) and hands it to `record_stats_usecase`, which calls `Store.Record(account, change)` and then publishes `StatsChanged`. `Stats` is built from a `StatsSnapshot` (`Restore`) and saved from one (`TakeSnapshot`).
 - **An admin of the game is `player.profiles.admin`**, false by default. **The game never sets it**: an operator flips it in the database (below), and `SaveProfile` never writes it, so a rename keeps it. It only means something beside a username: `GetAuthor` and `GetAuthors` answer `admin` for the chat, which shows the crown on a message whose account is an admin **now** — it is read when the message is shown, not stamped on it, so a player that stops being an admin stops looking like one on what it already said; `presence.RosterOf` sets `Admin` on a roster entry only when it is not a guest; `GetPlayer` answers it too. The frontend draws a crown on all three. An announce reads the profile, so a new admin shows on the roster within 30s, and in the chat the moment anybody reloads it.
 
@@ -1938,14 +1945,14 @@ internal/seasons/internal/
     postgres_contribution_store/  the Store over seasons.contributions
     inmemory_contribution_store/  the same port in a map, behind the testing tag
     usecases/record_take_usecase/  forget_account_usecase/
-  rounds/                         Country, Round (Current, Results, Closed), Snapshot, Result, Closed, Score, Placed
-                                  (TableOf); the Store port (RecordSnapshot, Unclosed, Held, Number, Close) and its
-                                  contract suite
+  rounds/                         Country, Round (Current, Results, Closed), Snapshot, Result, Closed (SeasonEnd),
+                                  Score (ScoresOf), Placed (TableOf), SeasonEnd; the Store port (RecordSnapshot,
+                                  Unclosed, Held, Number, Close, ClosedIn) and its contract suite
     postgres_round_store/         the Store over seasons.rounds, round_holdings and round_results
     inmemory_round_store/         the same port in maps, behind the testing tag
     rpc_planet_territories/         the snapshot, from planet.v1.InternalService/GetTerritories
-    usecases/take_snapshot_usecase/ closes the rounds that ended and publishes each, then counts the round in progress;
-                                  Runner
+    usecases/take_snapshot_usecase/ closes the rounds that ended and publishes each, and the season's end with its
+                                  finale, then counts the round in progress; Runner
       log_take_snapshot/            logs each round closed, and a snapshot that failed
   seasonsv1controller/            SeasonService (a bag), the cache interceptor, the session interceptor
     get_season_handler/
@@ -2028,8 +2035,17 @@ standings rank players, the rounds rank countries.
   its end and its results. The use case publishes it itself, through its `Publisher` port, once `Close` returned: a
   round that failed to close is not published, and is closed and published by the next snapshot. The chat announces
   it — see [Announcements](#announcements).
+- **The finale closing ends the season, and that is told too** as `seasons.v1.SeasonClosed`: its season, its end and
+  its whole table, the champion first, for the chat and for the titles. `Closed.SeasonEnd` is the rule: only a finale
+  ends its season, and its table is `TableOf(ScoresOf(...))` of every round the season closed, the finale last.
+  `ScoresOf` adds the results up as `race_query`'s SQL does, and `race_query`'s test pins the two against each other.
+  **Everything is read before the round is closed** (`Store.ClosedIn`, the rounds of a season closed so far, in
+  order, with their results), so a failed read leaves the finale to close, and the next snapshot closes it and tells
+  both events once. A closed round is never unclosed, so nothing tells a season twice; the chat keys its line by the
+  season anyway.
 - **`rounds.TableOf` ranks the season**: points, then rounds won, then the finale's points. Countries level on all
-  three share the rank. The trophy and the titles at the season's end are a later slice; they read the same table.
+  three share the rank. The champion is the country ranked 1st; the titles at the season's end read the same table,
+  from `SeasonClosed`.
 - **Kept in `seasons.rounds`** (`season`, `ends_at`, `finale`, `samples`, `map_tiles`, `closed`), **`round_holdings`**
   (the sum of each country's counts) and **`round_results`** (`rank`, `points`), migration `20261009120000_rounds`. The
   rule stays in Go: SQL keeps the sums and what `Results` said.
@@ -2049,7 +2065,8 @@ standings rank players, the rounds rank countries.
   and answers `public, max-age=10`. It reads through `race_query` itself, logged by `log_race_reader` as the feed is,
   and never through the feed: a feed with no stream holds no race.
 - `rounds.StoreContractSuite` runs on `inmemory_round_store` and on postgres. `e2e/race_test.go` clicks for two flags
-  and reads the race off the stream.
+  and reads the race off the stream. `e2e/champion_test.go` runs a season of 8 seconds and sees the chat name its
+  champion, the one the race puts first.
 - `standings.StoreContractSuite` runs on `inmemory_contribution_store` and on postgres. It reads what a store kept through a `TallyOf` hook each adapter's test fills, since the write side reads nothing back. The use cases are tested over the in-memory one; the queries on postgres, seeded through `postgres_contribution_store`.
 
 
@@ -3687,7 +3704,7 @@ origin with auth off refuses the boot.
 Caddy sends `/<package>.v1.AdminService/*` on the API's domain to it, so `cp_admin`, which is host-only on that
 domain, travels from the admin page, a page of the same site.
 
-The admin page is `apps/backoffice` (its `CLAUDE.md`). `planet.v1.AdminService` is the main one, in `proto/planet/v1/admin.proto`; `player.v1.AdminService` (`proto/player/v1/admin.proto`) has `ReconcileTitles` and `RecountStats`, and the reads that name players, `GetAuthors` and `GetPlayer`, and who plays now, `GetRoster` — see [Player](#player-internalplayer); `chat.v1.AdminService` (`proto/chat/v1/admin.proto`) has `Mute`, `RemoveMessage`, `GetMessage` and `ListMessages` — see [Mutes](#mutes) and [Removals](#removals); `support.v1.AdminService` (`proto/support/v1/admin.proto`) has `ListNotes`, `ListReports` and `DecideReport` — see [Support](#support-internalsupport); `clips.v1.AdminService` (`proto/clips/v1/admin.proto`) has `KeepSnapshot`, which the clips job calls over ssh, and `ListSnapshots` and `ListRows`, which the admin page reads — see [Clip stats](#clip-stats-internalclips-in-the-server); `auth.v1.AdminService` (`proto/auth/v1/admin.proto`) has the admin page's own sign-in and `WhoAmI` — see [Operators](#operators). `planetv1controller.AdminService` is its bag of handlers, the way `ClickService` is. `ReassignCountry` runs `clicks/usecases/reassign_country_usecase`, wrapped in `audit_reassign`: every tile `from_country_id` holds goes to `to_country_id`, while the game runs.
+The admin page is `apps/backoffice` (its `CLAUDE.md`). `planet.v1.AdminService` is the main one, in `proto/planet/v1/admin.proto`; `player.v1.AdminService` (`proto/player/v1/admin.proto`) has `ReconcileTitles`, and the reads that name players, `GetAuthors` and `GetPlayer`, and who plays now, `GetRoster` — see [Player](#player-internalplayer); `chat.v1.AdminService` (`proto/chat/v1/admin.proto`) has `Mute`, `RemoveMessage`, `GetMessage` and `ListMessages` — see [Mutes](#mutes) and [Removals](#removals); `support.v1.AdminService` (`proto/support/v1/admin.proto`) has `ListNotes`, `ListReports` and `DecideReport` — see [Support](#support-internalsupport); `clips.v1.AdminService` (`proto/clips/v1/admin.proto`) has `KeepSnapshot`, which the clips job calls over ssh, and `ListSnapshots` and `ListRows`, which the admin page reads — see [Clip stats](#clip-stats-internalclips-in-the-server); `auth.v1.AdminService` (`proto/auth/v1/admin.proto`) has the admin page's own sign-in and `WhoAmI` — see [Operators](#operators). `planetv1controller.AdminService` is its bag of handlers, the way `ClickService` is. `ReassignCountry` runs `clicks/usecases/reassign_country_usecase`, wrapped in `audit_reassign`: every tile `from_country_id` holds goes to `to_country_id`, while the game runs.
 
 - **The move is paced.** `inmemory_tile_storage.Reassign` moves one batch under the lock and returns where to resume; the use case sleeps 50ms between batches. A batch is a quarter of `tilesStorage.subscriberBuffer`, because each tile is one update on every open stream, the clicks still arriving need the rest of the buffer, and a stream that overflows it is closed.
 - **Each tile is an ordinary `TileUpdate`** with `Previous` set, not a new event kind: open clients repaint with no frontend release, `counts` move so the toll prices the next click right, and `dirty` puts it in the next flush.

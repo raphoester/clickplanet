@@ -5,7 +5,7 @@ export const REVEAL_SEEN_STORAGE_KEY = "clickplanet-round-seen"
 export const REVEAL_ROWS = 10
 const PODIUM = 3
 
-export const ROUND_REVEAL = {podium: 3.4, slide: 0.7, settle: 1.6} as const
+export const ROUND_REVEAL = {podium: 3.4, slide: 0.7, settle: 1.6, hold: 2.4, champion: 2.2} as const
 
 export function roundOverLine(round: {number: number, finale: boolean}): string {
     return round.finale ? "The Final Battle is over!" : `Day ${round.number} is over!`

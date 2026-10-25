@@ -296,6 +296,19 @@ describe("ChatPanel", () => {
         expect(line.textContent).toContain("Spain fortified French Guiana")
     })
 
+    it("says which country won the season, with its flag", async () => {
+        const {backend, announce} = stubBackend()
+        setup(backend)
+
+        await screen.findByText("Nobody has said anything yet. Go on.")
+        act(() => announce({kind: "champion", id: "crown", announcedAt: Date.now(), season: 0, countries: ["de"]}))
+
+        const line = (await screen.findByText("Germany wins Season 0")).closest("li")!
+        expect(line.className).toContain("chat-announcement-champion")
+        expect(within(line).getByText("🏆")).toBeDefined()
+        expect(line.querySelectorAll(".country-flag")).toHaveLength(1)
+    })
+
     it("says a message an operator removed was deleted, in its place and in the quote of a reply to it", async () => {
         const insult = message("a", "you all suck")
         const {backend, remove} = stubBackend([

@@ -1,6 +1,8 @@
 import {useId, useState} from "react"
 import {Season} from "../../backends/season.ts"
+import {Champion, championNames, winsLine} from "../../domain/champion.ts"
 import {countdownsOf, SeasonCountdown, seasonClock} from "../../domain/seasonClock.ts"
+import CountryFlag from "../components/CountryFlag.tsx"
 import {ChevronIcon, ClockIcon} from "../components/icons.tsx"
 import {useBottomEdge} from "../components/useBottomEdge.ts"
 import {useEscape} from "../components/useDialog.ts"
@@ -58,6 +60,28 @@ export default function SeasonChip({season, compact, open, onToggle}: SeasonChip
             <span className="season-chip-chevron"><ChevronIcon size={16}/></span>
         </button>
         {open && <SeasonPopover season={season} finale={clock.finale} onClose={onToggle}/>}
+    </section>
+}
+
+export function ChampionChip({champion, compact}: {champion: Champion, compact: boolean}) {
+    const [chip, setChip] = useState<HTMLElement | null>(null)
+    useBottomEdge(compact ? null : chip, STATUS_BOTTOM)
+
+    const flags = champion.countryCodes.map((code) => <CountryFlag key={code} code={code}/>)
+
+    if (compact) {
+        return <section className="panel-box season-chip season-chip--compact season-chip--champion" aria-label={winsLine(champion)}>
+            <span className="season-chip-trophy" aria-hidden="true">🏆</span>
+            <span className="season-chip-left" aria-hidden="true">{flags}</span>
+        </section>
+    }
+
+    return <section ref={setChip} className="panel season-chip season-chip--champion" aria-label={winsLine(champion)}>
+        <div className="season-chip-head" aria-hidden="true">
+            <span className="season-chip-trophy">🏆</span>
+            <span className="season-chip-label">Season {champion.season} champion</span>
+            <span className="season-chip-left">{flags}<span className="season-chip-name">{championNames(champion)}</span></span>
+        </div>
     </section>
 }
 

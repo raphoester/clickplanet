@@ -39,9 +39,6 @@ const (
 	// InternalServiceGetTerritoriesProcedure is the fully-qualified name of the InternalService's
 	// GetTerritories RPC.
 	InternalServiceGetTerritoriesProcedure = "/planet.v1.InternalService/GetTerritories"
-	// InternalServiceGetBombsAndFortifiesProcedure is the fully-qualified name of the InternalService's
-	// GetBombsAndFortifies RPC.
-	InternalServiceGetBombsAndFortifiesProcedure = "/planet.v1.InternalService/GetBombsAndFortifies"
 	// InternalServiceApplyRuleSetProcedure is the fully-qualified name of the InternalService's
 	// ApplyRuleSet RPC.
 	InternalServiceApplyRuleSetProcedure = "/planet.v1.InternalService/ApplyRuleSet"
@@ -54,7 +51,6 @@ const (
 type InternalServiceClient interface {
 	GetTakesByCountry(context.Context, *connect.Request[v1.GetTakesByCountryRequest]) (*connect.Response[v1.GetTakesByCountryResponse], error)
 	GetTerritories(context.Context, *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error)
-	GetBombsAndFortifies(context.Context, *connect.Request[v1.GetBombsAndFortifiesRequest]) (*connect.Response[v1.GetBombsAndFortifiesResponse], error)
 	// A request id already applied changes nothing, so a caller may send it again.
 	ApplyRuleSet(context.Context, *connect.Request[v1.ApplyRuleSetRequest]) (*connect.Response[v1.ApplyRuleSetResponse], error)
 	// Fills every account that played before it to full, once per request id, so a caller may send it again.
@@ -86,13 +82,6 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
-		getBombsAndFortifies: connect.NewClient[v1.GetBombsAndFortifiesRequest, v1.GetBombsAndFortifiesResponse](
-			httpClient,
-			baseURL+InternalServiceGetBombsAndFortifiesProcedure,
-			connect.WithSchema(internalServiceMethods.ByName("GetBombsAndFortifies")),
-			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
-			connect.WithClientOptions(opts...),
-		),
 		applyRuleSet: connect.NewClient[v1.ApplyRuleSetRequest, v1.ApplyRuleSetResponse](
 			httpClient,
 			baseURL+InternalServiceApplyRuleSetProcedure,
@@ -112,11 +101,10 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 
 // internalServiceClient implements InternalServiceClient.
 type internalServiceClient struct {
-	getTakesByCountry    *connect.Client[v1.GetTakesByCountryRequest, v1.GetTakesByCountryResponse]
-	getTerritories       *connect.Client[v1.GetTerritoriesRequest, v1.GetTerritoriesResponse]
-	getBombsAndFortifies *connect.Client[v1.GetBombsAndFortifiesRequest, v1.GetBombsAndFortifiesResponse]
-	applyRuleSet         *connect.Client[v1.ApplyRuleSetRequest, v1.ApplyRuleSetResponse]
-	fillCharges          *connect.Client[v1.FillChargesRequest, v1.FillChargesResponse]
+	getTakesByCountry *connect.Client[v1.GetTakesByCountryRequest, v1.GetTakesByCountryResponse]
+	getTerritories    *connect.Client[v1.GetTerritoriesRequest, v1.GetTerritoriesResponse]
+	applyRuleSet      *connect.Client[v1.ApplyRuleSetRequest, v1.ApplyRuleSetResponse]
+	fillCharges       *connect.Client[v1.FillChargesRequest, v1.FillChargesResponse]
 }
 
 // GetTakesByCountry calls planet.v1.InternalService.GetTakesByCountry.
@@ -127,11 +115,6 @@ func (c *internalServiceClient) GetTakesByCountry(ctx context.Context, req *conn
 // GetTerritories calls planet.v1.InternalService.GetTerritories.
 func (c *internalServiceClient) GetTerritories(ctx context.Context, req *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error) {
 	return c.getTerritories.CallUnary(ctx, req)
-}
-
-// GetBombsAndFortifies calls planet.v1.InternalService.GetBombsAndFortifies.
-func (c *internalServiceClient) GetBombsAndFortifies(ctx context.Context, req *connect.Request[v1.GetBombsAndFortifiesRequest]) (*connect.Response[v1.GetBombsAndFortifiesResponse], error) {
-	return c.getBombsAndFortifies.CallUnary(ctx, req)
 }
 
 // ApplyRuleSet calls planet.v1.InternalService.ApplyRuleSet.
@@ -148,7 +131,6 @@ func (c *internalServiceClient) FillCharges(ctx context.Context, req *connect.Re
 type InternalServiceHandler interface {
 	GetTakesByCountry(context.Context, *connect.Request[v1.GetTakesByCountryRequest]) (*connect.Response[v1.GetTakesByCountryResponse], error)
 	GetTerritories(context.Context, *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error)
-	GetBombsAndFortifies(context.Context, *connect.Request[v1.GetBombsAndFortifiesRequest]) (*connect.Response[v1.GetBombsAndFortifiesResponse], error)
 	// A request id already applied changes nothing, so a caller may send it again.
 	ApplyRuleSet(context.Context, *connect.Request[v1.ApplyRuleSetRequest]) (*connect.Response[v1.ApplyRuleSetResponse], error)
 	// Fills every account that played before it to full, once per request id, so a caller may send it again.
@@ -176,13 +158,6 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
-	internalServiceGetBombsAndFortifiesHandler := connect.NewUnaryHandler(
-		InternalServiceGetBombsAndFortifiesProcedure,
-		svc.GetBombsAndFortifies,
-		connect.WithSchema(internalServiceMethods.ByName("GetBombsAndFortifies")),
-		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
-		connect.WithHandlerOptions(opts...),
-	)
 	internalServiceApplyRuleSetHandler := connect.NewUnaryHandler(
 		InternalServiceApplyRuleSetProcedure,
 		svc.ApplyRuleSet,
@@ -203,8 +178,6 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 			internalServiceGetTakesByCountryHandler.ServeHTTP(w, r)
 		case InternalServiceGetTerritoriesProcedure:
 			internalServiceGetTerritoriesHandler.ServeHTTP(w, r)
-		case InternalServiceGetBombsAndFortifiesProcedure:
-			internalServiceGetBombsAndFortifiesHandler.ServeHTTP(w, r)
 		case InternalServiceApplyRuleSetProcedure:
 			internalServiceApplyRuleSetHandler.ServeHTTP(w, r)
 		case InternalServiceFillChargesProcedure:
@@ -224,10 +197,6 @@ func (UnimplementedInternalServiceHandler) GetTakesByCountry(context.Context, *c
 
 func (UnimplementedInternalServiceHandler) GetTerritories(context.Context, *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.GetTerritories is not implemented"))
-}
-
-func (UnimplementedInternalServiceHandler) GetBombsAndFortifies(context.Context, *connect.Request[v1.GetBombsAndFortifiesRequest]) (*connect.Response[v1.GetBombsAndFortifiesResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.GetBombsAndFortifies is not implemented"))
 }
 
 func (UnimplementedInternalServiceHandler) ApplyRuleSet(context.Context, *connect.Request[v1.ApplyRuleSetRequest]) (*connect.Response[v1.ApplyRuleSetResponse], error) {
