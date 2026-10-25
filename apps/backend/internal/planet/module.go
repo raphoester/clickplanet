@@ -240,9 +240,10 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			clickUseCase = antibot_click.New(clickUseCase, guard, tilesStorage, shielding, clock, props.Metrics)
 
-			clickUseCase = bonus_click.New(clickUseCase, registry)
-
 			clickUseCase = throttle_click.New(clickUseCase, limiter, pricer, buckets)
+
+			// Outside the throttle, so it reads the bank the click left.
+			clickUseCase = bonus_click.New(clickUseCase, registry)
 
 			// Outside the throttle, so a click refused for its flag spends nothing.
 			clickUseCase = allegiance_click.New(clickUseCase, book)

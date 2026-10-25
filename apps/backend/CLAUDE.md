@@ -2149,6 +2149,35 @@ runs it on**, at the boxes' own 4m-8m and `maxChargesPerHour: 12`, so a player
 is asked about as many questions as they are flown boxes —
 `deploy/vps/backend.yaml` says why each number is what it is.
 
+#### A newcomer's first box and first quiz (`bonuses/welcome.go`)
+
+**An account made less than `bonus.welcome.within` ago (10m) gets its first box and its
+first quiz early, once each.** Measured from 2026-10-02 to 10-22: 36% of new accounts left
+inside two minutes, most at the 10th or 11th click (`rateLimiter.newAccountClicks`), and
+the first box and quiz came 4-8 minutes in, so they never saw one.
+
+- **The first box is a spread, `bonus.welcome.boxAfter` (1m) after the account was made.**
+  The first click of a young account pulls its entrant's next box to then, if that is sooner,
+  and owes it the spread. The age is the account id's (`Payer.Created`), so it counts from the
+  account, not from the click, and a restart does not move it.
+- **The first quiz comes the moment a young account's click empties its bank**, and a right
+  answer is shields. `bonus_click` sits **outside** `throttle_click` so it reads the bank the
+  click left: `Click.Dry` is `out.Limited && out.Budget.Empty()`, fewer than one click, which is
+  when the client stops sending. The quiz is due at once and the next sweep (1s) asks it.
+- **Never a refill or a bomb.** `newAccountClicks` exists because one phone made an account a
+  minute for a fresh bank; a welcome refill would hand that back, and a bomb would be a free strike
+  per account. A spread click still costs a click, and a shield is placed with none, so a
+  player with an empty bank can still use it. **A welcome kind that cannot be
+  offered** (weight 0 in `bonus.kinds`, or a full stack) **gives no early offer**: the turn goes
+  back to the ordinary window, never to another kind.
+- **Once per account**: `Registry.newcomers` remembers each young account until it is no longer
+  young, so neither a second click nor a second empty bank pulls anything forward again. It is
+  memory only, so a restart can welcome an account a second time while it is still young.
+- Everything else is the ordinary offer: the stream must be open, the entrant active, the
+  hourly caps not reached, and the guests behind a scope share one entrant, so a private tab a
+  minute buys no more than the caps.
+- **Off with `within` 0**, the default.
+
 #### Charges (refill, bomb, enclose, spread, shields)
 
 A timer rewarded speed rather than planning: with a bank of clicks, a 10s spread
@@ -4361,6 +4390,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `bonus.enclose.held`, `bonus.enclose.maxPerBox`, `bonus.enclose.maxTiles` — the most enclosures held (3), the most one box adds (3; it draws 1 to that), and the most tiles one shape may take (25)
 - `bonus.shield.held`, `bonus.shield.minPerBox`, `bonus.shield.maxPerBox`, `bonus.shield.perTile` — the most shields held (30), the fewest and the most one box adds (5 and 20; it draws evenly between them), and the most one tile holds (10)
 - `bonus.maxChargesPerHour` — the most charges one caller may be granted per hour (12); past it the slot is lost
+- `bonus.welcome.within`, `bonus.welcome.boxAfter` — how young an account is welcomed (production 10m; 0, the default, is off), and how long after it was made its spread box comes (1m). Negative refuses the boot. See [A newcomer's first box and first quiz](#a-newcomers-first-box-and-first-quiz-bonuseswelcomego)
 - `antiBot.enabled` — off registers nothing and measures nothing
 - `antiBot.bans.enforce` — off judges, logs and counts without refusing; the mode to deploy in
 - `antiBot.bans.banDurations` — the ban for each offence (the last step repeats). An offence is a ban that starts while none is running; a flag on a running ban only extends it. **Offences are never forgotten**, but for the one an operator lifts with `UnbanPlayer`

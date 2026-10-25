@@ -143,7 +143,8 @@ func (r *Registry) sweepQuizzes(ctx context.Context, now time.Time) {
 			continue
 		}
 
-		kinds := r.offerable(ctx, entry, now)
+		kinds := drawable(entry.owedQuiz, r.offerable(ctx, entry, now))
+		entry.owedQuiz = ""
 		if kinds.Empty() {
 			entry.nextQuizAt = now.Add(r.quizWindow())
 			continue

@@ -22,7 +22,7 @@ func playingAs(t *testing.T, r *Registry, payer clicks.Payer) <-chan Event {
 	t.Helper()
 
 	events := attend(t, r, EntrantOf(payer))
-	r.Clicked(EntrantOf(payer), payer.Scope, HolderOf(payer))
+	r.Clicked(ClickOf(payer, false))
 
 	return events
 }
