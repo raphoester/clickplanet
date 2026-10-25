@@ -96,6 +96,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_takes_by_country_handler/takes_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_territories_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_territories_handler/territories_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_tile_holder_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_tile_holder_handler/holder_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/grant_charges_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/inspect_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/listen_for_events_handler"
@@ -386,6 +388,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				PlaceShieldHandler: place_shield_handler.New(antibot_place_shield.New(
 					place_shield_usecase.New(charges, writer, countries, book, config.Bonus.ShieldsPerTile()), guard)),
 				GetFortressesHandler:    get_fortresses_handler.New(fortresses_query.NewMemoryQuery(tilesStorage)),
+				GetTileHolderHandler:    get_tile_holder_handler.New(tilesChecker, holder_query.NewPostgresQuery(db)),
 				GetAllegianceHandler:    get_allegiance_handler.New(allegiance_query.NewPostgresQuery(db)),
 				PledgeAllegianceHandler: pledge_allegiance_handler.New(book),
 			}

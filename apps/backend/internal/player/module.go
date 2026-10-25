@@ -241,6 +241,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", "player")))
 
 	getRoster := get_roster_handler.New(roster_query.NewMemoryQuery(inmemory_roster.New(visits, clock)))
+	getAuthors := get_authors_handler.New(authors_query.NewPostgresQuery(db, titleCards, clock))
 	playerService := playerv1controller.PlayerService{
 		GetProfileHandler: get_profile_handler.New(profile_query.NewPostgresQuery(db, inprocess_rename_rule.New())),
 		SetNameHandler: set_name_handler.New(
@@ -260,9 +261,10 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		GetPlayerHandler: get_player_handler.New(player_query.NewPostgresQuery(
 			db, titleCards, accounts, caching_fronts.New(fronts, frontsKeptFor, clock), clock,
 		)),
-		GetTitlesHandler: get_titles_handler.New(titles_query.NewPostgresQuery(db, titleCards, clock)),
-		WearTitleHandler: wear_title_handler.New(dressing_wear_title.New(wear_title_usecase.New(wardrobe, clock), visits)),
-		GetFrontsHandler: get_fronts_handler.New(fronts),
+		GetTitlesHandler:  get_titles_handler.New(titles_query.NewPostgresQuery(db, titleCards, clock)),
+		WearTitleHandler:  wear_title_handler.New(dressing_wear_title.New(wear_title_usecase.New(wardrobe, clock), visits)),
+		GetFrontsHandler:  get_fronts_handler.New(fronts),
+		GetAuthorsHandler: getAuthors,
 	}
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return playerv1connect.NewPlayerServiceHandler(playerService, options...)
@@ -271,7 +273,6 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to mount player.v1.PlayerService: %w", err)
 	}
 
-	getAuthors := get_authors_handler.New(authors_query.NewPostgresQuery(db, titleCards, clock))
 	internalService := playerv1controller.InternalService{
 		GetAuthorHandler:  get_author_handler.New(authors),
 		GetAuthorsHandler: getAuthors,

@@ -3,6 +3,7 @@ syntax = "proto3";
 package player.v1;
 
 import "player/v1/color.proto";
+import "player/v1/internal.proto";
 import "player/v1/title.proto";
 
 service PlayerService {
@@ -22,6 +23,11 @@ service PlayerService {
   rpc ListenForEvents(ListenForEventsRequest) returns (stream PlayerEvent);
 
   rpc GetPlayer(GetPlayerRequest) returns (GetPlayerResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // InternalService/GetAuthors, for the globe naming who holds a tile.
+  rpc GetAuthors(GetAuthorsRequest) returns (GetAuthorsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 

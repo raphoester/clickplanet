@@ -1863,7 +1863,7 @@ var File_player_v1_player_proto protoreflect.FileDescriptor
 
 const file_player_v1_player_proto_rawDesc = "" +
 	"\n" +
-	"\x16player/v1/player.proto\x12\tplayer.v1\x1a\x15player/v1/color.proto\x1a\x15player/v1/title.proto\"m\n" +
+	"\x16player/v1/player.proto\x12\tplayer.v1\x1a\x15player/v1/color.proto\x1a\x18player/v1/internal.proto\x1a\x15player/v1/title.proto\"m\n" +
 	"\aProfile\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12\x12\n" +
@@ -1974,7 +1974,7 @@ const file_player_v1_player_proto_rawDesc = "" +
 	"\x10WearTitleRequest\x12\x19\n" +
 	"\btitle_id\x18\x01 \x01(\tR\atitleId\"9\n" +
 	"\x11WearTitleResponse\x12$\n" +
-	"\x04worn\x18\x01 \x01(\v2\x10.player.v1.TitleR\x04worn2\xe9\x06\n" +
+	"\x04worn\x18\x01 \x01(\v2\x10.player.v1.TitleR\x04worn2\xb9\a\n" +
 	"\rPlayerService\x12I\n" +
 	"\n" +
 	"GetProfile\x12\x1c.player.v1.GetProfileRequest\x1a\x1d.player.v1.GetProfileResponse\x12@\n" +
@@ -1985,7 +1985,9 @@ const file_player_v1_player_proto_rawDesc = "" +
 	"\x05Leave\x12\x17.player.v1.LeaveRequest\x1a\x18.player.v1.LeaveResponse\x12K\n" +
 	"\tGetRoster\x12\x1b.player.v1.GetRosterRequest\x1a\x1c.player.v1.GetRosterResponse\"\x03\x90\x02\x01\x12N\n" +
 	"\x0fListenForEvents\x12!.player.v1.ListenForEventsRequest\x1a\x16.player.v1.PlayerEvent0\x01\x12K\n" +
-	"\tGetPlayer\x12\x1b.player.v1.GetPlayerRequest\x1a\x1c.player.v1.GetPlayerResponse\"\x03\x90\x02\x01\x12F\n" +
+	"\tGetPlayer\x12\x1b.player.v1.GetPlayerRequest\x1a\x1c.player.v1.GetPlayerResponse\"\x03\x90\x02\x01\x12N\n" +
+	"\n" +
+	"GetAuthors\x12\x1c.player.v1.GetAuthorsRequest\x1a\x1d.player.v1.GetAuthorsResponse\"\x03\x90\x02\x01\x12F\n" +
 	"\tGetTitles\x12\x1b.player.v1.GetTitlesRequest\x1a\x1c.player.v1.GetTitlesResponse\x12F\n" +
 	"\tWearTitle\x12\x1b.player.v1.WearTitleRequest\x1a\x1c.player.v1.WearTitleResponse\x12F\n" +
 	"\tGetFronts\x12\x1b.player.v1.GetFrontsRequest\x1a\x1c.player.v1.GetFrontsResponseB\xb3\x01\n" +
@@ -2044,6 +2046,8 @@ var file_player_v1_player_proto_goTypes = []any{
 	(*WearTitleResponse)(nil),      // 35: player.v1.WearTitleResponse
 	(NameColor)(0),                 // 36: player.v1.NameColor
 	(*Title)(nil),                  // 37: player.v1.Title
+	(*GetAuthorsRequest)(nil),      // 38: player.v1.GetAuthorsRequest
+	(*GetAuthorsResponse)(nil),     // 39: player.v1.GetAuthorsResponse
 }
 var file_player_v1_player_proto_depIdxs = []int32{
 	0,  // 0: player.v1.GetProfileResponse.profile:type_name -> player.v1.Profile
@@ -2086,23 +2090,25 @@ var file_player_v1_player_proto_depIdxs = []int32{
 	15, // 37: player.v1.PlayerService.GetRoster:input_type -> player.v1.GetRosterRequest
 	18, // 38: player.v1.PlayerService.ListenForEvents:input_type -> player.v1.ListenForEventsRequest
 	23, // 39: player.v1.PlayerService.GetPlayer:input_type -> player.v1.GetPlayerRequest
-	30, // 40: player.v1.PlayerService.GetTitles:input_type -> player.v1.GetTitlesRequest
-	34, // 41: player.v1.PlayerService.WearTitle:input_type -> player.v1.WearTitleRequest
-	27, // 42: player.v1.PlayerService.GetFronts:input_type -> player.v1.GetFrontsRequest
-	2,  // 43: player.v1.PlayerService.GetProfile:output_type -> player.v1.GetProfileResponse
-	4,  // 44: player.v1.PlayerService.SetName:output_type -> player.v1.SetNameResponse
-	7,  // 45: player.v1.PlayerService.SetColor:output_type -> player.v1.SetColorResponse
-	10, // 46: player.v1.PlayerService.GetStats:output_type -> player.v1.GetStatsResponse
-	12, // 47: player.v1.PlayerService.Announce:output_type -> player.v1.AnnounceResponse
-	14, // 48: player.v1.PlayerService.Leave:output_type -> player.v1.LeaveResponse
-	16, // 49: player.v1.PlayerService.GetRoster:output_type -> player.v1.GetRosterResponse
-	19, // 50: player.v1.PlayerService.ListenForEvents:output_type -> player.v1.PlayerEvent
-	24, // 51: player.v1.PlayerService.GetPlayer:output_type -> player.v1.GetPlayerResponse
-	31, // 52: player.v1.PlayerService.GetTitles:output_type -> player.v1.GetTitlesResponse
-	35, // 53: player.v1.PlayerService.WearTitle:output_type -> player.v1.WearTitleResponse
-	28, // 54: player.v1.PlayerService.GetFronts:output_type -> player.v1.GetFrontsResponse
-	43, // [43:55] is the sub-list for method output_type
-	31, // [31:43] is the sub-list for method input_type
+	38, // 40: player.v1.PlayerService.GetAuthors:input_type -> player.v1.GetAuthorsRequest
+	30, // 41: player.v1.PlayerService.GetTitles:input_type -> player.v1.GetTitlesRequest
+	34, // 42: player.v1.PlayerService.WearTitle:input_type -> player.v1.WearTitleRequest
+	27, // 43: player.v1.PlayerService.GetFronts:input_type -> player.v1.GetFrontsRequest
+	2,  // 44: player.v1.PlayerService.GetProfile:output_type -> player.v1.GetProfileResponse
+	4,  // 45: player.v1.PlayerService.SetName:output_type -> player.v1.SetNameResponse
+	7,  // 46: player.v1.PlayerService.SetColor:output_type -> player.v1.SetColorResponse
+	10, // 47: player.v1.PlayerService.GetStats:output_type -> player.v1.GetStatsResponse
+	12, // 48: player.v1.PlayerService.Announce:output_type -> player.v1.AnnounceResponse
+	14, // 49: player.v1.PlayerService.Leave:output_type -> player.v1.LeaveResponse
+	16, // 50: player.v1.PlayerService.GetRoster:output_type -> player.v1.GetRosterResponse
+	19, // 51: player.v1.PlayerService.ListenForEvents:output_type -> player.v1.PlayerEvent
+	24, // 52: player.v1.PlayerService.GetPlayer:output_type -> player.v1.GetPlayerResponse
+	39, // 53: player.v1.PlayerService.GetAuthors:output_type -> player.v1.GetAuthorsResponse
+	31, // 54: player.v1.PlayerService.GetTitles:output_type -> player.v1.GetTitlesResponse
+	35, // 55: player.v1.PlayerService.WearTitle:output_type -> player.v1.WearTitleResponse
+	28, // 56: player.v1.PlayerService.GetFronts:output_type -> player.v1.GetFrontsResponse
+	44, // [44:57] is the sub-list for method output_type
+	31, // [31:44] is the sub-list for method input_type
 	31, // [31:31] is the sub-list for extension type_name
 	31, // [31:31] is the sub-list for extension extendee
 	0,  // [0:31] is the sub-list for field type_name
@@ -2114,6 +2120,7 @@ func file_player_v1_player_proto_init() {
 		return
 	}
 	file_player_v1_color_proto_init()
+	file_player_v1_internal_proto_init()
 	file_player_v1_title_proto_init()
 	file_player_v1_player_proto_msgTypes[19].OneofWrappers = []any{
 		(*PlayerEvent_Roster)(nil),
