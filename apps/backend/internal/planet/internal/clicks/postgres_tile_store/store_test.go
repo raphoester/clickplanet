@@ -90,10 +90,10 @@ func (s *testSuite) TestAFailedSaveWritesNothing() {
 		ids[i] = uint32(i)
 	}
 	s.Require().NoError(s.store.Save(ctx, owned("fr", 20_000), nil))
-	_, err := s.db.ExecContext(ctx, `ALTER TABLE tiles ADD CONSTRAINT not_bg_past_ten_thousand CHECK (id < 10000 OR country <> 'bg')`)
+	_, err := s.db.On(ctx).ExecContext(ctx, `ALTER TABLE tiles ADD CONSTRAINT not_bg_past_ten_thousand CHECK (id < 10000 OR country <> 'bg')`)
 	s.Require().NoError(err)
 	defer func() {
-		_, err := s.db.ExecContext(ctx, `ALTER TABLE tiles DROP CONSTRAINT not_bg_past_ten_thousand`)
+		_, err := s.db.On(ctx).ExecContext(ctx, `ALTER TABLE tiles DROP CONSTRAINT not_bg_past_ten_thousand`)
 		s.Require().NoError(err)
 	}()
 

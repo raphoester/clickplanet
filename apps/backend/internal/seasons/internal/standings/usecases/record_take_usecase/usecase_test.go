@@ -30,9 +30,10 @@ func TestATakeCountsOneTileForItsFlagInItsSeason(t *testing.T) {
 	useCase := record_take_usecase.New(seasonZero(), store)
 
 	require.NoError(t, useCase.Execute(t.Context(), standings.Take{Account: ada, Country: "fr", At: seasonZeroEnds.Add(-time.Hour)}))
-	require.NoError(t, useCase.Execute(t.Context(), standings.Take{Account: ada, Country: "fr", At: seasonZeroEnds.Add(-time.Minute)}))
+	require.NoError(t, useCase.Execute(t.Context(),
+		standings.Take{Account: ada, Country: "fr", At: seasonZeroEnds.Add(-time.Minute), Position: 1}))
 
-	assert.Equal(t, standings.Tally{Main: "fr", Tiles: map[standings.Country]uint64{"fr": 2}}, store.Tally(0, ada))
+	assert.Equal(t, standings.Tally{Main: "fr", Tiles: map[standings.Country]uint64{"fr": 2}, TakesBelow: 2}, store.Tally(0, ada))
 }
 
 func TestATakeAfterTheLastSeasonCountsNothing(t *testing.T) {

@@ -15,6 +15,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/usecases/announce_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/feed"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes"
 )
 
 var (
@@ -39,8 +40,8 @@ func TestAMuteIsAnnouncedUnderTheNameOfTheAccountAndForItsDuration(t *testing.T)
 	store := inmemory_announcement_storage.New()
 	updates := &recordedFeed{}
 
-	err := announce_mute_usecase.New(fakeAuthors{}, announce_usecase.New(store, updates, &announcements.SequentialIDs{})).Execute(t.Context(),
-		announce_mute_usecase.In{Account: bully, At: at, Duration: 90 * time.Minute})
+	err := announce_mute_usecase.New(fakeAuthors{}, announce_usecase.New(store, updates)).Execute(t.Context(),
+		announce_mute_usecase.In{Mute: mutes.MuteID{15: 9}, Account: bully, At: at, Duration: 90 * time.Minute})
 
 	require.NoError(t, err)
 	kept := store.Kept()
@@ -58,8 +59,8 @@ func TestAMuteNobodyCanNameIsNotAnnounced(t *testing.T) {
 	store := inmemory_announcement_storage.New()
 	updates := &recordedFeed{}
 
-	err := announce_mute_usecase.New(fakeAuthors{err: errors.New("the player module is down")}, announce_usecase.New(store, updates, &announcements.SequentialIDs{})).
-		Execute(t.Context(), announce_mute_usecase.In{Account: bully, At: at, Duration: time.Hour})
+	err := announce_mute_usecase.New(fakeAuthors{err: errors.New("the player module is down")}, announce_usecase.New(store, updates)).
+		Execute(t.Context(), announce_mute_usecase.In{Mute: mutes.MuteID{15: 9}, Account: bully, At: at, Duration: time.Hour})
 
 	require.Error(t, err)
 	assert.Empty(t, store.Kept())

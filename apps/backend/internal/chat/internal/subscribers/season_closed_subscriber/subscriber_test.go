@@ -12,7 +12,7 @@ import (
 	seasonsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/seasons/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/inmemory_announcement_storage"
-	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/usecases/announce_champion_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/usecases/announce_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/feed/inprocess_feed"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/season_closed_subscriber"
 )
@@ -20,7 +20,7 @@ import (
 var endedAt = time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC)
 
 func subscriber(store *inmemory_announcement_storage.Storage) season_closed_subscriber.Subscriber {
-	return season_closed_subscriber.New(announce_champion_usecase.New(store, inprocess_feed.New(0, slog.New(slog.DiscardHandler))))
+	return season_closed_subscriber.New(announce_usecase.New(store, inprocess_feed.New(0, slog.New(slog.DiscardHandler))))
 }
 
 var seasonZero = &seasonsv1.SeasonClosed{

@@ -12,12 +12,12 @@ import (
 
 const chargeLock = 0x63686172
 
-func New(db cppg.QuerierBeginner) *Store {
+func New(db cppg.Conn) *Store {
 	return &Store{db: db}
 }
 
 type Store struct {
-	db cppg.QuerierBeginner
+	db cppg.Conn
 }
 
 var _ bonuses.Store = (*Store)(nil)
@@ -26,48 +26,37 @@ func (s *Store) Change(
 	ctx context.Context,
 	holder bonuses.Holder,
 	change func(bonuses.Held) (bonuses.Held, error),
-) (err error) {
-	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to begin changing the charges: %w", err)
-	}
-	defer func() {
-		if err != nil {
-			_ = tx.Rollback()
+) error {
+	return s.db.InTx(ctx, func(ctx context.Context) error {
+		tx := s.db.On(ctx)
+		if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock($1, hashtext($2))`, chargeLock, string(holder)); err != nil {
+			return fmt.Errorf("failed to lock the charges: %w", err)
 		}
-	}()
 
-	if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock($1, hashtext($2))`, chargeLock, string(holder)); err != nil {
-		return fmt.Errorf("failed to lock the charges: %w", err)
-	}
-
-	before, err := heldBy(ctx, tx, holder)
-	if err != nil {
-		return err
-	}
-
-	after, err := change(before)
-	if err != nil {
-		return err
-	}
-
-	if after != before {
-		if err := keep(ctx, tx, holder, after); err != nil {
+		before, err := heldBy(ctx, tx, holder)
+		if err != nil {
 			return err
 		}
-	}
 
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit the charges: %w", err)
-	}
-	return nil
+		after, err := change(before)
+		if err != nil {
+			return err
+		}
+
+		if after != before {
+			if err := keep(ctx, tx, holder, after); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 func (s *Store) Held(ctx context.Context, holder bonuses.Holder) (bonuses.Held, error) {
-	return heldBy(ctx, s.db, holder)
+	return heldBy(ctx, s.db.On(ctx), holder)
 }
 
-func keep(ctx context.Context, tx *sql.Tx, holder bonuses.Holder, held bonuses.Held) error {
+func keep(ctx context.Context, tx cppg.Querier, holder bonuses.Holder, held bonuses.Held) error {
 	if held.Empty() {
 		if _, err := tx.ExecContext(ctx, `DELETE FROM charges WHERE account = $1`, string(holder)); err != nil {
 			return fmt.Errorf("failed to delete a spent hand: %w", err)

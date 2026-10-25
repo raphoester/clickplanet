@@ -19,7 +19,7 @@ import (
 func (p *gamer) becomeOperator() {
 	p.t.Helper()
 
-	_, err := p.stack.schema(p.t, "auth").ExecContext(p.t.Context(),
+	_, err := p.stack.schema(p.t, "auth").On(p.t.Context()).ExecContext(p.t.Context(),
 		`UPDATE accounts SET operator = true WHERE id = $1`, p.account())
 	require.NoError(p.t, err)
 }

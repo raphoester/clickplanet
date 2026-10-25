@@ -50,7 +50,7 @@ func (s *testSuite) player(account accounts.AccountID, gameToken string) {
 }
 
 func (s *testSuite) operates(account accounts.AccountID, operates bool) {
-	_, err := s.db.ExecContext(s.T().Context(), `UPDATE accounts SET operator = $2 WHERE id = $1`, account.String(), operates)
+	_, err := s.db.On(s.T().Context()).ExecContext(s.T().Context(), `UPDATE accounts SET operator = $2 WHERE id = $1`, account.String(), operates)
 	s.Require().NoError(err)
 }
 

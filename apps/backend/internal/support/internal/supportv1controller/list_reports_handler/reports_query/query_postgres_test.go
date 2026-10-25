@@ -158,7 +158,7 @@ func (s *testSuite) TestReportsBeforeSinceAreLeftOutAndTheLimitKeepsTheNewest() 
 
 func (s *testSuite) TestNoLimitIsTheDefaultAndNoLimitPassesTheMost() {
 	for n := range reports_query.MaxLimit + 5 {
-		_, err := s.db.ExecContext(s.T().Context(), `
+		_, err := s.db.On(s.T().Context()).ExecContext(s.T().Context(), `
 			INSERT INTO reports (id, reporter_account_id, reported_account_id, reason, text, message_id, created_at)
 			VALUES ($1, $2, $3, 'other', '', '', $4)
 		`, uuid.New(), uuid.New(), uuid.UUID(bob), start.Add(time.Duration(n)*time.Second))
@@ -170,9 +170,9 @@ func (s *testSuite) TestNoLimitIsTheDefaultAndNoLimitPassesTheMost() {
 }
 
 func (s *testSuite) TestAReasonTheDatabaseNamesAndTheWireCannotCarryRefusesTheRead() {
-	_, err := s.db.ExecContext(s.T().Context(), `ALTER TYPE report_reason ADD VALUE IF NOT EXISTS 'boring'`)
+	_, err := s.db.On(s.T().Context()).ExecContext(s.T().Context(), `ALTER TYPE report_reason ADD VALUE IF NOT EXISTS 'boring'`)
 	s.Require().NoError(err)
-	_, err = s.db.ExecContext(s.T().Context(), `
+	_, err = s.db.On(s.T().Context()).ExecContext(s.T().Context(), `
 		INSERT INTO reports (id, reporter_account_id, reported_account_id, reason, text, message_id, created_at)
 		VALUES ($1, $2, $3, 'boring', '', '', $4)
 	`, uuid.New(), uuid.UUID(ada), uuid.UUID(bob), start)
@@ -249,9 +249,9 @@ func (s *testSuite) TestEveryOutcomeTheDomainKnowsIsRead() {
 
 func (s *testSuite) TestAnOutcomeTheDatabaseNamesAndTheWireCannotCarryRefusesTheRead() {
 	s.reported(1, ada, bob, reports.Complaint{Reason: reports.ReasonOther}, start)
-	_, err := s.db.ExecContext(s.T().Context(), `ALTER TYPE report_outcome ADD VALUE IF NOT EXISTS 'escalated'`)
+	_, err := s.db.On(s.T().Context()).ExecContext(s.T().Context(), `ALTER TYPE report_outcome ADD VALUE IF NOT EXISTS 'escalated'`)
 	s.Require().NoError(err)
-	_, err = s.db.ExecContext(s.T().Context(), `
+	_, err = s.db.On(s.T().Context()).ExecContext(s.T().Context(), `
 		INSERT INTO report_decisions (report_id, outcome, comment, decided_at) VALUES ($1, 'escalated', '', $2)
 	`, uuid.UUID(reports.ReportID{15: 1}), start)
 	s.Require().NoError(err)

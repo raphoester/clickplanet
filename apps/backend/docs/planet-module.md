@@ -101,7 +101,7 @@ because it serves every concept over one Connect service. It only maps.
 | `bonuses/usecases/use_refill_usecase` | fills the caller's bank with its refill | `Refills`, `Bank`, `Pricer` |
 | `bonuses/usecases/grant_charges_usecase` | the operator gives an account charges | `Charger` |
 | `bonuses/usecases/place_shield_usecase` | spends a shield on a tile of the caller's flag | `Shields`, `Tiles`, `CountryChecker`, `Allegiances` |
-| `clicks/usecases/relay_fortifications_usecase` | follows the tile map and publishes `planet.v1.Fortified` for each fortify; a `Runner` | `Changes`, `Publisher` |
+| `ledger/usecases/relay_ledger_usecase` | tells the other modules what the ledger flushed past its cursor, in ledger order: `TileTaken`, `BombLanded`, `Fortified`, each with its position; a `Runner` | `Ledger`, `Cursor`, `Borders`, `Sender` |
 
 **The interfaces in that last column are declared by the package that calls
 them**, not gathered in a `gateways.go` every use case imports. A shared port

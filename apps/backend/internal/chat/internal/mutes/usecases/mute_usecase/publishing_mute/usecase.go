@@ -13,7 +13,7 @@ import (
 )
 
 type Publisher interface {
-	Publish(event proto.Message)
+	Publish(events ...proto.Message)
 }
 
 func New(implementation mute_usecase.Executor, events Publisher) *Decorator {
@@ -34,6 +34,7 @@ func (d *Decorator) Execute(ctx context.Context, in mute_usecase.In) (mutes.Mute
 	}
 
 	d.events.Publish(&chatv1.AccountMuted{
+		MuteId:    mute.ID().String(),
 		AccountId: mute.Caller().Account().String(),
 		MutedAt:   timestamppb.New(mute.At()),
 		Duration:  durationpb.New(mute.Duration()),

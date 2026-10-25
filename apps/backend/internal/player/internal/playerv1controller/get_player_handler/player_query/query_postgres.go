@@ -35,12 +35,12 @@ var ErrNoPlayer = errors.New("no such player")
 
 const shownFronts = 3
 
-func NewPostgresQuery(db cppg.Querier, titles Titles, accounts Accounts, fronts Fronts, clock cptime.Clock) *PostgresQuery {
+func NewPostgresQuery(db cppg.Conn, titles Titles, accounts Accounts, fronts Fronts, clock cptime.Clock) *PostgresQuery {
 	return &PostgresQuery{db: db, titles: titles, accounts: accounts, fronts: fronts, clock: clock}
 }
 
 type PostgresQuery struct {
-	db       cppg.Querier
+	db       cppg.Conn
 	titles   Titles
 	accounts Accounts
 	fronts   Fronts
@@ -78,7 +78,7 @@ func (q *PostgresQuery) Player(ctx context.Context, account cpsession.AccountID)
 		held   []string
 		answer = &playerv1.Player{Stats: &playerv1.Stats{}}
 	)
-	err := q.db.QueryRowContext(ctx, player, uuid.UUID(account), q.clock.Now().UTC().Format(time.DateOnly)).Scan(
+	err := q.db.On(ctx).QueryRowContext(ctx, player, uuid.UUID(account), q.clock.Now().UTC().Format(time.DateOnly)).Scan(
 		&guest, &answer.Name, &answer.Admin, &color,
 		&answer.Stats.TilesTaken, &answer.Stats.StreakCurrent, &answer.Stats.StreakBest, &answer.Stats.StreakLastDay,
 		&choice, pq.Array(&held),

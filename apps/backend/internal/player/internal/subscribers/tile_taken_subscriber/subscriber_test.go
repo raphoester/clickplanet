@@ -13,7 +13,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/inmemory_player_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/record_stats_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/tile_taken_subscriber"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 )
 
 const account = "0b6d4f7e-5d7c-4a36-9a51-3f1f8f0c2a11"
@@ -23,7 +23,7 @@ var at = time.Date(2026, 9, 17, 12, 0, 0, 0, time.UTC)
 func TestATakeIsCountedAtTheTimeItWasTaken(t *testing.T) {
 	store := inmemory_player_store.New()
 
-	err := tile_taken_subscriber.New(record_stats_usecase.New(store, cpbootstrap.NewRecordedEvents())).Handle(t.Context(),
+	err := tile_taken_subscriber.New(record_stats_usecase.New(store, cpredis.NewRecordedEvents())).Handle(t.Context(),
 		&planetv1.TileTaken{AccountId: account, TileId: 42, Country: "fr", TakenAt: timestamppb.New(at)})
 
 	require.NoError(t, err)
@@ -36,7 +36,7 @@ func TestATakeIsCountedAtTheTimeItWasTaken(t *testing.T) {
 }
 
 func TestAnEventWithNoAccountOrNoTimeIsRefused(t *testing.T) {
-	subscriber := tile_taken_subscriber.New(record_stats_usecase.New(inmemory_player_store.New(), cpbootstrap.NewRecordedEvents()))
+	subscriber := tile_taken_subscriber.New(record_stats_usecase.New(inmemory_player_store.New(), cpredis.NewRecordedEvents()))
 
 	require.ErrorIs(t, subscriber.Handle(t.Context(), &planetv1.TileTaken{TileId: 42, TakenAt: timestamppb.New(at)}),
 		players.ErrInvalidAccount)

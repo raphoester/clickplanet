@@ -42,7 +42,7 @@ func (s *Store) RecordTake(_ context.Context, season calendar.Number, take stand
 		return s.failWith
 	}
 	at := key{season: season, account: take.Account}
-	s.tallies[at] = s.tallies[at].WithTake(take.Country)
+	s.tallies[at] = s.tallies[at].WithTake(take)
 	return nil
 }
 
