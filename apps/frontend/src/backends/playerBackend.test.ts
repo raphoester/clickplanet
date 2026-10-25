@@ -1,7 +1,11 @@
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {Code, ConnectError} from "@connectrpc/connect"
 import {
+    CollectMissionResponse as CollectMissionResponsePb,
     CountryTiles as CountryTilesPb,
+    GetMissionsResponse as GetMissionsResponsePb,
+    Mission as MissionPb,
+    MissionKind as MissionKindPb,
     Player as PlayerPb,
     PlayerEvent as PlayerEventPb,
     PlayerLeft as PlayerLeftPb,
@@ -15,6 +19,8 @@ import {
     Track as TrackPb,
 } from "../gen/grpc/player/v1/player_pb.ts"
 import {Rank as RankPb, Title as TitlePb} from "../gen/grpc/player/v1/title_pb.ts"
+import {BonusKind as BonusKindPb} from "../gen/grpc/planet/v1/planet_pb.ts"
+import {MissionError} from "./missions.ts"
 import {isValidUsername, NameColor, PlayerError, PlayerTitle, RenameTooSoonError, RosterEvent, usernameOf} from "./player.ts"
 import {ConnectPlayerBackend} from "./playerBackend.ts"
 import {SESSION_HEADER, SessionProvider, SessionUnavailableError} from "./session.ts"
@@ -490,5 +496,48 @@ describe("ConnectPlayerBackend player info", () => {
         const error = await backendWith({getPlayer: refusing(Code.Internal)}).playerInfo("account-1").catch((e) => e)
 
         expect(error).toBeInstanceOf(ConnectError)
+    })
+})
+
+describe("missions", () => {
+    it("reads the day's missions for the country asked, with the click token", async () => {
+        const getMissions = vi.fn(async () => new GetMissionsResponsePb({
+            countryId: "fr", enlisted: true, endsAtUnixMs: 1_000n,
+            missions: [
+                new MissionPb({
+                    slot: 2, kind: MissionKindPb.TAKE_FROM, targetCountryId: "dz", goal: 40, progress: 12,
+                    rewardKind: BonusKindPb.SPREAD_CLICKS, rewardAmount: 4,
+                }),
+                new MissionPb({slot: 4, kind: MissionKindPb.UNSPECIFIED, rewardKind: BonusKindPb.SHIELDS}),
+            ],
+        }))
+
+        const day = await backendWith({getMissions}).missions("de")
+
+        expect((getMissions.mock.calls[0] as unknown[])[0]).toEqual({countryId: "de"})
+        expect(headersOf(getMissions).headers.get(SESSION_HEADER)).toBe("token-1")
+        expect(day).toEqual({
+            countryCode: "fr", enlisted: true, endsAt: 1_000,
+            missions: [{
+                slot: 2, kind: "takeFrom", target: "dz", goal: 40, progress: 12, collected: false,
+                reward: {kind: "spreadClicks", amount: 4},
+            }],
+        })
+    })
+
+    it("answers what a collected mission paid", async () => {
+        const collectMission = vi.fn(async () => new CollectMissionResponsePb({kind: BonusKindPb.BOMB, amount: 1}))
+
+        expect(await backendWith({collectMission}).collectMission(3)).toEqual({kind: "bomb", amount: 1})
+        expect((collectMission.mock.calls[0] as unknown[])[0]).toEqual({slot: 3})
+    })
+
+    it("reads a guest refused, and a reward that did not fit", async () => {
+        for (const [code, failure] of [[Code.PermissionDenied, "guest"], [Code.FailedPrecondition, "full"], [Code.Internal, "failed"]] as const) {
+            const failed = await backendWith({collectMission: refusing(code)}).collectMission(1).catch((e: unknown) => e)
+
+            expect(failed).toBeInstanceOf(MissionError)
+            expect((failed as MissionError).failure).toBe(failure)
+        }
     })
 })

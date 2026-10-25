@@ -100,6 +100,11 @@ export interface BonusListener {
     claimBonus(token: string, countryId: string): Promise<ClaimedBonus>
 }
 
+// For a charge granted elsewhere, as a mission's reward: the holder tells its listeners again.
+export interface ChargesRefresher {
+    refreshCharges(): Promise<void>
+}
+
 export interface QuizMaster {
     listenForQuizzes(onOffered: (offer: QuizOffer) => void): () => void
 

@@ -27,6 +27,8 @@ export default function App(props: AppProps) {
             season={props.season}
             standings={props.standings}
             support={props.support}
+            missions={props.missions}
+            chargesRefresher={props.chargesRefresher}
         />
     </>
 }

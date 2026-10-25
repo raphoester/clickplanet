@@ -3,6 +3,8 @@ import {createConnectTransport} from "@connectrpc/connect-web"
 import {PlayerService} from "../gen/grpc/player/v1/player_connect.ts"
 import {
     CountryTiles as CountryTilesPb,
+    Mission as MissionPb,
+    MissionKind as MissionKindPb,
     Player as PlayerPb,
     PlayerEvent as PlayerEventPb,
     Profile as ProfilePb,
@@ -30,6 +32,8 @@ import {
     TitleDashboard,
     TitleTrack,
 } from "./player.ts"
+import {chargeKindOf} from "./bonusKind.ts"
+import {DayMissions, Mission, MissionError, MissionFailure, MissionKind, MissionReward, MissionsBackend} from "./missions.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
 import {titleOf} from "./title.ts"
 import {Config, NO_TIMEOUT, openStream, retrying} from "./transport.ts"
@@ -61,7 +65,7 @@ const FAILURES: Partial<Record<Code, PlayerFailure>> = {
     [Code.FailedPrecondition]: "unnamed",
 }
 
-export class ConnectPlayerBackend implements PlayerBackend, PresenceBackend, PlayerInfoBackend {
+export class ConnectPlayerBackend implements PlayerBackend, PresenceBackend, PlayerInfoBackend, MissionsBackend {
     constructor(
         private readonly client: PromiseClient<typeof PlayerService>,
         private readonly session: SessionProvider,
@@ -104,6 +108,29 @@ export class ConnectPlayerBackend implements PlayerBackend, PresenceBackend, Pla
     public async wearTitle(id: string): Promise<PlayerTitle | undefined> {
         const res = await this.authenticated((headers) => this.client.wearTitle({titleId: id}, {headers}))
         return titleOf(res.worn)
+    }
+
+    public async missions(countryCode: string): Promise<DayMissions> {
+        const res = await this.authenticated((headers) =>
+            retrying(() => this.client.getMissions({countryId: countryCode}, {headers}), "GetMissions"))
+        return {
+            countryCode: res.countryId,
+            enlisted: res.enlisted,
+            endsAt: Number(res.endsAtUnixMs),
+            missions: res.missions.flatMap((mission) => missionOf(mission) ?? []),
+        }
+    }
+
+    public async collectMission(slot: number): Promise<MissionReward> {
+        let res
+        try {
+            res = await this.authenticated((headers) => this.client.collectMission({slot}, {headers}))
+        } catch (e) {
+            throw new MissionError(missionFailureOf(e), {cause: e})
+        }
+        const kind = chargeKindOf(res.kind)
+        if (!kind) throw new MissionError("failed")
+        return {kind, amount: res.amount}
     }
 
     public heldSession(): string | undefined {
@@ -278,4 +305,35 @@ function trackOf(track: TrackPb): TitleTrack {
             return title ? [{title, threshold: Number(step.threshold), earned: step.earned}] : []
         }),
     }
+}
+
+const MISSION_KINDS: Partial<Record<MissionKindPb, MissionKind>> = {
+    [MissionKindPb.TAKE_FOR]: "takeFor",
+    [MissionKindPb.TAKE_FROM]: "takeFrom",
+    [MissionKindPb.TAKE_IN]: "takeIn",
+}
+
+function missionOf(mission: MissionPb): Mission | undefined {
+    const kind = MISSION_KINDS[mission.kind]
+    const reward = chargeKindOf(mission.rewardKind)
+    if (!kind || !reward) return undefined
+    return {
+        slot: mission.slot,
+        kind,
+        target: mission.targetCountryId,
+        goal: mission.goal,
+        progress: mission.progress,
+        collected: mission.collected,
+        reward: {kind: reward, amount: mission.rewardAmount},
+    }
+}
+
+const MISSION_FAILURES: Partial<Record<Code, MissionFailure>> = {
+    [Code.PermissionDenied]: "guest",
+    [Code.FailedPrecondition]: "full",
+}
+
+function missionFailureOf(e: unknown): MissionFailure {
+    const connect = e instanceof ConnectError ? e : e instanceof Error && e.cause instanceof ConnectError ? e.cause : undefined
+    return (connect && MISSION_FAILURES[connect.code]) ?? "failed"
 }

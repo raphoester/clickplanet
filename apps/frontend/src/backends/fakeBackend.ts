@@ -9,17 +9,18 @@ import {
     BonusListener,
     BonusLostError,
     BonusOffer,
+    ChargesRefresher,
     ClaimedBonus,
-    ShieldRefusedError,
-    GlobePoint,
     Enclosure,
     Fortification,
+    GlobePoint,
     Ownerships,
     OwnershipsGetter,
     QuizMaster,
     RateLimitedError,
     Refiller,
     Shielder,
+    ShieldRefusedError,
     TileClicker,
     Update,
     UpdatesListener,
@@ -105,7 +106,7 @@ export type FakeBackendOptions = {
     landmasses?: () => Promise<{assignment: Uint16Array, count: number}>
 }
 
-export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller, Shielder, AllegianceSource {
+export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller, Shielder, AllegianceSource, ChargesRefresher {
     private tileBindings: Map<number, string> = new Map()
     private tileCounts: Map<string, number> = new Map()
     private budgetCountry = ""
@@ -256,6 +257,10 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
             case "shields":
                 return this.charges.shields >= SHIELDS
         }
+    }
+
+    public async refreshCharges(): Promise<void> {
+        this.hold(this.charges)
     }
 
     private hold(charges: Charges) {

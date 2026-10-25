@@ -218,6 +218,7 @@ export function useGlobe(options: UseGlobeOptions) {
         dismissSessionUnavailable: () => setSessionUnavailable(false),
         lockedOut,
         award,
+        showAward: takeBonus,
         dismissAward,
         charges,
         rules,
