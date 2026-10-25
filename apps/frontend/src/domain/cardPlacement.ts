@@ -4,7 +4,7 @@ export type Size = {width: number, height: number}
 
 const POINTER_GAP_PX = 16
 const FINGER_GAP_PX = 48
-const EDGE_PX = 8
+const EDGE_PX = 12
 
 export function cardPlacement(point: Point, card: Size, view: Size, touch: boolean): Point {
     const x = touch

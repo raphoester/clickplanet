@@ -988,12 +988,13 @@ the other's next announce, at most 30s later.
 
 **A mouse resting on a tile for half a second, or a finger holding one still for
 half a second, opens a card beside the pointer on the player whose take holds
-it** (`HolderCard`). The player first: the medal of the title it wears (its name
-only as the medal's label), the name in its colour with its crown and streak, and
-under the name the first three flags it fought for (from its public card,
-`GetPlayer`) and "View profile", which opens that card. Under the player, the
-flag it took the tile for and how long ago. A guest shows its name, the flag and
-the time alone: a guest has no public card. A tap takes a tile, so a tap cannot ask: a hold is the one press a
+it** (`HolderCard`). One row: the medal of the title it wears (its name only as
+the medal's label), the name in its colour with its crown and streak over the
+first three flags it fought for (from its public card, `GetPlayer`), and a round
+profile button that opens that card. Under it, a footer strip: the flag it took
+the tile for and how long ago. The close is a round badge on the top-right corner,
+outside the layout, so the card keeps `EDGE_PX` (12px) from the screen's edges. A
+guest shows its name and the footer alone: a guest has no public card. A tap takes a tile, so a tap cannot ask: a hold is the one press a
 tap never is, and the bomb's hold-to-drop is already one.
 
 - **It is the one thing drawn over the globe outside the four zones**, because it

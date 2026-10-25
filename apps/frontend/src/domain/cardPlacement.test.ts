@@ -20,7 +20,7 @@ describe("cardPlacement", () => {
     })
 
     it("puts it below a finger near the top, and keeps it on screen at the sides", () => {
-        expect(cardPlacement({x: 20, y: 120}, CARD, PHONE, true)).toEqual({x: 8, y: 168})
-        expect(cardPlacement({x: 370, y: 500}, CARD, PHONE, true)).toEqual({x: 107, y: 252})
+        expect(cardPlacement({x: 20, y: 120}, CARD, PHONE, true)).toEqual({x: 12, y: 168})
+        expect(cardPlacement({x: 370, y: 500}, CARD, PHONE, true)).toEqual({x: 103, y: 252})
     })
 })

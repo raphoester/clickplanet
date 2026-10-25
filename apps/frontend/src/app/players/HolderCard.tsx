@@ -7,7 +7,7 @@ import {agoOf, Point} from "../../domain/tilePeek.ts"
 import {authorStyle} from "../chat/authorStyle.ts"
 import AdminCrown from "../components/AdminCrown.tsx"
 import CountryFlag from "../components/CountryFlag.tsx"
-import {CloseIcon} from "../components/icons.tsx"
+import {CloseIcon, UserIcon} from "../components/icons.tsx"
 import StreakFlame from "../components/StreakFlame.tsx"
 import {useEscape} from "../components/useDialog.ts"
 import TitleBadge from "../titles/TitleBadge.tsx"
@@ -70,31 +70,32 @@ export default function HolderCard({holder, backend, now = Date.now(), onHold, o
                  aria-label={line.name}
                  onPointerEnter={() => onHold(true)}
                  onPointerLeave={() => onHold(false)}>
-            <div className="holder-card-head">
-                {line.wornTitle && <span className="holder-card-medal"><TitleBadge title={line.wornTitle} size={52}/></span>}
-                <span className="holder-card-name">
-                    <span className="holder-card-name-text" title={line.name}>{truncate(line.name, NAME_MAX_LENGTH)}</span>
-                    {line.admin && <AdminCrown/>}
-                    <StreakFlame days={line.streak}/>
-                </span>
-                <button type="button" className="icon-button holder-card-close" aria-label="Close" onClick={onClose}>
-                    <CloseIcon/>
-                </button>
-                {!line.guest && <div className="holder-card-links">
+            <button type="button" className="holder-card-close" aria-label="Close" onClick={onClose}>
+                <CloseIcon size={14}/>
+            </button>
+            <div className="holder-card-main">
+                {line.wornTitle && <TitleBadge title={line.wornTitle} size={48}/>}
+                <div className="holder-card-who">
+                    <span className="holder-card-name">
+                        <span className="holder-card-name-text" title={line.name}>{truncate(line.name, NAME_MAX_LENGTH)}</span>
+                        {line.admin && <AdminCrown/>}
+                        <StreakFlame days={line.streak}/>
+                    </span>
                     {info && info.playsFor.length > 0 && <span className="holder-card-flags" role="group" aria-label="Fought for">
                         {info.playsFor.slice(0, FLAGS_SHOWN).map(({countryCode}) => {
                             const name = Countries.get(countryCode)?.name ?? countryCode
                             return <span key={countryCode} role="img" aria-label={name} title={name}><CountryFlag code={countryCode}/></span>
                         })}
                     </span>}
-                    {onOpenPlayer && <button type="button"
-                                             className="button button-mini button-secondary holder-card-profile"
-                                             onClick={() => onOpenPlayer(line)}>
-                        View profile
-                    </button>}
-                </div>}
+                </div>
+                {onOpenPlayer && !line.guest && <button type="button"
+                                                         className="icon-button holder-card-profile"
+                                                         aria-label="View profile"
+                                                         title="View profile"
+                                                         onClick={() => onOpenPlayer(line)}>
+                    <UserIcon size={20}/>
+                </button>}
             </div>
-
             <p className="holder-card-take">
                 <span role="img" aria-label={country} title={country}><CountryFlag code={line.countryCode}/></span>
                 Took it {agoOf(takenAt, now)}
