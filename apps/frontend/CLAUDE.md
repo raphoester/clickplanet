@@ -3391,9 +3391,14 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   reaches 22. The experiment `length` tries the shortest of each against it (above).
 
 **`scripts/clip/render.mjs` is the recorder**: it starts Vite, serves the replay at `/__clip/replay.json`, opens
-headless Chrome at 540×960 at 2×, waits for `window.clip.record()`, then for each frame calls `window.clip.frame(i)`,
-takes a screenshot and pipes it to ffmpeg (libx264, `yuv420p`). It needs ffmpeg and Chrome (`CHROME_PATH`, which
-the workflow sets: the default is the macOS path).
+headless Chrome at 540×960 at 2×, waits for `window.clip.record()`, then for each frame calls
+`window.clip.frame(i)`, takes a screenshot and pipes it to ffmpeg (libx264, `yuv420p`). It needs ffmpeg and Chrome
+(`CHROME_PATH`, which the workflow sets: the default is the macOS path). **A Chrome that does not come up is started
+again, twice** (`LAUNCH_TRIES`, `withRetries` in `scripts/clip/retry.mjs`), each time with a line (`Chrome did not
+start, starting it again: …`), from a new profile, the one that failed killed and its profile removed; the third
+failure fails the run, with the error it had. On 2026-10-24 one run in 35 lost its `shortlist` job to "Chrome never
+exposed a debugging target", 20s after the launch, and the next run passed: a lost run is a lost chance to post on
+time. Only the launch is tried again: a page that fails still fails the clip.
 
 **The screenshot is nearly all of a clip's time, so several browsers take them in turn** (`--recorders`, one for
 every 3 cores, 4 at most). The globe draws a frame in 6ms; Chrome takes 0.3s to encode it as a 2.4MB PNG, on one
