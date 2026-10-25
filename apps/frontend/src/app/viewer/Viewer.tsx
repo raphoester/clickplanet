@@ -77,7 +77,7 @@ import {BoardStandings, BoardView} from "../standings/BoardViews.tsx";
 import {useRace} from "../standings/useRace.ts";
 import RoundReveal from "../season/RoundReveal.tsx";
 import {useRoundReveal} from "../season/useRoundReveal.ts";
-import {revealKeyOf} from "../../domain/roundReveal.ts";
+import {Overlay, overlayShown, revealKeyOf} from "../../domain/roundReveal.ts";
 import {reigningChampionOf} from "../../domain/champion.ts";
 import {countryLines, CountryOrder, shownOrder} from "../../domain/race.ts";
 import {acceptedClicks} from "./acceptedClicks.ts";
@@ -238,6 +238,9 @@ export default function Viewer(props: ViewerProps) {
 
     const order = shownOrder(race, countryOrder)
     const lines = countryLines(leaderboard, race, order)
+    const [overlay, setOverlay] = useState<Overlay>()
+    const shownOverlay = overlayShown(overlay, unlocked.length > 0, status.state === 'ready' && reveal.closed !== undefined)
+    useEffect(() => setOverlay(shownOverlay), [shownOverlay])
     const anthem = useAnthem(status.state === 'ready' ? lines : NO_LEADERBOARD, order, sound.settings)
 
     const stats = shareStats(lines, countryState)
@@ -403,17 +406,17 @@ export default function Viewer(props: ViewerProps) {
                                                        reporter={openPlayer.accountId === ownAccountId ? undefined : props.support}
                                                        onClose={() => setOpenPlayer(undefined)}/>}
 
-        {unlocked.length > 0 && <TitleUnlocked key={unlocked[0].id}
-                                               title={unlocked[0]}
-                                               play={sound.play}
-                                               onWear={props.account?.wearTitle}
-                                               onClose={() => setUnlocked((queue) => queue.slice(1))}/>}
+        {shownOverlay === "title" && <TitleUnlocked key={unlocked[0].id}
+                                                    title={unlocked[0]}
+                                                    play={sound.play}
+                                                    onWear={props.account?.wearTitle}
+                                                    onClose={() => setUnlocked((queue) => queue.slice(1))}/>}
 
-        {ready && unlocked.length === 0 && reveal.closed && <RoundReveal key={revealKeyOf(reveal.closed)}
-                                                                         closed={reveal.closed}
-                                                                         countryCode={countryState.code}
-                                                                         play={sound.play}
-                                                                         onClose={reveal.dismiss}/>}
+        {shownOverlay === "reveal" && reveal.closed && <RoundReveal key={revealKeyOf(reveal.closed)}
+                                                                    closed={reveal.closed}
+                                                                    countryCode={countryState.code}
+                                                                    play={sound.play}
+                                                                    onClose={reveal.dismiss}/>}
 
         {award && <BonusAward reward={award}
                               kept={isFirstWin(bonusGuide.guide, award.kind)}

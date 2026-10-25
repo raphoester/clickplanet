@@ -37,6 +37,7 @@ const TRACKS: {id: string, name: string, measure: "tiles" | "streak", ranks: Fak
 ]
 
 const OG_TITLE: PlayerTitle = {id: "og", name: "OG"}
+const SEASON_TITLES: PlayerTitle[] = [{id: "champion_s0", name: "Champion · S0"}, {id: "veteran_s0", name: "Veteran · S0"}]
 
 function rankedTitle(trackIndex: number, rankIndex: number): PlayerTitle {
     const track = TRACKS[trackIndex]
@@ -95,9 +96,9 @@ export class FakePresenceBackend implements PresenceBackend, PlayerInfoBackend {
 
     public earnTitle(id = "conqueror"): void {
         const trackIndex = TRACKS.findIndex((track) => track.ranks.some((rank) => rank.id === id))
-        const title = trackIndex === -1
+        const title = SEASON_TITLES.find((season) => season.id === id) ?? (trackIndex === -1
             ? OG_TITLE
-            : rankedTitle(trackIndex, TRACKS[trackIndex].ranks.findIndex((rank) => rank.id === id))
+            : rankedTitle(trackIndex, TRACKS[trackIndex].ranks.findIndex((rank) => rank.id === id)))
         this.titleListeners.forEach((listener) => listener(title))
     }
 

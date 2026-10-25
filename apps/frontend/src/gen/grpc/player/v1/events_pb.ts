@@ -43,3 +43,40 @@ export class StatsChanged extends Message<StatsChanged> {
   }
 }
 
+/**
+ * @generated from message player.v1.SeasonRecorded
+ */
+export class SeasonRecorded extends Message<SeasonRecorded> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  constructor(data?: PartialMessage<SeasonRecorded>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.SeasonRecorded";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SeasonRecorded {
+    return new SeasonRecorded().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SeasonRecorded {
+    return new SeasonRecorded().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SeasonRecorded {
+    return new SeasonRecorded().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SeasonRecorded | PlainMessage<SeasonRecorded> | undefined, b: SeasonRecorded | PlainMessage<SeasonRecorded> | undefined): boolean {
+    return proto3.util.equals(SeasonRecorded, a, b);
+  }
+}
+

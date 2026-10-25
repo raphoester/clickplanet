@@ -12,6 +12,20 @@ describe("TitleEmblem", () => {
         expect(container.querySelector("text")?.textContent).toBe("G")
     })
 
+    it("draws a season's veteran and champion in the season's colors, whatever the season", () => {
+        const fills = (container: HTMLElement) => [...container.querySelectorAll("path, circle")]
+            .map((shape) => (shape as SVGElement).style.fill)
+
+        for (const title of [{id: "veteran_s0", name: "Veteran · S0"}, {id: "champion_s3", name: "Champion · S3"}]) {
+            const {container} = render(<TitleEmblem title={title} size={56} ribbon/>)
+            expect(container.querySelector("text"), title.id).toBeNull()
+            expect(fills(container)).toContain("var(--season)")
+            expect(fills(container)).toContain("var(--season-enamel)")
+        }
+        expect(fills(render(<TitleEmblem title={{id: "champion_s0", name: "Champion · S0"}} size={56}/>).container))
+            .toContain("var(--gold)")
+    })
+
     it("gives each medal its own masks, so two on one page do not share one", () => {
         const {container} = render(<>
             <TitleEmblem title={{id: "settler", name: "Settler"}} size={56}/>

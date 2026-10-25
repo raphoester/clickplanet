@@ -53,7 +53,8 @@ and a bomb at most, a pool of 8 spread clicks, a stack of 3 enclosures and 30
 shields, a box adding 1 to 4, 1 to 3 and 5 to 20 of them, spread and enclose
 spent only while switched on,
 both at once refused, a refill refused on a full bank), `giveQuiz()` puts a quiz
-banner up at once, `giveTitle("warlord")` plays the unlock of any title (the fake
+banner up at once, `giveTitle("warlord")` plays the unlock of any title
+(`giveTitle("champion_s0")` and `"veteran_s0"` too) (the fake
 wires no account, so the overlay offers Close only), `closeDay()` closes the
 fake's day: its countries score with a little luck, the race carries the round
 closed with the season's table before and after it, and the chat announces the
@@ -1139,14 +1140,17 @@ is the player's own view.
 - **Most titles are ranks on a track** (`TitleRank`: the track, the rank's
   number, how many ranks). Conquest counts tiles taken, Devotion the streak,
   Chatter messages, Defense fortified tiles, Bombs bombs dropped, Loot boxes
-  caught and Quiz right answers; OG stands alone. A track this build does
+  caught and Quiz right answers; OG stands alone, and so does each season's
+  Veteran and Champion (`veteran_s0`, `champion_s0`). A track this build does
   not know is drawn in Conquest's colors, and its steps as bare numbers. **Only the highest rank of each track is ever shown or worn**, so
   the client never filters: it draws what the server sends, in its order.
 - **Every title is a medal** (`TitleEmblem`): an SVG per id, drawn by the
   medal rules of [`DESIGN.md`](DESIGN.md), in the metal `titleArt.ts` gives it
   (`TITLE_METALS`, bronze up to prism) and the colors of its track (`enamelOf`,
   `ribbonOf`). An id this build has no picture for gets the first letter of its
-  name in silver, so a new title shows before its art ships. `locked` greys it
+  name in silver, so a new title shows before its art ships. **A season's two are
+  drawn by their kind, whatever the season** (`seasonTitleOf`): chevrons in silver
+  and a trophy in gold, in the season's colors (`--season`, `--season-enamel`). `locked` greys it
   with a padlock, for a rank not held. Each medal names its masks with `useId`:
   two on one page cannot share one. Its colors are tokens set through `style`,
   since an SVG presentation attribute does not resolve `var()`.
@@ -1451,9 +1455,11 @@ once (`app/season/RoundReveal.tsx`; the rules are in `domain/roundReveal.ts`).
   `ROUND_REVEAL.champion` (2.2s). Then Close appears and Escape works.
   The rule is the title unlock's: a player spamming the globe would close it
   unseen.
-- **It waits for a title unlock to close.** `Viewer` mounts it once the map is
-  loaded and only while no `TitleUnlocked` is queued, so a title earned at the
-  cutoff plays first and the reveal plays after it.
+- **It waits for a title unlock to close, and a title waits for it.** Whichever is
+  on screen plays to its end (`overlayShown` in `domain/roundReveal.ts`): a title
+  earned at the cutoff plays first, and a season's titles, which come a minute or
+  so after the finale closes, wait for its champion. With both waiting the title
+  goes first. `Viewer` mounts the reveal only once the map is loaded.
 - It looks like the unlock: a portal on the body, the `title-reveal` classes of
   `TitleUnlocked.css`, and the `title` sound. Under
   `prefers-reduced-motion: reduce` the rows do not slide and the steps only fade

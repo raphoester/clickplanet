@@ -77,3 +77,11 @@ export function moveOf(row: RevealRow): Move {
     if (by < 0) return {kind: "down", by: -by}
     return {kind: "same"}
 }
+
+export type Overlay = "title" | "reveal"
+
+export function overlayShown(shown: Overlay | undefined, titleQueued: boolean, revealDue: boolean): Overlay | undefined {
+    if (shown === "reveal" && revealDue) return "reveal"
+    if (titleQueued) return "title"
+    return revealDue ? "reveal" : undefined
+}

@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
+import { Message, proto3, protoInt64, Timestamp } from "@bufbuild/protobuf";
 
 /**
  * @generated from message seasons.v1.RoundClosed
@@ -223,6 +223,67 @@ export class SeasonPlace extends Message<SeasonPlace> {
 
   static equals(a: SeasonPlace | PlainMessage<SeasonPlace> | undefined, b: SeasonPlace | PlainMessage<SeasonPlace> | undefined): boolean {
     return proto3.util.equals(SeasonPlace, a, b);
+  }
+}
+
+/**
+ * @generated from message seasons.v1.SeasonPlayed
+ */
+export class SeasonPlayed extends Message<SeasonPlayed> {
+  /**
+   * @generated from field: uint32 season = 1;
+   */
+  season = 0;
+
+  /**
+   * @generated from field: string account_id = 2;
+   */
+  accountId = "";
+
+  /**
+   * @generated from field: string main_flag = 3;
+   */
+  mainFlag = "";
+
+  /**
+   * @generated from field: uint64 tiles = 4;
+   */
+  tiles = protoInt64.zero;
+
+  /**
+   * @generated from field: bool won = 5;
+   */
+  won = false;
+
+  constructor(data?: PartialMessage<SeasonPlayed>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "seasons.v1.SeasonPlayed";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "season", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "main_flag", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "tiles", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+    { no: 5, name: "won", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SeasonPlayed {
+    return new SeasonPlayed().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SeasonPlayed {
+    return new SeasonPlayed().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SeasonPlayed {
+    return new SeasonPlayed().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SeasonPlayed | PlainMessage<SeasonPlayed> | undefined, b: SeasonPlayed | PlainMessage<SeasonPlayed> | undefined): boolean {
+    return proto3.util.equals(SeasonPlayed, a, b);
   }
 }
 

@@ -1,6 +1,6 @@
 import {ReactNode, useId} from "react"
 import {PlayerTitle} from "../../backends/player.ts"
-import {BANDS, enamelOf, METALS, metalOf, ribbonOf} from "./titleArt.ts"
+import {BANDS, enamelOf, METALS, metalOf, ribbonOf, seasonTitleOf} from "./titleArt.ts"
 
 const INK = "var(--ink)"
 const LIGHT = "var(--text)"
@@ -35,6 +35,12 @@ const CHEST_LID = "M30 50 V43 C30 33 70 33 70 43 V50 Z"
 const COMPASS = "M30 50 A20 20 0 1 0 70 50 A20 20 0 1 0 30 50"
 const GLOBE = "M31 50 A19 19 0 1 0 69 50 A19 19 0 1 0 31 50 Z"
 const MAP = "M29 37 L42 32 L58 38 L71 33 V63 L58 68 L42 62 L29 67 Z"
+const CHEVRONS = ["M34 44 L50 34 L66 44", "M34 56 L50 46 L66 56", "M34 68 L50 58 L66 68"]
+const TROPHY_HANDLES = "M59 35 H65 A4 4 0 0 1 65 43 H59 M41 35 H35 A4 4 0 0 0 35 43 H41"
+const TROPHY_CUP = "M40 31 H60 V41 A10 10 0 0 1 40 41 Z"
+const TROPHY_STEM = "M47 51 H53 V59 H47 Z"
+const TROPHY_BASE = "M41 59 H59 V66 H41 Z"
+const TROPHY = "translate(50 49) scale(1.15) translate(-50 -49)"
 const SMALLER = "translate(50 49) scale(0.9) translate(-50 -49)"
 const LOYAL = "translate(50 52) scale(0.82) translate(-50 -52)"
 const UNBROKEN = "translate(50 52) scale(0.7) translate(-50 -52)"
@@ -82,7 +88,26 @@ function Letters({text, color}: {text: string, color: string}) {
                  style={{fill: color, stroke: INK, paintOrder: "stroke", fontFamily: "var(--font-display)"}}>{text}</text>
 }
 
+function seasonIcon(title: PlayerTitle, accent: string, cream: string): ReactNode {
+    switch (seasonTitleOf(title)) {
+        case "veteran":
+            return <>{CHEVRONS.map((d, i) => <Line key={d} d={d} color={i === CHEVRONS.length - 1 ? cream : accent} width={5}/>)}</>
+        case "champion":
+            return <g transform={TROPHY}>
+                <Line d={TROPHY_HANDLES} color={cream} width={3}/>
+                <Shape d={TROPHY_CUP} color={accent}/>
+                <Shape d={TROPHY_STEM} color={accent} width={2.5}/>
+                <Shape d={TROPHY_BASE} color={cream} width={2.5}/>
+            </g>
+        case undefined:
+            return undefined
+    }
+}
+
 function icon(title: PlayerTitle, accent: string, cream: string): ReactNode {
+    const season = seasonIcon(title, accent, cream)
+    if (season) return season
+
     switch (title.id) {
         case "og":
             return <Letters text="OG" color={accent}/>

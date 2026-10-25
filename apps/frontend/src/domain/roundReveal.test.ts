@@ -1,6 +1,8 @@
 import {describe, expect, it} from "vitest"
 import {ClosedRound, RoundStanding, Score} from "../backends/standings.ts"
-import {medalOf, moveOf, podiumOf, REVEAL_WITHIN_MS, revealDue, revealKeyOf, revealRowsOf, roundOverLine} from "./roundReveal.ts"
+import {
+    medalOf, moveOf, overlayShown, podiumOf, REVEAL_WITHIN_MS, revealDue, revealKeyOf, revealRowsOf, roundOverLine,
+} from "./roundReveal.ts"
 
 const result = (rank: number, countryCode: string, points: number): RoundStanding => ({rank, countryCode, share: 0.1, points})
 const score = (rank: number, countryCode: string, points: number): Score => ({rank, countryCode, points, roundsWon: 0})
@@ -94,5 +96,18 @@ describe("roundOverLine", () => {
 describe("medalOf", () => {
     it("is a medal for the podium and nothing below it", () => {
         expect([1, 2, 3, 4].map(medalOf)).toEqual(["🥇", "🥈", "🥉", ""])
+    })
+})
+
+describe("overlayShown", () => {
+    it("plays a title first, and the reveal once the titles are closed", () => {
+        expect(overlayShown(undefined, true, true)).toBe("title")
+        expect(overlayShown("title", false, true)).toBe("reveal")
+        expect(overlayShown(undefined, false, false)).toBeUndefined()
+    })
+
+    it("lets a reveal on screen finish before a title earned meanwhile", () => {
+        expect(overlayShown("reveal", true, true)).toBe("reveal")
+        expect(overlayShown("reveal", true, false)).toBe("title")
     })
 })
