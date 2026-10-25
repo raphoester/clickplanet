@@ -5,3 +5,7 @@ package player.v1;
 message StatsChanged {
   string account_id = 1;
 }
+
+message SeasonRecorded {
+  string account_id = 1;
+}

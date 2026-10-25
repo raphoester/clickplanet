@@ -50,3 +50,20 @@ func ScoresOf(season []Closed) []Score {
 	}
 	return listed
 }
+
+func EndOf(season []Closed) (SeasonEnd, bool) {
+	if len(season) == 0 {
+		return SeasonEnd{}, false
+	}
+	last := len(season) - 1
+	return season[last].SeasonEnd(season[:last])
+}
+
+func (e SeasonEnd) Won(country Country) bool {
+	for _, placed := range e.Table {
+		if placed.Country == country {
+			return placed.Rank == 1
+		}
+	}
+	return false
+}

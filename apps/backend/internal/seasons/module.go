@@ -37,6 +37,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/standings/postgres_contribution_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/standings/usecases/forget_account_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/standings/usecases/record_take_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/standings/usecases/tell_seasons_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/standings/usecases/tell_seasons_usecase/log_tell_seasons"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/subscribers/account_deleted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/subscribers/tile_taken_subscriber"
@@ -108,8 +110,11 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		take_snapshot_usecase.New(rpc_planet_territories.New(planet), postgres_round_store.New(db), props.Events, seasons, clock),
 		props.Logger,
 	))
+	tellings := tell_seasons_usecase.NewRunner(config.Snapshot.WithDefaults().Interval, log_tell_seasons.New(
+		tell_seasons_usecase.New(postgres_round_store.New(db), contributions, props.Events, seasons, clock), props.Logger,
+	))
 
-	props.Runners.Add(cppg.CloseAfter(db, props.Logger, takes, deletions, boards, races, snapshot))
+	props.Runners.Add(cppg.CloseAfter(db, props.Logger, takes, deletions, boards, races, snapshot, tellings))
 
 	service := seasonsv1controller.SeasonService{
 		GetSeasonHandler: get_season_handler.New(

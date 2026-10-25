@@ -102,3 +102,34 @@ func (s *Store) DeleteAccount(ctx context.Context, account standings.AccountID) 
 	}
 	return nil
 }
+
+func (s *Store) Scores(ctx context.Context, season calendar.Number) ([]standings.Score, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT account_id, country, tiles FROM contributions WHERE season = $1 AND main ORDER BY account_id
+	`, int64(season))
+	if err != nil {
+		return nil, fmt.Errorf("failed to read the season's scores: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var scores []standings.Score
+	for rows.Next() {
+		var (
+			account uuid.UUID
+			country string
+			tiles   int64
+		)
+		if err := rows.Scan(&account, &country, &tiles); err != nil {
+			return nil, fmt.Errorf("failed to read a score: %w", err)
+		}
+		scores = append(scores, standings.Score{
+			Account: standings.AccountID(account),
+			Main:    standings.Country(country),
+			Tiles:   uint64(tiles), //nolint:gosec // CHECK (tiles > 0).
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to read the season's scores: %w", err)
+	}
+	return scores, nil
+}

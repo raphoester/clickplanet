@@ -107,3 +107,19 @@ func TestAFinaleOfNothingIsRefused(t *testing.T) {
 	config.List[0].Finale = -time.Hour
 	require.ErrorContains(t, config.Validate(), "list[0].finale")
 }
+
+func TestTheSeasonsEndedAreTheOnesWhoseEndHasCome(t *testing.T) {
+	seasons := calendar.New(twoSeasons())
+
+	assert.Empty(t, seasons.Ended(seasonZeroEnds.Add(-time.Nanosecond)))
+	assert.Equal(t, []calendar.Number{0}, numbersOf(seasons.Ended(seasonZeroEnds)), "a season is over at the instant it ends")
+	assert.Equal(t, []calendar.Number{0, 1}, numbersOf(seasons.Ended(seasonOneEnds.Add(time.Hour))))
+}
+
+func numbersOf(seasons []calendar.Season) []calendar.Number {
+	numbers := make([]calendar.Number, 0, len(seasons))
+	for _, season := range seasons {
+		numbers = append(numbers, season.Number)
+	}
+	return numbers
+}

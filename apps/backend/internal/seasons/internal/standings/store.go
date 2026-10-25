@@ -9,4 +9,5 @@ import (
 type Store interface {
 	RecordTake(ctx context.Context, season calendar.Number, take Take) error
 	DeleteAccount(ctx context.Context, account AccountID) error
+	Scores(ctx context.Context, season calendar.Number) ([]Score, error)
 }

@@ -65,12 +65,59 @@ func (x *StatsChanged) GetAccountId() string {
 	return ""
 }
 
+type SeasonRecorded struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SeasonRecorded) Reset() {
+	*x = SeasonRecorded{}
+	mi := &file_player_v1_events_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SeasonRecorded) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SeasonRecorded) ProtoMessage() {}
+
+func (x *SeasonRecorded) ProtoReflect() protoreflect.Message {
+	mi := &file_player_v1_events_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SeasonRecorded.ProtoReflect.Descriptor instead.
+func (*SeasonRecorded) Descriptor() ([]byte, []int) {
+	return file_player_v1_events_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *SeasonRecorded) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
 var File_player_v1_events_proto protoreflect.FileDescriptor
 
 const file_player_v1_events_proto_rawDesc = "" +
 	"\n" +
 	"\x16player/v1/events.proto\x12\tplayer.v1\"-\n" +
 	"\fStatsChanged\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\"/\n" +
+	"\x0eSeasonRecorded\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountIdB\xb3\x01\n" +
 	"\rcom.player.v1B\vEventsProtoP\x01ZPgithub.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1;playerv1\xa2\x02\x03PXX\xaa\x02\tPlayer.V1\xca\x02\tPlayer\\V1\xe2\x02\x15Player\\V1\\GPBMetadata\xea\x02\n" +
@@ -88,9 +135,10 @@ func file_player_v1_events_proto_rawDescGZIP() []byte {
 	return file_player_v1_events_proto_rawDescData
 }
 
-var file_player_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_player_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_player_v1_events_proto_goTypes = []any{
-	(*StatsChanged)(nil), // 0: player.v1.StatsChanged
+	(*StatsChanged)(nil),   // 0: player.v1.StatsChanged
+	(*SeasonRecorded)(nil), // 1: player.v1.SeasonRecorded
 }
 var file_player_v1_events_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
@@ -111,7 +159,7 @@ func file_player_v1_events_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_player_v1_events_proto_rawDesc), len(file_player_v1_events_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   1,
+			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

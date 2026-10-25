@@ -55,3 +55,33 @@ func TestADayEndsNoSeason(t *testing.T) {
 
 	assert.False(t, ended)
 }
+
+func TestASeasonHasEndedOnceItsFinaleIsTheLastRoundClosed(t *testing.T) {
+	days := []rounds.Closed{
+		{Round: day, Number: 1, Results: []rounds.Result{{Country: "fr", Rank: 1, Points: 25}}},
+	}
+	closing := rounds.Closed{Round: finale, Number: 2, Results: []rounds.Result{{Country: "de", Rank: 1, Points: 75}}}
+
+	_, ended := rounds.EndOf(days)
+	assert.False(t, ended, "the finale is still to close")
+	_, ended = rounds.EndOf(nil)
+	assert.False(t, ended)
+
+	end, ended := rounds.EndOf(append(days, closing))
+	require.True(t, ended)
+	want, _ := closing.SeasonEnd(days)
+	assert.Equal(t, want, end)
+}
+
+func TestTheCountriesRankedFirstWonTheSeason(t *testing.T) {
+	end := rounds.SeasonEnd{Table: []rounds.Placed{
+		{Rank: 1, Score: rounds.Score{Country: "de"}},
+		{Rank: 1, Score: rounds.Score{Country: "fr"}},
+		{Rank: 3, Score: rounds.Score{Country: "it"}},
+	}}
+
+	assert.True(t, end.Won("de"))
+	assert.True(t, end.Won("fr"), "countries level on everything win together")
+	assert.False(t, end.Won("it"))
+	assert.False(t, end.Won("nz"), "a country that scored nothing")
+}

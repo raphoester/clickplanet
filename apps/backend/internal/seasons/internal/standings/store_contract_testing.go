@@ -85,6 +85,28 @@ func (s *StoreContractSuite) TestDeletingAnAccountThatTookNothingIsNotAnError() 
 	s.Require().NoError(s.store.DeleteAccount(s.T().Context(), contractAccount(9)))
 }
 
+func (s *StoreContractSuite) TestEachPlayerOfASeasonScoresTheTilesOfItsMainFlag() {
+	s.take(0, 2, "de", 1)
+	s.take(0, 1, "fr", 3)
+	s.take(0, 1, "de", 2)
+	s.take(1, 3, "it", 1)
+
+	scores, err := s.store.Scores(s.T().Context(), 0)
+
+	s.Require().NoError(err)
+	s.Equal([]Score{
+		{Account: contractAccount(1), Main: "fr", Tiles: 3},
+		{Account: contractAccount(2), Main: "de", Tiles: 1},
+	}, scores, "in account order, each season its own")
+}
+
+func (s *StoreContractSuite) TestASeasonNobodyPlayedHasNoScore() {
+	scores, err := s.store.Scores(s.T().Context(), 0)
+
+	s.Require().NoError(err)
+	s.Empty(scores)
+}
+
 func (s *StoreContractSuite) TestTakesAtOnceAreAllCounted() {
 	var wg sync.WaitGroup
 	for i := range 40 {

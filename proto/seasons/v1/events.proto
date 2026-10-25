@@ -31,3 +31,11 @@ message SeasonPlace {
   uint32 rounds_won = 4;
   uint32 finale_points = 5;
 }
+
+message SeasonPlayed {
+  uint32 season = 1;
+  string account_id = 2;
+  string main_flag = 3;
+  uint64 tiles = 4;
+  bool won = 5;
+}

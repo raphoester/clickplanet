@@ -68,3 +68,13 @@ func (c Calendar) Current(now time.Time) (Season, bool) {
 
 	return Season{}, false
 }
+
+func (c Calendar) Ended(now time.Time) []Season {
+	var ended []Season
+	for _, season := range c.seasons {
+		if !season.EndsAt.After(now) {
+			ended = append(ended, season)
+		}
+	}
+	return ended
+}

@@ -3,7 +3,9 @@
 package inmemory_contribution_store
 
 import (
+	"bytes"
 	"context"
+	"slices"
 	"sync"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/calendar"
@@ -66,4 +68,21 @@ func (s *Store) DeleteAccount(_ context.Context, account standings.AccountID) er
 		}
 	}
 	return nil
+}
+
+func (s *Store) Scores(_ context.Context, season calendar.Number) ([]standings.Score, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.failWith != nil {
+		return nil, s.failWith
+	}
+	var scores []standings.Score
+	for at, tally := range s.tallies {
+		if at.season == season && !tally.Empty() {
+			scores = append(scores, standings.Score{Account: at.account, Main: tally.Main, Tiles: tally.Tiles[tally.Main]})
+		}
+	}
+	slices.SortFunc(scores, func(a, b standings.Score) int { return bytes.Compare(a.Account[:], b.Account[:]) })
+	return scores, nil
 }
