@@ -20,6 +20,8 @@ type Set struct {
 	Boxes bonuses.Pace
 
 	AntiBot AntiBot
+
+	Frozen bool
 }
 
 type AntiBot struct {

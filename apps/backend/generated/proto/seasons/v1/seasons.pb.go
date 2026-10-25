@@ -59,8 +59,11 @@ func (*GetSeasonRequest) Descriptor() ([]byte, []int) {
 }
 
 type GetSeasonResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Season        *Season                `protobuf:"bytes,1,opt,name=season,proto3" json:"season,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The season in play: unset between two seasons and past the last.
+	Season *Season `protobuf:"bytes,1,opt,name=season,proto3" json:"season,omitempty"`
+	// The first season that starts after now.
+	Next          *Season `protobuf:"bytes,2,opt,name=next,proto3" json:"next,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -102,13 +105,22 @@ func (x *GetSeasonResponse) GetSeason() *Season {
 	return nil
 }
 
+func (x *GetSeasonResponse) GetNext() *Season {
+	if x != nil {
+		return x.Next
+	}
+	return nil
+}
+
 type Season struct {
 	state                protoimpl.MessageState `protogen:"open.v1"`
 	Number               uint32                 `protobuf:"varint,1,opt,name=number,proto3" json:"number,omitempty"`
 	FinaleStartsAtUnixMs int64                  `protobuf:"varint,2,opt,name=finale_starts_at_unix_ms,json=finaleStartsAtUnixMs,proto3" json:"finale_starts_at_unix_ms,omitempty"`
 	EndsAtUnixMs         int64                  `protobuf:"varint,3,opt,name=ends_at_unix_ms,json=endsAtUnixMs,proto3" json:"ends_at_unix_ms,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	// 0 for a season that started before anything.
+	StartsAtUnixMs int64 `protobuf:"varint,4,opt,name=starts_at_unix_ms,json=startsAtUnixMs,proto3" json:"starts_at_unix_ms,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *Season) Reset() {
@@ -158,6 +170,13 @@ func (x *Season) GetFinaleStartsAtUnixMs() int64 {
 func (x *Season) GetEndsAtUnixMs() int64 {
 	if x != nil {
 		return x.EndsAtUnixMs
+	}
+	return 0
+}
+
+func (x *Season) GetStartsAtUnixMs() int64 {
+	if x != nil {
+		return x.StartsAtUnixMs
 	}
 	return 0
 }
@@ -1135,13 +1154,15 @@ const file_seasons_v1_seasons_proto_rawDesc = "" +
 	"\n" +
 	"\x18seasons/v1/seasons.proto\x12\n" +
 	"seasons.v1\x1a\x15player/v1/color.proto\x1a\x15player/v1/title.proto\"\x12\n" +
-	"\x10GetSeasonRequest\"?\n" +
+	"\x10GetSeasonRequest\"g\n" +
 	"\x11GetSeasonResponse\x12*\n" +
-	"\x06season\x18\x01 \x01(\v2\x12.seasons.v1.SeasonR\x06season\"\x7f\n" +
+	"\x06season\x18\x01 \x01(\v2\x12.seasons.v1.SeasonR\x06season\x12&\n" +
+	"\x04next\x18\x02 \x01(\v2\x12.seasons.v1.SeasonR\x04next\"\xaa\x01\n" +
 	"\x06Season\x12\x16\n" +
 	"\x06number\x18\x01 \x01(\rR\x06number\x126\n" +
 	"\x18finale_starts_at_unix_ms\x18\x02 \x01(\x03R\x14finaleStartsAtUnixMs\x12%\n" +
-	"\x0fends_at_unix_ms\x18\x03 \x01(\x03R\fendsAtUnixMs\"4\n" +
+	"\x0fends_at_unix_ms\x18\x03 \x01(\x03R\fendsAtUnixMs\x12)\n" +
+	"\x11starts_at_unix_ms\x18\x04 \x01(\x03R\x0estartsAtUnixMs\"4\n" +
 	"\x13GetStandingsRequest\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x01 \x01(\tR\tcountryId\"J\n" +
@@ -1263,37 +1284,38 @@ var file_seasons_v1_seasons_proto_goTypes = []any{
 }
 var file_seasons_v1_seasons_proto_depIdxs = []int32{
 	2,  // 0: seasons.v1.GetSeasonResponse.season:type_name -> seasons.v1.Season
-	5,  // 1: seasons.v1.GetStandingsResponse.standings:type_name -> seasons.v1.Standing
-	19, // 2: seasons.v1.Standing.color:type_name -> player.v1.NameColor
-	20, // 3: seasons.v1.Standing.worn_title:type_name -> player.v1.Title
-	20, // 4: seasons.v1.GetMySeasonResponse.worn_title:type_name -> player.v1.Title
-	10, // 5: seasons.v1.SeasonEvent.board:type_name -> seasons.v1.Board
-	16, // 6: seasons.v1.SeasonEvent.heartbeat:type_name -> seasons.v1.Heartbeat
-	11, // 7: seasons.v1.SeasonEvent.race:type_name -> seasons.v1.Race
-	5,  // 8: seasons.v1.Board.standings:type_name -> seasons.v1.Standing
-	13, // 9: seasons.v1.Race.round:type_name -> seasons.v1.Round
-	15, // 10: seasons.v1.Race.scores:type_name -> seasons.v1.Score
-	12, // 11: seasons.v1.Race.closed:type_name -> seasons.v1.ClosedRound
-	14, // 12: seasons.v1.ClosedRound.standings:type_name -> seasons.v1.RoundStanding
-	15, // 13: seasons.v1.ClosedRound.before:type_name -> seasons.v1.Score
-	15, // 14: seasons.v1.ClosedRound.after:type_name -> seasons.v1.Score
-	14, // 15: seasons.v1.Round.standings:type_name -> seasons.v1.RoundStanding
-	11, // 16: seasons.v1.GetRaceResponse.race:type_name -> seasons.v1.Race
-	0,  // 17: seasons.v1.SeasonService.GetSeason:input_type -> seasons.v1.GetSeasonRequest
-	3,  // 18: seasons.v1.SeasonService.GetStandings:input_type -> seasons.v1.GetStandingsRequest
-	6,  // 19: seasons.v1.SeasonService.GetMySeason:input_type -> seasons.v1.GetMySeasonRequest
-	8,  // 20: seasons.v1.SeasonService.ListenForEvents:input_type -> seasons.v1.ListenForEventsRequest
-	17, // 21: seasons.v1.SeasonService.GetRace:input_type -> seasons.v1.GetRaceRequest
-	1,  // 22: seasons.v1.SeasonService.GetSeason:output_type -> seasons.v1.GetSeasonResponse
-	4,  // 23: seasons.v1.SeasonService.GetStandings:output_type -> seasons.v1.GetStandingsResponse
-	7,  // 24: seasons.v1.SeasonService.GetMySeason:output_type -> seasons.v1.GetMySeasonResponse
-	9,  // 25: seasons.v1.SeasonService.ListenForEvents:output_type -> seasons.v1.SeasonEvent
-	18, // 26: seasons.v1.SeasonService.GetRace:output_type -> seasons.v1.GetRaceResponse
-	22, // [22:27] is the sub-list for method output_type
-	17, // [17:22] is the sub-list for method input_type
-	17, // [17:17] is the sub-list for extension type_name
-	17, // [17:17] is the sub-list for extension extendee
-	0,  // [0:17] is the sub-list for field type_name
+	2,  // 1: seasons.v1.GetSeasonResponse.next:type_name -> seasons.v1.Season
+	5,  // 2: seasons.v1.GetStandingsResponse.standings:type_name -> seasons.v1.Standing
+	19, // 3: seasons.v1.Standing.color:type_name -> player.v1.NameColor
+	20, // 4: seasons.v1.Standing.worn_title:type_name -> player.v1.Title
+	20, // 5: seasons.v1.GetMySeasonResponse.worn_title:type_name -> player.v1.Title
+	10, // 6: seasons.v1.SeasonEvent.board:type_name -> seasons.v1.Board
+	16, // 7: seasons.v1.SeasonEvent.heartbeat:type_name -> seasons.v1.Heartbeat
+	11, // 8: seasons.v1.SeasonEvent.race:type_name -> seasons.v1.Race
+	5,  // 9: seasons.v1.Board.standings:type_name -> seasons.v1.Standing
+	13, // 10: seasons.v1.Race.round:type_name -> seasons.v1.Round
+	15, // 11: seasons.v1.Race.scores:type_name -> seasons.v1.Score
+	12, // 12: seasons.v1.Race.closed:type_name -> seasons.v1.ClosedRound
+	14, // 13: seasons.v1.ClosedRound.standings:type_name -> seasons.v1.RoundStanding
+	15, // 14: seasons.v1.ClosedRound.before:type_name -> seasons.v1.Score
+	15, // 15: seasons.v1.ClosedRound.after:type_name -> seasons.v1.Score
+	14, // 16: seasons.v1.Round.standings:type_name -> seasons.v1.RoundStanding
+	11, // 17: seasons.v1.GetRaceResponse.race:type_name -> seasons.v1.Race
+	0,  // 18: seasons.v1.SeasonService.GetSeason:input_type -> seasons.v1.GetSeasonRequest
+	3,  // 19: seasons.v1.SeasonService.GetStandings:input_type -> seasons.v1.GetStandingsRequest
+	6,  // 20: seasons.v1.SeasonService.GetMySeason:input_type -> seasons.v1.GetMySeasonRequest
+	8,  // 21: seasons.v1.SeasonService.ListenForEvents:input_type -> seasons.v1.ListenForEventsRequest
+	17, // 22: seasons.v1.SeasonService.GetRace:input_type -> seasons.v1.GetRaceRequest
+	1,  // 23: seasons.v1.SeasonService.GetSeason:output_type -> seasons.v1.GetSeasonResponse
+	4,  // 24: seasons.v1.SeasonService.GetStandings:output_type -> seasons.v1.GetStandingsResponse
+	7,  // 25: seasons.v1.SeasonService.GetMySeason:output_type -> seasons.v1.GetMySeasonResponse
+	9,  // 26: seasons.v1.SeasonService.ListenForEvents:output_type -> seasons.v1.SeasonEvent
+	18, // 27: seasons.v1.SeasonService.GetRace:output_type -> seasons.v1.GetRaceResponse
+	23, // [23:28] is the sub-list for method output_type
+	18, // [18:23] is the sub-list for method input_type
+	18, // [18:18] is the sub-list for extension type_name
+	18, // [18:18] is the sub-list for extension extendee
+	0,  // [0:18] is the sub-list for field type_name
 }
 
 func init() { file_seasons_v1_seasons_proto_init() }

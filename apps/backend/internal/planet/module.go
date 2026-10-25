@@ -336,6 +336,7 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			interceptors := []connect.Interceptor{
 				planetv1controller.NewCacheInterceptor(),
+				planetv1controller.NewFreezeInterceptor(inForce, props.Metrics),
 				planetv1controller.NewVPNBlockInterceptor(blocklist, props.Metrics),
 			}
 

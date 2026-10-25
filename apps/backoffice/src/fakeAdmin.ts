@@ -170,7 +170,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         tiles: 262119,
         territories: [new Territory({countryId: "fr", tiles: 1200}), new Territory({countryId: "dz", tiles: 800})],
     })
-    // The default and the finale's rush, and the finale started by seasons.
+    // The default, the finale's rush and the frozen map between two seasons, and the finale started by seasons.
     rules = new GetRulesResponse({
         sets: [
             new RuleSet({name: "default", tempo: 1, boxes: new BoxPace({
@@ -179,6 +179,9 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
             new RuleSet({name: "rush", tempo: 3, boxes: new BoxPace({
                 minInterval: new Duration({seconds: 60n}), maxInterval: new Duration({seconds: 120n}), maxChargesPerHour: 30,
             }), antiBot: new AntiBotRules({crowd: 50})}),
+            new RuleSet({name: "frozen", tempo: 1, frozen: true, boxes: new BoxPace({
+                minInterval: new Duration({seconds: 240n}), maxInterval: new Duration({seconds: 480n}), maxChargesPerHour: 12,
+            }), antiBot: new AntiBotRules({crowd: 6})}),
         ],
         changes: [
             new RuleChange({

@@ -26,7 +26,11 @@ func Current(seasons calendar.Calendar, at time.Time) (Round, bool) {
 	}
 
 	days := int64((season.FinaleStartsAt.Sub(at) - 1) / Length)
-	return Round{Season: season.Number, EndsAt: season.FinaleStartsAt.Add(-time.Duration(days * int64(Length)))}, true
+	endsAt := season.FinaleStartsAt.Add(-time.Duration(days * int64(Length)))
+	if !season.StartsAt.IsZero() && endsAt.Sub(season.StartsAt) < Length/2 && endsAt.Before(season.FinaleStartsAt) {
+		endsAt = endsAt.Add(Length)
+	}
+	return Round{Season: season.Number, EndsAt: endsAt}, true
 }
 
 type Snapshot struct {

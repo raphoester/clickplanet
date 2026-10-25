@@ -120,6 +120,9 @@ message BanRefusal {
   int64 banned_until_unix_ms = 1;
 }
 
+// The detail of the FailedPrecondition every write on the map answers while the rules in force freeze it.
+message MapFrozen {}
+
 message GetBudgetRequest {
   string country_id = 1;
 }

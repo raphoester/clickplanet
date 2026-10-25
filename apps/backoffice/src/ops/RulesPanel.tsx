@@ -48,7 +48,7 @@ function Rules({rules, planet, onChanged}: {rules: GetRulesResponse, planet: Pla
                         <tr key={set.name} aria-current={set.name === inForce ? "true" : undefined}>
                             <td><strong>{set.name}</strong></td>
                             <td>{tempoOf(set)}</td>
-                            <td>{boxesOf(set.boxes)}</td>
+                            <td>{boxesOf(set)}</td>
                             <td>{crowdOf(set)}</td>
                             <td>
                                 {set.name === inForce

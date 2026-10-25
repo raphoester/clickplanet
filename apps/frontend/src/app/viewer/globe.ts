@@ -28,6 +28,7 @@ import {
     BonusLostError,
     BonusOffer,
     ClaimedBonus,
+    MapFrozenError,
     ShieldRefusedError,
     OwnershipsGetter,
     RateLimitedError,
@@ -488,6 +489,11 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     let ownDropAt: number | undefined
 
+    let frozen = false
+    const refused = (e: unknown) => {
+        if (e instanceof MapFrozenError) frozen = true
+    }
+
     const dropBomb = (point: THREE.Vector3) => {
         if (!bomber) return
         disarm()
@@ -495,6 +501,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         bomber.dropBomb({x: point.x, y: point.y, z: point.z}, country.code).catch((e) => {
             if (lifetime.signal.aborted) return
             ownDropAt = undefined
+            refused(e)
             reportClaimFailure(e, {onSessionUnavailable, onBanned})
         })
     }
@@ -545,11 +552,14 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const placeShield = (tile: number) => {
         if (!shielder) return
         ownPlacements.record(tile, country.code, performance.now() / 1000)
-        plainClicks.playShielded(tile, camera)
-        playSound("click")
+        if (!frozen) {
+            plainClicks.playShielded(tile, camera)
+            playSound("click")
+        }
 
         shielder.placeShield(tile, country.code).catch((e) => {
             if (lifetime.signal.aborted || e instanceof ShieldRefusedError) return
+            refused(e)
             if (e instanceof AllegianceLockedError) onAllegianceLocked(e.allegiance)
             else reportClaimFailure(e, {onSessionUnavailable, onBanned})
         })
@@ -679,6 +689,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
                 .then(takeReward)
                 .catch((e) => {
                     if (lifetime.signal.aborted) return
+                    refused(e)
                     reportClaimFailure(e, {onSessionUnavailable, onBanned})
                 })
             return
@@ -716,19 +727,21 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         }
 
         const outcome = outcomeOf(owner, country.code, shields)
-        const {changes, claim} = outcome === "shielded"
+        const {changes, claim} = frozen || outcome === "shielded"
             ? {changes: [], claim: undefined}
             : ownership.applyOptimistic(tile, country.code)
         applyChanges(changes)
-        playSound("click")
 
         const seconds = performance.now() / 1000
         ownClicks.record(tile, country.code, seconds)
-        if (outcome === "shielded") {
-            ownHits.record(tile, country.code, seconds)
-            plainClicks.playHit(tile, camera)
-        } else {
-            plainClicks.playOwnClick(tile, camera)
+        if (!frozen) {
+            playSound("click")
+            if (outcome === "shielded") {
+                ownHits.record(tile, country.code, seconds)
+                plainClicks.playHit(tile, camera)
+            } else {
+                plainClicks.playOwnClick(tile, camera)
+            }
         }
 
         const clicked = country.code
@@ -736,6 +749,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         const enclosing = switches.enclose && outcome === "taken"
         tileClicker.clickTile(tile, clicked, switches).then(() => {
             if (lifetime.signal.aborted) return
+            frozen = false
             onClickAccepted({country: clicked, took: outcome === "taken"})
             if (shielding) onNotice(outcome === "taken" ? "shieldTaken" : "shieldNotYours")
             if (enclosing) setTimeout(() => {
@@ -745,6 +759,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         }, (e) => {
             if (lifetime.signal.aborted) return
             applyChanges(ownership.rollback(claim))
+            refused(e)
             if (reportClickFailure(e, {onRateLimited, onVPNBlocked, onBanned, onSessionUnavailable, onAllegianceLocked})) playSound("refused")
         })
     }, listenerOptions);
@@ -1065,7 +1080,7 @@ export function reportClaimFailure(
     error: unknown,
     handlers: {onSessionUnavailable: () => void, onBanned: (until: number) => void},
 ) {
-    if (error instanceof BonusLostError) return
+    if (error instanceof BonusLostError || error instanceof MapFrozenError) return
     if (error instanceof SessionUnavailableError) handlers.onSessionUnavailable()
     else if (error instanceof BannedError) handlers.onBanned(error.until)
     else console.error(error)
@@ -1081,6 +1096,7 @@ export function reportClickFailure(
         onAllegianceLocked: (allegiance: Allegiance) => void,
     },
 ): boolean {
+    if (error instanceof MapFrozenError) return true
     if (error instanceof RateLimitedError) handlers.onRateLimited()
     else if (error instanceof VPNBlockedError) handlers.onVPNBlocked()
     else if (error instanceof BannedError) handlers.onBanned(error.until)

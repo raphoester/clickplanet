@@ -10,7 +10,7 @@ import (
 )
 
 type UseCase interface {
-	Execute(ctx context.Context) (calendar.Season, bool)
+	Execute(ctx context.Context) (current, next *calendar.Season)
 }
 
 func New(useCase UseCase) GetSeasonHandler {
@@ -25,14 +25,23 @@ func (h GetSeasonHandler) GetSeason(
 	ctx context.Context,
 	_ *connect.Request[seasonsv1.GetSeasonRequest],
 ) (*connect.Response[seasonsv1.GetSeasonResponse], error) {
-	season, ok := h.useCase.Execute(ctx)
-	if !ok {
-		return connect.NewResponse(&seasonsv1.GetSeasonResponse{}), nil
+	current, next := h.useCase.Execute(ctx)
+
+	return connect.NewResponse(&seasonsv1.GetSeasonResponse{Season: encode(current), Next: encode(next)}), nil
+}
+
+func encode(season *calendar.Season) *seasonsv1.Season {
+	if season == nil {
+		return nil
 	}
 
-	return connect.NewResponse(&seasonsv1.GetSeasonResponse{Season: &seasonsv1.Season{
+	encoded := &seasonsv1.Season{
 		Number:               uint32(season.Number),
 		FinaleStartsAtUnixMs: season.FinaleStartsAt.UnixMilli(),
 		EndsAtUnixMs:         season.EndsAt.UnixMilli(),
-	}}), nil
+	}
+	if !season.StartsAt.IsZero() {
+		encoded.StartsAtUnixMs = season.StartsAt.UnixMilli()
+	}
+	return encoded
 }

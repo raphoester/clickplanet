@@ -36,6 +36,8 @@ rules:
         maxChargesPerHour: 30
       antiBot:
         crowd: 50
+    frozen:
+      frozen: true
 
 vpnBlocklist:
   enabled: false
@@ -69,10 +71,14 @@ seasons:
     - number: 0
       endsAt: 2026-10-31T23:00:00Z
       finale: 2h
+    - number: 1
+      startsAt: 2026-11-01T19:00:00Z
+      endsAt: 2026-12-05T23:00:00Z
+      finale: 2h
   ruleSets:
     days: default
     finale: rush
-    over: default
+    over: frozen
   database:
     host: postgres
     port: "5432"

@@ -17,17 +17,20 @@ describe("the rules", () => {
     it("says the refill against the config's", () => {
         expect(tempoOf(new RuleSet({tempo: 1}))).toBe("As configured")
         expect(tempoOf(new RuleSet({tempo: 3}))).toBe("3× as fast")
+        expect(tempoOf(new RuleSet({tempo: 1, frozen: true}))).toBe("Map frozen")
     })
 
     it("says how often a box comes and the hourly cap", () => {
-        expect(boxesOf(new BoxPace({minInterval: minutes(1), maxInterval: minutes(2), maxChargesPerHour: 30})))
+        const paced = (boxes?: BoxPace, frozen = false) => boxesOf(new RuleSet({boxes, frozen}))
+        expect(paced(new BoxPace({minInterval: minutes(1), maxInterval: minutes(2), maxChargesPerHour: 30})))
             .toBe("Every 1 min to 2 min, 30 an hour at most")
-        expect(boxesOf(new BoxPace({minInterval: minutes(4), maxInterval: minutes(4), maxChargesPerHour: 12})))
+        expect(paced(new BoxPace({minInterval: minutes(4), maxInterval: minutes(4), maxChargesPerHour: 12})))
             .toBe("Every 4 min, 12 an hour at most")
-        expect(boxesOf(new BoxPace({
+        expect(paced(new BoxPace({
             minInterval: new Duration({seconds: 90n}), maxInterval: minutes(2), maxChargesPerHour: 30,
         }))).toBe("Every 90 s to 2 min, 30 an hour at most")
-        expect(boxesOf(undefined)).toBe("—")
+        expect(paced(undefined)).toBe("—")
+        expect(paced(new BoxPace({minInterval: minutes(4), maxInterval: minutes(4), maxChargesPerHour: 12}), true)).toBe("—")
     })
 
     it("says from how many networks of one range a crowd is banned", () => {

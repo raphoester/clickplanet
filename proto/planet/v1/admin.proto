@@ -257,6 +257,8 @@ message RuleSet {
   double tempo = 2;
   BoxPace boxes = 3;
   AntiBotRules anti_bot = 4;
+  // No player writes on the map, and no box or quiz is offered.
+  bool frozen = 5;
 }
 
 message AntiBotRules {

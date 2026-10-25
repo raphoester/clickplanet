@@ -18,6 +18,8 @@ type SetConfig struct {
 	Boxes BoxesConfig
 
 	AntiBot AntiBotConfig
+
+	Frozen bool
 }
 
 type AntiBotConfig struct {

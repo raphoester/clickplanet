@@ -1975,9 +1975,11 @@ type RuleSet struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Name  string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	// How many times faster than rateLimiter.perSecond every bucket refills.
-	Tempo         float64       `protobuf:"fixed64,2,opt,name=tempo,proto3" json:"tempo,omitempty"`
-	Boxes         *BoxPace      `protobuf:"bytes,3,opt,name=boxes,proto3" json:"boxes,omitempty"`
-	AntiBot       *AntiBotRules `protobuf:"bytes,4,opt,name=anti_bot,json=antiBot,proto3" json:"anti_bot,omitempty"`
+	Tempo   float64       `protobuf:"fixed64,2,opt,name=tempo,proto3" json:"tempo,omitempty"`
+	Boxes   *BoxPace      `protobuf:"bytes,3,opt,name=boxes,proto3" json:"boxes,omitempty"`
+	AntiBot *AntiBotRules `protobuf:"bytes,4,opt,name=anti_bot,json=antiBot,proto3" json:"anti_bot,omitempty"`
+	// No player writes on the map, and no box or quiz is offered.
+	Frozen        bool `protobuf:"varint,5,opt,name=frozen,proto3" json:"frozen,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2038,6 +2040,13 @@ func (x *RuleSet) GetAntiBot() *AntiBotRules {
 		return x.AntiBot
 	}
 	return nil
+}
+
+func (x *RuleSet) GetFrozen() bool {
+	if x != nil {
+		return x.Frozen
+	}
+	return false
 }
 
 type AntiBotRules struct {
@@ -2381,12 +2390,13 @@ const file_planet_v1_admin_proto_rawDesc = "" +
 	"\x0fGetRulesRequest\"k\n" +
 	"\x10GetRulesResponse\x12&\n" +
 	"\x04sets\x18\x01 \x03(\v2\x12.planet.v1.RuleSetR\x04sets\x12/\n" +
-	"\achanges\x18\x02 \x03(\v2\x15.planet.v1.RuleChangeR\achanges\"\x91\x01\n" +
+	"\achanges\x18\x02 \x03(\v2\x15.planet.v1.RuleChangeR\achanges\"\xa9\x01\n" +
 	"\aRuleSet\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
 	"\x05tempo\x18\x02 \x01(\x01R\x05tempo\x12(\n" +
 	"\x05boxes\x18\x03 \x01(\v2\x12.planet.v1.BoxPaceR\x05boxes\x122\n" +
-	"\banti_bot\x18\x04 \x01(\v2\x17.planet.v1.AntiBotRulesR\aantiBot\"$\n" +
+	"\banti_bot\x18\x04 \x01(\v2\x17.planet.v1.AntiBotRulesR\aantiBot\x12\x16\n" +
+	"\x06frozen\x18\x05 \x01(\bR\x06frozen\"$\n" +
 	"\fAntiBotRules\x12\x14\n" +
 	"\x05crowd\x18\x01 \x01(\rR\x05crowd\"\xb6\x01\n" +
 	"\aBoxPace\x12<\n" +

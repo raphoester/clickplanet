@@ -137,6 +137,9 @@ func (r *Registry) sweepQuizzes(ctx context.Context, now time.Time) {
 	}
 
 	r.collectStaleQuizzes(now)
+	if r.frozen {
+		return
+	}
 
 	for entrant, entry := range r.callers {
 		if !r.quizDue(entry, now) {
@@ -203,7 +206,7 @@ func (r *Registry) collectStaleQuizzes(now time.Time) {
 		if quiz.opened() {
 			gone = now.After(quiz.deadline)
 		}
-		if !gone {
+		if !gone && !r.frozen {
 			continue
 		}
 

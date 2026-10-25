@@ -15,6 +15,15 @@ describe("ConnectSeasonBackend", () => {
         expect(await backend.season()).toEqual({number: 2, finaleStartsAt: 1793480400000, endsAt: 1793487600000})
     })
 
+    it("reads the next season with its start, between two seasons", async () => {
+        const backend = backendWith(async () => new GetSeasonResponse({
+            next: new SeasonPb({number: 1, startsAtUnixMs: 1793559600000n, finaleStartsAtUnixMs: 1796504400000n, endsAtUnixMs: 1796511600000n}),
+        }))
+
+        expect(await backend.season()).toBeUndefined()
+        expect(await backend.next()).toEqual({number: 1, startsAt: 1793559600000, finaleStartsAt: 1796504400000, endsAt: 1796511600000})
+    })
+
     it("has no season when the server answers none", async () => {
         expect(await backendWith(async () => new GetSeasonResponse()).season()).toBeUndefined()
     })
@@ -31,7 +40,7 @@ describe("ConnectSeasonBackend", () => {
         const getSeason = vi.fn(async () => new GetSeasonResponse())
         const backend = new ConnectSeasonBackend({getSeason} as never)
 
-        await Promise.all([backend.season(), backend.season()])
+        await Promise.all([backend.season(), backend.next()])
         await backend.season()
 
         expect(getSeason).toHaveBeenCalledTimes(1)

@@ -27,13 +27,20 @@ service SeasonService {
 message GetSeasonRequest {}
 
 message GetSeasonResponse {
+  // The season in play: unset between two seasons and past the last.
   Season season = 1;
+
+  // The first season that starts after now.
+  Season next = 2;
 }
 
 message Season {
   uint32 number = 1;
   int64 finale_starts_at_unix_ms = 2;
   int64 ends_at_unix_ms = 3;
+
+  // 0 for a season that started before anything.
+  int64 starts_at_unix_ms = 4;
 }
 
 message GetStandingsRequest {

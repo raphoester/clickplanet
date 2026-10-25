@@ -1,6 +1,8 @@
 import {describe, expect, it, vi} from "vitest"
 import {
     asBonusError,
+    asRefillError,
+    asShieldError,
     bindingsOf,
     bombOf,
     fortificationOf,
@@ -17,6 +19,7 @@ import {Code, ConnectError} from "@connectrpc/connect"
 import {
     Allegiance as AllegianceMessage,
     BanRefusal,
+    MapFrozen,
     BombDropped,
     BonusKind,
     BonusOffered,
@@ -39,7 +42,7 @@ import {
     TilesSpread,
     TileUpdate,
 } from "../gen/grpc/planet/v1/planet_pb.ts"
-import {AllegianceLockedError, BankFullError, BannedError, BonusLostError, ShieldRefusedError, RateLimitedError, VPNBlockedError} from "./backend.ts"
+import {AllegianceLockedError, BankFullError, BannedError, BonusLostError, MapFrozenError, ShieldRefusedError, RateLimitedError, VPNBlockedError} from "./backend.ts"
 import {SESSION_HEADER, type SessionProvider, SessionUnavailableError} from "./session.ts"
 import type {ClickBudget} from "./clickBudget.ts"
 import type {BonusRules, Charges} from "../domain/bonus.ts"
@@ -1724,5 +1727,81 @@ describe("PlanetBackend allegiance", () => {
         await vi.waitFor(() => expect(getAllegiance).toHaveBeenCalled())
         expect(seen.at(-1)).toBeUndefined()
         backend.close()
+    })
+})
+
+describe("a frozen map", () => {
+    const frozen = () => new ConnectError("the map is frozen", Code.FailedPrecondition, undefined, [new MapFrozen()])
+
+    const clientWith = (fields: Record<string, unknown>) =>
+        ({click: vi.fn(), getMap: vi.fn(), getBudget: noBudget(), ...bonusReads(), mapDensity: vi.fn(),
+            listenForEvents: noEvents(), ...fields}) as never
+
+    const follow = (backend: PlanetBackend) => {
+        const seen: Charges[] = []
+        backend.listenForBonuses({
+            onOffered: () => {}, onTaken: () => {}, onEnclosed: () => {}, onSpread: () => {}, onRules: () => {},
+            onCharges: (charges) => seen.push(charges),
+        })
+        return seen
+    }
+
+    it("refuses a click as frozen, not as the throttle, and sends it once", async () => {
+        const click = vi.fn().mockRejectedValue(frozen())
+        const backend = new PlanetBackend(clientWith({click}), 1_000)
+
+        const error = await backend.clickTile(1, "fr").catch((e: unknown) => e)
+
+        expect(error).toBeInstanceOf(MapFrozenError)
+        expect(error).not.toBeInstanceOf(RateLimitedError)
+        expect(click).toHaveBeenCalledTimes(1)
+        backend.close()
+    })
+
+    it("refuses a refill as frozen, not as a full bank, and keeps it in hand", async () => {
+        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({refill: true})})
+        const useRefill = vi.fn().mockRejectedValue(frozen())
+        const backend = new PlanetBackend(clientWith({getCharges, useRefill}), 1_000)
+        const seen = follow(backend)
+        await vi.waitFor(() => expect(seen.at(-1)?.refill).toBe(true))
+
+        const error = await backend.useRefill("fr").catch((e: unknown) => e)
+
+        expect(error).toBeInstanceOf(MapFrozenError)
+        expect(error).not.toBeInstanceOf(BankFullError)
+        expect(seen.at(-1)?.refill).toBe(true)
+        backend.close()
+    })
+
+    it("keeps a bomb and a shield refused as frozen", async () => {
+        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({bomb: true, shields: 5})})
+        const backend = new PlanetBackend(clientWith({
+            getCharges, dropBomb: vi.fn().mockRejectedValue(frozen()), placeShield: vi.fn().mockRejectedValue(frozen()),
+        }), 1_000)
+        const seen = follow(backend)
+        await vi.waitFor(() => expect(seen.at(-1)?.shields).toBe(5))
+
+        await expect(backend.dropBomb({x: 1, y: 0, z: 0}, "fr")).rejects.toBeInstanceOf(MapFrozenError)
+        const placed = await backend.placeShield(7, "fr").catch((e: unknown) => e)
+
+        expect(placed).toBeInstanceOf(MapFrozenError)
+        expect(placed).not.toBeInstanceOf(ShieldRefusedError)
+        expect(seen.at(-1)).toMatchObject({bomb: true, shields: 5})
+        backend.close()
+    })
+
+    it("refuses a box and a quiz answer as frozen, not as lost", async () => {
+        const backend = new PlanetBackend(clientWith({
+            claimBonus: vi.fn().mockRejectedValue(frozen()), answerQuiz: vi.fn().mockRejectedValue(frozen()),
+        }), 1_000)
+
+        await expect(backend.claimBonus("box", "fr")).rejects.toBeInstanceOf(MapFrozenError)
+        await expect(backend.answerQuiz("quiz", 0, "fr")).rejects.toBeInstanceOf(MapFrozenError)
+        backend.close()
+    })
+
+    it("reads a full bank and a full tile as before", () => {
+        expect(asRefillError(new ConnectError("full", Code.FailedPrecondition))).toBeInstanceOf(BankFullError)
+        expect(asShieldError(new ConnectError("full", Code.FailedPrecondition))).toBeInstanceOf(ShieldRefusedError)
     })
 })

@@ -12,7 +12,7 @@ import {loadBorders} from "./app/viewer/borderField.ts"
 import {BORDERS_URL} from "./app/viewer/bordersAsset.ts"
 import {FakeChatBackend} from "./backends/fakeChatBackend.ts"
 import {FakePresenceBackend} from "./backends/fakePresenceBackend.ts"
-import {FakeSeasonBackend, SEASON_ZERO} from "./backends/fakeSeasonBackend.ts"
+import {FakeSeasonBackend, SEASON_ONE, SEASON_ZERO} from "./backends/fakeSeasonBackend.ts"
 import {ConnectSeasonBackend, newSeasonServiceClient} from "./backends/seasonBackend.ts"
 import {API_BASE_URL} from "./backends/transport.ts"
 import {ConnectionHealth, connectionInterceptor, followBrowser} from "./backends/connection.ts"
@@ -103,7 +103,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     const fakeChat = new FakeChatBackend()
     const fakeSupport = new FakeSupportBackend()
     Object.assign(window, {fakeChat, fakeSupport})
-    const fakeSeason = new FakeSeasonBackend(SEASON_ZERO)
+    const fakeSeason = new FakeSeasonBackend(SEASON_ZERO, SEASON_ONE)
     const fakeStandings = new FakeStandingsBackend()
     const clicker = fakeStandings.counting(fake)
     fake.listenForBombs((drop) => fakeChat.announceBomb(drop))

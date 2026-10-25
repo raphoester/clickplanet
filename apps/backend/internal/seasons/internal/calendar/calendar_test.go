@@ -37,6 +37,7 @@ func TestTheCurrentSeasonIsTheFirstThatHasNotEnded(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, calendar.Season{
 		Number:         1,
+		StartsAt:       seasonZeroEnds,
 		FinaleStartsAt: time.Date(2026, 12, 31, 20, 0, 0, 0, time.UTC),
 		EndsAt:         seasonOneEnds,
 	}, season)
@@ -105,5 +106,89 @@ func TestAFinaleOfNothingIsRefused(t *testing.T) {
 
 	config = twoSeasons()
 	config.List[0].Finale = -time.Hour
+	require.ErrorContains(t, config.Validate(), "list[0].finale")
+}
+
+var seasonOneStarts = time.Date(2026, 11, 1, 19, 0, 0, 0, time.UTC)
+
+func withAGap() calendar.Config {
+	config := twoSeasons()
+	config.List[1].StartsAt = seasonOneStarts
+	return config
+}
+
+func TestNoSeasonIsCurrentBetweenTwoSeasons(t *testing.T) {
+	seasons := calendar.New(withAGap())
+
+	for _, at := range []time.Time{seasonZeroEnds, seasonOneStarts.Add(-time.Second)} {
+		_, ok := seasons.Current(at)
+		assert.False(t, ok, at)
+	}
+
+	season, ok := seasons.Current(seasonOneStarts)
+	require.True(t, ok)
+	assert.Equal(t, calendar.Season{
+		Number:         1,
+		StartsAt:       seasonOneStarts,
+		FinaleStartsAt: time.Date(2026, 12, 31, 20, 0, 0, 0, time.UTC),
+		EndsAt:         seasonOneEnds,
+	}, season)
+}
+
+func TestASeasonWithNoStartStartsWhenTheOneBeforeEnds(t *testing.T) {
+	seasons := calendar.New(twoSeasons())
+
+	zero, ok := seasons.Current(seasonZeroEnds.Add(-time.Second))
+	require.True(t, ok)
+	assert.True(t, zero.StartsAt.IsZero(), "the first season started before anything")
+
+	one, ok := seasons.Current(seasonZeroEnds)
+	require.True(t, ok)
+	assert.Equal(t, seasonZeroEnds, one.StartsAt)
+}
+
+func TestTheNextSeasonIsTheFirstThatStartsAfterNow(t *testing.T) {
+	seasons := calendar.New(withAGap())
+
+	for _, at := range []time.Time{seasonZeroEnds.Add(-time.Hour), seasonZeroEnds, seasonOneStarts.Add(-time.Second)} {
+		next, ok := seasons.Next(at)
+		require.True(t, ok, at)
+		assert.Equal(t, calendar.Number(1), next.Number, at)
+	}
+
+	_, ok := seasons.Next(seasonOneStarts)
+	assert.False(t, ok)
+}
+
+func TestAStartBeforeTheSeasonBeforeEndsIsRefused(t *testing.T) {
+	config := withAGap()
+	config.List[1].StartsAt = seasonZeroEnds.Add(-time.Second)
+	require.ErrorContains(t, config.Validate(), "list[1].startsAt")
+
+	config.List[1].StartsAt = seasonZeroEnds
+	require.NoError(t, config.Validate())
+}
+
+func TestAStartAtOrAfterItsEndIsRefused(t *testing.T) {
+	config := withAGap()
+	config.List[1].StartsAt = seasonOneEnds
+	require.ErrorContains(t, config.Validate(), "list[1].startsAt")
+}
+
+func TestAFinaleNotShorterThanWhatFollowsTheStartIsRefused(t *testing.T) {
+	config := withAGap()
+	config.List[1].Finale = seasonOneEnds.Sub(seasonOneStarts)
+	require.ErrorContains(t, config.Validate(), "list[1].finale")
+
+	config.List[1].Finale -= time.Second
+	require.NoError(t, config.Validate())
+}
+
+func TestTheFirstSeasonMayHaveAStart(t *testing.T) {
+	config := twoSeasons()
+	config.List[0].StartsAt = seasonZeroEnds.Add(-3 * time.Hour)
+	require.NoError(t, config.Validate())
+
+	config.List[0].Finale = 3 * time.Hour
 	require.ErrorContains(t, config.Validate(), "list[0].finale")
 }

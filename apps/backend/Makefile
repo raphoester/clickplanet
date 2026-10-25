@@ -34,16 +34,22 @@ check-quiz:
 
 FINALE_IN ?= 2
 FINALE_FOR ?= 5
+FINALE_GAP ?= 2
 
-# The example config with Season 0's finale FINALE_IN minutes away and FINALE_FOR long, to rehearse it.
+# The example config with Season 0's finale FINALE_IN minutes away and FINALE_FOR long, then FINALE_GAP minutes frozen.
 finale:
 	@ends=$$(( $$(date +%s) + ($(FINALE_IN) + $(FINALE_FOR)) * 60 )); \
+	starts=$$(( ends + $(FINALE_GAP) * 60 )); \
 	at=$$(date -u -r $$ends +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -d @$$ends +%Y-%m-%dT%H:%M:%SZ); \
+	next=$$(date -u -r $$starts +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -d @$$starts +%Y-%m-%dT%H:%M:%SZ); \
 	config=$$(mktemp -d)/finale.yaml; \
-	sed -e "s/^\( *\)endsAt: .*/\1endsAt: $$at/" -e "s/^\( *\)finale: [0-9].*/\1finale: $(FINALE_FOR)m/" \
+	awk -v at="$$at" -v opens="$$next" -v finale="$(FINALE_FOR)m" \
+		'!e && /^ *endsAt: / { sub(/endsAt: .*/, "endsAt: " at); e = 1 } \
+		 !f && /^ *finale: [0-9]/ { sub(/finale: .*/, "finale: " finale); f = 1 } \
+		 !s && /^ *startsAt: / { sub(/startsAt: .*/, "startsAt: " opens); s = 1 } { print }' \
 		cmd/api/example.yaml > $$config; \
-	grep -q "endsAt: $$at" $$config || { echo "finale: example.yaml has no season to move" >&2; exit 1; }; \
-	echo "Season 0's finale starts in $(FINALE_IN)m and ends at $$at ($$config)"; \
+	grep -q "endsAt: $$at" $$config && grep -q "startsAt: $$next" $$config || { echo "finale: example.yaml has no seasons to move" >&2; exit 1; }; \
+	echo "Season 0's finale starts in $(FINALE_IN)m and ends at $$at, and Season 1 starts at $$next ($$config)"; \
 	go run ./cmd/api -config $$config
 
 dBuild:

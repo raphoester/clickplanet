@@ -5,6 +5,7 @@ import {
     Bomber,
     BonusListener,
     BonusLostError,
+    MapFrozenError,
     OwnershipsGetter,
     QuizMaster,
     Refiller,
@@ -138,7 +139,7 @@ export default function Viewer(props: ViewerProps) {
     const quiz = useQuiz(props.quizMaster, countryState.code, sound.play)
     const [unlocked, setUnlocked] = useState<readonly PlayerTitle[]>([])
     const roster = useRoster(props.presence, (title) => setUnlocked((queue) => [...queue, title]))
-    const season = useSeason(props.season)
+    const {season, next: nextSeason} = useSeason(props.season)
     const race = useRace(props.standings)
     const reveal = useRoundReveal(race)
     const champion = reigningChampionOf(season, race?.closed)
@@ -230,7 +231,7 @@ export default function Viewer(props: ViewerProps) {
     const spendRefill = refiller && (() => {
         if (clickBudget && tokensAt(clickBudget, budgetNow()) >= clickBudget.capacity) return false
         refiller.useRefill(countryState.code).catch((e) => {
-            if (e instanceof BankFullError || e instanceof BonusLostError) return
+            if (e instanceof BankFullError || e instanceof BonusLostError || e instanceof MapFrozenError) return
             console.error("could not use the refill", e)
         })
         return true
@@ -311,7 +312,7 @@ export default function Viewer(props: ViewerProps) {
 
         {ready && !compact && <Menu {...board} {...you} {...share} {...settings} tab={menuTab} onTab={setMenuTab}/>}
 
-        {ready && !compact && champion && <ChampionChip champion={champion} compact={false}/>}
+        {ready && !compact && champion && <ChampionChip champion={champion} next={nextSeason} compact={false}/>}
         {ready && !compact && !champion && season && <SeasonChip season={season}
                                                                  compact={false}
                                                                  open={seasonOpen}
@@ -322,7 +323,7 @@ export default function Viewer(props: ViewerProps) {
                                         boardOpen={sheet === "board"}
                                         onOpenBoard={() => toggleSheet("board")}
                                         trailing={champion
-                                            ? <ChampionChip champion={champion} compact/>
+                                            ? <ChampionChip champion={champion} next={nextSeason} compact/>
                                             : season && <SeasonChip season={season}
                                                                     compact
                                                                     open={sheet === "season"}

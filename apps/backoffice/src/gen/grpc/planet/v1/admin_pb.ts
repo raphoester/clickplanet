@@ -1608,6 +1608,13 @@ export class RuleSet extends Message<RuleSet> {
    */
   antiBot?: AntiBotRules;
 
+  /**
+   * No player writes on the map, and no box or quiz is offered.
+   *
+   * @generated from field: bool frozen = 5;
+   */
+  frozen = false;
+
   constructor(data?: PartialMessage<RuleSet>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1620,6 +1627,7 @@ export class RuleSet extends Message<RuleSet> {
     { no: 2, name: "tempo", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
     { no: 3, name: "boxes", kind: "message", T: BoxPace },
     { no: 4, name: "anti_bot", kind: "message", T: AntiBotRules },
+    { no: 5, name: "frozen", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RuleSet {

@@ -264,4 +264,38 @@ describe("ChampionChip", () => {
         expect(chip.querySelectorAll(".country-flag")).toHaveLength(1)
         expect(document.documentElement.style.getPropertyValue(STATUS_BOTTOM)).toBe("")
     })
+
+    describe("between two seasons", () => {
+        const seasonOne = {number: 1, startsAt: endsAt + 20 * HOUR, finaleStartsAt: endsAt + 35 * DAY - 2 * HOUR, endsAt: endsAt + 35 * DAY}
+
+        it("counts down to the next season under the champion", () => {
+            vi.useFakeTimers({now: endsAt})
+            render(<ChampionChip champion={germany} next={seasonOne} compact={false}/>)
+
+            expect(screen.getByRole("region", {name: "Germany wins Season 0"})).toBeDefined()
+            const timer = screen.getByRole("timer", {name: "Season 1 starts in 20h 00m 00s"})
+            expect(timer.textContent).toContain("Season 1 starts in")
+
+            act(() => vi.advanceTimersByTime(SECOND))
+            expect(screen.getByRole("timer").getAttribute("aria-label")).toBe("Season 1 starts in 19h 59m 59s")
+        })
+
+        it("on a phone, turns between the flag and the two largest units, named in full", () => {
+            vi.useFakeTimers({now: endsAt})
+            render(<ChampionChip champion={germany} next={seasonOne} compact/>)
+
+            expect(screen.getByRole("region", {name: "Germany wins Season 0, Season 1 starts in 20h 00m 00s"})).toBeDefined()
+            expect(document.querySelector(".season-chip-face:not(.season-chip-face--away) .country-flag")).not.toBeNull()
+
+            turn()
+            expect(shownFace()).toEqual(["Season 1", "19h 59m"])
+        })
+
+        it("says nothing of a next season that has started", () => {
+            vi.useFakeTimers({now: seasonOne.startsAt})
+            render(<ChampionChip champion={germany} next={seasonOne} compact={false}/>)
+
+            expect(screen.queryByRole("timer")).toBeNull()
+        })
+    })
 })

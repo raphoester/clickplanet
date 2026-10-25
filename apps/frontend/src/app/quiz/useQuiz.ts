@@ -1,5 +1,5 @@
 import {useCallback, useEffect, useRef, useState} from 'react'
-import {BonusLostError, QuizMaster} from '../../backends/backend.ts'
+import {BonusLostError, MapFrozenError, QuizMaster} from '../../backends/backend.ts'
 import {now as budgetNow} from '../../backends/clickBudget.ts'
 import {QuizOffer, QuizOutcome, QuizQuestion} from '../../domain/quiz.ts'
 import {PlaySound} from '../sound/soundPlayer.ts'
@@ -103,7 +103,9 @@ export function useQuiz(master?: QuizMaster, countryCode?: string, playSound?: P
                 play.current?.(outcome.correct ? "quizRight" : "quizWrong")
             })
             .catch((error) => {
-                if (!(error instanceof BonusLostError)) console.error("could not answer the quiz", error)
+                if (!(error instanceof BonusLostError) && !(error instanceof MapFrozenError)) {
+                    console.error("could not answer the quiz", error)
+                }
                 setState({phase: 'idle'})
             })
     }, [master])

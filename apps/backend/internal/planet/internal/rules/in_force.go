@@ -12,6 +12,7 @@ type Tempo interface {
 
 type Schedule interface {
 	SetPace(pace bonuses.Pace)
+	SetFrozen(frozen bool)
 }
 
 type Guard interface {
@@ -41,6 +42,7 @@ func (f *InForce) Enforce(set Set) {
 	f.set = set
 	f.tempo.SetTempo(set.Tempo)
 	f.schedule.SetPace(set.Boxes)
+	f.schedule.SetFrozen(set.Frozen)
 	f.guard.SetCrowd(set.AntiBot.Crowd)
 
 	for _, watcher := range f.watchers {
@@ -60,6 +62,13 @@ func (f *InForce) Tempo() float64 {
 }
 
 // Watch hands over each set enforced from now on; one not taken yet is replaced by the next.
+func (f *InForce) Frozen() bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	return f.set.Frozen
+}
+
 func (f *InForce) Watch() (<-chan Set, func()) {
 	f.mu.Lock()
 	defer f.mu.Unlock()

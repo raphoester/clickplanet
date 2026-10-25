@@ -35,6 +35,11 @@ export function seasonClock(season: Season, now: number): SeasonClock | undefine
     return {finale: false, left: timeLeft(countdownTo(cutoffOf(season, now), now))}
 }
 
+export function startClock(season: Season, now: number): string | undefined {
+    if (season.startsAt === undefined || now >= season.startsAt) return undefined
+    return timeLeft(countdownTo(season.startsAt, now))
+}
+
 export function finaleClock(season: Season, now: number): FinaleClock | undefined {
     if (now >= season.endsAt) return undefined
 

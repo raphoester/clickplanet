@@ -136,6 +136,11 @@
     gap: 0;
 }
 
+.season-chip--compact .season-chip-face--flags {
+    flex-direction: row;
+    justify-content: flex-start;
+}
+
 .season-chip-tag {
     font-family: var(--font-text);
     font-weight: 600;
