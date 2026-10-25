@@ -29,6 +29,7 @@ func TestEveryOfferedProviderIsAnswered(t *testing.T) {
 
 	assert.Equal(t, []authv1.Provider{authv1.Provider_PROVIDER_DISCORD, authv1.Provider_PROVIDER_GOOGLE}, res.Msg.GetProviders())
 	assert.Equal(t, "no-store", res.Header().Get("Cache-Control"))
+	assert.Empty(t, res.Header().Values("Set-Cookie"))
 }
 
 func TestEmailIsAnsweredAfterTheProviders(t *testing.T) {

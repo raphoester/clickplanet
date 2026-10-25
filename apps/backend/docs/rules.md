@@ -30,5 +30,5 @@ inherits from another, and the config no longer holds `bonus.minInterval`, `bonu
 - **An operator writes them**: `AdminService/SaveRuleSet` makes a set or replaces its values (`audit_save_rule_set`
   logs every save at Warn, with its values; a set that cannot play is `InvalidArgument`), and `GetRules` lists every
   set, `default` first (`rule_sets_query`, straight from postgres). The backoffice's Game rules page calls both.
-- `e2e/rules_test.go` edits `default` to a tempo of 3 and sees the refill go from 100 to 300 a second on a stream
-  opened before, and refuses a set with no tempo.
+- The rules are pinned by `Set`'s tests, the use cases' over `MemoryStore`, the store's contract suite, the
+  handlers' and `InForce`'s; the e2e suite holds smoke tests only (see [Testing](testing.md)).
