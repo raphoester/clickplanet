@@ -129,7 +129,6 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     chatBackend={fakeChat}
                     presence={fakePresence}
                     playerInfo={fakePresence}
-                    playerLines={fakePresence}
                     tileHolders={fake}
                     season={fakeSeason}
                     standings={fakeStandings}
@@ -170,7 +169,6 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     account={account}
                     presence={player}
                     playerInfo={player}
-                    playerLines={player}
                     tileHolders={backend}
                     season={season}
                     standings={standings}

@@ -35,7 +35,6 @@ type PlayerService struct {
 	get_titles_handler.GetTitlesHandler
 	wear_title_handler.WearTitleHandler
 	get_fronts_handler.GetFrontsHandler
-	get_authors_handler.GetAuthorsHandler
 }
 
 var _ playerv1connect.PlayerServiceHandler = PlayerService{}

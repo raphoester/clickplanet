@@ -35,11 +35,11 @@ func TestAnybodyReadsWhoHoldsATileAndNamesItWithNoToken(t *testing.T) {
 	assert.Equal(t, "fr", holder.GetCountryId())
 
 	players := playerv1connect.NewPlayerServiceClient(http.DefaultClient, game.baseURL, connect.WithHTTPGet())
-	res, err := players.GetAuthors(t.Context(), connect.NewRequest(&playerv1.GetAuthorsRequest{AccountIds: []string{holder.GetAccountId()}}))
+	res, err := players.GetPlayer(t.Context(), connect.NewRequest(&playerv1.GetPlayerRequest{AccountId: holder.GetAccountId()}))
 
 	require.NoError(t, err)
-	require.Len(t, res.Msg.GetAuthors(), 1)
-	assert.True(t, res.Msg.GetAuthors()[0].GetGuest())
-	assert.Regexp(t, `^guest_[0-9a-f]{6}$`, res.Msg.GetAuthors()[0].GetName())
-	assert.Nil(t, res.Msg.GetAuthors()[0].GetWornTitle())
+	assert.True(t, res.Msg.GetPlayer().GetGuest())
+	assert.Regexp(t, `^guest_[0-9a-f]{6}$`, res.Msg.GetPlayer().GetName())
+	assert.Nil(t, res.Msg.GetPlayer().GetWornTitle())
+	assert.Nil(t, res.Msg.GetPlayer().GetStats())
 }

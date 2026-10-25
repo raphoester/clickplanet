@@ -15,7 +15,6 @@ import {
     Track as TrackPb,
 } from "../gen/grpc/player/v1/player_pb.ts"
 import {Rank as RankPb, Title as TitlePb} from "../gen/grpc/player/v1/title_pb.ts"
-import {Author as AuthorPb, GetAuthorsResponse} from "../gen/grpc/player/v1/internal_pb.ts"
 import {isValidUsername, NameColor, PlayerError, PlayerTitle, RenameTooSoonError, RosterEvent, usernameOf} from "./player.ts"
 import {ConnectPlayerBackend} from "./playerBackend.ts"
 import {SESSION_HEADER, SessionProvider, SessionUnavailableError} from "./session.ts"
@@ -466,7 +465,7 @@ describe("ConnectPlayerBackend player info", () => {
         }))
 
         expect(await backendWith({getPlayer}, session).playerInfo("account-1")).toEqual({
-            name: "Ana", tilesTaken: 1234, streakCurrent: 3, streakBest: 7, createdAt: 1_788_000_000_000, admin: true,
+            name: "Ana", guest: false, tilesTaken: 1234, streakCurrent: 3, streakBest: 7, createdAt: 1_788_000_000_000, admin: true,
             color: NameColor.VIOLET,
             titles: [{id: "og", name: "OG"}, settler],
             wornTitle: settler,
@@ -475,6 +474,12 @@ describe("ConnectPlayerBackend player info", () => {
         })
         expect(getPlayer).toHaveBeenCalledWith({accountId: "account-1"})
         expect(session.token).not.toHaveBeenCalled()
+    })
+
+    it("reads a guest as its name alone", async () => {
+        const getPlayer = vi.fn(async () => ({player: new PlayerPb({name: "guest_91aa3d", guest: true})}))
+
+        expect(await backendWith({getPlayer}).playerInfo("account-2")).toMatchObject({name: "guest_91aa3d", guest: true, wornTitle: undefined})
     })
 
     it("leaves out a creation date the server does not know", async () => {
@@ -491,37 +496,5 @@ describe("ConnectPlayerBackend player info", () => {
         const error = await backendWith({getPlayer: refusing(Code.Internal)}).playerInfo("account-1").catch((e) => e)
 
         expect(error).toBeInstanceOf(ConnectError)
-    })
-})
-
-describe("ConnectPlayerBackend player lines", () => {
-    it("names an account by its id without a token, with the flag it is shown under", async () => {
-        const session = sessionOf("token-1")
-        const getAuthors = vi.fn(async () => new GetAuthorsResponse({authors: [new AuthorPb({
-            accountId: "account-1", name: "BraveFox42", admin: false, color: NameColor.TEAL, streak: 4, wornTitle: settlerPb,
-        })]}))
-
-        expect(await backendWith({getAuthors}, session).playerLine("account-1", "fr")).toEqual({
-            accountId: "account-1", name: "BraveFox42", countryCode: "fr", guest: false, admin: false,
-            color: NameColor.TEAL, streak: 4, wornTitle: settler,
-        })
-        expect((getAuthors.mock.calls[0] as unknown[])[0]).toEqual({accountIds: ["account-1"]})
-        expect(session.token).not.toHaveBeenCalled()
-    })
-
-    it("names a guest by its guest name, with no title", async () => {
-        const getAuthors = vi.fn(async () => new GetAuthorsResponse({authors: [new AuthorPb({
-            accountId: "account-2", name: "guest_91aa3d", guest: true,
-        })]}))
-
-        expect(await backendWith({getAuthors}).playerLine("account-2", "de")).toMatchObject({
-            name: "guest_91aa3d", guest: true, wornTitle: undefined,
-        })
-    })
-
-    it("answers undefined for an account the server cannot name", async () => {
-        const getAuthors = vi.fn(async () => new GetAuthorsResponse())
-
-        expect(await backendWith({getAuthors}).playerLine("account-3", "de")).toBeUndefined()
     })
 })

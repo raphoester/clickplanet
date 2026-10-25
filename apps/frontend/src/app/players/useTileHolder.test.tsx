@@ -4,7 +4,7 @@ import {act, cleanup, renderHook, waitFor} from "@testing-library/react"
 import {StrictMode} from "react"
 import {LEAVE_GRACE_MS, useTileHolder} from "./useTileHolder.ts"
 import {TileHolder} from "../../backends/backend.ts"
-import {NameColor, PlayerLine} from "../../backends/player.ts"
+import {NameColor, PlayerInfo, PlayerLine} from "../../backends/player.ts"
 import {Peek} from "../../domain/tilePeek.ts"
 
 const ANA: PlayerLine = {
@@ -13,8 +13,13 @@ const ANA: PlayerLine = {
 
 const PEEK: Peek = {tile: 7, countryCode: "fr", point: {x: 300, y: 200}, touch: false}
 
+const ANA_INFO: PlayerInfo = {
+    name: "Ana", guest: false, tilesTaken: 4_000, streakCurrent: 12, streakBest: 30, admin: true, color: NameColor.PINK,
+    titles: [], playsFor: [{countryCode: "fr", tiles: 3_000}], playsAgainst: [],
+}
+
 const holdersOf = (holder: TileHolder | undefined) => ({tileHolder: vi.fn(async () => holder)})
-const linesOf = (line: PlayerLine | undefined) => ({playerLine: vi.fn(async () => line)})
+const playersOf = (info: PlayerInfo | undefined) => ({playerInfo: vi.fn(async () => info)})
 
 const ANAS_TILE = {accountId: "account-ana", countryCode: "fr", takenAt: 1_000}
 
@@ -24,34 +29,36 @@ describe("useTileHolder", () => {
         vi.useRealTimers()
     })
 
-    it("names the holder of the tile pointed at, beside the pointer, in StrictMode too", async () => {
-        const lines = linesOf(ANA)
+    it("reads the holder of the tile pointed at from its public card, beside the pointer, in StrictMode too", async () => {
+        const players = playersOf(ANA_INFO)
 
         const {result} = renderHook(
-            () => useTileHolder(holdersOf(ANAS_TILE), lines, {peek: PEEK, id: 1}, "account-me"),
+            () => useTileHolder(holdersOf(ANAS_TILE), players, {peek: PEEK, id: 1}, "account-me"),
             {wrapper: StrictMode},
         )
 
-        await waitFor(() => expect(result.current.holder).toEqual({line: ANA, takenAt: 1_000, point: PEEK.point, touch: false, id: 1}))
-        expect(lines.playerLine).toHaveBeenLastCalledWith("account-ana", "fr", expect.any(AbortSignal))
+        await waitFor(() => expect(result.current.holder).toEqual({
+            line: ANA, playsFor: ANA_INFO.playsFor, takenAt: 1_000, point: PEEK.point, touch: false, id: 1,
+        }))
+        expect(players.playerInfo).toHaveBeenLastCalledWith("account-ana")
     })
 
     it("names nobody on a tile that changed hands since its last take was kept", async () => {
         const holders = holdersOf({...ANAS_TILE, countryCode: "de"})
-        const lines = linesOf(ANA)
+        const players = playersOf(ANA_INFO)
 
-        const {result} = renderHook(() => useTileHolder(holders, lines, {peek: PEEK, id: 1}, undefined))
+        const {result} = renderHook(() => useTileHolder(holders, players, {peek: PEEK, id: 1}, undefined))
 
         await waitFor(() => expect(holders.tileHolder).toHaveBeenCalled())
-        expect(lines.playerLine).not.toHaveBeenCalled()
+        expect(players.playerInfo).not.toHaveBeenCalled()
         expect(result.current.holder).toBeUndefined()
     })
 
     it("goes a moment after the pointer leaves the tile, unless the pointer is on the card", async () => {
         const holders = holdersOf(ANAS_TILE)
-        const lines = linesOf(ANA)
+        const players = playersOf(ANA_INFO)
         const {result, rerender} = renderHook(
-            ({pointing}) => useTileHolder(holders, lines, pointing, undefined),
+            ({pointing}) => useTileHolder(holders, players, pointing, undefined),
             {initialProps: {pointing: {peek: PEEK, id: 1} as {peek: Peek, id: number} | undefined}},
         )
         await waitFor(() => expect(result.current.holder).toBeDefined())

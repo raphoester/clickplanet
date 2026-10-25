@@ -5,7 +5,6 @@
 
 import { AnnounceRequest, AnnounceResponse, GetFrontsRequest, GetFrontsResponse, GetPlayerRequest, GetPlayerResponse, GetProfileRequest, GetProfileResponse, GetRosterRequest, GetRosterResponse, GetStatsRequest, GetStatsResponse, GetTitlesRequest, GetTitlesResponse, LeaveRequest, LeaveResponse, ListenForEventsRequest, PlayerEvent, SetColorRequest, SetColorResponse, SetNameRequest, SetNameResponse, WearTitleRequest, WearTitleResponse } from "./player_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
-import { GetAuthorsRequest, GetAuthorsResponse } from "./internal_pb.js";
 
 /**
  * @generated from service player.v1.PlayerService
@@ -93,18 +92,6 @@ export const PlayerService = {
       name: "GetPlayer",
       I: GetPlayerRequest,
       O: GetPlayerResponse,
-      kind: MethodKind.Unary,
-      idempotency: MethodIdempotency.NoSideEffects,
-    },
-    /**
-     * InternalService/GetAuthors, for the globe naming who holds a tile.
-     *
-     * @generated from rpc player.v1.PlayerService.GetAuthors
-     */
-    getAuthors: {
-      name: "GetAuthors",
-      I: GetAuthorsRequest,
-      O: GetAuthorsResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
     },

@@ -53,9 +53,6 @@ const (
 	PlayerServiceListenForEventsProcedure = "/player.v1.PlayerService/ListenForEvents"
 	// PlayerServiceGetPlayerProcedure is the fully-qualified name of the PlayerService's GetPlayer RPC.
 	PlayerServiceGetPlayerProcedure = "/player.v1.PlayerService/GetPlayer"
-	// PlayerServiceGetAuthorsProcedure is the fully-qualified name of the PlayerService's GetAuthors
-	// RPC.
-	PlayerServiceGetAuthorsProcedure = "/player.v1.PlayerService/GetAuthors"
 	// PlayerServiceGetTitlesProcedure is the fully-qualified name of the PlayerService's GetTitles RPC.
 	PlayerServiceGetTitlesProcedure = "/player.v1.PlayerService/GetTitles"
 	// PlayerServiceWearTitleProcedure is the fully-qualified name of the PlayerService's WearTitle RPC.
@@ -75,8 +72,6 @@ type PlayerServiceClient interface {
 	GetRoster(context.Context, *connect.Request[v1.GetRosterRequest]) (*connect.Response[v1.GetRosterResponse], error)
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest]) (*connect.ServerStreamForClient[v1.PlayerEvent], error)
 	GetPlayer(context.Context, *connect.Request[v1.GetPlayerRequest]) (*connect.Response[v1.GetPlayerResponse], error)
-	// InternalService/GetAuthors, for the globe naming who holds a tile.
-	GetAuthors(context.Context, *connect.Request[v1.GetAuthorsRequest]) (*connect.Response[v1.GetAuthorsResponse], error)
 	GetTitles(context.Context, *connect.Request[v1.GetTitlesRequest]) (*connect.Response[v1.GetTitlesResponse], error)
 	WearTitle(context.Context, *connect.Request[v1.WearTitleRequest]) (*connect.Response[v1.WearTitleResponse], error)
 	GetFronts(context.Context, *connect.Request[v1.GetFrontsRequest]) (*connect.Response[v1.GetFrontsResponse], error)
@@ -149,13 +144,6 @@ func NewPlayerServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
-		getAuthors: connect.NewClient[v1.GetAuthorsRequest, v1.GetAuthorsResponse](
-			httpClient,
-			baseURL+PlayerServiceGetAuthorsProcedure,
-			connect.WithSchema(playerServiceMethods.ByName("GetAuthors")),
-			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
-			connect.WithClientOptions(opts...),
-		),
 		getTitles: connect.NewClient[v1.GetTitlesRequest, v1.GetTitlesResponse](
 			httpClient,
 			baseURL+PlayerServiceGetTitlesProcedure,
@@ -188,7 +176,6 @@ type playerServiceClient struct {
 	getRoster       *connect.Client[v1.GetRosterRequest, v1.GetRosterResponse]
 	listenForEvents *connect.Client[v1.ListenForEventsRequest, v1.PlayerEvent]
 	getPlayer       *connect.Client[v1.GetPlayerRequest, v1.GetPlayerResponse]
-	getAuthors      *connect.Client[v1.GetAuthorsRequest, v1.GetAuthorsResponse]
 	getTitles       *connect.Client[v1.GetTitlesRequest, v1.GetTitlesResponse]
 	wearTitle       *connect.Client[v1.WearTitleRequest, v1.WearTitleResponse]
 	getFronts       *connect.Client[v1.GetFrontsRequest, v1.GetFrontsResponse]
@@ -239,11 +226,6 @@ func (c *playerServiceClient) GetPlayer(ctx context.Context, req *connect.Reques
 	return c.getPlayer.CallUnary(ctx, req)
 }
 
-// GetAuthors calls player.v1.PlayerService.GetAuthors.
-func (c *playerServiceClient) GetAuthors(ctx context.Context, req *connect.Request[v1.GetAuthorsRequest]) (*connect.Response[v1.GetAuthorsResponse], error) {
-	return c.getAuthors.CallUnary(ctx, req)
-}
-
 // GetTitles calls player.v1.PlayerService.GetTitles.
 func (c *playerServiceClient) GetTitles(ctx context.Context, req *connect.Request[v1.GetTitlesRequest]) (*connect.Response[v1.GetTitlesResponse], error) {
 	return c.getTitles.CallUnary(ctx, req)
@@ -270,8 +252,6 @@ type PlayerServiceHandler interface {
 	GetRoster(context.Context, *connect.Request[v1.GetRosterRequest]) (*connect.Response[v1.GetRosterResponse], error)
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest], *connect.ServerStream[v1.PlayerEvent]) error
 	GetPlayer(context.Context, *connect.Request[v1.GetPlayerRequest]) (*connect.Response[v1.GetPlayerResponse], error)
-	// InternalService/GetAuthors, for the globe naming who holds a tile.
-	GetAuthors(context.Context, *connect.Request[v1.GetAuthorsRequest]) (*connect.Response[v1.GetAuthorsResponse], error)
 	GetTitles(context.Context, *connect.Request[v1.GetTitlesRequest]) (*connect.Response[v1.GetTitlesResponse], error)
 	WearTitle(context.Context, *connect.Request[v1.WearTitleRequest]) (*connect.Response[v1.WearTitleResponse], error)
 	GetFronts(context.Context, *connect.Request[v1.GetFrontsRequest]) (*connect.Response[v1.GetFrontsResponse], error)
@@ -340,13 +320,6 @@ func NewPlayerServiceHandler(svc PlayerServiceHandler, opts ...connect.HandlerOp
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
-	playerServiceGetAuthorsHandler := connect.NewUnaryHandler(
-		PlayerServiceGetAuthorsProcedure,
-		svc.GetAuthors,
-		connect.WithSchema(playerServiceMethods.ByName("GetAuthors")),
-		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
-		connect.WithHandlerOptions(opts...),
-	)
 	playerServiceGetTitlesHandler := connect.NewUnaryHandler(
 		PlayerServiceGetTitlesProcedure,
 		svc.GetTitles,
@@ -385,8 +358,6 @@ func NewPlayerServiceHandler(svc PlayerServiceHandler, opts ...connect.HandlerOp
 			playerServiceListenForEventsHandler.ServeHTTP(w, r)
 		case PlayerServiceGetPlayerProcedure:
 			playerServiceGetPlayerHandler.ServeHTTP(w, r)
-		case PlayerServiceGetAuthorsProcedure:
-			playerServiceGetAuthorsHandler.ServeHTTP(w, r)
 		case PlayerServiceGetTitlesProcedure:
 			playerServiceGetTitlesHandler.ServeHTTP(w, r)
 		case PlayerServiceWearTitleProcedure:
@@ -436,10 +407,6 @@ func (UnimplementedPlayerServiceHandler) ListenForEvents(context.Context, *conne
 
 func (UnimplementedPlayerServiceHandler) GetPlayer(context.Context, *connect.Request[v1.GetPlayerRequest]) (*connect.Response[v1.GetPlayerResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.PlayerService.GetPlayer is not implemented"))
-}
-
-func (UnimplementedPlayerServiceHandler) GetAuthors(context.Context, *connect.Request[v1.GetAuthorsRequest]) (*connect.Response[v1.GetAuthorsResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.PlayerService.GetAuthors is not implemented"))
 }
 
 func (UnimplementedPlayerServiceHandler) GetTitles(context.Context, *connect.Request[v1.GetTitlesRequest]) (*connect.Response[v1.GetTitlesResponse], error) {

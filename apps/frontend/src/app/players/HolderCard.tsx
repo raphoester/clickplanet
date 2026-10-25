@@ -1,6 +1,6 @@
 import {CSSProperties, useEffect, useLayoutEffect, useRef, useState} from "react"
 import {createPortal} from "react-dom"
-import {PlayerInfoBackend, PlayerLine} from "../../backends/player.ts"
+import {PlayerLine} from "../../backends/player.ts"
 import {cardPlacement} from "../../domain/cardPlacement.ts"
 import {Countries} from "../../domain/countries.ts"
 import {agoOf, Point} from "../../domain/tilePeek.ts"
@@ -12,7 +12,6 @@ import StreakFlame from "../components/StreakFlame.tsx"
 import {useEscape} from "../components/useDialog.ts"
 import TitleBadge from "../titles/TitleBadge.tsx"
 import {truncate} from "../truncate.ts"
-import {usePlayerInfo} from "./usePlayerInfo.ts"
 import {HolderShown} from "./useTileHolder.ts"
 import "./HolderCard.css"
 
@@ -23,17 +22,14 @@ const CLICK_AFTER_TAP_MS = 600
 
 export type HolderCardProps = {
     holder: HolderShown
-    backend: PlayerInfoBackend
     now?: number
     onHold: (held: boolean) => void
     onOpenPlayer?: (player: PlayerLine) => void
     onClose: () => void
 }
 
-export default function HolderCard({holder, backend, now = Date.now(), onHold, onOpenPlayer, onClose}: HolderCardProps) {
-    const {line, takenAt, point, touch} = holder
-    const state = usePlayerInfo(backend, line)
-    const info = state.kind === "ready" ? state.info : undefined
+export default function HolderCard({holder, now = Date.now(), onHold, onOpenPlayer, onClose}: HolderCardProps) {
+    const {line, playsFor, takenAt, point, touch} = holder
     const country = Countries.get(line.countryCode)?.name ?? line.countryCode
 
     const card = useRef<HTMLElement>(null)
@@ -42,7 +38,7 @@ export default function HolderCard({holder, backend, now = Date.now(), onHold, o
         const box = card.current?.getBoundingClientRect()
         if (!box) return
         setPlace(cardPlacement(point, box, {width: window.innerWidth, height: window.innerHeight}, touch))
-    }, [point, touch, state.kind])
+    }, [point, touch])
 
     useEscape(onClose)
 
@@ -81,8 +77,8 @@ export default function HolderCard({holder, backend, now = Date.now(), onHold, o
                         {line.admin && <AdminCrown/>}
                         <StreakFlame days={line.streak}/>
                     </span>
-                    {info && info.playsFor.length > 0 && <span className="holder-card-flags" role="group" aria-label="Fought for">
-                        {info.playsFor.slice(0, FLAGS_SHOWN).map(({countryCode}) => {
+                    {playsFor.length > 0 && <span className="holder-card-flags" role="group" aria-label="Fought for">
+                        {playsFor.slice(0, FLAGS_SHOWN).map(({countryCode}) => {
                             const name = Countries.get(countryCode)?.name ?? countryCode
                             return <span key={countryCode} role="img" aria-label={name} title={name}><CountryFlag code={countryCode}/></span>
                         })}

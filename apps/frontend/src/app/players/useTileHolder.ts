@@ -1,12 +1,13 @@
 import {useCallback, useEffect, useState} from "react"
-import {TileHolders} from "../../backends/backend.ts"
-import {PlayerLine, PlayerLinesBackend} from "../../backends/player.ts"
+import {TileHolder, TileHolders} from "../../backends/backend.ts"
+import {CountryTiles, PlayerInfo, PlayerInfoBackend, PlayerLine} from "../../backends/player.ts"
 import {holderShown, Peek, Point} from "../../domain/tilePeek.ts"
 
 export const LEAVE_GRACE_MS = 300
 
 export type HolderShown = {
     line: PlayerLine
+    playsFor: CountryTiles[]
     takenAt: number
     point: Point
     touch: boolean
@@ -15,7 +16,7 @@ export type HolderShown = {
 
 export function useTileHolder(
     holders: TileHolders | undefined,
-    players: PlayerLinesBackend | undefined,
+    players: PlayerInfoBackend | undefined,
     pointing: {peek: Peek, id: number} | undefined,
     ownAccountId: string | undefined,
 ): {holder: HolderShown | undefined, hold: (held: boolean) => void, dismiss: () => void} {
@@ -29,9 +30,11 @@ export function useTileHolder(
         const asking = new AbortController()
         const ask = async () => {
             const held = holderShown(await holders.tileHolder(peek.tile, asking.signal), peek, ownAccountId)
-            const line = held && await players.playerLine(held.accountId, held.countryCode, asking.signal)
+            const info = held && await players.playerInfo(held.accountId)
             if (asking.signal.aborted) return
-            setHolder(held && line ? {line, takenAt: held.takenAt, point: peek.point, touch: peek.touch, id} : undefined)
+            setHolder(held && info
+                ? {line: lineOf(held, info), playsFor: info.playsFor, takenAt: held.takenAt, point: peek.point, touch: peek.touch, id}
+                : undefined)
         }
         ask().catch((e) => {
             if (!asking.signal.aborted) console.error("could not read who holds the tile", e)
@@ -51,4 +54,17 @@ export function useTileHolder(
     const dismiss = useCallback(() => setHolder(undefined), [])
 
     return {holder, hold, dismiss}
+}
+
+function lineOf({accountId, countryCode}: TileHolder, info: PlayerInfo): PlayerLine {
+    return {
+        accountId,
+        name: info.name,
+        countryCode,
+        guest: info.guest,
+        admin: info.admin,
+        color: info.color,
+        streak: info.streakCurrent,
+        wornTitle: info.wornTitle,
+    }
 }

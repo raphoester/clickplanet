@@ -6,8 +6,6 @@ import {
     NameColor,
     PlayerInfo,
     PlayerInfoBackend,
-    PlayerLine,
-    PlayerLinesBackend,
     PlayerTitle,
     Presence,
     PresenceBackend,
@@ -71,7 +69,7 @@ const PLAYERS: RosterEntry[] = [
     {key: "8", accountId: fakeAccountId("guest_7e21c9"), name: "guest_7e21c9", countryCode: "ng", guest: true, admin: false, color: NameColor.UNSPECIFIED, streak: 0},
 ]
 
-export class FakePresenceBackend implements PresenceBackend, PlayerInfoBackend, PlayerLinesBackend {
+export class FakePresenceBackend implements PresenceBackend, PlayerInfoBackend {
     private own?: {presence: Presence, at: number}
     private readonly titleListeners = new Set<(title: PlayerTitle) => void>()
 
@@ -147,8 +145,14 @@ export class FakePresenceBackend implements PresenceBackend, PlayerInfoBackend, 
     }
 
     public async playerInfo(accountId: string): Promise<PlayerInfo | undefined> {
-        const player = PLAYERS.find((p) => !p.guest && p.accountId === accountId)
+        const player = PLAYERS.find((p) => p.accountId === accountId)
         if (!player) return undefined
+        if (player.guest) {
+            return {
+                name: player.name, guest: true, tilesTaken: 0, streakCurrent: 0, streakBest: 0, admin: false,
+                color: NameColor.UNSPECIFIED, titles: [], playsFor: [], playsAgainst: [],
+            }
+        }
 
         const career = this.career(player)
         return {
@@ -156,25 +160,10 @@ export class FakePresenceBackend implements PresenceBackend, PlayerInfoBackend, 
             playsFor: career.playsFor.slice(0, SHOWN_FRONTS),
             playsAgainst: career.playsAgainst.slice(0, SHOWN_FRONTS),
             name: player.name,
+            guest: false,
             streakCurrent: player.streak,
             admin: player.admin,
             color: player.color,
-        }
-    }
-
-    public async playerLine(accountId: string, countryCode: string): Promise<PlayerLine | undefined> {
-        const player = PLAYERS.find((p) => p.accountId === accountId)
-        if (!player) return undefined
-
-        return {
-            accountId: player.accountId,
-            name: player.name,
-            countryCode,
-            guest: player.guest,
-            admin: player.admin,
-            color: player.color,
-            streak: player.streak,
-            wornTitle: player.guest ? undefined : this.career(player).wornTitle,
         }
     }
 

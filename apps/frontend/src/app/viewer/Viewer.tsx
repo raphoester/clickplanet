@@ -57,7 +57,7 @@ import {useAnthem} from "../anthem/useAnthem.ts";
 import {AccountStore} from "../account/accountStore.ts";
 import {useAccount} from "../account/useAccount.ts";
 import {hueOf} from "../../domain/authorColor.ts";
-import {PlayerInfoBackend, PlayerLine, PlayerLinesBackend, PlayerTitle, PresenceBackend} from "../../backends/player.ts";
+import {PlayerInfoBackend, PlayerLine, PlayerTitle, PresenceBackend} from "../../backends/player.ts";
 import PlayerCard from "../players/PlayerCard.tsx";
 import HolderCard from "../players/HolderCard.tsx";
 import {useTileHolder} from "../players/useTileHolder.ts";
@@ -109,7 +109,6 @@ export type ViewerProps = {
     account?: AccountStore
     presence?: PresenceBackend
     playerInfo?: PlayerInfoBackend
-    playerLines?: PlayerLinesBackend
     tileHolders?: TileHolders
     season?: SeasonBackend
     standings?: StandingsBackend
@@ -217,7 +216,7 @@ export default function Viewer(props: ViewerProps) {
         rendering: display.settings.rendering,
     })
 
-    const tileHolder = useTileHolder(props.tileHolders, props.playerLines, pointing, ownAccountId)
+    const tileHolder = useTileHolder(props.tileHolders, props.playerInfo, pointing, ownAccountId)
 
     const bonusGuide = useBonusGuide()
 
@@ -400,9 +399,8 @@ export default function Viewer(props: ViewerProps) {
             multiplier={clickBudget.linkedMultiplier}
             onClose={() => setPitchOpen(false)}/>}
 
-        {tileHolder.holder && props.playerInfo && <HolderCard key={tileHolder.holder.id}
+        {tileHolder.holder && <HolderCard key={tileHolder.holder.id}
                                                               holder={tileHolder.holder}
-                                                              backend={props.playerInfo}
                                                               onHold={tileHolder.hold}
                                                               onOpenPlayer={onOpenPlayer && ((player) => {
                                                                   tileHolder.dismiss()

@@ -934,9 +934,9 @@ are the player's total, not the season's (see the backend's CLAUDE.md, Player),
 so the top one explains the flag beside its name on the Players board. Two
 columns on a desktop, which is why the card is 440px wide; one under the other
 on a phone. The fake gives its players titles and countries of its own over
-their fake stats and creation date. **A guest's card asks nothing**: a guest has an
-account id, but the server keeps a card for a username only, so the card shows
-the name and the flag alone. It says nothing to the viewer, who may well be signed in. The chat tells
+their fake stats and creation date. **A guest's card asks nothing**: `GetPlayer`
+answers a guest with its name alone (`PlayerInfo.guest`), which the line already
+holds, so the card shows the name and the flag alone. It says nothing to the viewer, who may well be signed in. The chat tells
 a guest by `GUEST_PREFIX`, which no username starts with: that is a class of
 names the server reserves, not one account. **A line with no account id asks
 nothing either** (a message kept before accounts, or of a deleted account) and
@@ -1015,9 +1015,9 @@ tap never is, and the bomb's hold-to-drop is already one.
   `onPeekEnd` when the mouse leaves that tile or the globe, or any press starts;
   nothing while a bomb is armed.
 - `useTileHolder` asks `TileHolders.tileHolder` (`ClickService/GetTileHolder`), then
-  `PlayerLinesBackend.playerLine` (`PlayerService/GetAuthors`, which names a guest
-  too); the card reads `GetPlayer` itself (`usePlayerInfo`). None needs a token.
-  A new peek aborts the last one.
+  `PlayerInfoBackend.playerInfo` (`PlayerService/GetPlayer`), which answers a guest
+  with its name alone: two calls, and planet never learns a name. Neither needs a
+  token. A new peek aborts the last one.
 - **The card shows only while the tile wears the flag of its last take**
   (`holderShown`): the ledger is a second behind, and an operator's write keeps no
   take, so a tile that changed hands since says nothing rather than the wrong

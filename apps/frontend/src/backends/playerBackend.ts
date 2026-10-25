@@ -20,8 +20,6 @@ import {
     PlayerFailure,
     PlayerInfo,
     PlayerInfoBackend,
-    PlayerLine,
-    PlayerLinesBackend,
     PlayerTitle,
     Presence,
     PresenceBackend,
@@ -63,7 +61,7 @@ const FAILURES: Partial<Record<Code, PlayerFailure>> = {
     [Code.FailedPrecondition]: "unnamed",
 }
 
-export class ConnectPlayerBackend implements PlayerBackend, PresenceBackend, PlayerInfoBackend, PlayerLinesBackend {
+export class ConnectPlayerBackend implements PlayerBackend, PresenceBackend, PlayerInfoBackend {
     constructor(
         private readonly client: PromiseClient<typeof PlayerService>,
         private readonly session: SessionProvider,
@@ -190,21 +188,6 @@ export class ConnectPlayerBackend implements PlayerBackend, PresenceBackend, Pla
         }
     }
 
-    public async playerLine(accountId: string, countryCode: string, signal?: AbortSignal): Promise<PlayerLine | undefined> {
-        const {authors: [author]} = await this.client.getAuthors({accountIds: [accountId]}, {signal})
-        if (!author) return undefined
-        return {
-            accountId: author.accountId,
-            name: author.name,
-            countryCode,
-            guest: author.guest,
-            admin: author.admin,
-            color: author.color,
-            streak: author.streak,
-            wornTitle: titleOf(author.wornTitle),
-        }
-    }
-
     private async authenticated<T>(call: (headers: Headers) => Promise<T>): Promise<T> {
         try {
             try {
@@ -268,6 +251,7 @@ function playerInfoOf(player: PlayerPb | undefined): PlayerInfo {
     const createdAt = Number(player?.createdAtUnixMs ?? 0)
     return {
         name: player?.name ?? "",
+        guest: player?.guest ?? false,
         tilesTaken: Number(player?.stats?.tilesTaken ?? 0),
         streakCurrent: player?.stats?.streakCurrent ?? 0,
         streakBest: player?.stats?.streakBest ?? 0,

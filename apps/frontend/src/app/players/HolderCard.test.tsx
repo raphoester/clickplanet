@@ -3,7 +3,7 @@ import {afterEach, describe, expect, it, vi} from "vitest"
 import {cleanup, fireEvent, render, screen, within} from "@testing-library/react"
 import HolderCard from "./HolderCard.tsx"
 import {HolderShown} from "./useTileHolder.ts"
-import {NameColor, PlayerInfo, PlayerInfoBackend, PlayerLine} from "../../backends/player.ts"
+import {NameColor, PlayerLine} from "../../backends/player.ts"
 
 const NOW = 1_761_393_600_000
 
@@ -18,22 +18,16 @@ const GUEST: PlayerLine = {
     color: NameColor.UNSPECIFIED, streak: 0,
 }
 
-const FOX_INFO: PlayerInfo = {
-    name: "BraveFox42", tilesTaken: 12_345, streakCurrent: 4, streakBest: 30, createdAt: Date.UTC(2026, 8, 17),
-    admin: false, color: NameColor.TEAL, titles: [], wornTitle: FOX.wornTitle,
-    playsFor: [{countryCode: "fr", tiles: 9_000}, {countryCode: "be", tiles: 300}], playsAgainst: [],
-}
-
 const pressed = (pointerType: string) => Object.assign(new Event("pointerdown", {bubbles: true}), {pointerType})
 
-const shown = (line: PlayerLine): HolderShown => ({line, takenAt: NOW - 3 * 60_000, point: {x: 300, y: 200}, touch: false, id: 1})
+const FRONTS = [{countryCode: "fr", tiles: 9_000}, {countryCode: "be", tiles: 300}]
 
-const backendOf = (info: PlayerInfo | undefined) => ({playerInfo: vi.fn(async () => info)}) satisfies PlayerInfoBackend
+const shown = (line: PlayerLine): HolderShown => ({
+    line, playsFor: line.guest ? [] : FRONTS, takenAt: NOW - 3 * 60_000, point: {x: 300, y: 200}, touch: false, id: 1,
+})
 
 function show(line: PlayerLine, props: Partial<Parameters<typeof HolderCard>[0]> = {}) {
-    const backend = backendOf(FOX_INFO)
-    render(<HolderCard holder={shown(line)} backend={backend} now={NOW} onHold={() => {}} onClose={() => {}} {...props}/>)
-    return backend
+    render(<HolderCard holder={shown(line)} now={NOW} onHold={() => {}} onClose={() => {}} {...props}/>)
 }
 
 describe("HolderCard", () => {
@@ -51,12 +45,11 @@ describe("HolderCard", () => {
         expect(card.style.top).toBe("216px")
     })
 
-    it("then shows the first flags the player fought for, read from its public card", async () => {
-        const backend = show(FOX)
+    it("shows the first flags the player fought for", () => {
+        show(FOX)
 
-        const flags = await screen.findByRole("group", {name: "Fought for"})
+        const flags = screen.getByRole("group", {name: "Fought for"})
         expect(within(flags).getAllByRole("img").map((flag) => flag.getAttribute("aria-label"))).toEqual(["France", "Belgium"])
-        expect(backend.playerInfo).toHaveBeenCalledWith("account-fox")
     })
 
     it("opens the player's card from its profile button", () => {
@@ -68,12 +61,12 @@ describe("HolderCard", () => {
         expect(onOpenPlayer).toHaveBeenCalledWith(FOX)
     })
 
-    it("shows a guest by its guest name alone, and asks nothing more about it", () => {
-        const backend = show(GUEST, {onOpenPlayer: vi.fn()})
+    it("shows a guest by its guest name alone, with no profile to open", () => {
+        show(GUEST, {onOpenPlayer: vi.fn()})
 
         expect(screen.getByRole("region", {name: "guest_91aa3d"}).textContent).toContain("Took it 3 min ago")
         expect(screen.queryByRole("button", {name: "View profile"})).toBeNull()
-        expect(backend.playerInfo).not.toHaveBeenCalled()
+        expect(screen.queryByRole("group", {name: "Fought for"})).toBeNull()
     })
 
     it("says when the pointer is on it, and closes on Escape", () => {
