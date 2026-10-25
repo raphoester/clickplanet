@@ -17,3 +17,17 @@ message RoundResult {
   uint32 rank = 2;
   uint32 points = 3;
 }
+
+message SeasonClosed {
+  uint32 season = 1;
+  google.protobuf.Timestamp ended_at = 2;
+  repeated SeasonPlace table = 3;
+}
+
+message SeasonPlace {
+  string country = 1;
+  uint32 rank = 2;
+  uint32 points = 3;
+  uint32 rounds_won = 4;
+  uint32 finale_points = 5;
+}

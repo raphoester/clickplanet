@@ -1603,6 +1603,13 @@ export class RuleSet extends Message<RuleSet> {
    */
   boxes?: BoxPace;
 
+  /**
+   * No player writes on the map, and no box or quiz is offered.
+   *
+   * @generated from field: bool frozen = 4;
+   */
+  frozen = false;
+
   constructor(data?: PartialMessage<RuleSet>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1614,6 +1621,7 @@ export class RuleSet extends Message<RuleSet> {
     { no: 1, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "tempo", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
     { no: 3, name: "boxes", kind: "message", T: BoxPace },
+    { no: 4, name: "frozen", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RuleSet {

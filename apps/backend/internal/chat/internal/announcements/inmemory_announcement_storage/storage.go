@@ -36,6 +36,17 @@ func (s *Storage) Append(_ context.Context, announcement announcements.Announcem
 	return nil
 }
 
+func (s *Storage) AppendOnce(_ context.Context, announcement announcements.Announcement) (bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if slices.ContainsFunc(s.kept, func(kept announcements.Announcement) bool { return kept.ID() == announcement.ID() }) {
+		return false, nil
+	}
+	s.kept = append(s.kept, announcement)
+	return true, nil
+}
+
 func (s *Storage) Kept() []announcements.Announcement {
 	s.mu.Lock()
 	defer s.mu.Unlock()

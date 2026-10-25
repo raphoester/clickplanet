@@ -44,9 +44,18 @@ export class GetSeasonRequest extends Message<GetSeasonRequest> {
  */
 export class GetSeasonResponse extends Message<GetSeasonResponse> {
   /**
+   * The season in play: unset between two seasons and past the last.
+   *
    * @generated from field: seasons.v1.Season season = 1;
    */
   season?: Season;
+
+  /**
+   * The first season that starts after now.
+   *
+   * @generated from field: seasons.v1.Season next = 2;
+   */
+  next?: Season;
 
   constructor(data?: PartialMessage<GetSeasonResponse>) {
     super();
@@ -57,6 +66,7 @@ export class GetSeasonResponse extends Message<GetSeasonResponse> {
   static readonly typeName = "seasons.v1.GetSeasonResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "season", kind: "message", T: Season },
+    { no: 2, name: "next", kind: "message", T: Season },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetSeasonResponse {
@@ -95,6 +105,13 @@ export class Season extends Message<Season> {
    */
   endsAtUnixMs = protoInt64.zero;
 
+  /**
+   * 0 for a season that started before anything.
+   *
+   * @generated from field: int64 starts_at_unix_ms = 4;
+   */
+  startsAtUnixMs = protoInt64.zero;
+
   constructor(data?: PartialMessage<Season>) {
     super();
     proto3.util.initPartial(data, this);
@@ -106,6 +123,7 @@ export class Season extends Message<Season> {
     { no: 1, name: "number", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 2, name: "finale_starts_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
     { no: 3, name: "ends_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 4, name: "starts_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Season {

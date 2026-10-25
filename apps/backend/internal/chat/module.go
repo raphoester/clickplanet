@@ -13,6 +13,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/postgres_announcement_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/usecases/announce_champion_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/usecases/announce_mute_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/usecases/announce_usecase"
 	announcement_ids "github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/uuid_id_provider"
@@ -65,6 +66,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/fortified_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/round_closed_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/season_closed_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
@@ -85,6 +87,8 @@ const accountDeletedBuffer = 256
 const accountMutedBuffer = 64
 
 const roundClosedBuffer = 16
+
+const seasonClosedBuffer = 4
 
 func NewModule(config Config) cpbootstrap.Module {
 	return cpbootstrap.Module{
@@ -169,9 +173,16 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to subscribe to seasons.v1.RoundClosed: %w", err)
 	}
 
+	seasonsClosed, err := cpbootstrap.Subscribe(props.Events, "chat-announcements-seasons", seasonClosedBuffer,
+		log_subscriber.New(season_closed_subscriber.New(announce_champion_usecase.New(announcementStore, updates)), props.Logger))
+	if err != nil {
+		_ = db.Close()
+		return fmt.Errorf("failed to subscribe to seasons.v1.SeasonClosed: %w", err)
+	}
+
 	// Not a closer: closers run before the runners stop, and the runners use the pool.
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger,
-		prune_usecase.NewRunner(storage.PruneInterval, prune), bombs, fortifies, deletions, mutings, roundsClosed))
+		prune_usecase.NewRunner(storage.PruneInterval, prune), bombs, fortifies, deletions, mutings, roundsClosed, seasonsClosed))
 
 	messageLimiter := cpratelimit.New("message-limiter", config.RateLimiter, cptime.SystemClock{})
 	props.Runners.Add(messageLimiter)

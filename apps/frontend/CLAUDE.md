@@ -58,7 +58,9 @@ wires no account, so the overlay offers Close only), `closeDay()` closes the
 fake's day: its countries score with a little luck, the race carries the round
 closed with the season's table before and after it, and the chat announces the
 podium, so the cutoff plays (see [The cutoff, revealed](#the-cutoff-revealed)).
-`closeFinale()` does the same for the Final Battle, at triple points. Each call
+`closeFinale()` does the same for the Final Battle, at triple points, then
+crowns the champion: the reveal ends on it, the chat says who won, and the
+season chip becomes the champion's. Each call
 closes the next day, so the reveal plays again. `fakeBackend.botBomb(tile, "fr")`,
 `fakeBackend.botSpread(tile, "fr")` and `fakeBackend.botShield(tile, "fr")` play
 somebody else's bomb, spread click or shield. `fakeBackend.takeLandmass(landmass, "es", leave)`
@@ -749,9 +751,10 @@ is the list, and the backend refuses any other.
 #### Announcements
 
 The chat also shows lines nobody sent: `ChatEvent.announcement` on the stream,
-and `GetHistoryResponse.announcements` beside the messages. Three kinds today:
-`bomb`, every bomb that went off, `mute`, every mute an operator gave, and
-`round`, every round of a season that closed.
+and `GetHistoryResponse.announcements` beside the messages. Five kinds today:
+`bomb`, every bomb that went off, `mute`, every mute an operator gave,
+`round`, every round of a season that closed, `fortify`, every landmass of 50
+tiles or more a flag fortified, and `champion`, the country that won a season.
 
 - **Decoded, not trusted**: `decodedAnnouncement` reads the `kind` and parses
   the JSON `payload` into a typed `ChatAnnouncement`. A kind this build does not
@@ -780,10 +783,16 @@ and `GetHistoryResponse.announcements` beside the messages. Three kinds today:
   podium is the places ranked 3rd or better, ties included (the backend's
   CLAUDE.md, Announcements). A place with no country, or with a rank or points
   under 1, is dropped. Its time is the round's end.
+- **A champion is a gold line** (`ChampionLine`, `.chat-announcement-champion`):
+  🏆, the flag of each champion and "Germany wins Season 0" (`winsLine`, the
+  words of the reveal). The payload is `{season, countries}`; a champion with
+  no country is dropped. Its time is the season's end. The server keeps one a
+  season, so it shows once.
 - In fake mode `main.tsx` hands every `FakeBackend` bomb to
   `FakeChatBackend.announceBomb`, with no ground: the fake has no borders.
   `closeDay()` and `closeFinale()` announce their round through
-  `FakeChatBackend.announceRound`.
+  `FakeChatBackend.announceRound`, and `closeFinale()` its champion through
+  `FakeChatBackend.announceChampion`, once a season as the server does.
   `fakeChat.mute()` in the console announces a mute of the player for an hour
   and refuses its posts and reactions until it ends; `fakeChat.mute(600, "Ana")`
   only announces somebody else's.
@@ -1345,8 +1354,11 @@ draws it.
   `countdownsOf` is the chip's faces, made from the two clocks: today's cutoff
   and the finale's start. On the last day they are the same time, so there is
   one face. During the finale there is one, to the season's end. After it, none.
+- `domain/champion.ts` — `championOf`, the countries ranked 1st once a finale
+  closed, `reigningChampionOf`, that champion while no newer season is current,
+  and `winsLine`, "Germany wins Season 0", for the reveal, the chip and the chat.
 - `app/season/` — `useSeason`, which drops the season at its end (a page open
-  across it goes back to no season), `SeasonChip`, `SeasonDetails`,
+  across it goes back to no season), `SeasonChip`, `ChampionChip`, `SeasonDetails`,
   `SeasonFacts`, the rows both of them open on, `useRotation`, which turns the
   chip's faces, and `RoundReveal` with `useRoundReveal` (see [The cutoff,
   revealed](#the-cutoff-revealed)).
@@ -1367,6 +1379,15 @@ press opens the same details as a sheet, with both countdowns at once. The chip'
 name holds both countdowns in full, so a screen reader does not wait for a turn.
 The faces are hidden from it, and they are not a live region. During the finale
 it glows and says "Final Battle ends in"; it still opens.
+
+**After the season, the chip is the champion's** (`ChampionChip`): a trophy,
+"Season 0 champion", the flag and the name, from the race's `closed` once it is
+the finale. It replaces the countdown as soon as the finale of the current
+season closed, and stays until a newer season is current
+(`reigningChampionOf`). It opens nothing: with no season there are no facts to
+show. Its name is the chat's line, "Germany wins Season 0". On a phone it is the
+trophy and the flag alone, so a long name never squeezes the player's own
+country out of the status bar.
 
 **All faces are in one grid cell**, and the faces not shown are
 `visibility: hidden`. So the chip is as wide as its widest face, and its width
@@ -1424,9 +1445,16 @@ once (`app/season/RoundReveal.tsx`; the rules are in `domain/roundReveal.ts`).
   order, the points count up to the new total, and each row shows what it won
   and how it moved (▲2, ▼1, New, –). With no podium it opens on the table; with
   no table it stops on the podium.
+- **The Final Battle ends on the champion**, a third stage: `ROUND_REVEAL.hold`
+  (2.4s) after the table settled, or on Next, the head becomes "Germany wins
+  Season 0" (`winsLine`) over a trophy, rays, a flash and the flag, and the
+  `title` sound plays again. The champion is every country ranked 1st in
+  `closed.after` (`championOf` in `domain/champion.ts`), so countries level on
+  everything win together. A day has no third stage.
 - **Nothing closes it before it is settled**: no button, and Escape does
   nothing, until the rows have moved (`ROUND_REVEAL.slide` + `settle`), or the
-  podium has run when there is no table. Then Close appears and Escape works.
+  podium has run when there is no table, or the champion has had
+  `ROUND_REVEAL.champion` (2.2s). Then Close appears and Escape works.
   The rule is the title unlock's: a player spamming the globe would close it
   unseen.
 - **It waits for a title unlock to close.** `Viewer` mounts it once the map is
