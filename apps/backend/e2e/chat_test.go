@@ -223,7 +223,7 @@ func TestAReplyQuotesTheMessageItAnswersUnderWhoItsAuthorIsNow(t *testing.T) {
 		MessageId: question.GetId(), AuthorName: "Ada_L", AuthorColor: playerv1.NameColor_NAME_COLOR_TEAL, Text: "hello",
 	}, answer.GetReplyTo()), "%v", answer.GetReplyTo())
 
-	ada.choseItsNameAMonthAgo()
+	ada.choseItsNameAWeekAgo()
 	_, err = ada.setName("Ada_Lovelace")
 	require.NoError(t, err)
 	history := bob.history()

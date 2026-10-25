@@ -10,6 +10,7 @@ export const DELETED_ACCOUNT = "Deleted account"
 export type HolderShown = {
     line: PlayerLine
     playsFor: CountryTiles[]
+    mine: boolean
     takenAt: number
     point: Point
     touch: boolean
@@ -31,11 +32,14 @@ export function useTileHolder(
         const {peek, id} = pointing
         const asking = new AbortController()
         const ask = async () => {
-            const held = holderShown(await holders.tileHolder(peek.tile, asking.signal), peek, ownAccountId)
+            const held = holderShown(await holders.tileHolder(peek.tile, asking.signal), peek)
             const player = held && await playerOf(held, players)
             if (asking.signal.aborted) return
             setHolder(held && player
-                ? {...player, takenAt: held.takenAt, point: peek.point, touch: peek.touch, id}
+                ? {
+                    ...player, mine: held.accountId === ownAccountId,
+                    takenAt: held.takenAt, point: peek.point, touch: peek.touch, id,
+                }
                 : undefined)
         }
         ask().catch((e) => {
