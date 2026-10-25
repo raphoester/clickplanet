@@ -116,8 +116,8 @@ duration)`, on the admin listener (see [Operator tools](admin.md)). A muted call
 - **Kept in `chat.mutes`** (`id`, `account_id`, `scope`, `muted_at`, `muted_until`). The network is personal data,
   so the prune deletes a mute that ended more than `retention` ago. There is no unmute RPC: deleting the rows ends
   a mute early (`deploy/vps/README.md`).
-- `e2e/mute_test.go` mutes over the console listener and sees the player, its reaction and a fresh guest on its
-  network refused, and the line reach the history.
+- `muting_send_message` and `muting_react` refuse the player, its reaction and a fresh guest on its network;
+  `announce_mute_usecase` writes the line.
 
 ## Removals
 
@@ -162,10 +162,10 @@ listener, for a report it acts on. The notice-and-action answer to a message, be
     (`older`, `newer`) under one projection that joins the removals and the quote. The newest page is `older` from
     the top. Each window walks the primary key from the cursor.
 - **`audit_remove` logs every call at Warn** (`admin chat message removal`).
-- `e2e/report_actions_test.go` removes a reported message over the console listener, and sees it stay in the
-  history with no text, its quote with none, a reaction refused, and the text still read for the operator; and
-  reads a page on each side of a reported reply: the message it answers before it, the answer to it after, each
-  named as the chat named it.
+- `remove_message_usecase` keeps the removal; the history query's suite shows the message in its place with no
+  text and its quote with none, the message store refuses a reaction to it, and `message_query` still reads the
+  text for the operator. `messages_query` reads a page on each side of a message; player's `authors_query` pins
+  that `GetAuthors` names each account as `GetAuthor` named it in the chat.
 
 ## Replies
 
@@ -196,7 +196,7 @@ name and color, its text), which the client draws above the reply.
   accounts go in the one `GetAuthors` ask. **A message that is gone is not quoted**: once it is pruned, or past the
   retention, its reply reads as a plain message.
 - **The server sends the whole text.** How much of it is shown is the client's (100 characters).
-- `e2e/chat_test.go` replies over HTTP and sees the quote follow a rename.
+- `thread_test.go` and the history query's suite pin that a quote is named by who its author is now.
 
 ## Reactions
 
@@ -241,8 +241,8 @@ while it was away: the badge counts it, and the lines light up as the chat opens
   so it needs no proof of a check.
 - **Forgotten with the account**: `account_deleted_subscriber` hears `auth.v1.AccountDeleted` and deletes the row.
   There is no prune: a row lives as long as its account, and auth's guest prune deletes the guests.
-- `TestTheIdentityTokenKeepsWhenThePlayerLastSawTheChat` pins the identity path over HTTP, and
-  `TestADeletedAccountLosesItsSeenMark` the deletion.
+- `TestAnIdentityTokenNamesTheReaderAndTheSeenMarkOnly` pins the identity path, the history query's
+  `TestTheSeenMarkOnlyMovesForward` the mark, and `TestADeletedSeenMarkIsGoneAndOnlyThatOne` the deletion.
 
 **Chat has its own stream**, `ChatService.ListenForEvents` — see [The live streams](live-streams.md). It replaced a `/ws/chat` websocket that had to be kept apart from the tile one because frames carried a bare protobuf message with no type tag: a second payload on either socket would have been indistinguishable from the first. The `oneof` envelope is exactly what removes that constraint.
 

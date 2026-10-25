@@ -79,7 +79,7 @@ internal/auth/internal/
 - **`GetSignInOptions` is how the client knows which buttons to show**: every provider offered, then email when `auth.email.enabled` is on (`signin.Offer`), and an empty list while both are off — never `Unimplemented`, since the question has an answer either way. **It is not throttled and sets no cookie.** A client asks on every page load, and probing with `StartSignIn` instead would spend the mint budget a real sign-in needs and start a flow for nothing. `TestAskingIsNotThrottled` pins it. A server with the whole `auth` module off still 404s it, which the client reads as no provider.
 - **The client mints again after `CompleteSignIn`**, so its click token carries the account. The old token names the old account until it expires (1h).
 - **`CompleteSignIn` publishes `auth.v1.SignedIn`** once the sign-in is saved: the account the browser was on, empty for none, and the one it is on now. A refusal publishes nothing. `player` moves the roster line, since the client holds no token to announce with until its next click.
-- `auth.NewModuleWithFakeProviders` (behind the tag) boots the module with `signin.FakeProvider` for every provider: `Grant(code, claim)`, and the fake checks the verifier against the challenge it was shown. `e2e/sign_in_test.go` drives it.
+- `auth.NewModuleWithFakeProviders` (behind the tag) boots the module with `signin.FakeProvider` for every provider: `Grant(code, claim)`, and the fake checks the verifier against the challenge it was shown. The smoke tests in `e2e/` link Google with it.
 
 ## Signing in by email (`internal/auth/internal/signin/`)
 
@@ -97,7 +97,7 @@ internal/auth/internal/
 - **A code is not burnt by its success.** The cookie is cleared, and a replay needs both the HttpOnly cookie and the code — that is the player who just signed in, and a replay signs them in to the same account again.
 - **An email account is linked**: it is never pruned, it refills at the linked multiplier, and it may pick a username.
 - **`auth.email.delivery` is `cloudflare` or `log`.** `cloudflare_mailer` posts to the REST API with a token that has *Email Sending: Edit* only; a non-2xx, a body that is not JSON, or a permanent bounce of the address is an error, and nothing is set. `log_mailer` writes the letter, code included, to the server log at `WARN` — the local choice, with no account anywhere. The server warns at boot when it is on.
-- `auth.NewModuleWithFakeProviders` turns email on with `signin.FakeMailer` and codes `000001`, `000002`, …; `e2e/email_sign_in_test.go` reads the code out of the letter.
+- `auth.NewModuleWithFakeProviders` turns email on with `signin.FakeMailer` and codes `000001`, `000002`, ….
 
 ## Operators
 
