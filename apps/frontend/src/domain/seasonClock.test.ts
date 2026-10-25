@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest"
-import {countdownsOf, finaleClock, finaleWindow, seasonClock} from "./seasonClock.ts"
+import {countdownsOf, finaleClock, finaleWindow, seasonClock, startClock} from "./seasonClock.ts"
 
 const SECOND = 1000
 const MINUTE = 60 * SECOND
@@ -121,5 +121,19 @@ describe("finaleWindow", () => {
         expect(finaleWindow(season, "UTC")).toEqual({day: "Sat 31 Oct", from: "21:00", to: "23:00"})
         expect(finaleWindow(season, "America/New_York")).toEqual({day: "Sat 31 Oct", from: "17:00", to: "19:00"})
         expect(finaleWindow(season, "Asia/Kolkata")).toEqual({day: "Sun 1 Nov", from: "02:30", to: "04:30"})
+    })
+})
+
+describe("startClock", () => {
+    const next = {number: 1, startsAt: endsAt + 20 * HOUR, finaleStartsAt: endsAt + 35 * DAY - 2 * HOUR, endsAt: endsAt + 35 * DAY}
+
+    it("counts down to a season's start, and says nothing once it started", () => {
+        expect(startClock(next, endsAt)).toBe("20h 00m 00s")
+        expect(startClock(next, next.startsAt - SECOND)).toBe("00m 01s")
+        expect(startClock(next, next.startsAt)).toBeUndefined()
+    })
+
+    it("says nothing of a season with no start", () => {
+        expect(startClock(season, endsAt - DAY)).toBeUndefined()
     })
 })

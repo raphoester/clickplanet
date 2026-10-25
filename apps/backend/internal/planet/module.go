@@ -315,7 +315,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			internalService := planetv1controller.InternalService{
 				GetTakesByCountryHandler: get_takes_by_country_handler.New(takes_query.NewPostgresQuery(db)),
 				GetTerritoriesHandler:    getTerritories,
-				ApplyRuleSetHandler: apply_rule_set_handler.New(applyRuleSet, rules.SourceInternal),
+				ApplyRuleSetHandler:      apply_rule_set_handler.New(applyRuleSet, rules.SourceInternal),
 			}
 			if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 				return planetv1connect.NewInternalServiceHandler(internalService, options...)

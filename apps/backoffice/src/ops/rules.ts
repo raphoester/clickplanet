@@ -1,7 +1,7 @@
 import {Duration} from "@bufbuild/protobuf"
 import {LONG_CALL_MS} from "../api.ts"
 import {PlanetAdmin} from "../clients.ts"
-import {BoxPace, GetRulesResponse, RuleChangeSource, RuleSet} from "../gen/grpc/planet/v1/admin_pb.ts"
+import {GetRulesResponse, RuleChangeSource, RuleSet} from "../gen/grpc/planet/v1/admin_pb.ts"
 
 export const DEFAULT_SET = "default"
 
@@ -11,11 +11,13 @@ export function inForceOf(rules: GetRulesResponse): string {
 }
 
 export function tempoOf(set: RuleSet): string {
+    if (set.frozen) return "Map frozen"
     return set.tempo === 1 ? "As configured" : `${set.tempo}× as fast`
 }
 
-export function boxesOf(boxes: BoxPace | undefined): string {
-    if (boxes === undefined) return "—"
+export function boxesOf(set: RuleSet): string {
+    const boxes = set.boxes
+    if (boxes === undefined || set.frozen) return "—"
 
     const shortest = spanOf(boxes.minInterval)
     const longest = spanOf(boxes.maxInterval)

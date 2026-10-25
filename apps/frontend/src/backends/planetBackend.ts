@@ -12,6 +12,7 @@ import {
     BonusLostError,
     BonusOffer,
     ClaimedBonus,
+    MapFrozenError,
     ShieldRefusedError,
     Enclosure,
     Fortification,
@@ -37,6 +38,7 @@ import {
     ChargesHeld,
     ClickBudget as ClickBudgetMessage,
     GetMapResponse,
+    MapFrozen,
     PlanetEvent,
     SharedWith,
 } from "../gen/grpc/planet/v1/planet_pb.ts";
@@ -863,6 +865,9 @@ export function bombOf(event: PlanetEvent): BombDrop | undefined {
 export function asBonusError(e: unknown): unknown {
     if (e instanceof SessionUnavailableError) return e
 
+    const frozen = frozenOf(e)
+    if (frozen) return frozen
+
     if (e instanceof ConnectError) {
         if (e.code === Code.NotFound || e.code === Code.Unimplemented) return new BonusLostError({cause: e})
         if (e.code === Code.Unauthenticated) return new SessionUnavailableError({cause: e})
@@ -870,6 +875,11 @@ export function asBonusError(e: unknown): unknown {
     }
 
     return e
+}
+
+function frozenOf(e: unknown): MapFrozenError | undefined {
+    if (!(e instanceof ConnectError) || e.code !== Code.FailedPrecondition) return undefined
+    return e.findDetails(MapFrozen).length > 0 ? new MapFrozenError({cause: e}) : undefined
 }
 
 function bannedOf(e: ConnectError): BannedError | undefined {
@@ -880,12 +890,16 @@ function bannedOf(e: ConnectError): BannedError | undefined {
 export function asShieldError(e: unknown): unknown {
     const locked = allegianceDetailOf(e)
     if (locked) return new AllegianceLockedError(locked, {cause: e})
+    const frozen = frozenOf(e)
+    if (frozen) return frozen
     if (e instanceof ConnectError && e.code === Code.FailedPrecondition) return new ShieldRefusedError({cause: e})
 
     return asBonusError(e)
 }
 
 export function asRefillError(e: unknown): unknown {
+    const frozen = frozenOf(e)
+    if (frozen) return frozen
     if (e instanceof ConnectError && e.code === Code.FailedPrecondition) return new BankFullError({cause: e})
 
     return asBonusError(e)
@@ -930,6 +944,9 @@ export function asClickError(e: unknown): unknown {
 
     const locked = allegianceDetailOf(e)
     if (locked) return new AllegianceLockedError(locked, {cause: e})
+
+    const frozen = frozenOf(e)
+    if (frozen) return frozen
 
     if (e instanceof ConnectError) {
         if (e.code === Code.ResourceExhausted) return new RateLimitedError({cause: e})

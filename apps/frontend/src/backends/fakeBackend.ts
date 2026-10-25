@@ -3,6 +3,7 @@ import {
     AllegianceSource,
     BankFullError,
     BannedError,
+    MapFrozenError,
     BombDrop,
     Bomber,
     BonusHandlers,
@@ -138,6 +139,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private sharedWith: SharedBy | undefined
     private shapesClose = true
     private bannedUntil: number | undefined
+    private frozen = false
     private readonly vpnBlocked: boolean
     private readonly sessionUnavailable: boolean
 
@@ -164,7 +166,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 
         this.timers.push(setInterval(() => {
             const kinds = offerable.filter((kind) => !this.full(kind))
-            if (kinds.length === 0) return
+            if (kinds.length === 0 || this.frozen) return
 
             const offer: BonusOffer = {
                 token: UUIDv4(),
@@ -178,7 +180,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         }, BONUS_EVERY_MS))
 
         this.timers.push(setInterval(() => {
-            if (this.quiz || offerable.every((kind) => this.full(kind))) return
+            if (this.quiz || this.frozen || offerable.every((kind) => this.full(kind))) return
 
             const asked = FAKE_QUIZZES[Math.floor(Math.random() * FAKE_QUIZZES.length)]
             this.quiz = {token: UUIDv4(), expiresAt: budgetNow() + QUIZ_OFFER_TTL_MS, asked}
@@ -223,6 +225,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 
     public async clickTile(tileId: number, countryId: string, switches: Switches = ALL_OFF) {
         if (switches.spread && switches.enclose) throw new Error("spread and enclose switched on together")
+        this.refuseFrozen()
         if (this.sessionUnavailable) throw new SessionUnavailableError()
         this.refuseBanned()
         if (this.vpnBlocked) throw new VPNBlockedError()
@@ -292,6 +295,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     }
 
     public async useRefill(): Promise<void> {
+        this.refuseFrozen()
         if (!this.charges.refill) throw new BonusLostError()
 
         this.refill()
@@ -379,6 +383,17 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 
     public ban(minutes = 60): void {
         this.bannedUntil = minutes > 0 ? Date.now() + minutes * 60_000 : undefined
+    }
+
+    public freeze(frozen = true): void {
+        this.frozen = frozen
+        if (!frozen) return
+        this.offered = undefined
+        this.quiz = undefined
+    }
+
+    private refuseFrozen() {
+        if (this.frozen) throw new MapFrozenError()
     }
 
     private refuseBanned() {
@@ -499,6 +514,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     }
 
     public async placeShield(tileId: number, countryId: string): Promise<void> {
+        this.refuseFrozen()
         if (this.sessionUnavailable) throw new SessionUnavailableError()
         this.refuseBanned()
         this.play(countryId)
@@ -548,6 +564,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     }
 
     public async claimBonus(token: string, countryId: string): Promise<ClaimedBonus> {
+        this.refuseFrozen()
         const offer = this.offered
 
         if (!offer || offer.token !== token || budgetNow() > offer.expiresAt) {
@@ -584,6 +601,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     }
 
     public async answerQuiz(token: string, choice: number, countryId: string): Promise<QuizOutcome> {
+        this.refuseFrozen()
         const quiz = this.quiz
         if (!quiz || quiz.token !== token || quiz.deadline === undefined) throw new BonusLostError()
 
@@ -622,6 +640,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     }
 
     public async dropBomb(target: GlobePoint, countryId: string): Promise<void> {
+        this.refuseFrozen()
         if (this.sessionUnavailable) throw new SessionUnavailableError()
         this.refuseBanned()
         if (!this.charges.bomb) throw new BonusLostError()

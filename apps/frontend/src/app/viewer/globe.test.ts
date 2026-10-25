@@ -1,6 +1,6 @@
 import {describe, expect, it, vi} from "vitest"
 import {drawsFrame, reportClaimFailure, reportClickFailure, spinStep} from "./globe.ts"
-import {AllegianceLockedError, BannedError, BonusLostError, RateLimitedError, VPNBlockedError} from "../../backends/backend.ts"
+import {AllegianceLockedError, BannedError, BonusLostError, MapFrozenError, RateLimitedError, VPNBlockedError} from "../../backends/backend.ts"
 import {SessionUnavailableError} from "../../backends/session.ts"
 import {OwnerChange, TileOwnership} from "../../domain/tileOwnership.ts"
 import {LeaderboardEntry, rankCountries} from "../../domain/leaderboard.ts"
@@ -69,6 +69,17 @@ describe("reportClickFailure", () => {
         logged.mockRestore()
     })
 
+    it("plays the refusal of a frozen map with no dialog, no meter shake and no log", () => {
+        const h = handlers()
+        const logged = vi.spyOn(console, "error").mockImplementation(() => {})
+
+        expect(reportClickFailure(new MapFrozenError(), h)).toBe(true)
+
+        expect(Object.values(h).every((handler) => handler.mock.calls.length === 0)).toBe(true)
+        expect(logged).not.toHaveBeenCalled()
+        logged.mockRestore()
+    })
+
     it("logs anything else and raises no dialog", () => {
         const h = handlers()
         const logged = vi.spyOn(console, "error").mockImplementation(() => {})
@@ -94,13 +105,17 @@ describe("reportClaimFailure", () => {
         expect(h.onSessionUnavailable).not.toHaveBeenCalled()
     })
 
-    it("says nothing of a bonus that was lost", () => {
+    it("says nothing of a bonus that was lost, or refused on a frozen map", () => {
         const h = {onSessionUnavailable: vi.fn(), onBanned: vi.fn()}
+        const logged = vi.spyOn(console, "error").mockImplementation(() => {})
 
         reportClaimFailure(new BonusLostError(), h)
+        reportClaimFailure(new MapFrozenError(), h)
 
         expect(h.onBanned).not.toHaveBeenCalled()
         expect(h.onSessionUnavailable).not.toHaveBeenCalled()
+        expect(logged).not.toHaveBeenCalled()
+        logged.mockRestore()
     })
 })
 

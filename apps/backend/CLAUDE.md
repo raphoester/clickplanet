@@ -744,7 +744,8 @@ POST /session.v1.SessionService/CreateSession   [deprecated]
   → create_anonymous_session_usecase: attest, then mint with no account
 
 POST /planet.v1.ClickService/Click   [X-Session-Token: <the minted token>]
-  → [cpbootstrap: error net], CacheInterceptor, VPNBlockInterceptor, SessionInterceptor
+  → [cpbootstrap: error net], CacheInterceptor, FreezeInterceptor (the map frozen: FailedPrecondition, MapFrozen),
+    VPNBlockInterceptor, SessionInterceptor
       [cpsessionverifier: the key from auth.v1.InternalService, asked once per boot
        then cpsession.Verifier: one signature check — this context holds no seed]
   → ClickService → click_handler
@@ -945,9 +946,9 @@ player could paint for one country and defend another click to click. **Only
 ### Rules: the game's rule sets (`internal/planet/internal/rules/`)
 
 **The game can change its rules at once for every player, and planet says so in its own words.** A rule set is a
-name and what it sets: how fast every bucket refills (`tempo`), and the boxes' wait and their hourly cap. The
-`default` set is the config's own rules (`tempo` 1, `bonus.minInterval`, `maxInterval`, `maxChargesPerHour`); the
-other sets are named in `rules.sets`, each leaving out what it keeps of the default:
+name and what it sets: how fast every bucket refills (`tempo`), the boxes' wait and their hourly cap, and whether
+the map is frozen. The `default` set is the config's own rules (`tempo` 1, `bonus.minInterval`, `maxInterval`,
+`maxChargesPerHour`, open); the other sets are named in `rules.sets`, each leaving out what it keeps of the default:
 
 ```yaml
 rules:
@@ -955,6 +956,8 @@ rules:
     rush:              # the Final Battle's: refill 3 times as fast, a box every 1 to 2 minutes, 30 an hour
       tempo: 3
       boxes: {minInterval: 1m, maxInterval: 2m, maxChargesPerHour: 30}
+    frozen:            # between two seasons: nobody plays on the map
+      frozen: true
 ```
 
 **Planet never learns why a set is asked for.** The relationship is Customer–Supplier with an Open Host Service and
@@ -979,7 +982,7 @@ event planet listens to.
   `cpratelimit.Limiter.SetTempo` (every bucket, the account's, the guests' and the scope's, is multiplied from then
   on, and what each earned before was refilled at the tempo it had, so `GetBudget` reads the new rate at once) and
   `bonuses.Registry.SetPace` (every wait is drawn at the new pace, and a box due later than the new longest wait is
-  brought in). The toll and the linked multiplier still apply on top of the tempo. `Tempo()` is read by the
+  brought in) and `SetFrozen`. The toll and the linked multiplier still apply on top of the tempo. `Tempo()` is read by the
   antibot's click reports (see [Anti-bot](#anti-bot-internalantibot)), and `Watch()` by each planet stream, which
   sends `PlanetEvent.rules_changed`: the client reads `GetBudget` again, so an open tab shows the faster refill with
   no reload.
@@ -988,13 +991,27 @@ event planet listens to.
   planet ignores a request it already applied. The user called this a poor solution on 2026-10-25 and wants a real
   message broker eventually; until then every module that needs a durable command between modules repeats this
   resend and dedupe.
+- **A set can freeze the map** (`frozen: true`). While it is in force, every write a player makes on the map is
+  refused before anything is spent or timed by the antibot: `Click` (so spreads and encloses too), `DropBomb`,
+  `UseRefill`, `PlaceShield`, `ClaimBonus` and `AnswerQuiz`. `planetv1controller.NewFreezeInterceptor` does it, over
+  `InForce.Frozen`, outside the session check, the VPN block and the whole click chain, as the VPN block does a
+  click: an interceptor is outside the chain by construction. The refusal is `FailedPrecondition` with a
+  `planet.v1.MapFrozen` detail, which tells it from a full bank or a full tile, and never the throttle.
+  **`frozen_clicks`** counts the clicks it refused, which the backoffice's Battle page charts. Reads, the streams,
+  `OpenQuiz`, `PledgeAllegiance`, the chat and the operator's tools go on as usual. **No box or quiz is offered**
+  (`Registry.SetFrozen`): the sweep offers nothing, and every offer standing lapses at the next sweep, as a miss.
+  The buckets keep refilling at the set's tempo, so a bank is full when the map opens again.
 - **An operator applies a set by hand**: `AdminService/ApplyRuleSet` (the same request, kept as `operator`) and
   `GetRules`, every set with its values and the last 50 changes, newest first (`rule_changes_query`, straight from
   postgres). The backoffice's Game rules page calls both. A set applied by hand holds until the next phase of the
   season, since the phase's request is a new one; the one already applied is not sent again.
 - `e2e/rules_test.go` boots with a finale 8 seconds away and sees the refill go from 100 to 300 a second and back,
-  on a stream opened before; and applies sets by hand. **`make finale`** runs `cmd/api` with `example.yaml` and Season
-  0's finale `FINALE_IN` minutes away (2 by default) and `FINALE_FOR` long (5), to rehearse it.
+  on a stream opened before; and applies sets by hand. `e2e/freeze_test.go` boots with Season 0 ending 8 seconds
+  away and Season 1 starting 6 seconds after: in the gap a click and a bomb are refused as frozen (the bomb is
+  kept), `frozen_clicks` counts, and `GetSeason` answers only the next season; then the map opens again.
+  **`make finale`** runs `cmd/api` with `example.yaml` and Season 0's finale `FINALE_IN` minutes away (2 by
+  default) and `FINALE_FOR` long (5), then the map frozen until Season 1 starts `FINALE_GAP` minutes later (2), to
+  rehearse both.
 
 ### Chat (`internal/chat/`)
 
@@ -1928,20 +1945,29 @@ internal/seasons/internal/
 ```
 
 - **The calendar is the config**, `seasons.list`. An empty list is no season.
-- **A season is played in phases** (`Calendar.PhaseAt`): its `days` until its finale starts, its `finale`, and, past
-  the last season, `over`. An empty calendar has none. **Each phase plays a rule set of planet's**
+- **A season may have its own start** (`startsAt`). Unset, it starts when the one before it ends, and the first
+  started before anything. **The time between two seasons is in no season**: `Calendar.Current` is the season in
+  play, started and not ended, so none in the gap, as past the last. `Calendar.Next` is the first season that starts
+  after now. Season 0 ends Sat 31 Oct 2026 at 23:00 UTC, and Season 1 starts Sun 1 Nov at 19:00 and ends Sat 5 Dec
+  at 23:00, its Final Battle the 2 hours before: the map is frozen for the 20 hours between.
+- **A season is played in phases** (`Calendar.PhaseAt`): its `days` until its finale starts, its `finale`, and, from
+  its end until the next season starts (or for good, past the last season), `over`. Before the first season starts,
+  and in an empty calendar, there is none. **Each phase plays a rule set of planet's**
   (`seasons.ruleSets`, `days`, `finale` and `over`, each a set's name in planet's words, `default` when unset;
-  production plays `rush` in the finale). Seasons decides when, planet what a set does (see
-  [Rules](#rules-the-games-rule-sets-internalplanetinternalrules)).
+  production plays `rush` in the finale and `frozen` when a season is over). Seasons decides when, planet what a set
+  does (see [Rules](#rules-the-games-rule-sets-internalplanetinternalrules)). So the request `season-0:over` freezes
+  the map at 23:00 and `season-1:days` opens it again at 19:00, on the same map: nothing is reset.
 - **`play_phase_usecase` tells planet** once a second (`seasons-phases`): the phase of now, when it is not the one
   it last played, through `rpc_planet_rules`, the anticorruption adapter that turns a phase into planet's
   `ApplyRuleSet`, its set and the request `season-<n>:<stage>`. **It plays the phase again after each boot**, since
   in-process messages are lost while the server is down (the known debt in Rules): planet keeps the change it made
   the first time, so a set an operator applied since is not undone. A refusal is logged (`log_play_phase`) and sent
   again on the next tick.
-- **`Calendar.Current(now)` is the first season whose end is after now.** A season starts when the one before it ends; the first started before anything.
-- **The boot is refused** when the numbers do not count up from 0, the ends do not go up, or a finale is not above 0 and shorter than its season.
-- **`GetSeason` is a GET** (`NO_SIDE_EFFECTS`), answered `public, max-age=60`. No current season is an empty answer.
+- **The boot is refused** when the numbers do not count up from 0, the ends do not go up, a start is before the end
+  of the season before it or not before its own end, or a finale is not above 0 and shorter than its season.
+- **`GetSeason` is a GET** (`NO_SIDE_EFFECTS`), answered `public, max-age=60`: the season in play (`season`, unset
+  between two seasons and past the last) and the next one (`next`), each with `starts_at_unix_ms` (0 for a season
+  that started before anything). The game shows the champion and a countdown to `next` in the gap.
 
 **A player's season score is the tiles it took this season for its main flag**, the flag it took the most tiles for, so a player cannot add up several flags. **A country's board is every player who took tiles for that country, ranked by those tiles**, so a player is on the board of each flag it took for, and a change of flag shows at the first take rather than when the main flag moves.
 
@@ -1966,7 +1992,10 @@ standings rank players, the rounds rank countries.
   the finale starts (21:00 UTC in production, evening in Europe), so every day ends while people play. The finale is
   a round of its own, from its start to the season's end. A round is kept by its season and its end
   (`Round{Season, EndsAt, Finale}`); its number is the read side's, from the rounds counted before it, so a season
-  with no start (Season 0) still says "day 1".
+  with no start (Season 0) still says "day 1". **A season's first day shorter than half a day joins the next**:
+  Season 1 starts at 19:00 and its days end at 21:00, so day 1 runs 26 hours, to Monday 21:00 (the user's choice,
+  2026-10-25). **Nothing is counted between two seasons**: no round is in progress, so no snapshot is added, and a
+  take is in no season; the finale before still closes on the first snapshot after it ended.
 - **A snapshot a minute** (`take_snapshot_usecase`, `seasons.snapshot.interval`): ask planet what each country holds, then
   add each count to the round in progress. **A country's result is its average share**: the sum of its counts over the
   round, over the snapshots taken. A snapshot missed (a restart, planet down) is one sample fewer for every country, so
@@ -4583,7 +4612,8 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `chat.blockedIPs` — prefixes refused every chat RPC, parsed by `shared/cpipblock` exactly as `vpnBlocklist.allow` is
 - `player.tagSalt` — salts the hash of an address the roster caps its visits with. It is never shown, so empty, which generates one at boot, costs nothing. Production reads it from `CHAT_TAG_SALT`, the chat's old variable
 - `player.database.*` — profiles and stats, same shape as `database`, schema `player`; required. `player.database.password` belongs in the environment
-- `seasons.list` — each season's `number` (0 up), `endsAt` (RFC 3339) and `finale` (a duration); empty is no season
+- `seasons.list` — each season's `number` (0 up), `startsAt` (RFC 3339; unset, the end of the one before), `endsAt`
+  and `finale` (a duration); empty is no season
 - `seasons.snapshot.interval` — how often a snapshot of what each country holds is added to the round in progress (default 1m)
 - `seasons.database.*` — the standings and the rounds, same shape as `database`, schema `seasons`; required. `seasons.database.password` belongs in the environment
 - `support.database.*` — what players send the operator, same shape as `database`, schema `support`; required. `support.database.password` belongs in the environment

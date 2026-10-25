@@ -187,6 +187,13 @@ export class VPNBlockedError extends Error {
     }
 }
 
+export class MapFrozenError extends Error {
+    constructor(options?: ErrorOptions) {
+        super("the map is frozen", options)
+        this.name = "MapFrozenError"
+    }
+}
+
 export class BannedError extends Error {
     readonly until: number
 

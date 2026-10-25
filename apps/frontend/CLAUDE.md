@@ -75,6 +75,11 @@ close nothing, for the bubble that says so, and `closeShapes(true)` puts it back
 minutes, as a ban does, and `fakeBackend.ban(0)` lifts it.
 `fakeBackend.setTempo(3)` refills the bank three times as fast, as the rules of
 the Final Battle do, and `fakeBackend.setTempo(1)` puts it back.
+`fakeBackend.freeze()` freezes the map as the server does between two seasons:
+every click, bomb, refill, shield, box and quiz answer is refused as frozen, no
+box or quiz comes, and `fakeBackend.freeze(false)` opens it again. The fake's
+season has Season 1 next, so after `closeFinale()` the champion's chip counts
+down to it.
 `localStorage.removeItem("clickplanet-bonus-guide")` makes the bonuses new again.
 `fakeSupport.refuse("rate-limited")` (or `"rejected"`, `"no-session"`,
 `"reported-already"`, `"failed"`) refuses what Settings and a player's card
@@ -344,9 +349,9 @@ with no wait, and **a click that timed out is not sent again**, since it may
 have landed and costs a click and maybe a charge. It is rolled back, and the
 echo repaints it if it did land.
 
-The backend refuses a click in four ways, and `clickTile` translates all of
-them into errors declared beside the interfaces — the first three in `backend.ts`,
-the last in `session.ts` — so `globe.ts` recognises them without knowing what a
+The backend refuses a click in five ways, and `clickTile` translates all of
+them into errors declared beside the interfaces — all but the session's in `backend.ts`,
+that one in `session.ts` — so `globe.ts` recognises them without knowing what a
 Connect code is:
 
 - `resource_exhausted` → `RateLimitedError`. The per-IP token bucket is spent.
@@ -357,6 +362,16 @@ Connect code is:
   backend's VPN and proxy blocklist.
 - `unauthenticated` → `SessionUnavailableError`, **and only after a retry** —
   see [Sessions](#sessions).
+- `failed_precondition` with a `MapFrozen` detail → `MapFrozenError`. The rules
+  in force freeze the map, between two seasons (the backend's CLAUDE.md, Rules).
+
+**A frozen map is no throttle**: no dialog, no meter shake, the click is rolled
+back and plays the refusal, and nothing is said in words. **After one, the globe
+paints no click** (no optimistic paint, no click sound, no glint) until a click is
+accepted again: the server's echo paints that one. A bomb, a shield, a box claim,
+a quiz answer and a refill refused that way are `MapFrozenError` too, read before
+a full bank or a full tile (both `failed_precondition`): the charge stays in hand,
+and a refill is not shown as used.
 
 They are separate classes rather than one with a field because each one says
 something different: ease off for a second (the click meter shakes — no dialog),
@@ -1342,8 +1357,10 @@ draws it.
 ### The season
 
 `backends/season.ts` is the contract, `seasonBackend.ts` reads
-`seasons.v1.SeasonService/GetSeason` once per page load (a cached GET), and
-`fakeSeasonBackend.ts` answers Season 0 in fake mode. A 404 reads as no season.
+`seasons.v1.SeasonService/GetSeason` once per page load (a cached GET): the season
+in play (`season()`) and the next one to start (`next()`), with its `startsAt`.
+Between two seasons none is in play. `fakeSeasonBackend.ts` answers Season 0, and
+Season 1 next, in fake mode. A 404 reads as no season.
 
 - `domain/seasonClock.ts` — `seasonClock`, the time left to today's cutoff to the
   second (`13h 05m 12s`, `52m 10s`), or to the season's end once the finale runs,
@@ -1357,8 +1374,9 @@ draws it.
 - `domain/champion.ts` — `championOf`, the countries ranked 1st once a finale
   closed, `reigningChampionOf`, that champion while no newer season is current,
   and `winsLine`, "Germany wins Season 0", for the reveal, the chip and the chat.
-- `app/season/` — `useSeason`, which drops the season at its end (a page open
-  across it goes back to no season), `SeasonChip`, `ChampionChip`, `SeasonDetails`,
+- `app/season/` — `useSeason`, the season in play and the next one: it drops the
+  season at its end (a page open across it goes back to no season) and makes the
+  next one the season at its start, `SeasonChip`, `ChampionChip`, `SeasonDetails`,
   `SeasonFacts`, the rows both of them open on, `useRotation`, which turns the
   chip's faces, and `RoundReveal` with `useRoundReveal` (see [The cutoff,
   revealed](#the-cutoff-revealed)).
@@ -1388,6 +1406,12 @@ season closed, and stays until a newer season is current
 show. Its name is the chat's line, "Germany wins Season 0". On a phone it is the
 trophy and the flag alone, so a long name never squeezes the player's own
 country out of the status bar.
+
+**Between two seasons it counts down to the next one** (`startClock`): a second
+row, "Season 1 starts in 19h 59m 12s", under the champion on a desktop. On a
+phone it turns, as the countdown chip does, between the flag and "Season 1" over
+the two largest units: both side by side made the chip 150px and cut the
+player's country name.
 
 **All faces are in one grid cell**, and the faces not shown are
 `visibility: hidden`. So the chip is as wide as its widest face, and its width

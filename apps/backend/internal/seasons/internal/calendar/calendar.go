@@ -15,8 +15,7 @@ type Season struct {
 }
 
 type Entry struct {
-	Number Number
-	// Unset, a season starts when the one before it ends.
+	Number   Number
 	StartsAt time.Time
 	EndsAt   time.Time
 	Finale   time.Duration
@@ -77,7 +76,6 @@ type Calendar struct {
 	seasons []Season
 }
 
-// Current is the season in play: none between two seasons, nor past the last.
 func (c Calendar) Current(now time.Time) (Season, bool) {
 	for _, season := range c.seasons {
 		if season.EndsAt.After(now) && !now.Before(season.StartsAt) {

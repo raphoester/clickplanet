@@ -3,14 +3,16 @@ import {afterEach, describe, expect, it, vi} from "vitest"
 import {act, cleanup, render} from "@testing-library/react"
 import {Season, SeasonBackend} from "../../backends/season.ts"
 import {FakeSeasonBackend} from "../../backends/fakeSeasonBackend.ts"
-import {useSeason} from "./useSeason.ts"
+import {Seasons, useSeason} from "./useSeason.ts"
 
 const DAY = 24 * 60 * 60 * 1000
 
 let latest: Season | undefined
+let both: Seasons = {}
 
 function Harness({backend}: {backend?: SeasonBackend}) {
-    latest = useSeason(backend)
+    both = useSeason(backend)
+    latest = both.season
     return null
 }
 
@@ -63,9 +65,29 @@ describe("useSeason", () => {
     it("says nothing when the read fails", async () => {
         const error = vi.spyOn(console, "error").mockImplementation(() => {})
         await act(async () => {
-            render(<Harness backend={{season: () => Promise.reject(new Error("down"))}}/>)
+            render(<Harness backend={{season: () => Promise.reject(new Error("down")), next: async () => undefined}}/>)
         })
         expect(latest).toBeUndefined()
         expect(error).toHaveBeenCalled()
+    })
+
+    it("waits between two seasons, then plays the next one from its start", async () => {
+        vi.useFakeTimers({now: Date.UTC(2026, 9, 31, 22)})
+        const zero = {number: 0, finaleStartsAt: Date.UTC(2026, 9, 31, 21), endsAt: Date.UTC(2026, 9, 31, 23)}
+        const one = {number: 1, startsAt: Date.UTC(2026, 10, 1, 19), finaleStartsAt: Date.UTC(2026, 11, 5, 21), endsAt: Date.UTC(2026, 11, 5, 23)}
+        await act(async () => {
+            render(<Harness backend={new FakeSeasonBackend(zero, one)}/>)
+        })
+        expect(both).toEqual({season: zero, next: one})
+
+        await act(async () => {
+            vi.advanceTimersByTime(zero.endsAt - Date.now())
+        })
+        expect(both).toEqual({season: undefined, next: one})
+
+        await act(async () => {
+            vi.advanceTimersByTime(one.startsAt - Date.now())
+        })
+        expect(both).toEqual({season: one})
     })
 })

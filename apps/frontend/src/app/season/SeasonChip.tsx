@@ -1,7 +1,7 @@
 import {useId, useState} from "react"
 import {Season} from "../../backends/season.ts"
 import {Champion, championNames, winsLine} from "../../domain/champion.ts"
-import {countdownsOf, SeasonCountdown, seasonClock} from "../../domain/seasonClock.ts"
+import {countdownsOf, SeasonCountdown, seasonClock, startClock} from "../../domain/seasonClock.ts"
 import CountryFlag from "../components/CountryFlag.tsx"
 import {ChevronIcon, ClockIcon} from "../components/icons.tsx"
 import {useBottomEdge} from "../components/useBottomEdge.ts"
@@ -63,16 +63,30 @@ export default function SeasonChip({season, compact, open, onToggle}: SeasonChip
     </section>
 }
 
-export function ChampionChip({champion, compact}: {champion: Champion, compact: boolean}) {
+export function ChampionChip({champion, next, compact}: {champion: Champion, next?: Season, compact: boolean}) {
     const [chip, setChip] = useState<HTMLElement | null>(null)
     useBottomEdge(compact ? null : chip, STATUS_BOTTOM)
+
+    const now = useNow()
+    const left = next && startClock(next, now)
+    const starts = next && left && `Season ${next.number} starts in`
+    const {shown, holds} = useRotation(compact && left ? 2 : 1)
 
     const flags = champion.countryCodes.map((code) => <CountryFlag key={code} code={code}/>)
 
     if (compact) {
-        return <section className="panel-box season-chip season-chip--compact season-chip--champion" aria-label={winsLine(champion)}>
+        const name = starts ? `${winsLine(champion)}, ${starts} ${left}` : winsLine(champion)
+        return <section className="panel-box season-chip season-chip--compact season-chip--champion" aria-label={name} {...holds}>
             <span className="season-chip-trophy" aria-hidden="true">🏆</span>
-            <span className="season-chip-left" aria-hidden="true">{flags}</span>
+            <span className="season-chip-faces" aria-hidden="true">
+                <span className={faceClass(shown === 0, "season-chip-face--flags")}>
+                    <span className="season-chip-left">{flags}</span>
+                </span>
+                {left && <span className={faceClass(shown === 1)}>
+                    <span className="season-chip-tag">Season {next.number}</span>
+                    <span className="season-chip-left">{shortLeft(left)}</span>
+                </span>}
+            </span>
         </section>
     }
 
@@ -82,7 +96,16 @@ export function ChampionChip({champion, compact}: {champion: Champion, compact: 
             <span className="season-chip-label">Season {champion.season} champion</span>
             <span className="season-chip-left">{flags}<span className="season-chip-name">{championNames(champion)}</span></span>
         </div>
+        {starts && <div className="season-chip-head" role="timer" aria-label={`${starts} ${left}`}>
+            <ClockIcon/>
+            <span className="season-chip-label" aria-hidden="true">{starts}</span>
+            <span className="season-chip-left" aria-hidden="true">{left}</span>
+        </div>}
     </section>
+}
+
+function faceClass(shown: boolean, ...more: string[]): string {
+    return ["season-chip-face", !shown && "season-chip-face--away", ...more].filter(Boolean).join(" ")
 }
 
 function Faces({countdowns, shown, compact}: {countdowns: SeasonCountdown[], shown: number, compact: boolean}) {
