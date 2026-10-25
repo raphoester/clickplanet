@@ -7,7 +7,7 @@ import {GetRulesResponse} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {wordsOf} from "../refusal.ts"
 import {useCall} from "../useCall.ts"
 import {ChargeFills} from "./ChargeFills.tsx"
-import {applyRuleSet, boxesOf, inForceOf, sourceOf, tempoOf} from "./rules.ts"
+import {applyRuleSet, boxesOf, crowdOf, inForceOf, sourceOf, tempoOf} from "./rules.ts"
 
 // The rule set in force, every set the config holds, and who changed it when.
 export function RulesPanel({planet}: {planet: PlanetAdmin}) {
@@ -43,7 +43,7 @@ function Rules({rules, planet, onChanged}: {rules: GetRulesResponse, planet: Pla
             <table className="table">
                 <caption>Sets</caption>
                 <thead>
-                    <tr><th>Set</th><th>Refill</th><th>Boxes</th><th/></tr>
+                    <tr><th>Set</th><th>Refill</th><th>Boxes</th><th>Anti-bot</th><th/></tr>
                 </thead>
                 <tbody>
                     {rules.sets.map(set => (
@@ -51,6 +51,7 @@ function Rules({rules, planet, onChanged}: {rules: GetRulesResponse, planet: Pla
                             <td><strong>{set.name}</strong></td>
                             <td>{tempoOf(set)}</td>
                             <td>{boxesOf(set.boxes)}</td>
+                            <td>{crowdOf(set)}</td>
                             <td>
                                 {set.name === inForce
                                     ? <span className="muted">In force</span>

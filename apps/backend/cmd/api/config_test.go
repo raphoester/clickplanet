@@ -339,6 +339,7 @@ func TestTheExampleConfigReachesTheRuleSets(t *testing.T) {
 	assert.Equal(t, time.Minute, rush.Boxes.MinInterval)
 	assert.Equal(t, 2*time.Minute, rush.Boxes.MaxInterval)
 	assert.Equal(t, 30, rush.Boxes.MaxChargesPerHour)
+	assert.Equal(t, 50, rush.AntiBot.Crowd, "players starting the battle together are no crowd")
 	require.NoError(t, config.Planet.Rules.Validate())
 }
 

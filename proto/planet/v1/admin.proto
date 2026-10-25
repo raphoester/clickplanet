@@ -261,6 +261,12 @@ message RuleSet {
   // How many times faster than rateLimiter.perSecond every bucket refills.
   double tempo = 2;
   BoxPace boxes = 3;
+  AntiBotRules anti_bot = 4;
+}
+
+message AntiBotRules {
+  // How many networks of one prefix, starting and clicking in step, are banned as a crowd.
+  uint32 crowd = 1;
 }
 
 message BoxPace {

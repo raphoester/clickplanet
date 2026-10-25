@@ -18,4 +18,11 @@ type Set struct {
 	Tempo float64
 
 	Boxes bonuses.Pace
+
+	AntiBot AntiBot
+}
+
+type AntiBot struct {
+	// Crowd is how many networks of one prefix, in step, are banned as a crowd.
+	Crowd int
 }

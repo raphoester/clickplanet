@@ -50,6 +50,8 @@ planet:
     sets:
       rush:
         tempo: 3
+        antiBot:
+          crowd: 50
 `), 0o600))
 	var config struct{ Planet planet.Config }
 	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile(path)))
@@ -130,6 +132,8 @@ func TestTheFinalePlaysTheRushRulesAndTheEndPlaysTheDefaultsAgain(t *testing.T) 
 	assert.Equal(t, []string{"season-0:over default", "season-0:finale rush", "season-0:days default"}, asked)
 	require.Len(t, res.Msg.GetSets(), 2)
 	assert.InDelta(t, 3, res.Msg.GetSets()[1].GetTempo(), 1e-9)
+	assert.Equal(t, uint32(6), res.Msg.GetSets()[0].GetAntiBot().GetCrowd())
+	assert.Equal(t, uint32(50), res.Msg.GetSets()[1].GetAntiBot().GetCrowd())
 }
 
 func TestAnOperatorSwitchesTheRulesByHandAndTheSwitchSurvivesARequestSentAgain(t *testing.T) {
