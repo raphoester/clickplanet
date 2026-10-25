@@ -10,7 +10,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
@@ -24,7 +23,6 @@ type Config struct {
 	VPNBlocklist cpipblock.Config
 	AntiBot      antibot.Config
 	Bonus        bonuses.Config
-	Rules        rules.Config
 
 	Ledger        ledger.Config
 	LedgerStorage inmemory_ledger_storage.Config
@@ -51,5 +49,5 @@ func (c Config) Validate() error {
 		return err
 	}
 
-	return errors.Join(c.RateLimiter.Validate(), c.Bonus.Validate(), c.Rules.Validate(), c.AntiBot.Validate())
+	return errors.Join(c.RateLimiter.Validate(), c.Bonus.Validate(), c.AntiBot.Validate())
 }

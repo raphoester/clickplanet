@@ -103,7 +103,6 @@ func newStack(t *testing.T, options ...func(*antibot.Config)) *stack {
 	config.Cohort.Detector.V4Bits = 24
 	config.Cohort.Detector.V6Bits = 44
 	config.Cohort.Detector.CertainCohorts = 3
-	config.Cohort.Detector.CertainMembers = 6
 	config.Cohort.Detector.ChainWindow = 30 * time.Minute
 
 	config.Scraper.Enabled = true
@@ -172,6 +171,7 @@ func (s *stack) boot() {
 	if err := guard.LoadState(context.Background()); err != nil {
 		panic(err)
 	}
+	guard.SetCrowd(6)
 	s.guard = guard
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -1052,14 +1052,6 @@ func TestABanStoreThatFailsLetsTheClickThroughAndSaysSo(t *testing.T) {
 	assert.False(t, s.click("1.2.3.4", 1, "FR"), "a ban nobody can read drops nothing")
 	assert.False(t, s.banned("1.2.3.4", ""))
 	assert.Len(t, s.errors, 2, "each ban it could not read is reported")
-}
-
-func TestACrowdIsCohortsCertainMembersAndTheDefaultWithNone(t *testing.T) {
-	var config antibot.Config
-	assert.Equal(t, 6, config.Crowd())
-
-	config.Cohort.Detector.CertainMembers = 9
-	assert.Equal(t, 9, config.Crowd())
 }
 
 func TestACrowdSetWithCohortOffChangesNothing(t *testing.T) {

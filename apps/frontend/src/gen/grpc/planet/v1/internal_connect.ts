@@ -33,7 +33,8 @@ export const InternalService = {
       idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
-     * A request id already applied changes nothing, so a caller may send it again.
+     * Makes a set the baseline: the game plays it while no operator's override runs. A request id already applied
+     * changes nothing, so a caller may send it again.
      *
      * @generated from rpc planet.v1.InternalService.ApplyRuleSet
      */

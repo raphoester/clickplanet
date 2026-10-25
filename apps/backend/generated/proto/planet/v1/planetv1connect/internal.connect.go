@@ -48,7 +48,8 @@ const (
 type InternalServiceClient interface {
 	GetTakesByCountry(context.Context, *connect.Request[v1.GetTakesByCountryRequest]) (*connect.Response[v1.GetTakesByCountryResponse], error)
 	GetTerritories(context.Context, *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error)
-	// A request id already applied changes nothing, so a caller may send it again.
+	// Makes a set the baseline: the game plays it while no operator's override runs. A request id already applied
+	// changes nothing, so a caller may send it again.
 	ApplyRuleSet(context.Context, *connect.Request[v1.ApplyRuleSetRequest]) (*connect.Response[v1.ApplyRuleSetResponse], error)
 }
 
@@ -113,7 +114,8 @@ func (c *internalServiceClient) ApplyRuleSet(ctx context.Context, req *connect.R
 type InternalServiceHandler interface {
 	GetTakesByCountry(context.Context, *connect.Request[v1.GetTakesByCountryRequest]) (*connect.Response[v1.GetTakesByCountryResponse], error)
 	GetTerritories(context.Context, *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error)
-	// A request id already applied changes nothing, so a caller may send it again.
+	// Makes a set the baseline: the game plays it while no operator's override runs. A request id already applied
+	// changes nothing, so a caller may send it again.
 	ApplyRuleSet(context.Context, *connect.Request[v1.ApplyRuleSetRequest]) (*connect.Response[v1.ApplyRuleSetResponse], error)
 }
 

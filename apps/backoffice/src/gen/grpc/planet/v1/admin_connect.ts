@@ -3,9 +3,9 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BanPlayerRequest, BanPlayerResponse, FindPlayersRequest, FindPlayersResponse, GetLedgerRequest, GetLedgerResponse, GetReplayRequest, GetReplayResponse, GetRulesRequest, GetRulesResponse, GrantChargesRequest, GrantChargesResponse, InspectPlayerRequest, InspectPlayerResponse, PaintRandomTilesRequest, PaintRandomTilesResponse, ReassignCountryRequest, ReassignCountryResponse, RevertPlayerRequest, RevertPlayerResponse, TopPlayersRequest, TopPlayersResponse, UnbanPlayerRequest, UnbanPlayerResponse } from "./admin_pb.js";
+import { BanPlayerRequest, BanPlayerResponse, EndOverrideRequest, EndOverrideResponse, FindPlayersRequest, FindPlayersResponse, GetLedgerRequest, GetLedgerResponse, GetReplayRequest, GetReplayResponse, GetRulesRequest, GetRulesResponse, GrantChargesRequest, GrantChargesResponse, InspectPlayerRequest, InspectPlayerResponse, OverrideRulesRequest, OverrideRulesResponse, PaintRandomTilesRequest, PaintRandomTilesResponse, ReassignCountryRequest, ReassignCountryResponse, RevertPlayerRequest, RevertPlayerResponse, SaveRuleSetRequest, SaveRuleSetResponse, TopPlayersRequest, TopPlayersResponse, UnbanPlayerRequest, UnbanPlayerResponse } from "./admin_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
-import { ApplyRuleSetRequest, ApplyRuleSetResponse, GetTerritoriesRequest, GetTerritoriesResponse } from "./internal_pb.js";
+import { GetTerritoriesRequest, GetTerritoriesResponse } from "./internal_pb.js";
 
 /**
  * No authentication of its own: served on the console listener, and on the admin listener behind its gate. Never the public router.
@@ -128,23 +128,46 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
-     * InternalService/ApplyRuleSet, kept as an operator's change.
-     *
-     * @generated from rpc planet.v1.AdminService.ApplyRuleSet
-     */
-    applyRuleSet: {
-      name: "ApplyRuleSet",
-      I: ApplyRuleSetRequest,
-      O: ApplyRuleSetResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
      * @generated from rpc planet.v1.AdminService.GetRules
      */
     getRules: {
       name: "GetRules",
       I: GetRulesRequest,
       O: GetRulesResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Makes a set, or replaces the values of one. The game follows a set in force within a second.
+     *
+     * @generated from rpc planet.v1.AdminService.SaveRuleSet
+     */
+    saveRuleSet: {
+      name: "SaveRuleSet",
+      I: SaveRuleSetRequest,
+      O: SaveRuleSetResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Puts a set over the baseline from now until a time, a day ahead at most, in place of any override running. The
+     * baseline plays again at its end.
+     *
+     * @generated from rpc planet.v1.AdminService.OverrideRules
+     */
+    overrideRules: {
+      name: "OverrideRules",
+      I: OverrideRulesRequest,
+      O: OverrideRulesResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Ends the override running now; with none running, it changes nothing.
+     *
+     * @generated from rpc planet.v1.AdminService.EndOverride
+     */
+    endOverride: {
+      name: "EndOverride",
+      I: EndOverrideRequest,
+      O: EndOverrideResponse,
       kind: MethodKind.Unary,
     },
   }

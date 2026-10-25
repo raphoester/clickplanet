@@ -26,17 +26,6 @@ antiBot:
     sslMode: disable
     schema: antibot
 
-rules:
-  sets:
-    rush:
-      tempo: 3
-      boxes:
-        minInterval: 1m
-        maxInterval: 2m
-        maxChargesPerHour: 30
-      antiBot:
-        crowd: 50
-
 vpnBlocklist:
   enabled: false
 

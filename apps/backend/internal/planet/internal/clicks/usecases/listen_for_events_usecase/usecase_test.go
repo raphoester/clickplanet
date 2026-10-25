@@ -261,7 +261,7 @@ func TestAFailedOpeningHeartbeatEndsTheFeed(t *testing.T) {
 
 func TestAChangeOfRulesIsCarriedToTheSink(t *testing.T) {
 	changes := make(chan rules.Set, 1)
-	changes <- rules.Set{Name: "rush", Tempo: 3}
+	changes <- rules.Set{}
 
 	ctx, cancel := context.WithCancel(t.Context())
 	sink := &recorder{fed: make(chan struct{}), stopped: ctx.Done()}

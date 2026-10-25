@@ -1,0 +1,126 @@
+// @vitest-environment jsdom
+import {afterEach, describe, expect, it, vi} from "vitest"
+import {cleanup, fireEvent, render, screen, within} from "@testing-library/react"
+import HolderCard from "./HolderCard.tsx"
+import {HolderShown} from "./useTileHolder.ts"
+import {NameColor, PlayerLine} from "../../backends/player.ts"
+
+const NOW = 1_761_393_600_000
+
+const FOX: PlayerLine = {
+    accountId: "account-fox", name: "BraveFox42", countryCode: "fr", guest: false, admin: false,
+    color: NameColor.TEAL, streak: 4,
+    wornTitle: {id: "warlord", name: "Warlord", rank: {trackId: "conquest", trackName: "Conquest", number: 3, count: 5}},
+}
+
+const GUEST: PlayerLine = {
+    accountId: "account-guest", name: "guest_91aa3d", countryCode: "de", guest: true, admin: false,
+    color: NameColor.UNSPECIFIED, streak: 0,
+}
+
+const pressed = (pointerType: string) => Object.assign(new Event("pointerdown", {bubbles: true}), {pointerType})
+
+const FRONTS = [{countryCode: "fr", tiles: 9_000}, {countryCode: "be", tiles: 300}]
+
+const shown = (line: PlayerLine): HolderShown => ({
+    line, playsFor: line.guest ? [] : FRONTS, takenAt: NOW - 3 * 60_000, point: {x: 300, y: 200}, touch: false, id: 1,
+})
+
+function show(line: PlayerLine, props: Partial<Parameters<typeof HolderCard>[0]> = {}) {
+    render(<HolderCard holder={shown(line)} now={NOW} onHold={() => {}} onClose={() => {}} {...props}/>)
+}
+
+describe("HolderCard", () => {
+    afterEach(cleanup)
+
+    it("says who holds the tile, the title it wears and when it took it, beside the pointer", () => {
+        show(FOX)
+
+        const card = screen.getByRole("region", {name: "BraveFox42"})
+        expect(card.textContent).toContain("BraveFox42")
+        expect(screen.getByRole("img", {name: "Warlord"})).toBeTruthy()
+        expect(card.textContent).not.toContain("Warlord")
+        expect(screen.getByText(/Took it 3 min ago/)).toBeTruthy()
+        expect(card.style.left).toBe("316px")
+        expect(card.style.top).toBe("216px")
+    })
+
+    it("shows the first flags the player fought for", () => {
+        show(FOX)
+
+        const flags = screen.getByRole("group", {name: "Fought for"})
+        expect(within(flags).getAllByRole("img").map((flag) => flag.getAttribute("aria-label"))).toEqual(["France", "Belgium"])
+    })
+
+    it("opens the player's card from its profile button", () => {
+        const onOpenPlayer = vi.fn()
+        show(FOX, {onOpenPlayer})
+
+        fireEvent.click(screen.getByRole("button", {name: "View profile"}))
+
+        expect(onOpenPlayer).toHaveBeenCalledWith(FOX)
+    })
+
+    it("shows a guest by its guest name alone, with no profile to open", () => {
+        show(GUEST, {onOpenPlayer: vi.fn()})
+
+        expect(screen.getByRole("region", {name: "guest_91aa3d"}).textContent).toContain("Took it 3 min ago")
+        expect(screen.queryByRole("button", {name: "View profile"})).toBeNull()
+        expect(screen.queryByRole("group", {name: "Fought for"})).toBeNull()
+    })
+
+    it("says when the pointer is on it, and closes on Escape", () => {
+        const onHold = vi.fn()
+        const onClose = vi.fn()
+        show(FOX, {onHold, onClose})
+        const card = screen.getByRole("region", {name: "BraveFox42"})
+
+        fireEvent.pointerEnter(card)
+        fireEvent.pointerLeave(card)
+        fireEvent.keyDown(document, {key: "Escape"})
+
+        expect(onHold.mock.calls).toEqual([[true], [false]])
+        expect(onClose).toHaveBeenCalledTimes(1)
+    })
+
+    it("closes from its close button, and not on a press inside it", () => {
+        const onClose = vi.fn()
+        show(FOX, {onClose})
+
+        document.querySelector(".holder-card-name")!.dispatchEvent(pressed("touch"))
+        expect(onClose).not.toHaveBeenCalled()
+
+        fireEvent.click(screen.getByRole("button", {name: "Close"}))
+        expect(onClose).toHaveBeenCalledTimes(1)
+    })
+
+    it("closes on a tap anywhere else, and that tap does not reach what is under it", () => {
+        const onClose = vi.fn()
+        const globe = vi.fn()
+        const outside = document.body.appendChild(document.createElement("div"))
+        outside.addEventListener("click", globe)
+        show(FOX, {onClose})
+
+        outside.dispatchEvent(pressed("touch"))
+        fireEvent.click(outside)
+
+        expect(onClose).toHaveBeenCalledTimes(1)
+        expect(globe).not.toHaveBeenCalled()
+        outside.remove()
+    })
+
+    it("closes on a mouse press elsewhere and lets that click through, for a click that paints", () => {
+        const onClose = vi.fn()
+        const globe = vi.fn()
+        const outside = document.body.appendChild(document.createElement("div"))
+        outside.addEventListener("click", globe)
+        show(FOX, {onClose})
+
+        outside.dispatchEvent(pressed("mouse"))
+        fireEvent.click(outside)
+
+        expect(onClose).toHaveBeenCalledTimes(1)
+        expect(globe).toHaveBeenCalledTimes(1)
+        outside.remove()
+    })
+})

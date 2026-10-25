@@ -23,18 +23,14 @@ type Audited struct {
 func (a *Audited) Execute(ctx context.Context, in apply_rule_set_usecase.In) error {
 	err := a.inner.Execute(ctx, in)
 
-	attrs := []any{
-		slog.String("request", string(in.Request)),
-		slog.String("set", string(in.Set)),
-		slog.String("source", string(in.Source)),
-	}
+	attrs := []any{slog.String("request", string(in.Request)), slog.String("set", string(in.Set))}
 
 	if err != nil {
 		a.logger.Warn("rule set refused", append(attrs, slog.Any("error", err))...)
 		return err //nolint:wrapcheck // a decorator adds a log line, not a sentence.
 	}
 
-	a.logger.Warn("rule set asked", attrs...)
+	a.logger.Warn("rule set applied", attrs...)
 
 	return nil
 }

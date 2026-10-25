@@ -24,6 +24,7 @@ export default function App(props: AppProps) {
             account={props.account}
             presence={props.presence}
             playerInfo={props.playerInfo}
+            tileHolders={props.tileHolders}
             season={props.season}
             standings={props.standings}
             support={props.support}

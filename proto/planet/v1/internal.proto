@@ -11,7 +11,8 @@ service InternalService {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 
-  // A request id already applied changes nothing, so a caller may send it again.
+  // Makes a set the baseline: the game plays it while no operator's override runs. A request id already applied
+  // changes nothing, so a caller may send it again.
   rpc ApplyRuleSet(ApplyRuleSetRequest) returns (ApplyRuleSetResponse) {
     option idempotency_level = IDEMPOTENT;
   }

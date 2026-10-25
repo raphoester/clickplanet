@@ -81,6 +81,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/claim_bonus_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/click_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/drop_bomb_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/end_override_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/find_players_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_allegiance_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_allegiance_handler/allegiance_query"
@@ -94,30 +95,43 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_map_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_replay_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_rules_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_rules_handler/rule_changes_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_rules_handler/rule_layers_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_rules_handler/rule_sets_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_takes_by_country_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_takes_by_country_handler/takes_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_territories_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_territories_handler/territories_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_tile_holder_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_tile_holder_handler/holder_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/grant_charges_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/inspect_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/map_density_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/open_quiz_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/override_rules_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/paint_random_tiles_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/place_shield_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/pledge_allegiance_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/reassign_country_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/revert_player_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/save_rule_set_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/top_players_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/unban_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/use_refill_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/quizzes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/postgres_rule_change_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/postgres_rule_layer_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/postgres_rule_set_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/usecases/apply_rule_set_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/usecases/apply_rule_set_usecase/audit_apply_rule_set"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/usecases/restore_rules_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/usecases/end_override_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/usecases/end_override_usecase/audit_end_override"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/usecases/enforce_rules_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/usecases/enforce_rules_usecase/log_enforce_rules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/usecases/override_rules_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/usecases/override_rules_usecase/audit_override_rules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/usecases/save_rule_set_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/usecases/save_rule_set_usecase/audit_save_rule_set"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/account_deleted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
@@ -246,20 +260,15 @@ func NewModule(config Config) cpbootstrap.Module {
 			}
 			props.Runners.Add(guard)
 
-			ruleDefaults := rules.Set{
-				Name: rules.Default, Tempo: 1, Boxes: config.Bonus.Pace(), AntiBot: rules.AntiBot{Crowd: config.AntiBot.Crowd()},
+			ruleSets := postgres_rule_set_store.New(db)
+			ruleLayers := postgres_rule_layer_store.New(db)
+			inForce := rules.NewInForce(limiter, registry, guard)
+			enforceRules := log_enforce_rules.New(enforce_rules_usecase.New(ruleSets, ruleLayers, inForce, clock),
+				props.Logger)
+			if _, err := enforceRules.Execute(ctx); err != nil {
+				return fmt.Errorf("failed to enforce the rules postgres keeps: %w", err)
 			}
-			ruleCatalog, err := rules.NewCatalog(config.Rules, ruleDefaults)
-			if err != nil {
-				return fmt.Errorf("failed to read the rule sets: %w", err)
-			}
-			inForce := rules.NewInForce(ruleDefaults, limiter, registry, guard)
-			ruleChanges := postgres_rule_change_store.New(db)
-			if err := restore_rules_usecase.New(ruleChanges, ruleCatalog, inForce).Execute(ctx); err != nil {
-				return fmt.Errorf("failed to restore the rules in force: %w", err)
-			}
-			applyRuleSet := audit_apply_rule_set.New(
-				apply_rule_set_usecase.New(ruleCatalog, ruleChanges, inForce, clock), props.Logger)
+			props.Runners.Add(enforce_rules_usecase.NewRunner(time.Second, enforceRules))
 
 			clickUseCase = antibot_click.New(clickUseCase, guard, tilesStorage, shielding, inForce, clock, props.Metrics)
 
@@ -304,8 +313,14 @@ func NewModule(config Config) cpbootstrap.Module {
 				GetReplayHandler:      get_replay_handler.New(replay_usecase.New(takings, tilesChecker, tilesStorage, clock)),
 				GetLedgerHandler:      get_ledger_handler.New(changes_query.NewPostgresQuery(db, clock)),
 				GetTerritoriesHandler: getTerritories,
-				ApplyRuleSetHandler:   apply_rule_set_handler.New(applyRuleSet, rules.SourceOperator),
-				GetRulesHandler:       get_rules_handler.New(ruleCatalog, rule_changes_query.NewPostgresQuery(db)),
+				GetRulesHandler: get_rules_handler.New(rule_sets_query.NewPostgresQuery(db),
+					rule_layers_query.NewPostgresQuery(db)),
+				SaveRuleSetHandler: save_rule_set_handler.New(
+					audit_save_rule_set.New(save_rule_set_usecase.New(ruleSets), props.Logger)),
+				OverrideRulesHandler: override_rules_handler.New(
+					audit_override_rules.New(override_rules_usecase.New(ruleSets, ruleLayers, clock), props.Logger)),
+				EndOverrideHandler: end_override_handler.New(
+					audit_end_override.New(end_override_usecase.New(ruleLayers, clock), props.Logger)),
 			}
 
 			if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
@@ -317,7 +332,8 @@ func NewModule(config Config) cpbootstrap.Module {
 			internalService := planetv1controller.InternalService{
 				GetTakesByCountryHandler: get_takes_by_country_handler.New(takes_query.NewPostgresQuery(db)),
 				GetTerritoriesHandler:    getTerritories,
-				ApplyRuleSetHandler:      apply_rule_set_handler.New(applyRuleSet, rules.SourceInternal),
+				ApplyRuleSetHandler: apply_rule_set_handler.New(
+					audit_apply_rule_set.New(apply_rule_set_usecase.New(ruleSets, ruleLayers, clock), props.Logger)),
 			}
 			if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 				return planetv1connect.NewInternalServiceHandler(internalService, options...)
@@ -412,6 +428,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				PlaceShieldHandler: place_shield_handler.New(antibot_place_shield.New(
 					place_shield_usecase.New(charges, writer, countries, book, config.Bonus.ShieldsPerTile()), guard)),
 				GetFortressesHandler:    get_fortresses_handler.New(fortresses_query.NewMemoryQuery(tilesStorage)),
+				GetTileHolderHandler:    get_tile_holder_handler.New(tilesChecker, holder_query.NewPostgresQuery(db)),
 				GetAllegianceHandler:    get_allegiance_handler.New(allegiance_query.NewPostgresQuery(db)),
 				PledgeAllegianceHandler: pledge_allegiance_handler.New(book),
 			}

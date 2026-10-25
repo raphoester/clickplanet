@@ -4,60 +4,49 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-type Catalog interface {
-	Set(name rules.SetName) (rules.Set, error)
+type Sets interface {
+	Set(ctx context.Context, name rules.SetName) (rules.Set, error)
 }
 
-type Changes interface {
-	Change(ctx context.Context, request rules.RequestID) (rules.Change, error)
-	Save(ctx context.Context, change rules.Change) error
-}
-
-type Rules interface {
-	Enforce(set rules.Set)
+type Baselines interface {
+	Baseline(ctx context.Context, request rules.RequestID) (rules.Baseline, error)
+	SaveBaseline(ctx context.Context, baseline rules.Baseline) error
 }
 
 type In struct {
 	Request rules.RequestID
 	Set     rules.SetName
-	Source  rules.Source
 }
 
-func New(catalog Catalog, changes Changes, inForce Rules, clock cptime.Clock) *UseCase {
-	return &UseCase{catalog: catalog, changes: changes, inForce: inForce, clock: clock}
+func New(sets Sets, baselines Baselines, clock cptime.Clock) *UseCase {
+	return &UseCase{sets: sets, baselines: baselines, clock: clock}
 }
 
+// UseCase keeps a set as the baseline; the game follows it within a second, while no override runs.
 type UseCase struct {
-	catalog Catalog
-	changes Changes
-	inForce Rules
-	clock   cptime.Clock
-
-	// One at a time, so the rules in force are always the change kept last.
-	mu sync.Mutex
+	sets      Sets
+	baselines Baselines
+	clock     cptime.Clock
 }
 
 func (u *UseCase) Execute(ctx context.Context, in In) error {
-	u.mu.Lock()
-	defer u.mu.Unlock()
-
-	set, err := u.catalog.Set(in.Set)
+	set, err := u.sets.Set(ctx, in.Set)
 	if err != nil {
 		return fmt.Errorf("cannot apply request %q: %w", in.Request, err)
 	}
 
-	kept, err := u.changes.Change(ctx, in.Request)
+	// TODO(broker): this dedupe stands in for a message broker's: a caller sends its request again until it is answered.
+	kept, err := u.baselines.Baseline(ctx, in.Request)
 	if err != nil {
 		return fmt.Errorf("could not tell whether request %q was applied: %w", in.Request, err)
 	}
 
-	change, err := rules.NewChange(in.Request, set, in.Source, u.clock.Now(), kept)
+	baseline, err := rules.NewBaseline(in.Request, set, u.clock.Now(), kept)
 	if errors.Is(err, rules.ErrAppliedAlready) {
 		return nil
 	}
@@ -65,10 +54,9 @@ func (u *UseCase) Execute(ctx context.Context, in In) error {
 		return fmt.Errorf("cannot apply request %q: %w", in.Request, err)
 	}
 
-	if err := u.changes.Save(ctx, change); err != nil {
+	if err := u.baselines.SaveBaseline(ctx, baseline); err != nil {
 		return fmt.Errorf("could not keep request %q: %w", in.Request, err)
 	}
-	u.inForce.Enforce(set)
 
 	return nil
 }

@@ -144,6 +144,7 @@ type Report struct {
 	QuizAnswered func(scope string, correct bool, after time.Duration)
 }
 
+// Pace is the rule set's: until one is set, the waits are zero and the hourly cap offers nothing.
 type Pace struct {
 	MinInterval time.Duration
 	MaxInterval time.Duration
@@ -205,7 +206,6 @@ func New(config Config, clock cptime.Clock, holdings Holdings) *Registry {
 
 	return &Registry{
 		config:     config,
-		pace:       config.Pace(),
 		charges:    config.ChargesConfig(),
 		clock:      clock,
 		holdings:   holdings,

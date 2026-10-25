@@ -4,6 +4,7 @@ package rules
 
 import (
 	"context"
+	"fmt"
 	"sync"
 )
 
@@ -11,61 +12,46 @@ var _ Store = (*MemoryStore)(nil)
 
 type MemoryStore struct {
 	mu      sync.Mutex
-	kept    []Snapshot
+	sets    map[SetName]Snapshot
 	failing error
 }
 
 func NewMemoryStore() *MemoryStore {
-	return &MemoryStore{}
+	return &MemoryStore{sets: map[SetName]Snapshot{}}
 }
 
-func (m *MemoryStore) Change(_ context.Context, request RequestID) (Change, error) {
+func (m *MemoryStore) Set(_ context.Context, name SetName) (Set, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	if m.failing != nil {
-		return Change{}, m.failing
+		return Set{}, m.failing
 	}
-	for _, kept := range m.kept {
-		if kept.Request == request {
-			return kept.Restore(), nil
-		}
+	kept, ok := m.sets[name]
+	if !ok {
+		return Set{}, fmt.Errorf("%q: %w", name, ErrUnknownSet)
 	}
-	return Change{}, nil
+	return kept.Restore()
 }
 
-func (m *MemoryStore) Latest(context.Context) (Change, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if m.failing != nil {
-		return Change{}, m.failing
-	}
-	var latest Snapshot
-	for _, kept := range m.kept {
-		if !kept.AppliedAt.Before(latest.AppliedAt) {
-			latest = kept
-		}
-	}
-	return latest.Restore(), nil
-}
-
-func (m *MemoryStore) Save(_ context.Context, change Change) error {
+func (m *MemoryStore) Save(_ context.Context, set Set) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	if m.failing != nil {
 		return m.failing
 	}
-	m.kept = append(m.kept, change.TakeSnapshot())
+	kept := set.TakeSnapshot()
+	m.sets[kept.Name] = kept
 	return nil
 }
 
-func (m *MemoryStore) Kept() []Snapshot {
+func (m *MemoryStore) Kept(name SetName) (Snapshot, bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	return append([]Snapshot(nil), m.kept...)
+	kept, ok := m.sets[name]
+	return kept, ok
 }
 
 func (m *MemoryStore) FailWith(err error) {

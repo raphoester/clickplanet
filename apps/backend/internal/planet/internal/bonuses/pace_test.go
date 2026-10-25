@@ -6,6 +6,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 func TestAQuickerPaceBringsInABoxDueLaterThanItsLongestWait(t *testing.T) {
@@ -61,11 +63,16 @@ func TestThePaceSetsTheHourlyCap(t *testing.T) {
 	assert.Nil(t, offered(t, events), "eight, not the config's six")
 }
 
-func TestTheConfigGivesTheFirstPace(t *testing.T) {
-	assert.Equal(t,
-		Pace{MinInterval: 4 * time.Minute, MaxInterval: 8 * time.Minute, MaxChargesPerHour: 12},
-		Config{}.Pace())
-	assert.Equal(t,
-		Pace{MinInterval: time.Minute, MaxInterval: 2 * time.Minute, MaxChargesPerHour: 30},
-		Config{MinInterval: time.Minute, MaxInterval: 2 * time.Minute, MaxChargesPerHour: 30}.Pace())
+func TestNoBoxIsOfferedBeforeAPaceIsSet(t *testing.T) {
+	clock := cptime.NewFixedClock(epoch)
+	registry := New(Config{Kinds: map[Kind]float64{KindRefill: 1}, ActiveWithin: 5 * time.Minute}, clock, NewMemoryStore())
+	events := playing(t, registry, "scope-a")
+
+	for range 3 {
+		clock.Advance(time.Minute)
+		clicked(registry, "scope-a")
+		registry.sweep(t.Context())
+	}
+
+	assert.Nil(t, offered(t, events), "a cap of 0 an hour offers nothing")
 }

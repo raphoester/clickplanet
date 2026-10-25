@@ -34,19 +34,17 @@ func apply(t *testing.T, handler apply_rule_set_handler.ApplyRuleSetHandler) err
 	return err //nolint:wrapcheck // the handler's answer, as the caller reads it.
 }
 
-func TestTheRequestIsAppliedAsTheHandlersSource(t *testing.T) {
-	for _, source := range []rules.Source{rules.SourceInternal, rules.SourceOperator} {
-		useCase := &stubUseCase{}
+func TestTheRequestIsApplied(t *testing.T) {
+	useCase := &stubUseCase{}
 
-		require.NoError(t, apply(t, apply_rule_set_handler.New(useCase, source)))
+	require.NoError(t, apply(t, apply_rule_set_handler.New(useCase)))
 
-		assert.Equal(t, []apply_rule_set_usecase.In{{Request: "season-0:finale", Set: "rush", Source: source}}, useCase.asked)
-	}
+	assert.Equal(t, []apply_rule_set_usecase.In{{Request: "season-0:finale", Set: "rush"}}, useCase.asked)
 }
 
 func TestARequestThatCannotBeAppliedIsAnInvalidArgument(t *testing.T) {
 	for _, refusal := range []error{rules.ErrUnknownSet, rules.ErrNoRequest, rules.ErrLongRequest} {
-		err := apply(t, apply_rule_set_handler.New(&stubUseCase{err: refusal}, rules.SourceOperator))
+		err := apply(t, apply_rule_set_handler.New(&stubUseCase{err: refusal}))
 
 		assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err), "%v", refusal)
 	}
@@ -55,7 +53,7 @@ func TestARequestThatCannotBeAppliedIsAnInvalidArgument(t *testing.T) {
 func TestAFailureIsPassedOnForTheErrorNet(t *testing.T) {
 	down := errors.New("postgres is down")
 
-	err := apply(t, apply_rule_set_handler.New(&stubUseCase{err: down}, rules.SourceInternal))
+	err := apply(t, apply_rule_set_handler.New(&stubUseCase{err: down}))
 
 	require.ErrorIs(t, err, down)
 }

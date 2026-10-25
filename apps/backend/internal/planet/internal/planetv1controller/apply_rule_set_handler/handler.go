@@ -15,14 +15,12 @@ type UseCase interface {
 	Execute(ctx context.Context, in apply_rule_set_usecase.In) error
 }
 
-// New answers for one source: the internal service's handler keeps internal changes, the admin service's an operator's.
-func New(useCase UseCase, source rules.Source) ApplyRuleSetHandler {
-	return ApplyRuleSetHandler{useCase: useCase, source: source}
+func New(useCase UseCase) ApplyRuleSetHandler {
+	return ApplyRuleSetHandler{useCase: useCase}
 }
 
 type ApplyRuleSetHandler struct {
 	useCase UseCase
-	source  rules.Source
 }
 
 func (h ApplyRuleSetHandler) ApplyRuleSet(
@@ -32,7 +30,6 @@ func (h ApplyRuleSetHandler) ApplyRuleSet(
 	err := h.useCase.Execute(ctx, apply_rule_set_usecase.In{
 		Request: rules.RequestID(req.Msg.GetRequestId()),
 		Set:     rules.SetName(req.Msg.GetRuleSet()),
-		Source:  h.source,
 	})
 
 	switch {

@@ -17,7 +17,7 @@ burger menu (see [The menu](#the-menu)), by group:
 - **Map**: Reassign a country, Paint random tiles, Download a replay (see [The map tools](#the-map-tools)).
 - **Clips**: Clip stats, the daily numbers of the clips the clips job posts, and a CSV of them (see
   [Clip stats](#clip-stats)).
-- **Ops**: Reconcile titles, the run after a deploy, and Game rules, the rule set in force (see [Ops](#ops)).
+- **Ops**: Reconcile titles, the run after a deploy, and Game rules, the rule sets the game plays by (see [Ops](#ops)).
 
 What is left of the plan is a live chat view: `ListMessages` pages through the chat (the report and player pages
 read it), and no admin method streams it.
@@ -341,14 +341,19 @@ Zernio answered, as it came, and what the clip was.
 `src/ops/`: `ReconcileTitles` (`TitlesPanel`, after a deploy that adds a title or changes a rule). It asks first, and
 it is harmless twice.
 
-**Game rules** (`RulesPanel`, `rules.ts`) is `planet.v1.AdminService/GetRules` and `ApplyRuleSet` (the backend's
-`CLAUDE.md`, "Rules"): the set in force, which is the newest change's or `default` with none, since when and by
-whom; every set the config holds, with its refill (`3× as fast`), its boxes and the networks a crowd needs; and the last 50 changes, each with
-its request id. **A set is applied from its row**, behind `ConfirmAction`, under a request id of its own
-(`crypto.randomUUID()`), so a press sent twice changes the game once, and the page reads the rules again. Seasons
-puts the finale's set in force when it starts and `default` when the season ends; a set applied here holds until
-the season's next phase. It is how the Final Battle's rules are tried in production by hand, and the backup if the
-season's change does not come. Refresh reads them again.
+**Game rules** (`RulesPanel`, `rules.ts`) is `planet.v1.AdminService/GetRules`, `SaveRuleSet`, `OverrideRules` and
+`EndOverride` (the backend's `CLAUDE.md`, "Rules"). The game follows any change within a second, for every player.
+
+- **Playing now**: the set the game plays and why, worked out from what `GetRules` answers as planet works it out
+  (`playingAt`): the override while it runs, with its end and **End override**; else the newest baseline, with its
+  request (`season-0:finale`) and since when; else `default`. The sets table marks it (`aria-current`).
+- **Override**: a set and a number of minutes, a whole number from 1 to a day (`overrideMinutesValid`), asked first.
+  The end sent is that many minutes from the click; it replaces any override running.
+- **The sets**: every set postgres keeps, `default` first, with its refill (`3× as fast`), its boxes and how many
+  networks make a crowd. **Edit** opens a set in a form, its name fixed; **New set** opens an empty one. The waits are
+  in seconds. Save asks first (`ConfirmAction`) and is off until every value is a number and the set has a name; the
+  server holds the rest (a refusal quotes it, and the form stays).
+- **The baselines**: the last 20 applied, the newest first, each with its request, its set and when.
 
 ## Deploy
 

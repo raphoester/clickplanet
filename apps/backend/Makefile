@@ -43,7 +43,7 @@ finale:
 	sed -e "s/^\( *\)endsAt: .*/\1endsAt: $$at/" -e "s/^\( *\)finale: [0-9].*/\1finale: $(FINALE_FOR)m/" \
 		cmd/api/example.yaml > $$config; \
 	grep -q "endsAt: $$at" $$config || { echo "finale: example.yaml has no season to move" >&2; exit 1; }; \
-	echo "Season 0's finale starts in $(FINALE_IN)m and ends at $$at ($$config)"; \
+	echo "Season 0's finale starts in $(FINALE_IN)m and ends at $$at ($$config); it plays the rush set, made on the backoffice's Game rules page"; \
 	go run ./cmd/api -config $$config
 
 dBuild:

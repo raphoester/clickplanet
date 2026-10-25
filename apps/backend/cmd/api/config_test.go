@@ -31,7 +31,6 @@ func TestTheExampleConfigStillReachesTheStructs(t *testing.T) {
 	assert.Equal(t, 30, config.Planet.Bonus.Shield.Held)
 	assert.Equal(t, 5, config.Planet.Bonus.Shield.MinPerBox)
 	assert.Equal(t, 20, config.Planet.Bonus.Shield.MaxPerBox)
-	assert.Equal(t, 12, config.Planet.Bonus.MaxChargesPerHour)
 
 	quiz := config.Planet.Bonus.Quiz
 	assert.True(t, quiz.Enabled)
@@ -325,20 +324,6 @@ func TestTheExampleConfigReachesTheSeasonsBlock(t *testing.T) {
 	assert.Equal(t, "default", config.Seasons.RuleSets.Over)
 	assert.Equal(t, "seasons", config.Seasons.Database.Schema)
 	require.NoError(t, config.Seasons.Database.Validate())
-}
-
-func TestTheExampleConfigReachesTheRuleSets(t *testing.T) {
-	var config Config
-	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
-
-	rush, ok := config.Planet.Rules.Sets["rush"]
-	require.True(t, ok)
-	assert.InDelta(t, 3, rush.Tempo, 1e-9)
-	assert.Equal(t, time.Minute, rush.Boxes.MinInterval)
-	assert.Equal(t, 2*time.Minute, rush.Boxes.MaxInterval)
-	assert.Equal(t, 30, rush.Boxes.MaxChargesPerHour)
-	assert.Equal(t, 50, rush.AntiBot.Crowd, "players starting the battle together are no crowd")
-	require.NoError(t, config.Planet.Rules.Validate())
 }
 
 func TestTheSeasonsModuleWithNoDatabaseIsRefused(t *testing.T) {

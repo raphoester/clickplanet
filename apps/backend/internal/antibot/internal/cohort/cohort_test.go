@@ -15,7 +15,7 @@ import (
 )
 
 func newWatchdog() *cohort.Watchdog {
-	return cohort.New(cohort.Config{
+	w := cohort.New(cohort.Config{
 		StartWindow:    5 * time.Second,
 		MinClicks:      20,
 		MinFlagShare:   0.9,
@@ -26,9 +26,10 @@ func newWatchdog() *cohort.Watchdog {
 		V4Bits:         24,
 		V6Bits:         44,
 		CertainCohorts: 3,
-		CertainMembers: 6,
 		ChainWindow:    30 * time.Minute,
 	}, nil, nil)
+	w.SetCrowd(6)
+	return w
 }
 
 func at(clock string) time.Time {
@@ -300,7 +301,7 @@ func TestValidateRefusesBoundsThatCannotMeanAnything(t *testing.T) {
 	}
 }
 
-func TestARaisedCrowdBoundLeavesSixInStepSuspectAndTheConfigsPutsItBack(t *testing.T) {
+func TestARaisedCrowdBoundLeavesSixInStepSuspectAndASixPutsItBack(t *testing.T) {
 	identities := make([]identity, 0, 6)
 	for i := range 6 {
 		identities = append(identities, poolBot(fmt.Sprintf("2a00:8c40:f0c%x:%x::/64", i, 0x100+i), "19:00:00.000"))
@@ -314,15 +315,23 @@ func TestARaisedCrowdBoundLeavesSixInStepSuspectAndTheConfigsPutsItBack(t *testi
 
 	again := newWatchdog()
 	again.SetCrowd(50)
-	again.SetCrowd(0)
+	again.SetCrowd(6)
 	for scope, r := range run(again, replay(9, identities...)) {
 		require.Equal(t, detect.Certain, r.verdict, scope)
 		assert.Equal(t, "crowd", r.evidence.Rule)
 	}
 }
 
-func TestTheCrowdOfAConfigIsItsCertainMembersOrTheDefault(t *testing.T) {
-	assert.Equal(t, 6, cohort.Config{}.Crowd())
-	assert.Equal(t, 9, cohort.Config{CertainMembers: 9}.Crowd())
-	assert.Equal(t, 4, cohort.Config{MinMembers: 4, CertainMembers: 3}.Crowd())
+func TestWithNoCrowdBoundNoCrowdIsCertain(t *testing.T) {
+	identities := make([]identity, 0, 6)
+	for i := range 6 {
+		identities = append(identities, poolBot(fmt.Sprintf("2a00:8c40:f0c%x:%x::/64", i, 0x100+i), "19:00:00.000"))
+	}
+
+	unset := newWatchdog()
+	unset.SetCrowd(0)
+
+	for scope, r := range run(unset, replay(9, identities...)) {
+		assert.NotEqual(t, "crowd", r.evidence.Rule, scope)
+	}
 }

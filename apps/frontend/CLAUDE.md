@@ -73,8 +73,8 @@ player's own again. `fakeBackend.closeShapes(false)` makes every enclose click
 close nothing, for the bubble that says so, and `closeShapes(true)` puts it back.
 `fakeBackend.ban(90)` refuses this player's clicks, bombs and shields for 90
 minutes, as a ban does, and `fakeBackend.ban(0)` lifts it.
-`fakeBackend.setTempo(3)` refills the bank three times as fast, as the rules of
-the Final Battle do, and `fakeBackend.setTempo(1)` puts it back.
+`fakeBackend.setTempo(3)` refills the bank three times as fast, as a rule set
+of the server can, and `fakeBackend.setTempo(1)` puts it back.
 `localStorage.removeItem("clickplanet-bonus-guide")` makes the bonuses new again.
 `fakeSupport.refuse("rate-limited")` (or `"rejected"`, `"no-session"`,
 `"reported-already"`, `"failed"`) refuses what Settings and a player's card
@@ -235,6 +235,9 @@ app/       components
   first tap was (WebKit bug 216681, set off by the `dblclick` listener React
   keeps on its root), so a tap on each of two tiles side by side took the first
   one twice.
+- `tilePeek.ts` — `TilePeek`, when a pointer asks who holds a tile: a mouse resting
+  on one, or a finger holding one still. `cardPlacement.ts` puts the card beside
+  the pointer. See [Who holds a tile](#who-holds-a-tile).
 - `warnOnce.ts` — for things that would otherwise warn on every frame.
 
 ### `src/backends/` — three contracts, one transport
@@ -392,9 +395,8 @@ counter is about.
 country, `ClickResponse.budget` on every accepted click, a **connect error
 detail** on a refused one, which is the reading that matters most, and
 `GetBudget` again when the planet stream says the rules changed
-(`rulesChanged`): the server can switch the whole game to a faster refill at
-once, as the Final Battle does (the backend's CLAUDE.md, Rules), and only a
-reading says by how much. **`GetBudget`
+(`rulesChanged`): the server can change the whole game's refill at once (the
+backend's CLAUDE.md, Rules), and only a reading says by how much. **`GetBudget`
 carries the token already held** (`SessionProvider.held()`, never a mint):
 without it the server reads the bucket of an address with no account, which is
 never spent and always full, and the next click contradicts it. It also subtracts its own clicks in
@@ -516,6 +518,8 @@ this is where each zone lives. `Viewer` composes them, and `useCompact`
   inside the menu or a sheet covers the page and not its panel.
 - **The other player's card** is the same `Modal`; on a phone its CSS makes it a
   bottom sheet as tall as the card.
+- **The card on who holds a tile is the one exception**: it opens beside the
+  pointer, not in a zone. See [Who holds a tile](#who-holds-a-tile).
 
 ### Live chat
 
@@ -944,9 +948,9 @@ are the player's total, not the season's (see the backend's CLAUDE.md, Player),
 so the top one explains the flag beside its name on the Players board. Two
 columns on a desktop, which is why the card is 440px wide; one under the other
 on a phone. The fake gives its players titles and countries of its own over
-their fake stats and creation date. **A guest's card asks nothing**: a guest has an
-account id, but the server keeps a card for a username only, so the card shows
-the name and the flag alone. It says nothing to the viewer, who may well be signed in. The chat tells
+their fake stats and creation date. **A guest's card asks nothing**: `GetPlayer`
+answers a guest with its name alone (`PlayerInfo.guest`), which the line already
+holds, so the card shows the name and the flag alone. It says nothing to the viewer, who may well be signed in. The chat tells
 a guest by `GUEST_PREFIX`, which no username starts with: that is a class of
 names the server reserves, not one account. **A line with no account id asks
 nothing either** (a message kept before accounts, or of a deleted account) and
@@ -993,6 +997,48 @@ client whose `fetch` sets `keepalive` (`newKeepalivePlayerServiceClient`), so it
 is still sent after the page is gone. The server takes the account off at once.
 Two tabs of one browser are one account: closing one takes the line off until
 the other's next announce, at most 30s later.
+
+### Who holds a tile
+
+**A mouse resting on a tile for half a second, or a finger holding one still for
+half a second, opens a card beside the pointer on the player whose take holds
+it** (`HolderCard`). One row: the medal of the title it wears (its name only as
+the medal's label), the name in its colour with its crown and streak over the
+first three flags it fought for (from its public card, `GetPlayer`), and a round
+profile button that opens that card. Under it, a footer strip: the flag it took
+the tile for and how long ago. The close is a round badge on the top-right corner,
+outside the layout, so the card keeps `EDGE_PX` (12px) from the screen's edges. A
+guest shows its name and the footer alone: a guest has no public card. A tap takes a tile, so a tap cannot ask: a hold is the one press a
+tap never is, and the bomb's hold-to-drop is already one.
+
+- **It is the one thing drawn over the globe outside the four zones**, because it
+  is about the tile under the pointer: below and right of a mouse, above a
+  finger, which covers what is under it, turned and kept on screen at the edges
+  (`domain/cardPlacement.ts`). A portal on the body, under the modals.
+- **It stays while the pointer is on the tile or on the card**, and goes
+  `LEAVE_GRACE_MS` (300ms) after it left both, so a mouse can reach the button.
+  On a phone it stays after the finger lifts. Its close button, Escape and a
+  press anywhere outside it close it. **A tap that closes it does nothing else**
+  (`swallowNextClick`), so closing the card never takes a tile; a mouse click
+  goes through, so a painter's click still paints.
+- `TilePeek` (`domain/tilePeek.ts`) holds both gestures: `hover` starts a rest per
+  tile, and a tile just clicked starts none; `begin`, `move` and `end` follow a
+  finger, 12px of slack, a second finger cancelling it. The click that ends a
+  hold is swallowed (`peeked`). `globe.ts` feeds it, hovers from a mouse alone,
+  and calls `onPeek` with the pointer's place for a tile with a flag, and
+  `onPeekEnd` when the mouse leaves that tile or the globe, or any press starts;
+  nothing while a bomb is armed.
+- `useTileHolder` asks `TileHolders.tileHolder` (`ClickService/GetTileHolder`), then
+  `PlayerInfoBackend.playerInfo` (`PlayerService/GetPlayer`), which answers a guest
+  with its name alone: two calls, and planet never learns a name. Neither needs a
+  token. A new peek aborts the last one.
+- **The card shows only while the tile wears the flag of its last take**
+  (`holderShown`): the ledger is a second behind, and an operator's write keeps no
+  take, so a tile that changed hands since says nothing rather than the wrong
+  player. Nor does a tile the player itself holds.
+- The fake planet names one of the fake roster for each take of its bots
+  (`FAKE_TAKERS`), and the player's own takes after an account it cannot name.
+  In `npm run dev`, a hot reload can leave a card behind; reload the page.
 
 ### Support
 

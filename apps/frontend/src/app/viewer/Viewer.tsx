@@ -10,6 +10,7 @@ import {
     Refiller,
     Shielder,
     TileClicker,
+    TileHolders,
     UpdatesListener,
 } from "../../backends/backend.ts";
 import BombNews from "../components/BombNews.tsx";
@@ -58,6 +59,8 @@ import {useAccount} from "../account/useAccount.ts";
 import {hueOf} from "../../domain/authorColor.ts";
 import {PlayerInfoBackend, PlayerLine, PlayerTitle, PresenceBackend} from "../../backends/player.ts";
 import PlayerCard from "../players/PlayerCard.tsx";
+import HolderCard from "../players/HolderCard.tsx";
+import {useTileHolder} from "../players/useTileHolder.ts";
 import TitleUnlocked from "../titles/TitleUnlocked.tsx";
 import {usePresence} from "../players/usePresence.ts";
 import {useRoster} from "../players/useRoster.ts";
@@ -107,6 +110,7 @@ export type ViewerProps = {
     account?: AccountStore
     presence?: PresenceBackend
     playerInfo?: PlayerInfoBackend
+    tileHolders?: TileHolders
     season?: SeasonBackend
     standings?: StandingsBackend
     support?: SupportBackend
@@ -196,6 +200,7 @@ export default function Viewer(props: ViewerProps) {
         dismissFortified,
         lastClose,
         dismissClose,
+        pointing,
     } = useGlobe({
         container,
         tileClicker: props.tileClicker,
@@ -212,6 +217,8 @@ export default function Viewer(props: ViewerProps) {
         mapView: display.settings.mapView,
         rendering: display.settings.rendering,
     })
+
+    const tileHolder = useTileHolder(props.tileHolders, props.playerInfo, pointing, ownAccountId)
 
     const bonusGuide = useBonusGuide()
 
@@ -396,6 +403,15 @@ export default function Viewer(props: ViewerProps) {
             store={props.account}
             multiplier={clickBudget.linkedMultiplier}
             onClose={() => setPitchOpen(false)}/>}
+
+        {tileHolder.holder && <HolderCard key={tileHolder.holder.id}
+                                                              holder={tileHolder.holder}
+                                                              onHold={tileHolder.hold}
+                                                              onOpenPlayer={onOpenPlayer && ((player) => {
+                                                                  tileHolder.dismiss()
+                                                                  onOpenPlayer(player)
+                                                              })}
+                                                              onClose={tileHolder.dismiss}/>}
 
         {openPlayer && props.playerInfo && <PlayerCard key={openPlayer.accountId}
                                                        player={openPlayer}

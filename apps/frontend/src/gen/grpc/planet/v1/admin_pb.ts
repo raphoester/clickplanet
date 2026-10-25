@@ -8,32 +8,6 @@ import { Duration, Message, proto3, Timestamp } from "@bufbuild/protobuf";
 import { ChargesHeld, GetMapResponse, PlanetEvent, TileUpdate } from "./planet_pb.js";
 
 /**
- * @generated from enum planet.v1.RuleChangeSource
- */
-export enum RuleChangeSource {
-  /**
-   * @generated from enum value: RULE_CHANGE_SOURCE_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * @generated from enum value: RULE_CHANGE_SOURCE_INTERNAL = 1;
-   */
-  INTERNAL = 1,
-
-  /**
-   * @generated from enum value: RULE_CHANGE_SOURCE_OPERATOR = 2;
-   */
-  OPERATOR = 2,
-}
-// Retrieve enum metadata with: proto3.getEnumType(RuleChangeSource)
-proto3.util.setEnumType(RuleChangeSource, "planet.v1.RuleChangeSource", [
-  { no: 0, name: "RULE_CHANGE_SOURCE_UNSPECIFIED" },
-  { no: 1, name: "RULE_CHANGE_SOURCE_INTERNAL" },
-  { no: 2, name: "RULE_CHANGE_SOURCE_OPERATOR" },
-]);
-
-/**
  * @generated from message planet.v1.GetLedgerRequest
  */
 export class GetLedgerRequest extends Message<GetLedgerRequest> {
@@ -1540,18 +1514,26 @@ export class GetRulesRequest extends Message<GetRulesRequest> {
  */
 export class GetRulesResponse extends Message<GetRulesResponse> {
   /**
-   * Every set the config holds, "default" first.
+   * Every set postgres keeps, "default" first.
    *
    * @generated from field: repeated planet.v1.RuleSet sets = 1;
    */
   sets: RuleSet[] = [];
 
   /**
-   * Newest first, at most 50. With none, "default" is in force.
+   * The last 20 baselines applied (InternalService/ApplyRuleSet), the newest first. The newest is played while no
+   * override runs, and "default" before any.
    *
-   * @generated from field: repeated planet.v1.RuleChange changes = 2;
+   * @generated from field: repeated planet.v1.RuleBaseline baselines = 2;
    */
-  changes: RuleChange[] = [];
+  baselines: RuleBaseline[] = [];
+
+  /**
+   * The override set last, running or ended; unset when none ever was.
+   *
+   * @generated from field: planet.v1.RuleOverride override = 3;
+   */
+  override?: RuleOverride;
 
   constructor(data?: PartialMessage<GetRulesResponse>) {
     super();
@@ -1562,7 +1544,8 @@ export class GetRulesResponse extends Message<GetRulesResponse> {
   static readonly typeName = "planet.v1.GetRulesResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "sets", kind: "message", T: RuleSet, repeated: true },
-    { no: 2, name: "changes", kind: "message", T: RuleChange, repeated: true },
+    { no: 2, name: "baselines", kind: "message", T: RuleBaseline, repeated: true },
+    { no: 3, name: "override", kind: "message", T: RuleOverride },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetRulesResponse {
@@ -1579,6 +1562,104 @@ export class GetRulesResponse extends Message<GetRulesResponse> {
 
   static equals(a: GetRulesResponse | PlainMessage<GetRulesResponse> | undefined, b: GetRulesResponse | PlainMessage<GetRulesResponse> | undefined): boolean {
     return proto3.util.equals(GetRulesResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.RuleBaseline
+ */
+export class RuleBaseline extends Message<RuleBaseline> {
+  /**
+   * @generated from field: string request_id = 1;
+   */
+  requestId = "";
+
+  /**
+   * @generated from field: string rule_set = 2;
+   */
+  ruleSet = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp applied_at = 3;
+   */
+  appliedAt?: Timestamp;
+
+  constructor(data?: PartialMessage<RuleBaseline>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.RuleBaseline";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "request_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "rule_set", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "applied_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RuleBaseline {
+    return new RuleBaseline().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RuleBaseline {
+    return new RuleBaseline().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RuleBaseline {
+    return new RuleBaseline().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RuleBaseline | PlainMessage<RuleBaseline> | undefined, b: RuleBaseline | PlainMessage<RuleBaseline> | undefined): boolean {
+    return proto3.util.equals(RuleBaseline, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.RuleOverride
+ */
+export class RuleOverride extends Message<RuleOverride> {
+  /**
+   * @generated from field: string rule_set = 1;
+   */
+  ruleSet = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp starts_at = 2;
+   */
+  startsAt?: Timestamp;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp ends_at = 3;
+   */
+  endsAt?: Timestamp;
+
+  constructor(data?: PartialMessage<RuleOverride>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.RuleOverride";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "rule_set", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "starts_at", kind: "message", T: Timestamp },
+    { no: 3, name: "ends_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RuleOverride {
+    return new RuleOverride().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RuleOverride {
+    return new RuleOverride().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RuleOverride {
+    return new RuleOverride().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RuleOverride | PlainMessage<RuleOverride> | undefined, b: RuleOverride | PlainMessage<RuleOverride> | undefined): boolean {
+    return proto3.util.equals(RuleOverride, a, b);
   }
 }
 
@@ -1640,45 +1721,6 @@ export class RuleSet extends Message<RuleSet> {
 }
 
 /**
- * @generated from message planet.v1.AntiBotRules
- */
-export class AntiBotRules extends Message<AntiBotRules> {
-  /**
-   * How many networks of one prefix, starting and clicking in step, are banned as a crowd.
-   *
-   * @generated from field: uint32 crowd = 1;
-   */
-  crowd = 0;
-
-  constructor(data?: PartialMessage<AntiBotRules>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "planet.v1.AntiBotRules";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "crowd", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AntiBotRules {
-    return new AntiBotRules().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AntiBotRules {
-    return new AntiBotRules().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AntiBotRules {
-    return new AntiBotRules().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: AntiBotRules | PlainMessage<AntiBotRules> | undefined, b: AntiBotRules | PlainMessage<AntiBotRules> | undefined): boolean {
-    return proto3.util.equals(AntiBotRules, a, b);
-  }
-}
-
-/**
  * @generated from message planet.v1.BoxPace
  */
 export class BoxPace extends Message<BoxPace> {
@@ -1728,57 +1770,245 @@ export class BoxPace extends Message<BoxPace> {
 }
 
 /**
- * @generated from message planet.v1.RuleChange
+ * @generated from message planet.v1.AntiBotRules
  */
-export class RuleChange extends Message<RuleChange> {
+export class AntiBotRules extends Message<AntiBotRules> {
   /**
-   * @generated from field: string request_id = 1;
+   * How many networks of one prefix, starting and clicking in step, are banned as a crowd.
+   *
+   * @generated from field: uint32 crowd = 1;
    */
-  requestId = "";
+  crowd = 0;
 
-  /**
-   * @generated from field: string rule_set = 2;
-   */
-  ruleSet = "";
-
-  /**
-   * @generated from field: planet.v1.RuleChangeSource source = 3;
-   */
-  source = RuleChangeSource.UNSPECIFIED;
-
-  /**
-   * @generated from field: google.protobuf.Timestamp applied_at = 4;
-   */
-  appliedAt?: Timestamp;
-
-  constructor(data?: PartialMessage<RuleChange>) {
+  constructor(data?: PartialMessage<AntiBotRules>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "planet.v1.RuleChange";
+  static readonly typeName = "planet.v1.AntiBotRules";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "request_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "rule_set", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "source", kind: "enum", T: proto3.getEnumType(RuleChangeSource) },
-    { no: 4, name: "applied_at", kind: "message", T: Timestamp },
+    { no: 1, name: "crowd", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RuleChange {
-    return new RuleChange().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AntiBotRules {
+    return new AntiBotRules().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RuleChange {
-    return new RuleChange().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AntiBotRules {
+    return new AntiBotRules().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RuleChange {
-    return new RuleChange().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AntiBotRules {
+    return new AntiBotRules().fromJsonString(jsonString, options);
   }
 
-  static equals(a: RuleChange | PlainMessage<RuleChange> | undefined, b: RuleChange | PlainMessage<RuleChange> | undefined): boolean {
-    return proto3.util.equals(RuleChange, a, b);
+  static equals(a: AntiBotRules | PlainMessage<AntiBotRules> | undefined, b: AntiBotRules | PlainMessage<AntiBotRules> | undefined): boolean {
+    return proto3.util.equals(AntiBotRules, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.SaveRuleSetRequest
+ */
+export class SaveRuleSetRequest extends Message<SaveRuleSetRequest> {
+  /**
+   * @generated from field: planet.v1.RuleSet set = 1;
+   */
+  set?: RuleSet;
+
+  constructor(data?: PartialMessage<SaveRuleSetRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.SaveRuleSetRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "set", kind: "message", T: RuleSet },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SaveRuleSetRequest {
+    return new SaveRuleSetRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SaveRuleSetRequest {
+    return new SaveRuleSetRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SaveRuleSetRequest {
+    return new SaveRuleSetRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SaveRuleSetRequest | PlainMessage<SaveRuleSetRequest> | undefined, b: SaveRuleSetRequest | PlainMessage<SaveRuleSetRequest> | undefined): boolean {
+    return proto3.util.equals(SaveRuleSetRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.SaveRuleSetResponse
+ */
+export class SaveRuleSetResponse extends Message<SaveRuleSetResponse> {
+  constructor(data?: PartialMessage<SaveRuleSetResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.SaveRuleSetResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SaveRuleSetResponse {
+    return new SaveRuleSetResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SaveRuleSetResponse {
+    return new SaveRuleSetResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SaveRuleSetResponse {
+    return new SaveRuleSetResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SaveRuleSetResponse | PlainMessage<SaveRuleSetResponse> | undefined, b: SaveRuleSetResponse | PlainMessage<SaveRuleSetResponse> | undefined): boolean {
+    return proto3.util.equals(SaveRuleSetResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.OverrideRulesRequest
+ */
+export class OverrideRulesRequest extends Message<OverrideRulesRequest> {
+  /**
+   * @generated from field: string rule_set = 1;
+   */
+  ruleSet = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp until = 2;
+   */
+  until?: Timestamp;
+
+  constructor(data?: PartialMessage<OverrideRulesRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.OverrideRulesRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "rule_set", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "until", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): OverrideRulesRequest {
+    return new OverrideRulesRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): OverrideRulesRequest {
+    return new OverrideRulesRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): OverrideRulesRequest {
+    return new OverrideRulesRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: OverrideRulesRequest | PlainMessage<OverrideRulesRequest> | undefined, b: OverrideRulesRequest | PlainMessage<OverrideRulesRequest> | undefined): boolean {
+    return proto3.util.equals(OverrideRulesRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.OverrideRulesResponse
+ */
+export class OverrideRulesResponse extends Message<OverrideRulesResponse> {
+  constructor(data?: PartialMessage<OverrideRulesResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.OverrideRulesResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): OverrideRulesResponse {
+    return new OverrideRulesResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): OverrideRulesResponse {
+    return new OverrideRulesResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): OverrideRulesResponse {
+    return new OverrideRulesResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: OverrideRulesResponse | PlainMessage<OverrideRulesResponse> | undefined, b: OverrideRulesResponse | PlainMessage<OverrideRulesResponse> | undefined): boolean {
+    return proto3.util.equals(OverrideRulesResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.EndOverrideRequest
+ */
+export class EndOverrideRequest extends Message<EndOverrideRequest> {
+  constructor(data?: PartialMessage<EndOverrideRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.EndOverrideRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): EndOverrideRequest {
+    return new EndOverrideRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): EndOverrideRequest {
+    return new EndOverrideRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): EndOverrideRequest {
+    return new EndOverrideRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: EndOverrideRequest | PlainMessage<EndOverrideRequest> | undefined, b: EndOverrideRequest | PlainMessage<EndOverrideRequest> | undefined): boolean {
+    return proto3.util.equals(EndOverrideRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.EndOverrideResponse
+ */
+export class EndOverrideResponse extends Message<EndOverrideResponse> {
+  constructor(data?: PartialMessage<EndOverrideResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.EndOverrideResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): EndOverrideResponse {
+    return new EndOverrideResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): EndOverrideResponse {
+    return new EndOverrideResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): EndOverrideResponse {
+    return new EndOverrideResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: EndOverrideResponse | PlainMessage<EndOverrideResponse> | undefined, b: EndOverrideResponse | PlainMessage<EndOverrideResponse> | undefined): boolean {
+    return proto3.util.equals(EndOverrideResponse, a, b);
   }
 }
 

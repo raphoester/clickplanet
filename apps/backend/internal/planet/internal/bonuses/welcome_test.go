@@ -29,17 +29,15 @@ func newWelcomingRegistry(t *testing.T, kinds map[Kind]float64, welcome WelcomeC
 
 	clock := cptime.NewFixedClock(epoch)
 	registry := New(Config{
-		MinInterval:       ordinaryWindow,
-		MaxInterval:       ordinaryWindow,
-		MissRetry:         20 * time.Second,
-		OfferTTL:          15 * time.Second,
-		Kinds:             kinds,
-		Welcome:           welcome,
-		ActiveWithin:      5 * time.Minute,
-		ForgetAfter:       5 * time.Minute,
-		MaxChargesPerHour: 6,
-		SweepInterval:     time.Second,
+		MissRetry:     20 * time.Second,
+		OfferTTL:      15 * time.Second,
+		Kinds:         kinds,
+		Welcome:       welcome,
+		ActiveWithin:  5 * time.Minute,
+		ForgetAfter:   5 * time.Minute,
+		SweepInterval: time.Second,
 	}, clock, NewMemoryStore())
+	registry.SetPace(Pace{MinInterval: ordinaryWindow, MaxInterval: ordinaryWindow, MaxChargesPerHour: 6})
 
 	registry.Quizzing(quizzes.Config{
 		Enabled:           true,

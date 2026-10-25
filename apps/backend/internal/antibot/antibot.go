@@ -59,11 +59,6 @@ type Config struct {
 	Rotator   rotatorConfig
 }
 
-// Crowd is how many networks of one prefix, in step, are a crowd under this config.
-func (c Config) Crowd() int {
-	return c.Cohort.Detector.Crowd()
-}
-
 func (c Config) Validate() error {
 	if !c.Enabled {
 		return nil
@@ -413,7 +408,7 @@ type Guard struct {
 	onStateError func(error)
 }
 
-// SetCrowd makes members networks of one prefix, in step, a crowd from now on; 0 is the config's. With cohort off,
+// SetCrowd makes members networks of one prefix, in step, a crowd from now on; 0 is no crowd rule. With cohort off,
 // there is no crowd to set.
 func (g *Guard) SetCrowd(members int) {
 	if g.cohort != nil {

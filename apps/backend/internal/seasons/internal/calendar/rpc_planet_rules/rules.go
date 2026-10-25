@@ -53,7 +53,8 @@ func (r *Rules) Play(ctx context.Context, phase calendar.Phase) error {
 	ctx, cancel := context.WithTimeout(ctx, askTimeout)
 	defer cancel()
 
-	// The phase is the request: sent again after a boot, planet keeps the change it made the first time.
+	// TODO(broker): a command over a loopback call, until a message broker carries it.
+	// The phase is the request: sent again after a boot, planet keeps the baseline it made the first time.
 	request := fmt.Sprintf("season-%d:%s", phase.Season, phase.Stage)
 	if _, err := r.planet.ApplyRuleSet(ctx, connect.NewRequest(&planetv1.ApplyRuleSetRequest{
 		RequestId: request, RuleSet: set,

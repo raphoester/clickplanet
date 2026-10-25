@@ -28,6 +28,7 @@ import {
     PledgeAllegianceResponse,
     GetBonusRulesResponse,
     GetMapResponse,
+    GetTileHolderResponse,
     GlobePoint,
     Heartbeat,
     LandmassFortified,
@@ -35,6 +36,7 @@ import {
     RulesChanged,
     SharedWith,
     TilesEnclosed,
+    TileHolder as TileHolderMessage,
     TileShields,
     TilesSpread,
     TileUpdate,
@@ -1723,6 +1725,32 @@ describe("PlanetBackend allegiance", () => {
 
         await vi.waitFor(() => expect(getAllegiance).toHaveBeenCalled())
         expect(seen.at(-1)).toBeUndefined()
+        backend.close()
+    })
+})
+
+describe("PlanetBackend tile holder", () => {
+    const backendWith = (getTileHolder: ReturnType<typeof vi.fn>) => new PlanetBackend(
+        {click: vi.fn(), getMap: vi.fn(), getBudget: noBudget(), ...bonusReads(), mapDensity: vi.fn(), listenForEvents: noEvents(), getTileHolder} as never,
+        1_000,
+    )
+
+    it("reads who holds a tile, with no token, and when it was taken", async () => {
+        const getTileHolder = vi.fn().mockResolvedValue(new GetTileHolderResponse({
+            holder: new TileHolderMessage({accountId: "account-ana", countryId: "fr", takenAtUnixMs: 1_761_393_600_000n}),
+        }))
+        const backend = backendWith(getTileHolder)
+
+        expect(await backend.tileHolder(7)).toEqual({accountId: "account-ana", countryCode: "fr", takenAt: 1_761_393_600_000})
+        expect(getTileHolder.mock.calls[0][0]).toEqual({tileId: 7})
+        expect((getTileHolder.mock.calls[0][1] as {headers?: Headers}).headers).toBeUndefined()
+        backend.close()
+    })
+
+    it("answers nobody for a tile the ledger names nobody on", async () => {
+        const backend = backendWith(vi.fn().mockResolvedValue(new GetTileHolderResponse()))
+
+        expect(await backend.tileHolder(7)).toBeUndefined()
         backend.close()
     })
 })

@@ -13,9 +13,9 @@ import {
     RemoveMessageResponse,
 } from "./gen/grpc/chat/v1/admin_pb.ts"
 import {
+    AntiBotRules,
     BanPlayerRequest,
     BanPlayerResponse,
-    AntiBotRules,
     BoxPace,
     FindPlayersRequest,
     FindPlayersResponse,
@@ -26,10 +26,14 @@ import {
     GetReplayResponse,
     GetRulesRequest,
     GetRulesResponse,
+    EndOverrideRequest,
+    EndOverrideResponse,
     GrantChargesRequest,
     GrantChargesResponse,
     InspectPlayerRequest,
     InspectPlayerResponse,
+    OverrideRulesRequest,
+    OverrideRulesResponse,
     PaintRandomTilesRequest,
     PaintRandomTilesResponse,
     Player,
@@ -37,9 +41,10 @@ import {
     ReassignCountryResponse,
     RevertPlayerRequest,
     RevertPlayerResponse,
-    RuleChange,
-    RuleChangeSource,
+    RuleOverride,
     RuleSet,
+    SaveRuleSetRequest,
+    SaveRuleSetResponse,
     TopPlayersRequest,
     TopPlayersResponse,
     UnbanPlayerRequest,
@@ -54,13 +59,7 @@ import {
     StatsSnapshot,
     TikTokAccount,
 } from "./gen/grpc/clips/v1/admin_pb.ts"
-import {
-    ApplyRuleSetRequest,
-    ApplyRuleSetResponse,
-    GetTerritoriesRequest,
-    GetTerritoriesResponse,
-    Territory,
-} from "./gen/grpc/planet/v1/internal_pb.ts"
+import {GetTerritoriesRequest, GetTerritoriesResponse, Territory} from "./gen/grpc/planet/v1/internal_pb.ts"
 import {ChargesHeld, TileUpdate} from "./gen/grpc/planet/v1/planet_pb.ts"
 import {
     AdminGetPlayerRequest,
@@ -170,22 +169,16 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         tiles: 262119,
         territories: [new Territory({countryId: "fr", tiles: 1200}), new Territory({countryId: "dz", tiles: 800})],
     })
-    // The default and the finale's rush, and the finale started by seasons.
+    // The set the migration keeps: the game's own rules.
     rules = new GetRulesResponse({
-        sets: [
-            new RuleSet({name: "default", tempo: 1, boxes: new BoxPace({
+        sets: [new RuleSet({
+            name: "default",
+            tempo: 1,
+            boxes: new BoxPace({
                 minInterval: new Duration({seconds: 240n}), maxInterval: new Duration({seconds: 480n}), maxChargesPerHour: 12,
-            }), antiBot: new AntiBotRules({crowd: 6})}),
-            new RuleSet({name: "rush", tempo: 3, boxes: new BoxPace({
-                minInterval: new Duration({seconds: 60n}), maxInterval: new Duration({seconds: 120n}), maxChargesPerHour: 30,
-            }), antiBot: new AntiBotRules({crowd: 50})}),
-        ],
-        changes: [
-            new RuleChange({
-                requestId: "season-0:finale", ruleSet: "rush", source: RuleChangeSource.INTERNAL,
-                appliedAt: Timestamp.fromDate(AT),
             }),
-        ],
+            antiBot: new AntiBotRules({crowd: 6}),
+        })],
     })
     roster = [
         new RosterEntry({key: "1", accountId: ACCOUNT, name: "BraveFox42", countryId: "fr"}),
@@ -341,17 +334,38 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         return this.answer("getRules", request, this.rules)
     }
 
-    // Kept as the server keeps it: a request already applied changes nothing.
-    applyRuleSet(request: PartialMessage<ApplyRuleSetRequest>): Promise<ApplyRuleSetResponse> {
-        const answer = this.answer("applyRuleSet", request, new ApplyRuleSetResponse())
-        if (!this.refusals.has("applyRuleSet") && !this.rules.changes.some(change => change.requestId === request.requestId)) {
+    // Kept as the server keeps it: a set of the same name is replaced.
+    saveRuleSet(request: PartialMessage<SaveRuleSetRequest>): Promise<SaveRuleSetResponse> {
+        const answer = this.answer("saveRuleSet", request, new SaveRuleSetResponse())
+        if (!this.refusals.has("saveRuleSet") && request.set !== undefined) {
+            const saved = new RuleSet(request.set)
+            const others = this.rules.sets.filter(set => set.name !== saved.name)
             this.rules = new GetRulesResponse({
-                sets: this.rules.sets,
-                changes: [new RuleChange({
-                    requestId: request.requestId, ruleSet: request.ruleSet, source: RuleChangeSource.OPERATOR,
-                    appliedAt: Timestamp.fromDate(new Date(AT.getTime() + 60_000)),
-                }), ...this.rules.changes],
+                ...this.rules,
+                sets: [...others, saved].sort((a, b) => Number(a.name !== "default") - Number(b.name !== "default") ||
+                    a.name.localeCompare(b.name)),
             })
+        }
+        return answer
+    }
+
+    // Kept as the server keeps it: the override replaces the one before, from now.
+    overrideRules(request: PartialMessage<OverrideRulesRequest>): Promise<OverrideRulesResponse> {
+        const answer = this.answer("overrideRules", request, new OverrideRulesResponse())
+        if (!this.refusals.has("overrideRules")) {
+            this.rules = new GetRulesResponse({
+                ...this.rules,
+                override: new RuleOverride({ruleSet: request.ruleSet, startsAt: Timestamp.now(), endsAt: request.until}),
+            })
+        }
+        return answer
+    }
+
+    endOverride(request: PartialMessage<EndOverrideRequest>): Promise<EndOverrideResponse> {
+        const answer = this.answer("endOverride", request, new EndOverrideResponse())
+        const override = this.rules.override
+        if (!this.refusals.has("endOverride") && override !== undefined) {
+            this.rules = new GetRulesResponse({...this.rules, override: new RuleOverride({...override, endsAt: Timestamp.now()})})
         }
         return answer
     }

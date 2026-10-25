@@ -16,79 +16,77 @@ import (
 
 var at = time.Date(2026, 10, 31, 21, 0, 0, 0, time.UTC)
 
-type enforced struct{ sets []rules.SetName }
-
-func (e *enforced) Enforce(set rules.Set) { e.sets = append(e.sets, set.Name) }
-
-func catalog(t *testing.T) rules.Catalog {
+func setup(t *testing.T) (*apply_rule_set_usecase.UseCase, *rules.MemoryLayerStore, *cptime.FixedClock) {
 	t.Helper()
 
-	catalog, err := rules.NewCatalog(rules.Config{Sets: map[rules.SetName]rules.SetConfig{"rush": {Tempo: 3}}},
-		rules.Set{Name: rules.Default, Tempo: 1, Boxes: bonuses.Pace{MinInterval: time.Minute, MaxInterval: time.Minute}})
+	sets := rules.NewMemoryStore()
+	for _, name := range []rules.SetName{rules.Default, "rush"} {
+		set, err := rules.Snapshot{
+			Name: name, Tempo: 1, Crowd: 6,
+			Boxes: bonuses.Pace{MinInterval: time.Minute, MaxInterval: time.Minute, MaxChargesPerHour: 12},
+		}.Restore()
+		require.NoError(t, err)
+		require.NoError(t, sets.Save(t.Context(), set))
+	}
+
+	layers, clock := rules.NewMemoryLayerStore(), cptime.NewFixedClock(at)
+	return apply_rule_set_usecase.New(sets, layers, clock), layers, clock
+}
+
+func latest(t *testing.T, layers *rules.MemoryLayerStore) rules.BaselineSnapshot {
+	t.Helper()
+
+	baseline, err := layers.LatestBaseline(t.Context())
 	require.NoError(t, err)
-	return catalog
+	return baseline.TakeSnapshot()
 }
 
-func setup(t *testing.T) (*apply_rule_set_usecase.UseCase, *rules.MemoryStore, *enforced, *cptime.FixedClock) {
-	t.Helper()
+func TestARequestIsKeptAsTheBaseline(t *testing.T) {
+	useCase, layers, _ := setup(t)
 
-	store, inForce, clock := rules.NewMemoryStore(), &enforced{}, cptime.NewFixedClock(at)
-	return apply_rule_set_usecase.New(catalog(t), store, inForce, clock), store, inForce, clock
-}
+	require.NoError(t, useCase.Execute(t.Context(), apply_rule_set_usecase.In{Request: "season-0:finale", Set: "rush"}))
 
-func TestARequestIsKeptThenEnforced(t *testing.T) {
-	useCase, store, inForce, _ := setup(t)
-
-	require.NoError(t, useCase.Execute(t.Context(), apply_rule_set_usecase.In{
-		Request: "season-0:finale", Set: "rush", Source: rules.SourceInternal,
-	}))
-
-	assert.Equal(t, []rules.Snapshot{{Request: "season-0:finale", Set: "rush", Source: rules.SourceInternal, AppliedAt: at}},
-		store.Kept())
-	assert.Equal(t, []rules.SetName{"rush"}, inForce.sets)
+	assert.Equal(t, rules.BaselineSnapshot{Request: "season-0:finale", Set: "rush", AppliedAt: at}, latest(t, layers))
 }
 
 func TestTheSameRequestAgainChangesNothingAndIsNoError(t *testing.T) {
-	useCase, store, inForce, clock := setup(t)
-	in := apply_rule_set_usecase.In{Request: "season-0:finale", Set: "rush", Source: rules.SourceInternal}
-	require.NoError(t, useCase.Execute(t.Context(), in))
-	require.NoError(t, useCase.Execute(t.Context(), apply_rule_set_usecase.In{
-		Request: "a1b2", Set: rules.Default, Source: rules.SourceOperator,
-	}))
+	useCase, layers, clock := setup(t)
+	finale := apply_rule_set_usecase.In{Request: "season-0:finale", Set: "rush"}
+	require.NoError(t, useCase.Execute(t.Context(), finale))
+	clock.Advance(time.Hour)
+	require.NoError(t, useCase.Execute(t.Context(), apply_rule_set_usecase.In{Request: "season-0:over", Set: rules.Default}))
 
 	clock.Advance(time.Hour)
-	require.NoError(t, useCase.Execute(t.Context(), in), "a boot sends its phase again")
+	require.NoError(t, useCase.Execute(t.Context(), finale), "a boot sends its phase again")
 
-	assert.Len(t, store.Kept(), 2)
-	assert.Equal(t, []rules.SetName{"rush", rules.Default}, inForce.sets, "the operator's change stands")
+	assert.Equal(t, rules.BaselineSnapshot{Request: "season-0:over", Set: rules.Default, AppliedAt: at.Add(time.Hour)},
+		latest(t, layers), "the request applied since stands")
 }
 
 func TestAnUnknownSetIsRefusedAndKeepsNothing(t *testing.T) {
-	useCase, store, inForce, _ := setup(t)
+	useCase, layers, _ := setup(t)
 
-	err := useCase.Execute(t.Context(), apply_rule_set_usecase.In{Request: "r", Set: "frozen", Source: rules.SourceOperator})
+	err := useCase.Execute(t.Context(), apply_rule_set_usecase.In{Request: "r", Set: "frozen"})
 
 	require.ErrorIs(t, err, rules.ErrUnknownSet)
-	assert.Empty(t, store.Kept())
-	assert.Empty(t, inForce.sets)
+	assert.Equal(t, rules.BaselineSnapshot{}, latest(t, layers))
 }
 
 func TestARequestWithNoIDIsRefused(t *testing.T) {
-	useCase, store, _, _ := setup(t)
+	useCase, layers, _ := setup(t)
 
-	err := useCase.Execute(t.Context(), apply_rule_set_usecase.In{Set: "rush", Source: rules.SourceOperator})
+	err := useCase.Execute(t.Context(), apply_rule_set_usecase.In{Set: "rush"})
 
 	require.ErrorIs(t, err, rules.ErrNoRequest)
-	assert.Empty(t, store.Kept())
+	assert.Equal(t, rules.BaselineSnapshot{}, latest(t, layers))
 }
 
-func TestAChangeThatCouldNotBeKeptIsNotEnforced(t *testing.T) {
-	useCase, store, inForce, _ := setup(t)
+func TestAStoreThatCannotBeReadIsAnError(t *testing.T) {
+	useCase, layers, _ := setup(t)
 	down := errors.New("postgres is down")
-	store.FailWith(down)
+	layers.FailWith(down)
 
-	err := useCase.Execute(t.Context(), apply_rule_set_usecase.In{Request: "r", Set: "rush", Source: rules.SourceInternal})
+	err := useCase.Execute(t.Context(), apply_rule_set_usecase.In{Request: "r", Set: "rush"})
 
-	require.ErrorIs(t, err, down)
-	assert.Empty(t, inForce.sets, "the next send tries again")
+	require.ErrorIs(t, err, down, "the next send tries again")
 }
