@@ -91,7 +91,10 @@ func TestTheCatalogNamesTheTitlesStatsEarnInItsOrder(t *testing.T) {
 }
 
 func TestAGuestEarnsNothing(t *testing.T) {
-	guest := titles.CareerOf(players.StatsOf(players.AccountID{}, 1_000_000, players.StreakOf(0, players.Day{}), 1_000, 1_000_000), players.Account{})
+	guest := titles.CareerOf(players.StatsSnapshot{
+		TilesTaken: 1_000_000, StreakBest: 1_000, MessagesSent: 1_000_000, BombsDropped: 1_000_000,
+		TilesFortified: 1_000_000, BonusesClaimed: 1_000_000, RightAnswers: 1_000_000,
+	}.Restore(), players.Account{})
 
 	assert.Empty(t, catalog.EarnedBy(guest))
 	assert.Empty(t, titles.NewCatalog().EarnedBy(guest))
@@ -99,7 +102,8 @@ func TestAGuestEarnsNothing(t *testing.T) {
 
 func TestTheReconciliationGrantsWhatIsEarnedAndRevokesWhatIsNot(t *testing.T) {
 	career := func(account byte, taken uint64, linked bool) titles.Career {
-		return titles.CareerOf(players.StatsOf(players.AccountID{15: account}, taken, players.StreakOf(0, players.Day{}), 0, 0), players.AccountOf(linked, time.Time{}))
+		return titles.CareerOf(players.StatsSnapshot{Account: players.AccountID{15: account}, TilesTaken: taken}.Restore(),
+			players.AccountOf(linked, time.Time{}))
 	}
 
 	reconciliation := catalog.ReconciliationOf([]titles.Career{

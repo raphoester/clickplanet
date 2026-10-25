@@ -28,7 +28,7 @@ func contractProfile(account byte, name Name) Profile {
 }
 
 func (s *StoreContractSuite) recordTake(account byte, at time.Time) {
-	s.Require().NoError(s.store.RecordTake(s.T().Context(), AccountID{15: account}, at))
+	s.Require().NoError(s.store.Record(s.T().Context(), AccountID{15: account}, TakeAt(at)))
 }
 
 func (s *StoreContractSuite) stats(account byte) Stats {
@@ -146,20 +146,30 @@ func (s *StoreContractSuite) TestTakesOfOneAccountDoNotCountOnAnother() {
 }
 
 func (s *StoreContractSuite) TestEachMessageIsCountedAndStartsNoStreak() {
-	s.Require().NoError(s.store.RecordMessage(s.T().Context(), AccountID{15: 1}))
-	s.Require().NoError(s.store.RecordMessage(s.T().Context(), AccountID{15: 1}))
+	s.Require().NoError(s.store.Record(s.T().Context(), AccountID{15: 1}, Stats.WithMessage))
+	s.Require().NoError(s.store.Record(s.T().Context(), AccountID{15: 1}, Stats.WithMessage))
 
 	s.Equal(NewStats(AccountID{15: 1}).WithMessage().WithMessage(), s.stats(1))
 }
 
 func (s *StoreContractSuite) TestMessagesAndTakesAddUpOnOneAccount() {
-	s.Require().NoError(s.store.RecordMessage(s.T().Context(), AccountID{15: 1}))
+	s.Require().NoError(s.store.Record(s.T().Context(), AccountID{15: 1}, Stats.WithMessage))
 	s.recordTake(1, contractAt)
-	s.Require().NoError(s.store.RecordMessage(s.T().Context(), AccountID{15: 1}))
-	s.Require().NoError(s.store.RecordMessage(s.T().Context(), AccountID{15: 2}))
+	s.Require().NoError(s.store.Record(s.T().Context(), AccountID{15: 1}, Stats.WithMessage))
+	s.Require().NoError(s.store.Record(s.T().Context(), AccountID{15: 2}, Stats.WithMessage))
 
 	s.Equal(NewStats(AccountID{15: 1}).WithMessage().WithTake(contractAt).WithMessage(), s.stats(1))
 	s.Equal(uint64(1), s.stats(2).MessagesSent())
+}
+
+func (s *StoreContractSuite) TestEveryCounterReadsBack() {
+	for _, change := range []func(Stats) Stats{Stats.WithBomb, Stats.WithBonus, Stats.WithRightAnswer, Stats.WithBomb} {
+		s.Require().NoError(s.store.Record(s.T().Context(), AccountID{15: 1}, change))
+	}
+	s.Require().NoError(s.store.Record(s.T().Context(), AccountID{15: 1}, func(stats Stats) Stats { return stats.WithFortify(137) }))
+
+	s.Equal(StatsSnapshot{Account: AccountID{15: 1}, BombsDropped: 2, TilesFortified: 137, BonusesClaimed: 1, RightAnswers: 1},
+		s.stats(1).TakeSnapshot())
 }
 
 func (s *StoreContractSuite) TestADeletedAccountLosesBothAndTheOthersKeepTheirs() {

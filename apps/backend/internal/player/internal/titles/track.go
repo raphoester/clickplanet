@@ -45,3 +45,43 @@ func (Chatter) Name() string { return "Chatter" }
 func (Chatter) Ranks() []Rank { return []Rank{Talker{}, Chatterbox{}, Socialite{}, Icon{}} }
 
 func (Chatter) Progress(career Career) uint64 { return career.Stats().MessagesSent() }
+
+type Defense struct{}
+
+func (Defense) ID() TrackID { return "defense" }
+
+func (Defense) Name() string { return "Defense" }
+
+func (Defense) Ranks() []Rank { return []Rank{Guard{}, Defender{}, Protector{}, Warden{}} }
+
+func (Defense) Progress(career Career) uint64 { return career.Stats().TilesFortified() }
+
+type Bombs struct{}
+
+func (Bombs) ID() TrackID { return "bombs" }
+
+func (Bombs) Name() string { return "Bombs" }
+
+func (Bombs) Ranks() []Rank { return []Rank{Bomber{}, Blaster{}, Wrecker{}, Destroyer{}} }
+
+func (Bombs) Progress(career Career) uint64 { return career.Stats().BombsDropped() }
+
+type Loot struct{}
+
+func (Loot) ID() TrackID { return "loot" }
+
+func (Loot) Name() string { return "Loot" }
+
+func (Loot) Ranks() []Rank { return []Rank{Looter{}, Hunter{}, Pirate{}, Captain{}} }
+
+func (Loot) Progress(career Career) uint64 { return career.Stats().BonusesClaimed() }
+
+type Quiz struct{}
+
+func (Quiz) ID() TrackID { return "quiz" }
+
+func (Quiz) Name() string { return "Quiz" }
+
+func (Quiz) Ranks() []Rank { return []Rank{Student{}, Expert{}, Professor{}, Genius{}} }
+
+func (Quiz) Progress(career Career) uint64 { return career.Stats().RightAnswers() }

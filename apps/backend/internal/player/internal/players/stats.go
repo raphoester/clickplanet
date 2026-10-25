@@ -25,19 +25,67 @@ func (d Day) String() string {
 }
 
 type Stats struct {
-	account      AccountID
-	tilesTaken   uint64
-	streak       Streak
-	streakBest   uint32
-	messagesSent uint64
+	account        AccountID
+	tilesTaken     uint64
+	streak         Streak
+	streakBest     uint32
+	messagesSent   uint64
+	bombsDropped   uint64
+	tilesFortified uint64
+	bonusesClaimed uint64
+	rightAnswers   uint64
+}
+
+type StatsSnapshot struct {
+	Account        AccountID
+	TilesTaken     uint64
+	Streak         Streak
+	StreakBest     uint32
+	MessagesSent   uint64
+	BombsDropped   uint64
+	TilesFortified uint64
+	BonusesClaimed uint64
+	RightAnswers   uint64
+}
+
+func (s StatsSnapshot) Restore() Stats {
+	return Stats{
+		account:        s.Account,
+		tilesTaken:     s.TilesTaken,
+		streak:         s.Streak,
+		streakBest:     s.StreakBest,
+		messagesSent:   s.MessagesSent,
+		bombsDropped:   s.BombsDropped,
+		tilesFortified: s.TilesFortified,
+		bonusesClaimed: s.BonusesClaimed,
+		rightAnswers:   s.RightAnswers,
+	}
+}
+
+func (s Stats) TakeSnapshot() StatsSnapshot {
+	return StatsSnapshot{
+		Account:        s.account,
+		TilesTaken:     s.tilesTaken,
+		Streak:         s.streak,
+		StreakBest:     s.streakBest,
+		MessagesSent:   s.messagesSent,
+		BombsDropped:   s.bombsDropped,
+		TilesFortified: s.tilesFortified,
+		BonusesClaimed: s.bonusesClaimed,
+		RightAnswers:   s.rightAnswers,
+	}
 }
 
 func NewStats(account AccountID) Stats {
 	return Stats{account: account}
 }
 
-func StatsOf(account AccountID, tilesTaken uint64, streak Streak, streakBest uint32, messagesSent uint64) Stats {
-	return Stats{account: account, tilesTaken: tilesTaken, streak: streak, streakBest: streakBest, messagesSent: messagesSent}
+func AccountsOf(page []Stats) []AccountID {
+	accounts := make([]AccountID, 0, len(page))
+	for _, stats := range page {
+		accounts = append(accounts, stats.Account())
+	}
+	return accounts
 }
 
 func (s Stats) Account() AccountID { return s.account }
@@ -49,6 +97,18 @@ func (s Stats) Streak() Streak { return s.streak }
 func (s Stats) StreakBest() uint32 { return s.streakBest }
 
 func (s Stats) MessagesSent() uint64 { return s.messagesSent }
+
+func (s Stats) BombsDropped() uint64 { return s.bombsDropped }
+
+func (s Stats) TilesFortified() uint64 { return s.tilesFortified }
+
+func (s Stats) BonusesClaimed() uint64 { return s.bonusesClaimed }
+
+func (s Stats) RightAnswers() uint64 { return s.rightAnswers }
+
+func TakeAt(at time.Time) func(Stats) Stats {
+	return func(s Stats) Stats { return s.WithTake(at) }
+}
 
 func (s Stats) WithTake(at time.Time) Stats {
 	day := DayOf(at)
@@ -73,6 +133,36 @@ func (s Stats) WithTake(at time.Time) Stats {
 
 func (s Stats) WithMessage() Stats {
 	s.messagesSent++
+	return s
+}
+
+func (s Stats) WithBomb() Stats {
+	s.bombsDropped++
+	return s
+}
+
+func (s Stats) WithFortify(tiles uint64) Stats {
+	s.tilesFortified += tiles
+	return s
+}
+
+func (s Stats) WithBonus() Stats {
+	s.bonusesClaimed++
+	return s
+}
+
+func (s Stats) WithRightAnswer() Stats {
+	s.rightAnswers++
+	return s
+}
+
+type Recount struct {
+	BombsDropped   uint64
+	TilesFortified uint64
+}
+
+func (s Stats) Recounted(recount Recount) Stats {
+	s.bombsDropped, s.tilesFortified = recount.BombsDropped, recount.TilesFortified
 	return s
 }
 

@@ -55,6 +55,8 @@ import {
     PlayerMatch,
     ReconcileTitlesRequest,
     ReconcileTitlesResponse,
+    RecountStatsRequest,
+    RecountStatsResponse,
     SearchPlayersRequest,
     SearchPlayersResponse,
 } from "./gen/grpc/player/v1/admin_pb.ts"
@@ -313,6 +315,10 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
 
     reconcileTitles(request: PartialMessage<ReconcileTitlesRequest>): Promise<ReconcileTitlesResponse> {
         return this.answer("reconcileTitles", request, new ReconcileTitlesResponse({granted: 12, revoked: 3}))
+    }
+
+    recountStats(request: PartialMessage<RecountStatsRequest>): Promise<RecountStatsResponse> {
+        return this.answer("recountStats", request, new RecountStatsResponse({recounted: 164}))
     }
 
     getAuthors(request: PartialMessage<GetAuthorsRequest>): Promise<GetAuthorsResponse> {

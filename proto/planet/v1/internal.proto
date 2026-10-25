@@ -10,6 +10,10 @@ service InternalService {
   rpc GetTerritories(GetTerritoriesRequest) returns (GetTerritoriesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+
+  rpc GetBombsAndFortifies(GetBombsAndFortifiesRequest) returns (GetBombsAndFortifiesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 }
 
 message GetTakesByCountryRequest {
@@ -36,4 +40,18 @@ message GetTerritoriesResponse {
 message Territory {
   string country_id = 1;
   uint32 tiles = 2;
+}
+
+message GetBombsAndFortifiesRequest {
+  repeated string account_ids = 1;
+}
+
+message GetBombsAndFortifiesResponse {
+  repeated BombsAndFortifies accounts = 1;
+}
+
+message BombsAndFortifies {
+  string account_id = 1;
+  uint64 bombs_dropped = 2;
+  uint64 tiles_fortified = 3;
 }

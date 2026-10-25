@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AdminGetPlayerRequest, AdminGetPlayerResponse, ReconcileTitlesRequest, ReconcileTitlesResponse, SearchPlayersRequest, SearchPlayersResponse } from "./admin_pb.js";
+import { AdminGetPlayerRequest, AdminGetPlayerResponse, ReconcileTitlesRequest, ReconcileTitlesResponse, RecountStatsRequest, RecountStatsResponse, SearchPlayersRequest, SearchPlayersResponse } from "./admin_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 import { GetAuthorsRequest, GetAuthorsResponse } from "./internal_pb.js";
 import { GetRosterRequest, GetRosterResponse } from "./player_pb.js";
@@ -23,6 +23,17 @@ export const AdminService = {
       name: "ReconcileTitles",
       I: ReconcileTitlesRequest,
       O: ReconcileTitlesResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Every account's bombs dropped and tiles fortified, set to what planet's ledger holds. Harmless twice.
+     *
+     * @generated from rpc player.v1.AdminService.RecountStats
+     */
+    recountStats: {
+      name: "RecountStats",
+      I: RecountStatsRequest,
+      O: RecountStatsResponse,
       kind: MethodKind.Unary,
     },
     /**

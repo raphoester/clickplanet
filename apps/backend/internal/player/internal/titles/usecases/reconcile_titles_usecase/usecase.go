@@ -61,7 +61,7 @@ func (u *UseCase) Execute(ctx context.Context) (Reconciled, error) {
 			return reconciled, fmt.Errorf("failed to read a page of stats: %w", err)
 		}
 
-		accounts := titles.AccountsOf(page)
+		accounts := players.AccountsOf(page)
 		known, err := u.accounts.Accounts(ctx, accounts)
 		if err != nil {
 			return reconciled, fmt.Errorf("failed to ask auth about a page of accounts: %w", err)

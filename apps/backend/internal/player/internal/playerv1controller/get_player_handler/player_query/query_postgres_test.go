@@ -95,8 +95,8 @@ func (s *testSuite) player(account players.AccountID) *playerv1.Player {
 }
 
 func (s *testSuite) TestAPlayerIsFoundByItsAccount() {
-	s.Require().NoError(s.players.RecordTake(s.T().Context(), ada, monday.Add(-24*time.Hour)))
-	s.Require().NoError(s.players.RecordTake(s.T().Context(), ada, monday))
+	s.Require().NoError(s.players.Record(s.T().Context(), ada, players.TakeAt(monday.Add(-24*time.Hour))))
+	s.Require().NoError(s.players.Record(s.T().Context(), ada, players.TakeAt(monday)))
 
 	s.True(proto.Equal(&playerv1.Player{
 		Name:            "Ada_L",
@@ -107,7 +107,7 @@ func (s *testSuite) TestAPlayerIsFoundByItsAccount() {
 }
 
 func (s *testSuite) TestAnAccountKeepsItsCardWhenAnotherTakesTheNameItLeft() {
-	s.Require().NoError(s.players.RecordTake(s.T().Context(), ada, monday))
+	s.Require().NoError(s.players.Record(s.T().Context(), ada, players.TakeAt(monday)))
 	bob := players.AccountID{15: 2}
 	s.named(ada, "Ada_Lovelace")
 	s.named(bob, "Ada_L")
@@ -124,7 +124,7 @@ func (s *testSuite) TestAnAccountKeepsItsCardWhenAnotherTakesTheNameItLeft() {
 
 func (s *testSuite) TestAnAccountWithNoUsernameIsNoPlayer() {
 	guest := players.AccountID{15: 3}
-	s.Require().NoError(s.players.RecordTake(s.T().Context(), guest, monday))
+	s.Require().NoError(s.players.Record(s.T().Context(), guest, players.TakeAt(monday)))
 	s.Require().NoError(s.players.SaveGuestCode(s.T().Context(), guest, "a1b2c3"))
 
 	for _, account := range []players.AccountID{guest, {15: 4}} {
@@ -212,7 +212,7 @@ func (s *testSuite) TestAFailureToAskForTheCountriesIsAnError() {
 }
 
 func (s *testSuite) TestTheStreakIsReadAsOfToday() {
-	s.Require().NoError(s.players.RecordTake(s.T().Context(), ada, monday))
+	s.Require().NoError(s.players.Record(s.T().Context(), ada, players.TakeAt(monday)))
 	s.clock.Advance(48 * time.Hour)
 
 	stats := s.player(ada).GetStats()

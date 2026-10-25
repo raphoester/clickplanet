@@ -28,9 +28,15 @@ func (c Catalog) Worn(held []string, choice string) *playerv1.Title {
 }
 
 func (c Catalog) Tracks(held []string, career playerread.Career) []*playerv1.Track {
-	stats := players.StatsOf(
-		players.AccountID{}, career.TilesTaken, players.StreakOf(career.StreakNow, players.Day{}), 0, career.MessagesSent,
-	)
+	stats := players.StatsSnapshot{
+		TilesTaken:     career.TilesTaken,
+		Streak:         players.StreakOf(career.StreakNow, players.Day{}),
+		MessagesSent:   career.MessagesSent,
+		BombsDropped:   career.BombsDropped,
+		TilesFortified: career.TilesFortified,
+		BonusesClaimed: career.BonusesClaimed,
+		RightAnswers:   career.RightAnswers,
+	}.Restore()
 	progress := c.catalog.Progress(titles.CareerOf(stats, players.AccountOf(false, time.Time{})), idsOf(held))
 
 	tracks := make([]*playerv1.Track, 0, len(progress))

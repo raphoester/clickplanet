@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/suite"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
 const contractMaxIndex = 100_000
@@ -479,10 +481,10 @@ func (s *TileStorageContractSuite) TestAWholeLandmassFortifiedGivesEachOfItsTile
 	s.own("fr", contractIsland...)
 	listener, ctx := s.subscribe(time.Second)
 
-	fortification, err := s.storage.Fortify(ctx, 90_003, "fr", 10)
+	fortification, err := s.storage.Fortify(cpctx.AddAccountToContext(ctx, "ada"), 90_003, "fr", 10)
 	s.Require().NoError(err)
 
-	s.Equal(Fortification{Landmass: 1, Ground: "l1", Country: "fr", Tile: 90_003, Tiles: 3, Raised: []TileShields{
+	s.Equal(Fortification{Landmass: 1, Ground: "l1", Country: "fr", Tile: 90_003, Account: "ada", Tiles: 3, Raised: []TileShields{
 		{Tile: 90_001, Shields: 1}, {Tile: 90_002, Shields: 1}, {Tile: 90_003, Shields: 1},
 	}}, fortification)
 	s.Equal([]int{1, 1, 1}, s.shieldsOn(contractIsland...))
