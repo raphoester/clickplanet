@@ -9,14 +9,6 @@ httpServer:
   adminBindAddress: ""
   allowedOrigin: http://localhost:5173
 
-events:
-  address: localhost:6379
-  password: ""
-  maxLen: 100000
-  publishTimeout: 500ms
-  retryAfter: 2s
-  maxDeliveries: 8
-
 gameMap:
   maxIndex: 262119
 
@@ -30,6 +22,10 @@ database:
   schema: planet
   pool:
     maxOpenConns: 4
+
+redis:
+  address: localhost:6379
+  password: ""
 
 tilesStorage:
   flushInterval: 1s
@@ -294,6 +290,9 @@ chat:
     schema: chat
     pool:
       maxOpenConns: 2
+  redis:
+    address: localhost:6379
+    password: ""
   storage:
     historySize: 200
     retention: 720h
@@ -345,6 +344,9 @@ auth:
     schema: auth
     pool:
       maxOpenConns: 2
+  redis:
+    address: localhost:6379
+    password: ""
   sessions:
     guestTTL: 2160h
     linkedTTL: 720h
@@ -384,6 +386,9 @@ player:
     schema: player
     pool:
       maxOpenConns: 2
+  redis:
+    address: localhost:6379
+    password: ""
   tagSalt: ""
 
 seasons:
@@ -401,6 +406,9 @@ seasons:
     schema: seasons
     pool:
       maxOpenConns: 2
+  redis:
+    address: localhost:6379
+    password: ""
 
 support:
   database:
@@ -413,6 +421,9 @@ support:
     schema: support
     pool:
       maxOpenConns: 2
+  redis:
+    address: localhost:6379
+    password: ""
   retention: 2160h
   pruneInterval: 1h
   rateLimiter:

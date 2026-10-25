@@ -44,6 +44,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpoutbox"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsessionverifier"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -81,20 +82,30 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to migrate the %s schema: %w", config.Database.Schema, err)
 	}
 
+	streams := cpredis.New(config.Redis, props.Metrics)
+	if err := streams.ConnectCtx(ctx); err != nil {
+		_ = db.Close()
+		return fmt.Errorf("failed to connect the seasons module to redis: %w", err)
+	}
+	closeStores := func() {
+		_ = streams.Close()
+		_ = db.Close()
+	}
+
 	contributions := postgres_contribution_store.New(db)
 	standingsQuery := standings_query.NewPostgresQuery(db, standings_authors.New(player), seasons, clock, countries)
 	boards := inprocess_board_feed.New(log_board_reader.New(standingsQuery, props.Logger), clock)
 
-	takes, err := cpbootstrap.Subscribe(props.Events, "seasons-standings",
+	takes, err := cpredis.Subscribe(ctx, streams, "seasons-standings",
 		log_subscriber.New(tile_taken_subscriber.New(record_take_usecase.New(seasons, contributions)), props.Logger))
 	if err != nil {
-		_ = db.Close()
+		closeStores()
 		return fmt.Errorf("failed to subscribe to planet.v1.TileTaken: %w", err)
 	}
-	deletions, err := cpbootstrap.Subscribe(props.Events, "seasons-standings-accounts",
+	deletions, err := cpredis.Subscribe(ctx, streams, "seasons-standings-accounts",
 		log_subscriber.New(account_deleted_subscriber.New(forget_account_usecase.New(contributions)), props.Logger))
 	if err != nil {
-		_ = db.Close()
+		closeStores()
 		return fmt.Errorf("failed to subscribe to auth.v1.AccountDeleted: %w", err)
 	}
 
@@ -105,8 +116,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		props.Logger,
 	))
 
-	props.Runners.Add(cppg.CloseAfter(db, props.Logger, takes, deletions, boards, races, snapshot,
-		cpoutbox.NewRelay("seasons-outbox", db, props.Events, props.Logger)))
+	props.Runners.Add(cppg.CloseAfter(db, props.Logger, boards, races, snapshot, cpredis.CloseAfter(streams, props.Logger,
+		takes, deletions, cpoutbox.NewRelay("seasons-outbox", db, streams, props.Logger))))
 
 	service := seasonsv1controller.SeasonService{
 		GetSeasonHandler: get_season_handler.New(
@@ -137,6 +148,7 @@ type Config struct {
 	Calendar calendar.Config `koanf:",squash"`
 	Snapshot take_snapshot_usecase.Config
 	Database cppg.Config
+	Redis    cpredis.Config
 }
 
 func (c Config) Validate() error {
@@ -145,6 +157,9 @@ func (c Config) Validate() error {
 	}
 	if err := c.Database.Validate(); err != nil {
 		return fmt.Errorf("seasons.database: %w", err)
+	}
+	if err := c.Redis.Validate(); err != nil {
+		return fmt.Errorf("seasons.redis: %w", err)
 	}
 	return nil
 }

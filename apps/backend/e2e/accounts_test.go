@@ -19,6 +19,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
@@ -66,17 +67,16 @@ func startAuthModule(t *testing.T, newModule func(auth.Config) cpbootstrap.Modul
 	config := auth.Config{
 		SignerConfig: cpsession.SignerConfig{Enabled: true, Secret: secret, TTL: time.Hour},
 		Database:     cppg.StartTestServer(t).ConfigFor("auth"),
+		Redis:        cpredis.StartTestServer(t).Config(),
 	}
 	config.RateLimiter.PerSecond = 100
 	config.RateLimiter.Burst = 100
-	events := cpbootstrap.StartTestRedis(t)
 
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan error, 1)
 	go func() {
 		done <- cpbootstrap.RunOn(ctx, cpbootstrap.Options{
 			Server:  server,
-			Events:  events,
 			Logger:  slog.New(slog.DiscardHandler),
 			Modules: []cpbootstrap.Module{newModule(config)},
 		}, listener)

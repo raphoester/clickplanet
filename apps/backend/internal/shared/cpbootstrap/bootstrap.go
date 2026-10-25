@@ -42,8 +42,6 @@ type Props struct {
 
 	InternalRPC RPCRegistrar
 	Internal    InternalDialer
-
-	Events EventBus
 }
 
 type InternalDialer interface {
@@ -153,8 +151,6 @@ func isLoopback(address string) bool {
 type Options struct {
 	Server ServerConfig
 
-	Events EventsConfig
-
 	ShutdownTimeout time.Duration
 
 	Logger *slog.Logger
@@ -204,19 +200,10 @@ func run(ctx context.Context, options Options, listen listenFunc) error {
 	internalRoutes := newRPCRoutes(errorNet, drainNet)
 	runners := newRunnerRegistry()
 	closers := newCloserRegistry()
-	events, err := newEventBus(ctx, options.Events, metrics)
-	if err != nil {
-		return err
-	}
-	// Not a closer: the runners ack and send until they stop.
-	defer func() { _ = events.close() }()
 
-	registrars := registrars{routes: routes, admin: adminRoutes, internal: internalRoutes, events: events}
+	registrars := registrars{routes: routes, admin: adminRoutes, internal: internalRoutes}
 	if err := buildModules(ctx, options, metrics, registrars, runners, closers); err != nil {
 		return err
-	}
-	if events.on() {
-		runners.Add(trimmer{bus: events})
 	}
 
 	router := http.NewServeMux()
@@ -279,7 +266,6 @@ type registrars struct {
 	routes   *rpcRoutes
 	admin    *rpcRoutes
 	internal *rpcRoutes
-	events   *eventBus
 }
 
 func buildModules(
@@ -309,7 +295,6 @@ func buildModules(
 			AdminRPC:    registrars.admin.forModule(module.Name),
 			InternalRPC: registrars.internal.forModule(module.Name),
 			Internal:    internalDialer{address: options.Server.InternalBindAddress},
-			Events:      registrars.events,
 			Runners:     runners,
 			Closers:     closers,
 		})
@@ -321,14 +306,6 @@ func buildModules(
 			slog.String("module", module.Name),
 			slog.Int("runners", runners.count()-before),
 		)
-	}
-
-	// Before any runner starts: a subscriber registered later could miss boot events.
-	if !registrars.events.on() {
-		return nil
-	}
-	if err := registrars.events.seal(ctx); err != nil {
-		return fmt.Errorf("failed to open the event streams: %w", err)
 	}
 
 	return nil

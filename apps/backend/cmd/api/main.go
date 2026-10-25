@@ -20,7 +20,6 @@ import (
 
 type Config struct {
 	HTTPServer cpbootstrap.ServerConfig
-	Events     cpbootstrap.EventsConfig
 
 	Planet planet.Config `koanf:",squash"`
 
@@ -58,7 +57,6 @@ func run(ctx context.Context) error {
 
 	return cpbootstrap.Run(ctx, cpbootstrap.Options{
 		Server:    config.HTTPServer,
-		Events:    config.Events,
 		Logger:    logger,
 		Modules:   describeModules(config),
 		AdminGate: gate,
@@ -89,7 +87,6 @@ func loadConfig() (Config, error) {
 func (c Config) Validate() error {
 	return errors.Join(
 		c.HTTPServer.Validate(),
-		c.Events.Validate(),
 		c.Planet.Validate(),
 		c.Chat.Validate(),
 		c.Auth.Validate(),

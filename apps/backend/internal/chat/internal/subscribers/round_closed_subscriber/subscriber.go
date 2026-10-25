@@ -8,7 +8,7 @@ import (
 	seasonsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/seasons/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 )
 
 type UseCase interface {
@@ -23,7 +23,7 @@ type Subscriber struct {
 	useCase UseCase
 }
 
-var _ cpbootstrap.Handler[*seasonsv1.RoundClosed] = Subscriber{}
+var _ cpredis.Handler[*seasonsv1.RoundClosed] = Subscriber{}
 
 var errNoTime = errors.New("the round has no end")
 

@@ -11,14 +11,14 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/inmemory_player_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/record_stats_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/fortified_subscriber"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 )
 
 const account = "0b6d4f7e-5d7c-4a36-9a51-3f1f8f0c2a11"
 
 func subscriber() (fortified_subscriber.Subscriber, *inmemory_player_store.Store) {
 	store := inmemory_player_store.New()
-	return fortified_subscriber.New(record_stats_usecase.New(store, cpbootstrap.NewRecordedEvents())), store
+	return fortified_subscriber.New(record_stats_usecase.New(store, cpredis.NewRecordedEvents())), store
 }
 
 func statsOf(t *testing.T, store *inmemory_player_store.Store) players.StatsSnapshot {

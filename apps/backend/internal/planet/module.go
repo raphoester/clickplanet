@@ -118,6 +118,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsessionverifier"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -159,32 +160,43 @@ func NewModule(config Config) cpbootstrap.Module {
 				return fmt.Errorf("failed to migrate the %s schema: %w", config.Database.Schema, err)
 			}
 
+			streams := cpredis.New(config.Redis, props.Metrics)
+			if err := streams.ConnectCtx(ctx); err != nil {
+				_ = db.Close()
+				return fmt.Errorf("failed to connect the planet to redis: %w", err)
+			}
+			closeStores := func() {
+				_ = streams.Close()
+				_ = db.Close()
+			}
+
 			tilesStorage := inmemory_tile_storage.New(borders, config.TilesStorage, postgres_tile_store.New(db), props.Logger)
 			if err := tilesStorage.Load(ctx); err != nil {
-				_ = db.Close()
+				closeStores()
 				return fmt.Errorf("failed to load the tile map: %w", err)
 			}
 
 			ledgerStore := postgres_ledger_store.New(db)
 			takings := inmemory_ledger_storage.New(config.LedgerStorage, ledgerStore, props.Logger)
 			if err := takings.Load(ctx); err != nil {
-				_ = db.Close()
+				closeStores()
 				return fmt.Errorf("failed to load the ledger: %w", err)
 			}
 
-			deletions, err := cpbootstrap.Subscribe(props.Events, "planet-ledger-accounts",
+			deletions, err := cpredis.Subscribe(ctx, streams, "planet-ledger-accounts",
 				log_subscriber.New(account_deleted_subscriber.New(
 					anonymize_takes_usecase.New(takings, ledgerStore)), props.Logger))
 			if err != nil {
-				_ = db.Close()
+				closeStores()
 				return fmt.Errorf("failed to subscribe the ledger to auth.v1.AccountDeleted: %w", err)
 			}
 
 			relay := relay_ledger_usecase.NewRunner(ledgerRelayInterval, log_relay_ledger.New(
-				relay_ledger_usecase.New(takings, ledgerStore, borders, props.Events), props.Logger))
+				relay_ledger_usecase.New(takings, ledgerStore, borders, streams), props.Logger))
 
-			// Not a closer: closers run before the runners' last flush.
-			props.Runners.Add(cppg.CloseAfter(db, props.Logger, tilesStorage, takings, deletions, relay))
+			// Not closers: closers run before the runners' last flush, and the relay's last send.
+			props.Runners.Add(cppg.CloseAfter(db, props.Logger, tilesStorage, takings,
+				cpredis.CloseAfter(streams, props.Logger, deletions, relay)))
 			props.Runners.Add(ledger.NewRetention(config.Ledger, takings, clock))
 
 			limiter := cpratelimit.New("click-limiter", config.RateLimiter.Config, clock)
@@ -324,12 +336,12 @@ func NewModule(config Config) cpbootstrap.Module {
 			}
 
 			claimBonus, counters := prom_claim_bonus.New(
-				claim_bonus_usecase.New(registry, charges, props.Events, clock),
+				claim_bonus_usecase.New(registry, charges, streams, clock),
 				props.Metrics)
 
 			openQuiz := open_quiz_usecase.New(registry)
 			answerQuiz, quizCounters := prom_answer_quiz.New(
-				answer_quiz_usecase.New(registry, charges, props.Events, clock),
+				answer_quiz_usecase.New(registry, charges, streams, clock),
 				props.Metrics)
 
 			registry.Observe(bonuses.Report{

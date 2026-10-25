@@ -92,6 +92,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsecrets"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsessionverifier"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -140,6 +141,16 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to migrate the %s schema: %w", config.Database.Schema, err)
 	}
 
+	streams := cpredis.New(config.Redis, props.Metrics)
+	if err := streams.ConnectCtx(ctx); err != nil {
+		_ = db.Close()
+		return fmt.Errorf("failed to connect the player module to redis: %w", err)
+	}
+	closeStores := func() {
+		_ = streams.Close()
+		_ = db.Close()
+	}
+
 	store := postgres_player_store.New(db)
 
 	accounts := rpc_account_reader.New(auth)
@@ -157,102 +168,101 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	generatedNames := players.NewGeneratedNames(store, random_name_generator.Generator{})
 	props.Runners.Add(visits)
 
-	recordStats := record_stats_usecase.New(store, props.Events)
-	takes, err := cpbootstrap.Subscribe(props.Events, "player-stats",
+	recordStats := record_stats_usecase.New(store, streams)
+	takes, err := cpredis.Subscribe(ctx, streams, "player-stats",
 		log_subscriber.New(tile_taken_subscriber.New(recordStats), props.Logger))
 	if err != nil {
-		_ = db.Close()
+		closeStores()
 		return fmt.Errorf("failed to subscribe to planet.v1.TileTaken: %w", err)
 	}
-	posts, err := cpbootstrap.Subscribe(props.Events, "player-stats-messages",
+	posts, err := cpredis.Subscribe(ctx, streams, "player-stats-messages",
 		log_subscriber.New(message_sent_subscriber.New(recordStats), props.Logger))
 	if err != nil {
-		_ = db.Close()
+		closeStores()
 		return fmt.Errorf("failed to subscribe to chat.v1.MessageSent: %w", err)
 	}
-	bombs, err := cpbootstrap.Subscribe(props.Events, "player-stats-bombs",
+	bombs, err := cpredis.Subscribe(ctx, streams, "player-stats-bombs",
 		log_subscriber.New(bomb_landed_subscriber.New(recordStats), props.Logger))
 	if err != nil {
-		_ = db.Close()
+		closeStores()
 		return fmt.Errorf("failed to subscribe to planet.v1.BombLanded: %w", err)
 	}
-	fortifies, err := cpbootstrap.Subscribe(props.Events, "player-stats-fortifies",
+	fortifies, err := cpredis.Subscribe(ctx, streams, "player-stats-fortifies",
 		log_subscriber.New(fortified_subscriber.New(recordStats), props.Logger))
 	if err != nil {
-		_ = db.Close()
+		closeStores()
 		return fmt.Errorf("failed to subscribe to planet.v1.Fortified: %w", err)
 	}
-	claims, err := cpbootstrap.Subscribe(props.Events, "player-stats-bonuses",
+	claims, err := cpredis.Subscribe(ctx, streams, "player-stats-bonuses",
 		log_subscriber.New(bonus_claimed_subscriber.New(recordStats), props.Logger))
 	if err != nil {
-		_ = db.Close()
+		closeStores()
 		return fmt.Errorf("failed to subscribe to planet.v1.BonusClaimed: %w", err)
 	}
-	answers, err := cpbootstrap.Subscribe(props.Events, "player-stats-quizzes",
+	answers, err := cpredis.Subscribe(ctx, streams, "player-stats-quizzes",
 		log_subscriber.New(quiz_answered_subscriber.New(recordStats), props.Logger))
 	if err != nil {
-		_ = db.Close()
+		closeStores()
 		return fmt.Errorf("failed to subscribe to planet.v1.QuizAnswered: %w", err)
 	}
-	awards, err := cpbootstrap.Subscribe(props.Events, "player-titles",
+	awards, err := cpredis.Subscribe(ctx, streams, "player-titles",
 		log_subscriber.New(stats_changed_subscriber.New(notifying_award_titles.New(
 			award_titles_usecase.New(store, accounts, titleBook, clock), titleFeed,
 		)), props.Logger))
 	if err != nil {
-		_ = db.Close()
+		closeStores()
 		return fmt.Errorf("failed to subscribe to player.v1.StatsChanged: %w", err)
 	}
-	deletions, err := cpbootstrap.Subscribe(props.Events, "player-accounts",
+	deletions, err := cpredis.Subscribe(ctx, streams, "player-accounts",
 		log_subscriber.New(account_deleted_subscriber.New(forget_account_usecase.New(store)), props.Logger))
 	if err != nil {
-		_ = db.Close()
+		closeStores()
 		return fmt.Errorf("failed to subscribe to auth.v1.AccountDeleted: %w", err)
 	}
-	forgottenTitles, err := cpbootstrap.Subscribe(props.Events, "player-titles-accounts",
+	forgottenTitles, err := cpredis.Subscribe(ctx, streams, "player-titles-accounts",
 		log_subscriber.New(account_deleted_subscriber.New(forget_titles_usecase.New(titleStore)), props.Logger))
 	if err != nil {
-		_ = db.Close()
+		closeStores()
 		return fmt.Errorf("failed to subscribe the titles to auth.v1.AccountDeleted: %w", err)
 	}
-	forgottenChoices, err := cpbootstrap.Subscribe(props.Events, "player-wearing-accounts",
+	forgottenChoices, err := cpredis.Subscribe(ctx, streams, "player-wearing-accounts",
 		log_subscriber.New(account_deleted_subscriber.New(forget_worn_title_usecase.New(wornTitleStore)), props.Logger))
 	if err != nil {
-		_ = db.Close()
+		closeStores()
 		return fmt.Errorf("failed to subscribe the worn titles to auth.v1.AccountDeleted: %w", err)
 	}
 
 	forgetVisit := forget_visit_usecase.New(visits)
-	signIns, err := cpbootstrap.Subscribe(props.Events, "player-presence-sign-ins",
+	signIns, err := cpredis.Subscribe(ctx, streams, "player-presence-sign-ins",
 		log_subscriber.New(signed_in_subscriber.New(move_visit_usecase.New(authors, visits)), props.Logger))
 	if err != nil {
-		_ = db.Close()
+		closeStores()
 		return fmt.Errorf("failed to subscribe to auth.v1.SignedIn: %w", err)
 	}
-	namings, err := cpbootstrap.Subscribe(props.Events, "player-names-sign-ins",
+	namings, err := cpredis.Subscribe(ctx, streams, "player-names-sign-ins",
 		log_subscriber.New(signed_in_account_subscriber.New(renaming_name_account.New(
 			name_account_usecase.New(generatedNames, store, clock), visits,
 		)), props.Logger))
 	if err != nil {
-		_ = db.Close()
+		closeStores()
 		return fmt.Errorf("failed to subscribe the names to auth.v1.SignedIn: %w", err)
 	}
-	signOuts, err := cpbootstrap.Subscribe(props.Events, "player-presence-sign-outs",
+	signOuts, err := cpredis.Subscribe(ctx, streams, "player-presence-sign-outs",
 		log_subscriber.New(signed_out_subscriber.New(forgetVisit), props.Logger))
 	if err != nil {
-		_ = db.Close()
+		closeStores()
 		return fmt.Errorf("failed to subscribe to auth.v1.SignedOut: %w", err)
 	}
-	gone, err := cpbootstrap.Subscribe(props.Events, "player-presence-accounts",
+	gone, err := cpredis.Subscribe(ctx, streams, "player-presence-accounts",
 		log_subscriber.New(account_deleted_subscriber.New(forgetVisit), props.Logger))
 	if err != nil {
-		_ = db.Close()
+		closeStores()
 		return fmt.Errorf("failed to subscribe the roster to auth.v1.AccountDeleted: %w", err)
 	}
-	props.Runners.Add(signOuts)
-	props.Runners.Add(gone)
-
-	props.Runners.Add(cppg.CloseAfter(db, props.Logger, takes, posts, bombs, fortifies, claims, answers, awards, deletions,
-		forgottenTitles, forgottenChoices, signIns, namings))
+	// Not closers: closers run before the runners stop, and the runners use both.
+	props.Runners.Add(cppg.CloseAfter(db, props.Logger, cpredis.CloseAfter(streams, props.Logger,
+		takes, posts, bombs, fortifies, claims, answers, awards, deletions, forgottenTitles, forgottenChoices, signIns, namings,
+		signOuts, gone)))
 
 	verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", "player")))
 
@@ -322,6 +332,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 type Config struct {
 	Database cppg.Config
+	Redis    cpredis.Config
 
 	TagSalt string
 }
@@ -329,6 +340,9 @@ type Config struct {
 func (c Config) Validate() error {
 	if err := c.Database.Validate(); err != nil {
 		return fmt.Errorf("player.database: %w", err)
+	}
+	if err := c.Redis.Validate(); err != nil {
+		return fmt.Errorf("player.redis: %w", err)
 	}
 	return nil
 }

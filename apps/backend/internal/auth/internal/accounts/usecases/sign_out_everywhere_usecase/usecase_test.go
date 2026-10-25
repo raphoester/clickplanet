@@ -12,7 +12,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/inmemory_account_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/sign_out_everywhere_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -31,7 +31,7 @@ func TestEverySessionOfTheAccountEndsAndNoOther(t *testing.T) {
 	require.NoError(t, store.SaveSignIn(t.Context(), accounts.NewSignIn(phone), &authv1.SignedIn{}))
 	require.NoError(t, store.CreateGuest(t.Context(), other))
 
-	events := cpbootstrap.NewRecordedEvents()
+	events := cpredis.NewRecordedEvents()
 
 	setCookie, err := sign_out_everywhere_usecase.New(store, events, cptime.NewFixedClock(start)).Execute(t.Context(), "cp_sid=laptop")
 
@@ -50,7 +50,7 @@ func TestEverySessionOfTheAccountEndsAndNoOther(t *testing.T) {
 func TestNoLiveSessionIsNoAccount(t *testing.T) {
 	store := inmemory_account_store.New()
 	require.NoError(t, store.CreateGuest(t.Context(), accounts.GuestSession(accounts.AccountID{15: 1}, accounts.TokenOf("token-1"), lifetime, start)))
-	events := cpbootstrap.NewRecordedEvents()
+	events := cpredis.NewRecordedEvents()
 	useCase := sign_out_everywhere_usecase.New(store, events, cptime.NewFixedClock(start.Add(91*24*time.Hour)))
 
 	_, err := useCase.Execute(t.Context(), "cp_sid=token-1")

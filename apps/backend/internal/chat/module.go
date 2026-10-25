@@ -70,6 +70,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsessionverifier"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -102,6 +103,16 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to migrate the %s schema: %w", config.Database.Schema, err)
 	}
 
+	streams := cpredis.New(config.Redis, props.Metrics)
+	if err := streams.ConnectCtx(ctx); err != nil {
+		_ = db.Close()
+		return fmt.Errorf("failed to connect the chat to redis: %w", err)
+	}
+	closeStores := func() {
+		_ = streams.Close()
+		_ = db.Close()
+	}
+
 	storage := config.Storage.withDefaults()
 	messageStore := postgres_message_store.New(db)
 	reactionStore := postgres_reaction_store.New(db)
@@ -124,51 +135,51 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		message_ids.Provider{}, cptime.SystemClock{}, messages.NewLimits(config.Service.MaxTextLength), cpcountries.New())
 	thread := messages.NewThread(messageStore, authors, cptime.SystemClock{}, window)
 
-	bombs, err := cpbootstrap.Subscribe(props.Events, "chat-announcements-bombs",
+	bombs, err := cpredis.Subscribe(ctx, streams, "chat-announcements-bombs",
 		log_subscriber.New(bomb_landed_subscriber.New(announce), props.Logger))
 	if err != nil {
-		_ = db.Close()
+		closeStores()
 		return fmt.Errorf("failed to subscribe to planet.v1.BombLanded: %w", err)
 	}
 
-	fortifies, err := cpbootstrap.Subscribe(props.Events, "chat-announcements-fortifies",
+	fortifies, err := cpredis.Subscribe(ctx, streams, "chat-announcements-fortifies",
 		log_subscriber.New(fortified_subscriber.New(announce), props.Logger))
 	if err != nil {
-		_ = db.Close()
+		closeStores()
 		return fmt.Errorf("failed to subscribe to planet.v1.Fortified: %w", err)
 	}
 
-	deletions, err := cpbootstrap.Subscribe(props.Events, "chat-seen",
+	deletions, err := cpredis.Subscribe(ctx, streams, "chat-seen",
 		log_subscriber.New(account_deleted_subscriber.New(forget_seen_usecase.New(seenStore)), props.Logger))
 	if err != nil {
-		_ = db.Close()
+		closeStores()
 		return fmt.Errorf("failed to subscribe to auth.v1.AccountDeleted: %w", err)
 	}
 
-	mutings, err := cpbootstrap.Subscribe(props.Events, "chat-announcements-mutes",
+	mutings, err := cpredis.Subscribe(ctx, streams, "chat-announcements-mutes",
 		log_subscriber.New(account_muted_subscriber.New(announce_mute_usecase.New(authors, announce)), props.Logger))
 	if err != nil {
-		_ = db.Close()
+		closeStores()
 		return fmt.Errorf("failed to subscribe to chat.v1.AccountMuted: %w", err)
 	}
 
-	roundsClosed, err := cpbootstrap.Subscribe(props.Events, "chat-announcements-rounds",
+	roundsClosed, err := cpredis.Subscribe(ctx, streams, "chat-announcements-rounds",
 		log_subscriber.New(round_closed_subscriber.New(announce), props.Logger))
 	if err != nil {
-		_ = db.Close()
+		closeStores()
 		return fmt.Errorf("failed to subscribe to seasons.v1.RoundClosed: %w", err)
 	}
 
-	seasonsClosed, err := cpbootstrap.Subscribe(props.Events, "chat-announcements-seasons",
+	seasonsClosed, err := cpredis.Subscribe(ctx, streams, "chat-announcements-seasons",
 		log_subscriber.New(season_closed_subscriber.New(announce), props.Logger))
 	if err != nil {
-		_ = db.Close()
+		closeStores()
 		return fmt.Errorf("failed to subscribe to seasons.v1.SeasonClosed: %w", err)
 	}
 
-	// Not a closer: closers run before the runners stop, and the runners use the pool.
-	props.Runners.Add(cppg.CloseAfter(db, props.Logger,
-		prune_usecase.NewRunner(storage.PruneInterval, prune), bombs, fortifies, deletions, mutings, roundsClosed, seasonsClosed))
+	// Not closers: closers run before the runners stop, and the runners use both.
+	props.Runners.Add(cppg.CloseAfter(db, props.Logger, prune_usecase.NewRunner(storage.PruneInterval, prune),
+		cpredis.CloseAfter(streams, props.Logger, bombs, fortifies, deletions, mutings, roundsClosed, seasonsClosed)))
 
 	messageLimiter := cpratelimit.New("message-limiter", config.RateLimiter, cptime.SystemClock{})
 	props.Runners.Add(messageLimiter)
@@ -186,7 +197,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	chatService := chatv1controller.ChatService{
 		SendMessageHandler: send_message_handler.New(muting_send_message.New(publishing_send_message.New(send_message_usecase.New(
-			messageStore, updates, authors, drafts, thread), props.Events), muteBook)),
+			messageStore, updates, authors, drafts, thread), streams), muteBook)),
 		GetHistoryHandler: get_history_handler.New(history_query.NewPostgresQuery(
 			db, history_authors.New(player), cptime.SystemClock{}, storage.HistorySize, storage.Retention)),
 		ListenForEventsHandler: listen_for_events_handler.New(
@@ -213,7 +224,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	adminService := chatv1controller.AdminService{
 		MuteHandler: mute_handler.New(audit_mute.New(publishing_mute.New(
-			mute_usecase.New(muteStore, messageStore, mute_ids.Provider{}, cptime.SystemClock{}), props.Events),
+			mute_usecase.New(muteStore, messageStore, mute_ids.Provider{}, cptime.SystemClock{}), streams),
 			props.Logger)),
 		RemoveMessageHandler: remove_message_handler.New(audit_remove.New(
 			remove_message_usecase.New(messageStore, removalStore, updates, window, cptime.SystemClock{}), props.Logger)),
@@ -234,6 +245,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 type Config struct {
 	Database cppg.Config
+	Redis    cpredis.Config
 
 	Storage StorageConfig
 	// Keep the name: it sets the chat.service.* config keys.
@@ -275,6 +287,9 @@ func (c StorageConfig) withDefaults() StorageConfig {
 func (c Config) Validate() error {
 	if err := c.Database.Validate(); err != nil {
 		return fmt.Errorf("chat.database: %w", err)
+	}
+	if err := c.Redis.Validate(); err != nil {
+		return fmt.Errorf("chat.redis: %w", err)
 	}
 	return nil
 }

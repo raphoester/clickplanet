@@ -984,7 +984,8 @@ consumer group per subscriber. Nothing publishes a port: only the backend
 reaches it, over the compose network. The API refuses to start without it.
 
 **The password is the `REDIS_PASSWORD` Actions secret**, which reaches both
-`.env` (the server's `--requirepass`) and `.env.backend` (`events.password`).
+`.env` (the server's `--requirepass`) and `.env.backend` (each module's
+`redis.password`).
 `bootstrap.sh` generates one on a fresh box; on a box set up before, create it
 before the deploy that brings Redis:
 
@@ -998,9 +999,18 @@ Redis reads it at each start, so a new value takes effect once both restart.
 `maxmemory` is 64 MB with `noeviction`: a full Redis refuses new events rather
 than drop unread ones. A stream is trimmed every minute down to what its
 slowest subscriber has not handled, so it stays small while every subscriber
-keeps up; `events.maxLen` (100k) caps one that stops.
+keeps up; `redis.maxLen` (100k) caps one that stops.
 
-An event a subscriber failed `events.maxDeliveries` times (8, about four
+Each module of `backend.yaml` has its own `redis` block, and all of them name
+the same server. A subscriber renamed or removed in a release leaves its
+consumer group behind, which holds its stream at `redis.maxLen`. Destroy it once
+the release is out:
+
+```bash
+docker compose exec redis redis-cli XGROUP DESTROY events:<type> <old subscriber>
+```
+
+An event a subscriber failed `redis.maxDeliveries` times (8, about four
 minutes of retries) is moved to `events:dead` and counted in
 `events_dead_total`. To read them:
 

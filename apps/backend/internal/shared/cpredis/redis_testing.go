@@ -1,6 +1,6 @@
 //go:build testing
 
-package cpbootstrap
+package cpredis
 
 import (
 	"context"
@@ -37,9 +37,13 @@ func (r *RecordedEvents) Published() []proto.Message {
 	return append([]proto.Message(nil), r.events...)
 }
 
-const testRedisImage = "redis:7.4-alpine"
+const testImage = "redis:7.4-alpine"
 
-func StartTestRedis(t testing.TB) EventsConfig {
+type TestServer struct {
+	config Config
+}
+
+func StartTestServer(t testing.TB) *TestServer {
 	t.Helper()
 
 	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Minute)
@@ -47,7 +51,7 @@ func StartTestRedis(t testing.TB) EventsConfig {
 
 	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
-			Image:        testRedisImage,
+			Image:        testImage,
 			ExposedPorts: []string{"6379/tcp"},
 			WaitingFor: wait.ForAll(wait.ForLog("Ready to accept connections"), wait.ForListeningPort("6379/tcp")).
 				WithDeadline(time.Minute),
@@ -60,5 +64,9 @@ func StartTestRedis(t testing.TB) EventsConfig {
 	endpoint, err := container.PortEndpoint(ctx, "6379", "")
 	require.NoError(t, err, "failed to get the test redis endpoint")
 
-	return EventsConfig{Address: endpoint, RetryAfter: 50 * time.Millisecond}
+	return &TestServer{config: Config{Address: endpoint, RetryAfter: 50 * time.Millisecond}}
+}
+
+func (s *TestServer) Config() Config {
+	return s.config
 }

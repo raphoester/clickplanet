@@ -9,7 +9,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/record_stats_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 )
 
 type UseCase interface {
@@ -24,7 +24,7 @@ type Subscriber struct {
 	useCase UseCase
 }
 
-var _ cpbootstrap.Handler[*chatv1.MessageSent] = Subscriber{}
+var _ cpredis.Handler[*chatv1.MessageSent] = Subscriber{}
 
 var errNoTime = errors.New("the message has no time")
 

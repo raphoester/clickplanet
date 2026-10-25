@@ -10,7 +10,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 )
 
 type UseCase interface {
@@ -25,7 +25,7 @@ type Subscriber struct {
 	useCase UseCase
 }
 
-var _ cpbootstrap.Handler[*chatv1.AccountMuted] = Subscriber{}
+var _ cpredis.Handler[*chatv1.AccountMuted] = Subscriber{}
 
 var (
 	errNoAccount  = errors.New("the mute names no account")

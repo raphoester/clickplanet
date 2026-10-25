@@ -13,7 +13,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/inmemory_player_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/record_stats_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 )
 
 var (
@@ -23,7 +23,7 @@ var (
 
 func TestEachChangeIsRecordedAndSaysTheStatsChanged(t *testing.T) {
 	store := inmemory_player_store.New()
-	events := cpbootstrap.NewRecordedEvents()
+	events := cpredis.NewRecordedEvents()
 	useCase := record_stats_usecase.New(store, events)
 
 	require.NoError(t, useCase.Execute(t.Context(), record_stats_usecase.In{Account: ada, Change: players.TakeAt(0, at)}))
@@ -39,7 +39,7 @@ func TestEachChangeIsRecordedAndSaysTheStatsChanged(t *testing.T) {
 func TestAStoreFailureIsAnErrorAndSaysNothing(t *testing.T) {
 	store := inmemory_player_store.New()
 	store.FailWith(errors.New("postgres is down"))
-	events := cpbootstrap.NewRecordedEvents()
+	events := cpredis.NewRecordedEvents()
 
 	err := record_stats_usecase.New(store, events).Execute(t.Context(), record_stats_usecase.In{Account: ada, Change: players.MessageAt(at)})
 

@@ -26,6 +26,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconnect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support"
 )
@@ -58,7 +59,7 @@ func startGameWith(t *testing.T, adjust func(stackConfigs)) gameStack {
 	t.Helper()
 
 	postgres := cppg.StartTestServer(t)
-	events := cpbootstrap.StartTestRedis(t)
+	redis := cpredis.StartTestServer(t).Config()
 	secret, _ := cpsession.TestKeyPair()
 	public, internal, console, admin := listen(t), listen(t), listen(t), listen(t)
 	server := cpbootstrap.ServerConfig{
@@ -71,28 +72,30 @@ func startGameWith(t *testing.T, adjust func(stackConfigs)) gameStack {
 	authConfig := auth.Config{
 		SignerConfig: cpsession.SignerConfig{Enabled: true, Secret: secret, TTL: time.Hour},
 		Database:     postgres.ConfigFor("auth"),
+		Redis:        redis,
 	}
 	authConfig.RateLimiter.PerSecond = 100
 	authConfig.RateLimiter.Burst = 100
 
-	planetConfig := planet.Config{Database: postgres.ConfigFor("planet")}
+	planetConfig := planet.Config{Database: postgres.ConfigFor("planet"), Redis: redis}
 	planetConfig.GameMap.MaxIndex = mapTiles
 	planetConfig.Auth = cpsession.VerifierConfig{Enabled: true, Enforce: true}
 	planetConfig.RateLimiter.PerSecond = 100
 	planetConfig.RateLimiter.Burst = 100
 	planetConfig.RateLimiter.ScopeMultiplier = 1
 
-	playerConfig := player.Config{Database: postgres.ConfigFor("player"), TagSalt: "pepper"}
+	playerConfig := player.Config{Database: postgres.ConfigFor("player"), Redis: redis, TagSalt: "pepper"}
 
 	seasonsConfig := currentSeason(t, postgres.ConfigFor("seasons"))
 	seasonsConfig.Snapshot.Interval = 50 * time.Millisecond
+	seasonsConfig.Redis = redis
 
-	chatConfig := chat.Config{Database: postgres.ConfigFor("chat")}
+	chatConfig := chat.Config{Database: postgres.ConfigFor("chat"), Redis: redis}
 	chatConfig.RateLimiter.PerSecond = 100
 	chatConfig.RateLimiter.Burst = 100
 
 	bucket := startBucket(t)
-	supportConfig := support.Config{Database: postgres.ConfigFor("support")}
+	supportConfig := support.Config{Database: postgres.ConfigFor("support"), Redis: redis}
 	supportConfig.Attachments.Enabled = true
 	supportConfig.Attachments.Bucket.Endpoint = bucket.url
 	supportConfig.Attachments.Bucket.Region = "auto"
@@ -112,7 +115,6 @@ func startGameWith(t *testing.T, adjust func(stackConfigs)) gameStack {
 	go func() {
 		done <- cpbootstrap.RunOn(ctx, cpbootstrap.Options{
 			Server: server,
-			Events: events,
 			Logger: logger,
 			Modules: []cpbootstrap.Module{
 				authModule, planet.NewModule(planetConfig), player.NewModule(playerConfig), chat.NewModule(chatConfig),
