@@ -8,6 +8,7 @@ export const LEAVE_GRACE_MS = 300
 export type HolderShown = {
     line: PlayerLine
     playsFor: CountryTiles[]
+    mine: boolean
     takenAt: number
     point: Point
     touch: boolean
@@ -29,11 +30,14 @@ export function useTileHolder(
         const {peek, id} = pointing
         const asking = new AbortController()
         const ask = async () => {
-            const held = holderShown(await holders.tileHolder(peek.tile, asking.signal), peek, ownAccountId)
+            const held = holderShown(await holders.tileHolder(peek.tile, asking.signal), peek)
             const info = held && await players.playerInfo(held.accountId)
             if (asking.signal.aborted) return
             setHolder(held && info
-                ? {line: lineOf(held, info), playsFor: info.playsFor, takenAt: held.takenAt, point: peek.point, touch: peek.touch, id}
+                ? {
+                    line: lineOf(held, info), playsFor: info.playsFor, mine: held.accountId === ownAccountId,
+                    takenAt: held.takenAt, point: peek.point, touch: peek.touch, id,
+                }
                 : undefined)
         }
         ask().catch((e) => {
