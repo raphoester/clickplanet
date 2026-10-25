@@ -23,6 +23,16 @@ export interface OwnershipsGetter {
     getFortresses(signal?: AbortSignal): Promise<Map<number, string>>
 }
 
+export type TileHolder = {
+    accountId: string
+    countryCode: string
+    takenAt: number
+}
+
+export interface TileHolders {
+    tileHolder(tile: number, signal?: AbortSignal): Promise<TileHolder | undefined>
+}
+
 export type Update = {
     tile: number,
     previousCountry: string | undefined,
