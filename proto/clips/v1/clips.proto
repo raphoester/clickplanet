@@ -13,6 +13,52 @@ message Story {
   string title = 1;
   StoryKey key = 2;
   repeated string countries = 3;
+  // What the generator knows of the story before it renders it, for the job's editor to judge it by.
+  StoryFacts facts = 4;
+  // The headline said in other words, as the clip's caption would pick from: an editor's headline must not be one.
+  repeated string teasers = 5;
+}
+
+// What a story of the shortlist is, as numbers the generator already worked out to find it. The same units as
+// GlobeReplay's, which a rendered clip records: a story's facts are what its clip would record, before the camera.
+// Additive only, as ClipRecord.
+message StoryFacts {
+  // As GlobeReplay.story_kind: "attack", "invasion", "comeback", "kickout", "rout", "battle", "holding", "round",
+  // "callup".
+  string kind = 1;
+  // The place the headline names and the counter counts in, as the clip says it in English: "Europe", "France",
+  // "the world".
+  string place = 2;
+  // "front" follows the fighting of one place, "tour" flies over the continents of a flag taking the world.
+  string camera = 3;
+  // The flag that took the most there (the holder of a holding, the winner of a day), the flag it fights in a
+  // battle, and the flags it took from, best first: country codes.
+  string attacker = 4;
+  string rival = 5;
+  repeated string taken_from = 6;
+  // How each country code of the story is said in a clip: "pw": "Palau", "gb": "the UK".
+  map<string, string> names = 7;
+  // The line under the headline, when it has one: "The battle for France", "Leads the season with 86 points".
+  string line = 8;
+  // The language of its words: "en", or the country's own for a call-up ("pl").
+  string language = 9;
+  // How much of the replay's time the clip would play, quiet stretches included, and when that stretch ends.
+  double span_minutes = 10;
+  google.protobuf.Timestamp story_ended_at = 11;
+  uint32 tiles_changed = 12;
+  uint32 story_tiles_changed = 13;
+  uint32 place_tiles = 14;
+  uint32 flag_tiles_start = 15;
+  uint32 flag_tiles_end = 16;
+  uint32 bombs = 17;
+  uint32 spreads = 18;
+  uint32 enclosures = 19;
+  double solidity = 20;
+  // A holding's share of its place, from 0 to 1; 0 for any other kind.
+  double share = 21;
+  // How the generator ranked what changed: tiles taken over the square root of the hours, times the countries they
+  // were taken in. 0 for a holding, a day and a call-up, which it ranks apart.
+  double score = 22;
 }
 
 message Clip {

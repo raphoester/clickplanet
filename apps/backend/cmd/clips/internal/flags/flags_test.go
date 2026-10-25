@@ -50,6 +50,7 @@ func TestFetchTakesItsHostFromTheEnvironmentAndAFlagWinsOverIt(t *testing.T) {
 
 func TestChooseFlagsSayWhichShortlistHowManyClipsAndTheKeyToReadWhatWasTold(t *testing.T) {
 	t.Setenv(flags.KeyVariable, "the-key")
+	t.Setenv(flags.EditorKeyVariable, "")
 
 	parsed, err := flags.Parse([]string{"choose", "-shortlist", "shortlist.json", "-count", "3"})
 
@@ -57,6 +58,32 @@ func TestChooseFlagsSayWhichShortlistHowManyClipsAndTheKeyToReadWhatWasTold(t *t
 	job := clips.Config{PerRun: 3}
 	job.Zernio.APIKey = "the-key"
 	assert.Equal(t, flags.Config{Command: flags.Choose, ShortlistFile: "shortlist.json", Job: job}, parsed)
+}
+
+func TestChooseTakesTheEditorsKeyAndWhereItSaysWhoChose(t *testing.T) {
+	t.Setenv(flags.KeyVariable, "the-key")
+	t.Setenv(flags.EditorKeyVariable, "sk-ant-key")
+
+	parsed, err := flags.Parse([]string{"choose", "-shortlist", "shortlist.json", "-summary", "summary.md"})
+
+	require.NoError(t, err)
+	assert.Equal(t, "sk-ant-key", parsed.Job.Anthropic.APIKey)
+	assert.Equal(t, "summary.md", parsed.SummaryFile)
+}
+
+func TestEditFlagsSayWhichShortlistHowManyClipsAndWhetherOnlyThePrompt(t *testing.T) {
+	t.Setenv(flags.KeyVariable, "")
+	t.Setenv(flags.EditorKeyVariable, "sk-ant-key")
+
+	parsed, err := flags.Parse([]string{"edit", "-shortlist", "shortlist.json", "-count", "3", "-prompt"})
+
+	require.NoError(t, err)
+	job := clips.Config{PerRun: 3}
+	job.Anthropic.APIKey = "sk-ant-key"
+	assert.Equal(t, flags.Config{Command: flags.Edit, ShortlistFile: "shortlist.json", PromptOnly: true, Job: job}, parsed)
+
+	_, err = flags.Parse([]string{"edit"})
+	require.ErrorIs(t, err, flags.ErrArguments)
 }
 
 func TestScheduleFlagsSayWhichClipsWhenAndWhereTheSummaryGoes(t *testing.T) {

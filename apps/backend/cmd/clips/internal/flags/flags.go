@@ -14,7 +14,8 @@ import (
 
 const usage = `usage:
   clips fetch -out <replay.json> [-race <race.json>] [-season <season.json>] [-ssh <user@host>] [-hours 72] [-until <2026-10-12T12:00:00Z>]
-  clips choose -shortlist <shortlist.json> [-count 2] [-platforms tiktok,youtube]
+  clips choose -shortlist <shortlist.json> [-count 2] [-platforms tiktok,youtube] [-summary <file>]
+  clips edit -shortlist <shortlist.json> [-count 2] [-prompt]
   clips schedule -clips <folder> [-review 0] [-spacing 1h] [-platforms tiktok,youtube] [-summary <file>]
   clips stats [-ssh <user@host>] [-since 2026-10-13]
 
@@ -29,7 +30,11 @@ TikTok, 8 on YouTube. schedule sends every clip of the folder to the posting ser
 room left, as soon as it can with no -review, and never sooner than -spacing after the last post on each; it refuses a
 clip in an arm no experiment has. stats keeps a snapshot of the numbers of every post of the job scheduled since the
 date, default the last 4 weeks, in the backend's postgres, over ssh as fetch asks: a row for each platform of each
-post. All three need ZERNIO_API_KEY.`
+post. All three need ZERNIO_API_KEY. On a run the experiment "editor" draws for the model, choose asks Claude
+(ANTHROPIC_API_KEY) to rank the stories the rules let through and write their headlines, and makes the run by the
+rules when it cannot; -summary adds who chose, and what the call cost, to that file. edit tries the editor on a saved
+shortlist, as many clips as -count, the told stories read when ZERNIO_API_KEY is set: -prompt prints what it would be
+sent, counted when ANTHROPIC_API_KEY is set, and asks for no answer.`
 
 type Command string
 
@@ -37,12 +42,14 @@ const (
 	Fetch    Command = "fetch"
 	Choose   Command = "choose"
 	Schedule Command = "schedule"
+	Edit     Command = "edit"
 	Stats    Command = "stats"
 )
 
 const (
-	KeyVariable  = "ZERNIO_API_KEY"
-	HostVariable = "CLICKPLANET_SSH"
+	KeyVariable       = "ZERNIO_API_KEY"
+	EditorKeyVariable = "ANTHROPIC_API_KEY"
+	HostVariable      = "CLICKPLANET_SSH"
 )
 
 var ErrArguments = errors.New("wrong arguments")
@@ -57,8 +64,10 @@ type Config struct {
 	SeasonFile    string
 	ShortlistFile string
 	ClipsFolder   string
-	// Empty is the standard output.
+	// Empty is the standard output for schedule, and none for choose, whose standard output is the picks.
 	SummaryFile string
+	// edit: print the prompt, ask for no answer.
+	PromptOnly bool
 
 	Job clips.Config
 }
@@ -75,6 +84,8 @@ func Parse(args []string) (Config, error) {
 		return parseChoose(args[1:])
 	case Schedule:
 		return parseSchedule(args[1:])
+	case Edit:
+		return parseEdit(args[1:])
 	case Stats:
 		return parseStats(args[1:])
 	default:
@@ -113,10 +124,12 @@ func parseFetch(args []string) (Config, error) {
 func parseChoose(args []string) (Config, error) {
 	parsed := Config{Command: Choose}
 	parsed.Job.Zernio.APIKey = os.Getenv(KeyVariable)
+	parsed.Job.Anthropic.APIKey = os.Getenv(EditorKeyVariable)
 
 	flags := flag.NewFlagSet(string(Choose), flag.ContinueOnError)
 	flags.StringVar(&parsed.ShortlistFile, "shortlist", "", "the file the generator's --shortlist wrote")
 	flags.IntVar(&parsed.Job.PerRun, "count", 0, "how many clips a run schedules at most")
+	flags.StringVar(&parsed.SummaryFile, "summary", "", "the file who chose the run is added to, default none")
 	platforms := flags.String("platforms", "", "where each clip goes, default every platform")
 	if err := flags.Parse(args); err != nil {
 		return Config{}, misused(err)
@@ -125,6 +138,24 @@ func parseChoose(args []string) (Config, error) {
 		return Config{}, misused(ErrArguments)
 	}
 	return withPlatforms(parsed, *platforms)
+}
+
+func parseEdit(args []string) (Config, error) {
+	parsed := Config{Command: Edit}
+	parsed.Job.Zernio.APIKey = os.Getenv(KeyVariable)
+	parsed.Job.Anthropic.APIKey = os.Getenv(EditorKeyVariable)
+
+	flags := flag.NewFlagSet(string(Edit), flag.ContinueOnError)
+	flags.StringVar(&parsed.ShortlistFile, "shortlist", "", "the file the generator's --shortlist wrote")
+	flags.IntVar(&parsed.Job.PerRun, "count", 0, "how many clips the run makes, default 2")
+	flags.BoolVar(&parsed.PromptOnly, "prompt", false, "print what the model would be sent, and ask for no answer")
+	if err := flags.Parse(args); err != nil {
+		return Config{}, misused(err)
+	}
+	if parsed.ShortlistFile == "" {
+		return Config{}, misused(ErrArguments)
+	}
+	return parsed, nil
 }
 
 func parseSchedule(args []string) (Config, error) {

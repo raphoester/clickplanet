@@ -64,6 +64,20 @@ export class Story extends Message<Story> {
    */
   countries: string[] = [];
 
+  /**
+   * What the generator knows of the story before it renders it, for the job's editor to judge it by.
+   *
+   * @generated from field: clips.v1.StoryFacts facts = 4;
+   */
+  facts?: StoryFacts;
+
+  /**
+   * The headline said in other words, as the clip's caption would pick from: an editor's headline must not be one.
+   *
+   * @generated from field: repeated string teasers = 5;
+   */
+  teasers: string[] = [];
+
   constructor(data?: PartialMessage<Story>) {
     super();
     proto3.util.initPartial(data, this);
@@ -75,6 +89,8 @@ export class Story extends Message<Story> {
     { no: 1, name: "title", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "key", kind: "message", T: StoryKey },
     { no: 3, name: "countries", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 4, name: "facts", kind: "message", T: StoryFacts },
+    { no: 5, name: "teasers", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Story {
@@ -91,6 +107,197 @@ export class Story extends Message<Story> {
 
   static equals(a: Story | PlainMessage<Story> | undefined, b: Story | PlainMessage<Story> | undefined): boolean {
     return proto3.util.equals(Story, a, b);
+  }
+}
+
+/**
+ * What a story of the shortlist is, as numbers the generator already worked out to find it. The same units as
+ * GlobeReplay's, which a rendered clip records: a story's facts are what its clip would record, before the camera.
+ * Additive only, as ClipRecord.
+ *
+ * @generated from message clips.v1.StoryFacts
+ */
+export class StoryFacts extends Message<StoryFacts> {
+  /**
+   * As GlobeReplay.story_kind: "attack", "invasion", "comeback", "kickout", "rout", "battle", "holding", "round",
+   * "callup".
+   *
+   * @generated from field: string kind = 1;
+   */
+  kind = "";
+
+  /**
+   * The place the headline names and the counter counts in, as the clip says it in English: "Europe", "France",
+   * "the world".
+   *
+   * @generated from field: string place = 2;
+   */
+  place = "";
+
+  /**
+   * "front" follows the fighting of one place, "tour" flies over the continents of a flag taking the world.
+   *
+   * @generated from field: string camera = 3;
+   */
+  camera = "";
+
+  /**
+   * The flag that took the most there (the holder of a holding, the winner of a day), the flag it fights in a
+   * battle, and the flags it took from, best first: country codes.
+   *
+   * @generated from field: string attacker = 4;
+   */
+  attacker = "";
+
+  /**
+   * @generated from field: string rival = 5;
+   */
+  rival = "";
+
+  /**
+   * @generated from field: repeated string taken_from = 6;
+   */
+  takenFrom: string[] = [];
+
+  /**
+   * How each country code of the story is said in a clip: "pw": "Palau", "gb": "the UK".
+   *
+   * @generated from field: map<string, string> names = 7;
+   */
+  names: { [key: string]: string } = {};
+
+  /**
+   * The line under the headline, when it has one: "The battle for France", "Leads the season with 86 points".
+   *
+   * @generated from field: string line = 8;
+   */
+  line = "";
+
+  /**
+   * The language of its words: "en", or the country's own for a call-up ("pl").
+   *
+   * @generated from field: string language = 9;
+   */
+  language = "";
+
+  /**
+   * How much of the replay's time the clip would play, quiet stretches included, and when that stretch ends.
+   *
+   * @generated from field: double span_minutes = 10;
+   */
+  spanMinutes = 0;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp story_ended_at = 11;
+   */
+  storyEndedAt?: Timestamp;
+
+  /**
+   * @generated from field: uint32 tiles_changed = 12;
+   */
+  tilesChanged = 0;
+
+  /**
+   * @generated from field: uint32 story_tiles_changed = 13;
+   */
+  storyTilesChanged = 0;
+
+  /**
+   * @generated from field: uint32 place_tiles = 14;
+   */
+  placeTiles = 0;
+
+  /**
+   * @generated from field: uint32 flag_tiles_start = 15;
+   */
+  flagTilesStart = 0;
+
+  /**
+   * @generated from field: uint32 flag_tiles_end = 16;
+   */
+  flagTilesEnd = 0;
+
+  /**
+   * @generated from field: uint32 bombs = 17;
+   */
+  bombs = 0;
+
+  /**
+   * @generated from field: uint32 spreads = 18;
+   */
+  spreads = 0;
+
+  /**
+   * @generated from field: uint32 enclosures = 19;
+   */
+  enclosures = 0;
+
+  /**
+   * @generated from field: double solidity = 20;
+   */
+  solidity = 0;
+
+  /**
+   * A holding's share of its place, from 0 to 1; 0 for any other kind.
+   *
+   * @generated from field: double share = 21;
+   */
+  share = 0;
+
+  /**
+   * How the generator ranked what changed: tiles taken over the square root of the hours, times the countries they
+   * were taken in. 0 for a holding, a day and a call-up, which it ranks apart.
+   *
+   * @generated from field: double score = 22;
+   */
+  score = 0;
+
+  constructor(data?: PartialMessage<StoryFacts>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "clips.v1.StoryFacts";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "kind", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "place", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "camera", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "attacker", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "rival", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 6, name: "taken_from", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 7, name: "names", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "scalar", T: 9 /* ScalarType.STRING */} },
+    { no: 8, name: "line", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 9, name: "language", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 10, name: "span_minutes", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 11, name: "story_ended_at", kind: "message", T: Timestamp },
+    { no: 12, name: "tiles_changed", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 13, name: "story_tiles_changed", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 14, name: "place_tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 15, name: "flag_tiles_start", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 16, name: "flag_tiles_end", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 17, name: "bombs", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 18, name: "spreads", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 19, name: "enclosures", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 20, name: "solidity", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 21, name: "share", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 22, name: "score", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): StoryFacts {
+    return new StoryFacts().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): StoryFacts {
+    return new StoryFacts().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): StoryFacts {
+    return new StoryFacts().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: StoryFacts | PlainMessage<StoryFacts> | undefined, b: StoryFacts | PlainMessage<StoryFacts> | undefined): boolean {
+    return proto3.util.equals(StoryFacts, a, b);
   }
 }
 

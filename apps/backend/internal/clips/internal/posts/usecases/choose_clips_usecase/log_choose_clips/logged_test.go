@@ -105,3 +105,19 @@ func TestEachChosenStoryIsLoggedWithTheArmsOfItsClip(t *testing.T) {
 	assert.Contains(t, logs, `title=BEST flag=dz continent=Africa countries="" arms="length short"`)
 	assert.Contains(t, logs, `title=SECOND flag=fr continent=Europe countries=""`+"\n")
 }
+
+func TestWhoEditedTheRunIsLoggedWithWhatTheModelCost(t *testing.T) {
+	spend := posts.Spend{Model: "claude-haiku-5-5", InputTokens: 4200, CacheWriteTokens: 1800, OutputTokens: 600, USD: 0.00095}
+
+	asked, err := run(t, stubExecutor{choice: posts.Choice{Editorial: posts.Editorial{Arm: "model", Asked: true, Why: "fresher", Spend: spend}}})
+	require.NoError(t, err)
+	fellBack, err := run(t, stubExecutor{choice: posts.Choice{Editorial: posts.Editorial{Arm: "model", FellBack: "no ANTHROPIC_API_KEY"}}})
+	require.NoError(t, err)
+	ruled, err := run(t, stubExecutor{choice: posts.Choice{Editorial: posts.Editorial{Arm: "rules"}}})
+	require.NoError(t, err)
+
+	assert.Contains(t, asked, `msg="the model edited the run" editor=model model=claude-haiku-5-5 input_tokens=4200 `+
+		`cache_write_tokens=1800 cache_read_tokens=0 output_tokens=600 usd=0.00095 why=fresher`)
+	assert.Contains(t, fellBack, `level=WARN msg="the model's run is made by the rules" editor=model why="no ANTHROPIC_API_KEY"`)
+	assert.Contains(t, ruled, `msg="the run is edited" editor=rules`)
+}

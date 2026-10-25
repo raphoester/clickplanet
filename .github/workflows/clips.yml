@@ -87,7 +87,7 @@ jobs:
           path: apps/frontend/shortlist.json
           retention-days: 1
 
-  # Its own job: the Zernio key is in no job that installs the frontend's dependencies.
+  # Its own job: the Zernio and Anthropic keys are in no job that installs the frontend's dependencies.
   choose:
     needs: shortlist
     runs-on: ubuntu-latest
@@ -107,15 +107,19 @@ jobs:
           name: shortlist
 
       # Up to 2, within what each platform has left of its trailing day, each with the arm of each experiment its
-      # clip is in: [{"pick":1,"variants":{"length":"short"}}].
+      # clip is in, and the model's headline on a run the experiment "editor" drew for it:
+      # [{"pick":1,"variants":{"editor":"model","length":"short"},"headline":"BRAZIL STORMS ARGENTINA"}].
+      # Who chose, and what the model's call cost, go to the summary; a model that fails leaves the run to the rules.
       - name: choose the clips of the run
         id: choose
         working-directory: apps/backend
         env:
           ZERNIO_API_KEY: ${{ secrets.ZERNIO_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           PLATFORMS: ${{ vars.CLIPS_PLATFORMS }}
         run: |
-          picks=$(go run ./cmd/clips choose -shortlist "$GITHUB_WORKSPACE/shortlist.json" -platforms "$PLATFORMS")
+          picks=$(go run ./cmd/clips choose -shortlist "$GITHUB_WORKSPACE/shortlist.json" -platforms "$PLATFORMS" \
+            -summary "$GITHUB_STEP_SUMMARY")
           echo "picks=$picks" >> "$GITHUB_OUTPUT"
 
       - if: steps.choose.outputs.picks == '[]'
@@ -158,15 +162,18 @@ jobs:
           path: apps/frontend
 
       # One recorder: with no GPU each one draws every frame, so a second one adds nothing. The generator applies the
-      # arms it acts on, and writes every arm into the clip's record for schedule.
+      # arms it acts on, and writes every arm into the clip's record for schedule. The model's headline goes through
+      # the environment, never into the script: it is the model's text.
       - name: render the clip
         env:
           PICK: ${{ matrix.clip.pick }}
           VARIANTS: ${{ toJSON(matrix.clip.variants) }}
+          HEADLINE: ${{ matrix.clip.headline }}
         run: |
           race=$([ -f race.json ] && echo "--race race.json" || true)
           season=$([ -f season.json ] && echo "--season season.json" || true)
-          npm run clip -- --replay replay.json $race $season --pick "$PICK" --variants "$VARIANTS" --recorders 1
+          npm run clip -- --replay replay.json $race $season --pick "$PICK" --variants "$VARIANTS" --recorders 1 \
+            ${HEADLINE:+--headline "$HEADLINE"}
 
       - uses: actions/upload-artifact@v4
         with:

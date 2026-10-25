@@ -56,7 +56,14 @@ type Story struct {
 	Key   StoryKey
 	// Every country the clip shows, the key's flag among them or not.
 	Countries []string
+	// The headline said in other words, as the caption picks from.
+	Teasers []string
+	// What the generator measured of it, for the editor; none from a generator that writes none.
+	Facts StoryFacts
 }
+
+// A clips.v1.StoryFacts as the generator wrote it, in protojson: the editor reads it, the rules never do.
+type StoryFacts []byte
 
 func (s Story) flags() *cpcolls.Set[string] {
 	return flagsOf(s.Key, s.Countries)
@@ -117,18 +124,24 @@ type Choice struct {
 	Room int
 	// Each story chosen, in the same order, with the arm of each experiment its clip is in: what the run renders.
 	Assigned []Assignment
+	// Who chose: the rules, or the model and how that went.
+	Editorial Editorial
 }
 
 // A day of the season won goes first, whatever the posts showed: it is the day's news. Then a run tells each angle it
 // has once before it tells any twice, the freshest flag first: on Oct 18 a run skipped 8 of its 13 stories as told,
 // nearly all one flag in Europe, and a holding is a new story for that flag.
 func (s Shortlist) Best(count int, told []Telling, now time.Time) Choice {
-	past := pastOf(told, now)
+	return s.walk(count, pastOf(told, now), s.next)
+}
+
+// The rules' walk, one story at a time, each told before the next is looked for: next is which story comes next.
+func (s Shortlist) walk(count int, past *past, next func(*past, *cpcolls.Set[Angle]) (Story, bool)) Choice {
 	chosen := cpcolls.NewSet[Pick]()
 	angles := cpcolls.NewSet[Angle]()
 	var last Pick
 	for chosen.Len() < count {
-		story, found := s.next(past, angles)
+		story, found := next(past, angles)
 		if !found {
 			break
 		}
@@ -153,15 +166,22 @@ func (s Shortlist) Best(count int, told []Telling, now time.Time) Choice {
 }
 
 func (s Shortlist) next(past *past, told *cpcolls.Set[Angle]) (Story, bool) {
-	for _, story := range s {
-		if story.Key.Angle == DayWon && past.untold(story) {
-			return story, true
-		}
+	if story, found := s.dayWon(past); found {
+		return story, true
 	}
 	if story, found := s.freshest(past, func(story Story) bool { return !told.Contains(story.Key.Angle) }); found {
 		return story, true
 	}
 	return s.freshest(past, func(Story) bool { return true })
+}
+
+func (s Shortlist) dayWon(past *past) (Story, bool) {
+	for _, story := range s {
+		if story.Key.Angle == DayWon && past.untold(story) {
+			return story, true
+		}
+	}
+	return Story{}, false
 }
 
 func (s Shortlist) freshest(past *past, among func(Story) bool) (Story, bool) {

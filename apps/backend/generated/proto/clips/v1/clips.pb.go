@@ -68,10 +68,14 @@ func (x *Shortlist) GetStories() []*Story {
 }
 
 type Story struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Title         string                 `protobuf:"bytes,1,opt,name=title,proto3" json:"title,omitempty"`
-	Key           *StoryKey              `protobuf:"bytes,2,opt,name=key,proto3" json:"key,omitempty"`
-	Countries     []string               `protobuf:"bytes,3,rep,name=countries,proto3" json:"countries,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Title     string                 `protobuf:"bytes,1,opt,name=title,proto3" json:"title,omitempty"`
+	Key       *StoryKey              `protobuf:"bytes,2,opt,name=key,proto3" json:"key,omitempty"`
+	Countries []string               `protobuf:"bytes,3,rep,name=countries,proto3" json:"countries,omitempty"`
+	// What the generator knows of the story before it renders it, for the job's editor to judge it by.
+	Facts *StoryFacts `protobuf:"bytes,4,opt,name=facts,proto3" json:"facts,omitempty"`
+	// The headline said in other words, as the clip's caption would pick from: an editor's headline must not be one.
+	Teasers       []string `protobuf:"bytes,5,rep,name=teasers,proto3" json:"teasers,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -127,6 +131,249 @@ func (x *Story) GetCountries() []string {
 	return nil
 }
 
+func (x *Story) GetFacts() *StoryFacts {
+	if x != nil {
+		return x.Facts
+	}
+	return nil
+}
+
+func (x *Story) GetTeasers() []string {
+	if x != nil {
+		return x.Teasers
+	}
+	return nil
+}
+
+// What a story of the shortlist is, as numbers the generator already worked out to find it. The same units as
+// GlobeReplay's, which a rendered clip records: a story's facts are what its clip would record, before the camera.
+// Additive only, as ClipRecord.
+type StoryFacts struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// As GlobeReplay.story_kind: "attack", "invasion", "comeback", "kickout", "rout", "battle", "holding", "round",
+	// "callup".
+	Kind string `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	// The place the headline names and the counter counts in, as the clip says it in English: "Europe", "France",
+	// "the world".
+	Place string `protobuf:"bytes,2,opt,name=place,proto3" json:"place,omitempty"`
+	// "front" follows the fighting of one place, "tour" flies over the continents of a flag taking the world.
+	Camera string `protobuf:"bytes,3,opt,name=camera,proto3" json:"camera,omitempty"`
+	// The flag that took the most there (the holder of a holding, the winner of a day), the flag it fights in a
+	// battle, and the flags it took from, best first: country codes.
+	Attacker  string   `protobuf:"bytes,4,opt,name=attacker,proto3" json:"attacker,omitempty"`
+	Rival     string   `protobuf:"bytes,5,opt,name=rival,proto3" json:"rival,omitempty"`
+	TakenFrom []string `protobuf:"bytes,6,rep,name=taken_from,json=takenFrom,proto3" json:"taken_from,omitempty"`
+	// How each country code of the story is said in a clip: "pw": "Palau", "gb": "the UK".
+	Names map[string]string `protobuf:"bytes,7,rep,name=names,proto3" json:"names,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// The line under the headline, when it has one: "The battle for France", "Leads the season with 86 points".
+	Line string `protobuf:"bytes,8,opt,name=line,proto3" json:"line,omitempty"`
+	// The language of its words: "en", or the country's own for a call-up ("pl").
+	Language string `protobuf:"bytes,9,opt,name=language,proto3" json:"language,omitempty"`
+	// How much of the replay's time the clip would play, quiet stretches included, and when that stretch ends.
+	SpanMinutes       float64                `protobuf:"fixed64,10,opt,name=span_minutes,json=spanMinutes,proto3" json:"span_minutes,omitempty"`
+	StoryEndedAt      *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=story_ended_at,json=storyEndedAt,proto3" json:"story_ended_at,omitempty"`
+	TilesChanged      uint32                 `protobuf:"varint,12,opt,name=tiles_changed,json=tilesChanged,proto3" json:"tiles_changed,omitempty"`
+	StoryTilesChanged uint32                 `protobuf:"varint,13,opt,name=story_tiles_changed,json=storyTilesChanged,proto3" json:"story_tiles_changed,omitempty"`
+	PlaceTiles        uint32                 `protobuf:"varint,14,opt,name=place_tiles,json=placeTiles,proto3" json:"place_tiles,omitempty"`
+	FlagTilesStart    uint32                 `protobuf:"varint,15,opt,name=flag_tiles_start,json=flagTilesStart,proto3" json:"flag_tiles_start,omitempty"`
+	FlagTilesEnd      uint32                 `protobuf:"varint,16,opt,name=flag_tiles_end,json=flagTilesEnd,proto3" json:"flag_tiles_end,omitempty"`
+	Bombs             uint32                 `protobuf:"varint,17,opt,name=bombs,proto3" json:"bombs,omitempty"`
+	Spreads           uint32                 `protobuf:"varint,18,opt,name=spreads,proto3" json:"spreads,omitempty"`
+	Enclosures        uint32                 `protobuf:"varint,19,opt,name=enclosures,proto3" json:"enclosures,omitempty"`
+	Solidity          float64                `protobuf:"fixed64,20,opt,name=solidity,proto3" json:"solidity,omitempty"`
+	// A holding's share of its place, from 0 to 1; 0 for any other kind.
+	Share float64 `protobuf:"fixed64,21,opt,name=share,proto3" json:"share,omitempty"`
+	// How the generator ranked what changed: tiles taken over the square root of the hours, times the countries they
+	// were taken in. 0 for a holding, a day and a call-up, which it ranks apart.
+	Score         float64 `protobuf:"fixed64,22,opt,name=score,proto3" json:"score,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StoryFacts) Reset() {
+	*x = StoryFacts{}
+	mi := &file_clips_v1_clips_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StoryFacts) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StoryFacts) ProtoMessage() {}
+
+func (x *StoryFacts) ProtoReflect() protoreflect.Message {
+	mi := &file_clips_v1_clips_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StoryFacts.ProtoReflect.Descriptor instead.
+func (*StoryFacts) Descriptor() ([]byte, []int) {
+	return file_clips_v1_clips_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *StoryFacts) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *StoryFacts) GetPlace() string {
+	if x != nil {
+		return x.Place
+	}
+	return ""
+}
+
+func (x *StoryFacts) GetCamera() string {
+	if x != nil {
+		return x.Camera
+	}
+	return ""
+}
+
+func (x *StoryFacts) GetAttacker() string {
+	if x != nil {
+		return x.Attacker
+	}
+	return ""
+}
+
+func (x *StoryFacts) GetRival() string {
+	if x != nil {
+		return x.Rival
+	}
+	return ""
+}
+
+func (x *StoryFacts) GetTakenFrom() []string {
+	if x != nil {
+		return x.TakenFrom
+	}
+	return nil
+}
+
+func (x *StoryFacts) GetNames() map[string]string {
+	if x != nil {
+		return x.Names
+	}
+	return nil
+}
+
+func (x *StoryFacts) GetLine() string {
+	if x != nil {
+		return x.Line
+	}
+	return ""
+}
+
+func (x *StoryFacts) GetLanguage() string {
+	if x != nil {
+		return x.Language
+	}
+	return ""
+}
+
+func (x *StoryFacts) GetSpanMinutes() float64 {
+	if x != nil {
+		return x.SpanMinutes
+	}
+	return 0
+}
+
+func (x *StoryFacts) GetStoryEndedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.StoryEndedAt
+	}
+	return nil
+}
+
+func (x *StoryFacts) GetTilesChanged() uint32 {
+	if x != nil {
+		return x.TilesChanged
+	}
+	return 0
+}
+
+func (x *StoryFacts) GetStoryTilesChanged() uint32 {
+	if x != nil {
+		return x.StoryTilesChanged
+	}
+	return 0
+}
+
+func (x *StoryFacts) GetPlaceTiles() uint32 {
+	if x != nil {
+		return x.PlaceTiles
+	}
+	return 0
+}
+
+func (x *StoryFacts) GetFlagTilesStart() uint32 {
+	if x != nil {
+		return x.FlagTilesStart
+	}
+	return 0
+}
+
+func (x *StoryFacts) GetFlagTilesEnd() uint32 {
+	if x != nil {
+		return x.FlagTilesEnd
+	}
+	return 0
+}
+
+func (x *StoryFacts) GetBombs() uint32 {
+	if x != nil {
+		return x.Bombs
+	}
+	return 0
+}
+
+func (x *StoryFacts) GetSpreads() uint32 {
+	if x != nil {
+		return x.Spreads
+	}
+	return 0
+}
+
+func (x *StoryFacts) GetEnclosures() uint32 {
+	if x != nil {
+		return x.Enclosures
+	}
+	return 0
+}
+
+func (x *StoryFacts) GetSolidity() float64 {
+	if x != nil {
+		return x.Solidity
+	}
+	return 0
+}
+
+func (x *StoryFacts) GetShare() float64 {
+	if x != nil {
+		return x.Share
+	}
+	return 0
+}
+
+func (x *StoryFacts) GetScore() float64 {
+	if x != nil {
+		return x.Score
+	}
+	return 0
+}
+
 type Clip struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Pick  uint32                 `protobuf:"varint,1,opt,name=pick,proto3" json:"pick,omitempty"`
@@ -150,7 +397,7 @@ type Clip struct {
 
 func (x *Clip) Reset() {
 	*x = Clip{}
-	mi := &file_clips_v1_clips_proto_msgTypes[2]
+	mi := &file_clips_v1_clips_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -162,7 +409,7 @@ func (x *Clip) String() string {
 func (*Clip) ProtoMessage() {}
 
 func (x *Clip) ProtoReflect() protoreflect.Message {
-	mi := &file_clips_v1_clips_proto_msgTypes[2]
+	mi := &file_clips_v1_clips_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -175,7 +422,7 @@ func (x *Clip) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Clip.ProtoReflect.Descriptor instead.
 func (*Clip) Descriptor() ([]byte, []int) {
-	return file_clips_v1_clips_proto_rawDescGZIP(), []int{2}
+	return file_clips_v1_clips_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *Clip) GetPick() uint32 {
@@ -260,7 +507,7 @@ type ClipRecord struct {
 
 func (x *ClipRecord) Reset() {
 	*x = ClipRecord{}
-	mi := &file_clips_v1_clips_proto_msgTypes[3]
+	mi := &file_clips_v1_clips_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -272,7 +519,7 @@ func (x *ClipRecord) String() string {
 func (*ClipRecord) ProtoMessage() {}
 
 func (x *ClipRecord) ProtoReflect() protoreflect.Message {
-	mi := &file_clips_v1_clips_proto_msgTypes[3]
+	mi := &file_clips_v1_clips_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -285,7 +532,7 @@ func (x *ClipRecord) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClipRecord.ProtoReflect.Descriptor instead.
 func (*ClipRecord) Descriptor() ([]byte, []int) {
-	return file_clips_v1_clips_proto_rawDescGZIP(), []int{3}
+	return file_clips_v1_clips_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ClipRecord) GetFormat() string {
@@ -339,7 +586,7 @@ type ClipCommon struct {
 
 func (x *ClipCommon) Reset() {
 	*x = ClipCommon{}
-	mi := &file_clips_v1_clips_proto_msgTypes[4]
+	mi := &file_clips_v1_clips_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -351,7 +598,7 @@ func (x *ClipCommon) String() string {
 func (*ClipCommon) ProtoMessage() {}
 
 func (x *ClipCommon) ProtoReflect() protoreflect.Message {
-	mi := &file_clips_v1_clips_proto_msgTypes[4]
+	mi := &file_clips_v1_clips_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -364,7 +611,7 @@ func (x *ClipCommon) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClipCommon.ProtoReflect.Descriptor instead.
 func (*ClipCommon) Descriptor() ([]byte, []int) {
-	return file_clips_v1_clips_proto_rawDescGZIP(), []int{4}
+	return file_clips_v1_clips_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ClipCommon) GetDurationSeconds() float64 {
@@ -437,7 +684,7 @@ type GlobeReplay struct {
 
 func (x *GlobeReplay) Reset() {
 	*x = GlobeReplay{}
-	mi := &file_clips_v1_clips_proto_msgTypes[5]
+	mi := &file_clips_v1_clips_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -449,7 +696,7 @@ func (x *GlobeReplay) String() string {
 func (*GlobeReplay) ProtoMessage() {}
 
 func (x *GlobeReplay) ProtoReflect() protoreflect.Message {
-	mi := &file_clips_v1_clips_proto_msgTypes[5]
+	mi := &file_clips_v1_clips_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -462,7 +709,7 @@ func (x *GlobeReplay) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GlobeReplay.ProtoReflect.Descriptor instead.
 func (*GlobeReplay) Descriptor() ([]byte, []int) {
-	return file_clips_v1_clips_proto_rawDescGZIP(), []int{5}
+	return file_clips_v1_clips_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *GlobeReplay) GetCamera() string {
@@ -599,7 +846,7 @@ type PostRecord struct {
 
 func (x *PostRecord) Reset() {
 	*x = PostRecord{}
-	mi := &file_clips_v1_clips_proto_msgTypes[6]
+	mi := &file_clips_v1_clips_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -611,7 +858,7 @@ func (x *PostRecord) String() string {
 func (*PostRecord) ProtoMessage() {}
 
 func (x *PostRecord) ProtoReflect() protoreflect.Message {
-	mi := &file_clips_v1_clips_proto_msgTypes[6]
+	mi := &file_clips_v1_clips_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -624,7 +871,7 @@ func (x *PostRecord) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PostRecord.ProtoReflect.Descriptor instead.
 func (*PostRecord) Descriptor() ([]byte, []int) {
-	return file_clips_v1_clips_proto_rawDescGZIP(), []int{6}
+	return file_clips_v1_clips_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *PostRecord) GetSchema() string {
@@ -665,7 +912,7 @@ type PostFacts struct {
 
 func (x *PostFacts) Reset() {
 	*x = PostFacts{}
-	mi := &file_clips_v1_clips_proto_msgTypes[7]
+	mi := &file_clips_v1_clips_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -677,7 +924,7 @@ func (x *PostFacts) String() string {
 func (*PostFacts) ProtoMessage() {}
 
 func (x *PostFacts) ProtoReflect() protoreflect.Message {
-	mi := &file_clips_v1_clips_proto_msgTypes[7]
+	mi := &file_clips_v1_clips_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -690,7 +937,7 @@ func (x *PostFacts) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PostFacts.ProtoReflect.Descriptor instead.
 func (*PostFacts) Descriptor() ([]byte, []int) {
-	return file_clips_v1_clips_proto_rawDescGZIP(), []int{7}
+	return file_clips_v1_clips_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *PostFacts) GetTeaser() string {
@@ -739,7 +986,7 @@ type TaggedCountry struct {
 
 func (x *TaggedCountry) Reset() {
 	*x = TaggedCountry{}
-	mi := &file_clips_v1_clips_proto_msgTypes[8]
+	mi := &file_clips_v1_clips_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -751,7 +998,7 @@ func (x *TaggedCountry) String() string {
 func (*TaggedCountry) ProtoMessage() {}
 
 func (x *TaggedCountry) ProtoReflect() protoreflect.Message {
-	mi := &file_clips_v1_clips_proto_msgTypes[8]
+	mi := &file_clips_v1_clips_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -764,7 +1011,7 @@ func (x *TaggedCountry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TaggedCountry.ProtoReflect.Descriptor instead.
 func (*TaggedCountry) Descriptor() ([]byte, []int) {
-	return file_clips_v1_clips_proto_rawDescGZIP(), []int{8}
+	return file_clips_v1_clips_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *TaggedCountry) GetCode() string {
@@ -801,7 +1048,7 @@ type StoryKey struct {
 
 func (x *StoryKey) Reset() {
 	*x = StoryKey{}
-	mi := &file_clips_v1_clips_proto_msgTypes[9]
+	mi := &file_clips_v1_clips_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -813,7 +1060,7 @@ func (x *StoryKey) String() string {
 func (*StoryKey) ProtoMessage() {}
 
 func (x *StoryKey) ProtoReflect() protoreflect.Message {
-	mi := &file_clips_v1_clips_proto_msgTypes[9]
+	mi := &file_clips_v1_clips_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -826,7 +1073,7 @@ func (x *StoryKey) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StoryKey.ProtoReflect.Descriptor instead.
 func (*StoryKey) Descriptor() ([]byte, []int) {
-	return file_clips_v1_clips_proto_rawDescGZIP(), []int{9}
+	return file_clips_v1_clips_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *StoryKey) GetFlag() string {
@@ -863,11 +1110,46 @@ const file_clips_v1_clips_proto_rawDesc = "" +
 	"\n" +
 	"\x14clips/v1/clips.proto\x12\bclips.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"6\n" +
 	"\tShortlist\x12)\n" +
-	"\astories\x18\x01 \x03(\v2\x0f.clips.v1.StoryR\astories\"a\n" +
+	"\astories\x18\x01 \x03(\v2\x0f.clips.v1.StoryR\astories\"\xa7\x01\n" +
 	"\x05Story\x12\x14\n" +
 	"\x05title\x18\x01 \x01(\tR\x05title\x12$\n" +
 	"\x03key\x18\x02 \x01(\v2\x12.clips.v1.StoryKeyR\x03key\x12\x1c\n" +
-	"\tcountries\x18\x03 \x03(\tR\tcountries\"\xd0\x02\n" +
+	"\tcountries\x18\x03 \x03(\tR\tcountries\x12*\n" +
+	"\x05facts\x18\x04 \x01(\v2\x14.clips.v1.StoryFactsR\x05facts\x12\x18\n" +
+	"\ateasers\x18\x05 \x03(\tR\ateasers\"\x83\x06\n" +
+	"\n" +
+	"StoryFacts\x12\x12\n" +
+	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x14\n" +
+	"\x05place\x18\x02 \x01(\tR\x05place\x12\x16\n" +
+	"\x06camera\x18\x03 \x01(\tR\x06camera\x12\x1a\n" +
+	"\battacker\x18\x04 \x01(\tR\battacker\x12\x14\n" +
+	"\x05rival\x18\x05 \x01(\tR\x05rival\x12\x1d\n" +
+	"\n" +
+	"taken_from\x18\x06 \x03(\tR\ttakenFrom\x125\n" +
+	"\x05names\x18\a \x03(\v2\x1f.clips.v1.StoryFacts.NamesEntryR\x05names\x12\x12\n" +
+	"\x04line\x18\b \x01(\tR\x04line\x12\x1a\n" +
+	"\blanguage\x18\t \x01(\tR\blanguage\x12!\n" +
+	"\fspan_minutes\x18\n" +
+	" \x01(\x01R\vspanMinutes\x12@\n" +
+	"\x0estory_ended_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\fstoryEndedAt\x12#\n" +
+	"\rtiles_changed\x18\f \x01(\rR\ftilesChanged\x12.\n" +
+	"\x13story_tiles_changed\x18\r \x01(\rR\x11storyTilesChanged\x12\x1f\n" +
+	"\vplace_tiles\x18\x0e \x01(\rR\n" +
+	"placeTiles\x12(\n" +
+	"\x10flag_tiles_start\x18\x0f \x01(\rR\x0eflagTilesStart\x12$\n" +
+	"\x0eflag_tiles_end\x18\x10 \x01(\rR\fflagTilesEnd\x12\x14\n" +
+	"\x05bombs\x18\x11 \x01(\rR\x05bombs\x12\x18\n" +
+	"\aspreads\x18\x12 \x01(\rR\aspreads\x12\x1e\n" +
+	"\n" +
+	"enclosures\x18\x13 \x01(\rR\n" +
+	"enclosures\x12\x1a\n" +
+	"\bsolidity\x18\x14 \x01(\x01R\bsolidity\x12\x14\n" +
+	"\x05share\x18\x15 \x01(\x01R\x05share\x12\x14\n" +
+	"\x05score\x18\x16 \x01(\x01R\x05score\x1a8\n" +
+	"\n" +
+	"NamesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xd0\x02\n" +
 	"\x04Clip\x12\x12\n" +
 	"\x04pick\x18\x01 \x01(\rR\x04pick\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12$\n" +
@@ -953,39 +1235,44 @@ func file_clips_v1_clips_proto_rawDescGZIP() []byte {
 	return file_clips_v1_clips_proto_rawDescData
 }
 
-var file_clips_v1_clips_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_clips_v1_clips_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_clips_v1_clips_proto_goTypes = []any{
 	(*Shortlist)(nil),             // 0: clips.v1.Shortlist
 	(*Story)(nil),                 // 1: clips.v1.Story
-	(*Clip)(nil),                  // 2: clips.v1.Clip
-	(*ClipRecord)(nil),            // 3: clips.v1.ClipRecord
-	(*ClipCommon)(nil),            // 4: clips.v1.ClipCommon
-	(*GlobeReplay)(nil),           // 5: clips.v1.GlobeReplay
-	(*PostRecord)(nil),            // 6: clips.v1.PostRecord
-	(*PostFacts)(nil),             // 7: clips.v1.PostFacts
-	(*TaggedCountry)(nil),         // 8: clips.v1.TaggedCountry
-	(*StoryKey)(nil),              // 9: clips.v1.StoryKey
-	nil,                           // 10: clips.v1.ClipRecord.VariantsEntry
-	(*timestamppb.Timestamp)(nil), // 11: google.protobuf.Timestamp
+	(*StoryFacts)(nil),            // 2: clips.v1.StoryFacts
+	(*Clip)(nil),                  // 3: clips.v1.Clip
+	(*ClipRecord)(nil),            // 4: clips.v1.ClipRecord
+	(*ClipCommon)(nil),            // 5: clips.v1.ClipCommon
+	(*GlobeReplay)(nil),           // 6: clips.v1.GlobeReplay
+	(*PostRecord)(nil),            // 7: clips.v1.PostRecord
+	(*PostFacts)(nil),             // 8: clips.v1.PostFacts
+	(*TaggedCountry)(nil),         // 9: clips.v1.TaggedCountry
+	(*StoryKey)(nil),              // 10: clips.v1.StoryKey
+	nil,                           // 11: clips.v1.StoryFacts.NamesEntry
+	nil,                           // 12: clips.v1.ClipRecord.VariantsEntry
+	(*timestamppb.Timestamp)(nil), // 13: google.protobuf.Timestamp
 }
 var file_clips_v1_clips_proto_depIdxs = []int32{
 	1,  // 0: clips.v1.Shortlist.stories:type_name -> clips.v1.Story
-	9,  // 1: clips.v1.Story.key:type_name -> clips.v1.StoryKey
-	9,  // 2: clips.v1.Clip.key:type_name -> clips.v1.StoryKey
-	8,  // 3: clips.v1.Clip.countries:type_name -> clips.v1.TaggedCountry
-	3,  // 4: clips.v1.Clip.record:type_name -> clips.v1.ClipRecord
-	4,  // 5: clips.v1.ClipRecord.common:type_name -> clips.v1.ClipCommon
-	5,  // 6: clips.v1.ClipRecord.globe:type_name -> clips.v1.GlobeReplay
-	10, // 7: clips.v1.ClipRecord.variants:type_name -> clips.v1.ClipRecord.VariantsEntry
-	11, // 8: clips.v1.GlobeReplay.story_ended_at:type_name -> google.protobuf.Timestamp
-	3,  // 9: clips.v1.PostRecord.clip:type_name -> clips.v1.ClipRecord
-	7,  // 10: clips.v1.PostRecord.post:type_name -> clips.v1.PostFacts
-	11, // 11: clips.v1.PostFacts.scheduled_at:type_name -> google.protobuf.Timestamp
-	12, // [12:12] is the sub-list for method output_type
-	12, // [12:12] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	10, // 1: clips.v1.Story.key:type_name -> clips.v1.StoryKey
+	2,  // 2: clips.v1.Story.facts:type_name -> clips.v1.StoryFacts
+	11, // 3: clips.v1.StoryFacts.names:type_name -> clips.v1.StoryFacts.NamesEntry
+	13, // 4: clips.v1.StoryFacts.story_ended_at:type_name -> google.protobuf.Timestamp
+	10, // 5: clips.v1.Clip.key:type_name -> clips.v1.StoryKey
+	9,  // 6: clips.v1.Clip.countries:type_name -> clips.v1.TaggedCountry
+	4,  // 7: clips.v1.Clip.record:type_name -> clips.v1.ClipRecord
+	5,  // 8: clips.v1.ClipRecord.common:type_name -> clips.v1.ClipCommon
+	6,  // 9: clips.v1.ClipRecord.globe:type_name -> clips.v1.GlobeReplay
+	12, // 10: clips.v1.ClipRecord.variants:type_name -> clips.v1.ClipRecord.VariantsEntry
+	13, // 11: clips.v1.GlobeReplay.story_ended_at:type_name -> google.protobuf.Timestamp
+	4,  // 12: clips.v1.PostRecord.clip:type_name -> clips.v1.ClipRecord
+	8,  // 13: clips.v1.PostRecord.post:type_name -> clips.v1.PostFacts
+	13, // 14: clips.v1.PostFacts.scheduled_at:type_name -> google.protobuf.Timestamp
+	15, // [15:15] is the sub-list for method output_type
+	15, // [15:15] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_clips_v1_clips_proto_init() }
@@ -999,7 +1286,7 @@ func file_clips_v1_clips_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_clips_v1_clips_proto_rawDesc), len(file_clips_v1_clips_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   11,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

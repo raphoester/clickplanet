@@ -2,6 +2,7 @@ package log_choose_clips
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"strings"
 
@@ -38,6 +39,7 @@ func (l *Logged) Execute(ctx context.Context) (posts.Choice, error) {
 	case len(choice.Chosen) == 0:
 		l.logger.Info("no story is worth a clip")
 	}
+	l.logEditorial(choice.Editorial)
 	for i, story := range choice.Chosen {
 		attributes := attributesOf(story)
 		if i < len(choice.Assigned) && len(choice.Assigned[i].Variants) > 0 {
@@ -47,6 +49,28 @@ func (l *Logged) Execute(ctx context.Context) (posts.Choice, error) {
 	}
 
 	return choice, nil
+}
+
+func (l *Logged) logEditorial(editorial posts.Editorial) {
+	if editorial.Arm == "" {
+		return
+	}
+	attributes := []any{slog.String("editor", editorial.Arm)}
+	if editorial.Asked {
+		spend := editorial.Spend
+		attributes = append(attributes,
+			slog.String("model", spend.Model), slog.Int64("input_tokens", spend.InputTokens),
+			slog.Int64("cache_write_tokens", spend.CacheWriteTokens), slog.Int64("cache_read_tokens", spend.CacheReadTokens),
+			slog.Int64("output_tokens", spend.OutputTokens), slog.String("usd", fmt.Sprintf("%.5f", spend.USD)))
+	}
+	switch {
+	case editorial.FellBack != "":
+		l.logger.Warn("the model's run is made by the rules", append(attributes, slog.String("why", editorial.FellBack))...)
+	case editorial.Asked:
+		l.logger.Info("the model edited the run", append(attributes, slog.String("why", editorial.Why))...)
+	default:
+		l.logger.Info("the run is edited", attributes...)
+	}
 }
 
 func attributesOf(story posts.Story) []any {

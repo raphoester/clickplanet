@@ -36,7 +36,14 @@ func (f ShortlistFile) Shortlist(_ context.Context) (posts.Shortlist, error) {
 
 	stories := make([]posts.Story, 0, len(written.GetStories()))
 	for _, story := range written.GetStories() {
-		stories = append(stories, posts.Story{Title: story.GetTitle(), Key: keyOf(story.GetKey()), Countries: story.GetCountries()})
+		facts, err := factsOf(story.GetFacts())
+		if err != nil {
+			return nil, err
+		}
+		stories = append(stories, posts.Story{
+			Title: story.GetTitle(), Key: keyOf(story.GetKey()), Countries: story.GetCountries(), Teasers: story.GetTeasers(),
+			Facts: facts,
+		})
 	}
 	return posts.ShortlistOf(stories...) //nolint:wrapcheck // a pure delegation: the domain already named what is wrong.
 }
@@ -103,6 +110,18 @@ func recordOf(written *clipsv1.ClipRecord) (posts.ClipRecord, error) {
 		return nil, fmt.Errorf("failed to keep what the clip was: %w", err)
 	}
 	return record, nil
+}
+
+// Kept as the generator wrote them, for the editor; none from a generator that writes none.
+func factsOf(written *clipsv1.StoryFacts) (posts.StoryFacts, error) {
+	if written == nil {
+		return nil, nil
+	}
+	facts, err := protojson.Marshal(written)
+	if err != nil {
+		return nil, fmt.Errorf("failed to keep what a story is: %w", err)
+	}
+	return facts, nil
 }
 
 func countriesOf(written []*clipsv1.TaggedCountry) []posts.TaggedCountry {
