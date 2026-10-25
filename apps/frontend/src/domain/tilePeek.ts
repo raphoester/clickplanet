@@ -86,8 +86,8 @@ export class TilePeek {
     }
 }
 
-export function holderShown(holder: TileHolder | undefined, peek: Peek, ownAccountId: string | undefined): TileHolder | undefined {
-    if (!holder || holder.countryCode !== peek.countryCode || holder.accountId === ownAccountId) return undefined
+export function holderShown(holder: TileHolder | undefined, peek: Peek): TileHolder | undefined {
+    if (!holder || holder.countryCode !== peek.countryCode) return undefined
     return holder
 }
 
