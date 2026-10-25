@@ -97,6 +97,13 @@ func (s *testSuite) TestAUsernameWinsOverTheGuestCodeItNoLongerGoesBy() {
 	s.Equal(map[string]string{ada.String(): "Ada"}, names(s.authors(ada)))
 }
 
+func (s *testSuite) TestARenamedPlayerIsNamedByItsNewNameAndNotByWhoTookItsOldOne() {
+	s.named(ada, "Ada_Lovelace")
+	s.named(bob, "Ada")
+
+	s.Equal(map[string]string{ada.String(): "Ada_Lovelace", bob.String(): "Ada"}, names(s.authors(ada, bob)))
+}
+
 func (s *testSuite) TestAGuestIsToldApartFromAUsername() {
 	authors := s.authors(ada, guest)
 

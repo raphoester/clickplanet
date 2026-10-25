@@ -119,6 +119,7 @@ func TestAGoogleSignInJoinsTheAccountThatHoldsItsAddress(t *testing.T) {
 
 	assert.Equal(t, accounts.AccountID{15: 9}, out.Account())
 	assert.Equal(t, accounts.Joined, out.Outcome())
+	assert.Equal(t, out.Account(), f.sessionAccount(t, out.SetCookie()), "the next mint carries the account joined")
 	google, err := f.store.Identity(t.Context(), signin.Google, "google-user")
 	require.NoError(t, err)
 	assert.Equal(t, accounts.AccountID{15: 9}, google.Account())
@@ -156,6 +157,14 @@ func cookieValue(t *testing.T, setCookie string) string {
 	return cookie.Value
 }
 
+func (f *fixture) sessionAccount(t *testing.T, setCookie string) accounts.AccountID {
+	t.Helper()
+
+	session, err := f.store.Session(t.Context(), accounts.TokenOf(cookieValue(t, setCookie)).Hash())
+	require.NoError(t, err)
+	return session.Account()
+}
+
 func TestANewIdentityLinksToTheGuestAndReplacesItsSession(t *testing.T) {
 	f := setUp(t)
 	f.guest(t, 7, "guest-token")
@@ -169,6 +178,7 @@ func TestANewIdentityLinksToTheGuestAndReplacesItsSession(t *testing.T) {
 	session, err := f.store.Session(t.Context(), accounts.TokenOf("token-1").Hash())
 	require.NoError(t, err)
 	assert.Equal(t, start.Add(30*24*time.Hour), session.ExpiresAt(), "a linked session lasts the linked lifetime")
+	assert.Equal(t, out.Account(), session.Account(), "the next mint carries the account signed in")
 	_, err = f.store.Session(t.Context(), accounts.TokenOf("guest-token").Hash())
 	require.ErrorIs(t, err, accounts.ErrSessionNotFound)
 	identity, err := f.store.Identity(t.Context(), signin.Google, "google-user")
@@ -188,6 +198,7 @@ func TestAKnownIdentitySignsInToItsAccountAndLeavesTheGuestAsItWas(t *testing.T)
 
 	assert.Equal(t, accounts.AccountID{15: 1}, out.Account())
 	assert.Equal(t, accounts.SignedIn, out.Outcome())
+	assert.Equal(t, out.Account(), f.sessionAccount(t, out.SetCookie()), "the next mint carries the account signed in, not the guest")
 	guest, err := f.store.Account(t.Context(), accounts.AccountID{15: 7})
 	require.NoError(t, err)
 	assert.Empty(t, guest.Providers(), "nothing is merged, and the guest gains no identity")
@@ -206,6 +217,7 @@ func TestABrowserWithNoAccountGetsANewOne(t *testing.T) {
 
 	assert.Equal(t, accounts.AccountID{15: 1}, out.Account())
 	assert.Equal(t, accounts.Created, out.Outcome())
+	assert.Equal(t, out.Account(), f.sessionAccount(t, out.SetCookie()), "the next mint carries the account made")
 	f.assertPublished(t, &authv1.SignedIn{AccountId: accounts.AccountID{15: 1}.String()})
 	made, err := f.store.Account(t.Context(), out.Account())
 	require.NoError(t, err)

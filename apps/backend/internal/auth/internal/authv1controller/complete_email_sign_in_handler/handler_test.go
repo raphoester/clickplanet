@@ -53,6 +53,25 @@ func TestTheAccountAndOutcomeAreAnsweredWithTheSessionCookieAndTheChallengeClear
 	assert.Equal(t, "no-store", res.Header().Get("Cache-Control"))
 }
 
+func TestEachOutcomeIsAnsweredOnTheWire(t *testing.T) {
+	for name, tc := range map[string]struct {
+		outcome accounts.Outcome
+		want    authv1.SignInOutcome
+	}{
+		"signed in": {accounts.SignedIn, authv1.SignInOutcome_SIGN_IN_OUTCOME_SIGNED_IN},
+		"linked":    {accounts.Linked, authv1.SignInOutcome_SIGN_IN_OUTCOME_LINKED},
+		"created":   {accounts.Created, authv1.SignInOutcome_SIGN_IN_OUTCOME_CREATED},
+		"joined":    {accounts.Joined, authv1.SignInOutcome_SIGN_IN_OUTCOME_SIGNED_IN},
+	} {
+		t.Run(name, func(t *testing.T) {
+			res, err := completeEmailSignIn(&stubUseCase{out: signin.AdmissionOf(accounts.AccountID{15: 1}, tc.outcome, "cp_sid=token-1")})
+			require.NoError(t, err)
+
+			assert.Equal(t, tc.want, res.Msg.GetOutcome())
+		})
+	}
+}
+
 func TestAWrongCodeKeepsTheChallenge(t *testing.T) {
 	_, err := completeEmailSignIn(&stubUseCase{err: fmt.Errorf("failed to check the code: %w", signin.ErrWrongCode)})
 

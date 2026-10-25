@@ -63,9 +63,8 @@ the baseline, then `default`** when no baseline was ever applied.
   (`rule_sets_query`), the last 20 baselines, newest first, and the override (`rule_layers_query`), straight from
   postgres. **What plays now is not on the wire**: the backoffice's Game rules page works it out from those facts, as
   planet does.
-- `e2e/rules_test.go` edits `default` to a tempo of 3 and sees the refill go from 100 to 300 a second on a stream
-  opened before, and refuses a set with no tempo; boots with a finale 20 seconds away and sees the refill go from 100
-  to 300 and back, with the baselines `season-0:days`, `season-0:finale` and `season-0:over`; runs an override to its
-  end and ends another by hand; and sends a request again. **`make finale`** runs `cmd/api` with `example.yaml` and
+- The rules are pinned by the domain's tests (`Layers`, `Baseline`, `Override`, `Set`), the use cases' over the
+  memory stores, both stores' contract suites, the handlers' and `InForce`'s; a smoke test sees seasons apply the
+  set of its phase over the internal listener (see [Testing](testing.md)). **`make finale`** runs `cmd/api` with `example.yaml` and
   Season 0's finale `FINALE_IN` minutes away (2 by default) and `FINALE_FOR` long (5), to rehearse it; the `rush` set
   must exist, made on the backoffice's Game rules page.

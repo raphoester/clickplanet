@@ -63,7 +63,7 @@ dRm:
 
 # bash -o pipefail, not .SHELLFLAGS: macOS ships GNU Make 3.81.
 test:
-	@bash -o pipefail -c "go test -v -tags $(TEST_TAG) ./... | grep -v 'no test files'"
+	@bash -o pipefail -c "go test -v -trimpath -tags $(TEST_TAG) ./... | grep -v 'no test files'"
 
 DEADCODE := go run golang.org/x/tools/cmd/deadcode@v0.50.0
 

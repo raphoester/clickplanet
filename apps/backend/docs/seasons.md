@@ -130,9 +130,9 @@ standings rank players, the rounds rank countries.
   last (see [The clips job](clips-job.md)). It needs no token, is a GET (`NO_SIDE_EFFECTS`)
   and answers `public, max-age=10`. It reads through `race_query` itself, logged by `log_race_reader` as the feed is,
   and never through the feed: a feed with no stream holds no race.
-- `rounds.StoreContractSuite` runs on `inmemory_round_store` and on postgres. `e2e/race_test.go` clicks for two flags
-  and reads the race off the stream. `e2e/champion_test.go` runs a season of 8 seconds and sees the chat name its
-  champion, the one the race puts first.
+- `rounds.StoreContractSuite` runs on `inmemory_round_store` and on postgres. `race_query`'s suite ranks a
+  round from its snapshots, `take_snapshot_usecase` closes the finale and tells the season's table, and chat's
+  `season_closed_subscriber` names the champion once.
 - `standings.StoreContractSuite` runs on `inmemory_contribution_store` and on postgres. It reads what a store kept through a `TallyOf` hook each adapter's test fills, since the write side reads nothing back. The use cases are tested over the in-memory one; the queries on postgres, seeded through `postgres_contribution_store`.
 
 

@@ -77,16 +77,19 @@ func TestALinkFromABrowserWithNoAccountStartsNothing(t *testing.T) {
 }
 
 func TestAProviderThatIsNotOfferedStartsNothing(t *testing.T) {
-	for name, providers := range map[string]signin.Providers{
-		"sign-in off":      {},
-		"another provider": {signin.Discord: signin.NewFakeProvider(signin.Discord)},
+	for name, tc := range map[string]struct {
+		providers signin.Providers
+		want      error
+	}{
+		"sign-in off":      {signin.Providers{}, signin.ErrSignInOff},
+		"another provider": {signin.Providers{signin.Discord: signin.NewFakeProvider(signin.Discord)}, signin.ErrUnknownProvider},
 	} {
 		t.Run(name, func(t *testing.T) {
-			useCase, _ := setUp(t, providers)
+			useCase, _ := setUp(t, tc.providers)
 
 			out, err := useCase.Execute(t.Context(), start_sign_in_usecase.In{Provider: signin.Google})
 
-			require.Error(t, err)
+			require.ErrorIs(t, err, tc.want)
 			assert.Nil(t, out)
 		})
 	}
