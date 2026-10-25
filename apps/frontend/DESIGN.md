@@ -20,7 +20,7 @@ toy box; they do not fit a space station or a TV studio.
   inside a panel, the buttons, the chips, the coins, the field.
 - **A component's own CSS says only what makes that component itself**, and
   says it in tokens. It never restates a shared piece's size, radius or font
-  (see "Styling" in `CLAUDE.md` for how that went wrong once).
+  (see [`docs/styling.md`](docs/styling.md) for how that went wrong once).
 - A shade the tokens lack is a mix, not a new literal:
   `color-mix(in srgb, var(--gold) 30%, transparent)`.
 - **`src/designTokens.test.ts` holds all of this**: it fails on a color or a

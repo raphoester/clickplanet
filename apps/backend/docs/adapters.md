@@ -1,0 +1,13 @@
+# Adapters
+
+**Primary (input):**
+- `internal/planet/internal/planetv1controller/` — the API. `ClickService` implements the generated `planetv1connect.ClickServiceHandler` and nothing else; it never sees an `http.ResponseWriter`, which is the point of serving the contract with Connect rather than by hand. **Each procedure is its own package** — `click_handler`, `get_map_handler`, `map_density_handler`, `get_budget_handler`, `listen_for_events_handler` — holding the one use case it calls and declaring the one port it needs. Each owns the mapping both ways, and each is tested on that mapping alone.
+
+`ClickService` is those five embedded, and **nothing else**: no fields of its own, no methods of its own, and **no constructor** — it is a bag of handlers, so the DI sequence that already builds them writes the literal. It has no test either. An aggregation's only claim is that it carries all five procedures, and `var _ planetv1connect.ClickServiceHandler = ClickService{}` is that claim, checked at compile time. A test that served it and called a procedure would be re-testing the handler package that procedure lives in.
+
+**A caller error becomes a Connect code in the handler, not centrally.** `click_handler` turns `clicks.ErrUnknownCountry` and `clicks.ErrTileOutOfRange` into `CodeInvalidArgument` and `clicks.ErrThrottled` into `CodeResourceExhausted`; `get_map_handler` turns `clicks.ErrInvalidTileRange` into `CodeInvalidArgument`. The sentinel these replaced was `ErrInvalidArgument`, which was a status code wearing a domain hat: it told a reader nothing a use case could act on, and it made every caller error in the game the same one. There is **no error interceptor in this package** — see [The error net](error-net.md).
+- the tile stream, as `ClickService.ListenForEvents` — a Connect server-streaming RPC like any other procedure on the service. See [The live streams](live-streams.md).
+
+**There is one server, one mux, and no version prefix.** Connect names each service's path from its proto package — `/planet.v1.ClickService/` and `/chat.v1.ChatService/` — so nothing is mounted under a prefix of ours. The three services and `/metrics` are the only things on the router; operator services have a loopback router of their own (see [Operator tools](admin.md)). Nothing here needs a connection-level demultiplexer such as `cmux`; that is for running a real gRPC server, which owns its own HTTP/2 handler, beside a REST one.
+
+`cpbootstrap` sets `http.Protocols` with both HTTP/1.1 and unencrypted HTTP/2, because the generated handler also speaks gRPC and gRPC-Web and those need HTTP/2. Browsers reach the same routes over HTTP/1.1. Verified: HTTP/1.1 and h2c both answer on the same port.
