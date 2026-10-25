@@ -101,14 +101,6 @@ const moduleName = "player"
 
 const frontsKeptFor = 30 * time.Second
 
-const (
-	tileTakenBuffer      = 8192
-	accountDeletedBuffer = 2048
-	signInBuffer         = 256
-	messageSentBuffer    = 256
-	bonusBuffer          = 256
-)
-
 func NewModule(config Config) cpbootstrap.Module {
 	return cpbootstrap.Module{
 		Name:    moduleName,
@@ -166,43 +158,43 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	props.Runners.Add(visits)
 
 	recordStats := record_stats_usecase.New(store, props.Events)
-	takes, err := cpbootstrap.Subscribe(props.Events, "player-stats", tileTakenBuffer,
+	takes, err := cpbootstrap.Subscribe(props.Events, "player-stats",
 		log_subscriber.New(tile_taken_subscriber.New(recordStats), props.Logger))
 	if err != nil {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to planet.v1.TileTaken: %w", err)
 	}
-	posts, err := cpbootstrap.Subscribe(props.Events, "player-stats-messages", messageSentBuffer,
+	posts, err := cpbootstrap.Subscribe(props.Events, "player-stats-messages",
 		log_subscriber.New(message_sent_subscriber.New(recordStats), props.Logger))
 	if err != nil {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to chat.v1.MessageSent: %w", err)
 	}
-	bombs, err := cpbootstrap.Subscribe(props.Events, "player-stats-bombs", bonusBuffer,
+	bombs, err := cpbootstrap.Subscribe(props.Events, "player-stats-bombs",
 		log_subscriber.New(bomb_landed_subscriber.New(recordStats), props.Logger))
 	if err != nil {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to planet.v1.BombLanded: %w", err)
 	}
-	fortifies, err := cpbootstrap.Subscribe(props.Events, "player-stats-fortifies", bonusBuffer,
+	fortifies, err := cpbootstrap.Subscribe(props.Events, "player-stats-fortifies",
 		log_subscriber.New(fortified_subscriber.New(recordStats), props.Logger))
 	if err != nil {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to planet.v1.Fortified: %w", err)
 	}
-	claims, err := cpbootstrap.Subscribe(props.Events, "player-stats-bonuses", bonusBuffer,
+	claims, err := cpbootstrap.Subscribe(props.Events, "player-stats-bonuses",
 		log_subscriber.New(bonus_claimed_subscriber.New(recordStats), props.Logger))
 	if err != nil {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to planet.v1.BonusClaimed: %w", err)
 	}
-	answers, err := cpbootstrap.Subscribe(props.Events, "player-stats-quizzes", bonusBuffer,
+	answers, err := cpbootstrap.Subscribe(props.Events, "player-stats-quizzes",
 		log_subscriber.New(quiz_answered_subscriber.New(recordStats), props.Logger))
 	if err != nil {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to planet.v1.QuizAnswered: %w", err)
 	}
-	awards, err := cpbootstrap.Subscribe(props.Events, "player-titles", tileTakenBuffer,
+	awards, err := cpbootstrap.Subscribe(props.Events, "player-titles",
 		log_subscriber.New(stats_changed_subscriber.New(notifying_award_titles.New(
 			award_titles_usecase.New(store, accounts, titleBook, clock), titleFeed,
 		)), props.Logger))
@@ -210,19 +202,19 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to player.v1.StatsChanged: %w", err)
 	}
-	deletions, err := cpbootstrap.Subscribe(props.Events, "player-accounts", accountDeletedBuffer,
+	deletions, err := cpbootstrap.Subscribe(props.Events, "player-accounts",
 		log_subscriber.New(account_deleted_subscriber.New(forget_account_usecase.New(store)), props.Logger))
 	if err != nil {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to auth.v1.AccountDeleted: %w", err)
 	}
-	forgottenTitles, err := cpbootstrap.Subscribe(props.Events, "player-titles-accounts", accountDeletedBuffer,
+	forgottenTitles, err := cpbootstrap.Subscribe(props.Events, "player-titles-accounts",
 		log_subscriber.New(account_deleted_subscriber.New(forget_titles_usecase.New(titleStore)), props.Logger))
 	if err != nil {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe the titles to auth.v1.AccountDeleted: %w", err)
 	}
-	forgottenChoices, err := cpbootstrap.Subscribe(props.Events, "player-wearing-accounts", accountDeletedBuffer,
+	forgottenChoices, err := cpbootstrap.Subscribe(props.Events, "player-wearing-accounts",
 		log_subscriber.New(account_deleted_subscriber.New(forget_worn_title_usecase.New(wornTitleStore)), props.Logger))
 	if err != nil {
 		_ = db.Close()
@@ -230,13 +222,13 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	}
 
 	forgetVisit := forget_visit_usecase.New(visits)
-	signIns, err := cpbootstrap.Subscribe(props.Events, "player-presence-sign-ins", signInBuffer,
+	signIns, err := cpbootstrap.Subscribe(props.Events, "player-presence-sign-ins",
 		log_subscriber.New(signed_in_subscriber.New(move_visit_usecase.New(authors, visits)), props.Logger))
 	if err != nil {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to auth.v1.SignedIn: %w", err)
 	}
-	namings, err := cpbootstrap.Subscribe(props.Events, "player-names-sign-ins", signInBuffer,
+	namings, err := cpbootstrap.Subscribe(props.Events, "player-names-sign-ins",
 		log_subscriber.New(signed_in_account_subscriber.New(renaming_name_account.New(
 			name_account_usecase.New(generatedNames, store, clock), visits,
 		)), props.Logger))
@@ -244,13 +236,13 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe the names to auth.v1.SignedIn: %w", err)
 	}
-	signOuts, err := cpbootstrap.Subscribe(props.Events, "player-presence-sign-outs", signInBuffer,
+	signOuts, err := cpbootstrap.Subscribe(props.Events, "player-presence-sign-outs",
 		log_subscriber.New(signed_out_subscriber.New(forgetVisit), props.Logger))
 	if err != nil {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to auth.v1.SignedOut: %w", err)
 	}
-	gone, err := cpbootstrap.Subscribe(props.Events, "player-presence-accounts", accountDeletedBuffer,
+	gone, err := cpbootstrap.Subscribe(props.Events, "player-presence-accounts",
 		log_subscriber.New(account_deleted_subscriber.New(forgetVisit), props.Logger))
 	if err != nil {
 		_ = db.Close()

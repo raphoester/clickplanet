@@ -17,9 +17,9 @@ func (s *testSuite) TestGetAccountsAnswersWhatGetAccountAndTheClickTokenSay() {
 	s.guest(cara, "token-3", start.Add(time.Hour))
 	identity := accounts.NewIdentity("email", accounts.ClaimOf("cara@example.com", "cara@example.com", true), cara, start.Add(2*time.Hour))
 	session := accounts.LinkedSession(cara, accounts.TokenOf("token-4"), lifetime, start.Add(2*time.Hour))
-	s.Require().NoError(s.store.SaveSignIn(s.T().Context(), accounts.NewSignIn(session).WithIdentity(identity)))
+	s.Require().NoError(s.store.SaveSignIn(s.T().Context(), accounts.NewSignIn(session).WithIdentity(identity), &authv1.SignedIn{}))
 	s.guest(dan, "token-5", start)
-	s.Require().NoError(s.store.DeleteAccount(s.T().Context(), dan))
+	s.Require().NoError(s.store.DeleteAccount(s.T().Context(), dan, &authv1.AccountDeleted{}))
 
 	tokens := map[accounts.AccountID]string{ada: "token-1", bob: "token-2", cara: "token-3"}
 	page := s.accounts(ada, bob, cara, dan)

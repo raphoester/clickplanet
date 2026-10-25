@@ -37,5 +37,5 @@ func (s Subscriber) Handle(ctx context.Context, event *planetv1.BombLanded) erro
 	ctx, cancel := context.WithTimeout(ctx, subscribers.Timeout)
 	defer cancel()
 
-	return s.useCase.Execute(ctx, record_stats_usecase.In{Account: account, Change: players.Stats.WithBomb}) //nolint:wrapcheck // the use case named it.
+	return s.useCase.Execute(ctx, record_stats_usecase.In{Account: account, Change: players.BombAt(event.GetPosition())}) //nolint:wrapcheck // the use case named it.
 }

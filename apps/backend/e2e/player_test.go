@@ -58,6 +58,7 @@ func startGameWith(t *testing.T, adjust func(stackConfigs)) gameStack {
 	t.Helper()
 
 	postgres := cppg.StartTestServer(t)
+	events := cpbootstrap.StartTestRedis(t)
 	secret, _ := cpsession.TestKeyPair()
 	public, internal, console, admin := listen(t), listen(t), listen(t), listen(t)
 	server := cpbootstrap.ServerConfig{
@@ -111,6 +112,7 @@ func startGameWith(t *testing.T, adjust func(stackConfigs)) gameStack {
 	go func() {
 		done <- cpbootstrap.RunOn(ctx, cpbootstrap.Options{
 			Server: server,
+			Events: events,
 			Logger: logger,
 			Modules: []cpbootstrap.Module{
 				authModule, planet.NewModule(planetConfig), player.NewModule(playerConfig), chat.NewModule(chatConfig),

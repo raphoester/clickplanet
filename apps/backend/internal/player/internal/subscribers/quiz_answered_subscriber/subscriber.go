@@ -2,6 +2,7 @@ package quiz_answered_subscriber
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
@@ -25,6 +26,8 @@ type Subscriber struct {
 
 var _ cpbootstrap.Handler[*planetv1.QuizAnswered] = Subscriber{}
 
+var errNoTime = errors.New("the answer has no time")
+
 func (s Subscriber) Handle(ctx context.Context, event *planetv1.QuizAnswered) error {
 	account, err := players.AccountIDOf(event.GetAccountId())
 	if err != nil {
@@ -34,8 +37,12 @@ func (s Subscriber) Handle(ctx context.Context, event *planetv1.QuizAnswered) er
 		return nil
 	}
 
+	if err := event.GetAnsweredAt().CheckValid(); err != nil {
+		return fmt.Errorf("%w: %w", errNoTime, err)
+	}
+
 	ctx, cancel := context.WithTimeout(ctx, subscribers.Timeout)
 	defer cancel()
 
-	return s.useCase.Execute(ctx, record_stats_usecase.In{Account: account, Change: players.Stats.WithRightAnswer}) //nolint:wrapcheck // the use case named it.
+	return s.useCase.Execute(ctx, record_stats_usecase.In{Account: account, Change: players.RightAnswerAt(event.GetAnsweredAt().AsTime())}) //nolint:wrapcheck // the use case named it.
 }

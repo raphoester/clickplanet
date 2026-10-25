@@ -58,8 +58,6 @@ import (
 
 const moduleName = "support"
 
-const accountDeletedBuffer = 256
-
 const bucketTimeout = 4 * time.Second
 
 func NewModule(config Config) cpbootstrap.Module {
@@ -110,14 +108,14 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	unsentDiscard := log_prune.New(discard_unsent_usecase.New(config.Attachments.KeepUnsent, clock, uploadStore, bucket),
 		props.Logger.With(slog.String("pruned", "unsent files")))
 
-	noteDeletions, err := cpbootstrap.Subscribe(props.Events, "support-notes-accounts", accountDeletedBuffer,
+	noteDeletions, err := cpbootstrap.Subscribe(props.Events, "support-notes-accounts",
 		log_subscriber.New(account_deleted_subscriber.New(anonymize_notes_usecase.New(noteStore)), props.Logger))
 	if err != nil {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to auth.v1.AccountDeleted: %w", err)
 	}
 
-	reportDeletions, err := cpbootstrap.Subscribe(props.Events, "support-reports-accounts", accountDeletedBuffer,
+	reportDeletions, err := cpbootstrap.Subscribe(props.Events, "support-reports-accounts",
 		log_subscriber.New(account_deleted_subscriber.New(forget_reports_usecase.New(reportStore)), props.Logger))
 	if err != nil {
 		_ = db.Close()

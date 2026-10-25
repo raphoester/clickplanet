@@ -18,7 +18,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/aes_flow_sealer"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/usecases/complete_email_sign_in_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/usecases/start_email_sign_in_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -34,7 +33,7 @@ type fixture struct {
 	sealer     *aes_flow_sealer.Sealer
 	store      *inmemory_account_store.Store
 	clock      *cptime.FixedClock
-	events     *cpbootstrap.RecordedEvents
+	seeded     int
 	start      *start_email_sign_in_usecase.UseCase
 	completion *complete_email_sign_in_usecase.UseCase
 }
@@ -44,7 +43,7 @@ func setUp(t *testing.T) *fixture {
 
 	sealer, err := aes_flow_sealer.New(bytes.Repeat([]byte{1}, 32))
 	require.NoError(t, err)
-	f := &fixture{sealer: sealer, store: inmemory_account_store.New(), clock: cptime.NewFixedClock(start), events: cpbootstrap.NewRecordedEvents()}
+	f := &fixture{sealer: sealer, store: inmemory_account_store.New(), clock: cptime.NewFixedClock(start)}
 	post := signin.NewPost(signin.BlockedDomains{}, cpratelimit.New("sends", cpratelimit.Config{Burst: 100, PerSecond: 1}, f.clock), &signin.FakeMailer{})
 	f.start = start_email_sign_in_usecase.New(open_attester.New(), f.store, f.challenges(true), post, f.clock)
 	f.completion = f.useCase(true)
@@ -57,7 +56,7 @@ func (f *fixture) challenges(offered bool) *signin.Challenges {
 }
 
 func (f *fixture) useCase(offered bool) *complete_email_sign_in_usecase.UseCase {
-	admitter := signin.NewAdmitter(f.store, &accounts.SequentialIDs{}, &accounts.SequentialTokens{}, lifetime, f.events)
+	admitter := signin.NewAdmitter(f.store, &accounts.SequentialIDs{}, &accounts.SequentialTokens{}, lifetime)
 	return complete_email_sign_in_usecase.New(f.challenges(offered), admitter, f.clock)
 }
 
@@ -112,8 +111,8 @@ func TestTheRightCodeMakesAnAccountForANewAddress(t *testing.T) {
 	session, err := f.store.Session(t.Context(), accounts.TokenOf(cookieValue(t, out.SetCookie())).Hash())
 	require.NoError(t, err)
 	assert.True(t, session.Linked(), "an email account clicks as fast as one signed in with a provider")
-	require.Len(t, f.events.Published(), 1)
-	assert.True(t, proto.Equal(&authv1.SignedIn{AccountId: out.Account().String()}, f.events.Published()[0]))
+	require.Len(t, f.store.Told()[f.seeded:], 1)
+	assert.True(t, proto.Equal(&authv1.SignedIn{AccountId: out.Account().String()}, f.store.Told()[f.seeded:][0]))
 }
 
 func TestTheRightCodeLinksTheAddressToTheGuest(t *testing.T) {
@@ -147,7 +146,8 @@ func (f *fixture) googleAccount(t *testing.T, account byte, email string) {
 
 	identity := accounts.NewIdentity("google", accounts.ClaimOf("google-user", email, true), accounts.AccountID{15: account}, start)
 	linked := accounts.LinkedSession(identity.Account(), accounts.TokenOf("google-token"), lifetime, start)
-	require.NoError(t, f.store.SaveSignIn(t.Context(), accounts.NewSignIn(linked).WithNewAccount().WithIdentity(identity)))
+	require.NoError(t, f.store.SaveSignIn(t.Context(), accounts.NewSignIn(linked).WithNewAccount().WithIdentity(identity), &authv1.SignedIn{}))
+	f.seeded = len(f.store.Told())
 }
 
 func TestAnAddressAGoogleAccountHoldsSignsInToThatAccount(t *testing.T) {

@@ -92,6 +92,25 @@ func storedHead(ctx context.Context, db cppg.Querier) (int64, error) {
 	return head, nil
 }
 
+func (s *Store) Relayed(ctx context.Context) (ledger.Position, error) {
+	var position int64
+	err := s.db.QueryRowContext(ctx, `SELECT position FROM ledger_relayed`).Scan(&position)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return 0, fmt.Errorf("failed to read how far the ledger was told: %w", err)
+	}
+	return ledger.Position(position), nil //nolint:gosec // CHECK (position >= 0).
+}
+
+func (s *Store) SaveRelayed(ctx context.Context, position ledger.Position) error {
+	if _, err := s.db.ExecContext(ctx, `
+		INSERT INTO ledger_relayed (position) VALUES ($1)
+		ON CONFLICT (singleton) DO UPDATE SET position = excluded.position
+	`, int64(position)); err != nil { //nolint:gosec // a ledger position fits in int64.
+		return fmt.Errorf("failed to save how far the ledger was told: %w", err)
+	}
+	return nil
+}
+
 func (s *Store) loadEvents(ctx context.Context, head int64, visit func(inmemory_ledger_storage.Stored)) error {
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT position, kind, tile, scope, account::text, country, previous, taken_at, payload

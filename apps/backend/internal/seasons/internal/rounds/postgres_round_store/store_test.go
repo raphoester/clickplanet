@@ -5,10 +5,12 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/suite"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/postgres_round_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpoutbox"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
@@ -26,6 +28,11 @@ func (s *testSuite) SetupSuite() {
 	s.db = cppg.StartTestServer(s.T()).OpenSchema(s.T(), "seasons", migrations.FS)
 	store := postgres_round_store.New(s.db)
 	s.NewStore = func() rounds.Store { return store }
+	s.Told = func() []proto.Message {
+		kept, err := cpoutbox.Kept(s.T().Context(), s.db)
+		s.Require().NoError(err)
+		return kept
+	}
 }
 
 func (s *testSuite) SetupTest() {

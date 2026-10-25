@@ -231,3 +231,22 @@ func scan(t *testing.T, db *cppg.Postgres, query string) []int {
 	require.NoError(t, rows.Err())
 	return out
 }
+
+const ledgerRelayed = "20261025180000"
+
+func TestTheLedgerIsToldFromTheFirstEventTheOldServerDidNotPublish(t *testing.T) {
+	db := cppg.StartTestServer(t).OpenSchema(t, "planet", before(t, ledgerRelayed))
+	for position := range 3 {
+		_, err := db.ExecContext(t.Context(), `
+			INSERT INTO ledger_events (position, kind, tile, scope, country, previous, taken_at)
+			VALUES ($1, 'take', 1, '203.0.113.7', 'fr', '', now())
+		`, position)
+		require.NoError(t, err)
+	}
+
+	require.NoError(t, db.Migrate(t.Context(), migrations.FS))
+
+	var relayed int64
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT position FROM ledger_relayed`).Scan(&relayed))
+	assert.Equal(t, int64(3), relayed, "it published every take it made, at the take")
+}

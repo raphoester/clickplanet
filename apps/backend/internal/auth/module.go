@@ -76,6 +76,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/usecases/start_email_sign_in_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/usecases/start_sign_in_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpoutbox"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
@@ -187,7 +188,6 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, signIns 
 		_ = db.Close()
 		return fmt.Errorf("failed to migrate the %s schema: %w", config.Database.Schema, err)
 	}
-	props.Closers.Add("auth-postgres", db.Close)
 
 	store := postgres_account_store.New(db)
 	clock := cptime.SystemClock{}
@@ -217,7 +217,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, signIns 
 	attemptLimiter := cpratelimit.New("email-attempt-limiter",
 		cpratelimit.Config{Burst: signin.MaxAttempts, PerSecond: 1 / signin.ChallengeTTL.Seconds()}, clock)
 	props.Runners.Add(attemptLimiter)
-	admitter := signin.NewAdmitter(store, uuid_id_provider.Provider{}, random_token_generator.Generator{}, config.Sessions, props.Events)
+	admitter := signin.NewAdmitter(store, uuid_id_provider.Provider{}, random_token_generator.Generator{}, config.Sessions)
 	challenges := signin.NewChallenges(config.Email.Enabled, random_secret_generator.Generator{}, mail.codes, sealer, attemptLimiter)
 	post := signin.NewPost(blocklist, sendLimiter, mail.mailer)
 
@@ -249,10 +249,12 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, signIns 
 		),
 		SignOutHandler:           sign_out_handler.New(sign_out_usecase.New(store, props.Events)),
 		SignOutEverywhereHandler: sign_out_everywhere_handler.New(sign_out_everywhere_usecase.New(store, props.Events, clock)),
-		DeleteAccountHandler:     delete_account_handler.New(delete_account_usecase.New(store, props.Events, clock)),
+		DeleteAccountHandler:     delete_account_handler.New(delete_account_usecase.New(store, clock)),
 	}
-	props.Runners.Add(prune_guests_usecase.NewRunner(config.Prune,
-		log_prune_guests.New(prune_guests_usecase.New(config.Prune, store, props.Events, clock), props.Logger)))
+	// Not a closer: closers run before the outbox's last send.
+	props.Runners.Add(cppg.CloseAfter(db, props.Logger,
+		prune_guests_usecase.NewRunner(config.Prune, log_prune_guests.New(prune_guests_usecase.New(config.Prune, store, clock), props.Logger)),
+		cpoutbox.NewRelay("auth-outbox", db, props.Events, props.Logger)))
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return authv1connect.NewAuthServiceHandler(authService, options...)
 	}, authv1controller.NewRateLimitInterceptor(mintLimiter),

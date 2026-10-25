@@ -43,7 +43,7 @@ func (s *Store) RecordTake(ctx context.Context, season calendar.Number, take sta
 	if err != nil {
 		return err
 	}
-	next := tally.WithTake(take.Country)
+	next := tally.WithTake(take)
 
 	if tally.Main != "" && next.Main != tally.Main {
 		if _, err := tx.ExecContext(ctx, `
@@ -53,10 +53,12 @@ func (s *Store) RecordTake(ctx context.Context, season calendar.Number, take sta
 		}
 	}
 	if _, err := tx.ExecContext(ctx, `
-		INSERT INTO contributions (season, account_id, country, tiles, main) VALUES ($1, $2, $3, $4, $5)
-		ON CONFLICT (season, account_id, country) DO UPDATE SET tiles = excluded.tiles, main = excluded.main
+		INSERT INTO contributions (season, account_id, country, tiles, main, counted_takes_below) VALUES ($1, $2, $3, $4, $5, $6)
+		ON CONFLICT (season, account_id, country) DO UPDATE
+		SET tiles = excluded.tiles, main = excluded.main, counted_takes_below = excluded.counted_takes_below
 	`, int64(season), uuid.UUID(take.Account), string(take.Country),
-		int64(next.Tiles[take.Country]), next.Main == take.Country); err != nil { //nolint:gosec // one a tile taken: never past int64.
+		int64(next.Tiles[take.Country]), next.Main == take.Country, //nolint:gosec // one a tile taken: never past int64.
+		int64(next.TakesBelow)); err != nil { //nolint:gosec // a ledger position fits in int64.
 		return fmt.Errorf("failed to save the take: %w", err)
 	}
 
@@ -68,7 +70,7 @@ func (s *Store) RecordTake(ctx context.Context, season calendar.Number, take sta
 
 func tallyOf(ctx context.Context, db cppg.Querier, season calendar.Number, account standings.AccountID) (standings.Tally, error) {
 	rows, err := db.QueryContext(ctx, `
-		SELECT country, tiles, main FROM contributions WHERE season = $1 AND account_id = $2
+		SELECT country, tiles, main, counted_takes_below FROM contributions WHERE season = $1 AND account_id = $2
 	`, int64(season), uuid.UUID(account))
 	if err != nil {
 		return standings.Tally{}, fmt.Errorf("failed to read the account's contributions: %w", err)
@@ -81,11 +83,13 @@ func tallyOf(ctx context.Context, db cppg.Querier, season calendar.Number, accou
 			country string
 			tiles   int64
 			main    bool
+			below   int64
 		)
-		if err := rows.Scan(&country, &tiles, &main); err != nil {
+		if err := rows.Scan(&country, &tiles, &main, &below); err != nil {
 			return standings.Tally{}, fmt.Errorf("failed to read a contribution: %w", err)
 		}
 		tally.Tiles[standings.Country(country)] = uint64(tiles) //nolint:gosec // CHECK (tiles > 0).
+		tally.TakesBelow = max(tally.TakesBelow, uint64(below)) //nolint:gosec // CHECK (counted_takes_below >= 0).
 		if main {
 			tally.Main = standings.Country(country)
 		}

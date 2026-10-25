@@ -24,7 +24,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase/antibot_drop_bomb"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase/prom_drop_bomb"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase/publishing_drop_bomb"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/get_charges_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/grant_charges_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/grant_charges_usecase/audit_grant_charges"
@@ -57,16 +56,16 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/paint_random_tiles_usecase/audit_paint_random"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/reassign_country_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/reassign_country_usecase/audit_reassign"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/relay_fortifications_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/postgres_ledger_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/publishing_ledger_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/anonymize_takes_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/ban_player_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/ban_player_usecase/audit_ban"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/find_players_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/inspect_player_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/relay_ledger_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/relay_ledger_usecase/log_relay_ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/replay_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/revert_player_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/revert_player_usecase/audit_revert"
@@ -126,7 +125,7 @@ import (
 const (
 	moduleName = "planet"
 
-	accountDeletedBuffer = 2048
+	ledgerRelayInterval = time.Second
 )
 
 func NewModule(config Config) cpbootstrap.Module {
@@ -173,7 +172,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				return fmt.Errorf("failed to load the ledger: %w", err)
 			}
 
-			deletions, err := cpbootstrap.Subscribe(props.Events, "planet-ledger-accounts", accountDeletedBuffer,
+			deletions, err := cpbootstrap.Subscribe(props.Events, "planet-ledger-accounts",
 				log_subscriber.New(account_deleted_subscriber.New(
 					anonymize_takes_usecase.New(takings, ledgerStore)), props.Logger))
 			if err != nil {
@@ -181,10 +180,12 @@ func NewModule(config Config) cpbootstrap.Module {
 				return fmt.Errorf("failed to subscribe the ledger to auth.v1.AccountDeleted: %w", err)
 			}
 
+			relay := relay_ledger_usecase.NewRunner(ledgerRelayInterval, log_relay_ledger.New(
+				relay_ledger_usecase.New(takings, ledgerStore, borders, props.Events), props.Logger))
+
 			// Not a closer: closers run before the runners' last flush.
-			props.Runners.Add(cppg.CloseAfter(db, props.Logger, tilesStorage, takings, deletions))
+			props.Runners.Add(cppg.CloseAfter(db, props.Logger, tilesStorage, takings, deletions, relay))
 			props.Runners.Add(ledger.NewRetention(config.Ledger, takings, clock))
-			props.Runners.Add(relay_fortifications_usecase.New(tilesStorage, props.Events, clock, props.Logger))
 
 			limiter := cpratelimit.New("click-limiter", config.RateLimiter.Config, clock)
 			props.Runners.Add(limiter)
@@ -197,7 +198,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			shielding := clicks.NewShielding(tilesStorage)
 
 			writer := ledger.NewRecording(tilesStorage, clicks.NewClaiming(tilesStorage, config.Bonus.ShieldsPerTile()),
-				publishing_ledger_storage.New(takings, props.Events), clock)
+				takings, clock)
 
 			chargeRules := config.Bonus.ChargesConfig()
 			charges := bonuses.NewCharges(postgres_charge_store.New(db), chargeRules)
@@ -354,11 +355,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			})
 
 			dropBomb := prom_drop_bomb.New(
-				antibot_drop_bomb.New(
-					publishing_drop_bomb.New(
-						drop_bomb_usecase.New(charges, geography, writer, countries, bombRules),
-						borders, props.Events, clock),
-					guard),
+				antibot_drop_bomb.New(drop_bomb_usecase.New(charges, geography, writer, countries, bombRules), guard),
 				props.Metrics)
 
 			rules := bonuses.Rules{

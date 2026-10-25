@@ -8,6 +8,15 @@ httpServer:
   # Behind the admin gate: set, it needs auth.admin.origin.
   adminBindAddress: ""
   allowedOrigin: http://localhost:5173
+
+events:
+  address: localhost:6379
+  password: ""
+  maxLen: 100000
+  publishTimeout: 500ms
+  retryAfter: 2s
+  maxDeliveries: 8
+
 gameMap:
   maxIndex: 262119
 

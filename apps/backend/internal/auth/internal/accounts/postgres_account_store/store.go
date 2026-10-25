@@ -8,8 +8,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpoutbox"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
@@ -147,7 +149,7 @@ func (s *Store) AccountOfEmail(ctx context.Context, address string) (*accounts.A
 	return s.Account(ctx, accounts.AccountID(account))
 }
 
-func (s *Store) SaveSignIn(ctx context.Context, signIn accounts.SignIn) error {
+func (s *Store) SaveSignIn(ctx context.Context, signIn accounts.SignIn, told proto.Message) error {
 	session := signIn.Session()
 	return s.inTx(ctx, func(tx *sql.Tx) error {
 		if signIn.NewAccount() {
@@ -168,19 +170,45 @@ func (s *Store) SaveSignIn(ctx context.Context, signIn accounts.SignIn) error {
 		if err := insertSession(ctx, tx, session); err != nil {
 			return err
 		}
-		return markSeen(ctx, tx, session.Account(), session.ExtendedAt())
+		if err := markSeen(ctx, tx, session.Account(), session.ExtendedAt()); err != nil {
+			return err
+		}
+		return cpoutbox.Append(ctx, tx, told) //nolint:wrapcheck // Append named it.
 	})
 }
 
-func (s *Store) DeleteAccount(ctx context.Context, account accounts.AccountID) error {
-	if _, err := s.db.ExecContext(ctx, `DELETE FROM accounts WHERE id = $1`, uuid.UUID(account)); err != nil {
-		return fmt.Errorf("failed to delete the account: %w", err)
-	}
-	return nil
+func (s *Store) DeleteAccount(ctx context.Context, account accounts.AccountID, told proto.Message) error {
+	return s.inTx(ctx, func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM accounts WHERE id = $1`, uuid.UUID(account)); err != nil {
+			return fmt.Errorf("failed to delete the account: %w", err)
+		}
+		return cpoutbox.Append(ctx, tx, told) //nolint:wrapcheck // Append named it.
+	})
 }
 
-func (s *Store) PruneGuests(ctx context.Context, idleSince time.Time, limit int) ([]accounts.AccountID, error) {
-	rows, err := s.db.QueryContext(ctx, `
+func (s *Store) PruneGuests(
+	ctx context.Context, idleSince time.Time, limit int, told func(accounts.AccountID) proto.Message,
+) (pruned []accounts.AccountID, err error) {
+	err = s.inTx(ctx, func(tx *sql.Tx) error {
+		pruned, err = pruneGuests(ctx, tx, idleSince, limit)
+		if err != nil {
+			return err
+		}
+		for _, account := range pruned {
+			if err := cpoutbox.Append(ctx, tx, told(account)); err != nil {
+				return err //nolint:wrapcheck // Append named it.
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return pruned, nil
+}
+
+func pruneGuests(ctx context.Context, tx *sql.Tx, idleSince time.Time, limit int) ([]accounts.AccountID, error) {
+	rows, err := tx.QueryContext(ctx, `
 		DELETE FROM accounts WHERE id IN (
 			SELECT id FROM accounts
 			WHERE last_seen_at < $1

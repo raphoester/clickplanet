@@ -40,6 +40,6 @@ func (s Subscriber) Handle(ctx context.Context, event *planetv1.Fortified) error
 
 	return s.useCase.Execute(ctx, record_stats_usecase.In{ //nolint:wrapcheck // the use case named it.
 		Account: account,
-		Change:  func(stats players.Stats) players.Stats { return stats.WithFortify(tiles) },
+		Change:  players.FortifyAt(event.GetPosition(), tiles),
 	})
 }

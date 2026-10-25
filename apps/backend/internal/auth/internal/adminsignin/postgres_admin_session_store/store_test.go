@@ -4,6 +4,8 @@ import (
 	"testing"
 	"time"
 
+	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
+
 	"github.com/stretchr/testify/suite"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
@@ -47,7 +49,7 @@ func (s *testSuite) signedIn(account accounts.AccountID, provider, subject strin
 		accounts.GuestSession(account, accounts.TokenOf("guest-"+subject), lifetime, start)))
 	identity := accounts.NewIdentity(provider, accounts.ClaimOf(subject, "", false), account, start)
 	session := accounts.LinkedSession(account, accounts.TokenOf("linked-"+subject), lifetime, start)
-	s.Require().NoError(s.accounts.SaveSignIn(s.T().Context(), accounts.NewSignIn(session).WithIdentity(identity)))
+	s.Require().NoError(s.accounts.SaveSignIn(s.T().Context(), accounts.NewSignIn(session).WithIdentity(identity), &authv1.SignedIn{}))
 }
 
 func (s *testSuite) operates(account accounts.AccountID) {
@@ -98,6 +100,6 @@ func (s *testSuite) TestASessionIsKeptUntilItIsDeletedOrItsAccountIs() {
 	s.Require().NoError(s.store.DeleteSession(s.T().Context(), accounts.TokenOf("laptop").Hash()))
 	s.Equal(1, count())
 
-	s.Require().NoError(s.accounts.DeleteAccount(s.T().Context(), ada))
+	s.Require().NoError(s.accounts.DeleteAccount(s.T().Context(), ada, &authv1.AccountDeleted{}))
 	s.Equal(0, count(), "deleted with its account")
 }

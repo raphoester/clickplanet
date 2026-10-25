@@ -7,10 +7,13 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/suite"
+	"google.golang.org/protobuf/proto"
 
+	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/postgres_account_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/migrations"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpoutbox"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
@@ -32,6 +35,11 @@ func (s *testSuite) SetupSuite() {
 		s.Require().NoError(s.db.Purge(s.T().Context()))
 		return s.store
 	}
+	s.Told = func() []proto.Message {
+		kept, err := cpoutbox.Kept(s.T().Context(), s.db)
+		s.Require().NoError(err)
+		return kept
+	}
 }
 
 var (
@@ -43,7 +51,7 @@ func (s *testSuite) TestAnUnverifiedEmailIsStoredAsNull() {
 	ctx := s.T().Context()
 	identity := accounts.NewIdentity("discord", accounts.ClaimOf("discord-user", "maybe@example.com", false), accounts.AccountID{15: 1}, start)
 	linked := accounts.LinkedSession(identity.Account(), accounts.TokenOf("a-token"), lifetime, start)
-	s.Require().NoError(s.store.SaveSignIn(ctx, accounts.NewSignIn(linked).WithNewAccount().WithIdentity(identity)))
+	s.Require().NoError(s.store.SaveSignIn(ctx, accounts.NewSignIn(linked).WithNewAccount().WithIdentity(identity), &authv1.SignedIn{}))
 
 	var email sql.NullString
 	s.Require().NoError(s.db.QueryRowContext(ctx, `SELECT email FROM identities WHERE subject = $1`, "discord-user").Scan(&email))
@@ -55,7 +63,7 @@ func (s *testSuite) TestAProviderTheTypeDoesNotHoldIsRefused() {
 	identity := accounts.NewIdentity("github", accounts.ClaimOf("gh", "", false), accounts.AccountID{15: 1}, start)
 	linked := accounts.LinkedSession(identity.Account(), accounts.TokenOf("a-token"), lifetime, start)
 
-	s.Require().Error(s.NewStore().SaveSignIn(ctx, accounts.NewSignIn(linked).WithNewAccount().WithIdentity(identity)))
+	s.Require().Error(s.NewStore().SaveSignIn(ctx, accounts.NewSignIn(linked).WithNewAccount().WithIdentity(identity), &authv1.SignedIn{}))
 
 	_, err := s.store.Account(ctx, identity.Account())
 	s.ErrorIs(err, accounts.ErrAccountNotFound, "the sign-in is one transaction")

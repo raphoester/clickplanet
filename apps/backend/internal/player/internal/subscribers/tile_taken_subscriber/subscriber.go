@@ -40,5 +40,5 @@ func (s Subscriber) Handle(ctx context.Context, event *planetv1.TileTaken) error
 	ctx, cancel := context.WithTimeout(ctx, subscribers.Timeout)
 	defer cancel()
 
-	return s.useCase.Execute(ctx, record_stats_usecase.In{Account: account, Change: players.TakeAt(event.GetTakenAt().AsTime())}) //nolint:wrapcheck // the use case named it.
+	return s.useCase.Execute(ctx, record_stats_usecase.In{Account: account, Change: players.TakeAt(event.GetPosition(), event.GetTakenAt().AsTime())}) //nolint:wrapcheck // the use case named it.
 }

@@ -17,11 +17,7 @@ type IdentityStore interface {
 	accounts.AccountFinder
 	Identity(ctx context.Context, provider string, subject string) (*accounts.Identity, error)
 	AccountOfEmail(ctx context.Context, address string) (*accounts.Account, error)
-	SaveSignIn(ctx context.Context, signIn accounts.SignIn) error
-}
-
-type Publisher interface {
-	Publish(event proto.Message)
+	SaveSignIn(ctx context.Context, signIn accounts.SignIn, told proto.Message) error
 }
 
 type Admitter struct {
@@ -29,13 +25,10 @@ type Admitter struct {
 	ids      accounts.IDProvider
 	tokens   accounts.TokenGenerator
 	lifetime accounts.Lifetime
-	events   Publisher
 }
 
-func NewAdmitter(
-	store IdentityStore, ids accounts.IDProvider, tokens accounts.TokenGenerator, lifetime accounts.Lifetime, events Publisher,
-) *Admitter {
-	return &Admitter{store: store, ids: ids, tokens: tokens, lifetime: lifetime.WithDefaults(), events: events}
+func NewAdmitter(store IdentityStore, ids accounts.IDProvider, tokens accounts.TokenGenerator, lifetime accounts.Lifetime) *Admitter {
+	return &Admitter{store: store, ids: ids, tokens: tokens, lifetime: lifetime.WithDefaults()}
 }
 
 type Visitor struct {
@@ -147,16 +140,13 @@ func (a *Admitter) admit(
 		signIn = signIn.WithIdentity(accounts.NewIdentity(provider, claim, account, now))
 	}
 
-	if err := a.store.SaveSignIn(ctx, signIn); err != nil {
-		return nil, fmt.Errorf("failed to save the sign-in: %w", err)
-	}
-
 	signedIn := &authv1.SignedIn{AccountId: account.String()}
 	if current != nil {
 		signedIn.PreviousAccountId = current.ID().String()
 	}
-	// After the sign-in is saved: a subscriber moves what it keeps for the old account.
-	a.events.Publish(signedIn)
+	if err := a.store.SaveSignIn(ctx, signIn, signedIn); err != nil {
+		return nil, fmt.Errorf("failed to save the sign-in: %w", err)
+	}
 
 	return &Admission{account: account, outcome: outcome, setCookie: session.Cookie(token, now)}, nil
 }

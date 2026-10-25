@@ -42,17 +42,13 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/subscribers/tile_taken_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpoutbox"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsessionverifier"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 const moduleName = "seasons"
-
-const (
-	tileTakenBuffer      = 8192
-	accountDeletedBuffer = 2048
-)
 
 func NewModule(config Config) cpbootstrap.Module {
 	return cpbootstrap.Module{
@@ -89,13 +85,13 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	standingsQuery := standings_query.NewPostgresQuery(db, standings_authors.New(player), seasons, clock, countries)
 	boards := inprocess_board_feed.New(log_board_reader.New(standingsQuery, props.Logger), clock)
 
-	takes, err := cpbootstrap.Subscribe(props.Events, "seasons-standings", tileTakenBuffer,
+	takes, err := cpbootstrap.Subscribe(props.Events, "seasons-standings",
 		log_subscriber.New(tile_taken_subscriber.New(record_take_usecase.New(seasons, contributions)), props.Logger))
 	if err != nil {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to planet.v1.TileTaken: %w", err)
 	}
-	deletions, err := cpbootstrap.Subscribe(props.Events, "seasons-standings-accounts", accountDeletedBuffer,
+	deletions, err := cpbootstrap.Subscribe(props.Events, "seasons-standings-accounts",
 		log_subscriber.New(account_deleted_subscriber.New(forget_account_usecase.New(contributions)), props.Logger))
 	if err != nil {
 		_ = db.Close()
@@ -105,11 +101,12 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	race := log_race_reader.New(race_query.NewPostgresQuery(db, seasons, clock), props.Logger)
 	races := inprocess_race_feed.New(race)
 	snapshot := take_snapshot_usecase.NewRunner(config.Snapshot, log_take_snapshot.New(
-		take_snapshot_usecase.New(rpc_planet_territories.New(planet), postgres_round_store.New(db), props.Events, seasons, clock),
+		take_snapshot_usecase.New(rpc_planet_territories.New(planet), postgres_round_store.New(db), seasons, clock),
 		props.Logger,
 	))
 
-	props.Runners.Add(cppg.CloseAfter(db, props.Logger, takes, deletions, boards, races, snapshot))
+	props.Runners.Add(cppg.CloseAfter(db, props.Logger, takes, deletions, boards, races, snapshot,
+		cpoutbox.NewRelay("seasons-outbox", db, props.Events, props.Logger)))
 
 	service := seasonsv1controller.SeasonService{
 		GetSeasonHandler: get_season_handler.New(

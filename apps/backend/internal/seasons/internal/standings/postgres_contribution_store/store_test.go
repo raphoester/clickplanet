@@ -34,7 +34,8 @@ func (s *testSuite) SetupSuite() {
 
 func (s *testSuite) tallyOf(season calendar.Number, account standings.AccountID) standings.Tally {
 	rows, err := s.db.QueryContext(s.T().Context(),
-		`SELECT country, tiles, main FROM contributions WHERE season = $1 AND account_id = $2`, int64(season), uuid.UUID(account))
+		`SELECT country, tiles, main, counted_takes_below FROM contributions WHERE season = $1 AND account_id = $2`,
+		int64(season), uuid.UUID(account))
 	s.Require().NoError(err)
 	defer func() { _ = rows.Close() }()
 
@@ -44,9 +45,11 @@ func (s *testSuite) tallyOf(season calendar.Number, account standings.AccountID)
 			country string
 			tiles   uint64
 			main    bool
+			below   uint64
 		)
-		s.Require().NoError(rows.Scan(&country, &tiles, &main))
+		s.Require().NoError(rows.Scan(&country, &tiles, &main, &below))
 		tally.Tiles[standings.Country(country)] = tiles
+		tally.TakesBelow = max(tally.TakesBelow, below)
 		if main {
 			tally.Main = standings.Country(country)
 		}
@@ -61,9 +64,9 @@ func (s *testSuite) SetupTest() {
 }
 
 func (s *testSuite) TestOneRowIsMainPerAccountAndSeason() {
-	for _, country := range []standings.Country{"fr", "de", "de", "it", "it", "it"} {
+	for position, country := range []standings.Country{"fr", "de", "de", "it", "it", "it"} {
 		s.Require().NoError(postgres_contribution_store.New(s.db).RecordTake(s.T().Context(), 0,
-			standings.Take{Account: standings.AccountID{15: 1}, Country: country}))
+			standings.Take{Account: standings.AccountID{15: 1}, Country: country, Position: uint64(position)}))
 	}
 
 	var mains, rows int

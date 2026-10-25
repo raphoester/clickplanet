@@ -153,6 +153,8 @@ func isLoopback(address string) bool {
 type Options struct {
 	Server ServerConfig
 
+	Events EventsConfig
+
 	ShutdownTimeout time.Duration
 
 	Logger *slog.Logger
@@ -202,14 +204,20 @@ func run(ctx context.Context, options Options, listen listenFunc) error {
 	internalRoutes := newRPCRoutes(errorNet, drainNet)
 	runners := newRunnerRegistry()
 	closers := newCloserRegistry()
-	events := newEventBus(metrics)
+	events, err := newEventBus(ctx, options.Events, metrics)
+	if err != nil {
+		return err
+	}
+	// Not a closer: the runners ack and send until they stop.
+	defer func() { _ = events.close() }()
 
 	registrars := registrars{routes: routes, admin: adminRoutes, internal: internalRoutes, events: events}
 	if err := buildModules(ctx, options, metrics, registrars, runners, closers); err != nil {
 		return err
 	}
-	// Before any runner starts: a subscriber registered later could miss boot events.
-	events.seal()
+	if events.on() {
+		runners.Add(trimmer{bus: events})
+	}
 
 	router := http.NewServeMux()
 	routes.mountOn(router, cphttpserver.MiddlewareStack(
@@ -313,6 +321,14 @@ func buildModules(
 			slog.String("module", module.Name),
 			slog.Int("runners", runners.count()-before),
 		)
+	}
+
+	// Before any runner starts: a subscriber registered later could miss boot events.
+	if !registrars.events.on() {
+		return nil
+	}
+	if err := registrars.events.seal(ctx); err != nil {
+		return fmt.Errorf("failed to open the event streams: %w", err)
 	}
 
 	return nil

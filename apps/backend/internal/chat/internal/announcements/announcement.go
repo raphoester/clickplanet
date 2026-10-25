@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes"
 )
 
 type AnnouncementID uuid.UUID
@@ -48,15 +50,21 @@ func (a Announcement) At() time.Time { return a.at }
 
 func (a Announcement) Payload() json.RawMessage { return a.payload }
 
-type Bomb struct {
-	country string
-	ground  string
-	tile    uint32
-	cleared uint32
+// Named after the fact it tells, so a fact told twice is announced once.
+func toldOnce(fact string) AnnouncementID {
+	return AnnouncementID(uuid.NewSHA1(uuid.NameSpaceURL, []byte("https://clickplanet.lol/"+fact)))
 }
 
-func BombOf(country string, ground string, tile uint32, cleared uint32) Bomb {
-	return Bomb{country: country, ground: ground, tile: tile, cleared: cleared}
+type Bomb struct {
+	position uint64
+	country  string
+	ground   string
+	tile     uint32
+	cleared  uint32
+}
+
+func BombOf(position uint64, country string, ground string, tile uint32, cleared uint32) Bomb {
+	return Bomb{position: position, country: country, ground: ground, tile: tile, cleared: cleared}
 }
 
 type bombPayload struct {
@@ -66,26 +74,27 @@ type bombPayload struct {
 	Cleared uint32 `json:"cleared"`
 }
 
-func (b Bomb) Payload() (json.RawMessage, error) {
+func (b Bomb) Announcement(at time.Time) (Announcement, error) {
 	payload, err := json.Marshal(bombPayload{Country: b.country, Ground: b.ground, Tile: b.tile, Cleared: b.cleared})
 	if err != nil {
-		return nil, fmt.Errorf("failed to encode a bomb announcement: %w", err)
+		return Announcement{}, fmt.Errorf("failed to encode a bomb announcement: %w", err)
 	}
-	return payload, nil
+	return NewAnnouncement(toldOnce(fmt.Sprintf("ledger/%d/bomb", b.position)), KindBomb, at, payload), nil
 }
 
 // Below this a fortify is a small island somewhere, and the chat says nothing of it.
 const fortifyNewsTiles = 50
 
 type Fortify struct {
+	position uint64
 	country  string
 	ground   string
 	landmass uint32
 	tiles    uint32
 }
 
-func FortifyOf(country string, ground string, landmass uint32, tiles uint32) Fortify {
-	return Fortify{country: country, ground: ground, landmass: landmass, tiles: tiles}
+func FortifyOf(position uint64, country string, ground string, landmass uint32, tiles uint32) Fortify {
+	return Fortify{position: position, country: country, ground: ground, landmass: landmass, tiles: tiles}
 }
 
 func (f Fortify) Newsworthy() bool { return f.tiles >= fortifyNewsTiles }
@@ -97,21 +106,22 @@ type fortifyPayload struct {
 	Tiles    uint32 `json:"tiles"`
 }
 
-func (f Fortify) Payload() (json.RawMessage, error) {
+func (f Fortify) Announcement(at time.Time) (Announcement, error) {
 	payload, err := json.Marshal(fortifyPayload{Country: f.country, Ground: f.ground, Landmass: f.landmass, Tiles: f.tiles})
 	if err != nil {
-		return nil, fmt.Errorf("failed to encode a fortify announcement: %w", err)
+		return Announcement{}, fmt.Errorf("failed to encode a fortify announcement: %w", err)
 	}
-	return payload, nil
+	return NewAnnouncement(toldOnce(fmt.Sprintf("ledger/%d/fortify", f.position)), KindFortify, at, payload), nil
 }
 
 type Muted struct {
+	mute     mutes.MuteID
 	name     string
 	duration time.Duration
 }
 
-func MutedOf(name string, duration time.Duration) Muted {
-	return Muted{name: name, duration: duration}
+func MutedOf(mute mutes.MuteID, name string, duration time.Duration) Muted {
+	return Muted{mute: mute, name: name, duration: duration}
 }
 
 type mutedPayload struct {
@@ -119,12 +129,12 @@ type mutedPayload struct {
 	Seconds int64  `json:"seconds"`
 }
 
-func (m Muted) Payload() (json.RawMessage, error) {
+func (m Muted) Announcement(at time.Time) (Announcement, error) {
 	payload, err := json.Marshal(mutedPayload{Name: m.name, Seconds: int64(m.duration / time.Second)})
 	if err != nil {
-		return nil, fmt.Errorf("failed to encode a mute announcement: %w", err)
+		return Announcement{}, fmt.Errorf("failed to encode a mute announcement: %w", err)
 	}
-	return payload, nil
+	return NewAnnouncement(toldOnce("mutes/"+m.mute.String()), KindMute, at, payload), nil
 }
 
 const podium = 3
@@ -140,19 +150,20 @@ func PlaceOf(country string, rank uint32, points uint32) Place {
 }
 
 type Round struct {
+	season uint32
 	number uint32
 	finale bool
 	podium []Place
 }
 
-func RoundOf(number uint32, finale bool, places []Place) Round {
+func RoundOf(season uint32, number uint32, finale bool, places []Place) Round {
 	kept := make([]Place, 0, podium)
 	for _, place := range places {
 		if place.rank <= podium && place.points > 0 {
 			kept = append(kept, place)
 		}
 	}
-	return Round{number: number, finale: finale, podium: kept}
+	return Round{season: season, number: number, finale: finale, podium: kept}
 }
 
 type placePayload struct {
@@ -167,16 +178,16 @@ type roundPayload struct {
 	Podium []placePayload `json:"podium"`
 }
 
-func (r Round) Payload() (json.RawMessage, error) {
+func (r Round) Announcement(at time.Time) (Announcement, error) {
 	places := make([]placePayload, 0, len(r.podium))
 	for _, place := range r.podium {
 		places = append(places, placePayload{Country: place.country, Rank: place.rank, Points: place.points})
 	}
 	payload, err := json.Marshal(roundPayload{Number: r.number, Finale: r.finale, Podium: places})
 	if err != nil {
-		return nil, fmt.Errorf("failed to encode a round announcement: %w", err)
+		return Announcement{}, fmt.Errorf("failed to encode a round announcement: %w", err)
 	}
-	return payload, nil
+	return NewAnnouncement(toldOnce(fmt.Sprintf("seasons/%d/rounds/%d", r.season, r.number)), KindRound, at, payload), nil
 }
 
 type Champion struct {
@@ -201,18 +212,15 @@ type championPayload struct {
 	Countries []string `json:"countries"`
 }
 
-// The id is the season's, so a season is announced once however often it is told.
 func (c Champion) Announcement(at time.Time) (Announcement, error) {
 	payload, err := json.Marshal(championPayload{Season: c.season, Countries: c.countries})
 	if err != nil {
 		return Announcement{}, fmt.Errorf("failed to encode a champion announcement: %w", err)
 	}
-	id := uuid.NewSHA1(uuid.NameSpaceURL, fmt.Appendf(nil, "https://clickplanet.lol/seasons/%d/champion", c.season))
-	return NewAnnouncement(AnnouncementID(id), KindChampion, at, payload), nil
+	return NewAnnouncement(toldOnce(fmt.Sprintf("seasons/%d/champion", c.season)), KindChampion, at, payload), nil
 }
 
 type Storage interface {
-	Append(ctx context.Context, announcement Announcement) error
 	AppendOnce(ctx context.Context, announcement Announcement) (bool, error)
 	DeleteBefore(ctx context.Context, cutoff time.Time) (int64, error)
 }

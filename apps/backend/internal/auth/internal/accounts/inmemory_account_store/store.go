@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
 )
 
@@ -27,6 +29,7 @@ type Store struct {
 	lastSeen   map[accounts.AccountID]time.Time
 	identities map[identityKey]accounts.Identity
 	sessions   map[string]accounts.Session
+	told       []proto.Message
 	failWith   error
 }
 
@@ -172,7 +175,14 @@ func (s *Store) AccountOfEmail(_ context.Context, address string) (*accounts.Acc
 	return accounts.AccountOf(oldest.Account(), s.created[oldest.Account()], s.identitiesOf(oldest.Account())), nil
 }
 
-func (s *Store) SaveSignIn(_ context.Context, signIn accounts.SignIn) error {
+func (s *Store) Told() []proto.Message {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return slices.Clone(s.told)
+}
+
+func (s *Store) SaveSignIn(_ context.Context, signIn accounts.SignIn, told proto.Message) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -201,10 +211,11 @@ func (s *Store) SaveSignIn(_ context.Context, signIn accounts.SignIn) error {
 	}
 	s.sessions[string(session.TokenHash())] = *session
 	s.lastSeen[account] = session.ExtendedAt()
+	s.told = append(s.told, told)
 	return nil
 }
 
-func (s *Store) DeleteAccount(_ context.Context, account accounts.AccountID) error {
+func (s *Store) DeleteAccount(_ context.Context, account accounts.AccountID, told proto.Message) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -213,10 +224,13 @@ func (s *Store) DeleteAccount(_ context.Context, account accounts.AccountID) err
 	}
 
 	s.deleteAccount(account)
+	s.told = append(s.told, told)
 	return nil
 }
 
-func (s *Store) PruneGuests(_ context.Context, idleSince time.Time, limit int) ([]accounts.AccountID, error) {
+func (s *Store) PruneGuests(
+	_ context.Context, idleSince time.Time, limit int, told func(accounts.AccountID) proto.Message,
+) ([]accounts.AccountID, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -232,6 +246,7 @@ func (s *Store) PruneGuests(_ context.Context, idleSince time.Time, limit int) (
 		if seen.Before(idleSince) && len(s.identitiesOf(account)) == 0 {
 			s.deleteAccount(account)
 			pruned = append(pruned, account)
+			s.told = append(s.told, told(account))
 		}
 	}
 	return pruned, nil

@@ -19,7 +19,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/aes_flow_sealer"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/usecases/complete_sign_in_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/usecases/start_sign_in_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -34,7 +33,7 @@ type fixture struct {
 	google     *signin.FakeProvider
 	store      *inmemory_account_store.Store
 	clock      *cptime.FixedClock
-	events     *cpbootstrap.RecordedEvents
+	seeded     int
 	start      *start_sign_in_usecase.UseCase
 	completion *complete_sign_in_usecase.UseCase
 }
@@ -44,7 +43,7 @@ func setUp(t *testing.T) *fixture {
 
 	sealer, err := aes_flow_sealer.New(bytes.Repeat([]byte{1}, 32))
 	require.NoError(t, err)
-	f := &fixture{sealer: sealer, google: signin.NewFakeProvider(signin.Google), store: inmemory_account_store.New(), clock: cptime.NewFixedClock(start), events: cpbootstrap.NewRecordedEvents()}
+	f := &fixture{sealer: sealer, google: signin.NewFakeProvider(signin.Google), store: inmemory_account_store.New(), clock: cptime.NewFixedClock(start)}
 	providers := signin.Providers{signin.Google: f.google}
 	f.start = start_sign_in_usecase.New(providers, f.store, &signin.SequentialSecrets{}, sealer, f.clock)
 	f.completion = complete_sign_in_usecase.New(providers, sealer, f.admitter(), f.clock)
@@ -52,7 +51,7 @@ func setUp(t *testing.T) *fixture {
 }
 
 func (f *fixture) admitter() *signin.Admitter {
-	return signin.NewAdmitter(f.store, &accounts.SequentialIDs{}, &accounts.SequentialTokens{}, lifetime, f.events)
+	return signin.NewAdmitter(f.store, &accounts.SequentialIDs{}, &accounts.SequentialTokens{}, lifetime)
 }
 
 func (f *fixture) guest(t *testing.T, account byte, token string) {
@@ -102,14 +101,16 @@ func (f *fixture) linkedAccount(t *testing.T, account byte, provider string, sub
 
 	identity := accounts.NewIdentity(provider, accounts.ClaimOf(subject, "", false), accounts.AccountID{15: account}, start)
 	linked := accounts.LinkedSession(identity.Account(), accounts.TokenOf(token), lifetime, start)
-	require.NoError(t, f.store.SaveSignIn(t.Context(), accounts.NewSignIn(linked).WithNewAccount().WithIdentity(identity)))
+	require.NoError(t, f.store.SaveSignIn(t.Context(), accounts.NewSignIn(linked).WithNewAccount().WithIdentity(identity), &authv1.SignedIn{}))
+	f.seeded = len(f.store.Told())
 }
 
 func TestAGoogleSignInJoinsTheAccountThatHoldsItsAddress(t *testing.T) {
 	f := setUp(t)
 	identity := accounts.NewIdentity(signin.Email, accounts.ClaimOf("a@example.com", "a@example.com", true), accounts.AccountID{15: 9}, start)
 	linked := accounts.LinkedSession(identity.Account(), accounts.TokenOf("email-token"), lifetime, start)
-	require.NoError(t, f.store.SaveSignIn(t.Context(), accounts.NewSignIn(linked).WithNewAccount().WithIdentity(identity)))
+	require.NoError(t, f.store.SaveSignIn(t.Context(), accounts.NewSignIn(linked).WithNewAccount().WithIdentity(identity), &authv1.SignedIn{}))
+	f.seeded = len(f.store.Told())
 
 	out, err := f.complete(t, "")
 	require.NoError(t, err)
@@ -125,7 +126,8 @@ func TestAnUnverifiedAddressJoinsNothing(t *testing.T) {
 	f := setUp(t)
 	identity := accounts.NewIdentity(signin.Email, accounts.ClaimOf("a@example.com", "a@example.com", true), accounts.AccountID{15: 9}, start)
 	linked := accounts.LinkedSession(identity.Account(), accounts.TokenOf("email-token"), lifetime, start)
-	require.NoError(t, f.store.SaveSignIn(t.Context(), accounts.NewSignIn(linked).WithNewAccount().WithIdentity(identity)))
+	require.NoError(t, f.store.SaveSignIn(t.Context(), accounts.NewSignIn(linked).WithNewAccount().WithIdentity(identity), &authv1.SignedIn{}))
+	f.seeded = len(f.store.Told())
 
 	out, err := f.finish(t, accounts.IntentSignIn, "", accounts.ClaimOf("google-user", "a@example.com", false))
 	require.NoError(t, err)
@@ -137,7 +139,7 @@ func TestAnUnverifiedAddressJoinsNothing(t *testing.T) {
 func (f *fixture) assertPublished(t *testing.T, want ...proto.Message) {
 	t.Helper()
 
-	published := f.events.Published()
+	published := f.store.Told()[f.seeded:]
 	require.Len(t, published, len(want))
 	for i := range want {
 		assert.True(t, proto.Equal(want[i], published[i]), "event %d: want %v, got %v", i, want[i], published[i])
@@ -224,7 +226,8 @@ func TestAGoogleSignInJoinsTheDiscordAccountWithItsVerifiedAddress(t *testing.T)
 	f := setUp(t)
 	identity := accounts.NewIdentity("discord", accounts.ClaimOf("discord-user", claim.VerifiedEmail(), true), accounts.AccountID{15: 7}, start)
 	linked := accounts.LinkedSession(identity.Account(), accounts.TokenOf("discord"), lifetime, start)
-	require.NoError(t, f.store.SaveSignIn(t.Context(), accounts.NewSignIn(linked).WithNewAccount().WithIdentity(identity)))
+	require.NoError(t, f.store.SaveSignIn(t.Context(), accounts.NewSignIn(linked).WithNewAccount().WithIdentity(identity), &authv1.SignedIn{}))
+	f.seeded = len(f.store.Told())
 
 	out, err := f.complete(t, "")
 	require.NoError(t, err)
@@ -279,7 +282,7 @@ func TestLinkingAnIdentityAnotherAccountUsesIsRefusedAndWritesNothing(t *testing
 	current, err := f.store.Account(t.Context(), accounts.AccountID{15: 7})
 	require.NoError(t, err)
 	assert.Equal(t, []string{"discord"}, current.Providers())
-	assert.Empty(t, f.events.Published(), "a refusal moves no browser")
+	assert.Empty(t, f.store.Told()[f.seeded:], "a refusal moves no browser")
 }
 
 func TestLinkingASecondUserOfAProviderIsRefused(t *testing.T) {

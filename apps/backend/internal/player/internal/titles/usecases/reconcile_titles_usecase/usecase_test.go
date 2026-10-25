@@ -33,17 +33,21 @@ type fixture struct {
 	stats    *inmemory_player_store.Store
 	titles   *inmemory_title_store.Store
 	accounts *titles.FakeAccounts
+	taken    *uint64
 }
 
 func setUp() fixture {
-	return fixture{stats: inmemory_player_store.New(), titles: inmemory_title_store.New(), accounts: titles.NewFakeAccounts()}
+	return fixture{
+		stats: inmemory_player_store.New(), titles: inmemory_title_store.New(), accounts: titles.NewFakeAccounts(), taken: new(uint64),
+	}
 }
 
 func (f fixture) player(t *testing.T, i, tiles int, known players.Account) {
 	t.Helper()
 
 	for range tiles {
-		require.NoError(t, f.stats.Record(t.Context(), account(i), players.TakeAt(now)))
+		require.NoError(t, f.stats.Record(t.Context(), account(i), players.TakeAt(*f.taken, now)))
+		*f.taken++
 	}
 	f.accounts.Create(account(i), known)
 }

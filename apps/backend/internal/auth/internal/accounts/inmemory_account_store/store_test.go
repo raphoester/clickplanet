@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/suite"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/inmemory_account_store"
@@ -18,5 +19,10 @@ type testSuite struct {
 }
 
 func (s *testSuite) SetupSuite() {
-	s.NewStore = func() accounts.Store { return inmemory_account_store.New() }
+	var store *inmemory_account_store.Store
+	s.NewStore = func() accounts.Store {
+		store = inmemory_account_store.New()
+		return store
+	}
+	s.Told = func() []proto.Message { return store.Told() }
 }

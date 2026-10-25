@@ -145,7 +145,8 @@ func (s *Store) SaveGuestCode(ctx context.Context, account players.AccountID, co
 }
 
 const statsColumns = `account_id, tiles_taken, streak_current, streak_best, streak_last_day, messages_sent,
-	bombs_dropped, tiles_fortified, bonuses_claimed, right_answers`
+	bombs_dropped, tiles_fortified, bonuses_claimed, right_answers, counted_takes_below, counted_bombs_below,
+	counted_fortifies_below, counted_messages_until, counted_bonuses_until, counted_answers_until`
 
 func (s *Store) Stats(ctx context.Context, account players.AccountID) (players.Stats, error) {
 	return statsOf(s.db.QueryRowContext(ctx, `SELECT `+statsColumns+` FROM stats WHERE account_id = $1`, uuid.UUID(account)))
@@ -180,7 +181,7 @@ func (s *Store) Record(ctx context.Context, account players.AccountID, change fu
 	next := change(current).TakeSnapshot()
 	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO stats (`+statsColumns+`)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
 		ON CONFLICT (account_id) DO UPDATE SET
 			tiles_taken = excluded.tiles_taken,
 			streak_current = excluded.streak_current,
@@ -190,11 +191,20 @@ func (s *Store) Record(ctx context.Context, account players.AccountID, change fu
 			bombs_dropped = excluded.bombs_dropped,
 			tiles_fortified = excluded.tiles_fortified,
 			bonuses_claimed = excluded.bonuses_claimed,
-			right_answers = excluded.right_answers
+			right_answers = excluded.right_answers,
+			counted_takes_below = excluded.counted_takes_below,
+			counted_bombs_below = excluded.counted_bombs_below,
+			counted_fortifies_below = excluded.counted_fortifies_below,
+			counted_messages_until = excluded.counted_messages_until,
+			counted_bonuses_until = excluded.counted_bonuses_until,
+			counted_answers_until = excluded.counted_answers_until
 	`, uuid.UUID(account), int64(next.TilesTaken), //nolint:gosec // counted an act at a time: never past int64.
 		int64(next.Streak.Days()), int64(next.StreakBest), nullableDay(next.Streak.LastDay()),
 		int64(next.MessagesSent), int64(next.BombsDropped), int64(next.TilesFortified), //nolint:gosec // as above.
-		int64(next.BonusesClaimed), int64(next.RightAnswers)); err != nil { //nolint:gosec // as above.
+		int64(next.BonusesClaimed), int64(next.RightAnswers), //nolint:gosec // as above.
+		int64(next.Counted.TakesBelow), int64(next.Counted.BombsBelow), int64(next.Counted.FortifiesBelow), //nolint:gosec // ledger positions fit in int64.
+		nullableTime(next.Counted.MessagesUntil), nullableTime(next.Counted.BonusesUntil),
+		nullableTime(next.Counted.AnswersUntil)); err != nil {
 		return fmt.Errorf("failed to save the stats: %w", err)
 	}
 
@@ -263,9 +273,11 @@ func statsOf(row scanner) (players.Stats, error) {
 	var (
 		account                                                          uuid.UUID
 		tiles, current, best, messages, bombs, fortified, claimed, right int64
-		lastDay                                                          sql.NullTime
+		takesBelow, bombsBelow, fortifiesBelow                           int64
+		lastDay, messagesUntil, bonusesUntil, answersUntil               sql.NullTime
 	)
-	err := row.Scan(&account, &tiles, &current, &best, &lastDay, &messages, &bombs, &fortified, &claimed, &right)
+	err := row.Scan(&account, &tiles, &current, &best, &lastDay, &messages, &bombs, &fortified, &claimed, &right,
+		&takesBelow, &bombsBelow, &fortifiesBelow, &messagesUntil, &bonusesUntil, &answersUntil)
 	if errors.Is(err, sql.ErrNoRows) {
 		return players.Stats{}, players.ErrNoStats
 	}
@@ -287,7 +299,22 @@ func statsOf(row scanner) (players.Stats, error) {
 		TilesFortified: uint64(fortified),                      //nolint:gosec // as above.
 		BonusesClaimed: uint64(claimed),                        //nolint:gosec // as above.
 		RightAnswers:   uint64(right),                          //nolint:gosec // as above.
+		Counted: players.Counted{
+			TakesBelow:     uint64(takesBelow),     //nolint:gosec // as above.
+			BombsBelow:     uint64(bombsBelow),     //nolint:gosec // as above.
+			FortifiesBelow: uint64(fortifiesBelow), //nolint:gosec // as above.
+			MessagesUntil:  timeOf(messagesUntil),
+			BonusesUntil:   timeOf(bonusesUntil),
+			AnswersUntil:   timeOf(answersUntil),
+		},
 	}.Restore(), nil
+}
+
+func timeOf(at sql.NullTime) time.Time {
+	if !at.Valid {
+		return time.Time{}
+	}
+	return at.Time.UTC()
 }
 
 func nullableDay(day players.Day) sql.NullString {

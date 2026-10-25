@@ -2,9 +2,11 @@ package bonus_claimed_subscriber_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
@@ -15,6 +17,8 @@ import (
 )
 
 const account = "0b6d4f7e-5d7c-4a36-9a51-3f1f8f0c2a11"
+
+var at = time.Date(2026, 10, 25, 12, 0, 0, 0, time.UTC)
 
 func subscriber() (bonus_claimed_subscriber.Subscriber, *inmemory_player_store.Store) {
 	store := inmemory_player_store.New()
@@ -34,10 +38,15 @@ func statsOf(t *testing.T, store *inmemory_player_store.Store) players.StatsSnap
 func TestEachClaimCountsOnTheStatsOfTheAccountThatCaughtTheBox(t *testing.T) {
 	handler, store := subscriber()
 
-	require.NoError(t, handler.Handle(t.Context(), &planetv1.BonusClaimed{AccountId: account}))
-	require.NoError(t, handler.Handle(t.Context(), &planetv1.BonusClaimed{AccountId: account}))
+	claimed := func(at time.Time) *planetv1.BonusClaimed {
+		return &planetv1.BonusClaimed{AccountId: account, ClaimedAt: timestamppb.New(at)}
+	}
 
-	assert.Equal(t, uint64(2), statsOf(t, store).BonusesClaimed)
+	require.NoError(t, handler.Handle(t.Context(), claimed(at)))
+	require.NoError(t, handler.Handle(t.Context(), claimed(at.Add(time.Minute))))
+	require.NoError(t, handler.Handle(t.Context(), claimed(at.Add(time.Minute))))
+
+	assert.Equal(t, uint64(2), statsOf(t, store).BonusesClaimed, "a claim told twice counts once")
 }
 
 func TestAClaimWithNoAccountIsRefused(t *testing.T) {

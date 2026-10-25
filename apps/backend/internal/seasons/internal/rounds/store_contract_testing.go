@@ -7,7 +7,9 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/suite"
+	"google.golang.org/protobuf/proto"
 
+	seasonsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/seasons/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/calendar"
 )
 
@@ -15,6 +17,7 @@ type StoreContractSuite struct {
 	suite.Suite
 
 	NewStore func() Store
+	Told     func() []proto.Message
 
 	store Store
 }
@@ -106,6 +109,19 @@ func (s *StoreContractSuite) TestASecondCloseChangesNothing() {
 	s.Require().NoError(s.store.Close(s.T().Context(), contractDay, []Result{{Country: "de", Rank: 1, Points: 25}}))
 
 	s.Equal([]Closed{{Round: contractDay, Number: 1, Results: first}}, s.closedIn(0))
+}
+
+func (s *StoreContractSuite) TestACloseKeepsWhatItTellsAndASecondOneTellsNothing() {
+	s.snapshot(contractFinale, map[Country]uint32{"fr": 2})
+	told := []proto.Message{&seasonsv1.RoundClosed{Number: 16, Finale: true}, &seasonsv1.SeasonClosed{Season: 0}}
+
+	s.Require().NoError(s.store.Close(s.T().Context(), contractFinale, []Result{{Country: "fr", Rank: 1, Points: 75}}, told...))
+	s.Require().NoError(s.store.Close(s.T().Context(), contractFinale, nil, &seasonsv1.RoundClosed{Number: 99}))
+
+	kept := s.Told()
+	s.Require().Len(kept, 2)
+	s.True(proto.Equal(told[0], kept[0]))
+	s.True(proto.Equal(told[1], kept[1]))
 }
 
 func (s *StoreContractSuite) closedIn(season calendar.Number) []Closed {

@@ -7,13 +7,12 @@ import (
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements"
-	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/usecases/announce_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 )
 
 type UseCase interface {
-	Execute(ctx context.Context, in announce_usecase.In) error
+	Execute(ctx context.Context, announcement announcements.Announcement) error
 }
 
 func New(useCase UseCase) Subscriber {
@@ -33,17 +32,14 @@ func (s Subscriber) Handle(ctx context.Context, event *planetv1.BombLanded) erro
 		return fmt.Errorf("%w: %w", errNoTime, err)
 	}
 
-	payload, err := announcements.BombOf(event.GetCountry(), event.GetGround(), event.GetTileId(), event.GetCleared()).Payload()
+	announcement, err := announcements.BombOf(event.GetPosition(), event.GetCountry(), event.GetGround(), event.GetTileId(),
+		event.GetCleared()).Announcement(event.GetLandedAt().AsTime())
 	if err != nil {
-		return err //nolint:wrapcheck // Payload named it.
+		return err //nolint:wrapcheck // Announcement named it.
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, subscribers.Timeout)
 	defer cancel()
 
-	return s.useCase.Execute(ctx, announce_usecase.In{ //nolint:wrapcheck // the use case named it.
-		Kind:    announcements.KindBomb,
-		At:      event.GetLandedAt().AsTime(),
-		Payload: payload,
-	})
+	return s.useCase.Execute(ctx, announcement) //nolint:wrapcheck // the use case named it.
 }

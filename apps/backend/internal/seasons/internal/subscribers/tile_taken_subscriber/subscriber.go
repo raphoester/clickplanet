@@ -43,8 +43,9 @@ func (s Subscriber) Handle(ctx context.Context, event *planetv1.TileTaken) error
 	defer cancel()
 
 	return s.useCase.Execute(ctx, standings.Take{ //nolint:wrapcheck // the use case named it.
-		Account: account,
-		Country: standings.Country(event.GetCountry()),
-		At:      event.GetTakenAt().AsTime(),
+		Account:  account,
+		Country:  standings.Country(event.GetCountry()),
+		At:       event.GetTakenAt().AsTime(),
+		Position: event.GetPosition(),
 	})
 }

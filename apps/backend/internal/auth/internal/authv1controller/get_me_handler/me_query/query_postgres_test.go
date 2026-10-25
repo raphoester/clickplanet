@@ -52,7 +52,7 @@ func (s *testSuite) guest(account accounts.AccountID, token string) *accounts.Se
 func (s *testSuite) link(account accounts.AccountID, provider string, subject string, token string, at time.Time) {
 	identity := accounts.NewIdentity(provider, accounts.ClaimOf(subject, "", false), account, at)
 	session := accounts.LinkedSession(account, accounts.TokenOf(token), lifetime, at)
-	s.Require().NoError(s.store.SaveSignIn(s.T().Context(), accounts.NewSignIn(session).WithIdentity(identity)))
+	s.Require().NoError(s.store.SaveSignIn(s.T().Context(), accounts.NewSignIn(session).WithIdentity(identity), &authv1.SignedIn{}))
 }
 
 func (s *testSuite) me(cookieHeader string, at time.Time) (*authv1.GetMeResponse, error) {
@@ -111,7 +111,7 @@ func (s *testSuite) TestNoLiveSessionIsNoAccount() {
 
 func (s *testSuite) TestADeletedAccountIsNoAccount() {
 	s.guest(ada, "token-1")
-	s.Require().NoError(s.store.DeleteAccount(s.T().Context(), ada))
+	s.Require().NoError(s.store.DeleteAccount(s.T().Context(), ada, &authv1.AccountDeleted{}))
 
 	_, err := s.me("cp_sid=token-1", start)
 

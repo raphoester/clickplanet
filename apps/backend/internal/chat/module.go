@@ -13,10 +13,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/postgres_announcement_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/usecases/announce_champion_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/usecases/announce_mute_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/usecases/announce_usecase"
-	announcement_ids "github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/uuid_id_provider"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/get_history_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/get_history_handler/history_query"
@@ -78,18 +76,6 @@ import (
 
 const moduleName = "chat"
 
-const bombLandedBuffer = 256
-
-const fortifiedBuffer = 256
-
-const accountDeletedBuffer = 256
-
-const accountMutedBuffer = 64
-
-const roundClosedBuffer = 16
-
-const seasonClosedBuffer = 4
-
 func NewModule(config Config) cpbootstrap.Module {
 	return cpbootstrap.Module{
 		Name:    moduleName,
@@ -132,49 +118,49 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 			messageStore, reactionStore, announcementStore, muteStore, removalStore),
 		props.Logger)
 
-	announce := announce_usecase.New(announcementStore, updates, announcement_ids.Provider{})
+	announce := announce_usecase.New(announcementStore, updates)
 	authors := log_authors.New(rpc_player_authors.New(player), props.Logger)
 	drafts := messages.NewDrafts(
 		message_ids.Provider{}, cptime.SystemClock{}, messages.NewLimits(config.Service.MaxTextLength), cpcountries.New())
 	thread := messages.NewThread(messageStore, authors, cptime.SystemClock{}, window)
 
-	bombs, err := cpbootstrap.Subscribe(props.Events, "chat-announcements-bombs", bombLandedBuffer,
+	bombs, err := cpbootstrap.Subscribe(props.Events, "chat-announcements-bombs",
 		log_subscriber.New(bomb_landed_subscriber.New(announce), props.Logger))
 	if err != nil {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to planet.v1.BombLanded: %w", err)
 	}
 
-	fortifies, err := cpbootstrap.Subscribe(props.Events, "chat-announcements-fortifies", fortifiedBuffer,
+	fortifies, err := cpbootstrap.Subscribe(props.Events, "chat-announcements-fortifies",
 		log_subscriber.New(fortified_subscriber.New(announce), props.Logger))
 	if err != nil {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to planet.v1.Fortified: %w", err)
 	}
 
-	deletions, err := cpbootstrap.Subscribe(props.Events, "chat-seen", accountDeletedBuffer,
+	deletions, err := cpbootstrap.Subscribe(props.Events, "chat-seen",
 		log_subscriber.New(account_deleted_subscriber.New(forget_seen_usecase.New(seenStore)), props.Logger))
 	if err != nil {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to auth.v1.AccountDeleted: %w", err)
 	}
 
-	mutings, err := cpbootstrap.Subscribe(props.Events, "chat-announcements-mutes", accountMutedBuffer,
+	mutings, err := cpbootstrap.Subscribe(props.Events, "chat-announcements-mutes",
 		log_subscriber.New(account_muted_subscriber.New(announce_mute_usecase.New(authors, announce)), props.Logger))
 	if err != nil {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to chat.v1.AccountMuted: %w", err)
 	}
 
-	roundsClosed, err := cpbootstrap.Subscribe(props.Events, "chat-announcements-rounds", roundClosedBuffer,
+	roundsClosed, err := cpbootstrap.Subscribe(props.Events, "chat-announcements-rounds",
 		log_subscriber.New(round_closed_subscriber.New(announce), props.Logger))
 	if err != nil {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to seasons.v1.RoundClosed: %w", err)
 	}
 
-	seasonsClosed, err := cpbootstrap.Subscribe(props.Events, "chat-announcements-seasons", seasonClosedBuffer,
-		log_subscriber.New(season_closed_subscriber.New(announce_champion_usecase.New(announcementStore, updates)), props.Logger))
+	seasonsClosed, err := cpbootstrap.Subscribe(props.Events, "chat-announcements-seasons",
+		log_subscriber.New(season_closed_subscriber.New(announce), props.Logger))
 	if err != nil {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to seasons.v1.SeasonClosed: %w", err)

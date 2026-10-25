@@ -363,3 +363,14 @@ func (s *testSuite) TestABombingReadsBackAsTheBombingItWas() {
 	s.Require().NoError(err)
 	s.Equal(bombing, read, "postgres reorders the keys of its JSON, and the bombing does not mind")
 }
+
+func (s *testSuite) TestHowFarTheLedgerWasToldIsKept() {
+	ctx := s.T().Context()
+
+	s.Require().NoError(s.store.SaveRelayed(ctx, 41))
+	s.Require().NoError(s.store.SaveRelayed(ctx, 42))
+
+	relayed, err := s.store.Relayed(ctx)
+	s.Require().NoError(err)
+	s.Equal(ledger.Position(42), relayed)
+}

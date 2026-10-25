@@ -13,21 +13,16 @@ import (
 
 type Store interface {
 	accounts.SessionFinder
-	DeleteAccount(ctx context.Context, account accounts.AccountID) error
-}
-
-type Publisher interface {
-	Publish(event proto.Message)
+	DeleteAccount(ctx context.Context, account accounts.AccountID, told proto.Message) error
 }
 
 type UseCase struct {
-	store  Store
-	events Publisher
-	clock  cptime.Clock
+	store Store
+	clock cptime.Clock
 }
 
-func New(store Store, events Publisher, clock cptime.Clock) *UseCase {
-	return &UseCase{store: store, events: events, clock: clock}
+func New(store Store, clock cptime.Clock) *UseCase {
+	return &UseCase{store: store, clock: clock}
 }
 
 type Out struct {
@@ -41,11 +36,9 @@ func (u *UseCase) Execute(ctx context.Context, cookieHeader string) (*Out, error
 		return nil, fmt.Errorf("failed to find the caller: %w", err)
 	}
 
-	if err := u.store.DeleteAccount(ctx, session.Account()); err != nil {
+	if err := u.store.DeleteAccount(ctx, session.Account(), &authv1.AccountDeleted{AccountId: session.Account().String()}); err != nil {
 		return nil, fmt.Errorf("failed to delete the account: %w", err)
 	}
-
-	u.events.Publish(&authv1.AccountDeleted{AccountId: session.Account().String()})
 
 	return &Out{Account: session.Account(), SetCookie: accounts.ExpiredSessionCookie()}, nil
 }

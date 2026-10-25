@@ -24,12 +24,8 @@ type Rounds interface {
 	Unclosed(ctx context.Context, endedBy time.Time) ([]rounds.Round, error)
 	Held(ctx context.Context, round rounds.Round) (map[rounds.Country]uint64, error)
 	Number(ctx context.Context, round rounds.Round) (uint32, error)
-	Close(ctx context.Context, round rounds.Round, results []rounds.Result) error
+	Close(ctx context.Context, round rounds.Round, results []rounds.Result, told ...proto.Message) error
 	ClosedIn(ctx context.Context, season calendar.Number) ([]rounds.Closed, error)
-}
-
-type Publisher interface {
-	Publish(event proto.Message)
 }
 
 type Executor interface {
@@ -52,14 +48,13 @@ func (c Config) WithDefaults() Config {
 	return c
 }
 
-func New(territory Territory, store Rounds, events Publisher, seasons calendar.Calendar, clock cptime.Clock) *UseCase {
-	return &UseCase{territory: territory, store: store, events: events, seasons: seasons, clock: clock}
+func New(territory Territory, store Rounds, seasons calendar.Calendar, clock cptime.Clock) *UseCase {
+	return &UseCase{territory: territory, store: store, seasons: seasons, clock: clock}
 }
 
 type UseCase struct {
 	territory Territory
 	store     Rounds
-	events    Publisher
 	seasons   calendar.Calendar
 	clock     cptime.Clock
 }
@@ -96,13 +91,12 @@ func (u *UseCase) close(ctx context.Context, now time.Time) ([]rounds.Closed, er
 			return closed, fmt.Errorf("failed to read the rounds the season closed: %w", err)
 		}
 		closing := round.Closed(number, held)
-		end, over := closing.SeasonEnd(earlier)
-		if err := u.store.Close(ctx, round, closing.Results); err != nil {
-			return closed, fmt.Errorf("failed to close the round: %w", err)
+		told := []proto.Message{eventOf(closing)}
+		if end, over := closing.SeasonEnd(earlier); over {
+			told = append(told, seasonEventOf(end))
 		}
-		u.events.Publish(eventOf(closing))
-		if over {
-			u.events.Publish(seasonEventOf(end))
+		if err := u.store.Close(ctx, round, closing.Results, told...); err != nil {
+			return closed, fmt.Errorf("failed to close the round: %w", err)
 		}
 		closed = append(closed, closing)
 	}

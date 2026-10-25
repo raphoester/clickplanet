@@ -44,6 +44,7 @@ func TestAKeptMuteIsPublishedWithItsAccountTimeAndDuration(t *testing.T) {
 	assert.Equal(t, kept, mute)
 	require.Len(t, events.Published(), 1)
 	assert.True(t, proto.Equal(&chatv1.AccountMuted{
+		MuteId:    "00000000-0000-0000-0000-000000000001",
 		AccountId: "0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10",
 		MutedAt:   timestamppb.New(at),
 		Duration:  durationpb.New(90 * time.Minute),

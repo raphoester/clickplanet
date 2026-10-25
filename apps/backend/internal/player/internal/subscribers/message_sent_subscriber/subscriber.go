@@ -2,6 +2,7 @@ package message_sent_subscriber
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	chatv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
@@ -25,14 +26,20 @@ type Subscriber struct {
 
 var _ cpbootstrap.Handler[*chatv1.MessageSent] = Subscriber{}
 
+var errNoTime = errors.New("the message has no time")
+
 func (s Subscriber) Handle(ctx context.Context, event *chatv1.MessageSent) error {
 	account, err := players.AccountIDOf(event.GetAccountId())
 	if err != nil {
 		return fmt.Errorf("message %s: %w", event.GetMessageId(), err)
 	}
 
+	if err := event.GetSentAt().CheckValid(); err != nil {
+		return fmt.Errorf("%w: %w", errNoTime, err)
+	}
+
 	ctx, cancel := context.WithTimeout(ctx, subscribers.Timeout)
 	defer cancel()
 
-	return s.useCase.Execute(ctx, record_stats_usecase.In{Account: account, Change: players.Stats.WithMessage}) //nolint:wrapcheck // the use case named it.
+	return s.useCase.Execute(ctx, record_stats_usecase.In{Account: account, Change: players.MessageAt(event.GetSentAt().AsTime())}) //nolint:wrapcheck // the use case named it.
 }

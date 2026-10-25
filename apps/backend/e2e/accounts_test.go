@@ -69,12 +69,14 @@ func startAuthModule(t *testing.T, newModule func(auth.Config) cpbootstrap.Modul
 	}
 	config.RateLimiter.PerSecond = 100
 	config.RateLimiter.Burst = 100
+	events := cpbootstrap.StartTestRedis(t)
 
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan error, 1)
 	go func() {
 		done <- cpbootstrap.RunOn(ctx, cpbootstrap.Options{
 			Server:  server,
+			Events:  events,
 			Logger:  slog.New(slog.DiscardHandler),
 			Modules: []cpbootstrap.Module{newModule(config)},
 		}, listener)

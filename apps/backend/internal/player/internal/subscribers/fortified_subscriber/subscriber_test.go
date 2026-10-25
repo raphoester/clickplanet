@@ -34,10 +34,11 @@ func statsOf(t *testing.T, store *inmemory_player_store.Store) players.StatsSnap
 func TestAFortifyCountsEveryTileOfTheLandmass(t *testing.T) {
 	handler, store := subscriber()
 
-	require.NoError(t, handler.Handle(t.Context(), &planetv1.Fortified{AccountId: account, Country: "es", Tiles: 137}))
-	require.NoError(t, handler.Handle(t.Context(), &planetv1.Fortified{AccountId: account, Country: "es", Tiles: 1}))
+	require.NoError(t, handler.Handle(t.Context(), &planetv1.Fortified{AccountId: account, Country: "es", Tiles: 137, Position: 4}))
+	require.NoError(t, handler.Handle(t.Context(), &planetv1.Fortified{AccountId: account, Country: "es", Tiles: 1, Position: 9}))
+	require.NoError(t, handler.Handle(t.Context(), &planetv1.Fortified{AccountId: account, Country: "es", Tiles: 1, Position: 9}))
 
-	assert.Equal(t, uint64(138), statsOf(t, store).TilesFortified)
+	assert.Equal(t, uint64(138), statsOf(t, store).TilesFortified, "a fortify told twice counts once")
 }
 
 func TestAFortifyNoAccountMadeCountsForNobody(t *testing.T) {

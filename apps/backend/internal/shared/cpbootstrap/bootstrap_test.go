@@ -30,7 +30,7 @@ func TestAModuleThatFailsToBuildNamesItselfInTheError(t *testing.T) {
 
 func TestABootSlowerThanTheStartupTimeoutIsRefused(t *testing.T) {
 	err := runOn(t, cpbootstrap.ServerConfig{BindAddress: "127.0.0.1:0", StartupTimeout: time.Millisecond},
-		[]cpbootstrap.Module{newContextModule("planet", func(ctx context.Context) error {
+		cpbootstrap.EventsConfig{}, []cpbootstrap.Module{newContextModule("planet", func(ctx context.Context) error {
 			<-ctx.Done()
 			return ctx.Err()
 		})})
@@ -220,10 +220,16 @@ func disabled(module cpbootstrap.Module) cpbootstrap.Module {
 func run(t *testing.T, modules []cpbootstrap.Module) error {
 	t.Helper()
 
-	return runOn(t, cpbootstrap.ServerConfig{BindAddress: "127.0.0.1:0"}, modules)
+	return runOn(t, cpbootstrap.ServerConfig{BindAddress: "127.0.0.1:0"}, cpbootstrap.EventsConfig{}, modules)
 }
 
-func runOn(t *testing.T, server cpbootstrap.ServerConfig, modules []cpbootstrap.Module) error {
+func runWith(t *testing.T, events cpbootstrap.EventsConfig, modules []cpbootstrap.Module) error {
+	t.Helper()
+
+	return runOn(t, cpbootstrap.ServerConfig{BindAddress: "127.0.0.1:0"}, events, modules)
+}
+
+func runOn(t *testing.T, server cpbootstrap.ServerConfig, events cpbootstrap.EventsConfig, modules []cpbootstrap.Module) error {
 	t.Helper()
 
 	ctx, cancel := context.WithCancel(t.Context())
@@ -235,6 +241,7 @@ func runOn(t *testing.T, server cpbootstrap.ServerConfig, modules []cpbootstrap.
 
 	return cpbootstrap.Run(ctx, cpbootstrap.Options{
 		Server:  server,
+		Events:  events,
 		Logger:  slog.New(slog.DiscardHandler),
 		Modules: modules,
 	})

@@ -13,11 +13,7 @@ import (
 )
 
 type Pruner interface {
-	PruneGuests(ctx context.Context, idleSince time.Time, limit int) ([]accounts.AccountID, error)
-}
-
-type Publisher interface {
-	Publish(event proto.Message)
+	PruneGuests(ctx context.Context, idleSince time.Time, limit int, told func(accounts.AccountID) proto.Message) ([]accounts.AccountID, error)
 }
 
 type Executor interface {
@@ -50,14 +46,13 @@ func (c Config) WithDefaults() Config {
 type UseCase struct {
 	config Config
 	guests Pruner
-	events Publisher
 	clock  cptime.Clock
 }
 
 var _ Executor = (*UseCase)(nil)
 
-func New(config Config, guests Pruner, events Publisher, clock cptime.Clock) *UseCase {
-	return &UseCase{config: config.WithDefaults(), guests: guests, events: events, clock: clock}
+func New(config Config, guests Pruner, clock cptime.Clock) *UseCase {
+	return &UseCase{config: config.WithDefaults(), guests: guests, clock: clock}
 }
 
 func (u *UseCase) Execute(ctx context.Context) (int, error) {
@@ -80,12 +75,13 @@ func (u *UseCase) pruneBatch(ctx context.Context, idleSince time.Time) (int, err
 	ctx, cancel := context.WithTimeout(ctx, batchTimeout)
 	defer cancel()
 
-	pruned, err := u.guests.PruneGuests(ctx, idleSince, batch)
+	pruned, err := u.guests.PruneGuests(ctx, idleSince, batch, deletedOf)
 	if err != nil {
 		return 0, fmt.Errorf("failed to prune a batch: %w", err)
 	}
-	for _, account := range pruned {
-		u.events.Publish(&authv1.AccountDeleted{AccountId: account.String()})
-	}
 	return len(pruned), nil
+}
+
+func deletedOf(account accounts.AccountID) proto.Message {
+	return &authv1.AccountDeleted{AccountId: account.String()}
 }

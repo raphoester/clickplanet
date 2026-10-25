@@ -95,8 +95,8 @@ func (s *testSuite) player(account players.AccountID) *playerv1.Player {
 }
 
 func (s *testSuite) TestAPlayerIsFoundByItsAccount() {
-	s.Require().NoError(s.players.Record(s.T().Context(), ada, players.TakeAt(monday.Add(-24*time.Hour))))
-	s.Require().NoError(s.players.Record(s.T().Context(), ada, players.TakeAt(monday)))
+	s.Require().NoError(s.players.Record(s.T().Context(), ada, players.TakeAt(0, monday.Add(-24*time.Hour))))
+	s.Require().NoError(s.players.Record(s.T().Context(), ada, players.TakeAt(1, monday)))
 
 	s.True(proto.Equal(&playerv1.Player{
 		Name:            "Ada_L",
@@ -107,7 +107,7 @@ func (s *testSuite) TestAPlayerIsFoundByItsAccount() {
 }
 
 func (s *testSuite) TestAnAccountKeepsItsCardWhenAnotherTakesTheNameItLeft() {
-	s.Require().NoError(s.players.Record(s.T().Context(), ada, players.TakeAt(monday)))
+	s.Require().NoError(s.players.Record(s.T().Context(), ada, players.TakeAt(2, monday)))
 	bob := players.AccountID{15: 2}
 	s.named(ada, "Ada_Lovelace")
 	s.named(bob, "Ada_L")
@@ -124,7 +124,7 @@ func (s *testSuite) TestAnAccountKeepsItsCardWhenAnotherTakesTheNameItLeft() {
 
 func (s *testSuite) TestAGuestIsItsNameAlone() {
 	guest := players.AccountID{15: 3}
-	s.Require().NoError(s.players.Record(s.T().Context(), guest, players.TakeAt(monday)))
+	s.Require().NoError(s.players.Record(s.T().Context(), guest, players.TakeAt(3, monday)))
 	s.Require().NoError(s.players.SaveGuestCode(s.T().Context(), guest, "a1b2c3"))
 
 	answer, err := s.query().Player(s.T().Context(), guest)
@@ -135,7 +135,7 @@ func (s *testSuite) TestAGuestIsItsNameAlone() {
 
 func (s *testSuite) TestAnAccountTheGameNeverNamedIsNoPlayer() {
 	unnamed := players.AccountID{15: 4}
-	s.Require().NoError(s.players.Record(s.T().Context(), unnamed, players.TakeAt(monday)))
+	s.Require().NoError(s.players.Record(s.T().Context(), unnamed, players.TakeAt(4, monday)))
 
 	for _, account := range []players.AccountID{unnamed, {15: 5}} {
 		_, err := s.query().Player(s.T().Context(), account)
@@ -222,7 +222,7 @@ func (s *testSuite) TestAFailureToAskForTheCountriesIsAnError() {
 }
 
 func (s *testSuite) TestTheStreakIsReadAsOfToday() {
-	s.Require().NoError(s.players.Record(s.T().Context(), ada, players.TakeAt(monday)))
+	s.Require().NoError(s.players.Record(s.T().Context(), ada, players.TakeAt(5, monday)))
 	s.clock.Advance(48 * time.Hour)
 
 	stats := s.player(ada).GetStats()

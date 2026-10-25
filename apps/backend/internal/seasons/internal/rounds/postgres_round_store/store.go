@@ -7,9 +7,11 @@ import (
 	"time"
 
 	"github.com/lib/pq"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/calendar"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpoutbox"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
@@ -127,7 +129,7 @@ func (s *Store) Number(ctx context.Context, round rounds.Round) (uint32, error) 
 	return uint32(earlier + 1), nil //nolint:gosec // a round a day.
 }
 
-func (s *Store) Close(ctx context.Context, round rounds.Round, results []rounds.Result) (err error) {
+func (s *Store) Close(ctx context.Context, round rounds.Round, results []rounds.Result, told ...proto.Message) (err error) {
 	countries := make([]string, 0, len(results))
 	ranks := make([]int64, 0, len(results))
 	points := make([]int64, 0, len(results))
@@ -167,6 +169,9 @@ func (s *Store) Close(ctx context.Context, round rounds.Round, results []rounds.
 		FROM unnest($3::text[], $4::integer[], $5::integer[]) AS result (country, rank, points)
 	`, int64(round.Season), round.EndsAt, pq.Array(countries), pq.Array(ranks), pq.Array(points)); err != nil {
 		return fmt.Errorf("failed to keep the round's results: %w", err)
+	}
+	if err := cpoutbox.Append(ctx, tx, told...); err != nil {
+		return err //nolint:wrapcheck // Append named it.
 	}
 
 	if err := tx.Commit(); err != nil {
