@@ -374,9 +374,12 @@ func TestAnybodyReadsAPlayerByItsAccountWithNoToken(t *testing.T) {
 	assert.WithinRange(t, time.UnixMilli(player.GetCreatedAtUnixMs()), before, time.Now(), "auth says when the guest was made")
 
 	guest := game.newPlayer(t)
+	require.NoError(t, guest.announce("fr"))
 	guest.click(2, "fr")
-	_, err = anybody.GetPlayer(t.Context(), connect.NewRequest(&playerv1.GetPlayerRequest{AccountId: guest.account()}))
-	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err), "a guest has no card")
+	named, err := anybody.GetPlayer(t.Context(), connect.NewRequest(&playerv1.GetPlayerRequest{AccountId: guest.account()}))
+	require.NoError(t, err)
+	assert.True(t, named.Msg.GetPlayer().GetGuest(), "a guest is its name alone")
+	assert.Nil(t, named.Msg.GetPlayer().GetStats())
 
 	_, err = anybody.GetPlayer(t.Context(), connect.NewRequest(&playerv1.GetPlayerRequest{AccountId: "Ada_L"}))
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err), "a name is not an id")

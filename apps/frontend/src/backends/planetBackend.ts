@@ -23,6 +23,8 @@ import {
     Shielder,
     SpreadClick,
     TileClicker,
+    TileHolder,
+    TileHolders,
     Update,
     UpdatesListener,
     VPNBlockedError,
@@ -60,7 +62,7 @@ export function newClickServiceClient(config: Config): PromiseClient<typeof Clic
     }))
 }
 
-export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller, Shielder, AllegianceSource {
+export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller, Shielder, AllegianceSource, TileHolders {
     private pendingUpdates: Update[] = []
     private readonly updateBatchCallbacks = new Map<string, (updates: Update[]) => void>()
     private readonly updateCallbacks = new Map<string, (update: Update) => void>()
@@ -265,6 +267,12 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
             if (e instanceof ConnectError && e.code === Code.Unimplemented) return new Map()
             throw e
         }
+    }
+
+    public async tileHolder(tile: number, signal?: AbortSignal): Promise<TileHolder | undefined> {
+        const {holder} = await this.client.getTileHolder({tileId: tile}, {signal})
+        if (!holder) return undefined
+        return {accountId: holder.accountId, countryCode: holder.countryId, takenAt: Number(holder.takenAtUnixMs)}
     }
 
     private openEventStream(): () => void {
