@@ -36,7 +36,8 @@ Caddyfile; it moves to any provider that rents a Linux box.
 - `docker-compose.yaml` — Caddy + backend, plus a small metrics poller that
   keeps a history the API's in-process counters cannot (see
   [Evidence has to outlive a deploy](#evidence-has-to-outlive-a-deploy-and-by-default-it-does-not)),
-  and the postgres that holds the tile map and the chat (see [9. Postgres](#9-postgres)).
+  the postgres that holds the tile map and the chat (see [9. Postgres](#9-postgres)), and the Redis the modules
+  tell each other what happened through (see [10. Redis](#10-redis-the-events-between-modules)).
 - `caddy/Caddyfile` — TLS via DNS-01, reverse proxy, CORS. Compose mounts the
   whole `caddy/` directory, so a deploy can reload it (see
   [7. CI and the image registry](#7-ci-and-the-image-registry))
@@ -974,7 +975,47 @@ docker volume rm vps_tile_state
 rm -f ~/backups/tiles-*.tar.gz
 ```
 
-## 10. Operator tools
+## 10. Redis: the events between modules
+
+The backend's modules tell each other what happened over Redis Streams, in the
+`redis` service, on the `redis_data` volume (append-only file, fsync every
+second). One stream per kind of event (`events:planet.v1.TileTaken`, …), one
+consumer group per subscriber. Nothing publishes a port: only the backend
+reaches it, over the compose network. The API refuses to start without it.
+
+**The password is the `REDIS_PASSWORD` Actions secret**, which reaches both
+`.env` (the server's `--requirepass`) and `.env.backend` (`events.password`).
+`bootstrap.sh` generates one on a fresh box; on a box set up before, create it
+before the deploy that brings Redis:
+
+```bash
+openssl rand -hex 32 | gh secret set REDIS_PASSWORD --repo raphoester/clickplanet
+```
+
+Without it, `docker compose up` refuses to start. Unlike postgres it can change:
+Redis reads it at each start, so a new value takes effect once both restart.
+
+`maxmemory` is 64 MB with `noeviction`: a full Redis refuses new events rather
+than drop unread ones. A stream is trimmed every minute down to what its
+slowest subscriber has not handled, so it stays small while every subscriber
+keeps up; `events.maxLen` (100k) caps one that stops.
+
+An event a subscriber failed `events.maxDeliveries` times (8, about four
+minutes of retries) is moved to `events:dead` and counted in
+`events_dead_total`. To read them:
+
+```bash
+docker compose exec redis redis-cli XRANGE events:dead - +
+```
+
+How far behind each subscriber is (`events_lag`, `events_pending`), and what a
+handler refused (`events_failed_total`), are on the metrics endpoint:
+
+```bash
+docker compose exec backend wget -qO- localhost:8080/metrics | grep ^events_
+```
+
+## 11. Operator tools
 
 `httpServer.consoleBindAddress` serves the backend's operator services
 (`planet.v1.AdminService`, `player.v1.AdminService`, `chat.v1.AdminService`, `support.v1.AdminService`,
@@ -1424,7 +1465,7 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
 - A report is deleted after 90 days, and at once when the reporter or the
   player reported is deleted.
 
-## 11. Photos and videos on a note
+## 12. Photos and videos on a note
 
 On in `backend.yaml` (`support.attachments.enabled: true`). A player adds up
 to 10 photos or videos to a suggestion or a bug report. They are not kept on

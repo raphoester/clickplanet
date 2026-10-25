@@ -3,6 +3,10 @@ httpServer:
   consoleBindAddress: 127.0.0.1:8081
   internalBindAddress: 127.0.0.1:8082
   allowedOrigin: http://localhost
+
+events:
+  address: redis:6379
+
 gameMap:
   maxIndex: 262119
 

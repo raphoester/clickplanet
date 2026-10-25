@@ -4,6 +4,15 @@ httpServer:
   consoleBindAddress: 127.0.0.1:8081
   adminBindAddress: 0.0.0.0:8083
   internalBindAddress: 127.0.0.1:8082
+
+events:
+  address: redis:6379
+  password: env://REDIS_PASSWORD
+  maxLen: 100000
+  publishTimeout: 500ms
+  retryAfter: 2s
+  maxDeliveries: 8
+
 gameMap:
   maxIndex: 262119
 
