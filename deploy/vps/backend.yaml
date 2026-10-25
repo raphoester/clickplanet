@@ -151,7 +151,8 @@ antiBot:
       v4Bits: 24
       v6Bits: 44
       certainCohorts: 3
-      certainMembers: 6
+      # The Final Battle night only (31 Oct): players who start at 21:00 on one carrier read as a crowd. Back to 6 after.
+      certainMembers: 50
       chainWindow: 30m
       trackWindow: 30m
       sweepInterval: 1m
