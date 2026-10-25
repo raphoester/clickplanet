@@ -865,6 +865,12 @@ export class PlanetEvent extends Message<PlanetEvent> {
      */
     value: RulesChanged;
     case: "rulesChanged";
+  } | {
+    /**
+     * @generated from field: planet.v1.ChargesFilled charges_filled = 11;
+     */
+    value: ChargesFilled;
+    case: "chargesFilled";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<PlanetEvent>) {
@@ -885,6 +891,7 @@ export class PlanetEvent extends Message<PlanetEvent> {
     { no: 8, name: "quiz_offered", kind: "message", T: QuizOffered, oneof: "event" },
     { no: 9, name: "landmass_fortified", kind: "message", T: LandmassFortified, oneof: "event" },
     { no: 10, name: "rules_changed", kind: "message", T: RulesChanged, oneof: "event" },
+    { no: 11, name: "charges_filled", kind: "message", T: ChargesFilled, oneof: "event" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PlanetEvent {
@@ -934,6 +941,39 @@ export class RulesChanged extends Message<RulesChanged> {
 
   static equals(a: RulesChanged | PlainMessage<RulesChanged> | undefined, b: RulesChanged | PlainMessage<RulesChanged> | undefined): boolean {
     return proto3.util.equals(RulesChanged, a, b);
+  }
+}
+
+/**
+ * The charges held may have grown: read them again.
+ *
+ * @generated from message planet.v1.ChargesFilled
+ */
+export class ChargesFilled extends Message<ChargesFilled> {
+  constructor(data?: PartialMessage<ChargesFilled>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.ChargesFilled";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ChargesFilled {
+    return new ChargesFilled().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ChargesFilled {
+    return new ChargesFilled().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ChargesFilled {
+    return new ChargesFilled().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ChargesFilled | PlainMessage<ChargesFilled> | undefined, b: ChargesFilled | PlainMessage<ChargesFilled> | undefined): boolean {
+    return proto3.util.equals(ChargesFilled, a, b);
   }
 }
 

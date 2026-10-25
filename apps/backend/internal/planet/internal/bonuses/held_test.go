@@ -41,6 +41,18 @@ func TestNobodyHoldsTwoBombsOrTwoRefills(t *testing.T) {
 	assert.False(t, bomb || refill, "a second grant replaces the first rather than stacking on it")
 }
 
+func TestAFillGivesAFullHandOnceWhateverWasSpentSince(t *testing.T) {
+	filled := Held{Shields: 2}.Filled("season-0:finale:fill", chargeRules)
+	require.Equal(t, Held{
+		Refill: true, Bomb: true, Enclosures: 3, SpreadClicks: 8, Shields: 12, LastFill: "season-0:finale:fill",
+	}, filled)
+
+	spent, _ := filled.AfterBomb()
+	assert.Equal(t, spent, spent.Filled("season-0:finale:fill", chargeRules), "the same fill sent again gives nothing")
+	assert.True(t, spent.Filled("operator-1", chargeRules).Bomb, "another fill gives again")
+	assert.False(t, Held{LastFill: "operator-1"}.Empty(), "a hand spent to nothing still says which fill it had")
+}
+
 func TestEnclosuresStackUpToTheirSize(t *testing.T) {
 	held := Held{}.Granted(KindEncloseClicks, 2, chargeRules)
 	require.Equal(t, 2, held.Enclosures)

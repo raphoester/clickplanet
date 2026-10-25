@@ -23,6 +23,7 @@ type Event struct {
 	Fortification *clicks.Fortification
 	Heartbeat     bool
 	RulesChanged  bool
+	ChargesFilled bool
 
 	Offer    *bonuses.Offer
 	Quiz     *bonuses.QuizOffer
@@ -114,7 +115,7 @@ func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 
 			if err := sink.Send(Event{
 				Offer: event.Offer, Quiz: event.Quiz, Taken: event.Taken, Enclosed: event.Enclosed,
-				Spread: event.Spread,
+				Spread: event.Spread, ChargesFilled: event.Filled,
 			}); err != nil {
 				return err
 			}

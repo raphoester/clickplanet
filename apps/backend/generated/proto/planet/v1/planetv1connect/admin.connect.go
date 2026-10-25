@@ -70,6 +70,12 @@ const (
 	AdminServiceApplyRuleSetProcedure = "/planet.v1.AdminService/ApplyRuleSet"
 	// AdminServiceGetRulesProcedure is the fully-qualified name of the AdminService's GetRules RPC.
 	AdminServiceGetRulesProcedure = "/planet.v1.AdminService/GetRules"
+	// AdminServiceFillChargesProcedure is the fully-qualified name of the AdminService's FillCharges
+	// RPC.
+	AdminServiceFillChargesProcedure = "/planet.v1.AdminService/FillCharges"
+	// AdminServiceGetChargeFillsProcedure is the fully-qualified name of the AdminService's
+	// GetChargeFills RPC.
+	AdminServiceGetChargeFillsProcedure = "/planet.v1.AdminService/GetChargeFills"
 )
 
 // AdminServiceClient is a client for the planet.v1.AdminService service.
@@ -91,6 +97,9 @@ type AdminServiceClient interface {
 	// InternalService/ApplyRuleSet, kept as an operator's change.
 	ApplyRuleSet(context.Context, *connect.Request[v1.ApplyRuleSetRequest]) (*connect.Response[v1.ApplyRuleSetResponse], error)
 	GetRules(context.Context, *connect.Request[v1.GetRulesRequest]) (*connect.Response[v1.GetRulesResponse], error)
+	// InternalService/FillCharges, kept as an operator's fill.
+	FillCharges(context.Context, *connect.Request[v1.FillChargesRequest]) (*connect.Response[v1.FillChargesResponse], error)
+	GetChargeFills(context.Context, *connect.Request[v1.GetChargeFillsRequest]) (*connect.Response[v1.GetChargeFillsResponse], error)
 }
 
 // NewAdminServiceClient constructs a client for the planet.v1.AdminService service. By default, it
@@ -188,6 +197,18 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("GetRules")),
 			connect.WithClientOptions(opts...),
 		),
+		fillCharges: connect.NewClient[v1.FillChargesRequest, v1.FillChargesResponse](
+			httpClient,
+			baseURL+AdminServiceFillChargesProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("FillCharges")),
+			connect.WithClientOptions(opts...),
+		),
+		getChargeFills: connect.NewClient[v1.GetChargeFillsRequest, v1.GetChargeFillsResponse](
+			httpClient,
+			baseURL+AdminServiceGetChargeFillsProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("GetChargeFills")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -207,6 +228,8 @@ type adminServiceClient struct {
 	getTerritories   *connect.Client[v1.GetTerritoriesRequest, v1.GetTerritoriesResponse]
 	applyRuleSet     *connect.Client[v1.ApplyRuleSetRequest, v1.ApplyRuleSetResponse]
 	getRules         *connect.Client[v1.GetRulesRequest, v1.GetRulesResponse]
+	fillCharges      *connect.Client[v1.FillChargesRequest, v1.FillChargesResponse]
+	getChargeFills   *connect.Client[v1.GetChargeFillsRequest, v1.GetChargeFillsResponse]
 }
 
 // ReassignCountry calls planet.v1.AdminService.ReassignCountry.
@@ -279,6 +302,16 @@ func (c *adminServiceClient) GetRules(ctx context.Context, req *connect.Request[
 	return c.getRules.CallUnary(ctx, req)
 }
 
+// FillCharges calls planet.v1.AdminService.FillCharges.
+func (c *adminServiceClient) FillCharges(ctx context.Context, req *connect.Request[v1.FillChargesRequest]) (*connect.Response[v1.FillChargesResponse], error) {
+	return c.fillCharges.CallUnary(ctx, req)
+}
+
+// GetChargeFills calls planet.v1.AdminService.GetChargeFills.
+func (c *adminServiceClient) GetChargeFills(ctx context.Context, req *connect.Request[v1.GetChargeFillsRequest]) (*connect.Response[v1.GetChargeFillsResponse], error) {
+	return c.getChargeFills.CallUnary(ctx, req)
+}
+
 // AdminServiceHandler is an implementation of the planet.v1.AdminService service.
 type AdminServiceHandler interface {
 	ReassignCountry(context.Context, *connect.Request[v1.ReassignCountryRequest]) (*connect.Response[v1.ReassignCountryResponse], error)
@@ -298,6 +331,9 @@ type AdminServiceHandler interface {
 	// InternalService/ApplyRuleSet, kept as an operator's change.
 	ApplyRuleSet(context.Context, *connect.Request[v1.ApplyRuleSetRequest]) (*connect.Response[v1.ApplyRuleSetResponse], error)
 	GetRules(context.Context, *connect.Request[v1.GetRulesRequest]) (*connect.Response[v1.GetRulesResponse], error)
+	// InternalService/FillCharges, kept as an operator's fill.
+	FillCharges(context.Context, *connect.Request[v1.FillChargesRequest]) (*connect.Response[v1.FillChargesResponse], error)
+	GetChargeFills(context.Context, *connect.Request[v1.GetChargeFillsRequest]) (*connect.Response[v1.GetChargeFillsResponse], error)
 }
 
 // NewAdminServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -391,6 +427,18 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(adminServiceMethods.ByName("GetRules")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServiceFillChargesHandler := connect.NewUnaryHandler(
+		AdminServiceFillChargesProcedure,
+		svc.FillCharges,
+		connect.WithSchema(adminServiceMethods.ByName("FillCharges")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServiceGetChargeFillsHandler := connect.NewUnaryHandler(
+		AdminServiceGetChargeFillsProcedure,
+		svc.GetChargeFills,
+		connect.WithSchema(adminServiceMethods.ByName("GetChargeFills")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/planet.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AdminServiceReassignCountryProcedure:
@@ -421,6 +469,10 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 			adminServiceApplyRuleSetHandler.ServeHTTP(w, r)
 		case AdminServiceGetRulesProcedure:
 			adminServiceGetRulesHandler.ServeHTTP(w, r)
+		case AdminServiceFillChargesProcedure:
+			adminServiceFillChargesHandler.ServeHTTP(w, r)
+		case AdminServiceGetChargeFillsProcedure:
+			adminServiceGetChargeFillsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -484,4 +536,12 @@ func (UnimplementedAdminServiceHandler) ApplyRuleSet(context.Context, *connect.R
 
 func (UnimplementedAdminServiceHandler) GetRules(context.Context, *connect.Request[v1.GetRulesRequest]) (*connect.Response[v1.GetRulesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.GetRules is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) FillCharges(context.Context, *connect.Request[v1.FillChargesRequest]) (*connect.Response[v1.FillChargesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.FillCharges is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) GetChargeFills(context.Context, *connect.Request[v1.GetChargeFillsRequest]) (*connect.Response[v1.GetChargeFillsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.GetChargeFills is not implemented"))
 }

@@ -58,6 +58,13 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/reassign_country_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/reassign_country_usecase/audit_reassign"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/relay_fortifications_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/fills"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/fills/postgres_fill_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/fills/postgres_ledger_players"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/fills/usecases/run_fills_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/fills/usecases/run_fills_usecase/log_run_fills"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/fills/usecases/start_fill_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/fills/usecases/start_fill_usecase/audit_start_fill"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/postgres_ledger_store"
@@ -81,6 +88,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/claim_bonus_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/click_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/drop_bomb_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/fill_charges_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/find_players_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_allegiance_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_allegiance_handler/allegiance_query"
@@ -88,6 +96,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_bombs_and_fortifies_handler/bombs_and_fortifies_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_bonus_rules_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_budget_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_charge_fills_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_charge_fills_handler/charge_fills_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_charges_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_fortresses_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_fortresses_handler/fortresses_query"
@@ -135,6 +145,8 @@ const (
 	moduleName = "planet"
 
 	accountDeletedBuffer = 2048
+
+	fillRetry = 5 * time.Second
 )
 
 func NewModule(config Config) cpbootstrap.Module {
@@ -239,6 +251,12 @@ func NewModule(config Config) cpbootstrap.Module {
 			applyRuleSet := audit_apply_rule_set.New(
 				apply_rule_set_usecase.New(ruleCatalog, ruleChanges, inForce, clock), props.Logger)
 
+			fillStore := postgres_fill_store.New(db)
+			fillRunner := run_fills_usecase.NewRunner(log_run_fills.New(run_fills_usecase.New(fillStore,
+				postgres_ledger_players.New(db), charges, registry, clock, run_fills_usecase.PageSize), props.Logger), fillRetry)
+			props.Runners.Add(fillRunner)
+			startFill := audit_start_fill.New(start_fill_usecase.New(fillStore, takings, fillRunner, clock), props.Logger)
+
 			bombRules := bonuses.NewBombRules(config.Bonus.Bomb, geography.Spacing())
 
 			var clickUseCase click_usecase.IUseCase = click_usecase.New(tilesChecker, writer, countries)
@@ -306,6 +324,8 @@ func NewModule(config Config) cpbootstrap.Module {
 				GetTerritoriesHandler: getTerritories,
 				ApplyRuleSetHandler:   apply_rule_set_handler.New(applyRuleSet, rules.SourceOperator),
 				GetRulesHandler:       get_rules_handler.New(ruleCatalog, rule_changes_query.NewPostgresQuery(db)),
+				FillChargesHandler:    fill_charges_handler.New(startFill, fills.SourceOperator),
+				GetChargeFillsHandler: get_charge_fills_handler.New(charge_fills_query.NewPostgresQuery(db)),
 			}
 
 			if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
@@ -320,6 +340,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				GetBombsAndFortifiesHandler: get_bombs_and_fortifies_handler.New(
 					bombs_and_fortifies_query.NewPostgresQuery(db, borders)),
 				ApplyRuleSetHandler: apply_rule_set_handler.New(applyRuleSet, rules.SourceInternal),
+				FillChargesHandler:  fill_charges_handler.New(startFill, fills.SourceInternal),
 			}
 			if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 				return planetv1connect.NewInternalServiceHandler(internalService, options...)

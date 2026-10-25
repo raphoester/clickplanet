@@ -39,6 +39,11 @@ service AdminService {
   rpc ApplyRuleSet(ApplyRuleSetRequest) returns (ApplyRuleSetResponse);
 
   rpc GetRules(GetRulesRequest) returns (GetRulesResponse);
+
+  // InternalService/FillCharges, kept as an operator's fill.
+  rpc FillCharges(FillChargesRequest) returns (FillChargesResponse);
+
+  rpc GetChargeFills(GetChargeFillsRequest) returns (GetChargeFillsResponse);
 }
 
 message GetLedgerRequest {
@@ -275,4 +280,27 @@ enum RuleChangeSource {
   RULE_CHANGE_SOURCE_UNSPECIFIED = 0;
   RULE_CHANGE_SOURCE_INTERNAL = 1;
   RULE_CHANGE_SOURCE_OPERATOR = 2;
+}
+
+message GetChargeFillsRequest {}
+
+message GetChargeFillsResponse {
+  // Newest first, at most 20.
+  repeated ChargeFill fills = 1;
+}
+
+message ChargeFill {
+  string request_id = 1;
+  FillSource source = 2;
+  // Every account the ledger names before it is filled.
+  google.protobuf.Timestamp started_at = 3;
+  uint32 accounts_filled = 4;
+  // Unset while the fill runs.
+  google.protobuf.Timestamp finished_at = 5;
+}
+
+enum FillSource {
+  FILL_SOURCE_UNSPECIFIED = 0;
+  FILL_SOURCE_INTERNAL = 1;
+  FILL_SOURCE_OPERATOR = 2;
 }

@@ -18,7 +18,7 @@ burger menu (see [The menu](#the-menu)), by group:
 - **Clips**: Clip stats, the daily numbers of the clips the clips job posts, and a CSV of them (see
   [Clip stats](#clip-stats)).
 - **Ops**: Reconcile titles and recount bombs and fortifies, the runs after a deploy, and Game rules, the rule set in
-  force (see [Ops](#ops)).
+  force and the fills of every player's charges (see [Ops](#ops)).
 
 What is left of the plan is a live chat view: `ListMessages` pages through the chat (the report and player pages
 read it), and no admin method streams it.
@@ -352,6 +352,13 @@ puts the finale's set in force when it starts and `default` when the season ends
 the season's next phase. It is how the Final Battle's rules are tried in production by hand, and the backup if the
 season's change does not come. Refresh reads them again.
 
+**The charge fills** (`ChargeFills`, `fills.ts`), on the same page, are `GetChargeFills` and `FillCharges` (the
+backend's `CLAUDE.md`, "Fills"): the last fill, running or done, and how many accounts it filled; and the last 20,
+each with when it started, who started it and its request id. **"Fill every bank"** asks first, then fills every
+player's charges to full under a request id of its own (`crypto.randomUUID()`), so a press sent twice fills once.
+While a fill runs the page reads them again every 2 seconds (`FOLLOW_MS`), keeping the last answer on screen
+(`useLast`, in `useCall.ts`). Seasons fills when the finale starts; this is the backup if that fill does not come.
+
 ## Deploy
 
 **A Cloudflare Worker with static assets, `clickplanet-backoffice`** (`wrangler.jsonc`), like the game's. Its
@@ -381,7 +388,7 @@ src/
   clients.ts        the narrow client types every page takes, and CLIENTS
   fakeAdmin.ts      FakeAdmin, every admin method for the tests
   refusal.ts        a page's error → signedOut, notOperator, startAgain or failed; an action's in words (wordsOf)
-  useCall.ts        one call's state, run on mount
+  useCall.ts        one call's state, run on mount, and useLast, its last answer kept while it runs again
   useAction.ts      one read's state, run on a click
   usePage.ts        the page shown, kept in the address bar
   useWide.ts        whether the window is wide enough for the sidebar

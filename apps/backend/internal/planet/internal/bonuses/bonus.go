@@ -70,6 +70,7 @@ type Event struct {
 	Taken    *Taken
 	Enclosed *Enclosed
 	Spread   *Spread
+	Filled   bool
 }
 
 type Reward struct {
@@ -380,6 +381,11 @@ func (r *Registry) PublishEnclosed(entrant Entrant, enclosed Enclosed) {
 
 func (r *Registry) PublishSpread(spread Spread) {
 	r.broadcast(Event{Spread: &spread})
+}
+
+// PublishFilled tells every caller its charges may have grown, so it reads them again.
+func (r *Registry) PublishFilled() {
+	r.broadcast(Event{Filled: true})
 }
 
 func (r *Registry) broadcast(event Event) {

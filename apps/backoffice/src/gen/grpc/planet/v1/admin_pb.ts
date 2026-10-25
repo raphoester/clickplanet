@@ -34,6 +34,32 @@ proto3.util.setEnumType(RuleChangeSource, "planet.v1.RuleChangeSource", [
 ]);
 
 /**
+ * @generated from enum planet.v1.FillSource
+ */
+export enum FillSource {
+  /**
+   * @generated from enum value: FILL_SOURCE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: FILL_SOURCE_INTERNAL = 1;
+   */
+  INTERNAL = 1,
+
+  /**
+   * @generated from enum value: FILL_SOURCE_OPERATOR = 2;
+   */
+  OPERATOR = 2,
+}
+// Retrieve enum metadata with: proto3.getEnumType(FillSource)
+proto3.util.setEnumType(FillSource, "planet.v1.FillSource", [
+  { no: 0, name: "FILL_SOURCE_UNSPECIFIED" },
+  { no: 1, name: "FILL_SOURCE_INTERNAL" },
+  { no: 2, name: "FILL_SOURCE_OPERATOR" },
+]);
+
+/**
  * @generated from message planet.v1.GetLedgerRequest
  */
 export class GetLedgerRequest extends Message<GetLedgerRequest> {
@@ -1734,6 +1760,141 @@ export class RuleChange extends Message<RuleChange> {
 
   static equals(a: RuleChange | PlainMessage<RuleChange> | undefined, b: RuleChange | PlainMessage<RuleChange> | undefined): boolean {
     return proto3.util.equals(RuleChange, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.GetChargeFillsRequest
+ */
+export class GetChargeFillsRequest extends Message<GetChargeFillsRequest> {
+  constructor(data?: PartialMessage<GetChargeFillsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetChargeFillsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetChargeFillsRequest {
+    return new GetChargeFillsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetChargeFillsRequest {
+    return new GetChargeFillsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetChargeFillsRequest {
+    return new GetChargeFillsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetChargeFillsRequest | PlainMessage<GetChargeFillsRequest> | undefined, b: GetChargeFillsRequest | PlainMessage<GetChargeFillsRequest> | undefined): boolean {
+    return proto3.util.equals(GetChargeFillsRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.GetChargeFillsResponse
+ */
+export class GetChargeFillsResponse extends Message<GetChargeFillsResponse> {
+  /**
+   * Newest first, at most 20.
+   *
+   * @generated from field: repeated planet.v1.ChargeFill fills = 1;
+   */
+  fills: ChargeFill[] = [];
+
+  constructor(data?: PartialMessage<GetChargeFillsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetChargeFillsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "fills", kind: "message", T: ChargeFill, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetChargeFillsResponse {
+    return new GetChargeFillsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetChargeFillsResponse {
+    return new GetChargeFillsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetChargeFillsResponse {
+    return new GetChargeFillsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetChargeFillsResponse | PlainMessage<GetChargeFillsResponse> | undefined, b: GetChargeFillsResponse | PlainMessage<GetChargeFillsResponse> | undefined): boolean {
+    return proto3.util.equals(GetChargeFillsResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.ChargeFill
+ */
+export class ChargeFill extends Message<ChargeFill> {
+  /**
+   * @generated from field: string request_id = 1;
+   */
+  requestId = "";
+
+  /**
+   * @generated from field: planet.v1.FillSource source = 2;
+   */
+  source = FillSource.UNSPECIFIED;
+
+  /**
+   * Every account the ledger names before it is filled.
+   *
+   * @generated from field: google.protobuf.Timestamp started_at = 3;
+   */
+  startedAt?: Timestamp;
+
+  /**
+   * @generated from field: uint32 accounts_filled = 4;
+   */
+  accountsFilled = 0;
+
+  /**
+   * Unset while the fill runs.
+   *
+   * @generated from field: google.protobuf.Timestamp finished_at = 5;
+   */
+  finishedAt?: Timestamp;
+
+  constructor(data?: PartialMessage<ChargeFill>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.ChargeFill";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "request_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "source", kind: "enum", T: proto3.getEnumType(FillSource) },
+    { no: 3, name: "started_at", kind: "message", T: Timestamp },
+    { no: 4, name: "accounts_filled", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 5, name: "finished_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ChargeFill {
+    return new ChargeFill().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ChargeFill {
+    return new ChargeFill().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ChargeFill {
+    return new ChargeFill().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ChargeFill | PlainMessage<ChargeFill> | undefined, b: ChargeFill | PlainMessage<ChargeFill> | undefined): boolean {
+    return proto3.util.equals(ChargeFill, a, b);
   }
 }
 

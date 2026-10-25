@@ -282,6 +282,7 @@ return []bootstrap.Module{
 | `chat` | `player.v1.InternalService/GetAuthors` | who everyone in the window is, once per `GetHistory`; who reacted, once per `React`; who wrote each message of a page, once per `ListMessages` | `get_history_handler/history_query/rpc_player_authors`, `messages/rpc_player_authors`, `list_messages_handler/messages_query/rpc_player_authors` |
 | `seasons` | `planet.v1.InternalService/GetTerritories` | the tiles each country holds and the size of the map, for each snapshot (once a minute) | `rounds/rpc_planet_territories` |
 | `seasons` | `planet.v1.InternalService/ApplyRuleSet` | the rule set each phase of a season plays by, at boot and at each change of phase (see [Rules](#rules-the-games-rule-sets-internalplanetinternalrules)) | `calendar/rpc_planet_rules` |
+| `seasons` | `planet.v1.InternalService/FillCharges` | every player's charges to full, at boot and at each change of phase whose stage fills (see [Fills](#fills-every-hand-full-at-once-internalplanetinternalfills)) | `calendar/rpc_planet_fills` |
 | `seasons` | `player.v1.InternalService/GetAuthors` | the name and color of each account of a page of standings, and whether it is a guest, on each `GetStandings` and `GetMySeason`, and each read of a live board | `get_standings_handler/standings_query/rpc_player_authors`, `get_my_season_handler/my_season_query/rpc_player_authors` |
 | `support` | `player.v1.InternalService/GetAuthors` | the name of both accounts of each report of a page, on each `ListReports` | `list_reports_handler/reports_query/rpc_player_authors` |
 | `support` | `player.v1.InternalService/GetAuthors` | the name of each account a page of reports names, on each `ListReports` | `list_reports_handler/reports_query/rpc_player_authors` |
@@ -371,6 +372,10 @@ internal/planet/internal/
   rules/                          the rule sets, the one in force and every change of it
     postgres_rule_change_store/
     usecases/
+  fills/                          every hand full at once: a fill, how far it got, and whom it gives to
+    postgres_fill_store/
+    postgres_ledger_players/
+    usecases/
   planetv1controller/             the edge: maps the wire to the use cases, nothing else
     get_takes_by_country_handler/takes_query/   InternalService's one read, straight from ledger_events
     get_ledger_handler/changes_query/           AdminService/GetLedger, straight from ledger_events too
@@ -445,6 +450,8 @@ because it serves every concept over one Connect service. It only maps.
 | `bonuses/usecases/place_shield_usecase` | spends a shield on a tile of the caller's flag | `Shields`, `Tiles`, `CountryChecker`, `Allegiances` |
 | `rules/usecases/apply_rule_set_usecase` | keeps a change of rule set once per request, then enforces it | `Catalog`, `Changes`, `Rules` |
 | `rules/usecases/restore_rules_usecase` | at boot, enforces the set the newest change put in force | `Changes`, `Catalog`, `Rules` |
+| `fills/usecases/start_fill_usecase` | keeps a fill once per request, once the ledger is flushed, then wakes the runner | `Fills`, `Ledger`, `Runner` |
+| `fills/usecases/run_fills_usecase` | fills every hand of each fill not finished, a page at a time, oldest fill first; a `Runner` | `Fills`, `Players`, `Hands`, `Notice` |
 | `clicks/usecases/relay_fortifications_usecase` | follows the tile map and publishes `planet.v1.Fortified` for each fortify; a `Runner` | `Changes`, `Publisher` |
 
 **The interfaces in that last column are declared by the package that calls
@@ -991,6 +998,45 @@ event planet listens to.
 - `e2e/rules_test.go` boots with a finale 8 seconds away and sees the refill go from 100 to 300 a second and back,
   on a stream opened before; and applies sets by hand. **`make finale`** runs `cmd/api` with `example.yaml` and Season
   0's finale `FINALE_IN` minutes away (2 by default) and `FINALE_FOR` long (5), to rehearse it.
+
+### Fills: every hand full at once (`internal/planet/internal/fills/`)
+
+**The game can give every player a full hand of charges at once**: the refill, the bomb, and the enclosures, the
+spread pool and the shields at their sizes (`bonus.enclose.held`, `bonus.spread.clicks`, `bonus.shield.held`). It is a
+one-time act, not a rule: a player who first plays after it gets nothing. The Final Battle starts with one, so every
+player has power-ups for it. Like a rule set it is a command in planet's words, `planet.v1.InternalService/FillCharges
+{request_id}`, which `seasons` sends when the finale starts (see [Seasons](#seasons-internalseasons)), with no word of
+seasons heard by planet.
+
+- **Who gets one is every account the ledger names before the fill started**: a take, a strike, a bomb, a shield,
+  anything with an account, in postgres. A deleted account is blanked off the ledger, so it gets nothing.
+  `start_fill_usecase` flushes the ledger before it keeps the fill, so the last second of play counts.
+- **A fill is kept, and runs in the background**: `planet.charge_fills` (`request_id`, `source` the type
+  `charge_fill_source`, `started_at`, `reached`, `accounts_filled`, `finished_at`; migration
+  `20261026120000_charge_fills`), with `fills.Fill` and its snapshot. The call keeps the fill and answers; the runner
+  (`planet-charge-fills`) fills the hands, at boot and each time it is woken, one fill at a time, oldest first.
+- **A page of 500 accounts at a time, in account order** (`postgres_ledger_players`: one probe of
+  `ledger_events_account_kind` per account, never a scan; `plan_test.go` pins it). After each page the fill keeps
+  how far it got (`reached`, `accounts_filled`), and a page not full finishes it. So a restart in the middle goes on
+  from the last page kept.
+- **A fill never gives twice**: a hand remembers the last fill it had (`charges.last_fill`, `bonuses.Held.LastFill`,
+  written in the same transaction as the hand), and `Held.Filled` leaves a hand the same fill already filled as it
+  is, whatever was spent since. So the page cut short by a restart is filled again with no gift twice. It is the last
+  fill only because fills run one at a time. A request already kept starts nothing (`fills.ErrStartedAlready`,
+  answered as success), so a resend while the fill runs, or after, gives nothing.
+- **Every open stream is told after each page**: the registry broadcasts it, and the stream sends
+  `PlanetEvent.charges_filled`; the client reads `GetCharges` again, so the inventory shows the new hand with no
+  reload.
+- **An operator fills by hand**: `AdminService/FillCharges` (kept as `operator`), and `GetChargeFills`, the last 20
+  fills newest first with how far each got (`charge_fills_query`). The backoffice's Game rules page calls both: the
+  Saturday backup if the season's fill does not come.
+- **The same known debt as Rules**: the command lives in the process, so `seasons` sends it again at each boot while
+  the finale runs, and planet starts a request once.
+- `audit_start_fill` logs every request at Warn, `log_run_fills` each fill finished and a failure. A failed run is
+  tried again 5 seconds later.
+- `e2e/fill_test.go` boots with a finale 8 seconds away: a player who clicked before gets a full hand once, its
+  stream says so, a player who first clicked after gets nothing, a resend gives nothing, and an operator's fill gives
+  both again.
 
 ### Chat (`internal/chat/`)
 
@@ -1883,6 +1929,7 @@ internal/support/internal/
 internal/seasons/internal/
   calendar/                       Number, Season, Entry, Config (its Validate), Calendar (Current, PhaseAt), Phase, Stage
     rpc_planet_rules/             the phase, in planet's words: planet.v1.InternalService/ApplyRuleSet
+    rpc_planet_fills/             the phase's fill, in planet's words: planet.v1.InternalService/FillCharges
     usecases/get_season_usecase/  the calendar and the clock
     usecases/play_phase_usecase/  tells the game the phase of now when it changes, and after each boot; Runner
       log_play_phase/             logs each phase played, and a failure
@@ -1932,6 +1979,12 @@ internal/seasons/internal/
   in-process messages are lost while the server is down (the known debt in Rules): planet keeps the change it made
   the first time, so a set an operator applied since is not undone. A refusal is logged (`log_play_phase`) and sent
   again on the next tick.
+- **A phase can also fill every player's charges** (`seasons.fills`, `days`, `finale` and `over`, each true or not;
+  production fills when the finale starts). A second `play_phase_usecase`, beside the rules', plays it through
+  `rpc_planet_fills`: `FillCharges` under the request `season-<n>:<stage>:fill` (see
+  [Fills](#fills-every-hand-full-at-once-internalplanetinternalfills)). Its own runner, so a rule set refused never
+  holds back the fill, nor the reverse. A boot during the finale sends it again, which gives nothing; a boot after it
+  sends nothing, since `over` does not fill.
 - **`Calendar.Current(now)` is the first season whose end is after now.** A season starts when the one before it ends; the first started before anything.
 - **The boot is refused** when the numbers do not count up from 0, the ends do not go up, or a finale is not above 0 and shorter than its season.
 - **`GetSeason` is a GET** (`NO_SIDE_EFFECTS`), answered `public, max-age=60`. No current season is an empty answer.
@@ -2318,7 +2371,9 @@ its own.
   `shields`). `bonuses.Charges` holds the sizes and the `Store` port, whose `Change`
   runs one transaction under `pg_advisory_xact_lock` on the account. An empty hand
   is no row. A failing database fails the call; a spread click fails with its tile
-  taken. A deleted account's row stays until something removes it. The rest
+  taken. A deleted account's row stays until something removes it. A hand also keeps the last fill it had
+  (`last_fill`, see [Fills](#fills-every-hand-full-at-once-internalplanetinternalfills)), so a hand spent to nothing
+  after a fill is a row. The rest
   of the bonus state (schedules, offers, the hourly caps) is still memory only, so
   a restart gives everyone a fresh schedule.
 - **Each spend is atomic**: `Charges.Spend` checks and takes in one `Change`, so two
@@ -3677,6 +3732,11 @@ stream sent it. The frontend's clip generator plays it back (see its CLAUDE.md, 
 An operator puts a rule set in force by hand, and reads every set and the last 50 changes: see
 [Rules](#rules-the-games-rule-sets-internalplanetinternalrules). The backoffice's Game rules page calls both.
 
+#### `FillCharges`, `GetChargeFills`
+
+An operator fills every player's charges by hand, and reads the last 20 fills and how far each got: see
+[Fills](#fills-every-hand-full-at-once-internalplanetinternalfills). The backoffice's Game rules page calls both.
+
 #### `GetLedger`, `GetTerritories`
 
 **What the admin page's home reads, none of it shaped for it**: the page counts, charts and draws on its own side
@@ -4567,6 +4627,8 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `player.tagSalt` — salts the hash of an address the roster caps its visits with. It is never shown, so empty, which generates one at boot, costs nothing. Production reads it from `CHAT_TAG_SALT`, the chat's old variable
 - `player.database.*` — profiles and stats, same shape as `database`, schema `player`; required. `player.database.password` belongs in the environment
 - `seasons.list` — each season's `number` (0 up), `endsAt` (RFC 3339) and `finale` (a duration); empty is no season
+- `seasons.ruleSets.days`, `finale`, `over` — the rule set of planet's each phase plays (`default` when unset)
+- `seasons.fills.days`, `finale`, `over` — whether the phase fills every player's charges when it starts (production: the finale)
 - `seasons.snapshot.interval` — how often a snapshot of what each country holds is added to the round in progress (default 1m)
 - `seasons.database.*` — the standings and the rounds, same shape as `database`, schema `seasons`; required. `seasons.database.password` belongs in the environment
 - `support.database.*` — what players send the operator, same shape as `database`, schema `support`; required. `support.database.password` belongs in the environment

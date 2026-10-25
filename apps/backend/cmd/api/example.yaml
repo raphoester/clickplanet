@@ -395,6 +395,8 @@ seasons:
     days: default
     finale: rush
     over: default
+  fills:
+    finale: true
   database:
     host: localhost
     port: "5432"

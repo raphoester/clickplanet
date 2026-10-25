@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ApplyRuleSetRequest, ApplyRuleSetResponse, GetBombsAndFortifiesRequest, GetBombsAndFortifiesResponse, GetTakesByCountryRequest, GetTakesByCountryResponse, GetTerritoriesRequest, GetTerritoriesResponse } from "./internal_pb.js";
+import { ApplyRuleSetRequest, ApplyRuleSetResponse, FillChargesRequest, FillChargesResponse, GetBombsAndFortifiesRequest, GetBombsAndFortifiesResponse, GetTakesByCountryRequest, GetTakesByCountryResponse, GetTerritoriesRequest, GetTerritoriesResponse } from "./internal_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -51,6 +51,18 @@ export const InternalService = {
       name: "ApplyRuleSet",
       I: ApplyRuleSetRequest,
       O: ApplyRuleSetResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.Idempotent,
+    },
+    /**
+     * Fills every account that played before it to full, once per request id, so a caller may send it again.
+     *
+     * @generated from rpc planet.v1.InternalService.FillCharges
+     */
+    fillCharges: {
+      name: "FillCharges",
+      I: FillChargesRequest,
+      O: FillChargesResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.Idempotent,
     },

@@ -29,6 +29,7 @@ import {
     GetBonusRulesResponse,
     GetMapResponse,
     GlobePoint,
+    ChargesFilled,
     Heartbeat,
     LandmassFortified,
     PlanetEvent,
@@ -1369,6 +1370,29 @@ describe("the charges held", () => {
         await vi.waitFor(() => expect(seen.at(-1)).toEqual({refill: false, bomb: true, enclosures: 0, spreadClicksLeft: 2, shields: 5}))
 
         expect(getCharges).toHaveBeenCalledTimes(1)
+        backend.close()
+    })
+
+    it("reads them again when the stream says the charges were filled, so they show with no reload", async () => {
+        const filled = new ChargesHeld({refill: true, bomb: true, enclosures: 3, spreadClicksLeft: 8, shields: 30})
+        const getCharges = vi.fn()
+            .mockResolvedValueOnce({charges: new ChargesHeld()})
+            .mockResolvedValueOnce({charges: filled})
+        let fill = () => {}
+        const listenForEvents = vi.fn(async function* () {
+            yield new PlanetEvent({event: {case: "heartbeat", value: new Heartbeat()}})
+            await new Promise<void>(resolve => fill = resolve)
+            yield new PlanetEvent({event: {case: "chargesFilled", value: new ChargesFilled()}})
+            await new Promise(() => {})
+        })
+        const backend = new PlanetBackend(clientWith({getCharges, listenForEvents}), 1_000)
+        const seen = follow(backend)
+        await vi.waitFor(() => expect(getCharges).toHaveBeenCalledTimes(1))
+
+        fill()
+
+        await vi.waitFor(() => expect(seen.at(-1)).toEqual(
+            {refill: true, bomb: true, enclosures: 3, spreadClicksLeft: 8, shields: 30}))
         backend.close()
     })
 

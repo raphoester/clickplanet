@@ -545,6 +545,86 @@ func (*ApplyRuleSetResponse) Descriptor() ([]byte, []int) {
 	return file_planet_v1_internal_proto_rawDescGZIP(), []int{10}
 }
 
+type FillChargesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RequestId     string                 `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FillChargesRequest) Reset() {
+	*x = FillChargesRequest{}
+	mi := &file_planet_v1_internal_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FillChargesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FillChargesRequest) ProtoMessage() {}
+
+func (x *FillChargesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_internal_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FillChargesRequest.ProtoReflect.Descriptor instead.
+func (*FillChargesRequest) Descriptor() ([]byte, []int) {
+	return file_planet_v1_internal_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *FillChargesRequest) GetRequestId() string {
+	if x != nil {
+		return x.RequestId
+	}
+	return ""
+}
+
+type FillChargesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FillChargesResponse) Reset() {
+	*x = FillChargesResponse{}
+	mi := &file_planet_v1_internal_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FillChargesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FillChargesResponse) ProtoMessage() {}
+
+func (x *FillChargesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_internal_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FillChargesResponse.ProtoReflect.Descriptor instead.
+func (*FillChargesResponse) Descriptor() ([]byte, []int) {
+	return file_planet_v1_internal_proto_rawDescGZIP(), []int{12}
+}
+
 var File_planet_v1_internal_proto protoreflect.FileDescriptor
 
 const file_planet_v1_internal_proto_rawDesc = "" +
@@ -583,12 +663,17 @@ const file_planet_v1_internal_proto_rawDesc = "" +
 	"\n" +
 	"request_id\x18\x01 \x01(\tR\trequestId\x12\x19\n" +
 	"\brule_set\x18\x02 \x01(\tR\aruleSet\"\x16\n" +
-	"\x14ApplyRuleSetResponse2\x96\x03\n" +
+	"\x14ApplyRuleSetResponse\"3\n" +
+	"\x12FillChargesRequest\x12\x1d\n" +
+	"\n" +
+	"request_id\x18\x01 \x01(\tR\trequestId\"\x15\n" +
+	"\x13FillChargesResponse2\xe9\x03\n" +
 	"\x0fInternalService\x12c\n" +
 	"\x11GetTakesByCountry\x12#.planet.v1.GetTakesByCountryRequest\x1a$.planet.v1.GetTakesByCountryResponse\"\x03\x90\x02\x01\x12Z\n" +
 	"\x0eGetTerritories\x12 .planet.v1.GetTerritoriesRequest\x1a!.planet.v1.GetTerritoriesResponse\"\x03\x90\x02\x01\x12l\n" +
 	"\x14GetBombsAndFortifies\x12&.planet.v1.GetBombsAndFortifiesRequest\x1a'.planet.v1.GetBombsAndFortifiesResponse\"\x03\x90\x02\x01\x12T\n" +
-	"\fApplyRuleSet\x12\x1e.planet.v1.ApplyRuleSetRequest\x1a\x1f.planet.v1.ApplyRuleSetResponse\"\x03\x90\x02\x02B\xb5\x01\n" +
+	"\fApplyRuleSet\x12\x1e.planet.v1.ApplyRuleSetRequest\x1a\x1f.planet.v1.ApplyRuleSetResponse\"\x03\x90\x02\x02\x12Q\n" +
+	"\vFillCharges\x12\x1d.planet.v1.FillChargesRequest\x1a\x1e.planet.v1.FillChargesResponse\"\x03\x90\x02\x02B\xb5\x01\n" +
 	"\rcom.planet.v1B\rInternalProtoP\x01ZPgithub.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1;planetv1\xa2\x02\x03PXX\xaa\x02\tPlanet.V1\xca\x02\tPlanet\\V1\xe2\x02\x15Planet\\V1\\GPBMetadata\xea\x02\n" +
 	"Planet::V1b\x06proto3"
 
@@ -604,7 +689,7 @@ func file_planet_v1_internal_proto_rawDescGZIP() []byte {
 	return file_planet_v1_internal_proto_rawDescData
 }
 
-var file_planet_v1_internal_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_planet_v1_internal_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_planet_v1_internal_proto_goTypes = []any{
 	(*GetTakesByCountryRequest)(nil),     // 0: planet.v1.GetTakesByCountryRequest
 	(*GetTakesByCountryResponse)(nil),    // 1: planet.v1.GetTakesByCountryResponse
@@ -617,6 +702,8 @@ var file_planet_v1_internal_proto_goTypes = []any{
 	(*BombsAndFortifies)(nil),            // 8: planet.v1.BombsAndFortifies
 	(*ApplyRuleSetRequest)(nil),          // 9: planet.v1.ApplyRuleSetRequest
 	(*ApplyRuleSetResponse)(nil),         // 10: planet.v1.ApplyRuleSetResponse
+	(*FillChargesRequest)(nil),           // 11: planet.v1.FillChargesRequest
+	(*FillChargesResponse)(nil),          // 12: planet.v1.FillChargesResponse
 }
 var file_planet_v1_internal_proto_depIdxs = []int32{
 	2,  // 0: planet.v1.GetTakesByCountryResponse.taken_for:type_name -> planet.v1.CountryTakes
@@ -627,12 +714,14 @@ var file_planet_v1_internal_proto_depIdxs = []int32{
 	3,  // 5: planet.v1.InternalService.GetTerritories:input_type -> planet.v1.GetTerritoriesRequest
 	6,  // 6: planet.v1.InternalService.GetBombsAndFortifies:input_type -> planet.v1.GetBombsAndFortifiesRequest
 	9,  // 7: planet.v1.InternalService.ApplyRuleSet:input_type -> planet.v1.ApplyRuleSetRequest
-	1,  // 8: planet.v1.InternalService.GetTakesByCountry:output_type -> planet.v1.GetTakesByCountryResponse
-	4,  // 9: planet.v1.InternalService.GetTerritories:output_type -> planet.v1.GetTerritoriesResponse
-	7,  // 10: planet.v1.InternalService.GetBombsAndFortifies:output_type -> planet.v1.GetBombsAndFortifiesResponse
-	10, // 11: planet.v1.InternalService.ApplyRuleSet:output_type -> planet.v1.ApplyRuleSetResponse
-	8,  // [8:12] is the sub-list for method output_type
-	4,  // [4:8] is the sub-list for method input_type
+	11, // 8: planet.v1.InternalService.FillCharges:input_type -> planet.v1.FillChargesRequest
+	1,  // 9: planet.v1.InternalService.GetTakesByCountry:output_type -> planet.v1.GetTakesByCountryResponse
+	4,  // 10: planet.v1.InternalService.GetTerritories:output_type -> planet.v1.GetTerritoriesResponse
+	7,  // 11: planet.v1.InternalService.GetBombsAndFortifies:output_type -> planet.v1.GetBombsAndFortifiesResponse
+	10, // 12: planet.v1.InternalService.ApplyRuleSet:output_type -> planet.v1.ApplyRuleSetResponse
+	12, // 13: planet.v1.InternalService.FillCharges:output_type -> planet.v1.FillChargesResponse
+	9,  // [9:14] is the sub-list for method output_type
+	4,  // [4:9] is the sub-list for method input_type
 	4,  // [4:4] is the sub-list for extension type_name
 	4,  // [4:4] is the sub-list for extension extendee
 	0,  // [0:4] is the sub-list for field type_name
@@ -649,7 +738,7 @@ func file_planet_v1_internal_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_planet_v1_internal_proto_rawDesc), len(file_planet_v1_internal_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   11,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

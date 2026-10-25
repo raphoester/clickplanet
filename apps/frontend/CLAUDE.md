@@ -73,6 +73,8 @@ close nothing, for the bubble that says so, and `closeShapes(true)` puts it back
 minutes, as a ban does, and `fakeBackend.ban(0)` lifts it.
 `fakeBackend.setTempo(3)` refills the bank three times as fast, as the rules of
 the Final Battle do, and `fakeBackend.setTempo(1)` puts it back.
+`fakeBackend.fillCharges()` fills every charge to full, as the start of the
+Final Battle does.
 `localStorage.removeItem("clickplanet-bonus-guide")` makes the bonuses new again.
 `fakeSupport.refuse("rate-limited")` (or `"rejected"`, `"no-session"`,
 `"reported-already"`, `"failed"`) refuses what Settings and a player's card
@@ -2534,9 +2536,11 @@ is what was kept (`+2 spread clicks`), which is what the server answers in
 `ClaimBonusResponse.amount`.
 
 **`PlanetBackend` holds `Charges` (`domain/bonus.ts`) and nothing pushes them.**
-It reads `GetCharges` at load, with the token in hand and never a fresh one, and
+It reads `GetCharges` at load, with the token in hand and never a fresh one,
 again when a click goes out under a new token (`followSession`): the charges are
-the account's. `ClaimBonusResponse.charges` replaces them on a claim, and
+the account's, and again when the planet stream says a fill gave every player a
+full hand (`chargesFilled`, as at the start of the Final Battle: the backend's
+CLAUDE.md, "Fills"). `ClaimBonusResponse.charges` replaces them on a claim, and
 `UseRefillResponse.charges` on a refill, which also brings the full budget, and
 `PlaceShieldResponse.charges` on a shield placed. Otherwise
 it follows its own calls: an accepted click **sent with spread on** takes a spread

@@ -45,6 +45,9 @@ const (
 	// InternalServiceApplyRuleSetProcedure is the fully-qualified name of the InternalService's
 	// ApplyRuleSet RPC.
 	InternalServiceApplyRuleSetProcedure = "/planet.v1.InternalService/ApplyRuleSet"
+	// InternalServiceFillChargesProcedure is the fully-qualified name of the InternalService's
+	// FillCharges RPC.
+	InternalServiceFillChargesProcedure = "/planet.v1.InternalService/FillCharges"
 )
 
 // InternalServiceClient is a client for the planet.v1.InternalService service.
@@ -54,6 +57,8 @@ type InternalServiceClient interface {
 	GetBombsAndFortifies(context.Context, *connect.Request[v1.GetBombsAndFortifiesRequest]) (*connect.Response[v1.GetBombsAndFortifiesResponse], error)
 	// A request id already applied changes nothing, so a caller may send it again.
 	ApplyRuleSet(context.Context, *connect.Request[v1.ApplyRuleSetRequest]) (*connect.Response[v1.ApplyRuleSetResponse], error)
+	// Fills every account that played before it to full, once per request id, so a caller may send it again.
+	FillCharges(context.Context, *connect.Request[v1.FillChargesRequest]) (*connect.Response[v1.FillChargesResponse], error)
 }
 
 // NewInternalServiceClient constructs a client for the planet.v1.InternalService service. By
@@ -95,6 +100,13 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithIdempotency(connect.IdempotencyIdempotent),
 			connect.WithClientOptions(opts...),
 		),
+		fillCharges: connect.NewClient[v1.FillChargesRequest, v1.FillChargesResponse](
+			httpClient,
+			baseURL+InternalServiceFillChargesProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("FillCharges")),
+			connect.WithIdempotency(connect.IdempotencyIdempotent),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -104,6 +116,7 @@ type internalServiceClient struct {
 	getTerritories       *connect.Client[v1.GetTerritoriesRequest, v1.GetTerritoriesResponse]
 	getBombsAndFortifies *connect.Client[v1.GetBombsAndFortifiesRequest, v1.GetBombsAndFortifiesResponse]
 	applyRuleSet         *connect.Client[v1.ApplyRuleSetRequest, v1.ApplyRuleSetResponse]
+	fillCharges          *connect.Client[v1.FillChargesRequest, v1.FillChargesResponse]
 }
 
 // GetTakesByCountry calls planet.v1.InternalService.GetTakesByCountry.
@@ -126,6 +139,11 @@ func (c *internalServiceClient) ApplyRuleSet(ctx context.Context, req *connect.R
 	return c.applyRuleSet.CallUnary(ctx, req)
 }
 
+// FillCharges calls planet.v1.InternalService.FillCharges.
+func (c *internalServiceClient) FillCharges(ctx context.Context, req *connect.Request[v1.FillChargesRequest]) (*connect.Response[v1.FillChargesResponse], error) {
+	return c.fillCharges.CallUnary(ctx, req)
+}
+
 // InternalServiceHandler is an implementation of the planet.v1.InternalService service.
 type InternalServiceHandler interface {
 	GetTakesByCountry(context.Context, *connect.Request[v1.GetTakesByCountryRequest]) (*connect.Response[v1.GetTakesByCountryResponse], error)
@@ -133,6 +151,8 @@ type InternalServiceHandler interface {
 	GetBombsAndFortifies(context.Context, *connect.Request[v1.GetBombsAndFortifiesRequest]) (*connect.Response[v1.GetBombsAndFortifiesResponse], error)
 	// A request id already applied changes nothing, so a caller may send it again.
 	ApplyRuleSet(context.Context, *connect.Request[v1.ApplyRuleSetRequest]) (*connect.Response[v1.ApplyRuleSetResponse], error)
+	// Fills every account that played before it to full, once per request id, so a caller may send it again.
+	FillCharges(context.Context, *connect.Request[v1.FillChargesRequest]) (*connect.Response[v1.FillChargesResponse], error)
 }
 
 // NewInternalServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -170,6 +190,13 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 		connect.WithIdempotency(connect.IdempotencyIdempotent),
 		connect.WithHandlerOptions(opts...),
 	)
+	internalServiceFillChargesHandler := connect.NewUnaryHandler(
+		InternalServiceFillChargesProcedure,
+		svc.FillCharges,
+		connect.WithSchema(internalServiceMethods.ByName("FillCharges")),
+		connect.WithIdempotency(connect.IdempotencyIdempotent),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/planet.v1.InternalService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case InternalServiceGetTakesByCountryProcedure:
@@ -180,6 +207,8 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 			internalServiceGetBombsAndFortifiesHandler.ServeHTTP(w, r)
 		case InternalServiceApplyRuleSetProcedure:
 			internalServiceApplyRuleSetHandler.ServeHTTP(w, r)
+		case InternalServiceFillChargesProcedure:
+			internalServiceFillChargesHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -203,4 +232,8 @@ func (UnimplementedInternalServiceHandler) GetBombsAndFortifies(context.Context,
 
 func (UnimplementedInternalServiceHandler) ApplyRuleSet(context.Context, *connect.Request[v1.ApplyRuleSetRequest]) (*connect.Response[v1.ApplyRuleSetResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.ApplyRuleSet is not implemented"))
+}
+
+func (UnimplementedInternalServiceHandler) FillCharges(context.Context, *connect.Request[v1.FillChargesRequest]) (*connect.Response[v1.FillChargesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.FillCharges is not implemented"))
 }

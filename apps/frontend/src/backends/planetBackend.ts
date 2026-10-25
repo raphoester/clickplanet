@@ -316,6 +316,11 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                     return
                 }
 
+                if (chargesFilled(event)) {
+                    void this.readCharges(this.streamToken)
+                    return
+                }
+
                 const fortification = fortificationOf(event)
                 if (fortification) {
                     // Its shields go on the owners the earlier updates leave.
@@ -802,6 +807,11 @@ export function fortificationOf(event: PlanetEvent): Fortification | undefined {
 // The refill's pace may have moved, and only a reading says by how much.
 export function rulesChanged(event: PlanetEvent): boolean {
     return event.event.case === "rulesChanged"
+}
+
+// A fill may have grown the charges held, and only a reading says by how much.
+export function chargesFilled(event: PlanetEvent): boolean {
+    return event.event.case === "chargesFilled"
 }
 
 export function spreadOf(event: PlanetEvent): SpreadClick | undefined {

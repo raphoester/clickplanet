@@ -3,9 +3,9 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BanPlayerRequest, BanPlayerResponse, FindPlayersRequest, FindPlayersResponse, GetLedgerRequest, GetLedgerResponse, GetReplayRequest, GetReplayResponse, GetRulesRequest, GetRulesResponse, GrantChargesRequest, GrantChargesResponse, InspectPlayerRequest, InspectPlayerResponse, PaintRandomTilesRequest, PaintRandomTilesResponse, ReassignCountryRequest, ReassignCountryResponse, RevertPlayerRequest, RevertPlayerResponse, TopPlayersRequest, TopPlayersResponse, UnbanPlayerRequest, UnbanPlayerResponse } from "./admin_pb.js";
+import { BanPlayerRequest, BanPlayerResponse, FindPlayersRequest, FindPlayersResponse, GetChargeFillsRequest, GetChargeFillsResponse, GetLedgerRequest, GetLedgerResponse, GetReplayRequest, GetReplayResponse, GetRulesRequest, GetRulesResponse, GrantChargesRequest, GrantChargesResponse, InspectPlayerRequest, InspectPlayerResponse, PaintRandomTilesRequest, PaintRandomTilesResponse, ReassignCountryRequest, ReassignCountryResponse, RevertPlayerRequest, RevertPlayerResponse, TopPlayersRequest, TopPlayersResponse, UnbanPlayerRequest, UnbanPlayerResponse } from "./admin_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
-import { ApplyRuleSetRequest, ApplyRuleSetResponse, GetTerritoriesRequest, GetTerritoriesResponse } from "./internal_pb.js";
+import { ApplyRuleSetRequest, ApplyRuleSetResponse, FillChargesRequest, FillChargesResponse, GetTerritoriesRequest, GetTerritoriesResponse } from "./internal_pb.js";
 
 /**
  * No authentication of its own: served on the console listener, and on the admin listener behind its gate. Never the public router.
@@ -145,6 +145,26 @@ export const AdminService = {
       name: "GetRules",
       I: GetRulesRequest,
       O: GetRulesResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * InternalService/FillCharges, kept as an operator's fill.
+     *
+     * @generated from rpc planet.v1.AdminService.FillCharges
+     */
+    fillCharges: {
+      name: "FillCharges",
+      I: FillChargesRequest,
+      O: FillChargesResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc planet.v1.AdminService.GetChargeFills
+     */
+    getChargeFills: {
+      name: "GetChargeFills",
+      I: GetChargeFillsRequest,
+      O: GetChargeFillsResponse,
       kind: MethodKind.Unary,
     },
   }

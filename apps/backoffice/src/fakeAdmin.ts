@@ -16,8 +16,12 @@ import {
     BanPlayerRequest,
     BanPlayerResponse,
     BoxPace,
+    ChargeFill,
+    FillSource,
     FindPlayersRequest,
     FindPlayersResponse,
+    GetChargeFillsRequest,
+    GetChargeFillsResponse,
     GetLedgerRequest,
     GetLedgerResponse,
     GetReplayRequest,
@@ -56,6 +60,8 @@ import {
 import {
     ApplyRuleSetRequest,
     ApplyRuleSetResponse,
+    FillChargesRequest,
+    FillChargesResponse,
     GetTerritoriesRequest,
     GetTerritoriesResponse,
     Territory,
@@ -185,6 +191,15 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
             new RuleChange({
                 requestId: "season-0:finale", ruleSet: "rush", source: RuleChangeSource.INTERNAL,
                 appliedAt: Timestamp.fromDate(AT),
+            }),
+        ],
+    })
+    // The finale's fill, done.
+    chargeFills = new GetChargeFillsResponse({
+        fills: [
+            new ChargeFill({
+                requestId: "season-0:finale:fill", source: FillSource.INTERNAL, startedAt: Timestamp.fromDate(AT),
+                accountsFilled: 1200, finishedAt: Timestamp.fromDate(new Date(AT.getTime() + 4_000)),
             }),
         ],
     })
@@ -355,6 +370,33 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
             })
         }
         return answer
+    }
+
+    getChargeFills(request: PartialMessage<GetChargeFillsRequest>): Promise<GetChargeFillsResponse> {
+        return this.answer("getChargeFills", request, this.chargeFills)
+    }
+
+    // Kept as the server keeps it: a request already started starts nothing, and a new fill runs until finishFill.
+    fillCharges(request: PartialMessage<FillChargesRequest>): Promise<FillChargesResponse> {
+        const answer = this.answer("fillCharges", request, new FillChargesResponse())
+        if (!this.refusals.has("fillCharges") && !this.chargeFills.fills.some(fill => fill.requestId === request.requestId)) {
+            this.chargeFills = new GetChargeFillsResponse({
+                fills: [new ChargeFill({
+                    requestId: request.requestId, source: FillSource.OPERATOR,
+                    startedAt: Timestamp.fromDate(new Date(AT.getTime() + 60_000)),
+                }), ...this.chargeFills.fills],
+            })
+        }
+        return answer
+    }
+
+    finishFill(accounts: number): void {
+        const [newest, ...older] = this.chargeFills.fills
+        this.chargeFills = new GetChargeFillsResponse({
+            fills: [new ChargeFill({
+                ...newest, accountsFilled: accounts, finishedAt: Timestamp.fromDate(new Date(AT.getTime() + 64_000)),
+            }), ...older],
+        })
     }
 
     getRoster(request: PartialMessage<GetRosterRequest>): Promise<GetRosterResponse> {

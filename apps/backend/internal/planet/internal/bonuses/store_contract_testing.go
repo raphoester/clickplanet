@@ -33,7 +33,7 @@ func (s *StoreContractSuite) held(holder Holder) Held {
 }
 
 func (s *StoreContractSuite) TestEveryChargeIsKeptAndEachHolderHasItsOwn() {
-	full := Held{Refill: true, Bomb: true, Enclosures: 3, SpreadClicks: 8, Shields: 30}
+	full := Held{Refill: true, Bomb: true, Enclosures: 3, SpreadClicks: 8, Shields: 30, LastFill: "season-0:finale:fill"}
 	s.keep(s.Holder(1), full)
 	s.keep(s.Holder(2), Held{Shields: 1})
 
@@ -48,6 +48,14 @@ func (s *StoreContractSuite) TestAHandSpentToNothingHoldsNothing() {
 	s.keep(s.Holder(1), Held{})
 
 	s.Equal(Held{}, s.held(s.Holder(1)))
+}
+
+func (s *StoreContractSuite) TestAHandSpentToNothingKeepsItsLastFill() {
+	s.keep(s.Holder(1), Held{Bomb: true, LastFill: "season-0:finale:fill"})
+
+	s.keep(s.Holder(1), Held{LastFill: "season-0:finale:fill"})
+
+	s.Equal(Held{LastFill: "season-0:finale:fill"}, s.held(s.Holder(1)))
 }
 
 func (s *StoreContractSuite) TestARefusedChangeKeepsNothingAndSaysWhy() {
