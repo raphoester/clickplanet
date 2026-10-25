@@ -67,6 +67,9 @@ func table(page io.Writer, report clips.Report) (bool, error) {
 			if platform.Failure != "" {
 				state = "**not scheduled**: " + cell(platform.Failure)
 			}
+			if platform.Platform == clips.TikTok {
+				state += soundOf(outcome)
+			}
 			fmt.Fprintf(&rows, "| %s | %s | %s | %s | %s |\n",
 				cell(outcome.Title), armsOf(outcome.Variants), platform.Platform, outcome.At.UTC().Format(timeLayout), state)
 		}
@@ -76,6 +79,20 @@ func table(page io.Writer, report clips.Report) (bool, error) {
 		return false, fmt.Errorf("failed to write the summary: %w", err)
 	}
 	return report.Complete(), nil
+}
+
+// What TikTok plays over the clip, when the experiment "sound" changed it: the track attached, or why the clip went
+// out with its anthem though drawn for one.
+func soundOf(outcome clips.Outcome) string {
+	switch {
+	case outcome.Sound != nil:
+		track := outcome.Sound.Track
+		return cell(fmt.Sprintf(", with “%s” by %s (#%d of %s's trending chart)", track.Title, track.Artist, track.Rank, outcome.Sound.Country))
+	case outcome.SoundMissed != "":
+		return ", **with its anthem** instead of a trending track: " + cell(outcome.SoundMissed)
+	default:
+		return ""
+	}
 }
 
 // "length short, music anthem", or none for a clip in no experiment.

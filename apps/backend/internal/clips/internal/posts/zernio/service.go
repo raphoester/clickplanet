@@ -165,10 +165,7 @@ func targetOf(snapshot posts.PostSnapshot, platform posts.Platform, account stri
 	switch platform {
 	case posts.TikTok:
 		target.CustomContent = &snapshot.TikTok.Caption
-		err = settings.FromTikTokPlatformData(cpzernio.TikTokPlatformData{
-			PrivacyLevel: new(everyone), AllowComment: new(true), AllowDuet: new(true), AllowStitch: new(true),
-			ContentPreviewConfirmed: new(true), ExpressConsentGiven: new(true),
-		})
+		err = settings.FromTikTokPlatformData(tiktokSettingsOf(snapshot.Sound))
 	case posts.YouTube:
 		target.CustomContent = &snapshot.YouTube.Description
 		err = settings.FromYouTubePlatformData(cpzernio.YouTubePlatformData{
@@ -182,6 +179,23 @@ func targetOf(snapshot posts.PostSnapshot, platform posts.Platform, account stri
 		return target, fmt.Errorf("failed to write the settings of %s: %w", platform, err)
 	}
 	return target, nil
+}
+
+// With a trending track, it plays from its start, both volumes said rather than left to the API's defaults: the
+// excerpt the chart names is already the part that trends. With none, the settings are what they were before the
+// experiment "sound", key for key.
+func tiktokSettingsOf(sound *posts.Sound) cpzernio.TikTokPlatformData {
+	settings := cpzernio.TikTokPlatformData{
+		PrivacyLevel: new(everyone), AllowComment: new(true), AllowDuet: new(true), AllowStitch: new(true),
+		ContentPreviewConfirmed: new(true), ExpressConsentGiven: new(true),
+	}
+	if sound != nil {
+		settings.MusicSoundInfo = &cpzernio.TikTokPlatformData_MusicSoundInfo{
+			MusicSoundId: sound.Track.ID, MusicSoundVolume: new(sound.TrackVolume), MusicSoundStart: new(0),
+		}
+		settings.VideoOriginalSoundVolume = new(sound.OriginalVolume)
+	}
+	return settings
 }
 
 // What the choice reads back of the post: its key and its countries; and the call to act, to compare the calls on the
@@ -212,7 +226,11 @@ func recordOf(snapshot posts.PostSnapshot) (map[string]any, error) {
 		Post: &clipsv1.PostFacts{
 			Teaser: snapshot.Teaser, CallToAction: snapshot.CallToAction, ScheduledAt: timestamppb.New(snapshot.At),
 			RunPosition: uint32(snapshot.RunPosition), RunSize: uint32(snapshot.RunSize), //nolint:gosec // 2 a run.
+			Sound: soundOf(snapshot.Sound),
 		},
+	}
+	if len(snapshot.Moved) != 0 {
+		record.Post.Variants = snapshot.Variants
 	}
 	if len(snapshot.Record) != 0 {
 		record.Clip = &clipsv1.ClipRecord{}
@@ -229,6 +247,23 @@ func recordOf(snapshot posts.PostSnapshot) (map[string]any, error) {
 		return nil, fmt.Errorf("failed to read back what the post was: %w", err)
 	}
 	return document, nil
+}
+
+func soundOf(sound *posts.Sound) *clipsv1.TikTokSound {
+	if sound == nil {
+		return nil
+	}
+	idOf := "track"
+	if sound.Track.Excerpt {
+		idOf = "excerpt"
+	}
+	return &clipsv1.TikTokSound{
+		Id: sound.Track.ID, IdOf: idOf, Title: sound.Track.Title, Artist: sound.Track.Artist,
+		ChartCountry: sound.Country,
+		// A chart of 100, a clip of seconds, volumes of 100 at most.
+		Rank: uint32(sound.Track.Rank), DurationSeconds: uint32(sound.Track.Seconds), //nolint:gosec // see above.
+		TrackVolume: uint32(sound.TrackVolume), OriginalVolume: uint32(sound.OriginalVolume), //nolint:gosec // see above.
+	}
 }
 
 // Zernio sends them to YouTube alone.

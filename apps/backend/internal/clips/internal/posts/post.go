@@ -20,6 +20,12 @@ type Post struct {
 	// From 1: the order the run's posts go out in, and how many it has.
 	position int
 	ofRun    int
+	// The arms it was moved to when it was posted, by experiment, over its clip's; nil for none.
+	moved Variants
+	// The trending track attached on TikTok; nil for none, the clip's own sound.
+	sound *Sound
+	// Why an arm it was drawn for could not be applied, when it fell back.
+	missed error
 }
 
 // The post as it is sent at now: at its time, or leastLead from now when a wait ate the lead.
@@ -35,7 +41,7 @@ func (p Post) TakeSnapshot() PostSnapshot {
 		Title: p.clip.title, CallToAction: p.wording.call.ID, Key: p.clip.key, Countries: p.clip.countryCodes(),
 		Video: p.clip.video, At: p.at, Platforms: p.platforms, TikTok: p.wording.tiktok(p.clip), YouTube: p.wording.youtube(p.clip),
 		Record: p.clip.record, Teaser: p.wording.teaserName, RunPosition: p.position, RunSize: p.ofRun,
-		Variants: p.clip.variants,
+		Variants: p.variants(), Moved: p.moved, Sound: p.sound,
 	}
 }
 
@@ -56,9 +62,13 @@ type PostSnapshot struct {
 	Teaser      string
 	RunPosition int
 	RunSize     int
-	// The arm of each experiment the clip is in, for an arm that acts when the clip is posted: an adapter reads it
-	// to change what it sends. None acts here yet; the control of each is what is sent without it.
+	// The arm of each experiment the post goes out in: its clip's, and those it was moved to when it was posted.
 	Variants Variants
+	// The arms it was moved to when it was posted ({"sound": "fell-back"}); none when it goes out in its clip's.
+	Moved Variants
+	// The trending track to attach on TikTok, for the arm `trending` of the experiment "sound"; nil for none, the
+	// control, which an adapter sends as it was before the experiment.
+	Sound *Sound
 }
 
 type Scheduled struct {

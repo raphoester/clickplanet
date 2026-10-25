@@ -3184,6 +3184,11 @@ What chooses, when a clip goes out, the client of the service and the run's summ
     backend's CLAUDE.md, "The editor"). Nothing to apply here: the model's headline comes as `--headline`, which
     `wordsOf` already takes, a bridge until the model writes a whole clip script. The teasers are left as they are,
     an experiment of their own.
+  - **`sound`**: `anthem` or `trending`, the job's coin for each clip. Nothing to apply here: the video is the same in
+    both, anthem included, and the job attaches a track trending on TikTok over it when it posts a `trending` clip,
+    the anthem muted (the backend's CLAUDE.md, "Experiments"). The job's `fell-back`, a `trending` clip posted with its
+    anthem when the chart could not be read, is decided after the render, so it never reaches this app, which refuses
+    it like any arm the job does not draw.
   - **`length`**: `as-chosen`, the control, is exactly the length `pace.ts` gives (below); `short` is the shortest a
     story of its kind plays (`timelineOf(…, "short")`): 8.5s for a front, however far its fighting moves, 10 with a
     day's podium. **A tour is already its shortest**, each stop a flight and a stay, and is left as it is, as is a

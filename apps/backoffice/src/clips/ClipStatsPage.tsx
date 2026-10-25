@@ -73,7 +73,9 @@ function Download({clips, latest, save, now}: {
         <section className="panel" aria-label="Download the table">
             <p className="hint">
                 A row for each platform of each clip at each snapshot: its age, every number Zernio gave, and what the clip
-                was (<code>meta.record.clip.variants.*</code> are the arms of the experiments). The last snapshot is each
+                was (<code>meta.record.clip.variants.*</code> are the arms of the experiments, <code>meta.record.post.variants.*</code>
+                the arm a post went out in when the job moved it, and <code>meta.record.post.sound.*</code> the trending track on
+                TikTok). The last snapshot is each
                 clip once, at its latest age.
             </p>
             <div className="toolbar">

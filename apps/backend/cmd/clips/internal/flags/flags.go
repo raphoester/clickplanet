@@ -16,7 +16,7 @@ const usage = `usage:
   clips fetch -out <replay.json> [-race <race.json>] [-season <season.json>] [-ssh <user@host>] [-hours 72] [-until <2026-10-12T12:00:00Z>]
   clips choose -shortlist <shortlist.json> [-count 2] [-platforms tiktok,youtube] [-summary <file>]
   clips edit -shortlist <shortlist.json> [-count 2] [-prompt]
-  clips schedule -clips <folder> [-review 0] [-spacing 1h] [-platforms tiktok,youtube] [-summary <file>]
+  clips schedule -clips <folder> [-review 0] [-spacing 1h] [-platforms tiktok,youtube] [-sound-country US] [-summary <file>]
   clips stats [-ssh <user@host>] [-since 2026-10-13]
 
 fetch asks the production backend's operator tool for a replay, over ssh: CLICKPLANET_SSH stands in for -ssh, and
@@ -28,7 +28,9 @@ days, or a headline from the last week, puts a flag of the last 6 posts after th
 them. It takes no more than the platform with the most room left in its day takes: 14 posts in a trailing 24 hours on
 TikTok, 8 on YouTube. schedule sends every clip of the folder to the posting service as one post on every platform with
 room left, as soon as it can with no -review, and never sooner than -spacing after the last post on each; it refuses a
-clip in an arm no experiment has. stats keeps a snapshot of the numbers of every post of the job scheduled since the
+clip in an arm no experiment has. A clip the experiment "sound" drew for a trending track gets one of the top 20 of
+TikTok's chart of -sound-country on TikTok, the anthem muted, or goes out with its anthem when the chart cannot be read.
+stats keeps a snapshot of the numbers of every post of the job scheduled since the
 date, default the last 4 weeks, in the backend's postgres, over ssh as fetch asks: a row for each platform of each
 post. All three need ZERNIO_API_KEY. On a run the experiment "editor" draws for the model, choose asks Claude
 (ANTHROPIC_API_KEY) to rank the stories the rules let through and write their headlines, and makes the run by the
@@ -168,11 +170,20 @@ func parseSchedule(args []string) (Config, error) {
 	flags.DurationVar(&parsed.Job.Review, "review", 0, "how long after the run a clip goes out at the soonest, default none")
 	flags.DurationVar(&parsed.Job.Spacing, "spacing", 0, "the least time between two posts on one platform, default 1h")
 	platforms := flags.String("platforms", "", "where each clip goes, default every platform")
+	country := flags.String("sound-country", "", "the country of TikTok's trending chart a trending track is picked from, default US")
 	if err := flags.Parse(args); err != nil {
 		return Config{}, misused(err)
 	}
 	if parsed.ClipsFolder == "" {
 		return Config{}, misused(ErrArguments)
+	}
+	// Empty is the default, as the workflow passes an unset variable.
+	if strings.TrimSpace(*country) != "" {
+		code, err := clips.ChartCountryOf(*country)
+		if err != nil {
+			return Config{}, misused(err)
+		}
+		parsed.Job.SoundCountry = code
 	}
 	return withPlatforms(parsed, *platforms)
 }
