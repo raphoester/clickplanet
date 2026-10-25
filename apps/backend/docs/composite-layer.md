@@ -1,0 +1,156 @@
+# The composite layer
+
+Each context wires **itself**, in a `module.go` at its root (`internal/planet/module.go`, `internal/chat/module.go`, `internal/auth/module.go`, `internal/player/module.go`). That file is the context's manifest: its `Config`, whether it is on, and its DI sequence. **A module takes its config and nothing else, and builds every object it needs itself** — there is no `Deps` struct and nothing is handed down from `main`. A module is a `cpbootstrap.Module` — a name, an `Enabled` flag and a DI sequence — and the sequence is handed a `cpbootstrap.Props` carrying registrars and nothing else:
+
+- `props.RPC.Mount(build, interceptors...)` — the module hands over what *builds* the handler, plus the interceptors it wants. `cpbootstrap` builds it, so it can put its own interceptor outside every module's — see [The error net](error-net.md)
+- `props.AdminRPC.Mount(build, interceptors...)` — the same, for an operator service: served on the loopback console listener, and on the admin listener behind `Options.AdminGate` — see [Operator tools](admin.md)
+- `props.InternalRPC.Mount(build, interceptors...)` — the same again, for what other modules call: served only on the loopback internal listener
+- `props.Internal.Dial()` — the HTTP client and base URL a generated `New<Service>Client` takes, to call another module — see [Calling another module](#calling-another-module)
+- `props.Events` — the event bus, over Redis Streams: `props.Events.Publish(events...)`, `props.Events.Send(ctx, events...)` for a relay, and `cpbootstrap.Subscribe(props.Events, name, handler)` for the runner that delivers one type — see [Telling other modules what happened](#telling-other-modules-what-happened)
+- `props.Runners.Add(runner)` — a `Runner` (`Name()` and `Run(ctx)`), run as a goroutine with the process-lifetime context
+- `props.Closers.Add(name, close)` — a cleanup, run in reverse registration order
+- `props.Logger`, `props.Metrics`
+- `props.Server` — the bind address and the stream heartbeat, **the only config a module reads that is not its own**. It is the transport every module answers over, so it belongs to the layer that owns the server rather than to any context.
+
+**A constructor builds and a `Load…` method reads.** Nothing that reads a file or parses a blob happens inside `New`: the DI sequence calls `New`, then the load, one line each — `embedded_geodesic_map.New` then `LoadGeography`/`LoadBorders`, `inmemory_tile_storage.New` then `LoadSnapshot`, `cpipblock.New` then `Load`, `antibot.New` then `LoadState` (which connects to its schema too), `inmemory_ledger_storage.New` then `Load`.
+
+A module never sees the router, the signal handler or another module's objects. **There is no mutable app object and nothing to leave a half-built dependency on**: `internal/shared/cpbootstrap` builds every module in order, then serves.
+
+**Shutdown goes in this order**: end every open stream, `http.Server.Shutdown` (the public server, then the console, admin and internal ones — a public call in flight may still be waiting on an internal one), the closers in reverse order, then cancel and wait on the runners, then close the Redis client. The first step is the drain interceptor — see [Ending the streams on shutdown](live-streams.md#ending-the-streams-on-shutdown). There are no storage closers left: the tile map, the ledger and the antibot's evidence all flush from their runners, after the closers, once the server has stopped taking writes.
+
+**`cmd/api/main.go` is the composition root, and the server's only one** — there is no `internal/app`, because a package whose whole job is to be called once by `main` was a level of indirection and nothing else. It does three things: load the config, build the admin gate (`auth.NewAdminGate`, see [Operator tools](admin.md)), and list the modules. It builds no other object, derives nothing, and reads inside no block.
+
+**The aggregation is the whole of it — a flat slice, no branches, no dependencies threaded through:**
+
+```go
+return []bootstrap.Module{
+	auth.NewModule(config.Auth),
+	planet.NewModule(config.Planet),
+	chat.NewModule(config.Chat),
+	player.NewModule(config.Player),
+	seasons.NewModule(config.Seasons),
+	support.NewModule(config.Support),
+}
+```
+
+**Every module is always listed; a module with a switch reads its own.** `NewModule` sets `Enabled` and `cpbootstrap` skips the ones that are off, so turning auth off is a config change and never an edit here. `planet`, `chat`, `player`, `seasons` and `support` have no switch and are always on; `auth` has one. A disabled module is never built, so its routes are **absent** rather than present and refusing — `/auth.v1.AuthService/` 404s.
+
+## What two contexts need, without either handing it to the other
+
+`main` builds no objects at all, so a thing two contexts need is **a config block they both declare**, and each builds its own instance from it.
+
+- **`shared/cpsession`** is the click token. The `auth:` block is read by two contexts, but they share no key and no type: `cpsession.SignerConfig` carries the Ed25519 seed and only `auth.Config` declares it, while `planet.Config` declares `cpsession.VerifierConfig`, which is two switches and **no key at all**. `auth` builds a `*Signer`, `planet` a `*Verifier`, **which has no `Mint` on it**. Under the old shared `Config` both built a `*Signer` off one HMAC secret, so `planet` held a live minting object and nothing but discipline stopped it using it.
+
+  **`planet` asks `auth` for the key** over the internal listener, rather than reading one — see [Calling another module](#calling-another-module) and [Sessions](sessions.md). So there is one key in the whole file, `auth.secret`, nothing derived for a human to paste, and nothing to keep in step with it.
+
+  Neither module imports the other's packages, and **the planet context knows nothing about Turnstile** — the siteverify client lives at `auth/internal/attestation/turnstile`, so it *cannot* reach it.
+- **`shared/cpcountries`** is the ISO list. It is stateless and hardcoded, so each module just calls `cpcountries.New()`, the way it calls `cptime.SystemClock{}`. It sits in `shared` and not under `planet/internal/clicks/` for exactly the reason that layer exists: neither context may depend on the other — and now could not, since that directory is unreachable from chat.
+
+**This is why `auth.secret` is now required** rather than invented at boot — see [Sessions](sessions.md).
+
+## Calling another module
+
+**Over Connect, on a loopback listener, never in the caller's stack trace.** A module that other modules call mounts an internal service with `props.InternalRPC.Mount`; `cpbootstrap` serves it on `httpServer.internalBindAddress` alone, which must be loopback. The caller dials once, in its `module.go`, builds the generated client over `props.Internal.Dial()`, and hands that one client to every adapter that needs it. An adapter takes a narrow port of the procedures it calls (`rpc_account_reader.Auth`, `rpc_player_authors.Player`), never the dialer, so no call builds a client.
+
+| caller | asks | for | through |
+|---|---|---|---|
+| `planet`, `player`, `chat`, `seasons`, `support` | `auth.v1.InternalService/GetVerifyingKey` | the public half of the click token key, once per boot | `shared/cpsessionverifier` |
+| `player` | `auth.v1.InternalService/GetAccount` | whether an account is linked, on each `SetName`; when it was made, on each `GetPlayer` and each title award (`StatsChanged`); both, on each operator's `AdminService/GetPlayer` | `players/rpc_account_reader` |
+| `player` | `auth.v1.InternalService/GetAccounts` | whether each account of a page is linked and when it was made, once per page of a title reconciliation | `players/rpc_account_reader` |
+| `chat` | `player.v1.InternalService/GetAuthor` | the name a sender is shown under, on each `SendMessage` | `messages/rpc_player_authors` |
+| `chat` | `player.v1.InternalService/GetAuthors` | who everyone in the window is, once per `GetHistory`; who reacted, once per `React`; who wrote each message of a page, once per `ListMessages` | `get_history_handler/history_query/rpc_player_authors`, `messages/rpc_player_authors`, `list_messages_handler/messages_query/rpc_player_authors` |
+| `seasons` | `planet.v1.InternalService/GetTerritories` | the tiles each country holds and the size of the map, for each snapshot (once a minute) | `rounds/rpc_planet_territories` |
+| `seasons` | `player.v1.InternalService/GetAuthors` | the name and color of each account of a page of standings, and whether it is a guest, on each `GetStandings` and `GetMySeason`, and each read of a live board | `get_standings_handler/standings_query/rpc_player_authors`, `get_my_season_handler/my_season_query/rpc_player_authors` |
+| `support` | `player.v1.InternalService/GetAuthors` | the name of both accounts of each report of a page, on each `ListReports` | `list_reports_handler/reports_query/rpc_player_authors` |
+| `support` | `player.v1.InternalService/GetAuthors` | the name of each account a page of reports names, on each `ListReports` | `list_reports_handler/reports_query/rpc_player_authors` |
+| `auth`'s admin gate, which `main` builds | `auth.v1.InternalService/GetOperator` | who calls the admin listener, and whether that account operates, on each admin call | `admingate/admission/rpc_operators` |
+| `player` | `planet.v1.InternalService/GetTakesByCountry` | the flags an account took tiles for and the flags that held them, from the ledger, on each `GetFronts`, on each `GetPlayer` the cache does not answer, and on each operator's `AdminService/GetPlayer` | `playerv1controller/rpc_planet_fronts` |
+
+A module cannot import another's interior, so the key client all five need is `shared/cpsessionverifier` rather than a copy in each.
+
+- **Each module's data stays in one place.** The caller holds an address, never the other module's config block, pool, objects or root package. The seed is read by `auth` and nothing else.
+- **`Dial` is the one place that knows the transport is loopback HTTP.** Moving to unix sockets changes the listener and `internalDialer`, and no module.
+- **`Dial` fails with no internal listener**, and a module that calls another refuses the boot. `cpsessionverifier` is the exception: it dials when it first fetches the key, once per process. An internal service with no listener is not served, and logged, like an admin one.
+- **The error net and the drain wrap internal services too.**
+- **What travels is a public key**, which is the point: a holder can check a token and cannot mint one, so the hop carries nothing worth stealing. Under the HMAC this replaced there was no such thing to send.
+- `TestAModuleCallsAnotherOverTheInternalListener` pins the path, `TestAnInternalServiceIsNotOnThePublicRouter` pins that Caddy cannot reach it.
+
+The proto sits beside the public one in the module's package (`proto/auth/v1/internal.proto`), as `admin.proto` does, and the frontend generates it too without using it.
+
+**The loopback rule is for synchronous calls, and it exists to stop one module loading another's config.** A caller that needs an answer has to reach the module that holds the data. Done in process, that is how `planet` once built a signer off `auth`'s secret and how a key ends up duplicated across blocks in the file. The listener makes the caller hold an address and nothing else.
+
+## Telling other modules what happened
+
+**Over Redis Streams.** An emitter publishes an event and never knows who listens, so it has no reason to load a listener's config, and the problem the loopback rule solves does not arise. Redis keeps what was published until every subscriber has handled it: a restart, a crash or a slow subscriber loses nothing that reached it.
+
+- **The payload is a proto-generated message**, declared in the emitter's proto package (`proto/<name>/v1/events.proto`), and travels as its protobuf bytes. A subscriber imports `generated/proto`, never the emitter's root package, which would also hand it the emitter's `Config`.
+- **One stream per type of event** (`events:planet.v1.TileTaken`), not per emitter: a subscriber hears one type, so it reads only that one, and each stream is trimmed at the pace of its own subscribers. In one stream per emitter, the 40k takes a day would push planet's rare bombs out of the trim window.
+- **One consumer group per subscriber**, so each gets every event, in its own copy, in order, in its own runner. No subscriber code runs in the emitter's stack trace: a click waits on one `XADD`, never on a listener.
+- **Delivery is at least once and in order per subscriber.** A handler's error is tried again in place after `events.retryAfter` (2s), doubling up to 64 times that, and the events behind it wait, so the order holds. After `events.maxDeliveries` (8, about four minutes) the event is buried in `events:dead` with its subscriber and the next one is read. A crash leaves what was read pending; the next boot takes it back first (`XAUTOCLAIM` from `0-0`, whatever consumer held it), before anything new.
+- **So a handler sometimes runs twice, and must be safe to.** The bus does not dedupe: no event id, no inbox table. **The domain models the uncertainty**: a fact that may come twice carries the identity of what happened, and the receiver's own state remembers what it applied. See [Idempotent receivers](#idempotent-receivers).
+- **A publish Redis does not take is lost, and counted** (`events_unpublished_total{event}`). A fact whose loss would leave two modules disagreeing for good goes through an outbox instead — see [What may not be lost](#what-may-not-be-lost-the-outbox).
+- **A relationship on the context map is one integration, not one pair of modules.** `chat` asks `player` who posts, so `player` is upstream of `chat` for authors; `chat` publishes `MessageSent`, so `chat` is upstream of `player` for messages. Two modules linked both ways is fine. What is not: a shared model, or a synchronous call cycle — `player` never calls `chat`. The context where a thing happens publishes it in its own language, and the listener translates it at its edge (`message_sent_subscriber`), as it does `TileTaken`. A downstream module never calls its upstream to report a fact instead.
+
+**`cpbootstrap` holds the bus** (`events.go`), and a module reaches it as `props.Events`:
+
+- **`Publish(events...)`** is one pipelined `XADD` per call, bounded by `events.publishTimeout` (500ms), and never fails to its caller: what Redis did not take is counted. **`Send(ctx, events...)`** is the same with an error, for a relay that keeps the events until they are sent.
+- **`cpbootstrap.Subscribe[T](props.Events, name, handler)`** registers subscriber `name` for type `T` and answers the `Runner` that reads its group and calls `handler.Handle(ctx, event)`. The module adds that runner. A second subscriber of one type with the same name refuses the boot, and so does an empty `events.address`.
+- **The groups are made when the bus is sealed**, once every module is built and before any runner starts, from the start of the stream: what a module published while the others were built is read too, so the order of modules in `cmd/api` does not matter. A group nobody subscribes with any more is destroyed, or it would hold its stream's trim back forever. Subscribing after the runners start is refused. Publishing a type nobody subscribes to adds nothing.
+- **Memory is bounded twice.** Every minute (`events-trim`) each stream is cut (`XTRIM MINID ~`) to the oldest entry one of its groups has not handled, so a stream holds only what is still in hand while every subscriber keeps up. And each `XADD` caps its stream at `events.maxLen` (100k, ~15 MB of takes), for a stream whose subscriber stopped. Redis runs with 64 MB and `noeviction`: a full Redis refuses events, counted as unpublished, rather than drop unread ones.
+- **Metrics**: `events_failed_total{event, subscriber}` what a handler refused, `events_dead_total{event, subscriber}` what was buried, `events_lag{event, subscriber}` what is in the stream unread, `events_pending{event, subscriber}` what was read and not acked (read from `XINFO GROUPS` at each scrape), and `events_unpublished_total{event}`. The bus logs nothing: a subscriber that wants a log line wraps its handler in a decorator (`player`'s `log_subscriber`).
+- **At shutdown** a runner finishes and acks what it read, reads what is left without waiting (ten batches at most), and stops; what it does not reach waits in Redis for the next boot. A handler runs on a context the shutdown does not cancel. A store a handler writes to must outlive it: `cppg.CloseAfter` closes the pool once the runners returned, and `cpbootstrap` closes the Redis client after every runner.
+- **Tests:** `events_test.go` runs against a real Redis (`cpbootstrap.StartTestRedis`, behind the tag, a `redis:7.4-alpine` container per test): order per subscriber, a copy each, no subscriber code in the publisher's stack trace, register-before-run, no Redis refuses a subscriber, a failure tried again before the events behind it, a poison event buried where `XRANGE events:dead` shows it, what a crash left pending handled first at the next boot, and the shutdown. `events_internal_test.go` pins the trim and the stale group. `cpbootstrap.RecordedEvents` (behind the tag) stands in for the bus where a use case only publishes.
+
+### Idempotent receivers
+
+| subscriber | why a second delivery changes nothing |
+|---|---|
+| `player-stats`, `player-stats-bombs`, `player-stats-fortifies` | `planet` tells its map facts in ledger order with their `position`. The stats row keeps the position after the last take, bomb and fortify it counted (`players.Counted`); one below it was counted already |
+| `player-stats-messages`, `player-stats-bonuses`, `player-stats-quizzes` | the same with the time of the last message, box and right answer counted, compared to the microsecond postgres keeps |
+| `seasons-standings` | the tally keeps the position after the last take it counted (`standings.Tally.TakesBelow`: a column of each contributions row, the highest is the tally's) |
+| `chat-announcements-*` | an announcement is named after the fact it tells (the bomb's or the fortify's ledger position, the mute's id, the round's season and number, the champion's season) and kept with `AppendOnce`: a second one is neither kept nor shown |
+| `player-titles` | grants only what the account does not hold |
+| `player-names-sign-ins` | names only an account that has no name |
+| each `AccountDeleted` subscriber | deletes or blanks what is left, which is nothing the second time |
+| `player-presence-*` | moves or forgets a visit in memory; a second time finds nothing to move |
+
+The marks need each source in order per account, which is why the map facts come from the ledger relay and not from each click: two clicks of one account could reach Redis in the other order. **What stays uncertain, on purpose**: two messages, boxes or answers of one account in the same microsecond, or a clock that jumps back, count once.
+
+### What may not be lost: the outbox
+
+A fact goes through an outbox when its loss would leave the modules disagreeing for good, with nothing to tell it again:
+
+- `auth.v1.AccountDeleted`: a lost one keeps a deleted player's personal data in every other module. `DeleteAccount` and `PruneGuests` append it in the transaction that deletes the account.
+- `auth.v1.SignedIn`: a lost one leaves a linked account with no username, shown as a guest, until its next sign-in. `SaveSignIn` appends it with the sign-in.
+- `seasons.v1.RoundClosed` and `SeasonClosed`: the round is marked closed, so a lost one is never sent again and the chat never announces that podium or that champion. `rounds.Store.Close` appends them in the transaction that closes the round.
+- `planet.v1.TileTaken`, `BombLanded` and `Fortified`: **the ledger is their outbox.** `ledger/usecases/relay_ledger_usecase` reads what the ledger flushed past `planet.ledger_relayed`, sends it, then moves the row. A take a hard kill loses before its flush is never told, so the stats and the standings never count what the ledger does not hold; a crash between the send and the move tells the batch again, which the marks make harmless. The migration put the row after the last take the old server had published.
+
+Not in an outbox, because a loss is harmless or the next event repairs it: `SignedOut` (the roster drops the visit when it expires), `MessageSent`, `BonusClaimed` and `QuizAnswered` (a stat short by one), `AccountMuted` (an announcement missed), `StatsChanged` (the next one grants the title).
+
+**`shared/cpoutbox`** is the mechanism. `cpoutbox.Append(ctx, tx, events...)` inserts each event in the module's `outbox` table (`position bigserial`, `event outbox_event`, `payload bytea`), in the caller's transaction. `outbox_event` is an enum of the events that module keeps there, so a new one is a migration. `cpoutbox.NewRelay(name, db, props.Events, logger)` is a runner that, every second and once more at shutdown, locks the oldest rows (`FOR UPDATE SKIP LOCKED`, 100 at a time), `Send`s them in order and deletes them in the same transaction: Redis down keeps the rows for the next tick. A row that does not decode is dropped and logged rather than left to hold every row behind it. `cpoutbox/outbox_test.go` pins it, and each store's contract (`Told`, read with `cpoutbox.Kept`) pins what a write keeps.
+
+**In process still, on purpose**: the live fanouts to open browser streams (the tile map, the chat feed, the roster and the titles, the season boards and the race) are not module-to-module; they are lossy by design, and a client reads again when its stream reopens. **Next**: the `seasons` → `planet` rule-set command (#475) and its resend loop should move to a command stream once it merges.
+
+The events today:
+
+| event | published by | when | heard by |
+|---|---|---|---|
+| `planet.v1.TileTaken{account_id, tile_id, country, taken_at, position}` | `planet`, `ledger/usecases/relay_ledger_usecase` | each take the ledger flushed with an account: a click, a spread or an enclose, one event per tile, in ledger order | `player`, for the stats; `seasons`, for the standings |
+| `planet.v1.BombLanded{country, tile_id, ground, cleared, landed_at, account_id, position}` | `planet`, `ledger/usecases/relay_ledger_usecase` | each bomb the ledger flushed, on land or in the sea; a refused drop is not in the ledger | `chat`, which announces it; `player`, for the stats |
+| `planet.v1.Fortified{country, landmass_id, tiles, ground, fortified_at, account_id, position}` | `planet`, `ledger/usecases/relay_ledger_usecase` | each landmass a take fortified (see [Fortify](fortify.md)); `account_id` is the account that took the last tile, empty for a click with no account | `chat`, which announces the ones of 50 tiles or more; `player`, for the stats |
+| `planet.v1.BonusClaimed{account_id, claimed_at}` | `planet`, `claim_bonus_usecase` | after a caught box's charge is held; a refused claim, or a caller with no account, publishes nothing | `player`, for the stats |
+| `planet.v1.QuizAnswered{account_id, correct, answered_at}` | `planet`, `answer_quiz_usecase` | each quiz answered, right or wrong, by a caller with an account; a right answer after its charge is held | `player`, which counts the right ones |
+| `auth.v1.AccountDeleted{account_id}` | `auth`, through its outbox, from `delete_account_usecase` and `prune_guests_usecase` | with the account row's deletion; a pruned guest is a deleted account | `player`, which forgets the profile, the stats, the titles, the title worn and the visit; `seasons`, which forgets the account's standings; `planet`, which takes the account off every take postgres keeps; `chat`, which forgets the seen mark; `support`, which takes the account off the notes it sent and deletes the reports that name it |
+| `auth.v1.SignedIn{previous_account_id, account_id}` | `auth`, through its outbox, from `signin.Admitter`, for `complete_sign_in_usecase` and `complete_email_sign_in_usecase` | with a sign-in or a link; `previous_account_id` is empty for a browser that had no live session | `player`, which moves the browser's visit to the account, and gives the account a username when it has none |
+| `auth.v1.SignedOut{account_id}` | `auth`, `sign_out_usecase` and `sign_out_everywhere_usecase` | after the session, or every session, is deleted; a cookie with no session publishes nothing | `player`, which takes the account off the roster |
+| `chat.v1.MessageSent{message_id, account_id, sent_at}` | `chat`, `send_message_usecase/publishing_send_message` | after each message is kept; a refused or failed post publishes nothing | `player`, for the stats |
+| `chat.v1.AccountMuted{account_id, muted_at, duration, mute_id}` | `chat`, `mute_usecase/publishing_mute` | after each mute is kept; a refused or failed mute publishes nothing. Never the network it holds | `chat`, which announces it |
+| `player.v1.StatsChanged{account_id}` | `player`, `record_stats_usecase` | after each take, message, bomb, fortify, box or right answer is counted on the account's stats; a failed write publishes nothing | `player`, which grants the titles the stats now earn |
+| `seasons.v1.RoundClosed{season, number, finale, ended_at, results}` | `seasons`, through its outbox, from `take_snapshot_usecase` | with each round's results | `chat`, which announces the podium |
+| `seasons.v1.SeasonClosed{season, ended_at, table}` | `seasons`, through its outbox, from `take_snapshot_usecase` | with the finale's results, right after its `RoundClosed`: the season's whole table, ranked by `rounds.TableOf`, the champion first | `chat`, which announces the champion |
+
+Adding a context that callers talk to means a `proto/<name>/v1`, an `internal/<name>/` with a `module.go`, and one line in the slice. Connect derives the route from the proto package, so there is no prefix to allocate and no router to edit.
+
+**`cmd/api`** is the server, and the only binary the image holds: `main.go` is the composition root, about 85 lines of config and a module list, and `cpbootstrap` is the rest. **`cmd/clips`** is the other binary, a job a workflow runs with `go run` — see [The clips job](clips-job.md).
+
+It runs as **one container beside a postgres and a Redis**: the tile map lives in process, and postgres is where it is kept between boots — see [Durability](durability.md); Redis carries the events between modules and nothing else — see [Telling other modules what happened](#telling-other-modules-what-happened). There is no cache and no second API process.

@@ -84,7 +84,7 @@ export default function HolderCard({holder, now = Date.now(), onHold, onOpenPlay
                         })}
                     </span>}
                 </div>
-                {onOpenPlayer && !line.guest && <button type="button"
+                {onOpenPlayer && !line.guest && line.accountId && <button type="button"
                                                          className="icon-button holder-card-profile"
                                                          aria-label="View profile"
                                                          title="View profile"

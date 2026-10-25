@@ -939,7 +939,7 @@ export class GetTileHolderRequest extends Message<GetTileHolderRequest> {
  */
 export class GetTileHolderResponse extends Message<GetTileHolderResponse> {
   /**
-   * Unset when the last change of the tile emptied it, or names no account.
+   * Unset when the last change of the tile emptied it.
    *
    * @generated from field: planet.v1.TileHolder holder = 1;
    */
@@ -980,6 +980,8 @@ export class GetTileHolderResponse extends Message<GetTileHolderResponse> {
  */
 export class TileHolder extends Message<TileHolder> {
   /**
+   * Empty when the take names no account, as once its account is deleted.
+   *
    * @generated from field: string account_id = 1;
    */
   accountId = "";
