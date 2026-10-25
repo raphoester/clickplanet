@@ -37,7 +37,7 @@ export type ChatQuote = {
     removed?: boolean
 }
 
-export type ChatAnnouncement = BombAnnouncement | MuteAnnouncement | RoundAnnouncement | FortifyAnnouncement
+export type ChatAnnouncement = BombAnnouncement | MuteAnnouncement | RoundAnnouncement | FortifyAnnouncement | ChampionAnnouncement
 
 export type BombAnnouncement = {
     kind: "bomb"
@@ -80,6 +80,14 @@ export type RoundAnnouncement = {
     number: number
     finale: boolean
     podium: PodiumPlace[]
+}
+
+export type ChampionAnnouncement = {
+    kind: "champion"
+    id: string
+    announcedAt: number
+    season: number
+    countries: string[]
 }
 
 export type ChatHistory = {

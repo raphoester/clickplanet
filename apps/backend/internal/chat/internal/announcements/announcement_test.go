@@ -63,3 +63,47 @@ func TestARoundNobodyHeldGroundInHasAnEmptyPodium(t *testing.T) {
 func TestARoundIsAKindTheChatKnows(t *testing.T) {
 	assert.True(t, announcements.KindRound.Known())
 }
+
+var at = time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC)
+
+func TestTheChampionIsTheCountryFirstInTheSeasonsTable(t *testing.T) {
+	champion := announcements.ChampionOf(0, []announcements.Place{
+		announcements.PlaceOf("de", 1, 118),
+		announcements.PlaceOf("fr", 2, 97),
+	})
+
+	announcement, err := champion.Announcement(at)
+
+	require.NoError(t, err)
+	assert.True(t, champion.Crowned())
+	assert.Equal(t, announcements.KindChampion, announcement.Kind())
+	assert.Equal(t, at, announcement.At())
+	assert.JSONEq(t, `{"season":0,"countries":["de"]}`, string(announcement.Payload()))
+}
+
+func TestCountriesLevelAtTheTopAreChampionsTogether(t *testing.T) {
+	announcement, err := announcements.ChampionOf(2, []announcements.Place{
+		announcements.PlaceOf("de", 1, 100),
+		announcements.PlaceOf("fr", 1, 100),
+		announcements.PlaceOf("it", 3, 40),
+	}).Announcement(at)
+
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"season":2,"countries":["de","fr"]}`, string(announcement.Payload()))
+}
+
+func TestASeasonNobodyScoredInHasNoChampion(t *testing.T) {
+	assert.False(t, announcements.ChampionOf(0, nil).Crowned())
+}
+
+func TestAChampionIsAnnouncedUnderItsSeasonsID(t *testing.T) {
+	first, err := announcements.ChampionOf(0, []announcements.Place{announcements.PlaceOf("de", 1, 118)}).Announcement(at)
+	require.NoError(t, err)
+	again, err := announcements.ChampionOf(0, []announcements.Place{announcements.PlaceOf("fr", 1, 97)}).Announcement(at.Add(time.Hour))
+	require.NoError(t, err)
+	next, err := announcements.ChampionOf(1, []announcements.Place{announcements.PlaceOf("de", 1, 118)}).Announcement(at)
+	require.NoError(t, err)
+
+	assert.Equal(t, first.ID(), again.ID())
+	assert.NotEqual(t, first.ID(), next.ID())
+}

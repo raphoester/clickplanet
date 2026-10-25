@@ -1,6 +1,7 @@
 import {CSSProperties, useEffect, useId, useRef, useState} from "react"
 import {createPortal} from "react-dom"
 import {ClosedRound, RoundStanding} from "../../backends/standings.ts"
+import {Champion, championOf, winsLine} from "../../domain/champion.ts"
 import {Countries} from "../../domain/countries.ts"
 import {
     Move,
@@ -26,36 +27,50 @@ export type RoundRevealProps = {
     onClose: () => void
 }
 
-type Stage = "podium" | "table"
+type Stage = "podium" | "table" | "champion"
 
 export default function RoundReveal({closed, countryCode, play, onClose}: RoundRevealProps) {
     const dialog = useRef<HTMLDivElement>(null)
     const headId = useId()
     const [podium] = useState(() => podiumOf(closed))
     const [rows] = useState(() => revealRowsOf(closed, countryCode))
+    const [champion] = useState(() => championOf(closed))
     const [stage, setStage] = useState<Stage>(podium.length > 0 ? "podium" : "table")
     const [moved, setMoved] = useState(false)
     const [ready, setReady] = useState(false)
-    const last: Stage = rows.length > 0 ? "table" : "podium"
+    const last: Stage = champion ? "champion" : rows.length > 0 ? "table" : "podium"
 
     useEffect(() => {
         play("title")
     }, [play])
 
     useEffect(() => {
+        if (stage === "champion") play("title")
+    }, [play, stage])
+
+    useEffect(() => {
         if (stage !== "podium") return
-        const timer = setTimeout(() => last === "table" ? setStage("table") : setReady(true), ROUND_REVEAL.podium * 1000)
+        const timer = setTimeout(() => last === "podium" ? setReady(true) : setStage("table"), ROUND_REVEAL.podium * 1000)
         return () => clearTimeout(timer)
     }, [stage, last])
 
     useEffect(() => {
         if (stage !== "table") return
+        const settled = (ROUND_REVEAL.slide + ROUND_REVEAL.settle) * 1000
         const slide = setTimeout(() => setMoved(true), ROUND_REVEAL.slide * 1000)
-        const settle = setTimeout(() => setReady(true), (ROUND_REVEAL.slide + ROUND_REVEAL.settle) * 1000)
+        const settle = last === "table"
+            ? setTimeout(() => setReady(true), settled)
+            : setTimeout(() => setStage("champion"), settled + ROUND_REVEAL.hold * 1000)
         return () => {
             clearTimeout(slide)
             clearTimeout(settle)
         }
+    }, [stage, last])
+
+    useEffect(() => {
+        if (stage !== "champion") return
+        const timer = setTimeout(() => setReady(true), ROUND_REVEAL.champion * 1000)
+        return () => clearTimeout(timer)
     }, [stage])
 
     useModalDialog(dialog, () => {
@@ -71,18 +86,22 @@ export default function RoundReveal({closed, countryCode, play, onClose}: RoundR
              tabIndex={-1}
              style={{"--steps": podium.length} as CSSProperties}>
             <div className="round-reveal-stage">
-                <h2 id={headId} className="title-reveal-head round-reveal-head">{roundOverLine(closed)}</h2>
+                <h2 id={headId} className="title-reveal-head round-reveal-head">
+                    {stage === "champion" && champion ? winsLine(champion) : roundOverLine(closed)}
+                </h2>
 
                 {stage === "podium" && <Podium podium={podium}/>}
                 {stage === "table" && <Table season={closed.season} rows={rows} moved={moved}/>}
+                {stage === "champion" && champion && <Crowned champion={champion}/>}
 
                 <div className="title-reveal-actions round-reveal-actions">
-                    {!ready && stage === "podium" && last === "table" &&
-                        <button type="button" className="button" onClick={() => setStage("table")}>Next</button>}
+                    {!ready && stage !== last &&
+                        <button type="button" className="button" onClick={() => setStage(stage === "podium" ? "table" : "champion")}>Next</button>}
                     {ready && <button type="button" className="button button-gold" onClick={onClose}>Close</button>}
                 </div>
             </div>
             {stage === "podium" && <div className="title-reveal-flash round-reveal-flash" aria-hidden="true"/>}
+            {stage === "champion" && <div className="title-reveal-flash round-reveal-champion-flash" aria-hidden="true"/>}
         </div>,
         document.body,
     )
@@ -105,6 +124,16 @@ function Podium({podium}: {podium: RoundStanding[]}) {
             </span>
         </li>)}
     </ol>
+}
+
+function Crowned({champion}: {champion: Champion}) {
+    return <div className="round-reveal-champion">
+        <div className="title-reveal-rays round-reveal-champion-rays" aria-hidden="true"/>
+        <span className="round-reveal-trophy" aria-hidden="true">🏆</span>
+        <span className="round-reveal-champion-flags">
+            {champion.countryCodes.map((code) => <CountryFlag key={code} code={code}/>)}
+        </span>
+    </div>
 }
 
 function Table({season, rows, moved}: {season: number, rows: RevealRow[], moved: boolean}) {

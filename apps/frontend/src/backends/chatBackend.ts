@@ -318,6 +318,19 @@ export function decodedAnnouncement(announcement: AnnouncementPb): ChatAnnouncem
                 finale: values.finale === true,
                 podium: values.podium.filter(isPodiumPlace),
             }
+        case "champion": {
+            if (typeof values.season !== "number" || !(values.season >= 0)) return undefined
+            if (!Array.isArray(values.countries)) return undefined
+            const countries = values.countries.filter((country): country is string => typeof country === "string" && country !== "")
+            if (countries.length === 0) return undefined
+            return {
+                kind: "champion",
+                id: announcement.id,
+                announcedAt: Number(announcement.announcedAtUnixMs),
+                season: values.season,
+                countries,
+            }
+        }
         default:
             return undefined
     }

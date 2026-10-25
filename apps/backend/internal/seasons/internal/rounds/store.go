@@ -3,6 +3,8 @@ package rounds
 import (
 	"context"
 	"time"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/calendar"
 )
 
 type Store interface {
@@ -11,4 +13,5 @@ type Store interface {
 	Held(ctx context.Context, round Round) (map[Country]uint64, error)
 	Number(ctx context.Context, round Round) (uint32, error)
 	Close(ctx context.Context, round Round, results []Result) error
+	ClosedIn(ctx context.Context, season calendar.Number) ([]Closed, error)
 }
