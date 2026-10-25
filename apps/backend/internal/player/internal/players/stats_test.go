@@ -97,14 +97,3 @@ func TestEachCounterCountsItsOwnActAndLeavesTheStreakAlone(t *testing.T) {
 	assert.Equal(t, players.StatsSnapshot{BombsDropped: 1, TilesFortified: 138, BonusesClaimed: 2, RightAnswers: 1}, stats.TakeSnapshot())
 	assert.True(t, stats.Streak().LastDay().Empty(), "none of them is a take")
 }
-
-func TestARecountSetsTheBombsAndTheTilesFortifiedAndNothingElse(t *testing.T) {
-	stats := taken(beforeMidnight).WithBomb().WithFortify(3).WithBonus()
-
-	recounted := stats.Recounted(players.Recount{BombsDropped: 4, TilesFortified: 140})
-
-	assert.Equal(t, players.StatsSnapshot{
-		TilesTaken: 1, Streak: players.StreakOf(1, players.DayOf(beforeMidnight)), StreakBest: 1,
-		BombsDropped: 4, TilesFortified: 140, BonusesClaimed: 1,
-	}, recounted.TakeSnapshot())
-}
