@@ -54,7 +54,7 @@ func attend(t *testing.T, r *Registry, entrant Entrant) <-chan Event {
 }
 
 func clicked(r *Registry, entrant Entrant) {
-	r.Clicked(entrant, string(entrant), holderOf(entrant))
+	r.Clicked(Click{Entrant: entrant, Scope: string(entrant), Holder: holderOf(entrant)})
 }
 
 func playing(t *testing.T, r *Registry, entrant Entrant) <-chan Event {
@@ -428,7 +428,7 @@ func TestAKindHeldByAnAccountThatClicksFromTheScopeIsNotOffered(t *testing.T) {
 	account := HolderOf(clicks.Payer{Scope: "scope-a", Account: "acc-1"})
 
 	events := attend(t, registry, "scope-a")
-	registry.Clicked("scope-a", "scope-a", account)
+	registry.Clicked(Click{Entrant: "scope-a", Scope: "scope-a", Holder: account})
 	holdingsOf(registry).Keep(account, Held{Enclosures: 3})
 
 	waitOut(t, registry, clock)
@@ -440,7 +440,7 @@ func TestAPlayerWhoStoppedClickingNoLongerHoldsBackAKind(t *testing.T) {
 	gone := HolderOf(clicks.Payer{Scope: "scope-a", Account: "gone"})
 
 	events := attend(t, registry, "scope-a")
-	registry.Clicked("scope-a", "scope-a", gone)
+	registry.Clicked(Click{Entrant: "scope-a", Scope: "scope-a", Holder: gone})
 	holdingsOf(registry).Keep(gone, Held{Bomb: true})
 
 	clock.Advance(6 * time.Minute)
@@ -458,7 +458,7 @@ func TestACallerWithNoAccountIsOfferedNothing(t *testing.T) {
 
 	for range 5 {
 		clock.Advance(window + time.Second)
-		registry.Clicked("scope-a", "scope-a", NoHolder)
+		registry.Clicked(Click{Entrant: "scope-a", Scope: "scope-a"})
 		registry.sweep(t.Context())
 
 		require.Nil(t, offered(t, events), "every bonus is a charge, and only an account can hold one")

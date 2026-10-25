@@ -241,6 +241,10 @@ bonus:
     maxPerBox: 20
     perTile: 10
 
+  welcome:
+    within: 10m
+    boxAfter: 1m
+
   activeWithin: 2m
 
   forgetAfter: 5m

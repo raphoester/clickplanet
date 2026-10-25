@@ -26,6 +26,8 @@ type Config struct {
 
 	Quiz quizzes.Config
 
+	Welcome WelcomeConfig
+
 	ActiveWithin time.Duration
 
 	ForgetAfter time.Duration
@@ -191,6 +193,10 @@ func (c Config) Validate() error {
 
 	if len(c.Kinds) > 0 && total == 0 {
 		return fmt.Errorf("bonus.kinds gives every kind a weight of 0, so no box could be anything")
+	}
+
+	if c.Welcome.Within < 0 || c.Welcome.BoxAfter < 0 {
+		return fmt.Errorf("bonus.welcome.within and boxAfter must not be negative")
 	}
 
 	return c.Quiz.Validate()
