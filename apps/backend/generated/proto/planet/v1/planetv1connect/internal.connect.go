@@ -45,9 +45,6 @@ const (
 	// InternalServiceGrantChargeProcedure is the fully-qualified name of the InternalService's
 	// GrantCharge RPC.
 	InternalServiceGrantChargeProcedure = "/planet.v1.InternalService/GrantCharge"
-	// InternalServiceGetBombsAndFortifiesProcedure is the fully-qualified name of the InternalService's
-	// GetBombsAndFortifies RPC.
-	InternalServiceGetBombsAndFortifiesProcedure = "/planet.v1.InternalService/GetBombsAndFortifies"
 )
 
 // InternalServiceClient is a client for the planet.v1.InternalService service.
@@ -56,7 +53,6 @@ type InternalServiceClient interface {
 	GetTerritories(context.Context, *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error)
 	GetGrounds(context.Context, *connect.Request[v1.GetGroundsRequest]) (*connect.Response[v1.GetGroundsResponse], error)
 	GrantCharge(context.Context, *connect.Request[v1.GrantChargeRequest]) (*connect.Response[v1.GrantChargeResponse], error)
-	GetBombsAndFortifies(context.Context, *connect.Request[v1.GetBombsAndFortifiesRequest]) (*connect.Response[v1.GetBombsAndFortifiesResponse], error)
 }
 
 // NewInternalServiceClient constructs a client for the planet.v1.InternalService service. By
@@ -97,23 +93,15 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(internalServiceMethods.ByName("GrantCharge")),
 			connect.WithClientOptions(opts...),
 		),
-		getBombsAndFortifies: connect.NewClient[v1.GetBombsAndFortifiesRequest, v1.GetBombsAndFortifiesResponse](
-			httpClient,
-			baseURL+InternalServiceGetBombsAndFortifiesProcedure,
-			connect.WithSchema(internalServiceMethods.ByName("GetBombsAndFortifies")),
-			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
-			connect.WithClientOptions(opts...),
-		),
 	}
 }
 
 // internalServiceClient implements InternalServiceClient.
 type internalServiceClient struct {
-	getTakesByCountry    *connect.Client[v1.GetTakesByCountryRequest, v1.GetTakesByCountryResponse]
-	getTerritories       *connect.Client[v1.GetTerritoriesRequest, v1.GetTerritoriesResponse]
-	getGrounds           *connect.Client[v1.GetGroundsRequest, v1.GetGroundsResponse]
-	grantCharge          *connect.Client[v1.GrantChargeRequest, v1.GrantChargeResponse]
-	getBombsAndFortifies *connect.Client[v1.GetBombsAndFortifiesRequest, v1.GetBombsAndFortifiesResponse]
+	getTakesByCountry *connect.Client[v1.GetTakesByCountryRequest, v1.GetTakesByCountryResponse]
+	getTerritories    *connect.Client[v1.GetTerritoriesRequest, v1.GetTerritoriesResponse]
+	getGrounds        *connect.Client[v1.GetGroundsRequest, v1.GetGroundsResponse]
+	grantCharge       *connect.Client[v1.GrantChargeRequest, v1.GrantChargeResponse]
 }
 
 // GetTakesByCountry calls planet.v1.InternalService.GetTakesByCountry.
@@ -136,18 +124,12 @@ func (c *internalServiceClient) GrantCharge(ctx context.Context, req *connect.Re
 	return c.grantCharge.CallUnary(ctx, req)
 }
 
-// GetBombsAndFortifies calls planet.v1.InternalService.GetBombsAndFortifies.
-func (c *internalServiceClient) GetBombsAndFortifies(ctx context.Context, req *connect.Request[v1.GetBombsAndFortifiesRequest]) (*connect.Response[v1.GetBombsAndFortifiesResponse], error) {
-	return c.getBombsAndFortifies.CallUnary(ctx, req)
-}
-
 // InternalServiceHandler is an implementation of the planet.v1.InternalService service.
 type InternalServiceHandler interface {
 	GetTakesByCountry(context.Context, *connect.Request[v1.GetTakesByCountryRequest]) (*connect.Response[v1.GetTakesByCountryResponse], error)
 	GetTerritories(context.Context, *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error)
 	GetGrounds(context.Context, *connect.Request[v1.GetGroundsRequest]) (*connect.Response[v1.GetGroundsResponse], error)
 	GrantCharge(context.Context, *connect.Request[v1.GrantChargeRequest]) (*connect.Response[v1.GrantChargeResponse], error)
-	GetBombsAndFortifies(context.Context, *connect.Request[v1.GetBombsAndFortifiesRequest]) (*connect.Response[v1.GetBombsAndFortifiesResponse], error)
 }
 
 // NewInternalServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -184,13 +166,6 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 		connect.WithSchema(internalServiceMethods.ByName("GrantCharge")),
 		connect.WithHandlerOptions(opts...),
 	)
-	internalServiceGetBombsAndFortifiesHandler := connect.NewUnaryHandler(
-		InternalServiceGetBombsAndFortifiesProcedure,
-		svc.GetBombsAndFortifies,
-		connect.WithSchema(internalServiceMethods.ByName("GetBombsAndFortifies")),
-		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
-		connect.WithHandlerOptions(opts...),
-	)
 	return "/planet.v1.InternalService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case InternalServiceGetTakesByCountryProcedure:
@@ -201,8 +176,6 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 			internalServiceGetGroundsHandler.ServeHTTP(w, r)
 		case InternalServiceGrantChargeProcedure:
 			internalServiceGrantChargeHandler.ServeHTTP(w, r)
-		case InternalServiceGetBombsAndFortifiesProcedure:
-			internalServiceGetBombsAndFortifiesHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -226,8 +199,4 @@ func (UnimplementedInternalServiceHandler) GetGrounds(context.Context, *connect.
 
 func (UnimplementedInternalServiceHandler) GrantCharge(context.Context, *connect.Request[v1.GrantChargeRequest]) (*connect.Response[v1.GrantChargeResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.GrantCharge is not implemented"))
-}
-
-func (UnimplementedInternalServiceHandler) GetBombsAndFortifies(context.Context, *connect.Request[v1.GetBombsAndFortifiesRequest]) (*connect.Response[v1.GetBombsAndFortifiesResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.GetBombsAndFortifies is not implemented"))
 }

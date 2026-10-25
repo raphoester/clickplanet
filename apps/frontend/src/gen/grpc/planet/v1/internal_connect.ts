@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetBombsAndFortifiesRequest, GetBombsAndFortifiesResponse, GetGroundsRequest, GetGroundsResponse, GetTakesByCountryRequest, GetTakesByCountryResponse, GetTerritoriesRequest, GetTerritoriesResponse, GrantChargeRequest, GrantChargeResponse } from "./internal_pb.js";
+import { GetGroundsRequest, GetGroundsResponse, GetTakesByCountryRequest, GetTakesByCountryResponse, GetTerritoriesRequest, GetTerritoriesResponse, GrantChargeRequest, GrantChargeResponse } from "./internal_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -50,16 +50,6 @@ export const InternalService = {
       I: GrantChargeRequest,
       O: GrantChargeResponse,
       kind: MethodKind.Unary,
-    },
-    /**
-     * @generated from rpc planet.v1.InternalService.GetBombsAndFortifies
-     */
-    getBombsAndFortifies: {
-      name: "GetBombsAndFortifies",
-      I: GetBombsAndFortifiesRequest,
-      O: GetBombsAndFortifiesResponse,
-      kind: MethodKind.Unary,
-      idempotency: MethodIdempotency.NoSideEffects,
     },
   }
 } as const;

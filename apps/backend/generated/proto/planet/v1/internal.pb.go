@@ -546,154 +546,6 @@ func (x *GrantChargeResponse) GetKept() uint32 {
 	return 0
 }
 
-type GetBombsAndFortifiesRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	AccountIds    []string               `protobuf:"bytes,1,rep,name=account_ids,json=accountIds,proto3" json:"account_ids,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetBombsAndFortifiesRequest) Reset() {
-	*x = GetBombsAndFortifiesRequest{}
-	mi := &file_planet_v1_internal_proto_msgTypes[11]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetBombsAndFortifiesRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetBombsAndFortifiesRequest) ProtoMessage() {}
-
-func (x *GetBombsAndFortifiesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_internal_proto_msgTypes[11]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetBombsAndFortifiesRequest.ProtoReflect.Descriptor instead.
-func (*GetBombsAndFortifiesRequest) Descriptor() ([]byte, []int) {
-	return file_planet_v1_internal_proto_rawDescGZIP(), []int{11}
-}
-
-func (x *GetBombsAndFortifiesRequest) GetAccountIds() []string {
-	if x != nil {
-		return x.AccountIds
-	}
-	return nil
-}
-
-type GetBombsAndFortifiesResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Accounts      []*BombsAndFortifies   `protobuf:"bytes,1,rep,name=accounts,proto3" json:"accounts,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetBombsAndFortifiesResponse) Reset() {
-	*x = GetBombsAndFortifiesResponse{}
-	mi := &file_planet_v1_internal_proto_msgTypes[12]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetBombsAndFortifiesResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetBombsAndFortifiesResponse) ProtoMessage() {}
-
-func (x *GetBombsAndFortifiesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_internal_proto_msgTypes[12]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetBombsAndFortifiesResponse.ProtoReflect.Descriptor instead.
-func (*GetBombsAndFortifiesResponse) Descriptor() ([]byte, []int) {
-	return file_planet_v1_internal_proto_rawDescGZIP(), []int{12}
-}
-
-func (x *GetBombsAndFortifiesResponse) GetAccounts() []*BombsAndFortifies {
-	if x != nil {
-		return x.Accounts
-	}
-	return nil
-}
-
-type BombsAndFortifies struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	AccountId      string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
-	BombsDropped   uint64                 `protobuf:"varint,2,opt,name=bombs_dropped,json=bombsDropped,proto3" json:"bombs_dropped,omitempty"`
-	TilesFortified uint64                 `protobuf:"varint,3,opt,name=tiles_fortified,json=tilesFortified,proto3" json:"tiles_fortified,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
-}
-
-func (x *BombsAndFortifies) Reset() {
-	*x = BombsAndFortifies{}
-	mi := &file_planet_v1_internal_proto_msgTypes[13]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *BombsAndFortifies) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*BombsAndFortifies) ProtoMessage() {}
-
-func (x *BombsAndFortifies) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_internal_proto_msgTypes[13]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use BombsAndFortifies.ProtoReflect.Descriptor instead.
-func (*BombsAndFortifies) Descriptor() ([]byte, []int) {
-	return file_planet_v1_internal_proto_rawDescGZIP(), []int{13}
-}
-
-func (x *BombsAndFortifies) GetAccountId() string {
-	if x != nil {
-		return x.AccountId
-	}
-	return ""
-}
-
-func (x *BombsAndFortifies) GetBombsDropped() uint64 {
-	if x != nil {
-		return x.BombsDropped
-	}
-	return 0
-}
-
-func (x *BombsAndFortifies) GetTilesFortified() uint64 {
-	if x != nil {
-		return x.TilesFortified
-	}
-	return 0
-}
-
 var File_planet_v1_internal_proto protoreflect.FileDescriptor
 
 const file_planet_v1_internal_proto_rawDesc = "" +
@@ -731,24 +583,13 @@ const file_planet_v1_internal_proto_rawDesc = "" +
 	"\x04kind\x18\x02 \x01(\x0e2\x14.planet.v1.BonusKindR\x04kind\x12\x16\n" +
 	"\x06amount\x18\x03 \x01(\rR\x06amount\")\n" +
 	"\x13GrantChargeResponse\x12\x12\n" +
-	"\x04kept\x18\x01 \x01(\rR\x04kept\">\n" +
-	"\x1bGetBombsAndFortifiesRequest\x12\x1f\n" +
-	"\vaccount_ids\x18\x01 \x03(\tR\n" +
-	"accountIds\"X\n" +
-	"\x1cGetBombsAndFortifiesResponse\x128\n" +
-	"\baccounts\x18\x01 \x03(\v2\x1c.planet.v1.BombsAndFortifiesR\baccounts\"\x80\x01\n" +
-	"\x11BombsAndFortifies\x12\x1d\n" +
-	"\n" +
-	"account_id\x18\x01 \x01(\tR\taccountId\x12#\n" +
-	"\rbombs_dropped\x18\x02 \x01(\x04R\fbombsDropped\x12'\n" +
-	"\x0ftiles_fortified\x18\x03 \x01(\x04R\x0etilesFortified2\xde\x03\n" +
+	"\x04kept\x18\x01 \x01(\rR\x04kept2\xf0\x02\n" +
 	"\x0fInternalService\x12c\n" +
 	"\x11GetTakesByCountry\x12#.planet.v1.GetTakesByCountryRequest\x1a$.planet.v1.GetTakesByCountryResponse\"\x03\x90\x02\x01\x12Z\n" +
 	"\x0eGetTerritories\x12 .planet.v1.GetTerritoriesRequest\x1a!.planet.v1.GetTerritoriesResponse\"\x03\x90\x02\x01\x12N\n" +
 	"\n" +
 	"GetGrounds\x12\x1c.planet.v1.GetGroundsRequest\x1a\x1d.planet.v1.GetGroundsResponse\"\x03\x90\x02\x01\x12L\n" +
-	"\vGrantCharge\x12\x1d.planet.v1.GrantChargeRequest\x1a\x1e.planet.v1.GrantChargeResponse\x12l\n" +
-	"\x14GetBombsAndFortifies\x12&.planet.v1.GetBombsAndFortifiesRequest\x1a'.planet.v1.GetBombsAndFortifiesResponse\"\x03\x90\x02\x01B\xb5\x01\n" +
+	"\vGrantCharge\x12\x1d.planet.v1.GrantChargeRequest\x1a\x1e.planet.v1.GrantChargeResponseB\xb5\x01\n" +
 	"\rcom.planet.v1B\rInternalProtoP\x01ZPgithub.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1;planetv1\xa2\x02\x03PXX\xaa\x02\tPlanet.V1\xca\x02\tPlanet\\V1\xe2\x02\x15Planet\\V1\\GPBMetadata\xea\x02\n" +
 	"Planet::V1b\x06proto3"
 
@@ -764,46 +605,40 @@ func file_planet_v1_internal_proto_rawDescGZIP() []byte {
 	return file_planet_v1_internal_proto_rawDescData
 }
 
-var file_planet_v1_internal_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_planet_v1_internal_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_planet_v1_internal_proto_goTypes = []any{
-	(*GetTakesByCountryRequest)(nil),     // 0: planet.v1.GetTakesByCountryRequest
-	(*GetTakesByCountryResponse)(nil),    // 1: planet.v1.GetTakesByCountryResponse
-	(*CountryTakes)(nil),                 // 2: planet.v1.CountryTakes
-	(*GetTerritoriesRequest)(nil),        // 3: planet.v1.GetTerritoriesRequest
-	(*GetTerritoriesResponse)(nil),       // 4: planet.v1.GetTerritoriesResponse
-	(*Territory)(nil),                    // 5: planet.v1.Territory
-	(*GetGroundsRequest)(nil),            // 6: planet.v1.GetGroundsRequest
-	(*GetGroundsResponse)(nil),           // 7: planet.v1.GetGroundsResponse
-	(*Ground)(nil),                       // 8: planet.v1.Ground
-	(*GrantChargeRequest)(nil),           // 9: planet.v1.GrantChargeRequest
-	(*GrantChargeResponse)(nil),          // 10: planet.v1.GrantChargeResponse
-	(*GetBombsAndFortifiesRequest)(nil),  // 11: planet.v1.GetBombsAndFortifiesRequest
-	(*GetBombsAndFortifiesResponse)(nil), // 12: planet.v1.GetBombsAndFortifiesResponse
-	(*BombsAndFortifies)(nil),            // 13: planet.v1.BombsAndFortifies
-	(BonusKind)(0),                       // 14: planet.v1.BonusKind
+	(*GetTakesByCountryRequest)(nil),  // 0: planet.v1.GetTakesByCountryRequest
+	(*GetTakesByCountryResponse)(nil), // 1: planet.v1.GetTakesByCountryResponse
+	(*CountryTakes)(nil),              // 2: planet.v1.CountryTakes
+	(*GetTerritoriesRequest)(nil),     // 3: planet.v1.GetTerritoriesRequest
+	(*GetTerritoriesResponse)(nil),    // 4: planet.v1.GetTerritoriesResponse
+	(*Territory)(nil),                 // 5: planet.v1.Territory
+	(*GetGroundsRequest)(nil),         // 6: planet.v1.GetGroundsRequest
+	(*GetGroundsResponse)(nil),        // 7: planet.v1.GetGroundsResponse
+	(*Ground)(nil),                    // 8: planet.v1.Ground
+	(*GrantChargeRequest)(nil),        // 9: planet.v1.GrantChargeRequest
+	(*GrantChargeResponse)(nil),       // 10: planet.v1.GrantChargeResponse
+	(BonusKind)(0),                    // 11: planet.v1.BonusKind
 }
 var file_planet_v1_internal_proto_depIdxs = []int32{
 	2,  // 0: planet.v1.GetTakesByCountryResponse.taken_for:type_name -> planet.v1.CountryTakes
 	2,  // 1: planet.v1.GetTakesByCountryResponse.taken_from:type_name -> planet.v1.CountryTakes
 	5,  // 2: planet.v1.GetTerritoriesResponse.territories:type_name -> planet.v1.Territory
 	8,  // 3: planet.v1.GetGroundsResponse.grounds:type_name -> planet.v1.Ground
-	14, // 4: planet.v1.GrantChargeRequest.kind:type_name -> planet.v1.BonusKind
-	13, // 5: planet.v1.GetBombsAndFortifiesResponse.accounts:type_name -> planet.v1.BombsAndFortifies
-	0,  // 6: planet.v1.InternalService.GetTakesByCountry:input_type -> planet.v1.GetTakesByCountryRequest
-	3,  // 7: planet.v1.InternalService.GetTerritories:input_type -> planet.v1.GetTerritoriesRequest
-	6,  // 8: planet.v1.InternalService.GetGrounds:input_type -> planet.v1.GetGroundsRequest
-	9,  // 9: planet.v1.InternalService.GrantCharge:input_type -> planet.v1.GrantChargeRequest
-	11, // 10: planet.v1.InternalService.GetBombsAndFortifies:input_type -> planet.v1.GetBombsAndFortifiesRequest
-	1,  // 11: planet.v1.InternalService.GetTakesByCountry:output_type -> planet.v1.GetTakesByCountryResponse
-	4,  // 12: planet.v1.InternalService.GetTerritories:output_type -> planet.v1.GetTerritoriesResponse
-	7,  // 13: planet.v1.InternalService.GetGrounds:output_type -> planet.v1.GetGroundsResponse
-	10, // 14: planet.v1.InternalService.GrantCharge:output_type -> planet.v1.GrantChargeResponse
-	12, // 15: planet.v1.InternalService.GetBombsAndFortifies:output_type -> planet.v1.GetBombsAndFortifiesResponse
-	11, // [11:16] is the sub-list for method output_type
-	6,  // [6:11] is the sub-list for method input_type
-	6,  // [6:6] is the sub-list for extension type_name
-	6,  // [6:6] is the sub-list for extension extendee
-	0,  // [0:6] is the sub-list for field type_name
+	11, // 4: planet.v1.GrantChargeRequest.kind:type_name -> planet.v1.BonusKind
+	0,  // 5: planet.v1.InternalService.GetTakesByCountry:input_type -> planet.v1.GetTakesByCountryRequest
+	3,  // 6: planet.v1.InternalService.GetTerritories:input_type -> planet.v1.GetTerritoriesRequest
+	6,  // 7: planet.v1.InternalService.GetGrounds:input_type -> planet.v1.GetGroundsRequest
+	9,  // 8: planet.v1.InternalService.GrantCharge:input_type -> planet.v1.GrantChargeRequest
+	1,  // 9: planet.v1.InternalService.GetTakesByCountry:output_type -> planet.v1.GetTakesByCountryResponse
+	4,  // 10: planet.v1.InternalService.GetTerritories:output_type -> planet.v1.GetTerritoriesResponse
+	7,  // 11: planet.v1.InternalService.GetGrounds:output_type -> planet.v1.GetGroundsResponse
+	10, // 12: planet.v1.InternalService.GrantCharge:output_type -> planet.v1.GrantChargeResponse
+	9,  // [9:13] is the sub-list for method output_type
+	5,  // [5:9] is the sub-list for method input_type
+	5,  // [5:5] is the sub-list for extension type_name
+	5,  // [5:5] is the sub-list for extension extendee
+	0,  // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_planet_v1_internal_proto_init() }
@@ -818,7 +653,7 @@ func file_planet_v1_internal_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_planet_v1_internal_proto_rawDesc), len(file_planet_v1_internal_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   14,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
