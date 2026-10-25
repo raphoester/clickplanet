@@ -61,7 +61,7 @@ func TestTheNameAnsweredSaysWhenItMayChangeAgain(t *testing.T) {
 	profile, err := setName(t, handler(t), account, "Ada_L")
 
 	require.NoError(t, err)
-	assert.Equal(t, now.Add(30*24*time.Hour).UnixMilli(), profile.GetRenamableAtUnixMs())
+	assert.Equal(t, now.Add(7*24*time.Hour).UnixMilli(), profile.GetRenamableAtUnixMs())
 }
 
 func TestAChangeTooSoonIsResourceExhaustedAndSaysWhenOneIsAllowed(t *testing.T) {
@@ -80,7 +80,7 @@ func TestAChangeTooSoonIsResourceExhaustedAndSaysWhenOneIsAllowed(t *testing.T) 
 	require.NoError(t, err)
 	refusal, ok := detail.(*playerv1.RenameRefusal)
 	require.True(t, ok)
-	assert.Equal(t, now.Add(30*24*time.Hour).UnixMilli(), refusal.GetRenamableAtUnixMs())
+	assert.Equal(t, now.Add(7*24*time.Hour).UnixMilli(), refusal.GetRenamableAtUnixMs())
 }
 
 func TestAnInvalidNameIsInvalidArgument(t *testing.T) {

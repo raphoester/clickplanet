@@ -85,7 +85,7 @@ func TestAPlayerSetsItsOwnNameAgainInAnotherCase(t *testing.T) {
 	useCase := set_name_usecase.New(store, accounts, clock)
 	_, err := useCase.Execute(t.Context(), set_name_usecase.In{Account: ada, Name: "ada"})
 	require.NoError(t, err)
-	clock.Advance(30 * 24 * time.Hour)
+	clock.Advance(7 * 24 * time.Hour)
 
 	profile, err := useCase.Execute(t.Context(), set_name_usecase.In{Account: ada, Name: "ADA"})
 
@@ -104,19 +104,19 @@ func TestAGivenNameIsChangedAtOnce(t *testing.T) {
 	assert.Equal(t, players.Name("Ada"), profile.TakeSnapshot().Name)
 }
 
-func TestAChangeOnDay29IsRefusedAndKeepsTheName(t *testing.T) {
+func TestAChangeOnDay6IsRefusedAndKeepsTheName(t *testing.T) {
 	store, accounts := setUp()
 	clock := cptime.NewFixedClock(now)
 	useCase := set_name_usecase.New(store, accounts, clock)
 	_, err := useCase.Execute(t.Context(), set_name_usecase.In{Account: ada, Name: "Ada"})
 	require.NoError(t, err)
-	clock.Advance(29 * 24 * time.Hour)
+	clock.Advance(6 * 24 * time.Hour)
 
 	_, err = useCase.Execute(t.Context(), set_name_usecase.In{Account: ada, Name: "Ada_L"})
 
 	var refusal players.RenameRefusal
 	require.ErrorAs(t, err, &refusal)
-	assert.Equal(t, now.Add(30*24*time.Hour), refusal.Until)
+	assert.Equal(t, now.Add(7*24*time.Hour), refusal.Until)
 	stored, err := store.Profile(t.Context(), ada)
 	require.NoError(t, err)
 	assert.Equal(t, players.Name("Ada"), stored.TakeSnapshot().Name)
