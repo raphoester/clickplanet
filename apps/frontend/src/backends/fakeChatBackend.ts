@@ -25,6 +25,7 @@ import {
 } from "./chat.ts";
 import {NameColor, PlayerTitle} from "./player.ts";
 import {ClosedRound} from "./standings.ts";
+import {championOf} from "../domain/champion.ts";
 import {podiumOf} from "../domain/roundReveal.ts";
 import {quoteOf, withRemoved} from "../domain/chatLog.ts";
 import {v4 as UUIDv4} from 'uuid';
@@ -230,6 +231,14 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
                 points: standing.points,
             })),
         })
+    }
+
+    // As the server: one line a season, however often it is told.
+    public announceChampion(closed: ClosedRound) {
+        const champion = championOf(closed)
+        const id = `champion-${closed.season}`
+        if (!champion || this.announcements.some((announcement) => announcement.id === id)) return
+        this.announce({kind: "champion", id, announcedAt: closed.endedAt, season: champion.season, countries: champion.countryCodes})
     }
 
     private announce(announcement: ChatAnnouncement) {

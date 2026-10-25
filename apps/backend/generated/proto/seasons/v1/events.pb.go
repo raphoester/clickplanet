@@ -158,6 +158,142 @@ func (x *RoundResult) GetPoints() uint32 {
 	return 0
 }
 
+type SeasonClosed struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Season        uint32                 `protobuf:"varint,1,opt,name=season,proto3" json:"season,omitempty"`
+	EndedAt       *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=ended_at,json=endedAt,proto3" json:"ended_at,omitempty"`
+	Table         []*SeasonPlace         `protobuf:"bytes,3,rep,name=table,proto3" json:"table,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SeasonClosed) Reset() {
+	*x = SeasonClosed{}
+	mi := &file_seasons_v1_events_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SeasonClosed) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SeasonClosed) ProtoMessage() {}
+
+func (x *SeasonClosed) ProtoReflect() protoreflect.Message {
+	mi := &file_seasons_v1_events_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SeasonClosed.ProtoReflect.Descriptor instead.
+func (*SeasonClosed) Descriptor() ([]byte, []int) {
+	return file_seasons_v1_events_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *SeasonClosed) GetSeason() uint32 {
+	if x != nil {
+		return x.Season
+	}
+	return 0
+}
+
+func (x *SeasonClosed) GetEndedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EndedAt
+	}
+	return nil
+}
+
+func (x *SeasonClosed) GetTable() []*SeasonPlace {
+	if x != nil {
+		return x.Table
+	}
+	return nil
+}
+
+type SeasonPlace struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Country       string                 `protobuf:"bytes,1,opt,name=country,proto3" json:"country,omitempty"`
+	Rank          uint32                 `protobuf:"varint,2,opt,name=rank,proto3" json:"rank,omitempty"`
+	Points        uint32                 `protobuf:"varint,3,opt,name=points,proto3" json:"points,omitempty"`
+	RoundsWon     uint32                 `protobuf:"varint,4,opt,name=rounds_won,json=roundsWon,proto3" json:"rounds_won,omitempty"`
+	FinalePoints  uint32                 `protobuf:"varint,5,opt,name=finale_points,json=finalePoints,proto3" json:"finale_points,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SeasonPlace) Reset() {
+	*x = SeasonPlace{}
+	mi := &file_seasons_v1_events_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SeasonPlace) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SeasonPlace) ProtoMessage() {}
+
+func (x *SeasonPlace) ProtoReflect() protoreflect.Message {
+	mi := &file_seasons_v1_events_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SeasonPlace.ProtoReflect.Descriptor instead.
+func (*SeasonPlace) Descriptor() ([]byte, []int) {
+	return file_seasons_v1_events_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *SeasonPlace) GetCountry() string {
+	if x != nil {
+		return x.Country
+	}
+	return ""
+}
+
+func (x *SeasonPlace) GetRank() uint32 {
+	if x != nil {
+		return x.Rank
+	}
+	return 0
+}
+
+func (x *SeasonPlace) GetPoints() uint32 {
+	if x != nil {
+		return x.Points
+	}
+	return 0
+}
+
+func (x *SeasonPlace) GetRoundsWon() uint32 {
+	if x != nil {
+		return x.RoundsWon
+	}
+	return 0
+}
+
+func (x *SeasonPlace) GetFinalePoints() uint32 {
+	if x != nil {
+		return x.FinalePoints
+	}
+	return 0
+}
+
 var File_seasons_v1_events_proto protoreflect.FileDescriptor
 
 const file_seasons_v1_events_proto_rawDesc = "" +
@@ -173,7 +309,18 @@ const file_seasons_v1_events_proto_rawDesc = "" +
 	"\vRoundResult\x12\x18\n" +
 	"\acountry\x18\x01 \x01(\tR\acountry\x12\x12\n" +
 	"\x04rank\x18\x02 \x01(\rR\x04rank\x12\x16\n" +
-	"\x06points\x18\x03 \x01(\rR\x06pointsB\xba\x01\n" +
+	"\x06points\x18\x03 \x01(\rR\x06points\"\x8c\x01\n" +
+	"\fSeasonClosed\x12\x16\n" +
+	"\x06season\x18\x01 \x01(\rR\x06season\x125\n" +
+	"\bended_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\aendedAt\x12-\n" +
+	"\x05table\x18\x03 \x03(\v2\x17.seasons.v1.SeasonPlaceR\x05table\"\x97\x01\n" +
+	"\vSeasonPlace\x12\x18\n" +
+	"\acountry\x18\x01 \x01(\tR\acountry\x12\x12\n" +
+	"\x04rank\x18\x02 \x01(\rR\x04rank\x12\x16\n" +
+	"\x06points\x18\x03 \x01(\rR\x06points\x12\x1d\n" +
+	"\n" +
+	"rounds_won\x18\x04 \x01(\rR\troundsWon\x12#\n" +
+	"\rfinale_points\x18\x05 \x01(\rR\ffinalePointsB\xba\x01\n" +
 	"\x0ecom.seasons.v1B\vEventsProtoP\x01ZRgithub.com/raphoester/clickplanet.lol-backend/generated/proto/seasons/v1;seasonsv1\xa2\x02\x03SXX\xaa\x02\n" +
 	"Seasons.V1\xca\x02\n" +
 	"Seasons\\V1\xe2\x02\x16Seasons\\V1\\GPBMetadata\xea\x02\vSeasons::V1b\x06proto3"
@@ -190,20 +337,24 @@ func file_seasons_v1_events_proto_rawDescGZIP() []byte {
 	return file_seasons_v1_events_proto_rawDescData
 }
 
-var file_seasons_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_seasons_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_seasons_v1_events_proto_goTypes = []any{
 	(*RoundClosed)(nil),           // 0: seasons.v1.RoundClosed
 	(*RoundResult)(nil),           // 1: seasons.v1.RoundResult
-	(*timestamppb.Timestamp)(nil), // 2: google.protobuf.Timestamp
+	(*SeasonClosed)(nil),          // 2: seasons.v1.SeasonClosed
+	(*SeasonPlace)(nil),           // 3: seasons.v1.SeasonPlace
+	(*timestamppb.Timestamp)(nil), // 4: google.protobuf.Timestamp
 }
 var file_seasons_v1_events_proto_depIdxs = []int32{
-	2, // 0: seasons.v1.RoundClosed.ended_at:type_name -> google.protobuf.Timestamp
+	4, // 0: seasons.v1.RoundClosed.ended_at:type_name -> google.protobuf.Timestamp
 	1, // 1: seasons.v1.RoundClosed.results:type_name -> seasons.v1.RoundResult
-	2, // [2:2] is the sub-list for method output_type
-	2, // [2:2] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	4, // 2: seasons.v1.SeasonClosed.ended_at:type_name -> google.protobuf.Timestamp
+	3, // 3: seasons.v1.SeasonClosed.table:type_name -> seasons.v1.SeasonPlace
+	4, // [4:4] is the sub-list for method output_type
+	4, // [4:4] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_seasons_v1_events_proto_init() }
@@ -217,7 +368,7 @@ func file_seasons_v1_events_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_seasons_v1_events_proto_rawDesc), len(file_seasons_v1_events_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

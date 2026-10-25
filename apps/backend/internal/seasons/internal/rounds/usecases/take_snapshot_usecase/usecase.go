@@ -25,6 +25,7 @@ type Rounds interface {
 	Held(ctx context.Context, round rounds.Round) (map[rounds.Country]uint64, error)
 	Number(ctx context.Context, round rounds.Round) (uint32, error)
 	Close(ctx context.Context, round rounds.Round, results []rounds.Result) error
+	ClosedIn(ctx context.Context, season calendar.Number) ([]rounds.Closed, error)
 }
 
 type Publisher interface {
@@ -90,11 +91,19 @@ func (u *UseCase) close(ctx context.Context, now time.Time) ([]rounds.Closed, er
 		if err != nil {
 			return closed, fmt.Errorf("failed to number the round: %w", err)
 		}
+		earlier, err := u.store.ClosedIn(ctx, round.Season)
+		if err != nil {
+			return closed, fmt.Errorf("failed to read the rounds the season closed: %w", err)
+		}
 		closing := round.Closed(number, held)
+		end, over := closing.SeasonEnd(earlier)
 		if err := u.store.Close(ctx, round, closing.Results); err != nil {
 			return closed, fmt.Errorf("failed to close the round: %w", err)
 		}
 		u.events.Publish(eventOf(closing))
+		if over {
+			u.events.Publish(seasonEventOf(end))
+		}
 		closed = append(closed, closing)
 	}
 	return closed, nil
@@ -115,6 +124,24 @@ func eventOf(closed rounds.Closed) *seasonsv1.RoundClosed {
 		Finale:  closed.Round.Finale,
 		EndedAt: timestamppb.New(closed.Round.EndsAt),
 		Results: results,
+	}
+}
+
+func seasonEventOf(end rounds.SeasonEnd) *seasonsv1.SeasonClosed {
+	table := make([]*seasonsv1.SeasonPlace, 0, len(end.Table))
+	for _, placed := range end.Table {
+		table = append(table, &seasonsv1.SeasonPlace{
+			Country:      string(placed.Country),
+			Rank:         placed.Rank,
+			Points:       uint32(placed.Points), //nolint:gosec // 25 a day for a few weeks.
+			RoundsWon:    placed.RoundsWon,
+			FinalePoints: uint32(placed.FinalePoints), //nolint:gosec // 75 a finale.
+		})
+	}
+	return &seasonsv1.SeasonClosed{
+		Season:  uint32(end.Season),
+		EndedAt: timestamppb.New(end.EndedAt),
+		Table:   table,
 	}
 }
 

@@ -1,5 +1,5 @@
 import {Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
-import {BombAnnouncement, ChatAnnouncement, ChatMessage, ChatQuote, FortifyAnnouncement, MuteAnnouncement, Reaction, RoundAnnouncement} from "../../backends/chat.ts";
+import {BombAnnouncement, ChampionAnnouncement, ChatAnnouncement, ChatMessage, ChatQuote, FortifyAnnouncement, MuteAnnouncement, Reaction, RoundAnnouncement} from "../../backends/chat.ts";
 import {landmassName} from "../../domain/landmassNames.ts";
 import {PlayerLine} from "../../backends/player.ts";
 import {Countries} from "../../domain/countries.ts";
@@ -11,6 +11,7 @@ import {ChevronIcon, ReplyIcon, ReportIcon} from "../components/icons.tsx";
 import {ChatLogEntry, interleave, newestAt, startsGroup} from "../../domain/chatLog.ts";
 import {messageParts} from "../../domain/chatLinks.ts";
 import {describeBlast} from "../../domain/blast.ts";
+import {winsLine} from "../../domain/champion.ts";
 import {describeMute} from "../../domain/mute.ts";
 import {medalOf, roundOverLine} from "../../domain/roundReveal.ts";
 import {truncate} from "../truncate.ts";
@@ -310,7 +311,22 @@ function AnnouncementLine({announcement}: {announcement: ChatAnnouncement}) {
             return <MuteLine announcement={announcement}/>
         case "round":
             return <RoundLine announcement={announcement}/>
+        case "champion":
+            return <ChampionLine announcement={announcement}/>
     }
+}
+
+function ChampionLine({announcement}: {announcement: ChampionAnnouncement}) {
+    return <li className="chat-announcement chat-announcement-champion" data-at={announcement.announcedAt}>
+        <span className="chat-announcement-icon" aria-hidden="true">🏆</span>
+        {announcement.countries.map((code) => <CountryFlag key={code} code={code}/>)}
+        <strong className="chat-announcement-text">
+            {winsLine({season: announcement.season, countryCodes: announcement.countries})}
+        </strong>
+        <time className="chat-announcement-time" dateTime={new Date(announcement.announcedAt).toISOString()}>
+            {clock.format(announcement.announcedAt)}
+        </time>
+    </li>
 }
 
 function FortifyLine({announcement}: {announcement: FortifyAnnouncement}) {

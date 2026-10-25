@@ -95,6 +95,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         closeFinale: () => {
             const closed = fakeStandings.closeRound(true)
             fakeChat.announceRound(closed)
+            fakeChat.announceChampion(closed)
             return "the Final Battle is over"
         },
     })
