@@ -47,9 +47,13 @@ won a season.
   optional in the other. So `announcements.Announcement` is `{ID, Kind, At, Payload}`, in `chat.announcements`
   (`id uuid` primary key, `kind` of the type `announcement_kind`, `payload jsonb`, `announced_at`), with its own store, its own contract suite and
   its own case on the wire (`chat.v1.Announcement`: `kind` and `payload` as a JSON string).
-- **The id is a real key**, `announcements.AnnouncementID` (`type AnnouncementID uuid.UUID`), made by the server.
-  A message's id is `text` with a `seq` beside it because it is not trusted to be unique; nothing here has that
-  history. A read orders by `announced_at`, then `id`.
+- **The id is the fact's**, `announcements.AnnouncementID` (`type AnnouncementID uuid.UUID`): a SHA-1 UUID of what
+  the line tells (`https://clickplanet.lol/ledger/<position>/bomb`, `…/fortify`, `mutes/<mute id>`,
+  `seasons/<n>/rounds/<n>`, `seasons/<n>/champion`), built by each value's `Announcement(at)`. So a fact told twice
+  is one row: `announce_usecase` keeps it with `Storage.AppendOnce` (`ON CONFLICT DO NOTHING`, saying whether it did)
+  and publishes it only the first time. That is what makes an event the bus delivers again harmless here. A message's
+  id is `text` with a `seq` beside it because it is not trusted to be unique; nothing here has that history. A read
+  orders by `announced_at`, then `id`.
 - **The payload is the template's values, not the sentence.** The client writes the line, so a new wording, or
   a translation, needs no migration. Each kind owns its payload's shape: `announcements.Bomb` is
   `{country, ground, tile, cleared}`, `ground` and `tile` absent in the sea. **A client shows nothing for a kind
@@ -57,22 +61,19 @@ won a season.
   it is a value added to `announcement_kind` in a migration, a constant in `announcements.Kinds` and a name in
   `history_query`'s `kinds`; the parity test writes every one of `announcements.Kinds` through the store and reads
   it back.
-- **How a bomb gets here**: `planet`'s `publishing_drop_bomb` decorator publishes `planet.v1.BombLanded` once the
-  blast is cleared, with the ground read off `clicks.Borders`; `bomb_landed_subscriber` turns it into a `Bomb`
-  payload and `announce_usecase` inserts it, then publishes it on `inprocess_feed`. The announcement's time is
-  the event's `landed_at`. **Delivery is at most once**, like every event: a full buffer (256) or a restart loses
-  the line, never the bomb.
-- **How a round gets here**: `seasons` publishes `seasons.v1.RoundClosed` once a round's results are kept;
-  `round_closed_subscriber` turns it into a `Round` payload, `{number, finale, podium}`, and `announce_usecase`
+- **How a bomb gets here**: the ledger relay tells `planet.v1.BombLanded` once the ledger flushed the bomb, with its
+  position and the ground read off `clicks.Borders`; `bomb_landed_subscriber` turns it into a `Bomb` and
+  `announce_usecase` keeps it, then publishes it on `inprocess_feed`. The announcement's time is the event's
+  `landed_at`, to the second the ledger keeps. A bomb Redis did not take is a line missed, never a bomb.
+- **How a round gets here**: `seasons` keeps `seasons.v1.RoundClosed` in its outbox with the round's results;
+  `round_closed_subscriber` turns it into a `Round`, payload `{number, finale, podium}`, and `announce_usecase`
   keeps it. The podium is `announcements.RoundOf`'s rule: the places ranked 3rd or better, ties included. The
   announcement's time is the round's end, not the minute it closed.
-- **How a champion gets here, once**: `seasons` publishes `seasons.v1.SeasonClosed` right after the finale's
-  `RoundClosed`; `season_closed_subscriber` keeps the countries ranked 1st (`announcements.ChampionOf`; level on
-  everything, they win together) and `announce_champion_usecase` keeps a `{season, countries}` payload at the
-  season's end. A season nobody scored in announces nothing. **Its id is the season's** (a SHA-1 UUID of its
-  number, `Champion.Announcement`), and `Storage.AppendOnce` inserts with `ON CONFLICT DO NOTHING` and says whether
-  it did: the line is published only the first time. So a second `SeasonClosed` for a season, from a restart or a
-  retried close, shows nothing new.
+- **How a champion gets here, once**: `seasons` keeps `seasons.v1.SeasonClosed` in its outbox right after the
+  finale's `RoundClosed`; `season_closed_subscriber` keeps the countries ranked 1st (`announcements.ChampionOf`;
+  level on everything, they win together) and `announce_usecase` keeps a `{season, countries}` payload at the
+  season's end. A season nobody scored in announces nothing. Its id is the season's, so a second `SeasonClosed`,
+  from a relay that sent it again or a retried close, shows nothing new.
 - **`GetHistory` returns them beside the messages**, in `announcements`, the newest `historySize` within
   `retention`, bounded apart from the messages so a burst of bombs never pushes one out. The client puts the two
   lists in one by time. **Once the messages fill the window, none is older than the oldest of them**
@@ -105,12 +106,12 @@ duration)`, on the admin listener (see [Operator tools](admin.md)). A muted call
   that ends later.
 - **Every mute is announced, after it is kept, by an event.** `mute_usecase` only keeps the mute, with an id from
   its `IDProvider` (`uuid_id_provider`; tests use `mutes.SequentialIDs`). `publishing_mute` then publishes
-  `chat.v1.AccountMuted`, and the chat hears it itself (`chat-announcements-mutes`): `account_muted_subscriber`
-  hands it to `announce_mute_usecase`, which names the account (`GetAuthor`) and gives an `announcements.Muted`
-  payload, `{name, seconds}`, to `announce_usecase`. So the operator's call never fails on the announcement, and a
-  mute that was not kept is never announced. The client writes "<name> has been muted for one hour", under the name
-  the account had when the event was heard. **Delivery is at most once**, like every event: a full buffer (64) or a
-  restart loses the line, never the mute; a failure to name the account is logged by `log_subscriber`.
+  `chat.v1.AccountMuted` with that id, and the chat hears it itself (`chat-announcements-mutes`):
+  `account_muted_subscriber` hands it to `announce_mute_usecase`, which names the account (`GetAuthor`) and gives an
+  `announcements.Muted`, payload `{name, seconds}`, named after the mute, to `announce_usecase`. So the operator's
+  call never fails on the announcement, and a mute that was not kept is never announced. The client writes "<name>
+  has been muted for one hour", under the name the account had when the event was heard. A mute Redis did not take
+  is a line missed, never the mute; a failure to name the account is tried again, logged by `log_subscriber`.
 - **`audit_mute` logs every call at Warn** (`admin chat mute`), with the network it holds.
 - **Kept in `chat.mutes`** (`id`, `account_id`, `scope`, `muted_at`, `muted_until`). The network is personal data,
   so the prune deletes a mute that ended more than `retention` ago. There is no unmute RPC: deleting the rows ends

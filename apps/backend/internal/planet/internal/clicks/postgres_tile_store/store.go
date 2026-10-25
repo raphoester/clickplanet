@@ -2,7 +2,6 @@ package postgres_tile_store
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 
 	"github.com/lib/pq"
@@ -14,18 +13,18 @@ import (
 
 const chunkSize = 10_000
 
-func New(db cppg.QuerierBeginner) *Store {
+func New(db cppg.Conn) *Store {
 	return &Store{db: db}
 }
 
 type Store struct {
-	db cppg.QuerierBeginner
+	db cppg.Conn
 }
 
 var _ inmemory_tile_storage.Persistence = (*Store)(nil)
 
 func (s *Store) Load(ctx context.Context, visit func(tile uint32, owner string, shields int)) error {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, country, shields FROM tiles`)
+	rows, err := s.db.On(ctx).QueryContext(ctx, `SELECT id, country, shields FROM tiles`)
 	if err != nil {
 		return fmt.Errorf("failed to read tiles: %w", err)
 	}
@@ -53,7 +52,7 @@ func (s *Store) Load(ctx context.Context, visit func(tile uint32, owner string, 
 func (s *Store) LoadLandmasses(
 	ctx context.Context, asset string, visit func(landmass clicks.LandmassID, fortifiedBy string),
 ) error {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, fortified_by FROM landmasses WHERE asset = $1`, asset)
+	rows, err := s.db.On(ctx).QueryContext(ctx, `SELECT id, fortified_by FROM landmasses WHERE asset = $1`, asset)
 	if err != nil {
 		return fmt.Errorf("failed to read landmasses: %w", err)
 	}
@@ -93,45 +92,34 @@ func (s *Store) Save(ctx context.Context, tiles []inmemory_tile_storage.Tile, la
 		shields = append(shields, int64(tile.Shields))
 	}
 
-	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to save tiles: %w", err)
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	for start := 0; start < len(taken); start += chunkSize {
-		end := min(start+chunkSize, len(taken))
-		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO tiles (id, country, shields)
-			SELECT * FROM unnest($1::integer[], $2::text[], $3::smallint[])
-			ON CONFLICT (id) DO UPDATE SET country = EXCLUDED.country, shields = EXCLUDED.shields
-		`, pq.Array(taken[start:end]), pq.Array(takenBy[start:end]), pq.Array(shields[start:end])); err != nil {
-			return fmt.Errorf("failed to upsert tiles: %w", err)
+	return s.db.InTx(ctx, func(ctx context.Context) error {
+		tx := s.db.On(ctx)
+		for start := 0; start < len(taken); start += chunkSize {
+			end := min(start+chunkSize, len(taken))
+			if _, err := tx.ExecContext(ctx, `
+				INSERT INTO tiles (id, country, shields)
+				SELECT * FROM unnest($1::integer[], $2::text[], $3::smallint[])
+				ON CONFLICT (id) DO UPDATE SET country = EXCLUDED.country, shields = EXCLUDED.shields
+			`, pq.Array(taken[start:end]), pq.Array(takenBy[start:end]), pq.Array(shields[start:end])); err != nil {
+				return fmt.Errorf("failed to upsert tiles: %w", err)
+			}
 		}
-	}
 
-	for start := 0; start < len(freed); start += chunkSize {
-		end := min(start+chunkSize, len(freed))
-		if _, err := tx.ExecContext(ctx,
-			`DELETE FROM tiles WHERE id = ANY($1::integer[])`,
-			pq.Array(freed[start:end]),
-		); err != nil {
-			return fmt.Errorf("failed to delete tiles: %w", err)
+		for start := 0; start < len(freed); start += chunkSize {
+			end := min(start+chunkSize, len(freed))
+			if _, err := tx.ExecContext(ctx,
+				`DELETE FROM tiles WHERE id = ANY($1::integer[])`,
+				pq.Array(freed[start:end]),
+			); err != nil {
+				return fmt.Errorf("failed to delete tiles: %w", err)
+			}
 		}
-	}
 
-	if err := saveLandmasses(ctx, tx, landmasses); err != nil {
-		return err
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit tiles: %w", err)
-	}
-
-	return nil
+		return saveLandmasses(ctx, tx, landmasses)
+	})
 }
 
-func saveLandmasses(ctx context.Context, tx *sql.Tx, landmasses []inmemory_tile_storage.Landmass) error {
+func saveLandmasses(ctx context.Context, tx cppg.Querier, landmasses []inmemory_tile_storage.Landmass) error {
 	if len(landmasses) == 0 {
 		return nil
 	}

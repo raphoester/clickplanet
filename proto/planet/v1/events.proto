@@ -9,8 +9,9 @@ message TileTaken {
   uint32 tile_id = 2;
   string country = 3;
   google.protobuf.Timestamp taken_at = 4;
-  string previous = 5;
-  string ground = 6;
+  uint64 position = 5;
+  string previous = 6;
+  string ground = 7;
 }
 
 message BombLanded {
@@ -20,6 +21,7 @@ message BombLanded {
   uint32 cleared = 4;
   google.protobuf.Timestamp landed_at = 5;
   string account_id = 6;
+  uint64 position = 7;
 }
 
 message Fortified {
@@ -29,6 +31,7 @@ message Fortified {
   google.protobuf.Timestamp fortified_at = 4;
   string ground = 5;
   string account_id = 6;
+  uint64 position = 7;
 }
 
 message BonusClaimed {

@@ -17,6 +17,7 @@ type Take struct {
 	Previous string
 	Ground   string
 	At       time.Time
+	Position uint64
 }
 
 type Slot uint8

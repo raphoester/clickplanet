@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
+import { Message, proto3, protoInt64, Timestamp } from "@bufbuild/protobuf";
 
 /**
  * @generated from message planet.v1.TileTaken
@@ -31,12 +31,17 @@ export class TileTaken extends Message<TileTaken> {
   takenAt?: Timestamp;
 
   /**
-   * @generated from field: string previous = 5;
+   * @generated from field: uint64 position = 5;
+   */
+  position = protoInt64.zero;
+
+  /**
+   * @generated from field: string previous = 6;
    */
   previous = "";
 
   /**
-   * @generated from field: string ground = 6;
+   * @generated from field: string ground = 7;
    */
   ground = "";
 
@@ -52,8 +57,9 @@ export class TileTaken extends Message<TileTaken> {
     { no: 2, name: "tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 3, name: "country", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "taken_at", kind: "message", T: Timestamp },
-    { no: 5, name: "previous", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 6, name: "ground", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "position", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+    { no: 6, name: "previous", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 7, name: "ground", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TileTaken {
@@ -107,6 +113,11 @@ export class BombLanded extends Message<BombLanded> {
    */
   accountId = "";
 
+  /**
+   * @generated from field: uint64 position = 7;
+   */
+  position = protoInt64.zero;
+
   constructor(data?: PartialMessage<BombLanded>) {
     super();
     proto3.util.initPartial(data, this);
@@ -121,6 +132,7 @@ export class BombLanded extends Message<BombLanded> {
     { no: 4, name: "cleared", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 5, name: "landed_at", kind: "message", T: Timestamp },
     { no: 6, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 7, name: "position", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BombLanded {
@@ -174,6 +186,11 @@ export class Fortified extends Message<Fortified> {
    */
   accountId = "";
 
+  /**
+   * @generated from field: uint64 position = 7;
+   */
+  position = protoInt64.zero;
+
   constructor(data?: PartialMessage<Fortified>) {
     super();
     proto3.util.initPartial(data, this);
@@ -188,6 +205,7 @@ export class Fortified extends Message<Fortified> {
     { no: 4, name: "fortified_at", kind: "message", T: Timestamp },
     { no: 5, name: "ground", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 6, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 7, name: "position", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Fortified {

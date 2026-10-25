@@ -24,8 +24,11 @@ var world = missions.World{
 	},
 }
 
+var position uint64
+
 func take(flag, previous, ground string) missions.Take {
-	return missions.Take{Account: ada, Flag: flag, Previous: previous, Ground: ground, At: monday}
+	position++
+	return missions.Take{Account: ada, Flag: flag, Previous: previous, Ground: ground, At: monday, Position: position}
 }
 
 func snapshotsOf(brief missions.Brief) map[missions.Slot]missions.MissionSnapshot {
@@ -149,11 +152,13 @@ func TestTheFirstTakeOfTheDayEnlistsItsFlag(t *testing.T) {
 	sheet := missions.SheetOf(missions.SheetSnapshot{})
 	require.False(t, sheet.Enlisted())
 
-	sheet = sheet.WithTake(take("fr", "", "es"), briefOf(t, frBrief...))
+	first := take("fr", "", "es")
+	sheet = sheet.WithTake(first, briefOf(t, frBrief...))
 
 	assert.True(t, sheet.Enlisted())
 	assert.Equal(t, missions.SheetSnapshot{
 		Flag: "fr", Taken: map[missions.Slot]uint32{1: 1}, Collected: cpcolls.NewSet[missions.Slot](),
+		TakesBelow: first.Position + 1,
 	}, sheet.Snapshot())
 }
 
@@ -183,6 +188,32 @@ func TestAMissionCountsNoFurtherThanItsGoal(t *testing.T) {
 	}
 
 	assert.Equal(t, uint32(2), sheet.Snapshot().Taken[1])
+}
+
+func TestATakeToldTwiceCountsOnce(t *testing.T) {
+	brief := briefOf(t, frBrief...)
+	told := take("fr", "dz", "")
+
+	sheet := missions.SheetOf(missions.SheetSnapshot{}).WithTake(told, brief).WithTake(told, brief)
+
+	assert.Equal(t, map[missions.Slot]uint32{1: 1, 2: 1}, sheet.Snapshot().Taken)
+	assert.Equal(t, told.Position+1, sheet.Snapshot().TakesBelow)
+}
+
+func TestATakeBelowTheMarkCountsNothing(t *testing.T) {
+	sheet := missions.SheetOf(missions.SheetSnapshot{Flag: "fr", TakesBelow: 1_000})
+
+	sheet = sheet.WithTake(missions.Take{Account: ada, Flag: "fr", At: monday, Position: 999}, briefOf(t, frBrief...))
+
+	assert.Empty(t, sheet.Snapshot().Taken)
+}
+
+func TestATakeThatCountsNothingLeavesTheMark(t *testing.T) {
+	sheet := missions.SheetOf(missions.SheetSnapshot{Flag: "fr", TakesBelow: 5})
+
+	sheet = sheet.WithTake(missions.Take{Account: ada, Flag: "de", At: monday, Position: 9}, briefOf(t, frBrief...))
+
+	assert.Equal(t, uint64(5), sheet.Snapshot().TakesBelow)
 }
 
 func TestAWithTakeLeavesTheSheetItWasCalledOnAlone(t *testing.T) {

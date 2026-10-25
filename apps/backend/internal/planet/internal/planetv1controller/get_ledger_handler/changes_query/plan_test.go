@@ -21,11 +21,11 @@ func TestTheWindowIsFoundFromTheHeadByThePrimaryKey(t *testing.T) {
 		`INSERT INTO ledger_head (singleton, head) VALUES (true, 190000) ON CONFLICT (singleton) DO UPDATE SET head = 190000`,
 		`VACUUM ANALYZE ledger_events`,
 	} {
-		_, err := db.ExecContext(t.Context(), statement)
+		_, err := db.On(t.Context()).ExecContext(t.Context(), statement)
 		require.NoError(t, err)
 	}
 
-	rows, err := db.QueryContext(t.Context(), "EXPLAIN "+changes, time.Now().Add(-time.Hour), time.Now())
+	rows, err := db.On(t.Context()).QueryContext(t.Context(), "EXPLAIN "+changes, time.Now().Add(-time.Hour), time.Now())
 	require.NoError(t, err)
 	defer func() { require.NoError(t, rows.Close()) }()
 	var lines []string

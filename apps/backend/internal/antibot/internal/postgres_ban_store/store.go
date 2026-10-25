@@ -18,7 +18,7 @@ const (
 	accountsLock = 0x61636e74
 )
 
-func NewScopes(db cppg.QuerierBeginner) *Store {
+func NewScopes(db cppg.Conn) *Store {
 	return &Store{db: db, lock: scopesLock, queries: queries{
 		record: `
 			SELECT b.flags, b.offences, b.expires_at, b.last_flagged_at,
@@ -50,7 +50,7 @@ func NewScopes(db cppg.QuerierBeginner) *Store {
 	}}
 }
 
-func NewAccounts(db cppg.QuerierBeginner) *Store {
+func NewAccounts(db cppg.Conn) *Store {
 	return &Store{db: db, lock: accountsLock, queries: queries{
 		record: `
 			SELECT b.flags, b.offences, b.expires_at, b.last_flagged_at,
@@ -84,7 +84,7 @@ func NewAccounts(db cppg.QuerierBeginner) *Store {
 }
 
 type Store struct {
-	db      cppg.QuerierBeginner
+	db      cppg.Conn
 	lock    int64
 	queries queries
 }
@@ -97,7 +97,7 @@ type queries struct {
 }
 
 func (s *Store) Record(ctx context.Context, key string) (bans.Record, bool, error) {
-	return s.recordOf(ctx, s.db, key)
+	return s.recordOf(ctx, s.db.On(ctx), key)
 }
 
 func (s *Store) recordOf(ctx context.Context, db cppg.Querier, key string) (bans.Record, bool, error) {
@@ -140,7 +140,7 @@ func (s *Store) recordOf(ctx context.Context, db cppg.Querier, key string) (bans
 
 func (s *Store) Running(ctx context.Context, now time.Time) (int, error) {
 	var running int
-	if err := s.db.QueryRowContext(ctx, s.queries.running, now).Scan(&running); err != nil {
+	if err := s.db.On(ctx).QueryRowContext(ctx, s.queries.running, now).Scan(&running); err != nil {
 		return 0, fmt.Errorf("failed to count the running bans: %w", err)
 	}
 	return running, nil
@@ -150,46 +150,35 @@ func (s *Store) Change(
 	ctx context.Context,
 	key string,
 	change func(record bans.Record, found bool) (bans.Record, bool),
-) (err error) {
-	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to begin changing the ban: %w", err)
-	}
-	defer func() {
+) error {
+	return s.db.InTx(ctx, func(ctx context.Context) error {
+		tx := s.db.On(ctx)
+		if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock($1, hashtext($2))`, s.lock, key); err != nil {
+			return fmt.Errorf("failed to lock the ban: %w", err)
+		}
+
+		record, found, err := s.recordOf(ctx, tx, key)
 		if err != nil {
-			_ = tx.Rollback()
+			return err
 		}
-	}()
 
-	if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock($1, hashtext($2))`, s.lock, key); err != nil {
-		return fmt.Errorf("failed to lock the ban: %w", err)
-	}
-
-	record, found, err := s.recordOf(ctx, tx, key)
-	if err != nil {
-		return err
-	}
-
-	next, keep := change(record, found)
-	if !keep {
-		return tx.Commit() //nolint:wrapcheck // nothing was written, so there is nothing to name.
-	}
-
-	if _, err := tx.ExecContext(ctx, s.queries.save, key, next.Flags, next.Offences, next.ExpiresAt,
-		sql.NullTime{Time: next.LastFlaggedAt, Valid: !next.LastFlaggedAt.IsZero()}); err != nil {
-		return fmt.Errorf("failed to save the ban: %w", err)
-	}
-
-	if !next.Pardon.At.IsZero() {
-		pardon := next.Pardon
-		if _, err := tx.ExecContext(ctx, s.queries.savePardon, key, pardon.At,
-			pardon.Lifted.Flags, pardon.Lifted.Offence, pardon.Lifted.Until, pardon.Until); err != nil {
-			return fmt.Errorf("failed to save the pardon: %w", err)
+		next, keep := change(record, found)
+		if !keep {
+			return nil
 		}
-	}
 
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit the ban: %w", err)
-	}
-	return nil
+		if _, err := tx.ExecContext(ctx, s.queries.save, key, next.Flags, next.Offences, next.ExpiresAt,
+			sql.NullTime{Time: next.LastFlaggedAt, Valid: !next.LastFlaggedAt.IsZero()}); err != nil {
+			return fmt.Errorf("failed to save the ban: %w", err)
+		}
+
+		if !next.Pardon.At.IsZero() {
+			pardon := next.Pardon
+			if _, err := tx.ExecContext(ctx, s.queries.savePardon, key, pardon.At,
+				pardon.Lifted.Flags, pardon.Lifted.Offence, pardon.Lifted.Until, pardon.Until); err != nil {
+				return fmt.Errorf("failed to save the pardon: %w", err)
+			}
+		}
+		return nil
+	})
 }

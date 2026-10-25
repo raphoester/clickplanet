@@ -14,12 +14,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-func NewPostgresQuery(db cppg.Querier, clock cptime.Clock) *PostgresQuery {
+func NewPostgresQuery(db cppg.Conn, clock cptime.Clock) *PostgresQuery {
 	return &PostgresQuery{db: db, clock: clock}
 }
 
 type PostgresQuery struct {
-	db    cppg.Querier
+	db    cppg.Conn
 	clock cptime.Clock
 }
 
@@ -35,7 +35,7 @@ const stats = `
 
 func (q *PostgresQuery) Stats(ctx context.Context, account cpsession.AccountID) (*playerv1.GetStatsResponse, error) {
 	answer := &playerv1.Stats{}
-	if err := q.db.QueryRowContext(ctx, stats, uuid.UUID(account), q.clock.Now().UTC().Format(time.DateOnly)).
+	if err := q.db.On(ctx).QueryRowContext(ctx, stats, uuid.UUID(account), q.clock.Now().UTC().Format(time.DateOnly)).
 		Scan(&answer.TilesTaken, &answer.StreakCurrent, &answer.StreakBest, &answer.StreakLastDay); err != nil {
 		return nil, fmt.Errorf("failed to read the stats: %w", err)
 	}

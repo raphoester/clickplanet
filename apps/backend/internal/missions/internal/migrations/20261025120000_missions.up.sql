@@ -15,9 +15,10 @@ CREATE TABLE mission_briefs (
 );
 
 CREATE TABLE mission_sheets (
-    day        date NOT NULL,
-    account_id uuid NOT NULL,
-    flag       text NOT NULL CHECK (flag <> ''),
+    day                 date   NOT NULL,
+    account_id          uuid   NOT NULL,
+    flag                text   NOT NULL CHECK (flag <> ''),
+    counted_takes_below bigint NOT NULL CHECK (counted_takes_below >= 0),
     PRIMARY KEY (day, account_id)
 );
 

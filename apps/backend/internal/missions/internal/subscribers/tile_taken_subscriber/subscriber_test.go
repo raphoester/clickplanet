@@ -31,12 +31,12 @@ func TestATakeReachesTheMissionsWithWhoseTileItWasAndWhoseGround(t *testing.T) {
 	useCase := &recordingUseCase{}
 
 	require.NoError(t, tile_taken_subscriber.New(useCase).Handle(t.Context(), &planetv1.TileTaken{
-		AccountId: account, TileId: 42, Country: "fr", Previous: "dz", Ground: "br", TakenAt: timestamppb.New(at),
+		AccountId: account, TileId: 42, Country: "fr", Previous: "dz", Ground: "br", TakenAt: timestamppb.New(at), Position: 7,
 	}))
 
 	id, err := missions.AccountIDOf(account)
 	require.NoError(t, err)
-	assert.Equal(t, []missions.Take{{Account: id, Flag: "fr", Previous: "dz", Ground: "br", At: at}}, useCase.takes)
+	assert.Equal(t, []missions.Take{{Account: id, Flag: "fr", Previous: "dz", Ground: "br", At: at, Position: 7}}, useCase.takes)
 }
 
 func TestAnEventWithNoAccountOrNoTimeIsRefused(t *testing.T) {

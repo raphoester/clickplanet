@@ -31,7 +31,7 @@ func (s *testSuite) SetupSuite() {
 	s.store = postgres_player_store.New(s.db)
 	s.NewStore = func() players.Store { return s.store }
 	s.MakeAdmin = func(_ players.Store, account players.AccountID) {
-		_, err := s.db.ExecContext(s.T().Context(), `UPDATE profiles SET admin = true WHERE account_id = $1`, uuid.UUID(account))
+		_, err := s.db.On(s.T().Context()).ExecContext(s.T().Context(), `UPDATE profiles SET admin = true WHERE account_id = $1`, uuid.UUID(account))
 		s.Require().NoError(err)
 	}
 }
@@ -67,20 +67,29 @@ func (s *testSuite) TestTheTableTakesTheNamesTheRuleTakes() {
 }
 
 func (s *testSuite) TestTheStreakDayIsStoredAsADate() {
-	s.Require().NoError(s.store.Record(s.T().Context(), players.AccountID{15: 1}, players.TakeAt(at)))
+	s.Require().NoError(s.store.Record(s.T().Context(), players.AccountID{15: 1}, players.TakeAt(0, at)))
 
 	var day string
-	s.Require().NoError(s.db.QueryRowContext(s.T().Context(), `SELECT streak_last_day::text FROM stats`).Scan(&day))
+	s.Require().NoError(s.db.On(s.T().Context()).QueryRowContext(s.T().Context(), `SELECT streak_last_day::text FROM stats`).Scan(&day))
 	s.Equal("2026-09-17", day)
 }
 
-func (s *testSuite) TestConcurrentFirstTakesAreAllCounted() {
+func (s *testSuite) TestFactsEachSubscriberCountsAtOnceAreAllKept() {
 	start := make(chan struct{})
 	var wg sync.WaitGroup
-	for range 20 {
+	for _, change := range []func(uint64) func(players.Stats) players.Stats{
+		func(i uint64) func(players.Stats) players.Stats { return players.TakeAt(i, at) },
+		players.BombAt,
+		func(i uint64) func(players.Stats) players.Stats { return players.FortifyAt(i, 1) },
+		func(i uint64) func(players.Stats) players.Stats {
+			return players.MessageAt(at.Add(time.Duration(i) * time.Second)) //nolint:gosec // i < 20.
+		},
+	} {
 		wg.Go(func() {
 			<-start
-			s.NoError(s.store.Record(s.T().Context(), players.AccountID{15: 1}, players.TakeAt(at)))
+			for i := range uint64(20) {
+				s.NoError(s.store.Record(s.T().Context(), players.AccountID{15: 1}, change(i)))
+			}
 		})
 	}
 	close(start)
@@ -88,5 +97,8 @@ func (s *testSuite) TestConcurrentFirstTakesAreAllCounted() {
 
 	stats, err := s.store.Stats(s.T().Context(), players.AccountID{15: 1})
 	s.Require().NoError(err)
-	s.Equal(uint64(20), stats.TilesTaken(), "no take overwrites another, the first ones included")
+	s.Equal(uint64(20), stats.TilesTaken(), "no change overwrites another, the first ones included")
+	s.Equal(uint64(20), stats.BombsDropped())
+	s.Equal(uint64(20), stats.TilesFortified())
+	s.Equal(uint64(20), stats.MessagesSent())
 }

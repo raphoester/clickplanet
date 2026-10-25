@@ -28,8 +28,9 @@ type TileTaken struct {
 	TileId        uint32                 `protobuf:"varint,2,opt,name=tile_id,json=tileId,proto3" json:"tile_id,omitempty"`
 	Country       string                 `protobuf:"bytes,3,opt,name=country,proto3" json:"country,omitempty"`
 	TakenAt       *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=taken_at,json=takenAt,proto3" json:"taken_at,omitempty"`
-	Previous      string                 `protobuf:"bytes,5,opt,name=previous,proto3" json:"previous,omitempty"`
-	Ground        string                 `protobuf:"bytes,6,opt,name=ground,proto3" json:"ground,omitempty"`
+	Position      uint64                 `protobuf:"varint,5,opt,name=position,proto3" json:"position,omitempty"`
+	Previous      string                 `protobuf:"bytes,6,opt,name=previous,proto3" json:"previous,omitempty"`
+	Ground        string                 `protobuf:"bytes,7,opt,name=ground,proto3" json:"ground,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -92,6 +93,13 @@ func (x *TileTaken) GetTakenAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *TileTaken) GetPosition() uint64 {
+	if x != nil {
+		return x.Position
+	}
+	return 0
+}
+
 func (x *TileTaken) GetPrevious() string {
 	if x != nil {
 		return x.Previous
@@ -114,6 +122,7 @@ type BombLanded struct {
 	Cleared       uint32                 `protobuf:"varint,4,opt,name=cleared,proto3" json:"cleared,omitempty"`
 	LandedAt      *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=landed_at,json=landedAt,proto3" json:"landed_at,omitempty"`
 	AccountId     string                 `protobuf:"bytes,6,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	Position      uint64                 `protobuf:"varint,7,opt,name=position,proto3" json:"position,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -190,6 +199,13 @@ func (x *BombLanded) GetAccountId() string {
 	return ""
 }
 
+func (x *BombLanded) GetPosition() uint64 {
+	if x != nil {
+		return x.Position
+	}
+	return 0
+}
+
 type Fortified struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Country       string                 `protobuf:"bytes,1,opt,name=country,proto3" json:"country,omitempty"`
@@ -198,6 +214,7 @@ type Fortified struct {
 	FortifiedAt   *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=fortified_at,json=fortifiedAt,proto3" json:"fortified_at,omitempty"`
 	Ground        string                 `protobuf:"bytes,5,opt,name=ground,proto3" json:"ground,omitempty"`
 	AccountId     string                 `protobuf:"bytes,6,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	Position      uint64                 `protobuf:"varint,7,opt,name=position,proto3" json:"position,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -272,6 +289,13 @@ func (x *Fortified) GetAccountId() string {
 		return x.AccountId
 	}
 	return ""
+}
+
+func (x *Fortified) GetPosition() uint64 {
+	if x != nil {
+		return x.Position
+	}
+	return 0
 }
 
 type BonusClaimed struct {
@@ -390,15 +414,16 @@ var File_planet_v1_events_proto protoreflect.FileDescriptor
 
 const file_planet_v1_events_proto_rawDesc = "" +
 	"\n" +
-	"\x16planet/v1/events.proto\x12\tplanet.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc8\x01\n" +
+	"\x16planet/v1/events.proto\x12\tplanet.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe4\x01\n" +
 	"\tTileTaken\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12\x17\n" +
 	"\atile_id\x18\x02 \x01(\rR\x06tileId\x12\x18\n" +
 	"\acountry\x18\x03 \x01(\tR\acountry\x125\n" +
 	"\btaken_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\atakenAt\x12\x1a\n" +
-	"\bprevious\x18\x05 \x01(\tR\bprevious\x12\x16\n" +
-	"\x06ground\x18\x06 \x01(\tR\x06ground\"\xc9\x01\n" +
+	"\bposition\x18\x05 \x01(\x04R\bposition\x12\x1a\n" +
+	"\bprevious\x18\x06 \x01(\tR\bprevious\x12\x16\n" +
+	"\x06ground\x18\a \x01(\tR\x06ground\"\xe5\x01\n" +
 	"\n" +
 	"BombLanded\x12\x18\n" +
 	"\acountry\x18\x01 \x01(\tR\acountry\x12\x17\n" +
@@ -407,7 +432,8 @@ const file_planet_v1_events_proto_rawDesc = "" +
 	"\acleared\x18\x04 \x01(\rR\acleared\x127\n" +
 	"\tlanded_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\blandedAt\x12\x1d\n" +
 	"\n" +
-	"account_id\x18\x06 \x01(\tR\taccountId\"\xd2\x01\n" +
+	"account_id\x18\x06 \x01(\tR\taccountId\x12\x1a\n" +
+	"\bposition\x18\a \x01(\x04R\bposition\"\xee\x01\n" +
 	"\tFortified\x12\x18\n" +
 	"\acountry\x18\x01 \x01(\tR\acountry\x12\x1f\n" +
 	"\vlandmass_id\x18\x02 \x01(\rR\n" +
@@ -416,7 +442,8 @@ const file_planet_v1_events_proto_rawDesc = "" +
 	"\ffortified_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\vfortifiedAt\x12\x16\n" +
 	"\x06ground\x18\x05 \x01(\tR\x06ground\x12\x1d\n" +
 	"\n" +
-	"account_id\x18\x06 \x01(\tR\taccountId\"h\n" +
+	"account_id\x18\x06 \x01(\tR\taccountId\x12\x1a\n" +
+	"\bposition\x18\a \x01(\x04R\bposition\"h\n" +
 	"\fBonusClaimed\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x129\n" +

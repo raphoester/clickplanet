@@ -51,7 +51,7 @@ func (s *testSuite) signedIn(account accounts.AccountID, provider, subject strin
 }
 
 func (s *testSuite) operates(account accounts.AccountID) {
-	_, err := s.db.ExecContext(s.T().Context(), `UPDATE accounts SET operator = true WHERE id = $1`, account.String())
+	_, err := s.db.On(s.T().Context()).ExecContext(s.T().Context(), `UPDATE accounts SET operator = true WHERE id = $1`, account.String())
 	s.Require().NoError(err)
 }
 
@@ -87,7 +87,7 @@ func (s *testSuite) TestASessionIsKeptUntilItIsDeletedOrItsAccountIs() {
 	}
 	count := func() int {
 		var n int
-		s.Require().NoError(s.db.QueryRowContext(s.T().Context(), `SELECT count(*) FROM admin_sessions`).Scan(&n))
+		s.Require().NoError(s.db.On(s.T().Context()).QueryRowContext(s.T().Context(), `SELECT count(*) FROM admin_sessions`).Scan(&n))
 		return n
 	}
 

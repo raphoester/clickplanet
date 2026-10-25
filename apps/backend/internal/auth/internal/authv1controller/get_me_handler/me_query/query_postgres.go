@@ -30,12 +30,12 @@ var (
 	ErrUnknownProvider = errors.New("a kept provider the proto does not name")
 )
 
-func NewPostgresQuery(db cppg.Querier, clock cptime.Clock) *PostgresQuery {
+func NewPostgresQuery(db cppg.Conn, clock cptime.Clock) *PostgresQuery {
 	return &PostgresQuery{db: db, clock: clock}
 }
 
 type PostgresQuery struct {
-	db    cppg.Querier
+	db    cppg.Conn
 	clock cptime.Clock
 }
 
@@ -62,7 +62,7 @@ func (q *PostgresQuery) Me(ctx context.Context, cookieHeader string) (*authv1.Ge
 	)
 	// Postgres keeps microseconds and rounds what it is sent: truncated, "now < expires_at" stays exact.
 	now := q.clock.Now().UTC().Truncate(time.Microsecond)
-	err := q.db.QueryRowContext(ctx, me, hash, now).Scan(&account, pq.Array(&names))
+	err := q.db.On(ctx).QueryRowContext(ctx, me, hash, now).Scan(&account, pq.Array(&names))
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("%w: no live session for this cookie", ErrNoAccount)
 	}

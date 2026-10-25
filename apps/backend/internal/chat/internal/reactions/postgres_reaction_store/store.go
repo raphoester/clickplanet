@@ -13,12 +13,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
-func New(db cppg.QuerierBeginner) *Store {
+func New(db cppg.Conn) *Store {
 	return &Store{db: db}
 }
 
 type Store struct {
-	db cppg.QuerierBeginner
+	db cppg.Conn
 }
 
 var _ reactions.Storage = (*Store)(nil)
@@ -45,7 +45,7 @@ func (s *Store) Save(ctx context.Context, change reactions.Change) error {
 		)` + bumpVersion
 	}
 
-	if _, err := s.db.ExecContext(ctx, write,
+	if _, err := s.db.On(ctx).ExecContext(ctx, write,
 		string(change.MessageID()), int32(change.Reaction()), string(change.Reactor()), change.At().UTC()); err != nil {
 		return fmt.Errorf("failed to save a reaction: %w", err)
 	}
@@ -62,7 +62,7 @@ func (s *Store) Reactions(
 		plain = append(plain, string(id))
 	}
 
-	rows, err := s.db.QueryContext(ctx, `
+	rows, err := s.db.On(ctx).QueryContext(ctx, `
 		SELECT v.message_id, v.version, r.reaction, r.reactor
 		FROM reaction_versions v
 		LEFT JOIN reactions r ON r.message_id = v.message_id
@@ -100,7 +100,7 @@ func (s *Store) Reactions(
 }
 
 func (s *Store) DeleteBefore(ctx context.Context, cutoff time.Time) (int64, error) {
-	result, err := s.db.ExecContext(ctx, `
+	result, err := s.db.On(ctx).ExecContext(ctx, `
 		WITH versions AS (DELETE FROM reaction_versions WHERE changed_at < $1)
 		DELETE FROM reactions WHERE reacted_at < $1
 	`, cutoff)

@@ -17,7 +17,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes/usecases/mute_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes/usecases/mute_usecase/publishing_mute"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 )
 
 type stubExecutor struct {
@@ -36,7 +36,7 @@ var (
 )
 
 func TestAKeptMuteIsPublishedWithItsAccountTimeAndDuration(t *testing.T) {
-	events := cpbootstrap.NewRecordedEvents()
+	events := cpredis.NewRecordedEvents()
 
 	mute, err := publishing_mute.New(stubExecutor{mute: kept}, events).Execute(t.Context(), mute_usecase.In{Account: bully})
 
@@ -44,6 +44,7 @@ func TestAKeptMuteIsPublishedWithItsAccountTimeAndDuration(t *testing.T) {
 	assert.Equal(t, kept, mute)
 	require.Len(t, events.Published(), 1)
 	assert.True(t, proto.Equal(&chatv1.AccountMuted{
+		MuteId:    "00000000-0000-0000-0000-000000000001",
 		AccountId: "0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10",
 		MutedAt:   timestamppb.New(at),
 		Duration:  durationpb.New(90 * time.Minute),
@@ -51,7 +52,7 @@ func TestAKeptMuteIsPublishedWithItsAccountTimeAndDuration(t *testing.T) {
 }
 
 func TestAMuteThatWasNotKeptPublishesNothing(t *testing.T) {
-	events := cpbootstrap.NewRecordedEvents()
+	events := cpredis.NewRecordedEvents()
 	refused := errors.New("postgres is down")
 
 	_, err := publishing_mute.New(stubExecutor{err: refused}, events).Execute(t.Context(), mute_usecase.In{Account: bully})

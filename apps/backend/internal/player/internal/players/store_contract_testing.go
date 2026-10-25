@@ -27,8 +27,12 @@ func contractProfile(account byte, name Name) Profile {
 	return NewProfile(AccountID{15: account}, name, contractAt)
 }
 
-func (s *StoreContractSuite) recordTake(account byte, at time.Time) {
-	s.Require().NoError(s.store.Record(s.T().Context(), AccountID{15: account}, TakeAt(at)))
+func (s *StoreContractSuite) recordTake(account byte, position uint64, at time.Time) {
+	s.Require().NoError(s.store.Record(s.T().Context(), AccountID{15: account}, TakeAt(position, at)))
+}
+
+func (s *StoreContractSuite) record(account byte, change func(Stats) Stats) {
+	s.Require().NoError(s.store.Record(s.T().Context(), AccountID{15: account}, change))
 }
 
 func (s *StoreContractSuite) stats(account byte) Stats {
@@ -127,55 +131,80 @@ func (s *StoreContractSuite) TestAnAdminIsReadAndARenameKeepsIt() {
 }
 
 func (s *StoreContractSuite) TestEachTakeIsCountedByTheDomainsRule() {
-	s.recordTake(1, contractAt)
-	s.recordTake(1, contractAt.Add(time.Minute))
-	s.recordTake(1, contractAt.Add(time.Hour))
+	s.recordTake(1, 0, contractAt)
+	s.recordTake(1, 1, contractAt.Add(time.Minute))
+	s.recordTake(1, 2, contractAt.Add(time.Hour))
 
-	want := NewStats(AccountID{15: 1}).WithTake(contractAt).WithTake(contractAt.Add(time.Minute)).WithTake(contractAt.Add(time.Hour))
+	want := NewStats(AccountID{15: 1}).WithTake(0, contractAt).WithTake(1, contractAt.Add(time.Minute)).
+		WithTake(2, contractAt.Add(time.Hour))
 	s.Equal(want, s.stats(1))
 	s.Equal(uint32(2), s.stats(1).Streak().Days(), "the third take is past UTC midnight")
 }
 
 func (s *StoreContractSuite) TestTakesOfOneAccountDoNotCountOnAnother() {
-	s.recordTake(1, contractAt)
-	s.recordTake(2, contractAt)
-	s.recordTake(2, contractAt)
+	s.recordTake(1, 0, contractAt)
+	s.recordTake(2, 1, contractAt)
+	s.recordTake(2, 2, contractAt)
 
 	s.Equal(uint64(1), s.stats(1).TilesTaken())
 	s.Equal(uint64(2), s.stats(2).TilesTaken())
 }
 
 func (s *StoreContractSuite) TestEachMessageIsCountedAndStartsNoStreak() {
-	s.Require().NoError(s.store.Record(s.T().Context(), AccountID{15: 1}, Stats.WithMessage))
-	s.Require().NoError(s.store.Record(s.T().Context(), AccountID{15: 1}, Stats.WithMessage))
+	s.record(1, MessageAt(contractAt))
+	s.record(1, MessageAt(contractAt.Add(time.Second)))
 
-	s.Equal(NewStats(AccountID{15: 1}).WithMessage().WithMessage(), s.stats(1))
+	s.Equal(NewStats(AccountID{15: 1}).WithMessage(contractAt).WithMessage(contractAt.Add(time.Second)), s.stats(1))
 }
 
 func (s *StoreContractSuite) TestMessagesAndTakesAddUpOnOneAccount() {
-	s.Require().NoError(s.store.Record(s.T().Context(), AccountID{15: 1}, Stats.WithMessage))
-	s.recordTake(1, contractAt)
-	s.Require().NoError(s.store.Record(s.T().Context(), AccountID{15: 1}, Stats.WithMessage))
-	s.Require().NoError(s.store.Record(s.T().Context(), AccountID{15: 2}, Stats.WithMessage))
+	s.record(1, MessageAt(contractAt))
+	s.recordTake(1, 0, contractAt)
+	s.record(1, MessageAt(contractAt.Add(time.Second)))
+	s.record(2, MessageAt(contractAt))
 
-	s.Equal(NewStats(AccountID{15: 1}).WithMessage().WithTake(contractAt).WithMessage(), s.stats(1))
+	s.Equal(NewStats(AccountID{15: 1}).WithMessage(contractAt).WithTake(0, contractAt).
+		WithMessage(contractAt.Add(time.Second)), s.stats(1))
 	s.Equal(uint64(1), s.stats(2).MessagesSent())
 }
 
 func (s *StoreContractSuite) TestEveryCounterReadsBack() {
-	for _, change := range []func(Stats) Stats{Stats.WithBomb, Stats.WithBonus, Stats.WithRightAnswer, Stats.WithBomb} {
-		s.Require().NoError(s.store.Record(s.T().Context(), AccountID{15: 1}, change))
+	for _, change := range []func(Stats) Stats{
+		BombAt(3), BonusAt(contractAt), RightAnswerAt(contractAt), BombAt(8), FortifyAt(5, 137),
+	} {
+		s.record(1, change)
 	}
-	s.Require().NoError(s.store.Record(s.T().Context(), AccountID{15: 1}, func(stats Stats) Stats { return stats.WithFortify(137) }))
 
-	s.Equal(StatsSnapshot{Account: AccountID{15: 1}, BombsDropped: 2, TilesFortified: 137, BonusesClaimed: 1, RightAnswers: 1},
-		s.stats(1).TakeSnapshot())
+	s.Equal(StatsSnapshot{
+		Account: AccountID{15: 1}, BombsDropped: 2, TilesFortified: 137, BonusesClaimed: 1, RightAnswers: 1,
+		Counted: Counted{BombsBelow: 9, FortifiesBelow: 6, BonusesUntil: contractAt, AnswersUntil: contractAt},
+	}, s.stats(1).TakeSnapshot())
+}
+
+func (s *StoreContractSuite) TestAFactToldAgainAfterItWasKeptIsNotCountedAgain() {
+	for range 2 {
+		for _, change := range []func(Stats) Stats{
+			TakeAt(4, contractAt), MessageAt(contractAt), BombAt(5), FortifyAt(6, 60), BonusAt(contractAt),
+			RightAnswerAt(contractAt),
+		} {
+			s.record(1, change)
+		}
+	}
+
+	s.Equal(StatsSnapshot{
+		Account: AccountID{15: 1}, TilesTaken: 1, Streak: StreakOf(1, DayOf(contractAt)), StreakBest: 1, MessagesSent: 1,
+		BombsDropped: 1, TilesFortified: 60, BonusesClaimed: 1, RightAnswers: 1,
+		Counted: Counted{
+			TakesBelow: 5, BombsBelow: 6, FortifiesBelow: 7,
+			MessagesUntil: contractAt, BonusesUntil: contractAt, AnswersUntil: contractAt,
+		},
+	}, s.stats(1).TakeSnapshot())
 }
 
 func (s *StoreContractSuite) TestADeletedAccountLosesBothAndTheOthersKeepTheirs() {
 	for account := range byte(2) {
 		s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(account+1, []Name{"Ada", "Bob"}[account])))
-		s.recordTake(account+1, contractAt)
+		s.recordTake(account+1, 0, contractAt)
 	}
 
 	s.Require().NoError(s.store.DeleteAccount(s.T().Context(), AccountID{15: 1}))
@@ -192,7 +221,7 @@ func (s *StoreContractSuite) TestDeletingAnUnknownAccountIsNotAnError() {
 }
 
 func (s *StoreContractSuite) TestAnAccountWithStatsOnlyHasNoProfile() {
-	s.recordTake(1, contractAt)
+	s.recordTake(1, 0, contractAt)
 
 	_, err := s.store.Profile(s.T().Context(), AccountID{15: 1})
 	s.Require().ErrorIs(err, ErrNoProfile)
@@ -227,7 +256,7 @@ func (s *StoreContractSuite) TestARenameFreesTheOldName() {
 
 func (s *StoreContractSuite) TestStatsArePagedInAccountOrderAfterTheCursor() {
 	for _, account := range []byte{3, 1, 4, 2} {
-		s.recordTake(account, contractAt)
+		s.recordTake(account, 0, contractAt)
 	}
 
 	first, err := s.store.StatsAfter(s.T().Context(), AccountID{}, 3)

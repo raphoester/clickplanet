@@ -29,16 +29,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsessionverifier"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 const moduleName = "missions"
-
-const (
-	tileTakenBuffer      = 8192
-	accountDeletedBuffer = 2048
-)
 
 func NewModule(config Config) cpbootstrap.Module {
 	return cpbootstrap.Module{
@@ -69,23 +65,33 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to migrate the %s schema: %w", config.Database.Schema, err)
 	}
 
+	streams := cpredis.New(config.Redis, props.Metrics)
+	if err := streams.ConnectCtx(ctx); err != nil {
+		_ = db.Close()
+		return fmt.Errorf("failed to connect the missions module to redis: %w", err)
+	}
+	closeStores := func() {
+		_ = streams.Close()
+		_ = db.Close()
+	}
+
 	store := postgres_mission_store.New(db)
 	briefing := missions.NewBriefing(store, rpc_planet_world.New(planet))
 
-	takes, err := cpbootstrap.Subscribe(props.Events, "missions-progress", tileTakenBuffer,
+	takes, err := cpredis.Subscribe(ctx, streams, "missions-progress",
 		log_subscriber.New(tile_taken_subscriber.New(record_take_usecase.New(calendar, briefing, store)), props.Logger))
 	if err != nil {
-		_ = db.Close()
+		closeStores()
 		return fmt.Errorf("failed to subscribe to planet.v1.TileTaken: %w", err)
 	}
-	deletions, err := cpbootstrap.Subscribe(props.Events, "missions-accounts", accountDeletedBuffer,
+	deletions, err := cpredis.Subscribe(ctx, streams, "missions-accounts",
 		log_subscriber.New(account_deleted_subscriber.New(forget_account_usecase.New(store)), props.Logger))
 	if err != nil {
-		_ = db.Close()
+		closeStores()
 		return fmt.Errorf("failed to subscribe to auth.v1.AccountDeleted: %w", err)
 	}
 
-	props.Runners.Add(cppg.CloseAfter(db, props.Logger, takes, deletions))
+	props.Runners.Add(cppg.CloseAfter(db, props.Logger, cpredis.CloseAfter(streams, props.Logger, takes, deletions)))
 
 	service := missionsv1controller.MissionService{
 		GetMissionsHandler: get_missions_handler.New(
@@ -111,6 +117,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 type Config struct {
 	Calendar missions.Config `koanf:",squash"`
 	Database cppg.Config
+	Redis    cpredis.Config
 }
 
 func (c Config) Validate() error {
@@ -119,6 +126,9 @@ func (c Config) Validate() error {
 	}
 	if err := c.Database.Validate(); err != nil {
 		return fmt.Errorf("missions.database: %w", err)
+	}
+	if err := c.Redis.Validate(); err != nil {
+		return fmt.Errorf("missions.redis: %w", err)
 	}
 	return nil
 }

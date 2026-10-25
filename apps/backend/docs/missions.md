@@ -37,7 +37,8 @@ internal/missions/internal/
     enlisted. **Progress is counted from `TileTaken`** (`missions-progress`, `tile_taken_subscriber`), up to each goal,
     in one transaction under `pg_advisory_xact_lock` per take, with nothing written once nothing changed. **Not from the
     ledger**: `ledger_events` has no time index, and an account's takes since the cutoff would read every take it ever
-    made. Like the stats, a dropped event is a tile the missions never count.
+    made. **A take told twice counts once**: Redis delivers at least once, and the sheet keeps the ledger position after
+    the last take it counted (`counted_takes_below`), so one below it counts nothing.
   - **A guest's progress counts and is kept**, so a guest who signs in that day collects it. **`CollectMission(slot)`
     pays only a signed-in account** (the click token's linked byte; `PermissionDenied` otherwise), once per slot and
     day: `mission_collections` is written in a transaction that commits only if `GrantCharge` kept something. A full

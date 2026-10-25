@@ -17,11 +17,13 @@ type StoreContractSuite struct {
 
 	NewStore func() Store
 
-	store Store
+	store    Store
+	position uint64
 }
 
 func (s *StoreContractSuite) SetupTest() {
 	s.store = s.NewStore()
+	s.position = 0
 }
 
 var (
@@ -52,6 +54,10 @@ func (s *StoreContractSuite) sheet(day Day, account byte) SheetSnapshot {
 }
 
 func (s *StoreContractSuite) takeFor(day Day, account byte, take Take) {
+	if take.Position == 0 {
+		s.position++
+		take.Position = s.position
+	}
 	brief := Draw(day, take.Flag, contractWorld)
 	s.Require().NoError(s.store.ChangeSheet(s.T().Context(), day, s.account(account),
 		func(sheet Sheet) Sheet { return sheet.WithTake(take, brief) }))
@@ -101,8 +107,17 @@ func (s *StoreContractSuite) TestChangesToASheetAddUp() {
 	s.takeFor(contractDay, 1, Take{Flag: "fr", Previous: "dz", Ground: "es", At: contractAt})
 	s.takeFor(contractDay, 1, Take{Flag: "fr", Ground: "es", At: contractAt})
 
-	s.Equal(SheetSnapshot{Flag: "fr", Taken: map[Slot]uint32{1: 2, 2: 1}, Collected: cpcolls.NewSet[Slot]()},
-		s.sheet(contractDay, 1))
+	s.Equal(SheetSnapshot{
+		Flag: "fr", Taken: map[Slot]uint32{1: 2, 2: 1}, Collected: cpcolls.NewSet[Slot](), TakesBelow: 3,
+	}, s.sheet(contractDay, 1))
+}
+
+func (s *StoreContractSuite) TestTheMarkOfTheLastTakeCountedIsKept() {
+	s.takeFor(contractDay, 1, Take{Flag: "fr", At: contractAt, Position: 41})
+	s.takeFor(contractDay, 1, Take{Flag: "fr", At: contractAt, Position: 41})
+
+	s.Equal(uint64(42), s.sheet(contractDay, 1).TakesBelow)
+	s.Equal(uint32(1), s.sheet(contractDay, 1).Taken[1], "the second telling counted nothing")
 }
 
 func (s *StoreContractSuite) TestASheetIsKeptByDayAndAccount() {

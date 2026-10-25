@@ -18,12 +18,12 @@ const longest = 72 * time.Hour
 
 var ErrInvalidWindow = errors.New("the ledger is read over a since before its until, at most 72 hours apart")
 
-func NewPostgresQuery(db cppg.Querier, clock cptime.Clock) *PostgresQuery {
+func NewPostgresQuery(db cppg.Conn, clock cptime.Clock) *PostgresQuery {
 	return &PostgresQuery{db: db, clock: clock}
 }
 
 type PostgresQuery struct {
-	db    cppg.Querier
+	db    cppg.Conn
 	clock cptime.Clock
 }
 
@@ -75,7 +75,7 @@ func (q *PostgresQuery) Ledger(ctx context.Context, since, until time.Time) (*pl
 		return nil, ErrInvalidWindow
 	}
 
-	rows, err := q.db.QueryContext(ctx, changes, since, until)
+	rows, err := q.db.On(ctx).QueryContext(ctx, changes, since, until)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the ledger: %w", err)
 	}

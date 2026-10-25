@@ -20,7 +20,7 @@ import (
 var at = time.Date(2026, 10, 9, 12, 0, 0, 0, time.UTC)
 
 func subscriber(store *inmemory_announcement_storage.Storage) fortified_subscriber.Subscriber {
-	return fortified_subscriber.New(announce_usecase.New(store, inprocess_feed.New(0, slog.New(slog.DiscardHandler)), &announcements.SequentialIDs{}))
+	return fortified_subscriber.New(announce_usecase.New(store, inprocess_feed.New(0, slog.New(slog.DiscardHandler))))
 }
 
 func TestAFortifyOfASizeableTerritoryIsAnnounced(t *testing.T) {

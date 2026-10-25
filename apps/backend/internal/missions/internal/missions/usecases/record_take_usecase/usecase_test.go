@@ -35,12 +35,15 @@ func TestATakeCountsOnTheMissionsOfItsDay(t *testing.T) {
 	store := inmemory_mission_store.New()
 	useCase := record_take_usecase.New(calendar, missions.NewBriefing(store, &countingPlanet{}), store)
 
-	require.NoError(t, useCase.Execute(t.Context(), missions.Take{Account: ada, Flag: "fr", Previous: "dz", At: at}))
+	require.NoError(t, useCase.Execute(t.Context(), missions.Take{
+		Account: ada, Flag: "fr", Previous: "dz", At: at, Position: 41,
+	}))
 
 	sheet, err := store.Sheet(t.Context(), calendar.DayOf(at), ada)
 	require.NoError(t, err)
 	assert.Equal(t, missions.SheetSnapshot{
 		Flag: "fr", Taken: map[missions.Slot]uint32{1: 1, 2: 1, 3: 1}, Collected: cpcolls.NewSet[missions.Slot](),
+		TakesBelow: 42,
 	}, sheet.Snapshot(), "with no ground big enough, the third mission is the flag's too")
 }
 

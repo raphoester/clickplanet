@@ -54,11 +54,11 @@ func TestADeletedAccountsTakesKeepTheirTileFlagAndTimeAndNameNoAccount(t *testin
 	planet := game.schema(t, "planet")
 	require.Eventually(t, func() bool {
 		var anonymous int
-		err := planet.QueryRowContext(t.Context(), `SELECT count(*) FROM ledger_events WHERE account IS NULL`).Scan(&anonymous)
+		err := planet.On(t.Context()).QueryRowContext(t.Context(), `SELECT count(*) FROM ledger_events WHERE account IS NULL`).Scan(&anonymous)
 		return err == nil && anonymous == 2
 	}, 5*time.Second, 20*time.Millisecond)
 
-	rows, err := planet.QueryContext(t.Context(),
+	rows, err := planet.On(t.Context()).QueryContext(t.Context(),
 		`SELECT tile, country, taken_at, account::text FROM ledger_events ORDER BY position`)
 	require.NoError(t, err)
 	defer func() { require.NoError(t, rows.Close()) }()
@@ -127,7 +127,7 @@ func TestABombIsOneEventInTheLedgerWithTheFlagEachTileItClearedWore(t *testing.T
 		previous, ours string
 	)
 	require.Eventually(t, func() bool {
-		err := planet.QueryRowContext(t.Context(), `
+		err := planet.On(t.Context()).QueryRowContext(t.Context(), `
 			SELECT tile, country, previous, payload->>'flag', payload->>'cleared'
 			FROM ledger_events WHERE kind = 'bomb'`).Scan(&tile, &country, &previous, &flag, &ours)
 		return err == nil
@@ -165,7 +165,7 @@ func TestAShieldAndTheClickItStoppedAreEventsInTheLedger(t *testing.T) {
 	planet := game.schema(t, "planet")
 	var events []keptEvent
 	require.Eventually(t, func() bool {
-		rows, err := planet.QueryContext(t.Context(),
+		rows, err := planet.On(t.Context()).QueryContext(t.Context(),
 			`SELECT kind, tile, country, previous, payload::text FROM ledger_events ORDER BY position`)
 		if err != nil {
 			return false

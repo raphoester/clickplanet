@@ -18,5 +18,9 @@ type testSuite struct {
 }
 
 func (s *testSuite) SetupSuite() {
-	s.NewStore = func() rounds.Store { return inmemory_round_store.New() }
+	var store *inmemory_round_store.Store
+	s.NewStore = func() rounds.Store {
+		store = inmemory_round_store.New()
+		return store
+	}
 }

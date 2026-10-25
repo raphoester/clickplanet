@@ -2,6 +2,8 @@ package postgres_mission_store
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -12,12 +14,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
-func New(db cppg.QuerierBeginner) *Store {
+func New(db cppg.Conn) *Store {
 	return &Store{db: db}
 }
 
 type Store struct {
-	db cppg.QuerierBeginner
+	db cppg.Conn
 }
 
 var _ missions.Store = (*Store)(nil)
@@ -25,7 +27,7 @@ var _ missions.Store = (*Store)(nil)
 const sheetLock = 0x6d697373
 
 func (s *Store) Brief(ctx context.Context, day missions.Day, flag string) (missions.Brief, error) {
-	rows, err := s.db.QueryContext(ctx, `
+	rows, err := s.db.On(ctx).QueryContext(ctx, `
 		SELECT slot, kind, target, goal, reward, reward_amount
 		FROM mission_briefs
 		WHERE day = $1::date AND flag = $2
@@ -56,7 +58,7 @@ func (s *Store) Brief(ctx context.Context, day missions.Day, flag string) (missi
 
 func (s *Store) KeepBrief(ctx context.Context, day missions.Day, flag string, brief missions.Brief) (missions.Brief, error) {
 	for _, mission := range brief.Snapshot() {
-		if _, err := s.db.ExecContext(ctx, `
+		if _, err := s.db.On(ctx).ExecContext(ctx, `
 			INSERT INTO mission_briefs (day, flag, slot, kind, target, goal, reward, reward_amount)
 			VALUES ($1::date, $2, $3, $4, $5, $6, $7, $8)
 			ON CONFLICT (day, flag, slot) DO NOTHING
@@ -69,17 +71,20 @@ func (s *Store) KeepBrief(ctx context.Context, day missions.Day, flag string, br
 }
 
 func (s *Store) Sheet(ctx context.Context, day missions.Day, account missions.AccountID) (missions.Sheet, error) {
-	return sheetOf(ctx, s.db, day, account)
+	return sheetOf(ctx, s.db.On(ctx), day, account)
 }
 
 func sheetOf(ctx context.Context, db cppg.Querier, day missions.Day, account missions.AccountID) (missions.Sheet, error) {
 	snapshot := missions.SheetSnapshot{Taken: map[missions.Slot]uint32{}, Collected: cpcolls.NewSet[missions.Slot]()}
 
-	if err := db.QueryRowContext(ctx, `
-		SELECT coalesce((SELECT flag FROM mission_sheets WHERE day = $1::date AND account_id = $2), '')
-	`, day.String(), uuid.UUID(account)).Scan(&snapshot.Flag); err != nil {
+	var below int64
+	err := db.QueryRowContext(ctx, `
+		SELECT flag, counted_takes_below FROM mission_sheets WHERE day = $1::date AND account_id = $2
+	`, day.String(), uuid.UUID(account)).Scan(&snapshot.Flag, &below)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return missions.Sheet{}, fmt.Errorf("failed to read the day's flag: %w", err)
 	}
+	snapshot.TakesBelow = uint64(below) //nolint:gosec // CHECK (counted_takes_below >= 0).
 
 	if err := slots(ctx, db, `SELECT slot, taken FROM mission_progress WHERE day = $1::date AND account_id = $2`,
 		day, account, func(slot missions.Slot, taken uint32) { snapshot.Taken[slot] = taken }); err != nil {
@@ -118,95 +123,69 @@ func slots(
 
 func (s *Store) ChangeSheet(
 	ctx context.Context, day missions.Day, account missions.AccountID, change func(missions.Sheet) missions.Sheet,
-) (err error) {
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("failed to begin changing the day's missions: %w", err)
-	}
-	defer func() {
+) error {
+	return s.db.InTx(ctx, func(ctx context.Context) error {
+		tx := s.db.On(ctx)
+		if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock($1, hashtext($2))`, sheetLock, account.String()); err != nil {
+			return fmt.Errorf("failed to lock the account's missions: %w", err)
+		}
+
+		current, err := sheetOf(ctx, tx, day, account)
 		if err != nil {
-			_ = tx.Rollback()
+			return err
 		}
-	}()
+		before, after := current.Snapshot(), change(current).Snapshot()
 
-	if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock($1, hashtext($2))`, sheetLock, account.String()); err != nil {
-		return fmt.Errorf("failed to lock the account's missions: %w", err)
-	}
-
-	current, err := sheetOf(ctx, tx, day, account)
-	if err != nil {
-		return err
-	}
-	before, after := current.Snapshot(), change(current).Snapshot()
-
-	if after.Flag != "" && after.Flag != before.Flag {
-		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO mission_sheets (day, account_id, flag) VALUES ($1::date, $2, $3)
-			ON CONFLICT (day, account_id) DO UPDATE SET flag = excluded.flag
-		`, day.String(), uuid.UUID(account), after.Flag); err != nil {
-			return fmt.Errorf("failed to keep the day's flag: %w", err)
+		if after.Flag != "" && (after.Flag != before.Flag || after.TakesBelow != before.TakesBelow) {
+			if _, err := tx.ExecContext(ctx, `
+				INSERT INTO mission_sheets (day, account_id, flag, counted_takes_below) VALUES ($1::date, $2, $3, $4)
+				ON CONFLICT (day, account_id) DO UPDATE SET flag = excluded.flag, counted_takes_below = excluded.counted_takes_below
+			`, day.String(), uuid.UUID(account), after.Flag, int64(after.TakesBelow)); err != nil { //nolint:gosec // a ledger position fits in int64.
+				return fmt.Errorf("failed to keep the day's flag: %w", err)
+			}
 		}
-	}
-	for slot, taken := range after.Taken {
-		if taken == before.Taken[slot] {
-			continue
+		for slot, taken := range after.Taken {
+			if taken == before.Taken[slot] {
+				continue
+			}
+			if _, err := tx.ExecContext(ctx, `
+				INSERT INTO mission_progress (day, account_id, slot, taken) VALUES ($1::date, $2, $3, $4)
+				ON CONFLICT (day, account_id, slot) DO UPDATE SET taken = excluded.taken
+			`, day.String(), uuid.UUID(account), int16(slot), int64(taken)); err != nil {
+				return fmt.Errorf("failed to keep the progress of mission %d: %w", slot, err)
+			}
 		}
-		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO mission_progress (day, account_id, slot, taken) VALUES ($1::date, $2, $3, $4)
-			ON CONFLICT (day, account_id, slot) DO UPDATE SET taken = excluded.taken
-		`, day.String(), uuid.UUID(account), int16(slot), int64(taken)); err != nil {
-			return fmt.Errorf("failed to keep the progress of mission %d: %w", slot, err)
-		}
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit the day's missions: %w", err)
-	}
-	return nil
+		return nil
+	})
 }
 
 func (s *Store) Collect(
 	ctx context.Context, day missions.Day, account missions.AccountID, slot missions.Slot, at time.Time,
 	pay func(context.Context) error,
-) (err error) {
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("failed to begin collecting mission %d: %w", slot, err)
-	}
-	defer func() {
+) error {
+	return s.db.InTx(ctx, func(ctx context.Context) error {
+		kept, err := s.db.On(ctx).ExecContext(ctx, `
+			INSERT INTO mission_collections (day, account_id, slot, collected_at) VALUES ($1::date, $2, $3, $4)
+			ON CONFLICT (day, account_id, slot) DO NOTHING
+		`, day.String(), uuid.UUID(account), int16(slot), at)
 		if err != nil {
-			_ = tx.Rollback()
+			return fmt.Errorf("failed to keep the collection of mission %d: %w", slot, err)
 		}
-	}()
+		rows, err := kept.RowsAffected()
+		if err != nil {
+			return fmt.Errorf("failed to read whether mission %d was collected: %w", slot, err)
+		}
+		if rows == 0 {
+			return missions.ErrCollected
+		}
 
-	kept, err := tx.ExecContext(ctx, `
-		INSERT INTO mission_collections (day, account_id, slot, collected_at) VALUES ($1::date, $2, $3, $4)
-		ON CONFLICT (day, account_id, slot) DO NOTHING
-	`, day.String(), uuid.UUID(account), int16(slot), at)
-	if err != nil {
-		return fmt.Errorf("failed to keep the collection of mission %d: %w", slot, err)
-	}
-	rows, err := kept.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to read whether mission %d was collected: %w", slot, err)
-	}
-	if rows == 0 {
-		return missions.ErrCollected
-	}
-
-	if err := pay(ctx); err != nil {
-		return err
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit the collection of mission %d: %w", slot, err)
-	}
-	return nil
+		return pay(ctx)
+	})
 }
 
 func (s *Store) DeleteAccount(ctx context.Context, account missions.AccountID) error {
 	for _, table := range []string{"mission_sheets", "mission_collections"} {
-		if _, err := s.db.ExecContext(ctx, `DELETE FROM `+table+` WHERE account_id = $1`, uuid.UUID(account)); err != nil {
+		if _, err := s.db.On(ctx).ExecContext(ctx, `DELETE FROM `+table+` WHERE account_id = $1`, uuid.UUID(account)); err != nil {
 			return fmt.Errorf("failed to forget the account's %s: %w", table, err)
 		}
 	}
