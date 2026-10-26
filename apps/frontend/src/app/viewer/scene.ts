@@ -68,9 +68,10 @@ export function addDisplayObjects(
     displayPoints: THREE.Points,
     graphics: Graphics,
     sphere: THREE.BufferGeometry,
+    renderer: THREE.WebGLRenderer,
 ) {
     scene.add(displayPoints);
-    scene.add(createEarth(graphics.earth, sphere));
+    scene.add(createEarth(graphics, sphere, renderer));
     if (!graphics.earth) scene.add(new THREE.AmbientLight(0xffffff, 2));
     scene.add(createAtmosphere(graphics.halo));
 }

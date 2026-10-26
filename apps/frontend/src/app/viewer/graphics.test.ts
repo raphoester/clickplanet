@@ -26,6 +26,8 @@ describe("graphicsOf", () => {
         expect(graphicsOf("?gfx=tiles", "sharp")).toEqual({...PLAIN, tiles: true})
         expect(graphicsOf("?gfx=halo", "sharp")).toEqual({...PLAIN, halo: true})
         expect(graphicsOf("?gfx=compact", "plain")).toEqual({...PLAIN, compact: true})
+        expect(graphicsOf("?gfx=etc1s", "sharp")).toEqual({...PLAIN, etc1s: true})
+        expect(graphicsOf("?gfx=uastc", "sharp")).toEqual({...PLAIN, uastc: true})
     })
 
     it("takes the light as its three parts", () => {

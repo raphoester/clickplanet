@@ -28,6 +28,7 @@ query only the parts it names are on, so `?gfx=` alone is the plain globe:
 | `compact` | the tiles' compact layout: 20 bytes a tile on the GPU, not 56 |
 | `light` | `earth`, `tiles` and `halo` |
 | `all` | all of the above: everything HD graphics turns on |
+| `etc1s`, `uastc` | the earth's texture as a KTX2 file the GPU keeps compressed, in that format; not part of HD graphics or `all`. See [The globe's texture](globe-texture.md#kept-compressed-on-the-gpu-a-trial) |
 
 Words add up (`?gfx=ratio,tiles`), and sit beside the rest of the query
 (`?f=fr&gfx=halo`). A word it does not know turns nothing on.

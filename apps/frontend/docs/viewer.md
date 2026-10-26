@@ -97,7 +97,8 @@
   hit and a placement fade without changing size.
 - `earth.ts` — the opaque sphere under the tiles, in the globe's light with
   `?gfx=earth`. See [The light](light.md). The sphere comes from `sphere.ts`, built
-  once per globe and shared with the picker.
+  once per globe and shared with the picker. Its texture is the JPEG, or a KTX2
+  file with `?gfx=etc1s` or `?gfx=uastc`; see [The globe's texture](globe-texture.md).
 - `graphics.ts` — `graphicsOf`, which parts of the sharper, lit globe are on:
   the HD graphics setting, unless the URL names them. See [HD graphics](hd-graphics.md).
 - `shaders/` — GLSL for the display, picking, earth, star, enclosure and glint passes.

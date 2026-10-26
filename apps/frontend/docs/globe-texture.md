@@ -48,3 +48,25 @@ An earlier version was a frequency separation, `mix(sea, land, cover) + (photo -
 average)`. That is only the identity inside a block that is all land or all water;
 along a coast it pushed the land further from the water in both directions and
 moved 37% of the image.
+
+## Kept compressed on the GPU: a trial
+
+**The GPU holds the JPEG as raw pixels, 42.7 MB with its mipmaps.** A KTX2 file
+in Basis Universal's formats stays compressed on the GPU, so `npm run earth` also
+writes the same corrected pixels as two of them, with the encoder from the
+`ktx2-encoder` package. `?gfx=etc1s` and `?gfx=uastc` load them through three's
+`KTX2Loader` (see [HD graphics](hd-graphics.md)), and the JPEG instead when the
+device has no compressed format or the load fails.
+
+- **ETC1S** (709 KB; 5.3 MB on a phone's GPU, 10.7 MB on a desktop's) gives each
+  block of 4×4 pixels one colour, only lighter or darker. A cell is 1.5 pixels
+  across, so every block on a coast holds land and water and comes out grey: a
+  small island becomes a grey square, and the shallow water loses its blue.
+- **UASTC** (3.9 MB; 10.7 MB on the GPU) cannot be told from the JPEG, but it
+  makes a first visit 3.5 MB bigger and shows the earth 3.5 s later on Fast 4G.
+
+Both files are written upside down, because a compressed texture cannot be
+flipped on upload, and marked linear, so three samples their bytes as stored, as
+it does the JPEG's: both earth shaders are tuned to that. The transcoder is
+three's own, imported with `?url` so that Vite serves it from `/assets/` under its
+hash, and a `LoadingManager` maps the names `KTX2Loader` asks for to those URLs.

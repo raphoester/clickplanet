@@ -14,7 +14,7 @@ npm run map:audit  # Check the tile set, Natural Earth and the globe texture aga
 npm run quiz:generate # Rewrite the shared quiz bank (see ../../quiz/README.md). The backend embeds it; this app never does
 npm run borderLines # Trace the countries' outlines onto the tile lattice (see country-outlines.md)
 npm run landmask   # Write which lattice points are tiles, from the coordinates blob (see tile-positions.md)
-npm run earth      # Cut the globe's texture from the tile field (see globe-texture.md)
+npm run earth      # Cut the globe's texture from the tile field, as a JPEG and two KTX2 files (see globe-texture.md)
 npm run flagFit    # Work out which flags stretch, and where each one is cropped
 npm run mobile     # Screenshot/inspect a URL as a phone (see styling.md)
 npm run clip -- --replay replay.json --count 3  # The 3 best stories in it, as vertical videos with what to post

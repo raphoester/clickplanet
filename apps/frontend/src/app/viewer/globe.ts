@@ -972,7 +972,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         if (tracking) targets.lock(fortification.landmass, fortification.countryId)
     })
 
-    addDisplayObjects(scene, field.displayPoints, graphics, sphere)
+    addDisplayObjects(scene, field.displayPoints, graphics, sphere, renderer)
 
     let captureRequests: CaptureRequest[] = []
 

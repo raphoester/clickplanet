@@ -38,6 +38,9 @@ cache entirely:
   the tile field. URL in `earthAsset.ts`. Regenerate with `npm run earth`, which
   reads the coordinates blob — so **after `npm run map:generate`**, or the coast
   has discs in the water again. See [The globe's texture](globe-texture.md).
+  It also writes `earth-etc1s-<hash>.ktx2` and `earth-uastc-<hash>.ktx2`, the
+  same image for the GPU to keep compressed, loaded only with `?gfx=etc1s` or
+  `?gfx=uastc`.
 - `/static/countries/atlas-<hash>.png` — the flag sprite atlas. URL and pixel
   size in `atlasAsset.ts`. Regenerate with `npm run atlas`.
 - `/static/reactions/<name>-<hash>.svg` — the chat's reaction images. URLs in
