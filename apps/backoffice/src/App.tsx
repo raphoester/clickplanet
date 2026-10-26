@@ -12,6 +12,7 @@ import {ClipStatsPage} from "./clips/ClipStatsPage.tsx"
 import {OpenPlayer, Opened, PageId, titleOf} from "./navigation.ts"
 import {RulesPanel} from "./ops/RulesPanel.tsx"
 import {AntibotRulesPanel} from "./ops/AntibotRulesPanel.tsx"
+import {SchedulePanel} from "./ops/SchedulePanel.tsx"
 import {TitlesPanel} from "./ops/TitlesPanel.tsx"
 import {idOf} from "./players/caller.ts"
 import {PlayersPage} from "./players/PlayersPage.tsx"
@@ -92,6 +93,9 @@ function Console({operator, onSignedOut}: {operator: string, onSignedOut: () => 
                 {page === "titles" && <TitlesPanel player={CLIENTS.player}/>}
                 {page === "rules" && <RulesPanel planet={CLIENTS.planet}/>}
                 {page === "antibotRules" && <AntibotRulesPanel antibot={CLIENTS.antibot}/>}
+                {page === "schedule" && (
+                    <SchedulePanel metagame={CLIENTS.metagame} planet={CLIENTS.planet} antibot={CLIENTS.antibot}/>
+                )}
             </Page>
         </OpenPlayer.Provider>
     )

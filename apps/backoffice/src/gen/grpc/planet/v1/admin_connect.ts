@@ -159,7 +159,8 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Makes a set, or replaces the values of one. The game follows a set in force within a second.
+     * Makes a set, or replaces its values. A set that plays now is FailedPrecondition: the rules in force change only
+     * through the schedule.
      *
      * @generated from rpc planet.v1.AdminService.SaveRuleSet
      */

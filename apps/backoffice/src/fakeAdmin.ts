@@ -70,6 +70,18 @@ import {
     TikTokAccount,
 } from "./gen/grpc/clips/v1/admin_pb.ts"
 import {GetTerritoriesRequest, GetTerritoriesResponse, Territory} from "./gen/grpc/planet/v1/internal_pb.ts"
+import {
+    AddEntryRequest,
+    AddEntryResponse,
+    DeleteEntryRequest,
+    DeleteEntryResponse,
+    EditEntryRequest,
+    EditEntryResponse,
+    Entry,
+    GetScheduleRequest,
+    GetScheduleResponse,
+    Playing,
+} from "./gen/grpc/metagame/v1/admin_pb.ts"
 import {ChargesHeld, TileUpdate} from "./gen/grpc/planet/v1/planet_pb.ts"
 import {
     AdminGetPlayerRequest,
@@ -99,6 +111,7 @@ import {
     ChatAdmin,
     ClipsAdmin,
     Clients,
+    MetagameAdmin,
     PlanetAdmin,
     PlayerAdmin,
     SeasonsAdmin,
@@ -108,6 +121,7 @@ import {
 export const AT = new Date("2026-10-18T12:00:00Z")
 
 export const ACCOUNT = "0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10"
+
 
 // A change of the fake ledger, its minutes into the hour before AT.
 function change(minutes: number, by: string, update: PartialMessage<TileUpdate>): LedgerChange {
@@ -183,6 +197,7 @@ export function antibotMetricsAt(seconds: number, minutes: number): AntibotGetMe
 export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAdmin, ClipsAdmin, SeasonsAdmin {
     readonly kind = "fake admin"
     readonly antibot: FakeAntibot = new FakeAntibot(this)
+    readonly metagame: FakeMetagame = new FakeMetagame(this)
     readonly asked: {method: string, request: unknown}[] = []
     readonly refusals = new Map<string, Code>()
     private readonly holds = new Map<string, Promise<void>>()
@@ -233,6 +248,24 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
             }),
         })],
         playing: "default",
+    })
+    // An entry that ended, one that runs until 2098, and one to come.
+    schedule = new GetScheduleResponse({
+        entries: [
+            new Entry({
+                id: "entry-ended", ruleSet: "rush", startsAt: Timestamp.fromDate(new Date("2020-10-31T21:00:00Z")),
+                endsAt: Timestamp.fromDate(new Date("2020-10-31T23:00:00Z")), priority: 1, madeAt: Timestamp.fromDate(AT),
+            }),
+            new Entry({
+                id: "entry-running", ruleSet: "calm", startsAt: Timestamp.fromDate(AT),
+                endsAt: Timestamp.fromDate(new Date("2098-01-01T00:00:00Z")), priority: 1, madeAt: Timestamp.fromDate(AT),
+            }),
+            new Entry({
+                id: "entry-to-come", ruleSet: "frozen", startsAt: Timestamp.fromDate(new Date("2098-06-01T20:00:00Z")),
+                endsAt: Timestamp.fromDate(new Date("2098-06-01T22:00:00Z")), priority: 2, madeAt: Timestamp.fromDate(AT),
+            }),
+        ],
+        playing: new Playing({ruleSet: "calm", since: Timestamp.fromDate(AT), entryId: "entry-running"}),
     })
     authors = [new Author({accountId: ACCOUNT, name: "BraveFox42"})]
     profile = new AdminGetPlayerResponse({
@@ -359,7 +392,10 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
     ]]
 
     clients(): Clients {
-        return {antibot: this.antibot, chat: this, planet: this, player: this, support: this, clips: this, seasons: this}
+        return {
+            antibot: this.antibot, chat: this, planet: this, player: this, metagame: this.metagame, support: this, clips: this,
+            seasons: this,
+        }
     }
 
     refuse(method: string, code: Code) {
@@ -597,5 +633,43 @@ export class FakeAntibot implements AntibotAdmin {
             })
         }
         return answer
+    }
+}
+
+// Keeps the schedule's entries as the server does, and checks nothing.
+export class FakeMetagame implements MetagameAdmin {
+    constructor(private readonly admin: FakeAdmin) {}
+
+    getSchedule(request: PartialMessage<GetScheduleRequest>): Promise<GetScheduleResponse> {
+        return this.admin.answer("getSchedule", request, this.admin.schedule)
+    }
+
+    addEntry(request: PartialMessage<AddEntryRequest>): Promise<AddEntryResponse> {
+        const id = `entry-${this.admin.schedule.entries.length + 1}`
+        const answer = this.admin.answer("addEntry", request, new AddEntryResponse({id}))
+        if (!this.admin.refusals.has("addEntry")) {
+            this.keep([...this.admin.schedule.entries, new Entry({...request, id})])
+        }
+        return answer
+    }
+
+    editEntry(request: PartialMessage<EditEntryRequest>): Promise<EditEntryResponse> {
+        const answer = this.admin.answer("editEntry", request, new EditEntryResponse())
+        if (!this.admin.refusals.has("editEntry")) {
+            this.keep(this.admin.schedule.entries.map(entry => entry.id === request.id ? new Entry({...entry, ...request}) : entry))
+        }
+        return answer
+    }
+
+    deleteEntry(request: PartialMessage<DeleteEntryRequest>): Promise<DeleteEntryResponse> {
+        const answer = this.admin.answer("deleteEntry", request, new DeleteEntryResponse())
+        if (!this.admin.refusals.has("deleteEntry")) {
+            this.keep(this.admin.schedule.entries.filter(entry => entry.id !== request.id))
+        }
+        return answer
+    }
+
+    private keep(entries: Entry[]) {
+        this.admin.schedule = new GetScheduleResponse({...this.admin.schedule, entries})
     }
 }

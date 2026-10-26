@@ -2,7 +2,6 @@ package play_rules_usecase
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sync"
 
@@ -13,6 +12,11 @@ type Sets interface {
 	Set(ctx context.Context, name rules.SetName) (rules.Set, error)
 }
 
+type Choices interface {
+	Choice(ctx context.Context) (rules.Choice, bool, error)
+	Save(ctx context.Context, choice rules.Choice) error
+}
+
 type Rules interface {
 	Enforce(set rules.Set)
 }
@@ -21,82 +25,97 @@ type Bans interface {
 	Restate(ctx context.Context) error
 }
 
-// Execute plays the set for the name asked last; took is false when it is in force already.
+// Execute plays the set chosen last, at boot; Play plays a newer choice. took is false when the set is in force
+// already.
 type Executor interface {
-	Execute(ctx context.Context) (taken Taken, took bool, err error)
+	Execute(ctx context.Context) (taken rules.Snapshot, took bool, err error)
+	Play(ctx context.Context, choice rules.Choice) (taken rules.Snapshot, took bool, err error)
 }
 
-type Taken struct {
-	Set rules.Snapshot
-	// The planet rule set the antibot was asked to play.
-	Asked rules.SetName
+func New(sets Sets, choices Choices, inForce Rules, bans Bans) *UseCase {
+	return &UseCase{sets: sets, choices: choices, inForce: inForce, bans: bans}
 }
 
-func New(sets Sets, inForce Rules, bans Bans) *UseCase {
-	return &UseCase{sets: sets, inForce: inForce, bans: bans, asked: rules.Default}
-}
-
-// UseCase plays the set named like the planet rule set in force, or default when the antibot keeps no set of that
-// name.
+// UseCase plays the set the schedule chose last, and default until it chooses one.
 type UseCase struct {
 	sets    Sets
+	choices Choices
 	inForce Rules
 	bans    Bans
 
 	mu     sync.Mutex
-	asked  rules.SetName
+	chosen rules.Choice
 	taken  rules.Set
 	untold bool
 }
 
-func (u *UseCase) Play(ctx context.Context, name rules.SetName) (Taken, bool, error) {
-	u.mu.Lock()
-	defer u.mu.Unlock()
-
-	u.asked = name
-	return u.playLocked(ctx)
-}
-
-// Plays is true for the set in force, and for the set named like planet's even before the antibot keeps one.
+// Plays is true for the set in force.
 func (u *UseCase) Plays(name rules.SetName) bool {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 
-	return name == u.asked || u.taken.Is(name)
+	return u.taken.Is(name)
 }
 
-func (u *UseCase) Execute(ctx context.Context) (Taken, bool, error) {
+func (u *UseCase) Execute(ctx context.Context) (rules.Snapshot, bool, error) {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 
-	return u.playLocked(ctx)
+	chosen, kept, err := u.choices.Choice(ctx)
+	if err != nil {
+		return rules.Snapshot{}, false, fmt.Errorf("could not read the rule set chosen last: %w", err)
+	}
+	if !kept {
+		chosen = rules.NoChoice
+	}
+
+	set, err := u.sets.Set(ctx, chosen.Set)
+	if err != nil {
+		return rules.Snapshot{}, false, fmt.Errorf("could not read the rules to play for %q: %w", chosen.Set, err)
+	}
+	u.chosen = chosen
+
+	return u.take(ctx, set)
 }
 
-func (u *UseCase) playLocked(ctx context.Context) (Taken, bool, error) {
-	set, err := u.sets.Set(ctx, u.asked)
-	if errors.Is(err, rules.ErrUnknownSet) && u.asked != rules.Default {
-		set, err = u.sets.Set(ctx, rules.Default)
+// Play refuses a set the antibot keeps none of, or one that cannot play: the rules in force stay.
+func (u *UseCase) Play(ctx context.Context, choice rules.Choice) (rules.Snapshot, bool, error) {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+
+	if !choice.Overrules(u.chosen) {
+		return u.restate(ctx, u.taken, false)
 	}
+
+	set, err := u.sets.Set(ctx, choice.Set)
 	if err != nil {
-		return Taken{}, false, fmt.Errorf("could not read the rules to play for %q: %w", u.asked, err)
+		return u.taken.TakeSnapshot(), false, fmt.Errorf("could not play the rule set %q: %w", choice.Set, err)
 	}
+	if err := u.choices.Save(ctx, choice); err != nil {
+		return u.taken.TakeSnapshot(), false, fmt.Errorf("could not keep the choice of the rule set %q: %w", choice.Set, err)
+	}
+	u.chosen = choice
 
-	taken := Taken{Set: set.TakeSnapshot(), Asked: u.asked}
+	return u.take(ctx, set)
+}
 
+func (u *UseCase) take(ctx context.Context, set rules.Set) (rules.Snapshot, bool, error) {
 	took := !set.Equal(u.taken)
 	if took {
 		u.inForce.Enforce(set)
 		u.taken, u.untold = set, true
 	}
+	return u.restate(ctx, set, took)
+}
 
-	// Planet hears each running ban again under the set taken: one that stops enforcing admits them.
+// Planet hears each running ban again under the set taken: one that stops enforcing admits them.
+func (u *UseCase) restate(ctx context.Context, set rules.Set, took bool) (rules.Snapshot, bool, error) {
 	if u.untold {
 		if err := u.bans.Restate(ctx); err != nil {
-			return taken, took, fmt.Errorf("could not tell planet the running bans under the rule set %q: %w",
-				taken.Set.Name, err)
+			return set.TakeSnapshot(), took, fmt.Errorf("could not tell planet the running bans under the rule set %q: %w",
+				set.TakeSnapshot().Name, err)
 		}
 		u.untold = false
 	}
-
-	return taken, took, nil
+	return set.TakeSnapshot(), took, nil
 }

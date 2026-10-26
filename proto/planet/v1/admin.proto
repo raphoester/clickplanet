@@ -52,7 +52,8 @@ service AdminService {
 
   rpc GetRules(GetRulesRequest) returns (GetRulesResponse);
 
-  // Makes a set, or replaces the values of one. The game follows a set in force within a second.
+  // Makes a set, or replaces its values. A set that plays now is FailedPrecondition: the rules in force change only
+  // through the schedule.
   rpc SaveRuleSet(SaveRuleSetRequest) returns (SaveRuleSetResponse);
 }
 

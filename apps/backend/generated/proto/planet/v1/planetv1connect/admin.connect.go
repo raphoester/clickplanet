@@ -104,7 +104,8 @@ type AdminServiceClient interface {
 	// `started_at` are subtracted, never two with different ones.
 	GetMetrics(context.Context, *connect.Request[v1.GetMetricsRequest]) (*connect.Response[v1.GetMetricsResponse], error)
 	GetRules(context.Context, *connect.Request[v1.GetRulesRequest]) (*connect.Response[v1.GetRulesResponse], error)
-	// Makes a set, or replaces the values of one. The game follows a set in force within a second.
+	// Makes a set, or replaces its values. A set that plays now is FailedPrecondition: the rules in force change only
+	// through the schedule.
 	SaveRuleSet(context.Context, *connect.Request[v1.SaveRuleSetRequest]) (*connect.Response[v1.SaveRuleSetResponse], error)
 }
 
@@ -342,7 +343,8 @@ type AdminServiceHandler interface {
 	// `started_at` are subtracted, never two with different ones.
 	GetMetrics(context.Context, *connect.Request[v1.GetMetricsRequest]) (*connect.Response[v1.GetMetricsResponse], error)
 	GetRules(context.Context, *connect.Request[v1.GetRulesRequest]) (*connect.Response[v1.GetRulesResponse], error)
-	// Makes a set, or replaces the values of one. The game follows a set in force within a second.
+	// Makes a set, or replaces its values. A set that plays now is FailedPrecondition: the rules in force change only
+	// through the schedule.
 	SaveRuleSet(context.Context, *connect.Request[v1.SaveRuleSetRequest]) (*connect.Response[v1.SaveRuleSetResponse], error)
 }
 

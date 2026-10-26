@@ -11,6 +11,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips"
+	"github.com/raphoester/clickplanet.lol-backend/internal/metagame"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player"
@@ -30,6 +31,7 @@ type Config struct {
 	Chat     chat.Config
 	Player   player.Config
 	Seasons  seasons.Config
+	Metagame metagame.Config
 	Missions missions.Config
 	Support  support.Config
 	// The numbers of the clips the clips job posted.
@@ -75,6 +77,7 @@ func describeModules(config Config) []cpbootstrap.Module {
 		chat.NewModule(config.Chat),
 		player.NewModule(config.Player),
 		seasons.NewModule(config.Seasons),
+		metagame.NewModule(config.Metagame),
 		missions.NewModule(config.Missions),
 		support.NewModule(config.Support),
 		clips.NewModule(config.Clips),
@@ -99,6 +102,7 @@ func (c Config) Validate() error {
 		c.Auth.Validate(),
 		c.Player.Validate(),
 		c.Seasons.Validate(),
+		c.Metagame.Validate(),
 		c.Missions.Validate(),
 		c.Support.Validate(),
 		c.Clips.Validate(),

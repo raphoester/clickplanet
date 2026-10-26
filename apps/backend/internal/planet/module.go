@@ -58,6 +58,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/reassign_country_usecase/audit_reassign"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/commands/admit_caller_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/commands/apply_grant_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/commands/play_rule_set_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/commands/refuse_caller_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/facts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
@@ -97,6 +98,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_map_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_metrics_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_replay_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_rule_set_names_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_rule_set_names_handler/rule_set_names_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_rules_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_rules_handler/rule_sets_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_takes_by_country_handler"
@@ -123,6 +126,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/refusals/postgres_refusal_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/parts"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/postgres_choice_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/postgres_rule_set_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/usecases/play_rules_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/usecases/play_rules_usecase/log_play_rules"
@@ -204,10 +208,16 @@ func NewModule(config Config) cpbootstrap.Module {
 			ruleParts := parts.All()
 			ruleSets := postgres_rule_set_store.New(db, ruleParts)
 			inForce := rules.NewInForce(clock)
-			play := play_rules_usecase.New(ruleSets, inForce)
-			if _, _, err := log_play_rules.New(play, props.Logger).Execute(ctx); err != nil {
+			play := play_rules_usecase.New(ruleSets, postgres_choice_store.New(db), inForce)
+			playRules := log_play_rules.New(play, props.Logger)
+			if _, _, err := playRules.Execute(ctx); err != nil {
 				closeStores()
 				return fmt.Errorf("failed to play the rules postgres keeps: %w", err)
+			}
+			chosen, err := cpredis.Handle(ctx, streams, play_rule_set_handler.New(playRules))
+			if err != nil {
+				closeStores()
+				return fmt.Errorf("failed to handle planet.v1.PlayRuleSet: %w", err)
 			}
 			throttle := rules.Reader(inForce, clicks.ThrottlePart)
 			game := rules.Reader(inForce, bonuses.Part)
@@ -249,7 +259,7 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			// Not closers: closers run before the runners' last flush, and the relays' last send.
 			props.Runners.Add(cppg.CloseAfter(db, props.Logger, tilesStorage, takings,
-				cpredis.CloseAfter(streams, props.Logger, deletions, relay, grants, refused, admitted,
+				cpredis.CloseAfter(streams, props.Logger, deletions, relay, grants, refused, admitted, chosen,
 					facts.NewRelay(told, streams, factsRelayInterval))))
 			props.Runners.Add(ledger.NewRetention(config.Ledger, takings, clock))
 
@@ -343,6 +353,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				GetTerritoriesHandler:    getTerritories,
 				GetCountrySizesHandler:   get_country_sizes_handler.New(borders),
 				GetAllegianceOfHandler:   get_allegiance_of_handler.New(allegiance_query.NewPostgresQuery(db)),
+				GetRuleSetNamesHandler:   get_rule_set_names_handler.New(rule_set_names_query.NewPostgresQuery(db)),
 			}
 			if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 				return planetv1connect.NewInternalServiceHandler(internalService, options...)

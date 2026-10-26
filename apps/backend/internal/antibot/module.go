@@ -12,6 +12,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/ban_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/get_metrics_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/get_rule_set_names_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/get_rule_set_names_handler/rule_set_names_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/get_rules_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/get_rules_handler/rule_sets_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/inspect_player_handler"
@@ -20,11 +22,13 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/unban_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/bans"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/bans/outbox_planet_enforcer"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/commands/play_rule_set_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/guard"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/listener"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/observer"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/postgres_ban_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/postgres_choice_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/postgres_conviction_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/postgres_evidence_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/postgres_rule_set_store"
@@ -82,11 +86,16 @@ func NewModule(config Config) cpbootstrap.Module {
 				db, outbox_planet_enforcer.New(cpoutbox.New(db)))
 
 			// The bans running at a deploy reach planet's refused callers with no hand migration.
-			players := play_rules_usecase.New(ruleSets, inForce, book)
+			players := play_rules_usecase.New(ruleSets, postgres_choice_store.New(db), inForce, book)
 			playRules := log_play_rules.New(players, props.Logger)
 			if _, _, err := playRules.Execute(ctx); err != nil {
 				closeStores()
 				return fmt.Errorf("failed to play the antibot rules postgres keeps: %w", err)
+			}
+			chosen, err := cpredis.Handle(ctx, streams, play_rule_set_handler.New(playRules))
+			if err != nil {
+				closeStores()
+				return fmt.Errorf("failed to handle antibot.v1.PlayRuleSet: %w", err)
 			}
 
 			marks := listener.NewMarks()
@@ -106,7 +115,7 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			// Not closers: the evidence and the outbox keep being written until the last fact is handled.
 			props.Runners.Add(cppg.CloseAfter(db, props.Logger, cpredis.CloseAfter(streams, props.Logger,
-				watchdogs.Hearing(feeds...), cpoutbox.NewRelay(moduleName, db, streams.Commands(), props.Logger))))
+				watchdogs.Hearing(feeds...), chosen, cpoutbox.NewRelay(moduleName, db, streams.Commands(), props.Logger))))
 
 			admin := antibotv1controller.AdminService{
 				BanPlayerHandler: ban_player_handler.New(
@@ -125,6 +134,15 @@ func NewModule(config Config) cpbootstrap.Module {
 				return antibotv1connect.NewAdminServiceHandler(admin, options...)
 			}); err != nil {
 				return fmt.Errorf("failed to mount antibot.v1.AdminService: %w", err)
+			}
+
+			internalService := antibotv1controller.InternalService{
+				GetRuleSetNamesHandler: get_rule_set_names_handler.New(rule_set_names_query.NewPostgresQuery(db)),
+			}
+			if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
+				return antibotv1connect.NewInternalServiceHandler(internalService, options...)
+			}); err != nil {
+				return fmt.Errorf("failed to mount antibot.v1.InternalService: %w", err)
 			}
 
 			for _, alias := range antibotv1controller.PlanetAliases(admin) {

@@ -30,6 +30,7 @@ return []bootstrap.Module{
 	chat.NewModule(config.Chat),
 	player.NewModule(config.Player),
 	seasons.NewModule(config.Seasons),
+	metagame.NewModule(config.Metagame),
 	missions.NewModule(config.Missions),
 	support.NewModule(config.Support),
 }
@@ -70,6 +71,7 @@ return []bootstrap.Module{
 | `missions` | `planet.v1.InternalService/GetTerritories` and `GetCountrySizes` | what each flag holds and how many tiles of land each country has, once per flag and day, to draw its missions | `missions/rpc_planet_world` |
 | `missions` | `planet.v1.InternalService/GetAllegianceOf` | the flag the caller pledged, on each `GetMissions` before the day's first take | `missions/rpc_planet_allegiance` |
 | `missions` | `auth.v1.InternalService/GetAccount` | whether an account is signed in, when a take finishes one of its missions | `missions/rpc_auth_accounts` |
+| `metagame` | `planet.v1.InternalService/GetRuleSetNames` and `antibot.v1.InternalService/GetRuleSetNames` | the rule sets each module keeps, on each schedule entry an operator adds or edits | `schedule/rpc_planet_rule_sets`, `schedule/rpc_antibot_rule_sets` |
 
 A module cannot import another's interior, so the key client all five need is `shared/cpsessionverifier` rather than a copy in each.
 
@@ -125,6 +127,7 @@ The proto sits beside the public one in the module's package (`proto/auth/v1/int
 | `player-presence-*` | moves or forgets a visit in memory; a second time finds nothing to move |
 | `antibot-clicks`, `antibot-map-reads`, `antibot-streams`, `antibot-boxes-*` | planet tells each kind of fact at a later time than the one before (`facts.Log`), from one sender. The listener keeps the latest time it heard of each kind (`listener.Marks`), saved with the evidence as of the same moment, and skips a fact at or before it |
 | `commands:planet.v1.RefuseCaller`, `commands:planet.v1.AdmitCaller` (planet's `handler`) | each command names when it was decided; planet keeps the latest decision on each caller (`refusals.Refusal.Decided`), so a command sent again, or an older one from the other stream, changes nothing |
+| `commands:planet.v1.PlayRuleSet`, `commands:antibot.v1.PlayRuleSet` (each module's `handler`) | each command names when it was decided; the module keeps the latest choice (`rules.Choice.Overrules`, `rule_set_choice`), so a command sent again, or an older one, changes nothing |
 
 The marks need each source in order per account, which is why the map facts come from the ledger relay and not from each click: two clicks of one account could reach Redis in the other order. **What stays uncertain, on purpose**: two messages, boxes or answers of one account in the same microsecond, or a clock that jumps back, count once.
 
@@ -137,6 +140,9 @@ A fact goes through an outbox when its loss would leave the modules disagreeing 
 - `planet.v1.RefuseCaller` and `AdmitCaller`, from the antibot: a lost one leaves a ban the antibot keeps and planet never refuses, or a lifted one planet keeps refusing. `bans.Banner` records the command in the transaction that changes the ban row, under the ban's lock. At each rule set it takes, the first at boot, the antibot records one again for every running ban (`bans.Book.Restate`), so the bans running at a deploy reach planet's new table too, and a set that stops enforcing admits them.
 - `seasons.v1.RoundClosed` and `SeasonClosed`: the round is marked closed, so a lost one is never sent again and the chat never announces that podium or that champion. `close_round_usecase` records them in the transaction that closes the round, and only when `rounds.Store.Close` answers that this call closed it.
 - `planet.v1.GrantCharges`, a command: a lost one is a mission paid that planet never granted. `missions`' `payroll` records it with the payment.
+- **Not `planet.v1.PlayRuleSet` and `antibot.v1.PlayRuleSet`**: the clock decides them, not a transaction. The metagame module's
+  runner sends both with `streams.Commands().Send` and keeps the turn it told only once Redis took them, so a refused
+  send is sent again the next second, and each boot sends the turn again (see [The rule schedule](metagame.md)).
 - `planet.v1.TileTaken`, `BombLanded` and `Fortified`: **the ledger is their outbox.** `ledger/usecases/relay_ledger_usecase` reads what the ledger flushed past `planet.ledger_relayed`, sends it, then moves the row. A take a hard kill loses before its flush is never told, so the stats and the standings never count what the ledger does not hold; a crash between the send and the move tells the batch again, which the marks make harmless. The migration put the row after the last take the old server had published.
 
 Not in an outbox, because a loss is harmless or the next event repairs it: `SignedOut` (the roster drops the visit when it expires), `MessageSent`, `BonusClaimed` and `QuizAnswered` (a stat short by one), `AccountMuted` (an announcement missed), `StatsChanged` (the next one grants the title), and planet's facts about callers (`ClickTried` and the rest: a try or a read short, in a watchdog's window). Those go through `facts.Relay`, which sends what `facts.Log` holds every 100ms with `Publish`, in order: a crash loses the last 100ms of them.
@@ -148,7 +154,8 @@ Not in an outbox, because a loss is harmless or the next event repairs it: `Sign
 **A command, over Redis Streams, through the sender's outbox.** A module that needs another to change its own state
 does not call it: it records a command in the receiver's language (`proto/<receiver>/v1/commands.proto`,
 `planet.v1.GrantCharges`) in its outbox, in the transaction of what decided it, and the relay sends it. The receiver
-never learns who sent it, as an emitter never learns who listens.
+never learns who sent it, as an emitter never learns who listens. The rule schedule's commands, which the clock
+decides, are sent straight (see [The rule schedule](metagame.md)).
 
 - **One stream per type of command** (`commands:planet.v1.GrantCharges`), apart from the events, with **one group**
   (`handler`): the module that owns the command reads each one once, in order, and one sent before it listened too.
@@ -168,8 +175,9 @@ The commands today:
 |---|---|---|---|
 | `planet.v1.GrantCharges{grant_id, account_id, kind, amount}` | `missions`, through its outbox | a mission finished: its reward | `planet` (`apply_grant_handler`), which grants what fits the account's stack, once per `grant_id` |
 | `planet.v1.RefuseCaller{scope \| account_id, until, decided_at}`, `AdmitCaller{scope \| account_id, decided_at}` | `antibot`, through its outbox, from `bans.Banner` (a flag, a ban, an unban) and `bans.Book.Restate` (each rule set taken, the first at boot) | a ban changed: refuse the caller until a time, or admit it from now | `planet` (`refuse_caller_handler`, `admit_caller_handler`), which keeps the latest decision on each caller by `decided_at` in `planet.refused_callers` and refuses clicks, bombs and shields from it |
+| `planet.v1.PlayRuleSet{rule_set, decided_at}`, `antibot.v1.PlayRuleSet{rule_set, decided_at}` | `metagame`, straight to the command streams, from `play_schedule_usecase` | the schedule's turn changed, and once at each boot | `planet` and `antibot` (`play_rule_set_handler`), which each play the set when it is newer than the choice kept, and refuse a set they keep none of |
 
-**In process still, on purpose**: the live fanouts to open browser streams (the tile map, the chat feed, the roster and the titles, the season boards and the race) are not module-to-module; they are lossy by design, and a client reads again when its stream reopens. **Next**: the `seasons` → `planet` rule-set command (#475) and its resend loop should move to a command stream once it merges, as `GrantCharges` and `RefuseCaller` did.
+**In process still, on purpose**: the live fanouts to open browser streams (the tile map, the chat feed, the roster and the titles, the season boards and the race) are not module-to-module; they are lossy by design, and a client reads again when its stream reopens.
 
 The events today:
 

@@ -6,6 +6,7 @@ import {AdminService as ChatAdmin} from "./gen/grpc/chat/v1/admin_connect.ts"
 import {AdminService as ClipsAdmin} from "./gen/grpc/clips/v1/admin_connect.ts"
 import {AdminService as PlanetAdmin} from "./gen/grpc/planet/v1/admin_connect.ts"
 import {AdminService as PlayerAdmin} from "./gen/grpc/player/v1/admin_connect.ts"
+import {AdminService as MetagameAdmin} from "./gen/grpc/metagame/v1/admin_connect.ts"
 import {AdminService as SeasonsAdmin} from "./gen/grpc/seasons/v1/admin_connect.ts"
 import {AdminService as SupportAdmin} from "./gen/grpc/support/v1/admin_connect.ts"
 
@@ -26,6 +27,7 @@ export const chatAdmin = createPromiseClient(ChatAdmin, transport)
 export const clipsAdmin = createPromiseClient(ClipsAdmin, transport)
 export const planetAdmin = createPromiseClient(PlanetAdmin, transport)
 export const playerAdmin = createPromiseClient(PlayerAdmin, transport)
+export const metagameAdmin = createPromiseClient(MetagameAdmin, transport)
 export const seasonsAdmin = createPromiseClient(SeasonsAdmin, transport)
 export const supportAdmin = createPromiseClient(SupportAdmin, transport)
 
