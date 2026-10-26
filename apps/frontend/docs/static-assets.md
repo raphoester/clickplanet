@@ -7,8 +7,9 @@ edit those by hand, and do not add a `?ts=` cache-buster, which defeats the
 cache entirely:
 
 - `/static/coordinates-<hash>.bin` and `/static/borders-<hash>.bin` — where every
-  tile is, and whose ground it sits on. Fetched at runtime by `points.ts` and
-  `borderField.ts`; URLs in `coordinatesAsset.ts` and `bordersAsset.ts`. Formats
+  tile is, and whose ground it sits on. Fetched at runtime by `borderField.ts`, and
+  by `points.ts` only when the tile positions cannot be rebuilt from the landmask
+  below; URLs in `coordinatesAsset.ts` and `bordersAsset.ts`. Formats
   in `coordinatesBinary.ts` and [`/map/README.md`](../../../map/README.md).
   **These two are not ours alone.** The source of truth is the monorepo-shared
   [`/map`](../../../map/README.md), which the backend builds its tile adjacency from
@@ -27,6 +28,12 @@ cache entirely:
   blobs above and so needs them in place first — and **regenerate it whenever
   either of them changes**, or the outline is drawn around a map nobody is
   playing on. Unlike them it is this app's alone and is not copied to `/map`.
+- `/static/landmask-<hash>.bin` — which points of the tile lattice are tiles, one bit
+  each: 12.6 KB on the wire, where the coordinates blob is 2.44 MB. `points.ts`
+  rebuilds every tile's position from it in a worker. URL in `landmaskAsset.ts`.
+  Regenerate with `npm run landmask`, which reads the coordinates blob, so
+  **regenerate it whenever that changes**. It is this app's alone, like
+  `borderLines`. See [Tile positions](tile-positions.md).
 - `/static/earth/earth-<hash>.jpg` — the globe's texture, its coastline cut from
   the tile field. URL in `earthAsset.ts`. Regenerate with `npm run earth`, which
   reads the coordinates blob — so **after `npm run map:generate`**, or the coast
@@ -134,9 +141,7 @@ the same way, at `/terms`. Discord asks for its URL to allow OAuth sign-in.
 privacy policy says what Google and Discord send us; a new provider, or a new
 field kept from one, changes that page and its date.
 
-The blob still carries a uv per tile that neither shader reads any more;
-dropping it would take ~2 MB off a 4.9 MB download. It is not a breaking change
-— the blob is content-addressed and its URL is bundled with the decoder, so the
-two always ship together, and the existing length check already rejects any
-mismatch. The work is just its breadth: encoder, decoder, three scripts, the
-tests, and regenerating the asset.
+The coordinates blob still carries a uv per tile that nothing reads; the decoder
+skips them. A player downloads the blob only when the rebuild from the landmask
+fails, so dropping them is no longer worth its breadth (encoder, two decoders,
+three scripts, the tests, and a regenerated asset in each app).

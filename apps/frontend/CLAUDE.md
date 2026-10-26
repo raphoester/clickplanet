@@ -65,4 +65,6 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 - [The light](docs/light.md) — the earth's light, with HD graphics only.
 - [The zoomed-out view](docs/zoomed-out-view.md) — how tiles sample the flag atlas when they are small.
 - [The globe's texture](docs/globe-texture.md) — the sphere under the tiles, cut from the tile field.
+- [Tile positions](docs/tile-positions.md) — rebuilt in a worker from a 12 KB landmask and checked by a hash;
+  the coordinates blob is only the fallback.
 - [The countries' outlines](docs/country-outlines.md) — the border lines, the same width at every zoom.

@@ -10,7 +10,6 @@ const SIZE = 32
 function field(size = SIZE) {
     const data: PointGeometryData = {
         positions: new Float32Array(size * 3),
-        uvs: new Float32Array(size * 2),
         size,
     }
     return new TileField({zoom: {value: 1}}, {pointSize: {value: 1}}, data, false)
