@@ -155,7 +155,8 @@ func TestAFortificationIsCarriedToTheSinkAsOneFrame(t *testing.T) {
 	sink := &recorder{fed: make(chan struct{}), stopped: ctx.Done()}
 	done := make(chan error, 1)
 	go func() {
-		done <- listen_for_events_usecase.New(stubSubscriber{updates: updates}, time.Hour, silentFeed{}).Execute(ctx, sink)
+		done <- listen_for_events_usecase.New(stubSubscriber{updates: updates}, time.Hour, silentFeed{}, facts.NewLog(cptime.NewFixedClock(at))).
+			Execute(ctx, sink)
 	}()
 
 	<-sink.fed
@@ -182,7 +183,7 @@ func TestABoxOfferedToTheCallerIsCarriedToTheSink(t *testing.T) {
 	done := make(chan error, 1)
 	go func() {
 		done <- listen_for_events_usecase.New(
-			stubSubscriber{updates: make(chan clicks.Change)}, time.Hour, addressedFeed{"1.2.3.4": boxes}).Execute(ctx, sink)
+			stubSubscriber{updates: make(chan clicks.Change)}, time.Hour, addressedFeed{"1.2.3.4": boxes}, facts.NewLog(cptime.NewFixedClock(at))).Execute(ctx, sink)
 	}()
 
 	<-sink.fed
@@ -203,7 +204,7 @@ func TestAQuizOfferedToTheCallerIsCarriedToTheSink(t *testing.T) {
 	done := make(chan error, 1)
 	go func() {
 		done <- listen_for_events_usecase.New(
-			stubSubscriber{updates: make(chan clicks.Change)}, time.Hour, addressedFeed{"1.2.3.4": boxes}).Execute(ctx, sink)
+			stubSubscriber{updates: make(chan clicks.Change)}, time.Hour, addressedFeed{"1.2.3.4": boxes}, facts.NewLog(cptime.NewFixedClock(at))).Execute(ctx, sink)
 	}()
 
 	<-sink.fed

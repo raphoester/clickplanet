@@ -12,11 +12,12 @@ Tests use `testify`. **A postgres store's own tests need Docker**, and so do `s3
 - a player posts, another reads the message under its name, and player counts it (`MessageSent`);
 - a guest uploads a screenshot to the bucket and reports a bug, and the operator opens it from the console listener; three calls with no session before it spend none of the address's allowance, since the session check is the outer interceptor;
 - a deleted account is forgotten by player, seasons, chat, support and planet (auth's outbox, then one `AccountDeleted` subscriber in each);
-- an operator signs in on the admin listener and grants itself a bomb, which the game session alone cannot.
+- an operator signs in on the admin listener and grants itself a bomb, which the game session alone cannot;
+- an operator bans a guest's account on `antibot.v1`, and planet refuses its click with a `BanRefusal` once the command
+  came through the antibot's outbox and Redis; an unban on the old `planet.v1` path, which the antibot answers, admits
+  it again (`refusal_test.go`).
 
 **A new smoke test is for a new module or a new path between modules**, never for a rule. It is a happy path, on the shared stack, and it reads only what it wrote. A test that needs another config, another clock or a second stack belongs lower down.
-
-`refusal_test.go` boots auth, planet and the antibot on a stack of their own: a ban on `antibot.v1` reaches planet through the antibot's outbox and Redis and the click is refused, and an unban on the old `planet.v1` path admits it again.
 
 On macOS, testcontainers asks the Docker credential helper before it pulls an image, and that can hang with no prompt in a non-interactive shell. `docker pull postgres:16-alpine` and `docker pull redis:7.4-alpine` once from a terminal avoid it.
 
