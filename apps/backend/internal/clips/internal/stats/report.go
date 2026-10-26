@@ -13,9 +13,7 @@ type Report struct {
 	Rows map[string]int
 	// Rows of a platform whose numbers the service is still fetching.
 	Syncing int
-	// The YouTube rows with a retention curve, read now or carried from the last snapshot; the curves asked of
-	// YouTube; why those read now came without one; and why the curves due were not read, by reason. A curve missing
-	// loses nothing else of its row.
+	// The YouTube rows with a retention curve, and why the others have none.
 	Curves           int
 	RetentionAsked   int
 	CurvesRefused    map[string]int

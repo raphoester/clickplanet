@@ -22,7 +22,7 @@ import (
 const OpenSSH = "ssh"
 
 // The body comes on the standard input, never the command line: a part is far longer than a command may be, and holds
-// what Zernio wrote, which no shell should read. The method is one of ours, never an input.
+// what Zernio wrote, which no shell should read.
 const operatorTool = "cd /opt/clickplanet/deploy/vps && docker compose exec -T backend wget -qO-" +
 	" --header 'Content-Type: application/json' --post-file=/dev/stdin" +
 	" http://127.0.0.1:8081/clips.v1.AdminService/"
@@ -36,7 +36,6 @@ const (
 // A part is a call: about 3 KB a row, so under a megabyte.
 const rowsAPart = 200
 
-// The most ListRows answers a page.
 const rowsAPage = 2000
 
 var decoder = protojson.UnmarshalOptions{DiscardUnknown: true}
@@ -122,7 +121,6 @@ func count(n int) uint32 {
 	return uint32(max(n, 0)) //nolint:gosec // a count of posts and rows.
 }
 
-// The rows of the newest snapshot kept, a page at a time; none before the first.
 func (s *Store) Last(ctx context.Context) ([]stats.Row, error) {
 	var snapshots clipsv1.ListSnapshotsResponse
 	if err := s.call(ctx, listSnapshots, &clipsv1.ListSnapshotsRequest{Limit: 1}, &snapshots); err != nil {

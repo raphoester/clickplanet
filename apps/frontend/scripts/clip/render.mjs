@@ -139,8 +139,6 @@ async function debuggerUrl(profile) {
     throw new Error("Chrome never exposed a debugging target")
 }
 
-// A Chrome of its own, and the socket to its page. One that never comes up is killed and its profile removed, so a try
-// again starts clean.
 async function startChrome() {
     const profile = mkdtempSync(join(tmpdir(), "clickplanet-clip-"))
     const chrome = spawn(CHROME, [

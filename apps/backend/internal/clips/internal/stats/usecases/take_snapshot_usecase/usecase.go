@@ -25,7 +25,6 @@ type Source interface {
 type Store interface {
 	// The report says what the rows are of: when, and what was read.
 	Keep(ctx context.Context, report stats.Report, rows []stats.Row) error
-	// The rows of the last snapshot kept, none before the first: the curves they hold are carried until the next is due.
 	Last(ctx context.Context) ([]stats.Row, error)
 }
 
@@ -105,7 +104,7 @@ func (u *UseCase) Execute(ctx context.Context) (stats.Report, error) {
 }
 
 // The rows of one post, and what of it could not be read. The error is for the run: the add-on is off, or it was
-// cancelled. A curve that could not be read loses nothing else: the row says why it is missing.
+// cancelled.
 func (u *UseCase) snapshot(ctx context.Context, post stats.Post, curves *curves, takenAt time.Time) ([]stats.Row, string, error) {
 	var answer stats.Answer
 	err := u.retried(ctx, func() (err error) {
@@ -133,8 +132,6 @@ func (u *UseCase) snapshot(ctx context.Context, post stats.Post, curves *curves,
 	return stats.RowsOf(post, answer, retentions, takenAt), "", nil
 }
 
-// The curves of one run: those the last snapshot held, and why none is asked any more, once YouTube said it would give
-// none for a while (its daily quota spent, until midnight Pacific): each would be a call refused at once.
 type curves struct {
 	*UseCase
 	held     map[string]*stats.Retention
@@ -143,7 +140,6 @@ type curves struct {
 	withheld string
 }
 
-// The curve a video's row holds: read when one is due, else carried. The error is the context's alone.
 func (c *curves) of(ctx context.Context, target stats.Target) (stats.RetentionState, error) {
 	held := c.held[target.PlatformPostID]
 	if !stats.RetentionDue(c.takenAt.Sub(target.PublishedAt), held) {
@@ -168,7 +164,6 @@ func (c *curves) of(ctx context.Context, target stats.Target) (stats.RetentionSt
 		c.withheld = stats.QuotaSpent
 		return stats.RetentionState{Retention: held, Missing: stats.QuotaSpent}, nil
 	case errors.As(err, new(*posts.BusyError)):
-		// Busy for longer than the backoff waits: the quota, in words Zernio did not use on 2026-10-25.
 		c.withheld = "not asked: " + err.Error()
 		return stats.RetentionState{Retention: held, Missing: err.Error()}, nil
 	default:

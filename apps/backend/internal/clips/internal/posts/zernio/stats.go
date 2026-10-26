@@ -173,10 +173,6 @@ func answerOf(status int, body []byte) (stats.Answer, error) {
 	return answer, nil
 }
 
-// Whether a 429 says YouTube's daily analytics quota is spent, and in its words: "YouTube Analytics daily quota
-// exhausted. Analytics requests succeed again after midnight Pacific Time." (2026-10-25). Not a busy service: asking
-// again before midnight Pacific spends nothing and gets nothing. A 429 that names no quota, or comes back within the
-// hour, stays busy and is tried again.
 func quotaSpent(res *http.Response, body []byte) string {
 	if res == nil || res.StatusCode != http.StatusTooManyRequests {
 		return ""

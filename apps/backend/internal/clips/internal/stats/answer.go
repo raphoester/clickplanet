@@ -38,10 +38,8 @@ func (a Answer) entryOf(target Target) json.RawMessage {
 type Retention struct {
 	HTTPStatus int             `json:"httpStatus"`
 	Body       json.RawMessage `json:"body"`
-	// When it was read, and how old the video was then: a row carries the curve last read until the next is due, so
-	// these are not the row's.
-	ReadAt   time.Time `json:"readAt"`
-	AgeHours float64   `json:"ageHours"`
+	ReadAt     time.Time       `json:"readAt"`
+	AgeHours   float64         `json:"ageHours"`
 }
 
 // Whether it holds a curve with at least one point.

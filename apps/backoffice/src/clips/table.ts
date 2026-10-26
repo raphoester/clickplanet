@@ -47,8 +47,6 @@ type Document = {
     metadata?: unknown,
 }
 
-// The curve the row holds, read at its snapshot or carried from an earlier one: readAt and ageHours say when it was
-// read and how old the video was then. A row written before the job kept those has neither, and was read with its row.
 type Retention = {httpStatus?: number, body?: unknown, readAt?: string, ageHours?: number}
 
 function cellsOf(text: string): Cells {
@@ -70,7 +68,6 @@ function cellsOf(text: string): Cells {
     }
     flatten(cells, "meta", row.metadata)
     if (row.retention !== undefined) retentionCells(cells, row.retention)
-    // Why the curve due at this snapshot was not read: the rest of the row is whole.
     if (row.retentionMissing) cells.set("youtube.retentionMissing", row.retentionMissing)
     return cells
 }

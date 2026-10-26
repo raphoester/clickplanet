@@ -19,7 +19,6 @@ import (
 
 var (
 	now = time.Date(2026, 10, 24, 5, 41, 0, 0, time.UTC)
-	// Past 2 days, so a curve is due.
 	out = now.Add(-50 * time.Hour)
 )
 
@@ -97,7 +96,6 @@ func snapshot(t *testing.T, from *source, since time.Time) (stats.Report, *store
 	return snapshotAfter(t, from, since, nil)
 }
 
-// last: the rows of the snapshot kept before.
 func snapshotAfter(t *testing.T, from *source, since time.Time, last []stats.Row) (stats.Report, *store, *posts.RecordedPause, error) {
 	t.Helper()
 

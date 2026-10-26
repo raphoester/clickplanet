@@ -195,7 +195,6 @@ func TestNoHostIsRefused(t *testing.T) {
 	require.ErrorContains(t, err, "the ssh host is empty")
 }
 
-// Call n's arguments, and what came on its standard input, as it came.
 func (f fakeSSH) raw(t *testing.T, n int) ([]string, string) {
 	t.Helper()
 

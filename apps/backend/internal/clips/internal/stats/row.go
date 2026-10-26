@@ -28,8 +28,7 @@ type Row struct {
 	Answer Answer `json:"answer"`
 	// The platform's entry of the answer as it came, every metric in it. Null when the answer had none for it.
 	Analytics json.RawMessage `json:"analytics"`
-	// YouTube's alone: the newest curve held, read at this snapshot or carried from the last (its readAt says which),
-	// and why the one due at this snapshot was not read, if it was not.
+	// YouTube's alone.
 	Retention        *Retention `json:"retention,omitempty"`
 	RetentionMissing string     `json:"retentionMissing,omitempty"`
 	// The post's metadata as it came: its story key, its countries, its call to act and its record.
@@ -64,7 +63,6 @@ func RowsOf(post Post, answer Answer, retentions map[string]RetentionState, take
 	return rows
 }
 
-// Whether its curve was read at this snapshot, not carried from an earlier one.
 func (r Row) RetentionRead() bool {
 	return r.Retention != nil && r.Retention.ReadAt.Equal(r.TakenAt)
 }

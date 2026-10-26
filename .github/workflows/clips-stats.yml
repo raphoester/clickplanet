@@ -7,7 +7,7 @@ name: clips stats
 #
 # Just after midnight Pacific, in summer (07:00 UTC) and in winter (08:00): YouTube's Analytics quota, which every
 # curve of retention draws on, starts again then. At 05:41 UTC it was spent before the run began, and the curves of
-# Oct 25 and 26 were lost. 08:17 UTC is 01:17 under PDT and 00:17 under PST (from 2026-11-01).
+# Oct 25 and 26 were lost.
 on:
   schedule:
     - cron: '17 8 * * *'
@@ -37,8 +37,7 @@ jobs:
           go-version-file: apps/backend/go.mod
           cache-dependency-path: apps/backend/go.sum
 
-      # It keeps what it read even when a post could not be read, then fails. A retention curve missing fails nothing:
-      # the row is kept without it, the log warns, and the next run asks for it again.
+      # It keeps what it read even when a post could not be read, then fails.
       - name: take the snapshot
         working-directory: apps/backend
         env:

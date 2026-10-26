@@ -48,7 +48,6 @@ func (l *Logged) Execute(ctx context.Context) (stats.Report, error) {
 		}
 		l.logger.Log(ctx, level, "youtube gave no retention curve", slog.String("why", reason), slog.Int("videos", count))
 	}
-	// A warning, not a failure: the rest of each row is kept, and the curve is asked again on the next run.
 	for reason, count := range report.RetentionMissing {
 		if strings.HasSuffix(reason, scopeMissing) {
 			reason += ": connect the YouTube account again in Zernio to grant the analytics scope"
