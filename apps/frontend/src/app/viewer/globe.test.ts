@@ -7,6 +7,7 @@ import {LeaderboardEntry, rankCountries} from "../../domain/leaderboard.ts"
 import {Countries} from "../../domain/countries.ts"
 import {TileField} from "./tileField.ts"
 import {regions} from "./atlas.ts"
+import {PLAIN} from "./graphics.ts"
 
 function handlers() {
     return {onRateLimited: vi.fn(), onVPNBlocked: vi.fn(), onBanned: vi.fn(), onSessionUnavailable: vi.fn(), onAllegianceLocked: vi.fn()}
@@ -111,7 +112,7 @@ describe("a refused click, from the paint to the rollback", () => {
         const field = new TileField({zoom: {value: 1}}, {pointSize: {value: 1}}, {
             positions: new Float32Array(size * 3),
             size,
-        }, false)
+        }, PLAIN)
         const ownership = new TileOwnership(size)
         let leaderboard: LeaderboardEntry[] = []
 

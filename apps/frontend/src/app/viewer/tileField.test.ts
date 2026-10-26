@@ -7,224 +7,361 @@ import type {PointGeometryData} from "./coordinatesBinary.ts"
 
 const SIZE = 32
 
-function field(size = SIZE) {
+type Slot = {name: string, offset: number, width: number}
+
+type Layout = {compact: boolean, flag: Slot, landmass: Slot, hover: Slot, shield: Slot, pulse: Slot}
+
+const PLAIN: Layout = {
+    compact: false,
+    flag: {name: "regionVector", offset: 0, width: 4},
+    landmass: {name: "landmassIndex", offset: 0, width: 1},
+    hover: {name: "hover", offset: 0, width: 1},
+    shield: {name: "shield", offset: 0, width: 1},
+    pulse: {name: "pulse", offset: 0, width: 1},
+}
+
+const COMPACT: Layout = {
+    compact: true,
+    flag: {name: "ids", offset: 0, width: 1},
+    landmass: {name: "ids", offset: 1, width: 1},
+    hover: {name: "marks", offset: 0, width: 1},
+    pulse: {name: "marks", offset: 1, width: 1},
+    shield: {name: "marks", offset: 2, width: 1},
+}
+
+function fieldOf(compact: boolean, size = SIZE) {
     const data: PointGeometryData = {
         positions: new Float32Array(size * 3),
         size,
     }
-    return new TileField({zoom: {value: 1}}, {pointSize: {value: 1}}, data, false)
+    return new TileField({zoom: {value: 1}}, {pointSize: {value: 1}}, data, {tiles: false, compact})
 }
 
 const attr = (f: TileField, name: string) =>
     f.displayPoints.geometry.getAttribute(name) as THREE.BufferAttribute
 
-const hoverValues = (f: TileField) => Array.from(attr(f, "hover").array as Float32Array)
+const ZERO = [0, 0, 0, 0]
 
 beforeEach(() => {
     resetWarnOnce()
     vi.spyOn(console, "warn").mockImplementation(() => {})
 })
 
-describe("setOwners", () => {
-    it("writes the country's atlas region at the tile's offset", () => {
-        const f = field()
-        const fr = regions.get("fr")!
+describe.each([["plain", PLAIN], ["compact", COMPACT]] as const)("the %s layout", (_, layout) => {
+    const field = (size = SIZE) => fieldOf(layout.compact, size)
 
-        f.setOwners([{tile: 3, country: "fr"}])
+    const at = (f: TileField, slot: Slot, tile: number) => (tile - 1) * attr(f, slot.name).itemSize + slot.offset
 
-        const values = attr(f, "regionVector").array as Float32Array
-        expect(Array.from(values.slice(8, 12))).toEqual([fr.x, fr.y, fr.width, fr.height])
+    const valueOf = (f: TileField, slot: Slot, tile: number) => attr(f, slot.name).array[at(f, slot, tile)]
+
+    const regionOf = (f: TileField, tile: number) => {
+        const start = at(f, layout.flag, tile)
+        if (!layout.compact) return Array.from(attr(f, layout.flag.name).array.slice(start, start + 4))
+
+        const material = f.displayPoints.material as THREE.ShaderMaterial
+        const rectangles: ArrayLike<number> = (material.uniforms.flagRectangles.value as THREE.DataTexture).image.data
+        const flag = attr(f, layout.flag.name).array[start]
+        return Array.from(rectangles).slice(flag * 4, flag * 4 + 4)
+    }
+
+    describe("setOwners", () => {
+        it("gives the tile the country's atlas region", () => {
+            const f = field()
+            const fr = regions.get("fr")!
+
+            f.setOwners([{tile: 3, country: "fr"}])
+
+            expect(regionOf(f, 3)).toEqual([fr.x, fr.y, fr.width, fr.height])
+        })
+
+        it("leaves every other tile untouched", () => {
+            const f = field()
+            f.setOwners([{tile: 3, country: "fr"}])
+
+            for (const tile of [1, 2, 4]) expect(regionOf(f, tile)).toEqual(ZERO)
+        })
+
+        it("starts every tile unowned, which the shader draws blank", () => {
+            const f = field()
+            for (let tile = 1; tile <= SIZE; tile++) expect(regionOf(f, tile)).toEqual(ZERO)
+        })
+
+        it("leaves a tile blank and warns once for a country with no region", () => {
+            const f = field()
+            f.setOwners([{tile: 1, country: "zz"}, {tile: 2, country: "zz"}])
+
+            expect(regionOf(f, 1)).toEqual(ZERO)
+            expect(regionOf(f, 2)).toEqual(ZERO)
+            expect(console.warn).toHaveBeenCalledTimes(1)
+        })
+
+        it("blanks the tile again when a rolled-back click leaves it unowned", () => {
+            const f = field()
+            f.setOwners([{tile: 3, country: "fr"}])
+
+            f.setOwners([{tile: 3, country: undefined}])
+
+            expect(regionOf(f, 3)).toEqual(ZERO)
+            expect(console.warn).not.toHaveBeenCalled()
+        })
+
+        it("uploads the tile a rollback blanked", () => {
+            const f = field()
+            f.setOwners([{tile: 2, country: "fr"}])
+            const flag = attr(f, layout.flag.name)
+            flag.clearUpdateRanges()
+
+            f.setOwners([{tile: 2, country: undefined}])
+
+            expect(flag.updateRanges).toEqual([{start: at(f, layout.flag, 2), count: layout.flag.width}])
+        })
+
+        it("does not touch the buffer when nothing changed", () => {
+            const f = field()
+            const flag = attr(f, layout.flag.name)
+            const version = flag.version
+
+            f.setOwners([])
+            expect(flag.updateRanges).toEqual([])
+            expect(flag.version).toBe(version)
+        })
+
+        it("keeps the same attribute and backing array across changes", () => {
+            const f = field()
+            const flag = attr(f, layout.flag.name)
+            const array = flag.array
+
+            f.setOwners([{tile: 1, country: "fr"}])
+            f.setOwners([{tile: 2, country: "jp"}])
+
+            expect(attr(f, layout.flag.name)).toBe(flag)
+            expect(attr(f, layout.flag.name).array).toBe(array)
+        })
+
+        it("uploads only the tiles that changed", () => {
+            const f = field()
+            const flag = attr(f, layout.flag.name)
+            flag.clearUpdateRanges()
+            const version = flag.version
+
+            f.setOwners([{tile: 2, country: "fr"}])
+
+            expect(flag.updateRanges).toEqual([{start: at(f, layout.flag, 2), count: layout.flag.width}])
+            expect(flag.version).toBe(version + 1)
+        })
+
+        it("collapses a large batch into a single spanning range", () => {
+            const f = field(1000)
+            const flag = attr(f, layout.flag.name)
+            flag.clearUpdateRanges()
+
+            const changes = Array.from({length: 200}, (_, i) => ({tile: i + 1, country: "fr"}))
+            f.setOwners(changes)
+
+            expect(flag.updateRanges).toEqual([{start: 0, count: at(f, layout.flag, 200) + layout.flag.width}])
+        })
     })
 
-    it("leaves every other tile untouched", () => {
-        const f = field()
-        f.setOwners([{tile: 3, country: "fr"}])
+    describe("setLandmasses", () => {
+        it("writes each tile's landmass where the shader reads it", () => {
+            const f = field()
+            const assignment = Uint16Array.from({length: SIZE}, (_, i) => i % 7)
 
-        const values = attr(f, "regionVector").array as Float32Array
-        expect(Array.from(values.slice(0, 8))).toEqual([0, 0, 0, 0, 0, 0, 0, 0])
-        expect(Array.from(values.slice(12, 16))).toEqual([0, 0, 0, 0])
+            f.setLandmasses(assignment)
+
+            for (let tile = 1; tile <= SIZE; tile++) expect(valueOf(f, layout.landmass, tile)).toBe((tile - 1) % 7)
+        })
+
+        it("keeps the flags, and uploads the whole buffer with their ranges pending", () => {
+            const f = field()
+            const fr = regions.get("fr")!
+            f.setOwners([{tile: 2, country: "fr"}])
+
+            f.setLandmasses(new Uint16Array(SIZE).fill(5))
+
+            const landmass = attr(f, layout.landmass.name)
+            expect(regionOf(f, 2)).toEqual([fr.x, fr.y, fr.width, fr.height])
+            expect(landmass.updateRanges).toContainEqual({start: 0, count: landmass.array.length})
+        })
     })
 
-    it("starts every tile unowned, which the shader draws blank", () => {
-        const values = attr(field(), "regionVector").array as Float32Array
-        expect(values.every(v => v === 0)).toBe(true)
+    describe("setHover", () => {
+        it("marks the hovered tile", () => {
+            const f = field()
+            f.setHover(4)
+            expect(valueOf(f, layout.hover, 4)).toBe(1)
+        })
+
+        it("clears the previously hovered tile", () => {
+            const f = field()
+            f.setHover(4)
+            f.setHover(9)
+
+            expect(valueOf(f, layout.hover, 4)).toBe(0)
+            expect(valueOf(f, layout.hover, 9)).toBe(1)
+        })
+
+        it("clears everything when nothing is hovered", () => {
+            const f = field()
+            f.setHover(4)
+            f.setHover(undefined)
+            expect(Array.from(attr(f, layout.hover.name).array).every(v => v === 0)).toBe(true)
+        })
+
+        it("highlights exactly one tile at a time", () => {
+            const f = field()
+            for (const tile of [1, 7, 20, 32]) f.setHover(tile)
+
+            const hovered = Array.from({length: SIZE}, (_, i) => i + 1).filter(tile => valueOf(f, layout.hover, tile) === 1)
+            expect(hovered).toEqual([32])
+        })
+
+        it("does no work when the hovered tile repeats", () => {
+            const f = field()
+            f.setHover(4)
+            const hover = attr(f, layout.hover.name)
+            hover.clearUpdateRanges()
+
+            expect(f.setHover(4)).toBe(false)
+            expect(hover.updateRanges).toEqual([])
+        })
+
+        it("keeps the same attribute and backing array across moves", () => {
+            const f = field()
+            const hover = attr(f, layout.hover.name)
+            const array = hover.array
+
+            for (let tile = 1; tile <= SIZE; tile++) f.setHover(tile)
+
+            expect(attr(f, layout.hover.name)).toBe(hover)
+            expect(attr(f, layout.hover.name).array).toBe(array)
+        })
+
+        it("uploads only the two tiles involved", () => {
+            const f = field()
+            f.setHover(4)
+            const hover = attr(f, layout.hover.name)
+            hover.clearUpdateRanges()
+
+            f.setHover(9)
+
+            expect(hover.updateRanges).toEqual([
+                {start: at(f, layout.hover, 4), count: 1},
+                {start: at(f, layout.hover, 9), count: 1},
+            ])
+        })
     })
 
-    it("leaves a tile blank and warns once for a country with no region", () => {
-        const f = field()
-        f.setOwners([{tile: 1, country: "zz"}, {tile: 2, country: "zz"}])
+    describe("setShields", () => {
+        it("writes each tile's shields where the shader reads them, and nothing else", () => {
+            const f = field()
 
-        const values = attr(f, "regionVector").array as Float32Array
-        expect(Array.from(values.slice(0, 8))).toEqual([0, 0, 0, 0, 0, 0, 0, 0])
-        expect(console.warn).toHaveBeenCalledTimes(1)
+            f.setShields([{tile: 3, shields: 4, was: 0}, {tile: 5, shields: 10, was: 9}])
+            f.setShields([{tile: 3, shields: 0, was: 4}])
+
+            const values = Array.from(attr(f, layout.shield.name).array)
+            expect(values[at(f, layout.shield, 5)]).toBe(10)
+            values[at(f, layout.shield, 5)] = 0
+            expect(values.every(v => v === 0)).toBe(true)
+        })
+
+        it("patches only the tiles that moved", () => {
+            const f = field()
+            const shield = attr(f, layout.shield.name)
+            shield.clearUpdateRanges()
+
+            f.setShields([{tile: 3, shields: 1, was: 0}, {tile: 9, shields: 2, was: 0}])
+
+            expect(shield.updateRanges).toEqual([
+                {start: at(f, layout.shield, 3), count: 1},
+                {start: at(f, layout.shield, 9), count: 1},
+            ])
+        })
+
+        it("patches one span for a load too big to list tile by tile", () => {
+            const f = field()
+            const shield = attr(f, layout.shield.name)
+            shield.clearUpdateRanges()
+
+            const many = Array.from({length: 100}, () => ({tile: 4, shields: 2, was: 1}))
+            f.setShields([...many, {tile: 20, shields: 3, was: 0}])
+
+            const start = at(f, layout.shield, 4)
+            expect(shield.updateRanges).toEqual([{start, count: at(f, layout.shield, 20) + 1 - start}])
+        })
     })
 
-    it("blanks the tile again when a rolled-back click leaves it unowned", () => {
-        const f = field()
-        f.setOwners([{tile: 3, country: "fr"}])
+    describe("setPulses", () => {
+        it("marks the tiles a flag still misses, and clears them again", () => {
+            const f = field()
 
-        f.setOwners([{tile: 3, country: undefined}])
+            f.setPulses([2, 6], true)
+            expect([2, 6, 7].map(tile => valueOf(f, layout.pulse, tile))).toEqual([1, 1, 0])
 
-        const values = attr(f, "regionVector").array as Float32Array
-        expect(Array.from(values.slice(8, 12))).toEqual([0, 0, 0, 0])
-        expect(console.warn).not.toHaveBeenCalled()
+            f.setPulses([2], false)
+            expect([2, 6].map(tile => valueOf(f, layout.pulse, tile))).toEqual([0, 1])
+        })
+
+        it("patches only those tiles", () => {
+            const f = field()
+            const pulse = attr(f, layout.pulse.name)
+            pulse.clearUpdateRanges()
+
+            f.setPulses([2, 6], true)
+
+            expect(pulse.updateRanges).toEqual([
+                {start: at(f, layout.pulse, 2), count: 1},
+                {start: at(f, layout.pulse, 6), count: 1},
+            ])
+        })
     })
 
-    it("uploads the tile a rollback blanked", () => {
-        const f = field()
-        f.setOwners([{tile: 2, country: "fr"}])
-        const region = attr(f, "regionVector")
-        region.clearUpdateRanges()
+    describe("geometry", () => {
+        it("shares one position attribute between both point clouds", () => {
+            const f = field()
+            expect(f.pickingPoints.geometry.getAttribute("position"))
+                .toBe(f.displayPoints.geometry.getAttribute("position"))
+        })
 
-        f.setOwners([{tile: 2, country: undefined}])
+        it("does not upload a uv attribute", () => {
+            const f = field()
+            expect(f.displayPoints.geometry.getAttribute("uv")).toBeUndefined()
+            expect(f.pickingPoints.geometry.getAttribute("uv")).toBeUndefined()
+        })
 
-        expect(region.updateRanges).toEqual([{start: 4, count: 4}])
-    })
-
-    it("does not touch the buffer when nothing changed", () => {
-        const f = field()
-        const region = attr(f, "regionVector")
-        region.needsUpdate = false
-
-        f.setOwners([])
-        expect(region.updateRanges).toEqual([])
-    })
-
-    it("keeps the same attribute and backing array across changes", () => {
-        const f = field()
-        const region = attr(f, "regionVector")
-        const array = region.array
-
-        f.setOwners([{tile: 1, country: "fr"}])
-        f.setOwners([{tile: 2, country: "jp"}])
-
-        expect(attr(f, "regionVector")).toBe(region)
-        expect(attr(f, "regionVector").array).toBe(array)
-    })
-
-    it("uploads only the tiles that changed", () => {
-        const f = field()
-        const region = attr(f, "regionVector")
-        region.clearUpdateRanges()
-        const version = region.version
-
-        f.setOwners([{tile: 2, country: "fr"}])
-
-        expect(region.updateRanges).toEqual([{start: 4, count: 4}])
-        expect(region.version).toBe(version + 1)
-    })
-
-    it("collapses a large batch into a single spanning range", () => {
-        const f = field(1000)
-        const region = attr(f, "regionVector")
-        region.clearUpdateRanges()
-
-        const changes = Array.from({length: 200}, (_, i) => ({tile: i + 1, country: "fr"}))
-        f.setOwners(changes)
-
-        expect(region.updateRanges).toEqual([{start: 0, count: 800}])
+        it("keeps every buffer's stride a multiple of 4 bytes, which Metal needs to read it as is", () => {
+            const f = field()
+            for (const points of [f.displayPoints, f.pickingPoints]) {
+                for (const attribute of Object.values(points.geometry.attributes)) {
+                    const {itemSize, array} = attribute as THREE.BufferAttribute
+                    expect((itemSize * array.BYTES_PER_ELEMENT) % 4).toBe(0)
+                }
+            }
+        })
     })
 })
 
-describe("setHover", () => {
-    it("marks the hovered tile", () => {
-        const f = field()
-        f.setHover(4)
-        expect(hoverValues(f)[3]).toBe(1)
+describe("the compact layout's cost", () => {
+    const bytesPerTile = (compact: boolean) => {
+        const f = fieldOf(compact)
+        const arrays = new Set([f.displayPoints, f.pickingPoints].flatMap(points =>
+            Object.values(points.geometry.attributes).map(attribute => (attribute as THREE.BufferAttribute).array)))
+        return Array.from(arrays).reduce((sum, array) => sum + array.byteLength, 0) / SIZE
+    }
+
+    it("is 20 bytes a tile, against 56 for the plain one", () => {
+        expect(bytesPerTile(false)).toBe(56)
+        expect(bytesPerTile(true)).toBe(20)
     })
 
-    it("clears the previously hovered tile", () => {
-        const f = field()
-        f.setHover(4)
-        f.setHover(9)
-
-        expect(hoverValues(f)[3]).toBe(0)
-        expect(hoverValues(f)[8]).toBe(1)
-    })
-
-    it("clears everything when nothing is hovered", () => {
-        const f = field()
-        f.setHover(4)
-        f.setHover(undefined)
-        expect(hoverValues(f).every(v => v === 0)).toBe(true)
-    })
-
-    it("highlights exactly one tile at a time", () => {
-        const f = field()
-        for (const tile of [1, 7, 20, 32]) f.setHover(tile)
-        expect(hoverValues(f).filter(v => v === 1)).toEqual([1])
-    })
-
-    it("does no work when the hovered tile repeats", () => {
-        const f = field()
-        f.setHover(4)
-        const hover = attr(f, "hover")
-        hover.clearUpdateRanges()
-
-        f.setHover(4)
-        expect(hover.updateRanges).toEqual([])
-    })
-
-    it("keeps the same attribute and backing array across moves", () => {
-        const f = field()
-        const hover = attr(f, "hover")
-        const array = hover.array
-
-        for (let tile = 1; tile <= SIZE; tile++) f.setHover(tile)
-
-        expect(attr(f, "hover")).toBe(hover)
-        expect(attr(f, "hover").array).toBe(array)
-    })
-
-    it("uploads only the two tiles involved", () => {
-        const f = field()
-        f.setHover(4)
-        const hover = attr(f, "hover")
-        hover.clearUpdateRanges()
-
-        f.setHover(9)
-
-        expect(hover.updateRanges).toEqual([{start: 3, count: 1}, {start: 8, count: 1}])
+    it("names every flag in 16 bits", () => {
+        expect(regions.size + 1).toBeLessThanOrEqual(2 ** 16)
     })
 })
 
-describe("setShields", () => {
-    it("writes each tile's shields where the shader reads them, and nothing else", () => {
-        const f = field()
-
-        f.setShields([{tile: 3, shields: 4, was: 0}, {tile: 5, shields: 10, was: 9}])
-        f.setShields([{tile: 3, shields: 0, was: 4}])
-
-        const values = Array.from(attr(f, "shield").array as Float32Array)
-        expect(values.slice(0, 6)).toEqual([0, 0, 0, 0, 10, 0])
-        expect(values.slice(6).every(v => v === 0)).toBe(true)
-    })
-
-    it("patches only the tiles that moved", () => {
-        const f = field()
-        const shield = attr(f, "shield")
-        shield.clearUpdateRanges()
-
-        f.setShields([{tile: 3, shields: 1, was: 0}, {tile: 9, shields: 2, was: 0}])
-
-        expect(shield.updateRanges).toEqual([{start: 2, count: 1}, {start: 8, count: 1}])
-    })
-
-    it("patches one span for a load too big to list tile by tile", () => {
-        const f = field()
-        const shield = attr(f, "shield")
-        shield.clearUpdateRanges()
-
-        const many = Array.from({length: 100}, () => ({tile: 4, shields: 2, was: 1}))
-        f.setShields([...many, {tile: 20, shields: 3, was: 0}])
-
-        expect(shield.updateRanges).toEqual([{start: 3, count: 17}])
-    })
-})
-
-describe("geometry", () => {
-    it("gives the picking points one colour per tile, starting at id 1", () => {
-        const f = field()
+describe("picking", () => {
+    it("gives the plain picking points one colour per tile, starting at id 1", () => {
+        const f = fieldOf(false)
         const colors = f.pickingPoints.geometry.getAttribute("color").array as Float32Array
 
         expect(colors[0]).toBe(0)
@@ -233,15 +370,9 @@ describe("geometry", () => {
         expect(colors.length).toBe(SIZE * 3)
     })
 
-    it("shares one position attribute between both point clouds", () => {
-        const f = field()
-        expect(f.pickingPoints.geometry.getAttribute("position"))
-            .toBe(f.displayPoints.geometry.getAttribute("position"))
-    })
-
-    it("does not upload a uv attribute", () => {
-        const f = field()
-        expect(f.displayPoints.geometry.getAttribute("uv")).toBeUndefined()
-        expect(f.pickingPoints.geometry.getAttribute("uv")).toBeUndefined()
+    it("uploads no colour in the compact layout: the shader makes it from the vertex number", () => {
+        const f = fieldOf(true)
+        expect(f.pickingPoints.geometry.getAttribute("color")).toBeUndefined()
+        expect((f.pickingPoints.material as THREE.ShaderMaterial).defines.COMPACT).toBe(true)
     })
 })

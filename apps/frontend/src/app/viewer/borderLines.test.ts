@@ -13,7 +13,7 @@ import {
     UNDER,
     WIDTH,
 } from "./borderLines.ts"
-import {innerSphere} from "./sphere.ts"
+import {EARTH_RADIUS} from "./sphere.ts"
 import {displayPointSize, flagPaint, tileSpacing} from "./pointSize.ts"
 import {MAX_ZOOM, MIN_ZOOM} from "./zoom.ts"
 
@@ -121,14 +121,14 @@ describe("outlineSegments", () => {
 
 describe("the two passes", () => {
     it("sit either side of the tiles, and above the earth", () => {
-        const earth = innerSphere().parameters.radius
+        const earth = EARTH_RADIUS
         expect(UNDER).toBeGreaterThan(earth)
         expect(UNDER).toBeLessThan(1)
         expect(OVER).toBeGreaterThan(1)
     })
 
     it("say how far past the limb each pass can still be seen", () => {
-        const earth = innerSphere().parameters.radius
+        const earth = EARTH_RADIUS
 
         for (const lift of [OVER, UNDER]) {
             const past = Math.asin(limbOf(lift))
