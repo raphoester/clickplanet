@@ -30,9 +30,10 @@ func TestAPaymentNamesOneGrantEveryTime(t *testing.T) {
 
 func TestEachRewardIsItsCharge(t *testing.T) {
 	for kind, wire := range map[missions.RewardKind]planetv1.BonusKind{
-		missions.RewardShields:      planetv1.BonusKind_BONUS_KIND_SHIELDS,
-		missions.RewardSpreadClicks: planetv1.BonusKind_BONUS_KIND_SPREAD_CLICKS,
-		missions.RewardBomb:         planetv1.BonusKind_BONUS_KIND_BOMB,
+		missions.RewardShields:       planetv1.BonusKind_BONUS_KIND_SHIELDS,
+		missions.RewardSpreadClicks:  planetv1.BonusKind_BONUS_KIND_SPREAD_CLICKS,
+		missions.RewardBomb:          planetv1.BonusKind_BONUS_KIND_BOMB,
+		missions.RewardEncloseClicks: planetv1.BonusKind_BONUS_KIND_ENCLOSE_CLICKS,
 	} {
 		assert.Equal(t, wire, planetgrant.KindOf(kind), string(kind))
 	}

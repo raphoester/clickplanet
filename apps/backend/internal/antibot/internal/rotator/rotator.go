@@ -2,6 +2,7 @@ package rotator
 
 import (
 	"context"
+	"errors"
 	"math"
 	"math/bits"
 	"sort"
@@ -14,8 +15,9 @@ import (
 
 const Name = "rotator"
 
-type Config struct {
-	Slot   time.Duration
+type Rules struct {
+	Enabled bool
+
 	Window time.Duration
 
 	MinSeconds  int
@@ -24,16 +26,29 @@ type Config struct {
 
 	MinSlots     int
 	CertainSlots int
+}
+
+func (r Rules) Validate() error {
+	return errors.Join(
+		detect.Positive("window", r.Window),
+		detect.Positive("minSeconds", r.MinSeconds),
+		detect.Positive("minByChance", r.MinByChance),
+		detect.Positive("maxShare", r.MaxShare),
+		detect.Share("maxShare", r.MaxShare),
+		detect.NotNegative("minSlots", r.MinSlots),
+		detect.NotNegative("certainSlots", r.CertainSlots),
+	)
+}
+
+type Config struct {
+	// The evidence is kept per slot and saved with its length.
+	Slot time.Duration
 
 	SweepInterval time.Duration
 }
 
 const (
 	defaultSlot          = 5 * time.Minute
-	defaultWindow        = 24 * time.Hour
-	defaultMinSeconds    = 15
-	defaultMinByChance   = 90
-	defaultMaxShare      = 0.05
 	defaultSweepInterval = time.Minute
 
 	rejudgeAfter        = 10 * time.Second
@@ -44,29 +59,18 @@ func (c Config) withDefaults() Config {
 	if c.Slot < time.Second {
 		c.Slot = defaultSlot
 	}
-	if c.Window < c.Slot {
-		c.Window = defaultWindow
-	}
-	if c.MinSeconds <= 0 {
-		c.MinSeconds = defaultMinSeconds
-	}
-	if c.MinByChance <= 0 {
-		c.MinByChance = defaultMinByChance
-	}
-	if c.MaxShare <= 0 {
-		c.MaxShare = defaultMaxShare
-	}
 	if c.SweepInterval <= 0 {
 		c.SweepInterval = defaultSweepInterval
 	}
 	return c
 }
 
-func New(config Config, clock cptime.Clock, onShare func(share float64)) *Watchdog {
+func New(config Config, rules func() Rules, clock cptime.Clock, onShare func(share float64)) *Watchdog {
 	config = config.withDefaults()
 
 	return &Watchdog{
 		config:  config,
+		rules:   rules,
 		clock:   clock,
 		onShare: onShare,
 		span:    int64(config.Slot / time.Second),
@@ -76,6 +80,7 @@ func New(config Config, clock cptime.Clock, onShare func(share float64)) *Watchd
 
 type Watchdog struct {
 	config  Config
+	rules   func() Rules
 	clock   cptime.Clock
 	onShare func(float64)
 	span    int64
@@ -122,6 +127,8 @@ func (m marks) count() int {
 }
 
 func (w *Watchdog) Name() string { return Name }
+
+func (w *Watchdog) Enabled() bool { return w.rules().Enabled }
 
 func (w *Watchdog) Attempted(click detect.Click) {
 	if click.Scope == "" || click.Account == "" {
@@ -171,6 +178,8 @@ func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 		return detect.Clear, detect.Evidence{}
 	}
 
+	rules := w.rules()
+
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
@@ -185,7 +194,7 @@ func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 
 	if a.judgedAt.IsZero() || click.At.Sub(a.judgedAt) >= rejudgeAfter {
 		a.judgedAt = click.At
-		a.verdict, a.evidence = w.judgeLocked(n, a, click.At)
+		a.verdict, a.evidence = w.judgeLocked(n, a, click.At, rules)
 	}
 
 	return a.verdict, a.evidence
@@ -195,8 +204,8 @@ func (w *Watchdog) slotOf(at time.Time) slot { return slot(at.Unix() / w.span) }
 
 func (w *Watchdog) words() int { return int((w.span + 63) / 64) }
 
-func (w *Watchdog) judgeLocked(n *network, a *account, now time.Time) (detect.Verdict, detect.Evidence) {
-	from := w.slotOf(now.Add(-w.config.Window))
+func (w *Watchdog) judgeLocked(n *network, a *account, now time.Time, rules Rules) (detect.Verdict, detect.Evidence) {
+	from := w.slotOf(now.Add(-rules.Window))
 
 	verdict := detect.Clear
 	ring := []*account{a}
@@ -204,7 +213,7 @@ func (w *Watchdog) judgeLocked(n *network, a *account, now time.Time) (detect.Ve
 		if b == a || !paired(a, b) {
 			continue
 		}
-		if level := w.level(w.sharingOf(from, a, b)); level > detect.Clear {
+		if level := rules.level(w.sharingOf(from, rules.MinSeconds, a, b)); level > detect.Clear {
 			ring = append(ring, b)
 			verdict = max(verdict, level)
 		}
@@ -222,7 +231,7 @@ func (w *Watchdog) judgeLocked(n *network, a *account, now time.Time) (detect.Ve
 		accomplices = append(accomplices, detect.Accomplice{Account: string(partner.id), SignedIn: partner.signedIn})
 	}
 
-	together := w.sharingOf(from, ring...)
+	together := w.sharingOf(from, rules.MinSeconds, ring...)
 
 	return verdict, detect.Evidence{
 		Rule: "rotation",
@@ -269,7 +278,7 @@ type sharing struct {
 
 func (s sharing) share() float64 { return float64(s.seconds) / s.byChance }
 
-func (w *Watchdog) sharingOf(from slot, accounts ...*account) sharing {
+func (w *Watchdog) sharingOf(from slot, minSeconds int, accounts ...*account) sharing {
 	var (
 		shared   sharing
 		products int
@@ -290,7 +299,7 @@ func (w *Watchdog) sharingOf(from slot, accounts ...*account) sharing {
 			for _, member := range accounts[i:] {
 				clicked := member.slots[at]
 				n := clicked.count()
-				if n < w.config.MinSeconds {
+				if n < minSeconds {
 					continue
 				}
 
@@ -327,17 +336,17 @@ func held(accounts []*account, at slot) bool {
 	return false
 }
 
-func (w *Watchdog) readable(s sharing) bool { return s.byChance >= w.config.MinByChance }
+func (r Rules) readable(s sharing) bool { return s.byChance >= r.MinByChance }
 
-func (w *Watchdog) level(s sharing) detect.Verdict {
-	if !w.readable(s) || s.share() > w.config.MaxShare {
+func (r Rules) level(s sharing) detect.Verdict {
+	if !r.readable(s) || s.share() > r.MaxShare {
 		return detect.Clear
 	}
 
 	switch {
-	case w.config.CertainSlots > 0 && s.slots >= w.config.CertainSlots:
+	case r.CertainSlots > 0 && s.slots >= r.CertainSlots:
 		return detect.Certain
-	case w.config.MinSlots > 0 && s.slots >= w.config.MinSlots:
+	case r.MinSlots > 0 && s.slots >= r.MinSlots:
 		return detect.Suspect
 	default:
 		return detect.Clear
@@ -360,7 +369,8 @@ func (w *Watchdog) Run(ctx context.Context) {
 
 func (w *Watchdog) sweep() {
 	now := w.clock.Now()
-	from := w.slotOf(now.Add(-w.config.Window))
+	rules := w.rules()
+	from := w.slotOf(now.Add(-rules.Window))
 
 	var shares []float64
 
@@ -369,7 +379,7 @@ func (w *Watchdog) sweep() {
 	w.forgetLocked(from)
 	for _, n := range w.scopes {
 		if n.last.After(w.sweptAt) {
-			shares = append(shares, w.sharesLocked(n, from)...)
+			shares = append(shares, w.sharesLocked(n, from, rules)...)
 		}
 	}
 	w.sweptAt = now
@@ -381,7 +391,7 @@ func (w *Watchdog) sweep() {
 	}
 }
 
-func (w *Watchdog) sharesLocked(n *network, from slot) []float64 {
+func (w *Watchdog) sharesLocked(n *network, from slot, rules Rules) []float64 {
 	var shares []float64
 
 	for _, a := range n.accounts {
@@ -389,7 +399,7 @@ func (w *Watchdog) sharesLocked(n *network, from slot) []float64 {
 			if a.id >= b.id || !paired(a, b) {
 				continue
 			}
-			if together := w.sharingOf(from, a, b); w.readable(together) {
+			if together := w.sharingOf(from, rules.MinSeconds, a, b); rules.readable(together) {
 				shares = append(shares, together.share())
 			}
 		}

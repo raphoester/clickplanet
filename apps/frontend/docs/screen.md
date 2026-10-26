@@ -22,8 +22,8 @@ this is where each zone lives. `Viewer` composes them, and `useCompact`
 - **There is no More.** It held eight tiles of four kinds, and each new feature
   with no home went there. Each kind has a home now: the picture and the recruit
   link in Share (see [Sharing the globe](sharing.md)), the feedback form
-  and About at the foot of Settings, Discord, TikTok and Instagram in the chat's
-  bar and in About. A new entry goes to the place of its kind.
+  and About at the foot of Settings, Discord, TikTok, YouTube and Instagram in
+  the chat's bar and in About. A new entry goes to the place of its kind.
 - **Settings is every switch the player keeps**: the display (`useDisplaySettings`,
   `domain/displaySettings.ts`, in `clickplanet-display-settings`) and the sound.
   **Its foot is Feedback and About** (`.settings-foot`), and it is always

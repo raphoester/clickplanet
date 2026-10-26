@@ -12,15 +12,25 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-func bounded() Config {
-	return Config{
-		V6:    Bounds{MinAccounts: 4, CertainAccounts: 6},
-		Relay: Relay{MinLinks: 3, CertainLinks: 6},
+func bounded() func() Rules {
+	return func() Rules {
+		return Rules{
+			Window: time.Hour,
+			V6:     Bounds{MinAccounts: 4, CertainAccounts: 6},
+			Relay: RelayRules{
+				Handoff:      90 * time.Second,
+				MaxLife:      5 * time.Minute,
+				MinClicks:    20,
+				MinFlagShare: 0.9,
+				MinLinks:     3,
+				CertainLinks: 6,
+			},
+		}
 	}
 }
 
-func newWatchdog(config Config, clock cptime.Clock) *Watchdog {
-	return New(config, clock, func(int, string) {}, func(int) {})
+func newWatchdog(rules func() Rules, clock cptime.Clock) *Watchdog {
+	return New(Config{}, rules, clock, func(int, string) {}, func(int) {})
 }
 
 func churn(w *Watchdog, clock *cptime.FixedClock, accounts int) {

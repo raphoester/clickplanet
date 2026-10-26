@@ -41,6 +41,11 @@ const (
 	// AdminServiceInspectPlayerProcedure is the fully-qualified name of the AdminService's
 	// InspectPlayer RPC.
 	AdminServiceInspectPlayerProcedure = "/antibot.v1.AdminService/InspectPlayer"
+	// AdminServiceGetRulesProcedure is the fully-qualified name of the AdminService's GetRules RPC.
+	AdminServiceGetRulesProcedure = "/antibot.v1.AdminService/GetRules"
+	// AdminServiceSaveRuleSetProcedure is the fully-qualified name of the AdminService's SaveRuleSet
+	// RPC.
+	AdminServiceSaveRuleSetProcedure = "/antibot.v1.AdminService/SaveRuleSet"
 	// AdminServiceListConvictionsProcedure is the fully-qualified name of the AdminService's
 	// ListConvictions RPC.
 	AdminServiceListConvictionsProcedure = "/antibot.v1.AdminService/ListConvictions"
@@ -51,6 +56,10 @@ type AdminServiceClient interface {
 	BanPlayer(context.Context, *connect.Request[v1.BanPlayerRequest]) (*connect.Response[v1.BanPlayerResponse], error)
 	UnbanPlayer(context.Context, *connect.Request[v1.UnbanPlayerRequest]) (*connect.Response[v1.UnbanPlayerResponse], error)
 	InspectPlayer(context.Context, *connect.Request[v1.InspectPlayerRequest]) (*connect.Response[v1.InspectPlayerResponse], error)
+	GetRules(context.Context, *connect.Request[v1.GetRulesRequest]) (*connect.Response[v1.GetRulesResponse], error)
+	// Makes a set, or replaces its values. A set that plays now is FailedPrecondition: the rules in force change only
+	// through the schedule.
+	SaveRuleSet(context.Context, *connect.Request[v1.SaveRuleSetRequest]) (*connect.Response[v1.SaveRuleSetResponse], error)
 	// Every ban the jury passed in a window, oldest first, with what it read. An operator's ban is not one.
 	ListConvictions(context.Context, *connect.Request[v1.ListConvictionsRequest]) (*connect.Response[v1.ListConvictionsResponse], error)
 }
@@ -84,6 +93,18 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("InspectPlayer")),
 			connect.WithClientOptions(opts...),
 		),
+		getRules: connect.NewClient[v1.GetRulesRequest, v1.GetRulesResponse](
+			httpClient,
+			baseURL+AdminServiceGetRulesProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("GetRules")),
+			connect.WithClientOptions(opts...),
+		),
+		saveRuleSet: connect.NewClient[v1.SaveRuleSetRequest, v1.SaveRuleSetResponse](
+			httpClient,
+			baseURL+AdminServiceSaveRuleSetProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("SaveRuleSet")),
+			connect.WithClientOptions(opts...),
+		),
 		listConvictions: connect.NewClient[v1.ListConvictionsRequest, v1.ListConvictionsResponse](
 			httpClient,
 			baseURL+AdminServiceListConvictionsProcedure,
@@ -98,6 +119,8 @@ type adminServiceClient struct {
 	banPlayer       *connect.Client[v1.BanPlayerRequest, v1.BanPlayerResponse]
 	unbanPlayer     *connect.Client[v1.UnbanPlayerRequest, v1.UnbanPlayerResponse]
 	inspectPlayer   *connect.Client[v1.InspectPlayerRequest, v1.InspectPlayerResponse]
+	getRules        *connect.Client[v1.GetRulesRequest, v1.GetRulesResponse]
+	saveRuleSet     *connect.Client[v1.SaveRuleSetRequest, v1.SaveRuleSetResponse]
 	listConvictions *connect.Client[v1.ListConvictionsRequest, v1.ListConvictionsResponse]
 }
 
@@ -116,6 +139,16 @@ func (c *adminServiceClient) InspectPlayer(ctx context.Context, req *connect.Req
 	return c.inspectPlayer.CallUnary(ctx, req)
 }
 
+// GetRules calls antibot.v1.AdminService.GetRules.
+func (c *adminServiceClient) GetRules(ctx context.Context, req *connect.Request[v1.GetRulesRequest]) (*connect.Response[v1.GetRulesResponse], error) {
+	return c.getRules.CallUnary(ctx, req)
+}
+
+// SaveRuleSet calls antibot.v1.AdminService.SaveRuleSet.
+func (c *adminServiceClient) SaveRuleSet(ctx context.Context, req *connect.Request[v1.SaveRuleSetRequest]) (*connect.Response[v1.SaveRuleSetResponse], error) {
+	return c.saveRuleSet.CallUnary(ctx, req)
+}
+
 // ListConvictions calls antibot.v1.AdminService.ListConvictions.
 func (c *adminServiceClient) ListConvictions(ctx context.Context, req *connect.Request[v1.ListConvictionsRequest]) (*connect.Response[v1.ListConvictionsResponse], error) {
 	return c.listConvictions.CallUnary(ctx, req)
@@ -126,6 +159,10 @@ type AdminServiceHandler interface {
 	BanPlayer(context.Context, *connect.Request[v1.BanPlayerRequest]) (*connect.Response[v1.BanPlayerResponse], error)
 	UnbanPlayer(context.Context, *connect.Request[v1.UnbanPlayerRequest]) (*connect.Response[v1.UnbanPlayerResponse], error)
 	InspectPlayer(context.Context, *connect.Request[v1.InspectPlayerRequest]) (*connect.Response[v1.InspectPlayerResponse], error)
+	GetRules(context.Context, *connect.Request[v1.GetRulesRequest]) (*connect.Response[v1.GetRulesResponse], error)
+	// Makes a set, or replaces its values. A set that plays now is FailedPrecondition: the rules in force change only
+	// through the schedule.
+	SaveRuleSet(context.Context, *connect.Request[v1.SaveRuleSetRequest]) (*connect.Response[v1.SaveRuleSetResponse], error)
 	// Every ban the jury passed in a window, oldest first, with what it read. An operator's ban is not one.
 	ListConvictions(context.Context, *connect.Request[v1.ListConvictionsRequest]) (*connect.Response[v1.ListConvictionsResponse], error)
 }
@@ -155,6 +192,18 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(adminServiceMethods.ByName("InspectPlayer")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServiceGetRulesHandler := connect.NewUnaryHandler(
+		AdminServiceGetRulesProcedure,
+		svc.GetRules,
+		connect.WithSchema(adminServiceMethods.ByName("GetRules")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServiceSaveRuleSetHandler := connect.NewUnaryHandler(
+		AdminServiceSaveRuleSetProcedure,
+		svc.SaveRuleSet,
+		connect.WithSchema(adminServiceMethods.ByName("SaveRuleSet")),
+		connect.WithHandlerOptions(opts...),
+	)
 	adminServiceListConvictionsHandler := connect.NewUnaryHandler(
 		AdminServiceListConvictionsProcedure,
 		svc.ListConvictions,
@@ -169,6 +218,10 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 			adminServiceUnbanPlayerHandler.ServeHTTP(w, r)
 		case AdminServiceInspectPlayerProcedure:
 			adminServiceInspectPlayerHandler.ServeHTTP(w, r)
+		case AdminServiceGetRulesProcedure:
+			adminServiceGetRulesHandler.ServeHTTP(w, r)
+		case AdminServiceSaveRuleSetProcedure:
+			adminServiceSaveRuleSetHandler.ServeHTTP(w, r)
 		case AdminServiceListConvictionsProcedure:
 			adminServiceListConvictionsHandler.ServeHTTP(w, r)
 		default:
@@ -190,6 +243,14 @@ func (UnimplementedAdminServiceHandler) UnbanPlayer(context.Context, *connect.Re
 
 func (UnimplementedAdminServiceHandler) InspectPlayer(context.Context, *connect.Request[v1.InspectPlayerRequest]) (*connect.Response[v1.InspectPlayerResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("antibot.v1.AdminService.InspectPlayer is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) GetRules(context.Context, *connect.Request[v1.GetRulesRequest]) (*connect.Response[v1.GetRulesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("antibot.v1.AdminService.GetRules is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) SaveRuleSet(context.Context, *connect.Request[v1.SaveRuleSetRequest]) (*connect.Response[v1.SaveRuleSetResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("antibot.v1.AdminService.SaveRuleSet is not implemented"))
 }
 
 func (UnimplementedAdminServiceHandler) ListConvictions(context.Context, *connect.Request[v1.ListConvictionsRequest]) (*connect.Response[v1.ListConvictionsResponse], error) {

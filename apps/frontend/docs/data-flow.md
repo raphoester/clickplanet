@@ -1,9 +1,12 @@
 # Data flow
 
-1. `useGlobe` calls `createGlobe`, which fetches the coordinates and borders
+1. `useGlobe` calls `createGlobe`, which fetches the landmask (and rebuilds the
+   tile positions from it, see [Tile positions](tile-positions.md)) and the borders
    blobs — in parallel, and before allocating any GPU resource, so an abandoned
    load never opens a context.
-2. Ownerships are fetched in batches and fed to `TileOwnership`. **`createGlobe`
+2. Ownerships are fetched in batches, eight at a time (see
+   [`src/backends/`](backends.md)), and each is fed to `TileOwnership` as it
+   lands. **`createGlobe`
    resolves only once the last batch is in**, so `useGlobe` stays `loading` —
    with `territories`, the share fetched, for the progress bar — and the menu,
    the leaderboard and every other control stay hidden until then. The scene

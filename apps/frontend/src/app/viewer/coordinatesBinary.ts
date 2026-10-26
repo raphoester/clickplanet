@@ -12,7 +12,6 @@ export type Coordinates = {
 
 export type PointGeometryData = {
     positions: Float32Array
-    uvs: Float32Array
     size: number
 }
 
@@ -80,12 +79,8 @@ export function decodeCoordinates(buffer: ArrayBuffer): PointGeometryData {
         )
     }
 
-    const positionsOffset = COORDINATES_HEADER_BYTES
-    const uvsOffset = positionsOffset + size * 3 * 4
-
     return {
-        positions: readFloats(buffer, positionsOffset, size * 3),
-        uvs: readFloats(buffer, uvsOffset, size * 2),
+        positions: readFloats(buffer, COORDINATES_HEADER_BYTES, size * 3),
         size,
     }
 }

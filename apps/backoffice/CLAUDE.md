@@ -29,4 +29,4 @@ each line names a doc in [`docs/`](docs) and says what is in it.
 - [The player page](docs/player-page.md) — an account or an address, and every tool on one player.
 - [The map tools](docs/map-tools.md) — reassign a country, paint random tiles, download a replay.
 - [Clip stats](docs/clip-stats.md) — the daily numbers of the posted clips, and a CSV of them.
-- [Ops](docs/ops.md) — `ReconcileTitles`, after a deploy.
+- [Ops](docs/ops.md) — `ReconcileTitles`, after a deploy; the antibot's rule sets, edited as JSON.

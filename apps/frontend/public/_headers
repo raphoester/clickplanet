@@ -9,6 +9,10 @@
   ! Cache-Control
   Cache-Control: public, max-age=31536000, immutable
 
+/static/landmask-*.bin
+  ! Cache-Control
+  Cache-Control: public, max-age=31536000, immutable
+
 /static/countries/atlas-*.png
   ! Cache-Control
   Cache-Control: public, max-age=31536000, immutable

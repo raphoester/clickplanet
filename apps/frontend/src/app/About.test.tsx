@@ -2,7 +2,7 @@
 import {afterEach, describe, expect, it} from "vitest"
 import {cleanup, render, screen} from "@testing-library/react"
 import About from "./About.tsx"
-import {DISCORD_INVITE, INSTAGRAM_PROFILE, TIKTOK_PROFILE} from "../links.ts"
+import {DISCORD_INVITE, INSTAGRAM_PROFILE, TIKTOK_PROFILE, YOUTUBE_CHANNEL} from "../links.ts"
 
 afterEach(cleanup)
 
@@ -17,6 +17,7 @@ describe("About", () => {
     it.each([
         ["Discord", DISCORD_INVITE],
         ["TikTok", TIKTOK_PROFILE],
+        ["YouTube", YOUTUBE_CHANNEL],
         ["Instagram", INSTAGRAM_PROFILE],
     ])("links the game's %s from links.ts, in a new tab", (name, href) => {
         render(<About/>)

@@ -73,12 +73,10 @@ func startGame(t *testing.T) gameStack {
 	planetConfig.GameMap.MaxIndex = mapTiles
 	planetConfig.Auth = cpsession.VerifierConfig{Enabled: true, Enforce: true}
 	planetConfig.RateLimiter.PerSecond = 100
-	planetConfig.RateLimiter.Burst = 100
+	planetConfig.RateLimiter.Burst = 1000
 	planetConfig.RateLimiter.ScopeMultiplier = 1
 
 	antibotConfig := antibot.Config{Enabled: true, Database: postgres.ConfigFor("antibot"), Redis: redis}
-	antibotConfig.Bans.Enforce = true
-	antibotConfig.Sequencer.Enabled = true
 
 	playerConfig := player.Config{Database: postgres.ConfigFor("player"), Redis: redis, TagSalt: "pepper"}
 

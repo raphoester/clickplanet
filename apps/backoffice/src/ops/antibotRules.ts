@@ -1,0 +1,52 @@
+import {AntibotAdmin} from "../clients.ts"
+import {RuleSet} from "../gen/grpc/antibot/v1/admin_pb.ts"
+import {Rules} from "../gen/grpc/antibot/v1/rules_pb.ts"
+
+// A set as the form edits it: its rules as protojson, every value written.
+export type Draft = {name: string, text: string}
+
+export function draftOf(set: RuleSet): Draft {
+    return {name: set.name, text: textOf(set.rules)}
+}
+
+// The rules in force change only through the schedule: a new set starts as a copy of another, with no name.
+export function copyOf(set: RuleSet): Draft {
+    return {name: "", text: textOf(set.rules)}
+}
+
+function textOf(rules: Rules | undefined): string {
+    return (rules ?? new Rules()).toJsonString({emitDefaultValues: true, prettySpaces: 2})
+}
+
+// Why the text is no antibot.v1.Rules, or undefined when it is one. The server holds the bounds a set must keep.
+export function flawOf(text: string): string | undefined {
+    try {
+        Rules.fromJsonString(text)
+        return undefined
+    } catch (err) {
+        return err instanceof Error ? err.message : String(err)
+    }
+}
+
+export async function saveRuleSet(antibot: AntibotAdmin, draft: Draft): Promise<void> {
+    await antibot.saveRuleSet({set: new RuleSet({name: draft.name.trim(), rules: Rules.fromJsonString(draft.text)})})
+}
+
+export function bansOf(set: RuleSet): string {
+    return set.rules?.bans?.enforce === true ? "Enforced" : "Not enforced"
+}
+
+// A watchdog's part of a set is the one with an enabled switch.
+const WATCHDOGS = Rules.fields.list()
+    .filter(field => field.kind === "message" && field.T.fields.findJsonName("enabled") !== undefined)
+    .map(field => field.localName)
+
+export function offOf(set: RuleSet): string {
+    const parts = (set.rules ?? new Rules()) as unknown as Record<string, {enabled: boolean} | undefined>
+    const off = WATCHDOGS.filter(watchdog => parts[watchdog]?.enabled !== true)
+    return off.length === 0 ? "None" : off.join(", ")
+}
+
+export function crowdOf(set: RuleSet): string {
+    return `${set.rules?.cohort?.certainMembers ?? 0} scopes`
+}

@@ -23,6 +23,228 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type GetRulesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRulesRequest) Reset() {
+	*x = GetRulesRequest{}
+	mi := &file_antibot_v1_admin_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRulesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRulesRequest) ProtoMessage() {}
+
+func (x *GetRulesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_antibot_v1_admin_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRulesRequest.ProtoReflect.Descriptor instead.
+func (*GetRulesRequest) Descriptor() ([]byte, []int) {
+	return file_antibot_v1_admin_proto_rawDescGZIP(), []int{0}
+}
+
+type GetRulesResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Every set postgres keeps, "default" first.
+	Sets []*RuleSet `protobuf:"bytes,1,rep,name=sets,proto3" json:"sets,omitempty"`
+	// The set the antibot judges with now: the one named like the planet rule set in force, or "default".
+	Playing       string `protobuf:"bytes,2,opt,name=playing,proto3" json:"playing,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRulesResponse) Reset() {
+	*x = GetRulesResponse{}
+	mi := &file_antibot_v1_admin_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRulesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRulesResponse) ProtoMessage() {}
+
+func (x *GetRulesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_antibot_v1_admin_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRulesResponse.ProtoReflect.Descriptor instead.
+func (*GetRulesResponse) Descriptor() ([]byte, []int) {
+	return file_antibot_v1_admin_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *GetRulesResponse) GetSets() []*RuleSet {
+	if x != nil {
+		return x.Sets
+	}
+	return nil
+}
+
+func (x *GetRulesResponse) GetPlaying() string {
+	if x != nil {
+		return x.Playing
+	}
+	return ""
+}
+
+type RuleSet struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Rules         *Rules                 `protobuf:"bytes,2,opt,name=rules,proto3" json:"rules,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RuleSet) Reset() {
+	*x = RuleSet{}
+	mi := &file_antibot_v1_admin_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RuleSet) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RuleSet) ProtoMessage() {}
+
+func (x *RuleSet) ProtoReflect() protoreflect.Message {
+	mi := &file_antibot_v1_admin_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RuleSet.ProtoReflect.Descriptor instead.
+func (*RuleSet) Descriptor() ([]byte, []int) {
+	return file_antibot_v1_admin_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *RuleSet) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *RuleSet) GetRules() *Rules {
+	if x != nil {
+		return x.Rules
+	}
+	return nil
+}
+
+type SaveRuleSetRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Set           *RuleSet               `protobuf:"bytes,1,opt,name=set,proto3" json:"set,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SaveRuleSetRequest) Reset() {
+	*x = SaveRuleSetRequest{}
+	mi := &file_antibot_v1_admin_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SaveRuleSetRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SaveRuleSetRequest) ProtoMessage() {}
+
+func (x *SaveRuleSetRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_antibot_v1_admin_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SaveRuleSetRequest.ProtoReflect.Descriptor instead.
+func (*SaveRuleSetRequest) Descriptor() ([]byte, []int) {
+	return file_antibot_v1_admin_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *SaveRuleSetRequest) GetSet() *RuleSet {
+	if x != nil {
+		return x.Set
+	}
+	return nil
+}
+
+type SaveRuleSetResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SaveRuleSetResponse) Reset() {
+	*x = SaveRuleSetResponse{}
+	mi := &file_antibot_v1_admin_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SaveRuleSetResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SaveRuleSetResponse) ProtoMessage() {}
+
+func (x *SaveRuleSetResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_antibot_v1_admin_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SaveRuleSetResponse.ProtoReflect.Descriptor instead.
+func (*SaveRuleSetResponse) Descriptor() ([]byte, []int) {
+	return file_antibot_v1_admin_proto_rawDescGZIP(), []int{4}
+}
+
 type BanPlayerRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Scope         string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
@@ -34,7 +256,7 @@ type BanPlayerRequest struct {
 
 func (x *BanPlayerRequest) Reset() {
 	*x = BanPlayerRequest{}
-	mi := &file_antibot_v1_admin_proto_msgTypes[0]
+	mi := &file_antibot_v1_admin_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -46,7 +268,7 @@ func (x *BanPlayerRequest) String() string {
 func (*BanPlayerRequest) ProtoMessage() {}
 
 func (x *BanPlayerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_antibot_v1_admin_proto_msgTypes[0]
+	mi := &file_antibot_v1_admin_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -59,7 +281,7 @@ func (x *BanPlayerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BanPlayerRequest.ProtoReflect.Descriptor instead.
 func (*BanPlayerRequest) Descriptor() ([]byte, []int) {
-	return file_antibot_v1_admin_proto_rawDescGZIP(), []int{0}
+	return file_antibot_v1_admin_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *BanPlayerRequest) GetScope() string {
@@ -96,7 +318,7 @@ type BanPlayerResponse struct {
 
 func (x *BanPlayerResponse) Reset() {
 	*x = BanPlayerResponse{}
-	mi := &file_antibot_v1_admin_proto_msgTypes[1]
+	mi := &file_antibot_v1_admin_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -108,7 +330,7 @@ func (x *BanPlayerResponse) String() string {
 func (*BanPlayerResponse) ProtoMessage() {}
 
 func (x *BanPlayerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_antibot_v1_admin_proto_msgTypes[1]
+	mi := &file_antibot_v1_admin_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -121,7 +343,7 @@ func (x *BanPlayerResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BanPlayerResponse.ProtoReflect.Descriptor instead.
 func (*BanPlayerResponse) Descriptor() ([]byte, []int) {
-	return file_antibot_v1_admin_proto_rawDescGZIP(), []int{1}
+	return file_antibot_v1_admin_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *BanPlayerResponse) GetScope() string {
@@ -169,7 +391,7 @@ type UnbanPlayerRequest struct {
 
 func (x *UnbanPlayerRequest) Reset() {
 	*x = UnbanPlayerRequest{}
-	mi := &file_antibot_v1_admin_proto_msgTypes[2]
+	mi := &file_antibot_v1_admin_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -181,7 +403,7 @@ func (x *UnbanPlayerRequest) String() string {
 func (*UnbanPlayerRequest) ProtoMessage() {}
 
 func (x *UnbanPlayerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_antibot_v1_admin_proto_msgTypes[2]
+	mi := &file_antibot_v1_admin_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -194,7 +416,7 @@ func (x *UnbanPlayerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UnbanPlayerRequest.ProtoReflect.Descriptor instead.
 func (*UnbanPlayerRequest) Descriptor() ([]byte, []int) {
-	return file_antibot_v1_admin_proto_rawDescGZIP(), []int{2}
+	return file_antibot_v1_admin_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *UnbanPlayerRequest) GetScope() string {
@@ -225,7 +447,7 @@ type UnbanPlayerResponse struct {
 
 func (x *UnbanPlayerResponse) Reset() {
 	*x = UnbanPlayerResponse{}
-	mi := &file_antibot_v1_admin_proto_msgTypes[3]
+	mi := &file_antibot_v1_admin_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -237,7 +459,7 @@ func (x *UnbanPlayerResponse) String() string {
 func (*UnbanPlayerResponse) ProtoMessage() {}
 
 func (x *UnbanPlayerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_antibot_v1_admin_proto_msgTypes[3]
+	mi := &file_antibot_v1_admin_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -250,7 +472,7 @@ func (x *UnbanPlayerResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UnbanPlayerResponse.ProtoReflect.Descriptor instead.
 func (*UnbanPlayerResponse) Descriptor() ([]byte, []int) {
-	return file_antibot_v1_admin_proto_rawDescGZIP(), []int{3}
+	return file_antibot_v1_admin_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *UnbanPlayerResponse) GetScope() string {
@@ -298,7 +520,7 @@ type InspectPlayerRequest struct {
 
 func (x *InspectPlayerRequest) Reset() {
 	*x = InspectPlayerRequest{}
-	mi := &file_antibot_v1_admin_proto_msgTypes[4]
+	mi := &file_antibot_v1_admin_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -310,7 +532,7 @@ func (x *InspectPlayerRequest) String() string {
 func (*InspectPlayerRequest) ProtoMessage() {}
 
 func (x *InspectPlayerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_antibot_v1_admin_proto_msgTypes[4]
+	mi := &file_antibot_v1_admin_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -323,7 +545,7 @@ func (x *InspectPlayerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InspectPlayerRequest.ProtoReflect.Descriptor instead.
 func (*InspectPlayerRequest) Descriptor() ([]byte, []int) {
-	return file_antibot_v1_admin_proto_rawDescGZIP(), []int{4}
+	return file_antibot_v1_admin_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *InspectPlayerRequest) GetScope() string {
@@ -366,7 +588,7 @@ type InspectPlayerResponse struct {
 
 func (x *InspectPlayerResponse) Reset() {
 	*x = InspectPlayerResponse{}
-	mi := &file_antibot_v1_admin_proto_msgTypes[5]
+	mi := &file_antibot_v1_admin_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -378,7 +600,7 @@ func (x *InspectPlayerResponse) String() string {
 func (*InspectPlayerResponse) ProtoMessage() {}
 
 func (x *InspectPlayerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_antibot_v1_admin_proto_msgTypes[5]
+	mi := &file_antibot_v1_admin_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -391,7 +613,7 @@ func (x *InspectPlayerResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InspectPlayerResponse.ProtoReflect.Descriptor instead.
 func (*InspectPlayerResponse) Descriptor() ([]byte, []int) {
-	return file_antibot_v1_admin_proto_rawDescGZIP(), []int{5}
+	return file_antibot_v1_admin_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *InspectPlayerResponse) GetScope() string {
@@ -532,7 +754,7 @@ type WatchdogReading struct {
 
 func (x *WatchdogReading) Reset() {
 	*x = WatchdogReading{}
-	mi := &file_antibot_v1_admin_proto_msgTypes[6]
+	mi := &file_antibot_v1_admin_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -544,7 +766,7 @@ func (x *WatchdogReading) String() string {
 func (*WatchdogReading) ProtoMessage() {}
 
 func (x *WatchdogReading) ProtoReflect() protoreflect.Message {
-	mi := &file_antibot_v1_admin_proto_msgTypes[6]
+	mi := &file_antibot_v1_admin_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -557,7 +779,7 @@ func (x *WatchdogReading) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WatchdogReading.ProtoReflect.Descriptor instead.
 func (*WatchdogReading) Descriptor() ([]byte, []int) {
-	return file_antibot_v1_admin_proto_rawDescGZIP(), []int{6}
+	return file_antibot_v1_admin_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *WatchdogReading) GetWatchdog() string {
@@ -599,7 +821,7 @@ type ListConvictionsRequest struct {
 
 func (x *ListConvictionsRequest) Reset() {
 	*x = ListConvictionsRequest{}
-	mi := &file_antibot_v1_admin_proto_msgTypes[7]
+	mi := &file_antibot_v1_admin_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -611,7 +833,7 @@ func (x *ListConvictionsRequest) String() string {
 func (*ListConvictionsRequest) ProtoMessage() {}
 
 func (x *ListConvictionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_antibot_v1_admin_proto_msgTypes[7]
+	mi := &file_antibot_v1_admin_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -624,7 +846,7 @@ func (x *ListConvictionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListConvictionsRequest.ProtoReflect.Descriptor instead.
 func (*ListConvictionsRequest) Descriptor() ([]byte, []int) {
-	return file_antibot_v1_admin_proto_rawDescGZIP(), []int{7}
+	return file_antibot_v1_admin_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ListConvictionsRequest) GetSince() *timestamppb.Timestamp {
@@ -650,7 +872,7 @@ type ListConvictionsResponse struct {
 
 func (x *ListConvictionsResponse) Reset() {
 	*x = ListConvictionsResponse{}
-	mi := &file_antibot_v1_admin_proto_msgTypes[8]
+	mi := &file_antibot_v1_admin_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -662,7 +884,7 @@ func (x *ListConvictionsResponse) String() string {
 func (*ListConvictionsResponse) ProtoMessage() {}
 
 func (x *ListConvictionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_antibot_v1_admin_proto_msgTypes[8]
+	mi := &file_antibot_v1_admin_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -675,7 +897,7 @@ func (x *ListConvictionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListConvictionsResponse.ProtoReflect.Descriptor instead.
 func (*ListConvictionsResponse) Descriptor() ([]byte, []int) {
-	return file_antibot_v1_admin_proto_rawDescGZIP(), []int{8}
+	return file_antibot_v1_admin_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ListConvictionsResponse) GetConvictions() []*Conviction {
@@ -708,7 +930,7 @@ type Conviction struct {
 
 func (x *Conviction) Reset() {
 	*x = Conviction{}
-	mi := &file_antibot_v1_admin_proto_msgTypes[9]
+	mi := &file_antibot_v1_admin_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -720,7 +942,7 @@ func (x *Conviction) String() string {
 func (*Conviction) ProtoMessage() {}
 
 func (x *Conviction) ProtoReflect() protoreflect.Message {
-	mi := &file_antibot_v1_admin_proto_msgTypes[9]
+	mi := &file_antibot_v1_admin_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -733,7 +955,7 @@ func (x *Conviction) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Conviction.ProtoReflect.Descriptor instead.
 func (*Conviction) Descriptor() ([]byte, []int) {
-	return file_antibot_v1_admin_proto_rawDescGZIP(), []int{9}
+	return file_antibot_v1_admin_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *Conviction) GetAt() *timestamppb.Timestamp {
@@ -832,7 +1054,17 @@ var File_antibot_v1_admin_proto protoreflect.FileDescriptor
 const file_antibot_v1_admin_proto_rawDesc = "" +
 	"\n" +
 	"\x16antibot/v1/admin.proto\x12\n" +
-	"antibot.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"~\n" +
+	"antibot.v1\x1a\x16antibot/v1/rules.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x11\n" +
+	"\x0fGetRulesRequest\"U\n" +
+	"\x10GetRulesResponse\x12'\n" +
+	"\x04sets\x18\x01 \x03(\v2\x13.antibot.v1.RuleSetR\x04sets\x12\x18\n" +
+	"\aplaying\x18\x02 \x01(\tR\aplaying\"F\n" +
+	"\aRuleSet\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12'\n" +
+	"\x05rules\x18\x02 \x01(\v2\x11.antibot.v1.RulesR\x05rules\";\n" +
+	"\x12SaveRuleSetRequest\x12%\n" +
+	"\x03set\x18\x01 \x01(\v2\x13.antibot.v1.RuleSetR\x03set\"\x15\n" +
+	"\x13SaveRuleSetResponse\"~\n" +
 	"\x10BanPlayerRequest\x12\x14\n" +
 	"\x05scope\x18\x01 \x01(\tR\x05scope\x12\x1d\n" +
 	"\n" +
@@ -917,11 +1149,13 @@ const file_antibot_v1_admin_proto_rawDesc = "" +
 	"longestGap\x12\x1f\n" +
 	"\vtop_country\x18\f \x01(\tR\n" +
 	"topCountry\x12,\n" +
-	"\x12top_country_clicks\x18\r \x01(\rR\x10topCountryClicks2\xda\x02\n" +
+	"\x12top_country_clicks\x18\r \x01(\rR\x10topCountryClicks2\xf1\x03\n" +
 	"\fAdminService\x12H\n" +
 	"\tBanPlayer\x12\x1c.antibot.v1.BanPlayerRequest\x1a\x1d.antibot.v1.BanPlayerResponse\x12N\n" +
 	"\vUnbanPlayer\x12\x1e.antibot.v1.UnbanPlayerRequest\x1a\x1f.antibot.v1.UnbanPlayerResponse\x12T\n" +
-	"\rInspectPlayer\x12 .antibot.v1.InspectPlayerRequest\x1a!.antibot.v1.InspectPlayerResponse\x12Z\n" +
+	"\rInspectPlayer\x12 .antibot.v1.InspectPlayerRequest\x1a!.antibot.v1.InspectPlayerResponse\x12E\n" +
+	"\bGetRules\x12\x1b.antibot.v1.GetRulesRequest\x1a\x1c.antibot.v1.GetRulesResponse\x12N\n" +
+	"\vSaveRuleSet\x12\x1e.antibot.v1.SaveRuleSetRequest\x1a\x1f.antibot.v1.SaveRuleSetResponse\x12Z\n" +
 	"\x0fListConvictions\x12\".antibot.v1.ListConvictionsRequest\x1a#.antibot.v1.ListConvictionsResponseB\xb9\x01\n" +
 	"\x0ecom.antibot.v1B\n" +
 	"AdminProtoP\x01ZRgithub.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1;antibotv1\xa2\x02\x03AXX\xaa\x02\n" +
@@ -940,54 +1174,67 @@ func file_antibot_v1_admin_proto_rawDescGZIP() []byte {
 	return file_antibot_v1_admin_proto_rawDescData
 }
 
-var file_antibot_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_antibot_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_antibot_v1_admin_proto_goTypes = []any{
-	(*BanPlayerRequest)(nil),        // 0: antibot.v1.BanPlayerRequest
-	(*BanPlayerResponse)(nil),       // 1: antibot.v1.BanPlayerResponse
-	(*UnbanPlayerRequest)(nil),      // 2: antibot.v1.UnbanPlayerRequest
-	(*UnbanPlayerResponse)(nil),     // 3: antibot.v1.UnbanPlayerResponse
-	(*InspectPlayerRequest)(nil),    // 4: antibot.v1.InspectPlayerRequest
-	(*InspectPlayerResponse)(nil),   // 5: antibot.v1.InspectPlayerResponse
-	(*WatchdogReading)(nil),         // 6: antibot.v1.WatchdogReading
-	(*ListConvictionsRequest)(nil),  // 7: antibot.v1.ListConvictionsRequest
-	(*ListConvictionsResponse)(nil), // 8: antibot.v1.ListConvictionsResponse
-	(*Conviction)(nil),              // 9: antibot.v1.Conviction
-	(*durationpb.Duration)(nil),     // 10: google.protobuf.Duration
-	(*timestamppb.Timestamp)(nil),   // 11: google.protobuf.Timestamp
+	(*GetRulesRequest)(nil),         // 0: antibot.v1.GetRulesRequest
+	(*GetRulesResponse)(nil),        // 1: antibot.v1.GetRulesResponse
+	(*RuleSet)(nil),                 // 2: antibot.v1.RuleSet
+	(*SaveRuleSetRequest)(nil),      // 3: antibot.v1.SaveRuleSetRequest
+	(*SaveRuleSetResponse)(nil),     // 4: antibot.v1.SaveRuleSetResponse
+	(*BanPlayerRequest)(nil),        // 5: antibot.v1.BanPlayerRequest
+	(*BanPlayerResponse)(nil),       // 6: antibot.v1.BanPlayerResponse
+	(*UnbanPlayerRequest)(nil),      // 7: antibot.v1.UnbanPlayerRequest
+	(*UnbanPlayerResponse)(nil),     // 8: antibot.v1.UnbanPlayerResponse
+	(*InspectPlayerRequest)(nil),    // 9: antibot.v1.InspectPlayerRequest
+	(*InspectPlayerResponse)(nil),   // 10: antibot.v1.InspectPlayerResponse
+	(*WatchdogReading)(nil),         // 11: antibot.v1.WatchdogReading
+	(*ListConvictionsRequest)(nil),  // 12: antibot.v1.ListConvictionsRequest
+	(*ListConvictionsResponse)(nil), // 13: antibot.v1.ListConvictionsResponse
+	(*Conviction)(nil),              // 14: antibot.v1.Conviction
+	(*Rules)(nil),                   // 15: antibot.v1.Rules
+	(*durationpb.Duration)(nil),     // 16: google.protobuf.Duration
+	(*timestamppb.Timestamp)(nil),   // 17: google.protobuf.Timestamp
 }
 var file_antibot_v1_admin_proto_depIdxs = []int32{
-	10, // 0: antibot.v1.BanPlayerRequest.duration:type_name -> google.protobuf.Duration
-	11, // 1: antibot.v1.BanPlayerResponse.banned_until:type_name -> google.protobuf.Timestamp
-	11, // 2: antibot.v1.UnbanPlayerResponse.banned_until:type_name -> google.protobuf.Timestamp
-	11, // 3: antibot.v1.UnbanPlayerResponse.pardoned_until:type_name -> google.protobuf.Timestamp
-	11, // 4: antibot.v1.InspectPlayerResponse.banned_until:type_name -> google.protobuf.Timestamp
-	11, // 5: antibot.v1.InspectPlayerResponse.pardoned_until:type_name -> google.protobuf.Timestamp
-	6,  // 6: antibot.v1.InspectPlayerResponse.readings:type_name -> antibot.v1.WatchdogReading
-	10, // 7: antibot.v1.InspectPlayerResponse.active_for:type_name -> google.protobuf.Duration
-	10, // 8: antibot.v1.InspectPlayerResponse.longest_gap:type_name -> google.protobuf.Duration
-	11, // 9: antibot.v1.InspectPlayerResponse.last_click_at:type_name -> google.protobuf.Timestamp
-	11, // 10: antibot.v1.WatchdogReading.at:type_name -> google.protobuf.Timestamp
-	11, // 11: antibot.v1.ListConvictionsRequest.since:type_name -> google.protobuf.Timestamp
-	11, // 12: antibot.v1.ListConvictionsRequest.until:type_name -> google.protobuf.Timestamp
-	9,  // 13: antibot.v1.ListConvictionsResponse.convictions:type_name -> antibot.v1.Conviction
-	11, // 14: antibot.v1.Conviction.at:type_name -> google.protobuf.Timestamp
-	11, // 15: antibot.v1.Conviction.banned_until:type_name -> google.protobuf.Timestamp
-	6,  // 16: antibot.v1.Conviction.readings:type_name -> antibot.v1.WatchdogReading
-	10, // 17: antibot.v1.Conviction.active_for:type_name -> google.protobuf.Duration
-	10, // 18: antibot.v1.Conviction.longest_gap:type_name -> google.protobuf.Duration
-	0,  // 19: antibot.v1.AdminService.BanPlayer:input_type -> antibot.v1.BanPlayerRequest
-	2,  // 20: antibot.v1.AdminService.UnbanPlayer:input_type -> antibot.v1.UnbanPlayerRequest
-	4,  // 21: antibot.v1.AdminService.InspectPlayer:input_type -> antibot.v1.InspectPlayerRequest
-	7,  // 22: antibot.v1.AdminService.ListConvictions:input_type -> antibot.v1.ListConvictionsRequest
-	1,  // 23: antibot.v1.AdminService.BanPlayer:output_type -> antibot.v1.BanPlayerResponse
-	3,  // 24: antibot.v1.AdminService.UnbanPlayer:output_type -> antibot.v1.UnbanPlayerResponse
-	5,  // 25: antibot.v1.AdminService.InspectPlayer:output_type -> antibot.v1.InspectPlayerResponse
-	8,  // 26: antibot.v1.AdminService.ListConvictions:output_type -> antibot.v1.ListConvictionsResponse
-	23, // [23:27] is the sub-list for method output_type
-	19, // [19:23] is the sub-list for method input_type
-	19, // [19:19] is the sub-list for extension type_name
-	19, // [19:19] is the sub-list for extension extendee
-	0,  // [0:19] is the sub-list for field type_name
+	2,  // 0: antibot.v1.GetRulesResponse.sets:type_name -> antibot.v1.RuleSet
+	15, // 1: antibot.v1.RuleSet.rules:type_name -> antibot.v1.Rules
+	2,  // 2: antibot.v1.SaveRuleSetRequest.set:type_name -> antibot.v1.RuleSet
+	16, // 3: antibot.v1.BanPlayerRequest.duration:type_name -> google.protobuf.Duration
+	17, // 4: antibot.v1.BanPlayerResponse.banned_until:type_name -> google.protobuf.Timestamp
+	17, // 5: antibot.v1.UnbanPlayerResponse.banned_until:type_name -> google.protobuf.Timestamp
+	17, // 6: antibot.v1.UnbanPlayerResponse.pardoned_until:type_name -> google.protobuf.Timestamp
+	17, // 7: antibot.v1.InspectPlayerResponse.banned_until:type_name -> google.protobuf.Timestamp
+	17, // 8: antibot.v1.InspectPlayerResponse.pardoned_until:type_name -> google.protobuf.Timestamp
+	11, // 9: antibot.v1.InspectPlayerResponse.readings:type_name -> antibot.v1.WatchdogReading
+	16, // 10: antibot.v1.InspectPlayerResponse.active_for:type_name -> google.protobuf.Duration
+	16, // 11: antibot.v1.InspectPlayerResponse.longest_gap:type_name -> google.protobuf.Duration
+	17, // 12: antibot.v1.InspectPlayerResponse.last_click_at:type_name -> google.protobuf.Timestamp
+	17, // 13: antibot.v1.WatchdogReading.at:type_name -> google.protobuf.Timestamp
+	17, // 14: antibot.v1.ListConvictionsRequest.since:type_name -> google.protobuf.Timestamp
+	17, // 15: antibot.v1.ListConvictionsRequest.until:type_name -> google.protobuf.Timestamp
+	14, // 16: antibot.v1.ListConvictionsResponse.convictions:type_name -> antibot.v1.Conviction
+	17, // 17: antibot.v1.Conviction.at:type_name -> google.protobuf.Timestamp
+	17, // 18: antibot.v1.Conviction.banned_until:type_name -> google.protobuf.Timestamp
+	11, // 19: antibot.v1.Conviction.readings:type_name -> antibot.v1.WatchdogReading
+	16, // 20: antibot.v1.Conviction.active_for:type_name -> google.protobuf.Duration
+	16, // 21: antibot.v1.Conviction.longest_gap:type_name -> google.protobuf.Duration
+	5,  // 22: antibot.v1.AdminService.BanPlayer:input_type -> antibot.v1.BanPlayerRequest
+	7,  // 23: antibot.v1.AdminService.UnbanPlayer:input_type -> antibot.v1.UnbanPlayerRequest
+	9,  // 24: antibot.v1.AdminService.InspectPlayer:input_type -> antibot.v1.InspectPlayerRequest
+	0,  // 25: antibot.v1.AdminService.GetRules:input_type -> antibot.v1.GetRulesRequest
+	3,  // 26: antibot.v1.AdminService.SaveRuleSet:input_type -> antibot.v1.SaveRuleSetRequest
+	12, // 27: antibot.v1.AdminService.ListConvictions:input_type -> antibot.v1.ListConvictionsRequest
+	6,  // 28: antibot.v1.AdminService.BanPlayer:output_type -> antibot.v1.BanPlayerResponse
+	8,  // 29: antibot.v1.AdminService.UnbanPlayer:output_type -> antibot.v1.UnbanPlayerResponse
+	10, // 30: antibot.v1.AdminService.InspectPlayer:output_type -> antibot.v1.InspectPlayerResponse
+	1,  // 31: antibot.v1.AdminService.GetRules:output_type -> antibot.v1.GetRulesResponse
+	4,  // 32: antibot.v1.AdminService.SaveRuleSet:output_type -> antibot.v1.SaveRuleSetResponse
+	13, // 33: antibot.v1.AdminService.ListConvictions:output_type -> antibot.v1.ListConvictionsResponse
+	28, // [28:34] is the sub-list for method output_type
+	22, // [22:28] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_antibot_v1_admin_proto_init() }
@@ -995,14 +1242,15 @@ func file_antibot_v1_admin_proto_init() {
 	if File_antibot_v1_admin_proto != nil {
 		return
 	}
-	file_antibot_v1_admin_proto_msgTypes[5].OneofWrappers = []any{}
+	file_antibot_v1_rules_proto_init()
+	file_antibot_v1_admin_proto_msgTypes[10].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_antibot_v1_admin_proto_rawDesc), len(file_antibot_v1_admin_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   10,
+			NumMessages:   15,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

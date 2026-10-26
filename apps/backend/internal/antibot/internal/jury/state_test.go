@@ -20,13 +20,21 @@ type saying struct {
 }
 
 func (s *saying) Name() string                                         { return "saying" }
+func (s *saying) Enabled() bool                                        { return true }
 func (s *saying) Attempted(detect.Click)                               {}
 func (s *saying) Committed(detect.Click)                               {}
 func (s *saying) Watch(detect.Click) (detect.Verdict, detect.Evidence) { return s.verdict, s.evidence }
 
 func newJury(clock cptime.Clock, hooks Hooks, watchdog detect.Watchdog) *Jury {
-	banner := bans.NewBook(bans.Config{Enforce: true}, 72*time.Hour, clock, bans.NewMemoryStore(), bans.NewMemoryStore(), cpatomic.FakeTransactioner{}, &bans.MemoryEnforcer{})
-	return New(Config{TrackWindow: time.Hour}, banner, convictions.NewMemoryStore(), clock, hooks, watchdog)
+	ladder := func() bans.Rules {
+		return bans.Rules{Enforce: true, BanDurations: []time.Duration{time.Hour}, ReflagInterval: 5 * time.Minute}
+	}
+	banner := bans.NewBook(ladder, 72*time.Hour, clock, bans.NewMemoryStore(), bans.NewMemoryStore(), cpatomic.FakeTransactioner{}, &bans.MemoryEnforcer{})
+	return New(Config{TrackWindow: time.Hour}, shipped, banner, convictions.NewMemoryStore(), clock, hooks, watchdog)
+}
+
+func shipped() Rules {
+	return Rules{MinSuspects: 2, SuspicionWindow: 10 * time.Minute}
 }
 
 func TestTheCallerAndItsOpinionsSurviveASaveAndLoad(t *testing.T) {

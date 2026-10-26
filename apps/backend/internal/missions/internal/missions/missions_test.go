@@ -1,6 +1,8 @@
 package missions_test
 
 import (
+	"fmt"
+	"iter"
 	"testing"
 	"time"
 
@@ -18,10 +20,62 @@ var (
 )
 
 var world = missions.World{
-	Territories: []missions.Holding{{Country: "dz", Tiles: 90_000}, {Country: "pw", Tiles: 70_000}, {Country: "fr", Tiles: 300}},
-	CountrySizes: []missions.Holding{
-		{Country: "br", Tiles: 9_000}, {Country: "fr", Tiles: 5_000}, {Country: "is", Tiles: 1_200}, {Country: "va", Tiles: 1},
+	Territories: []missions.Holding{
+		{Country: "dz", Tiles: 90_000}, {Country: "pw", Tiles: 70_000}, {Country: "us", Tiles: 1_000}, {Country: "fr", Tiles: 999},
 	},
+	CountrySizes: []missions.Holding{
+		{Country: "br", Tiles: 9_000}, {Country: "fr", Tiles: 3_000}, {Country: "is", Tiles: 2_999}, {Country: "va", Tiles: 1},
+	},
+}
+
+func leaderFor(flag string) string {
+	if flag == "dz" {
+		return "pw"
+	}
+	return "dz"
+}
+
+// What a mission aims at, whatever its goal.
+func targetOf(order missions.Order) string {
+	switch order := order.(type) {
+	case missions.TakeFor:
+		return "for " + order.Flag
+	case missions.TakeFrom:
+		return "from " + order.Flag
+	case missions.TakeIn:
+		return "in " + order.Ground
+	}
+	return fmt.Sprintf("%T", order)
+}
+
+func within(t *testing.T, goal, least, most uint32, msg any) {
+	t.Helper()
+
+	assert.GreaterOrEqual(t, goal, least, msg)
+	assert.LessOrEqual(t, goal, most, msg)
+	assert.Zero(t, goal%10, "%v: a goal is a round number", msg)
+}
+
+type drawn struct {
+	flag  string
+	day   int
+	brief []missions.MissionSnapshot
+}
+
+func (d drawn) String() string { return fmt.Sprintf("%s, day %d", d.flag, d.day) }
+
+// The briefs of four flags over as many days, from the test world.
+func briefs(days int) iter.Seq[drawn] {
+	return func(yield func(drawn) bool) {
+		for _, flag := range []string{"fr", "br", "is", "dz"} {
+			for day := range days {
+				brief := missions.Draw(calendar.DayOf(monday.AddDate(0, 0, day)), flag, world).Snapshot()
+				if !yield(drawn{flag: flag, day: day, brief: brief}) {
+					return
+				}
+			}
+		}
+	}
 }
 
 var position uint64
@@ -52,47 +106,150 @@ func TestACutoffIsATimeOfDay(t *testing.T) {
 	require.Error(t, missions.Config{Cutoff: -time.Minute}.Validate())
 }
 
-func TestTheFirstMissionIsOneBankForTheFlag(t *testing.T) {
-	first := missions.Draw(calendar.DayOf(monday), "fr", world).Snapshot()[0]
+func TestTheFirstMissionIsTwoToFourBanksForTheFlag(t *testing.T) {
+	goals := cpcolls.NewSet[uint32]()
+	for d := range briefs(30) {
+		order, ok := d.brief[0].Order.(missions.TakeFor)
+		require.True(t, ok, "%s: %T", d, d.brief[0].Order)
+		assert.Equal(t, d.flag, order.Flag, d)
+		within(t, order.Goal, 120, 240, d)
+		goals.Add(order.Goal)
+	}
 
-	assert.Equal(t, missions.MissionSnapshot{
-		ID: first.ID, Order: missions.TakeFor{Flag: "fr", Goal: 60},
-		Reward: missions.Reward{Kind: missions.RewardShields, Amount: 10},
-	}, first)
+	assert.Greater(t, goals.Len(), 1, "the goal changes with the day")
 }
 
 func TestTheSecondMissionAimsAtTheLeaderOrTheRunnerUpForTheLeader(t *testing.T) {
-	day := calendar.DayOf(monday)
-
-	second := missions.Draw(day, "fr", world).Snapshot()[1]
-
-	assert.Equal(t, missions.MissionSnapshot{
-		ID: second.ID, Order: missions.TakeFrom{Flag: "dz", Goal: 40},
-		Reward: missions.Reward{Kind: missions.RewardSpreadClicks, Amount: 4},
-	}, second)
-	assert.Equal(t, missions.TakeFrom{Flag: "pw", Goal: 40}, missions.Draw(day, "dz", world).Snapshot()[1].Order)
+	for d := range briefs(30) {
+		order, ok := d.brief[1].Order.(missions.TakeFrom)
+		require.True(t, ok, "%s: %T", d, d.brief[1].Order)
+		assert.Equal(t, leaderFor(d.flag), order.Flag, d)
+		within(t, order.Goal, 80, 160, d)
+	}
 }
 
-func TestWithNoRivalBigEnoughTheSecondMissionIsTwoBanks(t *testing.T) {
-	empty := missions.World{Territories: []missions.Holding{{Country: "de", Tiles: 399}}}
+func TestWithNoRivalBigEnoughTheSecondMissionIsForTheFlag(t *testing.T) {
+	empty := missions.World{Territories: []missions.Holding{{Country: "de", Tiles: 999}}}
 
 	second := missions.Draw(calendar.DayOf(monday), "fr", empty).Snapshot()[1]
 
-	assert.Equal(t, missions.TakeFor{Flag: "fr", Goal: 120}, second.Order)
+	order, ok := second.Order.(missions.TakeFor)
+	require.True(t, ok, "%T", second.Order)
+	assert.Equal(t, "fr", order.Flag)
+	within(t, order.Goal, 160, 320, "twice the rival's goal")
 }
 
 func TestTheThirdMissionIsABigGroundThatIsNotTheFlags(t *testing.T) {
-	for _, flag := range []string{"fr", "br", "is", "dz"} {
-		for days := range 30 {
-			third := missions.Draw(calendar.DayOf(monday.AddDate(0, 0, days)), flag, world).Snapshot()[2]
+	for d := range briefs(30) {
+		order, ok := d.brief[2].Order.(missions.TakeIn)
+		require.True(t, ok, "%s: %T", d, d.brief[2].Order)
+		assert.Contains(t, []string{"br", "fr"}, order.Ground, "%s: no ground under 3,000 tiles", d)
+		assert.NotEqual(t, d.flag, order.Ground, d)
+		within(t, order.Goal, 300, 600, d)
+	}
+}
 
-			order, ok := third.Order.(missions.TakeIn)
-			require.True(t, ok, "%T", third.Order)
-			assert.Contains(t, []string{"br", "fr", "is"}, order.Ground, "no ground under 1,000 tiles")
-			assert.NotEqual(t, flag, order.Ground)
-			assert.Equal(t, uint32(200), order.Goal)
-			assert.Equal(t, missions.Reward{Kind: missions.RewardBomb, Amount: 1}, third.Reward)
+func TestWithNoGroundBigEnoughTheThirdMissionIsForTheFlag(t *testing.T) {
+	small := missions.World{CountrySizes: []missions.Holding{{Country: "is", Tiles: 2_999}}}
+
+	third := missions.Draw(calendar.DayOf(monday), "fr", small).Snapshot()[2]
+
+	order, ok := third.Order.(missions.TakeFor)
+	require.True(t, ok, "%T", third.Order)
+	assert.Equal(t, "fr", order.Flag)
+	within(t, order.Goal, 300, 600, "the ground's goal, for the flag")
+}
+
+func TestADayHasThreeToFiveMissions(t *testing.T) {
+	counts := cpcolls.NewSet[int]()
+	for d := range briefs(30) {
+		assert.GreaterOrEqual(t, len(d.brief), 3, d)
+		assert.LessOrEqual(t, len(d.brief), 5, d)
+		counts.Add(len(d.brief))
+	}
+
+	assert.Equal(t, cpcolls.NewSet(3, 4, 5), counts, "the count changes with the day")
+}
+
+func TestTheExtraMissionsAreMoreRivalsAndGroundsNeverAimedAtTwice(t *testing.T) {
+	for d := range briefs(30) {
+		targets := cpcolls.NewSet[string]()
+		for _, mission := range d.brief {
+			assert.False(t, targets.Contains(targetOf(mission.Order)), "%s: %s twice", d, targetOf(mission.Order))
+			targets.Add(targetOf(mission.Order))
 		}
+		for _, extra := range d.brief[3:] {
+			switch order := extra.Order.(type) {
+			case missions.TakeFrom:
+				within(t, order.Goal, 80, 160, d)
+			case missions.TakeIn:
+				within(t, order.Goal, 300, 600, d)
+			default:
+				assert.Failf(t, "an extra is a rival or a ground", "%s: %T", d, extra.Order)
+			}
+		}
+	}
+}
+
+func TestWithNothingMoreToAimAtADayHasThreeMissions(t *testing.T) {
+	bare := missions.World{Territories: []missions.Holding{{Country: "dz", Tiles: 9_000}}}
+
+	for day := range 30 {
+		assert.Len(t, missions.Draw(calendar.DayOf(monday.AddDate(0, 0, day)), "fr", bare).Snapshot(), 3, "day %d", day)
+	}
+}
+
+var purses = map[missions.RewardKind][2]uint32{
+	missions.RewardShields:       {15, 30},
+	missions.RewardSpreadClicks:  {4, 8},
+	missions.RewardBomb:          {1, 1},
+	missions.RewardEncloseClicks: {2, 3},
+}
+
+func TestAMissionPaysAsMuchOfAChargeAsItsPurseHolds(t *testing.T) {
+	amounts := map[missions.RewardKind]*cpcolls.Set[uint32]{}
+	for kind := range purses {
+		amounts[kind] = cpcolls.NewSet[uint32]()
+	}
+	for d := range briefs(60) {
+		for _, mission := range d.brief {
+			purse, known := purses[mission.Reward.Kind]
+			require.True(t, known, "%s pays %s: never a refill", d, mission.Reward.Kind)
+			assert.GreaterOrEqual(t, mission.Reward.Amount, purse[0], "%s: %+v", d, mission.Reward)
+			assert.LessOrEqual(t, mission.Reward.Amount, purse[1], "%s: %+v", d, mission.Reward)
+			amounts[mission.Reward.Kind].Add(mission.Reward.Amount)
+		}
+	}
+
+	for kind, purse := range purses {
+		assert.Equal(t, int(purse[1]-purse[0]+1), amounts[kind].Len(), "%s pays every amount of its purse over 240 briefs", kind)
+	}
+}
+
+func TestADayPaysEveryChargeOnceBeforeAnyTwice(t *testing.T) {
+	for d := range briefs(30) {
+		kinds := cpcolls.NewSet[missions.RewardKind]()
+		for _, mission := range d.brief {
+			kinds.Add(mission.Reward.Kind)
+		}
+
+		assert.Equal(t, min(len(d.brief), len(purses)), kinds.Len(), d)
+	}
+}
+
+func TestEachMissionPaysEveryChargeOnSomeDay(t *testing.T) {
+	kinds := make([]*cpcolls.Set[missions.RewardKind], 3)
+	for n := range kinds {
+		kinds[n] = cpcolls.NewSet[missions.RewardKind]()
+	}
+	for d := range briefs(30) {
+		for n, mission := range d.brief[:len(kinds)] {
+			kinds[n].Add(mission.Reward.Kind)
+		}
+	}
+
+	for n, drawn := range kinds {
+		assert.Equal(t, len(purses), drawn.Len(), "mission %d pays only some of the charges over 120 briefs", n+1)
 	}
 }
 
@@ -231,7 +388,8 @@ func TestAWithTakeLeavesTheSheetItWasCalledOnAlone(t *testing.T) {
 func TestEachMissionDoneIsPaidOnce(t *testing.T) {
 	shields := missions.Reward{Kind: missions.RewardShields, Amount: 10}
 	bomb := missions.Reward{Kind: missions.RewardBomb, Amount: 1}
-	brief := briefOf(t,
+	brief := briefOf(
+		t,
 		missions.MissionSnapshot{ID: bank, Order: missions.TakeFor{Flag: "fr", Goal: 2}, Reward: shields},
 		missions.MissionSnapshot{ID: rival, Order: missions.TakeFrom{Flag: "dz", Goal: 5}, Reward: bomb},
 		missions.MissionSnapshot{ID: ground, Order: missions.TakeIn{Ground: "br", Goal: 5}, Reward: bomb},

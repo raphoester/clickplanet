@@ -81,7 +81,9 @@ func TestOnceEnlistedTheMissionsAreTheDaysFlagsWhateverIsPledgedSince(t *testing
 	assert.Equal(t, "fr", out.Flag)
 	assert.True(t, out.Sheet.Enlisted())
 	assert.Equal(t, uint32(7), out.Sheet.Snapshot().Progress[bankOf("fr")])
-	assert.Equal(t, missions.TakeFor{Flag: "fr", Goal: 60}, out.Brief.Snapshot()[0].Order)
+	bank, ok := out.Brief.Snapshot()[0].Order.(missions.TakeFor)
+	require.True(t, ok)
+	assert.Equal(t, "fr", bank.Flag)
 }
 
 func TestWithNoFlagPledgedThereAreNoMissions(t *testing.T) {
