@@ -32,9 +32,9 @@ clip in an arm no experiment has. A clip the experiment "sound" drew for a trend
 TikTok's chart of -sound-country on TikTok, the anthem muted, or goes out with its anthem when the chart cannot be read.
 stats keeps a snapshot of the numbers of every post of the job scheduled since the
 date, default the last 4 weeks, in the backend's postgres, over ssh as fetch asks: a row for each platform of each
-post. All three need ZERNIO_API_KEY. On a run the experiment "editor" draws for the model, choose asks Claude
-(ANTHROPIC_API_KEY) to rank the stories the rules let through and write their headlines, and makes the run by the
-rules when it cannot; -summary adds who chose, and what the call cost, to that file. edit tries the editor on a saved
+post. All three need ZERNIO_API_KEY. choose asks Claude (ANTHROPIC_API_KEY) to rank the stories the rules let through
+and write their headlines, and makes the run by the rules when it cannot; -summary adds who chose, and what the call
+cost, to that file. edit tries the editor on a saved
 shortlist, as many clips as -count, the told stories read when ZERNIO_API_KEY is set: -prompt prints what it would be
 sent, counted when ANTHROPIC_API_KEY is set, and asks for no answer.`
 

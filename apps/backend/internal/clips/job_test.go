@@ -237,14 +237,14 @@ func configFor(server *httptest.Server) clips.Config {
 }
 
 // The picks, each in an arm of the length experiment: the coins are the system's, so which arm is not known. With no
-// ANTHROPIC_API_KEY a run drawn for the model falls back to the rules, so the picks are the rules' either way.
+// ANTHROPIC_API_KEY the run falls back to the rules, so the picks are the rules'.
 func picksOf(t *testing.T, choice clips.Choice) []clips.Pick {
 	t.Helper()
 
 	picks := make([]clips.Pick, 0, len(choice.Assigned))
 	for _, assignment := range choice.Assigned {
 		assert.Contains(t, []string{"as-chosen", "short"}, assignment.Variants["length"])
-		assert.Contains(t, []string{"rules", "fell-back"}, assignment.Variants["editor"])
+		assert.NotContains(t, assignment.Variants, "editor")
 		assert.Empty(t, assignment.Headline)
 		picks = append(picks, assignment.Pick)
 	}
@@ -260,6 +260,7 @@ func TestChoosingGivesTheBestStoriesOfDifferentFlagsOrContinents(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []clips.Pick{1, 3}, picksOf(t, picks))
 	assert.Contains(t, logs.String(), `msg="skipped a story told already" pick=2 title="ALGERIA VS FRANCE"`)
+	assert.Contains(t, logs.String(), `level=WARN msg="the run is made by the rules" why="no ANTHROPIC_API_KEY"`)
 }
 
 func TestARunAfterADayOfPostsOnEveryPlatformChoosesNothing(t *testing.T) {

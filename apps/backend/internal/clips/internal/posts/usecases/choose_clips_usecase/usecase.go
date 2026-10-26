@@ -41,8 +41,8 @@ type Executor interface {
 	Execute(ctx context.Context) (posts.Choice, error)
 }
 
-// dice: the coins that put the run, then each story chosen, in an arm of every experiment. editor: asked only on a run
-// whose arm of posts.EditorExperiment is posts.ByModel.
+// dice: the coins that put each story chosen in an arm of every experiment. editor: ranks the stories the rules let
+// through and writes their headlines; the rules make the run when it cannot.
 func New(
 	shortlists Shortlists, history History, feeds Feeds, clock cptime.Clock, room Room, experiments posts.Experiments,
 	dice posts.Dice, editor Editor,
@@ -83,29 +83,9 @@ func (u *UseCase) Execute(ctx context.Context) (posts.Choice, error) {
 	}
 	count := u.room.Budget.Clips(u.room.PerRun, u.room.Platforms, feed, now)
 
-	// Before choosing: the run's coins decide who chooses.
-	run := u.experiments.AssignRun(u.dice)
-	choice, headlines := u.edited(ctx, shortlist, count, told, now, run)
-	if choice.Editorial.FellBack != "" {
-		run[posts.EditorExperiment] = posts.FellBack
-	}
-	choice.Assigned = u.experiments.AssignEach(choice.Chosen, run, headlines, u.dice)
-	return choice, nil
-}
-
-// The rules' choice, or the editor's within them when the run is the model's.
-func (u *UseCase) edited(
-	ctx context.Context, shortlist posts.Shortlist, count int, told []posts.Telling, now time.Time, run posts.Variants,
-) (posts.Choice, map[posts.Pick]string) {
-	arm, runs := run[posts.EditorExperiment]
-	if !runs || arm != posts.ByModel {
-		choice := shortlist.Best(count, told, now)
-		choice.Editorial.Arm = arm
-		return choice, nil
-	}
 	choice, headlines := Edit(ctx, u.editor, shortlist, count, told, now)
-	choice.Editorial.Arm = arm
-	return choice, headlines
+	choice.Assigned = u.experiments.AssignEach(choice.Chosen, headlines, u.dice)
+	return choice, nil
 }
 
 // The run as the editor tells it within the rules, with each headline it changed by pick; the rules' choice when

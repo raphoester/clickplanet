@@ -12,18 +12,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
 
-// The experiment on who edits a run: which of the stories the rules let through it tells, and their headlines. Its
-// coin is the run's (Experiment.PerRun), flipped before the stories are chosen, since choosing is what it changes.
-const (
-	EditorExperiment = "editor"
-	// The rules alone, exactly as before the experiment: the control.
-	ByRules = "rules"
-	// A model ranks the stories the rules let through and writes each headline; the rules still count the run.
-	ByModel = "model"
-	// Drawn for the model, made by the rules: no answer, a refusal, or one that did not hold.
-	FellBack = "fell-back"
-)
-
 // A headline is drawn over the globe in a font of a few sizes, two lines at most for this many letters.
 const headlineRunes = 60
 
@@ -104,13 +92,11 @@ type Spend struct {
 	USD float64
 }
 
-// Who chose the run, as its summary says it.
+// Who chose the run, as its summary and its log say it: the model, or the rules when it could not.
 type Editorial struct {
-	// The run's arm of EditorExperiment; empty when it does not run.
-	Arm string
-	// Whether the model was called.
+	// Whether the model was called: not on a run with nothing to decide.
 	Asked bool
-	// Why a run drawn for the model was made by the rules; empty when it was not.
+	// Why the rules made the run (no key, no answer, a refusal, one that did not hold); empty when the model did.
 	FellBack string
 	// The model's own reason.
 	Why   string
