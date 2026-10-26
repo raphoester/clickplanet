@@ -77,23 +77,35 @@ The rule sets an operator reads and writes: see [Rules](rules.md). The backoffic
 **What the admin page's home reads, none of it shaped for it**: the page counts, charts and draws on its own side
 (`apps/backoffice`'s [The home page](../../backoffice/docs/home.md)), so a new view of the game needs no new endpoint.
 
-- **`GetLedger(since, until)`** is a query (`get_ledger_handler/changes_query`), as `takes_query` is: every change
-  the live stream showed in the window, oldest first, and who made it, straight from `planet.ledger_events` in SQL,
-  with no domain type on the way. A take and a strike are the click (`clicked`); the tiles a spread or an enclosure
-  took or struck, the tiles a bomb emptied, and a shield placed or raised, are changes of their own, unfolded from
-  each kind's payload. A shield a bomb struck is left out: the ledger keeps no owner for it.
+- **`GetLedger(since, until, page)`** is a query (`get_ledger_handler/changes_query`), as `takes_query` is: every
+  change the live stream showed in the window, oldest first, and who made it, straight from `planet.ledger_events` in
+  SQL, with no domain type on the way. A take and a strike are the click (`clicked`); the tiles a spread or an
+  enclosure took or struck, the tiles a bomb emptied, and a shield placed or raised, are changes of their own,
+  unfolded from each kind's payload. A shield a bomb struck is left out: the ledger keeps no owner for it.
+  - **A page at a time**: the changes of at most `PageEvents` (20,000) events, about 30,000 changes, with `next_page`
+    to read the next (empty on the last), as `ListRows` pages. A page ends on a whole event, so a bomb's tiles are
+    never split. The cursor is the position of the next event; a page this query never gave is `InvalidArgument`
+    (`ErrInvalidPage`). **Why**: on 2026-10-25 the admin page read 24 hours in one call every minute, about 270,000
+    changes: 7 to 8s and 100 MB or more each on the 1 GB droplet, until it swapped and clicks took 300 to 600ms. Paged,
+    a call holds about 35 MB whatever the window (measured on a ledger of production's size: 253 MB for 72 hours in
+    one call).
+  - **One pass over the page**: the page's events by the primary key, each unfolded beside it (`LEFT JOIN LATERAL`), so
+    postgres sorts only the changes of one event (`Incremental Sort`, in memory). It was a CTE scanned 7 times and a
+    sort of the whole window, both written to temp files. An event with no change (a bomb in the sea) is still a row,
+    tile 0, so the page counts it and the answer leaves it out. **The page runs with `jit` off** (`SET LOCAL`, in a
+    read-only transaction): its plan's cost is high enough for postgres to compile it, 220ms to run it in 80.
   - **A parity test runs every kind** (`ledger.Kinds()`) through the store and asks the query for what `Event.Show`
     shows, so the SQL cannot drift from the stream. A new kind fails it until the SQL reads it.
   - **It reads from the head on** (`ledger_head`): past it the address is blanked, so a change with no account would
-    have nobody. The primary key finds the window from there; `plan_test.go` pins it.
+    have nobody. The primary key finds the page from there, and `plan_test.go` pins it with the incremental sort.
+    The first page still walks the index from the head to `since`: about 30ms on a laptop for 48 hours skipped.
   - **Who** is the account, or for a change with no account its address, as every operator tool names a player, in
     one string to compare and not to read: `account:<id>` or `scope:<address>`. It names addresses, so it is an operator's read only: never the replay, which goes into the clips' public
     artifacts and names nobody.
   - **Each change is a `LedgerChange`**: when, the `TileUpdate` as the live stream sent it, and who. The answer is
     the changes alone: the window is the caller's, so nothing of the request is sent back. Plain messages
-    rather than columns of indexes, on purpose: the contract reads as what it is. Measured with production's volume
-    (about 50,000 changes a day): 8 MB of JSON a day but 0.9 MB once Caddy compresses it, the same as columns or
-    binary protobuf would send, decoded in about 100 ms in the browser (300 ms for 72 hours).
+    rather than columns of indexes, on purpose: the contract reads as what it is. **The admin page asks for binary**:
+    writing a page as JSON took the server 8 times as long as binary (35ms against 4ms on a laptop).
   - **A window of 72 hours at most**, the ledger's retention, and `since` before `until` (unset: now); anything else is
     `InvalidArgument` (`changes_query.ErrInvalidWindow`). It changes nothing and logs nothing. The last second of
     changes, not flushed yet, is not in it.

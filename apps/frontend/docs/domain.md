@@ -67,7 +67,12 @@
   first tap was (WebKit bug 216681, set off by the `dblclick` listener React
   keeps on its root), so a tap on each of two tiles side by side took the first
   one twice.
-- `tilePeek.ts` — `TilePeek`, when a pointer asks who holds a tile: a mouse resting
-  on one, or a finger holding one still. `cardPlacement.ts` puts the card beside
-  the pointer. See [Who holds a tile](tile-holder.md).
+- `tilePeek.ts` — `TilePeek`, when a pointer asks about a spot, a tile or in orbit a
+  landmass: a mouse resting on one, or a finger holding one still. `cardPlacement.ts`
+  puts the card beside the pointer. See [Who holds a tile](tile-holder.md).
+- `flight.ts` — `territoryShotOf`, the shot a click in orbit flies to, and `flightAt`,
+  the camera on the way. See [A territory, from orbit](territory-card.md).
+- `territory.ts` — what the territory card says: `rankHoldings`, `freeTilesOf`,
+  `sharePercent`, and `sameTerritory`, which spares a render when nothing moved. See
+  [A territory, from orbit](territory-card.md).
 - `warnOnce.ts` — for things that would otherwise warn on every frame.

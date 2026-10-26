@@ -9,7 +9,7 @@ phone that is a flat battery for a still image, and it is why the game was
 reported as a battery eater.
 
 `drawsFrame` in `globe.ts` is the whole rule, kept out of the loop so it is
-under test. Three things can ask for a frame:
+under test. Four things can ask for a frame:
 
 - **The camera turned** — for a drag, the damping glide after one, a zoom, or
   the idle spin. The loop reads this from OrbitControls' `change` event as well
@@ -21,6 +21,9 @@ under test. Three things can ask for a frame:
   actually moved the camera, so it is the signal that survives. It is cleared on
   the frame that draws it rather than the tick that reads it, so the cap below
   can hold a frame back without losing the move that asked for it.
+- **A flight is on** — a click in orbit flies to a territory (see [A territory,
+  from orbit](territory-card.md)). Each tick of it turns the camera and holds off the
+  cap, as a drag does.
 - **Something the loop drives is still moving** — every `update` that animates
   answers a boolean: `blasts`, `bonusBox`, `enclosureEffect`, `clickEffects`,
   `clickGlints` and `TileField.setHover`. **The frame an effect *ends* on counts**: it is the

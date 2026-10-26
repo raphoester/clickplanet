@@ -63,12 +63,12 @@ export function useTileHolder(
 }
 
 async function playerOf(held: TileHolder, players: PlayerInfoBackend): Promise<{line: PlayerLine, playsFor: CountryTiles[]} | undefined> {
-    if (!held.accountId) return {line: deletedLineOf(held), playsFor: []}
+    if (!held.accountId) return {line: deletedLineOf(held.countryCode), playsFor: []}
     const info = await players.playerInfo(held.accountId)
-    return info && {line: lineOf(held, info), playsFor: info.playsFor}
+    return info && {line: playerLineOf(held.accountId, held.countryCode, info), playsFor: info.playsFor}
 }
 
-function deletedLineOf({countryCode}: TileHolder): PlayerLine {
+export function deletedLineOf(countryCode: string): PlayerLine {
     return {
         accountId: "",
         name: DELETED_ACCOUNT,
@@ -80,7 +80,7 @@ function deletedLineOf({countryCode}: TileHolder): PlayerLine {
     }
 }
 
-function lineOf({accountId, countryCode}: TileHolder, info: PlayerInfo): PlayerLine {
+export function playerLineOf(accountId: string, countryCode: string, info: PlayerInfo): PlayerLine {
     return {
         accountId,
         name: info.name,

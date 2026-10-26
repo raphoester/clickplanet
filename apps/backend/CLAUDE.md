@@ -21,11 +21,12 @@ and says what is in it. Read the doc before you change its area.
 
 ## How the code is shaped
 
-- [Six bounded contexts, one process](docs/bounded-contexts.md) — planet, chat, auth, player, seasons, support.
+- [Seven bounded contexts, one process](docs/bounded-contexts.md) — planet, chat, auth, player, seasons, support,
+  missions.
   A module publishes its root package and hides the rest.
 - [The composite layer](docs/composite-layer.md) — each context wires itself in its `module.go`; how a module
-  calls another one, and how it tells the others what happened: Redis Streams, the idempotent receivers, the
-  outboxes.
+  calls another one, how it tells the others what happened and asks one to change something: Redis Streams,
+  the idempotent receivers, the outboxes, the commands.
 - [Inside the planet module](docs/planet-module.md) — one directory per concept, no `domain` or `adapters` layer;
   use cases.
 - [Inside the chat module](docs/chat-module.md) — the same shape, for chat's seven concepts.
@@ -58,6 +59,8 @@ and says what is in it. Read the doc before you change its area.
 - [Rules](docs/rules.md) — the rule sets kept in postgres, and the set the game plays.
 - [Shields](docs/shields.md) — a charge on a tile; each shield takes one foreign click.
 - [Fortify](docs/fortify.md) — a take that makes a landmass whole gives every tile of it a shield.
+- [Who holds the tiles](docs/tile-holders.md) — each tile keeps the account whose take holds it; `GetLandmass`
+  reads a landmass's holders and its last fortify.
 - [Charges](docs/charges.md) — every bonus is a charge, kept until the player uses it.
 - [Spread](docs/spread.md), [Bomb](docs/bomb.md), [Enclose](docs/enclose.md), [Refill](docs/refill.md) — what
   each charge does to a click or to the bucket.
@@ -78,6 +81,8 @@ and says what is in it. Read the doc before you change its area.
 - [Chat](docs/chat.md) — messages, announcements, mutes, removals, replies, reactions, and what each account saw.
 - [Player](docs/player.md) — names and guest codes, stats, streaks, titles, and who is playing now.
 - [Seasons](docs/seasons.md) — the season calendar, its standings, the daily rounds and the finale.
+- [Missions](docs/missions.md) — three missions a day per flag, counted from `TileTaken`, paid once done with a
+  `GrantCharges` command to planet; why progress is not read from the ledger.
 - [Support](docs/support.md) — suggestions, bug reports and player reports, with their photos and videos.
 - [Clip stats](docs/clip-stats.md) — where the posted clips' daily numbers are kept, for the backoffice.
 

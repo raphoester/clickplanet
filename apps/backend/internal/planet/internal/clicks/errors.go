@@ -7,6 +7,8 @@ var (
 
 	ErrTileOutOfRange = errors.New("tile id out of range")
 
+	ErrLandmassOutOfRange = errors.New("landmass id out of range")
+
 	ErrBonusesTogether = errors.New("spread and enclose switched on together")
 
 	ErrInvalidTileRange = errors.New("invalid tile range")

@@ -383,6 +383,22 @@ seasons:
     address: redis:6379
     password: env://REDIS_PASSWORD
 
+missions:
+  cutoff: 21h
+  database:
+    host: postgres
+    password: env://POSTGRES_PASSWORD
+    port: "5432"
+    user: clickplanet
+    dbName: clickplanet
+    sslMode: disable
+    schema: missions
+    pool:
+      maxOpenConns: 2
+  redis:
+    address: redis:6379
+    password: env://REDIS_PASSWORD
+
 support:
   database:
     host: postgres

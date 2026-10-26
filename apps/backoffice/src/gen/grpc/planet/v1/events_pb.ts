@@ -35,6 +35,16 @@ export class TileTaken extends Message<TileTaken> {
    */
   position = protoInt64.zero;
 
+  /**
+   * @generated from field: string previous = 6;
+   */
+  previous = "";
+
+  /**
+   * @generated from field: string ground = 7;
+   */
+  ground = "";
+
   constructor(data?: PartialMessage<TileTaken>) {
     super();
     proto3.util.initPartial(data, this);
@@ -48,6 +58,8 @@ export class TileTaken extends Message<TileTaken> {
     { no: 3, name: "country", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "taken_at", kind: "message", T: Timestamp },
     { no: 5, name: "position", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+    { no: 6, name: "previous", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 7, name: "ground", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TileTaken {

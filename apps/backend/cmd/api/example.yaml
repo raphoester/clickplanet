@@ -406,6 +406,22 @@ seasons:
     address: localhost:6379
     password: ""
 
+missions:
+  cutoff: 21h
+  database:
+    host: localhost
+    port: "5432"
+    user: postgres
+    password: postgres
+    dbName: postgres
+    sslMode: disable
+    schema: missions
+    pool:
+      maxOpenConns: 2
+  redis:
+    address: localhost:6379
+    password: ""
+
 support:
   database:
     host: localhost

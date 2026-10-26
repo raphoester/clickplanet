@@ -29,7 +29,8 @@ service AdminService {
 
   rpc GetReplay(GetReplayRequest) returns (GetReplayResponse);
 
-  // Every change the live stream showed in a window of at most 72 hours, from the ledger in memory, and who made it.
+  // Every change the live stream showed in a window of at most 72 hours, from postgres, and who made it, a page at a
+  // time.
   rpc GetLedger(GetLedgerRequest) returns (GetLedgerResponse);
 
   // InternalService/GetTerritories, for the admin page: the tiles each country holds now.
@@ -45,12 +46,16 @@ message GetLedgerRequest {
   google.protobuf.Timestamp since = 1;
   // Unset is now.
   google.protobuf.Timestamp until = 2;
+  // The next_page of the page before; empty is the first.
+  string page = 3;
 }
 
 message GetLedgerResponse {
   // Oldest first: a click that took a tile or struck its shield, a tile a spread, an enclosure or a bomb took or
   // emptied, a shield placed or raised. A shield a bomb struck is left out: it changed no hands.
   repeated LedgerChange changes = 1;
+  // Empty on the last page.
+  string next_page = 2;
 }
 
 message LedgerChange {

@@ -15,6 +15,7 @@ import SettingsPlace, {SettingsPlaceProps} from "./settings/SettingsPlace.tsx";
 import {AccountStore} from "./account/accountStore.ts";
 import {useAccount} from "./account/useAccount.ts";
 import AccountPanel from "./account/AccountPanel.tsx";
+import MissionsPlace, {MissionsPlaceProps} from "./missions/MissionsPlace.tsx";
 import DeleteAccountModal from "./account/DeleteAccountModal.tsx";
 import {PlayerInfoBackend} from "../backends/player.ts";
 import {shareStats} from "../domain/shareCard.ts";
@@ -26,7 +27,7 @@ import {ListenForClicks} from "./viewer/acceptedClicks.ts"
 import {useNow} from "./season/useNow.ts"
 import "./Menu.css"
 
-export type MenuTab = "board" | "you" | "share" | "settings"
+export type MenuTab = "board" | "missions" | "you" | "share" | "settings"
 
 export type BoardPlaceProps = {
     country: Country,
@@ -52,6 +53,7 @@ export type YouPlaceProps = {
 }
 
 export type MenuProps = BoardPlaceProps & YouPlaceProps & SettingsPlaceProps & Omit<SharePlaceProps, "stats"> & {
+    missions?: MissionsPlaceProps,
     tab?: MenuTab,
     onTab?: (tab: MenuTab) => void,
 }
@@ -66,6 +68,7 @@ export default function Menu(props: MenuProps) {
 
     const tabs: {id: MenuTab, label: string}[] = [
         {id: "board", label: "Board"},
+        ...props.missions ? [{id: "missions" as const, label: "Missions"}] : [],
         ...account.kind === "ready" ? [{id: "you" as const, label: youLabel(account.me.linked.length > 0)}] : [],
         {id: "share", label: "Share"},
         {id: "settings", label: "Settings"},
@@ -113,6 +116,7 @@ export default function Menu(props: MenuProps) {
                      id={`${tabsId}-panel`}
                      aria-labelledby={`${tabsId}-${shown}`}>
                     {shown === "board" && <BoardPlace {...props}/>}
+                    {shown === "missions" && props.missions && <MissionsPlace {...props.missions}/>}
                     {shown === "you" && <YouPlace {...props}/>}
                     {shown === "share" && <SharePlace stats={shareStats(linesShown(props), props.country)}
                                                       onTakePicture={props.onTakePicture}

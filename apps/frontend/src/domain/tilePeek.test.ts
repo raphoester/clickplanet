@@ -14,7 +14,7 @@ describe("TilePeek", () => {
         peek.hover(7, 10.2, at(104))
 
         expect(peek.tick(10.4)).toBeUndefined()
-        expect(peek.tick(10.5)).toEqual({tile: 7, point: at(104), touch: false})
+        expect(peek.tick(10.5)).toEqual({spot: 7, point: at(104), touch: false})
         expect(peek.tick(11)).toBeUndefined()
         expect(peek.peeked).toBe(false)
     })
@@ -26,7 +26,7 @@ describe("TilePeek", () => {
         peek.hover(8, 10.6, at(112))
 
         expect(peek.tick(10.7)).toBeUndefined()
-        expect(peek.tick(10.8)?.tile).toBe(8)
+        expect(peek.tick(10.8)?.spot).toBe(8)
     })
 
     it("does not peek at a tile just clicked, nor once the mouse left", () => {
@@ -45,7 +45,7 @@ describe("TilePeek", () => {
         peek.begin(finger(), 7, 10)
         peek.move({pointerId: 1, clientX: 108, clientY: 100})
 
-        expect(peek.tick(10.5)).toEqual({tile: 7, point: at(100), touch: true})
+        expect(peek.tick(10.5)).toEqual({spot: 7, point: at(100), touch: true})
         expect(peek.peeked).toBe(true)
 
         peek.begin(finger(), 9, 20)

@@ -1,7 +1,11 @@
 package allegiances
 
 import (
+	"errors"
+	"fmt"
 	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
@@ -12,6 +16,16 @@ const NoAccount Account = ""
 
 func AccountOf(payer clicks.Payer) Account {
 	return Account(payer.Account)
+}
+
+var ErrInvalidAccount = errors.New("not an account id")
+
+func AccountFrom(value string) (Account, error) {
+	id, err := uuid.Parse(value)
+	if err != nil || id == uuid.Nil {
+		return NoAccount, fmt.Errorf("%w: %q", ErrInvalidAccount, value)
+	}
+	return Account(id.String()), nil
 }
 
 type Allegiance struct {
