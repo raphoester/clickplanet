@@ -84,6 +84,32 @@ func TestTheReportIsATableOfEachClipOnEachPlatformItsTimeAndWhatBecameOfIt(t *te
 `, out.String())
 }
 
+// On the TikTok row alone: YouTube is sent the video as it is.
+func TestTheReportSaysWhichTrendingTrackAClipGoesOutWithOnTikTokOrWhyItWentOutWithItsAnthem(t *testing.T) {
+	var out bytes.Buffer
+	sound := &clips.Sound{
+		Track: clips.Track{ID: "clip-1", Excerpt: true, Title: "Song | One", Artist: "Singer", Rank: 4}, Country: "US", TrackVolume: 100,
+	}
+
+	scheduled, err := display.Report("", &out, clips.Report{
+		{Title: "KOSOVO", Variants: clips.Variants{"sound": "trending"}, At: at, Post: "post-1", Platforms: everywhere, Sound: sound},
+		{
+			Title: "FRANCE", Variants: clips.Variants{"sound": "fell-back"}, At: at, Post: "post-2", Platforms: everywhere,
+			SoundMissed: "the trending chart could not be read: zernio answered 400",
+		},
+	})
+
+	require.NoError(t, err)
+	assert.True(t, scheduled)
+	assert.Equal(t, `| Clip | Arms | Platform | Goes out | |
+|---|---|---|---|---|
+| KOSOVO | sound trending | tiktok | Mon 12 Oct, 16:40 UTC | scheduled, with “Song \| One” by Singer (#4 of US's trending chart) |
+| KOSOVO | sound trending | youtube | Mon 12 Oct, 16:40 UTC | scheduled |
+| FRANCE | sound fell-back | tiktok | Mon 12 Oct, 16:40 UTC | scheduled, **with its anthem** instead of a trending track: the trending chart could not be read: zernio answered 400 |
+| FRANCE | sound fell-back | youtube | Mon 12 Oct, 16:40 UTC | scheduled |
+`, out.String())
+}
+
 func TestAReportWithEveryClipScheduledOnEveryPlatformSaysSo(t *testing.T) {
 	var out bytes.Buffer
 

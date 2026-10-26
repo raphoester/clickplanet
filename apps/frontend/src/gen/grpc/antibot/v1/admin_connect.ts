@@ -3,11 +3,11 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BanPlayerRequest, BanPlayerResponse, InspectPlayerRequest, InspectPlayerResponse, UnbanPlayerRequest, UnbanPlayerResponse } from "./admin_pb.js";
+import { BanPlayerRequest, BanPlayerResponse, GetRulesRequest, GetRulesResponse, InspectPlayerRequest, InspectPlayerResponse, SaveRuleSetRequest, SaveRuleSetResponse, UnbanPlayerRequest, UnbanPlayerResponse } from "./admin_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
- * The operator's bans. No authentication of its own: served on the console listener, and on the admin listener behind
+ * The operator's bans and the rules the antibot judges with. No authentication of its own: served on the console listener, and on the admin listener behind
  * its gate. Never the public router. Each message reads on the wire as the planet.v1 one of the same name, which
  * served these calls until the antibot was a module of its own.
  *
@@ -41,6 +41,27 @@ export const AdminService = {
       name: "InspectPlayer",
       I: InspectPlayerRequest,
       O: InspectPlayerResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc antibot.v1.AdminService.GetRules
+     */
+    getRules: {
+      name: "GetRules",
+      I: GetRulesRequest,
+      O: GetRulesResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Makes a set, or replaces its values. A set that plays now is FailedPrecondition: the rules in force change only
+     * through the schedule.
+     *
+     * @generated from rpc antibot.v1.AdminService.SaveRuleSet
+     */
+    saveRuleSet: {
+      name: "SaveRuleSet",
+      I: SaveRuleSetRequest,
+      O: SaveRuleSetResponse,
       kind: MethodKind.Unary,
     },
   }

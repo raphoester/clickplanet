@@ -13,20 +13,22 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-// Production's bounds, deploy/vps/backend.yaml.
-func production() metronome.Config {
-	return metronome.Config{
+// Production's bounds: the antibot's rule set default, and deploy/vps/backend.yaml.
+func production() (metronome.Rules, metronome.Config) {
+	rules := metronome.Rules{
+		Enabled:       true,
 		MaxGap:        7 * time.Second,
 		MaxSpread:     400 * time.Millisecond,
 		MinClicks:     120,
 		CertainFor:    30 * time.Minute,
 		CertainClicks: 900,
-		Shape:         metronome.ShapeConfig{MaxGap: 10 * time.Second, Clicks: 500, CertainClicks: 1000},
-		Stamina: metronome.StaminaConfig{
-			Slice: 10 * time.Minute, Clicks: 40, Window: 6 * time.Hour, MinBusy: 5*time.Hour + 30*time.Minute,
-		},
-		TrackWindow: 15 * time.Minute,
+		Shape:         metronome.ShapeRules{MaxGap: 10 * time.Second, Clicks: 500, CertainClicks: 1000},
+		Clock:         metronome.ClockRules{Period: time.Second, Clicks: 120, CertainClicks: 600, CertainFor: 30 * time.Minute},
+		Stamina:       metronome.StaminaRules{Clicks: 40, Window: 6 * time.Hour, MinBusy: 5*time.Hour + 30*time.Minute},
 	}
+	config := metronome.Config{Stamina: metronome.StaminaConfig{Slice: 10 * time.Minute}, TrackWindow: 15 * time.Minute}
+
+	return rules, config
 }
 
 const rush = 3
@@ -46,10 +48,12 @@ var battleStarts = time.Date(2026, 10, 31, 21, 0, 0, 0, time.UTC)
 
 func newBattle(tempo float64, at time.Time) *battle {
 	clock := cptime.NewFixedClock(at)
+	rules, config := production()
 	return &battle{
-		watchdog: metronome.New(production(), clock, func(float64) {}, func(float64) {}, func(time.Duration) {}),
-		clock:    clock,
-		tempo:    tempo,
+		watchdog: metronome.New(config, func() metronome.Rules { return rules }, clock,
+			func(float64) {}, func(float64) {}, func(time.Duration) {}),
+		clock: clock,
+		tempo: tempo,
 	}
 }
 

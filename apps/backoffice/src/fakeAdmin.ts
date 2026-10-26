@@ -15,11 +15,17 @@ import {
 import {
     BanPlayerRequest,
     BanPlayerResponse,
+    GetRulesRequest as AntibotGetRulesRequest,
+    GetRulesResponse as AntibotGetRulesResponse,
     InspectPlayerRequest,
     InspectPlayerResponse,
+    RuleSet as AntibotRuleSet,
+    SaveRuleSetRequest as AntibotSaveRuleSetRequest,
+    SaveRuleSetResponse as AntibotSaveRuleSetResponse,
     UnbanPlayerRequest,
     UnbanPlayerResponse,
 } from "./gen/grpc/antibot/v1/admin_pb.ts"
+import {Rules} from "./gen/grpc/antibot/v1/rules_pb.ts"
 import {
     FindPlayersRequest,
     FindPlayersResponse,
@@ -93,8 +99,9 @@ function change(minutes: number, by: string, update: PartialMessage<TileUpdate>)
 }
 
 // What each fake was asked, and a refusal to answer with instead, by method.
-export class FakeAdmin implements AntibotAdmin, ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAdmin, ClipsAdmin {
+export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAdmin, ClipsAdmin {
     readonly kind = "fake admin"
+    readonly antibot: FakeAntibot = new FakeAntibot(this)
     readonly asked: {method: string, request: unknown}[] = []
     readonly refusals = new Map<string, Code>()
     private readonly holds = new Map<string, Promise<void>>()
@@ -132,6 +139,20 @@ export class FakeAdmin implements AntibotAdmin, ChatAdmin, PlanetAdmin, PlayerAd
         new Player({scope: "2001:db8:1:2::/64", tiles: 40, takes: 50}),
     ]
     inspection = new InspectPlayerResponse({accountId: "account-reported", clicks: 42, banned: false})
+    // The set the migration keeps, in part: the fake keeps what it is given and checks nothing.
+    antibotRules = new AntibotGetRulesResponse({
+        sets: [new AntibotRuleSet({
+            name: "default",
+            rules: Rules.fromJson({
+                bans: {enforce: true, banDurations: ["86400s", "604800s", "94608000s"], reflagInterval: "300s"},
+                jury: {minSuspects: 2, suspicionWindow: "600s"},
+                retaker: {enabled: true}, sequencer: {enabled: true}, metronome: {enabled: true},
+                defender: {enabled: false}, catcher: {enabled: true}, cohort: {enabled: true, minMembers: 2, certainMembers: 6},
+                scraper: {enabled: true}, churner: {enabled: true}, hopper: {enabled: true}, rotator: {enabled: true},
+            }),
+        })],
+        playing: "default",
+    })
     authors = [new Author({accountId: ACCOUNT, name: "BraveFox42"})]
     profile = new AdminGetPlayerResponse({
         name: "BraveFox42", linked: true, createdAtUnixMs: BigInt(AT.getTime()), messagesSent: 4n,
@@ -219,7 +240,7 @@ export class FakeAdmin implements AntibotAdmin, ChatAdmin, PlanetAdmin, PlayerAd
     ]]
 
     clients(): Clients {
-        return {antibot: this, chat: this, planet: this, player: this, support: this, clips: this}
+        return {antibot: this.antibot, chat: this, planet: this, player: this, support: this, clips: this}
     }
 
     refuse(method: string, code: Code) {
@@ -240,7 +261,7 @@ export class FakeAdmin implements AntibotAdmin, ChatAdmin, PlanetAdmin, PlayerAd
         }
     }
 
-    private answer<T>(method: string, request: unknown, value: T): Promise<T> {
+    answer<T>(method: string, request: unknown, value: T): Promise<T> {
         this.asked.push({method, request})
         const code = this.refusals.get(method)
         const settle = () => code === undefined ? Promise.resolve(value) : Promise.reject(new ConnectError("refused", code))
@@ -289,23 +310,9 @@ export class FakeAdmin implements AntibotAdmin, ChatAdmin, PlanetAdmin, PlayerAd
         return this.answer("mute", request, new MuteResponse({mutedUntil: Timestamp.fromDate(AT)}))
     }
 
-    banPlayer(request: PartialMessage<BanPlayerRequest>): Promise<BanPlayerResponse> {
-        return this.answer("banPlayer", request,
-            new BanPlayerResponse({bannedUntil: Timestamp.fromDate(AT), offence: 2, enforced: true}))
-    }
-
-    unbanPlayer(request: PartialMessage<UnbanPlayerRequest>): Promise<UnbanPlayerResponse> {
-        return this.answer("unbanPlayer", request,
-            new UnbanPlayerResponse({offence: 2, bannedUntil: Timestamp.fromDate(AT), pardonedUntil: Timestamp.fromDate(AT)}))
-    }
-
     revertPlayer(request: PartialMessage<RevertPlayerRequest>): Promise<RevertPlayerResponse> {
         const restored = request.dryRun === true ? 0 : 118
         return this.answer("revertPlayer", request, new RevertPlayerResponse({touched: 900, held: 120, restored}))
-    }
-
-    inspectPlayer(request: PartialMessage<InspectPlayerRequest>): Promise<InspectPlayerResponse> {
-        return this.answer("inspectPlayer", request, this.inspection)
     }
 
     grantCharges(request: PartialMessage<GrantChargesRequest>): Promise<GrantChargesResponse> {
@@ -413,5 +420,43 @@ export class FakeAdmin implements AntibotAdmin, ChatAdmin, PlanetAdmin, PlayerAd
 
     decideReport(request: PartialMessage<DecideReportRequest>): Promise<DecideReportResponse> {
         return this.answer("decideReport", request, new DecideReportResponse({decidedAt: Timestamp.fromDate(AT)}))
+    }
+}
+
+// antibot.v1's calls, asked of the same fake: planet.v1 has a getRules and a saveRuleSet of its own.
+export class FakeAntibot implements AntibotAdmin {
+    constructor(private readonly admin: FakeAdmin) {}
+
+    banPlayer(request: PartialMessage<BanPlayerRequest>): Promise<BanPlayerResponse> {
+        return this.admin.answer("banPlayer", request,
+            new BanPlayerResponse({bannedUntil: Timestamp.fromDate(AT), offence: 2, enforced: true}))
+    }
+
+    unbanPlayer(request: PartialMessage<UnbanPlayerRequest>): Promise<UnbanPlayerResponse> {
+        return this.admin.answer("unbanPlayer", request,
+            new UnbanPlayerResponse({offence: 2, bannedUntil: Timestamp.fromDate(AT), pardonedUntil: Timestamp.fromDate(AT)}))
+    }
+
+    inspectPlayer(request: PartialMessage<InspectPlayerRequest>): Promise<InspectPlayerResponse> {
+        return this.admin.answer("inspectPlayer", request, this.admin.inspection)
+    }
+
+    getRules(request: PartialMessage<AntibotGetRulesRequest>): Promise<AntibotGetRulesResponse> {
+        return this.admin.answer("getRules", request, this.admin.antibotRules)
+    }
+
+    // Kept as the server keeps it: a set of the same name is replaced.
+    saveRuleSet(request: PartialMessage<AntibotSaveRuleSetRequest>): Promise<AntibotSaveRuleSetResponse> {
+        const answer = this.admin.answer("saveRuleSet", request, new AntibotSaveRuleSetResponse())
+        if (!this.admin.refusals.has("saveRuleSet") && request.set !== undefined) {
+            const saved = new AntibotRuleSet(request.set)
+            const others = this.admin.antibotRules.sets.filter(set => set.name !== saved.name)
+            this.admin.antibotRules = new AntibotGetRulesResponse({
+                sets: [...others, saved].sort((a, b) => Number(a.name !== "default") - Number(b.name !== "default") ||
+                    a.name.localeCompare(b.name)),
+                playing: this.admin.antibotRules.playing,
+            })
+        }
+        return answer
     }
 }

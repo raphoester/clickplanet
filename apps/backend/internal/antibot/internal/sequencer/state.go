@@ -49,8 +49,8 @@ func (w *Watchdog) Load(data []byte) error {
 		for _, s := range c.Steps {
 			loaded.steps = append(loaded.steps, step{at: evidence.Time(s.At), size: s.Size})
 		}
-		if capacity := w.capacity(); len(loaded.steps) > capacity {
-			loaded.steps = loaded.steps[len(loaded.steps)-capacity:]
+		if kept := capacity(w.rules()); len(loaded.steps) > kept {
+			loaded.steps = loaded.steps[len(loaded.steps)-kept:]
 		}
 		callers[c.Scope] = loaded
 	}

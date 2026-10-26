@@ -16,8 +16,10 @@ planet ◀────────────── RefuseCaller, AdmitCaller (
 
 - **Its own block, `antiBot`** (`antibot.Config`: `enabled`, `database`, `redis`, and the watchdogs' blocks squashed
   in), its own `antibot` schema and pool, its own Redis connection, and its own `antibot.v1.AdminService`
-  (`BanPlayer`, `UnbanPlayer`, `InspectPlayer`; see [Operator tools](admin.md)). The keys are the ones they were under
-  planet's block, which was squashed at the top of the file: only `antiBot.redis` is new.
+  (`BanPlayer`, `UnbanPlayer`, `InspectPlayer`, `GetRules`, `SaveRuleSet`; see [Operator tools](admin.md)). The block
+  holds the machine only: **every bound below is a rule of the set in force**, kept in postgres and edited from the
+  backoffice since 2026-10-26 ([The antibot's rules](antibot-rules.md)). A bound named here by its key (`minSuspects`,
+  `bans.enforce`) is that rule.
 - **Off, it is never built**: no subscriber, no route, no command. Planet then refuses nobody, since nothing tells it
   to, and `antibot.v1.AdminService` 404s.
 - **`listener`** is the antibot's edge for planet's facts: one subscriber per kind of fact (`antibot-clicks`,
@@ -78,11 +80,11 @@ changes, until when to refuse it.
   antibot's outbox (`antibot.outbox`, `outbox_event` `planet.v1.RefuseCaller` and `planet.v1.AdmitCaller`), and
   `cpoutbox`'s relay sends it with `streams.Commands()`: a ban kept in the antibot and never refused by planet is what the outbox is for.
   `decided_at` is taken under the ban's lock, so two changes of one key are told in the order they happened.
-- **A ban not enforced refuses nothing**: with `antiBot.bans.enforce` off, every change tells planet to admit the
+- **A ban not enforced refuses nothing**: with the rule `bans.enforce` off, every change tells planet to admit the
   caller.
-- **At each boot the antibot tells planet every running ban again** (`bans.Book.Restate`, before it hears anything):
-  refused until its end, or admitted when not enforced. So the bans running at a deploy reach planet's table with no
-  hand migration, and a change of `enforce` reaches it at the next boot.
+- **Each rule set taken tells planet every running ban again** (`bans.Book.Restate`): refused until its end, or
+  admitted when not enforced. The first is taken at boot, before the antibot hears anything, so the bans running at a
+  deploy reach planet's table with no hand migration; a set that changes `enforce` reaches planet as soon as it is taken.
 - **A ban lands a moment after the click that earned it**: the fact travels to the antibot, the command waits for the
   outbox's next tick (1s) and travels back. The few clicks in between are played. Their tries still reach the jury,
   and `reflagInterval` keeps them from extending the ban.
@@ -207,9 +209,10 @@ in memory no window of 10m (`suspicionWindow`), 15m (`trackWindow`) or 30m
 
 - **The antibot owns its schema, its migrations and its pool**, as a module does:
   `antiBot.database` (a `cppg.Config`, `schema: antibot`) and `antibot/internal/migrations`. Its DI sequence connects,
-  migrates, tells planet the running bans, builds the guard and loads the evidence (`Guard.Load`), and **an error
-  refuses the boot**. The pool and the Redis client close once `Guard.Hearing` and the outbox's relay returned
-  (`cppg.CloseAfter`, `cpredis.CloseAfter`), after the last flush of the evidence.
+  migrates, plays the rule set (which tells planet the running bans), builds the guard and loads the evidence
+  (`Guard.Load`), and **an error refuses the boot**. The pool and the Redis client close once `Guard.Hearing`, the
+  outbox's relay returned (`cppg.CloseAfter`, `cpredis.CloseAfter`), after the last flush of
+  the evidence.
 - **Bans are postgres, and nothing else.** `bans.Store` is the port: `Record`
   reads one key, `Running` reads the bans running (for `banned_callers` and the restatement at boot), and `Change` runs a function on
   one key's record under `pg_advisory_xact_lock` and writes what it answers, in one
@@ -244,7 +247,7 @@ in memory no window of 10m (`suspicionWindow`), 15m (`trackWindow`) or 30m
 - **Evidence is flushed whole.** One section per watchdog and one for the jury,
   each encoded by its own package (`state.go` beside it), so a watchdog's fields
   stay unexported. A flush replaces every row in one transaction, so a section
-  left out (a watchdog turned off, or one that fails to encode) is deleted, and
+  left out (one that fails to encode) is deleted, and
   a failed flush is simply retried whole on the next tick. A section that does
   not decode at load is reported through `OnStateError` and starts that one
   watchdog empty; the others load. That is not a failed boot: a changed section
@@ -639,9 +642,9 @@ stay length between them. `click_cohort_scopes` is the gauge of scopes in step
 right now, set once a sweep through `Observer.OnCohortScopes`: a floor that never drops to zero is a pool, whether or
 not its groups have chained yet.
 
-The chain bounds are the only ones in the antibot that `Validate` refuses at
-boot (`antiBot.cohort.detector`), because a `minMembers` or `certainCohorts` of 1
-would read one scope, or one group, as a pattern.
+A rule set with a `minMembers` or `certainCohorts` of 1 is refused (`cohort.Rules.Validate`), because it would read
+one scope, or one group, as a pattern. The prefix bits are the config's, and `antiBot.cohort` refuses a
+prefix wider than an address at boot.
 
 **`scraper`: what a caller reads, not what it clicks.** The web app reads the map
 once per page load, in 26 `GetMap` batches, and follows `ListenForEvents` after
@@ -889,7 +892,7 @@ A crash loses the tries of the last 100ms; a Redis that does not take them loses
 
 **The watchdogs judge only the clicks the throttle let through** (`Inspect`): a try it refused spent nothing.
 
-**`antiBot.bans.enforce` is the rollout switch,** the same shape as
+**The rule `bans.enforce` is the rollout switch,** the same shape as
 `auth.enforce`: false judges, logs and counts, and tells planet to refuse nobody. The
 two surfaces are built for a box with no dashboard — `click_reaction_seconds` is
 a histogram whose raw bucket counts show the bot band by eye, and each flag

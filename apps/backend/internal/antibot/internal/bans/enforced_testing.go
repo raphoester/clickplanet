@@ -5,7 +5,7 @@ package bans
 import "context"
 
 func (b *Banner) EnforcedSentence(ctx context.Context, scope string) (Sentence, bool, error) {
-	if !b.config.Enforce {
+	if !b.rules().Enforce {
 		return Sentence{}, false, nil
 	}
 

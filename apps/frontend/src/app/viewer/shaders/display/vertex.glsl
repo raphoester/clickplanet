@@ -39,11 +39,24 @@ varying float vGlow;
 varying float vScorch;
 varying float vFortify;
 
+#ifdef COMPACT
+uniform sampler2D flagRectangles;
+
+attribute vec2 ids;
+attribute vec4 marks;
+
+#define regionVector texelFetch(flagRectangles, ivec2(int(ids.x), 0), 0)
+#define landmassIndex ids.y
+#define hover marks.x
+#define pulse marks.y
+#define shield marks.z
+#else
 attribute float hover;
 attribute vec4 regionVector;
 attribute float landmassIndex;
 attribute float shield;
 attribute float pulse;
+#endif
 
 varying float vHover;
 flat out vec4 vRegionVector;

@@ -25,8 +25,9 @@ query only the parts it names are on, so `?gfx=` alone is the plain globe:
 | `earth` | the earth's own shader, in the light, with the glint |
 | `tiles` | the light on the tiles |
 | `halo` | the light on the halo |
+| `compact` | the tiles' compact layout: 20 bytes a tile on the GPU, not 56 |
 | `light` | `earth`, `tiles` and `halo` |
-| `all` | all of the above: #254 as it shipped |
+| `all` | all of the above: everything HD graphics turns on |
 
 Words add up (`?gfx=ratio,tiles`), and sit beside the rest of the query
 (`?f=fr&gfx=halo`). A word it does not know turns nothing on.
@@ -35,11 +36,17 @@ Words add up (`?gfx=ratio,tiles`), and sit beside the rest of the query
 light is compiled out with `#ifdef LIT` (three's `defines`, which leaves out a
 `false` one), so a driver that miscompiles `light.glsl` never sees it; the plain
 earth is three's standard material under the ambient light again; the plain halo
-has its own `colour` uniform. What is left on every page is the ratio
+has its own `colour` uniform; the plain tiles are the old attributes, with
+`#ifdef COMPACT` around the new ones.
+
+**The compact tile layout came later and is not part of #254.** It sits behind the
+same setting for the same reason: it reads integer buffers that nothing else in
+the game uses, so a player whose globe breaks with it turns HD graphics off. See
+[What a tile costs on the GPU](tile-layout.md). What is left on every page is the ratio
 arithmetic, which is a multiplication by 1.
 
 **To use it**, send a player who has the bug the links, one per part, and ask
 which come out white: `https://clickplanet.lol/play?gfx=all` first, which must
-show the bug, then `ratio`, `aa`, `earth`, `tiles`, `halo`. Ask for
+show the bug, then `ratio`, `aa`, `earth`, `tiles`, `halo`, `compact`. Ask for
 `chrome://gpu` too: it names the driver. **Once the culprit is fixed, take the
 URL switches out**; the setting stays.

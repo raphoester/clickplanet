@@ -604,6 +604,13 @@ textarea {
     resize: vertical;
 }
 
+.rules-json {
+    width: 100%;
+    min-height: 28em;
+    box-sizing: border-box;
+    font-size: 13px;
+}
+
 .action {
     display: grid;
     justify-items: start;

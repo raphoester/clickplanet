@@ -14,13 +14,13 @@ import (
 
 func newForeignHarness() *harness {
 	h := &harness{clock: cptime.NewFixedClock(time.Date(2026, 9, 22, 12, 0, 0, 0, time.UTC))}
-	h.watchdog = catcher.New(catcher.Config{
+	rules := catcher.Rules{
 		MinCatches:    5,
 		MaxMedian:     3 * time.Second,
 		CertainMedian: 1500 * time.Millisecond,
-		TrackWindow:   time.Hour,
-		Foreign:       catcher.ForeignConfig{Window: time.Hour, MinClaims: 5, CertainClaims: 10},
-	}, h.clock)
+		Foreign:       catcher.ForeignRules{Window: time.Hour, MinClaims: 5, CertainClaims: 10},
+	}
+	h.watchdog = catcher.New(catcher.Config{TrackWindow: time.Hour}, func() catcher.Rules { return rules }, h.clock)
 	return h
 }
 

@@ -53,13 +53,13 @@ func (w *Watchdog) Load(data []byte) error {
 		for _, o := range c.Outcomes {
 			loaded.outcomes = append(loaded.outcomes, outcome{at: evidence.Time(o.At), caught: o.Caught, after: time.Duration(o.After)})
 		}
-		if len(loaded.outcomes) > w.config.MinCatches {
-			loaded.outcomes = loaded.outcomes[len(loaded.outcomes)-w.config.MinCatches:]
+		if kept := w.rules().MinCatches; len(loaded.outcomes) > kept {
+			loaded.outcomes = loaded.outcomes[len(loaded.outcomes)-kept:]
 		}
 		for _, at := range c.Foreign {
 			loaded.foreign = append(loaded.foreign, evidence.Time(at))
 		}
-		if kept := w.config.Foreign.kept(); len(loaded.foreign) > kept {
+		if kept := w.rules().Foreign.kept(); len(loaded.foreign) > kept {
 			loaded.foreign = loaded.foreign[len(loaded.foreign)-kept:]
 		}
 		if len(loaded.outcomes) > 0 || len(loaded.foreign) > 0 {

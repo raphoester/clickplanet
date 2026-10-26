@@ -13,28 +13,26 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-func config() churner.Config {
-	return churner.Config{
+func production() churner.Rules {
+	return churner.Rules{
 		Window: time.Hour,
 		V6:     churner.Bounds{MinAccounts: 4, CertainAccounts: 6},
 		V4:     churner.Bounds{MinAccounts: 10, CertainAccounts: 20},
-		Relay: churner.Relay{
+		Relay: churner.RelayRules{
 			Handoff:      90 * time.Second,
 			MaxLife:      5 * time.Minute,
 			MinClicks:    20,
 			MinFlagShare: 0.9,
-			V4Bits:       24,
-			V6Bits:       32,
 			MinLinks:     3,
 			CertainLinks: 6,
 		},
 	}
 }
 
-func churnOnly() churner.Config {
-	c := config()
-	c.Relay.MinLinks, c.Relay.CertainLinks = 0, 0
-	return c
+func churnOnly() churner.Rules {
+	r := production()
+	r.Relay.MinLinks, r.Relay.CertainLinks = 0, 0
+	return r
 }
 
 type harness struct {
@@ -42,10 +40,11 @@ type harness struct {
 	clock    *cptime.FixedClock
 }
 
-func newHarness(config churner.Config) *harness {
+func newHarness(rules churner.Rules) *harness {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 30, 13, 47, 0, 0, time.UTC))
+	config := churner.Config{Relay: churner.RelayConfig{V4Bits: 24, V6Bits: 32}}
 	return &harness{
-		watchdog: churner.New(config, clock, func(int, string) {}, func(int) {}),
+		watchdog: churner.New(config, func() churner.Rules { return rules }, clock, func(int, string) {}, func(int) {}),
 		clock:    clock,
 	}
 }
@@ -68,7 +67,7 @@ func (h *harness) spend(scope, account, flag string, clicks int, gap time.Durati
 }
 
 func TestAFreshAccountEveryMinuteOnOneLineIsCaught(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(production())
 
 	readings := make([]reading, 0, 8)
 	for i := range 8 {
@@ -88,7 +87,7 @@ func TestAFreshAccountEveryMinuteOnOneLineIsCaught(t *testing.T) {
 }
 
 func TestAHouseholdKeepsItsAccounts(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(production())
 
 	var strongest detect.Verdict
 	for range 60 {
@@ -131,7 +130,7 @@ func TestAnIPv4AddressStillReadsPastItsBounds(t *testing.T) {
 }
 
 func TestASignedInAccountIsNeverCounted(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(production())
 
 	for i := range 8 {
 		h.spend("2001:db8:a:1::/64", fmt.Sprintf("guest-%d", i), "pl", 30, time.Second)
@@ -142,7 +141,7 @@ func TestASignedInAccountIsNeverCounted(t *testing.T) {
 }
 
 func TestAccountsBornAnHourAgoNoLongerCount(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(production())
 
 	for i := range 8 {
 		h.spend("2001:db8:a:1::/64", fmt.Sprintf("guest-%d", i), "pl", 30, time.Second)
@@ -157,7 +156,7 @@ func relayIdentity(i int) (scope, account string) {
 }
 
 func TestAFreshAccountOnAFreshLineEveryMinuteIsARelay(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(production())
 
 	readings := make([]reading, 0, 10)
 	for i := range 10 {
@@ -176,7 +175,7 @@ func TestAFreshAccountOnAFreshLineEveryMinuteIsARelay(t *testing.T) {
 }
 
 func TestAPlayerWhoseLineChangesKeepsTheirAccount(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(production())
 
 	var strongest detect.Verdict
 	for i := range 20 {
@@ -189,7 +188,7 @@ func TestAPlayerWhoseLineChangesKeepsTheirAccount(t *testing.T) {
 }
 
 func TestPlayersWhoStayAreNoRelay(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(production())
 
 	var strongest detect.Verdict
 	for i := range 10 {
@@ -202,7 +201,7 @@ func TestPlayersWhoStayAreNoRelay(t *testing.T) {
 }
 
 func TestAccountsOnOtherFlagsAreNoRelay(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(production())
 
 	var strongest detect.Verdict
 	for i := range 10 {
@@ -216,7 +215,10 @@ func TestAccountsOnOtherFlagsAreNoRelay(t *testing.T) {
 }
 
 func TestUnsetBoundsNeverRead(t *testing.T) {
-	h := newHarness(churner.Config{})
+	unset := production()
+	unset.V6, unset.V4 = churner.Bounds{}, churner.Bounds{}
+	unset.Relay.MinLinks, unset.Relay.CertainLinks = 0, 0
+	h := newHarness(unset)
 
 	var strongest detect.Verdict
 	for i := range 10 {

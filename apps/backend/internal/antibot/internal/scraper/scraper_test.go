@@ -21,12 +21,9 @@ type harness struct {
 
 func newHarness() *harness {
 	h := &harness{clock: cptime.NewFixedClock(time.Date(2026, 9, 15, 21, 11, 0, 0, time.UTC))}
-	h.watchdog = scraper.New(scraper.Config{
-		MinMaps:       5,
-		CertainMaps:   15,
-		CertainOffMap: 2,
-		TrackWindow:   15 * time.Minute,
-	}, h.clock, func(float64) {})
+	rules := scraper.Rules{MinMaps: 5, CertainMaps: 15, CertainOffMap: 2}
+	h.watchdog = scraper.New(scraper.Config{TrackWindow: 15 * time.Minute}, func() scraper.Rules { return rules }, h.clock,
+		func(float64) {})
 	return h
 }
 

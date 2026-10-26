@@ -71,14 +71,7 @@ antiBot:
     address: localhost:6379
     password: ""
 
-  bans:
-    enforce: false
-    banDurations: [24h, 168h, 26280h]
-    reflagInterval: 5m
-
   jury:
-    minSuspects: 2
-    suspicionWindow: 10m
     trackWindow: 15m
     sweepInterval: 1m
 
@@ -87,136 +80,51 @@ antiBot:
     retention: 72h
 
   retaker:
-    enabled: true
-    detector:
-      reactionWindow: 5s
-      minReactions: 12
-      maxSpread: 120ms
-      maxMedian: 250ms
-      minTiles: 15
-      roamMedian: 600ms
-      trackWindow: 5m
-      sweepInterval: 1m
+    trackWindow: 5m
+    sweepInterval: 1m
 
   sequencer:
-    enabled: true
-    detector:
-      minSteps: 40
-      minShare: 0.75
-      certainSteps: 200
-      certainShare: 0.95
-      trackWindow: 15m
-      sweepInterval: 1m
+    trackWindow: 15m
+    sweepInterval: 1m
 
   metronome:
-    enabled: true
-    detector:
-      maxGap: 3s
-      maxSpread: 120ms
-      minClicks: 120
-      certainFor: 30m
-      certainClicks: 900
-      shape:
-        maxGap: 10s
-        clicks: 500
-        certainClicks: 1000
-      stamina:
-        slice: 10m
-        clicks: 40
-        window: 6h
-        minBusy: 5h30m
-      trackWindow: 15m
-      sweepInterval: 1m
+    stamina:
+      slice: 10m
+    trackWindow: 15m
+    sweepInterval: 1m
 
   defender:
-    enabled: true
-    detector:
-      retakeWindow: 2m
-      minClicks: 60
-      certainClicks: 200
-      trackWindow: 5m
-      sweepInterval: 1m
+    trackWindow: 5m
+    sweepInterval: 1m
 
   catcher:
-    enabled: true
-    detector:
-      minCatches: 5
-      maxMedian: 3s
-      certainMedian: 1500ms
-      trackWindow: 1h
-      sweepInterval: 1m
+    trackWindow: 1h
+    sweepInterval: 1m
 
   cohort:
-    enabled: true
-    detector:
-      startWindow: 5s
-      minClicks: 20
-      minFlagShare: 0.9
-      rateRatio: 1.5
-      lengthRatio: 1.2
-      quietAfter: 1m
-      minMembers: 2
-      v4Bits: 24
-      v6Bits: 44
-      certainCohorts: 3
-      certainMembers: 6
-      chainWindow: 30m
-      trackWindow: 30m
-      sweepInterval: 1m
+    v4Bits: 24
+    v6Bits: 44
+    trackWindow: 30m
+    sweepInterval: 1m
 
   scraper:
-    enabled: true
-    detector:
-      minMaps: 5
-      certainMaps: 15
-      certainOffMap: 2
-      trackWindow: 15m
-      sweepInterval: 1m
+    trackWindow: 15m
+    sweepInterval: 1m
 
   churner:
-    enabled: true
-    detector:
-      window: 1h
-      v6:
-        minAccounts: 4
-        certainAccounts: 6
-      v4:
-        minAccounts: 10
-        certainAccounts: 20
-      relay:
-        handoff: 90s
-        maxLife: 5m
-        minClicks: 20
-        minFlagShare: 0.9
-        v4Bits: 24
-        v6Bits: 32
-        minLinks: 3
-        certainLinks: 6
-      trackWindow: 1h2m
-      sweepInterval: 1m
+    relay:
+      v4Bits: 24
+      v6Bits: 32
+    trackWindow: 1h2m
+    sweepInterval: 1m
 
   hopper:
-    enabled: true
-    detector:
-      minAngle: 45
-      minGap: 100ms
-      maxGap: 30s
-      minSteps: 40
-      minShare: 0.4
-      certainSteps: 200
-      trackWindow: 15m
-      sweepInterval: 1m
+    trackWindow: 15m
+    sweepInterval: 1m
 
   rotator:
-    enabled: true
-    detector:
-      slot: 5m
-      window: 24h
-      minSeconds: 15
-      minByChance: 90
-      maxShare: 0.05
-      minSlots: 24
-      sweepInterval: 1m
+    slot: 5m
+    sweepInterval: 1m
 
 chat:
   database:

@@ -11,16 +11,19 @@
 - `useLeaderboardFeed.ts` — the one place React hears about the board, and
   **it samples rather than follows**. See [Sampling the
   leaderboard](leaderboard-sampling.md).
-- `tileField.ts` — owns both point clouds and the three attributes that change at
-  runtime (`regionVector`, `hover`, `shield`). Mutates them in place and reports only the
-  changed ranges. Do not replace these attributes: doing so makes the renderer
-  rebuild the whole GPU buffer instead of patching it.
+- `tileField.ts` — owns both point clouds and the per-tile values that change at
+  runtime (flag, hover, shields, pulse), in one of two layouts. Mutates them in place
+  and reports only the changed ranges. Do not replace these attributes: doing so
+  makes the renderer rebuild the whole GPU buffer instead of patching it. See [What
+  a tile costs on the GPU](tile-layout.md).
 - `gpuPicking.ts` — `GpuPicker`. Persistent 1×1 render target and scene;
   `setViewOffset` narrows the projection to the pixel under the cursor. In orbit the
   tiles are drawn wider for it, with no gap between them (`pickPointSize`). Picks
   are resolved once per frame, not once per mousemove — each one ends in a
-  synchronous GPU read that stalls the pipeline.
-- `points.ts` — fetches and decodes the tile coordinates blob.
+  synchronous GPU read that stalls the pipeline. Its occluder is the earth's own
+  sphere, which it does not dispose.
+- `points.ts` / `latticeWorker.ts` / `landmaskAsset.ts` — the tile positions, rebuilt in a worker from
+  the landmask, or the coordinates blob when that fails. See [Tile positions](tile-positions.md).
 - `capture.ts` — `readDrawingBuffer`, the frame the player is looking at. **It
   only works inside the render loop**; see [Sharing the
   globe](sharing.md).
@@ -93,7 +96,8 @@
   or off the screen it would cost frames and show nothing. With less motion a
   hit and a placement fade without changing size.
 - `earth.ts` — the opaque sphere under the tiles, in the globe's light with
-  `?gfx=earth`. See [The light](light.md).
+  `?gfx=earth`. See [The light](light.md). The sphere comes from `sphere.ts`, built
+  once per globe and shared with the picker.
 - `graphics.ts` — `graphicsOf`, which parts of the sharper, lit globe are on:
   the HD graphics setting, unless the URL names them. See [HD graphics](hd-graphics.md).
 - `shaders/` — GLSL for the display, picking, earth, star, enclosure and glint passes.

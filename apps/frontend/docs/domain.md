@@ -1,8 +1,8 @@
 # `src/domain/` — the logic worth testing
 
 - `tileOwnership.ts` — the authoritative tile → country map and the per-country
-  counts derived from it. The initial load arrives as ~26 sequential batches
-  while live updates stream in throughout, so the two sources overlap: **live
+  counts derived from it. The initial load arrives as 27 batches, eight at a
+  time and in any order, while live updates stream in throughout, so the two sources overlap: **live
   updates win permanently**, and a tile someone has claimed is never taken back
   by a batch that was already in flight. Counts follow this map, never the
   `previousCountry` an event reports. It also holds the third source, **your own
@@ -75,4 +75,8 @@
 - `territory.ts` — what the territory card says: `rankHoldings`, `freeTilesOf`,
   `sharePercent`, and `sameTerritory`, which spares a render when nothing moved. See
   [A territory, from orbit](territory-card.md).
+- `lattice.ts` — the points of the detail-300 icosahedron, in three's order and to the bit, and
+  `tilePositions`, the positions of the ones a landmask keeps. `landmask.ts` — the landmask file,
+  `landmaskOf` to make one, and `rebuildTilePositions`, which checks the hash. See [Tile
+  positions](tile-positions.md).
 - `warnOnce.ts` — for things that would otherwise warn on every frame.

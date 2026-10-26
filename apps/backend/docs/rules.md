@@ -6,7 +6,7 @@ no set inherits from another, and no value has a default. Each set is one row of
 `20261026210000_rule_sets`). **The migration keeps the game's own rules as `default`**: production's values on
 26 October 2026, the ones `deploy/vps/backend.yaml` held before they moved. Every other set is made from the
 backoffice. The game plays `default`. **A rule set holds planet's words only**: the anti-bot's bounds are its own
-config (see [Anti-bot](antibot.md)).
+rule sets, and it plays the one named like planet's set in force (see [The antibot's rules](antibot-rules.md)).
 
 ## What a set holds
 

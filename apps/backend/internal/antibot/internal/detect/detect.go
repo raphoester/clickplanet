@@ -80,6 +80,9 @@ type Accomplice struct {
 type Watchdog interface {
 	Name() string
 
+	// Off, the jury reads it as clear; it keeps watching all the same.
+	Enabled() bool
+
 	Attempted(click Click)
 
 	Watch(click Click) (Verdict, Evidence)
