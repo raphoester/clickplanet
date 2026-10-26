@@ -23,7 +23,9 @@ graphics](hd-graphics.md)):
 from `flagRectangles`, a float texture of one row per flag, and passes it on as
 `vRegionVector` exactly as before, so the fragment shader is the same for both
 layouts. One read per tile in the vertex shader, not one per pixel in the
-fragment shader. A u8 cannot hold it: the atlas has 256 flags, and 0 is taken.
+fragment shader. It is a u16 like `ids.y`, the landmass, which 658 landmasses
+need; a u8 would hold the atlas's 243 flags and 0 with twelve to spare, and the
+pair would then be 3 bytes, not 4.
 
 **Small integers, read as exact floats.** `ids` is a `Uint16Array` and `marks` a
 `Uint8Array`, with `normalized` off, and the shader declares them as `vec2` and

@@ -8,7 +8,8 @@ const {data, info} = await sharp("." + ATLAS_URL).raw().toBuffer({resolveWithObj
 const {width, channels} = info
 
 const TOLERANCE = 14
-const INSET = 2
+// Two pixels of a 100px flag: the fringe where a band's edge is blended into the next.
+const insetOf = (region) => Math.max(2, Math.round(region.width / 50))
 
 const at = (x, y) => {
     const i = (y * width + x) * channels
@@ -18,9 +19,10 @@ const at = (x, y) => {
 function uniformLines(region, vertical) {
     const outer = vertical ? region.width : region.height
     const inner = vertical ? region.height : region.width
-    for (let a = INSET; a < outer - INSET; a++) {
+    const inset = insetOf(region)
+    for (let a = inset; a < outer - inset; a++) {
         let lo = [255, 255, 255], hi = [0, 0, 0]
-        for (let b = INSET; b < inner - INSET; b++) {
+        for (let b = inset; b < inner - inset; b++) {
             const [x, y] = vertical
                 ? [region.x + a, region.y + b]
                 : [region.x + b, region.y + a]
@@ -69,7 +71,7 @@ function focusOf(region, vertical) {
 
 const fit = {}
 for (const [code, region] of Object.entries(atlas)) {
-    if (region.width <= INSET * 2 || region.height <= INSET * 2) continue
+    if (region.width <= insetOf(region) * 2 || region.height <= insetOf(region) * 2) continue
     const horizontalBands = uniformLines(region, false)
     const verticalBands = uniformLines(region, true)
     fit[code] = {

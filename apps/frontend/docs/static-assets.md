@@ -38,8 +38,29 @@ cache entirely:
   the tile field. URL in `earthAsset.ts`. Regenerate with `npm run earth`, which
   reads the coordinates blob — so **after `npm run map:generate`**, or the coast
   has discs in the water again. See [The globe's texture](globe-texture.md).
-- `/static/countries/atlas-<hash>.png` — the flag sprite atlas. URL and pixel
-  size in `atlasAsset.ts`. Regenerate with `npm run atlas`.
+- `/static/countries/atlas-<hash>.webp` — the flag sprite atlas: every flag
+  200px wide, rasterised from `static/countries/svg/` (and `custom/`, for a flag
+  that is no country's, Brittany's) for every code on the map and in
+  `countries.json`, 243 of them. URL and pixel size in `atlasAsset.ts`, each
+  flag's rectangle in `atlas.json`. Regenerate with `npm run atlas`, then
+  `npm run flagFit`, which reads the atlas's pixels. **200px wide because of the
+  painted flags, and not wider because of memory** (see [The zoomed-out
+  view](zoomed-out-view.md)): it is 2600×2330, 535 KB on the wire and 31 MB on
+  the GPU with its mipmaps, where the 100px PNG was 418 KB and 8 MB. 300px was
+  built and measured at 69 MB, twice the earth texture, and judged too much.
+  Whatever the width, **no side may pass 4096 pixels**, the smallest
+  `MAX_TEXTURE_SIZE` among the players' GPUs (two of twelve bug reporters have
+  exactly that), past which three.js shrinks the image in silence;
+  `writeAtlas.ts` refuses one that does, and 300px flags already filled 3900.
+  Lossless WebP, because flags are flat colour with hard edges, which a lossy
+  encoder rings. The four territories with no flag of their own carry a
+  copy of their country's SVG: `hm.svg` is Australia's, `nc.svg` and `pm.svg`
+  France's, `sh.svg` the United Kingdom's. `atlasAsset.test.ts` checks that the
+  name is the file's own hash, that `ATLAS_SIZE` is its size, that every region
+  fits in it, and that every code on the map has a flag — a half-regenerated
+  checkout fails CI instead of shipping. **The immutable rule in `_headers`
+  names the extension**: a new format is a new rule, or the atlas falls back
+  to the week.
 - `/static/reactions/<name>-<hash>.svg` — the chat's reaction images. URLs in
   `app/chat/reactionsAsset.ts`. Regenerate with `npm run reactions` — see
   [Reactions](chat.md#reactions).
