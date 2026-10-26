@@ -4,8 +4,10 @@
 
 ```
 internal/seasons/internal/
-  calendar/                       Number, Season, Entry, Config (its Validate), Calendar (Current)
+  calendar/                       Number, Season, Entry, Config (its Validate), Calendar (Current), Stage, Phase
+                                  (Phases)
     usecases/get_season_usecase/  the calendar and the clock
+  schedule/                       the rule schedule: which rule set plays — see rule-schedule.md
   standings/                      AccountID, Country, Take (Season), Tally (WithTake); the Store port (RecordTake,
                                   DeleteAccount) and its contract suite
     postgres_contribution_store/  the Store over seasons.contributions
@@ -64,6 +66,10 @@ internal/seasons/internal/
   - **A slow stream skips to the newest board**: each holds one, and a new one replaces the one it did not take. A board is whole, so nothing is lost.
   - **A failed read is tried again on the next read**, 2s later, and logged (`log_board_reader`), but not when the shutdown cut it. The feed runs under the pool's `cppg.CloseAfter`, so it stops before the pool closes.
 - **`GetMySeason(country_id)`** (`my_season_query`) is the caller's main flag, its tiles for it and its rank among every player, and its tiles for `country_id` and its rank on that country's board (`country_tiles`, `country_rank`), and the title it wears, from the `GetAuthors` that tells it is not a guest. A rank is 0 and there is no title for a guest, and every number is 0 for an account with no take this season; the country's are 0 with no `country_id`, or no take for it. A country that is not one is `InvalidArgument` (`my_season_query.ErrUnknownCountry`). It sits behind `seasonsv1controller.NewSessionInterceptor`, always enforcing, on the key `auth` hands over (`seasons_session_checks{verdict}`), and takes the identity token (`cpconnect.Identified`): it only reads. It counts the ranked players above the caller: SQL reads the main rows with more tiles than the caller's main flag, and the country's rows with more than the caller's for it, each 500 at a time and both at once, and costs one `GetAuthors` a page.
+**The season decides which rule set the game plays**: its phases (days, finale, over) each play the set
+`seasons.ruleSets` names, and operators schedule entries above them. Seasons commands planet and the antibot to play
+the set, each in its own words. See [The rule schedule](rule-schedule.md).
+
 **A country's season score is the points of the rounds it won places in**, counted from the ground it held: the
 standings rank players, the rounds rank countries.
 

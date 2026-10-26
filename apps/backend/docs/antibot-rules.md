@@ -95,20 +95,23 @@ each time it is called. They call it when they judge, not when they are built: a
 `TestASetTakenJudgesFromTheNextClick` pins it through the guard. A watchdog reads its rules once per call, so one
 judgement sees one set.
 
-- **`play_rules_usecase` plays when something changes, never on a timer**: once at boot, and when planet names a set
-  (`Play(ctx, name)`). A save never changes the rules in force (see [The operator](#the-operator)), so it plays
-  nothing. Each time it reads the set to
-  play from the store, which restores it, and enforces it when its values changed (`Set.Equal`), one play at a time
-  under a lock. A missing `default` refuses the boot. A failed read, or a kept set that cannot play, keeps the rules in
-  force; the caller gets the error and `log_play_rules` logs it. Until 2026-10-26 a runner read postgres every second;
-  with one process and planet's schedule as the only thing that changes the set in force, a push is enough, and a hand
-  edit in SQL takes effect at the next play or boot.
+- **`play_rules_usecase` plays when something changes, never on a timer**: at boot (`Execute`) the set the schedule
+  chose last, and `default` until it chose one; then each `antibot.v1.PlayRuleSet` the schedule sends (`Play`, from
+  `commands/play_rule_set_handler`). A save never changes the rules in force (see [The operator](#the-operator)), so
+  it plays nothing. Each time it reads the set to play from the store, which restores it, and enforces it when its
+  values changed (`Set.Equal`), one play at a time under a lock. A missing set at boot refuses the boot. A failed read,
+  or a kept set that cannot play, keeps the rules in force; the caller gets the error and `log_play_rules` logs it.
+  Until 2026-10-26 a runner read postgres every second; with the schedule as the only thing that changes the set in
+  force, a push is enough, and a hand edit in SQL takes effect at the next play or boot.
+- **The choice is kept** in `antibot.rule_set_choice` (`rules.Choice`, one row, `postgres_choice_store`): a later
+  decision overrules it, and an older one or one sent again changes nothing. A set the antibot keeps none of is
+  refused: the rules in force stay, the choice is not kept, and the command is dropped.
 - **Each set taken tells planet every running ban again** (`bans.Book.Restate`), under the set's `bans.enforce`: a set
   that stops enforcing admits the banned callers at once, and one that enforces refuses them again. The first take is at
   boot, before the antibot hears anything, so the bans running at a deploy reach planet's table as before. A failed
-  restatement is tried again at the next play: the redelivery of planet's fact, or the next boot.
-- **`log_play_rules` logs each set taken** at Warn (`antibot rules in force`, `set`, `asked`, `rules` as protojson), and
-  the start line (`antibot enabled`) names the set and the watchdogs on.
+  restatement is tried again at the next play: the redelivery of the command, or the next boot.
+- **`log_play_rules` logs each set taken** at Warn (`antibot rules in force`, `set`, `rules` as protojson), and each
+  failure or refusal at Error, and the start line (`antibot enabled`) names the set and the watchdogs on.
 
 ## A watchdog turned off
 
@@ -120,20 +123,16 @@ off in the YAML was never built. `TestAWatchdogTurnedOffKeepsWatchingAndCountsFo
 
 ## Which set plays
 
-**The antibot plays the set named like the planet rule set in force, and `default` when it keeps no set of that
-name.** The antibot is downstream of planet: it takes planet's word for which set plays and keeps its own values under
-it, so planet never hears of a crowd.
+**The schedule picks it**, in seasons, and commands it in the antibot's words (`antibot.v1.PlayRuleSet`, see
+[The rule schedule](rule-schedule.md)). The antibot was to follow the name of planet's set; now each module is told
+on its own, so planet never hears of a crowd, and the antibot never follows planet.
 
-- **`play_rules_usecase.UseCase.Play(ctx, name)`** is the entry point: it keeps the name and plays its set at once.
-  `log_play_rules` logs `Execute` only; the subscriber that calls `Play` gives it its own log line or a `Play` on the
-  decorator. On `main`, planet does not tell its set yet, so the name stays `default`. The subscriber that hears
-  `planet.v1.RuleSetEnforced` (planet's rule sets, PR #475) calls `Play` with its `rule_set`; a failed play fails the
-  handler, and Redis delivers the fact again.
-- **The antibot has no switch of its own for which set plays**: it follows planet's set, and so whatever schedule
-  planet keeps. No operator call picks the set in force.
-- **For the Final Battle** (Sat 31 Oct 2026, 21:00–23:00 UTC), planet plays `rush`. An antibot set `rush` with
-  `cohort.certainMembers` 50 makes the crowd bound 50 for the evening. It must be saved before 21:00: while planet plays
-  `rush`, a save of `rush` is refused, and the antibot keeps `default`.
+- **The antibot has no switch of its own for which set plays.** No operator call picks the set in force.
+- **`antibot.v1.InternalService/GetRuleSetNames`** answers the names of the sets postgres keeps, so seasons refuses an
+  entry of a set the antibot lacks.
+- **For the Final Battle** (Sat 31 Oct 2026, 21:00–23:00 UTC), the finale's phase plays `rush`. An antibot set `rush`
+  with `cohort.certainMembers` 50 makes the crowd bound 50 for the evening. It must be saved before 21:00: while `rush`
+  plays, a save of `rush` is refused, and an antibot with no `rush` refuses the command and keeps `default`.
 
 ## The machine, in the YAML
 
@@ -163,8 +162,7 @@ in a file would be read by nothing.
   holds: it reads the documents, not the store, which refuses a set that cannot play.
 - **`SaveRuleSet{set}`** makes a set or replaces its values. A set `Restore` refuses is `InvalidArgument`, with every
   reason. `audit_save_rule_set` logs every save at Warn (`admin antibot rule set saved` or `refused`, with the rules).
-- **No operator call changes the rules in force.** What plays is planet's schedule, with its priorities; an operator
+- **No operator call changes the rules in force.** What plays is the schedule, with its priorities; an operator
   never overrides it, here or anywhere (the user's rule, 2026-10-26). So `SaveRuleSet` refuses, with
-  `FailedPrecondition`, a set that plays now (`ErrPlaying`): the set in force, and the set named like planet's set in
-  force even when the antibot keeps none yet, since saving it would make it play at once. To change the live rules,
-  the operator saves another set and the schedule plays it. `play_rules_usecase.Plays(name)` answers it.
+  `FailedPrecondition`, the set that plays now (`ErrPlaying`). To change the live rules, the operator saves another
+  set and the schedule plays it. `play_rules_usecase.Plays(name)` answers it.

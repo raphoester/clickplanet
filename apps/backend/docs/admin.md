@@ -73,6 +73,12 @@ stream sent it. The frontend's clip generator plays it back (see its [Clips](../
 The rule sets an operator reads and writes, never the one that plays now: see [Rules](rules.md). The backoffice's Game
 rules page calls both.
 
+## The rule schedule: `seasons.v1.AdminService`
+
+`GetSchedule`, `AddEntry`, `EditEntry`, `DeleteEntry`: the entries above the seasons' phases, which decide the rule
+set planet and the antibot play. Only an entry to come changes. See [The rule schedule](rule-schedule.md). The
+backoffice's Rule schedule page calls all four.
+
 ## `GetLedger`, `GetTerritories`
 
 **What the admin page's home reads, none of it shaped for it**: the page counts, charts and draws on its own side

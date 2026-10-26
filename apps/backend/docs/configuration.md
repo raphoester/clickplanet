@@ -119,6 +119,9 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `missions.cutoff` — the time of day, in UTC, a mission day ends (production 21h, the daily round's; unset, midnight). From 0 up to 24h, or the boot is refused
 - `missions.database.*` — the briefs, the sheets and the collections, same shape as `database`, schema `missions`; required. `missions.database.password` belongs in the environment
 - `seasons.list` — each season's `number` (0 up), `endsAt` (RFC 3339) and `finale` (a duration); empty is no season
+- `seasons.ruleSets.days`, `.finale`, `.over` — the rule set each phase of a season plays, at priority 0 (production:
+  `default`, `rush`, `default`); each must be a set's name, or the boot is refused. A set planet or the antibot lacks is
+  not refused: see [The rule schedule](rule-schedule.md#a-phase-whose-set-a-module-lacks)
 - `seasons.snapshot.interval` — how often a snapshot of what each country holds is added to the round in progress (default 1m)
 - `seasons.database.*` — the standings and the rounds, same shape as `database`, schema `seasons`; required. `seasons.database.password` belongs in the environment
 - `support.database.*` — what players send the operator, same shape as `database`, schema `support`; required. `support.database.password` belongs in the environment

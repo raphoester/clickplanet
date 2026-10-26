@@ -3,8 +3,8 @@
 **Every game rule is kept in postgres, not in the config**, and edited from the backoffice (Ops → Game rules). A game
 rule is what a player feels: how fast a bank refills, what a box holds, how big a bomb is. Until 2026-10-26 they were
 in the YAML, read once at boot, so a change was a deploy and a restart. The design is the antibot's (see
-[The antibot's rules](antibot-rules.md)); **a rule set holds planet's words only**: the antibot keeps its own sets,
-and plays the one named like planet's set in force.
+[The antibot's rules](antibot-rules.md)); **a rule set holds planet's words only**: the antibot keeps its own sets.
+Which set each plays is the schedule's (see [The rule schedule](rule-schedule.md)).
 
 ## A rule set
 
@@ -82,11 +82,16 @@ The readers call it where they use the rules, not when they are built: a set tak
 - `bonuses.Part` — the box registry (waits, kinds, flight, miss, activity, welcome, quizzes, the quiz lean),
   `bonuses.Charges` (the stacks), `bonuses.Bombing` (the radius), `enclose_click`, `place_shield_usecase`,
   `clicks.Claiming` (a tile's most shields, for a fortify) and `GetBonusRules`.
-- **`play_rules_usecase` plays when something changes, never on a timer**: once at boot, and a missing or broken
-  `default` refuses the boot. Each time it reads the set to play from the store and enforces it when its values
-  changed (`Set.Equal`), one play at a time under a lock. A failed read, or a kept set that cannot play,
-  keeps the rules in force, and `log_play_rules` logs it; each set taken is logged at Warn (`rules in force`, `set`,
-  `rules` as protojson). A hand edit in SQL takes effect at the next boot.
+- **`play_rules_usecase` plays when something changes, never on a timer**: at boot (`Execute`) the set the schedule
+  chose last, and `default` until it chose one; then each `planet.v1.PlayRuleSet` the schedule sends (`Play`, from
+  `commands/play_rule_set_handler`). A missing or broken set at boot refuses the boot. Each time it reads the set to
+  play from the store and enforces it when its values changed (`Set.Equal`), one play at a time under a lock. A failed
+  read, or a kept set that cannot play, keeps the rules in force, and `log_play_rules` logs it; each set taken is
+  logged at Warn (`rules in force`, `set`, `rules` as protojson). A hand edit in SQL takes effect at the next play or
+  boot.
+- **The choice is kept** in `planet.rule_set_choice` (`rules.Choice`: the set and when the schedule decided it, one
+  row, `postgres_choice_store`): a later decision overrules it, and an older one or one sent again changes nothing. A
+  set planet keeps none of is refused, the choice is not kept, and the command is dropped.
 - `InForce.Enforce` also stamps when the set took over (`Since`) and wakes each `Watch()`er: every planet stream sends
   `PlanetEvent.rules_changed`, and the web client reads `GetBudget` and `GetBonusRules` again, so an open tab shows a
   new refill and new sizes with no reload. `GetBonusRules` is a GET no cache keeps for that reason.
@@ -114,9 +119,11 @@ A value read where it is used applies from the next use. **A value that carries 
 
 ## Which set plays
 
-**The game plays `default`.** No operator call picks the set in force or changes its values (the user's rule,
-2026-10-26: an operator never overrides the schedule, here or anywhere). A schedule that names another set, the
-season's (PR #475), plays it through the same use case.
+**The schedule picks it**, in seasons: the seasons' phases (`seasons.ruleSets`) and the operators' entries above them,
+the highest priority first (see [The rule schedule](rule-schedule.md)). No operator call picks the set in force or
+changes its values (the user's rule, 2026-10-26: an operator never overrides the schedule, here or anywhere).
+`planet.v1.InternalService/GetRuleSetNames` answers the names of the sets postgres keeps, so seasons refuses an entry
+of a set planet lacks.
 
 ## The machine, in the YAML
 
