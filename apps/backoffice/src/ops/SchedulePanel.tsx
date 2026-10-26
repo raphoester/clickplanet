@@ -1,17 +1,16 @@
 import {ConnectError, Code} from "@connectrpc/connect"
 import {useCallback, useState} from "react"
-import {AntibotAdmin, PlanetAdmin, SeasonsAdmin} from "../clients.ts"
+import {AntibotAdmin, PlanetAdmin, RulesAdmin} from "../clients.ts"
 import {ConfirmAction} from "../components/ConfirmAction.tsx"
 import {FailureNotice} from "../components/FailureNotice.tsx"
 import {When} from "../components/When.tsx"
 import {GetRulesResponse as AntibotRules} from "../gen/grpc/antibot/v1/admin_pb.ts"
 import {GetRulesResponse as PlanetRules} from "../gen/grpc/planet/v1/admin_pb.ts"
-import {Entry, GetScheduleResponse} from "../gen/grpc/seasons/v1/admin_pb.ts"
+import {Entry, GetScheduleResponse} from "../gen/grpc/rules/v1/admin_pb.ts"
 import {wordsOf} from "../refusal.ts"
 import {useCall} from "../useCall.ts"
 import {
-    addEntry, changeable, complete, deleteEntry, Draft, draftOf, editEntry, ended, lacking, phaseName, playable, playingOf,
-    questionOf, Row, rowsOf,
+    addEntry, changeable, complete, deleteEntry, Draft, draftOf, editEntry, ended, lacking, playable, questionOf, Row, rowsOf,
 } from "./schedule.ts"
 
 type Read = {schedule: GetScheduleResponse, planet: PlanetRules, antibot: AntibotRules}
@@ -26,13 +25,13 @@ const refusal = (err: unknown) => {
 // Editing: an entry to come, or undefined for a new one.
 type Editing = {entry: Entry | undefined}
 
-export function SchedulePanel({seasons, planet, antibot}: {seasons: SeasonsAdmin, planet: PlanetAdmin, antibot: AntibotAdmin}) {
+export function SchedulePanel({rules, planet, antibot}: {rules: RulesAdmin, planet: PlanetAdmin, antibot: AntibotAdmin}) {
     const read = useCallback(async (signal: AbortSignal): Promise<Read> => {
         const [schedule, planetRules, antibotRules] = await Promise.all([
-            seasons.getSchedule({}, {signal}), planet.getRules({}, {signal}), antibot.getRules({}, {signal}),
+            rules.getSchedule({}, {signal}), planet.getRules({}, {signal}), antibot.getRules({}, {signal}),
         ])
         return {schedule, planet: planetRules, antibot: antibotRules}
-    }, [seasons, planet, antibot])
+    }, [rules, planet, antibot])
     const [state, again] = useCall(read)
     const [editing, setEditing] = useState<Editing | undefined>(undefined)
 
@@ -50,7 +49,7 @@ export function SchedulePanel({seasons, planet, antibot}: {seasons: SeasonsAdmin
                     <Playing read={state.value}/>
                     <Rows
                         read={state.value}
-                        seasons={seasons}
+                        rules={rules}
                         onEdit={entry => setEditing({entry})}
                         onDeleted={changed}
                     />
@@ -62,7 +61,7 @@ export function SchedulePanel({seasons, planet, antibot}: {seasons: SeasonsAdmin
                     {editing !== undefined && (
                         <EntryForm
                             key={editing.entry?.id ?? "new"}
-                            seasons={seasons}
+                            rules={rules}
                             entry={editing.entry}
                             sets={playable(state.value.planet, state.value.antibot)}
                             onCancel={() => setEditing(undefined)}
@@ -96,36 +95,34 @@ function Playing({read}: {read: Read}) {
     )
 }
 
-function Rows({read, seasons, onEdit, onDeleted}: {
-    read: Read, seasons: SeasonsAdmin, onEdit: (entry: Entry) => void, onDeleted: () => void,
+function Rows({read, rules, onEdit, onDeleted}: {
+    read: Read, rules: RulesAdmin, onEdit: (entry: Entry) => void, onDeleted: () => void,
 }) {
     const now = new Date()
-    const rows = rowsOf(read.schedule)
-    const playing = playingOf(read.schedule, rows, now)
+    const playing = read.schedule.playing?.entryId ?? ""
 
     return (
         <table className="table">
             <caption>Schedule</caption>
             <thead>
-                <tr><th>From</th><th>To</th><th>Set</th><th>Priority</th><th>What</th><th/></tr>
+                <tr><th>From</th><th>To</th><th>Set</th><th>Priority</th><th/></tr>
             </thead>
             <tbody>
-                {rows.map(row => (
+                {rowsOf(read.schedule).map(row => (
                     <tr
-                        key={row.key}
-                        aria-current={row.key === playing ? "true" : undefined}
+                        key={row.entry.id}
+                        aria-current={row.entry.id === playing ? "true" : undefined}
                         className={ended(row, now) ? "muted" : undefined}
                     >
-                        <td>{row.startsAt === undefined ? "—" : <When at={row.startsAt}/>}</td>
-                        <td>{row.endsAt === undefined ? "—" : <When at={row.endsAt}/>}</td>
+                        <td><When at={row.startsAt}/></td>
+                        <td><When at={row.endsAt}/></td>
                         <td>
-                            <strong>{row.set}</strong>
-                            {!ended(row, now) && <Lacking row={row} read={read}/>}
+                            <strong>{row.entry.ruleSet}</strong>
+                            {!ended(row, now) && <Lacking set={row.entry.ruleSet} read={read}/>}
                         </td>
-                        <td>{row.priority}</td>
-                        <td>{row.phase !== undefined ? phaseName(row.phase) : "Entry"}</td>
-                        <td>{row.entry !== undefined && changeable(row, now) && (
-                            <EntryActions row={row} entry={row.entry} seasons={seasons} onEdit={onEdit} onDeleted={onDeleted}/>
+                        <td>{row.entry.priority}</td>
+                        <td>{changeable(row, now) && (
+                            <EntryActions row={row} rules={rules} onEdit={onEdit} onDeleted={onDeleted}/>
                         )}</td>
                     </tr>
                 ))}
@@ -134,23 +131,23 @@ function Rows({read, seasons, onEdit, onDeleted}: {
     )
 }
 
-function Lacking({row, read}: {row: Row, read: Read}) {
-    const missing = lacking(row.set, read.planet, read.antibot)
+function Lacking({set, read}: {set: string, read: Read}) {
+    const missing = lacking(set, read.planet, read.antibot)
     if (missing.length === 0) return null
-    return <p className="action-refused" role="alert">No set {row.set} in {missing.join(" or ")}.</p>
+    return <p className="action-refused" role="alert">No set {set} in {missing.join(" or ")}.</p>
 }
 
-function EntryActions({row, entry, seasons, onEdit, onDeleted}: {
-    row: Row, entry: Entry, seasons: SeasonsAdmin, onEdit: (entry: Entry) => void, onDeleted: () => void,
+function EntryActions({row, rules, onEdit, onDeleted}: {
+    row: Row, rules: RulesAdmin, onEdit: (entry: Entry) => void, onDeleted: () => void,
 }) {
     return (
         <>
-            <button type="button" className="button-mini" onClick={() => onEdit(entry)}>Edit</button>
+            <button type="button" className="button-mini" onClick={() => onEdit(row.entry)}>Edit</button>
             <ConfirmAction
                 label="Delete"
                 tone="danger"
-                question={`Delete the entry ${row.set}, from ${row.startsAt?.toLocaleString()}?`}
-                run={() => deleteEntry(seasons, entry.id)}
+                question={`Delete the entry ${row.entry.ruleSet}, from ${row.startsAt?.toLocaleString()}?`}
+                run={() => deleteEntry(rules, row.entry.id)}
                 said={() => "Deleted."}
                 refusal={refusal}
                 onDone={onDeleted}
@@ -159,8 +156,8 @@ function EntryActions({row, entry, seasons, onEdit, onDeleted}: {
     )
 }
 
-function EntryForm({seasons, entry, sets, onCancel, onDone}: {
-    seasons: SeasonsAdmin, entry: Entry | undefined, sets: string[], onCancel: () => void, onDone: () => void,
+function EntryForm({rules, entry, sets, onCancel, onDone}: {
+    rules: RulesAdmin, entry: Entry | undefined, sets: string[], onCancel: () => void, onDone: () => void,
 }) {
     const [draft, setDraft] = useState(() => draftOf(entry, sets))
     const change = (part: Partial<Draft>) => setDraft(was => ({...was, ...part}))
@@ -187,7 +184,7 @@ function EntryForm({seasons, entry, sets, onCancel, onDone}: {
                 </label>
                 <label className="field">
                     <span className="muted">Priority</span>
-                    <input type="number" inputMode="numeric" min={1} value={draft.priority}
+                    <input type="number" inputMode="numeric" min={0} value={draft.priority}
                         onChange={e => change({priority: e.target.value})}/>
                 </label>
             </div>
@@ -195,7 +192,7 @@ function EntryForm({seasons, entry, sets, onCancel, onDone}: {
                 label={entry === undefined ? "Add" : "Save"}
                 disabled={!complete(draft)}
                 question={questionOf(draft)}
-                run={() => entry === undefined ? addEntry(seasons, draft) : editEntry(seasons, entry.id, draft)}
+                run={() => entry === undefined ? addEntry(rules, draft) : editEntry(rules, entry.id, draft)}
                 said={() => "Scheduled."}
                 refusal={refusal}
                 onDone={onDone}

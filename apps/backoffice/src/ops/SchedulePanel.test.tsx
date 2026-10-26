@@ -5,7 +5,7 @@ import {afterEach, describe, expect, it} from "vitest"
 import {FakeAdmin} from "../fakeAdmin.ts"
 import {GetRulesResponse as AntibotRules, RuleSet as AntibotRuleSet} from "../gen/grpc/antibot/v1/admin_pb.ts"
 import {GetRulesResponse, RuleSet} from "../gen/grpc/planet/v1/admin_pb.ts"
-import {AddEntryRequest, EditEntryRequest} from "../gen/grpc/seasons/v1/admin_pb.ts"
+import {AddEntryRequest, EditEntryRequest} from "../gen/grpc/rules/v1/admin_pb.ts"
 import {SchedulePanel} from "./SchedulePanel.tsx"
 
 afterEach(cleanup)
@@ -33,19 +33,19 @@ function keeping(): FakeAdmin {
 }
 
 function show(admin: FakeAdmin) {
-    render(<SchedulePanel seasons={admin.seasons} planet={admin} antibot={admin.antibot}/>)
+    render(<SchedulePanel rules={admin.ruleSchedule} planet={admin} antibot={admin.antibot}/>)
 }
 
 describe("the rule schedule page", () => {
-    it("lists the phases and the entries, the one playing marked, and what each module plays", async () => {
+    it("lists every entry by start, the one playing marked, the ended one muted, and what each module plays", async () => {
         show(keeping())
 
         await screen.findByRole("table")
-        expect(screen.getByText("Season 0, days")).toBeTruthy()
-        expect(screen.getByText("Season 0, finale")).toBeTruthy()
-        expect(screen.getByText("Season 0, over")).toBeTruthy()
+        const sets = screen.getAllByRole("row").slice(1).map(row => row.querySelector("strong")?.textContent)
+        expect(sets).toEqual(["rush", "calm", "frozen"])
         expect(rowOf("calm").getAttribute("aria-current")).toBe("true")
-        expect(within(rowOf("calm")).getByText("1")).toBeTruthy()
+        expect(rowOf("rush").className).toBe("muted")
+        expect(within(rowOf("frozen")).getByText("2")).toBeTruthy()
         expect(screen.getByText(/the antibot plays/)).toBeTruthy()
         expect(screen.queryByRole("alert")).toBeNull()
     })
@@ -60,12 +60,13 @@ describe("the rule schedule page", () => {
         expect(within(rowOf("rush")).queryByRole("button")).toBeNull()
     })
 
-    it("warns of a set a module does not keep", async () => {
+    it("warns of a set a module does not keep, on an entry that has not ended", async () => {
         show(new FakeAdmin())
 
         await screen.findByRole("table")
-        expect(within(rowOf("rush")).getByText("No set rush in planet or the antibot.")).toBeTruthy()
         expect(within(rowOf("frozen")).getByText("No set frozen in planet or the antibot.")).toBeTruthy()
+        expect(within(rowOf("calm")).getByText("No set calm in planet or the antibot.")).toBeTruthy()
+        expect(within(rowOf("rush")).queryByRole("alert")).toBeNull()
     })
 
     it("says when a module does not play what the schedule plays", async () => {

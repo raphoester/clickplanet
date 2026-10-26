@@ -13,8 +13,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1/antibotv1connect"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
-	seasonsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/seasons/v1"
-	"github.com/raphoester/clickplanet.lol-backend/generated/proto/seasons/v1/seasonsv1connect"
+	rulesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/rules/v1"
+	"github.com/raphoester/clickplanet.lol-backend/generated/proto/rules/v1/rulesv1connect"
 )
 
 // The set the entry plays is each module's default under another name, so the tests after it play as before.
@@ -23,7 +23,7 @@ func (s *testSuite) TestAnEntryOfTheScheduleIsPlayedByPlanetAndTheAntibot() {
 	ctx := t.Context()
 	planet := planetv1connect.NewAdminServiceClient(http.DefaultClient, s.game.consoleURL)
 	antibot := antibotv1connect.NewAdminServiceClient(http.DefaultClient, s.game.consoleURL)
-	seasons := seasonsv1connect.NewAdminServiceClient(http.DefaultClient, s.game.consoleURL)
+	schedule := rulesv1connect.NewAdminServiceClient(http.DefaultClient, s.game.consoleURL)
 
 	planetRules, err := planet.GetRules(ctx, connect.NewRequest(&planetv1.GetRulesRequest{}))
 	require.NoError(t, err)
@@ -39,10 +39,10 @@ func (s *testSuite) TestAnEntryOfTheScheduleIsPlayedByPlanetAndTheAntibot() {
 	require.NoError(t, err)
 
 	startsAt := time.Now().Add(2 * time.Second)
-	added, err := seasons.AddEntry(ctx, connect.NewRequest(&seasonsv1.AddEntryRequest{
+	added, err := schedule.AddEntry(ctx, connect.NewRequest(&rulesv1.AddEntryRequest{
 		RuleSet: "encore", StartsAt: timestamppb.New(startsAt), EndsAt: timestamppb.New(startsAt.Add(time.Hour)), Priority: 1,
 	}))
-	require.NoError(t, err, "seasons asks planet and the antibot over the internal listener whether they keep the set")
+	require.NoError(t, err, "the rules module asks planet and the antibot over the internal listener whether they keep the set")
 
 	require.EventuallyWithT(t, func(c *assert.CollectT) {
 		planetRules, err := planet.GetRules(ctx, connect.NewRequest(&planetv1.GetRulesRequest{}))
@@ -51,9 +51,9 @@ func (s *testSuite) TestAnEntryOfTheScheduleIsPlayedByPlanetAndTheAntibot() {
 		antibotRules, err := antibot.GetRules(ctx, connect.NewRequest(&antibotv1.GetRulesRequest{}))
 		require.NoError(c, err)
 		assert.Equal(c, "encore", antibotRules.Msg.GetPlaying())
-	}, 15*time.Second, 100*time.Millisecond, "seasons commands the set over each module's command stream")
+	}, 15*time.Second, 100*time.Millisecond, "the rules module commands the set over each module's command stream")
 
-	schedule, err := seasons.GetSchedule(ctx, connect.NewRequest(&seasonsv1.GetScheduleRequest{}))
+	playing, err := schedule.GetSchedule(ctx, connect.NewRequest(&rulesv1.GetScheduleRequest{}))
 	require.NoError(t, err)
-	assert.Equal(t, added.Msg.GetId(), schedule.Msg.GetPlaying().GetEntryId())
+	assert.Equal(t, added.Msg.GetId(), playing.Msg.GetPlaying().GetEntryId())
 }

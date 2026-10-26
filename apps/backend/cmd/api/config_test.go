@@ -130,8 +130,10 @@ player:
   database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: player}
   redis: {address: localhost:6379}
 seasons:
-  ruleSets: {days: default, finale: default, over: default}
   database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: seasons}
+  redis: {address: localhost:6379}
+rules:
+  database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: rules}
   redis: {address: localhost:6379}
 missions:
   database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: missions}
@@ -292,12 +294,23 @@ func TestTheExampleConfigReachesTheSeasonsBlock(t *testing.T) {
 	assert.True(t, time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC).Equal(season.EndsAt))
 	assert.Equal(t, 2*time.Hour, season.Finale)
 	assert.Equal(t, "seasons", config.Seasons.Database.Schema)
-	assert.EqualValues(t, "rush", config.Seasons.RuleSets.Finale, "the Final Battle plays rush")
-	require.NoError(t, config.Seasons.Validate())
+	require.NoError(t, config.Seasons.Database.Validate())
 }
 
 func TestTheSeasonsModuleWithNoDatabaseIsRefused(t *testing.T) {
 	assert.ErrorContains(t, Config{}.Validate(), "seasons.database")
+}
+
+func TestTheExampleConfigReachesTheRulesBlock(t *testing.T) {
+	var config Config
+	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
+
+	assert.Equal(t, "rules", config.Rules.Database.Schema)
+	require.NoError(t, config.Rules.Validate())
+}
+
+func TestTheRulesModuleWithNoDatabaseIsRefused(t *testing.T) {
+	assert.ErrorContains(t, Config{}.Validate(), "rules.database")
 }
 
 func TestTheExampleConfigReachesTheSupportBlock(t *testing.T) {
@@ -420,7 +433,7 @@ func TestEveryModuleOfProductionTalksToTheSameRedis(t *testing.T) {
 	for name, redis := range map[string]cpredis.Config{
 		"auth": config.Auth.Redis, "chat": config.Chat.Redis, "player": config.Player.Redis,
 		"seasons": config.Seasons.Redis, "support": config.Support.Redis, "missions": config.Missions.Redis,
-		"antiBot": config.AntiBot.Redis,
+		"antiBot": config.AntiBot.Redis, "rules": config.Rules.Redis,
 	} {
 		assert.Equal(t, config.Planet.Redis, redis, "%s.redis is the planet's block", name)
 	}

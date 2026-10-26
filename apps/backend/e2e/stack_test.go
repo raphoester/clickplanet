@@ -24,6 +24,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player"
+	"github.com/raphoester/clickplanet.lol-backend/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconfigs"
@@ -84,6 +85,8 @@ func startGame(t *testing.T) gameStack {
 
 	missionsConfig := missions.Config{Database: postgres.ConfigFor("missions"), Redis: redis}
 
+	rulesConfig := rules.Config{Database: postgres.ConfigFor("rules"), Redis: redis}
+
 	chatConfig := chat.Config{Database: postgres.ConfigFor("chat"), Redis: redis}
 	chatConfig.RateLimiter.PerSecond = 100
 	chatConfig.RateLimiter.Burst = 100
@@ -112,7 +115,7 @@ func startGame(t *testing.T) gameStack {
 			Modules: []cpbootstrap.Module{
 				authModule, planet.NewModule(planetConfig), antibot.NewModule(antibotConfig), player.NewModule(playerConfig),
 				chat.NewModule(chatConfig), seasons.NewModule(seasonsConfig), support.NewModule(supportConfig),
-				missions.NewModule(missionsConfig),
+				missions.NewModule(missionsConfig), rules.NewModule(rulesConfig),
 			},
 			AdminGate: gate,
 		}, public, internal, console, admin)
@@ -183,10 +186,6 @@ seasons:
     - number: 0
       endsAt: %s
       finale: 2h
-  ruleSets:
-    days: default
-    finale: default
-    over: default
 `, time.Now().Add(30*24*time.Hour).UTC().Format(time.RFC3339)), 0o600))
 	var config struct{ Seasons seasons.Config }
 	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile(path)))

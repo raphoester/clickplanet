@@ -1,42 +1,17 @@
 import {Timestamp} from "@bufbuild/protobuf"
-import {SeasonsAdmin} from "../clients.ts"
+import {RulesAdmin} from "../clients.ts"
 import {GetRulesResponse as AntibotRules} from "../gen/grpc/antibot/v1/admin_pb.ts"
 import {GetRulesResponse as PlanetRules} from "../gen/grpc/planet/v1/admin_pb.ts"
-import {Entry, GetScheduleResponse, Phase, Stage} from "../gen/grpc/seasons/v1/admin_pb.ts"
+import {Entry, GetScheduleResponse} from "../gen/grpc/rules/v1/admin_pb.ts"
 
-// A line of the schedule: a season's phase, or an operator's entry.
-export type Row = {
-    key: string
-    set: string
-    startsAt?: Date
-    endsAt?: Date
-    priority: number
-    phase?: Phase
-    entry?: Entry
-}
+// A line of the schedule: an entry and its times.
+export type Row = {entry: Entry, startsAt?: Date, endsAt?: Date}
 
-// Phases and entries by start; Season 0's days, which have no start, first.
+// The entries by start.
 export function rowsOf(schedule: GetScheduleResponse): Row[] {
-    const phases: Row[] = schedule.phases.map(phase => ({
-        key: `phase ${phase.season} ${phase.stage}`, set: phase.ruleSet, startsAt: phase.startsAt?.toDate(),
-        endsAt: phase.endsAt?.toDate(), priority: 0, phase,
-    }))
-    const entries: Row[] = schedule.entries.map(entry => ({
-        key: entry.id, set: entry.ruleSet, startsAt: entry.startsAt?.toDate(), endsAt: entry.endsAt?.toDate(),
-        priority: entry.priority, entry,
-    }))
-    return [...phases, ...entries].sort((a, b) => (a.startsAt?.getTime() ?? -Infinity) - (b.startsAt?.getTime() ?? -Infinity))
-}
-
-// The row the schedule plays now: its entry, or the phase that runs now when no entry plays.
-export function playingOf(schedule: GetScheduleResponse, rows: Row[], now: Date): string | undefined {
-    const entry = schedule.playing?.entryId ?? ""
-    if (entry !== "") return entry
-    return rows.find(row => row.phase !== undefined && runs(row, now))?.key
-}
-
-function runs(row: Row, now: Date): boolean {
-    return (row.startsAt === undefined || row.startsAt <= now) && (row.endsAt === undefined || now < row.endsAt)
+    return schedule.entries
+        .map(entry => ({entry, startsAt: entry.startsAt?.toDate(), endsAt: entry.endsAt?.toDate()}))
+        .sort((a, b) => (a.startsAt?.getTime() ?? 0) - (b.startsAt?.getTime() ?? 0))
 }
 
 export function ended(row: Row, now: Date): boolean {
@@ -45,20 +20,7 @@ export function ended(row: Row, now: Date): boolean {
 
 // Only an entry to come changes.
 export function changeable(row: Row, now: Date): boolean {
-    return row.entry !== undefined && row.startsAt !== undefined && now < row.startsAt
-}
-
-export function phaseName(phase: Phase): string {
-    switch (phase.stage) {
-        case Stage.DAYS:
-            return `Season ${phase.season}, days`
-        case Stage.FINALE:
-            return `Season ${phase.season}, finale`
-        case Stage.OVER:
-            return `Season ${phase.season}, over`
-        case Stage.UNSPECIFIED:
-            return `Season ${phase.season}`
-    }
+    return row.startsAt !== undefined && now < row.startsAt
 }
 
 // The modules that keep no set of this name.
@@ -94,7 +56,7 @@ function localOf(date: Date | undefined): string {
 // The server holds the rest: a start after now, an end after it, a set both modules keep.
 export function complete(draft: Draft): boolean {
     return draft.set !== "" && draft.startsAt !== "" && draft.endsAt !== "" && Number.isInteger(Number(draft.priority)) &&
-        Number(draft.priority) >= 1
+        Number(draft.priority) >= 0
 }
 
 function valuesOf(draft: Draft) {
@@ -111,14 +73,14 @@ export function questionOf(draft: Draft): string {
         `at priority ${draft.priority}?`
 }
 
-export async function addEntry(seasons: SeasonsAdmin, draft: Draft): Promise<void> {
-    await seasons.addEntry(valuesOf(draft))
+export async function addEntry(rules: RulesAdmin, draft: Draft): Promise<void> {
+    await rules.addEntry(valuesOf(draft))
 }
 
-export async function editEntry(seasons: SeasonsAdmin, id: string, draft: Draft): Promise<void> {
-    await seasons.editEntry({id, ...valuesOf(draft)})
+export async function editEntry(rules: RulesAdmin, id: string, draft: Draft): Promise<void> {
+    await rules.editEntry({id, ...valuesOf(draft)})
 }
 
-export async function deleteEntry(seasons: SeasonsAdmin, id: string): Promise<void> {
-    await seasons.deleteEntry({id})
+export async function deleteEntry(rules: RulesAdmin, id: string): Promise<void> {
+    await rules.deleteEntry({id})
 }

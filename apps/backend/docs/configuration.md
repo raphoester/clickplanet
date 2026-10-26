@@ -47,7 +47,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 **Each module owns its own config struct** — `planet.Config`, `chat.Config`, `auth.Config`, `player.Config` — and `app.Config` is the four of them plus `httpServer`. The planet keys stayed at the top level of the file rather than moving under a `planet:` section: `app.Config` squashes that struct (`koanf:",squash"`), so the file and every `deploy/` environment variable are unchanged.
 
 - `httpServer.bindAddress` — the encoding is negotiated per request, so there is no format setting.
-- `redis` — each module's own block (`redis` at the top level for planet, `auth.redis`, `antiBot.redis`, `chat.redis`, `player.redis`, `seasons.redis`, `support.redis`, `missions.redis`): the Redis it tells the others what happened through and hears them on (see [Telling other modules what happened](composite-layer.md#telling-other-modules-what-happened)). **Every block names the same Redis**, or a module publishes where nobody listens; `TestEveryModuleOfProductionTalksToTheSameRedis` pins it for `deploy/vps/backend.yaml`. Each module connects on its own, and one that cannot reach Redis refuses the boot
+- `redis` — each module's own block (`redis` at the top level for planet, `auth.redis`, `antiBot.redis`, `chat.redis`, `player.redis`, `seasons.redis`, `support.redis`, `missions.redis`, `rules.redis`): the Redis it tells the others what happened through and hears them on (see [Telling other modules what happened](composite-layer.md#telling-other-modules-what-happened)). **Every block names the same Redis**, or a module publishes where nobody listens; `TestEveryModuleOfProductionTalksToTheSameRedis` pins it for `deploy/vps/backend.yaml`. Each module connects on its own, and one that cannot reach Redis refuses the boot
 - `redis.address`, `redis.password` — production reads the password from `REDIS_PASSWORD`
 - `redis.maxLen` — the most entries one stream keeps (100k), for a stream whose subscriber stopped; the trim keeps them far fewer while every subscriber keeps up
 - `redis.publishTimeout` — how long a click or any other publish waits on Redis (500ms); past it the event is lost and counted
@@ -119,11 +119,9 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `missions.cutoff` — the time of day, in UTC, a mission day ends (production 21h, the daily round's; unset, midnight). From 0 up to 24h, or the boot is refused
 - `missions.database.*` — the briefs, the sheets and the collections, same shape as `database`, schema `missions`; required. `missions.database.password` belongs in the environment
 - `seasons.list` — each season's `number` (0 up), `endsAt` (RFC 3339) and `finale` (a duration); empty is no season
-- `seasons.ruleSets.days`, `.finale`, `.over` — the rule set each phase of a season plays, at priority 0 (production:
-  `default`, `rush`, `default`); each must be a set's name, or the boot is refused. A set planet or the antibot lacks is
-  not refused: see [The rule schedule](rule-schedule.md#a-phase-whose-set-a-module-lacks)
 - `seasons.snapshot.interval` — how often a snapshot of what each country holds is added to the round in progress (default 1m)
 - `seasons.database.*` — the standings and the rounds, same shape as `database`, schema `seasons`; required. `seasons.database.password` belongs in the environment
+- `rules.database.*` — the rule schedule's entries, same shape as `database`, schema `rules`; required. `rules.database.password` belongs in the environment. See [The rules module](rule-schedule.md)
 - `support.database.*` — what players send the operator, same shape as `database`, schema `support`; required. `support.database.password` belongs in the environment
 - `clips.database.*` — the daily snapshots of the clips' numbers, same shape as `database`, schema `clips`; required. `clips.database.password` belongs in the environment
 - `support.retention`, `support.pruneInterval` — how long a note keeps its sender (default 90 days; the text is kept after) and how long a report is kept, and how often the prune runs (1h)

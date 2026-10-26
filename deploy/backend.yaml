@@ -68,10 +68,6 @@ seasons:
     - number: 0
       endsAt: 2026-10-31T23:00:00Z
       finale: 2h
-  ruleSets:
-    days: default
-    finale: rush
-    over: default
   database:
     host: postgres
     port: "5432"
@@ -80,6 +76,18 @@ seasons:
     dbName: postgres
     sslMode: disable
     schema: seasons
+  redis:
+    address: redis:6379
+
+rules:
+  database:
+    host: postgres
+    port: "5432"
+    user: postgres
+    password: postgres
+    dbName: postgres
+    sslMode: disable
+    schema: rules
   redis:
     address: redis:6379
 

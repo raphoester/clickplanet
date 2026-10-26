@@ -215,10 +215,6 @@ seasons:
     - number: 0
       endsAt: 2026-10-31T23:00:00Z
       finale: 2h
-  ruleSets:
-    days: default
-    finale: rush
-    over: default
   database:
     host: postgres
     password: env://POSTGRES_PASSWORD
@@ -227,6 +223,21 @@ seasons:
     dbName: clickplanet
     sslMode: disable
     schema: seasons
+    pool:
+      maxOpenConns: 2
+  redis:
+    address: redis:6379
+    password: env://REDIS_PASSWORD
+
+rules:
+  database:
+    host: postgres
+    password: env://POSTGRES_PASSWORD
+    port: "5432"
+    user: clickplanet
+    dbName: clickplanet
+    sslMode: disable
+    schema: rules
     pool:
       maxOpenConns: 2
   redis:
