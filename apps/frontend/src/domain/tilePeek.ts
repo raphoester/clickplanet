@@ -10,7 +10,7 @@ export type Peek = {
 }
 
 export type Peeked = {
-    tile: number
+    spot: number
     point: Point
     touch: boolean
 }
@@ -28,10 +28,11 @@ export type PeekPointer = {
     isPrimary: boolean
 }
 
-type Rest = {tile: number, since: number, told: boolean, point: Point}
+type Rest = {spot: number, since: number, told: boolean, point: Point}
 
-type Press = {pointerId: number, x: number, y: number, tile: number, since: number}
+type Press = {pointerId: number, x: number, y: number, spot: number, since: number}
 
+// A spot is what the pointer asks about: a tile, or in orbit a landmass.
 export class TilePeek {
     private rest: Rest | undefined
     private press: Press | undefined
@@ -43,22 +44,22 @@ export class TilePeek {
         return this.peekedByPress
     }
 
-    hover(tile: number | undefined, at: number, point: Point) {
-        if (this.rest && tile === this.rest.tile) {
+    hover(spot: number | undefined, at: number, point: Point) {
+        if (this.rest && spot === this.rest.spot) {
             this.rest.point = point
             return
         }
-        this.rest = tile === undefined ? undefined : {tile, since: at, told: false, point}
+        this.rest = spot === undefined ? undefined : {spot, since: at, told: false, point}
     }
 
     clicked() {
         if (this.rest) this.rest.told = true
     }
 
-    begin(pointer: PeekPointer, tile: number | undefined, at: number) {
+    begin(pointer: PeekPointer, spot: number | undefined, at: number) {
         this.peekedByPress = false
-        this.press = pointer.isPrimary && tile !== undefined
-            ? {pointerId: pointer.pointerId, x: pointer.clientX, y: pointer.clientY, tile, since: at}
+        this.press = pointer.isPrimary && spot !== undefined
+            ? {pointerId: pointer.pointerId, x: pointer.clientX, y: pointer.clientY, spot, since: at}
             : undefined
     }
 
@@ -73,14 +74,14 @@ export class TilePeek {
 
     tick(at: number): Peeked | undefined {
         if (this.press && at - this.press.since >= this.rules.holdSeconds - 1e-9) {
-            const {tile, x, y} = this.press
+            const {spot, x, y} = this.press
             this.press = undefined
             this.peekedByPress = true
-            return {tile, point: {x, y}, touch: true}
+            return {spot, point: {x, y}, touch: true}
         }
         if (this.rest && !this.rest.told && at - this.rest.since >= this.rules.restSeconds - 1e-9) {
             this.rest.told = true
-            return {tile: this.rest.tile, point: this.rest.point, touch: false}
+            return {spot: this.rest.spot, point: this.rest.point, touch: false}
         }
         return undefined
     }

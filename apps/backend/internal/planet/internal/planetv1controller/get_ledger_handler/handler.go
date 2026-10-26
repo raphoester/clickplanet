@@ -12,7 +12,7 @@ import (
 )
 
 type Query interface {
-	Ledger(ctx context.Context, since, until time.Time) (*planetv1.GetLedgerResponse, error)
+	Ledger(ctx context.Context, since, until time.Time, page string) (*planetv1.GetLedgerResponse, error)
 }
 
 func New(query Query) GetLedgerHandler {
@@ -35,8 +35,8 @@ func (h GetLedgerHandler) GetLedger(
 		until = at.AsTime()
 	}
 
-	answer, err := h.query.Ledger(ctx, since, until)
-	if errors.Is(err, changes_query.ErrInvalidWindow) {
+	answer, err := h.query.Ledger(ctx, since, until, req.Msg.GetPage())
+	if errors.Is(err, changes_query.ErrInvalidWindow) || errors.Is(err, changes_query.ErrInvalidPage) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	if err != nil {

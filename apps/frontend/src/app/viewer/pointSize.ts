@@ -22,6 +22,11 @@ export function flagsZoomOf(viewportHeight: number): number {
     return COARSE_FROM / tilePointSize(1, viewportHeight)
 }
 
+// In orbit a tile is too small to aim at, so the pointer asks about a territory instead.
+export function inOrbit(zoom: number, viewportHeight: number): boolean {
+    return tilePointSize(zoom, viewportHeight) <= COARSE_FROM
+}
+
 // The zoom from which the tiles have the frame to themselves.
 export function tilesZoomOf(viewportHeight: number): number {
     return COARSE_UNTIL / tilePointSize(1, viewportHeight)
@@ -38,6 +43,11 @@ export function displayPointSize(zoom: number, viewportHeight: number, view: Map
 
 export function flagPaint(zoom: number, viewportHeight: number, view: MapView): number {
     return 1 - handover(tilePointSize(zoom, viewportHeight), view)
+}
+
+// In orbit a tile is picked as wide as the painted flag's discs, which cover the ground: a gap between two tiles is still the territory.
+export function pickPointSize(zoom: number, viewportHeight: number): number {
+    return inOrbit(zoom, viewportHeight) ? displayPointSize(zoom, viewportHeight, "flags") : tilePointSize(zoom, viewportHeight)
 }
 
 export const MAX_PICK_WINDOW = 257

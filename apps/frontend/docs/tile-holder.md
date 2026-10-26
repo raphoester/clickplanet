@@ -11,18 +11,23 @@ outside the layout, so the card keeps `EDGE_PX` (12px) from the screen's edges. 
 guest shows its name and the footer alone: a guest has no public card. A tap takes a tile, so a tap cannot ask: a hold is the one press a
 tap never is, and the bomb's hold-to-drop is already one.
 
-- **It is the one thing drawn over the globe outside the four zones**, because it
-  is about the tile under the pointer: below and right of a mouse, above a
+- **Only past orbit.** In orbit a tile is too small to aim at, and the same
+  gestures open a card on the territory instead: see [A territory, from
+  orbit](territory-card.md).
+- **It is drawn over the globe outside the four zones**, with the territory card,
+  because it is about the tile under the pointer: below and right of a mouse, above a
   finger, which covers what is under it, turned and kept on screen at the edges
-  (`domain/cardPlacement.ts`). A portal on the body, under the modals.
+  (`domain/cardPlacement.ts`). A portal on the body, under the modals. Both cards are
+  a `PointerCard`, which holds the placement, the close badge, Escape and the press
+  outside.
 - **It stays while the pointer is on the tile or on the card**, and goes
   `LEAVE_GRACE_MS` (300ms) after it left both, so a mouse can reach the button.
   On a phone it stays after the finger lifts. Its close button, Escape and a
   press anywhere outside it close it. **A tap that closes it does nothing else**
   (`swallowNextClick`), so closing the card never takes a tile; a mouse click
   goes through, so a painter's click still paints.
-- `TilePeek` (`domain/tilePeek.ts`) holds both gestures: `hover` starts a rest per
-  tile, and a tile just clicked starts none; `begin`, `move` and `end` follow a
+- `TilePeek` (`domain/tilePeek.ts`) holds both gestures over a spot, a tile here:
+  `hover` starts a rest per spot, and a spot just clicked starts none; `begin`, `move` and `end` follow a
   finger, 12px of slack, a second finger cancelling it. The click that ends a
   hold is swallowed (`peeked`). `globe.ts` feeds it, hovers from a mouse alone,
   and calls `onPeek` with the pointer's place for a tile with a flag, and

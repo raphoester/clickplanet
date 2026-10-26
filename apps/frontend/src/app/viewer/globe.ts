@@ -12,7 +12,7 @@ import {createBorderLines, loadBorderLines} from "./borderLines.ts";
 import {ATLAS_SIZE, ATLAS_URL} from "./atlasAsset.ts";
 import {BORDERS_URL} from "./bordersAsset.ts";
 import {BORDER_LINES_URL} from "./borderLinesAsset.ts";
-import {displayPointSize, flagPaint, tilePointSize} from "./pointSize.ts";
+import {displayPointSize, flagPaint, inOrbit, pickPointSize} from "./pointSize.ts";
 import {regions} from "./atlas.ts";
 import {Country} from "../../domain/countries.ts";
 import {Allegiance} from "../../domain/allegiance.ts";
@@ -56,6 +56,7 @@ import {IMPACT_DELAY} from "../../domain/blast.ts";
 import {HoldToDrop} from "../../domain/holdToDrop.ts";
 import {ClickOrDrag} from "../../domain/clickOrDrag.ts";
 import {Peek, Peeked, Point, TilePeek} from "../../domain/tilePeek.ts";
+import {rankHoldings, Territory, TerritoryPeek} from "../../domain/territory.ts";
 import {OwnClicks} from "../../domain/ownClicks.ts";
 import {ShieldChange, outcomeOf, placementOf, TileShields} from "../../domain/shields.ts";
 import {Landmasses} from "../../domain/landmasses.ts";
@@ -79,6 +80,7 @@ type Uniforms = BlastUniforms & FortifyUniforms & {
     shieldMost: THREE.IUniform<number>
     shieldMarks: THREE.IUniform<THREE.Texture>
     shieldCells: THREE.IUniform<THREE.Vector2>
+    highlight: THREE.IUniform<number>
 }
 
 const SHAKE_SECONDS = 0.5
@@ -180,6 +182,8 @@ export type GlobeOptions = {
     onCloseToFortify?: (close: CloseToFortify) => void
     onPeek?: (peek: Peek) => void
     onPeekEnd?: () => void
+    onTerritoryPeek?: (peek: TerritoryPeek) => void
+    onTerritoryPeekEnd?: () => void
     playSound?: PlaySound
     director?: Director
     signal: AbortSignal
@@ -193,6 +197,8 @@ export type Globe = {
     setArmed(armed: boolean): void
     setSwitch(name: keyof Switches, on: boolean): void
     setClickHue(hue: number | undefined): void
+    territoryOf(landmass: number): Territory
+    showTerritory(landmass: number | undefined): void
     capture(): Promise<CapturedFrame>
     graphics(): GraphicsReport
     dispose(): void
@@ -236,6 +242,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         onCloseToFortify = () => {},
         onPeek = () => {},
         onPeekEnd = () => {},
+        onTerritoryPeek = () => {},
+        onTerritoryPeekEnd = () => {},
         playSound = () => {},
         director,
         signal,
@@ -279,11 +287,12 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         shieldMost: {value: SHIELD_MOST_UNTIL_READ},
         shieldMarks: {value: drawShieldMarks(SHIELD_MOST_UNTIL_READ, invalidate)},
         shieldCells: {value: shieldCellsOf(SHIELD_MOST_UNTIL_READ)},
+        highlight: {value: 0},
         ...blastUniforms(prefersReducedMotion()),
         ...fortifyUniforms(),
     };
 
-    const pickingUniforms = {pointSize: {value: tilePointSize(camera.zoom, layoutViewport().height) * renderer.getPixelRatio()}}
+    const pickingUniforms = {pointSize: {value: pickPointSize(camera.zoom, layoutViewport().height) * renderer.getPixelRatio()}}
 
     const field = new TileField(uniforms, pickingUniforms, geometryData, graphics.tiles);
 
@@ -423,11 +432,19 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const press = new ClickOrDrag(CLICK_TOLERANCE)
 
     const peek = new TilePeek(PEEK_RULES)
+    const territoryPeek = new TilePeek(PEEK_RULES)
     let mouse = false
     let pointerAt: Point = {x: 0, y: 0}
     let peeking: number | undefined
+    let peekingTerritory: number | undefined
+    let hoveredLandmass: number | undefined
+    let shownLandmass: number | undefined
 
-    const peekAt = ({tile, point, touch}: Peeked) => {
+    const landmassOf = (tile: number | undefined) => (tile === undefined ? 0 : borders.assignment[tile - 1]) || undefined
+
+    const orbiting = () => inOrbit(camera.zoom, renderer.domElement.height / renderer.getPixelRatio())
+
+    const peekAt = ({spot: tile, point, touch}: Peeked) => {
         const owner = ownership.ownerOf(tile)
         if (!owner) return
         peeking = tile
@@ -438,6 +455,25 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         if (peeking === undefined) return
         peeking = undefined
         onPeekEnd()
+    }
+
+    const peekTerritoryAt = ({spot: landmass, point, touch}: Peeked) => {
+        peekingTerritory = landmass
+        onTerritoryPeek({landmass, point, touch})
+    }
+
+    const endTerritoryPeek = () => {
+        if (peekingTerritory === undefined) return
+        peekingTerritory = undefined
+        onTerritoryPeekEnd()
+    }
+
+    const highlight = (orbit: boolean) => {
+        const landmass = orbit ? hoveredLandmass ?? shownLandmass ?? 0 : 0
+        if (uniforms.highlight.value === landmass) return false
+        uniforms.highlight.value = landmass
+        outline.setHighlight(landmass)
+        return true
     }
 
     const cancelCharge = () => {
@@ -636,25 +672,34 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     }
 
     let pendingPointer: {x: number, y: number} | undefined
+    let mouseOnCanvas: {x: number, y: number} | undefined
+    let wasInOrbit = orbiting()
 
     eventTarget.addEventListener('mousemove', (event: MouseEvent) => {
-        pendingPointer = canvasPosition(event)
+        pendingPointer = mouseOnCanvas = canvasPosition(event)
         pointerAt = {x: event.clientX, y: event.clientY}
     }, listenerOptions);
 
     eventTarget.addEventListener('mouseleave', () => {
-        pendingPointer = undefined
+        pendingPointer = mouseOnCanvas = undefined
         field.setHover(undefined)
         peek.hover(undefined, 0, pointerAt)
+        territoryPeek.hover(undefined, 0, pointerAt)
+        hoveredLandmass = undefined
         endPeek()
+        endTerritoryPeek()
         if (armed && !hold.holding) aimAt(undefined)
     }, listenerOptions);
 
     eventTarget.addEventListener('pointerdown', (event: PointerEvent) => {
         press.begin(event)
         endPeek()
+        endTerritoryPeek()
         const pressed = loaded && !armed && event.pointerType !== "mouse" ? canvasPosition(event) : undefined
-        peek.begin(event, pressed && picker.pick(camera, pressed.x, pressed.y), performance.now() / 1000)
+        const pressedTile = pressed && picker.pick(camera, pressed.x, pressed.y)
+        const orbit = orbiting()
+        peek.begin(event, orbit ? undefined : pressedTile, performance.now() / 1000)
+        territoryPeek.begin(event, orbit ? landmassOf(pressedTile) : undefined, performance.now() / 1000)
         if (!loaded || !armed || !event.isTrusted || !event.isPrimary || event.button !== 0) return
 
         const {x, y} = canvasPosition(event)
@@ -674,6 +719,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         press.move(event)
         hold.move(event.pointerId, event.clientX, event.clientY)
         peek.move(event)
+        territoryPeek.move(event)
         mouse = event.pointerType === "mouse"
     }, listenerOptions);
 
@@ -681,6 +727,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         eventTarget.addEventListener(ending, (event: PointerEvent) => {
             hold.end(event.pointerId)
             peek.end(event.pointerId)
+            territoryPeek.end(event.pointerId)
         }, listenerOptions);
     }
 
@@ -694,7 +741,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             return
         }
 
-        if (peek.peeked) return
+        if (peek.peeked || territoryPeek.peeked) return
 
         const spot = press.spotOf(event)
         if (!spot) return
@@ -727,6 +774,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         const tile = picker.pick(camera, x, y)
         if (tile === undefined) return
         peek.clicked()
+        territoryPeek.clicked()
 
         if (!regions.get(country.code)) {
             warnOnce(`No sprite region for country "${country.code}", ignoring the click`)
@@ -898,21 +946,38 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
         const peeked = armed ? undefined : peek.tick(seconds)
         if (peeked !== undefined) peekAt(peeked)
+        const peekedTerritory = armed ? undefined : territoryPeek.tick(seconds)
+        if (peekedTerritory !== undefined) peekTerritoryAt(peekedTerritory)
 
-        if (pendingPointer === undefined) return boxed || blasting
+        const orbit = orbiting()
+        if (orbit !== wasInOrbit) {
+            wasInOrbit = orbit
+            pendingPointer ??= mouseOnCanvas
+        }
+        const lit = highlight(orbit)
+
+        if (pendingPointer === undefined) return boxed || blasting || lit
         const {x, y} = pendingPointer
         pendingPointer = undefined
         if (armed) {
             field.setHover(undefined)
+            hoveredLandmass = undefined
+            highlight(orbit)
             if (!hold.holding) aimAt(surfacePoint(x, y))
             return true
         }
         const hovered = picker.pick(camera, x, y)
         if (mouse) {
-            peek.hover(hovered, seconds, pointerAt)
-            if (hovered !== peeking) endPeek()
+            const tile = orbit ? undefined : hovered
+            const landmass = orbit ? landmassOf(hovered) : undefined
+            peek.hover(tile, seconds, pointerAt)
+            territoryPeek.hover(landmass, seconds, pointerAt)
+            if (tile !== peeking) endPeek()
+            if (landmass !== peekingTerritory) endTerritoryPeek()
+            hoveredLandmass = landmass
         }
-        return field.setHover(hovered) || boxed || blasting
+        const relit = highlight(orbit)
+        return field.setHover(hovered) || relit || lit || boxed || blasting
     }, () => {
         undoShake()
         if (captureRequests.length === 0) return
@@ -939,6 +1004,18 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             switchTo(next)
         },
         setClickHue: (hue: number | undefined) => plainClicks.setOwnHue(hue),
+        territoryOf: (landmass: number) => ({
+            landmass,
+            name: landmassName(landmass, borders.codes[landmass]),
+            ground: borders.codes[landmass] || undefined,
+            size: territories.sizeOf(landmass),
+            holdings: rankHoldings(territories.holdingsOf(landmass)),
+            fortifiedBy: targets.lockOf(landmass),
+            target: targets.targetOf(landmass),
+        }),
+        showTerritory: (landmass: number | undefined) => {
+            shownLandmass = landmass
+        },
         capture: () => new Promise<CapturedFrame>((resolve, reject) => {
             if (lifetime.signal.aborted) {
                 reject(new Error("the globe is no longer running"))
@@ -1066,7 +1143,7 @@ function startAnimation(
         const {y: height} = renderer.getSize(viewport);
         const ratio = renderer.getPixelRatio();
         uniforms.pointSize.value = displayPointSize(camera.zoom, height, mapView()) * ratio;
-        pickingUniforms.pointSize.value = tilePointSize(camera.zoom, height) * ratio;
+        pickingUniforms.pointSize.value = pickPointSize(camera.zoom, height) * ratio;
         uniforms.pixelRatio.value = ratio;
 
         uniforms.flagPaint.value = flagPaint(camera.zoom, height, mapView());

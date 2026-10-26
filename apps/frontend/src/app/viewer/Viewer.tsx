@@ -60,6 +60,8 @@ import {hueOf} from "../../domain/authorColor.ts";
 import {PlayerInfoBackend, PlayerLine, PlayerTitle, PresenceBackend} from "../../backends/player.ts";
 import PlayerCard from "../players/PlayerCard.tsx";
 import HolderCard from "../players/HolderCard.tsx";
+import TerritoryCard from "../territory/TerritoryCard.tsx";
+import {useTerritoryCard} from "../territory/useTerritoryCard.ts";
 import {useTileHolder} from "../players/useTileHolder.ts";
 import TitleUnlocked from "../titles/TitleUnlocked.tsx";
 import {usePresence} from "../players/usePresence.ts";
@@ -208,6 +210,9 @@ export default function Viewer(props: ViewerProps) {
         lastClose,
         dismissClose,
         pointing,
+        pointingTerritory,
+        territoryOf,
+        showTerritory,
     } = useGlobe({
         container,
         tileClicker: props.tileClicker,
@@ -226,6 +231,7 @@ export default function Viewer(props: ViewerProps) {
     })
 
     const tileHolder = useTileHolder(props.tileHolders, props.playerInfo, pointing, ownAccountId)
+    const territoryCard = useTerritoryCard(pointingTerritory, territoryOf, showTerritory)
 
     const bonusGuide = useBonusGuide()
 
@@ -428,7 +434,7 @@ export default function Viewer(props: ViewerProps) {
                                          })}
                                          onClose={() => setHallOpen(false)}/>}
 
-        {tileHolder.holder && <HolderCard key={tileHolder.holder.id}
+        {tileHolder.holder && <HolderCard key={`holder-${tileHolder.holder.id}`}
                                                               holder={tileHolder.holder}
                                                               onHold={tileHolder.hold}
                                                               onOpenPlayer={onOpenPlayer && ((player) => {
@@ -436,6 +442,12 @@ export default function Viewer(props: ViewerProps) {
                                                                   onOpenPlayer(player)
                                                               })}
                                                               onClose={tileHolder.dismiss}/>}
+
+        {territoryCard.shown && <TerritoryCard key={`territory-${territoryCard.shown.id}`}
+                                               shown={territoryCard.shown}
+                                               flag={countryState.code}
+                                               onHold={territoryCard.hold}
+                                               onClose={territoryCard.dismiss}/>}
 
         {openPlayer && props.playerInfo && <PlayerCard key={openPlayer.accountId}
                                                        player={openPlayer}
