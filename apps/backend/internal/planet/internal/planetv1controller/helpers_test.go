@@ -52,8 +52,8 @@ type stubSubscriber struct {
 	err     error
 }
 
-func (s stubSubscriber) Subscribe(context.Context) (<-chan clicks.Change, error) {
-	return s.updates, s.err
+func (s stubSubscriber) Subscribe(context.Context) (<-chan clicks.Change, clicks.MapVersion, error) {
+	return s.updates, clicks.MapVersion{}, s.err
 }
 
 type stubMapReader struct{}

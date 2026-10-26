@@ -16,6 +16,10 @@ service ClickService {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 
+  rpc GetHoldings(GetHoldingsRequest) returns (GetHoldingsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
   rpc ListenForEvents(ListenForEventsRequest) returns (stream PlanetEvent);
 
   rpc ClaimBonus(ClaimBonusRequest) returns (ClaimBonusResponse);
@@ -155,6 +159,50 @@ message GetMapResponse {
   bytes tiles = 3;
 
   repeated TileShields shields = 4;
+
+  MapVersion version = 5;
+}
+
+message MapVersion {
+  // The second the server started: seq starts again from zero on every start.
+  uint32 epoch = 1;
+
+  uint64 seq = 2;
+}
+
+message GetHoldingsRequest {}
+
+message GetHoldingsResponse {
+  MapVersion version = 1;
+
+  repeated Holding countries = 2;
+
+  // Every landmass with a tile held, each whole: a flag it does not list holds none of it.
+  repeated LandmassHoldings landmasses = 3;
+}
+
+message Holding {
+  string country_id = 1;
+
+  uint32 tiles = 2;
+}
+
+message LandmassHoldings {
+  // An index into the borders blob's landmass table.
+  uint32 landmass_id = 1;
+
+  repeated Holding holdings = 2;
+}
+
+// Totals, never differences, of what the writes since the last one changed: at most one a second.
+message HoldingsChanged {
+  MapVersion version = 1;
+
+  // A flag that holds no tile any more is listed with none.
+  repeated Holding countries = 2;
+
+  // Each whole, as in GetHoldingsResponse: a landmass nobody holds any more lists no flag.
+  repeated LandmassHoldings landmasses = 3;
 }
 
 message TileShields {
@@ -163,6 +211,7 @@ message TileShields {
   uint32 shields = 2;
 }
 
+// Empty is every event, and stays so: the clip recorder sends it.
 message ListenForEventsRequest {}
 
 message PlanetEvent {
@@ -184,7 +233,9 @@ message PlanetEvent {
 
     LandmassFortified landmass_fortified = 9;
 
-    RulesChanged rules_changed = 10;
+    HoldingsChanged holdings_changed = 10;
+
+    RulesChanged rules_changed = 11;
   }
 }
 
@@ -256,6 +307,8 @@ message LandmassFortified {
 
   // The tile whose take made the landmass whole.
   uint32 tile_id = 3;
+
+  MapVersion version = 4;
 }
 
 message ChargesHeld {
@@ -426,8 +479,12 @@ message BombDropped {
 
   GlobePoint point = 5;
 
-  // Each lost one shield and kept its flag.
-  repeated uint32 struck_tile_ids = 6;
+  repeated uint32 struck_tile_ids = 6 [deprecated = true];
+
+  MapVersion version = 7;
+
+  // Each lost one shield and kept its flag: with the shields it kept.
+  repeated TileShields struck = 8;
 }
 
 message TilesEnclosed {
@@ -460,7 +517,10 @@ message PlaceShieldResponse {
   ChargesHeld charges = 1;
 }
 
-message Heartbeat {}
+message Heartbeat {
+  // The last change this stream sent, or the map's when it opened.
+  MapVersion version = 1;
+}
 
 message TileUpdate {
   uint32 tile_id = 1;
@@ -472,4 +532,6 @@ message TileUpdate {
 
   // The tile's shields after the update: 0 on every change of owner.
   uint32 shields = 5;
+
+  MapVersion version = 6;
 }

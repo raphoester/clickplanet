@@ -14,6 +14,7 @@ type feed struct {
 	mu          sync.Mutex
 	subscribers *cpcolls.Set[chan clicks.Change]
 	buffer      int
+	cut         int
 	logger      *slog.Logger
 }
 
@@ -53,14 +54,20 @@ func (f *feed) publish(change clicks.Change) {
 		}
 	})
 	for _, changes := range behind {
-		f.logger.Warn("cut off a map subscriber that fell behind", slog.Int("buffer", f.buffer))
 		f.unsubscribe(changes)
 	}
+	f.cut += len(behind)
 }
 
-func (f *feed) publishUpdates(updates []clicks.TileUpdate) {
-	for i := range updates {
-		f.publish(clicks.Change{Update: &updates[i]})
+// Never under the storage's lock, which publish runs under: the log writes to stdout.
+func (f *feed) reportCut() {
+	f.mu.Lock()
+	cut := f.cut
+	f.cut = 0
+	f.mu.Unlock()
+
+	if cut > 0 {
+		f.logger.Warn("cut off map subscribers that fell behind", slog.Int("subscribers", cut), slog.Int("buffer", f.buffer))
 	}
 }
 

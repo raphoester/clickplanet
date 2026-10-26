@@ -25,8 +25,9 @@ bomb that visibly covered it. A circle has neither problem.
 **A bomb hits a shielded tile like a click.** `inmemory_tile_storage.Clear` takes
 one shield from each shielded tile in the blast, whoever's it is, and clears the
 rest, under one lock: a shielded tile keeps its flag, is not in `cleared_tile_ids`,
-and is listed in `struck_tile_ids` (`Blast.Struck`), so a client takes one shield
-off it at impact. See [Shields](shields.md).
+and is listed in `struck` with the shields it kept (`Blast.Struck`, `Blast.Left`), so a
+client sets its shields at impact. `struck_tile_ids`, the same tiles with no count, is
+deprecated and still filled for the tabs loaded before. See [Shields](shields.md).
 
 `drop_bomb_usecase` checks the country and the target **before** taking the bomb, so a
 malformed request does not cost one. The drop does not move the schedule: the next

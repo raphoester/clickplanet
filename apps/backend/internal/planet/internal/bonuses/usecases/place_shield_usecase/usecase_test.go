@@ -36,7 +36,7 @@ func setup(t *testing.T, shields int) fixture {
 	charges.Keep(caller, bonuses.Held{Shields: shields})
 
 	tiles := inmemory_tile_storage.New(clicks.BordersOf(100), inmemory_tile_storage.Config{},
-		inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{7: "fr", 8: "de"}), slog.New(slog.DiscardHandler))
+		inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{7: "fr", 8: "de"}), cptime.SystemClock{}, slog.New(slog.DiscardHandler))
 	require.NoError(t, tiles.Load(t.Context()))
 
 	clock := cptime.NewFixedClock(time.Date(2026, 10, 17, 12, 0, 0, 0, time.UTC))

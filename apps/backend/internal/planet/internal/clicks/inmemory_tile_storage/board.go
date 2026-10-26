@@ -111,6 +111,24 @@ func (b *board) holdings() map[string]uint32 {
 	return held
 }
 
+func (b *board) counts() []clicks.FlagTiles {
+	var counts []clicks.FlagTiles
+	for code, tiles := range b.held {
+		if code != int(unownedCode) && tiles > 0 {
+			counts = append(counts, clicks.FlagTiles{Flag: b.codes.nameOf(uint16(code)), Tiles: tiles}) //nolint:gosec // an index of the code table.
+		}
+	}
+	return counts
+}
+
+func (b *board) countOf(code uint16) clicks.FlagTiles {
+	count := clicks.FlagTiles{Flag: b.codes.nameOf(code)}
+	if int(code) < len(b.held) {
+		count.Tiles = b.held[code]
+	}
+	return count
+}
+
 func (b *board) batch(start, end uint32) clicks.DenseBatch {
 	tiles := make([]byte, 0, (uint64(end-start)+1)*2)
 	var shields []clicks.TileShields

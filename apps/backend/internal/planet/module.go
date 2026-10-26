@@ -86,6 +86,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_country_sizes_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_fortresses_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_fortresses_handler/fortresses_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_holdings_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_holdings_handler/holdings_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_landmass_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_landmass_handler/landmass_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_landmass_handler/landmass_query/inmemory_tile_holders"
@@ -184,7 +186,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				_ = db.Close()
 			}
 
-			tilesStorage := inmemory_tile_storage.New(borders, config.TilesStorage, postgres_tile_store.New(db), props.Logger)
+			tilesStorage := inmemory_tile_storage.New(borders, config.TilesStorage, postgres_tile_store.New(db), clock, props.Logger)
 			if err := tilesStorage.Load(ctx); err != nil {
 				closeStores()
 				return fmt.Errorf("failed to load the tile map: %w", err)
@@ -355,7 +357,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			}
 
 			interceptors := []connect.Interceptor{
-				planetv1controller.NewCacheInterceptor(),
+				planetv1controller.NewCacheInterceptor(tilesStorage),
 				planetv1controller.NewVPNBlockInterceptor(blocklist, props.Metrics),
 			}
 
@@ -403,10 +405,11 @@ func NewModule(config Config) cpbootstrap.Module {
 				props.Metrics)
 
 			service := planetv1controller.ClickService{
-				ClickHandler:      click_handler.New(clickUseCase),
-				GetBudgetHandler:  get_budget_handler.New(get_budget_usecase.New(limiter, pricer, buckets)),
-				MapDensityHandler: map_density_handler.New(map_density_usecase.New(tilesChecker)),
-				GetMapHandler:     get_map_handler.New(get_map_usecase.New(tilesChecker, tilesStorage, told)),
+				ClickHandler:       click_handler.New(clickUseCase),
+				GetBudgetHandler:   get_budget_handler.New(get_budget_usecase.New(limiter, pricer, buckets)),
+				MapDensityHandler:  map_density_handler.New(map_density_usecase.New(tilesChecker)),
+				GetMapHandler:      get_map_handler.New(get_map_usecase.New(tilesChecker, tilesStorage, told)),
+				GetHoldingsHandler: get_holdings_handler.New(holdings_query.NewMemoryQuery(tilesStorage)),
 				ListenForEventsHandler: listen_for_events_handler.New(
 					listen_for_events_usecase.New(tilesStorage, props.Server.StreamHeartbeat, registry, inForce, told)),
 				ClaimBonusHandler:    claim_bonus_handler.New(claimBonus),

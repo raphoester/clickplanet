@@ -5,6 +5,8 @@ package clicks
 import (
 	"context"
 	"encoding/binary"
+	"maps"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -37,7 +39,7 @@ func (s *TileStorageContractSuite) subscribe(timeout time.Duration) (<-chan Chan
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	s.T().Cleanup(cancel)
 
-	listener, err := s.storage.Subscribe(ctx)
+	listener, _, err := s.storage.Subscribe(ctx)
 	s.Require().NoError(err)
 
 	return listener, ctx
@@ -138,7 +140,7 @@ func (s *TileStorageContractSuite) TestEverySubscriberGetsEveryChange() {
 
 	listeners := make([]<-chan Change, 0, 5)
 	for range 5 {
-		listener, err := s.storage.Subscribe(ctx)
+		listener, _, err := s.storage.Subscribe(ctx)
 		s.Require().NoError(err)
 		listeners = append(listeners, listener)
 	}
@@ -153,7 +155,7 @@ func (s *TileStorageContractSuite) TestEverySubscriberGetsEveryChange() {
 func (s *TileStorageContractSuite) TestSubscribeClosesTheFeedWhenTheContextEnds() {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	listener, err := s.storage.Subscribe(ctx)
+	listener, _, err := s.storage.Subscribe(ctx)
 	s.Require().NoError(err)
 
 	cancel()
@@ -688,4 +690,130 @@ func (s *TileStorageContractSuite) TestAForgottenHolderLeavesItsTilesWearingThei
 	again, err := s.storage.ForgetHolder(context.Background(), anaID)
 	s.Require().NoError(err)
 	s.Zero(again)
+}
+
+func (s *TileStorageContractSuite) TestEveryWriteCountsOneAfterTheVersionTheSubscriptionStartedAt() {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	s.T().Cleanup(cancel)
+	s.own("fr", 7, 8)
+	s.own("dz", 9)
+
+	listener, opening, err := s.storage.Subscribe(ctx)
+	s.Require().NoError(err)
+	s.NotZero(opening.Epoch)
+
+	s.Require().NoError(s.storage.Click(ctx, 7, "de"))
+	s.Require().NoError(s.storage.Shield(ctx, 8, "fr", 10))
+	s.Require().True(s.storage.Strike(ctx, 8, "fr"))
+	_, err = s.storage.Clear(ctx, Blast{Cleared: []uint32{7}})
+	s.Require().NoError(err)
+	_, _, err = s.storage.Reassign(ctx, "dz", "it", 0, 10)
+	s.Require().NoError(err)
+	_, err = s.storage.Restore(ctx, []Restoration{{Tile: 9, From: "it", To: "dz"}})
+	s.Require().NoError(err)
+	s.own("fr", contractIsland...)
+	_, err = s.storage.Fortify(ctx, contractIsland[0], "fr", 10)
+	s.Require().NoError(err)
+
+	for seq := opening.Seq + 1; seq <= opening.Seq+10; seq++ {
+		s.Equal(MapVersion{Epoch: opening.Epoch, Seq: seq}, s.next(ctx, listener).Version)
+	}
+	s.Empty(listener)
+}
+
+func (s *TileStorageContractSuite) TestAWriteThatChangesNothingCountsNothing() {
+	ctx := context.Background()
+	s.own("fr", 7)
+	before := s.batchVersion()
+
+	s.Require().NoError(s.storage.Set(ctx, 7, "fr"))
+	s.False(s.storage.Strike(ctx, 7, "fr"))
+	_, _, err := s.storage.Reassign(ctx, "dz", "it", 0, 10)
+	s.Require().NoError(err)
+
+	s.Equal(before, s.batchVersion())
+}
+
+func (s *TileStorageContractSuite) TestConcurrentWritesReachEverySubscriberInVersionOrder() {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	s.T().Cleanup(cancel)
+
+	const writers, writes = 8, 100
+	listeners := make([]<-chan Change, 3)
+	for i := range listeners {
+		listener, _, err := s.storage.Subscribe(ctx)
+		s.Require().NoError(err)
+		listeners[i] = listener
+	}
+
+	var wg sync.WaitGroup
+	for w := range writers {
+		wg.Go(func() {
+			for i := range writes {
+				s.NoError(s.storage.Set(ctx, uint32(w*writes+i+1), []string{"fr", "de"}[i%2])) //nolint:gosec // a few thousand tiles.
+			}
+		})
+	}
+	wg.Wait()
+
+	for _, listener := range listeners {
+		last := uint64(0)
+		for range writers * writes {
+			seq := s.next(ctx, listener).Version.Seq
+			s.Require().Greater(seq, last)
+			last = seq
+		}
+	}
+}
+
+func (s *TileStorageContractSuite) TestAStateBatchIsAtTheVersionOfTheLastWriteItHolds() {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	s.T().Cleanup(cancel)
+	listener, _, err := s.storage.Subscribe(ctx)
+	s.Require().NoError(err)
+
+	stop := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		for tile := uint32(1); tile <= 900; tile++ {
+			select {
+			case <-stop:
+				return
+			default:
+				s.NoError(s.storage.Set(ctx, tile, []string{"fr", "de"}[tile%2]))
+			}
+		}
+	})
+
+	batches := make([]DenseBatch, 0, 50)
+	for range 50 {
+		batch, err := s.storage.StateBatchDense(1, 1_000)
+		s.Require().NoError(err)
+		batches = append(batches, batch)
+	}
+	close(stop)
+	wg.Wait()
+
+	owners := map[uint32]string{}
+	at := map[uint64]map[uint32]string{}
+	for len(listener) > 0 {
+		change := <-listener
+		owners[change.Update.Tile] = change.Update.Value
+		at[change.Version.Seq] = maps.Clone(owners)
+	}
+	for _, batch := range batches {
+		expected, ok := at[batch.Version.Seq]
+		if !ok {
+			continue
+		}
+		for tile, owner := range expected {
+			s.Equal(owner, batch.Codes[binary.LittleEndian.Uint16(batch.Tiles[(tile-1)*2:])], "tile %d at %d", tile, batch.Version.Seq)
+		}
+	}
+}
+
+func (s *TileStorageContractSuite) batchVersion() MapVersion {
+	batch, err := s.storage.StateBatchDense(1, 1)
+	s.Require().NoError(err)
+	return batch.Version
 }
