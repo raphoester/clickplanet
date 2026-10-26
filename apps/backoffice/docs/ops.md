@@ -35,3 +35,17 @@ an `enabled` field, read off the proto, so a new one shows with no edit here.
 - **Save** asks first (`ConfirmAction`) and is off until the set has a name and the text is an `antibot.v1.Rules`
   (`Rules.fromJsonString`: a typo in a key is refused here, with protobuf's words). The server holds the bounds; its
   refusal is quoted, every reason, and the form stays.
+
+**Rule schedule** (`SchedulePanel`, `schedule.ts`) is `seasons.v1.AdminService` (the backend's
+[rule schedule](../../backend/docs/rule-schedule.md)), with planet's and the antibot's `GetRules` beside it:
+
+- **What plays now and since when**, from `GetSchedule.playing`, and what planet and the antibot each play. When a
+  module does not play the schedule's set, the page says so in red: a module refused it, since it keeps no such set.
+- **The schedule**: every phase (read only, priority 0, "Season 0, finale") and every entry, by start, the row playing
+  marked, an ended one muted. A row that has not ended and names a set planet or the antibot keeps none of says which
+  ("No set rush in planet or the antibot.").
+- **Only an entry to come has Edit and Delete.** A running entry runs to its end; to change what plays, add an entry
+  at a higher priority. There is no button that changes the rules at once.
+- **Add an entry** opens a form: the set (only the ones both modules keep), its start and end (`datetime-local`, the
+  operator's own time) and its priority (1 or more). Add, Save and Delete ask first (`ConfirmAction`); the server's
+  refusal is quoted (a set a module lacks, an entry that started, a start in the past), and the form stays.

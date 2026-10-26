@@ -62,6 +62,20 @@ import {
     TikTokAccount,
 } from "./gen/grpc/clips/v1/admin_pb.ts"
 import {GetTerritoriesRequest, GetTerritoriesResponse, Territory} from "./gen/grpc/planet/v1/internal_pb.ts"
+import {
+    AddEntryRequest,
+    AddEntryResponse,
+    DeleteEntryRequest,
+    DeleteEntryResponse,
+    EditEntryRequest,
+    EditEntryResponse,
+    Entry,
+    GetScheduleRequest,
+    GetScheduleResponse,
+    Phase,
+    Playing,
+    Stage,
+} from "./gen/grpc/seasons/v1/admin_pb.ts"
 import {ChargesHeld, TileUpdate} from "./gen/grpc/planet/v1/planet_pb.ts"
 import {
     AdminGetPlayerRequest,
@@ -85,11 +99,13 @@ import {
     NoteKind,
     Report,
 } from "./gen/grpc/support/v1/admin_pb.ts"
-import {AntibotAdmin, ChatAdmin, ClipsAdmin, Clients, PlanetAdmin, PlayerAdmin, SupportAdmin} from "./clients.ts"
+import {AntibotAdmin, ChatAdmin, ClipsAdmin, Clients, PlanetAdmin, PlayerAdmin, SeasonsAdmin, SupportAdmin} from "./clients.ts"
 
 export const AT = new Date("2026-10-18T12:00:00Z")
 
 export const ACCOUNT = "0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10"
+const FINALE = new Date("2099-10-31T21:00:00Z")
+const SEASON_ENDS = new Date("2099-10-31T23:00:00Z")
 
 // A change of the fake ledger, its minutes into the hour before AT.
 function change(minutes: number, by: string, update: PartialMessage<TileUpdate>): LedgerChange {
@@ -103,6 +119,7 @@ function change(minutes: number, by: string, update: PartialMessage<TileUpdate>)
 export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAdmin, ClipsAdmin {
     readonly kind = "fake admin"
     readonly antibot: FakeAntibot = new FakeAntibot(this)
+    readonly seasons: FakeSeasons = new FakeSeasons(this)
     readonly asked: {method: string, request: unknown}[] = []
     readonly refusals = new Map<string, Code>()
     private readonly holds = new Map<string, Promise<void>>()
@@ -153,6 +170,29 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
             }),
         })],
         playing: "default",
+    })
+    // A season that started long ago and ends in 2099, its finale on rush; an entry that runs over its days, and one
+    // to come.
+    schedule = new GetScheduleResponse({
+        phases: [
+            new Phase({season: 0, stage: Stage.DAYS, ruleSet: "default", endsAt: Timestamp.fromDate(FINALE)}),
+            new Phase({
+                season: 0, stage: Stage.FINALE, ruleSet: "rush", startsAt: Timestamp.fromDate(FINALE),
+                endsAt: Timestamp.fromDate(SEASON_ENDS),
+            }),
+            new Phase({season: 0, stage: Stage.OVER, ruleSet: "default", startsAt: Timestamp.fromDate(SEASON_ENDS)}),
+        ],
+        entries: [
+            new Entry({
+                id: "entry-running", ruleSet: "calm", startsAt: Timestamp.fromDate(AT),
+                endsAt: Timestamp.fromDate(new Date("2098-01-01T00:00:00Z")), priority: 1, madeAt: Timestamp.fromDate(AT),
+            }),
+            new Entry({
+                id: "entry-to-come", ruleSet: "frozen", startsAt: Timestamp.fromDate(new Date("2098-06-01T20:00:00Z")),
+                endsAt: Timestamp.fromDate(new Date("2098-06-01T22:00:00Z")), priority: 2, madeAt: Timestamp.fromDate(AT),
+            }),
+        ],
+        playing: new Playing({ruleSet: "calm", since: Timestamp.fromDate(AT), entryId: "entry-running"}),
     })
     authors = [new Author({accountId: ACCOUNT, name: "BraveFox42"})]
     profile = new AdminGetPlayerResponse({
@@ -239,7 +279,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
     ]]
 
     clients(): Clients {
-        return {antibot: this.antibot, chat: this, planet: this, player: this, support: this, clips: this}
+        return {antibot: this.antibot, chat: this, planet: this, player: this, seasons: this.seasons, support: this, clips: this}
     }
 
     refuse(method: string, code: Code) {
@@ -458,5 +498,43 @@ export class FakeAntibot implements AntibotAdmin {
             })
         }
         return answer
+    }
+}
+
+// Keeps the schedule's entries as the server does, and checks nothing.
+export class FakeSeasons implements SeasonsAdmin {
+    constructor(private readonly admin: FakeAdmin) {}
+
+    getSchedule(request: PartialMessage<GetScheduleRequest>): Promise<GetScheduleResponse> {
+        return this.admin.answer("getSchedule", request, this.admin.schedule)
+    }
+
+    addEntry(request: PartialMessage<AddEntryRequest>): Promise<AddEntryResponse> {
+        const id = `entry-${this.admin.schedule.entries.length + 1}`
+        const answer = this.admin.answer("addEntry", request, new AddEntryResponse({id}))
+        if (!this.admin.refusals.has("addEntry")) {
+            this.keep([...this.admin.schedule.entries, new Entry({...request, id})])
+        }
+        return answer
+    }
+
+    editEntry(request: PartialMessage<EditEntryRequest>): Promise<EditEntryResponse> {
+        const answer = this.admin.answer("editEntry", request, new EditEntryResponse())
+        if (!this.admin.refusals.has("editEntry")) {
+            this.keep(this.admin.schedule.entries.map(entry => entry.id === request.id ? new Entry({...entry, ...request}) : entry))
+        }
+        return answer
+    }
+
+    deleteEntry(request: PartialMessage<DeleteEntryRequest>): Promise<DeleteEntryResponse> {
+        const answer = this.admin.answer("deleteEntry", request, new DeleteEntryResponse())
+        if (!this.admin.refusals.has("deleteEntry")) {
+            this.keep(this.admin.schedule.entries.filter(entry => entry.id !== request.id))
+        }
+        return answer
+    }
+
+    private keep(entries: Entry[]) {
+        this.admin.schedule = new GetScheduleResponse({...this.admin.schedule, entries})
     }
 }
