@@ -123,6 +123,13 @@
     color: var(--text);
 }
 
+.menu-tab-badge {
+    margin-left: var(--space-1);
+    vertical-align: 1px;
+    background: var(--action);
+    animation: tab-bar-badge-pop 0.36s cubic-bezier(0.2, 1.5, 0.4, 1);
+}
+
 .menu-tab--on {
     background: var(--secondary);
     color: var(--text);

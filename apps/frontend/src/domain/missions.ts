@@ -11,8 +11,45 @@ export function orderOf(order: TileOrder): string {
     return `Take ${order.goal} tiles ${PREPOSITIONS[order.kind]}`
 }
 
-export function waiting(missions: readonly Mission[]): number {
-    return missions.filter((mission) => mission.done && !mission.paid).length
+export const SEEN_MISSIONS_STORAGE_KEY = "clickplanet-missions-seen"
+
+const STAGES = ["new", "done", "paid"] as const
+
+// A mission is news again each time it moves on: drawn, then done, then paid.
+export type MissionStage = typeof STAGES[number]
+
+export type SeenMissions = Readonly<Record<string, MissionStage>>
+
+export function stageOf(mission: Mission): MissionStage {
+    if (mission.paid) return "paid"
+    return mission.done ? "done" : "new"
+}
+
+export function unseen(missions: readonly Mission[], seen: SeenMissions): number {
+    return missions.filter((mission) => {
+        const was = seen[mission.id]
+        return was === undefined || STAGES.indexOf(was) < STAGES.indexOf(stageOf(mission))
+    }).length
+}
+
+// Only the missions shown are kept: another day's ids would never be read again.
+export function seenNow(missions: readonly Mission[]): SeenMissions {
+    return Object.fromEntries(missions.map((mission) => [mission.id, stageOf(mission)]))
+}
+
+export function parseSeenMissions(raw: string | null): SeenMissions {
+    if (raw === null) return {}
+
+    let stored: unknown
+    try {
+        stored = JSON.parse(raw)
+    } catch {
+        return {}
+    }
+    if (typeof stored !== "object" || stored === null || Array.isArray(stored)) return {}
+
+    return Object.fromEntries(Object.entries(stored)
+        .filter((entry): entry is [string, MissionStage] => STAGES.includes(entry[1] as MissionStage)))
 }
 
 export function newlyPaid(before: readonly Mission[], after: readonly Mission[]): Mission[] {

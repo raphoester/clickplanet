@@ -95,7 +95,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         },
         finishMissions: () => {
             fakeMissions.finish()
-            return "every mission is done — open Missions to collect"
+            return "every mission is done and paid; the next read of the missions shows it"
         },
         closeDay: () => {
             const closed = fakeStandings.closeRound()
