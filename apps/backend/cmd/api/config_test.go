@@ -130,6 +130,7 @@ player:
   database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: player}
   redis: {address: localhost:6379}
 seasons:
+  ruleSets: {days: default, finale: default, over: default}
   database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: seasons}
   redis: {address: localhost:6379}
 missions:
@@ -291,7 +292,8 @@ func TestTheExampleConfigReachesTheSeasonsBlock(t *testing.T) {
 	assert.True(t, time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC).Equal(season.EndsAt))
 	assert.Equal(t, 2*time.Hour, season.Finale)
 	assert.Equal(t, "seasons", config.Seasons.Database.Schema)
-	require.NoError(t, config.Seasons.Database.Validate())
+	assert.EqualValues(t, "rush", config.Seasons.RuleSets.Finale, "the Final Battle plays rush")
+	require.NoError(t, config.Seasons.Validate())
 }
 
 func TestTheSeasonsModuleWithNoDatabaseIsRefused(t *testing.T) {

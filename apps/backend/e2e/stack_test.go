@@ -183,6 +183,10 @@ seasons:
     - number: 0
       endsAt: %s
       finale: 2h
+  ruleSets:
+    days: default
+    finale: default
+    over: default
 `, time.Now().Add(30*24*time.Hour).UTC().Format(time.RFC3339)), 0o600))
 	var config struct{ Seasons seasons.Config }
 	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile(path)))

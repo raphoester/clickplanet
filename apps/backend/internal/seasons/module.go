@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"connectrpc.com/connect"
 
+	"github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1/antibotv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/seasons/v1/seasonsv1connect"
@@ -20,11 +22,30 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/usecases/close_round_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/usecases/take_snapshot_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/usecases/take_snapshot_usecase/log_take_snapshot"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/schedule"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/schedule/postgres_entry_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/schedule/redis_rule_set_commands"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/schedule/rpc_antibot_rule_sets"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/schedule/rpc_planet_rule_sets"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/schedule/usecases/add_entry_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/schedule/usecases/add_entry_usecase/audit_add_entry"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/schedule/usecases/delete_entry_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/schedule/usecases/delete_entry_usecase/audit_delete_entry"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/schedule/usecases/edit_entry_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/schedule/usecases/edit_entry_usecase/audit_edit_entry"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/schedule/usecases/play_schedule_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/schedule/usecases/play_schedule_usecase/log_play_schedule"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/schedule/uuid_id_provider"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/add_entry_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/delete_entry_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/edit_entry_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_my_season_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_my_season_handler/my_season_query"
 	my_season_authors "github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_my_season_handler/my_season_query/rpc_player_authors"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_race_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_schedule_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_schedule_handler/schedule_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_season_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_standings_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_standings_handler/standings_query"
@@ -50,7 +71,10 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-const moduleName = "seasons"
+const (
+	moduleName    = "seasons"
+	scheduleCheck = time.Second
+)
 
 func NewModule(config Config) cpbootstrap.Module {
 	return cpbootstrap.Module{
@@ -73,6 +97,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	}
 	player := playerv1connect.NewInternalServiceClient(internal, baseURL)
 	planet := planetv1connect.NewInternalServiceClient(internal, baseURL)
+	antibot := antibotv1connect.NewInternalServiceClient(internal, baseURL)
 
 	db := cppg.New(config.Database)
 	if err := db.ConnectCtx(ctx); err != nil {
@@ -119,8 +144,17 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		props.Logger,
 	))
 
+	phases, err := schedule.New(seasons.Phases(), config.RuleSets)
+	if err != nil {
+		closeStores()
+		return fmt.Errorf("failed to schedule the seasons' phases: %w", err)
+	}
+	entries := postgres_entry_store.New(db)
+	ruleSchedule := play_schedule_usecase.NewRunner(scheduleCheck, log_play_schedule.New(
+		play_schedule_usecase.New(phases, entries, redis_rule_set_commands.New(streams.Commands()), clock), props.Logger))
+
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger, boards, races, snapshot, cpredis.CloseAfter(streams, props.Logger,
-		takes, deletions, cpoutbox.NewRelay("seasons-outbox", db, streams, props.Logger))))
+		takes, deletions, ruleSchedule, cpoutbox.NewRelay("seasons-outbox", db, streams, props.Logger))))
 
 	service := seasonsv1controller.SeasonService{
 		GetSeasonHandler: get_season_handler.New(
@@ -142,6 +176,22 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to mount seasons.v1.SeasonService: %w", err)
 	}
 
+	keepers := []schedule.Keeper{rpc_planet_rule_sets.New(planet), rpc_antibot_rule_sets.New(antibot)}
+	admin := seasonsv1controller.AdminService{
+		GetScheduleHandler: get_schedule_handler.New(schedule_query.NewPostgresQuery(db, seasons, config.RuleSets, clock)),
+		AddEntryHandler: add_entry_handler.New(audit_add_entry.New(
+			add_entry_usecase.New(entries, keepers, uuid_id_provider.Provider{}, clock), props.Logger)),
+		EditEntryHandler: edit_entry_handler.New(audit_edit_entry.New(
+			edit_entry_usecase.New(entries, keepers, clock), props.Logger)),
+		DeleteEntryHandler: delete_entry_handler.New(audit_delete_entry.New(
+			delete_entry_usecase.New(entries, clock), props.Logger)),
+	}
+	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
+		return seasonsv1connect.NewAdminServiceHandler(admin, options...)
+	}); err != nil {
+		return fmt.Errorf("failed to mount seasons.v1.AdminService: %w", err)
+	}
+
 	props.Logger.Info("seasons built", slog.Int("seasons", len(config.Calendar.List)), slog.String("schema", config.Database.Schema))
 
 	return nil
@@ -149,6 +199,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 type Config struct {
 	Calendar calendar.Config `koanf:",squash"`
+	RuleSets schedule.PhaseSets
 	Snapshot take_snapshot_usecase.Config
 	Database cppg.Config
 	Redis    cpredis.Config
@@ -163,6 +214,9 @@ func (c Config) Validate() error {
 	}
 	if err := c.Redis.Validate(); err != nil {
 		return fmt.Errorf("seasons.redis: %w", err)
+	}
+	if err := c.RuleSets.Validate(); err != nil {
+		return fmt.Errorf("seasons.ruleSets: %w", err)
 	}
 	return nil
 }

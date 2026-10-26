@@ -243,6 +243,10 @@ seasons:
     - number: 0
       endsAt: 2026-10-31T23:00:00Z
       finale: 2h
+  ruleSets:
+    days: default
+    finale: rush
+    over: default
   database:
     host: localhost
     port: "5432"
