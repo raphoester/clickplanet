@@ -37,7 +37,6 @@ func save(t *testing.T, useCase *stubUseCase) error {
 			Boxes: &planetv1.BoxPace{
 				MinInterval: durationpb.New(time.Minute), MaxInterval: durationpb.New(2 * time.Minute), MaxChargesPerHour: 30,
 			},
-			AntiBot: &planetv1.AntiBotRules{Crowd: 50},
 		},
 	}))
 	return err //nolint:wrapcheck // the handler's answer, as the caller reads it.
@@ -52,7 +51,6 @@ func TestTheSetIsSavedAsSent(t *testing.T) {
 		Name:  "rush",
 		Tempo: 3,
 		Boxes: bonuses.Pace{MinInterval: time.Minute, MaxInterval: 2 * time.Minute, MaxChargesPerHour: 30},
-		Crowd: 50,
 	}}, useCase.asked)
 }
 

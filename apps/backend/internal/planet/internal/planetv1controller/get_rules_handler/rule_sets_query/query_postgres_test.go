@@ -19,8 +19,8 @@ func TestTheSetsComeDefaultFirstThenByNameWithTheirValues(t *testing.T) {
 	db := cppg.StartTestServer(t).OpenSchema(t, "planet", migrations.FS)
 	store := postgres_rule_set_store.New(db)
 	for _, kept := range []rules.Snapshot{
-		{Name: "rush", Tempo: 3, Crowd: 50, Boxes: bonuses.Pace{MinInterval: time.Minute, MaxInterval: 2 * time.Minute, MaxChargesPerHour: 30}},
-		{Name: "calm", Tempo: 0.5, Crowd: 6, Boxes: bonuses.Pace{MinInterval: 10 * time.Minute, MaxInterval: 20 * time.Minute, MaxChargesPerHour: 6}},
+		{Name: "rush", Tempo: 3, Boxes: bonuses.Pace{MinInterval: time.Minute, MaxInterval: 2 * time.Minute, MaxChargesPerHour: 30}},
+		{Name: "calm", Tempo: 0.5, Boxes: bonuses.Pace{MinInterval: 10 * time.Minute, MaxInterval: 20 * time.Minute, MaxChargesPerHour: 6}},
 	} {
 		set, err := kept.Restore()
 		require.NoError(t, err)
@@ -39,5 +39,4 @@ func TestTheSetsComeDefaultFirstThenByNameWithTheirValues(t *testing.T) {
 	assert.Equal(t, time.Minute, rush.GetBoxes().GetMinInterval().AsDuration())
 	assert.Equal(t, 2*time.Minute, rush.GetBoxes().GetMaxInterval().AsDuration())
 	assert.Equal(t, uint32(30), rush.GetBoxes().GetMaxChargesPerHour())
-	assert.Equal(t, uint32(50), rush.GetAntiBot().GetCrowd())
 }

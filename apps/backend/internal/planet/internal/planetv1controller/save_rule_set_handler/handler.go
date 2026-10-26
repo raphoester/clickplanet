@@ -36,7 +36,6 @@ func (h SaveRuleSetHandler) SaveRuleSet(
 			MaxInterval:       set.GetBoxes().GetMaxInterval().AsDuration(),
 			MaxChargesPerHour: int(set.GetBoxes().GetMaxChargesPerHour()),
 		},
-		Crowd: int(set.GetAntiBot().GetCrowd()),
 	})
 
 	switch {

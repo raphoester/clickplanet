@@ -1,6 +1,6 @@
 import {Duration, Timestamp} from "@bufbuild/protobuf"
 import {PlanetAdmin} from "../clients.ts"
-import {AntiBotRules, BoxPace, GetRulesResponse, RuleSet} from "../gen/grpc/planet/v1/admin_pb.ts"
+import {BoxPace, GetRulesResponse, RuleSet} from "../gen/grpc/planet/v1/admin_pb.ts"
 
 export const DEFAULT_SET = "default"
 
@@ -17,11 +17,6 @@ export function boxesOf(boxes: BoxPace | undefined): string {
     return `Every ${every}, ${boxes.maxChargesPerHour} an hour at most`
 }
 
-export function crowdOf(set: RuleSet): string {
-    const crowd = set.antiBot?.crowd ?? 0
-    return crowd > 0 ? `A crowd from ${crowd} networks` : "—"
-}
-
 function spanOf(duration: Duration | undefined): string {
     const seconds = secondsOf(duration)
     return seconds % 60 === 0 ? `${seconds / 60} min` : `${seconds} s`
@@ -32,9 +27,9 @@ function secondsOf(duration: Duration | undefined): number {
 }
 
 // A set as the form edits it: the waits in seconds, every value as typed.
-export type Draft = {name: string, tempo: string, minSeconds: string, maxSeconds: string, cap: string, crowd: string}
+export type Draft = {name: string, tempo: string, minSeconds: string, maxSeconds: string, cap: string}
 
-export const NEW_DRAFT: Draft = {name: "", tempo: "1", minSeconds: "240", maxSeconds: "480", cap: "12", crowd: "6"}
+export const NEW_DRAFT: Draft = {name: "", tempo: "1", minSeconds: "240", maxSeconds: "480", cap: "12"}
 
 export function draftOf(set: RuleSet): Draft {
     return {
@@ -43,13 +38,12 @@ export function draftOf(set: RuleSet): Draft {
         minSeconds: String(secondsOf(set.boxes?.minInterval)),
         maxSeconds: String(secondsOf(set.boxes?.maxInterval)),
         cap: String(set.boxes?.maxChargesPerHour ?? 0),
-        crowd: String(set.antiBot?.crowd ?? 0),
     }
 }
 
 // Every value a number and a name typed; the server holds the rules a set must keep.
 export function complete(draft: Draft): boolean {
-    const numbers = [draft.tempo, draft.minSeconds, draft.maxSeconds, draft.cap, draft.crowd]
+    const numbers = [draft.tempo, draft.minSeconds, draft.maxSeconds, draft.cap]
     return draft.name.trim() !== "" && numbers.every(value => value.trim() !== "" && Number.isFinite(Number(value)))
 }
 
@@ -62,7 +56,6 @@ export function ruleSetOf(draft: Draft): RuleSet {
             maxInterval: new Duration({seconds: BigInt(Math.round(Number(draft.maxSeconds)))}),
             maxChargesPerHour: Math.round(Number(draft.cap)),
         }),
-        antiBot: new AntiBotRules({crowd: Math.round(Number(draft.crowd))}),
     })
 }
 

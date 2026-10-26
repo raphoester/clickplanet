@@ -21,7 +21,7 @@ type PostgresQuery struct {
 
 func (q *PostgresQuery) Sets(ctx context.Context) ([]*planetv1.RuleSet, error) {
 	rows, err := q.db.On(ctx).QueryContext(ctx, `
-		SELECT name, tempo, box_min_interval_ms, box_max_interval_ms, box_max_charges_per_hour, crowd
+		SELECT name, tempo, box_min_interval_ms, box_max_interval_ms, box_max_charges_per_hour
 		FROM rule_sets ORDER BY name <> 'default', name
 	`)
 	if err != nil {
@@ -35,9 +35,9 @@ func (q *PostgresQuery) Sets(ctx context.Context) ([]*planetv1.RuleSet, error) {
 			name                     string
 			tempo                    float64
 			minInterval, maxInterval int64
-			maxCharges, crowd        uint32
+			maxCharges               uint32
 		)
-		if err := rows.Scan(&name, &tempo, &minInterval, &maxInterval, &maxCharges, &crowd); err != nil {
+		if err := rows.Scan(&name, &tempo, &minInterval, &maxInterval, &maxCharges); err != nil {
 			return nil, fmt.Errorf("failed to read a rule set: %w", err)
 		}
 		sets = append(sets, &planetv1.RuleSet{
@@ -48,7 +48,6 @@ func (q *PostgresQuery) Sets(ctx context.Context) ([]*planetv1.RuleSet, error) {
 				MaxInterval:       durationpb.New(time.Duration(maxInterval) * time.Millisecond),
 				MaxChargesPerHour: maxCharges,
 			},
-			AntiBot: &planetv1.AntiBotRules{Crowd: crowd},
 		})
 	}
 	if err := rows.Err(); err != nil {

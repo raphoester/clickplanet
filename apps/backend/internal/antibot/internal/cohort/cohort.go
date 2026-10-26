@@ -32,7 +32,10 @@ type Config struct {
 	V6Bits int
 
 	CertainCohorts int
-	ChainWindow    time.Duration
+	CertainMembers int
+	// CertainMembers while planet plays a rule set of this name; a set not listed plays CertainMembers.
+	CrowdBySet  map[string]int
+	ChainWindow time.Duration
 
 	TrackWindow time.Duration
 
@@ -50,6 +53,7 @@ const (
 	defaultV4Bits         = 24
 	defaultV6Bits         = 44
 	defaultCertainCohorts = 3
+	defaultCertainMembers = 6
 	defaultChainWindow    = 30 * time.Minute
 	defaultSweepInterval  = time.Minute
 
@@ -94,6 +98,14 @@ func (c Config) Validate() error {
 	if c.CertainCohorts < 0 || c.CertainCohorts == 1 {
 		errs = append(errs, fmt.Errorf("certainCohorts is %d: one cohort is a suspicion, a chain is at least 2", c.CertainCohorts))
 	}
+	if c.CertainMembers < 0 {
+		errs = append(errs, fmt.Errorf("certainMembers is %d: it must not be negative", c.CertainMembers))
+	}
+	for set, members := range c.CrowdBySet {
+		if members < 2 {
+			errs = append(errs, fmt.Errorf("crowdBySet.%s is %d: a crowd is at least 2 scopes", set, members))
+		}
+	}
 	if c.V4Bits < 0 || c.V4Bits > 32 {
 		errs = append(errs, fmt.Errorf("v4Bits is %d: an IPv4 prefix is 1 to 32 bits", c.V4Bits))
 	}
@@ -135,6 +147,12 @@ func (c Config) withDefaults() Config {
 	if c.CertainCohorts < 2 {
 		c.CertainCohorts = defaultCertainCohorts
 	}
+	if c.CertainMembers <= 0 {
+		c.CertainMembers = defaultCertainMembers
+	}
+	if c.CertainMembers < c.MinMembers {
+		c.CertainMembers = c.MinMembers
+	}
 	if c.ChainWindow <= 0 {
 		c.ChainWindow = defaultChainWindow
 	}
@@ -153,8 +171,10 @@ func New(config Config, clock cptime.Clock, onInStep func(scopes int)) *Watchdog
 	}
 
 	config = config.withDefaults()
+
 	return &Watchdog{
 		config:   config,
+		crowd:    config.CertainMembers,
 		clock:    clock,
 		onInStep: onInStep,
 		members:  make(map[string]*member),
@@ -177,20 +197,6 @@ type Watchdog struct {
 }
 
 var _ detect.Watchdog = (*Watchdog)(nil)
-
-// SetCrowd makes members scopes of one prefix in step a crowd from now on, never under minMembers. Until it is set,
-// or set to 0, there is no crowd rule: the rule set in force holds the bound.
-func (w *Watchdog) SetCrowd(members int) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-
-	switch {
-	case members <= 0:
-		w.crowd = 0
-	default:
-		w.crowd = max(members, w.config.MinMembers)
-	}
-}
 
 type member struct {
 	scope  string
@@ -222,6 +228,20 @@ func (w *Watchdog) Attempted(click detect.Click) {
 }
 
 func (w *Watchdog) Committed(detect.Click) {}
+
+// Play takes the crowd bound of the rule set planet now plays, from now on.
+func (w *Watchdog) Play(ruleSet string) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	w.crowd = w.config.CertainMembers
+	if members, ok := w.config.CrowdBySet[ruleSet]; ok {
+		w.crowd = max(members, w.config.MinMembers)
+	}
+	for _, m := range w.members {
+		m.judgedAt = time.Time{}
+	}
+}
 
 func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 	if click.Scope == "" {
@@ -298,7 +318,7 @@ func (w *Watchdog) judgeLocked(m *member, now time.Time) (detect.Verdict, detect
 		}
 	}
 
-	if w.crowd > 0 && sharing >= w.crowd {
+	if sharing >= w.crowd {
 		return detect.Certain, detect.Evidence{
 			Rule:   "crowd",
 			Fields: append(fields, detect.Field{Key: "prefix", Value: m.prefix}),

@@ -97,7 +97,7 @@ func (s *testSuite) TestAPlayerDoesAMissionAndIsPaid() {
 		ada.click(1000+tile, "it")
 	}
 	require.Eventually(t, func() bool { return ada.missions()[0].GetPaid() },
-		5*time.Second, 20*time.Millisecond, "planet relays each take to missions, which pays the mission done")
+		10*time.Second, 20*time.Millisecond, "planet relays each take to missions, which pays the mission done")
 
 	reward := first.GetReward().GetCharges()
 	assert.Equal(t, planetv1.BonusKind_BONUS_KIND_SHIELDS, reward.GetKind())

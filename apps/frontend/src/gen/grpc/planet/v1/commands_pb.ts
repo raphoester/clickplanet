@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3 } from "@bufbuild/protobuf";
+import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 import { BonusKind } from "./planet_pb.js";
 
 /**
@@ -61,6 +61,129 @@ export class GrantCharges extends Message<GrantCharges> {
 
   static equals(a: GrantCharges | PlainMessage<GrantCharges> | undefined, b: GrantCharges | PlainMessage<GrantCharges> | undefined): boolean {
     return proto3.util.equals(GrantCharges, a, b);
+  }
+}
+
+/**
+ * Refuses the caller's clicks, bombs and shields until a time. Planet keeps the latest decision on each caller by
+ * decided_at, so a command sent twice, or after a newer one, changes nothing.
+ *
+ * @generated from message planet.v1.RefuseCaller
+ */
+export class RefuseCaller extends Message<RefuseCaller> {
+  /**
+   * @generated from oneof planet.v1.RefuseCaller.caller
+   */
+  caller: {
+    /**
+     * @generated from field: string scope = 1;
+     */
+    value: string;
+    case: "scope";
+  } | {
+    /**
+     * @generated from field: string account_id = 2;
+     */
+    value: string;
+    case: "accountId";
+  } | { case: undefined; value?: undefined } = { case: undefined };
+
+  /**
+   * @generated from field: google.protobuf.Timestamp until = 3;
+   */
+  until?: Timestamp;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp decided_at = 4;
+   */
+  decidedAt?: Timestamp;
+
+  constructor(data?: PartialMessage<RefuseCaller>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.RefuseCaller";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "scope", kind: "scalar", T: 9 /* ScalarType.STRING */, oneof: "caller" },
+    { no: 2, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */, oneof: "caller" },
+    { no: 3, name: "until", kind: "message", T: Timestamp },
+    { no: 4, name: "decided_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RefuseCaller {
+    return new RefuseCaller().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RefuseCaller {
+    return new RefuseCaller().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RefuseCaller {
+    return new RefuseCaller().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RefuseCaller | PlainMessage<RefuseCaller> | undefined, b: RefuseCaller | PlainMessage<RefuseCaller> | undefined): boolean {
+    return proto3.util.equals(RefuseCaller, a, b);
+  }
+}
+
+/**
+ * Ends the caller's refusal now, by the same rule.
+ *
+ * @generated from message planet.v1.AdmitCaller
+ */
+export class AdmitCaller extends Message<AdmitCaller> {
+  /**
+   * @generated from oneof planet.v1.AdmitCaller.caller
+   */
+  caller: {
+    /**
+     * @generated from field: string scope = 1;
+     */
+    value: string;
+    case: "scope";
+  } | {
+    /**
+     * @generated from field: string account_id = 2;
+     */
+    value: string;
+    case: "accountId";
+  } | { case: undefined; value?: undefined } = { case: undefined };
+
+  /**
+   * @generated from field: google.protobuf.Timestamp decided_at = 3;
+   */
+  decidedAt?: Timestamp;
+
+  constructor(data?: PartialMessage<AdmitCaller>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.AdmitCaller";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "scope", kind: "scalar", T: 9 /* ScalarType.STRING */, oneof: "caller" },
+    { no: 2, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */, oneof: "caller" },
+    { no: 3, name: "decided_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AdmitCaller {
+    return new AdmitCaller().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AdmitCaller {
+    return new AdmitCaller().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AdmitCaller {
+    return new AdmitCaller().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: AdmitCaller | PlainMessage<AdmitCaller> | undefined, b: AdmitCaller | PlainMessage<AdmitCaller> | undefined): boolean {
+    return proto3.util.equals(AdmitCaller, a, b);
   }
 }
 

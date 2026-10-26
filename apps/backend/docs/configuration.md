@@ -36,7 +36,8 @@ The binary never reads inside a block to check it, so a new bound is added in th
 - `cpbootstrap.ServerConfig` — `bindAddress` empty listens on port 80; `consoleBindAddress` set to anything but loopback
 - `shared/cpredis.Config` — an `address` that is not a `host:port`, or a negative limit. Each module checks its own `redis` block, as it checks its database block
 - `shared/cppg.Config` — a connection setting or the schema left empty, or a schema that is not a plain lowercase identifier. Each module checks its own block, starting with `planet.Config`
-- `planet.Config` — `gameMap.maxIndex` zero is a map that refuses every click, plus whatever `bonus` and `antiBot` refuse of their own
+- `planet.Config` — `gameMap.maxIndex` zero is a map that refuses every click, plus whatever `bonus` refuses of its own
+- `antibot.Config` — with `antiBot.enabled`, an incomplete `antiBot.database` or `antiBot.redis` block, and the cohort bounds
 - `shared/cpsession.SignerConfig` — `secret` empty, not hex or not 32 bytes while `enabled`, and a negative `ttl`. Checked by `auth.Config`, which is the only block that declares it. `cpsession.VerifierConfig`, which planet declares, has nothing to check: two switches and no key
 - `chat.Config` — an incomplete `chat.database` block. Every other chat setting has a usable default
 - `support.Config` — an incomplete `support.database` block; with `support.attachments.enabled`, an incomplete bucket block, or a link good for more than 7 days. Every other support setting has a usable default
@@ -46,7 +47,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 **Each module owns its own config struct** — `planet.Config`, `chat.Config`, `auth.Config`, `player.Config` — and `app.Config` is the four of them plus `httpServer`. The planet keys stayed at the top level of the file rather than moving under a `planet:` section: `app.Config` squashes that struct (`koanf:",squash"`), so the file and every `deploy/` environment variable are unchanged.
 
 - `httpServer.bindAddress` — the encoding is negotiated per request, so there is no format setting.
-- `redis` — each module's own block (`redis` at the top level for planet, `auth.redis`, `chat.redis`, `player.redis`, `seasons.redis`, `support.redis`, `missions.redis`): the Redis it tells the others what happened through and hears them on (see [Telling other modules what happened](composite-layer.md#telling-other-modules-what-happened)). **Every block names the same Redis**, or a module publishes where nobody listens; `TestEveryModuleOfProductionTalksToTheSameRedis` pins it for `deploy/vps/backend.yaml`. Each module connects on its own, and one that cannot reach Redis refuses the boot
+- `redis` — each module's own block (`redis` at the top level for planet, `auth.redis`, `antiBot.redis`, `chat.redis`, `player.redis`, `seasons.redis`, `support.redis`, `missions.redis`): the Redis it tells the others what happened through and hears them on (see [Telling other modules what happened](composite-layer.md#telling-other-modules-what-happened)). **Every block names the same Redis**, or a module publishes where nobody listens; `TestEveryModuleOfProductionTalksToTheSameRedis` pins it for `deploy/vps/backend.yaml`. Each module connects on its own, and one that cannot reach Redis refuses the boot
 - `redis.address`, `redis.password` — production reads the password from `REDIS_PASSWORD`
 - `redis.maxLen` — the most entries one stream keeps (100k), for a stream whose subscriber stopped; the trim keeps them far fewer while every subscriber keeps up
 - `redis.publishTimeout` — how long a click or any other publish waits on Redis (500ms); past it the event is lost and counted
@@ -80,10 +81,12 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `bonus.enclose.held`, `bonus.enclose.maxPerBox`, `bonus.enclose.maxTiles` — the most enclosures held (3), the most one box adds (3; it draws 1 to that), and the most tiles one shape may take (25)
 - `bonus.shield.held`, `bonus.shield.minPerBox`, `bonus.shield.maxPerBox`, `bonus.shield.perTile` — the most shields held (30), the fewest and the most one box adds (5 and 20; it draws evenly between them), and the most one tile holds (10)
 - `bonus.welcome.within`, `bonus.welcome.boxAfter` — how young an account is welcomed (production 10m; 0, the default, is off), and how long after it was made its spread box comes (1m). Negative refuses the boot. See [A newcomer's first box and first quiz](welcome-bonus.md)
-- `antiBot.enabled` — off registers nothing and measures nothing
-- `antiBot.bans.enforce` — off judges, logs and counts without refusing; the mode to deploy in
+- `antiBot` — the antibot module's block (`antibot.Config`, beside `planet.Config` in `cmd/api`). It was planet's until 2026-10-26, and planet's block is squashed at the top of the file, so the keys did not move
+- `antiBot.enabled` — off builds no module: nothing is heard, nothing is refused, and `antibot.v1.AdminService` 404s
+- `antiBot.bans.enforce` — off judges, logs and counts, and tells planet to refuse nobody; the mode to deploy in
 - `antiBot.bans.banDurations` — the ban for each offence (the last step repeats). An offence is a ban that starts while none is running; a flag on a running ban only extends it. **Offences are never forgotten**, but for the one an operator lifts with `UnbanPlayer`
 - `antiBot.database` — the antibot's own `cppg.Config`, `schema: antibot`; required when `antiBot.enabled`. A failed connection, migration or load refuses the boot
+- `antiBot.redis` — the antibot's own `cpredis.Config`, the same Redis as every module's: what it hears planet's facts on and sends planet's commands through
 - `antiBot.bans.reflagInterval` — how soon a banned caller can be judged again
 - `antiBot.jury.minSuspects` — how many watchdogs at `suspect` make a ban; one at `certain` bans alone; `stamina` and `defence` together count as one
 - `antiBot.jury.suspicionWindow`, `trackWindow`, `sweepInterval` — how long a verdict stands while another watchdog catches up, and how long a silent caller is remembered
@@ -93,7 +96,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `antiBot.metronome.enabled`, `detector.maxGap`, `maxSpread`, `minClicks`, `certainFor`, `certainClicks` — what ends a run, how tight its gaps must be, and how long it must hold; `detector.shape.maxGap`, `clicks`, `maxSkew`, `certainClicks`, `certainSkew` — the longest gap sampled, and the skew of the last gaps that reads each level (unset, it only measures); `detector.stamina.slice`, `clicks`, `window`, `minBusy`, `certainBusy` — what makes a slice busy, and the busy time inside the window that reads each level (unset, it only measures)
 - `antiBot.defender.enabled`, `detector.retakeWindow`, `minClicks`, `minShare`, `certainClicks`, `certainShare` — what counts as a retake, and the share of takes that reads `suspect` then `certain`; a zero share never reads
 - `antiBot.cohort.enabled`, `detector.startWindow`, `minClicks`, `minFlagShare`, `rateRatio`, `lengthRatio`, `quietAfter`, `minMembers` — what makes two scopes in step, and how many of them read `suspect`
-- `antiBot.cohort.detector.v4Bits`, `v6Bits`, `certainCohorts`, `chainWindow` — the prefix a chain must share, and how many groups read `certain` (how many scopes of one group read `crowd` is the rule set's). Its `trackWindow` is raised to `chainWindow` if shorter; bad bounds refuse the boot
+- `antiBot.cohort.detector.v4Bits`, `v6Bits`, `certainCohorts`, `certainMembers`, `crowdBySet`, `chainWindow` — the prefix a chain must share, and how many groups, or scopes in one group, read `certain`; `crowdBySet` is that count while planet plays a rule set of a given name (`rush: 50`). Its `trackWindow` is raised to `chainWindow` if shorter; bad bounds refuse the boot
 - `antiBot.catcher.enabled`, `detector.minCatches`, `maxMedian`, `certainMedian` — how many boxes in a row must all be caught, and the median offer-to-claim delay that reads `suspect` then `certain`. Its `trackWindow` must hold `minCatches` boxes at the rule set's longest box wait plus `bonus.offerTTL`
 - `antiBot.scraper.enabled`, `detector.minMaps`, `certainMaps` — the whole maps read beyond one per stream opened, inside `trackWindow`, that read `suspect` then `certain`
 - `antiBot.scraper.detector.certainOffMap` — the reads off the map, inside `trackWindow`, that read `certain` however little was read; one stray read is forgiven

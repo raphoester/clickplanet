@@ -250,7 +250,7 @@ describe("ReportDetail", () => {
 
     it("says a ban the antibot cannot make in plain words", async () => {
         const admin = new FakeAdmin()
-        admin.refuse("banPlayer", Code.FailedPrecondition)
+        admin.refuse("banPlayer", Code.Unimplemented)
         open(admin)
 
         confirm("Ban", "Yes, ban")

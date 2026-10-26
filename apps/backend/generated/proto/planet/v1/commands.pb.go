@@ -9,6 +9,7 @@ package planetv1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -90,17 +91,223 @@ func (x *GrantCharges) GetAmount() uint32 {
 	return 0
 }
 
+// Refuses the caller's clicks, bombs and shields until a time. Planet keeps the latest decision on each caller by
+// decided_at, so a command sent twice, or after a newer one, changes nothing.
+type RefuseCaller struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Caller:
+	//
+	//	*RefuseCaller_Scope
+	//	*RefuseCaller_AccountId
+	Caller        isRefuseCaller_Caller  `protobuf_oneof:"caller"`
+	Until         *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=until,proto3" json:"until,omitempty"`
+	DecidedAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=decided_at,json=decidedAt,proto3" json:"decided_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RefuseCaller) Reset() {
+	*x = RefuseCaller{}
+	mi := &file_planet_v1_commands_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RefuseCaller) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RefuseCaller) ProtoMessage() {}
+
+func (x *RefuseCaller) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_commands_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RefuseCaller.ProtoReflect.Descriptor instead.
+func (*RefuseCaller) Descriptor() ([]byte, []int) {
+	return file_planet_v1_commands_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *RefuseCaller) GetCaller() isRefuseCaller_Caller {
+	if x != nil {
+		return x.Caller
+	}
+	return nil
+}
+
+func (x *RefuseCaller) GetScope() string {
+	if x != nil {
+		if x, ok := x.Caller.(*RefuseCaller_Scope); ok {
+			return x.Scope
+		}
+	}
+	return ""
+}
+
+func (x *RefuseCaller) GetAccountId() string {
+	if x != nil {
+		if x, ok := x.Caller.(*RefuseCaller_AccountId); ok {
+			return x.AccountId
+		}
+	}
+	return ""
+}
+
+func (x *RefuseCaller) GetUntil() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Until
+	}
+	return nil
+}
+
+func (x *RefuseCaller) GetDecidedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.DecidedAt
+	}
+	return nil
+}
+
+type isRefuseCaller_Caller interface {
+	isRefuseCaller_Caller()
+}
+
+type RefuseCaller_Scope struct {
+	Scope string `protobuf:"bytes,1,opt,name=scope,proto3,oneof"`
+}
+
+type RefuseCaller_AccountId struct {
+	AccountId string `protobuf:"bytes,2,opt,name=account_id,json=accountId,proto3,oneof"`
+}
+
+func (*RefuseCaller_Scope) isRefuseCaller_Caller() {}
+
+func (*RefuseCaller_AccountId) isRefuseCaller_Caller() {}
+
+// Ends the caller's refusal now, by the same rule.
+type AdmitCaller struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Caller:
+	//
+	//	*AdmitCaller_Scope
+	//	*AdmitCaller_AccountId
+	Caller        isAdmitCaller_Caller   `protobuf_oneof:"caller"`
+	DecidedAt     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=decided_at,json=decidedAt,proto3" json:"decided_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AdmitCaller) Reset() {
+	*x = AdmitCaller{}
+	mi := &file_planet_v1_commands_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AdmitCaller) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AdmitCaller) ProtoMessage() {}
+
+func (x *AdmitCaller) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_commands_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AdmitCaller.ProtoReflect.Descriptor instead.
+func (*AdmitCaller) Descriptor() ([]byte, []int) {
+	return file_planet_v1_commands_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *AdmitCaller) GetCaller() isAdmitCaller_Caller {
+	if x != nil {
+		return x.Caller
+	}
+	return nil
+}
+
+func (x *AdmitCaller) GetScope() string {
+	if x != nil {
+		if x, ok := x.Caller.(*AdmitCaller_Scope); ok {
+			return x.Scope
+		}
+	}
+	return ""
+}
+
+func (x *AdmitCaller) GetAccountId() string {
+	if x != nil {
+		if x, ok := x.Caller.(*AdmitCaller_AccountId); ok {
+			return x.AccountId
+		}
+	}
+	return ""
+}
+
+func (x *AdmitCaller) GetDecidedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.DecidedAt
+	}
+	return nil
+}
+
+type isAdmitCaller_Caller interface {
+	isAdmitCaller_Caller()
+}
+
+type AdmitCaller_Scope struct {
+	Scope string `protobuf:"bytes,1,opt,name=scope,proto3,oneof"`
+}
+
+type AdmitCaller_AccountId struct {
+	AccountId string `protobuf:"bytes,2,opt,name=account_id,json=accountId,proto3,oneof"`
+}
+
+func (*AdmitCaller_Scope) isAdmitCaller_Caller() {}
+
+func (*AdmitCaller_AccountId) isAdmitCaller_Caller() {}
+
 var File_planet_v1_commands_proto protoreflect.FileDescriptor
 
 const file_planet_v1_commands_proto_rawDesc = "" +
 	"\n" +
-	"\x18planet/v1/commands.proto\x12\tplanet.v1\x1a\x16planet/v1/planet.proto\"\x8a\x01\n" +
+	"\x18planet/v1/commands.proto\x12\tplanet.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x16planet/v1/planet.proto\"\x8a\x01\n" +
 	"\fGrantCharges\x12\x19\n" +
 	"\bgrant_id\x18\x01 \x01(\tR\agrantId\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x02 \x01(\tR\taccountId\x12(\n" +
 	"\x04kind\x18\x03 \x01(\x0e2\x14.planet.v1.BonusKindR\x04kind\x12\x16\n" +
-	"\x06amount\x18\x04 \x01(\rR\x06amountB\xb5\x01\n" +
+	"\x06amount\x18\x04 \x01(\rR\x06amount\"\xbe\x01\n" +
+	"\fRefuseCaller\x12\x16\n" +
+	"\x05scope\x18\x01 \x01(\tH\x00R\x05scope\x12\x1f\n" +
+	"\n" +
+	"account_id\x18\x02 \x01(\tH\x00R\taccountId\x120\n" +
+	"\x05until\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x05until\x129\n" +
+	"\n" +
+	"decided_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tdecidedAtB\b\n" +
+	"\x06caller\"\x8b\x01\n" +
+	"\vAdmitCaller\x12\x16\n" +
+	"\x05scope\x18\x01 \x01(\tH\x00R\x05scope\x12\x1f\n" +
+	"\n" +
+	"account_id\x18\x02 \x01(\tH\x00R\taccountId\x129\n" +
+	"\n" +
+	"decided_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tdecidedAtB\b\n" +
+	"\x06callerB\xb5\x01\n" +
 	"\rcom.planet.v1B\rCommandsProtoP\x01ZPgithub.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1;planetv1\xa2\x02\x03PXX\xaa\x02\tPlanet.V1\xca\x02\tPlanet\\V1\xe2\x02\x15Planet\\V1\\GPBMetadata\xea\x02\n" +
 	"Planet::V1b\x06proto3"
 
@@ -116,18 +323,24 @@ func file_planet_v1_commands_proto_rawDescGZIP() []byte {
 	return file_planet_v1_commands_proto_rawDescData
 }
 
-var file_planet_v1_commands_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_planet_v1_commands_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_planet_v1_commands_proto_goTypes = []any{
-	(*GrantCharges)(nil), // 0: planet.v1.GrantCharges
-	(BonusKind)(0),       // 1: planet.v1.BonusKind
+	(*GrantCharges)(nil),          // 0: planet.v1.GrantCharges
+	(*RefuseCaller)(nil),          // 1: planet.v1.RefuseCaller
+	(*AdmitCaller)(nil),           // 2: planet.v1.AdmitCaller
+	(BonusKind)(0),                // 3: planet.v1.BonusKind
+	(*timestamppb.Timestamp)(nil), // 4: google.protobuf.Timestamp
 }
 var file_planet_v1_commands_proto_depIdxs = []int32{
-	1, // 0: planet.v1.GrantCharges.kind:type_name -> planet.v1.BonusKind
-	1, // [1:1] is the sub-list for method output_type
-	1, // [1:1] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	3, // 0: planet.v1.GrantCharges.kind:type_name -> planet.v1.BonusKind
+	4, // 1: planet.v1.RefuseCaller.until:type_name -> google.protobuf.Timestamp
+	4, // 2: planet.v1.RefuseCaller.decided_at:type_name -> google.protobuf.Timestamp
+	4, // 3: planet.v1.AdmitCaller.decided_at:type_name -> google.protobuf.Timestamp
+	4, // [4:4] is the sub-list for method output_type
+	4, // [4:4] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_planet_v1_commands_proto_init() }
@@ -136,13 +349,21 @@ func file_planet_v1_commands_proto_init() {
 		return
 	}
 	file_planet_v1_planet_proto_init()
+	file_planet_v1_commands_proto_msgTypes[1].OneofWrappers = []any{
+		(*RefuseCaller_Scope)(nil),
+		(*RefuseCaller_AccountId)(nil),
+	}
+	file_planet_v1_commands_proto_msgTypes[2].OneofWrappers = []any{
+		(*AdmitCaller_Scope)(nil),
+		(*AdmitCaller_AccountId)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_planet_v1_commands_proto_rawDesc), len(file_planet_v1_commands_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   1,
+			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

@@ -24,7 +24,6 @@ var saved = rules.Snapshot{
 	Name:  "rush",
 	Tempo: 3,
 	Boxes: bonuses.Pace{MinInterval: time.Minute, MaxInterval: 2 * time.Minute, MaxChargesPerHour: 30},
-	Crowd: 50,
 }
 
 func TestEverySaveIsLoggedWithItsValues(t *testing.T) {
@@ -33,7 +32,7 @@ func TestEverySaveIsLoggedWithItsValues(t *testing.T) {
 	err := audit_save_rule_set.New(stubUseCase{}, slog.New(slog.NewTextHandler(&logs, nil))).Execute(t.Context(), saved)
 
 	require.NoError(t, err)
-	assert.Contains(t, logs.String(), `level=WARN msg="admin rule set saved" set=rush tempo=3 boxMinInterval=1m0s boxMaxInterval=2m0s boxMaxChargesPerHour=30 crowd=50`)
+	assert.Contains(t, logs.String(), `level=WARN msg="admin rule set saved" set=rush tempo=3 boxMinInterval=1m0s boxMaxInterval=2m0s boxMaxChargesPerHour=30`)
 }
 
 func TestARefusedSaveIsLoggedWithWhyAndPassedOn(t *testing.T) {

@@ -32,17 +32,21 @@ POST /planet.v1.ClickService/Click   [X-Session-Token: <the minted token>]
       [cpsessionverifier: the key from auth.v1.InternalService, asked once per boot
        then cpsession.Verifier: one signature check — this context holds no seed]
   → ClickService → click_handler
-  → ban_click       (a banned caller is PermissionDenied, with a BanRefusal: when the ban ends)
-  → antibot_attempt_click (times every try for the metronome; refuses nothing)
+  → try_click       (tells the try, whatever came of it: facts.Log, sent to Redis every 100ms; refuses nothing)
+  → refusal_click   (a refused caller is PermissionDenied, with a BanRefusal: when the refusal ends)
   → allegiance_click (a flag other than the one pledged, or none pledged, is refused, and spends nothing)
   → throttle_click  (spends from the account's bucket and its scope's together, or refuses)
-  → antibot_click   (judges, and flags a caller it finds guilty; refuses nothing)
   → prom_click      (counts)
   → clicks/usecases/click_usecase (validates tile ID + country)
   → ledger.Recording.Click() [records a take or a strike]
   → clicks.Claiming.Click() (asks clicks.Shielding: take, strike a shield, or nothing)
   → MemoryTileStorage.Click() [writes the flag; fans the update out in process, marked `clicked`]
   → every subscriber: one per open ListenForEvents stream
+
+  … the try, as planet.v1.ClickTried on Redis
+  → the antibot's listener (antibot-clicks): Attempted, Inspect, Committed, as far as the click went
+  → a guilty caller's ban row, and a planet.v1.RefuseCaller in the same transaction (the antibot's outbox)
+  → planet's refuse_caller_handler (commands:planet.v1.RefuseCaller): planet.refused_callers, read by refusal_click
 ```
 
 `Click` is `Set` with the update marked `clicked`, which only the tile a click named carries: every client rings it, and a spread's neighbours, an enclosure's inside and the moderation writes stay plain `Set`s. Both are a no-op when the tile already holds that value — no write, no update published.

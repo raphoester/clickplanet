@@ -21,18 +21,14 @@ var (
 
 var namePattern = regexp.MustCompile(`^[a-z][a-z0-9_-]{0,31}$`)
 
-// minCrowd is the cohort watchdog's smallest group: a crowd of one network is no crowd.
-const minCrowd = 2
-
 type Set struct {
 	name  SetName
 	tempo float64
 	boxes bonuses.Pace
-	crowd int
 }
 
 func (s Set) TakeSnapshot() Snapshot {
-	return Snapshot{Name: s.name, Tempo: s.tempo, Boxes: s.boxes, Crowd: s.crowd}
+	return Snapshot{Name: s.name, Tempo: s.tempo, Boxes: s.boxes}
 }
 
 type Snapshot struct {
@@ -42,9 +38,6 @@ type Snapshot struct {
 	Tempo float64
 
 	Boxes bonuses.Pace
-
-	// How many networks of one prefix, in step, are banned as a crowd.
-	Crowd int
 }
 
 func (s Snapshot) Restore() (Set, error) {
@@ -58,9 +51,7 @@ func (s Snapshot) Restore() (Set, error) {
 			s.Boxes.MinInterval, s.Boxes.MaxInterval)
 	case s.Boxes.MaxChargesPerHour <= 0:
 		return Set{}, fmt.Errorf("%w: its hourly cap is %d, and must be above 0", ErrInvalidSet, s.Boxes.MaxChargesPerHour)
-	case s.Crowd < minCrowd:
-		return Set{}, fmt.Errorf("%w: a crowd is %d networks, and must be %d or more", ErrInvalidSet, s.Crowd, minCrowd)
 	}
 
-	return Set{name: s.Name, tempo: s.Tempo, boxes: s.Boxes, crowd: s.Crowd}, nil
+	return Set{name: s.Name, tempo: s.Tempo, boxes: s.Boxes}, nil
 }

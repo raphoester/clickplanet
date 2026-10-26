@@ -21,7 +21,7 @@ func setup(t *testing.T) (*override_rules_usecase.UseCase, *rules.MemoryLayerSto
 
 	sets := rules.NewMemoryStore()
 	set, err := rules.Snapshot{
-		Name: "rush", Tempo: 3, Crowd: 50,
+		Name: "rush", Tempo: 3,
 		Boxes: bonuses.Pace{MinInterval: time.Minute, MaxInterval: 2 * time.Minute, MaxChargesPerHour: 30},
 	}.Restore()
 	require.NoError(t, err)

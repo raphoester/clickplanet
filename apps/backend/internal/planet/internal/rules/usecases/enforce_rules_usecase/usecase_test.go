@@ -8,7 +8,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/facts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/usecases/enforce_rules_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -24,7 +26,6 @@ var plain = rules.Snapshot{
 	Name:  rules.Default,
 	Tempo: 1,
 	Boxes: bonuses.Pace{MinInterval: 4 * time.Minute, MaxInterval: 8 * time.Minute, MaxChargesPerHour: 12},
-	Crowd: 6,
 }
 
 func keep(t *testing.T, store *rules.MemoryStore, kept rules.Snapshot) {
@@ -39,7 +40,7 @@ func TestWithNoLayerTheFirstPassEnforcesTheDefault(t *testing.T) {
 	store, inForce := rules.NewMemoryStore(), &enforced{}
 	keep(t, store, plain)
 
-	played, err := enforce_rules_usecase.New(store, rules.NewMemoryLayerStore(), inForce, cptime.NewFixedClock(at)).Execute(t.Context())
+	played, err := enforce_rules_usecase.New(store, rules.NewMemoryLayerStore(), inForce, cptime.NewFixedClock(at), facts.NewLog(cptime.NewFixedClock(at))).Execute(t.Context())
 
 	require.NoError(t, err)
 	assert.Equal(t, plain, played)
@@ -49,7 +50,7 @@ func TestWithNoLayerTheFirstPassEnforcesTheDefault(t *testing.T) {
 func TestASetUnchangedIsNotEnforcedAgainAndAnEditIs(t *testing.T) {
 	store, inForce := rules.NewMemoryStore(), &enforced{}
 	keep(t, store, plain)
-	useCase := enforce_rules_usecase.New(store, rules.NewMemoryLayerStore(), inForce, cptime.NewFixedClock(at))
+	useCase := enforce_rules_usecase.New(store, rules.NewMemoryLayerStore(), inForce, cptime.NewFixedClock(at), facts.NewLog(cptime.NewFixedClock(at)))
 	_, err := useCase.Execute(t.Context())
 	require.NoError(t, err)
 
@@ -70,7 +71,7 @@ func TestASetUnchangedIsNotEnforcedAgainAndAnEditIs(t *testing.T) {
 func TestNoDefaultKeptIsAnErrorAndEnforcesNothing(t *testing.T) {
 	inForce := &enforced{}
 
-	_, err := enforce_rules_usecase.New(rules.NewMemoryStore(), rules.NewMemoryLayerStore(), inForce, cptime.NewFixedClock(at)).Execute(t.Context())
+	_, err := enforce_rules_usecase.New(rules.NewMemoryStore(), rules.NewMemoryLayerStore(), inForce, cptime.NewFixedClock(at), facts.NewLog(cptime.NewFixedClock(at))).Execute(t.Context())
 
 	require.ErrorIs(t, err, rules.ErrUnknownSet)
 	assert.Empty(t, inForce.sets)
@@ -79,7 +80,7 @@ func TestNoDefaultKeptIsAnErrorAndEnforcesNothing(t *testing.T) {
 func TestAStoreThatCannotBeReadKeepsTheRulesInForce(t *testing.T) {
 	store, inForce := rules.NewMemoryStore(), &enforced{}
 	keep(t, store, plain)
-	useCase := enforce_rules_usecase.New(store, rules.NewMemoryLayerStore(), inForce, cptime.NewFixedClock(at))
+	useCase := enforce_rules_usecase.New(store, rules.NewMemoryLayerStore(), inForce, cptime.NewFixedClock(at), facts.NewLog(cptime.NewFixedClock(at)))
 	_, err := useCase.Execute(t.Context())
 	require.NoError(t, err)
 
@@ -94,7 +95,6 @@ var rush = rules.Snapshot{
 	Name:  "rush",
 	Tempo: 3,
 	Boxes: bonuses.Pace{MinInterval: time.Minute, MaxInterval: 2 * time.Minute, MaxChargesPerHour: 30},
-	Crowd: 50,
 }
 
 func TestTheBaselineIsEnforcedThenAnOverrideOverItUntilItsEnd(t *testing.T) {
@@ -102,7 +102,7 @@ func TestTheBaselineIsEnforcedThenAnOverrideOverItUntilItsEnd(t *testing.T) {
 		cptime.NewFixedClock(at)
 	keep(t, store, plain)
 	keep(t, store, rush)
-	useCase := enforce_rules_usecase.New(store, layers, inForce, clock)
+	useCase := enforce_rules_usecase.New(store, layers, inForce, clock, facts.NewLog(clock))
 	finale := rules.BaselineSnapshot{Request: "season-0:finale", Set: "rush", AppliedAt: at}
 	require.NoError(t, layers.SaveBaseline(t.Context(), finale.Restore()))
 
@@ -127,7 +127,7 @@ func TestTheBaselineIsEnforcedThenAnOverrideOverItUntilItsEnd(t *testing.T) {
 func TestLayersThatCannotBeReadKeepTheRulesInForce(t *testing.T) {
 	store, layers, inForce := rules.NewMemoryStore(), rules.NewMemoryLayerStore(), &enforced{}
 	keep(t, store, plain)
-	useCase := enforce_rules_usecase.New(store, layers, inForce, cptime.NewFixedClock(at))
+	useCase := enforce_rules_usecase.New(store, layers, inForce, cptime.NewFixedClock(at), facts.NewLog(cptime.NewFixedClock(at)))
 	_, err := useCase.Execute(t.Context())
 	require.NoError(t, err)
 
@@ -136,4 +136,24 @@ func TestLayersThatCannotBeReadKeepTheRulesInForce(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Equal(t, []rules.Snapshot{plain}, inForce.sets)
+}
+
+func TestEachSetEnforcedIsToldWithItsTempoAndNoOtherIs(t *testing.T) {
+	store, inForce, clock := rules.NewMemoryStore(), &enforced{}, cptime.NewFixedClock(at)
+	keep(t, store, plain)
+	told := facts.NewLog(clock)
+	useCase := enforce_rules_usecase.New(store, rules.NewMemoryLayerStore(), inForce, clock, told)
+
+	_, err := useCase.Execute(t.Context())
+	require.NoError(t, err)
+	_, err = useCase.Execute(t.Context())
+	require.NoError(t, err)
+
+	heard := told.Take()
+	require.Len(t, heard, 1, "a set unchanged is not told again")
+	enforcedSet, ok := heard[0].(*planetv1.RuleSetEnforced)
+	require.True(t, ok)
+	assert.Equal(t, "default", enforcedSet.GetRuleSet())
+	assert.InDelta(t, 1, enforcedSet.GetTempo(), 1e-9)
+	assert.Equal(t, at, enforcedSet.GetEnforcedAt().AsTime())
 }

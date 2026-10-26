@@ -19,7 +19,6 @@ func setNamed(t *testing.T, name rules.SetName) rules.Set {
 		Name:  name,
 		Tempo: 3,
 		Boxes: bonuses.Pace{MinInterval: time.Minute, MaxInterval: 2 * time.Minute, MaxChargesPerHour: 30},
-		Crowd: 50,
 	}.Restore()
 	require.NoError(t, err)
 	return set

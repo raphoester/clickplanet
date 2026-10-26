@@ -41,11 +41,10 @@ func TestTheRulesEnforcedAreLoggedWithTheirValues(t *testing.T) {
 		Name:  "rush",
 		Tempo: 3,
 		Boxes: bonuses.Pace{MinInterval: time.Minute, MaxInterval: 2 * time.Minute, MaxChargesPerHour: 30},
-		Crowd: 50,
 	}})
 
 	require.NoError(t, err)
-	assert.Contains(t, logs, `level=WARN msg="rules in force" set=rush tempo=3 boxMinInterval=1m0s boxMaxInterval=2m0s boxMaxChargesPerHour=30 crowd=50`)
+	assert.Contains(t, logs, `level=WARN msg="rules in force" set=rush tempo=3 boxMinInterval=1m0s boxMaxInterval=2m0s boxMaxChargesPerHour=30`)
 }
 
 func TestAFailureIsLoggedButNotOneTheShutdownCut(t *testing.T) {

@@ -17,7 +17,6 @@ var rush = rules.Snapshot{
 	Name:  "rush",
 	Tempo: 3,
 	Boxes: bonuses.Pace{MinInterval: time.Minute, MaxInterval: 2 * time.Minute, MaxChargesPerHour: 30},
-	Crowd: 50,
 }
 
 func TestASetIsKeptAsWritten(t *testing.T) {

@@ -3,7 +3,13 @@ package enforce_rules_usecase
 import (
 	"context"
 	"fmt"
+	"time"
 
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
+	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/facts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -21,13 +27,17 @@ type Rules interface {
 	Enforce(set rules.Set)
 }
 
+type Facts interface {
+	Tell(fact facts.Fact)
+}
+
 type Executor interface {
 	// Execute answers the set it enforced, and none when the set to play had not changed.
 	Execute(ctx context.Context) (rules.Snapshot, error)
 }
 
-func New(sets Sets, layers Layers, inForce Rules, clock cptime.Clock) *UseCase {
-	return &UseCase{sets: sets, layers: layers, inForce: inForce, clock: clock}
+func New(sets Sets, layers Layers, inForce Rules, clock cptime.Clock, facts Facts) *UseCase {
+	return &UseCase{sets: sets, layers: layers, inForce: inForce, clock: clock, facts: facts}
 }
 
 // UseCase keeps the game on the set the database says to play now: what is kept is the truth, and what is in force
@@ -37,6 +47,7 @@ type UseCase struct {
 	layers  Layers
 	inForce Rules
 	clock   cptime.Clock
+	facts   Facts
 
 	enforced rules.Snapshot
 }
@@ -63,6 +74,9 @@ func (u *UseCase) Execute(ctx context.Context) (rules.Snapshot, error) {
 
 	u.inForce.Enforce(set)
 	u.enforced = kept
+	u.facts.Tell(func(at time.Time) proto.Message {
+		return &planetv1.RuleSetEnforced{RuleSet: string(kept.Name), Tempo: kept.Tempo, EnforcedAt: timestamppb.New(at)}
+	})
 
 	return kept, nil
 }

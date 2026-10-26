@@ -19,10 +19,6 @@ type recordedSchedule struct{ set []bonuses.Pace }
 
 func (r *recordedSchedule) SetPace(pace bonuses.Pace) { r.set = append(r.set, pace) }
 
-type recordedGuard struct{ set []int }
-
-func (r *recordedGuard) SetCrowd(members int) { r.set = append(r.set, members) }
-
 func setOf(t *testing.T, snapshot rules.Snapshot) rules.Set {
 	t.Helper()
 
@@ -35,33 +31,30 @@ var defaultSnapshot = rules.Snapshot{
 	Name:  rules.Default,
 	Tempo: 1,
 	Boxes: bonuses.Pace{MinInterval: 4 * time.Minute, MaxInterval: 8 * time.Minute, MaxChargesPerHour: 12},
-	Crowd: 6,
 }
 
 func TestNothingIsInForceBeforeTheFirstSet(t *testing.T) {
-	tempo, schedule, guard := &recordedTempo{}, &recordedSchedule{}, &recordedGuard{}
-	inForce := rules.NewInForce(tempo, schedule, guard)
+	tempo, schedule := &recordedTempo{}, &recordedSchedule{}
+	inForce := rules.NewInForce(tempo, schedule)
 
 	assert.Zero(t, inForce.Tempo(), "the antibot reads 0 as the plain tempo")
 	assert.Empty(t, tempo.set)
 	assert.Empty(t, schedule.set)
-	assert.Empty(t, guard.set)
 }
 
-func TestASetEnforcedSetsTheTempoTheBoxesAndTheCrowd(t *testing.T) {
-	tempo, schedule, guard := &recordedTempo{}, &recordedSchedule{}, &recordedGuard{}
-	inForce := rules.NewInForce(tempo, schedule, guard)
+func TestASetEnforcedSetsTheTempoAndTheBoxes(t *testing.T) {
+	tempo, schedule := &recordedTempo{}, &recordedSchedule{}
+	inForce := rules.NewInForce(tempo, schedule)
 
 	inForce.Enforce(setOf(t, rushSnapshot))
 
 	assert.InDelta(t, 3.0, inForce.Tempo(), 1e-9)
 	assert.Equal(t, []float64{3}, tempo.set)
 	assert.Equal(t, []bonuses.Pace{rushSnapshot.Boxes}, schedule.set)
-	assert.Equal(t, []int{50}, guard.set)
 }
 
 func TestEveryWatcherHearsOfEachSetEnforced(t *testing.T) {
-	inForce := rules.NewInForce(&recordedTempo{}, &recordedSchedule{}, &recordedGuard{})
+	inForce := rules.NewInForce(&recordedTempo{}, &recordedSchedule{})
 	first, leaveFirst := inForce.Watch()
 	defer leaveFirst()
 	second, leaveSecond := inForce.Watch()
@@ -74,7 +67,7 @@ func TestEveryWatcherHearsOfEachSetEnforced(t *testing.T) {
 }
 
 func TestAWatcherThatFellBehindHearsOnlyTheLatest(t *testing.T) {
-	inForce := rules.NewInForce(&recordedTempo{}, &recordedSchedule{}, &recordedGuard{})
+	inForce := rules.NewInForce(&recordedTempo{}, &recordedSchedule{})
 	watcher, leave := inForce.Watch()
 	defer leave()
 
@@ -90,7 +83,7 @@ func TestAWatcherThatFellBehindHearsOnlyTheLatest(t *testing.T) {
 }
 
 func TestAWatcherThatLeftHearsNothing(t *testing.T) {
-	inForce := rules.NewInForce(&recordedTempo{}, &recordedSchedule{}, &recordedGuard{})
+	inForce := rules.NewInForce(&recordedTempo{}, &recordedSchedule{})
 	watcher, leave := inForce.Watch()
 	leave()
 

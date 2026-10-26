@@ -166,6 +166,60 @@ func (j *Jury) Forget(before time.Time) {
 	}
 }
 
+func (j *Jury) Accounts() evidence.Section { return accounts{jury: j} }
+
+type accounts struct {
+	jury *Jury
+}
+
+type savedSighting struct {
+	Account string
+	Scope   string
+	At      int64
+}
+
+func (a accounts) Name() string { return "jury-accounts" }
+
+func (a accounts) Save() ([]byte, error) {
+	a.jury.mu.Lock()
+	saved := make([]savedSighting, 0, len(a.jury.accounts))
+	for account, seen := range a.jury.accounts {
+		saved = append(saved, savedSighting{Account: account, Scope: seen.scope, At: evidence.Nanos(seen.at)})
+	}
+	a.jury.mu.Unlock()
+
+	return evidence.Encode(saved)
+}
+
+func (a accounts) Load(data []byte) error {
+	var saved []savedSighting
+	if err := evidence.Decode(data, &saved); err != nil {
+		return err
+	}
+
+	loaded := make(map[string]sighting, len(saved))
+	for _, seen := range saved {
+		loaded[seen.Account] = sighting{scope: seen.Scope, at: evidence.Time(seen.At)}
+	}
+
+	a.jury.mu.Lock()
+	a.jury.accounts = loaded
+	a.jury.mu.Unlock()
+
+	return nil
+}
+
+func (a accounts) Forget(before time.Time) {
+	a.jury.mu.Lock()
+	defer a.jury.mu.Unlock()
+
+	for account, seen := range a.jury.accounts {
+		if seen.at.Before(before) {
+			delete(a.jury.accounts, account)
+		}
+	}
+}
+
 func (j *Jury) Resume(outage detect.Outage) {
 	j.mu.Lock()
 	defer j.mu.Unlock()

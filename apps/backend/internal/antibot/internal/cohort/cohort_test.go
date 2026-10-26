@@ -15,7 +15,7 @@ import (
 )
 
 func newWatchdog() *cohort.Watchdog {
-	w := cohort.New(cohort.Config{
+	return cohort.New(cohort.Config{
 		StartWindow:    5 * time.Second,
 		MinClicks:      20,
 		MinFlagShare:   0.9,
@@ -26,10 +26,10 @@ func newWatchdog() *cohort.Watchdog {
 		V4Bits:         24,
 		V6Bits:         44,
 		CertainCohorts: 3,
+		CertainMembers: 6,
+		CrowdBySet:     map[string]int{"rush": 50},
 		ChainWindow:    30 * time.Minute,
 	}, nil, nil)
-	w.SetCrowd(6)
-	return w
 }
 
 func at(clock string) time.Time {
@@ -301,37 +301,27 @@ func TestValidateRefusesBoundsThatCannotMeanAnything(t *testing.T) {
 	}
 }
 
-func TestARaisedCrowdBoundLeavesSixInStepSuspectAndASixPutsItBack(t *testing.T) {
+func TestTheRushSetLeavesSixInStepSuspectAndTheDefaultPutsTheCrowdBack(t *testing.T) {
 	identities := make([]identity, 0, 6)
 	for i := range 6 {
 		identities = append(identities, poolBot(fmt.Sprintf("2a00:8c40:f0c%x:%x::/64", i, 0x100+i), "19:00:00.000"))
 	}
 
-	raised := newWatchdog()
-	raised.SetCrowd(50)
-	for scope, r := range run(raised, replay(9, identities...)) {
+	rush := newWatchdog()
+	rush.Play("rush")
+	for scope, r := range run(rush, replay(9, identities...)) {
 		assert.Equal(t, detect.Suspect, r.verdict, scope)
 	}
 
-	again := newWatchdog()
-	again.SetCrowd(50)
-	again.SetCrowd(6)
-	for scope, r := range run(again, replay(9, identities...)) {
+	back := newWatchdog()
+	back.Play("rush")
+	back.Play("default")
+	for scope, r := range run(back, replay(9, identities...)) {
 		require.Equal(t, detect.Certain, r.verdict, scope)
-		assert.Equal(t, "crowd", r.evidence.Rule)
+		assert.Equal(t, "crowd", r.evidence.Rule, "a set the antibot does not list plays certainMembers")
 	}
 }
 
-func TestWithNoCrowdBoundNoCrowdIsCertain(t *testing.T) {
-	identities := make([]identity, 0, 6)
-	for i := range 6 {
-		identities = append(identities, poolBot(fmt.Sprintf("2a00:8c40:f0c%x:%x::/64", i, 0x100+i), "19:00:00.000"))
-	}
-
-	unset := newWatchdog()
-	unset.SetCrowd(0)
-
-	for scope, r := range run(unset, replay(9, identities...)) {
-		assert.NotEqual(t, "crowd", r.evidence.Rule, scope)
-	}
+func TestACrowdBoundUnderTwoIsRefused(t *testing.T) {
+	require.Error(t, cohort.Config{CrowdBySet: map[string]int{"rush": 1}}.Validate())
 }

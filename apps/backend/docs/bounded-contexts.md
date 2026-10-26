@@ -1,4 +1,4 @@
-# Seven bounded contexts, one process
+# Eight bounded contexts, one process
 
 - **`internal/planet/`** — the tile game: clicks, ownership, the map, the update stream.
 - **`internal/chat/`** — the live chat: messages, identity, retention.
@@ -7,6 +7,7 @@
 - **`internal/seasons/`** — the season calendar, each season's player standings and its daily rounds between countries, above the game. See [Seasons](seasons.md).
 - **`internal/support/`** — what a player sends the operator: a feature suggestion, a bug report or a report of another player. See [Support](support.md).
 - **`internal/missions/`** — the day's three missions of each flag, how far each account took them, and what each pays once done. See [Missions](missions.md).
+- **`internal/antibot/`** — whether a caller plays by hand: the watchdogs, the jury and the bans. It hears what callers do from planet and asks planet to refuse the ones it bans. See [Anti-bot](antibot.md).
 
 Beside them, **`internal/clips/`** is a module of the server too, for one thing: it keeps the numbers of the clips
 the clips job posts, for the operator alone. An admin service and its tables, no public route, no event, and nothing
@@ -14,18 +15,15 @@ it asks of another module. See [Clip stats](clip-stats.md).
 
 They share the process, the transport and the country list, and **nothing else**. None imports another; each owns its own domain types, its own proto package, its own storage adapter (where it has one) and its own edge.
 
-**A module never calls another module's code or reads its data in its own stack trace.** When one needs an answer from another it asks over Connect, on a loopback listener — see [Calling another module](composite-layer.md#calling-another-module). Six do: `planet`, `player`, `chat`, `seasons`, `support` and `missions` take the click token's verifying key from `auth`, `player` asks `auth` whether an account is linked and `planet` which countries an account took tiles for and from, `chat` asks `player` who posts: the username, or the guest code, `seasons` asks `player` who has a username and `planet` what each country holds, `support` asks `player` how to name the accounts of a report, and `missions` asks `planet` the flag an account pledged, what each flag holds and how big each country is, and `auth` whether an account is signed in. When one needs another to change something, it sends a command: `missions` commands `planet` to grant a mission's reward (`planet.v1.GrantCharges`), and `seasons` tells `planet` the rule set of each phase (`planet.v1.InternalService/ApplyRuleSet`, still a call over the internal listener). When one only has to say that something happened, it publishes an event on Redis Streams and never learns who listens — see [Telling other modules what happened](composite-layer.md#telling-other-modules-what-happened). `planet` publishes `TileTaken`, `BombLanded`, `Fortified`, `BonusClaimed` and `QuizAnswered`, `auth` publishes `AccountDeleted`, `SignedIn` and `SignedOut`, `chat` publishes `MessageSent` and `AccountMuted`, `player` publishes `StatsChanged`, and `seasons` publishes `RoundClosed` and `SeasonClosed`; `player` hears every one of them but `AccountMuted`, `RoundClosed` and `SeasonClosed`, `chat` hears `AccountMuted`, `BombLanded`, `Fortified`, `RoundClosed` and `SeasonClosed`, `seasons` and `missions` hear `TileTaken` and `AccountDeleted`, `missions` hears `SignedIn` too, and `planet`, `chat` and `support` hear `AccountDeleted` too.
+**A module never calls another module's code or reads its data in its own stack trace.** When one needs an answer from another it asks over Connect, on a loopback listener — see [Calling another module](composite-layer.md#calling-another-module). Six do: `planet`, `player`, `chat`, `seasons`, `support` and `missions` take the click token's verifying key from `auth`, `player` asks `auth` whether an account is linked and `planet` which countries an account took tiles for and from, `chat` asks `player` who posts: the username, or the guest code, `seasons` asks `player` who has a username and `planet` what each country holds, `support` asks `player` how to name the accounts of a report, and `missions` asks `planet` the flag an account pledged, what each flag holds and how big each country is, and `auth` whether an account is signed in. When one needs another to change something, it sends a command: `missions` commands `planet` to grant a mission's reward (`planet.v1.GrantCharges`), and `seasons` tells `planet` the rule set of each phase (`planet.v1.InternalService/ApplyRuleSet`, still a call over the internal listener), and `antibot` commands it to refuse or admit a caller (`planet.v1.RefuseCaller`, `AdmitCaller`). When one only has to say that something happened, it publishes an event on Redis Streams and never learns who listens — see [Telling other modules what happened](composite-layer.md#telling-other-modules-what-happened). `planet` publishes `TileTaken`, `BombLanded`, `Fortified`, `BonusClaimed` and `QuizAnswered`, and what callers did for whoever judges it (`ClickTried`, `MapRead`, `StreamOpened`, `BoxCaught`, `BoxLapsed`, `ForeignBoxClaimed`), `auth` publishes `AccountDeleted`, `SignedIn` and `SignedOut`, `chat` publishes `MessageSent` and `AccountMuted`, `player` publishes `StatsChanged`, and `seasons` publishes `RoundClosed` and `SeasonClosed`; `player` hears every one of them but `AccountMuted`, `RoundClosed` and `SeasonClosed`, `chat` hears `AccountMuted`, `BombLanded`, `Fortified`, `RoundClosed` and `SeasonClosed`, `seasons` and `missions` hear `TileTaken` and `AccountDeleted`, `missions` hears `SignedIn` too, and `planet`, `chat` and `support` hear `AccountDeleted` too; `antibot` hears planet's facts about callers.
+
+**A downstream module asks its upstream in the upstream's words.** `antibot` sends planet `RefuseCaller` and `AdmitCaller`, commands planet defines in its own proto package (`proto/planet/v1/commands.proto`) and consumes into its own table. Planet never hears the antibot's vocabulary: it tells what happened and is told whom to refuse. A command is an intent in the upstream's published language, not a fact, so it does not break the rule that facts flow from where they happen — see [Telling other modules what happened](composite-layer.md#telling-other-modules-what-happened).
 
 Bonus boxes live inside `internal/planet/` rather than beside it: what they grant
 is click allowance, and what carries them is the planet stream. A context of
 their own would have to import both.
 
-**`internal/antibot/` is a domain library, not a fifth context.** It has no proto
-package, no adapters and no `module.go`, and it cannot be wired without a caller
-composing it — the clicks edge does, the way it gates on `auth`. It is not a
-shared package because "is this caller a bot" is the business this game is in,
-while `shared` is for things that would read the same in any other program.
-`planet` → `antibot` is the only module-to-module import in the backend.
+**`internal/antibot/` was a domain library until 2026-10-26**, built by planet's click chain and called on every click: `planet` → `antibot` was the only module-to-module import. It is a module now, wired in `cmd/api` like the others, and no module imports another.
 
 **`internal/clips/` is mostly a job, with a binary of its own** (`cmd/clips`), and a small module of the server
 beside it. The job shares no process and no config with the server, and imports only `shared`: what it asks of the
@@ -55,7 +53,8 @@ root package**:
 | `player` | `Config`, `NewModule` |
 | `seasons` | `Config`, `NewModule` |
 | `support` | `Config`, `NewModule` |
-| `antibot` | `Config`, `Observer`, `Guard`, `New`, `Description`, `Click`, `Report`, `Sentence`, `Pardon`, `Examination`, `Reading` |
+| `missions` | `Config`, `NewModule` |
+| `antibot` | `Config`, `NewModule` |
 | `clips` | `ModuleConfig`, `NewModule` (the server's); `Config`, `ReplayConfig`, `Fetch`, `Choose`, `Schedule`, `Stats`, `Pick`, `Platform`, `PlatformsOf`, `Report`, `PlatformOutcome`, `StatsReport`, `TikTokLane`, `TikTokAccount`, `Unread` |
 
 That holds for `cmd/api` too: the composition root lists modules and cannot

@@ -36,6 +36,5 @@ func TestTheMigrationKeepsTheGamesOwnRulesAsTheDefault(t *testing.T) {
 		Name:  rules.Default,
 		Tempo: 1,
 		Boxes: bonuses.Pace{MinInterval: 4 * time.Minute, MaxInterval: 8 * time.Minute, MaxChargesPerHour: 12},
-		Crowd: 6,
 	}, set.TakeSnapshot(), "production's values on 25 October 2026")
 }

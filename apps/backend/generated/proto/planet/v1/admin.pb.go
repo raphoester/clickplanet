@@ -1174,20 +1174,23 @@ func (x *TopPlayersResponse) GetTotal() uint32 {
 }
 
 type Player struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	Scope          string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
-	AccountId      string                 `protobuf:"bytes,12,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
-	Tiles          uint32                 `protobuf:"varint,2,opt,name=tiles,proto3" json:"tiles,omitempty"`
-	FirstAt        *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=first_at,json=firstAt,proto3" json:"first_at,omitempty"`
-	LastAt         *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=last_at,json=lastAt,proto3" json:"last_at,omitempty"`
-	Banned         *bool                  `protobuf:"varint,5,opt,name=banned,proto3,oneof" json:"banned,omitempty"`
-	BannedUntil    *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=banned_until,json=bannedUntil,proto3" json:"banned_until,omitempty"`
-	Offence        uint32                 `protobuf:"varint,7,opt,name=offence,proto3" json:"offence,omitempty"`
-	ActiveFor      *durationpb.Duration   `protobuf:"bytes,8,opt,name=active_for,json=activeFor,proto3" json:"active_for,omitempty"`
-	TilesPerMinute float64                `protobuf:"fixed64,9,opt,name=tiles_per_minute,json=tilesPerMinute,proto3" json:"tiles_per_minute,omitempty"`
-	Takes          uint32                 `protobuf:"varint,10,opt,name=takes,proto3" json:"takes,omitempty"`
-	TakesPerMinute float64                `protobuf:"fixed64,11,opt,name=takes_per_minute,json=takesPerMinute,proto3" json:"takes_per_minute,omitempty"`
-	FlagCountryId  string                 `protobuf:"bytes,13,opt,name=flag_country_id,json=flagCountryId,proto3" json:"flag_country_id,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Scope       string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	AccountId   string                 `protobuf:"bytes,12,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	Tiles       uint32                 `protobuf:"varint,2,opt,name=tiles,proto3" json:"tiles,omitempty"`
+	FirstAt     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=first_at,json=firstAt,proto3" json:"first_at,omitempty"`
+	LastAt      *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=last_at,json=lastAt,proto3" json:"last_at,omitempty"`
+	Banned      *bool                  `protobuf:"varint,5,opt,name=banned,proto3,oneof" json:"banned,omitempty"`
+	BannedUntil *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=banned_until,json=bannedUntil,proto3" json:"banned_until,omitempty"`
+	// Planet keeps no offence: antibot.v1.AdminService/InspectPlayer says it.
+	//
+	// Deprecated: Marked as deprecated in planet/v1/admin.proto.
+	Offence        uint32               `protobuf:"varint,7,opt,name=offence,proto3" json:"offence,omitempty"`
+	ActiveFor      *durationpb.Duration `protobuf:"bytes,8,opt,name=active_for,json=activeFor,proto3" json:"active_for,omitempty"`
+	TilesPerMinute float64              `protobuf:"fixed64,9,opt,name=tiles_per_minute,json=tilesPerMinute,proto3" json:"tiles_per_minute,omitempty"`
+	Takes          uint32               `protobuf:"varint,10,opt,name=takes,proto3" json:"takes,omitempty"`
+	TakesPerMinute float64              `protobuf:"fixed64,11,opt,name=takes_per_minute,json=takesPerMinute,proto3" json:"takes_per_minute,omitempty"`
+	FlagCountryId  string               `protobuf:"bytes,13,opt,name=flag_country_id,json=flagCountryId,proto3" json:"flag_country_id,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -1271,6 +1274,7 @@ func (x *Player) GetBannedUntil() *timestamppb.Timestamp {
 	return nil
 }
 
+// Deprecated: Marked as deprecated in planet/v1/admin.proto.
 func (x *Player) GetOffence() uint32 {
 	if x != nil {
 		return x.Offence
@@ -2074,9 +2078,8 @@ type RuleSet struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Name  string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	// How many times faster than rateLimiter.perSecond every bucket refills.
-	Tempo         float64       `protobuf:"fixed64,2,opt,name=tempo,proto3" json:"tempo,omitempty"`
-	Boxes         *BoxPace      `protobuf:"bytes,3,opt,name=boxes,proto3" json:"boxes,omitempty"`
-	AntiBot       *AntiBotRules `protobuf:"bytes,4,opt,name=anti_bot,json=antiBot,proto3" json:"anti_bot,omitempty"`
+	Tempo         float64  `protobuf:"fixed64,2,opt,name=tempo,proto3" json:"tempo,omitempty"`
+	Boxes         *BoxPace `protobuf:"bytes,3,opt,name=boxes,proto3" json:"boxes,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2128,13 +2131,6 @@ func (x *RuleSet) GetTempo() float64 {
 func (x *RuleSet) GetBoxes() *BoxPace {
 	if x != nil {
 		return x.Boxes
-	}
-	return nil
-}
-
-func (x *RuleSet) GetAntiBot() *AntiBotRules {
-	if x != nil {
-		return x.AntiBot
 	}
 	return nil
 }
@@ -2199,51 +2195,6 @@ func (x *BoxPace) GetMaxChargesPerHour() uint32 {
 	return 0
 }
 
-type AntiBotRules struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// How many networks of one prefix, starting and clicking in step, are banned as a crowd.
-	Crowd         uint32 `protobuf:"varint,1,opt,name=crowd,proto3" json:"crowd,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *AntiBotRules) Reset() {
-	*x = AntiBotRules{}
-	mi := &file_planet_v1_admin_proto_msgTypes[32]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *AntiBotRules) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*AntiBotRules) ProtoMessage() {}
-
-func (x *AntiBotRules) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_admin_proto_msgTypes[32]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use AntiBotRules.ProtoReflect.Descriptor instead.
-func (*AntiBotRules) Descriptor() ([]byte, []int) {
-	return file_planet_v1_admin_proto_rawDescGZIP(), []int{32}
-}
-
-func (x *AntiBotRules) GetCrowd() uint32 {
-	if x != nil {
-		return x.Crowd
-	}
-	return 0
-}
-
 type SaveRuleSetRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Set           *RuleSet               `protobuf:"bytes,1,opt,name=set,proto3" json:"set,omitempty"`
@@ -2253,7 +2204,7 @@ type SaveRuleSetRequest struct {
 
 func (x *SaveRuleSetRequest) Reset() {
 	*x = SaveRuleSetRequest{}
-	mi := &file_planet_v1_admin_proto_msgTypes[33]
+	mi := &file_planet_v1_admin_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2265,7 +2216,7 @@ func (x *SaveRuleSetRequest) String() string {
 func (*SaveRuleSetRequest) ProtoMessage() {}
 
 func (x *SaveRuleSetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_admin_proto_msgTypes[33]
+	mi := &file_planet_v1_admin_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2278,7 +2229,7 @@ func (x *SaveRuleSetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SaveRuleSetRequest.ProtoReflect.Descriptor instead.
 func (*SaveRuleSetRequest) Descriptor() ([]byte, []int) {
-	return file_planet_v1_admin_proto_rawDescGZIP(), []int{33}
+	return file_planet_v1_admin_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *SaveRuleSetRequest) GetSet() *RuleSet {
@@ -2296,7 +2247,7 @@ type SaveRuleSetResponse struct {
 
 func (x *SaveRuleSetResponse) Reset() {
 	*x = SaveRuleSetResponse{}
-	mi := &file_planet_v1_admin_proto_msgTypes[34]
+	mi := &file_planet_v1_admin_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2308,7 +2259,7 @@ func (x *SaveRuleSetResponse) String() string {
 func (*SaveRuleSetResponse) ProtoMessage() {}
 
 func (x *SaveRuleSetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_admin_proto_msgTypes[34]
+	mi := &file_planet_v1_admin_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2321,7 +2272,7 @@ func (x *SaveRuleSetResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SaveRuleSetResponse.ProtoReflect.Descriptor instead.
 func (*SaveRuleSetResponse) Descriptor() ([]byte, []int) {
-	return file_planet_v1_admin_proto_rawDescGZIP(), []int{34}
+	return file_planet_v1_admin_proto_rawDescGZIP(), []int{33}
 }
 
 type OverrideRulesRequest struct {
@@ -2334,7 +2285,7 @@ type OverrideRulesRequest struct {
 
 func (x *OverrideRulesRequest) Reset() {
 	*x = OverrideRulesRequest{}
-	mi := &file_planet_v1_admin_proto_msgTypes[35]
+	mi := &file_planet_v1_admin_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2346,7 +2297,7 @@ func (x *OverrideRulesRequest) String() string {
 func (*OverrideRulesRequest) ProtoMessage() {}
 
 func (x *OverrideRulesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_admin_proto_msgTypes[35]
+	mi := &file_planet_v1_admin_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2359,7 +2310,7 @@ func (x *OverrideRulesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OverrideRulesRequest.ProtoReflect.Descriptor instead.
 func (*OverrideRulesRequest) Descriptor() ([]byte, []int) {
-	return file_planet_v1_admin_proto_rawDescGZIP(), []int{35}
+	return file_planet_v1_admin_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *OverrideRulesRequest) GetRuleSet() string {
@@ -2384,7 +2335,7 @@ type OverrideRulesResponse struct {
 
 func (x *OverrideRulesResponse) Reset() {
 	*x = OverrideRulesResponse{}
-	mi := &file_planet_v1_admin_proto_msgTypes[36]
+	mi := &file_planet_v1_admin_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2396,7 +2347,7 @@ func (x *OverrideRulesResponse) String() string {
 func (*OverrideRulesResponse) ProtoMessage() {}
 
 func (x *OverrideRulesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_admin_proto_msgTypes[36]
+	mi := &file_planet_v1_admin_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2409,7 +2360,7 @@ func (x *OverrideRulesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OverrideRulesResponse.ProtoReflect.Descriptor instead.
 func (*OverrideRulesResponse) Descriptor() ([]byte, []int) {
-	return file_planet_v1_admin_proto_rawDescGZIP(), []int{36}
+	return file_planet_v1_admin_proto_rawDescGZIP(), []int{35}
 }
 
 type EndOverrideRequest struct {
@@ -2420,7 +2371,7 @@ type EndOverrideRequest struct {
 
 func (x *EndOverrideRequest) Reset() {
 	*x = EndOverrideRequest{}
-	mi := &file_planet_v1_admin_proto_msgTypes[37]
+	mi := &file_planet_v1_admin_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2432,7 +2383,7 @@ func (x *EndOverrideRequest) String() string {
 func (*EndOverrideRequest) ProtoMessage() {}
 
 func (x *EndOverrideRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_admin_proto_msgTypes[37]
+	mi := &file_planet_v1_admin_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2445,7 +2396,7 @@ func (x *EndOverrideRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EndOverrideRequest.ProtoReflect.Descriptor instead.
 func (*EndOverrideRequest) Descriptor() ([]byte, []int) {
-	return file_planet_v1_admin_proto_rawDescGZIP(), []int{37}
+	return file_planet_v1_admin_proto_rawDescGZIP(), []int{36}
 }
 
 type EndOverrideResponse struct {
@@ -2456,7 +2407,7 @@ type EndOverrideResponse struct {
 
 func (x *EndOverrideResponse) Reset() {
 	*x = EndOverrideResponse{}
-	mi := &file_planet_v1_admin_proto_msgTypes[38]
+	mi := &file_planet_v1_admin_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2468,7 +2419,7 @@ func (x *EndOverrideResponse) String() string {
 func (*EndOverrideResponse) ProtoMessage() {}
 
 func (x *EndOverrideResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_admin_proto_msgTypes[38]
+	mi := &file_planet_v1_admin_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2481,7 +2432,7 @@ func (x *EndOverrideResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EndOverrideResponse.ProtoReflect.Descriptor instead.
 func (*EndOverrideResponse) Descriptor() ([]byte, []int) {
-	return file_planet_v1_admin_proto_rawDescGZIP(), []int{38}
+	return file_planet_v1_admin_proto_rawDescGZIP(), []int{37}
 }
 
 var File_planet_v1_admin_proto protoreflect.FileDescriptor
@@ -2585,7 +2536,7 @@ const file_planet_v1_admin_proto_rawDesc = "" +
 	"\x05limit\x18\x01 \x01(\rR\x05limit\"W\n" +
 	"\x12TopPlayersResponse\x12+\n" +
 	"\aplayers\x18\x01 \x03(\v2\x11.planet.v1.PlayerR\aplayers\x12\x14\n" +
-	"\x05total\x18\x02 \x01(\rR\x05total\"\x8c\x04\n" +
+	"\x05total\x18\x02 \x01(\rR\x05total\"\x90\x04\n" +
 	"\x06Player\x12\x14\n" +
 	"\x05scope\x18\x01 \x01(\tR\x05scope\x12\x1d\n" +
 	"\n" +
@@ -2594,8 +2545,8 @@ const file_planet_v1_admin_proto_rawDesc = "" +
 	"\bfirst_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\afirstAt\x123\n" +
 	"\alast_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x06lastAt\x12\x1b\n" +
 	"\x06banned\x18\x05 \x01(\bH\x00R\x06banned\x88\x01\x01\x12=\n" +
-	"\fbanned_until\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\vbannedUntil\x12\x18\n" +
-	"\aoffence\x18\a \x01(\rR\aoffence\x128\n" +
+	"\fbanned_until\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\vbannedUntil\x12\x1c\n" +
+	"\aoffence\x18\a \x01(\rB\x02\x18\x01R\aoffence\x128\n" +
 	"\n" +
 	"active_for\x18\b \x01(\v2\x19.google.protobuf.DurationR\tactiveFor\x12(\n" +
 	"\x10tiles_per_minute\x18\t \x01(\x01R\x0etilesPerMinute\x12\x14\n" +
@@ -2665,18 +2616,15 @@ const file_planet_v1_admin_proto_rawDesc = "" +
 	"\fRuleOverride\x12\x19\n" +
 	"\brule_set\x18\x01 \x01(\tR\aruleSet\x127\n" +
 	"\tstarts_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\bstartsAt\x123\n" +
-	"\aends_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x06endsAt\"\x91\x01\n" +
+	"\aends_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x06endsAt\"]\n" +
 	"\aRuleSet\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
 	"\x05tempo\x18\x02 \x01(\x01R\x05tempo\x12(\n" +
-	"\x05boxes\x18\x03 \x01(\v2\x12.planet.v1.BoxPaceR\x05boxes\x122\n" +
-	"\banti_bot\x18\x04 \x01(\v2\x17.planet.v1.AntiBotRulesR\aantiBot\"\xb6\x01\n" +
+	"\x05boxes\x18\x03 \x01(\v2\x12.planet.v1.BoxPaceR\x05boxes\"\xb6\x01\n" +
 	"\aBoxPace\x12<\n" +
 	"\fmin_interval\x18\x01 \x01(\v2\x19.google.protobuf.DurationR\vminInterval\x12<\n" +
 	"\fmax_interval\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\vmaxInterval\x12/\n" +
-	"\x14max_charges_per_hour\x18\x03 \x01(\rR\x11maxChargesPerHour\"$\n" +
-	"\fAntiBotRules\x12\x14\n" +
-	"\x05crowd\x18\x01 \x01(\rR\x05crowd\":\n" +
+	"\x14max_charges_per_hour\x18\x03 \x01(\rR\x11maxChargesPerHour\":\n" +
 	"\x12SaveRuleSetRequest\x12$\n" +
 	"\x03set\x18\x01 \x01(\v2\x12.planet.v1.RuleSetR\x03set\"\x15\n" +
 	"\x13SaveRuleSetResponse\"c\n" +
@@ -2685,18 +2633,18 @@ const file_planet_v1_admin_proto_rawDesc = "" +
 	"\x05until\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x05until\"\x17\n" +
 	"\x15OverrideRulesResponse\"\x14\n" +
 	"\x12EndOverrideRequest\"\x15\n" +
-	"\x13EndOverrideResponse2\x86\n" +
+	"\x13EndOverrideResponse2\x95\n" +
 	"\n" +
 	"\fAdminService\x12X\n" +
 	"\x0fReassignCountry\x12!.planet.v1.ReassignCountryRequest\x1a\".planet.v1.ReassignCountryResponse\x12L\n" +
 	"\vFindPlayers\x12\x1d.planet.v1.FindPlayersRequest\x1a\x1e.planet.v1.FindPlayersResponse\x12I\n" +
 	"\n" +
-	"TopPlayers\x12\x1c.planet.v1.TopPlayersRequest\x1a\x1d.planet.v1.TopPlayersResponse\x12F\n" +
-	"\tBanPlayer\x12\x1b.planet.v1.BanPlayerRequest\x1a\x1c.planet.v1.BanPlayerResponse\x12L\n" +
-	"\vUnbanPlayer\x12\x1d.planet.v1.UnbanPlayerRequest\x1a\x1e.planet.v1.UnbanPlayerResponse\x12O\n" +
+	"TopPlayers\x12\x1c.planet.v1.TopPlayersRequest\x1a\x1d.planet.v1.TopPlayersResponse\x12K\n" +
+	"\tBanPlayer\x12\x1b.planet.v1.BanPlayerRequest\x1a\x1c.planet.v1.BanPlayerResponse\"\x03\x88\x02\x01\x12Q\n" +
+	"\vUnbanPlayer\x12\x1d.planet.v1.UnbanPlayerRequest\x1a\x1e.planet.v1.UnbanPlayerResponse\"\x03\x88\x02\x01\x12O\n" +
 	"\fRevertPlayer\x12\x1e.planet.v1.RevertPlayerRequest\x1a\x1f.planet.v1.RevertPlayerResponse\x12[\n" +
-	"\x10PaintRandomTiles\x12\".planet.v1.PaintRandomTilesRequest\x1a#.planet.v1.PaintRandomTilesResponse\x12R\n" +
-	"\rInspectPlayer\x12\x1f.planet.v1.InspectPlayerRequest\x1a .planet.v1.InspectPlayerResponse\x12O\n" +
+	"\x10PaintRandomTiles\x12\".planet.v1.PaintRandomTilesRequest\x1a#.planet.v1.PaintRandomTilesResponse\x12W\n" +
+	"\rInspectPlayer\x12\x1f.planet.v1.InspectPlayerRequest\x1a .planet.v1.InspectPlayerResponse\"\x03\x88\x02\x01\x12O\n" +
 	"\fGrantCharges\x12\x1e.planet.v1.GrantChargesRequest\x1a\x1f.planet.v1.GrantChargesResponse\x12F\n" +
 	"\tGetReplay\x12\x1b.planet.v1.GetReplayRequest\x1a\x1c.planet.v1.GetReplayResponse\x12F\n" +
 	"\tGetLedger\x12\x1b.planet.v1.GetLedgerRequest\x1a\x1c.planet.v1.GetLedgerResponse\x12U\n" +
@@ -2721,7 +2669,7 @@ func file_planet_v1_admin_proto_rawDescGZIP() []byte {
 	return file_planet_v1_admin_proto_rawDescData
 }
 
-var file_planet_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 39)
+var file_planet_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 38)
 var file_planet_v1_admin_proto_goTypes = []any{
 	(*GetLedgerRequest)(nil),         // 0: planet.v1.GetLedgerRequest
 	(*GetLedgerResponse)(nil),        // 1: planet.v1.GetLedgerResponse
@@ -2755,104 +2703,102 @@ var file_planet_v1_admin_proto_goTypes = []any{
 	(*RuleOverride)(nil),             // 29: planet.v1.RuleOverride
 	(*RuleSet)(nil),                  // 30: planet.v1.RuleSet
 	(*BoxPace)(nil),                  // 31: planet.v1.BoxPace
-	(*AntiBotRules)(nil),             // 32: planet.v1.AntiBotRules
-	(*SaveRuleSetRequest)(nil),       // 33: planet.v1.SaveRuleSetRequest
-	(*SaveRuleSetResponse)(nil),      // 34: planet.v1.SaveRuleSetResponse
-	(*OverrideRulesRequest)(nil),     // 35: planet.v1.OverrideRulesRequest
-	(*OverrideRulesResponse)(nil),    // 36: planet.v1.OverrideRulesResponse
-	(*EndOverrideRequest)(nil),       // 37: planet.v1.EndOverrideRequest
-	(*EndOverrideResponse)(nil),      // 38: planet.v1.EndOverrideResponse
-	(*timestamppb.Timestamp)(nil),    // 39: google.protobuf.Timestamp
-	(*TileUpdate)(nil),               // 40: planet.v1.TileUpdate
-	(*GetMapResponse)(nil),           // 41: planet.v1.GetMapResponse
-	(*PlanetEvent)(nil),              // 42: planet.v1.PlanetEvent
-	(*ChargesHeld)(nil),              // 43: planet.v1.ChargesHeld
-	(*durationpb.Duration)(nil),      // 44: google.protobuf.Duration
-	(*GetTerritoriesRequest)(nil),    // 45: planet.v1.GetTerritoriesRequest
-	(*GetTerritoriesResponse)(nil),   // 46: planet.v1.GetTerritoriesResponse
+	(*SaveRuleSetRequest)(nil),       // 32: planet.v1.SaveRuleSetRequest
+	(*SaveRuleSetResponse)(nil),      // 33: planet.v1.SaveRuleSetResponse
+	(*OverrideRulesRequest)(nil),     // 34: planet.v1.OverrideRulesRequest
+	(*OverrideRulesResponse)(nil),    // 35: planet.v1.OverrideRulesResponse
+	(*EndOverrideRequest)(nil),       // 36: planet.v1.EndOverrideRequest
+	(*EndOverrideResponse)(nil),      // 37: planet.v1.EndOverrideResponse
+	(*timestamppb.Timestamp)(nil),    // 38: google.protobuf.Timestamp
+	(*TileUpdate)(nil),               // 39: planet.v1.TileUpdate
+	(*GetMapResponse)(nil),           // 40: planet.v1.GetMapResponse
+	(*PlanetEvent)(nil),              // 41: planet.v1.PlanetEvent
+	(*ChargesHeld)(nil),              // 42: planet.v1.ChargesHeld
+	(*durationpb.Duration)(nil),      // 43: google.protobuf.Duration
+	(*GetTerritoriesRequest)(nil),    // 44: planet.v1.GetTerritoriesRequest
+	(*GetTerritoriesResponse)(nil),   // 45: planet.v1.GetTerritoriesResponse
 }
 var file_planet_v1_admin_proto_depIdxs = []int32{
-	39, // 0: planet.v1.GetLedgerRequest.since:type_name -> google.protobuf.Timestamp
-	39, // 1: planet.v1.GetLedgerRequest.until:type_name -> google.protobuf.Timestamp
+	38, // 0: planet.v1.GetLedgerRequest.since:type_name -> google.protobuf.Timestamp
+	38, // 1: planet.v1.GetLedgerRequest.until:type_name -> google.protobuf.Timestamp
 	2,  // 2: planet.v1.GetLedgerResponse.changes:type_name -> planet.v1.LedgerChange
-	39, // 3: planet.v1.LedgerChange.at:type_name -> google.protobuf.Timestamp
-	40, // 4: planet.v1.LedgerChange.update:type_name -> planet.v1.TileUpdate
-	39, // 5: planet.v1.GetReplayRequest.since:type_name -> google.protobuf.Timestamp
-	39, // 6: planet.v1.GetReplayRequest.until:type_name -> google.protobuf.Timestamp
-	41, // 7: planet.v1.GetReplayResponse.opening:type_name -> planet.v1.GetMapResponse
+	38, // 3: planet.v1.LedgerChange.at:type_name -> google.protobuf.Timestamp
+	39, // 4: planet.v1.LedgerChange.update:type_name -> planet.v1.TileUpdate
+	38, // 5: planet.v1.GetReplayRequest.since:type_name -> google.protobuf.Timestamp
+	38, // 6: planet.v1.GetReplayRequest.until:type_name -> google.protobuf.Timestamp
+	40, // 7: planet.v1.GetReplayResponse.opening:type_name -> planet.v1.GetMapResponse
 	5,  // 8: planet.v1.GetReplayResponse.events:type_name -> planet.v1.ReplayedEvent
-	39, // 9: planet.v1.GetReplayResponse.since:type_name -> google.protobuf.Timestamp
-	39, // 10: planet.v1.GetReplayResponse.until:type_name -> google.protobuf.Timestamp
-	39, // 11: planet.v1.ReplayedEvent.at:type_name -> google.protobuf.Timestamp
-	42, // 12: planet.v1.ReplayedEvent.event:type_name -> planet.v1.PlanetEvent
-	43, // 13: planet.v1.GrantChargesResponse.before:type_name -> planet.v1.ChargesHeld
-	43, // 14: planet.v1.GrantChargesResponse.after:type_name -> planet.v1.ChargesHeld
-	39, // 15: planet.v1.InspectPlayerResponse.banned_until:type_name -> google.protobuf.Timestamp
-	39, // 16: planet.v1.InspectPlayerResponse.pardoned_until:type_name -> google.protobuf.Timestamp
+	38, // 9: planet.v1.GetReplayResponse.since:type_name -> google.protobuf.Timestamp
+	38, // 10: planet.v1.GetReplayResponse.until:type_name -> google.protobuf.Timestamp
+	38, // 11: planet.v1.ReplayedEvent.at:type_name -> google.protobuf.Timestamp
+	41, // 12: planet.v1.ReplayedEvent.event:type_name -> planet.v1.PlanetEvent
+	42, // 13: planet.v1.GrantChargesResponse.before:type_name -> planet.v1.ChargesHeld
+	42, // 14: planet.v1.GrantChargesResponse.after:type_name -> planet.v1.ChargesHeld
+	38, // 15: planet.v1.InspectPlayerResponse.banned_until:type_name -> google.protobuf.Timestamp
+	38, // 16: planet.v1.InspectPlayerResponse.pardoned_until:type_name -> google.protobuf.Timestamp
 	12, // 17: planet.v1.InspectPlayerResponse.readings:type_name -> planet.v1.WatchdogReading
-	44, // 18: planet.v1.InspectPlayerResponse.active_for:type_name -> google.protobuf.Duration
-	44, // 19: planet.v1.InspectPlayerResponse.longest_gap:type_name -> google.protobuf.Duration
-	39, // 20: planet.v1.InspectPlayerResponse.last_click_at:type_name -> google.protobuf.Timestamp
-	39, // 21: planet.v1.WatchdogReading.at:type_name -> google.protobuf.Timestamp
+	43, // 18: planet.v1.InspectPlayerResponse.active_for:type_name -> google.protobuf.Duration
+	43, // 19: planet.v1.InspectPlayerResponse.longest_gap:type_name -> google.protobuf.Duration
+	38, // 20: planet.v1.InspectPlayerResponse.last_click_at:type_name -> google.protobuf.Timestamp
+	38, // 21: planet.v1.WatchdogReading.at:type_name -> google.protobuf.Timestamp
 	17, // 22: planet.v1.FindPlayersResponse.players:type_name -> planet.v1.Player
 	17, // 23: planet.v1.TopPlayersResponse.players:type_name -> planet.v1.Player
-	39, // 24: planet.v1.Player.first_at:type_name -> google.protobuf.Timestamp
-	39, // 25: planet.v1.Player.last_at:type_name -> google.protobuf.Timestamp
-	39, // 26: planet.v1.Player.banned_until:type_name -> google.protobuf.Timestamp
-	44, // 27: planet.v1.Player.active_for:type_name -> google.protobuf.Duration
-	44, // 28: planet.v1.BanPlayerRequest.duration:type_name -> google.protobuf.Duration
-	39, // 29: planet.v1.BanPlayerResponse.banned_until:type_name -> google.protobuf.Timestamp
-	39, // 30: planet.v1.UnbanPlayerResponse.banned_until:type_name -> google.protobuf.Timestamp
-	39, // 31: planet.v1.UnbanPlayerResponse.pardoned_until:type_name -> google.protobuf.Timestamp
+	38, // 24: planet.v1.Player.first_at:type_name -> google.protobuf.Timestamp
+	38, // 25: planet.v1.Player.last_at:type_name -> google.protobuf.Timestamp
+	38, // 26: planet.v1.Player.banned_until:type_name -> google.protobuf.Timestamp
+	43, // 27: planet.v1.Player.active_for:type_name -> google.protobuf.Duration
+	43, // 28: planet.v1.BanPlayerRequest.duration:type_name -> google.protobuf.Duration
+	38, // 29: planet.v1.BanPlayerResponse.banned_until:type_name -> google.protobuf.Timestamp
+	38, // 30: planet.v1.UnbanPlayerResponse.banned_until:type_name -> google.protobuf.Timestamp
+	38, // 31: planet.v1.UnbanPlayerResponse.pardoned_until:type_name -> google.protobuf.Timestamp
 	30, // 32: planet.v1.GetRulesResponse.sets:type_name -> planet.v1.RuleSet
 	28, // 33: planet.v1.GetRulesResponse.baselines:type_name -> planet.v1.RuleBaseline
 	29, // 34: planet.v1.GetRulesResponse.override:type_name -> planet.v1.RuleOverride
-	39, // 35: planet.v1.RuleBaseline.applied_at:type_name -> google.protobuf.Timestamp
-	39, // 36: planet.v1.RuleOverride.starts_at:type_name -> google.protobuf.Timestamp
-	39, // 37: planet.v1.RuleOverride.ends_at:type_name -> google.protobuf.Timestamp
+	38, // 35: planet.v1.RuleBaseline.applied_at:type_name -> google.protobuf.Timestamp
+	38, // 36: planet.v1.RuleOverride.starts_at:type_name -> google.protobuf.Timestamp
+	38, // 37: planet.v1.RuleOverride.ends_at:type_name -> google.protobuf.Timestamp
 	31, // 38: planet.v1.RuleSet.boxes:type_name -> planet.v1.BoxPace
-	32, // 39: planet.v1.RuleSet.anti_bot:type_name -> planet.v1.AntiBotRules
-	44, // 40: planet.v1.BoxPace.min_interval:type_name -> google.protobuf.Duration
-	44, // 41: planet.v1.BoxPace.max_interval:type_name -> google.protobuf.Duration
-	30, // 42: planet.v1.SaveRuleSetRequest.set:type_name -> planet.v1.RuleSet
-	39, // 43: planet.v1.OverrideRulesRequest.until:type_name -> google.protobuf.Timestamp
-	24, // 44: planet.v1.AdminService.ReassignCountry:input_type -> planet.v1.ReassignCountryRequest
-	13, // 45: planet.v1.AdminService.FindPlayers:input_type -> planet.v1.FindPlayersRequest
-	15, // 46: planet.v1.AdminService.TopPlayers:input_type -> planet.v1.TopPlayersRequest
-	18, // 47: planet.v1.AdminService.BanPlayer:input_type -> planet.v1.BanPlayerRequest
-	20, // 48: planet.v1.AdminService.UnbanPlayer:input_type -> planet.v1.UnbanPlayerRequest
-	22, // 49: planet.v1.AdminService.RevertPlayer:input_type -> planet.v1.RevertPlayerRequest
-	8,  // 50: planet.v1.AdminService.PaintRandomTiles:input_type -> planet.v1.PaintRandomTilesRequest
-	10, // 51: planet.v1.AdminService.InspectPlayer:input_type -> planet.v1.InspectPlayerRequest
-	6,  // 52: planet.v1.AdminService.GrantCharges:input_type -> planet.v1.GrantChargesRequest
-	3,  // 53: planet.v1.AdminService.GetReplay:input_type -> planet.v1.GetReplayRequest
-	0,  // 54: planet.v1.AdminService.GetLedger:input_type -> planet.v1.GetLedgerRequest
-	45, // 55: planet.v1.AdminService.GetTerritories:input_type -> planet.v1.GetTerritoriesRequest
-	26, // 56: planet.v1.AdminService.GetRules:input_type -> planet.v1.GetRulesRequest
-	33, // 57: planet.v1.AdminService.SaveRuleSet:input_type -> planet.v1.SaveRuleSetRequest
-	35, // 58: planet.v1.AdminService.OverrideRules:input_type -> planet.v1.OverrideRulesRequest
-	37, // 59: planet.v1.AdminService.EndOverride:input_type -> planet.v1.EndOverrideRequest
-	25, // 60: planet.v1.AdminService.ReassignCountry:output_type -> planet.v1.ReassignCountryResponse
-	14, // 61: planet.v1.AdminService.FindPlayers:output_type -> planet.v1.FindPlayersResponse
-	16, // 62: planet.v1.AdminService.TopPlayers:output_type -> planet.v1.TopPlayersResponse
-	19, // 63: planet.v1.AdminService.BanPlayer:output_type -> planet.v1.BanPlayerResponse
-	21, // 64: planet.v1.AdminService.UnbanPlayer:output_type -> planet.v1.UnbanPlayerResponse
-	23, // 65: planet.v1.AdminService.RevertPlayer:output_type -> planet.v1.RevertPlayerResponse
-	9,  // 66: planet.v1.AdminService.PaintRandomTiles:output_type -> planet.v1.PaintRandomTilesResponse
-	11, // 67: planet.v1.AdminService.InspectPlayer:output_type -> planet.v1.InspectPlayerResponse
-	7,  // 68: planet.v1.AdminService.GrantCharges:output_type -> planet.v1.GrantChargesResponse
-	4,  // 69: planet.v1.AdminService.GetReplay:output_type -> planet.v1.GetReplayResponse
-	1,  // 70: planet.v1.AdminService.GetLedger:output_type -> planet.v1.GetLedgerResponse
-	46, // 71: planet.v1.AdminService.GetTerritories:output_type -> planet.v1.GetTerritoriesResponse
-	27, // 72: planet.v1.AdminService.GetRules:output_type -> planet.v1.GetRulesResponse
-	34, // 73: planet.v1.AdminService.SaveRuleSet:output_type -> planet.v1.SaveRuleSetResponse
-	36, // 74: planet.v1.AdminService.OverrideRules:output_type -> planet.v1.OverrideRulesResponse
-	38, // 75: planet.v1.AdminService.EndOverride:output_type -> planet.v1.EndOverrideResponse
-	60, // [60:76] is the sub-list for method output_type
-	44, // [44:60] is the sub-list for method input_type
-	44, // [44:44] is the sub-list for extension type_name
-	44, // [44:44] is the sub-list for extension extendee
-	0,  // [0:44] is the sub-list for field type_name
+	43, // 39: planet.v1.BoxPace.min_interval:type_name -> google.protobuf.Duration
+	43, // 40: planet.v1.BoxPace.max_interval:type_name -> google.protobuf.Duration
+	30, // 41: planet.v1.SaveRuleSetRequest.set:type_name -> planet.v1.RuleSet
+	38, // 42: planet.v1.OverrideRulesRequest.until:type_name -> google.protobuf.Timestamp
+	24, // 43: planet.v1.AdminService.ReassignCountry:input_type -> planet.v1.ReassignCountryRequest
+	13, // 44: planet.v1.AdminService.FindPlayers:input_type -> planet.v1.FindPlayersRequest
+	15, // 45: planet.v1.AdminService.TopPlayers:input_type -> planet.v1.TopPlayersRequest
+	18, // 46: planet.v1.AdminService.BanPlayer:input_type -> planet.v1.BanPlayerRequest
+	20, // 47: planet.v1.AdminService.UnbanPlayer:input_type -> planet.v1.UnbanPlayerRequest
+	22, // 48: planet.v1.AdminService.RevertPlayer:input_type -> planet.v1.RevertPlayerRequest
+	8,  // 49: planet.v1.AdminService.PaintRandomTiles:input_type -> planet.v1.PaintRandomTilesRequest
+	10, // 50: planet.v1.AdminService.InspectPlayer:input_type -> planet.v1.InspectPlayerRequest
+	6,  // 51: planet.v1.AdminService.GrantCharges:input_type -> planet.v1.GrantChargesRequest
+	3,  // 52: planet.v1.AdminService.GetReplay:input_type -> planet.v1.GetReplayRequest
+	0,  // 53: planet.v1.AdminService.GetLedger:input_type -> planet.v1.GetLedgerRequest
+	44, // 54: planet.v1.AdminService.GetTerritories:input_type -> planet.v1.GetTerritoriesRequest
+	26, // 55: planet.v1.AdminService.GetRules:input_type -> planet.v1.GetRulesRequest
+	32, // 56: planet.v1.AdminService.SaveRuleSet:input_type -> planet.v1.SaveRuleSetRequest
+	34, // 57: planet.v1.AdminService.OverrideRules:input_type -> planet.v1.OverrideRulesRequest
+	36, // 58: planet.v1.AdminService.EndOverride:input_type -> planet.v1.EndOverrideRequest
+	25, // 59: planet.v1.AdminService.ReassignCountry:output_type -> planet.v1.ReassignCountryResponse
+	14, // 60: planet.v1.AdminService.FindPlayers:output_type -> planet.v1.FindPlayersResponse
+	16, // 61: planet.v1.AdminService.TopPlayers:output_type -> planet.v1.TopPlayersResponse
+	19, // 62: planet.v1.AdminService.BanPlayer:output_type -> planet.v1.BanPlayerResponse
+	21, // 63: planet.v1.AdminService.UnbanPlayer:output_type -> planet.v1.UnbanPlayerResponse
+	23, // 64: planet.v1.AdminService.RevertPlayer:output_type -> planet.v1.RevertPlayerResponse
+	9,  // 65: planet.v1.AdminService.PaintRandomTiles:output_type -> planet.v1.PaintRandomTilesResponse
+	11, // 66: planet.v1.AdminService.InspectPlayer:output_type -> planet.v1.InspectPlayerResponse
+	7,  // 67: planet.v1.AdminService.GrantCharges:output_type -> planet.v1.GrantChargesResponse
+	4,  // 68: planet.v1.AdminService.GetReplay:output_type -> planet.v1.GetReplayResponse
+	1,  // 69: planet.v1.AdminService.GetLedger:output_type -> planet.v1.GetLedgerResponse
+	45, // 70: planet.v1.AdminService.GetTerritories:output_type -> planet.v1.GetTerritoriesResponse
+	27, // 71: planet.v1.AdminService.GetRules:output_type -> planet.v1.GetRulesResponse
+	33, // 72: planet.v1.AdminService.SaveRuleSet:output_type -> planet.v1.SaveRuleSetResponse
+	35, // 73: planet.v1.AdminService.OverrideRules:output_type -> planet.v1.OverrideRulesResponse
+	37, // 74: planet.v1.AdminService.EndOverride:output_type -> planet.v1.EndOverrideResponse
+	59, // [59:75] is the sub-list for method output_type
+	43, // [43:59] is the sub-list for method input_type
+	43, // [43:43] is the sub-list for extension type_name
+	43, // [43:43] is the sub-list for extension extendee
+	0,  // [0:43] is the sub-list for field type_name
 }
 
 func init() { file_planet_v1_admin_proto_init() }
@@ -2870,7 +2816,7 @@ func file_planet_v1_admin_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_planet_v1_admin_proto_rawDesc), len(file_planet_v1_admin_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   39,
+			NumMessages:   38,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

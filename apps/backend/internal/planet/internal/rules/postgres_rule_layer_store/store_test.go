@@ -33,7 +33,6 @@ func keepSets(t *testing.T, sets *postgres_rule_set_store.Store, names ...rules.
 			Name:  name,
 			Tempo: 1,
 			Boxes: bonuses.Pace{MinInterval: time.Minute, MaxInterval: time.Minute, MaxChargesPerHour: 1},
-			Crowd: 2,
 		}.Restore()
 		require.NoError(t, err)
 		require.NoError(t, sets.Save(t.Context(), set))

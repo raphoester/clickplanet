@@ -22,7 +22,7 @@ func TestTheExampleConfigStillReachesTheStructs(t *testing.T) {
 	var config Config
 	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
 
-	require.True(t, config.Planet.AntiBot.Enabled)
+	require.True(t, config.AntiBot.Enabled)
 
 	assert.Equal(t, 25, config.Planet.Bonus.Enclose.MaxTiles)
 	assert.Equal(t, 8, config.Planet.Bonus.Spread.Clicks)
@@ -47,42 +47,45 @@ func TestTheExampleConfigStillReachesTheStructs(t *testing.T) {
 	assert.Equal(t, 5*time.Minute, config.Planet.Ledger.SweepInterval)
 	assert.Equal(t, time.Second, config.Planet.LedgerStorage.FlushInterval)
 
-	assert.False(t, config.Planet.AntiBot.Bans.Enforce, "the example must ship observing only")
-	assert.Equal(t, []time.Duration{24 * time.Hour, 7 * 24 * time.Hour, 3 * 365 * 24 * time.Hour}, config.Planet.AntiBot.Bans.BanDurations)
-	assert.Equal(t, "antibot", config.Planet.AntiBot.Database.Schema)
-	assert.Equal(t, 5*time.Minute, config.Planet.AntiBot.Bans.ReflagInterval)
+	assert.False(t, config.AntiBot.Bans.Enforce, "the example must ship observing only")
+	assert.Equal(t, []time.Duration{24 * time.Hour, 7 * 24 * time.Hour, 3 * 365 * 24 * time.Hour}, config.AntiBot.Bans.BanDurations)
+	assert.Equal(t, "antibot", config.AntiBot.Database.Schema)
+	assert.Equal(t, 5*time.Minute, config.AntiBot.Bans.ReflagInterval)
 
-	assert.Equal(t, 2, config.Planet.AntiBot.Jury.MinSuspects)
-	assert.Equal(t, 10*time.Minute, config.Planet.AntiBot.Jury.SuspicionWindow)
+	assert.Equal(t, 2, config.AntiBot.Jury.MinSuspects)
+	assert.Equal(t, 10*time.Minute, config.AntiBot.Jury.SuspicionWindow)
 
-	assert.Equal(t, time.Minute, config.Planet.AntiBot.Evidence.SaveInterval)
-	assert.Equal(t, 72*time.Hour, config.Planet.AntiBot.Evidence.Retention)
+	assert.Equal(t, time.Minute, config.AntiBot.Evidence.SaveInterval)
+	assert.Equal(t, 72*time.Hour, config.AntiBot.Evidence.Retention)
 
-	require.True(t, config.Planet.AntiBot.Retaker.Enabled)
-	assert.Equal(t, 5*time.Second, config.Planet.AntiBot.Retaker.Detector.ReactionWindow)
-	assert.Equal(t, 12, config.Planet.AntiBot.Retaker.Detector.MinReactions)
-	assert.Equal(t, 120*time.Millisecond, config.Planet.AntiBot.Retaker.Detector.MaxSpread)
-	assert.Equal(t, 250*time.Millisecond, config.Planet.AntiBot.Retaker.Detector.MaxMedian)
+	require.True(t, config.AntiBot.Retaker.Enabled)
+	assert.Equal(t, 5*time.Second, config.AntiBot.Retaker.Detector.ReactionWindow)
+	assert.Equal(t, 12, config.AntiBot.Retaker.Detector.MinReactions)
+	assert.Equal(t, 120*time.Millisecond, config.AntiBot.Retaker.Detector.MaxSpread)
+	assert.Equal(t, 250*time.Millisecond, config.AntiBot.Retaker.Detector.MaxMedian)
 
-	require.True(t, config.Planet.AntiBot.Sequencer.Enabled)
-	assert.Equal(t, 40, config.Planet.AntiBot.Sequencer.Detector.MinSteps)
-	assert.InDelta(t, 0.75, config.Planet.AntiBot.Sequencer.Detector.MinShare, 1e-9)
-	assert.Equal(t, 200, config.Planet.AntiBot.Sequencer.Detector.CertainSteps)
-	assert.InDelta(t, 0.95, config.Planet.AntiBot.Sequencer.Detector.CertainShare, 1e-9)
+	assert.Equal(t, map[string]int{"rush": 50}, config.AntiBot.Cohort.Detector.CrowdBySet,
+		"players who start the Final Battle together are no crowd")
 
-	require.True(t, config.Planet.AntiBot.Metronome.Enabled)
-	assert.Equal(t, 3*time.Second, config.Planet.AntiBot.Metronome.Detector.MaxGap)
-	assert.Equal(t, 120*time.Millisecond, config.Planet.AntiBot.Metronome.Detector.MaxSpread)
-	assert.Equal(t, 120, config.Planet.AntiBot.Metronome.Detector.MinClicks)
-	assert.Equal(t, 30*time.Minute, config.Planet.AntiBot.Metronome.Detector.CertainFor)
-	assert.Equal(t, 900, config.Planet.AntiBot.Metronome.Detector.CertainClicks)
+	require.True(t, config.AntiBot.Sequencer.Enabled)
+	assert.Equal(t, 40, config.AntiBot.Sequencer.Detector.MinSteps)
+	assert.InDelta(t, 0.75, config.AntiBot.Sequencer.Detector.MinShare, 1e-9)
+	assert.Equal(t, 200, config.AntiBot.Sequencer.Detector.CertainSteps)
+	assert.InDelta(t, 0.95, config.AntiBot.Sequencer.Detector.CertainShare, 1e-9)
 
-	require.True(t, config.Planet.AntiBot.Scraper.Enabled)
-	assert.InDelta(t, 5, config.Planet.AntiBot.Scraper.Detector.MinMaps, 1e-9)
-	assert.InDelta(t, 15, config.Planet.AntiBot.Scraper.Detector.CertainMaps, 1e-9)
-	assert.Equal(t, 15*time.Minute, config.Planet.AntiBot.Scraper.Detector.TrackWindow)
+	require.True(t, config.AntiBot.Metronome.Enabled)
+	assert.Equal(t, 3*time.Second, config.AntiBot.Metronome.Detector.MaxGap)
+	assert.Equal(t, 120*time.Millisecond, config.AntiBot.Metronome.Detector.MaxSpread)
+	assert.Equal(t, 120, config.AntiBot.Metronome.Detector.MinClicks)
+	assert.Equal(t, 30*time.Minute, config.AntiBot.Metronome.Detector.CertainFor)
+	assert.Equal(t, 900, config.AntiBot.Metronome.Detector.CertainClicks)
 
-	churner := config.Planet.AntiBot.Churner
+	require.True(t, config.AntiBot.Scraper.Enabled)
+	assert.InDelta(t, 5, config.AntiBot.Scraper.Detector.MinMaps, 1e-9)
+	assert.InDelta(t, 15, config.AntiBot.Scraper.Detector.CertainMaps, 1e-9)
+	assert.Equal(t, 15*time.Minute, config.AntiBot.Scraper.Detector.TrackWindow)
+
+	churner := config.AntiBot.Churner
 	require.True(t, churner.Enabled)
 	assert.Equal(t, time.Hour, churner.Detector.Window)
 	assert.Equal(t, 6, churner.Detector.V6.CertainAccounts)
@@ -91,7 +94,7 @@ func TestTheExampleConfigStillReachesTheStructs(t *testing.T) {
 	assert.Equal(t, 32, churner.Detector.Relay.V6Bits)
 	assert.Equal(t, 6, churner.Detector.Relay.CertainLinks)
 
-	hopper := config.Planet.AntiBot.Hopper
+	hopper := config.AntiBot.Hopper
 	require.True(t, hopper.Enabled)
 	assert.InDelta(t, 45, hopper.Detector.MinAngle, 1e-9)
 	assert.Equal(t, 100*time.Millisecond, hopper.Detector.MinGap)
@@ -100,7 +103,7 @@ func TestTheExampleConfigStillReachesTheStructs(t *testing.T) {
 	assert.InDelta(t, 0.4, hopper.Detector.MinShare, 1e-9)
 	assert.Zero(t, hopper.Detector.CertainShare, "it only corroborates")
 
-	rotator := config.Planet.AntiBot.Rotator
+	rotator := config.AntiBot.Rotator
 	require.True(t, rotator.Enabled)
 	assert.Equal(t, 5*time.Minute, rotator.Detector.Slot)
 	assert.Equal(t, 24*time.Hour, rotator.Detector.Window)
@@ -432,9 +435,9 @@ func productionConfig(t *testing.T) Config {
 func TestTheProductionConfigEnforcesBans(t *testing.T) {
 	config := productionConfig(t)
 
-	assert.True(t, config.Planet.AntiBot.Enabled)
-	assert.True(t, config.Planet.AntiBot.Bans.Enforce, "a key the config does not read leaves bans off without a word")
-	assert.Equal(t, []time.Duration{24 * time.Hour, 7 * 24 * time.Hour, 3 * 365 * 24 * time.Hour}, config.Planet.AntiBot.Bans.BanDurations)
+	assert.True(t, config.AntiBot.Enabled)
+	assert.True(t, config.AntiBot.Bans.Enforce, "a key the config does not read leaves bans off without a word")
+	assert.Equal(t, []time.Duration{24 * time.Hour, 7 * 24 * time.Hour, 3 * 365 * 24 * time.Hour}, config.AntiBot.Bans.BanDurations)
 }
 
 func TestTheProductionConfigTakesFilesInItsBucketAndNeedsItsSecret(t *testing.T) {
@@ -461,9 +464,20 @@ func TestEveryModuleOfProductionTalksToTheSameRedis(t *testing.T) {
 	for name, redis := range map[string]cpredis.Config{
 		"auth": config.Auth.Redis, "chat": config.Chat.Redis, "player": config.Player.Redis,
 		"seasons": config.Seasons.Redis, "support": config.Support.Redis, "missions": config.Missions.Redis,
+		"antiBot": config.AntiBot.Redis,
 	} {
 		assert.Equal(t, config.Planet.Redis, redis, "%s.redis is the planet's block", name)
 	}
 	assert.Equal(t, "redis:6379", config.Planet.Redis.Address)
 	assert.Equal(t, "a-secret", config.Planet.Redis.Password, "from REDIS_PASSWORD")
+}
+
+func TestTheAntibotKeepsItsKeysOutsideThePlanetsBlock(t *testing.T) {
+	config := productionConfig(t)
+
+	require.True(t, config.AntiBot.Enabled)
+	assert.True(t, config.AntiBot.Bans.Enforce)
+	assert.Equal(t, "antibot", config.AntiBot.Database.Schema)
+	assert.Equal(t, 400*time.Millisecond, config.AntiBot.Metronome.Detector.MaxSpread)
+	require.NoError(t, config.AntiBot.Validate())
 }
