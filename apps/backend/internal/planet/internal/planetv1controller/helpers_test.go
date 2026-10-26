@@ -24,6 +24,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_map_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/map_density_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconnect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cphttpserver"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
@@ -51,8 +52,8 @@ type stubSubscriber struct {
 	err     error
 }
 
-func (s stubSubscriber) Subscribe(context.Context) (<-chan clicks.Change, error) {
-	return s.updates, s.err
+func (s stubSubscriber) Subscribe(context.Context) (<-chan clicks.Change, clicks.MapVersion, error) {
+	return s.updates, clicks.MapVersion{}, s.err
 }
 
 type stubMapReader struct{}
@@ -87,7 +88,7 @@ func clickServerWith(
 			GetMapHandler:     get_map_handler.New(get_map_usecase.New(stubChecker{}, stubMapReader{}, facts.NewLog(cptime.SystemClock{}))),
 			ListenForEventsHandler: listen_for_events_handler.New(
 				listen_for_events_usecase.New(stubSubscriber{}, listen_for_events_usecase.DefaultHeartbeat, noBoxes{},
-					facts.NewLog(cptime.SystemClock{}))),
+					steadyRules{}, facts.NewLog(cptime.SystemClock{}))),
 		},
 		options...,
 	))
@@ -120,7 +121,7 @@ func (p stubPricer) Price(string) clicks.Price { return clicks.Price(p) }
 
 var onePrice = stubPricer{Slowdown: 1}
 
-var buckets = clicks.ThrottleConfig{}.Buckets()
+var buckets = clicks.NewBuckets(clicks.TestThrottle)
 
 type fakeRequest struct {
 	connect.AnyRequest
@@ -181,6 +182,12 @@ func budgetDetail(t *testing.T, err error) *planetv1.ClickBudget {
 
 func errorNet() connect.Interceptor {
 	return cpconnect.NewErrorInterceptor(nil, nil)
+}
+
+type steadyRules struct{}
+
+func (steadyRules) Watch() (<-chan rules.Set, func()) {
+	return nil, func() {}
 }
 
 type noBoxes struct{}

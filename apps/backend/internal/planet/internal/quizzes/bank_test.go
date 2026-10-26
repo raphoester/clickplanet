@@ -10,17 +10,17 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
 
-func loaded(t *testing.T, config quizzes.Config) *quizzes.Bank {
+func loaded(t *testing.T) *quizzes.Bank {
 	t.Helper()
 
-	bank, err := quizzes.Load(config, nil)
+	bank, err := quizzes.Load(nil)
 	require.NoError(t, err)
 
 	return bank
 }
 
 func TestTheShippedBankLoads(t *testing.T) {
-	bank := loaded(t, quizzes.Config{})
+	bank := loaded(t)
 
 	assert.Positive(t, bank.Size())
 	assert.Greater(t, bank.Subjects(), 100, "a bank that asks about a handful of countries is a stale bank")
@@ -28,10 +28,10 @@ func TestTheShippedBankLoads(t *testing.T) {
 }
 
 func TestADrawIsThreeChoicesWithOneOfThemRight(t *testing.T) {
-	bank := loaded(t, quizzes.Config{})
+	bank := loaded(t)
 
 	for range 200 {
-		round := bank.Draw()
+		round := bank.Draw(0)
 
 		require.Len(t, round.Options, quizzes.Choices)
 		require.InDelta(t, 0, round.Correct, float64(quizzes.Choices-1))
@@ -44,11 +44,11 @@ func TestADrawIsThreeChoicesWithOneOfThemRight(t *testing.T) {
 }
 
 func TestTheSameQuestionIsNotAlwaysTheSameThreeChoices(t *testing.T) {
-	bank := loaded(t, quizzes.Config{})
+	bank := loaded(t)
 
-	first := bank.Draw()
+	first := bank.Draw(0)
 	for range 5000 {
-		again := bank.Draw()
+		again := bank.Draw(0)
 		if again.Question.ID != first.Question.ID {
 			continue
 		}
@@ -77,5 +77,5 @@ func TestAnAnswerThatIsAlsoOneOfTheWrongOnesRefusesTheBoot(t *testing.T) {
 }
 
 func TestTheShippedBankHasNoQuestionThatCannotBeAsked(t *testing.T) {
-	assert.NotNil(t, loaded(t, quizzes.Config{}))
+	assert.NotNil(t, loaded(t))
 }

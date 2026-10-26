@@ -18,7 +18,9 @@ Zernio answered, as it came, and what the clip was.
   `clip-stats-<since>-<until>.csv` from memory (`saveText`, as the replay is). **`tableOf` (`table.ts`) makes the
   columns from the rows**: the row's own first (`takenAt`, `postId`, `platform`, `ageHours`, …), then one for each
   metric (`metrics.views`, `metrics.impressionSources.forYou`), each part of the metadata (`meta.storyFlag`,
-  `meta.record.clip.variants.<experiment>`: an arm is a column with no code) and YouTube's curve (`youtube.points`,
+  `meta.record.clip.variants.<experiment>`: an arm is a column with no code; `meta.record.post.variants.sound`, the
+  arm a post went out in when the job moved it, and `meta.record.post.sound.title`, `.rank`, … for the trending track
+  attached on TikTok, the backend's [The clips job](../../backend/docs/clips-job.md), "Experiments") and YouTube's curve (`youtube.points`,
   `youtube.meanRelativeRetentionPerformance`, the mean of its points, and the curve itself). A list, and the two maps
   with a key a country or a second (`audienceCountries`, TikTok's `retentionCurve`), are one cell of JSON. **A metric
   Zernio adds is a column at once**: nothing on the way names a metric. `csvOf` quotes as RFC 4180 says.

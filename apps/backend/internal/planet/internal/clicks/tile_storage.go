@@ -26,5 +26,6 @@ type TileStorage interface {
 	Reassign(ctx context.Context, from, to string, start uint32, limit int) (next uint32, moved int, err error)
 	Restore(ctx context.Context, restorations []Restoration) (int, error)
 
-	Subscribe(ctx context.Context) (<-chan Change, error)
+	// The version is the map's as the subscription starts: every change after it is on the channel, in order.
+	Subscribe(ctx context.Context) (<-chan Change, MapVersion, error)
 }

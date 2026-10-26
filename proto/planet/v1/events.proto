@@ -62,6 +62,8 @@ message ClickTried {
   string owner = 9;
   // Unset for a tile off the map.
   GlobePoint position = 10;
+  // How many times faster than the plain pace every bucket refilled when the click was tried; 0 is the plain pace.
+  double tempo = 11;
 }
 
 enum ClickOutcome {

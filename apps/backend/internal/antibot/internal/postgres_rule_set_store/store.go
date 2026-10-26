@@ -15,12 +15,13 @@ import (
 
 var _ rules.Store = (*Store)(nil)
 
-func New(db cppg.Conn) *Store {
-	return &Store{db: db}
+func New(db cppg.Conn, parts rules.Parts) *Store {
+	return &Store{db: db, parts: parts}
 }
 
 type Store struct {
-	db cppg.Conn
+	db    cppg.Conn
+	parts rules.Parts
 }
 
 var (
@@ -28,34 +29,40 @@ var (
 	written = protojson.MarshalOptions{EmitUnpopulated: true}
 )
 
-func (s *Store) Set(ctx context.Context, name rules.SetName) (rules.Snapshot, error) {
+func (s *Store) Set(ctx context.Context, name rules.SetName) (rules.Set, error) {
 	var kept []byte
 	err := s.db.On(ctx).QueryRowContext(ctx, `SELECT rules FROM rule_sets WHERE name = $1`, string(name)).Scan(&kept)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
-		return rules.Snapshot{}, fmt.Errorf("%q: %w", name, rules.ErrUnknownSet)
+		return rules.Set{}, fmt.Errorf("%q: %w", name, rules.ErrUnknownSet)
 	case err != nil:
-		return rules.Snapshot{}, fmt.Errorf("failed to read the rule set %q: %w", name, err)
+		return rules.Set{}, fmt.Errorf("failed to read the rule set %q: %w", name, err)
 	}
 
 	var message antibotv1.Rules
 	if err := read.Unmarshal(kept, &message); err != nil {
-		return rules.Snapshot{}, fmt.Errorf("the rule set %q kept is no antibot.v1.Rules: %w", name, err)
+		return rules.Set{}, fmt.Errorf("the rule set %q kept is no antibot.v1.Rules: %w", name, err)
 	}
-	return rules.Snapshot{Name: name, Rules: &message}, nil
+
+	set, err := rules.Snapshot{Name: name, Rules: &message}.Restore(s.parts)
+	if err != nil {
+		return rules.Set{}, fmt.Errorf("the rule set %q kept cannot play: %w", name, err)
+	}
+	return set, nil
 }
 
-func (s *Store) Save(ctx context.Context, set rules.Snapshot) error {
-	document, err := written.Marshal(set.Rules)
+func (s *Store) Save(ctx context.Context, set rules.Set) error {
+	snapshot := set.TakeSnapshot()
+	document, err := written.Marshal(snapshot.Rules)
 	if err != nil {
-		return fmt.Errorf("failed to write the rule set %q: %w", set.Name, err)
+		return fmt.Errorf("failed to write the rule set %q: %w", snapshot.Name, err)
 	}
 
 	if _, err := s.db.On(ctx).ExecContext(ctx, `
 		INSERT INTO rule_sets (name, rules) VALUES ($1, $2)
 		ON CONFLICT (name) DO UPDATE SET rules = EXCLUDED.rules
-	`, string(set.Name), string(document)); err != nil {
-		return fmt.Errorf("failed to keep the rule set %q: %w", set.Name, err)
+	`, string(snapshot.Name), string(document)); err != nil {
+		return fmt.Errorf("failed to keep the rule set %q: %w", snapshot.Name, err)
 	}
 
 	return nil

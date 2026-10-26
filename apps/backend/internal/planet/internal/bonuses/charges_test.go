@@ -11,7 +11,7 @@ import (
 
 func TestABombIsSpentOnceAndOnlyByItsHolder(t *testing.T) {
 	store := bonuses.NewMemoryStore()
-	charges := bonuses.NewCharges(store, bonuses.ChargesConfig{})
+	charges := bonuses.NewCharges(store, bonuses.TestRules)
 	require.NoError(t, charges.Grant(t.Context(), "alice", bonuses.KindBomb, 1))
 
 	require.ErrorIs(t, charges.Spend(t.Context(), "bob", bonuses.Held.AfterBomb), bonuses.ErrNotHeld)
@@ -21,7 +21,7 @@ func TestABombIsSpentOnceAndOnlyByItsHolder(t *testing.T) {
 }
 
 func TestACallerWithNoAccountHoldsNothing(t *testing.T) {
-	charges := bonuses.NewCharges(bonuses.NewMemoryStore(), bonuses.ChargesConfig{})
+	charges := bonuses.NewCharges(bonuses.NewMemoryStore(), bonuses.TestRules)
 
 	require.NoError(t, charges.Grant(t.Context(), bonuses.NoHolder, bonuses.KindBomb, 1))
 

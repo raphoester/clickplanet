@@ -51,14 +51,11 @@ type harness struct {
 }
 
 func newHarness(t *testing.T, kept ...rules.Snapshot) *harness {
-	h := &harness{t: t, sets: rules.NewMemoryStore(kept...), inForce: rules.NewInForce(), bans: &told{}}
-	h.useCase = play_rules_usecase.New(h.sets, guard.Parts(), h.inForce, h.bans)
+	h := &harness{
+		t: t, sets: rules.NewMemoryStore(guard.Parts(), kept...), inForce: rules.NewInForce(), bans: &told{},
+	}
+	h.useCase = play_rules_usecase.New(h.sets, h.inForce, h.bans)
 	return h
-}
-
-func (h *harness) save(kept rules.Snapshot) {
-	h.t.Helper()
-	require.NoError(h.t, h.sets.Save(h.t.Context(), kept))
 }
 
 func assertTaken(t *testing.T, want rules.Snapshot, asked rules.SetName, taken play_rules_usecase.Taken) {
@@ -100,7 +97,7 @@ func TestAChangeOfTheSetInForceIsTakenAtTheNextExecute(t *testing.T) {
 	h := newHarness(t, rules.Seeded())
 	h.execute()
 
-	h.save(rules.Named(rules.Default, func(r *antibotv1.Rules) { r.Bans.Enforce = false }))
+	h.sets.Keep(rules.Named(rules.Default, func(r *antibotv1.Rules) { r.Bans.Enforce = false }))
 	taken, took := h.execute()
 
 	require.True(t, took)
@@ -118,7 +115,7 @@ func TestTheSetNamedLikePlanetsPlaysOnceTheAntibotKeepsOne(t *testing.T) {
 	require.False(t, took, "no antibot set is named rush yet")
 	assertTaken(t, rules.Seeded(), "rush", taken)
 
-	h.save(rush)
+	h.sets.Keep(rush)
 	taken, took = h.execute()
 	require.True(t, took)
 	assertTaken(t, rush, "rush", taken)
@@ -147,7 +144,7 @@ func TestAKeptSetThatCannotPlayKeepsTheRulesInForce(t *testing.T) {
 	h := newHarness(t, rules.Seeded())
 	h.execute()
 
-	h.save(rules.Named(rules.Default, func(r *antibotv1.Rules) { r.Jury.MinSuspects = 0 }))
+	h.sets.Keep(rules.Named(rules.Default, func(r *antibotv1.Rules) { r.Jury.MinSuspects = 0 }))
 	_, took, err := h.useCase.Execute(t.Context())
 
 	require.ErrorIs(t, err, rules.ErrInvalidSet)

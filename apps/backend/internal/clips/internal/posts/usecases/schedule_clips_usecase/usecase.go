@@ -26,16 +26,26 @@ type Feeds interface {
 	Posted(ctx context.Context, since time.Time) (posts.Feed, error)
 }
 
+type Charts interface {
+	// TikTok's trending tracks in the country, rank 1 first.
+	Trending(ctx context.Context, country string) ([]posts.Track, error)
+}
+
 type Executor interface {
 	// A clip the service refused is in the report, not in the error.
 	Execute(ctx context.Context) (posts.Report, error)
 }
 
-// experiments: the ones that run, which every clip's arms are checked against before any is posted.
+// experiments: the ones that run, which every clip's arms are checked against before any is posted. charts and
+// soundtracks: where a clip drawn for a trending track gets one, and how.
 func New(
 	clips Clips, feeds Feeds, plan posts.Plan, clock cptime.Clock, dice posts.Dice, sender Sender, experiments posts.Experiments,
+	charts Charts, soundtracks posts.Soundtracks,
 ) *UseCase {
-	return &UseCase{clips: clips, feeds: feeds, plan: plan, clock: clock, dice: dice, sender: sender, experiments: experiments}
+	return &UseCase{
+		clips: clips, feeds: feeds, plan: plan, clock: clock, dice: dice, sender: sender, experiments: experiments,
+		charts: charts, soundtracks: soundtracks,
+	}
 }
 
 type UseCase struct {
@@ -46,6 +56,8 @@ type UseCase struct {
 	dice        posts.Dice
 	sender      Sender
 	experiments posts.Experiments
+	charts      Charts
+	soundtracks posts.Soundtracks
 }
 
 var _ Executor = (*UseCase)(nil)
@@ -74,15 +86,53 @@ func (u *UseCase) Execute(ctx context.Context) (posts.Report, error) {
 	// Each post is planned once the one before it is sent: a wait that moved it moves the next one too.
 	report := posts.Report{}
 	ranked := posts.Ranked(rendered)
+	chart := u.chartOnce()
 	for i, clip := range ranked {
 		post, room := u.plan.Next(clip, i+1, len(ranked), feed, u.clock.Now(), u.dice)
 		if !room {
 			report = report.WithHeld(clip)
 			continue
 		}
+		if post.WantsTrendingSound() {
+			post = u.withTrendingSound(ctx, post, chart)
+		}
 		sent, scheduled, err := u.sender.Send(ctx, post)
 		report = report.With(sent, scheduled, err)
 		feed = feed.With(sent, scheduled)
 	}
 	return report, nil
+}
+
+// The chart is read once a run, when a post first needs it, and each post picks its own track from it.
+func (u *UseCase) chartOnce() func(ctx context.Context) ([]posts.Track, error) {
+	var (
+		read  bool
+		chart []posts.Track
+		err   error
+	)
+	return func(ctx context.Context) ([]posts.Track, error) {
+		if !read {
+			read = true
+			if chart, err = u.charts.Trending(ctx, u.soundtracks.Country); err != nil {
+				err = fmt.Errorf("the trending chart could not be read: %w", err)
+			}
+		}
+		return chart, err
+	}
+}
+
+// A chart that cannot be read, or lists nothing to attach, never fails the run: the clip goes out as the control
+// would, counted apart (posts.FellBack), and the report says why.
+func (u *UseCase) withTrendingSound(
+	ctx context.Context, post posts.Post, chart func(ctx context.Context) ([]posts.Track, error),
+) posts.Post {
+	tracks, err := chart(ctx)
+	if err != nil {
+		return post.FellBack(posts.SoundExperiment, err)
+	}
+	sound, err := u.soundtracks.Pick(tracks, u.dice)
+	if err != nil {
+		return post.FellBack(posts.SoundExperiment, err)
+	}
+	return post.WithSound(sound)
 }

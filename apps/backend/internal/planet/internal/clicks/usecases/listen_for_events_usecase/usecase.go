@@ -12,6 +12,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/facts"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
@@ -19,14 +20,18 @@ import (
 const DefaultHeartbeat = 30 * time.Second
 
 type UpdatesSubscriber interface {
-	Subscribe(ctx context.Context) (<-chan clicks.Change, error)
+	Subscribe(ctx context.Context) (<-chan clicks.Change, clicks.MapVersion, error)
 }
 
 type Event struct {
-	Update        clicks.TileUpdate
+	// The change's, or for a heartbeat the last one the stream sent.
+	Version       clicks.MapVersion
+	Update        *clicks.TileUpdate
 	Blast         *clicks.Blast
 	Fortification *clicks.Fortification
+	Tally         *clicks.Tally
 	Heartbeat     bool
+	RulesChanged  bool
 
 	Offer    *bonuses.Offer
 	Quiz     *bonuses.QuizOffer
@@ -39,6 +44,10 @@ type BonusFeed interface {
 	Attend(entrant bonuses.Entrant) (<-chan bonuses.Event, func())
 }
 
+type RulesFeed interface {
+	Watch() (<-chan rules.Set, func())
+}
+
 type Sink interface {
 	Send(event Event) error
 }
@@ -47,7 +56,7 @@ type Facts interface {
 	Tell(fact facts.Fact)
 }
 
-func New(subscriber UpdatesSubscriber, heartbeat time.Duration, bonuses BonusFeed, facts Facts) *UseCase {
+func New(subscriber UpdatesSubscriber, heartbeat time.Duration, bonuses BonusFeed, rules RulesFeed, facts Facts) *UseCase {
 	if heartbeat <= 0 {
 		heartbeat = DefaultHeartbeat
 	}
@@ -56,6 +65,7 @@ func New(subscriber UpdatesSubscriber, heartbeat time.Duration, bonuses BonusFee
 		subscriber: subscriber,
 		heartbeat:  heartbeat,
 		bonuses:    bonuses,
+		rules:      rules,
 		facts:      facts,
 	}
 }
@@ -64,6 +74,7 @@ type UseCase struct {
 	subscriber UpdatesSubscriber
 	heartbeat  time.Duration
 	bonuses    BonusFeed
+	rules      RulesFeed
 	facts      Facts
 }
 
@@ -74,7 +85,7 @@ func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 		return &planetv1.StreamOpened{Scope: scope, OpenedAt: timestamppb.New(at)}
 	})
 
-	updates, err := u.subscriber.Subscribe(ctx)
+	updates, version, err := u.subscriber.Subscribe(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to subscribe to tile updates: %w", err)
 	}
@@ -82,8 +93,11 @@ func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 	boxes, leave := u.bonuses.Attend(bonuses.EntrantOf(clicks.PayerOf(ctx)))
 	defer leave()
 
+	changes, stopWatching := u.rules.Watch()
+	defer stopWatching()
+
 	// Connect writes nothing until the first Send, and the client resyncs on a stream's first event.
-	if err := sink.Send(Event{Heartbeat: true}); err != nil {
+	if err := sink.Send(Event{Heartbeat: true, Version: version}); err != nil {
 		return err
 	}
 
@@ -96,7 +110,7 @@ func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 			return nil
 
 		case <-heartbeat.C:
-			if err := sink.Send(Event{Heartbeat: true}); err != nil {
+			if err := sink.Send(Event{Heartbeat: true, Version: version}); err != nil {
 				return err
 			}
 
@@ -105,7 +119,16 @@ func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 				return nil
 			}
 
-			if err := sink.Send(eventOf(change)); err != nil {
+			version = change.Version
+			if err := sink.Send(Event{
+				Version: change.Version, Update: change.Update, Blast: change.Blast,
+				Fortification: change.Fortification, Tally: change.Tally,
+			}); err != nil {
+				return err
+			}
+
+		case <-changes:
+			if err := sink.Send(Event{RulesChanged: true}); err != nil {
 				return err
 			}
 
@@ -122,15 +145,4 @@ func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 			}
 		}
 	}
-}
-
-func eventOf(change clicks.Change) Event {
-	if change.Blast != nil {
-		return Event{Blast: change.Blast}
-	}
-	if change.Fortification != nil {
-		return Event{Fortification: change.Fortification}
-	}
-
-	return Event{Update: *change.Update}
 }

@@ -47,6 +47,9 @@ export function useGlobe(options: UseGlobeOptions) {
 
     const [status, setStatus] = useState<GlobeStatus>({state: 'loading'})
     const [tilesCount, setTilesCount] = useState(0)
+    // The share of the tiles read, until they all are.
+    const [tilesLoading, setTilesLoading] = useState<number | undefined>(0)
+    const [orbit, setOrbit] = useState(true)
 
     const {leaderboard, tileDeltas, recordLeaderboard, publishLeaderboard} = useLeaderboardFeed()
 
@@ -121,6 +124,7 @@ export function useGlobe(options: UseGlobeOptions) {
         let cancelled = false
 
         setStatus({state: 'loading'})
+        setTilesLoading(0)
 
         createGlobe({
             tileClicker,
@@ -132,8 +136,11 @@ export function useGlobe(options: UseGlobeOptions) {
             mapView: latestMapView.current,
             rendering,
             onLeaderboardChange: recordLeaderboard,
-            onLoadProgress: (territories) => {
-                if (!cancelled) setStatus({state: 'loading', territories})
+            onLoadProgress: (share) => {
+                if (!cancelled) setTilesLoading(share < 1 ? share : undefined)
+            },
+            onOrbitChange: (inOrbit) => {
+                if (!cancelled) setOrbit(inOrbit)
             },
             onRateLimited: () => setRefusals(n => n + 1),
             onVPNBlocked: () => setVPNBlocked(true),
@@ -222,6 +229,8 @@ export function useGlobe(options: UseGlobeOptions) {
 
     return {
         status,
+        tilesLoading,
+        orbit,
         leaderboard,
         tileDeltas,
         tilesCount,

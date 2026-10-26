@@ -15,25 +15,40 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/facts"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 var at = time.Date(2026, 10, 26, 20, 0, 0, 0, time.UTC)
 
+var opening = clicks.MapVersion{Epoch: 1_790_000_000, Seq: 41}
+
 type stubSubscriber struct {
 	updates chan clicks.Change
 	err     error
 }
 
-func (s stubSubscriber) Subscribe(context.Context) (<-chan clicks.Change, error) {
-	return s.updates, s.err
+func (s stubSubscriber) Subscribe(context.Context) (<-chan clicks.Change, clicks.MapVersion, error) {
+	return s.updates, opening, s.err
 }
 
 type silentFeed struct{}
 
 func (silentFeed) Attend(bonuses.Entrant) (<-chan bonuses.Event, func()) {
 	return nil, func() {}
+}
+
+type quietRules struct{}
+
+func (quietRules) Watch() (<-chan rules.Set, func()) {
+	return nil, func() {}
+}
+
+type changingRules struct{ changes chan rules.Set }
+
+func (c changingRules) Watch() (<-chan rules.Set, func()) {
+	return c.changes, func() {}
 }
 
 type recorder struct {
@@ -89,7 +104,7 @@ func TestAStreamListensForTheBoxesOfTheEntrantThatOpenedIt(t *testing.T) {
 	feed := &attendedFeed{}
 
 	for _, ctx := range []context.Context{linked, guest} {
-		require.NoError(t, listen_for_events_usecase.New(stubSubscriber{}, time.Hour, feed, facts.NewLog(cptime.NewFixedClock(at))).Execute(ctx, &recorder{}))
+		require.NoError(t, listen_for_events_usecase.New(stubSubscriber{}, time.Hour, feed, quietRules{}, facts.NewLog(cptime.NewFixedClock(at))).Execute(ctx, &recorder{}))
 	}
 
 	assert.Equal(t, []bonuses.Entrant{"account:a-player", "1.2.3.4"}, feed.entrants)
@@ -98,7 +113,7 @@ func TestAStreamListensForTheBoxesOfTheEntrantThatOpenedIt(t *testing.T) {
 func TestAFailedSubscriptionEndsTheFeed(t *testing.T) {
 	cause := errors.New("disk on fire")
 
-	err := listen_for_events_usecase.New(stubSubscriber{err: cause}, time.Hour, silentFeed{}, facts.NewLog(cptime.NewFixedClock(at))).
+	err := listen_for_events_usecase.New(stubSubscriber{err: cause}, time.Hour, silentFeed{}, quietRules{}, facts.NewLog(cptime.NewFixedClock(at))).
 		Execute(t.Context(), &recorder{})
 
 	require.ErrorIs(t, err, cause)
@@ -106,13 +121,13 @@ func TestAFailedSubscriptionEndsTheFeed(t *testing.T) {
 
 func TestAnUpdateIsCarriedToTheSink(t *testing.T) {
 	updates := make(chan clicks.Change, 1)
-	updates <- clicks.Change{Update: &clicks.TileUpdate{Tile: 42, Value: "fr", Previous: "de"}}
+	updates <- clicks.Change{Version: clicks.MapVersion{Epoch: opening.Epoch, Seq: 42}, Update: &clicks.TileUpdate{Tile: 42, Value: "fr", Previous: "de"}}
 
 	ctx, cancel := context.WithCancel(t.Context())
 	sink := &recorder{fed: make(chan struct{}), stopped: ctx.Done()}
 	done := make(chan error, 1)
 	go func() {
-		done <- listen_for_events_usecase.New(stubSubscriber{updates: updates}, time.Hour, silentFeed{}, facts.NewLog(cptime.NewFixedClock(at))).Execute(ctx, sink)
+		done <- listen_for_events_usecase.New(stubSubscriber{updates: updates}, time.Hour, silentFeed{}, quietRules{}, facts.NewLog(cptime.NewFixedClock(at))).Execute(ctx, sink)
 	}()
 
 	<-sink.fed
@@ -121,8 +136,8 @@ func TestAnUpdateIsCarriedToTheSink(t *testing.T) {
 	require.NoError(t, <-done)
 
 	require.Equal(t, []listen_for_events_usecase.Event{
-		{Heartbeat: true},
-		{Update: clicks.TileUpdate{Tile: 42, Value: "fr", Previous: "de"}},
+		{Heartbeat: true, Version: opening},
+		{Version: clicks.MapVersion{Epoch: opening.Epoch, Seq: 42}, Update: &clicks.TileUpdate{Tile: 42, Value: "fr", Previous: "de"}},
 	}, sink.seen())
 }
 
@@ -135,7 +150,7 @@ func TestABlastIsCarriedToTheSinkAsOneFrame(t *testing.T) {
 	sink := &recorder{fed: make(chan struct{}), stopped: ctx.Done()}
 	done := make(chan error, 1)
 	go func() {
-		done <- listen_for_events_usecase.New(stubSubscriber{updates: updates}, time.Hour, silentFeed{}, facts.NewLog(cptime.NewFixedClock(at))).Execute(ctx, sink)
+		done <- listen_for_events_usecase.New(stubSubscriber{updates: updates}, time.Hour, silentFeed{}, quietRules{}, facts.NewLog(cptime.NewFixedClock(at))).Execute(ctx, sink)
 	}()
 
 	<-sink.fed
@@ -143,7 +158,7 @@ func TestABlastIsCarriedToTheSinkAsOneFrame(t *testing.T) {
 	cancel()
 	require.NoError(t, <-done)
 
-	require.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true}, {Blast: blast}}, sink.seen())
+	require.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true, Version: opening}, {Blast: blast}}, sink.seen())
 }
 
 func TestAFortificationIsCarriedToTheSinkAsOneFrame(t *testing.T) {
@@ -155,7 +170,7 @@ func TestAFortificationIsCarriedToTheSinkAsOneFrame(t *testing.T) {
 	sink := &recorder{fed: make(chan struct{}), stopped: ctx.Done()}
 	done := make(chan error, 1)
 	go func() {
-		done <- listen_for_events_usecase.New(stubSubscriber{updates: updates}, time.Hour, silentFeed{}, facts.NewLog(cptime.NewFixedClock(at))).
+		done <- listen_for_events_usecase.New(stubSubscriber{updates: updates}, time.Hour, silentFeed{}, quietRules{}, facts.NewLog(cptime.NewFixedClock(at))).
 			Execute(ctx, sink)
 	}()
 
@@ -164,7 +179,7 @@ func TestAFortificationIsCarriedToTheSinkAsOneFrame(t *testing.T) {
 	cancel()
 	require.NoError(t, <-done)
 
-	require.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true}, {Fortification: fortification}}, sink.seen())
+	require.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true, Version: opening}, {Fortification: fortification}}, sink.seen())
 }
 
 type addressedFeed map[bonuses.Entrant]chan bonuses.Event
@@ -183,7 +198,7 @@ func TestABoxOfferedToTheCallerIsCarriedToTheSink(t *testing.T) {
 	done := make(chan error, 1)
 	go func() {
 		done <- listen_for_events_usecase.New(
-			stubSubscriber{updates: make(chan clicks.Change)}, time.Hour, addressedFeed{"1.2.3.4": boxes}, facts.NewLog(cptime.NewFixedClock(at))).Execute(ctx, sink)
+			stubSubscriber{updates: make(chan clicks.Change)}, time.Hour, addressedFeed{"1.2.3.4": boxes}, quietRules{}, facts.NewLog(cptime.NewFixedClock(at))).Execute(ctx, sink)
 	}()
 
 	<-sink.fed
@@ -191,7 +206,7 @@ func TestABoxOfferedToTheCallerIsCarriedToTheSink(t *testing.T) {
 	cancel()
 	require.NoError(t, <-done)
 
-	require.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true}, {Offer: offer}}, sink.seen())
+	require.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true, Version: opening}, {Offer: offer}}, sink.seen())
 }
 
 func TestAQuizOfferedToTheCallerIsCarriedToTheSink(t *testing.T) {
@@ -204,7 +219,7 @@ func TestAQuizOfferedToTheCallerIsCarriedToTheSink(t *testing.T) {
 	done := make(chan error, 1)
 	go func() {
 		done <- listen_for_events_usecase.New(
-			stubSubscriber{updates: make(chan clicks.Change)}, time.Hour, addressedFeed{"1.2.3.4": boxes}, facts.NewLog(cptime.NewFixedClock(at))).Execute(ctx, sink)
+			stubSubscriber{updates: make(chan clicks.Change)}, time.Hour, addressedFeed{"1.2.3.4": boxes}, quietRules{}, facts.NewLog(cptime.NewFixedClock(at))).Execute(ctx, sink)
 	}()
 
 	<-sink.fed
@@ -212,7 +227,7 @@ func TestAQuizOfferedToTheCallerIsCarriedToTheSink(t *testing.T) {
 	cancel()
 	require.NoError(t, <-done)
 
-	require.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true}, {Quiz: quiz}}, sink.seen())
+	require.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true, Version: opening}, {Quiz: quiz}}, sink.seen())
 }
 
 func TestAStreamOpensWithAHeartbeat(t *testing.T) {
@@ -221,25 +236,69 @@ func TestAStreamOpensWithAHeartbeat(t *testing.T) {
 	done := make(chan error, 1)
 	go func() {
 		done <- listen_for_events_usecase.New(
-			stubSubscriber{updates: make(chan clicks.Change)}, time.Hour, silentFeed{}, facts.NewLog(cptime.NewFixedClock(at))).Execute(ctx, sink)
+			stubSubscriber{updates: make(chan clicks.Change)}, time.Hour, silentFeed{}, quietRules{}, facts.NewLog(cptime.NewFixedClock(at))).Execute(ctx, sink)
 	}()
 
 	<-sink.fed
 	cancel()
 	require.NoError(t, <-done)
 
-	require.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true}}, sink.seen())
+	require.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true, Version: opening}}, sink.seen())
+}
+
+func TestATallyIsCarriedToTheSinkAtItsVersion(t *testing.T) {
+	updates := make(chan clicks.Change, 1)
+	tally := &clicks.Tally{Countries: []clicks.FlagTiles{{Flag: "fr", Tiles: 3}}}
+	updates <- clicks.Change{Version: opening, Tally: tally}
+
+	ctx, cancel := context.WithCancel(t.Context())
+	sink := &recorder{fed: make(chan struct{}), stopped: ctx.Done()}
+	done := make(chan error, 1)
+	go func() {
+		done <- listen_for_events_usecase.New(stubSubscriber{updates: updates}, time.Hour, silentFeed{}, quietRules{}, facts.NewLog(cptime.NewFixedClock(at))).Execute(ctx, sink)
+	}()
+
+	<-sink.fed
+	<-sink.fed
+	cancel()
+	require.NoError(t, <-done)
+
+	require.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true, Version: opening}, {Version: opening, Tally: tally}}, sink.seen())
+}
+
+func TestAHeartbeatSaysTheVersionOfTheLastChangeTheStreamSent(t *testing.T) {
+	updates := make(chan clicks.Change, 1)
+	sent := clicks.MapVersion{Epoch: opening.Epoch, Seq: 50}
+	updates <- clicks.Change{Version: sent, Update: &clicks.TileUpdate{Tile: 1, Value: "fr"}}
+
+	ctx, cancel := context.WithCancel(t.Context())
+	sink := &recorder{fed: make(chan struct{}), stopped: ctx.Done()}
+	done := make(chan error, 1)
+	go func() {
+		done <- listen_for_events_usecase.New(stubSubscriber{updates: updates}, time.Millisecond, silentFeed{}, quietRules{}, facts.NewLog(cptime.NewFixedClock(at))).Execute(ctx, sink)
+	}()
+
+	for range 3 {
+		<-sink.fed
+	}
+	cancel()
+	require.NoError(t, <-done)
+
+	seen := sink.seen()
+	assert.Equal(t, opening, seen[0].Version, "the opening one says where the subscription started")
+	assert.Equal(t, sent, seen[1].Version)
+	assert.Equal(t, listen_for_events_usecase.Event{Heartbeat: true, Version: sent}, seen[2])
 }
 
 type watchedSubscriber struct{ subscribed bool }
 
-func (s *watchedSubscriber) Subscribe(context.Context) (<-chan clicks.Change, error) {
+func (s *watchedSubscriber) Subscribe(context.Context) (<-chan clicks.Change, clicks.MapVersion, error) {
 	s.subscribed = true
 
 	updates := make(chan clicks.Change)
 	close(updates)
 
-	return updates, nil
+	return updates, opening, nil
 }
 
 type witness struct {
@@ -258,7 +317,7 @@ func TestTheOpeningHeartbeatComesOnceTheMapAndTheBoxesAreFollowed(t *testing.T) 
 	feed := &attendedFeed{}
 	sink := &witness{subscriber: subscriber, feed: feed}
 
-	require.NoError(t, listen_for_events_usecase.New(subscriber, time.Hour, feed, facts.NewLog(cptime.NewFixedClock(at))).Execute(t.Context(), sink))
+	require.NoError(t, listen_for_events_usecase.New(subscriber, time.Hour, feed, quietRules{}, facts.NewLog(cptime.NewFixedClock(at))).Execute(t.Context(), sink))
 
 	assert.Equal(t, []bool{true}, sink.followed, "a client resyncs on it, so nothing after it may be missed")
 }
@@ -269,7 +328,7 @@ func TestASilentFeedKeepsSendingHeartbeats(t *testing.T) {
 	done := make(chan error, 1)
 	go func() {
 		done <- listen_for_events_usecase.New(
-			stubSubscriber{updates: make(chan clicks.Change)}, time.Millisecond, silentFeed{}, facts.NewLog(cptime.NewFixedClock(at))).Execute(ctx, sink)
+			stubSubscriber{updates: make(chan clicks.Change)}, time.Millisecond, silentFeed{}, quietRules{}, facts.NewLog(cptime.NewFixedClock(at))).Execute(ctx, sink)
 	}()
 
 	for range 3 {
@@ -287,7 +346,7 @@ func TestTheFeedEndsWhenTheSubscriptionCloses(t *testing.T) {
 	updates := make(chan clicks.Change)
 	close(updates)
 
-	err := listen_for_events_usecase.New(stubSubscriber{updates: updates}, time.Hour, silentFeed{}, facts.NewLog(cptime.NewFixedClock(at))).
+	err := listen_for_events_usecase.New(stubSubscriber{updates: updates}, time.Hour, silentFeed{}, quietRules{}, facts.NewLog(cptime.NewFixedClock(at))).
 		Execute(t.Context(), &recorder{})
 
 	require.NoError(t, err, "the map going away is not the caller's error")
@@ -298,13 +357,13 @@ func TestAFailedSendEndsTheFeed(t *testing.T) {
 	updates <- clicks.Change{Update: &clicks.TileUpdate{Tile: 1}}
 	sink := &recorder{err: assert.AnError, accepted: 1}
 
-	err := listen_for_events_usecase.New(stubSubscriber{updates: updates}, time.Hour, silentFeed{}, facts.NewLog(cptime.NewFixedClock(at))).
+	err := listen_for_events_usecase.New(stubSubscriber{updates: updates}, time.Hour, silentFeed{}, quietRules{}, facts.NewLog(cptime.NewFixedClock(at))).
 		Execute(t.Context(), sink)
 
 	require.ErrorIs(t, err, assert.AnError)
 	assert.Equal(t, []listen_for_events_usecase.Event{
-		{Heartbeat: true},
-		{Update: clicks.TileUpdate{Tile: 1}},
+		{Heartbeat: true, Version: opening},
+		{Update: &clicks.TileUpdate{Tile: 1}},
 	}, sink.seen())
 }
 
@@ -313,18 +372,18 @@ func TestAFailedOpeningHeartbeatEndsTheFeed(t *testing.T) {
 	updates <- clicks.Change{Update: &clicks.TileUpdate{Tile: 1}}
 	sink := &recorder{err: assert.AnError}
 
-	err := listen_for_events_usecase.New(stubSubscriber{updates: updates}, time.Hour, silentFeed{}, facts.NewLog(cptime.NewFixedClock(at))).
+	err := listen_for_events_usecase.New(stubSubscriber{updates: updates}, time.Hour, silentFeed{}, quietRules{}, facts.NewLog(cptime.NewFixedClock(at))).
 		Execute(t.Context(), sink)
 
 	require.ErrorIs(t, err, assert.AnError)
-	assert.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true}}, sink.seen())
+	assert.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true, Version: opening}}, sink.seen())
 }
 
 func TestAStreamIsToldWhenItOpensEvenOneThatFails(t *testing.T) {
 	log := facts.NewLog(cptime.NewFixedClock(at))
 	cause := errors.New("subscriber gone")
 
-	err := listen_for_events_usecase.New(stubSubscriber{err: cause}, time.Hour, silentFeed{}, log).
+	err := listen_for_events_usecase.New(stubSubscriber{err: cause}, time.Hour, silentFeed{}, quietRules{}, log).
 		Execute(cpctx.AddIPToContext(t.Context(), "2001:db8::9"), &recorder{})
 
 	require.ErrorIs(t, err, cause)
@@ -334,4 +393,24 @@ func TestAStreamIsToldWhenItOpensEvenOneThatFails(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, "2001:db8::/64", opened.GetScope())
 	assert.Equal(t, at, opened.GetOpenedAt().AsTime())
+}
+
+func TestAChangeOfRulesIsCarriedToTheSink(t *testing.T) {
+	changes := make(chan rules.Set, 1)
+	changes <- rules.Set{}
+
+	ctx, cancel := context.WithCancel(t.Context())
+	sink := &recorder{fed: make(chan struct{}), stopped: ctx.Done()}
+	done := make(chan error, 1)
+	go func() {
+		done <- listen_for_events_usecase.New(stubSubscriber{}, time.Hour, silentFeed{}, changingRules{changes: changes},
+			facts.NewLog(cptime.NewFixedClock(at))).Execute(ctx, sink)
+	}()
+
+	<-sink.fed
+	<-sink.fed
+	cancel()
+	require.NoError(t, <-done)
+
+	require.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true, Version: opening}, {RulesChanged: true}}, sink.seen())
 }

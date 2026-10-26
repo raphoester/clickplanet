@@ -12,6 +12,10 @@ type Outcome struct {
 	At        time.Time
 	Post      PostID
 	Platforms []PlatformOutcome
+	// The trending track attached on TikTok; nil for none.
+	Sound *Sound
+	// Why the clip went out with its anthem though drawn for a trending track; empty when it did not fall back.
+	SoundMissed string
 	// Not sent: every platform's day was full. Not a failure: its story is still untold, for a later run.
 	Held bool
 }
@@ -25,7 +29,10 @@ type Report []Outcome
 
 // failure: the post was made on no platform.
 func (r Report) With(post Post, scheduled Scheduled, failure error) Report {
-	outcome := Outcome{Title: post.clip.title, Variants: post.clip.variants, At: post.at, Post: scheduled.ID}
+	outcome := Outcome{
+		Title: post.clip.title, Variants: post.variants(), At: post.at, Post: scheduled.ID, Sound: post.sound,
+		SoundMissed: messageOf(post.missed),
+	}
 	if failure != nil {
 		outcome.Post = ""
 	}

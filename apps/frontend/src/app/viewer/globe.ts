@@ -25,22 +25,29 @@ import {
     Bomber,
     GlobePoint,
     BonusCatch,
+    Counts,
+    MapVersion,
     BonusListener,
     BonusLostError,
     BonusOffer,
     ClaimedBonus,
     ShieldRefusedError,
+    Ownerships,
     OwnershipsGetter,
     RateLimitedError,
     Shielder,
     TileClicker,
+    TileRange,
     Update,
     UpdatesListener,
     VPNBlockedError,
 } from "../../backends/backend.ts";
 import {SessionUnavailableError} from "../../backends/session.ts";
 import {LeaderboardEntry, rankCountries} from "../../domain/leaderboard.ts";
-import {OwnerChange, TileOwnership} from "../../domain/tileOwnership.ts";
+import {OwnerChange} from "../../domain/tileOwnership.ts";
+import {MapTiles, TileChanges} from "../../domain/mapTiles.ts";
+import {MapClock} from "../../domain/mapClock.ts";
+import {Holdings, Recount} from "../../domain/holdings.ts";
 import {warnOnce} from "../../domain/warnOnce.ts";
 import {layoutViewport} from "./viewport.ts";
 import {createStarfield} from "./stars.ts";
@@ -61,7 +68,7 @@ import {rankHoldings, Territory, TerritoryPeek} from "../../domain/territory.ts"
 import {FLIGHT_SECONDS, flightAt, territoryShotOf} from "../../domain/flight.ts";
 import {pointOf} from "../../domain/clip/geometry.ts";
 import {OwnClicks} from "../../domain/ownClicks.ts";
-import {ShieldChange, outcomeOf, placementOf, TileShields} from "../../domain/shields.ts";
+import {ShieldChange, outcomeOf, placementOf} from "../../domain/shields.ts";
 import {Landmasses} from "../../domain/landmasses.ts";
 import {landmassName} from "../../domain/landmassNames.ts";
 import {CloseToFortify, Fortified, isNews} from "../../domain/fortify.ts";
@@ -108,8 +115,10 @@ const SHIELD_MOST_UNTIL_READ = 10
 
 const TILES_PER_BATCH = 10_000
 
-// GetMap's max-age: a map read any sooner could be older than the stream that resumed.
-const CATCH_UP_DELAY_MS = 5_000
+// GetMap's and GetHoldings' max-age: a read any sooner can be the same old copy.
+const READ_AGAIN_MS = 5_000
+
+const READS_AT_MOST = 4
 
 const IDLE_FRAME_MS = 16
 
@@ -171,7 +180,9 @@ export type GlobeOptions = {
     mapView: MapView
     rendering: Rendering
     onLeaderboardChange: (entries: LeaderboardEntry[], live: boolean) => void
+    // The share of the tiles read, after the globe is ready: a tile is clicked only once they all are.
     onLoadProgress: (share: number) => void
+    onOrbitChange?: (orbit: boolean) => void
     onRateLimited: () => void
     onVPNBlocked: () => void
     onBanned: (until: number) => void
@@ -202,6 +213,8 @@ export type GlobeOptions = {
 
 export type Globe = {
     readonly tilesCount: number
+    // Every tile read once: a tile can be clicked from then on.
+    readonly tilesRead: Promise<void>
     setCountry(country: Country): void
     setMapView(view: MapView): void
     takeReward(claimed: ClaimedBonus): void
@@ -232,6 +245,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         rendering,
         onLeaderboardChange: updateLeaderboard,
         onLoadProgress,
+        onOrbitChange = () => {},
         onRateLimited,
         onVPNBlocked,
         onBanned,
@@ -307,7 +321,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     const field = new TileField(uniforms, pickingUniforms, geometryData, graphics);
 
-    const territories = new BorderField(borders, field.size)
+    const territories = new BorderField(borders)
     const landmasses = new Landmasses(borders.assignment, borders.codes.length)
     field.setLandmasses(borders.assignment)
     uniforms.landmassData.value = territories.landmassData
@@ -315,8 +329,11 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     const sphere = innerSphere()
     const picker = new GpuPicker(renderer, field.pickingPoints, sphere);
-    const ownership = new TileOwnership(field.size);
-    const shielded = new TileShields(field.size);
+    const clock = new MapClock()
+    const tiles = new MapTiles(field.size, TILES_PER_BATCH, clock)
+    const ownership = tiles.ownership
+    const shielded = tiles.shields
+    const holdings = new Holdings()
 
     let country: Country = initialCountry;
 
@@ -355,8 +372,9 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     const targets = new FortifyTargets({
         sizeOf: (landmass) => territories.sizeOf(landmass),
-        leaderOf: (landmass) => territories.leaderOf(landmass),
+        leaderOf: (landmass) => holdings.leaderOf(landmass),
         ownerOf: (tile) => ownership.ownerOf(tile),
+        known: (tile) => tiles.known(tile),
         tilesOf: (landmass) => landmasses.tilesOf(landmass),
         landmassOf: (tile) => borders.assignment[tile - 1] ?? 0,
     }, (tiles, on) => {
@@ -396,12 +414,10 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const applyChanges = (changes: OwnerChange[], live = true) => {
         if (changes.length === 0) return
         field.setOwners(changes)
-        territories.apply(changes)
         if (tracking) {
             const entered = targets.touch(changes.map(({tile}) => tile))
             if (live) announceClose(entered)
         }
-        updateLeaderboard(rankCountries(ownership.counts()), live)
         invalidate()
     }
 
@@ -410,6 +426,30 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         field.setShields(changes)
         invalidate()
     }
+
+    const noChanges = (): TileChanges => ({owners: [], shields: []})
+
+    const recount = ({countries, landmasses}: Recount, live: boolean) => {
+        if (landmasses.length > 0) {
+            territories.setRows(landmasses, (landmass) => holdings.leaderOf(landmass))
+            if (tracking) {
+                const entered = targets.recount(landmasses)
+                if (live) announceClose(entered)
+            }
+            invalidate()
+        }
+        if (countries) updateLeaderboard(rankCountries(holdings.counts()), live)
+    }
+
+    let holdingsAt: MapVersion | undefined
+
+    const takeHoldings = (read: Counts) => {
+        if (!clock.counts(read.version)) return
+        if (!holdingsAt || holdingsAt.epoch !== read.version.epoch || holdingsAt.seq < read.version.seq) holdingsAt = read.version
+        recount(holdings.read(read), false)
+    }
+
+    const holdingsCurrent = () => holdingsAt !== undefined && clock.current(holdingsAt)
 
     const playShields = (changes: ShieldChange[]) => {
         const seconds = performance.now() / 1000
@@ -603,15 +643,15 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         })
     }
 
-    let pendingClears: {at: number, tiles: Set<number>, struck: Set<number>}[] = []
+    let pendingClears: {at: number, drop: BombDrop}[] = []
 
-    const land = (cleared: number[], struck: number[]) => {
-        applyChanges(ownership.applyClears(cleared))
-        showShields(shielded.applyClears(cleared))
-
-        const strikes = shielded.applyStrikes(struck)
-        showShields(strikes)
-        playShields(strikes)
+    // A later change of a tile wins over the clear, by its version, however long the clear waited.
+    const land = ({cleared, struck, version}: BombDrop) => {
+        const changes = noChanges()
+        tiles.applyBlast(cleared, struck, version, changes)
+        applyChanges(changes.owners)
+        showShields(changes.shields)
+        playShields(changes.shields)
     }
 
     const flushClears = (upTo: number) => {
@@ -619,7 +659,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         const due = pendingClears.filter((clear) => clear.at <= upTo)
         if (due.length === 0) return false
         pendingClears = pendingClears.filter((clear) => clear.at > upTo)
-        land(due.flatMap((clear) => [...clear.tiles]), due.flatMap((clear) => [...clear.struck]))
+        for (const {drop} of due) land(drop)
         return true
     }
 
@@ -627,14 +667,15 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const shake = new THREE.Vector3()
 
     const stopBombs = bomber?.listenForBombs((drop) => {
+        tiles.heard(drop.version)
         const seconds = performance.now() / 1000
         const centre = new THREE.Vector3(drop.point.x, drop.point.y, drop.point.z)
         blasts.start(centre, drop.radius, seconds, drop.tile === undefined)
 
         if (document.hidden) {
-            land(drop.cleared, drop.struck)
+            land(drop)
         } else if (drop.cleared.length > 0 || drop.struck.length > 0) {
-            pendingClears.push({at: seconds + IMPACT_DELAY, tiles: new Set(drop.cleared), struck: new Set(drop.struck)})
+            pendingClears.push({at: seconds + IMPACT_DELAY, drop})
         }
 
         const own = ownDropAt !== undefined && drop.countryId === country.code && seconds - ownDropAt < OWN_DROP_WINDOW_SECONDS
@@ -738,10 +779,10 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         press.begin(event)
         endPeek()
         endTerritoryPeek()
-        const pressed = loaded && !armed && event.pointerType !== "mouse" ? canvasPosition(event) : undefined
+        const pressed = !armed && event.pointerType !== "mouse" ? canvasPosition(event) : undefined
         const pressedTile = pressed && picker.pick(camera, pressed.x, pressed.y)
         const orbit = orbiting()
-        peek.begin(event, orbit ? undefined : pressedTile, performance.now() / 1000)
+        peek.begin(event, orbit || !loaded ? undefined : pressedTile, performance.now() / 1000)
         territoryPeek.begin(event, orbit ? landmassOf(pressedTile) : undefined, performance.now() / 1000)
         if (!loaded || !armed || !event.isTrusted || !event.isPrimary || event.button !== 0) return
 
@@ -777,7 +818,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     eventTarget.addEventListener('pointerup', (event: PointerEvent) => press.end(event), listenerOptions);
 
     eventTarget.addEventListener('click', (event: MouseEvent) => {
-        if (!loaded || !event.isTrusted) return;
+        if (!event.isTrusted) return;
 
         if (swallowClick) {
             swallowClick = false
@@ -823,6 +864,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             flyTo(landmassOf(tile))
             return
         }
+
+        if (!loaded) return
 
         if (!regions.get(country.code)) {
             warnOnce(`No sprite region for country "${country.code}", ignoring the click`)
@@ -898,17 +941,11 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     window.addEventListener('resize', resizeListener, listenerOptions);
 
     const cleanUpdatesListener = updatesListener.listenForUpdatesBatch((updates: Update[]) => {
-        for (const clear of pendingClears) {
-            for (const update of updates) {
-                clear.tiles.delete(update.tile)
-                clear.struck.delete(update.tile)
-            }
-        }
-        applyChanges(ownership.applyUpdates(updates))
-
-        const moved = shielded.applyUpdates(updates)
-        showShields(moved)
-        playShields(moved)
+        const changes = noChanges()
+        tiles.applyUpdates(updates, changes)
+        applyChanges(changes.owners)
+        showShields(changes.shields)
+        playShields(changes.shields)
 
         const seconds = performance.now() / 1000
         for (const {tile, clicked, previousCountry, newCountry} of updates) {
@@ -917,41 +954,88 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         }
     })
 
-    let catchingUp: AbortController | undefined
+    // The counts go out once a second: they are current only up to the last change the stream told of them.
+    let holdingsTold: MapVersion | undefined
 
-    const catchUp = async () => {
-        catchingUp?.abort()
-        const attempt = new AbortController()
-        catchingUp = attempt
+    const stopHoldings = updatesListener.listenForHoldings((change) => {
+        tiles.heard(change.version)
+        if (!clock.counts(change.version)) return
+        holdingsTold = change.version
+        recount(holdings.change(change), true)
+    })
 
-        ownership.forgetLive()
-        shielded.forgetLive()
+    let tilesWereRead: () => void = () => {}
+    const tilesRead = new Promise<void>((resolve) => {
+        tilesWereRead = resolve
+    })
 
-        const bindings = new Map<number, string>()
-        const shields = new Map<number, number>()
-        try {
-            await pause(CATCH_UP_DELAY_MS, attempt.signal)
-            await ownershipsGetter.getCurrentOwnershipsByBatch(
-                TILES_PER_BATCH,
-                field.size,
-                (batch) => {
-                    batch.bindings.forEach((owner, tile) => bindings.set(tile, owner))
-                    batch.shields.forEach((count, tile) => shields.set(tile, count))
-                },
-                attempt.signal,
-            )
-        } catch (e) {
-            if (!attempt.signal.aborted) console.error("could not catch up with the map", e)
-            return
+    const takeBatch = (batch: Ownerships) => {
+        const changes = noChanges()
+        tiles.read(batch, changes)
+        applyChanges(changes.owners, false)
+        showShields(changes.shields)
+        if (tracking) targets.touch(rangeTiles(batch.range))
+        if (!loaded) {
+            const share = tiles.readShare()
+            onLoadProgress(share)
+            if (share === 1) {
+                loaded = true
+                tilesWereRead()
+            }
         }
-        if (attempt.signal.aborted) return
-
-        applyChanges(ownership.resync(bindings), false)
-        showShields(shielded.resync(shields))
-        await readFortresses()
     }
 
-    const stopResumes = updatesListener.listenForResumes(() => void catchUp())
+    let reading: AbortController | undefined
+    let firstOpened: (() => void) | undefined
+    const opened = new Promise<void>((resolve) => {
+        firstOpened = resolve
+    })
+
+    // Reads again, every READ_AGAIN_MS and a few times at most, what comes back older than the stream's opening.
+    const catchUp = async (ranges: readonly TileRange[], holdingsToo: boolean, locksToo: boolean) => {
+        reading?.abort()
+        const round = new AbortController()
+        reading = round
+
+        let stale = ranges
+        let staleHoldings = holdingsToo
+        try {
+            for (let attempt = 0; attempt < READS_AT_MOST && (stale.length > 0 || staleHoldings); attempt++) {
+                if (attempt > 0) {
+                    await pause(READ_AGAIN_MS, round.signal)
+                    stale = tiles.stale(stale)
+                    staleHoldings = !holdingsCurrent()
+                }
+                await Promise.all([
+                    staleHoldings ? ownershipsGetter.getHoldings(round.signal).then((read) => {
+                        if (!round.signal.aborted) takeHoldings(read)
+                    }) : undefined,
+                    stale.length > 0 ? ownershipsGetter.getOwnerships(stale, takeBatch, round.signal) : undefined,
+                    locksToo && attempt === 0 ? readFortresses() : undefined,
+                ])
+                await Promise.race([opened, aborted(round.signal)])
+                stale = tiles.stale(stale)
+                staleHoldings = !holdingsCurrent()
+            }
+        } catch (e) {
+            if (round.signal.aborted) return
+            console.error("could not read the map", e)
+            if (!loaded) void pause(READ_AGAIN_MS, lifetime.signal).then(() => catchUp(tiles.stale(tiles.ranges), false, false), () => {})
+        }
+    }
+
+    // A stream that opens again had a gap, and nothing replays it: what it may have missed is read again at once.
+    const stopOpenings = updatesListener.listenForOpenings((version) => {
+        if (holdingsCurrent() && holdingsTold && holdingsAt && holdingsTold.epoch === holdingsAt.epoch && holdingsTold.seq > holdingsAt.seq) holdingsAt = holdingsTold
+        const {restarted} = tiles.opened(version)
+        if (restarted) holdings.forget()
+        if (firstOpened) {
+            firstOpened()
+            firstOpened = undefined
+            return
+        }
+        void catchUp(tiles.stale(tiles.ranges), !holdingsCurrent(), true)
+    })
 
     const waves = createFortifyWaves(uniforms, geometryData.positions, (tiles) => {
         field.setShields(Array.from(tiles, (tile) => ({tile, shields: shielded.shieldsOf(tile), was: 0})))
@@ -959,16 +1043,15 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     })
 
     const stopFortifications = updatesListener.listenForFortifications((fortification) => {
-        const tiles = landmasses.tilesOf(fortification.landmass)
-        const held = (tile: number) => ownership.ownerOf(tile) === fortification.countryId
-        const raised = shielded.applyFortification(tiles, held, uniforms.shieldMost.value)
+        const members = landmasses.tilesOf(fortification.landmass)
+        const raised = tiles.applyFortification(members, fortification.countryId, uniforms.shieldMost.value, fortification.version)
         if (document.hidden || uniforms.motion.value === 0) showShields(raised)
-        else waves.start(fortification.landmass, tiles, fortification.tile, performance.now() / 1000)
+        else waves.start(fortification.landmass, members, fortification.tile, performance.now() / 1000)
 
         const own = fortification.countryId === country.code
-        const news = isNews(fortification, tiles.length, country.code)
+        const news = isNews(fortification, members.length, country.code)
         if (news) playSound("fortify", {volume: own ? 1 : DISTANT_BOMB_VOLUME})
-        onFortified({fortification, name: landmassName(fortification.landmass, borders.codes[fortification.landmass]), tiles: tiles.length, news})
+        onFortified({fortification, name: landmassName(fortification.landmass, borders.codes[fortification.landmass]), tiles: members.length, news})
         if (tracking) targets.lock(fortification.landmass, fortification.countryId)
     })
 
@@ -1001,6 +1084,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         if (orbit !== wasInOrbit) {
             wasInOrbit = orbit
             pendingPointer ??= mouseOnCanvas
+            onOrbitChange(orbit)
         }
         const lit = highlight(orbit)
 
@@ -1036,6 +1120,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     const globe: Globe = {
         tilesCount: field.size,
+        tilesRead,
         setCountry: (newCountry: Country) => {
             country = newCountry
         },
@@ -1057,7 +1142,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             name: landmassName(landmass, borders.codes[landmass]),
             ground: borders.codes[landmass] || undefined,
             size: territories.sizeOf(landmass),
-            holdings: rankHoldings(territories.holdingsOf(landmass)),
+            holdings: rankHoldings(holdings.holdingsOf(landmass)),
             fortifiedBy: targets.lockOf(landmass),
             target: targets.targetOf(landmass),
         }),
@@ -1082,9 +1167,10 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
             stopAnimation()
             cleanUpdatesListener()
-            stopResumes()
+            stopOpenings()
+            stopHoldings()
             stopFortifications()
-            catchingUp?.abort()
+            reading?.abort()
             stopBonuses?.()
             stopBombs?.()
             stopWatchingBudget?.()
@@ -1105,23 +1191,14 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         }
     }
 
-    const batches = Math.ceil(field.size / TILES_PER_BATCH)
-    let fetched = 0
     const stopFollowingLoad = new AbortController()
     signal.addEventListener("abort", () => lifetime.abort(), {signal: stopFollowingLoad.signal})
     onLoadProgress(0)
+    void catchUp(tiles.ranges, false, false)
     try {
-        await ownershipsGetter.getCurrentOwnershipsByBatch(
-            TILES_PER_BATCH,
-            field.size,
-            (ownerships) => {
-                applyChanges(ownership.applyBatch(ownerships), false)
-                showShields(shielded.applyBatch(ownerships.shields))
-                onLoadProgress(Math.min(1, ++fetched / batches))
-            },
-            lifetime.signal,
-        )
+        const [read] = await Promise.all([ownershipsGetter.getHoldings(lifetime.signal), readFortresses()])
         lifetime.signal.throwIfAborted()
+        takeHoldings(read)
     } catch (e) {
         globe.dispose()
         throw e
@@ -1129,9 +1206,12 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         stopFollowingLoad.abort()
     }
 
-    loaded = true
-    void readFortresses()
+    onOrbitChange(wasInOrbit)
     return globe
+}
+
+function rangeTiles({start, end}: TileRange): number[] {
+    return Array.from({length: end - start + 1}, (_, i) => start + i)
 }
 
 function startAnimation(
@@ -1273,6 +1353,10 @@ export function reportClickFailure(
         return false
     }
     return true
+}
+
+function aborted(signal: AbortSignal): Promise<never> {
+    return new Promise((_, reject) => signal.addEventListener("abort", () => reject(signal.reason), {once: true}))
 }
 
 function pause(ms: number, signal: AbortSignal): Promise<void> {

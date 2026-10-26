@@ -38,6 +38,7 @@ type zernioFake struct {
 	upload   answer
 	posts    answer
 	listed   answer
+	music    answer
 
 	calls     []string
 	queries   map[string]url.Values
@@ -107,6 +108,8 @@ func (f *zernioFake) serve(t *testing.T) *httptest.Server {
 		case "POST /v1/posts":
 			assert.NoError(t, json.Unmarshal(raw, &f.sent))
 			f.posts.write(w)
+		case "GET /v1/accounts/acc-1/tiktok/commercial-music":
+			f.music.write(w)
 		default:
 			t.Errorf("zernio was asked %s", call)
 			w.WriteHeader(http.StatusNotFound)
@@ -612,8 +615,8 @@ func TestAListOfPostsWithNoPostsInItIsAnError(t *testing.T) {
 	require.Error(t, err)
 }
 
-// No arm acts when a clip is posted yet: a clip in the control, or in the short arm, is sent as it was before the
-// experiments, its record aside, which carries its arms as the generator wrote them.
+// The length acts when the clip is rendered, not when it is posted: a clip in the control, or in the short arm, is sent
+// as it was before the experiments, its record aside, which carries its arms as the generator wrote them.
 func TestAClipInAnArmOfTheLengthExperimentIsSentAsAClipInNone(t *testing.T) {
 	record := posts.ClipRecord(`{"format":"globe-replay","variants":{"length":"as-chosen"}}`)
 	sent := func(variants posts.Variants) map[string]any {

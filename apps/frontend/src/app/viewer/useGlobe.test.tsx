@@ -27,7 +27,7 @@ function fakeGlobe(): Globe & {
     graphics: ReturnType<typeof vi.fn>,
     dispose: ReturnType<typeof vi.fn>,
 } {
-    return {tilesCount: 257_948, setCountry: vi.fn(), takeReward: vi.fn(), setArmed: vi.fn(), setSwitch: vi.fn(), setClickHue: vi.fn(), setMapView: vi.fn(), territoryOf: vi.fn(), showTerritory: vi.fn(), capture: vi.fn(), graphics: vi.fn(), dispose: vi.fn()}
+    return {tilesCount: 257_948, tilesRead: Promise.resolve(), setCountry: vi.fn(), takeReward: vi.fn(), setArmed: vi.fn(), setSwitch: vi.fn(), setClickHue: vi.fn(), setMapView: vi.fn(), territoryOf: vi.fn(), showTerritory: vi.fn(), capture: vi.fn(), graphics: vi.fn(), dispose: vi.fn()}
 }
 
 function Harness(props: {country: typeof FRANCE, backends: ReturnType<typeof backends>, onResult: (r: unknown) => void}) {
@@ -71,14 +71,30 @@ describe("useGlobe", () => {
         expect(latest.tilesCount).toBe(257_948)
     })
 
-    it("reports how much of the territories has loaded while it waits", async () => {
-        createGlobe.mockReturnValue(new Promise<Globe>(() => {}))
+    it("reports how much of the tiles has been read once the globe is ready, then that they all are", async () => {
+        createGlobe.mockReturnValue(Promise.resolve(fakeGlobe()))
 
         renderHook()
+        await waitFor(() => expect(latest.status.state).toBe('ready'))
         const {onLoadProgress} = createGlobe.mock.calls[0][0]
 
+        expect(latest.tilesLoading).toBe(0)
         await act(async () => onLoadProgress(0.25))
-        expect(latest.status).toEqual({state: 'loading', territories: 0.25})
+        expect(latest.tilesLoading).toBe(0.25)
+        await act(async () => onLoadProgress(1))
+        expect(latest.tilesLoading).toBeUndefined()
+    })
+
+    it("follows the camera in and out of orbit", async () => {
+        createGlobe.mockReturnValue(Promise.resolve(fakeGlobe()))
+
+        renderHook()
+        await waitFor(() => expect(latest.status.state).toBe('ready'))
+        const {onOrbitChange} = createGlobe.mock.calls[0][0]
+
+        expect(latest.orbit).toBe(true)
+        await act(async () => onOrbitChange(false))
+        expect(latest.orbit).toBe(false)
     })
 
     it("shows the loaded board with the map, not a sample later", async () => {

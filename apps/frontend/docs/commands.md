@@ -34,8 +34,10 @@ touching this app.
 `access-control-allow-origin: https://clickplanet.lol` and nothing else, so the
 browser blocks every request from `localhost`. Point `VITE_API_BASE_URL` at a
 local backend, or run `VITE_FAKE_BACKEND=1 npm run dev` to play against
-`FakeBackend` and `FakeChatBackend` — the fake serves a full map, simulates other
-players at a few clicks a second, and reproduces every refusal the chat can show.
+`FakeBackend` and `FakeChatBackend` — the fake serves a full map of the real tile
+count, with a version on every write and the counts the server would send,
+simulates other players at a few clicks a second, and reproduces every refusal the
+chat can show.
 The switch is gated on `import.meta.env.DEV` as well, because an unset `VITE_*`
 variable is **not** folded away in a build: without the `DEV` check both fakes
 ship in the production bundle.
@@ -70,6 +72,8 @@ player's own again. `fakeBackend.closeShapes(false)` makes every enclose click
 close nothing, for the bubble that says so, and `closeShapes(true)` puts it back.
 `fakeBackend.ban(90)` refuses this player's clicks, bombs and shields for 90
 minutes, as a ban does, and `fakeBackend.ban(0)` lifts it.
+`fakeBackend.setTempo(3)` refills the bank three times as fast, as a rule set
+of the server can, and `fakeBackend.setTempo(1)` puts it back.
 `localStorage.removeItem("clickplanet-bonus-guide")` makes the bonuses new again.
 `fakeSupport.refuse("rate-limited")` (or `"rejected"`, `"no-session"`,
 `"reported-already"`, `"failed"`) refuses what Settings and a player's card

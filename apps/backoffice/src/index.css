@@ -832,6 +832,25 @@ textarea {
     min-width: 0;
 }
 
+.rule-group {
+    display: grid;
+    gap: 10px;
+    margin: 0;
+    padding: 10px 12px 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    min-width: 0;
+}
+
+.rule-group legend {
+    padding: 0 4px;
+    font-weight: 600;
+}
+
+.rule-group .fields {
+    align-items: end;
+}
+
 .field input[type="range"] {
     width: 100%;
     max-width: 24em;

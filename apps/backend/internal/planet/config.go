@@ -3,9 +3,9 @@ package planet
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
@@ -15,11 +15,11 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
+// The game's rules are not here: they are the rule set postgres keeps (planet.rule_sets), edited from the backoffice.
 type Config struct {
 	GameMap      GameMapConfig
 	TilesStorage inmemory_tile_storage.Config
-	RateLimiter  clicks.ThrottleConfig
-	Toll         clicks.TollConfig
+	RateLimiter  RateLimiterConfig
 	VPNBlocklist cpipblock.Config
 	Bonus        bonuses.Config
 
@@ -36,6 +36,10 @@ type GameMapConfig struct {
 	MaxIndex uint32
 }
 
+type RateLimiterConfig struct {
+	SweepInterval time.Duration
+}
+
 func (c Config) Validate() error {
 	if c.GameMap.MaxIndex == 0 {
 		return errors.New("gameMap.maxIndex is zero: the map has no tiles")
@@ -49,9 +53,5 @@ func (c Config) Validate() error {
 		return fmt.Errorf("redis: %w", err)
 	}
 
-	if err := c.Toll.Validate(); err != nil {
-		return err
-	}
-
-	return errors.Join(c.RateLimiter.Validate(), c.Bonus.Validate())
+	return nil
 }

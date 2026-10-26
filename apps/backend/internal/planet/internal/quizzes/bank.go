@@ -16,7 +16,6 @@ import (
 type Bank struct {
 	version string
 
-	bias   float64
 	shares Shares
 
 	all []Question
@@ -44,7 +43,7 @@ func (a about) with(question Question) about {
 	return a
 }
 
-func Load(config Config, shares Shares) (*Bank, error) {
+func Load(shares Shares) (*Bank, error) {
 	blob := quizdata.Bank()
 
 	var file struct {
@@ -64,7 +63,6 @@ func Load(config Config, shares Shares) (*Bank, error) {
 
 	bank := &Bank{
 		version:   versionOf(blob),
-		bias:      config.withDefaults().LeaderBias,
 		shares:    shares,
 		all:       file.Questions,
 		bySubject: make(map[string]about),
@@ -112,12 +110,12 @@ func (b *Bank) Size() int { return len(b.all) }
 
 func (b *Bank) Subjects() int { return len(b.subjects) }
 
-func (b *Bank) Draw() Round {
-	return b.round(b.question())
+func (b *Bank) Draw(lean float64) Round {
+	return b.round(b.question(lean))
 }
 
-func (b *Bank) question() Question {
-	pool := b.pool()
+func (b *Bank) question(lean float64) Question {
+	pool := b.pool(lean)
 	if len(pool) == 0 {
 		return b.all[index(len(b.all))]
 	}

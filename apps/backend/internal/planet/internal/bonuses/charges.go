@@ -14,13 +14,13 @@ type Store interface {
 	Held(ctx context.Context, holder Holder) (Held, error)
 }
 
-func NewCharges(store Store, config ChargesConfig) Charges {
-	return Charges{store: store, config: config}
+func NewCharges(store Store, rules func() Rules) Charges {
+	return Charges{store: store, rules: rules}
 }
 
 type Charges struct {
-	store  Store
-	config ChargesConfig
+	store Store
+	rules func() Rules
 }
 
 func (c Charges) Held(ctx context.Context, holder Holder) (Held, error) {
@@ -40,8 +40,9 @@ func (c Charges) Grant(ctx context.Context, holder Holder, kind Kind, amount int
 		return nil
 	}
 
+	rules := c.rules()
 	if err := c.store.Change(ctx, holder, func(held Held) (Held, error) {
-		return held.Granted(kind, amount, c.config), nil
+		return held.Granted(kind, amount, rules), nil
 	}); err != nil {
 		return fmt.Errorf("failed to grant %s %d %s: %w", holder, amount, kind, err)
 	}

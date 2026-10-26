@@ -14,10 +14,10 @@ var (
 	music  = posts.Experiment{
 		Name: "music", Arms: []posts.Arm{{Name: "anthem", Weight: 3}, {Name: "trending", Weight: 1}}, Control: "anthem",
 	}
-	editor = posts.Experiment{
-		Name:    posts.EditorExperiment,
-		Arms:    []posts.Arm{{Name: posts.ByRules, Weight: 1}, {Name: posts.ByModel, Weight: 1}, {Name: posts.FellBack}},
-		Control: posts.ByRules, PerRun: true,
+	sound = posts.Experiment{
+		Name:    "sound",
+		Arms:    []posts.Arm{{Name: "anthem", Weight: 1}, {Name: "trending", Weight: 1}, {Name: posts.FellBack}},
+		Control: "anthem",
 	}
 )
 
@@ -76,44 +76,24 @@ func TestEachStoryChosenIsPutInItsOwnArmsInTheOrderOfTheRun(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	assigned := experimentsOf(t, length).AssignEach(chosen, nil, nil, &posts.RolledDice{Faces: []int{1, 0}})
+	assigned := experimentsOf(t, length).AssignEach(chosen, map[posts.Pick]string{2: "ALGERIA IS EVERYWHERE"}, &posts.RolledDice{Faces: []int{1, 0}})
 
 	assert.Equal(t, []posts.Assignment{
 		{Pick: 1, Variants: posts.Variants{"length": "short"}},
-		{Pick: 2, Variants: posts.Variants{"length": "as-chosen"}},
-	}, assigned)
-}
-
-// The editor changes which stories are told: its coin is the run's, flipped before them, and every clip carries it.
-func TestARunExperimentIsFlippedOnceForTheRunAndCarriedByEachOfItsClips(t *testing.T) {
-	experiments := experimentsOf(t, editor, length)
-	chosen, err := posts.ShortlistOf(
-		posts.Story{Title: "A", Key: posts.StoryKey{Flag: "fr", Continent: "Europe"}},
-		posts.Story{Title: "B", Key: posts.StoryKey{Flag: "dz", Continent: "Africa"}},
-	)
-	require.NoError(t, err)
-	dice := &posts.RolledDice{Faces: []int{1, 1, 0}}
-
-	run := experiments.AssignRun(dice)
-	assigned := experiments.AssignEach(chosen, run, map[posts.Pick]string{2: "ALGERIA IS EVERYWHERE"}, dice)
-
-	assert.Equal(t, posts.Variants{"editor": "model"}, run)
-	assert.Equal(t, []posts.Assignment{
-		{Pick: 1, Variants: posts.Variants{"editor": "model", "length": "short"}},
-		{Pick: 2, Variants: posts.Variants{"editor": "model", "length": "as-chosen"}, Headline: "ALGERIA IS EVERYWHERE"},
+		{Pick: 2, Variants: posts.Variants{"length": "as-chosen"}, Headline: "ALGERIA IS EVERYWHERE"},
 	}, assigned)
 }
 
 func TestAnArmOfNoWeightIsNeverDrawnButIsAnArmAClipCanBeIn(t *testing.T) {
-	experiments := experimentsOf(t, editor)
+	experiments := experimentsOf(t, sound)
 
 	drawn := map[string]int{}
 	for face := range 2 {
-		drawn[experiments.AssignRun(posts.LoadedDice(face))[posts.EditorExperiment]]++
+		drawn[experiments.Assign(posts.LoadedDice(face))["sound"]]++
 	}
 
-	assert.Equal(t, map[string]int{"rules": 1, "model": 1}, drawn)
-	require.NoError(t, experiments.Check(posts.Variants{"editor": "fell-back"}))
+	assert.Equal(t, map[string]int{"anthem": 1, "trending": 1}, drawn)
+	require.NoError(t, experiments.Check(posts.Variants{"sound": "fell-back"}))
 }
 
 func TestAnExperimentThatCannotRunIsRefused(t *testing.T) {

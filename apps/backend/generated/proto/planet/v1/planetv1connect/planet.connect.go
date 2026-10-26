@@ -41,6 +41,9 @@ const (
 	ClickServiceMapDensityProcedure = "/planet.v1.ClickService/MapDensity"
 	// ClickServiceGetMapProcedure is the fully-qualified name of the ClickService's GetMap RPC.
 	ClickServiceGetMapProcedure = "/planet.v1.ClickService/GetMap"
+	// ClickServiceGetHoldingsProcedure is the fully-qualified name of the ClickService's GetHoldings
+	// RPC.
+	ClickServiceGetHoldingsProcedure = "/planet.v1.ClickService/GetHoldings"
 	// ClickServiceListenForEventsProcedure is the fully-qualified name of the ClickService's
 	// ListenForEvents RPC.
 	ClickServiceListenForEventsProcedure = "/planet.v1.ClickService/ListenForEvents"
@@ -86,6 +89,7 @@ type ClickServiceClient interface {
 	GetBudget(context.Context, *connect.Request[v1.GetBudgetRequest]) (*connect.Response[v1.GetBudgetResponse], error)
 	MapDensity(context.Context, *connect.Request[v1.MapDensityRequest]) (*connect.Response[v1.MapDensityResponse], error)
 	GetMap(context.Context, *connect.Request[v1.GetMapRequest]) (*connect.Response[v1.GetMapResponse], error)
+	GetHoldings(context.Context, *connect.Request[v1.GetHoldingsRequest]) (*connect.Response[v1.GetHoldingsResponse], error)
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest]) (*connect.ServerStreamForClient[v1.PlanetEvent], error)
 	ClaimBonus(context.Context, *connect.Request[v1.ClaimBonusRequest]) (*connect.Response[v1.ClaimBonusResponse], error)
 	DropBomb(context.Context, *connect.Request[v1.DropBombRequest]) (*connect.Response[v1.DropBombResponse], error)
@@ -140,6 +144,13 @@ func NewClickServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			httpClient,
 			baseURL+ClickServiceGetMapProcedure,
 			connect.WithSchema(clickServiceMethods.ByName("GetMap")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
+		getHoldings: connect.NewClient[v1.GetHoldingsRequest, v1.GetHoldingsResponse](
+			httpClient,
+			baseURL+ClickServiceGetHoldingsProcedure,
+			connect.WithSchema(clickServiceMethods.ByName("GetHoldings")),
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
@@ -240,6 +251,7 @@ type clickServiceClient struct {
 	getBudget        *connect.Client[v1.GetBudgetRequest, v1.GetBudgetResponse]
 	mapDensity       *connect.Client[v1.MapDensityRequest, v1.MapDensityResponse]
 	getMap           *connect.Client[v1.GetMapRequest, v1.GetMapResponse]
+	getHoldings      *connect.Client[v1.GetHoldingsRequest, v1.GetHoldingsResponse]
 	listenForEvents  *connect.Client[v1.ListenForEventsRequest, v1.PlanetEvent]
 	claimBonus       *connect.Client[v1.ClaimBonusRequest, v1.ClaimBonusResponse]
 	dropBomb         *connect.Client[v1.DropBombRequest, v1.DropBombResponse]
@@ -274,6 +286,11 @@ func (c *clickServiceClient) MapDensity(ctx context.Context, req *connect.Reques
 // GetMap calls planet.v1.ClickService.GetMap.
 func (c *clickServiceClient) GetMap(ctx context.Context, req *connect.Request[v1.GetMapRequest]) (*connect.Response[v1.GetMapResponse], error) {
 	return c.getMap.CallUnary(ctx, req)
+}
+
+// GetHoldings calls planet.v1.ClickService.GetHoldings.
+func (c *clickServiceClient) GetHoldings(ctx context.Context, req *connect.Request[v1.GetHoldingsRequest]) (*connect.Response[v1.GetHoldingsResponse], error) {
+	return c.getHoldings.CallUnary(ctx, req)
 }
 
 // ListenForEvents calls planet.v1.ClickService.ListenForEvents.
@@ -353,6 +370,7 @@ type ClickServiceHandler interface {
 	GetBudget(context.Context, *connect.Request[v1.GetBudgetRequest]) (*connect.Response[v1.GetBudgetResponse], error)
 	MapDensity(context.Context, *connect.Request[v1.MapDensityRequest]) (*connect.Response[v1.MapDensityResponse], error)
 	GetMap(context.Context, *connect.Request[v1.GetMapRequest]) (*connect.Response[v1.GetMapResponse], error)
+	GetHoldings(context.Context, *connect.Request[v1.GetHoldingsRequest]) (*connect.Response[v1.GetHoldingsResponse], error)
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest], *connect.ServerStream[v1.PlanetEvent]) error
 	ClaimBonus(context.Context, *connect.Request[v1.ClaimBonusRequest]) (*connect.Response[v1.ClaimBonusResponse], error)
 	DropBomb(context.Context, *connect.Request[v1.DropBombRequest]) (*connect.Response[v1.DropBombResponse], error)
@@ -403,6 +421,13 @@ func NewClickServiceHandler(svc ClickServiceHandler, opts ...connect.HandlerOpti
 		ClickServiceGetMapProcedure,
 		svc.GetMap,
 		connect.WithSchema(clickServiceMethods.ByName("GetMap")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
+	clickServiceGetHoldingsHandler := connect.NewUnaryHandler(
+		ClickServiceGetHoldingsProcedure,
+		svc.GetHoldings,
+		connect.WithSchema(clickServiceMethods.ByName("GetHoldings")),
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
@@ -504,6 +529,8 @@ func NewClickServiceHandler(svc ClickServiceHandler, opts ...connect.HandlerOpti
 			clickServiceMapDensityHandler.ServeHTTP(w, r)
 		case ClickServiceGetMapProcedure:
 			clickServiceGetMapHandler.ServeHTTP(w, r)
+		case ClickServiceGetHoldingsProcedure:
+			clickServiceGetHoldingsHandler.ServeHTTP(w, r)
 		case ClickServiceListenForEventsProcedure:
 			clickServiceListenForEventsHandler.ServeHTTP(w, r)
 		case ClickServiceClaimBonusProcedure:
@@ -555,6 +582,10 @@ func (UnimplementedClickServiceHandler) MapDensity(context.Context, *connect.Req
 
 func (UnimplementedClickServiceHandler) GetMap(context.Context, *connect.Request[v1.GetMapRequest]) (*connect.Response[v1.GetMapResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.GetMap is not implemented"))
+}
+
+func (UnimplementedClickServiceHandler) GetHoldings(context.Context, *connect.Request[v1.GetHoldingsRequest]) (*connect.Response[v1.GetHoldingsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.GetHoldings is not implemented"))
 }
 
 func (UnimplementedClickServiceHandler) ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest], *connect.ServerStream[v1.PlanetEvent]) error {

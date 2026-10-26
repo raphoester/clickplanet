@@ -17,28 +17,40 @@ type toll []clicks.TollStep
 
 func (t toll) Steps() []clicks.TollStep { return t }
 
-func TestTheRulesAreAnsweredAsTheyWereGiven(t *testing.T) {
-	rules := bonuses.Rules{BlastRadius: 0.016, EnclosureMaxTiles: 25, SpreadClicks: 8, Shields: 12, TileShields: 10}
-	res, err := get_bonus_rules_handler.New(rules, toll{}).
-		GetBonusRules(t.Context(), connect.NewRequest(&planetv1.GetBonusRulesRequest{}))
-	require.NoError(t, err)
+func answered(t *testing.T, handler get_bonus_rules_handler.GetBonusRulesHandler) *planetv1.GetBonusRulesResponse {
+	t.Helper()
 
-	assert.InDelta(t, 0.016, res.Msg.GetBlastRadius(), 1e-9)
-	assert.Equal(t, uint32(25), res.Msg.GetEnclosureMaxTiles())
-	assert.Equal(t, uint32(8), res.Msg.GetSpreadClicks())
-	assert.Equal(t, uint32(12), res.Msg.GetShields())
-	assert.Equal(t, uint32(10), res.Msg.GetTileShields())
-	assert.Empty(t, res.Msg.GetTollSteps())
+	res, err := handler.GetBonusRules(t.Context(), connect.NewRequest(&planetv1.GetBonusRulesRequest{}))
+	require.NoError(t, err)
+	return res.Msg
+}
+
+func TestTheRulesAreThoseInForce(t *testing.T) {
+	rules := bonuses.TestRules()
+	inForce := func() bonuses.Rules { return rules }
+	handler := get_bonus_rules_handler.New(inForce, bonuses.NewBombing(inForce, 0.004), toll{})
+
+	rules.Bomb.Rings = 5
+	rules.Enclose = bonuses.EncloseRules{MaxTiles: 40, Held: 4, MaxPerBox: 2}
+	rules.Spread.Clicks = 9
+	rules.Shield.Held = 12
+	rules.Shield.PerTile = 20
+	got := answered(t, handler)
+
+	assert.InDelta(t, 0.02, got.GetBlastRadius(), 1e-9)
+	assert.Equal(t, uint32(40), got.GetEnclosureMaxTiles())
+	assert.Equal(t, uint32(4), got.GetEnclosures())
+	assert.Equal(t, uint32(9), got.GetSpreadClicks())
+	assert.Equal(t, uint32(12), got.GetShields())
+	assert.Equal(t, uint32(20), got.GetTileShields())
+	assert.Empty(t, got.GetTollSteps())
 }
 
 func TestTheClientIsToldEveryTollStepInOrder(t *testing.T) {
 	steps := toll{{Share: 0.1, Slowdown: 1.5}, {Share: 0.2, Slowdown: 2.5}, {Share: 0.3, Slowdown: 4}}
+	got := answered(t, get_bonus_rules_handler.New(bonuses.TestRules, bonuses.NewBombing(bonuses.TestRules, 0.004), steps)).
+		GetTollSteps()
 
-	res, err := get_bonus_rules_handler.New(bonuses.Rules{}, steps).
-		GetBonusRules(t.Context(), connect.NewRequest(&planetv1.GetBonusRulesRequest{}))
-	require.NoError(t, err)
-
-	got := res.Msg.GetTollSteps()
 	require.Len(t, got, 3)
 	for i, step := range steps {
 		assert.InDelta(t, step.Share, got[i].GetShare(), 1e-9)

@@ -12,7 +12,7 @@ screen draws a splash. That was a product decision: a bad aim costs the bomb.
 
 On land the tiles are `Geography.Within(centre, radius)`: every tile within
 `radius` of arc of the tile hit — a true circle, ~230 tiles inland, found by a
-straight scan (~0.5ms, once per bomb). The radius is `bomb.rings × Geography.Spacing()` (`bonuses.NewBombRules`, and `BombRules.Blast` decides land or sea),
+straight scan (~0.5ms, once per bomb). The radius is the rule set's `bonuses.bomb.rings` × `Geography.Spacing()`, read at each drop (`bonuses.Bombing`, whose `Blast` decides land or sea),
 the mean arc between touching tiles measured at boot (0.0040 rad on the
 262,119-tile map, so 0.032), rather than a number in the config that could drift
 from the map; the same radius goes to clients, so the ring they draw is the clear.
@@ -25,8 +25,9 @@ bomb that visibly covered it. A circle has neither problem.
 **A bomb hits a shielded tile like a click.** `inmemory_tile_storage.Clear` takes
 one shield from each shielded tile in the blast, whoever's it is, and clears the
 rest, under one lock: a shielded tile keeps its flag, is not in `cleared_tile_ids`,
-and is listed in `struck_tile_ids` (`Blast.Struck`), so a client takes one shield
-off it at impact. See [Shields](shields.md).
+and is listed in `struck` with the shields it kept (`Blast.Struck`, `Blast.Left`), so a
+client sets its shields at impact. `struck_tile_ids`, the same tiles with no count, is
+deprecated and still filled for the tabs loaded before. See [Shields](shields.md).
 
 `drop_bomb_usecase` checks the country and the target **before** taking the bomb, so a
 malformed request does not cost one. The drop does not move the schedule: the next

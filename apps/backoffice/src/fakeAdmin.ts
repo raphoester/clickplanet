@@ -16,20 +16,21 @@ import {
     BanPlayerRequest,
     BanPlayerResponse,
     Conviction,
-    GetRulesRequest,
-    GetRulesResponse,
+    GetRulesRequest as AntibotGetRulesRequest,
+    GetRulesResponse as AntibotGetRulesResponse,
     InspectPlayerRequest,
     InspectPlayerResponse,
     ListConvictionsRequest,
     ListConvictionsResponse,
-    RuleSet,
-    SaveRuleSetRequest,
-    SaveRuleSetResponse,
+    RuleSet as AntibotRuleSet,
+    SaveRuleSetRequest as AntibotSaveRuleSetRequest,
+    SaveRuleSetResponse as AntibotSaveRuleSetResponse,
     UnbanPlayerRequest,
     UnbanPlayerResponse,
     WatchdogReading,
 } from "./gen/grpc/antibot/v1/admin_pb.ts"
 import {Rules} from "./gen/grpc/antibot/v1/rules_pb.ts"
+import {Rules as PlanetRules} from "./gen/grpc/planet/v1/rules_pb.ts"
 import {
     FindPlayersRequest,
     FindPlayersResponse,
@@ -38,6 +39,8 @@ import {
     GetReplayRequest,
     LedgerChange,
     GetReplayResponse,
+    GetRulesRequest,
+    GetRulesResponse,
     GrantChargesRequest,
     GrantChargesResponse,
     PaintRandomTilesRequest,
@@ -47,6 +50,9 @@ import {
     ReassignCountryResponse,
     RevertPlayerRequest,
     RevertPlayerResponse,
+    RuleSet,
+    SaveRuleSetRequest,
+    SaveRuleSetResponse,
     TopPlayersRequest,
     TopPlayersResponse,
 } from "./gen/grpc/planet/v1/admin_pb.ts"
@@ -179,9 +185,9 @@ export function metricsAt(seconds: number, minutes: number): GetMetricsResponse 
 }
 
 // What each fake was asked, and a refusal to answer with instead, by method.
-export class FakeAdmin implements AntibotAdmin, ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAdmin, ClipsAdmin, MetricsAdmin,
-    SeasonsAdmin {
+export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAdmin, ClipsAdmin, MetricsAdmin, SeasonsAdmin {
     readonly kind = "fake admin"
+    readonly antibot: FakeAntibot = new FakeAntibot(this)
     readonly asked: {method: string, request: unknown}[] = []
     readonly refusals = new Map<string, Code>()
     private readonly holds = new Map<string, Promise<void>>()
@@ -220,8 +226,8 @@ export class FakeAdmin implements AntibotAdmin, ChatAdmin, PlanetAdmin, PlayerAd
     ]
     inspection = new InspectPlayerResponse({accountId: "account-reported", clicks: 42, banned: false})
     // The set the migration keeps, in part: the fake keeps what it is given and checks nothing.
-    antibotRules = new GetRulesResponse({
-        sets: [new RuleSet({
+    antibotRules = new AntibotGetRulesResponse({
+        sets: [new AntibotRuleSet({
             name: "default",
             rules: Rules.fromJson({
                 bans: {enforce: true, banDurations: ["86400s", "604800s", "94608000s"], reflagInterval: "300s"},
@@ -306,6 +312,28 @@ export class FakeAdmin implements AntibotAdmin, ChatAdmin, PlanetAdmin, PlayerAd
             new Score({rank: 2, countryId: "fr", points: 190, roundsWon: 4}),
         ],
     })
+    // The set the migration keeps: the game's own rules.
+    rules = new GetRulesResponse({sets: [new RuleSet({name: "default", rules: PlanetRules.fromJson({
+        clicks: {
+            tempo: 1, perSecond: 0.2, burst: 60, scopeMultiplier: 10, v6ScopeMultiplier: 4, guestScopeMultiplier: 1,
+            linkedMultiplier: 2, newAccountClicks: 10,
+        },
+        toll: {steps: [{share: 0.1, slowdown: 1.5}, {share: 0.2, slowdown: 2.5}, {share: 0.3, slowdown: 4}]},
+        bonuses: {
+            boxes: {minInterval: "240s", maxInterval: "480s", maxChargesPerHour: 12},
+            kinds: {refill: 5, spreadClicks: 3, encloseClicks: 2, bomb: 1, shields: 3},
+            offerTtl: "15s", missRetry: "120s", activeWithin: "120s",
+            spread: {clicks: 8, maxPerBox: 4},
+            bomb: {rings: 4},
+            enclose: {maxTiles: 25, held: 3, maxPerBox: 3},
+            shield: {held: 30, minPerBox: 5, maxPerBox: 20, perTile: 10},
+            welcome: {within: "600s", boxAfter: "60s"},
+            quiz: {
+                enabled: true, minInterval: "240s", maxInterval: "480s", missRetry: "120s", offerTtl: "25s",
+                answerWindow: "8s", leaderBias: 1, maxChargesPerHour: 12,
+            },
+        },
+    })})], playing: "default"})
     roster = [
         new RosterEntry({key: "1", accountId: ACCOUNT, name: "BraveFox42", countryId: "fr"}),
         new RosterEntry({key: "2", accountId: "account-guest", name: "guest_a1b2c3", countryId: "dz", guest: true}),
@@ -335,7 +363,7 @@ export class FakeAdmin implements AntibotAdmin, ChatAdmin, PlanetAdmin, PlayerAd
     ]]
 
     clients(): Clients {
-        return {antibot: this, chat: this, planet: this, player: this, support: this, clips: this, metrics: this, seasons: this}
+        return {antibot: this.antibot, chat: this, planet: this, player: this, support: this, clips: this, metrics: this, seasons: this}
     }
 
     refuse(method: string, code: Code) {
@@ -356,7 +384,7 @@ export class FakeAdmin implements AntibotAdmin, ChatAdmin, PlanetAdmin, PlayerAd
         }
     }
 
-    private answer<T>(method: string, request: unknown, value: T): Promise<T> {
+    answer<T>(method: string, request: unknown, value: T): Promise<T> {
         this.asked.push({method, request})
         const code = this.refusals.get(method)
         const settle = () => code === undefined ? Promise.resolve(value) : Promise.reject(new ConnectError("refused", code))
@@ -405,42 +433,9 @@ export class FakeAdmin implements AntibotAdmin, ChatAdmin, PlanetAdmin, PlayerAd
         return this.answer("mute", request, new MuteResponse({mutedUntil: Timestamp.fromDate(AT)}))
     }
 
-    banPlayer(request: PartialMessage<BanPlayerRequest>): Promise<BanPlayerResponse> {
-        return this.answer("banPlayer", request,
-            new BanPlayerResponse({bannedUntil: Timestamp.fromDate(AT), offence: 2, enforced: true}))
-    }
-
-    unbanPlayer(request: PartialMessage<UnbanPlayerRequest>): Promise<UnbanPlayerResponse> {
-        return this.answer("unbanPlayer", request,
-            new UnbanPlayerResponse({offence: 2, bannedUntil: Timestamp.fromDate(AT), pardonedUntil: Timestamp.fromDate(AT)}))
-    }
-
     revertPlayer(request: PartialMessage<RevertPlayerRequest>): Promise<RevertPlayerResponse> {
         const restored = request.dryRun === true ? 0 : 118
         return this.answer("revertPlayer", request, new RevertPlayerResponse({touched: 900, held: 120, restored}))
-    }
-
-    inspectPlayer(request: PartialMessage<InspectPlayerRequest>): Promise<InspectPlayerResponse> {
-        return this.answer("inspectPlayer", request, this.inspection)
-    }
-
-    getRules(request: PartialMessage<GetRulesRequest>): Promise<GetRulesResponse> {
-        return this.answer("getRules", request, this.antibotRules)
-    }
-
-    // Kept as the server keeps it: a set of the same name is replaced.
-    saveRuleSet(request: PartialMessage<SaveRuleSetRequest>): Promise<SaveRuleSetResponse> {
-        const answer = this.answer("saveRuleSet", request, new SaveRuleSetResponse())
-        if (!this.refusals.has("saveRuleSet") && request.set !== undefined) {
-            const saved = new RuleSet(request.set)
-            const others = this.antibotRules.sets.filter(set => set.name !== saved.name)
-            this.antibotRules = new GetRulesResponse({
-                sets: [...others, saved].sort((a, b) => Number(a.name !== "default") - Number(b.name !== "default") ||
-                    a.name.localeCompare(b.name)),
-                playing: this.antibotRules.playing,
-            })
-        }
-        return answer
     }
 
     grantCharges(request: PartialMessage<GrantChargesRequest>): Promise<GrantChargesResponse> {
@@ -487,10 +482,6 @@ export class FakeAdmin implements AntibotAdmin, ChatAdmin, PlanetAdmin, PlayerAd
         return this.answer("getLedger", request, new GetLedgerResponse({changes: pages[index] ?? [], nextPage: next}))
     }
 
-    listConvictions(request: PartialMessage<ListConvictionsRequest>): Promise<ListConvictionsResponse> {
-        return this.answer("listConvictions", request, new ListConvictionsResponse({convictions: this.convictions}))
-    }
-
     getMetrics(request: PartialMessage<GetMetricsRequest>): Promise<GetMetricsResponse> {
         const read = this.metricReads.length > 1 ? this.metricReads.shift() : this.metricReads[0]
         return this.answer("getMetrics", request, read ?? new GetMetricsResponse())
@@ -502,6 +493,25 @@ export class FakeAdmin implements AntibotAdmin, ChatAdmin, PlanetAdmin, PlayerAd
 
     getTerritories(request: PartialMessage<GetTerritoriesRequest>): Promise<GetTerritoriesResponse> {
         return this.answer("getTerritories", request, this.territories)
+    }
+
+    getRules(request: PartialMessage<GetRulesRequest>): Promise<GetRulesResponse> {
+        return this.answer("getRules", request, this.rules)
+    }
+
+    // Kept as the server keeps it: a set of the same name is replaced.
+    saveRuleSet(request: PartialMessage<SaveRuleSetRequest>): Promise<SaveRuleSetResponse> {
+        const answer = this.answer("saveRuleSet", request, new SaveRuleSetResponse())
+        if (!this.refusals.has("saveRuleSet") && request.set !== undefined) {
+            const saved = new RuleSet(request.set)
+            const others = this.rules.sets.filter(set => set.name !== saved.name)
+            this.rules = new GetRulesResponse({
+                sets: [...others, saved].sort((a, b) => Number(a.name !== "default") - Number(b.name !== "default") ||
+                    a.name.localeCompare(b.name)),
+                playing: this.rules.playing,
+            })
+        }
+        return answer
     }
 
     getRoster(request: PartialMessage<GetRosterRequest>): Promise<GetRosterResponse> {
@@ -543,5 +553,47 @@ export class FakeAdmin implements AntibotAdmin, ChatAdmin, PlanetAdmin, PlayerAd
 
     decideReport(request: PartialMessage<DecideReportRequest>): Promise<DecideReportResponse> {
         return this.answer("decideReport", request, new DecideReportResponse({decidedAt: Timestamp.fromDate(AT)}))
+    }
+}
+
+// antibot.v1's calls, asked of the same fake: planet.v1 has a getRules and a saveRuleSet of its own.
+export class FakeAntibot implements AntibotAdmin {
+    constructor(private readonly admin: FakeAdmin) {}
+
+    banPlayer(request: PartialMessage<BanPlayerRequest>): Promise<BanPlayerResponse> {
+        return this.admin.answer("banPlayer", request,
+            new BanPlayerResponse({bannedUntil: Timestamp.fromDate(AT), offence: 2, enforced: true}))
+    }
+
+    unbanPlayer(request: PartialMessage<UnbanPlayerRequest>): Promise<UnbanPlayerResponse> {
+        return this.admin.answer("unbanPlayer", request,
+            new UnbanPlayerResponse({offence: 2, bannedUntil: Timestamp.fromDate(AT), pardonedUntil: Timestamp.fromDate(AT)}))
+    }
+
+    inspectPlayer(request: PartialMessage<InspectPlayerRequest>): Promise<InspectPlayerResponse> {
+        return this.admin.answer("inspectPlayer", request, this.admin.inspection)
+    }
+
+    getRules(request: PartialMessage<AntibotGetRulesRequest>): Promise<AntibotGetRulesResponse> {
+        return this.admin.answer("getRules", request, this.admin.antibotRules)
+    }
+
+    listConvictions(request: PartialMessage<ListConvictionsRequest>): Promise<ListConvictionsResponse> {
+        return this.admin.answer("listConvictions", request, new ListConvictionsResponse({convictions: this.admin.convictions}))
+    }
+
+    // Kept as the server keeps it: a set of the same name is replaced.
+    saveRuleSet(request: PartialMessage<AntibotSaveRuleSetRequest>): Promise<AntibotSaveRuleSetResponse> {
+        const answer = this.admin.answer("saveRuleSet", request, new AntibotSaveRuleSetResponse())
+        if (!this.admin.refusals.has("saveRuleSet") && request.set !== undefined) {
+            const saved = new AntibotRuleSet(request.set)
+            const others = this.admin.antibotRules.sets.filter(set => set.name !== saved.name)
+            this.admin.antibotRules = new AntibotGetRulesResponse({
+                sets: [...others, saved].sort((a, b) => Number(a.name !== "default") - Number(b.name !== "default") ||
+                    a.name.localeCompare(b.name)),
+                playing: this.admin.antibotRules.playing,
+            })
+        }
+        return answer
     }
 }

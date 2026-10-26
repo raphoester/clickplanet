@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconfigs"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
@@ -29,25 +30,9 @@ func TestTheExampleConfigStillReachesTheStructs(t *testing.T) {
 
 	require.True(t, config.AntiBot.Enabled)
 
-	assert.Equal(t, 25, config.Planet.Bonus.Enclose.MaxTiles)
-	assert.Equal(t, 8, config.Planet.Bonus.Spread.Clicks)
-	assert.Equal(t, 4, config.Planet.Bonus.Spread.MaxPerBox)
-	assert.Equal(t, 3, config.Planet.Bonus.Enclose.Held)
-	assert.Equal(t, 3, config.Planet.Bonus.Enclose.MaxPerBox)
-	assert.Equal(t, 30, config.Planet.Bonus.Shield.Held)
-	assert.Equal(t, 5, config.Planet.Bonus.Shield.MinPerBox)
-	assert.Equal(t, 20, config.Planet.Bonus.Shield.MaxPerBox)
-	assert.Equal(t, 12, config.Planet.Bonus.MaxChargesPerHour)
-
-	quiz := config.Planet.Bonus.Quiz
-	assert.True(t, quiz.Enabled)
-	assert.Equal(t, 4*time.Minute, quiz.MinInterval)
-	assert.Equal(t, 8*time.Minute, quiz.MaxInterval)
-	assert.Equal(t, 2*time.Minute, quiz.MissRetry)
-	assert.Equal(t, 25*time.Second, quiz.OfferTTL)
-	assert.Equal(t, 8*time.Second, quiz.AnswerWindow, "example.yaml must load the answerWindow it documents")
-	assert.InDelta(t, 1.0, quiz.LeaderBias, 1e-9)
-	assert.Equal(t, 12, quiz.MaxChargesPerHour)
+	assert.Equal(t, 5*time.Minute, config.Planet.Bonus.ForgetAfter)
+	assert.Equal(t, time.Second, config.Planet.Bonus.SweepInterval)
+	assert.Equal(t, time.Minute, config.Planet.RateLimiter.SweepInterval)
 
 	assert.Equal(t, 72*time.Hour, config.Planet.Ledger.Retention)
 	assert.Equal(t, 5*time.Minute, config.Planet.Ledger.SweepInterval)
@@ -80,11 +65,6 @@ func TestTheExampleConfigStillCarriesTheRestOfTheFile(t *testing.T) {
 	assert.Equal(t, "0.0.0.0:8080", config.HTTPServer.BindAddress)
 	assert.Equal(t, time.Minute, config.HTTPServer.StartupTimeout)
 	assert.NotZero(t, config.Planet.GameMap.MaxIndex)
-	assert.InDelta(t, 0.2, config.Planet.RateLimiter.PerSecond, 1e-9, "one click every 5s")
-	assert.Equal(t, 60, config.Planet.RateLimiter.Burst)
-	require.Len(t, config.Planet.Toll.Steps, 3)
-	assert.InDelta(t, 0.30, config.Planet.Toll.Steps[2].Share, 1e-9)
-	assert.InDelta(t, 4, config.Planet.Toll.Steps[2].Slowdown, 1e-9)
 	require.NoError(t, config.Planet.Validate())
 	assert.Equal(t, time.Second, config.Planet.TilesStorage.FlushInterval)
 	assert.Equal(t, "127.0.0.1:8081", config.HTTPServer.ConsoleBindAddress)
@@ -102,13 +82,32 @@ func TestTheLocalStackConfigHasTheMapOfTheExampleAndAnInternalListener(t *testin
 	assert.NotEmpty(t, local.HTTPServer.InternalBindAddress, "chat, player and seasons dial it while they are built")
 }
 
-func TestTheExampleConfigReachesTheBombSettings(t *testing.T) {
-	var config Config
-	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
+// planet's rules are kept in postgres (planet.rule_sets): a rule left in a file would be read by nothing.
+func TestEveryPlanetKeyIsOneTheConfigReads(t *testing.T) {
+	theirs := reflect.TypeOf(Config{})
+	for _, path := range []string{"example.yaml", "../../../../deploy/vps/backend.yaml", "../../../../deploy/backend.yaml"} {
+		t.Run(path, func(t *testing.T) {
+			file := koanf.New(".")
+			require.NoError(t, file.Load(kfile.Provider(path), yaml.Parser()))
+			for _, key := range file.MapKeys("") {
+				for i := range theirs.NumField() {
+					if field := theirs.Field(i); field.Name != "Planet" && strings.EqualFold(field.Name, key) {
+						file.Delete(key)
+					}
+				}
+			}
 
-	assert.InDelta(t, 4.0, config.Planet.Bonus.Bomb.Rings, 1e-9)
-	assert.InDelta(t, 1.0, config.Planet.Bonus.Kinds["bomb"], 1e-9)
-	require.NoError(t, config.Planet.Bonus.Validate())
+			var config planet.Config
+			require.NoError(t, file.UnmarshalWithConf("", &config, koanf.UnmarshalConf{
+				DecoderConfig: &mapstructure.DecoderConfig{
+					DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
+					ErrorUnused:      true,
+					WeaklyTypedInput: true,
+					Result:           &config,
+				},
+			}))
+		})
+	}
 }
 
 func authBlock(t *testing.T, secret string) string {
@@ -213,19 +212,6 @@ func TestTheMissionsModuleWithNoDatabaseIsRefused(t *testing.T) {
 
 func TestThePlayerModuleWithNoDatabaseIsRefused(t *testing.T) {
 	assert.ErrorContains(t, Config{}.Validate(), "player.database")
-}
-
-func TestTheExampleConfigReachesTheScopeMultiplier(t *testing.T) {
-	var config Config
-	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
-
-	assert.InDelta(t, 10.0, config.Planet.RateLimiter.ScopeMultiplier, 1e-9)
-	assert.InDelta(t, 4.0, config.Planet.RateLimiter.V6ScopeMultiplier, 1e-9)
-	assert.InDelta(t, 1.0, config.Planet.RateLimiter.GuestScopeMultiplier, 1e-9)
-	assert.InDelta(t, 2.0, config.Planet.RateLimiter.LinkedMultiplier, 1e-9)
-	require.NotNil(t, config.Planet.RateLimiter.NewAccountClicks)
-	assert.InDelta(t, 10.0, *config.Planet.RateLimiter.NewAccountClicks, 1e-9)
-	assert.Equal(t, 60, config.Planet.RateLimiter.Burst, "the squashed policy still reads rateLimiter.burst")
 }
 
 func TestTheProcessRefusesToStartWithoutADatabase(t *testing.T) {

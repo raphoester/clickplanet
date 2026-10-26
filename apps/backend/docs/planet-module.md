@@ -21,6 +21,9 @@ internal/planet/internal/
     usecases/
   allegiances/                    the flag each account plays for, and when it last changed it
     postgres_allegiance_store/
+  rules/                          the rule sets, and the one the game plays
+    postgres_rule_set_store/
+    usecases/
   refusals/                       the callers planet refuses, and until when: the latest decision on each
     postgres_refusal_store/
     log_refusals/
@@ -30,6 +33,7 @@ internal/planet/internal/
     get_ledger_handler/changes_query/           AdminService/GetLedger, straight from ledger_events too
     get_tile_holder_handler/holder_query/       ClickService/GetTileHolder, the last take of one tile, from ledger_events
     get_landmass_handler/landmass_query/       ClickService/GetLandmass: the holders from the tiles, the last fortify from ledger_events
+    get_holdings_handler/holdings_query/       ClickService/GetHoldings: what each flag holds, from the tile map's tally
   subscribers/                    the edge for events: auth.v1.AccountDeleted → anonymize_takes_usecase
   commands/                       the edge for commands: planet.v1.GrantCharges → apply_grant_usecase,
                                   planet.v1.RefuseCaller and AdmitCaller → refusals.Book
@@ -113,6 +117,8 @@ because it serves every concept over one Connect service. It only maps.
 | `bonuses/usecases/use_refill_usecase` | fills the caller's bank with its refill | `Refills`, `Bank`, `Pricer` |
 | `bonuses/usecases/grant_charges_usecase` | the operator gives an account charges | `Charger` |
 | `bonuses/usecases/place_shield_usecase` | spends a shield on a tile of the caller's flag | `Shields`, `Tiles`, `CountryChecker`, `Allegiances` |
+| `rules/usecases/play_rules_usecase` | plays the set postgres keeps, at boot and when it changes; `Plays` | `Sets`, `Rules` |
+| `rules/usecases/save_rule_set_usecase` | the operator makes a set or replaces its values; never the one that plays | `Sets`, `Playing` |
 | `ledger/usecases/relay_ledger_usecase` | tells the other modules what the ledger flushed past its cursor, in ledger order: `TileTaken`, `BombLanded`, `Fortified`, each with its position; a `Runner` | `Ledger`, `Cursor`, `Borders`, `Sender` |
 
 **The interfaces in that last column are declared by the package that calls

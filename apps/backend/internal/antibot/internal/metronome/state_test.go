@@ -233,7 +233,7 @@ func TestARestartIsNeitherABreakNorABurst(t *testing.T) {
 	require.NotNil(t, p)
 
 	assert.Equal(t, 3*4*60+2, p.runClicks, "three restarts, one run")
-	assert.Equal(t, 12*time.Minute+time.Second, p.lastSeen.Sub(p.runStart), "the outages are not time the loop was watched")
+	assert.Equal(t, 12*time.Minute+time.Second, p.ran, "the outages are not time the loop was watched")
 	for _, gap := range p.gaps {
 		assert.Equal(t, time.Second, gap, "a stitched gap is never a sample")
 	}
@@ -271,4 +271,24 @@ func TestWithoutAnOutageTheRestartGapBreaksTheRun(t *testing.T) {
 	loop(restarted, clock, time.Second)
 
 	assert.Equal(t, 1, restarted.payers[looper].runClicks)
+}
+
+func TestASliceKeepsTheTempoItSawAcrossARestart(t *testing.T) {
+	clock := cptime.NewFixedClock(time.Date(2026, 10, 31, 21, 0, 0, 0, time.UTC))
+	rules := bounds(func(r *Rules) { r.Stamina = StaminaRules{Clicks: 2, Window: 6 * time.Hour, MinBusy: 10 * time.Minute} })
+	click := detect.Click{Scope: "home", Account: "player", At: clock.Now(), Tempo: 3}
+
+	w := newWatchdog(Config{}, rules, clock)
+	for range 3 {
+		w.Watch(click)
+	}
+
+	data, err := w.Save()
+	require.NoError(t, err)
+	restarted := newWatchdog(Config{}, rules, clock)
+	require.NoError(t, restarted.Load(data))
+
+	click.Tempo = 1
+	verdict, evidence := restarted.Watch(click)
+	assert.Equal(t, detect.Clear, verdict, "four clicks in a slice that saw three times the pace: under six, not busy. %s", evidence)
 }

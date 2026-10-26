@@ -304,6 +304,20 @@ describe("one player", () => {
         }])
     })
 
+    it("maxes out every charge in one tap, and says what fit", async () => {
+        const admin = new FakeAdmin()
+        render(<Page admin={admin} first={account}/>)
+
+        fireEvent.click(screen.getByRole("button", {name: "Max out"}))
+        expect(screen.getByText("Give BraveFox42 every charge, as many as fit?")).toBeTruthy()
+        fireEvent.click(screen.getByRole("button", {name: "Yes, max out"}))
+
+        expect(await screen.findByText("It held 2 enclosures. It holds a bomb and 3 enclosures.")).toBeTruthy()
+        expect(admin.askedFor("grantCharges")).toEqual([{
+            accountId: ACCOUNT, refill: true, bomb: true, enclosures: 99, spreadClicks: 99, shields: 99,
+        }])
+    })
+
     it("mutes an account, and offers neither a mute nor charges to an address", async () => {
         const admin = new FakeAdmin()
         render(<Page admin={admin} first={account}/>)

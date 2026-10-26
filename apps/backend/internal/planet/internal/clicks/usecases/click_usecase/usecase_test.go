@@ -9,6 +9,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -29,12 +30,13 @@ func (s *testSuite) SetupTest() {
 		clicks.BordersOf(maxIndex),
 		inmemory_tile_storage.Config{},
 		inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{}),
+		cptime.SystemClock{},
 		slog.New(slog.DiscardHandler),
 	)
 
 	tileChecker := clicks.NewBoard(maxIndex)
 	countryChecker := cpcountries.New()
-	s.useCase = click_usecase.New(tileChecker, clicks.NewClaiming(s.storage, 10), countryChecker)
+	s.useCase = click_usecase.New(tileChecker, clicks.NewClaiming(s.storage, func() int { return 10 }), countryChecker)
 }
 
 func (s *testSuite) execute(tileID uint32, countryID string) error {
@@ -131,7 +133,7 @@ func (s *testSuite) TestAShieldedClickPublishesTheShieldsLeftAndNoNewOwner() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	feed, err := s.storage.Subscribe(ctx)
+	feed, _, err := s.storage.Subscribe(ctx)
 	s.Require().NoError(err)
 
 	s.click(153, "de")

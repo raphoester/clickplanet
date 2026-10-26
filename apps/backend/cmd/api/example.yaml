@@ -39,21 +39,9 @@ ledgerStorage:
   flushInterval: 1s
   maxTakes: 4000000
 
+# The game's rules are the rule set postgres keeps (planet.rule_sets), edited on the backoffice.
 rateLimiter:
-  perSecond: 0.2
-  burst: 60
-  scopeMultiplier: 10
-  v6ScopeMultiplier: 4
-  guestScopeMultiplier: 1
-  linkedMultiplier: 2
-  newAccountClicks: 10
   sweepInterval: 1m
-
-toll:
-  steps:
-    - {share: 0.10, slowdown: 1.5}
-    - {share: 0.20, slowdown: 2.5}
-    - {share: 0.30, slowdown: 4}
 
 vpnBlocklist:
   enabled: true
@@ -61,62 +49,9 @@ vpnBlocklist:
   allow: []
 
 bonus:
-  minInterval: 4m
-  maxInterval: 8m
-
-  missRetry: 2m
-
-  kinds:
-    refill: 5
-    spread_clicks: 3
-    enclose_clicks: 2
-    bomb: 1
-    shields: 3
-
-  # Must outlast the box's flight on the client, or a late catch is refused.
-  offerTTL: 15s
-
-  spread:
-    clicks: 8
-    maxPerBox: 4
-
-  bomb:
-    rings: 4
-
-  enclose:
-    maxTiles: 25
-    held: 3
-    maxPerBox: 3
-
-  shield:
-    held: 30
-    minPerBox: 5
-    maxPerBox: 20
-    perTile: 10
-
-  activeWithin: 2m
-
   forgetAfter: 5m
 
-  maxChargesPerHour: 12
-
   sweepInterval: 1s
-
-  quiz:
-    enabled: true
-
-    minInterval: 4m
-    maxInterval: 8m
-
-    missRetry: 2m
-
-    offerTTL: 25s
-
-    answerWindow: 8s
-
-    leaderBias: 1
-
-    maxChargesPerHour: 12
 
 antiBot:
   enabled: true

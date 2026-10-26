@@ -498,7 +498,9 @@ type ClickTried struct {
 	// The flag the tile wore before the try.
 	Owner string `protobuf:"bytes,9,opt,name=owner,proto3" json:"owner,omitempty"`
 	// Unset for a tile off the map.
-	Position      *GlobePoint `protobuf:"bytes,10,opt,name=position,proto3" json:"position,omitempty"`
+	Position *GlobePoint `protobuf:"bytes,10,opt,name=position,proto3" json:"position,omitempty"`
+	// How many times faster than the plain pace every bucket refilled when the click was tried; 0 is the plain pace.
+	Tempo         float64 `protobuf:"fixed64,11,opt,name=tempo,proto3" json:"tempo,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -601,6 +603,13 @@ func (x *ClickTried) GetPosition() *GlobePoint {
 		return x.Position
 	}
 	return nil
+}
+
+func (x *ClickTried) GetTempo() float64 {
+	if x != nil {
+		return x.Tempo
+	}
+	return 0
 }
 
 type MapRead struct {
@@ -935,7 +944,7 @@ const file_planet_v1_events_proto_rawDesc = "" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12\x18\n" +
 	"\acorrect\x18\x02 \x01(\bR\acorrect\x12;\n" +
 	"\vanswered_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"answeredAt\"\x89\x03\n" +
+	"answeredAt\"\x9f\x03\n" +
 	"\n" +
 	"ClickTried\x12\x14\n" +
 	"\x05scope\x18\x01 \x01(\tR\x05scope\x12\x1d\n" +
@@ -949,7 +958,8 @@ const file_planet_v1_events_proto_rawDesc = "" +
 	"\aoutcome\x18\b \x01(\x0e2\x17.planet.v1.ClickOutcomeR\aoutcome\x12\x14\n" +
 	"\x05owner\x18\t \x01(\tR\x05owner\x121\n" +
 	"\bposition\x18\n" +
-	" \x01(\v2\x15.planet.v1.GlobePointR\bposition\"\x81\x01\n" +
+	" \x01(\v2\x15.planet.v1.GlobePointR\bposition\x12\x14\n" +
+	"\x05tempo\x18\v \x01(\x01R\x05tempo\"\x81\x01\n" +
 	"\aMapRead\x12\x14\n" +
 	"\x05scope\x18\x01 \x01(\tR\x05scope\x12\x12\n" +
 	"\x04maps\x18\x02 \x01(\x01R\x04maps\x12\x17\n" +

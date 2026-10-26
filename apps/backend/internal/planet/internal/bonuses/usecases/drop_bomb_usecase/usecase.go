@@ -33,7 +33,7 @@ type In struct {
 	CountryID string
 }
 
-func New(bombs Bombs, geography Map, clearer Clearer, countries CountryChecker, rules bonuses.BombRules) *UseCase {
+func New(bombs Bombs, geography Map, clearer Clearer, countries CountryChecker, rules bonuses.Bombing) *UseCase {
 	return &UseCase{
 		bombs:     bombs,
 		geography: geography,
@@ -48,7 +48,7 @@ type UseCase struct {
 	geography Map
 	clearer   Clearer
 	countries CountryChecker
-	rules     bonuses.BombRules
+	rules     bonuses.Bombing
 }
 
 func (u *UseCase) Execute(ctx context.Context, in In) (clicks.Blast, error) {

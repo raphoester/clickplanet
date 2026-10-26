@@ -47,6 +47,8 @@ and says what is in it. Read the doc before you change its area.
 
 - [Key flow](docs/key-flow.md) — the path of one click, step by step, from the mint to the stream.
 - [The map load](docs/map-load.md) — `GetMap` is a cached HTTP GET; the stream carries what follows.
+- [The map's version](docs/map-version.md) — every write counts one, published under the tiles lock so streams get
+  them in order; `GetHoldings` and the one-second `holdings_changed`; the ETag and the 304.
 - [The live streams](docs/live-streams.md) — the `ListenForEvents` streams, served two ways, and how they end on
   shutdown.
 - [Durability](docs/durability.md) — the map lives in memory and goes to postgres every second; what a crash
@@ -56,6 +58,8 @@ and says what is in it. Read the doc before you change its area.
   refills slower.
 - [VPN blocklist](docs/vpn-blocklist.md) — `Click` refused from vendored VPN ranges, before the rate limiter.
 - [Allegiance](docs/allegiance.md) — an account plays for one flag, and may change it once an hour.
+- [Rules](docs/rules.md) — every game rule, in rule sets kept in postgres; the set in force in one atomic pointer;
+  what a change does to what is already there.
 - [Shields](docs/shields.md) — a charge on a tile; each shield takes one foreign click.
 - [Fortify](docs/fortify.md) — a take that makes a landmass whole gives every tile of it a shield.
 - [Who holds the tiles](docs/tile-holders.md) — each tile keeps the account whose take holds it; `GetLandmass`

@@ -3,8 +3,6 @@ import {drawsFrame, reportClaimFailure, reportClickFailure, spinStep} from "./gl
 import {AllegianceLockedError, BannedError, BonusLostError, RateLimitedError, VPNBlockedError} from "../../backends/backend.ts"
 import {SessionUnavailableError} from "../../backends/session.ts"
 import {OwnerChange, TileOwnership} from "../../domain/tileOwnership.ts"
-import {LeaderboardEntry, rankCountries} from "../../domain/leaderboard.ts"
-import {Countries} from "../../domain/countries.ts"
 import {TileField} from "./tileField.ts"
 import {regions} from "./atlas.ts"
 import {PLAIN} from "./graphics.ts"
@@ -114,63 +112,62 @@ describe("a refused click, from the paint to the rollback", () => {
             size,
         }, PLAIN)
         const ownership = new TileOwnership(size)
-        let leaderboard: LeaderboardEntry[] = []
 
         const applyChanges = (changes: OwnerChange[]) => {
-            if (changes.length === 0) return
-            field.setOwners(changes)
-            leaderboard = rankCountries(ownership.counts())
+            if (changes.length > 0) field.setOwners(changes)
+        }
+
+        const live = (tile: number, country: string) => {
+            const changes: OwnerChange[] = []
+            ownership.set(tile, country, changes)
+            applyChanges(changes)
         }
 
         const regionOf = (tile: number) => Array.from(
             (field.displayPoints.geometry.getAttribute("regionVector").array as Float32Array)
                 .slice((tile - 1) * 4, tile * 4))
 
-        return {ownership, applyChanges, regionOf, tiles: () => leaderboard}
+        return {ownership, applyChanges, live, regionOf}
     }
 
-    it("paints the tile and ranks it, then blanks it and drops it again", () => {
-        const {ownership, applyChanges, regionOf, tiles} = wiring()
+    it("paints the tile, then blanks it again", () => {
+        const {ownership, applyChanges, regionOf} = wiring()
         const fr = regions.get("fr")!
 
         const {changes, claim} = ownership.applyOptimistic(3, "fr")
         applyChanges(changes)
 
         expect(regionOf(3)).toEqual([fr.x, fr.y, fr.width, fr.height])
-        expect(tiles()).toEqual([{country: Countries.get("fr"), tiles: 1}])
 
         applyChanges(ownership.rollback(claim))
 
         expect(regionOf(3)).toEqual([0, 0, 0, 0])
-        expect(tiles()).toEqual([])
     })
 
-    it("gives the tile and the rank back to the country that held it", () => {
-        const {ownership, applyChanges, regionOf, tiles} = wiring()
+    it("gives the tile back to the country that held it", () => {
+        const {ownership, applyChanges, live, regionOf} = wiring()
         const jp = regions.get("jp")!
 
-        applyChanges(ownership.applyUpdates([{tile: 3, previousCountry: undefined, newCountry: "jp", clicked: true, shields: 0}]))
+        live(3, "jp")
 
         const {changes, claim} = ownership.applyOptimistic(3, "fr")
         applyChanges(changes)
         applyChanges(ownership.rollback(claim))
 
         expect(regionOf(3)).toEqual([jp.x, jp.y, jp.width, jp.height])
-        expect(tiles()).toEqual([{country: Countries.get("jp"), tiles: 1}])
     })
 
     it("leaves a click the server had already echoed alone", () => {
-        const {ownership, applyChanges, regionOf, tiles} = wiring()
+        const {ownership, applyChanges, live, regionOf} = wiring()
         const fr = regions.get("fr")!
 
         const {changes, claim} = ownership.applyOptimistic(3, "fr")
         applyChanges(changes)
-        applyChanges(ownership.applyUpdates([{tile: 3, previousCountry: undefined, newCountry: "fr", clicked: true, shields: 0}]))
+        live(3, "fr")
 
         applyChanges(ownership.rollback(claim))
 
         expect(regionOf(3)).toEqual([fr.x, fr.y, fr.width, fr.height])
-        expect(tiles()).toEqual([{country: Countries.get("fr"), tiles: 1}])
     })
 })
 

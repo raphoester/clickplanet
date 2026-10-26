@@ -1,0 +1,112 @@
+syntax = "proto3";
+
+package planet.v1;
+
+import "google/protobuf/duration.proto";
+import "planet/v1/planet.proto";
+
+// Every value a player feels, all written: none falls back to another set or to a default. Postgres keeps it as
+// protojson (planet.rule_sets.rules).
+message Rules {
+  ClickRules clicks = 1;
+  TollRules toll = 2;
+  BonusRules bonuses = 3;
+}
+
+message ClickRules {
+  // How many times faster than per_second every bucket refills.
+  double tempo = 1;
+  // One account's refill, a click a second, and its bank.
+  double per_second = 2;
+  uint32 burst = 3;
+  // The address's bucket, in accounts; an IPv6 /64's has its own.
+  double scope_multiplier = 4;
+  double v6_scope_multiplier = 5;
+  // The bucket every guest behind an address shares, in accounts.
+  double guest_scope_multiplier = 6;
+  // How many times as fast a signed-in account refills.
+  double linked_multiplier = 7;
+  // What a new account's bank holds when it is made; it earns the rest at per_second.
+  double new_account_clicks = 8;
+}
+
+message TollRules {
+  // Rising shares: from `share` of every tile on the map, a country refills `slowdown` times slower. None is no toll.
+  repeated TollStep steps = 1;
+}
+
+message BonusRules {
+  BoxPace boxes = 1;
+  KindWeights kinds = 2;
+  google.protobuf.Duration offer_ttl = 3;
+  // A box missed brings the next one this soon, once.
+  google.protobuf.Duration miss_retry = 4;
+  // No box or quiz for a caller that has not clicked for this long.
+  google.protobuf.Duration active_within = 5;
+  SpreadRules spread = 6;
+  BombRules bomb = 7;
+  EncloseRules enclose = 8;
+  ShieldRules shield = 9;
+  WelcomeRules welcome = 10;
+  QuizRules quiz = 11;
+}
+
+message BoxPace {
+  google.protobuf.Duration min_interval = 1;
+  google.protobuf.Duration max_interval = 2;
+  uint32 max_charges_per_hour = 3;
+}
+
+// What a box is drawn as: a kind's chance is its weight over the sum of the kinds it may be.
+message KindWeights {
+  double refill = 1;
+  double spread_clicks = 2;
+  double enclose_clicks = 3;
+  double bomb = 4;
+  double shields = 5;
+}
+
+message SpreadRules {
+  // The pool a hand holds at most.
+  uint32 clicks = 1;
+  uint32 max_per_box = 2;
+}
+
+message BombRules {
+  // The blast's radius, in tile spacings.
+  double rings = 1;
+}
+
+message EncloseRules {
+  uint32 max_tiles = 1;
+  // The stack a hand holds at most.
+  uint32 held = 2;
+  uint32 max_per_box = 3;
+}
+
+message ShieldRules {
+  // The stack a hand holds at most.
+  uint32 held = 1;
+  uint32 min_per_box = 2;
+  uint32 max_per_box = 3;
+  // At most 255.
+  uint32 per_tile = 4;
+}
+
+// An account younger than `within` gets its first box `box_after` it was made, and a quiz when its bank runs dry. 0s is off.
+message WelcomeRules {
+  google.protobuf.Duration within = 1;
+  google.protobuf.Duration box_after = 2;
+}
+
+message QuizRules {
+  bool enabled = 1;
+  google.protobuf.Duration min_interval = 2;
+  google.protobuf.Duration max_interval = 3;
+  google.protobuf.Duration miss_retry = 4;
+  google.protobuf.Duration offer_ttl = 5;
+  google.protobuf.Duration answer_window = 6;
+  // How much a question leans to the countries that hold the most; 0 is a flat draw.
+  double leader_bias = 7;
+  uint32 max_charges_per_hour = 8;
+}

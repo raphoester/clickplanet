@@ -70,11 +70,9 @@ func startGame(t *testing.T) gameStack {
 	authConfig.RateLimiter.Burst = 100
 
 	planetConfig := planet.Config{Database: postgres.ConfigFor("planet"), Redis: redis}
+	clickAtWill(t, planetConfig.Database)
 	planetConfig.GameMap.MaxIndex = mapTiles
 	planetConfig.Auth = cpsession.VerifierConfig{Enabled: true, Enforce: true}
-	planetConfig.RateLimiter.PerSecond = 100
-	planetConfig.RateLimiter.Burst = 1000
-	planetConfig.RateLimiter.ScopeMultiplier = 1
 
 	antibotConfig := antibot.Config{Enabled: true, Database: postgres.ConfigFor("antibot"), Redis: redis}
 
@@ -133,6 +131,24 @@ func startGame(t *testing.T) gameStack {
 		fakes:      fakes,
 		postgres:   postgres,
 	}
+}
+
+// Every test clicks from one address, so the rule set the stack plays lets it: written before planet boots.
+func clickAtWill(t *testing.T, database cppg.Config) {
+	t.Helper()
+
+	require.NoError(t, planet.Migrate(t.Context(), database))
+	db := cppg.New(database)
+	require.NoError(t, db.ConnectCtx(t.Context()))
+	defer func() { _ = db.Close() }()
+
+	_, err := db.On(t.Context()).ExecContext(t.Context(), `
+		UPDATE rule_sets
+		SET rules = jsonb_set(rules, '{clicks}', rules->'clicks' ||
+			'{"perSecond": 100, "burst": 1000, "scopeMultiplier": 1, "newAccountClicks": 1000}')
+		WHERE name = 'default'
+	`)
+	require.NoError(t, err)
 }
 
 func listen(t *testing.T) net.Listener {

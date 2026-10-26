@@ -24,11 +24,12 @@ happened rather than 10 to 20 under the two runs a day before (2026-10-24). Four
    flag the last 6 posts showed after the others, and holds back a flag 2 of them showed, as their key or as one of
    their countries: on Oct 13–17 Algeria in Africa was told three times and Palau in half the clips. **A day won goes
    first**, whatever the posts showed, **then a run tells each angle it has once before any twice** (what changed,
-   what a flag holds). None is a quiet run, or a full day: the run ends there, green. **On half the runs a model
-   chooses instead, within those rules**, and writes each headline (the experiment `editor`, the backend's
-   [The clips job](../../backend/docs/clips-job.md), "The editor"); the job holds its key too.
+   what a flag holds). None is a quiet run, or a full day: the run ends there, green. **A model chooses within those
+   rules, and writes each headline** (the backend's [The clips job](../../backend/docs/clips-job.md), "The editor");
+   the job holds its key too, and makes the run by the rules alone when the model cannot answer.
 3. **render**: one job per pick, side by side, `--pick <n> --variants <its arms> --recorders 1`, and
-   `--headline <the model's>` when the model wrote one. A runner has 4 cores and no GPU: Chrome
+   `--headline <the model's>` when the model wrote one: `wordsOf` draws it in place of its own, a bridge until the
+   model writes a whole clip script, and the teasers stay the generator's. A runner has 4 cores and no GPU: Chrome
    draws with SwiftShader, **1.9 to 3.1s a frame, by the runner it lands on** (measured 2026-10-12: the same 12s
    clip in 11.5 minutes, then in 18.5; a 22s one would take 21 to 34), the same picture as with a GPU. More
    recorders do not help there: each one draws every frame.
@@ -110,10 +111,11 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   `record.variants`, the ones it applied and the ones the job acts on when posting, which it lists with nothing to
   apply: so `schedule` reads them all from `clip-<n>.json`. With no `--variants` a clip is in no experiment and is
   made as before; `--seconds` with an arm of `length` is refused, since both set the length. `--plan` prints the arms.
-  - **`editor`**: `rules`, `model` or `fell-back`, the job's coin for the whole run, flipped before it chooses (the
-    backend's [The clips job](../../backend/docs/clips-job.md), "The editor"). Nothing to apply here: the model's headline comes as `--headline`, which
-    `wordsOf` already takes, a bridge until the model writes a whole clip script. The teasers are left as they are,
-    an experiment of their own.
+  - **`sound`**: `anthem` or `trending`, the job's coin for each clip. Nothing to apply here: the video is the same in
+    both, anthem included, and the job attaches a track trending on TikTok over it when it posts a `trending` clip,
+    the anthem muted (the backend's [The clips job](../../backend/docs/clips-job.md), "Experiments"). The job's `fell-back`, a `trending` clip posted with its
+    anthem when the chart could not be read, is decided after the render, so it never reaches this app, which refuses
+    it like any arm the job does not draw.
   - **`length`**: `as-chosen`, the control, is exactly the length `pace.ts` gives (below); `short` is the shortest a
     story of its kind plays (`timelineOf(…, "short")`): 8.5s for a front, however far its fighting moves, 10 with a
     day's podium. **A tour is already its shortest**, each stop a flight and a stay, and is left as it is, as is a
@@ -135,7 +137,9 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   served by `npm run dev` and **left out of the build** (it is not in `rollupOptions.input`). `src/clip/main.ts`
   builds the globe with `createGlobe` over `backends/replayBackend.ts`, which plays the replay through the same
   decoders as `PlanetBackend` (`updateOf`, `bombOf`, `spreadOf`, `enclosureOf`): tile updates in batches, and a
-  bomb, a spread or an enclosure as an effect. `ReplayBackend.cut` opens on the map at a later time.
+  bomb, a spread or an enclosure as an effect. It numbers each step from its opening and counts what each flag
+  holds from the borders' landmasses, as the server does (see [The counts are the server's](counts.md)), and the
+  clip waits for `Globe.tilesRead` before its first frame. `ReplayBackend.cut` opens on the map at a later time.
 - **The page chooses, then records** (`window.clip`, `src/clip/main.ts`): `shortlist` is the stories worth a clip,
   known before any globe is built, and `record()` builds the globe for the story asked for and answers what the
   recorder needs. A pick past the last story fails `record()`, never `shortlist`.
