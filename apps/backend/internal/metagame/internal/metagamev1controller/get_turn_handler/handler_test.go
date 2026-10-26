@@ -15,22 +15,22 @@ import (
 )
 
 type stubQuery struct {
-	answer *metagamev1.GetTurnResponse
-	err    error
+	turn *metagamev1.Turn
+	err  error
 }
 
-func (s stubQuery) Turn(context.Context) (*metagamev1.GetTurnResponse, error) {
-	return s.answer, s.err
+func (s stubQuery) Turn(context.Context) (*metagamev1.Turn, error) {
+	return s.turn, s.err
 }
 
 func TestTheTurnIsTheQuerys(t *testing.T) {
-	answer := &metagamev1.GetTurnResponse{Kind: metagamev1.EntryKind_ENTRY_KIND_BATTLE}
+	turn := &metagamev1.Turn{Kind: metagamev1.EntryKind_ENTRY_KIND_BATTLE, Description: "Triple points."}
 
-	res, err := get_turn_handler.New(stubQuery{answer: answer}).
+	res, err := get_turn_handler.New(stubQuery{turn: turn}).
 		GetTurn(t.Context(), connect.NewRequest(&metagamev1.GetTurnRequest{}))
 
 	require.NoError(t, err)
-	assert.True(t, proto.Equal(answer, res.Msg))
+	assert.True(t, proto.Equal(&metagamev1.GetTurnResponse{Turn: turn}, res.Msg))
 }
 
 func TestAFailedReadIsTheErrorNets(t *testing.T) {

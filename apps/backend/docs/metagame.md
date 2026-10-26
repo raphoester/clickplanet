@@ -34,7 +34,9 @@ internal/metagame/
     metagamev1controller/              AdminService and MetagameService (bags), NewCacheInterceptor
       get_schedule_handler/schedule_query/   PostgresQuery: every entry, and what plays now
       add_entry_handler/  edit_entry_handler/  delete_entry_handler/
-      get_turn_handler/turn_query/  PostgresQuery: the kind that plays now, for the game client
+      get_turn_handler/turn_query/  PostgresQuery: the turn now, in the players' words, for the game client
+      listen_for_events_handler/    the stream: the turn, then each change, and heartbeats
+        inprocess_turn_feed/        reads the turn each second while a stream follows it; log_turn_reader
       schedulemessage/              DraftOf, KindOf, and Refusal: the code of each refusal
 ```
 
@@ -144,29 +146,41 @@ Rule schedule page (see the backoffice's [Ops](../../backoffice/docs/ops.md)):
 
 ## The game client
 
-**`metagame.v1.MetagameService/GetTurn`**, on the public router, is what the client reads to give a battle its look:
-the kind of the running entry (plain when none runs), its `description` (empty when none runs), `since` when the turn
-began (unset before any entry), and `ends_at`, when the running entry ends (unset when none runs). **Never the rule
-set's name**: the query (`turn_query`) reads the entries and computes the turn by `Schedule`'s rule, as `GetSchedule`
-does, and answers in the published language only. The entry above it may start before `ends_at`: the client reads
-again then.
+**`metagame.v1.MetagameService`, on the public router, is what the client reads to give a battle its look.** Its
+`Turn` is the kind of the running entry (plain when none runs), its `description` (empty when none runs), `since`
+when the turn began (unset before any entry), and `ends_at`, when the running entry ends (unset when none runs).
+**Never the rule set's name**: the query (`turn_query`) reads the entries and computes the turn by `Schedule`'s rule,
+as `GetSchedule` does, and answers in the published language only.
 
-**A cached GET, fresh within five seconds.** `GetTurn` is `NO_SIDE_EFFECTS`, so Connect sends it as an HTTP GET, and
-`metagamev1controller.NewCacheInterceptor` sets `Cache-Control: public, max-age=5, s-maxage=5` on the answer (the
-map's pattern, see [The map load](map-load.md)). The client reads it once a minute and at the entry's end; an answer
-read within five seconds of the end may still say the entry that just ended, so the client reads again a few seconds
-after.
+**`ListenForEvents` is how the client follows it: no polling.** A `MetagameEvent` is a `oneof` of `turn` and
+`heartbeat`, as the other live streams (see [The live streams](live-streams.md)). The stream sends the turn as its
+first event, then each change of it within a second, and a heartbeat every `httpServer.streamHeartbeat` meanwhile.
+So the client needs no read at the entry's end: when the entry ends, or one above it starts, the next turn arrives
+and the look changes then; `ends_at` is for a countdown. `inprocess_turn_feed` is the source: a runner
+(`metagame-turn`) that, while at least one stream follows, reads the turn each second through `turn_query` (the
+schedule runner reads the entries each second too) and hands it to every stream when it differs from the last one
+sent; a new stream gets the last turn at once, and the first one after nobody followed waits for a fresh read. A
+failed read is logged by `log_turn_reader` and the next second's read sends. Nobody following, it reads nothing. The
+handler returns when its context ends, so the drain ends it cleanly.
+
+**`GetTurn` is the same turn as a cached GET**, for a reader that does not follow the stream. It is
+`NO_SIDE_EFFECTS`, so Connect sends it as an HTTP GET, and `metagamev1controller.NewCacheInterceptor` sets
+`Cache-Control: public, max-age=5, s-maxage=5` on the answer (the map's pattern, see [The map load](map-load.md)):
+an answer read within five seconds of a change may still say the turn before it.
 
 ## Tests
 
 The rule is pinned by `schedule_test.go` (priorities, ties, the end, since when, two entries of one set, the turn's
 kind) and `entry_test.go` (only an entry to come changes, every reason, a kind nobody knows). `schedule.StoreContractSuite`
 runs on the memory and postgres stores. `turn_query`'s test pins the public read while an entry runs, after the last
-one ended and before any; `cache_interceptor_test.go` pins the GET and its header. The runner's test pins a send at boot and at each change, none while the turn holds, and a send Redis
+one ended and before any; `cache_interceptor_test.go` pins the GET and its header. `inprocess_turn_feed`'s test pins
+the feed (a stream gets the turn once read, another at once, each change to every stream, a turn that holds not sent
+again, nothing read with nobody following, a failed read) and `listen_for_events_handler`'s the stream (the turn
+case, the heartbeat, the feed left when the stream closes, a clean end when the feed closes). The runner's test pins a send at boot and at each change, none while the turn holds, and a send Redis
 refused sent again. Each module's `play_rule_set_handler` test pins the latest decision, a redelivery and an unknown
 set; the choice stores have their own contract suite (`rules.ChoiceStoreContractSuite`). The smoke test
 `TestAnEntryOfTheScheduleIsPlayedByPlanetAndTheAntibot` adds a battle entry on the console listener, waits for both
-modules to play it, and reads its kind and its end on the public listener.
+modules to play it, reads its kind and its end on the public listener, and opens the stream, whose first event is it.
 
 ## Before the Final Battle (Sat 31 Oct 2026, 21:00 UTC)
 

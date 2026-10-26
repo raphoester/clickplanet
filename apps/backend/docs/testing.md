@@ -19,7 +19,8 @@ Tests use `testify`. **A postgres store's own tests need Docker**, and so do `s3
   it again (`refusal_test.go`);
 - an operator adds a battle entry of the rule schedule on the console listener (the metagame module asks planet and the
   antibot which sets they keep), both modules play its set once the metagame module commanded it over their command
-  streams, and the game client reads the battle's kind and its end on the public listener (`schedule_test.go`).
+  streams, and the game client reads the battle's kind and its end on the public listener, as a GET and as the first
+  event of the stream (`schedule_test.go`).
 
 **A new smoke test is for a new module or a new path between modules**, never for a rule. It is a happy path, on the shared stack, and it reads only what it wrote. A test that needs another config, another clock or a second stack belongs lower down.
 

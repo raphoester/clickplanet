@@ -33,7 +33,7 @@ func battle(t *testing.T, db cppg.Conn) {
 	}.Restore()))
 }
 
-func turnAt(t *testing.T, db cppg.Conn, at time.Time) *metagamev1.GetTurnResponse {
+func turnAt(t *testing.T, db cppg.Conn, at time.Time) *metagamev1.Turn {
 	t.Helper()
 	answer, err := turn_query.NewPostgresQuery(db, cptime.NewFixedClock(at)).Turn(t.Context())
 	require.NoError(t, err)
@@ -46,7 +46,7 @@ func TestWhileAnEntryRunsTheTurnIsItsKindItsWordsAndItsEnd(t *testing.T) {
 
 	answer := turnAt(t, db, finale.Add(time.Minute))
 
-	assert.True(t, proto.Equal(&metagamev1.GetTurnResponse{
+	assert.True(t, proto.Equal(&metagamev1.Turn{
 		Kind: metagamev1.EntryKind_ENTRY_KIND_BATTLE, Description: "Triple points.", Since: timestamppb.New(finale),
 		EndsAt: timestamppb.New(battleEnds),
 	}, answer), "%v", answer)
@@ -58,7 +58,7 @@ func TestWithNoEntryRunningTheTurnIsPlainSinceTheLastEnd(t *testing.T) {
 
 	answer := turnAt(t, db, battleEnds)
 
-	assert.True(t, proto.Equal(&metagamev1.GetTurnResponse{
+	assert.True(t, proto.Equal(&metagamev1.Turn{
 		Kind: metagamev1.EntryKind_ENTRY_KIND_PLAIN, Since: timestamppb.New(battleEnds),
 	}, answer), "%v", answer)
 }
@@ -69,5 +69,5 @@ func TestBeforeAnyEntryTheTurnIsPlainWithNoSince(t *testing.T) {
 
 	answer := turnAt(t, db, finale.Add(-time.Minute))
 
-	assert.True(t, proto.Equal(&metagamev1.GetTurnResponse{Kind: metagamev1.EntryKind_ENTRY_KIND_PLAIN}, answer), "%v", answer)
+	assert.True(t, proto.Equal(&metagamev1.Turn{Kind: metagamev1.EntryKind_ENTRY_KIND_PLAIN}, answer), "%v", answer)
 }

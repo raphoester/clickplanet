@@ -24,7 +24,7 @@ type PostgresQuery struct {
 }
 
 // Turn is what plays now by schedule.Schedule's rule, in the players' words: no set's name.
-func (q *PostgresQuery) Turn(ctx context.Context) (*metagamev1.GetTurnResponse, error) {
+func (q *PostgresQuery) Turn(ctx context.Context) (*metagamev1.Turn, error) {
 	now := q.clock.Now()
 	rows, err := q.db.On(ctx).QueryContext(ctx, `
 		SELECT id, rule_set, kind, description, starts_at, ends_at, priority, made_at FROM schedule_entries`)
@@ -62,7 +62,7 @@ func (q *PostgresQuery) Turn(ctx context.Context) (*metagamev1.GetTurnResponse, 
 	if err != nil {
 		return nil, fmt.Errorf("failed to read what plays: %w", err)
 	}
-	answer := &metagamev1.GetTurnResponse{Kind: kind, EndsAt: ends[turn.Entry], Description: string(turn.Description)}
+	answer := &metagamev1.Turn{Kind: kind, EndsAt: ends[turn.Entry], Description: string(turn.Description)}
 	if since := sched.SinceAt(now); !since.IsZero() {
 		answer.Since = timestamppb.New(since)
 	}

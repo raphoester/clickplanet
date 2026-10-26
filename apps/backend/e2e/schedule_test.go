@@ -1,6 +1,7 @@
 package e2e_test
 
 import (
+	"context"
 	"net/http"
 	"time"
 
@@ -58,10 +59,18 @@ func (s *testSuite) TestAnEntryOfTheScheduleIsPlayedByPlanetAndTheAntibot() {
 	require.NoError(t, err)
 	assert.Equal(t, added.Msg.GetId(), playing.Msg.GetPlaying().GetEntryId())
 
-	turn, err := metagamev1connect.NewMetagameServiceClient(http.DefaultClient, s.game.baseURL).
-		GetTurn(ctx, connect.NewRequest(&metagamev1.GetTurnRequest{}))
+	public := metagamev1connect.NewMetagameServiceClient(http.DefaultClient, s.game.baseURL)
+	turn, err := public.GetTurn(ctx, connect.NewRequest(&metagamev1.GetTurnRequest{}))
 	require.NoError(t, err, "the game client reads the turn on the public listener")
-	assert.Equal(t, metagamev1.EntryKind_ENTRY_KIND_BATTLE, turn.Msg.GetKind())
-	assert.Equal(t, "The same rules, once more.", turn.Msg.GetDescription())
-	assert.Equal(t, endsAt.UnixMilli(), turn.Msg.GetEndsAt().AsTime().UnixMilli())
+	assert.Equal(t, metagamev1.EntryKind_ENTRY_KIND_BATTLE, turn.Msg.GetTurn().GetKind())
+	assert.Equal(t, "The same rules, once more.", turn.Msg.GetTurn().GetDescription())
+	assert.Equal(t, endsAt.UnixMilli(), turn.Msg.GetTurn().GetEndsAt().AsTime().UnixMilli())
+
+	listening, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	stream, err := public.ListenForEvents(listening, connect.NewRequest(&metagamev1.ListenForEventsRequest{}))
+	require.NoError(t, err)
+	defer func() { _ = stream.Close() }()
+	require.True(t, stream.Receive(), "the stream opens with the turn: %v", stream.Err())
+	assert.Equal(t, metagamev1.EntryKind_ENTRY_KIND_BATTLE, stream.Msg().GetTurn().GetKind())
 }

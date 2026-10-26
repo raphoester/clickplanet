@@ -35,11 +35,16 @@ const (
 const (
 	// MetagameServiceGetTurnProcedure is the fully-qualified name of the MetagameService's GetTurn RPC.
 	MetagameServiceGetTurnProcedure = "/metagame.v1.MetagameService/GetTurn"
+	// MetagameServiceListenForEventsProcedure is the fully-qualified name of the MetagameService's
+	// ListenForEvents RPC.
+	MetagameServiceListenForEventsProcedure = "/metagame.v1.MetagameService/ListenForEvents"
 )
 
 // MetagameServiceClient is a client for the metagame.v1.MetagameService service.
 type MetagameServiceClient interface {
 	GetTurn(context.Context, *connect.Request[v1.GetTurnRequest]) (*connect.Response[v1.GetTurnResponse], error)
+	// The turn now, as the first event, then each change of it within a second; a heartbeat every 30 s meanwhile.
+	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest]) (*connect.ServerStreamForClient[v1.MetagameEvent], error)
 }
 
 // NewMetagameServiceClient constructs a client for the metagame.v1.MetagameService service. By
@@ -60,12 +65,19 @@ func NewMetagameServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		listenForEvents: connect.NewClient[v1.ListenForEventsRequest, v1.MetagameEvent](
+			httpClient,
+			baseURL+MetagameServiceListenForEventsProcedure,
+			connect.WithSchema(metagameServiceMethods.ByName("ListenForEvents")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // metagameServiceClient implements MetagameServiceClient.
 type metagameServiceClient struct {
-	getTurn *connect.Client[v1.GetTurnRequest, v1.GetTurnResponse]
+	getTurn         *connect.Client[v1.GetTurnRequest, v1.GetTurnResponse]
+	listenForEvents *connect.Client[v1.ListenForEventsRequest, v1.MetagameEvent]
 }
 
 // GetTurn calls metagame.v1.MetagameService.GetTurn.
@@ -73,9 +85,16 @@ func (c *metagameServiceClient) GetTurn(ctx context.Context, req *connect.Reques
 	return c.getTurn.CallUnary(ctx, req)
 }
 
+// ListenForEvents calls metagame.v1.MetagameService.ListenForEvents.
+func (c *metagameServiceClient) ListenForEvents(ctx context.Context, req *connect.Request[v1.ListenForEventsRequest]) (*connect.ServerStreamForClient[v1.MetagameEvent], error) {
+	return c.listenForEvents.CallServerStream(ctx, req)
+}
+
 // MetagameServiceHandler is an implementation of the metagame.v1.MetagameService service.
 type MetagameServiceHandler interface {
 	GetTurn(context.Context, *connect.Request[v1.GetTurnRequest]) (*connect.Response[v1.GetTurnResponse], error)
+	// The turn now, as the first event, then each change of it within a second; a heartbeat every 30 s meanwhile.
+	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest], *connect.ServerStream[v1.MetagameEvent]) error
 }
 
 // NewMetagameServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -92,10 +111,18 @@ func NewMetagameServiceHandler(svc MetagameServiceHandler, opts ...connect.Handl
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	metagameServiceListenForEventsHandler := connect.NewServerStreamHandler(
+		MetagameServiceListenForEventsProcedure,
+		svc.ListenForEvents,
+		connect.WithSchema(metagameServiceMethods.ByName("ListenForEvents")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/metagame.v1.MetagameService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case MetagameServiceGetTurnProcedure:
 			metagameServiceGetTurnHandler.ServeHTTP(w, r)
+		case MetagameServiceListenForEventsProcedure:
+			metagameServiceListenForEventsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -107,4 +134,8 @@ type UnimplementedMetagameServiceHandler struct{}
 
 func (UnimplementedMetagameServiceHandler) GetTurn(context.Context, *connect.Request[v1.GetTurnRequest]) (*connect.Response[v1.GetTurnResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("metagame.v1.MetagameService.GetTurn is not implemented"))
+}
+
+func (UnimplementedMetagameServiceHandler) ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest], *connect.ServerStream[v1.MetagameEvent]) error {
+	return connect.NewError(connect.CodeUnimplemented, errors.New("metagame.v1.MetagameService.ListenForEvents is not implemented"))
 }

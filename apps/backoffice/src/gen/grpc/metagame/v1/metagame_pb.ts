@@ -73,32 +73,9 @@ export class GetTurnRequest extends Message<GetTurnRequest> {
  */
 export class GetTurnResponse extends Message<GetTurnResponse> {
   /**
-   * The kind of the running entry with the highest priority; plain when none runs.
-   *
-   * @generated from field: metagame.v1.EntryKind kind = 1;
+   * @generated from field: metagame.v1.Turn turn = 1;
    */
-  kind = EntryKind.UNSPECIFIED;
-
-  /**
-   * When this turn began. Unset when it has played since before any entry.
-   *
-   * @generated from field: google.protobuf.Timestamp since = 2;
-   */
-  since?: Timestamp;
-
-  /**
-   * When the running entry ends. Unset when none runs. An entry above it may start before that: read again then.
-   *
-   * @generated from field: google.protobuf.Timestamp ends_at = 3;
-   */
-  endsAt?: Timestamp;
-
-  /**
-   * The running entry's words for the players, plain text: what its rules are. Empty when none runs.
-   *
-   * @generated from field: string description = 4;
-   */
-  description = "";
+  turn?: Turn;
 
   constructor(data?: PartialMessage<GetTurnResponse>) {
     super();
@@ -108,10 +85,7 @@ export class GetTurnResponse extends Message<GetTurnResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "metagame.v1.GetTurnResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "kind", kind: "enum", T: proto3.getEnumType(EntryKind) },
-    { no: 2, name: "since", kind: "message", T: Timestamp },
-    { no: 3, name: "ends_at", kind: "message", T: Timestamp },
-    { no: 4, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 1, name: "turn", kind: "message", T: Turn },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetTurnResponse {
@@ -128,6 +102,183 @@ export class GetTurnResponse extends Message<GetTurnResponse> {
 
   static equals(a: GetTurnResponse | PlainMessage<GetTurnResponse> | undefined, b: GetTurnResponse | PlainMessage<GetTurnResponse> | undefined): boolean {
     return proto3.util.equals(GetTurnResponse, a, b);
+  }
+}
+
+/**
+ * What the schedule plays now.
+ *
+ * @generated from message metagame.v1.Turn
+ */
+export class Turn extends Message<Turn> {
+  /**
+   * The kind of the running entry with the highest priority; plain when none runs.
+   *
+   * @generated from field: metagame.v1.EntryKind kind = 1;
+   */
+  kind = EntryKind.UNSPECIFIED;
+
+  /**
+   * When this turn began. Unset when it has played since before any entry.
+   *
+   * @generated from field: google.protobuf.Timestamp since = 2;
+   */
+  since?: Timestamp;
+
+  /**
+   * When the running entry ends. Unset when none runs. An entry above it may start before that: the stream says so.
+   *
+   * @generated from field: google.protobuf.Timestamp ends_at = 3;
+   */
+  endsAt?: Timestamp;
+
+  /**
+   * The running entry's words for the players, plain text: what its rules are. Empty when none runs.
+   *
+   * @generated from field: string description = 4;
+   */
+  description = "";
+
+  constructor(data?: PartialMessage<Turn>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "metagame.v1.Turn";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "kind", kind: "enum", T: proto3.getEnumType(EntryKind) },
+    { no: 2, name: "since", kind: "message", T: Timestamp },
+    { no: 3, name: "ends_at", kind: "message", T: Timestamp },
+    { no: 4, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Turn {
+    return new Turn().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Turn {
+    return new Turn().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Turn {
+    return new Turn().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Turn | PlainMessage<Turn> | undefined, b: Turn | PlainMessage<Turn> | undefined): boolean {
+    return proto3.util.equals(Turn, a, b);
+  }
+}
+
+/**
+ * @generated from message metagame.v1.ListenForEventsRequest
+ */
+export class ListenForEventsRequest extends Message<ListenForEventsRequest> {
+  constructor(data?: PartialMessage<ListenForEventsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "metagame.v1.ListenForEventsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListenForEventsRequest {
+    return new ListenForEventsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListenForEventsRequest {
+    return new ListenForEventsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListenForEventsRequest {
+    return new ListenForEventsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListenForEventsRequest | PlainMessage<ListenForEventsRequest> | undefined, b: ListenForEventsRequest | PlainMessage<ListenForEventsRequest> | undefined): boolean {
+    return proto3.util.equals(ListenForEventsRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message metagame.v1.MetagameEvent
+ */
+export class MetagameEvent extends Message<MetagameEvent> {
+  /**
+   * @generated from oneof metagame.v1.MetagameEvent.event
+   */
+  event: {
+    /**
+     * @generated from field: metagame.v1.Turn turn = 1;
+     */
+    value: Turn;
+    case: "turn";
+  } | {
+    /**
+     * @generated from field: metagame.v1.Heartbeat heartbeat = 2;
+     */
+    value: Heartbeat;
+    case: "heartbeat";
+  } | { case: undefined; value?: undefined } = { case: undefined };
+
+  constructor(data?: PartialMessage<MetagameEvent>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "metagame.v1.MetagameEvent";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "turn", kind: "message", T: Turn, oneof: "event" },
+    { no: 2, name: "heartbeat", kind: "message", T: Heartbeat, oneof: "event" },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MetagameEvent {
+    return new MetagameEvent().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): MetagameEvent {
+    return new MetagameEvent().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): MetagameEvent {
+    return new MetagameEvent().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: MetagameEvent | PlainMessage<MetagameEvent> | undefined, b: MetagameEvent | PlainMessage<MetagameEvent> | undefined): boolean {
+    return proto3.util.equals(MetagameEvent, a, b);
+  }
+}
+
+/**
+ * @generated from message metagame.v1.Heartbeat
+ */
+export class Heartbeat extends Message<Heartbeat> {
+  constructor(data?: PartialMessage<Heartbeat>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "metagame.v1.Heartbeat";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Heartbeat {
+    return new Heartbeat().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Heartbeat {
+    return new Heartbeat().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Heartbeat {
+    return new Heartbeat().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Heartbeat | PlainMessage<Heartbeat> | undefined, b: Heartbeat | PlainMessage<Heartbeat> | undefined): boolean {
+    return proto3.util.equals(Heartbeat, a, b);
   }
 }
 

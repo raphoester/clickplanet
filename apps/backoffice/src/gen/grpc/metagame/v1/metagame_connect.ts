@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetTurnRequest, GetTurnResponse } from "./metagame_pb.js";
+import { GetTurnRequest, GetTurnResponse, ListenForEventsRequest, MetagameEvent } from "./metagame_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -24,6 +24,17 @@ export const MetagameService = {
       O: GetTurnResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * The turn now, as the first event, then each change of it within a second; a heartbeat every 30 s meanwhile.
+     *
+     * @generated from rpc metagame.v1.MetagameService.ListenForEvents
+     */
+    listenForEvents: {
+      name: "ListenForEvents",
+      I: ListenForEventsRequest,
+      O: MetagameEvent,
+      kind: MethodKind.ServerStreaming,
     },
   }
 } as const;

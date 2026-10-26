@@ -18,8 +18,8 @@ import (
 
 type battle struct{}
 
-func (battle) Turn(context.Context) (*metagamev1.GetTurnResponse, error) {
-	return &metagamev1.GetTurnResponse{Kind: metagamev1.EntryKind_ENTRY_KIND_BATTLE}, nil
+func (battle) Turn(context.Context) (*metagamev1.Turn, error) {
+	return &metagamev1.Turn{Kind: metagamev1.EntryKind_ENTRY_KIND_BATTLE}, nil
 }
 
 func TestTheTurnIsAGetAnyCacheMayKeepForFiveSeconds(t *testing.T) {
@@ -41,5 +41,5 @@ func TestTheTurnIsAGetAnyCacheMayKeepForFiveSeconds(t *testing.T) {
 
 	assert.Equal(t, http.MethodGet, <-methods)
 	assert.Equal(t, "public, max-age=5, s-maxage=5", res.Header().Get("Cache-Control"))
-	assert.Equal(t, metagamev1.EntryKind_ENTRY_KIND_BATTLE, res.Msg.GetKind())
+	assert.Equal(t, metagamev1.EntryKind_ENTRY_KIND_BATTLE, res.Msg.GetTurn().GetKind())
 }

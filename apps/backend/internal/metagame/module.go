@@ -20,6 +20,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/metagame/internal/metagamev1controller/get_schedule_handler/schedule_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/metagame/internal/metagamev1controller/get_turn_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/metagame/internal/metagamev1controller/get_turn_handler/turn_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/metagame/internal/metagamev1controller/listen_for_events_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/metagame/internal/metagamev1controller/listen_for_events_handler/inprocess_turn_feed"
+	"github.com/raphoester/clickplanet.lol-backend/internal/metagame/internal/metagamev1controller/listen_for_events_handler/inprocess_turn_feed/log_turn_reader"
 	"github.com/raphoester/clickplanet.lol-backend/internal/metagame/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/metagame/internal/schedule"
 	"github.com/raphoester/clickplanet.lol-backend/internal/metagame/internal/schedule/postgres_entry_store"
@@ -86,7 +89,9 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	entries := postgres_entry_store.New(db)
 	ruleSchedule := play_schedule_usecase.NewRunner(scheduleCheck, log_play_schedule.New(
 		play_schedule_usecase.New(entries, redis_rule_set_commands.New(streams.Commands()), clock), props.Logger))
-	props.Runners.Add(cppg.CloseAfter(db, props.Logger, cpredis.CloseAfter(streams, props.Logger, ruleSchedule)))
+	turns := turn_query.NewPostgresQuery(db, clock)
+	turnFeed := inprocess_turn_feed.New(log_turn_reader.New(turns, props.Logger))
+	props.Runners.Add(cppg.CloseAfter(db, props.Logger, turnFeed, cpredis.CloseAfter(streams, props.Logger, ruleSchedule)))
 
 	admin := metagamev1controller.AdminService{
 		GetScheduleHandler: get_schedule_handler.New(schedule_query.NewPostgresQuery(db, clock)),
@@ -104,7 +109,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	}
 
 	public := metagamev1controller.MetagameService{
-		GetTurnHandler: get_turn_handler.New(turn_query.NewPostgresQuery(db, clock)),
+		GetTurnHandler:         get_turn_handler.New(turns),
+		ListenForEventsHandler: listen_for_events_handler.New(turnFeed, props.Server.StreamHeartbeat),
 	}
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return metagamev1connect.NewMetagameServiceHandler(public, options...)
