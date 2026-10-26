@@ -31,6 +31,8 @@ func KindOf(kind missions.RewardKind) planetv1.BonusKind {
 		return planetv1.BonusKind_BONUS_KIND_SPREAD_CLICKS
 	case missions.RewardBomb:
 		return planetv1.BonusKind_BONUS_KIND_BOMB
+	case missions.RewardEncloseClicks:
+		return planetv1.BonusKind_BONUS_KIND_ENCLOSE_CLICKS
 	}
 	return planetv1.BonusKind_BONUS_KIND_UNSPECIFIED
 }

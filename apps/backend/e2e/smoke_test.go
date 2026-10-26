@@ -87,9 +87,30 @@ func (s *testSuite) TestAPlayerDoesAMissionAndIsPaid() {
 		10*time.Second, 20*time.Millisecond, "planet relays each take to missions, which pays the mission done")
 
 	reward := first.GetReward().GetCharges()
-	assert.Equal(t, planetv1.BonusKind_BONUS_KIND_SHIELDS, reward.GetKind())
-	assert.Eventually(t, func() bool { return ada.charges().GetShields() == reward.GetAmount() },
+	require.NotEqual(t, planetv1.BonusKind_BONUS_KIND_UNSPECIFIED, reward.GetKind(), "the reward is drawn with the day")
+	assert.Eventually(t, func() bool { return held(t, ada.charges(), reward.GetKind()) == reward.GetAmount() },
 		5*time.Second, 20*time.Millisecond, "missions commands planet to grant it")
+}
+
+func held(t *testing.T, charges *planetv1.ChargesHeld, kind planetv1.BonusKind) uint32 {
+	t.Helper()
+
+	switch kind {
+	case planetv1.BonusKind_BONUS_KIND_SHIELDS:
+		return charges.GetShields()
+	case planetv1.BonusKind_BONUS_KIND_SPREAD_CLICKS:
+		return charges.GetSpreadClicksLeft()
+	case planetv1.BonusKind_BONUS_KIND_ENCLOSE_CLICKS:
+		return charges.GetEnclosures()
+	case planetv1.BonusKind_BONUS_KIND_BOMB:
+		if charges.GetBomb() {
+			return 1
+		}
+		return 0
+	case planetv1.BonusKind_BONUS_KIND_REFILL, planetv1.BonusKind_BONUS_KIND_UNSPECIFIED:
+		require.Failf(t, "not a charge a mission pays", "%s", kind)
+	}
+	return 0
 }
 
 func (s *testSuite) TestAGuestSignsInWithGoogleAndChoosesAName() {

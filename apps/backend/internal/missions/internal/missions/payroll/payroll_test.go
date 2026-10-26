@@ -38,8 +38,8 @@ func (a *accounts) Linked(context.Context, missions.AccountID) (bool, error) {
 var (
 	day      = missions.NewCalendar(missions.Config{Cutoff: 21 * time.Hour}).DayOf(time.Date(2026, 10, 26, 12, 0, 0, 0, time.UTC))
 	ada      = missions.AccountID{15: 1}
-	bankGoal = uint32(60)
 	bank     = missions.Draw(day, "fr", missions.World{Territories: []missions.Holding{{Country: "dz", Tiles: 9_000}}}).Snapshot()[0]
+	bankGoal = bank.Order.(missions.TakeFor).Goal
 )
 
 func setUp(t *testing.T, accounts *accounts, taken uint32) (payroll.Payroll, *inmemory_mission_store.Store, *cpatomic.FakeOutbox) {
@@ -69,7 +69,7 @@ func TestASignedInAccountIsGrantedEachMissionDoneOnce(t *testing.T) {
 
 	require.Len(t, outbox.Recorded(), 1)
 	assert.True(t, proto.Equal(planetgrant.Of(ada, missions.Payment{Mission: bank.ID, Reward: bank.Reward}), outbox.Recorded()[0]))
-	assert.Equal(t, planetv1.BonusKind_BONUS_KIND_SHIELDS, outbox.Recorded()[0].(*planetv1.GrantCharges).GetKind())
+	assert.NotEqual(t, planetv1.BonusKind_BONUS_KIND_UNSPECIFIED, outbox.Recorded()[0].(*planetv1.GrantCharges).GetKind())
 	sheet, err := store.Sheet(t.Context(), day, ada)
 	require.NoError(t, err)
 	assert.True(t, sheet.Snapshot().Paid.Contains(bank.ID))
