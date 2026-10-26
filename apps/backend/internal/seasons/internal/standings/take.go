@@ -28,9 +28,10 @@ type Country string
 var ErrNoCountry = errors.New("the take has no country")
 
 type Take struct {
-	Account AccountID
-	Country Country
-	At      time.Time
+	Account  AccountID
+	Country  Country
+	At       time.Time
+	Position uint64
 }
 
 func (t Take) Season(seasons calendar.Calendar) (calendar.Number, bool) {

@@ -4,6 +4,7 @@ httpServer:
   consoleBindAddress: 127.0.0.1:8081
   adminBindAddress: 0.0.0.0:8083
   internalBindAddress: 127.0.0.1:8082
+
 gameMap:
   maxIndex: 262119
 
@@ -17,6 +18,10 @@ database:
   schema: planet
   pool:
     maxOpenConns: 4
+
+redis:
+  address: redis:6379
+  password: env://REDIS_PASSWORD
 
 tilesStorage:
   flushInterval: 1s
@@ -61,6 +66,10 @@ antiBot:
     schema: antibot
     pool:
       maxOpenConns: 2
+
+  redis:
+    address: redis:6379
+    password: env://REDIS_PASSWORD
 
   bans:
     enforce: true
@@ -295,6 +304,9 @@ auth:
     schema: auth
     pool:
       maxOpenConns: 2
+  redis:
+    address: redis:6379
+    password: env://REDIS_PASSWORD
   signIn:
     enabled: true
     redirectUrl: https://clickplanet.lol/auth/callback
@@ -333,6 +345,9 @@ chat:
     schema: chat
     pool:
       maxOpenConns: 2
+  redis:
+    address: redis:6379
+    password: env://REDIS_PASSWORD
   storage:
     historySize: 200
     retention: 720h
@@ -352,6 +367,9 @@ player:
     schema: player
     pool:
       maxOpenConns: 4
+  redis:
+    address: redis:6379
+    password: env://REDIS_PASSWORD
   tagSalt: env://CHAT_TAG_SALT
 
 seasons:
@@ -369,6 +387,25 @@ seasons:
     schema: seasons
     pool:
       maxOpenConns: 2
+  redis:
+    address: redis:6379
+    password: env://REDIS_PASSWORD
+
+missions:
+  cutoff: 21h
+  database:
+    host: postgres
+    password: env://POSTGRES_PASSWORD
+    port: "5432"
+    user: clickplanet
+    dbName: clickplanet
+    sslMode: disable
+    schema: missions
+    pool:
+      maxOpenConns: 2
+  redis:
+    address: redis:6379
+    password: env://REDIS_PASSWORD
 
 support:
   database:
@@ -381,6 +418,9 @@ support:
     schema: support
     pool:
       maxOpenConns: 2
+  redis:
+    address: redis:6379
+    password: env://REDIS_PASSWORD
   retention: 2160h
   rateLimiter:
     perSecond: 0.0167

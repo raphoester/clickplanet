@@ -8,12 +8,14 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support"
 )
 
 func validConfig() support.Config {
 	config := support.Config{
 		Database: cppg.Config{Host: "localhost", Port: "5432", User: "postgres", DBName: "postgres", SSLMode: "disable", Schema: "support"},
+		Redis:    cpredis.Config{Address: "localhost:6379"},
 	}
 	config.Attachments.Enabled = true
 	config.Attachments.Bucket.Endpoint = "https://account.r2.example"
@@ -29,7 +31,7 @@ func TestAConfigWithAWholeBucketIsValid(t *testing.T) {
 }
 
 func TestAttachmentsOffCheckNothingOfTheBucket(t *testing.T) {
-	config := support.Config{Database: validConfig().Database}
+	config := support.Config{Database: validConfig().Database, Redis: validConfig().Redis}
 	config.Attachments.Bucket.Endpoint = "not a url"
 	config.Attachments.LinkTTL = 30 * 24 * time.Hour
 

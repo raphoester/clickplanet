@@ -8,7 +8,7 @@ build time:
 
 | app | copy | refreshed by |
 | --- | --- | --- |
-| frontend | `apps/frontend/static/<blob>`, fetched at runtime | `npm run map` |
+| frontend | `apps/frontend/static/<blob>`; the coordinates only when the rebuild below fails | `npm run map` |
 | backend | `apps/backend/generated/map/<blob>`, embedded | `make map` |
 | backoffice | `apps/backoffice/src/gen/map/coordinates-<hash>.bin` alone, bundled by Vite | `npm run map` |
 
@@ -81,6 +81,7 @@ first run. A second run over its own output would write an identity migration.
 ```bash
 cd apps/backend && make map          # copy both blobs, then commit all three copies of each
 cd apps/frontend && npm run borderLines   # traced from both blobs, stale until it is run
+cd apps/frontend && npm run landmask      # which lattice points are tiles, what the browser downloads
 cd apps/frontend && npm run earth         # the globe's texture, cut from the new tile field
 cd apps/frontend && npm run landmassNames # each landmass's name, keyed by the new borders blob
 cd apps/frontend && npm run map:audit     # every fault should read zero
@@ -99,8 +100,9 @@ and [`coordinates.go`](../apps/backend/internal/planet/internal/clicks/embedded_
 ```
 
 The 12-byte header keeps the float sections 4-byte aligned so the browser can take zero-copy views.
-The uvs are dead weight — neither shader reads them any more — and dropping them would take ~2 MB
-off a 5 MB download, but it touches the encoder, both decoders, the generator and the tests.
+The uvs are dead weight — nothing reads them. The browser downloads this blob only when it cannot
+rebuild the positions from its landmask, so dropping them would save players little for a change to
+the encoder, every decoder, the generator and the tests.
 
 **Positions are 0-indexed by array position; wire tile ids are 1-based.** Tile id = array index + 1.
 That is what `clicks.Board` (`tile > 0 && tile <= maxIndex`), `inmemory_tile_storage`
@@ -130,14 +132,17 @@ The frontend draws a black outline along the tile boundary between two countries
 geometry for it in a blob of its own — `apps/frontend/static/borderLines-<hash>.bin`, written by
 `npm run borderLines`. It is derived from both blobs here and from nothing else, so **regenerate it
 after these**; it stays out of `/map` because the backend has no use for it. See
-[`apps/frontend/CLAUDE.md`](../apps/frontend/CLAUDE.md), "The countries' outlines".
+[`apps/frontend/docs/country-outlines.md`](../apps/frontend/docs/country-outlines.md).
 
 ## The grid is a regular honeycomb
 
 The tiles are the land vertices of `THREE.IcosahedronGeometry(1, 300)`, deduplicated by position.
 That makes them a geodesic sphere's vertices, so **every interior vertex has exactly 6 neighbours**
 and the 12 icosahedron corners have 5 — which is what lets the backend compute adjacency exactly
-rather than by searching. See [apps/backend/CLAUDE.md](../apps/backend/CLAUDE.md), "Map geography".
+rather than by searching. It is also what lets the browser rebuild every position from one bit per
+vertex (`apps/frontend/static/landmask-<hash>.bin`, written by `npm run landmask` from the
+coordinates blob) instead of downloading them. See
+[`apps/frontend/docs/tile-positions.md`](../apps/frontend/docs/tile-positions.md). See [`apps/backend/docs/map-geography.md`](../apps/backend/docs/map-geography.md).
 
 | | |
 | --- | --- |

@@ -133,13 +133,14 @@ func (u *UseCase) snapshot(ctx context.Context, post stats.Post, curves *curves,
 	return stats.RowsOf(post, answer, retentions, takenAt), "", nil
 }
 
-// The curves of one run: those the last snapshot held, and whether YouTube's quota is spent, after which none is asked.
+// The curves of one run: those the last snapshot held, and why none is asked any more, once YouTube said it would give
+// none for a while (its daily quota spent, until midnight Pacific): each would be a call refused at once.
 type curves struct {
 	*UseCase
-	held    map[string]*stats.Retention
-	takenAt time.Time
-	asked   int
-	spent   bool
+	held     map[string]*stats.Retention
+	takenAt  time.Time
+	asked    int
+	withheld string
 }
 
 // The curve a video's row holds: read when one is due, else carried. The error is the context's alone.
@@ -148,8 +149,8 @@ func (c *curves) of(ctx context.Context, target stats.Target) (stats.RetentionSt
 	if !stats.RetentionDue(c.takenAt.Sub(target.PublishedAt), held) {
 		return stats.RetentionState{Retention: held}, nil
 	}
-	if c.spent {
-		return stats.RetentionState{Retention: held, Missing: stats.QuotaSpent}, nil
+	if c.withheld != "" {
+		return stats.RetentionState{Retention: held, Missing: c.withheld}, nil
 	}
 
 	var retention stats.Retention
@@ -164,8 +165,12 @@ func (c *curves) of(ctx context.Context, target stats.Target) (stats.RetentionSt
 	case ctx.Err() != nil:
 		return stats.RetentionState{}, ctx.Err() //nolint:wrapcheck // the context's own error says why the run ended.
 	case errors.Is(err, stats.ErrRetentionQuota):
-		c.spent = true
+		c.withheld = stats.QuotaSpent
 		return stats.RetentionState{Retention: held, Missing: stats.QuotaSpent}, nil
+	case errors.As(err, new(*posts.BusyError)):
+		// Busy for longer than the backoff waits: the quota, in words Zernio did not use on 2026-10-25.
+		c.withheld = "not asked: " + err.Error()
+		return stats.RetentionState{Retention: held, Missing: err.Error()}, nil
 	default:
 		return stats.RetentionState{Retention: held, Missing: err.Error()}, nil
 	}

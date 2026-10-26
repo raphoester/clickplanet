@@ -145,8 +145,14 @@ export class FakePresenceBackend implements PresenceBackend, PlayerInfoBackend {
     }
 
     public async playerInfo(accountId: string): Promise<PlayerInfo | undefined> {
-        const player = PLAYERS.find((p) => !p.guest && p.accountId === accountId)
+        const player = PLAYERS.find((p) => p.accountId === accountId)
         if (!player) return undefined
+        if (player.guest) {
+            return {
+                name: player.name, guest: true, tilesTaken: 0, streakCurrent: 0, streakBest: 0, admin: false,
+                color: NameColor.UNSPECIFIED, titles: [], playsFor: [], playsAgainst: [],
+            }
+        }
 
         const career = this.career(player)
         return {
@@ -154,6 +160,7 @@ export class FakePresenceBackend implements PresenceBackend, PlayerInfoBackend {
             playsFor: career.playsFor.slice(0, SHOWN_FRONTS),
             playsAgainst: career.playsAgainst.slice(0, SHOWN_FRONTS),
             name: player.name,
+            guest: false,
             streakCurrent: player.streak,
             admin: player.admin,
             color: player.color,

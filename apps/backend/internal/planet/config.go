@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
@@ -12,6 +11,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
@@ -21,7 +21,6 @@ type Config struct {
 	RateLimiter  clicks.ThrottleConfig
 	Toll         clicks.TollConfig
 	VPNBlocklist cpipblock.Config
-	AntiBot      antibot.Config
 	Bonus        bonuses.Config
 
 	Ledger        ledger.Config
@@ -30,6 +29,7 @@ type Config struct {
 	Auth cpsession.VerifierConfig
 
 	Database cppg.Config
+	Redis    cpredis.Config
 }
 
 type GameMapConfig struct {
@@ -45,9 +45,13 @@ func (c Config) Validate() error {
 		return fmt.Errorf("database: %w", err)
 	}
 
+	if err := c.Redis.Validate(); err != nil {
+		return fmt.Errorf("redis: %w", err)
+	}
+
 	if err := c.Toll.Validate(); err != nil {
 		return err
 	}
 
-	return errors.Join(c.RateLimiter.Validate(), c.Bonus.Validate(), c.AntiBot.Validate())
+	return errors.Join(c.RateLimiter.Validate(), c.Bonus.Validate())
 }

@@ -48,7 +48,7 @@ type Document = {
 }
 
 // The curve the row holds, read at its snapshot or carried from an earlier one: readAt and ageHours say when it was
-// read and how old the video was then. A row from before 2026-10-25 has neither, and was read with its row.
+// read and how old the video was then. A row written before the job kept those has neither, and was read with its row.
 type Retention = {httpStatus?: number, body?: unknown, readAt?: string, ageHours?: number}
 
 function cellsOf(text: string): Cells {

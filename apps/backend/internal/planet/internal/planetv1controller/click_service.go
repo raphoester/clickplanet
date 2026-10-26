@@ -11,7 +11,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_budget_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_charges_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_fortresses_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_landmass_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_map_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_tile_holder_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/map_density_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/open_quiz_handler"
@@ -35,6 +37,8 @@ type ClickService struct {
 	answer_quiz_handler.AnswerQuizHandler
 	place_shield_handler.PlaceShieldHandler
 	get_fortresses_handler.GetFortressesHandler
+	get_tile_holder_handler.GetTileHolderHandler
+	get_landmass_handler.GetLandmassHandler
 	get_allegiance_handler.GetAllegianceHandler
 	pledge_allegiance_handler.PledgeAllegianceHandler
 }

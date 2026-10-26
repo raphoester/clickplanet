@@ -14,6 +14,8 @@ import {CloseToFortify, Fortified} from '../../domain/fortify.ts';
 import {ClickBudgetSource} from '../../backends/clickBudget.ts';
 import {Allegiance} from '../../domain/allegiance.ts';
 import {BUBBLE_MS} from '../components/Bubble.tsx';
+import {Peek} from '../../domain/tilePeek.ts';
+import {Territory, TerritoryPeek} from '../../domain/territory.ts';
 
 export type GlobeStatus =
     | {state: 'loading', territories?: number}
@@ -94,6 +96,15 @@ export function useGlobe(options: UseGlobeOptions) {
         setLastClose((previous) => ({close, id: (previous?.id ?? 0) + 1, at: performance.now()}))
     }, [])
 
+    const [pointing, setPointing] = useState<{peek: Peek, id: number} | undefined>()
+    const peekCount = useRef(0)
+    const recordPeek = useCallback((peek: Peek) => setPointing({peek, id: ++peekCount.current}), [])
+    const endPeek = useCallback(() => setPointing(undefined), [])
+
+    const [pointingTerritory, setPointingTerritory] = useState<{peek: TerritoryPeek, id: number} | undefined>()
+    const recordTerritoryPeek = useCallback((peek: TerritoryPeek) => setPointingTerritory({peek, id: ++peekCount.current}), [])
+    const endTerritoryPeek = useCallback(() => setPointingTerritory(undefined), [])
+
     const takeBonus = useCallback((reward: BonusReward) => setAward(reward), [])
 
     const globeRef = useRef<Globe | null>(null)
@@ -143,6 +154,10 @@ export function useGlobe(options: UseGlobeOptions) {
             onClickAccepted,
             onFortified: recordFortified,
             onCloseToFortify: recordClose,
+            onPeek: recordPeek,
+            onPeekEnd: endPeek,
+            onTerritoryPeek: recordTerritoryPeek,
+            onTerritoryPeekEnd: endTerritoryPeek,
             playSound,
             signal: abortController.signal,
         }).then((globe) => {
@@ -170,7 +185,7 @@ export function useGlobe(options: UseGlobeOptions) {
             globeRef.current?.dispose()
             globeRef.current = null
         }
-    }, [container, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, bomber, shielder, playSound, onClickAccepted, rendering, recordLeaderboard, publishLeaderboard, takeBonus, recordCatch, recordBomb, recordFortified, recordClose, notify, recordLockedOut])
+    }, [container, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, bomber, shielder, playSound, onClickAccepted, rendering, recordLeaderboard, publishLeaderboard, takeBonus, recordCatch, recordBomb, recordFortified, recordClose, recordPeek, endPeek, recordTerritoryPeek, endTerritoryPeek, notify, recordLockedOut])
 
     useEffect(() => {
         initialCountry.current = country
@@ -194,6 +209,9 @@ export function useGlobe(options: UseGlobeOptions) {
     }, [])
 
     const graphics = useCallback((): GraphicsReport => globeRef.current?.graphics() ?? NO_GRAPHICS, [])
+
+    const territoryOf = useCallback((landmass: number): Territory | undefined => globeRef.current?.territoryOf(landmass), [])
+    const showTerritory = useCallback((landmass: number | undefined) => globeRef.current?.showTerritory(landmass), [])
 
     const dismissAward = useCallback(() => setAward(undefined), [])
     const toggleBomb = useCallback(() => globeRef.current?.setArmed(!bombArmed), [bombArmed])
@@ -233,6 +251,10 @@ export function useGlobe(options: UseGlobeOptions) {
         dismissFortified,
         lastClose,
         dismissClose,
+        pointing,
+        pointingTerritory,
+        territoryOf,
+        showTerritory,
     }
 }
 

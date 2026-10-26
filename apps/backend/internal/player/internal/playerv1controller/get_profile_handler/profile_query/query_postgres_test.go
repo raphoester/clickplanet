@@ -81,7 +81,7 @@ func (s *testSuite) TestAChosenNameIsRenamableWhenSetNameSaidItIs() {
 	answer := s.profile(ada)
 
 	s.Equal(playermessage.Profile(chosen).GetRenamableAtUnixMs(), answer.GetProfile().GetRenamableAtUnixMs())
-	s.Equal(at.Add(30*24*time.Hour).UnixMilli(), answer.GetProfile().GetRenamableAtUnixMs())
+	s.Equal(at.Add(7*24*time.Hour).UnixMilli(), answer.GetProfile().GetRenamableAtUnixMs())
 }
 
 func (s *testSuite) TestAColorTheProtoDoesNotNameIsAnError() {

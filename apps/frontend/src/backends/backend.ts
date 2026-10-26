@@ -23,6 +23,38 @@ export interface OwnershipsGetter {
     getFortresses(signal?: AbortSignal): Promise<Map<number, string>>
 }
 
+export type TileHolder = {
+    accountId: string
+    countryCode: string
+    takenAt: number
+}
+
+export interface TileHolders {
+    tileHolder(tile: number, signal?: AbortSignal): Promise<TileHolder | undefined>
+}
+
+// The tiles of a landmass one account's takes hold for one flag.
+export type LandmassHolder = {
+    accountId: string
+    countryCode: string
+    tiles: number
+}
+
+export type LandmassFortification = {
+    accountId: string
+    countryCode: string
+    at: number
+}
+
+export type LandmassState = {
+    holders: LandmassHolder[]
+    lastFortification: LandmassFortification | undefined
+}
+
+export interface LandmassReader {
+    landmass(landmass: number, signal?: AbortSignal): Promise<LandmassState>
+}
+
 export type Update = {
     tile: number,
     previousCountry: string | undefined,
@@ -98,6 +130,11 @@ export interface BonusListener {
     listenForBonuses(handlers: BonusHandlers): () => void
 
     claimBonus(token: string, countryId: string): Promise<ClaimedBonus>
+}
+
+// For a charge granted elsewhere, as a mission's reward: the holder tells its listeners again.
+export interface ChargesRefresher {
+    refreshCharges(): Promise<void>
 }
 
 export interface QuizMaster {

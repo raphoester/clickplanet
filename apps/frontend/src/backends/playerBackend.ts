@@ -251,6 +251,7 @@ function playerInfoOf(player: PlayerPb | undefined): PlayerInfo {
     const createdAt = Number(player?.createdAtUnixMs ?? 0)
     return {
         name: player?.name ?? "",
+        guest: player?.guest ?? false,
         tilesTaken: Number(player?.stats?.tilesTaken ?? 0),
         streakCurrent: player?.stats?.streakCurrent ?? 0,
         streakBest: player?.stats?.streakBest ?? 0,

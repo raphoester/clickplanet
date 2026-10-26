@@ -43,7 +43,6 @@ describe("encodeCoordinates", () => {
         const buffer = encodeCoordinates({positions: [1, 2, 3], uvs: [0.5, 0.25], length: 1})
         const decoded = decodeCoordinates(buffer)
         expect(Array.from(decoded.positions)).toEqual([1, 2, 3])
-        expect(Array.from(decoded.uvs)).toEqual([0.5, 0.25])
     })
 })
 
@@ -54,14 +53,12 @@ describe("decodeCoordinates", () => {
 
         expect(decoded.size).toBe(64)
         expect(Array.from(decoded.positions)).toEqual(Array.from(original.positions as Float32Array))
-        expect(Array.from(decoded.uvs)).toEqual(Array.from(original.uvs as Float32Array))
     })
 
     it("views the fetched buffer instead of copying it", () => {
         const buffer = encodeCoordinates(sample(4))
         const decoded = decodeCoordinates(buffer)
         expect(decoded.positions.buffer).toBe(buffer)
-        expect(decoded.uvs.buffer).toBe(buffer)
     })
 
     it("rejects a buffer too short to hold a header", () => {

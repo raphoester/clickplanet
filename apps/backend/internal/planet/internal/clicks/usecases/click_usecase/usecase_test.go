@@ -141,3 +141,10 @@ func (s *testSuite) TestAShieldedClickPublishesTheShieldsLeftAndNoNewOwner() {
 	s.Equal(clicks.TileUpdate{Tile: 153, Value: "pl", Previous: "pl"}, *change.Update)
 	s.Empty(feed)
 }
+
+func (s *testSuite) TestTheAnswerNamesTheFlagTheTileWoreBefore() {
+	s.click(400, "pl")
+
+	s.Equal("pl", s.click(400, "de").Owner)
+	s.Empty(s.click(401, "de").Owner, "a tile nobody held")
+}

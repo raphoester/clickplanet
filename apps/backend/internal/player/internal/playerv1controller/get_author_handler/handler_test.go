@@ -28,7 +28,7 @@ func getAuthor(t *testing.T, accountID string) (*connect.Response[playerv1.GetAu
 	require.NoError(t, err)
 	require.NoError(t, store.SaveProfile(t.Context(), players.NewProfile(ada, "Ada_L", time.Now())))
 	require.NoError(t, store.SaveColor(t.Context(), ada, players.Color(playerv1.NameColor_NAME_COLOR_TEAL)))
-	require.NoError(t, store.Record(t.Context(), ada, players.TakeAt(time.Now())))
+	require.NoError(t, store.Record(t.Context(), ada, players.TakeAt(0, time.Now())))
 
 	held, worn := inmemory_title_store.New(), inmemory_worn_title_store.New()
 	require.NoError(t, held.Grant(t.Context(), titles.Holdings{ada: {"og", "settler"}}, time.Now()))

@@ -11,6 +11,8 @@ uniform float flagPaint;
 
 uniform float pixelsPerRadian;
 
+uniform float highlight;
+
 // Must match MAX_BLASTS and BLAST_TIMELINE in domain/blast.ts.
 #define MAX_BLASTS 4
 const float BLAST_FALL = 0.8;
@@ -37,16 +39,30 @@ varying float vGlow;
 varying float vScorch;
 varying float vFortify;
 
+#ifdef COMPACT
+uniform sampler2D flagRectangles;
+
+attribute vec2 ids;
+attribute vec4 marks;
+
+#define regionVector texelFetch(flagRectangles, ivec2(int(ids.x), 0), 0)
+#define landmassIndex ids.y
+#define hover marks.x
+#define pulse marks.y
+#define shield marks.z
+#else
 attribute float hover;
 attribute vec4 regionVector;
 attribute float landmassIndex;
 attribute float shield;
 attribute float pulse;
+#endif
 
 varying float vHover;
 flat out vec4 vRegionVector;
 flat out float vShield;
 flat out float vPulse;
+flat out float vHighlit;
 
 #ifdef LIT
 flat out float vShade;
@@ -93,6 +109,7 @@ void main() {
     vRegionVector = regionVector;
     vShield = shield;
     vPulse = pulse;
+    vHighlit = highlight > 0.5 && abs(landmassIndex - highlight) < 0.5 ? 1.0 : 0.0;
 
 #ifdef LIT
     vec3 normal = normalize(normalMatrix * ground);

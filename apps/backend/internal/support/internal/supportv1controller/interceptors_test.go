@@ -146,6 +146,10 @@ func TestAnUploadNeedsATokenMintedAfterACheck(t *testing.T) {
 	_, ran, err = run(t.Context(), identified, supportv1connect.SupportServiceCreateUploadProcedure, "an-identity-token")
 	require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
 	require.False(t, ran)
+
+	_, ran, err = run(t.Context(), attested, supportv1connect.SupportServiceCreateUploadProcedure, "")
+	require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
+	require.False(t, ran)
 }
 
 // Two a day.

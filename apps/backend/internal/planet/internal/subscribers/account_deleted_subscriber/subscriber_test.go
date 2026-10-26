@@ -10,6 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/postgres_ledger_store"
@@ -40,12 +42,12 @@ func TestADeletedAccountIsTakenOffEveryTakeItMade(t *testing.T) {
 	require.NoError(t, takings.Flush(ctx))
 	takings.Append(ledger.Taking{Tile: 3, Scope: "1.2.3.4", Account: gone, Country: "de", Previous: "fr", At: at.Add(2 * time.Hour)})
 
-	err := account_deleted_subscriber.New(anonymize_takes_usecase.New(takings, store)).
+	err := account_deleted_subscriber.New(anonymize_takes_usecase.New(takings, store, tiles())).
 		Handle(ctx, &authv1.AccountDeleted{AccountId: gone})
 	require.NoError(t, err)
 
 	var all, named, held int
-	require.NoError(t, db.QueryRowContext(ctx,
+	require.NoError(t, db.On(ctx).QueryRowContext(ctx,
 		`SELECT count(*), count(account), count(*) FILTER (WHERE account = $1) FROM ledger_events`,
 		uuid.MustParse(gone)).Scan(&all, &named, &held))
 	assert.Equal(t, 3, all, "every take is still there, the one behind the head too")
@@ -57,8 +59,13 @@ func TestAnEventWithNoAccountIsRefused(t *testing.T) {
 	persistence := inmemory_ledger_storage.NewMemoryPersistence()
 	takings := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, persistence, slog.New(slog.DiscardHandler))
 
-	err := account_deleted_subscriber.New(anonymize_takes_usecase.New(takings, persistence)).
+	err := account_deleted_subscriber.New(anonymize_takes_usecase.New(takings, persistence, tiles())).
 		Handle(t.Context(), &authv1.AccountDeleted{})
 
 	assert.ErrorIs(t, err, ledger.ErrInvalidAccount)
+}
+
+func tiles() *inmemory_tile_storage.Storage {
+	return inmemory_tile_storage.New(clicks.BordersOf(10), inmemory_tile_storage.Config{},
+		inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{}), slog.New(slog.DiscardHandler))
 }

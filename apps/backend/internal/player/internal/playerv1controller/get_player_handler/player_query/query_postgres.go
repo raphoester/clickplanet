@@ -35,12 +35,12 @@ var ErrNoPlayer = errors.New("no such player")
 
 const shownFronts = 3
 
-func NewPostgresQuery(db cppg.Querier, titles Titles, accounts Accounts, fronts Fronts, clock cptime.Clock) *PostgresQuery {
+func NewPostgresQuery(db cppg.Conn, titles Titles, accounts Accounts, fronts Fronts, clock cptime.Clock) *PostgresQuery {
 	return &PostgresQuery{db: db, titles: titles, accounts: accounts, fronts: fronts, clock: clock}
 }
 
 type PostgresQuery struct {
-	db       cppg.Querier
+	db       cppg.Conn
 	titles   Titles
 	accounts Accounts
 	fronts   Fronts
@@ -49,33 +49,37 @@ type PostgresQuery struct {
 
 const player = `
 	SELECT
-		profiles.name,
-		profiles.admin,
-		profiles.color,
+		profiles.account_id IS NULL,
+		COALESCE(profiles.name, 'guest_' || guest_codes.code),
+		COALESCE(profiles.admin, false),
+		COALESCE(profiles.color, 0),
 		COALESCE(stats.tiles_taken, 0),
 		` + playerread.StreakNow + `,
 		COALESCE(stats.streak_best, 0),
 		COALESCE(to_char(stats.streak_last_day, 'YYYY-MM-DD'), ''),
 		COALESCE(worn_titles.title, ''),
 		COALESCE(
-			(SELECT array_agg(titles.title ORDER BY titles.earned_at, titles.title) FROM titles WHERE titles.account_id = profiles.account_id),
+			(SELECT array_agg(titles.title ORDER BY titles.earned_at, titles.title) FROM titles WHERE titles.account_id = asked.account_id),
 			'{}'
 		)
-	FROM profiles
-	LEFT JOIN stats ON stats.account_id = profiles.account_id
-	LEFT JOIN worn_titles ON worn_titles.account_id = profiles.account_id
-	WHERE profiles.account_id = $1
+	FROM (SELECT $1::uuid AS account_id) asked
+	LEFT JOIN profiles ON profiles.account_id = asked.account_id
+	LEFT JOIN guest_codes ON guest_codes.account_id = asked.account_id
+	LEFT JOIN stats ON stats.account_id = asked.account_id
+	LEFT JOIN worn_titles ON worn_titles.account_id = asked.account_id
+	WHERE profiles.account_id IS NOT NULL OR guest_codes.account_id IS NOT NULL
 `
 
 func (q *PostgresQuery) Player(ctx context.Context, account cpsession.AccountID) (*playerv1.GetPlayerResponse, error) {
 	var (
+		guest  bool
 		color  int32
 		choice string
 		held   []string
 		answer = &playerv1.Player{Stats: &playerv1.Stats{}}
 	)
-	err := q.db.QueryRowContext(ctx, player, uuid.UUID(account), q.clock.Now().UTC().Format(time.DateOnly)).Scan(
-		&answer.Name, &answer.Admin, &color,
+	err := q.db.On(ctx).QueryRowContext(ctx, player, uuid.UUID(account), q.clock.Now().UTC().Format(time.DateOnly)).Scan(
+		&guest, &answer.Name, &answer.Admin, &color,
 		&answer.Stats.TilesTaken, &answer.Stats.StreakCurrent, &answer.Stats.StreakBest, &answer.Stats.StreakLastDay,
 		&choice, pq.Array(&held),
 	)
@@ -84,6 +88,9 @@ func (q *PostgresQuery) Player(ctx context.Context, account cpsession.AccountID)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the player: %w", err)
+	}
+	if guest {
+		return &playerv1.GetPlayerResponse{Player: &playerv1.Player{Name: answer.GetName(), Guest: true}}, nil
 	}
 
 	if answer.Color, err = playerread.KeptColor(color); err != nil {

@@ -72,14 +72,24 @@ type AdminServiceClient interface {
 	ReassignCountry(context.Context, *connect.Request[v1.ReassignCountryRequest]) (*connect.Response[v1.ReassignCountryResponse], error)
 	FindPlayers(context.Context, *connect.Request[v1.FindPlayersRequest]) (*connect.Response[v1.FindPlayersResponse], error)
 	TopPlayers(context.Context, *connect.Request[v1.TopPlayersRequest]) (*connect.Response[v1.TopPlayersResponse], error)
+	// Deprecated: antibot.v1.AdminService/BanPlayer, which answers it on this path until the backoffice calls it there.
+	//
+	// Deprecated: do not use.
 	BanPlayer(context.Context, *connect.Request[v1.BanPlayerRequest]) (*connect.Response[v1.BanPlayerResponse], error)
+	// Deprecated: antibot.v1.AdminService/UnbanPlayer, which answers it on this path until the backoffice calls it there.
+	//
+	// Deprecated: do not use.
 	UnbanPlayer(context.Context, *connect.Request[v1.UnbanPlayerRequest]) (*connect.Response[v1.UnbanPlayerResponse], error)
 	RevertPlayer(context.Context, *connect.Request[v1.RevertPlayerRequest]) (*connect.Response[v1.RevertPlayerResponse], error)
 	PaintRandomTiles(context.Context, *connect.Request[v1.PaintRandomTilesRequest]) (*connect.Response[v1.PaintRandomTilesResponse], error)
+	// Deprecated: antibot.v1.AdminService/InspectPlayer, which answers it on this path until the backoffice calls it there.
+	//
+	// Deprecated: do not use.
 	InspectPlayer(context.Context, *connect.Request[v1.InspectPlayerRequest]) (*connect.Response[v1.InspectPlayerResponse], error)
 	GrantCharges(context.Context, *connect.Request[v1.GrantChargesRequest]) (*connect.Response[v1.GrantChargesResponse], error)
 	GetReplay(context.Context, *connect.Request[v1.GetReplayRequest]) (*connect.Response[v1.GetReplayResponse], error)
-	// Every change the live stream showed in a window of at most 72 hours, from the ledger in memory, and who made it.
+	// Every change the live stream showed in a window of at most 72 hours, from postgres, and who made it, a page at a
+	// time.
 	GetLedger(context.Context, *connect.Request[v1.GetLedgerRequest]) (*connect.Response[v1.GetLedgerResponse], error)
 	// InternalService/GetTerritories, for the admin page: the tiles each country holds now.
 	GetTerritories(context.Context, *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error)
@@ -203,11 +213,15 @@ func (c *adminServiceClient) TopPlayers(ctx context.Context, req *connect.Reques
 }
 
 // BanPlayer calls planet.v1.AdminService.BanPlayer.
+//
+// Deprecated: do not use.
 func (c *adminServiceClient) BanPlayer(ctx context.Context, req *connect.Request[v1.BanPlayerRequest]) (*connect.Response[v1.BanPlayerResponse], error) {
 	return c.banPlayer.CallUnary(ctx, req)
 }
 
 // UnbanPlayer calls planet.v1.AdminService.UnbanPlayer.
+//
+// Deprecated: do not use.
 func (c *adminServiceClient) UnbanPlayer(ctx context.Context, req *connect.Request[v1.UnbanPlayerRequest]) (*connect.Response[v1.UnbanPlayerResponse], error) {
 	return c.unbanPlayer.CallUnary(ctx, req)
 }
@@ -223,6 +237,8 @@ func (c *adminServiceClient) PaintRandomTiles(ctx context.Context, req *connect.
 }
 
 // InspectPlayer calls planet.v1.AdminService.InspectPlayer.
+//
+// Deprecated: do not use.
 func (c *adminServiceClient) InspectPlayer(ctx context.Context, req *connect.Request[v1.InspectPlayerRequest]) (*connect.Response[v1.InspectPlayerResponse], error) {
 	return c.inspectPlayer.CallUnary(ctx, req)
 }
@@ -252,14 +268,24 @@ type AdminServiceHandler interface {
 	ReassignCountry(context.Context, *connect.Request[v1.ReassignCountryRequest]) (*connect.Response[v1.ReassignCountryResponse], error)
 	FindPlayers(context.Context, *connect.Request[v1.FindPlayersRequest]) (*connect.Response[v1.FindPlayersResponse], error)
 	TopPlayers(context.Context, *connect.Request[v1.TopPlayersRequest]) (*connect.Response[v1.TopPlayersResponse], error)
+	// Deprecated: antibot.v1.AdminService/BanPlayer, which answers it on this path until the backoffice calls it there.
+	//
+	// Deprecated: do not use.
 	BanPlayer(context.Context, *connect.Request[v1.BanPlayerRequest]) (*connect.Response[v1.BanPlayerResponse], error)
+	// Deprecated: antibot.v1.AdminService/UnbanPlayer, which answers it on this path until the backoffice calls it there.
+	//
+	// Deprecated: do not use.
 	UnbanPlayer(context.Context, *connect.Request[v1.UnbanPlayerRequest]) (*connect.Response[v1.UnbanPlayerResponse], error)
 	RevertPlayer(context.Context, *connect.Request[v1.RevertPlayerRequest]) (*connect.Response[v1.RevertPlayerResponse], error)
 	PaintRandomTiles(context.Context, *connect.Request[v1.PaintRandomTilesRequest]) (*connect.Response[v1.PaintRandomTilesResponse], error)
+	// Deprecated: antibot.v1.AdminService/InspectPlayer, which answers it on this path until the backoffice calls it there.
+	//
+	// Deprecated: do not use.
 	InspectPlayer(context.Context, *connect.Request[v1.InspectPlayerRequest]) (*connect.Response[v1.InspectPlayerResponse], error)
 	GrantCharges(context.Context, *connect.Request[v1.GrantChargesRequest]) (*connect.Response[v1.GrantChargesResponse], error)
 	GetReplay(context.Context, *connect.Request[v1.GetReplayRequest]) (*connect.Response[v1.GetReplayResponse], error)
-	// Every change the live stream showed in a window of at most 72 hours, from the ledger in memory, and who made it.
+	// Every change the live stream showed in a window of at most 72 hours, from postgres, and who made it, a page at a
+	// time.
 	GetLedger(context.Context, *connect.Request[v1.GetLedgerRequest]) (*connect.Response[v1.GetLedgerResponse], error)
 	// InternalService/GetTerritories, for the admin page: the tiles each country holds now.
 	GetTerritories(context.Context, *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error)

@@ -15,6 +15,12 @@ import {
 import {
     BanPlayerRequest,
     BanPlayerResponse,
+    InspectPlayerRequest,
+    InspectPlayerResponse,
+    UnbanPlayerRequest,
+    UnbanPlayerResponse,
+} from "./gen/grpc/antibot/v1/admin_pb.ts"
+import {
     FindPlayersRequest,
     FindPlayersResponse,
     GetLedgerRequest,
@@ -24,8 +30,6 @@ import {
     GetReplayResponse,
     GrantChargesRequest,
     GrantChargesResponse,
-    InspectPlayerRequest,
-    InspectPlayerResponse,
     PaintRandomTilesRequest,
     PaintRandomTilesResponse,
     Player,
@@ -35,8 +39,6 @@ import {
     RevertPlayerResponse,
     TopPlayersRequest,
     TopPlayersResponse,
-    UnbanPlayerRequest,
-    UnbanPlayerResponse,
 } from "./gen/grpc/planet/v1/admin_pb.ts"
 import {
     ListRowsRequest,
@@ -71,7 +73,7 @@ import {
     NoteKind,
     Report,
 } from "./gen/grpc/support/v1/admin_pb.ts"
-import {ChatAdmin, ClipsAdmin, Clients, PlanetAdmin, PlayerAdmin, SupportAdmin} from "./clients.ts"
+import {AntibotAdmin, ChatAdmin, ClipsAdmin, Clients, PlanetAdmin, PlayerAdmin, SupportAdmin} from "./clients.ts"
 
 export const AT = new Date("2026-10-18T12:00:00Z")
 
@@ -86,10 +88,11 @@ function change(minutes: number, by: string, update: PartialMessage<TileUpdate>)
 }
 
 // What each fake was asked, and a refusal to answer with instead, by method.
-export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAdmin, ClipsAdmin {
+export class FakeAdmin implements AntibotAdmin, ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAdmin, ClipsAdmin {
     readonly kind = "fake admin"
     readonly asked: {method: string, request: unknown}[] = []
     readonly refusals = new Map<string, Code>()
+    private readonly holds = new Map<string, Promise<void>>()
     message = new GetMessageResponse({
         messageId: "message-1", accountId: "account-reported", text: "you all suck",
         sentAt: Timestamp.fromDate(AT), countryId: "fr",
@@ -153,6 +156,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
             change(5, `account:${ACCOUNT}`, {tileId: 4, countryId: "fr", previousCountryId: "dz", clicked: true}),
         ],
     })
+    ledgerPages: LedgerChange[][] = []
     territories = new GetTerritoriesResponse({
         tiles: 262119,
         territories: [new Territory({countryId: "fr", tiles: 1200}), new Territory({countryId: "dz", tiles: 800})],
@@ -186,7 +190,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
     ]]
 
     clients(): Clients {
-        return {chat: this, planet: this, player: this, support: this, clips: this}
+        return {antibot: this, chat: this, planet: this, player: this, support: this, clips: this}
     }
 
     refuse(method: string, code: Code) {
@@ -197,10 +201,22 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         return this.asked.filter(call => call.method === method).map(call => call.request)
     }
 
+    // The calls of a method answer only once the function it gives back is called.
+    hold(method: string): () => void {
+        let release = () => {}
+        this.holds.set(method, new Promise<void>(resolve => release = resolve))
+        return () => {
+            this.holds.delete(method)
+            release()
+        }
+    }
+
     private answer<T>(method: string, request: unknown, value: T): Promise<T> {
         this.asked.push({method, request})
         const code = this.refusals.get(method)
-        return code === undefined ? Promise.resolve(value) : Promise.reject(new ConnectError("refused", code))
+        const settle = () => code === undefined ? Promise.resolve(value) : Promise.reject(new ConnectError("refused", code))
+        const held = this.holds.get(method)
+        return held === undefined ? settle() : held.then(settle)
     }
 
     listSnapshots(request: PartialMessage<ListSnapshotsRequest>): Promise<ListSnapshotsResponse> {
@@ -299,8 +315,12 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         }))
     }
 
+    // The ledger's first page, then each of ledgerPages.
     getLedger(request: PartialMessage<GetLedgerRequest>): Promise<GetLedgerResponse> {
-        return this.answer("getLedger", request, this.ledger)
+        const pages = [this.ledger.changes, ...this.ledgerPages]
+        const index = request.page ? Number(request.page) : 0
+        const next = index + 1 < pages.length ? String(index + 1) : ""
+        return this.answer("getLedger", request, new GetLedgerResponse({changes: pages[index] ?? [], nextPage: next}))
     }
 
     getTerritories(request: PartialMessage<GetTerritoriesRequest>): Promise<GetTerritoriesResponse> {

@@ -14,18 +14,18 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
-func New(db cppg.QuerierBeginner) *Store {
+func New(db cppg.Conn) *Store {
 	return &Store{db: db}
 }
 
 type Store struct {
-	db cppg.QuerierBeginner
+	db cppg.Conn
 }
 
 var _ titles.Store = (*Store)(nil)
 
 func (s *Store) Held(ctx context.Context, account players.AccountID) (titles.IDs, error) {
-	return idsOf(s.db.QueryContext(ctx, `SELECT title FROM titles WHERE account_id = $1 ORDER BY earned_at, title`, uuid.UUID(account)))
+	return idsOf(s.db.On(ctx).QueryContext(ctx, `SELECT title FROM titles WHERE account_id = $1 ORDER BY earned_at, title`, uuid.UUID(account)))
 }
 
 func (s *Store) Holdings(ctx context.Context, accounts []players.AccountID) (titles.Holdings, error) {
@@ -39,7 +39,7 @@ func (s *Store) Holdings(ctx context.Context, accounts []players.AccountID) (tit
 		ids[i] = account.String()
 	}
 
-	rows, err := s.db.QueryContext(ctx, `
+	rows, err := s.db.On(ctx).QueryContext(ctx, `
 		SELECT account_id, title FROM titles WHERE account_id = ANY($1::uuid[]) ORDER BY account_id, earned_at, title
 	`, pq.Array(ids))
 	if err != nil {
@@ -69,7 +69,7 @@ func (s *Store) Grant(ctx context.Context, grants titles.Holdings, at time.Time)
 		return nil
 	}
 
-	if _, err := s.db.ExecContext(ctx, `
+	if _, err := s.db.On(ctx).ExecContext(ctx, `
 		INSERT INTO titles (account_id, title, earned_at)
 		SELECT granted.account_id, granted.title, $3
 		FROM unnest($1::uuid[], $2::text[]) AS granted (account_id, title)
@@ -86,7 +86,7 @@ func (s *Store) Revoke(ctx context.Context, revocations titles.Holdings) error {
 		return nil
 	}
 
-	if _, err := s.db.ExecContext(ctx, `
+	if _, err := s.db.On(ctx).ExecContext(ctx, `
 		DELETE FROM titles USING unnest($1::uuid[], $2::text[]) AS revoked (account_id, title)
 		WHERE titles.account_id = revoked.account_id AND titles.title = revoked.title
 	`, pq.Array(accounts), pq.Array(revoked)); err != nil {
@@ -96,7 +96,7 @@ func (s *Store) Revoke(ctx context.Context, revocations titles.Holdings) error {
 }
 
 func (s *Store) DeleteAccount(ctx context.Context, account players.AccountID) error {
-	if _, err := s.db.ExecContext(ctx, `DELETE FROM titles WHERE account_id = $1`, uuid.UUID(account)); err != nil {
+	if _, err := s.db.On(ctx).ExecContext(ctx, `DELETE FROM titles WHERE account_id = $1`, uuid.UUID(account)); err != nil {
 		return fmt.Errorf("failed to delete the account's titles: %w", err)
 	}
 	return nil

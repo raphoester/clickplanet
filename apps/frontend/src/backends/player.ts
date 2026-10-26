@@ -147,6 +147,7 @@ export type TitleDashboard = {
 
 export type PlayerInfo = {
     name: string
+    guest: boolean
     tilesTaken: number
     streakCurrent: number
     streakBest: number

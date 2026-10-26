@@ -8,21 +8,26 @@ import {
     BonusCatch,
     BonusHandlers,
     BonusListener,
-    GlobePoint,
     BonusLostError,
     BonusOffer,
+    ChargesRefresher,
     ClaimedBonus,
-    ShieldRefusedError,
     Enclosure,
     Fortification,
+    GlobePoint,
     Ownerships,
     OwnershipsGetter,
     QuizMaster,
     RateLimitedError,
     Refiller,
     Shielder,
+    ShieldRefusedError,
     SpreadClick,
     TileClicker,
+    LandmassReader,
+    LandmassState,
+    TileHolder,
+    TileHolders,
     Update,
     UpdatesListener,
     VPNBlockedError,
@@ -60,7 +65,7 @@ export function newClickServiceClient(config: Config): PromiseClient<typeof Clic
     }))
 }
 
-export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller, Shielder, AllegianceSource {
+export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller, Shielder, AllegianceSource, ChargesRefresher, TileHolders, LandmassReader {
     private pendingUpdates: Update[] = []
     private readonly updateBatchCallbacks = new Map<string, (updates: Update[]) => void>()
     private readonly updateCallbacks = new Map<string, (update: Update) => void>()
@@ -243,17 +248,28 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         callback: (ownerships: Ownerships) => void,
         signal?: AbortSignal,
     ) {
-        for (let start = 1; start <= maxIndex; start += batchSize) {
-            const endTileId = Math.min(start + batchSize, maxIndex)
+        const reading = new AbortController()
+        const stop = () => reading.abort(signal?.reason)
+        if (signal?.aborted) stop()
+        signal?.addEventListener("abort", stop, {once: true})
 
-            const res = await retrying(
-                () => this.client.getMap({startTileId: start, endTileId}, {signal}),
-                `getMap ${start}..${endTileId}`,
-                signal,
-            )
-
-            callback({bindings: bindingsOf(res), shields: shieldsOf(res)})
+        const batches = mapBatches(batchSize, maxIndex)
+        const read = async () => {
+            for (let batch = batches.shift(); batch; batch = batches.shift()) {
+                const {startTileId, endTileId} = batch
+                const res = await retrying(
+                    () => this.client.getMap(batch, {signal: reading.signal}),
+                    `getMap ${startTileId}..${endTileId}`,
+                    reading.signal,
+                )
+                reading.signal.throwIfAborted()
+                callback({bindings: bindingsOf(res), shields: shieldsOf(res)})
+            }
         }
+
+        await Promise.all(Array.from({length: MAP_READS_IN_FLIGHT}, () => read().catch((e) => reading.abort(e))))
+        signal?.removeEventListener("abort", stop)
+        reading.signal.throwIfAborted()
     }
 
     public async getFortresses(signal?: AbortSignal): Promise<Map<number, string>> {
@@ -264,6 +280,20 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
             // A server from before fortifying has no locks to tell.
             if (e instanceof ConnectError && e.code === Code.Unimplemented) return new Map()
             throw e
+        }
+    }
+
+    public async tileHolder(tile: number, signal?: AbortSignal): Promise<TileHolder | undefined> {
+        const {holder} = await this.client.getTileHolder({tileId: tile}, {signal})
+        if (!holder) return undefined
+        return {accountId: holder.accountId, countryCode: holder.countryId, takenAt: Number(holder.takenAtUnixMs)}
+    }
+
+    public async landmass(landmass: number, signal?: AbortSignal): Promise<LandmassState> {
+        const {holders, lastFortification: last} = await this.client.getLandmass({landmassId: landmass}, {signal})
+        return {
+            holders: holders.map(({accountId, countryId, tiles}) => ({accountId, countryCode: countryId, tiles})),
+            lastFortification: last && {accountId: last.accountId, countryCode: last.countryId, at: Number(last.fortifiedAtUnixMs)},
         }
     }
 
@@ -381,6 +411,10 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
             if (e instanceof ConnectError && e.code === Code.Unimplemented) return
             console.error("could not read the bonus rules", e)
         }
+    }
+
+    public async refreshCharges(): Promise<void> {
+        await this.readCharges(this.streamToken ?? this.session.heldIdentity())
     }
 
     private async readCharges(token: string | undefined): Promise<void> {
@@ -928,6 +962,17 @@ export function asClickError(e: unknown): unknown {
     }
 
     return e
+}
+
+const MAP_READS_IN_FLIGHT = 8
+
+// The server's end is inclusive, and a read past either end of the map is what the antibot calls a bot's walk.
+function mapBatches(batchSize: number, maxIndex: number): {startTileId: number, endTileId: number}[] {
+    const batches = []
+    for (let start = 1; start <= maxIndex; start += batchSize) {
+        batches.push({startTileId: start, endTileId: Math.min(start + batchSize - 1, maxIndex)})
+    }
+    return batches
 }
 
 export function bindingsOf(res: GetMapResponse): Map<number, string> {

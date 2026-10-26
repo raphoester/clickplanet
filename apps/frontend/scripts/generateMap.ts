@@ -93,6 +93,7 @@ next:
   gameMap.maxIndex is now ${count} — update cmd/api/example.yaml and deploy/vps/backend.yaml
   cd ../backend && make map        # copy both blobs, then commit all three copies of each
   npm run borderLines              # traced from both blobs, stale until it is run
+  npm run landmask                 # which lattice points are tiles, what the browser downloads
   npm run earth                    # the globe's texture, cut from the new tile field
   npm run landmassNames            # each landmass's name, keyed by the new borders blob
   npm run map:audit                # every fault should read zero`)

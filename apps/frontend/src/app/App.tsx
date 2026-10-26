@@ -24,9 +24,13 @@ export default function App(props: AppProps) {
             account={props.account}
             presence={props.presence}
             playerInfo={props.playerInfo}
+            tileHolders={props.tileHolders}
+            landmasses={props.landmasses}
             season={props.season}
             standings={props.standings}
             support={props.support}
+            missions={props.missions}
+            chargesRefresher={props.chargesRefresher}
         />
     </>
 }

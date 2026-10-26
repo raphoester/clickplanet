@@ -28,12 +28,17 @@ import {
     PledgeAllegianceResponse,
     GetBonusRulesResponse,
     GetMapResponse,
+    GetLandmassResponse,
+    GetTileHolderResponse,
+    LandmassFortification as LandmassFortificationMessage,
+    LandmassHolder as LandmassHolderMessage,
     GlobePoint,
     Heartbeat,
     LandmassFortified,
     PlanetEvent,
     SharedWith,
     TilesEnclosed,
+    TileHolder as TileHolderMessage,
     TileShields,
     TilesSpread,
     TileUpdate,
@@ -245,15 +250,57 @@ describe("PlanetBackend.getCurrentOwnershipsByBatch", () => {
         backend.close()
     })
 
-    it("walks the range one chunk at a time", async () => {
+    it("reads each tile once, from the first to the last", async () => {
         const getMap = getMapMock(async () => mapResponse(1, ["", "fr"], [1, 0]))
         const backend = backendWith(getMap)
 
-        expect(await collect(backend)).toEqual([new Map([[1, "fr"]]), new Map([[1, "fr"]])])
+        await backend.getCurrentOwnershipsByBatch(2, 5, () => {})
+
         expect(getMap.mock.calls.map(c => c[0])).toEqual([
-            {startTileId: 1, endTileId: 3},
+            {startTileId: 1, endTileId: 2},
             {startTileId: 3, endTileId: 4},
+            {startTileId: 5, endTileId: 5},
         ])
+        backend.close()
+    })
+
+    it("keeps eight reads in flight", async () => {
+        let held = true
+        const answers: (() => void)[] = []
+        const getMap = getMapMock((req) => {
+            const response = mapResponse(req.startTileId, [""], [0])
+            if (!held) return Promise.resolve(response)
+            return new Promise((resolve) => answers.push(() => resolve(response)))
+        })
+        const backend = backendWith(getMap)
+
+        const loading = backend.getCurrentOwnershipsByBatch(1, 20, () => {})
+        await vi.waitFor(() => expect(getMap).toHaveBeenCalledTimes(8))
+        answers[0]()
+        await vi.waitFor(() => expect(getMap).toHaveBeenCalledTimes(9))
+
+        held = false
+        answers.forEach((answer) => answer())
+        await loading
+        expect(getMap).toHaveBeenCalledTimes(20)
+        backend.close()
+    })
+
+    it("hands each batch over as it lands", async () => {
+        const answers = new Map<number, () => void>()
+        const getMap = getMapMock((req) => new Promise((resolve) => {
+            answers.set(req.startTileId, () => resolve(mapResponse(req.startTileId, ["", "fr"], [1, 1])))
+        }))
+        const backend = backendWith(getMap)
+
+        const seen: Map<number, string>[] = []
+        const loading = backend.getCurrentOwnershipsByBatch(2, 4, o => seen.push(o.bindings))
+        await vi.waitFor(() => expect(answers.size).toBe(2))
+        answers.get(3)!()
+        answers.get(1)!()
+        await loading
+
+        expect(seen).toEqual([new Map([[3, "fr"], [4, "fr"]]), new Map([[1, "fr"], [2, "fr"]])])
         backend.close()
     })
 
@@ -273,8 +320,42 @@ describe("PlanetBackend.getCurrentOwnershipsByBatch", () => {
         const getMap = getMapMock().mockRejectedValue(new ConnectError("nope", Code.InvalidArgument))
         const backend = backendWith(getMap)
 
-        await expect(collect(backend)).rejects.toThrow(/nope/)
+        await expect(backend.getCurrentOwnershipsByBatch(4, 4, () => {})).rejects.toThrow(/nope/)
         expect(getMap).toHaveBeenCalledTimes(1)
+        backend.close()
+    })
+
+    it("stops the other reads when one fails", async () => {
+        const signals: AbortSignal[] = []
+        const getMap = vi.fn((req: GetMapRequestFields, {signal}: {signal: AbortSignal}) => {
+            signals.push(signal)
+            if (req.startTileId === 1) return Promise.reject(new ConnectError("nope", Code.InvalidArgument))
+            return new Promise<GetMapResponse>((_, reject) => signal.addEventListener("abort", () => reject(signal.reason)))
+        })
+        const backend = backendWith(getMap as never)
+
+        await expect(backend.getCurrentOwnershipsByBatch(1, 20, () => {})).rejects.toThrow(/nope/)
+        expect(getMap.mock.calls.length).toBeLessThanOrEqual(8)
+        expect(signals.every((signal) => signal.aborted)).toBe(true)
+        backend.close()
+    })
+
+    it("hands over nothing that lands after the caller aborted", async () => {
+        const controller = new AbortController()
+        let answer = () => {}
+        const getMap = getMapMock(() => new Promise((resolve) => {
+            answer = () => resolve(mapResponse(1, ["", "fr"], [1]))
+        }))
+        const backend = backendWith(getMap)
+
+        const seen: Map<number, string>[] = []
+        const loading = backend.getCurrentOwnershipsByBatch(1, 1, o => seen.push(o.bindings), controller.signal)
+        await vi.waitFor(() => expect(getMap).toHaveBeenCalledTimes(1))
+        controller.abort()
+        answer()
+
+        await expect(loading).rejects.toThrow()
+        expect(seen).toEqual([])
         backend.close()
     })
 
@@ -1698,6 +1779,68 @@ describe("PlanetBackend allegiance", () => {
 
         await vi.waitFor(() => expect(getAllegiance).toHaveBeenCalled())
         expect(seen.at(-1)).toBeUndefined()
+        backend.close()
+    })
+})
+
+describe("PlanetBackend tile holder", () => {
+    const backendWith = (getTileHolder: ReturnType<typeof vi.fn>) => new PlanetBackend(
+        {click: vi.fn(), getMap: vi.fn(), getBudget: noBudget(), ...bonusReads(), mapDensity: vi.fn(), listenForEvents: noEvents(), getTileHolder} as never,
+        1_000,
+    )
+
+    it("reads who holds a tile, with no token, and when it was taken", async () => {
+        const getTileHolder = vi.fn().mockResolvedValue(new GetTileHolderResponse({
+            holder: new TileHolderMessage({accountId: "account-ana", countryId: "fr", takenAtUnixMs: 1_761_393_600_000n}),
+        }))
+        const backend = backendWith(getTileHolder)
+
+        expect(await backend.tileHolder(7)).toEqual({accountId: "account-ana", countryCode: "fr", takenAt: 1_761_393_600_000})
+        expect(getTileHolder.mock.calls[0][0]).toEqual({tileId: 7})
+        expect((getTileHolder.mock.calls[0][1] as {headers?: Headers}).headers).toBeUndefined()
+        backend.close()
+    })
+
+    it("answers nobody for a tile the ledger names nobody on", async () => {
+        const backend = backendWith(vi.fn().mockResolvedValue(new GetTileHolderResponse()))
+
+        expect(await backend.tileHolder(7)).toBeUndefined()
+        backend.close()
+    })
+})
+
+describe("PlanetBackend landmass", () => {
+    const backendWith = (getLandmass: ReturnType<typeof vi.fn>) => new PlanetBackend(
+        {click: vi.fn(), getMap: vi.fn(), getBudget: noBudget(), ...bonusReads(), mapDensity: vi.fn(), listenForEvents: noEvents(), getLandmass} as never,
+        1_000,
+    )
+
+    it("reads who holds a landmass and who fortified it last, with no token", async () => {
+        const getLandmass = vi.fn().mockResolvedValue(new GetLandmassResponse({
+            holders: [
+                new LandmassHolderMessage({accountId: "account-ana", countryId: "fr", tiles: 40}),
+                new LandmassHolderMessage({accountId: "account-kiran", countryId: "in", tiles: 3}),
+            ],
+            lastFortification: new LandmassFortificationMessage({accountId: "account-ana", countryId: "fr", fortifiedAtUnixMs: 1_761_393_600_000n}),
+        }))
+        const backend = backendWith(getLandmass)
+
+        expect(await backend.landmass(12)).toEqual({
+            holders: [
+                {accountId: "account-ana", countryCode: "fr", tiles: 40},
+                {accountId: "account-kiran", countryCode: "in", tiles: 3},
+            ],
+            lastFortification: {accountId: "account-ana", countryCode: "fr", at: 1_761_393_600_000},
+        })
+        expect(getLandmass.mock.calls[0][0]).toEqual({landmassId: 12})
+        expect((getLandmass.mock.calls[0][1] as {headers?: Headers}).headers).toBeUndefined()
+        backend.close()
+    })
+
+    it("answers no fortify for a landmass nobody fortified", async () => {
+        const backend = backendWith(vi.fn().mockResolvedValue(new GetLandmassResponse()))
+
+        expect(await backend.landmass(12)).toEqual({holders: [], lastFortification: undefined})
         backend.close()
     })
 })

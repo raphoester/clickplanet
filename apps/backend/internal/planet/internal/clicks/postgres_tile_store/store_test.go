@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
@@ -11,6 +12,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/postgres_tile_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
 func TestRunSuite(t *testing.T) {
@@ -34,8 +36,8 @@ func (s *testSuite) SetupTest() {
 
 func (s *testSuite) load() map[uint32]string {
 	loaded := map[uint32]string{}
-	s.Require().NoError(s.store.Load(context.Background(), func(tile uint32, owner string, _ int) {
-		loaded[tile] = owner
+	s.Require().NoError(s.store.Load(context.Background(), func(tile inmemory_tile_storage.Tile) {
+		loaded[tile.ID] = tile.Owner
 	}))
 	return loaded
 }
@@ -90,10 +92,10 @@ func (s *testSuite) TestAFailedSaveWritesNothing() {
 		ids[i] = uint32(i)
 	}
 	s.Require().NoError(s.store.Save(ctx, owned("fr", 20_000), nil))
-	_, err := s.db.ExecContext(ctx, `ALTER TABLE tiles ADD CONSTRAINT not_bg_past_ten_thousand CHECK (id < 10000 OR country <> 'bg')`)
+	_, err := s.db.On(ctx).ExecContext(ctx, `ALTER TABLE tiles ADD CONSTRAINT not_bg_past_ten_thousand CHECK (id < 10000 OR country <> 'bg')`)
 	s.Require().NoError(err)
 	defer func() {
-		_, err := s.db.ExecContext(ctx, `ALTER TABLE tiles DROP CONSTRAINT not_bg_past_ten_thousand`)
+		_, err := s.db.On(ctx).ExecContext(ctx, `ALTER TABLE tiles DROP CONSTRAINT not_bg_past_ten_thousand`)
 		s.Require().NoError(err)
 	}()
 
@@ -111,10 +113,27 @@ func (s *testSuite) TestShieldsAreKeptWithTheirTile() {
 	s.Require().NoError(s.store.Save(ctx, []inmemory_tile_storage.Tile{{ID: 1, Owner: "fr", Shields: 2}}, nil))
 
 	shields := map[uint32]int{}
-	s.Require().NoError(s.store.Load(ctx, func(tile uint32, _ string, held int) {
-		shields[tile] = held
+	s.Require().NoError(s.store.Load(ctx, func(tile inmemory_tile_storage.Tile) {
+		shields[tile.ID] = tile.Shields
 	}))
 	s.Equal(map[uint32]int{1: 2, 2: 0}, shields)
+}
+
+func (s *testSuite) TestTheHolderIsKeptWithItsTile() {
+	ctx := context.Background()
+	ana := cpsession.AccountID(uuid.New())
+	s.Require().NoError(s.store.Save(ctx, []inmemory_tile_storage.Tile{
+		{ID: 1, Owner: "fr", Holder: ana},
+		{ID: 2, Owner: "fr", Holder: ana},
+		{ID: 3, Owner: "de"},
+	}, nil))
+	s.Require().NoError(s.store.Save(ctx, []inmemory_tile_storage.Tile{{ID: 2, Owner: "fr"}}, nil))
+
+	holders := map[uint32]cpsession.AccountID{}
+	s.Require().NoError(s.store.Load(ctx, func(tile inmemory_tile_storage.Tile) {
+		holders[tile.ID] = tile.Holder
+	}))
+	s.Equal(map[uint32]cpsession.AccountID{1: ana, 2: cpsession.NoAccount, 3: cpsession.NoAccount}, holders)
 }
 
 func (s *testSuite) TestALandmassLockIsKeptForItsMapAlone() {

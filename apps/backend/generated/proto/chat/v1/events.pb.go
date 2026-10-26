@@ -88,6 +88,7 @@ type AccountMuted struct {
 	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
 	MutedAt       *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=muted_at,json=mutedAt,proto3" json:"muted_at,omitempty"`
 	Duration      *durationpb.Duration   `protobuf:"bytes,3,opt,name=duration,proto3" json:"duration,omitempty"`
+	MuteId        string                 `protobuf:"bytes,4,opt,name=mute_id,json=muteId,proto3" json:"mute_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -143,6 +144,13 @@ func (x *AccountMuted) GetDuration() *durationpb.Duration {
 	return nil
 }
 
+func (x *AccountMuted) GetMuteId() string {
+	if x != nil {
+		return x.MuteId
+	}
+	return ""
+}
+
 var File_chat_v1_events_proto protoreflect.FileDescriptor
 
 const file_chat_v1_events_proto_rawDesc = "" +
@@ -153,12 +161,13 @@ const file_chat_v1_events_proto_rawDesc = "" +
 	"message_id\x18\x01 \x01(\tR\tmessageId\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x02 \x01(\tR\taccountId\x123\n" +
-	"\asent_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x06sentAt\"\x9b\x01\n" +
+	"\asent_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x06sentAt\"\xb4\x01\n" +
 	"\fAccountMuted\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x125\n" +
 	"\bmuted_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\amutedAt\x125\n" +
-	"\bduration\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\bdurationB\xa5\x01\n" +
+	"\bduration\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\bduration\x12\x17\n" +
+	"\amute_id\x18\x04 \x01(\tR\x06muteIdB\xa5\x01\n" +
 	"\vcom.chat.v1B\vEventsProtoP\x01ZLgithub.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1;chatv1\xa2\x02\x03CXX\xaa\x02\aChat.V1\xca\x02\aChat\\V1\xe2\x02\x13Chat\\V1\\GPBMetadata\xea\x02\bChat::V1b\x06proto3"
 
 var (

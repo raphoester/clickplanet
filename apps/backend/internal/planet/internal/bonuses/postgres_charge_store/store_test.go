@@ -33,7 +33,7 @@ func TestAnEmptyHandIsNoRow(t *testing.T) {
 	const alice bonuses.Holder = "01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e5f"
 	rows := func() int {
 		var n int
-		require.NoError(t, db.QueryRowContext(t.Context(), `SELECT count(*) FROM charges WHERE account = $1`,
+		require.NoError(t, db.On(t.Context()).QueryRowContext(t.Context(), `SELECT count(*) FROM charges WHERE account = $1`,
 			string(alice)).Scan(&n))
 		return n
 	}

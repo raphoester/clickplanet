@@ -1,6 +1,10 @@
 package clicks
 
-import "fmt"
+import (
+	"fmt"
+	"slices"
+	"strings"
+)
 
 type LandmassID uint16
 
@@ -66,6 +70,27 @@ func (b *Borders) TilesOf(landmass LandmassID) []uint32 {
 	}
 
 	return b.members[b.starts[landmass]:b.starts[landmass+1]]
+}
+
+type CountrySize struct {
+	Country string
+	Tiles   uint32
+}
+
+// Every country with land, by code; a country's landmasses add up to one size.
+func (b *Borders) CountrySizes() []CountrySize {
+	tiles := make(map[string]uint32)
+	for landmass := 1; landmass < len(b.codes); landmass++ {
+		tiles[b.codes[landmass]] += b.starts[landmass+1] - b.starts[landmass]
+	}
+
+	sizes := make([]CountrySize, 0, len(tiles))
+	for country, count := range tiles {
+		sizes = append(sizes, CountrySize{Country: country, Tiles: count})
+	}
+	slices.SortFunc(sizes, func(a, b CountrySize) int { return strings.Compare(a.Country, b.Country) })
+
+	return sizes
 }
 
 func (b *Borders) Landmasses() int {

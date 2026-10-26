@@ -465,7 +465,7 @@ describe("ConnectPlayerBackend player info", () => {
         }))
 
         expect(await backendWith({getPlayer}, session).playerInfo("account-1")).toEqual({
-            name: "Ana", tilesTaken: 1234, streakCurrent: 3, streakBest: 7, createdAt: 1_788_000_000_000, admin: true,
+            name: "Ana", guest: false, tilesTaken: 1234, streakCurrent: 3, streakBest: 7, createdAt: 1_788_000_000_000, admin: true,
             color: NameColor.VIOLET,
             titles: [{id: "og", name: "OG"}, settler],
             wornTitle: settler,
@@ -474,6 +474,12 @@ describe("ConnectPlayerBackend player info", () => {
         })
         expect(getPlayer).toHaveBeenCalledWith({accountId: "account-1"})
         expect(session.token).not.toHaveBeenCalled()
+    })
+
+    it("reads a guest as its name alone", async () => {
+        const getPlayer = vi.fn(async () => ({player: new PlayerPb({name: "guest_91aa3d", guest: true})}))
+
+        expect(await backendWith({getPlayer}).playerInfo("account-2")).toMatchObject({name: "guest_91aa3d", guest: true, wornTitle: undefined})
     })
 
     it("leaves out a creation date the server does not know", async () => {

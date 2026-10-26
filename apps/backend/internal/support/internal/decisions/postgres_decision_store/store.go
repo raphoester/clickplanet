@@ -12,12 +12,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/decisions"
 )
 
-func New(db cppg.Querier) *Store {
+func New(db cppg.Conn) *Store {
 	return &Store{db: db}
 }
 
 type Store struct {
-	db cppg.Querier
+	db cppg.Conn
 }
 
 var _ decisions.Storage = (*Store)(nil)
@@ -26,7 +26,7 @@ const foreignKeyViolation = "23503"
 
 func (s *Store) Save(ctx context.Context, decision decisions.Decision) error {
 	kept := decision.TakeSnapshot()
-	_, err := s.db.ExecContext(ctx, `
+	_, err := s.db.On(ctx).ExecContext(ctx, `
 		INSERT INTO report_decisions (report_id, outcome, comment, decided_at) VALUES ($1, $2::report_outcome, $3, $4)
 		ON CONFLICT (report_id) DO UPDATE SET
 			outcome = EXCLUDED.outcome, comment = EXCLUDED.comment, decided_at = EXCLUDED.decided_at

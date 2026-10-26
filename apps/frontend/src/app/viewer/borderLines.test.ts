@@ -8,31 +8,34 @@ import {
     limbOf,
     outlineSegments,
     OVER,
+    pieceSides,
     SAMPLES,
     UNDER,
     WIDTH,
 } from "./borderLines.ts"
-import {innerSphere} from "./sphere.ts"
+import {EARTH_RADIUS} from "./sphere.ts"
 import {displayPointSize, flagPaint, tileSpacing} from "./pointSize.ts"
 import {MAX_ZOOM, MIN_ZOOM} from "./zoom.ts"
 
-function blobOf(runs: number[][]): ArrayBuffer {
+function blobOf(runs: number[][], sides: number[] = runs.flatMap(() => [0, 1])): ArrayBuffer {
     const corners = runs.flat()
-    const bytes = new ArrayBuffer(16 + runs.length * 4 + corners.length * 2)
+    const bytes = new ArrayBuffer(16 + runs.length * 8 + corners.length * 2)
     const head = new DataView(bytes)
     for (const [at, code] of [..."CPBL"].entries()) head.setUint8(at, code.charCodeAt(0))
-    head.setUint32(4, 1, true)
+    head.setUint32(4, 2, true)
     head.setUint32(8, runs.length, true)
     head.setUint32(12, corners.length / 3, true)
     new Uint32Array(bytes, 16, runs.length).set(runs.map((run) => run.length / 3))
-    new Int16Array(bytes, 16 + runs.length * 4).set(corners)
+    new Uint16Array(bytes, 16 + runs.length * 4, runs.length * 2).set(sides)
+    new Int16Array(bytes, 16 + runs.length * 8).set(corners)
     return bytes
 }
 
 describe("decodeBorderLines", () => {
-    it("reads back the runs and the corners", () => {
-        const data = decodeBorderLines(blobOf([[1, 2, 3, 4, 5, 6], [7, 8, 9, 10, 11, 12, 13, 14, 15]]))
+    it("reads back the runs, the landmasses either side of each and the corners", () => {
+        const data = decodeBorderLines(blobOf([[1, 2, 3, 4, 5, 6], [7, 8, 9, 10, 11, 12, 13, 14, 15]], [0, 4, 4, 9]))
         expect([...data.runs]).toEqual([2, 3])
+        expect([...data.sides]).toEqual([0, 4, 4, 9])
         expect([...data.corners]).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15])
     })
 
@@ -44,8 +47,8 @@ describe("decodeBorderLines", () => {
 
     it("refuses a version it does not know", () => {
         const bytes = blobOf([[1, 2, 3, 4, 5, 6]])
-        new DataView(bytes).setUint32(4, 2, true)
-        expect(() => decodeBorderLines(bytes)).toThrow(/version 2/)
+        new DataView(bytes).setUint32(4, 1, true)
+        expect(() => decodeBorderLines(bytes)).toThrow(/version 1/)
     })
 })
 
@@ -118,14 +121,14 @@ describe("outlineSegments", () => {
 
 describe("the two passes", () => {
     it("sit either side of the tiles, and above the earth", () => {
-        const earth = innerSphere().parameters.radius
+        const earth = EARTH_RADIUS
         expect(UNDER).toBeGreaterThan(earth)
         expect(UNDER).toBeLessThan(1)
         expect(OVER).toBeGreaterThan(1)
     })
 
     it("say how far past the limb each pass can still be seen", () => {
-        const earth = innerSphere().parameters.radius
+        const earth = EARTH_RADIUS
 
         for (const lift of [OVER, UNDER]) {
             const past = Math.asin(limbOf(lift))
@@ -135,6 +138,42 @@ describe("the two passes", () => {
         expect(limbOf(OVER)).toBeGreaterThan(limbOf(UNDER))
 
         expect(limbOf(earth / 2)).toBe(0)
+    })
+})
+
+describe("pieceSides", () => {
+    it("gives every piece of a run the two landmasses the run is between", () => {
+        const data = decodeBorderLines(blobOf([[1000, 0, 0, 1000, 500, 0], [0, 1000, 0, 0, 1000, 500, 0, 900, 900]], [0, 4, 4, 9]))
+        const {from} = outlineSegments(data, 2)
+        const sides = pieceSides(data, 2)
+
+        expect(sides.length).toBe(from.length / 3 * 2)
+        expect([...sides]).toEqual([...Array(4).fill([0, 4]), ...Array(6).fill([4, 9])].flat())
+    })
+})
+
+describe("the highlight", () => {
+    it("draws one landmass's outline over the tiles, and nothing when none is set", () => {
+        const lines = createBorderLines(decodeBorderLines(blobOf([[1, 2, 3, 4, 5, 6, 7, 8, 9]], [3, 7])))
+        const highlight = lines.object.children[2] as THREE.Mesh
+        const {uniforms} = highlight.material as THREE.ShaderMaterial
+        expect(highlight.visible).toBe(false)
+
+        lines.setHighlight(7)
+        expect([highlight.visible, uniforms.landmass.value, uniforms.lift.value]).toEqual([true, 7, OVER])
+
+        lines.setHighlight(0)
+        expect(highlight.visible).toBe(false)
+
+        lines.dispose()
+    })
+
+    it("is drawn over the coarse pieces, which carry the landmasses either side", () => {
+        const lines = createBorderLines(decodeBorderLines(blobOf([[1, 2, 3, 4, 5, 6, 7, 8, 9]], [3, 7])))
+        const [over, , highlight] = lines.object.children as THREE.Mesh[]
+        expect(highlight.geometry).toBe(over.geometry)
+        expect(over.geometry.getAttribute("sides")).toBeDefined()
+        lines.dispose()
     })
 })
 

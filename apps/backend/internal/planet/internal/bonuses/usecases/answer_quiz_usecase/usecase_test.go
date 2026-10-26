@@ -13,8 +13,8 @@ import (
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/answer_quiz_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -58,7 +58,7 @@ func newUseCase(answered bonuses.Answered, known bool) (*answer_quiz_usecase.Use
 	registry := &fakeRegistry{answered: answered, known: known}
 	charger := &fakeCharger{}
 
-	return answer_quiz_usecase.New(registry, charger, cpbootstrap.NewRecordedEvents(), cptime.NewFixedClock(now)), registry, charger
+	return answer_quiz_usecase.New(registry, charger, cpredis.NewRecordedEvents(), cptime.NewFixedClock(now)), registry, charger
 }
 
 func TestARightAnswerGrantsTheChargeAndTellsThePlanet(t *testing.T) {
@@ -103,7 +103,7 @@ func TestAWrongAnswerChangesNothingAndTellsNobody(t *testing.T) {
 
 func TestEveryAnswerIsToldToTheOtherModulesRightOrWrong(t *testing.T) {
 	for _, correct := range []bool{true, false} {
-		events := cpbootstrap.NewRecordedEvents()
+		events := cpredis.NewRecordedEvents()
 		registry := &fakeRegistry{answered: bonuses.Answered{Correct: correct, Reward: bonuses.Reward{Kind: bonuses.KindRefill, Amount: 1}}, known: true}
 
 		_, err := answer_quiz_usecase.New(registry, &fakeCharger{}, events, cptime.NewFixedClock(now)).

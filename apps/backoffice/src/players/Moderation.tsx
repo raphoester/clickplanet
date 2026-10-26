@@ -1,5 +1,5 @@
 import {useState} from "react"
-import {ChatAdmin, PlanetAdmin} from "../clients.ts"
+import {AntibotAdmin, ChatAdmin} from "../clients.ts"
 import {ConfirmAction} from "../components/ConfirmAction.tsx"
 import {timeOf} from "../components/time.ts"
 import {ban, Banned, DEFAULT_MUTE_SECONDS, LADDER, mute, refusalOf, unban, Unbanned} from "./actions.ts"
@@ -26,9 +26,9 @@ export function MuteAction({chat, accountId, who}: MuteProps) {
     )
 }
 
-type BanProps = {planet: PlanetAdmin, caller: Caller, who: string, onDone?: () => void}
+type BanProps = {antibot: AntibotAdmin, caller: Caller, who: string, onDone?: () => void}
 
-export function BanAction({planet, caller, who, onDone}: BanProps) {
+export function BanAction({antibot, caller, who, onDone}: BanProps) {
     const [banFor, setBanFor] = useState(LADDER)
 
     return (
@@ -38,7 +38,7 @@ export function BanAction({planet, caller, who, onDone}: BanProps) {
                 label="Ban"
                 tone="danger"
                 question={`Ban ${who} for ${labelOf(BAN_CHOICES, banFor)}?`}
-                run={() => ban(planet, caller, banFor)}
+                run={() => ban(antibot, caller, banFor)}
                 said={bannedWords}
                 refusal={err => refusalOf("ban", err)}
                 onDone={onDone}
@@ -47,14 +47,14 @@ export function BanAction({planet, caller, who, onDone}: BanProps) {
     )
 }
 
-export function UnbanAction({planet, caller, who, onDone}: BanProps) {
+export function UnbanAction({antibot, caller, who, onDone}: BanProps) {
     return (
         <div className="act">
             <p className="hint">For a ban that was a mistake. It forgets the latest offence, ended or running.</p>
             <ConfirmAction
                 label="Unban"
                 question={`Lift the latest ban of ${who} and forget its offence?`}
-                run={() => unban(planet, caller)}
+                run={() => unban(antibot, caller)}
                 said={unbannedWords}
                 refusal={err => refusalOf("unban", err)}
                 onDone={onDone}

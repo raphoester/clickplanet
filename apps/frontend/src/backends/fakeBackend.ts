@@ -9,18 +9,25 @@ import {
     BonusListener,
     BonusLostError,
     BonusOffer,
+    ChargesRefresher,
     ClaimedBonus,
-    ShieldRefusedError,
-    GlobePoint,
     Enclosure,
     Fortification,
+    GlobePoint,
     Ownerships,
     OwnershipsGetter,
     QuizMaster,
     RateLimitedError,
     Refiller,
     Shielder,
+    ShieldRefusedError,
     TileClicker,
+    LandmassFortification,
+    LandmassHolder,
+    LandmassReader,
+    LandmassState,
+    TileHolder,
+    TileHolders,
     Update,
     UpdatesListener,
     VPNBlockedError,
@@ -34,6 +41,7 @@ import {v4 as UUIDv4} from 'uuid';
 import {Countries} from "../domain/countries.ts";
 import {nearestTile, tilesWithin} from "../domain/blast.ts";
 import {FakeFortresses} from "./fakeFortresses.ts";
+import {FAKE_TAKERS, FAKE_YOU} from "./fakeAccounts.ts";
 
 const TILE_COUNT = 257_000
 
@@ -105,8 +113,10 @@ export type FakeBackendOptions = {
     landmasses?: () => Promise<{assignment: Uint16Array, count: number}>
 }
 
-export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller, Shielder, AllegianceSource {
+export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller, Shielder, AllegianceSource, ChargesRefresher, TileHolders, LandmassReader {
     private tileBindings: Map<number, string> = new Map()
+    private holders: Map<number, TileHolder> = new Map()
+    private readonly fortifications = new Map<number, LandmassFortification>()
     private tileCounts: Map<string, number> = new Map()
     private budgetCountry = ""
     private updateListeners: Map<string, (update: Update) => void> = new Map()
@@ -231,7 +241,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         this.reportBudget()
 
         if (!allowed) throw new RateLimitedError()
-        this.applyClick(tileId, countryId)
+        this.applyClick(tileId, countryId, true, FAKE_YOU)
         if (switches.enclose && this.shapesClose) this.pretendToEnclose(tileId, countryId)
         if (switches.spread) this.announceBonusClick(tileId, countryId)
     }
@@ -256,6 +266,10 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
             case "shields":
                 return this.charges.shields >= SHIELDS
         }
+    }
+
+    public async refreshCharges(): Promise<void> {
+        this.hold(this.charges)
     }
 
     private hold(charges: Charges) {
@@ -320,7 +334,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 
         const wall = [0, 1, 2, 3, 4, 5].map(step => tileId + step).filter(id => id <= TILE_COUNT)
         const filled = [6, 7, 8].map(step => tileId + step).filter(id => id <= TILE_COUNT)
-        filled.forEach(id => this.applyClick(id, countryId, false))
+        filled.forEach(id => this.applyClick(id, countryId, false, FAKE_YOU))
 
         this.hold({...this.charges, enclosures: this.charges.enclosures - 1})
 
@@ -423,7 +437,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         return {slowdown, share}
     }
 
-    private applyClick(tileId: number, countryId: string, clicked = true) {
+    private applyClick(tileId: number, countryId: string, clicked = true, by = FAKE_TAKERS[tileId % FAKE_TAKERS.length]) {
         const prev = this.tileBindings.get(tileId)
         if (prev === countryId) return
 
@@ -434,6 +448,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         }
 
         this.tileBindings.set(tileId, countryId)
+        this.holders.set(tileId, {accountId: by, countryCode: countryId, takenAt: Date.now()})
         this.shields.delete(tileId)
         this.count(prev, -1)
         this.count(countryId, 1)
@@ -455,6 +470,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         for (const member of fortified.tiles) {
             this.shields.set(member, Math.min((this.shields.get(member) ?? 0) + 1, TILE_SHIELDS))
         }
+        this.fortifications.set(fortified.landmass, {accountId: this.holders.get(tile)?.accountId ?? "", countryCode: countryId, at: Date.now()})
         this.flushUpdates()
         this.fortificationCallbacks.forEach((callback) => callback({landmass: fortified.landmass, countryId, tile}))
     }
@@ -649,6 +665,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
             this.count(owner, -1)
             this.fortresses?.moved(id, owner, undefined)
             this.tileBindings.delete(id)
+            this.holders.delete(id)
             cleared.push(id)
         }
 
@@ -697,6 +714,24 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         const id = UUIDv4()
         this.fortificationCallbacks.set(id, callback)
         return () => this.fortificationCallbacks.delete(id)
+    }
+
+    public async landmass(landmass: number): Promise<LandmassState> {
+        const held = new Map<string, LandmassHolder>()
+        for (const tile of this.fortresses?.tilesOf(landmass) ?? []) {
+            const holder = this.holders.get(tile)
+            if (!holder?.accountId || this.tileBindings.get(tile) !== holder.countryCode) continue
+            const key = `${holder.accountId} ${holder.countryCode}`
+            const holding = held.get(key) ?? {accountId: holder.accountId, countryCode: holder.countryCode, tiles: 0}
+            holding.tiles++
+            held.set(key, holding)
+        }
+        const holders = [...held.values()].sort((a, b) => b.tiles - a.tiles || a.accountId.localeCompare(b.accountId))
+        return {holders, lastFortification: this.fortifications.get(landmass)}
+    }
+
+    public async tileHolder(tile: number): Promise<TileHolder | undefined> {
+        return this.holders.get(tile)
     }
 
     public async getFortresses(): Promise<Map<number, string>> {
