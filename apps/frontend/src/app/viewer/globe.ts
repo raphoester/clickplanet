@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import {OrbitControls} from "three/addons/controls/OrbitControls.js";
 import {addDisplayObjects, pixelRatio, setupScene} from "./scene.ts";
+import {Halo, paintHalo} from "./atmosphere.ts";
 import {graphicsOf} from "./graphics.ts";
 import {loadPointGeometryData} from "./points.ts";
 import {GpuPicker} from "./gpuPicking.ts";
@@ -221,6 +222,7 @@ export type Globe = {
     readonly tilesRead: Promise<void>
     setCountry(country: Country): void
     setMapView(view: MapView): void
+    setHalo(halo: Halo): void
     takeReward(claimed: ClaimedBonus): void
     setArmed(armed: boolean): void
     setSwitch(name: keyof Switches, on: boolean): void
@@ -1075,7 +1077,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         if (tracking) targets.lock(fortification.landmass, fortification.countryId)
     })
 
-    addDisplayObjects(scene, field.displayPoints, graphics, sphere)
+    const atmosphere = addDisplayObjects(scene, field.displayPoints, graphics, sphere)
 
     let captureRequests: CaptureRequest[] = []
 
@@ -1147,6 +1149,10 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         setMapView: (view: MapView) => {
             if (view === mapView) return
             mapView = view
+            invalidate()
+        },
+        setHalo: (halo: Halo) => {
+            paintHalo(atmosphere, halo)
             invalidate()
         },
         takeReward,

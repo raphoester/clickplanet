@@ -86,6 +86,9 @@
     --shield: #7A8799;
     --shield-light: #D6DDE6;
 
+    --war: #FF5A1F;
+    --tape: repeating-linear-gradient(45deg, var(--war) 0 12px, var(--ink) 12px 24px);
+
     --discord: #5865F2;
 
     --author-saturation: 80%;
@@ -114,4 +117,12 @@
     --space-4: 16px;
     --space-5: 24px;
     --space-6: 32px;
+}
+
+:root[data-mood="battle"] {
+    --panel: #2A2022;
+    --panel-raised: #3A2D2F;
+    --panel-sunk: #140C0D;
+    --secondary: #5A6B8A;
+    --secondary-light: #8A9BB8;
 }

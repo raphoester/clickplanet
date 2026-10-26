@@ -59,7 +59,9 @@ closed with the season's table before and after it, and the chat announces the
 podium, so the cutoff plays (see [The cutoff, revealed](cutoff.md)).
 `closeFinale()` does the same for the Final Battle, at triple points, then
 crowns the champion: the reveal ends on it, the chat says who won, and the
-season chip becomes the champion's. Each call
+season chip becomes the champion's. `startBattle(minutes = 120, description)`
+plays a battle at once: the mood, the halo, the chip and the start moment (see
+[Battles](battle.md)); `endBattle()` ends it. Each call
 closes the next day, so the reveal plays again. `fakeBackend.botBomb(tile, "fr")`,
 `fakeBackend.botSpread(tile, "fr")` and `fakeBackend.botShield(tile, "fr")` play
 somebody else's bomb, spread click or shield. `fakeBackend.takeLandmass(landmass, "es", leave)`
