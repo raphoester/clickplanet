@@ -15,6 +15,18 @@ import {
 import {
     BanPlayerRequest,
     BanPlayerResponse,
+    GetRulesRequest,
+    GetRulesResponse,
+    InspectPlayerRequest,
+    InspectPlayerResponse,
+    RuleSet,
+    SaveRuleSetRequest,
+    SaveRuleSetResponse,
+    UnbanPlayerRequest,
+    UnbanPlayerResponse,
+} from "./gen/grpc/antibot/v1/admin_pb.ts"
+import {Rules} from "./gen/grpc/antibot/v1/rules_pb.ts"
+import {
     FindPlayersRequest,
     FindPlayersResponse,
     GetLedgerRequest,
@@ -24,8 +36,6 @@ import {
     GetReplayResponse,
     GrantChargesRequest,
     GrantChargesResponse,
-    InspectPlayerRequest,
-    InspectPlayerResponse,
     PaintRandomTilesRequest,
     PaintRandomTilesResponse,
     Player,
@@ -35,8 +45,6 @@ import {
     RevertPlayerResponse,
     TopPlayersRequest,
     TopPlayersResponse,
-    UnbanPlayerRequest,
-    UnbanPlayerResponse,
 } from "./gen/grpc/planet/v1/admin_pb.ts"
 import {
     ListRowsRequest,
@@ -71,7 +79,7 @@ import {
     NoteKind,
     Report,
 } from "./gen/grpc/support/v1/admin_pb.ts"
-import {ChatAdmin, ClipsAdmin, Clients, PlanetAdmin, PlayerAdmin, SupportAdmin} from "./clients.ts"
+import {AntibotAdmin, ChatAdmin, ClipsAdmin, Clients, PlanetAdmin, PlayerAdmin, SupportAdmin} from "./clients.ts"
 
 export const AT = new Date("2026-10-18T12:00:00Z")
 
@@ -86,7 +94,7 @@ function change(minutes: number, by: string, update: PartialMessage<TileUpdate>)
 }
 
 // What each fake was asked, and a refusal to answer with instead, by method.
-export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAdmin, ClipsAdmin {
+export class FakeAdmin implements AntibotAdmin, ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAdmin, ClipsAdmin {
     readonly kind = "fake admin"
     readonly asked: {method: string, request: unknown}[] = []
     readonly refusals = new Map<string, Code>()
@@ -125,6 +133,20 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         new Player({scope: "2001:db8:1:2::/64", tiles: 40, takes: 50}),
     ]
     inspection = new InspectPlayerResponse({accountId: "account-reported", clicks: 42, banned: false})
+    // The set the migration keeps, in part: the fake keeps what it is given and checks nothing.
+    antibotRules = new GetRulesResponse({
+        sets: [new RuleSet({
+            name: "default",
+            rules: Rules.fromJson({
+                bans: {enforce: true, banDurations: ["86400s", "604800s", "94608000s"], reflagInterval: "300s"},
+                jury: {minSuspects: 2, suspicionWindow: "600s"},
+                retaker: {enabled: true}, sequencer: {enabled: true}, metronome: {enabled: true},
+                defender: {enabled: false}, catcher: {enabled: true}, cohort: {enabled: true, minMembers: 2, certainMembers: 6},
+                scraper: {enabled: true}, churner: {enabled: true}, hopper: {enabled: true}, rotator: {enabled: true},
+            }),
+        })],
+        playing: "default",
+    })
     authors = [new Author({accountId: ACCOUNT, name: "BraveFox42"})]
     profile = new AdminGetPlayerResponse({
         name: "BraveFox42", linked: true, createdAtUnixMs: BigInt(AT.getTime()), messagesSent: 4n,
@@ -188,7 +210,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
     ]]
 
     clients(): Clients {
-        return {chat: this, planet: this, player: this, support: this, clips: this}
+        return {antibot: this, chat: this, planet: this, player: this, support: this, clips: this}
     }
 
     refuse(method: string, code: Code) {
@@ -275,6 +297,25 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
 
     inspectPlayer(request: PartialMessage<InspectPlayerRequest>): Promise<InspectPlayerResponse> {
         return this.answer("inspectPlayer", request, this.inspection)
+    }
+
+    getRules(request: PartialMessage<GetRulesRequest>): Promise<GetRulesResponse> {
+        return this.answer("getRules", request, this.antibotRules)
+    }
+
+    // Kept as the server keeps it: a set of the same name is replaced.
+    saveRuleSet(request: PartialMessage<SaveRuleSetRequest>): Promise<SaveRuleSetResponse> {
+        const answer = this.answer("saveRuleSet", request, new SaveRuleSetResponse())
+        if (!this.refusals.has("saveRuleSet") && request.set !== undefined) {
+            const saved = new RuleSet(request.set)
+            const others = this.antibotRules.sets.filter(set => set.name !== saved.name)
+            this.antibotRules = new GetRulesResponse({
+                sets: [...others, saved].sort((a, b) => Number(a.name !== "default") - Number(b.name !== "default") ||
+                    a.name.localeCompare(b.name)),
+                playing: this.antibotRules.playing,
+            })
+        }
+        return answer
     }
 
     grantCharges(request: PartialMessage<GrantChargesRequest>): Promise<GrantChargesResponse> {

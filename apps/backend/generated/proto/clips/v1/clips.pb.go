@@ -904,8 +904,15 @@ type PostFacts struct {
 	// When the job scheduled it: the dashboard can move the post, this does not move.
 	ScheduledAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=scheduled_at,json=scheduledAt,proto3" json:"scheduled_at,omitempty"`
 	// Its place in its run, from 1, in the order the run's posts go out, and how many the run has.
-	RunPosition   uint32 `protobuf:"varint,4,opt,name=run_position,json=runPosition,proto3" json:"run_position,omitempty"`
-	RunSize       uint32 `protobuf:"varint,5,opt,name=run_size,json=runSize,proto3" json:"run_size,omitempty"`
+	RunPosition uint32 `protobuf:"varint,4,opt,name=run_position,json=runPosition,proto3" json:"run_position,omitempty"`
+	RunSize     uint32 `protobuf:"varint,5,opt,name=run_size,json=runSize,proto3" json:"run_size,omitempty"`
+	// The arm of each experiment the post went out in, when the job moved it to another at post time ({"sound":
+	// "fell-back"}: drawn for a trending track, posted with the anthem because the chart could not be read). Absent when
+	// it moved none: the post went out in the clip's own arms, clip.variants.
+	Variants map[string]string `protobuf:"bytes,6,rep,name=variants,proto3" json:"variants,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// The trending track attached on TikTok, for a post of the experiment "sound" drawn for one. Absent for a post with
+	// the anthem alone, and on YouTube, which is sent the video as it is.
+	Sound         *TikTokSound `protobuf:"bytes,7,opt,name=sound,proto3" json:"sound,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -975,6 +982,138 @@ func (x *PostFacts) GetRunSize() uint32 {
 	return 0
 }
 
+func (x *PostFacts) GetVariants() map[string]string {
+	if x != nil {
+		return x.Variants
+	}
+	return nil
+}
+
+func (x *PostFacts) GetSound() *TikTokSound {
+	if x != nil {
+		return x.Sound
+	}
+	return nil
+}
+
+// A track of TikTok's Commercial Music Library attached over the clip on TikTok, and how it was mixed. One protojson
+// leaves out is its zero: no original_volume is the video's own sound muted.
+type TikTokSound struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// What TikTok was sent as musicSoundId: the id of the track's trending excerpt, or of the whole track when it has
+	// none.
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Which of the two id is: "excerpt" or "track".
+	IdOf   string `protobuf:"bytes,2,opt,name=id_of,json=idOf,proto3" json:"id_of,omitempty"`
+	Title  string `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
+	Artist string `protobuf:"bytes,4,opt,name=artist,proto3" json:"artist,omitempty"`
+	// Its place in the chart it was picked from, from 1.
+	Rank uint32 `protobuf:"varint,5,opt,name=rank,proto3" json:"rank,omitempty"`
+	// The chart's country, ISO 3166-1 alpha-2 in upper case ("US").
+	ChartCountry string `protobuf:"bytes,6,opt,name=chart_country,json=chartCountry,proto3" json:"chart_country,omitempty"`
+	// How long what id names plays, as the chart said; 0 when it did not say.
+	DurationSeconds uint32 `protobuf:"varint,7,opt,name=duration_seconds,json=durationSeconds,proto3" json:"duration_seconds,omitempty"`
+	// From 0 to 100: the track's volume (musicSoundVolume), and the video's own sound under it, the anthem
+	// (videoOriginalSoundVolume).
+	TrackVolume    uint32 `protobuf:"varint,8,opt,name=track_volume,json=trackVolume,proto3" json:"track_volume,omitempty"`
+	OriginalVolume uint32 `protobuf:"varint,9,opt,name=original_volume,json=originalVolume,proto3" json:"original_volume,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *TikTokSound) Reset() {
+	*x = TikTokSound{}
+	mi := &file_clips_v1_clips_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TikTokSound) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TikTokSound) ProtoMessage() {}
+
+func (x *TikTokSound) ProtoReflect() protoreflect.Message {
+	mi := &file_clips_v1_clips_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TikTokSound.ProtoReflect.Descriptor instead.
+func (*TikTokSound) Descriptor() ([]byte, []int) {
+	return file_clips_v1_clips_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *TikTokSound) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *TikTokSound) GetIdOf() string {
+	if x != nil {
+		return x.IdOf
+	}
+	return ""
+}
+
+func (x *TikTokSound) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *TikTokSound) GetArtist() string {
+	if x != nil {
+		return x.Artist
+	}
+	return ""
+}
+
+func (x *TikTokSound) GetRank() uint32 {
+	if x != nil {
+		return x.Rank
+	}
+	return 0
+}
+
+func (x *TikTokSound) GetChartCountry() string {
+	if x != nil {
+		return x.ChartCountry
+	}
+	return ""
+}
+
+func (x *TikTokSound) GetDurationSeconds() uint32 {
+	if x != nil {
+		return x.DurationSeconds
+	}
+	return 0
+}
+
+func (x *TikTokSound) GetTrackVolume() uint32 {
+	if x != nil {
+		return x.TrackVolume
+	}
+	return 0
+}
+
+func (x *TikTokSound) GetOriginalVolume() uint32 {
+	if x != nil {
+		return x.OriginalVolume
+	}
+	return 0
+}
+
 type TaggedCountry struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Code  string                 `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
@@ -986,7 +1125,7 @@ type TaggedCountry struct {
 
 func (x *TaggedCountry) Reset() {
 	*x = TaggedCountry{}
-	mi := &file_clips_v1_clips_proto_msgTypes[9]
+	mi := &file_clips_v1_clips_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -998,7 +1137,7 @@ func (x *TaggedCountry) String() string {
 func (*TaggedCountry) ProtoMessage() {}
 
 func (x *TaggedCountry) ProtoReflect() protoreflect.Message {
-	mi := &file_clips_v1_clips_proto_msgTypes[9]
+	mi := &file_clips_v1_clips_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1011,7 +1150,7 @@ func (x *TaggedCountry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TaggedCountry.ProtoReflect.Descriptor instead.
 func (*TaggedCountry) Descriptor() ([]byte, []int) {
-	return file_clips_v1_clips_proto_rawDescGZIP(), []int{9}
+	return file_clips_v1_clips_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *TaggedCountry) GetCode() string {
@@ -1048,7 +1187,7 @@ type StoryKey struct {
 
 func (x *StoryKey) Reset() {
 	*x = StoryKey{}
-	mi := &file_clips_v1_clips_proto_msgTypes[10]
+	mi := &file_clips_v1_clips_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1060,7 +1199,7 @@ func (x *StoryKey) String() string {
 func (*StoryKey) ProtoMessage() {}
 
 func (x *StoryKey) ProtoReflect() protoreflect.Message {
-	mi := &file_clips_v1_clips_proto_msgTypes[10]
+	mi := &file_clips_v1_clips_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1073,7 +1212,7 @@ func (x *StoryKey) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StoryKey.ProtoReflect.Descriptor instead.
 func (*StoryKey) Descriptor() ([]byte, []int) {
-	return file_clips_v1_clips_proto_rawDescGZIP(), []int{10}
+	return file_clips_v1_clips_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *StoryKey) GetFlag() string {
@@ -1205,13 +1344,28 @@ const file_clips_v1_clips_proto_rawDesc = "" +
 	"PostRecord\x12\x16\n" +
 	"\x06schema\x18\x01 \x01(\tR\x06schema\x12(\n" +
 	"\x04clip\x18\x02 \x01(\v2\x14.clips.v1.ClipRecordR\x04clip\x12'\n" +
-	"\x04post\x18\x03 \x01(\v2\x13.clips.v1.PostFactsR\x04post\"\xc6\x01\n" +
+	"\x04post\x18\x03 \x01(\v2\x13.clips.v1.PostFactsR\x04post\"\xef\x02\n" +
 	"\tPostFacts\x12\x16\n" +
 	"\x06teaser\x18\x01 \x01(\tR\x06teaser\x12$\n" +
 	"\x0ecall_to_action\x18\x02 \x01(\tR\fcallToAction\x12=\n" +
 	"\fscheduled_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\vscheduledAt\x12!\n" +
 	"\frun_position\x18\x04 \x01(\rR\vrunPosition\x12\x19\n" +
-	"\brun_size\x18\x05 \x01(\rR\arunSize\"5\n" +
+	"\brun_size\x18\x05 \x01(\rR\arunSize\x12=\n" +
+	"\bvariants\x18\x06 \x03(\v2!.clips.v1.PostFacts.VariantsEntryR\bvariants\x12+\n" +
+	"\x05sound\x18\a \x01(\v2\x15.clips.v1.TikTokSoundR\x05sound\x1a;\n" +
+	"\rVariantsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x90\x02\n" +
+	"\vTikTokSound\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x13\n" +
+	"\x05id_of\x18\x02 \x01(\tR\x04idOf\x12\x14\n" +
+	"\x05title\x18\x03 \x01(\tR\x05title\x12\x16\n" +
+	"\x06artist\x18\x04 \x01(\tR\x06artist\x12\x12\n" +
+	"\x04rank\x18\x05 \x01(\rR\x04rank\x12#\n" +
+	"\rchart_country\x18\x06 \x01(\tR\fchartCountry\x12)\n" +
+	"\x10duration_seconds\x18\a \x01(\rR\x0fdurationSeconds\x12!\n" +
+	"\ftrack_volume\x18\b \x01(\rR\vtrackVolume\x12'\n" +
+	"\x0foriginal_volume\x18\t \x01(\rR\x0eoriginalVolume\"5\n" +
 	"\rTaggedCountry\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x10\n" +
 	"\x03tag\x18\x02 \x01(\tR\x03tag\"h\n" +
@@ -1235,7 +1389,7 @@ func file_clips_v1_clips_proto_rawDescGZIP() []byte {
 	return file_clips_v1_clips_proto_rawDescData
 }
 
-var file_clips_v1_clips_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_clips_v1_clips_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_clips_v1_clips_proto_goTypes = []any{
 	(*Shortlist)(nil),             // 0: clips.v1.Shortlist
 	(*Story)(nil),                 // 1: clips.v1.Story
@@ -1246,33 +1400,37 @@ var file_clips_v1_clips_proto_goTypes = []any{
 	(*GlobeReplay)(nil),           // 6: clips.v1.GlobeReplay
 	(*PostRecord)(nil),            // 7: clips.v1.PostRecord
 	(*PostFacts)(nil),             // 8: clips.v1.PostFacts
-	(*TaggedCountry)(nil),         // 9: clips.v1.TaggedCountry
-	(*StoryKey)(nil),              // 10: clips.v1.StoryKey
-	nil,                           // 11: clips.v1.StoryFacts.NamesEntry
-	nil,                           // 12: clips.v1.ClipRecord.VariantsEntry
-	(*timestamppb.Timestamp)(nil), // 13: google.protobuf.Timestamp
+	(*TikTokSound)(nil),           // 9: clips.v1.TikTokSound
+	(*TaggedCountry)(nil),         // 10: clips.v1.TaggedCountry
+	(*StoryKey)(nil),              // 11: clips.v1.StoryKey
+	nil,                           // 12: clips.v1.StoryFacts.NamesEntry
+	nil,                           // 13: clips.v1.ClipRecord.VariantsEntry
+	nil,                           // 14: clips.v1.PostFacts.VariantsEntry
+	(*timestamppb.Timestamp)(nil), // 15: google.protobuf.Timestamp
 }
 var file_clips_v1_clips_proto_depIdxs = []int32{
 	1,  // 0: clips.v1.Shortlist.stories:type_name -> clips.v1.Story
-	10, // 1: clips.v1.Story.key:type_name -> clips.v1.StoryKey
+	11, // 1: clips.v1.Story.key:type_name -> clips.v1.StoryKey
 	2,  // 2: clips.v1.Story.facts:type_name -> clips.v1.StoryFacts
-	11, // 3: clips.v1.StoryFacts.names:type_name -> clips.v1.StoryFacts.NamesEntry
-	13, // 4: clips.v1.StoryFacts.story_ended_at:type_name -> google.protobuf.Timestamp
-	10, // 5: clips.v1.Clip.key:type_name -> clips.v1.StoryKey
-	9,  // 6: clips.v1.Clip.countries:type_name -> clips.v1.TaggedCountry
+	12, // 3: clips.v1.StoryFacts.names:type_name -> clips.v1.StoryFacts.NamesEntry
+	15, // 4: clips.v1.StoryFacts.story_ended_at:type_name -> google.protobuf.Timestamp
+	11, // 5: clips.v1.Clip.key:type_name -> clips.v1.StoryKey
+	10, // 6: clips.v1.Clip.countries:type_name -> clips.v1.TaggedCountry
 	4,  // 7: clips.v1.Clip.record:type_name -> clips.v1.ClipRecord
 	5,  // 8: clips.v1.ClipRecord.common:type_name -> clips.v1.ClipCommon
 	6,  // 9: clips.v1.ClipRecord.globe:type_name -> clips.v1.GlobeReplay
-	12, // 10: clips.v1.ClipRecord.variants:type_name -> clips.v1.ClipRecord.VariantsEntry
-	13, // 11: clips.v1.GlobeReplay.story_ended_at:type_name -> google.protobuf.Timestamp
+	13, // 10: clips.v1.ClipRecord.variants:type_name -> clips.v1.ClipRecord.VariantsEntry
+	15, // 11: clips.v1.GlobeReplay.story_ended_at:type_name -> google.protobuf.Timestamp
 	4,  // 12: clips.v1.PostRecord.clip:type_name -> clips.v1.ClipRecord
 	8,  // 13: clips.v1.PostRecord.post:type_name -> clips.v1.PostFacts
-	13, // 14: clips.v1.PostFacts.scheduled_at:type_name -> google.protobuf.Timestamp
-	15, // [15:15] is the sub-list for method output_type
-	15, // [15:15] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	15, // 14: clips.v1.PostFacts.scheduled_at:type_name -> google.protobuf.Timestamp
+	14, // 15: clips.v1.PostFacts.variants:type_name -> clips.v1.PostFacts.VariantsEntry
+	9,  // 16: clips.v1.PostFacts.sound:type_name -> clips.v1.TikTokSound
+	17, // [17:17] is the sub-list for method output_type
+	17, // [17:17] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
 }
 
 func init() { file_clips_v1_clips_proto_init() }
@@ -1286,7 +1444,7 @@ func file_clips_v1_clips_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_clips_v1_clips_proto_rawDesc), len(file_clips_v1_clips_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   13,
+			NumMessages:   15,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

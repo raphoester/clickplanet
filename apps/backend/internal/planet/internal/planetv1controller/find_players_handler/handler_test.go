@@ -44,7 +44,7 @@ func find(t *testing.T, useCase *stubUseCase) (*planetv1.FindPlayersResponse, er
 func TestTheRequestReachesTheUseCaseAndThePlayersComeBack(t *testing.T) {
 	at := time.Date(2026, 9, 14, 12, 0, 0, 0, time.UTC)
 	useCase := &stubUseCase{out: find_players_usecase.Out{Total: 7, Players: []ledger.Player{
-		{Scope: "9.9.9.9", Tiles: 40, FirstAt: at, LastAt: at.Add(time.Minute), Banned: true, BannedUntil: at.Add(time.Hour), Offence: 2},
+		{Scope: "9.9.9.9", Tiles: 40, FirstAt: at, LastAt: at.Add(time.Minute), RefusedUntil: at.Add(time.Hour)},
 		{Scope: "2001:db8::/64", Tiles: 1, FirstAt: at, LastAt: at},
 	}}}
 
@@ -62,7 +62,6 @@ func TestTheRequestReachesTheUseCaseAndThePlayersComeBack(t *testing.T) {
 	assert.Equal(t, at.Add(time.Minute), bot.GetLastAt().AsTime())
 	assert.True(t, bot.GetBanned())
 	assert.Equal(t, at.Add(time.Hour), bot.GetBannedUntil().AsTime())
-	assert.Equal(t, uint32(2), bot.GetOffence())
 
 	assert.Nil(t, res.GetPlayers()[1].GetBannedUntil(), "an unbanned scope has no end date to print")
 }

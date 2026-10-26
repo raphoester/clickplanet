@@ -1,0 +1,110 @@
+syntax = "proto3";
+
+package antibot.v1;
+
+import "antibot/v1/rules.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+
+// The operator's bans and the rules the antibot judges with. No authentication of its own: served on the console listener, and on the admin listener behind
+// its gate. Never the public router. Each message reads on the wire as the planet.v1 one of the same name, which
+// served these calls until the antibot was a module of its own.
+service AdminService {
+  rpc BanPlayer(BanPlayerRequest) returns (BanPlayerResponse);
+
+  rpc UnbanPlayer(UnbanPlayerRequest) returns (UnbanPlayerResponse);
+
+  rpc InspectPlayer(InspectPlayerRequest) returns (InspectPlayerResponse);
+
+  rpc GetRules(GetRulesRequest) returns (GetRulesResponse);
+
+  // Makes a set, or replaces its values. A set that plays now is FailedPrecondition: the rules in force change only
+  // through the schedule.
+  rpc SaveRuleSet(SaveRuleSetRequest) returns (SaveRuleSetResponse);
+}
+
+message GetRulesRequest {}
+
+message GetRulesResponse {
+  // Every set postgres keeps, "default" first.
+  repeated RuleSet sets = 1;
+  // The set the antibot judges with now: the one named like the planet rule set in force, or "default".
+  string playing = 2;
+}
+
+message RuleSet {
+  string name = 1;
+  Rules rules = 2;
+}
+
+message SaveRuleSetRequest {
+  RuleSet set = 1;
+}
+
+message SaveRuleSetResponse {}
+
+message BanPlayerRequest {
+  string scope = 1;
+  string account_id = 3;
+  google.protobuf.Duration duration = 2;
+}
+
+message BanPlayerResponse {
+  string scope = 1;
+  string account_id = 5;
+  uint32 offence = 2;
+  google.protobuf.Timestamp banned_until = 3;
+  bool enforced = 4;
+}
+
+message UnbanPlayerRequest {
+  string scope = 1;
+  string account_id = 2;
+}
+
+// The ban that was lifted. Its offence no longer counts.
+message UnbanPlayerResponse {
+  string scope = 1;
+  string account_id = 2;
+  uint32 offence = 3;
+  google.protobuf.Timestamp banned_until = 4;
+  google.protobuf.Timestamp pardoned_until = 5;
+}
+
+message InspectPlayerRequest {
+  string scope = 1;
+  string account_id = 2;
+}
+
+message InspectPlayerResponse {
+  string scope = 1;
+  string account_id = 17;
+
+  optional bool tracked = 2;
+
+  optional bool banned = 3;
+  google.protobuf.Timestamp banned_until = 4;
+  uint32 offence = 5;
+  uint32 flags = 6;
+  google.protobuf.Timestamp pardoned_until = 18;
+
+  repeated WatchdogReading readings = 7;
+
+  uint32 suspects = 8;
+  uint32 min_suspects = 9;
+  optional bool guilty = 10;
+
+  uint32 clicks = 11;
+  google.protobuf.Duration active_for = 12;
+  google.protobuf.Duration longest_gap = 13;
+  google.protobuf.Timestamp last_click_at = 14;
+  string top_country = 15;
+  uint32 top_country_clicks = 16;
+}
+
+message WatchdogReading {
+  string watchdog = 1;
+  string level = 2;
+  string evidence = 3;
+  google.protobuf.Timestamp at = 4;
+}

@@ -19,9 +19,9 @@ player could paint for one country and defend another click to click. **Only
   **`Book.PlayError(ctx, payer, flag)`** reads the store and asks `PlayError`. A caller
   with no account (the deprecated mint, `auth` off) is held to nothing, and a flag that
   is no country is left to the click use case, which refuses it.
-- **It is checked after the ban and before the throttle** (`allegiance_click`,
-  between `antibot_attempt_click` and `throttle_click`): a banned caller is told its
-  ban first, and a click refused for its flag spends no token.
+- **It is checked after the refusal and before the throttle** (`allegiance_click`,
+  between `refusal_click` and `throttle_click`): a refused caller is told its
+  refusal first, and a click refused for its flag spends no token.
   `place_shield_usecase` checks before it spends the shield. A bomb, a claim, a
   quiz and a refill name a flag only for what they announce, and are not held.
 - **The refusal is `FailedPrecondition` with a `planet.v1.Allegiance` detail**

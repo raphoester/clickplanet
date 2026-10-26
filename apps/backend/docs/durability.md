@@ -13,7 +13,7 @@
 
 - `chat.reactions.reaction` and `player.profiles.color` hold the proto enum's number. The proto is the one list, and SQL hands the number to the wire as it is; a type would be a second list, of names nothing else uses.
 - `player.titles.title` and `player.worn_titles.title` hold a title's id. A title is an object a deploy adds or drops with no migration, and a row may outlive its title until the reconciliation revokes it.
-- `antibot.evidence.section` is a watchdog's name, the key of its blob. The store deletes the row of a watchdog that was turned off, and a type cannot drop a value.
+- `antibot.evidence.section` is a watchdog's name, the key of its blob. The store deletes the row of a section the guard no longer saves, and a type cannot drop a value.
 - A country code (`tiles.country`, `contributions.country`, …) comes from the map, not from the code.
 
 **`shared/cppg` is the client**, ported from on-core-platform's `onpg`: `Config` (one module's database block, schema included), `New`, `ConnectCtx`, `Migrate`, and the `Querier`/`Beginner` interfaces a store depends on. Cut from the original: gorm (`make deadcode` rejects what nothing calls, and plain SQL is enough), the SSM tunnel, tracing and lazy config. **Every module that stores something has its own database block and its own pool.** The planet's is `database:` at the top of the file, because `planet.Config` is squashed there; another module's would sit inside its own section (`chat.database:`). Nothing is handed between modules. `Config.String` leaves the password out of the boot's config log line.
@@ -46,6 +46,6 @@
 
 **The charges have no memory copy**: every call reads and writes `planet.charges`, on the same pool. See [Charges](charges.md).
 
-The antibot's evidence is in postgres too, in the `antibot` schema, the same way, and its bans are read and written there on every call — see [What survives a restart](antibot.md#what-survives-a-restart). The player module's profiles and stats are in postgres too, in the `player` schema, but with no memory copy: each call reads or writes the table — see [Player](player.md). The seasons module's standings are kept the same way, in the `seasons` schema — see [Seasons](seasons.md). So are the support module's notes, in the `support` schema — see [Support](support.md) — and the clips' daily numbers, in the `clips` schema — see [Clip stats](clip-stats.md).
+The antibot's evidence is in postgres too, in the `antibot` schema, the same way, and its bans are read and written there on every call. Planet's refused callers, which those bans keep, are a table of the `planet` schema, read on every click — see [What survives a restart](antibot.md#what-survives-a-restart). The player module's profiles and stats are in postgres too, in the `player` schema, but with no memory copy: each call reads or writes the table — see [Player](player.md). The seasons module's standings are kept the same way, in the `seasons` schema — see [Seasons](seasons.md). So are the support module's notes, in the `support` schema — see [Support](support.md) — and the clips' daily numbers, in the `clips` schema — see [Clip stats](clip-stats.md).
 
 Nothing lives in files any more: the container mounts no state volume.

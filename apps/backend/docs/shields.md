@@ -19,7 +19,7 @@ to the jury.
 - **The rule is `clicks.OutcomeOf(owner, flag, shields)`**, pure and tested in the
   `clicks` root: `Unchanged` when the tile wears the flag, `Shielded` when a shield
   stands, `Taken` otherwise. `clicks.Shielding` is the rule over the storage: `Outcome`
-  foresees it and spends nothing (`antibot_click`), and `Strike` spends the shield.
+  foresees it and spends nothing, and `Strike` spends the shield.
   A strike that lost the race for the last shield is a take.
 - **`clicks.Claiming` is the one way a player's click reaches a tile**: it strikes,
   writes the owner the outcome leaves, and answers a `clicks.Impact` (the tile, its
@@ -40,8 +40,8 @@ to the jury.
   `FailedPrecondition` and spend nothing; no shield held is `NotFound`; an unknown
   country or tile is `InvalidArgument`. A placement the tile refuses after the
   charge was spent (it changed hands in between) gives the shield back. It is
-  session-gated like `DropBomb` and not throttled. `antibot_place_shield` refuses a
-  banned caller before anything is spent, as `ban_click` does a click (see
+  session-gated like `DropBomb` and not throttled. `refusal_place_shield` refuses a
+  refused caller before anything is spent, as `refusal_click` does a click (see
   [A ban is told](antibot.md#a-ban-is-told)). The answer is the charges left.
 - **Kept with the tile**: `planet.tiles.shields`, written by the flush that writes
   the owner.

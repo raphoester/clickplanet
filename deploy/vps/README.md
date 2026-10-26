@@ -611,8 +611,8 @@ Then `bans.enforce: true` and redeploy.
 
 `banned_callers` is how many callers are inside a ban and **counts while
 `enforce` is false too** — a non-zero gauge in observe mode means the rules are
-biting, not that anything was refused. `banned_clicks` is the one that
-stays at 0 until you enforce.
+biting, not that anything was refused. `refused_clicks` (planet's) is the one
+that stays at 0 until you enforce.
 
 `ban_flags` counts flags rather than callers, **labelled by watchdog**, so
 the two read together: `ban_flags{watchdog="sequencer"} 40` against
@@ -659,9 +659,15 @@ docker compose exec postgres psql -U clickplanet -c "select * from antibot.bans 
 ```
 
 To lift a ban that was a mistake, use `UnbanPlayer`: see
-[Unban a player](#unban-a-player). The backend reads the table on every click,
-so a hand edit of it counts at once too, but the call keeps the offence count
-right and is logged.
+[Unban a player](#unban-a-player). Planet refuses from its own table,
+`planet.refused_callers`, which the antibot's commands keep: a hand edit of
+`antibot.bans` reaches planet only at the next boot, when the antibot tells it
+every running ban again. The call keeps the offence count right, tells planet at
+once and is logged.
+
+```bash
+docker compose exec postgres psql -U clickplanet -c "select * from planet.refused_callers where refused_until > now() order by refused_until"
+```
 
 Set `enforce` back to false to stop dropping clicks for everyone at once.
 ### Evidence has to outlive a deploy, and by default it does not
@@ -690,7 +696,8 @@ nothing.
 appends the ban and click series to the `metrics_history` volume, one
 file per UTC day, pruned after `POLL_RETENTION_DAYS`. Before 2026-10-20 the ban
 series were named `shadowban_flagged`, `shadowban_flags` and `shadowbanned_clicks`
-(now `banned_callers`, `ban_flags` and `banned_clicks`):
+(now `banned_callers`, `ban_flags` and `refused_clicks`; the last was
+`banned_clicks` until 2026-10-26):
 
 ```bash
 docker compose exec -T metrics-poller ls /history
@@ -846,9 +853,19 @@ The deploy does this after `git pull`:
 
 1. `caddy validate` on the new file, in a throwaway container. A bad file fails
    the deploy here, and the live Caddy keeps its old config.
-2. `docker compose up -d`.
-3. `caddy reload` in `cp-caddy`. This keeps open connections. It does nothing
+2. `docker compose up -d backend`, with `--force-recreate` when the pull changed
+   `backend.yaml`. This starts postgres and redis first if they need it.
+3. `docker compose up -d --no-deps` for every other service. `--no-deps` keeps
+   this step away from the backend.
+4. `caddy reload` in `cp-caddy`. This keeps open connections. It does nothing
    if the config did not change.
+
+Steps 2 and 3 start `cp-backend` once per deploy. Before 2026-10-26 the deploy
+ran `up -d`, then a second `--force-recreate` of the backend when `backend.yaml`
+changed. When the image changed too, the second recreate killed the first new
+container 0.7 s into its boot. A boot runs each module's migrations, and a
+container killed mid-migration can leave `schema_migrations` dirty: the next
+boot then refuses to start, in a restart loop.
 
 The reload is needed because `up -d` does not recreate Caddy when only the
 Caddyfile changed. Compose mounts the `caddy/` directory, not the file: `git
@@ -1256,16 +1273,19 @@ way. An address is banned as its scope, which drops every account behind it. An
 both:
 
 ```bash
-docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"scope":"203.0.113.7"}' http://127.0.0.1:8081/planet.v1.AdminService/BanPlayer
-docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"scope":"2001:db8:1:2::/64","duration":"3600s"}' http://127.0.0.1:8081/planet.v1.AdminService/BanPlayer
-docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"accountId":"0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10"}' http://127.0.0.1:8081/planet.v1.AdminService/BanPlayer
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"scope":"203.0.113.7"}' http://127.0.0.1:8081/antibot.v1.AdminService/BanPlayer
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"scope":"2001:db8:1:2::/64","duration":"3600s"}' http://127.0.0.1:8081/antibot.v1.AdminService/BanPlayer
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"accountId":"0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10"}' http://127.0.0.1:8081/antibot.v1.AdminService/BanPlayer
 ```
 
 Ban the scope when the player is on a guest account: a guest drops its account
 with a new cookie.
 
-`"enforced":false` in the answer means `antiBot.bans.enforce` is off: the
-ban is kept but refuses nothing. To lift a ban, see [Unban a player](#unban-a-player).
+`"enforced":false` in the answer means the rule `bans.enforce` is off: the
+ban is kept but refuses nothing. With it on, planet refuses the player a moment
+after the answer, once the antibot's command reaches it. The three ban calls are
+the antibot's (`antibot.v1`); `planet.v1` answers them on its old paths until the
+backoffice has moved, then drops them. To lift a ban, see [Unban a player](#unban-a-player).
 
 Then revert, dry run first:
 
@@ -1296,16 +1316,16 @@ wrong player. It ends the ban now, or forgets a ban that already ended. There is
 no restart and no SQL:
 
 ```bash
-docker exec cp-backend wget -qO- --header 'Content-Type: application/json' --post-data '{"accountId":"0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10"}' http://127.0.0.1:8081/planet.v1.AdminService/UnbanPlayer
-docker exec cp-backend wget -qO- --header 'Content-Type: application/json' --post-data '{"scope":"203.0.113.7"}' http://127.0.0.1:8081/planet.v1.AdminService/UnbanPlayer
+docker exec cp-backend wget -qO- --header 'Content-Type: application/json' --post-data '{"accountId":"0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10"}' http://127.0.0.1:8081/antibot.v1.AdminService/UnbanPlayer
+docker exec cp-backend wget -qO- --header 'Content-Type: application/json' --post-data '{"scope":"203.0.113.7"}' http://127.0.0.1:8081/antibot.v1.AdminService/UnbanPlayer
 ```
 
 - **Fix the rule first.** The unban does not change what the watchdogs hold. If
   a rule still reads the player `certain`, the jury bans it again on its next
   click, at the earliest 5 minutes after the last ban
-  (`antiBot.bans.reflagInterval`).
+  (the rule `bans.reflagInterval`).
   [`InspectPlayer`](#see-how-close-the-antibot-is-to-one-player) shows which
-  rule it was. Change the rule and deploy, then unban.
+  rule it was. Change the rule ([Change the antibot's rules](#change-the-antibots-rules)), then unban.
 - **The ban's offence is forgotten**: the next ban takes the same step of the
   ladder (24h for a first offence). This works after the ban ended too, so a
   player banned by mistake yesterday does not get 7 days at the next flag.
@@ -1314,32 +1334,32 @@ docker exec cp-backend wget -qO- --header 'Content-Type: application/json' --pos
   forgotten. A player with no offence left answers `not_found`.
 - **A guest that the jury banned is banned on its account and on its scope.**
   Send two calls, one with `accountId` and one with `scope`. `InspectPlayer` with
-  the `accountId` gives the scope of its latest take. A signed-in player is
+  the `accountId` gives the scope of its latest click. A signed-in player is
   banned on its account only. Send `scope` or `accountId` in one call, not both.
 - The answer is the ban that was lifted: `offence`, and `bannedUntil`, when it
   would have ended.
 - A player with no running ban is refused: `server returned error: HTTP/1.1 404`.
-  A bad scope or account is refused with `400`, and so is any call while
-  `antiBot.enabled` is off.
+  A bad scope or account is refused with `400`. While `antiBot.enabled` is off
+  the antibot has no service, and every call is a `404` too.
 - It is in postgres when the answer comes, so a restart keeps the player
-  unbanned.
+  unbanned, and planet admits it a moment later.
 - Every call is logged: `journalctl CONTAINER_NAME=cp-backend | grep "admin unban"`.
 
 ### See how close the antibot is to one player
 
 The `antibot ban` log line is only written when a ban fires. To see where a
 player stands before that, inspect its scope (an address is read as its scope),
-or its `accountId`, which is read on the address of its latest take. It changes
+or its `accountId`, which is read on the address of its latest click. It changes
 nothing and is not logged:
 
 ```bash
-docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"scope":"203.0.113.7"}' http://127.0.0.1:8081/planet.v1.AdminService/InspectPlayer
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"scope":"203.0.113.7"}' http://127.0.0.1:8081/antibot.v1.AdminService/InspectPlayer
 ```
 
 - `readings` has one entry per watchdog: `level` is `clear`, `suspect` or
   `certain`, and `evidence` is the rule and its numbers, as the ban line writes
-  them. A `clear` watchdog has no evidence. A verdict older than
-  `antiBot.jury.suspicionWindow` reads `clear`.
+  them. A `clear` watchdog has no evidence. A verdict older than the rule
+  `jury.suspicionWindow` reads `clear`.
 - `suspects` against `minSuspects`, and `guilty`: what the jury would decide if
   the player clicked now. One `certain` is enough alone.
 - `clicks`, `activeFor`, `longestGap`, `lastClickAt`, `topCountry`: the same
@@ -1347,7 +1367,32 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
 - `banned`, `bannedUntil`, `offence`, `flags` when a ban is running, enforced or not.
 - `"tracked":false` means the jury has not seen the scope in
   `antiBot.jury.trackWindow`: it is not clicking now, or not from this scope.
-- With `antiBot.enabled` off it is refused: `server returned error: HTTP/1.1 400`. A bad scope is refused the same way.
+- A bad scope is refused: `server returned error: HTTP/1.1 400`. With `antiBot.enabled` off the antibot has no service: `404`.
+
+### Change the antibot's rules
+
+Every bound the antibot judges with is a rule of a set kept in postgres
+(`antibot.rule_sets`), not in `backend.yaml`. Edit them on the backoffice: Ops →
+Anti-bot rules. No one edits the set that plays now: the rules in force change
+only through planet's schedule. Copy the set into a new one, change it, and the
+schedule plays it; the antibot then logs `antibot rules in force` with its values.
+
+- The antibot plays the set named like the planet rule set in force, and
+  `default` when it has no set of that name. For the Final Battle, planet plays
+  `rush`: make an antibot set `rush` (a copy of `default`) with the crowd it
+  needs, `cohort.certainMembers` 50, **before 21:00**. While planet plays `rush`,
+  a save of `rush` is refused, like any set that plays.
+- To turn a watchdog off, set `"enabled": false` in its part of a set the
+  schedule plays later. The jury then reads it as clear, and it keeps watching,
+  so it reads again at once when turned on.
+- A set any value of which cannot be judged with is refused, with every reason.
+- Every save is logged: `journalctl CONTAINER_NAME=cp-backend | grep "admin antibot rule set"`.
+
+From the console, the sets and the one playing:
+
+```bash
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{}' http://127.0.0.1:8081/antibot.v1.AdminService/GetRules
+```
 
 ### Mute a player in the chat
 

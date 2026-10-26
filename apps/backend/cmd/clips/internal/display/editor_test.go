@@ -17,12 +17,12 @@ func TestAPickTheModelHeadlinedCarriesItsHeadlineForTheGenerator(t *testing.T) {
 	var out bytes.Buffer
 
 	require.NoError(t, display.Picks(&out, []clips.Assignment{
-		{Pick: 4, Variants: clips.Variants{"editor": "model"}, Headline: "BRAZIL STORMS ARGENTINA"},
-		{Pick: 2, Variants: clips.Variants{"editor": "model"}},
+		{Pick: 4, Variants: clips.Variants{"length": "short"}, Headline: "BRAZIL STORMS ARGENTINA"},
+		{Pick: 2, Variants: clips.Variants{"length": "short"}},
 	}))
 
-	assert.JSONEq(t, `[{"pick":4,"variants":{"editor":"model"},"headline":"BRAZIL STORMS ARGENTINA"},`+
-		`{"pick":2,"variants":{"editor":"model"}}]`, out.String())
+	assert.JSONEq(t, `[{"pick":4,"variants":{"length":"short"},"headline":"BRAZIL STORMS ARGENTINA"},`+
+		`{"pick":2,"variants":{"length":"short"}}]`, out.String())
 }
 
 func summaryOf(t *testing.T, editorial clips.Editorial) string {
@@ -44,22 +44,24 @@ func TestTheSummarySaysTheModelChoseTheRunAndWhatItCost(t *testing.T) {
 	spend := spend
 	spend.CacheWriteTokens = 1800
 
-	summary := summaryOf(t, clips.Editorial{Arm: "model", Asked: true, Why: "Brazil is fresher.", Spend: spend})
+	summary := summaryOf(t, clips.Editorial{Asked: true, Why: "Brazil is fresher.", Spend: spend})
 
 	assert.Equal(t, "**Editor: the model.** Brazil is fresher. `claude-haiku-5-5`: 4800 tokens in (1800 written to the cache, "+
 		"0 read from it), 400 out, about $0.0005.\n\n", summary)
 }
 
-func TestTheSummarySaysWhyARunOfTheModelWasMadeByTheRules(t *testing.T) {
-	summary := summaryOf(t, clips.Editorial{Arm: "model", Asked: true, FellBack: "the model refused (general_harms)", Spend: spend})
+func TestTheSummarySaysWhyTheRunWasMadeByTheRules(t *testing.T) {
+	summary := summaryOf(t, clips.Editorial{Asked: true, FellBack: "the model refused (general_harms)", Spend: spend})
 
 	assert.Contains(t, summary, "**Editor: the model, fallen back to the rules.** the model refused (general_harms). `claude-haiku-5-5`")
 }
 
 func TestTheSummarySaysWhenNothingWasAsked(t *testing.T) {
-	assert.Equal(t, "**Editor: the rules.**\n\n", summaryOf(t, clips.Editorial{Arm: "rules"}))
-	assert.Equal(t, "**Editor: the model**, with nothing to decide: no call.\n\n", summaryOf(t, clips.Editorial{Arm: "model"}))
-	assert.Empty(t, summaryOf(t, clips.Editorial{}), "the experiment does not run")
+	assert.Equal(t, "**Editor: the model**, with nothing to decide: no call.\n\n", summaryOf(t, clips.Editorial{}))
+}
+
+func TestNoSummaryFileIsNoSummary(t *testing.T) {
+	require.NoError(t, display.Editorial("", clips.Editorial{Asked: true, Spend: spend}))
 }
 
 func TestATrialOfThePromptAlonePrintsItAndNoChoice(t *testing.T) {

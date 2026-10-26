@@ -39,7 +39,7 @@ func TestSweepReportsTheScopesAndRelaysClickedOnSinceTheLast(t *testing.T) {
 		churns []sample
 		links  []int
 	)
-	w := New(bounded(), clock,
+	w := New(Config{}, bounded(), clock,
 		func(accounts int, family string) { churns = append(churns, sample{accounts, family}) },
 		func(n int) { links = append(links, n) },
 	)

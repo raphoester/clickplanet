@@ -117,3 +117,34 @@
 .mission-done {
     flex-shrink: 0;
 }
+
+.missions-done {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.missions-done-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+}
+
+.missions-done-order {
+    font-weight: 700;
+    font-size: clamp(var(--text-m), 1.8vw, var(--text-l));
+    color: var(--text);
+}
+
+.missions-done-reward .bonus-icon {
+    width: 16px;
+    height: 16px;
+    padding: 2px;
+    border-radius: var(--radius-xs);
+    background: var(--bonus-box);
+}

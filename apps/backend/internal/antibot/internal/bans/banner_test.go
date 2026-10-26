@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/bans"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -20,18 +21,22 @@ const (
 	pardon     = 72 * time.Hour
 )
 
-func newBanner(t *testing.T, config bans.Config, clock cptime.Clock) banner {
+func newBanner(t *testing.T, rules bans.Rules, clock cptime.Clock) banner {
 	t.Helper()
-	return bannerOver(t, config, clock, bans.NewMemoryStore())
+	return bannerOver(t, rules, clock, bans.NewMemoryStore())
 }
 
-func bannerOver(t *testing.T, config bans.Config, clock cptime.Clock, store bans.Store) banner {
+func bannerOver(t *testing.T, rules bans.Rules, clock cptime.Clock, store bans.Store) banner {
 	t.Helper()
-	return banner{t: t, inner: bans.New(config, pardon, clock, store)}
+	return banner{t: t, inner: bans.New(fixed(rules), pardon, clock, bans.Scopes, store, cpatomic.FakeTransactioner{}, &bans.MemoryEnforcer{})}
 }
 
-func config() bans.Config {
-	return bans.Config{
+func fixed(rules bans.Rules) func() bans.Rules {
+	return func() bans.Rules { return rules }
+}
+
+func ladder() bans.Rules {
+	return bans.Rules{
 		Enforce:        true,
 		BanDurations:   []time.Duration{time.Hour, 24 * time.Hour, threeYears},
 		ReflagInterval: 5 * time.Minute,
@@ -40,7 +45,7 @@ func config() bans.Config {
 
 func TestAFirstOffenceBansForTheFirstStep(t *testing.T) {
 	clock := newClock()
-	banner := newBanner(t, config(), clock)
+	banner := newBanner(t, ladder(), clock)
 
 	require.False(t, banner.Banned("bot"))
 
@@ -59,10 +64,10 @@ func TestAFirstOffenceBansForTheFirstStep(t *testing.T) {
 }
 
 func TestEnforceOffBansNothingAndStillCounts(t *testing.T) {
-	c := config()
-	c.Enforce = false
+	rules := ladder()
+	rules.Enforce = false
 
-	banner := newBanner(t, c, newClock())
+	banner := newBanner(t, rules, newClock())
 
 	_, accepted := banner.Flag("bot")
 	require.True(t, accepted)
@@ -74,7 +79,7 @@ func TestEnforceOffBansNothingAndStillCounts(t *testing.T) {
 
 func TestAFlagInsideTheReflagIntervalSaysNothingNew(t *testing.T) {
 	clock := newClock()
-	banner := newBanner(t, config(), clock)
+	banner := newBanner(t, ladder(), clock)
 
 	_, accepted := banner.Flag("bot")
 	require.True(t, accepted)
@@ -92,7 +97,7 @@ func TestAFlagInsideTheReflagIntervalSaysNothingNew(t *testing.T) {
 
 func TestAReflagExtendsTheRunningBanWithoutANewOffence(t *testing.T) {
 	clock := newClock()
-	banner := newBanner(t, config(), clock)
+	banner := newBanner(t, ladder(), clock)
 
 	banner.Flag("bot")
 
@@ -109,7 +114,7 @@ func TestAReflagExtendsTheRunningBanWithoutANewOffence(t *testing.T) {
 
 func TestAnOffenceAfterALapsedBanClimbsTheLadder(t *testing.T) {
 	clock := newClock()
-	banner := newBanner(t, config(), clock)
+	banner := newBanner(t, ladder(), clock)
 
 	banner.Flag("bot")
 	clock.Advance(2 * time.Hour)
@@ -127,7 +132,7 @@ func TestAnOffenceAfterALapsedBanClimbsTheLadder(t *testing.T) {
 
 func TestTheThirdOffenceBansForThreeYears(t *testing.T) {
 	clock := newClock()
-	banner := newBanner(t, config(), clock)
+	banner := newBanner(t, ladder(), clock)
 
 	banner.Flag("bot")
 	clock.Advance(2 * time.Hour)
@@ -147,11 +152,11 @@ func TestTheThirdOffenceBansForThreeYears(t *testing.T) {
 }
 
 func TestTheLastStepRepeats(t *testing.T) {
-	c := config()
-	c.BanDurations = []time.Duration{time.Hour, 24 * time.Hour}
+	rules := ladder()
+	rules.BanDurations = []time.Duration{time.Hour, 24 * time.Hour}
 
 	clock := newClock()
-	banner := newBanner(t, c, clock)
+	banner := newBanner(t, rules, clock)
 
 	var sentence bans.Sentence
 	for range 5 {
@@ -165,7 +170,7 @@ func TestTheLastStepRepeats(t *testing.T) {
 
 func TestAnOffenceCountsForever(t *testing.T) {
 	clock := newClock()
-	banner := newBanner(t, config(), clock)
+	banner := newBanner(t, ladder(), clock)
 
 	banner.Flag("bot")
 	clock.Advance(10 * 365 * 24 * time.Hour)
@@ -176,7 +181,7 @@ func TestAnOffenceCountsForever(t *testing.T) {
 }
 
 func TestAnEmptyScopeIsNeverBanned(t *testing.T) {
-	banner := newBanner(t, config(), newClock())
+	banner := newBanner(t, ladder(), newClock())
 
 	_, accepted := banner.Flag("")
 	assert.False(t, accepted)
@@ -185,7 +190,7 @@ func TestAnEmptyScopeIsNeverBanned(t *testing.T) {
 
 func TestAManualBanTakesTheLadderAndCountsAsAnOffence(t *testing.T) {
 	clock := newClock()
-	banner := newBanner(t, config(), clock)
+	banner := newBanner(t, ladder(), clock)
 
 	sentence := banner.Ban("bot", 0)
 	assert.Equal(t, bans.Sentence{Offence: 1, Until: clock.Now().Add(time.Hour)}, sentence)
@@ -202,7 +207,7 @@ func TestAManualBanTakesTheLadderAndCountsAsAnOffence(t *testing.T) {
 
 func TestAManualBanWithADurationNeverShortensARunningOne(t *testing.T) {
 	clock := newClock()
-	banner := newBanner(t, config(), clock)
+	banner := newBanner(t, ladder(), clock)
 
 	banner.Ban("bot", 48*time.Hour)
 	sentence := banner.Ban("bot", time.Minute)
@@ -216,7 +221,7 @@ func TestAManualBanWithADurationNeverShortensARunningOne(t *testing.T) {
 }
 
 func TestAManualBanOnAnEmptyScopeBansNothing(t *testing.T) {
-	banner := newBanner(t, config(), newClock())
+	banner := newBanner(t, ladder(), newClock())
 
 	assert.Equal(t, bans.Sentence{}, banner.Ban("", time.Hour))
 	assert.Equal(t, 0, banner.Flagged())
@@ -224,7 +229,7 @@ func TestAManualBanOnAnEmptyScopeBansNothing(t *testing.T) {
 
 func TestAnUnbanEndsTheBanNowAndForgetsItsOffence(t *testing.T) {
 	clock := newClock()
-	banner := newBanner(t, config(), clock)
+	banner := newBanner(t, ladder(), clock)
 
 	banner.Flag("player")
 	clock.Advance(10 * time.Minute)
@@ -244,7 +249,7 @@ func TestAnUnbanEndsTheBanNowAndForgetsItsOffence(t *testing.T) {
 
 func TestAnUnbanPardonsTheKeySoNoFlagBansItUntilThePardonEnds(t *testing.T) {
 	clock := newClock()
-	banner := newBanner(t, config(), clock)
+	banner := newBanner(t, ladder(), clock)
 
 	banned, _ := banner.Flag("player")
 	clock.Advance(10 * time.Minute)
@@ -270,7 +275,7 @@ func TestAnUnbanPardonsTheKeySoNoFlagBansItUntilThePardonEnds(t *testing.T) {
 
 func TestAnOperatorStillBansAPardonedKey(t *testing.T) {
 	clock := newClock()
-	banner := newBanner(t, config(), clock)
+	banner := newBanner(t, ladder(), clock)
 
 	banner.Flag("player")
 	banner.Unban("player")
@@ -282,7 +287,7 @@ func TestAnOperatorStillBansAPardonedKey(t *testing.T) {
 
 func TestAPardonIsOnlyTheKeyItNames(t *testing.T) {
 	clock := newClock()
-	banner := newBanner(t, config(), clock)
+	banner := newBanner(t, ladder(), clock)
 
 	banner.Flag("player")
 	banner.Unban("player")
@@ -297,7 +302,7 @@ func TestAPardonIsOnlyTheKeyItNames(t *testing.T) {
 
 func TestEachUnbanIsANewPardon(t *testing.T) {
 	clock := newClock()
-	banner := newBanner(t, config(), clock)
+	banner := newBanner(t, ladder(), clock)
 
 	banner.Ban("player", 0)
 	clock.Advance(2 * time.Hour)
@@ -315,7 +320,7 @@ func TestEachUnbanIsANewPardon(t *testing.T) {
 
 func TestAnUnbanForgetsOnlyTheOffenceItLifts(t *testing.T) {
 	clock := newClock()
-	banner := newBanner(t, config(), clock)
+	banner := newBanner(t, ladder(), clock)
 
 	banner.Ban("bot", 0)
 	clock.Advance(2 * time.Hour)
@@ -330,7 +335,7 @@ func TestAnUnbanForgetsOnlyTheOffenceItLifts(t *testing.T) {
 func TestAnUnbanOfAnEndedBanForgetsItsOffenceAndKeepsItsEnd(t *testing.T) {
 	clock := newClock()
 	store := bans.NewMemoryStore()
-	banner := bannerOver(t, config(), clock, store)
+	banner := bannerOver(t, ladder(), clock, store)
 
 	banned, _ := banner.Flag("player")
 	clock.Advance(2 * time.Hour)
@@ -348,7 +353,7 @@ func TestAnUnbanOfAnEndedBanForgetsItsOffenceAndKeepsItsEnd(t *testing.T) {
 
 func TestEachUnbanForgetsOneOffence(t *testing.T) {
 	clock := newClock()
-	banner := newBanner(t, config(), clock)
+	banner := newBanner(t, ladder(), clock)
 
 	banner.Ban("player", 0)
 	clock.Advance(2 * time.Hour)
@@ -370,7 +375,7 @@ func TestEachUnbanForgetsOneOffence(t *testing.T) {
 func TestAnUnbanWithNoBanChangesNothing(t *testing.T) {
 	clock := newClock()
 	store := bans.NewMemoryStore()
-	banner := bannerOver(t, config(), clock, store)
+	banner := bannerOver(t, ladder(), clock, store)
 
 	banner.Flag("lifted")
 	banner.Unban("lifted")
@@ -385,7 +390,7 @@ func TestAnUnbanWithNoBanChangesNothing(t *testing.T) {
 
 func TestTheLastSentenceIsTheLatestBanStillCountedRunningOrEnded(t *testing.T) {
 	clock := newClock()
-	banner := newBanner(t, config(), clock)
+	banner := newBanner(t, ladder(), clock)
 
 	_, found := banner.LastSentence("nobody")
 	assert.False(t, found)

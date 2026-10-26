@@ -1,8 +1,9 @@
 import {Duration} from "@bufbuild/protobuf"
 import {Code, ConnectError} from "@connectrpc/connect"
 import {LONG_CALL_MS} from "../api.ts"
-import {ChatAdmin, PlanetAdmin, PlayerAdmin} from "../clients.ts"
-import {InspectPlayerResponse, Player} from "../gen/grpc/planet/v1/admin_pb.ts"
+import {AntibotAdmin, ChatAdmin, PlanetAdmin, PlayerAdmin} from "../clients.ts"
+import {InspectPlayerResponse} from "../gen/grpc/antibot/v1/admin_pb.ts"
+import {Player} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {ChargesHeld} from "../gen/grpc/planet/v1/planet_pb.ts"
 import {AdminGetPlayerResponse, PlayerMatch} from "../gen/grpc/player/v1/admin_pb.ts"
 import {Author} from "../gen/grpc/player/v1/internal_pb.ts"
@@ -31,7 +32,10 @@ export type Listed = Players & Named
 export type Matches = {players: PlayerMatch[], total: number}
 export type Profile = AdminGetPlayerResponse
 
+export const MOST = 99
 export const NO_GRANT: Grant = {refill: false, bomb: false, enclosures: 0, spreadClicks: 0, shields: 0}
+// The server caps each count at its stack, so this fills every charge and the answer says what fit.
+export const MAX_GRANT: Grant = {refill: true, bomb: true, enclosures: MOST, spreadClicks: MOST, shields: MOST}
 
 // A mute is an account's: the chat has no scope to mute.
 export async function mute(chat: ChatAdmin, accountId: string, seconds: number): Promise<Muted> {
@@ -39,15 +43,15 @@ export async function mute(chat: ChatAdmin, accountId: string, seconds: number):
     return {until: dateOf(answer.mutedUntil)}
 }
 
-export async function ban(planet: PlanetAdmin, caller: Caller, seconds: number): Promise<Banned> {
+export async function ban(antibot: AntibotAdmin, caller: Caller, seconds: number): Promise<Banned> {
     const duration = seconds === LADDER ? undefined : new Duration({seconds: BigInt(seconds)})
-    const answer = await planet.banPlayer({...caller, duration})
+    const answer = await antibot.banPlayer({...caller, duration})
     return {until: dateOf(answer.bannedUntil), offence: answer.offence, enforced: answer.enforced}
 }
 
 // Lifts the latest ban, running or ended, and forgets its offence. One call forgets one offence.
-export async function unban(planet: PlanetAdmin, caller: Caller): Promise<Unbanned> {
-    const answer = await planet.unbanPlayer(caller)
+export async function unban(antibot: AntibotAdmin, caller: Caller): Promise<Unbanned> {
+    const answer = await antibot.unbanPlayer(caller)
     return {offence: answer.offence, until: answer.bannedUntil?.toDate(), pardonedUntil: answer.pardonedUntil?.toDate()}
 }
 
@@ -57,8 +61,8 @@ export async function revert(planet: PlanetAdmin, caller: Caller, dryRun: boolea
     return {touched: answer.touched, held: answer.held, restored: answer.restored}
 }
 
-export async function inspect(planet: PlanetAdmin, caller: Caller, signal?: AbortSignal): Promise<InspectPlayerResponse> {
-    return planet.inspectPlayer(caller, {signal})
+export async function inspect(antibot: AntibotAdmin, caller: Caller, signal?: AbortSignal): Promise<InspectPlayerResponse> {
+    return antibot.inspectPlayer(caller, {signal})
 }
 
 // A charge is an account's: the caps hold, so `after` says what fit.
@@ -127,10 +131,10 @@ export const NOT_BANNED = "This player has no ban left to lift."
 
 const MEANINGS: Record<Action, Meanings> = {
     mute: {},
-    ban: {failedPrecondition: ANTIBOT_OFF},
-    unban: {notFound: NOT_BANNED, failedPrecondition: ANTIBOT_OFF},
+    ban: {unimplemented: ANTIBOT_OFF},
+    unban: {notFound: NOT_BANNED, unimplemented: ANTIBOT_OFF},
     revert: {},
-    inspect: {failedPrecondition: ANTIBOT_OFF},
+    inspect: {unimplemented: ANTIBOT_OFF},
     grant: {},
     list: {},
 }

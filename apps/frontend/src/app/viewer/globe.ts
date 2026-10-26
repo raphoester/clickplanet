@@ -4,6 +4,7 @@ import {addDisplayObjects, pixelRatio, setupScene} from "./scene.ts";
 import {graphicsOf} from "./graphics.ts";
 import {loadPointGeometryData} from "./points.ts";
 import {GpuPicker} from "./gpuPicking.ts";
+import {innerSphere} from "./sphere.ts";
 import {CapturedFrame, readDrawingBuffer} from "./capture.ts";
 import {GraphicsReport, graphicsReportOf} from "./graphicsReport.ts";
 import {TileField} from "./tileField.ts";
@@ -304,7 +305,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     const pickingUniforms = {pointSize: {value: pickPointSize(camera.zoom, layoutViewport().height) * renderer.getPixelRatio()}}
 
-    const field = new TileField(uniforms, pickingUniforms, geometryData, graphics.tiles);
+    const field = new TileField(uniforms, pickingUniforms, geometryData, graphics);
 
     const territories = new BorderField(borders, field.size)
     const landmasses = new Landmasses(borders.assignment, borders.codes.length)
@@ -312,7 +313,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     uniforms.landmassData.value = territories.landmassData
     uniforms.landmassCount.value = borders.codes.length
 
-    const picker = new GpuPicker(renderer, field.pickingPoints);
+    const sphere = innerSphere()
+    const picker = new GpuPicker(renderer, field.pickingPoints, sphere);
     const ownership = new TileOwnership(field.size);
     const shielded = new TileShields(field.size);
 
@@ -970,7 +972,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         if (tracking) targets.lock(fortification.landmass, fortification.countryId)
     })
 
-    addDisplayObjects(scene, field.displayPoints, graphics)
+    addDisplayObjects(scene, field.displayPoints, graphics, sphere)
 
     let captureRequests: CaptureRequest[] = []
 

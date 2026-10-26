@@ -5,21 +5,30 @@ import (
 	"fmt"
 	"time"
 
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
+	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/facts"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
 // Must stay well under Cloudflare's ~125s idle cut, which kills a silent stream.
 const DefaultHeartbeat = 30 * time.Second
 
 type UpdatesSubscriber interface {
-	Subscribe(ctx context.Context) (<-chan clicks.Change, error)
+	Subscribe(ctx context.Context) (<-chan clicks.Change, clicks.MapVersion, error)
 }
 
 type Event struct {
-	Update        clicks.TileUpdate
+	// The change's, or for a heartbeat the last one the stream sent.
+	Version       clicks.MapVersion
+	Update        *clicks.TileUpdate
 	Blast         *clicks.Blast
 	Fortification *clicks.Fortification
+	Tally         *clicks.Tally
 	Heartbeat     bool
 
 	Offer    *bonuses.Offer
@@ -37,7 +46,11 @@ type Sink interface {
 	Send(event Event) error
 }
 
-func New(subscriber UpdatesSubscriber, heartbeat time.Duration, bonuses BonusFeed) *UseCase {
+type Facts interface {
+	Tell(fact facts.Fact)
+}
+
+func New(subscriber UpdatesSubscriber, heartbeat time.Duration, bonuses BonusFeed, facts Facts) *UseCase {
 	if heartbeat <= 0 {
 		heartbeat = DefaultHeartbeat
 	}
@@ -46,6 +59,7 @@ func New(subscriber UpdatesSubscriber, heartbeat time.Duration, bonuses BonusFee
 		subscriber: subscriber,
 		heartbeat:  heartbeat,
 		bonuses:    bonuses,
+		facts:      facts,
 	}
 }
 
@@ -53,10 +67,17 @@ type UseCase struct {
 	subscriber UpdatesSubscriber
 	heartbeat  time.Duration
 	bonuses    BonusFeed
+	facts      Facts
 }
 
+// A stream lasts hours: it is told when it opens, and an open that fails opened all the same.
 func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
-	updates, err := u.subscriber.Subscribe(ctx)
+	scope := cpctx.RateLimitKey(ctx)
+	u.facts.Tell(func(at time.Time) proto.Message {
+		return &planetv1.StreamOpened{Scope: scope, OpenedAt: timestamppb.New(at)}
+	})
+
+	updates, version, err := u.subscriber.Subscribe(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to subscribe to tile updates: %w", err)
 	}
@@ -65,7 +86,7 @@ func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 	defer leave()
 
 	// Connect writes nothing until the first Send, and the client resyncs on a stream's first event.
-	if err := sink.Send(Event{Heartbeat: true}); err != nil {
+	if err := sink.Send(Event{Heartbeat: true, Version: version}); err != nil {
 		return err
 	}
 
@@ -78,7 +99,7 @@ func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 			return nil
 
 		case <-heartbeat.C:
-			if err := sink.Send(Event{Heartbeat: true}); err != nil {
+			if err := sink.Send(Event{Heartbeat: true, Version: version}); err != nil {
 				return err
 			}
 
@@ -87,7 +108,11 @@ func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 				return nil
 			}
 
-			if err := sink.Send(eventOf(change)); err != nil {
+			version = change.Version
+			if err := sink.Send(Event{
+				Version: change.Version, Update: change.Update, Blast: change.Blast,
+				Fortification: change.Fortification, Tally: change.Tally,
+			}); err != nil {
 				return err
 			}
 
@@ -104,15 +129,4 @@ func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 			}
 		}
 	}
-}
-
-func eventOf(change clicks.Change) Event {
-	if change.Blast != nil {
-		return Event{Blast: change.Blast}
-	}
-	if change.Fortification != nil {
-		return Event{Fortification: change.Fortification}
-	}
-
-	return Event{Update: *change.Update}
 }

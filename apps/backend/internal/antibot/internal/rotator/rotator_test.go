@@ -21,9 +21,8 @@ const (
 	slotSeconds = 300
 )
 
-func config() rotator.Config {
-	return rotator.Config{
-		Slot:        5 * time.Minute,
+func production() rotator.Rules {
+	return rotator.Rules{
 		Window:      24 * time.Hour,
 		MinSeconds:  15,
 		MinByChance: 90,
@@ -37,9 +36,10 @@ type harness struct {
 	clock    *cptime.FixedClock
 }
 
-func newHarness(config rotator.Config) *harness {
+func newHarness(rules rotator.Rules) *harness {
 	clock := cptime.NewFixedClock(time.Date(2026, 10, 9, 8, 0, 0, 0, time.UTC))
-	return &harness{watchdog: rotator.New(config, clock, func(float64) {}), clock: clock}
+	watchdog := rotator.New(rotator.Config{Slot: 5 * time.Minute}, func() rotator.Rules { return rules }, clock, func(float64) {})
+	return &harness{watchdog: watchdog, clock: clock}
 }
 
 type player struct {
@@ -150,7 +150,7 @@ func (h *harness) second(c *crowd, clicking []player) {
 }
 
 func TestThreeAccountsThatTakeTurnsAreRead(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(production())
 
 	one := linked(address, "desktop-one", "pl")
 	two := linked(address, "desktop-two", "pl")
@@ -196,7 +196,7 @@ func TestThreeAccountsThatTakeTurnsAreRead(t *testing.T) {
 }
 
 func TestAHouseholdOfTwoIsClear(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(production())
 
 	//nolint:gosec // seeded test PRNG
 	rng := rand.New(rand.NewPCG(10, 10))
@@ -254,7 +254,7 @@ func (s *school) clicking(second int) []player {
 }
 
 func TestASchoolBehindOneAddressIsClear(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(production())
 
 	//nolint:gosec // seeded test PRNG
 	rng := rand.New(rand.NewPCG(10, 8))
@@ -271,7 +271,7 @@ func TestASchoolBehindOneAddressIsClear(t *testing.T) {
 }
 
 func TestTurnsInsideASchoolAreReadAndTheSchoolIsNot(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(production())
 
 	//nolint:gosec // seeded test PRNG
 	rng := rand.New(rand.NewPCG(10, 9))
@@ -298,7 +298,7 @@ func TestTurnsInsideASchoolAreReadAndTheSchoolIsNot(t *testing.T) {
 }
 
 func TestOneAccountAloneIsClear(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(production())
 
 	alone := linked(line, "alone", "it")
 
@@ -310,7 +310,7 @@ func TestOneAccountAloneIsClear(t *testing.T) {
 }
 
 func TestUnderTwoHoursOfTurnsIsNotEnough(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(production())
 
 	one, two := linked(line, "one", "hu"), linked(line, "two", "hu")
 
@@ -324,7 +324,7 @@ func TestUnderTwoHoursOfTurnsIsNotEnough(t *testing.T) {
 }
 
 func TestTurnsBetweenASignedInAccountAndAGuestTabAreRead(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(production())
 
 	account, tab := linked(line, "account", "hu"), guest(line, "tab", "hu")
 
@@ -337,7 +337,7 @@ func TestTurnsBetweenASignedInAccountAndAGuestTabAreRead(t *testing.T) {
 }
 
 func TestTwoGuestsOnOneBankAreNeverPaired(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(production())
 
 	one, two := guest(line, "one", "hu"), guest(line, "two", "hu")
 
@@ -348,7 +348,7 @@ func TestTwoGuestsOnOneBankAreNeverPaired(t *testing.T) {
 }
 
 func TestAccountsOnOtherFlagsAreNoRotation(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(production())
 
 	one, two := linked(line, "one", "hu"), linked(line, "two", "ro")
 
@@ -359,7 +359,7 @@ func TestAccountsOnOtherFlagsAreNoRotation(t *testing.T) {
 }
 
 func TestAccountsOnOtherScopesAreNoRotation(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(production())
 
 	one, two := linked(line, "one", "hu"), linked(address, "two", "hu")
 
@@ -370,7 +370,7 @@ func TestAccountsOnOtherScopesAreNoRotation(t *testing.T) {
 }
 
 func TestTurnsOlderThanTheWindowNoLongerCount(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(production())
 
 	one, two := linked(line, "one", "hu"), linked(line, "two", "hu")
 
@@ -384,7 +384,7 @@ func TestTurnsOlderThanTheWindowNoLongerCount(t *testing.T) {
 }
 
 func TestWithNoCertainBoundItOnlyCorroborates(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(production())
 
 	one, two := linked(line, "one", "hu"), linked(line, "two", "hu")
 
@@ -394,7 +394,7 @@ func TestWithNoCertainBoundItOnlyCorroborates(t *testing.T) {
 }
 
 func TestTheCertainBoundReadsCertain(t *testing.T) {
-	bounded := config()
+	bounded := production()
 	bounded.CertainSlots = 72
 
 	h := newHarness(bounded)
@@ -409,7 +409,9 @@ func TestTheCertainBoundReadsCertain(t *testing.T) {
 }
 
 func TestUnsetBoundsNeverRead(t *testing.T) {
-	h := newHarness(rotator.Config{})
+	unset := production()
+	unset.MinSlots = 0
+	h := newHarness(unset)
 
 	one, two := linked(line, "one", "hu"), linked(line, "two", "hu")
 

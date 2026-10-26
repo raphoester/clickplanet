@@ -49,15 +49,15 @@ func (w *Watchdog) Load(data []byte) error {
 		return err
 	}
 
-	capacity := w.capacity()
+	kept := capacity(w.rules())
 	payers := make(map[string]*payer, len(saved.Payers))
 	for _, p := range saved.Payers {
 		loaded := &payer{}
 		for _, s := range p.Steps {
 			loaded.steps = append(loaded.steps, step{at: evidence.Time(s.At), hop: s.Hop})
 		}
-		if len(loaded.steps) > capacity {
-			loaded.steps = loaded.steps[len(loaded.steps)-capacity:]
+		if len(loaded.steps) > kept {
+			loaded.steps = loaded.steps[len(loaded.steps)-kept:]
 		}
 		payers[p.Payer] = loaded
 	}

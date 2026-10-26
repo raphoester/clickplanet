@@ -9,11 +9,10 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips"
 )
 
-// Who chose the run, added to the summary file: the rules, or the model with what its call cost, or why a run drawn
-// for the model was made by the rules. Nothing with no file named, or when the experiment does not run: choose's
-// standard output is the picks, and its log says it too.
+// Who chose the run, added to the summary file: the model with what its call cost, or why the rules made the run.
+// Nothing with no file named: choose's standard output is the picks, and its log says it too.
 func Editorial(summaryFile string, editorial clips.Editorial) error {
-	if summaryFile == "" || editorial.Arm == "" {
+	if summaryFile == "" {
 		return nil
 	}
 	file, err := os.OpenFile(summaryFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600) //nolint:gosec // the file the operator of the job named.
@@ -38,10 +37,8 @@ func editorialOf(editorial clips.Editorial) string {
 		if editorial.Why != "" {
 			fmt.Fprintf(&page, " %s.", oneLine(editorial.Why))
 		}
-	case editorial.Arm == clips.ByModel:
-		page.WriteString("**Editor: the model**, with nothing to decide: no call.")
 	default:
-		fmt.Fprintf(&page, "**Editor: the %s.**", editorial.Arm)
+		page.WriteString("**Editor: the model**, with nothing to decide: no call.")
 	}
 	if editorial.Asked {
 		spend := editorial.Spend

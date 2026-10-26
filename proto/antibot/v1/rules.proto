@@ -1,0 +1,200 @@
+syntax = "proto3";
+
+package antibot.v1;
+
+import "google/protobuf/duration.proto";
+
+// Every bound the antibot judges with. A set holds every value: none falls back to another set or to a default.
+// Postgres keeps it as protojson (antibot.rule_sets.rules).
+message Rules {
+  BanRules bans = 1;
+  JuryRules jury = 2;
+  RetakerRules retaker = 3;
+  SequencerRules sequencer = 4;
+  MetronomeRules metronome = 5;
+  DefenderRules defender = 6;
+  CatcherRules catcher = 7;
+  CohortRules cohort = 8;
+  ScraperRules scraper = 9;
+  ChurnerRules churner = 10;
+  HopperRules hopper = 11;
+  RotatorRules rotator = 12;
+}
+
+message BanRules {
+  // Off, a ban is judged, logged and counted, and planet is told to refuse nobody.
+  bool enforce = 1;
+  // The ban of each offence; the last one repeats.
+  repeated google.protobuf.Duration ban_durations = 2;
+  google.protobuf.Duration reflag_interval = 3;
+}
+
+message JuryRules {
+  uint32 min_suspects = 1;
+  google.protobuf.Duration suspicion_window = 2;
+}
+
+message RetakerRules {
+  // Off, the jury reads the watchdog as clear; it keeps watching, so it reads again at once when turned on.
+  bool enabled = 1;
+  google.protobuf.Duration reaction_window = 2;
+  uint32 min_reactions = 3;
+  google.protobuf.Duration max_spread = 4;
+  google.protobuf.Duration max_median = 5;
+  // Zero never reads roam.
+  uint32 min_tiles = 6;
+  google.protobuf.Duration roam_median = 7;
+  // Zero never reads roam certain.
+  uint32 certain_tiles = 8;
+}
+
+message SequencerRules {
+  // Off, the jury reads the watchdog as clear; it keeps watching, so it reads again at once when turned on.
+  bool enabled = 1;
+  uint32 min_steps = 2;
+  double min_share = 3;
+  uint32 certain_steps = 4;
+  double certain_share = 5;
+}
+
+message MetronomeRules {
+  // Off, the jury reads the watchdog as clear; it keeps watching, so it reads again at once when turned on.
+  bool enabled = 1;
+  google.protobuf.Duration max_gap = 2;
+  google.protobuf.Duration max_spread = 3;
+  uint32 min_clicks = 4;
+  google.protobuf.Duration certain_for = 5;
+  uint32 certain_clicks = 6;
+  ShapeRules shape = 7;
+  ClockRules clock = 8;
+  StaminaRules stamina = 9;
+}
+
+message ShapeRules {
+  google.protobuf.Duration max_gap = 1;
+  uint32 clicks = 2;
+  // Unset never reads suspect: 0 is a skew.
+  optional double max_skew = 3;
+  uint32 certain_clicks = 4;
+  optional double certain_skew = 5;
+}
+
+message ClockRules {
+  google.protobuf.Duration period = 1;
+  uint32 clicks = 2;
+  // Unset never reads suspect.
+  optional double min_coherence = 3;
+  uint32 certain_clicks = 4;
+  google.protobuf.Duration certain_for = 5;
+  optional double certain_coherence = 6;
+}
+
+message StaminaRules {
+  uint32 clicks = 1;
+  google.protobuf.Duration window = 2;
+  // Zero never reads.
+  google.protobuf.Duration min_busy = 3;
+  google.protobuf.Duration certain_busy = 4;
+}
+
+message DefenderRules {
+  // Off, the jury reads the watchdog as clear; it keeps watching, so it reads again at once when turned on.
+  bool enabled = 1;
+  google.protobuf.Duration retake_window = 2;
+  uint32 min_clicks = 3;
+  // Zero never reads.
+  double min_share = 4;
+  uint32 certain_clicks = 5;
+  double certain_share = 6;
+}
+
+message CatcherRules {
+  // Off, the jury reads the watchdog as clear; it keeps watching, so it reads again at once when turned on.
+  bool enabled = 1;
+  uint32 min_catches = 2;
+  google.protobuf.Duration max_median = 3;
+  google.protobuf.Duration certain_median = 4;
+  ForeignRules foreign = 5;
+}
+
+message ForeignRules {
+  google.protobuf.Duration window = 1;
+  // Zero never reads.
+  uint32 min_claims = 2;
+  uint32 certain_claims = 3;
+}
+
+message CohortRules {
+  // Off, the jury reads the watchdog as clear; it keeps watching, so it reads again at once when turned on.
+  bool enabled = 1;
+  google.protobuf.Duration start_window = 2;
+  uint32 min_clicks = 3;
+  double min_flag_share = 4;
+  double rate_ratio = 5;
+  double length_ratio = 6;
+  google.protobuf.Duration quiet_after = 7;
+  uint32 min_members = 8;
+  uint32 certain_cohorts = 9;
+  // The crowd: scopes in step in one group from one prefix.
+  uint32 certain_members = 10;
+  google.protobuf.Duration chain_window = 11;
+}
+
+message ScraperRules {
+  // Off, the jury reads the watchdog as clear; it keeps watching, so it reads again at once when turned on.
+  bool enabled = 1;
+  double min_maps = 2;
+  double certain_maps = 3;
+  uint32 certain_off_map = 4;
+}
+
+message ChurnerRules {
+  // Off, the jury reads the watchdog as clear; it keeps watching, so it reads again at once when turned on.
+  bool enabled = 1;
+  google.protobuf.Duration window = 2;
+  AccountBounds v6 = 3;
+  AccountBounds v4 = 4;
+  RelayRules relay = 5;
+}
+
+// Zero never reads.
+message AccountBounds {
+  uint32 min_accounts = 1;
+  uint32 certain_accounts = 2;
+}
+
+message RelayRules {
+  google.protobuf.Duration handoff = 1;
+  google.protobuf.Duration max_life = 2;
+  uint32 min_clicks = 3;
+  double min_flag_share = 4;
+  // Zero never reads.
+  uint32 min_links = 5;
+  uint32 certain_links = 6;
+}
+
+message HopperRules {
+  // Off, the jury reads the watchdog as clear; it keeps watching, so it reads again at once when turned on.
+  bool enabled = 1;
+  // Degrees.
+  double min_angle = 2;
+  google.protobuf.Duration min_gap = 3;
+  google.protobuf.Duration max_gap = 4;
+  uint32 min_steps = 5;
+  // Zero never reads.
+  double min_share = 6;
+  uint32 certain_steps = 7;
+  double certain_share = 8;
+}
+
+message RotatorRules {
+  // Off, the jury reads the watchdog as clear; it keeps watching, so it reads again at once when turned on.
+  bool enabled = 1;
+  google.protobuf.Duration window = 2;
+  uint32 min_seconds = 3;
+  double min_by_chance = 4;
+  double max_share = 5;
+  // Zero never reads.
+  uint32 min_slots = 6;
+  uint32 certain_slots = 7;
+}

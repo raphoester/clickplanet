@@ -7,7 +7,7 @@ import {afterEach, describe, expect, it} from "vitest"
 import {AROUND} from "../chat/theirConversations.ts"
 import {ACCOUNT, AT, FakeAdmin} from "../fakeAdmin.ts"
 import {KeptMessage} from "../gen/grpc/chat/v1/admin_pb.ts"
-import {InspectPlayerResponse} from "../gen/grpc/planet/v1/admin_pb.ts"
+import {InspectPlayerResponse} from "../gen/grpc/antibot/v1/admin_pb.ts"
 import {Author} from "../gen/grpc/player/v1/internal_pb.ts"
 import {CountryTiles} from "../gen/grpc/player/v1/player_pb.ts"
 import {Opened} from "../navigation.ts"
@@ -221,7 +221,7 @@ describe("one player", () => {
 
     it("says the antibot is off rather than failing", async () => {
         const admin = new FakeAdmin()
-        admin.refuse("inspectPlayer", Code.FailedPrecondition)
+        admin.refuse("inspectPlayer", Code.Unimplemented)
         render(<Page admin={admin} first={account}/>)
 
         expect(await screen.findByText("The antibot is off on this server, so it cannot ban, unban or inspect.")).toBeTruthy()
@@ -301,6 +301,20 @@ describe("one player", () => {
         expect(await screen.findByText("It held 2 enclosures. It holds a bomb and 3 enclosures.")).toBeTruthy()
         expect(admin.askedFor("grantCharges")).toEqual([{
             accountId: ACCOUNT, refill: false, bomb: true, enclosures: 3, spreadClicks: 0, shields: 0,
+        }])
+    })
+
+    it("maxes out every charge in one tap, and says what fit", async () => {
+        const admin = new FakeAdmin()
+        render(<Page admin={admin} first={account}/>)
+
+        fireEvent.click(screen.getByRole("button", {name: "Max out"}))
+        expect(screen.getByText("Give BraveFox42 every charge, as many as fit?")).toBeTruthy()
+        fireEvent.click(screen.getByRole("button", {name: "Yes, max out"}))
+
+        expect(await screen.findByText("It held 2 enclosures. It holds a bomb and 3 enclosures.")).toBeTruthy()
+        expect(admin.askedFor("grantCharges")).toEqual([{
+            accountId: ACCOUNT, refill: true, bomb: true, enclosures: 99, spreadClicks: 99, shields: 99,
         }])
     })
 

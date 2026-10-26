@@ -43,6 +43,9 @@ type (
 	Variants        = posts.Variants
 	Platform        = posts.Platform
 	Report          = posts.Report
+	Outcome         = posts.Outcome
+	Sound           = posts.Sound
+	Track           = posts.Track
 	PlatformOutcome = posts.PlatformOutcome
 	StatsReport     = stats.Report
 )
@@ -57,6 +60,9 @@ type Config struct {
 	Spacing time.Duration
 	// Each clip is one post on all of them that have room left in their day.
 	Platforms []Platform
+	// The country of TikTok's trending chart a clip of the experiment "sound" drawn for a trending track gets one from:
+	// ISO 3166-1 alpha-2. Empty is defaultSoundCountry.
+	SoundCountry string
 	// The posts a snapshot of their numbers reads: those scheduled since then. Zero is the last 4 weeks.
 	StatsSince time.Time
 
@@ -84,6 +90,7 @@ const (
 	// A 22s clip is about 80 MB to upload.
 	serviceTimeout = 10 * time.Minute
 	historyTimeout = time.Minute
+	chartTimeout   = time.Minute
 	statsTimeout   = time.Minute
 )
 
@@ -95,7 +102,17 @@ var (
 	dailyBudget = posts.Budget{posts.TikTok: 14, posts.YouTube: 8}
 )
 
-const ByModel = posts.ByModel
+const TikTok = posts.TikTok
+
+var ErrChartCountry = posts.ErrChartCountry
+
+// Where most of the clips' TikTok views are expected to come from until the stats say: the largest audience of a
+// game captioned in English. The arm records the chart it read, so a change shows in the analysis.
+const defaultSoundCountry = "US"
+
+func ChartCountryOf(code string) (string, error) {
+	return posts.ChartCountryOf(code) //nolint:wrapcheck // a pure delegation: the domain already named what is wrong.
+}
 
 // What a call of input tokens in and output out costs the editor's model.
 func SpendOf(input, output int64) posts.Spend {
@@ -119,6 +136,9 @@ func (c Config) withDefaults() Config {
 	}
 	if len(c.Platforms) == 0 {
 		c.Platforms = defaultPlatforms
+	}
+	if c.SoundCountry == "" {
+		c.SoundCountry = defaultSoundCountry
 	}
 	return c
 }
@@ -208,8 +228,8 @@ type Trial struct {
 	Headlines    map[Pick]string
 }
 
-// The editor tried by hand on a saved shortlist, outside any run: no coin, every platform with room for PerRun clips,
-// and what was told read from the posting service when a Zernio key is set, else nothing told.
+// The editor tried by hand on a saved shortlist, outside any run: every platform with room for PerRun clips, and what
+// was told read from the posting service when a Zernio key is set, else nothing told.
 func Edit(ctx context.Context, shortlist string, promptOnly bool, config Config, logger *slog.Logger) (Trial, error) {
 	config = config.withDefaults()
 	now := cptime.SystemClock{}.Now()
@@ -262,11 +282,16 @@ func Schedule(ctx context.Context, folder string, config Config, logger *slog.Lo
 		return nil, fmt.Errorf("failed to build the posting service: %w", err)
 	}
 	sender := posts.NewSender(log_service.New(service, logger), defaultBackoff, posts.SystemPause{}, clock)
+	// A chart that hangs falls back in a minute, not in the upload's 10.
+	charts, err := zernio.New(config.Zernio, &http.Client{Timeout: chartTimeout})
+	if err != nil {
+		return nil, fmt.Errorf("failed to build the posting service: %w", err)
+	}
 
 	schedule := log_schedule_clips.New(schedule_clips_usecase.New(
 		generator_output.Folder(folder), service,
 		posts.Plan{Review: config.Review, Spacing: config.Spacing, Platforms: config.Platforms, Budget: dailyBudget},
-		clock, posts.SystemDice{}, sender, experiments,
+		clock, posts.SystemDice{}, sender, experiments, charts, posts.Soundtracks{Country: config.SoundCountry},
 	), logger)
 
 	return schedule.Execute(ctx)

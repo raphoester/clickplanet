@@ -11,10 +11,29 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
+func bounds(change func(*Rules)) func() Rules {
+	r := Rules{
+		StartWindow:    5 * time.Second,
+		MinClicks:      20,
+		MinFlagShare:   0.9,
+		RateRatio:      1.5,
+		LengthRatio:    1.2,
+		QuietAfter:     time.Minute,
+		MinMembers:     2,
+		CertainCohorts: 3,
+		CertainMembers: 6,
+		ChainWindow:    30 * time.Minute,
+	}
+	change(&r)
+	return func() Rules { return r }
+}
+
+func asIs(*Rules) {}
+
 func TestMembersSurviveASaveAndLoad(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 14, 12, 0, 0, 0, time.UTC))
 
-	w := New(Config{}, clock, nil)
+	w := New(Config{}, bounds(asIs), clock, nil)
 	for range 30 {
 		clock.Advance(time.Second)
 		for _, scope := range []string{"203.0.113.7", "203.0.113.9"} {
@@ -25,7 +44,7 @@ func TestMembersSurviveASaveAndLoad(t *testing.T) {
 	data, err := w.Save()
 	require.NoError(t, err)
 
-	restarted := New(Config{}, clock, nil)
+	restarted := New(Config{}, bounds(asIs), clock, nil)
 	require.NoError(t, restarted.Load(data))
 
 	clock.Advance(time.Second)
@@ -42,7 +61,7 @@ func TestMembersSurviveASaveAndLoad(t *testing.T) {
 func TestForgetDropsMembersAndTheirIndexes(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 14, 12, 0, 0, 0, time.UTC))
 
-	w := New(Config{}, clock, nil)
+	w := New(Config{}, bounds(asIs), clock, nil)
 	w.Attempted(detect.Click{Scope: "203.0.113.7", Country: "BG", At: clock.Now()})
 
 	w.Forget(clock.Now().Add(time.Second))

@@ -164,6 +164,35 @@ message PostFacts {
   // Its place in its run, from 1, in the order the run's posts go out, and how many the run has.
   uint32 run_position = 4;
   uint32 run_size = 5;
+  // The arm of each experiment the post went out in, when the job moved it to another at post time ({"sound":
+  // "fell-back"}: drawn for a trending track, posted with the anthem because the chart could not be read). Absent when
+  // it moved none: the post went out in the clip's own arms, clip.variants.
+  map<string, string> variants = 6;
+  // The trending track attached on TikTok, for a post of the experiment "sound" drawn for one. Absent for a post with
+  // the anthem alone, and on YouTube, which is sent the video as it is.
+  TikTokSound sound = 7;
+}
+
+// A track of TikTok's Commercial Music Library attached over the clip on TikTok, and how it was mixed. One protojson
+// leaves out is its zero: no original_volume is the video's own sound muted.
+message TikTokSound {
+  // What TikTok was sent as musicSoundId: the id of the track's trending excerpt, or of the whole track when it has
+  // none.
+  string id = 1;
+  // Which of the two id is: "excerpt" or "track".
+  string id_of = 2;
+  string title = 3;
+  string artist = 4;
+  // Its place in the chart it was picked from, from 1.
+  uint32 rank = 5;
+  // The chart's country, ISO 3166-1 alpha-2 in upper case ("US").
+  string chart_country = 6;
+  // How long what id names plays, as the chart said; 0 when it did not say.
+  uint32 duration_seconds = 7;
+  // From 0 to 100: the track's volume (musicSoundVolume), and the video's own sound under it, the anthem
+  // (videoOriginalSoundVolume).
+  uint32 track_volume = 8;
+  uint32 original_volume = 9;
 }
 
 message TaggedCountry {

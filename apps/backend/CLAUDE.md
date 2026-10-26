@@ -21,8 +21,8 @@ and says what is in it. Read the doc before you change its area.
 
 ## How the code is shaped
 
-- [Seven bounded contexts, one process](docs/bounded-contexts.md) — planet, chat, auth, player, seasons, support,
-  missions.
+- [Eight bounded contexts, one process](docs/bounded-contexts.md) — planet, chat, auth, player, seasons, support,
+  missions, antibot.
   A module publishes its root package and hides the rest.
 - [The composite layer](docs/composite-layer.md) — each context wires itself in its `module.go`; how a module
   calls another one, how it tells the others what happened and asks one to change something: Redis Streams,
@@ -47,6 +47,8 @@ and says what is in it. Read the doc before you change its area.
 
 - [Key flow](docs/key-flow.md) — the path of one click, step by step, from the mint to the stream.
 - [The map load](docs/map-load.md) — `GetMap` is a cached HTTP GET; the stream carries what follows.
+- [The map's version](docs/map-version.md) — every write counts one, published under the tiles lock so streams get
+  them in order; `GetHoldings` and the one-second `holdings_changed`; the ETag and the 304.
 - [The live streams](docs/live-streams.md) — the `ListenForEvents` streams, served two ways, and how they end on
   shutdown.
 - [Durability](docs/durability.md) — the map lives in memory and goes to postgres every second; what a crash
@@ -72,15 +74,17 @@ and says what is in it. Read the doc before you change its area.
   identity token.
 - [Auth](docs/auth.md) — Turnstile, guest and signed-in accounts (Google, Discord, emailed code), operators,
   sign-out, deletion and pruning.
-- [Anti-bot](docs/antibot.md) — the watchdogs and the jury that ban scripts, how a ban is told, what survives a
-  restart, and the parts that are easy to get wrong.
+- [Anti-bot](docs/antibot.md) — a module that hears planet's facts about callers, judges them, and asks planet to
+  refuse the ones it bans; what survives a restart, and the parts that are easy to get wrong.
+- [The antibot's rules](docs/antibot-rules.md) — every bound is a rule set in postgres, edited from the backoffice;
+  the pointer the watchdogs read, which set plays, and what stays in the YAML.
 
 ## The other contexts
 
 - [Chat](docs/chat.md) — messages, announcements, mutes, removals, replies, reactions, and what each account saw.
 - [Player](docs/player.md) — names and guest codes, stats, streaks, titles, and who is playing now.
 - [Seasons](docs/seasons.md) — the season calendar, its standings, the daily rounds and the finale.
-- [Missions](docs/missions.md) — three missions a day per flag, counted from `TileTaken`, paid once done with a
+- [Missions](docs/missions.md) — three to five missions a day per flag, counted from `TileTaken`, paid once done with a
   `GrantCharges` command to planet; why progress is not read from the ledger.
 - [Support](docs/support.md) — suggestions, bug reports and player reports, with their photos and videos.
 - [Clip stats](docs/clip-stats.md) — where the posted clips' daily numbers are kept, for the backoffice.

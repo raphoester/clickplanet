@@ -18,6 +18,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_map_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/map_density_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/facts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/click_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_budget_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_map_handler"
@@ -26,6 +27,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconnect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cphttpserver"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 	"github.com/stretchr/testify/require"
 )
 
@@ -42,13 +44,15 @@ type stubChecker struct{}
 
 func (stubChecker) MaxIndex() uint32 { return 100 }
 
+func (stubChecker) OffMap(start, end uint32) bool { return start == 0 || end > 100 }
+
 type stubSubscriber struct {
 	updates chan clicks.Change
 	err     error
 }
 
-func (s stubSubscriber) Subscribe(context.Context) (<-chan clicks.Change, error) {
-	return s.updates, s.err
+func (s stubSubscriber) Subscribe(context.Context) (<-chan clicks.Change, clicks.MapVersion, error) {
+	return s.updates, clicks.MapVersion{}, s.err
 }
 
 type stubMapReader struct{}
@@ -80,9 +84,10 @@ func clickServerWith(
 			ClickHandler:      click_handler.New(clickUseCase),
 			GetBudgetHandler:  get_budget_handler.New(get_budget_usecase.New(budgets, onePrice, buckets)),
 			MapDensityHandler: map_density_handler.New(map_density_usecase.New(stubChecker{})),
-			GetMapHandler:     get_map_handler.New(get_map_usecase.New(stubChecker{}, stubMapReader{})),
+			GetMapHandler:     get_map_handler.New(get_map_usecase.New(stubChecker{}, stubMapReader{}, facts.NewLog(cptime.SystemClock{}))),
 			ListenForEventsHandler: listen_for_events_handler.New(
-				listen_for_events_usecase.New(stubSubscriber{}, listen_for_events_usecase.DefaultHeartbeat, noBoxes{})),
+				listen_for_events_usecase.New(stubSubscriber{}, listen_for_events_usecase.DefaultHeartbeat, noBoxes{},
+					facts.NewLog(cptime.SystemClock{}))),
 		},
 		options...,
 	))

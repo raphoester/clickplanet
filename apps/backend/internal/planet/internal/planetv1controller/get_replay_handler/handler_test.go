@@ -63,7 +63,7 @@ func TestAnInvalidWindowIsTheCallersMistake(t *testing.T) {
 
 func TestEachSceneGoesOutAsTheLiveStreamSentIt(t *testing.T) {
 	blast := clicks.Blast{
-		Tile: 5, CountryID: "fr", Radius: 0.03, Cleared: []uint32{5, 6}, Struck: []uint32{7},
+		Tile: 5, CountryID: "fr", Radius: 0.03, Cleared: []uint32{5, 6}, Struck: []uint32{7}, Left: []int{1},
 		Point: clicks.Vec3{X: 1},
 	}
 	useCase := &stubUseCase{out: replay_usecase.Out{
@@ -111,7 +111,9 @@ func TestEachSceneGoesOutAsTheLiveStreamSentIt(t *testing.T) {
 	bomb := events[1].GetEvent().GetBombDropped()
 	assert.Equal(t, uint32(5), bomb.GetTileId())
 	assert.Equal(t, []uint32{5, 6}, bomb.GetClearedTileIds())
-	assert.Equal(t, []uint32{7}, bomb.GetStruckTileIds())
+	assert.Equal(t, []uint32{7}, bomb.GetStruckTileIds()) //nolint:staticcheck // still sent to the tabs loaded before it was deprecated.
+	assert.Equal(t, uint32(1), bomb.GetStruck()[0].GetShields())
+	assert.Nil(t, bomb.GetVersion(), "a replay is not the live map: no version")
 	assert.InDelta(t, 1.0, bomb.GetPoint().GetX(), 1e-9)
 
 	spread := events[2].GetEvent().GetTilesSpread()

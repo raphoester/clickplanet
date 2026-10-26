@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions"
@@ -72,8 +73,10 @@ func startGame(t *testing.T) gameStack {
 	planetConfig.GameMap.MaxIndex = mapTiles
 	planetConfig.Auth = cpsession.VerifierConfig{Enabled: true, Enforce: true}
 	planetConfig.RateLimiter.PerSecond = 100
-	planetConfig.RateLimiter.Burst = 100
+	planetConfig.RateLimiter.Burst = 1000
 	planetConfig.RateLimiter.ScopeMultiplier = 1
+
+	antibotConfig := antibot.Config{Enabled: true, Database: postgres.ConfigFor("antibot"), Redis: redis}
 
 	playerConfig := player.Config{Database: postgres.ConfigFor("player"), Redis: redis, TagSalt: "pepper"}
 
@@ -109,8 +112,9 @@ func startGame(t *testing.T) gameStack {
 			Server: server,
 			Logger: logger,
 			Modules: []cpbootstrap.Module{
-				authModule, planet.NewModule(planetConfig), player.NewModule(playerConfig), chat.NewModule(chatConfig),
-				seasons.NewModule(seasonsConfig), support.NewModule(supportConfig), missions.NewModule(missionsConfig),
+				authModule, planet.NewModule(planetConfig), antibot.NewModule(antibotConfig), player.NewModule(playerConfig),
+				chat.NewModule(chatConfig), seasons.NewModule(seasonsConfig), support.NewModule(supportConfig),
+				missions.NewModule(missionsConfig),
 			},
 			AdminGate: gate,
 		}, public, internal, console, admin)

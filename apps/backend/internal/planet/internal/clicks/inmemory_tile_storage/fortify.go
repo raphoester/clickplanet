@@ -20,8 +20,9 @@ func (s *Storage) Fortify(ctx context.Context, tile uint32, flag string, most in
 	}
 
 	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	if err := s.fortifyErrorLocked(landmass, flag); err != nil {
-		s.mu.Unlock()
 		return clicks.Fortification{}, err
 	}
 
@@ -34,13 +35,12 @@ func (s *Storage) Fortify(ctx context.Context, tile uint32, flag string, most in
 		}
 	}
 	s.lockLocked(landmass, flag)
-	s.mu.Unlock()
 
 	fortification := clicks.Fortification{
 		Landmass: landmass, Ground: s.landmasses.groundOf(tile), Country: flag, Tile: tile,
 		Account: cpctx.GetAccount(ctx), Tiles: len(members), Raised: raised,
 	}
-	s.feed.publish(clicks.Change{Fortification: &fortification})
+	s.publishLocked(clicks.Change{Fortification: &fortification})
 
 	return fortification, nil
 }

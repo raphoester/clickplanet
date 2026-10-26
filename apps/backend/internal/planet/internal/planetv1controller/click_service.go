@@ -11,6 +11,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_budget_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_charges_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_fortresses_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_holdings_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_landmass_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_map_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_tile_holder_handler"
@@ -27,6 +28,7 @@ type ClickService struct {
 	get_budget_handler.GetBudgetHandler
 	map_density_handler.MapDensityHandler
 	get_map_handler.GetMapHandler
+	get_holdings_handler.GetHoldingsHandler
 	listen_for_events_handler.ListenForEventsHandler
 	claim_bonus_handler.ClaimBonusHandler
 	drop_bomb_handler.DropBombHandler

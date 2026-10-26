@@ -223,3 +223,39 @@ func TestAServiceBusyForTooLongLosesThatPostOnly(t *testing.T) {
 	require.Len(t, report.Unread, 1)
 	assert.Equal(t, stats.PostID("post-1"), report.Unread[0].PostID)
 }
+
+// YouTube's daily quota spent answers every curve with a wait until midnight Pacific: one is enough to know.
+func TestACurveRefusedForLongerThanTheBackoffStopsTheCurvesOfTheRun(t *testing.T) {
+	spent := &posts.BusyError{RetryAfter: time.Hour, Reason: "YouTube Analytics daily quota exhausted"}
+	from := &source{
+		accounts:   stats.Accounts{AnalyticsAccess: true},
+		posts:      []stats.Post{postOn("post-1", true), postOn("post-2", true), postOn("post-3", true)},
+		retentions: []error{nil, spent},
+	}
+
+	report, kept, _, err := snapshot(t, from, time.Time{})
+
+	require.NoError(t, err)
+	assert.Equal(t, []string{"yt-1/abc-post-1@2026-10-24", "yt-1/abc-post-2@2026-10-24"}, from.curvesOf, "post-3's is not asked")
+	assert.Len(t, kept.kept, 6, "every post's rows are kept, its analytics too")
+	assert.True(t, kept.kept[1].Retention.Curve())
+	require.Len(t, report.Unread, 2)
+	assert.Equal(t, stats.PostID("post-2"), report.Unread[0].PostID)
+	assert.Contains(t, report.Unread[0].Reason, "the retention of abc-post-2: the posting service is busy for 1h0m0s: YouTube Analytics daily quota exhausted")
+	assert.Equal(t, stats.PostID("post-3"), report.Unread[1].PostID)
+	assert.Contains(t, report.Unread[1].Reason, "the retention of abc-post-3: not asked: the posting service is busy for 1h0m0s: YouTube Analytics daily quota exhausted")
+}
+
+func TestACurveThatFailsOtherwiseStopsNoOther(t *testing.T) {
+	from := &source{
+		accounts:   stats.Accounts{AnalyticsAccess: true},
+		posts:      []stats.Post{postOn("post-1", true), postOn("post-2", true)},
+		retentions: []error{errors.New("no")},
+	}
+
+	report, _, _, err := snapshot(t, from, time.Time{})
+
+	require.NoError(t, err)
+	assert.Len(t, from.curvesOf, 2)
+	assert.Len(t, report.Unread, 1)
+}

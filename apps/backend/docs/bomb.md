@@ -25,8 +25,9 @@ bomb that visibly covered it. A circle has neither problem.
 **A bomb hits a shielded tile like a click.** `inmemory_tile_storage.Clear` takes
 one shield from each shielded tile in the blast, whoever's it is, and clears the
 rest, under one lock: a shielded tile keeps its flag, is not in `cleared_tile_ids`,
-and is listed in `struck_tile_ids` (`Blast.Struck`), so a client takes one shield
-off it at impact. See [Shields](shields.md).
+and is listed in `struck` with the shields it kept (`Blast.Struck`, `Blast.Left`), so a
+client sets its shields at impact. `struck_tile_ids`, the same tiles with no count, is
+deprecated and still filled for the tabs loaded before. See [Shields](shields.md).
 
 `drop_bomb_usecase` checks the country and the target **before** taking the bomb, so a
 malformed request does not cost one. The drop does not move the schedule: the next
@@ -53,7 +54,7 @@ by the ledger relay once the ledger flushed it, and the chat announces it — se
 **And the ledger keeps it**: the drop clears through `ledger.Recording`, so every
 bomb that went off is one event in `planet.ledger_events`, with the flag each tile
 it cleared wore and the shields each tile it struck kept — see [Manual bans](admin.md#manual-bans-findplayers-topplayers-banplayer-unbanplayer-revertplayer-inspectplayer).
-**The ban applies**: `antibot_drop_bomb` refuses a banned caller's drop before the
+**The ban applies**: `refusal_drop_bomb` refuses a refused caller's drop before the
 bomb is spent, with the same `BanRefusal` as a click (see [A ban is told](antibot.md#a-ban-is-told)),
 so the bomb stays in hand. It sits inside the count so the counter can label it.
 `prom_drop_bomb` counts `bonus_bombs_dropped_total{outcome=land|sea|banned|refused}`

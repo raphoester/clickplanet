@@ -32,7 +32,7 @@
   `not_found`: "That part of the chat is no longer kept."
 - **The actions, all on the reported account id**, never its name: remove the message (`RemoveMessage`, only while
   it is shown), mute (`Mute`, an hour by default), ban (`BanPlayer`, no duration by default, so the antibot's
-  ladder picks the next step) and inspect (`InspectPlayer`). Then close the report (`DecideReport`): Acted or
+  ladder picks the next step) and inspect (`InspectPlayer`), both `antibot.v1`'s. Then close the report (`DecideReport`): Acted or
   Dismissed, with an optional comment of up to 1000 characters. A second decision replaces the first.
 - **"Every tool →" opens the reported account on the player page** (`OpenPlayer` in `navigation.ts`, which `App`
   provides): unban, revert, its address. The mute, ban and inspect here are the player page's own components.

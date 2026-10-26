@@ -56,7 +56,7 @@ describe("ban", () => {
 
     it("says the antibot is off when the server cannot ban", async () => {
         const admin = new FakeAdmin()
-        admin.refuse("banPlayer", Code.FailedPrecondition)
+        admin.refuse("banPlayer", Code.Unimplemented)
 
         const err = await ban(admin, account, LADDER).catch((e: unknown) => e)
         expect(refusalOf("ban", err)).toBe("The antibot is off on this server, so it cannot ban, unban or inspect.")
@@ -103,7 +103,7 @@ describe("inspect", () => {
 
     it("says the antibot is off when the server cannot inspect", async () => {
         const admin = new FakeAdmin()
-        admin.refuse("inspectPlayer", Code.FailedPrecondition)
+        admin.refuse("inspectPlayer", Code.Unimplemented)
 
         const err = await inspect(admin, account).catch((e: unknown) => e)
         expect(refusalOf("inspect", err)).toBe("The antibot is off on this server, so it cannot ban, unban or inspect.")

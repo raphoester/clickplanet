@@ -18,12 +18,13 @@ type harness struct {
 	tile     uint32
 }
 
-func newHarness(config metronome.Config) *harness {
+func newHarness(rules metronome.Rules, config metronome.Config) *harness {
 	h := &harness{
 		clock: cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC)),
 		tile:  1,
 	}
-	h.watchdog = metronome.New(config, h.clock, func(float64) {}, func(float64) {}, func(time.Duration) {})
+	h.watchdog = metronome.New(config, func() metronome.Rules { return rules }, h.clock,
+		func(float64) {}, func(float64) {}, func(time.Duration) {})
 	return h
 }
 
@@ -63,19 +64,28 @@ func (h *harness) beat(gap time.Duration, count int) (detect.Verdict, detect.Evi
 	return verdict, evidence
 }
 
-func config() metronome.Config {
-	return metronome.Config{
+// The bounds the watchdog shipped with, when it filled the ones a config left out.
+func shipped() metronome.Rules {
+	return metronome.Rules{
 		MaxGap:        3 * time.Second,
 		MaxSpread:     120 * time.Millisecond,
-		MinClicks:     20,
-		CertainFor:    10 * time.Minute,
-		CertainClicks: 300,
-		TrackWindow:   time.Hour,
+		MinClicks:     120,
+		CertainFor:    30 * time.Minute,
+		CertainClicks: 900,
+		Shape:         metronome.ShapeRules{MaxGap: 10 * time.Second, Clicks: 500, CertainClicks: 1000},
+		Clock:         metronome.ClockRules{Period: time.Second, Clicks: 120, CertainClicks: 600, CertainFor: 30 * time.Minute},
+		Stamina:       metronome.StaminaRules{Clicks: 40, Window: 6 * time.Hour},
 	}
 }
 
+func cadenced() (metronome.Rules, metronome.Config) {
+	rules := shipped()
+	rules.MinClicks, rules.CertainFor, rules.CertainClicks = 20, 10*time.Minute, 300
+	return rules, metronome.Config{TrackWindow: time.Hour}
+}
+
 func TestAClockHeldPastAnythingAPersonSustainsIsCertain(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(cadenced())
 
 	verdict, evidence := h.beat(time.Second, 700)
 
@@ -84,7 +94,7 @@ func TestAClockHeldPastAnythingAPersonSustainsIsCertain(t *testing.T) {
 }
 
 func TestAShortSteadyRunIsOnlySuspect(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(cadenced())
 
 	verdict, _ := h.beat(time.Second, 30)
 
@@ -92,7 +102,7 @@ func TestAShortSteadyRunIsOnlySuspect(t *testing.T) {
 }
 
 func TestTempoIsNotTheSignal(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(cadenced())
 
 	verdict, _ := h.beat(2500*time.Millisecond, 700)
 
@@ -100,7 +110,7 @@ func TestTempoIsNotTheSignal(t *testing.T) {
 }
 
 func TestAHandIsNotAClock(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(cadenced())
 
 	gaps := []time.Duration{
 		400, 1200, 650, 2100, 380, 900, 1500, 550, 2600, 700,
@@ -118,7 +128,7 @@ func TestAHandIsNotAClock(t *testing.T) {
 }
 
 func TestLookingAwayOnceEndsTheRun(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(cadenced())
 
 	require.Equal(t, detect.Certain, func() detect.Verdict { v, _ := h.beat(time.Second, 700); return v }())
 
@@ -133,7 +143,7 @@ func TestLookingAwayOnceEndsTheRun(t *testing.T) {
 }
 
 func TestASmallWobbleIsStillAClock(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(cadenced())
 
 	gaps := []time.Duration{1000, 1012, 995, 1008, 1003, 990, 1015, 1001}
 
@@ -148,7 +158,7 @@ func TestASmallWobbleIsStillAClock(t *testing.T) {
 }
 
 func TestTheThrottleDoesNotHideTheClock(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(cadenced())
 
 	var verdict detect.Verdict
 	for try := range 3000 {
@@ -163,7 +173,7 @@ func TestTheThrottleDoesNotHideTheClock(t *testing.T) {
 }
 
 func TestTheAcceptedClicksAloneDoNotLookLikeAClock(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(cadenced())
 
 	var verdict detect.Verdict
 	for try := range 3000 {
@@ -178,7 +188,7 @@ func TestTheAcceptedClicksAloneDoNotLookLikeAClock(t *testing.T) {
 }
 
 func TestAClickNeverTriedIsNotJudged(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(cadenced())
 
 	verdict, _ := h.watchdog.Watch(detect.Click{Scope: "caller", Tile: 1, Country: "FR", At: h.clock.Now()})
 
@@ -186,7 +196,7 @@ func TestAClickNeverTriedIsNotJudged(t *testing.T) {
 }
 
 func TestJitteringWideEnoughBuysTheCallerOut(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(cadenced())
 
 	gaps := []time.Duration{700, 1300, 900, 1500, 600, 1200, 1000, 1400}
 

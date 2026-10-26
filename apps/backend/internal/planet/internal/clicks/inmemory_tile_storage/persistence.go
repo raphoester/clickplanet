@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
+	"sync"
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
@@ -106,6 +107,10 @@ func (s *Storage) Load(ctx context.Context) error {
 func (s *Storage) Name() string { return "tiles-storage" }
 
 func (s *Storage) Run(ctx context.Context) {
+	var ticking sync.WaitGroup
+	ticking.Go(func() { s.publishTallyEvery(ctx, tallyInterval) })
+	defer ticking.Wait()
+
 	ticker := time.NewTicker(s.config.FlushInterval)
 	defer ticker.Stop()
 

@@ -31,7 +31,7 @@ export default function TabBar({open, onOpen, chat, unread, you, missions}: TabB
         {tab("board", "Board", <TrophyIcon/>)}
         {missions !== undefined && tab("missions", "Missions", <TargetIcon/>,
             missions > 0 && <span className="chip tab-bar-badge" key={missions} aria-hidden="true">{missions}</span>,
-            missions === 0 ? undefined : missions === 1 ? "Missions, 1 to collect" : `Missions, ${missions} to collect`)}
+            missions === 0 ? undefined : missions === 1 ? "Missions, 1 new" : `Missions, ${missions} new`)}
         {chat && tab("chat", "Chat", <ChatIcon/>,
             unread > 0 && <span className="chip tab-bar-badge" key={unread} aria-hidden="true">
                 {unread > UNREAD_CAP ? `${UNREAD_CAP}+` : unread}

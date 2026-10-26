@@ -31,8 +31,9 @@ type sentPost struct {
 }
 
 type sentTarget struct {
-	Platform      string `json:"platform"`
-	CustomContent string `json:"customContent"`
+	Platform             string         `json:"platform"`
+	CustomContent        string         `json:"customContent"`
+	PlatformSpecificData map[string]any `json:"platformSpecificData"`
 }
 
 type keptPost struct {
@@ -48,6 +49,13 @@ type keptTarget struct {
 }
 
 func zernio(t *testing.T, posts *[]sentPost) *httptest.Server {
+	t.Helper()
+
+	return zernioWith(t, posts, func(string) (int, string) { return http.StatusNotFound, `{"error":"not asked"}` })
+}
+
+// chart: what the TikTok account's commercial music library answers for a country.
+func zernioWith(t *testing.T, posts *[]sentPost, chart func(country string) (int, string)) *httptest.Server {
 	t.Helper()
 
 	var server *httptest.Server
@@ -66,6 +74,10 @@ func zernio(t *testing.T, posts *[]sentPost) *httptest.Server {
 			assert.NoError(t, json.Unmarshal(raw, &asked))
 			_, _ = fmt.Fprintf(w, `{"uploadUrl":%q,"publicUrl":%q}`, server.URL+"/storage/"+asked.Filename, "https://media.example/"+asked.Filename)
 		case "PUT /storage/clip-1.mp4", "PUT /storage/clip-2.mp4":
+		case "GET /v1/accounts/acc-1/tiktok/commercial-music":
+			status, body := chart(r.URL.Query().Get("countryCode"))
+			w.WriteHeader(status)
+			_, _ = fmt.Fprint(w, body)
 		case "POST /v1/posts":
 			var post sentPost
 			assert.NoError(t, json.Unmarshal(raw, &post))
@@ -225,14 +237,14 @@ func configFor(server *httptest.Server) clips.Config {
 }
 
 // The picks, each in an arm of the length experiment: the coins are the system's, so which arm is not known. With no
-// ANTHROPIC_API_KEY a run drawn for the model falls back to the rules, so the picks are the rules' either way.
+// ANTHROPIC_API_KEY the run falls back to the rules, so the picks are the rules'.
 func picksOf(t *testing.T, choice clips.Choice) []clips.Pick {
 	t.Helper()
 
 	picks := make([]clips.Pick, 0, len(choice.Assigned))
 	for _, assignment := range choice.Assigned {
 		assert.Contains(t, []string{"as-chosen", "short"}, assignment.Variants["length"])
-		assert.Contains(t, []string{"rules", "fell-back"}, assignment.Variants["editor"])
+		assert.NotContains(t, assignment.Variants, "editor")
 		assert.Empty(t, assignment.Headline)
 		picks = append(picks, assignment.Pick)
 	}
@@ -248,6 +260,7 @@ func TestChoosingGivesTheBestStoriesOfDifferentFlagsOrContinents(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []clips.Pick{1, 3}, picksOf(t, picks))
 	assert.Contains(t, logs.String(), `msg="skipped a story told already" pick=2 title="ALGERIA VS FRANCE"`)
+	assert.Contains(t, logs.String(), `level=WARN msg="the run is made by the rules" why="no ANTHROPIC_API_KEY"`)
 }
 
 func TestARunAfterADayOfPostsOnEveryPlatformChoosesNothing(t *testing.T) {
@@ -355,4 +368,78 @@ func TestAClipInAnArmThatDoesNotRunIsNotPosted(t *testing.T) {
 
 	require.ErrorContains(t, err, `the experiment "length" has no arm "long"`)
 	assert.Empty(t, posts)
+}
+
+func TestAClipDrawnForATrendingTrackGoesOutOnTikTokWithOneOfTheChartOfTheCountry(t *testing.T) {
+	var (
+		posts     []sentPost
+		countries []string
+	)
+	folder := t.TempDir()
+	renderedIn(t, folder, 1, "ALGERIA STRIKES BACK", `{"sound": "trending"}`)
+	server := zernioWith(t, &posts, func(country string) (int, string) {
+		countries = append(countries, country)
+		return http.StatusOK, `{"tracks":[{"id":"track-1","name":"Song One","artist":"Singer","rank":1,"clip":{"id":"clip-1","durationSec":30}}]}`
+	})
+	config := configFor(server)
+	config.SoundCountry = "FR"
+
+	report, err := clips.Schedule(t.Context(), folder, config, slog.New(slog.DiscardHandler))
+
+	require.NoError(t, err)
+	require.Len(t, posts, 1)
+	assert.Equal(t, []string{"FR"}, countries)
+	tiktok, youtube := posts[0].Platforms[0], posts[0].Platforms[1]
+	assert.Equal(t, map[string]any{"musicSoundId": "clip-1", "musicSoundVolume": float64(100), "musicSoundStart": float64(0)},
+		tiktok.PlatformSpecificData["musicSoundInfo"])
+	assert.Contains(t, tiktok.PlatformSpecificData, "videoOriginalSoundVolume")
+	assert.Zero(t, tiktok.PlatformSpecificData["videoOriginalSoundVolume"])
+	assert.NotContains(t, youtube.PlatformSpecificData, "musicSoundInfo")
+	assert.Equal(t, "Song One", report[0].Sound.Track.Title)
+	assert.Equal(t, clips.Variants{"sound": "trending"}, report[0].Variants)
+	assert.True(t, report.Complete())
+}
+
+func TestTheChartIsTheUSOnesWhenNoCountryIsSet(t *testing.T) {
+	var (
+		posts     []sentPost
+		countries []string
+	)
+	folder := t.TempDir()
+	renderedIn(t, folder, 1, "ALGERIA STRIKES BACK", `{"sound": "trending"}`)
+	server := zernioWith(t, &posts, func(country string) (int, string) {
+		countries = append(countries, country)
+		return http.StatusOK, `{"tracks":[{"id":"track-1","name":"Song One","artist":"Singer","rank":1}]}`
+	})
+
+	_, err := clips.Schedule(t.Context(), folder, configFor(server), slog.New(slog.DiscardHandler))
+
+	require.NoError(t, err)
+	assert.Equal(t, []string{"US"}, countries)
+}
+
+// The run is never failed for it: the clip goes out with its anthem, counted apart, and the log says why.
+func TestAChartThatCannotBeReadSendsTheClipWithItsAnthemAndSaysWhy(t *testing.T) {
+	var posts []sentPost
+	folder := t.TempDir()
+	renderedIn(t, folder, 1, "ALGERIA STRIKES BACK", `{"sound": "trending"}`)
+	server := zernioWith(t, &posts, func(string) (int, string) {
+		return http.StatusBadRequest, `{"error":"Not a business account","code":"tiktok_business_required"}`
+	})
+	var logs bytes.Buffer
+
+	report, err := clips.Schedule(t.Context(), folder, configFor(server), slog.New(slog.NewTextHandler(&logs, nil)))
+
+	require.NoError(t, err)
+	require.Len(t, posts, 1)
+	assert.NotContains(t, posts[0].Platforms[0].PlatformSpecificData, "musicSoundInfo")
+	assert.NotContains(t, posts[0].Platforms[0].PlatformSpecificData, "videoOriginalSoundVolume")
+	record, ok := posts[0].Metadata["record"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, map[string]any{"sound": "fell-back"}, record["post"].(map[string]any)["variants"])
+	assert.Equal(t, map[string]any{"sound": "trending"}, record["clip"].(map[string]any)["variants"])
+	assert.Equal(t, clips.Variants{"sound": "fell-back"}, report[0].Variants)
+	assert.Contains(t, report[0].SoundMissed, "Not a business account")
+	assert.True(t, report.Complete())
+	assert.Contains(t, logs.String(), `level=WARN msg="a clip drawn for a trending track goes out with its anthem" clip="ALGERIA STRIKES BACK"`)
 }

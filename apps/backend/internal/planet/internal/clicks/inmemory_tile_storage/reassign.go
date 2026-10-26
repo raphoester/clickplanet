@@ -13,15 +13,14 @@ func (s *Storage) Reassign(_ context.Context, from, to string, start uint32, lim
 	}
 
 	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	if from == "" || from == to || s.board.heldBy(from) == 0 {
-		s.mu.Unlock()
 		return 0, 0, nil
 	}
 
 	toID, err := s.board.intern(to)
 	if err != nil {
-		s.mu.Unlock()
 		return 0, 0, err
 	}
 
@@ -42,9 +41,7 @@ func (s *Storage) Reassign(_ context.Context, from, to string, start uint32, lim
 	}
 
 	s.settleLocked(updates)
-	s.mu.Unlock()
-
-	s.feed.publishUpdates(updates)
+	s.publishUpdatesLocked(updates)
 
 	return next, len(updates), nil
 }
@@ -53,6 +50,8 @@ func (s *Storage) Restore(_ context.Context, restorations []clicks.Restoration) 
 	updates := make([]clicks.TileUpdate, 0, len(restorations))
 
 	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	for _, restoration := range restorations {
 		if restoration.Tile > s.board.last() || restoration.From == restoration.To {
 			continue
@@ -65,8 +64,7 @@ func (s *Storage) Restore(_ context.Context, restorations []clicks.Restoration) 
 		toID, err := s.board.intern(restoration.To)
 		if err != nil {
 			s.settleLocked(updates)
-			s.mu.Unlock()
-			s.feed.publishUpdates(updates)
+			s.publishUpdatesLocked(updates)
 			return len(updates), err
 		}
 
@@ -80,9 +78,13 @@ func (s *Storage) Restore(_ context.Context, restorations []clicks.Restoration) 
 	}
 
 	s.settleLocked(updates)
-	s.mu.Unlock()
-
-	s.feed.publishUpdates(updates)
+	s.publishUpdatesLocked(updates)
 
 	return len(updates), nil
+}
+
+func (s *Storage) publishUpdatesLocked(updates []clicks.TileUpdate) {
+	for i := range updates {
+		s.publishLocked(clicks.Change{Update: &updates[i]})
+	}
 }

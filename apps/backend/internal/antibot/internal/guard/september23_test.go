@@ -1,0 +1,241 @@
+package guard_test
+
+import (
+	"math/rand/v2"
+	"slices"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/types/known/durationpb"
+
+	antibotv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/guard"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
+)
+
+func bound(v float64) *float64 { return &v }
+
+func withTheWeekOfSeptember23(config *guard.Config, set *antibotv1.Rules) {
+	set.Metronome.MaxGap = durationpb.New(7 * time.Second)
+	set.Metronome.MaxSpread = durationpb.New(400 * time.Millisecond)
+	set.Metronome.Shape.MaxGap = durationpb.New(10 * time.Second)
+	set.Metronome.Shape.Clicks = 500
+	set.Metronome.Shape.CertainClicks = 1000
+	set.Metronome.Clock.Period = durationpb.New(time.Second)
+	set.Metronome.Clock.Clicks = 120
+	set.Metronome.Clock.MinCoherence = bound(0.6)
+	set.Metronome.Clock.CertainClicks = 600
+	set.Metronome.Clock.CertainFor = durationpb.New(30 * time.Minute)
+	set.Metronome.Clock.CertainCoherence = bound(0.5)
+
+	config.Catcher.TrackWindow = time.Hour
+	set.Catcher.Foreign.Window = durationpb.New(time.Hour)
+	set.Catcher.Foreign.MinClaims = 5
+	set.Catcher.Foreign.CertainClaims = 10
+
+	set.Defender.Enabled = true
+	set.Defender.RetakeWindow = durationpb.New(2 * time.Minute)
+	set.Defender.MinClicks = 40
+	set.Defender.MinShare = 0.6
+	config.Defender.TrackWindow = 10 * time.Minute
+}
+
+type event struct {
+	at      time.Time
+	foreign bool
+}
+
+func (s *stack) replay(scope string, seed uint64, events []event) (time.Time, bool) {
+	slices.SortFunc(events, func(a, b event) int { return a.at.Compare(b.at) })
+
+	//nolint:gosec // seeded test PRNG
+	r := rand.New(rand.NewPCG(seed, seed+1))
+	tile := uint32(120000)
+
+	for _, e := range events {
+		s.clock.Advance(e.at.Sub(s.clock.Now()))
+		if e.foreign {
+			s.guard.Foreign(scope)
+			continue
+		}
+
+		tile = uint32(int(tile) + r.IntN(40) - 20)
+		if s.click(scope, tile, "pl") {
+			return s.clock.Now(), true
+		}
+	}
+
+	return time.Time{}, false
+}
+
+func hiddenTabClicks(r *rand.Rand, from time.Time, bursts int) []event {
+	var events []event
+
+	tick := from.Truncate(time.Second)
+	for range bursts {
+		for range 55 + r.IntN(15) {
+			tick = tick.Add(time.Second)
+			if r.IntN(8) == 0 {
+				tick = tick.Add(time.Duration(2+r.IntN(2)) * time.Second)
+			}
+			at := tick.Add(130*time.Millisecond + time.Duration(r.IntN(15))*time.Millisecond)
+			events = append(events, event{at: at})
+			if r.IntN(5) == 0 {
+				events = append(events, event{at: at.Add(time.Duration(50+r.IntN(40)) * time.Millisecond)})
+			}
+		}
+		tick = tick.Add(time.Duration(330+r.IntN(90)) * time.Second)
+	}
+
+	return events
+}
+
+func poolClaims(r *rand.Rand, from time.Time, until time.Time) []event {
+	var events []event
+	for at := from.Add(time.Duration(r.IntN(60)) * time.Second); at.Before(until); at = at.Add(time.Duration(20+r.IntN(220)) * time.Second) {
+		events = append(events, event{at: at, foreign: true})
+	}
+	return events
+}
+
+func TestTheHiddenTabOfSeptember23IsCaughtByItsBeat(t *testing.T) {
+	s := newStack(t, withTheWeekOfSeptember23)
+	//nolint:gosec // seeded test PRNG
+	r := rand.New(rand.NewPCG(23, 9))
+
+	start := s.clock.Now()
+	dropped, ok := s.replay("198.51.100.10", 1, hiddenTabClicks(r, start, 30))
+
+	require.True(t, ok, "every other watchdog read clear for 5h27m in production")
+	assert.Less(t, dropped.Sub(start), 90*time.Minute, "the beat held over 600 tries is enough alone")
+
+	verdicts := s.verdicts("198.51.100.10")
+	assert.Equal(t, detect.Certain, verdicts["metronome"])
+	for _, watchdog := range []string{"retaker", "sequencer", "defender", "catcher", "cohort", "scraper"} {
+		assert.Equal(t, detect.Clear, verdicts[watchdog], "%s read clear in production, and still does", watchdog)
+	}
+	assert.Contains(t, s.reports[0].Opinions[2].String(), "certain clock")
+}
+
+func TestTheHiddenTabOfSeptember23IsCaughtSoonerWithTheBoxesItPasses(t *testing.T) {
+	s := newStack(t, withTheWeekOfSeptember23)
+	//nolint:gosec // seeded test PRNG
+	r := rand.New(rand.NewPCG(23, 9))
+
+	start := s.clock.Now()
+	events := hiddenTabClicks(r, start, 30)
+	events = append(events, poolClaims(r, start, events[len(events)-1].at)...)
+	dropped, ok := s.replay("198.51.100.10", 1, events)
+
+	require.True(t, ok)
+	assert.Less(t, dropped.Sub(start), 20*time.Minute, "a beat and a relayed box are two measurements, and two suspicions ban")
+
+	verdicts := s.verdicts("198.51.100.10")
+	assert.NotEqual(t, detect.Clear, verdicts["metronome"])
+	assert.NotEqual(t, detect.Clear, verdicts["catcher"])
+}
+
+func jitteredPainter(r *rand.Rand, from time.Time, until time.Time) []event {
+	var events []event
+	for at, click := from, 0; at.Before(until); click++ {
+		at = at.Add(600*time.Millisecond + time.Duration(r.Int64N(int64(1500*time.Millisecond))))
+		if click%45 == 44 {
+			at = at.Add(time.Duration(5+r.IntN(55)) * time.Second)
+		}
+		events = append(events, event{at: at})
+	}
+	return events
+}
+
+func TestTheBoxPoolOfSeptember22IsCaughtOnTheBoxesAlone(t *testing.T) {
+	s := newStack(t, withTheWeekOfSeptember23)
+	//nolint:gosec // seeded test PRNG
+	r := rand.New(rand.NewPCG(22, 9))
+
+	start := s.clock.Now()
+	until := start.Add(2 * time.Hour)
+	events := append(jitteredPainter(r, start, until), poolClaims(r, start, until)...)
+	dropped, ok := s.replay("2001:db8:e487:f990::/64", 2, events)
+
+	require.True(t, ok)
+	assert.Less(t, dropped.Sub(start), 30*time.Minute, "in production it painted for 11h43m before two suspicions met")
+
+	verdicts := s.verdicts("2001:db8:e487:f990::/64")
+	assert.Equal(t, detect.Certain, verdicts["catcher"])
+	assert.Equal(t, detect.Clear, verdicts["metronome"], "it jitters, and keeps no beat")
+}
+
+func heavyHand(r *rand.Rand, quantiles [5]time.Duration) time.Duration {
+	points := []struct {
+		p   float64
+		gap time.Duration
+	}{
+		{0, 25 * time.Millisecond},
+		{0.1, quantiles[0]},
+		{0.25, quantiles[1]},
+		{0.5, quantiles[2]},
+		{0.75, quantiles[3]},
+		{0.9, quantiles[4]},
+		{1, 4 * time.Second},
+	}
+
+	u := r.Float64()
+	for i := 1; i < len(points); i++ {
+		if u <= points[i].p {
+			a, b := points[i-1], points[i]
+			return a.gap + time.Duration((u-a.p)/(b.p-a.p)*float64(b.gap-a.gap))
+		}
+	}
+	return points[len(points)-1].gap
+}
+
+func browser(r *rand.Rand, from time.Time, until time.Time, quantiles [5]time.Duration) []event {
+	var events []event
+	for at := from; at.Before(until); {
+		for range 20 + r.IntN(100) {
+			at = at.Add(heavyHand(r, quantiles))
+			events = append(events, event{at: at})
+		}
+		if r.IntN(12) == 0 {
+			at = at.Add(time.Duration(60+r.IntN(720)) * time.Second)
+		} else {
+			at = at.Add(time.Duration(5+r.IntN(90)) * time.Second)
+		}
+	}
+	return events
+}
+
+func TestTheHeavyPlayersOfSeptember23AreNotBanned(t *testing.T) {
+	s := newStack(t, withTheWeekOfSeptember23)
+	//nolint:gosec // seeded test PRNG
+	r := rand.New(rand.NewPCG(7, 70))
+
+	start := s.clock.Now()
+	until := start.Add(3*time.Hour + 39*time.Minute)
+	ms := time.Millisecond
+	chrome := browser(r, start, until, [5]time.Duration{57 * ms, 273 * ms, 317 * ms, 434 * ms, 691 * ms})
+	firefox := browser(r, start.Add(17*time.Second), until, [5]time.Duration{216 * ms, 262 * ms, 297 * ms, 380 * ms, 613 * ms})
+	events := slices.Concat(chrome, firefox)
+
+	require.Greater(t, len(events), 8000, "as many clicks as the two browsers tried that morning")
+	slices.SortFunc(events, func(a, b event) int { return a.at.Compare(b.at) })
+
+	rules := cpcolls.NewSet[string]()
+	for chunk := range slices.Chunk(events, 50) {
+		_, dropped := s.replay("2001:db8:861:700::/64", 3, chunk)
+		require.False(t, dropped)
+
+		for _, reading := range s.examine("2001:db8:861:700::/64", "").Readings {
+			if reading.Evidence != "" {
+				rules.Add(reading.Watchdog + " " + strings.Fields(reading.Evidence)[0])
+			}
+		}
+	}
+
+	assert.Empty(t, s.reports)
+	assert.Equal(t, cpcolls.NewSet("metronome cadence"), rules, "no beat, and no box but its own")
+}

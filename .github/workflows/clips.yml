@@ -107,9 +107,8 @@ jobs:
           name: shortlist
 
       # Up to 2, within what each platform has left of its trailing day, each with the arm of each experiment its
-      # clip is in, and the model's headline on a run the experiment "editor" drew for it:
-      # [{"pick":1,"variants":{"editor":"model","length":"short"},"headline":"BRAZIL STORMS ARGENTINA"}].
-      # Who chose, and what the model's call cost, go to the summary; a model that fails leaves the run to the rules.
+      # clip is in, and the model's headline: [{"pick":1,"variants":{"length":"short"},"headline":"BRAZIL STORMS ARGENTINA"}].
+      # What the model's call cost goes to the summary; a model that fails leaves the run to the rules, and the summary says why.
       - name: choose the clips of the run
         id: choose
         working-directory: apps/backend
@@ -205,9 +204,14 @@ jobs:
           merge-multiple: true
 
       # The repository variable CLIPS_PLATFORMS turns a platform off with no commit: "tiktok" alone. Unset is every platform.
+      # CLIPS_SOUND_COUNTRY is the country of TikTok's trending chart a clip drawn for a trending track gets one from
+      # (the experiment "sound"): two letters, unset is US. A chart that cannot be read sends the clip with its anthem.
       - name: schedule the clips on TikTok and YouTube
         working-directory: apps/backend
         env:
           ZERNIO_API_KEY: ${{ secrets.ZERNIO_API_KEY }}
           PLATFORMS: ${{ vars.CLIPS_PLATFORMS }}
-        run: go run ./cmd/clips schedule -clips "$GITHUB_WORKSPACE/clips" -platforms "$PLATFORMS" -summary "$GITHUB_STEP_SUMMARY"
+          SOUND_COUNTRY: ${{ vars.CLIPS_SOUND_COUNTRY }}
+        run: |
+          go run ./cmd/clips schedule -clips "$GITHUB_WORKSPACE/clips" -platforms "$PLATFORMS" -sound-country "$SOUND_COUNTRY" \
+            -summary "$GITHUB_STEP_SUMMARY"

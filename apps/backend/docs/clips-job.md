@@ -10,7 +10,7 @@ meet in files: the replay, the race and the season this job saves for the genera
 ```
 clips fetch -out <replay.json> [-race <race.json>] [-season <season.json>] [-ssh <user@host>] [-hours 72] [-until <2026-10-12T12:00:00Z>]
 clips choose -shortlist <shortlist.json> [-count 2] [-platforms tiktok,youtube] [-summary <file>]
-clips schedule -clips <folder> [-review 0] [-spacing 1h] [-platforms tiktok,youtube] [-summary <file>]
+clips schedule -clips <folder> [-review 0] [-spacing 1h] [-platforms tiktok,youtube] [-sound-country US] [-summary <file>]
 clips edit -shortlist <shortlist.json> [-count 2] [-prompt]
 clips stats [-ssh <user@host>] [-since 2026-10-13]
 ```
@@ -34,12 +34,12 @@ clips stats [-ssh <user@host>] [-since 2026-10-13]
   one chosen with its arms. A pick is a story's place in the shortlist, from 1 (`posts.Pick`): what the generator's
   `--pick` takes, and the arms are what its `--variants` takes (below, "Experiments"). It needs `ZERNIO_API_KEY`, to
   read what was told and what each platform holds. `-platforms` is `schedule`'s, so it counts the room of the
-  platforms the clips will go to. **On a run the experiment `editor` draws for the model** (below, "The editor") a
-  pick also carries the model's headline (`"headline":"BRAZIL STORMS ARGENTINA"`, left out for the generator's own),
-  which the render job hands the generator as `--headline`; `ANTHROPIC_API_KEY` is the model's key, and `-summary`
-  adds who chose the run, and what the call cost, to that file (the workflow's step summary). Its standard output
-  stays the picks alone.
-- **`edit` tries the editor by hand on a saved shortlist**, outside any run: no coin, `-count` clips (2), what was
+  platforms the clips will go to. **A pick also carries the model's headline** (below, "The editor";
+  `"headline":"BRAZIL STORMS ARGENTINA"`, left out for the generator's own, as on a run the rules made), which the
+  render job hands the generator as `--headline`; `ANTHROPIC_API_KEY` is the model's key, and `-summary` adds who
+  chose the run, and what the call cost, to that file (the workflow's step summary). Its standard output stays the
+  picks alone.
+- **`edit` tries the editor by hand on a saved shortlist**, outside any run: `-count` clips (2), what was
   told read from Zernio when `ZERNIO_API_KEY` is set and nothing told otherwise. It prints the instructions and the
   run's JSON as the model would get them, their size (counted by the API's free `count_tokens` with a key, else
   guessed at 4 characters a token), then what the model chose and what it cost, or why it fell back. **`-prompt`
@@ -53,7 +53,10 @@ clips stats [-ssh <user@host>] [-since 2026-10-13]
   platform did not take a clip, when the folder holds none, or when the summary cannot be written. **Platforms are
   independent**: a platform that refuses does not stop the others, and a clip refused does not stop the next one.
   The workflow passes the repository variable `CLIPS_PLATFORMS` (Settings → Variables), so `tiktok` alone turns
-  YouTube off with no commit; unset is every platform.
+  YouTube off with no commit; unset is every platform. **`-sound-country` is the country of TikTok's trending chart**
+  a clip of the experiment `sound` drawn for a trending track gets one from (below, "Experiments"): two letters,
+  ISO 3166-1, `US` when empty or left out. The workflow passes the repository variable `CLIPS_SOUND_COUNTRY`, so the
+  chart changes with no commit.
 - **`stats` keeps a snapshot of the numbers of every post of the job**, once a day in a workflow of its own
   (`.github/workflows/clips-stats.yml`), so the experiments can be read from them: a row for each platform of each
   post, with what the post was beside it, **sent over ssh to the server's clips module**, which keeps it in
@@ -96,16 +99,12 @@ story, so a short clip is not short because its story was small.
 - **`choose` flips one coin per experiment for each story chosen** (`Experiments.AssignEach`, with
   `posts.SystemDice`, in the order of the list), after the stories are chosen and apart from them: an arm never
   changes which story is told. A coin of its own per experiment makes two experiments at once a factorial design,
-  every pair of arms in about the share of their weights, so each one's effect is read across the other's.
-- **The one exception is an experiment on which stories are told** (`PerRun`): its coin is the run's, flipped once
-  before anything is chosen (`Experiments.AssignRun`, first of the dice), and every clip of the run carries its arm
-  beside its own. **Deliberately**: `editor` exists to change the choice, so a coin flipped after it would have
-  nothing left to decide, and a coin per clip would let one run mix two editors' stories, each choice leaning on the
-  other (a flag's share of the feed counts across the run). The arm is still a coin and not something read from the
-  stories, so the runs compare: what differs between them is who chose. The run's clips share their run's news, so
-  the analysis reads it per run as well as per clip.
+  every pair of arms in about the share of their weights, so each one's effect is read across the other's. **An
+  experiment on which stories are told needs a coin of the run's instead**, flipped once before anything is chosen
+  and carried by every clip of the run, since a coin per clip would let one run mix two editors' stories: `editor`
+  had one (below), and its code went with it.
 - **An arm of weight 0 is never drawn** (`posts.Arm{Name, Weight: 0}`): it is where a clip goes when the arm it was
-  drawn for could not be applied, so it is still checked and counted, apart (`editor`'s `fell-back`). An experiment
+  drawn for could not be applied, so it is still checked and counted, apart (`sound`'s `fell-back`). An experiment
   needs two arms a coin draws.
 - **The arms travel with the clip, as data**: `choose` prints them with the pick; the workflow's render job of the
   pick hands them to the generator (`--variants '{"length":"short"}'`), which applies the ones it acts on, refuses
@@ -115,17 +114,18 @@ story, so a short clip is not short because its story was small.
   the summary. The record, and so the post's Zernio metadata, keeps them as the generator wrote them: what the
   analysis reads.
 - **An arm acts where its difference is made.** At render time, in the generator (the length below); at post time,
-  in the job: an adapter reads `PostSnapshot.Variants` and changes what it sends, for the platform the experiment is
-  about. **None acts at post time yet**, and a test pins that a clip in any arm sends Zernio the same body as a clip
-  in none, its record aside. The generator still lists an experiment it has nothing to apply for, so it refuses an
-  arm nobody knows on every experiment, and carries the arms of the rest to `schedule`.
+  in the job: the schedule use case turns the arm into what the post carries (`PostSnapshot.Sound`), and an adapter
+  writes it, for the platform the experiment is about (the sound below). **The control of each is what is sent without
+  it**, and a test pins that a clip in it sends Zernio the same body as a clip in none, its record aside. The generator
+  still lists an experiment it has nothing to apply for, so it refuses an arm nobody knows on every experiment, and
+  carries the arms of the rest to `schedule`.
+- **An arm that cannot be applied at post time moves the post to the arm of weight 0** (`Post.FellBack`), never fails
+  the run: the post goes out as the control would, its report and its log say why, and the summary shows it. The
+  clip's record keeps the arm the coin drew, as the generator wrote it (`clip.variants`), and the post's the arm it
+  went out in (`post.variants`, written only when the job moved one): intent to treat reads the first, what the arm
+  did the second.
 - **Adding one** is an entry in `running`, its name and arms in the generator's `src/clip/experiments.ts`, and the
-  code that acts on its arms, never on its control. For the next one, TikTok's sound (the anthem against a trending
-  track of TikTok's Commercial Music Library): `{Name: "sound", Arms: posts.EvenArms("anthem", "trending"), Control:
-  "anthem"}`, `sound: ["anthem", "trending"]` in the generator, which renders the anthem in both, and in
-  `posts/zernio` the TikTok target of a `trending` post gets `musicSoundInfo` and `videoOriginalSoundVolume: 0`
-  (the operation's fields in the generated client: `oapi-codegen.yaml` may need them named). YouTube's target is
-  left as it is: the arm is recorded on the whole post, and the analysis reads it per platform.
+  code that acts on its arms, never on its control.
 - **The first is `length`** (started 2026-10-24): `as-chosen`, the control, as long as the camera has somewhere to
   go (8.5 to 17.5s for a front, by how far its fighting moves, 10 to 19 with a day's podium, 9 to 20.5 for a tour, by
   its stops), against `short`, the shortest a story of its kind plays: 8.5s for a front, 10 with a day's podium. **A
@@ -133,15 +133,55 @@ story, so a short clip is not short because its story was small.
   fighting stays in one place is already 8.5s: both still record the arm, and `durationSeconds` in the record keeps
   the real length, so the analysis compares on the length a clip had as well as on its arm. The teaser rolled when
   posting is an experiment of its own already, at random and recorded (`teaser`), and the arms do not touch it.
-- **The second is `editor`** (started 2026-10-24, per run, even): `rules`, the control, is the run as before;
-  `model` is Claude Haiku choosing among the stories the rules let through and writing their headlines (below);
-  `fell-back` is a run drawn for the model that the rules made. Intent to treat is `model` and `fell-back` together;
-  what the model's choices did is `model` alone. A run drawn for the model with nothing to decide (a quiet run, a full
-  day, or a day won filling it) asks nothing and stays `model`: it is what the model's arm does then.
+- **The second is `sound`** (started 2026-10-25, per clip, even, on TikTok alone): does a clip do better with its
+  national anthem, or with a track trending on TikTok now? It waited on the account's music library, which answers
+  only for an account connected through the TikTok for Business app, a Business account or not: the stats of
+  2026-10-25 found `clickplanetlol` `personal`, `commercialMusic=true` and its business lane live. `anthem`, the
+  control, is the clip as before. `trending` is the same video with a track of TikTok's Commercial Music Library
+  attached when it is posted, the anthem muted under it (`posts.Soundtracks`, `schedule_clips_usecase`, and
+  `posts/zernio`'s TikTok target). `fell-back` is a clip drawn for a track that went out with its anthem.
+  - **The track is one of the top 20 of the chart, at random** (`trendingTop`). The chart lists 100, rank 1 first: its
+    top is what a viewer hears everywhere now, and 20 is wide enough that, at about 7 trending clips a day, the arm is
+    not one song's, nor one song's fatigue. Its rank is recorded, so the analysis can tell whether a higher one did
+    better, and narrow or widen the top. A track the chart gives no id is skipped.
+  - **The id sent is its trending excerpt's** (`clip.id`), the whole track's (`id`) only when it has none: Zernio's
+    note on the operation says the whole track's has shown viewers "This song is not available in your country" on
+    the sound's page (observed from Germany, 2026-10-06), and the excerpt's not. It plays **from 0**
+    (`musicSoundStart`): the excerpt already is the part that trends. Its end is left to the video's length.
+  - **The video's own sound at 0** (`videoOriginalSoundVolume`), said rather than left to the API's default (0 today,
+    by Zernio's note, where the app's is 50): a default that moved would play the anthem under the song, and the arm
+    would be neither.
+    **The track at 100** (`musicSoundVolume`, which Zernio defaults to 50): it is all a viewer hears, so there is no mix
+    to balance, and a track at half its level would set a softer clip against the anthem's, its loudness confounded
+    with its sound.
+  - **The chart read is `-sound-country`'s, `US` by default** (`defaultSoundCountry`): the largest audience of a game
+    captioned in English, until the stats say where the views come from. **It should follow them**: the snapshot keeps
+    `audienceCountries` for each TikTok post, and the country most views come from is the chart to read, a change of
+    `CLIPS_SOUND_COUNTRY` with no commit. The record keeps the chart's country, so the analysis tells them apart.
+  - **The chart is read once a run, when a clip first needs it, and each clip picks its own track**
+    (`Service.Trending`: `GET /v1/accounts` for the TikTok account, then
+    `GET /v1/accounts/{id}/tiktok/commercial-music?countryCode=US`), on a client of its own with a minute's timeout,
+    not the upload's 10. A run with no clip drawn for a track, or one going to YouTube alone (TikTok's day full, or
+    `CLIPS_PLATFORMS`), reads nothing: its clip keeps `trending`, and its post carries no track, which the analysis
+    reads per platform as it reads every arm.
+  - **A chart that cannot be read or lists nothing to attach falls back** (above): the clip goes out with its anthem,
+    `sound: fell-back` in `post.variants`, a warning in the log (`a clip drawn for a trending track goes out with its
+    anthem`, with why), and its TikTok row of the summary says so in bold. Never retried: the clip goes out on time.
+  - **What went out is in the record** (`post.sound`, a `clips.v1.TikTokSound`): the id sent and which it is
+    (`excerpt` or `track`), the title, the artist, the rank, the chart's country, how long it plays, and both volumes
+    (protojson leaves out a zero, so no `originalVolume` is the anthem muted). The summary's TikTok row and the log
+    name the track too.
+  - **YouTube is sent the video as it is in every arm**, its target untouched: the arm is recorded on the whole post.
+    **TikTok's daily cap is unchanged** (`dailyBudget`): a track changes what a post plays, not how many go out.
+- **`editor` ran from 2026-10-24 to 2026-10-26, per run, even**: `rules`, the control, the run as before, against
+  `model`, Claude Haiku choosing among the stories the rules let through and writing their headlines, and `fell-back`,
+  a run drawn for the model that the rules made. **Stopped with the model the editor of every run** (below), on the
+  owner's judgment that it does better, not on the numbers. The posts of those three days keep their arm in their
+  record, which the analysis still reads.
 
 **The editor: a model chooses the run's stories and writes their headlines, within the rules** (`posts/editor.go`,
-`posts/claude_editor/`, 2026-10-24). Step 1 of a model directing the clips: it picks and words, the renderer and its
-camera are as they were, and the rules stay the baseline to beat.
+`posts/claude_editor/`, 2026-10-24; every run since 2026-10-26). Step 1 of a model directing the clips: it picks and
+words, the renderer and its camera are as they were, and the rules are what a run falls back to.
 
 - **The rules decide what may be told; the model only ranks it.** `Shortlist.Offer` is what it is offered: the
   stories `Best` could tell (no key of the last 3 days, no headline of the last week, a flag in fewer than 2 of the
@@ -160,8 +200,9 @@ camera are as they were, and the rules stay the baseline to beat.
   as a flag), only letters of any script, digits and `! ? ' ’ % : , . & -`; not a headline of the last week, not
   another story's, not one of the story's own teasers (the caption never repeats the clip). **No key, an API error,
   a refusal, an answer cut short or not JSON, or one that does not hold all fall back to the rules**
-  (`choose_clips_usecase.Edit`): the run is never failed for it, its clips are recorded `editor: fell-back`, and the
-  reason goes to the log and the summary.
+  (`choose_clips_usecase.Edit`): the run is never failed for it, and the reason goes to the log (a warning, `the run
+  is made by the rules`) and the summary. **Nothing in the record says who chose**: a run the rules made is told
+  apart by its summary and its log alone.
 - **What it is sent** (`claude_editor.PromptOf`): the instructions, then the run's offer as compact JSON: `now`,
   `slots`, `toldFirst`, each story with its pick, headline, key, countries, teasers and `facts`
   (`clips.v1.StoryFacts`, which the generator's `--shortlist` now writes; the frontend's [Clips](../../frontend/docs/clips.md)),
@@ -178,8 +219,8 @@ camera are as they were, and the rules stay the baseline to beat.
   input, a read 0.1 times) go to the log and the summary (`posts.Spend`, `claude_editor.SpendOf`). Measured on the
   run of 2026-10-24 18:28 (its 25 stories and 71 posts, from its log): 8 stories offered, 32 recent posts, about
   1,700 tokens of instructions and 4,300 of run, so about 6,000 in, guessed from characters with no key at hand;
-  about $0.0006 in and, with its thinking, about $0.001 out a call. A run a model's in two, 12 runs a day, is about
-  $0.30 a month; every run would be $0.60. The owner's ceiling for all AI calls is $10 a month.
+  about $0.0006 in and, with its thinking, about $0.001 out a call: 12 runs a day is about $0.60 a month, where the
+  owner's ceiling for all AI calls is $10.
 - **The instructions are marked for caching** (`cache_control` on the system prompt), as the owner asked. **No run
   reads it back today**: a cache entry lives 5 minutes (an hour at most) and runs are 2 hours apart, so each call
   writes it again, about $0.00004 more a call. It pays once a call follows another within minutes (`clips edit`
@@ -192,7 +233,7 @@ camera are as they were, and the rules stay the baseline to beat.
   dependency: `cpanthropic.NewClient` makes it from `Config.Anthropic`, and `claude_editor.New(client, model)` never
   makes one of its own. The editor keeps only what is its own on each request: 2 minutes and one retry. **No key is
   an editor of its own, chosen there**: `claude_editor.Unkeyed` sends nothing and answers `cpanthropic.ErrNoKey`, so
-  every run drawn for the model falls back and says why.
+  every run falls back and says why.
 - **Tests never call the API**: the use case runs a fake `Editor`, and `claude_editor` a client pointed at a fake
   Messages API on `httptest` (`cpanthropic.Config.BaseURL`), which pins the request whole: the cached instructions,
   the schema, the prompt.
@@ -311,7 +352,9 @@ camera are as they were, and the rules stay the baseline to beat.
     (`posts.ClipRecord`, which the job never reads); absent for a clip written before the generator kept one. `post`
     is what this job made of the clip: `teaser`, the name of the teaser rolled (`invades`; `unnamed` for a clip whose
     teasers have none), `callToAction`, `scheduledAt` (the time planned: the dashboard can move the post, this
-    does not move), and `runPosition` and `runSize`, its place in its run from 1 and how many it has. **How fresh a
+    does not move), `runPosition` and `runSize`, its place in its run from 1 and how many it has, and, for the
+    experiment `sound`, `sound` (the trending track attached on TikTok) and `variants` (the arms it went out in, only
+    when the job moved one, `sound: fell-back`; see "Experiments"). **How fresh a
     story was** is `scheduledAt` minus the clip's `globe.storyEndedAt`, when the stretch it plays ends, which the
     generator writes.
   - **Every code in it is a word that says what it means; a number is a quantity.** The flat columns of a table are
@@ -391,7 +434,8 @@ for now** (2026-10-17): a third account is 6 USD a month. A change of service is
   `client.gen.go`, by oapi-codegen (pinned in the `Makefile`) from Zernio's own OpenAPI document, vendored
   beside it as `openapi.json`. `make zernio-spec` fetches the document Zernio builds its SDKs from, `make zernio`
   generates. `oapi-codegen.yaml` names the seven operations the job calls (`include-operation-ids`): four to post,
-  and `getAnalytics`, `getYouTubeVideoRetention` and `listTikTokCommercialMusic` for the snapshot. So the client
+  and `getAnalytics`, `getYouTubeVideoRetention` and `listTikTokCommercialMusic` for the snapshot,
+  `listTikTokCommercialMusic` also for the trending chart of the experiment `sound`. So the client
   holds those and the types they reach, not the 631 paths of the document; `overlay.yaml` drops its webhooks. **An
   operation not named there is not in the client**: a new call is a line there and `make zernio`. The adapter keeps what
   no document says: which account, the upload, the idempotency key, and which answer is "busy".
@@ -405,12 +449,14 @@ for now** (2026-10-17): a third account is 6 USD a month. A change of service is
 - **Four calls a clip**: `GET /v1/accounts`, `POST /v1/media/presign`, a `PUT` of the video to the address that
   answers (the storage, not the API: raw HTTP, and no key), then `POST /v1/posts` with `scheduledFor`, 5 minutes
   ahead at the soonest. **Never `publishNow`**: it publishes inside the request (see "No review" above). And one
-  `GET /v1/posts` a run, for what each platform holds; `choose` makes it twice, for what was told too.
+  `GET /v1/posts` a run, for what each platform holds; `choose` makes it twice, for what was told too. A run with a
+  clip drawn for a trending track reads the chart once more (`GET /v1/accounts`, then the commercial music library).
 - **One clip is one Zernio post, with a target for each platform**, so one cancel in the dashboard stops it
   everywhere. Each target carries its own words (`customContent`) and its own settings (`platformSpecificData`), so
   a change for one platform (TikTok's sound) touches no other. Zernio publishes each target on its own: one
   platform that fails at its time leaves the post `partial`, and the next run's history says which (`tiktok: …`).
-  - TikTok: public, comments, duets and stitches on.
+  - TikTok: public, comments, duets and stitches on; with a trending track, `musicSoundInfo` (its id, volume 100,
+    from 0) and `videoOriginalSoundVolume: 0`, and with none not a key more (`tiktokSettingsOf`).
   - YouTube: public, category Gaming (`20`), and **not made for kids**, sent every time since YouTube may block the
     views of a video with no answer. It is the user's legal choice (2026-10-17): "made for kids" turns comments
     off for good. The tags go at the root of the post, where Zernio sends them to YouTube alone. Zernio uploads a
@@ -465,7 +511,9 @@ for good:
   days. **Any answer is kept as it came** (`Retention`: its status and its body), up to 100 points with
   `audienceWatchRatio` and `relativeRetentionPerformance`, or the 412 `youtube_analytics_scope_missing` that asks
   for the channel to be connected again, which the summary says plainly. YouTube has no curve for a video with few
-  views or under 2 to 3 days old: an empty one is `empty`.
+  views or under 2 to 3 days old: an empty one is `empty`. **A curve refused as busy for longer than the `Backoff`
+  waits stops the curves of the run** (the quota spent, until midnight Pacific): the videos after it are not asked,
+  each in `Unread` as `not asked` with the refusal that stopped them, and their rows, analytics included, are kept.
 - **No analytics, no snapshot.** They need Zernio's Analytics add-on: `GET /v1/accounts` says
   `hasAnalyticsAccess`, and **false fails the run before any post is read, and nothing is written**
   (`stats.ErrNoAnalyticsAccess`, which says to turn it on). A 402 on a post's analytics is the same error, and
@@ -494,7 +542,13 @@ for good:
   a metric**: rows kept, posts not out, rows syncing, each TikTok account's lane, the posts lost with why, and why
   YouTube gave no curve (a warning for `youtube_analytics_scope_missing`, which asks for the channel to be connected
   again in Zernio).
-- **The workflow** runs every day at 05:41 UTC, and by hand with `since`. It is one job: it holds the Zernio key
+- **The workflow** runs every day at 08:17 UTC, just after midnight Pacific in summer (07:00 UTC) and in winter
+  (08:00), and by hand with `since`. **Midnight Pacific is when YouTube's Analytics quota starts again**, which every
+  curve of retention draws on: at 05:41 UTC (22:41 Pacific) it was spent before the run began, and on Oct 25 and 26
+  every curve was refused (`429`, "YouTube Analytics daily quota exhausted. Analytics requests succeed again after
+  midnight Pacific Time"), about 8 seconds in; the one run that read them, by hand at 13:20 Pacific, had none
+  refused. Our own reads are about 70 a day, one a YouTube video of the last 4 weeks. A run by hand late in the
+  Pacific day may find the quota spent again. It is one job: it holds the Zernio key
   and the VPS's (`VPS_*`, as `fetch`) and runs no npm, as the clips workflow's jobs do. A snapshot that lost a post
   is still kept, then the run is red.
 - `take_snapshot_usecase` reads, then keeps the rows with the report, `log_take_snapshot` logs each TikTok lane and
