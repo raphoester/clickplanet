@@ -143,6 +143,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     presence={fakePresence}
                     playerInfo={fakePresence}
                     tileHolders={fake}
+                    landmasses={fake}
                     season={fakeSeason}
                     standings={fakeStandings}
                     support={fakeSupport}
@@ -188,6 +189,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     presence={player}
                     playerInfo={player}
                     tileHolders={backend}
+                    landmasses={backend}
                     season={season}
                     standings={standings}
                     support={support}

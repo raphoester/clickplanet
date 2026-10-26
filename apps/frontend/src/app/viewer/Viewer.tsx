@@ -12,6 +12,7 @@ import {
     Shielder,
     TileClicker,
     TileHolders,
+    LandmassReader,
     UpdatesListener,
 } from "../../backends/backend.ts";
 import BombNews from "../components/BombNews.tsx";
@@ -63,6 +64,7 @@ import PlayerCard from "../players/PlayerCard.tsx";
 import HolderCard from "../players/HolderCard.tsx";
 import TerritoryCard from "../territory/TerritoryCard.tsx";
 import {useTerritoryCard} from "../territory/useTerritoryCard.ts";
+import {useTerritoryPlayers} from "../territory/useTerritoryPlayers.ts";
 import {useTileHolder} from "../players/useTileHolder.ts";
 import TitleUnlocked from "../titles/TitleUnlocked.tsx";
 import {usePresence} from "../players/usePresence.ts";
@@ -123,6 +125,7 @@ export type ViewerProps = {
     presence?: PresenceBackend
     playerInfo?: PlayerInfoBackend
     tileHolders?: TileHolders
+    landmasses?: LandmassReader
     season?: SeasonBackend
     standings?: StandingsBackend
     support?: SupportBackend
@@ -244,6 +247,7 @@ export default function Viewer(props: ViewerProps) {
 
     const tileHolder = useTileHolder(props.tileHolders, props.playerInfo, pointing, ownAccountId)
     const territoryCard = useTerritoryCard(pointingTerritory, territoryOf, showTerritory)
+    const territoryPlayers = useTerritoryPlayers(props.landmasses, props.playerInfo, territoryCard.shown?.territory.landmass)
 
     const bonusGuide = useBonusGuide()
 
@@ -478,6 +482,11 @@ export default function Viewer(props: ViewerProps) {
         {territoryCard.shown && <TerritoryCard key={`territory-${territoryCard.shown.id}`}
                                                shown={territoryCard.shown}
                                                flag={countryState.code}
+                                               players={territoryPlayers}
+                                               onOpenPlayer={onOpenPlayer && ((player) => {
+                                                   territoryCard.dismiss()
+                                                   onOpenPlayer(player)
+                                               })}
                                                onHold={territoryCard.hold}
                                                onClose={territoryCard.dismiss}/>}
 

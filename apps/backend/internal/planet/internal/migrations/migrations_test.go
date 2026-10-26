@@ -250,3 +250,44 @@ func TestTheLedgerIsToldFromTheFirstEventTheOldServerDidNotPublish(t *testing.T)
 	require.NoError(t, db.On(t.Context()).QueryRowContext(t.Context(), `SELECT position FROM ledger_relayed`).Scan(&relayed))
 	assert.Equal(t, int64(3), relayed, "it published every take it made, at the take")
 }
+
+const tileHolders = "20261026180000"
+
+func TestEachTileIsHeldByTheAccountOfTheLastChangeThatGaveItItsFlag(t *testing.T) {
+	db := cppg.StartTestServer(t).OpenSchema(t, "planet", before(t, tileHolders))
+	ana, bob := "0192f0a0-0000-7000-8000-000000000001", "0192f0a0-0000-7000-8000-000000000002"
+	_, err := db.On(t.Context()).ExecContext(t.Context(), `
+		INSERT INTO tiles (id, country) VALUES (1, 'fr'), (2, 'de'), (3, 'fr'), (4, 'it'), (5, 'fr')
+	`)
+	require.NoError(t, err)
+	_, err = db.On(t.Context()).ExecContext(t.Context(), `
+		INSERT INTO ledger_events (position, kind, tile, scope, account, country, previous, taken_at, payload) VALUES
+			(0, 'take', 1, '203.0.113.7', $1, 'fr', '', now(), NULL),
+			(1, 'take', 1, '203.0.113.7', $2, 'fr', 'fr', now(), NULL),
+			(2, 'take', 2, '203.0.113.7', $1, 'fr', '', now(), NULL),
+			(3, 'spread', 9, '203.0.113.7', $2, 'fr', '', now(), '{"taken": [{"tile": 3}]}'),
+			(4, 'take', 4, '203.0.113.7', $1, 'it', '', now(), NULL),
+			(5, 'bomb', 4, '203.0.113.7', $2, 'fr', '', now(), '{"flag": "fr", "point": [0, 0, 1], "radius": 0.01, "cleared": [{"tile": 4, "owner": "it"}]}'),
+			(6, 'take', 5, '203.0.113.7', NULL, 'fr', '', now(), NULL)
+	`, ana, bob)
+	require.NoError(t, err)
+
+	require.NoError(t, db.Migrate(t.Context(), migrations.FS))
+
+	rows, err := db.On(t.Context()).QueryContext(t.Context(), `SELECT id, COALESCE(holder::text, '') FROM tiles ORDER BY id`)
+	require.NoError(t, err)
+	defer func() { require.NoError(t, rows.Close()) }()
+	holders := map[int]string{}
+	for rows.Next() {
+		var (
+			id     int
+			holder string
+		)
+		require.NoError(t, rows.Scan(&id, &holder))
+		holders[id] = holder
+	}
+	require.NoError(t, rows.Err())
+
+	assert.Equal(t, map[int]string{1: bob, 2: "", 3: bob, 4: "", 5: ""}, holders,
+		"the last take; none once another flag was written; a spread's tile; none after a clear; none for no account")
+}

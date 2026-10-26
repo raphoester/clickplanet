@@ -4,6 +4,9 @@ import {cleanup, fireEvent, render, screen, within} from "@testing-library/react
 import TerritoryCard from "./TerritoryCard.tsx"
 import {TerritoryShown} from "./useTerritoryCard.ts"
 import {Territory} from "../../domain/territory.ts"
+import {NameColor, PlayerLine} from "../../backends/player.ts"
+import {TerritoryPlayers} from "./useTerritoryPlayers.ts"
+import {deletedLineOf} from "../players/useTileHolder.ts"
 
 const SICILY: Territory = {
     landmass: 12,
@@ -23,13 +26,24 @@ const SICILY: Territory = {
     target: undefined,
 }
 
+const NOW = 1_761_393_600_000
+
+const lineOf = (name: string, countryCode: string, guest = false): PlayerLine => ({
+    accountId: `account-${name}`, name, countryCode, guest, admin: false, color: NameColor.TEAL, streak: 0,
+})
+
+const PLAYERS: TerritoryPlayers = {
+    top: [{line: lineOf("Ana", "fr"), tiles: 400}, {line: lineOf("guest_91aa3d", "it", true), tiles: 12}],
+    fortifier: {line: lineOf("Mateus", "it"), at: NOW - 3 * 60 * 60_000},
+}
+
 const shown = (territory: Territory): TerritoryShown => ({territory, point: {x: 300, y: 200}, touch: false, id: 1})
 
 function show(territory: Territory, props: Partial<Parameters<typeof TerritoryCard>[0]> = {}) {
-    render(<TerritoryCard shown={shown(territory)} flag="de" onHold={() => {}} onClose={() => {}} {...props}/>)
+    render(<TerritoryCard shown={shown(territory)} flag="de" now={NOW} onHold={() => {}} onClose={() => {}} {...props}/>)
 }
 
-const rows = () => within(screen.getByRole("list")).getAllByRole("listitem").map((row) => row.textContent)
+const rows = () => within(screen.getAllByRole("list")[0]).getAllByRole("listitem").map((row) => row.textContent)
 
 describe("TerritoryCard", () => {
     afterEach(cleanup)
@@ -84,6 +98,42 @@ describe("TerritoryCard", () => {
 
         expect(screen.queryByRole("list")).toBeNull()
         expect(screen.getByRole("region", {name: "Sicily"}).textContent).toContain(`${(1_200).toLocaleString()} free`)
+    })
+
+    it("lists the players who hold the most of it, and opens a signed-in one's card", () => {
+        const onOpenPlayer = vi.fn()
+        show(SICILY, {players: PLAYERS, onOpenPlayer})
+
+        const top = screen.getByRole("region", {name: "Top players"})
+        expect(within(top).getAllByRole("listitem").map((row) => row.textContent)).toEqual(["Ana400", "guest_91aa3d12"])
+        expect(within(top).queryByRole("button", {name: /guest_91aa3d/})).toBeNull()
+
+        fireEvent.click(within(top).getByRole("button", {name: /Ana/}))
+        expect(onOpenPlayer).toHaveBeenCalledWith(PLAYERS.top[0].line)
+    })
+
+    it("lists no player until they are read", () => {
+        show(SICILY)
+
+        expect(screen.queryByRole("region", {name: "Top players"})).toBeNull()
+    })
+
+    it("says who fortified it last and when, under the flag that did", () => {
+        show(SICILY, {players: PLAYERS})
+
+        expect(screen.getByText("Mateus").closest("p")?.textContent).toBe("Mateus3 hours ago")
+    })
+
+    it("names nobody under a lock a fortify did not set", () => {
+        show({...SICILY, fortifiedBy: "fr"}, {players: PLAYERS})
+
+        expect(screen.queryByText("Mateus")).toBeNull()
+    })
+
+    it("says a deleted account fortified it", () => {
+        show(SICILY, {players: {top: [], fortifier: {line: deletedLineOf("it"), at: NOW}}})
+
+        expect(screen.getByText("Deleted account")).toBeTruthy()
     })
 
     it("closes from its button", () => {
