@@ -6,6 +6,7 @@ import (
 
 	"google.golang.org/protobuf/encoding/protojson"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/usecases/play_rules_usecase"
 )
 
@@ -20,17 +21,26 @@ type Logged struct {
 
 var _ play_rules_usecase.Executor = (*Logged)(nil)
 
-func (l *Logged) Execute(ctx context.Context) (play_rules_usecase.Taken, bool, error) {
+func (l *Logged) Execute(ctx context.Context) (rules.Snapshot, bool, error) {
 	taken, took, err := l.inner.Execute(ctx)
+	l.log(ctx, taken, took, err)
+	return taken, took, err //nolint:wrapcheck // a decorator adds a log line, not a sentence.
+}
+
+func (l *Logged) Play(ctx context.Context, choice rules.Choice) (rules.Snapshot, bool, error) {
+	taken, took, err := l.inner.Play(ctx, choice)
+	l.log(ctx, taken, took, err)
+	return taken, took, err //nolint:wrapcheck // a decorator adds a log line, not a sentence.
+}
+
+func (l *Logged) log(ctx context.Context, taken rules.Snapshot, took bool, err error) {
 	if took {
-		written, _ := protojson.Marshal(taken.Set.Rules)
+		written, _ := protojson.Marshal(taken.Rules)
 		l.logger.Warn("antibot rules in force",
-			slog.String("set", string(taken.Set.Name)),
-			slog.String("asked", string(taken.Asked)),
+			slog.String("set", string(taken.Name)),
 			slog.String("rules", string(written)))
 	}
 	if err != nil && ctx.Err() == nil {
 		l.logger.Error("failed to play the antibot rules", slog.Any("error", err))
 	}
-	return taken, took, err //nolint:wrapcheck // a decorator adds a log line, not a sentence.
 }
