@@ -4,6 +4,7 @@ import {cleanup, fireEvent, render, screen, within} from "@testing-library/react
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {ACCOUNT, AT, FakeAdmin} from "../fakeAdmin.ts"
 import {Author} from "../gen/grpc/player/v1/internal_pb.ts"
+import {SETTLE_MS} from "../home/ledger.ts"
 import {OpenPlayer} from "../navigation.ts"
 import {ANTIBOT_OFF} from "../players/actions.ts"
 import {BattlePage} from "./BattlePage.tsx"
@@ -132,7 +133,8 @@ describe("the battle page", () => {
         expect(screen.getByText(/^Last 2 hours:/).textContent).toBe("Last 2 hours: 4 clicks")
 
         const ledger = admin.askedFor("getLedger") as Sent[]
-        expect(ledger[1].since.toDate(), "the second read starts where the first stopped").toEqual(ledger[0].until.toDate())
+        expect(ledger[1].since.toDate(), "the second read starts a minute before the first stopped")
+            .toEqual(new Date(ledger[0].until.toDate().getTime() - SETTLE_MS))
     })
 
     it("reads the race, what the antibot reads now, the boxes and the server", async () => {

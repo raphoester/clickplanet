@@ -145,10 +145,13 @@ func (s *testSuite) TestOutsideASeasonTheRaceIsOnlyTheRoundClosedLast() {
 	s.Equal(uint32(1), race.GetClosed().GetNumber())
 }
 
-func (s *testSuite) TestBeforeAnyRoundClosesTheRaceCarriesNoClosedRound() {
+func (s *testSuite) TestBeforeAnyRoundClosesTheRaceCarriesNoClosedRoundAndNoScores() {
 	s.snapshot(sixteenth, map[rounds.Country]uint32{"fr": 30})
 
-	s.Nil(s.race().GetClosed())
+	race := s.race()
+
+	s.Nil(race.GetClosed())
+	s.Empty(race.GetScores())
 }
 
 func (s *testSuite) TestTheRoundClosedLastCarriesItsResultsAndTheTableBeforeAndAfterIt() {

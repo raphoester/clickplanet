@@ -218,6 +218,13 @@ export class GetLedgerRequest extends Message<GetLedgerRequest> {
    */
   until?: Timestamp;
 
+  /**
+   * The next_page of the page before; empty is the first.
+   *
+   * @generated from field: string page = 3;
+   */
+  page = "";
+
   constructor(data?: PartialMessage<GetLedgerRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -228,6 +235,7 @@ export class GetLedgerRequest extends Message<GetLedgerRequest> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "since", kind: "message", T: Timestamp },
     { no: 2, name: "until", kind: "message", T: Timestamp },
+    { no: 3, name: "page", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetLedgerRequest {
@@ -259,6 +267,13 @@ export class GetLedgerResponse extends Message<GetLedgerResponse> {
    */
   changes: LedgerChange[] = [];
 
+  /**
+   * Empty on the last page.
+   *
+   * @generated from field: string next_page = 2;
+   */
+  nextPage = "";
+
   constructor(data?: PartialMessage<GetLedgerResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -268,6 +283,7 @@ export class GetLedgerResponse extends Message<GetLedgerResponse> {
   static readonly typeName = "planet.v1.GetLedgerResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "changes", kind: "message", T: LedgerChange, repeated: true },
+    { no: 2, name: "next_page", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetLedgerResponse {

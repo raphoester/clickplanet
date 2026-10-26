@@ -1,6 +1,8 @@
+import {Timestamp} from "@bufbuild/protobuf"
 import {describe, expect, it} from "vitest"
 import {AT, FakeAdmin} from "../fakeAdmin.ts"
-import {changesOf, countriesBy, countriesOf, playersOf, slotsOf, windowOf} from "./ledger.ts"
+import {LedgerChange} from "../gen/grpc/planet/v1/admin_pb.ts"
+import {caughtUp, changesOf, countriesBy, countriesOf, playersOf, sinceOf, slotsOf, windowOf} from "./ledger.ts"
 
 const MINUTE = 60_000
 
@@ -11,6 +13,37 @@ describe("windowOf", () => {
         expect(windowOf(until, 1, 5 * MINUTE)).toEqual({since: new Date("2026-10-23T11:10:00Z"), until, count: 12, step: 5 * MINUTE})
         expect(windowOf(until, 24, 15 * MINUTE).since).toEqual(new Date("2026-10-22T12:15:00Z"))
         expect(windowOf(until, 24, 15 * MINUTE).count).toBe(96)
+    })
+})
+
+describe("reading the ledger in parts", () => {
+    const first = windowOf(new Date("2026-10-23T12:07:00Z"), 1, 5 * MINUTE)
+    const next = windowOf(new Date("2026-10-23T12:12:30Z"), 1, 5 * MINUTE)
+    const at = (iso: string) => new LedgerChange({at: Timestamp.fromDate(new Date(iso)), by: iso})
+
+    it("reads the whole window first, then from a minute before the end of what it kept", () => {
+        expect(sinceOf(undefined, first)).toEqual(first.since)
+        expect(sinceOf({window: first, changes: []}, next)).toEqual(new Date("2026-10-23T12:06:00Z"))
+    })
+
+    it("reads the whole window again for other slots, or after a pause longer than the window", () => {
+        const day = windowOf(new Date("2026-10-23T12:07:00Z"), 24, 15 * MINUTE)
+        const later = windowOf(new Date("2026-10-23T15:00:00Z"), 1, 5 * MINUTE)
+
+        expect(sinceOf({window: day, changes: []}, next)).toEqual(next.since)
+        expect(sinceOf({window: first, changes: []}, later)).toEqual(later.since)
+    })
+
+    it("keeps what it read before the read's start and inside the window, then adds what it read", () => {
+        const kept = {window: first, changes: [at("2026-10-23T11:12:00Z"), at("2026-10-23T12:05:59Z"), at("2026-10-23T12:06:30Z")]}
+        const since = sinceOf(kept, next)
+
+        const ledger = caughtUp(kept, next, since, [at("2026-10-23T12:06:30Z"), at("2026-10-23T12:12:00Z")])
+
+        expect(ledger.window).toBe(next)
+        expect(ledger.changes.map(change => change.by)).toEqual([
+            "2026-10-23T12:05:59Z", "2026-10-23T12:06:30Z", "2026-10-23T12:12:00Z",
+        ])
     })
 })
 

@@ -1,16 +1,16 @@
 import {Timestamp} from "@bufbuild/protobuf"
-import {ReactNode, useCallback, useEffect, useMemo, useState} from "react"
-import {LONG_CALL_MS} from "../api.ts"
+import {ReactNode, useCallback, useEffect, useMemo, useRef, useState} from "react"
 import {Clients, CLIENTS, PlanetAdmin, SupportAdmin} from "../clients.ts"
 import {clockOf} from "../components/time.ts"
 import {FailureNotice} from "../components/FailureNotice.tsx"
 import {PageId} from "../navigation.ts"
 import {Call, useCall} from "../useCall.ts"
+import {usePageVisible} from "../usePageVisible.ts"
 import {ActivityCharts} from "./ActivityCharts.tsx"
 import {FIRST_SPAN, Span, SPANS, totalsOf, wholeOf} from "./activity.ts"
 import {CountryTable} from "./CountryTable.tsx"
 import {Heatmap} from "./Heatmap.tsx"
-import {changesOf, countriesOf, playersOf, slotsOf, windowOf} from "./ledger.ts"
+import {changesOf, countriesOf, Ledger, playersOf, readOn, slotsOf, windowOf} from "./ledger.ts"
 import {loadPlaces, Places} from "./places.ts"
 import {PlayingNow} from "./PlayingNow.tsx"
 
@@ -23,8 +23,14 @@ type Props = {clients?: Clients, onGo?: (page: PageId) => void, places?: () => P
 
 export function HomePage({clients = CLIENTS, onGo, places: readPlaces = loadPlaces}: Props) {
     const [span, setSpan] = useState<Span>(FIRST_SPAN)
+    const visible = usePageVisible()
 
-    const readLedger = useCallback((signal: AbortSignal) => ledgerOf(clients.planet, span, signal), [clients, span])
+    const kept = useRef<Ledger | undefined>(undefined)
+    const readLedger = useCallback(async (signal: AbortSignal) => {
+        const read = await ledgerOf(clients.planet, span, kept.current, signal)
+        if (!signal.aborted) kept.current = read
+        return read
+    }, [clients, span])
     const readMap = useCallback((signal: AbortSignal) => mapOf(clients.planet, signal), [clients])
     const readRoster = useCallback(
         (signal: AbortSignal) => clients.player.getRoster({}, {signal}).then(answer => answer.entries),
@@ -46,10 +52,19 @@ export function HomePage({clients = CLIENTS, onGo, places: readPlaces = loadPlac
         readInboxAgain()
     }, [readLedgerAgain, readMapAgain, readRosterAgain, readInboxAgain])
 
+    const reading = [ledgerCall, mapCall, rosterCall, inboxCall].some(call => call.state === "loading")
+
+    const endedAt = useRef(0)
     useEffect(() => {
-        const timer = setInterval(reload, REFRESH_MS)
-        return () => clearInterval(timer)
-    }, [reload])
+        if (!reading) endedAt.current = Date.now()
+    }, [reading])
+
+    // The next read is a minute after the last one ended, and waits while the page is hidden.
+    useEffect(() => {
+        if (reading || !visible) return
+        const timer = setTimeout(reload, Math.max(0, endedAt.current + REFRESH_MS - Date.now()))
+        return () => clearTimeout(timer)
+    }, [reading, visible, reload])
 
     const ledger = useLast(ledgerCall)
     const map = useLast(mapCall)
@@ -57,17 +72,16 @@ export function HomePage({clients = CLIENTS, onGo, places: readPlaces = loadPlac
     const inbox = useLast(inboxCall)
     const places = placesCall.state === "done" ? placesCall.value : undefined
 
-    const slots = useMemo(() => ledger === undefined ? [] : slotsOf(ledger.answer, ledger.window), [ledger])
-    const players = useMemo(() => ledger === undefined ? 0 : playersOf(ledger.answer), [ledger])
+    const slots = useMemo(() => ledger === undefined ? [] : slotsOf(ledger, ledger.window), [ledger])
+    const players = useMemo(() => ledger === undefined ? 0 : playersOf(ledger), [ledger])
     const countries = useMemo(
-        () => ledger === undefined || map === undefined ? [] : countriesOf(ledger.answer, map.territories),
+        () => ledger === undefined || map === undefined ? [] : countriesOf(ledger, map.territories),
         [ledger, map],
     )
     const changes = useMemo(
-        () => ledger === undefined || places === undefined ? undefined : changesOf(ledger.answer, places.latitudes.length),
+        () => ledger === undefined || places === undefined ? undefined : changesOf(ledger, places.latitudes.length),
         [ledger, places],
     )
-    const reading = [ledgerCall, mapCall, rosterCall, inboxCall].some(call => call.state === "loading")
     const shownSpan = ledger?.span ?? span
 
     return (
@@ -83,7 +97,7 @@ export function HomePage({clients = CLIENTS, onGo, places: readPlaces = loadPlac
                 </div>
                 <span className="toolbar-end">
                     {ledger !== undefined && <span className="muted">Updated {clockOf(ledger.window.until)}</span>}
-                    <button type="button" className="button" onClick={reload}>Reload</button>
+                    <button type="button" className="button" onClick={reload} disabled={reading}>Reload</button>
                 </span>
             </div>
 
@@ -149,13 +163,8 @@ function useLast<T>(call: Call<T>): T | undefined {
     return call.state === "done" ? call.value : last
 }
 
-async function ledgerOf(planet: PlanetAdmin, span: Span, signal: AbortSignal) {
-    const window = windowOf(new Date(), span.hours, span.step)
-    const answer = await planet.getLedger(
-        {since: Timestamp.fromDate(window.since), until: Timestamp.fromDate(window.until)},
-        {signal, timeoutMs: LONG_CALL_MS},
-    )
-    return {answer, window, span}
+async function ledgerOf(planet: PlanetAdmin, span: Span, kept: Ledger | undefined, signal: AbortSignal) {
+    return {...await readOn(planet, kept, windowOf(new Date(), span.hours, span.step), signal), span}
 }
 
 async function mapOf(planet: PlanetAdmin, signal: AbortSignal) {

@@ -266,7 +266,9 @@ type GetLedgerRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Since *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=since,proto3" json:"since,omitempty"`
 	// Unset is now.
-	Until         *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=until,proto3" json:"until,omitempty"`
+	Until *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=until,proto3" json:"until,omitempty"`
+	// The next_page of the page before; empty is the first.
+	Page          string `protobuf:"bytes,3,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -315,11 +317,20 @@ func (x *GetLedgerRequest) GetUntil() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *GetLedgerRequest) GetPage() string {
+	if x != nil {
+		return x.Page
+	}
+	return ""
+}
+
 type GetLedgerResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Oldest first: a click that took a tile or struck its shield, a tile a spread, an enclosure or a bomb took or
 	// emptied, a shield placed or raised. A shield a bomb struck is left out: it changed no hands.
-	Changes       []*LedgerChange `protobuf:"bytes,1,rep,name=changes,proto3" json:"changes,omitempty"`
+	Changes []*LedgerChange `protobuf:"bytes,1,rep,name=changes,proto3" json:"changes,omitempty"`
+	// Empty on the last page.
+	NextPage      string `protobuf:"bytes,2,opt,name=next_page,json=nextPage,proto3" json:"next_page,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -359,6 +370,13 @@ func (x *GetLedgerResponse) GetChanges() []*LedgerChange {
 		return x.Changes
 	}
 	return nil
+}
+
+func (x *GetLedgerResponse) GetNextPage() string {
+	if x != nil {
+		return x.NextPage
+	}
+	return ""
 }
 
 type LedgerChange struct {
@@ -2100,12 +2118,14 @@ const file_planet_v1_admin_proto_rawDesc = "" +
 	"longestGap\x12\x1f\n" +
 	"\vtop_country\x18\f \x01(\tR\n" +
 	"topCountry\x12,\n" +
-	"\x12top_country_clicks\x18\r \x01(\rR\x10topCountryClicks\"v\n" +
+	"\x12top_country_clicks\x18\r \x01(\rR\x10topCountryClicks\"\x8a\x01\n" +
 	"\x10GetLedgerRequest\x120\n" +
 	"\x05since\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\x120\n" +
-	"\x05until\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x05until\"F\n" +
+	"\x05until\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x05until\x12\x12\n" +
+	"\x04page\x18\x03 \x01(\tR\x04page\"c\n" +
 	"\x11GetLedgerResponse\x121\n" +
-	"\achanges\x18\x01 \x03(\v2\x17.planet.v1.LedgerChangeR\achanges\"y\n" +
+	"\achanges\x18\x01 \x03(\v2\x17.planet.v1.LedgerChangeR\achanges\x12\x1b\n" +
+	"\tnext_page\x18\x02 \x01(\tR\bnextPage\"y\n" +
 	"\fLedgerChange\x12*\n" +
 	"\x02at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x02at\x12-\n" +
 	"\x06update\x18\x02 \x01(\v2\x15.planet.v1.TileUpdateR\x06update\x12\x0e\n" +

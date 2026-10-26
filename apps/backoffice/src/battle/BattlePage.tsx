@@ -6,7 +6,7 @@ import {FailureNotice} from "../components/FailureNotice.tsx"
 import {clockOf} from "../components/time.ts"
 import {Conviction} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {wholeOf} from "../home/activity.ts"
-import {slotsOf, windowOf} from "../home/ledger.ts"
+import {Ledger, readOn, slotsOf, windowOf} from "../home/ledger.ts"
 import {Tile} from "../home/HomePage.tsx"
 import {PlayingNow} from "../home/PlayingNow.tsx"
 import {ANTIBOT_OFF, namesOf, Named} from "../players/actions.ts"
@@ -26,7 +26,6 @@ import {
 } from "./counters.ts"
 import {MinuteChart, Series, SLOTS} from "./MinuteChart.tsx"
 import {RacePanel} from "./RacePanel.tsx"
-import {LAG_MS, Tail, tailOf} from "./tail.ts"
 import {Polled, usePolling} from "./usePolling.ts"
 
 export const REFRESH_MS = 15_000
@@ -48,13 +47,12 @@ type Props = {clients?: Clients}
 export function BattlePage({clients = CLIENTS}: Props) {
     const [span, setSpan] = useState<Span>(FIRST_SPAN)
     const [hovered, setHovered] = useState<number | undefined>(undefined)
-    const tail = useRef<Tail | undefined>(undefined)
+    const keptLedger = useRef<Ledger | undefined>(undefined)
     const samples = useRef<Sample[]>([])
 
     const readLedger = useCallback(async (signal: AbortSignal) => {
-        const frame = windowOf(new Date(Date.now() - LAG_MS), span.hours, MINUTE)
-        tail.current = await tailOf(clients.planet, tail.current, frame, signal)
-        return tail.current
+        keptLedger.current = await readOn(clients.planet, keptLedger.current, windowOf(new Date(), span.hours, MINUTE), signal)
+        return keptLedger.current
     }, [clients, span])
     const readCounters = useCallback(async (signal: AbortSignal) => {
         const answer = await clients.metrics.getMetrics({}, {signal})
@@ -89,7 +87,7 @@ export function BattlePage({clients = CLIENTS}: Props) {
     }
 
     const frame = ledger.value?.window
-    const slots = useMemo(() => ledger.value === undefined ? [] : slotsOf(ledger.value.ledger, ledger.value.window), [ledger.value])
+    const slots = useMemo(() => ledger.value === undefined ? [] : slotsOf(ledger.value, ledger.value.window), [ledger.value])
     const kept = useMemo(() => counters.value ?? [], [counters.value])
     const reasons = useMemo(() => reasonsOf(kept), [kept])
     // Clicks hold the first slot: a reason never wears its color.

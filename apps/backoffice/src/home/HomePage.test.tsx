@@ -1,13 +1,30 @@
 // @vitest-environment jsdom
+import {Timestamp} from "@bufbuild/protobuf"
 import {Code} from "@connectrpc/connect"
-import {cleanup, fireEvent, render, screen, within} from "@testing-library/react"
+import {act, cleanup, fireEvent, render, screen, waitFor, within} from "@testing-library/react"
 import {afterEach, describe, expect, it, onTestFinished, vi} from "vitest"
 import {ACCOUNT, AT, FakeAdmin} from "../fakeAdmin.ts"
+import {GetLedgerResponse, LedgerChange} from "../gen/grpc/planet/v1/admin_pb.ts"
+import {TileUpdate} from "../gen/grpc/planet/v1/planet_pb.ts"
 import {OpenPlayer} from "../navigation.ts"
-import {HomePage} from "./HomePage.tsx"
+import {HomePage, REFRESH_MS} from "./HomePage.tsx"
 import {Places} from "./places.ts"
 
 afterEach(cleanup)
+
+const MINUTE = 60_000
+
+function shownAs(state: DocumentVisibilityState) {
+    Object.defineProperty(document, "visibilityState", {value: state, configurable: true})
+    act(() => {
+        document.dispatchEvent(new Event("visibilitychange"))
+    })
+}
+
+function windowsAsked(admin: FakeAdmin): string[][] {
+    const asked = admin.askedFor("getLedger") as {since: {toDate(): Date}, until: {toDate(): Date}}[]
+    return asked.map(request => [request.since.toDate().toISOString(), request.until.toDate().toISOString()])
+}
 
 // The fake ledger's four tiles, all in one degree by Paris.
 const PARIS: Places = {
@@ -59,15 +76,89 @@ describe("the home page", () => {
             fireEvent.click(screen.getByRole("button", {name: "6 hours"}))
             await screen.findByText(/^Last 6 hours:/)
 
-            const asked = admin.askedFor("getLedger") as {since: {toDate(): Date}, until: {toDate(): Date}}[]
-            expect(asked.map(request => [request.since.toDate().toISOString(), request.until.toDate().toISOString()]))
-                .toEqual([
-                    ["2026-10-22T12:15:00.000Z", "2026-10-23T12:07:00.000Z"],
-                    ["2026-10-23T06:10:00.000Z", "2026-10-23T12:07:00.000Z"],
-                ])
+            expect(windowsAsked(admin)).toEqual([
+                ["2026-10-22T12:15:00.000Z", "2026-10-23T12:07:00.000Z"],
+                ["2026-10-23T06:10:00.000Z", "2026-10-23T12:07:00.000Z"],
+            ])
         } finally {
             vi.useRealTimers()
         }
+    })
+
+    it("reads again only from a minute before its last read, and counts what it read before", async () => {
+        vi.useFakeTimers({now: AT, toFake: ["Date"]})
+        onTestFinished(() => {
+            vi.useRealTimers()
+        })
+        const admin = new FakeAdmin()
+        show(admin)
+        const reload = screen.getByRole("button", {name: "Reload"})
+        await waitFor(() => expect(reload).toHaveProperty("disabled", false))
+        expect(within(tile("Clicks")).getByText("4")).toBeTruthy()
+
+        vi.setSystemTime(new Date(AT.getTime() + 2 * MINUTE))
+        admin.ledger = new GetLedgerResponse({
+            changes: [new LedgerChange({
+                at: Timestamp.fromDate(new Date(AT.getTime() + MINUTE)), by: "scope:198.51.100.4",
+                update: new TileUpdate({tileId: 4, countryId: "dz", previousCountryId: "fr", clicked: true}),
+            })],
+        })
+        fireEvent.click(reload)
+
+        await waitFor(() => expect(within(tile("Clicks")).getByText("5")).toBeTruthy())
+        expect(within(tile("Players")).getByText("3")).toBeTruthy()
+        expect(windowsAsked(admin)[1]).toEqual(["2026-10-18T11:59:00.000Z", "2026-10-18T12:02:00.000Z"])
+    })
+
+    it("reads every page of the ledger, one after the other", async () => {
+        vi.useFakeTimers({now: AT, toFake: ["Date"]})
+        onTestFinished(() => {
+            vi.useRealTimers()
+        })
+        const admin = new FakeAdmin()
+        admin.ledgerPages = [[new LedgerChange({
+            at: Timestamp.fromDate(new Date(AT.getTime() - 30 * MINUTE)), by: "scope:198.51.100.4",
+            update: new TileUpdate({tileId: 4, countryId: "dz", previousCountryId: "fr", clicked: true}),
+        })]]
+        show(admin)
+
+        await waitFor(() => expect(within(tile("Clicks")).getByText("5")).toBeTruthy())
+        expect((admin.askedFor("getLedger") as {page: string}[]).map(request => request.page)).toEqual(["", "1"])
+    })
+
+    it("reads again a minute after its last read ended, never while one runs nor while the page is hidden", async () => {
+        vi.useFakeTimers({now: AT, toFake: ["Date", "setTimeout", "clearTimeout"]})
+        onTestFinished(() => {
+            vi.useRealTimers()
+            shownAs("visible")
+        })
+        const admin = new FakeAdmin()
+        const release = admin.hold("getLedger")
+        show(admin)
+        const reads = () => admin.askedFor("getLedger").length
+
+        await act(() => vi.advanceTimersByTimeAsync(5 * REFRESH_MS))
+        expect(reads()).toBe(1)
+        expect(screen.getByRole("button", {name: "Reload"})).toHaveProperty("disabled", true)
+
+        await act(async () => {
+            release()
+            await vi.advanceTimersByTimeAsync(0)
+        })
+        expect(screen.getByRole("button", {name: "Reload"})).toHaveProperty("disabled", false)
+        await act(() => vi.advanceTimersByTimeAsync(REFRESH_MS - 1))
+        expect(reads()).toBe(1)
+        await act(() => vi.advanceTimersByTimeAsync(1))
+        expect(reads()).toBe(2)
+        await act(() => vi.advanceTimersByTimeAsync(0))
+
+        shownAs("hidden")
+        await act(() => vi.advanceTimersByTimeAsync(5 * REFRESH_MS))
+        expect(reads()).toBe(2)
+
+        shownAs("visible")
+        await act(() => vi.advanceTimersByTimeAsync(0))
+        expect(reads()).toBe(3)
     })
 
     it("goes to the page of what waits for the operator", async () => {

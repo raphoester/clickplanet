@@ -93,7 +93,7 @@ func TestASinkFramesABoxOfferedToThisCaller(t *testing.T) {
 		Offer: &bonuses.Offer{
 			Token:     "a-token",
 			Seed:      42,
-			Kind:      bonuses.KindRefill,
+			Kind:      bonuses.KindSpreadClicks,
 			ExpiresAt: time.Unix(0, 0).Add(15 * time.Second),
 		},
 	}))
@@ -102,7 +102,21 @@ func TestASinkFramesABoxOfferedToThisCaller(t *testing.T) {
 	require.NotNil(t, offered, "expected a bonus_offered case, got %+v", stream.sent[0].GetEvent())
 	assert.Equal(t, "a-token", offered.GetToken())
 	assert.Equal(t, uint32(42), offered.GetSeed())
+	assert.Equal(t, planetv1.BonusKind_BONUS_KIND_SPREAD_CLICKS, offered.GetKind())
 	assert.Equal(t, int64(15_000), offered.GetExpiresAtUnixMs())
+}
+
+func TestASinkFramesAQuizOfferedToThisCaller(t *testing.T) {
+	stream := &recorder{}
+
+	require.NoError(t, listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
+		Quiz: &bonuses.QuizOffer{Token: "a-quiz", ExpiresAt: time.Unix(0, 0).Add(20 * time.Second)},
+	}))
+
+	quiz := stream.sent[0].GetQuizOffered()
+	require.NotNil(t, quiz, "expected a quiz_offered case, got %+v", stream.sent[0].GetEvent())
+	assert.Equal(t, "a-quiz", quiz.GetToken())
+	assert.Equal(t, int64(20_000), quiz.GetExpiresAtUnixMs())
 }
 
 func TestASinkFramesACatchWithNoTokenOnIt(t *testing.T) {

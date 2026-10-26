@@ -141,6 +141,74 @@ func TestABlastIsCarriedToTheSinkAsOneFrame(t *testing.T) {
 	require.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true}, {Blast: blast}}, sink.seen())
 }
 
+func TestAFortificationIsCarriedToTheSinkAsOneFrame(t *testing.T) {
+	updates := make(chan clicks.Change, 1)
+	fortification := &clicks.Fortification{Landmass: 1, Country: "fr", Tile: 7, Tiles: 3}
+	updates <- clicks.Change{Fortification: fortification}
+
+	ctx, cancel := context.WithCancel(t.Context())
+	sink := &recorder{fed: make(chan struct{}), stopped: ctx.Done()}
+	done := make(chan error, 1)
+	go func() {
+		done <- listen_for_events_usecase.New(stubSubscriber{updates: updates}, time.Hour, silentFeed{}).Execute(ctx, sink)
+	}()
+
+	<-sink.fed
+	<-sink.fed
+	cancel()
+	require.NoError(t, <-done)
+
+	require.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true}, {Fortification: fortification}}, sink.seen())
+}
+
+type addressedFeed map[bonuses.Entrant]chan bonuses.Event
+
+func (f addressedFeed) Attend(entrant bonuses.Entrant) (<-chan bonuses.Event, func()) {
+	return f[entrant], func() {}
+}
+
+func TestABoxOfferedToTheCallerIsCarriedToTheSink(t *testing.T) {
+	boxes := make(chan bonuses.Event, 1)
+	offer := &bonuses.Offer{Token: "a-box", Kind: bonuses.KindSpreadClicks}
+	boxes <- bonuses.Event{Offer: offer}
+
+	ctx, cancel := context.WithCancel(cpctx.AddIPToContext(t.Context(), "1.2.3.4"))
+	sink := &recorder{fed: make(chan struct{}), stopped: ctx.Done()}
+	done := make(chan error, 1)
+	go func() {
+		done <- listen_for_events_usecase.New(
+			stubSubscriber{updates: make(chan clicks.Change)}, time.Hour, addressedFeed{"1.2.3.4": boxes}).Execute(ctx, sink)
+	}()
+
+	<-sink.fed
+	<-sink.fed
+	cancel()
+	require.NoError(t, <-done)
+
+	require.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true}, {Offer: offer}}, sink.seen())
+}
+
+func TestAQuizOfferedToTheCallerIsCarriedToTheSink(t *testing.T) {
+	boxes := make(chan bonuses.Event, 1)
+	quiz := &bonuses.QuizOffer{Token: "a-quiz"}
+	boxes <- bonuses.Event{Quiz: quiz}
+
+	ctx, cancel := context.WithCancel(cpctx.AddIPToContext(t.Context(), "1.2.3.4"))
+	sink := &recorder{fed: make(chan struct{}), stopped: ctx.Done()}
+	done := make(chan error, 1)
+	go func() {
+		done <- listen_for_events_usecase.New(
+			stubSubscriber{updates: make(chan clicks.Change)}, time.Hour, addressedFeed{"1.2.3.4": boxes}).Execute(ctx, sink)
+	}()
+
+	<-sink.fed
+	<-sink.fed
+	cancel()
+	require.NoError(t, <-done)
+
+	require.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true}, {Quiz: quiz}}, sink.seen())
+}
+
 func TestAStreamOpensWithAHeartbeat(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	sink := &recorder{fed: make(chan struct{}), stopped: ctx.Done()}

@@ -16,6 +16,8 @@ const transport = createConnectTransport({
     // The cp_admin cookie is the operator's only credential: without it every call is unauthenticated.
     fetch: (input, init) => globalThis.fetch(input, {...init, credentials: "include"}),
     defaultTimeoutMs: 10_000,
+    // A page of the ledger took the server eight times as long to write as JSON.
+    useBinaryFormat: true,
 })
 
 export const authAdmin = createPromiseClient(AuthAdmin, transport)

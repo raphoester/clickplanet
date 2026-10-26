@@ -105,6 +105,15 @@ func TestTheCallerReachesTheUseCaseAndGetsItsTokenAndCookie(t *testing.T) {
 	assert.Equal(t, "no-store", res.Header().Get("Cache-Control"))
 }
 
+func TestAMintWithoutACookieSetsNone(t *testing.T) {
+	useCase := &stubUseCase{out: &create_session_usecase.Out{Token: minted.Token, Account: minted.Account}}
+
+	res, err := createSession(t, server(t, useCase, allowAll{}))
+	require.NoError(t, err)
+
+	assert.Empty(t, res.Header().Values("Set-Cookie"))
+}
+
 func TestARefusedAttestationIsPermissionDeniedAndSaysNothingAboutWhy(t *testing.T) {
 	useCase := &stubUseCase{err: fmt.Errorf("%w: invalid-input-response", attestation.ErrAttestationFailed)}
 

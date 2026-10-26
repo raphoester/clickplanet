@@ -10,6 +10,7 @@ src/
   useAction.ts      one read's state, run on a click
   usePage.ts        the page shown, kept in the address bar
   useWide.ts        whether the window is wide enough for the sidebar
+  usePageVisible.ts whether the tab is shown
   navigation.ts     MENU, the pages by group, and OpenPlayer
   countries.ts      a country id's name and its flag
   App.tsx           the callback, or WhoAmI first, then the page the menu picked
@@ -18,8 +19,8 @@ src/
                     Fact, Person, When
   home/             Home: the tiles, ActivityCharts, Heatmap, CountryTable, PlayingNow, over ledger.ts (the counts),
                     heat.ts (the picture), places.ts (the tile coordinates) and activity.ts
-  battle/           Battle: BanList, MinuteChart, RacePanel, CounterPanels, over tail.ts (the ledger read on),
-                    counters.ts (the process's counters) and usePolling
+  battle/           Battle: BanList, MinuteChart, RacePanel, CounterPanels, over counters.ts (the process's counters)
+                    and usePolling; the ledger is read with home/ledger.ts's readOn
   support/          Ideas and bugs: NoteList, Attachments, labels.ts (names, outcomes, device lines, sizes)
   chat/             Conversation and TheirMessages, which reports/ and players/ show, over chatPages.ts (a page of
                     ListMessages, the parties a report names) and theirConversations.ts

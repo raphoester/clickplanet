@@ -1,15 +1,56 @@
 import {Timestamp} from "@bufbuild/protobuf"
+import {LONG_CALL_MS} from "../api.ts"
+import {PlanetAdmin} from "../clients.ts"
 import {GetLedgerResponse, LedgerChange} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {Territory} from "../gen/grpc/planet/v1/internal_pb.ts"
 import {Slot} from "./activity.ts"
 
 export type Window = {since: Date, until: Date, count: number, step: number}
 
+type Changes = Pick<GetLedgerResponse, "changes">
+
+// The changes of a window, read in one or more parts.
+export type Ledger = {window: Window, changes: LedgerChange[]}
+
+// A change reaches postgres a flush after it happened, later when a flush fails: the last minute is read again.
+export const SETTLE_MS = 60_000
+
 // Whole slots: the last one starts on the step before until, and is still filling.
 export function windowOf(until: Date, hours: number, step: number): Window {
     const count = Math.ceil((hours * 3600_000) / step)
     const last = Math.floor(until.getTime() / step) * step
     return {since: new Date(last - (count - 1) * step), until, count, step}
+}
+
+// Where the next read starts: the window's start, or a minute before the end of the ledger kept for the same slots.
+export function sinceOf(kept: Ledger | undefined, window: Window): Date {
+    if (kept === undefined || kept.window.step !== window.step || kept.window.count !== window.count) return window.since
+    return new Date(Math.max(window.since.getTime(), kept.window.until.getTime() - SETTLE_MS))
+}
+
+// The changes kept from the window's start to where the read started, then the ones it read.
+export function caughtUp(kept: Ledger | undefined, window: Window, since: Date, read: LedgerChange[]): Ledger {
+    const before = (kept?.changes ?? []).filter(change => {
+        const at = millisOf(change.at)
+        return at >= window.since.getTime() && at < since.getTime()
+    })
+    return {window, changes: [...before, ...read]}
+}
+
+// The window's changes, read on from the ledger kept, every page of them.
+export async function readOn(planet: PlanetAdmin, kept: Ledger | undefined, window: Window, signal: AbortSignal): Promise<Ledger> {
+    const since = sinceOf(kept, window)
+    const read: LedgerChange[] = []
+    let page = ""
+    do {
+        const answer = await planet.getLedger(
+            {since: Timestamp.fromDate(since), until: Timestamp.fromDate(window.until), page},
+            {signal, timeoutMs: LONG_CALL_MS},
+        )
+        for (const change of answer.changes) read.push(change)
+        page = answer.nextPage
+    } while (page !== "")
+    return caughtUp(kept, window, since, read)
 }
 
 // The tile changed hands: a click, a spread, an enclosure or a bomb. A strike or a shield did not.
@@ -21,7 +62,7 @@ function millisOf(at: Timestamp | undefined): number {
     return at === undefined ? 0 : Number(at.seconds) * 1000 + at.nanos / 1e6
 }
 
-export function slotsOf(ledger: GetLedgerResponse, {since, until, count, step}: Window): Slot[] {
+export function slotsOf(ledger: Changes, {since, until, count, step}: Window): Slot[] {
     const slots: Slot[] = Array.from({length: count}, (_, i) => {
         const start = new Date(since.getTime() + i * step)
         const end = new Date(start.getTime() + step)
@@ -43,12 +84,12 @@ export function slotsOf(ledger: GetLedgerResponse, {since, until, count, step}: 
     return slots
 }
 
-export function playersOf(ledger: GetLedgerResponse): number {
+export function playersOf(ledger: Changes): number {
     return new Set(ledger.changes.filter(moved).map(change => change.by)).size
 }
 
 // How often each tile changed hands, by tile id.
-export function changesOf(ledger: GetLedgerResponse, tiles: number): Uint32Array {
+export function changesOf(ledger: Changes, tiles: number): Uint32Array {
     const changes = new Uint32Array(tiles + 1)
     for (const change of ledger.changes) {
         const tile = change.update?.tileId ?? 0
@@ -71,7 +112,7 @@ export function heldOf(countries: CountryRow[]): number {
 }
 
 // What each country holds now, and the tiles taken for it and from it in the window.
-export function countriesOf(ledger: GetLedgerResponse, territories: Territory[]): CountryRow[] {
+export function countriesOf(ledger: Changes, territories: Territory[]): CountryRow[] {
     const rows = new Map<string, CountryRow>()
     const rowOf = (countryId: string) => {
         let row = rows.get(countryId)

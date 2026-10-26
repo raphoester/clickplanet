@@ -11,9 +11,9 @@ minutes.
   watchdog that read clear is no reason, and is left out), its offence and end, who it fell with (`alongside`), and
   its clicks. **Open player** opens it on the player page; **Unban account** and **Unban address** lift each key apart,
   since a guest the jury banned is banned on both. The antibot off says so, not "nobody".
-- **Clicks a minute** come from the ledger (`tail.ts`): the first read takes the span, each next one the minutes since
-  the last (`fromOf`), 5 seconds behind now (`LAG_MS`), since the last second is not flushed yet. The changes that leave
-  the span are dropped (`joined`); a wider span reads again whole. Then `slotsOf`, as on Home, in minutes.
+- **Clicks a minute** come from the ledger, read on as Home reads it (`readOn` in `home/ledger.ts`, see
+  [The home page](home.md)): the first read takes the span, each next one from a minute before the end of the last,
+  every page of it. Then `slotsOf`, as on Home, in minutes.
 - **Refused a minute** come from the process's counters (`metrics.v1.AdminService/GetMetrics`, `counters.ts`). **The
   history starts when the page opens**: the counters are in process, so the page keeps its own answers for the span
   (`keptSamples`) and subtracts them, spread over the minutes between two reads (`perSlotOf`); a restart (another

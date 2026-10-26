@@ -116,6 +116,20 @@ func (s *testSuite) TestAnAdminSessionEndsWithItsLifetimeOrItsSignOut() {
 	s.Require().ErrorIs(err, operator_query.ErrNoSession, "signed out")
 }
 
+func (s *testSuite) TestAGameSignOutKeepsTheAdminSession() {
+	s.player(ada, "game-token")
+	s.operates(ada, true)
+	s.adminSession(ada, "admin-token")
+
+	s.Require().NoError(s.accounts.DeleteSession(s.T().Context(), accounts.TokenOf("game-token").Hash()))
+
+	_, err := s.accounts.Session(s.T().Context(), accounts.TokenOf("game-token").Hash())
+	s.Require().ErrorIs(err, accounts.ErrSessionNotFound)
+	account, err := s.operator("cp_sid=game-token; cp_admin=admin-token", start)
+	s.Require().NoError(err)
+	s.Equal(ada.String(), account)
+}
+
 func (s *testSuite) TestNoCookieIsNobody() {
 	for _, header := range []string{"", "cp_admin=", "cp_admin=made-up", ";;;=", "CP_ADMIN=admin-token"} {
 		_, err := s.operator(header, start)

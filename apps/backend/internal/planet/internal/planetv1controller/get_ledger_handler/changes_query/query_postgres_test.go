@@ -3,6 +3,7 @@ package changes_query_test
 import (
 	"context"
 	"slices"
+	"strconv"
 	"testing"
 	"time"
 
@@ -58,10 +59,18 @@ func (s *testSuite) record(events ...ledger.Event) {
 	s.Require().NoError(s.store.Save(s.T().Context(), inmemory_ledger_storage.Changes{Entries: slices.Values(stored)}))
 }
 
+// Every page of the window, one after the other.
 func (s *testSuite) ledger(since, until time.Time) []*planetv1.LedgerChange {
-	answer, err := changes_query.NewPostgresQuery(s.db, cptime.NewFixedClock(at.Add(time.Hour))).Ledger(s.T().Context(), since, until)
-	s.Require().NoError(err)
-	return answer.GetChanges()
+	query := changes_query.NewPostgresQuery(s.db, cptime.NewFixedClock(at.Add(time.Hour)))
+	var changes []*planetv1.LedgerChange
+	for page := ""; ; {
+		answer, err := query.Ledger(s.T().Context(), since, until, page)
+		s.Require().NoError(err)
+		changes = append(changes, answer.GetChanges()...)
+		if page = answer.GetNextPage(); page == "" {
+			return changes
+		}
+	}
 }
 
 func everyKind() []ledger.Event {
@@ -198,6 +207,56 @@ func (s *testSuite) TestADeletedAccountsChangesAreItsAddresss() {
 	s.Equal("scope:203.0.113.7", s.ledger(at, at.Add(time.Minute))[0].GetBy())
 }
 
+func (s *testSuite) TestAPageEndsOnAWholeEventAndTheNextOneStartsAfterIt() {
+	events := make([]ledger.Event, 0, changes_query.PageEvents+1)
+	for i := range changes_query.PageEvents - 1 {
+		events = append(events, ledger.Taking{Tile: uint32(i%1000 + 1), Scope: "a", Country: "fr", At: at}) //nolint:gosec // under 1000.
+	}
+	events = append(events,
+		ledger.Bombing{Scope: "a", At: at, Blast: clicks.Blast{Tile: 9, CountryID: "fr", Cleared: []uint32{10, 9}, Owners: []string{"pl", "de"}}},
+		ledger.Taking{Tile: 5, Scope: "b", Country: "de", At: at},
+	)
+	s.record(events...)
+	query := changes_query.NewPostgresQuery(s.db, cptime.NewFixedClock(at.Add(time.Hour)))
+
+	first, err := query.Ledger(s.T().Context(), at, at.Add(time.Minute), "")
+	s.Require().NoError(err)
+	second, err := query.Ledger(s.T().Context(), at, at.Add(time.Minute), first.GetNextPage())
+	s.Require().NoError(err)
+
+	changes := first.GetChanges()
+	s.Require().Len(changes, changes_query.PageEvents+1, "the bomb's two tiles are on the page it ends")
+	s.Equal(uint32(10), changes[changes_query.PageEvents-1].GetUpdate().GetTileId())
+	s.Equal(uint32(9), changes[changes_query.PageEvents].GetUpdate().GetTileId())
+	s.Equal(strconv.Itoa(changes_query.PageEvents), first.GetNextPage())
+	s.Require().Len(second.GetChanges(), 1)
+	s.Equal("scope:b", second.GetChanges()[0].GetBy())
+	s.Empty(second.GetNextPage(), "the last page")
+}
+
+func (s *testSuite) TestAnEventWithNoChangeStillCountsOnItsPage() {
+	events := make([]ledger.Event, 0, changes_query.PageEvents+1)
+	for range changes_query.PageEvents {
+		events = append(events, ledger.Bombing{Scope: "a", At: at, Blast: clicks.Blast{CountryID: "fr"}})
+	}
+	events = append(events, ledger.Taking{Tile: 5, Scope: "b", Country: "de", At: at})
+	s.record(events...)
+
+	changes := s.ledger(at, at.Add(time.Minute))
+
+	s.Require().Len(changes, 1, "a bomb in the sea changes nothing")
+	s.Equal("scope:b", changes[0].GetBy())
+}
+
+func (s *testSuite) TestAPageThisQueryNeverGaveIsRefused() {
+	query := changes_query.NewPostgresQuery(s.db, cptime.NewFixedClock(at))
+
+	for _, page := range []string{"x", "-1", "1.5"} {
+		_, err := query.Ledger(s.T().Context(), at.Add(-time.Hour), at, page)
+		s.ErrorIs(err, changes_query.ErrInvalidPage, page)
+	}
+}
+
 func (s *testSuite) TestAWindowOfNothingOrOfMoreThan72HoursIsRefused() {
 	query := changes_query.NewPostgresQuery(s.db, cptime.NewFixedClock(at))
 
@@ -207,7 +266,7 @@ func (s *testSuite) TestAWindowOfNothingOrOfMoreThan72HoursIsRefused() {
 		{at, at.Add(-time.Hour)},
 		{at.Add(-72*time.Hour - time.Second), at},
 	} {
-		_, err := query.Ledger(s.T().Context(), window[0], window[1])
+		_, err := query.Ledger(s.T().Context(), window[0], window[1], "")
 		s.ErrorIs(err, changes_query.ErrInvalidWindow, window)
 	}
 }
@@ -216,7 +275,7 @@ func (s *testSuite) TestAStoreFailureIsAnError() {
 	ctx, cancel := context.WithCancel(s.T().Context())
 	cancel()
 
-	_, err := changes_query.NewPostgresQuery(s.db, cptime.NewFixedClock(at)).Ledger(ctx, at.Add(-time.Hour), at)
+	_, err := changes_query.NewPostgresQuery(s.db, cptime.NewFixedClock(at)).Ledger(ctx, at.Add(-time.Hour), at, "")
 
 	s.Error(err)
 }
