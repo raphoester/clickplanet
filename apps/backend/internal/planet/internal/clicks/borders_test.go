@@ -13,6 +13,6 @@ func TestACountrysGroundIsEveryLandmassItHolds(t *testing.T) {
 	borders, err := clicks.NewBorders("test", []uint16{1, 1, 2, 0, 3, 3, 3}, []string{"", "fr", "fr", "de"})
 	require.NoError(t, err)
 
-	assert.Equal(t, []clicks.Ground{{Country: "de", Tiles: 3}, {Country: "fr", Tiles: 3}}, borders.Grounds(),
+	assert.Equal(t, []clicks.CountrySize{{Country: "de", Tiles: 3}, {Country: "fr", Tiles: 3}}, borders.CountrySizes(),
 		"the sea is no ground")
 }

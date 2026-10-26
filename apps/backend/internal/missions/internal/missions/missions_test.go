@@ -19,7 +19,7 @@ var (
 
 var world = missions.World{
 	Territories: []missions.Holding{{Country: "dz", Tiles: 90_000}, {Country: "pw", Tiles: 70_000}, {Country: "fr", Tiles: 300}},
-	Grounds: []missions.Holding{
+	CountrySizes: []missions.Holding{
 		{Country: "br", Tiles: 9_000}, {Country: "fr", Tiles: 5_000}, {Country: "is", Tiles: 1_200}, {Country: "va", Tiles: 1},
 	},
 }

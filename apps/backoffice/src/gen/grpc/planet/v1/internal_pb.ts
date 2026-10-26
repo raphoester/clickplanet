@@ -248,77 +248,79 @@ export class Territory extends Message<Territory> {
 }
 
 /**
- * @generated from message planet.v1.GetGroundsRequest
+ * @generated from message planet.v1.GetCountrySizesRequest
  */
-export class GetGroundsRequest extends Message<GetGroundsRequest> {
-  constructor(data?: PartialMessage<GetGroundsRequest>) {
+export class GetCountrySizesRequest extends Message<GetCountrySizesRequest> {
+  constructor(data?: PartialMessage<GetCountrySizesRequest>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "planet.v1.GetGroundsRequest";
+  static readonly typeName = "planet.v1.GetCountrySizesRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetGroundsRequest {
-    return new GetGroundsRequest().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetCountrySizesRequest {
+    return new GetCountrySizesRequest().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetGroundsRequest {
-    return new GetGroundsRequest().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetCountrySizesRequest {
+    return new GetCountrySizesRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetGroundsRequest {
-    return new GetGroundsRequest().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetCountrySizesRequest {
+    return new GetCountrySizesRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: GetGroundsRequest | PlainMessage<GetGroundsRequest> | undefined, b: GetGroundsRequest | PlainMessage<GetGroundsRequest> | undefined): boolean {
-    return proto3.util.equals(GetGroundsRequest, a, b);
+  static equals(a: GetCountrySizesRequest | PlainMessage<GetCountrySizesRequest> | undefined, b: GetCountrySizesRequest | PlainMessage<GetCountrySizesRequest> | undefined): boolean {
+    return proto3.util.equals(GetCountrySizesRequest, a, b);
   }
 }
 
 /**
- * @generated from message planet.v1.GetGroundsResponse
+ * How many tiles of land each country has, all its landmasses together.
+ *
+ * @generated from message planet.v1.GetCountrySizesResponse
  */
-export class GetGroundsResponse extends Message<GetGroundsResponse> {
+export class GetCountrySizesResponse extends Message<GetCountrySizesResponse> {
   /**
-   * @generated from field: repeated planet.v1.Ground grounds = 1;
+   * @generated from field: repeated planet.v1.CountrySize country_sizes = 1;
    */
-  grounds: Ground[] = [];
+  countrySizes: CountrySize[] = [];
 
-  constructor(data?: PartialMessage<GetGroundsResponse>) {
+  constructor(data?: PartialMessage<GetCountrySizesResponse>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "planet.v1.GetGroundsResponse";
+  static readonly typeName = "planet.v1.GetCountrySizesResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "grounds", kind: "message", T: Ground, repeated: true },
+    { no: 1, name: "country_sizes", kind: "message", T: CountrySize, repeated: true },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetGroundsResponse {
-    return new GetGroundsResponse().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetCountrySizesResponse {
+    return new GetCountrySizesResponse().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetGroundsResponse {
-    return new GetGroundsResponse().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetCountrySizesResponse {
+    return new GetCountrySizesResponse().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetGroundsResponse {
-    return new GetGroundsResponse().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetCountrySizesResponse {
+    return new GetCountrySizesResponse().fromJsonString(jsonString, options);
   }
 
-  static equals(a: GetGroundsResponse | PlainMessage<GetGroundsResponse> | undefined, b: GetGroundsResponse | PlainMessage<GetGroundsResponse> | undefined): boolean {
-    return proto3.util.equals(GetGroundsResponse, a, b);
+  static equals(a: GetCountrySizesResponse | PlainMessage<GetCountrySizesResponse> | undefined, b: GetCountrySizesResponse | PlainMessage<GetCountrySizesResponse> | undefined): boolean {
+    return proto3.util.equals(GetCountrySizesResponse, a, b);
   }
 }
 
 /**
- * @generated from message planet.v1.Ground
+ * @generated from message planet.v1.CountrySize
  */
-export class Ground extends Message<Ground> {
+export class CountrySize extends Message<CountrySize> {
   /**
    * @generated from field: string country_id = 1;
    */
@@ -329,32 +331,32 @@ export class Ground extends Message<Ground> {
    */
   tiles = 0;
 
-  constructor(data?: PartialMessage<Ground>) {
+  constructor(data?: PartialMessage<CountrySize>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "planet.v1.Ground";
+  static readonly typeName = "planet.v1.CountrySize";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Ground {
-    return new Ground().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CountrySize {
+    return new CountrySize().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Ground {
-    return new Ground().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CountrySize {
+    return new CountrySize().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Ground {
-    return new Ground().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CountrySize {
+    return new CountrySize().fromJsonString(jsonString, options);
   }
 
-  static equals(a: Ground | PlainMessage<Ground> | undefined, b: Ground | PlainMessage<Ground> | undefined): boolean {
-    return proto3.util.equals(Ground, a, b);
+  static equals(a: CountrySize | PlainMessage<CountrySize> | undefined, b: CountrySize | PlainMessage<CountrySize> | undefined): boolean {
+    return proto3.util.equals(CountrySize, a, b);
   }
 }
 

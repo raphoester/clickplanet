@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetAllegianceOfRequest, GetAllegianceOfResponse, GetGroundsRequest, GetGroundsResponse, GetTakesByCountryRequest, GetTakesByCountryResponse, GetTerritoriesRequest, GetTerritoriesResponse } from "./internal_pb.js";
+import { GetAllegianceOfRequest, GetAllegianceOfResponse, GetCountrySizesRequest, GetCountrySizesResponse, GetTakesByCountryRequest, GetTakesByCountryResponse, GetTerritoriesRequest, GetTerritoriesResponse } from "./internal_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -33,12 +33,12 @@ export const InternalService = {
       idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
-     * @generated from rpc planet.v1.InternalService.GetGrounds
+     * @generated from rpc planet.v1.InternalService.GetCountrySizes
      */
-    getGrounds: {
-      name: "GetGrounds",
-      I: GetGroundsRequest,
-      O: GetGroundsResponse,
+    getCountrySizes: {
+      name: "GetCountrySizes",
+      I: GetCountrySizesRequest,
+      O: GetCountrySizesResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
     },

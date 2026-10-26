@@ -15,8 +15,8 @@ type Holding struct {
 }
 
 type World struct {
-	Territories []Holding
-	Grounds     []Holding
+	Territories  []Holding
+	CountrySizes []Holding
 }
 
 const (
@@ -66,9 +66,9 @@ func groundOf(id MissionID, flag string, world World, random *rand.Rand) Mission
 	reward := Reward{Kind: RewardBomb, Amount: 1}
 
 	var grounds []string
-	for _, ground := range world.Grounds {
-		if ground.Country != flag && ground.Tiles >= groundAtLeast {
-			grounds = append(grounds, ground.Country)
+	for _, size := range world.CountrySizes {
+		if size.Country != flag && size.Tiles >= groundAtLeast {
+			grounds = append(grounds, size.Country)
 		}
 	}
 	if len(grounds) == 0 {

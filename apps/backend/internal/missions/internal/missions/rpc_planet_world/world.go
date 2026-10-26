@@ -16,10 +16,10 @@ type Planet interface {
 		ctx context.Context,
 		req *connect.Request[planetv1.GetTerritoriesRequest],
 	) (*connect.Response[planetv1.GetTerritoriesResponse], error)
-	GetGrounds(
+	GetCountrySizes(
 		ctx context.Context,
-		req *connect.Request[planetv1.GetGroundsRequest],
-	) (*connect.Response[planetv1.GetGroundsResponse], error)
+		req *connect.Request[planetv1.GetCountrySizesRequest],
+	) (*connect.Response[planetv1.GetCountrySizesResponse], error)
 }
 
 const askTimeout = 5 * time.Second
@@ -42,7 +42,7 @@ func (r Reader) World(ctx context.Context) (missions.World, error) {
 	if err != nil {
 		return missions.World{}, fmt.Errorf("failed to ask planet what each flag holds: %w", err)
 	}
-	grounds, err := r.planet.GetGrounds(ctx, connect.NewRequest(&planetv1.GetGroundsRequest{}))
+	sizes, err := r.planet.GetCountrySizes(ctx, connect.NewRequest(&planetv1.GetCountrySizesRequest{}))
 	if err != nil {
 		return missions.World{}, fmt.Errorf("failed to ask planet how big each country is: %w", err)
 	}
@@ -51,8 +51,8 @@ func (r Reader) World(ctx context.Context) (missions.World, error) {
 	for _, held := range territories.Msg.GetTerritories() {
 		world.Territories = append(world.Territories, missions.Holding{Country: held.GetCountryId(), Tiles: held.GetTiles()})
 	}
-	for _, ground := range grounds.Msg.GetGrounds() {
-		world.Grounds = append(world.Grounds, missions.Holding{Country: ground.GetCountryId(), Tiles: ground.GetTiles()})
+	for _, size := range sizes.Msg.GetCountrySizes() {
+		world.CountrySizes = append(world.CountrySizes, missions.Holding{Country: size.GetCountryId(), Tiles: size.GetTiles()})
 	}
 	return world, nil
 }

@@ -1,7 +1,7 @@
 # Missions (`internal/missions/`)
 
 **Every flag has three missions a day, the same for each of its players, and each pays itself once done.** It reads
-planet's facts (`TileTaken`, `GetTerritories`, `GetGrounds`, `GetAllegianceOf`) and commands planet to grant a reward
+planet's facts (`TileTaken`, `GetTerritories`, `GetCountrySizes`, `GetAllegianceOf`) and commands planet to grant a reward
 (`planet.v1.GrantCharges`, over Redis), as seasons asks planet what each country holds: planet never imports, calls or
 hears it.
 Its public route, `/missions.v1.MissionService/*`, is listed in `deploy/vps/caddy/Caddyfile`, as every service's is.
@@ -33,7 +33,7 @@ internal/missions/internal/
     at the leader, for 4 spread clicks (with no other flag holding 400 tiles, 120 for the flag); 3. take 200 tiles on a
     ground of 1,000 tiles or more that is not the flag's, for a bomb (with none, 200 for the flag). **Never a refill**:
     a mission pays what multiplies or guards clicks, not clicks. The world is planet's (`GetTerritories`, and
-    `GetGrounds`, `clicks.Borders.Grounds`).
+    `GetCountrySizes`, `clicks.Borders.CountrySizes`).
   - **`Briefing.Of(day, flag)` draws once and keeps it**: the store's first `KeepBrief` wins, so two takes racing to
     draw a flag's day read one brief, and a map that moves later never changes it.
   - **A mission is named by its `MissionID`**, a UUID the draw derives from the day, the flag and its place in the

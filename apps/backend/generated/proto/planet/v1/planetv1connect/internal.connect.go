@@ -39,9 +39,9 @@ const (
 	// InternalServiceGetTerritoriesProcedure is the fully-qualified name of the InternalService's
 	// GetTerritories RPC.
 	InternalServiceGetTerritoriesProcedure = "/planet.v1.InternalService/GetTerritories"
-	// InternalServiceGetGroundsProcedure is the fully-qualified name of the InternalService's
-	// GetGrounds RPC.
-	InternalServiceGetGroundsProcedure = "/planet.v1.InternalService/GetGrounds"
+	// InternalServiceGetCountrySizesProcedure is the fully-qualified name of the InternalService's
+	// GetCountrySizes RPC.
+	InternalServiceGetCountrySizesProcedure = "/planet.v1.InternalService/GetCountrySizes"
 	// InternalServiceGetAllegianceOfProcedure is the fully-qualified name of the InternalService's
 	// GetAllegianceOf RPC.
 	InternalServiceGetAllegianceOfProcedure = "/planet.v1.InternalService/GetAllegianceOf"
@@ -51,7 +51,7 @@ const (
 type InternalServiceClient interface {
 	GetTakesByCountry(context.Context, *connect.Request[v1.GetTakesByCountryRequest]) (*connect.Response[v1.GetTakesByCountryResponse], error)
 	GetTerritories(context.Context, *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error)
-	GetGrounds(context.Context, *connect.Request[v1.GetGroundsRequest]) (*connect.Response[v1.GetGroundsResponse], error)
+	GetCountrySizes(context.Context, *connect.Request[v1.GetCountrySizesRequest]) (*connect.Response[v1.GetCountrySizesResponse], error)
 	GetAllegianceOf(context.Context, *connect.Request[v1.GetAllegianceOfRequest]) (*connect.Response[v1.GetAllegianceOfResponse], error)
 }
 
@@ -80,10 +80,10 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
-		getGrounds: connect.NewClient[v1.GetGroundsRequest, v1.GetGroundsResponse](
+		getCountrySizes: connect.NewClient[v1.GetCountrySizesRequest, v1.GetCountrySizesResponse](
 			httpClient,
-			baseURL+InternalServiceGetGroundsProcedure,
-			connect.WithSchema(internalServiceMethods.ByName("GetGrounds")),
+			baseURL+InternalServiceGetCountrySizesProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("GetCountrySizes")),
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
@@ -101,7 +101,7 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 type internalServiceClient struct {
 	getTakesByCountry *connect.Client[v1.GetTakesByCountryRequest, v1.GetTakesByCountryResponse]
 	getTerritories    *connect.Client[v1.GetTerritoriesRequest, v1.GetTerritoriesResponse]
-	getGrounds        *connect.Client[v1.GetGroundsRequest, v1.GetGroundsResponse]
+	getCountrySizes   *connect.Client[v1.GetCountrySizesRequest, v1.GetCountrySizesResponse]
 	getAllegianceOf   *connect.Client[v1.GetAllegianceOfRequest, v1.GetAllegianceOfResponse]
 }
 
@@ -115,9 +115,9 @@ func (c *internalServiceClient) GetTerritories(ctx context.Context, req *connect
 	return c.getTerritories.CallUnary(ctx, req)
 }
 
-// GetGrounds calls planet.v1.InternalService.GetGrounds.
-func (c *internalServiceClient) GetGrounds(ctx context.Context, req *connect.Request[v1.GetGroundsRequest]) (*connect.Response[v1.GetGroundsResponse], error) {
-	return c.getGrounds.CallUnary(ctx, req)
+// GetCountrySizes calls planet.v1.InternalService.GetCountrySizes.
+func (c *internalServiceClient) GetCountrySizes(ctx context.Context, req *connect.Request[v1.GetCountrySizesRequest]) (*connect.Response[v1.GetCountrySizesResponse], error) {
+	return c.getCountrySizes.CallUnary(ctx, req)
 }
 
 // GetAllegianceOf calls planet.v1.InternalService.GetAllegianceOf.
@@ -129,7 +129,7 @@ func (c *internalServiceClient) GetAllegianceOf(ctx context.Context, req *connec
 type InternalServiceHandler interface {
 	GetTakesByCountry(context.Context, *connect.Request[v1.GetTakesByCountryRequest]) (*connect.Response[v1.GetTakesByCountryResponse], error)
 	GetTerritories(context.Context, *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error)
-	GetGrounds(context.Context, *connect.Request[v1.GetGroundsRequest]) (*connect.Response[v1.GetGroundsResponse], error)
+	GetCountrySizes(context.Context, *connect.Request[v1.GetCountrySizesRequest]) (*connect.Response[v1.GetCountrySizesResponse], error)
 	GetAllegianceOf(context.Context, *connect.Request[v1.GetAllegianceOfRequest]) (*connect.Response[v1.GetAllegianceOfResponse], error)
 }
 
@@ -154,10 +154,10 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
-	internalServiceGetGroundsHandler := connect.NewUnaryHandler(
-		InternalServiceGetGroundsProcedure,
-		svc.GetGrounds,
-		connect.WithSchema(internalServiceMethods.ByName("GetGrounds")),
+	internalServiceGetCountrySizesHandler := connect.NewUnaryHandler(
+		InternalServiceGetCountrySizesProcedure,
+		svc.GetCountrySizes,
+		connect.WithSchema(internalServiceMethods.ByName("GetCountrySizes")),
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
@@ -174,8 +174,8 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 			internalServiceGetTakesByCountryHandler.ServeHTTP(w, r)
 		case InternalServiceGetTerritoriesProcedure:
 			internalServiceGetTerritoriesHandler.ServeHTTP(w, r)
-		case InternalServiceGetGroundsProcedure:
-			internalServiceGetGroundsHandler.ServeHTTP(w, r)
+		case InternalServiceGetCountrySizesProcedure:
+			internalServiceGetCountrySizesHandler.ServeHTTP(w, r)
 		case InternalServiceGetAllegianceOfProcedure:
 			internalServiceGetAllegianceOfHandler.ServeHTTP(w, r)
 		default:
@@ -195,8 +195,8 @@ func (UnimplementedInternalServiceHandler) GetTerritories(context.Context, *conn
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.GetTerritories is not implemented"))
 }
 
-func (UnimplementedInternalServiceHandler) GetGrounds(context.Context, *connect.Request[v1.GetGroundsRequest]) (*connect.Response[v1.GetGroundsResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.GetGrounds is not implemented"))
+func (UnimplementedInternalServiceHandler) GetCountrySizes(context.Context, *connect.Request[v1.GetCountrySizesRequest]) (*connect.Response[v1.GetCountrySizesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.GetCountrySizes is not implemented"))
 }
 
 func (UnimplementedInternalServiceHandler) GetAllegianceOf(context.Context, *connect.Request[v1.GetAllegianceOfRequest]) (*connect.Response[v1.GetAllegianceOfResponse], error) {

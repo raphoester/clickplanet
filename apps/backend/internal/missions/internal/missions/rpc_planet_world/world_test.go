@@ -16,7 +16,7 @@ import (
 
 type stubPlanet struct {
 	territories []*planetv1.Territory
-	grounds     []*planetv1.Ground
+	sizes       []*planetv1.CountrySize
 	err         error
 }
 
@@ -29,22 +29,22 @@ func (p stubPlanet) GetTerritories(
 	return connect.NewResponse(&planetv1.GetTerritoriesResponse{Territories: p.territories}), nil
 }
 
-func (p stubPlanet) GetGrounds(
-	context.Context, *connect.Request[planetv1.GetGroundsRequest],
-) (*connect.Response[planetv1.GetGroundsResponse], error) {
-	return connect.NewResponse(&planetv1.GetGroundsResponse{Grounds: p.grounds}), nil
+func (p stubPlanet) GetCountrySizes(
+	context.Context, *connect.Request[planetv1.GetCountrySizesRequest],
+) (*connect.Response[planetv1.GetCountrySizesResponse], error) {
+	return connect.NewResponse(&planetv1.GetCountrySizesResponse{CountrySizes: p.sizes}), nil
 }
 
 func TestTheWorldIsWhatEachFlagHoldsAndHowBigEachCountryIs(t *testing.T) {
 	world, err := rpc_planet_world.New(stubPlanet{
 		territories: []*planetv1.Territory{{CountryId: "dz", Tiles: 9}},
-		grounds:     []*planetv1.Ground{{CountryId: "br", Tiles: 900}},
+		sizes:       []*planetv1.CountrySize{{CountryId: "br", Tiles: 900}},
 	}).World(t.Context())
 
 	require.NoError(t, err)
 	assert.Equal(t, missions.World{
-		Territories: []missions.Holding{{Country: "dz", Tiles: 9}},
-		Grounds:     []missions.Holding{{Country: "br", Tiles: 900}},
+		Territories:  []missions.Holding{{Country: "dz", Tiles: 9}},
+		CountrySizes: []missions.Holding{{Country: "br", Tiles: 900}},
 	}, world)
 }
 

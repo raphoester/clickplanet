@@ -13,7 +13,7 @@ service InternalService {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 
-  rpc GetGrounds(GetGroundsRequest) returns (GetGroundsResponse) {
+  rpc GetCountrySizes(GetCountrySizesRequest) returns (GetCountrySizesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 
@@ -48,13 +48,14 @@ message Territory {
   uint32 tiles = 2;
 }
 
-message GetGroundsRequest {}
+message GetCountrySizesRequest {}
 
-message GetGroundsResponse {
-  repeated Ground grounds = 1;
+// How many tiles of land each country has, all its landmasses together.
+message GetCountrySizesResponse {
+  repeated CountrySize country_sizes = 1;
 }
 
-message Ground {
+message CountrySize {
   string country_id = 1;
   uint32 tiles = 2;
 }

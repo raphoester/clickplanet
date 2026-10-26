@@ -309,26 +309,26 @@ func (x *Territory) GetTiles() uint32 {
 	return 0
 }
 
-type GetGroundsRequest struct {
+type GetCountrySizesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GetGroundsRequest) Reset() {
-	*x = GetGroundsRequest{}
+func (x *GetCountrySizesRequest) Reset() {
+	*x = GetCountrySizesRequest{}
 	mi := &file_planet_v1_internal_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetGroundsRequest) String() string {
+func (x *GetCountrySizesRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetGroundsRequest) ProtoMessage() {}
+func (*GetCountrySizesRequest) ProtoMessage() {}
 
-func (x *GetGroundsRequest) ProtoReflect() protoreflect.Message {
+func (x *GetCountrySizesRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_planet_v1_internal_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -340,32 +340,33 @@ func (x *GetGroundsRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetGroundsRequest.ProtoReflect.Descriptor instead.
-func (*GetGroundsRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetCountrySizesRequest.ProtoReflect.Descriptor instead.
+func (*GetCountrySizesRequest) Descriptor() ([]byte, []int) {
 	return file_planet_v1_internal_proto_rawDescGZIP(), []int{6}
 }
 
-type GetGroundsResponse struct {
+// How many tiles of land each country has, all its landmasses together.
+type GetCountrySizesResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Grounds       []*Ground              `protobuf:"bytes,1,rep,name=grounds,proto3" json:"grounds,omitempty"`
+	CountrySizes  []*CountrySize         `protobuf:"bytes,1,rep,name=country_sizes,json=countrySizes,proto3" json:"country_sizes,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GetGroundsResponse) Reset() {
-	*x = GetGroundsResponse{}
+func (x *GetCountrySizesResponse) Reset() {
+	*x = GetCountrySizesResponse{}
 	mi := &file_planet_v1_internal_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetGroundsResponse) String() string {
+func (x *GetCountrySizesResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetGroundsResponse) ProtoMessage() {}
+func (*GetCountrySizesResponse) ProtoMessage() {}
 
-func (x *GetGroundsResponse) ProtoReflect() protoreflect.Message {
+func (x *GetCountrySizesResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_planet_v1_internal_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -377,19 +378,19 @@ func (x *GetGroundsResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetGroundsResponse.ProtoReflect.Descriptor instead.
-func (*GetGroundsResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetCountrySizesResponse.ProtoReflect.Descriptor instead.
+func (*GetCountrySizesResponse) Descriptor() ([]byte, []int) {
 	return file_planet_v1_internal_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *GetGroundsResponse) GetGrounds() []*Ground {
+func (x *GetCountrySizesResponse) GetCountrySizes() []*CountrySize {
 	if x != nil {
-		return x.Grounds
+		return x.CountrySizes
 	}
 	return nil
 }
 
-type Ground struct {
+type CountrySize struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	CountryId     string                 `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
 	Tiles         uint32                 `protobuf:"varint,2,opt,name=tiles,proto3" json:"tiles,omitempty"`
@@ -397,20 +398,20 @@ type Ground struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *Ground) Reset() {
-	*x = Ground{}
+func (x *CountrySize) Reset() {
+	*x = CountrySize{}
 	mi := &file_planet_v1_internal_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *Ground) String() string {
+func (x *CountrySize) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*Ground) ProtoMessage() {}
+func (*CountrySize) ProtoMessage() {}
 
-func (x *Ground) ProtoReflect() protoreflect.Message {
+func (x *CountrySize) ProtoReflect() protoreflect.Message {
 	mi := &file_planet_v1_internal_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -422,19 +423,19 @@ func (x *Ground) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use Ground.ProtoReflect.Descriptor instead.
-func (*Ground) Descriptor() ([]byte, []int) {
+// Deprecated: Use CountrySize.ProtoReflect.Descriptor instead.
+func (*CountrySize) Descriptor() ([]byte, []int) {
 	return file_planet_v1_internal_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *Ground) GetCountryId() string {
+func (x *CountrySize) GetCountryId() string {
 	if x != nil {
 		return x.CountryId
 	}
 	return ""
 }
 
-func (x *Ground) GetTiles() uint32 {
+func (x *CountrySize) GetTiles() uint32 {
 	if x != nil {
 		return x.Tiles
 	}
@@ -553,11 +554,11 @@ const file_planet_v1_internal_proto_rawDesc = "" +
 	"\tTerritory\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x01 \x01(\tR\tcountryId\x12\x14\n" +
-	"\x05tiles\x18\x02 \x01(\rR\x05tiles\"\x13\n" +
-	"\x11GetGroundsRequest\"A\n" +
-	"\x12GetGroundsResponse\x12+\n" +
-	"\agrounds\x18\x01 \x03(\v2\x11.planet.v1.GroundR\agrounds\"=\n" +
-	"\x06Ground\x12\x1d\n" +
+	"\x05tiles\x18\x02 \x01(\rR\x05tiles\"\x18\n" +
+	"\x16GetCountrySizesRequest\"V\n" +
+	"\x17GetCountrySizesResponse\x12;\n" +
+	"\rcountry_sizes\x18\x01 \x03(\v2\x16.planet.v1.CountrySizeR\fcountrySizes\"B\n" +
+	"\vCountrySize\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x01 \x01(\tR\tcountryId\x12\x14\n" +
 	"\x05tiles\x18\x02 \x01(\rR\x05tiles\"7\n" +
@@ -567,12 +568,11 @@ const file_planet_v1_internal_proto_rawDesc = "" +
 	"\x17GetAllegianceOfResponse\x125\n" +
 	"\n" +
 	"allegiance\x18\x01 \x01(\v2\x15.planet.v1.AllegianceR\n" +
-	"allegiance2\x81\x03\n" +
+	"allegiance2\x90\x03\n" +
 	"\x0fInternalService\x12c\n" +
 	"\x11GetTakesByCountry\x12#.planet.v1.GetTakesByCountryRequest\x1a$.planet.v1.GetTakesByCountryResponse\"\x03\x90\x02\x01\x12Z\n" +
-	"\x0eGetTerritories\x12 .planet.v1.GetTerritoriesRequest\x1a!.planet.v1.GetTerritoriesResponse\"\x03\x90\x02\x01\x12N\n" +
-	"\n" +
-	"GetGrounds\x12\x1c.planet.v1.GetGroundsRequest\x1a\x1d.planet.v1.GetGroundsResponse\"\x03\x90\x02\x01\x12]\n" +
+	"\x0eGetTerritories\x12 .planet.v1.GetTerritoriesRequest\x1a!.planet.v1.GetTerritoriesResponse\"\x03\x90\x02\x01\x12]\n" +
+	"\x0fGetCountrySizes\x12!.planet.v1.GetCountrySizesRequest\x1a\".planet.v1.GetCountrySizesResponse\"\x03\x90\x02\x01\x12]\n" +
 	"\x0fGetAllegianceOf\x12!.planet.v1.GetAllegianceOfRequest\x1a\".planet.v1.GetAllegianceOfResponse\"\x03\x90\x02\x01B\xb5\x01\n" +
 	"\rcom.planet.v1B\rInternalProtoP\x01ZPgithub.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1;planetv1\xa2\x02\x03PXX\xaa\x02\tPlanet.V1\xca\x02\tPlanet\\V1\xe2\x02\x15Planet\\V1\\GPBMetadata\xea\x02\n" +
 	"Planet::V1b\x06proto3"
@@ -597,9 +597,9 @@ var file_planet_v1_internal_proto_goTypes = []any{
 	(*GetTerritoriesRequest)(nil),     // 3: planet.v1.GetTerritoriesRequest
 	(*GetTerritoriesResponse)(nil),    // 4: planet.v1.GetTerritoriesResponse
 	(*Territory)(nil),                 // 5: planet.v1.Territory
-	(*GetGroundsRequest)(nil),         // 6: planet.v1.GetGroundsRequest
-	(*GetGroundsResponse)(nil),        // 7: planet.v1.GetGroundsResponse
-	(*Ground)(nil),                    // 8: planet.v1.Ground
+	(*GetCountrySizesRequest)(nil),    // 6: planet.v1.GetCountrySizesRequest
+	(*GetCountrySizesResponse)(nil),   // 7: planet.v1.GetCountrySizesResponse
+	(*CountrySize)(nil),               // 8: planet.v1.CountrySize
 	(*GetAllegianceOfRequest)(nil),    // 9: planet.v1.GetAllegianceOfRequest
 	(*GetAllegianceOfResponse)(nil),   // 10: planet.v1.GetAllegianceOfResponse
 	(*Allegiance)(nil),                // 11: planet.v1.Allegiance
@@ -608,15 +608,15 @@ var file_planet_v1_internal_proto_depIdxs = []int32{
 	2,  // 0: planet.v1.GetTakesByCountryResponse.taken_for:type_name -> planet.v1.CountryTakes
 	2,  // 1: planet.v1.GetTakesByCountryResponse.taken_from:type_name -> planet.v1.CountryTakes
 	5,  // 2: planet.v1.GetTerritoriesResponse.territories:type_name -> planet.v1.Territory
-	8,  // 3: planet.v1.GetGroundsResponse.grounds:type_name -> planet.v1.Ground
+	8,  // 3: planet.v1.GetCountrySizesResponse.country_sizes:type_name -> planet.v1.CountrySize
 	11, // 4: planet.v1.GetAllegianceOfResponse.allegiance:type_name -> planet.v1.Allegiance
 	0,  // 5: planet.v1.InternalService.GetTakesByCountry:input_type -> planet.v1.GetTakesByCountryRequest
 	3,  // 6: planet.v1.InternalService.GetTerritories:input_type -> planet.v1.GetTerritoriesRequest
-	6,  // 7: planet.v1.InternalService.GetGrounds:input_type -> planet.v1.GetGroundsRequest
+	6,  // 7: planet.v1.InternalService.GetCountrySizes:input_type -> planet.v1.GetCountrySizesRequest
 	9,  // 8: planet.v1.InternalService.GetAllegianceOf:input_type -> planet.v1.GetAllegianceOfRequest
 	1,  // 9: planet.v1.InternalService.GetTakesByCountry:output_type -> planet.v1.GetTakesByCountryResponse
 	4,  // 10: planet.v1.InternalService.GetTerritories:output_type -> planet.v1.GetTerritoriesResponse
-	7,  // 11: planet.v1.InternalService.GetGrounds:output_type -> planet.v1.GetGroundsResponse
+	7,  // 11: planet.v1.InternalService.GetCountrySizes:output_type -> planet.v1.GetCountrySizesResponse
 	10, // 12: planet.v1.InternalService.GetAllegianceOf:output_type -> planet.v1.GetAllegianceOfResponse
 	9,  // [9:13] is the sub-list for method output_type
 	5,  // [5:9] is the sub-list for method input_type

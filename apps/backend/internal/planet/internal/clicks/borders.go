@@ -72,25 +72,25 @@ func (b *Borders) TilesOf(landmass LandmassID) []uint32 {
 	return b.members[b.starts[landmass]:b.starts[landmass+1]]
 }
 
-type Ground struct {
+type CountrySize struct {
 	Country string
 	Tiles   uint32
 }
 
-// Every country with ground, by code; a country's landmasses are one ground.
-func (b *Borders) Grounds() []Ground {
+// Every country with land, by code; a country's landmasses add up to one size.
+func (b *Borders) CountrySizes() []CountrySize {
 	tiles := make(map[string]uint32)
 	for landmass := 1; landmass < len(b.codes); landmass++ {
 		tiles[b.codes[landmass]] += b.starts[landmass+1] - b.starts[landmass]
 	}
 
-	grounds := make([]Ground, 0, len(tiles))
+	sizes := make([]CountrySize, 0, len(tiles))
 	for country, count := range tiles {
-		grounds = append(grounds, Ground{Country: country, Tiles: count})
+		sizes = append(sizes, CountrySize{Country: country, Tiles: count})
 	}
-	slices.SortFunc(grounds, func(a, b Ground) int { return strings.Compare(a.Country, b.Country) })
+	slices.SortFunc(sizes, func(a, b CountrySize) int { return strings.Compare(a.Country, b.Country) })
 
-	return grounds
+	return sizes
 }
 
 func (b *Borders) Landmasses() int {
