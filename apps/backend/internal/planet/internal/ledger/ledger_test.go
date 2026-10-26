@@ -226,6 +226,16 @@ func TestAStrikeIsWrittenDownOnTheTileWithItsOwnerAndTheShieldsLeft(t *testing.T
 	}, entry)
 }
 
+func TestAShieldIsWrittenDownOnTheTileWithItsOwnFlagAndTheShieldsItNowHolds(t *testing.T) {
+	entry, err := ledger.Shielding{Tile: 4, Scope: "A", Account: "guest", Country: "fr", Shields: 3, At: start}.Entry()
+	require.NoError(t, err)
+
+	assert.Equal(t, ledger.Entry{
+		Kind: "shield", Tile: 4, Scope: "A", Account: "guest", Country: "fr", Previous: "fr", At: start,
+		Payload: []byte(`{"shields":3}`),
+	}, entry)
+}
+
 func TestEveryKindReadsBackAsItWasWrittenDown(t *testing.T) {
 	for _, event := range []ledger.Event{
 		ledger.Taking{Tile: 7, Scope: "A", Account: "guest", Country: "fr", Previous: "il", At: start},

@@ -23,6 +23,18 @@ func TestADrawnNameIsAValidUsername(t *testing.T) {
 	}
 }
 
+func TestADrawnNameIsAnAdjectiveAnAnimalAndTwoDigits(t *testing.T) {
+	for range 100 {
+		name, err := random_name_generator.Generator{}.NewName()
+		require.NoError(t, err)
+
+		assert.Regexp(t, `^[A-Z][a-z]+[A-Z][a-z]+[0-9]{2}$`, string(name))
+	}
+	for _, word := range append(append([]string{}, random_name_generator.Adjectives...), random_name_generator.Animals...) {
+		assert.Regexp(t, `^[A-Z][a-z]+$`, word, "so that every draw has the shape")
+	}
+}
+
 func TestEveryWordAndNumberMakesAValidUsername(t *testing.T) {
 	for _, adjective := range random_name_generator.Adjectives {
 		for _, animal := range random_name_generator.Animals {
