@@ -52,6 +52,41 @@ fragment shader mixed straight back out, and the fragment shader now skips the
 tile's own atlas fetch at the other end, where the painted flag has the frame to
 itself.
 
+**The widest painted flag on screen is drawn from its SVG, not read from the
+atlas.** A sprite is 100px wide and a painted flag is as wide as its landmass:
+Brazil's is 500 to 3,000px across before the tiles take over, so from the atlas
+its motto and its stars were mud at every zoom. One slot holds one flag: a
+1536×1024 canvas (`flagSlotTexture.ts`; 6 MB on the GPU, 8 with its mipmaps,
+allocated the first time a flag is drawn into it) with the flag rasterised from
+`static/countries/svg/<code>.svg` at its sprite's aspect, as large as fits, and
+the margins repeating its last column and row so a coarse mip level finds the
+flag's own colours at its edge. The fragment shader samples it with the same uv
+and the same `textureGrad` footprint it uses on the atlas, for the tiles of one
+landmass (`slotLandmass`) and no other; `vSlotted` carries the choice from the
+vertex shader, which has the landmass index.
+
+`flagSlot.ts` decides who holds it, with no GPU in reach: among the painted
+landmasses in view, the one whose flag is widest on screen (2 × halfU ×
+`pixelsPerRadian`), once that width passes `MAGNIFIED_FROM` (1.5) times its
+sprite's width — below that the atlas is as sharp as the slot would be. The
+threshold is measured against the sprite, so the atlas may change size without
+this changing. **The choice is made only once the camera has been still for
+`SETTLE_SECONDS` (0.15 s) with the idle spin off**; while it turns, the last
+choice stands. A pan sweeps across landmasses, and every change of flag is a
+draw and a 6 MB upload, so a drag does not thrash it, and the globe spinning at
+the resting zoom never takes one: the spin counts as turning even through its
+damped start, where it moves the camera by less than the controls notice. A
+still globe takes it at any zoom where the flag is painted, the opening one
+included: there Russia's flag is four times its sprite on a 600px-high view,
+and it is the biggest landmass on screen that the slot is for. The SVG is
+fetched the first time its flag is chosen and kept for the session; the atlas
+shows until it is drawn, a flag whose SVG fails stays on the atlas and is not
+asked for again, and a page where no painted flag ever outgrows its sprite
+fetches nothing. The landmass's holder is
+read every tick, so a flag that changes hands is redrawn; with `flagPaint` at 0
+— zoomed in, or `MapView` `"tiles"` — nothing is painted, so nothing qualifies
+and the slot is let go.
+
 **Opacity is the leader's share, and the curve it goes through is not a free
 knob.** Zoomed in, that share is already on screen as the fraction of discs
 wearing the holder's flag, so the tiles show `share * 0.7` of ink no matter what;

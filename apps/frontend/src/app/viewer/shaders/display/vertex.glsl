@@ -13,6 +13,8 @@ uniform float pixelsPerRadian;
 
 uniform float highlight;
 
+uniform float slotLandmass;
+
 // Must match MAX_BLASTS and BLAST_TIMELINE in domain/blast.ts.
 #define MAX_BLASTS 4
 const float BLAST_FALL = 0.8;
@@ -75,6 +77,7 @@ flat out vec4 vFlagRegion;
 flat out float vFlagShare;
 
 flat out float vSpriteSize;
+flat out float vSlotted;
 
 vec2 flagUVof(vec3 ground, vec3 centre, vec3 east, vec3 north, vec2 halfSize, vec2 anchor) {
     vec2 offset = vec2(dot(ground, east), dot(ground, north));
@@ -121,6 +124,7 @@ void main() {
     vFlagUV = vec2(0.0);
     vFlagStep = vec4(0.0);
     vFlagShare = 0.0;
+    vSlotted = 0.0;
 
     if (flagPaint > 0.0 && landmassIndex > 0.5) {
         float row = (landmassIndex + 0.5) / landmassCount;
@@ -156,6 +160,7 @@ void main() {
                 );
                 vFlagRegion = region;
                 vFlagShare = share;
+                vSlotted = abs(landmassIndex - slotLandmass) < 0.5 ? 1.0 : 0.0;
             }
         }
     }
