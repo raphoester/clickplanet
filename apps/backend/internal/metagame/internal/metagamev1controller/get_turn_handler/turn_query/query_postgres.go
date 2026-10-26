@@ -27,7 +27,7 @@ type PostgresQuery struct {
 func (q *PostgresQuery) Turn(ctx context.Context) (*metagamev1.GetTurnResponse, error) {
 	now := q.clock.Now()
 	rows, err := q.db.On(ctx).QueryContext(ctx, `
-		SELECT id, rule_set, kind, starts_at, ends_at, priority, made_at FROM schedule_entries`)
+		SELECT id, rule_set, kind, description, starts_at, ends_at, priority, made_at FROM schedule_entries`)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the schedule: %w", err)
 	}
@@ -39,16 +39,16 @@ func (q *PostgresQuery) Turn(ctx context.Context) (*metagamev1.GetTurnResponse, 
 	)
 	for rows.Next() {
 		var (
-			id        uuid.UUID
-			set, kind string
-			priority  int64
-			entry     schedule.EntrySnapshot
+			id                     uuid.UUID
+			set, kind, description string
+			priority               int64
+			entry                  schedule.EntrySnapshot
 		)
-		if err := rows.Scan(&id, &set, &kind, &entry.StartsAt, &entry.EndsAt, &priority, &entry.MadeAt); err != nil {
+		if err := rows.Scan(&id, &set, &kind, &description, &entry.StartsAt, &entry.EndsAt, &priority, &entry.MadeAt); err != nil {
 			return nil, fmt.Errorf("failed to read an entry of the schedule: %w", err)
 		}
 		entry.ID, entry.Set, entry.Kind = schedule.EntryID(id), schedule.SetName(set), schedule.Kind(kind)
-		entry.Priority = schedule.Priority(priority) //nolint:gosec // CHECK (priority >= 0 AND priority <= 4294967295).
+		entry.Description, entry.Priority = schedule.Description(description), schedule.Priority(priority) //nolint:gosec // CHECK (priority >= 0 AND priority <= 4294967295).
 		entries = append(entries, entry.Restore())
 		ends[entry.ID] = timestamppb.New(entry.EndsAt)
 	}
@@ -62,7 +62,7 @@ func (q *PostgresQuery) Turn(ctx context.Context) (*metagamev1.GetTurnResponse, 
 	if err != nil {
 		return nil, fmt.Errorf("failed to read what plays: %w", err)
 	}
-	answer := &metagamev1.GetTurnResponse{Kind: kind, EndsAt: ends[turn.Entry]}
+	answer := &metagamev1.GetTurnResponse{Kind: kind, EndsAt: ends[turn.Entry], Description: string(turn.Description)}
 	if since := sched.SinceAt(now); !since.IsZero() {
 		answer.Since = timestamppb.New(since)
 	}

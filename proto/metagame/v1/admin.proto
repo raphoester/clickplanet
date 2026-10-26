@@ -39,6 +39,8 @@ message Entry {
   google.protobuf.Timestamp made_at = 6;
   // What the entry is to the players: the game client reads it from MetagameService.GetTurn.
   EntryKind kind = 7;
+  // For the players, in plain text: what the rules of the entry are ("Triple points. A bonus box every minute.").
+  string description = 8;
 }
 
 // What the schedule plays now: the running entry with the highest priority, else "default".
@@ -59,6 +61,8 @@ message AddEntryRequest {
   uint32 priority = 4;
   // Battle or plain: unspecified is InvalidArgument.
   EntryKind kind = 5;
+  // At most 300 characters: InvalidArgument past that.
+  string description = 6;
 }
 
 message AddEntryResponse {
@@ -72,6 +76,7 @@ message EditEntryRequest {
   google.protobuf.Timestamp ends_at = 4;
   uint32 priority = 5;
   EntryKind kind = 6;
+  string description = 7;
 }
 
 message EditEntryResponse {}

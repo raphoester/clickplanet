@@ -40,8 +40,8 @@ func (s *testSuite) TestAnEntryOfTheScheduleIsPlayedByPlanetAndTheAntibot() {
 
 	startsAt, endsAt := time.Now().Add(2*time.Second), time.Now().Add(time.Hour)
 	added, err := schedule.AddEntry(ctx, connect.NewRequest(&metagamev1.AddEntryRequest{
-		RuleSet: "encore", Kind: metagamev1.EntryKind_ENTRY_KIND_BATTLE, StartsAt: timestamppb.New(startsAt),
-		EndsAt: timestamppb.New(endsAt), Priority: 1,
+		RuleSet: "encore", Kind: metagamev1.EntryKind_ENTRY_KIND_BATTLE, Description: "The same rules, once more.",
+		StartsAt: timestamppb.New(startsAt), EndsAt: timestamppb.New(endsAt), Priority: 1,
 	}))
 	require.NoError(t, err, "the metagame module asks planet and the antibot over the internal listener whether they keep the set")
 
@@ -62,5 +62,6 @@ func (s *testSuite) TestAnEntryOfTheScheduleIsPlayedByPlanetAndTheAntibot() {
 		GetTurn(ctx, connect.NewRequest(&metagamev1.GetTurnRequest{}))
 	require.NoError(t, err, "the game client reads the turn on the public listener")
 	assert.Equal(t, metagamev1.EntryKind_ENTRY_KIND_BATTLE, turn.Msg.GetKind())
+	assert.Equal(t, "The same rules, once more.", turn.Msg.GetDescription())
 	assert.Equal(t, endsAt.UnixMilli(), turn.Msg.GetEndsAt().AsTime().UnixMilli())
 }

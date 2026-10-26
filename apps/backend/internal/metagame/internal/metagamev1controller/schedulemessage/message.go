@@ -14,15 +14,15 @@ import (
 
 // DraftOf reads an unset time as none, which the schedule refuses; a kind the wire does not name is refused here.
 func DraftOf(
-	set string, kind metagamev1.EntryKind, startsAt, endsAt *timestamppb.Timestamp, priority uint32,
+	set string, kind metagamev1.EntryKind, description string, startsAt, endsAt *timestamppb.Timestamp, priority uint32,
 ) (schedule.Draft, error) {
 	known, err := kindOf(kind)
 	if err != nil {
 		return schedule.Draft{}, err
 	}
 	return schedule.Draft{
-		Set: schedule.SetName(set), Kind: known, StartsAt: timeOf(startsAt), EndsAt: timeOf(endsAt),
-		Priority: schedule.Priority(priority),
+		Set: schedule.SetName(set), Kind: known, Description: schedule.Description(description),
+		StartsAt: timeOf(startsAt), EndsAt: timeOf(endsAt), Priority: schedule.Priority(priority),
 	}, nil
 }
 
@@ -58,7 +58,7 @@ func timeOf(at *timestamppb.Timestamp) time.Time {
 // Refusal is the code of what the schedule refused, and the error as it is for anything else.
 func Refusal(err error) error {
 	switch {
-	case errors.Is(err, schedule.ErrInvalidEntry), errors.Is(err, schedule.ErrUnknownKind):
+	case errors.Is(err, schedule.ErrInvalidEntry), errors.Is(err, schedule.ErrUnknownKind), errors.Is(err, schedule.ErrLongDescription):
 		return connect.NewError(connect.CodeInvalidArgument, err)
 	case errors.Is(err, schedule.ErrUnknownEntry):
 		return connect.NewError(connect.CodeNotFound, err)

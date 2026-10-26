@@ -117,7 +117,9 @@ type GetTurnResponse struct {
 	// When this turn began. Unset when it has played since before any entry.
 	Since *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=since,proto3" json:"since,omitempty"`
 	// When the running entry ends. Unset when none runs. An entry above it may start before that: read again then.
-	EndsAt        *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=ends_at,json=endsAt,proto3" json:"ends_at,omitempty"`
+	EndsAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=ends_at,json=endsAt,proto3" json:"ends_at,omitempty"`
+	// The running entry's words for the players, plain text: what its rules are. Empty when none runs.
+	Description   string `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -173,16 +175,24 @@ func (x *GetTurnResponse) GetEndsAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *GetTurnResponse) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
 var File_metagame_v1_metagame_proto protoreflect.FileDescriptor
 
 const file_metagame_v1_metagame_proto_rawDesc = "" +
 	"\n" +
 	"\x1ametagame/v1/metagame.proto\x12\vmetagame.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x10\n" +
-	"\x0eGetTurnRequest\"\xa4\x01\n" +
+	"\x0eGetTurnRequest\"\xc6\x01\n" +
 	"\x0fGetTurnResponse\x12*\n" +
 	"\x04kind\x18\x01 \x01(\x0e2\x16.metagame.v1.EntryKindR\x04kind\x120\n" +
 	"\x05since\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\x123\n" +
-	"\aends_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x06endsAt*T\n" +
+	"\aends_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x06endsAt\x12 \n" +
+	"\vdescription\x18\x04 \x01(\tR\vdescription*T\n" +
 	"\tEntryKind\x12\x1a\n" +
 	"\x16ENTRY_KIND_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11ENTRY_KIND_BATTLE\x10\x01\x12\x14\n" +

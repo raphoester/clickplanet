@@ -26,8 +26,8 @@ func (h AddEntryHandler) AddEntry(
 	ctx context.Context,
 	req *connect.Request[metagamev1.AddEntryRequest],
 ) (*connect.Response[metagamev1.AddEntryResponse], error) {
-	draft, err := schedulemessage.DraftOf(
-		req.Msg.GetRuleSet(), req.Msg.GetKind(), req.Msg.GetStartsAt(), req.Msg.GetEndsAt(), req.Msg.GetPriority())
+	draft, err := schedulemessage.DraftOf(req.Msg.GetRuleSet(), req.Msg.GetKind(), req.Msg.GetDescription(),
+		req.Msg.GetStartsAt(), req.Msg.GetEndsAt(), req.Msg.GetPriority())
 	if err != nil {
 		return nil, schedulemessage.Refusal(err) //nolint:wrapcheck // InvalidArgument.
 	}

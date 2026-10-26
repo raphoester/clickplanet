@@ -28,7 +28,8 @@ type PostgresQuery struct {
 func (q *PostgresQuery) Schedule(ctx context.Context) (*metagamev1.GetScheduleResponse, error) {
 	now := q.clock.Now()
 	rows, err := q.db.On(ctx).QueryContext(ctx, `
-		SELECT id, rule_set, kind, starts_at, ends_at, priority, made_at FROM schedule_entries ORDER BY starts_at, made_at, id`)
+		SELECT id, rule_set, kind, description, starts_at, ends_at, priority, made_at FROM schedule_entries
+		ORDER BY starts_at, made_at, id`)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the schedule: %w", err)
 	}
@@ -38,16 +39,16 @@ func (q *PostgresQuery) Schedule(ctx context.Context) (*metagamev1.GetScheduleRe
 	var entries []schedule.Entry
 	for rows.Next() {
 		var (
-			id        uuid.UUID
-			set, kind string
-			priority  int64
-			entry     schedule.EntrySnapshot
+			id                     uuid.UUID
+			set, kind, description string
+			priority               int64
+			entry                  schedule.EntrySnapshot
 		)
-		if err := rows.Scan(&id, &set, &kind, &entry.StartsAt, &entry.EndsAt, &priority, &entry.MadeAt); err != nil {
+		if err := rows.Scan(&id, &set, &kind, &description, &entry.StartsAt, &entry.EndsAt, &priority, &entry.MadeAt); err != nil {
 			return nil, fmt.Errorf("failed to read an entry of the schedule: %w", err)
 		}
 		entry.ID, entry.Set, entry.Kind = schedule.EntryID(id), schedule.SetName(set), schedule.Kind(kind)
-		entry.Priority = schedule.Priority(priority) //nolint:gosec // CHECK (priority >= 0 AND priority <= 4294967295).
+		entry.Description, entry.Priority = schedule.Description(description), schedule.Priority(priority) //nolint:gosec // CHECK (priority >= 0 AND priority <= 4294967295).
 		wireKind, err := schedulemessage.KindOf(entry.Kind)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read the entry %s: %w", entry.ID, err)
@@ -56,7 +57,7 @@ func (q *PostgresQuery) Schedule(ctx context.Context) (*metagamev1.GetScheduleRe
 		answer.Entries = append(answer.Entries, &metagamev1.Entry{
 			Id: entry.ID.String(), RuleSet: set, StartsAt: timestamppb.New(entry.StartsAt),
 			EndsAt: timestamppb.New(entry.EndsAt), Priority: uint32(entry.Priority), MadeAt: timestamppb.New(entry.MadeAt),
-			Kind: wireKind,
+			Kind: wireKind, Description: description,
 		})
 	}
 	if err := rows.Err(); err != nil {

@@ -30,4 +30,6 @@ message GetTurnResponse {
   google.protobuf.Timestamp since = 2;
   // When the running entry ends. Unset when none runs. An entry above it may start before that: read again then.
   google.protobuf.Timestamp ends_at = 3;
+  // The running entry's words for the players, plain text: what its rules are. Empty when none runs.
+  string description = 4;
 }

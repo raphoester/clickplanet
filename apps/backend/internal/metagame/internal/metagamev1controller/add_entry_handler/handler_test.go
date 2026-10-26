@@ -38,15 +38,15 @@ func TestTheEntryAskedIsAddedAndNamed(t *testing.T) {
 	useCase := &stubUseCase{}
 
 	res, err := add(t, useCase, &metagamev1.AddEntryRequest{
-		RuleSet: "rush", Kind: metagamev1.EntryKind_ENTRY_KIND_BATTLE, StartsAt: timestamppb.New(finale),
-		EndsAt: timestamppb.New(finale.Add(time.Hour)), Priority: 2,
+		RuleSet: "rush", Kind: metagamev1.EntryKind_ENTRY_KIND_BATTLE, Description: "Triple points.",
+		StartsAt: timestamppb.New(finale), EndsAt: timestamppb.New(finale.Add(time.Hour)), Priority: 2,
 	})
 
 	require.NoError(t, err)
 	assert.Equal(t, "00000000-0000-0000-0000-000000000001", res.Msg.GetId())
 	require.Len(t, useCase.asked, 1)
 	assert.Equal(t, schedule.Draft{
-		Set: "rush", Kind: schedule.Battle, StartsAt: finale, EndsAt: finale.Add(time.Hour), Priority: 2,
+		Set: "rush", Kind: schedule.Battle, Description: "Triple points.", StartsAt: finale, EndsAt: finale.Add(time.Hour), Priority: 2,
 	}, useCase.asked[0])
 }
 
@@ -74,9 +74,10 @@ func TestAnUnspecifiedKindIsAnInvalidArgumentAndAsksNothing(t *testing.T) {
 
 func TestEachRefusalHasItsCode(t *testing.T) {
 	for err, code := range map[error]connect.Code{
-		schedule.ErrInvalidEntry: connect.CodeInvalidArgument,
-		schedule.ErrUnknownKind:  connect.CodeInvalidArgument,
-		schedule.ErrUnknownSet:   connect.CodeFailedPrecondition,
+		schedule.ErrInvalidEntry:    connect.CodeInvalidArgument,
+		schedule.ErrUnknownKind:     connect.CodeInvalidArgument,
+		schedule.ErrLongDescription: connect.CodeInvalidArgument,
+		schedule.ErrUnknownSet:      connect.CodeFailedPrecondition,
 	} {
 		_, got := add(t, &stubUseCase{err: err}, &metagamev1.AddEntryRequest{Kind: metagamev1.EntryKind_ENTRY_KIND_BATTLE})
 

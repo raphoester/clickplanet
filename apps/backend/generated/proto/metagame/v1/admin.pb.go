@@ -121,7 +121,9 @@ type Entry struct {
 	Priority uint32                 `protobuf:"varint,5,opt,name=priority,proto3" json:"priority,omitempty"`
 	MadeAt   *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=made_at,json=madeAt,proto3" json:"made_at,omitempty"`
 	// What the entry is to the players: the game client reads it from MetagameService.GetTurn.
-	Kind          EntryKind `protobuf:"varint,7,opt,name=kind,proto3,enum=metagame.v1.EntryKind" json:"kind,omitempty"`
+	Kind EntryKind `protobuf:"varint,7,opt,name=kind,proto3,enum=metagame.v1.EntryKind" json:"kind,omitempty"`
+	// For the players, in plain text: what the rules of the entry are ("Triple points. A bonus box every minute.").
+	Description   string `protobuf:"bytes,8,opt,name=description,proto3" json:"description,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -205,6 +207,13 @@ func (x *Entry) GetKind() EntryKind {
 	return EntryKind_ENTRY_KIND_UNSPECIFIED
 }
 
+func (x *Entry) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
 // What the schedule plays now: the running entry with the highest priority, else "default".
 type Playing struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
@@ -284,7 +293,9 @@ type AddEntryRequest struct {
 	EndsAt   *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=ends_at,json=endsAt,proto3" json:"ends_at,omitempty"`
 	Priority uint32                 `protobuf:"varint,4,opt,name=priority,proto3" json:"priority,omitempty"`
 	// Battle or plain: unspecified is InvalidArgument.
-	Kind          EntryKind `protobuf:"varint,5,opt,name=kind,proto3,enum=metagame.v1.EntryKind" json:"kind,omitempty"`
+	Kind EntryKind `protobuf:"varint,5,opt,name=kind,proto3,enum=metagame.v1.EntryKind" json:"kind,omitempty"`
+	// At most 300 characters: InvalidArgument past that.
+	Description   string `protobuf:"bytes,6,opt,name=description,proto3" json:"description,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -354,6 +365,13 @@ func (x *AddEntryRequest) GetKind() EntryKind {
 	return EntryKind_ENTRY_KIND_UNSPECIFIED
 }
 
+func (x *AddEntryRequest) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
 type AddEntryResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -406,6 +424,7 @@ type EditEntryRequest struct {
 	EndsAt        *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=ends_at,json=endsAt,proto3" json:"ends_at,omitempty"`
 	Priority      uint32                 `protobuf:"varint,5,opt,name=priority,proto3" json:"priority,omitempty"`
 	Kind          EntryKind              `protobuf:"varint,6,opt,name=kind,proto3,enum=metagame.v1.EntryKind" json:"kind,omitempty"`
+	Description   string                 `protobuf:"bytes,7,opt,name=description,proto3" json:"description,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -480,6 +499,13 @@ func (x *EditEntryRequest) GetKind() EntryKind {
 		return x.Kind
 	}
 	return EntryKind_ENTRY_KIND_UNSPECIFIED
+}
+
+func (x *EditEntryRequest) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
 }
 
 type EditEntryResponse struct {
@@ -606,7 +632,7 @@ const file_metagame_v1_admin_proto_rawDesc = "" +
 	"\x12GetScheduleRequest\"s\n" +
 	"\x13GetScheduleResponse\x12,\n" +
 	"\aentries\x18\x01 \x03(\v2\x12.metagame.v1.EntryR\aentries\x12.\n" +
-	"\aplaying\x18\x02 \x01(\v2\x14.metagame.v1.PlayingR\aplaying\"\x9d\x02\n" +
+	"\aplaying\x18\x02 \x01(\v2\x14.metagame.v1.PlayingR\aplaying\"\xbf\x02\n" +
 	"\x05Entry\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
 	"\brule_set\x18\x02 \x01(\tR\aruleSet\x127\n" +
@@ -614,27 +640,30 @@ const file_metagame_v1_admin_proto_rawDesc = "" +
 	"\aends_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x06endsAt\x12\x1a\n" +
 	"\bpriority\x18\x05 \x01(\rR\bpriority\x123\n" +
 	"\amade_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\x06madeAt\x12*\n" +
-	"\x04kind\x18\a \x01(\x0e2\x16.metagame.v1.EntryKindR\x04kind\"\x9d\x01\n" +
+	"\x04kind\x18\a \x01(\x0e2\x16.metagame.v1.EntryKindR\x04kind\x12 \n" +
+	"\vdescription\x18\b \x01(\tR\vdescription\"\x9d\x01\n" +
 	"\aPlaying\x12\x19\n" +
 	"\brule_set\x18\x01 \x01(\tR\aruleSet\x120\n" +
 	"\x05since\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\x12\x19\n" +
 	"\bentry_id\x18\x03 \x01(\tR\aentryId\x12*\n" +
-	"\x04kind\x18\x04 \x01(\x0e2\x16.metagame.v1.EntryKindR\x04kind\"\xe2\x01\n" +
+	"\x04kind\x18\x04 \x01(\x0e2\x16.metagame.v1.EntryKindR\x04kind\"\x84\x02\n" +
 	"\x0fAddEntryRequest\x12\x19\n" +
 	"\brule_set\x18\x01 \x01(\tR\aruleSet\x127\n" +
 	"\tstarts_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\bstartsAt\x123\n" +
 	"\aends_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x06endsAt\x12\x1a\n" +
 	"\bpriority\x18\x04 \x01(\rR\bpriority\x12*\n" +
-	"\x04kind\x18\x05 \x01(\x0e2\x16.metagame.v1.EntryKindR\x04kind\"\"\n" +
+	"\x04kind\x18\x05 \x01(\x0e2\x16.metagame.v1.EntryKindR\x04kind\x12 \n" +
+	"\vdescription\x18\x06 \x01(\tR\vdescription\"\"\n" +
 	"\x10AddEntryResponse\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"\xf3\x01\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"\x95\x02\n" +
 	"\x10EditEntryRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
 	"\brule_set\x18\x02 \x01(\tR\aruleSet\x127\n" +
 	"\tstarts_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\bstartsAt\x123\n" +
 	"\aends_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x06endsAt\x12\x1a\n" +
 	"\bpriority\x18\x05 \x01(\rR\bpriority\x12*\n" +
-	"\x04kind\x18\x06 \x01(\x0e2\x16.metagame.v1.EntryKindR\x04kind\"\x13\n" +
+	"\x04kind\x18\x06 \x01(\x0e2\x16.metagame.v1.EntryKindR\x04kind\x12 \n" +
+	"\vdescription\x18\a \x01(\tR\vdescription\"\x13\n" +
 	"\x11EditEntryResponse\"$\n" +
 	"\x12DeleteEntryRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"\x15\n" +

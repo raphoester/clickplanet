@@ -48,16 +48,27 @@ export function wordOf(kind: EntryKind): string {
     return (value?.localName ?? "unknown").toLowerCase()
 }
 
+// The server refuses a longer description (metagame.v1.AddEntryRequest.description).
+export const MAX_DESCRIPTION = 300
+
+// What the list shows of a description.
+export function shortOf(description: string, max = 60): string {
+    return description.length <= max ? description : `${description.slice(0, max - 1)}…`
+}
+
 // An entry as the form edits it: each time a datetime-local, in the operator's own time.
-export type Draft = {set: string, kind: EntryKind, startsAt: string, endsAt: string, priority: string}
+export type Draft = {set: string, kind: EntryKind, description: string, startsAt: string, endsAt: string, priority: string}
 
 export function draftOf(entry: Entry | undefined, sets: string[]): Draft {
     if (entry === undefined) {
-        return {set: sets.find(set => set !== "default") ?? sets[0] ?? "", kind: EntryKind.BATTLE, startsAt: "", endsAt: "", priority: "1"}
+        return {
+            set: sets.find(set => set !== "default") ?? sets[0] ?? "", kind: EntryKind.BATTLE, description: "", startsAt: "", endsAt: "",
+            priority: "1",
+        }
     }
     return {
-        set: entry.ruleSet, kind: entry.kind, startsAt: localOf(entry.startsAt?.toDate()), endsAt: localOf(entry.endsAt?.toDate()),
-        priority: String(entry.priority),
+        set: entry.ruleSet, kind: entry.kind, description: entry.description, startsAt: localOf(entry.startsAt?.toDate()),
+        endsAt: localOf(entry.endsAt?.toDate()), priority: String(entry.priority),
     }
 }
 
@@ -69,14 +80,15 @@ function localOf(date: Date | undefined): string {
 
 // The server holds the rest: a start after now, an end after it, a set both modules keep.
 export function complete(draft: Draft): boolean {
-    return draft.set !== "" && draft.kind !== EntryKind.UNSPECIFIED && draft.startsAt !== "" && draft.endsAt !== "" &&
-        Number.isInteger(Number(draft.priority)) && Number(draft.priority) >= 0
+    return draft.set !== "" && draft.kind !== EntryKind.UNSPECIFIED && [...draft.description].length <= MAX_DESCRIPTION &&
+        draft.startsAt !== "" && draft.endsAt !== "" && Number.isInteger(Number(draft.priority)) && Number(draft.priority) >= 0
 }
 
 function valuesOf(draft: Draft) {
     return {
         ruleSet: draft.set,
         kind: draft.kind,
+        description: draft.description,
         startsAt: Timestamp.fromDate(new Date(draft.startsAt)),
         endsAt: Timestamp.fromDate(new Date(draft.endsAt)),
         priority: Number(draft.priority),

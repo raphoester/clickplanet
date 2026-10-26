@@ -11,8 +11,8 @@ import {EntryKind} from "../gen/grpc/metagame/v1/metagame_pb.ts"
 import {wordsOf} from "../refusal.ts"
 import {useCall} from "../useCall.ts"
 import {
-    addEntry, changeable, complete, deleteEntry, Draft, draftOf, editEntry, ended, kinds, lacking, playable, questionOf, Row, rowsOf,
-    wordOf,
+    addEntry, changeable, complete, deleteEntry, Draft, draftOf, editEntry, ended, kinds, lacking, MAX_DESCRIPTION, playable, questionOf,
+    Row, rowsOf, shortOf, wordOf,
 } from "./schedule.ts"
 
 type Read = {schedule: GetScheduleResponse, planet: PlanetRules, antibot: AntibotRules}
@@ -108,7 +108,7 @@ function Rows({read, metagame, onEdit, onDeleted}: {
         <table className="table">
             <caption>Schedule</caption>
             <thead>
-                <tr><th>From</th><th>To</th><th>Set</th><th>Kind</th><th>Priority</th><th/></tr>
+                <tr><th>From</th><th>To</th><th>Set</th><th>Kind</th><th>Description</th><th>Priority</th><th/></tr>
             </thead>
             <tbody>
                 {rowsOf(read.schedule).map(row => (
@@ -124,6 +124,7 @@ function Rows({read, metagame, onEdit, onDeleted}: {
                             {!ended(row, now) && <Lacking set={row.entry.ruleSet} read={read}/>}
                         </td>
                         <td>{wordOf(row.entry.kind)}</td>
+                        <td title={row.entry.description}>{shortOf(row.entry.description)}</td>
                         <td>{row.entry.priority}</td>
                         <td>{changeable(row, now) && (
                             <EntryActions row={row} metagame={metagame} onEdit={onEdit} onDeleted={onDeleted}/>
@@ -183,6 +184,11 @@ function EntryForm({metagame, entry, sets, onCancel, onDone}: {
                     <select value={String(draft.kind)} onChange={e => change({kind: Number(e.target.value) as EntryKind})}>
                         {kinds().map(kind => <option key={kind} value={String(kind)}>{wordOf(kind)}</option>)}
                     </select>
+                </label>
+                <label className="field">
+                    <span className="muted">Description</span>
+                    <textarea rows={2} maxLength={MAX_DESCRIPTION} value={draft.description}
+                        onChange={e => change({description: e.target.value})}/>
                 </label>
                 <label className="field">
                     <span className="muted">Starts</span>

@@ -41,7 +41,10 @@ func TestEveryEntryIsListedByStartWithWhatPlaysNow(t *testing.T) {
 			ID: calm, Set: "calm", Kind: schedule.Plain, StartsAt: finale.Add(10 * time.Minute), EndsAt: finale.Add(30 * time.Minute),
 			Priority: 2, MadeAt: madeAt,
 		},
-		schedule.EntrySnapshot{ID: rush, Set: "rush", Kind: schedule.Battle, StartsAt: finale, EndsAt: battleEnds, Priority: 1, MadeAt: madeAt},
+		schedule.EntrySnapshot{
+			ID: rush, Set: "rush", Kind: schedule.Battle, Description: "Triple points.", StartsAt: finale, EndsAt: battleEnds,
+			Priority: 1, MadeAt: madeAt,
+		},
 	)
 
 	answer, err := schedule_query.NewPostgresQuery(db, cptime.NewFixedClock(finale.Add(15*time.Minute))).Schedule(t.Context())
@@ -50,8 +53,8 @@ func TestEveryEntryIsListedByStartWithWhatPlaysNow(t *testing.T) {
 	assert.True(t, proto.Equal(&metagamev1.GetScheduleResponse{
 		Entries: []*metagamev1.Entry{
 			{
-				Id: rush.String(), RuleSet: "rush", Kind: metagamev1.EntryKind_ENTRY_KIND_BATTLE, StartsAt: timestamppb.New(finale),
-				EndsAt: timestamppb.New(battleEnds), Priority: 1, MadeAt: timestamppb.New(madeAt),
+				Id: rush.String(), RuleSet: "rush", Kind: metagamev1.EntryKind_ENTRY_KIND_BATTLE, Description: "Triple points.",
+				StartsAt: timestamppb.New(finale), EndsAt: timestamppb.New(battleEnds), Priority: 1, MadeAt: timestamppb.New(madeAt),
 			},
 			{
 				Id: calm.String(), RuleSet: "calm", Kind: metagamev1.EntryKind_ENTRY_KIND_PLAIN,

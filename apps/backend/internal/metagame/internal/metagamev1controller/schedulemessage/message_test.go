@@ -16,9 +16,10 @@ func TestEveryKindTheWireNamesIsReadAndWrittenBack(t *testing.T) {
 		metagamev1.EntryKind_ENTRY_KIND_BATTLE: schedule.Battle,
 		metagamev1.EntryKind_ENTRY_KIND_PLAIN:  schedule.Plain,
 	} {
-		draft, err := schedulemessage.DraftOf("rush", wire, nil, nil, 1)
+		draft, err := schedulemessage.DraftOf("rush", wire, "Triple points.", nil, nil, 1)
 		require.NoError(t, err)
 		assert.Equal(t, kept, draft.Kind)
+		assert.Equal(t, schedule.Description("Triple points."), draft.Description)
 
 		written, err := schedulemessage.KindOf(kept)
 		require.NoError(t, err)

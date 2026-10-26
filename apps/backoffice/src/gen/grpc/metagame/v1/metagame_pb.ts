@@ -93,6 +93,13 @@ export class GetTurnResponse extends Message<GetTurnResponse> {
    */
   endsAt?: Timestamp;
 
+  /**
+   * The running entry's words for the players, plain text: what its rules are. Empty when none runs.
+   *
+   * @generated from field: string description = 4;
+   */
+  description = "";
+
   constructor(data?: PartialMessage<GetTurnResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -104,6 +111,7 @@ export class GetTurnResponse extends Message<GetTurnResponse> {
     { no: 1, name: "kind", kind: "enum", T: proto3.getEnumType(EntryKind) },
     { no: 2, name: "since", kind: "message", T: Timestamp },
     { no: 3, name: "ends_at", kind: "message", T: Timestamp },
+    { no: 4, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetTurnResponse {

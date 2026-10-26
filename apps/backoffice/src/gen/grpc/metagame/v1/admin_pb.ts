@@ -126,6 +126,13 @@ export class Entry extends Message<Entry> {
    */
   kind = EntryKind.UNSPECIFIED;
 
+  /**
+   * For the players, in plain text: what the rules of the entry are ("Triple points. A bonus box every minute.").
+   *
+   * @generated from field: string description = 8;
+   */
+  description = "";
+
   constructor(data?: PartialMessage<Entry>) {
     super();
     proto3.util.initPartial(data, this);
@@ -141,6 +148,7 @@ export class Entry extends Message<Entry> {
     { no: 5, name: "priority", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 6, name: "made_at", kind: "message", T: Timestamp },
     { no: 7, name: "kind", kind: "enum", T: proto3.getEnumType(EntryKind) },
+    { no: 8, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Entry {
@@ -254,6 +262,13 @@ export class AddEntryRequest extends Message<AddEntryRequest> {
    */
   kind = EntryKind.UNSPECIFIED;
 
+  /**
+   * At most 300 characters: InvalidArgument past that.
+   *
+   * @generated from field: string description = 6;
+   */
+  description = "";
+
   constructor(data?: PartialMessage<AddEntryRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -267,6 +282,7 @@ export class AddEntryRequest extends Message<AddEntryRequest> {
     { no: 3, name: "ends_at", kind: "message", T: Timestamp },
     { no: 4, name: "priority", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 5, name: "kind", kind: "enum", T: proto3.getEnumType(EntryKind) },
+    { no: 6, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AddEntryRequest {
@@ -357,6 +373,11 @@ export class EditEntryRequest extends Message<EditEntryRequest> {
    */
   kind = EntryKind.UNSPECIFIED;
 
+  /**
+   * @generated from field: string description = 7;
+   */
+  description = "";
+
   constructor(data?: PartialMessage<EditEntryRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -371,6 +392,7 @@ export class EditEntryRequest extends Message<EditEntryRequest> {
     { no: 4, name: "ends_at", kind: "message", T: Timestamp },
     { no: 5, name: "priority", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 6, name: "kind", kind: "enum", T: proto3.getEnumType(EntryKind) },
+    { no: 7, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): EditEntryRequest {

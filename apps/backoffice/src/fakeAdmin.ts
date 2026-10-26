@@ -173,7 +173,8 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
     schedule = new GetScheduleResponse({
         entries: [
             new Entry({
-                id: "entry-ended", ruleSet: "rush", kind: EntryKind.BATTLE, startsAt: Timestamp.fromDate(new Date("2020-10-31T21:00:00Z")),
+                id: "entry-ended", ruleSet: "rush", kind: EntryKind.BATTLE, description: "Triple points. A bonus box every minute.",
+                startsAt: Timestamp.fromDate(new Date("2020-10-31T21:00:00Z")),
                 endsAt: Timestamp.fromDate(new Date("2020-10-31T23:00:00Z")), priority: 1, madeAt: Timestamp.fromDate(AT),
             }),
             new Entry({
@@ -181,7 +182,8 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
                 endsAt: Timestamp.fromDate(new Date("2098-01-01T00:00:00Z")), priority: 1, madeAt: Timestamp.fromDate(AT),
             }),
             new Entry({
-                id: "entry-to-come", ruleSet: "frozen", kind: EntryKind.BATTLE, startsAt: Timestamp.fromDate(new Date("2098-06-01T20:00:00Z")),
+                id: "entry-to-come", ruleSet: "frozen", kind: EntryKind.BATTLE, description: "Frozen tiles.",
+                startsAt: Timestamp.fromDate(new Date("2098-06-01T20:00:00Z")),
                 endsAt: Timestamp.fromDate(new Date("2098-06-01T22:00:00Z")), priority: 2, madeAt: Timestamp.fromDate(AT),
             }),
         ],

@@ -16,8 +16,8 @@ reset go next. Its name was `rules` for a day; the user renamed it, since it org
 internal/metagame/
   module.go                         Config (database, redis), NewModule
   internal/
-    migrations/                     schedule_entries, entry_kind
-    schedule/                       EntryID, SetName, Kind, Priority, Draft, Entry (NewEntry, Edited, Changeable),
+    migrations/                     schedule_entries, entry_kind, entry_description
+    schedule/                       EntryID, SetName, Kind, Description, Priority, Draft, Entry (NewEntry, Edited, Changeable),
                                     Schedule (New, TurnAt, SinceAt), Turn; the Store, Keeper and IDProvider ports,
                                     Playable; the store's contract suite; FakeKeeper and FakeIDs (testing tag)
       inmemory_entry_store/         the Store in a map, behind the testing tag
@@ -40,8 +40,8 @@ internal/metagame/
 
 ## An entry
 
-**An entry is a rule set, a kind, a start, an end and a priority**, kept in `metagame.schedule_entries`. Each has an
-end: one that never ended could never be stopped.
+**An entry is a rule set, a kind, a description, a start, an end and a priority**, kept in
+`metagame.schedule_entries`. Each has an end: one that never ended could never be stopped.
 
 **The kind is what the entry is to the players** (`schedule.Kind`, the postgres enum `entry_kind`): `battle`, which
 the game client gives a war-like look, or `plain`, a change of the rules with no look for them (a quieter antibot
@@ -50,18 +50,24 @@ language the client reads (see [The game client](#the-game-client)). A kind nobo
 (`ErrUnknownKind`). More kinds will come: each is a value of the enum, in the proto and in postgres, and a word the
 client interprets.
 
+**The description is the entry's words for the players** (`schedule.Description`): what its rules are, in plain
+text, which the client shows behind the battle chip ("Triple points. A bonus box every minute."). The client cannot
+know a set's values, so the operator writes them. At most `MaxDescription` (300) characters, counted in runes; a
+longer one is refused with `ErrLongDescription`, among the draft's other reasons. It may be empty.
+
 **At any time the game plays the running entry with the highest priority** (`Schedule.TurnAt`). A tie goes to the
 entry made last (`made_at`, then the id). An entry runs from its start to just before its end. With no entry running,
 `default` plays, as a plain turn. `Schedule.SinceAt` is when the turn at a time began: the last start or end that
 changed it.
 
-**A turn is the entry that plays, its set and its kind.** An entry is a turn of its own even when it plays the set
-already playing, so it is commanded again.
+**A turn is the entry that plays, its set, its kind and its description.** An entry is a turn of its own even when it
+plays the set already playing, so it is commanded again.
 
 ## Only an entry to come changes
 
 - **An operator adds an entry, or edits or deletes one that has not started** (`Entry.Changeable`). A start must be
-  after now, an end after the start, and the name a set's (`Draft.check`, every reason at once).
+  after now, an end after the start, the name a set's, and the description short enough (`Draft.check`, every reason
+  at once, each reason found by `errors.Is`).
 - **A running entry runs to its end.** To fix one, the operator adds an entry at a higher priority. There is no "end
   now", no override button, and no call that changes the rules at once.
 - **An edit keeps the entry's id and its `made_at`**, so it keeps its place in a tie.
@@ -70,7 +76,7 @@ already playing, so it is commanded again.
   module that lacks it (`planet keeps no rule set of this name: "rush"`). **An antibot that is off** serves no route
   (`Unimplemented`): it judges with no set, so it lacks none.
 - Each change is logged at Warn by its audit decorator (`admin schedule entry added`, `edited`, `deleted`, or
-  `refused`, with the set, the kind, the times and the priority).
+  `refused`, with the set, the kind, the description, the times and the priority).
 
 ## A set a module lacks once the entry runs
 
@@ -127,20 +133,23 @@ Planet and the antibot do the same thing, each in its own `play_rules_usecase`:
 `metagame.v1.AdminService`, on the console and admin listeners (see [Operator tools](admin.md)), and the backoffice's
 Rule schedule page (see the backoffice's [Ops](../../backoffice/docs/ops.md)):
 
-- **`GetSchedule`** is a query (`schedule_query`): every entry (the past ones too), by start, each with its kind, and
-  `playing`: the set, the kind, since when, and the entry that plays (empty when none runs; the kind is plain then).
-- **`AddEntry`**, **`EditEntry`**, **`DeleteEntry`**: an entry that cannot be scheduled, or a kind the wire does not
-  name (`ENTRY_KIND_UNSPECIFIED` included), is `InvalidArgument`, a set a module lacks or an entry that started
-  `FailedPrecondition`, an unknown id `NotFound`. The kind crosses the wire as `metagame.v1.EntryKind`
-  (`schedulemessage.DraftOf` reads it, `KindOf` writes it, and a kept kind this build does not know fails the read).
+- **`GetSchedule`** is a query (`schedule_query`): every entry (the past ones too), by start, each with its kind and
+  its description, and `playing`: the set, the kind, since when, and the entry that plays (empty when none runs; the
+  kind is plain then).
+- **`AddEntry`**, **`EditEntry`**, **`DeleteEntry`**: an entry that cannot be scheduled (a description past 300
+  characters included), or a kind the wire does not name (`ENTRY_KIND_UNSPECIFIED` included), is `InvalidArgument`, a
+  set a module lacks or an entry that started `FailedPrecondition`, an unknown id `NotFound`. The kind crosses the
+  wire as `metagame.v1.EntryKind` (`schedulemessage.DraftOf` reads it, `KindOf` writes it, and a kept kind this build
+  does not know fails the read).
 
 ## The game client
 
 **`metagame.v1.MetagameService/GetTurn`**, on the public router, is what the client reads to give a battle its look:
-the kind of the running entry (plain when none runs), `since` when the turn began (unset before any entry), and
-`ends_at`, when the running entry ends (unset when none runs). **Never the rule set's name**: the query
-(`turn_query`) reads the entries and computes the turn by `Schedule`'s rule, as `GetSchedule` does, and answers in
-the published language only. The entry above it may start before `ends_at`: the client reads again then.
+the kind of the running entry (plain when none runs), its `description` (empty when none runs), `since` when the turn
+began (unset before any entry), and `ends_at`, when the running entry ends (unset when none runs). **Never the rule
+set's name**: the query (`turn_query`) reads the entries and computes the turn by `Schedule`'s rule, as `GetSchedule`
+does, and answers in the published language only. The entry above it may start before `ends_at`: the client reads
+again then.
 
 **A cached GET, fresh within five seconds.** `GetTurn` is `NO_SIDE_EFFECTS`, so Connect sends it as an HTTP GET, and
 `metagamev1controller.NewCacheInterceptor` sets `Cache-Control: public, max-age=5, s-maxage=5` on the answer (the
@@ -165,7 +174,8 @@ Nothing plays `rush` until an entry names it. Before 21:00, on the backoffice:
 
 1. Ops → Game rules: Copy `default`, name it `rush`, tempo 3, box waits 60–120 s, 30 an hour. Save.
 2. Ops → Anti-bot rules: Copy `default`, name it `rush`, `cohort.certainMembers` 50. Save.
-3. Ops → Rule schedule: Add an entry: `rush`, kind battle, from 31 Oct 21:00 UTC to 23:00 UTC, priority 1. It is
-   refused until both sets exist. The kind is what the game client shows: a plain entry would play `rush` with no look.
+3. Ops → Rule schedule: Add an entry: `rush`, kind battle, a description of its rules for the players, from 31 Oct
+   21:00 UTC to 23:00 UTC, priority 1. It is refused until both sets exist. The kind is what the game client shows: a
+   plain entry would play `rush` with no look.
 
 Once `rush` plays, neither module saves `rush`; an edit is a new set and a new entry.

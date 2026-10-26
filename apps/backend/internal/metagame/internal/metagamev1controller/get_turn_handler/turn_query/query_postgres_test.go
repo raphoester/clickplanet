@@ -28,8 +28,8 @@ var (
 func battle(t *testing.T, db cppg.Conn) {
 	t.Helper()
 	require.NoError(t, postgres_entry_store.New(db).Save(t.Context(), schedule.EntrySnapshot{
-		ID: schedule.EntryID(uuid.UUID{15: 1}), Set: "rush", Kind: schedule.Battle, StartsAt: finale, EndsAt: battleEnds,
-		Priority: 1, MadeAt: madeAt,
+		ID: schedule.EntryID(uuid.UUID{15: 1}), Set: "rush", Kind: schedule.Battle, Description: "Triple points.",
+		StartsAt: finale, EndsAt: battleEnds, Priority: 1, MadeAt: madeAt,
 	}.Restore()))
 }
 
@@ -40,14 +40,15 @@ func turnAt(t *testing.T, db cppg.Conn, at time.Time) *metagamev1.GetTurnRespons
 	return answer
 }
 
-func TestWhileAnEntryRunsTheTurnIsItsKindAndItsEnd(t *testing.T) {
+func TestWhileAnEntryRunsTheTurnIsItsKindItsWordsAndItsEnd(t *testing.T) {
 	db := cppg.StartTestServer(t).OpenSchema(t, "metagame", migrations.FS)
 	battle(t, db)
 
 	answer := turnAt(t, db, finale.Add(time.Minute))
 
 	assert.True(t, proto.Equal(&metagamev1.GetTurnResponse{
-		Kind: metagamev1.EntryKind_ENTRY_KIND_BATTLE, Since: timestamppb.New(finale), EndsAt: timestamppb.New(battleEnds),
+		Kind: metagamev1.EntryKind_ENTRY_KIND_BATTLE, Description: "Triple points.", Since: timestamppb.New(finale),
+		EndsAt: timestamppb.New(battleEnds),
 	}, answer), "%v", answer)
 }
 
