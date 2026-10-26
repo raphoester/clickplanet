@@ -83,6 +83,8 @@ func (u *UseCase) factsOf(position ledger.Position, event ledger.Event) []proto.
 			Country:   taking.Country,
 			TakenAt:   timestamppb.New(taking.At),
 			Position:  uint64(position),
+			Previous:  taking.Previous,
+			Ground:    u.borders.CountryOf(taking.Tile),
 		})
 	})
 

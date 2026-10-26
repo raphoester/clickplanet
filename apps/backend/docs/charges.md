@@ -40,6 +40,10 @@ its own.
   written or spent: a spread's tiles and an enclose's pocket would each take what
   the other decides. The client keeps one on at a time too, and aiming the bomb
   switches both off.
+- **Another module grants with a command**, `planet.v1.GrantCharges` on `commands:planet.v1.GrantCharges`
+  (`commands/apply_grant_handler`, `apply_grant_usecase`): the grant and its `grant_id` (`planet.charge_grants`) are
+  kept in one transaction, so a command told twice grants once. It caps at the stack as any grant does, and answers
+  nothing. `missions` pays its rewards this way.
 - **Nothing lapses.** Migration `20260919120000_charges_never_lapse` replaced the
   `*_until` columns with `refill` and `bomb` booleans and an `enclosures` count,
   keeping what was still in time. `bonus.chargeTTL` is gone.

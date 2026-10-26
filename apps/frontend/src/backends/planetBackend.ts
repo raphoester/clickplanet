@@ -8,19 +8,20 @@ import {
     BonusCatch,
     BonusHandlers,
     BonusListener,
-    GlobePoint,
     BonusLostError,
     BonusOffer,
+    ChargesRefresher,
     ClaimedBonus,
-    ShieldRefusedError,
     Enclosure,
     Fortification,
+    GlobePoint,
     Ownerships,
     OwnershipsGetter,
     QuizMaster,
     RateLimitedError,
     Refiller,
     Shielder,
+    ShieldRefusedError,
     SpreadClick,
     TileClicker,
     LandmassReader,
@@ -64,7 +65,7 @@ export function newClickServiceClient(config: Config): PromiseClient<typeof Clic
     }))
 }
 
-export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller, Shielder, AllegianceSource, TileHolders, LandmassReader {
+export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller, Shielder, AllegianceSource, ChargesRefresher, TileHolders, LandmassReader {
     private pendingUpdates: Update[] = []
     private readonly updateBatchCallbacks = new Map<string, (updates: Update[]) => void>()
     private readonly updateCallbacks = new Map<string, (update: Update) => void>()
@@ -399,6 +400,10 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
             if (e instanceof ConnectError && e.code === Code.Unimplemented) return
             console.error("could not read the bonus rules", e)
         }
+    }
+
+    public async refreshCharges(): Promise<void> {
+        await this.readCharges(this.streamToken ?? this.session.heldIdentity())
     }
 
     private async readCharges(token: string | undefined): Promise<void> {

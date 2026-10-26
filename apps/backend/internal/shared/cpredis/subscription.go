@@ -36,19 +36,32 @@ const (
 
 // From 0, so what another module published before this group existed is read too.
 func Subscribe[T proto.Message](ctx context.Context, streams *Streams, subscriber string, handler Handler[T]) (cpbootstrap.Runner, error) {
+	return subscribe(ctx, streams, streamOf, subscriber, handler)
+}
+
+const commandHandler = "handler"
+
+// A command has one group, so the module that handles it reads each command once, and one sent before it listened too.
+func Handle[T proto.Message](ctx context.Context, streams *Streams, handler Handler[T]) (cpbootstrap.Runner, error) {
+	return subscribe(ctx, streams, commandStreamOf, commandHandler, handler)
+}
+
+func subscribe[T proto.Message](
+	ctx context.Context, streams *Streams, streamOf func(protoreflect.FullName) string, name string, handler Handler[T],
+) (cpbootstrap.Runner, error) {
 	var zero T
-	event := zero.ProtoReflect().Descriptor().FullName()
-	if err := streams.claim(event, subscriber); err != nil {
+	message := zero.ProtoReflect().Descriptor().FullName()
+	if err := streams.claim(message, name); err != nil {
 		return nil, err
 	}
 
-	stream := streamOf(event)
-	err := streams.client.XGroupCreateMkStream(ctx, stream, subscriber, "0").Err()
+	stream := streamOf(message)
+	err := streams.client.XGroupCreateMkStream(ctx, stream, name, "0").Err()
 	if err != nil && !redis.HasErrorPrefix(err, "BUSYGROUP") {
-		return nil, fmt.Errorf("failed to create the group %s on %s: %w", subscriber, stream, err)
+		return nil, fmt.Errorf("failed to create the group %s on %s: %w", name, stream, err)
 	}
 
-	subscribed, err := newGroup(streams, event, subscriber)
+	subscribed, err := newGroup(streams, stream, message, name)
 	if err != nil {
 		return nil, err
 	}
@@ -69,11 +82,11 @@ type group struct {
 	held   *prometheus.Desc
 }
 
-func newGroup(streams *Streams, event protoreflect.FullName, name string) (*group, error) {
+func newGroup(streams *Streams, stream string, event protoreflect.FullName, name string) (*group, error) {
 	labels := prometheus.Labels{"event": string(event), "subscriber": name}
 	subscribed := &group{
 		client:        streams.client,
-		stream:        streamOf(event),
+		stream:        stream,
 		event:         event,
 		name:          name,
 		retryAfter:    streams.config.RetryAfter,

@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+package missions.v1;
+
+import "planet/v1/planet.proto";
+
+service MissionService {
+  rpc GetMissions(GetMissionsRequest) returns (GetMissionsResponse);
+}
+
+message GetMissionsRequest {}
+
+// The day's missions are for the flag of the day's first take, and for the caller's pledged flag until then.
+message GetMissionsResponse {
+  string country_id = 1;
+  bool enlisted = 2;
+  int64 ends_at_unix_ms = 3;
+  repeated Mission missions = 4;
+}
+
+// What every mission has. What it asks is its kind's own message: a client skips a kind it does not know.
+message Mission {
+  string id = 1;
+  MissionReward reward = 2;
+  bool done = 3;
+  // A done mission is paid at once, or a guest's when it signs in that day.
+  bool paid = 4;
+
+  oneof kind {
+    TakeFor take_for = 10;
+    TakeFrom take_from = 11;
+    TakeIn take_in = 12;
+  }
+}
+
+// Take goal tiles for country_id, the day's flag.
+message TakeFor {
+  string country_id = 1;
+  uint32 goal = 2;
+  uint32 taken = 3;
+}
+
+// Take goal tiles that country_id held.
+message TakeFrom {
+  string country_id = 1;
+  uint32 goal = 2;
+  uint32 taken = 3;
+}
+
+// Take goal tiles on country_id's land.
+message TakeIn {
+  string country_id = 1;
+  uint32 goal = 2;
+  uint32 taken = 3;
+}
+
+// A client skips a mission whose reward it does not know.
+message MissionReward {
+  oneof kind {
+    Charges charges = 1;
+  }
+}
+
+message Charges {
+  planet.v1.BonusKind kind = 1;
+  uint32 amount = 2;
+}

@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package planet.v1;
+
+import "planet/v1/planet.proto";
+
+// What does not fit the account's stack is not granted. A grant_id told twice is granted once.
+message GrantCharges {
+  string grant_id = 1;
+  string account_id = 2;
+  BonusKind kind = 3;
+  uint32 amount = 4;
+}

@@ -5,6 +5,7 @@ import {
     Bomber,
     BonusListener,
     BonusLostError,
+    ChargesRefresher,
     OwnershipsGetter,
     QuizMaster,
     Refiller,
@@ -77,6 +78,11 @@ import {useCompact} from "../compact.ts";
 import Sheet from "../hud/Sheet.tsx";
 import StatusBar from "../hud/StatusBar.tsx";
 import TabBar from "../hud/TabBar.tsx";
+import MissionsPlace, {MissionsPlaceProps} from "../missions/MissionsPlace.tsx";
+import {useMissions} from "../missions/useMissions.ts";
+import {MissionsBackend} from "../../backends/missions.ts";
+import {awardOf, waiting} from "../../domain/missions.ts";
+import {usePaidMissions} from "../missions/usePaidMissions.ts";
 import {StandingsBackend} from "../../backends/standings.ts";
 import {SupportBackend} from "../../backends/support.ts";
 import {pageContextOf} from "../support/pageContext.ts";
@@ -95,7 +101,7 @@ const NO_LEADERBOARD: readonly LeaderboardEntry[] = []
 // After the wave has run over the land.
 const FORTIFY_CARD_DELAY_MS = 1600
 
-type SheetName = "board" | "chat" | "you" | "share" | "settings" | "season" | "clicks"
+type SheetName = "board" | "missions" | "chat" | "you" | "share" | "settings" | "season" | "clicks"
 
 export type ViewerProps = {
     sharedCountry?: Country
@@ -119,7 +125,12 @@ export type ViewerProps = {
     season?: SeasonBackend
     standings?: StandingsBackend
     support?: SupportBackend
+    missions?: MissionsBackend
+    chargesRefresher?: ChargesRefresher
 }
+
+// Planet grants a mission's reward from a command, after the read that says it is paid.
+const GRANT_LANDS_MS = 2_000
 
 export default function Viewer(props: ViewerProps) {
     const container = useRef<HTMLDivElement>(null)
@@ -191,6 +202,7 @@ export default function Viewer(props: ViewerProps) {
         dismissSessionUnavailable,
         lockedOut,
         award,
+        showAward,
         dismissAward,
         charges,
         rules,
@@ -294,6 +306,19 @@ export default function Viewer(props: ViewerProps) {
         guided: boardGuide.guided,
         onGuided: boardGuide.markGuided,
     }
+    const missionsState = useMissions(props.missions, allegiance?.countryId, accepted.listenForClicks)
+    usePaidMissions(missionsState, (paid) => {
+        if (rules) paid.forEach((mission) => showAward(awardOf(mission.reward, rules)))
+        const refresh = () => props.chargesRefresher?.refreshCharges().catch((e) => console.error("could not read the charges held", e))
+        refresh()
+        setTimeout(refresh, GRANT_LANDS_MS)
+    })
+    const missions: MissionsPlaceProps | undefined = props.missions && {
+        state: missionsState,
+        onSignIn: guest ? openPitch ?? (() => setSheet("you")) : undefined,
+    }
+    const missionsReady = missionsState.kind === "ready" ? waiting(missionsState.day.missions) : 0
+
     const you = {
         account: props.account,
         linkedMultiplier: clickBudget?.linkedMultiplier,
@@ -326,7 +351,10 @@ export default function Viewer(props: ViewerProps) {
 
         {!ready && <StatusCard status={status}/>}
 
-        {ready && !compact && <Menu {...board} {...you} {...share} {...settings} tab={menuTab} onTab={setMenuTab}/>}
+        {ready && !compact && <Menu {...board} {...you} {...share} {...settings}
+                                    missions={missions}
+                                    tab={menuTab}
+                                    onTab={setMenuTab}/>}
 
         {ready && !compact && champion && <ChampionChip champion={champion} compact={false}/>}
         {ready && !compact && !champion && season && <SeasonChip season={season}
@@ -383,6 +411,9 @@ export default function Viewer(props: ViewerProps) {
 
         {ready && compact && <>
             {sheet === "board" && <BoardSheet {...board} onClose={closeSheet}/>}
+            {sheet === "missions" && missions && <Sheet title="Missions" onClose={closeSheet}>
+                <MissionsPlace {...missions}/>
+            </Sheet>}
             {sheet === "you" && account.kind === 'ready' && <Sheet title={youLabel(linked)} onClose={closeSheet}>
                 <YouPlace {...you}/>
             </Sheet>}
@@ -401,7 +432,8 @@ export default function Viewer(props: ViewerProps) {
                     onOpen={toggleSheet}
                     chat={props.chatBackend !== undefined}
                     unread={unread}
-                    you={account.kind === 'ready' ? (linked ? "player" : "guest") : undefined}/>
+                    you={account.kind === 'ready' ? (linked ? "player" : "guest") : undefined}
+                    missions={missions ? missionsReady : undefined}/>
         </>}
 
         {shot && <SharePreview shot={shot}

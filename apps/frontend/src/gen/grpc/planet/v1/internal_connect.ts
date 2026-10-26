@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetTakesByCountryRequest, GetTakesByCountryResponse, GetTerritoriesRequest, GetTerritoriesResponse } from "./internal_pb.js";
+import { GetAllegianceOfRequest, GetAllegianceOfResponse, GetCountrySizesRequest, GetCountrySizesResponse, GetTakesByCountryRequest, GetTakesByCountryResponse, GetTerritoriesRequest, GetTerritoriesResponse } from "./internal_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -29,6 +29,26 @@ export const InternalService = {
       name: "GetTerritories",
       I: GetTerritoriesRequest,
       O: GetTerritoriesResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * @generated from rpc planet.v1.InternalService.GetCountrySizes
+     */
+    getCountrySizes: {
+      name: "GetCountrySizes",
+      I: GetCountrySizesRequest,
+      O: GetCountrySizesResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * @generated from rpc planet.v1.InternalService.GetAllegianceOf
+     */
+    getAllegianceOf: {
+      name: "GetAllegianceOf",
+      I: GetAllegianceOfRequest,
+      O: GetAllegianceOfResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
     },
