@@ -16,7 +16,7 @@ type Caller struct {
 }
 
 func NewBook(
-	config Config,
+	rules func() Rules,
 	pardon time.Duration,
 	clock cptime.Clock,
 	scopes, accounts Store,
@@ -24,8 +24,8 @@ func NewBook(
 	enforcer Enforcer,
 ) *Book {
 	return &Book{
-		scopes:   New(config, pardon, clock, Scopes, scopes, transactioner, enforcer),
-		accounts: New(config, pardon, clock, Accounts, accounts, transactioner, enforcer),
+		scopes:   New(rules, pardon, clock, Scopes, scopes, transactioner, enforcer),
+		accounts: New(rules, pardon, clock, Accounts, accounts, transactioner, enforcer),
 	}
 }
 

@@ -45,7 +45,7 @@ func (w *Watchdog) Load(data []byte) error {
 		return err
 	}
 
-	loaded := New(w.config, w.clock, w.onAccounts, w.onLinks)
+	loaded := New(w.config, w.rules, w.clock, w.onAccounts, w.onLinks)
 	for _, s := range saved {
 		countries := make(map[string]int, len(s.Countries))
 		maps.Copy(countries, s.Countries)

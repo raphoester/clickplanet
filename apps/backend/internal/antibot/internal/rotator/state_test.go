@@ -13,12 +13,12 @@ import (
 
 const scope = "2001:db8:1:2::/64"
 
-func bounded() Config {
-	return Config{MinSlots: 24}
+func bounded() Rules {
+	return Rules{Window: 24 * time.Hour, MinSeconds: 15, MinByChance: 90, MaxShare: 0.05, MinSlots: 24}
 }
 
-func newWatchdog(config Config, clock cptime.Clock) *Watchdog {
-	return New(config, clock, func(float64) {})
+func newWatchdog(config Config, rules Rules, clock cptime.Clock) *Watchdog {
+	return New(config, func() Rules { return rules }, clock, func(float64) {})
 }
 
 func try(w *Watchdog, clock *cptime.FixedClock, account string) {
@@ -67,13 +67,13 @@ func newClock() *cptime.FixedClock {
 func TestSlotsSurviveASaveAndLoad(t *testing.T) {
 	clock := newClock()
 
-	w := newWatchdog(bounded(), clock)
+	w := newWatchdog(Config{}, bounded(), clock)
 	play(w, clock, 30, inTurns)
 
 	data, err := w.Save()
 	require.NoError(t, err)
 
-	restarted := newWatchdog(bounded(), clock)
+	restarted := newWatchdog(Config{}, bounded(), clock)
 	require.NoError(t, restarted.Load(data))
 
 	for _, account := range []string{"one", "two"} {
@@ -90,16 +90,13 @@ func TestSlotsSurviveASaveAndLoad(t *testing.T) {
 func TestSlotsSavedUnderAnotherLengthAreDropped(t *testing.T) {
 	clock := newClock()
 
-	w := newWatchdog(bounded(), clock)
+	w := newWatchdog(Config{}, bounded(), clock)
 	play(w, clock, 30, inTurns)
 
 	data, err := w.Save()
 	require.NoError(t, err)
 
-	longer := bounded()
-	longer.Slot = 10 * time.Minute
-
-	restarted := newWatchdog(longer, clock)
+	restarted := newWatchdog(Config{Slot: 10 * time.Minute}, bounded(), clock)
 	require.NoError(t, restarted.Load(data))
 
 	assert.Empty(t, restarted.scopes, "a mark is a second of the slot it was saved under")
@@ -108,7 +105,7 @@ func TestSlotsSavedUnderAnotherLengthAreDropped(t *testing.T) {
 func TestForgetDropsSlotsBeforeTheCutoff(t *testing.T) {
 	clock := newClock()
 
-	w := newWatchdog(bounded(), clock)
+	w := newWatchdog(Config{}, bounded(), clock)
 	play(w, clock, 3, inTurns)
 
 	w.Forget(clock.Now().Add(-5 * time.Minute))

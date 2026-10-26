@@ -74,6 +74,8 @@ and says what is in it. Read the doc before you change its area.
   sign-out, deletion and pruning.
 - [Anti-bot](docs/antibot.md) — a module that hears planet's facts about callers, judges them, and asks planet to
   refuse the ones it bans; what survives a restart, and the parts that are easy to get wrong.
+- [The antibot's rules](docs/antibot-rules.md) — every bound is a rule set in postgres, edited from the backoffice;
+  the pointer the watchdogs read, which set plays, and what stays in the YAML.
 
 ## The other contexts
 

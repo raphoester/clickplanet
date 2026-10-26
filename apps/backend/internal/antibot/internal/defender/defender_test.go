@@ -20,14 +20,14 @@ type harness struct {
 	next     uint32
 }
 
-func newHarness(config defender.Config) *harness {
+func newHarness(rules defender.Rules, config defender.Config) *harness {
 	h := &harness{
 		clock:   cptime.NewFixedClock(time.Date(2026, 9, 14, 18, 0, 0, 0, time.UTC)),
 		owner:   map[uint32]string{},
 		shields: map[uint32]int{},
 		next:    1000,
 	}
-	h.watchdog = defender.New(config, h.clock, nil)
+	h.watchdog = defender.New(config, func() defender.Rules { return rules }, h.clock, nil)
 	return h
 }
 
@@ -62,15 +62,14 @@ func (h *harness) fresh() uint32 {
 	return h.next
 }
 
-func config() defender.Config {
-	return defender.Config{
+func strict() (defender.Rules, defender.Config) {
+	return defender.Rules{
 		RetakeWindow:  time.Minute,
 		MinClicks:     20,
 		MinShare:      0.8,
 		CertainClicks: 60,
 		CertainShare:  0.95,
-		TrackWindow:   10 * time.Minute,
-	}
+	}, defender.Config{TrackWindow: 10 * time.Minute}
 }
 
 func (h *harness) queue(suspect string, n int, refill time.Duration) detect.Verdict {
@@ -92,7 +91,7 @@ func (h *harness) queue(suspect string, n int, refill time.Duration) detect.Verd
 }
 
 func TestAQueueOfRetakesIsCaughtHoweverSlowItDrains(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(strict())
 
 	var verdict detect.Verdict
 	for range 3 {
@@ -103,7 +102,7 @@ func TestAQueueOfRetakesIsCaughtHoweverSlowItDrains(t *testing.T) {
 }
 
 func TestADefenderWhoAlsoPaintsIsClear(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(strict())
 
 	var verdict detect.Verdict
 	for range 10 {
@@ -119,7 +118,7 @@ func TestADefenderWhoAlsoPaintsIsClear(t *testing.T) {
 }
 
 func TestAMostlyRetakingCallerIsOnlySuspectUntilItHasEnoughClicks(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(strict())
 
 	var verdict detect.Verdict
 	for range 5 {
@@ -132,7 +131,7 @@ func TestAMostlyRetakingCallerIsOnlySuspectUntilItHasEnoughClicks(t *testing.T) 
 }
 
 func TestTwoPlayersFightingOverOneTileReadAsRetakes(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(strict())
 
 	const tile = uint32(7)
 	h.owner[tile] = "BG"
@@ -149,7 +148,7 @@ func TestTwoPlayersFightingOverOneTileReadAsRetakes(t *testing.T) {
 }
 
 func TestTakingATileBackForAnotherCountryIsNotARetake(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(strict())
 
 	var verdict detect.Verdict
 	for range 3 {
@@ -170,7 +169,7 @@ func TestTakingATileBackForAnotherCountryIsNotARetake(t *testing.T) {
 }
 
 func TestTakingBackWhatYouYourselfTookIsNotARetake(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(strict())
 
 	var verdict detect.Verdict
 	for range 90 {
@@ -185,7 +184,7 @@ func TestTakingBackWhatYouYourselfTookIsNotARetake(t *testing.T) {
 }
 
 func TestALossOlderThanTheWindowIsNotARetake(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(strict())
 
 	var verdict detect.Verdict
 	for range 3 {
@@ -196,7 +195,7 @@ func TestALossOlderThanTheWindowIsNotARetake(t *testing.T) {
 }
 
 func TestARefusedClickTakesNothingFromAnyone(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(strict())
 
 	var verdict detect.Verdict
 	for range 90 {
@@ -218,7 +217,7 @@ func (h *harness) shielded(shields int) uint32 {
 }
 
 func TestATileIsLostWhenItFallsNotWhenItsShieldsAreStruck(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(strict())
 
 	var verdict detect.Verdict
 	for range 3 {
@@ -241,7 +240,7 @@ func TestATileIsLostWhenItFallsNotWhenItsShieldsAreStruck(t *testing.T) {
 }
 
 func TestAStrikeLosesNothing(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(strict())
 
 	var verdict detect.Verdict
 	for range 3 {
@@ -262,9 +261,9 @@ func TestAStrikeLosesNothing(t *testing.T) {
 }
 
 func TestAStrikeOnAShieldIsNeverARetake(t *testing.T) {
-	loose := config()
+	loose, config := strict()
 	loose.MinShare = 0.4
-	h := newHarness(loose)
+	h := newHarness(loose, config)
 
 	var verdict detect.Verdict
 	for range 45 {

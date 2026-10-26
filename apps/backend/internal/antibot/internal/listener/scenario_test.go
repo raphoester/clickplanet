@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
@@ -15,6 +16,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/evidence"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/guard"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/listener"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -28,23 +30,24 @@ func watch(t *testing.T) watched {
 	t.Helper()
 
 	config := guard.Config{}
-	config.Bans.Enforce = true
-	config.Bans.BanDurations = []time.Duration{24 * time.Hour}
-	config.Jury.MinSuspects = 2
-	config.Metronome.Enabled = true
-	config.Metronome.Detector.MaxGap = 7 * time.Second
-	config.Metronome.Detector.MaxSpread = 400 * time.Millisecond
-	config.Metronome.Detector.MinClicks = 120
-	config.Metronome.Detector.CertainFor = 30 * time.Minute
-	config.Metronome.Detector.CertainClicks = 900
-	config.Metronome.Detector.TrackWindow = 15 * time.Minute
+	config.Metronome.TrackWindow = 15 * time.Minute
+
+	kept := rules.Seeded()
+	only := kept.Rules
+	only.Bans.BanDurations = []*durationpb.Duration{durationpb.New(24 * time.Hour)}
+	only.Retaker.Enabled, only.Sequencer.Enabled, only.Defender.Enabled = false, false, false
+	only.Catcher.Enabled, only.Cohort.Enabled, only.Scraper.Enabled = false, false, false
+	only.Churner.Enabled, only.Hopper.Enabled, only.Rotator.Enabled = false, false, false
+	set, err := kept.Restore(guard.Parts())
+	require.NoError(t, err)
+	inForce := rules.NewInForce()
+	inForce.Enforce(set)
 
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 14, 2, 0, 0, 0, time.UTC))
 	enforcer := &bans.MemoryEnforcer{}
 	marks := listener.NewMarks()
-	watchdogs, err := guard.NewInMemory(config, clock, guard.Observer{}, bans.NewMemoryStore(), bans.NewMemoryStore(),
+	watchdogs := guard.NewInMemory(config, inForce, clock, guard.Observer{}, bans.NewMemoryStore(), bans.NewMemoryStore(),
 		enforcer, evidence.NewMemoryPersistence(), marks)
-	require.NoError(t, err)
 	require.NoError(t, watchdogs.Load(t.Context()))
 
 	ctx, cancel := context.WithCancel(t.Context())

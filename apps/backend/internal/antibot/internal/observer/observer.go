@@ -168,6 +168,7 @@ func New(logger *slog.Logger, registerer prometheus.Registerer) guard.Observer {
 		OnStart: func(described guard.Description) {
 			logger.Info("antibot enabled",
 				slog.Any("watchdogs", described.Watchdogs),
+				slog.String("rules", described.Rules),
 				slog.Int("minSuspects", described.MinSuspects),
 				slog.Bool("enforce", described.Enforcing),
 			)

@@ -13,7 +13,7 @@
 
 - `chat.reactions.reaction` and `player.profiles.color` hold the proto enum's number. The proto is the one list, and SQL hands the number to the wire as it is; a type would be a second list, of names nothing else uses.
 - `player.titles.title` and `player.worn_titles.title` hold a title's id. A title is an object a deploy adds or drops with no migration, and a row may outlive its title until the reconciliation revokes it.
-- `antibot.evidence.section` is a watchdog's name, the key of its blob. The store deletes the row of a watchdog that was turned off, and a type cannot drop a value.
+- `antibot.evidence.section` is a watchdog's name, the key of its blob. The store deletes the row of a section the guard no longer saves, and a type cannot drop a value.
 - A country code (`tiles.country`, `contributions.country`, …) comes from the map, not from the code.
 
 **`shared/cppg` is the client**, ported from on-core-platform's `onpg`: `Config` (one module's database block, schema included), `New`, `ConnectCtx`, `Migrate`, and the `Querier`/`Beginner` interfaces a store depends on. Cut from the original: gorm (`make deadcode` rejects what nothing calls, and plain SQL is enough), the SSM tunnel, tracing and lazy config. **Every module that stores something has its own database block and its own pool.** The planet's is `database:` at the top of the file, because `planet.Config` is squashed there; another module's would sit inside its own section (`chat.database:`). Nothing is handed between modules. `Config.String` leaves the password out of the boot's config log line.

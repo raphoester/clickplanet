@@ -205,9 +205,14 @@ jobs:
           merge-multiple: true
 
       # The repository variable CLIPS_PLATFORMS turns a platform off with no commit: "tiktok" alone. Unset is every platform.
+      # CLIPS_SOUND_COUNTRY is the country of TikTok's trending chart a clip drawn for a trending track gets one from
+      # (the experiment "sound"): two letters, unset is US. A chart that cannot be read sends the clip with its anthem.
       - name: schedule the clips on TikTok and YouTube
         working-directory: apps/backend
         env:
           ZERNIO_API_KEY: ${{ secrets.ZERNIO_API_KEY }}
           PLATFORMS: ${{ vars.CLIPS_PLATFORMS }}
-        run: go run ./cmd/clips schedule -clips "$GITHUB_WORKSPACE/clips" -platforms "$PLATFORMS" -summary "$GITHUB_STEP_SUMMARY"
+          SOUND_COUNTRY: ${{ vars.CLIPS_SOUND_COUNTRY }}
+        run: |
+          go run ./cmd/clips schedule -clips "$GITHUB_WORKSPACE/clips" -platforms "$PLATFORMS" -sound-country "$SOUND_COUNTRY" \
+            -summary "$GITHUB_STEP_SUMMARY"

@@ -2,6 +2,7 @@ package churner
 
 import (
 	"context"
+	"errors"
 	"net/netip"
 	"sync"
 	"time"
@@ -13,16 +14,15 @@ import (
 
 const Name = "churner"
 
-type Config struct {
+type Rules struct {
+	Enabled bool
+
 	Window time.Duration
 
 	V6 Bounds
 	V4 Bounds
 
-	Relay Relay
-
-	TrackWindow   time.Duration
-	SweepInterval time.Duration
+	Relay RelayRules
 }
 
 type Bounds struct {
@@ -30,26 +30,48 @@ type Bounds struct {
 	CertainAccounts int
 }
 
-type Relay struct {
+type RelayRules struct {
 	Handoff time.Duration
 	MaxLife time.Duration
 
 	MinClicks    int
 	MinFlagShare float64
 
-	V4Bits int
-	V6Bits int
-
 	MinLinks     int
 	CertainLinks int
 }
 
+func (r Rules) Validate() error {
+	return errors.Join(
+		detect.Positive("window", r.Window),
+		detect.NotNegative("v6.minAccounts", r.V6.MinAccounts),
+		detect.NotNegative("v6.certainAccounts", r.V6.CertainAccounts),
+		detect.NotNegative("v4.minAccounts", r.V4.MinAccounts),
+		detect.NotNegative("v4.certainAccounts", r.V4.CertainAccounts),
+		detect.Positive("relay.handoff", r.Relay.Handoff),
+		detect.Positive("relay.maxLife", r.Relay.MaxLife),
+		detect.AtLeast("relay.minClicks", r.Relay.MinClicks, "the two clicks a pace needs", 2),
+		detect.Positive("relay.minFlagShare", r.Relay.MinFlagShare),
+		detect.Share("relay.minFlagShare", r.Relay.MinFlagShare),
+		detect.NotNegative("relay.minLinks", r.Relay.MinLinks),
+		detect.NotNegative("relay.certainLinks", r.Relay.CertainLinks),
+	)
+}
+
+type Config struct {
+	Relay RelayConfig
+
+	TrackWindow   time.Duration
+	SweepInterval time.Duration
+}
+
+// Read when an account is first seen, to index it by its wider prefix.
+type RelayConfig struct {
+	V4Bits int
+	V6Bits int
+}
+
 const (
-	defaultWindow        = time.Hour
-	defaultHandoff       = 90 * time.Second
-	defaultMaxLife       = 5 * time.Minute
-	defaultMinClicks     = 20
-	defaultMinFlagShare  = 0.9
 	defaultV4Bits        = 24
 	defaultV6Bits        = 32
 	defaultSweepInterval = time.Minute
@@ -59,29 +81,11 @@ const (
 )
 
 func (c Config) withDefaults() Config {
-	if c.Window <= 0 {
-		c.Window = defaultWindow
-	}
-	if c.Relay.Handoff <= 0 {
-		c.Relay.Handoff = defaultHandoff
-	}
-	if c.Relay.MaxLife <= 0 {
-		c.Relay.MaxLife = defaultMaxLife
-	}
-	if c.Relay.MinClicks < 2 {
-		c.Relay.MinClicks = defaultMinClicks
-	}
-	if c.Relay.MinFlagShare <= 0 || c.Relay.MinFlagShare > 1 {
-		c.Relay.MinFlagShare = defaultMinFlagShare
-	}
 	if c.Relay.V4Bits <= 0 || c.Relay.V4Bits > 32 {
 		c.Relay.V4Bits = defaultV4Bits
 	}
 	if c.Relay.V6Bits <= 0 || c.Relay.V6Bits > 64 {
 		c.Relay.V6Bits = defaultV6Bits
-	}
-	if minimum := c.Window + c.Relay.Handoff; c.TrackWindow < minimum {
-		c.TrackWindow = minimum
 	}
 	if c.SweepInterval <= 0 {
 		c.SweepInterval = defaultSweepInterval
@@ -89,9 +93,10 @@ func (c Config) withDefaults() Config {
 	return c
 }
 
-func New(config Config, clock cptime.Clock, onAccounts func(accounts int, family string), onLinks func(links int)) *Watchdog {
+func New(config Config, rules func() Rules, clock cptime.Clock, onAccounts func(accounts int, family string), onLinks func(links int)) *Watchdog {
 	return &Watchdog{
 		config:     config.withDefaults(),
+		rules:      rules,
 		clock:      clock,
 		onAccounts: onAccounts,
 		onLinks:    onLinks,
@@ -103,6 +108,7 @@ func New(config Config, clock cptime.Clock, onAccounts func(accounts int, family
 
 type Watchdog struct {
 	config     Config
+	rules      func() Rules
 	clock      cptime.Clock
 	onAccounts func(int, string)
 	onLinks    func(int)
@@ -133,6 +139,8 @@ type account struct {
 
 func (w *Watchdog) Name() string { return Name }
 
+func (w *Watchdog) Enabled() bool { return w.rules().Enabled }
+
 func (w *Watchdog) Attempted(detect.Click) {}
 
 func (w *Watchdog) Committed(detect.Click) {}
@@ -142,16 +150,18 @@ func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 		return detect.Clear, detect.Evidence{}
 	}
 
+	rules := w.rules()
+
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
 	a := w.recordLocked(click)
 
-	churn, churnEvidence := w.churnLocked(click.Scope, click.At)
+	churn, churnEvidence := w.churnLocked(click.Scope, click.At, rules)
 
-	if a.clicks >= w.config.Relay.MinClicks && (a.judgedAt.IsZero() || click.At.Sub(a.judgedAt) >= rejudgeAfter) {
+	if a.clicks >= rules.Relay.MinClicks && (a.judgedAt.IsZero() || click.At.Sub(a.judgedAt) >= rejudgeAfter) {
 		a.judgedAt = click.At
-		a.verdict, a.evidence = w.relayLocked(a, click.At)
+		a.verdict, a.evidence = w.relayLocked(a, click.At, rules)
 	}
 
 	if a.verdict > churn {
@@ -201,9 +211,9 @@ func (w *Watchdog) dropLocked(a *account) {
 	}
 }
 
-func (w *Watchdog) churnLocked(scope string, now time.Time) (detect.Verdict, detect.Evidence) {
-	accounts := w.bornLocked(scope, now)
-	bounds, family := w.boundsOf(scope)
+func (w *Watchdog) churnLocked(scope string, now time.Time, rules Rules) (detect.Verdict, detect.Evidence) {
+	accounts := w.bornLocked(scope, now, rules.Window)
+	bounds, family := rules.boundsOf(scope)
 
 	verdict := level(accounts, bounds.MinAccounts, bounds.CertainAccounts)
 	if verdict == detect.Clear {
@@ -216,8 +226,8 @@ func (w *Watchdog) churnLocked(scope string, now time.Time) (detect.Verdict, det
 	}}
 }
 
-func (w *Watchdog) bornLocked(scope string, now time.Time) int {
-	from := now.Add(-w.config.Window)
+func (w *Watchdog) bornLocked(scope string, now time.Time, window time.Duration) int {
+	from := now.Add(-window)
 
 	accounts := 0
 	w.born[scope].ForEach(func(id string) {
@@ -228,11 +238,11 @@ func (w *Watchdog) bornLocked(scope string, now time.Time) int {
 	return accounts
 }
 
-func (w *Watchdog) boundsOf(scope string) (Bounds, string) {
+func (r Rules) boundsOf(scope string) (Bounds, string) {
 	if v6(scope) {
-		return w.config.V6, "v6"
+		return r.V6, "v6"
 	}
-	return w.config.V4, "v4"
+	return r.V4, "v4"
 }
 
 func v6(scope string) bool {
@@ -245,24 +255,24 @@ func v6(scope string) bool {
 	return false
 }
 
-func (w *Watchdog) relayLocked(a *account, now time.Time) (detect.Verdict, detect.Evidence) {
+func (w *Watchdog) relayLocked(a *account, now time.Time, rules Rules) (detect.Verdict, detect.Evidence) {
 	if a.prefix == "" {
 		return detect.Clear, detect.Evidence{}
 	}
 
-	flag, ok := w.painting(a)
+	flag, ok := rules.Relay.painting(a)
 	if !ok {
 		return detect.Clear, detect.Evidence{}
 	}
 
-	from, ok := w.predecessorLocked(a, flag)
+	from, ok := w.predecessorLocked(a, flag, rules.Relay)
 	if !ok {
 		return detect.Clear, detect.Evidence{}
 	}
 
-	links := w.linksLocked(a.prefix, flag, now)
+	links := w.linksLocked(a.prefix, flag, now, rules)
 
-	verdict := level(links, w.config.Relay.MinLinks, w.config.Relay.CertainLinks)
+	verdict := level(links, rules.Relay.MinLinks, rules.Relay.CertainLinks)
 	if verdict == detect.Clear {
 		return detect.Clear, detect.Evidence{}
 	}
@@ -275,18 +285,18 @@ func (w *Watchdog) relayLocked(a *account, now time.Time) (detect.Verdict, detec
 	}}
 }
 
-func (w *Watchdog) predecessorLocked(a *account, flag string) (*account, bool) {
+func (w *Watchdog) predecessorLocked(a *account, flag string, relay RelayRules) (*account, bool) {
 	var closest *account
 
 	w.prefixes[a.prefix].ForEach(func(id string) {
 		b := w.accounts[id]
-		if b == a || !b.last.Before(a.first) || a.first.Sub(b.last) > w.config.Relay.Handoff {
+		if b == a || !b.last.Before(a.first) || a.first.Sub(b.last) > relay.Handoff {
 			return
 		}
-		if b.last.Sub(b.first) > w.config.Relay.MaxLife {
+		if b.last.Sub(b.first) > relay.MaxLife {
 			return
 		}
-		if f, ok := w.painting(b); !ok || f != flag {
+		if f, ok := relay.painting(b); !ok || f != flag {
 			return
 		}
 		if closest == nil || b.last.After(closest.last) {
@@ -297,8 +307,8 @@ func (w *Watchdog) predecessorLocked(a *account, flag string) (*account, bool) {
 	return closest, closest != nil
 }
 
-func (w *Watchdog) linksLocked(prefix, flag string, now time.Time) int {
-	from := now.Add(-w.config.Window)
+func (w *Watchdog) linksLocked(prefix, flag string, now time.Time, rules Rules) int {
+	from := now.Add(-rules.Window)
 
 	links := 0
 	w.prefixes[prefix].ForEach(func(id string) {
@@ -306,18 +316,18 @@ func (w *Watchdog) linksLocked(prefix, flag string, now time.Time) int {
 		if c.first.Before(from) {
 			return
 		}
-		if f, ok := w.painting(c); !ok || f != flag {
+		if f, ok := rules.Relay.painting(c); !ok || f != flag {
 			return
 		}
-		if _, ok := w.predecessorLocked(c, flag); ok {
+		if _, ok := w.predecessorLocked(c, flag, rules.Relay); ok {
 			links++
 		}
 	})
 	return links
 }
 
-func (w *Watchdog) painting(a *account) (string, bool) {
-	if a.clicks < w.config.Relay.MinClicks {
+func (r RelayRules) painting(a *account) (string, bool) {
+	if a.clicks < r.MinClicks {
 		return "", false
 	}
 
@@ -331,7 +341,7 @@ func (w *Watchdog) painting(a *account) (string, bool) {
 		}
 	}
 
-	if top == "" || float64(count)/float64(a.clicks) < w.config.Relay.MinFlagShare {
+	if top == "" || float64(count)/float64(a.clicks) < r.MinFlagShare {
 		return "", false
 	}
 	return top, true
@@ -394,10 +404,11 @@ type chain struct {
 
 func (w *Watchdog) sweep() {
 	now := w.clock.Now()
+	rules := w.rules()
 
 	w.mu.Lock()
 
-	cutoff := now.Add(-w.config.TrackWindow)
+	cutoff := now.Add(-max(w.config.TrackWindow, rules.Window+rules.Relay.Handoff))
 	for _, a := range w.accounts {
 		if a.last.Before(cutoff) {
 			w.dropLocked(a)
@@ -411,20 +422,20 @@ func (w *Watchdog) sweep() {
 			continue
 		}
 		scopes.Add(a.scope)
-		if flag, ok := w.painting(a); ok && a.prefix != "" {
+		if flag, ok := rules.Relay.painting(a); ok && a.prefix != "" {
 			relays.Add(chain{prefix: a.prefix, flag: flag})
 		}
 	}
 
 	churns := make([]churnSample, 0, scopes.Len())
 	scopes.ForEach(func(scope string) {
-		_, family := w.boundsOf(scope)
-		churns = append(churns, churnSample{accounts: w.bornLocked(scope, now), family: family})
+		_, family := rules.boundsOf(scope)
+		churns = append(churns, churnSample{accounts: w.bornLocked(scope, now, rules.Window), family: family})
 	})
 
 	links := make([]int, 0, relays.Len())
 	relays.ForEach(func(c chain) {
-		links = append(links, w.linksLocked(c.prefix, c.flag, now))
+		links = append(links, w.linksLocked(c.prefix, c.flag, now, rules))
 	})
 
 	w.sweptAt = now

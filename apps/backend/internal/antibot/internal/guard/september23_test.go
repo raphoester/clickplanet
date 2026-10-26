@@ -9,7 +9,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/types/known/durationpb"
 
+	antibotv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/guard"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
@@ -17,29 +19,29 @@ import (
 
 func bound(v float64) *float64 { return &v }
 
-func withTheWeekOfSeptember23(config *guard.Config) {
-	config.Metronome.Detector.MaxGap = 7 * time.Second
-	config.Metronome.Detector.MaxSpread = 400 * time.Millisecond
-	config.Metronome.Detector.Shape.MaxGap = 10 * time.Second
-	config.Metronome.Detector.Shape.Clicks = 500
-	config.Metronome.Detector.Shape.CertainClicks = 1000
-	config.Metronome.Detector.Clock.Period = time.Second
-	config.Metronome.Detector.Clock.Clicks = 120
-	config.Metronome.Detector.Clock.MinCoherence = bound(0.6)
-	config.Metronome.Detector.Clock.CertainClicks = 600
-	config.Metronome.Detector.Clock.CertainFor = 30 * time.Minute
-	config.Metronome.Detector.Clock.CertainCoherence = bound(0.5)
+func withTheWeekOfSeptember23(config *guard.Config, set *antibotv1.Rules) {
+	set.Metronome.MaxGap = durationpb.New(7 * time.Second)
+	set.Metronome.MaxSpread = durationpb.New(400 * time.Millisecond)
+	set.Metronome.Shape.MaxGap = durationpb.New(10 * time.Second)
+	set.Metronome.Shape.Clicks = 500
+	set.Metronome.Shape.CertainClicks = 1000
+	set.Metronome.Clock.Period = durationpb.New(time.Second)
+	set.Metronome.Clock.Clicks = 120
+	set.Metronome.Clock.MinCoherence = bound(0.6)
+	set.Metronome.Clock.CertainClicks = 600
+	set.Metronome.Clock.CertainFor = durationpb.New(30 * time.Minute)
+	set.Metronome.Clock.CertainCoherence = bound(0.5)
 
-	config.Catcher.Detector.TrackWindow = time.Hour
-	config.Catcher.Detector.Foreign.Window = time.Hour
-	config.Catcher.Detector.Foreign.MinClaims = 5
-	config.Catcher.Detector.Foreign.CertainClaims = 10
+	config.Catcher.TrackWindow = time.Hour
+	set.Catcher.Foreign.Window = durationpb.New(time.Hour)
+	set.Catcher.Foreign.MinClaims = 5
+	set.Catcher.Foreign.CertainClaims = 10
 
-	config.Defender.Enabled = true
-	config.Defender.Detector.RetakeWindow = 2 * time.Minute
-	config.Defender.Detector.MinClicks = 40
-	config.Defender.Detector.MinShare = 0.6
-	config.Defender.Detector.TrackWindow = 10 * time.Minute
+	set.Defender.Enabled = true
+	set.Defender.RetakeWindow = durationpb.New(2 * time.Minute)
+	set.Defender.MinClicks = 40
+	set.Defender.MinShare = 0.6
+	config.Defender.TrackWindow = 10 * time.Minute
 }
 
 type event struct {
