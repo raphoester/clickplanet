@@ -18,9 +18,10 @@ describe("ConnectTurnBackend", () => {
             kind: EntryKind.BATTLE,
             since: Timestamp.fromDate(new Date(since)),
             endsAt: Timestamp.fromDate(new Date(endsAt)),
+            description: "Triple points.",
         }))
 
-        expect(await backend.turn()).toEqual({kind: "battle", since, endsAt, description: ""})
+        expect(await backend.turn()).toEqual({kind: "battle", since, endsAt, description: "Triple points."})
     })
 
     it("reads a plain turn with no entry", async () => {

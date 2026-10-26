@@ -18,9 +18,9 @@ one kind with a look.
   not know, is refused: the switch names every value. `fakeTurnBackend.ts` is the
   fake, with `startBattle(minutes, description)` and `endBattle()`, which tell of
   the change at once.
-- **`description` is empty until the backend sends it**: the entry's description,
-  written by the operator in the backoffice, is a follow-up to the backend's PR.
-  `turnOf` maps it once the field is in `GetTurnResponse`.
+- **`description` is the entry's, the operator's words for the players**, written
+  on the backoffice's Rule schedule page (at most 300 characters, the backend's
+  rule). Empty when the operator wrote none, or when no entry runs.
 - `app/battle/useTurn.ts` holds the turn: read at mount, read again on a change,
   at the running entry's end, and once a minute otherwise (`domain/battle.ts`,
   `nextReadAt`): an entry at a higher priority may start before the end, and the

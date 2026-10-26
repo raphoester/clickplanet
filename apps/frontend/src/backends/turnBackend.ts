@@ -41,7 +41,7 @@ export function turnOf(res: GetTurnResponse): Turn {
         kind: kindOf(res.kind),
         since: res.since?.toDate().getTime(),
         endsAt: res.endsAt?.toDate().getTime(),
-        description: "",
+        description: res.description,
     }
 }
 
