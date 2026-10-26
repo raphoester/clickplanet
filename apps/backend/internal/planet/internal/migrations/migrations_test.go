@@ -251,7 +251,7 @@ func TestTheLedgerIsToldFromTheFirstEventTheOldServerDidNotPublish(t *testing.T)
 	assert.Equal(t, int64(3), relayed, "it published every take it made, at the take")
 }
 
-const tileHolders = "20261026120000"
+const tileHolders = "20261026180000"
 
 func TestEachTileIsHeldByTheAccountOfTheLastChangeThatGaveItItsFlag(t *testing.T) {
 	db := cppg.StartTestServer(t).OpenSchema(t, "planet", before(t, tileHolders))

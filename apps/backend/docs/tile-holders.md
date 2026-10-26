@@ -12,7 +12,7 @@ thousands of index probes, or a scan of the whole ledger, for one card on the 1-
   held by the player who made it. A click that changes no owner (its own flag, or a shield struck) keeps the holder.
 - **Any other write leaves nobody**: a bomb's clear, `Reassign`, `Restore` (a revert or a paint), and a take with no
   account in its context. This is `GetTileHolder`'s rule too: an operator's write keeps no take.
-- **Kept in `planet.tiles.holder`** (NULL for nobody), loaded at boot. Migration `20261026120000_tile_holders`
+- **Kept in `planet.tiles.holder`** (NULL for nobody), loaded at boot. Migration `20261026180000_tile_holders`
   filled it once from the ledger: the account of each tile's last change, while that change gave the tile the flag
   it wears.
 - **A deleted account is forgotten**: `anonymize_takes_usecase` calls `ForgetHolder` after it blanks the ledger's
