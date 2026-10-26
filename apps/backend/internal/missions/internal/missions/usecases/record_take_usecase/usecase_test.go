@@ -92,12 +92,15 @@ func TestOnlyTheTakeThatFinishesAMissionPaysIt(t *testing.T) {
 	useCase := record_take_usecase.New(calendar, missions.NewBriefing(store, &countingPlanet{}), store,
 		cpatomic.FakeTransactioner{}, payroll)
 
-	for position := range uint64(61) {
+	drawn := missions.Draw(calendar.DayOf(at), "fr", missions.World{Territories: []missions.Holding{{Country: "dz", Tiles: 9_000}}}).Snapshot()
+	goal := drawn[0].Order.(missions.TakeFor).Goal
+
+	for position := range uint64(goal + 1) {
 		require.NoError(t, useCase.Execute(t.Context(), missions.Take{Account: ada, Flag: "fr", At: at, Position: position}))
-		if position == 58 {
-			require.Empty(t, payroll.paid, "59 of 60")
+		if position == uint64(goal)-2 {
+			require.Empty(t, payroll.paid, "one short of the bank")
 		}
 	}
 
-	assert.Equal(t, []missions.AccountID{ada}, payroll.paid, "the 60th take finished one bank, the 61st nothing")
+	assert.Equal(t, []missions.AccountID{ada}, payroll.paid, "the take that finished the bank paid it, the next nothing")
 }
