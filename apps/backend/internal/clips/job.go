@@ -102,10 +102,7 @@ var (
 	dailyBudget = posts.Budget{posts.TikTok: 14, posts.YouTube: 8}
 )
 
-const (
-	ByModel = posts.ByModel
-	TikTok  = posts.TikTok
-)
+const TikTok = posts.TikTok
 
 var ErrChartCountry = posts.ErrChartCountry
 
@@ -231,8 +228,8 @@ type Trial struct {
 	Headlines    map[Pick]string
 }
 
-// The editor tried by hand on a saved shortlist, outside any run: no coin, every platform with room for PerRun clips,
-// and what was told read from the posting service when a Zernio key is set, else nothing told.
+// The editor tried by hand on a saved shortlist, outside any run: every platform with room for PerRun clips, and what
+// was told read from the posting service when a Zernio key is set, else nothing told.
 func Edit(ctx context.Context, shortlist string, promptOnly bool, config Config, logger *slog.Logger) (Trial, error) {
 	config = config.withDefaults()
 	now := cptime.SystemClock{}.Now()

@@ -24,10 +24,13 @@ func (v Variants) String() string {
 type Arm struct {
 	Name string
 	// Its share of the clips is its weight over the sum of the experiment's. 0 is an arm no coin draws: what a clip is
-	// moved to when the arm it was drawn for could not be applied (the model's run that the rules made), so it is still
-	// counted, apart.
+	// moved to when the arm it was drawn for could not be applied (a clip drawn for a trending track that went out with
+	// its anthem), so it is still counted, apart.
 	Weight int
 }
+
+// The arm of weight 0 an experiment moves a clip to when the arm it drew could not be applied.
+const FellBack = "fell-back"
 
 // Arms of one weight each: an even split.
 func EvenArms(names ...string) []Arm {
@@ -43,9 +46,6 @@ type Experiment struct {
 	Arms []Arm
 	// The arm that is exactly what a clip was before the experiment.
 	Control string
-	// One coin for the whole run, flipped before the stories are chosen, and every clip of the run in its arm: for an
-	// experiment on which stories are told. Otherwise a coin per clip, after: an arm never changes which story is told.
-	PerRun bool
 }
 
 func (e Experiment) arm(name string) bool {
@@ -108,20 +108,9 @@ func ExperimentsOf(experiments ...Experiment) (Experiments, error) {
 // An arm of each experiment flipped per clip, in the order they are listed, so the same dice put a clip in the same
 // arms.
 func (e Experiments) Assign(dice Dice) Variants {
-	return e.assign(dice, false)
-}
-
-// An arm of each experiment flipped once a run, before its stories are chosen.
-func (e Experiments) AssignRun(dice Dice) Variants {
-	return e.assign(dice, true)
-}
-
-func (e Experiments) assign(dice Dice, perRun bool) Variants {
 	variants := make(Variants, len(e))
 	for _, experiment := range e {
-		if experiment.PerRun == perRun {
-			variants[experiment.Name] = experiment.flip(dice)
-		}
+		variants[experiment.Name] = experiment.flip(dice)
 	}
 	return variants
 }
@@ -149,13 +138,11 @@ type Assignment struct {
 	Headline string
 }
 
-// run: the arms of the run, which every clip carries beside its own. headlines: the editor's, by pick.
-func (e Experiments) AssignEach(chosen Shortlist, run Variants, headlines map[Pick]string, dice Dice) []Assignment {
+// headlines: the editor's, by pick.
+func (e Experiments) AssignEach(chosen Shortlist, headlines map[Pick]string, dice Dice) []Assignment {
 	assignments := make([]Assignment, 0, len(chosen))
 	for _, story := range chosen {
-		variants := e.Assign(dice)
-		maps.Copy(variants, run)
-		assignments = append(assignments, Assignment{Pick: story.Pick, Variants: variants, Headline: headlines[story.Pick]})
+		assignments = append(assignments, Assignment{Pick: story.Pick, Variants: e.Assign(dice), Headline: headlines[story.Pick]})
 	}
 	return assignments
 }

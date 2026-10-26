@@ -39,7 +39,7 @@ func (l *Logged) Execute(ctx context.Context) (posts.Choice, error) {
 	case len(choice.Chosen) == 0:
 		l.logger.Info("no story is worth a clip")
 	}
-	l.logEditorial(choice.Editorial)
+	l.logEditorial(choice)
 	for i, story := range choice.Chosen {
 		attributes := attributesOf(story)
 		if i < len(choice.Assigned) && len(choice.Assigned[i].Variants) > 0 {
@@ -51,11 +51,10 @@ func (l *Logged) Execute(ctx context.Context) (posts.Choice, error) {
 	return choice, nil
 }
 
-func (l *Logged) logEditorial(editorial posts.Editorial) {
-	if editorial.Arm == "" {
-		return
-	}
-	attributes := []any{slog.String("editor", editorial.Arm)}
+// Who made the run: the model, with what its call cost, or the rules and why. A quiet run says nothing of it.
+func (l *Logged) logEditorial(choice posts.Choice) {
+	editorial := choice.Editorial
+	var attributes []any
 	if editorial.Asked {
 		spend := editorial.Spend
 		attributes = append(attributes,
@@ -65,11 +64,11 @@ func (l *Logged) logEditorial(editorial posts.Editorial) {
 	}
 	switch {
 	case editorial.FellBack != "":
-		l.logger.Warn("the model's run is made by the rules", append(attributes, slog.String("why", editorial.FellBack))...)
+		l.logger.Warn("the run is made by the rules", append(attributes, slog.String("why", editorial.FellBack))...)
 	case editorial.Asked:
 		l.logger.Info("the model edited the run", append(attributes, slog.String("why", editorial.Why))...)
-	default:
-		l.logger.Info("the run is edited", attributes...)
+	case len(choice.Chosen) > 0:
+		l.logger.Info("the model had nothing to decide")
 	}
 }
 
