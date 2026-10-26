@@ -72,3 +72,17 @@ func TestAHeldClipIsLoggedAsHeldNotAsAFailure(t *testing.T) {
 	assert.Contains(t, logs, `level=INFO msg="held a clip: every platform has posted its day" clip="FRANCE IS ATTACKING EUROPE"`)
 	assert.NotContains(t, logs, "ERROR")
 }
+
+func TestATrendingTrackIsLoggedWithItsRankAndChartAndAFallBackAsAWarningWithWhy(t *testing.T) {
+	sound := &posts.Sound{Track: posts.Track{ID: "clip-1", Title: "Song One", Artist: "Singer", Rank: 4}, Country: "US"}
+
+	logs, err := run(t, stubExecutor{report: posts.Report{
+		{Title: "KOSOVO", At: at, Post: "post-1", Platforms: []posts.PlatformOutcome{{Platform: posts.TikTok}}, Sound: sound},
+		{Title: "FRANCE", At: at, Post: "post-2", Platforms: []posts.PlatformOutcome{{Platform: posts.TikTok}}, SoundMissed: "no chart"},
+	}})
+
+	require.NoError(t, err)
+	assert.Contains(t, logs,
+		`level=INFO msg="attached a trending track on tiktok" clip=KOSOVO track="Song One" artist=Singer rank=4 chart=US sound=clip-1`)
+	assert.Contains(t, logs, `level=WARN msg="a clip drawn for a trending track goes out with its anthem" clip=FRANCE why="no chart"`)
+}

@@ -27,6 +27,16 @@ func (l *Logged) Execute(ctx context.Context) (posts.Report, error) {
 			l.logger.Info("held a clip: every platform has posted its day", slog.String("clip", outcome.Title))
 			continue
 		}
+		if outcome.Sound != nil {
+			track := outcome.Sound.Track
+			l.logger.Info("attached a trending track on tiktok", slog.String("clip", outcome.Title),
+				slog.String("track", track.Title), slog.String("artist", track.Artist), slog.Int("rank", track.Rank),
+				slog.String("chart", outcome.Sound.Country), slog.String("sound", track.ID))
+		}
+		if outcome.SoundMissed != "" {
+			l.logger.Warn("a clip drawn for a trending track goes out with its anthem", slog.String("clip", outcome.Title),
+				slog.String("why", outcome.SoundMissed))
+		}
 		for _, platform := range outcome.Platforms {
 			attributes := []any{slog.String("clip", outcome.Title), slog.String("platform", string(platform.Platform)), slog.Time("at", outcome.At)}
 			if platform.Failure != "" {
