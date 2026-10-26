@@ -33,6 +33,8 @@ func (s Set) TakeSnapshot() Snapshot {
 	return Snapshot{Name: s.name, Rules: proto.CloneOf(s.message)}
 }
 
+func (s Set) Is(name SetName) bool { return s.name == name }
+
 // Equal is true when both sets have one name and judge alike.
 func (s Set) Equal(other Set) bool {
 	return s.name == other.name && proto.Equal(s.message, other.message)

@@ -25,10 +25,6 @@ func (s stubExecutor) Execute(context.Context) (play_rules_usecase.Taken, bool, 
 	return s.taken, s.took, s.err
 }
 
-func (s stubExecutor) Play(context.Context, rules.SetName) (play_rules_usecase.Taken, bool, error) {
-	return s.taken, s.took, s.err
-}
-
 func TestASetTakenIsLoggedWithItsRules(t *testing.T) {
 	var logs bytes.Buffer
 	taken := play_rules_usecase.Taken{Set: rules.Seeded(), Asked: "rush"}
@@ -40,17 +36,6 @@ func TestASetTakenIsLoggedWithItsRules(t *testing.T) {
 	assert.True(t, took)
 	assert.Contains(t, logs.String(), `level=WARN msg="antibot rules in force" set=default asked=rush rules=`)
 	assert.Contains(t, logs.String(), `minSuspects`)
-}
-
-func TestASetTakenWhenPlanetNamesItIsLoggedToo(t *testing.T) {
-	var logs bytes.Buffer
-	taken := play_rules_usecase.Taken{Set: rules.Named("rush", rules.AsIs), Asked: "rush"}
-	logged := log_play_rules.New(stubExecutor{taken: taken, took: true}, slog.New(slog.NewTextHandler(&logs, nil)))
-
-	_, _, err := logged.Play(t.Context(), "rush")
-
-	require.NoError(t, err)
-	assert.Contains(t, logs.String(), `level=WARN msg="antibot rules in force" set=rush asked=rush rules=`)
 }
 
 func TestASetAlreadyInForceSaysNothing(t *testing.T) {

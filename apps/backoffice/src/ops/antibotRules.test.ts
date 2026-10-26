@@ -2,7 +2,7 @@ import {describe, expect, it} from "vitest"
 import {FakeAdmin} from "../fakeAdmin.ts"
 import {RuleSet} from "../gen/grpc/antibot/v1/admin_pb.ts"
 import {Rules} from "../gen/grpc/antibot/v1/rules_pb.ts"
-import {bansOf, crowdOf, draftOf, flawOf, newDraft, offOf, saveRuleSet} from "./antibotRules.ts"
+import {bansOf, copyOf, crowdOf, draftOf, flawOf, offOf, saveRuleSet} from "./antibotRules.ts"
 
 const rush = new RuleSet({
     name: "rush",
@@ -31,13 +31,11 @@ describe("the antibot rules", () => {
         expect(written.metronome.shape).not.toHaveProperty("certainSkew")
     })
 
-    it("starts a new set as a copy of default", () => {
-        const rules = new FakeAdmin().antibotRules
-
-        const draft = newDraft(rules)
+    it("starts a new set as a copy of another, with no name", () => {
+        const draft = copyOf(rush)
 
         expect(draft.name).toBe("")
-        expect(Rules.fromJsonString(draft.text).equals(rules.sets[0].rules)).toBe(true)
+        expect(Rules.fromJsonString(draft.text).equals(rush.rules)).toBe(true)
     })
 
     it("says why a text is no set, and nothing when it is one", () => {

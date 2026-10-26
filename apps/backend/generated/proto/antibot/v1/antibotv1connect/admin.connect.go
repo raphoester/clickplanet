@@ -54,7 +54,8 @@ type AdminServiceClient interface {
 	UnbanPlayer(context.Context, *connect.Request[v1.UnbanPlayerRequest]) (*connect.Response[v1.UnbanPlayerResponse], error)
 	InspectPlayer(context.Context, *connect.Request[v1.InspectPlayerRequest]) (*connect.Response[v1.InspectPlayerResponse], error)
 	GetRules(context.Context, *connect.Request[v1.GetRulesRequest]) (*connect.Response[v1.GetRulesResponse], error)
-	// Makes a set, or replaces its values. A save of the set in force plays it before it answers.
+	// Makes a set, or replaces its values. A set that plays now is FailedPrecondition: the rules in force change only
+	// through the schedule.
 	SaveRuleSet(context.Context, *connect.Request[v1.SaveRuleSetRequest]) (*connect.Response[v1.SaveRuleSetResponse], error)
 }
 
@@ -142,7 +143,8 @@ type AdminServiceHandler interface {
 	UnbanPlayer(context.Context, *connect.Request[v1.UnbanPlayerRequest]) (*connect.Response[v1.UnbanPlayerResponse], error)
 	InspectPlayer(context.Context, *connect.Request[v1.InspectPlayerRequest]) (*connect.Response[v1.InspectPlayerResponse], error)
 	GetRules(context.Context, *connect.Request[v1.GetRulesRequest]) (*connect.Response[v1.GetRulesResponse], error)
-	// Makes a set, or replaces its values. A save of the set in force plays it before it answers.
+	// Makes a set, or replaces its values. A set that plays now is FailedPrecondition: the rules in force change only
+	// through the schedule.
 	SaveRuleSet(context.Context, *connect.Request[v1.SaveRuleSetRequest]) (*connect.Response[v1.SaveRuleSetResponse], error)
 }
 

@@ -79,7 +79,8 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			// The bans running at a deploy reach planet's refused callers with no hand migration.
 			parts := guard.Parts()
-			playRules := log_play_rules.New(play_rules_usecase.New(ruleSets, parts, inForce, book), props.Logger)
+			players := play_rules_usecase.New(ruleSets, parts, inForce, book)
+			playRules := log_play_rules.New(players, props.Logger)
 			if _, _, err := playRules.Execute(ctx); err != nil {
 				closeStores()
 				return fmt.Errorf("failed to play the antibot rules postgres keeps: %w", err)
@@ -112,7 +113,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				InspectPlayerHandler: inspect_player_handler.New(inspect_player_usecase.New(watchdogs)),
 				GetRulesHandler:      get_rules_handler.New(rule_sets_query.NewPostgresQuery(db), inForce),
 				SaveRuleSetHandler: save_rule_set_handler.New(
-					audit_save_rule_set.New(save_rule_set_usecase.New(ruleSets, parts, playRules), props.Logger)),
+					audit_save_rule_set.New(save_rule_set_usecase.New(ruleSets, parts, players), props.Logger)),
 			}
 
 			if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {

@@ -14,6 +14,7 @@ import (
 	antibotv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/save_rule_set_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/usecases/save_rule_set_usecase"
 )
 
 type stubUseCase struct {
@@ -52,6 +53,15 @@ func TestASetThatCannotPlayIsAnInvalidArgumentThatSaysWhy(t *testing.T) {
 
 	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 	assert.Contains(t, err.Error(), "cohort.minMembers is 1")
+}
+
+func TestASetThatPlaysNowIsAFailedPrecondition(t *testing.T) {
+	useCase := &stubUseCase{err: fmt.Errorf("cannot keep it: %w", save_rule_set_usecase.ErrPlaying)}
+
+	err := save(t, useCase)
+
+	require.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
+	assert.Contains(t, err.Error(), "this rule set plays now")
 }
 
 func TestASaveThatFailsFailsTheCall(t *testing.T) {

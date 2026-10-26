@@ -192,3 +192,18 @@ func TestAnOperatorsSaveAndPlanetsNameArePlayedOneAtATime(t *testing.T) {
 	assert.Equal(t, rules.SetName("rush"), h.inForce.Name())
 	assert.Equal(t, 2, h.bans.Times(), "default at first, then rush once")
 }
+
+func TestTheSetsThatPlayNowAreTheOneInForceAndTheOnePlanetNames(t *testing.T) {
+	h := newHarness(t, rules.Seeded())
+	h.execute()
+
+	assert.True(t, h.useCase.Plays(rules.Default))
+	assert.False(t, h.useCase.Plays("rush"))
+
+	_, _, err := h.useCase.Play(t.Context(), "rush")
+	require.NoError(t, err)
+
+	assert.True(t, h.useCase.Plays(rules.Default), "in force while the antibot keeps no rush")
+	assert.True(t, h.useCase.Plays("rush"), "a rush saved now would play at once")
+	assert.False(t, h.useCase.Plays("calm"))
+}

@@ -1363,15 +1363,18 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
 
 Every bound the antibot judges with is a rule of a set kept in postgres
 (`antibot.rule_sets`), not in `backend.yaml`. Edit them on the backoffice: Ops →
-Anti-bot rules. Saving the set that plays takes effect when the save answers,
-with no deploy; the antibot logs `antibot rules in force` with the values it took.
+Anti-bot rules. No one edits the set that plays now: the rules in force change
+only through planet's schedule. Copy the set into a new one, change it, and the
+schedule plays it; the antibot then logs `antibot rules in force` with its values.
 
 - The antibot plays the set named like the planet rule set in force, and
   `default` when it has no set of that name. For the Final Battle, planet plays
   `rush`: make an antibot set `rush` (a copy of `default`) with the crowd it
-  needs, `cohort.certainMembers` 50.
-- To turn a watchdog off, set `"enabled": false` in its part. The jury then reads
-  it as clear, and it keeps watching, so it reads again at once when turned on.
+  needs, `cohort.certainMembers` 50, **before 21:00**. While planet plays `rush`,
+  a save of `rush` is refused, like any set that plays.
+- To turn a watchdog off, set `"enabled": false` in its part of a set the
+  schedule plays later. The jury then reads it as clear, and it keeps watching,
+  so it reads again at once when turned on.
 - A set any value of which cannot be judged with is refused, with every reason.
 - Every save is logged: `journalctl CONTAINER_NAME=cp-backend | grep "admin antibot rule set"`.
 

@@ -5,9 +5,13 @@ import {FailureNotice} from "../components/FailureNotice.tsx"
 import {GetRulesResponse, RuleSet} from "../gen/grpc/antibot/v1/admin_pb.ts"
 import {wordsOf} from "../refusal.ts"
 import {useCall} from "../useCall.ts"
-import {bansOf, crowdOf, Draft, draftOf, flawOf, newDraft, offOf, saveRuleSet} from "./antibotRules.ts"
+import {bansOf, copyOf, crowdOf, Draft, draftOf, flawOf, offOf, saveRuleSet} from "./antibotRules.ts"
 
-type Editing = {draft: Draft, made: boolean}
+// made: an edit of a set kept, with its name fixed; otherwise a new set copied from `from`.
+type Editing = {draft: Draft, made: boolean, from: string}
+
+const refusal = (err: unknown) =>
+    wordsOf(err, {failedPrecondition: "A set of this name plays now. Save it under another name."})
 
 // Every antibot rule set postgres keeps, and a JSON editor to make one or change one.
 export function AntibotRulesPanel({antibot}: {antibot: AntibotAdmin}) {
@@ -27,19 +31,16 @@ export function AntibotRulesPanel({antibot}: {antibot: AntibotAdmin}) {
             {rules.state === "done" && (
                 <>
                     <p className="hint">Playing: <code>{rules.value.playing}</code></p>
-                    <Sets rules={rules.value} onEdit={set => setEditing({draft: draftOf(set), made: true})}/>
-                    <button
-                        type="button"
-                        className="button"
-                        onClick={() => setEditing({draft: newDraft(rules.value), made: false})}
-                    >
-                        New set
-                    </button>
+                    <Sets
+                        rules={rules.value}
+                        onEdit={set => setEditing({draft: draftOf(set), made: true, from: set.name})}
+                        onCopy={set => setEditing({draft: copyOf(set), made: false, from: set.name})}
+                    />
                 </>
             )}
             {editing !== undefined && (
                 <SetForm
-                    key={editing.made ? editing.draft.name : "new"}
+                    key={`${editing.made ? "edit" : "copy"} ${editing.from}`}
                     antibot={antibot}
                     editing={editing}
                     onCancel={() => setEditing(undefined)}
@@ -50,7 +51,9 @@ export function AntibotRulesPanel({antibot}: {antibot: AntibotAdmin}) {
     )
 }
 
-function Sets({rules, onEdit}: {rules: GetRulesResponse, onEdit: (set: RuleSet) => void}) {
+function Sets({rules, onEdit, onCopy}: {
+    rules: GetRulesResponse, onEdit: (set: RuleSet) => void, onCopy: (set: RuleSet) => void,
+}) {
     return (
         <table className="table">
             <caption>Sets</caption>
@@ -65,8 +68,13 @@ function Sets({rules, onEdit}: {rules: GetRulesResponse, onEdit: (set: RuleSet) 
                         <td>{offOf(set)}</td>
                         <td>{crowdOf(set)}</td>
                         <td>
-                            <button type="button" className="button-mini" onClick={() => onEdit(set)}>
-                                Edit {set.name}
+                            {set.name !== rules.playing && (
+                                <button type="button" className="button-mini" onClick={() => onEdit(set)}>
+                                    Edit {set.name}
+                                </button>
+                            )}
+                            <button type="button" className="button-mini" onClick={() => onCopy(set)}>
+                                Copy {set.name}
                             </button>
                         </td>
                     </tr>
@@ -81,7 +89,7 @@ function SetForm({antibot, editing, onCancel, onSaved}: {
 }) {
     const [draft, setDraft] = useState(editing.draft)
     const flaw = flawOf(draft.text)
-    const title = editing.made ? `Edit ${editing.draft.name}` : "New set"
+    const title = editing.made ? `Edit ${editing.from}` : `New set from ${editing.from}`
 
     return (
         <section className="panel" aria-label={title}>
@@ -110,7 +118,7 @@ function SetForm({antibot, editing, onCancel, onSaved}: {
                 question={`Save ${draft.name.trim()}?`}
                 run={() => saveRuleSet(antibot, draft)}
                 said={() => "Saved."}
-                refusal={wordsOf}
+                refusal={refusal}
                 onDone={onSaved}
             />
             <button type="button" className="button" onClick={onCancel}>Cancel</button>

@@ -24,7 +24,6 @@ type Bans interface {
 // Execute plays the set for the name asked last; took is false when it is in force already.
 type Executor interface {
 	Execute(ctx context.Context) (taken Taken, took bool, err error)
-	Play(ctx context.Context, name rules.SetName) (taken Taken, took bool, err error)
 }
 
 type Taken struct {
@@ -57,6 +56,14 @@ func (u *UseCase) Play(ctx context.Context, name rules.SetName) (Taken, bool, er
 
 	u.asked = name
 	return u.playLocked(ctx)
+}
+
+// Plays is true for the set in force, and for the set named like planet's even before the antibot keeps one.
+func (u *UseCase) Plays(name rules.SetName) bool {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+
+	return name == u.asked || u.taken.Is(name)
 }
 
 func (u *UseCase) Execute(ctx context.Context) (Taken, bool, error) {

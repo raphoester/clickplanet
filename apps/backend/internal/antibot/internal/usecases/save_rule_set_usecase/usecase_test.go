@@ -1,7 +1,6 @@
 package save_rule_set_usecase_test
 
 import (
-	"context"
 	"errors"
 	"testing"
 
@@ -12,63 +11,54 @@ import (
 	antibotv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/guard"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rules"
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/usecases/play_rules_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/usecases/save_rule_set_usecase"
 )
 
-type players struct {
-	plays int
-	err   error
-}
+type playing rules.SetName
 
-func (p *players) Execute(context.Context) (play_rules_usecase.Taken, bool, error) {
-	p.plays++
-	return play_rules_usecase.Taken{}, false, p.err
-}
+func (p playing) Plays(name rules.SetName) bool { return name == rules.SetName(p) }
 
 var rush = rules.Named("rush", func(r *antibotv1.Rules) { r.Cohort.CertainMembers = 50 })
 
-func TestASetIsKeptAsWrittenThenTheRulesArePlayedAgain(t *testing.T) {
-	sets, played := rules.NewMemoryStore(rules.Seeded()), &players{}
+func TestASetThatDoesNotPlayIsKeptAsWritten(t *testing.T) {
+	sets := rules.NewMemoryStore(rules.Seeded())
 
-	require.NoError(t, save_rule_set_usecase.New(sets, guard.Parts(), played).Execute(t.Context(), rush))
+	require.NoError(t, save_rule_set_usecase.New(sets, guard.Parts(), playing(rules.Default)).Execute(t.Context(), rush))
 
 	kept, ok := sets.Kept("rush")
 	require.True(t, ok)
 	assert.True(t, proto.Equal(rush.Rules, kept.Rules))
-	assert.Equal(t, 1, played.plays, "the set saved may be the one playing")
+}
+
+func TestASetThatPlaysNowIsRefused(t *testing.T) {
+	sets := rules.NewMemoryStore(rules.Seeded())
+	looser := rules.Named(rules.Default, func(r *antibotv1.Rules) { r.Jury.MinSuspects = 3 })
+
+	err := save_rule_set_usecase.New(sets, guard.Parts(), playing(rules.Default)).Execute(t.Context(), looser)
+
+	require.ErrorIs(t, err, save_rule_set_usecase.ErrPlaying, "the rules in force change only through the schedule")
+	kept, _ := sets.Kept(rules.Default)
+	assert.Equal(t, uint32(2), kept.Rules.GetJury().GetMinSuspects())
 }
 
 func TestASetThatCannotPlayIsNotKept(t *testing.T) {
-	sets, played := rules.NewMemoryStore(rules.Seeded()), &players{}
+	sets := rules.NewMemoryStore(rules.Seeded())
 
-	err := save_rule_set_usecase.New(sets, guard.Parts(), played).Execute(t.Context(),
+	err := save_rule_set_usecase.New(sets, guard.Parts(), playing(rules.Default)).Execute(t.Context(),
 		rules.Named("rush", func(r *antibotv1.Rules) { r.Cohort.CertainMembers = 1 }))
 
 	require.ErrorIs(t, err, rules.ErrInvalidSet)
 	_, ok := sets.Kept("rush")
 	assert.False(t, ok)
-	assert.Zero(t, played.plays)
 }
 
 func TestASaveThatFailsSaysSo(t *testing.T) {
-	sets, played := rules.NewMemoryStore(), &players{}
+	sets := rules.NewMemoryStore()
 	down := errors.New("postgres is down")
 	sets.FailWith(down)
 
-	err := save_rule_set_usecase.New(sets, guard.Parts(), played).Execute(t.Context(), rush)
+	err := save_rule_set_usecase.New(sets, guard.Parts(), playing(rules.Default)).Execute(t.Context(), rush)
 
 	require.ErrorIs(t, err, down)
 	assert.NotErrorIs(t, err, rules.ErrInvalidSet)
-	assert.Zero(t, played.plays)
-}
-
-func TestASetKeptThatCouldNotBePlayedSaysSo(t *testing.T) {
-	sets, played := rules.NewMemoryStore(rules.Seeded()), &players{err: errors.New("redis is down")}
-
-	err := save_rule_set_usecase.New(sets, guard.Parts(), played).Execute(t.Context(), rush)
-
-	require.ErrorContains(t, err, `kept the rule set "rush", but could not play the rules`)
-	_, ok := sets.Kept("rush")
-	assert.True(t, ok)
 }

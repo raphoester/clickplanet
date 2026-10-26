@@ -8,6 +8,7 @@ import (
 
 	antibotv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/usecases/save_rule_set_usecase"
 )
 
 type UseCase interface {
@@ -34,6 +35,8 @@ func (h SaveRuleSetHandler) SaveRuleSet(
 		return connect.NewResponse(&antibotv1.SaveRuleSetResponse{}), nil
 	case errors.Is(err, rules.ErrInvalidSet):
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	case errors.Is(err, save_rule_set_usecase.ErrPlaying):
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	default:
 		return nil, err
 	}

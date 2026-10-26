@@ -1,8 +1,6 @@
 import {AntibotAdmin} from "../clients.ts"
-import {GetRulesResponse, RuleSet} from "../gen/grpc/antibot/v1/admin_pb.ts"
+import {RuleSet} from "../gen/grpc/antibot/v1/admin_pb.ts"
 import {Rules} from "../gen/grpc/antibot/v1/rules_pb.ts"
-
-export const DEFAULT_SET = "default"
 
 // A set as the form edits it: its rules as protojson, every value written.
 export type Draft = {name: string, text: string}
@@ -11,9 +9,9 @@ export function draftOf(set: RuleSet): Draft {
     return {name: set.name, text: textOf(set.rules)}
 }
 
-// A new set starts as a copy of default.
-export function newDraft(rules: GetRulesResponse): Draft {
-    return {name: "", text: textOf(rules.sets.find(set => set.name === DEFAULT_SET)?.rules)}
+// The rules in force change only through the schedule: a new set starts as a copy of another, with no name.
+export function copyOf(set: RuleSet): Draft {
+    return {name: "", text: textOf(set.rules)}
 }
 
 function textOf(rules: Rules | undefined): string {
