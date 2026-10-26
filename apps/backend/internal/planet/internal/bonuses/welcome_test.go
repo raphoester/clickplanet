@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/quizzes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -24,38 +23,21 @@ var (
 	everyWeight   = map[Kind]float64{KindRefill: 5, KindSpreadClicks: 3, KindEncloseClicks: 2, KindBomb: 1, KindShields: 3}
 )
 
-func newWelcomingRegistry(t *testing.T, kinds map[Kind]float64, welcome WelcomeConfig) (*Registry, *cptime.FixedClock) {
+func newWelcomingRegistry(t *testing.T, kinds map[Kind]float64, welcome WelcomeRules) (*Registry, *cptime.FixedClock) {
 	t.Helper()
 
-	clock := cptime.NewFixedClock(epoch)
-	registry := New(Config{
-		MissRetry:     20 * time.Second,
-		OfferTTL:      15 * time.Second,
-		Kinds:         kinds,
-		Welcome:       welcome,
-		ActiveWithin:  5 * time.Minute,
-		ForgetAfter:   5 * time.Minute,
-		SweepInterval: time.Second,
-	}, clock, NewMemoryStore())
-	registry.SetPace(Pace{MinInterval: ordinaryWindow, MaxInterval: ordinaryWindow, MaxChargesPerHour: 6})
-
-	registry.Quizzing(quizzes.Config{
-		Enabled:           true,
-		MinInterval:       ordinaryWindow,
-		MaxInterval:       ordinaryWindow,
-		MissRetry:         quizRetry,
-		OfferTTL:          bannerFor,
-		AnswerWindow:      answerIn,
-		MaxChargesPerHour: 6,
-	}, fixedBank{})
-
-	return registry, clock
+	return newRuledRegistry(func(rules *Rules) {
+		rules.Kinds = kinds
+		rules.Welcome = welcome
+		rules.Boxes = Pace{MinInterval: ordinaryWindow, MaxInterval: ordinaryWindow, MaxChargesPerHour: 6}
+		rules.Quiz = quizzing(ordinaryWindow)
+	})
 }
 
 func welcoming(t *testing.T, kinds map[Kind]float64) (*Registry, *cptime.FixedClock) {
 	t.Helper()
 
-	return newWelcomingRegistry(t, kinds, WelcomeConfig{Within: newFor, BoxAfter: firstBoxAfter})
+	return newWelcomingRegistry(t, kinds, WelcomeRules{Within: newFor, BoxAfter: firstBoxAfter})
 }
 
 type received struct {
@@ -175,7 +157,7 @@ func TestAnAccountThatSaysNothingOfItsAgeIsNotWelcomed(t *testing.T) {
 }
 
 func TestWithNoWelcomeANewcomerWaitsLikeAnybody(t *testing.T) {
-	registry, clock := newWelcomingRegistry(t, everyWeight, WelcomeConfig{})
+	registry, clock := newWelcomingRegistry(t, everyWeight, WelcomeRules{})
 	events := attend(t, registry, EntrantOf(newcomerPayer))
 	registry.Clicked(ClickOf(newcomerPayer, true))
 
@@ -248,7 +230,7 @@ func TestAnOlderAccountWhoseBankRunsDryIsAskedNothing(t *testing.T) {
 func TestANewcomerHoldingAFullStackOfShieldsIsAskedNoWelcomeQuiz(t *testing.T) {
 	registry, clock := welcoming(t, everyWeight)
 	events := attend(t, registry, EntrantOf(newcomerPayer))
-	holdingsOf(registry).Keep(HolderOf(newcomerPayer), Held{Shields: registry.charges.Shields})
+	holdingsOf(registry).Keep(HolderOf(newcomerPayer), Held{Shields: rulesOf(registry).Shield.Held})
 
 	registry.Clicked(ClickOf(newcomerPayer, true))
 	after(t, registry, clock, time.Second)
@@ -265,4 +247,16 @@ func TestANewcomerIsForgottenOnceItIsNoLongerNew(t *testing.T) {
 	after(t, registry, clock, newFor)
 
 	assert.Empty(t, registry.newcomers)
+}
+
+func TestANewcomerIsAskedNoWelcomeQuizWhileQuizzesAreOff(t *testing.T) {
+	registry, clock := welcoming(t, everyWeight)
+	rulesOf(registry).Quiz.Enabled = false
+	events := attend(t, registry, EntrantOf(newcomerPayer))
+
+	registry.Clicked(ClickOf(newcomerPayer, true))
+	rulesOf(registry).Quiz.Enabled = true
+	after(t, registry, clock, time.Second)
+
+	assert.Empty(t, receivedOn(events).quizzes)
 }

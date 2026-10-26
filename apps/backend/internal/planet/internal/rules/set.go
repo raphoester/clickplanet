@@ -2,11 +2,12 @@ package rules
 
 import (
 	"errors"
-	"fmt"
-	"math"
-	"regexp"
+	"maps"
+	"reflect"
+	"slices"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
 type SetName string
@@ -19,39 +20,54 @@ var (
 	ErrInvalidSet = errors.New("this is not a rule set")
 )
 
-var namePattern = regexp.MustCompile(`^[a-z][a-z0-9_-]{0,31}$`)
-
 type Set struct {
-	name  SetName
-	tempo float64
-	boxes bonuses.Pace
+	name    SetName
+	tempo   float64
+	clicks  clicks.Throttle
+	toll    []clicks.TollStep
+	bonuses bonuses.Rules
 }
 
 func (s Set) TakeSnapshot() Snapshot {
-	return Snapshot{Name: s.name, Tempo: s.tempo, Boxes: s.boxes}
+	return Snapshot{
+		Name:    s.name,
+		Tempo:   s.tempo,
+		Clicks:  s.clicks,
+		Toll:    slices.Clone(s.toll),
+		Bonuses: cloned(s.bonuses),
+	}
 }
 
 type Snapshot struct {
 	Name SetName
 
-	// How many times faster than rateLimiter.perSecond every bucket refills.
+	// How many times faster than Clicks.PerSecond every bucket refills.
 	Tempo float64
 
-	Boxes bonuses.Pace
+	Clicks  clicks.Throttle
+	Toll    []clicks.TollStep
+	Bonuses bonuses.Rules
 }
 
 func (s Snapshot) Restore() (Set, error) {
-	switch {
-	case !namePattern.MatchString(string(s.Name)):
-		return Set{}, fmt.Errorf("%w: a name is a lowercase letter, then up to 31 of a-z, 0-9, - and _", ErrInvalidSet)
-	case math.IsNaN(s.Tempo) || math.IsInf(s.Tempo, 0) || s.Tempo <= 0:
-		return Set{}, fmt.Errorf("%w: its tempo is %v, and must be above 0", ErrInvalidSet, s.Tempo)
-	case s.Boxes.MinInterval <= 0 || s.Boxes.MaxInterval < s.Boxes.MinInterval:
-		return Set{}, fmt.Errorf("%w: a box waits %s at least and %s at most", ErrInvalidSet,
-			s.Boxes.MinInterval, s.Boxes.MaxInterval)
-	case s.Boxes.MaxChargesPerHour <= 0:
-		return Set{}, fmt.Errorf("%w: its hourly cap is %d, and must be above 0", ErrInvalidSet, s.Boxes.MaxChargesPerHour)
+	if err := s.problem(); err != nil {
+		return Set{}, err
 	}
 
-	return Set{name: s.Name, tempo: s.Tempo, boxes: s.Boxes}, nil
+	return Set{
+		name:    s.Name,
+		tempo:   s.Tempo,
+		clicks:  s.Clicks,
+		toll:    slices.Clone(s.Toll),
+		bonuses: cloned(s.Bonuses),
+	}, nil
+}
+
+func (s Snapshot) Equal(other Snapshot) bool {
+	return reflect.DeepEqual(s, other)
+}
+
+func cloned(rules bonuses.Rules) bonuses.Rules {
+	rules.Kinds = maps.Clone(rules.Kinds)
+	return rules
 }

@@ -37,27 +37,57 @@ func (c Config) withDefaults() Config {
 }
 
 func New(name string, config Config, clock cptime.Clock) *Limiter {
+	config = config.withDefaults()
+
+	return NewRuled(name, fixed{PerSecond: config.PerSecond, Burst: config.Burst, Tempo: 1}, config.SweepInterval, clock)
+}
+
+type Policy struct {
+	PerSecond float64
+	Burst     int
+	Tempo     float64
+	Since     time.Time
+}
+
+func (p Policy) same(other Policy) bool {
+	return p.PerSecond == other.PerSecond && p.Burst == other.Burst && p.Tempo == other.Tempo && p.Since.Equal(other.Since)
+}
+
+type Policies interface {
+	Policy() Policy
+}
+
+type fixed Policy
+
+func (f fixed) Policy() Policy { return Policy(f) }
+
+// NewRuled reads its policy at each call: what every bucket earned before a new one is refilled at the old one.
+func NewRuled(name string, policies Policies, sweepInterval time.Duration, clock cptime.Clock) *Limiter {
 	if clock == nil {
 		clock = cptime.SystemClock{}
 	}
+	if sweepInterval <= 0 {
+		sweepInterval = defaultSweepInterval
+	}
 
 	return &Limiter{
-		name:    name,
-		config:  config.withDefaults(),
-		clock:   clock,
-		buckets: make(map[string]*bucket),
-		tempo:   1,
+		name:          name,
+		policies:      policies,
+		sweepInterval: sweepInterval,
+		clock:         clock,
+		buckets:       make(map[string]*bucket),
 	}
 }
 
 type Limiter struct {
-	name   string
-	config Config
-	clock  cptime.Clock
+	name          string
+	policies      Policies
+	sweepInterval time.Duration
+	clock         cptime.Clock
 
 	mu      sync.Mutex
 	buckets map[string]*bucket
-	tempo   float64
+	policy  Policy
 }
 
 type bucket struct {
@@ -103,6 +133,8 @@ func (l *Limiter) TakeAll(n float64, keys ...Key) (bool, []State) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
+	l.follow(now)
+
 	buckets := make([]*bucket, len(keys))
 	allowed := true
 
@@ -116,6 +148,10 @@ func (l *Limiter) TakeAll(n float64, keys ...Key) (bool, []State) {
 		l.refill(b, now)
 		if key.Pace > 0 {
 			b.pace = key.Pace
+		}
+		if scale := max(key.Scale, 1); scale != b.scale {
+			b.scale = scale
+			b.tokens = math.Min(b.tokens, l.capacity(b))
 		}
 
 		buckets[i] = b
@@ -139,6 +175,8 @@ func (l *Limiter) Peek(key Key) State {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
+	l.follow(now)
+
 	b, ok := l.buckets[key.Name]
 	if !ok {
 		// Not stored: reading an allowance must not make the limiter remember a caller.
@@ -150,17 +188,25 @@ func (l *Limiter) Peek(key Key) State {
 	return l.state(b)
 }
 
-// SetTempo multiplies every bucket's rate from now on; what each earned before is refilled at the tempo it had.
-func (l *Limiter) SetTempo(tempo float64) {
-	now := l.clock.Now()
-
-	l.mu.Lock()
-	defer l.mu.Unlock()
-
-	for _, b := range l.buckets {
-		l.refill(b, now)
+// follow refills every bucket at the policy it had up to when the new one started, and cuts it to a smaller burst.
+func (l *Limiter) follow(now time.Time) {
+	policy := l.policies.Policy()
+	if policy.same(l.policy) {
+		return
 	}
-	l.tempo = tempo
+
+	since := now
+	if policy.Since.Before(now) {
+		since = policy.Since
+	}
+	for _, b := range l.buckets {
+		l.refill(b, since)
+	}
+
+	l.policy = policy
+	for _, b := range l.buckets {
+		b.tokens = math.Min(b.tokens, l.capacity(b))
+	}
 }
 
 func (l *Limiter) Fill(key Key) (bool, State) {
@@ -176,6 +222,8 @@ func (l *Limiter) add(key Key, n float64) (bool, State) {
 
 	l.mu.Lock()
 	defer l.mu.Unlock()
+
+	l.follow(now)
 
 	b, ok := l.buckets[key.Name]
 	if !ok {
@@ -207,7 +255,7 @@ func (l *Limiter) earned(b *bucket, now time.Time) float64 {
 		return l.capacity(b)
 	}
 
-	return math.Min(max(b.start, 0)+max(now.Sub(b.since).Seconds(), 0)*l.config.PerSecond*b.scale, l.capacity(b))
+	return math.Min(max(b.start, 0)+max(now.Sub(b.since).Seconds(), 0)*l.policy.PerSecond*b.scale, l.capacity(b))
 }
 
 func (l *Limiter) state(b *bucket) State {
@@ -219,17 +267,17 @@ func (l *Limiter) state(b *bucket) State {
 }
 
 func (l *Limiter) capacity(b *bucket) float64 {
-	return float64(l.config.Burst) * b.scale
+	return float64(l.policy.Burst) * b.scale
 }
 
 func (l *Limiter) rate(b *bucket) float64 {
-	return l.config.PerSecond * b.scale * b.pace * l.tempo
+	return l.policy.PerSecond * b.scale * b.pace * l.policy.Tempo
 }
 
 func (l *Limiter) Name() string { return l.name }
 
 func (l *Limiter) Run(ctx context.Context) {
-	ticker := time.NewTicker(l.config.SweepInterval)
+	ticker := time.NewTicker(l.sweepInterval)
 	defer ticker.Stop()
 
 	for {
@@ -247,6 +295,8 @@ func (l *Limiter) sweep() {
 
 	l.mu.Lock()
 	defer l.mu.Unlock()
+
+	l.follow(now)
 
 	for key, b := range l.buckets {
 		l.refill(b, now)

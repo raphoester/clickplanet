@@ -29,7 +29,11 @@ func (g grants) Record(_ context.Context, grant bonuses.GrantID, _ time.Time) (b
 
 const ada = "0b6d4f7e-5d7c-4a36-9a51-3f1f8f0c2a11"
 
-var config = bonuses.ChargesConfig{SpreadClicks: 20, Enclosures: 3, EnclosureMaxTiles: 50, Shields: 25}
+var config = func() *bonuses.FixedRules {
+	rules := bonuses.TestRules()
+	rules.Spread.Clicks, rules.Enclose.Held, rules.Shield.Held = 20, 3, 25
+	return &bonuses.FixedRules{Rules: rules}
+}()
 
 func setUp() (*apply_grant_usecase.UseCase, bonuses.Charges) {
 	charges := bonuses.NewCharges(bonuses.NewMemoryStore(), config)
@@ -65,7 +69,7 @@ func TestWhatDoesNotFitTheStackIsNotGranted(t *testing.T) {
 			apply_grant_usecase.In{Grant: bonuses.GrantID{15: n}, Account: ada, Kind: bonuses.KindShields, Amount: 10}))
 	}
 
-	assert.Equal(t, config.Shields, held(t, charges).Shields)
+	assert.Equal(t, config.Rules.Shield.Held, held(t, charges).Shields)
 }
 
 func TestAGrantToNoAccountOrOfNothingIsRefused(t *testing.T) {

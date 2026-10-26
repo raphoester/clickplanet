@@ -5,10 +5,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"time"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/rule_set_message"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
@@ -23,14 +22,8 @@ type Store struct {
 var _ rules.Store = (*Store)(nil)
 
 func (s *Store) Set(ctx context.Context, name rules.SetName) (rules.Set, error) {
-	var (
-		kept                     rules.Snapshot
-		minInterval, maxInterval int64
-	)
-	err := s.db.On(ctx).QueryRowContext(ctx, `
-		SELECT name, tempo, box_min_interval_ms, box_max_interval_ms, box_max_charges_per_hour
-		FROM rule_sets WHERE name = $1
-	`, string(name)).Scan(&kept.Name, &kept.Tempo, &minInterval, &maxInterval, &kept.Boxes.MaxChargesPerHour)
+	var document []byte
+	err := s.db.On(ctx).QueryRowContext(ctx, `SELECT rules FROM rule_sets WHERE name = $1`, string(name)).Scan(&document)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		return rules.Set{}, fmt.Errorf("%q: %w", name, rules.ErrUnknownSet)
@@ -38,12 +31,11 @@ func (s *Store) Set(ctx context.Context, name rules.SetName) (rules.Set, error) 
 		return rules.Set{}, fmt.Errorf("failed to read the rule set %q: %w", name, err)
 	}
 
-	kept.Boxes = bonuses.Pace{
-		MinInterval:       time.Duration(minInterval) * time.Millisecond,
-		MaxInterval:       time.Duration(maxInterval) * time.Millisecond,
-		MaxChargesPerHour: kept.Boxes.MaxChargesPerHour,
+	message, err := rule_set_message.Parse(string(name), document)
+	if err != nil {
+		return rules.Set{}, err //nolint:wrapcheck // the codec names the set.
 	}
-	set, err := kept.Restore()
+	set, err := rule_set_message.Decode(message).Restore()
 	if err != nil {
 		return rules.Set{}, fmt.Errorf("the rule set %q kept cannot play: %w", name, err)
 	}
@@ -52,14 +44,15 @@ func (s *Store) Set(ctx context.Context, name rules.SetName) (rules.Set, error) 
 
 func (s *Store) Save(ctx context.Context, set rules.Set) error {
 	kept := set.TakeSnapshot()
+	document, err := rule_set_message.Document(kept)
+	if err != nil {
+		return err //nolint:wrapcheck // the codec names the set.
+	}
+
 	if _, err := s.db.On(ctx).ExecContext(ctx, `
-		INSERT INTO rule_sets (name, tempo, box_min_interval_ms, box_max_interval_ms, box_max_charges_per_hour)
-		VALUES ($1, $2, $3, $4, $5)
-		ON CONFLICT (name) DO UPDATE SET tempo = EXCLUDED.tempo, box_min_interval_ms = EXCLUDED.box_min_interval_ms,
-			box_max_interval_ms = EXCLUDED.box_max_interval_ms,
-			box_max_charges_per_hour = EXCLUDED.box_max_charges_per_hour
-	`, string(kept.Name), kept.Tempo, kept.Boxes.MinInterval.Milliseconds(), kept.Boxes.MaxInterval.Milliseconds(),
-		kept.Boxes.MaxChargesPerHour); err != nil {
+		INSERT INTO rule_sets (name, rules) VALUES ($1, $2)
+		ON CONFLICT (name) DO UPDATE SET rules = EXCLUDED.rules
+	`, string(kept.Name), document); err != nil {
 		return fmt.Errorf("failed to keep the rule set %q: %w", kept.Name, err)
 	}
 

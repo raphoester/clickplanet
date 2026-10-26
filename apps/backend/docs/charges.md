@@ -18,12 +18,12 @@ its own.
   `AfterRefill`, `AfterBomb`, `AfterEnclose`, `AfterSpreadClick` and `AfterShield`
   build a new `Held` and change
   nothing; `bonuses.Charges` writes it. `Count(kind)` is how many of a kind are held,
-  and `Full(config)` the kinds another box would add nothing to.
+  and `Full(rules)` the kinds another box would add nothing to.
 - **How much fits.** A refill and a bomb are one: a second replaces the first,
   which is what stops a stockpile of bombs being dropped all at once. Enclosures
-  stack to `bonus.enclose.held` (3), spread clicks pool to `bonus.spread.clicks`
-  (8) and shields stack to `bonus.shield.held` (30). A box draws its amount evenly from 1 to `maxPerBox`, or from
-  `bonus.shield.minPerBox` for shields (`Registry.amountOf`, `crypto/rand`), and the grant caps it at the size. The claim answers
+  stack to the rule set's `bonuses.enclose.held` (3), spread clicks pool to `bonuses.spread.clicks`
+  (8) and shields stack to `bonuses.shield.held` (30) (see [Rules](rules.md)). A box draws its amount evenly from 1 to `maxPerBox`, or from
+  `bonuses.shield.minPerBox` for shields (`amountOf`, `crypto/rand`), and the grant caps it at the size. The claim answers
   `ClaimBonusResponse.amount` as **what was kept**, `Count` after less `Count`
   before, so a player is never told of clicks that did not fit.
 - **The schedule offers no kind that is full** for any account that clicked as
@@ -70,10 +70,10 @@ its own.
   `planetv1controller/chargesheld` encodes the message both procedures answer.
 - **How big a charge is, is a rule, not state.** `GetBonusRules` answers the
   blast radius, the enclose's `maxTiles`, the spread pool's size and the
-  enclosure stack's size (`bonuses.Rules`, built in `module.go`), how many
-  shields a player holds and a tile takes (`shields`, `tile_shields`), and
-  every step of the toll (`toll_steps`, from `clicks.Toll.Steps`), so the client can show the
+  enclosure stack's size, how many shields a player holds and a tile takes
+  (`shields`, `tile_shields`), and every step of the toll (`toll_steps`, from
+  `clicks.Toll.Steps`), all read from the rule set in force (see [Rules](rules.md)), so the client can show the
   whole table and the slowdown of a country it does not play for. It is
-  `NO_SIDE_EFFECTS`, a GET the cache interceptor marks for 5 minutes, and the
-  client reads it once per page load. A page open across a deploy that changes
-  them shows the old sizes until it reloads.
+  `NO_SIDE_EFFECTS`, a GET no cache keeps: the client reads it at load and again on each `rules_changed`.
+- **A stack held above a smaller size is kept** (`Held.Granted` never takes from a stack): a hand of 12 shields
+  under a new stack of 5 keeps 12, is offered no shield box, and a grant adds none until it is under 5.

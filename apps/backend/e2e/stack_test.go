@@ -15,9 +15,12 @@ import (
 	"testing"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
+	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat"
@@ -72,9 +75,6 @@ func startGame(t *testing.T) gameStack {
 	planetConfig := planet.Config{Database: postgres.ConfigFor("planet"), Redis: redis}
 	planetConfig.GameMap.MaxIndex = mapTiles
 	planetConfig.Auth = cpsession.VerifierConfig{Enabled: true, Enforce: true}
-	planetConfig.RateLimiter.PerSecond = 100
-	planetConfig.RateLimiter.Burst = 100
-	planetConfig.RateLimiter.ScopeMultiplier = 1
 
 	antibotConfig := antibot.Config{Enabled: true, Database: postgres.ConfigFor("antibot"), Redis: redis}
 	antibotConfig.Bans.Enforce = true
@@ -128,13 +128,35 @@ func startGame(t *testing.T) gameStack {
 
 	waitUntilServed(t, server.BindAddress)
 
-	return gameStack{
+	stack := gameStack{
 		baseURL:    "http://" + server.BindAddress,
 		consoleURL: "http://" + server.ConsoleBindAddress,
 		adminURL:   "http://" + server.AdminBindAddress,
 		fakes:      fakes,
 		postgres:   postgres,
 	}
+	stack.clickAtWill(t)
+
+	return stack
+}
+
+// Every test clicks from one address, so the stack's rule set lets it.
+func (s gameStack) clickAtWill(t *testing.T) {
+	t.Helper()
+
+	_, err := s.schema(t, "planet").On(t.Context()).ExecContext(t.Context(), `
+		UPDATE rule_sets
+		SET rules = jsonb_set(rules, '{clicks}', rules->'clicks' ||
+			'{"perSecond": 100, "burst": 100, "scopeMultiplier": 1, "newAccountClicks": 100}')
+		WHERE name = 'default'
+	`)
+	require.NoError(t, err)
+
+	planet := planetv1connect.NewClickServiceClient(http.DefaultClient, s.baseURL)
+	require.Eventually(t, func() bool {
+		res, err := planet.GetBudget(t.Context(), connect.NewRequest(&planetv1.GetBudgetRequest{}))
+		return err == nil && res.Msg.GetBudget().GetCapacity() == 100
+	}, 5*time.Second, 50*time.Millisecond, "the game follows its rule set within a second")
 }
 
 func listen(t *testing.T) net.Listener {

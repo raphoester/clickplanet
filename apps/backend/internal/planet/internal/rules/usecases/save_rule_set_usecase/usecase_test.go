@@ -13,11 +13,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/usecases/save_rule_set_usecase"
 )
 
-var rush = rules.Snapshot{
-	Name:  "rush",
-	Tempo: 3,
-	Boxes: bonuses.Pace{MinInterval: time.Minute, MaxInterval: 2 * time.Minute, MaxChargesPerHour: 30},
-}
+var rush = func() rules.Snapshot {
+	rush := rules.TestSnapshot("rush")
+	rush.Tempo = 3
+	rush.Bonuses.Boxes = bonuses.Pace{MinInterval: time.Minute, MaxInterval: 2 * time.Minute, MaxChargesPerHour: 30}
+	return rush
+}()
 
 func TestASetIsKeptAsWritten(t *testing.T) {
 	store := rules.NewMemoryStore()

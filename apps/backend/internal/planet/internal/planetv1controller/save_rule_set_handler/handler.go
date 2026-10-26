@@ -7,8 +7,8 @@ import (
 	"connectrpc.com/connect"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/rule_set_message"
 )
 
 type UseCase interface {
@@ -27,16 +27,7 @@ func (h SaveRuleSetHandler) SaveRuleSet(
 	ctx context.Context,
 	req *connect.Request[planetv1.SaveRuleSetRequest],
 ) (*connect.Response[planetv1.SaveRuleSetResponse], error) {
-	set := req.Msg.GetSet()
-	err := h.useCase.Execute(ctx, rules.Snapshot{
-		Name:  rules.SetName(set.GetName()),
-		Tempo: set.GetTempo(),
-		Boxes: bonuses.Pace{
-			MinInterval:       set.GetBoxes().GetMinInterval().AsDuration(),
-			MaxInterval:       set.GetBoxes().GetMaxInterval().AsDuration(),
-			MaxChargesPerHour: int(set.GetBoxes().GetMaxChargesPerHour()),
-		},
-	})
+	err := h.useCase.Execute(ctx, rule_set_message.Decode(req.Msg.GetSet()))
 
 	switch {
 	case err == nil:

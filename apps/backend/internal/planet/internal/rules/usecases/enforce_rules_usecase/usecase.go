@@ -39,7 +39,7 @@ func (u *UseCase) Execute(ctx context.Context) (rules.Snapshot, error) {
 	}
 
 	kept := set.TakeSnapshot()
-	if kept == u.enforced {
+	if kept.Equal(u.enforced) {
 		return rules.Snapshot{}, nil
 	}
 

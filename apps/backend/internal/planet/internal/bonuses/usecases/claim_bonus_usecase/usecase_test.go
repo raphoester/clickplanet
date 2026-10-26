@@ -48,7 +48,9 @@ const guest bonuses.Holder = "a-guest"
 
 func charges() (bonuses.Charges, *bonuses.MemoryStore) {
 	store := bonuses.NewMemoryStore()
-	return bonuses.NewCharges(store, bonuses.ChargesConfig{SpreadClicks: 8, Enclosures: 3, Shields: 12}), store
+	rules := bonuses.TestRules()
+	rules.Shield.Held = 12
+	return bonuses.NewCharges(store, &bonuses.FixedRules{Rules: rules}), store
 }
 
 func granting(kind bonuses.Kind) *stubRegistry {

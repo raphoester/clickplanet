@@ -196,8 +196,15 @@ func NewModule(config Config) cpbootstrap.Module {
 				return fmt.Errorf("failed to load the ledger: %w", err)
 			}
 
-			chargeRules := config.Bonus.ChargesConfig()
-			charges := bonuses.NewCharges(postgres_charge_store.New(db), chargeRules)
+			ruleSets := postgres_rule_set_store.New(db)
+			inForce := rules.NewInForce(clock)
+			enforceRules := log_enforce_rules.New(enforce_rules_usecase.New(ruleSets, inForce), props.Logger)
+			if _, err := enforceRules.Execute(ctx); err != nil {
+				closeStores()
+				return fmt.Errorf("failed to enforce the rules postgres keeps: %w", err)
+			}
+
+			charges := bonuses.NewCharges(postgres_charge_store.New(db), inForce)
 
 			grants, err := cpredis.Handle(ctx, streams, log_subscriber.New(apply_grant_handler.New(
 				apply_grant_usecase.New(db, postgres_grant_store.New(db), charges, clock)), props.Logger))
@@ -238,42 +245,31 @@ func NewModule(config Config) cpbootstrap.Module {
 					facts.NewRelay(told, streams, factsRelayInterval))))
 			props.Runners.Add(ledger.NewRetention(config.Ledger, takings, clock))
 
-			limiter := cpratelimit.New("click-limiter", config.RateLimiter.Config, clock)
-			props.Runners.Add(limiter)
-			buckets := config.RateLimiter.Buckets()
+			props.Runners.Add(enforce_rules_usecase.NewRunner(time.Second, enforceRules))
 
-			pricer := clicks.NewToll(config.Toll, tilesStorage)
+			limiter := cpratelimit.NewRuled("click-limiter", inForce, config.RateLimiter.SweepInterval, clock)
+			props.Runners.Add(limiter)
+			buckets := clicks.NewBuckets(inForce)
+
+			pricer := clicks.NewToll(inForce, tilesStorage)
 
 			book := allegiances.NewBook(postgres_allegiance_store.New(db), countries, clock)
 
-			writer := ledger.NewRecording(tilesStorage, clicks.NewClaiming(tilesStorage, config.Bonus.ShieldsPerTile()),
-				takings, clock)
+			writer := ledger.NewRecording(tilesStorage, clicks.NewClaiming(tilesStorage, inForce), takings, clock)
 
-			registry := bonuses.New(config.Bonus, clock, charges)
+			bank, err := quizzes.Load(tilesStorage)
+			if err != nil {
+				return fmt.Errorf("failed to load the quiz bank: %w", err)
+			}
+			props.Logger.Info("quiz bank loaded",
+				slog.String("bank", bank.Version()),
+				slog.Int("questions", bank.Size()),
+				slog.Int("subjects", bank.Subjects()))
+
+			registry := bonuses.New(config.Bonus, clock, charges, inForce, bank)
 			props.Runners.Add(registry)
 
-			if config.Bonus.Quiz.Enabled {
-				bank, err := quizzes.Load(config.Bonus.Quiz, tilesStorage)
-				if err != nil {
-					return fmt.Errorf("failed to load the quiz bank: %w", err)
-				}
-
-				registry.Quizzing(config.Bonus.Quiz, bank)
-				props.Logger.Info("quizzes enabled",
-					slog.String("bank", bank.Version()),
-					slog.Int("questions", bank.Size()),
-					slog.Int("subjects", bank.Subjects()))
-			}
-
-			ruleSets := postgres_rule_set_store.New(db)
-			inForce := rules.NewInForce(limiter, registry)
-			enforceRules := log_enforce_rules.New(enforce_rules_usecase.New(ruleSets, inForce), props.Logger)
-			if _, err := enforceRules.Execute(ctx); err != nil {
-				return fmt.Errorf("failed to enforce the rules postgres keeps: %w", err)
-			}
-			props.Runners.Add(enforce_rules_usecase.NewRunner(time.Second, enforceRules))
-
-			bombRules := bonuses.NewBombRules(config.Bonus.Bomb, geography.Spacing())
+			bombing := bonuses.NewBombing(inForce, geography.Spacing())
 
 			var clickUseCase click_usecase.IUseCase = click_usecase.New(tilesChecker, writer, countries)
 			clickUseCase = spread_click.New(clickUseCase, charges, geography, writer, registry)
@@ -281,7 +277,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			clickUseCase = enclose_click.New(clickUseCase, charges,
 				bonuses.NewTerrain(geography, tilesStorage),
 				enclose_click.NewAnnexer(writer, charges, prom_enclose.New(registry, props.Metrics)),
-				chargeRules.EnclosureMaxTiles)
+				inForce)
 
 			clickUseCase = prom_click.New(clickUseCase, props.Metrics)
 
@@ -399,17 +395,8 @@ func NewModule(config Config) cpbootstrap.Module {
 			})
 
 			dropBomb := prom_drop_bomb.New(
-				refusal_drop_bomb.New(drop_bomb_usecase.New(charges, geography, writer, countries, bombRules), refusing),
+				refusal_drop_bomb.New(drop_bomb_usecase.New(charges, geography, writer, countries, bombing), refusing),
 				props.Metrics)
-
-			rules := bonuses.Rules{
-				BlastRadius:       bombRules.Radius,
-				EnclosureMaxTiles: chargeRules.EnclosureMaxTiles,
-				SpreadClicks:      chargeRules.SpreadClicks,
-				Enclosures:        chargeRules.Enclosures,
-				Shields:           chargeRules.Shields,
-				TileShields:       config.Bonus.ShieldsPerTile(),
-			}
 
 			service := planetv1controller.ClickService{
 				ClickHandler:      click_handler.New(clickUseCase),
@@ -422,11 +409,11 @@ func NewModule(config Config) cpbootstrap.Module {
 				DropBombHandler:      drop_bomb_handler.New(dropBomb),
 				UseRefillHandler:     use_refill_handler.New(use_refill_usecase.New(charges, limiter, pricer, buckets)),
 				GetChargesHandler:    get_charges_handler.New(get_charges_usecase.New(charges)),
-				GetBonusRulesHandler: get_bonus_rules_handler.New(rules, pricer),
+				GetBonusRulesHandler: get_bonus_rules_handler.New(inForce, bombing, pricer),
 				OpenQuizHandler:      open_quiz_handler.New(openQuiz),
 				AnswerQuizHandler:    answer_quiz_handler.New(answerQuiz),
 				PlaceShieldHandler: place_shield_handler.New(refusal_place_shield.New(
-					place_shield_usecase.New(charges, writer, countries, book, config.Bonus.ShieldsPerTile()), refusing)),
+					place_shield_usecase.New(charges, writer, countries, book, inForce), refusing)),
 				GetFortressesHandler: get_fortresses_handler.New(fortresses_query.NewMemoryQuery(tilesStorage)),
 				GetTileHolderHandler: get_tile_holder_handler.New(tilesChecker, holder_query.NewPostgresQuery(db)),
 				GetLandmassHandler: get_landmass_handler.New(borders,

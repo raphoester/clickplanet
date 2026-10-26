@@ -1,8 +1,6 @@
 package clicks
 
 import (
-	"fmt"
-	"math"
 	"slices"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
@@ -11,26 +9,6 @@ import (
 type TollStep struct {
 	Share    float64
 	Slowdown float64
-}
-
-type TollConfig struct {
-	Steps []TollStep
-}
-
-func (c TollConfig) Validate() error {
-	previous := TollStep{Slowdown: 1}
-
-	for i, step := range c.Steps {
-		if math.IsNaN(step.Share) || step.Share <= previous.Share || step.Share > 1 {
-			return fmt.Errorf("toll.steps[%d].share is %v: shares must rise, above 0 and up to 1", i, step.Share)
-		}
-		if math.IsNaN(step.Slowdown) || math.IsInf(step.Slowdown, 0) || step.Slowdown <= previous.Slowdown {
-			return fmt.Errorf("toll.steps[%d].slowdown is %v: slowdowns must rise, above 1", i, step.Slowdown)
-		}
-		previous = step
-	}
-
-	return nil
 }
 
 type Price struct {
@@ -56,23 +34,27 @@ type ShareReader interface {
 	Share(country string) float64
 }
 
-func NewToll(config TollConfig, shares ShareReader) *Toll {
-	return &Toll{steps: config.Steps, shares: shares}
+type TollInForce interface {
+	Toll() []TollStep
+}
+
+func NewToll(rules TollInForce, shares ShareReader) *Toll {
+	return &Toll{rules: rules, shares: shares}
 }
 
 type Toll struct {
-	steps  []TollStep
+	rules  TollInForce
 	shares ShareReader
 }
 
 func (t *Toll) Steps() []TollStep {
-	return slices.Clone(t.steps)
+	return slices.Clone(t.rules.Toll())
 }
 
 func (t *Toll) Price(country string) Price {
 	price := Price{Slowdown: 1, Share: t.shares.Share(country)}
 
-	for _, step := range t.steps {
+	for _, step := range t.rules.Toll() {
 		if price.Share < step.Share {
 			price.NextShare, price.NextSlowdown = step.Share, step.Slowdown
 			break

@@ -36,16 +36,17 @@ type In struct {
 	CountryID string
 }
 
-func New(shields Shields, tiles Tiles, countries CountryChecker, allegiances Allegiances, perTile int) *UseCase {
-	return &UseCase{shields: shields, tiles: tiles, countries: countries, allegiances: allegiances, perTile: perTile}
+func New(shields Shields, tiles Tiles, countries CountryChecker, allegiances Allegiances, rules bonuses.InForce) *UseCase {
+	return &UseCase{shields: shields, tiles: tiles, countries: countries, allegiances: allegiances, rules: rules}
 }
 
+// A tile above a smaller per-tile cap keeps its shields, and takes none until it is under it.
 type UseCase struct {
 	shields     Shields
 	tiles       Tiles
 	countries   CountryChecker
 	allegiances Allegiances
-	perTile     int
+	rules       bonuses.InForce
 }
 
 func (u *UseCase) Execute(ctx context.Context, in In) (bonuses.Held, error) {
@@ -58,7 +59,8 @@ func (u *UseCase) Execute(ctx context.Context, in In) (bonuses.Held, error) {
 		return bonuses.Held{}, fmt.Errorf("%w: %d", clicks.ErrTileOutOfRange, in.TileID)
 	}
 
-	if err := clicks.ShieldError(owner, in.CountryID, u.tiles.Shields(in.TileID), u.perTile); err != nil {
+	perTile := u.rules.Bonuses().Shield.PerTile
+	if err := clicks.ShieldError(owner, in.CountryID, u.tiles.Shields(in.TileID), perTile); err != nil {
 		return bonuses.Held{}, fmt.Errorf("tile %d: %w", in.TileID, err)
 	}
 
@@ -75,7 +77,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (bonuses.Held, error) {
 		return bonuses.Held{}, err
 	}
 
-	if err := u.tiles.Shield(ctx, in.TileID, in.CountryID, u.perTile); err != nil {
+	if err := u.tiles.Shield(ctx, in.TileID, in.CountryID, perTile); err != nil {
 		return bonuses.Held{}, errors.Join(fmt.Errorf("failed to place the shield: %w", err),
 			u.shields.Grant(ctx, holder, bonuses.KindShields, 1))
 	}

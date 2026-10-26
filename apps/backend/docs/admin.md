@@ -41,7 +41,7 @@ Measured on a copy of production's map, before postgres: 22,040 tiles in 4.4s, a
 
 `GrantCharges(account_id, refill, bomb, enclosures, spread_clicks, shields)` runs `bonuses/usecases/grant_charges_usecase`, wrapped in `audit_grant_charges`: it gives one account any of the five charges, as a box would.
 
-- **The caps hold**: `Held.Granted` is the rule, so a refill and a bomb are one, enclosures stop at `bonus.enclose.held`, spread clicks at `bonus.spread.clicks` and shields at `bonus.shield.held`. The answer is what the account held `before` and `after`, so the operator sees what fit.
+- **The caps hold**: `Held.Granted` is the rule, so a refill and a bomb are one, enclosures stop at the rule set's `bonuses.enclose.held`, spread clicks at `bonuses.spread.clicks` and shields at `bonuses.shield.held`. The answer is what the account held `before` and `after`, so the operator sees what fit.
 - **An account id, never a scope**: a charge is an account's (`bonuses.ParseHolder`). A grant of nothing is `InvalidArgument` (`ErrNothingToGrant`). Planet does not know which accounts exist, so an id nobody holds gets a row nobody reads.
 - **Nothing pushes it**: the player sees it on the next `GetCharges`, at its next page load.
 

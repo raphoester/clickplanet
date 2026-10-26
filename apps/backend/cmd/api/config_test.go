@@ -10,6 +10,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/knadh/koanf/parsers/yaml"
+	"github.com/knadh/koanf/providers/file"
+	"github.com/knadh/koanf/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -24,24 +27,9 @@ func TestTheExampleConfigStillReachesTheStructs(t *testing.T) {
 
 	require.True(t, config.AntiBot.Enabled)
 
-	assert.Equal(t, 25, config.Planet.Bonus.Enclose.MaxTiles)
-	assert.Equal(t, 8, config.Planet.Bonus.Spread.Clicks)
-	assert.Equal(t, 4, config.Planet.Bonus.Spread.MaxPerBox)
-	assert.Equal(t, 3, config.Planet.Bonus.Enclose.Held)
-	assert.Equal(t, 3, config.Planet.Bonus.Enclose.MaxPerBox)
-	assert.Equal(t, 30, config.Planet.Bonus.Shield.Held)
-	assert.Equal(t, 5, config.Planet.Bonus.Shield.MinPerBox)
-	assert.Equal(t, 20, config.Planet.Bonus.Shield.MaxPerBox)
-
-	quiz := config.Planet.Bonus.Quiz
-	assert.True(t, quiz.Enabled)
-	assert.Equal(t, 4*time.Minute, quiz.MinInterval)
-	assert.Equal(t, 8*time.Minute, quiz.MaxInterval)
-	assert.Equal(t, 2*time.Minute, quiz.MissRetry)
-	assert.Equal(t, 25*time.Second, quiz.OfferTTL)
-	assert.Equal(t, 8*time.Second, quiz.AnswerWindow, "example.yaml must load the answerWindow it documents")
-	assert.InDelta(t, 1.0, quiz.LeaderBias, 1e-9)
-	assert.Equal(t, 12, quiz.MaxChargesPerHour)
+	assert.Equal(t, 5*time.Minute, config.Planet.Bonus.ForgetAfter)
+	assert.Equal(t, time.Second, config.Planet.Bonus.SweepInterval)
+	assert.Equal(t, time.Minute, config.Planet.RateLimiter.SweepInterval)
 
 	assert.Equal(t, 72*time.Hour, config.Planet.Ledger.Retention)
 	assert.Equal(t, 5*time.Minute, config.Planet.Ledger.SweepInterval)
@@ -118,11 +106,6 @@ func TestTheExampleConfigStillCarriesTheRestOfTheFile(t *testing.T) {
 	assert.Equal(t, "0.0.0.0:8080", config.HTTPServer.BindAddress)
 	assert.Equal(t, time.Minute, config.HTTPServer.StartupTimeout)
 	assert.NotZero(t, config.Planet.GameMap.MaxIndex)
-	assert.InDelta(t, 0.2, config.Planet.RateLimiter.PerSecond, 1e-9, "one click every 5s")
-	assert.Equal(t, 60, config.Planet.RateLimiter.Burst)
-	require.Len(t, config.Planet.Toll.Steps, 3)
-	assert.InDelta(t, 0.30, config.Planet.Toll.Steps[2].Share, 1e-9)
-	assert.InDelta(t, 4, config.Planet.Toll.Steps[2].Slowdown, 1e-9)
 	require.NoError(t, config.Planet.Validate())
 	assert.Equal(t, time.Second, config.Planet.TilesStorage.FlushInterval)
 	assert.Equal(t, "127.0.0.1:8081", config.HTTPServer.ConsoleBindAddress)
@@ -140,13 +123,24 @@ func TestTheLocalStackConfigHasTheMapOfTheExampleAndAnInternalListener(t *testin
 	assert.NotEmpty(t, local.HTTPServer.InternalBindAddress, "chat, player and seasons dial it while they are built")
 }
 
-func TestTheExampleConfigReachesTheBombSettings(t *testing.T) {
-	var config Config
-	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
+// koanf drops a key no struct reads, so a game rule written back in a file would change nothing, silently.
+func TestNoConfigFileHoldsAGameRule(t *testing.T) {
+	moved := []string{
+		"toll",
+		"rateLimiter.perSecond", "rateLimiter.burst", "rateLimiter.scopeMultiplier", "rateLimiter.v6ScopeMultiplier",
+		"rateLimiter.guestScopeMultiplier", "rateLimiter.linkedMultiplier", "rateLimiter.newAccountClicks",
+		"bonus.kinds", "bonus.offerTTL", "bonus.missRetry", "bonus.activeWithin", "bonus.minInterval", "bonus.maxInterval",
+		"bonus.maxChargesPerHour", "bonus.spread", "bonus.bomb", "bonus.enclose", "bonus.shield", "bonus.welcome",
+		"bonus.quiz",
+	}
 
-	assert.InDelta(t, 4.0, config.Planet.Bonus.Bomb.Rings, 1e-9)
-	assert.InDelta(t, 1.0, config.Planet.Bonus.Kinds["bomb"], 1e-9)
-	require.NoError(t, config.Planet.Bonus.Validate())
+	for _, path := range []string{"example.yaml", "../../../../deploy/backend.yaml", "../../../../deploy/vps/backend.yaml"} {
+		k := koanf.New(".")
+		require.NoError(t, k.Load(file.Provider(path), yaml.Parser()))
+		for _, key := range moved {
+			assert.False(t, k.Exists(key), "%s holds %s, which the rule sets keep now", path, key)
+		}
+	}
 }
 
 func authBlock(t *testing.T, secret string) string {
@@ -251,19 +245,6 @@ func TestTheMissionsModuleWithNoDatabaseIsRefused(t *testing.T) {
 
 func TestThePlayerModuleWithNoDatabaseIsRefused(t *testing.T) {
 	assert.ErrorContains(t, Config{}.Validate(), "player.database")
-}
-
-func TestTheExampleConfigReachesTheScopeMultiplier(t *testing.T) {
-	var config Config
-	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
-
-	assert.InDelta(t, 10.0, config.Planet.RateLimiter.ScopeMultiplier, 1e-9)
-	assert.InDelta(t, 4.0, config.Planet.RateLimiter.V6ScopeMultiplier, 1e-9)
-	assert.InDelta(t, 1.0, config.Planet.RateLimiter.GuestScopeMultiplier, 1e-9)
-	assert.InDelta(t, 2.0, config.Planet.RateLimiter.LinkedMultiplier, 1e-9)
-	require.NotNil(t, config.Planet.RateLimiter.NewAccountClicks)
-	assert.InDelta(t, 10.0, *config.Planet.RateLimiter.NewAccountClicks, 1e-9)
-	assert.Equal(t, 60, config.Planet.RateLimiter.Burst, "the squashed policy still reads rateLimiter.burst")
 }
 
 func TestTheProcessRefusesToStartWithoutADatabase(t *testing.T) {

@@ -13,12 +13,17 @@ type Toll interface {
 	Steps() []clicks.TollStep
 }
 
-func New(rules bonuses.Rules, toll Toll) GetBonusRulesHandler {
-	return GetBonusRulesHandler{rules: rules, toll: toll}
+type Blast interface {
+	Radius() float64
+}
+
+func New(rules bonuses.InForce, blast Blast, toll Toll) GetBonusRulesHandler {
+	return GetBonusRulesHandler{rules: rules, blast: blast, toll: toll}
 }
 
 type GetBonusRulesHandler struct {
-	rules bonuses.Rules
+	rules bonuses.InForce
+	blast Blast
 	toll  Toll
 }
 
@@ -26,14 +31,16 @@ func (h GetBonusRulesHandler) GetBonusRules(
 	context.Context,
 	*connect.Request[planetv1.GetBonusRulesRequest],
 ) (*connect.Response[planetv1.GetBonusRulesResponse], error) {
+	rules := h.rules.Bonuses()
+
 	return connect.NewResponse(&planetv1.GetBonusRulesResponse{
-		BlastRadius:       h.rules.BlastRadius,
-		EnclosureMaxTiles: uint32(h.rules.EnclosureMaxTiles),
-		SpreadClicks:      uint32(h.rules.SpreadClicks),
-		Enclosures:        uint32(h.rules.Enclosures),
+		BlastRadius:       h.blast.Radius(),
+		EnclosureMaxTiles: uint32(rules.Enclose.MaxTiles),
+		SpreadClicks:      uint32(rules.Spread.Clicks),
+		Enclosures:        uint32(rules.Enclose.Held),
 		TollSteps:         tollStepsOf(h.toll.Steps()),
-		Shields:           uint32(h.rules.Shields),
-		TileShields:       uint32(h.rules.TileShields),
+		Shields:           uint32(rules.Shield.Held),
+		TileShields:       uint32(rules.Shield.PerTile),
 	}), nil
 }
 

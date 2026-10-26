@@ -3,11 +3,9 @@ package rule_sets_query
 import (
 	"context"
 	"fmt"
-	"time"
-
-	"google.golang.org/protobuf/types/known/durationpb"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/rule_set_message"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
@@ -20,10 +18,7 @@ type PostgresQuery struct {
 }
 
 func (q *PostgresQuery) Sets(ctx context.Context) ([]*planetv1.RuleSet, error) {
-	rows, err := q.db.On(ctx).QueryContext(ctx, `
-		SELECT name, tempo, box_min_interval_ms, box_max_interval_ms, box_max_charges_per_hour
-		FROM rule_sets ORDER BY name <> 'default', name
-	`)
+	rows, err := q.db.On(ctx).QueryContext(ctx, `SELECT name, rules FROM rule_sets ORDER BY name <> 'default', name`)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the rule sets: %w", err)
 	}
@@ -32,23 +27,17 @@ func (q *PostgresQuery) Sets(ctx context.Context) ([]*planetv1.RuleSet, error) {
 	var sets []*planetv1.RuleSet
 	for rows.Next() {
 		var (
-			name                     string
-			tempo                    float64
-			minInterval, maxInterval int64
-			maxCharges               uint32
+			name     string
+			document []byte
 		)
-		if err := rows.Scan(&name, &tempo, &minInterval, &maxInterval, &maxCharges); err != nil {
+		if err := rows.Scan(&name, &document); err != nil {
 			return nil, fmt.Errorf("failed to read a rule set: %w", err)
 		}
-		sets = append(sets, &planetv1.RuleSet{
-			Name:  name,
-			Tempo: tempo,
-			Boxes: &planetv1.BoxPace{
-				MinInterval:       durationpb.New(time.Duration(minInterval) * time.Millisecond),
-				MaxInterval:       durationpb.New(time.Duration(maxInterval) * time.Millisecond),
-				MaxChargesPerHour: maxCharges,
-			},
-		})
+		set, err := rule_set_message.Parse(name, document)
+		if err != nil {
+			return nil, err //nolint:wrapcheck // the codec names the set.
+		}
+		sets = append(sets, set)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("failed to read the rule sets: %w", err)

@@ -12,7 +12,7 @@ screen draws a splash. That was a product decision: a bad aim costs the bomb.
 
 On land the tiles are `Geography.Within(centre, radius)`: every tile within
 `radius` of arc of the tile hit — a true circle, ~230 tiles inland, found by a
-straight scan (~0.5ms, once per bomb). The radius is `bomb.rings × Geography.Spacing()` (`bonuses.NewBombRules`, and `BombRules.Blast` decides land or sea),
+straight scan (~0.5ms, once per bomb). The radius is the rule set's `bonuses.bomb.rings` × `Geography.Spacing()`, read at each drop (`bonuses.Bombing`, whose `Blast` decides land or sea),
 the mean arc between touching tiles measured at boot (0.0040 rad on the
 262,119-tile map, so 0.032), rather than a number in the config that could drift
 from the map; the same radius goes to clients, so the ring they draw is the clear.

@@ -5,6 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/rule_set_message"
 )
 
 type UseCase interface {
@@ -23,13 +24,8 @@ type Audited struct {
 func (a *Audited) Execute(ctx context.Context, in rules.Snapshot) error {
 	err := a.inner.Execute(ctx, in)
 
-	attrs := []any{
-		slog.String("set", string(in.Name)),
-		slog.Float64("tempo", in.Tempo),
-		slog.Duration("boxMinInterval", in.Boxes.MinInterval),
-		slog.Duration("boxMaxInterval", in.Boxes.MaxInterval),
-		slog.Int("boxMaxChargesPerHour", in.Boxes.MaxChargesPerHour),
-	}
+	document, _ := rule_set_message.Document(in)
+	attrs := []any{slog.String("set", string(in.Name)), slog.String("rules", string(document))}
 
 	if err != nil {
 		a.logger.Warn("admin rule set refused", append(attrs, slog.Any("error", err))...)

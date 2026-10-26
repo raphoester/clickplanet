@@ -3,7 +3,6 @@ package enforce_rules_usecase_test
 import (
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -17,11 +16,7 @@ type enforced struct{ sets []rules.Snapshot }
 
 func (e *enforced) Enforce(set rules.Set) { e.sets = append(e.sets, set.TakeSnapshot()) }
 
-var plain = rules.Snapshot{
-	Name:  rules.Default,
-	Tempo: 1,
-	Boxes: bonuses.Pace{MinInterval: 4 * time.Minute, MaxInterval: 8 * time.Minute, MaxChargesPerHour: 12},
-}
+var plain = rules.TestSnapshot(rules.Default)
 
 func keep(t *testing.T, store *rules.MemoryStore, kept rules.Snapshot) {
 	t.Helper()
@@ -53,8 +48,8 @@ func TestASetUnchangedIsNotEnforcedAgainAndAnEditIs(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, rules.Snapshot{}, again)
 
-	quicker := plain
-	quicker.Tempo = 2
+	quicker := rules.TestSnapshot(rules.Default)
+	quicker.Bonuses.Kinds[bonuses.KindBomb] = 4
 	keep(t, store, quicker)
 	edited, err := useCase.Execute(t.Context())
 	require.NoError(t, err)

@@ -21,19 +21,28 @@ func newTestRegistry() (*Registry, *cptime.FixedClock) {
 }
 
 func newRegistryOffering(kinds map[Kind]float64) (*Registry, *cptime.FixedClock) {
+	return newRuledRegistry(func(rules *Rules) { rules.Kinds = kinds })
+}
+
+func newRuledRegistry(change func(*Rules)) (*Registry, *cptime.FixedClock) {
 	clock := cptime.NewFixedClock(epoch)
 
-	registry := New(Config{
-		MissRetry:     20 * time.Second,
-		OfferTTL:      15 * time.Second,
-		Kinds:         kinds,
-		ActiveWithin:  5 * time.Minute,
-		ForgetAfter:   5 * time.Minute,
-		SweepInterval: time.Second,
-	}, clock, NewMemoryStore())
-	registry.SetPace(Pace{MinInterval: window, MaxInterval: window, MaxChargesPerHour: 6})
+	rules := TestRules()
+	rules.Boxes = Pace{MinInterval: window, MaxInterval: window, MaxChargesPerHour: 6}
+	rules.MissRetry = 20 * time.Second
+	rules.OfferTTL = 15 * time.Second
+	rules.Kinds = map[Kind]float64{KindRefill: 1}
+	rules.ActiveWithin = 5 * time.Minute
+	change(&rules)
+
+	registry := New(Config{ForgetAfter: 5 * time.Minute, SweepInterval: time.Second}, clock, NewMemoryStore(),
+		&FixedRules{Rules: rules}, fixedBank{})
 
 	return registry, clock
+}
+
+func rulesOf(r *Registry) *Rules {
+	return &r.rules.(*FixedRules).Rules //nolint:forcetypeassert // every registry in these tests is built with them.
 }
 
 func holderOf(entrant Entrant) Holder {
@@ -311,14 +320,13 @@ func TestTheHourlyCapStopsTheOffers(t *testing.T) {
 	assert.NotNil(t, offered(t, events))
 }
 
-func TestTheWaitIsDrawnFromTheConfiguredWindow(t *testing.T) {
-	clock := cptime.NewFixedClock(epoch)
-	registry := New(Config{}, clock, NewMemoryStore())
-	registry.SetPace(Pace{MinInterval: time.Minute, MaxInterval: 3 * time.Minute, MaxChargesPerHour: 12})
+func TestTheWaitIsDrawnFromThePacesWindow(t *testing.T) {
+	rules := TestRules()
+	rules.Boxes = Pace{MinInterval: time.Minute, MaxInterval: 3 * time.Minute, MaxChargesPerHour: 12}
 
 	seen := cpcolls.NewSet[time.Duration]()
 	for range 200 {
-		drawn := registry.window()
+		drawn := boxWait(rules)
 
 		require.GreaterOrEqual(t, drawn, time.Minute)
 		require.Less(t, drawn, 3*time.Minute)
@@ -328,27 +336,13 @@ func TestTheWaitIsDrawnFromTheConfiguredWindow(t *testing.T) {
 	assert.Greater(t, seen.Len(), 100, "the wait should be spread, not fixed")
 }
 
-func TestEveryKindConfiguredIsOffered(t *testing.T) {
-	registry := New(Config{}, cptime.NewFixedClock(epoch), NewMemoryStore())
-
+func TestEveryKindWeighedIsOffered(t *testing.T) {
 	seen := cpcolls.NewSet[Kind]()
 	for range 200 {
-		seen.Add(registry.drawKind(everyKind()))
+		seen.Add(drawKind(everyKind(), TestRules().Kinds))
 	}
 
-	assert.Equal(t, len(Kinds), seen.Len(), "an empty bonus.kinds takes the defaults, which offer every kind")
-}
-
-func TestAnEmptyKindsTakesTheDefaultWeights(t *testing.T) {
-	registry := New(Config{}, cptime.NewFixedClock(epoch), NewMemoryStore())
-
-	assert.Equal(t, map[Kind]float64{
-		KindRefill:        5,
-		KindSpreadClicks:  3,
-		KindEncloseClicks: 2,
-		KindBomb:          1,
-		KindShields:       3,
-	}, registry.config.Kinds)
+	assert.Equal(t, len(Kinds), seen.Len())
 }
 
 func TestEveryKindIsClaimedAsItself(t *testing.T) {
@@ -466,7 +460,7 @@ func TestACallerWithNoAccountIsOfferedNothing(t *testing.T) {
 
 func TestTheHourlyCapCountsOnlyTheLastHour(t *testing.T) {
 	registry, clock := newTestRegistry()
-	entry := registry.caller("scope-a", clock.Now())
+	entry := registry.caller("scope-a", *rulesOf(registry), clock.Now())
 
 	entry.grants = append(entry.grants, clock.Now().Add(-2*time.Hour), clock.Now().Add(-time.Minute), clock.Now())
 
@@ -483,34 +477,22 @@ func TestAKindLeftOutOrAtZeroIsNeverOffered(t *testing.T) {
 		clicked(registry, "scope-a")
 		entry := registry.callers["scope-a"]
 
-		assert.Equal(t, cpcolls.NewSet(KindSpreadClicks), registry.offerable(t.Context(), entry, clock.Now()))
+		assert.Equal(t, cpcolls.NewSet(KindSpreadClicks), registry.offerable(t.Context(), entry, *rulesOf(registry), clock.Now()))
 	}
 }
 
 func TestKindsAreDrawnInProportionToTheirWeight(t *testing.T) {
-	registry := New(Config{
-		Kinds: map[Kind]float64{KindRefill: 9, KindSpreadClicks: 1},
-	}, cptime.NewFixedClock(epoch), NewMemoryStore())
+	weights := map[Kind]float64{KindRefill: 9, KindSpreadClicks: 1}
 
 	const draws = 20_000
 	spreads := 0
 	for range draws {
-		if registry.drawKind(everyKind()) == KindSpreadClicks {
+		if drawKind(everyKind(), weights) == KindSpreadClicks {
 			spreads++
 		}
 	}
 
 	assert.InDelta(t, 0.1, float64(spreads)/draws, 0.02)
-}
-
-func TestKindWeightsThatMakeNoSenseRefuseTheConfig(t *testing.T) {
-	require.NoError(t, Config{Kinds: map[Kind]float64{KindRefill: 4, KindSpreadClicks: 1}}.Validate())
-	require.NoError(t, Config{Kinds: map[Kind]float64{KindRefill: 1, KindSpreadClicks: 0}}.Validate())
-	require.NoError(t, Config{}.Validate())
-
-	assert.ErrorContains(t, Config{Kinds: map[Kind]float64{"quadruple_clicks": 1}}.Validate(), "quadruple_clicks")
-	assert.ErrorContains(t, Config{Kinds: map[Kind]float64{KindSpreadClicks: -1}}.Validate(), "spread_clicks")
-	assert.ErrorContains(t, Config{Kinds: map[Kind]float64{KindRefill: 0}}.Validate(), "weight of 0")
 }
 
 func TestAClaimByTheCallerItWasOfferedToSucceeds(t *testing.T) {
@@ -822,13 +804,11 @@ func TestAClosedShapeReachesEveryoneAndOnlyItsCloserIsToldItIsTheirs(t *testing.
 }
 
 func TestABoxGivesAFewEnclosuresSpreadClicksOrShieldsAndOneOfTheRest(t *testing.T) {
-	registry, _ := newTestRegistry()
-
 	seen := map[Kind]*cpcolls.Set[int]{}
 	for _, kind := range Kinds {
 		seen[kind] = cpcolls.NewSet[int]()
 		for range 1000 {
-			seen[kind].Add(registry.amountOf(kind))
+			seen[kind].Add(amountOf(kind, TestRules()))
 		}
 	}
 

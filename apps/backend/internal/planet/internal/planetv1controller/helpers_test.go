@@ -121,7 +121,7 @@ func (p stubPricer) Price(string) clicks.Price { return clicks.Price(p) }
 
 var onePrice = stubPricer{Slowdown: 1}
 
-var buckets = clicks.ThrottleConfig{}.Buckets()
+var buckets = clicks.NewBuckets(&clicks.FixedRules{Clicks: clicks.TestThrottle()})
 
 type fakeRequest struct {
 	connect.AnyRequest

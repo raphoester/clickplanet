@@ -41,7 +41,13 @@ type countries struct{}
 
 func (countries) CheckCountry(country string) bool { return country == "fr" }
 
-var rules = bonuses.BombRules{Radius: 0.03, Reach: 0.005}
+var inForce = func() *bonuses.FixedRules {
+	rules := bonuses.TestRules()
+	rules.Bomb.Rings = 6
+	return &bonuses.FixedRules{Rules: rules}
+}()
+
+var rules = bonuses.NewBombing(inForce, 0.005)
 
 type parts struct {
 	bombs   *bonuses.MemoryStore
@@ -58,7 +64,7 @@ func setup(held bool, arc float64) (*drop_bomb_usecase.UseCase, parts) {
 
 	p.bombs.Keep(bomber, bonuses.Held{Bomb: held})
 
-	return drop_bomb_usecase.New(bonuses.NewCharges(p.bombs, bonuses.ChargesConfig{}), p.geo, p.clearer, countries{}, rules), p
+	return drop_bomb_usecase.New(bonuses.NewCharges(p.bombs, inForce), p.geo, p.clearer, countries{}, rules), p
 }
 
 const bomber bonuses.Holder = "a-guest"

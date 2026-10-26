@@ -20,11 +20,12 @@ type stubUseCase struct{ err error }
 
 func (s stubUseCase) Execute(context.Context, rules.Snapshot) error { return s.err }
 
-var saved = rules.Snapshot{
-	Name:  "rush",
-	Tempo: 3,
-	Boxes: bonuses.Pace{MinInterval: time.Minute, MaxInterval: 2 * time.Minute, MaxChargesPerHour: 30},
-}
+var saved = func() rules.Snapshot {
+	rush := rules.TestSnapshot("rush")
+	rush.Tempo = 3
+	rush.Bonuses.Boxes = bonuses.Pace{MinInterval: time.Minute, MaxInterval: 2 * time.Minute, MaxChargesPerHour: 30}
+	return rush
+}()
 
 func TestEverySaveIsLoggedWithItsValues(t *testing.T) {
 	var logs bytes.Buffer
@@ -32,7 +33,8 @@ func TestEverySaveIsLoggedWithItsValues(t *testing.T) {
 	err := audit_save_rule_set.New(stubUseCase{}, slog.New(slog.NewTextHandler(&logs, nil))).Execute(t.Context(), saved)
 
 	require.NoError(t, err)
-	assert.Contains(t, logs.String(), `level=WARN msg="admin rule set saved" set=rush tempo=3 boxMinInterval=1m0s boxMaxInterval=2m0s boxMaxChargesPerHour=30`)
+	assert.Contains(t, logs.String(), `level=WARN msg="admin rule set saved" set=rush rules=`)
+	assert.Contains(t, logs.String(), `\"maxChargesPerHour\":30`)
 }
 
 func TestARefusedSaveIsLoggedWithWhyAndPassedOn(t *testing.T) {

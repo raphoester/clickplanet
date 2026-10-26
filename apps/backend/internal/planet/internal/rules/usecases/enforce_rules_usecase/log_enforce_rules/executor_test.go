@@ -37,14 +37,17 @@ func TestAPassThatChangedNothingLogsNothing(t *testing.T) {
 }
 
 func TestTheRulesEnforcedAreLoggedWithTheirValues(t *testing.T) {
-	logs, err := run(t.Context(), stubExecutor{enforced: rules.Snapshot{
-		Name:  "rush",
-		Tempo: 3,
-		Boxes: bonuses.Pace{MinInterval: time.Minute, MaxInterval: 2 * time.Minute, MaxChargesPerHour: 30},
-	}})
+	rush := rules.TestSnapshot("rush")
+	rush.Tempo = 3
+	rush.Bonuses.Boxes = bonuses.Pace{MinInterval: time.Minute, MaxInterval: 2 * time.Minute, MaxChargesPerHour: 30}
+
+	logs, err := run(t.Context(), stubExecutor{enforced: rush})
 
 	require.NoError(t, err)
-	assert.Contains(t, logs, `level=WARN msg="rules in force" set=rush tempo=3 boxMinInterval=1m0s boxMaxInterval=2m0s boxMaxChargesPerHour=30`)
+	assert.Contains(t, logs, `level=WARN msg="rules in force" set=rush rules=`)
+	assert.Contains(t, logs, `\"tempo\":3`)
+	assert.Contains(t, logs, `\"minInterval\":\"60s\"`)
+	assert.NotContains(t, logs, `\"name\"`, "the set is named once")
 }
 
 func TestAFailureIsLoggedButNotOneTheShutdownCut(t *testing.T) {
