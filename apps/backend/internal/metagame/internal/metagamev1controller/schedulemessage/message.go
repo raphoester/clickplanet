@@ -28,10 +28,10 @@ func DraftOf(
 
 func kindOf(kind metagamev1.EntryKind) (schedule.Kind, error) {
 	switch kind {
-	case metagamev1.EntryKind_ENTRY_KIND_BATTLE:
-		return schedule.Battle, nil
 	case metagamev1.EntryKind_ENTRY_KIND_PLAIN:
 		return schedule.Plain, nil
+	case metagamev1.EntryKind_ENTRY_KIND_BATTLE:
+		return schedule.Battle, nil
 	case metagamev1.EntryKind_ENTRY_KIND_UNSPECIFIED:
 	}
 	return "", fmt.Errorf("%w: %q", schedule.ErrUnknownKind, kind.String())
@@ -40,10 +40,10 @@ func kindOf(kind metagamev1.EntryKind) (schedule.Kind, error) {
 // KindOf is the wire's word for a kept kind, and an error for one this build does not know.
 func KindOf(kind schedule.Kind) (metagamev1.EntryKind, error) {
 	switch kind {
-	case schedule.Battle:
-		return metagamev1.EntryKind_ENTRY_KIND_BATTLE, nil
 	case schedule.Plain:
 		return metagamev1.EntryKind_ENTRY_KIND_PLAIN, nil
+	case schedule.Battle:
+		return metagamev1.EntryKind_ENTRY_KIND_BATTLE, nil
 	}
 	return metagamev1.EntryKind_ENTRY_KIND_UNSPECIFIED, fmt.Errorf("%w: %q", schedule.ErrUnknownKind, kind)
 }

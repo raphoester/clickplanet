@@ -28,22 +28,22 @@ type EntryKind int32
 
 const (
 	EntryKind_ENTRY_KIND_UNSPECIFIED EntryKind = 0
-	EntryKind_ENTRY_KIND_BATTLE      EntryKind = 1
 	// A change of the rules with no look for the players: a quieter antibot bound for a day.
-	EntryKind_ENTRY_KIND_PLAIN EntryKind = 2
+	EntryKind_ENTRY_KIND_PLAIN  EntryKind = 1
+	EntryKind_ENTRY_KIND_BATTLE EntryKind = 2
 )
 
 // Enum value maps for EntryKind.
 var (
 	EntryKind_name = map[int32]string{
 		0: "ENTRY_KIND_UNSPECIFIED",
-		1: "ENTRY_KIND_BATTLE",
-		2: "ENTRY_KIND_PLAIN",
+		1: "ENTRY_KIND_PLAIN",
+		2: "ENTRY_KIND_BATTLE",
 	}
 	EntryKind_value = map[string]int32{
 		"ENTRY_KIND_UNSPECIFIED": 0,
-		"ENTRY_KIND_BATTLE":      1,
-		"ENTRY_KIND_PLAIN":       2,
+		"ENTRY_KIND_PLAIN":       1,
+		"ENTRY_KIND_BATTLE":      2,
 	}
 )
 
@@ -194,9 +194,9 @@ const file_metagame_v1_metagame_proto_rawDesc = "" +
 	"\aends_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x06endsAt\x12 \n" +
 	"\vdescription\x18\x04 \x01(\tR\vdescription*T\n" +
 	"\tEntryKind\x12\x1a\n" +
-	"\x16ENTRY_KIND_UNSPECIFIED\x10\x00\x12\x15\n" +
-	"\x11ENTRY_KIND_BATTLE\x10\x01\x12\x14\n" +
-	"\x10ENTRY_KIND_PLAIN\x10\x022\\\n" +
+	"\x16ENTRY_KIND_UNSPECIFIED\x10\x00\x12\x14\n" +
+	"\x10ENTRY_KIND_PLAIN\x10\x01\x12\x15\n" +
+	"\x11ENTRY_KIND_BATTLE\x10\x022\\\n" +
 	"\x0fMetagameService\x12I\n" +
 	"\aGetTurn\x12\x1b.metagame.v1.GetTurnRequest\x1a\x1c.metagame.v1.GetTurnResponse\"\x03\x90\x02\x01B\xc3\x01\n" +
 	"\x0fcom.metagame.v1B\rMetagameProtoP\x01ZTgithub.com/raphoester/clickplanet.lol-backend/generated/proto/metagame/v1;metagamev1\xa2\x02\x03MXX\xaa\x02\vMetagame.V1\xca\x02\vMetagame\\V1\xe2\x02\x17Metagame\\V1\\GPBMetadata\xea\x02\fMetagame::V1b\x06proto3"

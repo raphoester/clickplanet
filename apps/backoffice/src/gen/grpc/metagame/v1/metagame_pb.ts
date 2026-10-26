@@ -19,22 +19,22 @@ export enum EntryKind {
   UNSPECIFIED = 0,
 
   /**
-   * @generated from enum value: ENTRY_KIND_BATTLE = 1;
-   */
-  BATTLE = 1,
-
-  /**
    * A change of the rules with no look for the players: a quieter antibot bound for a day.
    *
-   * @generated from enum value: ENTRY_KIND_PLAIN = 2;
+   * @generated from enum value: ENTRY_KIND_PLAIN = 1;
    */
-  PLAIN = 2,
+  PLAIN = 1,
+
+  /**
+   * @generated from enum value: ENTRY_KIND_BATTLE = 2;
+   */
+  BATTLE = 2,
 }
 // Retrieve enum metadata with: proto3.getEnumType(EntryKind)
 proto3.util.setEnumType(EntryKind, "metagame.v1.EntryKind", [
   { no: 0, name: "ENTRY_KIND_UNSPECIFIED" },
-  { no: 1, name: "ENTRY_KIND_BATTLE" },
-  { no: 2, name: "ENTRY_KIND_PLAIN" },
+  { no: 1, name: "ENTRY_KIND_PLAIN" },
+  { no: 2, name: "ENTRY_KIND_BATTLE" },
 ]);
 
 /**

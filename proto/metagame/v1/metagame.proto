@@ -16,9 +16,9 @@ service MetagameService {
 // a plain entry none.
 enum EntryKind {
   ENTRY_KIND_UNSPECIFIED = 0;
-  ENTRY_KIND_BATTLE = 1;
   // A change of the rules with no look for the players: a quieter antibot bound for a day.
-  ENTRY_KIND_PLAIN = 2;
+  ENTRY_KIND_PLAIN = 1;
+  ENTRY_KIND_BATTLE = 2;
 }
 
 message GetTurnRequest {}

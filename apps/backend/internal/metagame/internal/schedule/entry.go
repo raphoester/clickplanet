@@ -36,8 +36,8 @@ type Priority uint32
 type Kind string
 
 const (
-	Battle Kind = "battle"
 	Plain  Kind = "plain"
+	Battle Kind = "battle"
 )
 
 // Description is the entry's words for the players: what its rules are, in plain text.
@@ -50,7 +50,7 @@ var (
 	ErrStarted         = errors.New("this entry has started, and runs to its end: schedule another at a higher priority")
 	ErrUnknownEntry    = errors.New("no entry has this id")
 	ErrUnknownSet      = errors.New("keeps no rule set of this name")
-	ErrUnknownKind     = errors.New("no entry is of this kind: battle or plain")
+	ErrUnknownKind     = errors.New("no entry is of this kind: plain or battle")
 	ErrLongDescription = errors.New("the description is too long")
 )
 
@@ -119,7 +119,7 @@ func (d Description) check() error {
 
 func (k Kind) check() error {
 	switch k {
-	case Battle, Plain:
+	case Plain, Battle:
 		return nil
 	}
 	return fmt.Errorf("%w: %q", ErrUnknownKind, k)
