@@ -1,8 +1,11 @@
 package listen_for_events_handler
 
 import (
+	"errors"
+
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/claim_bonus_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/planetmessage"
@@ -22,20 +25,26 @@ type Sink struct {
 
 var _ listen_for_events_usecase.Sink = Sink{}
 
+var errEmptyEvent = errors.New("an event with nothing to send")
+
 func (s Sink) Send(event listen_for_events_usecase.Event) error {
 	switch {
 	case event.Heartbeat:
-		return s.stream.Send(heartbeatEvent())
+		return s.stream.Send(heartbeatEvent(event.Version))
 	case event.Offer != nil:
 		return s.stream.Send(bonusOfferedEvent(event.Offer))
 	case event.Quiz != nil:
 		return s.stream.Send(quizOfferedEvent(event.Quiz))
 	case event.Taken != nil:
 		return s.stream.Send(bonusTakenEvent(event.Taken))
+	case event.Update != nil:
+		return s.stream.Send(planetmessage.TileUpdate(*event.Update, event.Version))
 	case event.Blast != nil:
-		return s.stream.Send(planetmessage.BombDropped(event.Blast))
+		return s.stream.Send(planetmessage.BombDropped(event.Blast, event.Version))
 	case event.Fortification != nil:
-		return s.stream.Send(planetmessage.LandmassFortified(event.Fortification))
+		return s.stream.Send(planetmessage.LandmassFortified(event.Fortification, event.Version))
+	case event.Tally != nil:
+		return s.stream.Send(planetmessage.HoldingsChanged(event.Tally, event.Version))
 	case event.Enclosed != nil:
 		enclosed := event.Enclosed
 		return s.stream.Send(planetmessage.TilesEnclosed(
@@ -43,7 +52,7 @@ func (s Sink) Send(event listen_for_events_usecase.Event) error {
 	case event.Spread != nil:
 		return s.stream.Send(planetmessage.TilesSpread(event.Spread.CountryID, event.Spread.Tile, event.Spread.Neighbours))
 	default:
-		return s.stream.Send(planetmessage.TileUpdate(event.Update))
+		return errEmptyEvent
 	}
 }
 
@@ -84,8 +93,8 @@ func bonusTakenEvent(taken *bonuses.Taken) *planetv1.PlanetEvent {
 	}
 }
 
-func heartbeatEvent() *planetv1.PlanetEvent {
+func heartbeatEvent(version clicks.MapVersion) *planetv1.PlanetEvent {
 	return &planetv1.PlanetEvent{
-		Event: &planetv1.PlanetEvent_Heartbeat{Heartbeat: &planetv1.Heartbeat{}},
+		Event: &planetv1.PlanetEvent_Heartbeat{Heartbeat: &planetv1.Heartbeat{Version: planetmessage.Version(version)}},
 	}
 }

@@ -21,6 +21,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_landmass_handler/landmass_query/inmemory_tile_holders"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 func TestRunSuite(t *testing.T) {
@@ -50,7 +51,7 @@ func (s *testSuite) SetupSuite() {
 func (s *testSuite) SetupTest() {
 	s.Require().NoError(s.db.Purge(s.T().Context()))
 	s.tiles = inmemory_tile_storage.New(clicks.BordersOf(10, []uint32{1, 2, 3}, []uint32{4}), inmemory_tile_storage.Config{},
-		inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{}), slog.New(slog.DiscardHandler))
+		inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{}), cptime.SystemClock{}, slog.New(slog.DiscardHandler))
 }
 
 func (s *testSuite) record(events ...ledger.Event) {

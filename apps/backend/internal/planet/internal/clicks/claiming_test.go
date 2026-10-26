@@ -9,12 +9,13 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 func claimable(t *testing.T, owners map[uint32]string) *inmemory_tile_storage.Storage {
 	t.Helper()
 	tiles := inmemory_tile_storage.New(clicks.BordersOf(100, []uint32{20, 21, 22}), inmemory_tile_storage.Config{},
-		inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{}), slog.New(slog.DiscardHandler))
+		inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{}), cptime.SystemClock{}, slog.New(slog.DiscardHandler))
 	for tile, owner := range owners {
 		require.NoError(t, tiles.Set(t.Context(), tile, owner))
 	}

@@ -9,12 +9,14 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 func New(
 	borders *clicks.Borders,
 	config Config,
 	persistence Persistence,
+	clock cptime.Clock,
 	logger *slog.Logger,
 ) *Storage {
 	if logger == nil {
@@ -29,6 +31,8 @@ func New(
 		persistence: persistence,
 		board:       newBoard(borders.Tiles()),
 		landmasses:  newLandmasses(borders),
+		recount:     newRecount(borders.Landmasses()),
+		version:     clicks.MapVersion{Epoch: uint32(clock.Now().Unix())}, //nolint:gosec // seconds fit a uint32 until 2106.
 		feed:        newFeed(config.SubscriberBuffer, logger),
 	}
 }
@@ -38,10 +42,12 @@ type Storage struct {
 	logger      *slog.Logger
 	persistence Persistence
 
-	// Guards the board and the landmasses, which change together.
+	// Guards the board, the landmasses and the version, which change together, and the feed's order.
 	mu         sync.RWMutex
 	board      *board
 	landmasses *landmasses
+	recount    recount
+	version    clicks.MapVersion
 
 	feed *feed
 }
@@ -61,60 +67,58 @@ func (s *Storage) put(update clicks.TileUpdate, holder cpsession.AccountID) erro
 		return fmt.Errorf("tile %d out of range (max %d)", update.Tile, s.board.last())
 	}
 
-	previous, changed, err := s.set(update.Tile, update.Value, holder)
-	if err != nil {
-		return err
-	}
-
-	if !changed {
-		return nil
-	}
-
-	update.Previous = previous
-	s.feed.publish(clicks.Change{Update: &update})
-
-	return nil
-}
-
-func (s *Storage) set(tile uint32, value string, holder cpsession.AccountID) (previous string, changed bool, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	previous = s.board.ownerOf(tile)
-	if previous == value {
-		return previous, false, nil
+	update.Previous = s.board.ownerOf(update.Tile)
+	if update.Previous == update.Value {
+		return nil
 	}
 
-	id, err := s.board.intern(value)
+	id, err := s.board.intern(update.Value)
 	if err != nil {
-		return "", false, err
+		return err
 	}
 
 	held := noHolder
 	if id != unownedCode {
 		held = s.board.holders.intern(holder)
 	}
-	s.moveLocked(tile, id, held)
+	s.moveLocked(update.Tile, id, held)
+	s.publishLocked(clicks.Change{Update: &update})
 
-	return previous, true, nil
+	return nil
 }
 
 func (s *Storage) moveLocked(tile uint32, to uint16, holder uint32) {
-	s.landmasses.moved(tile, s.board.move(tile, to, holder), to)
+	from := s.board.move(tile, to, holder)
+	s.landmasses.moved(tile, from, to)
+	s.recount.moved(s.landmasses.of(tile), from, to)
+}
+
+// Under s.mu: every stream then gets the changes in the order of their versions.
+func (s *Storage) publishLocked(change clicks.Change) {
+	s.version.Seq++
+	change.Version = s.version
+	s.feed.publish(change)
 }
 
 func (s *Storage) Clear(_ context.Context, blast clicks.Blast) (clicks.Blast, error) {
+	for _, tile := range blast.Cleared {
+		if tile > s.board.last() {
+			return clicks.Blast{}, fmt.Errorf("tile %d out of range (max %d)", tile, s.board.last())
+		}
+	}
+
 	cleared := make([]uint32, 0, len(blast.Cleared))
 	owners := make([]string, 0, len(blast.Cleared))
 	var struck []uint32
 	var left []int
 
 	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	for _, tile := range blast.Cleared {
-		if tile > s.board.last() {
-			s.mu.Unlock()
-			return clicks.Blast{}, fmt.Errorf("tile %d out of range (max %d)", tile, s.board.last())
-		}
 		if s.board.shieldsOn(tile) > 0 {
 			struck = append(struck, tile)
 			left = append(left, s.board.strike(tile))
@@ -126,13 +130,12 @@ func (s *Storage) Clear(_ context.Context, blast clicks.Blast) (clicks.Blast, er
 			cleared = append(cleared, tile)
 		}
 	}
-	s.mu.Unlock()
 
 	blast.Cleared = cleared
 	blast.Owners = owners
 	blast.Struck = struck
 	blast.Left = left
-	s.feed.publish(clicks.Change{Blast: &blast})
+	s.publishLocked(clicks.Change{Blast: &blast})
 
 	return blast, nil
 }
@@ -169,8 +172,11 @@ func (s *Storage) Owner(tile uint32) (string, bool) {
 	return s.board.ownerOf(tile), true
 }
 
-func (s *Storage) Subscribe(ctx context.Context) (<-chan clicks.Change, error) {
-	return s.feed.subscribe(ctx), nil
+func (s *Storage) Subscribe(ctx context.Context) (<-chan clicks.Change, clicks.MapVersion, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return s.feed.subscribe(ctx), s.version, nil
 }
 
 func (s *Storage) Shields(tile uint32) int {
@@ -190,14 +196,13 @@ func (s *Storage) Strike(_ context.Context, tile uint32, owner string) bool {
 	}
 
 	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	if s.board.ownerOf(tile) != owner || s.board.shieldsOn(tile) == 0 {
-		s.mu.Unlock()
 		return false
 	}
 	left := s.board.strike(tile)
-	s.mu.Unlock()
-
-	s.feed.publish(clicks.Change{Update: &clicks.TileUpdate{Tile: tile, Value: owner, Previous: owner, Shields: left}})
+	s.publishLocked(clicks.Change{Update: &clicks.TileUpdate{Tile: tile, Value: owner, Previous: owner, Shields: left}})
 
 	return true
 }
@@ -208,14 +213,13 @@ func (s *Storage) Shield(_ context.Context, tile uint32, country string, most in
 	}
 
 	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	if err := clicks.ShieldError(s.board.ownerOf(tile), country, s.board.shieldsOn(tile), min(most, math.MaxUint8)); err != nil {
-		s.mu.Unlock()
 		return fmt.Errorf("tile %d: %w", tile, err)
 	}
 	now := s.board.raise(tile)
-	s.mu.Unlock()
-
-	s.feed.publish(clicks.Change{Update: &clicks.TileUpdate{Tile: tile, Value: country, Previous: country, Shields: now}})
+	s.publishLocked(clicks.Change{Update: &clicks.TileUpdate{Tile: tile, Value: country, Previous: country, Shields: now}})
 
 	return nil
 }
@@ -229,5 +233,8 @@ func (s *Storage) StateBatchDense(start uint32, end uint32) (clicks.DenseBatch, 
 		return clicks.DenseBatch{}, fmt.Errorf("invalid tile range %d..%d", start, end)
 	}
 
-	return s.board.batch(start, end), nil
+	batch := s.board.batch(start, end)
+	batch.Version = s.version
+
+	return batch, nil
 }

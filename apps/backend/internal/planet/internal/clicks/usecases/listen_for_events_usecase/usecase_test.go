@@ -21,13 +21,15 @@ import (
 
 var at = time.Date(2026, 10, 26, 20, 0, 0, 0, time.UTC)
 
+var opening = clicks.MapVersion{Epoch: 1_790_000_000, Seq: 41}
+
 type stubSubscriber struct {
 	updates chan clicks.Change
 	err     error
 }
 
-func (s stubSubscriber) Subscribe(context.Context) (<-chan clicks.Change, error) {
-	return s.updates, s.err
+func (s stubSubscriber) Subscribe(context.Context) (<-chan clicks.Change, clicks.MapVersion, error) {
+	return s.updates, opening, s.err
 }
 
 type silentFeed struct{}
@@ -106,7 +108,7 @@ func TestAFailedSubscriptionEndsTheFeed(t *testing.T) {
 
 func TestAnUpdateIsCarriedToTheSink(t *testing.T) {
 	updates := make(chan clicks.Change, 1)
-	updates <- clicks.Change{Update: &clicks.TileUpdate{Tile: 42, Value: "fr", Previous: "de"}}
+	updates <- clicks.Change{Version: clicks.MapVersion{Epoch: opening.Epoch, Seq: 42}, Update: &clicks.TileUpdate{Tile: 42, Value: "fr", Previous: "de"}}
 
 	ctx, cancel := context.WithCancel(t.Context())
 	sink := &recorder{fed: make(chan struct{}), stopped: ctx.Done()}
@@ -121,8 +123,8 @@ func TestAnUpdateIsCarriedToTheSink(t *testing.T) {
 	require.NoError(t, <-done)
 
 	require.Equal(t, []listen_for_events_usecase.Event{
-		{Heartbeat: true},
-		{Update: clicks.TileUpdate{Tile: 42, Value: "fr", Previous: "de"}},
+		{Heartbeat: true, Version: opening},
+		{Version: clicks.MapVersion{Epoch: opening.Epoch, Seq: 42}, Update: &clicks.TileUpdate{Tile: 42, Value: "fr", Previous: "de"}},
 	}, sink.seen())
 }
 
@@ -143,7 +145,7 @@ func TestABlastIsCarriedToTheSinkAsOneFrame(t *testing.T) {
 	cancel()
 	require.NoError(t, <-done)
 
-	require.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true}, {Blast: blast}}, sink.seen())
+	require.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true, Version: opening}, {Blast: blast}}, sink.seen())
 }
 
 func TestAFortificationIsCarriedToTheSinkAsOneFrame(t *testing.T) {
@@ -164,7 +166,7 @@ func TestAFortificationIsCarriedToTheSinkAsOneFrame(t *testing.T) {
 	cancel()
 	require.NoError(t, <-done)
 
-	require.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true}, {Fortification: fortification}}, sink.seen())
+	require.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true, Version: opening}, {Fortification: fortification}}, sink.seen())
 }
 
 type addressedFeed map[bonuses.Entrant]chan bonuses.Event
@@ -191,7 +193,7 @@ func TestABoxOfferedToTheCallerIsCarriedToTheSink(t *testing.T) {
 	cancel()
 	require.NoError(t, <-done)
 
-	require.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true}, {Offer: offer}}, sink.seen())
+	require.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true, Version: opening}, {Offer: offer}}, sink.seen())
 }
 
 func TestAQuizOfferedToTheCallerIsCarriedToTheSink(t *testing.T) {
@@ -212,7 +214,7 @@ func TestAQuizOfferedToTheCallerIsCarriedToTheSink(t *testing.T) {
 	cancel()
 	require.NoError(t, <-done)
 
-	require.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true}, {Quiz: quiz}}, sink.seen())
+	require.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true, Version: opening}, {Quiz: quiz}}, sink.seen())
 }
 
 func TestAStreamOpensWithAHeartbeat(t *testing.T) {
@@ -228,18 +230,62 @@ func TestAStreamOpensWithAHeartbeat(t *testing.T) {
 	cancel()
 	require.NoError(t, <-done)
 
-	require.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true}}, sink.seen())
+	require.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true, Version: opening}}, sink.seen())
+}
+
+func TestATallyIsCarriedToTheSinkAtItsVersion(t *testing.T) {
+	updates := make(chan clicks.Change, 1)
+	tally := &clicks.Tally{Countries: []clicks.FlagTiles{{Flag: "fr", Tiles: 3}}}
+	updates <- clicks.Change{Version: opening, Tally: tally}
+
+	ctx, cancel := context.WithCancel(t.Context())
+	sink := &recorder{fed: make(chan struct{}), stopped: ctx.Done()}
+	done := make(chan error, 1)
+	go func() {
+		done <- listen_for_events_usecase.New(stubSubscriber{updates: updates}, time.Hour, silentFeed{}, facts.NewLog(cptime.NewFixedClock(at))).Execute(ctx, sink)
+	}()
+
+	<-sink.fed
+	<-sink.fed
+	cancel()
+	require.NoError(t, <-done)
+
+	require.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true, Version: opening}, {Version: opening, Tally: tally}}, sink.seen())
+}
+
+func TestAHeartbeatSaysTheVersionOfTheLastChangeTheStreamSent(t *testing.T) {
+	updates := make(chan clicks.Change, 1)
+	sent := clicks.MapVersion{Epoch: opening.Epoch, Seq: 50}
+	updates <- clicks.Change{Version: sent, Update: &clicks.TileUpdate{Tile: 1, Value: "fr"}}
+
+	ctx, cancel := context.WithCancel(t.Context())
+	sink := &recorder{fed: make(chan struct{}), stopped: ctx.Done()}
+	done := make(chan error, 1)
+	go func() {
+		done <- listen_for_events_usecase.New(stubSubscriber{updates: updates}, time.Millisecond, silentFeed{}, facts.NewLog(cptime.NewFixedClock(at))).Execute(ctx, sink)
+	}()
+
+	for range 3 {
+		<-sink.fed
+	}
+	cancel()
+	require.NoError(t, <-done)
+
+	seen := sink.seen()
+	assert.Equal(t, opening, seen[0].Version, "the opening one says where the subscription started")
+	assert.Equal(t, sent, seen[1].Version)
+	assert.Equal(t, listen_for_events_usecase.Event{Heartbeat: true, Version: sent}, seen[2])
 }
 
 type watchedSubscriber struct{ subscribed bool }
 
-func (s *watchedSubscriber) Subscribe(context.Context) (<-chan clicks.Change, error) {
+func (s *watchedSubscriber) Subscribe(context.Context) (<-chan clicks.Change, clicks.MapVersion, error) {
 	s.subscribed = true
 
 	updates := make(chan clicks.Change)
 	close(updates)
 
-	return updates, nil
+	return updates, opening, nil
 }
 
 type witness struct {
@@ -303,8 +349,8 @@ func TestAFailedSendEndsTheFeed(t *testing.T) {
 
 	require.ErrorIs(t, err, assert.AnError)
 	assert.Equal(t, []listen_for_events_usecase.Event{
-		{Heartbeat: true},
-		{Update: clicks.TileUpdate{Tile: 1}},
+		{Heartbeat: true, Version: opening},
+		{Update: &clicks.TileUpdate{Tile: 1}},
 	}, sink.seen())
 }
 
@@ -317,7 +363,7 @@ func TestAFailedOpeningHeartbeatEndsTheFeed(t *testing.T) {
 		Execute(t.Context(), sink)
 
 	require.ErrorIs(t, err, assert.AnError)
-	assert.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true}}, sink.seen())
+	assert.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true, Version: opening}}, sink.seen())
 }
 
 func TestAStreamIsToldWhenItOpensEvenOneThatFails(t *testing.T) {
