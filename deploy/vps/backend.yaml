@@ -229,7 +229,7 @@ seasons:
     address: redis:6379
     password: env://REDIS_PASSWORD
 
-rules:
+metagame:
   database:
     host: postgres
     password: env://POSTGRES_PASSWORD
@@ -237,7 +237,7 @@ rules:
     user: clickplanet
     dbName: clickplanet
     sslMode: disable
-    schema: rules
+    schema: metagame
     pool:
       maxOpenConns: 2
   redis:

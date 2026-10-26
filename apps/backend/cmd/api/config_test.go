@@ -132,8 +132,8 @@ player:
 seasons:
   database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: seasons}
   redis: {address: localhost:6379}
-rules:
-  database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: rules}
+metagame:
+  database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: metagame}
   redis: {address: localhost:6379}
 missions:
   database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: missions}
@@ -301,16 +301,16 @@ func TestTheSeasonsModuleWithNoDatabaseIsRefused(t *testing.T) {
 	assert.ErrorContains(t, Config{}.Validate(), "seasons.database")
 }
 
-func TestTheExampleConfigReachesTheRulesBlock(t *testing.T) {
+func TestTheExampleConfigReachesTheMetagameBlock(t *testing.T) {
 	var config Config
 	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
 
-	assert.Equal(t, "rules", config.Rules.Database.Schema)
-	require.NoError(t, config.Rules.Validate())
+	assert.Equal(t, "metagame", config.Metagame.Database.Schema)
+	require.NoError(t, config.Metagame.Validate())
 }
 
-func TestTheRulesModuleWithNoDatabaseIsRefused(t *testing.T) {
-	assert.ErrorContains(t, Config{}.Validate(), "rules.database")
+func TestTheMetagameModuleWithNoDatabaseIsRefused(t *testing.T) {
+	assert.ErrorContains(t, Config{}.Validate(), "metagame.database")
 }
 
 func TestTheExampleConfigReachesTheSupportBlock(t *testing.T) {
@@ -433,7 +433,7 @@ func TestEveryModuleOfProductionTalksToTheSameRedis(t *testing.T) {
 	for name, redis := range map[string]cpredis.Config{
 		"auth": config.Auth.Redis, "chat": config.Chat.Redis, "player": config.Player.Redis,
 		"seasons": config.Seasons.Redis, "support": config.Support.Redis, "missions": config.Missions.Redis,
-		"antiBot": config.AntiBot.Redis, "rules": config.Rules.Redis,
+		"antiBot": config.AntiBot.Redis, "metagame": config.Metagame.Redis,
 	} {
 		assert.Equal(t, config.Planet.Redis, redis, "%s.redis is the planet's block", name)
 	}

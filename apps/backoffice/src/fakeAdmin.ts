@@ -73,7 +73,7 @@ import {
     GetScheduleRequest,
     GetScheduleResponse,
     Playing,
-} from "./gen/grpc/rules/v1/admin_pb.ts"
+} from "./gen/grpc/metagame/v1/admin_pb.ts"
 import {ChargesHeld, TileUpdate} from "./gen/grpc/planet/v1/planet_pb.ts"
 import {
     AdminGetPlayerRequest,
@@ -97,7 +97,7 @@ import {
     NoteKind,
     Report,
 } from "./gen/grpc/support/v1/admin_pb.ts"
-import {AntibotAdmin, ChatAdmin, ClipsAdmin, Clients, PlanetAdmin, PlayerAdmin, RulesAdmin, SupportAdmin} from "./clients.ts"
+import {AntibotAdmin, ChatAdmin, ClipsAdmin, Clients, MetagameAdmin, PlanetAdmin, PlayerAdmin, SupportAdmin} from "./clients.ts"
 
 export const AT = new Date("2026-10-18T12:00:00Z")
 
@@ -116,7 +116,7 @@ function change(minutes: number, by: string, update: PartialMessage<TileUpdate>)
 export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAdmin, ClipsAdmin {
     readonly kind = "fake admin"
     readonly antibot: FakeAntibot = new FakeAntibot(this)
-    readonly ruleSchedule: FakeRuleSchedule = new FakeRuleSchedule(this)
+    readonly metagame: FakeMetagame = new FakeMetagame(this)
     readonly asked: {method: string, request: unknown}[] = []
     readonly refusals = new Map<string, Code>()
     private readonly holds = new Map<string, Promise<void>>()
@@ -271,7 +271,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
     ]]
 
     clients(): Clients {
-        return {antibot: this.antibot, chat: this, planet: this, player: this, rules: this.ruleSchedule, support: this, clips: this}
+        return {antibot: this.antibot, chat: this, planet: this, player: this, metagame: this.metagame, support: this, clips: this}
     }
 
     refuse(method: string, code: Code) {
@@ -494,7 +494,7 @@ export class FakeAntibot implements AntibotAdmin {
 }
 
 // Keeps the schedule's entries as the server does, and checks nothing.
-export class FakeRuleSchedule implements RulesAdmin {
+export class FakeMetagame implements MetagameAdmin {
     constructor(private readonly admin: FakeAdmin) {}
 
     getSchedule(request: PartialMessage<GetScheduleRequest>): Promise<GetScheduleResponse> {

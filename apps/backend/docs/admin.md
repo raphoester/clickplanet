@@ -73,10 +73,10 @@ stream sent it. The frontend's clip generator plays it back (see its [Clips](../
 The rule sets an operator reads and writes, never the one that plays now: see [Rules](rules.md). The backoffice's Game
 rules page calls both.
 
-## The rule schedule: `rules.v1.AdminService`
+## The rule schedule: `metagame.v1.AdminService`
 
 `GetSchedule`, `AddEntry`, `EditEntry`, `DeleteEntry`: the entries that decide the rule set planet and the antibot
-play. Only an entry to come changes. See [The rules module](rule-schedule.md). The
+play. Only an entry to come changes. See [The metagame module](metagame.md). The
 backoffice's Rule schedule page calls all four.
 
 ## `GetLedger`, `GetTerritories`

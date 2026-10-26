@@ -257,7 +257,7 @@ seasons:
     address: localhost:6379
     password: ""
 
-rules:
+metagame:
   database:
     host: localhost
     port: "5432"
@@ -265,7 +265,7 @@ rules:
     password: postgres
     dbName: postgres
     sslMode: disable
-    schema: rules
+    schema: metagame
     pool:
       maxOpenConns: 2
   redis:

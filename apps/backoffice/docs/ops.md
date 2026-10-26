@@ -36,8 +36,8 @@ an `enabled` field, read off the proto, so a new one shows with no edit here.
   (`Rules.fromJsonString`: a typo in a key is refused here, with protobuf's words). The server holds the bounds; its
   refusal is quoted, every reason, and the form stays.
 
-**Rule schedule** (`SchedulePanel`, `schedule.ts`) is `rules.v1.AdminService` (the backend's
-[rules module](../../backend/docs/rule-schedule.md)), with planet's and the antibot's `GetRules` beside it:
+**Rule schedule** (`SchedulePanel`, `schedule.ts`) is `metagame.v1.AdminService` (the backend's
+[metagame module](../../backend/docs/metagame.md)), with planet's and the antibot's `GetRules` beside it:
 
 - **What plays now and since when**, from `GetSchedule.playing`, and what planet and the antibot each play. When a
   module does not play the schedule's set, the page says so in red: a module refused it, since it keeps no such set.

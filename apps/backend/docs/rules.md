@@ -4,7 +4,7 @@
 rule is what a player feels: how fast a bank refills, what a box holds, how big a bomb is. Until 2026-10-26 they were
 in the YAML, read once at boot, so a change was a deploy and a restart. The design is the antibot's (see
 [The antibot's rules](antibot-rules.md)); **a rule set holds planet's words only**: the antibot keeps its own sets.
-Which set each plays is the schedule's (see [The rules module](rule-schedule.md)).
+Which set each plays is the schedule's (see [The metagame module](metagame.md)).
 
 ## A rule set
 
@@ -119,10 +119,10 @@ A value read where it is used applies from the next use. **A value that carries 
 
 ## Which set plays
 
-**The schedule picks it**, in the rules module: the running entry with the highest priority, else `default` (see
-[The rules module](rule-schedule.md)). No operator call picks the set in force or changes its values (the user's rule,
+**The schedule picks it**, in the metagame module: the running entry with the highest priority, else `default` (see
+[The metagame module](metagame.md)). No operator call picks the set in force or changes its values (the user's rule,
 2026-10-26: an operator never overrides the schedule, here or anywhere). `planet.v1.InternalService/GetRuleSetNames`
-answers the names of the sets postgres keeps, so the rules module refuses an entry of a set planet lacks.
+answers the names of the sets postgres keeps, so the metagame module refuses an entry of a set planet lacks.
 
 ## The machine, in the YAML
 

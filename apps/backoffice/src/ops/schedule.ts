@@ -1,8 +1,8 @@
 import {Timestamp} from "@bufbuild/protobuf"
-import {RulesAdmin} from "../clients.ts"
+import {MetagameAdmin} from "../clients.ts"
 import {GetRulesResponse as AntibotRules} from "../gen/grpc/antibot/v1/admin_pb.ts"
 import {GetRulesResponse as PlanetRules} from "../gen/grpc/planet/v1/admin_pb.ts"
-import {Entry, GetScheduleResponse} from "../gen/grpc/rules/v1/admin_pb.ts"
+import {Entry, GetScheduleResponse} from "../gen/grpc/metagame/v1/admin_pb.ts"
 
 // A line of the schedule: an entry and its times.
 export type Row = {entry: Entry, startsAt?: Date, endsAt?: Date}
@@ -73,14 +73,14 @@ export function questionOf(draft: Draft): string {
         `at priority ${draft.priority}?`
 }
 
-export async function addEntry(rules: RulesAdmin, draft: Draft): Promise<void> {
-    await rules.addEntry(valuesOf(draft))
+export async function addEntry(metagame: MetagameAdmin, draft: Draft): Promise<void> {
+    await metagame.addEntry(valuesOf(draft))
 }
 
-export async function editEntry(rules: RulesAdmin, id: string, draft: Draft): Promise<void> {
-    await rules.editEntry({id, ...valuesOf(draft)})
+export async function editEntry(metagame: MetagameAdmin, id: string, draft: Draft): Promise<void> {
+    await metagame.editEntry({id, ...valuesOf(draft)})
 }
 
-export async function deleteEntry(rules: RulesAdmin, id: string): Promise<void> {
-    await rules.deleteEntry({id})
+export async function deleteEntry(metagame: MetagameAdmin, id: string): Promise<void> {
+    await metagame.deleteEntry({id})
 }

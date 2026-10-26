@@ -79,7 +79,7 @@ seasons:
   redis:
     address: redis:6379
 
-rules:
+metagame:
   database:
     host: postgres
     port: "5432"
@@ -87,7 +87,7 @@ rules:
     password: postgres
     dbName: postgres
     sslMode: disable
-    schema: rules
+    schema: metagame
   redis:
     address: redis:6379
 

@@ -92,7 +92,7 @@ function Console({operator, onSignedOut}: {operator: string, onSignedOut: () => 
                 {page === "rules" && <RulesPanel planet={CLIENTS.planet}/>}
                 {page === "antibotRules" && <AntibotRulesPanel antibot={CLIENTS.antibot}/>}
                 {page === "schedule" && (
-                    <SchedulePanel rules={CLIENTS.rules} planet={CLIENTS.planet} antibot={CLIENTS.antibot}/>
+                    <SchedulePanel metagame={CLIENTS.metagame} planet={CLIENTS.planet} antibot={CLIENTS.antibot}/>
                 )}
             </Page>
         </OpenPlayer.Provider>

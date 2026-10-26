@@ -5,7 +5,7 @@ import {afterEach, describe, expect, it} from "vitest"
 import {FakeAdmin} from "../fakeAdmin.ts"
 import {GetRulesResponse as AntibotRules, RuleSet as AntibotRuleSet} from "../gen/grpc/antibot/v1/admin_pb.ts"
 import {GetRulesResponse, RuleSet} from "../gen/grpc/planet/v1/admin_pb.ts"
-import {AddEntryRequest, EditEntryRequest} from "../gen/grpc/rules/v1/admin_pb.ts"
+import {AddEntryRequest, EditEntryRequest} from "../gen/grpc/metagame/v1/admin_pb.ts"
 import {SchedulePanel} from "./SchedulePanel.tsx"
 
 afterEach(cleanup)
@@ -33,7 +33,7 @@ function keeping(): FakeAdmin {
 }
 
 function show(admin: FakeAdmin) {
-    render(<SchedulePanel rules={admin.ruleSchedule} planet={admin} antibot={admin.antibot}/>)
+    render(<SchedulePanel metagame={admin.metagame} planet={admin} antibot={admin.antibot}/>)
 }
 
 describe("the rule schedule page", () => {
