@@ -465,7 +465,9 @@ for good:
   days. **Any answer is kept as it came** (`Retention`: its status and its body), up to 100 points with
   `audienceWatchRatio` and `relativeRetentionPerformance`, or the 412 `youtube_analytics_scope_missing` that asks
   for the channel to be connected again, which the summary says plainly. YouTube has no curve for a video with few
-  views or under 2 to 3 days old: an empty one is `empty`.
+  views or under 2 to 3 days old: an empty one is `empty`. **A curve refused as busy for longer than the `Backoff`
+  waits stops the curves of the run** (the quota spent, until midnight Pacific): the videos after it are not asked,
+  each in `Unread` as `not asked` with the refusal that stopped them, and their rows, analytics included, are kept.
 - **No analytics, no snapshot.** They need Zernio's Analytics add-on: `GET /v1/accounts` says
   `hasAnalyticsAccess`, and **false fails the run before any post is read, and nothing is written**
   (`stats.ErrNoAnalyticsAccess`, which says to turn it on). A 402 on a post's analytics is the same error, and
@@ -494,7 +496,13 @@ for good:
   a metric**: rows kept, posts not out, rows syncing, each TikTok account's lane, the posts lost with why, and why
   YouTube gave no curve (a warning for `youtube_analytics_scope_missing`, which asks for the channel to be connected
   again in Zernio).
-- **The workflow** runs every day at 05:41 UTC, and by hand with `since`. It is one job: it holds the Zernio key
+- **The workflow** runs every day at 08:17 UTC, just after midnight Pacific in summer (07:00 UTC) and in winter
+  (08:00), and by hand with `since`. **Midnight Pacific is when YouTube's Analytics quota starts again**, which every
+  curve of retention draws on: at 05:41 UTC (22:41 Pacific) it was spent before the run began, and on Oct 25 and 26
+  every curve was refused (`429`, "YouTube Analytics daily quota exhausted. Analytics requests succeed again after
+  midnight Pacific Time"), about 8 seconds in; the one run that read them, by hand at 13:20 Pacific, had none
+  refused. Our own reads are about 70 a day, one a YouTube video of the last 4 weeks. A run by hand late in the
+  Pacific day may find the quota spent again. It is one job: it holds the Zernio key
   and the VPS's (`VPS_*`, as `fetch`) and runs no npm, as the clips workflow's jobs do. A snapshot that lost a post
   is still kept, then the run is red.
 - `take_snapshot_usecase` reads, then keeps the rows with the report, `log_take_snapshot` logs each TikTok lane and

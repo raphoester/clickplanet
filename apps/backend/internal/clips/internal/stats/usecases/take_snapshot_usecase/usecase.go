@@ -71,12 +71,14 @@ func (u *UseCase) Execute(ctx context.Context) (stats.Report, error) {
 	var rows []stats.Row
 	var unread []stats.Unread
 	notOut := 0
+	// Why YouTube's curves stopped being asked for, once it said it would give none for a while.
+	var curvesWithheld error
 	for _, post := range all {
 		if !post.Out() {
 			notOut++
 			continue
 		}
-		postRows, failure, err := u.snapshot(ctx, post, takenAt)
+		postRows, failure, err := u.snapshot(ctx, post, takenAt, &curvesWithheld)
 		if err != nil {
 			return stats.Report{}, err
 		}
@@ -95,8 +97,10 @@ func (u *UseCase) Execute(ctx context.Context) (stats.Report, error) {
 	return report, nil
 }
 
-// The rows of one post, and what of it could not be read. The error is for the run: the add-on is off, or it was cancelled.
-func (u *UseCase) snapshot(ctx context.Context, post stats.Post, takenAt time.Time) ([]stats.Row, string, error) {
+// The rows of one post, and what of it could not be read. The error is for the run: the add-on is off, or it was
+// cancelled. withheld: once a curve is refused as busy for longer than the backoff waits (YouTube's daily quota spent,
+// until midnight Pacific), no other is asked for in this run, each a call refused at once that may count against it.
+func (u *UseCase) snapshot(ctx context.Context, post stats.Post, takenAt time.Time, withheld *error) ([]stats.Row, string, error) {
 	var answer stats.Answer
 	err := u.retried(ctx, func() (err error) {
 		answer, err = u.source.Analytics(ctx, post.ID)
@@ -115,6 +119,10 @@ func (u *UseCase) snapshot(ctx context.Context, post stats.Post, takenAt time.Ti
 		if target.Platform != string(posts.YouTube) || !target.Out() || target.PlatformPostID == "" {
 			continue
 		}
+		if *withheld != nil {
+			failures = append(failures, fmt.Errorf("the retention of %s: not asked: %w", target.PlatformPostID, *withheld))
+			continue
+		}
 		var retention stats.Retention
 		err := u.retried(ctx, func() (err error) {
 			retention, err = u.source.Retention(ctx, target.AccountID, target.PlatformPostID, takenAt)
@@ -125,6 +133,9 @@ func (u *UseCase) snapshot(ctx context.Context, post stats.Post, takenAt time.Ti
 				return nil, "", ctx.Err() //nolint:wrapcheck // the context's own error says why the run ended.
 			}
 			failures = append(failures, fmt.Errorf("the retention of %s: %w", target.PlatformPostID, err))
+			if busy := (*posts.BusyError)(nil); errors.As(err, &busy) {
+				*withheld = err
+			}
 			continue
 		}
 		retentions[target.PlatformPostID] = &retention
