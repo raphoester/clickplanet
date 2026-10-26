@@ -16,7 +16,8 @@
   changed ranges. Do not replace these attributes: doing so makes the renderer
   rebuild the whole GPU buffer instead of patching it.
 - `gpuPicking.ts` — `GpuPicker`. Persistent 1×1 render target and scene;
-  `setViewOffset` narrows the projection to the pixel under the cursor. Picks
+  `setViewOffset` narrows the projection to the pixel under the cursor. In orbit the
+  tiles are drawn wider for it, with no gap between them (`pickPointSize`). Picks
   are resolved once per frame, not once per mousemove — each one ends in a
   synchronous GPU read that stalls the pipeline.
 - `points.ts` — fetches and decodes the tile coordinates blob.
@@ -35,10 +36,13 @@
   who holds how much of each, and the per-landmass table the vertex shader reads.
   See [The zoomed-out view](zoomed-out-view.md).
 - `borderLines.ts` / `borderLinesAsset.ts` — the grey outline between one
-  country's ground and the next, at a width that does not move with the zoom.
-  See [The countries' outlines](country-outlines.md).
-- `pointSize.ts` — how big a tile is drawn, how far apart two of them sit, and
-  the single schedule that hands the frame from the painted flag to the tiles.
+  country's ground and the next, at a width that does not move with the zoom, and
+  the white one around a territory in orbit. See [The countries'
+  outlines](country-outlines.md).
+- `pointSize.ts` — how big a tile is drawn, how far apart two of them sit, the
+  single schedule that hands the frame from the painted flag to the tiles,
+  `inOrbit`, the zooms where the pointer asks about a territory, and `flownZoomsOf`,
+  how far in a click in orbit flies.
 - `zoom.ts` — how far the camera may pull back and push in. The camera is
   orthographic against a globe of radius 1, so `zoom` reads as the share of the
   viewport's height the globe fills: it opens at 1, edge to edge, and pulls back

@@ -71,6 +71,28 @@ func (s *testSuite) TestATakeCountsOnThePlayersStatsAndInTheSeason() {
 		"seasons reads the map from planet at each snapshot")
 }
 
+func (s *testSuite) TestAPlayerDoesAMissionAndIsPaid() {
+	t := s.T()
+	ada := s.game.newPlayer(t)
+	ada.link("google-missions")
+	ada.pledge("it")
+	first := ada.missions()[0]
+	bank := first.GetTakeFor()
+	require.NotNil(t, bank, "missions asks planet for the pledged flag and the map to draw the day")
+	require.Equal(t, "it", bank.GetCountryId())
+
+	for tile := range bank.GetGoal() {
+		ada.click(1000+tile, "it")
+	}
+	require.Eventually(t, func() bool { return ada.missions()[0].GetPaid() },
+		5*time.Second, 20*time.Millisecond, "planet relays each take to missions, which pays the mission done")
+
+	reward := first.GetReward().GetCharges()
+	assert.Equal(t, planetv1.BonusKind_BONUS_KIND_SHIELDS, reward.GetKind())
+	assert.Eventually(t, func() bool { return ada.charges().GetShields() == reward.GetAmount() },
+		5*time.Second, 20*time.Millisecond, "missions commands planet to grant it")
+}
+
 func (s *testSuite) TestAGuestSignsInWithGoogleAndChoosesAName() {
 	t := s.T()
 	ada := s.game.newPlayer(t)
@@ -135,7 +157,8 @@ func (s *testSuite) TestADeletedAccountIsForgottenByEveryModule() {
 	leaving.markSeen(time.Now().Add(-time.Minute))
 	leaving.reportBug("a bug before leaving")
 	require.Eventually(t, func() bool {
-		return leaving.stats().GetTilesTaken() == 1 && leaving.mySeason().GetTiles() == 1
+		return leaving.stats().GetTilesTaken() == 1 && leaving.mySeason().GetTiles() == 1 &&
+			leaving.missions()[0].GetTakeFor().GetTaken() == 1
 	}, 5*time.Second, 20*time.Millisecond)
 	require.NotZero(t, leaving.history().GetSeenUntilUnixMs())
 	require.Equal(t, leaving.account(), s.game.noteOf(t, "a bug before leaving").GetAccountId())
@@ -148,6 +171,7 @@ func (s *testSuite) TestADeletedAccountIsForgottenByEveryModule() {
 		assert.Zero(c, leaving.stats().GetTilesTaken(), "player")
 		assert.Zero(c, leaving.mySeason().GetTiles(), "seasons")
 		assert.Zero(c, leaving.history().GetSeenUntilUnixMs(), "chat")
+		assert.Zero(c, leaving.missions()[0].GetTakeFor().GetTaken(), "missions")
 		note := s.game.noteOf(t, "a bug before leaving")
 		require.NotNil(c, note, "support keeps the note")
 		assert.Empty(c, note.GetAccountId(), "and names no account")

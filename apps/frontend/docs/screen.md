@@ -10,7 +10,7 @@ this is where each zone lives. `Viewer` composes them, and `useCompact`
 | **Status** | `hud/StatusBar`: logo, flag, country and rank (opens the board), `SeasonChip` at its end | `Menu`'s header and "playing for", `SeasonChip` at the top centre |
 | **Moments** | under the status bar (`--status-bottom`) | under the season chip |
 | **Play** | the dock (`ClickBudgetMeter` + `Inventory`) above the tab bar, the chat's peek above it | the dock at the bottom centre |
-| **Places** | `hud/TabBar` (Board, Chat, Sign in / You, Share, Settings), each a `hud/Sheet` | `Menu`'s tabs (Board, You, Share, Settings) on the left, the chat on the right |
+| **Places** | `hud/TabBar` (Board, Missions, Chat, Sign in / You, Share, Settings), each a `hud/Sheet` | `Menu`'s tabs (Board, Missions, You, Share, Settings) on the left, the chat on the right |
 
 - **One sheet at a time on a phone.** `Viewer` holds which (`sheet`): the five
   tabs, and the season and "Your clicks", which the status bar and the dock open.
@@ -43,5 +43,6 @@ this is where each zone lives. `Viewer` composes them, and `useCompact`
   inside the menu or a sheet covers the page and not its panel.
 - **The other player's card** is the same `Modal`; on a phone its CSS makes it a
   bottom sheet as tall as the card.
-- **The card on who holds a tile is the one exception**: it opens beside the
-  pointer, not in a zone. See [Who holds a tile](tile-holder.md).
+- **The cards beside the pointer are the one exception**: the card on who holds a
+  tile, and in orbit the card on a territory, open beside the pointer, not in a zone.
+  See [Who holds a tile](tile-holder.md) and [A territory, from orbit](territory-card.md).

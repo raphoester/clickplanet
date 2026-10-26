@@ -8,11 +8,12 @@ import fragmentShader from "./shaders/borderLine/fragment.glsl"
 
 export type BorderLineData = {
     runs: Uint32Array
+    sides: Uint16Array
     corners: Int16Array
 }
 
 const MAGIC = "CPBL"
-const VERSION = 1
+const VERSION = 2
 
 export function decodeBorderLines(buffer: ArrayBuffer): BorderLineData {
     const head = new DataView(buffer)
@@ -24,8 +25,9 @@ export function decodeBorderLines(buffer: ArrayBuffer): BorderLineData {
     const runCount = head.getUint32(8, true)
     const cornerCount = head.getUint32(12, true)
     const runs = new Uint32Array(buffer, 16, runCount)
-    const corners = new Int16Array(buffer, 16 + runCount * 4, cornerCount * 3)
-    return {runs, corners}
+    const sides = new Uint16Array(buffer, 16 + runCount * 4, runCount * 2)
+    const corners = new Int16Array(buffer, 16 + runCount * 8, cornerCount * 3)
+    return {runs, sides, corners}
 }
 
 export async function loadBorderLines(url: string, signal?: AbortSignal): Promise<BorderLineData> {
@@ -90,6 +92,24 @@ export function outlineSegments(data: BorderLineData, samples = SAMPLES): {from:
     return {from, to}
 }
 
+// The two landmasses each piece runs between, the sea being 0.
+export function pieceSides(data: BorderLineData, samples = SAMPLES): Uint16Array {
+    const runs = runsOf(data)
+
+    let pieces = 0
+    for (const run of runs) pieces += run.controls * samples
+
+    const sides = new Uint16Array(pieces * 2)
+    let piece = 0
+    runs.forEach((run, r) => {
+        for (let i = 0; i < run.controls * samples; i++, piece++) {
+            sides[piece * 2] = data.sides[r * 2]
+            sides[piece * 2 + 1] = data.sides[r * 2 + 1]
+        }
+    })
+    return sides
+}
+
 function spline(
     corners: Int16Array, before: number, on: number, after: number,
     t: number, into: Int16Array, piece: number,
@@ -108,6 +128,8 @@ function spline(
 
 export const WIDTH = 1.3
 
+export const HIGHLIGHT_WIDTH = 2.6
+
 const FEATHER = 1
 
 export const OVER = 1.0005
@@ -121,17 +143,20 @@ export function limbOf(lift: number): number {
 
 const COLOUR = new THREE.Color(0.25, 0.25, 0.25)
 
-export function halfWidthOf(pixelRatio: number): number {
-    return WIDTH * pixelRatio / 2 + FEATHER
+const HIGHLIGHT_COLOUR = new THREE.Color(1, 1, 1)
+
+export function halfWidthOf(pixelRatio: number, width = WIDTH): number {
+    return width * pixelRatio / 2 + FEATHER
 }
 
 export type BorderLines = {
     object: THREE.Object3D
     update(zoom: number, width: number, height: number, pixelRatio: number, view: MapView): void
+    setHighlight(landmass: number): void
     dispose(): void
 }
 
-function outlineGeometry(data: BorderLineData, samples: number): THREE.InstancedBufferGeometry {
+function outlineGeometry(data: BorderLineData, samples: number, sided: boolean): THREE.InstancedBufferGeometry {
     const {from, to} = outlineSegments(data, samples)
 
     const geometry = new THREE.InstancedBufferGeometry()
@@ -141,6 +166,7 @@ function outlineGeometry(data: BorderLineData, samples: number): THREE.Instanced
     geometry.setIndex([0, 1, 2, 2, 1, 3])
     geometry.setAttribute("from", new THREE.InstancedBufferAttribute(from, 3, true))
     geometry.setAttribute("to", new THREE.InstancedBufferAttribute(to, 3, true))
+    if (sided) geometry.setAttribute("sides", new THREE.InstancedBufferAttribute(pieceSides(data, samples), 2))
     geometry.instanceCount = from.length / 3
 
     return geometry
@@ -148,8 +174,8 @@ function outlineGeometry(data: BorderLineData, samples: number): THREE.Instanced
 
 export function createBorderLines(data: BorderLineData): BorderLines {
     const geometries = [
-        outlineGeometry(data, COARSE_SAMPLES),
-        outlineGeometry(data, SAMPLES),
+        outlineGeometry(data, COARSE_SAMPLES, true),
+        outlineGeometry(data, SAMPLES, false),
     ]
 
     const passes = [OVER, UNDER].map((lift, at) => {
@@ -176,16 +202,38 @@ export function createBorderLines(data: BorderLineData): BorderLines {
     })
     const [over, under] = passes
 
+    // Drawn alone in orbit, where the coarse pieces are the resolution it is looked at.
+    const highlight = new THREE.Mesh(geometries[0], new THREE.ShaderMaterial({
+        defines: {HIGHLIGHT: true},
+        uniforms: {
+            halfViewport: {value: new THREE.Vector2(1, 1)},
+            halfWidth: {value: halfWidthOf(1, HIGHLIGHT_WIDTH)},
+            lift: {value: OVER},
+            limb: {value: limbOf(OVER)},
+            colour: {value: HIGHLIGHT_COLOUR},
+            ink: {value: 1},
+            landmass: {value: 0},
+        },
+        vertexShader,
+        fragmentShader,
+        transparent: true,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+    }))
+    highlight.renderOrder = 2
+    highlight.frustumCulled = false
+    highlight.visible = false
+
     const object = new THREE.Group()
-    object.add(over, under)
+    object.add(over, under, highlight)
 
     return {
         object,
         update(zoom: number, width: number, height: number, pixelRatio: number, view: MapView) {
-            for (const pass of passes) {
+            for (const pass of [...passes, highlight]) {
                 const {uniforms} = pass.material as THREE.ShaderMaterial
                 uniforms.halfViewport.value.set(width / 2, height / 2)
-                uniforms.halfWidth.value = halfWidthOf(pixelRatio)
+                uniforms.halfWidth.value = halfWidthOf(pixelRatio, pass === highlight ? HIGHLIGHT_WIDTH : WIDTH)
             }
 
             const paint = flagPaint(zoom, height / pixelRatio, view)
@@ -193,9 +241,13 @@ export function createBorderLines(data: BorderLineData): BorderLines {
             over.visible = paint > 0
             under.visible = paint < 1
         },
+        setHighlight(landmass: number) {
+            ;(highlight.material as THREE.ShaderMaterial).uniforms.landmass.value = landmass
+            highlight.visible = landmass > 0
+        },
         dispose() {
             for (const geometry of geometries) geometry.dispose()
-            for (const pass of passes) disposeMaterial(pass.material as THREE.Material)
+            for (const pass of [...passes, highlight]) disposeMaterial(pass.material as THREE.Material)
         },
     }
 }

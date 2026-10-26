@@ -12,6 +12,7 @@ import {loadBorders} from "./app/viewer/borderField.ts"
 import {BORDERS_URL} from "./app/viewer/bordersAsset.ts"
 import {FakeChatBackend} from "./backends/fakeChatBackend.ts"
 import {FakePresenceBackend} from "./backends/fakePresenceBackend.ts"
+import {FakeMissionsBackend} from "./backends/fakeMissionsBackend.ts"
 import {FakeSeasonBackend, SEASON_ZERO} from "./backends/fakeSeasonBackend.ts"
 import {ConnectSeasonBackend, newSeasonServiceClient} from "./backends/seasonBackend.ts"
 import {API_BASE_URL} from "./backends/transport.ts"
@@ -25,6 +26,7 @@ import type {Globe} from "./app/viewer/globe.ts"
 import App from "./app/App.tsx"
 import {ConnectAccountBackend} from "./backends/accountBackend.ts"
 import {ConnectPlayerBackend, newKeepalivePlayerServiceClient, newPlayerServiceClient} from "./backends/playerBackend.ts"
+import {ConnectMissionsBackend, newMissionServiceClient} from "./backends/missionsBackend.ts"
 import {AccountStore} from "./app/account/accountStore.ts"
 import {rememberSignIn} from "./app/account/rememberedSignIn.ts"
 import SignInGate from "./app/account/SignInGate.tsx"
@@ -64,6 +66,10 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         landmasses: () => borders.then(({assignment, codes}) => ({assignment, count: codes.length})),
     })
     const fakePresence = new FakePresenceBackend()
+    const fakeMissions = new FakeMissionsBackend((kind) => {
+        if (kind === "bomb") fake.grantBomb()
+        else fake.grantBonus(kind)
+    }, fake)
     Object.assign(window, {
         fakeBackend: fake,
         connection,
@@ -87,6 +93,10 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
             fakePresence.earnTitle(id)
             return "a title is unlocked"
         },
+        finishMissions: () => {
+            fakeMissions.finish()
+            return "every mission is done — open Missions to collect"
+        },
         closeDay: () => {
             const closed = fakeStandings.closeRound()
             fakeChat.announceRound(closed)
@@ -105,7 +115,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     Object.assign(window, {fakeChat, fakeSupport})
     const fakeSeason = new FakeSeasonBackend(SEASON_ZERO)
     const fakeStandings = new FakeStandingsBackend()
-    const clicker = fakeStandings.counting(fake)
+    const clicker = fakeMissions.counting(fakeStandings.counting(fake))
     fake.listenForBombs((drop) => fakeChat.announceBomb(drop))
     fake.listenForFortifications((fortification) => void borders.then(({codes}) => fakeChat.announceFortify({
         ...fortification, ground: codes[fortification.landmass], tiles: fake.landmassTiles(fortification.landmass),
@@ -134,6 +144,8 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     season={fakeSeason}
                     standings={fakeStandings}
                     support={fakeSupport}
+                    missions={fakeMissions}
+                    chargesRefresher={fake}
                 />
             </SignInGate>
         </StrictMode>,
@@ -144,6 +156,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     const season = new ConnectSeasonBackend(newSeasonServiceClient(config))
     const player = new ConnectPlayerBackend(newPlayerServiceClient(config), session, newKeepalivePlayerServiceClient(config))
     const standings = new ConnectStandingsBackend(newSeasonServiceClient(config), session)
+    const missions = new ConnectMissionsBackend(newMissionServiceClient(config), session)
     const support = new ConnectSupportBackend(newSupportServiceClient(config), session)
     const account = new AccountStore(new ConnectAccountBackend(authClient, attest), player, session, {
         navigate: (url) => window.location.assign(url),
@@ -174,6 +187,8 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     season={season}
                     standings={standings}
                     support={support}
+                    missions={missions}
+                    chargesRefresher={backend}
                 />
             </SignInGate>
         </StrictMode>,

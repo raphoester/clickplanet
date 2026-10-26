@@ -90,6 +90,10 @@ export class BorderField {
         return leader
     }
 
+    holdingsOf(landmass: number): ReadonlyMap<string, number> {
+        return this.held[landmass] ?? new Map()
+    }
+
     sizeOf(landmass: number): number {
         return this.data.totals[landmass] ?? 0
     }
