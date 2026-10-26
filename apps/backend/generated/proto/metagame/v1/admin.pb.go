@@ -118,8 +118,10 @@ type Entry struct {
 	StartsAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=starts_at,json=startsAt,proto3" json:"starts_at,omitempty"`
 	EndsAt   *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=ends_at,json=endsAt,proto3" json:"ends_at,omitempty"`
 	// The higher plays. At one priority, the entry made last plays.
-	Priority      uint32                 `protobuf:"varint,5,opt,name=priority,proto3" json:"priority,omitempty"`
-	MadeAt        *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=made_at,json=madeAt,proto3" json:"made_at,omitempty"`
+	Priority uint32                 `protobuf:"varint,5,opt,name=priority,proto3" json:"priority,omitempty"`
+	MadeAt   *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=made_at,json=madeAt,proto3" json:"made_at,omitempty"`
+	// What the entry is to the players: the game client reads it from MetagameService.GetTurn.
+	Kind          EntryKind `protobuf:"varint,7,opt,name=kind,proto3,enum=metagame.v1.EntryKind" json:"kind,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -196,6 +198,13 @@ func (x *Entry) GetMadeAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *Entry) GetKind() EntryKind {
+	if x != nil {
+		return x.Kind
+	}
+	return EntryKind_ENTRY_KIND_UNSPECIFIED
+}
+
 // What the schedule plays now: the running entry with the highest priority, else "default".
 type Playing struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
@@ -203,7 +212,9 @@ type Playing struct {
 	// Unset when it has played since before any entry.
 	Since *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=since,proto3" json:"since,omitempty"`
 	// The entry that plays; empty when none runs.
-	EntryId       string `protobuf:"bytes,3,opt,name=entry_id,json=entryId,proto3" json:"entry_id,omitempty"`
+	EntryId string `protobuf:"bytes,3,opt,name=entry_id,json=entryId,proto3" json:"entry_id,omitempty"`
+	// The entry's kind; plain when none runs.
+	Kind          EntryKind `protobuf:"varint,4,opt,name=kind,proto3,enum=metagame.v1.EntryKind" json:"kind,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -259,12 +270,21 @@ func (x *Playing) GetEntryId() string {
 	return ""
 }
 
+func (x *Playing) GetKind() EntryKind {
+	if x != nil {
+		return x.Kind
+	}
+	return EntryKind_ENTRY_KIND_UNSPECIFIED
+}
+
 type AddEntryRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RuleSet       string                 `protobuf:"bytes,1,opt,name=rule_set,json=ruleSet,proto3" json:"rule_set,omitempty"`
-	StartsAt      *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=starts_at,json=startsAt,proto3" json:"starts_at,omitempty"`
-	EndsAt        *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=ends_at,json=endsAt,proto3" json:"ends_at,omitempty"`
-	Priority      uint32                 `protobuf:"varint,4,opt,name=priority,proto3" json:"priority,omitempty"`
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	RuleSet  string                 `protobuf:"bytes,1,opt,name=rule_set,json=ruleSet,proto3" json:"rule_set,omitempty"`
+	StartsAt *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=starts_at,json=startsAt,proto3" json:"starts_at,omitempty"`
+	EndsAt   *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=ends_at,json=endsAt,proto3" json:"ends_at,omitempty"`
+	Priority uint32                 `protobuf:"varint,4,opt,name=priority,proto3" json:"priority,omitempty"`
+	// Battle or plain: unspecified is InvalidArgument.
+	Kind          EntryKind `protobuf:"varint,5,opt,name=kind,proto3,enum=metagame.v1.EntryKind" json:"kind,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -327,6 +347,13 @@ func (x *AddEntryRequest) GetPriority() uint32 {
 	return 0
 }
 
+func (x *AddEntryRequest) GetKind() EntryKind {
+	if x != nil {
+		return x.Kind
+	}
+	return EntryKind_ENTRY_KIND_UNSPECIFIED
+}
+
 type AddEntryResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -378,6 +405,7 @@ type EditEntryRequest struct {
 	StartsAt      *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=starts_at,json=startsAt,proto3" json:"starts_at,omitempty"`
 	EndsAt        *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=ends_at,json=endsAt,proto3" json:"ends_at,omitempty"`
 	Priority      uint32                 `protobuf:"varint,5,opt,name=priority,proto3" json:"priority,omitempty"`
+	Kind          EntryKind              `protobuf:"varint,6,opt,name=kind,proto3,enum=metagame.v1.EntryKind" json:"kind,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -445,6 +473,13 @@ func (x *EditEntryRequest) GetPriority() uint32 {
 		return x.Priority
 	}
 	return 0
+}
+
+func (x *EditEntryRequest) GetKind() EntryKind {
+	if x != nil {
+		return x.Kind
+	}
+	return EntryKind_ENTRY_KIND_UNSPECIFIED
 }
 
 type EditEntryResponse struct {
@@ -567,35 +602,39 @@ var File_metagame_v1_admin_proto protoreflect.FileDescriptor
 
 const file_metagame_v1_admin_proto_rawDesc = "" +
 	"\n" +
-	"\x17metagame/v1/admin.proto\x12\vmetagame.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x14\n" +
+	"\x17metagame/v1/admin.proto\x12\vmetagame.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1ametagame/v1/metagame.proto\"\x14\n" +
 	"\x12GetScheduleRequest\"s\n" +
 	"\x13GetScheduleResponse\x12,\n" +
 	"\aentries\x18\x01 \x03(\v2\x12.metagame.v1.EntryR\aentries\x12.\n" +
-	"\aplaying\x18\x02 \x01(\v2\x14.metagame.v1.PlayingR\aplaying\"\xf1\x01\n" +
+	"\aplaying\x18\x02 \x01(\v2\x14.metagame.v1.PlayingR\aplaying\"\x9d\x02\n" +
 	"\x05Entry\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
 	"\brule_set\x18\x02 \x01(\tR\aruleSet\x127\n" +
 	"\tstarts_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\bstartsAt\x123\n" +
 	"\aends_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x06endsAt\x12\x1a\n" +
 	"\bpriority\x18\x05 \x01(\rR\bpriority\x123\n" +
-	"\amade_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\x06madeAt\"q\n" +
+	"\amade_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\x06madeAt\x12*\n" +
+	"\x04kind\x18\a \x01(\x0e2\x16.metagame.v1.EntryKindR\x04kind\"\x9d\x01\n" +
 	"\aPlaying\x12\x19\n" +
 	"\brule_set\x18\x01 \x01(\tR\aruleSet\x120\n" +
 	"\x05since\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\x12\x19\n" +
-	"\bentry_id\x18\x03 \x01(\tR\aentryId\"\xb6\x01\n" +
+	"\bentry_id\x18\x03 \x01(\tR\aentryId\x12*\n" +
+	"\x04kind\x18\x04 \x01(\x0e2\x16.metagame.v1.EntryKindR\x04kind\"\xe2\x01\n" +
 	"\x0fAddEntryRequest\x12\x19\n" +
 	"\brule_set\x18\x01 \x01(\tR\aruleSet\x127\n" +
 	"\tstarts_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\bstartsAt\x123\n" +
 	"\aends_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x06endsAt\x12\x1a\n" +
-	"\bpriority\x18\x04 \x01(\rR\bpriority\"\"\n" +
+	"\bpriority\x18\x04 \x01(\rR\bpriority\x12*\n" +
+	"\x04kind\x18\x05 \x01(\x0e2\x16.metagame.v1.EntryKindR\x04kind\"\"\n" +
 	"\x10AddEntryResponse\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"\xc7\x01\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"\xf3\x01\n" +
 	"\x10EditEntryRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
 	"\brule_set\x18\x02 \x01(\tR\aruleSet\x127\n" +
 	"\tstarts_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\bstartsAt\x123\n" +
 	"\aends_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x06endsAt\x12\x1a\n" +
-	"\bpriority\x18\x05 \x01(\rR\bpriority\"\x13\n" +
+	"\bpriority\x18\x05 \x01(\rR\bpriority\x12*\n" +
+	"\x04kind\x18\x06 \x01(\x0e2\x16.metagame.v1.EntryKindR\x04kind\"\x13\n" +
 	"\x11EditEntryResponse\"$\n" +
 	"\x12DeleteEntryRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"\x15\n" +
@@ -633,6 +672,7 @@ var file_metagame_v1_admin_proto_goTypes = []any{
 	(*DeleteEntryRequest)(nil),    // 8: metagame.v1.DeleteEntryRequest
 	(*DeleteEntryResponse)(nil),   // 9: metagame.v1.DeleteEntryResponse
 	(*timestamppb.Timestamp)(nil), // 10: google.protobuf.Timestamp
+	(EntryKind)(0),                // 11: metagame.v1.EntryKind
 }
 var file_metagame_v1_admin_proto_depIdxs = []int32{
 	2,  // 0: metagame.v1.GetScheduleResponse.entries:type_name -> metagame.v1.Entry
@@ -640,24 +680,28 @@ var file_metagame_v1_admin_proto_depIdxs = []int32{
 	10, // 2: metagame.v1.Entry.starts_at:type_name -> google.protobuf.Timestamp
 	10, // 3: metagame.v1.Entry.ends_at:type_name -> google.protobuf.Timestamp
 	10, // 4: metagame.v1.Entry.made_at:type_name -> google.protobuf.Timestamp
-	10, // 5: metagame.v1.Playing.since:type_name -> google.protobuf.Timestamp
-	10, // 6: metagame.v1.AddEntryRequest.starts_at:type_name -> google.protobuf.Timestamp
-	10, // 7: metagame.v1.AddEntryRequest.ends_at:type_name -> google.protobuf.Timestamp
-	10, // 8: metagame.v1.EditEntryRequest.starts_at:type_name -> google.protobuf.Timestamp
-	10, // 9: metagame.v1.EditEntryRequest.ends_at:type_name -> google.protobuf.Timestamp
-	0,  // 10: metagame.v1.AdminService.GetSchedule:input_type -> metagame.v1.GetScheduleRequest
-	4,  // 11: metagame.v1.AdminService.AddEntry:input_type -> metagame.v1.AddEntryRequest
-	6,  // 12: metagame.v1.AdminService.EditEntry:input_type -> metagame.v1.EditEntryRequest
-	8,  // 13: metagame.v1.AdminService.DeleteEntry:input_type -> metagame.v1.DeleteEntryRequest
-	1,  // 14: metagame.v1.AdminService.GetSchedule:output_type -> metagame.v1.GetScheduleResponse
-	5,  // 15: metagame.v1.AdminService.AddEntry:output_type -> metagame.v1.AddEntryResponse
-	7,  // 16: metagame.v1.AdminService.EditEntry:output_type -> metagame.v1.EditEntryResponse
-	9,  // 17: metagame.v1.AdminService.DeleteEntry:output_type -> metagame.v1.DeleteEntryResponse
-	14, // [14:18] is the sub-list for method output_type
-	10, // [10:14] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	11, // 5: metagame.v1.Entry.kind:type_name -> metagame.v1.EntryKind
+	10, // 6: metagame.v1.Playing.since:type_name -> google.protobuf.Timestamp
+	11, // 7: metagame.v1.Playing.kind:type_name -> metagame.v1.EntryKind
+	10, // 8: metagame.v1.AddEntryRequest.starts_at:type_name -> google.protobuf.Timestamp
+	10, // 9: metagame.v1.AddEntryRequest.ends_at:type_name -> google.protobuf.Timestamp
+	11, // 10: metagame.v1.AddEntryRequest.kind:type_name -> metagame.v1.EntryKind
+	10, // 11: metagame.v1.EditEntryRequest.starts_at:type_name -> google.protobuf.Timestamp
+	10, // 12: metagame.v1.EditEntryRequest.ends_at:type_name -> google.protobuf.Timestamp
+	11, // 13: metagame.v1.EditEntryRequest.kind:type_name -> metagame.v1.EntryKind
+	0,  // 14: metagame.v1.AdminService.GetSchedule:input_type -> metagame.v1.GetScheduleRequest
+	4,  // 15: metagame.v1.AdminService.AddEntry:input_type -> metagame.v1.AddEntryRequest
+	6,  // 16: metagame.v1.AdminService.EditEntry:input_type -> metagame.v1.EditEntryRequest
+	8,  // 17: metagame.v1.AdminService.DeleteEntry:input_type -> metagame.v1.DeleteEntryRequest
+	1,  // 18: metagame.v1.AdminService.GetSchedule:output_type -> metagame.v1.GetScheduleResponse
+	5,  // 19: metagame.v1.AdminService.AddEntry:output_type -> metagame.v1.AddEntryResponse
+	7,  // 20: metagame.v1.AdminService.EditEntry:output_type -> metagame.v1.EditEntryResponse
+	9,  // 21: metagame.v1.AdminService.DeleteEntry:output_type -> metagame.v1.DeleteEntryResponse
+	18, // [18:22] is the sub-list for method output_type
+	14, // [14:18] is the sub-list for method input_type
+	14, // [14:14] is the sub-list for extension type_name
+	14, // [14:14] is the sub-list for extension extendee
+	0,  // [0:14] is the sub-list for field type_name
 }
 
 func init() { file_metagame_v1_admin_proto_init() }
@@ -665,6 +709,7 @@ func file_metagame_v1_admin_proto_init() {
 	if File_metagame_v1_admin_proto != nil {
 		return
 	}
+	file_metagame_v1_metagame_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

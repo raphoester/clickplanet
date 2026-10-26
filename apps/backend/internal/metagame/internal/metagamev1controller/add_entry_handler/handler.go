@@ -26,8 +26,12 @@ func (h AddEntryHandler) AddEntry(
 	ctx context.Context,
 	req *connect.Request[metagamev1.AddEntryRequest],
 ) (*connect.Response[metagamev1.AddEntryResponse], error) {
-	id, err := h.useCase.Execute(ctx, schedulemessage.DraftOf(
-		req.Msg.GetRuleSet(), req.Msg.GetStartsAt(), req.Msg.GetEndsAt(), req.Msg.GetPriority()))
+	draft, err := schedulemessage.DraftOf(
+		req.Msg.GetRuleSet(), req.Msg.GetKind(), req.Msg.GetStartsAt(), req.Msg.GetEndsAt(), req.Msg.GetPriority())
+	if err != nil {
+		return nil, schedulemessage.Refusal(err) //nolint:wrapcheck // InvalidArgument.
+	}
+	id, err := h.useCase.Execute(ctx, draft)
 	if err != nil {
 		return nil, schedulemessage.Refusal(err) //nolint:wrapcheck // the error net answers what is not the operator's.
 	}

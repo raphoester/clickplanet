@@ -31,11 +31,20 @@ const Default SetName = "default"
 // The higher plays.
 type Priority uint32
 
+// Kind is what an entry is to the players, who never hear a set's name.
+type Kind string
+
+const (
+	Battle Kind = "battle"
+	Plain  Kind = "plain"
+)
+
 var (
 	ErrInvalidEntry = errors.New("this entry cannot be scheduled")
 	ErrStarted      = errors.New("this entry has started, and runs to its end: schedule another at a higher priority")
 	ErrUnknownEntry = errors.New("no entry has this id")
 	ErrUnknownSet   = errors.New("keeps no rule set of this name")
+	ErrUnknownKind  = errors.New("no entry is of this kind: battle or plain")
 )
 
 var namePattern = regexp.MustCompile(`^[a-z][a-z0-9_-]{0,31}$`)
@@ -43,6 +52,7 @@ var namePattern = regexp.MustCompile(`^[a-z][a-z0-9_-]{0,31}$`)
 // Draft is what an operator asks the schedule to play.
 type Draft struct {
 	Set      SetName
+	Kind     Kind
 	StartsAt time.Time
 	EndsAt   time.Time
 	Priority Priority
@@ -50,6 +60,9 @@ type Draft struct {
 
 // Every reason at once: only an entry to come, with an end, is scheduled.
 func (d Draft) check(now time.Time) error {
+	if err := d.Kind.check(); err != nil {
+		return err
+	}
 	var reasons []string
 	if err := d.Set.check(); err != nil {
 		reasons = append(reasons, err.Error())
@@ -73,9 +86,18 @@ func (n SetName) check() error {
 	return nil
 }
 
+func (k Kind) check() error {
+	switch k {
+	case Battle, Plain:
+		return nil
+	}
+	return fmt.Errorf("%w: %q", ErrUnknownKind, k)
+}
+
 type Entry struct {
 	id       EntryID
 	set      SetName
+	kind     Kind
 	startsAt time.Time
 	endsAt   time.Time
 	priority Priority
@@ -87,7 +109,8 @@ func NewEntry(id EntryID, draft Draft, now time.Time) (Entry, error) {
 		return Entry{}, err
 	}
 	return Entry{
-		id: id, set: draft.Set, startsAt: draft.StartsAt, endsAt: draft.EndsAt, priority: draft.Priority, madeAt: now,
+		id: id, set: draft.Set, kind: draft.Kind, startsAt: draft.StartsAt, endsAt: draft.EndsAt, priority: draft.Priority,
+		madeAt: now,
 	}, nil
 }
 
@@ -108,19 +131,21 @@ func (e Entry) Edited(draft Draft, now time.Time) (Entry, error) {
 		return Entry{}, err
 	}
 	return Entry{
-		id: e.id, set: draft.Set, startsAt: draft.StartsAt, endsAt: draft.EndsAt, priority: draft.Priority, madeAt: e.madeAt,
+		id: e.id, set: draft.Set, kind: draft.Kind, startsAt: draft.StartsAt, endsAt: draft.EndsAt, priority: draft.Priority,
+		madeAt: e.madeAt,
 	}, nil
 }
 
 func (e Entry) TakeSnapshot() EntrySnapshot {
 	return EntrySnapshot{
-		ID: e.id, Set: e.set, StartsAt: e.startsAt, EndsAt: e.endsAt, Priority: e.priority, MadeAt: e.madeAt,
+		ID: e.id, Set: e.set, Kind: e.kind, StartsAt: e.startsAt, EndsAt: e.endsAt, Priority: e.priority, MadeAt: e.madeAt,
 	}
 }
 
 type EntrySnapshot struct {
 	ID       EntryID
 	Set      SetName
+	Kind     Kind
 	StartsAt time.Time
 	EndsAt   time.Time
 	Priority Priority
@@ -128,5 +153,7 @@ type EntrySnapshot struct {
 }
 
 func (s EntrySnapshot) Restore() Entry {
-	return Entry{id: s.ID, set: s.Set, startsAt: s.StartsAt, endsAt: s.EndsAt, priority: s.Priority, madeAt: s.MadeAt}
+	return Entry{
+		id: s.ID, set: s.Set, kind: s.Kind, startsAt: s.StartsAt, endsAt: s.EndsAt, priority: s.Priority, madeAt: s.MadeAt,
+	}
 }

@@ -7,10 +7,12 @@ import {When} from "../components/When.tsx"
 import {GetRulesResponse as AntibotRules} from "../gen/grpc/antibot/v1/admin_pb.ts"
 import {GetRulesResponse as PlanetRules} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {Entry, GetScheduleResponse} from "../gen/grpc/metagame/v1/admin_pb.ts"
+import {EntryKind} from "../gen/grpc/metagame/v1/metagame_pb.ts"
 import {wordsOf} from "../refusal.ts"
 import {useCall} from "../useCall.ts"
 import {
-    addEntry, changeable, complete, deleteEntry, Draft, draftOf, editEntry, ended, lacking, playable, questionOf, Row, rowsOf,
+    addEntry, changeable, complete, deleteEntry, Draft, draftOf, editEntry, ended, kinds, lacking, playable, questionOf, Row, rowsOf,
+    wordOf,
 } from "./schedule.ts"
 
 type Read = {schedule: GetScheduleResponse, planet: PlanetRules, antibot: AntibotRules}
@@ -80,7 +82,8 @@ function Playing({read}: {read: Read}) {
     return (
         <>
             <p className="hint">
-                Playing: <code>{set}</code>{playing?.since !== undefined && <> since <When at={playing.since}/></>}
+                Playing: <code>{set}</code>, a {wordOf(playing?.kind ?? EntryKind.PLAIN)} entry
+                {playing?.since !== undefined && <>, since <When at={playing.since}/></>}
             </p>
             <p className="hint">
                 Planet plays <code>{read.planet.playing}</code>, the antibot plays <code>{read.antibot.playing}</code>.
@@ -105,7 +108,7 @@ function Rows({read, metagame, onEdit, onDeleted}: {
         <table className="table">
             <caption>Schedule</caption>
             <thead>
-                <tr><th>From</th><th>To</th><th>Set</th><th>Priority</th><th/></tr>
+                <tr><th>From</th><th>To</th><th>Set</th><th>Kind</th><th>Priority</th><th/></tr>
             </thead>
             <tbody>
                 {rowsOf(read.schedule).map(row => (
@@ -120,6 +123,7 @@ function Rows({read, metagame, onEdit, onDeleted}: {
                             <strong>{row.entry.ruleSet}</strong>
                             {!ended(row, now) && <Lacking set={row.entry.ruleSet} read={read}/>}
                         </td>
+                        <td>{wordOf(row.entry.kind)}</td>
                         <td>{row.entry.priority}</td>
                         <td>{changeable(row, now) && (
                             <EntryActions row={row} metagame={metagame} onEdit={onEdit} onDeleted={onDeleted}/>
@@ -172,6 +176,12 @@ function EntryForm({metagame, entry, sets, onCancel, onDone}: {
                     <span className="muted">Set</span>
                     <select value={draft.set} onChange={e => change({set: e.target.value})}>
                         {options.map(set => <option key={set} value={set}>{set}</option>)}
+                    </select>
+                </label>
+                <label className="field">
+                    <span className="muted">Kind</span>
+                    <select value={String(draft.kind)} onChange={e => change({kind: Number(e.target.value) as EntryKind})}>
+                        {kinds().map(kind => <option key={kind} value={String(kind)}>{wordOf(kind)}</option>)}
                     </select>
                 </label>
                 <label className="field">

@@ -22,30 +22,41 @@ func id(n byte) schedule.EntryID {
 
 func entry(n byte, set schedule.SetName, startsAt, endsAt time.Time, priority schedule.Priority, madeAt time.Time) schedule.Entry {
 	return schedule.EntrySnapshot{
-		ID: id(n), Set: set, StartsAt: startsAt, EndsAt: endsAt, Priority: priority, MadeAt: madeAt,
+		ID: id(n), Set: set, Kind: schedule.Battle, StartsAt: startsAt, EndsAt: endsAt, Priority: priority, MadeAt: madeAt,
 	}.Restore()
 }
 
 func turn(entry schedule.EntryID, set schedule.SetName) schedule.TurnSnapshot {
-	return schedule.TurnSnapshot{Entry: entry, Set: set}
+	return schedule.TurnSnapshot{Entry: entry, Set: set, Kind: schedule.Battle}
 }
 
-var none = schedule.EntryID{}
+var (
+	none        = schedule.EntryID{}
+	defaultTurn = schedule.TurnSnapshot{Entry: none, Set: schedule.Default, Kind: schedule.Plain}
+)
 
-func TestWithNoEntryDefaultPlays(t *testing.T) {
+func TestWithNoEntryDefaultPlaysAsAPlainTurn(t *testing.T) {
 	sched := schedule.New()
 
-	assert.Equal(t, turn(none, schedule.Default), sched.TurnAt(finale).TakeSnapshot())
+	assert.Equal(t, defaultTurn, sched.TurnAt(finale).TakeSnapshot())
 	assert.True(t, sched.SinceAt(finale).IsZero())
 }
 
 func TestAnEntryPlaysFromItsStartToJustBeforeItsEnd(t *testing.T) {
 	sched := schedule.New(entry(1, "rush", finale, battleEnds, 1, madeAt))
 
-	assert.Equal(t, turn(none, schedule.Default), sched.TurnAt(finale.Add(-time.Nanosecond)).TakeSnapshot())
+	assert.Equal(t, defaultTurn, sched.TurnAt(finale.Add(-time.Nanosecond)).TakeSnapshot())
 	assert.Equal(t, turn(id(1), "rush"), sched.TurnAt(finale).TakeSnapshot(), "the battle starts on time")
 	assert.Equal(t, turn(id(1), "rush"), sched.TurnAt(battleEnds.Add(-time.Nanosecond)).TakeSnapshot())
-	assert.Equal(t, turn(none, schedule.Default), sched.TurnAt(battleEnds).TakeSnapshot(), "over at its end")
+	assert.Equal(t, defaultTurn, sched.TurnAt(battleEnds).TakeSnapshot(), "over at its end")
+}
+
+func TestTheTurnIsOfTheEntrysKind(t *testing.T) {
+	plain := entry(1, "calm", finale, battleEnds, 1, madeAt).TakeSnapshot()
+	plain.Kind = schedule.Plain
+	sched := schedule.New(plain.Restore())
+
+	assert.Equal(t, schedule.TurnSnapshot{Entry: id(1), Set: "calm", Kind: schedule.Plain}, sched.TurnAt(finale).TakeSnapshot())
 }
 
 func TestTheHighestPriorityPlays(t *testing.T) {

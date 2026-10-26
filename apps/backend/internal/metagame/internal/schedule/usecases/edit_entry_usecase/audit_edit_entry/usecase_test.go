@@ -22,7 +22,7 @@ func (s stubUseCase) Execute(context.Context, schedule.EntryID, schedule.Draft) 
 var (
 	finale = time.Date(2026, 10, 31, 21, 0, 0, 0, time.UTC)
 	first  = schedule.EntryID(uuid.UUID{15: 1})
-	calm   = schedule.Draft{Set: "calm", StartsAt: finale, EndsAt: finale.Add(time.Hour), Priority: 2}
+	calm   = schedule.Draft{Set: "calm", Kind: schedule.Plain, StartsAt: finale, EndsAt: finale.Add(time.Hour), Priority: 2}
 )
 
 func TestEveryEditIsLoggedWithItsValues(t *testing.T) {
@@ -31,7 +31,7 @@ func TestEveryEditIsLoggedWithItsValues(t *testing.T) {
 	err := audit_edit_entry.New(stubUseCase{}, slog.New(slog.NewTextHandler(&logs, nil))).Execute(t.Context(), first, calm)
 
 	require.NoError(t, err)
-	assert.Contains(t, logs.String(), `level=WARN msg="admin schedule entry edited" set=calm`)
+	assert.Contains(t, logs.String(), `level=WARN msg="admin schedule entry edited" set=calm kind=plain`)
 	assert.Contains(t, logs.String(), `entry=00000000-0000-0000-0000-000000000001`)
 }
 

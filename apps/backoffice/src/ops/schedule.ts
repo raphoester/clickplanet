@@ -1,8 +1,9 @@
-import {Timestamp} from "@bufbuild/protobuf"
+import {proto3, Timestamp} from "@bufbuild/protobuf"
 import {MetagameAdmin} from "../clients.ts"
 import {GetRulesResponse as AntibotRules} from "../gen/grpc/antibot/v1/admin_pb.ts"
 import {GetRulesResponse as PlanetRules} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {Entry, GetScheduleResponse} from "../gen/grpc/metagame/v1/admin_pb.ts"
+import {EntryKind} from "../gen/grpc/metagame/v1/metagame_pb.ts"
 
 // A line of the schedule: an entry and its times.
 export type Row = {entry: Entry, startsAt?: Date, endsAt?: Date}
@@ -36,13 +37,26 @@ export function playable(planet: PlanetRules, antibot: AntibotRules): string[] {
     return planet.sets.map(set => set.name).filter(name => antibot.sets.some(kept => kept.name === name))
 }
 
+// The kinds an entry may be, read off the proto, so a new one shows with no edit here.
+export function kinds(): EntryKind[] {
+    return proto3.getEnumType(EntryKind).values.map(value => value.no as EntryKind).filter(kind => kind !== EntryKind.UNSPECIFIED)
+}
+
+// The kind's word: "battle" for ENTRY_KIND_BATTLE.
+export function wordOf(kind: EntryKind): string {
+    const value = proto3.getEnumType(EntryKind).findNumber(kind)
+    return (value?.localName ?? "unknown").toLowerCase()
+}
+
 // An entry as the form edits it: each time a datetime-local, in the operator's own time.
-export type Draft = {set: string, startsAt: string, endsAt: string, priority: string}
+export type Draft = {set: string, kind: EntryKind, startsAt: string, endsAt: string, priority: string}
 
 export function draftOf(entry: Entry | undefined, sets: string[]): Draft {
-    if (entry === undefined) return {set: sets.find(set => set !== "default") ?? sets[0] ?? "", startsAt: "", endsAt: "", priority: "1"}
+    if (entry === undefined) {
+        return {set: sets.find(set => set !== "default") ?? sets[0] ?? "", kind: EntryKind.BATTLE, startsAt: "", endsAt: "", priority: "1"}
+    }
     return {
-        set: entry.ruleSet, startsAt: localOf(entry.startsAt?.toDate()), endsAt: localOf(entry.endsAt?.toDate()),
+        set: entry.ruleSet, kind: entry.kind, startsAt: localOf(entry.startsAt?.toDate()), endsAt: localOf(entry.endsAt?.toDate()),
         priority: String(entry.priority),
     }
 }
@@ -55,13 +69,14 @@ function localOf(date: Date | undefined): string {
 
 // The server holds the rest: a start after now, an end after it, a set both modules keep.
 export function complete(draft: Draft): boolean {
-    return draft.set !== "" && draft.startsAt !== "" && draft.endsAt !== "" && Number.isInteger(Number(draft.priority)) &&
-        Number(draft.priority) >= 0
+    return draft.set !== "" && draft.kind !== EntryKind.UNSPECIFIED && draft.startsAt !== "" && draft.endsAt !== "" &&
+        Number.isInteger(Number(draft.priority)) && Number(draft.priority) >= 0
 }
 
 function valuesOf(draft: Draft) {
     return {
         ruleSet: draft.set,
+        kind: draft.kind,
         startsAt: Timestamp.fromDate(new Date(draft.startsAt)),
         endsAt: Timestamp.fromDate(new Date(draft.endsAt)),
         priority: Number(draft.priority),
@@ -69,8 +84,8 @@ function valuesOf(draft: Draft) {
 }
 
 export function questionOf(draft: Draft): string {
-    return `Play ${draft.set} from ${new Date(draft.startsAt).toLocaleString()} to ${new Date(draft.endsAt).toLocaleString()}, ` +
-        `at priority ${draft.priority}?`
+    return `Play ${draft.set} as a ${wordOf(draft.kind)} entry from ${new Date(draft.startsAt).toLocaleString()} to ` +
+        `${new Date(draft.endsAt).toLocaleString()}, at priority ${draft.priority}?`
 }
 
 export async function addEntry(metagame: MetagameAdmin, draft: Draft): Promise<void> {

@@ -9,6 +9,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	metagamev1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/metagame/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/metagame/internal/metagamev1controller/schedulemessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/metagame/internal/schedule"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -27,7 +28,7 @@ type PostgresQuery struct {
 func (q *PostgresQuery) Schedule(ctx context.Context) (*metagamev1.GetScheduleResponse, error) {
 	now := q.clock.Now()
 	rows, err := q.db.On(ctx).QueryContext(ctx, `
-		SELECT id, rule_set, starts_at, ends_at, priority, made_at FROM schedule_entries ORDER BY starts_at, made_at, id`)
+		SELECT id, rule_set, kind, starts_at, ends_at, priority, made_at FROM schedule_entries ORDER BY starts_at, made_at, id`)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the schedule: %w", err)
 	}
@@ -37,19 +38,25 @@ func (q *PostgresQuery) Schedule(ctx context.Context) (*metagamev1.GetScheduleRe
 	var entries []schedule.Entry
 	for rows.Next() {
 		var (
-			id       uuid.UUID
-			set      string
-			priority int64
-			entry    schedule.EntrySnapshot
+			id        uuid.UUID
+			set, kind string
+			priority  int64
+			entry     schedule.EntrySnapshot
 		)
-		if err := rows.Scan(&id, &set, &entry.StartsAt, &entry.EndsAt, &priority, &entry.MadeAt); err != nil {
+		if err := rows.Scan(&id, &set, &kind, &entry.StartsAt, &entry.EndsAt, &priority, &entry.MadeAt); err != nil {
 			return nil, fmt.Errorf("failed to read an entry of the schedule: %w", err)
 		}
-		entry.ID, entry.Set, entry.Priority = schedule.EntryID(id), schedule.SetName(set), schedule.Priority(priority) //nolint:gosec // CHECK (priority >= 0 AND priority <= 4294967295).
+		entry.ID, entry.Set, entry.Kind = schedule.EntryID(id), schedule.SetName(set), schedule.Kind(kind)
+		entry.Priority = schedule.Priority(priority) //nolint:gosec // CHECK (priority >= 0 AND priority <= 4294967295).
+		wireKind, err := schedulemessage.KindOf(entry.Kind)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read the entry %s: %w", entry.ID, err)
+		}
 		entries = append(entries, entry.Restore())
 		answer.Entries = append(answer.Entries, &metagamev1.Entry{
 			Id: entry.ID.String(), RuleSet: set, StartsAt: timestamppb.New(entry.StartsAt),
 			EndsAt: timestamppb.New(entry.EndsAt), Priority: uint32(entry.Priority), MadeAt: timestamppb.New(entry.MadeAt),
+			Kind: wireKind,
 		})
 	}
 	if err := rows.Err(); err != nil {
@@ -58,7 +65,11 @@ func (q *PostgresQuery) Schedule(ctx context.Context) (*metagamev1.GetScheduleRe
 
 	sched := schedule.New(entries...)
 	turn := sched.TurnAt(now).TakeSnapshot()
-	answer.Playing = &metagamev1.Playing{RuleSet: string(turn.Set), Since: stamp(sched.SinceAt(now))}
+	playingKind, err := schedulemessage.KindOf(turn.Kind)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read what plays: %w", err)
+	}
+	answer.Playing = &metagamev1.Playing{RuleSet: string(turn.Set), Since: stamp(sched.SinceAt(now)), Kind: playingKind}
 	if turn.Entry != (schedule.EntryID{}) {
 		answer.Playing.EntryId = turn.Entry.String()
 	}

@@ -18,6 +18,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/metagame/internal/metagamev1controller/edit_entry_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/metagame/internal/metagamev1controller/get_schedule_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/metagame/internal/metagamev1controller/get_schedule_handler/schedule_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/metagame/internal/metagamev1controller/get_turn_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/metagame/internal/metagamev1controller/get_turn_handler/turn_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/metagame/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/metagame/internal/schedule"
 	"github.com/raphoester/clickplanet.lol-backend/internal/metagame/internal/schedule/postgres_entry_store"
@@ -99,6 +101,15 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return metagamev1connect.NewAdminServiceHandler(admin, options...)
 	}); err != nil {
 		return fmt.Errorf("failed to mount metagame.v1.AdminService: %w", err)
+	}
+
+	public := metagamev1controller.MetagameService{
+		GetTurnHandler: get_turn_handler.New(turn_query.NewPostgresQuery(db, clock)),
+	}
+	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
+		return metagamev1connect.NewMetagameServiceHandler(public, options...)
+	}, metagamev1controller.NewCacheInterceptor()); err != nil {
+		return fmt.Errorf("failed to mount metagame.v1.MetagameService: %w", err)
 	}
 
 	props.Logger.Info("metagame built", slog.String("schema", config.Database.Schema))

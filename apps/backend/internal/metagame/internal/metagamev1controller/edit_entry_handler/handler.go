@@ -30,8 +30,12 @@ func (h EditEntryHandler) EditEntry(
 	if err != nil {
 		return nil, schedulemessage.Refusal(err) //nolint:wrapcheck // NotFound.
 	}
-	if err := h.useCase.Execute(ctx, id, schedulemessage.DraftOf(
-		req.Msg.GetRuleSet(), req.Msg.GetStartsAt(), req.Msg.GetEndsAt(), req.Msg.GetPriority())); err != nil {
+	draft, err := schedulemessage.DraftOf(
+		req.Msg.GetRuleSet(), req.Msg.GetKind(), req.Msg.GetStartsAt(), req.Msg.GetEndsAt(), req.Msg.GetPriority())
+	if err != nil {
+		return nil, schedulemessage.Refusal(err) //nolint:wrapcheck // InvalidArgument.
+	}
+	if err := h.useCase.Execute(ctx, id, draft); err != nil {
 		return nil, schedulemessage.Refusal(err) //nolint:wrapcheck // the error net answers what is not the operator's.
 	}
 	return connect.NewResponse(&metagamev1.EditEntryResponse{}), nil

@@ -25,7 +25,7 @@ var finaleStarts = time.Date(2026, 10, 31, 21, 0, 0, 0, time.UTC)
 
 func kept(n byte, startsAt, endsAt time.Time) Entry {
 	return EntrySnapshot{
-		ID: EntryID(uuid.UUID{15: n}), Set: "rush", StartsAt: startsAt, EndsAt: endsAt, Priority: Priority(n),
+		ID: EntryID(uuid.UUID{15: n}), Set: "rush", Kind: Battle, StartsAt: startsAt, EndsAt: endsAt, Priority: Priority(n),
 		MadeAt: finaleStarts.Add(-time.Duration(n) * time.Hour).Add(123456 * time.Microsecond),
 	}.Restore()
 }
@@ -64,7 +64,7 @@ func (s *StoreContractSuite) TestAnEntryKeptAgainReplacesItsValues() {
 	entry := kept(1, finaleStarts, finaleStarts.Add(2*time.Hour))
 	s.save(entry)
 	snapshot := entry.TakeSnapshot()
-	snapshot.Set, snapshot.Priority, snapshot.EndsAt = "calm", 4, finaleStarts.Add(time.Hour)
+	snapshot.Set, snapshot.Kind, snapshot.Priority, snapshot.EndsAt = "calm", Plain, 4, finaleStarts.Add(time.Hour)
 	s.save(snapshot.Restore())
 
 	read, err := s.store.Entry(s.T().Context(), entry.id)

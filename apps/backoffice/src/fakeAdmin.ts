@@ -74,6 +74,7 @@ import {
     GetScheduleResponse,
     Playing,
 } from "./gen/grpc/metagame/v1/admin_pb.ts"
+import {EntryKind} from "./gen/grpc/metagame/v1/metagame_pb.ts"
 import {ChargesHeld, TileUpdate} from "./gen/grpc/planet/v1/planet_pb.ts"
 import {
     AdminGetPlayerRequest,
@@ -168,23 +169,23 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         })],
         playing: "default",
     })
-    // An entry that ended, one that runs until 2098, and one to come.
+    // A battle that ended, a plain entry that runs until 2098, and a battle to come.
     schedule = new GetScheduleResponse({
         entries: [
             new Entry({
-                id: "entry-ended", ruleSet: "rush", startsAt: Timestamp.fromDate(new Date("2020-10-31T21:00:00Z")),
+                id: "entry-ended", ruleSet: "rush", kind: EntryKind.BATTLE, startsAt: Timestamp.fromDate(new Date("2020-10-31T21:00:00Z")),
                 endsAt: Timestamp.fromDate(new Date("2020-10-31T23:00:00Z")), priority: 1, madeAt: Timestamp.fromDate(AT),
             }),
             new Entry({
-                id: "entry-running", ruleSet: "calm", startsAt: Timestamp.fromDate(AT),
+                id: "entry-running", ruleSet: "calm", kind: EntryKind.PLAIN, startsAt: Timestamp.fromDate(AT),
                 endsAt: Timestamp.fromDate(new Date("2098-01-01T00:00:00Z")), priority: 1, madeAt: Timestamp.fromDate(AT),
             }),
             new Entry({
-                id: "entry-to-come", ruleSet: "frozen", startsAt: Timestamp.fromDate(new Date("2098-06-01T20:00:00Z")),
+                id: "entry-to-come", ruleSet: "frozen", kind: EntryKind.BATTLE, startsAt: Timestamp.fromDate(new Date("2098-06-01T20:00:00Z")),
                 endsAt: Timestamp.fromDate(new Date("2098-06-01T22:00:00Z")), priority: 2, madeAt: Timestamp.fromDate(AT),
             }),
         ],
-        playing: new Playing({ruleSet: "calm", since: Timestamp.fromDate(AT), entryId: "entry-running"}),
+        playing: new Playing({ruleSet: "calm", kind: EntryKind.PLAIN, since: Timestamp.fromDate(AT), entryId: "entry-running"}),
     })
     authors = [new Author({accountId: ACCOUNT, name: "BraveFox42"})]
     profile = new AdminGetPlayerResponse({

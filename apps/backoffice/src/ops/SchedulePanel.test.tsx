@@ -6,6 +6,7 @@ import {FakeAdmin} from "../fakeAdmin.ts"
 import {GetRulesResponse as AntibotRules, RuleSet as AntibotRuleSet} from "../gen/grpc/antibot/v1/admin_pb.ts"
 import {GetRulesResponse, RuleSet} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {AddEntryRequest, EditEntryRequest} from "../gen/grpc/metagame/v1/admin_pb.ts"
+import {EntryKind} from "../gen/grpc/metagame/v1/metagame_pb.ts"
 import {SchedulePanel} from "./SchedulePanel.tsx"
 
 afterEach(cleanup)
@@ -37,7 +38,7 @@ function show(admin: FakeAdmin) {
 }
 
 describe("the rule schedule page", () => {
-    it("lists every entry by start, the one playing marked, the ended one muted, and what each module plays", async () => {
+    it("lists every entry by start with its kind, the one playing marked, the ended one muted, and what each module plays", async () => {
         show(keeping())
 
         await screen.findByRole("table")
@@ -45,7 +46,10 @@ describe("the rule schedule page", () => {
         expect(sets).toEqual(["rush", "calm", "frozen"])
         expect(rowOf("calm").getAttribute("aria-current")).toBe("true")
         expect(rowOf("rush").className).toBe("muted")
+        expect(within(rowOf("frozen")).getByText("battle")).toBeTruthy()
+        expect(within(rowOf("calm")).getByText("plain")).toBeTruthy()
         expect(within(rowOf("frozen")).getByText("2")).toBeTruthy()
+        expect(screen.getByText(/a plain entry, since/)).toBeTruthy()
         expect(screen.getByText(/the antibot plays/)).toBeTruthy()
         expect(screen.queryByRole("alert")).toBeNull()
     })
@@ -82,15 +86,18 @@ describe("the rule schedule page", () => {
 
         fireEvent.click(await screen.findByRole("button", {name: "Add an entry"}))
         type("Set", "rush")
+        type("Kind", String(EntryKind.PLAIN))
         type("Starts", "2099-10-31T20:00")
         type("Ends", "2099-10-31T23:30")
         type("Priority", "3")
         fireEvent.click(screen.getByRole("button", {name: "Add"}))
+        expect(screen.getByText(/^Play rush as a plain entry from /)).toBeTruthy()
         fireEvent.click(screen.getByRole("button", {name: "Yes, add"}))
 
         await waitFor(() => expect(screen.queryByRole("region", {name: "New entry"})).toBeNull())
         const [asked] = admin.askedFor("addEntry") as AddEntryRequest[]
         expect(asked.ruleSet).toBe("rush")
+        expect(asked.kind).toBe(EntryKind.PLAIN)
         expect(asked.startsAt?.toDate()).toEqual(new Date("2099-10-31T20:00"))
         expect(asked.endsAt?.toDate()).toEqual(new Date("2099-10-31T23:30"))
         expect(asked.priority).toBe(3)
@@ -108,12 +115,23 @@ describe("the rule schedule page", () => {
         expect(options).toEqual(["default", "rush"])
     })
 
+    it("offers every kind, a battle first", async () => {
+        show(keeping())
+
+        fireEvent.click(await screen.findByRole("button", {name: "Add an entry"}))
+
+        const kind = screen.getByLabelText("Kind") as HTMLSelectElement
+        expect(within(kind).getAllByRole("option").map(option => option.textContent)).toEqual(["battle", "plain"])
+        expect(kind.value).toBe(String(EntryKind.BATTLE))
+    })
+
     it("edits an entry to come once confirmed", async () => {
         const admin = keeping()
         show(admin)
 
         fireEvent.click(within(await screen.findByRole("table")).getByRole("button", {name: "Edit"}))
         expect((screen.getByLabelText("Priority") as HTMLInputElement).value).toBe("2")
+        expect((screen.getByLabelText("Kind") as HTMLSelectElement).value).toBe(String(EntryKind.BATTLE))
         type("Set", "calm")
         fireEvent.click(screen.getByRole("button", {name: "Save"}))
         fireEvent.click(screen.getByRole("button", {name: "Yes, save"}))
@@ -122,6 +140,7 @@ describe("the rule schedule page", () => {
         const [asked] = admin.askedFor("editEntry") as EditEntryRequest[]
         expect(asked.id).toBe("entry-to-come")
         expect(asked.ruleSet).toBe("calm")
+        expect(asked.kind).toBe(EntryKind.BATTLE)
         expect(asked.priority).toBe(2)
     })
 
