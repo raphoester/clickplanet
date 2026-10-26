@@ -45,6 +45,10 @@ service ClickService {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 
+  rpc GetLandmass(GetLandmassRequest) returns (GetLandmassResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
   // Not NO_SIDE_EFFECTS: the answer is about one caller now, and a cached one lies.
   rpc GetAllegiance(GetAllegianceRequest) returns (GetAllegianceResponse);
 
@@ -197,6 +201,31 @@ message TileHolder {
   string account_id = 1;
   string country_id = 2;
   int64 taken_at_unix_ms = 3;
+}
+
+message GetLandmassRequest {
+  uint32 landmass_id = 1;
+}
+
+message GetLandmassResponse {
+  // Most tiles first. A tile no player's take holds is in none: an operator wrote it, or its account was deleted.
+  repeated LandmassHolder holders = 1;
+  // The last fortify a player made of the landmass. Unset when none was kept: a flag can hold the lock with no fortify.
+  LandmassFortification last_fortification = 2;
+}
+
+// The tiles of the landmass one account's takes hold for one flag.
+message LandmassHolder {
+  string account_id = 1;
+  string country_id = 2;
+  uint32 tiles = 3;
+}
+
+message LandmassFortification {
+  // Empty once its account is deleted.
+  string account_id = 1;
+  string country_id = 2;
+  int64 fortified_at_unix_ms = 3;
 }
 
 message GetFortressesRequest {}
