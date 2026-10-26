@@ -20,7 +20,8 @@ and says what is in it. Read the doc before you change its area.
 
 ## How the code is shaped
 
-- [Six bounded contexts, one process](docs/bounded-contexts.md) — planet, chat, auth, player, seasons, support.
+- [Seven bounded contexts, one process](docs/bounded-contexts.md) — planet, chat, auth, player, seasons, support,
+  antibot.
   A module publishes its root package and hides the rest.
 - [The composite layer](docs/composite-layer.md) — each context wires itself in its `module.go`; how a module
   calls another one, and how it tells the others what happened: Redis Streams, the idempotent receivers, the
@@ -68,8 +69,8 @@ and says what is in it. Read the doc before you change its area.
   identity token.
 - [Auth](docs/auth.md) — Turnstile, guest and signed-in accounts (Google, Discord, emailed code), operators,
   sign-out, deletion and pruning.
-- [Anti-bot](docs/antibot.md) — the watchdogs and the jury that ban scripts, how a ban is told, what survives a
-  restart, and the parts that are easy to get wrong.
+- [Anti-bot](docs/antibot.md) — a module that hears planet's facts about callers, judges them, and asks planet to
+  refuse the ones it bans; what survives a restart, and the parts that are easy to get wrong.
 
 ## The other contexts
 
