@@ -43,7 +43,8 @@ is the player's own view.
   (`useOwnTakes`): `GetPlayer` is cached 10s, so it is read only once.
 - **The unlock moment is live.** The player stream carries `titleEarned` to a
   stream opened with this player's token. `useRoster` hands it to `Viewer`, which
-  queues them and shows `TitleUnlocked` over the game, one at a time. It is not a
+  announces it (the announcements queue, in [Battles](battle.md#the-announcements-queue))
+  and shows `TitleUnlocked` over the game, one full-screen moment at a time. It is not a
   `Modal` but the whole screen: it goes dark, "New title!" slams in, the medal
   spins in and lands with a flash, a shockwave and confetti, then the name and the
   rank line. The `title` sound is a drum roll that lands on the same beat; both

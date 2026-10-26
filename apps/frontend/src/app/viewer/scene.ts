@@ -68,9 +68,11 @@ export function addDisplayObjects(
     displayPoints: THREE.Points,
     graphics: Graphics,
     sphere: THREE.BufferGeometry,
-) {
+): THREE.Mesh {
     scene.add(displayPoints);
     scene.add(createEarth(graphics.earth, sphere));
     if (!graphics.earth) scene.add(new THREE.AmbientLight(0xffffff, 2));
-    scene.add(createAtmosphere(graphics.halo));
+    const atmosphere = createAtmosphere(graphics.halo);
+    scene.add(atmosphere);
+    return atmosphere;
 }

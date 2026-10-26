@@ -1,5 +1,6 @@
 import {useCallback, useEffect, useRef, useState} from 'react';
 import {createGlobe, Globe} from './globe.ts';
+import {Halo} from './atmosphere.ts';
 import {CapturedFrame} from './capture.ts';
 import {GraphicsReport, NO_GRAPHICS} from './graphicsReport.ts';
 import {Country} from '../../domain/countries.ts';
@@ -38,12 +39,13 @@ export type UseGlobeOptions = {
     country: Country
     clickHue: number | undefined
     mapView: MapView
+    halo: Halo
     // A change rebuilds the globe: antialiasing is fixed when the context is made.
     rendering: Rendering
 }
 
 export function useGlobe(options: UseGlobeOptions) {
-    const {container, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, bomber, shielder, playSound, onClickAccepted, country, clickHue, mapView, rendering} = options
+    const {container, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, bomber, shielder, playSound, onClickAccepted, country, clickHue, mapView, halo, rendering} = options
 
     const [status, setStatus] = useState<GlobeStatus>({state: 'loading'})
     const [tilesCount, setTilesCount] = useState(0)
@@ -115,6 +117,7 @@ export function useGlobe(options: UseGlobeOptions) {
     const initialCountry = useRef(country)
     const latestClickHue = useRef(clickHue)
     const latestMapView = useRef(mapView)
+    const latestHalo = useRef(halo)
 
     useEffect(() => {
         const element = container.current
@@ -176,6 +179,7 @@ export function useGlobe(options: UseGlobeOptions) {
             globeRef.current = globe
             globe.setClickHue(latestClickHue.current)
             globe.setMapView(latestMapView.current)
+            globe.setHalo(latestHalo.current)
             if (import.meta.env.DEV) Object.assign(window, {clickplanetGlobe: globe})
             setTilesCount(globe.tilesCount)
             publishLeaderboard()
@@ -208,6 +212,11 @@ export function useGlobe(options: UseGlobeOptions) {
         latestMapView.current = mapView
         globeRef.current?.setMapView(mapView)
     }, [mapView])
+
+    useEffect(() => {
+        latestHalo.current = halo
+        globeRef.current?.setHalo(halo)
+    }, [halo])
 
     const capture = useCallback((): Promise<CapturedFrame> => {
         const globe = globeRef.current

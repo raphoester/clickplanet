@@ -20,6 +20,9 @@ the whole `proto` directory, so a new package needs no config change; run
   current season (`SeasonService`)
 - [`support/v1/support.proto`](../../../proto/support/v1/support.proto) — what a
   player sends the operator (`SupportService`)
+- [`metagame/v1/metagame.proto`](../../../proto/metagame/v1/metagame.proto) — the
+  kind of the schedule's entry that plays, a battle or a plain one
+  (`MetagameService`, see [Battles](battle.md))
 
 `ChatMessage.sentAtUnixMs` is an `int64`, which `protoc-gen-es` gives you as a
 `bigint` — `chatBackend.ts` converts it at the edge so nothing above it deals in

@@ -239,6 +239,18 @@
     box-shadow: var(--drop-l), inset 0 2px 0 var(--sheen), 0 0 22px color-mix(in srgb, var(--action-light) 70%, transparent);
 }
 
+:root[data-mood="battle"] .click-budget-dock::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 8px;
+    border-radius: calc(var(--radius-l) - var(--outline)) calc(var(--radius-l) - var(--outline)) 0 0;
+    background: var(--tape);
+    pointer-events: none;
+}
+
 .click-budget-dock:has(.click-budget-empty) .click-budget-sign-in:not(:active),
 .click-budget-dock:has(.click-budget-refused) .click-budget-sign-in:not(:active) {
     box-shadow: var(--drop-xs), 0 0 16px color-mix(in srgb, var(--action-light) 70%, transparent);
