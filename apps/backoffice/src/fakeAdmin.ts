@@ -16,6 +16,8 @@ import {
     BanPlayerRequest,
     BanPlayerResponse,
     Conviction,
+    GetMetricsRequest as AntibotGetMetricsRequest,
+    GetMetricsResponse as AntibotGetMetricsResponse,
     GetRulesRequest as AntibotGetRulesRequest,
     GetRulesResponse as AntibotGetRulesResponse,
     InspectPlayerRequest,
@@ -39,6 +41,8 @@ import {
     GetReplayRequest,
     LedgerChange,
     GetReplayResponse,
+    GetMetricsRequest,
+    GetMetricsResponse,
     GetRulesRequest,
     GetRulesResponse,
     GrantChargesRequest,
@@ -65,14 +69,6 @@ import {
     StatsSnapshot,
     TikTokAccount,
 } from "./gen/grpc/clips/v1/admin_pb.ts"
-import {
-    Bucket,
-    GetMetricsRequest,
-    GetMetricsResponse,
-    Histogram,
-    Label,
-    Metric,
-} from "./gen/grpc/metrics/v1/admin_pb.ts"
 import {GetTerritoriesRequest, GetTerritoriesResponse, Territory} from "./gen/grpc/planet/v1/internal_pb.ts"
 import {ChargesHeld, TileUpdate} from "./gen/grpc/planet/v1/planet_pb.ts"
 import {
@@ -103,7 +99,6 @@ import {
     ChatAdmin,
     ClipsAdmin,
     Clients,
-    MetricsAdmin,
     PlanetAdmin,
     PlayerAdmin,
     SeasonsAdmin,
@@ -126,22 +121,19 @@ function at(seconds: number): Timestamp {
     return Timestamp.fromDate(new Date(AT.getTime() + seconds * 1000))
 }
 
-function counter(name: string, value: number, labels: Record<string, string> = {}): Metric {
-    return new Metric({
-        name, value: {case: "counter", value},
-        labels: Object.entries(labels).map(([key, label]) => new Label({name: key, value: label})),
-    })
+// A series as either module's GetMetrics answers it.
+type Series = {name: string, labels: {name: string, value: string}[], value: {case: "counter" | "gauge", value: number}}
+
+function counter(name: string, value: number, labels: Record<string, string> = {}): Series {
+    return {name, value: {case: "counter", value}, labels: Object.entries(labels).map(([key, label]) => ({name: key, value: label}))}
 }
 
-function gauge(name: string, value: number, labels: Record<string, string> = {}): Metric {
-    return new Metric({
-        name, value: {case: "gauge", value},
-        labels: Object.entries(labels).map(([key, label]) => new Label({name: key, value: label})),
-    })
+function gauge(name: string, value: number, labels: Record<string, string> = {}): Series {
+    return {name, value: {case: "gauge", value}, labels: Object.entries(labels).map(([key, label]) => ({name: key, value: label}))}
 }
 
-// /metrics as the server reads it `seconds` after AT, `minutes` minutes of play after the fake process started.
-export function metricsAt(seconds: number, minutes: number): GetMetricsResponse {
+// Planet's counters as it reads them `seconds` after AT, `minutes` minutes of play after the fake process started.
+export function planetMetricsAt(seconds: number, minutes: number): GetMetricsResponse {
     return new GetMetricsResponse({
         startedAt: at(-3600), readAt: at(seconds),
         metrics: [
@@ -150,42 +142,45 @@ export function metricsAt(seconds: number, minutes: number): GetMetricsResponse 
             counter("throttled_clicks", 30 * minutes),
             counter("refused_clicks", 3 * minutes),
             counter("blocked_clicks", 0),
+            counter("bonus_offers_total", 20 * minutes),
+            counter("bonus_claims_total", 12 * minutes, {outcome: "granted"}),
+            counter("bonus_claims_total", minutes, {outcome: "refused"}),
+            counter("bonus_lapsed_total", 8 * minutes),
+            counter("bonus_claims_foreign_total", minutes),
+            {
+                name: "bonus_catch_seconds", labels: [],
+                value: {
+                    case: "histogram", value: {
+                        count: BigInt(12 * minutes), sum: 18 * minutes,
+                        buckets: [
+                            {upperBound: 0.5, count: BigInt(minutes)},
+                            {upperBound: 1, count: BigInt(3 * minutes)},
+                            {upperBound: 3, count: BigInt(12 * minutes)},
+                        ],
+                    },
+                },
+            },
+        ],
+    })
+}
+
+// The antibot's counters, read with planet's.
+export function antibotMetricsAt(seconds: number, minutes: number): AntibotGetMetricsResponse {
+    return new AntibotGetMetricsResponse({
+        startedAt: at(-3600), readAt: at(seconds),
+        metrics: [
             gauge("banned_callers", 2),
             gauge("antibot_opinions_standing", 4, {watchdog: "metronome", level: "suspect"}),
             gauge("antibot_opinions_standing", 1, {watchdog: "metronome", level: "certain"}),
             gauge("antibot_opinions_standing", 1, {watchdog: "catcher", level: "suspect"}),
             gauge("antibot_opinions_standing", 0, {watchdog: "catcher", level: "certain"}),
             counter("ban_flags", minutes, {watchdog: "catcher"}),
-            counter("bonus_offers_total", 20 * minutes),
-            counter("bonus_claims_total", 12 * minutes, {outcome: "granted"}),
-            counter("bonus_claims_total", minutes, {outcome: "refused"}),
-            counter("bonus_lapsed_total", 8 * minutes),
-            counter("bonus_claims_foreign_total", minutes),
-            new Metric({
-                name: "bonus_catch_seconds",
-                value: {
-                    case: "histogram", value: new Histogram({
-                        count: BigInt(12 * minutes), sum: 18 * minutes,
-                        buckets: [
-                            new Bucket({upperBound: 0.5, count: BigInt(minutes)}),
-                            new Bucket({upperBound: 1, count: BigInt(3 * minutes)}),
-                            new Bucket({upperBound: 3, count: BigInt(12 * minutes)}),
-                        ],
-                    }),
-                },
-            }),
-            counter("process_cpu_seconds_total", 30 * minutes),
-            gauge("process_resident_memory_bytes", 300 * 1024 * 1024),
-            gauge("go_goroutines", 420),
-            gauge("events_lag", 3, {event: "planet.v1.TileTaken", subscriber: "seasons-standings"}),
-            counter("events_unpublished_total", 0, {event: "planet.v1.TileTaken"}),
-            counter("events_dead_total", minutes, {event: "planet.v1.TileTaken", subscriber: "seasons-standings"}),
         ],
     })
 }
 
 // What each fake was asked, and a refusal to answer with instead, by method.
-export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAdmin, ClipsAdmin, MetricsAdmin, SeasonsAdmin {
+export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAdmin, ClipsAdmin, SeasonsAdmin {
     readonly kind = "fake admin"
     readonly antibot: FakeAntibot = new FakeAntibot(this)
     readonly asked: {method: string, request: unknown}[] = []
@@ -297,8 +292,9 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
             clicks: 240, topCountry: "dz", topCountryClicks: 240,
         }),
     ]
-    // GetMetrics answers each in turn, then the last again.
-    metricReads = [metricsAt(-60, 59), metricsAt(0, 60)]
+    // Each GetMetrics answers its reads in turn, then the last again.
+    metricReads = [planetMetricsAt(-60, 59), planetMetricsAt(0, 60)]
+    antibotMetricReads = [antibotMetricsAt(-60, 59), antibotMetricsAt(0, 60)]
     race = new Race({
         round: new Round({
             number: 12, endsAtUnixMs: BigInt(AT.getTime() + 3600_000), finale: true,
@@ -363,7 +359,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
     ]]
 
     clients(): Clients {
-        return {antibot: this.antibot, chat: this, planet: this, player: this, support: this, clips: this, metrics: this, seasons: this}
+        return {antibot: this.antibot, chat: this, planet: this, player: this, support: this, clips: this, seasons: this}
     }
 
     refuse(method: string, code: Code) {
@@ -572,6 +568,12 @@ export class FakeAntibot implements AntibotAdmin {
 
     inspectPlayer(request: PartialMessage<InspectPlayerRequest>): Promise<InspectPlayerResponse> {
         return this.admin.answer("inspectPlayer", request, this.admin.inspection)
+    }
+
+    getMetrics(request: PartialMessage<AntibotGetMetricsRequest>): Promise<AntibotGetMetricsResponse> {
+        const reads = this.admin.antibotMetricReads
+        const read = reads.length > 1 ? reads.shift() : reads[0]
+        return this.admin.answer("getMetrics", request, read ?? new AntibotGetMetricsResponse())
     }
 
     getRules(request: PartialMessage<AntibotGetRulesRequest>): Promise<AntibotGetRulesResponse> {

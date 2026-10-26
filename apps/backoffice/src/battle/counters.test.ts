@@ -1,6 +1,5 @@
 import {describe, expect, it} from "vitest"
-import {metricsAt} from "../fakeAdmin.ts"
-import {Metric} from "../gen/grpc/metrics/v1/admin_pb.ts"
+import {planetMetricsAt} from "../fakeAdmin.ts"
 import {windowOf} from "../home/ledger.ts"
 import {
     increaseOf,
@@ -20,14 +19,14 @@ import {
 } from "./counters.ts"
 
 function sample(at: number, value: number, startedAt = 0): Sample {
-    return {at, startedAt, metrics: [new Metric({name: "throttled_clicks", value: {case: "counter", value}})]}
+    return {at, startedAt, metrics: [{name: "throttled_clicks", labels: [], value: {case: "counter", value}}]}
 }
 
 const throttled = named("throttled_clicks")
 
 describe("the counters of the process", () => {
     it("reads when the server read them and sums the series a select picks, labels and all", () => {
-        const read = sampleOf(metricsAt(0, 60))
+        const read = sampleOf(planetMetricsAt(0, 60))
 
         expect(read.at).toBe(new Date("2026-10-18T12:00:00Z").getTime())
         expect(nowOf([read], named("clicks_total"))).toBe(24_000)
@@ -63,16 +62,16 @@ describe("the counters of the process", () => {
     })
 
     it("names the reasons a click is refused for, the known ones first", () => {
-        const read = sampleOf(metricsAt(0, 1))
-        read.metrics.push(new Metric({name: "frozen_clicks", value: {case: "counter", value: 1}}))
-        read.metrics.push(new Metric({name: "allegiance_clicks", value: {case: "counter", value: 1}}))
+        const read = sampleOf(planetMetricsAt(0, 1))
+        read.metrics.push({name: "frozen_clicks", labels: [], value: {case: "counter", value: 1}})
+        read.metrics.push({name: "allegiance_clicks", labels: [], value: {case: "counter", value: 1}})
 
         expect(reasonsOf([read])).toEqual(["throttled_clicks", "refused_clicks", "blocked_clicks", "frozen_clicks", "allegiance_clicks"])
         expect(reasonsOf([read]).map(reasonLabelOf)).toEqual(["throttled", "banned", "blocked", "frozen", "allegiance"])
     })
 
     it("reads how many boxes were caught within a bound between the first read and the last", () => {
-        const samples = [sampleOf(metricsAt(-60, 59)), sampleOf(metricsAt(0, 60))]
+        const samples = [sampleOf(planetMetricsAt(-60, 59)), sampleOf(planetMetricsAt(0, 60))]
 
         expect(shareUnderOf(samples, "bonus_catch_seconds", 1)).toBeCloseTo(3 / 12)
         expect(shareUnderOf(samples.slice(1), "bonus_catch_seconds", 1)).toBeUndefined()

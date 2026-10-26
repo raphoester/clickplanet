@@ -137,7 +137,7 @@ describe("the battle page", () => {
             .toEqual(new Date(ledger[0].until.toDate().getTime() - SETTLE_MS))
     })
 
-    it("reads the race, what the antibot reads now, the boxes and the server", async () => {
+    it("reads the race, what the antibot reads now from its own counters, and the boxes from planet's", async () => {
         const admin = new FakeAdmin()
         show(admin)
         await screen.findByRole("region", {name: "Race"})
@@ -153,16 +153,13 @@ describe("the battle page", () => {
         expect([...metronome.querySelectorAll("td")].map(cell => cell.textContent)).toEqual(["metronome", "4", "1", "0"])
         expect(within(antibot).getByText("2 bans running")).toBeTruthy()
 
+        const catcher = within(antibot).getByText("catcher").closest("tr")
+        if (catcher === null) throw new Error("no catcher row")
+        expect(catcher.querySelectorAll("td")[3].textContent, "one ban since the page opened").toBe("1")
+
         const boxes = screen.getByRole("region", {name: "Boxes"})
         expect(within(boxes).getByText("25%")).toBeTruthy()
-
-        const server = screen.getByRole("region", {name: "Server"})
-        expect(within(server).getByText("50% of a core")).toBeTruthy()
-        expect(within(server).getByText("300 MB")).toBeTruthy()
-        const lost = within(server).getByText("Events lost").closest("div")
-        expect(lost?.querySelector("dd")?.textContent, "a minute, then since the page opened").toBe("1, 1")
-        const waiting = within(server).getByText("Events not read yet").closest("div")
-        expect(waiting?.querySelector("dd")?.textContent).toBe("3")
+        expect(screen.queryByRole("region", {name: "Server"}), "no module owns the process").toBeNull()
     })
 
     it("shows who plays now", async () => {

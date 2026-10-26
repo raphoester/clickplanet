@@ -65,6 +65,8 @@ const (
 	// AdminServiceGetTerritoriesProcedure is the fully-qualified name of the AdminService's
 	// GetTerritories RPC.
 	AdminServiceGetTerritoriesProcedure = "/planet.v1.AdminService/GetTerritories"
+	// AdminServiceGetMetricsProcedure is the fully-qualified name of the AdminService's GetMetrics RPC.
+	AdminServiceGetMetricsProcedure = "/planet.v1.AdminService/GetMetrics"
 	// AdminServiceGetRulesProcedure is the fully-qualified name of the AdminService's GetRules RPC.
 	AdminServiceGetRulesProcedure = "/planet.v1.AdminService/GetRules"
 	// AdminServiceSaveRuleSetProcedure is the fully-qualified name of the AdminService's SaveRuleSet
@@ -98,6 +100,9 @@ type AdminServiceClient interface {
 	GetLedger(context.Context, *connect.Request[v1.GetLedgerRequest]) (*connect.Response[v1.GetLedgerResponse], error)
 	// InternalService/GetTerritories, for the admin page: the tiles each country holds now.
 	GetTerritories(context.Context, *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error)
+	// What /metrics says of planet's own registry. A counter counts from `started_at`: two answers with the same
+	// `started_at` are subtracted, never two with different ones.
+	GetMetrics(context.Context, *connect.Request[v1.GetMetricsRequest]) (*connect.Response[v1.GetMetricsResponse], error)
 	GetRules(context.Context, *connect.Request[v1.GetRulesRequest]) (*connect.Response[v1.GetRulesResponse], error)
 	// Makes a set, or replaces the values of one. The game follows a set in force within a second.
 	SaveRuleSet(context.Context, *connect.Request[v1.SaveRuleSetRequest]) (*connect.Response[v1.SaveRuleSetResponse], error)
@@ -186,6 +191,12 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("GetTerritories")),
 			connect.WithClientOptions(opts...),
 		),
+		getMetrics: connect.NewClient[v1.GetMetricsRequest, v1.GetMetricsResponse](
+			httpClient,
+			baseURL+AdminServiceGetMetricsProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("GetMetrics")),
+			connect.WithClientOptions(opts...),
+		),
 		getRules: connect.NewClient[v1.GetRulesRequest, v1.GetRulesResponse](
 			httpClient,
 			baseURL+AdminServiceGetRulesProcedure,
@@ -215,6 +226,7 @@ type adminServiceClient struct {
 	getReplay        *connect.Client[v1.GetReplayRequest, v1.GetReplayResponse]
 	getLedger        *connect.Client[v1.GetLedgerRequest, v1.GetLedgerResponse]
 	getTerritories   *connect.Client[v1.GetTerritoriesRequest, v1.GetTerritoriesResponse]
+	getMetrics       *connect.Client[v1.GetMetricsRequest, v1.GetMetricsResponse]
 	getRules         *connect.Client[v1.GetRulesRequest, v1.GetRulesResponse]
 	saveRuleSet      *connect.Client[v1.SaveRuleSetRequest, v1.SaveRuleSetResponse]
 }
@@ -285,6 +297,11 @@ func (c *adminServiceClient) GetTerritories(ctx context.Context, req *connect.Re
 	return c.getTerritories.CallUnary(ctx, req)
 }
 
+// GetMetrics calls planet.v1.AdminService.GetMetrics.
+func (c *adminServiceClient) GetMetrics(ctx context.Context, req *connect.Request[v1.GetMetricsRequest]) (*connect.Response[v1.GetMetricsResponse], error) {
+	return c.getMetrics.CallUnary(ctx, req)
+}
+
 // GetRules calls planet.v1.AdminService.GetRules.
 func (c *adminServiceClient) GetRules(ctx context.Context, req *connect.Request[v1.GetRulesRequest]) (*connect.Response[v1.GetRulesResponse], error) {
 	return c.getRules.CallUnary(ctx, req)
@@ -321,6 +338,9 @@ type AdminServiceHandler interface {
 	GetLedger(context.Context, *connect.Request[v1.GetLedgerRequest]) (*connect.Response[v1.GetLedgerResponse], error)
 	// InternalService/GetTerritories, for the admin page: the tiles each country holds now.
 	GetTerritories(context.Context, *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error)
+	// What /metrics says of planet's own registry. A counter counts from `started_at`: two answers with the same
+	// `started_at` are subtracted, never two with different ones.
+	GetMetrics(context.Context, *connect.Request[v1.GetMetricsRequest]) (*connect.Response[v1.GetMetricsResponse], error)
 	GetRules(context.Context, *connect.Request[v1.GetRulesRequest]) (*connect.Response[v1.GetRulesResponse], error)
 	// Makes a set, or replaces the values of one. The game follows a set in force within a second.
 	SaveRuleSet(context.Context, *connect.Request[v1.SaveRuleSetRequest]) (*connect.Response[v1.SaveRuleSetResponse], error)
@@ -405,6 +425,12 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(adminServiceMethods.ByName("GetTerritories")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServiceGetMetricsHandler := connect.NewUnaryHandler(
+		AdminServiceGetMetricsProcedure,
+		svc.GetMetrics,
+		connect.WithSchema(adminServiceMethods.ByName("GetMetrics")),
+		connect.WithHandlerOptions(opts...),
+	)
 	adminServiceGetRulesHandler := connect.NewUnaryHandler(
 		AdminServiceGetRulesProcedure,
 		svc.GetRules,
@@ -443,6 +469,8 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 			adminServiceGetLedgerHandler.ServeHTTP(w, r)
 		case AdminServiceGetTerritoriesProcedure:
 			adminServiceGetTerritoriesHandler.ServeHTTP(w, r)
+		case AdminServiceGetMetricsProcedure:
+			adminServiceGetMetricsHandler.ServeHTTP(w, r)
 		case AdminServiceGetRulesProcedure:
 			adminServiceGetRulesHandler.ServeHTTP(w, r)
 		case AdminServiceSaveRuleSetProcedure:
@@ -502,6 +530,10 @@ func (UnimplementedAdminServiceHandler) GetLedger(context.Context, *connect.Requ
 
 func (UnimplementedAdminServiceHandler) GetTerritories(context.Context, *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.GetTerritories is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) GetMetrics(context.Context, *connect.Request[v1.GetMetricsRequest]) (*connect.Response[v1.GetMetricsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.GetMetrics is not implemented"))
 }
 
 func (UnimplementedAdminServiceHandler) GetRules(context.Context, *connect.Request[v1.GetRulesRequest]) (*connect.Response[v1.GetRulesResponse], error) {

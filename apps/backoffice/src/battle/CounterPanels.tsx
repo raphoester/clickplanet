@@ -14,8 +14,6 @@ import {
 } from "./counters.ts"
 
 const PERCENT = new Intl.NumberFormat("en", {style: "percent", maximumFractionDigits: 0})
-const MB = 1024 * 1024
-const LOST_EVENTS = ["events_unpublished_total", "events_dead_total"]
 
 type Props = {samples: Sample[]}
 
@@ -79,34 +77,12 @@ export function BoxPanel({samples}: Props) {
     )
 }
 
-// How the server holds up: the process's CPU and memory, and the events between modules that wait or were lost.
-export function ServerPanel({samples}: Props) {
-    const cpu = lastMinuteOf(samples, named("process_cpu_seconds_total"))
-    const memory = nowOf(samples, named("process_resident_memory_bytes"))
-    const goroutines = nowOf(samples, named("go_goroutines"))
-    const waiting = nowOf(samples, named("events_lag"))
-    return (
-        <section className="panel" aria-label="Server">
-            <div className="panel-head">
-                <h2>Server</h2>
-            </div>
-            <dl className="facts">
-                <Fact label="CPU">{cpu === undefined ? "…" : `${PERCENT.format(cpu / 60)} of a core`}</Fact>
-                <Fact label="Memory">{memory === undefined ? "…" : `${wholeOf(Math.round(memory / MB))} MB`}</Fact>
-                <Fact label="Goroutines">{countOf(goroutines)}</Fact>
-                <Fact label="Events not read yet">{countOf(waiting)}</Fact>
-                <Rate label="Events lost" samples={samples} select={metric => LOST_EVENTS.includes(metric.name)}/>
-            </dl>
-        </section>
-    )
-}
-
-// Every counter and gauge the server keeps, its labels summed: for what no panel shows.
-export function EveryCounter({samples}: Props) {
+// Every counter and gauge a module keeps, its labels summed: for what no panel shows.
+export function EveryCounter({title, samples}: Props & {title: string}) {
     const names = namesOf(samples)
     return (
         <details className="chart-table">
-            <summary>Every counter</summary>
+            <summary>{title}</summary>
             <table className="table">
                 <thead>
                     <tr>

@@ -14,7 +14,7 @@ minutes.
 - **Clicks a minute** come from the ledger, read on as Home reads it (`readOn` in `home/ledger.ts`, see
   [The home page](home.md)): the first read takes the span, each next one from a minute before the end of the last,
   every page of it. Then `slotsOf`, as on Home, in minutes.
-- **Refused a minute** come from the process's counters (`metrics.v1.AdminService/GetMetrics`, `counters.ts`). **The
+- **Refused a minute** come from planet's counters (`planet.v1.AdminService/GetMetrics`, `counters.ts`). **The
   history starts when the page opens**: the counters are in process, so the page keeps its own answers for the span
   (`keptSamples`) and subtracts them, spread over the minutes between two reads (`perSlotOf`); a restart (another
   `started_at`) counts from zero. **A reason is every counter named `<reason>_clicks`** (`reasonsOf`): throttled,
@@ -26,9 +26,10 @@ minutes.
   span has no point.
 - **Race** (`RacePanel`): `seasons.v1.AdminService/GetRace`, the round's standings and the season's points, as the
   players see them.
-- **Antibot**, **Boxes**, **Server** (`CounterPanels`): callers each watchdog reads at suspect and certain now
-  (`antibot_opinions_standing`) and the bans each argued for (`ban_flags`); the boxes offered, caught, lapsed and
-  claimed for another a minute, and the share caught within a second (`bonus_catch_seconds`); the process's CPU,
-  memory, goroutines, the events between modules not read yet (`events_lag`) and those lost
-  (`events_unpublished_total`, `events_dead_total`). **Every counter** lists the rest.
+- **Antibot** and **Boxes** (`CounterPanels`): callers each watchdog reads at suspect and certain now
+  (`antibot_opinions_standing`) and the bans each argued for (`ban_flags`), from the antibot's own counters
+  (`antibot.v1.AdminService/GetMetrics`); the boxes offered, caught, lapsed and claimed for another a minute, and the
+  share caught within a second (`bonus_catch_seconds`), from planet's. **Every planet counter** and **Every antibot
+  counter** list the rest. Each module answers its own registry alone, so the page reads two: the process's CPU and
+  memory belong to no module, and are not here.
 - **Playing now** is Home's (`PlayingNow`).

@@ -8,7 +8,8 @@ Each context wires **itself**, in a `module.go` at its root (`internal/planet/mo
 - `props.Internal.Dial()` — the HTTP client and base URL a generated `New<Service>Client` takes, to call another module — see [Calling another module](#calling-another-module)
 - `props.Runners.Add(runner)` — a `Runner` (`Name()` and `Run(ctx)`), run as a goroutine with the process-lifetime context
 - `props.Closers.Add(name, close)` — a cleanup, run in reverse registration order
-- `props.Logger`, `props.Metrics`
+- `props.Logger`
+- `props.Metrics` — the module's own Prometheus registry. `/metrics` serves the process's and every module's, merged; a module that answers its counters on its admin service (`GetMetrics`) gathers its own alone, so no module answers another's
 - `props.Server` — the bind address and the stream heartbeat, **the only config a module reads that is not its own**. It is the transport every module answers over, so it belongs to the layer that owns the server rather than to any context.
 
 **A constructor builds and a `Load…` method reads.** Nothing that reads a file or parses a blob happens inside `New`: the DI sequence calls `New`, then the load, one line each — `embedded_geodesic_map.New` then `LoadGeography`/`LoadBorders`, `inmemory_tile_storage.New` then `LoadSnapshot`, `cpipblock.New` then `Load`, `guard.New` then `Load` (the antibot's evidence), `inmemory_ledger_storage.New` then `Load`.

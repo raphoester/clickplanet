@@ -4,7 +4,6 @@ import {AdminService as AntibotAdmin} from "./gen/grpc/antibot/v1/admin_connect.
 import {AdminService as AuthAdmin} from "./gen/grpc/auth/v1/admin_connect.ts"
 import {AdminService as ChatAdmin} from "./gen/grpc/chat/v1/admin_connect.ts"
 import {AdminService as ClipsAdmin} from "./gen/grpc/clips/v1/admin_connect.ts"
-import {AdminService as MetricsAdmin} from "./gen/grpc/metrics/v1/admin_connect.ts"
 import {AdminService as PlanetAdmin} from "./gen/grpc/planet/v1/admin_connect.ts"
 import {AdminService as PlayerAdmin} from "./gen/grpc/player/v1/admin_connect.ts"
 import {AdminService as SeasonsAdmin} from "./gen/grpc/seasons/v1/admin_connect.ts"
@@ -25,7 +24,6 @@ export const antibotAdmin = createPromiseClient(AntibotAdmin, transport)
 export const authAdmin = createPromiseClient(AuthAdmin, transport)
 export const chatAdmin = createPromiseClient(ChatAdmin, transport)
 export const clipsAdmin = createPromiseClient(ClipsAdmin, transport)
-export const metricsAdmin = createPromiseClient(MetricsAdmin, transport)
 export const planetAdmin = createPromiseClient(PlanetAdmin, transport)
 export const playerAdmin = createPromiseClient(PlayerAdmin, transport)
 export const seasonsAdmin = createPromiseClient(SeasonsAdmin, transport)

@@ -1049,6 +1049,510 @@ func (x *Conviction) GetTopCountryClicks() uint32 {
 	return 0
 }
 
+type GetMetricsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetMetricsRequest) Reset() {
+	*x = GetMetricsRequest{}
+	mi := &file_antibot_v1_admin_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetMetricsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetMetricsRequest) ProtoMessage() {}
+
+func (x *GetMetricsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_antibot_v1_admin_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetMetricsRequest.ProtoReflect.Descriptor instead.
+func (*GetMetricsRequest) Descriptor() ([]byte, []int) {
+	return file_antibot_v1_admin_proto_rawDescGZIP(), []int{15}
+}
+
+type GetMetricsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	StartedAt     *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	ReadAt        *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=read_at,json=readAt,proto3" json:"read_at,omitempty"`
+	Metrics       []*Metric              `protobuf:"bytes,3,rep,name=metrics,proto3" json:"metrics,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetMetricsResponse) Reset() {
+	*x = GetMetricsResponse{}
+	mi := &file_antibot_v1_admin_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetMetricsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetMetricsResponse) ProtoMessage() {}
+
+func (x *GetMetricsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_antibot_v1_admin_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetMetricsResponse.ProtoReflect.Descriptor instead.
+func (*GetMetricsResponse) Descriptor() ([]byte, []int) {
+	return file_antibot_v1_admin_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *GetMetricsResponse) GetStartedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.StartedAt
+	}
+	return nil
+}
+
+func (x *GetMetricsResponse) GetReadAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ReadAt
+	}
+	return nil
+}
+
+func (x *GetMetricsResponse) GetMetrics() []*Metric {
+	if x != nil {
+		return x.Metrics
+	}
+	return nil
+}
+
+// One series: a name, its labels and its value.
+type Metric struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Name   string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Labels []*Label               `protobuf:"bytes,2,rep,name=labels,proto3" json:"labels,omitempty"`
+	// Types that are valid to be assigned to Value:
+	//
+	//	*Metric_Counter
+	//	*Metric_Gauge
+	//	*Metric_Histogram
+	//	*Metric_Summary
+	Value         isMetric_Value `protobuf_oneof:"value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Metric) Reset() {
+	*x = Metric{}
+	mi := &file_antibot_v1_admin_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Metric) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Metric) ProtoMessage() {}
+
+func (x *Metric) ProtoReflect() protoreflect.Message {
+	mi := &file_antibot_v1_admin_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Metric.ProtoReflect.Descriptor instead.
+func (*Metric) Descriptor() ([]byte, []int) {
+	return file_antibot_v1_admin_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *Metric) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *Metric) GetLabels() []*Label {
+	if x != nil {
+		return x.Labels
+	}
+	return nil
+}
+
+func (x *Metric) GetValue() isMetric_Value {
+	if x != nil {
+		return x.Value
+	}
+	return nil
+}
+
+func (x *Metric) GetCounter() float64 {
+	if x != nil {
+		if x, ok := x.Value.(*Metric_Counter); ok {
+			return x.Counter
+		}
+	}
+	return 0
+}
+
+func (x *Metric) GetGauge() float64 {
+	if x != nil {
+		if x, ok := x.Value.(*Metric_Gauge); ok {
+			return x.Gauge
+		}
+	}
+	return 0
+}
+
+func (x *Metric) GetHistogram() *Histogram {
+	if x != nil {
+		if x, ok := x.Value.(*Metric_Histogram); ok {
+			return x.Histogram
+		}
+	}
+	return nil
+}
+
+func (x *Metric) GetSummary() *Summary {
+	if x != nil {
+		if x, ok := x.Value.(*Metric_Summary); ok {
+			return x.Summary
+		}
+	}
+	return nil
+}
+
+type isMetric_Value interface {
+	isMetric_Value()
+}
+
+type Metric_Counter struct {
+	Counter float64 `protobuf:"fixed64,3,opt,name=counter,proto3,oneof"`
+}
+
+type Metric_Gauge struct {
+	Gauge float64 `protobuf:"fixed64,4,opt,name=gauge,proto3,oneof"`
+}
+
+type Metric_Histogram struct {
+	Histogram *Histogram `protobuf:"bytes,5,opt,name=histogram,proto3,oneof"`
+}
+
+type Metric_Summary struct {
+	Summary *Summary `protobuf:"bytes,6,opt,name=summary,proto3,oneof"`
+}
+
+func (*Metric_Counter) isMetric_Value() {}
+
+func (*Metric_Gauge) isMetric_Value() {}
+
+func (*Metric_Histogram) isMetric_Value() {}
+
+func (*Metric_Summary) isMetric_Value() {}
+
+type Label struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Value         string                 `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Label) Reset() {
+	*x = Label{}
+	mi := &file_antibot_v1_admin_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Label) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Label) ProtoMessage() {}
+
+func (x *Label) ProtoReflect() protoreflect.Message {
+	mi := &file_antibot_v1_admin_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Label.ProtoReflect.Descriptor instead.
+func (*Label) Descriptor() ([]byte, []int) {
+	return file_antibot_v1_admin_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *Label) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *Label) GetValue() string {
+	if x != nil {
+		return x.Value
+	}
+	return ""
+}
+
+type Histogram struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Count uint64                 `protobuf:"varint,1,opt,name=count,proto3" json:"count,omitempty"`
+	Sum   float64                `protobuf:"fixed64,2,opt,name=sum,proto3" json:"sum,omitempty"`
+	// Cumulative, as Prometheus keeps them. The +Inf bucket is `count`.
+	Buckets       []*Bucket `protobuf:"bytes,3,rep,name=buckets,proto3" json:"buckets,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Histogram) Reset() {
+	*x = Histogram{}
+	mi := &file_antibot_v1_admin_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Histogram) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Histogram) ProtoMessage() {}
+
+func (x *Histogram) ProtoReflect() protoreflect.Message {
+	mi := &file_antibot_v1_admin_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Histogram.ProtoReflect.Descriptor instead.
+func (*Histogram) Descriptor() ([]byte, []int) {
+	return file_antibot_v1_admin_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *Histogram) GetCount() uint64 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
+func (x *Histogram) GetSum() float64 {
+	if x != nil {
+		return x.Sum
+	}
+	return 0
+}
+
+func (x *Histogram) GetBuckets() []*Bucket {
+	if x != nil {
+		return x.Buckets
+	}
+	return nil
+}
+
+type Bucket struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UpperBound    float64                `protobuf:"fixed64,1,opt,name=upper_bound,json=upperBound,proto3" json:"upper_bound,omitempty"`
+	Count         uint64                 `protobuf:"varint,2,opt,name=count,proto3" json:"count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Bucket) Reset() {
+	*x = Bucket{}
+	mi := &file_antibot_v1_admin_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Bucket) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Bucket) ProtoMessage() {}
+
+func (x *Bucket) ProtoReflect() protoreflect.Message {
+	mi := &file_antibot_v1_admin_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Bucket.ProtoReflect.Descriptor instead.
+func (*Bucket) Descriptor() ([]byte, []int) {
+	return file_antibot_v1_admin_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *Bucket) GetUpperBound() float64 {
+	if x != nil {
+		return x.UpperBound
+	}
+	return 0
+}
+
+func (x *Bucket) GetCount() uint64 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
+type Summary struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Count         uint64                 `protobuf:"varint,1,opt,name=count,proto3" json:"count,omitempty"`
+	Sum           float64                `protobuf:"fixed64,2,opt,name=sum,proto3" json:"sum,omitempty"`
+	Quantiles     []*Quantile            `protobuf:"bytes,3,rep,name=quantiles,proto3" json:"quantiles,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Summary) Reset() {
+	*x = Summary{}
+	mi := &file_antibot_v1_admin_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Summary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Summary) ProtoMessage() {}
+
+func (x *Summary) ProtoReflect() protoreflect.Message {
+	mi := &file_antibot_v1_admin_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Summary.ProtoReflect.Descriptor instead.
+func (*Summary) Descriptor() ([]byte, []int) {
+	return file_antibot_v1_admin_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *Summary) GetCount() uint64 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
+func (x *Summary) GetSum() float64 {
+	if x != nil {
+		return x.Sum
+	}
+	return 0
+}
+
+func (x *Summary) GetQuantiles() []*Quantile {
+	if x != nil {
+		return x.Quantiles
+	}
+	return nil
+}
+
+type Quantile struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Quantile      float64                `protobuf:"fixed64,1,opt,name=quantile,proto3" json:"quantile,omitempty"`
+	Value         float64                `protobuf:"fixed64,2,opt,name=value,proto3" json:"value,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Quantile) Reset() {
+	*x = Quantile{}
+	mi := &file_antibot_v1_admin_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Quantile) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Quantile) ProtoMessage() {}
+
+func (x *Quantile) ProtoReflect() protoreflect.Message {
+	mi := &file_antibot_v1_admin_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Quantile.ProtoReflect.Descriptor instead.
+func (*Quantile) Descriptor() ([]byte, []int) {
+	return file_antibot_v1_admin_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *Quantile) GetQuantile() float64 {
+	if x != nil {
+		return x.Quantile
+	}
+	return 0
+}
+
+func (x *Quantile) GetValue() float64 {
+	if x != nil {
+		return x.Value
+	}
+	return 0
+}
+
 var File_antibot_v1_admin_proto protoreflect.FileDescriptor
 
 const file_antibot_v1_admin_proto_rawDesc = "" +
@@ -1149,14 +1653,48 @@ const file_antibot_v1_admin_proto_rawDesc = "" +
 	"longestGap\x12\x1f\n" +
 	"\vtop_country\x18\f \x01(\tR\n" +
 	"topCountry\x12,\n" +
-	"\x12top_country_clicks\x18\r \x01(\rR\x10topCountryClicks2\xf1\x03\n" +
+	"\x12top_country_clicks\x18\r \x01(\rR\x10topCountryClicks\"\x13\n" +
+	"\x11GetMetricsRequest\"\xb2\x01\n" +
+	"\x12GetMetricsResponse\x129\n" +
+	"\n" +
+	"started_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\x123\n" +
+	"\aread_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x06readAt\x12,\n" +
+	"\ametrics\x18\x03 \x03(\v2\x12.antibot.v1.MetricR\ametrics\"\xec\x01\n" +
+	"\x06Metric\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12)\n" +
+	"\x06labels\x18\x02 \x03(\v2\x11.antibot.v1.LabelR\x06labels\x12\x1a\n" +
+	"\acounter\x18\x03 \x01(\x01H\x00R\acounter\x12\x16\n" +
+	"\x05gauge\x18\x04 \x01(\x01H\x00R\x05gauge\x125\n" +
+	"\thistogram\x18\x05 \x01(\v2\x15.antibot.v1.HistogramH\x00R\thistogram\x12/\n" +
+	"\asummary\x18\x06 \x01(\v2\x13.antibot.v1.SummaryH\x00R\asummaryB\a\n" +
+	"\x05value\"1\n" +
+	"\x05Label\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value\"a\n" +
+	"\tHistogram\x12\x14\n" +
+	"\x05count\x18\x01 \x01(\x04R\x05count\x12\x10\n" +
+	"\x03sum\x18\x02 \x01(\x01R\x03sum\x12,\n" +
+	"\abuckets\x18\x03 \x03(\v2\x12.antibot.v1.BucketR\abuckets\"?\n" +
+	"\x06Bucket\x12\x1f\n" +
+	"\vupper_bound\x18\x01 \x01(\x01R\n" +
+	"upperBound\x12\x14\n" +
+	"\x05count\x18\x02 \x01(\x04R\x05count\"e\n" +
+	"\aSummary\x12\x14\n" +
+	"\x05count\x18\x01 \x01(\x04R\x05count\x12\x10\n" +
+	"\x03sum\x18\x02 \x01(\x01R\x03sum\x122\n" +
+	"\tquantiles\x18\x03 \x03(\v2\x14.antibot.v1.QuantileR\tquantiles\"<\n" +
+	"\bQuantile\x12\x1a\n" +
+	"\bquantile\x18\x01 \x01(\x01R\bquantile\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x01R\x05value2\xbe\x04\n" +
 	"\fAdminService\x12H\n" +
 	"\tBanPlayer\x12\x1c.antibot.v1.BanPlayerRequest\x1a\x1d.antibot.v1.BanPlayerResponse\x12N\n" +
 	"\vUnbanPlayer\x12\x1e.antibot.v1.UnbanPlayerRequest\x1a\x1f.antibot.v1.UnbanPlayerResponse\x12T\n" +
 	"\rInspectPlayer\x12 .antibot.v1.InspectPlayerRequest\x1a!.antibot.v1.InspectPlayerResponse\x12E\n" +
 	"\bGetRules\x12\x1b.antibot.v1.GetRulesRequest\x1a\x1c.antibot.v1.GetRulesResponse\x12N\n" +
 	"\vSaveRuleSet\x12\x1e.antibot.v1.SaveRuleSetRequest\x1a\x1f.antibot.v1.SaveRuleSetResponse\x12Z\n" +
-	"\x0fListConvictions\x12\".antibot.v1.ListConvictionsRequest\x1a#.antibot.v1.ListConvictionsResponseB\xb9\x01\n" +
+	"\x0fListConvictions\x12\".antibot.v1.ListConvictionsRequest\x1a#.antibot.v1.ListConvictionsResponse\x12K\n" +
+	"\n" +
+	"GetMetrics\x12\x1d.antibot.v1.GetMetricsRequest\x1a\x1e.antibot.v1.GetMetricsResponseB\xb9\x01\n" +
 	"\x0ecom.antibot.v1B\n" +
 	"AdminProtoP\x01ZRgithub.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1;antibotv1\xa2\x02\x03AXX\xaa\x02\n" +
 	"Antibot.V1\xca\x02\n" +
@@ -1174,7 +1712,7 @@ func file_antibot_v1_admin_proto_rawDescGZIP() []byte {
 	return file_antibot_v1_admin_proto_rawDescData
 }
 
-var file_antibot_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_antibot_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
 var file_antibot_v1_admin_proto_goTypes = []any{
 	(*GetRulesRequest)(nil),         // 0: antibot.v1.GetRulesRequest
 	(*GetRulesResponse)(nil),        // 1: antibot.v1.GetRulesResponse
@@ -1191,50 +1729,68 @@ var file_antibot_v1_admin_proto_goTypes = []any{
 	(*ListConvictionsRequest)(nil),  // 12: antibot.v1.ListConvictionsRequest
 	(*ListConvictionsResponse)(nil), // 13: antibot.v1.ListConvictionsResponse
 	(*Conviction)(nil),              // 14: antibot.v1.Conviction
-	(*Rules)(nil),                   // 15: antibot.v1.Rules
-	(*durationpb.Duration)(nil),     // 16: google.protobuf.Duration
-	(*timestamppb.Timestamp)(nil),   // 17: google.protobuf.Timestamp
+	(*GetMetricsRequest)(nil),       // 15: antibot.v1.GetMetricsRequest
+	(*GetMetricsResponse)(nil),      // 16: antibot.v1.GetMetricsResponse
+	(*Metric)(nil),                  // 17: antibot.v1.Metric
+	(*Label)(nil),                   // 18: antibot.v1.Label
+	(*Histogram)(nil),               // 19: antibot.v1.Histogram
+	(*Bucket)(nil),                  // 20: antibot.v1.Bucket
+	(*Summary)(nil),                 // 21: antibot.v1.Summary
+	(*Quantile)(nil),                // 22: antibot.v1.Quantile
+	(*Rules)(nil),                   // 23: antibot.v1.Rules
+	(*durationpb.Duration)(nil),     // 24: google.protobuf.Duration
+	(*timestamppb.Timestamp)(nil),   // 25: google.protobuf.Timestamp
 }
 var file_antibot_v1_admin_proto_depIdxs = []int32{
 	2,  // 0: antibot.v1.GetRulesResponse.sets:type_name -> antibot.v1.RuleSet
-	15, // 1: antibot.v1.RuleSet.rules:type_name -> antibot.v1.Rules
+	23, // 1: antibot.v1.RuleSet.rules:type_name -> antibot.v1.Rules
 	2,  // 2: antibot.v1.SaveRuleSetRequest.set:type_name -> antibot.v1.RuleSet
-	16, // 3: antibot.v1.BanPlayerRequest.duration:type_name -> google.protobuf.Duration
-	17, // 4: antibot.v1.BanPlayerResponse.banned_until:type_name -> google.protobuf.Timestamp
-	17, // 5: antibot.v1.UnbanPlayerResponse.banned_until:type_name -> google.protobuf.Timestamp
-	17, // 6: antibot.v1.UnbanPlayerResponse.pardoned_until:type_name -> google.protobuf.Timestamp
-	17, // 7: antibot.v1.InspectPlayerResponse.banned_until:type_name -> google.protobuf.Timestamp
-	17, // 8: antibot.v1.InspectPlayerResponse.pardoned_until:type_name -> google.protobuf.Timestamp
+	24, // 3: antibot.v1.BanPlayerRequest.duration:type_name -> google.protobuf.Duration
+	25, // 4: antibot.v1.BanPlayerResponse.banned_until:type_name -> google.protobuf.Timestamp
+	25, // 5: antibot.v1.UnbanPlayerResponse.banned_until:type_name -> google.protobuf.Timestamp
+	25, // 6: antibot.v1.UnbanPlayerResponse.pardoned_until:type_name -> google.protobuf.Timestamp
+	25, // 7: antibot.v1.InspectPlayerResponse.banned_until:type_name -> google.protobuf.Timestamp
+	25, // 8: antibot.v1.InspectPlayerResponse.pardoned_until:type_name -> google.protobuf.Timestamp
 	11, // 9: antibot.v1.InspectPlayerResponse.readings:type_name -> antibot.v1.WatchdogReading
-	16, // 10: antibot.v1.InspectPlayerResponse.active_for:type_name -> google.protobuf.Duration
-	16, // 11: antibot.v1.InspectPlayerResponse.longest_gap:type_name -> google.protobuf.Duration
-	17, // 12: antibot.v1.InspectPlayerResponse.last_click_at:type_name -> google.protobuf.Timestamp
-	17, // 13: antibot.v1.WatchdogReading.at:type_name -> google.protobuf.Timestamp
-	17, // 14: antibot.v1.ListConvictionsRequest.since:type_name -> google.protobuf.Timestamp
-	17, // 15: antibot.v1.ListConvictionsRequest.until:type_name -> google.protobuf.Timestamp
+	24, // 10: antibot.v1.InspectPlayerResponse.active_for:type_name -> google.protobuf.Duration
+	24, // 11: antibot.v1.InspectPlayerResponse.longest_gap:type_name -> google.protobuf.Duration
+	25, // 12: antibot.v1.InspectPlayerResponse.last_click_at:type_name -> google.protobuf.Timestamp
+	25, // 13: antibot.v1.WatchdogReading.at:type_name -> google.protobuf.Timestamp
+	25, // 14: antibot.v1.ListConvictionsRequest.since:type_name -> google.protobuf.Timestamp
+	25, // 15: antibot.v1.ListConvictionsRequest.until:type_name -> google.protobuf.Timestamp
 	14, // 16: antibot.v1.ListConvictionsResponse.convictions:type_name -> antibot.v1.Conviction
-	17, // 17: antibot.v1.Conviction.at:type_name -> google.protobuf.Timestamp
-	17, // 18: antibot.v1.Conviction.banned_until:type_name -> google.protobuf.Timestamp
+	25, // 17: antibot.v1.Conviction.at:type_name -> google.protobuf.Timestamp
+	25, // 18: antibot.v1.Conviction.banned_until:type_name -> google.protobuf.Timestamp
 	11, // 19: antibot.v1.Conviction.readings:type_name -> antibot.v1.WatchdogReading
-	16, // 20: antibot.v1.Conviction.active_for:type_name -> google.protobuf.Duration
-	16, // 21: antibot.v1.Conviction.longest_gap:type_name -> google.protobuf.Duration
-	5,  // 22: antibot.v1.AdminService.BanPlayer:input_type -> antibot.v1.BanPlayerRequest
-	7,  // 23: antibot.v1.AdminService.UnbanPlayer:input_type -> antibot.v1.UnbanPlayerRequest
-	9,  // 24: antibot.v1.AdminService.InspectPlayer:input_type -> antibot.v1.InspectPlayerRequest
-	0,  // 25: antibot.v1.AdminService.GetRules:input_type -> antibot.v1.GetRulesRequest
-	3,  // 26: antibot.v1.AdminService.SaveRuleSet:input_type -> antibot.v1.SaveRuleSetRequest
-	12, // 27: antibot.v1.AdminService.ListConvictions:input_type -> antibot.v1.ListConvictionsRequest
-	6,  // 28: antibot.v1.AdminService.BanPlayer:output_type -> antibot.v1.BanPlayerResponse
-	8,  // 29: antibot.v1.AdminService.UnbanPlayer:output_type -> antibot.v1.UnbanPlayerResponse
-	10, // 30: antibot.v1.AdminService.InspectPlayer:output_type -> antibot.v1.InspectPlayerResponse
-	1,  // 31: antibot.v1.AdminService.GetRules:output_type -> antibot.v1.GetRulesResponse
-	4,  // 32: antibot.v1.AdminService.SaveRuleSet:output_type -> antibot.v1.SaveRuleSetResponse
-	13, // 33: antibot.v1.AdminService.ListConvictions:output_type -> antibot.v1.ListConvictionsResponse
-	28, // [28:34] is the sub-list for method output_type
-	22, // [22:28] is the sub-list for method input_type
-	22, // [22:22] is the sub-list for extension type_name
-	22, // [22:22] is the sub-list for extension extendee
-	0,  // [0:22] is the sub-list for field type_name
+	24, // 20: antibot.v1.Conviction.active_for:type_name -> google.protobuf.Duration
+	24, // 21: antibot.v1.Conviction.longest_gap:type_name -> google.protobuf.Duration
+	25, // 22: antibot.v1.GetMetricsResponse.started_at:type_name -> google.protobuf.Timestamp
+	25, // 23: antibot.v1.GetMetricsResponse.read_at:type_name -> google.protobuf.Timestamp
+	17, // 24: antibot.v1.GetMetricsResponse.metrics:type_name -> antibot.v1.Metric
+	18, // 25: antibot.v1.Metric.labels:type_name -> antibot.v1.Label
+	19, // 26: antibot.v1.Metric.histogram:type_name -> antibot.v1.Histogram
+	21, // 27: antibot.v1.Metric.summary:type_name -> antibot.v1.Summary
+	20, // 28: antibot.v1.Histogram.buckets:type_name -> antibot.v1.Bucket
+	22, // 29: antibot.v1.Summary.quantiles:type_name -> antibot.v1.Quantile
+	5,  // 30: antibot.v1.AdminService.BanPlayer:input_type -> antibot.v1.BanPlayerRequest
+	7,  // 31: antibot.v1.AdminService.UnbanPlayer:input_type -> antibot.v1.UnbanPlayerRequest
+	9,  // 32: antibot.v1.AdminService.InspectPlayer:input_type -> antibot.v1.InspectPlayerRequest
+	0,  // 33: antibot.v1.AdminService.GetRules:input_type -> antibot.v1.GetRulesRequest
+	3,  // 34: antibot.v1.AdminService.SaveRuleSet:input_type -> antibot.v1.SaveRuleSetRequest
+	12, // 35: antibot.v1.AdminService.ListConvictions:input_type -> antibot.v1.ListConvictionsRequest
+	15, // 36: antibot.v1.AdminService.GetMetrics:input_type -> antibot.v1.GetMetricsRequest
+	6,  // 37: antibot.v1.AdminService.BanPlayer:output_type -> antibot.v1.BanPlayerResponse
+	8,  // 38: antibot.v1.AdminService.UnbanPlayer:output_type -> antibot.v1.UnbanPlayerResponse
+	10, // 39: antibot.v1.AdminService.InspectPlayer:output_type -> antibot.v1.InspectPlayerResponse
+	1,  // 40: antibot.v1.AdminService.GetRules:output_type -> antibot.v1.GetRulesResponse
+	4,  // 41: antibot.v1.AdminService.SaveRuleSet:output_type -> antibot.v1.SaveRuleSetResponse
+	13, // 42: antibot.v1.AdminService.ListConvictions:output_type -> antibot.v1.ListConvictionsResponse
+	16, // 43: antibot.v1.AdminService.GetMetrics:output_type -> antibot.v1.GetMetricsResponse
+	37, // [37:44] is the sub-list for method output_type
+	30, // [30:37] is the sub-list for method input_type
+	30, // [30:30] is the sub-list for extension type_name
+	30, // [30:30] is the sub-list for extension extendee
+	0,  // [0:30] is the sub-list for field type_name
 }
 
 func init() { file_antibot_v1_admin_proto_init() }
@@ -1244,13 +1800,19 @@ func file_antibot_v1_admin_proto_init() {
 	}
 	file_antibot_v1_rules_proto_init()
 	file_antibot_v1_admin_proto_msgTypes[10].OneofWrappers = []any{}
+	file_antibot_v1_admin_proto_msgTypes[17].OneofWrappers = []any{
+		(*Metric_Counter)(nil),
+		(*Metric_Gauge)(nil),
+		(*Metric_Histogram)(nil),
+		(*Metric_Summary)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_antibot_v1_admin_proto_rawDesc), len(file_antibot_v1_admin_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   15,
+			NumMessages:   23,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

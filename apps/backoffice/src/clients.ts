@@ -1,9 +1,8 @@
 import {PromiseClient} from "@connectrpc/connect"
-import {antibotAdmin, chatAdmin, clipsAdmin, metricsAdmin, planetAdmin, playerAdmin, seasonsAdmin, supportAdmin} from "./api.ts"
+import {antibotAdmin, chatAdmin, clipsAdmin, planetAdmin, playerAdmin, seasonsAdmin, supportAdmin} from "./api.ts"
 import {AdminService as AntibotAdminService} from "./gen/grpc/antibot/v1/admin_connect.ts"
 import {AdminService as ChatAdminService} from "./gen/grpc/chat/v1/admin_connect.ts"
 import {AdminService as ClipsAdminService} from "./gen/grpc/clips/v1/admin_connect.ts"
-import {AdminService as MetricsAdminService} from "./gen/grpc/metrics/v1/admin_connect.ts"
 import {AdminService as PlanetAdminService} from "./gen/grpc/planet/v1/admin_connect.ts"
 import {AdminService as PlayerAdminService} from "./gen/grpc/player/v1/admin_connect.ts"
 import {AdminService as SeasonsAdminService} from "./gen/grpc/seasons/v1/admin_connect.ts"
@@ -19,15 +18,14 @@ export type SupportAdmin = Pick<PromiseClient<typeof SupportAdminService>, "list
 
 // The page reads; the clips job keeps (KeepSnapshot), over ssh.
 export type ClipsAdmin = Pick<PromiseClient<typeof ClipsAdminService>, "listSnapshots" | "listRows">
-export type MetricsAdmin = PromiseClient<typeof MetricsAdminService>
 export type SeasonsAdmin = PromiseClient<typeof SeasonsAdminService>
 
 export type Clients = {
     antibot: AntibotAdmin, chat: ChatAdmin, planet: PlanetAdmin, player: PlayerAdmin, support: SupportAdmin, clips: ClipsAdmin,
-    metrics: MetricsAdmin, seasons: SeasonsAdmin,
+    seasons: SeasonsAdmin,
 }
 
 export const CLIENTS: Clients = {
     antibot: antibotAdmin, chat: chatAdmin, planet: planetAdmin, player: playerAdmin, support: supportAdmin, clips: clipsAdmin,
-    metrics: metricsAdmin, seasons: seasonsAdmin,
+    seasons: seasonsAdmin,
 }

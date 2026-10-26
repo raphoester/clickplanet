@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BanPlayerRequest, BanPlayerResponse, GetRulesRequest, GetRulesResponse, InspectPlayerRequest, InspectPlayerResponse, ListConvictionsRequest, ListConvictionsResponse, SaveRuleSetRequest, SaveRuleSetResponse, UnbanPlayerRequest, UnbanPlayerResponse } from "./admin_pb.js";
+import { BanPlayerRequest, BanPlayerResponse, GetMetricsRequest, GetMetricsResponse, GetRulesRequest, GetRulesResponse, InspectPlayerRequest, InspectPlayerResponse, ListConvictionsRequest, ListConvictionsResponse, SaveRuleSetRequest, SaveRuleSetResponse, UnbanPlayerRequest, UnbanPlayerResponse } from "./admin_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -73,6 +73,18 @@ export const AdminService = {
       name: "ListConvictions",
       I: ListConvictionsRequest,
       O: ListConvictionsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * What /metrics says of the antibot's own registry. A counter counts from `started_at`: two answers with the same
+     * `started_at` are subtracted, never two with different ones.
+     *
+     * @generated from rpc antibot.v1.AdminService.GetMetrics
+     */
+    getMetrics: {
+      name: "GetMetrics",
+      I: GetMetricsRequest,
+      O: GetMetricsResponse,
       kind: MethodKind.Unary,
     },
   }

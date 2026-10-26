@@ -11,7 +11,7 @@ import {Tile} from "../home/HomePage.tsx"
 import {PlayingNow} from "../home/PlayingNow.tsx"
 import {ANTIBOT_OFF, namesOf, Named} from "../players/actions.ts"
 import {BanList} from "./BanList.tsx"
-import {AntibotPanel, BoxPanel, EveryCounter, ServerPanel} from "./CounterPanels.tsx"
+import {AntibotPanel, BoxPanel, EveryCounter} from "./CounterPanels.tsx"
 import {
     keptSamples,
     lastMinuteOf,
@@ -48,16 +48,22 @@ export function BattlePage({clients = CLIENTS}: Props) {
     const [span, setSpan] = useState<Span>(FIRST_SPAN)
     const [hovered, setHovered] = useState<number | undefined>(undefined)
     const keptLedger = useRef<Ledger | undefined>(undefined)
-    const samples = useRef<Sample[]>([])
+    const planetSamples = useRef<Sample[]>([])
+    const antibotSamples = useRef<Sample[]>([])
 
     const readLedger = useCallback(async (signal: AbortSignal) => {
         keptLedger.current = await readOn(clients.planet, keptLedger.current, windowOf(new Date(), span.hours, MINUTE), signal)
         return keptLedger.current
     }, [clients, span])
     const readCounters = useCallback(async (signal: AbortSignal) => {
-        const answer = await clients.metrics.getMetrics({}, {signal})
-        samples.current = keptSamples(samples.current, sampleOf(answer), span.hours * 3600_000)
-        return samples.current
+        const answer = await clients.planet.getMetrics({}, {signal})
+        planetSamples.current = keptSamples(planetSamples.current, sampleOf(answer), span.hours * 3600_000)
+        return planetSamples.current
+    }, [clients, span])
+    const readWatchdogs = useCallback(async (signal: AbortSignal) => {
+        const answer = await clients.antibot.getMetrics({}, {signal})
+        antibotSamples.current = keptSamples(antibotSamples.current, sampleOf(answer), span.hours * 3600_000)
+        return antibotSamples.current
     }, [clients, span])
     const readBans = useCallback(
         (signal: AbortSignal) => bansOf(clients.antibot, clients.player, span, signal),
@@ -74,6 +80,7 @@ export function BattlePage({clients = CLIENTS}: Props) {
 
     const [ledger, readLedgerAgain] = usePolling(readLedger, REFRESH_MS)
     const [counters, readCountersAgain] = usePolling(readCounters, REFRESH_MS)
+    const [watchdogs, readWatchdogsAgain] = usePolling(readWatchdogs, REFRESH_MS)
     const [bans, readBansAgain] = usePolling(readBans, REFRESH_MS)
     const [race, readRaceAgain] = usePolling(readRace, REFRESH_MS)
     const [roster, readRosterAgain] = usePolling(readRoster, REFRESH_MS)
@@ -81,6 +88,7 @@ export function BattlePage({clients = CLIENTS}: Props) {
     const reload = () => {
         readLedgerAgain()
         readCountersAgain()
+        readWatchdogsAgain()
         readBansAgain()
         readRaceAgain()
         readRosterAgain()
@@ -102,7 +110,7 @@ export function BattlePage({clients = CLIENTS}: Props) {
     const share = refusedNow === undefined || acceptedNow === undefined || refusedNow + acceptedNow === 0
         ? undefined : refusedNow / (refusedNow + acceptedNow)
     const shown = hovered === undefined ? undefined : slots[hovered]
-    const reading = [ledger, counters, bans, race, roster].some(polled => polled.reading)
+    const reading = [ledger, counters, watchdogs, bans, race, roster].some(polled => polled.reading)
 
     return (
         <div className={reading ? "home home-reading" : "home"} aria-busy={reading}>
@@ -183,14 +191,11 @@ export function BattlePage({clients = CLIENTS}: Props) {
             <Failed polled={race} onRetry={readRaceAgain}/>
             {race.value !== undefined && <RacePanel race={race.value} now={new Date()}/>}
 
-            {counters.value !== undefined && (
-                <>
-                    <AntibotPanel samples={kept}/>
-                    <BoxPanel samples={kept}/>
-                    <ServerPanel samples={kept}/>
-                    <EveryCounter samples={kept}/>
-                </>
-            )}
+            <Failed polled={watchdogs} onRetry={readWatchdogsAgain}/>
+            {watchdogs.value !== undefined && <AntibotPanel samples={watchdogs.value}/>}
+            {counters.value !== undefined && <BoxPanel samples={kept}/>}
+            {counters.value !== undefined && <EveryCounter title="Every planet counter" samples={kept}/>}
+            {watchdogs.value !== undefined && <EveryCounter title="Every antibot counter" samples={watchdogs.value}/>}
 
             <Failed polled={roster} onRetry={readRosterAgain}/>
             {roster.value !== undefined && <PlayingNow roster={roster.value}/>}

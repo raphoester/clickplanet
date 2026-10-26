@@ -19,7 +19,6 @@ import (
 	seasonsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/seasons/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/seasons/v1/seasonsv1connect"
 	supportv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/support/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
 
 var generatedName = regexp.MustCompile(`^[A-Z][a-z]+[A-Z][a-z]+[0-9]{2}$`)
@@ -218,14 +217,11 @@ func (s *testSuite) TestAnOperatorSignsInOnTheAdminPageAndGrantsItselfABomb() {
 	require.NoError(t, err)
 	assert.True(t, granted.GetAfter().GetBomb())
 
-	counters, race, err := operator.battleFromThePage()
-	names := cpcolls.NewSet[string]()
-	for _, metric := range counters.GetMetrics() {
-		names.Add(metric.GetName())
-	}
-	assert.True(t, names.Contains("throttled_clicks"), "cpbootstrap answers the registry every module counts in")
-	assert.NotNil(t, race.GetRace(), "seasons answers its race on the admin listener")
-	require.NoError(t, err, "the antibot answers the bans its jury passed")
+	read := operator.battleFromThePage()
+	assert.Contains(t, read.planet, "throttled_clicks", "planet answers the counters it keeps")
+	assert.NotContains(t, read.planet, "banned_callers", "and none of the antibot's")
+	assert.Contains(t, read.antibot, "banned_callers", "the antibot answers its own")
+	assert.NotNil(t, read.race, "seasons answers its race on the admin listener")
 }
 
 func (s gameStack) tileUpdates(t *testing.T) <-chan *planetv1.TileUpdate {

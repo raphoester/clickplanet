@@ -11,6 +11,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1/antibotv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/ban_player_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/get_metrics_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/get_rules_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/get_rules_handler/rule_sets_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/inspect_player_handler"
@@ -117,6 +118,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				SaveRuleSetHandler: save_rule_set_handler.New(
 					audit_save_rule_set.New(save_rule_set_usecase.New(ruleSets, parts, players), props.Logger)),
 				ListConvictionsHandler: list_convictions_handler.New(watchdogs, clock),
+				GetMetricsHandler:      get_metrics_handler.New(props.Metrics, clock.Now(), clock),
 			}
 
 			if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {

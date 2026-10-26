@@ -19,8 +19,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1/authv1connect"
 	chatv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1/chatv1connect"
-	metricsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/metrics/v1"
-	"github.com/raphoester/clickplanet.lol-backend/generated/proto/metrics/v1/metricsv1connect"
 	missionsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/missions/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/missions/v1/missionsv1connect"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
@@ -410,22 +408,43 @@ func (p *gamer) grantFromThePage(account string) (*planetv1.GrantChargesResponse
 	return res.Msg, nil
 }
 
-// What the Battle page reads besides the ledger and the roster: the process's counters, the race and the jury's bans.
-func (p *gamer) battleFromThePage() (*metricsv1.GetMetricsResponse, *seasonsv1.GetRaceResponse, error) {
+// The Battle page's reads besides the ledger and the roster: each module's own counters, the race and the jury's bans.
+type battleReads struct {
+	planet, antibot []string
+	race            *seasonsv1.Race
+}
+
+func (p *gamer) battleFromThePage() battleReads {
 	p.t.Helper()
 
-	metrics := connect.NewRequest(&metricsv1.GetMetricsRequest{})
-	p.fromThePage(metrics.Header())
-	counted, err := metricsv1connect.NewAdminServiceClient(http.DefaultClient, p.stack.adminURL).GetMetrics(p.t.Context(), metrics)
+	var read battleReads
+
+	planet := connect.NewRequest(&planetv1.GetMetricsRequest{})
+	p.fromThePage(planet.Header())
+	counted, err := planetv1connect.NewAdminServiceClient(http.DefaultClient, p.stack.adminURL).GetMetrics(p.t.Context(), planet)
 	require.NoError(p.t, err)
+	for _, metric := range counted.Msg.GetMetrics() {
+		read.planet = append(read.planet, metric.GetName())
+	}
+
+	antibot := connect.NewRequest(&antibotv1.GetMetricsRequest{})
+	p.fromThePage(antibot.Header())
+	watched, err := antibotv1connect.NewAdminServiceClient(http.DefaultClient, p.stack.adminURL).GetMetrics(p.t.Context(), antibot)
+	require.NoError(p.t, err)
+	for _, metric := range watched.Msg.GetMetrics() {
+		read.antibot = append(read.antibot, metric.GetName())
+	}
 
 	race := connect.NewRequest(&seasonsv1.GetRaceRequest{})
 	p.fromThePage(race.Header())
 	raced, err := seasonsv1connect.NewAdminServiceClient(http.DefaultClient, p.stack.adminURL).GetRace(p.t.Context(), race)
 	require.NoError(p.t, err)
+	read.race = raced.Msg.GetRace()
 
 	bans := connect.NewRequest(&antibotv1.ListConvictionsRequest{Since: timestamppb.New(time.Now().Add(-time.Hour))})
 	p.fromThePage(bans.Header())
 	_, err = antibotv1connect.NewAdminServiceClient(http.DefaultClient, p.stack.adminURL).ListConvictions(p.t.Context(), bans)
-	return counted.Msg, raced.Msg, err //nolint:wrapcheck // the tests read the connect code.
+	require.NoError(p.t, err)
+
+	return read
 }

@@ -95,6 +95,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_ledger_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_ledger_handler/changes_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_map_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_metrics_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_replay_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_rules_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_rules_handler/rule_sets_query"
@@ -325,6 +326,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				GetReplayHandler:      get_replay_handler.New(replay_usecase.New(takings, tilesChecker, tilesStorage, clock)),
 				GetLedgerHandler:      get_ledger_handler.New(changes_query.NewPostgresQuery(db, clock)),
 				GetTerritoriesHandler: getTerritories,
+				GetMetricsHandler:     get_metrics_handler.New(props.Metrics, clock.Now(), clock),
 				GetRulesHandler:       get_rules_handler.New(rule_sets_query.NewPostgresQuery(db), inForce),
 				SaveRuleSetHandler: save_rule_set_handler.New(
 					audit_save_rule_set.New(save_rule_set_usecase.New(ruleSets, ruleParts, play), props.Logger)),

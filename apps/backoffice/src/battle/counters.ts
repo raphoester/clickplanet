@@ -1,10 +1,24 @@
 import {Timestamp} from "@bufbuild/protobuf"
-import {GetMetricsResponse, Metric} from "../gen/grpc/metrics/v1/admin_pb.ts"
 import {Window} from "../home/ledger.ts"
 
 export const MINUTE = 60_000
 
-// One answer of GetMetrics: when the server read it, and from when its counters count.
+type Histogram = {count: bigint, buckets: {upperBound: number, count: bigint}[]}
+
+// A metric as planet's GetMetrics and the antibot's both answer it.
+export type Metric = {
+    name: string
+    labels: {name: string, value: string}[]
+    value:
+        | {case: "counter" | "gauge", value: number}
+        | {case: "histogram", value: Histogram}
+        | {case: "summary", value: unknown}
+        | {case: undefined, value?: undefined}
+}
+
+type Answer = {readAt?: Timestamp, startedAt?: Timestamp, metrics: Metric[]}
+
+// One answer of a module's GetMetrics: when the server read it, and from when its counters count.
 export type Sample = {at: number, startedAt: number, metrics: Metric[]}
 
 export type Select = (metric: Metric) => boolean
@@ -13,7 +27,7 @@ function millisOf(at: Timestamp | undefined): number {
     return at === undefined ? 0 : Number(at.seconds) * 1000 + at.nanos / 1e6
 }
 
-export function sampleOf(answer: GetMetricsResponse): Sample {
+export function sampleOf(answer: Answer): Sample {
     return {at: millisOf(answer.readAt), startedAt: millisOf(answer.startedAt), metrics: answer.metrics}
 }
 
@@ -110,7 +124,6 @@ export function shareUnderOf(samples: Sample[], name: string, bound: number): nu
     return all <= 0 ? undefined : under / all
 }
 
-type Histogram = Extract<Metric["value"], {case: "histogram"}>["value"]
 
 function histogramOf(sample: Sample, name: string): Histogram | undefined {
     const metric = sample.metrics.find(metric => metric.name === name)
