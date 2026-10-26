@@ -378,8 +378,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                 }
 
                 if (rulesChanged(event)) {
-                    void this.readBudget()
-                    void this.readRules()
+                    this.readRulesInForce()
                     return
                 }
 
@@ -405,7 +404,14 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                 if (spread) this.bonusCallbacks.forEach(handlers => handlers.onSpread(spread))
             },
             "planet events",
+            // A gap in the stream may have hidden a rulesChanged.
+            {onResumed: () => this.readRulesInForce()},
         )
+    }
+
+    private readRulesInForce(): void {
+        void this.readBudget()
+        void this.readRules()
     }
 
     // Updates from before a gap land before the globe hears of it, or they would outrank what it reads again.

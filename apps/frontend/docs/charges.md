@@ -27,9 +27,9 @@ inventory.
 **The sizes are rules**: `GetBonusRules` (a GET no cache keeps) answers the
 blast radius, the enclose's `maxTiles`, the spread pool's size, the enclosure
 stack's size, the shields' pool size and how many can stand on one tile
-(`tileShields`) as `BonusRules`, through `onRules`. It is read at load and again on each `rulesChanged` of the
-planet stream, so an open page follows a new set in force (the backend's
-[Rules](../../backend/docs/rules.md)).
+(`tileShields`) as `BonusRules`, through `onRules`. It is read at load, again on each `rulesChanged` of the
+planet stream, and again when the stream comes back after a gap, which may have hidden one, so an open page follows a
+new set in force (the backend's [Rules](../../backend/docs/rules.md)).
 
 ## Off by default, one at a time
 
