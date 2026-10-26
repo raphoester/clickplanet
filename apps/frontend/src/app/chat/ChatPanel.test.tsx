@@ -1287,7 +1287,7 @@ describe("ChatPanel's players", () => {
 })
 
 describe("ChatPanel's Discord bar", () => {
-    const discord = () => screen.queryByRole("link", {name: "Join the Discord"})
+    const discord = () => screen.queryByRole("link", {name: "Join Discord"})
 
     it("sits over the chat, and not over who is online", async () => {
         const user = userEvent.setup()

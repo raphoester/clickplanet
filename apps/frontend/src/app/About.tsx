@@ -1,10 +1,11 @@
-import {DISCORD_INVITE, INSTAGRAM_PROFILE, TIKTOK_PROFILE} from "../links.ts"
-import {DiscordIcon, InstagramIcon, TikTokIcon} from "./components/icons.tsx"
+import {DISCORD_INVITE, INSTAGRAM_PROFILE, TIKTOK_PROFILE, YOUTUBE_CHANNEL} from "../links.ts"
+import {DiscordIcon, InstagramIcon, TikTokIcon, YouTubeIcon} from "./components/icons.tsx"
 import "./About.css"
 
 const FOLLOW = [
     {name: "Discord", href: DISCORD_INVITE, icon: <DiscordIcon size={20}/>},
     {name: "TikTok", href: TIKTOK_PROFILE, icon: <TikTokIcon size={20}/>},
+    {name: "YouTube", href: YOUTUBE_CHANNEL, icon: <YouTubeIcon size={20}/>},
     {name: "Instagram", href: INSTAGRAM_PROFILE, icon: <InstagramIcon size={20}/>},
 ]
 

@@ -20,8 +20,10 @@ While the list is shown, the Chat tab wears the unread badge: the log is not on
 screen, so nothing is marked seen, and the open panel has no other badge.
 
 **A Discord bar sits over the log** (`DiscordBar`), on a desktop and in the
-phone's sheet: a link to `DISCORD_INVITE`, then TikTok and Instagram as two
-icons, and a cross. The cross hides all of it for
+phone's sheet: a link to `DISCORD_INVITE`, then TikTok, YouTube and Instagram
+as three icons, and a cross. **The link says "Join Discord", not "Join the
+Discord"**: beside three icons the longer label no longer fit on a 375px phone
+or in the panel's default width, and a cut label looks broken. The cross hides all of it for
 `DISCORD_BAR_RETURNS_AFTER_MS` (20 hours), from the time of the press kept in
 `clickplanet-discord-bar` (`discordBar.ts`, `useDiscordBar`). **20 hours and
 not 24**, so a player who comes back at the same hour each day finds it again
