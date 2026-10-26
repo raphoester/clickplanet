@@ -38,6 +38,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 - [Live chat](docs/chat.md) — replies, removed messages, reactions, announcements, delivery, and what was missed.
 - [Who is playing](docs/who-is-playing.md) — the "Online · N" list beside the chat.
 - [Who holds a tile](docs/tile-holder.md) — a rest or a long press on a tile opens a card on its holder.
+- [A territory, from orbit](docs/territory-card.md) — zoomed out, the same gestures open a card on the territory
+  (flags, shares, fortify) and light it up.
 - [Support](docs/support.md) — suggestions, bug reports and reports of a player.
 - [Titles](docs/titles.md) — the ranks on each track, the medals, the unlock moment.
 - [Season standings](docs/season-standings.md) — the players' table of the season.

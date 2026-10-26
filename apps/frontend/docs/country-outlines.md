@@ -78,6 +78,14 @@ its neighbours' country when four of the six agreed, which closed about 1,650 of
 them: the coast came out smoother, but ran up to two tiles out over the water,
 around ground nobody can click.
 
+**Each run says which two landmasses it is between** (version 2 of the blob, the sea
+being 0), so one territory's outline can be drawn on its own: the white line round a
+territory in orbit (see [A territory, from orbit](territory-card.md)). A run never
+changes landmass between two junctions, since two tiles of one country that touch are
+one landmass; the generator checks it and refuses otherwise. The highlight is a third
+pass over the coarse pieces, which carry the pair, drawn over the tiles and only while a
+territory is lit; the vertex shader drops every piece that does not border it.
+
 It stays out of `/map`, unlike the two blobs it is built from: the backend has no
 use for it. Where a tile is and who owns the ground under it are the game's rules
 and are shared; how thick a line is drawn between them is this app's.
