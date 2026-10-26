@@ -32,7 +32,10 @@ export type Listed = Players & Named
 export type Matches = {players: PlayerMatch[], total: number}
 export type Profile = AdminGetPlayerResponse
 
+export const MOST = 99
 export const NO_GRANT: Grant = {refill: false, bomb: false, enclosures: 0, spreadClicks: 0, shields: 0}
+// The server caps each count at its stack, so this fills every charge and the answer says what fit.
+export const MAX_GRANT: Grant = {refill: true, bomb: true, enclosures: MOST, spreadClicks: MOST, shields: MOST}
 
 // A mute is an account's: the chat has no scope to mute.
 export async function mute(chat: ChatAdmin, accountId: string, seconds: number): Promise<Muted> {
