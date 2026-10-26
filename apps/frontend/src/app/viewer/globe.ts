@@ -15,8 +15,8 @@ import {BORDERS_URL} from "./bordersAsset.ts";
 import {BORDER_LINES_URL} from "./borderLinesAsset.ts";
 import {displayPointSize, flagPaint, flownZoomsOf, inOrbit, pickPointSize} from "./pointSize.ts";
 import {regions} from "./atlas.ts";
-import {magnifiedMost, SlotChoice} from "./flagSlot.ts";
-import {FlagSlotTexture} from "./flagSlotTexture.ts";
+import {SlotRanking} from "./slotRanking.ts";
+import {FlagSlots} from "./flagSlots.ts";
 import {Country} from "../../domain/countries.ts";
 import {Allegiance} from "../../domain/allegiance.ts";
 import {MapView, Rendering} from "../../domain/displaySettings.ts";
@@ -94,8 +94,7 @@ type Uniforms = BlastUniforms & FortifyUniforms & {
     shieldCells: THREE.IUniform<THREE.Vector2>
     highlight: THREE.IUniform<number>
     slotTexture: THREE.IUniform<THREE.Texture | null>
-    slotFrame: THREE.IUniform<THREE.Vector4>
-    slotLandmass: THREE.IUniform<number>
+    slotFrames: THREE.IUniform<THREE.Vector4[]>
 }
 
 const SHAKE_SECONDS = 0.5
@@ -305,7 +304,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         dirty = true
     }
 
-    const slot = new FlagSlotTexture(invalidate)
+    const slots = new FlagSlots(invalidate)
 
     const uniforms: Uniforms = {
         pointSize: {value: displayPointSize(camera.zoom, layoutViewport().height, mapView) * renderer.getPixelRatio()},
@@ -320,9 +319,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         shieldMarks: {value: drawShieldMarks(SHIELD_MOST_UNTIL_READ, invalidate)},
         shieldCells: {value: shieldCellsOf(SHIELD_MOST_UNTIL_READ)},
         highlight: {value: 0},
-        slotTexture: slot.texture,
-        slotFrame: slot.frame,
-        slotLandmass: slot.landmass,
+        slotTexture: slots.texture,
+        slotFrames: slots.frames,
         ...blastUniforms(prefersReducedMotion()),
         ...fortifyUniforms(),
     };
@@ -337,24 +335,15 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     uniforms.landmassData.value = territories.landmassData
     uniforms.landmassCount.value = borders.codes.length
 
-    const slotChoice = new SlotChoice()
-    const projected = new THREE.Vector3()
+    const ranking = new SlotRanking()
 
-    const widthOnScreen = (x: number, y: number, z: number, halfU: number, halfV: number): number | undefined => {
-        if (x * camera.position.x + y * camera.position.y + z * camera.position.z <= 0) return undefined
-        projected.set(x, y, z).project(camera)
-        const {width, height} = renderer.domElement
-        if (Math.abs(projected.x) > 1 + halfU * camera.zoom * height / width || Math.abs(projected.y) > 1 + halfV * camera.zoom) return undefined
-        return 2 * halfU * uniforms.pixelsPerRadian.value
-    }
-
-    const driveSlot = (turning: boolean, seconds: number) => {
-        const landmass = slotChoice.choose(turning, seconds, () =>
-            uniforms.flagPaint.value > 0 ? magnifiedMost(territories.slotCandidates(widthOnScreen)) : undefined)
-        const holder = landmass === undefined ? undefined : territories.holderOf(landmass)
-        const region = holder === undefined ? undefined : regions.get(holder)
-        if (landmass === undefined || holder === undefined || region === undefined) slot.hide()
-        else slot.show(landmass, holder, region.width / region.height)
+    const slotFlags = () => {
+        const ranked = ranking.rank(territories.flagNeeds())
+        slots.show(ranked, (code) => {
+            const region = regions.get(code)
+            return region === undefined ? undefined : region.width / region.height
+        })
+        territories.markSlots(ranked)
     }
 
     const sphere = innerSphere()
@@ -462,6 +451,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const recount = ({countries, landmasses}: Recount, live: boolean) => {
         if (landmasses.length > 0) {
             territories.setRows(landmasses, (landmass) => holdings.leaderOf(landmass))
+            slotFlags()
             if (tracking) {
                 const entered = targets.recount(landmasses)
                 if (live) announceClose(entered)
@@ -1099,8 +1089,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         const was = dirty
         dirty = false
         return was
-    }, (seconds, turning) => {
-        driveSlot(turning, seconds)
+    }, (seconds) => {
         const boxed = driveBonusBox(seconds)
         const fortifying = waves.update(seconds)
         const blasting = driveBlasts(seconds) || fortifying
@@ -1212,7 +1201,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             blasts.dispose()
             field.dispose()
             territories.dispose()
-            slot.dispose()
+            slots.dispose()
             outline.dispose()
             bonusBox.dispose()
             enclosures.dispose()
@@ -1256,7 +1245,7 @@ function startAnimation(
     pilot: Pilot,
     mapView: () => MapView,
     takeChange: () => boolean,
-    beforeRender: (seconds: number, turning: boolean) => boolean,
+    beforeRender: (seconds: number) => boolean,
     afterRender: () => void,
     pulsing: (camera: THREE.Camera) => boolean,
 ): {stop: () => void} {
@@ -1319,8 +1308,7 @@ function startAnimation(
         uniforms.flagPaint.value = flagPaint(camera.zoom, height, mapView());
         uniforms.pixelsPerRadian.value = (renderer.domElement.height / 2) * camera.zoom;
 
-        // The idle spin's damped start moves the camera by less than the controls' epsilon: still, as the loop sees it.
-        const moving = beforeRender(time / 1000, turned || controls.autoRotate);
+        const moving = beforeRender(time / 1000);
         const changed = takeChange() || moving;
 
         const ambient = pulsing(camera);
