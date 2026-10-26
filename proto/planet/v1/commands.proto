@@ -34,3 +34,10 @@ message AdmitCaller {
   }
   google.protobuf.Timestamp decided_at = 3;
 }
+
+// Plays the rule set of this name. Planet keeps the latest decision by decided_at, so a command sent twice, or after a
+// newer one, changes nothing. A name planet keeps no set of is refused, and planet plays on the set it plays.
+message PlayRuleSet {
+  string rule_set = 1;
+  google.protobuf.Timestamp decided_at = 2;
+}

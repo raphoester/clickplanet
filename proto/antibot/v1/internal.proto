@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package antibot.v1;
+
+service InternalService {
+  rpc GetRuleSetNames(GetRuleSetNamesRequest) returns (GetRuleSetNamesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+message GetRuleSetNamesRequest {}
+
+// The name of every rule set postgres keeps.
+message GetRuleSetNamesResponse {
+  repeated string names = 1;
+}

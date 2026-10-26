@@ -45,6 +45,9 @@ const (
 	// InternalServiceGetAllegianceOfProcedure is the fully-qualified name of the InternalService's
 	// GetAllegianceOf RPC.
 	InternalServiceGetAllegianceOfProcedure = "/planet.v1.InternalService/GetAllegianceOf"
+	// InternalServiceGetRuleSetNamesProcedure is the fully-qualified name of the InternalService's
+	// GetRuleSetNames RPC.
+	InternalServiceGetRuleSetNamesProcedure = "/planet.v1.InternalService/GetRuleSetNames"
 )
 
 // InternalServiceClient is a client for the planet.v1.InternalService service.
@@ -53,6 +56,7 @@ type InternalServiceClient interface {
 	GetTerritories(context.Context, *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error)
 	GetCountrySizes(context.Context, *connect.Request[v1.GetCountrySizesRequest]) (*connect.Response[v1.GetCountrySizesResponse], error)
 	GetAllegianceOf(context.Context, *connect.Request[v1.GetAllegianceOfRequest]) (*connect.Response[v1.GetAllegianceOfResponse], error)
+	GetRuleSetNames(context.Context, *connect.Request[v1.GetRuleSetNamesRequest]) (*connect.Response[v1.GetRuleSetNamesResponse], error)
 }
 
 // NewInternalServiceClient constructs a client for the planet.v1.InternalService service. By
@@ -94,6 +98,13 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		getRuleSetNames: connect.NewClient[v1.GetRuleSetNamesRequest, v1.GetRuleSetNamesResponse](
+			httpClient,
+			baseURL+InternalServiceGetRuleSetNamesProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("GetRuleSetNames")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -103,6 +114,7 @@ type internalServiceClient struct {
 	getTerritories    *connect.Client[v1.GetTerritoriesRequest, v1.GetTerritoriesResponse]
 	getCountrySizes   *connect.Client[v1.GetCountrySizesRequest, v1.GetCountrySizesResponse]
 	getAllegianceOf   *connect.Client[v1.GetAllegianceOfRequest, v1.GetAllegianceOfResponse]
+	getRuleSetNames   *connect.Client[v1.GetRuleSetNamesRequest, v1.GetRuleSetNamesResponse]
 }
 
 // GetTakesByCountry calls planet.v1.InternalService.GetTakesByCountry.
@@ -125,12 +137,18 @@ func (c *internalServiceClient) GetAllegianceOf(ctx context.Context, req *connec
 	return c.getAllegianceOf.CallUnary(ctx, req)
 }
 
+// GetRuleSetNames calls planet.v1.InternalService.GetRuleSetNames.
+func (c *internalServiceClient) GetRuleSetNames(ctx context.Context, req *connect.Request[v1.GetRuleSetNamesRequest]) (*connect.Response[v1.GetRuleSetNamesResponse], error) {
+	return c.getRuleSetNames.CallUnary(ctx, req)
+}
+
 // InternalServiceHandler is an implementation of the planet.v1.InternalService service.
 type InternalServiceHandler interface {
 	GetTakesByCountry(context.Context, *connect.Request[v1.GetTakesByCountryRequest]) (*connect.Response[v1.GetTakesByCountryResponse], error)
 	GetTerritories(context.Context, *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error)
 	GetCountrySizes(context.Context, *connect.Request[v1.GetCountrySizesRequest]) (*connect.Response[v1.GetCountrySizesResponse], error)
 	GetAllegianceOf(context.Context, *connect.Request[v1.GetAllegianceOfRequest]) (*connect.Response[v1.GetAllegianceOfResponse], error)
+	GetRuleSetNames(context.Context, *connect.Request[v1.GetRuleSetNamesRequest]) (*connect.Response[v1.GetRuleSetNamesResponse], error)
 }
 
 // NewInternalServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -168,6 +186,13 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	internalServiceGetRuleSetNamesHandler := connect.NewUnaryHandler(
+		InternalServiceGetRuleSetNamesProcedure,
+		svc.GetRuleSetNames,
+		connect.WithSchema(internalServiceMethods.ByName("GetRuleSetNames")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/planet.v1.InternalService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case InternalServiceGetTakesByCountryProcedure:
@@ -178,6 +203,8 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 			internalServiceGetCountrySizesHandler.ServeHTTP(w, r)
 		case InternalServiceGetAllegianceOfProcedure:
 			internalServiceGetAllegianceOfHandler.ServeHTTP(w, r)
+		case InternalServiceGetRuleSetNamesProcedure:
+			internalServiceGetRuleSetNamesHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -201,4 +228,8 @@ func (UnimplementedInternalServiceHandler) GetCountrySizes(context.Context, *con
 
 func (UnimplementedInternalServiceHandler) GetAllegianceOf(context.Context, *connect.Request[v1.GetAllegianceOfRequest]) (*connect.Response[v1.GetAllegianceOfResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.GetAllegianceOf is not implemented"))
+}
+
+func (UnimplementedInternalServiceHandler) GetRuleSetNames(context.Context, *connect.Request[v1.GetRuleSetNamesRequest]) (*connect.Response[v1.GetRuleSetNamesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.GetRuleSetNames is not implemented"))
 }
