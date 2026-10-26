@@ -5,8 +5,12 @@ import (
 	"errors"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
 func (s *testSuite) TestLoadRestoresTheMapAndTheShares() {
@@ -232,4 +236,35 @@ func (s *testSuite) TestALockKeptForAnotherMapIsIgnored() {
 	_, err := storage.Fortify(ctx, 90_001, "fr", 10)
 
 	s.Require().NoError(err)
+}
+
+func (s *testSuite) TestAHolderIsFlushedWithItsTileAndReadBackAtBoot() {
+	ana := cpsession.AccountID(uuid.New())
+	asAna := cpctx.AddAccountToContext(context.Background(), ana.String())
+	persistence := inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{})
+	storage := s.newStorageOn(inmemory_tile_storage.Config{}, persistence)
+	s.Require().NoError(storage.Click(asAna, island[0], "fr"))
+	s.Require().NoError(storage.Set(context.Background(), island[1], "fr"))
+
+	s.Require().NoError(storage.Flush(context.Background()))
+	s.Equal(map[uint32]cpsession.AccountID{island[0]: ana}, persistence.StoredHolders())
+
+	booted := s.newStorageOn(inmemory_tile_storage.Config{}, persistence)
+	s.Require().NoError(booted.Load(context.Background()))
+	s.Equal([]clicks.Holding{{Account: ana, Flag: "fr", Tiles: 1}}, booted.HoldingsOf(1))
+}
+
+func (s *testSuite) TestAForgottenHolderIsFlushedAsNobody() {
+	ana := cpsession.AccountID(uuid.New())
+	persistence := inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{})
+	storage := s.newStorageOn(inmemory_tile_storage.Config{}, persistence)
+	s.Require().NoError(storage.Click(cpctx.AddAccountToContext(context.Background(), ana.String()), island[0], "fr"))
+	s.Require().NoError(storage.Flush(context.Background()))
+
+	_, err := storage.ForgetHolder(context.Background(), ana)
+	s.Require().NoError(err)
+	s.Require().NoError(storage.Flush(context.Background()))
+
+	s.Empty(persistence.StoredHolders())
+	s.Equal(map[uint32]string{island[0]: "fr"}, persistence.Stored())
 }
