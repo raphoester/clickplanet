@@ -6,68 +6,75 @@ import {warnOnce} from "../../domain/warnOnce.ts";
 import {disposeMaterial} from "./scene.ts";
 import {integerToColor} from "./pickingColors.ts";
 import type {PointGeometryData} from "./coordinatesBinary.ts";
+import type {Graphics} from "./graphics.ts";
 
 import displayVertex from "./shaders/display/vertex.glsl"
 import displayFragment from "./shaders/display/fragment.glsl"
 import pickerVertex from "./shaders/picker/vertex.glsl"
 import pickerFragment from "./shaders/picker/fragment.glsl"
 
-const REGION_STRIDE = 4
-
 const MAX_INDIVIDUAL_RANGES = 64
 
-const UNOWNED = {x: 0, y: 0, width: 0, height: 0}
+const UNOWNED = 0
+
+const RECTANGLE = 4
+
+const FLAGS = new Map<string, number>()
+const RECTANGLES = new Float32Array((regions.size + 1) * RECTANGLE)
+Array.from(regions).forEach(([code, {x, y, width, height}], i) => {
+    FLAGS.set(code, i + 1)
+    RECTANGLES.set([x, y, width, height], (i + 1) * RECTANGLE)
+})
+
+type Slot = {attribute: THREE.BufferAttribute, offset: number, width: number}
+
+type Slots = {flag: Slot, landmass: Slot, hover: Slot, shield: Slot, pulse: Slot}
+
+type Layout = {slots: Slots, attributes: Record<string, THREE.BufferAttribute>}
 
 export class TileField {
     readonly displayPoints: THREE.Points
     readonly pickingPoints: THREE.Points
     readonly size: number
 
-    private readonly regionVector: THREE.BufferAttribute
-    private readonly landmass: THREE.BufferAttribute
-    private readonly hover: THREE.BufferAttribute
-    private readonly shield: THREE.BufferAttribute
-    private readonly pulse: THREE.BufferAttribute
+    private readonly compact: boolean
+    private readonly slots: Slots
     private hovered: number | undefined
 
     constructor(
         uniforms: {[uniform: string]: THREE.IUniform},
         pickingUniforms: {[uniform: string]: THREE.IUniform},
         data: PointGeometryData,
-        lit: boolean,
+        graphics: Pick<Graphics, "tiles" | "compact">,
     ) {
         const {positions, size} = data
         this.size = size
+        this.compact = graphics.compact
 
         const position = new THREE.BufferAttribute(positions, 3)
-
-        this.regionVector = new THREE.BufferAttribute(new Float32Array(size * REGION_STRIDE), REGION_STRIDE)
-        this.landmass = new THREE.BufferAttribute(new Float32Array(size), 1)
-        this.hover = new THREE.BufferAttribute(new Float32Array(size), 1)
-        this.shield = new THREE.BufferAttribute(new Float32Array(size), 1)
-        this.pulse = new THREE.BufferAttribute(new Float32Array(size), 1)
+        const {slots, attributes} = this.compact ? compactLayout(size) : plainLayout(size)
+        this.slots = slots
 
         const displayGeometry = new THREE.BufferGeometry()
         displayGeometry.setAttribute('position', position)
-        displayGeometry.setAttribute('regionVector', this.regionVector)
-        displayGeometry.setAttribute('landmassIndex', this.landmass)
-        displayGeometry.setAttribute('hover', this.hover)
-        displayGeometry.setAttribute('shield', this.shield)
-        displayGeometry.setAttribute('pulse', this.pulse)
+        for (const [name, attribute] of Object.entries(attributes)) displayGeometry.setAttribute(name, attribute)
 
         const pickingGeometry = new THREE.BufferGeometry()
         pickingGeometry.setAttribute('position', position)
-        pickingGeometry.setAttribute('color', new THREE.BufferAttribute(pickingColors(size), 3))
+        if (!this.compact) pickingGeometry.setAttribute('color', new THREE.BufferAttribute(pickingColors(size), 3))
+
+        const defines = {COMPACT: this.compact}
 
         this.displayPoints = new THREE.Points(displayGeometry, new THREE.ShaderMaterial({
             transparent: true,
-            defines: {LIT: lit},
-            uniforms,
+            defines: {...defines, LIT: graphics.tiles},
+            uniforms: this.compact ? {...uniforms, flagRectangles: {value: flagRectangles()}} : uniforms,
             vertexShader: displayVertex,
             fragmentShader: displayFragment,
         }))
 
         this.pickingPoints = new THREE.Points(pickingGeometry, new THREE.ShaderMaterial({
+            defines,
             uniforms: pickingUniforms,
             vertexShader: pickerVertex,
             fragmentShader: pickerFragment,
@@ -75,109 +82,53 @@ export class TileField {
     }
 
     setOwners(changes: OwnerChange[]) {
-        if (changes.length === 0) return
-
-        const values = this.regionVector.array as Float32Array
-        const individual = changes.length <= MAX_INDIVIDUAL_RANGES
-        let lowest = Infinity
-        let highest = -Infinity
-
+        const tiles: number[] = []
+        const flags: number[] = []
         for (const {tile, country} of changes) {
-            const region = country === undefined ? UNOWNED : regions.get(country)
-            if (!region) {
+            const flag = country === undefined ? UNOWNED : FLAGS.get(country)
+            if (flag === undefined) {
                 warnOnce(`No sprite region for country "${country}", leaving its tiles blank`)
                 continue
             }
-
-            const offset = (tile - 1) * REGION_STRIDE
-            values[offset] = region.x
-            values[offset + 1] = region.y
-            values[offset + 2] = region.width
-            values[offset + 3] = region.height
-
-            if (individual) {
-                this.regionVector.addUpdateRange(offset, REGION_STRIDE)
-            } else {
-                lowest = Math.min(lowest, offset)
-                highest = Math.max(highest, offset + REGION_STRIDE)
-            }
+            tiles.push(tile)
+            flags.push(flag)
         }
 
-        if (!individual && highest > lowest) {
-            this.regionVector.addUpdateRange(lowest, highest - lowest)
-        }
-        this.regionVector.needsUpdate = true
+        this.patch(this.slots.flag, tiles, (values, at, i) => {
+            if (this.compact) values[at] = flags[i]
+            else values.set(RECTANGLES.subarray(flags[i] * RECTANGLE, (flags[i] + 1) * RECTANGLE), at)
+        })
     }
 
     setShields(changes: readonly ShieldChange[]) {
-        if (changes.length === 0) return
-
-        const values = this.shield.array as Float32Array
-        const individual = changes.length <= MAX_INDIVIDUAL_RANGES
-        let lowest = Infinity
-        let highest = -Infinity
-
-        for (const {tile, shields} of changes) {
-            const index = tile - 1
-            values[index] = shields
-
-            if (individual) {
-                this.shield.addUpdateRange(index, 1)
-            } else {
-                lowest = Math.min(lowest, index)
-                highest = Math.max(highest, index + 1)
-            }
-        }
-
-        if (!individual && highest > lowest) {
-            this.shield.addUpdateRange(lowest, highest - lowest)
-        }
-        this.shield.needsUpdate = true
+        this.patch(this.slots.shield, changes.map(({tile}) => tile), (values, at, i) => {
+            values[at] = changes[i].shields
+        })
     }
 
     setPulses(tiles: readonly number[], on: boolean) {
-        if (tiles.length === 0) return
-
-        const values = this.pulse.array as Float32Array
-        const individual = tiles.length <= MAX_INDIVIDUAL_RANGES
-        let lowest = Infinity
-        let highest = -Infinity
-
-        for (const tile of tiles) {
-            const index = tile - 1
-            values[index] = on ? 1 : 0
-
-            if (individual) {
-                this.pulse.addUpdateRange(index, 1)
-            } else {
-                lowest = Math.min(lowest, index)
-                highest = Math.max(highest, index + 1)
-            }
-        }
-
-        if (!individual && highest > lowest) {
-            this.pulse.addUpdateRange(lowest, highest - lowest)
-        }
-        this.pulse.needsUpdate = true
+        this.patch(this.slots.pulse, tiles, (values, at) => {
+            values[at] = on ? 1 : 0
+        })
     }
 
     setLandmasses(assignment: Uint16Array) {
-        const values = this.landmass.array as Float32Array
-        for (let i = 0; i < values.length; i++) values[i] = assignment[i]
-        this.landmass.needsUpdate = true
+        const {attribute, offset} = this.slots.landmass
+        const values = attribute.array
+        for (let i = 0; i < this.size; i++) values[i * attribute.itemSize + offset] = assignment[i]
+        // The flags may share this buffer: with their ranges pending, a bare needsUpdate would upload only those.
+        attribute.addUpdateRange(0, values.length)
+        attribute.needsUpdate = true
     }
 
     setHover(tile: number | undefined): boolean {
         if (tile === this.hovered) return false
 
-        const values = this.hover.array as Float32Array
-        for (const index of [this.hovered, tile]) {
-            if (index === undefined) continue
-            values[index - 1] = index === tile ? 1 : 0
-            this.hover.addUpdateRange(index - 1, 1)
-        }
+        const tiles = [this.hovered, tile].filter((index) => index !== undefined)
+        this.patch(this.slots.hover, tiles, (values, at, i) => {
+            values[at] = tiles[i] === tile ? 1 : 0
+        })
 
-        this.hover.needsUpdate = true
         this.hovered = tile
         return true
     }
@@ -188,6 +139,70 @@ export class TileField {
             disposeMaterial(points.material as THREE.Material)
         }
     }
+
+    private patch(slot: Slot, tiles: readonly number[], write: (values: THREE.TypedArray, at: number, i: number) => void) {
+        if (tiles.length === 0) return
+
+        const {attribute, offset, width} = slot
+        const individual = tiles.length <= MAX_INDIVIDUAL_RANGES
+        let lowest = Infinity
+        let highest = -Infinity
+
+        tiles.forEach((tile, i) => {
+            const at = (tile - 1) * attribute.itemSize + offset
+            write(attribute.array, at, i)
+
+            if (individual) {
+                attribute.addUpdateRange(at, width)
+            } else {
+                lowest = Math.min(lowest, at)
+                highest = Math.max(highest, at + width)
+            }
+        })
+
+        if (!individual) attribute.addUpdateRange(lowest, highest - lowest)
+        attribute.needsUpdate = true
+    }
+}
+
+function plainLayout(size: number): Layout {
+    const floats = (width: number) => new THREE.BufferAttribute(new Float32Array(size * width), width)
+    const [regionVector, landmassIndex, hover, shield, pulse] = [RECTANGLE, 1, 1, 1, 1].map(floats)
+    const whole = (attribute: THREE.BufferAttribute) => ({attribute, offset: 0, width: attribute.itemSize})
+
+    return {
+        slots: {
+            flag: whole(regionVector),
+            landmass: whole(landmassIndex),
+            hover: whole(hover),
+            shield: whole(shield),
+            pulse: whole(pulse),
+        },
+        attributes: {regionVector, landmassIndex, hover, shield, pulse},
+    }
+}
+
+function compactLayout(size: number): Layout {
+    const ids = new THREE.BufferAttribute(new Uint16Array(size * 2), 2)
+    const marks = new THREE.BufferAttribute(new Uint8Array(size * 4), 4)
+    const at = (attribute: THREE.BufferAttribute, offset: number) => ({attribute, offset, width: 1})
+
+    return {
+        slots: {
+            flag: at(ids, 0),
+            landmass: at(ids, 1),
+            hover: at(marks, 0),
+            pulse: at(marks, 1),
+            shield: at(marks, 2),
+        },
+        attributes: {ids, marks},
+    }
+}
+
+function flagRectangles(): THREE.DataTexture {
+    const texture = new THREE.DataTexture(RECTANGLES, RECTANGLES.length / RECTANGLE, 1, THREE.RGBAFormat, THREE.FloatType)
+    texture.needsUpdate = true
+    return texture
 }
 
 function pickingColors(size: number): Float32Array {
