@@ -1,7 +1,7 @@
 import {defineConfig, Plugin} from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import glsl from 'vite-plugin-glsl'
-import {DISCORD_INVITE, INSTAGRAM_PROFILE, TIKTOK_PROFILE} from './src/links.ts'
+import {DISCORD_INVITE, INSTAGRAM_PROFILE, TIKTOK_PROFILE, YOUTUBE_CHANNEL} from './src/links.ts'
 import {WEB_ANALYTICS_TOKEN, withoutAnalytics} from './src/webAnalytics.ts'
 
 function gameRoutes(): Plugin {
@@ -35,6 +35,7 @@ export default defineConfig({
     define: {
         "import.meta.env.DISCORD_INVITE": JSON.stringify(DISCORD_INVITE),
         "import.meta.env.TIKTOK_PROFILE": JSON.stringify(TIKTOK_PROFILE),
+        "import.meta.env.YOUTUBE_CHANNEL": JSON.stringify(YOUTUBE_CHANNEL),
         "import.meta.env.INSTAGRAM_PROFILE": JSON.stringify(INSTAGRAM_PROFILE),
         "import.meta.env.WEB_ANALYTICS_TOKEN": JSON.stringify(WEB_ANALYTICS_TOKEN),
     },

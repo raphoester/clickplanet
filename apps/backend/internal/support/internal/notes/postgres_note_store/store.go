@@ -12,33 +12,26 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes"
 )
 
-func New(db cppg.QuerierBeginner) *Store {
+func New(db cppg.Conn) *Store {
 	return &Store{db: db}
 }
 
 type Store struct {
-	db cppg.QuerierBeginner
+	db cppg.Conn
 }
 
 var _ notes.Storage = (*Store)(nil)
 
 func (s *Store) Save(ctx context.Context, saved ...notes.Note) error {
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("failed to begin saving notes: %w", err)
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	for _, note := range saved {
-		if err := write(ctx, tx, note.TakeSnapshot()); err != nil {
-			return err
+	return s.db.InTx(ctx, func(ctx context.Context) error {
+		tx := s.db.On(ctx)
+		for _, note := range saved {
+			if err := write(ctx, tx, note.TakeSnapshot()); err != nil {
+				return err
+			}
 		}
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit the notes saved: %w", err)
-	}
-	return nil
+		return nil
+	})
 }
 
 // The keys are the stored format, and the JSON names of support.v1.PageContext: notes_query reads them as one.
@@ -150,7 +143,7 @@ func (s *Store) WithSenderBefore(ctx context.Context, cutoff time.Time, limit in
 }
 
 func (s *Store) restored(ctx context.Context, query string, args ...any) ([]notes.Note, error) {
-	rows, err := s.db.QueryContext(ctx, query, args...)
+	rows, err := s.db.On(ctx).QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read notes: %w", err)
 	}

@@ -52,6 +52,17 @@ func TestTheTitleWornIsAnswered(t *testing.T) {
 	assert.Equal(t, "og", res.Msg.GetWorn().GetId())
 }
 
+func TestWearingSettlerAnswersTheFirstRankOfTheConquestTrack(t *testing.T) {
+	settler, _ := titles.NewCatalog().StandingOf("settler")
+
+	res, err := wear(t, signedIn(t), &stubUseCase{worn: settler}, "settler")
+
+	require.NoError(t, err)
+	assert.Equal(t, "settler", res.Msg.GetWorn().GetId())
+	assert.Equal(t, "conquest", res.Msg.GetWorn().GetRank().GetTrackId())
+	assert.Equal(t, uint32(1), res.Msg.GetWorn().GetRank().GetNumber())
+}
+
 func TestATitleThatCannotBeWornIsInvalid(t *testing.T) {
 	_, err := wear(t, signedIn(t), &stubUseCase{err: fmt.Errorf("wrapped: %w", wearing.ErrNotWearable)}, "emperor")
 

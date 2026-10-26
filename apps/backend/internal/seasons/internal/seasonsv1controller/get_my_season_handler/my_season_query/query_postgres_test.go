@@ -68,6 +68,7 @@ type testSuite struct {
 	store   *postgres_contribution_store.Store
 	authors *fakeAuthors
 	clock   *cptime.FixedClock
+	taken   uint64
 }
 
 func (s *testSuite) SetupSuite() {
@@ -87,7 +88,8 @@ func account(n int) standings.AccountID {
 
 func (s *testSuite) take(n int, country standings.Country, tiles int) {
 	for range tiles {
-		s.Require().NoError(s.store.RecordTake(s.T().Context(), 0, standings.Take{Account: account(n), Country: country}))
+		s.taken++
+		s.Require().NoError(s.store.RecordTake(s.T().Context(), 0, standings.Take{Account: account(n), Country: country, Position: s.taken}))
 	}
 }
 

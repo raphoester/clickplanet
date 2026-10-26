@@ -7,9 +7,11 @@ import (
 	"encoding/binary"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
 const contractMaxIndex = 100_000
@@ -603,4 +605,87 @@ func (s *TileStorageContractSuite) TestARestoreThatMakesALandmassWholeLocksItToI
 	_, err = s.storage.Fortify(ctx, 90_003, "fr", 10)
 
 	s.Require().ErrorIs(err, ErrFortifiedAlready)
+}
+
+func (s *TileStorageContractSuite) asAccount() (context.Context, cpsession.AccountID) {
+	account := cpsession.AccountID(uuid.New())
+	return cpctx.AddAccountToContext(context.Background(), account.String()), account
+}
+
+func (s *TileStorageContractSuite) TestAPlayersTakeHoldsTheTileForItsAccount() {
+	ana, anaID := s.asAccount()
+	bob, bobID := s.asAccount()
+
+	s.Require().NoError(s.storage.Click(ana, contractIsland[0], "fr"))
+	s.Require().NoError(s.storage.Set(ana, contractIsland[1], "fr"))
+	s.Require().NoError(s.storage.Click(bob, contractIsland[2], "fr"))
+
+	s.ElementsMatch([]Holding{{Account: anaID, Flag: "fr", Tiles: 2}, {Account: bobID, Flag: "fr", Tiles: 1}},
+		s.storage.HoldingsOf(1))
+	s.Empty(s.storage.HoldingsOf(2))
+}
+
+func (s *TileStorageContractSuite) TestAWriteWithNoAccountHoldsTheTileForNobody() {
+	s.Require().NoError(s.storage.Set(context.Background(), contractIsland[0], "fr"))
+
+	s.Empty(s.storage.HoldingsOf(1))
+	s.Equal(map[uint32]string{contractIsland[0]: "fr"}, s.owners(contractIsland[0], contractIsland[0]))
+}
+
+func (s *TileStorageContractSuite) TestAClickThatChangesNoOwnerKeepsTheHolder() {
+	ana, anaID := s.asAccount()
+	bob, _ := s.asAccount()
+	s.Require().NoError(s.storage.Click(ana, contractIsland[0], "fr"))
+	s.Require().NoError(s.storage.Shield(ana, contractIsland[0], "fr", 3))
+
+	s.Require().NoError(s.storage.Click(bob, contractIsland[0], "fr"))
+	s.Require().True(s.storage.Strike(bob, contractIsland[0], "fr"))
+
+	s.Equal([]Holding{{Account: anaID, Flag: "fr", Tiles: 1}}, s.storage.HoldingsOf(1))
+}
+
+func (s *TileStorageContractSuite) TestATakeForAnotherFlagHoldsTheTileForItsTaker() {
+	ana, _ := s.asAccount()
+	bob, bobID := s.asAccount()
+	s.Require().NoError(s.storage.Click(ana, contractIsland[0], "fr"))
+
+	s.Require().NoError(s.storage.Click(bob, contractIsland[0], "de"))
+
+	s.Equal([]Holding{{Account: bobID, Flag: "de", Tiles: 1}}, s.storage.HoldingsOf(1))
+}
+
+func (s *TileStorageContractSuite) TestAClearAReassignAndARestoreLeaveTheirTilesHeldByNobody() {
+	ana, anaID := s.asAccount()
+	for _, tile := range contractIsland {
+		s.Require().NoError(s.storage.Click(ana, tile, "fr"))
+	}
+
+	_, err := s.storage.Clear(ana, Blast{Tile: contractIsland[0], CountryID: "us", Cleared: []uint32{contractIsland[0]}})
+	s.Require().NoError(err)
+	_, err = s.storage.Restore(context.Background(), []Restoration{{Tile: contractIsland[1], From: "fr", To: "us"}})
+	s.Require().NoError(err)
+	s.Equal([]Holding{{Account: anaID, Flag: "fr", Tiles: 1}}, s.storage.HoldingsOf(1))
+
+	_, _, err = s.storage.Reassign(context.Background(), "fr", "it", 0, 10)
+	s.Require().NoError(err)
+	s.Empty(s.storage.HoldingsOf(1))
+}
+
+func (s *TileStorageContractSuite) TestAForgottenHolderLeavesItsTilesWearingTheirFlag() {
+	ana, anaID := s.asAccount()
+	bob, bobID := s.asAccount()
+	s.Require().NoError(s.storage.Click(ana, contractIsland[0], "fr"))
+	s.Require().NoError(s.storage.Click(ana, contractIsland[1], "fr"))
+	s.Require().NoError(s.storage.Click(bob, contractIsland[2], "fr"))
+
+	forgotten, err := s.storage.ForgetHolder(context.Background(), anaID)
+	s.Require().NoError(err)
+
+	s.Equal(2, forgotten)
+	s.Equal([]Holding{{Account: bobID, Flag: "fr", Tiles: 1}}, s.storage.HoldingsOf(1))
+	s.Len(s.owners(contractIsland[0], contractIsland[2]), 3)
+
+	again, err := s.storage.ForgetHolder(context.Background(), anaID)
+	s.Require().NoError(err)
+	s.Zero(again)
 }

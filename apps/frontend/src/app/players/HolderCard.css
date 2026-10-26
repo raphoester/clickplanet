@@ -1,0 +1,53 @@
+.holder-card-main {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-3);
+}
+
+.holder-card-who {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.holder-card-name {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    min-width: 0;
+    font-family: var(--font-text);
+    font-weight: 700;
+    font-size: var(--text-l);
+    color: hsl(var(--author-hue, 0) calc(var(--author-saturation) * var(--author-chroma, 1)) var(--author-name-lightness));
+}
+
+.holder-card-name-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.holder-card-flags {
+    display: flex;
+    gap: 6px;
+    font-size: 20px;
+}
+
+.holder-card-flags .country-flag,
+.holder-card-take .country-flag {
+    margin-right: 0;
+}
+
+.holder-card-profile {
+    background: var(--secondary);
+}
+
+.holder-card-take {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}

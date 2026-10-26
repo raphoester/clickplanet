@@ -65,6 +65,7 @@ type testSuite struct {
 	store   *postgres_contribution_store.Store
 	authors *fakeAuthors
 	clock   *cptime.FixedClock
+	taken   uint64
 }
 
 func (s *testSuite) SetupSuite() {
@@ -84,7 +85,8 @@ func account(n int) standings.AccountID {
 
 func (s *testSuite) take(season calendar.Number, n int, country standings.Country, tiles int) {
 	for range tiles {
-		s.Require().NoError(s.store.RecordTake(s.T().Context(), season, standings.Take{Account: account(n), Country: country}))
+		s.taken++
+		s.Require().NoError(s.store.RecordTake(s.T().Context(), season, standings.Take{Account: account(n), Country: country, Position: s.taken}))
 	}
 }
 
@@ -168,7 +170,10 @@ func (s *testSuite) TestTheTopOfACountryRanksEveryPlayerByTheTilesTakenForIt() {
 	s.guest(4, "fr", 5)
 	s.take(0, 3, "it", 1)
 
-	s.Equal([]string{"1 player_1 fr 8", "2 player_3 fr 4", "3 player_2 fr 2"}, lines(s.standings("fr")))
+	fr := s.standings("fr")
+	s.Equal([]string{"1 player_1 fr 8", "2 player_3 fr 4", "3 player_2 fr 2"}, lines(fr))
+	s.Equal(playerv1.NameColor_NAME_COLOR_YELLOW, fr.GetStandings()[1].GetColor())
+	s.Equal(account(3).String(), fr.GetStandings()[1].GetAccountId())
 	s.Equal([]string{"1 player_1 de 9"}, lines(s.standings("de")))
 	s.Equal([]string{"1 player_3 it 1"}, lines(s.standings("it")))
 }

@@ -28,12 +28,17 @@ import {
     PledgeAllegianceResponse,
     GetBonusRulesResponse,
     GetMapResponse,
+    GetLandmassResponse,
+    GetTileHolderResponse,
+    LandmassFortification as LandmassFortificationMessage,
+    LandmassHolder as LandmassHolderMessage,
     GlobePoint,
     Heartbeat,
     LandmassFortified,
     PlanetEvent,
     SharedWith,
     TilesEnclosed,
+    TileHolder as TileHolderMessage,
     TileShields,
     TilesSpread,
     TileUpdate,
@@ -1698,6 +1703,68 @@ describe("PlanetBackend allegiance", () => {
 
         await vi.waitFor(() => expect(getAllegiance).toHaveBeenCalled())
         expect(seen.at(-1)).toBeUndefined()
+        backend.close()
+    })
+})
+
+describe("PlanetBackend tile holder", () => {
+    const backendWith = (getTileHolder: ReturnType<typeof vi.fn>) => new PlanetBackend(
+        {click: vi.fn(), getMap: vi.fn(), getBudget: noBudget(), ...bonusReads(), mapDensity: vi.fn(), listenForEvents: noEvents(), getTileHolder} as never,
+        1_000,
+    )
+
+    it("reads who holds a tile, with no token, and when it was taken", async () => {
+        const getTileHolder = vi.fn().mockResolvedValue(new GetTileHolderResponse({
+            holder: new TileHolderMessage({accountId: "account-ana", countryId: "fr", takenAtUnixMs: 1_761_393_600_000n}),
+        }))
+        const backend = backendWith(getTileHolder)
+
+        expect(await backend.tileHolder(7)).toEqual({accountId: "account-ana", countryCode: "fr", takenAt: 1_761_393_600_000})
+        expect(getTileHolder.mock.calls[0][0]).toEqual({tileId: 7})
+        expect((getTileHolder.mock.calls[0][1] as {headers?: Headers}).headers).toBeUndefined()
+        backend.close()
+    })
+
+    it("answers nobody for a tile the ledger names nobody on", async () => {
+        const backend = backendWith(vi.fn().mockResolvedValue(new GetTileHolderResponse()))
+
+        expect(await backend.tileHolder(7)).toBeUndefined()
+        backend.close()
+    })
+})
+
+describe("PlanetBackend landmass", () => {
+    const backendWith = (getLandmass: ReturnType<typeof vi.fn>) => new PlanetBackend(
+        {click: vi.fn(), getMap: vi.fn(), getBudget: noBudget(), ...bonusReads(), mapDensity: vi.fn(), listenForEvents: noEvents(), getLandmass} as never,
+        1_000,
+    )
+
+    it("reads who holds a landmass and who fortified it last, with no token", async () => {
+        const getLandmass = vi.fn().mockResolvedValue(new GetLandmassResponse({
+            holders: [
+                new LandmassHolderMessage({accountId: "account-ana", countryId: "fr", tiles: 40}),
+                new LandmassHolderMessage({accountId: "account-kiran", countryId: "in", tiles: 3}),
+            ],
+            lastFortification: new LandmassFortificationMessage({accountId: "account-ana", countryId: "fr", fortifiedAtUnixMs: 1_761_393_600_000n}),
+        }))
+        const backend = backendWith(getLandmass)
+
+        expect(await backend.landmass(12)).toEqual({
+            holders: [
+                {accountId: "account-ana", countryCode: "fr", tiles: 40},
+                {accountId: "account-kiran", countryCode: "in", tiles: 3},
+            ],
+            lastFortification: {accountId: "account-ana", countryCode: "fr", at: 1_761_393_600_000},
+        })
+        expect(getLandmass.mock.calls[0][0]).toEqual({landmassId: 12})
+        expect((getLandmass.mock.calls[0][1] as {headers?: Headers}).headers).toBeUndefined()
+        backend.close()
+    })
+
+    it("answers no fortify for a landmass nobody fortified", async () => {
+        const backend = backendWith(vi.fn().mockResolvedValue(new GetLandmassResponse()))
+
+        expect(await backend.landmass(12)).toEqual({holders: [], lastFortification: undefined})
         backend.close()
     })
 })

@@ -1,0 +1,150 @@
+.missions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.missions-text {
+    margin: 0;
+}
+
+.missions-left {
+    margin: 0;
+    font-size: var(--text-s);
+    color: var(--text-soft);
+}
+
+.missions-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.mission {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+}
+
+.mission--paid {
+    opacity: 0.6;
+}
+
+.mission-head,
+.mission-foot {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.mission-order {
+    flex: 1;
+    min-width: 0;
+    font-weight: 700;
+    font-size: var(--text-m);
+    color: var(--text);
+}
+
+.mission-reward {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: var(--space-1);
+    font-family: var(--font-display);
+    font-size: var(--display-s);
+    color: var(--gold);
+    text-shadow: var(--text-drop);
+}
+
+.mission-reward .bonus-icon {
+    width: 26px;
+    height: 26px;
+    padding: 3px;
+    border: var(--outline-thin) solid var(--ink);
+    border-radius: var(--radius-s);
+    background: var(--bonus-box);
+    box-shadow: var(--drop-xs);
+}
+
+.mission-reward--shields {
+    --bonus-box: var(--shield);
+}
+
+.mission-reward--spreadClicks {
+    --bonus-box: var(--spread);
+}
+
+.mission-reward--bomb {
+    --bonus-box: var(--bomb);
+}
+
+.mission-reward--refill {
+    --bonus-box: var(--refill);
+}
+
+.mission-reward--encloseClicks {
+    --bonus-box: var(--enclose);
+}
+
+.mission-bar {
+    flex: 1;
+    height: 12px;
+    overflow: hidden;
+    border: var(--outline-thin) solid var(--ink);
+    border-radius: var(--radius-s);
+    background: var(--panel-sunk);
+}
+
+.mission-bar-filled {
+    height: 100%;
+    background: var(--gold);
+    box-shadow: inset 0 -3px 0 var(--gold-shade);
+}
+
+.mission-count {
+    flex-shrink: 0;
+    min-width: 52px;
+    font-size: var(--text-s);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    color: var(--text-soft);
+}
+
+.mission-done {
+    flex-shrink: 0;
+}
+
+.missions-done {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.missions-done-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+}
+
+.missions-done-order {
+    font-weight: 700;
+    font-size: clamp(var(--text-m), 1.8vw, var(--text-l));
+    color: var(--text);
+}
+
+.missions-done-reward .bonus-icon {
+    width: 16px;
+    height: 16px;
+    padding: 2px;
+    border-radius: var(--radius-xs);
+    background: var(--bonus-box);
+}

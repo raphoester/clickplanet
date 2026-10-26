@@ -43,6 +43,6 @@ func (s *testSuite) TestATitleKeepsTheTimeItWasFirstEarned() {
 	s.Require().NoError(s.store.Grant(s.T().Context(), grant, at.Add(time.Hour)))
 
 	var earnedAt time.Time
-	s.Require().NoError(s.db.QueryRowContext(s.T().Context(), `SELECT earned_at FROM titles`).Scan(&earnedAt))
+	s.Require().NoError(s.db.On(s.T().Context()).QueryRowContext(s.T().Context(), `SELECT earned_at FROM titles`).Scan(&earnedAt))
 	s.Equal(at, earnedAt.UTC())
 }

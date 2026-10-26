@@ -27,7 +27,9 @@ type GetLedgerRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Since *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=since,proto3" json:"since,omitempty"`
 	// Unset is now.
-	Until         *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=until,proto3" json:"until,omitempty"`
+	Until *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=until,proto3" json:"until,omitempty"`
+	// The next_page of the page before; empty is the first.
+	Page          string `protobuf:"bytes,3,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -76,11 +78,20 @@ func (x *GetLedgerRequest) GetUntil() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *GetLedgerRequest) GetPage() string {
+	if x != nil {
+		return x.Page
+	}
+	return ""
+}
+
 type GetLedgerResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Oldest first: a click that took a tile or struck its shield, a tile a spread, an enclosure or a bomb took or
 	// emptied, a shield placed or raised. A shield a bomb struck is left out: it changed no hands.
-	Changes       []*LedgerChange `protobuf:"bytes,1,rep,name=changes,proto3" json:"changes,omitempty"`
+	Changes []*LedgerChange `protobuf:"bytes,1,rep,name=changes,proto3" json:"changes,omitempty"`
+	// Empty on the last page.
+	NextPage      string `protobuf:"bytes,2,opt,name=next_page,json=nextPage,proto3" json:"next_page,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -120,6 +131,13 @@ func (x *GetLedgerResponse) GetChanges() []*LedgerChange {
 		return x.Changes
 	}
 	return nil
+}
+
+func (x *GetLedgerResponse) GetNextPage() string {
+	if x != nil {
+		return x.NextPage
+	}
+	return ""
 }
 
 type LedgerChange struct {
@@ -1156,20 +1174,23 @@ func (x *TopPlayersResponse) GetTotal() uint32 {
 }
 
 type Player struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	Scope          string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
-	AccountId      string                 `protobuf:"bytes,12,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
-	Tiles          uint32                 `protobuf:"varint,2,opt,name=tiles,proto3" json:"tiles,omitempty"`
-	FirstAt        *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=first_at,json=firstAt,proto3" json:"first_at,omitempty"`
-	LastAt         *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=last_at,json=lastAt,proto3" json:"last_at,omitempty"`
-	Banned         *bool                  `protobuf:"varint,5,opt,name=banned,proto3,oneof" json:"banned,omitempty"`
-	BannedUntil    *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=banned_until,json=bannedUntil,proto3" json:"banned_until,omitempty"`
-	Offence        uint32                 `protobuf:"varint,7,opt,name=offence,proto3" json:"offence,omitempty"`
-	ActiveFor      *durationpb.Duration   `protobuf:"bytes,8,opt,name=active_for,json=activeFor,proto3" json:"active_for,omitempty"`
-	TilesPerMinute float64                `protobuf:"fixed64,9,opt,name=tiles_per_minute,json=tilesPerMinute,proto3" json:"tiles_per_minute,omitempty"`
-	Takes          uint32                 `protobuf:"varint,10,opt,name=takes,proto3" json:"takes,omitempty"`
-	TakesPerMinute float64                `protobuf:"fixed64,11,opt,name=takes_per_minute,json=takesPerMinute,proto3" json:"takes_per_minute,omitempty"`
-	FlagCountryId  string                 `protobuf:"bytes,13,opt,name=flag_country_id,json=flagCountryId,proto3" json:"flag_country_id,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Scope       string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	AccountId   string                 `protobuf:"bytes,12,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	Tiles       uint32                 `protobuf:"varint,2,opt,name=tiles,proto3" json:"tiles,omitempty"`
+	FirstAt     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=first_at,json=firstAt,proto3" json:"first_at,omitempty"`
+	LastAt      *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=last_at,json=lastAt,proto3" json:"last_at,omitempty"`
+	Banned      *bool                  `protobuf:"varint,5,opt,name=banned,proto3,oneof" json:"banned,omitempty"`
+	BannedUntil *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=banned_until,json=bannedUntil,proto3" json:"banned_until,omitempty"`
+	// Planet keeps no offence: antibot.v1.AdminService/InspectPlayer says it.
+	//
+	// Deprecated: Marked as deprecated in planet/v1/admin.proto.
+	Offence        uint32               `protobuf:"varint,7,opt,name=offence,proto3" json:"offence,omitempty"`
+	ActiveFor      *durationpb.Duration `protobuf:"bytes,8,opt,name=active_for,json=activeFor,proto3" json:"active_for,omitempty"`
+	TilesPerMinute float64              `protobuf:"fixed64,9,opt,name=tiles_per_minute,json=tilesPerMinute,proto3" json:"tiles_per_minute,omitempty"`
+	Takes          uint32               `protobuf:"varint,10,opt,name=takes,proto3" json:"takes,omitempty"`
+	TakesPerMinute float64              `protobuf:"fixed64,11,opt,name=takes_per_minute,json=takesPerMinute,proto3" json:"takes_per_minute,omitempty"`
+	FlagCountryId  string               `protobuf:"bytes,13,opt,name=flag_country_id,json=flagCountryId,proto3" json:"flag_country_id,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -1253,6 +1274,7 @@ func (x *Player) GetBannedUntil() *timestamppb.Timestamp {
 	return nil
 }
 
+// Deprecated: Marked as deprecated in planet/v1/admin.proto.
 func (x *Player) GetOffence() uint32 {
 	if x != nil {
 		return x.Offence
@@ -1836,12 +1858,14 @@ var File_planet_v1_admin_proto protoreflect.FileDescriptor
 
 const file_planet_v1_admin_proto_rawDesc = "" +
 	"\n" +
-	"\x15planet/v1/admin.proto\x12\tplanet.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x18planet/v1/internal.proto\x1a\x16planet/v1/planet.proto\"v\n" +
+	"\x15planet/v1/admin.proto\x12\tplanet.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x18planet/v1/internal.proto\x1a\x16planet/v1/planet.proto\"\x8a\x01\n" +
 	"\x10GetLedgerRequest\x120\n" +
 	"\x05since\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\x120\n" +
-	"\x05until\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x05until\"F\n" +
+	"\x05until\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x05until\x12\x12\n" +
+	"\x04page\x18\x03 \x01(\tR\x04page\"c\n" +
 	"\x11GetLedgerResponse\x121\n" +
-	"\achanges\x18\x01 \x03(\v2\x17.planet.v1.LedgerChangeR\achanges\"y\n" +
+	"\achanges\x18\x01 \x03(\v2\x17.planet.v1.LedgerChangeR\achanges\x12\x1b\n" +
+	"\tnext_page\x18\x02 \x01(\tR\bnextPage\"y\n" +
 	"\fLedgerChange\x12*\n" +
 	"\x02at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x02at\x12-\n" +
 	"\x06update\x18\x02 \x01(\v2\x15.planet.v1.TileUpdateR\x06update\x12\x0e\n" +
@@ -1931,7 +1955,7 @@ const file_planet_v1_admin_proto_rawDesc = "" +
 	"\x05limit\x18\x01 \x01(\rR\x05limit\"W\n" +
 	"\x12TopPlayersResponse\x12+\n" +
 	"\aplayers\x18\x01 \x03(\v2\x11.planet.v1.PlayerR\aplayers\x12\x14\n" +
-	"\x05total\x18\x02 \x01(\rR\x05total\"\x8c\x04\n" +
+	"\x05total\x18\x02 \x01(\rR\x05total\"\x90\x04\n" +
 	"\x06Player\x12\x14\n" +
 	"\x05scope\x18\x01 \x01(\tR\x05scope\x12\x1d\n" +
 	"\n" +
@@ -1940,8 +1964,8 @@ const file_planet_v1_admin_proto_rawDesc = "" +
 	"\bfirst_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\afirstAt\x123\n" +
 	"\alast_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x06lastAt\x12\x1b\n" +
 	"\x06banned\x18\x05 \x01(\bH\x00R\x06banned\x88\x01\x01\x12=\n" +
-	"\fbanned_until\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\vbannedUntil\x12\x18\n" +
-	"\aoffence\x18\a \x01(\rR\aoffence\x128\n" +
+	"\fbanned_until\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\vbannedUntil\x12\x1c\n" +
+	"\aoffence\x18\a \x01(\rB\x02\x18\x01R\aoffence\x128\n" +
 	"\n" +
 	"active_for\x18\b \x01(\v2\x19.google.protobuf.DurationR\tactiveFor\x12(\n" +
 	"\x10tiles_per_minute\x18\t \x01(\x01R\x0etilesPerMinute\x12\x14\n" +
@@ -1996,17 +2020,17 @@ const file_planet_v1_admin_proto_rawDesc = "" +
 	"\x05moved\x18\x03 \x01(\rR\x05moved\x12\x1d\n" +
 	"\n" +
 	"from_after\x18\x04 \x01(\rR\tfromAfter\x12\x19\n" +
-	"\bto_after\x18\x05 \x01(\rR\atoAfter2\xd1\a\n" +
+	"\bto_after\x18\x05 \x01(\rR\atoAfter2\xe0\a\n" +
 	"\fAdminService\x12X\n" +
 	"\x0fReassignCountry\x12!.planet.v1.ReassignCountryRequest\x1a\".planet.v1.ReassignCountryResponse\x12L\n" +
 	"\vFindPlayers\x12\x1d.planet.v1.FindPlayersRequest\x1a\x1e.planet.v1.FindPlayersResponse\x12I\n" +
 	"\n" +
-	"TopPlayers\x12\x1c.planet.v1.TopPlayersRequest\x1a\x1d.planet.v1.TopPlayersResponse\x12F\n" +
-	"\tBanPlayer\x12\x1b.planet.v1.BanPlayerRequest\x1a\x1c.planet.v1.BanPlayerResponse\x12L\n" +
-	"\vUnbanPlayer\x12\x1d.planet.v1.UnbanPlayerRequest\x1a\x1e.planet.v1.UnbanPlayerResponse\x12O\n" +
+	"TopPlayers\x12\x1c.planet.v1.TopPlayersRequest\x1a\x1d.planet.v1.TopPlayersResponse\x12K\n" +
+	"\tBanPlayer\x12\x1b.planet.v1.BanPlayerRequest\x1a\x1c.planet.v1.BanPlayerResponse\"\x03\x88\x02\x01\x12Q\n" +
+	"\vUnbanPlayer\x12\x1d.planet.v1.UnbanPlayerRequest\x1a\x1e.planet.v1.UnbanPlayerResponse\"\x03\x88\x02\x01\x12O\n" +
 	"\fRevertPlayer\x12\x1e.planet.v1.RevertPlayerRequest\x1a\x1f.planet.v1.RevertPlayerResponse\x12[\n" +
-	"\x10PaintRandomTiles\x12\".planet.v1.PaintRandomTilesRequest\x1a#.planet.v1.PaintRandomTilesResponse\x12R\n" +
-	"\rInspectPlayer\x12\x1f.planet.v1.InspectPlayerRequest\x1a .planet.v1.InspectPlayerResponse\x12O\n" +
+	"\x10PaintRandomTiles\x12\".planet.v1.PaintRandomTilesRequest\x1a#.planet.v1.PaintRandomTilesResponse\x12W\n" +
+	"\rInspectPlayer\x12\x1f.planet.v1.InspectPlayerRequest\x1a .planet.v1.InspectPlayerResponse\"\x03\x88\x02\x01\x12O\n" +
 	"\fGrantCharges\x12\x1e.planet.v1.GrantChargesRequest\x1a\x1f.planet.v1.GrantChargesResponse\x12F\n" +
 	"\tGetReplay\x12\x1b.planet.v1.GetReplayRequest\x1a\x1c.planet.v1.GetReplayResponse\x12F\n" +
 	"\tGetLedger\x12\x1b.planet.v1.GetLedgerRequest\x1a\x1c.planet.v1.GetLedgerResponse\x12U\n" +

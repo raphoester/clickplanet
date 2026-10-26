@@ -53,8 +53,8 @@ func (s *testSuite) TestAnAccountThatNeverTookATileHasEmptyStats() {
 }
 
 func (s *testSuite) TestTheStreakIsReadAsOfTodayInUTC() {
-	s.Require().NoError(s.players.Record(s.T().Context(), ada, players.TakeAt(monday)))
-	s.Require().NoError(s.players.Record(s.T().Context(), ada, players.TakeAt(monday.Add(24*time.Hour))))
+	s.Require().NoError(s.players.Record(s.T().Context(), ada, players.TakeAt(0, monday)))
+	s.Require().NoError(s.players.Record(s.T().Context(), ada, players.TakeAt(1, monday.Add(24*time.Hour))))
 	clock := cptime.NewFixedClock(monday.Add(48 * time.Hour))
 
 	s.True(proto.Equal(&playerv1.Stats{TilesTaken: 2, StreakCurrent: 2, StreakBest: 2, StreakLastDay: "2026-09-15"}, s.stats(clock)),
@@ -66,7 +66,7 @@ func (s *testSuite) TestTheStreakIsReadAsOfTodayInUTC() {
 }
 
 func (s *testSuite) TestAnAccountThatOnlyPostedHasNoStreakDay() {
-	s.Require().NoError(s.players.Record(s.T().Context(), ada, players.Stats.WithMessage))
+	s.Require().NoError(s.players.Record(s.T().Context(), ada, players.MessageAt(monday)))
 
 	s.True(proto.Equal(&playerv1.Stats{}, s.stats(cptime.NewFixedClock(monday))))
 }
@@ -102,10 +102,10 @@ func (s *testSuite) TestTheStreakReadsAsTheCommandsReadIt() {
 		for _, now := range clocks {
 			s.Run(name+" at "+now.Format(time.RFC3339), func() {
 				s.Require().NoError(s.db.Purge(s.T().Context()))
-				for _, at := range takes {
-					s.Require().NoError(s.players.Record(s.T().Context(), ada, players.TakeAt(at)))
+				for position, at := range takes {
+					s.Require().NoError(s.players.Record(s.T().Context(), ada, players.TakeAt(uint64(position), at)))
 				}
-				s.Require().NoError(s.players.Record(s.T().Context(), ada, players.Stats.WithMessage))
+				s.Require().NoError(s.players.Record(s.T().Context(), ada, players.MessageAt(monday)))
 
 				kept, err := s.players.Stats(s.T().Context(), ada)
 				s.Require().NoError(err)

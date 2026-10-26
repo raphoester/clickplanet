@@ -3,6 +3,7 @@ httpServer:
   consoleBindAddress: 127.0.0.1:8081
   internalBindAddress: 127.0.0.1:8082
   allowedOrigin: http://localhost
+
 gameMap:
   maxIndex: 262119
 
@@ -15,6 +16,9 @@ database:
   sslMode: disable
   schema: planet
 
+redis:
+  address: redis:6379
+
 antiBot:
   enabled: false
   database:
@@ -25,6 +29,8 @@ antiBot:
     dbName: postgres
     sslMode: disable
     schema: antibot
+  redis:
+    address: redis:6379
 
 vpnBlocklist:
   enabled: false
@@ -38,6 +44,8 @@ chat:
     dbName: postgres
     sslMode: disable
     schema: chat
+  redis:
+    address: redis:6379
   rateLimiter:
     perSecond: 0.33
     burst: 5
@@ -51,6 +59,8 @@ player:
     dbName: postgres
     sslMode: disable
     schema: player
+  redis:
+    address: redis:6379
   tagSalt: "local-development-salt"
 
 seasons:
@@ -66,6 +76,21 @@ seasons:
     dbName: postgres
     sslMode: disable
     schema: seasons
+  redis:
+    address: redis:6379
+
+missions:
+  cutoff: 21h
+  database:
+    host: postgres
+    port: "5432"
+    user: postgres
+    password: postgres
+    dbName: postgres
+    sslMode: disable
+    schema: missions
+  redis:
+    address: redis:6379
 
 support:
   database:
@@ -76,6 +101,8 @@ support:
     dbName: postgres
     sslMode: disable
     schema: support
+  redis:
+    address: redis:6379
 
 clips:
   database:

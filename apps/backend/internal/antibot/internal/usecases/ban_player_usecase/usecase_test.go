@@ -1,0 +1,92 @@
+package ban_player_usecase_test
+
+import (
+	"context"
+	"errors"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/bans"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/guard"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/usecases/ban_player_usecase"
+)
+
+var until = time.Date(2026, 9, 15, 12, 0, 0, 0, time.UTC)
+
+type banner struct {
+	scopes    []string
+	accounts  []string
+	durations []time.Duration
+	failing   error
+}
+
+func (b *banner) Ban(_ context.Context, scope, account string, duration time.Duration) (guard.Sentence, error) {
+	b.scopes = append(b.scopes, scope)
+	b.accounts = append(b.accounts, account)
+	b.durations = append(b.durations, duration)
+	return guard.Sentence{Offence: 1, Until: until}, b.failing
+}
+
+func (b *banner) Enforcing() bool { return true }
+
+func TestAnAddressIsBannedAsItsScope(t *testing.T) {
+	b := &banner{}
+
+	out, err := ban_player_usecase.New(b).Execute(t.Context(), ban_player_usecase.In{Scope: "2001:db8:1:2::9", Duration: time.Hour})
+	require.NoError(t, err)
+
+	assert.Equal(t, ban_player_usecase.Out{Scope: "2001:db8:1:2::/64", Offence: 1, Until: until, Enforced: true}, out)
+	assert.Equal(t, []string{"2001:db8:1:2::/64"}, b.scopes)
+	assert.Equal(t, []time.Duration{time.Hour}, b.durations)
+}
+
+func TestItRefusesWhatIsNotAScope(t *testing.T) {
+	b := &banner{}
+
+	_, err := ban_player_usecase.New(b).Execute(t.Context(), ban_player_usecase.In{Scope: "1.2.3.0/24"})
+	require.ErrorIs(t, err, bans.ErrInvalidScope)
+
+	_, err = ban_player_usecase.New(b).Execute(t.Context(), ban_player_usecase.In{Scope: "1.2.3.4", Duration: -time.Hour})
+	require.ErrorIs(t, err, ban_player_usecase.ErrNegativeDuration)
+
+	assert.Empty(t, b.scopes)
+}
+
+func TestAnAccountIsBannedAlone(t *testing.T) {
+	b := &banner{}
+
+	out, err := ban_player_usecase.New(b).Execute(t.Context(),
+		ban_player_usecase.In{Account: "0B7E5B6C-8F3A-4D2E-9C1A-2F6D8E4B7A10"})
+	require.NoError(t, err)
+
+	assert.Equal(t, "0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10", out.Account)
+	assert.Empty(t, out.Scope)
+	assert.Equal(t, []string{""}, b.scopes)
+	assert.Equal(t, []string{"0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10"}, b.accounts)
+}
+
+func TestItRefusesBothOrNeitherAndWhatIsNotAnAccount(t *testing.T) {
+	b := &banner{}
+
+	_, err := ban_player_usecase.New(b).Execute(t.Context(), ban_player_usecase.In{})
+	require.ErrorIs(t, err, bans.ErrNoCaller)
+
+	_, err = ban_player_usecase.New(b).Execute(t.Context(),
+		ban_player_usecase.In{Scope: "1.2.3.4", Account: "0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10"})
+	require.ErrorIs(t, err, bans.ErrNoCaller)
+
+	_, err = ban_player_usecase.New(b).Execute(t.Context(), ban_player_usecase.In{Account: "guest"})
+	require.ErrorIs(t, err, bans.ErrInvalidAccount)
+
+	assert.Empty(t, b.accounts)
+}
+
+func TestABanThatCannotBeKeptIsAnError(t *testing.T) {
+	cause := errors.New("postgres is down")
+
+	_, err := ban_player_usecase.New(&banner{failing: cause}).Execute(t.Context(), ban_player_usecase.In{Scope: "1.2.3.4"})
+	require.ErrorIs(t, err, cause)
+}

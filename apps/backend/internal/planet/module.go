@@ -12,25 +12,26 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances/postgres_allegiance_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/box_facts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/postgres_charge_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/postgres_grant_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/answer_quiz_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/answer_quiz_usecase/prom_answer_quiz"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/apply_grant_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/claim_bonus_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/claim_bonus_usecase/prom_claim_bonus"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase/antibot_drop_bomb"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase/prom_drop_bomb"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase/publishing_drop_bomb"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase/refusal_drop_bomb"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/get_charges_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/grant_charges_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/grant_charges_usecase/audit_grant_charges"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/open_quiz_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/place_shield_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/place_shield_usecase/antibot_place_shield"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/place_shield_usecase/refusal_place_shield"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/use_refill_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/embedded_geodesic_map"
@@ -38,56 +39,56 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/postgres_tile_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/allegiance_click"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/antibot_attempt_click"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/antibot_click"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/ban_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/bonus_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/enclose_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/enclose_click/prom_enclose"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/prom_click"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/refusal_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/spread_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/throttle_click"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/try_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_budget_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_map_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_map_usecase/antibot_get_map"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events_usecase/antibot_listen_for_events"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/map_density_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/paint_random_tiles_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/paint_random_tiles_usecase/audit_paint_random"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/reassign_country_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/reassign_country_usecase/audit_reassign"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/relay_fortifications_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/commands/admit_caller_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/commands/apply_grant_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/commands/refuse_caller_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/facts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/postgres_ledger_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/publishing_ledger_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/anonymize_takes_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/ban_player_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/ban_player_usecase/audit_ban"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/find_players_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/inspect_player_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/relay_ledger_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/relay_ledger_usecase/log_relay_ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/replay_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/revert_player_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/revert_player_usecase/audit_revert"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/top_players_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/unban_player_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/unban_player_usecase/audit_unban"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/answer_quiz_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/ban_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/claim_bonus_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/click_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/drop_bomb_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/find_players_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_allegiance_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_allegiance_handler/allegiance_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_allegiance_of_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_bonus_rules_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_budget_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_charges_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_country_sizes_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_fortresses_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_fortresses_handler/fortresses_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_landmass_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_landmass_handler/landmass_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_landmass_handler/landmass_query/inmemory_tile_holders"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_ledger_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_ledger_handler/changes_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_map_handler"
@@ -96,8 +97,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_takes_by_country_handler/takes_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_territories_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_territories_handler/territories_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_tile_holder_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_tile_holder_handler/holder_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/grant_charges_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/inspect_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/map_density_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/open_quiz_handler"
@@ -107,9 +109,11 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/reassign_country_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/revert_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/top_players_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/unban_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/use_refill_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/quizzes"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/refusals"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/refusals/log_refusals"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/refusals/postgres_refusal_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/account_deleted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
@@ -117,6 +121,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsessionverifier"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -124,7 +129,8 @@ import (
 const (
 	moduleName = "planet"
 
-	accountDeletedBuffer = 2048
+	ledgerRelayInterval = time.Second
+	factsRelayInterval  = 100 * time.Millisecond
 )
 
 func NewModule(config Config) cpbootstrap.Module {
@@ -158,31 +164,70 @@ func NewModule(config Config) cpbootstrap.Module {
 				return fmt.Errorf("failed to migrate the %s schema: %w", config.Database.Schema, err)
 			}
 
+			streams := cpredis.New(config.Redis, props.Metrics)
+			if err := streams.ConnectCtx(ctx); err != nil {
+				_ = db.Close()
+				return fmt.Errorf("failed to connect the planet to redis: %w", err)
+			}
+			closeStores := func() {
+				_ = streams.Close()
+				_ = db.Close()
+			}
+
 			tilesStorage := inmemory_tile_storage.New(borders, config.TilesStorage, postgres_tile_store.New(db), props.Logger)
 			if err := tilesStorage.Load(ctx); err != nil {
-				_ = db.Close()
+				closeStores()
 				return fmt.Errorf("failed to load the tile map: %w", err)
 			}
 
 			ledgerStore := postgres_ledger_store.New(db)
 			takings := inmemory_ledger_storage.New(config.LedgerStorage, ledgerStore, props.Logger)
 			if err := takings.Load(ctx); err != nil {
-				_ = db.Close()
+				closeStores()
 				return fmt.Errorf("failed to load the ledger: %w", err)
 			}
 
-			deletions, err := cpbootstrap.Subscribe(props.Events, "planet-ledger-accounts", accountDeletedBuffer,
-				log_subscriber.New(account_deleted_subscriber.New(
-					anonymize_takes_usecase.New(takings, ledgerStore)), props.Logger))
+			chargeRules := config.Bonus.ChargesConfig()
+			charges := bonuses.NewCharges(postgres_charge_store.New(db), chargeRules)
+
+			grants, err := cpredis.Handle(ctx, streams, log_subscriber.New(apply_grant_handler.New(
+				apply_grant_usecase.New(db, postgres_grant_store.New(db), charges, clock)), props.Logger))
 			if err != nil {
-				_ = db.Close()
+				closeStores()
+				return fmt.Errorf("failed to handle planet.v1.GrantCharges: %w", err)
+			}
+
+			deletions, err := cpredis.Subscribe(ctx, streams, "planet-ledger-accounts",
+				log_subscriber.New(account_deleted_subscriber.New(
+					anonymize_takes_usecase.New(takings, ledgerStore, tilesStorage)), props.Logger))
+			if err != nil {
+				closeStores()
 				return fmt.Errorf("failed to subscribe the ledger to auth.v1.AccountDeleted: %w", err)
 			}
 
-			// Not a closer: closers run before the runners' last flush.
-			props.Runners.Add(cppg.CloseAfter(db, props.Logger, tilesStorage, takings, deletions))
+			relay := relay_ledger_usecase.NewRunner(ledgerRelayInterval, log_relay_ledger.New(
+				relay_ledger_usecase.New(takings, ledgerStore, borders, streams), props.Logger))
+
+			refusalBook := refusals.NewBook(postgres_refusal_store.New(db), clock)
+			refused, err := cpredis.Handle(ctx, streams, log_subscriber.New(refuse_caller_handler.New(refusalBook), props.Logger))
+			if err != nil {
+				closeStores()
+				return fmt.Errorf("failed to handle planet.v1.RefuseCaller: %w", err)
+			}
+			admitted, err := cpredis.Handle(ctx, streams, log_subscriber.New(admit_caller_handler.New(refusalBook), props.Logger))
+			if err != nil {
+				closeStores()
+				return fmt.Errorf("failed to handle planet.v1.AdmitCaller: %w", err)
+			}
+			refusing := log_refusals.New(refusalBook, props.Logger)
+
+			told := facts.NewLog(clock)
+
+			// Not closers: closers run before the runners' last flush, and the relays' last send.
+			props.Runners.Add(cppg.CloseAfter(db, props.Logger, tilesStorage, takings,
+				cpredis.CloseAfter(streams, props.Logger, deletions, relay, grants, refused, admitted,
+					facts.NewRelay(told, streams, factsRelayInterval))))
 			props.Runners.Add(ledger.NewRetention(config.Ledger, takings, clock))
-			props.Runners.Add(relay_fortifications_usecase.New(tilesStorage, props.Events, clock, props.Logger))
 
 			limiter := cpratelimit.New("click-limiter", config.RateLimiter.Config, clock)
 			props.Runners.Add(limiter)
@@ -192,13 +237,8 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			book := allegiances.NewBook(postgres_allegiance_store.New(db), countries, clock)
 
-			shielding := clicks.NewShielding(tilesStorage)
-
 			writer := ledger.NewRecording(tilesStorage, clicks.NewClaiming(tilesStorage, config.Bonus.ShieldsPerTile()),
-				publishing_ledger_storage.New(takings, props.Events), clock)
-
-			chargeRules := config.Bonus.ChargesConfig()
-			charges := bonuses.NewCharges(postgres_charge_store.New(db), chargeRules)
+				takings, clock)
 
 			registry := bonuses.New(config.Bonus, clock, charges)
 			props.Runners.Add(registry)
@@ -228,18 +268,6 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			clickUseCase = prom_click.New(clickUseCase, props.Metrics)
 
-			guard, err := antibot.New(config.AntiBot, clock, antibot_click.NewObserver(props.Logger, props.Metrics))
-			if err != nil {
-				return fmt.Errorf("failed to build the antibot guard: %w", err)
-			}
-
-			if err := guard.LoadState(ctx); err != nil {
-				return fmt.Errorf("failed to load the antibot state: %w", err)
-			}
-			props.Runners.Add(guard)
-
-			clickUseCase = antibot_click.New(clickUseCase, guard, tilesStorage, shielding, clock, props.Metrics)
-
 			clickUseCase = throttle_click.New(clickUseCase, limiter, pricer, buckets)
 
 			// Outside the throttle, so it reads the bank the click left.
@@ -248,10 +276,10 @@ func NewModule(config Config) cpbootstrap.Module {
 			// Outside the throttle, so a click refused for its flag spends nothing.
 			clickUseCase = allegiance_click.New(clickUseCase, book)
 
-			clickUseCase = antibot_attempt_click.New(clickUseCase, guard, geography, clock)
-
 			// Outside the throttle: a refused click must not spend a token, or the client shows a 429.
-			clickUseCase = ban_click.New(clickUseCase, guard, props.Metrics)
+			clickUseCase = refusal_click.New(clickUseCase, refusing, props.Metrics)
+
+			clickUseCase = try_click.New(clickUseCase, tilesStorage, geography, told)
 
 			adminBatch := config.TilesStorage.SubscriberBuffer / 4
 			if adminBatch <= 0 {
@@ -265,14 +293,10 @@ func NewModule(config Config) cpbootstrap.Module {
 				ReassignCountryHandler: reassign_country_handler.New(audit_reassign.New(
 					reassign_country_usecase.New(tilesStorage, countries, pace), props.Logger)),
 				FindPlayersHandler: find_players_handler.New(
-					find_players_usecase.New(takings, tilesStorage, borders, guard, countries)),
-				TopPlayersHandler: top_players_handler.New(top_players_usecase.New(takings, tilesStorage, guard)),
-				BanPlayerHandler:  ban_player_handler.New(audit_ban.New(ban_player_usecase.New(guard), props.Logger)),
-				UnbanPlayerHandler: unban_player_handler.New(
-					audit_unban.New(unban_player_usecase.New(guard), props.Logger)),
+					find_players_usecase.New(takings, tilesStorage, borders, refusalBook, countries)),
+				TopPlayersHandler: top_players_handler.New(top_players_usecase.New(takings, tilesStorage, refusalBook)),
 				RevertPlayerHandler: revert_player_handler.New(
 					audit_revert.New(revert_player_usecase.New(takings, tilesStorage, pace), props.Logger)),
-				InspectPlayerHandler: inspect_player_handler.New(inspect_player_usecase.New(guard, takings)),
 				PaintRandomTilesHandler: paint_random_tiles_handler.New(audit_paint_random.New(
 					paint_random_tiles_usecase.New(borders, geography, tilesStorage, countries, clicks.SystemRandom{}, pace),
 					props.Logger)),
@@ -292,6 +316,8 @@ func NewModule(config Config) cpbootstrap.Module {
 			internalService := planetv1controller.InternalService{
 				GetTakesByCountryHandler: get_takes_by_country_handler.New(takes_query.NewPostgresQuery(db)),
 				GetTerritoriesHandler:    getTerritories,
+				GetCountrySizesHandler:   get_country_sizes_handler.New(borders),
+				GetAllegianceOfHandler:   get_allegiance_of_handler.New(allegiance_query.NewPostgresQuery(db)),
 			}
 			if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 				return planetv1connect.NewInternalServiceHandler(internalService, options...)
@@ -321,27 +347,28 @@ func NewModule(config Config) cpbootstrap.Module {
 			}
 
 			claimBonus, counters := prom_claim_bonus.New(
-				claim_bonus_usecase.New(registry, charges, props.Events, clock),
+				claim_bonus_usecase.New(registry, charges, streams, clock),
 				props.Metrics)
 
 			openQuiz := open_quiz_usecase.New(registry)
 			answerQuiz, quizCounters := prom_answer_quiz.New(
-				answer_quiz_usecase.New(registry, charges, props.Events, clock),
+				answer_quiz_usecase.New(registry, charges, streams, clock),
 				props.Metrics)
 
+			boxes := box_facts.New(told)
 			registry.Observe(bonuses.Report{
 				Offered: counters.Offered.Inc,
 				Lapsed: func(scope string) {
 					counters.Lapsed.Inc()
-					guard.Missed(scope)
+					boxes.Lapsed(scope)
 				},
 				Caught: func(scope string, after time.Duration) {
 					counters.Caught.Observe(after.Seconds())
-					guard.Caught(scope, after)
+					boxes.Caught(scope, after)
 				},
 				Foreign: func(scope string) {
 					counters.Foreign.Inc()
-					guard.Foreign(scope)
+					boxes.Foreign(scope)
 				},
 
 				QuizOffered: quizCounters.Offered.Inc,
@@ -352,11 +379,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			})
 
 			dropBomb := prom_drop_bomb.New(
-				antibot_drop_bomb.New(
-					publishing_drop_bomb.New(
-						drop_bomb_usecase.New(charges, geography, writer, countries, bombRules),
-						borders, props.Events, clock),
-					guard),
+				refusal_drop_bomb.New(drop_bomb_usecase.New(charges, geography, writer, countries, bombRules), refusing),
 				props.Metrics)
 
 			rules := bonuses.Rules{
@@ -372,10 +395,9 @@ func NewModule(config Config) cpbootstrap.Module {
 				ClickHandler:      click_handler.New(clickUseCase),
 				GetBudgetHandler:  get_budget_handler.New(get_budget_usecase.New(limiter, pricer, buckets)),
 				MapDensityHandler: map_density_handler.New(map_density_usecase.New(tilesChecker)),
-				GetMapHandler: get_map_handler.New(
-					antibot_get_map.New(get_map_usecase.New(tilesChecker, tilesStorage), guard, tilesChecker)),
-				ListenForEventsHandler: listen_for_events_handler.New(antibot_listen_for_events.New(
-					listen_for_events_usecase.New(tilesStorage, props.Server.StreamHeartbeat, registry), guard)),
+				GetMapHandler:     get_map_handler.New(get_map_usecase.New(tilesChecker, tilesStorage, told)),
+				ListenForEventsHandler: listen_for_events_handler.New(
+					listen_for_events_usecase.New(tilesStorage, props.Server.StreamHeartbeat, registry, told)),
 				ClaimBonusHandler:    claim_bonus_handler.New(claimBonus),
 				DropBombHandler:      drop_bomb_handler.New(dropBomb),
 				UseRefillHandler:     use_refill_handler.New(use_refill_usecase.New(charges, limiter, pricer, buckets)),
@@ -383,9 +405,12 @@ func NewModule(config Config) cpbootstrap.Module {
 				GetBonusRulesHandler: get_bonus_rules_handler.New(rules, pricer),
 				OpenQuizHandler:      open_quiz_handler.New(openQuiz),
 				AnswerQuizHandler:    answer_quiz_handler.New(answerQuiz),
-				PlaceShieldHandler: place_shield_handler.New(antibot_place_shield.New(
-					place_shield_usecase.New(charges, writer, countries, book, config.Bonus.ShieldsPerTile()), guard)),
-				GetFortressesHandler:    get_fortresses_handler.New(fortresses_query.NewMemoryQuery(tilesStorage)),
+				PlaceShieldHandler: place_shield_handler.New(refusal_place_shield.New(
+					place_shield_usecase.New(charges, writer, countries, book, config.Bonus.ShieldsPerTile()), refusing)),
+				GetFortressesHandler: get_fortresses_handler.New(fortresses_query.NewMemoryQuery(tilesStorage)),
+				GetTileHolderHandler: get_tile_holder_handler.New(tilesChecker, holder_query.NewPostgresQuery(db)),
+				GetLandmassHandler: get_landmass_handler.New(borders,
+					landmass_query.NewPostgresQuery(db, inmemory_tile_holders.New(tilesStorage))),
 				GetAllegianceHandler:    get_allegiance_handler.New(allegiance_query.NewPostgresQuery(db)),
 				PledgeAllegianceHandler: pledge_allegiance_handler.New(book),
 			}

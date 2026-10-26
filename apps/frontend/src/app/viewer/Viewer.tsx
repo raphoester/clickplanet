@@ -5,11 +5,14 @@ import {
     Bomber,
     BonusListener,
     BonusLostError,
+    ChargesRefresher,
     OwnershipsGetter,
     QuizMaster,
     Refiller,
     Shielder,
     TileClicker,
+    TileHolders,
+    LandmassReader,
     UpdatesListener,
 } from "../../backends/backend.ts";
 import BombNews from "../components/BombNews.tsx";
@@ -58,6 +61,11 @@ import {useAccount} from "../account/useAccount.ts";
 import {hueOf} from "../../domain/authorColor.ts";
 import {PlayerInfoBackend, PlayerLine, PlayerTitle, PresenceBackend} from "../../backends/player.ts";
 import PlayerCard from "../players/PlayerCard.tsx";
+import HolderCard from "../players/HolderCard.tsx";
+import TerritoryCard from "../territory/TerritoryCard.tsx";
+import {useTerritoryCard} from "../territory/useTerritoryCard.ts";
+import {useTerritoryPlayers} from "../territory/useTerritoryPlayers.ts";
+import {useTileHolder} from "../players/useTileHolder.ts";
 import TitleUnlocked from "../titles/TitleUnlocked.tsx";
 import {usePresence} from "../players/usePresence.ts";
 import {useRoster} from "../players/useRoster.ts";
@@ -70,6 +78,13 @@ import {useCompact} from "../compact.ts";
 import Sheet from "../hud/Sheet.tsx";
 import StatusBar from "../hud/StatusBar.tsx";
 import TabBar from "../hud/TabBar.tsx";
+import MissionsPlace, {MissionsPlaceProps} from "../missions/MissionsPlace.tsx";
+import {useMissions} from "../missions/useMissions.ts";
+import {Mission, MissionsBackend} from "../../backends/missions.ts";
+import {unseen} from "../../domain/missions.ts";
+import MissionsDone from "../missions/MissionsDone.tsx";
+import {useSeenMissions} from "../missions/useSeenMissions.ts";
+import {usePaidMissions} from "../missions/usePaidMissions.ts";
 import {StandingsBackend} from "../../backends/standings.ts";
 import {SupportBackend} from "../../backends/support.ts";
 import {pageContextOf} from "../support/pageContext.ts";
@@ -88,7 +103,7 @@ const NO_LEADERBOARD: readonly LeaderboardEntry[] = []
 // After the wave has run over the land.
 const FORTIFY_CARD_DELAY_MS = 1600
 
-type SheetName = "board" | "chat" | "you" | "share" | "settings" | "season" | "clicks"
+type SheetName = "board" | "missions" | "chat" | "you" | "share" | "settings" | "season" | "clicks"
 
 export type ViewerProps = {
     sharedCountry?: Country
@@ -107,10 +122,17 @@ export type ViewerProps = {
     account?: AccountStore
     presence?: PresenceBackend
     playerInfo?: PlayerInfoBackend
+    tileHolders?: TileHolders
+    landmasses?: LandmassReader
     season?: SeasonBackend
     standings?: StandingsBackend
     support?: SupportBackend
+    missions?: MissionsBackend
+    chargesRefresher?: ChargesRefresher
 }
+
+// Planet grants a mission's reward from a command, after the read that says it is paid.
+const GRANT_LANDS_MS = 2_000
 
 export default function Viewer(props: ViewerProps) {
     const container = useRef<HTMLDivElement>(null)
@@ -196,6 +218,10 @@ export default function Viewer(props: ViewerProps) {
         dismissFortified,
         lastClose,
         dismissClose,
+        pointing,
+        pointingTerritory,
+        territoryOf,
+        showTerritory,
     } = useGlobe({
         container,
         tileClicker: props.tileClicker,
@@ -212,6 +238,10 @@ export default function Viewer(props: ViewerProps) {
         mapView: display.settings.mapView,
         rendering: display.settings.rendering,
     })
+
+    const tileHolder = useTileHolder(props.tileHolders, props.playerInfo, pointing, ownAccountId)
+    const territoryCard = useTerritoryCard(pointingTerritory, territoryOf, showTerritory)
+    const territoryPlayers = useTerritoryPlayers(props.landmasses, props.playerInfo, territoryCard.shown?.territory.landmass)
 
     const bonusGuide = useBonusGuide()
 
@@ -277,6 +307,22 @@ export default function Viewer(props: ViewerProps) {
         guided: boardGuide.guided,
         onGuided: boardGuide.markGuided,
     }
+    const missionsState = useMissions(props.missions, allegiance?.countryId, accepted.listenForClicks)
+    const seenMissions = useSeenMissions()
+    const [missionsDone, setMissionsDone] = useState<Mission[]>()
+    usePaidMissions(missionsState, (paid) => {
+        setMissionsDone(paid)
+        const refresh = () => props.chargesRefresher?.refreshCharges().catch((e) => console.error("could not read the charges held", e))
+        refresh()
+        setTimeout(refresh, GRANT_LANDS_MS)
+    })
+    const missions: MissionsPlaceProps | undefined = props.missions && {
+        state: missionsState,
+        onSignIn: guest ? openPitch ?? (() => setSheet("you")) : undefined,
+        onSeen: seenMissions.markSeen,
+    }
+    const missionsNews = missionsState.kind === "ready" ? unseen(missionsState.day.missions, seenMissions.seen) : 0
+
     const you = {
         account: props.account,
         linkedMultiplier: clickBudget?.linkedMultiplier,
@@ -309,7 +355,11 @@ export default function Viewer(props: ViewerProps) {
 
         {!ready && <StatusCard status={status}/>}
 
-        {ready && !compact && <Menu {...board} {...you} {...share} {...settings} tab={menuTab} onTab={setMenuTab}/>}
+        {ready && !compact && <Menu {...board} {...you} {...share} {...settings}
+                                    missions={missions}
+                                    missionsNews={missionsNews}
+                                    tab={menuTab}
+                                    onTab={setMenuTab}/>}
 
         {ready && !compact && champion && <ChampionChip champion={champion} compact={false}/>}
         {ready && !compact && !champion && season && <SeasonChip season={season}
@@ -366,6 +416,9 @@ export default function Viewer(props: ViewerProps) {
 
         {ready && compact && <>
             {sheet === "board" && <BoardSheet {...board} onClose={closeSheet}/>}
+            {sheet === "missions" && missions && <Sheet title="Missions" onClose={closeSheet}>
+                <MissionsPlace {...missions}/>
+            </Sheet>}
             {sheet === "you" && account.kind === 'ready' && <Sheet title={youLabel(linked)} onClose={closeSheet}>
                 <YouPlace {...you}/>
             </Sheet>}
@@ -384,7 +437,8 @@ export default function Viewer(props: ViewerProps) {
                     onOpen={toggleSheet}
                     chat={props.chatBackend !== undefined}
                     unread={unread}
-                    you={account.kind === 'ready' ? (linked ? "player" : "guest") : undefined}/>
+                    you={account.kind === 'ready' ? (linked ? "player" : "guest") : undefined}
+                    missions={missions ? missionsNews : undefined}/>
         </>}
 
         {shot && <SharePreview shot={shot}
@@ -396,6 +450,26 @@ export default function Viewer(props: ViewerProps) {
             store={props.account}
             multiplier={clickBudget.linkedMultiplier}
             onClose={() => setPitchOpen(false)}/>}
+
+        {tileHolder.holder && <HolderCard key={`holder-${tileHolder.holder.id}`}
+                                                              holder={tileHolder.holder}
+                                                              onHold={tileHolder.hold}
+                                                              onOpenPlayer={onOpenPlayer && ((player) => {
+                                                                  tileHolder.dismiss()
+                                                                  onOpenPlayer(player)
+                                                              })}
+                                                              onClose={tileHolder.dismiss}/>}
+
+        {territoryCard.shown && <TerritoryCard key={`territory-${territoryCard.shown.id}`}
+                                               shown={territoryCard.shown}
+                                               flag={countryState.code}
+                                               players={territoryPlayers}
+                                               onOpenPlayer={onOpenPlayer && ((player) => {
+                                                   territoryCard.dismiss()
+                                                   onOpenPlayer(player)
+                                               })}
+                                               onHold={territoryCard.hold}
+                                               onClose={territoryCard.dismiss}/>}
 
         {openPlayer && props.playerInfo && <PlayerCard key={openPlayer.accountId}
                                                        player={openPlayer}
@@ -414,6 +488,10 @@ export default function Viewer(props: ViewerProps) {
                                                                          countryCode={countryState.code}
                                                                          play={sound.play}
                                                                          onClose={reveal.dismiss}/>}
+
+        {missionsDone && rules && <MissionsDone missions={missionsDone}
+                                                rules={rules}
+                                                onDone={() => setMissionsDone(undefined)}/>}
 
         {award && <BonusAward reward={award}
                               kept={isFirstWin(bonusGuide.guide, award.kind)}

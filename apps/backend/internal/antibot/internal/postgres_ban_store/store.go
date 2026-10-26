@@ -18,7 +18,7 @@ const (
 	accountsLock = 0x61636e74
 )
 
-func NewScopes(db cppg.QuerierBeginner) *Store {
+func NewScopes(db cppg.Conn) *Store {
 	return &Store{db: db, lock: scopesLock, queries: queries{
 		record: `
 			SELECT b.flags, b.offences, b.expires_at, b.last_flagged_at,
@@ -30,7 +30,16 @@ func NewScopes(db cppg.QuerierBeginner) *Store {
 			) p ON true
 			WHERE b.scope = $1
 		`,
-		running: `SELECT count(*) FROM bans WHERE expires_at > $1`,
+		running: `
+			SELECT b.scope, b.flags, b.offences, b.expires_at, b.last_flagged_at,
+				p.pardoned_at, p.flags, p.offence, p.banned_until, p.expires_at
+			FROM bans b
+			LEFT JOIN LATERAL (
+				SELECT pardoned_at, flags, offence, banned_until, expires_at FROM pardons
+				WHERE pardons.scope = b.scope ORDER BY pardoned_at DESC LIMIT 1
+			) p ON true
+			WHERE b.expires_at > $1
+		`,
 		save: `
 			INSERT INTO bans (scope, flags, offences, expires_at, last_flagged_at) VALUES ($1, $2, $3, $4, $5)
 			ON CONFLICT (scope) DO UPDATE SET
@@ -50,7 +59,7 @@ func NewScopes(db cppg.QuerierBeginner) *Store {
 	}}
 }
 
-func NewAccounts(db cppg.QuerierBeginner) *Store {
+func NewAccounts(db cppg.Conn) *Store {
 	return &Store{db: db, lock: accountsLock, queries: queries{
 		record: `
 			SELECT b.flags, b.offences, b.expires_at, b.last_flagged_at,
@@ -62,7 +71,16 @@ func NewAccounts(db cppg.QuerierBeginner) *Store {
 			) p ON true
 			WHERE b.account = $1
 		`,
-		running: `SELECT count(*) FROM account_bans WHERE expires_at > $1`,
+		running: `
+			SELECT b.account::text, b.flags, b.offences, b.expires_at, b.last_flagged_at,
+				p.pardoned_at, p.flags, p.offence, p.banned_until, p.expires_at
+			FROM account_bans b
+			LEFT JOIN LATERAL (
+				SELECT pardoned_at, flags, offence, banned_until, expires_at FROM account_pardons
+				WHERE account_pardons.account = b.account ORDER BY pardoned_at DESC LIMIT 1
+			) p ON true
+			WHERE b.expires_at > $1
+		`,
 		save: `
 			INSERT INTO account_bans (account, flags, offences, expires_at, last_flagged_at) VALUES ($1, $2, $3, $4, $5)
 			ON CONFLICT (account) DO UPDATE SET
@@ -84,7 +102,7 @@ func NewAccounts(db cppg.QuerierBeginner) *Store {
 }
 
 type Store struct {
-	db      cppg.QuerierBeginner
+	db      cppg.Conn
 	lock    int64
 	queries queries
 }
@@ -97,26 +115,43 @@ type queries struct {
 }
 
 func (s *Store) Record(ctx context.Context, key string) (bans.Record, bool, error) {
-	return s.recordOf(ctx, s.db, key)
+	return s.recordOf(ctx, s.db.On(ctx), key)
 }
 
 func (s *Store) recordOf(ctx context.Context, db cppg.Querier, key string) (bans.Record, bool, error) {
-	record := bans.Record{Key: key}
+	record, err := scanRecord(db.QueryRowContext(ctx, s.queries.record, key), &key)
+	if errors.Is(err, sql.ErrNoRows) {
+		return bans.Record{Key: key}, false, nil
+	}
+	if err != nil {
+		return bans.Record{}, false, fmt.Errorf("failed to read the ban: %w", err)
+	}
+	return record, true, nil
+}
 
+type row interface {
+	Scan(dest ...any) error
+}
+
+// A row of the record query names no key: the key it was asked for is handed in.
+func scanRecord(scanned row, key *string) (bans.Record, error) {
 	var (
+		record                               bans.Record
 		flagged                              sql.NullTime
 		pardonedAt, liftedUntil, pardonUntil sql.NullTime
 		liftedFlags, liftedOffence           sql.NullInt64
 	)
-	err := db.QueryRowContext(ctx, s.queries.record, key).Scan(
+	fields := []any{
 		&record.Flags, &record.Offences, &record.ExpiresAt, &flagged,
 		&pardonedAt, &liftedFlags, &liftedOffence, &liftedUntil, &pardonUntil,
-	)
-	if errors.Is(err, sql.ErrNoRows) {
-		return record, false, nil
 	}
-	if err != nil {
-		return bans.Record{}, false, fmt.Errorf("failed to read the ban: %w", err)
+	if key == nil {
+		fields = append([]any{&record.Key}, fields...)
+	} else {
+		record.Key = *key
+	}
+	if err := scanned.Scan(fields...); err != nil {
+		return bans.Record{}, err //nolint:wrapcheck // the caller names the read.
 	}
 
 	record.ExpiresAt = record.ExpiresAt.UTC()
@@ -135,13 +170,26 @@ func (s *Store) recordOf(ctx context.Context, db cppg.Querier, key string) (bans
 		}
 	}
 
-	return record, true, nil
+	return record, nil
 }
 
-func (s *Store) Running(ctx context.Context, now time.Time) (int, error) {
-	var running int
-	if err := s.db.QueryRowContext(ctx, s.queries.running, now).Scan(&running); err != nil {
-		return 0, fmt.Errorf("failed to count the running bans: %w", err)
+func (s *Store) Running(ctx context.Context, now time.Time) ([]bans.Record, error) {
+	rows, err := s.db.On(ctx).QueryContext(ctx, s.queries.running, now)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read the running bans: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var running []bans.Record
+	for rows.Next() {
+		record, err := scanRecord(rows, nil)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read a running ban: %w", err)
+		}
+		running = append(running, record)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to read the running bans: %w", err)
 	}
 	return running, nil
 }
@@ -150,46 +198,35 @@ func (s *Store) Change(
 	ctx context.Context,
 	key string,
 	change func(record bans.Record, found bool) (bans.Record, bool),
-) (err error) {
-	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to begin changing the ban: %w", err)
-	}
-	defer func() {
+) error {
+	return s.db.InTx(ctx, func(ctx context.Context) error {
+		tx := s.db.On(ctx)
+		if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock($1, hashtext($2))`, s.lock, key); err != nil {
+			return fmt.Errorf("failed to lock the ban: %w", err)
+		}
+
+		record, found, err := s.recordOf(ctx, tx, key)
 		if err != nil {
-			_ = tx.Rollback()
+			return err
 		}
-	}()
 
-	if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock($1, hashtext($2))`, s.lock, key); err != nil {
-		return fmt.Errorf("failed to lock the ban: %w", err)
-	}
-
-	record, found, err := s.recordOf(ctx, tx, key)
-	if err != nil {
-		return err
-	}
-
-	next, keep := change(record, found)
-	if !keep {
-		return tx.Commit() //nolint:wrapcheck // nothing was written, so there is nothing to name.
-	}
-
-	if _, err := tx.ExecContext(ctx, s.queries.save, key, next.Flags, next.Offences, next.ExpiresAt,
-		sql.NullTime{Time: next.LastFlaggedAt, Valid: !next.LastFlaggedAt.IsZero()}); err != nil {
-		return fmt.Errorf("failed to save the ban: %w", err)
-	}
-
-	if !next.Pardon.At.IsZero() {
-		pardon := next.Pardon
-		if _, err := tx.ExecContext(ctx, s.queries.savePardon, key, pardon.At,
-			pardon.Lifted.Flags, pardon.Lifted.Offence, pardon.Lifted.Until, pardon.Until); err != nil {
-			return fmt.Errorf("failed to save the pardon: %w", err)
+		next, keep := change(record, found)
+		if !keep {
+			return nil
 		}
-	}
 
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit the ban: %w", err)
-	}
-	return nil
+		if _, err := tx.ExecContext(ctx, s.queries.save, key, next.Flags, next.Offences, next.ExpiresAt,
+			sql.NullTime{Time: next.LastFlaggedAt, Valid: !next.LastFlaggedAt.IsZero()}); err != nil {
+			return fmt.Errorf("failed to save the ban: %w", err)
+		}
+
+		if !next.Pardon.At.IsZero() {
+			pardon := next.Pardon
+			if _, err := tx.ExecContext(ctx, s.queries.savePardon, key, pardon.At,
+				pardon.Lifted.Flags, pardon.Lifted.Offence, pardon.Lifted.Until, pardon.Until); err != nil {
+				return fmt.Errorf("failed to save the pardon: %w", err)
+			}
+		}
+		return nil
+	})
 }

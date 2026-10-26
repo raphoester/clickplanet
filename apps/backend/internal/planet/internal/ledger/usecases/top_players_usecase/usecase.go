@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 )
 
@@ -16,8 +16,8 @@ type Owners interface {
 	Owner(tile uint32) (string, bool)
 }
 
-type Bans interface {
-	Sentence(ctx context.Context, scope, account string) (antibot.Sentence, bool, error)
+type Refusals interface {
+	Refusal(ctx context.Context, payer clicks.Payer) (clicks.Refusal, bool, error)
 }
 
 type In struct {
@@ -29,14 +29,14 @@ type Out struct {
 	Total   int
 }
 
-func New(ledger Ledger, owners Owners, bans Bans) *UseCase {
-	return &UseCase{ledger: ledger, owners: owners, bans: bans}
+func New(ledger Ledger, owners Owners, refusals Refusals) *UseCase {
+	return &UseCase{ledger: ledger, owners: owners, refusals: refusals}
 }
 
 type UseCase struct {
-	ledger Ledger
-	owners Owners
-	bans   Bans
+	ledger   Ledger
+	owners   Owners
+	refusals Refusals
 }
 
 func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
@@ -46,17 +46,13 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	players := ledger.ByTakes(tally.Players(u.owners))
 	out := Out{Total: len(players), Players: ledger.Top(players, in.Limit)}
 
-	if u.bans == nil {
-		return out, nil
-	}
-
-	for i := range out.Players {
-		sentence, running, err := u.bans.Sentence(ctx, out.Players[i].Scope, out.Players[i].Account)
+	for i, player := range out.Players {
+		refusal, refused, err := u.refusals.Refusal(ctx, clicks.Payer{Scope: player.Scope, Account: player.Account})
 		if err != nil {
-			return Out{}, fmt.Errorf("failed to read the bans: %w", err)
+			return Out{}, fmt.Errorf("failed to read the refusals: %w", err)
 		}
-		if running {
-			out.Players[i].Serving(sentence)
+		if refused {
+			out.Players[i].Refused(refusal)
 		}
 	}
 

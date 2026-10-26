@@ -13,6 +13,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/inmemory_player_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/inmemory_title_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/usecases/award_titles_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/usecases/reconcile_titles_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -33,17 +34,21 @@ type fixture struct {
 	stats    *inmemory_player_store.Store
 	titles   *inmemory_title_store.Store
 	accounts *titles.FakeAccounts
+	taken    *uint64
 }
 
 func setUp() fixture {
-	return fixture{stats: inmemory_player_store.New(), titles: inmemory_title_store.New(), accounts: titles.NewFakeAccounts()}
+	return fixture{
+		stats: inmemory_player_store.New(), titles: inmemory_title_store.New(), accounts: titles.NewFakeAccounts(), taken: new(uint64),
+	}
 }
 
 func (f fixture) player(t *testing.T, i, tiles int, known players.Account) {
 	t.Helper()
 
 	for range tiles {
-		require.NoError(t, f.stats.Record(t.Context(), account(i), players.TakeAt(now)))
+		require.NoError(t, f.stats.Record(t.Context(), account(i), players.TakeAt(*f.taken, now)))
+		*f.taken++
 	}
 	f.accounts.Create(account(i), known)
 }
@@ -159,4 +164,24 @@ func TestAFailureToAskAuthChangesNothing(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Equal(t, titles.IDs{"third"}, f.held(t, 1))
+}
+
+func TestAReconciliationAfterTheLiveAwardsChangesNothing(t *testing.T) {
+	f := setUp()
+	f.player(t, 1, 100, linked)
+	f.player(t, 2, 100, players.AccountOf(false, now))
+	award := award_titles_usecase.New(f.stats, f.accounts, titles.NewBook(f.titles, titles.NewCatalog()), cptime.NewFixedClock(now))
+	for _, i := range []int{1, 2} {
+		_, err := award.Execute(t.Context(), account(i))
+		require.NoError(t, err)
+	}
+	require.Equal(t, titles.IDs{"og", "settler"}, f.held(t, 1))
+	require.Empty(t, f.held(t, 2), "a guest")
+
+	reconciled, err := f.reconcile(t, f.titles, titles.NewCatalog())
+
+	require.NoError(t, err)
+	assert.Equal(t, reconcile_titles_usecase.Reconciled{}, reconciled)
+	assert.Equal(t, titles.IDs{"og", "settler"}, f.held(t, 1))
+	assert.Empty(t, f.held(t, 2), "a guest")
 }

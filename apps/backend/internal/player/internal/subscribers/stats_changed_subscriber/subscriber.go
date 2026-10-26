@@ -7,7 +7,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 )
 
 type UseCase interface {
@@ -22,7 +22,7 @@ type Subscriber struct {
 	useCase UseCase
 }
 
-var _ cpbootstrap.Handler[*playerv1.StatsChanged] = Subscriber{}
+var _ cpredis.Handler[*playerv1.StatsChanged] = Subscriber{}
 
 func (s Subscriber) Handle(ctx context.Context, event *playerv1.StatsChanged) error {
 	account, err := players.AccountIDOf(event.GetAccountId())

@@ -17,12 +17,12 @@ import (
 
 var ErrNoMessage = errors.New("no message kept under this id")
 
-func NewPostgresQuery(db cppg.Querier, clock cptime.Clock, retention time.Duration) *PostgresQuery {
+func NewPostgresQuery(db cppg.Conn, clock cptime.Clock, retention time.Duration) *PostgresQuery {
 	return &PostgresQuery{db: db, clock: clock, retention: retention}
 }
 
 type PostgresQuery struct {
-	db        cppg.Querier
+	db        cppg.Conn
 	clock     cptime.Clock
 	retention time.Duration
 }
@@ -44,7 +44,7 @@ func (q *PostgresQuery) Message(ctx context.Context, id string) (*chatv1.GetMess
 		country   string
 		removedAt sql.NullTime
 	)
-	err := q.db.QueryRowContext(ctx, message, id, q.clock.Now().Add(-q.retention)).
+	err := q.db.On(ctx).QueryRowContext(ctx, message, id, q.clock.Now().Add(-q.retention)).
 		Scan(&account, &text, &sentAt, &country, &removedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("%w: %q", ErrNoMessage, id)

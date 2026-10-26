@@ -40,7 +40,7 @@ func (s *testSuite) TestEachSnapshotIsOneSampleAndKeepsTheSizeOfTheMap() {
 	s.Require().NoError(store.RecordSnapshot(s.T().Context(), round, rounds.Snapshot{Tiles: 120}))
 
 	var samples, mapTiles int
-	s.Require().NoError(s.db.QueryRowContext(s.T().Context(),
+	s.Require().NoError(s.db.On(s.T().Context()).QueryRowContext(s.T().Context(),
 		`SELECT samples, map_tiles FROM rounds`).Scan(&samples, &mapTiles))
 	s.Equal(2, samples)
 	s.Equal(120, mapTiles)

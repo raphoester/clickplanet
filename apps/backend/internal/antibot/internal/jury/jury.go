@@ -81,6 +81,7 @@ func New(
 		hooks:     hooks,
 		watchdogs: watchdogs,
 		callers:   make(map[string]*caller),
+		accounts:  make(map[string]sighting),
 	}
 }
 
@@ -91,9 +92,16 @@ type Jury struct {
 	hooks     Hooks
 	watchdogs []detect.Watchdog
 
-	mu      sync.Mutex
-	callers map[string]*caller
-	outage  detect.Outage
+	mu       sync.Mutex
+	callers  map[string]*caller
+	accounts map[string]sighting
+	outage   detect.Outage
+}
+
+// Where an account clicked last: the watchdogs judge scopes, so an account is examined on one.
+type sighting struct {
+	scope string
+	at    time.Time
 }
 
 type caller struct {
@@ -212,6 +220,10 @@ func (j *Jury) record(click detect.Click) {
 
 	c := j.callerLocked(click)
 
+	if click.Account != "" {
+		j.accounts[click.Account] = sighting{scope: click.Scope, at: click.At}
+	}
+
 	if j.outage.Across(c.lastSeen, click.At) {
 		c.firstSeen = c.firstSeen.Add(j.outage.Length())
 	}
@@ -327,13 +339,17 @@ func (j *Jury) weighLocked(c *caller, at time.Time) ([]detect.Opinion, int, bool
 	return opinions, suspects, certain || suspects >= j.config.MinSuspects
 }
 
-func (j *Jury) Examine(scope string) detect.Examination {
+func (j *Jury) Examine(scope, account string) detect.Examination {
 	now := j.clock.Now()
 
 	j.mu.Lock()
 	defer j.mu.Unlock()
 
-	examination := detect.Examination{Scope: scope, MinSuspects: j.config.MinSuspects}
+	if scope == "" {
+		scope = j.accounts[account].scope
+	}
+
+	examination := detect.Examination{Scope: scope, Account: account, MinSuspects: j.config.MinSuspects}
 
 	c, tracked := j.callers[scope]
 	if !tracked {

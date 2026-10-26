@@ -141,6 +141,13 @@ export function InstagramIcon({size = 22}: IconProps) {
     </svg>
 }
 
+export function YouTubeIcon({size = 22}: IconProps) {
+    return <svg {...base(size)} strokeWidth={2}>
+        <rect x="2.5" y="5" width="19" height="14" rx="4.5"/>
+        <path d="M10 9.2v5.6l4.8-2.8z" fill="currentColor"/>
+    </svg>
+}
+
 export function UserIcon({size = 22}: IconProps) {
     return <svg {...base(size)} strokeWidth={2}>
         <circle cx="12" cy="8" r="4"/>
@@ -204,6 +211,14 @@ export function TrophyIcon({size = 22}: IconProps) {
         <path d="M8 20.5h8M12 16.5v4"/>
         <path d="M7 3.5h10v5a5 5 0 0 1-10 0z"/>
         <path d="M17 5h2.5a2 2 0 0 1 0 4H17M7 5H4.5a2 2 0 0 0 0 4H7"/>
+    </svg>
+}
+
+export function TargetIcon({size = 22}: IconProps) {
+    return <svg {...base(size)} strokeWidth={2}>
+        <circle cx="12" cy="12" r="8.5"/>
+        <circle cx="12" cy="12" r="4.5"/>
+        <circle cx="12" cy="12" r="0.8" fill="currentColor"/>
     </svg>
 }
 

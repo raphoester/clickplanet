@@ -33,6 +33,11 @@ describe("TabBar", () => {
         expect(screen.getByRole("button", {name: "Chat, 3 new messages"}).textContent).toBe("Chat3")
     })
 
+    it("counts the missions not seen yet", () => {
+        render(<TabBar onOpen={vi.fn()} chat unread={0} missions={3}/>)
+        expect(screen.getByRole("button", {name: "Missions, 3 new"}).textContent).toBe("Missions3")
+    })
+
     it("says which sheet is open, and opens the one pressed", () => {
         const onOpen = vi.fn()
         render(<TabBar open="board" onOpen={onOpen} chat unread={0}/>)

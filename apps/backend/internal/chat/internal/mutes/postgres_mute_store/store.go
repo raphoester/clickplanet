@@ -14,18 +14,18 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
-func New(db cppg.QuerierBeginner) *Store {
+func New(db cppg.Conn) *Store {
 	return &Store{db: db}
 }
 
 type Store struct {
-	db cppg.QuerierBeginner
+	db cppg.Conn
 }
 
 var _ mutes.Storage = (*Store)(nil)
 
 func (s *Store) Save(ctx context.Context, mute mutes.Mute) error {
-	if _, err := s.db.ExecContext(ctx, `
+	if _, err := s.db.On(ctx).ExecContext(ctx, `
 		INSERT INTO mutes (id, account_id, scope, muted_at, muted_until)
 		VALUES ($1, $2, $3, $4, $5)
 	`,
@@ -45,7 +45,7 @@ func (s *Store) Mute(ctx context.Context, caller mutes.Caller, at time.Time) (mu
 		mutedAt time.Time
 		until   time.Time
 	)
-	err := s.db.QueryRowContext(ctx, `
+	err := s.db.On(ctx).QueryRowContext(ctx, `
 		SELECT id, account_id, scope, muted_at, muted_until
 		FROM mutes
 		WHERE muted_until > $3 AND (account_id = $1 OR scope = $2)
@@ -64,7 +64,7 @@ func (s *Store) Mute(ctx context.Context, caller mutes.Caller, at time.Time) (mu
 }
 
 func (s *Store) DeleteBefore(ctx context.Context, cutoff time.Time) (int64, error) {
-	result, err := s.db.ExecContext(ctx, `DELETE FROM mutes WHERE muted_until < $1`, cutoff)
+	result, err := s.db.On(ctx).ExecContext(ctx, `DELETE FROM mutes WHERE muted_until < $1`, cutoff)
 	if err != nil {
 		return 0, fmt.Errorf("failed to delete old mutes: %w", err)
 	}

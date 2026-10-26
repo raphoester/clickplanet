@@ -20,7 +20,7 @@ toy box; they do not fit a space station or a TV studio.
   inside a panel, the buttons, the chips, the coins, the field.
 - **A component's own CSS says only what makes that component itself**, and
   says it in tokens. It never restates a shared piece's size, radius or font
-  (see "Styling" in `CLAUDE.md` for how that went wrong once).
+  (see [`docs/styling.md`](docs/styling.md) for how that went wrong once).
 - A shade the tokens lack is a mix, not a new literal:
   `color-mix(in srgb, var(--gold) 30%, transparent)`.
 - **`src/designTokens.test.ts` holds all of this**: it fails on a color or a
@@ -147,6 +147,9 @@ feature goes in one of them; there is no fifth panel and no new fold.
 - **A place holds one kind of thing, and there is no place for the rest.** A
   "More" drawer was tried: it filled with whatever had no home.
 - **A panel is as tall as what it holds**, up to the screen, and scrolls inside.
+- **The cards beside the pointer are the one thing outside the zones**: the card
+  on who holds a tile, and in orbit the card on a territory. Each is about what is
+  under the pointer, and goes when the pointer leaves.
 - **A line holds two things at most.** A third goes where it fits, a place.
 - **The leader's frame holds the anthem**: the music is the leader's, so the
   player is on the board, not on the globe. The music follows the order picked,

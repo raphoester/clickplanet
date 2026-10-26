@@ -1052,6 +1052,13 @@ export class Player extends Message<Player> {
    */
   playsAgainst: CountryTiles[] = [];
 
+  /**
+   * A guest is its name alone: every other field is unset.
+   *
+   * @generated from field: bool guest = 10;
+   */
+  guest = false;
+
   constructor(data?: PartialMessage<Player>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1069,6 +1076,7 @@ export class Player extends Message<Player> {
     { no: 7, name: "worn_title", kind: "message", T: Title },
     { no: 8, name: "plays_for", kind: "message", T: CountryTiles, repeated: true },
     { no: 9, name: "plays_against", kind: "message", T: CountryTiles, repeated: true },
+    { no: 10, name: "guest", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Player {

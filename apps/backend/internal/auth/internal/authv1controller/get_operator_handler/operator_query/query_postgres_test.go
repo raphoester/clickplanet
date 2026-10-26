@@ -50,7 +50,7 @@ func (s *testSuite) player(account accounts.AccountID, gameToken string) {
 }
 
 func (s *testSuite) operates(account accounts.AccountID, operates bool) {
-	_, err := s.db.ExecContext(s.T().Context(), `UPDATE accounts SET operator = $2 WHERE id = $1`, account.String(), operates)
+	_, err := s.db.On(s.T().Context()).ExecContext(s.T().Context(), `UPDATE accounts SET operator = $2 WHERE id = $1`, account.String(), operates)
 	s.Require().NoError(err)
 }
 
@@ -114,6 +114,20 @@ func (s *testSuite) TestAnAdminSessionEndsWithItsLifetimeOrItsSignOut() {
 	s.Require().NoError(s.sessions.DeleteSession(s.T().Context(), accounts.TokenOf("admin-token").Hash()))
 	_, err = s.operator("cp_admin=admin-token", start)
 	s.Require().ErrorIs(err, operator_query.ErrNoSession, "signed out")
+}
+
+func (s *testSuite) TestAGameSignOutKeepsTheAdminSession() {
+	s.player(ada, "game-token")
+	s.operates(ada, true)
+	s.adminSession(ada, "admin-token")
+
+	s.Require().NoError(s.accounts.DeleteSession(s.T().Context(), accounts.TokenOf("game-token").Hash()))
+
+	_, err := s.accounts.Session(s.T().Context(), accounts.TokenOf("game-token").Hash())
+	s.Require().ErrorIs(err, accounts.ErrSessionNotFound)
+	account, err := s.operator("cp_sid=game-token; cp_admin=admin-token", start)
+	s.Require().NoError(err)
+	s.Equal(ada.String(), account)
 }
 
 func (s *testSuite) TestNoCookieIsNobody() {

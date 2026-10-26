@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AnswerQuizRequest, AnswerQuizResponse, ClaimBonusRequest, ClaimBonusResponse, ClickRequest, ClickResponse, DropBombRequest, DropBombResponse, GetAllegianceRequest, GetAllegianceResponse, GetBonusRulesRequest, GetBonusRulesResponse, GetBudgetRequest, GetBudgetResponse, GetChargesRequest, GetChargesResponse, GetFortressesRequest, GetFortressesResponse, GetMapRequest, GetMapResponse, ListenForEventsRequest, MapDensityRequest, MapDensityResponse, OpenQuizRequest, OpenQuizResponse, PlaceShieldRequest, PlaceShieldResponse, PlanetEvent, PledgeAllegianceRequest, PledgeAllegianceResponse, UseRefillRequest, UseRefillResponse } from "./planet_pb.js";
+import { AnswerQuizRequest, AnswerQuizResponse, ClaimBonusRequest, ClaimBonusResponse, ClickRequest, ClickResponse, DropBombRequest, DropBombResponse, GetAllegianceRequest, GetAllegianceResponse, GetBonusRulesRequest, GetBonusRulesResponse, GetBudgetRequest, GetBudgetResponse, GetChargesRequest, GetChargesResponse, GetFortressesRequest, GetFortressesResponse, GetLandmassRequest, GetLandmassResponse, GetMapRequest, GetMapResponse, GetTileHolderRequest, GetTileHolderResponse, ListenForEventsRequest, MapDensityRequest, MapDensityResponse, OpenQuizRequest, OpenQuizResponse, PlaceShieldRequest, PlaceShieldResponse, PlanetEvent, PledgeAllegianceRequest, PledgeAllegianceResponse, UseRefillRequest, UseRefillResponse } from "./planet_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -143,6 +143,26 @@ export const ClickService = {
       name: "GetFortresses",
       I: GetFortressesRequest,
       O: GetFortressesResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * @generated from rpc planet.v1.ClickService.GetTileHolder
+     */
+    getTileHolder: {
+      name: "GetTileHolder",
+      I: GetTileHolderRequest,
+      O: GetTileHolderResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * @generated from rpc planet.v1.ClickService.GetLandmass
+     */
+    getLandmass: {
+      name: "GetLandmass",
+      I: GetLandmassRequest,
+      O: GetLandmassResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
     },

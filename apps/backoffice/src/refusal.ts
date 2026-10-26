@@ -16,8 +16,8 @@ function refusalOf(code: Code): Refusal {
     return "failed"
 }
 
-// What not_found and failed_precondition mean depend on the action refused, so each says its own.
-export type Meanings = {notFound?: string, failedPrecondition?: string}
+// What not_found, failed_precondition and unimplemented mean depend on the action refused, so each says its own.
+export type Meanings = {notFound?: string, failedPrecondition?: string, unimplemented?: string}
 
 // A refused action in the operator's words.
 export function wordsOf(err: unknown, meanings: Meanings = {}): string {
@@ -29,6 +29,9 @@ export function wordsOf(err: unknown, meanings: Meanings = {}): string {
             break
         case Code.FailedPrecondition:
             if (meanings.failedPrecondition !== undefined) return meanings.failedPrecondition
+            break
+        case Code.Unimplemented:
+            if (meanings.unimplemented !== undefined) return meanings.unimplemented
             break
         case Code.InvalidArgument:
             return `The server refused it: ${error.rawMessage}`
