@@ -99,6 +99,12 @@
 		}
 	}
 
+	handle /missions.v1.MissionService/* {
+		reverse_proxy backend:8080 {
+			header_up X-Real-IP {client_ip}
+		}
+	}
+
 	handle @admin {
 		reverse_proxy backend:8083
 	}

@@ -207,6 +207,14 @@ export function TrophyIcon({size = 22}: IconProps) {
     </svg>
 }
 
+export function TargetIcon({size = 22}: IconProps) {
+    return <svg {...base(size)} strokeWidth={2}>
+        <circle cx="12" cy="12" r="8.5"/>
+        <circle cx="12" cy="12" r="4.5"/>
+        <circle cx="12" cy="12" r="0.8" fill="currentColor"/>
+    </svg>
+}
+
 export function ChatIcon({size = 22}: IconProps) {
     return <svg {...base(size)} strokeWidth={2}>
         <path d="M4 5h16v11H10l-5 4v-4H4z"/>
