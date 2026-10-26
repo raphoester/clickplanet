@@ -140,30 +140,33 @@ describe("opacity", () => {
     })
 })
 
-describe("the slot's candidates", () => {
-    it("offers each painted landmass measured by the ruler, with its sprite's width", () => {
+describe("the flags drawn large", () => {
+    it("needs each painted flag's largest landmass, and nothing of ground nobody paints", () => {
         const field = new BorderField(world(8))
+        expect(field.flagNeeds().size).toBe(0)
+
         paint(field, {fr: 5})
 
-        const measured: number[][] = []
-        const candidates = field.slotCandidates((x, y, z, halfU, halfV) => {
-            measured.push([x, y, z, halfU, halfV])
-            return 2 * halfU * 1000
-        })
-
-        expect(measured).toHaveLength(1)
-        expect(measured[0].slice(0, 3)).toEqual([0, 0, 1])
-        expect(measured[0][3]).toBeCloseTo(0.1)
-        expect(measured[0][4]).toBeCloseTo(0.1)
-        expect(candidates).toEqual([{landmass: 1, screenWidth: expect.closeTo(200, 3), spriteWidth: regions.get("fr")!.width, inView: true}])
+        const needs = field.flagNeeds()
+        expect([...needs.keys()]).toEqual(["fr"])
+        expect(needs.get("fr")).toBeCloseTo(0.1)
     })
 
-    it("offers a landmass out of view as such, and an unpainted one not at all", () => {
+    it("marks each painted landmass with its holder's slot, 0 for the atlas, re-uploading only on a change", () => {
         const field = new BorderField(world(8))
-        expect(field.slotCandidates(() => 500)).toEqual([])
-
         paint(field, {fr: 5})
-        expect(field.slotCandidates(() => undefined)).toEqual([{landmass: 1, screenWidth: 0, spriteWidth: regions.get("fr")!.width, inView: false}])
+        const uploaded = field.landmassData.version
+
+        field.markSlots(["de", "fr"])
+        expect(rows(field)[TEXELS * 4 + 13]).toBe(2)
+        expect(field.landmassData.version).toBeGreaterThan(uploaded)
+
+        const marked = field.landmassData.version
+        field.markSlots(["de", "fr"])
+        expect(field.landmassData.version).toBe(marked)
+
+        field.markSlots(["de"])
+        expect(rows(field)[TEXELS * 4 + 13]).toBe(0)
     })
 })
 

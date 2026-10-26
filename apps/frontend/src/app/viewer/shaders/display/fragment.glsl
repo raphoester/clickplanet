@@ -5,7 +5,6 @@
 uniform sampler2D atlasTexture;
 uniform vec2 atlasTextureSize;
 uniform sampler2D slotTexture;
-uniform vec4 slotFrame;
 uniform float flagPaint;
 uniform float pixelRatio;
 uniform float shieldMost;
@@ -16,7 +15,7 @@ uniform float time;
 flat in vec4 vRegionVector;
 flat in vec2 vFlagUV;
 flat in vec4 vFlagStep;
-flat in vec4 vFlagRegion;
+flat in vec4 vFlagFrame;
 flat in float vFlagShare;
 flat in float vSlotted;
 flat in float vSpriteSize;
@@ -40,13 +39,7 @@ const float KEYLINE_MOST = 0.03;
 const float HIGHLIGHT_LIFT = 0.2;
 const float HIGHLIGHT_FLOOR = 0.35;
 
-vec2 frameUVof(vec4 frame, vec2 uv) {
-    return frame.xy + clamp(uv, 0.002, 0.998) * frame.zw;
-}
-
-vec4 atlasFrameOf(vec4 region) {
-    return vec4(region.x, atlasTextureSize.y - region.y - region.w, region.zw) / atlasTextureSize.xyxy;
-}
+#include ../flagFrame.glsl;
 
 vec2 atlasUVof(vec4 region, vec2 uv) {
     return frameUVof(atlasFrameOf(region), uv);
@@ -92,16 +85,15 @@ void main() {
     vec4 own = flagPaint < 1.0 ? ownColour() : vec4(0.0);
 
     vec4 painted = vec4(own.rgb, 0.0);
-    if (vFlagRegion.z > 0.0) {
+    if (vFlagFrame.z > 0.0) {
         // gl_PointCoord runs down and the flag frame runs up; the frame itself needs no flip.
         vec2 screen = vec2(coordinates.x, -coordinates.y) * vSpriteSize;
         vec2 uv = vFlagUV + vFlagStep.xy * screen.x + vFlagStep.zw * screen.y;
 
         // Explicit gradients: the frame is flat across the sprite, so texture() picks the top mip.
-        vec4 frame = vSlotted > 0.5 ? slotFrame : atlasFrameOf(vFlagRegion);
-        vec2 at = frameUVof(frame, uv);
-        vec2 across = vFlagStep.xy * frame.zw;
-        vec2 upward = vFlagStep.zw * frame.zw;
+        vec2 at = frameUVof(vFlagFrame, uv);
+        vec2 across = vFlagStep.xy * vFlagFrame.zw;
+        vec2 upward = vFlagStep.zw * vFlagFrame.zw;
         vec3 flag = vSlotted > 0.5
             ? textureGrad(slotTexture, at, across, upward).rgb
             : textureGrad(atlasTexture, at, across, upward).rgb;
