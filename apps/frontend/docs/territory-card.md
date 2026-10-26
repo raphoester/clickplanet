@@ -5,13 +5,24 @@ landmass (see [The zoomed-out view](zoomed-out-view.md)). From that far a tile i
 a pixel or two: nobody aims at one, and the card on who holds it said nothing
 anyone could use. So a rest of the mouse, or a long press of a finger, opens a
 card on the territory under it (`TerritoryCard`), and the territory lights up on
-the globe.
+the globe. A click or a tap flies down to it.
 
 - **Orbit is where the painted flags have the frame to themselves**: a tile of
   `COARSE_FROM` (5px) or less (`inOrbit` in `pointSize.ts`). It is a zoom, not the
   map view: with "Big country flags" off it starts at the same zoom. Past it the
-  pointer asks about tiles again, as in [Who holds a tile](tile-holder.md). A click
-  in orbit still takes the tile under it.
+  pointer asks about tiles again, as in [Who holds a tile](tile-holder.md).
+- **A click in orbit flies to the territory and takes no tile**: centred on the
+  middle of its extent as the screen sees it, the north up, and as big as fits in
+  `FILL` (60%) of the screen's height and width (`territoryShotOf` in
+  `domain/flight.ts`). Never further out than where the tiles have the frame to
+  themselves (`tilesZoomOf`), so a big territory is flown into rather than fitted, and
+  never closer than tiles of `FLOWN_TILE_MOST` (28px) for a small one (`flownZoomsOf`).
+  The flight takes `FLIGHT_SECONDS` (0.9s): it turns and zooms together, the zoom by
+  the same ratio each step, eased at both ends (`flightAt`, on the clips' `blend`,
+  `between` and `smooth`). Under less motion it lands at once. The player taking the
+  globe ends it where it is (`Pilot.cancel` on the controls' `start`); until then it
+  overrides what the controls did each tick, so their spin and glide die out under it,
+  and it draws every frame, as a drag does.
 - **The card** says the territory's name with the flag of its ground, its size and
   the tiles no flag holds; the first five flags by tiles held (`rankHoldings`, ties on
   the code), each with its tiles and its share (`sharePercent`: never 0% for a few
