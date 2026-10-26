@@ -12,7 +12,7 @@ import {createBorderLines, loadBorderLines} from "./borderLines.ts";
 import {ATLAS_SIZE, ATLAS_URL} from "./atlasAsset.ts";
 import {BORDERS_URL} from "./bordersAsset.ts";
 import {BORDER_LINES_URL} from "./borderLinesAsset.ts";
-import {displayPointSize, flagPaint, inOrbit, pickPointSize} from "./pointSize.ts";
+import {displayPointSize, flagPaint, flownZoomsOf, inOrbit, pickPointSize} from "./pointSize.ts";
 import {regions} from "./atlas.ts";
 import {Country} from "../../domain/countries.ts";
 import {Allegiance} from "../../domain/allegiance.ts";
@@ -57,6 +57,8 @@ import {HoldToDrop} from "../../domain/holdToDrop.ts";
 import {ClickOrDrag} from "../../domain/clickOrDrag.ts";
 import {Peek, Peeked, Point, TilePeek} from "../../domain/tilePeek.ts";
 import {rankHoldings, Territory, TerritoryPeek} from "../../domain/territory.ts";
+import {FLIGHT_SECONDS, flightAt, territoryShotOf} from "../../domain/flight.ts";
+import {pointOf} from "../../domain/clip/geometry.ts";
 import {OwnClicks} from "../../domain/ownClicks.ts";
 import {ShieldChange, outcomeOf, placementOf, TileShields} from "../../domain/shields.ts";
 import {Landmasses} from "../../domain/landmasses.ts";
@@ -149,6 +151,14 @@ export type Shot = {
 }
 
 export type Director = (seconds: number) => Shot
+
+// Flies the camera now and then, and lets go as soon as the player takes the globe.
+type Pilot = {
+    shotAt(seconds: number): Shot | undefined
+    cancel(): void
+}
+
+type Flight = {from: Shot, to: Shot, since: number, seconds: number}
 
 export type GlobeOptions = {
     tileClicker: TileClicker
@@ -468,6 +478,37 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         onTerritoryPeekEnd()
     }
 
+    let flight: Flight | undefined
+
+    const flyTo = (landmass: number | undefined) => {
+        if (landmass === undefined) return
+        const {width, height} = renderer.domElement
+        const {least, most} = flownZoomsOf(height / renderer.getPixelRatio())
+        const points = Array.from(landmasses.tilesOf(landmass), (tile) => pointOf(geometryData.positions, tile))
+        const to = territoryShotOf(points, width / height, least, Math.min(most, MAX_ZOOM))
+        if (!to) return
+        const {x, y, z} = camera.position.clone().normalize()
+        flight = {
+            from: {direction: {x, y, z}, zoom: camera.zoom},
+            to,
+            since: performance.now() / 1000,
+            seconds: prefersReducedMotion() ? 0 : FLIGHT_SECONDS,
+        }
+    }
+
+    const pilot: Pilot = {
+        shotAt: (seconds) => {
+            if (!flight) return undefined
+            const share = flight.seconds > 0 ? (seconds - flight.since) / flight.seconds : 1
+            const shot = flightAt(flight.from, flight.to, share)
+            if (share >= 1) flight = undefined
+            return shot
+        },
+        cancel: () => {
+            flight = undefined
+        },
+    }
+
     const highlight = (orbit: boolean) => {
         const landmass = orbit ? hoveredLandmass ?? shownLandmass ?? 0 : 0
         if (uniforms.highlight.value === landmass) return false
@@ -776,6 +817,11 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         peek.clicked()
         territoryPeek.clicked()
 
+        if (orbiting()) {
+            flyTo(landmassOf(tile))
+            return
+        }
+
         if (!regions.get(country.code)) {
             warnOnce(`No sprite region for country "${country.code}", ignoring the click`)
             return
@@ -934,7 +980,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         return waiting
     }
 
-    const {stop: stopAnimation} = startAnimation(renderer, scene, camera, uniforms, pickingUniforms, director, () => mapView, () => {
+    const {stop: stopAnimation} = startAnimation(renderer, scene, camera, uniforms, pickingUniforms, director, pilot, () => mapView, () => {
         const was = dirty
         dirty = false
         return was
@@ -1093,6 +1139,7 @@ function startAnimation(
     uniforms: Uniforms,
     pickingUniforms: {pointSize: THREE.IUniform},
     director: Director | undefined,
+    pilot: Pilot,
     mapView: () => MapView,
     takeChange: () => boolean,
     beforeRender: (seconds: number) => boolean,
@@ -1123,6 +1170,7 @@ function startAnimation(
     let interactingUntil = 0;
     controls.addEventListener('start', () => {
         interactingUntil = Infinity;
+        pilot.cancel();
     });
     controls.addEventListener('end', () => {
         interactingUntil = performance.now() + INTERACTION_GRACE_MS;
@@ -1136,9 +1184,17 @@ function startAnimation(
         const sinceLastTick = tickedAt === undefined ? 0 : time - tickedAt;
         tickedAt = time;
 
-        const turned = director
+        let turned = director
             ? aim(camera, director(time / 1000))
             : controls.update(spinStep(sinceLastTick)) || moved;
+
+        const flown = director ? undefined : pilot.shotAt(time / 1000);
+        if (flown) {
+            // Over whatever the controls did this tick: their spin and their glide die out under the flight.
+            controls.target.set(0, 0, 0);
+            turned = aim(camera, flown);
+            interactingUntil = Math.max(interactingUntil, performance.now() + INTERACTION_GRACE_MS);
+        }
 
         const {y: height} = renderer.getSize(viewport);
         const ratio = renderer.getPixelRatio();

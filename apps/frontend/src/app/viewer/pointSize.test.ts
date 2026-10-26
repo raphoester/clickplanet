@@ -3,6 +3,7 @@ import {
     coarseHandover,
     displayPointSize,
     flagPaint,
+    flownZoomsOf,
     inOrbit,
     MAX_PICK_WINDOW,
     pickPointSize,
@@ -158,6 +159,18 @@ describe("orbit", () => {
     it("is the opening view on a common screen, and ends before the tiles have the frame", () => {
         expect(inOrbit(1, 900)).toBe(true)
         for (const height of VIEWPORTS) expect(inOrbit(tilesZoomOf(height), height), `${height}px`).toBe(false)
+    })
+})
+
+describe("a territory flown to", () => {
+    it("is seen out of orbit, with the tiles alone on screen, and no closer than big tiles", () => {
+        for (const height of VIEWPORTS) {
+            const {least, most} = flownZoomsOf(height)
+            expect(inOrbit(least, height), `${height}px`).toBe(false)
+            expect(flagPaint(least, height, "flags"), `${height}px`).toBeCloseTo(0, 9)
+            expect(tilePointSize(most, height), `${height}px`).toBeCloseTo(28)
+            expect(most, `${height}px`).toBeGreaterThan(least)
+        }
     })
 })
 
