@@ -2,7 +2,7 @@
 
 Both live feeds are served **two ways at once**, and that is a transition, not a design:
 
-- `ClickService.ListenForEvents` → `stream PlanetEvent`, `ChatService.ListenForEvents` → `stream ChatEvent`, `PlayerService.ListenForEvents` → `stream PlayerEvent`, and `SeasonService.ListenForEvents` → `stream SeasonEvent`. Ordinary Connect server-streaming RPCs, on the same routes and the same port as everything else.
+- `ClickService.ListenForEvents` → `stream PlanetEvent`, `ChatService.ListenForEvents` → `stream ChatEvent`, `PlayerService.ListenForEvents` → `stream PlayerEvent`, `SeasonService.ListenForEvents` → `stream SeasonEvent`, and `MetagameService.ListenForEvents` → `stream MetagameEvent` (the turn that plays, see [The metagame](metagame.md#the-game-client)). Ordinary Connect server-streaming RPCs, on the same routes and the same port as everything else.
 
 **One stream per API, and an envelope rather than a bare payload.** A `PlanetEvent` is a `oneof` of `tile_update` and `heartbeat`; `ChatEvent` is a `oneof` of `message`, `heartbeat`, `reactions`, `announcement` and `message_removed`. **A new kind of live event is a new case in that `oneof`, never a second stream** — one connection per client, one route to configure, and a client that does not know a case reads an unset `oneof` and skips it instead of breaking. That is what the bare `TileUpdate` frame could not do, on the websocket or off it.
 

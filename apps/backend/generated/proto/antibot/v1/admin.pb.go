@@ -63,7 +63,7 @@ type GetRulesResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Every set postgres keeps, "default" first.
 	Sets []*RuleSet `protobuf:"bytes,1,rep,name=sets,proto3" json:"sets,omitempty"`
-	// The set the antibot judges with now: the one named like the planet rule set in force, or "default".
+	// The set the antibot judges with now: the one the schedule played last, or "default".
 	Playing       string `protobuf:"bytes,2,opt,name=playing,proto3" json:"playing,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

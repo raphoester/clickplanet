@@ -138,10 +138,13 @@ func setup(charged bool, err error) fixture {
 		f.charges.Keep(caller, bonuses.Held{Enclosures: 1})
 	}
 
-	claiming := clicks.NewClaiming(board{tiles: f.tiles, shields: f.shields}, 10)
-	charges := bonuses.NewCharges(f.charges, bonuses.ChargesConfig{Enclosures: 3})
+	claiming := clicks.NewClaiming(board{tiles: f.tiles, shields: f.shields}, func() int { return 10 })
+	rules := bonuses.TestRules()
+	rules.Enclose.MaxTiles = 10
+	inForce := func() bonuses.Rules { return rules }
+	charges := bonuses.NewCharges(f.charges, inForce)
 	f.useCase = enclose_click.New(rule{claiming: claiming, err: err}, charges,
-		bonuses.NewTerrain(f.grid, f.tiles), enclose_click.NewAnnexer(encloser{claiming: claiming}, charges, f.published), 10)
+		bonuses.NewTerrain(f.grid, f.tiles), enclose_click.NewAnnexer(encloser{claiming: claiming}, charges, f.published), inForce)
 
 	return f
 }

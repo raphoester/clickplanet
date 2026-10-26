@@ -34,9 +34,10 @@ once (`app/season/RoundReveal.tsx`; the rules are in `domain/roundReveal.ts`).
   `ROUND_REVEAL.champion` (2.2s). Then Close appears and Escape works.
   The rule is the title unlock's: a player spamming the globe would close it
   unseen.
-- **It waits for a title unlock to close.** `Viewer` mounts it once the map is
-  loaded and only while no `TitleUnlocked` is queued, so a title earned at the
-  cutoff plays first and the reveal plays after it.
+- **It takes its turn in the announcements queue** (see
+  [Battles](battle.md#the-announcements-queue)): `Viewer` announces the round
+  closed when it is due, and shows it once the map is loaded and once whatever
+  arrived before it, a title unlocked or a battle's start, was closed.
 - It looks like the unlock: a portal on the body, the `title-reveal` classes of
   `TitleUnlocked.css`, and the `title` sound. Under
   `prefers-reduced-motion: reduce` the rows do not slide and the steps only fade

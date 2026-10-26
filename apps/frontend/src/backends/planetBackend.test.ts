@@ -3,6 +3,7 @@ import {
     asBonusError,
     bindingsOf,
     bombOf,
+    countsOf,
     fortificationOf,
     catchOf,
     shieldsOf,
@@ -27,8 +28,13 @@ import {
     GetAllegianceResponse,
     PledgeAllegianceResponse,
     GetBonusRulesResponse,
+    GetHoldingsResponse,
     GetMapResponse,
     GetLandmassResponse,
+    Holding,
+    HoldingsChanged,
+    LandmassHoldings,
+    MapVersion as MapVersionMessage,
     GetTileHolderResponse,
     LandmassFortification as LandmassFortificationMessage,
     LandmassHolder as LandmassHolderMessage,
@@ -36,6 +42,7 @@ import {
     Heartbeat,
     LandmassFortified,
     PlanetEvent,
+    RulesChanged,
     SharedWith,
     TilesEnclosed,
     TileHolder as TileHolderMessage,
@@ -48,6 +55,10 @@ import {SESSION_HEADER, type SessionProvider, SessionUnavailableError} from "./s
 import type {ClickBudget} from "./clickBudget.ts"
 import type {BonusRules, Charges} from "../domain/bonus.ts"
 import type {Allegiance} from "../domain/allegiance.ts"
+import {tileRanges} from "../domain/mapTiles.ts"
+import type {Counts, MapVersion} from "./backend.ts"
+
+const NO_VERSION = {epoch: 0, seq: 0}
 
 function fixedSession(token: string): SessionProvider {
     return {token: async () => token, held: () => token, identity: async () => token, heldIdentity: () => token, invalidate: () => {}}
@@ -99,24 +110,24 @@ function failingSession(): SessionProvider {
     }
 }
 
-function tileUpdateEvent(fields: {tileId: number, countryId: string, previousCountryId?: string, clicked?: boolean, shields?: number}): PlanetEvent {
+function tileUpdateEvent(fields: {tileId: number, countryId: string, previousCountryId?: string, clicked?: boolean, shields?: number, version?: MapVersionMessage}): PlanetEvent {
     return new PlanetEvent({event: {case: "tileUpdate", value: new TileUpdate(fields)}})
 }
 
 describe("updateOf", () => {
     it("maps a tile update onto the shape the globe consumes", () => {
         expect(updateOf(tileUpdateEvent({tileId: 7, countryId: "jp", previousCountryId: "fr"})))
-            .toEqual({tile: 7, previousCountry: "fr", newCountry: "jp", clicked: false, shields: 0})
+            .toEqual({tile: 7, previousCountry: "fr", newCountry: "jp", clicked: false, shields: 0, version: NO_VERSION})
     })
 
     it("reports an unowned previous tile as undefined rather than an empty code", () => {
         expect(updateOf(tileUpdateEvent({tileId: 1, countryId: "fr"})))
-            .toEqual({tile: 1, previousCountry: undefined, newCountry: "fr", clicked: false, shields: 0})
+            .toEqual({tile: 1, previousCountry: undefined, newCountry: "fr", clicked: false, shields: 0, version: NO_VERSION})
     })
 
     it("reports a tile given back to nobody as undefined, so nobody gets a leaderboard row", () => {
         expect(updateOf(tileUpdateEvent({tileId: 1, countryId: "", previousCountryId: "ps"})))
-            .toEqual({tile: 1, previousCountry: "ps", newCountry: undefined, clicked: false, shields: 0})
+            .toEqual({tile: 1, previousCountry: "ps", newCountry: undefined, clicked: false, shields: 0, version: NO_VERSION})
     })
 
     it("says which update a click made, so the globe can animate it", () => {
@@ -125,6 +136,12 @@ describe("updateOf", () => {
 
     it("says how many shields stand on the tile after the update", () => {
         expect(updateOf(tileUpdateEvent({tileId: 7, countryId: "fr", previousCountryId: "fr", shields: 3}))?.shields).toBe(3)
+    })
+
+    it("says the version of the map the update made", () => {
+        const version = new MapVersionMessage({epoch: 1_790_000_000, seq: BigInt(42)})
+
+        expect(updateOf(tileUpdateEvent({tileId: 7, countryId: "fr", version}))?.version).toEqual({epoch: 1_790_000_000, seq: 42})
     })
 
     it("drops a heartbeat", () => {
@@ -224,7 +241,7 @@ describe("shieldsOf", () => {
     })
 })
 
-describe("PlanetBackend.getCurrentOwnershipsByBatch", () => {
+describe("PlanetBackend.getOwnerships", () => {
     const backendWith = (getMap: GetMapMock) => {
         const client = {click: vi.fn(), getMap, getBudget: noBudget(), ...bonusReads(), mapDensity: vi.fn(), listenForEvents: noEvents()} as never
         return new PlanetBackend(client, 1_000)
@@ -232,21 +249,22 @@ describe("PlanetBackend.getCurrentOwnershipsByBatch", () => {
 
     const collect = async (backend: PlanetBackend, signal?: AbortSignal) => {
         const seen: Map<number, string>[] = []
-        await backend.getCurrentOwnershipsByBatch(2, 4, o => seen.push(o.bindings), signal)
+        await backend.getOwnerships(tileRanges(4, 2), o => seen.push(o.bindings), signal)
         return seen
     }
 
-    it("hands each batch its shields beside its owners", async () => {
+    it("hands each batch its shields beside its owners, with its range and the version it was read at", async () => {
         const getMap = getMapMock(async () => new GetMapResponse({
             startTileId: 1, codes: ["", "fr"], tiles: tileBytes([1, 1]),
             shields: [new TileShields({tileId: 2, shields: 3})],
+            version: new MapVersionMessage({epoch: 1_790_000_000, seq: BigInt(9)}),
         }))
         const backend = backendWith(getMap)
 
-        const seen: Map<number, number>[] = []
-        await backend.getCurrentOwnershipsByBatch(2, 2, o => seen.push(o.shields))
+        const seen: unknown[] = []
+        await backend.getOwnerships([{start: 1, end: 2}], ({range, version, shields}) => seen.push({range, version, shields}))
 
-        expect(seen).toEqual([new Map([[2, 3]])])
+        expect(seen).toEqual([{range: {start: 1, end: 2}, version: {epoch: 1_790_000_000, seq: 9}, shields: new Map([[2, 3]])}])
         backend.close()
     })
 
@@ -254,7 +272,7 @@ describe("PlanetBackend.getCurrentOwnershipsByBatch", () => {
         const getMap = getMapMock(async () => mapResponse(1, ["", "fr"], [1, 0]))
         const backend = backendWith(getMap)
 
-        await backend.getCurrentOwnershipsByBatch(2, 5, () => {})
+        await backend.getOwnerships(tileRanges(5, 2), () => {})
 
         expect(getMap.mock.calls.map(c => c[0])).toEqual([
             {startTileId: 1, endTileId: 2},
@@ -274,7 +292,7 @@ describe("PlanetBackend.getCurrentOwnershipsByBatch", () => {
         })
         const backend = backendWith(getMap)
 
-        const loading = backend.getCurrentOwnershipsByBatch(1, 20, () => {})
+        const loading = backend.getOwnerships(tileRanges(20, 1), () => {})
         await vi.waitFor(() => expect(getMap).toHaveBeenCalledTimes(8))
         answers[0]()
         await vi.waitFor(() => expect(getMap).toHaveBeenCalledTimes(9))
@@ -294,7 +312,7 @@ describe("PlanetBackend.getCurrentOwnershipsByBatch", () => {
         const backend = backendWith(getMap)
 
         const seen: Map<number, string>[] = []
-        const loading = backend.getCurrentOwnershipsByBatch(2, 4, o => seen.push(o.bindings))
+        const loading = backend.getOwnerships(tileRanges(4, 2), o => seen.push(o.bindings))
         await vi.waitFor(() => expect(answers.size).toBe(2))
         answers.get(3)!()
         answers.get(1)!()
@@ -320,7 +338,7 @@ describe("PlanetBackend.getCurrentOwnershipsByBatch", () => {
         const getMap = getMapMock().mockRejectedValue(new ConnectError("nope", Code.InvalidArgument))
         const backend = backendWith(getMap)
 
-        await expect(backend.getCurrentOwnershipsByBatch(4, 4, () => {})).rejects.toThrow(/nope/)
+        await expect(backend.getOwnerships(tileRanges(4, 4), () => {})).rejects.toThrow(/nope/)
         expect(getMap).toHaveBeenCalledTimes(1)
         backend.close()
     })
@@ -334,7 +352,7 @@ describe("PlanetBackend.getCurrentOwnershipsByBatch", () => {
         })
         const backend = backendWith(getMap as never)
 
-        await expect(backend.getCurrentOwnershipsByBatch(1, 20, () => {})).rejects.toThrow(/nope/)
+        await expect(backend.getOwnerships(tileRanges(20, 1), () => {})).rejects.toThrow(/nope/)
         expect(getMap.mock.calls.length).toBeLessThanOrEqual(8)
         expect(signals.every((signal) => signal.aborted)).toBe(true)
         backend.close()
@@ -349,7 +367,7 @@ describe("PlanetBackend.getCurrentOwnershipsByBatch", () => {
         const backend = backendWith(getMap)
 
         const seen: Map<number, string>[] = []
-        const loading = backend.getCurrentOwnershipsByBatch(1, 1, o => seen.push(o.bindings), controller.signal)
+        const loading = backend.getOwnerships(tileRanges(1, 1), o => seen.push(o.bindings), controller.signal)
         await vi.waitFor(() => expect(getMap).toHaveBeenCalledTimes(1))
         controller.abort()
         answer()
@@ -551,6 +569,30 @@ describe("PlanetBackend click budget", () => {
         await vi.waitFor(() => expect(getBudget).toHaveBeenCalledTimes(1))
 
         expect(watch(backend)).toEqual([7])
+        backend.close()
+    })
+
+    it("reads the allowance again when the rules change, so the meter follows the new pace", async () => {
+        const getBudget = vi.fn()
+            .mockResolvedValueOnce({budget: budget(4, 10, 0.2)})
+            .mockResolvedValueOnce({budget: budget(4, 10, 0.6)})
+        let changeRules = () => {}
+        const listenForEvents = vi.fn(async function* () {
+            yield new PlanetEvent({event: {case: "heartbeat", value: new Heartbeat()}})
+            await new Promise<void>(resolve => changeRules = resolve)
+            yield new PlanetEvent({event: {case: "rulesChanged", value: new RulesChanged()}})
+            await new Promise(() => {})
+        })
+        const backend = new PlanetBackend(
+            {click: vi.fn(), getMap: vi.fn(), getBudget, ...bonusReads(), mapDensity: vi.fn(), listenForEvents} as never,
+            1_000)
+        const rates: number[] = []
+        backend.watchClickBudget(b => rates.push(b.perSecond))
+        await vi.waitFor(() => expect(rates).toEqual([0.2]))
+
+        changeRules()
+
+        await vi.waitFor(() => expect(rates).toEqual([0.2, 0.6]))
         backend.close()
     })
 
@@ -1032,7 +1074,7 @@ describe("fortificationOf", () => {
             event: {case: "landmassFortified", value: new LandmassFortified({landmassId: 42, countryId: "us", tileId: 1234})},
         })
 
-        expect(fortificationOf(event)).toEqual({landmass: 42, countryId: "us", tile: 1234})
+        expect(fortificationOf(event)).toEqual({landmass: 42, countryId: "us", tile: 1234, version: NO_VERSION})
     })
 
     it("drops everything that is not a fortified landmass", () => {
@@ -1051,7 +1093,7 @@ describe("updateOf with the bonus cases on the stream", () => {
 })
 
 describe("bombOf", () => {
-    const dropped = (fields: Partial<{tileId: number, clearedTileIds: number[], struckTileIds: number[]}> = {}) => new PlanetEvent({
+    const dropped = (fields: Partial<{tileId: number, clearedTileIds: number[], struck: TileShields[]}> = {}) => new PlanetEvent({
         event: {
             case: "bombDropped",
             value: new BombDropped({
@@ -1060,20 +1102,23 @@ describe("bombOf", () => {
                 radius: 0.03,
                 clearedTileIds: [6, 7, 8],
                 struckTileIds: [5],
+                struck: [new TileShields({tileId: 5, shields: 2})],
                 point: new GlobePoint({x: 0, y: 1, z: 0}),
+                version: new MapVersionMessage({epoch: 1_790_000_000, seq: BigInt(12)}),
                 ...fields,
             }),
         },
     })
 
-    it("reads a blast on land, with every tile it cleared and every shielded tile it struck", () => {
+    it("reads a blast on land, with every tile it cleared and the shields each tile it struck kept", () => {
         expect(bombOf(dropped())).toEqual({
             tile: 7,
             point: {x: 0, y: 1, z: 0},
             countryId: "fr",
             radius: 0.03,
             cleared: [6, 7, 8],
-            struck: [5],
+            struck: [{tile: 5, shields: 2}],
+            version: {epoch: 1_790_000_000, seq: 12},
         })
     })
 
@@ -1087,6 +1132,23 @@ describe("bombOf", () => {
     it("drops everything that is not a blast, and a tile update is not one", () => {
         expect(bombOf(tileUpdateEvent({tileId: 1, countryId: "fr"}))).toBeUndefined()
         expect(updateOf(dropped())).toBeUndefined()
+    })
+})
+
+function versionAt(seq: number): MapVersionMessage {
+    return new MapVersionMessage({epoch: 1_790_000_000, seq: BigInt(seq)})
+}
+
+function heartbeatAt(seq: number): PlanetEvent {
+    return new PlanetEvent({event: {case: "heartbeat", value: new Heartbeat({version: versionAt(seq)})}})
+}
+
+describe("countsOf", () => {
+    it("reads a server from before the versions as version 0", () => {
+        const counts: Counts = countsOf(new GetHoldingsResponse())
+        const none: MapVersion = {epoch: 0, seq: 0}
+
+        expect(counts.version).toEqual(none)
     })
 })
 
@@ -1143,20 +1205,86 @@ describe("PlanetBackend bombs", () => {
         backend.close()
     })
 
-    it("hands over the tile updates that came before a gap, before saying the stream resumed", async () => {
+    it("hands over the tile updates that came before a gap, before saying the stream opened again", async () => {
         let connections = 0
         const listenForEvents = vi.fn(async function* () {
             connections++
-            yield tileUpdateEvent({tileId: connections, countryId: "jp"})
+            yield heartbeatAt(connections * 10)
+            yield tileUpdateEvent({tileId: connections, countryId: "jp", version: versionAt(connections * 10 + 1)})
             if (connections > 1) await new Promise(() => {})
         })
         const backend = new PlanetBackend(clientWith({listenForEvents}), 60_000)
 
         const order: string[] = []
         backend.listenForUpdatesBatch((updates) => order.push(`updates ${updates.map(({tile}) => tile).join(",")}`))
-        backend.listenForResumes(() => order.push("resumed"))
+        backend.listenForOpenings(({seq}) => order.push(`opened ${seq}`))
 
-        await vi.waitFor(() => expect(order).toEqual(["updates 1", "resumed"]), {timeout: 2_000})
+        await vi.waitFor(() => expect(order).toEqual(["opened 10", "updates 1", "opened 20"]), {timeout: 2_000})
+        backend.close()
+    })
+
+    it("tells a listener that comes late the version the stream already passed, its updates handed over first", async () => {
+        const listenForEvents = vi.fn(async function* () {
+            yield heartbeatAt(10)
+            yield tileUpdateEvent({tileId: 3, countryId: "jp", version: versionAt(11)})
+            await new Promise(() => {})
+        })
+        const backend = new PlanetBackend(clientWith({listenForEvents}), 60_000)
+        const order: string[] = []
+        backend.listenForUpdatesBatch((updates) => order.push(`updates ${updates.map(({tile}) => tile).join(",")}`))
+        const heard: number[] = []
+        backend.listenForUpdates(({tile}) => heard.push(tile))
+        await vi.waitFor(() => expect(heard).toEqual([3]))
+
+        backend.listenForOpenings(({seq}) => order.push(`opened ${seq}`))
+
+        expect(order).toEqual(["updates 3", "opened 11"])
+        backend.close()
+    })
+
+    it("hands over the tile updates before the counts they moved, and maps the counts", async () => {
+        const listenForEvents = vi.fn(async function* () {
+            yield heartbeatAt(10)
+            yield tileUpdateEvent({tileId: 3, countryId: "jp", version: versionAt(11)})
+            yield new PlanetEvent({event: {case: "holdingsChanged", value: new HoldingsChanged({
+                version: versionAt(11),
+                countries: [new Holding({countryId: "jp", tiles: 4}), new Holding({countryId: "fr"})],
+                landmasses: [new LandmassHoldings({landmassId: 7, holdings: [new Holding({countryId: "jp", tiles: 4})]})],
+            })}})
+            await new Promise(() => {})
+        })
+        const backend = new PlanetBackend(clientWith({listenForEvents}), 60_000)
+
+        const order: string[] = []
+        const changes: Counts[] = []
+        backend.listenForUpdatesBatch(() => order.push("updates"))
+        backend.listenForHoldings((change) => {
+            order.push("holdings")
+            changes.push(change)
+        })
+
+        await vi.waitFor(() => expect(order).toEqual(["updates", "holdings"]))
+        expect(changes).toEqual([{
+            version: {epoch: 1_790_000_000, seq: 11},
+            countries: new Map([["jp", 4], ["fr", 0]]),
+            landmasses: new Map([[7, new Map([["jp", 4]])]]),
+        }])
+        backend.close()
+    })
+
+    it("reads what each flag holds", async () => {
+        const getHoldings = vi.fn().mockResolvedValue(new GetHoldingsResponse({
+            version: versionAt(30),
+            countries: [new Holding({countryId: "fr", tiles: 3})],
+            landmasses: [new LandmassHoldings({landmassId: 2, holdings: [new Holding({countryId: "fr", tiles: 3})]})],
+        }))
+        const backend = new PlanetBackend(clientWith({getHoldings}), 60_000)
+
+        expect(await backend.getHoldings()).toEqual({
+            version: {epoch: 1_790_000_000, seq: 30},
+            countries: new Map([["fr", 3]]),
+            landmasses: new Map([[2, new Map([["fr", 3]])]]),
+        })
         backend.close()
     })
 })
@@ -1399,6 +1527,31 @@ describe("the rules", () => {
             blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, shields: 12, tileShields: 10,
             toll: [{share: 0.1, slowdown: 1.5}, {share: 0.3, slowdown: 4}],
         }))
+        backend.close()
+    })
+
+    it("reads them again when the rules change, so a bigger blast is drawn with no reload", async () => {
+        const getBonusRules = vi.fn()
+            .mockResolvedValueOnce(new GetBonusRulesResponse({blastRadius: 0.03, enclosureMaxTiles: 25}))
+            .mockResolvedValueOnce(new GetBonusRulesResponse({blastRadius: 0.05, enclosureMaxTiles: 40}))
+        let changeRules = () => {}
+        const listenForEvents = vi.fn(async function* () {
+            yield new PlanetEvent({event: {case: "heartbeat", value: new Heartbeat()}})
+            await new Promise<void>(resolve => changeRules = resolve)
+            yield new PlanetEvent({event: {case: "rulesChanged", value: new RulesChanged()}})
+            await new Promise(() => {})
+        })
+        const backend = new PlanetBackend(clientWith({getBonusRules, listenForEvents}), 1_000)
+        const radii: number[] = []
+        backend.listenForBonuses({
+            onOffered: () => {}, onTaken: () => {}, onEnclosed: () => {}, onSpread: () => {}, onCharges: () => {},
+            onRules: (rules) => radii.push(rules.blastRadius),
+        })
+        await vi.waitFor(() => expect(radii.at(-1)).toBe(0.03))
+
+        changeRules()
+
+        await vi.waitFor(() => expect(radii.at(-1)).toBe(0.05))
         backend.close()
     })
 })

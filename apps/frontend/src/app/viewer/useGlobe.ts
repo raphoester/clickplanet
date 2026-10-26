@@ -1,5 +1,6 @@
 import {useCallback, useEffect, useRef, useState} from 'react';
 import {createGlobe, Globe} from './globe.ts';
+import {Halo} from './atmosphere.ts';
 import {CapturedFrame} from './capture.ts';
 import {GraphicsReport, NO_GRAPHICS} from './graphicsReport.ts';
 import {Country} from '../../domain/countries.ts';
@@ -38,15 +39,19 @@ export type UseGlobeOptions = {
     country: Country
     clickHue: number | undefined
     mapView: MapView
+    halo: Halo
     // A change rebuilds the globe: antialiasing is fixed when the context is made.
     rendering: Rendering
 }
 
 export function useGlobe(options: UseGlobeOptions) {
-    const {container, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, bomber, shielder, playSound, onClickAccepted, country, clickHue, mapView, rendering} = options
+    const {container, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, bomber, shielder, playSound, onClickAccepted, country, clickHue, mapView, halo, rendering} = options
 
     const [status, setStatus] = useState<GlobeStatus>({state: 'loading'})
     const [tilesCount, setTilesCount] = useState(0)
+    // The share of the tiles read, until they all are.
+    const [tilesLoading, setTilesLoading] = useState<number | undefined>(0)
+    const [orbit, setOrbit] = useState(true)
 
     const {leaderboard, tileDeltas, recordLeaderboard, publishLeaderboard} = useLeaderboardFeed()
 
@@ -112,6 +117,7 @@ export function useGlobe(options: UseGlobeOptions) {
     const initialCountry = useRef(country)
     const latestClickHue = useRef(clickHue)
     const latestMapView = useRef(mapView)
+    const latestHalo = useRef(halo)
 
     useEffect(() => {
         const element = container.current
@@ -121,6 +127,7 @@ export function useGlobe(options: UseGlobeOptions) {
         let cancelled = false
 
         setStatus({state: 'loading'})
+        setTilesLoading(0)
 
         createGlobe({
             tileClicker,
@@ -132,8 +139,11 @@ export function useGlobe(options: UseGlobeOptions) {
             mapView: latestMapView.current,
             rendering,
             onLeaderboardChange: recordLeaderboard,
-            onLoadProgress: (territories) => {
-                if (!cancelled) setStatus({state: 'loading', territories})
+            onLoadProgress: (share) => {
+                if (!cancelled) setTilesLoading(share < 1 ? share : undefined)
+            },
+            onOrbitChange: (inOrbit) => {
+                if (!cancelled) setOrbit(inOrbit)
             },
             onRateLimited: () => setRefusals(n => n + 1),
             onVPNBlocked: () => setVPNBlocked(true),
@@ -169,6 +179,7 @@ export function useGlobe(options: UseGlobeOptions) {
             globeRef.current = globe
             globe.setClickHue(latestClickHue.current)
             globe.setMapView(latestMapView.current)
+            globe.setHalo(latestHalo.current)
             if (import.meta.env.DEV) Object.assign(window, {clickplanetGlobe: globe})
             setTilesCount(globe.tilesCount)
             publishLeaderboard()
@@ -202,6 +213,11 @@ export function useGlobe(options: UseGlobeOptions) {
         globeRef.current?.setMapView(mapView)
     }, [mapView])
 
+    useEffect(() => {
+        latestHalo.current = halo
+        globeRef.current?.setHalo(halo)
+    }, [halo])
+
     const capture = useCallback((): Promise<CapturedFrame> => {
         const globe = globeRef.current
         if (!globe) return Promise.reject(new Error("the globe is not running yet"))
@@ -222,6 +238,8 @@ export function useGlobe(options: UseGlobeOptions) {
 
     return {
         status,
+        tilesLoading,
+        orbit,
         leaderboard,
         tileDeltas,
         tilesCount,

@@ -43,6 +43,10 @@ func (o owners) Owner(tile uint32) (string, bool) {
 	return owner, ok
 }
 
+func tempo(pace float64) func() clicks.Throttle {
+	return func() clicks.Throttle { return clicks.Throttle{Tempo: pace} }
+}
+
 type positions map[uint32]clicks.Vec3
 
 func (p positions) Position(tile uint32) (clicks.Vec3, bool) {
@@ -54,7 +58,7 @@ func try(t *testing.T, ctx context.Context, inner answer, tile uint32) (*planetv
 	t.Helper()
 	log := facts.NewLog(cptime.NewFixedClock(at))
 
-	out, err := try_click.New(inner, owners{42: "de"}, positions{42: {X: 1, Y: 0, Z: 0}}, log).
+	out, err := try_click.New(inner, owners{42: "de"}, positions{42: {X: 1, Y: 0, Z: 0}}, tempo(3), log).
 		Execute(ctx, click_usecase.In{TileID: tile, CountryID: "fr"})
 
 	told := log.Take()
@@ -76,7 +80,7 @@ func TestATryNamesWhoClickedWhatAndWhen(t *testing.T) {
 	assert.True(t, proto.Equal(&planetv1.ClickTried{
 		Scope: "2001:db8::/64", AccountId: "a-player", Linked: true, AccountCreatedAt: timestamppb.New(created),
 		TileId: 42, Country: "fr", TriedAt: timestamppb.New(at), Outcome: planetv1.ClickOutcome_CLICK_OUTCOME_TAKEN,
-		Owner: "de", Position: &planetv1.GlobePoint{X: 1},
+		Owner: "de", Position: &planetv1.GlobePoint{X: 1}, Tempo: 3,
 	}, tried), "got %v", tried)
 }
 

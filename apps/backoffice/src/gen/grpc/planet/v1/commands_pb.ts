@@ -187,3 +187,49 @@ export class AdmitCaller extends Message<AdmitCaller> {
   }
 }
 
+/**
+ * Plays the rule set of this name. Planet keeps the latest decision by decided_at, so a command sent twice, or after a
+ * newer one, changes nothing. A name planet keeps no set of is refused, and planet plays on the set it plays.
+ *
+ * @generated from message planet.v1.PlayRuleSet
+ */
+export class PlayRuleSet extends Message<PlayRuleSet> {
+  /**
+   * @generated from field: string rule_set = 1;
+   */
+  ruleSet = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp decided_at = 2;
+   */
+  decidedAt?: Timestamp;
+
+  constructor(data?: PartialMessage<PlayRuleSet>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.PlayRuleSet";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "rule_set", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "decided_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PlayRuleSet {
+    return new PlayRuleSet().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PlayRuleSet {
+    return new PlayRuleSet().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PlayRuleSet {
+    return new PlayRuleSet().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: PlayRuleSet | PlainMessage<PlayRuleSet> | undefined, b: PlayRuleSet | PlainMessage<PlayRuleSet> | undefined): boolean {
+    return proto3.util.equals(PlayRuleSet, a, b);
+  }
+}
+

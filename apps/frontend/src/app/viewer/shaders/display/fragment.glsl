@@ -4,6 +4,7 @@
 
 uniform sampler2D atlasTexture;
 uniform vec2 atlasTextureSize;
+uniform sampler2D slotTexture;
 uniform float flagPaint;
 uniform float pixelRatio;
 uniform float shieldMost;
@@ -14,8 +15,9 @@ uniform float time;
 flat in vec4 vRegionVector;
 flat in vec2 vFlagUV;
 flat in vec4 vFlagStep;
-flat in vec4 vFlagRegion;
+flat in vec4 vFlagFrame;
 flat in float vFlagShare;
+flat in float vSlotted;
 flat in float vSpriteSize;
 flat in float vShield;
 flat in float vPulse;
@@ -37,9 +39,10 @@ const float KEYLINE_MOST = 0.03;
 const float HIGHLIGHT_LIFT = 0.2;
 const float HIGHLIGHT_FLOOR = 0.35;
 
+#include ../flagFrame.glsl;
+
 vec2 atlasUVof(vec4 region, vec2 uv) {
-    vec2 origin = vec2(region.x, atlasTextureSize.y - region.y - region.w) / atlasTextureSize;
-    return origin + clamp(uv, 0.002, 0.998) * (region.zw / atlasTextureSize);
+    return frameUVof(atlasFrameOf(region), uv);
 }
 
 vec4 ownColour() {
@@ -82,17 +85,18 @@ void main() {
     vec4 own = flagPaint < 1.0 ? ownColour() : vec4(0.0);
 
     vec4 painted = vec4(own.rgb, 0.0);
-    if (vFlagRegion.z > 0.0) {
+    if (vFlagFrame.z > 0.0) {
         // gl_PointCoord runs down and the flag frame runs up; the frame itself needs no flip.
         vec2 screen = vec2(coordinates.x, -coordinates.y) * vSpriteSize;
         vec2 uv = vFlagUV + vFlagStep.xy * screen.x + vFlagStep.zw * screen.y;
 
         // Explicit gradients: the frame is flat across the sprite, so texture() picks the top mip.
-        vec2 footprint = vFlagRegion.zw / atlasTextureSize;
-        vec3 flag = textureGrad(
-            atlasTexture, atlasUVof(vFlagRegion, uv),
-            vFlagStep.xy * footprint, vFlagStep.zw * footprint
-        ).rgb;
+        vec2 at = frameUVof(vFlagFrame, uv);
+        vec2 across = vFlagStep.xy * vFlagFrame.zw;
+        vec2 upward = vFlagStep.zw * vFlagFrame.zw;
+        vec3 flag = vSlotted > 0.5
+            ? textureGrad(slotTexture, at, across, upward).rgb
+            : textureGrad(atlasTexture, at, across, upward).rgb;
 
         float uvPerPixel = max(length(vFlagStep.xy), length(vFlagStep.zw));
         float width = min(uvPerPixel * KEYLINE_WIDTH * pixelRatio, KEYLINE_MOST);

@@ -7,7 +7,7 @@ this is where each zone lives. `Viewer` composes them, and `useCompact`
 
 | Zone | Phone | Desktop |
 |---|---|---|
-| **Status** | `hud/StatusBar`: logo, flag, country and rank (opens the board), the Hall of Fame's trophy and `SeasonChip` at its end | `Menu`'s header and "playing for", `SeasonChip` at the top centre, the trophy beside it |
+| **Status** | `hud/StatusBar`: logo, flag, country and rank (opens the board), the Hall of Fame's trophy and `SeasonChip` at its end (`BattleChip` while a battle plays) | `Menu`'s header and "playing for", `SeasonChip` at the top centre (`BattleChip` while a battle plays), the trophy beside it |
 | **Moments** | under the status bar (`--status-bottom`) | under the season chip |
 | **Play** | the dock (`ClickBudgetMeter` + `Inventory`) above the tab bar, the chat's peek above it | the dock at the bottom centre |
 | **Places** | `hud/TabBar` (Board, Missions, Chat, Sign in / You, Share, Settings), each a `hud/Sheet` | `Menu`'s tabs (Board, Missions, You, Share, Settings) on the left, the chat on the right |

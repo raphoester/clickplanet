@@ -47,7 +47,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 **Each module owns its own config struct** — `planet.Config`, `chat.Config`, `auth.Config`, `player.Config` — and `app.Config` is the four of them plus `httpServer`. The planet keys stayed at the top level of the file rather than moving under a `planet:` section: `app.Config` squashes that struct (`koanf:",squash"`), so the file and every `deploy/` environment variable are unchanged.
 
 - `httpServer.bindAddress` — the encoding is negotiated per request, so there is no format setting.
-- `redis` — each module's own block (`redis` at the top level for planet, `auth.redis`, `antiBot.redis`, `chat.redis`, `player.redis`, `seasons.redis`, `support.redis`, `missions.redis`): the Redis it tells the others what happened through and hears them on (see [Telling other modules what happened](composite-layer.md#telling-other-modules-what-happened)). **Every block names the same Redis**, or a module publishes where nobody listens; `TestEveryModuleOfProductionTalksToTheSameRedis` pins it for `deploy/vps/backend.yaml`. Each module connects on its own, and one that cannot reach Redis refuses the boot
+- `redis` — each module's own block (`redis` at the top level for planet, `auth.redis`, `antiBot.redis`, `chat.redis`, `player.redis`, `seasons.redis`, `support.redis`, `missions.redis`, `metagame.redis`): the Redis it tells the others what happened through and hears them on (see [Telling other modules what happened](composite-layer.md#telling-other-modules-what-happened)). **Every block names the same Redis**, or a module publishes where nobody listens; `TestEveryModuleOfProductionTalksToTheSameRedis` pins it for `deploy/vps/backend.yaml`. Each module connects on its own, and one that cannot reach Redis refuses the boot
 - `redis.address`, `redis.password` — production reads the password from `REDIS_PASSWORD`
 - `redis.maxLen` — the most entries one stream keeps (100k), for a stream whose subscriber stopped; the trim keeps them far fewer while every subscriber keeps up
 - `redis.publishTimeout` — how long a click or any other publish waits on Redis (500ms); past it the event is lost and counted
@@ -68,20 +68,12 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `ledgerStorage.flushInterval` — how often new takes are written to postgres (1s, and on shutdown)
 - `ledgerStorage.maxTakes` — the most takes kept (4M, ~100 MiB); past it the oldest go before the retention
 - `tilesStorage.subscriberBuffer` — per-subscriber channel capacity, which is now per connected client rather than per fanout; a subscriber that falls that far behind is closed, never blocked on or skipped
-- `rateLimiter.perSecond`, `rateLimiter.burst`, `rateLimiter.sweepInterval` — one account's click allowance, and a token with no account's scope bucket (defaults 1/s, burst 10, swept every minute; `perSecond` is a float, so 0.2 is one click every 5s)
-- `rateLimiter.scopeMultiplier` — the scope's bucket over one account's, shared by every account behind the address (default 10). Below 1 refuses the boot. See [Two buckets per click](rate-limiting.md#two-buckets-per-click)
-- `rateLimiter.v6ScopeMultiplier` — the same for an IPv6 /64 (default `scopeMultiplier`; production 4). Below 1 refuses the boot. See [Two buckets per click](rate-limiting.md#two-buckets-per-click)
-- `rateLimiter.guestScopeMultiplier` — the bucket every guest behind one address shares, over one account's (default 1: the guests on one network are one bank). Below 1 refuses the boot. See [Two buckets per click](rate-limiting.md#two-buckets-per-click)
-- `rateLimiter.newAccountClicks` — the bank of an account just made, which earns the rest at the plain rate (unset: full). Negative refuses the boot. See [Two buckets per click](rate-limiting.md#two-buckets-per-click)
+- **Every game rule is the rule set's, kept in postgres** (`planet.rule_sets`), not a key here: the refill, the bank
+  and the scope multipliers, the toll, the boxes, the charges, the welcome and the quizzes. See [Rules](rules.md)
+- `rateLimiter.sweepInterval` — how often the click limiter forgets a bucket that is full (1m)
 - `vpnBlocklist.enabled`, `vpnBlocklist.includeDatacenters`, `vpnBlocklist.allow` — the VPN refusal (see [VPN blocklist](vpn-blocklist.md)); disabled parses nothing and allocates nothing
-- `bonus.interval` — how often a box is put in front of somebody; a ceiling, since nothing is offered while nobody is watching
-- `bonus.offerTTL` — how long the token stays good; **must outlast the flight the client draws**, or a box caught on its last frame is refused
-- `bonus.kinds` — a weight per kind (`refill`, `spread_clicks`, `bomb`, `enclose_clicks`, `shields`); a kind's chance is its weight over the sum. Left out or 0 is never offered, empty offers every kind equally, and an unknown kind, a negative weight or all zeros refuse the boot
-- `bonus.spread.clicks`, `bonus.spread.maxPerBox` — the most spread clicks held (8, about 56 tiles, a bomb's worth), and the most one box adds (4; it draws 1 to that). A count, not a time: a timed spread let a full bank of clicks be dumped inside it
-- `bonus.enclose.held`, `bonus.enclose.maxPerBox`, `bonus.enclose.maxTiles` — the most enclosures held (3), the most one box adds (3; it draws 1 to that), and the most tiles one shape may take (25)
-- `bonus.shield.held`, `bonus.shield.minPerBox`, `bonus.shield.maxPerBox`, `bonus.shield.perTile` — the most shields held (30), the fewest and the most one box adds (5 and 20; it draws evenly between them), and the most one tile holds (10)
-- `bonus.maxChargesPerHour` — the most charges one caller may be granted per hour (12); past it the slot is lost
-- `bonus.welcome.within`, `bonus.welcome.boxAfter` — how young an account is welcomed (production 10m; 0, the default, is off), and how long after it was made its spread box comes (1m). Negative refuses the boot. See [A newcomer's first box and first quiz](welcome-bonus.md)
+- `bonus.forgetAfter`, `bonus.sweepInterval` — how long a caller with no stream open is remembered (5m), and how often
+  the boxes and the quizzes are swept (1s)
 - `antiBot` — the antibot module's block (`antibot.Config`, beside `planet.Config` in `cmd/api`). It holds the machine only: **every bound the antibot judges with is a rule set in postgres**, edited from the backoffice (see [The antibot's rules](antibot-rules.md)). A rule left in the file is read by nothing, and `TestEveryAntibotKeyIsOneTheConfigReads` refuses it
 - `antiBot.enabled` — off builds no module: nothing is heard, nothing is refused, and `antibot.v1.AdminService` 404s
 - `antiBot.database` — the antibot's own `cppg.Config`, `schema: antibot`; required when `antiBot.enabled`. A failed connection, migration, rule set or load refuses the boot
@@ -89,7 +81,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `antiBot.jury.trackWindow`, `sweepInterval` — how long a silent caller is remembered, and how often the jury forgets and sets its gauges
 - `antiBot.evidence.saveInterval`, `retention` — how often every watchdog's evidence and the jury's record are written to `antibot.evidence` (1m, and on shutdown), and the oldest kept (72h) on load and in memory. Also how long `UnbanPlayer` holds the jury off. See [What survives a restart](antibot.md#what-survives-a-restart)
 - `antiBot.<watchdog>` — one block per watchdog (`retaker`, `sequencer`, `metronome`, `defender`, `catcher`, `cohort`, `scraper`, `churner`, `hopper`, `rotator`). Every watchdog is built: whether its reading counts is the rule `<watchdog>.enabled`
-- every watchdog takes `trackWindow` and `sweepInterval` — how far back its evidence counts, and how often what can no longer matter is forgotten. The retaker, the sequencer, the defender, the scraper and the hopper count their rule over `trackWindow`; the cohort keeps at least the rules' `chainWindow`, the churner `window` plus `relay.handoff`. The catcher's must hold `minCatches` boxes at the slowest box pace plus `bonus.offerTTL`
+- every watchdog takes `trackWindow` and `sweepInterval` — how far back its evidence counts, and how often what can no longer matter is forgotten. The retaker, the sequencer, the defender, the scraper and the hopper count their rule over `trackWindow`; the cohort keeps at least the rules' `chainWindow`, the churner `window` plus `relay.handoff`. The catcher's must hold `minCatches` boxes at the slowest box pace plus the planet rule set's `bonuses.offerTtl`
 - `antiBot.metronome.stamina.slice`, `antiBot.rotator.slot` — the length the evidence is counted in, saved with it: a section saved under another length is dropped on load
 - `antiBot.cohort.v4Bits`, `v6Bits`, `antiBot.churner.relay.v4Bits`, `v6Bits` — the wider prefix a scope or an account is indexed by when first seen (a /24 and a /44, a /24 and a /32). A prefix wider than an address refuses the boot (the cohort's)
 - `auth.enabled` — off registers nothing, so `auth.v1` and `session.v1` 404 and clicks are judged on address alone
@@ -129,6 +121,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `seasons.list` — each season's `number` (0 up), `endsAt` (RFC 3339) and `finale` (a duration); empty is no season
 - `seasons.snapshot.interval` — how often a snapshot of what each country holds is added to the round in progress (default 1m)
 - `seasons.database.*` — the standings and the rounds, same shape as `database`, schema `seasons`; required. `seasons.database.password` belongs in the environment
+- `metagame.database.*` — the rule schedule's entries, same shape as `database`, schema `metagame`; required. `metagame.database.password` belongs in the environment. See [The metagame module](metagame.md)
 - `support.database.*` — what players send the operator, same shape as `database`, schema `support`; required. `support.database.password` belongs in the environment
 - `clips.database.*` — the daily snapshots of the clips' numbers, same shape as `database`, schema `clips`; required. `clips.database.password` belongs in the environment
 - `support.retention`, `support.pruneInterval` — how long a note keeps its sender (default 90 days; the text is kept after) and how long a report is kept, and how often the prune runs (1h)

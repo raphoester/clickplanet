@@ -4,23 +4,24 @@
    tile positions from it, see [Tile positions](tile-positions.md)) and the borders
    blobs — in parallel, and before allocating any GPU resource, so an abandoned
    load never opens a context.
-2. Ownerships are fetched in batches, eight at a time (see
-   [`src/backends/`](backends.md)), and each is fed to `TileOwnership` as it
-   lands. **`createGlobe`
-   resolves only once the last batch is in**, so `useGlobe` stays `loading` —
-   with `territories`, the share fetched, for the progress bar — and the menu,
-   the leaderboard and every other control stay hidden until then. The scene
-   already turns and fills in behind the loader, but a click claims nothing
-   before the map is complete: an empty map with an empty board is not a game.
-   A fetch that fails after its retries fails the whole globe, and an abandoned
-   one disposes it. On ready, `publishLeaderboard` shows the full board at once
-   rather than up to a sample later. Each batch brings its tiles' shields
-   too (see [Shields](shields.md)).
-3. Live updates arrive over the `ListenForEvents` stream, batched every 100 ms, into the same
-   store.
-4. Whatever the store reports as changed is painted, and the leaderboard is
-   re-ranked from its counts — then handed to `useLeaderboardFeed`, which
-   publishes it to React twice a second rather than ten times.
+2. The server's counts (`GetHoldings`) and the fortresses are read at once, and
+   the map batches start with them, eight at a time (see
+   [`src/backends/`](backends.md)). **`createGlobe` resolves on the counts**:
+   the painted flags, the leaderboard, a flight in orbit and the territory card
+   work from there, and the menu and the other controls show. Until then
+   `useGlobe` stays `loading`. A count read that fails after its retries fails
+   the whole globe, and an abandoned one disposes it. On ready,
+   `publishLeaderboard` shows the full board at once rather than up to a sample
+   later. **A tile is clicked only once every batch is read**: zoomed in,
+   `Viewer` shows the loading card with the share read until then. Each batch
+   brings its tiles' shields too (see [Shields](shields.md)). See [The counts
+   are the server's](counts.md).
+3. Live updates arrive over the `ListenForEvents` stream, batched every 100 ms,
+   into `MapTiles`, which takes a value for a tile only when it is newer than the
+   tile's; the counts arrive as `holdings_changed`, at most once a second.
+4. Whatever the tiles report as changed is painted. The leaderboard is ranked
+   from the server's counts only — then handed to `useLeaderboardFeed`, which
+   publishes it to React twice a second.
 5. A click paints optimistically and POSTs; the server's echo confirms it later.
    A refused click is taken back off the map. A throttled one bumps `refusals` in
    `useGlobe`, and `ClickBudgetMeter` shakes and flashes red once per bump — a
@@ -49,7 +50,7 @@
    before the wall, and shakes when a click hits it. **Its shape is read off the server's policy**: one
    pip per click in the burst (one bar past 12 of them), and the partly-filled
    pip is the click being granted back, at the server's own rate. Change
-   `rateLimiter.burst` on the backend and this follows with no release here.
+   the rule set's `clicks.burst` on the backoffice and this follows with no release here.
 
    **A slow refill gets a countdown.** When a click takes 1.5s or more to come
    back (`COUNTDOWN_FROM_S`; production is one every 5s), the meter says

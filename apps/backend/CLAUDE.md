@@ -21,8 +21,8 @@ and says what is in it. Read the doc before you change its area.
 
 ## How the code is shaped
 
-- [Eight bounded contexts, one process](docs/bounded-contexts.md) — planet, chat, auth, player, seasons, support,
-  missions, antibot.
+- [Nine bounded contexts, one process](docs/bounded-contexts.md) — planet, chat, auth, player, seasons, support,
+  missions, antibot, metagame.
   A module publishes its root package and hides the rest.
 - [The composite layer](docs/composite-layer.md) — each context wires itself in its `module.go`; how a module
   calls another one, how it tells the others what happened and asks one to change something: Redis Streams,
@@ -58,6 +58,8 @@ and says what is in it. Read the doc before you change its area.
   refills slower.
 - [VPN blocklist](docs/vpn-blocklist.md) — `Click` refused from vendored VPN ranges, before the rate limiter.
 - [Allegiance](docs/allegiance.md) — an account plays for one flag, and may change it once an hour.
+- [Rules](docs/rules.md) — every game rule, in rule sets kept in postgres; the set in force in one atomic pointer;
+  what a change does to what is already there.
 - [Shields](docs/shields.md) — a charge on a tile; each shield takes one foreign click.
 - [Fortify](docs/fortify.md) — a take that makes a landmass whole gives every tile of it a shield.
 - [Who holds the tiles](docs/tile-holders.md) — each tile keeps the account whose take holds it; `GetLandmass`
@@ -84,6 +86,8 @@ and says what is in it. Read the doc before you change its area.
 - [Chat](docs/chat.md) — messages, announcements, mutes, removals, replies, reactions, and what each account saw.
 - [Player](docs/player.md) — names and guest codes, stats, streaks, titles, and who is playing now.
 - [Seasons](docs/seasons.md) — the season calendar, its standings, the daily rounds and the finale.
+- [The metagame](docs/metagame.md) — which rule sets play together, and when: a schedule by priority that commands
+  planet and the antibot to play a set; only an entry to come changes; no tie to seasons.
 - [Missions](docs/missions.md) — three to five missions a day per flag, counted from `TileTaken`, paid once done with a
   `GrantCharges` command to planet; why progress is not read from the ledger.
 - [Support](docs/support.md) — suggestions, bug reports and player reports, with their photos and videos.

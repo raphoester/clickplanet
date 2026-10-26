@@ -3,7 +3,8 @@ import {Player} from "./gen/grpc/planet/v1/admin_pb.ts"
 import {Caller} from "./players/caller.ts"
 
 export type PageId =
-    | "home" | "notes" | "reports" | "players" | "reassign" | "paint" | "replay" | "clips" | "titles" | "antibotRules"
+    | "home" | "notes" | "reports" | "players" | "reassign" | "paint" | "replay" | "clips" | "titles" | "rules"
+    | "antibotRules" | "schedule"
 
 export type MenuGroup = {label: string, pages: {page: PageId, label: string}[]}
 
@@ -23,7 +24,12 @@ export const MENU: MenuGroup[] = [
     {label: "Clips", pages: [{page: "clips", label: "Clip stats"}]},
     {
         label: "Ops",
-        pages: [{page: "titles", label: "Reconcile titles"}, {page: "antibotRules", label: "Anti-bot rules"}],
+        pages: [
+            {page: "titles", label: "Reconcile titles"},
+            {page: "rules", label: "Game rules"},
+            {page: "antibotRules", label: "Anti-bot rules"},
+            {page: "schedule", label: "Rule schedule"},
+        ],
     },
 ]
 

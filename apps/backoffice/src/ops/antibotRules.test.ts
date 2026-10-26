@@ -47,7 +47,7 @@ describe("the antibot rules", () => {
     it("saves a set as the form holds it", async () => {
         const admin = new FakeAdmin()
 
-        await saveRuleSet(admin, {...draftOf(rush), name: " rush "})
+        await saveRuleSet(admin.antibot, {...draftOf(rush), name: " rush "})
 
         const [asked] = admin.askedFor("saveRuleSet") as {set: RuleSet}[]
         expect(asked.set.equals(rush)).toBe(true)

@@ -21,7 +21,7 @@ type saved struct {
 type savedPayer struct {
 	Payer     string
 	LastSeen  int64
-	RunStart  int64
+	Ran       int64
 	RunClicks int
 	Gaps      []int64
 	Shape     []int64
@@ -37,6 +37,7 @@ type savedSpender struct {
 type savedSlice struct {
 	Index  int64
 	Clicks int
+	Tempo  float64
 }
 
 func (w *Watchdog) Save() ([]byte, error) {
@@ -51,7 +52,7 @@ func (w *Watchdog) Save() ([]byte, error) {
 		s.Payers = append(s.Payers, savedPayer{
 			Payer:     key,
 			LastSeen:  evidence.Nanos(p.lastSeen),
-			RunStart:  evidence.Nanos(p.runStart),
+			Ran:       int64(p.ran),
 			RunClicks: p.runClicks,
 			Gaps:      nanos(p.gaps),
 			Shape:     nanos(p.shape),
@@ -61,7 +62,7 @@ func (w *Watchdog) Save() ([]byte, error) {
 	for key, sp := range w.spenders {
 		slices := make([]savedSlice, 0, len(sp.slices))
 		for _, counted := range sp.slices {
-			slices = append(slices, savedSlice{Index: counted.index, Clicks: counted.clicks})
+			slices = append(slices, savedSlice{Index: counted.index, Clicks: counted.clicks, Tempo: counted.tempo})
 		}
 		s.Spenders = append(s.Spenders, savedSpender{Payer: key, LastSeen: evidence.Nanos(sp.lastSeen), Slices: slices})
 	}
@@ -82,7 +83,7 @@ func (w *Watchdog) Load(data []byte) error {
 	for _, p := range s.Payers {
 		payers[p.Payer] = &payer{
 			lastSeen:  evidence.Time(p.LastSeen),
-			runStart:  evidence.Time(p.RunStart),
+			ran:       time.Duration(p.Ran),
 			runClicks: p.RunClicks,
 			gaps:      durations(p.Gaps, capacity(rules)),
 			shape:     durations(p.Shape, rules.Shape.CertainClicks),
@@ -95,7 +96,7 @@ func (w *Watchdog) Load(data []byte) error {
 		for _, sp := range s.Spenders {
 			slices := make([]slice, 0, len(sp.Slices))
 			for _, counted := range sp.Slices {
-				slices = append(slices, slice{index: counted.Index, clicks: counted.Clicks})
+				slices = append(slices, slice{index: counted.Index, clicks: counted.Clicks, tempo: counted.Tempo})
 			}
 			spenders[sp.Payer] = &spender{lastSeen: evidence.Time(sp.LastSeen), slices: slices}
 		}

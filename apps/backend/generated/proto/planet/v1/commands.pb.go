@@ -282,6 +282,60 @@ func (*AdmitCaller_Scope) isAdmitCaller_Caller() {}
 
 func (*AdmitCaller_AccountId) isAdmitCaller_Caller() {}
 
+// Plays the rule set of this name. Planet keeps the latest decision by decided_at, so a command sent twice, or after a
+// newer one, changes nothing. A name planet keeps no set of is refused, and planet plays on the set it plays.
+type PlayRuleSet struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RuleSet       string                 `protobuf:"bytes,1,opt,name=rule_set,json=ruleSet,proto3" json:"rule_set,omitempty"`
+	DecidedAt     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=decided_at,json=decidedAt,proto3" json:"decided_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PlayRuleSet) Reset() {
+	*x = PlayRuleSet{}
+	mi := &file_planet_v1_commands_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PlayRuleSet) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PlayRuleSet) ProtoMessage() {}
+
+func (x *PlayRuleSet) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_commands_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PlayRuleSet.ProtoReflect.Descriptor instead.
+func (*PlayRuleSet) Descriptor() ([]byte, []int) {
+	return file_planet_v1_commands_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *PlayRuleSet) GetRuleSet() string {
+	if x != nil {
+		return x.RuleSet
+	}
+	return ""
+}
+
+func (x *PlayRuleSet) GetDecidedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.DecidedAt
+	}
+	return nil
+}
+
 var File_planet_v1_commands_proto protoreflect.FileDescriptor
 
 const file_planet_v1_commands_proto_rawDesc = "" +
@@ -307,7 +361,11 @@ const file_planet_v1_commands_proto_rawDesc = "" +
 	"account_id\x18\x02 \x01(\tH\x00R\taccountId\x129\n" +
 	"\n" +
 	"decided_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tdecidedAtB\b\n" +
-	"\x06callerB\xb5\x01\n" +
+	"\x06caller\"c\n" +
+	"\vPlayRuleSet\x12\x19\n" +
+	"\brule_set\x18\x01 \x01(\tR\aruleSet\x129\n" +
+	"\n" +
+	"decided_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tdecidedAtB\xb5\x01\n" +
 	"\rcom.planet.v1B\rCommandsProtoP\x01ZPgithub.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1;planetv1\xa2\x02\x03PXX\xaa\x02\tPlanet.V1\xca\x02\tPlanet\\V1\xe2\x02\x15Planet\\V1\\GPBMetadata\xea\x02\n" +
 	"Planet::V1b\x06proto3"
 
@@ -323,24 +381,26 @@ func file_planet_v1_commands_proto_rawDescGZIP() []byte {
 	return file_planet_v1_commands_proto_rawDescData
 }
 
-var file_planet_v1_commands_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_planet_v1_commands_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_planet_v1_commands_proto_goTypes = []any{
 	(*GrantCharges)(nil),          // 0: planet.v1.GrantCharges
 	(*RefuseCaller)(nil),          // 1: planet.v1.RefuseCaller
 	(*AdmitCaller)(nil),           // 2: planet.v1.AdmitCaller
-	(BonusKind)(0),                // 3: planet.v1.BonusKind
-	(*timestamppb.Timestamp)(nil), // 4: google.protobuf.Timestamp
+	(*PlayRuleSet)(nil),           // 3: planet.v1.PlayRuleSet
+	(BonusKind)(0),                // 4: planet.v1.BonusKind
+	(*timestamppb.Timestamp)(nil), // 5: google.protobuf.Timestamp
 }
 var file_planet_v1_commands_proto_depIdxs = []int32{
-	3, // 0: planet.v1.GrantCharges.kind:type_name -> planet.v1.BonusKind
-	4, // 1: planet.v1.RefuseCaller.until:type_name -> google.protobuf.Timestamp
-	4, // 2: planet.v1.RefuseCaller.decided_at:type_name -> google.protobuf.Timestamp
-	4, // 3: planet.v1.AdmitCaller.decided_at:type_name -> google.protobuf.Timestamp
-	4, // [4:4] is the sub-list for method output_type
-	4, // [4:4] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	4, // 0: planet.v1.GrantCharges.kind:type_name -> planet.v1.BonusKind
+	5, // 1: planet.v1.RefuseCaller.until:type_name -> google.protobuf.Timestamp
+	5, // 2: planet.v1.RefuseCaller.decided_at:type_name -> google.protobuf.Timestamp
+	5, // 3: planet.v1.AdmitCaller.decided_at:type_name -> google.protobuf.Timestamp
+	5, // 4: planet.v1.PlayRuleSet.decided_at:type_name -> google.protobuf.Timestamp
+	5, // [5:5] is the sub-list for method output_type
+	5, // [5:5] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_planet_v1_commands_proto_init() }
@@ -363,7 +423,7 @@ func file_planet_v1_commands_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_planet_v1_commands_proto_rawDesc), len(file_planet_v1_commands_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

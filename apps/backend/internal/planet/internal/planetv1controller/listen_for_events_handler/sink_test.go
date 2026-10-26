@@ -113,6 +113,17 @@ func TestASinkFramesTheHoldingsThatChanged(t *testing.T) {
 	}, stream.sent[0].GetHoldingsChanged()), "a flag at zero and a landmass nobody holds are listed: %v", stream.sent[0])
 }
 
+func TestSinkFramesAChangeOfRules(t *testing.T) {
+	stream := &recorder{}
+
+	err := listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{RulesChanged: true})
+
+	require.NoError(t, err)
+	require.Len(t, stream.sent, 1)
+	assert.NotNil(t, stream.sent[0].GetRulesChanged())
+	assert.Nil(t, stream.sent[0].GetTileUpdate())
+}
+
 func TestSinkReportsAFailedSend(t *testing.T) {
 	stream := &recorder{err: assert.AnError}
 

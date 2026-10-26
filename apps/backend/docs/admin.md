@@ -41,7 +41,7 @@ Measured on a copy of production's map, before postgres: 22,040 tiles in 4.4s, a
 
 `GrantCharges(account_id, refill, bomb, enclosures, spread_clicks, shields)` runs `bonuses/usecases/grant_charges_usecase`, wrapped in `audit_grant_charges`: it gives one account any of the five charges, as a box would.
 
-- **The caps hold**: `Held.Granted` is the rule, so a refill and a bomb are one, enclosures stop at `bonus.enclose.held`, spread clicks at `bonus.spread.clicks` and shields at `bonus.shield.held`. The answer is what the account held `before` and `after`, so the operator sees what fit.
+- **The caps hold**: `Held.Granted` is the rule, so a refill and a bomb are one, enclosures stop at the rule set's `bonuses.enclose.held`, spread clicks at `bonuses.spread.clicks` and shields at `bonuses.shield.held`. The answer is what the account held `before` and `after`, so the operator sees what fit.
 - **An account id, never a scope**: a charge is an account's (`bonuses.ParseHolder`). A grant of nothing is `InvalidArgument` (`ErrNothingToGrant`). Planet does not know which accounts exist, so an id nobody holds gets a row nobody reads.
 - **Nothing pushes it**: the player sees it on the next `GetCharges`, at its next page load.
 
@@ -67,6 +67,17 @@ stream sent it. The frontend's clip generator plays it back (see its [Clips](../
   `InvalidArgument` (`replay_usecase.ErrInvalidWindow`).
 - **Nothing in it names a player**: no scope and no account goes out, as on the live stream.
 - A day of production is about 40,000 events, a few MB of JSON.
+
+## `GetRules`, `SaveRuleSet`
+
+The rule sets an operator reads and writes, never the one that plays now: see [Rules](rules.md). The backoffice's Game
+rules page calls both.
+
+## The rule schedule: `metagame.v1.AdminService`
+
+`GetSchedule`, `AddEntry`, `EditEntry`, `DeleteEntry`: the entries that decide the rule set planet and the antibot
+play. Only an entry to come changes. See [The metagame module](metagame.md). The
+backoffice's Rule schedule page calls all four.
 
 ## `GetLedger`, `GetTerritories`
 

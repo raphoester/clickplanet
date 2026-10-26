@@ -27,6 +27,7 @@ export default function App(props: AppProps) {
             tileHolders={props.tileHolders}
             landmasses={props.landmasses}
             season={props.season}
+            turn={props.turn}
             standings={props.standings}
             support={props.support}
             hallOfFame={props.hallOfFame}

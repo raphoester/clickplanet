@@ -21,7 +21,7 @@ func (p playing) Plays(name rules.SetName) bool { return name == rules.SetName(p
 var rush = rules.Named("rush", func(r *antibotv1.Rules) { r.Cohort.CertainMembers = 50 })
 
 func TestASetThatDoesNotPlayIsKeptAsWritten(t *testing.T) {
-	sets := rules.NewMemoryStore(rules.Seeded())
+	sets := rules.NewMemoryStore(guard.Parts(), rules.Seeded())
 
 	require.NoError(t, save_rule_set_usecase.New(sets, guard.Parts(), playing(rules.Default)).Execute(t.Context(), rush))
 
@@ -31,7 +31,7 @@ func TestASetThatDoesNotPlayIsKeptAsWritten(t *testing.T) {
 }
 
 func TestASetThatPlaysNowIsRefused(t *testing.T) {
-	sets := rules.NewMemoryStore(rules.Seeded())
+	sets := rules.NewMemoryStore(guard.Parts(), rules.Seeded())
 	looser := rules.Named(rules.Default, func(r *antibotv1.Rules) { r.Jury.MinSuspects = 3 })
 
 	err := save_rule_set_usecase.New(sets, guard.Parts(), playing(rules.Default)).Execute(t.Context(), looser)
@@ -42,7 +42,7 @@ func TestASetThatPlaysNowIsRefused(t *testing.T) {
 }
 
 func TestASetThatCannotPlayIsNotKept(t *testing.T) {
-	sets := rules.NewMemoryStore(rules.Seeded())
+	sets := rules.NewMemoryStore(guard.Parts(), rules.Seeded())
 
 	err := save_rule_set_usecase.New(sets, guard.Parts(), playing(rules.Default)).Execute(t.Context(),
 		rules.Named("rush", func(r *antibotv1.Rules) { r.Cohort.CertainMembers = 1 }))
@@ -53,7 +53,7 @@ func TestASetThatCannotPlayIsNotKept(t *testing.T) {
 }
 
 func TestASaveThatFailsSaysSo(t *testing.T) {
-	sets := rules.NewMemoryStore()
+	sets := rules.NewMemoryStore(guard.Parts())
 	down := errors.New("postgres is down")
 	sets.FailWith(down)
 

@@ -69,6 +69,7 @@ system exists to stop.
 | `--gold` | Reward and progress: panel headers, title names, progress fills, first place |
 | `--gain`, `--loss` | Tiles won and lost, nowhere else |
 | `--streak` | The streak flame |
+| `--war`, `--tape` | A battle: its chip, the warning tape along the dock and the chip, the start moment. Nowhere else |
 | `--refill`, `--spread`, `--bomb`, `--enclose`, `--shield` (and `-light`) | A bonus kind: its box, its slot, its reward line |
 | `--bronze` … `--holo-4`, `--conquest` … `--og-enamel` | Medals only (below) |
 
@@ -154,6 +155,21 @@ feature goes in one of them; there is no fifth panel and no new fold.
 - **The leader's frame holds the anthem**: the music is the leader's, so the
   player is on the board, not on the globe. The music follows the order picked,
   so the frame never holds another country's anthem.
+
+## Moods
+
+**A mood is the same look with a few tokens redefined**, under one attribute on
+the root: `:root[data-mood="battle"]` in `tokens.css`. A component never asks
+which mood is on; it reads its tokens. `useMood` (`app/battle/`) writes the
+attribute from what the schedule plays (see [Battles](docs/battle.md)).
+
+- **Battle**: the toys are repainted for war. The panels go charcoal
+  (`--panel`, `--panel-raised`, `--panel-sunk`) and the secondary button steel,
+  and `--war` comes out: the battle chip, the warning tape (`--tape`) along the
+  dock and the chip, the start moment. Gold keeps its job, so a coin, a header
+  or a progress fill looks the same in a battle. The sky stays. The globe's halo
+  turns to ember in `app/viewer/atmosphere.ts`, outside the system as the rest
+  of the globe is.
 
 ## Motion
 

@@ -6,18 +6,41 @@ export interface TileClicker {
     clickTile(tileId: number, countryId: string, switches?: Switches): Promise<void>
 }
 
+// Every write of the map counts one in seq; epoch is the second the server started, when seq started from 0.
+export type MapVersion = {
+    epoch: number
+    seq: number
+}
+
+// Both ends inclusive.
+export type TileRange = {
+    start: number
+    end: number
+}
+
 export type Ownerships = {
+    range: TileRange
+    version: MapVersion
     bindings: Map<number, string>
     shields: Map<number, number>
 }
 
+// A read lists every row; a change lists the rows that changed, a flag that left the map at 0.
+export type Counts = {
+    version: MapVersion
+    countries: ReadonlyMap<string, number>
+    // Each row whole: a flag it does not list holds none of the landmass.
+    landmasses: ReadonlyMap<number, ReadonlyMap<string, number>>
+}
+
 export interface OwnershipsGetter {
-    getCurrentOwnershipsByBatch(
-        batchSize: number,
-        maxIndex: number,
+    getOwnerships(
+        ranges: readonly TileRange[],
         callback: (ownerships: Ownerships) => void,
         signal?: AbortSignal,
     ): Promise<void>
+
+    getHoldings(signal?: AbortSignal): Promise<Counts>
 
     // The flag each locked landmass is locked to.
     getFortresses(signal?: AbortSignal): Promise<Map<number, string>>
@@ -61,6 +84,7 @@ export type Update = {
     newCountry: string | undefined,
     clicked: boolean,
     shields: number,
+    version: MapVersion,
 }
 
 export interface UpdatesListener {
@@ -70,8 +94,10 @@ export interface UpdatesListener {
         callback: (updates: Update[]) => void,
     ): () => void
 
-    // The stream came back after a gap: what happened in it was never sent.
-    listenForResumes(callback: () => void): () => void
+    // Each time the stream opens: every change after this version will follow. A listener that comes late hears at once the version the stream already passed.
+    listenForOpenings(callback: (version: MapVersion) => void): () => void
+
+    listenForHoldings(callback: (change: Counts) => void): () => void
 
     listenForFortifications(callback: (fortification: Fortification) => void): () => void
 }
@@ -80,6 +106,7 @@ export type Fortification = {
     landmass: number
     countryId: string
     tile: number
+    version: MapVersion
 }
 
 export type BonusOffer = {
@@ -158,7 +185,10 @@ export type BombDrop = {
 
     cleared: number[]
 
-    struck: number[]
+    // Each lost a shield and kept its flag.
+    struck: {tile: number, shields: number}[]
+
+    version: MapVersion
 }
 
 export interface Bomber {

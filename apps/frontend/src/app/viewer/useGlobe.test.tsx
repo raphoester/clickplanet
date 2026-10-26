@@ -27,12 +27,12 @@ function fakeGlobe(): Globe & {
     graphics: ReturnType<typeof vi.fn>,
     dispose: ReturnType<typeof vi.fn>,
 } {
-    return {tilesCount: 257_948, setCountry: vi.fn(), takeReward: vi.fn(), setArmed: vi.fn(), setSwitch: vi.fn(), setClickHue: vi.fn(), setMapView: vi.fn(), territoryOf: vi.fn(), showTerritory: vi.fn(), capture: vi.fn(), graphics: vi.fn(), dispose: vi.fn()}
+    return {tilesCount: 257_948, tilesRead: Promise.resolve(), setCountry: vi.fn(), takeReward: vi.fn(), setArmed: vi.fn(), setSwitch: vi.fn(), setClickHue: vi.fn(), setMapView: vi.fn(), setHalo: vi.fn(), territoryOf: vi.fn(), showTerritory: vi.fn(), capture: vi.fn(), graphics: vi.fn(), dispose: vi.fn()}
 }
 
 function Harness(props: {country: typeof FRANCE, backends: ReturnType<typeof backends>, onResult: (r: unknown) => void}) {
     const container = useRef<HTMLDivElement>(null)
-    props.onResult(useGlobe({container, ...props.backends, country: props.country, clickHue: undefined, mapView: "flags", rendering: "sharp"}))
+    props.onResult(useGlobe({container, ...props.backends, country: props.country, clickHue: undefined, mapView: "flags", halo: "calm", rendering: "sharp"}))
     return <div ref={container}/>
 }
 
@@ -71,14 +71,30 @@ describe("useGlobe", () => {
         expect(latest.tilesCount).toBe(257_948)
     })
 
-    it("reports how much of the territories has loaded while it waits", async () => {
-        createGlobe.mockReturnValue(new Promise<Globe>(() => {}))
+    it("reports how much of the tiles has been read once the globe is ready, then that they all are", async () => {
+        createGlobe.mockReturnValue(Promise.resolve(fakeGlobe()))
 
         renderHook()
+        await waitFor(() => expect(latest.status.state).toBe('ready'))
         const {onLoadProgress} = createGlobe.mock.calls[0][0]
 
+        expect(latest.tilesLoading).toBe(0)
         await act(async () => onLoadProgress(0.25))
-        expect(latest.status).toEqual({state: 'loading', territories: 0.25})
+        expect(latest.tilesLoading).toBe(0.25)
+        await act(async () => onLoadProgress(1))
+        expect(latest.tilesLoading).toBeUndefined()
+    })
+
+    it("follows the camera in and out of orbit", async () => {
+        createGlobe.mockReturnValue(Promise.resolve(fakeGlobe()))
+
+        renderHook()
+        await waitFor(() => expect(latest.status.state).toBe('ready'))
+        const {onOrbitChange} = createGlobe.mock.calls[0][0]
+
+        expect(latest.orbit).toBe(true)
+        await act(async () => onOrbitChange(false))
+        expect(latest.orbit).toBe(false)
     })
 
     it("shows the loaded board with the map, not a sample later", async () => {
@@ -154,7 +170,7 @@ describe("useGlobe", () => {
 
         function Hued(props: {hue: number | undefined}) {
             const container = useRef<HTMLDivElement>(null)
-            useGlobe({container, ...deps, country: FRANCE, clickHue: props.hue, mapView: "flags", rendering: "sharp"})
+            useGlobe({container, ...deps, country: FRANCE, clickHue: props.hue, mapView: "flags", halo: "calm", rendering: "sharp"})
             return <div ref={container}/>
         }
 
@@ -174,7 +190,7 @@ describe("useGlobe", () => {
 
         function Viewed(props: {view: MapView}) {
             const container = useRef<HTMLDivElement>(null)
-            useGlobe({container, ...deps, country: FRANCE, clickHue: undefined, mapView: props.view, rendering: "sharp"})
+            useGlobe({container, ...deps, country: FRANCE, clickHue: undefined, mapView: props.view, halo: "calm", rendering: "sharp"})
             return <div ref={container}/>
         }
 
@@ -194,7 +210,7 @@ describe("useGlobe", () => {
 
         function Rendered(props: {rendering: Rendering}) {
             const container = useRef<HTMLDivElement>(null)
-            useGlobe({container, ...deps, country: FRANCE, clickHue: undefined, mapView: "flags", rendering: props.rendering})
+            useGlobe({container, ...deps, country: FRANCE, clickHue: undefined, mapView: "flags", halo: "calm", rendering: props.rendering})
             return <div ref={container}/>
         }
 
@@ -328,7 +344,7 @@ describe("useGlobe", () => {
         createGlobe.mockResolvedValue(fakeGlobe())
 
         function NoContainer() {
-            useGlobe({container: createRef<HTMLDivElement>(), ...backends(), country: FRANCE, clickHue: undefined, mapView: "flags", rendering: "sharp"})
+            useGlobe({container: createRef<HTMLDivElement>(), ...backends(), country: FRANCE, clickHue: undefined, mapView: "flags", halo: "calm", rendering: "sharp"})
             return null
         }
         render(<NoContainer/>)

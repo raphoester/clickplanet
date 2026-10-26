@@ -1,7 +1,7 @@
 import {useId, useState} from "react"
 import {Season} from "../../backends/season.ts"
 import {Champion, championNames, winsLine} from "../../domain/champion.ts"
-import {countdownsOf, SeasonCountdown, seasonClock} from "../../domain/seasonClock.ts"
+import {countdownsOf, SeasonCountdown, seasonClock, shortLeft} from "../../domain/seasonClock.ts"
 import CountryFlag from "../components/CountryFlag.tsx"
 import {ChevronIcon, ClockIcon} from "../components/icons.tsx"
 import {useBottomEdge} from "../components/useBottomEdge.ts"
@@ -124,8 +124,4 @@ function DetailsCountdown({countdown}: {countdown: SeasonCountdown}) {
         <span id={label} className="menu-label">{countdown.label}</span>
         <span className="season-chip-left" role="timer" aria-labelledby={label}>{countdown.left}</span>
     </div>
-}
-
-function shortLeft(left: string): string {
-    return left.split(" ").slice(0, 2).join(" ")
 }

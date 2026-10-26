@@ -28,6 +28,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 - [Data flow](docs/data-flow.md) — from `createGlobe` to the screen, step by step.
 - [Sessions](docs/sessions.md) — the click token the backend gates `Click` on.
 - [Sign-in](docs/sign-in.md) — optional sign-in with Google, Discord or an emailed code; usernames.
+- [The counts are the server's](docs/counts.md) — every count on screen comes from `GetHoldings` and
+  `holdings_changed`; one version rule for every tile value; the load and what is read again.
 - [Rolling back a refused click](docs/click-rollback.md) — a click is painted first and undone if the server
   refuses it.
 - [Sampling the leaderboard](docs/leaderboard-sampling.md) — how the ranks are read without a render on every
@@ -44,6 +46,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 - [Titles](docs/titles.md) — the ranks on each track, the medals, the unlock moment.
 - [Season standings](docs/season-standings.md) — the players' table of the season.
 - [The season](docs/season.md) — the season chip and its clock.
+- [Battles](docs/battle.md) — the battle look from the schedule's turn: the mood, the chip and its clock, the start
+  moment, and the announcements queue that shows one full-screen moment at a time.
 - [The cutoff, revealed](docs/cutoff.md) — the full-screen reveal when a day closes.
 - [The flag played for](docs/flag.md) — `PledgeAllegiance`, and one flag an hour.
 - [Charges](docs/charges.md) — what a bonus box holds, off by default and one at a time, and the inventory.

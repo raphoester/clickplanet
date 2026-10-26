@@ -16,8 +16,6 @@ import (
 
 const mapMaxAge = 5
 
-const rulesMaxAge = 300
-
 type MapVersions interface {
 	Version() clicks.MapVersion
 }
@@ -31,7 +29,6 @@ func NewCacheInterceptor(versions MapVersions) connect.Interceptor {
 		planetv1connect.ClickServiceGetMapProcedure:        mapMaxAge,
 		planetv1connect.ClickServiceGetHoldingsProcedure:   mapMaxAge,
 		planetv1connect.ClickServiceMapDensityProcedure:    mapMaxAge,
-		planetv1connect.ClickServiceGetBonusRulesProcedure: rulesMaxAge,
 		planetv1connect.ClickServiceGetFortressesProcedure: mapMaxAge,
 		planetv1connect.ClickServiceGetLandmassProcedure:   mapMaxAge,
 	}

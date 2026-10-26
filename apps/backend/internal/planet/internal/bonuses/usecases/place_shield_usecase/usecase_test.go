@@ -48,9 +48,15 @@ func setup(t *testing.T, shields int) fixture {
 		tiles:   tiles,
 		book:    book,
 		clock:   clock,
-		useCase: place_shield_usecase.New(bonuses.NewCharges(charges, bonuses.ChargesConfig{Shields: 12}), tiles, cpcountries.New(), book, 2),
+		useCase: place_shield_usecase.New(bonuses.NewCharges(charges, twoATile), tiles, cpcountries.New(), book, twoATile),
 	}
 }
+
+var twoATile = func() func() bonuses.Rules {
+	rules := bonuses.TestRules()
+	rules.Shield.Held, rules.Shield.PerTile = 12, 2
+	return func() bonuses.Rules { return rules }
+}()
 
 func played(t *testing.T) context.Context {
 	t.Helper()
@@ -127,7 +133,7 @@ func (l lostRace) Shield(context.Context, uint32, string, int) error { return cl
 
 func TestAShieldThatCouldNotBePlacedIsGivenBack(t *testing.T) {
 	f := setup(t, 3)
-	useCase := place_shield_usecase.New(bonuses.NewCharges(f.charges, bonuses.ChargesConfig{Shields: 12}), lostRace{f.tiles}, cpcountries.New(), f.book, 2)
+	useCase := place_shield_usecase.New(bonuses.NewCharges(f.charges, twoATile), lostRace{f.tiles}, cpcountries.New(), f.book, twoATile)
 
 	_, err := useCase.Execute(played(t), place_shield_usecase.In{TileID: 7, CountryID: "fr"})
 	require.ErrorIs(t, err, clicks.ErrNotYourTile, "the tile changed hands between the check and the placement")
@@ -148,7 +154,7 @@ func TestAShieldForAnotherFlagThanTheOneHeldIsRefusedAndSpendsNothing(t *testing
 func TestAShieldWithNoFlagHeldIsRefusedAndSpendsNothing(t *testing.T) {
 	f := setup(t, 3)
 	book := allegiances.NewBook(allegiances.NewMemoryStore(), cpcountries.New(), f.clock)
-	useCase := place_shield_usecase.New(bonuses.NewCharges(f.charges, bonuses.ChargesConfig{Shields: 12}), f.tiles, cpcountries.New(), book, 2)
+	useCase := place_shield_usecase.New(bonuses.NewCharges(f.charges, twoATile), f.tiles, cpcountries.New(), book, twoATile)
 
 	_, err := useCase.Execute(played(t), place_shield_usecase.In{TileID: 7, CountryID: "fr"})
 

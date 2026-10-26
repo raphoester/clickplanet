@@ -39,6 +39,10 @@ name holds both countdowns in full, so a screen reader does not wait for a turn.
 The faces are hidden from it, and they are not a live region. During the finale
 it glows and says "Final Battle ends in"; it still opens.
 
+**While a battle plays, the chip is the battle's** (`BattleChip`, see
+[Battles](battle.md)): the season's countdowns move into its facts, and the season
+chip is back when the battle ends.
+
 **After the season, the chip is the champion's** (`ChampionChip`): a trophy,
 "Season 0 champion", the flag and the name, from the race's `closed` once it is
 the finale. It replaces the countdown as soon as the finale of the current

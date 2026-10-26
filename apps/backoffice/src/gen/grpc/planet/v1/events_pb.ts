@@ -451,6 +451,13 @@ export class ClickTried extends Message<ClickTried> {
    */
   position?: GlobePoint;
 
+  /**
+   * How many times faster than the plain pace every bucket refilled when the click was tried; 0 is the plain pace.
+   *
+   * @generated from field: double tempo = 11;
+   */
+  tempo = 0;
+
   constructor(data?: PartialMessage<ClickTried>) {
     super();
     proto3.util.initPartial(data, this);
@@ -469,6 +476,7 @@ export class ClickTried extends Message<ClickTried> {
     { no: 8, name: "outcome", kind: "enum", T: proto3.getEnumType(ClickOutcome) },
     { no: 9, name: "owner", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 10, name: "position", kind: "message", T: GlobePoint },
+    { no: 11, name: "tempo", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ClickTried {

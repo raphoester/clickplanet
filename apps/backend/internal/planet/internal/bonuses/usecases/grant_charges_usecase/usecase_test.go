@@ -17,8 +17,9 @@ func storage() *bonuses.MemoryStore {
 }
 
 func grant(store *bonuses.MemoryStore) *grant_charges_usecase.UseCase {
-	return grant_charges_usecase.New(bonuses.NewCharges(store,
-		bonuses.ChargesConfig{SpreadClicks: 8, Enclosures: 3, EnclosureMaxTiles: 25, Shields: 12}))
+	rules := bonuses.TestRules()
+	rules.Shield.Held = 12
+	return grant_charges_usecase.New(bonuses.NewCharges(store, func() bonuses.Rules { return rules }))
 }
 
 func TestEveryKindCanBeGranted(t *testing.T) {

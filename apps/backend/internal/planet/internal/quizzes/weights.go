@@ -11,7 +11,7 @@ type Shares interface {
 }
 
 // A question that does not name its subject is answered by it, so the lean would give the answer away.
-func (b *Bank) pool() []Question {
+func (b *Bank) pool(lean float64) []Question {
 	pools := make([][]Question, 0, 2*len(b.subjects)+1)
 	weights := make([]float64, 0, cap(pools))
 
@@ -21,7 +21,7 @@ func (b *Bank) pool() []Question {
 
 		pools = append(pools, questions.named, questions.unnamed)
 		weights = append(weights,
-			b.weight(subject, len(b.subjects))*float64(len(questions.named))/size,
+			b.weight(subject, len(b.subjects), lean)*float64(len(questions.named))/size,
 			float64(len(questions.unnamed))/size)
 	}
 	if len(b.anywhere) > 0 {
@@ -52,8 +52,8 @@ func drawn(weights []float64) int {
 	return len(weights) - 1
 }
 
-func (b *Bank) weight(subject string, countries int) float64 {
-	if b.shares == nil || b.bias <= 0 || countries == 0 {
+func (b *Bank) weight(subject string, countries int, lean float64) float64 {
+	if b.shares == nil || lean <= 0 || countries == 0 {
 		return 1
 	}
 
@@ -64,7 +64,7 @@ func (b *Bank) weight(subject string, countries int) float64 {
 
 	times := math.Min(share*float64(countries), maxLean)
 
-	return 1 + b.bias*times
+	return 1 + lean*times
 }
 
 const maxLean = 30

@@ -20,8 +20,10 @@ planet and paint nothing recognisable anywhere.
 
 Each landmass flies the flag of whoever holds most of it, painted onto the sphere
 with distance measured **along the surface**, so it bends with the globe and is
-cropped by its own coastline. `BorderField` keeps the running count per landmass
-and writes one row per landmass into a `DataTexture` the vertex shader reads.
+cropped by its own coastline. `BorderField` paints each landmass from the
+server's row for it (`setRows`, with `Holdings.leaderOf`: see [The counts are the
+server's](counts.md)) into one row per landmass of a `DataTexture` the vertex
+shader reads.
 
 **The painted flag is read under the pixel, not per tile.** It still reaches the
 screen through the discs — that is what the widening is for — but what each
@@ -49,6 +51,39 @@ in it was four vertex texture fetches and a frame per tile for a colour the
 fragment shader mixed straight back out, and the fragment shader now skips the
 tile's own atlas fetch at the other end, where the painted flag has the frame to
 itself.
+
+**The flags holding the biggest landmasses are drawn from their SVGs, not read
+from the atlas.** A sprite is 100px wide and a painted flag is as wide as its
+landmass: at the last zoom where the flag is painted alone, about 135 of the
+307 painted landmasses stretch their sprite past 1.5× on a plain screen, about
+180 on a retina one, and the biggest — Russia, Antarctica, Brazil — past 20×,
+so a motto or a device was mud. Eight slots (`SLOT_COUNT` in
+`slotRanking.ts`), cells of 768×512 in one 1536×2048 canvas (`flagSlots.ts`;
+12.6 MB on the GPU, 17 with its mipmaps, allocated the first time a flag is
+drawn into it), hold one flag each, rasterised from
+`static/countries/svg/<code>.svg` at its sprite's aspect, as large as fits
+inside a 32px margin that repeats its last column and row, so a coarse mip
+level finds the flag's own colours at its edge.
+
+`SlotRanking` decides which eight, with no GPU in reach and nothing about the
+camera: the flags holding the biggest painted landmasses, each by the
+half-width of the largest landmass it holds (`BorderField.flagNeeds`). A flag
+keeps its slot while it holds its place; a slot freed by a flag painted nowhere
+any more goes to the next in line, and the weakest holder is evicted only for a
+flag that needs `EVICTION_MARGIN` (1.2×) more, so a tile war over one landmass
+does not redraw the texture every second. The ranking runs on every recount,
+never per frame. **Every landmass a slotted flag holds samples the slot,
+whatever its size**: `BorderField.markSlots` writes the slot into the
+landmass's row, the vertex shader reads that slot's frame from `slotFrames` and
+hands the fragment shader the frame to sample, with the same uv and the same
+`textureGrad` footprint as on the atlas. So one flag looks the same on every
+piece of ground it holds, and a flag beyond the eight stays on the atlas
+everywhere — one slot for the biggest flag in view was tried first, and a
+sharp Brazil beside a blurred Brazil on Peru looked worse than neither. The SVG
+is fetched the first time its flag earns a slot and kept for the session; the
+atlas shows until it is drawn, and a flag whose SVG fails stays on the atlas
+and is not asked for again. Nothing is fetched on a page where no flag is
+painted.
 
 **Opacity is the leader's share, and the curve it goes through is not a free
 knob.** Zoomed in, that share is already on screen as the fraction of discs

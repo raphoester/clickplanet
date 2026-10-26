@@ -191,24 +191,28 @@ func (accountVerifier) Verify(_ context.Context, token string, _ string, _ time.
 	return &cpsession.Claims{ID: "a-mint", Account: cpsession.AccountID(account), Linked: linked, Attested: !named}, nil
 }
 
-func accountServer(t *testing.T, config clicks.ThrottleConfig) (*httptest.Server, *cpratelimit.Limiter, *cptime.FixedClock) {
+func accountServer(t *testing.T, change func(*clicks.Throttle)) (*httptest.Server, *cpratelimit.Limiter, *cptime.FixedClock) {
 	t.Helper()
-	return refillServer(t, config, bonuses.NewMemoryStore())
+	return refillServer(t, change, bonuses.NewMemoryStore())
 }
 
-func refillServer(t *testing.T, config clicks.ThrottleConfig, refills *bonuses.MemoryStore) (*httptest.Server, *cpratelimit.Limiter, *cptime.FixedClock) {
+func refillServer(t *testing.T, change func(*clicks.Throttle), refills *bonuses.MemoryStore) (*httptest.Server, *cpratelimit.Limiter, *cptime.FixedClock) {
 	t.Helper()
 
+	throttle := clicks.TestThrottle()
+	change(&throttle)
+	buckets := clicks.NewBuckets(func() clicks.Throttle { return throttle })
+
 	clock := cptime.NewFixedClock(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC))
-	limiter := cpratelimit.New("test", config.Config, clock)
+	limiter := cpratelimit.New("test", cpratelimit.Config{PerSecond: throttle.PerSecond, Burst: throttle.Burst}, clock)
 
 	mux := http.NewServeMux()
 	mux.Handle(planetv1connect.NewClickServiceHandler(
 		ClickService{
-			ClickHandler:     click_handler.New(throttle_click.New(stubService{}, limiter, onePrice, config.Buckets())),
-			GetBudgetHandler: get_budget_handler.New(get_budget_usecase.New(limiter, onePrice, config.Buckets())),
+			ClickHandler:     click_handler.New(throttle_click.New(stubService{}, limiter, onePrice, buckets)),
+			GetBudgetHandler: get_budget_handler.New(get_budget_usecase.New(limiter, onePrice, buckets)),
 			UseRefillHandler: use_refill_handler.New(use_refill_usecase.New(
-				bonuses.NewCharges(refills, bonuses.ChargesConfig{}), limiter, onePrice, config.Buckets())),
+				bonuses.NewCharges(refills, bonuses.TestRules), limiter, onePrice, buckets)),
 		},
 		connect.WithInterceptors(
 			errorNet(),
@@ -245,9 +249,7 @@ func accountNumber(i int) uuid.UUID {
 }
 
 func TestManyAccountsOnOneScopeShareTheScopesBucket(t *testing.T) {
-	server, _, _ := accountServer(t, clicks.ThrottleConfig{
-		Config: cpratelimit.Config{PerSecond: 1, Burst: 10}, ScopeMultiplier: 3,
-	})
+	server, _, _ := accountServer(t, func(throttle *clicks.Throttle) { throttle.ScopeMultiplier, throttle.V6ScopeMultiplier = 3, 3 })
 
 	for i := range 3 {
 		for click := range 10 {
@@ -267,9 +269,7 @@ func TestManyAccountsOnOneScopeShareTheScopesBucket(t *testing.T) {
 }
 
 func TestTwoSignedInAccountsFillAnIPv6NetworkAndNotAnIPv4One(t *testing.T) {
-	server, _, _ := accountServer(t, clicks.ThrottleConfig{
-		Config: cpratelimit.Config{PerSecond: 1, Burst: 10}, V6ScopeMultiplier: 2,
-	})
+	server, _, _ := accountServer(t, func(throttle *clicks.Throttle) { throttle.V6ScopeMultiplier = 2 })
 
 	for i, address := range []string{"2001:db8::1", "2001:db8::2"} {
 		for click := range 10 {
@@ -292,7 +292,7 @@ func TestTwoSignedInAccountsFillAnIPv6NetworkAndNotAnIPv4One(t *testing.T) {
 }
 
 func TestGuestsOnOneScopeShareOneBank(t *testing.T) {
-	server, _, _ := accountServer(t, clicks.ThrottleConfig{Config: cpratelimit.Config{PerSecond: 1, Burst: 10}})
+	server, _, _ := accountServer(t, func(*clicks.Throttle) {})
 
 	for click := range 10 {
 		res, err := clickWithToken(t, server, "1.2.3.4", accountNumber(0).String())
@@ -314,9 +314,7 @@ func TestGuestsOnOneScopeShareOneBank(t *testing.T) {
 }
 
 func TestTheScopesGuestsMayBeGivenMoreThanOneBank(t *testing.T) {
-	server, _, _ := accountServer(t, clicks.ThrottleConfig{
-		Config: cpratelimit.Config{PerSecond: 1, Burst: 10}, GuestScopeMultiplier: 2,
-	})
+	server, _, _ := accountServer(t, func(throttle *clicks.Throttle) { throttle.GuestScopeMultiplier = 2 })
 
 	for i := range 2 {
 		for click := range 10 {
@@ -330,7 +328,7 @@ func TestTheScopesGuestsMayBeGivenMoreThanOneBank(t *testing.T) {
 }
 
 func TestOneAccountOnManyScopesSpendsOneAllowance(t *testing.T) {
-	server, _, _ := accountServer(t, clicks.ThrottleConfig{Config: cpratelimit.Config{PerSecond: 1, Burst: 10}})
+	server, _, _ := accountServer(t, func(*clicks.Throttle) {})
 
 	for click := range 10 {
 		require.NoErrorf(t, clickAsAccount(t, server, fmt.Sprintf("10.0.0.%d", click), accountNumber(0)), "click %d", click)
@@ -356,9 +354,7 @@ func useRefill(t *testing.T, server *httptest.Server, ip string, token string) (
 
 func TestARefillGivesABankWhenTheNetworksBucketIsTheTighter(t *testing.T) {
 	refills := bonuses.NewMemoryStore()
-	server, _, clock := refillServer(t, clicks.ThrottleConfig{
-		Config: cpratelimit.Config{PerSecond: 1, Burst: 10}, V6ScopeMultiplier: 2,
-	}, refills)
+	server, _, clock := refillServer(t, func(throttle *clicks.Throttle) { throttle.V6ScopeMultiplier = 2 }, refills)
 	me, partner := linkedPrefix+accountNumber(0).String(), linkedPrefix+accountNumber(1).String()
 	refills.Keep(bonuses.Holder(accountNumber(0).String()), bonuses.Held{Refill: true})
 
@@ -390,9 +386,7 @@ func TestARefillGivesABankWhenTheNetworksBucketIsTheTighter(t *testing.T) {
 }
 
 func TestTheBudgetIsTheTighterBucket(t *testing.T) {
-	server, _, _ := accountServer(t, clicks.ThrottleConfig{
-		Config: cpratelimit.Config{PerSecond: 1, Burst: 10}, ScopeMultiplier: 2,
-	})
+	server, _, _ := accountServer(t, func(throttle *clicks.Throttle) { throttle.ScopeMultiplier, throttle.V6ScopeMultiplier = 2, 2 })
 
 	for click := range 15 {
 		_, err := clickWithToken(t, server, "1.2.3.4", linkedPrefix+accountNumber(click%2).String())
@@ -425,7 +419,7 @@ func TestTheBudgetIsTheTighterBucket(t *testing.T) {
 }
 
 func TestALinkedAccountClicksTwiceAsFastAsAGuest(t *testing.T) {
-	server, _, clock := accountServer(t, clicks.ThrottleConfig{Config: cpratelimit.Config{PerSecond: 1, Burst: 10}})
+	server, _, clock := accountServer(t, func(*clicks.Throttle) {})
 	guest, linked := accountNumber(0).String(), linkedPrefix+accountNumber(1).String()
 
 	for click := range 10 {
@@ -457,8 +451,8 @@ func TestALinkedAccountClicksTwiceAsFastAsAGuest(t *testing.T) {
 
 func TestAFreshGuestOnAFreshAddressEveryMinuteIsNoFreshBank(t *testing.T) {
 	start := 2.0
-	server, _, clock := accountServer(t, clicks.ThrottleConfig{
-		Config: cpratelimit.Config{PerSecond: 0.2, Burst: 60}, NewAccountClicks: &start,
+	server, _, clock := accountServer(t, func(throttle *clicks.Throttle) {
+		throttle.PerSecond, throttle.Burst, throttle.NewAccountClicks = 0.2, 60, start
 	})
 
 	for minute := range 5 {
@@ -486,7 +480,7 @@ func TestAFreshGuestOnAFreshAddressEveryMinuteIsNoFreshBank(t *testing.T) {
 }
 
 func TestSigningInKeepsTheBankAndSpeedsUpItsRefill(t *testing.T) {
-	server, _, clock := accountServer(t, clicks.ThrottleConfig{Config: cpratelimit.Config{PerSecond: 1, Burst: 10}})
+	server, _, clock := accountServer(t, func(*clicks.Throttle) {})
 	account := accountNumber(0).String()
 
 	for click := range 10 {

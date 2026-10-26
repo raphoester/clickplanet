@@ -57,6 +57,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/reassign_country_usecase/audit_reassign"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/commands/admit_caller_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/commands/apply_grant_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/commands/play_rule_set_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/commands/refuse_caller_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/facts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
@@ -95,6 +96,10 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_ledger_handler/changes_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_map_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_replay_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_rule_set_names_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_rule_set_names_handler/rule_set_names_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_rules_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_rules_handler/rule_sets_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_takes_by_country_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_takes_by_country_handler/takes_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_territories_handler"
@@ -110,12 +115,21 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/pledge_allegiance_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/reassign_country_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/revert_player_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/save_rule_set_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/top_players_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/use_refill_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/quizzes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/refusals"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/refusals/log_refusals"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/refusals/postgres_refusal_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/parts"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/postgres_choice_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/postgres_rule_set_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/usecases/play_rules_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/usecases/play_rules_usecase/log_play_rules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/usecases/save_rule_set_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/usecases/save_rule_set_usecase/audit_save_rule_set"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/account_deleted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
@@ -189,8 +203,24 @@ func NewModule(config Config) cpbootstrap.Module {
 				return fmt.Errorf("failed to load the ledger: %w", err)
 			}
 
-			chargeRules := config.Bonus.ChargesConfig()
-			charges := bonuses.NewCharges(postgres_charge_store.New(db), chargeRules)
+			ruleParts := parts.All()
+			ruleSets := postgres_rule_set_store.New(db, ruleParts)
+			inForce := rules.NewInForce(clock)
+			play := play_rules_usecase.New(ruleSets, postgres_choice_store.New(db), inForce)
+			playRules := log_play_rules.New(play, props.Logger)
+			if _, _, err := playRules.Execute(ctx); err != nil {
+				closeStores()
+				return fmt.Errorf("failed to play the rules postgres keeps: %w", err)
+			}
+			chosen, err := cpredis.Handle(ctx, streams, play_rule_set_handler.New(playRules))
+			if err != nil {
+				closeStores()
+				return fmt.Errorf("failed to handle planet.v1.PlayRuleSet: %w", err)
+			}
+			throttle := rules.Reader(inForce, clicks.ThrottlePart)
+			game := rules.Reader(inForce, bonuses.Part)
+
+			charges := bonuses.NewCharges(postgres_charge_store.New(db), game)
 
 			grants, err := cpredis.Handle(ctx, streams, log_subscriber.New(apply_grant_handler.New(
 				apply_grant_usecase.New(db, postgres_grant_store.New(db), charges, clock)), props.Logger))
@@ -227,38 +257,35 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			// Not closers: closers run before the runners' last flush, and the relays' last send.
 			props.Runners.Add(cppg.CloseAfter(db, props.Logger, tilesStorage, takings,
-				cpredis.CloseAfter(streams, props.Logger, deletions, relay, grants, refused, admitted,
+				cpredis.CloseAfter(streams, props.Logger, deletions, relay, grants, refused, admitted, chosen,
 					facts.NewRelay(told, streams, factsRelayInterval))))
 			props.Runners.Add(ledger.NewRetention(config.Ledger, takings, clock))
 
-			limiter := cpratelimit.New("click-limiter", config.RateLimiter.Config, clock)
+			limiter := cpratelimit.NewRuled("click-limiter",
+				func() cpratelimit.Policy { return throttle().Policy(inForce.Since()) }, config.RateLimiter.SweepInterval, clock)
 			props.Runners.Add(limiter)
-			buckets := config.RateLimiter.Buckets()
+			buckets := clicks.NewBuckets(throttle)
 
-			pricer := clicks.NewToll(config.Toll, tilesStorage)
+			pricer := clicks.NewToll(rules.Reader(inForce, clicks.TollPart), tilesStorage)
 
 			book := allegiances.NewBook(postgres_allegiance_store.New(db), countries, clock)
 
-			writer := ledger.NewRecording(tilesStorage, clicks.NewClaiming(tilesStorage, config.Bonus.ShieldsPerTile()),
-				takings, clock)
+			writer := ledger.NewRecording(tilesStorage,
+				clicks.NewClaiming(tilesStorage, func() int { return game().Shield.PerTile }), takings, clock)
 
-			registry := bonuses.New(config.Bonus, clock, charges)
+			bank, err := quizzes.Load(tilesStorage)
+			if err != nil {
+				return fmt.Errorf("failed to load the quiz bank: %w", err)
+			}
+			props.Logger.Info("quiz bank loaded",
+				slog.String("bank", bank.Version()),
+				slog.Int("questions", bank.Size()),
+				slog.Int("subjects", bank.Subjects()))
+
+			registry := bonuses.New(config.Bonus, clock, charges, game, bank)
 			props.Runners.Add(registry)
 
-			if config.Bonus.Quiz.Enabled {
-				bank, err := quizzes.Load(config.Bonus.Quiz, tilesStorage)
-				if err != nil {
-					return fmt.Errorf("failed to load the quiz bank: %w", err)
-				}
-
-				registry.Quizzing(config.Bonus.Quiz, bank)
-				props.Logger.Info("quizzes enabled",
-					slog.String("bank", bank.Version()),
-					slog.Int("questions", bank.Size()),
-					slog.Int("subjects", bank.Subjects()))
-			}
-
-			bombRules := bonuses.NewBombRules(config.Bonus.Bomb, geography.Spacing())
+			bombing := bonuses.NewBombing(game, geography.Spacing())
 
 			var clickUseCase click_usecase.IUseCase = click_usecase.New(tilesChecker, writer, countries)
 			clickUseCase = spread_click.New(clickUseCase, charges, geography, writer, registry)
@@ -266,7 +293,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			clickUseCase = enclose_click.New(clickUseCase, charges,
 				bonuses.NewTerrain(geography, tilesStorage),
 				enclose_click.NewAnnexer(writer, charges, prom_enclose.New(registry, props.Metrics)),
-				chargeRules.EnclosureMaxTiles)
+				game)
 
 			clickUseCase = prom_click.New(clickUseCase, props.Metrics)
 
@@ -281,7 +308,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			// Outside the throttle: a refused click must not spend a token, or the client shows a 429.
 			clickUseCase = refusal_click.New(clickUseCase, refusing, props.Metrics)
 
-			clickUseCase = try_click.New(clickUseCase, tilesStorage, geography, told)
+			clickUseCase = try_click.New(clickUseCase, tilesStorage, geography, throttle, told)
 
 			adminBatch := config.TilesStorage.SubscriberBuffer / 4
 			if adminBatch <= 0 {
@@ -307,6 +334,9 @@ func NewModule(config Config) cpbootstrap.Module {
 				GetReplayHandler:      get_replay_handler.New(replay_usecase.New(takings, tilesChecker, tilesStorage, clock)),
 				GetLedgerHandler:      get_ledger_handler.New(changes_query.NewPostgresQuery(db, clock)),
 				GetTerritoriesHandler: getTerritories,
+				GetRulesHandler:       get_rules_handler.New(rule_sets_query.NewPostgresQuery(db), inForce),
+				SaveRuleSetHandler: save_rule_set_handler.New(
+					audit_save_rule_set.New(save_rule_set_usecase.New(ruleSets, ruleParts, play), props.Logger)),
 			}
 
 			if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
@@ -320,6 +350,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				GetTerritoriesHandler:    getTerritories,
 				GetCountrySizesHandler:   get_country_sizes_handler.New(borders),
 				GetAllegianceOfHandler:   get_allegiance_of_handler.New(allegiance_query.NewPostgresQuery(db)),
+				GetRuleSetNamesHandler:   get_rule_set_names_handler.New(rule_set_names_query.NewPostgresQuery(db)),
 			}
 			if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 				return planetv1connect.NewInternalServiceHandler(internalService, options...)
@@ -381,17 +412,8 @@ func NewModule(config Config) cpbootstrap.Module {
 			})
 
 			dropBomb := prom_drop_bomb.New(
-				refusal_drop_bomb.New(drop_bomb_usecase.New(charges, geography, writer, countries, bombRules), refusing),
+				refusal_drop_bomb.New(drop_bomb_usecase.New(charges, geography, writer, countries, bombing), refusing),
 				props.Metrics)
-
-			rules := bonuses.Rules{
-				BlastRadius:       bombRules.Radius,
-				EnclosureMaxTiles: chargeRules.EnclosureMaxTiles,
-				SpreadClicks:      chargeRules.SpreadClicks,
-				Enclosures:        chargeRules.Enclosures,
-				Shields:           chargeRules.Shields,
-				TileShields:       config.Bonus.ShieldsPerTile(),
-			}
 
 			service := planetv1controller.ClickService{
 				ClickHandler:       click_handler.New(clickUseCase),
@@ -400,16 +422,16 @@ func NewModule(config Config) cpbootstrap.Module {
 				GetMapHandler:      get_map_handler.New(get_map_usecase.New(tilesChecker, tilesStorage, told)),
 				GetHoldingsHandler: get_holdings_handler.New(holdings_query.NewMemoryQuery(tilesStorage)),
 				ListenForEventsHandler: listen_for_events_handler.New(
-					listen_for_events_usecase.New(tilesStorage, props.Server.StreamHeartbeat, registry, told)),
+					listen_for_events_usecase.New(tilesStorage, props.Server.StreamHeartbeat, registry, inForce, told)),
 				ClaimBonusHandler:    claim_bonus_handler.New(claimBonus),
 				DropBombHandler:      drop_bomb_handler.New(dropBomb),
 				UseRefillHandler:     use_refill_handler.New(use_refill_usecase.New(charges, limiter, pricer, buckets)),
 				GetChargesHandler:    get_charges_handler.New(get_charges_usecase.New(charges)),
-				GetBonusRulesHandler: get_bonus_rules_handler.New(rules, pricer),
+				GetBonusRulesHandler: get_bonus_rules_handler.New(game, bombing, pricer),
 				OpenQuizHandler:      open_quiz_handler.New(openQuiz),
 				AnswerQuizHandler:    answer_quiz_handler.New(answerQuiz),
 				PlaceShieldHandler: place_shield_handler.New(refusal_place_shield.New(
-					place_shield_usecase.New(charges, writer, countries, book, config.Bonus.ShieldsPerTile()), refusing)),
+					place_shield_usecase.New(charges, writer, countries, book, game), refusing)),
 				GetFortressesHandler: get_fortresses_handler.New(fortresses_query.NewMemoryQuery(tilesStorage)),
 				GetTileHolderHandler: get_tile_holder_handler.New(tilesChecker, holder_query.NewPostgresQuery(db)),
 				GetLandmassHandler: get_landmass_handler.New(borders,

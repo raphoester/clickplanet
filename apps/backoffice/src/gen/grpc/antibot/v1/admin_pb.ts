@@ -50,7 +50,7 @@ export class GetRulesResponse extends Message<GetRulesResponse> {
   sets: RuleSet[] = [];
 
   /**
-   * The set the antibot judges with now: the one named like the planet rule set in force, or "default".
+   * The set the antibot judges with now: the one the schedule played last, or "default".
    *
    * @generated from field: string playing = 2;
    */

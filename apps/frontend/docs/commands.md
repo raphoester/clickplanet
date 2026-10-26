@@ -34,8 +34,10 @@ touching this app.
 `access-control-allow-origin: https://clickplanet.lol` and nothing else, so the
 browser blocks every request from `localhost`. Point `VITE_API_BASE_URL` at a
 local backend, or run `VITE_FAKE_BACKEND=1 npm run dev` to play against
-`FakeBackend` and `FakeChatBackend` — the fake serves a full map, simulates other
-players at a few clicks a second, and reproduces every refusal the chat can show.
+`FakeBackend` and `FakeChatBackend` — the fake serves a full map of the real tile
+count, with a version on every write and the counts the server would send,
+simulates other players at a few clicks a second, and reproduces every refusal the
+chat can show.
 The switch is gated on `import.meta.env.DEV` as well, because an unset `VITE_*`
 variable is **not** folded away in a build: without the `DEV` check both fakes
 ship in the production bundle.
@@ -57,7 +59,9 @@ closed with the season's table before and after it, and the chat announces the
 podium, so the cutoff plays (see [The cutoff, revealed](cutoff.md)).
 `closeFinale()` does the same for the Final Battle, at triple points, then
 crowns the champion: the reveal ends on it, the chat says who won, and the
-season chip becomes the champion's. Each call
+season chip becomes the champion's. `startBattle(minutes = 120, description)`
+plays a battle at once: the mood, the halo, the chip and the start moment (see
+[Battles](battle.md)); `endBattle()` ends it. Each call
 closes the next day, so the reveal plays again. `fakeBackend.botBomb(tile, "fr")`,
 `fakeBackend.botSpread(tile, "fr")` and `fakeBackend.botShield(tile, "fr")` play
 somebody else's bomb, spread click or shield. `fakeBackend.takeLandmass(landmass, "es", leave)`
@@ -70,6 +74,8 @@ player's own again. `fakeBackend.closeShapes(false)` makes every enclose click
 close nothing, for the bubble that says so, and `closeShapes(true)` puts it back.
 `fakeBackend.ban(90)` refuses this player's clicks, bombs and shields for 90
 minutes, as a ban does, and `fakeBackend.ban(0)` lifts it.
+`fakeBackend.setTempo(3)` refills the bank three times as fast, as a rule set
+of the server can, and `fakeBackend.setTempo(1)` puts it back.
 `localStorage.removeItem("clickplanet-bonus-guide")` makes the bonuses new again.
 `fakeSupport.refuse("rate-limited")` (or `"rejected"`, `"no-session"`,
 `"reported-already"`, `"failed"`) refuses what Settings and a player's card

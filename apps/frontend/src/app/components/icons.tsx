@@ -251,3 +251,9 @@ export function HourglassIcon({size = 12}: IconProps) {
         <path d="M6 3h12M6 21h12M7 3v3l5 6-5 6v3M17 3v3l-5 6 5 6v3"/>
     </svg>
 }
+
+export function SwordsIcon({size = 18}: IconProps) {
+    return <svg {...base(size)} strokeWidth={2.6}>
+        <path d="M4 4l12 12M20 4L8 16M4 20l4-4M20 20l-4-4M3 13l4 4M21 13l-4 4"/>
+    </svg>
+}

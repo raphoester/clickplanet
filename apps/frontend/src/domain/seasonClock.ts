@@ -76,6 +76,14 @@ function timeLeft({days, hours, minutes, seconds}: Countdown): string {
     return minutesAndSeconds
 }
 
+export function timeLeftTo(at: number, now: number): string {
+    return timeLeft(countdownTo(Math.max(at, now), now))
+}
+
+export function shortLeft(left: string): string {
+    return left.split(" ").slice(0, 2).join(" ")
+}
+
 export function twoDigits(n: number): string {
     return String(n).padStart(2, "0")
 }

@@ -20,6 +20,10 @@ service InternalService {
   rpc GetAllegianceOf(GetAllegianceOfRequest) returns (GetAllegianceOfResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+
+  rpc GetRuleSetNames(GetRuleSetNamesRequest) returns (GetRuleSetNamesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 }
 
 message GetTakesByCountryRequest {
@@ -69,3 +73,10 @@ message GetAllegianceOfResponse {
   Allegiance allegiance = 1;
 }
 
+
+message GetRuleSetNamesRequest {}
+
+// The name of every rule set postgres keeps.
+message GetRuleSetNamesResponse {
+  repeated string names = 1;
+}

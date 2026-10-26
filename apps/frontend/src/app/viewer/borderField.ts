@@ -1,6 +1,6 @@
 import * as THREE from "three"
-import type {OwnerChange} from "../../domain/tileOwnership.ts"
 import {regions} from "./atlas.ts"
+import type {Slots} from "./slotRanking.ts"
 import flagFit from "../../../static/countries/flagFit.json"
 
 const LANDMASS_TEXELS = 4
@@ -39,14 +39,11 @@ export class BorderField {
     readonly landmassData: THREE.DataTexture
     readonly landmassCount: number
 
-    private readonly held: Map<string, number>[]
-    private readonly ownerOf: (string | undefined)[]
     private readonly rows: Float32Array
     private readonly painted: (string | undefined)[]
 
     constructor(
         private readonly data: BorderData,
-        tileCount: number,
         private readonly minimumShare = MINIMUM_SHARE,
         private readonly contrast = CONTRAST,
         private readonly minimumTiles = MINIMUM_TILES,
@@ -54,8 +51,6 @@ export class BorderField {
         private readonly fit: "cover" | "contain" = "cover",
     ) {
         this.landmassCount = data.codes.length
-        this.ownerOf = new Array(tileCount + 1)
-        this.held = Array.from({length: this.landmassCount}, () => new Map<string, number>())
         this.painted = new Array(this.landmassCount)
 
         this.rows = new Float32Array(LANDMASS_TEXELS * this.landmassCount * 4)
@@ -81,64 +76,50 @@ export class BorderField {
         return this.painted[landmass]
     }
 
-    // Whoever holds the most of it, however little: the painted holder needs a share, this does not.
-    leaderOf(landmass: number): {holder: string, held: number} | undefined {
-        let leader: {holder: string, held: number} | undefined
-        for (const [holder, held] of this.held[landmass] ?? []) {
-            if (!leader || held > leader.held) leader = {holder, held}
-        }
-        return leader
-    }
-
-    holdingsOf(landmass: number): ReadonlyMap<string, number> {
-        return this.held[landmass] ?? new Map()
-    }
-
     sizeOf(landmass: number): number {
         return this.data.totals[landmass] ?? 0
     }
 
-    apply(changes: OwnerChange[]) {
-        const touched = new Set<number>()
-
-        for (const {tile, country} of changes) {
-            const index = this.data.assignment[tile - 1]
-            if (!index) continue
-
-            const previous = this.ownerOf[tile]
-            if (previous === country) continue
-
-            const held = this.held[index]
-            if (previous !== undefined) {
-                const left = (held.get(previous) ?? 1) - 1
-                if (left > 0) held.set(previous, left)
-                else held.delete(previous)
-            }
-            if (country !== undefined) held.set(country, (held.get(country) ?? 0) + 1)
-
-            this.ownerOf[tile] = country
-            touched.add(index)
+    // Each painted flag's largest landmass, as the half-width of its frame along the ground.
+    flagNeeds(): Map<string, number> {
+        const needs = new Map<string, number>()
+        for (let landmass = 1; landmass < this.landmassCount; landmass++) {
+            const holder = this.painted[landmass]
+            const at = landmass * LANDMASS_TEXELS * 4
+            if (holder === undefined || this.rows[at + 10] <= 0) continue
+            needs.set(holder, Math.max(needs.get(holder) ?? 0, this.rows[at + 3]))
         }
+        return needs
+    }
 
+    // Points each painted landmass at the slot its holder's flag is drawn in, 0 for the atlas.
+    markSlots(slots: Slots) {
         let changed = false
-        for (const index of touched) changed = this.settle(index) || changed
+        for (let landmass = 1; landmass < this.landmassCount; landmass++) {
+            const holder = this.painted[landmass]
+            const mark = holder === undefined ? 0 : slots.indexOf(holder) + 1
+            const at = landmass * LANDMASS_TEXELS * 4
+            if (this.rows[at + 13] === mark) continue
+            this.rows[at + 13] = mark
+            changed = true
+        }
         if (changed) this.landmassData.needsUpdate = true
     }
 
-    private settle(landmass: number): boolean {
-        const total = this.data.totals[landmass]
-        const held = this.held[landmass]
-
-        let holder: string | undefined
-        let best = 0
-        for (const [player, count] of held) {
-            if (count > best) {
-                best = count
-                holder = player
-            }
+    // Paints each landmass from its row: the flag that leads it, at the share of it that flag holds.
+    setRows(landmasses: Iterable<number>, leaderOf: (landmass: number) => {holder: string, held: number} | undefined) {
+        let changed = false
+        for (const landmass of landmasses) {
+            if (landmass >= 1 && landmass < this.landmassCount) changed = this.settle(landmass, leaderOf(landmass)) || changed
         }
+        if (changed) this.landmassData.needsUpdate = true
+    }
 
-        const share = total > 0 ? best / total : 0
+    private settle(landmass: number, leader: {holder: string, held: number} | undefined): boolean {
+        const total = this.data.totals[landmass]
+
+        let holder = leader?.holder
+        const share = total > 0 ? (leader?.held ?? 0) / total : 0
         if (share < this.minimumShare || total < this.minimumTiles) holder = undefined
 
         const at = landmass * LANDMASS_TEXELS * 4

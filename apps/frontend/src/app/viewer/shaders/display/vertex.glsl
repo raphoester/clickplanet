@@ -13,6 +13,14 @@ uniform float pixelsPerRadian;
 
 uniform float highlight;
 
+uniform vec2 atlasTextureSize;
+
+// Must match SLOT_COUNT in slotRanking.ts.
+#define FLAG_SLOTS 8
+uniform vec4 slotFrames[FLAG_SLOTS];
+
+#include ../flagFrame.glsl;
+
 // Must match MAX_BLASTS and BLAST_TIMELINE in domain/blast.ts.
 #define MAX_BLASTS 4
 const float BLAST_FALL = 0.8;
@@ -71,10 +79,11 @@ flat out float vHaze;
 
 flat out vec2 vFlagUV;
 flat out vec4 vFlagStep;
-flat out vec4 vFlagRegion;
+flat out vec4 vFlagFrame;
 flat out float vFlagShare;
 
 flat out float vSpriteSize;
+flat out float vSlotted;
 
 vec2 flagUVof(vec3 ground, vec3 centre, vec3 east, vec3 north, vec2 halfSize, vec2 anchor) {
     vec2 offset = vec2(dot(ground, east), dot(ground, north));
@@ -117,10 +126,11 @@ void main() {
     vHaze = hazeOf(normal);
 #endif
 
-    vFlagRegion = vec4(0.0);
+    vFlagFrame = vec4(0.0);
     vFlagUV = vec2(0.0);
     vFlagStep = vec4(0.0);
     vFlagShare = 0.0;
+    vSlotted = 0.0;
 
     if (flagPaint > 0.0 && landmassIndex > 0.5) {
         float row = (landmassIndex + 0.5) / landmassCount;
@@ -154,8 +164,12 @@ void main() {
                     flagUVof(across, centre, east, north, halfSize, anchor) - uv,
                     flagUVof(upward, centre, east, north, halfSize, anchor) - uv
                 );
-                vFlagRegion = region;
                 vFlagShare = share;
+
+                int slot = clamp(int(held.g + 0.5) - 1, 0, FLAG_SLOTS - 1);
+                vec4 slotFrame = held.g > 0.5 ? slotFrames[slot] : vec4(0.0);
+                vSlotted = slotFrame.z > 0.0 ? 1.0 : 0.0;
+                vFlagFrame = vSlotted > 0.5 ? slotFrame : atlasFrameOf(region);
             }
         }
     }

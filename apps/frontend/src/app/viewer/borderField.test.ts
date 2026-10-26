@@ -26,8 +26,11 @@ const opacityOf = (field: BorderField, piece = 1) => rows(field)[piece * TEXELS 
 const regionOf = (field: BorderField, piece = 1) =>
     Array.from(rows(field).slice(piece * TEXELS * 4 + 8, piece * TEXELS * 4 + 12))
 
-const claims = (country: string | undefined, from: number, to: number) =>
-    Array.from({length: to - from + 1}, (_, i) => ({tile: from + i, country}))
+// Paints landmass 1 from its row: the tiles each flag holds of it.
+const paint = (field: BorderField, row: Record<string, number>) => field.setRows([1], () => {
+    const [holder, held] = Object.entries(row).sort((a, b) => b[1] - a[1])[0] ?? []
+    return holder === undefined ? undefined : {holder, held}
+})
 
 describe("countryOfTile", () => {
     it("names the country a tile lies in, and nothing outside every country", () => {
@@ -39,72 +42,78 @@ describe("countryOfTile", () => {
 })
 
 describe("who a landmass flies", () => {
-    it("is whoever holds the most of it, not whoever arrived last", () => {
-        const field = new BorderField(world(8), 8)
+    it("is the leader of its row", () => {
+        const field = new BorderField(world(8))
 
-        field.apply(claims("fr", 1, 5))
-        field.apply(claims("de", 6, 8))
+        paint(field, {fr: 5, de: 3})
 
         expect(field.holderOf(1)).toBe("fr")
         expect(regionOf(field)).toEqual(Object.values(regions.get("fr")!))
     })
 
     it("changes hands when the balance actually tips", () => {
-        const field = new BorderField(world(8), 8)
-        field.apply(claims("fr", 1, 5))
+        const field = new BorderField(world(8))
+        paint(field, {fr: 5})
         expect(field.holderOf(1)).toBe("fr")
 
-        field.apply(claims("de", 1, 3))
-        field.apply(claims("de", 6, 8))
+        paint(field, {fr: 2, de: 6})
 
         expect(field.holderOf(1)).toBe("de")
         expect(opacityOf(field)).toBeCloseTo(6 / 8)
     })
 
-    it("lets go of a tile that goes back to unowned", () => {
-        const field = new BorderField(world(8), 8)
-        field.apply(claims("fr", 1, 5))
-        field.apply(claims("de", 6, 8))
+    it("lets go of the tiles nobody holds any more", () => {
+        const field = new BorderField(world(8))
+        paint(field, {fr: 5, de: 3})
 
-        field.apply(claims(undefined, 1, 4))
+        paint(field, {fr: 1, de: 3})
 
         expect(field.holderOf(1)).toBe("de")
         expect(opacityOf(field)).toBeCloseTo(3 / 8)
     })
 
-    it("ignores a tile that sits in no country at all", () => {
-        const field = new BorderField(world(8, 4), 12)
+    it("is nobody once nobody holds any of it", () => {
+        const field = new BorderField(world(8))
+        paint(field, {fr: 5})
 
-        field.apply(claims("fr", 9, 12))
+        paint(field, {})
 
         expect(field.holderOf(1)).toBeUndefined()
         expect(opacityOf(field)).toBe(0)
+    })
+
+    it("ignores a landmass the table has no row for", () => {
+        const field = new BorderField(world(8))
+
+        field.setRows([0, 2, 99], () => ({holder: "fr", held: 8}))
+
+        expect(field.holderOf(1)).toBeUndefined()
     })
 })
 
 describe("what a landmass has to earn before it paints", () => {
     it("stays bare Earth below the tile floor, however completely it is held", () => {
-        const field = new BorderField(world(3), 3, undefined, undefined, 4)
+        const field = new BorderField(world(3), undefined, undefined, 4)
 
-        field.apply(claims("fr", 1, 3))
+        paint(field, {fr: 3})
 
         expect(field.holderOf(1)).toBeUndefined()
         expect(regionOf(field)).toEqual([0, 0, 0, 0])
     })
 
     it("stays bare Earth below the share floor, rather than showing a ghost", () => {
-        const field = new BorderField(world(8), 8, 0.5)
+        const field = new BorderField(world(8), 0.5)
 
-        field.apply(claims("fr", 1, 3))
+        paint(field, {fr: 3})
 
         expect(field.holderOf(1)).toBeUndefined()
         expect(opacityOf(field)).toBe(0)
     })
 
     it("paints once the leader crosses the floor", () => {
-        const field = new BorderField(world(8), 8, 0.5)
+        const field = new BorderField(world(8), 0.5)
 
-        field.apply(claims("fr", 1, 5))
+        paint(field, {fr: 5})
 
         expect(field.holderOf(1)).toBe("fr")
         expect(opacityOf(field)).toBeCloseTo(5 / 8)
@@ -114,16 +123,16 @@ describe("what a landmass has to earn before it paints", () => {
 describe("opacity", () => {
     it("is the leader's share of the landmass", () => {
         for (const [held, total] of [[1, 8], [4, 8], [8, 8], [37, 100]]) {
-            const field = new BorderField(world(total), total)
-            field.apply(claims("fr", 1, held))
+            const field = new BorderField(world(total))
+            paint(field, {fr: held})
             expect(opacityOf(field), `${held}/${total}`).toBeCloseTo(held / total)
         }
     })
 
     it("is never fainter than the tiles the flag hands over to", () => {
         for (const held of [8, 20, 37, 50, 75, 90, 100]) {
-            const field = new BorderField(world(100), 100)
-            field.apply(claims("fr", 1, held))
+            const field = new BorderField(world(100))
+            paint(field, {fr: held})
 
             const share = held / 100
             expect(opacityOf(field) * 0.94, `holding ${held}%`).toBeGreaterThanOrEqual(share * 0.7)
@@ -131,16 +140,46 @@ describe("opacity", () => {
     })
 })
 
+describe("the flags drawn large", () => {
+    it("needs each painted flag's largest landmass, and nothing of ground nobody paints", () => {
+        const field = new BorderField(world(8))
+        expect(field.flagNeeds().size).toBe(0)
+
+        paint(field, {fr: 5})
+
+        const needs = field.flagNeeds()
+        expect([...needs.keys()]).toEqual(["fr"])
+        expect(needs.get("fr")).toBeCloseTo(0.1)
+    })
+
+    it("marks each painted landmass with its holder's slot, 0 for the atlas, re-uploading only on a change", () => {
+        const field = new BorderField(world(8))
+        paint(field, {fr: 5})
+        const uploaded = field.landmassData.version
+
+        field.markSlots(["de", "fr"])
+        expect(rows(field)[TEXELS * 4 + 13]).toBe(2)
+        expect(field.landmassData.version).toBeGreaterThan(uploaded)
+
+        const marked = field.landmassData.version
+        field.markSlots(["de", "fr"])
+        expect(field.landmassData.version).toBe(marked)
+
+        field.markSlots(["de"])
+        expect(rows(field)[TEXELS * 4 + 13]).toBe(0)
+    })
+})
+
 describe("the landmass table", () => {
     it("is not re-uploaded when nothing about a landmass changed", () => {
-        const field = new BorderField(world(8), 8)
-        field.apply(claims("fr", 1, 5))
+        const field = new BorderField(world(8))
+        paint(field, {fr: 5})
 
         const uploaded = field.landmassData.version
-        field.apply(claims("fr", 1, 5))
+        paint(field, {fr: 5})
         expect(field.landmassData.version).toBe(uploaded)
 
-        field.apply(claims("de", 1, 5))
+        paint(field, {de: 5})
         expect(field.landmassData.version).toBeGreaterThan(uploaded)
     })
 })

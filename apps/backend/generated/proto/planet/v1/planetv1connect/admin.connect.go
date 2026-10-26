@@ -65,6 +65,11 @@ const (
 	// AdminServiceGetTerritoriesProcedure is the fully-qualified name of the AdminService's
 	// GetTerritories RPC.
 	AdminServiceGetTerritoriesProcedure = "/planet.v1.AdminService/GetTerritories"
+	// AdminServiceGetRulesProcedure is the fully-qualified name of the AdminService's GetRules RPC.
+	AdminServiceGetRulesProcedure = "/planet.v1.AdminService/GetRules"
+	// AdminServiceSaveRuleSetProcedure is the fully-qualified name of the AdminService's SaveRuleSet
+	// RPC.
+	AdminServiceSaveRuleSetProcedure = "/planet.v1.AdminService/SaveRuleSet"
 )
 
 // AdminServiceClient is a client for the planet.v1.AdminService service.
@@ -93,6 +98,10 @@ type AdminServiceClient interface {
 	GetLedger(context.Context, *connect.Request[v1.GetLedgerRequest]) (*connect.Response[v1.GetLedgerResponse], error)
 	// InternalService/GetTerritories, for the admin page: the tiles each country holds now.
 	GetTerritories(context.Context, *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error)
+	GetRules(context.Context, *connect.Request[v1.GetRulesRequest]) (*connect.Response[v1.GetRulesResponse], error)
+	// Makes a set, or replaces its values. A set that plays now is FailedPrecondition: the rules in force change only
+	// through the schedule.
+	SaveRuleSet(context.Context, *connect.Request[v1.SaveRuleSetRequest]) (*connect.Response[v1.SaveRuleSetResponse], error)
 }
 
 // NewAdminServiceClient constructs a client for the planet.v1.AdminService service. By default, it
@@ -178,6 +187,18 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("GetTerritories")),
 			connect.WithClientOptions(opts...),
 		),
+		getRules: connect.NewClient[v1.GetRulesRequest, v1.GetRulesResponse](
+			httpClient,
+			baseURL+AdminServiceGetRulesProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("GetRules")),
+			connect.WithClientOptions(opts...),
+		),
+		saveRuleSet: connect.NewClient[v1.SaveRuleSetRequest, v1.SaveRuleSetResponse](
+			httpClient,
+			baseURL+AdminServiceSaveRuleSetProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("SaveRuleSet")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -195,6 +216,8 @@ type adminServiceClient struct {
 	getReplay        *connect.Client[v1.GetReplayRequest, v1.GetReplayResponse]
 	getLedger        *connect.Client[v1.GetLedgerRequest, v1.GetLedgerResponse]
 	getTerritories   *connect.Client[v1.GetTerritoriesRequest, v1.GetTerritoriesResponse]
+	getRules         *connect.Client[v1.GetRulesRequest, v1.GetRulesResponse]
+	saveRuleSet      *connect.Client[v1.SaveRuleSetRequest, v1.SaveRuleSetResponse]
 }
 
 // ReassignCountry calls planet.v1.AdminService.ReassignCountry.
@@ -263,6 +286,16 @@ func (c *adminServiceClient) GetTerritories(ctx context.Context, req *connect.Re
 	return c.getTerritories.CallUnary(ctx, req)
 }
 
+// GetRules calls planet.v1.AdminService.GetRules.
+func (c *adminServiceClient) GetRules(ctx context.Context, req *connect.Request[v1.GetRulesRequest]) (*connect.Response[v1.GetRulesResponse], error) {
+	return c.getRules.CallUnary(ctx, req)
+}
+
+// SaveRuleSet calls planet.v1.AdminService.SaveRuleSet.
+func (c *adminServiceClient) SaveRuleSet(ctx context.Context, req *connect.Request[v1.SaveRuleSetRequest]) (*connect.Response[v1.SaveRuleSetResponse], error) {
+	return c.saveRuleSet.CallUnary(ctx, req)
+}
+
 // AdminServiceHandler is an implementation of the planet.v1.AdminService service.
 type AdminServiceHandler interface {
 	ReassignCountry(context.Context, *connect.Request[v1.ReassignCountryRequest]) (*connect.Response[v1.ReassignCountryResponse], error)
@@ -289,6 +322,10 @@ type AdminServiceHandler interface {
 	GetLedger(context.Context, *connect.Request[v1.GetLedgerRequest]) (*connect.Response[v1.GetLedgerResponse], error)
 	// InternalService/GetTerritories, for the admin page: the tiles each country holds now.
 	GetTerritories(context.Context, *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error)
+	GetRules(context.Context, *connect.Request[v1.GetRulesRequest]) (*connect.Response[v1.GetRulesResponse], error)
+	// Makes a set, or replaces its values. A set that plays now is FailedPrecondition: the rules in force change only
+	// through the schedule.
+	SaveRuleSet(context.Context, *connect.Request[v1.SaveRuleSetRequest]) (*connect.Response[v1.SaveRuleSetResponse], error)
 }
 
 // NewAdminServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -370,6 +407,18 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(adminServiceMethods.ByName("GetTerritories")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServiceGetRulesHandler := connect.NewUnaryHandler(
+		AdminServiceGetRulesProcedure,
+		svc.GetRules,
+		connect.WithSchema(adminServiceMethods.ByName("GetRules")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServiceSaveRuleSetHandler := connect.NewUnaryHandler(
+		AdminServiceSaveRuleSetProcedure,
+		svc.SaveRuleSet,
+		connect.WithSchema(adminServiceMethods.ByName("SaveRuleSet")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/planet.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AdminServiceReassignCountryProcedure:
@@ -396,6 +445,10 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 			adminServiceGetLedgerHandler.ServeHTTP(w, r)
 		case AdminServiceGetTerritoriesProcedure:
 			adminServiceGetTerritoriesHandler.ServeHTTP(w, r)
+		case AdminServiceGetRulesProcedure:
+			adminServiceGetRulesHandler.ServeHTTP(w, r)
+		case AdminServiceSaveRuleSetProcedure:
+			adminServiceSaveRuleSetHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -451,4 +504,12 @@ func (UnimplementedAdminServiceHandler) GetLedger(context.Context, *connect.Requ
 
 func (UnimplementedAdminServiceHandler) GetTerritories(context.Context, *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.GetTerritories is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) GetRules(context.Context, *connect.Request[v1.GetRulesRequest]) (*connect.Response[v1.GetRulesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.GetRules is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) SaveRuleSet(context.Context, *connect.Request[v1.SaveRuleSetRequest]) (*connect.Response[v1.SaveRuleSetResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.SaveRuleSet is not implemented"))
 }

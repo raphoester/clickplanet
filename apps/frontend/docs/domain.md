@@ -1,17 +1,18 @@
 # `src/domain/` — the logic worth testing
 
-- `tileOwnership.ts` — the authoritative tile → country map and the per-country
-  counts derived from it. The initial load arrives as 27 batches, eight at a
-  time and in any order, while live updates stream in throughout, so the two sources overlap: **live
-  updates win permanently**, and a tile someone has claimed is never taken back
-  by a batch that was already in flight. Counts follow this map, never the
-  `previousCountry` an event reports. It also holds the third source, **your own
-  clicks, painted before the server has agreed to them** — see [Rolling back a
-  refused click](click-rollback.md). After a gap in the stream,
-  `forgetLive` and `resync` take a whole map again: a tile it does not list is
-  emptied, a tile the stream set since `forgetLive` is kept, and a click in
-  flight stays painted. `TileShields` has the same two.
-- `leaderboard.ts` — `rankCountries`, a pure sort over those counts. Ties break
+- `holdings.ts` — `Holdings`, what each flag holds of the map and of each
+  landmass, as the server counts it: every count on screen comes from it. Each
+  row takes only a newer version. See [The counts are the server's](counts.md).
+- `mapTiles.ts` — `MapTiles`, the flag and the shields of every tile: a value
+  from a batch, the stream or a bomb is taken only when its version is newer than
+  the tile's, and a fortify waits for the read of a tile older than the stream.
+  `tileRanges` cuts the map into the batches. `mapClock.ts` — `MapClock`, the
+  server start the versions are counted in, and the stream's opening.
+- `tileOwnership.ts` — the flag on each tile, and **your own clicks, painted
+  before the server has agreed to them** — see [Rolling back a refused
+  click](click-rollback.md). A read is what a rollback goes back to; the stream
+  settles a click. It counts nothing.
+- `leaderboard.ts` — `rankCountries`, a pure sort over the server's counts. Ties break
   on country code so equally-placed rows stop swapping.
 - `tileDeltas.ts` — what the leaderboard floats beside a tile count as "+3" or
   "-2". `takeInChanges` folds one board into the badges already up, so a country

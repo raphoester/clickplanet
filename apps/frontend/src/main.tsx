@@ -17,6 +17,8 @@ import {FakeSeasonBackend, SEASON_ZERO} from "./backends/fakeSeasonBackend.ts"
 import {ConnectSeasonBackend, newSeasonServiceClient} from "./backends/seasonBackend.ts"
 import {FakeHallOfFameBackend, sampleEndedSeason} from "./backends/fakeHallOfFameBackend.ts"
 import {ConnectHallOfFameBackend} from "./backends/hallOfFameBackend.ts"
+import {FakeTurnBackend} from "./backends/fakeTurnBackend.ts"
+import {ConnectTurnBackend, newMetagameServiceClient} from "./backends/turnBackend.ts"
 import {API_BASE_URL} from "./backends/transport.ts"
 import {ConnectionHealth, connectionInterceptor, followBrowser} from "./backends/connection.ts"
 import {FakeStandingsBackend} from "./backends/fakeStandingsBackend.ts"
@@ -110,12 +112,21 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
             fakeChat.announceChampion(closed)
             return "the Final Battle is over"
         },
+        startBattle: (minutes?: number, description?: string) => {
+            fakeTurn.startBattle(minutes, description)
+            return "a battle is on"
+        },
+        endBattle: () => {
+            fakeTurn.endBattle()
+            return "the battle is over"
+        },
     })
 
     const fakeChat = new FakeChatBackend()
     const fakeSupport = new FakeSupportBackend()
     Object.assign(window, {fakeChat, fakeSupport})
     const fakeSeason = new FakeSeasonBackend(SEASON_ZERO)
+    const fakeTurn = new FakeTurnBackend()
     const fakeStandings = new FakeStandingsBackend()
     const clicker = fakeMissions.counting(fakeStandings.counting(fake))
     fake.listenForBombs((drop) => fakeChat.announceBomb(drop))
@@ -145,6 +156,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     tileHolders={fake}
                     landmasses={fake}
                     season={fakeSeason}
+                    turn={fakeTurn}
                     standings={fakeStandings}
                     support={fakeSupport}
                     hallOfFame={new FakeHallOfFameBackend([sampleEndedSeason()])}
@@ -158,6 +170,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     const backend = new PlanetBackend(newClickServiceClient(config), 100, session)
     const chatBackend = new ChatServiceBackend(newChatServiceClient(config), session, newKeepaliveChatServiceClient(config))
     const season = new ConnectSeasonBackend(newSeasonServiceClient(config))
+    const turn = new ConnectTurnBackend(newMetagameServiceClient(config))
     const player = new ConnectPlayerBackend(newPlayerServiceClient(config), session, newKeepalivePlayerServiceClient(config))
     const standings = new ConnectStandingsBackend(newSeasonServiceClient(config), session)
     const missions = new ConnectMissionsBackend(newMissionServiceClient(config), session)
@@ -191,6 +204,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     tileHolders={backend}
                     landmasses={backend}
                     season={season}
+                    turn={turn}
                     standings={standings}
                     support={support}
                     hallOfFame={hallOfFame}

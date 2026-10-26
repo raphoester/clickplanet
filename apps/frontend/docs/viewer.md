@@ -38,6 +38,9 @@
 - `borderField.ts` / `bordersAsset.ts` — the zoomed-out view: tile → landmass,
   who holds how much of each, and the per-landmass table the vertex shader reads.
   See [The zoomed-out view](zoomed-out-view.md).
+- `slotRanking.ts` / `flagSlots.ts` — the flags holding the biggest landmasses,
+  drawn from their SVGs instead of the atlas: which eight, and the cells they are
+  drawn into. See [The zoomed-out view](zoomed-out-view.md).
 - `borderLines.ts` / `borderLinesAsset.ts` — the grey outline between one
   country's ground and the next, at a width that does not move with the zoom, and
   the white one around a territory in orbit. See [The countries'
