@@ -43,6 +43,9 @@ npm run map        # Copy the tile coordinates from the shared ../../map into sr
 - **Every call goes to `https://api.clickplanet.lol/<package>.v1.AdminService/<Method>`** (`src/api.ts`).
   Caddy sends those paths to the backend's admin listener (the backend's `CLAUDE.md`, "Operator tools").
   `VITE_API_BASE_URL` points it elsewhere; it is a build variable.
+- **Calls go in binary protobuf, not JSON** (`useBinaryFormat`): writing a page of the ledger as JSON took the
+  server 8 times as long. An error still comes back as JSON, and a replay is saved as JSON on this side
+  (`toJsonString`).
 - **The page signs in on its own, with Google only** (`auth.v1.AdminService`, the backend's `CLAUDE.md`,
   "Operators"). Its session is the `cp_admin` cookie: 12 hours, never extended, `SameSite=Strict`, host-only on
   `api.clickplanet.lol`. It travels from `backoffice.clickplanet.lol` because both are one site, and the transport sends
@@ -120,8 +123,8 @@ failing alone:
 - `planet.v1.AdminService/GetLedger` for the span: every change the live stream showed, as the `TileUpdate` it sent,
   with when and who (the backend's `CLAUDE.md`, "GetLedger"). It is asked for whole slots, from a step back to now
   (`windowOf`, both bounds sent): the last one starts on the step before now, and is still filling. The page counts
-  from the window it asked for. `LONG_CALL_MS`: three days is a
-  few MB compressed.
+  from the window it asked for. **It reads every page of the answer, one after the other** (`next_page`, 20,000
+  events a page: 10 pages for 24 hours), each with `LONG_CALL_MS`.
 - `GetTerritories` for the map now: the tiles each country holds.
 - `player.v1.AdminService/GetRoster` for who plays now.
 - `ListReports` (open only) and `ListNotes` (the last 24 hours) for what waits for the operator. Up to 500 of each
@@ -134,8 +137,16 @@ failing alone:
 What the page does with them:
 
 - **A span is picked above everything it scopes**: 6 hours in slots of 5 minutes, 24 hours (first) in 15, or 3 days
-  in hours. Every minute the page reads it all again (`REFRESH_MS`), and Reload does now. **The last answer stays
-  shown, dimmed, while the next is read** (`useLast`), so a refresh never empties the page.
+  in hours. **The last answer stays shown, dimmed, while the next is read** (`useLast`), so a refresh never empties
+  the page.
+- **A refresh reads the ledger's new changes, not the span again** (`sinceOf`, `caughtUp` in `ledger.ts`): from a
+  minute before the end of the last read (`SETTLE_MS`, since a change reaches postgres a flush after it happened, later
+  when a flush fails), and the page keeps what it read before that, inside the span. A new span, or a pause longer than
+  the span, reads it whole. **On 2026-10-25 a tab left open read 24 hours every minute**, 7 to 8s each on the 1 GB
+  droplet, until the backend swapped and every call ran its minute: clicks took 300 to 600ms for a quarter of an hour.
+  The pages bound what one call holds on the server; this bounds how often the page asks.
+- **The next read is `REFRESH_MS` (a minute) after the last one ended**, never while one runs: Reload waits for it
+  too. None is made while the tab is hidden (`usePageVisible`); a tab shown again after its minute reads at once.
 - **The counts** (`ledger.ts`): a click is a change marked `clicked` (a take or a strike); a tile changed hands when
   its flag after is not its flag before; a player is who changed one (`by`, compared and never read), an account on
   every address, or an address with no account.
@@ -240,7 +251,7 @@ note and keeps its text).
   reassign and a paint are paced on the server, a replay is MBs, and the two ops runs page through every player.
 - **Every page takes its clients** (`clients.ts`: `ChatAdmin`, `PlanetAdmin`, `PlayerAdmin`, `SupportAdmin`,
   defaulting to `CLIENTS`), so a test hands it `FakeAdmin` (`fakeAdmin.ts`), which answers every method, records
-  each request (`askedFor`) and can refuse a method with a code. The jsdom tests drive each action through its
+  each request (`askedFor`), can refuse a method with a code, and can hold its answers until released (`hold`). The jsdom tests drive each action through its
   page.
 
 ## The player page
@@ -374,6 +385,7 @@ src/
   useAction.ts      one read's state, run on a click
   usePage.ts        the page shown, kept in the address bar
   useWide.ts        whether the window is wide enough for the sidebar
+  usePageVisible.ts whether the tab is shown
   navigation.ts     MENU, the pages by group, and OpenPlayer
   countries.ts      a country id's name and its flag
   App.tsx           the callback, or WhoAmI first, then the page the menu picked

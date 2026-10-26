@@ -12,7 +12,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
-func TestTheWindowIsFoundFromTheHeadByThePrimaryKey(t *testing.T) {
+func TestAPageIsFoundFromTheHeadByThePrimaryKeyAndSortedOnlyWithinEachEvent(t *testing.T) {
 	db := cppg.StartTestServer(t).OpenSchema(t, "planet", migrations.FS)
 	for _, statement := range []string{
 		`INSERT INTO ledger_events (position, kind, tile, scope, country, previous, taken_at)
@@ -25,7 +25,7 @@ func TestTheWindowIsFoundFromTheHeadByThePrimaryKey(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	rows, err := db.QueryContext(t.Context(), "EXPLAIN "+changes, time.Now().Add(-time.Hour), time.Now())
+	rows, err := db.QueryContext(t.Context(), "EXPLAIN "+changes, time.Now().Add(-time.Hour), time.Now(), 0, PageEvents)
 	require.NoError(t, err)
 	defer func() { require.NoError(t, rows.Close()) }()
 	var lines []string
@@ -39,4 +39,5 @@ func TestTheWindowIsFoundFromTheHeadByThePrimaryKey(t *testing.T) {
 
 	assert.Contains(t, plan, "ledger_events_pkey", plan)
 	assert.NotContains(t, plan, "Seq Scan on ledger_events", plan)
+	assert.Contains(t, plan, "Incremental Sort", plan)
 }
