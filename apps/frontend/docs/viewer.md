@@ -40,8 +40,9 @@
   the white one around a territory in orbit. See [The countries'
   outlines](country-outlines.md).
 - `pointSize.ts` — how big a tile is drawn, how far apart two of them sit, the
-  single schedule that hands the frame from the painted flag to the tiles, and
-  `inOrbit`, the zooms where the pointer asks about a territory.
+  single schedule that hands the frame from the painted flag to the tiles,
+  `inOrbit`, the zooms where the pointer asks about a territory, and `flownZoomsOf`,
+  how far in a click in orbit flies.
 - `zoom.ts` — how far the camera may pull back and push in. The camera is
   orthographic against a globe of radius 1, so `zoom` reads as the share of the
   viewport's height the globe fills: it opens at 1, edge to edge, and pulls back

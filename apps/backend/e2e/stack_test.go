@@ -20,6 +20,7 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons"
@@ -80,6 +81,8 @@ func startGame(t *testing.T) gameStack {
 	seasonsConfig.Snapshot.Interval = 50 * time.Millisecond
 	seasonsConfig.Redis = redis
 
+	missionsConfig := missions.Config{Database: postgres.ConfigFor("missions"), Redis: redis}
+
 	chatConfig := chat.Config{Database: postgres.ConfigFor("chat"), Redis: redis}
 	chatConfig.RateLimiter.PerSecond = 100
 	chatConfig.RateLimiter.Burst = 100
@@ -107,7 +110,7 @@ func startGame(t *testing.T) gameStack {
 			Logger: logger,
 			Modules: []cpbootstrap.Module{
 				authModule, planet.NewModule(planetConfig), player.NewModule(playerConfig), chat.NewModule(chatConfig),
-				seasons.NewModule(seasonsConfig), support.NewModule(supportConfig),
+				seasons.NewModule(seasonsConfig), support.NewModule(supportConfig), missions.NewModule(missionsConfig),
 			},
 			AdminGate: gate,
 		}, public, internal, console, admin)

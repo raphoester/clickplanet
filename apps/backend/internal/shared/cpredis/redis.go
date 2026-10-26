@@ -77,6 +77,8 @@ const (
 
 func streamOf(event protoreflect.FullName) string { return "events:" + string(event) }
 
+func commandStreamOf(command protoreflect.FullName) string { return "commands:" + string(command) }
+
 func New(config Config, metrics prometheus.Registerer) *Streams {
 	return &Streams{config: config.withDefaults(), metrics: metrics, groups: map[protoreflect.FullName][]string{}}
 }
@@ -147,21 +149,37 @@ func (s *Streams) Publish(events ...proto.Message) {
 	ctx, cancel := context.WithTimeout(context.Background(), s.config.PublishTimeout)
 	defer cancel()
 
-	lost, _ := s.add(ctx, events)
+	lost, _ := s.add(ctx, streamOf, events)
 	for _, event := range lost {
 		s.unpublished.WithLabelValues(string(event.ProtoReflect().Descriptor().FullName())).Inc()
 	}
 }
 
 func (s *Streams) Send(ctx context.Context, events ...proto.Message) error {
-	if lost, err := s.add(ctx, events); len(lost) > 0 {
+	if lost, err := s.add(ctx, streamOf, events); len(lost) > 0 {
 		return fmt.Errorf("redis took %d of %d events: %w", len(events)-len(lost), len(events), err)
 	}
 	return nil
 }
 
-// One round trip; each stream gets its events in the order given.
-func (s *Streams) add(ctx context.Context, events []proto.Message) ([]proto.Message, error) {
+func (s *Streams) Commands() Commands { return Commands{streams: s} }
+
+// Commands is what an outbox relay sends commands with: each goes to the one module that handles it.
+type Commands struct {
+	streams *Streams
+}
+
+func (c Commands) Send(ctx context.Context, commands ...proto.Message) error {
+	if lost, err := c.streams.add(ctx, commandStreamOf, commands); len(lost) > 0 {
+		return fmt.Errorf("redis took %d of %d commands: %w", len(commands)-len(lost), len(commands), err)
+	}
+	return nil
+}
+
+// One round trip; each stream gets its messages in the order given.
+func (s *Streams) add(
+	ctx context.Context, streamOf func(protoreflect.FullName) string, events []proto.Message,
+) ([]proto.Message, error) {
 	type added struct {
 		event proto.Message
 		cmd   *redis.StringCmd

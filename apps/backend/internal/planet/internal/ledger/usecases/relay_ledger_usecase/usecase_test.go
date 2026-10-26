@@ -80,13 +80,15 @@ func TestEachFactOfTheLedgerIsToldWithItsPositionInOrder(t *testing.T) {
 	events := &sender{}
 	told := &cursor{}
 
-	n, err := relay_ledger_usecase.New(storage, told, borders{9: "de"}, events).Execute(t.Context())
+	n, err := relay_ledger_usecase.New(storage, told, borders{1: "es", 9: "de"}, events).Execute(t.Context())
 	require.NoError(t, err)
 
 	assert.Equal(t, 4, n)
 	assert.Equal(t, ledger.Position(4), told.position)
 	want := []proto.Message{
-		&planetv1.TileTaken{AccountId: ada, TileId: 1, Country: "fr", TakenAt: timestamppb.New(at), Position: 0},
+		&planetv1.TileTaken{
+			AccountId: ada, TileId: 1, Country: "fr", TakenAt: timestamppb.New(at), Position: 0, Previous: "de", Ground: "es",
+		},
 		&planetv1.BombLanded{Country: "fr", TileId: 9, Ground: "de", Cleared: 2, LandedAt: timestamppb.New(at), AccountId: ada, Position: 2},
 		&planetv1.Fortified{Country: "fr", LandmassId: 7, Tiles: 60, Ground: "is", FortifiedAt: timestamppb.New(at), AccountId: ada, Position: 3},
 	}

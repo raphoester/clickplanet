@@ -39,7 +39,7 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 - [Who is playing](docs/who-is-playing.md) — the "Online · N" list beside the chat.
 - [Who holds a tile](docs/tile-holder.md) — a rest or a long press on a tile opens a card on its holder.
 - [A territory, from orbit](docs/territory-card.md) — zoomed out, the same gestures open a card on the territory
-  (flags, shares, fortify) and light it up.
+  (flags, shares, fortify) and light it up; a click flies down to it.
 - [Support](docs/support.md) — suggestions, bug reports and reports of a player.
 - [Titles](docs/titles.md) — the ranks on each track, the medals, the unlock moment.
 - [Season standings](docs/season-standings.md) — the players' table of the season.
@@ -47,6 +47,7 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 - [The cutoff, revealed](docs/cutoff.md) — the full-screen reveal when a day closes.
 - [The flag played for](docs/flag.md) — `PledgeAllegiance`, and one flag an hour.
 - [Charges](docs/charges.md) — what a bonus box holds, off by default and one at a time, and the inventory.
+- [Missions](docs/missions.md) — the Missions tab, its badge, a mission paid, and the fake.
 - [Quizzes](docs/quizzes.md), [Bombs](docs/bombs.md), [Shields](docs/shields.md), [Fortify](docs/fortify.md) —
   each bonus on the client.
 - [Sharing the globe](docs/sharing.md) — the photo card of the globe, and the recruit link.
