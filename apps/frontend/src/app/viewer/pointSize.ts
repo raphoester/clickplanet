@@ -32,6 +32,13 @@ export function tilesZoomOf(viewportHeight: number): number {
     return COARSE_UNTIL / tilePointSize(1, viewportHeight)
 }
 
+// A territory flown to is seen with its tiles on screen, and a small one no closer than tiles of this size.
+const FLOWN_TILE_MOST = 28
+
+export function flownZoomsOf(viewportHeight: number): {least: number, most: number} {
+    return {least: tilesZoomOf(viewportHeight), most: FLOWN_TILE_MOST / tilePointSize(1, viewportHeight)}
+}
+
 function handover(tileSize: number, view: MapView): number {
     return view === "tiles" ? 1 : coarseHandover(tileSize)
 }
