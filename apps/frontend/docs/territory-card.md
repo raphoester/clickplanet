@@ -31,9 +31,17 @@ the globe. A click or a tap flies down to it.
   flag that fortified it last (`FortifyTargets.lockOf`, "Never fortified" without
   one) and, when a flag is close to fortifying it, how many tiles that flag still
   misses (`targetOf`, the same rule as the gold pulse, see [Fortify](fortify.md)).
-- **Everything on it is already on the client**: `BorderField` keeps the tiles each
-  flag holds in each landmass for the painted flags, and the locks come from
+- **The flags are already on the client**: `BorderField` keeps the tiles each flag
+  holds in each landmass for the painted flags, and the locks come from
   `GetFortresses`. `Globe.territoryOf` builds it, and asks no server.
+- **The players are the server's**: `useTerritoryPlayers` asks `LandmassReader.landmass`
+  (`ClickService/GetLandmass`) once the card opens, then `PlayerService/GetPlayer` for the
+  first `TOP_PLAYERS` (3) holders and the last fortifier, as the tile card names its
+  holder. "Top players" lists them with their flag and tiles, in their name's colour;
+  a signed-in one's name opens its card. The fortifier and when are under "Fortified
+  by", **only when the fortify's flag is the lock's**: a lock settled with no fortify
+  names nobody. A guest is shown by its guest name, a deleted account as such. See the
+  backend's [Who holds the tiles](../../backend/docs/tile-holders.md).
 - **It follows the territory while it is open**: `useTerritoryCard` reads it again
   every `SAMPLE_MS` (500ms, as the board), and renders only when something on it
   changed (`sameTerritory`).
