@@ -77,15 +77,16 @@ func (w *Watchdog) Load(data []byte) error {
 		return err
 	}
 
+	rules := w.rules()
 	payers := make(map[string]*payer, len(s.Payers))
 	for _, p := range s.Payers {
 		payers[p.Payer] = &payer{
 			lastSeen:  evidence.Time(p.LastSeen),
 			runStart:  evidence.Time(p.RunStart),
 			runClicks: p.RunClicks,
-			gaps:      durations(p.Gaps, w.capacity()),
-			shape:     durations(p.Shape, w.config.Shape.CertainClicks),
-			tries:     instants(p.Tries, w.config.Clock.kept()),
+			gaps:      durations(p.Gaps, capacity(rules)),
+			shape:     durations(p.Shape, rules.Shape.CertainClicks),
+			tries:     instants(p.Tries, rules.Clock.kept()),
 		}
 	}
 

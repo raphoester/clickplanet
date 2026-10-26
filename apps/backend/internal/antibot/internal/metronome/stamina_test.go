@@ -20,9 +20,11 @@ type spenders struct {
 	clock    *cptime.FixedClock
 }
 
-func newSpenders(config metronome.Config) *spenders {
+func newSpenders(rules metronome.Rules, config metronome.Config) *spenders {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 28, 21, 51, 0, 0, time.UTC))
-	return &spenders{watchdog: metronome.New(config, clock, func(float64) {}, func(float64) {}, func(time.Duration) {}), clock: clock}
+	watchdog := metronome.New(config, func() metronome.Rules { return rules }, clock,
+		func(float64) {}, func(float64) {}, func(time.Duration) {})
+	return &spenders{watchdog: watchdog, clock: clock}
 }
 
 func (s *spenders) click(account string) (detect.Verdict, detect.Evidence) {
@@ -55,21 +57,19 @@ func (s *spenders) nightBot(d time.Duration, account string) (detect.Verdict, de
 	return verdict, evidence
 }
 
-func staminaConfig() metronome.Config {
-	return metronome.Config{
-		TrackWindow: 15 * time.Minute,
-		Stamina: metronome.StaminaConfig{
-			Slice:       10 * time.Minute,
-			Clicks:      40,
-			Window:      6 * time.Hour,
-			MinBusy:     4 * time.Hour,
-			CertainBusy: 5*time.Hour + 30*time.Minute,
-		},
+func paced() (metronome.Rules, metronome.Config) {
+	rules := shipped()
+	rules.Stamina = metronome.StaminaRules{
+		Clicks:      40,
+		Window:      6 * time.Hour,
+		MinBusy:     4 * time.Hour,
+		CertainBusy: 5*time.Hour + 30*time.Minute,
 	}
+	return rules, metronome.Config{TrackWindow: 15 * time.Minute, Stamina: metronome.StaminaConfig{Slice: 10 * time.Minute}}
 }
 
 func TestHoursAtThePaceOfTheAllowanceAreCertain(t *testing.T) {
-	s := newSpenders(staminaConfig())
+	s := newSpenders(paced())
 
 	verdict, evidence := s.nightBot(6*time.Hour, "night")
 
@@ -79,7 +79,7 @@ func TestHoursAtThePaceOfTheAllowanceAreCertain(t *testing.T) {
 }
 
 func TestFourHoursAreOnlySuspect(t *testing.T) {
-	s := newSpenders(staminaConfig())
+	s := newSpenders(paced())
 
 	verdict, _ := s.nightBot(4*time.Hour+10*time.Minute, "night")
 
@@ -87,7 +87,7 @@ func TestFourHoursAreOnlySuspect(t *testing.T) {
 }
 
 func TestAPlayerWhoStopsIsNeverCertain(t *testing.T) {
-	s := newSpenders(staminaConfig())
+	s := newSpenders(paced())
 	r := rand.New(rand.NewPCG(20, 9)) //nolint:gosec // a test draw, not a secret.
 
 	for s.clock.Now().Before(time.Date(2026, 9, 29, 12, 0, 0, 0, time.UTC)) {
@@ -101,7 +101,7 @@ func TestAPlayerWhoStopsIsNeverCertain(t *testing.T) {
 }
 
 func TestClickingSlowlyAllNightIsNotSpending(t *testing.T) {
-	s := newSpenders(staminaConfig())
+	s := newSpenders(paced())
 
 	verdict, _ := s.every(20*time.Second, 8*time.Hour, "night")
 
@@ -109,7 +109,7 @@ func TestClickingSlowlyAllNightIsNotSpending(t *testing.T) {
 }
 
 func TestAccountsTakingTurnsOnOneScopeAreEachJudgedAlone(t *testing.T) {
-	s := newSpenders(staminaConfig())
+	s := newSpenders(paced())
 
 	var verdict detect.Verdict
 	for _, account := range []string{"a", "b", "c", "d", "e", "f", "g"} {
@@ -119,7 +119,7 @@ func TestAccountsTakingTurnsOnOneScopeAreEachJudgedAlone(t *testing.T) {
 }
 
 func TestAClickWithNoAccountSpendsItsScopes(t *testing.T) {
-	s := newSpenders(staminaConfig())
+	s := newSpenders(paced())
 
 	verdict, evidence := s.nightBot(6*time.Hour, "")
 
@@ -128,7 +128,7 @@ func TestAClickWithNoAccountSpendsItsScopes(t *testing.T) {
 }
 
 func TestOnlyTheWindowCounts(t *testing.T) {
-	s := newSpenders(staminaConfig())
+	s := newSpenders(paced())
 
 	_, _ = s.nightBot(6*time.Hour, "night")
 	s.clock.Advance(3 * time.Hour)
@@ -139,10 +139,10 @@ func TestOnlyTheWindowCounts(t *testing.T) {
 }
 
 func TestStaminaWithNoBoundOnlyMeasures(t *testing.T) {
-	c := staminaConfig()
-	c.Stamina.MinBusy = 0
-	c.Stamina.CertainBusy = 0
-	s := newSpenders(c)
+	rules, config := paced()
+	rules.Stamina.MinBusy = 0
+	rules.Stamina.CertainBusy = 0
+	s := newSpenders(rules, config)
 
 	verdict, _ := s.nightBot(6*time.Hour, "night")
 
@@ -150,7 +150,7 @@ func TestStaminaWithNoBoundOnlyMeasures(t *testing.T) {
 }
 
 func TestAThrottledTryIsNotSpent(t *testing.T) {
-	s := newSpenders(staminaConfig())
+	s := newSpenders(paced())
 
 	for end := s.clock.Now().Add(6 * time.Hour); s.clock.Now().Before(end); {
 		s.clock.Advance(5 * time.Second)

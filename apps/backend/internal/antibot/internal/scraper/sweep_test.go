@@ -14,7 +14,7 @@ import (
 func TestSweepForgetsIdleCallers(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 15, 21, 0, 0, 0, time.UTC))
 
-	w := New(Config{TrackWindow: time.Minute}, clock, func(float64) {})
+	w := New(Config{TrackWindow: time.Minute}, bounds, clock, func(float64) {})
 
 	w.Listened("player")
 	w.Fetched("player", 1, false)
@@ -29,7 +29,7 @@ func TestSweepForgetsIdleCallers(t *testing.T) {
 func TestAFloodOfReadsKeepsOneSliceAStep(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 15, 21, 0, 0, 0, time.UTC))
 
-	w := New(Config{TrackWindow: 15 * time.Minute}, clock, func(float64) {})
+	w := New(Config{TrackWindow: 15 * time.Minute}, bounds, clock, func(float64) {})
 
 	for range 100_000 {
 		clock.Advance(20 * time.Millisecond)
@@ -43,7 +43,7 @@ func TestSweepReportsTheCallersThatClick(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 15, 21, 0, 0, 0, time.UTC))
 
 	var reported []float64
-	w := New(Config{TrackWindow: 15 * time.Minute}, clock, func(maps float64) { reported = append(reported, maps) })
+	w := New(Config{TrackWindow: 15 * time.Minute}, bounds, clock, func(maps float64) { reported = append(reported, maps) })
 
 	w.Fetched("viewer", 3, false)
 

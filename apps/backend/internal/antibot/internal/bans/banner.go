@@ -2,14 +2,16 @@ package bans
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-type Config struct {
+type Rules struct {
 	Enforce bool
 
 	BanDurations []time.Duration
@@ -17,16 +19,15 @@ type Config struct {
 	ReflagInterval time.Duration
 }
 
-const defaultReflagInterval = 5 * time.Minute
-
-func (c Config) withDefaults() Config {
-	if len(c.BanDurations) == 0 {
-		c.BanDurations = []time.Duration{24 * time.Hour, 7 * 24 * time.Hour, 3 * 365 * 24 * time.Hour}
+func (r Rules) Validate() error {
+	errs := []error{detect.Positive("reflagInterval", r.ReflagInterval)}
+	if len(r.BanDurations) == 0 {
+		errs = append(errs, errors.New("banDurations is empty, and the first offence needs a ban"))
 	}
-	if c.ReflagInterval <= 0 {
-		c.ReflagInterval = defaultReflagInterval
+	for i, duration := range r.BanDurations {
+		errs = append(errs, detect.Positive(fmt.Sprintf("banDurations[%d]", i), duration))
 	}
-	return c
+	return errors.Join(errs...)
 }
 
 type Sentence struct {
@@ -55,7 +56,7 @@ func (k Kind) callerOf(key string) Caller {
 }
 
 func New(
-	config Config,
+	rules func() Rules,
 	pardon time.Duration,
 	clock cptime.Clock,
 	kind Kind,
@@ -64,13 +65,13 @@ func New(
 	enforcer Enforcer,
 ) *Banner {
 	return &Banner{
-		config: config.withDefaults(), pardon: pardon, clock: clock,
+		rules: rules, pardon: pardon, clock: clock,
 		kind: kind, store: store, transactioner: transactioner, enforcer: enforcer,
 	}
 }
 
 type Banner struct {
-	config Config
+	rules  func() Rules
 	pardon time.Duration
 	clock  cptime.Clock
 
@@ -104,7 +105,7 @@ func (r Record) extendedTo(until time.Time) Record {
 }
 
 func (b *Banner) flaggable(record Record, now time.Time) bool {
-	return !record.Pardon.running(now) && !now.Before(record.LastFlaggedAt.Add(b.config.ReflagInterval))
+	return !record.Pardon.running(now) && !now.Before(record.LastFlaggedAt.Add(b.rules().ReflagInterval))
 }
 
 func (b *Banner) flagged(record Record, now time.Time) Record {
@@ -220,7 +221,7 @@ func (b *Banner) change(ctx context.Context, key string, change func(Record, boo
 }
 
 func (b *Banner) enforced(record Record, at time.Time) time.Time {
-	if !b.config.Enforce {
+	if !b.rules().Enforce {
 		return at
 	}
 	return record.ExpiresAt
@@ -290,7 +291,7 @@ func (b *Banner) Pardon(ctx context.Context, key string) (Pardon, bool, error) {
 }
 
 func (b *Banner) duration(offence int) time.Duration {
-	ladder := b.config.BanDurations
+	ladder := b.rules().BanDurations
 	if offence > len(ladder) {
 		return ladder[len(ladder)-1]
 	}
@@ -305,4 +306,4 @@ func (b *Banner) Flagged(ctx context.Context) (int, error) {
 	return len(running), nil
 }
 
-func (b *Banner) Enforcing() bool { return b.config.Enforce }
+func (b *Banner) Enforcing() bool { return b.rules().Enforce }

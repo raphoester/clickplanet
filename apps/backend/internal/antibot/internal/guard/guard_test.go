@@ -10,21 +10,27 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/durationpb"
 
+	antibotv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/bans"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/evidence"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/guard"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 type stack struct {
-	t      *testing.T
-	guard  *guard.Guard
-	clock  *cptime.FixedClock
-	config guard.Config
-	stop   func()
+	t       *testing.T
+	guard   *guard.Guard
+	clock   *cptime.FixedClock
+	config  guard.Config
+	set     *antibotv1.Rules
+	inForce *rules.InForce
+	stop    func()
 
 	bans           *bans.MemoryStore
 	accountBans    *bans.MemoryStore
@@ -40,7 +46,10 @@ type stack struct {
 	errors  []error
 }
 
-func newStack(t *testing.T, options ...func(*guard.Config)) *stack {
+type option func(config *guard.Config, set *antibotv1.Rules)
+
+// The stack judges with production's rule set of 26 October 2026, but for a few bounds of its own.
+func newStack(t *testing.T, options ...option) *stack {
 	t.Helper()
 	s := &stack{
 		t:           t,
@@ -52,105 +61,48 @@ func newStack(t *testing.T, options ...func(*guard.Config)) *stack {
 		accountBans: bans.NewMemoryStore(),
 		enforcer:    &bans.MemoryEnforcer{},
 		evidence:    evidence.NewMemoryPersistence(),
+		inForce:     rules.NewInForce(),
 	}
 
 	config := guard.Config{}
-
-	config.Bans.Enforce = true
-	config.Bans.BanDurations = []time.Duration{time.Hour}
-	config.Bans.ReflagInterval = 5 * time.Minute
-
-	config.Jury.MinSuspects = 2
-	config.Jury.SuspicionWindow = 10 * time.Minute
 	config.Jury.TrackWindow = 15 * time.Minute
+	config.Retaker.TrackWindow = 5 * time.Minute
+	config.Sequencer.TrackWindow = 15 * time.Minute
+	config.Metronome.TrackWindow = 15 * time.Minute
+	config.Catcher.TrackWindow = 30 * time.Minute
+	config.Cohort.V4Bits = 24
+	config.Cohort.V6Bits = 44
+	config.Scraper.TrackWindow = 15 * time.Minute
+	config.Churner.Relay.V4Bits = 24
+	config.Churner.Relay.V6Bits = 32
+	config.Hopper.TrackWindow = 15 * time.Minute
+	config.Rotator.Slot = 5 * time.Minute
 
-	config.Retaker.Enabled = true
-	config.Retaker.Detector.ReactionWindow = 5 * time.Second
-	config.Retaker.Detector.MinReactions = 12
-	config.Retaker.Detector.MaxSpread = 120 * time.Millisecond
-	config.Retaker.Detector.MaxMedian = 250 * time.Millisecond
-	config.Retaker.Detector.TrackWindow = 5 * time.Minute
-
-	config.Sequencer.Enabled = true
-	config.Sequencer.Detector.MinSteps = 40
-	config.Sequencer.Detector.MinShare = 0.75
-	config.Sequencer.Detector.CertainSteps = 200
-	config.Sequencer.Detector.CertainShare = 0.95
-	config.Sequencer.Detector.TrackWindow = 15 * time.Minute
-
-	config.Metronome.Enabled = true
-	config.Metronome.Detector.MaxGap = 3 * time.Second
-	config.Metronome.Detector.MaxSpread = 120 * time.Millisecond
-	config.Metronome.Detector.MinClicks = 120
-	config.Metronome.Detector.CertainFor = 30 * time.Minute
-	config.Metronome.Detector.CertainClicks = 900
-	config.Metronome.Detector.TrackWindow = 15 * time.Minute
-	config.Metronome.Detector.Stamina.MinBusy = 5*time.Hour + 30*time.Minute
-
-	config.Catcher.Enabled = true
-	config.Catcher.Detector.MinCatches = 5
-	config.Catcher.Detector.MaxMedian = 3 * time.Second
-	config.Catcher.Detector.CertainMedian = 1500 * time.Millisecond
-	config.Catcher.Detector.TrackWindow = 30 * time.Minute
-
-	config.Cohort.Enabled = true
-	config.Cohort.Detector.StartWindow = 5 * time.Second
-	config.Cohort.Detector.MinClicks = 20
-	config.Cohort.Detector.MinFlagShare = 0.9
-	config.Cohort.Detector.RateRatio = 1.5
-	config.Cohort.Detector.LengthRatio = 1.2
-	config.Cohort.Detector.QuietAfter = time.Minute
-	config.Cohort.Detector.MinMembers = 2
-	config.Cohort.Detector.V4Bits = 24
-	config.Cohort.Detector.V6Bits = 44
-	config.Cohort.Detector.CertainCohorts = 3
-	config.Cohort.Detector.CertainMembers = 6
-	config.Cohort.Detector.ChainWindow = 30 * time.Minute
-
-	config.Scraper.Enabled = true
-	config.Scraper.Detector.MinMaps = 5
-	config.Scraper.Detector.CertainMaps = 15
-	config.Scraper.Detector.TrackWindow = 15 * time.Minute
-
-	config.Churner.Enabled = true
-	config.Churner.Detector.Window = time.Hour
-	config.Churner.Detector.V6.MinAccounts = 4
-	config.Churner.Detector.V6.CertainAccounts = 6
-	config.Churner.Detector.V4.MinAccounts = 10
-	config.Churner.Detector.V4.CertainAccounts = 20
-	config.Churner.Detector.Relay.Handoff = 90 * time.Second
-	config.Churner.Detector.Relay.MaxLife = 5 * time.Minute
-	config.Churner.Detector.Relay.MinClicks = 20
-	config.Churner.Detector.Relay.MinFlagShare = 0.9
-	config.Churner.Detector.Relay.V4Bits = 24
-	config.Churner.Detector.Relay.V6Bits = 32
-	config.Churner.Detector.Relay.MinLinks = 3
-	config.Churner.Detector.Relay.CertainLinks = 6
-
-	config.Hopper.Enabled = true
-	config.Hopper.Detector.MinAngle = 45
-	config.Hopper.Detector.MinGap = 100 * time.Millisecond
-	config.Hopper.Detector.MaxGap = 30 * time.Second
-	config.Hopper.Detector.MinSteps = 40
-	config.Hopper.Detector.MinShare = 0.4
-	config.Hopper.Detector.TrackWindow = 15 * time.Minute
-
-	config.Rotator.Enabled = true
-	config.Rotator.Detector.Slot = 5 * time.Minute
-	config.Rotator.Detector.Window = 24 * time.Hour
-	config.Rotator.Detector.MinSeconds = 15
-	config.Rotator.Detector.MinByChance = 90
-	config.Rotator.Detector.MaxShare = 0.05
-	config.Rotator.Detector.MinSlots = 24
+	set := rules.Seeded().Rules
+	set.Bans.BanDurations = []*durationpb.Duration{durationpb.New(time.Hour)}
+	set.Retaker.MinReactions = 12
+	set.Retaker.MaxSpread = durationpb.New(120 * time.Millisecond)
+	set.Retaker.MinTiles = 0
+	set.Metronome.MaxGap = durationpb.New(3 * time.Second)
+	set.Metronome.MaxSpread = durationpb.New(120 * time.Millisecond)
+	set.Defender.Enabled = false
 
 	for _, option := range options {
-		option(&config)
+		option(&config, set)
 	}
 
-	s.config = config
+	s.config, s.set = config, set
+	s.play(set)
 	s.boot()
 
 	return s
+}
+
+func (s *stack) play(kept *antibotv1.Rules) {
+	s.t.Helper()
+	set, err := rules.Snapshot{Name: rules.Default, Rules: kept}.Restore(guard.Parts())
+	require.NoError(s.t, err)
+	s.inForce.Enforce(set)
 }
 
 func (s *stack) boot() {
@@ -160,16 +112,12 @@ func (s *stack) boot() {
 		s.evidence = evidence.NewMemoryPersistence()
 	}
 
-	built, err := guard.NewInMemory(s.config, s.clock, guard.Observer{
+	built := guard.NewInMemory(s.config, s.inForce, s.clock, guard.Observer{
 		OnFlag:       func(report guard.Report) { s.reports = append(s.reports, report) },
 		OnRise:       func(watchdog, level string) { s.rises = append(s.rises, watchdog+" "+level) },
 		OnStateError: func(err error) { s.errors = append(s.errors, err) },
 		OnStart:      func(guard.Description) { close(started) },
 	}, s.bans, s.accountBans, s.enforcer, s.evidence)
-	if err != nil {
-		panic(err)
-	}
-
 	if err := built.Load(context.Background()); err != nil {
 		panic(err)
 	}
@@ -305,6 +253,24 @@ func TestTheOvernightSweepIsCaught(t *testing.T) {
 	assert.Equal(t, detect.Suspect, verdicts["sequencer"])
 	assert.Equal(t, detect.Suspect, verdicts["metronome"])
 	assert.Equal(t, detect.Clear, verdicts["retaker"], "it never fought anyone, and it did not have to")
+}
+
+func TestASetTakenJudgesFromTheNextClick(t *testing.T) {
+	s := newStack(t, func(_ *guard.Config, set *antibotv1.Rules) { set.Jury.MinSuspects = 3 })
+
+	tile := uint32(180000)
+	for range 150 {
+		s.clock.Advance(time.Second)
+		require.False(t, s.click("sweeper", tile, "FR"), "two suspects ban nobody while the set asks three")
+		tile++
+	}
+
+	strict := proto.CloneOf(s.set)
+	strict.Jury.MinSuspects = 2
+	s.play(strict)
+
+	s.clock.Advance(time.Second)
+	assert.True(t, s.click("sweeper", tile, "FR"), "the watchdogs and the jury read the set taken, not the one they were built with")
 }
 
 func TestALoneSuspicionIsReportedWithoutABan(t *testing.T) {
@@ -500,19 +466,19 @@ func TestATileWarBansNeither(t *testing.T) {
 	assert.Empty(t, s.reports)
 }
 
-func productionRetakes(config *guard.Config) {
-	config.Defender.Enabled = true
-	config.Defender.Detector.RetakeWindow = 2 * time.Minute
-	config.Defender.Detector.MinClicks = 40
-	config.Defender.Detector.MinShare = 0.6
-	config.Defender.Detector.CertainClicks = 200
-	config.Defender.Detector.TrackWindow = 10 * time.Minute
+func productionRetakes(config *guard.Config, set *antibotv1.Rules) {
+	set.Defender.Enabled = true
+	set.Defender.RetakeWindow = durationpb.New(2 * time.Minute)
+	set.Defender.MinClicks = 40
+	set.Defender.MinShare = 0.6
+	set.Defender.CertainClicks = 200
+	config.Defender.TrackWindow = 10 * time.Minute
 
-	config.Retaker.Detector.MinReactions = 20
-	config.Retaker.Detector.MaxSpread = 300 * time.Millisecond
-	config.Retaker.Detector.MinTiles = 15
-	config.Retaker.Detector.RoamMedian = 600 * time.Millisecond
-	config.Retaker.Detector.TrackWindow = 15 * time.Minute
+	set.Retaker.MinReactions = 20
+	set.Retaker.MaxSpread = durationpb.New(300 * time.Millisecond)
+	set.Retaker.MinTiles = 15
+	set.Retaker.RoamMedian = durationpb.New(600 * time.Millisecond)
+	config.Retaker.TrackWindow = 15 * time.Minute
 }
 
 func (s *stack) polishTile(random *rand.Rand) uint32 {
@@ -874,22 +840,20 @@ func TestExaminingABannedScopeCarriesItsSentence(t *testing.T) {
 	for _, reading := range examination.Readings {
 		watchdogs = append(watchdogs, reading.Watchdog)
 	}
-	assert.Equal(t, []string{"retaker", "sequencer", "metronome", "catcher", "cohort", "scraper", "churner", "hopper", "rotator"}, watchdogs)
+	assert.Equal(t, []string{
+		"retaker", "sequencer", "metronome", "defender", "catcher", "cohort", "scraper", "churner", "hopper", "rotator",
+	}, watchdogs, "every watchdog is built; one turned off reads clear")
 	assert.False(t, examination.Guilty)
 }
 
-func TestValidateNamesTheCohortBoundItRefuses(t *testing.T) {
+func TestValidateNamesTheCohortKeyItRefuses(t *testing.T) {
 	config := guard.Config{}
-	config.Cohort.Enabled = true
-	config.Cohort.Detector.MinMembers = 1
+	config.Cohort.V4Bits = 33
 
 	err := config.Validate()
 
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "antiBot.cohort.detector: minMembers")
-
-	config.Cohort.Enabled = false
-	assert.NoError(t, config.Validate(), "a watchdog that is off has no bounds to get wrong")
+	assert.Contains(t, err.Error(), "antiBot.cohort: v4Bits")
 }
 
 func TestBansSurviveARestart(t *testing.T) {
@@ -946,8 +910,8 @@ func TestAnUnbanAfterTheBanEndedForgetsItsOffence(t *testing.T) {
 	assert.Equal(t, 1, s.ban("", "a-player", 0).Offence, "the ended ban is no offence any more")
 }
 
-func staminaBansAlone(config *guard.Config) {
-	config.Metronome.Detector.Stamina.CertainBusy = 5*time.Hour + 30*time.Minute
+func staminaBansAlone(_ *guard.Config, set *antibotv1.Rules) {
+	set.Metronome.Stamina.CertainBusy = durationpb.New(5*time.Hour + 30*time.Minute)
 }
 
 func TestAnUnbanPardonsTheCallerUntilTheEvidenceThatBannedItIsGone(t *testing.T) {

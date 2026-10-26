@@ -18,16 +18,18 @@ type harness struct {
 	owner     map[uint32]string
 	reactions []time.Duration
 	shields   map[uint32]int
+	rules     retaker.Rules
 }
 
-func newHarness(config retaker.Config) *harness {
+func newHarness(rules retaker.Rules, config retaker.Config) *harness {
 	h := &harness{
 		clock:   cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC)),
 		owner:   map[uint32]string{},
 		shields: map[uint32]int{},
+		rules:   rules,
 	}
 
-	h.watchdog = retaker.New(config, h.clock, func(d time.Duration) {
+	h.watchdog = retaker.New(config, func() retaker.Rules { return h.rules }, h.clock, func(d time.Duration) {
 		h.reactions = append(h.reactions, d)
 	})
 
@@ -78,14 +80,13 @@ func ms(values ...int) []time.Duration {
 	return out
 }
 
-func strictConfig() retaker.Config {
-	return retaker.Config{
+func strict() (retaker.Rules, retaker.Config) {
+	return retaker.Rules{
 		ReactionWindow: 2 * time.Second,
 		MinReactions:   4,
 		MaxMedian:      250 * time.Millisecond,
 		MaxSpread:      120 * time.Millisecond,
-		TrackWindow:    5 * time.Minute,
-	}
+	}, retaker.Config{TrackWindow: 5 * time.Minute}
 }
 
 func (h *harness) war(suspect string, first uint32, delays []time.Duration) detect.Verdict {
@@ -105,7 +106,7 @@ func (h *harness) war(suspect string, first uint32, delays []time.Duration) dete
 }
 
 func TestATightBandOfFastReactionsIsCertain(t *testing.T) {
-	h := newHarness(strictConfig())
+	h := newHarness(strict())
 
 	verdict := h.war("bot", 100, ms(80, 85, 78, 90, 82, 88))
 
@@ -113,7 +114,7 @@ func TestATightBandOfFastReactionsIsCertain(t *testing.T) {
 }
 
 func TestATightBandAtAHumanTempoIsOnlySuspect(t *testing.T) {
-	h := newHarness(strictConfig())
+	h := newHarness(strict())
 
 	verdict := h.war("bot", 200, ms(980, 1010, 995, 1020, 1000, 990))
 
@@ -121,7 +122,7 @@ func TestATightBandAtAHumanTempoIsOnlySuspect(t *testing.T) {
 }
 
 func TestAHumanTileWarIsClear(t *testing.T) {
-	h := newHarness(strictConfig())
+	h := newHarness(strict())
 
 	verdict := h.war("defender", 300, ms(420, 900, 310, 1500, 640, 1100, 380, 780))
 
@@ -129,7 +130,7 @@ func TestAHumanTileWarIsClear(t *testing.T) {
 }
 
 func TestTheReactionIsTimedAndReported(t *testing.T) {
-	h := newHarness(strictConfig())
+	h := newHarness(strict())
 
 	h.war("bot", 400, ms(80, 85, 78, 90))
 
@@ -138,7 +139,7 @@ func TestTheReactionIsTimedAndReported(t *testing.T) {
 }
 
 func TestSpammingATileYouAlreadyOwnDoesNotFrameTheNextClicker(t *testing.T) {
-	h := newHarness(strictConfig())
+	h := newHarness(strict())
 
 	const tile = uint32(500)
 
@@ -155,7 +156,7 @@ func TestSpammingATileYouAlreadyOwnDoesNotFrameTheNextClicker(t *testing.T) {
 }
 
 func TestReactingToYourselfIsNotAReaction(t *testing.T) {
-	h := newHarness(strictConfig())
+	h := newHarness(strict())
 
 	for i := range uint32(10) {
 		tile := 600 + i
@@ -170,11 +171,21 @@ func TestReactingToYourselfIsNotAReaction(t *testing.T) {
 	assert.Empty(t, h.reactions)
 }
 
-func TestASlowReactionIsOutsideTheWindow(t *testing.T) {
-	config := strictConfig()
-	config.ReactionWindow = 500 * time.Millisecond
+func TestARuleChangedAppliesFromTheNextClick(t *testing.T) {
+	h := newHarness(strict())
 
-	h := newHarness(config)
+	require.Equal(t, detect.Suspect, h.war("bot", 200, ms(980, 1010, 995, 1020, 1000, 990)))
+
+	h.rules.MaxMedian = 1500 * time.Millisecond
+
+	assert.Equal(t, detect.Certain, h.war("bot", 250, ms(1000)), "the watchdog reads the rules when it judges")
+}
+
+func TestASlowReactionIsOutsideTheWindow(t *testing.T) {
+	rules, config := strict()
+	rules.ReactionWindow = 500 * time.Millisecond
+
+	h := newHarness(rules, config)
 
 	h.war("other", 700, ms(3000, 3000, 3000, 3000))
 
@@ -182,7 +193,7 @@ func TestASlowReactionIsOutsideTheWindow(t *testing.T) {
 }
 
 func TestARefusedClickCannotFrameAnHonestPlayer(t *testing.T) {
-	h := newHarness(strictConfig())
+	h := newHarness(strict())
 
 	for i := range uint32(12) {
 		tile := 800 + i
@@ -199,7 +210,7 @@ func TestARefusedClickCannotFrameAnHonestPlayer(t *testing.T) {
 }
 
 func TestADroppedClickCannotFrameAnHonestPlayer(t *testing.T) {
-	h := newHarness(strictConfig())
+	h := newHarness(strict())
 
 	const contested = uint32(900)
 
@@ -217,10 +228,10 @@ func TestADroppedClickCannotFrameAnHonestPlayer(t *testing.T) {
 }
 
 func TestReactionsAgeOutOfTheWindow(t *testing.T) {
-	config := strictConfig()
+	rules, config := strict()
 	config.TrackWindow = time.Minute
 
-	h := newHarness(config)
+	h := newHarness(rules, config)
 
 	require.Equal(t, detect.Certain, h.war("bot", 1000, ms(80, 85, 78, 90)))
 
@@ -230,16 +241,15 @@ func TestReactionsAgeOutOfTheWindow(t *testing.T) {
 		"stale reactions must not keep a verdict alive")
 }
 
-func productionConfig() retaker.Config {
-	return retaker.Config{
+func production() (retaker.Rules, retaker.Config) {
+	return retaker.Rules{
 		ReactionWindow: 5 * time.Second,
 		MinReactions:   20,
 		MaxSpread:      300 * time.Millisecond,
 		MaxMedian:      250 * time.Millisecond,
 		MinTiles:       15,
 		RoamMedian:     600 * time.Millisecond,
-		TrackWindow:    15 * time.Minute,
-	}
+	}, retaker.Config{TrackWindow: 15 * time.Minute}
 }
 
 func recaptureBot(n int) []time.Duration {
@@ -253,7 +263,7 @@ func recaptureBot(n int) []time.Duration {
 }
 
 func TestTheRecaptureBotOfSeptember14IsOnlySuspect(t *testing.T) {
-	h := newHarness(productionConfig())
+	h := newHarness(production())
 
 	assert.Equal(t, detect.Suspect, h.war("bot", 2000, recaptureBot(20)),
 		"too loose a band for the reflex rule, too fast across twenty tiles for a hand")
@@ -263,17 +273,17 @@ func TestTheRecaptureBotOfSeptember14IsOnlySuspect(t *testing.T) {
 }
 
 func TestRoamIsCertainOnlyWhereCertainTilesIsSet(t *testing.T) {
-	config := productionConfig()
-	config.CertainTiles = 30
+	rules, config := production()
+	rules.CertainTiles = 30
 
-	h := newHarness(config)
+	h := newHarness(rules, config)
 
 	require.Equal(t, detect.Suspect, h.war("bot", 2000, recaptureBot(29)))
 	assert.Equal(t, detect.Certain, h.war("bot", 3000, recaptureBot(1)))
 }
 
 func TestTheSameSpeedOnAFewTilesIsATileWar(t *testing.T) {
-	h := newHarness(productionConfig())
+	h := newHarness(production())
 
 	var verdict detect.Verdict
 	for i, delay := range recaptureBot(60) {
@@ -290,7 +300,7 @@ func TestTheSameSpeedOnAFewTilesIsATileWar(t *testing.T) {
 }
 
 func TestHumanReactionsAcrossManyTilesAreClear(t *testing.T) {
-	h := newHarness(productionConfig())
+	h := newHarness(production())
 
 	delays := make([]time.Duration, 0, 60)
 	for range 6 {
@@ -301,16 +311,16 @@ func TestHumanReactionsAcrossManyTilesAreClear(t *testing.T) {
 }
 
 func TestRoamIsOffWithoutMinTiles(t *testing.T) {
-	config := productionConfig()
-	config.MinTiles = 0
+	rules, config := production()
+	rules.MinTiles = 0
 
-	h := newHarness(config)
+	h := newHarness(rules, config)
 
 	assert.Equal(t, detect.Clear, h.war("bot", 6000, recaptureBot(40)))
 }
 
 func TestAStrikeOnAShieldIsNothingToReactTo(t *testing.T) {
-	h := newHarness(retaker.Config{})
+	h := newHarness(strict())
 	h.owner[7], h.shields[7] = "BG", 2
 
 	h.click("attacker", 7, "FR")

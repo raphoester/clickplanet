@@ -2,6 +2,7 @@ package scraper
 
 import (
 	"context"
+	"errors"
 	"math"
 	"sync"
 	"time"
@@ -12,21 +13,30 @@ import (
 
 const Name = "scraper"
 
-type Config struct {
+type Rules struct {
+	Enabled bool
+
 	MinMaps float64
 
 	CertainMaps float64
 
 	CertainOffMap int
+}
 
+func (r Rules) Validate() error {
+	return errors.Join(
+		detect.Positive("minMaps", r.MinMaps),
+		detect.AtLeast("certainMaps", r.CertainMaps, "minMaps", r.MinMaps),
+		detect.Positive("certainOffMap", r.CertainOffMap),
+	)
+}
+
+type Config struct {
 	TrackWindow   time.Duration
 	SweepInterval time.Duration
 }
 
 const (
-	defaultMinMaps       = 5
-	defaultCertainMaps   = 15
-	defaultCertainOffMap = 2
 	defaultTrackWindow   = 15 * time.Minute
 	defaultSweepInterval = time.Minute
 
@@ -35,18 +45,6 @@ const (
 )
 
 func (c Config) withDefaults() Config {
-	if c.MinMaps <= 0 {
-		c.MinMaps = defaultMinMaps
-	}
-	if c.CertainMaps <= 0 {
-		c.CertainMaps = defaultCertainMaps
-	}
-	if c.CertainMaps < c.MinMaps {
-		c.CertainMaps = c.MinMaps
-	}
-	if c.CertainOffMap <= 0 {
-		c.CertainOffMap = defaultCertainOffMap
-	}
 	if c.TrackWindow <= 0 {
 		c.TrackWindow = defaultTrackWindow
 	}
@@ -56,11 +54,12 @@ func (c Config) withDefaults() Config {
 	return c
 }
 
-func New(config Config, clock cptime.Clock, onMaps func(maps float64)) *Watchdog {
+func New(config Config, rules func() Rules, clock cptime.Clock, onMaps func(maps float64)) *Watchdog {
 	config = config.withDefaults()
 
 	return &Watchdog{
 		config:  config,
+		rules:   rules,
 		step:    config.TrackWindow / steps,
 		clock:   clock,
 		onMaps:  onMaps,
@@ -70,6 +69,7 @@ func New(config Config, clock cptime.Clock, onMaps func(maps float64)) *Watchdog
 
 type Watchdog struct {
 	config Config
+	rules  func() Rules
 	step   time.Duration
 	clock  cptime.Clock
 	onMaps func(float64)
@@ -93,6 +93,8 @@ type slice struct {
 }
 
 func (w *Watchdog) Name() string { return Name }
+
+func (w *Watchdog) Enabled() bool { return w.rules().Enabled }
 
 func (w *Watchdog) Fetched(scope string, maps float64, offMap bool) {
 	if scope == "" || (maps <= 0 && !offMap) {
@@ -134,6 +136,8 @@ func (w *Watchdog) Attempted(click detect.Click) {
 func (w *Watchdog) Committed(detect.Click) {}
 
 func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
+	rules := w.rules()
+
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
@@ -147,11 +151,11 @@ func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 
 	verdict, rule := detect.Clear, "poll"
 	switch {
-	case offMap >= w.config.CertainOffMap:
+	case offMap >= rules.CertainOffMap:
 		verdict, rule = detect.Certain, "offMap"
-	case unexplained >= w.config.CertainMaps:
+	case unexplained >= rules.CertainMaps:
 		verdict = detect.Certain
-	case unexplained >= w.config.MinMaps:
+	case unexplained >= rules.MinMaps:
 		verdict = detect.Suspect
 	}
 
