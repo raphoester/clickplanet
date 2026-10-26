@@ -24,16 +24,20 @@ type Blast struct {
 }
 
 type Change struct {
+	Version       MapVersion
 	Update        *TileUpdate
 	Blast         *Blast
 	Fortification *Fortification
+	// The rows the writes since the last census changed, each whole: a flag at zero is listed.
+	Census *Census
 }
 
 // Tiles holds two little-endian bytes per tile, each an index into Codes.
 type DenseBatch struct {
-	Start uint32
-	Codes []string
-	Tiles []byte
+	Version MapVersion
+	Start   uint32
+	Codes   []string
+	Tiles   []byte
 
 	Shields []TileShields
 }
