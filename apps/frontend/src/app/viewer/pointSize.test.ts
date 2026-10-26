@@ -3,6 +3,7 @@ import {
     coarseHandover,
     displayPointSize,
     flagPaint,
+    inOrbit,
     MAX_PICK_WINDOW,
     pickWindowSize,
     tilePointSize,
@@ -132,6 +133,19 @@ describe("the zoom the tiles take over from", () => {
             expect(flagPaint(tilesZoomOf(height), height, "flags"), `${height}px`).toBeCloseTo(0, 9)
             expect(flagPaint(tilesZoomOf(height) * 0.95, height, "flags"), `${height}px`).toBeGreaterThan(0)
         }
+    })
+})
+
+describe("orbit", () => {
+    it("is exactly where the painted flags have the frame to themselves", () => {
+        everyView((zoom, height) => {
+            expect(inOrbit(zoom, height), `zoom ${zoom} at ${height}px`).toBe(flagPaint(zoom, height, "flags") === 1)
+        })
+    })
+
+    it("is the opening view on a common screen, and ends before the tiles have the frame", () => {
+        expect(inOrbit(1, 900)).toBe(true)
+        for (const height of VIEWPORTS) expect(inOrbit(tilesZoomOf(height), height), `${height}px`).toBe(false)
     })
 })
 

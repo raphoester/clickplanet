@@ -19,6 +19,7 @@ flat in float vFlagShare;
 flat in float vSpriteSize;
 flat in float vShield;
 flat in float vPulse;
+flat in float vHighlit;
 #ifdef LIT
 flat in float vShade;
 flat in float vHaze;
@@ -32,6 +33,9 @@ varying float vFortify;
 const float KEYLINE_WIDTH = 1.5;
 const float KEYLINE_FEATHER = 0.5;
 const float KEYLINE_MOST = 0.03;
+
+const float HIGHLIGHT_LIFT = 0.2;
+const float HIGHLIGHT_FLOOR = 0.35;
 
 vec2 atlasUVof(vec4 region, vec2 uv) {
     vec2 origin = vec2(region.x, atlasTextureSize.y - region.y - region.w) / atlasTextureSize;
@@ -107,6 +111,8 @@ void main() {
 #ifdef LIT
     colour.rgb = lit(colour.rgb, vShade, vHaze);
 #endif
+
+    if (vHighlit > 0.5) colour = vec4(mix(colour.rgb, vec3(1.0), HIGHLIGHT_LIFT), max(colour.a, HIGHLIGHT_FLOOR));
 
     if (vShield > 0.5) colour = shielded(colour, coordinates);
 
