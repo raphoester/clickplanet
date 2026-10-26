@@ -1,6 +1,6 @@
 import * as THREE from "three"
 import {regions} from "./atlas.ts"
-import type {SlotCandidate} from "./flagSlot.ts"
+import type {Slots} from "./slotRanking.ts"
 import flagFit from "../../../static/countries/flagFit.json"
 
 const LANDMASS_TEXELS = 4
@@ -80,16 +80,30 @@ export class BorderField {
         return this.data.totals[landmass] ?? 0
     }
 
-    // Every painted flag, measured by `widthOf`: its width on screen reaching halfU and halfV from (x, y, z), or nothing out of view.
-    slotCandidates(widthOf: (x: number, y: number, z: number, halfU: number, halfV: number) => number | undefined): SlotCandidate[] {
-        const candidates: SlotCandidate[] = []
+    // Each painted flag's largest landmass, as the half-width of its frame along the ground.
+    flagNeeds(): Map<string, number> {
+        const needs = new Map<string, number>()
         for (let landmass = 1; landmass < this.landmassCount; landmass++) {
+            const holder = this.painted[landmass]
             const at = landmass * LANDMASS_TEXELS * 4
-            if (this.rows[at + 10] <= 0) continue
-            const width = widthOf(this.rows[at], this.rows[at + 1], this.rows[at + 2], this.rows[at + 3], this.rows[at + 7])
-            candidates.push({landmass, screenWidth: width ?? 0, spriteWidth: this.rows[at + 10], inView: width !== undefined})
+            if (holder === undefined || this.rows[at + 10] <= 0) continue
+            needs.set(holder, Math.max(needs.get(holder) ?? 0, this.rows[at + 3]))
         }
-        return candidates
+        return needs
+    }
+
+    // Points each painted landmass at the slot its holder's flag is drawn in, 0 for the atlas.
+    markSlots(slots: Slots) {
+        let changed = false
+        for (let landmass = 1; landmass < this.landmassCount; landmass++) {
+            const holder = this.painted[landmass]
+            const mark = holder === undefined ? 0 : slots.indexOf(holder) + 1
+            const at = landmass * LANDMASS_TEXELS * 4
+            if (this.rows[at + 13] === mark) continue
+            this.rows[at + 13] = mark
+            changed = true
+        }
+        if (changed) this.landmassData.needsUpdate = true
     }
 
     // Paints each landmass from its row: the flag that leads it, at the share of it that flag holds.
