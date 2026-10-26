@@ -43,9 +43,9 @@ func (o owners) Owner(tile uint32) (string, bool) {
 	return owner, ok
 }
 
-type tempo float64
-
-func (t tempo) Tempo() float64 { return float64(t) }
+func tempo(pace float64) func() clicks.Throttle {
+	return func() clicks.Throttle { return clicks.Throttle{Tempo: pace} }
+}
 
 type positions map[uint32]clicks.Vec3
 

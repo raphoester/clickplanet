@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconfigs"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
@@ -81,23 +82,31 @@ func TestTheLocalStackConfigHasTheMapOfTheExampleAndAnInternalListener(t *testin
 	assert.NotEmpty(t, local.HTTPServer.InternalBindAddress, "chat, player and seasons dial it while they are built")
 }
 
-// koanf drops a key no struct reads, so a game rule written back in a file would change nothing, silently.
-func TestNoConfigFileHoldsAGameRule(t *testing.T) {
-	moved := []string{
-		"toll",
-		"rateLimiter.perSecond", "rateLimiter.burst", "rateLimiter.scopeMultiplier", "rateLimiter.v6ScopeMultiplier",
-		"rateLimiter.guestScopeMultiplier", "rateLimiter.linkedMultiplier", "rateLimiter.newAccountClicks",
-		"bonus.kinds", "bonus.offerTTL", "bonus.missRetry", "bonus.activeWithin", "bonus.minInterval", "bonus.maxInterval",
-		"bonus.maxChargesPerHour", "bonus.spread", "bonus.bomb", "bonus.enclose", "bonus.shield", "bonus.welcome",
-		"bonus.quiz",
-	}
+// planet's rules are kept in postgres (planet.rule_sets): a rule left in a file would be read by nothing.
+func TestEveryPlanetKeyIsOneTheConfigReads(t *testing.T) {
+	theirs := reflect.TypeOf(Config{})
+	for _, path := range []string{"example.yaml", "../../../../deploy/vps/backend.yaml", "../../../../deploy/backend.yaml"} {
+		t.Run(path, func(t *testing.T) {
+			file := koanf.New(".")
+			require.NoError(t, file.Load(kfile.Provider(path), yaml.Parser()))
+			for _, key := range file.MapKeys("") {
+				for i := range theirs.NumField() {
+					if field := theirs.Field(i); field.Name != "Planet" && strings.EqualFold(field.Name, key) {
+						file.Delete(key)
+					}
+				}
+			}
 
-	for _, path := range []string{"example.yaml", "../../../../deploy/backend.yaml", "../../../../deploy/vps/backend.yaml"} {
-		k := koanf.New(".")
-		require.NoError(t, k.Load(kfile.Provider(path), yaml.Parser()))
-		for _, key := range moved {
-			assert.False(t, k.Exists(key), "%s holds %s, which the rule sets keep now", path, key)
-		}
+			var config planet.Config
+			require.NoError(t, file.UnmarshalWithConf("", &config, koanf.UnmarshalConf{
+				DecoderConfig: &mapstructure.DecoderConfig{
+					DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
+					ErrorUnused:      true,
+					WeaklyTypedInput: true,
+					Result:           &config,
+				},
+			}))
+		})
 	}
 }
 

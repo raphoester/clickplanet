@@ -580,7 +580,7 @@ func (s *stubTiles) Clear(_ context.Context, blast clicks.Blast) (clicks.Blast, 
 
 func recorded(tiles *stubTiles) (ledger.Recording, *inmemory_ledger_storage.Storage) {
 	events := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence(), slog.New(slog.DiscardHandler))
-	return ledger.NewRecording(tiles, clicks.NewClaiming(tiles, &clicks.FixedRules{Shields: 10}), events, cptime.NewFixedClock(start)), events
+	return ledger.NewRecording(tiles, clicks.NewClaiming(tiles, func() int { return 10 }), events, cptime.NewFixedClock(start)), events
 }
 
 func written(storage ledger.Storage) []ledger.Event {

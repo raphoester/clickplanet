@@ -6,12 +6,11 @@ import (
 	"errors"
 	"log/slog"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
+	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/usecases/save_rule_set_usecase/audit_save_rule_set"
 )
@@ -20,12 +19,7 @@ type stubUseCase struct{ err error }
 
 func (s stubUseCase) Execute(context.Context, rules.Snapshot) error { return s.err }
 
-var saved = func() rules.Snapshot {
-	rush := rules.TestSnapshot("rush")
-	rush.Tempo = 3
-	rush.Bonuses.Boxes = bonuses.Pace{MinInterval: time.Minute, MaxInterval: 2 * time.Minute, MaxChargesPerHour: 30}
-	return rush
-}()
+var saved = rules.Named("rush", func(r *planetv1.Rules) { r.Bonuses.Boxes.MaxChargesPerHour = 30 })
 
 func TestEverySaveIsLoggedWithItsValues(t *testing.T) {
 	var logs bytes.Buffer

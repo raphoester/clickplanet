@@ -4,8 +4,9 @@ import (
 	"context"
 	"log/slog"
 
+	"google.golang.org/protobuf/encoding/protojson"
+
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/rule_set_message"
 )
 
 type UseCase interface {
@@ -24,8 +25,8 @@ type Audited struct {
 func (a *Audited) Execute(ctx context.Context, in rules.Snapshot) error {
 	err := a.inner.Execute(ctx, in)
 
-	document, _ := rule_set_message.Document(in)
-	attrs := []any{slog.String("set", string(in.Name)), slog.String("rules", string(document))}
+	written, _ := protojson.Marshal(in.Rules)
+	attrs := []any{slog.String("set", string(in.Name)), slog.String("rules", string(written))}
 
 	if err != nil {
 		a.logger.Warn("admin rule set refused", append(attrs, slog.Any("error", err))...)

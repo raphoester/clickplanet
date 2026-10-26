@@ -2,9 +2,11 @@ package clicks
 
 import (
 	"context"
+	"errors"
 	"net/netip"
 	"time"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipscope"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
@@ -12,6 +14,8 @@ import (
 
 // Throttle is what the rule set in force says of the click buckets.
 type Throttle struct {
+	Tempo float64
+
 	PerSecond float64
 	Burst     int
 
@@ -23,16 +27,34 @@ type Throttle struct {
 	NewAccountClicks float64
 }
 
-type ThrottleInForce interface {
-	Throttle() Throttle
+func (t Throttle) Validate() error {
+	return errors.Join(
+		rules.Positive("tempo", t.Tempo), rules.Finite("tempo", t.Tempo),
+		rules.Positive("perSecond", t.PerSecond), rules.Finite("perSecond", t.PerSecond),
+		rules.AtLeast("burst", t.Burst, "one click", 1),
+		rules.AtLeast("scopeMultiplier", t.ScopeMultiplier, "one account", 1), rules.Finite("scopeMultiplier", t.ScopeMultiplier),
+		rules.AtLeast("v6ScopeMultiplier", t.V6ScopeMultiplier, "one account", 1),
+		rules.Finite("v6ScopeMultiplier", t.V6ScopeMultiplier),
+		rules.AtLeast("guestScopeMultiplier", t.GuestScopeMultiplier, "one account", 1),
+		rules.Finite("guestScopeMultiplier", t.GuestScopeMultiplier),
+		rules.AtLeast("linkedMultiplier", t.LinkedMultiplier, "the plain refill", 1),
+		rules.Finite("linkedMultiplier", t.LinkedMultiplier),
+		rules.NotNegative("newAccountClicks", t.NewAccountClicks),
+		rules.AtMost("newAccountClicks", t.NewAccountClicks, "burst", float64(t.Burst)),
+	)
 }
 
-func NewBuckets(rules ThrottleInForce) Buckets {
-	return Buckets{rules: rules}
+// Policy is the limiter's part: the refill and the bank before any scale or pace, from when the set took over.
+func (t Throttle) Policy(since time.Time) cpratelimit.Policy {
+	return cpratelimit.Policy{PerSecond: t.PerSecond, Burst: t.Burst, Tempo: t.Tempo, Since: since}
+}
+
+func NewBuckets(throttle func() Throttle) Buckets {
+	return Buckets{throttle: throttle}
 }
 
 type Buckets struct {
-	rules ThrottleInForce
+	throttle func() Throttle
 }
 
 type SharedWith int
@@ -54,7 +76,7 @@ func (b Buckets) BudgetOf(payer Payer, states []cpratelimit.State, price Price) 
 		State:            state,
 		SharedWith:       b.pools(payer, price)[i].sharedWith,
 		Price:            price,
-		LinkedMultiplier: b.rules.Throttle().LinkedMultiplier,
+		LinkedMultiplier: b.throttle().LinkedMultiplier,
 	}
 }
 
@@ -120,7 +142,7 @@ func (b Buckets) pools(payer Payer, price Price) []pool {
 		return []pool{{key: cpratelimit.Key{Name: payer.Scope, Scale: 1, Pace: pace}, sharedWith: SharedWithNobody}}
 	}
 
-	throttle := b.rules.Throttle()
+	throttle := b.throttle()
 	scope := pool{key: cpratelimit.Key{Name: "scope:" + payer.Scope, Scale: throttle.scopeScale(payer.Scope)}, sharedWith: SharedWithScope}
 
 	if payer.Linked {

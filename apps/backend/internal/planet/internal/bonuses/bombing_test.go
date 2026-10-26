@@ -27,7 +27,7 @@ func (g *ground) Within(centre clicks.Vec3, radius float64) []uint32 {
 func bombOf(rings float64, spacing float64) bonuses.Bombing {
 	rules := bonuses.TestRules()
 	rules.Bomb.Rings = rings
-	return bonuses.NewBombing(&bonuses.FixedRules{Rules: rules}, spacing)
+	return bonuses.NewBombing(func() bonuses.Rules { return rules }, spacing)
 }
 
 var bomb = bombOf(10, 0.003)
@@ -38,10 +38,10 @@ func TestABombIsSizedOffTheMap(t *testing.T) {
 }
 
 func TestABombFollowsTheRingsInForce(t *testing.T) {
-	rules := &bonuses.FixedRules{Rules: bonuses.TestRules()}
-	bombing := bonuses.NewBombing(rules, 0.003)
+	rules := bonuses.TestRules()
+	bombing := bonuses.NewBombing(func() bonuses.Rules { return rules }, 0.003)
 
-	rules.Rules.Bomb.Rings = 2
+	rules.Bomb.Rings = 2
 
 	assert.InDelta(t, 0.006, bombing.Radius(), 1e-9)
 }

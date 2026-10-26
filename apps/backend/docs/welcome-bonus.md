@@ -13,7 +13,7 @@ the first box and quiz came 4-8 minutes in, so they never saw one.
   answer is shields. `bonus_click` sits **outside** `throttle_click` so it reads the bank the
   click left: `Click.Dry` is `out.Limited && out.Budget.Empty()`, fewer than one click, which is
   when the client stops sending. The quiz is due at once and the next sweep (1s) asks it. While
-  quizzes are off (`quiz.enabled`), none is owed.
+  quizzes are off (`bonuses.quiz.enabled`), none is owed.
 - **Never a refill or a bomb.** `newAccountClicks` exists because one phone made an account a
   minute for a fresh bank; a welcome refill would hand that back, and a bomb would be a free strike
   per account. A spread click still costs a click, and a shield is placed with none, so a

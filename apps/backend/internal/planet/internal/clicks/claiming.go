@@ -22,18 +22,14 @@ type Claimable interface {
 	Fortify(ctx context.Context, tile uint32, flag string, most int) (Fortification, error)
 }
 
-type ShieldCap interface {
-	ShieldsPerTile() int
-}
-
-func NewClaiming(tiles Claimable, shieldCap ShieldCap) Claiming {
-	return Claiming{tiles: tiles, shielding: NewShielding(tiles), shieldCap: shieldCap}
+func NewClaiming(tiles Claimable, shieldsPerTile func() int) Claiming {
+	return Claiming{tiles: tiles, shielding: NewShielding(tiles), shieldsPerTile: shieldsPerTile}
 }
 
 type Claiming struct {
-	tiles     Claimable
-	shielding Shielding
-	shieldCap ShieldCap
+	tiles          Claimable
+	shielding      Shielding
+	shieldsPerTile func() int
 }
 
 func (c Claiming) Click(ctx context.Context, tile uint32, flag string) (Impact, error) {
@@ -54,7 +50,7 @@ func (c Claiming) claim(ctx context.Context, tile uint32, flag string, write fun
 
 	var fortified *Fortification
 	if outcome == Taken {
-		fortification, err := c.tiles.Fortify(ctx, tile, flag, c.shieldCap.ShieldsPerTile())
+		fortification, err := c.tiles.Fortify(ctx, tile, flag, c.shieldsPerTile())
 		switch {
 		case err == nil:
 			fortified = &fortification

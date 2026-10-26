@@ -7,134 +7,148 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/durationpb"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/parts"
 )
 
-func rushSnapshot() rules.Snapshot {
-	rush := rules.TestSnapshot("rush")
-	rush.Tempo = 3
-	rush.Bonuses.Boxes = bonuses.Pace{MinInterval: time.Minute, MaxInterval: 2 * time.Minute, MaxChargesPerHour: 30}
-	return rush
+func rush() rules.Snapshot {
+	return rules.Named("rush", func(r *planetv1.Rules) {
+		r.Clicks.Tempo = 3
+		r.Bonuses.Boxes = &planetv1.BoxPace{
+			MinInterval: durationpb.New(time.Minute), MaxInterval: durationpb.New(2 * time.Minute), MaxChargesPerHour: 30,
+		}
+	})
+}
+
+func restored(t *testing.T, snapshot rules.Snapshot) rules.Set {
+	t.Helper()
+
+	set, err := snapshot.Restore(parts.All())
+	require.NoError(t, err)
+	return set
 }
 
 func TestASetIsWhatItWasMadeOf(t *testing.T) {
-	set, err := rushSnapshot().Restore()
-	require.NoError(t, err)
+	set := restored(t, rush())
 
-	assert.Equal(t, rushSnapshot(), set.TakeSnapshot())
+	kept := set.TakeSnapshot()
+	assert.Equal(t, rules.SetName("rush"), kept.Name)
+	assert.True(t, proto.Equal(rush().Rules, kept.Rules))
 }
 
 func TestASetKeepsNothingItsSnapshotsShare(t *testing.T) {
-	snapshot := rushSnapshot()
-	set, err := snapshot.Restore()
-	require.NoError(t, err)
+	snapshot := rush()
+	set := restored(t, snapshot)
 
-	snapshot.Toll[0].Slowdown = 9
-	snapshot.Bonuses.Kinds[bonuses.KindBomb] = 9
-	taken := set.TakeSnapshot()
-	taken.Toll[1].Share = 0.9
+	snapshot.Rules.Clicks.Tempo = 9
+	set.TakeSnapshot().Rules.Bonuses.Shield.PerTile = 99
 
-	assert.True(t, rushSnapshot().Equal(set.TakeSnapshot()))
+	assert.True(t, set.Equal(restored(t, rush())))
 }
 
-func TestASetThatCannotPlayIsRefused(t *testing.T) {
-	broken := map[string]func(*rules.Snapshot){
-		"no name":                          func(s *rules.Snapshot) { s.Name = "" },
-		"a name with capitals":             func(s *rules.Snapshot) { s.Name = "Rush" },
-		"a name too long":                  func(s *rules.Snapshot) { s.Name = "a234567890123456789012345678901234" },
-		"no tempo":                         func(s *rules.Snapshot) { s.Tempo = 0 },
-		"a tempo that is no number":        func(s *rules.Snapshot) { s.Tempo = math.NaN() },
-		"no refill":                        func(s *rules.Snapshot) { s.Clicks.PerSecond = 0 },
-		"an endless refill":                func(s *rules.Snapshot) { s.Clicks.PerSecond = math.Inf(1) },
-		"no bank":                          func(s *rules.Snapshot) { s.Clicks.Burst = 0 },
-		"a scope smaller than an account":  func(s *rules.Snapshot) { s.Clicks.ScopeMultiplier = 0.5 },
-		"a /64 smaller than an account":    func(s *rules.Snapshot) { s.Clicks.V6ScopeMultiplier = 0 },
-		"guests smaller than an account":   func(s *rules.Snapshot) { s.Clicks.GuestScopeMultiplier = math.NaN() },
-		"signing in that slows the refill": func(s *rules.Snapshot) { s.Clicks.LinkedMultiplier = 0.5 },
-		"a new bank in debt":               func(s *rules.Snapshot) { s.Clicks.NewAccountClicks = -1 },
-		"a new bank bigger than a bank":    func(s *rules.Snapshot) { s.Clicks.NewAccountClicks = 11 },
-		"a toll slowdown of one": func(s *rules.Snapshot) {
-			s.Toll = []clicks.TollStep{{Share: 0.1, Slowdown: 1}}
-		},
-		"a falling toll slowdown": func(s *rules.Snapshot) {
-			s.Toll = []clicks.TollStep{{Share: 0.1, Slowdown: 1.5}, {Share: 0.2, Slowdown: 1.25}}
-		},
-		"a falling toll share": func(s *rules.Snapshot) {
-			s.Toll = []clicks.TollStep{{Share: 0.5, Slowdown: 2}, {Share: 0.2, Slowdown: 3}}
-		},
-		"a toll share of zero":       func(s *rules.Snapshot) { s.Toll = []clicks.TollStep{{Share: 0, Slowdown: 2}} },
-		"a toll share above the map": func(s *rules.Snapshot) { s.Toll = []clicks.TollStep{{Share: 1.5, Slowdown: 2}} },
-		"an endless toll slowdown": func(s *rules.Snapshot) {
-			s.Toll = []clicks.TollStep{{Share: 0.5, Slowdown: math.Inf(1)}}
-		},
-		"no shortest box wait":         func(s *rules.Snapshot) { s.Bonuses.Boxes.MinInterval = 0 },
-		"a longest box wait too short": func(s *rules.Snapshot) { s.Bonuses.Boxes.MaxInterval = 30 * time.Second },
-		"no hourly box cap":            func(s *rules.Snapshot) { s.Bonuses.Boxes.MaxChargesPerHour = 0 },
-		"a kind that is not one":       func(s *rules.Snapshot) { s.Bonuses.Kinds["quadruple_clicks"] = 1 },
-		"a kind not weighed":           func(s *rules.Snapshot) { delete(s.Bonuses.Kinds, bonuses.KindBomb) },
-		"a weight below 0":             func(s *rules.Snapshot) { s.Bonuses.Kinds[bonuses.KindBomb] = -1 },
-		"every weight 0": func(s *rules.Snapshot) {
-			for kind := range s.Bonuses.Kinds {
-				s.Bonuses.Kinds[kind] = 0
-			}
-		},
-		"a box that never flies":         func(s *rules.Snapshot) { s.Bonuses.OfferTTL = 0 },
-		"no miss retry":                  func(s *rules.Snapshot) { s.Bonuses.MissRetry = 0 },
-		"nobody active":                  func(s *rules.Snapshot) { s.Bonuses.ActiveWithin = 0 },
-		"no spread pool":                 func(s *rules.Snapshot) { s.Bonuses.Spread.Clicks = 0 },
-		"a spread box of nothing":        func(s *rules.Snapshot) { s.Bonuses.Spread.MaxPerBox = 0 },
-		"a bomb with no blast":           func(s *rules.Snapshot) { s.Bonuses.Bomb.Rings = 0 },
-		"an enclosure of no tile":        func(s *rules.Snapshot) { s.Bonuses.Enclose.MaxTiles = 0 },
-		"no enclosure stack":             func(s *rules.Snapshot) { s.Bonuses.Enclose.Held = 0 },
-		"an enclose box of nothing":      func(s *rules.Snapshot) { s.Bonuses.Enclose.MaxPerBox = 0 },
-		"no shield stack":                func(s *rules.Snapshot) { s.Bonuses.Shield.Held = 0 },
-		"a shield box of nothing":        func(s *rules.Snapshot) { s.Bonuses.Shield.MinPerBox = 0 },
-		"a shield box upside down":       func(s *rules.Snapshot) { s.Bonuses.Shield.MaxPerBox = 4 },
-		"no shield on a tile":            func(s *rules.Snapshot) { s.Bonuses.Shield.PerTile = 0 },
-		"more shields than a tile holds": func(s *rules.Snapshot) { s.Bonuses.Shield.PerTile = 256 },
-		"a welcome in the past":          func(s *rules.Snapshot) { s.Bonuses.Welcome.Within = -time.Minute },
-		"a first box before the account": func(s *rules.Snapshot) { s.Bonuses.Welcome.BoxAfter = -time.Minute },
-		"no shortest quiz wait":          func(s *rules.Snapshot) { s.Bonuses.Quiz.MinInterval = 0 },
-		"a longest quiz wait too short":  func(s *rules.Snapshot) { s.Bonuses.Quiz.MaxInterval = time.Minute },
-		"no quiz miss retry":             func(s *rules.Snapshot) { s.Bonuses.Quiz.MissRetry = 0 },
-		"a banner that never shows":      func(s *rules.Snapshot) { s.Bonuses.Quiz.OfferTTL = 0 },
-		"no time to answer":              func(s *rules.Snapshot) { s.Bonuses.Quiz.AnswerWindow = 0 },
-		"a lean below 0":                 func(s *rules.Snapshot) { s.Bonuses.Quiz.LeaderBias = -1 },
-		"a lean that is no number":       func(s *rules.Snapshot) { s.Bonuses.Quiz.LeaderBias = math.NaN() },
-		"no hourly quiz cap":             func(s *rules.Snapshot) { s.Bonuses.Quiz.MaxChargesPerHour = 0 },
-	}
-	for name, breaks := range broken {
-		t.Run(name, func(t *testing.T) {
-			snapshot := rushSnapshot()
-			breaks(&snapshot)
+func TestTwoSetsAreEqualWhenTheyPlayAlikeUnderOneName(t *testing.T) {
+	assert.True(t, restored(t, rush()).Equal(restored(t, rush())))
+	assert.False(t, restored(t, rush()).Equal(restored(t, rules.Named("rush", rules.AsIs))))
+	assert.False(t, restored(t, rush()).Equal(restored(t, rules.Snapshot{Name: "calm", Rules: rush().Rules})))
+}
 
-			_, err := snapshot.Restore()
+func TestASetThatCannotPlayIsRefusedWithTheValueNamed(t *testing.T) {
+	d := durationpb.New
+	broken := map[string]func(*planetv1.Rules){
+		"clicks.tempo":                         func(r *planetv1.Rules) { r.Clicks.Tempo = 0 },
+		"clicks.perSecond":                     func(r *planetv1.Rules) { r.Clicks.PerSecond = math.Inf(1) },
+		"clicks.burst":                         func(r *planetv1.Rules) { r.Clicks.Burst = 0 },
+		"clicks.scopeMultiplier":               func(r *planetv1.Rules) { r.Clicks.ScopeMultiplier = 0.5 },
+		"clicks.v6ScopeMultiplier":             func(r *planetv1.Rules) { r.Clicks.V6ScopeMultiplier = 0 },
+		"clicks.guestScopeMultiplier":          func(r *planetv1.Rules) { r.Clicks.GuestScopeMultiplier = math.NaN() },
+		"clicks.linkedMultiplier":              func(r *planetv1.Rules) { r.Clicks.LinkedMultiplier = 0.5 },
+		"clicks.newAccountClicks is -1":        func(r *planetv1.Rules) { r.Clicks.NewAccountClicks = -1 },
+		"clicks.newAccountClicks is 61":        func(r *planetv1.Rules) { r.Clicks.NewAccountClicks = 61 },
+		"toll.steps[0].slowdown":               func(r *planetv1.Rules) { r.Toll.Steps[0].Slowdown = 1 },
+		"toll.steps[1].slowdown":               func(r *planetv1.Rules) { r.Toll.Steps[1].Slowdown = 1.2 },
+		"toll.steps[1].share":                  func(r *planetv1.Rules) { r.Toll.Steps[1].Share = 0.05 },
+		"toll.steps[2].share":                  func(r *planetv1.Rules) { r.Toll.Steps[2].Share = 1.5 },
+		"toll.steps[0].share":                  func(r *planetv1.Rules) { r.Toll.Steps[0].Share = 0 },
+		"bonuses.boxes.minInterval":            func(r *planetv1.Rules) { r.Bonuses.Boxes.MinInterval = d(0) },
+		"bonuses.boxes.maxInterval":            func(r *planetv1.Rules) { r.Bonuses.Boxes.MaxInterval = d(time.Minute) },
+		"bonuses.boxes.maxChargesPerHour":      func(r *planetv1.Rules) { r.Bonuses.Boxes.MaxChargesPerHour = 0 },
+		"bonuses.kinds.bomb":                   func(r *planetv1.Rules) { r.Bonuses.Kinds.Bomb = -1 },
+		"bonuses.kinds weigh every kind 0":     func(r *planetv1.Rules) { r.Bonuses.Kinds = &planetv1.KindWeights{} },
+		"bonuses.offerTtl":                     func(r *planetv1.Rules) { r.Bonuses.OfferTtl = nil },
+		"bonuses.missRetry":                    func(r *planetv1.Rules) { r.Bonuses.MissRetry = d(0) },
+		"bonuses.activeWithin":                 func(r *planetv1.Rules) { r.Bonuses.ActiveWithin = d(0) },
+		"bonuses.spread.clicks":                func(r *planetv1.Rules) { r.Bonuses.Spread.Clicks = 0 },
+		"bonuses.spread.maxPerBox":             func(r *planetv1.Rules) { r.Bonuses.Spread.MaxPerBox = 0 },
+		"bonuses.bomb.rings":                   func(r *planetv1.Rules) { r.Bonuses.Bomb = nil },
+		"bonuses.enclose.maxTiles":             func(r *planetv1.Rules) { r.Bonuses.Enclose.MaxTiles = 0 },
+		"bonuses.enclose.held":                 func(r *planetv1.Rules) { r.Bonuses.Enclose.Held = 0 },
+		"bonuses.enclose.maxPerBox":            func(r *planetv1.Rules) { r.Bonuses.Enclose.MaxPerBox = 0 },
+		"bonuses.shield.held":                  func(r *planetv1.Rules) { r.Bonuses.Shield.Held = 0 },
+		"bonuses.shield.minPerBox":             func(r *planetv1.Rules) { r.Bonuses.Shield.MinPerBox = 0 },
+		"bonuses.shield.maxPerBox":             func(r *planetv1.Rules) { r.Bonuses.Shield.MaxPerBox = 4 },
+		"bonuses.shield.perTile is 0":          func(r *planetv1.Rules) { r.Bonuses.Shield.PerTile = 0 },
+		"bonuses.shield.perTile is 256":        func(r *planetv1.Rules) { r.Bonuses.Shield.PerTile = 256 },
+		"bonuses.welcome.within":               func(r *planetv1.Rules) { r.Bonuses.Welcome.Within = d(-time.Minute) },
+		"bonuses.welcome.boxAfter":             func(r *planetv1.Rules) { r.Bonuses.Welcome.BoxAfter = d(-time.Minute) },
+		"bonuses.quiz.minInterval":             func(r *planetv1.Rules) { r.Bonuses.Quiz.MinInterval = d(0) },
+		"bonuses.quiz.maxInterval":             func(r *planetv1.Rules) { r.Bonuses.Quiz.MaxInterval = d(time.Minute) },
+		"bonuses.quiz.maxChargesPerHour":       func(r *planetv1.Rules) { r.Bonuses.Quiz.MaxChargesPerHour = 0 },
+		"bonuses.quiz.missRetry":               func(r *planetv1.Rules) { r.Bonuses.Quiz.MissRetry = d(0) },
+		"bonuses.quiz.offerTtl":                func(r *planetv1.Rules) { r.Bonuses.Quiz.OfferTtl = d(0) },
+		"bonuses.quiz.answerWindow":            func(r *planetv1.Rules) { r.Bonuses.Quiz.AnswerWindow = d(0) },
+		"bonuses.quiz.leaderBias is -1":        func(r *planetv1.Rules) { r.Bonuses.Quiz.LeaderBias = -1 },
+		"bonuses.quiz.leaderBias is NaN":       func(r *planetv1.Rules) { r.Bonuses.Quiz.LeaderBias = math.NaN() },
+		"clicks.tempo is 0, and must be above": func(r *planetv1.Rules) { r.Clicks = nil },
+	}
+	for reason, breaks := range broken {
+		t.Run(reason, func(t *testing.T) {
+			_, err := rules.Named("rush", breaks).Restore(parts.All())
+
 			require.ErrorIs(t, err, rules.ErrInvalidSet)
+			assert.Contains(t, err.Error(), reason)
 		})
 	}
 }
 
-func TestEveryValueThatCanBeZeroIsASet(t *testing.T) {
-	snapshot := rushSnapshot()
-	snapshot.Toll = nil
-	snapshot.Clicks.NewAccountClicks = 0
-	snapshot.Bonuses.Kinds[bonuses.KindBomb] = 0
-	snapshot.Bonuses.Welcome = bonuses.WelcomeRules{}
-	snapshot.Bonuses.Quiz.LeaderBias = 0
-	snapshot.Bonuses.Boxes.MaxInterval = snapshot.Bonuses.Boxes.MinInterval
-	snapshot.Bonuses.Shield.PerTile = 255
+func TestEveryReasonIsSaid(t *testing.T) {
+	_, err := rules.Named("rush", func(r *planetv1.Rules) {
+		r.Clicks.Burst = 0
+		r.Bonuses.Quiz.AnswerWindow = nil
+	}).Restore(parts.All())
 
-	_, err := snapshot.Restore()
+	require.ErrorIs(t, err, rules.ErrInvalidSet)
+	assert.Contains(t, err.Error(), "clicks.burst is 0")
+	assert.Contains(t, err.Error(), "bonuses.quiz.answerWindow is 0s")
+}
+
+func TestANameThatIsNotALowercaseWordIsRefused(t *testing.T) {
+	for _, name := range []rules.SetName{"", "Rush", "a234567890123456789012345678901234"} {
+		_, err := rules.Named(name, rules.AsIs).Restore(parts.All())
+		require.ErrorIs(t, err, rules.ErrInvalidSet, name)
+	}
+}
+
+func TestEveryValueThatCanBeZeroIsASet(t *testing.T) {
+	set := rules.Named("calm", func(r *planetv1.Rules) {
+		r.Toll = nil
+		r.Clicks.NewAccountClicks = 0
+		r.Bonuses.Kinds.Bomb = 0
+		r.Bonuses.Welcome = nil
+		r.Bonuses.Quiz.LeaderBias = 0
+		r.Bonuses.Quiz.Enabled = false
+		r.Bonuses.Boxes.MaxInterval = r.Bonuses.Boxes.MinInterval
+		r.Bonuses.Shield.PerTile = 255
+	})
+
+	_, err := set.Restore(parts.All())
 	require.NoError(t, err)
 }
 
-func TestARefusalNamesTheValue(t *testing.T) {
-	snapshot := rushSnapshot()
-	snapshot.Bonuses.Quiz.AnswerWindow = 0
-
-	_, err := snapshot.Restore()
-	require.ErrorContains(t, err, "quiz.answerWindow")
+func TestTheSetSeededIsOneThatPlays(t *testing.T) {
+	_, err := rules.Seeded().Restore(parts.All())
+	require.NoError(t, err)
 }

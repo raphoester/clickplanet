@@ -41,10 +41,10 @@ type countries struct{}
 
 func (countries) CheckCountry(country string) bool { return country == "fr" }
 
-var inForce = func() *bonuses.FixedRules {
+var inForce = func() func() bonuses.Rules {
 	rules := bonuses.TestRules()
 	rules.Bomb.Rings = 6
-	return &bonuses.FixedRules{Rules: rules}
+	return func() bonuses.Rules { return rules }
 }()
 
 var rules = bonuses.NewBombing(inForce, 0.005)

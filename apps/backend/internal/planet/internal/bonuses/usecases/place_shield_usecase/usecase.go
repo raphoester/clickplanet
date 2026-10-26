@@ -36,7 +36,7 @@ type In struct {
 	CountryID string
 }
 
-func New(shields Shields, tiles Tiles, countries CountryChecker, allegiances Allegiances, rules bonuses.InForce) *UseCase {
+func New(shields Shields, tiles Tiles, countries CountryChecker, allegiances Allegiances, rules func() bonuses.Rules) *UseCase {
 	return &UseCase{shields: shields, tiles: tiles, countries: countries, allegiances: allegiances, rules: rules}
 }
 
@@ -46,7 +46,7 @@ type UseCase struct {
 	tiles       Tiles
 	countries   CountryChecker
 	allegiances Allegiances
-	rules       bonuses.InForce
+	rules       func() bonuses.Rules
 }
 
 func (u *UseCase) Execute(ctx context.Context, in In) (bonuses.Held, error) {
@@ -59,7 +59,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (bonuses.Held, error) {
 		return bonuses.Held{}, fmt.Errorf("%w: %d", clicks.ErrTileOutOfRange, in.TileID)
 	}
 
-	perTile := u.rules.Bonuses().Shield.PerTile
+	perTile := u.rules().Shield.PerTile
 	if err := clicks.ShieldError(owner, in.CountryID, u.tiles.Shields(in.TileID), perTile); err != nil {
 		return bonuses.Held{}, fmt.Errorf("tile %d: %w", in.TileID, err)
 	}

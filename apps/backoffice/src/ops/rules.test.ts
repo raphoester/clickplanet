@@ -1,8 +1,9 @@
 import {Duration, JsonObject, JsonValue} from "@bufbuild/protobuf"
 import {describe, expect, it} from "vitest"
-import {BoxPace, ClickRules, RuleSet} from "../gen/grpc/planet/v1/admin_pb.ts"
+import {RuleSet} from "../gen/grpc/planet/v1/admin_pb.ts"
+import {BoxPace, ClickRules} from "../gen/grpc/planet/v1/rules_pb.ts"
 import {FakeAdmin} from "../fakeAdmin.ts"
-import {boxesOf, clicksOf, complete, draftOf, GROUPS, ruleSetOf, saveRuleSet, tempoOf} from "./rules.ts"
+import {boxesOf, clicksOf, complete, copyOf, draftOf, GROUPS, ruleSetOf, saveRuleSet, tempoOf} from "./rules.ts"
 
 const minutes = (n: number) => new Duration({seconds: BigInt(n * 60)})
 
@@ -11,8 +12,8 @@ const played = () => new FakeAdmin().rules.sets[0]
 const rush = () => {
     const set = played().clone()
     set.name = "rush"
-    set.tempo = 3
-    set.boxes = new BoxPace({minInterval: minutes(1), maxInterval: minutes(2), maxChargesPerHour: 30})
+    set.rules!.clicks!.tempo = 3
+    set.rules!.bonuses!.boxes = new BoxPace({minInterval: minutes(1), maxInterval: minutes(2), maxChargesPerHour: 30})
     return set
 }
 
@@ -23,14 +24,15 @@ function leaves(json: JsonValue, path = ""): string[] {
 
 describe("the rules", () => {
     it("says the refill, the clicks and the boxes of a set", () => {
-        expect(tempoOf(new RuleSet({tempo: 1}))).toBe("1×")
+        expect(tempoOf(played())).toBe("1×")
         expect(tempoOf(rush())).toBe("3×")
+        expect(tempoOf(new RuleSet())).toBe("0×")
         expect(clicksOf(new ClickRules({burst: 60, perSecond: 0.2}))).toBe("60 in hand, 0.2 a second")
         expect(clicksOf(undefined)).toBe("—")
     })
 
     it("says how often a box comes and the hourly cap", () => {
-        expect(boxesOf(rush().boxes)).toBe("Every 1 min to 2 min, 30 an hour at most")
+        expect(boxesOf(rush().rules?.bonuses?.boxes)).toBe("Every 1 min to 2 min, 30 an hour at most")
         expect(boxesOf(new BoxPace({minInterval: minutes(4), maxInterval: minutes(4), maxChargesPerHour: 12})))
             .toBe("Every 4 min, 12 an hour at most")
         expect(boxesOf(new BoxPace({
@@ -40,9 +42,9 @@ describe("the rules", () => {
     })
 
     it("edits every value of a set", () => {
-        const edited = new Set([...GROUPS.flatMap(group => group.fields.map(field => field.path)), "name", "quiz.enabled", "tollSteps"])
+        const edited = new Set([...GROUPS.flatMap(group => group.fields.map(field => field.path)), "bonuses.quiz.enabled", "toll.steps"])
 
-        const values = leaves(played().toJson({emitDefaultValues: true}))
+        const values = leaves(played().rules!.toJson({emitDefaultValues: true}))
 
         expect(values.filter(path => !edited.has(path))).toEqual([])
     })
@@ -51,8 +53,8 @@ describe("the rules", () => {
         const draft = draftOf(rush())
 
         expect(draft.name).toBe("rush")
-        expect(draft.values["tempo"]).toBe("3")
-        expect(draft.values["boxes.minInterval"]).toBe("60")
+        expect(draft.values["clicks.tempo"]).toBe("3")
+        expect(draft.values["bonuses.boxes.minInterval"]).toBe("60")
         expect(draft.values["clicks.perSecond"]).toBe("0.2")
         expect(draft.values["bonuses.kinds.bomb"]).toBe("1")
         expect(draft.quiz).toBe(true)
@@ -66,28 +68,28 @@ describe("the rules", () => {
         draft.quiz = false
         draft.values["bonuses.shield.perTile"] = "12.4"
 
-        const sent = ruleSetOf(draft)
+        const sent = ruleSetOf(draft).rules
 
-        expect(sent.tollSteps.at(-1)?.share).toBeCloseTo(0.45)
-        expect(sent.tollSteps.at(-1)?.slowdown).toBe(6)
-        expect(sent.quiz?.enabled).toBe(false)
-        expect(sent.bonuses?.shield?.perTile).toBe(12)
+        expect(sent?.toll?.steps.at(-1)?.share).toBeCloseTo(0.45)
+        expect(sent?.toll?.steps.at(-1)?.slowdown).toBe(6)
+        expect(sent?.bonuses?.quiz?.enabled).toBe(false)
+        expect(sent?.bonuses?.shield?.perTile).toBe(12)
     })
 
-    it("starts a new set from the one played, with no name", () => {
-        const draft = draftOf(played(), "")
+    it("copies a set with no name", () => {
+        const draft = copyOf(played())
 
         expect(complete(draft)).toBe(false)
         expect(complete({...draft, name: "rush"})).toBe(true)
-        expect(ruleSetOf({...draft, name: "rush"}).clicks?.burst).toBe(60)
+        expect(ruleSetOf({...draft, name: "rush"}).rules?.clicks?.burst).toBe(60)
     })
 
     it("sends nothing until every value is a number and the set has a name", () => {
         const draft = draftOf(rush())
 
         expect(complete(draft)).toBe(true)
-        expect(complete({...draft, values: {...draft.values, tempo: ""}})).toBe(false)
-        expect(complete({...draft, values: {...draft.values, "quiz.leaderBias": "a lot"}})).toBe(false)
+        expect(complete({...draft, values: {...draft.values, "clicks.tempo": ""}})).toBe(false)
+        expect(complete({...draft, values: {...draft.values, "bonuses.quiz.leaderBias": "a lot"}})).toBe(false)
         expect(complete({...draft, toll: [{share: "10", slowdown: ""}]})).toBe(false)
     })
 

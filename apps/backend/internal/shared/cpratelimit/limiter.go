@@ -39,7 +39,9 @@ func (c Config) withDefaults() Config {
 func New(name string, config Config, clock cptime.Clock) *Limiter {
 	config = config.withDefaults()
 
-	return NewRuled(name, fixed{PerSecond: config.PerSecond, Burst: config.Burst, Tempo: 1}, config.SweepInterval, clock)
+	policy := Policy{PerSecond: config.PerSecond, Burst: config.Burst, Tempo: 1}
+
+	return NewRuled(name, func() Policy { return policy }, config.SweepInterval, clock)
 }
 
 type Policy struct {
@@ -53,16 +55,8 @@ func (p Policy) same(other Policy) bool {
 	return p.PerSecond == other.PerSecond && p.Burst == other.Burst && p.Tempo == other.Tempo && p.Since.Equal(other.Since)
 }
 
-type Policies interface {
-	Policy() Policy
-}
-
-type fixed Policy
-
-func (f fixed) Policy() Policy { return Policy(f) }
-
 // NewRuled reads its policy at each call: what every bucket earned before a new one is refilled at the old one.
-func NewRuled(name string, policies Policies, sweepInterval time.Duration, clock cptime.Clock) *Limiter {
+func NewRuled(name string, policy func() Policy, sweepInterval time.Duration, clock cptime.Clock) *Limiter {
 	if clock == nil {
 		clock = cptime.SystemClock{}
 	}
@@ -72,7 +66,7 @@ func NewRuled(name string, policies Policies, sweepInterval time.Duration, clock
 
 	return &Limiter{
 		name:          name,
-		policies:      policies,
+		inForce:       policy,
 		sweepInterval: sweepInterval,
 		clock:         clock,
 		buckets:       make(map[string]*bucket),
@@ -81,7 +75,7 @@ func NewRuled(name string, policies Policies, sweepInterval time.Duration, clock
 
 type Limiter struct {
 	name          string
-	policies      Policies
+	inForce       func() Policy
 	sweepInterval time.Duration
 	clock         cptime.Clock
 
@@ -190,7 +184,7 @@ func (l *Limiter) Peek(key Key) State {
 
 // follow refills every bucket at the policy it had up to when the new one started, and cuts it to a smaller burst.
 func (l *Limiter) follow(now time.Time) {
-	policy := l.policies.Policy()
+	policy := l.inForce()
 	if policy.same(l.policy) {
 		return
 	}

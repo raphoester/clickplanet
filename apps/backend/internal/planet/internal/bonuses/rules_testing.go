@@ -4,13 +4,6 @@ package bonuses
 
 import "time"
 
-// FixedRules is a rule set in force that changes only when a test changes it.
-type FixedRules struct {
-	Rules Rules
-}
-
-func (f *FixedRules) Bonuses() Rules { return f.Rules }
-
 // TestRules are production's rules of October 2026, with no welcome and no quiz.
 func TestRules() Rules {
 	return Rules{

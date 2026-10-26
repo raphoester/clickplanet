@@ -54,7 +54,7 @@ func (p *pendingQuiz) opened() bool { return !p.deadline.IsZero() }
 
 func (r *Registry) OpenQuiz(token string, entrant Entrant) (Asked, bool) {
 	now := r.clock.Now()
-	window := r.rules.Bonuses().Quiz.AnswerWindow
+	window := r.rules().Quiz.AnswerWindow
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -78,7 +78,7 @@ func (r *Registry) OpenQuiz(token string, entrant Entrant) (Asked, bool) {
 
 func (r *Registry) AnswerQuiz(token string, entrant Entrant, choice int) (Answered, bool) {
 	now := r.clock.Now()
-	rules := r.rules.Bonuses()
+	rules := r.rules()
 
 	r.mu.Lock()
 	defer r.mu.Unlock()

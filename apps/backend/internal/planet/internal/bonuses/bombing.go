@@ -2,17 +2,17 @@ package bonuses
 
 import "github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 
-func NewBombing(rules InForce, spacing float64) Bombing {
+func NewBombing(rules func() Rules, spacing float64) Bombing {
 	return Bombing{rules: rules, spacing: spacing}
 }
 
 type Bombing struct {
-	rules   InForce
+	rules   func() Rules
 	spacing float64
 }
 
 func (b Bombing) Radius() float64 {
-	return b.rules.Bonuses().Bomb.Rings * b.spacing
+	return b.rules().Bomb.Rings * b.spacing
 }
 
 type Ground interface {

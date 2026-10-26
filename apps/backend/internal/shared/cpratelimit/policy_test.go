@@ -15,7 +15,7 @@ type ruling struct {
 	policy Policy
 }
 
-func (r *ruling) Policy() Policy { return r.policy }
+func (r *ruling) read() Policy { return r.policy }
 
 func (r *ruling) enforce(policy Policy) {
 	policy.Since = r.clock.Now()
@@ -29,7 +29,7 @@ func newRuledLimiter() (*Limiter, *ruling) {
 	rules := &ruling{clock: clock}
 	rules.enforce(plain)
 
-	return NewRuled("test", rules, time.Minute, clock), rules
+	return NewRuled("test", rules.read, time.Minute, clock), rules
 }
 
 func withTempo(tempo float64) Policy {

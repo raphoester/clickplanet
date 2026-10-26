@@ -28,7 +28,7 @@ inventory.
 blast radius, the enclose's `maxTiles`, the spread pool's size, the enclosure
 stack's size, the shields' pool size and how many can stand on one tile
 (`tileShields`) as `BonusRules`, through `onRules`. It is read at load and again on each `rulesChanged` of the
-planet stream, so an open page follows a rule set the operator edits (the backend's
+planet stream, so an open page follows a new set in force (the backend's
 [Rules](../../backend/docs/rules.md)).
 
 ## Off by default, one at a time

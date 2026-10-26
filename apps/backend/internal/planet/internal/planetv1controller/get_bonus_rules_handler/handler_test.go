@@ -26,14 +26,15 @@ func answered(t *testing.T, handler get_bonus_rules_handler.GetBonusRulesHandler
 }
 
 func TestTheRulesAreThoseInForce(t *testing.T) {
-	rules := &bonuses.FixedRules{Rules: bonuses.TestRules()}
-	handler := get_bonus_rules_handler.New(rules, bonuses.NewBombing(rules, 0.004), toll{})
+	rules := bonuses.TestRules()
+	inForce := func() bonuses.Rules { return rules }
+	handler := get_bonus_rules_handler.New(inForce, bonuses.NewBombing(inForce, 0.004), toll{})
 
-	rules.Rules.Bomb.Rings = 5
-	rules.Rules.Enclose = bonuses.EncloseRules{MaxTiles: 40, Held: 4, MaxPerBox: 2}
-	rules.Rules.Spread.Clicks = 9
-	rules.Rules.Shield.Held = 12
-	rules.Rules.Shield.PerTile = 20
+	rules.Bomb.Rings = 5
+	rules.Enclose = bonuses.EncloseRules{MaxTiles: 40, Held: 4, MaxPerBox: 2}
+	rules.Spread.Clicks = 9
+	rules.Shield.Held = 12
+	rules.Shield.PerTile = 20
 	got := answered(t, handler)
 
 	assert.InDelta(t, 0.02, got.GetBlastRadius(), 1e-9)
@@ -47,9 +48,8 @@ func TestTheRulesAreThoseInForce(t *testing.T) {
 
 func TestTheClientIsToldEveryTollStepInOrder(t *testing.T) {
 	steps := toll{{Share: 0.1, Slowdown: 1.5}, {Share: 0.2, Slowdown: 2.5}, {Share: 0.3, Slowdown: 4}}
-	rules := &bonuses.FixedRules{Rules: bonuses.TestRules()}
-
-	got := answered(t, get_bonus_rules_handler.New(rules, bonuses.NewBombing(rules, 0.004), steps)).GetTollSteps()
+	got := answered(t, get_bonus_rules_handler.New(bonuses.TestRules, bonuses.NewBombing(bonuses.TestRules, 0.004), steps)).
+		GetTollSteps()
 
 	require.Len(t, got, 3)
 	for i, step := range steps {

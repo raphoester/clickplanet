@@ -3,49 +3,60 @@ package save_rule_set_usecase_test
 import (
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
+	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/parts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/usecases/save_rule_set_usecase"
 )
 
-var rush = func() rules.Snapshot {
-	rush := rules.TestSnapshot("rush")
-	rush.Tempo = 3
-	rush.Bonuses.Boxes = bonuses.Pace{MinInterval: time.Minute, MaxInterval: 2 * time.Minute, MaxChargesPerHour: 30}
-	return rush
-}()
+type playing rules.SetName
+
+func (p playing) Plays(name rules.SetName) bool { return name == rules.SetName(p) }
+
+var rush = rules.Named("rush", func(r *planetv1.Rules) { r.Clicks.Tempo = 3 })
 
 func TestASetIsKeptAsWritten(t *testing.T) {
 	store := rules.NewMemoryStore()
 
-	require.NoError(t, save_rule_set_usecase.New(store).Execute(t.Context(), rush))
+	require.NoError(t, save_rule_set_usecase.New(store, parts.All(), playing(rules.Default)).Execute(t.Context(), rush))
 
 	kept, ok := store.Kept("rush")
 	require.True(t, ok)
-	assert.Equal(t, rush, kept)
+	assert.True(t, proto.Equal(rush.Rules, kept.Rules))
 }
 
-func TestASetThatCannotPlayIsRefusedAndKeepsNothing(t *testing.T) {
+func TestASetThatCannotPlayIsNeverKept(t *testing.T) {
 	store := rules.NewMemoryStore()
-	broken := rush
-	broken.Tempo = 0
+	broken := rules.Named("rush", func(r *planetv1.Rules) { r.Clicks.Tempo = 0 })
 
-	err := save_rule_set_usecase.New(store).Execute(t.Context(), broken)
+	err := save_rule_set_usecase.New(store, parts.All(), playing(rules.Default)).Execute(t.Context(), broken)
 
 	require.ErrorIs(t, err, rules.ErrInvalidSet)
-	_, ok := store.Kept("rush")
-	assert.False(t, ok)
+	_, kept := store.Kept("rush")
+	assert.False(t, kept)
 }
 
-func TestAStoreThatFailsSaysSo(t *testing.T) {
+func TestTheSetThatPlaysNowIsNeverKept(t *testing.T) {
 	store := rules.NewMemoryStore()
-	down := errors.New("postgres is down")
-	store.FailWith(down)
 
-	require.ErrorIs(t, save_rule_set_usecase.New(store).Execute(t.Context(), rush), down)
+	err := save_rule_set_usecase.New(store, parts.All(), playing(rules.Default)).
+		Execute(t.Context(), rules.Named(rules.Default, func(r *planetv1.Rules) { r.Clicks.Tempo = 3 }))
+
+	require.ErrorIs(t, err, save_rule_set_usecase.ErrPlaying)
+	_, kept := store.Kept(rules.Default)
+	assert.False(t, kept)
+}
+
+func TestAStoreThatFailsFailsTheSave(t *testing.T) {
+	store := rules.NewMemoryStore()
+	store.FailWith(errors.New("postgres is down"))
+
+	err := save_rule_set_usecase.New(store, parts.All(), playing(rules.Default)).Execute(t.Context(), rush)
+
+	require.Error(t, err)
 }

@@ -17,12 +17,12 @@ type Blast interface {
 	Radius() float64
 }
 
-func New(rules bonuses.InForce, blast Blast, toll Toll) GetBonusRulesHandler {
+func New(rules func() bonuses.Rules, blast Blast, toll Toll) GetBonusRulesHandler {
 	return GetBonusRulesHandler{rules: rules, blast: blast, toll: toll}
 }
 
 type GetBonusRulesHandler struct {
-	rules bonuses.InForce
+	rules func() bonuses.Rules
 	blast Blast
 	toll  Toll
 }
@@ -31,7 +31,7 @@ func (h GetBonusRulesHandler) GetBonusRules(
 	context.Context,
 	*connect.Request[planetv1.GetBonusRulesRequest],
 ) (*connect.Response[planetv1.GetBonusRulesResponse], error) {
-	rules := h.rules.Bonuses()
+	rules := h.rules()
 
 	return connect.NewResponse(&planetv1.GetBonusRulesResponse{
 		BlastRadius:       h.blast.Radius(),

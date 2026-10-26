@@ -12,7 +12,9 @@ type shares map[string]float64
 
 func (s shares) Share(country string) float64 { return s[country] }
 
-var table = &clicks.FixedRules{Steps: []clicks.TollStep{{Share: 0.1, Slowdown: 1.5}, {Share: 0.5, Slowdown: 2}}}
+func table() clicks.TollSteps {
+	return clicks.TollSteps{{Share: 0.1, Slowdown: 1.5}, {Share: 0.5, Slowdown: 2}}
+}
 
 func TestPriceClimbsTheSteps(t *testing.T) {
 	pricer := clicks.NewToll(table, shares{"small": 0.05, "edge": 0.1, "mid": 0.3, "top": 0.8})
@@ -25,15 +27,15 @@ func TestPriceClimbsTheSteps(t *testing.T) {
 }
 
 func TestNoStepsRefillsEveryCountryAtThePlainRate(t *testing.T) {
-	assert.Equal(t, clicks.Price{Slowdown: 1, Share: 0.9}, clicks.NewToll(&clicks.FixedRules{}, shares{"bg": 0.9}).Price("bg"))
+	assert.Equal(t, clicks.Price{Slowdown: 1, Share: 0.9}, clicks.NewToll(func() clicks.TollSteps { return nil }, shares{"bg": 0.9}).Price("bg"))
 }
 
 func TestTheTollFollowsTheStepsInForce(t *testing.T) {
-	rules := &clicks.FixedRules{Steps: []clicks.TollStep{{Share: 0.5, Slowdown: 2}}}
-	pricer := clicks.NewToll(rules, shares{"bg": 0.3})
+	steps := clicks.TollSteps{{Share: 0.5, Slowdown: 2}}
+	pricer := clicks.NewToll(func() clicks.TollSteps { return steps }, shares{"bg": 0.3})
 
-	rules.Steps = []clicks.TollStep{{Share: 0.2, Slowdown: 3}}
+	steps = clicks.TollSteps{{Share: 0.2, Slowdown: 3}}
 
 	assert.InDelta(t, 3.0, pricer.Price("bg").Slowdown, 1e-9)
-	assert.Equal(t, rules.Steps, pricer.Steps())
+	assert.Equal(t, []clicks.TollStep(steps), pricer.Steps())
 }

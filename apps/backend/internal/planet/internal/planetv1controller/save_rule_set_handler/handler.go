@@ -8,7 +8,7 @@ import (
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/rule_set_message"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/usecases/save_rule_set_usecase"
 )
 
 type UseCase interface {
@@ -27,13 +27,16 @@ func (h SaveRuleSetHandler) SaveRuleSet(
 	ctx context.Context,
 	req *connect.Request[planetv1.SaveRuleSetRequest],
 ) (*connect.Response[planetv1.SaveRuleSetResponse], error) {
-	err := h.useCase.Execute(ctx, rule_set_message.Decode(req.Msg.GetSet()))
+	set := req.Msg.GetSet()
+	err := h.useCase.Execute(ctx, rules.Snapshot{Name: rules.SetName(set.GetName()), Rules: set.GetRules()})
 
 	switch {
 	case err == nil:
 		return connect.NewResponse(&planetv1.SaveRuleSetResponse{}), nil
 	case errors.Is(err, rules.ErrInvalidSet):
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	case errors.Is(err, save_rule_set_usecase.ErrPlaying):
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	default:
 		return nil, err
 	}

@@ -153,7 +153,7 @@ the player.
 
 Boxes are always on: there is no switch.
 
-**The waits and the hourly cap are the rule set's** (`bonuses.Pace`, see [Rules](rules.md)), not the config's: the registry reads them at each sweep, so an edit reaches every caller within a second.
+**The waits and the hourly cap are the rule set's** (`bonuses.Pace`, see [Rules](rules.md)), not the config's: the registry reads them at each sweep, so a set taken reaches every caller within a second.
 
 **The server picks who gets one, and that is the whole design.** A box broadcast
 to everyone is caught by whichever client reacts fastest, and that is a script

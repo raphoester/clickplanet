@@ -5,9 +5,13 @@ import {FailureNotice} from "../components/FailureNotice.tsx"
 import {GetRulesResponse, RuleSet} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {wordsOf} from "../refusal.ts"
 import {useCall} from "../useCall.ts"
-import {boxesOf, clicksOf, complete, DEFAULT_SET, Draft, draftOf, GROUPS, saveRuleSet, tempoOf, TollStep} from "./rules.ts"
+import {boxesOf, clicksOf, complete, copyOf, Draft, draftOf, GROUPS, saveRuleSet, tempoOf, TollStep} from "./rules.ts"
 
-type Editing = {draft: Draft, made: boolean}
+// made: an edit of a set kept, with its name fixed; otherwise a new set copied from `from`.
+type Editing = {draft: Draft, made: boolean, from: string}
+
+const refusal = (err: unknown) =>
+    wordsOf(err, {failedPrecondition: "A set of this name plays now. Save it under another name."})
 
 // Every rule set postgres keeps, and a form to make one or change one.
 export function RulesPanel({planet}: {planet: PlanetAdmin}) {
@@ -22,20 +26,21 @@ export function RulesPanel({planet}: {planet: PlanetAdmin}) {
 
     return (
         <section aria-label="Game rules">
-            <p className="hint">
-                The game plays <code>{DEFAULT_SET}</code>, and follows a change of it within a second, for every player.
-            </p>
             {rules.state === "loading" && <p className="muted">Loading…</p>}
             {rules.state === "failed" && <FailureNotice failure={rules} onRetry={again}/>}
             {rules.state === "done" && (
                 <>
-                    <Sets rules={rules.value} onEdit={set => setEditing({draft: draftOf(set), made: true})}/>
-                    <NewSet rules={rules.value} onNew={draft => setEditing({draft, made: false})}/>
+                    <p className="hint">Playing: <code>{rules.value.playing}</code></p>
+                    <Sets
+                        rules={rules.value}
+                        onEdit={set => setEditing({draft: draftOf(set), made: true, from: set.name})}
+                        onCopy={set => setEditing({draft: copyOf(set), made: false, from: set.name})}
+                    />
                 </>
             )}
             {editing !== undefined && (
                 <SetForm
-                    key={editing.made ? editing.draft.name : "new"}
+                    key={`${editing.made ? "edit" : "copy"} ${editing.from}`}
                     planet={planet}
                     editing={editing}
                     onCancel={() => setEditing(undefined)}
@@ -46,7 +51,9 @@ export function RulesPanel({planet}: {planet: PlanetAdmin}) {
     )
 }
 
-function Sets({rules, onEdit}: {rules: GetRulesResponse, onEdit: (set: RuleSet) => void}) {
+function Sets({rules, onEdit, onCopy}: {
+    rules: GetRulesResponse, onEdit: (set: RuleSet) => void, onCopy: (set: RuleSet) => void,
+}) {
     return (
         <table className="table">
             <caption>Sets</caption>
@@ -55,14 +62,19 @@ function Sets({rules, onEdit}: {rules: GetRulesResponse, onEdit: (set: RuleSet) 
             </thead>
             <tbody>
                 {rules.sets.map(set => (
-                    <tr key={set.name} aria-current={set.name === DEFAULT_SET ? "true" : undefined}>
+                    <tr key={set.name} aria-current={set.name === rules.playing ? "true" : undefined}>
                         <td><strong>{set.name}</strong></td>
                         <td>{tempoOf(set)}</td>
-                        <td>{clicksOf(set.clicks)}</td>
-                        <td>{boxesOf(set.boxes)}</td>
+                        <td>{clicksOf(set.rules?.clicks)}</td>
+                        <td>{boxesOf(set.rules?.bonuses?.boxes)}</td>
                         <td>
-                            <button type="button" className="button-mini" onClick={() => onEdit(set)}>
-                                Edit {set.name}
+                            {set.name !== rules.playing && (
+                                <button type="button" className="button-mini" onClick={() => onEdit(set)}>
+                                    Edit {set.name}
+                                </button>
+                            )}
+                            <button type="button" className="button-mini" onClick={() => onCopy(set)}>
+                                Copy {set.name}
                             </button>
                         </td>
                     </tr>
@@ -72,27 +84,17 @@ function Sets({rules, onEdit}: {rules: GetRulesResponse, onEdit: (set: RuleSet) 
     )
 }
 
-function NewSet({rules, onNew}: {rules: GetRulesResponse, onNew: (draft: Draft) => void}) {
-    const played = rules.sets.find(set => set.name === DEFAULT_SET)
-    if (played === undefined) return null
-
-    return (
-        <button type="button" className="button" onClick={() => onNew(draftOf(played, ""))}>
-            New set
-        </button>
-    )
-}
-
 function SetForm({planet, editing, onCancel, onSaved}: {
     planet: PlanetAdmin, editing: Editing, onCancel: () => void, onSaved: () => void,
 }) {
     const [draft, setDraft] = useState(editing.draft)
     const change = (part: Partial<Draft>) => setDraft(was => ({...was, ...part}))
     const value = (path: string, typed: string) => setDraft(was => ({...was, values: {...was.values, [path]: typed}}))
+    const title = editing.made ? `Edit ${editing.from}` : `New set from ${editing.from}`
 
     return (
-        <section className="panel" aria-label={editing.made ? `Edit ${editing.draft.name}` : "New set"}>
-            <h2>{editing.made ? `Edit ${editing.draft.name}` : "New set"}</h2>
+        <section className="panel" aria-label={title}>
+            <h2>{title}</h2>
             <label className="field">
                 <span className="muted">Name</span>
                 <input value={draft.name} disabled={editing.made} onChange={e => change({name: e.target.value})}/>
@@ -128,7 +130,7 @@ function SetForm({planet, editing, onCancel, onSaved}: {
                 question={`Save ${draft.name.trim()}?`}
                 run={() => saveRuleSet(planet, draft)}
                 said={() => "Saved."}
-                refusal={wordsOf}
+                refusal={refusal}
                 onDone={onSaved}
             />
             <button type="button" className="button" onClick={onCancel}>Cancel</button>

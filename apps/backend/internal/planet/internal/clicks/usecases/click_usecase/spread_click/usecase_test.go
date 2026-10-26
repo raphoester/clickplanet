@@ -66,7 +66,7 @@ func (r *recordingPublisher) PublishSpread(spread bonuses.Spread) {
 }
 
 func charges(store *bonuses.MemoryStore) bonuses.Charges {
-	return bonuses.NewCharges(store, &bonuses.FixedRules{Rules: bonuses.TestRules()})
+	return bonuses.NewCharges(store, bonuses.TestRules)
 }
 
 var honeycomb = stubNeighbours{

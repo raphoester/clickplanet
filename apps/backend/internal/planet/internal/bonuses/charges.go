@@ -14,13 +14,13 @@ type Store interface {
 	Held(ctx context.Context, holder Holder) (Held, error)
 }
 
-func NewCharges(store Store, rules InForce) Charges {
+func NewCharges(store Store, rules func() Rules) Charges {
 	return Charges{store: store, rules: rules}
 }
 
 type Charges struct {
 	store Store
-	rules InForce
+	rules func() Rules
 }
 
 func (c Charges) Held(ctx context.Context, holder Holder) (Held, error) {
@@ -40,7 +40,7 @@ func (c Charges) Grant(ctx context.Context, holder Holder, kind Kind, amount int
 		return nil
 	}
 
-	rules := c.rules.Bonuses()
+	rules := c.rules()
 	if err := c.store.Change(ctx, holder, func(held Held) (Held, error) {
 		return held.Granted(kind, amount, rules), nil
 	}); err != nil {

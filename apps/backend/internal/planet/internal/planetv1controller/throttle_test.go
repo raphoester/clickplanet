@@ -201,7 +201,7 @@ func refillServer(t *testing.T, change func(*clicks.Throttle), refills *bonuses.
 
 	throttle := clicks.TestThrottle()
 	change(&throttle)
-	buckets := clicks.NewBuckets(&clicks.FixedRules{Clicks: throttle})
+	buckets := clicks.NewBuckets(func() clicks.Throttle { return throttle })
 
 	clock := cptime.NewFixedClock(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC))
 	limiter := cpratelimit.New("test", cpratelimit.Config{PerSecond: throttle.PerSecond, Burst: throttle.Burst}, clock)
@@ -212,7 +212,7 @@ func refillServer(t *testing.T, change func(*clicks.Throttle), refills *bonuses.
 			ClickHandler:     click_handler.New(throttle_click.New(stubService{}, limiter, onePrice, buckets)),
 			GetBudgetHandler: get_budget_handler.New(get_budget_usecase.New(limiter, onePrice, buckets)),
 			UseRefillHandler: use_refill_handler.New(use_refill_usecase.New(
-				bonuses.NewCharges(refills, &bonuses.FixedRules{Rules: bonuses.TestRules()}), limiter, onePrice, buckets)),
+				bonuses.NewCharges(refills, bonuses.TestRules), limiter, onePrice, buckets)),
 		},
 		connect.WithInterceptors(
 			errorNet(),

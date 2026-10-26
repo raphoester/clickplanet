@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	"google.golang.org/protobuf/encoding/protojson"
+
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/rule_set_message"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
@@ -17,6 +18,9 @@ type PostgresQuery struct {
 	db cppg.Conn
 }
 
+var document = protojson.UnmarshalOptions{DiscardUnknown: true}
+
+// Sets answers every set as postgres keeps it, one that cannot play too, so the operator can mend it.
 func (q *PostgresQuery) Sets(ctx context.Context) ([]*planetv1.RuleSet, error) {
 	rows, err := q.db.On(ctx).QueryContext(ctx, `SELECT name, rules FROM rule_sets ORDER BY name <> 'default', name`)
 	if err != nil {
@@ -27,17 +31,18 @@ func (q *PostgresQuery) Sets(ctx context.Context) ([]*planetv1.RuleSet, error) {
 	var sets []*planetv1.RuleSet
 	for rows.Next() {
 		var (
-			name     string
-			document []byte
+			name string
+			kept []byte
 		)
-		if err := rows.Scan(&name, &document); err != nil {
+		if err := rows.Scan(&name, &kept); err != nil {
 			return nil, fmt.Errorf("failed to read a rule set: %w", err)
 		}
-		set, err := rule_set_message.Parse(name, document)
-		if err != nil {
-			return nil, err //nolint:wrapcheck // the codec names the set.
+
+		var rules planetv1.Rules
+		if err := document.Unmarshal(kept, &rules); err != nil {
+			return nil, fmt.Errorf("the rule set %q kept is no planet.v1.Rules: %w", name, err)
 		}
-		sets = append(sets, set)
+		sets = append(sets, &planetv1.RuleSet{Name: name, Rules: &rules})
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("failed to read the rule sets: %w", err)

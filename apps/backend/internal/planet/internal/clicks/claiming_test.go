@@ -11,7 +11,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
 )
 
-var tenAShield = &clicks.FixedRules{Shields: 10}
+func tenAShield() int { return 10 }
 
 func claimable(t *testing.T, owners map[uint32]string) *inmemory_tile_storage.Storage {
 	t.Helper()

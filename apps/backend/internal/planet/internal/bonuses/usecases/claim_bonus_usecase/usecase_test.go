@@ -50,7 +50,7 @@ func charges() (bonuses.Charges, *bonuses.MemoryStore) {
 	store := bonuses.NewMemoryStore()
 	rules := bonuses.TestRules()
 	rules.Shield.Held = 12
-	return bonuses.NewCharges(store, &bonuses.FixedRules{Rules: rules}), store
+	return bonuses.NewCharges(store, func() bonuses.Rules { return rules }), store
 }
 
 func granting(kind bonuses.Kind) *stubRegistry {

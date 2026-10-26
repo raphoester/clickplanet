@@ -13,7 +13,7 @@ import (
 func bucketsWith(change func(*clicks.Throttle)) clicks.Buckets {
 	throttle := clicks.TestThrottle()
 	change(&throttle)
-	return clicks.NewBuckets(&clicks.FixedRules{Clicks: throttle})
+	return clicks.NewBuckets(func() clicks.Throttle { return throttle })
 }
 
 func plainBuckets() clicks.Buckets {
@@ -29,11 +29,11 @@ func TestTheScopesBucketHoldsTheScopeMultipliersAccounts(t *testing.T) {
 
 func TestTheBucketsFollowTheRulesInForce(t *testing.T) {
 	payer := clicks.Payer{Scope: "1.2.3.4", Account: "a-player", Linked: true}
-	rules := &clicks.FixedRules{Clicks: clicks.TestThrottle()}
-	buckets := clicks.NewBuckets(rules)
+	throttle := clicks.TestThrottle()
+	buckets := clicks.NewBuckets(func() clicks.Throttle { return throttle })
 
-	rules.Clicks.ScopeMultiplier = 4
-	rules.Clicks.LinkedMultiplier = 3
+	throttle.ScopeMultiplier = 4
+	throttle.LinkedMultiplier = 3
 
 	keys := buckets.Keys(payer, clicks.Price{})
 	assert.InDelta(t, 3.0, keys[0].Pace, 1e-9)

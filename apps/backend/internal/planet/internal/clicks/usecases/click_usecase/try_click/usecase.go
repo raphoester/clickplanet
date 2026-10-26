@@ -23,16 +23,14 @@ type Positions interface {
 	Position(tile uint32) (clicks.Vec3, bool)
 }
 
-type Tempo interface {
-	Tempo() float64
-}
-
 type Facts interface {
 	Tell(fact facts.Fact)
 }
 
-func New(implementation click_usecase.IUseCase, owners Owners, positions Positions, tempo Tempo, facts Facts) *UseCase {
-	return &UseCase{implementation: implementation, owners: owners, positions: positions, tempo: tempo, facts: facts}
+func New(
+	implementation click_usecase.IUseCase, owners Owners, positions Positions, throttle func() clicks.Throttle, facts Facts,
+) *UseCase {
+	return &UseCase{implementation: implementation, owners: owners, positions: positions, throttle: throttle, facts: facts}
 }
 
 // Outside every gate, so a refused or throttled try is told too: a loop just above the refill rate shows in its 429s.
@@ -40,7 +38,7 @@ type UseCase struct {
 	implementation click_usecase.IUseCase
 	owners         Owners
 	positions      Positions
-	tempo          Tempo
+	throttle       func() clicks.Throttle
 	facts          Facts
 }
 
@@ -57,7 +55,7 @@ func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_useca
 		Country:   in.CountryID,
 		Outcome:   outcomeOf(out, err),
 		Owner:     out.Owner,
-		Tempo:     u.tempo.Tempo(),
+		Tempo:     u.throttle().Tempo,
 	}
 	if !payer.Created.IsZero() {
 		tried.AccountCreatedAt = timestamppb.New(payer.Created)

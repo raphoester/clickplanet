@@ -66,7 +66,7 @@ func TestThePaceSetsTheHourlyCap(t *testing.T) {
 
 func TestNoBoxIsOfferedBeforeARuleSetIsInForce(t *testing.T) {
 	clock := cptime.NewFixedClock(epoch)
-	registry := New(Config{}, clock, NewMemoryStore(), &FixedRules{}, fixedBank{})
+	registry := New(Config{}, clock, NewMemoryStore(), func() Rules { return Rules{} }, fixedBank{})
 	events := playing(t, registry, "scope-a")
 
 	for range 3 {

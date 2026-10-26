@@ -6,6 +6,8 @@ import (
 	"context"
 	"fmt"
 	"sync"
+
+	"google.golang.org/protobuf/proto"
 )
 
 var _ Store = (*MemoryStore)(nil)
@@ -20,29 +22,28 @@ func NewMemoryStore() *MemoryStore {
 	return &MemoryStore{sets: map[SetName]Snapshot{}}
 }
 
-func (m *MemoryStore) Set(_ context.Context, name SetName) (Set, error) {
+func (m *MemoryStore) Set(_ context.Context, name SetName) (Snapshot, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	if m.failing != nil {
-		return Set{}, m.failing
+		return Snapshot{}, m.failing
 	}
 	kept, ok := m.sets[name]
 	if !ok {
-		return Set{}, fmt.Errorf("%q: %w", name, ErrUnknownSet)
+		return Snapshot{}, fmt.Errorf("%q: %w", name, ErrUnknownSet)
 	}
-	return kept.Restore()
+	return Snapshot{Name: kept.Name, Rules: proto.CloneOf(kept.Rules)}, nil
 }
 
-func (m *MemoryStore) Save(_ context.Context, set Set) error {
+func (m *MemoryStore) Save(_ context.Context, set Snapshot) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	if m.failing != nil {
 		return m.failing
 	}
-	kept := set.TakeSnapshot()
-	m.sets[kept.Name] = kept
+	m.sets[set.Name] = Snapshot{Name: set.Name, Rules: proto.CloneOf(set.Rules)}
 	return nil
 }
 

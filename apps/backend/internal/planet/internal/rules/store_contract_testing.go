@@ -3,11 +3,10 @@
 package rules
 
 import (
-	"time"
-
 	"github.com/stretchr/testify/suite"
+	"google.golang.org/protobuf/proto"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
+	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 )
 
 type StoreContractSuite struct {
@@ -22,37 +21,26 @@ func (s *StoreContractSuite) SetupTest() {
 	s.store = s.NewStore()
 }
 
-func contractRush() Snapshot {
-	rush := TestSnapshot("rush")
-	rush.Tempo = 3
-	rush.Bonuses.Boxes = bonuses.Pace{MinInterval: time.Minute, MaxInterval: 2 * time.Minute, MaxChargesPerHour: 30}
-	rush.Bonuses.Quiz.Enabled = true
-	rush.Bonuses.Welcome = bonuses.WelcomeRules{Within: 10 * time.Minute, BoxAfter: time.Minute}
-	return rush
-}
-
-func (s *StoreContractSuite) save(kept Snapshot) {
-	set, err := kept.Restore()
+func (s *StoreContractSuite) kept(name SetName) Snapshot {
+	kept, err := s.store.Set(s.T().Context(), name)
 	s.Require().NoError(err)
-	s.Require().NoError(s.store.Save(s.T().Context(), set))
+	return kept
 }
 
 func (s *StoreContractSuite) TestASetIsReadAsItWasKept() {
-	s.save(contractRush())
+	rush := Named("rush", func(r *planetv1.Rules) { r.Clicks.Tempo = 3 })
+	s.Require().NoError(s.store.Save(s.T().Context(), rush))
 
-	set, err := s.store.Set(s.T().Context(), "rush")
-	s.Require().NoError(err)
-	s.Equal(contractRush(), set.TakeSnapshot())
+	kept := s.kept("rush")
+	s.Equal(SetName("rush"), kept.Name)
+	s.True(proto.Equal(rush.Rules, kept.Rules), "%v", kept.Rules)
 }
 
 func (s *StoreContractSuite) TestASetWithNoTollIsReadWithNone() {
-	free := contractRush()
-	free.Toll = nil
-	s.save(free)
+	free := Named("free", func(r *planetv1.Rules) { r.Toll.Steps = nil })
+	s.Require().NoError(s.store.Save(s.T().Context(), free))
 
-	set, err := s.store.Set(s.T().Context(), "rush")
-	s.Require().NoError(err)
-	s.Empty(set.TakeSnapshot().Toll)
+	s.Empty(s.kept("free").Rules.GetToll().GetSteps())
 }
 
 func (s *StoreContractSuite) TestASetNeverKeptIsUnknown() {
@@ -61,13 +49,9 @@ func (s *StoreContractSuite) TestASetNeverKeptIsUnknown() {
 }
 
 func (s *StoreContractSuite) TestASetKeptAgainReplacesItsValues() {
-	s.save(contractRush())
-	quicker := contractRush()
-	quicker.Tempo = 4
-	quicker.Bonuses.Shield.PerTile = 20
-	s.save(quicker)
+	s.Require().NoError(s.store.Save(s.T().Context(), Named("rush", AsIs)))
+	quicker := Named("rush", func(r *planetv1.Rules) { r.Clicks.Tempo, r.Bonuses.Shield.PerTile = 4, 20 })
+	s.Require().NoError(s.store.Save(s.T().Context(), quicker))
 
-	set, err := s.store.Set(s.T().Context(), "rush")
-	s.Require().NoError(err)
-	s.Equal(quicker, set.TakeSnapshot())
+	s.True(proto.Equal(quicker.Rules, s.kept("rush").Rules))
 }

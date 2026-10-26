@@ -1,11 +1,12 @@
 import {Duration, JsonObject, JsonValue} from "@bufbuild/protobuf"
 import {PlanetAdmin} from "../clients.ts"
-import {BoxPace, ClickRules, RuleSet} from "../gen/grpc/planet/v1/admin_pb.ts"
+import {RuleSet} from "../gen/grpc/planet/v1/admin_pb.ts"
+import {BoxPace, ClickRules, Rules} from "../gen/grpc/planet/v1/rules_pb.ts"
 
 export const DEFAULT_SET = "default"
 
 export function tempoOf(set: RuleSet): string {
-    return `${set.tempo}×`
+    return `${set.rules?.clicks?.tempo ?? 0}×`
 }
 
 export function clicksOf(clicks: ClickRules | undefined): string {
@@ -33,7 +34,7 @@ export type Field = {path: string, label: string, kind: "number" | "whole" | "se
 
 export const GROUPS: {title: string, fields: Field[]}[] = [
     {title: "Clicks", fields: [
-        {path: "tempo", label: "Refill, times as fast", kind: "number"},
+        {path: "clicks.tempo", label: "Refill, times as fast", kind: "number"},
         {path: "clicks.perSecond", label: "Clicks a second", kind: "number"},
         {path: "clicks.burst", label: "Clicks in hand", kind: "whole"},
         {path: "clicks.newAccountClicks", label: "New account, clicks in hand", kind: "number"},
@@ -43,9 +44,9 @@ export const GROUPS: {title: string, fields: Field[]}[] = [
         {path: "clicks.guestScopeMultiplier", label: "Guests of an address, in accounts", kind: "number"},
     ]},
     {title: "Boxes", fields: [
-        {path: "boxes.minInterval", label: "Shortest box wait (s)", kind: "seconds"},
-        {path: "boxes.maxInterval", label: "Longest box wait (s)", kind: "seconds"},
-        {path: "boxes.maxChargesPerHour", label: "Charges an hour, at most", kind: "whole"},
+        {path: "bonuses.boxes.minInterval", label: "Shortest box wait (s)", kind: "seconds"},
+        {path: "bonuses.boxes.maxInterval", label: "Longest box wait (s)", kind: "seconds"},
+        {path: "bonuses.boxes.maxChargesPerHour", label: "Charges an hour, at most", kind: "whole"},
         {path: "bonuses.offerTtl", label: "Box flight (s)", kind: "seconds"},
         {path: "bonuses.missRetry", label: "Next box after a miss (s)", kind: "seconds"},
         {path: "bonuses.activeWithin", label: "Last click within (s)", kind: "seconds"},
@@ -74,13 +75,13 @@ export const GROUPS: {title: string, fields: Field[]}[] = [
         {path: "bonuses.welcome.boxAfter", label: "First box after (s)", kind: "seconds"},
     ]},
     {title: "Quizzes", fields: [
-        {path: "quiz.minInterval", label: "Shortest quiz wait (s)", kind: "seconds"},
-        {path: "quiz.maxInterval", label: "Longest quiz wait (s)", kind: "seconds"},
-        {path: "quiz.maxChargesPerHour", label: "Quizzes won an hour, at most", kind: "whole"},
-        {path: "quiz.offerTtl", label: "Banner (s)", kind: "seconds"},
-        {path: "quiz.answerWindow", label: "Time to answer (s)", kind: "seconds"},
-        {path: "quiz.missRetry", label: "Next quiz after a miss (s)", kind: "seconds"},
-        {path: "quiz.leaderBias", label: "Lean to the leaders", kind: "number"},
+        {path: "bonuses.quiz.minInterval", label: "Shortest quiz wait (s)", kind: "seconds"},
+        {path: "bonuses.quiz.maxInterval", label: "Longest quiz wait (s)", kind: "seconds"},
+        {path: "bonuses.quiz.maxChargesPerHour", label: "Quizzes won an hour, at most", kind: "whole"},
+        {path: "bonuses.quiz.offerTtl", label: "Banner (s)", kind: "seconds"},
+        {path: "bonuses.quiz.answerWindow", label: "Time to answer (s)", kind: "seconds"},
+        {path: "bonuses.quiz.missRetry", label: "Next quiz after a miss (s)", kind: "seconds"},
+        {path: "bonuses.quiz.leaderBias", label: "Lean to the leaders", kind: "number"},
     ]},
 ]
 
@@ -92,15 +93,23 @@ export type TollStep = {share: string, slowdown: string}
 // A set as the form edits it: every value as typed.
 export type Draft = {name: string, values: Record<string, string>, quiz: boolean, toll: TollStep[]}
 
-export function draftOf(set: RuleSet, name: string = set.name): Draft {
-    const json = set.toJson({emitDefaultValues: true}) as JsonObject
+export function draftOf(set: RuleSet): Draft {
+    const rules = set.rules ?? new Rules()
+    const json = rules.toJson({emitDefaultValues: true}) as JsonObject
 
     return {
-        name,
+        name: set.name,
         values: Object.fromEntries(FIELDS.map(field => [field.path, textOf(valueAt(json, field.path))])),
-        quiz: set.quiz?.enabled ?? false,
-        toll: set.tollSteps.map(step => ({share: String(Number((step.share * 100).toPrecision(12))), slowdown: String(step.slowdown)})),
+        quiz: rules.bonuses?.quiz?.enabled ?? false,
+        toll: (rules.toll?.steps ?? []).map(step => ({
+            share: String(Number((step.share * 100).toPrecision(12))), slowdown: String(step.slowdown),
+        })),
     }
+}
+
+// The rules in force change only through the schedule: a new set starts as a copy of another, with no name.
+export function copyOf(set: RuleSet): Draft {
+    return {...draftOf(set), name: ""}
 }
 
 function valueAt(json: JsonObject, path: string): JsonValue | undefined {
@@ -124,13 +133,13 @@ export function complete(draft: Draft): boolean {
 }
 
 export function ruleSetOf(draft: Draft): RuleSet {
-    const json: JsonObject = {name: draft.name.trim(), quiz: {enabled: draft.quiz}}
+    const json: JsonObject = {bonuses: {quiz: {enabled: draft.quiz}}}
     for (const field of FIELDS) {
         put(json, field.path, jsonOf(Number(draft.values[field.path]), field))
     }
-    json.tollSteps = draft.toll.map(step => ({share: Number(step.share) / 100, slowdown: Number(step.slowdown)}))
+    json.toll = {steps: draft.toll.map(step => ({share: Number(step.share) / 100, slowdown: Number(step.slowdown)}))}
 
-    return RuleSet.fromJson(json)
+    return new RuleSet({name: draft.name.trim(), rules: Rules.fromJson(json)})
 }
 
 function jsonOf(value: number, field: Field): JsonValue {

@@ -5,8 +5,8 @@ choices and **a short clock** to answer. A right answer is worth the same charge
 caught box is. A wrong one, and running out of time, cost nothing.
 
 **It is a second way to earn a charge, not a box of another shape.** Its own
-clock (the rule set's `quiz.minInterval` / `maxInterval`; see [Rules](rules.md)), its own banner lifetime, its
-own `quiz.missRetry`, and its own `quiz.maxChargesPerHour` on top of
+clock (the rule set's `bonuses.quiz.minInterval` / `maxInterval`; see [Rules](rules.md)), its own banner lifetime, its
+own `bonuses.quiz.missRetry`, and its own `bonuses.quiz.maxChargesPerHour` on top of
 the boxes'. The miss rule is the box's: a banner that lapses, opened or not,
 brings the next one forward once, and an answer, right or wrong, clears it. A
 caller can be holding an unopened banner and a flying box at the same time. What
@@ -24,7 +24,7 @@ schedules or charges.
 
 **A short window is the feature; the exact number is not.** The whole point is
 to be answered from what somebody knows rather than from what they can look up,
-so `quiz.answerWindow` is free to be retuned — the guideline is only that
+so `bonuses.quiz.answerWindow` is free to be retuned — the guideline is only that
 it stay short enough that looking the answer up is not worth it. It is 8s today.
 Everything below exists to make whatever it is set to real:
 
@@ -67,7 +67,7 @@ answers with the right one.
 **The draw leans on the leaderboard.** The subject is the bank's, never the
 client's — it steers the draw here and rides the broadcast after a win, and it is
 on nothing a player sees before answering. A question's subject country is picked
-with weight `1 + quiz.leaderBias × (its share ÷ an even share)`, the lean in force passed to `Bank.Draw`, read off
+with weight `1 + bonuses.quiz.leaderBias × (its share ÷ an even share)`, the lean in force passed to `Bank.Draw`, read off
 the *same* `Share` the toll prices a click from — so there is no second
 leaderboard to keep in step, and the board it reads is the live one rather than a
 snapshot taken at boot. The floor of 1 keeps every country in the draw and the
@@ -94,7 +94,7 @@ which is the whole distinction: after a win there is nothing left to give away.
 box does, and `OpenQuiz` not only for symmetry: opening is what starts the five
 seconds, and the caller they are started for has to be the caller that answers.
 
-**Switched on and off from the rule set** (`quiz.enabled`). The bank is loaded at
+**Switched on and off from the rule set** (`bonuses.quiz.enabled`). The bank is loaded at
 every boot, so a switch needs no restart. Off, no quiz is asked and the boxes fly
 exactly as they did; a quiz asked already can still be opened and answered until it
 lapses. Switched on, each caller's next quiz is a whole wait away, so a wait long

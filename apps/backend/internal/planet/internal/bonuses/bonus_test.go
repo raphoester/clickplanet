@@ -35,14 +35,19 @@ func newRuledRegistry(change func(*Rules)) (*Registry, *cptime.FixedClock) {
 	rules.ActiveWithin = 5 * time.Minute
 	change(&rules)
 
+	read := &rules
 	registry := New(Config{ForgetAfter: 5 * time.Minute, SweepInterval: time.Second}, clock, NewMemoryStore(),
-		&FixedRules{Rules: rules}, fixedBank{})
+		func() Rules { return *read }, fixedBank{})
+	testRules[registry] = read
 
 	return registry, clock
 }
 
+// The rules each registry of these tests reads, for a test to change.
+var testRules = map[*Registry]*Rules{}
+
 func rulesOf(r *Registry) *Rules {
-	return &r.rules.(*FixedRules).Rules //nolint:forcetypeassert // every registry in these tests is built with them.
+	return testRules[r]
 }
 
 func holderOf(entrant Entrant) Holder {

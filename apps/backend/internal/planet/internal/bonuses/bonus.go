@@ -152,7 +152,7 @@ type Pace struct {
 
 type Registry struct {
 	config   Config
-	rules    InForce
+	rules    func() Rules
 	clock    cptime.Clock
 	report   Report
 	holdings Holdings
@@ -194,12 +194,12 @@ type Holdings interface {
 	Held(ctx context.Context, holder Holder) (Held, error)
 }
 
-func New(config Config, clock cptime.Clock, holdings Holdings, rules InForce, bank Questions) *Registry {
+func New(config Config, clock cptime.Clock, holdings Holdings, rules func() Rules, bank Questions) *Registry {
 	if clock == nil {
 		clock = cptime.SystemClock{}
 	}
 
-	followed := rules.Bonuses()
+	followed := rules()
 
 	return &Registry{
 		config:        config.withDefaults(),
@@ -255,7 +255,7 @@ func (r *Registry) counted(hook func()) {
 
 func (r *Registry) Attend(entrant Entrant) (<-chan Event, func()) {
 	now := r.clock.Now()
-	rules := r.rules.Bonuses()
+	rules := r.rules()
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -305,7 +305,7 @@ func (r *Registry) leave(entrant Entrant, id uint64) {
 
 func (r *Registry) Clicked(click Click) {
 	now := r.clock.Now()
-	rules := r.rules.Bonuses()
+	rules := r.rules()
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -323,7 +323,7 @@ func (r *Registry) Clicked(click Click) {
 
 func (r *Registry) Claim(token string, entrant Entrant, scope string) (Reward, bool) {
 	now := r.clock.Now()
-	rules := r.rules.Bonuses()
+	rules := r.rules()
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -420,7 +420,7 @@ func (r *Registry) Run(ctx context.Context) {
 
 func (r *Registry) sweep(ctx context.Context) {
 	now := r.clock.Now()
-	rules := r.rules.Bonuses()
+	rules := r.rules()
 
 	r.mu.Lock()
 	defer r.mu.Unlock()

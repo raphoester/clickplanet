@@ -6,18 +6,24 @@ import (
 	"connectrpc.com/connect"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
 )
 
 type Sets interface {
 	Sets(ctx context.Context) ([]*planetv1.RuleSet, error)
 }
 
-func New(sets Sets) GetRulesHandler {
-	return GetRulesHandler{sets: sets}
+type Playing interface {
+	Name() rules.SetName
+}
+
+func New(sets Sets, playing Playing) GetRulesHandler {
+	return GetRulesHandler{sets: sets, playing: playing}
 }
 
 type GetRulesHandler struct {
-	sets Sets
+	sets    Sets
+	playing Playing
 }
 
 func (h GetRulesHandler) GetRules(
@@ -29,5 +35,5 @@ func (h GetRulesHandler) GetRules(
 		return nil, err //nolint:wrapcheck // the query says what failed.
 	}
 
-	return connect.NewResponse(&planetv1.GetRulesResponse{Sets: sets}), nil
+	return connect.NewResponse(&planetv1.GetRulesResponse{Sets: sets, Playing: string(h.playing.Name())}), nil
 }

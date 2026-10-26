@@ -53,7 +53,7 @@ The scope is whatever `IPReaderMiddleware` put on the context: `X-Real-IP` if pr
 ## A big country refills slower (`clicks.Toll`)
 
 **Every click costs one token.** What the map share changes is how fast the
-tokens come back. The rule set's `tollSteps` is a table of `{share, slowdown}`: from `share` of
+tokens come back. The rule set's `toll.steps` is a table of `{share, slowdown}`: from `share` of
 **every tile on the map**, a player of that country refills `slowdown` times
 slower (production runs 1.5× from 10%, 2.5× from 20%, 4× from 30%). No steps
 refills every country at the plain rate. `ClickBudget.slowdown` took the field

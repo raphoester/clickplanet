@@ -13,7 +13,7 @@ type Enclosures interface {
 }
 
 func New(implementation click_usecase.IUseCase, enclosures Enclosures, terrain bonuses.Terrain, annexer Annexer,
-	rules bonuses.InForce,
+	rules func() bonuses.Rules,
 ) *UseCase {
 	return &UseCase{implementation: implementation, enclosures: enclosures, terrain: terrain, annexer: annexer, rules: rules}
 }
@@ -23,7 +23,7 @@ type UseCase struct {
 	enclosures     Enclosures
 	terrain        bonuses.Terrain
 	annexer        Annexer
-	rules          bonuses.InForce
+	rules          func() bonuses.Rules
 }
 
 func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_usecase.Out, error) {
@@ -44,7 +44,7 @@ func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_useca
 		return out, err
 	}
 
-	pockets := u.terrain.PocketsClosedBy(in.TileID, in.CountryID, u.rules.Bonuses().Enclose.MaxTiles)
+	pockets := u.terrain.PocketsClosedBy(in.TileID, in.CountryID, u.rules().Enclose.MaxTiles)
 
 	return out, u.annexer.Annex(ctx, bonuses.EntrantOf(payer), holder, in, pockets)
 }

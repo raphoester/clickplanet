@@ -118,9 +118,10 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/refusals/log_refusals"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/refusals/postgres_refusal_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/parts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/postgres_rule_set_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/usecases/enforce_rules_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/usecases/enforce_rules_usecase/log_enforce_rules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/usecases/play_rules_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/usecases/play_rules_usecase/log_play_rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/usecases/save_rule_set_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/usecases/save_rule_set_usecase/audit_save_rule_set"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/account_deleted_subscriber"
@@ -197,14 +198,17 @@ func NewModule(config Config) cpbootstrap.Module {
 			}
 
 			ruleSets := postgres_rule_set_store.New(db)
+			ruleParts := parts.All()
 			inForce := rules.NewInForce(clock)
-			enforceRules := log_enforce_rules.New(enforce_rules_usecase.New(ruleSets, inForce), props.Logger)
-			if _, err := enforceRules.Execute(ctx); err != nil {
+			play := play_rules_usecase.New(ruleSets, ruleParts, inForce)
+			if _, _, err := log_play_rules.New(play, props.Logger).Execute(ctx); err != nil {
 				closeStores()
-				return fmt.Errorf("failed to enforce the rules postgres keeps: %w", err)
+				return fmt.Errorf("failed to play the rules postgres keeps: %w", err)
 			}
+			throttle := rules.Reader(inForce, clicks.ThrottlePart)
+			game := rules.Reader(inForce, bonuses.Part)
 
-			charges := bonuses.NewCharges(postgres_charge_store.New(db), inForce)
+			charges := bonuses.NewCharges(postgres_charge_store.New(db), game)
 
 			grants, err := cpredis.Handle(ctx, streams, log_subscriber.New(apply_grant_handler.New(
 				apply_grant_usecase.New(db, postgres_grant_store.New(db), charges, clock)), props.Logger))
@@ -245,17 +249,17 @@ func NewModule(config Config) cpbootstrap.Module {
 					facts.NewRelay(told, streams, factsRelayInterval))))
 			props.Runners.Add(ledger.NewRetention(config.Ledger, takings, clock))
 
-			props.Runners.Add(enforce_rules_usecase.NewRunner(time.Second, enforceRules))
-
-			limiter := cpratelimit.NewRuled("click-limiter", inForce, config.RateLimiter.SweepInterval, clock)
+			limiter := cpratelimit.NewRuled("click-limiter",
+				func() cpratelimit.Policy { return throttle().Policy(inForce.Since()) }, config.RateLimiter.SweepInterval, clock)
 			props.Runners.Add(limiter)
-			buckets := clicks.NewBuckets(inForce)
+			buckets := clicks.NewBuckets(throttle)
 
-			pricer := clicks.NewToll(inForce, tilesStorage)
+			pricer := clicks.NewToll(rules.Reader(inForce, clicks.TollPart), tilesStorage)
 
 			book := allegiances.NewBook(postgres_allegiance_store.New(db), countries, clock)
 
-			writer := ledger.NewRecording(tilesStorage, clicks.NewClaiming(tilesStorage, inForce), takings, clock)
+			writer := ledger.NewRecording(tilesStorage,
+				clicks.NewClaiming(tilesStorage, func() int { return game().Shield.PerTile }), takings, clock)
 
 			bank, err := quizzes.Load(tilesStorage)
 			if err != nil {
@@ -266,10 +270,10 @@ func NewModule(config Config) cpbootstrap.Module {
 				slog.Int("questions", bank.Size()),
 				slog.Int("subjects", bank.Subjects()))
 
-			registry := bonuses.New(config.Bonus, clock, charges, inForce, bank)
+			registry := bonuses.New(config.Bonus, clock, charges, game, bank)
 			props.Runners.Add(registry)
 
-			bombing := bonuses.NewBombing(inForce, geography.Spacing())
+			bombing := bonuses.NewBombing(game, geography.Spacing())
 
 			var clickUseCase click_usecase.IUseCase = click_usecase.New(tilesChecker, writer, countries)
 			clickUseCase = spread_click.New(clickUseCase, charges, geography, writer, registry)
@@ -277,7 +281,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			clickUseCase = enclose_click.New(clickUseCase, charges,
 				bonuses.NewTerrain(geography, tilesStorage),
 				enclose_click.NewAnnexer(writer, charges, prom_enclose.New(registry, props.Metrics)),
-				inForce)
+				game)
 
 			clickUseCase = prom_click.New(clickUseCase, props.Metrics)
 
@@ -292,7 +296,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			// Outside the throttle: a refused click must not spend a token, or the client shows a 429.
 			clickUseCase = refusal_click.New(clickUseCase, refusing, props.Metrics)
 
-			clickUseCase = try_click.New(clickUseCase, tilesStorage, geography, inForce, told)
+			clickUseCase = try_click.New(clickUseCase, tilesStorage, geography, throttle, told)
 
 			adminBatch := config.TilesStorage.SubscriberBuffer / 4
 			if adminBatch <= 0 {
@@ -318,9 +322,9 @@ func NewModule(config Config) cpbootstrap.Module {
 				GetReplayHandler:      get_replay_handler.New(replay_usecase.New(takings, tilesChecker, tilesStorage, clock)),
 				GetLedgerHandler:      get_ledger_handler.New(changes_query.NewPostgresQuery(db, clock)),
 				GetTerritoriesHandler: getTerritories,
-				GetRulesHandler:       get_rules_handler.New(rule_sets_query.NewPostgresQuery(db)),
+				GetRulesHandler:       get_rules_handler.New(rule_sets_query.NewPostgresQuery(db), inForce),
 				SaveRuleSetHandler: save_rule_set_handler.New(
-					audit_save_rule_set.New(save_rule_set_usecase.New(ruleSets), props.Logger)),
+					audit_save_rule_set.New(save_rule_set_usecase.New(ruleSets, ruleParts, play), props.Logger)),
 			}
 
 			if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
@@ -409,11 +413,11 @@ func NewModule(config Config) cpbootstrap.Module {
 				DropBombHandler:      drop_bomb_handler.New(dropBomb),
 				UseRefillHandler:     use_refill_handler.New(use_refill_usecase.New(charges, limiter, pricer, buckets)),
 				GetChargesHandler:    get_charges_handler.New(get_charges_usecase.New(charges)),
-				GetBonusRulesHandler: get_bonus_rules_handler.New(inForce, bombing, pricer),
+				GetBonusRulesHandler: get_bonus_rules_handler.New(game, bombing, pricer),
 				OpenQuizHandler:      open_quiz_handler.New(openQuiz),
 				AnswerQuizHandler:    answer_quiz_handler.New(answerQuiz),
 				PlaceShieldHandler: place_shield_handler.New(refusal_place_shield.New(
-					place_shield_usecase.New(charges, writer, countries, book, inForce), refusing)),
+					place_shield_usecase.New(charges, writer, countries, book, game), refusing)),
 				GetFortressesHandler: get_fortresses_handler.New(fortresses_query.NewMemoryQuery(tilesStorage)),
 				GetTileHolderHandler: get_tile_holder_handler.New(tilesChecker, holder_query.NewPostgresQuery(db)),
 				GetLandmassHandler: get_landmass_handler.New(borders,

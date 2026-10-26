@@ -22,10 +22,13 @@ type onePrice struct{}
 
 func (onePrice) Price(string) clicks.Price { return clicks.Price{Slowdown: 1} }
 
-var buckets = clicks.NewBuckets(&clicks.FixedRules{Clicks: clicks.Throttle{
-	PerSecond: 0.2, Burst: 60, ScopeMultiplier: 10, V6ScopeMultiplier: 10, GuestScopeMultiplier: 1, LinkedMultiplier: 2,
-	NewAccountClicks: 60,
-}})
+var buckets = clicks.NewBuckets(func() clicks.Throttle {
+	return clicks.Throttle{
+		Tempo: 1, PerSecond: 0.2, Burst: 60,
+		ScopeMultiplier: 10, V6ScopeMultiplier: 10, GuestScopeMultiplier: 1, LinkedMultiplier: 2,
+		NewAccountClicks: 60,
+	}
+})
 
 type fixture struct {
 	refills *bonuses.MemoryStore
@@ -41,7 +44,7 @@ func setup(held bool) fixture {
 	return fixture{
 		refills: refills,
 		limiter: limiter,
-		useCase: use_refill_usecase.New(bonuses.NewCharges(refills, &bonuses.FixedRules{Rules: bonuses.TestRules()}), limiter, onePrice{}, buckets),
+		useCase: use_refill_usecase.New(bonuses.NewCharges(refills, bonuses.TestRules), limiter, onePrice{}, buckets),
 	}
 }
 

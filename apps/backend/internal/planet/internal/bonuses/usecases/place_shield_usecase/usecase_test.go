@@ -52,10 +52,10 @@ func setup(t *testing.T, shields int) fixture {
 	}
 }
 
-var twoATile = func() *bonuses.FixedRules {
+var twoATile = func() func() bonuses.Rules {
 	rules := bonuses.TestRules()
 	rules.Shield.Held, rules.Shield.PerTile = 12, 2
-	return &bonuses.FixedRules{Rules: rules}
+	return func() bonuses.Rules { return rules }
 }()
 
 func played(t *testing.T) context.Context {
