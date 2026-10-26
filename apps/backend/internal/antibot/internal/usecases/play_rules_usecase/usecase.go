@@ -10,7 +10,7 @@ import (
 )
 
 type Sets interface {
-	Set(ctx context.Context, name rules.SetName) (rules.Snapshot, error)
+	Set(ctx context.Context, name rules.SetName) (rules.Set, error)
 }
 
 type Rules interface {
@@ -32,15 +32,14 @@ type Taken struct {
 	Asked rules.SetName
 }
 
-func New(sets Sets, parts rules.Parts, inForce Rules, bans Bans) *UseCase {
-	return &UseCase{sets: sets, parts: parts, inForce: inForce, bans: bans, asked: rules.Default}
+func New(sets Sets, inForce Rules, bans Bans) *UseCase {
+	return &UseCase{sets: sets, inForce: inForce, bans: bans, asked: rules.Default}
 }
 
 // UseCase plays the set named like the planet rule set in force, or default when the antibot keeps no set of that
 // name.
 type UseCase struct {
 	sets    Sets
-	parts   rules.Parts
 	inForce Rules
 	bans    Bans
 
@@ -74,17 +73,12 @@ func (u *UseCase) Execute(ctx context.Context) (Taken, bool, error) {
 }
 
 func (u *UseCase) playLocked(ctx context.Context) (Taken, bool, error) {
-	kept, err := u.sets.Set(ctx, u.asked)
+	set, err := u.sets.Set(ctx, u.asked)
 	if errors.Is(err, rules.ErrUnknownSet) && u.asked != rules.Default {
-		kept, err = u.sets.Set(ctx, rules.Default)
+		set, err = u.sets.Set(ctx, rules.Default)
 	}
 	if err != nil {
 		return Taken{}, false, fmt.Errorf("could not read the rules to play for %q: %w", u.asked, err)
-	}
-
-	set, err := kept.Restore(u.parts)
-	if err != nil {
-		return Taken{}, false, fmt.Errorf("the rule set %q kept cannot play: %w", kept.Name, err)
 	}
 
 	taken := Taken{Set: set.TakeSnapshot(), Asked: u.asked}

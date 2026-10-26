@@ -8,8 +8,8 @@ Battle the operator needs a looser crowd for one evening, from the page.
 ## A rule set
 
 **A set is a name and every rule value, all written.** No value falls back to another set, to a default in Go, or to
-one in SQL. Its snapshot is the wire's message: `rules.Snapshot{Name, Rules *antibotv1.Rules}`, which the store keeps,
-the operator's calls carry and the log lines print as it is. `Snapshot.Restore(parts)` is the one check.
+one in SQL. Its snapshot is the wire's message: `rules.Snapshot{Name, Rules *antibotv1.Rules}`, which postgres keeps
+as a document, the operator's calls carry and the log lines print as it is. `Snapshot.Restore(parts)` is the one check.
 
 - **Each part is read by the package that judges with it.** A watchdog, the jury and the ban book each own their
   `Rules`, its `Validate`, its `RulesOf(*antibotv1.XRules)` and a `Part` (`rules.PartOf[Rules]{Key, Read}`) that takes
@@ -77,8 +77,12 @@ the operator's calls carry and the log lines print as it is. `Snapshot.Restore(p
 a column each, and a migration for every rule added. The proto message is already the wire's, so the store, the RPC and
 the page read one shape.
 
-- `postgres_rule_set_store` finds a set's snapshot by name and upserts one; it restores nothing. `rules.MemoryStore` is
-  the fake, and `rules.StoreContractSuite` runs on both. A key the proto no longer has is ignored on read.
+- **The store answers sets, never snapshots** (`rules.Store`: `Set(ctx, name) (Set, error)`, `Save(ctx, Set)`).
+  `postgres_rule_set_store` is built with `guard.Parts()`: it finds a set by name and restores it, and upserts a set's
+  snapshot. The snapshot never leaves the store. A set kept that cannot play, after a hand edit in SQL or a rule added
+  with no migration, is an error that wraps `rules.ErrInvalidSet` and names the set. `rules.MemoryStore` is the fake
+  (its `Keep` writes a set that cannot play), and `rules.StoreContractSuite` runs on both. A key the proto no longer has
+  is ignored on read.
 - **A rule added later needs a migration** that writes its value into every set (`jsonb_set`). Without one, the set
   reads the value as zero; where zero cannot be judged with, the set no longer restores, the antibot keeps the rules
   in force, and the next boot is refused.
@@ -94,7 +98,7 @@ judgement sees one set.
 - **`play_rules_usecase` plays when something changes, never on a timer**: once at boot, and when planet names a set
   (`Play(ctx, name)`). A save never changes the rules in force (see [The operator](#the-operator)), so it plays
   nothing. Each time it reads the set to
-  play, restores it with `guard.Parts()` and enforces it when its values changed (`Set.Equal`), one play at a time
+  play from the store, which restores it, and enforces it when its values changed (`Set.Equal`), one play at a time
   under a lock. A missing `default` refuses the boot. A failed read, or a kept set that cannot play, keeps the rules in
   force; the caller gets the error and `log_play_rules` logs it. Until 2026-10-26 a runner read postgres every second;
   with one process and planet's schedule as the only thing that changes the set in force, a push is enough, and a hand
@@ -156,7 +160,7 @@ in a file would be read by nothing.
 
 - **`GetRules`** answers every set postgres keeps, `default` first, as kept (one that cannot play too, so it can be
   mended), and `playing`, the name of the set in force. It is a query (`rule_sets_query`) beside the name `InForce`
-  holds.
+  holds: it reads the documents, not the store, which refuses a set that cannot play.
 - **`SaveRuleSet{set}`** makes a set or replaces its values. A set `Restore` refuses is `InvalidArgument`, with every
   reason. `audit_save_rule_set` logs every save at Warn (`admin antibot rule set saved` or `refused`, with the rules).
 - **No operator call changes the rules in force.** What plays is planet's schedule, with its priorities; an operator
