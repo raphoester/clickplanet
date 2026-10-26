@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/lib/pq"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
 const chunkSize = 10_000
@@ -23,8 +25,8 @@ type Store struct {
 
 var _ inmemory_tile_storage.Persistence = (*Store)(nil)
 
-func (s *Store) Load(ctx context.Context, visit func(tile uint32, owner string, shields int)) error {
-	rows, err := s.db.On(ctx).QueryContext(ctx, `SELECT id, country, shields FROM tiles`)
+func (s *Store) Load(ctx context.Context, visit func(tile inmemory_tile_storage.Tile)) error {
+	rows, err := s.db.On(ctx).QueryContext(ctx, `SELECT id, country, shields, holder FROM tiles`)
 	if err != nil {
 		return fmt.Errorf("failed to read tiles: %w", err)
 	}
@@ -32,14 +34,16 @@ func (s *Store) Load(ctx context.Context, visit func(tile uint32, owner string, 
 
 	for rows.Next() {
 		var (
-			tile    uint32
-			owner   string
-			shields int
+			tile   inmemory_tile_storage.Tile
+			holder uuid.NullUUID
 		)
-		if err := rows.Scan(&tile, &owner, &shields); err != nil {
+		if err := rows.Scan(&tile.ID, &tile.Owner, &tile.Shields, &holder); err != nil {
 			return fmt.Errorf("failed to scan a tile: %w", err)
 		}
-		visit(tile, owner, shields)
+		if holder.Valid {
+			tile.Holder = cpsession.AccountID(holder.UUID)
+		}
+		visit(tile)
 	}
 
 	if err := rows.Err(); err != nil {
@@ -78,9 +82,9 @@ func (s *Store) LoadLandmasses(
 
 func (s *Store) Save(ctx context.Context, tiles []inmemory_tile_storage.Tile, landmasses []inmemory_tile_storage.Landmass) error {
 	var (
-		taken, freed []int64
-		takenBy      []string
-		shields      []int64
+		taken, freed     []int64
+		takenBy, holders []string
+		shields          []int64
 	)
 	for _, tile := range tiles {
 		if tile.Owner == "" {
@@ -90,6 +94,7 @@ func (s *Store) Save(ctx context.Context, tiles []inmemory_tile_storage.Tile, la
 		taken = append(taken, int64(tile.ID))
 		takenBy = append(takenBy, tile.Owner)
 		shields = append(shields, int64(tile.Shields))
+		holders = append(holders, holderOf(tile.Holder))
 	}
 
 	return s.db.InTx(ctx, func(ctx context.Context) error {
@@ -97,10 +102,12 @@ func (s *Store) Save(ctx context.Context, tiles []inmemory_tile_storage.Tile, la
 		for start := 0; start < len(taken); start += chunkSize {
 			end := min(start+chunkSize, len(taken))
 			if _, err := tx.ExecContext(ctx, `
-				INSERT INTO tiles (id, country, shields)
-				SELECT * FROM unnest($1::integer[], $2::text[], $3::smallint[])
-				ON CONFLICT (id) DO UPDATE SET country = EXCLUDED.country, shields = EXCLUDED.shields
-			`, pq.Array(taken[start:end]), pq.Array(takenBy[start:end]), pq.Array(shields[start:end])); err != nil {
+				INSERT INTO tiles (id, country, shields, holder)
+				SELECT id, country, shields, NULLIF(holder, '')::uuid
+				FROM unnest($1::integer[], $2::text[], $3::smallint[], $4::text[]) AS t(id, country, shields, holder)
+				ON CONFLICT (id) DO UPDATE SET country = EXCLUDED.country, shields = EXCLUDED.shields, holder = EXCLUDED.holder
+			`, pq.Array(taken[start:end]), pq.Array(takenBy[start:end]), pq.Array(shields[start:end]),
+				pq.Array(holders[start:end])); err != nil {
 				return fmt.Errorf("failed to upsert tiles: %w", err)
 			}
 		}
@@ -117,6 +124,14 @@ func (s *Store) Save(ctx context.Context, tiles []inmemory_tile_storage.Tile, la
 
 		return saveLandmasses(ctx, tx, landmasses)
 	})
+}
+
+// lib/pq takes no array of a named type, and a NULL holder is no take's.
+func holderOf(account cpsession.AccountID) string {
+	if account == cpsession.NoAccount {
+		return ""
+	}
+	return account.String()
 }
 
 func saveLandmasses(ctx context.Context, tx cppg.Querier, landmasses []inmemory_tile_storage.Landmass) error {

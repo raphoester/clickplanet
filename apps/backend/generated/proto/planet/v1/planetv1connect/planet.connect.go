@@ -68,6 +68,9 @@ const (
 	// ClickServiceGetTileHolderProcedure is the fully-qualified name of the ClickService's
 	// GetTileHolder RPC.
 	ClickServiceGetTileHolderProcedure = "/planet.v1.ClickService/GetTileHolder"
+	// ClickServiceGetLandmassProcedure is the fully-qualified name of the ClickService's GetLandmass
+	// RPC.
+	ClickServiceGetLandmassProcedure = "/planet.v1.ClickService/GetLandmass"
 	// ClickServiceGetAllegianceProcedure is the fully-qualified name of the ClickService's
 	// GetAllegiance RPC.
 	ClickServiceGetAllegianceProcedure = "/planet.v1.ClickService/GetAllegiance"
@@ -95,6 +98,7 @@ type ClickServiceClient interface {
 	PlaceShield(context.Context, *connect.Request[v1.PlaceShieldRequest]) (*connect.Response[v1.PlaceShieldResponse], error)
 	GetFortresses(context.Context, *connect.Request[v1.GetFortressesRequest]) (*connect.Response[v1.GetFortressesResponse], error)
 	GetTileHolder(context.Context, *connect.Request[v1.GetTileHolderRequest]) (*connect.Response[v1.GetTileHolderResponse], error)
+	GetLandmass(context.Context, *connect.Request[v1.GetLandmassRequest]) (*connect.Response[v1.GetLandmassResponse], error)
 	// Not NO_SIDE_EFFECTS: the answer is about one caller now, and a cached one lies.
 	GetAllegiance(context.Context, *connect.Request[v1.GetAllegianceRequest]) (*connect.Response[v1.GetAllegianceResponse], error)
 	// The only way to set or change the flag: a click or a shield never does.
@@ -208,6 +212,13 @@ func NewClickServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		getLandmass: connect.NewClient[v1.GetLandmassRequest, v1.GetLandmassResponse](
+			httpClient,
+			baseURL+ClickServiceGetLandmassProcedure,
+			connect.WithSchema(clickServiceMethods.ByName("GetLandmass")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 		getAllegiance: connect.NewClient[v1.GetAllegianceRequest, v1.GetAllegianceResponse](
 			httpClient,
 			baseURL+ClickServiceGetAllegianceProcedure,
@@ -240,6 +251,7 @@ type clickServiceClient struct {
 	placeShield      *connect.Client[v1.PlaceShieldRequest, v1.PlaceShieldResponse]
 	getFortresses    *connect.Client[v1.GetFortressesRequest, v1.GetFortressesResponse]
 	getTileHolder    *connect.Client[v1.GetTileHolderRequest, v1.GetTileHolderResponse]
+	getLandmass      *connect.Client[v1.GetLandmassRequest, v1.GetLandmassResponse]
 	getAllegiance    *connect.Client[v1.GetAllegianceRequest, v1.GetAllegianceResponse]
 	pledgeAllegiance *connect.Client[v1.PledgeAllegianceRequest, v1.PledgeAllegianceResponse]
 }
@@ -319,6 +331,11 @@ func (c *clickServiceClient) GetTileHolder(ctx context.Context, req *connect.Req
 	return c.getTileHolder.CallUnary(ctx, req)
 }
 
+// GetLandmass calls planet.v1.ClickService.GetLandmass.
+func (c *clickServiceClient) GetLandmass(ctx context.Context, req *connect.Request[v1.GetLandmassRequest]) (*connect.Response[v1.GetLandmassResponse], error) {
+	return c.getLandmass.CallUnary(ctx, req)
+}
+
 // GetAllegiance calls planet.v1.ClickService.GetAllegiance.
 func (c *clickServiceClient) GetAllegiance(ctx context.Context, req *connect.Request[v1.GetAllegianceRequest]) (*connect.Response[v1.GetAllegianceResponse], error) {
 	return c.getAllegiance.CallUnary(ctx, req)
@@ -348,6 +365,7 @@ type ClickServiceHandler interface {
 	PlaceShield(context.Context, *connect.Request[v1.PlaceShieldRequest]) (*connect.Response[v1.PlaceShieldResponse], error)
 	GetFortresses(context.Context, *connect.Request[v1.GetFortressesRequest]) (*connect.Response[v1.GetFortressesResponse], error)
 	GetTileHolder(context.Context, *connect.Request[v1.GetTileHolderRequest]) (*connect.Response[v1.GetTileHolderResponse], error)
+	GetLandmass(context.Context, *connect.Request[v1.GetLandmassRequest]) (*connect.Response[v1.GetLandmassResponse], error)
 	// Not NO_SIDE_EFFECTS: the answer is about one caller now, and a cached one lies.
 	GetAllegiance(context.Context, *connect.Request[v1.GetAllegianceRequest]) (*connect.Response[v1.GetAllegianceResponse], error)
 	// The only way to set or change the flag: a click or a shield never does.
@@ -457,6 +475,13 @@ func NewClickServiceHandler(svc ClickServiceHandler, opts ...connect.HandlerOpti
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	clickServiceGetLandmassHandler := connect.NewUnaryHandler(
+		ClickServiceGetLandmassProcedure,
+		svc.GetLandmass,
+		connect.WithSchema(clickServiceMethods.ByName("GetLandmass")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	clickServiceGetAllegianceHandler := connect.NewUnaryHandler(
 		ClickServiceGetAllegianceProcedure,
 		svc.GetAllegiance,
@@ -501,6 +526,8 @@ func NewClickServiceHandler(svc ClickServiceHandler, opts ...connect.HandlerOpti
 			clickServiceGetFortressesHandler.ServeHTTP(w, r)
 		case ClickServiceGetTileHolderProcedure:
 			clickServiceGetTileHolderHandler.ServeHTTP(w, r)
+		case ClickServiceGetLandmassProcedure:
+			clickServiceGetLandmassHandler.ServeHTTP(w, r)
 		case ClickServiceGetAllegianceProcedure:
 			clickServiceGetAllegianceHandler.ServeHTTP(w, r)
 		case ClickServicePledgeAllegianceProcedure:
@@ -572,6 +599,10 @@ func (UnimplementedClickServiceHandler) GetFortresses(context.Context, *connect.
 
 func (UnimplementedClickServiceHandler) GetTileHolder(context.Context, *connect.Request[v1.GetTileHolderRequest]) (*connect.Response[v1.GetTileHolderResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.GetTileHolder is not implemented"))
+}
+
+func (UnimplementedClickServiceHandler) GetLandmass(context.Context, *connect.Request[v1.GetLandmassRequest]) (*connect.Response[v1.GetLandmassResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.GetLandmass is not implemented"))
 }
 
 func (UnimplementedClickServiceHandler) GetAllegiance(context.Context, *connect.Request[v1.GetAllegianceRequest]) (*connect.Response[v1.GetAllegianceResponse], error) {

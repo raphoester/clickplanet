@@ -94,6 +94,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_country_sizes_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_fortresses_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_fortresses_handler/fortresses_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_landmass_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_landmass_handler/landmass_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_landmass_handler/landmass_query/inmemory_tile_holders"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_ledger_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_ledger_handler/changes_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_map_handler"
@@ -220,7 +223,7 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			deletions, err := cpredis.Subscribe(ctx, streams, "planet-ledger-accounts",
 				log_subscriber.New(account_deleted_subscriber.New(
-					anonymize_takes_usecase.New(takings, ledgerStore)), props.Logger))
+					anonymize_takes_usecase.New(takings, ledgerStore, tilesStorage)), props.Logger))
 			if err != nil {
 				closeStores()
 				return fmt.Errorf("failed to subscribe the ledger to auth.v1.AccountDeleted: %w", err)
@@ -450,8 +453,10 @@ func NewModule(config Config) cpbootstrap.Module {
 				AnswerQuizHandler:    answer_quiz_handler.New(answerQuiz),
 				PlaceShieldHandler: place_shield_handler.New(antibot_place_shield.New(
 					place_shield_usecase.New(charges, writer, countries, book, config.Bonus.ShieldsPerTile()), guard)),
-				GetFortressesHandler:    get_fortresses_handler.New(fortresses_query.NewMemoryQuery(tilesStorage)),
-				GetTileHolderHandler:    get_tile_holder_handler.New(tilesChecker, holder_query.NewPostgresQuery(db)),
+				GetFortressesHandler: get_fortresses_handler.New(fortresses_query.NewMemoryQuery(tilesStorage)),
+				GetTileHolderHandler: get_tile_holder_handler.New(tilesChecker, holder_query.NewPostgresQuery(db)),
+				GetLandmassHandler: get_landmass_handler.New(borders,
+					landmass_query.NewPostgresQuery(db, inmemory_tile_holders.New(tilesStorage))),
 				GetAllegianceHandler:    get_allegiance_handler.New(allegiance_query.NewPostgresQuery(db)),
 				PledgeAllegianceHandler: pledge_allegiance_handler.New(book),
 			}

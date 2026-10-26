@@ -29,6 +29,7 @@ internal/planet/internal/
     get_takes_by_country_handler/takes_query/   InternalService's one read, straight from ledger_events
     get_ledger_handler/changes_query/           AdminService/GetLedger, straight from ledger_events too
     get_tile_holder_handler/holder_query/       ClickService/GetTileHolder, the last take of one tile, from ledger_events
+    get_landmass_handler/landmass_query/       ClickService/GetLandmass: the holders from the tiles, the last fortify from ledger_events
   subscribers/                    the edge for events: auth.v1.AccountDeleted → anonymize_takes_usecase
 ```
 

@@ -59,6 +59,8 @@ and says what is in it. Read the doc before you change its area.
 - [Rules](docs/rules.md) — the rule sets kept in postgres, the season's baseline and the operator's override over it.
 - [Shields](docs/shields.md) — a charge on a tile; each shield takes one foreign click.
 - [Fortify](docs/fortify.md) — a take that makes a landmass whole gives every tile of it a shield.
+- [Who holds the tiles](docs/tile-holders.md) — each tile keeps the account whose take holds it; `GetLandmass`
+  reads a landmass's holders and its last fortify.
 - [Charges](docs/charges.md) — every bonus is a charge, kept until the player uses it.
 - [Spread](docs/spread.md), [Bomb](docs/bomb.md), [Enclose](docs/enclose.md), [Refill](docs/refill.md) — what
   each charge does to a click or to the bucket.
