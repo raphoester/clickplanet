@@ -22,7 +22,8 @@
   are resolved once per frame, not once per mousemove — each one ends in a
   synchronous GPU read that stalls the pipeline. Its occluder is the earth's own
   sphere, which it does not dispose.
-- `points.ts` — fetches and decodes the tile coordinates blob.
+- `points.ts` / `latticeWorker.ts` / `landmaskAsset.ts` — the tile positions, rebuilt in a worker from
+  the landmask, or the coordinates blob when that fails. See [Tile positions](tile-positions.md).
 - `capture.ts` — `readDrawingBuffer`, the frame the player is looking at. **It
   only works inside the render loop**; see [Sharing the
   globe](sharing.md).

@@ -32,7 +32,6 @@ const COMPACT: Layout = {
 function fieldOf(compact: boolean, size = SIZE) {
     const data: PointGeometryData = {
         positions: new Float32Array(size * 3),
-        uvs: new Float32Array(size * 2),
         size,
     }
     return new TileField({zoom: {value: 1}}, {pointSize: {value: 1}}, data, {tiles: false, compact})
