@@ -3,8 +3,6 @@
 package missions
 
 import (
-	"context"
-	"errors"
 	"time"
 
 	"github.com/stretchr/testify/suite"
@@ -63,8 +61,6 @@ func (s *StoreContractSuite) takeFor(day Day, account byte, take Take) {
 		func(sheet Sheet) Sheet { return sheet.WithTake(take, brief) }))
 }
 
-func paid(context.Context) error { return nil }
-
 func (s *StoreContractSuite) frMission(n int) MissionID {
 	return Draw(contractDay, "fr", contractWorld).Snapshot()[n].ID
 }
@@ -118,7 +114,7 @@ func (s *StoreContractSuite) TestBriefsAreKeptByDayAndFlag() {
 }
 
 func (s *StoreContractSuite) TestASheetNeverChangedIsEmpty() {
-	s.Equal(SheetSnapshot{Taken: map[MissionID]uint32{}, Collected: cpcolls.NewSet[MissionID]()}, s.sheet(contractDay, 1))
+	s.Equal(SheetSnapshot{Taken: map[MissionID]uint32{}, Paid: cpcolls.NewSet[MissionID]()}, s.sheet(contractDay, 1))
 }
 
 func (s *StoreContractSuite) TestChangesToASheetAddUp() {
@@ -126,7 +122,7 @@ func (s *StoreContractSuite) TestChangesToASheetAddUp() {
 	s.takeFor(contractDay, 1, Take{Flag: "fr", Ground: "es", At: contractAt})
 
 	s.Equal(SheetSnapshot{
-		Flag: "fr", Taken: map[MissionID]uint32{s.frMission(0): 2, s.frMission(1): 1}, Collected: cpcolls.NewSet[MissionID](),
+		Flag: "fr", Taken: map[MissionID]uint32{s.frMission(0): 2, s.frMission(1): 1}, Paid: cpcolls.NewSet[MissionID](),
 		TakesBelow: 3,
 	}, s.sheet(contractDay, 1))
 }
@@ -146,45 +142,33 @@ func (s *StoreContractSuite) TestASheetIsKeptByDayAndAccount() {
 	s.False(SheetOf(s.sheet(contractNextDay, 1)).Enlisted())
 }
 
-func (s *StoreContractSuite) TestACollectionIsKeptOnceItIsPaid() {
-	s.takeFor(contractDay, 1, Take{Flag: "fr", At: contractAt})
-
-	s.Require().NoError(s.store.Collect(s.T().Context(), contractDay, s.account(1), s.frMission(0), contractAt, paid))
-
-	s.Equal(cpcolls.NewSet(s.frMission(0)), s.sheet(contractDay, 1).Collected)
+func (s *StoreContractSuite) pay(day Day, account byte, mission MissionID) {
+	s.Require().NoError(s.store.ChangeSheet(s.T().Context(), day, s.account(account), func(sheet Sheet) Sheet {
+		snapshot := sheet.Snapshot()
+		snapshot.Flag = "fr"
+		snapshot.Paid.Add(mission)
+		return SheetOf(snapshot)
+	}))
 }
 
-func (s *StoreContractSuite) TestACollectionThatCouldNotBePaidIsNotKept() {
+func (s *StoreContractSuite) TestAPaymentIsKept() {
 	s.takeFor(contractDay, 1, Take{Flag: "fr", At: contractAt})
-	unpaid := errors.New("the planet is down")
 
-	err := s.store.Collect(s.T().Context(), contractDay, s.account(1), s.frMission(0), contractAt,
-		func(context.Context) error { return unpaid })
-
-	s.ErrorIs(err, unpaid)
-	s.True(s.sheet(contractDay, 1).Collected.Empty())
-}
-
-func (s *StoreContractSuite) TestAMissionIsCollectedOncePaidOnce() {
+	s.pay(contractDay, 1, s.frMission(0))
 	s.takeFor(contractDay, 1, Take{Flag: "fr", At: contractAt})
-	s.Require().NoError(s.store.Collect(s.T().Context(), contractDay, s.account(1), s.frMission(0), contractAt, paid))
 
-	payments := 0
-	err := s.store.Collect(s.T().Context(), contractDay, s.account(1), s.frMission(0), contractAt,
-		func(context.Context) error { payments++; return nil })
-
-	s.ErrorIs(err, ErrCollected)
-	s.Zero(payments)
+	s.Equal(cpcolls.NewSet(s.frMission(0)), s.sheet(contractDay, 1).Paid)
+	s.Equal(uint32(2), s.sheet(contractDay, 1).Taken[s.frMission(0)], "and the takes after it")
 }
 
 func (s *StoreContractSuite) TestDeletingAnAccountForgetsItsDays() {
 	s.takeFor(contractDay, 1, Take{Flag: "fr", At: contractAt})
 	s.takeFor(contractDay, 2, Take{Flag: "fr", At: contractAt})
-	s.Require().NoError(s.store.Collect(s.T().Context(), contractDay, s.account(1), s.frMission(0), contractAt, paid))
+	s.pay(contractDay, 1, s.frMission(0))
 
 	s.Require().NoError(s.store.DeleteAccount(s.T().Context(), s.account(1)))
 
 	s.False(SheetOf(s.sheet(contractDay, 1)).Enlisted())
-	s.True(s.sheet(contractDay, 1).Collected.Empty())
+	s.True(s.sheet(contractDay, 1).Paid.Empty())
 	s.True(SheetOf(s.sheet(contractDay, 2)).Enlisted(), "another account keeps its day")
 }

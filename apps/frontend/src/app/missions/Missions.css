@@ -30,7 +30,7 @@
     padding: var(--space-2) var(--space-3);
 }
 
-.mission--collected {
+.mission--paid {
     opacity: 0.6;
 }
 

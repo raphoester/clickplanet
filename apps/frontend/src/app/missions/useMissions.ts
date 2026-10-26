@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useState} from "react"
+import {useEffect, useState} from "react"
 import {DayMissions, MissionsBackend} from "../../backends/missions.ts"
 import {ListenForClicks} from "../viewer/acceptedClicks.ts"
 import {useReadsAfterClicks} from "../viewer/useAcceptedClicks.ts"
@@ -12,7 +12,7 @@ export function useMissions(
     backend: MissionsBackend | undefined,
     pledged: string | undefined,
     listenForClicks: ListenForClicks | undefined,
-): [MissionsState, () => void] {
+): MissionsState {
     const [state, setState] = useState<MissionsState>({kind: "loading"})
     const [read, setRead] = useState(0)
     const reads = useReadsAfterClicks(listenForClicks)
@@ -41,6 +41,5 @@ export function useMissions(
         return () => clearTimeout(turn)
     }, [endsAt])
 
-    const reread = useCallback(() => setRead((n) => n + 1), [])
-    return [state, reread]
+    return state
 }

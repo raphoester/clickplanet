@@ -1,23 +1,26 @@
 # Missions (`internal/missions/`)
 
-**Every flag has three missions a day, the same for each of its players, and what collecting one pays.** It reads
-planet's facts (`TileTaken`, `GetTerritories`, `GetGrounds`, `GetAllegianceOf`) and asks planet to grant a reward (`GrantCharge`), as
-seasons asks planet what each country holds: planet never imports, calls or hears it.
+**Every flag has three missions a day, the same for each of its players, and each pays itself once done.** It reads
+planet's facts (`TileTaken`, `GetTerritories`, `GetGrounds`, `GetAllegianceOf`) and commands planet to grant a reward
+(`planet.v1.GrantCharges`, over Redis), as seasons asks planet what each country holds: planet never imports, calls or
+hears it.
 Its public route, `/missions.v1.MissionService/*`, is listed in `deploy/vps/caddy/Caddyfile`, as every service's is.
 
 ```
 internal/missions/internal/
   missions/                         AccountID, Calendar and Day (the cutoff), Take, MissionID, Kind, Mission (one type per kind),
                                     Brief, Draw and World, Sheet (an account's day), Briefing; the Store port and its contract suite
-    postgres_mission_store/         the Store over missions.mission_briefs, mission_sheets, mission_progress and mission_collections
+    postgres_mission_store/         the Store over missions.mission_briefs, mission_sheets, mission_progress and mission_payments
     inmemory_mission_store/         the same port in maps, behind the testing tag
     rpc_planet_world/               what each flag holds and each ground's size, from planet.v1.InternalService
-    rpc_planet_charges/             a mission's reward, through planet.v1.InternalService/GrantCharge
     rpc_planet_allegiance/          the flag an account pledged, from planet.v1.InternalService/GetAllegianceOf
-    usecases/record_take_usecase/  get_missions_usecase/  collect_mission_usecase/  forget_account_usecase/
+    rpc_auth_accounts/              whether an account is signed in, from auth.v1.InternalService/GetAccount
+    payroll/                        pays each mission done once: the payments and their grants, in one transaction
+    planetgrant/                    a payment as the planet.v1.GrantCharges command
+    usecases/record_take_usecase/  get_missions_usecase/  pay_signed_in_usecase/  forget_account_usecase/
   missionsv1controller/             MissionService (a bag), the session interceptor, the caller, missionmessage
-    get_missions_handler/  collect_mission_handler/
-  subscribers/                      tile_taken_subscriber/  account_deleted_subscriber/  log_subscriber/
+    get_missions_handler/
+  subscribers/                      tile_taken_subscriber/  sign_in_subscriber/  account_deleted_subscriber/  log_subscriber/
   migrations/
 ```
 
@@ -34,7 +37,7 @@ internal/missions/internal/
   - **`Briefing.Of(day, flag)` draws once and keeps it**: the store's first `KeepBrief` wins, so two takes racing to
     draw a flag's day read one brief, and a map that moves later never changes it.
   - **A mission is named by its `MissionID`**, a UUID the draw derives from the day, the flag and its place in the
-    brief (`drawnID`), so the same draw names it the same. Progress, collections and `CollectMission` point at it,
+    brief (`drawnID`), so the same draw names it the same. Progress and payments point at it,
     and nothing caps how many missions a brief holds.
   - **A brief is one `jsonb` array per day and flag** (`mission_briefs.missions`), the missions in the order drawn.
     Each is its id, kind, goal and reward, then its kind's own fields (`target` today, `omitempty`): a kind with
@@ -47,9 +50,15 @@ internal/missions/internal/
     ledger**: `ledger_events` has no time index, and an account's takes since the cutoff would read every take it ever
     made. **A take told twice counts once**: Redis delivers at least once, and the sheet keeps the ledger position after
     the last take it counted (`counted_takes_below`), so one below it counts nothing.
-  - **A guest's progress counts and is kept**, so a guest who signs in that day collects it. **`CollectMission(mission_id)`
-    pays only a signed-in account** (the click token's linked byte; `PermissionDenied` otherwise), once per mission: `mission_collections` is written in a transaction that commits only if `GrantCharge` kept something. A full
-    stack (a bomb held) is `FailedPrecondition` and the mission stays to collect later; so is a mission not done or
-    collected already. The answer is what fit.
-  - **`GetMissions` is `Identified`, `CollectMission` `Attested`.** `auth.v1.AccountDeleted` deletes the account's
-    sheets, progress and collections (`missions-accounts`). The briefs name nobody and stay.
+  - **A mission done is paid at once, with no claim** (`payroll.Pay`, `Sheet.WithPayments`). The take that finishes it
+    writes the payment (`mission_payments`) and records the `planet.v1.GrantCharges` command in missions' outbox, in
+    the transaction that counts the take: both are kept, or neither and the take is told again. `missions-outbox`
+    sends it to planet, which grants it once per `grant_id` (`planetgrant.Of`: the account and the mission, so a
+    payment told twice names one grant). **What does not fit the stack is lost**, as planet grants any charge: no
+    reply comes back.
+  - **A guest's progress counts and is kept, and its pay waits for sign-in.** `payroll` asks auth whether the account
+    is signed in (`rpc_auth_accounts`) only when a take finishes a mission. `auth.v1.SignedIn` (`missions-sign-ins`,
+    `pay_signed_in_usecase`) pays the day's missions done, so a guest who signs in that day gets them; a day that
+    ended unpaid stays unpaid.
+  - **`GetMissions` is `Identified`**, and says which missions are paid. `auth.v1.AccountDeleted` deletes the account's
+    sheets, progress and payments (`missions-accounts`). The briefs name nobody and stay.

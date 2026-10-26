@@ -8,26 +8,29 @@ import (
 
 	"connectrpc.com/connect"
 
+	"github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1/authv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/missions/v1/missionsv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/payroll"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/postgres_mission_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/rpc_auth_accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/rpc_planet_allegiance"
-	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/rpc_planet_charges"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/rpc_planet_world"
-	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/usecases/collect_mission_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/usecases/forget_account_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/usecases/get_missions_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/usecases/pay_signed_in_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/usecases/record_take_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missionsv1controller"
-	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missionsv1controller/collect_mission_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missionsv1controller/get_missions_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/account_deleted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/log_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/sign_in_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/tile_taken_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpoutbox"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsessionverifier"
@@ -52,9 +55,10 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	internal, baseURL, err := props.Internal.Dial()
 	if err != nil {
-		return fmt.Errorf("the missions module asks planet about the map and for rewards: %w", err)
+		return fmt.Errorf("the missions module asks planet about the map and auth about accounts: %w", err)
 	}
 	planet := planetv1connect.NewInternalServiceClient(internal, baseURL)
+	auth := authv1connect.NewInternalServiceClient(internal, baseURL)
 
 	db := cppg.New(config.Database)
 	if err := db.ConnectCtx(ctx); err != nil {
@@ -77,9 +81,10 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	store := postgres_mission_store.New(db)
 	briefing := missions.NewBriefing(store, rpc_planet_world.New(planet))
+	pay := payroll.New(store, briefing, rpc_auth_accounts.New(auth), cpoutbox.New(db))
 
 	takes, err := cpredis.Subscribe(ctx, streams, "missions-progress",
-		log_subscriber.New(tile_taken_subscriber.New(record_take_usecase.New(calendar, briefing, store)), props.Logger))
+		log_subscriber.New(tile_taken_subscriber.New(record_take_usecase.New(calendar, briefing, store, db, pay)), props.Logger))
 	if err != nil {
 		closeStores()
 		return fmt.Errorf("failed to subscribe to planet.v1.TileTaken: %w", err)
@@ -90,15 +95,19 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		closeStores()
 		return fmt.Errorf("failed to subscribe to auth.v1.AccountDeleted: %w", err)
 	}
+	signIns, err := cpredis.Subscribe(ctx, streams, "missions-sign-ins",
+		log_subscriber.New(sign_in_subscriber.New(pay_signed_in_usecase.New(calendar, clock, db, pay)), props.Logger))
+	if err != nil {
+		closeStores()
+		return fmt.Errorf("failed to subscribe to auth.v1.SignedIn: %w", err)
+	}
 
-	props.Runners.Add(cppg.CloseAfter(db, props.Logger, cpredis.CloseAfter(streams, props.Logger, takes, deletions)))
+	props.Runners.Add(cppg.CloseAfter(db, props.Logger, cpredis.CloseAfter(streams, props.Logger, takes, deletions, signIns,
+		cpoutbox.NewRelay("missions-outbox", db, streams.Commands(), props.Logger))))
 
 	service := missionsv1controller.MissionService{
 		GetMissionsHandler: get_missions_handler.New(
 			get_missions_usecase.New(calendar, clock, store, briefing, rpc_planet_allegiance.New(planet)),
-		),
-		CollectMissionHandler: collect_mission_handler.New(
-			collect_mission_usecase.New(calendar, clock, store, briefing, rpc_planet_charges.New(planet)),
 		),
 	}
 	verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", moduleName)))

@@ -71,7 +71,7 @@ func (s *testSuite) TestATakeCountsOnThePlayersStatsAndInTheSeason() {
 		"seasons reads the map from planet at each snapshot")
 }
 
-func (s *testSuite) TestAPlayerDoesAMissionAndCollectsItsReward() {
+func (s *testSuite) TestAPlayerDoesAMissionAndIsPaid() {
 	t := s.T()
 	ada := s.game.newPlayer(t)
 	ada.link("google-missions")
@@ -84,13 +84,12 @@ func (s *testSuite) TestAPlayerDoesAMissionAndCollectsItsReward() {
 	for tile := range first.GetGoal() {
 		ada.click(1000+tile, "it")
 	}
-	require.Eventually(t, func() bool { return ada.missions()[0].GetProgress() == first.GetGoal() },
-		5*time.Second, 20*time.Millisecond, "planet relays each take to missions")
+	require.Eventually(t, func() bool { return ada.missions()[0].GetPaid() },
+		5*time.Second, 20*time.Millisecond, "planet relays each take to missions, which pays the mission done")
 
-	kept := ada.collect(first.GetId())
-
-	assert.Equal(t, planetv1.BonusKind_BONUS_KIND_SHIELDS, kept.GetKind())
-	assert.Equal(t, first.GetRewardAmount(), ada.charges().GetShields(), "planet holds what missions granted")
+	assert.Equal(t, planetv1.BonusKind_BONUS_KIND_SHIELDS, first.GetRewardKind())
+	assert.Eventually(t, func() bool { return ada.charges().GetShields() == first.GetRewardAmount() },
+		5*time.Second, 20*time.Millisecond, "missions commands planet to grant it")
 }
 
 func (s *testSuite) TestAGuestSignsInWithGoogleAndChoosesAName() {

@@ -11,7 +11,7 @@ Tests use `testify`. **A postgres store's own tests need Docker**, and so do `s3
 - a guest links Google over the fake provider, keeps its account, is given a name (`SignedIn` over Redis) and picks one (player asks auth whether the account is linked);
 - a player posts, another reads the message under its name, and player counts it (`MessageSent`);
 - a guest uploads a screenshot to the bucket and reports a bug, and the operator opens it from the console listener; three calls with no session before it spend none of the address's allowance, since the session check is the outer interceptor;
-- a signed-in player does its flag's first mission and collects it: missions draws the day from planet's map, hears the takes over Redis, and planet holds the shields it grants (`GrantCharge`);
+- a signed-in player does its flag's first mission and is paid: missions draws the day from planet's map, hears the takes over Redis, and commands planet to grant the shields (`GrantCharges`, through its outbox);
 - a deleted account is forgotten by player, seasons, chat, support, missions and planet (auth's outbox, then one `AccountDeleted` subscriber in each);
 - an operator signs in on the admin listener and grants itself a bomb, which the game session alone cannot.
 

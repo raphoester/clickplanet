@@ -5,7 +5,6 @@ package inmemory_mission_store
 import (
 	"context"
 	"sync"
-	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 )
@@ -88,33 +87,7 @@ func (s *Store) ChangeSheet(
 		return s.failWith
 	}
 	key := sheetKey{day: day.String(), account: account}
-	collected := s.sheets[key].Collected
-	next := change(missions.SheetOf(s.sheets[key])).Snapshot()
-	next.Collected = collected
-	s.sheets[key] = next
-	return nil
-}
-
-func (s *Store) Collect(
-	ctx context.Context, day missions.Day, account missions.AccountID, mission missions.MissionID, _ time.Time,
-	pay func(context.Context) error,
-) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if s.failWith != nil {
-		return s.failWith
-	}
-	key := sheetKey{day: day.String(), account: account}
-	sheet := missions.SheetOf(s.sheets[key]).Snapshot()
-	if sheet.Collected.Contains(mission) {
-		return missions.ErrCollected
-	}
-	if err := pay(ctx); err != nil {
-		return err
-	}
-	sheet.Collected.Add(mission)
-	s.sheets[key] = sheet
+	s.sheets[key] = change(missions.SheetOf(s.sheets[key])).Snapshot()
 	return nil
 }
 

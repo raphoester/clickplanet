@@ -15,8 +15,12 @@ export function done(mission: Mission): boolean {
     return mission.progress >= mission.goal
 }
 
-export function collectable(missions: readonly Mission[]): number {
-    return missions.filter((mission) => done(mission) && !mission.collected).length
+export function waiting(missions: readonly Mission[]): number {
+    return missions.filter((mission) => done(mission) && !mission.paid).length
+}
+
+export function newlyPaid(before: readonly Mission[], after: readonly Mission[]): Mission[] {
+    return after.filter((mission) => mission.paid && before.some((was) => was.id === mission.id && !was.paid))
 }
 
 export function awardOf(reward: MissionReward, rules: Pick<BonusRules, "blastRadius" | "enclosureMaxTiles">): BonusReward {

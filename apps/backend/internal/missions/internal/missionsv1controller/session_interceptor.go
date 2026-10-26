@@ -27,6 +27,5 @@ func NewSessionInterceptor(verifier cpconnect.SessionVerifier, clock cptime.Cloc
 		true,
 		func(verdict cpconnect.SessionVerdict) { checks.WithLabelValues(string(verdict)).Inc() },
 		cpconnect.Identified(missionsv1connect.MissionServiceGetMissionsProcedure),
-		cpconnect.Attested(missionsv1connect.MissionServiceCollectMissionProcedure),
 	)
 }

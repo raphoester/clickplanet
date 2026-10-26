@@ -131,27 +131,6 @@ func TestAKindNoMissionHasIsRefused(t *testing.T) {
 	assert.ErrorIs(t, err, missions.ErrUnknownKind)
 }
 
-func TestAMissionIDReadsBackFromItsString(t *testing.T) {
-	id, err := missions.MissionIDOf(bank.String())
-	require.NoError(t, err)
-	assert.Equal(t, bank, id)
-
-	for _, value := range []string{"", "3", "00000000-0000-0000-0000-000000000000"} {
-		_, err := missions.MissionIDOf(value)
-		assert.ErrorIs(t, err, missions.ErrNoMission, "%q", value)
-	}
-}
-
-func TestABriefFindsItsMissionByID(t *testing.T) {
-	brief := briefOf(t, frBrief...)
-
-	found, err := brief.Mission(rival)
-	require.NoError(t, err)
-	assert.Equal(t, "dz", found.Snapshot().Target)
-	_, err = brief.Mission(missions.MissionID{15: 9})
-	assert.ErrorIs(t, err, missions.ErrNoMission)
-}
-
 func briefOf(t *testing.T, snapshots ...missions.MissionSnapshot) missions.Brief {
 	t.Helper()
 
@@ -181,7 +160,7 @@ func TestTheFirstTakeOfTheDayEnlistsItsFlag(t *testing.T) {
 
 	assert.True(t, sheet.Enlisted())
 	assert.Equal(t, missions.SheetSnapshot{
-		Flag: "fr", Taken: map[missions.MissionID]uint32{bank: 1}, Collected: cpcolls.NewSet[missions.MissionID](),
+		Flag: "fr", Taken: map[missions.MissionID]uint32{bank: 1}, Paid: cpcolls.NewSet[missions.MissionID](),
 		TakesBelow: first.Position + 1,
 	}, sheet.Snapshot())
 }
@@ -249,16 +228,22 @@ func TestAWithTakeLeavesTheSheetItWasCalledOnAlone(t *testing.T) {
 	assert.Empty(t, before.Snapshot().Taken)
 }
 
-func TestAMissionIsCollectedOnceAndOnlyWhenDone(t *testing.T) {
-	brief := briefOf(t, frBrief...)
-	first, err := brief.Mission(bank)
-	require.NoError(t, err)
+func TestEachMissionDoneIsPaidOnce(t *testing.T) {
+	shields := missions.Reward{Kind: missions.RewardShields, Amount: 10}
+	bomb := missions.Reward{Kind: missions.RewardBomb, Amount: 1}
+	brief := briefOf(t,
+		missions.MissionSnapshot{ID: bank, Kind: missions.KindTakeFor, Target: "fr", Goal: 2, Reward: shields},
+		missions.MissionSnapshot{ID: rival, Kind: missions.KindTakeFrom, Target: "dz", Goal: 5, Reward: bomb},
+		missions.MissionSnapshot{ID: ground, Kind: missions.KindTakeIn, Target: "br", Goal: 5, Reward: bomb},
+	)
+	sheet := missions.SheetOf(missions.SheetSnapshot{Flag: "fr", Taken: map[missions.MissionID]uint32{bank: 2, rival: 5, ground: 4}})
 
-	assert.ErrorIs(t, missions.SheetOf(missions.SheetSnapshot{Flag: "fr", Taken: map[missions.MissionID]uint32{bank: 1}}).
-		CollectError(first), missions.ErrNotDone)
-	require.NoError(t, missions.SheetOf(missions.SheetSnapshot{Flag: "fr", Taken: map[missions.MissionID]uint32{bank: 2}}).
-		CollectError(first))
-	assert.ErrorIs(t, missions.SheetOf(missions.SheetSnapshot{
-		Flag: "fr", Taken: map[missions.MissionID]uint32{bank: 2}, Collected: cpcolls.NewSet(bank),
-	}).CollectError(first), missions.ErrCollected)
+	paid, payments := sheet.WithPayments(brief)
+	_, again := paid.WithPayments(brief)
+
+	assert.Equal(t, []missions.Payment{{Mission: bank, Reward: shields}, {Mission: rival, Reward: bomb}}, payments,
+		"4 of 5 is not done")
+	assert.Empty(t, again)
+	assert.Equal(t, cpcolls.NewSet(bank, rival), paid.Snapshot().Paid)
+	assert.True(t, sheet.Snapshot().Paid.Empty(), "the sheet it was called on is left alone")
 }

@@ -17,8 +17,6 @@ service InternalService {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 
-  rpc GrantCharge(GrantChargeRequest) returns (GrantChargeResponse);
-
   rpc GetAllegianceOf(GetAllegianceOfRequest) returns (GetAllegianceOfResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
@@ -59,17 +57,6 @@ message GetGroundsResponse {
 message Ground {
   string country_id = 1;
   uint32 tiles = 2;
-}
-
-message GrantChargeRequest {
-  string account_id = 1;
-  BonusKind kind = 2;
-  uint32 amount = 3;
-}
-
-// 0 when the account already holds as much of the kind as it may.
-message GrantChargeResponse {
-  uint32 kept = 1;
 }
 
 message GetAllegianceOfRequest {

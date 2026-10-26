@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/google/uuid"
 
@@ -91,7 +90,7 @@ func (s *Store) Sheet(ctx context.Context, day missions.Day, account missions.Ac
 }
 
 func sheetOf(ctx context.Context, db cppg.Querier, day missions.Day, account missions.AccountID) (missions.Sheet, error) {
-	snapshot := missions.SheetSnapshot{Taken: map[missions.MissionID]uint32{}, Collected: cpcolls.NewSet[missions.MissionID]()}
+	snapshot := missions.SheetSnapshot{Taken: map[missions.MissionID]uint32{}, Paid: cpcolls.NewSet[missions.MissionID]()}
 
 	var below int64
 	err := db.QueryRowContext(ctx, `
@@ -106,9 +105,9 @@ func sheetOf(ctx context.Context, db cppg.Querier, day missions.Day, account mis
 		day, account, func(id missions.MissionID, taken uint32) { snapshot.Taken[id] = taken }); err != nil {
 		return missions.Sheet{}, fmt.Errorf("failed to read the day's progress: %w", err)
 	}
-	if err := perMission(ctx, db, `SELECT mission_id, 1 FROM mission_collections WHERE day = $1::date AND account_id = $2`,
-		day, account, func(id missions.MissionID, _ uint32) { snapshot.Collected.Add(id) }); err != nil {
-		return missions.Sheet{}, fmt.Errorf("failed to read the day's collections: %w", err)
+	if err := perMission(ctx, db, `SELECT mission_id, 1 FROM mission_payments WHERE day = $1::date AND account_id = $2`,
+		day, account, func(id missions.MissionID, _ uint32) { snapshot.Paid.Add(id) }); err != nil {
+		return missions.Sheet{}, fmt.Errorf("failed to read the day's payments: %w", err)
 	}
 
 	return missions.SheetOf(snapshot), nil
@@ -171,39 +170,26 @@ func (s *Store) ChangeSheet(
 				return fmt.Errorf("failed to keep the progress of mission %s: %w", id, err)
 			}
 		}
+		var paid []missions.MissionID
+		after.Paid.ForEach(func(id missions.MissionID) {
+			if !before.Paid.Contains(id) {
+				paid = append(paid, id)
+			}
+		})
+		for _, id := range paid {
+			if _, err := tx.ExecContext(ctx, `
+				INSERT INTO mission_payments (day, account_id, mission_id) VALUES ($1::date, $2, $3) ON CONFLICT DO NOTHING
+			`, day.String(), uuid.UUID(account), uuid.UUID(id)); err != nil {
+				return fmt.Errorf("failed to keep the payment of mission %s: %w", id, err)
+			}
+		}
 		return nil
 	})
 }
 
-func (s *Store) Collect(
-	ctx context.Context, day missions.Day, account missions.AccountID, mission missions.MissionID, at time.Time,
-	pay func(context.Context) error,
-) error {
-	return s.db.InTx(ctx, func(ctx context.Context) error {
-		kept, err := s.db.On(ctx).ExecContext(ctx, `
-			INSERT INTO mission_collections (day, account_id, mission_id, collected_at) VALUES ($1::date, $2, $3, $4)
-			ON CONFLICT (day, account_id, mission_id) DO NOTHING
-		`, day.String(), uuid.UUID(account), uuid.UUID(mission), at)
-		if err != nil {
-			return fmt.Errorf("failed to keep the collection of mission %s: %w", mission, err)
-		}
-		rows, err := kept.RowsAffected()
-		if err != nil {
-			return fmt.Errorf("failed to read whether mission %s was collected: %w", mission, err)
-		}
-		if rows == 0 {
-			return missions.ErrCollected
-		}
-
-		return pay(ctx)
-	})
-}
-
 func (s *Store) DeleteAccount(ctx context.Context, account missions.AccountID) error {
-	for _, table := range []string{"mission_sheets", "mission_collections"} {
-		if _, err := s.db.On(ctx).ExecContext(ctx, `DELETE FROM `+table+` WHERE account_id = $1`, uuid.UUID(account)); err != nil {
-			return fmt.Errorf("failed to forget the account's %s: %w", table, err)
-		}
+	if _, err := s.db.On(ctx).ExecContext(ctx, `DELETE FROM mission_sheets WHERE account_id = $1`, uuid.UUID(account)); err != nil {
+		return fmt.Errorf("failed to forget the account's days: %w", err)
 	}
 	return nil
 }

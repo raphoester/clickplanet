@@ -45,7 +45,7 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 - [The cutoff, revealed](docs/cutoff.md) — the full-screen reveal when a day closes.
 - [The flag played for](docs/flag.md) — `PledgeAllegiance`, and one flag an hour.
 - [Charges](docs/charges.md) — what a bonus box holds, off by default and one at a time, and the inventory.
-- [Missions](docs/missions.md) — the Missions tab, its badge, collecting a mission, and the fake.
+- [Missions](docs/missions.md) — the Missions tab, its badge, a mission paid, and the fake.
 - [Quizzes](docs/quizzes.md), [Bombs](docs/bombs.md), [Shields](docs/shields.md), [Fortify](docs/fortify.md) —
   each bonus on the client.
 - [Sharing the globe](docs/sharing.md) — the photo card of the globe, and the recruit link.

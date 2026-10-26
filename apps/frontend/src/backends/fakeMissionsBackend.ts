@@ -1,6 +1,6 @@
 import {ChargeKind} from "../domain/bonus.ts"
 import {AllegianceSource, TileClicker} from "./backend.ts"
-import {DayMissions, Mission, MissionError, MissionReward, MissionsBackend} from "./missions.ts"
+import {DayMissions, Mission, MissionsBackend} from "./missions.ts"
 
 const DAY_MS = 24 * 3600_000
 const CUTOFF_MS = 21 * 3600_000
@@ -10,7 +10,7 @@ export class FakeMissionsBackend implements MissionsBackend {
     private flag?: string
     private pledged?: string
     private finished = false
-    private readonly collected = new Set<string>()
+    private readonly paid = new Set<string>()
 
     constructor(
         private readonly grant: (kind: ChargeKind) => void,
@@ -28,12 +28,14 @@ export class FakeMissionsBackend implements MissionsBackend {
                 await clicker.clickTile(tileId, countryId, switches)
                 this.flag ??= countryId
                 if (countryId === this.flag) this.taken++
+                this.payDone()
             },
         }
     }
 
     public finish(): void {
         this.finished = true
+        this.payDone()
     }
 
     public async missions(): Promise<DayMissions> {
@@ -46,20 +48,21 @@ export class FakeMissionsBackend implements MissionsBackend {
         }
     }
 
-    public async collectMission(id: string): Promise<MissionReward> {
-        const mission = this.brief(this.flag ?? "").find((m) => m.id === id)
-        if (!mission || mission.progress < mission.goal || mission.collected) throw new MissionError("failed")
-
-        this.collected.add(id)
-        this.grant(mission.reward.kind)
-        return mission.reward
+    private payDone(): void {
+        const flag = this.flag ?? this.pledged
+        if (!flag) return
+        for (const mission of this.brief(flag)) {
+            if (mission.progress < mission.goal || this.paid.has(mission.id)) continue
+            this.paid.add(mission.id)
+            this.grant(mission.reward.kind)
+        }
     }
 
     private brief(flag: string): Mission[] {
         const rival = flag === "dz" ? "pw" : "dz"
         const progress = (goal: number, share: number) => this.finished ? goal : Math.min(goal, Math.floor(this.taken * share))
-        const mission = (id: string, rest: Omit<Mission, "id" | "collected" | "progress">, share: number): Mission =>
-            ({id, ...rest, progress: progress(rest.goal, share), collected: this.collected.has(id)})
+        const mission = (id: string, rest: Omit<Mission, "id" | "paid" | "progress">, share: number): Mission =>
+            ({id, ...rest, progress: progress(rest.goal, share), paid: this.paid.has(id)})
 
         return [
             mission("bank", {kind: "takeFor", target: flag, goal: 60, reward: {kind: "shields", amount: 10}}, 1),

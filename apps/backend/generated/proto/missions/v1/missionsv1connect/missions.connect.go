@@ -36,16 +36,11 @@ const (
 	// MissionServiceGetMissionsProcedure is the fully-qualified name of the MissionService's
 	// GetMissions RPC.
 	MissionServiceGetMissionsProcedure = "/missions.v1.MissionService/GetMissions"
-	// MissionServiceCollectMissionProcedure is the fully-qualified name of the MissionService's
-	// CollectMission RPC.
-	MissionServiceCollectMissionProcedure = "/missions.v1.MissionService/CollectMission"
 )
 
 // MissionServiceClient is a client for the missions.v1.MissionService service.
 type MissionServiceClient interface {
 	GetMissions(context.Context, *connect.Request[v1.GetMissionsRequest]) (*connect.Response[v1.GetMissionsResponse], error)
-	// A guest is refused: it signs in to collect what it did.
-	CollectMission(context.Context, *connect.Request[v1.CollectMissionRequest]) (*connect.Response[v1.CollectMissionResponse], error)
 }
 
 // NewMissionServiceClient constructs a client for the missions.v1.MissionService service. By
@@ -65,19 +60,12 @@ func NewMissionServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(missionServiceMethods.ByName("GetMissions")),
 			connect.WithClientOptions(opts...),
 		),
-		collectMission: connect.NewClient[v1.CollectMissionRequest, v1.CollectMissionResponse](
-			httpClient,
-			baseURL+MissionServiceCollectMissionProcedure,
-			connect.WithSchema(missionServiceMethods.ByName("CollectMission")),
-			connect.WithClientOptions(opts...),
-		),
 	}
 }
 
 // missionServiceClient implements MissionServiceClient.
 type missionServiceClient struct {
-	getMissions    *connect.Client[v1.GetMissionsRequest, v1.GetMissionsResponse]
-	collectMission *connect.Client[v1.CollectMissionRequest, v1.CollectMissionResponse]
+	getMissions *connect.Client[v1.GetMissionsRequest, v1.GetMissionsResponse]
 }
 
 // GetMissions calls missions.v1.MissionService.GetMissions.
@@ -85,16 +73,9 @@ func (c *missionServiceClient) GetMissions(ctx context.Context, req *connect.Req
 	return c.getMissions.CallUnary(ctx, req)
 }
 
-// CollectMission calls missions.v1.MissionService.CollectMission.
-func (c *missionServiceClient) CollectMission(ctx context.Context, req *connect.Request[v1.CollectMissionRequest]) (*connect.Response[v1.CollectMissionResponse], error) {
-	return c.collectMission.CallUnary(ctx, req)
-}
-
 // MissionServiceHandler is an implementation of the missions.v1.MissionService service.
 type MissionServiceHandler interface {
 	GetMissions(context.Context, *connect.Request[v1.GetMissionsRequest]) (*connect.Response[v1.GetMissionsResponse], error)
-	// A guest is refused: it signs in to collect what it did.
-	CollectMission(context.Context, *connect.Request[v1.CollectMissionRequest]) (*connect.Response[v1.CollectMissionResponse], error)
 }
 
 // NewMissionServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -110,18 +91,10 @@ func NewMissionServiceHandler(svc MissionServiceHandler, opts ...connect.Handler
 		connect.WithSchema(missionServiceMethods.ByName("GetMissions")),
 		connect.WithHandlerOptions(opts...),
 	)
-	missionServiceCollectMissionHandler := connect.NewUnaryHandler(
-		MissionServiceCollectMissionProcedure,
-		svc.CollectMission,
-		connect.WithSchema(missionServiceMethods.ByName("CollectMission")),
-		connect.WithHandlerOptions(opts...),
-	)
 	return "/missions.v1.MissionService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case MissionServiceGetMissionsProcedure:
 			missionServiceGetMissionsHandler.ServeHTTP(w, r)
-		case MissionServiceCollectMissionProcedure:
-			missionServiceCollectMissionHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -133,8 +106,4 @@ type UnimplementedMissionServiceHandler struct{}
 
 func (UnimplementedMissionServiceHandler) GetMissions(context.Context, *connect.Request[v1.GetMissionsRequest]) (*connect.Response[v1.GetMissionsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("missions.v1.MissionService.GetMissions is not implemented"))
-}
-
-func (UnimplementedMissionServiceHandler) CollectMission(context.Context, *connect.Request[v1.CollectMissionRequest]) (*connect.Response[v1.CollectMissionResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("missions.v1.MissionService.CollectMission is not implemented"))
 }

@@ -77,7 +77,8 @@ import TabBar from "../hud/TabBar.tsx";
 import MissionsPlace, {MissionsPlaceProps} from "../missions/MissionsPlace.tsx";
 import {useMissions} from "../missions/useMissions.ts";
 import {MissionsBackend} from "../../backends/missions.ts";
-import {awardOf, collectable} from "../../domain/missions.ts";
+import {awardOf, waiting} from "../../domain/missions.ts";
+import {usePaidMissions} from "../missions/usePaidMissions.ts";
 import {StandingsBackend} from "../../backends/standings.ts";
 import {SupportBackend} from "../../backends/support.ts";
 import {pageContextOf} from "../support/pageContext.ts";
@@ -122,6 +123,9 @@ export type ViewerProps = {
     missions?: MissionsBackend
     chargesRefresher?: ChargesRefresher
 }
+
+// Planet grants a mission's reward from a command, after the read that says it is paid.
+const GRANT_LANDS_MS = 2_000
 
 export default function Viewer(props: ViewerProps) {
     const container = useRef<HTMLDivElement>(null)
@@ -292,19 +296,18 @@ export default function Viewer(props: ViewerProps) {
         guided: boardGuide.guided,
         onGuided: boardGuide.markGuided,
     }
-    const [missionsState, rereadMissions] = useMissions(props.missions, allegiance?.countryId, accepted.listenForClicks)
-    const missionsBackend = props.missions
-    const missions: MissionsPlaceProps | undefined = missionsBackend && {
+    const missionsState = useMissions(props.missions, allegiance?.countryId, accepted.listenForClicks)
+    usePaidMissions(missionsState, (paid) => {
+        if (rules) paid.forEach((mission) => showAward(awardOf(mission.reward, rules)))
+        const refresh = () => props.chargesRefresher?.refreshCharges().catch((e) => console.error("could not read the charges held", e))
+        refresh()
+        setTimeout(refresh, GRANT_LANDS_MS)
+    })
+    const missions: MissionsPlaceProps | undefined = props.missions && {
         state: missionsState,
-        onCollect: async (id) => {
-            const reward = await missionsBackend.collectMission(id)
-            if (rules) showAward(awardOf(reward, rules))
-            props.chargesRefresher?.refreshCharges().catch((e) => console.error("could not read the charges held", e))
-            rereadMissions()
-        },
         onSignIn: guest ? openPitch ?? (() => setSheet("you")) : undefined,
     }
-    const missionsReady = missionsState.kind === "ready" ? collectable(missionsState.day.missions) : 0
+    const missionsReady = missionsState.kind === "ready" ? waiting(missionsState.day.missions) : 0
 
     const you = {
         account: props.account,

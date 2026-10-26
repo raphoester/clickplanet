@@ -3,7 +3,7 @@ import {createConnectTransport} from "@connectrpc/connect-web"
 import {MissionService} from "../gen/grpc/missions/v1/missions_connect.ts"
 import {Mission as MissionPb, MissionKind as MissionKindPb} from "../gen/grpc/missions/v1/missions_pb.ts"
 import {chargeKindOf} from "./bonusKind.ts"
-import {DayMissions, Mission, MissionError, MissionFailure, MissionKind, MissionReward, MissionsBackend} from "./missions.ts"
+import {DayMissions, Mission, MissionKind, MissionsBackend} from "./missions.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
 import {Config, retrying} from "./transport.ts"
 
@@ -32,18 +32,6 @@ export class ConnectMissionsBackend implements MissionsBackend {
             endsAt: Number(res.endsAtUnixMs),
             missions: res.missions.flatMap((mission) => missionOf(mission) ?? []),
         }
-    }
-
-    public async collectMission(id: string): Promise<MissionReward> {
-        let res
-        try {
-            res = await this.authenticated((headers) => this.client.collectMission({missionId: id}, {headers}))
-        } catch (e) {
-            throw new MissionError(missionFailureOf(e), {cause: e})
-        }
-        const kind = chargeKindOf(res.kind)
-        if (!kind) throw new MissionError("failed")
-        return {kind, amount: res.amount}
     }
 
     private async authenticated<T>(call: (headers: Headers) => Promise<T>): Promise<T> {
@@ -82,16 +70,7 @@ function missionOf(mission: MissionPb): Mission | undefined {
         target: mission.targetCountryId,
         goal: mission.goal,
         progress: mission.progress,
-        collected: mission.collected,
+        paid: mission.paid,
         reward: {kind: reward, amount: mission.rewardAmount},
     }
-}
-
-const MISSION_FAILURES: Partial<Record<Code, MissionFailure>> = {
-    [Code.PermissionDenied]: "guest",
-    [Code.FailedPrecondition]: "full",
-}
-
-function missionFailureOf(e: unknown): MissionFailure {
-    return (e instanceof ConnectError && MISSION_FAILURES[e.code]) || "failed"
 }

@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import {afterEach, describe, expect, it, vi} from "vitest"
-import {act, cleanup, fireEvent, render, screen} from "@testing-library/react"
+import {cleanup, fireEvent, render, screen} from "@testing-library/react"
 import MissionsPlace from "./MissionsPlace.tsx"
-import {DayMissions, Mission, MissionError} from "../../backends/missions.ts"
+import {DayMissions, Mission} from "../../backends/missions.ts"
 
 const now = Date.UTC(2026, 9, 26, 12, 0)
 
@@ -12,7 +12,7 @@ const mission = (overrides: Partial<Mission>): Mission => ({
     target: "fr",
     goal: 60,
     progress: 0,
-    collected: false,
+    paid: false,
     reward: {kind: "shields", amount: 10},
     ...overrides,
 })
@@ -34,7 +34,7 @@ describe("MissionsPlace", () => {
             mission({id: "bank", progress: 37}),
             mission({id: "rival", kind: "takeFrom", target: "dz", goal: 40, progress: 3, reward: {kind: "spreadClicks", amount: 4}}),
             mission({id: "ground", kind: "takeIn", target: "br", goal: 200, reward: {kind: "bomb", amount: 1}}),
-        )} onCollect={vi.fn()}/>)
+        )}/>)
 
         expect(screen.getByText("Ends in 9h 00m")).toBeDefined()
         expect(screen.getByText(/Take 60 tiles for/).textContent).toContain("France")
@@ -44,46 +44,24 @@ describe("MissionsPlace", () => {
         expect(screen.queryByRole("button")).toBeNull()
     })
 
-    it("collects a mission that is done", async () => {
-        const onCollect = vi.fn(async () => {})
-        render(<MissionsPlace state={day(mission({id: "rival", progress: 60}))} onCollect={onCollect}/>)
-
-        await act(async () => fireEvent.click(screen.getByRole("button", {name: "Collect"})))
-
-        expect(onCollect).toHaveBeenCalledWith("rival")
-    })
-
-    it("says a stack is full when the reward did not fit", async () => {
-        const onCollect = vi.fn(async () => {
-            throw new MissionError("full")
-        })
-        render(<MissionsPlace state={day(mission({progress: 60}))} onCollect={onCollect}/>)
-
-        await act(async () => fireEvent.click(screen.getByRole("button", {name: "Collect"})))
-
-        expect(screen.getByRole("button", {name: "Full"})).toBeDefined()
-    })
-
-    it("asks a guest to sign in to collect", () => {
+    it("asks a guest to sign in to get a mission it finished", () => {
         const onSignIn = vi.fn()
-        const onCollect = vi.fn()
-        render(<MissionsPlace state={day(mission({progress: 60}))} onCollect={onCollect} onSignIn={onSignIn}/>)
+        render(<MissionsPlace state={day(mission({progress: 60}))} onSignIn={onSignIn}/>)
 
-        fireEvent.click(screen.getByRole("button", {name: "Sign in to collect"}))
+        fireEvent.click(screen.getByRole("button", {name: "Sign in to get it"}))
 
         expect(onSignIn).toHaveBeenCalled()
-        expect(onCollect).not.toHaveBeenCalled()
     })
 
-    it("shows a mission collected as done", () => {
-        render(<MissionsPlace state={day(mission({progress: 60, collected: true}))} onCollect={vi.fn()}/>)
+    it("shows a mission done as done, with nothing to press", () => {
+        render(<MissionsPlace state={day(mission({progress: 60, paid: true}), mission({id: "rival", progress: 60}))}/>)
 
-        expect(screen.getByText("Collected")).toBeDefined()
+        expect(screen.getAllByText("Done")).toHaveLength(2)
         expect(screen.queryByRole("button")).toBeNull()
     })
 
     it("says so when the missions could not be read", () => {
-        render(<MissionsPlace state={{kind: "failed"}} onCollect={vi.fn()}/>)
+        render(<MissionsPlace state={{kind: "failed"}}/>)
 
         expect(screen.getByRole("alert").textContent).toBe("Your missions could not be loaded.")
     })

@@ -66,7 +66,7 @@ return []bootstrap.Module{
 | `player` | `planet.v1.InternalService/GetTakesByCountry` | the flags an account took tiles for and the flags that held them, from the ledger, on each `GetFronts`, on each `GetPlayer` the cache does not answer, and on each operator's `AdminService/GetPlayer` | `playerv1controller/rpc_planet_fronts` |
 | `missions` | `planet.v1.InternalService/GetTerritories` and `GetGrounds` | what each flag holds and how many tiles each country's ground has, once per flag and day, to draw its missions | `missions/rpc_planet_world` |
 | `missions` | `planet.v1.InternalService/GetAllegianceOf` | the flag the caller pledged, on each `GetMissions` before the day's first take | `missions/rpc_planet_allegiance` |
-| `missions` | `planet.v1.InternalService/GrantCharge` | the charge a mission pays, on each `CollectMission` | `missions/rpc_planet_charges` |
+| `missions` | `auth.v1.InternalService/GetAccount` | whether an account is signed in, when a take finishes one of its missions | `missions/rpc_auth_accounts` |
 
 A module cannot import another's interior, so the key client all five need is `shared/cpsessionverifier` rather than a copy in each.
 
@@ -112,6 +112,8 @@ The proto sits beside the public one in the module's package (`proto/auth/v1/int
 | `player-stats-messages`, `player-stats-bonuses`, `player-stats-quizzes` | the same with the time of the last message, box and right answer counted, compared to the microsecond postgres keeps |
 | `seasons-standings` | the tally keeps the position after the last take it counted (`standings.Tally.TakesBelow`: a column of each contributions row, the highest is the tally's) |
 | `missions-progress` | an account's day keeps the position after the last take it counted (`missions.Sheet`, `mission_sheets.counted_takes_below`) |
+| `missions-sign-ins` | pays only the missions not paid yet (`mission_payments`) |
+| `planet`'s `planet.v1.GrantCharges` handler | keeps each `grant_id` it applied, in the transaction of the grant (`charge_grants`) |
 | `chat-announcements-*` | an announcement is named after the fact it tells (the bomb's or the fortify's ledger position, the mute's id, the round's season and number, the champion's season) and kept with `AppendOnce`: a second one is neither kept nor shown |
 | `player-titles` | grants only what the account does not hold |
 | `player-names-sign-ins` | names only an account that has no name |
@@ -127,11 +129,31 @@ A fact goes through an outbox when its loss would leave the modules disagreeing 
 - `auth.v1.AccountDeleted`: a lost one keeps a deleted player's personal data in every other module. `delete_account_usecase` and `prune_guests_usecase` record it in the transaction that deletes the account.
 - `auth.v1.SignedIn`: a lost one leaves a linked account with no username, shown as a guest, until its next sign-in. `signin.Admitter` records it in the transaction that saves the sign-in.
 - `seasons.v1.RoundClosed` and `SeasonClosed`: the round is marked closed, so a lost one is never sent again and the chat never announces that podium or that champion. `close_round_usecase` records them in the transaction that closes the round, and only when `rounds.Store.Close` answers that this call closed it.
+- `planet.v1.GrantCharges`, a command: a lost one is a mission paid that planet never granted. `missions`' `payroll` records it with the payment.
 - `planet.v1.TileTaken`, `BombLanded` and `Fortified`: **the ledger is their outbox.** `ledger/usecases/relay_ledger_usecase` reads what the ledger flushed past `planet.ledger_relayed`, sends it, then moves the row. A take a hard kill loses before its flush is never told, so the stats and the standings never count what the ledger does not hold; a crash between the send and the move tells the batch again, which the marks make harmless. The migration put the row after the last take the old server had published.
 
 Not in an outbox, because a loss is harmless or the next event repairs it: `SignedOut` (the roster drops the visit when it expires), `MessageSent`, `BonusClaimed` and `QuizAnswered` (a stat short by one), `AccountMuted` (an announcement missed), `StatsChanged` (the next one grants the title).
 
 **`shared/cpoutbox`** is the mechanism. **Recording an event is the use case's decision**: it opens a transaction and calls `Outbox.Record(ctx, events...)` beside its stores — see [Transactions](transactions.md). `cpoutbox.New(db).Record` inserts each event in the module's `outbox` table (`position bigserial`, `event outbox_event`, `payload bytea`) in the transaction `ctx` carries, and refuses outside one. `outbox_event` is an enum of the events that module keeps there, so a new one is a migration. `cpoutbox.NewRelay(name, db, streams, logger)` is a runner that, every second and once more at shutdown, locks the oldest rows (`FOR UPDATE SKIP LOCKED`, 100 at a time), `Send`s them in order and deletes them in the same transaction: Redis down keeps the rows for the next tick. A row that does not decode is dropped and logged rather than left to hold every row behind it. `cpoutbox/outbox_test.go` pins it; each use case's test pins what it records, with `cpatomic.FakeOutbox`.
+
+### Asking another module to change something: commands
+
+**A command, over Redis Streams, through the sender's outbox.** A module that needs another to change its own state
+does not call it: it records a command in the receiver's language (`proto/<receiver>/v1/commands.proto`,
+`planet.v1.GrantCharges`) in its outbox, in the transaction of what decided it, and the relay sends it. The receiver
+never learns who sent it, as an emitter never learns who listens.
+
+- **One stream per type of command** (`commands:planet.v1.GrantCharges`), apart from the events, with **one group**
+  (`handler`): the module that owns the command reads each one once, in order, and one sent before it listened too.
+  `cpredis.Handle[T](ctx, streams, handler)` is that runner; a second `Handle` of one command on one connection refuses
+  the boot. `streams.Commands()` is what an outbox relay sends with: `cpoutbox.NewRelay(name, db, streams.Commands(),
+  logger)`.
+- **Delivery is the events' own**: at least once, a failure tried again, a poison command buried in `events:dead`. So
+  **a command names itself** (`grant_id`), and the receiver keeps what it applied in the transaction of the change.
+- **No answer comes back.** The sender decides with what it knows; what the receiver refuses or caps is its own rule: a
+  grant past the stack is not granted.
+- **A read stays an RPC** (see [Calling another module](#calling-another-module)): a command is for a change.
+- `redis_test.go` pins a command sent before its handler listened, a command that is no event, and one handler.
 
 **In process still, on purpose**: the live fanouts to open browser streams (the tile map, the chat feed, the roster and the titles, the season boards and the race) are not module-to-module; they are lossy by design, and a client reads again when its stream reopens. **Next**: the `seasons` → `planet` rule-set command (#475) and its resend loop should move to a command stream once it merges.
 
@@ -145,7 +167,7 @@ The events today:
 | `planet.v1.BonusClaimed{account_id, claimed_at}` | `planet`, `claim_bonus_usecase` | after a caught box's charge is held; a refused claim, or a caller with no account, publishes nothing | `player`, for the stats |
 | `planet.v1.QuizAnswered{account_id, correct, answered_at}` | `planet`, `answer_quiz_usecase` | each quiz answered, right or wrong, by a caller with an account; a right answer after its charge is held | `player`, which counts the right ones |
 | `auth.v1.AccountDeleted{account_id}` | `auth`, through its outbox, from `delete_account_usecase` and `prune_guests_usecase` | with the account row's deletion; a pruned guest is a deleted account | `player`, which forgets the profile, the stats, the titles, the title worn and the visit; `seasons`, which forgets the account's standings; `planet`, which takes the account off every take postgres keeps; `chat`, which forgets the seen mark; `support`, which takes the account off the notes it sent and deletes the reports that name it; `missions`, which forgets the account's sheets and collections |
-| `auth.v1.SignedIn{previous_account_id, account_id}` | `auth`, through its outbox, from `signin.Admitter`, for `complete_sign_in_usecase` and `complete_email_sign_in_usecase` | with a sign-in or a link; `previous_account_id` is empty for a browser that had no live session | `player`, which moves the browser's visit to the account, and gives the account a username when it has none |
+| `auth.v1.SignedIn{previous_account_id, account_id}` | `auth`, through its outbox, from `signin.Admitter`, for `complete_sign_in_usecase` and `complete_email_sign_in_usecase` | with a sign-in or a link; `previous_account_id` is empty for a browser that had no live session | `player`, which moves the browser's visit to the account, and gives the account a username when it has none; `missions`, which pays the day's missions the account finished as a guest |
 | `auth.v1.SignedOut{account_id}` | `auth`, `sign_out_usecase` and `sign_out_everywhere_usecase` | after the session, or every session, is deleted; a cookie with no session publishes nothing | `player`, which takes the account off the roster |
 | `chat.v1.MessageSent{message_id, account_id, sent_at}` | `chat`, `send_message_usecase/publishing_send_message` | after each message is kept; a refused or failed post publishes nothing | `player`, for the stats |
 | `chat.v1.AccountMuted{account_id, muted_at, duration, mute_id}` | `chat`, `mute_usecase/publishing_mute` | after each mute is kept; a refused or failed mute publishes nothing. Never the network it holds | `chat`, which announces it |

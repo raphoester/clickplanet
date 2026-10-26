@@ -24,12 +24,18 @@ CREATE TABLE mission_progress (
     FOREIGN KEY (day, account_id) REFERENCES mission_sheets ON DELETE CASCADE
 );
 
-CREATE TABLE mission_collections (
-    day          date        NOT NULL,
-    account_id   uuid        NOT NULL,
-    mission_id   uuid        NOT NULL,
-    collected_at timestamptz NOT NULL,
-    PRIMARY KEY (day, account_id, mission_id)
+CREATE TABLE mission_payments (
+    day        date NOT NULL,
+    account_id uuid NOT NULL,
+    mission_id uuid NOT NULL,
+    PRIMARY KEY (day, account_id, mission_id),
+    FOREIGN KEY (day, account_id) REFERENCES mission_sheets ON DELETE CASCADE
 );
 
-CREATE INDEX mission_collections_account ON mission_collections (account_id);
+CREATE TYPE outbox_event AS ENUM ('planet.v1.GrantCharges');
+
+CREATE TABLE outbox (
+    position bigserial    PRIMARY KEY,
+    event    outbox_event NOT NULL,
+    payload  bytea        NOT NULL
+);

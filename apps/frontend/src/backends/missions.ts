@@ -13,7 +13,7 @@ export type Mission = {
     target: string
     goal: number
     progress: number
-    collected: boolean
+    paid: boolean
     reward: MissionReward
 }
 
@@ -24,17 +24,6 @@ export type DayMissions = {
     missions: Mission[]
 }
 
-export type MissionFailure = "guest" | "full" | "failed"
-
-export class MissionError extends Error {
-    constructor(public readonly failure: MissionFailure, options?: {cause?: unknown}) {
-        super(`mission refused: ${failure}`, options)
-        this.name = "MissionError"
-    }
-}
-
 export interface MissionsBackend {
     missions(): Promise<DayMissions>
-
-    collectMission(id: string): Promise<MissionReward>
 }

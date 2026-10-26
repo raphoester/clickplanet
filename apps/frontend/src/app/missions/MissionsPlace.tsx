@@ -1,5 +1,4 @@
-import {useState} from "react"
-import {Mission, MissionError} from "../../backends/missions.ts"
+import {Mission} from "../../backends/missions.ts"
 import {Countries} from "../../domain/countries.ts"
 import {done, orderOf, timeLeft} from "../../domain/missions.ts"
 import BonusIcon from "../components/BonusIcon.tsx"
@@ -10,11 +9,10 @@ import "./Missions.css"
 
 export type MissionsPlaceProps = {
     state: MissionsState
-    onCollect: (id: string) => Promise<void>
     onSignIn?: () => void
 }
 
-export default function MissionsPlace({state, onCollect, onSignIn}: MissionsPlaceProps) {
+export default function MissionsPlace({state, onSignIn}: MissionsPlaceProps) {
     const now = useNow()
 
     if (state.kind === "loading") return <p className="missions-text" role="status">Loading…</p>
@@ -24,38 +22,21 @@ export default function MissionsPlace({state, onCollect, onSignIn}: MissionsPlac
     return <div className="missions">
         <p className="missions-left">Ends in {timeLeft(state.day.endsAt, now)}</p>
         <ol className="missions-list">
-            {state.day.missions.map((mission) => <MissionRow key={mission.id}
-                                                               mission={mission}
-                                                               onCollect={onCollect}
-                                                               onSignIn={onSignIn}/>)}
+            {state.day.missions.map((mission) => <MissionRow key={mission.id} mission={mission} onSignIn={onSignIn}/>)}
         </ol>
     </div>
 }
 
 type MissionRowProps = {
     mission: Mission
-    onCollect: (id: string) => Promise<void>
     onSignIn?: () => void
 }
 
-function MissionRow({mission, onCollect, onSignIn}: MissionRowProps) {
-    const [collecting, setCollecting] = useState(false)
-    const [full, setFull] = useState(false)
+function MissionRow({mission, onSignIn}: MissionRowProps) {
     const country = Countries.get(mission.target)
     const reached = Math.min(mission.progress, mission.goal)
 
-    const collect = () => {
-        setCollecting(true)
-        onCollect(mission.id)
-            .catch((e) => {
-                if (e instanceof MissionError && e.failure === "full") setFull(true)
-                else if (e instanceof MissionError && e.failure === "guest") onSignIn?.()
-                else console.error("Could not collect the mission", e)
-            })
-            .finally(() => setCollecting(false))
-    }
-
-    return <li className={`panel-box mission${mission.collected ? " mission--collected" : ""}`}>
+    return <li className={`panel-box mission${mission.paid ? " mission--paid" : ""}`}>
         <div className="mission-head">
             <span className="mission-order">
                 {orderOf(mission)} <CountryFlag code={mission.target}/> {country?.name ?? mission.target}
@@ -76,15 +57,9 @@ function MissionRow({mission, onCollect, onSignIn}: MissionRowProps) {
                 <div className="mission-bar-filled" style={{width: `${reached / mission.goal * 100}%`}}/>
             </div>
             <span className="mission-count">{reached}/{mission.goal}</span>
-            {mission.collected && <span className="chip mission-done">Collected</span>}
-            {!mission.collected && done(mission) && (onSignIn
-                ? <button type="button" className="button button-mini" onClick={onSignIn}>Sign in to collect</button>
-                : <button type="button"
-                          className="button button-mini button-gold"
-                          disabled={collecting}
-                          onClick={collect}>
-                    {full ? "Full" : "Collect"}
-                </button>)}
+            {done(mission) && (!mission.paid && onSignIn
+                ? <button type="button" className="button button-mini" onClick={onSignIn}>Sign in to get it</button>
+                : <span className="chip mission-done">Done</span>)}
         </div>
     </li>
 }

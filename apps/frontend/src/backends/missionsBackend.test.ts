@@ -1,13 +1,11 @@
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {Code, ConnectError} from "@connectrpc/connect"
 import {
-    CollectMissionResponse as CollectMissionResponsePb,
     GetMissionsResponse as GetMissionsResponsePb,
     Mission as MissionPb,
     MissionKind as MissionKindPb,
 } from "../gen/grpc/missions/v1/missions_pb.ts"
 import {BonusKind as BonusKindPb} from "../gen/grpc/planet/v1/planet_pb.ts"
-import {MissionError} from "./missions.ts"
 import {ConnectMissionsBackend} from "./missionsBackend.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
 
@@ -29,7 +27,7 @@ describe("ConnectMissionsBackend", () => {
             countryId: "fr", enlisted: true, endsAtUnixMs: 1_000n,
             missions: [
                 new MissionPb({
-                    id: "m-2", kind: MissionKindPb.TAKE_FROM, targetCountryId: "dz", goal: 40, progress: 12,
+                    id: "m-2", kind: MissionKindPb.TAKE_FROM, targetCountryId: "dz", goal: 40, progress: 40, paid: true,
                     rewardKind: BonusKindPb.SPREAD_CLICKS, rewardAmount: 4,
                 }),
                 new MissionPb({id: "m-4", kind: MissionKindPb.UNSPECIFIED, rewardKind: BonusKindPb.SHIELDS}),
@@ -43,30 +41,10 @@ describe("ConnectMissionsBackend", () => {
         expect(day).toEqual({
             countryCode: "fr", enlisted: true, endsAt: 1_000,
             missions: [{
-                id: "m-2", kind: "takeFrom", target: "dz", goal: 40, progress: 12, collected: false,
+                id: "m-2", kind: "takeFrom", target: "dz", goal: 40, progress: 40, paid: true,
                 reward: {kind: "spreadClicks", amount: 4},
             }],
         })
-    })
-
-    it("answers what a collected mission paid", async () => {
-        const collectMission = vi.fn(async () => new CollectMissionResponsePb({kind: BonusKindPb.BOMB, amount: 1}))
-
-        expect(await backendWith({collectMission}).collectMission("m-3")).toEqual({kind: "bomb", amount: 1})
-        expect((collectMission.mock.calls[0] as unknown[])[0]).toEqual({missionId: "m-3"})
-    })
-
-    it("reads a guest refused, and a reward that did not fit", async () => {
-        for (const [code, failure] of [[Code.PermissionDenied, "guest"], [Code.FailedPrecondition, "full"], [Code.Internal, "failed"]] as const) {
-            const refusing = vi.fn(async () => {
-                throw new ConnectError("no", code)
-            })
-
-            const failed = await backendWith({collectMission: refusing}).collectMission("m-1").catch((e: unknown) => e)
-
-            expect(failed).toBeInstanceOf(MissionError)
-            expect((failed as MissionError).failure).toBe(failure)
-        }
     })
 
     it("tries once more with a fresh session when the token was refused", async () => {

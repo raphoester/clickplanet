@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CollectMissionRequest, CollectMissionResponse, GetMissionsRequest, GetMissionsResponse } from "./missions_pb.js";
+import { GetMissionsRequest, GetMissionsResponse } from "./missions_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -19,17 +19,6 @@ export const MissionService = {
       name: "GetMissions",
       I: GetMissionsRequest,
       O: GetMissionsResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * A guest is refused: it signs in to collect what it did.
-     *
-     * @generated from rpc missions.v1.MissionService.CollectMission
-     */
-    collectMission: {
-      name: "CollectMission",
-      I: CollectMissionRequest,
-      O: CollectMissionResponse,
       kind: MethodKind.Unary,
     },
   }

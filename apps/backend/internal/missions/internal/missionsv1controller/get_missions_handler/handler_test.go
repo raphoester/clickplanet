@@ -57,7 +57,7 @@ func TestEachMissionIsAnsweredWithHowFarItWent(t *testing.T) {
 	require.NoError(t, err)
 	useCase := &stubUseCase{out: get_missions_usecase.Out{
 		Day: day, Flag: "fr", Brief: brief, Sheet: missions.SheetOf(missions.SheetSnapshot{
-			Flag: "fr", Taken: map[missions.MissionID]uint32{bank: 60, ground: 12}, Collected: cpcolls.NewSet(bank),
+			Flag: "fr", Taken: map[missions.MissionID]uint32{bank: 60, ground: 12}, Paid: cpcolls.NewSet(bank),
 		}),
 	}}
 
@@ -70,7 +70,7 @@ func TestEachMissionIsAnsweredWithHowFarItWent(t *testing.T) {
 		Missions: []*missionsv1.Mission{
 			{
 				Id: bank.String(), Kind: missionsv1.MissionKind_MISSION_KIND_TAKE_FOR, TargetCountryId: "fr", Goal: 60, Progress: 60,
-				Collected: true, RewardKind: planetv1.BonusKind_BONUS_KIND_SHIELDS, RewardAmount: 10,
+				Paid: true, RewardKind: planetv1.BonusKind_BONUS_KIND_SHIELDS, RewardAmount: 10,
 			},
 			{
 				Id: ground.String(), Kind: missionsv1.MissionKind_MISSION_KIND_TAKE_IN, TargetCountryId: "br", Goal: 200, Progress: 12,

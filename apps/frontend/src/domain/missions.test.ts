@@ -1,6 +1,6 @@
 import {describe, expect, it} from "vitest"
 import {Mission} from "../backends/missions.ts"
-import {awardOf, collectable, done, orderOf, timeLeft} from "./missions.ts"
+import {awardOf, done, newlyPaid, orderOf, timeLeft, waiting} from "./missions.ts"
 
 const mission = (overrides: Partial<Mission> = {}): Mission => ({
     id: "bank",
@@ -8,7 +8,7 @@ const mission = (overrides: Partial<Mission> = {}): Mission => ({
     target: "fr",
     goal: 60,
     progress: 0,
-    collected: false,
+    paid: false,
     reward: {kind: "shields", amount: 10},
     ...overrides,
 })
@@ -21,14 +21,26 @@ describe("orderOf", () => {
     })
 })
 
-describe("collectable", () => {
-    it("counts the missions done and not collected", () => {
-        expect(collectable([
+describe("waiting", () => {
+    it("counts the missions done and not paid yet", () => {
+        expect(waiting([
             mission({id: "bank", progress: 60}),
-            mission({id: "rival", progress: 60, collected: true}),
+            mission({id: "rival", progress: 60, paid: true}),
             mission({id: "ground", progress: 59}),
         ])).toBe(1)
         expect(done(mission({progress: 59}))).toBe(false)
+    })
+})
+
+describe("newlyPaid", () => {
+    it("is what was read unpaid and is paid now", () => {
+        const before = [mission({id: "bank", progress: 59}), mission({id: "rival", paid: true})]
+
+        expect(newlyPaid(before, [
+            mission({id: "bank", progress: 60, paid: true}),
+            mission({id: "rival", paid: true}),
+            mission({id: "ground", paid: true}),
+        ]).map((paid) => paid.id)).toEqual(["bank"])
     })
 })
 

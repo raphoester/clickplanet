@@ -8,10 +8,7 @@ import (
 	"github.com/google/uuid"
 )
 
-var (
-	ErrNoMission   = errors.New("no mission of the day has that id")
-	ErrUnknownKind = errors.New("not a kind of mission")
-)
+var ErrUnknownKind = errors.New("not a kind of mission")
 
 type Take struct {
 	Account  AccountID
@@ -23,14 +20,6 @@ type Take struct {
 }
 
 type MissionID uuid.UUID
-
-func MissionIDOf(value string) (MissionID, error) {
-	id, err := uuid.Parse(value)
-	if err != nil || id == uuid.Nil {
-		return MissionID{}, fmt.Errorf("%w: %q", ErrNoMission, value)
-	}
-	return MissionID(id), nil
-}
 
 func (id MissionID) String() string { return uuid.UUID(id).String() }
 
@@ -129,15 +118,6 @@ func BriefOf(snapshots []MissionSnapshot) (Brief, error) {
 		brief.missions = append(brief.missions, mission)
 	}
 	return brief, nil
-}
-
-func (b Brief) Mission(id MissionID) (Mission, error) {
-	for _, mission := range b.missions {
-		if mission.id == id {
-			return mission, nil
-		}
-	}
-	return Mission{}, fmt.Errorf("%w: %s", ErrNoMission, id)
 }
 
 func (b Brief) Snapshot() []MissionSnapshot {

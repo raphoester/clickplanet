@@ -1,48 +1,41 @@
 package missions
 
 import (
-	"errors"
-
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
-)
-
-var (
-	ErrNotDone   = errors.New("the mission is not done")
-	ErrCollected = errors.New("the mission was collected already")
 )
 
 type SheetSnapshot struct {
 	Flag       string
 	Taken      map[MissionID]uint32
-	Collected  *cpcolls.Set[MissionID]
+	Paid       *cpcolls.Set[MissionID]
 	TakesBelow uint64
 }
 
 type Sheet struct {
 	flag       string
 	taken      map[MissionID]uint32
-	collected  *cpcolls.Set[MissionID]
+	paid       *cpcolls.Set[MissionID]
 	takesBelow uint64
 }
 
 func SheetOf(snapshot SheetSnapshot) Sheet {
-	sheet := Sheet{flag: snapshot.Flag, taken: map[MissionID]uint32{}, collected: cpcolls.NewSet[MissionID](), takesBelow: snapshot.TakesBelow}
+	sheet := Sheet{flag: snapshot.Flag, taken: map[MissionID]uint32{}, paid: cpcolls.NewSet[MissionID](), takesBelow: snapshot.TakesBelow}
 	for id, taken := range snapshot.Taken {
 		sheet.taken[id] = taken
 	}
-	if snapshot.Collected != nil {
-		sheet.collected.AddSet(snapshot.Collected)
+	if snapshot.Paid != nil {
+		sheet.paid.AddSet(snapshot.Paid)
 	}
 	return sheet
 }
 
 func (s Sheet) clone() Sheet {
-	return SheetOf(SheetSnapshot{Flag: s.flag, Taken: s.taken, Collected: s.collected, TakesBelow: s.takesBelow})
+	return SheetOf(SheetSnapshot{Flag: s.flag, Taken: s.taken, Paid: s.paid, TakesBelow: s.takesBelow})
 }
 
 func (s Sheet) Snapshot() SheetSnapshot {
 	copied := s.clone()
-	return SheetSnapshot{Flag: copied.flag, Taken: copied.taken, Collected: copied.collected, TakesBelow: copied.takesBelow}
+	return SheetSnapshot{Flag: copied.flag, Taken: copied.taken, Paid: copied.paid, TakesBelow: copied.takesBelow}
 }
 
 func (s Sheet) Enlisted() bool { return s.flag != "" }
@@ -69,12 +62,20 @@ func (s Sheet) WithTake(take Take, brief Brief) Sheet {
 	return next
 }
 
-func (s Sheet) CollectError(mission Mission) error {
-	switch {
-	case s.collected.Contains(mission.id):
-		return ErrCollected
-	case s.taken[mission.id] < mission.goal:
-		return ErrNotDone
+type Payment struct {
+	Mission MissionID
+	Reward  Reward
+}
+
+// Each mission done is paid once.
+func (s Sheet) WithPayments(brief Brief) (Sheet, []Payment) {
+	next := s.clone()
+	var payments []Payment
+	for _, mission := range brief.missions {
+		if next.taken[mission.id] >= mission.goal && !next.paid.Contains(mission.id) {
+			next.paid.Add(mission.id)
+			payments = append(payments, Payment{Mission: mission.id, Reward: mission.reward})
+		}
 	}
-	return nil
+	return next, payments
 }

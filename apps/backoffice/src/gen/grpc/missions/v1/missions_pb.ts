@@ -163,9 +163,11 @@ export class Mission extends Message<Mission> {
   progress = 0;
 
   /**
-   * @generated from field: bool collected = 6;
+   * A done mission is paid at once, or a guest's when it signs in that day.
+   *
+   * @generated from field: bool paid = 6;
    */
-  collected = false;
+  paid = false;
 
   /**
    * @generated from field: planet.v1.BonusKind reward_kind = 7;
@@ -190,7 +192,7 @@ export class Mission extends Message<Mission> {
     { no: 3, name: "target_country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "goal", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 5, name: "progress", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 6, name: "collected", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 6, name: "paid", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 7, name: "reward_kind", kind: "enum", T: proto3.getEnumType(BonusKind) },
     { no: 8, name: "reward_amount", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
@@ -209,86 +211,6 @@ export class Mission extends Message<Mission> {
 
   static equals(a: Mission | PlainMessage<Mission> | undefined, b: Mission | PlainMessage<Mission> | undefined): boolean {
     return proto3.util.equals(Mission, a, b);
-  }
-}
-
-/**
- * @generated from message missions.v1.CollectMissionRequest
- */
-export class CollectMissionRequest extends Message<CollectMissionRequest> {
-  /**
-   * @generated from field: string mission_id = 1;
-   */
-  missionId = "";
-
-  constructor(data?: PartialMessage<CollectMissionRequest>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "missions.v1.CollectMissionRequest";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "mission_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CollectMissionRequest {
-    return new CollectMissionRequest().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CollectMissionRequest {
-    return new CollectMissionRequest().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CollectMissionRequest {
-    return new CollectMissionRequest().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: CollectMissionRequest | PlainMessage<CollectMissionRequest> | undefined, b: CollectMissionRequest | PlainMessage<CollectMissionRequest> | undefined): boolean {
-    return proto3.util.equals(CollectMissionRequest, a, b);
-  }
-}
-
-/**
- * @generated from message missions.v1.CollectMissionResponse
- */
-export class CollectMissionResponse extends Message<CollectMissionResponse> {
-  /**
-   * @generated from field: planet.v1.BonusKind kind = 1;
-   */
-  kind = BonusKind.UNSPECIFIED;
-
-  /**
-   * @generated from field: uint32 amount = 2;
-   */
-  amount = 0;
-
-  constructor(data?: PartialMessage<CollectMissionResponse>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "missions.v1.CollectMissionResponse";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "kind", kind: "enum", T: proto3.getEnumType(BonusKind) },
-    { no: 2, name: "amount", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CollectMissionResponse {
-    return new CollectMissionResponse().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CollectMissionResponse {
-    return new CollectMissionResponse().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CollectMissionResponse {
-    return new CollectMissionResponse().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: CollectMissionResponse | PlainMessage<CollectMissionResponse> | undefined, b: CollectMissionResponse | PlainMessage<CollectMissionResponse> | undefined): boolean {
-    return proto3.util.equals(CollectMissionResponse, a, b);
   }
 }
 

@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 )
 
 type Briefing interface {
@@ -15,14 +16,22 @@ type Sheets interface {
 	ChangeSheet(ctx context.Context, day missions.Day, account missions.AccountID, change func(missions.Sheet) missions.Sheet) error
 }
 
-func New(calendar missions.Calendar, briefing Briefing, sheets Sheets) *UseCase {
-	return &UseCase{calendar: calendar, briefing: briefing, sheets: sheets}
+type Payroll interface {
+	Pay(ctx context.Context, day missions.Day, account missions.AccountID) error
+}
+
+func New(
+	calendar missions.Calendar, briefing Briefing, sheets Sheets, transactioner cpatomic.Transactioner, payroll Payroll,
+) *UseCase {
+	return &UseCase{calendar: calendar, briefing: briefing, sheets: sheets, transactioner: transactioner, payroll: payroll}
 }
 
 type UseCase struct {
-	calendar missions.Calendar
-	briefing Briefing
-	sheets   Sheets
+	calendar      missions.Calendar
+	briefing      Briefing
+	sheets        Sheets
+	transactioner cpatomic.Transactioner
+	payroll       Payroll
 }
 
 func (u *UseCase) Execute(ctx context.Context, take missions.Take) error {
@@ -33,10 +42,20 @@ func (u *UseCase) Execute(ctx context.Context, take missions.Take) error {
 		return fmt.Errorf("failed to read %s's missions: %w", take.Flag, err)
 	}
 
-	if err := u.sheets.ChangeSheet(ctx, day, take.Account, func(sheet missions.Sheet) missions.Sheet {
-		return sheet.WithTake(take, brief)
-	}); err != nil {
-		return fmt.Errorf("failed to count the take on the day's missions: %w", err)
-	}
-	return nil
+	return u.transactioner.InTx(ctx, func(ctx context.Context) error {
+		finished := false
+		if err := u.sheets.ChangeSheet(ctx, day, take.Account, func(sheet missions.Sheet) missions.Sheet {
+			next := sheet.WithTake(take, brief)
+			_, dueBefore := sheet.WithPayments(brief)
+			_, dueAfter := next.WithPayments(brief)
+			finished = len(dueAfter) > len(dueBefore)
+			return next
+		}); err != nil {
+			return fmt.Errorf("failed to count the take on the day's missions: %w", err)
+		}
+		if !finished {
+			return nil
+		}
+		return u.payroll.Pay(ctx, day, take.Account) //nolint:wrapcheck // the payroll named it.
+	})
 }
