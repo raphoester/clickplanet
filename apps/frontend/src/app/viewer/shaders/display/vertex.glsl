@@ -11,6 +11,8 @@ uniform float flagPaint;
 
 uniform float pixelsPerRadian;
 
+uniform float highlight;
+
 // Must match MAX_BLASTS and BLAST_TIMELINE in domain/blast.ts.
 #define MAX_BLASTS 4
 const float BLAST_FALL = 0.8;
@@ -47,6 +49,7 @@ varying float vHover;
 flat out vec4 vRegionVector;
 flat out float vShield;
 flat out float vPulse;
+flat out float vHighlit;
 
 #ifdef LIT
 flat out float vShade;
@@ -93,6 +96,7 @@ void main() {
     vRegionVector = regionVector;
     vShield = shield;
     vPulse = pulse;
+    vHighlit = highlight > 0.5 && abs(landmassIndex - highlight) < 0.5 ? 1.0 : 0.0;
 
 #ifdef LIT
     vec3 normal = normalize(normalMatrix * ground);

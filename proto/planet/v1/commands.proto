@@ -3,11 +3,20 @@ syntax = "proto3";
 package planet.v1;
 
 import "google/protobuf/timestamp.proto";
+import "planet/v1/planet.proto";
 
-// What another module asks of planet, in planet's words, over Redis Streams. Planet keeps the latest decision on each
-// caller by decided_at, so a command sent twice, or after a newer one, changes nothing.
+// What another module asks of planet, in planet's words, over Redis Streams.
 
-// Refuses the caller's clicks, bombs and shields until a time.
+// What does not fit the account's stack is not granted. A grant_id told twice is granted once.
+message GrantCharges {
+  string grant_id = 1;
+  string account_id = 2;
+  BonusKind kind = 3;
+  uint32 amount = 4;
+}
+
+// Refuses the caller's clicks, bombs and shields until a time. Planet keeps the latest decision on each caller by
+// decided_at, so a command sent twice, or after a newer one, changes nothing.
 message RefuseCaller {
   oneof caller {
     string scope = 1;
@@ -17,7 +26,7 @@ message RefuseCaller {
   google.protobuf.Timestamp decided_at = 4;
 }
 
-// Ends the caller's refusal now.
+// Ends the caller's refusal now, by the same rule.
 message AdmitCaller {
   oneof caller {
     string scope = 1;

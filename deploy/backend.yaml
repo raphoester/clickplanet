@@ -79,6 +79,19 @@ seasons:
   redis:
     address: redis:6379
 
+missions:
+  cutoff: 21h
+  database:
+    host: postgres
+    port: "5432"
+    user: postgres
+    password: postgres
+    dbName: postgres
+    sslMode: disable
+    schema: missions
+  redis:
+    address: redis:6379
+
 support:
   database:
     host: postgres

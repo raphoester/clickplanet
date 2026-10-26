@@ -11,6 +11,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons"
@@ -24,12 +25,13 @@ type Config struct {
 
 	Planet planet.Config `koanf:",squash"`
 
-	Auth    auth.Config
-	AntiBot antibot.Config
-	Chat    chat.Config
-	Player  player.Config
-	Seasons seasons.Config
-	Support support.Config
+	Auth     auth.Config
+	AntiBot  antibot.Config
+	Chat     chat.Config
+	Player   player.Config
+	Seasons  seasons.Config
+	Missions missions.Config
+	Support  support.Config
 	// The numbers of the clips the clips job posted.
 	Clips clips.ModuleConfig
 }
@@ -73,6 +75,7 @@ func describeModules(config Config) []cpbootstrap.Module {
 		chat.NewModule(config.Chat),
 		player.NewModule(config.Player),
 		seasons.NewModule(config.Seasons),
+		missions.NewModule(config.Missions),
 		support.NewModule(config.Support),
 		clips.NewModule(config.Clips),
 	}
@@ -96,6 +99,7 @@ func (c Config) Validate() error {
 		c.Auth.Validate(),
 		c.Player.Validate(),
 		c.Seasons.Validate(),
+		c.Missions.Validate(),
 		c.Support.Validate(),
 		c.Clips.Validate(),
 	)

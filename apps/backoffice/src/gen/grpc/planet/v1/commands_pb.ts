@@ -5,9 +5,68 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
+import { BonusKind } from "./planet_pb.js";
 
 /**
- * Refuses the caller's clicks, bombs and shields until a time.
+ * What does not fit the account's stack is not granted. A grant_id told twice is granted once.
+ *
+ * @generated from message planet.v1.GrantCharges
+ */
+export class GrantCharges extends Message<GrantCharges> {
+  /**
+   * @generated from field: string grant_id = 1;
+   */
+  grantId = "";
+
+  /**
+   * @generated from field: string account_id = 2;
+   */
+  accountId = "";
+
+  /**
+   * @generated from field: planet.v1.BonusKind kind = 3;
+   */
+  kind = BonusKind.UNSPECIFIED;
+
+  /**
+   * @generated from field: uint32 amount = 4;
+   */
+  amount = 0;
+
+  constructor(data?: PartialMessage<GrantCharges>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GrantCharges";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "grant_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "kind", kind: "enum", T: proto3.getEnumType(BonusKind) },
+    { no: 4, name: "amount", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GrantCharges {
+    return new GrantCharges().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GrantCharges {
+    return new GrantCharges().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GrantCharges {
+    return new GrantCharges().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GrantCharges | PlainMessage<GrantCharges> | undefined, b: GrantCharges | PlainMessage<GrantCharges> | undefined): boolean {
+    return proto3.util.equals(GrantCharges, a, b);
+  }
+}
+
+/**
+ * Refuses the caller's clicks, bombs and shields until a time. Planet keeps the latest decision on each caller by
+ * decided_at, so a command sent twice, or after a newer one, changes nothing.
  *
  * @generated from message planet.v1.RefuseCaller
  */
@@ -71,7 +130,7 @@ export class RefuseCaller extends Message<RefuseCaller> {
 }
 
 /**
- * Ends the caller's refusal now.
+ * Ends the caller's refusal now, by the same rule.
  *
  * @generated from message planet.v1.AdmitCaller
  */

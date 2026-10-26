@@ -201,6 +201,51 @@ func TestTwoSubscribersOfOneTypeCannotShareAName(t *testing.T) {
 	assert.ErrorContains(t, err, "already subscribes")
 }
 
+func handled[T proto.Message](t *testing.T, streams *cpredis.Streams, handler cpredis.Handler[T]) cpbootstrap.Runner {
+	t.Helper()
+
+	runner, err := cpredis.Handle(t.Context(), streams, handler)
+	require.NoError(t, err)
+	return runner
+}
+
+func TestACommandSentBeforeItsHandlerListensIsHandled(t *testing.T) {
+	server := cpredis.StartTestServer(t)
+	require.NoError(t, connected(t, server.Config(), prometheus.NewRegistry()).Commands().
+		Send(t.Context(), wrapperspb.String("grant"), wrapperspb.String("grant again")))
+	handler := &received{}
+
+	stop := running(handled[*wrapperspb.StringValue](t, connected(t, server.Config(), prometheus.NewRegistry()), handler))
+	eventually(t, func() bool { return len(handler.values()) == 2 })
+	stop()
+
+	assert.Equal(t, []string{"grant", "grant again"}, handler.values(), "in the order they were sent")
+}
+
+func TestACommandIsNoEventAndAnEventNoCommand(t *testing.T) {
+	streams := connected(t, cpredis.StartTestServer(t).Config(), prometheus.NewRegistry())
+	commands, events := &received{}, &received{}
+	stop := running(handled[*wrapperspb.StringValue](t, streams, commands),
+		subscribed[*wrapperspb.StringValue](t, streams, "listener", events))
+
+	require.NoError(t, streams.Commands().Send(t.Context(), wrapperspb.String("a command")))
+	publish(streams, "an event")
+	eventually(t, func() bool { return len(commands.values()) == 1 && len(events.values()) == 1 })
+	stop()
+
+	assert.Equal(t, []string{"a command"}, commands.values())
+	assert.Equal(t, []string{"an event"}, events.values())
+}
+
+func TestACommandHasOneHandler(t *testing.T) {
+	streams := connected(t, cpredis.StartTestServer(t).Config(), prometheus.NewRegistry())
+	handled[*wrapperspb.StringValue](t, streams, &received{})
+
+	_, err := cpredis.Handle[*wrapperspb.StringValue](t.Context(), streams, &received{})
+
+	assert.Error(t, err)
+}
+
 func TestAModuleConnectsOnlyToARedisItNamesAndReaches(t *testing.T) {
 	assert.ErrorContains(t, cpredis.New(cpredis.Config{}, prometheus.NewRegistry()).ConnectCtx(t.Context()), "host:port")
 

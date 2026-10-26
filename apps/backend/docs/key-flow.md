@@ -46,7 +46,7 @@ POST /planet.v1.ClickService/Click   [X-Session-Token: <the minted token>]
   … the try, as planet.v1.ClickTried on Redis
   → the antibot's listener (antibot-clicks): Attempted, Inspect, Committed, as far as the click went
   → a guilty caller's ban row, and a planet.v1.RefuseCaller in the same transaction (the antibot's outbox)
-  → planet's planet-refusals-refuse: planet.refused_callers, which refusal_click reads on the next click
+  → planet's refuse_caller_handler (commands:planet.v1.RefuseCaller): planet.refused_callers, read by refusal_click
 ```
 
 `Click` is `Set` with the update marked `clicked`, which only the tile a click named carries: every client rings it, and a spread's neighbours, an enclosure's inside and the moderation writes stay plain `Set`s. Both are a no-op when the tile already holds that value — no write, no update published.

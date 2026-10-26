@@ -3,6 +3,9 @@
 - **Every call goes to `https://api.clickplanet.lol/<package>.v1.AdminService/<Method>`** (`src/api.ts`).
   Caddy sends those paths to the backend's admin listener (the backend's [Operator tools](../../backend/docs/admin.md)).
   `VITE_API_BASE_URL` points it elsewhere; it is a build variable.
+- **Calls go in binary protobuf, not JSON** (`useBinaryFormat`): writing a page of the ledger as JSON took the
+  server 8 times as long. An error still comes back as JSON, and a replay is saved as JSON on this side
+  (`toJsonString`).
 - **The page signs in on its own, with Google only** (`auth.v1.AdminService`, the backend's
   [Operators](../../backend/docs/auth.md#operators)). Its session is the `cp_admin` cookie: 12 hours, never extended, `SameSite=Strict`, host-only on
   `api.clickplanet.lol`. It travels from `backoffice.clickplanet.lol` because both are one site, and the transport sends

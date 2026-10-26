@@ -111,6 +111,23 @@ func (h Held) GrantError() error {
 	return nil
 }
 
+func GrantOf(kind Kind, amount int) Held {
+	switch kind {
+	case KindRefill:
+		return Held{Refill: amount > 0}
+	case KindBomb:
+		return Held{Bomb: amount > 0}
+	case KindEncloseClicks:
+		return Held{Enclosures: amount}
+	case KindSpreadClicks:
+		return Held{SpreadClicks: amount}
+	case KindShields:
+		return Held{Shields: amount}
+	}
+
+	return Held{}
+}
+
 func (h Held) Granted(kind Kind, amount int, config ChargesConfig) Held {
 	switch kind {
 	case KindRefill:

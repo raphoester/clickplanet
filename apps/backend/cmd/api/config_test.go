@@ -172,6 +172,9 @@ player:
 seasons:
   database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: seasons}
   redis: {address: localhost:6379}
+missions:
+  database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: missions}
+  redis: {address: localhost:6379}
 support:
   database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: support}
   redis: {address: localhost:6379}
@@ -232,6 +235,19 @@ func TestTheExampleConfigReachesThePlayerBlock(t *testing.T) {
 
 	assert.Equal(t, "player", config.Player.Database.Schema)
 	require.NoError(t, config.Player.Database.Validate())
+}
+
+func TestTheExampleConfigReachesTheMissionsBlock(t *testing.T) {
+	var config Config
+	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
+
+	assert.Equal(t, 21*time.Hour, config.Missions.Calendar.Cutoff, "the missions turn when the daily round closes")
+	assert.Equal(t, "missions", config.Missions.Database.Schema)
+	require.NoError(t, config.Missions.Validate())
+}
+
+func TestTheMissionsModuleWithNoDatabaseIsRefused(t *testing.T) {
+	assert.ErrorContains(t, Config{}.Validate(), "missions.database")
 }
 
 func TestThePlayerModuleWithNoDatabaseIsRefused(t *testing.T) {
@@ -442,7 +458,8 @@ func TestEveryModuleOfProductionTalksToTheSameRedis(t *testing.T) {
 
 	for name, redis := range map[string]cpredis.Config{
 		"auth": config.Auth.Redis, "chat": config.Chat.Redis, "player": config.Player.Redis,
-		"seasons": config.Seasons.Redis, "support": config.Support.Redis, "antiBot": config.AntiBot.Redis,
+		"seasons": config.Seasons.Redis, "support": config.Support.Redis, "missions": config.Missions.Redis,
+		"antiBot": config.AntiBot.Redis,
 	} {
 		assert.Equal(t, config.Planet.Redis, redis, "%s.redis is the planet's block", name)
 	}

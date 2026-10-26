@@ -3,9 +3,13 @@ import {
     coarseHandover,
     displayPointSize,
     flagPaint,
+    flownZoomsOf,
+    inOrbit,
     MAX_PICK_WINDOW,
+    pickPointSize,
     pickWindowSize,
     tilePointSize,
+    tileSpacing,
     tilesZoomOf,
 } from "./pointSize.ts"
 import {MAX_ZOOM, MIN_ZOOM} from "./zoom.ts"
@@ -131,6 +135,41 @@ describe("the zoom the tiles take over from", () => {
         for (const height of VIEWPORTS) {
             expect(flagPaint(tilesZoomOf(height), height, "flags"), `${height}px`).toBeCloseTo(0, 9)
             expect(flagPaint(tilesZoomOf(height) * 0.95, height, "flags"), `${height}px`).toBeGreaterThan(0)
+        }
+    })
+})
+
+describe("orbit", () => {
+    it("is exactly where the painted flags have the frame to themselves", () => {
+        everyView((zoom, height) => {
+            expect(inOrbit(zoom, height), `zoom ${zoom} at ${height}px`).toBe(flagPaint(zoom, height, "flags") === 1)
+        })
+    })
+
+    it("picks a tile wide enough to leave no gap between two tiles, and past it at its own size", () => {
+        everyView((zoom, height) => {
+            if (inOrbit(zoom, height)) {
+                expect(pickPointSize(zoom, height) / tileSpacing(zoom, height), `zoom ${zoom} at ${height}px`).toBeGreaterThanOrEqual(1.155)
+            } else {
+                expect(pickPointSize(zoom, height), `zoom ${zoom} at ${height}px`).toBe(tilePointSize(zoom, height))
+            }
+        })
+    })
+
+    it("is the opening view on a common screen, and ends before the tiles have the frame", () => {
+        expect(inOrbit(1, 900)).toBe(true)
+        for (const height of VIEWPORTS) expect(inOrbit(tilesZoomOf(height), height), `${height}px`).toBe(false)
+    })
+})
+
+describe("a territory flown to", () => {
+    it("is seen out of orbit, with the tiles alone on screen, and no closer than big tiles", () => {
+        for (const height of VIEWPORTS) {
+            const {least, most} = flownZoomsOf(height)
+            expect(inOrbit(least, height), `${height}px`).toBe(false)
+            expect(flagPaint(least, height, "flags"), `${height}px`).toBeCloseTo(0, 9)
+            expect(tilePointSize(most, height), `${height}px`).toBeCloseTo(28)
+            expect(most, `${height}px`).toBeGreaterThan(least)
         }
     })
 })

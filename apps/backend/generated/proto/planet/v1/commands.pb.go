@@ -22,7 +22,77 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Refuses the caller's clicks, bombs and shields until a time.
+// What does not fit the account's stack is not granted. A grant_id told twice is granted once.
+type GrantCharges struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	GrantId       string                 `protobuf:"bytes,1,opt,name=grant_id,json=grantId,proto3" json:"grant_id,omitempty"`
+	AccountId     string                 `protobuf:"bytes,2,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	Kind          BonusKind              `protobuf:"varint,3,opt,name=kind,proto3,enum=planet.v1.BonusKind" json:"kind,omitempty"`
+	Amount        uint32                 `protobuf:"varint,4,opt,name=amount,proto3" json:"amount,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GrantCharges) Reset() {
+	*x = GrantCharges{}
+	mi := &file_planet_v1_commands_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GrantCharges) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GrantCharges) ProtoMessage() {}
+
+func (x *GrantCharges) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_commands_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GrantCharges.ProtoReflect.Descriptor instead.
+func (*GrantCharges) Descriptor() ([]byte, []int) {
+	return file_planet_v1_commands_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *GrantCharges) GetGrantId() string {
+	if x != nil {
+		return x.GrantId
+	}
+	return ""
+}
+
+func (x *GrantCharges) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+func (x *GrantCharges) GetKind() BonusKind {
+	if x != nil {
+		return x.Kind
+	}
+	return BonusKind_BONUS_KIND_UNSPECIFIED
+}
+
+func (x *GrantCharges) GetAmount() uint32 {
+	if x != nil {
+		return x.Amount
+	}
+	return 0
+}
+
+// Refuses the caller's clicks, bombs and shields until a time. Planet keeps the latest decision on each caller by
+// decided_at, so a command sent twice, or after a newer one, changes nothing.
 type RefuseCaller struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Types that are valid to be assigned to Caller:
@@ -38,7 +108,7 @@ type RefuseCaller struct {
 
 func (x *RefuseCaller) Reset() {
 	*x = RefuseCaller{}
-	mi := &file_planet_v1_commands_proto_msgTypes[0]
+	mi := &file_planet_v1_commands_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -50,7 +120,7 @@ func (x *RefuseCaller) String() string {
 func (*RefuseCaller) ProtoMessage() {}
 
 func (x *RefuseCaller) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_commands_proto_msgTypes[0]
+	mi := &file_planet_v1_commands_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -63,7 +133,7 @@ func (x *RefuseCaller) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RefuseCaller.ProtoReflect.Descriptor instead.
 func (*RefuseCaller) Descriptor() ([]byte, []int) {
-	return file_planet_v1_commands_proto_rawDescGZIP(), []int{0}
+	return file_planet_v1_commands_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *RefuseCaller) GetCaller() isRefuseCaller_Caller {
@@ -121,7 +191,7 @@ func (*RefuseCaller_Scope) isRefuseCaller_Caller() {}
 
 func (*RefuseCaller_AccountId) isRefuseCaller_Caller() {}
 
-// Ends the caller's refusal now.
+// Ends the caller's refusal now, by the same rule.
 type AdmitCaller struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Types that are valid to be assigned to Caller:
@@ -136,7 +206,7 @@ type AdmitCaller struct {
 
 func (x *AdmitCaller) Reset() {
 	*x = AdmitCaller{}
-	mi := &file_planet_v1_commands_proto_msgTypes[1]
+	mi := &file_planet_v1_commands_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -148,7 +218,7 @@ func (x *AdmitCaller) String() string {
 func (*AdmitCaller) ProtoMessage() {}
 
 func (x *AdmitCaller) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_commands_proto_msgTypes[1]
+	mi := &file_planet_v1_commands_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -161,7 +231,7 @@ func (x *AdmitCaller) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdmitCaller.ProtoReflect.Descriptor instead.
 func (*AdmitCaller) Descriptor() ([]byte, []int) {
-	return file_planet_v1_commands_proto_rawDescGZIP(), []int{1}
+	return file_planet_v1_commands_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *AdmitCaller) GetCaller() isAdmitCaller_Caller {
@@ -216,7 +286,13 @@ var File_planet_v1_commands_proto protoreflect.FileDescriptor
 
 const file_planet_v1_commands_proto_rawDesc = "" +
 	"\n" +
-	"\x18planet/v1/commands.proto\x12\tplanet.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xbe\x01\n" +
+	"\x18planet/v1/commands.proto\x12\tplanet.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x16planet/v1/planet.proto\"\x8a\x01\n" +
+	"\fGrantCharges\x12\x19\n" +
+	"\bgrant_id\x18\x01 \x01(\tR\agrantId\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x02 \x01(\tR\taccountId\x12(\n" +
+	"\x04kind\x18\x03 \x01(\x0e2\x14.planet.v1.BonusKindR\x04kind\x12\x16\n" +
+	"\x06amount\x18\x04 \x01(\rR\x06amount\"\xbe\x01\n" +
 	"\fRefuseCaller\x12\x16\n" +
 	"\x05scope\x18\x01 \x01(\tH\x00R\x05scope\x12\x1f\n" +
 	"\n" +
@@ -247,21 +323,24 @@ func file_planet_v1_commands_proto_rawDescGZIP() []byte {
 	return file_planet_v1_commands_proto_rawDescData
 }
 
-var file_planet_v1_commands_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_planet_v1_commands_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_planet_v1_commands_proto_goTypes = []any{
-	(*RefuseCaller)(nil),          // 0: planet.v1.RefuseCaller
-	(*AdmitCaller)(nil),           // 1: planet.v1.AdmitCaller
-	(*timestamppb.Timestamp)(nil), // 2: google.protobuf.Timestamp
+	(*GrantCharges)(nil),          // 0: planet.v1.GrantCharges
+	(*RefuseCaller)(nil),          // 1: planet.v1.RefuseCaller
+	(*AdmitCaller)(nil),           // 2: planet.v1.AdmitCaller
+	(BonusKind)(0),                // 3: planet.v1.BonusKind
+	(*timestamppb.Timestamp)(nil), // 4: google.protobuf.Timestamp
 }
 var file_planet_v1_commands_proto_depIdxs = []int32{
-	2, // 0: planet.v1.RefuseCaller.until:type_name -> google.protobuf.Timestamp
-	2, // 1: planet.v1.RefuseCaller.decided_at:type_name -> google.protobuf.Timestamp
-	2, // 2: planet.v1.AdmitCaller.decided_at:type_name -> google.protobuf.Timestamp
-	3, // [3:3] is the sub-list for method output_type
-	3, // [3:3] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	3, // 0: planet.v1.GrantCharges.kind:type_name -> planet.v1.BonusKind
+	4, // 1: planet.v1.RefuseCaller.until:type_name -> google.protobuf.Timestamp
+	4, // 2: planet.v1.RefuseCaller.decided_at:type_name -> google.protobuf.Timestamp
+	4, // 3: planet.v1.AdmitCaller.decided_at:type_name -> google.protobuf.Timestamp
+	4, // [4:4] is the sub-list for method output_type
+	4, // [4:4] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_planet_v1_commands_proto_init() }
@@ -269,11 +348,12 @@ func file_planet_v1_commands_proto_init() {
 	if File_planet_v1_commands_proto != nil {
 		return
 	}
-	file_planet_v1_commands_proto_msgTypes[0].OneofWrappers = []any{
+	file_planet_v1_planet_proto_init()
+	file_planet_v1_commands_proto_msgTypes[1].OneofWrappers = []any{
 		(*RefuseCaller_Scope)(nil),
 		(*RefuseCaller_AccountId)(nil),
 	}
-	file_planet_v1_commands_proto_msgTypes[1].OneofWrappers = []any{
+	file_planet_v1_commands_proto_msgTypes[2].OneofWrappers = []any{
 		(*AdmitCaller_Scope)(nil),
 		(*AdmitCaller_AccountId)(nil),
 	}
@@ -283,7 +363,7 @@ func file_planet_v1_commands_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_planet_v1_commands_proto_rawDesc), len(file_planet_v1_commands_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

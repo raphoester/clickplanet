@@ -102,6 +102,8 @@ type TileTaken struct {
 	Country       string                 `protobuf:"bytes,3,opt,name=country,proto3" json:"country,omitempty"`
 	TakenAt       *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=taken_at,json=takenAt,proto3" json:"taken_at,omitempty"`
 	Position      uint64                 `protobuf:"varint,5,opt,name=position,proto3" json:"position,omitempty"`
+	Previous      string                 `protobuf:"bytes,6,opt,name=previous,proto3" json:"previous,omitempty"`
+	Ground        string                 `protobuf:"bytes,7,opt,name=ground,proto3" json:"ground,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -169,6 +171,20 @@ func (x *TileTaken) GetPosition() uint64 {
 		return x.Position
 	}
 	return 0
+}
+
+func (x *TileTaken) GetPrevious() string {
+	if x != nil {
+		return x.Previous
+	}
+	return ""
+}
+
+func (x *TileTaken) GetGround() string {
+	if x != nil {
+		return x.Ground
+	}
+	return ""
 }
 
 type BombLanded struct {
@@ -879,14 +895,16 @@ var File_planet_v1_events_proto protoreflect.FileDescriptor
 
 const file_planet_v1_events_proto_rawDesc = "" +
 	"\n" +
-	"\x16planet/v1/events.proto\x12\tplanet.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x16planet/v1/planet.proto\"\xb0\x01\n" +
+	"\x16planet/v1/events.proto\x12\tplanet.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x16planet/v1/planet.proto\"\xe4\x01\n" +
 	"\tTileTaken\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12\x17\n" +
 	"\atile_id\x18\x02 \x01(\rR\x06tileId\x12\x18\n" +
 	"\acountry\x18\x03 \x01(\tR\acountry\x125\n" +
 	"\btaken_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\atakenAt\x12\x1a\n" +
-	"\bposition\x18\x05 \x01(\x04R\bposition\"\xe5\x01\n" +
+	"\bposition\x18\x05 \x01(\x04R\bposition\x12\x1a\n" +
+	"\bprevious\x18\x06 \x01(\tR\bprevious\x12\x16\n" +
+	"\x06ground\x18\a \x01(\tR\x06ground\"\xe5\x01\n" +
 	"\n" +
 	"BombLanded\x12\x18\n" +
 	"\acountry\x18\x01 \x01(\tR\acountry\x12\x17\n" +

@@ -92,7 +92,7 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			// Not closers: the evidence and the outbox keep being written until the last fact is handled.
 			props.Runners.Add(cppg.CloseAfter(db, props.Logger, cpredis.CloseAfter(streams, props.Logger,
-				watchdogs.Hearing(feeds...), cpoutbox.NewRelay(moduleName, db, streams, props.Logger))))
+				watchdogs.Hearing(feeds...), cpoutbox.NewRelay(moduleName, db, streams.Commands(), props.Logger))))
 
 			admin := antibotv1controller.AdminService{
 				BanPlayerHandler: ban_player_handler.New(

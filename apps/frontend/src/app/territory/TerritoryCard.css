@@ -1,0 +1,160 @@
+.territory-card-head {
+    padding: var(--space-3) var(--space-3) var(--space-2);
+}
+
+.territory-card-name {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    min-width: 0;
+    margin: 0;
+    padding-right: var(--space-3);
+    font-family: var(--font-display);
+    font-weight: normal;
+    font-size: var(--display-m);
+    line-height: 1.2;
+    color: var(--gold);
+    text-shadow: var(--text-drop);
+}
+
+.territory-card-name .country-flag {
+    flex-shrink: 0;
+    margin-right: 0;
+}
+
+.territory-card-name-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.territory-card-size {
+    margin: 2px 0 0;
+    font-size: var(--text-s);
+    color: var(--text-muted);
+}
+
+.territory-card-holdings {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0 var(--space-3) var(--space-3);
+    list-style: none;
+}
+
+.territory-card-line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    font-family: var(--font-display);
+    font-size: var(--display-s);
+    line-height: 1.2;
+    color: var(--text);
+    text-shadow: var(--text-drop);
+}
+
+.territory-card-line .leaderboard-rank {
+    width: 24px;
+    flex-shrink: 0;
+    text-align: center;
+}
+
+.territory-card-line .country-flag {
+    flex-shrink: 0;
+    margin-right: 0;
+}
+
+.territory-card-country {
+    flex: 1;
+    min-width: 0;
+    padding-top: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.territory-card-tiles {
+    flex-shrink: 0;
+    padding-top: 2px;
+    font-variant-numeric: tabular-nums;
+}
+
+.territory-card-share {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-top: 4px;
+    padding-left: 30px;
+}
+
+.territory-card-bar {
+    display: block;
+    flex: 1;
+    height: 8px;
+    overflow: hidden;
+    border: var(--outline-thin) solid var(--ink);
+    border-radius: var(--radius-s);
+    background: var(--panel-sunk);
+}
+
+.territory-card-bar-filled {
+    display: block;
+    min-width: 2px;
+    height: 100%;
+    background: var(--gold);
+}
+
+.territory-card-percent {
+    flex-shrink: 0;
+    min-width: 3.5em;
+    font-size: var(--text-xs);
+    font-weight: 600;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-soft);
+}
+
+.territory-card-more {
+    margin: calc(-1 * var(--space-1)) 0 0;
+    padding: 0 var(--space-3) var(--space-3) calc(var(--space-3) + 30px);
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+}
+
+.territory-card-fortify {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.territory-card-fortify-line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+}
+
+.territory-card-shield {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    border: var(--outline-thin) solid var(--ink);
+    border-radius: var(--radius-s);
+    background: var(--shield);
+}
+
+.territory-card-shield .bonus-icon {
+    width: 16px;
+    height: 16px;
+}
+
+.territory-card-target {
+    padding-left: 28px;
+    color: var(--gold);
+}

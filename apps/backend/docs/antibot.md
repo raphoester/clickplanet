@@ -68,14 +68,15 @@ changes, until when to refuse it.
 
 - **Planet's commands** (`proto/planet/v1/commands.proto`): `RefuseCaller{scope | account_id, until, decided_at}` and
   `AdmitCaller{scope | account_id, decided_at}`, each on its own stream. A scope and an account are two callers, so a
-  guest's ban is two commands. Planet's subscribers (`planet-refusals-refuse`, `planet-refusals-admit`) keep **the latest
+  guest's ban is two commands. Planet's handlers (`refuse_caller_handler`, `admit_caller_handler`, on
+  `commands:planet.v1.RefuseCaller` and `commands:planet.v1.AdmitCaller`) keep **the latest
   decision on each caller by `decided_at`** (`refusals.Refusal.Decided`): a command sent again, or an older one that
   comes after a newer one on the other stream, changes nothing. The row is changed under an advisory lock on the
   caller, as allegiances are.
 - **Every change of a ban tells planet, in the ban's own transaction** (`bans.Banner.change`): the flag, the extension,
   the operator's ban, the unban and the pardon it gives. The ban row and the command commit together through the
   antibot's outbox (`antibot.outbox`, `outbox_event` `planet.v1.RefuseCaller` and `planet.v1.AdmitCaller`), and
-  `cpoutbox`'s relay sends it: a ban kept in the antibot and never refused by planet is what the outbox is for.
+  `cpoutbox`'s relay sends it with `streams.Commands()`: a ban kept in the antibot and never refused by planet is what the outbox is for.
   `decided_at` is taken under the ban's lock, so two changes of one key are told in the order they happened.
 - **A ban not enforced refuses nothing**: with `antiBot.bans.enforce` off, every change tells planet to admit the
   caller.
