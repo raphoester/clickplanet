@@ -53,7 +53,8 @@ a tab the browser freezes, loses its connection, and whatever the server sent in
 the meantime is gone. So `openStream` calls `onResumed` on the first message of
 a connection when an earlier one had been live, and the chat reads its history
 again there. The planet's first message on each connection is a heartbeat with
-the map's version, which `listenForOpenings` hands the globe (see below). The roster and the board need
+the map's version, which `listenForOpenings` hands the globe (see below), and on a resumed one the planet reads
+`GetBudget` and `GetBonusRules` again, since a `rulesChanged` may have fallen in the gap. The roster and the board need
 nothing: each connection starts with the whole of it. Two more things find a
 gap sooner:
 
@@ -169,7 +170,7 @@ counter is about.
 country, `ClickResponse.budget` on every accepted click, a **connect error
 detail** on a refused one, which is the reading that matters most, and
 `GetBudget` again when the planet stream says the rules changed
-(`rulesChanged`): the server can change the whole game's refill at once (the
+(`rulesChanged`) or comes back after a gap: the server can change the whole game's refill at once (the
 backend's [Rules](../../backend/docs/rules.md)), and only a reading says by how much.
 The same event reads `GetBonusRules` again (see [Charges](charges.md)). **`GetBudget`
 carries the token already held** (`SessionProvider.held()`, never a mint):

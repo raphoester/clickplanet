@@ -596,6 +596,47 @@ describe("PlanetBackend click budget", () => {
         backend.close()
     })
 
+    it("reads the allowance and the bonus rules again on a stream that comes back, never on its first", async () => {
+        const getBudget = vi.fn()
+            .mockResolvedValueOnce({budget: budget(4, 10, 0.2)})
+            .mockResolvedValueOnce({budget: budget(4, 10, 0.6)})
+        const reads = bonusReads()
+        reads.getBonusRules
+            .mockResolvedValueOnce(new GetBonusRulesResponse({enclosureMaxTiles: 25}))
+            .mockResolvedValueOnce(new GetBonusRulesResponse({enclosureMaxTiles: 35}))
+        const heartbeat = new PlanetEvent({event: {case: "heartbeat", value: new Heartbeat()}})
+        let drop = () => {}
+        const listenForEvents = vi.fn()
+            .mockImplementationOnce(async function* () {
+                yield heartbeat
+                await new Promise<void>(resolve => drop = resolve)
+            })
+            .mockImplementationOnce(async function* () {
+                yield heartbeat
+                await new Promise(() => {})
+            })
+        const backend = new PlanetBackend(
+            {click: vi.fn(), getMap: vi.fn(), getBudget, ...reads, mapDensity: vi.fn(), listenForEvents} as never,
+            1_000)
+        const rates: number[] = []
+        backend.watchClickBudget(b => rates.push(b.perSecond))
+        const sizes: number[] = []
+        const stop = backend.listenForBonuses({
+            onOffered: () => {}, onTaken: () => {}, onEnclosed: () => {}, onSpread: () => {}, onCharges: () => {},
+            onRules: rules => sizes.push(rules.enclosureMaxTiles),
+        })
+        await vi.waitFor(() => expect(rates).toEqual([0.2]))
+        expect(reads.getBonusRules).toHaveBeenCalledOnce()
+
+        drop()
+
+        await vi.waitFor(() => expect(rates).toEqual([0.2, 0.6]), {timeout: 3_000})
+        await vi.waitFor(() => expect(sizes.at(-1)).toBe(35))
+        expect(listenForEvents).toHaveBeenCalledTimes(2)
+        stop()
+        backend.close()
+    })
+
     it("says who else spends from the bucket, and nothing for the player's own", async () => {
         const click = vi.fn()
             .mockResolvedValueOnce({budget: new ClickBudgetMessage({tokens: 6, capacity: 10, refillPerSecond: 1, sharedWith: SharedWith.GUESTS})})
