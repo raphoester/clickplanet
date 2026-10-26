@@ -37,7 +37,7 @@ func (s *Storage) Reassign(_ context.Context, from, to string, start uint32, lim
 			break
 		}
 
-		s.moveLocked(tile, toID)
+		s.moveLocked(tile, toID, noHolder)
 		updates = append(updates, clicks.TileUpdate{Tile: tile, Value: to, Previous: from})
 	}
 
@@ -70,7 +70,7 @@ func (s *Storage) Restore(_ context.Context, restorations []clicks.Restoration) 
 			return len(updates), err
 		}
 
-		s.moveLocked(restoration.Tile, toID)
+		s.moveLocked(restoration.Tile, toID, noHolder)
 
 		updates = append(updates, clicks.TileUpdate{
 			Tile:     restoration.Tile,

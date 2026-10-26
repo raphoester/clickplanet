@@ -6,19 +6,21 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
-// Every tile's owner and shields, the codes they are written in, and how many tiles each country holds.
+// Every tile's owner, shields and holder, the codes they are written in, and how many tiles each country holds.
 type board struct {
-	tiles []tileState
-	codes *codebook
-	held  []uint32
-	dirty dirtySet
+	tiles   []tileState
+	codes   *codebook
+	holders *holderbook
+	held    []uint32
+	dirty   dirtySet
 }
 
 func newBoard(last uint32) *board {
 	return &board{
-		tiles: make([]tileState, int(last)+1),
-		codes: newCodebook(),
-		dirty: newDirtySet(int(last) + 1),
+		tiles:   make([]tileState, int(last)+1),
+		codes:   newCodebook(),
+		holders: newHolderbook(),
+		dirty:   newDirtySet(int(last) + 1),
 	}
 }
 
@@ -54,18 +56,23 @@ func (b *board) shieldsOn(tile uint32) int {
 	return int(b.tiles[tile].shields)
 }
 
-// A change of owner takes the tile's shields with it.
-func (b *board) move(tile uint32, to uint16) (from uint16) {
+// A change of owner takes the tile's shields with it, and its holder is whoever made the change.
+func (b *board) move(tile uint32, to uint16, holder uint32) (from uint16) {
 	from = b.tiles[tile].owner
 	if from != unownedCode {
 		b.held[from]--
 	}
 	b.count(to)
 
-	b.tiles[tile] = ownedBy(to)
+	b.tiles[tile] = heldFor(to, holder)
 	b.dirty.mark(tile)
 
 	return from
+}
+
+func (b *board) release(tile uint32) {
+	b.tiles[tile].holder = noHolder
+	b.dirty.mark(tile)
 }
 
 // A stored tile put back at boot: nothing to flush.
@@ -122,7 +129,9 @@ func (b *board) drainDirty() []Tile {
 	var tiles []Tile
 	b.dirty.drain(func(tile uint32) {
 		state := b.tiles[tile]
-		tiles = append(tiles, Tile{ID: tile, Owner: b.codes.nameOf(state.owner), Shields: int(state.shields)})
+		tiles = append(tiles, Tile{
+			ID: tile, Owner: b.codes.nameOf(state.owner), Shields: int(state.shields), Holder: b.holders.accountOf(state.holder),
+		})
 	})
 	return tiles
 }
