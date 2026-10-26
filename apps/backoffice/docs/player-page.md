@@ -46,4 +46,5 @@ address over IPv4, the /64 over IPv6) and checks.
 - **The tools**: ban (`BanPlayer`, the ladder's next step by default), unban (`UnbanPlayer`, which forgets the
   latest offence and pardons the key, and says until when; `not_found` is no ban left), revert (`RevertPlayer`, dry run first), and for an account alone
   mute (`Mute`) and charges (`GrantCharges`: a refill, a bomb, enclosures, spread clicks, shields; the answer
-  says what the account held before and after, since the caps hold).
+  says what the account held before and after, since the caps hold). **Max out** sends every charge at the form's
+  ceiling (`MAX_GRANT`) in one tap, and the server's caps make it a full inventory.
