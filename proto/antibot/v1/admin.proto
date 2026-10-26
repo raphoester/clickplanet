@@ -28,7 +28,7 @@ message GetRulesRequest {}
 message GetRulesResponse {
   // Every set postgres keeps, "default" first.
   repeated RuleSet sets = 1;
-  // The set the antibot judges with now: the one named like the planet rule set in force, or "default".
+  // The set the antibot judges with now: the one the schedule played last, or "default".
   string playing = 2;
 }
 

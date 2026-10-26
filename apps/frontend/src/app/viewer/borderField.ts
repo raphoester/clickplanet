@@ -1,5 +1,6 @@
 import * as THREE from "three"
 import {regions} from "./atlas.ts"
+import type {SlotCandidate} from "./flagSlot.ts"
 import flagFit from "../../../static/countries/flagFit.json"
 
 const LANDMASS_TEXELS = 4
@@ -80,6 +81,18 @@ export class BorderField {
 
     sizeOf(landmass: number): number {
         return this.data.totals[landmass] ?? 0
+    }
+
+    // Every painted flag, measured by `widthOf`: its width on screen reaching halfU and halfV from (x, y, z), or nothing out of view.
+    slotCandidates(widthOf: (x: number, y: number, z: number, halfU: number, halfV: number) => number | undefined): SlotCandidate[] {
+        const candidates: SlotCandidate[] = []
+        for (let landmass = 1; landmass < this.landmassCount; landmass++) {
+            const at = landmass * LANDMASS_TEXELS * 4
+            if (this.rows[at + 10] <= 0) continue
+            const width = widthOf(this.rows[at], this.rows[at + 1], this.rows[at + 2], this.rows[at + 3], this.rows[at + 7])
+            candidates.push({landmass, screenWidth: width ?? 0, spriteWidth: this.rows[at + 10], inView: width !== undefined})
+        }
+        return candidates
     }
 
     // Paints each landmass from its row: the flag that leads it, at the share of it that flag holds.

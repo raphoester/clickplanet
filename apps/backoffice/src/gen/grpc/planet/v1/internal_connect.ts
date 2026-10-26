@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetAllegianceOfRequest, GetAllegianceOfResponse, GetCountrySizesRequest, GetCountrySizesResponse, GetTakesByCountryRequest, GetTakesByCountryResponse, GetTerritoriesRequest, GetTerritoriesResponse } from "./internal_pb.js";
+import { GetAllegianceOfRequest, GetAllegianceOfResponse, GetCountrySizesRequest, GetCountrySizesResponse, GetRuleSetNamesRequest, GetRuleSetNamesResponse, GetTakesByCountryRequest, GetTakesByCountryResponse, GetTerritoriesRequest, GetTerritoriesResponse } from "./internal_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -49,6 +49,16 @@ export const InternalService = {
       name: "GetAllegianceOf",
       I: GetAllegianceOfRequest,
       O: GetAllegianceOfResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * @generated from rpc planet.v1.InternalService.GetRuleSetNames
+     */
+    getRuleSetNames: {
+      name: "GetRuleSetNames",
+      I: GetRuleSetNamesRequest,
+      O: GetRuleSetNamesResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
     },

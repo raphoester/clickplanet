@@ -25,6 +25,10 @@ func (s stubExecutor) Execute(context.Context) (rules.Snapshot, bool, error) {
 	return s.taken, s.took, s.err
 }
 
+func (s stubExecutor) Play(context.Context, rules.Choice) (rules.Snapshot, bool, error) {
+	return s.taken, s.took, s.err
+}
+
 func run(ctx context.Context, inner stubExecutor) (string, error) {
 	var logs bytes.Buffer
 	_, _, err := log_play_rules.New(inner, slog.New(slog.NewTextHandler(&logs, nil))).Execute(ctx)
@@ -60,4 +64,22 @@ func TestAFailureIsLoggedButNotOneTheShutdownCut(t *testing.T) {
 	logs, err = run(cut, stubExecutor{err: cause})
 	require.ErrorIs(t, err, cause)
 	assert.Empty(t, logs)
+}
+
+func TestAChoiceRefusedIsLogged(t *testing.T) {
+	var logs bytes.Buffer
+	_, _, err := log_play_rules.New(stubExecutor{taken: rules.Seeded(), err: rules.ErrUnknownSet},
+		slog.New(slog.NewTextHandler(&logs, nil))).Play(t.Context(), rules.Choice{Set: "rush"})
+
+	require.ErrorIs(t, err, rules.ErrUnknownSet)
+	assert.Contains(t, logs.String(), `level=ERROR msg="failed to play the rules" error="no rule set has this name"`)
+}
+
+func TestAChoiceTakenIsLogged(t *testing.T) {
+	var logs bytes.Buffer
+	_, _, err := log_play_rules.New(stubExecutor{taken: rules.Named("rush", rules.AsIs), took: true},
+		slog.New(slog.NewTextHandler(&logs, nil))).Play(t.Context(), rules.Choice{Set: "rush"})
+
+	require.NoError(t, err)
+	assert.Contains(t, logs.String(), `level=WARN msg="rules in force" set=rush`)
 }

@@ -79,6 +79,18 @@ seasons:
   redis:
     address: redis:6379
 
+metagame:
+  database:
+    host: postgres
+    port: "5432"
+    user: postgres
+    password: postgres
+    dbName: postgres
+    sslMode: disable
+    schema: metagame
+  redis:
+    address: redis:6379
+
 missions:
   cutoff: 21h
   database:

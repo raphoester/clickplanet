@@ -4,6 +4,8 @@
 
 uniform sampler2D atlasTexture;
 uniform vec2 atlasTextureSize;
+uniform sampler2D slotTexture;
+uniform vec4 slotFrame;
 uniform float flagPaint;
 uniform float pixelRatio;
 uniform float shieldMost;
@@ -16,6 +18,7 @@ flat in vec2 vFlagUV;
 flat in vec4 vFlagStep;
 flat in vec4 vFlagRegion;
 flat in float vFlagShare;
+flat in float vSlotted;
 flat in float vSpriteSize;
 flat in float vShield;
 flat in float vPulse;
@@ -37,9 +40,16 @@ const float KEYLINE_MOST = 0.03;
 const float HIGHLIGHT_LIFT = 0.2;
 const float HIGHLIGHT_FLOOR = 0.35;
 
+vec2 frameUVof(vec4 frame, vec2 uv) {
+    return frame.xy + clamp(uv, 0.002, 0.998) * frame.zw;
+}
+
+vec4 atlasFrameOf(vec4 region) {
+    return vec4(region.x, atlasTextureSize.y - region.y - region.w, region.zw) / atlasTextureSize.xyxy;
+}
+
 vec2 atlasUVof(vec4 region, vec2 uv) {
-    vec2 origin = vec2(region.x, atlasTextureSize.y - region.y - region.w) / atlasTextureSize;
-    return origin + clamp(uv, 0.002, 0.998) * (region.zw / atlasTextureSize);
+    return frameUVof(atlasFrameOf(region), uv);
 }
 
 vec4 ownColour() {
@@ -88,11 +98,13 @@ void main() {
         vec2 uv = vFlagUV + vFlagStep.xy * screen.x + vFlagStep.zw * screen.y;
 
         // Explicit gradients: the frame is flat across the sprite, so texture() picks the top mip.
-        vec2 footprint = vFlagRegion.zw / atlasTextureSize;
-        vec3 flag = textureGrad(
-            atlasTexture, atlasUVof(vFlagRegion, uv),
-            vFlagStep.xy * footprint, vFlagStep.zw * footprint
-        ).rgb;
+        vec4 frame = vSlotted > 0.5 ? slotFrame : atlasFrameOf(vFlagRegion);
+        vec2 at = frameUVof(frame, uv);
+        vec2 across = vFlagStep.xy * frame.zw;
+        vec2 upward = vFlagStep.zw * frame.zw;
+        vec3 flag = vSlotted > 0.5
+            ? textureGrad(slotTexture, at, across, upward).rgb
+            : textureGrad(atlasTexture, at, across, upward).rgb;
 
         float uvPerPixel = max(length(vFlagStep.xy), length(vFlagStep.zw));
         float width = min(uvPerPixel * KEYLINE_WIDTH * pixelRatio, KEYLINE_MOST);

@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package antibot.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// What another module asks of the antibot, in the antibot's words, over Redis Streams.
+
+// Judges with the rule set of this name. The antibot keeps the latest decision by decided_at, so a command sent twice,
+// or after a newer one, changes nothing. A name the antibot keeps no set of is refused, and it judges on with the set
+// it plays.
+message PlayRuleSet {
+  string rule_set = 1;
+  google.protobuf.Timestamp decided_at = 2;
+}
