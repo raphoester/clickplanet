@@ -989,7 +989,10 @@ export class Player extends Message<Player> {
   bannedUntil?: Timestamp;
 
   /**
-   * @generated from field: uint32 offence = 7;
+   * Planet keeps no offence: antibot.v1.AdminService/InspectPlayer says it.
+   *
+   * @generated from field: uint32 offence = 7 [deprecated = true];
+   * @deprecated
    */
   offence = 0;
 

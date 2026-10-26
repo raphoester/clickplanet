@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/bans"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -27,7 +28,7 @@ func newBanner(t *testing.T, config bans.Config, clock cptime.Clock) banner {
 
 func bannerOver(t *testing.T, config bans.Config, clock cptime.Clock, store bans.Store) banner {
 	t.Helper()
-	return banner{t: t, inner: bans.New(config, pardon, clock, store)}
+	return banner{t: t, inner: bans.New(config, pardon, clock, bans.Scopes, store, cpatomic.FakeTransactioner{}, &bans.MemoryEnforcer{})}
 }
 
 func config() bans.Config {

@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/bans"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -15,7 +16,7 @@ func newBook(t *testing.T, clock cptime.Clock) (book, *bans.MemoryStore, *bans.M
 	t.Helper()
 
 	scopes, accounts := bans.NewMemoryStore(), bans.NewMemoryStore()
-	return book{t: t, inner: bans.NewBook(config(), pardon, clock, scopes, accounts)}, scopes, accounts
+	return book{t: t, inner: bans.NewBook(config(), pardon, clock, scopes, accounts, cpatomic.FakeTransactioner{}, &bans.MemoryEnforcer{})}, scopes, accounts
 }
 
 func TestAFlaggedGuestIsBannedOnItsAccountAndItsScope(t *testing.T) {
@@ -90,7 +91,7 @@ func TestAccountBansAreKeptApart(t *testing.T) {
 	assert.NotContains(t, scopes.Stored(), "guest")
 	assert.Contains(t, accounts.Stored(), "guest")
 
-	after := book{t: t, inner: bans.NewBook(config(), pardon, clock, scopes, accounts)}
+	after := book{t: t, inner: bans.NewBook(config(), pardon, clock, scopes, accounts, cpatomic.FakeTransactioner{}, &bans.MemoryEnforcer{})}
 	assert.True(t, after.Banned(bans.Caller{Scope: "5.6.7.8", Account: "guest"}))
 }
 

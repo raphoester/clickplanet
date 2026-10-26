@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -14,10 +15,17 @@ type Caller struct {
 	SignedIn bool
 }
 
-func NewBook(config Config, pardon time.Duration, clock cptime.Clock, scopes, accounts Store) *Book {
+func NewBook(
+	config Config,
+	pardon time.Duration,
+	clock cptime.Clock,
+	scopes, accounts Store,
+	transactioner cpatomic.Transactioner,
+	enforcer Enforcer,
+) *Book {
 	return &Book{
-		scopes:   New(config, pardon, clock, scopes),
-		accounts: New(config, pardon, clock, accounts),
+		scopes:   New(config, pardon, clock, Scopes, scopes, transactioner, enforcer),
+		accounts: New(config, pardon, clock, Accounts, accounts, transactioner, enforcer),
 	}
 }
 
@@ -63,10 +71,6 @@ func (b *Book) Unban(ctx context.Context, caller Caller) error {
 		return err
 	}
 	return b.accounts.Unban(ctx, caller.Account)
-}
-
-func (b *Book) EnforcedSentence(ctx context.Context, caller Caller) (Sentence, bool, error) {
-	return b.sentenceOf(ctx, caller, (*Banner).EnforcedSentence)
 }
 
 func (b *Book) Sentence(ctx context.Context, caller Caller) (Sentence, bool, error) {
@@ -133,6 +137,13 @@ func (b *Book) Flagged(ctx context.Context) (int, error) {
 }
 
 func (b *Book) Enforcing() bool { return b.scopes.Enforcing() }
+
+func (b *Book) Restate(ctx context.Context) error {
+	if err := b.scopes.Restate(ctx); err != nil {
+		return err
+	}
+	return b.accounts.Restate(ctx)
+}
 
 type target struct {
 	banner *Banner

@@ -4,17 +4,34 @@ What is left after sessions. A player who solves Turnstile in a real browser and
 then runs a userscript holds a genuine session, and no address- or token-based
 check can tell them from a player. The signal that survives is **behavioural**.
 
-**The whole of its API is twelve names**, and `internal/antibot/antibot.go` is all
-of it: `Config`, `Observer`, `Guard`, `New` and `Description` to wire it, plus
-`Click`, `Point`, `Report`, `Sentence`, `Pardon`, `Examination` and `Reading` — the types a caller writes down, because it builds two
-and is handed the others. A caller hands over the block and the two hooks it wants
-findings reported through, and gets back a `Guard` — one that refuses and bans nothing when the block is off, so
-the DI sequence wires it the same way either way — that answers `Attempted`, `Inspect`, `Committed`, `Caught`, `Missed`, `Fetched`, `Listened`, `Flagged`, `EnforcedSentence`, `LoadState`, `Run` and `Enabled`, plus `Ban`,
-`Unban`, `Sentence`, `Pardon`, `Enforcing` and `Examine` for the operator tools (see [Operator tools](admin.md)). It is
-**one** `Run` whatever the file turned on: how many sweepers there are is this
-package's business, which is why `planet` registers one runner rather than one per sweeper.
+**It is a module of its own, and it listens to planet** (`internal/antibot/module.go`, `antibot.NewModule`, listed in
+`cmd/api`). Its root publishes `Config` and `NewModule` and nothing else; the watchdogs, the jury, the bans and the
+evidence are under `antibot/internal/`. Planet never imports it and never names it: it tells what callers did in its
+own words, and the antibot hears it, judges, and asks planet to refuse a caller in planet's words.
 
-**A caller is never taught this package's vocabulary.** The edge does two things
+```
+planet ─ ClickTried, MapRead, StreamOpened, BoxCaught, BoxLapsed, ForeignBoxClaimed ─▶ antibot (listener → guard)
+planet ◀────────────── RefuseCaller, AdmitCaller (planet's commands, through the antibot's outbox) ── antibot (bans)
+```
+
+- **Its own block, `antiBot`** (`antibot.Config`: `enabled`, `database`, `redis`, and the watchdogs' blocks squashed
+  in), its own `antibot` schema and pool, its own Redis connection, and its own `antibot.v1.AdminService`
+  (`BanPlayer`, `UnbanPlayer`, `InspectPlayer`; see [Operator tools](admin.md)). The keys are the ones they were under
+  planet's block, which was squashed at the top of the file: only `antiBot.redis` is new.
+- **Off, it is never built**: no subscriber, no route, no command. Planet then refuses nobody, since nothing tells it
+  to, and `antibot.v1.AdminService` 404s.
+- **`listener`** is the antibot's edge for planet's facts: one subscriber per kind of fact (`antibot-clicks`,
+  `antibot-map-reads`, `antibot-streams`, `antibot-boxes-caught`, `antibot-boxes-lapsed`, `antibot-boxes-foreign`),
+  each turning a fact into the guard's words (`Attempted`, `Inspect`, `Committed`, `Caught`, `Missed`, `Foreign`,
+  `Fetched`, `Listened`). See [What a try tells](#what-a-try-tells).
+- **`guard`** is what was the package's API before: the watchdogs, the jury and the ban book behind one facade, with
+  `Hearing(feeds...)` the runner that runs the listener's subscribers and stops the watchdogs, and saves their evidence,
+  only once the last fact they heard is handled.
+- **`bans/outbox_planet_enforcer`** is where the antibot speaks planet's language: a running ban is a `RefuseCaller`, a
+  lifted or unenforced one an `AdmitCaller`. See [A ban is told](#a-ban-is-told).
+- **`observer`** holds the metric names and the `antibot ban` log line, which the click edge held before.
+
+**The guard words its opinions itself.** The edge does two things
 with a watchdog's opinion — count it if it argued for the ban, and put it in the
 log line — so an `Opinion` answers `Fired()` and renders itself with `String()`,
 and `Verdict`, `Evidence`, `Field` and the `clear`/`suspect`/`certain` ladder stay
@@ -25,18 +42,12 @@ the edge held a `formatOpinion` that compared against `antibot.Clear`, reached
 through `Evidence.Rule` and `Evidence.Fields`, and decided their ordering —
 sixteen lines of antibot's business in the clicks package, and four exported
 names to support it. **The edge owns the message and the attribute names; how one
-reading words itself is this package's.**
+reading words itself is the guard's.**
 
 The config blocks are the same bargain the rest of the backend makes — the
 settings are published because they are in the file, and koanf fills them by
 reflection, so a caller sets `config.Retaker.Detector.MaxSpread` without ever
 naming a type.
-
-Everything else is under `antibot/internal/`, so the click edge
-could not assemble a jury out of watchdogs even if it wanted to. The antibot step of
-the DI sequence in `internal/planet/module.go` is the whole of the clicks side, and what is left in it is genuinely the edge's:
-the metric names, the message and attribute names of the ban line, and where
-in the chain it sits.
 
 **Detection and consequence are separate, and the consequence is the boring
 half.** `antibot/internal/bans` takes a scope or an account and a clock and runs a ban. It knows
@@ -50,28 +61,52 @@ they were answered `OK` and dropped, so a script author learned nothing. But mos
 rules banned in October 2026 were people (`stamina` on Oct 7, `cadence` on Oct 9, `roam` on Oct 10,
 `rotator` on Oct 18), and for them a click that did nothing read as a bug, with no way to ask.
 
-- **`PermissionDenied` with a `planet.v1.BanRefusal` detail**: `banned_until_unix_ms`, the end of the
-  ban that ends last of the scope's and the account's (`Guard.EnforcedSentence`). The VPN block answers
-  the same code with no detail, which is how the client tells the two apart; an older client shows its
-  VPN dialog. `clicks.BanRefusal` is the domain's error, and `planetban.Refusal` maps it in
-  `click_handler`, `drop_bomb_handler` and `place_shield_handler`.
+**The refusal is planet's, and the antibot asks for it in planet's words.** Planet keeps its own table of refused
+callers (`planet.refused_callers`, the `refusals` concept) and refuses clicks, bombs and shields from it. It never
+calls out on a click, and the words ban, jury and verdict are not in it. The antibot tells it, for each caller a ban
+changes, until when to refuse it.
+
+- **Planet's commands** (`proto/planet/v1/commands.proto`): `RefuseCaller{scope | account_id, until, decided_at}` and
+  `AdmitCaller{scope | account_id, decided_at}`, each on its own stream. A scope and an account are two callers, so a
+  guest's ban is two commands. Planet's handlers (`refuse_caller_handler`, `admit_caller_handler`, on
+  `commands:planet.v1.RefuseCaller` and `commands:planet.v1.AdmitCaller`) keep **the latest
+  decision on each caller by `decided_at`** (`refusals.Refusal.Decided`): a command sent again, or an older one that
+  comes after a newer one on the other stream, changes nothing. The row is changed under an advisory lock on the
+  caller, as allegiances are.
+- **Every change of a ban tells planet, in the ban's own transaction** (`bans.Banner.change`): the flag, the extension,
+  the operator's ban, the unban and the pardon it gives. The ban row and the command commit together through the
+  antibot's outbox (`antibot.outbox`, `outbox_event` `planet.v1.RefuseCaller` and `planet.v1.AdmitCaller`), and
+  `cpoutbox`'s relay sends it with `streams.Commands()`: a ban kept in the antibot and never refused by planet is what the outbox is for.
+  `decided_at` is taken under the ban's lock, so two changes of one key are told in the order they happened.
+- **A ban not enforced refuses nothing**: with `antiBot.bans.enforce` off, every change tells planet to admit the
+  caller.
+- **At each boot the antibot tells planet every running ban again** (`bans.Book.Restate`, before it hears anything):
+  refused until its end, or admitted when not enforced. So the bans running at a deploy reach planet's table with no
+  hand migration, and a change of `enforce` reaches it at the next boot.
+- **A ban lands a moment after the click that earned it**: the fact travels to the antibot, the command waits for the
+  outbox's next tick (1s) and travels back. The few clicks in between are played. Their tries still reach the jury,
+  and `reflagInterval` keeps them from extending the ban.
+- **`PermissionDenied` with a `planet.v1.BanRefusal` detail**: `banned_until_unix_ms`, the end of the refusal that
+  ends last of the scope's and the account's (`refusals.Book.Refusal`). The VPN block answers the same code with no
+  detail, which is how the client tells the two apart; an older client shows its VPN dialog. `clicks.Refusal` is the
+  domain's error, and `planetrefusal.Refusal` maps it in `click_handler`, `drop_bomb_handler` and
+  `place_shield_handler`. The detail kept its name: it is the wire's.
 - **No reason goes out.** The client links the terms' "Play fair" section (`/terms#play-fair`). The
   rule that fired is in the `antibot ban` log line and in `InspectPlayer`, never on the wire.
-- **`ban_click` sits outside the whole click chain**, as the VPN block does: a refused click spends no
-  token, or the client would show a 429 instead of the ban, and it reaches no watchdog.
-  `antibot_drop_bomb` and `antibot_place_shield` refuse before the bomb or the shield is spent, so it
-  stays in hand.
-- **The click that earns the ban goes through**: `antibot_click` judges and refuses nothing, and the
-  next click meets `ban_click`.
-- **So a ban no longer feeds itself**: the watchdogs never see the clicks of a caller while it is
-  banned, and the end the player was told does not move however much it clicks. Only an accomplice's
-  click can extend it (see the `rotator`). The ban lapses on its own, and the evidence windows have
-  forgotten the caller by then.
-- **`banned_clicks`** counts the clicks refused. Until 2026-10-20 it was `shadowbanned_clicks`, and the
-  ban metrics beside it `shadowban_flagged` (`banned_callers`) and `shadowban_flags` (`ban_flags`): the
-  metrics poller's history files before that day carry the old names. The config block was
-  `antiBot.shadowBan` and the package `antibot/internal/shadowban`.
-- `TestABannedCallerIsToldUntilWhenAndSpendsNoToken` pins it over HTTP.
+- **`refusal_click` sits outside the throttle**, as the VPN block does: a refused click spends no token, or the client
+  would show a 429 instead of the refusal. `refusal_drop_bomb` and `refusal_place_shield` refuse before the bomb or the
+  shield is spent, so it stays in hand. Each reads two primary keys in postgres, with 1s to do it. **A refusal that
+  cannot be read refuses nothing** (`log_refusals` logs why): postgres down lets a refused caller click, rather than
+  every player's clicks being refused.
+- **So a ban does not feed itself**: a refused try is told (`CLICK_OUTCOME_REFUSED`), and the listener hands it to no
+  watchdog. The end the player was told does not move however much it clicks; only an accomplice's click can extend it
+  (see the `rotator`). The ban lapses on its own, and the evidence windows have forgotten the caller by then.
+- **`refused_clicks`** counts the clicks refused, in planet. It was `banned_clicks` until 2026-10-26, and
+  `shadowbanned_clicks` until 2026-10-20, and the ban metrics beside it `shadowban_flagged` (`banned_callers`) and
+  `shadowban_flags` (`ban_flags`): the metrics poller's history files before those days carry the old names. The
+  config block was `antiBot.shadowBan` and the package `antibot/internal/shadowban`.
+- `TestARefusedCallerIsToldUntilWhenAndSpendsNoToken` pins the refusal over HTTP, and the e2e
+  `TestABanReachesPlanetAndTheCallerIsRefused` the whole way round, through Redis.
 
 ## Ten watchdogs, one jury
 
@@ -152,13 +187,14 @@ banned. `hopper` is one, for shuffled ids that land all over the globe:
 **Every watchdog sees every click until the caller is banned, and none while it is.** Until
 2026-10-20 they saw the clicks a ban was dropping too, so a ban sustained itself: `sequencer` and
 `metronome` kept re-flagging it through `reflagInterval`. A ban the player is told must not move
-under it, so `ban_click` refuses those clicks before the jury (see [A ban is told](#a-ban-is-told)).
-The scenario tests' stack still hands every click to the jury: what they pin is when a ban first
-falls.
+under it, so planet refuses those clicks and the listener hands the refused tries to no watchdog (see
+[A ban is told](#a-ban-is-told)). The scenario tests (`guard`) still hand every click to the jury: what they pin is
+when a ban first falls. `listener`'s own scenario feeds facts through the subscriber's handler, the way planet
+tells them.
 
 ## What survives a restart
 
-**Bans and evidence both, in postgres, in the `antibot` schema.** Bans are
+**Bans, evidence and how far each stream was heard, in postgres, in the `antibot` schema.** Bans are
 `antibot.bans`, one row per scope ever banned, and `antibot.account_bans`, one row per
 account, read and written by `antibot/internal/bans` with no copy in memory. What
 each watchdog is tracking and the jury's record of each caller — its tally and
@@ -169,16 +205,13 @@ in memory no window of 10m (`suspicionWindow`), 15m (`trackWindow`) or 30m
 (`certainFor`, the catcher's `trackWindow`) ever filled. Nothing was banned.
 `TestALoopRestartedEveryFewMinutesIsStillCaught` replays that, both ways.
 
-- **The antibot owns its schema, its migrations and its pool**, like a module:
-  `antiBot.database` (a `cppg.Config`, `schema: antibot`) and
-  `antibot/internal/migrations`. It is a library, not a module, but the planet's
-  migrations sit behind `planet/internal/` where it cannot reach them, and its
-  tables are its own business. `antibot.New` builds the pool and connects nothing;
-  `Guard.LoadState(ctx)` connects, migrates and loads the evidence, and **an error
-  refuses the boot**. The guard's `Run` closes the pool after the last flush of the
-  evidence, the way `cppg.CloseAfter` does for the tile map.
+- **The antibot owns its schema, its migrations and its pool**, as a module does:
+  `antiBot.database` (a `cppg.Config`, `schema: antibot`) and `antibot/internal/migrations`. Its DI sequence connects,
+  migrates, tells planet the running bans, builds the guard and loads the evidence (`Guard.Load`), and **an error
+  refuses the boot**. The pool and the Redis client close once `Guard.Hearing` and the outbox's relay returned
+  (`cppg.CloseAfter`, `cpredis.CloseAfter`), after the last flush of the evidence.
 - **Bans are postgres, and nothing else.** `bans.Store` is the port: `Record`
-  reads one key, `Running` counts the bans running, and `Change` runs a function on
+  reads one key, `Running` reads the bans running (for `banned_callers` and the restatement at boot), and `Change` runs a function on
   one key's record under `pg_advisory_xact_lock` and writes what it answers, in one
   transaction. The ladder, the reflag interval and the unban stay in Go, on the
   `Record` and the `Banner`; the store only locks, reads and writes. So a flag, a
@@ -190,13 +223,9 @@ in memory no window of 10m (`suspicionWindow`), 15m (`trackWindow`) or 30m
   `20261008120000` added the first and renamed `banned_until` to the second).
   `postgres_ban_store` is the adapter and `MemoryStore` (behind the `testing` tag) the fake; `bans.StoreContractSuite` runs on both,
   and pins the lock: changes to one key never overlap.
-- **Every click, bomb and shield reads them**, in `Guard.EnforcedSentence` (`ban_click`,
-  `antibot_drop_bomb`, `antibot_place_shield`): one primary-key lookup on the scope and one on the
-  account, and none at all with `enforce` off. A read gets `banTimeout` (1s). **A ban that cannot
-  be read is no ban**: the click goes through, and the error reaches
-  `Observer.OnStateError`, which logs it. Postgres down lets a banned bot click,
-  rather than every player's clicks being refused. The operator
-  tools answer the error instead.
+- **No click reads them.** Planet refuses from its own table, which the commands keep (see
+  [A ban is told](#a-ban-is-told)). A ban the jury could not write is reported through `Observer.OnStateError` and
+  the click's fact is handled anyway: the next click of the caller is judged again, and flags it again.
 - **A row is never deleted.** Scopes and accounts are two `Banner`s over two
   tables, each with its own ladder. An offence is forgotten only when an operator
   lifts its ban (`UnbanPlayer`): the row is written with one offence fewer, and
@@ -210,7 +239,7 @@ in memory no window of 10m (`suspicionWindow`), 15m (`trackWindow`) or 30m
   `postgres_evidence_store` the adapter, `MemoryPersistence` (behind the `testing`
   tag) the fake. It lives in memory and is flushed every `saveInterval` (1m), with a
   10s timeout, and once more on shutdown: it changes on every click, so a write per
-  click is what it cannot afford. `antibot.NewInMemory` (behind the tag) builds a
+  click is what it cannot afford. `guard.NewInMemory` (behind the tag) builds a
   guard over the fakes.
 - **Evidence is flushed whole.** One section per watchdog and one for the jury,
   each encoded by its own package (`state.go` beside it), so a watchdog's fields
@@ -220,6 +249,16 @@ in memory no window of 10m (`suspicionWindow`), 15m (`trackWindow`) or 30m
   not decode at load is reported through `OnStateError` and starts that one
   watchdog empty; the others load. That is not a failed boot: a changed section
   shape after a deploy should cost one watchdog's windows, not the start.
+- **Each kind of fact is heard once, though Redis delivers it at least once.** Planet tells each kind in order, each
+  at a later time than the one before (`facts.Log`), so the time names the fact. The listener keeps the latest time it
+  heard of each kind (`listener.Marks`, the section `heard`) and skips a fact at or before it. The marks are saved with
+  the evidence, **as of the same moment**: a flush holds the listener still while it encodes every section
+  (`evidence.Holder`). So after a crash, what Redis gives back that the last flush had heard is skipped, and what it had
+  not is heard again; what was heard after the last flush and acknowledged is lost with that minute of evidence, as
+  before. And a clean shutdown flushes after the subscribers handled their last facts (`Guard.Hearing`).
+- **A clock that steps back does not reorder the facts**: the log stamps one nanosecond after the last fact until the
+  wall catches up. The box and map facts are counted at the time they are heard, as they were when the guard was
+  called in the click's stack: a backlog after a restart lands in the current slice.
 - **`antiBot.evidence.retention` (72h) is a ceiling on top of every window**:
   evidence older than it is dropped on load and by a sweep before each flush. The
   watchdogs' own sweeps still forget at their `trackWindow`, which is far
@@ -251,6 +290,9 @@ in memory no window of 10m (`suspicionWindow`), 15m (`trackWindow`) or 30m
   standing before the restart is not reported again through `OnRise` after it.
   `cohort` saves its members and rebuilds its indexes; its cached judgement is
   not saved, so a loaded member is judged again on its next click.
+- The jury keeps where each account clicked last (the section `jury-accounts`, for the retention), so
+  `InspectPlayer` reads an account on the scope of its latest click. Planet's ledger told it until the antibot was a
+  module.
 - **What this does not change:** the jury refreshes every watchdog's opinion on
   every click before it deliberates, so a saved opinion carries its words into the
   next ban line but never decides one — the verdicts come back because each
@@ -318,9 +360,10 @@ pause longer than `maxGap` ends the run and the evidence starts again from nothi
 just above the refill rate has some of its tries refused, unevenly, so the gaps
 between the survivors are 0.95s, 1.9s, 2.85s — a spread no clock shows. That is
 exactly the bot of 2026-09-14: a try every 950ms (±60ms) for twenty minutes, half
-of them 429s, read `clear`. So `antibot_attempt_click` sits **outside** the
-throttle and hands every try to `Guard.Attempted`; the metronome records there
-and only judges in `Watch`. It also helps a player: someone spam-clicking into the
+of them 429s, read `clear`. So planet tells every try, the throttled ones included
+(`try_click`, outside every gate), and the listener hands each to `Attempted`; the metronome records there
+and only judges in `Watch`. `TestTheSameLoopToldOnlyByItsTakesIsMissed` (`listener`) is the same loop with the 429s
+left out, and it is never caught. It also helps a player: someone spam-clicking into the
 throttle is timed by their own hand, not by the refill rate.
 
 **The run is one payer's, not one scope's, since 2026-10-11.** Keyed on the scope,
@@ -341,8 +384,8 @@ read `suspect`, as it does in a tile war, and two suspects are a ban.
 - **A merged run also had no end**: one hand's pause was another hand's click, so a
   busy network could hold a run past `certainFor` and read `certain` alone.
 - **A try has its payer before the throttle.** The session interceptor reads the
-  token outside the whole click chain, so `antibot_attempt_click` still times every
-  try, and the bot of 2026-09-14 is still caught.
+  token outside the whole click chain, so `try_click` tells every try with its payer, and the bot of 2026-09-14 is
+  still caught.
 - **With no account, the hands behind a scope are still one caller**: nothing tells
   them apart. That is the deprecated mint, and a click with no valid token while
   `auth.enforce` is off.
@@ -493,8 +536,8 @@ catches a lot.
 
 It is the one watchdog that does not read clicks. The registry reports each box
 through `bonuses.Report` — `Caught(scope, after)` from `Claim`, timed from the
-offer being sent, and `Lapsed(scope)` from the sweep — and `internal/planet/module.go`
-hands both to `Guard.Caught` and `Guard.Missed`. The watchdog keeps the outcomes
+offer being sent, and `Lapsed(scope)` from the sweep — and planet tells them as facts (`BoxCaught`, `BoxLapsed`,
+through `bonuses/box_facts`), which the listener hands to the guard. The watchdog keeps the outcomes
 and answers from them on the caller's next click, since the jury only asks on a
 click. The delay includes the round trip, which only makes a person look slower.
 `bonus_catch_seconds` is the same delay as a histogram, whether the antibot is on or not.
@@ -583,8 +626,8 @@ throttle, picked tiles off the map and never retook one: every other watchdog
 read `clear`, and the catcher's lone `suspect` banned nothing.
 
 - **The count is maps read beyond one per stream opened**, over `trackWindow`.
-  `antibot_get_map` reports each read as a share of the map (two bytes per tile
-  in the batch), and `antibot_listen_for_events` each stream as it opens. A page
+  `get_map_usecase` tells each read as a share of the map (`MapRead`, two bytes per tile
+  in the batch), and `listen_for_events_usecase` each stream as it opens (`StreamOpened`), even one that fails. A page
   load is one of each, so sixty players behind one carrier NAT read `clear` —
   the raw read count would not. A stream reopened after a drop reads nothing,
   and the count never goes below zero.
@@ -592,7 +635,7 @@ read `clear`, and the catcher's lone `suspect` banned nothing.
   and the web app clamps its last batch, so neither bound of a real client's read
   can land outside the map — whatever batch size it picks, which is why this needs
   no agreement with the frontend's `TILES_PER_BATCH` and cannot drift from it.
-  `antibot_get_map.offMap` decides it, because the planet module owns the map and
+  Planet decides it (`clicks.Board.OffMap`, in `MapRead.off_map`), because it owns the map and
   its bounds; the watchdog only counts. It is reported in the ban line as `offMap`.
 - **`certainOffMap` (2) such reads are `Certain` on their own**, however little was
   read, under the rule name `offMap` rather than `poll`. Forfeiting the credit was
@@ -701,9 +744,8 @@ tiles drawn evenly over the sphere).
   gap that short is no step and a flush counts only its two ends.
   `TestAFlushOfHeldTapsCountsOnlyItsEnds` pins it.
 - **It reads tries, like the metronome** (`Attempted`): a try the throttle refused
-  was aimed by the same hand. The position comes from the edge —
-  `antibot_attempt_click` asks `clicks.Geography.Position` and sets
-  `Click.Position` — and a try off the map has none and is no step.
+  was aimed by the same hand. The position is planet's — `try_click` asks `clicks.Geography.Position` and tells it in
+  `ClickTried.position` — and a try off the map has none and is no step.
 - **It counts the payer, not the scope**, as `stamina` does: two players behind one
   NAT painting two continents in turn are two hands. With no account there is
   nothing to tell them apart. `TestPlayersBehindOneAddressAreJudgedApart` pins both.
@@ -781,18 +823,29 @@ honest player flagged:
   `Set` publishes nothing, so it neither reacts nor becomes something to react to
 - a click the handler refused (invalid country, tile out of range) — it changed
   no tile
-- a click the ban refused — it never reaches the jury at all
+- a click planet refused (`CLICK_OUTCOME_REFUSED`) — it never reaches the jury at all
 
-The interceptor reads the tile's owner **before** the handler runs and puts it on
-`antibot.Click` as `Held`/`NoOp`, because afterwards the map no longer remembers
-it. `Committed` is then called only for a click the handler accepted. Without
-that split, a griefer spams a tile with deliberately invalid clicks and the next
-honest player to click it looks like it is reacting to something.
+**What a try tells.** <a id="what-a-try-tells"></a>A `ClickTried` names who (`scope`, `account_id`, `linked`,
+`account_created_at` as the throttle reads it), the tile, the flag, when, and **the outcome**: taken, struck, unchanged
+(a no-op), throttled, refused, another flag than the account plays for, invalid (an unknown flag, a tile off the map,
+two bonuses together), or failed. With it go **the flag the tile wore before** (`owner`, `click_usecase.Out.Owner`:
+what the click read right before it wrote; for a try the game answered with an error, the tile's owner now) and its
+position. The listener feeds the guard as far as the click went:
 
-**A click a shield takes is `Shielded`, and neither a no-op nor a take.**
-`antibot_click` asks `clicks.Shielding.Outcome` with the owner it just read, which
-spends nothing, so `NoOp` and `Shielded` come from the same outcome the rule will
-then strike. It is a click: the `retaker` times it as a reaction, and the
+| outcome | `Attempted` | `Inspect` | `Committed` |
+|---|---|---|---|
+| refused | | | |
+| throttled, other flag | yes | | |
+| invalid, failed | yes | yes | |
+| taken, struck, unchanged | yes | yes | yes |
+
+An outcome it does not know is an error, which Redis retries and then buries. `Held`, `NoOp` and `Shielded` come from
+the fact, because the map no longer remembers who held the tile. `Committed` is called only for a click the game
+accepted. Without that split, a griefer spams a tile with deliberately invalid clicks and the next honest player to
+click it looks like it is reacting to something.
+
+**A click a shield takes is `Shielded`, and neither a no-op nor a take.** It is the click's own outcome, struck, so
+`NoOp` and `Shielded` are what the rule did. It is a click: the `retaker` times it as a reaction, and the
 `defender` counts it among the clicker's clicks. It is not a take: the `retaker`
 records no take on the tile, and the `defender` records no loss for `Held` and never
 reads it as a retake.
@@ -801,21 +854,17 @@ Note that `sequencer`, `metronome` and `hopper` ignore all of it: a bot sweeping
 over tiles it already owns and over ids the handler refuses, and both are part of
 the walk.
 
-**It is a decorator over the click use case** (`antibot_click`), not an interceptor.
-None of what it does is about HTTP: it reads who held the tile before the write,
-judges, and reports the take afterwards — and that only works adjacent to the write,
-because afterwards the map no longer remembers who held the tile.
+**`try_click` is planet's, the outermost step of the click chain**, outside the refusal, the allegiance and the
+throttle, so every try is told whatever stopped it. It reads nothing of the antibot and refuses nothing. Planet tells
+its facts through one ordered log and one sender (`facts.Log`, `facts.Relay`, every 100ms), so each stream gets them
+in the order they ended: two clicks of one caller published from two requests could reach Redis the other way round.
+A crash loses the tries of the last 100ms; a Redis that does not take them loses them, counted in
+`events_unpublished_total`.
 
-**It sits innermost, inside the throttle**, so the watchdogs judge only the clicks
-the throttle let through: a try it refused spent nothing.
-
-**Only the watching and the refusing are outside it.** `antibot_attempt_click` wraps
-the throttle and reports each try through `Attempted`, which judges and refuses
-nothing. `ban_click` wraps that, and refuses a banned caller before anything else
-(see [A ban is told](#a-ban-is-told)).
+**The watchdogs judge only the clicks the throttle let through** (`Inspect`): a try it refused spent nothing.
 
 **`antiBot.bans.enforce` is the rollout switch,** the same shape as
-`auth.enforce`: false judges, logs and counts without refusing anything. The
+`auth.enforce`: false judges, logs and counts, and tells planet to refuse nobody. The
 two surfaces are built for a box with no dashboard — `click_reaction_seconds` is
 a histogram whose raw bucket counts show the bot band by eye, and each flag
 writes one `antibot ban` log line carrying the scope, every watchdog's verdict
@@ -859,7 +908,7 @@ metrics about the watchdogs. The jury now also reports, through
 
 The level leaves as the string `Verdict.String()` gives, not as a type — the
 same rule as `Opinion`: the edge puts it on a label and never compares it.
-`jury.Hooks` carries the typed verdict inside the package, and `antibot.New`
+`jury.Hooks` carries the typed verdict inside the package, and `guard.New`
 words it on the way out.
 
 **The watchdogs judge a scope; a ban falls on the scope and the account.** The
@@ -874,8 +923,8 @@ token names (`Click.Account`), and `bans.Book` passes a ban on:
   signed-in account's ban leaves its scope alone, so a campus is not banned for one
   player on it.
 
-**A click, a bomb and a shield are refused when the scope or the account is banned**
-(`Guard.EnforcedSentence(scope, account)`). `TestAGuestBannedByTheJuryCannotShedItWithAFreshCookie`
+**A click, a bomb and a shield are refused when the scope or the account is refused** (planet's
+`refusals.Book.Refusal`, from the commands each ban sends). `TestAGuestBannedByTheJuryCannotShedItWithAFreshCookie`
 and `TestABannedGuestWithAFreshCookieIsStillDropped` pin it. The `antibot ban` line
 carries `account`, and `banned_callers` counts running bans on scopes and on
 accounts, so a guest banned on both counts twice.
@@ -896,5 +945,4 @@ watchdog that reads across scopes, beside `churner`'s relay, and it is the answe
 inside one range.
 
 `inmemory_tile_storage.Owner` exists for this: one indexed read under the existing
-lock, declared as a local port in the controller the way each use case declares
-its own.
+lock, which `try_click` asks for a try the game did not answer.

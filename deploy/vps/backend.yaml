@@ -67,6 +67,10 @@ antiBot:
     pool:
       maxOpenConns: 2
 
+  redis:
+    address: redis:6379
+    password: env://REDIS_PASSWORD
+
   bans:
     enforce: true
     banDurations: [24h, 168h, 26280h]

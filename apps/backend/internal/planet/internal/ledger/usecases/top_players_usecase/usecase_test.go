@@ -1,7 +1,6 @@
 package top_players_usecase_test
 
 import (
-	"context"
 	"log/slog"
 	"testing"
 	"time"
@@ -9,10 +8,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/top_players_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/refusals"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -22,14 +21,13 @@ type owners map[uint32]string
 
 func (o owners) Owner(tile uint32) (string, bool) { return o[tile], true }
 
-type bans map[string]antibot.Sentence
-
-func (b bans) Sentence(_ context.Context, scope, account string) (antibot.Sentence, bool, error) {
-	if sentence, ok := b[account]; ok {
-		return sentence, true, nil
+func refusing(t *testing.T, scope string) refusals.Book {
+	t.Helper()
+	book := refusals.NewBook(refusals.NewMemoryStore(), cptime.NewFixedClock(start))
+	if scope != "" {
+		require.NoError(t, book.Decide(t.Context(), refusals.Caller{Scope: scope}, refusals.Refused(start.Add(time.Hour), start)))
 	}
-	sentence, ok := b[scope]
-	return sentence, ok, nil
+	return book
 }
 
 func setup(t *testing.T) (*inmemory_ledger_storage.Storage, owners) {
@@ -62,7 +60,7 @@ func setup(t *testing.T) (*inmemory_ledger_storage.Storage, owners) {
 
 func TestItRanksByTakesThenTilesHeldOverEveryFlag(t *testing.T) {
 	book, current := setup(t)
-	useCase := top_players_usecase.New(book, current, bans{"painter": {Offence: 1, Until: start.Add(time.Hour)}})
+	useCase := top_players_usecase.New(book, current, refusing(t, "painter"))
 
 	out, err := useCase.Execute(t.Context(), top_players_usecase.In{})
 	require.NoError(t, err)
@@ -70,7 +68,7 @@ func TestItRanksByTakesThenTilesHeldOverEveryFlag(t *testing.T) {
 	assert.Equal(t, top_players_usecase.Out{Total: 4, Players: []ledger.Player{
 		{
 			Scope: "painter", Flag: "fr", Tiles: 3, Takes: 3, FirstAt: start, LastAt: start.Add(2 * time.Second),
-			Banned: true, BannedUntil: start.Add(time.Hour), Offence: 1,
+			RefusedUntil: start.Add(time.Hour),
 		},
 		{Scope: "late", Flag: "de", Tiles: 2, Takes: 2, FirstAt: start.Add(3 * time.Second), LastAt: start.Add(6 * time.Second)},
 		{Scope: "covered", Flag: "il", Tiles: 1, Takes: 2, FirstAt: start.Add(4 * time.Second), LastAt: start.Add(5 * time.Second)},
@@ -80,7 +78,7 @@ func TestItRanksByTakesThenTilesHeldOverEveryFlag(t *testing.T) {
 
 func TestTheLimitCutsAfterTheRanking(t *testing.T) {
 	book, current := setup(t)
-	useCase := top_players_usecase.New(book, current, nil)
+	useCase := top_players_usecase.New(book, current, refusing(t, ""))
 
 	out, err := useCase.Execute(t.Context(), top_players_usecase.In{Limit: 1})
 	require.NoError(t, err)
@@ -88,5 +86,5 @@ func TestTheLimitCutsAfterTheRanking(t *testing.T) {
 	assert.Equal(t, 4, out.Total)
 	require.Len(t, out.Players, 1)
 	assert.Equal(t, "painter", out.Players[0].Scope)
-	assert.False(t, out.Players[0].Banned, "with the antibot off nobody is serving")
+	assert.True(t, out.Players[0].RefusedUntil.IsZero(), "nobody is refused")
 }

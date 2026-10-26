@@ -4,7 +4,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
 const defaultLimit = 20
@@ -18,9 +18,7 @@ type Player struct {
 	FirstAt time.Time
 	LastAt  time.Time
 
-	Banned      bool
-	BannedUntil time.Time
-	Offence     int
+	RefusedUntil time.Time
 }
 
 func NewTally(counts func(Taking) bool) *Tally {
@@ -159,8 +157,6 @@ func (p Player) perMinute(count int) float64 {
 	return float64(count) / active.Minutes()
 }
 
-func (p *Player) Serving(sentence antibot.Sentence) {
-	p.Banned = true
-	p.BannedUntil = sentence.Until
-	p.Offence = sentence.Offence
+func (p *Player) Refused(refusal clicks.Refusal) {
+	p.RefusedUntil = refusal.Until()
 }
