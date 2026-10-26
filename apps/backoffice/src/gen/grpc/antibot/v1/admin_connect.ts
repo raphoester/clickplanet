@@ -53,7 +53,7 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Makes a set, or replaces its values. The antibot follows the set it plays within a second.
+     * Makes a set, or replaces its values. A save of the set in force plays it before it answers.
      *
      * @generated from rpc antibot.v1.AdminService.SaveRuleSet
      */

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -114,8 +113,8 @@ func TestTheSetNamedLikePlanetsPlaysOnceTheAntibotKeepsOne(t *testing.T) {
 	h := newHarness(t, rules.Seeded())
 	h.execute()
 
-	h.useCase.Play("rush")
-	taken, took := h.execute()
+	taken, took, err := h.useCase.Play(t.Context(), "rush")
+	require.NoError(t, err)
 	require.False(t, took, "no antibot set is named rush yet")
 	assertTaken(t, rules.Seeded(), "rush", taken)
 
@@ -125,8 +124,8 @@ func TestTheSetNamedLikePlanetsPlaysOnceTheAntibotKeepsOne(t *testing.T) {
 	assertTaken(t, rush, "rush", taken)
 	assert.Equal(t, 50, rules.Reader(h.inForce, cohort.Part)().CertainMembers)
 
-	h.useCase.Play(rules.Default)
-	taken, took = h.execute()
+	taken, took, err = h.useCase.Play(t.Context(), rules.Default)
+	require.NoError(t, err)
 	require.True(t, took)
 	assert.Equal(t, rules.Default, taken.Set.Name)
 }
@@ -137,8 +136,7 @@ func TestAFailedReadKeepsTheRulesInForce(t *testing.T) {
 
 	down := errors.New("postgres is down")
 	h.sets.FailWith(down)
-	h.useCase.Play("rush")
-	_, took, err := h.useCase.Execute(t.Context())
+	_, took, err := h.useCase.Play(t.Context(), "rush")
 
 	require.ErrorIs(t, err, down)
 	assert.False(t, took)
@@ -180,23 +178,17 @@ func TestPlanetHearsTheBansAgainUntilItHasHeardThem(t *testing.T) {
 	assert.Equal(t, 2, h.bans.Times())
 }
 
-func TestTheRunnerTakesAChangeWithinItsInterval(t *testing.T) {
-	h := newHarness(t, rules.Seeded())
+func TestAnOperatorsSaveAndPlanetsNameArePlayedOneAtATime(t *testing.T) {
+	h := newHarness(t, rules.Seeded(), rush)
 	h.execute()
 
-	ctx, cancel := context.WithCancel(t.Context())
-	done := make(chan struct{})
-	go func() {
-		play_rules_usecase.NewRunner(10*time.Millisecond, h.useCase).Run(ctx)
-		close(done)
-	}()
-	defer func() {
-		cancel()
-		<-done
-	}()
+	var plays sync.WaitGroup
+	for range 10 {
+		plays.Go(func() { _, _, _ = h.useCase.Play(t.Context(), "rush") })
+		plays.Go(func() { _, _, _ = h.useCase.Execute(t.Context()) })
+	}
+	plays.Wait()
 
-	h.save(rules.Named(rules.Default, func(r *antibotv1.Rules) { r.Jury.MinSuspects = 3 }))
-
-	suspects := rules.Reader(h.inForce, jury.Part)
-	assert.Eventually(t, func() bool { return suspects().MinSuspects == 3 }, time.Second, 5*time.Millisecond)
+	assert.Equal(t, rules.SetName("rush"), h.inForce.Name())
+	assert.Equal(t, 2, h.bans.Times(), "default at first, then rush once")
 }

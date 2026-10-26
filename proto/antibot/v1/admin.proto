@@ -18,7 +18,7 @@ service AdminService {
 
   rpc GetRules(GetRulesRequest) returns (GetRulesResponse);
 
-  // Makes a set, or replaces its values. The antibot follows the set it plays within a second.
+  // Makes a set, or replaces its values. A save of the set in force plays it before it answers.
   rpc SaveRuleSet(SaveRuleSetRequest) returns (SaveRuleSetResponse);
 }
 

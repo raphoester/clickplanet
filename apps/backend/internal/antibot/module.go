@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"time"
 
 	"connectrpc.com/connect"
 
@@ -103,8 +102,7 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			// Not closers: the evidence and the outbox keep being written until the last fact is handled.
 			props.Runners.Add(cppg.CloseAfter(db, props.Logger, cpredis.CloseAfter(streams, props.Logger,
-				watchdogs.Hearing(feeds...), cpoutbox.NewRelay(moduleName, db, streams.Commands(), props.Logger)),
-				play_rules_usecase.NewRunner(time.Second, playRules)))
+				watchdogs.Hearing(feeds...), cpoutbox.NewRelay(moduleName, db, streams.Commands(), props.Logger))))
 
 			admin := antibotv1controller.AdminService{
 				BanPlayerHandler: ban_player_handler.New(
@@ -114,7 +112,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				InspectPlayerHandler: inspect_player_handler.New(inspect_player_usecase.New(watchdogs)),
 				GetRulesHandler:      get_rules_handler.New(rule_sets_query.NewPostgresQuery(db), inForce),
 				SaveRuleSetHandler: save_rule_set_handler.New(
-					audit_save_rule_set.New(save_rule_set_usecase.New(ruleSets, parts), props.Logger)),
+					audit_save_rule_set.New(save_rule_set_usecase.New(ruleSets, parts, playRules), props.Logger)),
 			}
 
 			if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {

@@ -84,7 +84,7 @@ changes, until when to refuse it.
   caller.
 - **Each rule set taken tells planet every running ban again** (`bans.Book.Restate`): refused until its end, or
   admitted when not enforced. The first is taken at boot, before the antibot hears anything, so the bans running at a
-  deploy reach planet's table with no hand migration; a set that changes `enforce` reaches planet within a second.
+  deploy reach planet's table with no hand migration; a set that changes `enforce` reaches planet as soon as it is taken.
 - **A ban lands a moment after the click that earned it**: the fact travels to the antibot, the command waits for the
   outbox's next tick (1s) and travels back. The few clicks in between are played. Their tries still reach the jury,
   and `reflagInterval` keeps them from extending the ban.
@@ -211,7 +211,7 @@ in memory no window of 10m (`suspicionWindow`), 15m (`trackWindow`) or 30m
   `antiBot.database` (a `cppg.Config`, `schema: antibot`) and `antibot/internal/migrations`. Its DI sequence connects,
   migrates, plays the rule set (which tells planet the running bans), builds the guard and loads the evidence
   (`Guard.Load`), and **an error refuses the boot**. The pool and the Redis client close once `Guard.Hearing`, the
-  outbox's relay and the rules' runner returned (`cppg.CloseAfter`, `cpredis.CloseAfter`), after the last flush of
+  outbox's relay returned (`cppg.CloseAfter`, `cpredis.CloseAfter`), after the last flush of
   the evidence.
 - **Bans are postgres, and nothing else.** `bans.Store` is the port: `Record`
   reads one key, `Running` reads the bans running (for `banned_callers` and the restatement at boot), and `Change` runs a function on

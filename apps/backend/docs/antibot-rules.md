@@ -80,8 +80,8 @@ the page read one shape.
 - `postgres_rule_set_store` finds a set's snapshot by name and upserts one; it restores nothing. `rules.MemoryStore` is
   the fake, and `rules.StoreContractSuite` runs on both. A key the proto no longer has is ignored on read.
 - **A rule added later needs a migration** that writes its value into every set (`jsonb_set`). Without one, the set
-  reads the value as zero; where zero cannot be judged with, the set no longer restores, the runner keeps the rules in
-  force, and the next boot is refused.
+  reads the value as zero; where zero cannot be judged with, the set no longer restores, the antibot keeps the rules
+  in force, and the next boot is refused.
 
 ## The rules in force
 
@@ -91,14 +91,17 @@ each time it is called. They call it when they judge, not when they are built: a
 `TestASetTakenJudgesFromTheNextClick` pins it through the guard. A watchdog reads its rules once per call, so one
 judgement sees one set.
 
-- **`play_rules_usecase` is level-triggered**: every second (`antibot-rules`, a runner closed before the pool), and once
-  at boot, it reads the set to play, restores it with `guard.Parts()` and enforces it when its values changed
-  (`Set.Equal`). A missing `default` refuses the boot. A failed read, or a kept set that cannot play, keeps the rules in
-  force, and `log_play_rules` logs it.
+- **`play_rules_usecase` plays when something changes, never on a timer**: once at boot, when planet names a set
+  (`Play(ctx, name)`), and after an operator saves one (`SaveRuleSet` calls `Execute`). Each time it reads the set to
+  play, restores it with `guard.Parts()` and enforces it when its values changed (`Set.Equal`), one play at a time
+  under a lock. A missing `default` refuses the boot. A failed read, or a kept set that cannot play, keeps the rules in
+  force; the caller gets the error and `log_play_rules` logs it. Until 2026-10-26 a runner read postgres every second;
+  with one process and the backoffice as the only writer, a push is enough, and a hand edit in SQL takes effect at the
+  next save or boot.
 - **Each set taken tells planet every running ban again** (`bans.Book.Restate`), under the set's `bans.enforce`: a set
   that stops enforcing admits the banned callers at once, and one that enforces refuses them again. The first take is at
   boot, before the antibot hears anything, so the bans running at a deploy reach planet's table as before. A failed
-  restatement is tried again at the next tick.
+  restatement is tried again at the next play: the operator's next save, or the redelivery of planet's fact.
 - **`log_play_rules` logs each set taken** at Warn (`antibot rules in force`, `set`, `asked`, `rules` as protojson), and
   the start line (`antibot enabled`) names the set and the watchdogs on.
 
@@ -116,9 +119,12 @@ off in the YAML was never built. `TestAWatchdogTurnedOffKeepsWatchingAndCountsFo
 name.** The antibot is downstream of planet: it takes planet's word for which set plays and keeps its own values under
 it, so planet never hears of a crowd.
 
-- **`play_rules_usecase.UseCase.Play(name)`** is the entry point: it keeps the name, and the next tick plays it. On
-  `main`, planet does not tell its set yet, so the name stays `default`. The subscriber that hears
-  `planet.v1.RuleSetEnforced` (planet's rule sets, PR #475) calls `Play` with its `rule_set`.
+- **`Play(ctx, name)`** (the logged executor `module.go` builds) is the entry point: it keeps the name and plays its set
+  at once. On `main`, planet does not tell its set yet, so the name stays `default`. The subscriber that hears
+  `planet.v1.RuleSetEnforced` (planet's rule sets, PR #475) calls `Play` with its `rule_set`; a failed play fails the
+  handler, and Redis delivers the fact again.
+- **The antibot has no switch of its own for which set plays**: it follows planet's set, and so whatever schedule
+  planet keeps. No operator call picks the set in force.
 - **For the Final Battle** (Sat 31 Oct 2026, 21:00–23:00 UTC), planet plays `rush`. An antibot set `rush` with
   `cohort.certainMembers` 50 makes the crowd bound 50 for the evening; until it is made, the antibot keeps `default`.
 
@@ -150,4 +156,5 @@ in a file would be read by nothing.
   holds.
 - **`SaveRuleSet{set}`** makes a set or replaces its values. A set `Restore` refuses is `InvalidArgument`, with every
   reason. `audit_save_rule_set` logs every save at Warn (`admin antibot rule set saved` or `refused`, with the rules).
-  Saving the set in force takes effect within a second.
+  The save then plays the rules again, so saving the set in force takes effect before the call returns. A set kept
+  whose play fails answers the error, saying the set was kept.
