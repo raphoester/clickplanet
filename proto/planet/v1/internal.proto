@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package planet.v1;
 
+import "planet/v1/planet.proto";
+
 service InternalService {
   rpc GetTakesByCountry(GetTakesByCountryRequest) returns (GetTakesByCountryResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
@@ -15,6 +17,14 @@ service InternalService {
   // changes nothing, so a caller may send it again.
   rpc ApplyRuleSet(ApplyRuleSetRequest) returns (ApplyRuleSetResponse) {
     option idempotency_level = IDEMPOTENT;
+  }
+
+  rpc GetCountrySizes(GetCountrySizesRequest) returns (GetCountrySizesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  rpc GetAllegianceOf(GetAllegianceOfRequest) returns (GetAllegianceOfResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
   }
 }
 
@@ -50,3 +60,25 @@ message ApplyRuleSetRequest {
 }
 
 message ApplyRuleSetResponse {}
+
+message GetCountrySizesRequest {}
+
+// How many tiles of land each country has, all its landmasses together.
+message GetCountrySizesResponse {
+  repeated CountrySize country_sizes = 1;
+}
+
+message CountrySize {
+  string country_id = 1;
+  uint32 tiles = 2;
+}
+
+message GetAllegianceOfRequest {
+  string account_id = 1;
+}
+
+// Unset for an account that never pledged a flag.
+message GetAllegianceOfResponse {
+  Allegiance allegiance = 1;
+}
+

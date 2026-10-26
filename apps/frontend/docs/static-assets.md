@@ -21,7 +21,8 @@ cache entirely:
   means. It renumbers every tile, so it also writes the postgres migration that
   follows the owned ones across; see `/map/README.md`.
 - `/static/borderLines-<hash>.bin` — the countries' outlines, traced onto the
-  tile lattice, fetched at runtime by `borderLines.ts`. URL in
+  tile lattice, with the two landmasses each run is between, fetched at runtime by
+  `borderLines.ts`. URL in
   `borderLinesAsset.ts`. Regenerate with `npm run borderLines`, which reads both
   blobs above and so needs them in place first — and **regenerate it whenever
   either of them changes**, or the outline is drawn around a map nobody is

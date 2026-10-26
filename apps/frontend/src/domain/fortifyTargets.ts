@@ -24,6 +24,10 @@ export class FortifyTargets {
         return this.targets.get(landmass)
     }
 
+    public lockOf(landmass: number): string | undefined {
+        return this.locks.get(landmass)
+    }
+
     public landmasses(): IterableIterator<number> {
         return this.targets.keys()
     }

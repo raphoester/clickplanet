@@ -10,6 +10,7 @@ src/
   useAction.ts      one read's state, run on a click
   usePage.ts        the page shown, kept in the address bar
   useWide.ts        whether the window is wide enough for the sidebar
+  usePageVisible.ts whether the tab is shown
   navigation.ts     MENU, the pages by group, and OpenPlayer
   countries.ts      a country id's name and its flag
   App.tsx           the callback, or WhoAmI first, then the page the menu picked

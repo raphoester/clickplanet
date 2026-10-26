@@ -397,11 +397,233 @@ func (*ApplyRuleSetResponse) Descriptor() ([]byte, []int) {
 	return file_planet_v1_internal_proto_rawDescGZIP(), []int{7}
 }
 
+type GetCountrySizesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetCountrySizesRequest) Reset() {
+	*x = GetCountrySizesRequest{}
+	mi := &file_planet_v1_internal_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetCountrySizesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetCountrySizesRequest) ProtoMessage() {}
+
+func (x *GetCountrySizesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_internal_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetCountrySizesRequest.ProtoReflect.Descriptor instead.
+func (*GetCountrySizesRequest) Descriptor() ([]byte, []int) {
+	return file_planet_v1_internal_proto_rawDescGZIP(), []int{8}
+}
+
+// How many tiles of land each country has, all its landmasses together.
+type GetCountrySizesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CountrySizes  []*CountrySize         `protobuf:"bytes,1,rep,name=country_sizes,json=countrySizes,proto3" json:"country_sizes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetCountrySizesResponse) Reset() {
+	*x = GetCountrySizesResponse{}
+	mi := &file_planet_v1_internal_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetCountrySizesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetCountrySizesResponse) ProtoMessage() {}
+
+func (x *GetCountrySizesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_internal_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetCountrySizesResponse.ProtoReflect.Descriptor instead.
+func (*GetCountrySizesResponse) Descriptor() ([]byte, []int) {
+	return file_planet_v1_internal_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *GetCountrySizesResponse) GetCountrySizes() []*CountrySize {
+	if x != nil {
+		return x.CountrySizes
+	}
+	return nil
+}
+
+type CountrySize struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CountryId     string                 `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	Tiles         uint32                 `protobuf:"varint,2,opt,name=tiles,proto3" json:"tiles,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CountrySize) Reset() {
+	*x = CountrySize{}
+	mi := &file_planet_v1_internal_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CountrySize) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CountrySize) ProtoMessage() {}
+
+func (x *CountrySize) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_internal_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CountrySize.ProtoReflect.Descriptor instead.
+func (*CountrySize) Descriptor() ([]byte, []int) {
+	return file_planet_v1_internal_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *CountrySize) GetCountryId() string {
+	if x != nil {
+		return x.CountryId
+	}
+	return ""
+}
+
+func (x *CountrySize) GetTiles() uint32 {
+	if x != nil {
+		return x.Tiles
+	}
+	return 0
+}
+
+type GetAllegianceOfRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAllegianceOfRequest) Reset() {
+	*x = GetAllegianceOfRequest{}
+	mi := &file_planet_v1_internal_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAllegianceOfRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAllegianceOfRequest) ProtoMessage() {}
+
+func (x *GetAllegianceOfRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_internal_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAllegianceOfRequest.ProtoReflect.Descriptor instead.
+func (*GetAllegianceOfRequest) Descriptor() ([]byte, []int) {
+	return file_planet_v1_internal_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *GetAllegianceOfRequest) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+// Unset for an account that never pledged a flag.
+type GetAllegianceOfResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Allegiance    *Allegiance            `protobuf:"bytes,1,opt,name=allegiance,proto3" json:"allegiance,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAllegianceOfResponse) Reset() {
+	*x = GetAllegianceOfResponse{}
+	mi := &file_planet_v1_internal_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAllegianceOfResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAllegianceOfResponse) ProtoMessage() {}
+
+func (x *GetAllegianceOfResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_internal_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAllegianceOfResponse.ProtoReflect.Descriptor instead.
+func (*GetAllegianceOfResponse) Descriptor() ([]byte, []int) {
+	return file_planet_v1_internal_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *GetAllegianceOfResponse) GetAllegiance() *Allegiance {
+	if x != nil {
+		return x.Allegiance
+	}
+	return nil
+}
+
 var File_planet_v1_internal_proto protoreflect.FileDescriptor
 
 const file_planet_v1_internal_proto_rawDesc = "" +
 	"\n" +
-	"\x18planet/v1/internal.proto\x12\tplanet.v1\"9\n" +
+	"\x18planet/v1/internal.proto\x12\tplanet.v1\x1a\x16planet/v1/planet.proto\"9\n" +
 	"\x18GetTakesByCountryRequest\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\"\x89\x01\n" +
@@ -425,11 +647,27 @@ const file_planet_v1_internal_proto_rawDesc = "" +
 	"\n" +
 	"request_id\x18\x01 \x01(\tR\trequestId\x12\x19\n" +
 	"\brule_set\x18\x02 \x01(\tR\aruleSet\"\x16\n" +
-	"\x14ApplyRuleSetResponse2\xa8\x02\n" +
+	"\x14ApplyRuleSetResponse\"\x18\n" +
+	"\x16GetCountrySizesRequest\"V\n" +
+	"\x17GetCountrySizesResponse\x12;\n" +
+	"\rcountry_sizes\x18\x01 \x03(\v2\x16.planet.v1.CountrySizeR\fcountrySizes\"B\n" +
+	"\vCountrySize\x12\x1d\n" +
+	"\n" +
+	"country_id\x18\x01 \x01(\tR\tcountryId\x12\x14\n" +
+	"\x05tiles\x18\x02 \x01(\rR\x05tiles\"7\n" +
+	"\x16GetAllegianceOfRequest\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\"P\n" +
+	"\x17GetAllegianceOfResponse\x125\n" +
+	"\n" +
+	"allegiance\x18\x01 \x01(\v2\x15.planet.v1.AllegianceR\n" +
+	"allegiance2\xe6\x03\n" +
 	"\x0fInternalService\x12c\n" +
 	"\x11GetTakesByCountry\x12#.planet.v1.GetTakesByCountryRequest\x1a$.planet.v1.GetTakesByCountryResponse\"\x03\x90\x02\x01\x12Z\n" +
 	"\x0eGetTerritories\x12 .planet.v1.GetTerritoriesRequest\x1a!.planet.v1.GetTerritoriesResponse\"\x03\x90\x02\x01\x12T\n" +
-	"\fApplyRuleSet\x12\x1e.planet.v1.ApplyRuleSetRequest\x1a\x1f.planet.v1.ApplyRuleSetResponse\"\x03\x90\x02\x02B\xb5\x01\n" +
+	"\fApplyRuleSet\x12\x1e.planet.v1.ApplyRuleSetRequest\x1a\x1f.planet.v1.ApplyRuleSetResponse\"\x03\x90\x02\x02\x12]\n" +
+	"\x0fGetCountrySizes\x12!.planet.v1.GetCountrySizesRequest\x1a\".planet.v1.GetCountrySizesResponse\"\x03\x90\x02\x01\x12]\n" +
+	"\x0fGetAllegianceOf\x12!.planet.v1.GetAllegianceOfRequest\x1a\".planet.v1.GetAllegianceOfResponse\"\x03\x90\x02\x01B\xb5\x01\n" +
 	"\rcom.planet.v1B\rInternalProtoP\x01ZPgithub.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1;planetv1\xa2\x02\x03PXX\xaa\x02\tPlanet.V1\xca\x02\tPlanet\\V1\xe2\x02\x15Planet\\V1\\GPBMetadata\xea\x02\n" +
 	"Planet::V1b\x06proto3"
 
@@ -445,7 +683,7 @@ func file_planet_v1_internal_proto_rawDescGZIP() []byte {
 	return file_planet_v1_internal_proto_rawDescData
 }
 
-var file_planet_v1_internal_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_planet_v1_internal_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_planet_v1_internal_proto_goTypes = []any{
 	(*GetTakesByCountryRequest)(nil),  // 0: planet.v1.GetTakesByCountryRequest
 	(*GetTakesByCountryResponse)(nil), // 1: planet.v1.GetTakesByCountryResponse
@@ -455,22 +693,34 @@ var file_planet_v1_internal_proto_goTypes = []any{
 	(*Territory)(nil),                 // 5: planet.v1.Territory
 	(*ApplyRuleSetRequest)(nil),       // 6: planet.v1.ApplyRuleSetRequest
 	(*ApplyRuleSetResponse)(nil),      // 7: planet.v1.ApplyRuleSetResponse
+	(*GetCountrySizesRequest)(nil),    // 8: planet.v1.GetCountrySizesRequest
+	(*GetCountrySizesResponse)(nil),   // 9: planet.v1.GetCountrySizesResponse
+	(*CountrySize)(nil),               // 10: planet.v1.CountrySize
+	(*GetAllegianceOfRequest)(nil),    // 11: planet.v1.GetAllegianceOfRequest
+	(*GetAllegianceOfResponse)(nil),   // 12: planet.v1.GetAllegianceOfResponse
+	(*Allegiance)(nil),                // 13: planet.v1.Allegiance
 }
 var file_planet_v1_internal_proto_depIdxs = []int32{
-	2, // 0: planet.v1.GetTakesByCountryResponse.taken_for:type_name -> planet.v1.CountryTakes
-	2, // 1: planet.v1.GetTakesByCountryResponse.taken_from:type_name -> planet.v1.CountryTakes
-	5, // 2: planet.v1.GetTerritoriesResponse.territories:type_name -> planet.v1.Territory
-	0, // 3: planet.v1.InternalService.GetTakesByCountry:input_type -> planet.v1.GetTakesByCountryRequest
-	3, // 4: planet.v1.InternalService.GetTerritories:input_type -> planet.v1.GetTerritoriesRequest
-	6, // 5: planet.v1.InternalService.ApplyRuleSet:input_type -> planet.v1.ApplyRuleSetRequest
-	1, // 6: planet.v1.InternalService.GetTakesByCountry:output_type -> planet.v1.GetTakesByCountryResponse
-	4, // 7: planet.v1.InternalService.GetTerritories:output_type -> planet.v1.GetTerritoriesResponse
-	7, // 8: planet.v1.InternalService.ApplyRuleSet:output_type -> planet.v1.ApplyRuleSetResponse
-	6, // [6:9] is the sub-list for method output_type
-	3, // [3:6] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	2,  // 0: planet.v1.GetTakesByCountryResponse.taken_for:type_name -> planet.v1.CountryTakes
+	2,  // 1: planet.v1.GetTakesByCountryResponse.taken_from:type_name -> planet.v1.CountryTakes
+	5,  // 2: planet.v1.GetTerritoriesResponse.territories:type_name -> planet.v1.Territory
+	10, // 3: planet.v1.GetCountrySizesResponse.country_sizes:type_name -> planet.v1.CountrySize
+	13, // 4: planet.v1.GetAllegianceOfResponse.allegiance:type_name -> planet.v1.Allegiance
+	0,  // 5: planet.v1.InternalService.GetTakesByCountry:input_type -> planet.v1.GetTakesByCountryRequest
+	3,  // 6: planet.v1.InternalService.GetTerritories:input_type -> planet.v1.GetTerritoriesRequest
+	6,  // 7: planet.v1.InternalService.ApplyRuleSet:input_type -> planet.v1.ApplyRuleSetRequest
+	8,  // 8: planet.v1.InternalService.GetCountrySizes:input_type -> planet.v1.GetCountrySizesRequest
+	11, // 9: planet.v1.InternalService.GetAllegianceOf:input_type -> planet.v1.GetAllegianceOfRequest
+	1,  // 10: planet.v1.InternalService.GetTakesByCountry:output_type -> planet.v1.GetTakesByCountryResponse
+	4,  // 11: planet.v1.InternalService.GetTerritories:output_type -> planet.v1.GetTerritoriesResponse
+	7,  // 12: planet.v1.InternalService.ApplyRuleSet:output_type -> planet.v1.ApplyRuleSetResponse
+	9,  // 13: planet.v1.InternalService.GetCountrySizes:output_type -> planet.v1.GetCountrySizesResponse
+	12, // 14: planet.v1.InternalService.GetAllegianceOf:output_type -> planet.v1.GetAllegianceOfResponse
+	10, // [10:15] is the sub-list for method output_type
+	5,  // [5:10] is the sub-list for method input_type
+	5,  // [5:5] is the sub-list for extension type_name
+	5,  // [5:5] is the sub-list for extension extendee
+	0,  // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_planet_v1_internal_proto_init() }
@@ -478,13 +728,14 @@ func file_planet_v1_internal_proto_init() {
 	if File_planet_v1_internal_proto != nil {
 		return
 	}
+	file_planet_v1_planet_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_planet_v1_internal_proto_rawDesc), len(file_planet_v1_internal_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   8,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
