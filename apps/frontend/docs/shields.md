@@ -10,17 +10,18 @@ in `backends/backend.ts`, `domain/shields.ts` the count per tile and the rule,
 - **The count comes with the tile.** Each map batch lists its shielded tiles
   (`GetMapResponse.shields`, read into `Ownerships.shields`), and every
   `TileUpdate` says the tile's count after it. `TileShields` keeps one number
-  per tile and, like `TileOwnership`, lets a live update win over a batch that
-  was already in flight.
+  per tile, and `MapTiles` takes a count only when its version is newer than the
+  tile's, as it does a flag (see [The counts are the server's](counts.md)).
 - **The server zeroes the count on every change of owner**, so an update that
   changes the owner carries 0, and nothing here ties a count to a flag. **An
   update whose country is its previous country changes the shields alone**: a
   strike or a placement. It moves no tile on the board and plays no click
   glint.
 - **A bomb strikes the shielded tiles in its blast** (`BombDrop.struck`): each
-  loses one shield and keeps its flag, and is not in `cleared`. The strikes
-  wait for the impact with the clear, and a tile update that arrives meanwhile
-  wins its tile, as it does for the clear.
+  loses one shield and keeps its flag, and is not in `cleared`; the server says
+  the shields each kept. The strikes wait for the impact with the clear, and a
+  tile update that arrives meanwhile wins its tile by its version, as it does
+  for the clear.
 - **Shield is a switch.** While it is on, a click on a tile the flag holds sends
   `PlaceShield` (session-gated, not throttled) instead of a click, and spends
   no click. A tile already at its most sends nothing and the slot says "Full".

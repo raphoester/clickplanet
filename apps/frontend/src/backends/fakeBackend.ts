@@ -11,6 +11,7 @@ import {
     BonusOffer,
     ChargesRefresher,
     ClaimedBonus,
+    Counts,
     Enclosure,
     Fortification,
     GlobePoint,
@@ -26,8 +27,10 @@ import {
     LandmassHolder,
     LandmassReader,
     LandmassState,
+    MapVersion,
     TileHolder,
     TileHolders,
+    TileRange,
     Update,
     UpdatesListener,
     VPNBlockedError,
@@ -41,9 +44,8 @@ import {v4 as UUIDv4} from 'uuid';
 import {Countries} from "../domain/countries.ts";
 import {nearestTile, tilesWithin} from "../domain/blast.ts";
 import {FakeFortresses} from "./fakeFortresses.ts";
+import {FakeTally} from "./fakeTally.ts";
 import {FAKE_TAKERS, FAKE_YOU} from "./fakeAccounts.ts";
-
-const TILE_COUNT = 257_000
 
 const CLICKS_PER_SECOND = 0.2
 const CLICK_BURST = 60
@@ -109,15 +111,21 @@ export type FakeBackendOptions = {
     vpnBlocked?: boolean
     sessionUnavailable?: boolean
     tilePositions?: () => Promise<Float32Array>
-    // The borders blob's tile → landmass table, for fortifying.
-    landmasses?: () => Promise<{assignment: Uint16Array, count: number}>
+    // The borders blob's tile → landmass table: the map's tiles, what each flag holds of each landmass, and fortifying.
+    landmasses: () => Promise<{assignment: Uint16Array, count: number}>
 }
 
 export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller, Shielder, AllegianceSource, ChargesRefresher, TileHolders, LandmassReader {
     private tileBindings: Map<number, string> = new Map()
     private holders: Map<number, TileHolder> = new Map()
     private readonly fortifications = new Map<number, LandmassFortification>()
-    private tileCounts: Map<string, number> = new Map()
+    private tileCount = 0
+    private tally: FakeTally | undefined
+    private readonly ready: Promise<void>
+    private readonly epoch = Math.floor(Date.now() / 1000)
+    private seq = 0
+    private readonly openingCallbacks = new Map<string, (version: MapVersion) => void>()
+    private readonly holdingsCallbacks = new Map<string, (change: Counts) => void>()
     private budgetCountry = ""
     private updateListeners: Map<string, (update: Update) => void> = new Map()
     private pendingUpdates: Update[] = []
@@ -151,18 +159,20 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private readonly vpnBlocked: boolean
     private readonly sessionUnavailable: boolean
 
-    constructor(batchUpdateDurationMs: number, options: FakeBackendOptions = {}) {
+    constructor(batchUpdateDurationMs: number, options: FakeBackendOptions) {
         this.vpnBlocked = options.vpnBlocked ?? false
         this.sessionUnavailable = options.sessionUnavailable ?? false
         this.tilePositions = options.tilePositions
-        void options.landmasses?.().then(({assignment, count}) => {
-            this.fortresses = new FakeFortresses(assignment, count, (tile) => this.tileBindings.get(tile))
+        this.ready = options.landmasses().then(({assignment, count}) => {
+            const tally = new FakeTally(assignment, count)
+            for (let tile = 1; tile <= assignment.length; tile++) {
+                this.tileBindings.set(tile, "fr")
+                tally.moved(tile, undefined, "fr")
+            }
+            this.tally = tally
+            this.tileCount = assignment.length
+            this.fortresses = new FakeFortresses(assignment, count, tally, (tile) => this.tileBindings.get(tile))
         })
-
-        for (let i = 1; i <= TILE_COUNT; i++) {
-            this.tileBindings.set(i, "fr")
-        }
-        this.tileCounts.set("fr", TILE_COUNT)
 
         this.listenForUpdates((update) => {
             this.pendingUpdates.push(update)
@@ -201,25 +211,40 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 
         if (this.tilePositions) {
             this.timers.push(setInterval(() => {
-                const tile = Math.floor(Math.random() * TILE_COUNT) + 1
+                if (this.tileCount === 0) return
+                const tile = Math.floor(Math.random() * this.tileCount) + 1
                 void this.botBomb(tile, codes[Math.floor(Math.random() * codes.length)])
             }, BOT_BOMB_EVERY_MS))
         }
 
-        const runs = codes.map(() => ({tile: Math.floor(Math.random() * TILE_COUNT), gap: 1 + Math.floor(Math.random() * 100)}))
+        const runs = codes.map(() => ({tile: Math.floor(Math.random() * 2 ** 30), gap: 1 + Math.floor(Math.random() * 100)}))
         this.timers.push(setInterval(() => {
+            if (this.tileCount === 0) return
             const index = Math.floor(Math.random() * codes.length)
             const run = runs[index]
-            run.tile = (run.tile + run.gap) % TILE_COUNT + 1
+            run.tile = (run.tile + run.gap) % this.tileCount + 1
             this.applyClick(run.tile, codes[index])
         }, 1000 / BOT_CLICKS_PER_SECOND))
     }
 
+    private version(): MapVersion {
+        return {epoch: this.epoch, seq: this.seq}
+    }
+
+    private write(): MapVersion {
+        this.seq++
+        return this.version()
+    }
+
+    // The updates go out first, then the counts they moved, as the server's tick would.
     private flushUpdates() {
-        if (this.pendingUpdates.length === 0) return
-        const updates = this.pendingUpdates
-        this.pendingUpdates = []
-        this.updateBatchCallbacks.forEach(callback => callback(updates))
+        if (this.pendingUpdates.length > 0) {
+            const updates = this.pendingUpdates
+            this.pendingUpdates = []
+            this.updateBatchCallbacks.forEach(callback => callback(updates))
+        }
+        const change = this.tally?.changes(this.version())
+        if (change) this.holdingsCallbacks.forEach(callback => callback(change))
     }
 
     public close() {
@@ -333,8 +358,8 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private pretendToEnclose(tileId: number, countryId: string) {
         if (this.charges.enclosures === 0) return
 
-        const wall = [0, 1, 2, 3, 4, 5].map(step => tileId + step).filter(id => id <= TILE_COUNT)
-        const filled = [6, 7, 8].map(step => tileId + step).filter(id => id <= TILE_COUNT)
+        const wall = [0, 1, 2, 3, 4, 5].map(step => tileId + step).filter(id => id <= this.tileCount)
+        const filled = [6, 7, 8].map(step => tileId + step).filter(id => id <= this.tileCount)
         filled.forEach(id => this.applyClick(id, countryId, false, FAKE_YOU))
 
         this.hold({...this.charges, enclosures: this.charges.enclosures - 1})
@@ -433,7 +458,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     }
 
     private price(countryId: string): ClickPrice {
-        const share = (this.tileCounts.get(countryId) ?? 0) / TILE_COUNT
+        const share = this.tileCount > 0 ? (this.tally?.heldBy(countryId) ?? 0) / this.tileCount : 0
 
         let slowdown = 1
         for (const step of TOLL_STEPS) {
@@ -445,6 +470,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     }
 
     private applyClick(tileId: number, countryId: string, clicked = true, by = FAKE_TAKERS[tileId % FAKE_TAKERS.length]) {
+        if (tileId < 1 || tileId > this.tileCount) return
         const prev = this.tileBindings.get(tileId)
         if (prev === countryId) return
 
@@ -457,15 +483,15 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         this.tileBindings.set(tileId, countryId)
         this.holders.set(tileId, {accountId: by, countryCode: countryId, takenAt: Date.now()})
         this.shields.delete(tileId)
-        this.count(prev, -1)
-        this.count(countryId, 1)
-        this.fortresses?.moved(tileId, prev, countryId)
+        this.tally?.moved(tileId, prev, countryId)
+        const version = this.write()
         this.updateListeners.forEach(l => l({
             tile: tileId,
             previousCountry: prev,
             newCountry: countryId,
             clicked,
             shields: 0,
+            version,
         }))
         this.fortifyIfWhole(tileId, countryId)
     }
@@ -478,8 +504,9 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
             this.shields.set(member, Math.min((this.shields.get(member) ?? 0) + 1, TILE_SHIELDS))
         }
         this.fortifications.set(fortified.landmass, {accountId: this.holders.get(tile)?.accountId ?? "", countryCode: countryId, at: Date.now()})
+        const version = this.write()
         this.flushUpdates()
-        this.fortificationCallbacks.forEach((callback) => callback({landmass: fortified.landmass, countryId, tile}))
+        this.fortificationCallbacks.forEach((callback) => callback({landmass: fortified.landmass, countryId, tile, version}))
     }
 
     public landmassTiles(landmass: number): number {
@@ -502,16 +529,17 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         if (shields > 0) this.shields.set(tile, shields)
         else this.shields.delete(tile)
 
-        this.updateListeners.forEach(l => l({tile, previousCountry: owner, newCountry: owner, clicked, shields}))
+        const version = this.write()
+        this.updateListeners.forEach(l => l({tile, previousCountry: owner, newCountry: owner, clicked, shields, version}))
     }
 
-    private strike(tile: number): boolean {
+    private strike(tile: number): number | undefined {
         const shields = this.shields.get(tile) ?? 0
-        if (shields === 0) return false
+        if (shields === 0) return undefined
 
         if (shields > 1) this.shields.set(tile, shields - 1)
         else this.shields.delete(tile)
-        return true
+        return shields - 1
     }
 
     public async placeShield(tileId: number, countryId: string): Promise<void> {
@@ -530,10 +558,6 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 
         this.shield(tile, countryId, shields + 1, false)
         return true
-    }
-
-    private count(countryId: string | undefined, by: number) {
-        if (countryId) this.tileCounts.set(countryId, (this.tileCounts.get(countryId) ?? 0) + by)
     }
 
     private allow(countryId: string): boolean {
@@ -661,16 +685,16 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         const onLand = tile !== undefined && arc <= SEA_REACH
 
         const cleared: number[] = []
-        const struck: number[] = []
+        const struck: {tile: number, shields: number}[] = []
         for (const id of onLand ? tilesWithin(positions, tile, BOMB_RADIUS) : []) {
             const owner = this.tileBindings.get(id)
             if (owner === undefined) continue
-            if (this.strike(id)) {
-                struck.push(id)
+            const left = this.strike(id)
+            if (left !== undefined) {
+                struck.push({tile: id, shields: left})
                 continue
             }
-            this.count(owner, -1)
-            this.fortresses?.moved(id, owner, undefined)
+            this.tally?.moved(id, owner, undefined)
             this.tileBindings.delete(id)
             this.holders.delete(id)
             cleared.push(id)
@@ -683,6 +707,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
             radius: BOMB_RADIUS,
             cleared,
             struck,
+            version: this.write(),
         }
         this.flushUpdates()
         this.bombCallbacks.forEach((callback) => callback(drop))
@@ -713,8 +738,18 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         }
     }
 
-    public listenForResumes(): () => void {
-        return () => {}
+    public listenForOpenings(callback: (version: MapVersion) => void): () => void {
+        const id = UUIDv4()
+        this.openingCallbacks.set(id, callback)
+        this.flushUpdates()
+        callback(this.version())
+        return () => this.openingCallbacks.delete(id)
+    }
+
+    public listenForHoldings(callback: (change: Counts) => void): () => void {
+        const id = UUIDv4()
+        this.holdingsCallbacks.set(id, callback)
+        return () => this.holdingsCallbacks.delete(id)
     }
 
     public listenForFortifications(callback: (fortification: Fortification) => void): () => void {
@@ -745,25 +780,30 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         return this.fortresses?.fortresses() ?? new Map()
     }
 
-    public async getCurrentOwnershipsByBatch(
-        batchSize: number,
-        maxIndex: number,
+    public async getHoldings(signal?: AbortSignal): Promise<Counts> {
+        await this.ready
+        signal?.throwIfAborted()
+        return this.tally!.read(this.version())
+    }
+
+    public async getOwnerships(
+        ranges: readonly TileRange[],
         callback: (ownerships: Ownerships) => void,
         signal?: AbortSignal,
     ) {
-        for (let start = 1; start <= maxIndex; start += batchSize) {
+        await this.ready
+        for (const range of ranges) {
             signal?.throwIfAborted()
 
             const bindings = new Map<number, string>()
             const shields = new Map<number, number>()
-            const end = Math.min(start + batchSize, maxIndex + 1)
-            for (let tile = start; tile < end; tile++) {
+            for (let tile = range.start; tile <= range.end; tile++) {
                 const owner = this.tileBindings.get(tile)
                 if (owner) bindings.set(tile, owner)
                 const held = this.shields.get(tile)
                 if (held) shields.set(tile, held)
             }
-            callback({bindings, shields})
+            callback({range, version: this.version(), bindings, shields})
         }
     }
 }

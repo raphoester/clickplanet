@@ -34,8 +34,10 @@ touching this app.
 `access-control-allow-origin: https://clickplanet.lol` and nothing else, so the
 browser blocks every request from `localhost`. Point `VITE_API_BASE_URL` at a
 local backend, or run `VITE_FAKE_BACKEND=1 npm run dev` to play against
-`FakeBackend` and `FakeChatBackend` — the fake serves a full map, simulates other
-players at a few clicks a second, and reproduces every refusal the chat can show.
+`FakeBackend` and `FakeChatBackend` — the fake serves a full map of the real tile
+count, with a version on every write and the counts the server would send,
+simulates other players at a few clicks a second, and reproduces every refusal the
+chat can show.
 The switch is gated on `import.meta.env.DEV` as well, because an unset `VITE_*`
 variable is **not** folded away in a build: without the `DEV` check both fakes
 ship in the production bundle.
