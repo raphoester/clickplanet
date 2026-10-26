@@ -62,8 +62,11 @@ the operator's calls carry and the log lines print as it is. `Snapshot.Restore(p
 a map (the kinds) would be forty columns and a child table. The proto message is already the wire's, so the store,
 the RPC and the page read one shape.
 
-- `postgres_rule_set_store` finds a set's snapshot by name and upserts one; it restores nothing. `rules.MemoryStore` is
-  the fake, and `rules.StoreContractSuite` runs on both. A key the proto no longer has is ignored on read.
+- **The store answers sets, never snapshots** (`rules.Store`, the user's rule of 2026-10-26).
+  `postgres_rule_set_store` is built with the parts: it reads a document into a snapshot and restores it, so a kept
+  set that cannot play is `ErrInvalidSet` with every reason; it saves a set's snapshot. The snapshot never leaves the
+  adapter. `rules.MemoryStore` is the fake (`Keep` puts in a snapshot as a hand edit in SQL would), and
+  `rules.StoreContractSuite` runs on both. A key the proto no longer has is ignored on read.
 - **A rule added later needs a migration** that writes its value into every set (`jsonb_set`). Without one, the set
   reads the value as zero; where zero cannot play, the set no longer restores, and the next boot is refused.
 
@@ -80,8 +83,8 @@ The readers call it where they use the rules, not when they are built: a set tak
   `bonuses.Charges` (the stacks), `bonuses.Bombing` (the radius), `enclose_click`, `place_shield_usecase`,
   `clicks.Claiming` (a tile's most shields, for a fortify) and `GetBonusRules`.
 - **`play_rules_usecase` plays when something changes, never on a timer**: once at boot, and a missing or broken
-  `default` refuses the boot. Each time it reads the set to play, restores it with `parts.All()`, and enforces it when
-  its values changed (`Set.Equal`), one play at a time under a lock. A failed read, or a kept set that cannot play,
+  `default` refuses the boot. Each time it reads the set to play from the store and enforces it when its values
+  changed (`Set.Equal`), one play at a time under a lock. A failed read, or a kept set that cannot play,
   keeps the rules in force, and `log_play_rules` logs it; each set taken is logged at Warn (`rules in force`, `set`,
   `rules` as protojson). A hand edit in SQL takes effect at the next boot.
 - `InForce.Enforce` also stamps when the set took over (`Since`) and wakes each `Watch()`er: every planet stream sends
@@ -128,8 +131,8 @@ YAML file's planet keys with unused keys refused: a rule left in a file would be
 
 - **`GetRules`** answers every set postgres keeps, `default` first, as kept (one that cannot play too, so it can be
   mended), and `playing`, the name of the set in force (`rule_sets_query` beside the name `InForce` holds).
-- **`SaveRuleSet{set}`** makes a set or replaces its values. A set `Restore` refuses is `InvalidArgument`, with every
-  reason. **The set in force is refused** with `FailedPrecondition` (`ErrPlaying`): saving it would change what plays.
+- **`SaveRuleSet{set}`** makes a set or replaces its values: `save_rule_set_usecase` restores the snapshot the call
+  carries, and hands the store the set. A set `Restore` refuses is `InvalidArgument`, with every reason. **The set in force is refused** with `FailedPrecondition` (`ErrPlaying`): saving it would change what plays.
   `audit_save_rule_set` logs every save at Warn (`admin rule set saved` or `refused`, with the rules).
 
 The rules are pinned by each part's tests, `Set`'s (one refusal per impossible value), the store's contract suite and

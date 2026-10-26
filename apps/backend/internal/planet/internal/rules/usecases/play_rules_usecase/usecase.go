@@ -9,7 +9,7 @@ import (
 )
 
 type Sets interface {
-	Set(ctx context.Context, name rules.SetName) (rules.Snapshot, error)
+	Set(ctx context.Context, name rules.SetName) (rules.Set, error)
 }
 
 type Rules interface {
@@ -21,14 +21,13 @@ type Executor interface {
 	Execute(ctx context.Context) (taken rules.Snapshot, took bool, err error)
 }
 
-func New(sets Sets, parts rules.Parts, inForce Rules) *UseCase {
-	return &UseCase{sets: sets, parts: parts, inForce: inForce}
+func New(sets Sets, inForce Rules) *UseCase {
+	return &UseCase{sets: sets, inForce: inForce}
 }
 
 // UseCase plays default: the game plays no other set until a schedule names one.
 type UseCase struct {
 	sets    Sets
-	parts   rules.Parts
 	inForce Rules
 
 	mu    sync.Mutex
@@ -47,14 +46,9 @@ func (u *UseCase) Execute(ctx context.Context) (rules.Snapshot, bool, error) {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 
-	kept, err := u.sets.Set(ctx, rules.Default)
+	set, err := u.sets.Set(ctx, rules.Default)
 	if err != nil {
 		return rules.Snapshot{}, false, fmt.Errorf("could not read the rules to play: %w", err)
-	}
-
-	set, err := kept.Restore(u.parts)
-	if err != nil {
-		return rules.Snapshot{}, false, fmt.Errorf("the rule set %q kept cannot play: %w", kept.Name, err)
 	}
 
 	took := !set.Equal(u.taken)

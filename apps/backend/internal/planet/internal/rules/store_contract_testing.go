@@ -13,6 +13,7 @@ type StoreContractSuite struct {
 	suite.Suite
 
 	NewStore func() Store
+	Parts    Parts
 
 	store Store
 }
@@ -21,15 +22,21 @@ func (s *StoreContractSuite) SetupTest() {
 	s.store = s.NewStore()
 }
 
-func (s *StoreContractSuite) kept(name SetName) Snapshot {
-	kept, err := s.store.Set(s.T().Context(), name)
+func (s *StoreContractSuite) save(kept Snapshot) {
+	set, err := kept.Restore(s.Parts)
 	s.Require().NoError(err)
-	return kept
+	s.Require().NoError(s.store.Save(s.T().Context(), set))
+}
+
+func (s *StoreContractSuite) kept(name SetName) Snapshot {
+	set, err := s.store.Set(s.T().Context(), name)
+	s.Require().NoError(err)
+	return set.TakeSnapshot()
 }
 
 func (s *StoreContractSuite) TestASetIsReadAsItWasKept() {
 	rush := Named("rush", func(r *planetv1.Rules) { r.Clicks.Tempo = 3 })
-	s.Require().NoError(s.store.Save(s.T().Context(), rush))
+	s.save(rush)
 
 	kept := s.kept("rush")
 	s.Equal(SetName("rush"), kept.Name)
@@ -38,7 +45,7 @@ func (s *StoreContractSuite) TestASetIsReadAsItWasKept() {
 
 func (s *StoreContractSuite) TestASetWithNoTollIsReadWithNone() {
 	free := Named("free", func(r *planetv1.Rules) { r.Toll.Steps = nil })
-	s.Require().NoError(s.store.Save(s.T().Context(), free))
+	s.save(free)
 
 	s.Empty(s.kept("free").Rules.GetToll().GetSteps())
 }
@@ -49,9 +56,9 @@ func (s *StoreContractSuite) TestASetNeverKeptIsUnknown() {
 }
 
 func (s *StoreContractSuite) TestASetKeptAgainReplacesItsValues() {
-	s.Require().NoError(s.store.Save(s.T().Context(), Named("rush", AsIs)))
+	s.save(Named("rush", AsIs))
 	quicker := Named("rush", func(r *planetv1.Rules) { r.Clicks.Tempo, r.Bonuses.Shield.PerTile = 4, 20 })
-	s.Require().NoError(s.store.Save(s.T().Context(), quicker))
+	s.save(quicker)
 
 	s.True(proto.Equal(quicker.Rules, s.kept("rush").Rules))
 }

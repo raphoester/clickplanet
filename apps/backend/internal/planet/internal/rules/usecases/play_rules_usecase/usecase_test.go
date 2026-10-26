@@ -21,8 +21,10 @@ func (e *enforced) Enforce(set rules.Set) { e.sets = append(e.sets, set.TakeSnap
 func keeping(t *testing.T, kept ...rules.Snapshot) *rules.MemoryStore {
 	t.Helper()
 
-	store := rules.NewMemoryStore()
-	for _, set := range kept {
+	store := rules.NewMemoryStore(parts.All())
+	for _, each := range kept {
+		set, err := each.Restore(parts.All())
+		require.NoError(t, err)
 		require.NoError(t, store.Save(t.Context(), set))
 	}
 	return store
@@ -31,7 +33,7 @@ func keeping(t *testing.T, kept ...rules.Snapshot) *rules.MemoryStore {
 func TestAtFirstDefaultPlays(t *testing.T) {
 	inForce := &enforced{}
 
-	taken, took, err := play_rules_usecase.New(keeping(t, rules.Seeded()), parts.All(), inForce).Execute(t.Context())
+	taken, took, err := play_rules_usecase.New(keeping(t, rules.Seeded()), inForce).Execute(t.Context())
 
 	require.NoError(t, err)
 	assert.True(t, took)
@@ -42,7 +44,7 @@ func TestAtFirstDefaultPlays(t *testing.T) {
 
 func TestASetUnchangedIsNotTakenAgain(t *testing.T) {
 	inForce := &enforced{}
-	useCase := play_rules_usecase.New(keeping(t, rules.Seeded()), parts.All(), inForce)
+	useCase := play_rules_usecase.New(keeping(t, rules.Seeded()), inForce)
 	_, _, err := useCase.Execute(t.Context())
 	require.NoError(t, err)
 
@@ -55,11 +57,11 @@ func TestASetUnchangedIsNotTakenAgain(t *testing.T) {
 
 func TestAChangeOfDefaultIsTakenAtTheNextPlay(t *testing.T) {
 	store, inForce := keeping(t, rules.Seeded()), &enforced{}
-	useCase := play_rules_usecase.New(store, parts.All(), inForce)
+	useCase := play_rules_usecase.New(store, inForce)
 	_, _, err := useCase.Execute(t.Context())
 	require.NoError(t, err)
 
-	require.NoError(t, store.Save(t.Context(), rules.Named(rules.Default, func(r *planetv1.Rules) { r.Clicks.Tempo = 3 })))
+	store.Keep(rules.Named(rules.Default, func(r *planetv1.Rules) { r.Clicks.Tempo = 3 }))
 	_, took, err := useCase.Execute(t.Context())
 
 	require.NoError(t, err)
@@ -69,7 +71,7 @@ func TestAChangeOfDefaultIsTakenAtTheNextPlay(t *testing.T) {
 
 func TestAFailedReadKeepsTheRulesInForce(t *testing.T) {
 	store, inForce := keeping(t, rules.Seeded()), &enforced{}
-	useCase := play_rules_usecase.New(store, parts.All(), inForce)
+	useCase := play_rules_usecase.New(store, inForce)
 	_, _, err := useCase.Execute(t.Context())
 	require.NoError(t, err)
 
@@ -83,11 +85,11 @@ func TestAFailedReadKeepsTheRulesInForce(t *testing.T) {
 
 func TestAKeptSetThatCannotPlayKeepsTheRulesInForce(t *testing.T) {
 	store, inForce := keeping(t, rules.Seeded()), &enforced{}
-	useCase := play_rules_usecase.New(store, parts.All(), inForce)
+	useCase := play_rules_usecase.New(store, inForce)
 	_, _, err := useCase.Execute(t.Context())
 	require.NoError(t, err)
 
-	require.NoError(t, store.Save(t.Context(), rules.Named(rules.Default, func(r *planetv1.Rules) { r.Clicks.Burst = 0 })))
+	store.Keep(rules.Named(rules.Default, func(r *planetv1.Rules) { r.Clicks.Burst = 0 }))
 	_, _, err = useCase.Execute(t.Context())
 
 	require.ErrorIs(t, err, rules.ErrInvalidSet)
@@ -97,14 +99,14 @@ func TestAKeptSetThatCannotPlayKeepsTheRulesInForce(t *testing.T) {
 func TestWithNoDefaultNothingPlays(t *testing.T) {
 	inForce := &enforced{}
 
-	_, _, err := play_rules_usecase.New(rules.NewMemoryStore(), parts.All(), inForce).Execute(t.Context())
+	_, _, err := play_rules_usecase.New(rules.NewMemoryStore(parts.All()), inForce).Execute(t.Context())
 
 	require.ErrorIs(t, err, rules.ErrUnknownSet)
 	assert.Empty(t, inForce.sets)
 }
 
 func TestTheSetThatPlaysNowIsTheOneInForce(t *testing.T) {
-	useCase := play_rules_usecase.New(keeping(t, rules.Seeded()), parts.All(), &enforced{})
+	useCase := play_rules_usecase.New(keeping(t, rules.Seeded()), &enforced{})
 	assert.False(t, useCase.Plays(rules.Default), "nothing plays before the first play")
 
 	_, _, err := useCase.Execute(t.Context())

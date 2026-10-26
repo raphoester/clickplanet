@@ -199,10 +199,10 @@ func NewModule(config Config) cpbootstrap.Module {
 				return fmt.Errorf("failed to load the ledger: %w", err)
 			}
 
-			ruleSets := postgres_rule_set_store.New(db)
 			ruleParts := parts.All()
+			ruleSets := postgres_rule_set_store.New(db, ruleParts)
 			inForce := rules.NewInForce(clock)
-			play := play_rules_usecase.New(ruleSets, ruleParts, inForce)
+			play := play_rules_usecase.New(ruleSets, inForce)
 			if _, _, err := log_play_rules.New(play, props.Logger).Execute(ctx); err != nil {
 				closeStores()
 				return fmt.Errorf("failed to play the rules postgres keeps: %w", err)

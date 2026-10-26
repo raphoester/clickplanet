@@ -21,7 +21,7 @@ func (p playing) Plays(name rules.SetName) bool { return name == rules.SetName(p
 var rush = rules.Named("rush", func(r *planetv1.Rules) { r.Clicks.Tempo = 3 })
 
 func TestASetIsKeptAsWritten(t *testing.T) {
-	store := rules.NewMemoryStore()
+	store := rules.NewMemoryStore(parts.All())
 
 	require.NoError(t, save_rule_set_usecase.New(store, parts.All(), playing(rules.Default)).Execute(t.Context(), rush))
 
@@ -31,7 +31,7 @@ func TestASetIsKeptAsWritten(t *testing.T) {
 }
 
 func TestASetThatCannotPlayIsNeverKept(t *testing.T) {
-	store := rules.NewMemoryStore()
+	store := rules.NewMemoryStore(parts.All())
 	broken := rules.Named("rush", func(r *planetv1.Rules) { r.Clicks.Tempo = 0 })
 
 	err := save_rule_set_usecase.New(store, parts.All(), playing(rules.Default)).Execute(t.Context(), broken)
@@ -42,7 +42,7 @@ func TestASetThatCannotPlayIsNeverKept(t *testing.T) {
 }
 
 func TestTheSetThatPlaysNowIsNeverKept(t *testing.T) {
-	store := rules.NewMemoryStore()
+	store := rules.NewMemoryStore(parts.All())
 
 	err := save_rule_set_usecase.New(store, parts.All(), playing(rules.Default)).
 		Execute(t.Context(), rules.Named(rules.Default, func(r *planetv1.Rules) { r.Clicks.Tempo = 3 }))
@@ -53,7 +53,7 @@ func TestTheSetThatPlaysNowIsNeverKept(t *testing.T) {
 }
 
 func TestAStoreThatFailsFailsTheSave(t *testing.T) {
-	store := rules.NewMemoryStore()
+	store := rules.NewMemoryStore(parts.All())
 	store.FailWith(errors.New("postgres is down"))
 
 	err := save_rule_set_usecase.New(store, parts.All(), playing(rules.Default)).Execute(t.Context(), rush)

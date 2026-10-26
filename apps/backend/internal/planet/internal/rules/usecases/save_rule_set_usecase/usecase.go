@@ -11,7 +11,7 @@ import (
 var ErrPlaying = errors.New("this rule set plays now: save the rules under another name, and the schedule plays it")
 
 type Sets interface {
-	Save(ctx context.Context, set rules.Snapshot) error
+	Save(ctx context.Context, set rules.Set) error
 }
 
 type Playing interface {
@@ -39,7 +39,7 @@ func (u *UseCase) Execute(ctx context.Context, in rules.Snapshot) error {
 		return fmt.Errorf("cannot keep the rule set %q: %w", in.Name, ErrPlaying)
 	}
 
-	if err := u.sets.Save(ctx, set.TakeSnapshot()); err != nil {
+	if err := u.sets.Save(ctx, set); err != nil {
 		return fmt.Errorf("could not keep the rule set %q: %w", in.Name, err)
 	}
 

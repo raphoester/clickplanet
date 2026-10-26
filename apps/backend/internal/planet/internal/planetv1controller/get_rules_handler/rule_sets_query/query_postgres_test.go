@@ -11,18 +11,21 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_rules_handler/rule_sets_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/parts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/postgres_rule_set_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
 func TestTheSetsComeDefaultFirstThenByNameAsKept(t *testing.T) {
 	db := cppg.StartTestServer(t).OpenSchema(t, "planet", migrations.FS)
-	store := postgres_rule_set_store.New(db)
 	rush := rules.Named("rush", func(r *planetv1.Rules) { r.Clicks.Tempo = 3 })
-	broken := rules.Named("calm", func(r *planetv1.Rules) { r.Clicks.Burst = 0 })
-	for _, kept := range []rules.Snapshot{rush, broken} {
-		require.NoError(t, store.Save(t.Context(), kept))
-	}
+	set, err := rush.Restore(parts.All())
+	require.NoError(t, err)
+	require.NoError(t, postgres_rule_set_store.New(db, parts.All()).Save(t.Context(), set))
+	_, err = db.On(t.Context()).ExecContext(t.Context(), `
+		INSERT INTO rule_sets (name, rules)
+		SELECT 'calm', jsonb_set(rules, '{clicks,burst}', '0') FROM rule_sets WHERE name = 'default'`)
+	require.NoError(t, err)
 
 	sets, err := rule_sets_query.NewPostgresQuery(db).Sets(t.Context())
 	require.NoError(t, err)
