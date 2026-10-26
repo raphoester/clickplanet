@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
 func New(
@@ -47,20 +48,20 @@ type Storage struct {
 
 var _ clicks.TileStorage = (*Storage)(nil)
 
-func (s *Storage) Set(_ context.Context, tile uint32, value string) error {
-	return s.put(clicks.TileUpdate{Tile: tile, Value: value})
+func (s *Storage) Set(ctx context.Context, tile uint32, value string) error {
+	return s.put(clicks.TileUpdate{Tile: tile, Value: value}, holderOf(ctx))
 }
 
-func (s *Storage) Click(_ context.Context, tile uint32, value string) error {
-	return s.put(clicks.TileUpdate{Tile: tile, Value: value, Clicked: true})
+func (s *Storage) Click(ctx context.Context, tile uint32, value string) error {
+	return s.put(clicks.TileUpdate{Tile: tile, Value: value, Clicked: true}, holderOf(ctx))
 }
 
-func (s *Storage) put(update clicks.TileUpdate) error {
+func (s *Storage) put(update clicks.TileUpdate, holder cpsession.AccountID) error {
 	if update.Tile > s.board.last() {
 		return fmt.Errorf("tile %d out of range (max %d)", update.Tile, s.board.last())
 	}
 
-	previous, changed, err := s.set(update.Tile, update.Value)
+	previous, changed, err := s.set(update.Tile, update.Value, holder)
 	if err != nil {
 		return err
 	}
@@ -75,7 +76,7 @@ func (s *Storage) put(update clicks.TileUpdate) error {
 	return nil
 }
 
-func (s *Storage) set(tile uint32, value string) (previous string, changed bool, err error) {
+func (s *Storage) set(tile uint32, value string, holder cpsession.AccountID) (previous string, changed bool, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -89,13 +90,17 @@ func (s *Storage) set(tile uint32, value string) (previous string, changed bool,
 		return "", false, err
 	}
 
-	s.moveLocked(tile, id)
+	held := noHolder
+	if id != unownedCode {
+		held = s.board.holders.intern(holder)
+	}
+	s.moveLocked(tile, id, held)
 
 	return previous, true, nil
 }
 
-func (s *Storage) moveLocked(tile uint32, to uint16) {
-	s.landmasses.moved(tile, s.board.move(tile, to), to)
+func (s *Storage) moveLocked(tile uint32, to uint16, holder uint32) {
+	s.landmasses.moved(tile, s.board.move(tile, to, holder), to)
 }
 
 func (s *Storage) Clear(_ context.Context, blast clicks.Blast) (clicks.Blast, error) {
@@ -117,7 +122,7 @@ func (s *Storage) Clear(_ context.Context, blast clicks.Blast) (clicks.Blast, er
 		}
 		if owner := s.board.ownerOf(tile); owner != "" {
 			owners = append(owners, owner)
-			s.moveLocked(tile, unownedCode)
+			s.moveLocked(tile, unownedCode, noHolder)
 			cleared = append(cleared, tile)
 		}
 	}

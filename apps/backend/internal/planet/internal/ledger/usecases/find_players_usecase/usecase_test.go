@@ -1,7 +1,6 @@
 package find_players_usecase_test
 
 import (
-	"context"
 	"log/slog"
 	"testing"
 	"time"
@@ -9,11 +8,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/find_players_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/refusals"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -27,14 +26,13 @@ type borders map[uint32]string
 
 func (b borders) CountryOf(tile uint32) string { return b[tile] }
 
-type bans map[string]antibot.Sentence
-
-func (b bans) Sentence(_ context.Context, scope, account string) (antibot.Sentence, bool, error) {
-	if sentence, ok := b[account]; ok {
-		return sentence, true, nil
+func refusing(t *testing.T, scope string) refusals.Book {
+	t.Helper()
+	book := refusals.NewBook(refusals.NewMemoryStore(), cptime.NewFixedClock(start))
+	if scope != "" {
+		require.NoError(t, book.Decide(t.Context(), refusals.Caller{Scope: scope}, refusals.Refused(start.Add(time.Hour), start)))
 	}
-	sentence, ok := b[scope]
-	return sentence, ok, nil
+	return book
 }
 
 type countries struct{}
@@ -68,7 +66,7 @@ var israel = borders{1: "il", 2: "il", 3: "il", 4: "il", 5: "jo"}
 
 func TestItListsEveryoneWhoPaintedTheFlagInTheAreaLatestFirst(t *testing.T) {
 	book, current := setup(t)
-	useCase := find_players_usecase.New(book, current, israel, bans{"bot": {Offence: 2, Until: start.Add(time.Hour)}}, countries{})
+	useCase := find_players_usecase.New(book, current, israel, refusing(t, "bot"), countries{})
 
 	out, err := useCase.Execute(t.Context(), find_players_usecase.In{Flag: "ps", Area: "il"})
 	require.NoError(t, err)
@@ -77,7 +75,7 @@ func TestItListsEveryoneWhoPaintedTheFlagInTheAreaLatestFirst(t *testing.T) {
 		{Scope: "covered", Flag: "ps", Takes: 1, FirstAt: start.Add(4 * time.Second), LastAt: start.Add(4 * time.Second)},
 		{
 			Scope: "bot", Flag: "ps", Tiles: 2, Takes: 2, FirstAt: start, LastAt: start.Add(2 * time.Second),
-			Banned: true, BannedUntil: start.Add(time.Hour), Offence: 2,
+			RefusedUntil: start.Add(time.Hour),
 		},
 		{Scope: "player", Flag: "ps", Tiles: 1, Takes: 1, FirstAt: start.Add(time.Second), LastAt: start.Add(time.Second)},
 	}}, out, "a tile outside the area is nobody's, and a tile taken back still counts as a take")
@@ -85,7 +83,7 @@ func TestItListsEveryoneWhoPaintedTheFlagInTheAreaLatestFirst(t *testing.T) {
 
 func TestNoAreaIsTheWholeMapAndTheLimitCuts(t *testing.T) {
 	book, current := setup(t)
-	useCase := find_players_usecase.New(book, current, israel, nil, countries{})
+	useCase := find_players_usecase.New(book, current, israel, refusing(t, ""), countries{})
 
 	out, err := useCase.Execute(t.Context(), find_players_usecase.In{Flag: "ps", Limit: 1})
 	require.NoError(t, err)
@@ -97,7 +95,7 @@ func TestNoAreaIsTheWholeMapAndTheLimitCuts(t *testing.T) {
 
 func TestItRefusesAnUnknownFlagOrArea(t *testing.T) {
 	book, current := setup(t)
-	useCase := find_players_usecase.New(book, current, israel, nil, countries{})
+	useCase := find_players_usecase.New(book, current, israel, refusing(t, ""), countries{})
 
 	_, err := useCase.Execute(t.Context(), find_players_usecase.In{Flag: ""})
 	require.ErrorIs(t, err, clicks.ErrUnknownCountry)

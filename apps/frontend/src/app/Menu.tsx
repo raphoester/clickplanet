@@ -54,6 +54,7 @@ export type YouPlaceProps = {
 
 export type MenuProps = BoardPlaceProps & YouPlaceProps & SettingsPlaceProps & Omit<SharePlaceProps, "stats"> & {
     missions?: MissionsPlaceProps,
+    missionsNews?: number,
     tab?: MenuTab,
     onTab?: (tab: MenuTab) => void,
 }
@@ -66,9 +67,9 @@ export default function Menu(props: MenuProps) {
     const tabsId = useId()
     const picker = usePicker()
 
-    const tabs: {id: MenuTab, label: string}[] = [
+    const tabs: {id: MenuTab, label: string, news?: number}[] = [
         {id: "board", label: "Board"},
-        ...props.missions ? [{id: "missions" as const, label: "Missions"}] : [],
+        ...props.missions ? [{id: "missions" as const, label: "Missions", news: props.missionsNews}] : [],
         ...account.kind === "ready" ? [{id: "you" as const, label: youLabel(account.me.linked.length > 0)}] : [],
         {id: "share", label: "Share"},
         {id: "settings", label: "Settings"},
@@ -107,8 +108,10 @@ export default function Menu(props: MenuProps) {
                                              aria-selected={shown === t.id}
                                              aria-controls={`${tabsId}-panel`}
                                              className={shown === t.id ? "menu-tab menu-tab--on" : "menu-tab"}
+                                             aria-label={t.news ? `${t.label}, ${t.news} new` : undefined}
                                              onClick={() => pickTab(t.id)}>
                         {t.label}
+                        {!!t.news && <span className="chip menu-tab-badge" key={t.news} aria-hidden="true">{t.news}</span>}
                     </button>)}
                 </div>
                 <div className="menu-body"

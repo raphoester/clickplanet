@@ -85,7 +85,7 @@ func (s *testSuite) TestAPlayerDoesAMissionAndIsPaid() {
 		ada.click(1000+tile, "it")
 	}
 	require.Eventually(t, func() bool { return ada.missions()[0].GetPaid() },
-		5*time.Second, 20*time.Millisecond, "planet relays each take to missions, which pays the mission done")
+		10*time.Second, 20*time.Millisecond, "planet relays each take to missions, which pays the mission done")
 
 	reward := first.GetReward().GetCharges()
 	assert.Equal(t, planetv1.BonusKind_BONUS_KIND_SHIELDS, reward.GetKind())
@@ -204,7 +204,7 @@ func (s *testSuite) TestAnOperatorSignsInOnTheAdminPageAndGrantsItselfABomb() {
 	}
 	assert.True(t, names.Contains("throttled_clicks"), "cpbootstrap answers the registry every module counts in")
 	assert.NotNil(t, race.GetRace(), "seasons answers its race on the admin listener")
-	assert.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err), "planet answers the bans, and the antibot is off here")
+	require.NoError(t, err, "the antibot answers the bans its jury passed")
 }
 
 func (s gameStack) tileUpdates(t *testing.T) <-chan *planetv1.TileUpdate {

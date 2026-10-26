@@ -1,20 +1,24 @@
-import {ReactNode} from "react"
-import {Mission, MissionOrder, TileOrder} from "../../backends/missions.ts"
-import {Countries} from "../../domain/countries.ts"
-import {orderOf, timeLeft} from "../../domain/missions.ts"
+import {useEffect} from "react"
+import {Mission} from "../../backends/missions.ts"
+import {timeLeft} from "../../domain/missions.ts"
 import BonusIcon from "../components/BonusIcon.tsx"
-import CountryFlag from "../components/CountryFlag.tsx"
 import {useNow} from "../season/useNow.ts"
+import {partsOf} from "./orderParts.tsx"
 import {MissionsState} from "./useMissions.ts"
 import "./Missions.css"
 
 export type MissionsPlaceProps = {
     state: MissionsState
     onSignIn?: () => void
+    onSeen?: (missions: readonly Mission[]) => void
 }
 
-export default function MissionsPlace({state, onSignIn}: MissionsPlaceProps) {
+export default function MissionsPlace({state, onSignIn, onSeen}: MissionsPlaceProps) {
     const now = useNow()
+
+    useEffect(() => {
+        if (state.kind === "ready") onSeen?.(state.day.missions)
+    }, [state, onSeen])
 
     if (state.kind === "loading") return <p className="missions-text" role="status">Loading…</p>
     if (state.kind === "failed") return <p className="missions-text" role="alert">Your missions could not be loaded.</p>
@@ -52,38 +56,4 @@ function MissionRow({mission, onSignIn}: MissionRowProps) {
                 : <span className="chip mission-done">Done</span>)}
         </div>
     </li>
-}
-
-type OrderParts = {
-    line: ReactNode
-    progress: ReactNode
-}
-
-function partsOf(order: MissionOrder): OrderParts {
-    switch (order.kind) {
-        case "takeFor":
-        case "takeFrom":
-        case "takeIn":
-            return tilePartsOf(order)
-    }
-}
-
-function tilePartsOf(order: TileOrder): OrderParts {
-    const country = Countries.get(order.country)
-    const reached = Math.min(order.taken, order.goal)
-
-    return {
-        line: <>{orderOf(order)} <CountryFlag code={order.country}/> {country?.name ?? order.country}</>,
-        progress: <>
-            <div className="mission-bar"
-                 role="progressbar"
-                 aria-valuemin={0}
-                 aria-valuemax={order.goal}
-                 aria-valuenow={reached}
-                 aria-label={orderOf(order)}>
-                <div className="mission-bar-filled" style={{width: `${reached / order.goal * 100}%`}}/>
-            </div>
-            <span className="mission-count">{reached}/{order.goal}</span>
-        </>,
-    }
 }

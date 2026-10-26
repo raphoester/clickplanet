@@ -1,8 +1,8 @@
-import {PlanetAdmin} from "../clients.ts"
+import {AntibotAdmin} from "../clients.ts"
 import {ConfirmAction} from "../components/ConfirmAction.tsx"
 import {clockOf} from "../components/time.ts"
 import {When} from "../components/When.tsx"
-import {Conviction} from "../gen/grpc/planet/v1/admin_pb.ts"
+import {Conviction} from "../gen/grpc/antibot/v1/admin_pb.ts"
 import {wholeOf} from "../home/activity.ts"
 import {useOpenPlayer} from "../navigation.ts"
 import {Authors, refusalOf, unban, unbannedWords} from "../players/actions.ts"
@@ -10,10 +10,10 @@ import {Caller} from "../players/caller.ts"
 import {spanOf} from "../players/durations.ts"
 import {PlayerName} from "../players/PlayerName.tsx"
 
-type Props = {planet: PlanetAdmin, convictions: Conviction[], authors: Authors, unnamed: string | undefined}
+type Props = {antibot: AntibotAdmin, convictions: Conviction[], authors: Authors, unnamed: string | undefined}
 
 // The jury's bans of the span, the latest first.
-export function BanList({planet, convictions, authors, unnamed}: Props) {
+export function BanList({antibot, convictions, authors, unnamed}: Props) {
     return (
         <section className="panel" aria-label="Bans">
             <div className="panel-head">
@@ -25,7 +25,7 @@ export function BanList({planet, convictions, authors, unnamed}: Props) {
             {convictions.length > 0 && (
                 <ul className="cards">
                     {[...convictions].reverse().map(conviction => (
-                        <BanCard key={keyOf(conviction)} planet={planet} conviction={conviction} authors={authors}/>
+                        <BanCard key={keyOf(conviction)} antibot={antibot} conviction={conviction} authors={authors}/>
                     ))}
                 </ul>
             )}
@@ -37,9 +37,9 @@ function keyOf(conviction: Conviction): string {
     return `${conviction.at?.toDate().getTime() ?? 0}-${conviction.scope}-${conviction.accountId}`
 }
 
-type CardProps = {planet: PlanetAdmin, conviction: Conviction, authors: Authors}
+type CardProps = {antibot: AntibotAdmin, conviction: Conviction, authors: Authors}
 
-function BanCard({planet, conviction, authors}: CardProps) {
+function BanCard({antibot, conviction, authors}: CardProps) {
     const openPlayer = useOpenPlayer()
     const name = authors.get(conviction.accountId)?.name ?? ""
     const fired = conviction.readings.filter(reading => reading.level !== "clear")
@@ -78,23 +78,23 @@ function BanCard({planet, conviction, authors}: CardProps) {
                     </button>
                 )}
                 {conviction.accountId !== "" && (
-                    <UnbanButton planet={planet} label="Unban account" caller={{accountId: conviction.accountId}}
+                    <UnbanButton antibot={antibot} label="Unban account" caller={{accountId: conviction.accountId}}
                                  who={name === "" ? "this account" : name}/>
                 )}
-                <UnbanButton planet={planet} label="Unban address" caller={{scope: conviction.scope}} who={conviction.scope}/>
+                <UnbanButton antibot={antibot} label="Unban address" caller={{scope: conviction.scope}} who={conviction.scope}/>
             </div>
         </li>
     )
 }
 
-type UnbanProps = {planet: PlanetAdmin, label: string, caller: Caller, who: string}
+type UnbanProps = {antibot: AntibotAdmin, label: string, caller: Caller, who: string}
 
-function UnbanButton({planet, label, caller, who}: UnbanProps) {
+function UnbanButton({antibot, label, caller, who}: UnbanProps) {
     return (
         <ConfirmAction
             label={label}
             question={`Lift the latest ban of ${who} and forget its offence?`}
-            run={() => unban(planet, caller)}
+            run={() => unban(antibot, caller)}
             said={unbannedWords}
             refusal={err => refusalOf("unban", err)}
         />

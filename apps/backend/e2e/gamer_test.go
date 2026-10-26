@@ -13,6 +13,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	antibotv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1"
+	"github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1/antibotv1connect"
 	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1/authv1connect"
 	chatv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
@@ -422,8 +424,8 @@ func (p *gamer) battleFromThePage() (*metricsv1.GetMetricsResponse, *seasonsv1.G
 	raced, err := seasonsv1connect.NewAdminServiceClient(http.DefaultClient, p.stack.adminURL).GetRace(p.t.Context(), race)
 	require.NoError(p.t, err)
 
-	bans := connect.NewRequest(&planetv1.ListConvictionsRequest{Since: timestamppb.New(time.Now().Add(-time.Hour))})
+	bans := connect.NewRequest(&antibotv1.ListConvictionsRequest{Since: timestamppb.New(time.Now().Add(-time.Hour))})
 	p.fromThePage(bans.Header())
-	_, err = planetv1connect.NewAdminServiceClient(http.DefaultClient, p.stack.adminURL).ListConvictions(p.t.Context(), bans)
+	_, err = antibotv1connect.NewAdminServiceClient(http.DefaultClient, p.stack.adminURL).ListConvictions(p.t.Context(), bans)
 	return counted.Msg, raced.Msg, err //nolint:wrapcheck // the tests read the connect code.
 }

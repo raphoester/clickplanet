@@ -21,6 +21,13 @@ export default function BonusAward({reward, onDone, kept = false}: BonusAwardPro
 }
 
 function PassingAward({reward, onDone}: BonusAwardProps) {
+    usePassing(onDone, reward)
+
+    return <AwardCard reward={reward}/>
+}
+
+// A passing card goes by itself after AWARD_MS, or at a tap once it had time to be seen.
+export function usePassing(onDone: () => void, shown: unknown) {
     const done = useRef(onDone)
     useEffect(() => {
         done.current = onDone
@@ -39,9 +46,7 @@ function PassingAward({reward, onDone}: BonusAwardProps) {
             clearTimeout(timer)
             window.removeEventListener("pointerdown", dismiss, true)
         }
-    }, [reward])
-
-    return <AwardCard reward={reward}/>
+    }, [shown])
 }
 
 function KeptAward({reward, onDone}: BonusAwardProps) {

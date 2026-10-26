@@ -10,6 +10,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/bans"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/convictions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -24,7 +25,7 @@ func (s *saying) Committed(detect.Click)                               {}
 func (s *saying) Watch(detect.Click) (detect.Verdict, detect.Evidence) { return s.verdict, s.evidence }
 
 func newJury(clock cptime.Clock, hooks Hooks, watchdog detect.Watchdog) *Jury {
-	banner := bans.NewBook(bans.Config{Enforce: true}, 72*time.Hour, clock, bans.NewMemoryStore(), bans.NewMemoryStore())
+	banner := bans.NewBook(bans.Config{Enforce: true}, 72*time.Hour, clock, bans.NewMemoryStore(), bans.NewMemoryStore(), cpatomic.FakeTransactioner{}, &bans.MemoryEnforcer{})
 	return New(Config{TrackWindow: time.Hour}, banner, convictions.NewMemoryStore(), clock, hooks, watchdog)
 }
 
@@ -96,7 +97,7 @@ func TestAReadingOfTurnsStillCountsForNothingAfterARestart(t *testing.T) {
 	require.NoError(t, restarted.Load(data))
 
 	assert.True(t, restarted.callers["caller"].opinions["saying"].Evidence.Turns)
-	assert.Zero(t, restarted.Examine("caller").Suspects)
+	assert.Zero(t, restarted.Examine("caller", "").Suspects)
 }
 
 func TestForgetDropsSilentCallersAndOldOpinions(t *testing.T) {
@@ -111,4 +112,22 @@ func TestForgetDropsSilentCallersAndOldOpinions(t *testing.T) {
 
 	require.Len(t, j.callers, 1)
 	assert.Contains(t, j.callers, "active")
+}
+
+func TestWhereEachAccountClickedLastSurvivesASaveAndLoad(t *testing.T) {
+	clock := cptime.NewFixedClock(time.Date(2026, 10, 26, 12, 0, 0, 0, time.UTC))
+	j := newJury(clock, Hooks{}, &saying{verdict: detect.Clear})
+	inspect(t, j, detect.Click{Scope: "old", Account: "gone", Tile: 1, Country: "FR", At: clock.Now()})
+	clock.Advance(time.Hour)
+	inspect(t, j, detect.Click{Scope: "home", Account: "player", Tile: 1, Country: "FR", At: clock.Now()})
+
+	data, err := j.Accounts().Save()
+	require.NoError(t, err)
+
+	restarted := newJury(clock, Hooks{}, &saying{verdict: detect.Clear})
+	require.NoError(t, restarted.Accounts().Load(data))
+	restarted.Accounts().Forget(clock.Now().Add(-time.Minute))
+
+	assert.Equal(t, "home", restarted.Examine("", "player").Scope)
+	assert.Empty(t, restarted.Examine("", "gone").Scope, "a sighting past the retention is forgotten")
 }

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
@@ -22,7 +21,6 @@ type Config struct {
 	RateLimiter  clicks.ThrottleConfig
 	Toll         clicks.TollConfig
 	VPNBlocklist cpipblock.Config
-	AntiBot      antibot.Config
 	Bonus        bonuses.Config
 
 	Ledger        ledger.Config
@@ -55,5 +53,5 @@ func (c Config) Validate() error {
 		return err
 	}
 
-	return errors.Join(c.RateLimiter.Validate(), c.Bonus.Validate(), c.AntiBot.Validate())
+	return errors.Join(c.RateLimiter.Validate(), c.Bonus.Validate())
 }

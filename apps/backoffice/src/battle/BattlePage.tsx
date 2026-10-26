@@ -1,10 +1,10 @@
 import {Timestamp} from "@bufbuild/protobuf"
 import {Code, ConnectError} from "@connectrpc/connect"
 import {useCallback, useMemo, useRef, useState} from "react"
-import {Clients, CLIENTS, PlanetAdmin, PlayerAdmin} from "../clients.ts"
+import {AntibotAdmin, Clients, CLIENTS, PlayerAdmin} from "../clients.ts"
 import {FailureNotice} from "../components/FailureNotice.tsx"
 import {clockOf} from "../components/time.ts"
-import {Conviction} from "../gen/grpc/planet/v1/admin_pb.ts"
+import {Conviction} from "../gen/grpc/antibot/v1/admin_pb.ts"
 import {wholeOf} from "../home/activity.ts"
 import {Ledger, readOn, slotsOf, windowOf} from "../home/ledger.ts"
 import {Tile} from "../home/HomePage.tsx"
@@ -60,7 +60,7 @@ export function BattlePage({clients = CLIENTS}: Props) {
         return samples.current
     }, [clients, span])
     const readBans = useCallback(
-        (signal: AbortSignal) => bansOf(clients.planet, clients.player, span, signal),
+        (signal: AbortSignal) => bansOf(clients.antibot, clients.player, span, signal),
         [clients, span],
     )
     const readRace = useCallback(
@@ -135,7 +135,7 @@ export function BattlePage({clients = CLIENTS}: Props) {
             <Failed polled={bans} onRetry={readBansAgain}/>
             {bans.value?.off === true && <p className="notice">{ANTIBOT_OFF}</p>}
             {bans.value?.off === false && (
-                <BanList planet={clients.planet} convictions={bans.value.convictions}
+                <BanList antibot={clients.antibot} convictions={bans.value.convictions}
                          authors={bans.value.authors} unnamed={bans.value.unnamed}/>
             )}
 
@@ -200,13 +200,13 @@ export function BattlePage({clients = CLIENTS}: Props) {
 
 type Bans = {convictions: Conviction[], off: boolean} & Named
 
-async function bansOf(planet: PlanetAdmin, player: PlayerAdmin, span: Span, signal: AbortSignal): Promise<Bans> {
+async function bansOf(antibot: AntibotAdmin, player: PlayerAdmin, span: Span, signal: AbortSignal): Promise<Bans> {
     const since = Timestamp.fromDate(new Date(Date.now() - span.hours * 3600_000))
     let convictions: Conviction[]
     try {
-        convictions = (await planet.listConvictions({since}, {signal})).convictions
+        convictions = (await antibot.listConvictions({since}, {signal})).convictions
     } catch (err) {
-        if (ConnectError.from(err).code !== Code.FailedPrecondition) throw err
+        if (ConnectError.from(err).code !== Code.Unimplemented) throw err
         return {convictions: [], off: true, authors: new Map(), unnamed: undefined}
     }
     const accounts = convictions.flatMap(conviction => [conviction.accountId, conviction.alongsideAccountId])

@@ -6,11 +6,11 @@ Every read refreshes every 15 seconds (`REFRESH_MS`, `usePolling`), never twice 
 answer shown while the next is read. A span is picked above: 30 minutes, 1 hour, 2 hours (first) or 3 hours, in
 minutes.
 
-- **Bans** (`BanList`): `planet.v1.AdminService/ListConvictions` over the span, the latest first. Each ban names its
+- **Bans** (`BanList`): `antibot.v1.AdminService/ListConvictions` over the span, the latest first. Each ban names its
   player (`namesOf`, its flag the country it clicked for most), the watchdogs that fired with their evidence (a
   watchdog that read clear is no reason, and is left out), its offence and end, who it fell with (`alongside`), and
   its clicks. **Open player** opens it on the player page; **Unban account** and **Unban address** lift each key apart,
-  since a guest the jury banned is banned on both. The antibot off says so, not "nobody".
+  since a guest the jury banned is banned on both. The antibot off (`Unimplemented`, its module not built) says so, not "nobody".
 - **Clicks a minute** come from the ledger, read on as Home reads it (`readOn` in `home/ledger.ts`, see
   [The home page](home.md)): the first read takes the span, each next one from a minute before the end of the last,
   every page of it. Then `slotsOf`, as on Home, in minutes.
@@ -18,7 +18,8 @@ minutes.
   history starts when the page opens**: the counters are in process, so the page keeps its own answers for the span
   (`keptSamples`) and subtracts them, spread over the minutes between two reads (`perSlotOf`); a restart (another
   `started_at`) counts from zero. **A reason is every counter named `<reason>_clicks`** (`reasonsOf`): throttled,
-  banned, blocked, then any new one, frozen first, with no change here. The tile is the last minute's rate
+  banned (`refused_clicks`: the callers the antibot told planet to refuse), blocked, then any new one, frozen first,
+  with no change here. The tile is the last minute's rate
   (`lastMinuteOf`) and its share of every click the counters saw.
 - **The two charts** (`MinuteChart`) share one hover and one scale each: clicks alone, then one line a reason, in the
   palette's slots from the second on (`--series-2` to `--series-5`), with a legend and a table. A minute no two reads

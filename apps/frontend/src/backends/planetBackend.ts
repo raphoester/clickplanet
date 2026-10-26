@@ -24,6 +24,8 @@ import {
     ShieldRefusedError,
     SpreadClick,
     TileClicker,
+    LandmassReader,
+    LandmassState,
     TileHolder,
     TileHolders,
     Update,
@@ -63,7 +65,7 @@ export function newClickServiceClient(config: Config): PromiseClient<typeof Clic
     }))
 }
 
-export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller, Shielder, AllegianceSource, ChargesRefresher, TileHolders {
+export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller, Shielder, AllegianceSource, ChargesRefresher, TileHolders, LandmassReader {
     private pendingUpdates: Update[] = []
     private readonly updateBatchCallbacks = new Map<string, (updates: Update[]) => void>()
     private readonly updateCallbacks = new Map<string, (update: Update) => void>()
@@ -274,6 +276,14 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         const {holder} = await this.client.getTileHolder({tileId: tile}, {signal})
         if (!holder) return undefined
         return {accountId: holder.accountId, countryCode: holder.countryId, takenAt: Number(holder.takenAtUnixMs)}
+    }
+
+    public async landmass(landmass: number, signal?: AbortSignal): Promise<LandmassState> {
+        const {holders, lastFortification: last} = await this.client.getLandmass({landmassId: landmass}, {signal})
+        return {
+            holders: holders.map(({accountId, countryId, tiles}) => ({accountId, countryCode: countryId, tiles})),
+            lastFortification: last && {accountId: last.accountId, countryCode: last.countryId, at: Number(last.fortifiedAtUnixMs)},
+        }
     }
 
     private openEventStream(): () => void {

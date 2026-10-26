@@ -12,6 +12,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/convictions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/jury"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -63,7 +64,7 @@ func newHarness(t *testing.T, config jury.Config, ban bans.Config, watchdogs ...
 		convictions: convictions.NewMemoryStore(),
 	}
 
-	h.banner = bans.NewBook(ban, pardon, h.clock, bans.NewMemoryStore(), bans.NewMemoryStore())
+	h.banner = bans.NewBook(ban, pardon, h.clock, bans.NewMemoryStore(), bans.NewMemoryStore(), cpatomic.FakeTransactioner{}, &bans.MemoryEnforcer{})
 	h.jury = jury.New(config, h.banner, h.convictions, h.clock, jury.Hooks{
 		OnFlag: func(report detect.Report) {
 			h.reports = append(h.reports, report)
@@ -163,7 +164,7 @@ func TestTwoReadingsOfZealAreOneSuspect(t *testing.T) {
 	assert.False(t, h.click(), "a person who plays hard reads both")
 	assert.Empty(t, h.reports)
 
-	examination := h.jury.Examine("caller")
+	examination := h.jury.Examine("caller", "")
 	assert.Equal(t, 1, examination.Suspects)
 	assert.False(t, examination.Guilty)
 }
@@ -189,7 +190,7 @@ func TestAReadingOfTurnsNeverCounts(t *testing.T) {
 	assert.False(t, h.click(), "at any level")
 	assert.Empty(t, h.reports)
 
-	examination := h.jury.Examine("caller")
+	examination := h.jury.Examine("caller", "")
 	assert.Equal(t, "certain", examination.Readings[0].Level, "it still reads")
 	assert.Equal(t, 1, examination.Suspects)
 	assert.False(t, examination.Guilty)
@@ -362,7 +363,7 @@ func TestExaminingAnUnknownCallerListsEveryWatchdogAsClear(t *testing.T) {
 		&stubWatchdog{name: "second", verdict: detect.Suspect},
 	)
 
-	examination := h.jury.Examine("stranger")
+	examination := h.jury.Examine("stranger", "")
 
 	assert.False(t, examination.Tracked)
 	assert.False(t, examination.Guilty)
@@ -384,7 +385,7 @@ func TestExaminingSaysHowCloseACallerIsAndChangesNothing(t *testing.T) {
 	require.False(t, h.click())
 	last := first.Add(time.Second)
 
-	examination := h.jury.Examine("caller")
+	examination := h.jury.Examine("caller", "")
 
 	assert.Equal(t, detect.Examination{
 		Scope:   "caller",
@@ -416,7 +417,7 @@ func TestExaminingWithTwoSuspectsReadsGuiltyWithoutBanning(t *testing.T) {
 
 	require.True(t, h.click())
 
-	examination := h.jury.Examine("caller")
+	examination := h.jury.Examine("caller", "")
 
 	assert.True(t, examination.Guilty)
 	assert.Equal(t, 2, examination.Suspects)
@@ -432,7 +433,7 @@ func TestExaminingAgesASuspicionPastTheWindow(t *testing.T) {
 	require.True(t, h.click())
 	h.clock.Advance(11 * time.Minute)
 
-	examination := h.jury.Examine("caller")
+	examination := h.jury.Examine("caller", "")
 
 	assert.False(t, examination.Guilty)
 	assert.Zero(t, examination.Suspects)
@@ -657,13 +658,31 @@ func TestAFlagThatCannotBeKeptIsReported(t *testing.T) {
 	cause := errors.New("postgres is down")
 	store.FailWith(cause)
 
-	j := jury.New(juryConfig(), bans.NewBook(banConfig(), pardon, clock, store, store), convictions.NewMemoryStore(), clock,
-		jury.Hooks{},
-		&stubWatchdog{name: "sure", verdict: detect.Certain})
+	j := jury.New(juryConfig(), bans.NewBook(banConfig(), pardon, clock, store, store, cpatomic.FakeTransactioner{}, &bans.MemoryEnforcer{}),
+		convictions.NewMemoryStore(), clock, jury.Hooks{}, &stubWatchdog{name: "sure", verdict: detect.Certain})
 
 	err := j.Inspect(t.Context(), detect.Click{Scope: "caller", Tile: 1, Country: "FR", At: clock.Now()})
 
 	require.ErrorIs(t, err, cause)
+}
+
+func TestAnAccountIsExaminedOnTheScopeItClickedFromLast(t *testing.T) {
+	h := newHarness(t, juryConfig(), banConfig(), &stubWatchdog{name: "reader", verdict: detect.Suspect})
+
+	h.inspect(detect.Click{Scope: "home", Account: "player", Tile: 1, Country: "FR", At: h.clock.Now()})
+	h.clock.Advance(time.Minute)
+	h.inspect(detect.Click{Scope: "phone", Account: "player", Tile: 2, Country: "FR", At: h.clock.Now()})
+
+	examination := h.jury.Examine("", "player")
+
+	assert.Equal(t, "phone", examination.Scope)
+	assert.Equal(t, "player", examination.Account)
+	assert.True(t, examination.Tracked)
+	assert.Equal(t, 1, examination.Clicks, "the watchdogs judge the scope, not the account")
+
+	stranger := h.jury.Examine("", "stranger")
+	assert.Empty(t, stranger.Scope)
+	assert.False(t, stranger.Tracked)
 }
 
 func TestEveryBanTheJuryPassesIsKeptAsItIsReported(t *testing.T) {

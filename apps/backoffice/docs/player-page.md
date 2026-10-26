@@ -37,8 +37,12 @@ address over IPv4, the /64 over IPv6) and checks.
   messages by its account id, the chat around each, three conversations at a time. Its lines are marked
   (`line-theirs`), and no line is tagged: there is no report. An address has no messages, since the chat keeps them
   by account, and is not asked.
-- **The page inspects on open** (`InspectPlayer`): the antibot's readings, its ban, its pardon and its clicks. The antibot off
-  reads as such, not as a failure. A ban or an unban reads it again.
+- **The page inspects on open** (`antibot.v1.AdminService/InspectPlayer`): the antibot's readings, its ban, its pardon
+  and its clicks. The antibot off (its service absent, `unimplemented`) reads as such, not as a failure. A ban or an
+  unban reads it again.
+- **The ban tools are the antibot's** (`antibot.v1.AdminService`, the `antibot` client), since the antibot became a
+  module of its own; `planet.v1` keeps the three calls for a deploy, answered by the antibot, then drops them. A ban
+  reaches planet a moment after its answer.
 - **The tools**: ban (`BanPlayer`, the ladder's next step by default), unban (`UnbanPlayer`, which forgets the
   latest offence and pardons the key, and says until when; `not_found` is no ban left), revert (`RevertPlayer`, dry run first), and for an account alone
   mute (`Mute`) and charges (`GrantCharges`: a refill, a bomb, enclosures, spread clicks, shields; the answer

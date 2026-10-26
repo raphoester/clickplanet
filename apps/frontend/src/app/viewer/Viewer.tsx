@@ -12,6 +12,7 @@ import {
     Shielder,
     TileClicker,
     TileHolders,
+    LandmassReader,
     UpdatesListener,
 } from "../../backends/backend.ts";
 import BombNews from "../components/BombNews.tsx";
@@ -63,6 +64,7 @@ import PlayerCard from "../players/PlayerCard.tsx";
 import HolderCard from "../players/HolderCard.tsx";
 import TerritoryCard from "../territory/TerritoryCard.tsx";
 import {useTerritoryCard} from "../territory/useTerritoryCard.ts";
+import {useTerritoryPlayers} from "../territory/useTerritoryPlayers.ts";
 import {useTileHolder} from "../players/useTileHolder.ts";
 import TitleUnlocked from "../titles/TitleUnlocked.tsx";
 import {usePresence} from "../players/usePresence.ts";
@@ -78,8 +80,10 @@ import StatusBar from "../hud/StatusBar.tsx";
 import TabBar from "../hud/TabBar.tsx";
 import MissionsPlace, {MissionsPlaceProps} from "../missions/MissionsPlace.tsx";
 import {useMissions} from "../missions/useMissions.ts";
-import {MissionsBackend} from "../../backends/missions.ts";
-import {awardOf, waiting} from "../../domain/missions.ts";
+import {Mission, MissionsBackend} from "../../backends/missions.ts";
+import {unseen} from "../../domain/missions.ts";
+import MissionsDone from "../missions/MissionsDone.tsx";
+import {useSeenMissions} from "../missions/useSeenMissions.ts";
 import {usePaidMissions} from "../missions/usePaidMissions.ts";
 import {StandingsBackend} from "../../backends/standings.ts";
 import {SupportBackend} from "../../backends/support.ts";
@@ -119,6 +123,7 @@ export type ViewerProps = {
     presence?: PresenceBackend
     playerInfo?: PlayerInfoBackend
     tileHolders?: TileHolders
+    landmasses?: LandmassReader
     season?: SeasonBackend
     standings?: StandingsBackend
     support?: SupportBackend
@@ -199,7 +204,6 @@ export default function Viewer(props: ViewerProps) {
         dismissSessionUnavailable,
         lockedOut,
         award,
-        showAward,
         dismissAward,
         charges,
         rules,
@@ -237,6 +241,7 @@ export default function Viewer(props: ViewerProps) {
 
     const tileHolder = useTileHolder(props.tileHolders, props.playerInfo, pointing, ownAccountId)
     const territoryCard = useTerritoryCard(pointingTerritory, territoryOf, showTerritory)
+    const territoryPlayers = useTerritoryPlayers(props.landmasses, props.playerInfo, territoryCard.shown?.territory.landmass)
 
     const bonusGuide = useBonusGuide()
 
@@ -303,8 +308,10 @@ export default function Viewer(props: ViewerProps) {
         onGuided: boardGuide.markGuided,
     }
     const missionsState = useMissions(props.missions, allegiance?.countryId, accepted.listenForClicks)
+    const seenMissions = useSeenMissions()
+    const [missionsDone, setMissionsDone] = useState<Mission[]>()
     usePaidMissions(missionsState, (paid) => {
-        if (rules) paid.forEach((mission) => showAward(awardOf(mission.reward, rules)))
+        setMissionsDone(paid)
         const refresh = () => props.chargesRefresher?.refreshCharges().catch((e) => console.error("could not read the charges held", e))
         refresh()
         setTimeout(refresh, GRANT_LANDS_MS)
@@ -312,8 +319,9 @@ export default function Viewer(props: ViewerProps) {
     const missions: MissionsPlaceProps | undefined = props.missions && {
         state: missionsState,
         onSignIn: guest ? openPitch ?? (() => setSheet("you")) : undefined,
+        onSeen: seenMissions.markSeen,
     }
-    const missionsReady = missionsState.kind === "ready" ? waiting(missionsState.day.missions) : 0
+    const missionsNews = missionsState.kind === "ready" ? unseen(missionsState.day.missions, seenMissions.seen) : 0
 
     const you = {
         account: props.account,
@@ -349,6 +357,7 @@ export default function Viewer(props: ViewerProps) {
 
         {ready && !compact && <Menu {...board} {...you} {...share} {...settings}
                                     missions={missions}
+                                    missionsNews={missionsNews}
                                     tab={menuTab}
                                     onTab={setMenuTab}/>}
 
@@ -429,7 +438,7 @@ export default function Viewer(props: ViewerProps) {
                     chat={props.chatBackend !== undefined}
                     unread={unread}
                     you={account.kind === 'ready' ? (linked ? "player" : "guest") : undefined}
-                    missions={missions ? missionsReady : undefined}/>
+                    missions={missions ? missionsNews : undefined}/>
         </>}
 
         {shot && <SharePreview shot={shot}
@@ -454,6 +463,11 @@ export default function Viewer(props: ViewerProps) {
         {territoryCard.shown && <TerritoryCard key={`territory-${territoryCard.shown.id}`}
                                                shown={territoryCard.shown}
                                                flag={countryState.code}
+                                               players={territoryPlayers}
+                                               onOpenPlayer={onOpenPlayer && ((player) => {
+                                                   territoryCard.dismiss()
+                                                   onOpenPlayer(player)
+                                               })}
                                                onHold={territoryCard.hold}
                                                onClose={territoryCard.dismiss}/>}
 
@@ -474,6 +488,10 @@ export default function Viewer(props: ViewerProps) {
                                                                          countryCode={countryState.code}
                                                                          play={sound.play}
                                                                          onClose={reveal.dismiss}/>}
+
+        {missionsDone && rules && <MissionsDone missions={missionsDone}
+                                                rules={rules}
+                                                onDone={() => setMissionsDone(undefined)}/>}
 
         {award && <BonusAward reward={award}
                               kept={isFirstWin(bonusGuide.guide, award.kind)}

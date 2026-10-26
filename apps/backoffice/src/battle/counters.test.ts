@@ -10,6 +10,7 @@ import {
     named,
     nowOf,
     perSlotOf,
+    reasonLabelOf,
     reasonsOf,
     refused,
     Sample,
@@ -66,7 +67,8 @@ describe("the counters of the process", () => {
         read.metrics.push(new Metric({name: "frozen_clicks", value: {case: "counter", value: 1}}))
         read.metrics.push(new Metric({name: "allegiance_clicks", value: {case: "counter", value: 1}}))
 
-        expect(reasonsOf([read])).toEqual(["throttled_clicks", "banned_clicks", "blocked_clicks", "frozen_clicks", "allegiance_clicks"])
+        expect(reasonsOf([read])).toEqual(["throttled_clicks", "refused_clicks", "blocked_clicks", "frozen_clicks", "allegiance_clicks"])
+        expect(reasonsOf([read]).map(reasonLabelOf)).toEqual(["throttled", "banned", "blocked", "frozen", "allegiance"])
     })
 
     it("reads how many boxes were caught within a bound between the first read and the last", () => {

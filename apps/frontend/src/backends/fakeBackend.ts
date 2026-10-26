@@ -22,6 +22,10 @@ import {
     Shielder,
     ShieldRefusedError,
     TileClicker,
+    LandmassFortification,
+    LandmassHolder,
+    LandmassReader,
+    LandmassState,
     TileHolder,
     TileHolders,
     Update,
@@ -109,9 +113,10 @@ export type FakeBackendOptions = {
     landmasses?: () => Promise<{assignment: Uint16Array, count: number}>
 }
 
-export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller, Shielder, AllegianceSource, ChargesRefresher, TileHolders {
+export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller, Shielder, AllegianceSource, ChargesRefresher, TileHolders, LandmassReader {
     private tileBindings: Map<number, string> = new Map()
     private holders: Map<number, TileHolder> = new Map()
+    private readonly fortifications = new Map<number, LandmassFortification>()
     private tileCounts: Map<string, number> = new Map()
     private budgetCountry = ""
     private updateListeners: Map<string, (update: Update) => void> = new Map()
@@ -465,6 +470,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         for (const member of fortified.tiles) {
             this.shields.set(member, Math.min((this.shields.get(member) ?? 0) + 1, TILE_SHIELDS))
         }
+        this.fortifications.set(fortified.landmass, {accountId: this.holders.get(tile)?.accountId ?? "", countryCode: countryId, at: Date.now()})
         this.flushUpdates()
         this.fortificationCallbacks.forEach((callback) => callback({landmass: fortified.landmass, countryId, tile}))
     }
@@ -708,6 +714,20 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         const id = UUIDv4()
         this.fortificationCallbacks.set(id, callback)
         return () => this.fortificationCallbacks.delete(id)
+    }
+
+    public async landmass(landmass: number): Promise<LandmassState> {
+        const held = new Map<string, LandmassHolder>()
+        for (const tile of this.fortresses?.tilesOf(landmass) ?? []) {
+            const holder = this.holders.get(tile)
+            if (!holder?.accountId || this.tileBindings.get(tile) !== holder.countryCode) continue
+            const key = `${holder.accountId} ${holder.countryCode}`
+            const holding = held.get(key) ?? {accountId: holder.accountId, countryCode: holder.countryCode, tiles: 0}
+            holding.tiles++
+            held.set(key, holding)
+        }
+        const holders = [...held.values()].sort((a, b) => b.tiles - a.tiles || a.accountId.localeCompare(b.accountId))
+        return {holders, lastFortification: this.fortifications.get(landmass)}
     }
 
     public async tileHolder(tile: number): Promise<TileHolder | undefined> {

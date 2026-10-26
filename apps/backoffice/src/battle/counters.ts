@@ -123,7 +123,9 @@ function countUnder(histogram: Histogram, bound: number): number {
 }
 
 // The reasons a click was refused for: every counter named `<reason>_clicks`, the known ones first in their order.
-const KNOWN_REASONS = ["throttled_clicks", "banned_clicks", "blocked_clicks", "frozen_clicks"]
+const KNOWN_REASONS = ["throttled_clicks", "refused_clicks", "blocked_clicks", "frozen_clicks"]
+// The callers planet refuses are the ones the antibot banned.
+const LABELS: Record<string, string> = {refused_clicks: "banned"}
 
 export function reasonsOf(samples: Sample[]): string[] {
     const names = new Set<string>()
@@ -136,7 +138,7 @@ export function reasonsOf(samples: Sample[]): string[] {
 }
 
 export function reasonLabelOf(name: string): string {
-    return name.replace(/_clicks$/, "")
+    return LABELS[name] ?? name.replace(/_clicks$/, "")
 }
 
 export function refused(metric: Metric): boolean {

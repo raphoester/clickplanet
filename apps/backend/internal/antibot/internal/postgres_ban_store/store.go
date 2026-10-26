@@ -30,7 +30,16 @@ func NewScopes(db cppg.Conn) *Store {
 			) p ON true
 			WHERE b.scope = $1
 		`,
-		running: `SELECT count(*) FROM bans WHERE expires_at > $1`,
+		running: `
+			SELECT b.scope, b.flags, b.offences, b.expires_at, b.last_flagged_at,
+				p.pardoned_at, p.flags, p.offence, p.banned_until, p.expires_at
+			FROM bans b
+			LEFT JOIN LATERAL (
+				SELECT pardoned_at, flags, offence, banned_until, expires_at FROM pardons
+				WHERE pardons.scope = b.scope ORDER BY pardoned_at DESC LIMIT 1
+			) p ON true
+			WHERE b.expires_at > $1
+		`,
 		save: `
 			INSERT INTO bans (scope, flags, offences, expires_at, last_flagged_at) VALUES ($1, $2, $3, $4, $5)
 			ON CONFLICT (scope) DO UPDATE SET
@@ -62,7 +71,16 @@ func NewAccounts(db cppg.Conn) *Store {
 			) p ON true
 			WHERE b.account = $1
 		`,
-		running: `SELECT count(*) FROM account_bans WHERE expires_at > $1`,
+		running: `
+			SELECT b.account::text, b.flags, b.offences, b.expires_at, b.last_flagged_at,
+				p.pardoned_at, p.flags, p.offence, p.banned_until, p.expires_at
+			FROM account_bans b
+			LEFT JOIN LATERAL (
+				SELECT pardoned_at, flags, offence, banned_until, expires_at FROM account_pardons
+				WHERE account_pardons.account = b.account ORDER BY pardoned_at DESC LIMIT 1
+			) p ON true
+			WHERE b.expires_at > $1
+		`,
 		save: `
 			INSERT INTO account_bans (account, flags, offences, expires_at, last_flagged_at) VALUES ($1, $2, $3, $4, $5)
 			ON CONFLICT (account) DO UPDATE SET
@@ -101,22 +119,39 @@ func (s *Store) Record(ctx context.Context, key string) (bans.Record, bool, erro
 }
 
 func (s *Store) recordOf(ctx context.Context, db cppg.Querier, key string) (bans.Record, bool, error) {
-	record := bans.Record{Key: key}
+	record, err := scanRecord(db.QueryRowContext(ctx, s.queries.record, key), &key)
+	if errors.Is(err, sql.ErrNoRows) {
+		return bans.Record{Key: key}, false, nil
+	}
+	if err != nil {
+		return bans.Record{}, false, fmt.Errorf("failed to read the ban: %w", err)
+	}
+	return record, true, nil
+}
 
+type row interface {
+	Scan(dest ...any) error
+}
+
+// A row of the record query names no key: the key it was asked for is handed in.
+func scanRecord(scanned row, key *string) (bans.Record, error) {
 	var (
+		record                               bans.Record
 		flagged                              sql.NullTime
 		pardonedAt, liftedUntil, pardonUntil sql.NullTime
 		liftedFlags, liftedOffence           sql.NullInt64
 	)
-	err := db.QueryRowContext(ctx, s.queries.record, key).Scan(
+	fields := []any{
 		&record.Flags, &record.Offences, &record.ExpiresAt, &flagged,
 		&pardonedAt, &liftedFlags, &liftedOffence, &liftedUntil, &pardonUntil,
-	)
-	if errors.Is(err, sql.ErrNoRows) {
-		return record, false, nil
 	}
-	if err != nil {
-		return bans.Record{}, false, fmt.Errorf("failed to read the ban: %w", err)
+	if key == nil {
+		fields = append([]any{&record.Key}, fields...)
+	} else {
+		record.Key = *key
+	}
+	if err := scanned.Scan(fields...); err != nil {
+		return bans.Record{}, err //nolint:wrapcheck // the caller names the read.
 	}
 
 	record.ExpiresAt = record.ExpiresAt.UTC()
@@ -135,13 +170,26 @@ func (s *Store) recordOf(ctx context.Context, db cppg.Querier, key string) (bans
 		}
 	}
 
-	return record, true, nil
+	return record, nil
 }
 
-func (s *Store) Running(ctx context.Context, now time.Time) (int, error) {
-	var running int
-	if err := s.db.On(ctx).QueryRowContext(ctx, s.queries.running, now).Scan(&running); err != nil {
-		return 0, fmt.Errorf("failed to count the running bans: %w", err)
+func (s *Store) Running(ctx context.Context, now time.Time) ([]bans.Record, error) {
+	rows, err := s.db.On(ctx).QueryContext(ctx, s.queries.running, now)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read the running bans: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var running []bans.Record
+	for rows.Next() {
+		record, err := scanRecord(rows, nil)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read a running ban: %w", err)
+		}
+		running = append(running, record)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to read the running bans: %w", err)
 	}
 	return running, nil
 }

@@ -3,6 +3,9 @@ import {DayMissions, MissionsBackend} from "../../backends/missions.ts"
 import {ListenForClicks} from "../viewer/acceptedClicks.ts"
 import {useReadsAfterClicks} from "../viewer/useAcceptedClicks.ts"
 
+// The backend counts a take a second or two after it answered it: one more read catches it.
+export const FOLLOW_UP_MS = 3_000
+
 export type MissionsState =
     | {kind: "loading"}
     | {kind: "failed"}
@@ -34,6 +37,12 @@ export function useMissions(
             stale = true
         }
     }, [backend, pledged, read, reads])
+
+    useEffect(() => {
+        if (reads === 0) return
+        const again = setTimeout(() => setRead((n) => n + 1), FOLLOW_UP_MS)
+        return () => clearTimeout(again)
+    }, [reads])
 
     useEffect(() => {
         if (endsAt === undefined) return

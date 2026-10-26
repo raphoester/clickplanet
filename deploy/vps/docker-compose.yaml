@@ -120,7 +120,7 @@ services:
           if wget -qO- --timeout=10 http://backend:8080/metrics > /tmp/scrape; then
             # Keep || true: grep exits 1 on no match, and set -e would kill the loop.
             { echo "# $$stamp"
-              grep -E '^(click_reaction_seconds|click_retake_share|click_busy_hours|banned_|ban_flags|antibot_opinions|blocked_clicks|throttled_clicks|click_session_checks|events_)' /tmp/scrape || true
+              grep -E '^(click_reaction_seconds|click_retake_share|click_busy_hours|banned_|refused_clicks|ban_flags|antibot_opinions|blocked_clicks|throttled_clicks|click_session_checks|events_)' /tmp/scrape || true
               echo
             } >> "$$file"
           else

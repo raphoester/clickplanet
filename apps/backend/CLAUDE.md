@@ -21,8 +21,8 @@ and says what is in it. Read the doc before you change its area.
 
 ## How the code is shaped
 
-- [Seven bounded contexts, one process](docs/bounded-contexts.md) — planet, chat, auth, player, seasons, support,
-  missions.
+- [Eight bounded contexts, one process](docs/bounded-contexts.md) — planet, chat, auth, player, seasons, support,
+  missions, antibot.
   A module publishes its root package and hides the rest.
 - [The composite layer](docs/composite-layer.md) — each context wires itself in its `module.go`; how a module
   calls another one, how it tells the others what happened and asks one to change something: Redis Streams,
@@ -58,6 +58,8 @@ and says what is in it. Read the doc before you change its area.
 - [Allegiance](docs/allegiance.md) — an account plays for one flag, and may change it once an hour.
 - [Shields](docs/shields.md) — a charge on a tile; each shield takes one foreign click.
 - [Fortify](docs/fortify.md) — a take that makes a landmass whole gives every tile of it a shield.
+- [Who holds the tiles](docs/tile-holders.md) — each tile keeps the account whose take holds it; `GetLandmass`
+  reads a landmass's holders and its last fortify.
 - [Charges](docs/charges.md) — every bonus is a charge, kept until the player uses it.
 - [Spread](docs/spread.md), [Bomb](docs/bomb.md), [Enclose](docs/enclose.md), [Refill](docs/refill.md) — what
   each charge does to a click or to the bucket.
@@ -70,8 +72,9 @@ and says what is in it. Read the doc before you change its area.
   identity token.
 - [Auth](docs/auth.md) — Turnstile, guest and signed-in accounts (Google, Discord, emailed code), operators,
   sign-out, deletion and pruning.
-- [Anti-bot](docs/antibot.md) — the watchdogs and the jury that ban scripts, how a ban is told and kept with its
-  reasons, what survives a restart, and the parts that are easy to get wrong.
+- [Anti-bot](docs/antibot.md) — a module that hears planet's facts about callers, judges them, and asks planet to
+  refuse the ones it bans; each ban kept with its reasons, what survives a restart, and the parts that are easy to
+  get wrong.
 
 ## The other contexts
 

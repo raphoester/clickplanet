@@ -184,7 +184,7 @@ describe("the battle page", () => {
 
     it("says the antibot is off rather than that it banned nobody", async () => {
         const admin = new FakeAdmin()
-        admin.refuse("listConvictions", Code.FailedPrecondition)
+        admin.refuse("listConvictions", Code.Unimplemented)
         show(admin)
 
         expect(await screen.findByText(ANTIBOT_OFF)).toBeTruthy()

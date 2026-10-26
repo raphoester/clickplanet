@@ -8,7 +8,7 @@ import (
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/planetban"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/planetrefusal"
 )
 
 type UseCase interface {
@@ -33,7 +33,7 @@ func (h DropBombHandler) DropBomb(
 		CountryID: req.Msg.GetCountryId(),
 	})
 
-	if refused, banned := planetban.Refusal(err); banned {
+	if refused, ok := planetrefusal.Refusal(err); ok {
 		return nil, refused
 	}
 

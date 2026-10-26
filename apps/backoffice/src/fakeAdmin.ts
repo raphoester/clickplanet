@@ -16,6 +16,15 @@ import {
     BanPlayerRequest,
     BanPlayerResponse,
     Conviction,
+    InspectPlayerRequest,
+    InspectPlayerResponse,
+    ListConvictionsRequest,
+    ListConvictionsResponse,
+    UnbanPlayerRequest,
+    UnbanPlayerResponse,
+    WatchdogReading,
+} from "./gen/grpc/antibot/v1/admin_pb.ts"
+import {
     FindPlayersRequest,
     FindPlayersResponse,
     GetLedgerRequest,
@@ -25,10 +34,6 @@ import {
     GetReplayResponse,
     GrantChargesRequest,
     GrantChargesResponse,
-    InspectPlayerRequest,
-    InspectPlayerResponse,
-    ListConvictionsRequest,
-    ListConvictionsResponse,
     PaintRandomTilesRequest,
     PaintRandomTilesResponse,
     Player,
@@ -38,9 +43,6 @@ import {
     RevertPlayerResponse,
     TopPlayersRequest,
     TopPlayersResponse,
-    UnbanPlayerRequest,
-    UnbanPlayerResponse,
-    WatchdogReading,
 } from "./gen/grpc/planet/v1/admin_pb.ts"
 import {
     ListRowsRequest,
@@ -85,6 +87,7 @@ import {
     Report,
 } from "./gen/grpc/support/v1/admin_pb.ts"
 import {
+    AntibotAdmin,
     ChatAdmin,
     ClipsAdmin,
     Clients,
@@ -133,7 +136,7 @@ export function metricsAt(seconds: number, minutes: number): GetMetricsResponse 
             counter("clicks_total", 300 * minutes, {country_id: "fr", status: "ok"}),
             counter("clicks_total", 100 * minutes, {country_id: "dz", status: "ok"}),
             counter("throttled_clicks", 30 * minutes),
-            counter("banned_clicks", 3 * minutes),
+            counter("refused_clicks", 3 * minutes),
             counter("blocked_clicks", 0),
             gauge("banned_callers", 2),
             gauge("antibot_opinions_standing", 4, {watchdog: "metronome", level: "suspect"}),
@@ -170,7 +173,8 @@ export function metricsAt(seconds: number, minutes: number): GetMetricsResponse 
 }
 
 // What each fake was asked, and a refusal to answer with instead, by method.
-export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAdmin, ClipsAdmin, MetricsAdmin, SeasonsAdmin {
+export class FakeAdmin implements AntibotAdmin, ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAdmin, ClipsAdmin, MetricsAdmin,
+    SeasonsAdmin {
     readonly kind = "fake admin"
     readonly asked: {method: string, request: unknown}[] = []
     readonly refusals = new Map<string, Code>()
@@ -311,7 +315,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
     ]]
 
     clients(): Clients {
-        return {chat: this, planet: this, player: this, support: this, clips: this, metrics: this, seasons: this}
+        return {antibot: this, chat: this, planet: this, player: this, support: this, clips: this, metrics: this, seasons: this}
     }
 
     refuse(method: string, code: Code) {
