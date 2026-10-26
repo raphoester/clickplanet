@@ -304,11 +304,14 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         dirty = true
     }
 
+    const atlas = textureLoader.load(ATLAS_URL)
+    atlas.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy())
+
     const slots = new FlagSlots(invalidate)
 
     const uniforms: Uniforms = {
         pointSize: {value: displayPointSize(camera.zoom, layoutViewport().height, mapView) * renderer.getPixelRatio()},
-        atlasTexture: {value: textureLoader.load(ATLAS_URL)},
+        atlasTexture: {value: atlas},
         atlasTextureSize: {value: new THREE.Vector2(ATLAS_SIZE.width, ATLAS_SIZE.height)},
         landmassData: {value: null},
         landmassCount: {value: 1},

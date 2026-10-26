@@ -216,7 +216,7 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   follows the flag's fighting there as it happens, as a clip follows its front, then flies to the next, rising a
   little over a long way (1.6 times out at most), never out to the globe and back in, which was brutal. It pulls back
   out to the globe over all of them at the end; 1.2s a flight and 2.6s a stop. Up close, a big country's painted flag
-  is blurred: the flag atlas is the game's. The counter counts
+  goes soft past about twice its 200px sprite: the flag atlas is the game's. The counter counts
   the flag across the world. A tour is told beside the flag's stories on each continent, not instead of them.
 - **One story per flag and what it did** (`sameStory`), whatever window or scale found it, told over the most of the
   map (`widerThan`), else the best: one flag taking one place or one inside it, whoever it beat there ("Portugal is

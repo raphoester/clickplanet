@@ -15,7 +15,10 @@ export type BorderData = {
 export async function loadBorders(url: string, signal?: AbortSignal): Promise<BorderData> {
     const response = await fetch(url, {signal})
     if (!response.ok) throw new Error(`${url} answered ${response.status}`)
-    const buffer = await response.arrayBuffer()
+    return decodeBorders(await response.arrayBuffer())
+}
+
+export function decodeBorders(buffer: ArrayBuffer): BorderData {
     const headerBytes = new DataView(buffer).getUint32(0, true)
     const header = JSON.parse(new TextDecoder().decode(new Uint8Array(buffer, 4, headerBytes)))
     let at = 4 + headerBytes

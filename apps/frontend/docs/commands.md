@@ -7,7 +7,7 @@ npm test           # Run the vitest suite once
 npm run test:watch # Re-run affected tests on change
 npm run lint       # ESLint check
 npm run proto      # Regenerate protobuf types from the shared ../../proto/ using buf CLI
-npm run atlas      # Repack the flag sprite atlas from static/countries/png100px
+npm run atlas      # Rasterise the flag sprite atlas from static/countries/svg (see static-assets.md); then npm run flagFit
 npm run map        # Copy the shared /map coordinates blob into static/ (see static-assets.md)
 npm run map:generate # Rewrite both shared map blobs from the ground oracle (see ../../map/README.md)
 npm run map:audit  # Check the tile set, Natural Earth and the globe texture against each other

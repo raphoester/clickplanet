@@ -1,7 +1,7 @@
 # The zoomed-out view
 
-Zoomed out, a tile is about a pixel and a half sampling a 100px flag out of one
-shared 1300×1232 atlas, so the GPU picks a mip level that is the whole atlas
+Zoomed out, a tile is about a pixel and a half sampling a 200px flag out of one
+shared 2600×2330 atlas, so the GPU picks a mip level that is the whole atlas
 averaged and every country comes out the same mud. Turning mipmaps off swaps mud
 for sparkle. Neither end works, so from far enough away the globe is drawn from
 something coarser than a tile.
@@ -37,8 +37,21 @@ of the camera's axis over how much of itself the projection keeps, floored near
 the limb where that divisor runs to zero. Those same two vectors are the
 footprint the atlas is sampled over (`textureGrad`), which is the only reason a
 mip level can be chosen at all: the frame is flat across a sprite, so without
-them the driver takes the top one and point-samples a 100px flag into a few
-dozen pixels.
+them the driver takes the top one and point-samples a 200px flag into a few
+dozen pixels. The atlas is sampled with 4× anisotropic filtering: near the limb
+a screen pixel covers a long thin strip of ground, and without it the flag is
+blurred to the strip's length across its width too.
+
+**The flags are 200px wide because of this view, and not wider because of
+memory.** A painted flag covers its whole landmass, and the handover to tiles
+only starts once a tile is 5px wide: over Brazil that is a flag 500 to 3,000
+pixels wide, drawn from a sprite. At 100px the sprite was magnified five to
+thirty times and every device, Brazil's globe first, was mud. At 200px Brazil
+is sharp to about zoom 2 and soft past it. 300px was tried: sharp to zoom 3,
+for 69 MB on the GPU against 31, and the atlas is not the way past that in any
+case, since one may not pass 4096 pixels a side (see [Static
+assets](static-assets.md)). A flag much bigger than its sprite is a job for a
+texture rendered at runtime from that one flag's SVG, not for the atlas.
 
 One sample per disc was the whole flag's resolution before, and a landmass is
 often only a few tiles across at the zoom where its flag is painted — six or
