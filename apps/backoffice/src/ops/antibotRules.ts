@@ -38,6 +38,17 @@ export function bansOf(set: RuleSet): string {
     return set.rules?.bans?.enforce === true ? "Enforced" : "Not enforced"
 }
 
+// A watchdog's part of a set is the one with an enabled switch.
+const WATCHDOGS = Rules.fields.list()
+    .filter(field => field.kind === "message" && field.T.fields.findJsonName("enabled") !== undefined)
+    .map(field => field.localName)
+
+export function offOf(set: RuleSet): string {
+    const parts = (set.rules ?? new Rules()) as unknown as Record<string, {enabled: boolean} | undefined>
+    const off = WATCHDOGS.filter(watchdog => parts[watchdog]?.enabled !== true)
+    return off.length === 0 ? "None" : off.join(", ")
+}
+
 export function crowdOf(set: RuleSet): string {
     return `${set.rules?.cohort?.certainMembers ?? 0} scopes`
 }

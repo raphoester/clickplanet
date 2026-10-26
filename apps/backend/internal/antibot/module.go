@@ -74,24 +74,21 @@ func NewModule(config Config) cpbootstrap.Module {
 			ruleSets := postgres_rule_set_store.New(db)
 			inForce := rules.NewInForce()
 
-			book := bans.NewBook(inForce.Bans, config.Evidence.WithDefaults().Retention, clock,
+			book := bans.NewBook(rules.Reader(inForce, bans.Part), config.Evidence.WithDefaults().Retention, clock,
 				postgres_ban_store.NewScopes(db), postgres_ban_store.NewAccounts(db),
 				db, outbox_planet_enforcer.New(cpoutbox.New(db)))
 
 			// The bans running at a deploy reach planet's refused callers with no hand migration.
-			playRules := log_play_rules.New(play_rules_usecase.New(ruleSets, inForce, book), props.Logger)
+			parts := guard.Parts()
+			playRules := log_play_rules.New(play_rules_usecase.New(ruleSets, parts, inForce, book), props.Logger)
 			if _, _, err := playRules.Execute(ctx); err != nil {
 				closeStores()
 				return fmt.Errorf("failed to play the antibot rules postgres keeps: %w", err)
 			}
 
 			marks := listener.NewMarks()
-			watchdogs, err := guard.New(config.Config, inForce, clock, observer.New(props.Logger, props.Metrics), book,
+			watchdogs := guard.New(config.Config, inForce, clock, observer.New(props.Logger, props.Metrics), book,
 				postgres_evidence_store.New(db), marks)
-			if err != nil {
-				closeStores()
-				return fmt.Errorf("failed to build the antibot guard: %w", err)
-			}
 			if err := watchdogs.Load(ctx); err != nil {
 				closeStores()
 				return fmt.Errorf("failed to load the antibot state: %w", err)
@@ -117,7 +114,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				InspectPlayerHandler: inspect_player_handler.New(inspect_player_usecase.New(watchdogs)),
 				GetRulesHandler:      get_rules_handler.New(rule_sets_query.NewPostgresQuery(db), inForce),
 				SaveRuleSetHandler: save_rule_set_handler.New(
-					audit_save_rule_set.New(save_rule_set_usecase.New(ruleSets), props.Logger)),
+					audit_save_rule_set.New(save_rule_set_usecase.New(ruleSets, parts), props.Logger)),
 			}
 
 			if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {

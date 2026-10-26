@@ -19,6 +19,7 @@ type saying struct {
 }
 
 func (s *saying) Name() string                                         { return "saying" }
+func (s *saying) Enabled() bool                                        { return true }
 func (s *saying) Attempted(detect.Click)                               {}
 func (s *saying) Committed(detect.Click)                               {}
 func (s *saying) Watch(detect.Click) (detect.Verdict, detect.Evidence) { return s.verdict, s.evidence }

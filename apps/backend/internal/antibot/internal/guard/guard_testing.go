@@ -22,8 +22,8 @@ func NewInMemory(
 	enforcer *bans.MemoryEnforcer,
 	evidences *evidence.MemoryPersistence,
 	heard ...evidence.Section,
-) (*Guard, error) {
-	book := bans.NewBook(inForce.Bans, config.Evidence.WithDefaults().Retention, clock,
+) *Guard {
+	book := bans.NewBook(rules.Reader(inForce, bans.Part), config.Evidence.WithDefaults().Retention, clock,
 		scopeBans, accountBans, cpatomic.FakeTransactioner{}, enforcer)
 
 	return New(config, inForce, clock, observer, book, evidences, heard...)

@@ -6,31 +6,28 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	antibotv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/cohort"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/guard"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/jury"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rules"
 )
 
-func TestWhatIsReadIsTheSetEnforcedLast(t *testing.T) {
+func TestAReaderReadsItsPartOfTheSetEnforcedLast(t *testing.T) {
 	inForce := rules.NewInForce()
+	crowd := rules.Reader(inForce, cohort.Part)
+	suspects := rules.Reader(inForce, jury.Part)
+
 	for _, kept := range []rules.Snapshot{
 		rules.Seeded(),
-		rules.Named("rush", func(s *rules.Snapshot) { s.Cohort.CertainMembers = 50 }),
+		rules.Named("rush", func(r *antibotv1.Rules) { r.Cohort.CertainMembers = 50 }),
 	} {
-		set, err := kept.Restore()
+		set, err := kept.Restore(guard.Parts())
 		require.NoError(t, err)
 		inForce.Enforce(set)
 	}
 
 	assert.Equal(t, rules.SetName("rush"), inForce.Name())
-	assert.Equal(t, 50, inForce.Cohort().CertainMembers)
-	assert.Equal(t, rules.Seeded().Bans, inForce.Bans())
-	assert.Equal(t, rules.Seeded().Jury, inForce.Jury())
-	assert.Equal(t, rules.Seeded().Retaker, inForce.Retaker())
-	assert.Equal(t, rules.Seeded().Sequencer, inForce.Sequencer())
-	assert.Equal(t, rules.Seeded().Metronome, inForce.Metronome())
-	assert.Equal(t, rules.Seeded().Defender, inForce.Defender())
-	assert.Equal(t, rules.Seeded().Catcher, inForce.Catcher())
-	assert.Equal(t, rules.Seeded().Scraper, inForce.Scraper())
-	assert.Equal(t, rules.Seeded().Churner, inForce.Churner())
-	assert.Equal(t, rules.Seeded().Hopper, inForce.Hopper())
-	assert.Equal(t, rules.Seeded().Rotator, inForce.Rotator())
+	assert.Equal(t, 50, crowd().CertainMembers)
+	assert.Equal(t, 2, suspects().MinSuspects)
 }

@@ -3,22 +3,12 @@ package rules
 import (
 	"errors"
 	"fmt"
-	"reflect"
 	"regexp"
 	"strings"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/bans"
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/catcher"
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/churner"
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/cohort"
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/defender"
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/hopper"
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/jury"
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/metronome"
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/retaker"
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rotator"
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/scraper"
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/sequencer"
+	"google.golang.org/protobuf/proto"
+
+	antibotv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1"
 )
 
 type SetName string
@@ -34,107 +24,44 @@ var (
 var namePattern = regexp.MustCompile(`^[a-z][a-z0-9_-]{0,31}$`)
 
 type Set struct {
-	name SetName
-
-	bans      bans.Rules
-	jury      jury.Rules
-	retaker   retaker.Rules
-	sequencer sequencer.Rules
-	metronome metronome.Rules
-	defender  defender.Rules
-	catcher   catcher.Rules
-	cohort    cohort.Rules
-	scraper   scraper.Rules
-	churner   churner.Rules
-	hopper    hopper.Rules
-	rotator   rotator.Rules
+	name    SetName
+	message *antibotv1.Rules
+	parts   map[string]any
 }
 
 func (s Set) TakeSnapshot() Snapshot {
-	return Snapshot{
-		Name:      s.name,
-		Bans:      s.bans,
-		Jury:      s.jury,
-		Retaker:   s.retaker,
-		Sequencer: s.sequencer,
-		Metronome: s.metronome,
-		Defender:  s.defender,
-		Catcher:   s.catcher,
-		Cohort:    s.cohort,
-		Scraper:   s.scraper,
-		Churner:   s.churner,
-		Hopper:    s.hopper,
-		Rotator:   s.rotator,
-	}
+	return Snapshot{Name: s.name, Rules: proto.CloneOf(s.message)}
 }
 
 // Equal is true when both sets have one name and judge alike.
 func (s Set) Equal(other Set) bool {
-	return reflect.DeepEqual(s, other)
+	return s.name == other.name && proto.Equal(s.message, other.message)
 }
 
 type Snapshot struct {
-	Name SetName
-
-	Bans      bans.Rules
-	Jury      jury.Rules
-	Retaker   retaker.Rules
-	Sequencer sequencer.Rules
-	Metronome metronome.Rules
-	Defender  defender.Rules
-	Catcher   catcher.Rules
-	Cohort    cohort.Rules
-	Scraper   scraper.Rules
-	Churner   churner.Rules
-	Hopper    hopper.Rules
-	Rotator   rotator.Rules
+	Name  SetName
+	Rules *antibotv1.Rules
 }
 
-// Restore refuses a set with any value its watchdog cannot judge with: nothing falls back to a default.
-func (s Snapshot) Restore() (Set, error) {
+// Restore refuses a set any part refuses: a value left out reads as zero, and nothing falls back to a default.
+func (s Snapshot) Restore(parts Parts) (Set, error) {
 	if !namePattern.MatchString(string(s.Name)) {
 		return Set{}, fmt.Errorf("%w: a name is a lowercase letter, then up to 31 of a-z, 0-9, - and _", ErrInvalidSet)
 	}
 
+	message := proto.CloneOf(s.Rules)
+	read := make(map[string]any, len(parts))
 	var reasons []string
-	for _, part := range []struct {
-		name string
-		err  error
-	}{
-		{"bans", s.Bans.Validate()},
-		{"jury", s.Jury.Validate()},
-		{"retaker", s.Retaker.Validate()},
-		{"sequencer", s.Sequencer.Validate()},
-		{"metronome", s.Metronome.Validate()},
-		{"defender", s.Defender.Validate()},
-		{"catcher", s.Catcher.Validate()},
-		{"cohort", s.Cohort.Validate()},
-		{"scraper", s.Scraper.Validate()},
-		{"churner", s.Churner.Validate()},
-		{"hopper", s.Hopper.Validate()},
-		{"rotator", s.Rotator.Validate()},
-	} {
-		reasons = append(reasons, reasonsOf(part.name, part.err)...)
+	for _, part := range parts {
+		rules, err := part.read(message)
+		reasons = append(reasons, reasonsOf(part.key(), err)...)
+		read[part.key()] = rules
 	}
 	if len(reasons) > 0 {
 		return Set{}, fmt.Errorf("%w: %s", ErrInvalidSet, strings.Join(reasons, "; "))
 	}
 
-	return Set{
-		name:      s.Name,
-		bans:      s.Bans,
-		jury:      s.Jury,
-		retaker:   s.Retaker,
-		sequencer: s.Sequencer,
-		metronome: s.Metronome,
-		defender:  s.Defender,
-		catcher:   s.Catcher,
-		cohort:    s.Cohort,
-		scraper:   s.Scraper,
-		churner:   s.Churner,
-		hopper:    s.Hopper,
-		rotator:   s.Rotator,
-	}, nil
+	return Set{name: s.Name, message: message, parts: read}, nil
 }
 
 // Each reason names its value by its path in the set, as antibot.v1.Rules writes it.

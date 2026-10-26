@@ -16,6 +16,8 @@ import (
 const Name = "rotator"
 
 type Rules struct {
+	Enabled bool
+
 	Window time.Duration
 
 	MinSeconds  int
@@ -125,6 +127,8 @@ func (m marks) count() int {
 }
 
 func (w *Watchdog) Name() string { return Name }
+
+func (w *Watchdog) Enabled() bool { return w.rules().Enabled }
 
 func (w *Watchdog) Attempted(click detect.Click) {
 	if click.Scope == "" || click.Account == "" {

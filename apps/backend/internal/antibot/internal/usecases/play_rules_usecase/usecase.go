@@ -10,7 +10,7 @@ import (
 )
 
 type Sets interface {
-	Set(ctx context.Context, name rules.SetName) (rules.Set, error)
+	Set(ctx context.Context, name rules.SetName) (rules.Snapshot, error)
 }
 
 type Rules interface {
@@ -32,14 +32,15 @@ type Taken struct {
 	Asked rules.SetName
 }
 
-func New(sets Sets, inForce Rules, bans Bans) *UseCase {
-	return &UseCase{sets: sets, inForce: inForce, bans: bans, asked: rules.Default}
+func New(sets Sets, parts rules.Parts, inForce Rules, bans Bans) *UseCase {
+	return &UseCase{sets: sets, parts: parts, inForce: inForce, bans: bans, asked: rules.Default}
 }
 
 // UseCase plays the set named like the planet rule set in force, or default when the antibot keeps no set of that
 // name. What postgres keeps is the truth, and what is in force follows it.
 type UseCase struct {
 	sets    Sets
+	parts   rules.Parts
 	inForce Rules
 	bans    Bans
 
@@ -63,12 +64,17 @@ func (u *UseCase) Execute(ctx context.Context) (Taken, bool, error) {
 	asked := u.asked
 	u.mu.Unlock()
 
-	set, err := u.sets.Set(ctx, asked)
+	kept, err := u.sets.Set(ctx, asked)
 	if errors.Is(err, rules.ErrUnknownSet) && asked != rules.Default {
-		set, err = u.sets.Set(ctx, rules.Default)
+		kept, err = u.sets.Set(ctx, rules.Default)
 	}
 	if err != nil {
 		return Taken{}, false, fmt.Errorf("could not read the rules to play for %q: %w", asked, err)
+	}
+
+	set, err := kept.Restore(u.parts)
+	if err != nil {
+		return Taken{}, false, fmt.Errorf("the rule set %q kept cannot play: %w", kept.Name, err)
 	}
 
 	taken := Taken{Set: set.TakeSnapshot(), Asked: asked}

@@ -247,7 +247,7 @@ in memory no window of 10m (`suspicionWindow`), 15m (`trackWindow`) or 30m
 - **Evidence is flushed whole.** One section per watchdog and one for the jury,
   each encoded by its own package (`state.go` beside it), so a watchdog's fields
   stay unexported. A flush replaces every row in one transaction, so a section
-  left out (a watchdog turned off, or one that fails to encode) is deleted, and
+  left out (one that fails to encode) is deleted, and
   a failed flush is simply retried whole on the next tick. A section that does
   not decode at load is reported through `OnStateError` and starts that one
   watchdog empty; the others load. That is not a failed boot: a changed section
@@ -617,7 +617,7 @@ right now, set once a sweep through `Observer.OnCohortScopes`: a floor that neve
 not its groups have chained yet.
 
 A rule set with a `minMembers` or `certainCohorts` of 1 is refused (`cohort.Rules.Validate`), because it would read
-one scope, or one group, as a pattern. The prefix bits are the config's, and `antiBot.cohort.detector` refuses a
+one scope, or one group, as a pattern. The prefix bits are the config's, and `antiBot.cohort` refuses a
 prefix wider than an address at boot.
 
 **`scraper`: what a caller reads, not what it clicks.** The web app reads the map

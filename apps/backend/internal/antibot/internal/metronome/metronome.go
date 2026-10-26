@@ -15,6 +15,8 @@ import (
 const Name = "metronome"
 
 type Rules struct {
+	Enabled bool
+
 	MaxGap time.Duration
 
 	MaxSpread time.Duration
@@ -234,6 +236,8 @@ type slice struct {
 }
 
 func (w *Watchdog) Name() string { return Name }
+
+func (w *Watchdog) Enabled() bool { return w.rules().Enabled }
 
 func (w *Watchdog) Committed(detect.Click) {}
 

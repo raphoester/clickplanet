@@ -8,7 +8,6 @@ import (
 
 	antibotv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rules"
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rules/rulesmessage"
 )
 
 type UseCase interface {
@@ -28,7 +27,7 @@ func (h SaveRuleSetHandler) SaveRuleSet(
 	req *connect.Request[antibotv1.SaveRuleSetRequest],
 ) (*connect.Response[antibotv1.SaveRuleSetResponse], error) {
 	set := req.Msg.GetSet()
-	err := h.useCase.Execute(ctx, rulesmessage.SnapshotOf(rules.SetName(set.GetName()), set.GetRules()))
+	err := h.useCase.Execute(ctx, rules.Snapshot{Name: rules.SetName(set.GetName()), Rules: set.GetRules()})
 
 	switch {
 	case err == nil:

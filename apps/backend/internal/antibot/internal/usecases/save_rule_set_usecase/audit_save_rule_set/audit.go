@@ -4,8 +4,9 @@ import (
 	"context"
 	"log/slog"
 
+	"google.golang.org/protobuf/encoding/protojson"
+
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rules"
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rules/rulesmessage"
 )
 
 type UseCase interface {
@@ -24,7 +25,7 @@ type Audited struct {
 func (a *Audited) Execute(ctx context.Context, in rules.Snapshot) error {
 	err := a.inner.Execute(ctx, in)
 
-	written, _ := rulesmessage.Document.Marshal(rulesmessage.Of(in))
+	written, _ := protojson.Marshal(in.Rules)
 	attrs := []any{slog.String("set", string(in.Name)), slog.String("rules", string(written))}
 
 	if err != nil {

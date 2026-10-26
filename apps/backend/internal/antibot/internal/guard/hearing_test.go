@@ -47,15 +47,12 @@ func (w *witness) Forget(time.Time) {}
 func TestTheLastFlushWaitsForWhatTheFeedsStillHandle(t *testing.T) {
 	handled := &atomic.Bool{}
 	seen := &witness{handled: handled}
-	config := guard.Config{}
-	config.Sequencer.Enabled = true
-	set, err := rules.Seeded().Restore()
+	set, err := rules.Seeded().Restore(guard.Parts())
 	require.NoError(t, err)
 	inForce := rules.NewInForce()
 	inForce.Enforce(set)
-	watchdogs, err := guard.NewInMemory(config, inForce, cptime.NewFixedClock(time.Now()), guard.Observer{},
+	watchdogs := guard.NewInMemory(guard.Config{}, inForce, cptime.NewFixedClock(time.Now()), guard.Observer{},
 		bans.NewMemoryStore(), bans.NewMemoryStore(), &bans.MemoryEnforcer{}, evidence.NewMemoryPersistence(), seen)
-	require.NoError(t, err)
 
 	hearing := watchdogs.Hearing(lateFeed{handled: handled})
 	ctx, cancel := context.WithCancel(t.Context())

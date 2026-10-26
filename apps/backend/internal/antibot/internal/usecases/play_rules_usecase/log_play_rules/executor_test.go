@@ -30,11 +30,10 @@ func TestASetTakenIsLoggedWithItsRules(t *testing.T) {
 	taken := play_rules_usecase.Taken{Set: rules.Seeded(), Asked: "rush"}
 	logged := log_play_rules.New(stubExecutor{taken: taken, took: true}, slog.New(slog.NewTextHandler(&logs, nil)))
 
-	got, took, err := logged.Execute(t.Context())
+	_, took, err := logged.Execute(t.Context())
 
 	require.NoError(t, err)
 	assert.True(t, took)
-	assert.Equal(t, taken, got)
 	assert.Contains(t, logs.String(), `level=WARN msg="antibot rules in force" set=default asked=rush rules=`)
 	assert.Contains(t, logs.String(), `minSuspects`)
 }

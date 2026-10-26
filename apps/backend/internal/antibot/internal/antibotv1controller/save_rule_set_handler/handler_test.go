@@ -9,11 +9,11 @@ import (
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 
 	antibotv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/save_rule_set_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rules"
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rules/rulesmessage"
 )
 
 type stubUseCase struct {
@@ -26,12 +26,12 @@ func (s *stubUseCase) Execute(_ context.Context, in rules.Snapshot) error {
 	return s.err
 }
 
-var rush = rules.Named("rush", func(s *rules.Snapshot) { s.Cohort.CertainMembers = 50 })
+var rush = rules.Named("rush", func(r *antibotv1.Rules) { r.Cohort.CertainMembers = 50 })
 
 func save(t *testing.T, useCase *stubUseCase) error {
 	t.Helper()
 	_, err := save_rule_set_handler.New(useCase).SaveRuleSet(t.Context(), connect.NewRequest(&antibotv1.SaveRuleSetRequest{
-		Set: &antibotv1.RuleSet{Name: "rush", Rules: rulesmessage.Of(rush)},
+		Set: &antibotv1.RuleSet{Name: "rush", Rules: rush.Rules},
 	}))
 	return err //nolint:wrapcheck // the test reads the handler's own error.
 }
@@ -41,7 +41,8 @@ func TestTheSetReachesTheUseCaseAsWritten(t *testing.T) {
 
 	require.NoError(t, save(t, useCase))
 
-	assert.Equal(t, rush, useCase.in)
+	assert.Equal(t, rush.Name, useCase.in.Name)
+	assert.True(t, proto.Equal(rush.Rules, useCase.in.Rules))
 }
 
 func TestASetThatCannotPlayIsAnInvalidArgumentThatSaysWhy(t *testing.T) {

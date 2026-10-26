@@ -11,7 +11,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-func rules(change func(*Rules)) func() Rules {
+func bounds(change func(*Rules)) func() Rules {
 	r := Rules{RetakeWindow: 2 * time.Minute, MinClicks: 60, CertainClicks: 200}
 	change(&r)
 	return func() Rules { return r }
@@ -20,7 +20,7 @@ func rules(change func(*Rules)) func() Rules {
 func TestTakesAndLossesSurviveASaveAndLoad(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 14, 12, 0, 0, 0, time.UTC))
 	config := Config{TrackWindow: time.Hour}
-	reading := rules(func(r *Rules) { r.MinClicks, r.MinShare = 10, 0.5 })
+	reading := bounds(func(r *Rules) { r.MinClicks, r.MinShare = 10, 0.5 })
 
 	w := New(config, reading, clock, nil)
 	for tile := range uint32(12) {
@@ -57,7 +57,7 @@ func TestTakesAndLossesSurviveASaveAndLoad(t *testing.T) {
 func TestForgetDropsTakesAndLossesBeforeTheCutoff(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 14, 12, 0, 0, 0, time.UTC))
 
-	w := New(Config{TrackWindow: 24 * time.Hour}, rules(func(r *Rules) { r.RetakeWindow = time.Hour }), clock, nil)
+	w := New(Config{TrackWindow: 24 * time.Hour}, bounds(func(r *Rules) { r.RetakeWindow = time.Hour }), clock, nil)
 	attacker := detect.Click{Scope: "attacker", Tile: 1, Country: "FR", At: clock.Now(), Held: "BG"}
 	w.Watch(attacker)
 	w.Committed(attacker)

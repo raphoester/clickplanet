@@ -2,7 +2,7 @@ import {describe, expect, it} from "vitest"
 import {FakeAdmin} from "../fakeAdmin.ts"
 import {RuleSet} from "../gen/grpc/antibot/v1/admin_pb.ts"
 import {Rules} from "../gen/grpc/antibot/v1/rules_pb.ts"
-import {bansOf, crowdOf, draftOf, flawOf, newDraft, saveRuleSet} from "./antibotRules.ts"
+import {bansOf, crowdOf, draftOf, flawOf, newDraft, offOf, saveRuleSet} from "./antibotRules.ts"
 
 const rush = new RuleSet({
     name: "rush",
@@ -14,6 +14,11 @@ describe("the antibot rules", () => {
         expect(bansOf(rush)).toBe("Not enforced")
         expect(crowdOf(rush)).toBe("50 scopes")
         expect(bansOf(new FakeAdmin().antibotRules.sets[0])).toBe("Enforced")
+    })
+
+    it("names the watchdogs a set turns off", () => {
+        expect(offOf(new FakeAdmin().antibotRules.sets[0])).toBe("defender")
+        expect(offOf(rush)).toBe("retaker, sequencer, metronome, defender, catcher, cohort, scraper, churner, hopper, rotator")
     })
 
     it("edits a set as JSON with every value written, an unset bound left out", () => {

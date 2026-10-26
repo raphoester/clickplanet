@@ -14,6 +14,8 @@ import (
 const Name = "hopper"
 
 type Rules struct {
+	Enabled bool
+
 	MinAngle float64
 	MinGap   time.Duration
 	MaxGap   time.Duration
@@ -97,6 +99,8 @@ type step struct {
 }
 
 func (w *Watchdog) Name() string { return Name }
+
+func (w *Watchdog) Enabled() bool { return w.rules().Enabled }
 
 func (w *Watchdog) Attempted(click detect.Click) {
 	if !click.Position.Known() {

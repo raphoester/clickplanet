@@ -15,6 +15,8 @@ import (
 const Name = "churner"
 
 type Rules struct {
+	Enabled bool
+
 	Window time.Duration
 
 	V6 Bounds
@@ -136,6 +138,8 @@ type account struct {
 }
 
 func (w *Watchdog) Name() string { return Name }
+
+func (w *Watchdog) Enabled() bool { return w.rules().Enabled }
 
 func (w *Watchdog) Attempted(detect.Click) {}
 

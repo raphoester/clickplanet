@@ -130,7 +130,11 @@ func (j *Jury) Inspect(ctx context.Context, click detect.Click) error {
 	j.record(click)
 
 	for _, watchdog := range j.watchdogs {
+		// An off watchdog still watches, so its windows are full when it is turned on again.
 		verdict, evidence := watchdog.Watch(click)
+		if !watchdog.Enabled() {
+			verdict, evidence = detect.Clear, detect.Evidence{}
+		}
 		for _, level := range j.opine(click, watchdog.Name(), verdict, evidence) {
 			if j.hooks.OnRise != nil {
 				j.hooks.OnRise(watchdog.Name(), level)
@@ -318,7 +322,7 @@ func (j *Jury) weighLocked(c *caller, at time.Time, rules Rules) ([]detect.Opini
 			opinion = detect.Opinion{Watchdog: watchdog.Name()}
 		}
 
-		if opinion.At.Before(cutoff) {
+		if opinion.At.Before(cutoff) || !watchdog.Enabled() {
 			opinion.Verdict = detect.Clear
 		}
 
@@ -473,7 +477,7 @@ func (j *Jury) forget(now time.Time) [][detect.Certain + 1]int {
 
 		for i, watchdog := range j.watchdogs {
 			opinion, ok := c.opinions[watchdog.Name()]
-			if !ok || opinion.At.Before(suspicionCutoff) {
+			if !ok || opinion.At.Before(suspicionCutoff) || !watchdog.Enabled() {
 				continue
 			}
 			for level := detect.Suspect; level <= opinion.Verdict; level++ {

@@ -16,6 +16,8 @@ import (
 const Name = "cohort"
 
 type Rules struct {
+	Enabled bool
+
 	StartWindow time.Duration
 
 	MinClicks    int
@@ -141,6 +143,8 @@ type member struct {
 }
 
 func (w *Watchdog) Name() string { return Name }
+
+func (w *Watchdog) Enabled() bool { return w.rules().Enabled }
 
 func (w *Watchdog) Attempted(click detect.Click) {
 	if click.Scope == "" {

@@ -13,6 +13,8 @@ import (
 const Name = "catcher"
 
 type Rules struct {
+	Enabled bool
+
 	MinCatches int
 
 	MaxMedian time.Duration
@@ -113,6 +115,8 @@ type outcome struct {
 }
 
 func (w *Watchdog) Name() string { return Name }
+
+func (w *Watchdog) Enabled() bool { return w.rules().Enabled }
 
 func (w *Watchdog) Attempted(detect.Click) {}
 

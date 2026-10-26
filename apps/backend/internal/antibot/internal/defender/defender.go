@@ -13,6 +13,8 @@ import (
 const Name = "defender"
 
 type Rules struct {
+	Enabled bool
+
 	RetakeWindow time.Duration
 
 	MinClicks int
@@ -99,6 +101,8 @@ type take struct {
 }
 
 func (w *Watchdog) Name() string { return Name }
+
+func (w *Watchdog) Enabled() bool { return w.rules().Enabled }
 
 func (w *Watchdog) Attempted(detect.Click) {}
 

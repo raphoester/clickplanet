@@ -59,26 +59,18 @@ func TestTheExampleConfigStillReachesTheStructs(t *testing.T) {
 	assert.Equal(t, time.Minute, config.AntiBot.Evidence.SaveInterval)
 	assert.Equal(t, 72*time.Hour, config.AntiBot.Evidence.Retention)
 
-	require.True(t, config.AntiBot.Retaker.Enabled)
-	assert.Equal(t, 5*time.Minute, config.AntiBot.Retaker.Detector.TrackWindow)
-	require.True(t, config.AntiBot.Sequencer.Enabled)
-	require.True(t, config.AntiBot.Metronome.Enabled)
-	assert.Equal(t, 10*time.Minute, config.AntiBot.Metronome.Detector.Stamina.Slice)
-	require.True(t, config.AntiBot.Scraper.Enabled)
-	assert.Equal(t, 15*time.Minute, config.AntiBot.Scraper.Detector.TrackWindow)
-	require.True(t, config.AntiBot.Cohort.Enabled)
-	assert.Equal(t, 44, config.AntiBot.Cohort.Detector.V6Bits)
+	assert.Equal(t, 5*time.Minute, config.AntiBot.Retaker.TrackWindow)
+	assert.Equal(t, 10*time.Minute, config.AntiBot.Metronome.Stamina.Slice)
+	assert.Equal(t, 15*time.Minute, config.AntiBot.Scraper.TrackWindow)
+	assert.Equal(t, 44, config.AntiBot.Cohort.V6Bits)
 
 	churner := config.AntiBot.Churner
-	require.True(t, churner.Enabled)
-	assert.Equal(t, 32, churner.Detector.Relay.V6Bits)
-	assert.Equal(t, time.Hour+2*time.Minute, churner.Detector.TrackWindow)
+	assert.Equal(t, 32, churner.Relay.V6Bits)
+	assert.Equal(t, time.Hour+2*time.Minute, churner.TrackWindow)
 
-	require.True(t, config.AntiBot.Hopper.Enabled)
-	assert.Equal(t, 15*time.Minute, config.AntiBot.Hopper.Detector.TrackWindow)
+	assert.Equal(t, 15*time.Minute, config.AntiBot.Hopper.TrackWindow)
 
-	require.True(t, config.AntiBot.Rotator.Enabled)
-	assert.Equal(t, 5*time.Minute, config.AntiBot.Rotator.Detector.Slot)
+	assert.Equal(t, 5*time.Minute, config.AntiBot.Rotator.Slot)
 }
 
 func TestTheExampleConfigStillCarriesTheRestOfTheFile(t *testing.T) {
@@ -453,6 +445,6 @@ func TestTheAntibotKeepsItsKeysOutsideThePlanetsBlock(t *testing.T) {
 
 	require.True(t, config.AntiBot.Enabled)
 	assert.Equal(t, "antibot", config.AntiBot.Database.Schema)
-	assert.Equal(t, 10*time.Minute, config.AntiBot.Defender.Detector.TrackWindow)
+	assert.Equal(t, 10*time.Minute, config.AntiBot.Defender.TrackWindow)
 	require.NoError(t, config.AntiBot.Validate())
 }

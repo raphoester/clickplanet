@@ -22,6 +22,8 @@ type fixedWatchdog struct {
 
 func (w *fixedWatchdog) Name() string { return w.name }
 
+func (w *fixedWatchdog) Enabled() bool { return true }
+
 func (w *fixedWatchdog) Attempted(detect.Click) {}
 
 func (w *fixedWatchdog) Watch(detect.Click) (detect.Verdict, detect.Evidence) {

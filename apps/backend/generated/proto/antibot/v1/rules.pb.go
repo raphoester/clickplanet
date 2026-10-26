@@ -271,16 +271,18 @@ func (x *JuryRules) GetSuspicionWindow() *durationpb.Duration {
 }
 
 type RetakerRules struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	ReactionWindow *durationpb.Duration   `protobuf:"bytes,1,opt,name=reaction_window,json=reactionWindow,proto3" json:"reaction_window,omitempty"`
-	MinReactions   uint32                 `protobuf:"varint,2,opt,name=min_reactions,json=minReactions,proto3" json:"min_reactions,omitempty"`
-	MaxSpread      *durationpb.Duration   `protobuf:"bytes,3,opt,name=max_spread,json=maxSpread,proto3" json:"max_spread,omitempty"`
-	MaxMedian      *durationpb.Duration   `protobuf:"bytes,4,opt,name=max_median,json=maxMedian,proto3" json:"max_median,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Off, the jury reads the watchdog as clear; it keeps watching, so it reads again at once when turned on.
+	Enabled        bool                 `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	ReactionWindow *durationpb.Duration `protobuf:"bytes,2,opt,name=reaction_window,json=reactionWindow,proto3" json:"reaction_window,omitempty"`
+	MinReactions   uint32               `protobuf:"varint,3,opt,name=min_reactions,json=minReactions,proto3" json:"min_reactions,omitempty"`
+	MaxSpread      *durationpb.Duration `protobuf:"bytes,4,opt,name=max_spread,json=maxSpread,proto3" json:"max_spread,omitempty"`
+	MaxMedian      *durationpb.Duration `protobuf:"bytes,5,opt,name=max_median,json=maxMedian,proto3" json:"max_median,omitempty"`
 	// Zero never reads roam.
-	MinTiles   uint32               `protobuf:"varint,5,opt,name=min_tiles,json=minTiles,proto3" json:"min_tiles,omitempty"`
-	RoamMedian *durationpb.Duration `protobuf:"bytes,6,opt,name=roam_median,json=roamMedian,proto3" json:"roam_median,omitempty"`
+	MinTiles   uint32               `protobuf:"varint,6,opt,name=min_tiles,json=minTiles,proto3" json:"min_tiles,omitempty"`
+	RoamMedian *durationpb.Duration `protobuf:"bytes,7,opt,name=roam_median,json=roamMedian,proto3" json:"roam_median,omitempty"`
 	// Zero never reads roam certain.
-	CertainTiles  uint32 `protobuf:"varint,7,opt,name=certain_tiles,json=certainTiles,proto3" json:"certain_tiles,omitempty"`
+	CertainTiles  uint32 `protobuf:"varint,8,opt,name=certain_tiles,json=certainTiles,proto3" json:"certain_tiles,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -313,6 +315,13 @@ func (x *RetakerRules) ProtoReflect() protoreflect.Message {
 // Deprecated: Use RetakerRules.ProtoReflect.Descriptor instead.
 func (*RetakerRules) Descriptor() ([]byte, []int) {
 	return file_antibot_v1_rules_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *RetakerRules) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
 }
 
 func (x *RetakerRules) GetReactionWindow() *durationpb.Duration {
@@ -365,11 +374,13 @@ func (x *RetakerRules) GetCertainTiles() uint32 {
 }
 
 type SequencerRules struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	MinSteps      uint32                 `protobuf:"varint,1,opt,name=min_steps,json=minSteps,proto3" json:"min_steps,omitempty"`
-	MinShare      float64                `protobuf:"fixed64,2,opt,name=min_share,json=minShare,proto3" json:"min_share,omitempty"`
-	CertainSteps  uint32                 `protobuf:"varint,3,opt,name=certain_steps,json=certainSteps,proto3" json:"certain_steps,omitempty"`
-	CertainShare  float64                `protobuf:"fixed64,4,opt,name=certain_share,json=certainShare,proto3" json:"certain_share,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Off, the jury reads the watchdog as clear; it keeps watching, so it reads again at once when turned on.
+	Enabled       bool    `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	MinSteps      uint32  `protobuf:"varint,2,opt,name=min_steps,json=minSteps,proto3" json:"min_steps,omitempty"`
+	MinShare      float64 `protobuf:"fixed64,3,opt,name=min_share,json=minShare,proto3" json:"min_share,omitempty"`
+	CertainSteps  uint32  `protobuf:"varint,4,opt,name=certain_steps,json=certainSteps,proto3" json:"certain_steps,omitempty"`
+	CertainShare  float64 `protobuf:"fixed64,5,opt,name=certain_share,json=certainShare,proto3" json:"certain_share,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -404,6 +415,13 @@ func (*SequencerRules) Descriptor() ([]byte, []int) {
 	return file_antibot_v1_rules_proto_rawDescGZIP(), []int{4}
 }
 
+func (x *SequencerRules) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
 func (x *SequencerRules) GetMinSteps() uint32 {
 	if x != nil {
 		return x.MinSteps
@@ -433,15 +451,17 @@ func (x *SequencerRules) GetCertainShare() float64 {
 }
 
 type MetronomeRules struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	MaxGap        *durationpb.Duration   `protobuf:"bytes,1,opt,name=max_gap,json=maxGap,proto3" json:"max_gap,omitempty"`
-	MaxSpread     *durationpb.Duration   `protobuf:"bytes,2,opt,name=max_spread,json=maxSpread,proto3" json:"max_spread,omitempty"`
-	MinClicks     uint32                 `protobuf:"varint,3,opt,name=min_clicks,json=minClicks,proto3" json:"min_clicks,omitempty"`
-	CertainFor    *durationpb.Duration   `protobuf:"bytes,4,opt,name=certain_for,json=certainFor,proto3" json:"certain_for,omitempty"`
-	CertainClicks uint32                 `protobuf:"varint,5,opt,name=certain_clicks,json=certainClicks,proto3" json:"certain_clicks,omitempty"`
-	Shape         *ShapeRules            `protobuf:"bytes,6,opt,name=shape,proto3" json:"shape,omitempty"`
-	Clock         *ClockRules            `protobuf:"bytes,7,opt,name=clock,proto3" json:"clock,omitempty"`
-	Stamina       *StaminaRules          `protobuf:"bytes,8,opt,name=stamina,proto3" json:"stamina,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Off, the jury reads the watchdog as clear; it keeps watching, so it reads again at once when turned on.
+	Enabled       bool                 `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	MaxGap        *durationpb.Duration `protobuf:"bytes,2,opt,name=max_gap,json=maxGap,proto3" json:"max_gap,omitempty"`
+	MaxSpread     *durationpb.Duration `protobuf:"bytes,3,opt,name=max_spread,json=maxSpread,proto3" json:"max_spread,omitempty"`
+	MinClicks     uint32               `protobuf:"varint,4,opt,name=min_clicks,json=minClicks,proto3" json:"min_clicks,omitempty"`
+	CertainFor    *durationpb.Duration `protobuf:"bytes,5,opt,name=certain_for,json=certainFor,proto3" json:"certain_for,omitempty"`
+	CertainClicks uint32               `protobuf:"varint,6,opt,name=certain_clicks,json=certainClicks,proto3" json:"certain_clicks,omitempty"`
+	Shape         *ShapeRules          `protobuf:"bytes,7,opt,name=shape,proto3" json:"shape,omitempty"`
+	Clock         *ClockRules          `protobuf:"bytes,8,opt,name=clock,proto3" json:"clock,omitempty"`
+	Stamina       *StaminaRules        `protobuf:"bytes,9,opt,name=stamina,proto3" json:"stamina,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -474,6 +494,13 @@ func (x *MetronomeRules) ProtoReflect() protoreflect.Message {
 // Deprecated: Use MetronomeRules.ProtoReflect.Descriptor instead.
 func (*MetronomeRules) Descriptor() ([]byte, []int) {
 	return file_antibot_v1_rules_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *MetronomeRules) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
 }
 
 func (x *MetronomeRules) GetMaxGap() *durationpb.Duration {
@@ -764,13 +791,15 @@ func (x *StaminaRules) GetCertainBusy() *durationpb.Duration {
 }
 
 type DefenderRules struct {
-	state        protoimpl.MessageState `protogen:"open.v1"`
-	RetakeWindow *durationpb.Duration   `protobuf:"bytes,1,opt,name=retake_window,json=retakeWindow,proto3" json:"retake_window,omitempty"`
-	MinClicks    uint32                 `protobuf:"varint,2,opt,name=min_clicks,json=minClicks,proto3" json:"min_clicks,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Off, the jury reads the watchdog as clear; it keeps watching, so it reads again at once when turned on.
+	Enabled      bool                 `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	RetakeWindow *durationpb.Duration `protobuf:"bytes,2,opt,name=retake_window,json=retakeWindow,proto3" json:"retake_window,omitempty"`
+	MinClicks    uint32               `protobuf:"varint,3,opt,name=min_clicks,json=minClicks,proto3" json:"min_clicks,omitempty"`
 	// Zero never reads.
-	MinShare      float64 `protobuf:"fixed64,3,opt,name=min_share,json=minShare,proto3" json:"min_share,omitempty"`
-	CertainClicks uint32  `protobuf:"varint,4,opt,name=certain_clicks,json=certainClicks,proto3" json:"certain_clicks,omitempty"`
-	CertainShare  float64 `protobuf:"fixed64,5,opt,name=certain_share,json=certainShare,proto3" json:"certain_share,omitempty"`
+	MinShare      float64 `protobuf:"fixed64,4,opt,name=min_share,json=minShare,proto3" json:"min_share,omitempty"`
+	CertainClicks uint32  `protobuf:"varint,5,opt,name=certain_clicks,json=certainClicks,proto3" json:"certain_clicks,omitempty"`
+	CertainShare  float64 `protobuf:"fixed64,6,opt,name=certain_share,json=certainShare,proto3" json:"certain_share,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -803,6 +832,13 @@ func (x *DefenderRules) ProtoReflect() protoreflect.Message {
 // Deprecated: Use DefenderRules.ProtoReflect.Descriptor instead.
 func (*DefenderRules) Descriptor() ([]byte, []int) {
 	return file_antibot_v1_rules_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *DefenderRules) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
 }
 
 func (x *DefenderRules) GetRetakeWindow() *durationpb.Duration {
@@ -841,11 +877,13 @@ func (x *DefenderRules) GetCertainShare() float64 {
 }
 
 type CatcherRules struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	MinCatches    uint32                 `protobuf:"varint,1,opt,name=min_catches,json=minCatches,proto3" json:"min_catches,omitempty"`
-	MaxMedian     *durationpb.Duration   `protobuf:"bytes,2,opt,name=max_median,json=maxMedian,proto3" json:"max_median,omitempty"`
-	CertainMedian *durationpb.Duration   `protobuf:"bytes,3,opt,name=certain_median,json=certainMedian,proto3" json:"certain_median,omitempty"`
-	Foreign       *ForeignRules          `protobuf:"bytes,4,opt,name=foreign,proto3" json:"foreign,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Off, the jury reads the watchdog as clear; it keeps watching, so it reads again at once when turned on.
+	Enabled       bool                 `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	MinCatches    uint32               `protobuf:"varint,2,opt,name=min_catches,json=minCatches,proto3" json:"min_catches,omitempty"`
+	MaxMedian     *durationpb.Duration `protobuf:"bytes,3,opt,name=max_median,json=maxMedian,proto3" json:"max_median,omitempty"`
+	CertainMedian *durationpb.Duration `protobuf:"bytes,4,opt,name=certain_median,json=certainMedian,proto3" json:"certain_median,omitempty"`
+	Foreign       *ForeignRules        `protobuf:"bytes,5,opt,name=foreign,proto3" json:"foreign,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -878,6 +916,13 @@ func (x *CatcherRules) ProtoReflect() protoreflect.Message {
 // Deprecated: Use CatcherRules.ProtoReflect.Descriptor instead.
 func (*CatcherRules) Descriptor() ([]byte, []int) {
 	return file_antibot_v1_rules_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *CatcherRules) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
 }
 
 func (x *CatcherRules) GetMinCatches() uint32 {
@@ -970,18 +1015,20 @@ func (x *ForeignRules) GetCertainClaims() uint32 {
 }
 
 type CohortRules struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	StartWindow    *durationpb.Duration   `protobuf:"bytes,1,opt,name=start_window,json=startWindow,proto3" json:"start_window,omitempty"`
-	MinClicks      uint32                 `protobuf:"varint,2,opt,name=min_clicks,json=minClicks,proto3" json:"min_clicks,omitempty"`
-	MinFlagShare   float64                `protobuf:"fixed64,3,opt,name=min_flag_share,json=minFlagShare,proto3" json:"min_flag_share,omitempty"`
-	RateRatio      float64                `protobuf:"fixed64,4,opt,name=rate_ratio,json=rateRatio,proto3" json:"rate_ratio,omitempty"`
-	LengthRatio    float64                `protobuf:"fixed64,5,opt,name=length_ratio,json=lengthRatio,proto3" json:"length_ratio,omitempty"`
-	QuietAfter     *durationpb.Duration   `protobuf:"bytes,6,opt,name=quiet_after,json=quietAfter,proto3" json:"quiet_after,omitempty"`
-	MinMembers     uint32                 `protobuf:"varint,7,opt,name=min_members,json=minMembers,proto3" json:"min_members,omitempty"`
-	CertainCohorts uint32                 `protobuf:"varint,8,opt,name=certain_cohorts,json=certainCohorts,proto3" json:"certain_cohorts,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Off, the jury reads the watchdog as clear; it keeps watching, so it reads again at once when turned on.
+	Enabled        bool                 `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	StartWindow    *durationpb.Duration `protobuf:"bytes,2,opt,name=start_window,json=startWindow,proto3" json:"start_window,omitempty"`
+	MinClicks      uint32               `protobuf:"varint,3,opt,name=min_clicks,json=minClicks,proto3" json:"min_clicks,omitempty"`
+	MinFlagShare   float64              `protobuf:"fixed64,4,opt,name=min_flag_share,json=minFlagShare,proto3" json:"min_flag_share,omitempty"`
+	RateRatio      float64              `protobuf:"fixed64,5,opt,name=rate_ratio,json=rateRatio,proto3" json:"rate_ratio,omitempty"`
+	LengthRatio    float64              `protobuf:"fixed64,6,opt,name=length_ratio,json=lengthRatio,proto3" json:"length_ratio,omitempty"`
+	QuietAfter     *durationpb.Duration `protobuf:"bytes,7,opt,name=quiet_after,json=quietAfter,proto3" json:"quiet_after,omitempty"`
+	MinMembers     uint32               `protobuf:"varint,8,opt,name=min_members,json=minMembers,proto3" json:"min_members,omitempty"`
+	CertainCohorts uint32               `protobuf:"varint,9,opt,name=certain_cohorts,json=certainCohorts,proto3" json:"certain_cohorts,omitempty"`
 	// The crowd: scopes in step in one group from one prefix.
-	CertainMembers uint32               `protobuf:"varint,9,opt,name=certain_members,json=certainMembers,proto3" json:"certain_members,omitempty"`
-	ChainWindow    *durationpb.Duration `protobuf:"bytes,10,opt,name=chain_window,json=chainWindow,proto3" json:"chain_window,omitempty"`
+	CertainMembers uint32               `protobuf:"varint,10,opt,name=certain_members,json=certainMembers,proto3" json:"certain_members,omitempty"`
+	ChainWindow    *durationpb.Duration `protobuf:"bytes,11,opt,name=chain_window,json=chainWindow,proto3" json:"chain_window,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -1014,6 +1061,13 @@ func (x *CohortRules) ProtoReflect() protoreflect.Message {
 // Deprecated: Use CohortRules.ProtoReflect.Descriptor instead.
 func (*CohortRules) Descriptor() ([]byte, []int) {
 	return file_antibot_v1_rules_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *CohortRules) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
 }
 
 func (x *CohortRules) GetStartWindow() *durationpb.Duration {
@@ -1087,10 +1141,12 @@ func (x *CohortRules) GetChainWindow() *durationpb.Duration {
 }
 
 type ScraperRules struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	MinMaps       float64                `protobuf:"fixed64,1,opt,name=min_maps,json=minMaps,proto3" json:"min_maps,omitempty"`
-	CertainMaps   float64                `protobuf:"fixed64,2,opt,name=certain_maps,json=certainMaps,proto3" json:"certain_maps,omitempty"`
-	CertainOffMap uint32                 `protobuf:"varint,3,opt,name=certain_off_map,json=certainOffMap,proto3" json:"certain_off_map,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Off, the jury reads the watchdog as clear; it keeps watching, so it reads again at once when turned on.
+	Enabled       bool    `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	MinMaps       float64 `protobuf:"fixed64,2,opt,name=min_maps,json=minMaps,proto3" json:"min_maps,omitempty"`
+	CertainMaps   float64 `protobuf:"fixed64,3,opt,name=certain_maps,json=certainMaps,proto3" json:"certain_maps,omitempty"`
+	CertainOffMap uint32  `protobuf:"varint,4,opt,name=certain_off_map,json=certainOffMap,proto3" json:"certain_off_map,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1125,6 +1181,13 @@ func (*ScraperRules) Descriptor() ([]byte, []int) {
 	return file_antibot_v1_rules_proto_rawDescGZIP(), []int{13}
 }
 
+func (x *ScraperRules) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
 func (x *ScraperRules) GetMinMaps() float64 {
 	if x != nil {
 		return x.MinMaps
@@ -1147,11 +1210,13 @@ func (x *ScraperRules) GetCertainOffMap() uint32 {
 }
 
 type ChurnerRules struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Window        *durationpb.Duration   `protobuf:"bytes,1,opt,name=window,proto3" json:"window,omitempty"`
-	V6            *AccountBounds         `protobuf:"bytes,2,opt,name=v6,proto3" json:"v6,omitempty"`
-	V4            *AccountBounds         `protobuf:"bytes,3,opt,name=v4,proto3" json:"v4,omitempty"`
-	Relay         *RelayRules            `protobuf:"bytes,4,opt,name=relay,proto3" json:"relay,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Off, the jury reads the watchdog as clear; it keeps watching, so it reads again at once when turned on.
+	Enabled       bool                 `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	Window        *durationpb.Duration `protobuf:"bytes,2,opt,name=window,proto3" json:"window,omitempty"`
+	V6            *AccountBounds       `protobuf:"bytes,3,opt,name=v6,proto3" json:"v6,omitempty"`
+	V4            *AccountBounds       `protobuf:"bytes,4,opt,name=v4,proto3" json:"v4,omitempty"`
+	Relay         *RelayRules          `protobuf:"bytes,5,opt,name=relay,proto3" json:"relay,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1184,6 +1249,13 @@ func (x *ChurnerRules) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ChurnerRules.ProtoReflect.Descriptor instead.
 func (*ChurnerRules) Descriptor() ([]byte, []int) {
 	return file_antibot_v1_rules_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *ChurnerRules) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
 }
 
 func (x *ChurnerRules) GetWindow() *durationpb.Duration {
@@ -1354,15 +1426,17 @@ func (x *RelayRules) GetCertainLinks() uint32 {
 
 type HopperRules struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
+	// Off, the jury reads the watchdog as clear; it keeps watching, so it reads again at once when turned on.
+	Enabled bool `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
 	// Degrees.
-	MinAngle float64              `protobuf:"fixed64,1,opt,name=min_angle,json=minAngle,proto3" json:"min_angle,omitempty"`
-	MinGap   *durationpb.Duration `protobuf:"bytes,2,opt,name=min_gap,json=minGap,proto3" json:"min_gap,omitempty"`
-	MaxGap   *durationpb.Duration `protobuf:"bytes,3,opt,name=max_gap,json=maxGap,proto3" json:"max_gap,omitempty"`
-	MinSteps uint32               `protobuf:"varint,4,opt,name=min_steps,json=minSteps,proto3" json:"min_steps,omitempty"`
+	MinAngle float64              `protobuf:"fixed64,2,opt,name=min_angle,json=minAngle,proto3" json:"min_angle,omitempty"`
+	MinGap   *durationpb.Duration `protobuf:"bytes,3,opt,name=min_gap,json=minGap,proto3" json:"min_gap,omitempty"`
+	MaxGap   *durationpb.Duration `protobuf:"bytes,4,opt,name=max_gap,json=maxGap,proto3" json:"max_gap,omitempty"`
+	MinSteps uint32               `protobuf:"varint,5,opt,name=min_steps,json=minSteps,proto3" json:"min_steps,omitempty"`
 	// Zero never reads.
-	MinShare      float64 `protobuf:"fixed64,5,opt,name=min_share,json=minShare,proto3" json:"min_share,omitempty"`
-	CertainSteps  uint32  `protobuf:"varint,6,opt,name=certain_steps,json=certainSteps,proto3" json:"certain_steps,omitempty"`
-	CertainShare  float64 `protobuf:"fixed64,7,opt,name=certain_share,json=certainShare,proto3" json:"certain_share,omitempty"`
+	MinShare      float64 `protobuf:"fixed64,6,opt,name=min_share,json=minShare,proto3" json:"min_share,omitempty"`
+	CertainSteps  uint32  `protobuf:"varint,7,opt,name=certain_steps,json=certainSteps,proto3" json:"certain_steps,omitempty"`
+	CertainShare  float64 `protobuf:"fixed64,8,opt,name=certain_share,json=certainShare,proto3" json:"certain_share,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1395,6 +1469,13 @@ func (x *HopperRules) ProtoReflect() protoreflect.Message {
 // Deprecated: Use HopperRules.ProtoReflect.Descriptor instead.
 func (*HopperRules) Descriptor() ([]byte, []int) {
 	return file_antibot_v1_rules_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *HopperRules) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
 }
 
 func (x *HopperRules) GetMinAngle() float64 {
@@ -1447,14 +1528,16 @@ func (x *HopperRules) GetCertainShare() float64 {
 }
 
 type RotatorRules struct {
-	state       protoimpl.MessageState `protogen:"open.v1"`
-	Window      *durationpb.Duration   `protobuf:"bytes,1,opt,name=window,proto3" json:"window,omitempty"`
-	MinSeconds  uint32                 `protobuf:"varint,2,opt,name=min_seconds,json=minSeconds,proto3" json:"min_seconds,omitempty"`
-	MinByChance float64                `protobuf:"fixed64,3,opt,name=min_by_chance,json=minByChance,proto3" json:"min_by_chance,omitempty"`
-	MaxShare    float64                `protobuf:"fixed64,4,opt,name=max_share,json=maxShare,proto3" json:"max_share,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Off, the jury reads the watchdog as clear; it keeps watching, so it reads again at once when turned on.
+	Enabled     bool                 `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	Window      *durationpb.Duration `protobuf:"bytes,2,opt,name=window,proto3" json:"window,omitempty"`
+	MinSeconds  uint32               `protobuf:"varint,3,opt,name=min_seconds,json=minSeconds,proto3" json:"min_seconds,omitempty"`
+	MinByChance float64              `protobuf:"fixed64,4,opt,name=min_by_chance,json=minByChance,proto3" json:"min_by_chance,omitempty"`
+	MaxShare    float64              `protobuf:"fixed64,5,opt,name=max_share,json=maxShare,proto3" json:"max_share,omitempty"`
 	// Zero never reads.
-	MinSlots      uint32 `protobuf:"varint,5,opt,name=min_slots,json=minSlots,proto3" json:"min_slots,omitempty"`
-	CertainSlots  uint32 `protobuf:"varint,6,opt,name=certain_slots,json=certainSlots,proto3" json:"certain_slots,omitempty"`
+	MinSlots      uint32 `protobuf:"varint,6,opt,name=min_slots,json=minSlots,proto3" json:"min_slots,omitempty"`
+	CertainSlots  uint32 `protobuf:"varint,7,opt,name=certain_slots,json=certainSlots,proto3" json:"certain_slots,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1487,6 +1570,13 @@ func (x *RotatorRules) ProtoReflect() protoreflect.Message {
 // Deprecated: Use RotatorRules.ProtoReflect.Descriptor instead.
 func (*RotatorRules) Descriptor() ([]byte, []int) {
 	return file_antibot_v1_rules_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *RotatorRules) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
 }
 
 func (x *RotatorRules) GetWindow() *durationpb.Duration {
@@ -1557,35 +1647,38 @@ const file_antibot_v1_rules_proto_rawDesc = "" +
 	"\x0freflag_interval\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\x0ereflagInterval\"t\n" +
 	"\tJuryRules\x12!\n" +
 	"\fmin_suspects\x18\x01 \x01(\rR\vminSuspects\x12D\n" +
-	"\x10suspicion_window\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x0fsuspicionWindow\"\xe9\x02\n" +
-	"\fRetakerRules\x12B\n" +
-	"\x0freaction_window\x18\x01 \x01(\v2\x19.google.protobuf.DurationR\x0ereactionWindow\x12#\n" +
-	"\rmin_reactions\x18\x02 \x01(\rR\fminReactions\x128\n" +
+	"\x10suspicion_window\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x0fsuspicionWindow\"\x83\x03\n" +
+	"\fRetakerRules\x12\x18\n" +
+	"\aenabled\x18\x01 \x01(\bR\aenabled\x12B\n" +
+	"\x0freaction_window\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x0ereactionWindow\x12#\n" +
+	"\rmin_reactions\x18\x03 \x01(\rR\fminReactions\x128\n" +
 	"\n" +
-	"max_spread\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\tmaxSpread\x128\n" +
+	"max_spread\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\tmaxSpread\x128\n" +
 	"\n" +
-	"max_median\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\tmaxMedian\x12\x1b\n" +
-	"\tmin_tiles\x18\x05 \x01(\rR\bminTiles\x12:\n" +
-	"\vroam_median\x18\x06 \x01(\v2\x19.google.protobuf.DurationR\n" +
+	"max_median\x18\x05 \x01(\v2\x19.google.protobuf.DurationR\tmaxMedian\x12\x1b\n" +
+	"\tmin_tiles\x18\x06 \x01(\rR\bminTiles\x12:\n" +
+	"\vroam_median\x18\a \x01(\v2\x19.google.protobuf.DurationR\n" +
 	"roamMedian\x12#\n" +
-	"\rcertain_tiles\x18\a \x01(\rR\fcertainTiles\"\x94\x01\n" +
-	"\x0eSequencerRules\x12\x1b\n" +
-	"\tmin_steps\x18\x01 \x01(\rR\bminSteps\x12\x1b\n" +
-	"\tmin_share\x18\x02 \x01(\x01R\bminShare\x12#\n" +
-	"\rcertain_steps\x18\x03 \x01(\rR\fcertainSteps\x12#\n" +
-	"\rcertain_share\x18\x04 \x01(\x01R\fcertainShare\"\x90\x03\n" +
-	"\x0eMetronomeRules\x122\n" +
-	"\amax_gap\x18\x01 \x01(\v2\x19.google.protobuf.DurationR\x06maxGap\x128\n" +
+	"\rcertain_tiles\x18\b \x01(\rR\fcertainTiles\"\xae\x01\n" +
+	"\x0eSequencerRules\x12\x18\n" +
+	"\aenabled\x18\x01 \x01(\bR\aenabled\x12\x1b\n" +
+	"\tmin_steps\x18\x02 \x01(\rR\bminSteps\x12\x1b\n" +
+	"\tmin_share\x18\x03 \x01(\x01R\bminShare\x12#\n" +
+	"\rcertain_steps\x18\x04 \x01(\rR\fcertainSteps\x12#\n" +
+	"\rcertain_share\x18\x05 \x01(\x01R\fcertainShare\"\xaa\x03\n" +
+	"\x0eMetronomeRules\x12\x18\n" +
+	"\aenabled\x18\x01 \x01(\bR\aenabled\x122\n" +
+	"\amax_gap\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x06maxGap\x128\n" +
 	"\n" +
-	"max_spread\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\tmaxSpread\x12\x1d\n" +
+	"max_spread\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\tmaxSpread\x12\x1d\n" +
 	"\n" +
-	"min_clicks\x18\x03 \x01(\rR\tminClicks\x12:\n" +
-	"\vcertain_for\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\n" +
+	"min_clicks\x18\x04 \x01(\rR\tminClicks\x12:\n" +
+	"\vcertain_for\x18\x05 \x01(\v2\x19.google.protobuf.DurationR\n" +
 	"certainFor\x12%\n" +
-	"\x0ecertain_clicks\x18\x05 \x01(\rR\rcertainClicks\x12,\n" +
-	"\x05shape\x18\x06 \x01(\v2\x16.antibot.v1.ShapeRulesR\x05shape\x12,\n" +
-	"\x05clock\x18\a \x01(\v2\x16.antibot.v1.ClockRulesR\x05clock\x122\n" +
-	"\astamina\x18\b \x01(\v2\x18.antibot.v1.StaminaRulesR\astamina\"\xe5\x01\n" +
+	"\x0ecertain_clicks\x18\x06 \x01(\rR\rcertainClicks\x12,\n" +
+	"\x05shape\x18\a \x01(\v2\x16.antibot.v1.ShapeRulesR\x05shape\x12,\n" +
+	"\x05clock\x18\b \x01(\v2\x16.antibot.v1.ClockRulesR\x05clock\x122\n" +
+	"\astamina\x18\t \x01(\v2\x18.antibot.v1.StaminaRulesR\astamina\"\xe5\x01\n" +
 	"\n" +
 	"ShapeRules\x122\n" +
 	"\amax_gap\x18\x01 \x01(\v2\x19.google.protobuf.DurationR\x06maxGap\x12\x16\n" +
@@ -1610,51 +1703,56 @@ const file_antibot_v1_rules_proto_rawDesc = "" +
 	"\x06clicks\x18\x01 \x01(\rR\x06clicks\x121\n" +
 	"\x06window\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x06window\x124\n" +
 	"\bmin_busy\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\aminBusy\x12<\n" +
-	"\fcertain_busy\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\vcertainBusy\"\xd7\x01\n" +
-	"\rDefenderRules\x12>\n" +
-	"\rretake_window\x18\x01 \x01(\v2\x19.google.protobuf.DurationR\fretakeWindow\x12\x1d\n" +
+	"\fcertain_busy\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\vcertainBusy\"\xf1\x01\n" +
+	"\rDefenderRules\x12\x18\n" +
+	"\aenabled\x18\x01 \x01(\bR\aenabled\x12>\n" +
+	"\rretake_window\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\fretakeWindow\x12\x1d\n" +
 	"\n" +
-	"min_clicks\x18\x02 \x01(\rR\tminClicks\x12\x1b\n" +
-	"\tmin_share\x18\x03 \x01(\x01R\bminShare\x12%\n" +
-	"\x0ecertain_clicks\x18\x04 \x01(\rR\rcertainClicks\x12#\n" +
-	"\rcertain_share\x18\x05 \x01(\x01R\fcertainShare\"\xdf\x01\n" +
-	"\fCatcherRules\x12\x1f\n" +
-	"\vmin_catches\x18\x01 \x01(\rR\n" +
+	"min_clicks\x18\x03 \x01(\rR\tminClicks\x12\x1b\n" +
+	"\tmin_share\x18\x04 \x01(\x01R\bminShare\x12%\n" +
+	"\x0ecertain_clicks\x18\x05 \x01(\rR\rcertainClicks\x12#\n" +
+	"\rcertain_share\x18\x06 \x01(\x01R\fcertainShare\"\xf9\x01\n" +
+	"\fCatcherRules\x12\x18\n" +
+	"\aenabled\x18\x01 \x01(\bR\aenabled\x12\x1f\n" +
+	"\vmin_catches\x18\x02 \x01(\rR\n" +
 	"minCatches\x128\n" +
 	"\n" +
-	"max_median\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\tmaxMedian\x12@\n" +
-	"\x0ecertain_median\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\rcertainMedian\x122\n" +
-	"\aforeign\x18\x04 \x01(\v2\x18.antibot.v1.ForeignRulesR\aforeign\"\x87\x01\n" +
+	"max_median\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\tmaxMedian\x12@\n" +
+	"\x0ecertain_median\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\rcertainMedian\x122\n" +
+	"\aforeign\x18\x05 \x01(\v2\x18.antibot.v1.ForeignRulesR\aforeign\"\x87\x01\n" +
 	"\fForeignRules\x121\n" +
 	"\x06window\x18\x01 \x01(\v2\x19.google.protobuf.DurationR\x06window\x12\x1d\n" +
 	"\n" +
 	"min_claims\x18\x02 \x01(\rR\tminClaims\x12%\n" +
-	"\x0ecertain_claims\x18\x03 \x01(\rR\rcertainClaims\"\xbf\x03\n" +
-	"\vCohortRules\x12<\n" +
-	"\fstart_window\x18\x01 \x01(\v2\x19.google.protobuf.DurationR\vstartWindow\x12\x1d\n" +
+	"\x0ecertain_claims\x18\x03 \x01(\rR\rcertainClaims\"\xd9\x03\n" +
+	"\vCohortRules\x12\x18\n" +
+	"\aenabled\x18\x01 \x01(\bR\aenabled\x12<\n" +
+	"\fstart_window\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\vstartWindow\x12\x1d\n" +
 	"\n" +
-	"min_clicks\x18\x02 \x01(\rR\tminClicks\x12$\n" +
-	"\x0emin_flag_share\x18\x03 \x01(\x01R\fminFlagShare\x12\x1d\n" +
+	"min_clicks\x18\x03 \x01(\rR\tminClicks\x12$\n" +
+	"\x0emin_flag_share\x18\x04 \x01(\x01R\fminFlagShare\x12\x1d\n" +
 	"\n" +
-	"rate_ratio\x18\x04 \x01(\x01R\trateRatio\x12!\n" +
-	"\flength_ratio\x18\x05 \x01(\x01R\vlengthRatio\x12:\n" +
-	"\vquiet_after\x18\x06 \x01(\v2\x19.google.protobuf.DurationR\n" +
+	"rate_ratio\x18\x05 \x01(\x01R\trateRatio\x12!\n" +
+	"\flength_ratio\x18\x06 \x01(\x01R\vlengthRatio\x12:\n" +
+	"\vquiet_after\x18\a \x01(\v2\x19.google.protobuf.DurationR\n" +
 	"quietAfter\x12\x1f\n" +
-	"\vmin_members\x18\a \x01(\rR\n" +
+	"\vmin_members\x18\b \x01(\rR\n" +
 	"minMembers\x12'\n" +
-	"\x0fcertain_cohorts\x18\b \x01(\rR\x0ecertainCohorts\x12'\n" +
-	"\x0fcertain_members\x18\t \x01(\rR\x0ecertainMembers\x12<\n" +
-	"\fchain_window\x18\n" +
-	" \x01(\v2\x19.google.protobuf.DurationR\vchainWindow\"t\n" +
-	"\fScraperRules\x12\x19\n" +
-	"\bmin_maps\x18\x01 \x01(\x01R\aminMaps\x12!\n" +
-	"\fcertain_maps\x18\x02 \x01(\x01R\vcertainMaps\x12&\n" +
-	"\x0fcertain_off_map\x18\x03 \x01(\rR\rcertainOffMap\"\xc5\x01\n" +
-	"\fChurnerRules\x121\n" +
-	"\x06window\x18\x01 \x01(\v2\x19.google.protobuf.DurationR\x06window\x12)\n" +
-	"\x02v6\x18\x02 \x01(\v2\x19.antibot.v1.AccountBoundsR\x02v6\x12)\n" +
-	"\x02v4\x18\x03 \x01(\v2\x19.antibot.v1.AccountBoundsR\x02v4\x12,\n" +
-	"\x05relay\x18\x04 \x01(\v2\x16.antibot.v1.RelayRulesR\x05relay\"]\n" +
+	"\x0fcertain_cohorts\x18\t \x01(\rR\x0ecertainCohorts\x12'\n" +
+	"\x0fcertain_members\x18\n" +
+	" \x01(\rR\x0ecertainMembers\x12<\n" +
+	"\fchain_window\x18\v \x01(\v2\x19.google.protobuf.DurationR\vchainWindow\"\x8e\x01\n" +
+	"\fScraperRules\x12\x18\n" +
+	"\aenabled\x18\x01 \x01(\bR\aenabled\x12\x19\n" +
+	"\bmin_maps\x18\x02 \x01(\x01R\aminMaps\x12!\n" +
+	"\fcertain_maps\x18\x03 \x01(\x01R\vcertainMaps\x12&\n" +
+	"\x0fcertain_off_map\x18\x04 \x01(\rR\rcertainOffMap\"\xdf\x01\n" +
+	"\fChurnerRules\x12\x18\n" +
+	"\aenabled\x18\x01 \x01(\bR\aenabled\x121\n" +
+	"\x06window\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x06window\x12)\n" +
+	"\x02v6\x18\x03 \x01(\v2\x19.antibot.v1.AccountBoundsR\x02v6\x12)\n" +
+	"\x02v4\x18\x04 \x01(\v2\x19.antibot.v1.AccountBoundsR\x02v4\x12,\n" +
+	"\x05relay\x18\x05 \x01(\v2\x16.antibot.v1.RelayRulesR\x05relay\"]\n" +
 	"\rAccountBounds\x12!\n" +
 	"\fmin_accounts\x18\x01 \x01(\rR\vminAccounts\x12)\n" +
 	"\x10certain_accounts\x18\x02 \x01(\rR\x0fcertainAccounts\"\xfe\x01\n" +
@@ -1666,23 +1764,25 @@ const file_antibot_v1_rules_proto_rawDesc = "" +
 	"min_clicks\x18\x03 \x01(\rR\tminClicks\x12$\n" +
 	"\x0emin_flag_share\x18\x04 \x01(\x01R\fminFlagShare\x12\x1b\n" +
 	"\tmin_links\x18\x05 \x01(\rR\bminLinks\x12#\n" +
-	"\rcertain_links\x18\x06 \x01(\rR\fcertainLinks\"\x96\x02\n" +
-	"\vHopperRules\x12\x1b\n" +
-	"\tmin_angle\x18\x01 \x01(\x01R\bminAngle\x122\n" +
-	"\amin_gap\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x06minGap\x122\n" +
-	"\amax_gap\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\x06maxGap\x12\x1b\n" +
-	"\tmin_steps\x18\x04 \x01(\rR\bminSteps\x12\x1b\n" +
-	"\tmin_share\x18\x05 \x01(\x01R\bminShare\x12#\n" +
-	"\rcertain_steps\x18\x06 \x01(\rR\fcertainSteps\x12#\n" +
-	"\rcertain_share\x18\a \x01(\x01R\fcertainShare\"\xe5\x01\n" +
-	"\fRotatorRules\x121\n" +
-	"\x06window\x18\x01 \x01(\v2\x19.google.protobuf.DurationR\x06window\x12\x1f\n" +
-	"\vmin_seconds\x18\x02 \x01(\rR\n" +
+	"\rcertain_links\x18\x06 \x01(\rR\fcertainLinks\"\xb0\x02\n" +
+	"\vHopperRules\x12\x18\n" +
+	"\aenabled\x18\x01 \x01(\bR\aenabled\x12\x1b\n" +
+	"\tmin_angle\x18\x02 \x01(\x01R\bminAngle\x122\n" +
+	"\amin_gap\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\x06minGap\x122\n" +
+	"\amax_gap\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\x06maxGap\x12\x1b\n" +
+	"\tmin_steps\x18\x05 \x01(\rR\bminSteps\x12\x1b\n" +
+	"\tmin_share\x18\x06 \x01(\x01R\bminShare\x12#\n" +
+	"\rcertain_steps\x18\a \x01(\rR\fcertainSteps\x12#\n" +
+	"\rcertain_share\x18\b \x01(\x01R\fcertainShare\"\xff\x01\n" +
+	"\fRotatorRules\x12\x18\n" +
+	"\aenabled\x18\x01 \x01(\bR\aenabled\x121\n" +
+	"\x06window\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x06window\x12\x1f\n" +
+	"\vmin_seconds\x18\x03 \x01(\rR\n" +
 	"minSeconds\x12\"\n" +
-	"\rmin_by_chance\x18\x03 \x01(\x01R\vminByChance\x12\x1b\n" +
-	"\tmax_share\x18\x04 \x01(\x01R\bmaxShare\x12\x1b\n" +
-	"\tmin_slots\x18\x05 \x01(\rR\bminSlots\x12#\n" +
-	"\rcertain_slots\x18\x06 \x01(\rR\fcertainSlotsB\xb9\x01\n" +
+	"\rmin_by_chance\x18\x04 \x01(\x01R\vminByChance\x12\x1b\n" +
+	"\tmax_share\x18\x05 \x01(\x01R\bmaxShare\x12\x1b\n" +
+	"\tmin_slots\x18\x06 \x01(\rR\bminSlots\x12#\n" +
+	"\rcertain_slots\x18\a \x01(\rR\fcertainSlotsB\xb9\x01\n" +
 	"\x0ecom.antibot.v1B\n" +
 	"RulesProtoP\x01ZRgithub.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1;antibotv1\xa2\x02\x03AXX\xaa\x02\n" +
 	"Antibot.V1\xca\x02\n" +

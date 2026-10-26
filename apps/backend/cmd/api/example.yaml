@@ -145,71 +145,51 @@ antiBot:
     retention: 72h
 
   retaker:
-    enabled: true
-    detector:
-      trackWindow: 5m
-      sweepInterval: 1m
+    trackWindow: 5m
+    sweepInterval: 1m
 
   sequencer:
-    enabled: true
-    detector:
-      trackWindow: 15m
-      sweepInterval: 1m
+    trackWindow: 15m
+    sweepInterval: 1m
 
   metronome:
-    enabled: true
-    detector:
-      stamina:
-        slice: 10m
-      trackWindow: 15m
-      sweepInterval: 1m
+    stamina:
+      slice: 10m
+    trackWindow: 15m
+    sweepInterval: 1m
 
   defender:
-    enabled: true
-    detector:
-      trackWindow: 5m
-      sweepInterval: 1m
+    trackWindow: 5m
+    sweepInterval: 1m
 
   catcher:
-    enabled: true
-    detector:
-      trackWindow: 1h
-      sweepInterval: 1m
+    trackWindow: 1h
+    sweepInterval: 1m
 
   cohort:
-    enabled: true
-    detector:
-      v4Bits: 24
-      v6Bits: 44
-      trackWindow: 30m
-      sweepInterval: 1m
+    v4Bits: 24
+    v6Bits: 44
+    trackWindow: 30m
+    sweepInterval: 1m
 
   scraper:
-    enabled: true
-    detector:
-      trackWindow: 15m
-      sweepInterval: 1m
+    trackWindow: 15m
+    sweepInterval: 1m
 
   churner:
-    enabled: true
-    detector:
-      relay:
-        v4Bits: 24
-        v6Bits: 32
-      trackWindow: 1h2m
-      sweepInterval: 1m
+    relay:
+      v4Bits: 24
+      v6Bits: 32
+    trackWindow: 1h2m
+    sweepInterval: 1m
 
   hopper:
-    enabled: true
-    detector:
-      trackWindow: 15m
-      sweepInterval: 1m
+    trackWindow: 15m
+    sweepInterval: 1m
 
   rotator:
-    enabled: true
-    detector:
-      slot: 5m
-      sweepInterval: 1m
+    slot: 5m
+    sweepInterval: 1m
 
 chat:
   database:

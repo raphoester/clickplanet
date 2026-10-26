@@ -14,7 +14,7 @@ import (
 func TestSweepForgetsIdlePayers(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 10, 9, 12, 0, 0, 0, time.UTC))
 
-	w := New(Config{TrackWindow: 5 * time.Minute}, rules(asIs), clock, func(float64) {})
+	w := New(Config{TrackWindow: 5 * time.Minute}, bounds(asIs), clock, func(float64) {})
 	alternate(w, clock, 5)
 	require.Len(t, w.payers, 1)
 
@@ -27,7 +27,7 @@ func TestSweepForgetsIdlePayers(t *testing.T) {
 func TestSweepKeepsAPayerThatCanStillMakeAStep(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 10, 9, 12, 0, 0, 0, time.UTC))
 
-	w := New(Config{}, rules(asIs), clock, func(float64) {})
+	w := New(Config{}, bounds(asIs), clock, func(float64) {})
 	w.Attempted(detect.Click{Scope: "2001:db8::/64", Account: "player", Position: north, At: clock.Now()})
 
 	clock.Advance(10 * time.Second)
@@ -40,7 +40,7 @@ func TestWithNoShareSetItOnlyMeasures(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 10, 9, 12, 0, 0, 0, time.UTC))
 
 	var shares []float64
-	w := New(Config{}, rules(func(r *Rules) { r.MinSteps = 10 }), clock, func(share float64) { shares = append(shares, share) })
+	w := New(Config{}, bounds(func(r *Rules) { r.MinSteps = 10 }), clock, func(share float64) { shares = append(shares, share) })
 
 	for i := range 21 {
 		clock.Advance(time.Second)

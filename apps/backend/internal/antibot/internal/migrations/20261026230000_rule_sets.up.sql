@@ -22,6 +22,7 @@ INSERT INTO rule_sets (name, rules) VALUES ('default', '
         "suspicionWindow": "600s"
       },
       "retaker": {
+        "enabled": true,
         "reactionWindow": "5s",
         "minReactions": 20,
         "maxSpread": "0.300s",
@@ -31,12 +32,14 @@ INSERT INTO rule_sets (name, rules) VALUES ('default', '
         "certainTiles": 0
       },
       "sequencer": {
+        "enabled": true,
         "minSteps": 40,
         "minShare": 0.75,
         "certainSteps": 200,
         "certainShare": 0.95
       },
       "metronome": {
+        "enabled": true,
         "maxGap": "7s",
         "maxSpread": "0.400s",
         "minClicks": 120,
@@ -61,6 +64,7 @@ INSERT INTO rule_sets (name, rules) VALUES ('default', '
         }
       },
       "defender": {
+        "enabled": true,
         "retakeWindow": "120s",
         "minClicks": 40,
         "minShare": 0.6,
@@ -68,6 +72,7 @@ INSERT INTO rule_sets (name, rules) VALUES ('default', '
         "certainShare": 0
       },
       "catcher": {
+        "enabled": true,
         "minCatches": 5,
         "maxMedian": "3s",
         "certainMedian": "1.500s",
@@ -78,6 +83,7 @@ INSERT INTO rule_sets (name, rules) VALUES ('default', '
         }
       },
       "cohort": {
+        "enabled": true,
         "startWindow": "5s",
         "minClicks": 20,
         "minFlagShare": 0.9,
@@ -90,11 +96,13 @@ INSERT INTO rule_sets (name, rules) VALUES ('default', '
         "chainWindow": "1800s"
       },
       "scraper": {
+        "enabled": true,
         "minMaps": 5,
         "certainMaps": 15,
         "certainOffMap": 2
       },
       "churner": {
+        "enabled": true,
         "window": "3600s",
         "v6": {
           "minAccounts": 4,
@@ -114,6 +122,7 @@ INSERT INTO rule_sets (name, rules) VALUES ('default', '
         }
       },
       "hopper": {
+        "enabled": true,
         "minAngle": 45,
         "minGap": "0.100s",
         "maxGap": "30s",
@@ -123,6 +132,7 @@ INSERT INTO rule_sets (name, rules) VALUES ('default', '
         "certainShare": 0
       },
       "rotator": {
+        "enabled": true,
         "window": "86400s",
         "minSeconds": 15,
         "minByChance": 90,

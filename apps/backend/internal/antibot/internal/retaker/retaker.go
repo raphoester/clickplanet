@@ -14,6 +14,8 @@ import (
 const Name = "retaker"
 
 type Rules struct {
+	Enabled bool
+
 	ReactionWindow time.Duration
 
 	MinReactions int
@@ -108,6 +110,8 @@ type reaction struct {
 }
 
 func (w *Watchdog) Name() string { return Name }
+
+func (w *Watchdog) Enabled() bool { return w.rules().Enabled }
 
 func (w *Watchdog) Attempted(detect.Click) {}
 

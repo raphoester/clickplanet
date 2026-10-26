@@ -31,6 +31,7 @@ describe("the antibot rules page", () => {
         expect(row.getAttribute("aria-current")).toBe("true")
         expect(within(row).getByText("Enforced")).toBeTruthy()
         expect(within(row).getByText("6 scopes")).toBeTruthy()
+        expect(within(row).getByText("defender")).toBeTruthy()
     })
 
     it("edits a set once confirmed, and reads the rules again", async () => {
@@ -47,6 +48,18 @@ describe("the antibot rules page", () => {
         expect(asked.set.name).toBe("default")
         expect(asked.set.rules?.bans?.enforce).toBe(false)
         expect(screen.queryByRole("region", {name: "Edit default"})).toBeNull()
+    })
+
+    it("turns a watchdog back on", async () => {
+        const admin = new FakeAdmin()
+        render(<AntibotRulesPanel antibot={admin}/>)
+
+        fireEvent.click(await screen.findByRole("button", {name: "Edit default"}))
+        const text = rulesText().value
+        type("Rules (JSON)", text.replace(/("defender": \{\s*"enabled": )false/, "$1true"))
+        save()
+
+        await waitFor(() => expect(within(rowOf("default")).getByText("None")).toBeTruthy())
     })
 
     it("makes a new set from a copy of default", async () => {

@@ -20,6 +20,7 @@ type stubWatchdog struct {
 	verdict detect.Verdict
 	zeal    bool
 	turns   bool
+	off     bool
 
 	accomplices []detect.Accomplice
 
@@ -29,6 +30,8 @@ type stubWatchdog struct {
 }
 
 func (w *stubWatchdog) Name() string { return w.name }
+
+func (w *stubWatchdog) Enabled() bool { return !w.off }
 
 func (w *stubWatchdog) Watch(detect.Click) (detect.Verdict, detect.Evidence) {
 	w.seen++
@@ -124,6 +127,20 @@ func TestOneCertainWatchdogBansOnItsOwn(t *testing.T) {
 
 	assert.True(t, h.click())
 	require.Len(t, h.reports, 1)
+}
+
+func TestAWatchdogTurnedOffKeepsWatchingAndCountsForNothing(t *testing.T) {
+	sure := &stubWatchdog{name: "sure", verdict: detect.Certain, off: true}
+	h := newHarness(t, juryRules(), banRules(), sure)
+
+	assert.False(t, h.click())
+	assert.Equal(t, 1, sure.seen, "its windows stay full, so it reads again at once when turned on")
+	assert.Empty(t, h.rises)
+	assert.Equal(t, "clear", h.jury.Examine("caller", "").Readings[0].Level)
+
+	sure.off = false
+
+	assert.True(t, h.click())
 }
 
 func TestOneSuspectIsNotEnough(t *testing.T) {

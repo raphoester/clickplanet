@@ -14,7 +14,7 @@ import (
 func TestSweepForgetsSilentScopesAndTheirIndexes(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 14, 12, 0, 0, 0, time.UTC))
 
-	w := New(Config{}, rules(func(r *Rules) { r.ChainWindow = 10 * time.Minute }), clock, nil)
+	w := New(Config{}, bounds(func(r *Rules) { r.ChainWindow = 10 * time.Minute }), clock, nil)
 
 	w.Watch(detect.Click{Scope: "2a00:8c40:f0c5:6713::/64", Tile: 1, Country: "bg", At: clock.Now()})
 	require.Len(t, w.members, 1)
@@ -32,7 +32,7 @@ func TestSweepForgetsSilentScopesAndTheirIndexes(t *testing.T) {
 func TestSweepKeepsAScopeForTheWholeChain(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 14, 12, 0, 0, 0, time.UTC))
 
-	w := New(Config{TrackWindow: time.Minute}, rules(asIs), clock, nil)
+	w := New(Config{TrackWindow: time.Minute}, bounds(asIs), clock, nil)
 
 	w.Watch(detect.Click{Scope: "198.51.100.7", Tile: 1, Country: "bg", At: clock.Now()})
 
@@ -46,7 +46,7 @@ func TestSweepReportsScopesInStep(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 14, 12, 0, 0, 0, time.UTC))
 
 	var reported []int
-	w := New(Config{}, rules(asIs), clock, func(scopes int) { reported = append(reported, scopes) })
+	w := New(Config{}, bounds(asIs), clock, func(scopes int) { reported = append(reported, scopes) })
 
 	for i := range 40 {
 		for _, scope := range []string{"198.51.100.1", "198.51.100.2"} {

@@ -5,7 +5,7 @@ import {FailureNotice} from "../components/FailureNotice.tsx"
 import {GetRulesResponse, RuleSet} from "../gen/grpc/antibot/v1/admin_pb.ts"
 import {wordsOf} from "../refusal.ts"
 import {useCall} from "../useCall.ts"
-import {bansOf, crowdOf, Draft, draftOf, flawOf, newDraft, saveRuleSet} from "./antibotRules.ts"
+import {bansOf, crowdOf, Draft, draftOf, flawOf, newDraft, offOf, saveRuleSet} from "./antibotRules.ts"
 
 type Editing = {draft: Draft, made: boolean}
 
@@ -55,13 +55,14 @@ function Sets({rules, onEdit}: {rules: GetRulesResponse, onEdit: (set: RuleSet) 
         <table className="table">
             <caption>Sets</caption>
             <thead>
-                <tr><th>Set</th><th>Bans</th><th>Crowd</th><th/></tr>
+                <tr><th>Set</th><th>Bans</th><th>Watchdogs off</th><th>Crowd</th><th/></tr>
             </thead>
             <tbody>
                 {rules.sets.map(set => (
                     <tr key={set.name} aria-current={set.name === rules.playing ? "true" : undefined}>
                         <td><strong>{set.name}</strong></td>
                         <td>{bansOf(set)}</td>
+                        <td>{offOf(set)}</td>
                         <td>{crowdOf(set)}</td>
                         <td>
                             <button type="button" className="button-mini" onClick={() => onEdit(set)}>

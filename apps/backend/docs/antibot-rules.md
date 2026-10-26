@@ -1,27 +1,34 @@
 # The antibot's rules (`antibot.rule_sets`)
 
 **Every bound the antibot judges with is a rule, kept in postgres and edited from the backoffice** (Ops → Anti-bot
-rules). The YAML `antiBot` block keeps the machine only. Until 2026-10-26 every bound was in the YAML, read once when
-each watchdog was built, so a change was a deploy and a restart. For the Final Battle the operator needs a looser crowd
-for one evening, from the page.
+rules), each watchdog's on/off switch included. The YAML `antiBot` block keeps the machine only. Until 2026-10-26 every
+bound was in the YAML, read once when each watchdog was built, so a change was a deploy and a restart. For the Final
+Battle the operator needs a looser crowd for one evening, from the page.
 
 ## A rule set
 
 **A set is a name and every rule value, all written.** No value falls back to another set, to a default in Go, or to
-one in SQL. `rules.Set` holds them (snapshot pattern: `Snapshot.Restore` is the one check), one value object per part,
-each owned by the package that judges with it: `bans.Rules`, `jury.Rules`, and one `Rules` per watchdog.
+one in SQL. Its snapshot is the wire's message: `rules.Snapshot{Name, Rules *antibotv1.Rules}`, which the store keeps,
+the operator's calls carry and the log lines print as it is. `Snapshot.Restore(parts)` is the one check.
 
-- **`Restore` refuses a set any part refuses**, with every reason, each named by its path as `antibot.v1.Rules` writes
-  it: `cohort.certainMembers is 1, under minMembers (2); rotator.maxShare is 0, and must be above 0`. Each part's
-  `Validate` refuses what the watchdog's `withDefaults` used to repair: a zero that meant "the default", a certain bound
-  under its suspect bound, a sample count over what the watchdog keeps.
+- **Each part is read by the package that judges with it.** A watchdog, the jury and the ban book each own their
+  `Rules`, its `Validate`, its `RulesOf(*antibotv1.XRules)` and a `Part` (`rules.PartOf[Rules]{Key, Read}`) that takes
+  it out of the set's message. The `rules` package names none of them.
+- **`guard.Parts()` is the one list of parts**, beside the code that builds every watchdog. A new watchdog adds its
+  field to `antibot.v1.Rules`, its package, and one line there; nothing in `rules`, the store or the handlers changes.
+- **`Restore` reads and validates every part**, and keeps each part's `Rules`, so a read never converts again. It
+  refuses a set any part refuses, with every reason, each named by its path as `antibot.v1.Rules` writes it:
+  `cohort.certainMembers is 1, under minMembers (2); rotator.maxShare is 0, and must be above 0`. A part left out of
+  the message reads as zeros, which its `Validate` refuses. Each `Validate` refuses what the watchdog's `withDefaults`
+  used to repair: a zero that meant "the default", a certain bound under its suspect bound, a sample count over what
+  the watchdog keeps.
 - **A zero that never reads is a rule of its own** where it was one before: `defender.minShare`,
   `retaker.minTiles`, `rotator.minSlots`, the churner's bounds, `stamina.minBusy`. The four bounds of `shape` and `clock`
   are unset rather than zero (`optional` in the proto, a pointer in Go): 0 is a skew.
 - **The name** is a lowercase letter, then up to 31 of a-z, 0-9, `-` and `_`: the names planet's rule sets take.
 - **`default`** is seeded by migration `20261026230000_rule_sets` with production's values of that day:
   `deploy/vps/backend.yaml`, plus what each watchdog's `withDefaults` filled in for the keys it left out (the catcher's
-  `foreign.window` 1h, the scraper's `certainOffMap` 2, the clock's 1s, 120, 600 and 30m).
+  `foreign.window` 1h, the scraper's `certainOffMap` 2, the clock's 1s, 120, 600 and 30m), and every watchdog on.
   `TestTheMigrationSeedsDefaultWithProductionsRules` compares it with `rules.Seeded()`, the fixture the tests share.
 
 ### The rules, by part
@@ -34,6 +41,7 @@ each owned by the package that judges with it: `bans.Rules`, `jury.Rules`, and o
 - `jury.minSuspects` — how many watchdogs at `suspect` make a ban; one at `certain` bans alone; `stamina` and `defence`
   together count as one
 - `jury.suspicionWindow` — how long a verdict stands while another watchdog catches up
+- `<watchdog>.enabled` — off, the jury reads the watchdog as clear (see [A watchdog turned off](#a-watchdog-turned-off))
 - `retaker.reactionWindow`, `minReactions`, `maxSpread`, `maxMedian` — what counts as a reaction, how many are needed,
   and the band that reads `suspect` then `certain`; `minTiles`, `roamMedian`, `certainTiles` — the `roam` rule
 - `sequencer.minSteps`, `minShare`, `certainSteps`, `certainShare` — how long a run of constant-stride clicks must be,
@@ -65,33 +73,42 @@ each owned by the package that judges with it: `bans.Rules`, `jury.Rules`, and o
 ## Where it is kept
 
 **One row per set, the rules as one `jsonb` document**: `antibot.rule_sets(name, rules)`, the document an
-`antibot.v1.Rules` as protojson writes it, its zeros too (`rulesmessage.Document`). About 85 values in a dozen parts
-would be a column each, and a migration for every rule added. The proto message is already the wire's, so the store,
-the operator's call and the backoffice read one shape.
+`antibot.v1.Rules` as protojson writes it, its zeros too (`EmitUnpopulated`). About 85 values in a dozen parts would be
+a column each, and a migration for every rule added. The proto message is already the wire's, so the store, the RPC and
+the page read one shape.
 
-- `postgres_rule_set_store` finds a set by name and upserts one; `rules.MemoryStore` is the fake, and
-  `rules.StoreContractSuite` runs on both. A key the proto no longer has is ignored on read.
+- `postgres_rule_set_store` finds a set's snapshot by name and upserts one; it restores nothing. `rules.MemoryStore` is
+  the fake, and `rules.StoreContractSuite` runs on both. A key the proto no longer has is ignored on read.
 - **A rule added later needs a migration** that writes its value into every set (`jsonb_set`). Without one, the set
   reads the value as zero; where zero cannot be judged with, the set no longer restores, the runner keeps the rules in
   force, and the next boot is refused.
-- `rulesmessage` maps a set to and from `antibot.v1.Rules`, for the store, the handlers and the log lines.
 
 ## The rules in force
 
 **The antibot holds the set it plays in one `atomic.Pointer` (`rules.InForce`).** Each watchdog, the jury and the ban
-book are built with a reader of their own part (`inForce.Retaker`, `inForce.Jury`, `inForce.Bans`…) and read it when
-they judge, not when they are built: a set taken applies from the next click. `TestASetTakenJudgesFromTheNextClick` pins
-it through the guard. A watchdog reads its rules once per call, so one judgement sees one set.
+book are built with `rules.Reader(inForce, <package>.Part)`, a `func() Rules` that reads their part of the set in force
+each time it is called. They call it when they judge, not when they are built: a set taken applies from the next click.
+`TestASetTakenJudgesFromTheNextClick` pins it through the guard. A watchdog reads its rules once per call, so one
+judgement sees one set.
 
 - **`play_rules_usecase` is level-triggered**: every second (`antibot-rules`, a runner closed before the pool), and once
-  at boot, it reads the set to play and enforces it when its values changed (`Set.Equal`). A missing `default` refuses
-  the boot. A failed read keeps the rules in force, and `log_play_rules` logs it.
+  at boot, it reads the set to play, restores it with `guard.Parts()` and enforces it when its values changed
+  (`Set.Equal`). A missing `default` refuses the boot. A failed read, or a kept set that cannot play, keeps the rules in
+  force, and `log_play_rules` logs it.
 - **Each set taken tells planet every running ban again** (`bans.Book.Restate`), under the set's `bans.enforce`: a set
   that stops enforcing admits the banned callers at once, and one that enforces refuses them again. The first take is at
   boot, before the antibot hears anything, so the bans running at a deploy reach planet's table as before. A failed
   restatement is tried again at the next tick.
 - **`log_play_rules` logs each set taken** at Warn (`antibot rules in force`, `set`, `asked`, `rules` as protojson), and
-  the start line (`antibot enabled`) names the set.
+  the start line (`antibot enabled`) names the set and the watchdogs on.
+
+## A watchdog turned off
+
+**Every watchdog is built, and `<watchdog>.enabled` decides whether its reading counts.** Off, the jury reads it as
+clear: no rise, no suspect, no certain, and `InspectPlayer` shows `clear`. It keeps watching all the same: every try,
+take, box and map read still reaches it, its sweep still feeds its histogram, and its evidence is saved. So turning it
+on again reads at once, on full windows, and memory is what it was when all ten were on. Until 2026-10-26 a watchdog
+off in the YAML was never built. `TestAWatchdogTurnedOffKeepsWatchingAndCountsForNothing` pins it.
 
 ## Which set plays
 
@@ -107,19 +124,19 @@ it, so planet never hears of a crowd.
 
 ## The machine, in the YAML
 
-The config keeps what decides what runs and what bounds memory, and the keys that shape the evidence:
+The config keeps what bounds memory and the keys that shape the evidence, one block per watchdog with no `detector`
+level since the switches left:
 
-- `enabled`, each watchdog's `enabled`, `database`, `redis`;
+- `enabled` (the module), `database`, `redis`;
 - `evidence.saveInterval` and `retention` (also how long an unban's pardon lasts);
 - every `trackWindow` and `sweepInterval`, `jury`'s included. The retaker, the sequencer, the defender, the scraper and
   the hopper also read their `trackWindow` as the window their rule counts over, so it is changed by a deploy. Where a
   rule's window must fit inside it, the sweep keeps the longer: the cohort keeps `chainWindow`, the churner
   `window + relay.handoff`;
-- `metronome.detector.stamina.slice` and `rotator.detector.slot`: the evidence is counted per slice or slot and saved
-  with its length, and a section saved under another length is dropped;
-- `cohort.detector.v4Bits`/`v6Bits` and `churner.detector.relay.v4Bits`/`v6Bits`: read when a scope or an account is
-  first seen, to index it by its wider prefix. A live change would split one network across two indexes for a
-  `trackWindow`.
+- `metronome.stamina.slice` and `rotator.slot`: the evidence is counted per slice or slot and saved with its length,
+  and a section saved under another length is dropped;
+- `cohort.v4Bits`/`v6Bits` and `churner.relay.v4Bits`/`v6Bits`: read when a scope or an account is first seen, to index
+  it by its wider prefix. A live change would split one network across two indexes for a `trackWindow`.
 
 `TestEveryAntibotKeyIsOneTheConfigReads` decodes each YAML file's `antiBot` block with unused keys refused: a rule left
 in a file would be read by nothing.

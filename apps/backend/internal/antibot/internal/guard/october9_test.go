@@ -8,9 +8,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/types/known/durationpb"
 
+	antibotv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/guard"
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rules"
 )
 
 const (
@@ -18,15 +19,15 @@ const (
 	otherHome = "2001:db8:10:77::/64"
 )
 
-func withTheBoundsOfOctober9(config *guard.Config, set *rules.Snapshot) {
-	set.Metronome.MaxGap = 7 * time.Second
-	set.Metronome.MaxSpread = 400 * time.Millisecond
+func withTheBoundsOfOctober9(config *guard.Config, set *antibotv1.Rules) {
+	set.Metronome.MaxGap = durationpb.New(7 * time.Second)
+	set.Metronome.MaxSpread = durationpb.New(400 * time.Millisecond)
 
-	config.Defender.Enabled = true
-	set.Defender.RetakeWindow = 2 * time.Minute
+	set.Defender.Enabled = true
+	set.Defender.RetakeWindow = durationpb.New(2 * time.Minute)
 	set.Defender.MinClicks = 40
 	set.Defender.MinShare = 0.6
-	config.Defender.Detector.TrackWindow = 10 * time.Minute
+	config.Defender.TrackWindow = 10 * time.Minute
 }
 
 type fighter struct {

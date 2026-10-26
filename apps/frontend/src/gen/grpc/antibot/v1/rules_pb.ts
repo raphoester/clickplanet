@@ -213,41 +213,48 @@ export class JuryRules extends Message<JuryRules> {
  */
 export class RetakerRules extends Message<RetakerRules> {
   /**
-   * @generated from field: google.protobuf.Duration reaction_window = 1;
+   * Off, the jury reads the watchdog as clear; it keeps watching, so it reads again at once when turned on.
+   *
+   * @generated from field: bool enabled = 1;
+   */
+  enabled = false;
+
+  /**
+   * @generated from field: google.protobuf.Duration reaction_window = 2;
    */
   reactionWindow?: Duration;
 
   /**
-   * @generated from field: uint32 min_reactions = 2;
+   * @generated from field: uint32 min_reactions = 3;
    */
   minReactions = 0;
 
   /**
-   * @generated from field: google.protobuf.Duration max_spread = 3;
+   * @generated from field: google.protobuf.Duration max_spread = 4;
    */
   maxSpread?: Duration;
 
   /**
-   * @generated from field: google.protobuf.Duration max_median = 4;
+   * @generated from field: google.protobuf.Duration max_median = 5;
    */
   maxMedian?: Duration;
 
   /**
    * Zero never reads roam.
    *
-   * @generated from field: uint32 min_tiles = 5;
+   * @generated from field: uint32 min_tiles = 6;
    */
   minTiles = 0;
 
   /**
-   * @generated from field: google.protobuf.Duration roam_median = 6;
+   * @generated from field: google.protobuf.Duration roam_median = 7;
    */
   roamMedian?: Duration;
 
   /**
    * Zero never reads roam certain.
    *
-   * @generated from field: uint32 certain_tiles = 7;
+   * @generated from field: uint32 certain_tiles = 8;
    */
   certainTiles = 0;
 
@@ -259,13 +266,14 @@ export class RetakerRules extends Message<RetakerRules> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "antibot.v1.RetakerRules";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "reaction_window", kind: "message", T: Duration },
-    { no: 2, name: "min_reactions", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 3, name: "max_spread", kind: "message", T: Duration },
-    { no: 4, name: "max_median", kind: "message", T: Duration },
-    { no: 5, name: "min_tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 6, name: "roam_median", kind: "message", T: Duration },
-    { no: 7, name: "certain_tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 1, name: "enabled", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 2, name: "reaction_window", kind: "message", T: Duration },
+    { no: 3, name: "min_reactions", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 4, name: "max_spread", kind: "message", T: Duration },
+    { no: 5, name: "max_median", kind: "message", T: Duration },
+    { no: 6, name: "min_tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 7, name: "roam_median", kind: "message", T: Duration },
+    { no: 8, name: "certain_tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RetakerRules {
@@ -290,22 +298,29 @@ export class RetakerRules extends Message<RetakerRules> {
  */
 export class SequencerRules extends Message<SequencerRules> {
   /**
-   * @generated from field: uint32 min_steps = 1;
+   * Off, the jury reads the watchdog as clear; it keeps watching, so it reads again at once when turned on.
+   *
+   * @generated from field: bool enabled = 1;
+   */
+  enabled = false;
+
+  /**
+   * @generated from field: uint32 min_steps = 2;
    */
   minSteps = 0;
 
   /**
-   * @generated from field: double min_share = 2;
+   * @generated from field: double min_share = 3;
    */
   minShare = 0;
 
   /**
-   * @generated from field: uint32 certain_steps = 3;
+   * @generated from field: uint32 certain_steps = 4;
    */
   certainSteps = 0;
 
   /**
-   * @generated from field: double certain_share = 4;
+   * @generated from field: double certain_share = 5;
    */
   certainShare = 0;
 
@@ -317,10 +332,11 @@ export class SequencerRules extends Message<SequencerRules> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "antibot.v1.SequencerRules";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "min_steps", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 2, name: "min_share", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
-    { no: 3, name: "certain_steps", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 4, name: "certain_share", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 1, name: "enabled", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 2, name: "min_steps", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "min_share", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 4, name: "certain_steps", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 5, name: "certain_share", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SequencerRules {
@@ -345,42 +361,49 @@ export class SequencerRules extends Message<SequencerRules> {
  */
 export class MetronomeRules extends Message<MetronomeRules> {
   /**
-   * @generated from field: google.protobuf.Duration max_gap = 1;
+   * Off, the jury reads the watchdog as clear; it keeps watching, so it reads again at once when turned on.
+   *
+   * @generated from field: bool enabled = 1;
+   */
+  enabled = false;
+
+  /**
+   * @generated from field: google.protobuf.Duration max_gap = 2;
    */
   maxGap?: Duration;
 
   /**
-   * @generated from field: google.protobuf.Duration max_spread = 2;
+   * @generated from field: google.protobuf.Duration max_spread = 3;
    */
   maxSpread?: Duration;
 
   /**
-   * @generated from field: uint32 min_clicks = 3;
+   * @generated from field: uint32 min_clicks = 4;
    */
   minClicks = 0;
 
   /**
-   * @generated from field: google.protobuf.Duration certain_for = 4;
+   * @generated from field: google.protobuf.Duration certain_for = 5;
    */
   certainFor?: Duration;
 
   /**
-   * @generated from field: uint32 certain_clicks = 5;
+   * @generated from field: uint32 certain_clicks = 6;
    */
   certainClicks = 0;
 
   /**
-   * @generated from field: antibot.v1.ShapeRules shape = 6;
+   * @generated from field: antibot.v1.ShapeRules shape = 7;
    */
   shape?: ShapeRules;
 
   /**
-   * @generated from field: antibot.v1.ClockRules clock = 7;
+   * @generated from field: antibot.v1.ClockRules clock = 8;
    */
   clock?: ClockRules;
 
   /**
-   * @generated from field: antibot.v1.StaminaRules stamina = 8;
+   * @generated from field: antibot.v1.StaminaRules stamina = 9;
    */
   stamina?: StaminaRules;
 
@@ -392,14 +415,15 @@ export class MetronomeRules extends Message<MetronomeRules> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "antibot.v1.MetronomeRules";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "max_gap", kind: "message", T: Duration },
-    { no: 2, name: "max_spread", kind: "message", T: Duration },
-    { no: 3, name: "min_clicks", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 4, name: "certain_for", kind: "message", T: Duration },
-    { no: 5, name: "certain_clicks", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 6, name: "shape", kind: "message", T: ShapeRules },
-    { no: 7, name: "clock", kind: "message", T: ClockRules },
-    { no: 8, name: "stamina", kind: "message", T: StaminaRules },
+    { no: 1, name: "enabled", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 2, name: "max_gap", kind: "message", T: Duration },
+    { no: 3, name: "max_spread", kind: "message", T: Duration },
+    { no: 4, name: "min_clicks", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 5, name: "certain_for", kind: "message", T: Duration },
+    { no: 6, name: "certain_clicks", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 7, name: "shape", kind: "message", T: ShapeRules },
+    { no: 8, name: "clock", kind: "message", T: ClockRules },
+    { no: 9, name: "stamina", kind: "message", T: StaminaRules },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MetronomeRules {
@@ -613,29 +637,36 @@ export class StaminaRules extends Message<StaminaRules> {
  */
 export class DefenderRules extends Message<DefenderRules> {
   /**
-   * @generated from field: google.protobuf.Duration retake_window = 1;
+   * Off, the jury reads the watchdog as clear; it keeps watching, so it reads again at once when turned on.
+   *
+   * @generated from field: bool enabled = 1;
+   */
+  enabled = false;
+
+  /**
+   * @generated from field: google.protobuf.Duration retake_window = 2;
    */
   retakeWindow?: Duration;
 
   /**
-   * @generated from field: uint32 min_clicks = 2;
+   * @generated from field: uint32 min_clicks = 3;
    */
   minClicks = 0;
 
   /**
    * Zero never reads.
    *
-   * @generated from field: double min_share = 3;
+   * @generated from field: double min_share = 4;
    */
   minShare = 0;
 
   /**
-   * @generated from field: uint32 certain_clicks = 4;
+   * @generated from field: uint32 certain_clicks = 5;
    */
   certainClicks = 0;
 
   /**
-   * @generated from field: double certain_share = 5;
+   * @generated from field: double certain_share = 6;
    */
   certainShare = 0;
 
@@ -647,11 +678,12 @@ export class DefenderRules extends Message<DefenderRules> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "antibot.v1.DefenderRules";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "retake_window", kind: "message", T: Duration },
-    { no: 2, name: "min_clicks", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 3, name: "min_share", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
-    { no: 4, name: "certain_clicks", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 5, name: "certain_share", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 1, name: "enabled", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 2, name: "retake_window", kind: "message", T: Duration },
+    { no: 3, name: "min_clicks", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 4, name: "min_share", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 5, name: "certain_clicks", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 6, name: "certain_share", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DefenderRules {
@@ -676,22 +708,29 @@ export class DefenderRules extends Message<DefenderRules> {
  */
 export class CatcherRules extends Message<CatcherRules> {
   /**
-   * @generated from field: uint32 min_catches = 1;
+   * Off, the jury reads the watchdog as clear; it keeps watching, so it reads again at once when turned on.
+   *
+   * @generated from field: bool enabled = 1;
+   */
+  enabled = false;
+
+  /**
+   * @generated from field: uint32 min_catches = 2;
    */
   minCatches = 0;
 
   /**
-   * @generated from field: google.protobuf.Duration max_median = 2;
+   * @generated from field: google.protobuf.Duration max_median = 3;
    */
   maxMedian?: Duration;
 
   /**
-   * @generated from field: google.protobuf.Duration certain_median = 3;
+   * @generated from field: google.protobuf.Duration certain_median = 4;
    */
   certainMedian?: Duration;
 
   /**
-   * @generated from field: antibot.v1.ForeignRules foreign = 4;
+   * @generated from field: antibot.v1.ForeignRules foreign = 5;
    */
   foreign?: ForeignRules;
 
@@ -703,10 +742,11 @@ export class CatcherRules extends Message<CatcherRules> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "antibot.v1.CatcherRules";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "min_catches", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 2, name: "max_median", kind: "message", T: Duration },
-    { no: 3, name: "certain_median", kind: "message", T: Duration },
-    { no: 4, name: "foreign", kind: "message", T: ForeignRules },
+    { no: 1, name: "enabled", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 2, name: "min_catches", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "max_median", kind: "message", T: Duration },
+    { no: 4, name: "certain_median", kind: "message", T: Duration },
+    { no: 5, name: "foreign", kind: "message", T: ForeignRules },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CatcherRules {
@@ -782,54 +822,61 @@ export class ForeignRules extends Message<ForeignRules> {
  */
 export class CohortRules extends Message<CohortRules> {
   /**
-   * @generated from field: google.protobuf.Duration start_window = 1;
+   * Off, the jury reads the watchdog as clear; it keeps watching, so it reads again at once when turned on.
+   *
+   * @generated from field: bool enabled = 1;
+   */
+  enabled = false;
+
+  /**
+   * @generated from field: google.protobuf.Duration start_window = 2;
    */
   startWindow?: Duration;
 
   /**
-   * @generated from field: uint32 min_clicks = 2;
+   * @generated from field: uint32 min_clicks = 3;
    */
   minClicks = 0;
 
   /**
-   * @generated from field: double min_flag_share = 3;
+   * @generated from field: double min_flag_share = 4;
    */
   minFlagShare = 0;
 
   /**
-   * @generated from field: double rate_ratio = 4;
+   * @generated from field: double rate_ratio = 5;
    */
   rateRatio = 0;
 
   /**
-   * @generated from field: double length_ratio = 5;
+   * @generated from field: double length_ratio = 6;
    */
   lengthRatio = 0;
 
   /**
-   * @generated from field: google.protobuf.Duration quiet_after = 6;
+   * @generated from field: google.protobuf.Duration quiet_after = 7;
    */
   quietAfter?: Duration;
 
   /**
-   * @generated from field: uint32 min_members = 7;
+   * @generated from field: uint32 min_members = 8;
    */
   minMembers = 0;
 
   /**
-   * @generated from field: uint32 certain_cohorts = 8;
+   * @generated from field: uint32 certain_cohorts = 9;
    */
   certainCohorts = 0;
 
   /**
    * The crowd: scopes in step in one group from one prefix.
    *
-   * @generated from field: uint32 certain_members = 9;
+   * @generated from field: uint32 certain_members = 10;
    */
   certainMembers = 0;
 
   /**
-   * @generated from field: google.protobuf.Duration chain_window = 10;
+   * @generated from field: google.protobuf.Duration chain_window = 11;
    */
   chainWindow?: Duration;
 
@@ -841,16 +888,17 @@ export class CohortRules extends Message<CohortRules> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "antibot.v1.CohortRules";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "start_window", kind: "message", T: Duration },
-    { no: 2, name: "min_clicks", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 3, name: "min_flag_share", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
-    { no: 4, name: "rate_ratio", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
-    { no: 5, name: "length_ratio", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
-    { no: 6, name: "quiet_after", kind: "message", T: Duration },
-    { no: 7, name: "min_members", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 8, name: "certain_cohorts", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 9, name: "certain_members", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 10, name: "chain_window", kind: "message", T: Duration },
+    { no: 1, name: "enabled", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 2, name: "start_window", kind: "message", T: Duration },
+    { no: 3, name: "min_clicks", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 4, name: "min_flag_share", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 5, name: "rate_ratio", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 6, name: "length_ratio", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 7, name: "quiet_after", kind: "message", T: Duration },
+    { no: 8, name: "min_members", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 9, name: "certain_cohorts", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 10, name: "certain_members", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 11, name: "chain_window", kind: "message", T: Duration },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CohortRules {
@@ -875,17 +923,24 @@ export class CohortRules extends Message<CohortRules> {
  */
 export class ScraperRules extends Message<ScraperRules> {
   /**
-   * @generated from field: double min_maps = 1;
+   * Off, the jury reads the watchdog as clear; it keeps watching, so it reads again at once when turned on.
+   *
+   * @generated from field: bool enabled = 1;
+   */
+  enabled = false;
+
+  /**
+   * @generated from field: double min_maps = 2;
    */
   minMaps = 0;
 
   /**
-   * @generated from field: double certain_maps = 2;
+   * @generated from field: double certain_maps = 3;
    */
   certainMaps = 0;
 
   /**
-   * @generated from field: uint32 certain_off_map = 3;
+   * @generated from field: uint32 certain_off_map = 4;
    */
   certainOffMap = 0;
 
@@ -897,9 +952,10 @@ export class ScraperRules extends Message<ScraperRules> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "antibot.v1.ScraperRules";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "min_maps", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
-    { no: 2, name: "certain_maps", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
-    { no: 3, name: "certain_off_map", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 1, name: "enabled", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 2, name: "min_maps", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 3, name: "certain_maps", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 4, name: "certain_off_map", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ScraperRules {
@@ -924,22 +980,29 @@ export class ScraperRules extends Message<ScraperRules> {
  */
 export class ChurnerRules extends Message<ChurnerRules> {
   /**
-   * @generated from field: google.protobuf.Duration window = 1;
+   * Off, the jury reads the watchdog as clear; it keeps watching, so it reads again at once when turned on.
+   *
+   * @generated from field: bool enabled = 1;
+   */
+  enabled = false;
+
+  /**
+   * @generated from field: google.protobuf.Duration window = 2;
    */
   window?: Duration;
 
   /**
-   * @generated from field: antibot.v1.AccountBounds v6 = 2;
+   * @generated from field: antibot.v1.AccountBounds v6 = 3;
    */
   v6?: AccountBounds;
 
   /**
-   * @generated from field: antibot.v1.AccountBounds v4 = 3;
+   * @generated from field: antibot.v1.AccountBounds v4 = 4;
    */
   v4?: AccountBounds;
 
   /**
-   * @generated from field: antibot.v1.RelayRules relay = 4;
+   * @generated from field: antibot.v1.RelayRules relay = 5;
    */
   relay?: RelayRules;
 
@@ -951,10 +1014,11 @@ export class ChurnerRules extends Message<ChurnerRules> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "antibot.v1.ChurnerRules";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "window", kind: "message", T: Duration },
-    { no: 2, name: "v6", kind: "message", T: AccountBounds },
-    { no: 3, name: "v4", kind: "message", T: AccountBounds },
-    { no: 4, name: "relay", kind: "message", T: RelayRules },
+    { no: 1, name: "enabled", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 2, name: "window", kind: "message", T: Duration },
+    { no: 3, name: "v6", kind: "message", T: AccountBounds },
+    { no: 4, name: "v4", kind: "message", T: AccountBounds },
+    { no: 5, name: "relay", kind: "message", T: RelayRules },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ChurnerRules {
@@ -1093,41 +1157,48 @@ export class RelayRules extends Message<RelayRules> {
  */
 export class HopperRules extends Message<HopperRules> {
   /**
+   * Off, the jury reads the watchdog as clear; it keeps watching, so it reads again at once when turned on.
+   *
+   * @generated from field: bool enabled = 1;
+   */
+  enabled = false;
+
+  /**
    * Degrees.
    *
-   * @generated from field: double min_angle = 1;
+   * @generated from field: double min_angle = 2;
    */
   minAngle = 0;
 
   /**
-   * @generated from field: google.protobuf.Duration min_gap = 2;
+   * @generated from field: google.protobuf.Duration min_gap = 3;
    */
   minGap?: Duration;
 
   /**
-   * @generated from field: google.protobuf.Duration max_gap = 3;
+   * @generated from field: google.protobuf.Duration max_gap = 4;
    */
   maxGap?: Duration;
 
   /**
-   * @generated from field: uint32 min_steps = 4;
+   * @generated from field: uint32 min_steps = 5;
    */
   minSteps = 0;
 
   /**
    * Zero never reads.
    *
-   * @generated from field: double min_share = 5;
+   * @generated from field: double min_share = 6;
    */
   minShare = 0;
 
   /**
-   * @generated from field: uint32 certain_steps = 6;
+   * @generated from field: uint32 certain_steps = 7;
    */
   certainSteps = 0;
 
   /**
-   * @generated from field: double certain_share = 7;
+   * @generated from field: double certain_share = 8;
    */
   certainShare = 0;
 
@@ -1139,13 +1210,14 @@ export class HopperRules extends Message<HopperRules> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "antibot.v1.HopperRules";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "min_angle", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
-    { no: 2, name: "min_gap", kind: "message", T: Duration },
-    { no: 3, name: "max_gap", kind: "message", T: Duration },
-    { no: 4, name: "min_steps", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 5, name: "min_share", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
-    { no: 6, name: "certain_steps", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 7, name: "certain_share", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 1, name: "enabled", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 2, name: "min_angle", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 3, name: "min_gap", kind: "message", T: Duration },
+    { no: 4, name: "max_gap", kind: "message", T: Duration },
+    { no: 5, name: "min_steps", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 6, name: "min_share", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 7, name: "certain_steps", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 8, name: "certain_share", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): HopperRules {
@@ -1170,34 +1242,41 @@ export class HopperRules extends Message<HopperRules> {
  */
 export class RotatorRules extends Message<RotatorRules> {
   /**
-   * @generated from field: google.protobuf.Duration window = 1;
+   * Off, the jury reads the watchdog as clear; it keeps watching, so it reads again at once when turned on.
+   *
+   * @generated from field: bool enabled = 1;
+   */
+  enabled = false;
+
+  /**
+   * @generated from field: google.protobuf.Duration window = 2;
    */
   window?: Duration;
 
   /**
-   * @generated from field: uint32 min_seconds = 2;
+   * @generated from field: uint32 min_seconds = 3;
    */
   minSeconds = 0;
 
   /**
-   * @generated from field: double min_by_chance = 3;
+   * @generated from field: double min_by_chance = 4;
    */
   minByChance = 0;
 
   /**
-   * @generated from field: double max_share = 4;
+   * @generated from field: double max_share = 5;
    */
   maxShare = 0;
 
   /**
    * Zero never reads.
    *
-   * @generated from field: uint32 min_slots = 5;
+   * @generated from field: uint32 min_slots = 6;
    */
   minSlots = 0;
 
   /**
-   * @generated from field: uint32 certain_slots = 6;
+   * @generated from field: uint32 certain_slots = 7;
    */
   certainSlots = 0;
 
@@ -1209,12 +1288,13 @@ export class RotatorRules extends Message<RotatorRules> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "antibot.v1.RotatorRules";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "window", kind: "message", T: Duration },
-    { no: 2, name: "min_seconds", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 3, name: "min_by_chance", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
-    { no: 4, name: "max_share", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
-    { no: 5, name: "min_slots", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 6, name: "certain_slots", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 1, name: "enabled", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 2, name: "window", kind: "message", T: Duration },
+    { no: 3, name: "min_seconds", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 4, name: "min_by_chance", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 5, name: "max_share", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 6, name: "min_slots", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 7, name: "certain_slots", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RotatorRules {

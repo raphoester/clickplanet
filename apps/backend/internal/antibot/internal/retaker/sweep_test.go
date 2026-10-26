@@ -14,7 +14,7 @@ import (
 func TestSweepForgetsIdleCallersAndStaleTiles(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC))
 
-	w := New(Config{TrackWindow: time.Minute}, rules(func(r *Rules) {
+	w := New(Config{TrackWindow: time.Minute}, bounds(func(r *Rules) {
 		r.ReactionWindow = time.Second
 		r.MinReactions = 4
 	}), clock, nil)

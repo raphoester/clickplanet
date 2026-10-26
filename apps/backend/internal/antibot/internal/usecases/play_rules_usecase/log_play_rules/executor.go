@@ -4,7 +4,8 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rules/rulesmessage"
+	"google.golang.org/protobuf/encoding/protojson"
+
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/usecases/play_rules_usecase"
 )
 
@@ -22,7 +23,7 @@ var _ play_rules_usecase.Executor = (*Logged)(nil)
 func (l *Logged) Execute(ctx context.Context) (play_rules_usecase.Taken, bool, error) {
 	taken, took, err := l.inner.Execute(ctx)
 	if took {
-		written, _ := rulesmessage.Document.Marshal(rulesmessage.Of(taken.Set))
+		written, _ := protojson.Marshal(taken.Set.Rules)
 		l.logger.Warn("antibot rules in force",
 			slog.String("set", string(taken.Set.Name)),
 			slog.String("asked", string(taken.Asked)),

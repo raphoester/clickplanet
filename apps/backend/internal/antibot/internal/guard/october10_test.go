@@ -102,8 +102,8 @@ func TestTakingTurnsAloneBansNobody(t *testing.T) {
 	assert.Equal(t, []string{"rotator suspect"}, s.rises, "it reads, for the jury to cross")
 
 	examination := s.examine(sharedAddress, "")
-	require.Len(t, examination.Readings, 9)
-	reading := examination.Readings[8]
+	require.Len(t, examination.Readings, 10)
+	reading := examination.Readings[9]
 	assert.Equal(t, "rotator", reading.Watchdog)
 	assert.Equal(t, "suspect", reading.Level)
 	assert.Regexp(t, `^rotation accounts=3 byChance=\d+ flag=PL sharedSeconds=0 sharedSlots=\d+$`, reading.Evidence)

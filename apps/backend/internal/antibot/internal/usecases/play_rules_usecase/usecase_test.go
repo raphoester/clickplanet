@@ -9,7 +9,13 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 
+	antibotv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/bans"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/cohort"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/guard"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/jury"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/usecases/play_rules_usecase"
 )
@@ -35,7 +41,7 @@ func (t *told) Times() int {
 	return t.times
 }
 
-var rush = rules.Named("rush", func(s *rules.Snapshot) { s.Cohort.CertainMembers = 50 })
+var rush = rules.Named("rush", func(r *antibotv1.Rules) { r.Cohort.CertainMembers = 50 })
 
 type harness struct {
 	t       *testing.T
@@ -47,15 +53,20 @@ type harness struct {
 
 func newHarness(t *testing.T, kept ...rules.Snapshot) *harness {
 	h := &harness{t: t, sets: rules.NewMemoryStore(kept...), inForce: rules.NewInForce(), bans: &told{}}
-	h.useCase = play_rules_usecase.New(h.sets, h.inForce, h.bans)
+	h.useCase = play_rules_usecase.New(h.sets, guard.Parts(), h.inForce, h.bans)
 	return h
 }
 
 func (h *harness) save(kept rules.Snapshot) {
 	h.t.Helper()
-	set, err := kept.Restore()
-	require.NoError(h.t, err)
-	require.NoError(h.t, h.sets.Save(h.t.Context(), set))
+	require.NoError(h.t, h.sets.Save(h.t.Context(), kept))
+}
+
+func assertTaken(t *testing.T, want rules.Snapshot, asked rules.SetName, taken play_rules_usecase.Taken) {
+	t.Helper()
+	assert.Equal(t, want.Name, taken.Set.Name)
+	assert.True(t, proto.Equal(want.Rules, taken.Set.Rules), "%v", taken.Set.Rules)
+	assert.Equal(t, asked, taken.Asked)
 }
 
 func (h *harness) execute() (play_rules_usecase.Taken, bool) {
@@ -71,7 +82,7 @@ func TestAtFirstDefaultPlaysAndPlanetHearsTheRunningBans(t *testing.T) {
 	taken, took := h.execute()
 
 	require.True(t, took)
-	assert.Equal(t, play_rules_usecase.Taken{Set: rules.Seeded(), Asked: rules.Default}, taken)
+	assertTaken(t, rules.Seeded(), rules.Default, taken)
 	assert.Equal(t, rules.Default, h.inForce.Name())
 	assert.Equal(t, 1, h.bans.Times(), "the bans running at a deploy reach planet's table")
 }
@@ -90,12 +101,12 @@ func TestAChangeOfTheSetInForceIsTakenAtTheNextExecute(t *testing.T) {
 	h := newHarness(t, rules.Seeded())
 	h.execute()
 
-	h.save(rules.Named(rules.Default, func(s *rules.Snapshot) { s.Bans.Enforce = false }))
+	h.save(rules.Named(rules.Default, func(r *antibotv1.Rules) { r.Bans.Enforce = false }))
 	taken, took := h.execute()
 
 	require.True(t, took)
-	assert.False(t, taken.Set.Bans.Enforce)
-	assert.False(t, h.inForce.Bans().Enforce)
+	assert.False(t, taken.Set.Rules.GetBans().GetEnforce())
+	assert.False(t, rules.Reader(h.inForce, bans.Part)().Enforce)
 	assert.Equal(t, 2, h.bans.Times(), "a set that stops enforcing admits the running bans")
 }
 
@@ -106,13 +117,13 @@ func TestTheSetNamedLikePlanetsPlaysOnceTheAntibotKeepsOne(t *testing.T) {
 	h.useCase.Play("rush")
 	taken, took := h.execute()
 	require.False(t, took, "no antibot set is named rush yet")
-	assert.Equal(t, play_rules_usecase.Taken{Set: rules.Seeded(), Asked: "rush"}, taken)
+	assertTaken(t, rules.Seeded(), "rush", taken)
 
 	h.save(rush)
 	taken, took = h.execute()
 	require.True(t, took)
-	assert.Equal(t, play_rules_usecase.Taken{Set: rush, Asked: "rush"}, taken)
-	assert.Equal(t, 50, h.inForce.Cohort().CertainMembers)
+	assertTaken(t, rush, "rush", taken)
+	assert.Equal(t, 50, rules.Reader(h.inForce, cohort.Part)().CertainMembers)
 
 	h.useCase.Play(rules.Default)
 	taken, took = h.execute()
@@ -132,6 +143,18 @@ func TestAFailedReadKeepsTheRulesInForce(t *testing.T) {
 	require.ErrorIs(t, err, down)
 	assert.False(t, took)
 	assert.Equal(t, rules.Default, h.inForce.Name())
+}
+
+func TestAKeptSetThatCannotPlayKeepsTheRulesInForce(t *testing.T) {
+	h := newHarness(t, rules.Seeded())
+	h.execute()
+
+	h.save(rules.Named(rules.Default, func(r *antibotv1.Rules) { r.Jury.MinSuspects = 0 }))
+	_, took, err := h.useCase.Execute(t.Context())
+
+	require.ErrorIs(t, err, rules.ErrInvalidSet)
+	assert.False(t, took)
+	assert.Equal(t, 2, rules.Reader(h.inForce, jury.Part)().MinSuspects)
 }
 
 func TestWithNoDefaultNothingPlays(t *testing.T) {
@@ -172,7 +195,8 @@ func TestTheRunnerTakesAChangeWithinItsInterval(t *testing.T) {
 		<-done
 	}()
 
-	h.save(rules.Named(rules.Default, func(s *rules.Snapshot) { s.Jury.MinSuspects = 3 }))
+	h.save(rules.Named(rules.Default, func(r *antibotv1.Rules) { r.Jury.MinSuspects = 3 }))
 
-	assert.Eventually(t, func() bool { return h.inForce.Jury().MinSuspects == 3 }, time.Second, 5*time.Millisecond)
+	suspects := rules.Reader(h.inForce, jury.Part)
+	assert.Eventually(t, func() bool { return suspects().MinSuspects == 3 }, time.Second, 5*time.Millisecond)
 }

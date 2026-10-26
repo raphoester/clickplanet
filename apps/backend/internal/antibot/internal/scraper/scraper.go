@@ -14,6 +14,8 @@ import (
 const Name = "scraper"
 
 type Rules struct {
+	Enabled bool
+
 	MinMaps float64
 
 	CertainMaps float64
@@ -91,6 +93,8 @@ type slice struct {
 }
 
 func (w *Watchdog) Name() string { return Name }
+
+func (w *Watchdog) Enabled() bool { return w.rules().Enabled }
 
 func (w *Watchdog) Fetched(scope string, maps float64, offMap bool) {
 	if scope == "" || (maps <= 0 && !offMap) {

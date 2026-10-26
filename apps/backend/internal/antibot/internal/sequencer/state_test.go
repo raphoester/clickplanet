@@ -11,7 +11,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-func rules(change func(*Rules)) func() Rules {
+func bounds(change func(*Rules)) func() Rules {
 	r := Rules{MinSteps: 40, MinShare: 0.75, CertainSteps: 200, CertainShare: 0.95}
 	change(&r)
 	return func() Rules { return r }
@@ -22,7 +22,7 @@ func asIs(*Rules) {}
 func TestStepsSurviveASaveAndLoad(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 14, 12, 0, 0, 0, time.UTC))
 	config := Config{TrackWindow: time.Hour}
-	shorter := rules(func(r *Rules) { r.MinSteps, r.CertainSteps = 20, 40 })
+	shorter := bounds(func(r *Rules) { r.MinSteps, r.CertainSteps = 20, 40 })
 
 	w := New(config, shorter, clock)
 	for tile := range uint32(30) {
@@ -49,7 +49,7 @@ func TestStepsSurviveASaveAndLoad(t *testing.T) {
 func TestForgetDropsStepsBeforeTheCutoff(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 14, 12, 0, 0, 0, time.UTC))
 
-	w := New(Config{TrackWindow: 24 * time.Hour}, rules(asIs), clock)
+	w := New(Config{TrackWindow: 24 * time.Hour}, bounds(asIs), clock)
 	for tile := range uint32(3) {
 		clock.Advance(time.Second)
 		w.Watch(detect.Click{Scope: "sweeper", Tile: tile, Country: "FR", At: clock.Now()})

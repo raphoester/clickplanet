@@ -140,7 +140,9 @@ export class FakeAdmin implements AntibotAdmin, ChatAdmin, PlanetAdmin, PlayerAd
             rules: Rules.fromJson({
                 bans: {enforce: true, banDurations: ["86400s", "604800s", "94608000s"], reflagInterval: "300s"},
                 jury: {minSuspects: 2, suspicionWindow: "600s"},
-                cohort: {minMembers: 2, certainMembers: 6},
+                retaker: {enabled: true}, sequencer: {enabled: true}, metronome: {enabled: true},
+                defender: {enabled: false}, catcher: {enabled: true}, cohort: {enabled: true, minMembers: 2, certainMembers: 6},
+                scraper: {enabled: true}, churner: {enabled: true}, hopper: {enabled: true}, rotator: {enabled: true},
             }),
         })],
         playing: "default",

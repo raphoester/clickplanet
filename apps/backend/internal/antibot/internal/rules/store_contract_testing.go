@@ -4,6 +4,9 @@ package rules
 
 import (
 	"github.com/stretchr/testify/suite"
+	"google.golang.org/protobuf/proto"
+
+	antibotv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1"
 )
 
 type StoreContractSuite struct {
@@ -18,25 +21,22 @@ func (s *StoreContractSuite) SetupTest() {
 	s.store = s.NewStore()
 }
 
-func (s *StoreContractSuite) save(kept Snapshot) {
-	set, err := kept.Restore()
+func (s *StoreContractSuite) requireKept(want Snapshot) {
+	kept, err := s.store.Set(s.T().Context(), want.Name)
 	s.Require().NoError(err)
-	s.Require().NoError(s.store.Save(s.T().Context(), set))
+	s.Equal(want.Name, kept.Name)
+	s.True(proto.Equal(want.Rules, kept.Rules), "%v", kept.Rules)
 }
 
-var contractRush = Named("rush", func(s *Snapshot) {
-	s.Cohort.CertainMembers = 50
-	coherence := 0.9
-	s.Metronome.Clock.MinCoherence = &coherence
-	s.Bans.Enforce = false
-})
-
 func (s *StoreContractSuite) TestASetIsReadAsItWasKept() {
-	s.save(contractRush)
+	rush := Named("rush", func(r *antibotv1.Rules) {
+		r.Cohort.CertainMembers = 50
+		r.Metronome.Clock.MinCoherence = proto.Float64(0.9)
+		r.Bans.Enforce = false
+	})
+	s.Require().NoError(s.store.Save(s.T().Context(), rush))
 
-	set, err := s.store.Set(s.T().Context(), "rush")
-	s.Require().NoError(err)
-	s.Equal(contractRush, set.TakeSnapshot())
+	s.requireKept(rush)
 }
 
 func (s *StoreContractSuite) TestASetNeverKeptIsUnknown() {
@@ -45,11 +45,9 @@ func (s *StoreContractSuite) TestASetNeverKeptIsUnknown() {
 }
 
 func (s *StoreContractSuite) TestASetKeptAgainReplacesItsValues() {
-	s.save(contractRush)
-	calmer := Named("rush", func(s *Snapshot) { s.Cohort.CertainMembers = 20 })
-	s.save(calmer)
+	s.Require().NoError(s.store.Save(s.T().Context(), Named("rush", AsIs)))
+	calmer := Named("rush", func(r *antibotv1.Rules) { r.Cohort.CertainMembers = 20 })
+	s.Require().NoError(s.store.Save(s.T().Context(), calmer))
 
-	set, err := s.store.Set(s.T().Context(), "rush")
-	s.Require().NoError(err)
-	s.Equal(calmer, set.TakeSnapshot())
+	s.requireKept(calmer)
 }

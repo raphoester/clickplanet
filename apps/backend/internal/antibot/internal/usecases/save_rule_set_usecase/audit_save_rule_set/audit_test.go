@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	antibotv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/usecases/save_rule_set_usecase/audit_save_rule_set"
 )
@@ -18,7 +19,7 @@ type stubUseCase struct{ err error }
 
 func (s stubUseCase) Execute(context.Context, rules.Snapshot) error { return s.err }
 
-var rush = rules.Named("rush", func(s *rules.Snapshot) { s.Cohort.CertainMembers = 50 })
+var rush = rules.Named("rush", func(r *antibotv1.Rules) { r.Cohort.CertainMembers = 50 })
 
 func TestASaveIsLoggedWithTheSetItKept(t *testing.T) {
 	var logs bytes.Buffer

@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
@@ -29,12 +30,15 @@ func watch(t *testing.T) watched {
 	t.Helper()
 
 	config := guard.Config{}
-	config.Metronome.Enabled = true
-	config.Metronome.Detector.TrackWindow = 15 * time.Minute
+	config.Metronome.TrackWindow = 15 * time.Minute
 
 	kept := rules.Seeded()
-	kept.Bans.BanDurations = []time.Duration{24 * time.Hour}
-	set, err := kept.Restore()
+	only := kept.Rules
+	only.Bans.BanDurations = []*durationpb.Duration{durationpb.New(24 * time.Hour)}
+	only.Retaker.Enabled, only.Sequencer.Enabled, only.Defender.Enabled = false, false, false
+	only.Catcher.Enabled, only.Cohort.Enabled, only.Scraper.Enabled = false, false, false
+	only.Churner.Enabled, only.Hopper.Enabled, only.Rotator.Enabled = false, false, false
+	set, err := kept.Restore(guard.Parts())
 	require.NoError(t, err)
 	inForce := rules.NewInForce()
 	inForce.Enforce(set)
@@ -42,9 +46,8 @@ func watch(t *testing.T) watched {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 14, 2, 0, 0, 0, time.UTC))
 	enforcer := &bans.MemoryEnforcer{}
 	marks := listener.NewMarks()
-	watchdogs, err := guard.NewInMemory(config, inForce, clock, guard.Observer{}, bans.NewMemoryStore(), bans.NewMemoryStore(),
+	watchdogs := guard.NewInMemory(config, inForce, clock, guard.Observer{}, bans.NewMemoryStore(), bans.NewMemoryStore(),
 		enforcer, evidence.NewMemoryPersistence(), marks)
-	require.NoError(t, err)
 	require.NoError(t, watchdogs.Load(t.Context()))
 
 	ctx, cancel := context.WithCancel(t.Context())

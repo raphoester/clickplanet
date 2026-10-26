@@ -11,7 +11,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-func rules(change func(*Rules)) func() Rules {
+func bounds(change func(*Rules)) func() Rules {
 	r := Rules{
 		MinCatches:    5,
 		MaxMedian:     3 * time.Second,
@@ -28,7 +28,7 @@ func TestCatchesSurviveASaveAndLoad(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 14, 12, 0, 0, 0, time.UTC))
 	config := Config{TrackWindow: time.Hour}
 
-	w := New(config, rules(asIs), clock)
+	w := New(config, bounds(asIs), clock)
 	for range 5 {
 		clock.Advance(30 * time.Second)
 		w.Caught("snatcher", 400*time.Millisecond)
@@ -37,7 +37,7 @@ func TestCatchesSurviveASaveAndLoad(t *testing.T) {
 	data, err := w.Save()
 	require.NoError(t, err)
 
-	restarted := New(config, rules(asIs), clock)
+	restarted := New(config, bounds(asIs), clock)
 	require.NoError(t, restarted.Load(data))
 
 	next := detect.Click{Scope: "snatcher", Tile: 1, Country: "FR", At: clock.Now()}
@@ -52,7 +52,7 @@ func TestCatchesSurviveASaveAndLoad(t *testing.T) {
 func TestForgetDropsBoxesBeforeTheCutoff(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 14, 12, 0, 0, 0, time.UTC))
 
-	w := New(Config{TrackWindow: 24 * time.Hour}, rules(asIs), clock)
+	w := New(Config{TrackWindow: 24 * time.Hour}, bounds(asIs), clock)
 	w.Missed("player")
 	clock.Advance(time.Minute)
 	w.Caught("player", time.Second)

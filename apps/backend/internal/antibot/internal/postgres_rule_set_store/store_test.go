@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/suite"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/postgres_rule_set_store"
@@ -38,19 +39,20 @@ func (s *testSuite) TestItKeepsTheContract() {
 func (s *testSuite) TestTheMigrationSeedsDefaultWithProductionsRules() {
 	seeded := s.server.OpenSchema(s.T(), "antibot_seeded", migrations.FS)
 
-	set, err := postgres_rule_set_store.New(seeded).Set(s.T().Context(), rules.Default)
+	kept, err := postgres_rule_set_store.New(seeded).Set(s.T().Context(), rules.Default)
 
 	s.Require().NoError(err)
-	s.Equal(rules.Seeded(), set.TakeSnapshot())
+	s.True(proto.Equal(rules.Seeded().Rules, kept.Rules), "%v", kept.Rules)
 }
 
-func (s *testSuite) TestAKeptDocumentThatCannotPlayIsRefused() {
+func (s *testSuite) TestAKeyTheProtoNoLongerHasIsLeftAlone() {
 	s.Require().NoError(s.db.Purge(s.T().Context()))
-	_, err := s.db.On(s.T().Context()).ExecContext(s.T().Context(), `INSERT INTO rule_sets (name, rules) VALUES ('broken', '{"jury": {}}')`)
+	_, err := s.db.On(s.T().Context()).ExecContext(s.T().Context(),
+		`INSERT INTO rule_sets (name, rules) VALUES ('old', '{"jury": {"minSuspects": 3, "retired": 1}}')`)
 	s.Require().NoError(err)
 
-	_, err = postgres_rule_set_store.New(s.db).Set(s.T().Context(), "broken")
+	kept, err := postgres_rule_set_store.New(s.db).Set(s.T().Context(), "old")
 
-	s.Require().ErrorIs(err, rules.ErrInvalidSet)
-	s.ErrorContains(err, "jury.minSuspects is 0")
+	s.Require().NoError(err)
+	s.Equal(uint32(3), kept.Rules.GetJury().GetMinSuspects())
 }

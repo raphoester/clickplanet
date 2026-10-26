@@ -11,7 +11,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-func rules(change func(*Rules)) func() Rules {
+func bounds(change func(*Rules)) func() Rules {
 	r := Rules{
 		ReactionWindow: 5 * time.Second,
 		MinReactions:   12,
@@ -27,7 +27,7 @@ func asIs(*Rules) {}
 func TestReactionsSurviveASaveAndLoad(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 14, 12, 0, 0, 0, time.UTC))
 	config := Config{TrackWindow: time.Hour}
-	fewer := rules(func(r *Rules) { r.MinReactions = 5 })
+	fewer := bounds(func(r *Rules) { r.MinReactions = 5 })
 
 	w := New(config, fewer, clock, nil)
 	for tile := range uint32(6) {
@@ -59,7 +59,7 @@ func TestReactionsSurviveASaveAndLoad(t *testing.T) {
 func TestForgetDropsReactionsAndTakesBeforeTheCutoff(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 14, 12, 0, 0, 0, time.UTC))
 
-	w := New(Config{TrackWindow: 24 * time.Hour}, rules(asIs), clock, nil)
+	w := New(Config{TrackWindow: 24 * time.Hour}, bounds(asIs), clock, nil)
 	player := detect.Click{Scope: "player", Tile: 1, Country: "FR", At: clock.Now()}
 	w.Watch(player)
 	w.Committed(player)

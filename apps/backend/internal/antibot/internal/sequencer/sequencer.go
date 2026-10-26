@@ -13,6 +13,8 @@ import (
 const Name = "sequencer"
 
 type Rules struct {
+	Enabled bool
+
 	MinSteps int
 	MinShare float64
 
@@ -91,6 +93,8 @@ type step struct {
 }
 
 func (w *Watchdog) Name() string { return Name }
+
+func (w *Watchdog) Enabled() bool { return w.rules().Enabled }
 
 func (w *Watchdog) Attempted(detect.Click) {}
 

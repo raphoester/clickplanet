@@ -1370,6 +1370,8 @@ deploy; the antibot logs `antibot rules in force` with the values it took.
   `default` when it has no set of that name. For the Final Battle, planet plays
   `rush`: make an antibot set `rush` (a copy of `default`) with the crowd it
   needs, `cohort.certainMembers` 50.
+- To turn a watchdog off, set `"enabled": false` in its part. The jury then reads
+  it as clear, and it keeps watching, so it reads again at once when turned on.
 - A set any value of which cannot be judged with is refused, with every reason.
 - Every save is logged: `journalctl CONTAINER_NAME=cp-backend | grep "admin antibot rule set"`.
 
