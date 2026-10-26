@@ -21,7 +21,6 @@ import {
     UnbanPlayerResponse,
 } from "./gen/grpc/antibot/v1/admin_pb.ts"
 import {
-    BoxPace,
     FindPlayersRequest,
     FindPlayersResponse,
     GetLedgerRequest,
@@ -168,15 +167,29 @@ export class FakeAdmin implements AntibotAdmin, ChatAdmin, PlanetAdmin, PlayerAd
         territories: [new Territory({countryId: "fr", tiles: 1200}), new Territory({countryId: "dz", tiles: 800})],
     })
     // The set the migration keeps: the game's own rules.
-    rules = new GetRulesResponse({
-        sets: [new RuleSet({
-            name: "default",
-            tempo: 1,
-            boxes: new BoxPace({
-                minInterval: new Duration({seconds: 240n}), maxInterval: new Duration({seconds: 480n}), maxChargesPerHour: 12,
-            }),
-        })],
-    })
+    rules = new GetRulesResponse({sets: [RuleSet.fromJson({
+        name: "default",
+        tempo: 1,
+        boxes: {minInterval: "240s", maxInterval: "480s", maxChargesPerHour: 12},
+        clicks: {
+            perSecond: 0.2, burst: 60, scopeMultiplier: 10, v6ScopeMultiplier: 4, guestScopeMultiplier: 1,
+            linkedMultiplier: 2, newAccountClicks: 10,
+        },
+        tollSteps: [{share: 0.1, slowdown: 1.5}, {share: 0.2, slowdown: 2.5}, {share: 0.3, slowdown: 4}],
+        bonuses: {
+            kinds: {refill: 5, spreadClicks: 3, encloseClicks: 2, bomb: 1, shields: 3},
+            offerTtl: "15s", missRetry: "120s", activeWithin: "120s",
+            spread: {clicks: 8, maxPerBox: 4},
+            bomb: {rings: 4},
+            enclose: {maxTiles: 25, held: 3, maxPerBox: 3},
+            shield: {held: 30, minPerBox: 5, maxPerBox: 20, perTile: 10},
+            welcome: {within: "600s", boxAfter: "60s"},
+        },
+        quiz: {
+            enabled: true, minInterval: "240s", maxInterval: "480s", missRetry: "120s", offerTtl: "25s",
+            answerWindow: "8s", leaderBias: 1, maxChargesPerHour: 12,
+        },
+    })]})
     roster = [
         new RosterEntry({key: "1", accountId: ACCOUNT, name: "BraveFox42", countryId: "fr"}),
         new RosterEntry({key: "2", accountId: "account-guest", name: "guest_a1b2c3", countryId: "dz", guest: true}),
