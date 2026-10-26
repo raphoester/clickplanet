@@ -35,14 +35,14 @@ describe("ban", () => {
     it("leaves the duration to the ladder by default", async () => {
         const admin = new FakeAdmin()
 
-        expect(await ban(admin, account, LADDER)).toEqual({until: AT, offence: 2, enforced: true})
+        expect(await ban(admin.antibot, account, LADDER)).toEqual({until: AT, offence: 2, enforced: true})
         expect(admin.asked).toEqual([{method: "banPlayer", request: {accountId: "account-reported", duration: undefined}}])
     })
 
     it("sends a duration picked", async () => {
         const admin = new FakeAdmin()
 
-        await ban(admin, account, 86400)
+        await ban(admin.antibot, account, 86400)
         const [request] = admin.askedFor("banPlayer") as {duration: {seconds: bigint}}[]
         expect(request.duration.seconds).toBe(86400n)
     })
@@ -50,7 +50,7 @@ describe("ban", () => {
     it("bans an address as its scope, with no account", async () => {
         const admin = new FakeAdmin()
 
-        await ban(admin, scope, LADDER)
+        await ban(admin.antibot, scope, LADDER)
         expect(admin.askedFor("banPlayer")).toEqual([{scope: "203.0.113.7", duration: undefined}])
     })
 
@@ -58,7 +58,7 @@ describe("ban", () => {
         const admin = new FakeAdmin()
         admin.refuse("banPlayer", Code.Unimplemented)
 
-        const err = await ban(admin, account, LADDER).catch((e: unknown) => e)
+        const err = await ban(admin.antibot, account, LADDER).catch((e: unknown) => e)
         expect(refusalOf("ban", err)).toBe("The antibot is off on this server, so it cannot ban, unban or inspect.")
     })
 })
@@ -67,7 +67,7 @@ describe("unban", () => {
     it("lifts the latest ban and says which", async () => {
         const admin = new FakeAdmin()
 
-        expect(await unban(admin, scope)).toEqual({offence: 2, until: AT, pardonedUntil: AT})
+        expect(await unban(admin.antibot, scope)).toEqual({offence: 2, until: AT, pardonedUntil: AT})
         expect(admin.askedFor("unbanPlayer")).toEqual([{scope: "203.0.113.7"}])
     })
 
@@ -75,7 +75,7 @@ describe("unban", () => {
         const admin = new FakeAdmin()
         admin.refuse("unbanPlayer", Code.NotFound)
 
-        const err = await unban(admin, account).catch((e: unknown) => e)
+        const err = await unban(admin.antibot, account).catch((e: unknown) => e)
         expect(refusalOf("unban", err)).toBe("This player has no ban left to lift.")
     })
 })
@@ -97,7 +97,7 @@ describe("inspect", () => {
     it("inspects the account by its id", async () => {
         const admin = new FakeAdmin()
 
-        expect((await inspect(admin, account)).clicks).toBe(42)
+        expect((await inspect(admin.antibot, account)).clicks).toBe(42)
         expect(admin.asked).toEqual([{method: "inspectPlayer", request: {accountId: "account-reported"}}])
     })
 
@@ -105,7 +105,7 @@ describe("inspect", () => {
         const admin = new FakeAdmin()
         admin.refuse("inspectPlayer", Code.Unimplemented)
 
-        const err = await inspect(admin, account).catch((e: unknown) => e)
+        const err = await inspect(admin.antibot, account).catch((e: unknown) => e)
         expect(refusalOf("inspect", err)).toBe("The antibot is off on this server, so it cannot ban, unban or inspect.")
     })
 })

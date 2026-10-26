@@ -50,7 +50,7 @@ type fakeCharger struct{ held bonuses.Held }
 func (f *fakeCharger) Held(context.Context, bonuses.Holder) (bonuses.Held, error) { return f.held, nil }
 
 func (f *fakeCharger) Grant(_ context.Context, _ bonuses.Holder, kind bonuses.Kind, amount int) error {
-	f.held = f.held.Granted(kind, amount, bonuses.ChargesConfig{SpreadClicks: 8, Enclosures: 3})
+	f.held = f.held.Granted(kind, amount, bonuses.TestRules())
 	return nil
 }
 

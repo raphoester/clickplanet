@@ -2,92 +2,59 @@ package clicks
 
 import (
 	"context"
-	"fmt"
-	"math"
+	"errors"
 	"net/netip"
 	"time"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipscope"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 )
 
-type ThrottleConfig struct {
-	cpratelimit.Config `koanf:",squash"`
+// Throttle is what the rule set in force says of the click buckets.
+type Throttle struct {
+	Tempo float64
 
-	ScopeMultiplier float64
+	PerSecond float64
+	Burst     int
 
-	V6ScopeMultiplier float64
-
+	ScopeMultiplier      float64
+	V6ScopeMultiplier    float64
 	GuestScopeMultiplier float64
+	LinkedMultiplier     float64
 
-	LinkedMultiplier float64
-
-	NewAccountClicks *float64
+	NewAccountClicks float64
 }
 
-const (
-	defaultScopeMultiplier      = 10
-	defaultGuestScopeMultiplier = 1
-	defaultLinkedMultiplier     = 2
-)
-
-func (c ThrottleConfig) Validate() error {
-	if start := c.NewAccountClicks; start != nil && (math.IsNaN(*start) || *start < 0) {
-		return fmt.Errorf("rateLimiter.newAccountClicks is %v: it must be 0 or more, or unset for a full bank", *start)
-	}
-
-	for _, multiplier := range []struct {
-		name         string
-		value        float64
-		defaultValue int
-	}{
-		{"scopeMultiplier", c.ScopeMultiplier, defaultScopeMultiplier},
-		{"guestScopeMultiplier", c.GuestScopeMultiplier, defaultGuestScopeMultiplier},
-		{"linkedMultiplier", c.LinkedMultiplier, defaultLinkedMultiplier},
-	} {
-		if math.IsNaN(multiplier.value) || multiplier.value < 0 || (multiplier.value > 0 && multiplier.value < 1) {
-			return fmt.Errorf("rateLimiter.%s is %v: it must be 1 or more, or unset for %d",
-				multiplier.name, multiplier.value, multiplier.defaultValue)
-		}
-	}
-
-	if v6 := c.V6ScopeMultiplier; math.IsNaN(v6) || v6 < 0 || (v6 > 0 && v6 < 1) {
-		return fmt.Errorf("rateLimiter.v6ScopeMultiplier is %v: it must be 1 or more, or unset for scopeMultiplier", v6)
-	}
-
-	return nil
+func (t Throttle) Validate() error {
+	return errors.Join(
+		rules.Positive("tempo", t.Tempo), rules.Finite("tempo", t.Tempo),
+		rules.Positive("perSecond", t.PerSecond), rules.Finite("perSecond", t.PerSecond),
+		rules.AtLeast("burst", t.Burst, "one click", 1),
+		rules.AtLeast("scopeMultiplier", t.ScopeMultiplier, "one account", 1), rules.Finite("scopeMultiplier", t.ScopeMultiplier),
+		rules.AtLeast("v6ScopeMultiplier", t.V6ScopeMultiplier, "one account", 1),
+		rules.Finite("v6ScopeMultiplier", t.V6ScopeMultiplier),
+		rules.AtLeast("guestScopeMultiplier", t.GuestScopeMultiplier, "one account", 1),
+		rules.Finite("guestScopeMultiplier", t.GuestScopeMultiplier),
+		rules.AtLeast("linkedMultiplier", t.LinkedMultiplier, "the plain refill", 1),
+		rules.Finite("linkedMultiplier", t.LinkedMultiplier),
+		rules.NotNegative("newAccountClicks", t.NewAccountClicks),
+		rules.AtMost("newAccountClicks", t.NewAccountClicks, "burst", float64(t.Burst)),
+	)
 }
 
-func (c ThrottleConfig) Buckets() Buckets {
-	scope := orDefault(c.ScopeMultiplier, defaultScopeMultiplier)
-	v6Scope := c.V6ScopeMultiplier
-	if v6Scope <= 0 {
-		v6Scope = scope
-	}
-
-	return Buckets{
-		scopeMultiplier:   scope,
-		v6ScopeMultiplier: v6Scope,
-		guestMultiplier:   orDefault(c.GuestScopeMultiplier, defaultGuestScopeMultiplier),
-		linkedMultiplier:  orDefault(c.LinkedMultiplier, defaultLinkedMultiplier),
-		newAccountClicks:  c.NewAccountClicks,
-	}
+// Policy is the limiter's part: the refill and the bank before any scale or pace, from when the set took over.
+func (t Throttle) Policy(since time.Time) cpratelimit.Policy {
+	return cpratelimit.Policy{PerSecond: t.PerSecond, Burst: t.Burst, Tempo: t.Tempo, Since: since}
 }
 
-func orDefault(value float64, defaultValue int) float64 {
-	if value <= 0 {
-		return float64(defaultValue)
-	}
-	return value
+func NewBuckets(throttle func() Throttle) Buckets {
+	return Buckets{throttle: throttle}
 }
 
 type Buckets struct {
-	scopeMultiplier   float64
-	v6ScopeMultiplier float64
-	guestMultiplier   float64
-	linkedMultiplier  float64
-	newAccountClicks  *float64
+	throttle func() Throttle
 }
 
 type SharedWith int
@@ -109,7 +76,7 @@ func (b Buckets) BudgetOf(payer Payer, states []cpratelimit.State, price Price) 
 		State:            state,
 		SharedWith:       b.pools(payer, price)[i].sharedWith,
 		Price:            price,
-		LinkedMultiplier: b.linkedMultiplier,
+		LinkedMultiplier: b.throttle().LinkedMultiplier,
 	}
 }
 
@@ -171,34 +138,35 @@ func (b Buckets) pools(payer Payer, price Price) []pool {
 	pace := 1 / max(price.Slowdown, 1)
 
 	if payer.Account == "" {
-		// Its own key, not "scope:": a bucket's Scale is fixed when it is first made.
+		// Its own key, not "scope:": the two scale differently.
 		return []pool{{key: cpratelimit.Key{Name: payer.Scope, Scale: 1, Pace: pace}, sharedWith: SharedWithNobody}}
 	}
 
-	scope := pool{key: cpratelimit.Key{Name: "scope:" + payer.Scope, Scale: b.scopeScale(payer.Scope)}, sharedWith: SharedWithScope}
+	throttle := b.throttle()
+	scope := pool{key: cpratelimit.Key{Name: "scope:" + payer.Scope, Scale: throttle.scopeScale(payer.Scope)}, sharedWith: SharedWithScope}
 
 	if payer.Linked {
-		return []pool{{key: b.own(payer, pace*b.linkedMultiplier), sharedWith: SharedWithNobody}, scope}
+		return []pool{{key: throttle.own(payer, pace*throttle.LinkedMultiplier), sharedWith: SharedWithNobody}, scope}
 	}
 
 	return []pool{
-		{key: b.own(payer, pace), sharedWith: SharedWithNobody},
-		{key: cpratelimit.Key{Name: "guests:" + payer.Scope, Scale: b.guestMultiplier, Pace: pace}, sharedWith: SharedWithGuests},
+		{key: throttle.own(payer, pace), sharedWith: SharedWithNobody},
+		{key: cpratelimit.Key{Name: "guests:" + payer.Scope, Scale: throttle.GuestScopeMultiplier, Pace: pace}, sharedWith: SharedWithGuests},
 		scope,
 	}
 }
 
-func (b Buckets) scopeScale(scope string) float64 {
+func (t Throttle) scopeScale(scope string) float64 {
 	if prefix, err := netip.ParsePrefix(scope); err == nil && prefix.Addr().Is6() {
-		return b.v6ScopeMultiplier
+		return t.V6ScopeMultiplier
 	}
-	return b.scopeMultiplier
+	return t.ScopeMultiplier
 }
 
-func (b Buckets) own(payer Payer, pace float64) cpratelimit.Key {
+func (t Throttle) own(payer Payer, pace float64) cpratelimit.Key {
 	key := cpratelimit.Key{Name: "account:" + payer.Account, Scale: 1, Pace: pace}
-	if b.newAccountClicks != nil && !payer.Created.IsZero() {
-		key.Since, key.Start = payer.Created, *b.newAccountClicks
+	if !payer.Created.IsZero() {
+		key.Since, key.Start = payer.Created, t.NewAccountClicks
 	}
 
 	return key

@@ -161,9 +161,13 @@ message per click. Every click answer re-anchors it, which is why the error can
 never accumulate: it is exact again the moment the player does the thing the
 counter is about.
 
-`PlanetBackend` learns it three ways — `GetBudget` at load and on a switch of
-country, `ClickResponse.budget` on every accepted click, and a **connect error
-detail** on a refused one, which is the reading that matters most. **`GetBudget`
+`PlanetBackend` learns it four ways — `GetBudget` at load and on a switch of
+country, `ClickResponse.budget` on every accepted click, a **connect error
+detail** on a refused one, which is the reading that matters most, and
+`GetBudget` again when the planet stream says the rules changed
+(`rulesChanged`): the server can change the whole game's refill at once (the
+backend's [Rules](../../backend/docs/rules.md)), and only a reading says by how much.
+The same event reads `GetBonusRules` again (see [Charges](charges.md)). **`GetBudget`
 carries the token already held** (`SessionProvider.held()`, never a mint):
 without it the server reads the bucket of an address with no account, which is
 never spent and always full, and the next click contradicts it. It also subtracts its own clicks in

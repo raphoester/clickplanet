@@ -123,25 +123,25 @@ standings rank players, the rounds rank countries.
 
 
 A question-mark box flies past the planet every so often; whoever catches it
-gets one of five bonuses. Each box draws its kind from `bonus.kinds`, a weight
+gets one of five bonuses. Each box draws its kind from the rule set's `bonuses.kinds` (see [Rules](rules.md)), a weight
 per kind — a kind's chance is its weight over the sum of the weights, so the
 strong ones can be made rare (production runs 5 : 3 : 1 : 2 : 3):
 
 - **`refill`** — a charge: fills the caller's click bank to full, when the
   caller chooses, and gives the network's bucket as much. Up to one bank, 60 clicks. See [What a refill does to the bucket](refill.md).
-- **`spread_clicks`** — 1 to `bonus.spread.maxPerBox` (4) clicks added to a pool
-  of at most `bonus.spread.clicks` (8). While the player switches spread on, each
+- **`spread_clicks`** — 1 to `bonuses.spread.maxPerBox` (4) clicks added to a pool
+  of at most `bonuses.spread.clicks` (8). While the player switches spread on, each
   click spends one and also takes the tiles touching the one clicked. See [What a spread does to a click](spread.md).
 - **`bomb`** — a charge: one bomb, kept until it is dropped. It
-  clears a circle of `bonus.bomb.rings` tile spacings around where it lands,
+  clears a circle of `bonuses.bomb.rings` tile spacings around where it lands,
   whoever holds the tiles. See [What a bomb does](bomb.md).
-- **`enclose_clicks`** — 1 to `bonus.enclose.maxPerBox` (3) enclosures added to a
-  stack of at most `bonus.enclose.held` (3). While the player switches enclose on,
+- **`enclose_clicks`** — 1 to `bonuses.enclose.maxPerBox` (3) enclosures added to a
+  stack of at most `bonuses.enclose.held` (3). While the player switches enclose on,
   a click that closes a shape of the caller's own tiles also takes the tiles
-  inside it, at most `bonus.enclose.maxTiles` (25), and spends one.
+  inside it, at most `bonuses.enclose.maxTiles` (25), and spends one.
   See [What an enclose does to a click](enclose.md).
-- **`shields`** — `bonus.shield.minPerBox` (5) to `bonus.shield.maxPerBox` (20)
-  shields added to a stack of at most `bonus.shield.held` (30). Each is placed on a tile the player's flag
+- **`shields`** — `bonuses.shield.minPerBox` (5) to `bonuses.shield.maxPerBox` (20)
+  shields added to a stack of at most `bonuses.shield.held` (30). Each is placed on a tile the player's flag
   holds and takes one foreign click there. See [Shields](shields.md).
 
 Every kind is a **charge**, worth about one bank, rather than a timer — see
@@ -152,6 +152,8 @@ country's pace. The refill is the same good, clicks, with the moment chosen by
 the player.
 
 Boxes are always on: there is no switch.
+
+**The waits and the hourly cap are the rule set's** (`bonuses.Pace`, see [Rules](rules.md)), not the config's: the registry reads them at each sweep, so a set taken reaches every caller within a second.
 
 **The server picks who gets one, and that is the whole design.** A box broadcast
 to everyone is caught by whichever client reacts fastest, and that is a script
@@ -198,7 +200,7 @@ the instant they come back.
 tab and opening it again draws a fresh wait, and a player could reload until
 they got a short one.
 
-**`maxChargesPerHour` bounds what a caller can be granted.** Nothing here is a
+**The rule set's hourly cap bounds what a caller can be granted.** Nothing here is a
 race any more, but catch rate is where an advantage is left: a script catches
 every box it is offered where a person catches some. This makes the worst case
 a number you choose rather than a function of reflexes. Past 12 charges in the

@@ -9,7 +9,11 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
-var chargeRules = ChargesConfig{SpreadClicks: 8, Enclosures: 3, EnclosureMaxTiles: 25, Shields: 12}
+var chargeRules = func() Rules {
+	rules := TestRules()
+	rules.Shield.Held = 12
+	return rules
+}()
 
 func TestAHolderIsTheAccount(t *testing.T) {
 	assert.Equal(t, Holder("acc-1"), HolderOf(clicks.Payer{Scope: "1.2.3.4", Account: "acc-1"}))
@@ -84,6 +88,16 @@ func TestShieldsStackUpToTheirSize(t *testing.T) {
 	held := Held{Shields: 10}.Granted(KindShields, 3, chargeRules)
 
 	assert.Equal(t, 12, held.Shields, "twelve at most, however many the box gave")
+}
+
+func TestAStackHeldAboveASmallerSizeIsKeptAndTakesNothingMore(t *testing.T) {
+	smaller := chargeRules
+	smaller.Shield.Held = 5
+
+	held := Held{Shields: 12}.Granted(KindShields, 3, smaller)
+
+	assert.Equal(t, 12, held.Shields)
+	assert.Contains(t, held.Full(smaller), KindShields, "no box is offered for a stack above its size")
 }
 
 func TestEachShieldIsPlacedOnce(t *testing.T) {

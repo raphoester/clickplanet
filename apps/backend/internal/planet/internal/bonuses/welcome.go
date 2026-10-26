@@ -2,12 +2,6 @@ package bonuses
 
 import "time"
 
-type WelcomeConfig struct {
-	Within time.Duration
-
-	BoxAfter time.Duration
-}
-
 // Never a refill or a bomb: an account made each minute would get a bank or a strike each.
 const (
 	welcomeBox  = KindSpreadClicks
@@ -20,8 +14,9 @@ type newcomer struct {
 	asked bool
 }
 
-func (r *Registry) welcome(entry *caller, click Click, now time.Time) {
-	until := click.Born.Add(r.config.Welcome.Within)
+// An account welcomed keeps the welcome it was given; a new rule applies to the accounts it meets after.
+func (r *Registry) welcome(entry *caller, click Click, rules Rules, now time.Time) {
+	until := click.Born.Add(rules.Welcome.Within)
 	if click.Born.IsZero() || !now.Before(until) {
 		return
 	}
@@ -35,10 +30,10 @@ func (r *Registry) welcome(entry *caller, click Click, now time.Time) {
 	if !account.boxed {
 		account.boxed = true
 		entry.owedBox = welcomeBox
-		entry.nextOfferAt = earliest(entry.nextOfferAt, click.Born.Add(r.config.Welcome.BoxAfter))
+		entry.nextOfferAt = earliest(entry.nextOfferAt, click.Born.Add(rules.Welcome.BoxAfter))
 	}
 
-	if click.Dry && !account.asked {
+	if click.Dry && !account.asked && rules.Quiz.Enabled {
 		account.asked = true
 		entry.owedQuiz = welcomeQuiz
 		entry.nextQuizAt = now

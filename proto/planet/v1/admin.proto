@@ -6,6 +6,7 @@ import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 import "planet/v1/internal.proto";
 import "planet/v1/planet.proto";
+import "planet/v1/rules.proto";
 
 // No authentication of its own: served on the console listener, and on the admin listener behind its gate. Never the public router.
 service AdminService {
@@ -44,6 +45,11 @@ service AdminService {
 
   // InternalService/GetTerritories, for the admin page: the tiles each country holds now.
   rpc GetTerritories(GetTerritoriesRequest) returns (GetTerritoriesResponse);
+
+  rpc GetRules(GetRulesRequest) returns (GetRulesResponse);
+
+  // Makes a set, or replaces the values of one. The game follows a set in force within a second.
+  rpc SaveRuleSet(SaveRuleSetRequest) returns (SaveRuleSetResponse);
 }
 
 message GetLedgerRequest {
@@ -251,3 +257,23 @@ message ReassignCountryResponse {
   uint32 from_after = 4;
   uint32 to_after = 5;
 }
+
+message GetRulesRequest {}
+
+message GetRulesResponse {
+  // Every set postgres keeps, "default" first, as kept: one that cannot play too, so it can be mended.
+  repeated RuleSet sets = 1;
+  // The set the game plays now.
+  string playing = 2;
+}
+
+message RuleSet {
+  string name = 1;
+  Rules rules = 2;
+}
+
+message SaveRuleSetRequest {
+  RuleSet set = 1;
+}
+
+message SaveRuleSetResponse {}

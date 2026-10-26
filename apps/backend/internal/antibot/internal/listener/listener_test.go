@@ -52,7 +52,7 @@ func (h *recorder) Listened(scope string) { h.calls = append(h.calls, "listened 
 func tried(outcome planetv1.ClickOutcome, when time.Time) *planetv1.ClickTried {
 	return &planetv1.ClickTried{
 		Scope: "2001:db8::/64", AccountId: "a-guest", TileId: 42, Country: "fr", Owner: "de",
-		TriedAt: timestamppb.New(when), Outcome: outcome, Position: &planetv1.GlobePoint{X: 1},
+		TriedAt: timestamppb.New(when), Outcome: outcome, Position: &planetv1.GlobePoint{X: 1}, Tempo: 3,
 	}
 }
 
@@ -85,7 +85,7 @@ func TestATryIsHeardInTheWatchdogsWords(t *testing.T) {
 
 	assert.Equal(t, guard.Click{
 		Scope: "2001:db8::/64", Account: "a-guest", Tile: 42, Country: "fr", At: at, Held: "de",
-		Shielded: true, Position: guard.Point{X: 1},
+		Shielded: true, Position: guard.Point{X: 1}, Tempo: 3,
 	}, heard.click)
 }
 

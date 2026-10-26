@@ -92,6 +92,7 @@ func clickOf(fact *planetv1.ClickTried) guard.Click {
 		Held:     fact.GetOwner(),
 		NoOp:     fact.GetOutcome() == planetv1.ClickOutcome_CLICK_OUTCOME_UNCHANGED,
 		Shielded: fact.GetOutcome() == planetv1.ClickOutcome_CLICK_OUTCOME_STRUCK,
+		Tempo:    fact.GetTempo(),
 	}
 	if at := fact.GetPosition(); at != nil {
 		click.Position = guard.Point{X: at.GetX(), Y: at.GetY(), Z: at.GetZ()}

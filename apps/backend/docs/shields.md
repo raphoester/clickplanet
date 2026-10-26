@@ -1,7 +1,7 @@
 # Shields
 
 **A shield is a charge a player places on a tile its flag holds, and each one
-takes one foreign click.** A tile holds up to `bonus.shield.perTile` (10). While
+takes one foreign click.** A tile holds up to the rule set's `bonuses.shield.perTile` (10); a tile above a smaller one keeps its shields and takes none until it is under it. While
 any stand, a click for another flag strikes one and the tile keeps its flag; with
 none left, the next click takes it.
 

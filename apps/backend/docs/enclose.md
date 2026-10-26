@@ -35,7 +35,7 @@ tells closed from open — there is no second rule.
 **The use case only wires three objects together.** `bonuses.Terrain` is the map as
 the search sees it — who holds a tile, what touches it — and finds the pockets a
 click closed. `bonuses.Charges` says whether the caller holds the charge, and
-`bonus.enclose.maxTiles` how big a shape may be. `Annexer` spends the charge on the first pocket, takes its
+the rule set's `bonuses.enclose.maxTiles`, read at each click, how big a shape may be. `Annexer` spends the charge on the first pocket, takes its
 tiles and announces them. `Execute` asks whether the charge is held, lets the
 rule write, and hands the pockets to the annexer.
 

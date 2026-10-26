@@ -32,7 +32,7 @@ function withCalm(): FakeAdmin {
 
 describe("the antibot rules page", () => {
     it("lists every set, the one playing marked", async () => {
-        render(<AntibotRulesPanel antibot={new FakeAdmin()}/>)
+        render(<AntibotRulesPanel antibot={new FakeAdmin().antibot}/>)
 
         await screen.findByRole("button", {name: "Copy default"})
         expect(screen.getByText("default", {selector: "code"})).toBeTruthy()
@@ -44,7 +44,7 @@ describe("the antibot rules page", () => {
     })
 
     it("offers no edit of the set that plays, only a copy", async () => {
-        render(<AntibotRulesPanel antibot={withCalm()}/>)
+        render(<AntibotRulesPanel antibot={withCalm().antibot}/>)
 
         await screen.findByRole("button", {name: "Copy default"})
         expect(screen.queryByRole("button", {name: "Edit default"})).toBeNull()
@@ -53,7 +53,7 @@ describe("the antibot rules page", () => {
 
     it("edits a set that does not play once confirmed, and reads the rules again", async () => {
         const admin = withCalm()
-        render(<AntibotRulesPanel antibot={admin}/>)
+        render(<AntibotRulesPanel antibot={admin.antibot}/>)
 
         fireEvent.click(await screen.findByRole("button", {name: "Edit calm"}))
         expect((screen.getByLabelText("Name") as HTMLInputElement).disabled).toBe(true)
@@ -68,7 +68,7 @@ describe("the antibot rules page", () => {
     })
 
     it("makes a new set from a copy of the one playing", async () => {
-        render(<AntibotRulesPanel antibot={new FakeAdmin()}/>)
+        render(<AntibotRulesPanel antibot={new FakeAdmin().antibot}/>)
 
         fireEvent.click(await screen.findByRole("button", {name: "Copy default"}))
         expect(screen.getByRole("region", {name: "New set from default"})).toBeTruthy()
@@ -82,7 +82,7 @@ describe("the antibot rules page", () => {
 
     it("sends nothing while the text is no set, and says why", async () => {
         const admin = withCalm()
-        render(<AntibotRulesPanel antibot={admin}/>)
+        render(<AntibotRulesPanel antibot={admin.antibot}/>)
 
         fireEvent.click(await screen.findByRole("button", {name: "Edit calm"}))
         type("Rules (JSON)", "{\"cohort\": {\"crowd\": 50}}")
@@ -95,7 +95,7 @@ describe("the antibot rules page", () => {
     it("quotes the server's refusal and keeps the form", async () => {
         const admin = withCalm()
         admin.refuse("saveRuleSet", Code.InvalidArgument)
-        render(<AntibotRulesPanel antibot={admin}/>)
+        render(<AntibotRulesPanel antibot={admin.antibot}/>)
 
         fireEvent.click(await screen.findByRole("button", {name: "Edit calm"}))
         save()
@@ -107,7 +107,7 @@ describe("the antibot rules page", () => {
     it("says a name that plays now cannot be saved", async () => {
         const admin = new FakeAdmin()
         admin.refuse("saveRuleSet", Code.FailedPrecondition)
-        render(<AntibotRulesPanel antibot={admin}/>)
+        render(<AntibotRulesPanel antibot={admin.antibot}/>)
 
         fireEvent.click(await screen.findByRole("button", {name: "Copy default"}))
         type("Name", "rush")

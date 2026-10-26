@@ -501,6 +501,32 @@ tiles, and every watchdog read `clear`.
 - It is a rule of `metronome` and not a watchdog for the reason `shape` is: a loop at
   pace also reads on `cadence`, and two timing watchdogs could ban on one behaviour.
 
+**At a faster tempo the metronome reads the game as it would be at the plain one, since 2026-10-25.** Each click
+report carries the tempo in force (`detect.Click.Tempo`, from planet's `ClickTried.tempo`; 0 is plain), so a rule set that
+refills 3 times as fast (see [Rules](rules.md)) does not turn its
+players into suspects. Measured at production's bounds, before the change, a guest clicking each click as it came
+back at 3× (gaps of 1.67s and a reaction of up to 300ms) read `Certain` on `cadence` within two hours: its jitter is
+under 400ms and it makes 1,080 tries in 30 minutes.
+
+- **`cadence` and `shape` read each gap times the tempo**, and the run's length (`sustained`, kept as the sum of its
+  gaps) the same way. A hand's jitter is in proportion to its gap, so at 3× it reads three times wider and clears;
+  a timer at ±20ms reads ±60ms and is still `Certain` within 30 minutes, and `Suspect` as soon as at the plain pace.
+  `maxGap` 7s ends a run at a real 2.3s gap at 3×. `shape`'s skew does not move with a scale. The evidence's
+  durations are at the plain tempo.
+- **`stamina`'s slice is busy at `clicks` times the fastest tempo it saw** (kept with the slice): a slice at 3× is
+  busy at 120 clicks, so busy still means a third of the allowance or more. A player at the full pace of the battle
+  is busy, as at the plain pace.
+- `clock` (unset in production) reads wall time, which a tempo does not change.
+- **The rest read no rate**: `retaker` a reflex, `sequencer` the steps between tiles, `defender` a share of
+  retakes, `hopper` angles, `scraper` and `churner` maps read and accounts born, `rotator` 5-minute slots. At 3× they
+  reach their counts sooner, never on less. `catcher` reads the delay of each catch: boxes every 1 to 2 minutes bring
+  its 5 catches in 5 to 10 minutes rather than 20 to 40, on the same bounds.
+- **`cohort`'s `crowd` bound is the anti-bot's own** (`certainMembers`), never a rule set's: planet's rule sets hold
+  planet's words only. A countdown makes people start on the second, a carrier's NAT can put six of them on one /24,
+  and a fast tempo makes them pace alike, so a faster set may need a higher bound. `chain` and `lockstep` do not move.
+- A run saved before this decodes with no length, so its `sustained` starts again at the deploy; its gaps and clicks
+  are kept. `tempo_test.go` pins all of it at production's bounds.
+
 **`defender`: what is clicked, not when.** The bots of 2026-09-14 retook from a
 queue behind the throttle: tiles came back 0.4s, 1.5s, 2.5s … 40s after they were
 lost, one refill at a time, so the retaker's reaction window saw almost none of

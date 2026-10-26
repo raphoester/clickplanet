@@ -234,6 +234,8 @@ message PlanetEvent {
     LandmassFortified landmass_fortified = 9;
 
     HoldingsChanged holdings_changed = 10;
+
+    RulesChanged rules_changed = 11;
   }
 }
 
@@ -253,6 +255,9 @@ message TileHolder {
   string country_id = 2;
   int64 taken_at_unix_ms = 3;
 }
+
+// The budget's rate may have moved: read it again.
+message RulesChanged {}
 
 message GetLandmassRequest {
   uint32 landmass_id = 1;

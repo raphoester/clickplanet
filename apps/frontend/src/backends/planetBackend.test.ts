@@ -36,6 +36,7 @@ import {
     Heartbeat,
     LandmassFortified,
     PlanetEvent,
+    RulesChanged,
     SharedWith,
     TilesEnclosed,
     TileHolder as TileHolderMessage,
@@ -551,6 +552,30 @@ describe("PlanetBackend click budget", () => {
         await vi.waitFor(() => expect(getBudget).toHaveBeenCalledTimes(1))
 
         expect(watch(backend)).toEqual([7])
+        backend.close()
+    })
+
+    it("reads the allowance again when the rules change, so the meter follows the new pace", async () => {
+        const getBudget = vi.fn()
+            .mockResolvedValueOnce({budget: budget(4, 10, 0.2)})
+            .mockResolvedValueOnce({budget: budget(4, 10, 0.6)})
+        let changeRules = () => {}
+        const listenForEvents = vi.fn(async function* () {
+            yield new PlanetEvent({event: {case: "heartbeat", value: new Heartbeat()}})
+            await new Promise<void>(resolve => changeRules = resolve)
+            yield new PlanetEvent({event: {case: "rulesChanged", value: new RulesChanged()}})
+            await new Promise(() => {})
+        })
+        const backend = new PlanetBackend(
+            {click: vi.fn(), getMap: vi.fn(), getBudget, ...bonusReads(), mapDensity: vi.fn(), listenForEvents} as never,
+            1_000)
+        const rates: number[] = []
+        backend.watchClickBudget(b => rates.push(b.perSecond))
+        await vi.waitFor(() => expect(rates).toEqual([0.2]))
+
+        changeRules()
+
+        await vi.waitFor(() => expect(rates).toEqual([0.2, 0.6]))
         backend.close()
     })
 
@@ -1399,6 +1424,31 @@ describe("the rules", () => {
             blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, shields: 12, tileShields: 10,
             toll: [{share: 0.1, slowdown: 1.5}, {share: 0.3, slowdown: 4}],
         }))
+        backend.close()
+    })
+
+    it("reads them again when the rules change, so a bigger blast is drawn with no reload", async () => {
+        const getBonusRules = vi.fn()
+            .mockResolvedValueOnce(new GetBonusRulesResponse({blastRadius: 0.03, enclosureMaxTiles: 25}))
+            .mockResolvedValueOnce(new GetBonusRulesResponse({blastRadius: 0.05, enclosureMaxTiles: 40}))
+        let changeRules = () => {}
+        const listenForEvents = vi.fn(async function* () {
+            yield new PlanetEvent({event: {case: "heartbeat", value: new Heartbeat()}})
+            await new Promise<void>(resolve => changeRules = resolve)
+            yield new PlanetEvent({event: {case: "rulesChanged", value: new RulesChanged()}})
+            await new Promise(() => {})
+        })
+        const backend = new PlanetBackend(clientWith({getBonusRules, listenForEvents}), 1_000)
+        const radii: number[] = []
+        backend.listenForBonuses({
+            onOffered: () => {}, onTaken: () => {}, onEnclosed: () => {}, onSpread: () => {}, onCharges: () => {},
+            onRules: (rules) => radii.push(rules.blastRadius),
+        })
+        await vi.waitFor(() => expect(radii.at(-1)).toBe(0.03))
+
+        changeRules()
+
+        await vi.waitFor(() => expect(radii.at(-1)).toBe(0.05))
         backend.close()
     })
 })

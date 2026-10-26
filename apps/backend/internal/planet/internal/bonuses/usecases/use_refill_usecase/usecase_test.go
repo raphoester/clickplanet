@@ -22,7 +22,13 @@ type onePrice struct{}
 
 func (onePrice) Price(string) clicks.Price { return clicks.Price{Slowdown: 1} }
 
-var config = clicks.ThrottleConfig{Config: cpratelimit.Config{PerSecond: 0.2, Burst: 60}, ScopeMultiplier: 10}
+var buckets = clicks.NewBuckets(func() clicks.Throttle {
+	return clicks.Throttle{
+		Tempo: 1, PerSecond: 0.2, Burst: 60,
+		ScopeMultiplier: 10, V6ScopeMultiplier: 10, GuestScopeMultiplier: 1, LinkedMultiplier: 2,
+		NewAccountClicks: 60,
+	}
+})
 
 type fixture struct {
 	refills *bonuses.MemoryStore
@@ -33,12 +39,12 @@ type fixture struct {
 func setup(held bool) fixture {
 	refills := bonuses.NewMemoryStore()
 	refills.Keep("a-guest", bonuses.Held{Refill: held})
-	limiter := cpratelimit.New("test", config.Config, cptime.NewFixedClock(epoch))
+	limiter := cpratelimit.New("test", cpratelimit.Config{PerSecond: 0.2, Burst: 60}, cptime.NewFixedClock(epoch))
 
 	return fixture{
 		refills: refills,
 		limiter: limiter,
-		useCase: use_refill_usecase.New(bonuses.NewCharges(refills, bonuses.ChargesConfig{}), limiter, onePrice{}, config.Buckets()),
+		useCase: use_refill_usecase.New(bonuses.NewCharges(refills, bonuses.TestRules), limiter, onePrice{}, buckets),
 	}
 }
 
@@ -51,7 +57,7 @@ func played(t *testing.T) context.Context {
 func (f fixture) spend(t *testing.T, account string, n int) {
 	t.Helper()
 
-	keys := config.Buckets().Keys(clicks.Payer{Scope: "1.2.3.4", Account: account}, clicks.Price{Slowdown: 1})
+	keys := buckets.Keys(clicks.Payer{Scope: "1.2.3.4", Account: account}, clicks.Price{Slowdown: 1})
 	for range n {
 		allowed, _ := f.limiter.TakeAll(1, keys...)
 		require.True(t, allowed)
@@ -87,7 +93,7 @@ func TestNoRefillFillsNothing(t *testing.T) {
 	_, err := f.useCase.Execute(played(t), use_refill_usecase.In{CountryID: "fr"})
 
 	require.ErrorIs(t, err, use_refill_usecase.ErrNoRefill)
-	state := f.limiter.Peek(config.Buckets().Bank(clicks.Payer{Scope: "1.2.3.4", Account: "a-guest"})[0])
+	state := f.limiter.Peek(buckets.Bank(clicks.Payer{Scope: "1.2.3.4", Account: "a-guest"})[0])
 	assert.InDelta(t, 10, state.Tokens, 1e-9)
 }
 
@@ -100,7 +106,7 @@ func TestACallerWithNoAccountHasNoRefill(t *testing.T) {
 	assert.True(t, f.refills.Kept("a-guest").Refill)
 }
 
-var scope = config.Buckets().Ceiling(clicks.Payer{Scope: "1.2.3.4", Account: "a-guest"})[0]
+var scope = buckets.Ceiling(clicks.Payer{Scope: "1.2.3.4", Account: "a-guest"})[0]
 
 func (f fixture) drainScope(t *testing.T, n float64) {
 	t.Helper()

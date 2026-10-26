@@ -21,18 +21,19 @@ const (
 func newQuizzingRegistry(t *testing.T) (*Registry, *cptime.FixedClock) {
 	t.Helper()
 
-	registry, clock := newTestRegistry()
-	registry.Quizzing(quizzes.Config{
+	return newRuledRegistry(func(rules *Rules) { rules.Quiz = quizzing(quizWindow) })
+}
+
+func quizzing(every time.Duration) QuizRules {
+	return QuizRules{
 		Enabled:           true,
-		MinInterval:       quizWindow,
-		MaxInterval:       quizWindow,
+		MinInterval:       every,
+		MaxInterval:       every,
 		MissRetry:         quizRetry,
 		OfferTTL:          bannerFor,
 		AnswerWindow:      answerIn,
 		MaxChargesPerHour: 6,
-	}, fixedBank{})
-
-	return registry, clock
+	}
 }
 
 type fixedBank struct{}
@@ -42,7 +43,7 @@ const (
 	wrongAnswer = "Riga"
 )
 
-func (fixedBank) Draw() quizzes.Round {
+func (fixedBank) Draw(float64) quizzes.Round {
 	return quizzes.Round{
 		Question: quizzes.Question{ID: "capital:ee", Subject: "ee", Text: "What is the capital of Estonia?"},
 		Options:  []string{wrongAnswer, rightAnswer, "Vilnius"},
