@@ -853,9 +853,19 @@ The deploy does this after `git pull`:
 
 1. `caddy validate` on the new file, in a throwaway container. A bad file fails
    the deploy here, and the live Caddy keeps its old config.
-2. `docker compose up -d`.
-3. `caddy reload` in `cp-caddy`. This keeps open connections. It does nothing
+2. `docker compose up -d backend`, with `--force-recreate` when the pull changed
+   `backend.yaml`. This starts postgres and redis first if they need it.
+3. `docker compose up -d --no-deps` for every other service. `--no-deps` keeps
+   this step away from the backend.
+4. `caddy reload` in `cp-caddy`. This keeps open connections. It does nothing
    if the config did not change.
+
+Steps 2 and 3 start `cp-backend` once per deploy. Before 2026-10-26 the deploy
+ran `up -d`, then a second `--force-recreate` of the backend when `backend.yaml`
+changed. When the image changed too, the second recreate killed the first new
+container 0.7 s into its boot. A boot runs each module's migrations, and a
+container killed mid-migration can leave `schema_migrations` dirty: the next
+boot then refuses to start, in a restart loop.
 
 The reload is needed because `up -d` does not recreate Caddy when only the
 Caddyfile changed. Compose mounts the `caddy/` directory, not the file: `git
