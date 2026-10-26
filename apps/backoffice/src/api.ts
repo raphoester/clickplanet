@@ -1,5 +1,6 @@
 import {createPromiseClient} from "@connectrpc/connect"
 import {createConnectTransport} from "@connectrpc/connect-web"
+import {AdminService as AntibotAdmin} from "./gen/grpc/antibot/v1/admin_connect.ts"
 import {AdminService as AuthAdmin} from "./gen/grpc/auth/v1/admin_connect.ts"
 import {AdminService as ChatAdmin} from "./gen/grpc/chat/v1/admin_connect.ts"
 import {AdminService as ClipsAdmin} from "./gen/grpc/clips/v1/admin_connect.ts"
@@ -16,6 +17,7 @@ const transport = createConnectTransport({
     defaultTimeoutMs: 10_000,
 })
 
+export const antibotAdmin = createPromiseClient(AntibotAdmin, transport)
 export const authAdmin = createPromiseClient(AuthAdmin, transport)
 export const chatAdmin = createPromiseClient(ChatAdmin, transport)
 export const clipsAdmin = createPromiseClient(ClipsAdmin, transport)

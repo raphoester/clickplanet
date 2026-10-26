@@ -5,7 +5,8 @@ import {Clients} from "../clients.ts"
 import {Copyable} from "../components/AccountId.tsx"
 import {FailureNotice} from "../components/FailureNotice.tsx"
 import {When} from "../components/When.tsx"
-import {InspectPlayerResponse, Player} from "../gen/grpc/planet/v1/admin_pb.ts"
+import {InspectPlayerResponse} from "../gen/grpc/antibot/v1/admin_pb.ts"
+import {Player} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {Opened} from "../navigation.ts"
 import {useCall} from "../useCall.ts"
 import {ANTIBOT_OFF, inspect, Profile, profileOf} from "./actions.ts"
@@ -44,14 +45,14 @@ export function PlayerView({clients, opened, onBack, onOpen}: Props) {
     const who = whoOf(caller, name)
 
     const read = useCallback(
-        (signal: AbortSignal): Promise<Read> => inspect(clients.planet, caller, signal).then(
+        (signal: AbortSignal): Promise<Read> => inspect(clients.antibot, caller, signal).then(
             value => ({on: true, value}),
             (err: unknown) => {
-                if (ConnectError.from(err).code === Code.FailedPrecondition) return {on: false}
+                if (ConnectError.from(err).code === Code.Unimplemented) return {on: false}
                 throw err
             },
         ),
-        [clients.planet, caller],
+        [clients.antibot, caller],
     )
     const [inspection, again] = useCall(read)
 
@@ -117,8 +118,8 @@ export function PlayerView({clients, opened, onBack, onOpen}: Props) {
                         ? "An account is banned alone, from any address. A guest drops its account with a new cookie: ban its address too."
                         : "An address is banned as its scope (the address over IPv4, the /64 over IPv6): every account behind it."}
                 </p>
-                <BanAction planet={clients.planet} caller={caller} who={who} onDone={again}/>
-                <UnbanAction planet={clients.planet} caller={caller} who={who} onDone={again}/>
+                <BanAction antibot={clients.antibot} caller={caller} who={who} onDone={again}/>
+                <UnbanAction antibot={clients.antibot} caller={caller} who={who} onDone={again}/>
                 {isAccount(caller) && <MuteAction chat={clients.chat} accountId={caller.accountId} who={who}/>}
             </section>
 
