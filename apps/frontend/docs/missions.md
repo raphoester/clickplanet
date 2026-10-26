@@ -12,7 +12,11 @@ itself, with nothing to press.
   the same rows and **Sign in to get it** on a mission done, which opens the sign-in pitch: its
   pay waits for the sign-in that day. "Ends in" is the day's own end, 21:00 UTC.
 - **`useMissions` lives in `Viewer`, not in the place**, so the badge is right with the tab closed. It reads `GetMissions` at load, on a change of the pledged flag (`useAllegiance`), after
-  each run of clicks (`useReadsAfterClicks`) and once the day ends.
+  each run of clicks (`useReadsAfterClicks`) and once more `FOLLOW_UP_MS` (3 s) later, and once the day ends.
+  The read after clicks comes 2 s after the last one, and the backend counts a take one to three seconds
+  after it answered it (the ledger's flush, its relay, the missions' handler): the second read is what
+  catches the take that finished a mission when the player stopped clicking, as one does who just
+  spent a bank.
 - **The badge counts what is news**, as the chat's counts what was missed: on the phone's tab
   (`TabBar`) and the desktop menu's tab (`Menu`, `missionsNews`), "Missions, 3 new". A mission is news
   each time it moves on a stage, drawn, then done, then paid (`stageOf`), and the badge counts the ones
@@ -31,5 +35,5 @@ itself, with nothing to press.
   kind or reward it does not know.
 - `backends/missions.ts` is the contract, `ConnectMissionsBackend` (`missions.v1.MissionService`) the real one,
   `FakeMissionsBackend` the fake: it counts this tab's takes for its first flag (the pledged one
-  before), pays each mission done at once, and `finishMissions()` in the console makes every
-  mission done and paid; the client shows it at its next read (a click, or a change of flag).
+  before), pays each mission done at once, and `finishMissions()` in the console puts every mission one tile from
+  done: the next take for the flag finishes and pays them all, as a take does on the server.

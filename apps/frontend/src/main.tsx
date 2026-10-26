@@ -94,8 +94,8 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
             return "a title is unlocked"
         },
         finishMissions: () => {
-            fakeMissions.finish()
-            return "every mission is done and paid; the next read of the missions shows it"
+            fakeMissions.prime()
+            return "every mission is one tile from done: take a tile for your flag to finish and get them"
         },
         closeDay: () => {
             const closed = fakeStandings.closeRound()
