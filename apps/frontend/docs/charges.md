@@ -24,11 +24,12 @@ none (a ban refusal gives it back too); a shield is taken off the same way. The 
 reaches the globe through `BonusHandlers.onCharges`, and `useGlobe` hands it to the
 inventory.
 
-**The sizes are rules, read once**: `GetBonusRules` (a cached GET) answers the
+**The sizes are rules**: `GetBonusRules` (a GET no cache keeps) answers the
 blast radius, the enclose's `maxTiles`, the spread pool's size, the enclosure
 stack's size, the shields' pool size and how many can stand on one tile
-(`tileShields`) as `BonusRules`, through `onRules`. A page open across a change of rules shows the old sizes
-until it is reloaded.
+(`tileShields`) as `BonusRules`, through `onRules`. It is read at load and again on each `rulesChanged` of the
+planet stream, so an open page follows a rule set the operator edits (the backend's
+[Rules](../../backend/docs/rules.md)).
 
 ## Off by default, one at a time
 

@@ -46,7 +46,7 @@
    before the wall, and shakes when a click hits it. **Its shape is read off the server's policy**: one
    pip per click in the burst (one bar past 12 of them), and the partly-filled
    pip is the click being granted back, at the server's own rate. Change
-   `rateLimiter.burst` on the backend and this follows with no release here.
+   the rule set's `clicks.burst` on the backoffice and this follows with no release here.
 
    **A slow refill gets a countdown.** When a click takes 1.5s or more to come
    back (`COUNTDOWN_FROM_S`; production is one every 5s), the meter says

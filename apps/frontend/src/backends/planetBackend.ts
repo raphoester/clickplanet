@@ -332,6 +332,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
 
                 if (rulesChanged(event)) {
                     void this.readBudget()
+                    void this.readRules()
                     return
                 }
 
@@ -822,7 +823,7 @@ export function fortificationOf(event: PlanetEvent): Fortification | undefined {
     return {landmass: fortified.landmassId, countryId: fortified.countryId, tile: fortified.tileId}
 }
 
-// The refill's pace may have moved, and only a reading says by how much.
+// The refill and the sizes of the charges may have moved, and only a reading says by how much.
 export function rulesChanged(event: PlanetEvent): boolean {
     return event.event.case === "rulesChanged"
 }
