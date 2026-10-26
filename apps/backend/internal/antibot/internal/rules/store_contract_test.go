@@ -15,3 +15,9 @@ func TestTheMemoryStoreKeepsTheContract(t *testing.T) {
 		NewStore: func() rules.Store { return rules.NewMemoryStore(guard.Parts()) },
 	})
 }
+
+func TestTheMemoryChoicesKeepTheContract(t *testing.T) {
+	suite.Run(t, &rules.ChoiceStoreContractSuite{
+		NewStore: func() rules.Choices { return rules.NewMemoryChoices() },
+	})
+}
