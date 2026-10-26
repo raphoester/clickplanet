@@ -47,6 +47,13 @@ const button = (name: string | RegExp) => screen.getByRole("button", {name})
 const tab = (name: string) => screen.getByRole("tab", {name})
 
 describe("Menu", () => {
+    it("counts the missions not seen yet on their tab", () => {
+        render(<Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}
+                     missions={{state: {kind: "loading"}}} missionsNews={3}/>)
+
+        expect(tab("Missions, 3 new").textContent).toBe("Missions3")
+    })
+
     it("shows on the Change button how long the flag is held, and in the picker until when", async () => {
         const user = userEvent.setup()
         const changeableAt = Date.now() + 30 * 60 * 1000

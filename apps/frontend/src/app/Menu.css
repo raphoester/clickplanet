@@ -105,6 +105,7 @@
 }
 
 .menu-tab {
+    position: relative;
     flex: 1 1 0;
     min-width: 0;
     height: 34px;
@@ -121,6 +122,19 @@
 
 .menu-tab:hover {
     color: var(--text);
+}
+
+.menu-tab-badge {
+    position: absolute;
+    top: -9px;
+    right: -2px;
+    z-index: 1;
+    justify-content: center;
+    min-width: 20px;
+    border-radius: var(--radius-pill);
+    background: var(--action);
+    box-shadow: var(--drop-xs);
+    animation: tab-bar-badge-pop 0.36s cubic-bezier(0.2, 1.5, 0.4, 1);
 }
 
 .menu-tab--on {

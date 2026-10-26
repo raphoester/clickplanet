@@ -1,6 +1,6 @@
 import {describe, expect, it} from "vitest"
 import {Mission} from "../backends/missions.ts"
-import {awardOf, newlyPaid, orderOf, timeLeft, waiting} from "./missions.ts"
+import {awardOf, newlyPaid, orderOf, parseSeenMissions, seenNow, timeLeft, unseen} from "./missions.ts"
 
 const mission = (overrides: Partial<Mission> = {}): Mission => ({
     id: "bank",
@@ -19,13 +19,34 @@ describe("orderOf", () => {
     })
 })
 
-describe("waiting", () => {
-    it("counts the missions done and not paid yet", () => {
-        expect(waiting([
-            mission({id: "bank", done: true}),
+describe("unseen", () => {
+    it("counts each mission drawn, done or paid since it was last seen", () => {
+        const seen = seenNow([mission({id: "bank"}), mission({id: "rival", done: true}), mission({id: "ground", done: true})])
+
+        expect(unseen([
+            mission({id: "bank"}),
             mission({id: "rival", done: true, paid: true}),
-            mission({id: "ground"}),
-        ])).toBe(1)
+            mission({id: "ground", done: true}),
+            mission({id: "tomorrow"}),
+        ], seen)).toBe(2)
+    })
+
+    it("counts a whole day not seen yet", () => {
+        expect(unseen([mission({id: "bank"}), mission({id: "rival"}), mission({id: "ground"})], {})).toBe(3)
+    })
+})
+
+describe("seenNow", () => {
+    it("keeps only the missions shown, each at its stage", () => {
+        expect(seenNow([mission({id: "bank", done: true, paid: true}), mission({id: "rival", done: true}), mission({id: "ground"})]))
+            .toEqual({bank: "paid", rival: "done", ground: "new"})
+    })
+})
+
+describe("parseSeenMissions", () => {
+    it("reads what was stored, and nothing from what is not", () => {
+        expect(parseSeenMissions(JSON.stringify({bank: "paid", rival: "lost", ground: 3}))).toEqual({bank: "paid"})
+        for (const raw of [null, "", "{", "[]", "7"]) expect(parseSeenMissions(raw)).toEqual({})
     })
 })
 
