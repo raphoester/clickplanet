@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/bans"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 )
 
 func TestTheBansAreTheStoresAndNotTheBanners(t *testing.T) {
@@ -67,7 +68,7 @@ func TestAFailingStoreIsAnError(t *testing.T) {
 	store := bans.NewMemoryStore()
 	cause := errors.New("postgres is down")
 	store.FailWith(cause)
-	banner := bans.New(config(), pardon, newClock(), store)
+	banner := bans.New(config(), pardon, newClock(), bans.Scopes, store, cpatomic.FakeTransactioner{}, &bans.MemoryEnforcer{})
 	ctx := t.Context()
 
 	_, _, err := banner.Flag(ctx, "bot")
@@ -77,22 +78,8 @@ func TestAFailingStoreIsAnError(t *testing.T) {
 	require.ErrorIs(t, banner.Unban(ctx, "bot"), cause)
 	_, _, err = banner.Sentence(ctx, "bot")
 	require.ErrorIs(t, err, cause)
-	_, _, err = banner.EnforcedSentence(ctx, "bot")
-	require.ErrorIs(t, err, cause)
 	_, err = banner.Flagged(ctx)
 	require.ErrorIs(t, err, cause)
-}
-
-func TestWithEnforceOffBannedReadsNothing(t *testing.T) {
-	store := bans.NewMemoryStore()
-	store.FailWith(errors.New("postgres is down"))
-	c := config()
-	c.Enforce = false
-
-	_, banned, err := bans.New(c, pardon, newClock(), store).EnforcedSentence(t.Context(), "bot")
-
-	require.NoError(t, err)
-	assert.False(t, banned)
 }
 
 func TestAnUnbanIsKeptInTheStore(t *testing.T) {

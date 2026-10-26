@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips"
@@ -24,6 +25,7 @@ type Config struct {
 	Planet planet.Config `koanf:",squash"`
 
 	Auth    auth.Config
+	AntiBot antibot.Config
 	Chat    chat.Config
 	Player  player.Config
 	Seasons seasons.Config
@@ -67,6 +69,7 @@ func describeModules(config Config) []cpbootstrap.Module {
 	return []cpbootstrap.Module{
 		auth.NewModule(config.Auth),
 		planet.NewModule(config.Planet),
+		antibot.NewModule(config.AntiBot),
 		chat.NewModule(config.Chat),
 		player.NewModule(config.Player),
 		seasons.NewModule(config.Seasons),
@@ -88,6 +91,7 @@ func (c Config) Validate() error {
 	return errors.Join(
 		c.HTTPServer.Validate(),
 		c.Planet.Validate(),
+		c.AntiBot.Validate(),
 		c.Chat.Validate(),
 		c.Auth.Validate(),
 		c.Player.Validate(),

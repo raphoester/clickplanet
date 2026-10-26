@@ -29,6 +29,8 @@ antiBot:
     dbName: postgres
     sslMode: disable
     schema: antibot
+  redis:
+    address: redis:6379
 
 vpnBlocklist:
   enabled: false

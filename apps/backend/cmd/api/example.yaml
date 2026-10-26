@@ -132,6 +132,10 @@ antiBot:
     pool:
       maxOpenConns: 2
 
+  redis:
+    address: localhost:6379
+    password: ""
+
   bans:
     enforce: false
     banDurations: [24h, 168h, 26280h]

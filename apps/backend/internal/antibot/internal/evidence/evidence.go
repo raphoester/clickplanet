@@ -45,6 +45,11 @@ type Resumer interface {
 	Resume(outage detect.Outage)
 }
 
+// A Holder stops what feeds the sections while they are encoded, so all of them are saved as of one moment.
+type Holder interface {
+	Hold() (release func())
+}
+
 type Snapshot struct {
 	SavedAt  time.Time
 	Sections map[string][]byte
@@ -155,6 +160,28 @@ func (s *Store) flushOrReport(ctx context.Context) {
 }
 
 func (s *Store) Flush(ctx context.Context) error {
+	snapshot := s.snapshot()
+
+	if err := s.persistence.Save(ctx, snapshot); err != nil {
+		return fmt.Errorf("failed to save %d sections: %w", len(snapshot.Sections), err)
+	}
+
+	return nil
+}
+
+func (s *Store) snapshot() Snapshot {
+	var releases []func()
+	for _, section := range s.sections {
+		if holder, ok := section.(Holder); ok {
+			releases = append(releases, holder.Hold())
+		}
+	}
+	defer func() {
+		for _, release := range releases {
+			release()
+		}
+	}()
+
 	snapshot := Snapshot{
 		SavedAt:  s.clock.Now(),
 		Sections: make(map[string][]byte, len(s.sections)),
@@ -169,11 +196,7 @@ func (s *Store) Flush(ctx context.Context) error {
 		snapshot.Sections[section.Name()] = data
 	}
 
-	if err := s.persistence.Save(ctx, snapshot); err != nil {
-		return fmt.Errorf("failed to save %d sections: %w", len(snapshot.Sections), err)
-	}
-
-	return nil
+	return snapshot
 }
 
 func Encode(value any) ([]byte, error) {
