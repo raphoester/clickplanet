@@ -16,7 +16,7 @@ func TestTheBansAreTheStoresAndNotTheBanners(t *testing.T) {
 	clock := newClock()
 	store := bans.NewMemoryStore()
 
-	before := bannerOver(t, config(), clock, store)
+	before := bannerOver(t, ladder(), clock, store)
 	before.Flag("repeat")
 	clock.Advance(2 * time.Hour)
 	before.Flag("repeat")
@@ -24,7 +24,7 @@ func TestTheBansAreTheStoresAndNotTheBanners(t *testing.T) {
 	before.Flag("repeat")
 	before.Flag("fresh")
 
-	after := bannerOver(t, config(), clock, store)
+	after := bannerOver(t, ladder(), clock, store)
 
 	assert.True(t, after.Banned("repeat"))
 	assert.True(t, after.Banned("fresh"))
@@ -42,14 +42,14 @@ func TestTheReflagIntervalIsKeptInTheStore(t *testing.T) {
 	clock := newClock()
 	store := bans.NewMemoryStore()
 
-	bannerOver(t, config(), clock, store).Flag("bot")
+	bannerOver(t, ladder(), clock, store).Flag("bot")
 
 	clock.Advance(time.Minute)
-	_, accepted := bannerOver(t, config(), clock, store).Flag("bot")
+	_, accepted := bannerOver(t, ladder(), clock, store).Flag("bot")
 	assert.False(t, accepted, "a restart is no way around the reflag interval")
 
 	clock.Advance(5 * time.Minute)
-	_, accepted = bannerOver(t, config(), clock, store).Flag("bot")
+	_, accepted = bannerOver(t, ladder(), clock, store).Flag("bot")
 	assert.True(t, accepted)
 }
 
@@ -57,7 +57,7 @@ func TestABanInTheStoreIsRunning(t *testing.T) {
 	clock := newClock()
 	store := bans.NewMemoryStore(bans.Record{Key: "kept", Flags: 1, Offences: 1, ExpiresAt: clock.Now().Add(time.Hour)})
 
-	banner := bannerOver(t, config(), clock, store)
+	banner := bannerOver(t, ladder(), clock, store)
 
 	assert.True(t, banner.Banned("kept"))
 	assert.False(t, banner.Banned("other"))
@@ -68,7 +68,7 @@ func TestAFailingStoreIsAnError(t *testing.T) {
 	store := bans.NewMemoryStore()
 	cause := errors.New("postgres is down")
 	store.FailWith(cause)
-	banner := bans.New(config(), pardon, newClock(), bans.Scopes, store, cpatomic.FakeTransactioner{}, &bans.MemoryEnforcer{})
+	banner := bans.New(fixed(ladder()), pardon, newClock(), bans.Scopes, store, cpatomic.FakeTransactioner{}, &bans.MemoryEnforcer{})
 	ctx := t.Context()
 
 	_, _, err := banner.Flag(ctx, "bot")
@@ -87,7 +87,7 @@ func TestAnUnbanIsKeptInTheStore(t *testing.T) {
 	store := bans.NewMemoryStore()
 	flaggedAt := clock.Now()
 
-	before := bannerOver(t, config(), clock, store)
+	before := bannerOver(t, ladder(), clock, store)
 	before.Flag("player")
 	clock.Advance(10 * time.Minute)
 	before.Unban("player")
@@ -101,7 +101,7 @@ func TestAnUnbanIsKeptInTheStore(t *testing.T) {
 		},
 	}, store.Stored()["player"])
 
-	after := bannerOver(t, config(), clock, store)
+	after := bannerOver(t, ladder(), clock, store)
 	assert.False(t, after.Banned("player"))
 	_, accepted := after.Flag("player")
 	assert.False(t, accepted, "the pardon is in the store, not in the banner")

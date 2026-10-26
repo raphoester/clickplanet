@@ -2,6 +2,7 @@ package metronome
 
 import (
 	"context"
+	"errors"
 	"math"
 	"sort"
 	"sync"
@@ -13,7 +14,7 @@ import (
 
 const Name = "metronome"
 
-type Config struct {
+type Rules struct {
 	MaxGap time.Duration
 
 	MaxSpread time.Duration
@@ -23,18 +24,14 @@ type Config struct {
 	CertainFor    time.Duration
 	CertainClicks int
 
-	Shape ShapeConfig
+	Shape ShapeRules
 
-	Clock ClockConfig
+	Clock ClockRules
 
-	Stamina StaminaConfig
-
-	TrackWindow time.Duration
-
-	SweepInterval time.Duration
+	Stamina StaminaRules
 }
 
-type ShapeConfig struct {
+type ShapeRules struct {
 	MaxGap time.Duration
 
 	// Pointers because 0 is a skew: nil never reads its level.
@@ -44,7 +41,7 @@ type ShapeConfig struct {
 	CertainSkew   *float64
 }
 
-type ClockConfig struct {
+type ClockRules struct {
 	Period time.Duration
 
 	Clicks           int
@@ -54,35 +51,95 @@ type ClockConfig struct {
 	CertainCoherence *float64
 }
 
-type StaminaConfig struct {
-	Slice       time.Duration
+type StaminaRules struct {
 	Clicks      int
 	Window      time.Duration
 	MinBusy     time.Duration
 	CertainBusy time.Duration
 }
 
+func (r Rules) Validate() error {
+	return errors.Join(
+		detect.Positive("maxGap", r.MaxGap),
+		detect.Positive("maxSpread", r.MaxSpread),
+		detect.Positive("minClicks", r.MinClicks),
+		detect.Positive("certainFor", r.CertainFor),
+		detect.AtLeast("certainClicks", r.CertainClicks, "minClicks", r.MinClicks),
+		r.Shape.validate(),
+		r.Clock.validate(),
+		r.Stamina.validate(),
+	)
+}
+
+func (r ShapeRules) validate() error {
+	return errors.Join(
+		detect.Positive("shape.maxGap", r.MaxGap),
+		detect.Positive("shape.clicks", r.Clicks),
+		detect.AtMost("shape.clicks", r.Clicks, "the gaps kept", maxShapeSamples),
+		detect.AtLeast("shape.certainClicks", r.CertainClicks, "shape.clicks", r.Clicks),
+		detect.AtMost("shape.certainClicks", r.CertainClicks, "the gaps kept", maxShapeSamples),
+		skew("shape.maxSkew", r.MaxSkew),
+		skew("shape.certainSkew", r.CertainSkew),
+	)
+}
+
+func skew(name string, value *float64) error {
+	if value == nil {
+		return nil
+	}
+	return errors.Join(
+		detect.AtLeast(name, *value, "the lowest skew", -1),
+		detect.AtMost(name, *value, "the highest skew", 1),
+	)
+}
+
+func (r ClockRules) validate() error {
+	return errors.Join(
+		detect.Positive("clock.period", r.Period),
+		detect.Positive("clock.clicks", r.Clicks),
+		detect.AtMost("clock.clicks", r.Clicks, "the tries kept", maxClockSamples),
+		detect.AtLeast("clock.certainClicks", r.CertainClicks, "clock.clicks", r.Clicks),
+		detect.AtMost("clock.certainClicks", r.CertainClicks, "the tries kept", maxClockSamples),
+		detect.Positive("clock.certainFor", r.CertainFor),
+		coherence("clock.minCoherence", r.MinCoherence),
+		coherence("clock.certainCoherence", r.CertainCoherence),
+	)
+}
+
+func coherence(name string, value *float64) error {
+	if value == nil {
+		return nil
+	}
+	return detect.Share(name, *value) //nolint:wrapcheck // it names the bound it refuses.
+}
+
+func (r StaminaRules) validate() error {
+	return errors.Join(
+		detect.Positive("stamina.clicks", r.Clicks),
+		detect.Positive("stamina.window", r.Window),
+		detect.NotNegative("stamina.minBusy", r.MinBusy),
+		detect.NotNegative("stamina.certainBusy", r.CertainBusy),
+	)
+}
+
+type Config struct {
+	Stamina StaminaConfig
+
+	TrackWindow time.Duration
+
+	SweepInterval time.Duration
+}
+
+type StaminaConfig struct {
+	// The clicks are counted per slice, and saved with its length.
+	Slice time.Duration
+}
+
 const (
-	defaultMaxGap        = 3 * time.Second
-	defaultMaxSpread     = 120 * time.Millisecond
-	defaultMinClicks     = 120
-	defaultCertainFor    = 30 * time.Minute
-	defaultCertainClicks = 900
 	defaultTrackWindow   = 15 * time.Minute
 	defaultSweepInterval = time.Minute
 
-	defaultShapeMaxGap        = 10 * time.Second
-	defaultShapeClicks        = 500
-	defaultShapeCertainClicks = 1000
-
-	defaultClockPeriod        = time.Second
-	defaultClockClicks        = 120
-	defaultClockCertainClicks = 600
-	defaultClockCertainFor    = 30 * time.Minute
-
-	defaultStaminaSlice  = 10 * time.Minute
-	defaultStaminaClicks = 40
-	defaultStaminaWindow = 6 * time.Hour
+	defaultStaminaSlice = 10 * time.Minute
 
 	maxSamples      = 1024
 	maxShapeSamples = 2048
@@ -90,117 +147,43 @@ const (
 )
 
 func (c Config) withDefaults() Config {
-	if c.MaxGap <= 0 {
-		c.MaxGap = defaultMaxGap
-	}
-	if c.MaxSpread <= 0 {
-		c.MaxSpread = defaultMaxSpread
-	}
-	if c.MinClicks <= 0 {
-		c.MinClicks = defaultMinClicks
-	}
-	if c.CertainFor <= 0 {
-		c.CertainFor = defaultCertainFor
-	}
-	if c.CertainClicks <= 0 {
-		c.CertainClicks = defaultCertainClicks
-	}
-	if c.CertainClicks < c.MinClicks {
-		c.CertainClicks = c.MinClicks
-	}
 	if c.TrackWindow <= 0 {
 		c.TrackWindow = defaultTrackWindow
 	}
 	if c.SweepInterval <= 0 {
 		c.SweepInterval = defaultSweepInterval
 	}
-	c.Shape = c.Shape.withDefaults()
-	c.Clock = c.Clock.withDefaults()
-	c.Stamina = c.Stamina.withDefaults()
-	return c
-}
-
-func (c StaminaConfig) withDefaults() StaminaConfig {
-	if c.Slice <= 0 {
-		c.Slice = defaultStaminaSlice
-	}
-	if c.Clicks <= 0 {
-		c.Clicks = defaultStaminaClicks
-	}
-	if c.Window <= 0 {
-		c.Window = defaultStaminaWindow
-	}
-	if c.Window < c.Slice {
-		c.Window = c.Slice
+	if c.Stamina.Slice <= 0 {
+		c.Stamina.Slice = defaultStaminaSlice
 	}
 	return c
 }
 
-func (c ClockConfig) withDefaults() ClockConfig {
-	if c.Period <= 0 {
-		c.Period = defaultClockPeriod
-	}
-	if c.Clicks <= 0 {
-		c.Clicks = defaultClockClicks
-	}
-	if c.Clicks > maxClockSamples {
-		c.Clicks = maxClockSamples
-	}
-	if c.CertainClicks <= 0 {
-		c.CertainClicks = defaultClockCertainClicks
-	}
-	if c.CertainClicks < c.Clicks {
-		c.CertainClicks = c.Clicks
-	}
-	if c.CertainClicks > maxClockSamples {
-		c.CertainClicks = maxClockSamples
-	}
-	if c.CertainFor <= 0 {
-		c.CertainFor = defaultClockCertainFor
-	}
-	return c
-}
-
-func (c ClockConfig) kept() int {
+func (r ClockRules) kept() int {
 	switch {
-	case c.CertainCoherence != nil:
-		return c.CertainClicks
-	case c.MinCoherence != nil:
-		return c.Clicks
+	case r.CertainCoherence != nil:
+		return r.CertainClicks
+	case r.MinCoherence != nil:
+		return r.Clicks
 	default:
 		return 0
 	}
 }
 
-func (c ShapeConfig) withDefaults() ShapeConfig {
-	if c.MaxGap <= 0 {
-		c.MaxGap = defaultShapeMaxGap
-	}
-	if c.Clicks <= 0 {
-		c.Clicks = defaultShapeClicks
-	}
-	if c.Clicks > maxShapeSamples {
-		c.Clicks = maxShapeSamples
-	}
-	if c.CertainClicks <= 0 {
-		c.CertainClicks = defaultShapeCertainClicks
-	}
-	if c.CertainClicks < c.Clicks {
-		c.CertainClicks = c.Clicks
-	}
-	if c.CertainClicks > maxShapeSamples {
-		c.CertainClicks = maxShapeSamples
-	}
-	return c
-}
-
-func New(config Config, clock cptime.Clock, onSkew, onCoherence func(float64), onBusy func(busy time.Duration)) *Watchdog {
+func New(
+	config Config,
+	rules func() Rules,
+	clock cptime.Clock,
+	onSkew, onCoherence func(float64),
+	onBusy func(busy time.Duration),
+) *Watchdog {
 	if clock == nil {
 		clock = cptime.SystemClock{}
 	}
 
 	return &Watchdog{
 		config:      config.withDefaults(),
+		rules:       rules,
 		clock:       clock,
 		onSkew:      onSkew,
 		onCoherence: onCoherence,
@@ -212,6 +195,7 @@ func New(config Config, clock cptime.Clock, onSkew, onCoherence func(float64), o
 
 type Watchdog struct {
 	config      Config
+	rules       func() Rules
 	clock       cptime.Clock
 	onSkew      func(float64)
 	onCoherence func(float64)
@@ -254,6 +238,8 @@ func (w *Watchdog) Name() string { return Name }
 func (w *Watchdog) Committed(detect.Click) {}
 
 func (w *Watchdog) Attempted(click detect.Click) {
+	rules := w.rules()
+
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
@@ -263,24 +249,24 @@ func (w *Watchdog) Attempted(click detect.Click) {
 		p = &payer{}
 		w.payers[key] = p
 		p.restart(click.At)
-		w.tried(p, click.At)
+		p.tried(click.At, rules.Clock.kept())
 		return
 	}
 
-	w.tried(p, click.At)
+	p.tried(click.At, rules.Clock.kept())
 
 	across := w.outage.Across(p.lastSeen, click.At)
 	gap := w.outage.Gap(p.lastSeen, click.At)
 	p.lastSeen = click.At
 
-	if !across && gap >= 0 && gap <= w.config.Shape.MaxGap {
+	if !across && gap >= 0 && gap <= rules.Shape.MaxGap {
 		p.shape = append(p.shape, gap)
-		if capacity := w.config.Shape.CertainClicks; len(p.shape) > capacity {
-			p.shape = append(p.shape[:0], p.shape[len(p.shape)-capacity:]...)
+		if kept := rules.Shape.CertainClicks; len(p.shape) > kept {
+			p.shape = append(p.shape[:0], p.shape[len(p.shape)-kept:]...)
 		}
 	}
 
-	if gap < 0 || gap > w.config.MaxGap {
+	if gap < 0 || gap > rules.MaxGap {
 		p.restart(click.At)
 		return
 	}
@@ -293,13 +279,12 @@ func (w *Watchdog) Attempted(click detect.Click) {
 	}
 
 	p.gaps = append(p.gaps, gap)
-	if capacity := w.capacity(); len(p.gaps) > capacity {
-		p.gaps = append(p.gaps[:0], p.gaps[len(p.gaps)-capacity:]...)
+	if kept := capacity(rules); len(p.gaps) > kept {
+		p.gaps = append(p.gaps[:0], p.gaps[len(p.gaps)-kept:]...)
 	}
 }
 
-func (w *Watchdog) tried(p *payer, at time.Time) {
-	kept := w.config.Clock.kept()
+func (p *payer) tried(at time.Time, kept int) {
 	if kept == 0 {
 		return
 	}
@@ -311,23 +296,25 @@ func (w *Watchdog) tried(p *payer, at time.Time) {
 }
 
 func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
+	rules := w.rules()
+
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
 	key := click.Payer()
-	w.spend(key, click.At)
-	stamina, staminaEvidence := w.stamina(w.spenders[key])
+	w.spend(key, click.At, rules.Stamina.Window)
+	stamina, staminaEvidence := w.stamina(w.spenders[key], rules.Stamina)
 
 	p, ok := w.payers[key]
 	if !ok {
 		return stamina, staminaEvidence
 	}
 
-	verdict, evidence := w.cadence(p)
-	if shape, shapeEvidence := w.shape(p); shape > verdict {
+	verdict, evidence := cadence(p, rules)
+	if shape, shapeEvidence := shape(p, rules.Shape); shape > verdict {
 		verdict, evidence = shape, shapeEvidence
 	}
-	if timer, timerEvidence := w.timer(p); timer > verdict {
+	if timer, timerEvidence := timer(p, rules.Clock); timer > verdict {
 		verdict, evidence = timer, timerEvidence
 	}
 	if stamina > verdict {
@@ -336,7 +323,7 @@ func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 	return verdict, evidence
 }
 
-func (w *Watchdog) spend(key string, at time.Time) {
+func (w *Watchdog) spend(key string, at time.Time, window time.Duration) {
 	s, ok := w.spenders[key]
 	if !ok {
 		s = &spender{}
@@ -351,20 +338,18 @@ func (w *Watchdog) spend(key string, at time.Time) {
 		s.slices = append(s.slices, slice{index: index, clicks: 1})
 	}
 
-	s.forget(w.firstSliceOf(index))
+	s.forget(w.firstSliceOf(index, window))
 }
 
-func (w *Watchdog) stamina(s *spender) (detect.Verdict, detect.Evidence) {
-	config := w.config.Stamina
-
-	busySlices, clicks := s.tally(config.Clicks)
-	busy := time.Duration(busySlices) * config.Slice
+func (w *Watchdog) stamina(s *spender, rules StaminaRules) (detect.Verdict, detect.Evidence) {
+	busySlices, clicks := s.tally(rules.Clicks)
+	busy := time.Duration(busySlices) * w.config.Stamina.Slice
 
 	var verdict detect.Verdict
 	switch {
-	case config.CertainBusy > 0 && busy >= config.CertainBusy:
+	case rules.CertainBusy > 0 && busy >= rules.CertainBusy:
 		verdict = detect.Certain
-	case config.MinBusy > 0 && busy >= config.MinBusy:
+	case rules.MinBusy > 0 && busy >= rules.MinBusy:
 		verdict = detect.Suspect
 	default:
 		return detect.Clear, detect.Evidence{}
@@ -375,7 +360,7 @@ func (w *Watchdog) stamina(s *spender) (detect.Verdict, detect.Evidence) {
 		Zeal: true,
 		Fields: []detect.Field{
 			{Key: "busy", Value: busy},
-			{Key: "window", Value: config.Window},
+			{Key: "window", Value: rules.Window},
 			{Key: "clicks", Value: clicks},
 		},
 	}
@@ -385,8 +370,8 @@ func (w *Watchdog) sliceOf(at time.Time) int64 {
 	return at.UnixNano() / int64(w.config.Stamina.Slice)
 }
 
-func (w *Watchdog) firstSliceOf(index int64) int64 {
-	return index - int64(w.config.Stamina.Window/w.config.Stamina.Slice) + 1
+func (w *Watchdog) firstSliceOf(index int64, window time.Duration) int64 {
+	return index - max(int64(window/w.config.Stamina.Slice), 1) + 1
 }
 
 func (s *spender) tally(atLeast int) (busy, clicks int) {
@@ -407,20 +392,20 @@ func (s *spender) forget(before int64) {
 	s.slices = append(s.slices[:0], s.slices[kept:]...)
 }
 
-func (w *Watchdog) cadence(p *payer) (detect.Verdict, detect.Evidence) {
-	if p.runClicks < w.config.MinClicks {
+func cadence(p *payer, rules Rules) (detect.Verdict, detect.Evidence) {
+	if p.runClicks < rules.MinClicks {
 		return detect.Clear, detect.Evidence{}
 	}
 
 	median, spread := detect.Spread(append([]time.Duration(nil), p.gaps...))
-	if spread > w.config.MaxSpread {
+	if spread > rules.MaxSpread {
 		return detect.Clear, detect.Evidence{}
 	}
 
 	sustained := p.lastSeen.Sub(p.runStart)
 
 	verdict := detect.Suspect
-	if sustained >= w.config.CertainFor && p.runClicks >= w.config.CertainClicks {
+	if sustained >= rules.CertainFor && p.runClicks >= rules.CertainClicks {
 		verdict = detect.Certain
 	}
 
@@ -435,17 +420,15 @@ func (w *Watchdog) cadence(p *payer) (detect.Verdict, detect.Evidence) {
 	}
 }
 
-func (w *Watchdog) shape(p *payer) (detect.Verdict, detect.Evidence) {
-	config := w.config.Shape
-
-	if config.CertainSkew != nil {
-		if s, ok := skewOf(p.shape, config.CertainClicks); ok && s.skew <= *config.CertainSkew {
+func shape(p *payer, rules ShapeRules) (detect.Verdict, detect.Evidence) {
+	if rules.CertainSkew != nil {
+		if s, ok := skewOf(p.shape, rules.CertainClicks); ok && s.skew <= *rules.CertainSkew {
 			return detect.Certain, s.evidence()
 		}
 	}
 
-	if config.MaxSkew != nil {
-		if s, ok := skewOf(p.shape, config.Clicks); ok && s.skew <= *config.MaxSkew {
+	if rules.MaxSkew != nil {
+		if s, ok := skewOf(p.shape, rules.Clicks); ok && s.skew <= *rules.MaxSkew {
 			return detect.Suspect, s.evidence()
 		}
 	}
@@ -494,18 +477,16 @@ func (s skewed) evidence() detect.Evidence {
 	}
 }
 
-func (w *Watchdog) timer(p *payer) (detect.Verdict, detect.Evidence) {
-	config := w.config.Clock
-
-	if config.CertainCoherence != nil {
-		if b, ok := beatOf(p.tries, config.CertainClicks, config.Period); ok &&
-			b.coherence >= *config.CertainCoherence && b.span >= config.CertainFor {
+func timer(p *payer, rules ClockRules) (detect.Verdict, detect.Evidence) {
+	if rules.CertainCoherence != nil {
+		if b, ok := beatOf(p.tries, rules.CertainClicks, rules.Period); ok &&
+			b.coherence >= *rules.CertainCoherence && b.span >= rules.CertainFor {
 			return detect.Certain, b.evidence()
 		}
 	}
 
-	if config.MinCoherence != nil {
-		if b, ok := beatOf(p.tries, config.Clicks, config.Period); ok && b.coherence >= *config.MinCoherence {
+	if rules.MinCoherence != nil {
+		if b, ok := beatOf(p.tries, rules.Clicks, rules.Period); ok && b.coherence >= *rules.MinCoherence {
 			return detect.Suspect, b.evidence()
 		}
 	}
@@ -564,11 +545,8 @@ func (b beat) evidence() detect.Evidence {
 	}
 }
 
-func (w *Watchdog) capacity() int {
-	if w.config.MinClicks > maxSamples {
-		return maxSamples
-	}
-	return w.config.MinClicks
+func capacity(rules Rules) int {
+	return min(rules.MinClicks, maxSamples)
 }
 
 func (p *payer) restart(at time.Time) {
@@ -594,6 +572,7 @@ func (w *Watchdog) Run(ctx context.Context) {
 
 func (w *Watchdog) sweep() {
 	now := w.clock.Now()
+	rules := w.rules()
 
 	var (
 		skews      []float64
@@ -609,15 +588,15 @@ func (w *Watchdog) sweep() {
 			delete(w.payers, key)
 			continue
 		}
-		if s, ok := skewOf(p.shape, w.config.Shape.Clicks); ok {
+		if s, ok := skewOf(p.shape, rules.Shape.Clicks); ok {
 			skews = append(skews, s.skew)
 		}
-		if b, ok := beatOf(p.tries, w.config.Clock.Clicks, w.config.Clock.Period); ok {
+		if b, ok := beatOf(p.tries, rules.Clock.Clicks, rules.Clock.Period); ok {
 			coherences = append(coherences, b.coherence)
 		}
 	}
 
-	first := w.firstSliceOf(w.sliceOf(now))
+	first := w.firstSliceOf(w.sliceOf(now), rules.Stamina.Window)
 	spentSince := now.Add(-w.config.SweepInterval)
 	for key, s := range w.spenders {
 		s.forget(first)
@@ -626,7 +605,7 @@ func (w *Watchdog) sweep() {
 			continue
 		}
 		if !s.lastSeen.Before(spentSince) {
-			slices, _ := s.tally(w.config.Stamina.Clicks)
+			slices, _ := s.tally(rules.Stamina.Clicks)
 			busy = append(busy, time.Duration(slices)*w.config.Stamina.Slice)
 		}
 	}

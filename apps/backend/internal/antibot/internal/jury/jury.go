@@ -12,34 +12,35 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-type Config struct {
+type Rules struct {
 	MinSuspects int
 
 	SuspicionWindow time.Duration
+}
 
+func (r Rules) Validate() error {
+	return errors.Join(
+		detect.Positive("minSuspects", r.MinSuspects),
+		detect.Positive("suspicionWindow", r.SuspicionWindow),
+	)
+}
+
+type Config struct {
 	TrackWindow time.Duration
 
 	SweepInterval time.Duration
 }
 
 const (
-	defaultMinSuspects     = 2
-	defaultSuspicionWindow = 10 * time.Minute
-	defaultTrackWindow     = 15 * time.Minute
-	defaultSweepInterval   = time.Minute
+	defaultTrackWindow   = 15 * time.Minute
+	defaultSweepInterval = time.Minute
 
 	// Bounds memory: a client could cycle through every country code.
 	maxTrackedCountries = 16
 	keptTiles           = 8
 )
 
-func (c Config) WithDefaults() Config {
-	if c.MinSuspects <= 0 {
-		c.MinSuspects = defaultMinSuspects
-	}
-	if c.SuspicionWindow <= 0 {
-		c.SuspicionWindow = defaultSuspicionWindow
-	}
+func (c Config) withDefaults() Config {
 	if c.TrackWindow <= 0 {
 		c.TrackWindow = defaultTrackWindow
 	}
@@ -65,6 +66,7 @@ type Hooks struct {
 
 func New(
 	config Config,
+	rules func() Rules,
 	banner Banner,
 	clock cptime.Clock,
 	hooks Hooks,
@@ -75,7 +77,8 @@ func New(
 	}
 
 	return &Jury{
-		config:    config.WithDefaults(),
+		config:    config.withDefaults(),
+		rules:     rules,
 		banner:    banner,
 		clock:     clock,
 		hooks:     hooks,
@@ -87,6 +90,7 @@ func New(
 
 type Jury struct {
 	config    Config
+	rules     func() Rules
 	banner    Banner
 	clock     cptime.Clock
 	hooks     Hooks
@@ -259,7 +263,7 @@ func (j *Jury) opine(click detect.Click, watchdog string, verdict detect.Verdict
 		c.reached[watchdog] = reached
 	}
 
-	cutoff := click.At.Add(-j.config.SuspicionWindow)
+	cutoff := click.At.Add(-j.rules().SuspicionWindow)
 
 	var rises []detect.Verdict
 	for level := detect.Suspect; level <= verdict; level++ {
@@ -278,7 +282,7 @@ func (j *Jury) deliberate(click detect.Click) (detect.Report, bool) {
 
 	c := j.callerLocked(click)
 
-	opinions, _, guilty := j.weighLocked(c, click.At)
+	opinions, _, guilty := j.weighLocked(c, click.At, j.rules())
 	if !guilty {
 		return detect.Report{}, false
 	}
@@ -298,8 +302,8 @@ func (j *Jury) deliberate(click detect.Click) (detect.Report, bool) {
 	}, true
 }
 
-func (j *Jury) weighLocked(c *caller, at time.Time) ([]detect.Opinion, int, bool) {
-	cutoff := at.Add(-j.config.SuspicionWindow)
+func (j *Jury) weighLocked(c *caller, at time.Time, rules Rules) ([]detect.Opinion, int, bool) {
+	cutoff := at.Add(-rules.SuspicionWindow)
 
 	var (
 		certain  bool
@@ -336,11 +340,12 @@ func (j *Jury) weighLocked(c *caller, at time.Time) ([]detect.Opinion, int, bool
 		suspects++
 	}
 
-	return opinions, suspects, certain || suspects >= j.config.MinSuspects
+	return opinions, suspects, certain || suspects >= rules.MinSuspects
 }
 
 func (j *Jury) Examine(scope, account string) detect.Examination {
 	now := j.clock.Now()
+	rules := j.rules()
 
 	j.mu.Lock()
 	defer j.mu.Unlock()
@@ -349,14 +354,14 @@ func (j *Jury) Examine(scope, account string) detect.Examination {
 		scope = j.accounts[account].scope
 	}
 
-	examination := detect.Examination{Scope: scope, Account: account, MinSuspects: j.config.MinSuspects}
+	examination := detect.Examination{Scope: scope, Account: account, MinSuspects: rules.MinSuspects}
 
 	c, tracked := j.callers[scope]
 	if !tracked {
 		c = &caller{}
 	}
 
-	opinions, suspects, guilty := j.weighLocked(c, now)
+	opinions, suspects, guilty := j.weighLocked(c, now, rules)
 
 	examination.Readings = make([]detect.Reading, 0, len(opinions))
 	for _, opinion := range opinions {
@@ -456,7 +461,7 @@ func (j *Jury) forget(now time.Time) [][detect.Certain + 1]int {
 	defer j.mu.Unlock()
 
 	trackCutoff := now.Add(-j.config.TrackWindow)
-	suspicionCutoff := now.Add(-j.config.SuspicionWindow)
+	suspicionCutoff := now.Add(-j.rules().SuspicionWindow)
 
 	standing := make([][detect.Certain + 1]int, len(j.watchdogs))
 

@@ -77,7 +77,6 @@ func startGame(t *testing.T) gameStack {
 	planetConfig.RateLimiter.ScopeMultiplier = 1
 
 	antibotConfig := antibot.Config{Enabled: true, Database: postgres.ConfigFor("antibot"), Redis: redis}
-	antibotConfig.Bans.Enforce = true
 	antibotConfig.Sequencer.Enabled = true
 
 	playerConfig := player.Config{Database: postgres.ConfigFor("player"), Redis: redis, TagSalt: "pepper"}

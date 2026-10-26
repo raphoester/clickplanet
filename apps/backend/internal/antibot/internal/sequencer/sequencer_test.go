@@ -17,9 +17,9 @@ type harness struct {
 	clock    *cptime.FixedClock
 }
 
-func newHarness(config sequencer.Config) *harness {
+func newHarness(rules sequencer.Rules, config sequencer.Config) *harness {
 	h := &harness{clock: cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC))}
-	h.watchdog = sequencer.New(config, h.clock)
+	h.watchdog = sequencer.New(config, func() sequencer.Rules { return rules }, h.clock)
 	return h
 }
 
@@ -49,18 +49,17 @@ func (h *harness) walk(first uint32, stride uint32, count int) (detect.Verdict, 
 	return verdict, evidence
 }
 
-func config() sequencer.Config {
-	return sequencer.Config{
+func short() (sequencer.Rules, sequencer.Config) {
+	return sequencer.Rules{
 		MinSteps:     10,
 		MinShare:     0.75,
 		CertainSteps: 40,
 		CertainShare: 0.95,
-		TrackWindow:  time.Hour,
-	}
+	}, sequencer.Config{TrackWindow: time.Hour}
 }
 
 func TestWalkingTheIdsForLongEnoughIsCertain(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(short())
 
 	verdict, evidence := h.walk(1000, 1, 60)
 
@@ -70,7 +69,7 @@ func TestWalkingTheIdsForLongEnoughIsCertain(t *testing.T) {
 }
 
 func TestAShortWalkIsOnlySuspect(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(short())
 
 	verdict, _ := h.walk(2000, 1, 15)
 
@@ -78,7 +77,7 @@ func TestAShortWalkIsOnlySuspect(t *testing.T) {
 }
 
 func TestAnyConstantStrideIsAWalk(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(short())
 
 	verdict, evidence := h.walk(3000, 7, 60)
 
@@ -87,7 +86,7 @@ func TestAnyConstantStrideIsAWalk(t *testing.T) {
 }
 
 func TestWalkingBackwardsCountsToo(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(short())
 
 	for i := range 60 {
 		h.click(uint32(9000 - i))
@@ -100,7 +99,7 @@ func TestWalkingBackwardsCountsToo(t *testing.T) {
 }
 
 func TestOneBreakInTheRunDoesNotSaveIt(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(short())
 
 	h.walk(4000, 1, 30)
 	h.click(50000)
@@ -110,7 +109,7 @@ func TestOneBreakInTheRunDoesNotSaveIt(t *testing.T) {
 }
 
 func TestAHandWanderingIsClear(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(short())
 
 	steps := []int{3, -1, 12, 2, -7, 1, 40, -3, 5, 1, -22, 8, 2, 17, -4, 1, 9, -13, 6, 2}
 
@@ -127,7 +126,7 @@ func TestAHandWanderingIsClear(t *testing.T) {
 }
 
 func TestLeaningOnOneTileIsNotAWalk(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(short())
 
 	var verdict detect.Verdict
 	for range 60 {
@@ -138,7 +137,7 @@ func TestLeaningOnOneTileIsNotAWalk(t *testing.T) {
 }
 
 func TestFightingOverTwoTilesIsNotAWalk(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(short())
 
 	var verdict detect.Verdict
 	for i := range 60 {
@@ -149,10 +148,10 @@ func TestFightingOverTwoTilesIsNotAWalk(t *testing.T) {
 }
 
 func TestStepsAgeOutOfTheWindow(t *testing.T) {
-	c := config()
-	c.TrackWindow = time.Minute
+	rules, config := short()
+	config.TrackWindow = time.Minute
 
-	h := newHarness(c)
+	h := newHarness(rules, config)
 
 	require.Equal(t, detect.Certain, func() detect.Verdict { v, _ := h.walk(8000, 1, 60); return v }())
 

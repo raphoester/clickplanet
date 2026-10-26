@@ -2,6 +2,7 @@ package hopper
 
 import (
 	"context"
+	"errors"
 	"math"
 	"sync"
 	"time"
@@ -12,7 +13,7 @@ import (
 
 const Name = "hopper"
 
-type Config struct {
+type Rules struct {
 	MinAngle float64
 	MinGap   time.Duration
 	MaxGap   time.Duration
@@ -22,18 +23,28 @@ type Config struct {
 
 	CertainSteps int
 	CertainShare float64
+}
 
+func (r Rules) Validate() error {
+	return errors.Join(
+		detect.Positive("minAngle", r.MinAngle),
+		detect.AtMost("minAngle", r.MinAngle, "half a turn", 180),
+		detect.Positive("minGap", r.MinGap),
+		detect.AtLeast("maxGap", r.MaxGap, "minGap", r.MinGap),
+		detect.Positive("minSteps", r.MinSteps),
+		detect.Share("minShare", r.MinShare),
+		detect.AtLeast("certainSteps", r.CertainSteps, "minSteps", r.MinSteps),
+		detect.Share("certainShare", r.CertainShare),
+	)
+}
+
+type Config struct {
 	TrackWindow time.Duration
 
 	SweepInterval time.Duration
 }
 
 const (
-	defaultMinAngle      = 45
-	defaultMinGap        = 100 * time.Millisecond
-	defaultMaxGap        = 30 * time.Second
-	defaultMinSteps      = 40
-	defaultCertainSteps  = 200
 	defaultTrackWindow   = 15 * time.Minute
 	defaultSweepInterval = time.Minute
 
@@ -41,24 +52,6 @@ const (
 )
 
 func (c Config) withDefaults() Config {
-	if c.MinAngle <= 0 {
-		c.MinAngle = defaultMinAngle
-	}
-	if c.MinGap <= 0 {
-		c.MinGap = defaultMinGap
-	}
-	if c.MaxGap <= 0 {
-		c.MaxGap = defaultMaxGap
-	}
-	if c.MinSteps <= 0 {
-		c.MinSteps = defaultMinSteps
-	}
-	if c.CertainSteps <= 0 {
-		c.CertainSteps = defaultCertainSteps
-	}
-	if c.CertainSteps < c.MinSteps {
-		c.CertainSteps = c.MinSteps
-	}
 	if c.TrackWindow <= 0 {
 		c.TrackWindow = defaultTrackWindow
 	}
@@ -68,23 +61,21 @@ func (c Config) withDefaults() Config {
 	return c
 }
 
-func New(config Config, clock cptime.Clock, onShare func(share float64)) *Watchdog {
-	config = config.withDefaults()
-
+func New(config Config, rules func() Rules, clock cptime.Clock, onShare func(share float64)) *Watchdog {
 	return &Watchdog{
-		config:  config,
+		config:  config.withDefaults(),
+		rules:   rules,
 		clock:   clock,
 		onShare: onShare,
-		hop:     math.Cos(config.MinAngle * math.Pi / 180),
 		payers:  make(map[string]*payer),
 	}
 }
 
 type Watchdog struct {
 	config  Config
+	rules   func() Rules
 	clock   cptime.Clock
 	onShare func(float64)
-	hop     float64
 
 	mu     sync.Mutex
 	payers map[string]*payer
@@ -112,6 +103,9 @@ func (w *Watchdog) Attempted(click detect.Click) {
 		return
 	}
 
+	rules := w.rules()
+	hop := math.Cos(rules.MinAngle * math.Pi / 180)
+
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
@@ -122,10 +116,10 @@ func (w *Watchdog) Attempted(click detect.Click) {
 		w.payers[key] = p
 	}
 
-	if gap := click.At.Sub(p.lastAt); p.seen && gap >= w.config.MinGap && gap <= w.config.MaxGap {
-		p.steps = append(p.steps, step{at: click.At, hop: cosine(p.last, click.Position) <= w.hop})
-		if capacity := w.capacity(); len(p.steps) > capacity {
-			p.steps = append(p.steps[:0], p.steps[len(p.steps)-capacity:]...)
+	if gap := click.At.Sub(p.lastAt); p.seen && gap >= rules.MinGap && gap <= rules.MaxGap {
+		p.steps = append(p.steps, step{at: click.At, hop: cosine(p.last, click.Position) <= hop})
+		if kept := capacity(rules); len(p.steps) > kept {
+			p.steps = append(p.steps[:0], p.steps[len(p.steps)-kept:]...)
 		}
 	}
 
@@ -134,6 +128,8 @@ func (w *Watchdog) Attempted(click detect.Click) {
 }
 
 func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
+	rules := w.rules()
+
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
@@ -149,9 +145,9 @@ func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 
 	verdict := detect.Clear
 	switch {
-	case w.config.CertainShare > 0 && steps >= w.config.CertainSteps && share >= w.config.CertainShare:
+	case rules.CertainShare > 0 && steps >= rules.CertainSteps && share >= rules.CertainShare:
 		verdict = detect.Certain
-	case w.config.MinShare > 0 && steps >= w.config.MinSteps && share >= w.config.MinShare:
+	case rules.MinShare > 0 && steps >= rules.MinSteps && share >= rules.MinShare:
 		verdict = detect.Suspect
 	}
 
@@ -171,11 +167,8 @@ func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 
 func (w *Watchdog) Committed(detect.Click) {}
 
-func (w *Watchdog) capacity() int {
-	if w.config.CertainSteps > maxSamples {
-		return maxSamples
-	}
-	return w.config.CertainSteps
+func capacity(rules Rules) int {
+	return min(rules.CertainSteps, maxSamples)
 }
 
 func cosine(a, b detect.Point) float64 {
@@ -225,6 +218,7 @@ func (w *Watchdog) Run(ctx context.Context) {
 
 func (w *Watchdog) sweep() {
 	now := w.clock.Now()
+	rules := w.rules()
 
 	var shares []float64
 
@@ -236,9 +230,9 @@ func (w *Watchdog) sweep() {
 
 		steps, hops := p.count()
 		switch {
-		case steps == 0 && now.Sub(p.lastAt) > w.config.MaxGap:
+		case steps == 0 && now.Sub(p.lastAt) > rules.MaxGap:
 			delete(w.payers, key)
-		case steps >= w.config.MinSteps:
+		case steps >= rules.MinSteps:
 			shares = append(shares, ratio(hops, steps))
 		}
 	}

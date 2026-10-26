@@ -12,6 +12,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/bans"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/evidence"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/guard"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -48,7 +49,11 @@ func TestTheLastFlushWaitsForWhatTheFeedsStillHandle(t *testing.T) {
 	seen := &witness{handled: handled}
 	config := guard.Config{}
 	config.Sequencer.Enabled = true
-	watchdogs, err := guard.NewInMemory(config, cptime.NewFixedClock(time.Now()), guard.Observer{},
+	set, err := rules.Seeded().Restore()
+	require.NoError(t, err)
+	inForce := rules.NewInForce()
+	inForce.Enforce(set)
+	watchdogs, err := guard.NewInMemory(config, inForce, cptime.NewFixedClock(time.Now()), guard.Observer{},
 		bans.NewMemoryStore(), bans.NewMemoryStore(), &bans.MemoryEnforcer{}, evidence.NewMemoryPersistence(), seen)
 	require.NoError(t, err)
 

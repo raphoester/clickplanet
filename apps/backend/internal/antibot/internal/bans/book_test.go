@@ -16,7 +16,7 @@ func newBook(t *testing.T, clock cptime.Clock) (book, *bans.MemoryStore, *bans.M
 	t.Helper()
 
 	scopes, accounts := bans.NewMemoryStore(), bans.NewMemoryStore()
-	return book{t: t, inner: bans.NewBook(config(), pardon, clock, scopes, accounts, cpatomic.FakeTransactioner{}, &bans.MemoryEnforcer{})}, scopes, accounts
+	return book{t: t, inner: bans.NewBook(fixed(ladder()), pardon, clock, scopes, accounts, cpatomic.FakeTransactioner{}, &bans.MemoryEnforcer{})}, scopes, accounts
 }
 
 func TestAFlaggedGuestIsBannedOnItsAccountAndItsScope(t *testing.T) {
@@ -91,7 +91,7 @@ func TestAccountBansAreKeptApart(t *testing.T) {
 	assert.NotContains(t, scopes.Stored(), "guest")
 	assert.Contains(t, accounts.Stored(), "guest")
 
-	after := book{t: t, inner: bans.NewBook(config(), pardon, clock, scopes, accounts, cpatomic.FakeTransactioner{}, &bans.MemoryEnforcer{})}
+	after := book{t: t, inner: bans.NewBook(fixed(ladder()), pardon, clock, scopes, accounts, cpatomic.FakeTransactioner{}, &bans.MemoryEnforcer{})}
 	assert.True(t, after.Banned(bans.Caller{Scope: "5.6.7.8", Account: "guest"}))
 }
 

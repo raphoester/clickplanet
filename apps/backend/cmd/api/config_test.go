@@ -10,9 +10,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-viper/mapstructure/v2"
+	"github.com/knadh/koanf/parsers/yaml"
+	kfile "github.com/knadh/koanf/providers/file"
+	"github.com/knadh/koanf/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconfigs"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
@@ -48,68 +53,32 @@ func TestTheExampleConfigStillReachesTheStructs(t *testing.T) {
 	assert.Equal(t, 5*time.Minute, config.Planet.Ledger.SweepInterval)
 	assert.Equal(t, time.Second, config.Planet.LedgerStorage.FlushInterval)
 
-	assert.False(t, config.AntiBot.Bans.Enforce, "the example must ship observing only")
-	assert.Equal(t, []time.Duration{24 * time.Hour, 7 * 24 * time.Hour, 3 * 365 * 24 * time.Hour}, config.AntiBot.Bans.BanDurations)
 	assert.Equal(t, "antibot", config.AntiBot.Database.Schema)
-	assert.Equal(t, 5*time.Minute, config.AntiBot.Bans.ReflagInterval)
-
-	assert.Equal(t, 2, config.AntiBot.Jury.MinSuspects)
-	assert.Equal(t, 10*time.Minute, config.AntiBot.Jury.SuspicionWindow)
+	assert.Equal(t, 15*time.Minute, config.AntiBot.Jury.TrackWindow)
 
 	assert.Equal(t, time.Minute, config.AntiBot.Evidence.SaveInterval)
 	assert.Equal(t, 72*time.Hour, config.AntiBot.Evidence.Retention)
 
 	require.True(t, config.AntiBot.Retaker.Enabled)
-	assert.Equal(t, 5*time.Second, config.AntiBot.Retaker.Detector.ReactionWindow)
-	assert.Equal(t, 12, config.AntiBot.Retaker.Detector.MinReactions)
-	assert.Equal(t, 120*time.Millisecond, config.AntiBot.Retaker.Detector.MaxSpread)
-	assert.Equal(t, 250*time.Millisecond, config.AntiBot.Retaker.Detector.MaxMedian)
-
+	assert.Equal(t, 5*time.Minute, config.AntiBot.Retaker.Detector.TrackWindow)
 	require.True(t, config.AntiBot.Sequencer.Enabled)
-	assert.Equal(t, 40, config.AntiBot.Sequencer.Detector.MinSteps)
-	assert.InDelta(t, 0.75, config.AntiBot.Sequencer.Detector.MinShare, 1e-9)
-	assert.Equal(t, 200, config.AntiBot.Sequencer.Detector.CertainSteps)
-	assert.InDelta(t, 0.95, config.AntiBot.Sequencer.Detector.CertainShare, 1e-9)
-
 	require.True(t, config.AntiBot.Metronome.Enabled)
-	assert.Equal(t, 3*time.Second, config.AntiBot.Metronome.Detector.MaxGap)
-	assert.Equal(t, 120*time.Millisecond, config.AntiBot.Metronome.Detector.MaxSpread)
-	assert.Equal(t, 120, config.AntiBot.Metronome.Detector.MinClicks)
-	assert.Equal(t, 30*time.Minute, config.AntiBot.Metronome.Detector.CertainFor)
-	assert.Equal(t, 900, config.AntiBot.Metronome.Detector.CertainClicks)
-
+	assert.Equal(t, 10*time.Minute, config.AntiBot.Metronome.Detector.Stamina.Slice)
 	require.True(t, config.AntiBot.Scraper.Enabled)
-	assert.InDelta(t, 5, config.AntiBot.Scraper.Detector.MinMaps, 1e-9)
-	assert.InDelta(t, 15, config.AntiBot.Scraper.Detector.CertainMaps, 1e-9)
 	assert.Equal(t, 15*time.Minute, config.AntiBot.Scraper.Detector.TrackWindow)
+	require.True(t, config.AntiBot.Cohort.Enabled)
+	assert.Equal(t, 44, config.AntiBot.Cohort.Detector.V6Bits)
 
 	churner := config.AntiBot.Churner
 	require.True(t, churner.Enabled)
-	assert.Equal(t, time.Hour, churner.Detector.Window)
-	assert.Equal(t, 6, churner.Detector.V6.CertainAccounts)
-	assert.Equal(t, 20, churner.Detector.V4.CertainAccounts)
-	assert.Equal(t, 90*time.Second, churner.Detector.Relay.Handoff)
 	assert.Equal(t, 32, churner.Detector.Relay.V6Bits)
-	assert.Equal(t, 6, churner.Detector.Relay.CertainLinks)
+	assert.Equal(t, time.Hour+2*time.Minute, churner.Detector.TrackWindow)
 
-	hopper := config.AntiBot.Hopper
-	require.True(t, hopper.Enabled)
-	assert.InDelta(t, 45, hopper.Detector.MinAngle, 1e-9)
-	assert.Equal(t, 100*time.Millisecond, hopper.Detector.MinGap)
-	assert.Equal(t, 30*time.Second, hopper.Detector.MaxGap)
-	assert.Equal(t, 40, hopper.Detector.MinSteps)
-	assert.InDelta(t, 0.4, hopper.Detector.MinShare, 1e-9)
-	assert.Zero(t, hopper.Detector.CertainShare, "it only corroborates")
+	require.True(t, config.AntiBot.Hopper.Enabled)
+	assert.Equal(t, 15*time.Minute, config.AntiBot.Hopper.Detector.TrackWindow)
 
-	rotator := config.AntiBot.Rotator
-	require.True(t, rotator.Enabled)
-	assert.Equal(t, 5*time.Minute, rotator.Detector.Slot)
-	assert.Equal(t, 24*time.Hour, rotator.Detector.Window)
-	assert.Equal(t, 15, rotator.Detector.MinSeconds)
-	assert.InDelta(t, 90, rotator.Detector.MinByChance, 1e-9)
-	assert.InDelta(t, 0.05, rotator.Detector.MaxShare, 1e-9)
-	assert.Equal(t, 24, rotator.Detector.MinSlots)
-	assert.Zero(t, rotator.Detector.CertainSlots, "it only corroborates")
+	require.True(t, config.AntiBot.Rotator.Enabled)
+	assert.Equal(t, 5*time.Minute, config.AntiBot.Rotator.Detector.Slot)
 }
 
 func TestTheExampleConfigStillCarriesTheRestOfTheFile(t *testing.T) {
@@ -427,12 +396,24 @@ func productionConfig(t *testing.T) Config {
 	return config
 }
 
-func TestTheProductionConfigEnforcesBans(t *testing.T) {
-	config := productionConfig(t)
+// The antibot's rules are kept in postgres (antibot.rule_sets): a rule left in a file would be read by nothing.
+func TestEveryAntibotKeyIsOneTheConfigReads(t *testing.T) {
+	for _, path := range []string{"example.yaml", "../../../../deploy/vps/backend.yaml", "../../../../deploy/backend.yaml"} {
+		t.Run(path, func(t *testing.T) {
+			file := koanf.New(".")
+			require.NoError(t, file.Load(kfile.Provider(path), yaml.Parser()))
 
-	assert.True(t, config.AntiBot.Enabled)
-	assert.True(t, config.AntiBot.Bans.Enforce, "a key the config does not read leaves bans off without a word")
-	assert.Equal(t, []time.Duration{24 * time.Hour, 7 * 24 * time.Hour, 3 * 365 * 24 * time.Hour}, config.AntiBot.Bans.BanDurations)
+			var config antibot.Config
+			require.NoError(t, file.UnmarshalWithConf("antiBot", &config, koanf.UnmarshalConf{
+				DecoderConfig: &mapstructure.DecoderConfig{
+					DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
+					ErrorUnused:      true,
+					WeaklyTypedInput: true,
+					Result:           &config,
+				},
+			}))
+		})
+	}
 }
 
 func TestTheProductionConfigTakesFilesInItsBucketAndNeedsItsSecret(t *testing.T) {
@@ -471,8 +452,7 @@ func TestTheAntibotKeepsItsKeysOutsideThePlanetsBlock(t *testing.T) {
 	config := productionConfig(t)
 
 	require.True(t, config.AntiBot.Enabled)
-	assert.True(t, config.AntiBot.Bans.Enforce)
 	assert.Equal(t, "antibot", config.AntiBot.Database.Schema)
-	assert.Equal(t, 400*time.Millisecond, config.AntiBot.Metronome.Detector.MaxSpread)
+	assert.Equal(t, 10*time.Minute, config.AntiBot.Defender.Detector.TrackWindow)
 	require.NoError(t, config.AntiBot.Validate())
 }

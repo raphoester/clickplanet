@@ -19,6 +19,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/metronome"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/retaker"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rotator"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/scraper"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/sequencer"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
@@ -36,8 +37,8 @@ type (
 	Reading     = detect.Reading
 )
 
+// The machine the antibot runs on; what it judges with is the rule set in force (rules.InForce).
 type Config struct {
-	Bans     bans.Config
 	Jury     jury.Config
 	Evidence evidence.Config
 
@@ -151,6 +152,7 @@ type Observer struct {
 
 func New(
 	config Config,
+	inForce *rules.InForce,
 	clock cptime.Clock,
 	observer Observer,
 	banner *bans.Book,
@@ -162,7 +164,7 @@ func New(
 		onStateError = func(error) {}
 	}
 
-	g := &Guard{onStart: observer.OnStart, onStateError: onStateError}
+	g := &Guard{onStart: observer.OnStart, onStateError: onStateError, rules: inForce}
 
 	var (
 		watchdogs []detect.Watchdog
@@ -171,7 +173,7 @@ func New(
 	)
 
 	if config.Retaker.Enabled {
-		watchdog := retaker.New(config.Retaker.Detector, clock, observer.OnReaction)
+		watchdog := retaker.New(config.Retaker.Detector, inForce.Retaker, clock, observer.OnReaction)
 		g.runners = append(g.runners, watchdog.Run)
 		watchdogs = append(watchdogs, watchdog)
 		sections = append(sections, watchdog)
@@ -179,7 +181,7 @@ func New(
 	}
 
 	if config.Sequencer.Enabled {
-		watchdog := sequencer.New(config.Sequencer.Detector, clock)
+		watchdog := sequencer.New(config.Sequencer.Detector, inForce.Sequencer, clock)
 		g.runners = append(g.runners, watchdog.Run)
 		watchdogs = append(watchdogs, watchdog)
 		sections = append(sections, watchdog)
@@ -202,7 +204,7 @@ func New(
 			onBusyTime = func(time.Duration) {}
 		}
 
-		watchdog := metronome.New(config.Metronome.Detector, clock, onGapSkew, onClockCoherence, onBusyTime)
+		watchdog := metronome.New(config.Metronome.Detector, inForce.Metronome, clock, onGapSkew, onClockCoherence, onBusyTime)
 		g.runners = append(g.runners, watchdog.Run)
 		watchdogs = append(watchdogs, watchdog)
 		sections = append(sections, watchdog)
@@ -210,7 +212,7 @@ func New(
 	}
 
 	if config.Defender.Enabled {
-		watchdog := defender.New(config.Defender.Detector, clock, observer.OnRetakeShare)
+		watchdog := defender.New(config.Defender.Detector, inForce.Defender, clock, observer.OnRetakeShare)
 		g.runners = append(g.runners, watchdog.Run)
 		watchdogs = append(watchdogs, watchdog)
 		sections = append(sections, watchdog)
@@ -218,7 +220,7 @@ func New(
 	}
 
 	if config.Catcher.Enabled {
-		watchdog := catcher.New(config.Catcher.Detector, clock)
+		watchdog := catcher.New(config.Catcher.Detector, inForce.Catcher, clock)
 		g.runners = append(g.runners, watchdog.Run)
 		watchdogs = append(watchdogs, watchdog)
 		sections = append(sections, watchdog)
@@ -227,7 +229,7 @@ func New(
 	}
 
 	if config.Cohort.Enabled {
-		watchdog := cohort.New(config.Cohort.Detector, clock, observer.OnCohortScopes)
+		watchdog := cohort.New(config.Cohort.Detector, inForce.Cohort, clock, observer.OnCohortScopes)
 		g.runners = append(g.runners, watchdog.Run)
 		watchdogs = append(watchdogs, watchdog)
 		sections = append(sections, watchdog)
@@ -240,7 +242,7 @@ func New(
 			onMapReads = func(float64) {}
 		}
 
-		watchdog := scraper.New(config.Scraper.Detector, clock, onMapReads)
+		watchdog := scraper.New(config.Scraper.Detector, inForce.Scraper, clock, onMapReads)
 		g.runners = append(g.runners, watchdog.Run)
 		watchdogs = append(watchdogs, watchdog)
 		sections = append(sections, watchdog)
@@ -259,7 +261,7 @@ func New(
 			onRelayLinks = func(int) {}
 		}
 
-		watchdog := churner.New(config.Churner.Detector, clock, onScopeAccounts, onRelayLinks)
+		watchdog := churner.New(config.Churner.Detector, inForce.Churner, clock, onScopeAccounts, onRelayLinks)
 		g.runners = append(g.runners, watchdog.Run)
 		watchdogs = append(watchdogs, watchdog)
 		sections = append(sections, watchdog)
@@ -272,7 +274,7 @@ func New(
 			onHopShare = func(float64) {}
 		}
 
-		watchdog := hopper.New(config.Hopper.Detector, clock, onHopShare)
+		watchdog := hopper.New(config.Hopper.Detector, inForce.Hopper, clock, onHopShare)
 		g.runners = append(g.runners, watchdog.Run)
 		watchdogs = append(watchdogs, watchdog)
 		sections = append(sections, watchdog)
@@ -285,7 +287,7 @@ func New(
 			onRotationShare = func(float64) {}
 		}
 
-		watchdog := rotator.New(config.Rotator.Detector, clock, onRotationShare)
+		watchdog := rotator.New(config.Rotator.Detector, inForce.Rotator, clock, onRotationShare)
 		g.runners = append(g.runners, watchdog.Run)
 		watchdogs = append(watchdogs, watchdog)
 		sections = append(sections, watchdog)
@@ -296,20 +298,14 @@ func New(
 		return nil, fmt.Errorf("antiBot is enabled with no watchdog turned on")
 	}
 
-	juryConfig := config.Jury.WithDefaults()
-
 	g.banner = banner
-	g.jury = jury.New(juryConfig, banner, clock, juryHooks(observer), watchdogs...)
+	g.jury = jury.New(config.Jury, inForce.Jury, banner, clock, juryHooks(observer), watchdogs...)
 	g.runners = append(g.runners, g.jury.Run)
 
 	g.evidence = evidence.New(config.Evidence, clock, evidences, onStateError, append(append(sections, g.jury, g.jury.Accounts()), heard...)...)
 	g.runners = append(g.runners, g.evidence.Run)
 
-	g.description = Description{
-		Watchdogs:   names,
-		MinSuspects: juryConfig.MinSuspects,
-		Enforcing:   banner.Enforcing(),
-	}
+	g.watchdogs = names
 
 	return g, nil
 }
@@ -334,19 +330,21 @@ func juryHooks(observer Observer) jury.Hooks {
 
 type Description struct {
 	Watchdogs   []string
+	Rules       string
 	MinSuspects int
 	Enforcing   bool
 }
 
 type Guard struct {
-	jury        *jury.Jury
-	banner      *bans.Book
-	evidence    *evidence.Store
-	catcher     *catcher.Watchdog
-	scraper     *scraper.Watchdog
-	runners     []func(context.Context)
-	description Description
-	onStart     func(Description)
+	jury      *jury.Jury
+	banner    *bans.Book
+	evidence  *evidence.Store
+	catcher   *catcher.Watchdog
+	scraper   *scraper.Watchdog
+	runners   []func(context.Context)
+	watchdogs []string
+	rules     *rules.InForce
+	onStart   func(Description)
 
 	onStateError func(error)
 }
@@ -486,7 +484,12 @@ func (h hearing) Run(ctx context.Context) {
 	g.evidence.Resume()
 
 	if g.onStart != nil {
-		g.onStart(g.description)
+		g.onStart(Description{
+			Watchdogs:   g.watchdogs,
+			Rules:       string(g.rules.Name()),
+			MinSuspects: g.rules.Jury().MinSuspects,
+			Enforcing:   g.banner.Enforcing(),
+		})
 	}
 
 	watching, stop := context.WithCancel(context.WithoutCancel(ctx))

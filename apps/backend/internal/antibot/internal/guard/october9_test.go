@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/guard"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rules"
 )
 
 const (
@@ -17,14 +18,14 @@ const (
 	otherHome = "2001:db8:10:77::/64"
 )
 
-func withTheBoundsOfOctober9(config *guard.Config) {
-	config.Metronome.Detector.MaxGap = 7 * time.Second
-	config.Metronome.Detector.MaxSpread = 400 * time.Millisecond
+func withTheBoundsOfOctober9(config *guard.Config, set *rules.Snapshot) {
+	set.Metronome.MaxGap = 7 * time.Second
+	set.Metronome.MaxSpread = 400 * time.Millisecond
 
 	config.Defender.Enabled = true
-	config.Defender.Detector.RetakeWindow = 2 * time.Minute
-	config.Defender.Detector.MinClicks = 40
-	config.Defender.Detector.MinShare = 0.6
+	set.Defender.RetakeWindow = 2 * time.Minute
+	set.Defender.MinClicks = 40
+	set.Defender.MinShare = 0.6
 	config.Defender.Detector.TrackWindow = 10 * time.Minute
 }
 

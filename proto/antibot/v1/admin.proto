@@ -2,10 +2,11 @@ syntax = "proto3";
 
 package antibot.v1;
 
+import "antibot/v1/rules.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 
-// The operator's bans. No authentication of its own: served on the console listener, and on the admin listener behind
+// The operator's bans and the rules the antibot judges with. No authentication of its own: served on the console listener, and on the admin listener behind
 // its gate. Never the public router. Each message reads on the wire as the planet.v1 one of the same name, which
 // served these calls until the antibot was a module of its own.
 service AdminService {
@@ -14,7 +15,32 @@ service AdminService {
   rpc UnbanPlayer(UnbanPlayerRequest) returns (UnbanPlayerResponse);
 
   rpc InspectPlayer(InspectPlayerRequest) returns (InspectPlayerResponse);
+
+  rpc GetRules(GetRulesRequest) returns (GetRulesResponse);
+
+  // Makes a set, or replaces its values. The antibot follows the set it plays within a second.
+  rpc SaveRuleSet(SaveRuleSetRequest) returns (SaveRuleSetResponse);
 }
+
+message GetRulesRequest {}
+
+message GetRulesResponse {
+  // Every set postgres keeps, "default" first.
+  repeated RuleSet sets = 1;
+  // The set the antibot judges with now: the one named like the planet rule set in force, or "default".
+  string playing = 2;
+}
+
+message RuleSet {
+  string name = 1;
+  Rules rules = 2;
+}
+
+message SaveRuleSetRequest {
+  RuleSet set = 1;
+}
+
+message SaveRuleSetResponse {}
 
 message BanPlayerRequest {
   string scope = 1;

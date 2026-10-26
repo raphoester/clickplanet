@@ -14,7 +14,7 @@ import (
 func TestSweepForgetsIdleCallersAndOldLosses(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 14, 18, 0, 0, 0, time.UTC))
 
-	w := New(Config{RetakeWindow: time.Minute, TrackWindow: 5 * time.Minute}, clock, nil)
+	w := New(Config{TrackWindow: 5 * time.Minute}, rules(func(r *Rules) { r.RetakeWindow = time.Minute }), clock, nil)
 
 	attacker := detect.Click{Scope: "attacker", Tile: 1, Country: "FR", At: clock.Now(), Held: "BG"}
 	w.Watch(attacker)
@@ -34,7 +34,7 @@ func TestWithNoShareSetItOnlyMeasures(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 14, 18, 0, 0, 0, time.UTC))
 
 	var shares []float64
-	w := New(Config{MinClicks: 10}, clock, func(share float64) { shares = append(shares, share) })
+	w := New(Config{}, rules(func(r *Rules) { r.MinClicks = 10 }), clock, func(share float64) { shares = append(shares, share) })
 
 	for tile := range uint32(40) {
 		attacker := detect.Click{Scope: "attacker", Tile: tile, Country: "FR", At: clock.Now(), Held: "BG"}

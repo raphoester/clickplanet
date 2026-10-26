@@ -2,6 +2,7 @@ package retaker
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"time"
 
@@ -12,7 +13,7 @@ import (
 
 const Name = "retaker"
 
-type Config struct {
+type Rules struct {
 	ReactionWindow time.Duration
 
 	MinReactions int
@@ -25,36 +26,34 @@ type Config struct {
 	RoamMedian time.Duration
 
 	CertainTiles int
+}
 
+func (r Rules) Validate() error {
+	return errors.Join(
+		detect.Positive("reactionWindow", r.ReactionWindow),
+		detect.Positive("minReactions", r.MinReactions),
+		detect.Positive("maxSpread", r.MaxSpread),
+		detect.Positive("maxMedian", r.MaxMedian),
+		detect.NotNegative("minTiles", r.MinTiles),
+		detect.NotNegative("roamMedian", r.RoamMedian),
+		detect.NotNegative("certainTiles", r.CertainTiles),
+	)
+}
+
+type Config struct {
 	TrackWindow time.Duration
 
 	SweepInterval time.Duration
 }
 
 const (
-	defaultReactionWindow = 5 * time.Second
-	defaultMinReactions   = 12
-	defaultMaxMedian      = 250 * time.Millisecond
-	defaultMaxSpread      = 120 * time.Millisecond
-	defaultTrackWindow    = 5 * time.Minute
-	defaultSweepInterval  = time.Minute
+	defaultTrackWindow   = 5 * time.Minute
+	defaultSweepInterval = time.Minute
 
 	keptTiles = 8
 )
 
 func (c Config) withDefaults() Config {
-	if c.ReactionWindow <= 0 {
-		c.ReactionWindow = defaultReactionWindow
-	}
-	if c.MinReactions <= 0 {
-		c.MinReactions = defaultMinReactions
-	}
-	if c.MaxMedian <= 0 {
-		c.MaxMedian = defaultMaxMedian
-	}
-	if c.MaxSpread <= 0 {
-		c.MaxSpread = defaultMaxSpread
-	}
 	if c.TrackWindow <= 0 {
 		c.TrackWindow = defaultTrackWindow
 	}
@@ -64,13 +63,14 @@ func (c Config) withDefaults() Config {
 	return c
 }
 
-func New(config Config, clock cptime.Clock, onReaction func(time.Duration)) *Watchdog {
+func New(config Config, rules func() Rules, clock cptime.Clock, onReaction func(time.Duration)) *Watchdog {
 	if clock == nil {
 		clock = cptime.SystemClock{}
 	}
 
 	return &Watchdog{
 		config:     config.withDefaults(),
+		rules:      rules,
 		clock:      clock,
 		onReaction: onReaction,
 		tiles:      make(map[uint32]take),
@@ -80,6 +80,7 @@ func New(config Config, clock cptime.Clock, onReaction func(time.Duration)) *Wat
 
 type Watchdog struct {
 	config     Config
+	rules      func() Rules
 	clock      cptime.Clock
 	onReaction func(time.Duration)
 
@@ -111,8 +112,10 @@ func (w *Watchdog) Name() string { return Name }
 func (w *Watchdog) Attempted(detect.Click) {}
 
 func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
+	rules := w.rules()
+
 	if click.NoOp {
-		return w.verdict(click)
+		return w.verdict(click, rules)
 	}
 
 	var (
@@ -122,7 +125,7 @@ func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 
 	w.mu.Lock()
 	if previous, ok := w.tiles[click.Tile]; ok && previous.scope != click.Scope {
-		if delay = click.At.Sub(previous.at); delay >= 0 && delay <= w.config.ReactionWindow {
+		if delay = click.At.Sub(previous.at); delay >= 0 && delay <= rules.ReactionWindow {
 			reacted = true
 			w.callerLocked(click.Scope).addReaction(click, delay, w.config.TrackWindow)
 		}
@@ -133,7 +136,7 @@ func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 		w.onReaction(delay)
 	}
 
-	return w.verdict(click)
+	return w.verdict(click, rules)
 }
 
 func (w *Watchdog) Committed(click detect.Click) {
@@ -148,7 +151,7 @@ func (w *Watchdog) Committed(click detect.Click) {
 	w.tiles[click.Tile] = take{scope: click.Scope, at: click.At}
 }
 
-func (w *Watchdog) verdict(click detect.Click) (detect.Verdict, detect.Evidence) {
+func (w *Watchdog) verdict(click detect.Click, rules Rules) (detect.Verdict, detect.Evidence) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
@@ -159,7 +162,7 @@ func (w *Watchdog) verdict(click detect.Click) (detect.Verdict, detect.Evidence)
 
 	c.prune(click.At.Add(-w.config.TrackWindow))
 
-	if len(c.reactions) < w.config.MinReactions {
+	if len(c.reactions) < rules.MinReactions {
 		return detect.Clear, detect.Evidence{}
 	}
 
@@ -171,18 +174,18 @@ func (w *Watchdog) verdict(click detect.Click) (detect.Verdict, detect.Evidence)
 	median, spread := detect.Spread(delays)
 
 	band := detect.Clear
-	if spread <= w.config.MaxSpread {
+	if spread <= rules.MaxSpread {
 		band = detect.Suspect
-		if median <= w.config.MaxMedian {
+		if median <= rules.MaxMedian {
 			band = detect.Certain
 		}
 	}
 
 	tiles := c.distinctTiles()
 	roam := detect.Clear
-	if w.config.MinTiles > 0 && tiles >= w.config.MinTiles && median <= w.config.RoamMedian {
+	if rules.MinTiles > 0 && tiles >= rules.MinTiles && median <= rules.RoamMedian {
 		roam = detect.Suspect
-		if w.config.CertainTiles > 0 && tiles >= w.config.CertainTiles {
+		if rules.CertainTiles > 0 && tiles >= rules.CertainTiles {
 			roam = detect.Certain
 		}
 	}
@@ -265,7 +268,7 @@ func (w *Watchdog) sweep() {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	tileCutoff := now.Add(-w.config.ReactionWindow)
+	tileCutoff := now.Add(-w.rules().ReactionWindow)
 	for tile, t := range w.tiles {
 		if t.at.Before(tileCutoff) {
 			delete(w.tiles, tile)

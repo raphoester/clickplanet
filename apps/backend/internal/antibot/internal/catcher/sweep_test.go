@@ -13,7 +13,7 @@ import (
 func TestSweepForgetsIdleCallers(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 14, 12, 0, 0, 0, time.UTC))
 
-	w := New(Config{TrackWindow: time.Minute}, clock)
+	w := New(Config{TrackWindow: time.Minute}, rules(asIs), clock)
 
 	w.Caught("caller", time.Second)
 	require.Len(t, w.callers, 1)
@@ -27,7 +27,7 @@ func TestSweepForgetsIdleCallers(t *testing.T) {
 func TestOnlyTheLastBoxesAreKept(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 14, 12, 0, 0, 0, time.UTC))
 
-	w := New(Config{MinCatches: 5}, clock)
+	w := New(Config{}, rules(asIs), clock)
 
 	for range 100 {
 		clock.Advance(time.Minute)
@@ -40,7 +40,7 @@ func TestOnlyTheLastBoxesAreKept(t *testing.T) {
 func TestSweepKeepsACallerThatOnlyClaimedOtherBoxes(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 22, 12, 0, 0, 0, time.UTC))
 
-	w := New(Config{TrackWindow: time.Minute, Foreign: ForeignConfig{Window: time.Hour, MinClaims: 3}}, clock)
+	w := New(Config{TrackWindow: time.Minute}, rules(func(r *Rules) { r.Foreign.MinClaims = 3 }), clock)
 
 	w.Foreign("caller")
 	clock.Advance(30 * time.Minute)

@@ -27,17 +27,26 @@ func alternate(w *Watchdog, clock *cptime.FixedClock, clicks int) {
 	}
 }
 
+func rules(change func(*Rules)) func() Rules {
+	r := Rules{MinAngle: 45, MinGap: 100 * time.Millisecond, MaxGap: 30 * time.Second, MinSteps: 40, CertainSteps: 200}
+	change(&r)
+	return func() Rules { return r }
+}
+
+func asIs(*Rules) {}
+
 func TestStepsSurviveASaveAndLoad(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 10, 9, 12, 0, 0, 0, time.UTC))
-	config := Config{MinSteps: 10, MinShare: 0.5}
+	config := Config{}
+	reading := rules(func(r *Rules) { r.MinSteps, r.MinShare = 10, 0.5 })
 
-	w := New(config, clock, func(float64) {})
+	w := New(config, reading, clock, func(float64) {})
 	alternate(w, clock, 11)
 
 	data, err := w.Save()
 	require.NoError(t, err)
 
-	restarted := New(config, clock, func(float64) {})
+	restarted := New(config, reading, clock, func(float64) {})
 	require.NoError(t, restarted.Load(data))
 
 	next := detect.Click{Scope: "2001:db8::/64", Account: "player", At: clock.Now()}
@@ -52,13 +61,13 @@ func TestStepsSurviveASaveAndLoad(t *testing.T) {
 func TestTheFirstTryAfterARestartIsNoStep(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 10, 9, 12, 0, 0, 0, time.UTC))
 
-	w := New(Config{}, clock, func(float64) {})
+	w := New(Config{}, rules(asIs), clock, func(float64) {})
 	alternate(w, clock, 5)
 
 	data, err := w.Save()
 	require.NoError(t, err)
 
-	restarted := New(Config{}, clock, func(float64) {})
+	restarted := New(Config{}, rules(asIs), clock, func(float64) {})
 	require.NoError(t, restarted.Load(data))
 
 	clock.Advance(time.Second)
@@ -71,7 +80,7 @@ func TestTheFirstTryAfterARestartIsNoStep(t *testing.T) {
 func TestForgetDropsStepsBeforeTheCutoff(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 10, 9, 12, 0, 0, 0, time.UTC))
 
-	w := New(Config{TrackWindow: 24 * time.Hour}, clock, func(float64) {})
+	w := New(Config{TrackWindow: 24 * time.Hour}, rules(asIs), clock, func(float64) {})
 	alternate(w, clock, 5)
 
 	w.Forget(clock.Now().Add(time.Second))

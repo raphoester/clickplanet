@@ -14,7 +14,7 @@ import (
 func TestSweepForgetsIdleCallers(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC))
 
-	w := New(Config{TrackWindow: time.Minute}, clock)
+	w := New(Config{TrackWindow: time.Minute}, rules(asIs), clock)
 
 	for i := range uint32(5) {
 		w.Watch(detect.Click{Scope: "caller", Tile: i, Country: "FR", At: clock.Now()})
@@ -30,7 +30,7 @@ func TestSweepForgetsIdleCallers(t *testing.T) {
 func TestTheStepRingIsBounded(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC))
 
-	w := New(Config{MinSteps: 4, CertainSteps: 16, TrackWindow: time.Hour}, clock)
+	w := New(Config{TrackWindow: time.Hour}, rules(func(r *Rules) { r.MinSteps, r.CertainSteps = 4, 16 }), clock)
 
 	for i := range uint32(500) {
 		w.Watch(detect.Click{Scope: "caller", Tile: i, Country: "FR", At: clock.Now()})
