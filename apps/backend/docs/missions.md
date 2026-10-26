@@ -8,9 +8,10 @@ Its public route, `/missions.v1.MissionService/*`, is listed in `deploy/vps/cadd
 
 ```
 internal/missions/internal/
-  missions/                         AccountID, Calendar and Day (the cutoff), Take, MissionID, Kind, Mission (one type per kind),
+  missions/                         AccountID, Calendar and Day (the cutoff), Take, MissionID, Order (one type per kind), Mission,
                                     Brief, Draw and World, Sheet (an account's day), Briefing; the Store port and its contract suite
-    postgres_mission_store/         the Store over missions.mission_briefs, mission_sheets, mission_progress and mission_payments
+    postgres_mission_store/         the Store over missions.mission_briefs, mission_sheets, mission_progress and mission_payments;
+                                    records.go is the jsonb format of a mission, one payload per kind
     inmemory_mission_store/         the same port in maps, behind the testing tag
     rpc_planet_world/               what each flag holds and each ground's size, from planet.v1.InternalService
     rpc_planet_allegiance/          the flag an account pledged, from planet.v1.InternalService/GetAllegianceOf
@@ -25,9 +26,11 @@ internal/missions/internal/
 ```
 
 - **A day ends at `missions.cutoff`** (21:00 UTC in production), the time the daily round closes, and is named by the
-  date it ends on. **The rules are objects**: a `Mission` is an id, a goal, a reward and one order, `takeFor` (tiles
-  for the flag), `takeFrom` (tiles another flag held) or `takeIn` (tiles on a country's ground), each with its own
-  `counts(Take)`.
+  date it ends on. **The rules are objects**: a `Mission` is an id, an `Order` and a reward, and nothing else.
+  **An order is one kind of mission**, a type of its own with its own fields: `TakeFor{Flag, Goal}` (tiles for the
+  flag), `TakeFrom{Flag, Goal}` (tiles another flag held), `TakeIn{Ground, Goal}` (tiles on a country's land). It decides
+  how a take moves its progress (`advanced`) and when it is done (`done`). The progress of a mission is one counter
+  from 0 that only its order reads. A new kind is a new type and its cases in the store and the encoder.
   - **`Draw(day, flag, world)` is the brief**, seeded by the day and the flag: 1. take 60 tiles (one bank) for the flag,
     for 10 shields; 2. take 40 tiles from whoever holds the most ground but the flag, so every flag but the leader aims
     at the leader, for 4 spread clicks (with no other flag holding 400 tiles, 120 for the flag); 3. take 200 tiles on a
@@ -40,8 +43,12 @@ internal/missions/internal/
     brief (`drawnID`), so the same draw names it the same. Progress and payments point at it,
     and nothing caps how many missions a brief holds.
   - **A brief is one `jsonb` array per day and flag** (`mission_briefs.missions`), the missions in the order drawn.
-    Each is its id, kind, goal and reward, then its kind's own fields (`target` today, `omitempty`): a kind with
-    other fields, or none, needs code and no migration.
+    Each is `{id, kind, reward, payload}`; the payload is the kind's own fields (`{"flag", "goal"}` for `take_for`).
+    A kind with other fields, or none, needs code and no migration. A kind the store does not know is an error.
+  - **`GetMissions` answers each mission in its kind's own message** (`missionmessage`, `Sheet.Statuses`): what every
+    mission has is its id, its reward, `done` and `paid`; what it asks is a `oneof` (`take_for`, `take_from`,
+    `take_in`, each with its country, goal and tiles taken). A client skips a kind it does not know, so a new kind
+    reaches an old client as nothing. The reward is a `oneof` too (`charges` today).
   - **A day is locked to the flag of its first take** (`Sheet.WithTake`): a take for another flag counts nothing, so a
     change of flag cannot farm a second set. Until that take, `GetMissions` answers the flag the caller pledged
     (`rpc_planet_allegiance`, planet's `GetAllegianceOf`), not enlisted, and no missions for an account that never

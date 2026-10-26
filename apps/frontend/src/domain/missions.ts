@@ -1,22 +1,18 @@
-import {Mission, MissionKind, MissionReward} from "../backends/missions.ts"
+import {Mission, MissionReward, TileOrder} from "../backends/missions.ts"
 import {BonusReward, BonusRules} from "./bonus.ts"
 
-const PREPOSITIONS: Record<MissionKind, string> = {
+const PREPOSITIONS: Record<TileOrder["kind"], string> = {
     takeFor: "for",
     takeFrom: "from",
     takeIn: "in",
 }
 
-export function orderOf(mission: Mission): string {
-    return `Take ${mission.goal} tiles ${PREPOSITIONS[mission.kind]}`
-}
-
-export function done(mission: Mission): boolean {
-    return mission.progress >= mission.goal
+export function orderOf(order: TileOrder): string {
+    return `Take ${order.goal} tiles ${PREPOSITIONS[order.kind]}`
 }
 
 export function waiting(missions: readonly Mission[]): number {
-    return missions.filter((mission) => done(mission) && !mission.paid).length
+    return missions.filter((mission) => mission.done && !mission.paid).length
 }
 
 export function newlyPaid(before: readonly Mission[], after: readonly Mission[]): Mission[] {

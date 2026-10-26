@@ -18,27 +18,50 @@ message GetMissionsResponse {
   repeated Mission missions = 4;
 }
 
+// What every mission has. What it asks is its kind's own message: a client skips a kind it does not know.
 message Mission {
   string id = 1;
-  MissionKind kind = 2;
-  string target_country_id = 3;
-  uint32 goal = 4;
-  uint32 progress = 5;
+  MissionReward reward = 2;
+  bool done = 3;
   // A done mission is paid at once, or a guest's when it signs in that day.
-  bool paid = 6;
-  planet.v1.BonusKind reward_kind = 7;
-  uint32 reward_amount = 8;
+  bool paid = 4;
+
+  oneof kind {
+    TakeFor take_for = 10;
+    TakeFrom take_from = 11;
+    TakeIn take_in = 12;
+  }
 }
 
-enum MissionKind {
-  MISSION_KIND_UNSPECIFIED = 0;
+// Take goal tiles for country_id, the day's flag.
+message TakeFor {
+  string country_id = 1;
+  uint32 goal = 2;
+  uint32 taken = 3;
+}
 
-  // Take goal tiles for target_country_id, the day's flag.
-  MISSION_KIND_TAKE_FOR = 1;
+// Take goal tiles that country_id held.
+message TakeFrom {
+  string country_id = 1;
+  uint32 goal = 2;
+  uint32 taken = 3;
+}
 
-  // Take goal tiles that target_country_id held.
-  MISSION_KIND_TAKE_FROM = 2;
+// Take goal tiles on country_id's land.
+message TakeIn {
+  string country_id = 1;
+  uint32 goal = 2;
+  uint32 taken = 3;
+}
 
-  // Take goal tiles on target_country_id's ground.
-  MISSION_KIND_TAKE_IN = 3;
+// A client skips a mission whose reward it does not know.
+message MissionReward {
+  oneof kind {
+    Charges charges = 1;
+  }
+}
+
+message Charges {
+  planet.v1.BonusKind kind = 1;
+  uint32 amount = 2;
 }

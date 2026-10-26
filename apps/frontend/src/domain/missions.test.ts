@@ -1,43 +1,40 @@
 import {describe, expect, it} from "vitest"
 import {Mission} from "../backends/missions.ts"
-import {awardOf, done, newlyPaid, orderOf, timeLeft, waiting} from "./missions.ts"
+import {awardOf, newlyPaid, orderOf, timeLeft, waiting} from "./missions.ts"
 
 const mission = (overrides: Partial<Mission> = {}): Mission => ({
     id: "bank",
-    kind: "takeFor",
-    target: "fr",
-    goal: 60,
-    progress: 0,
-    paid: false,
+    order: {kind: "takeFor", country: "fr", goal: 60, taken: 0},
     reward: {kind: "shields", amount: 10},
+    done: false,
+    paid: false,
     ...overrides,
 })
 
 describe("orderOf", () => {
     it("says how many tiles to take and how they relate to the country named after it", () => {
-        expect(orderOf(mission())).toBe("Take 60 tiles for")
-        expect(orderOf(mission({kind: "takeFrom", goal: 40}))).toBe("Take 40 tiles from")
-        expect(orderOf(mission({kind: "takeIn", goal: 200}))).toBe("Take 200 tiles in")
+        expect(orderOf({kind: "takeFor", country: "fr", goal: 60, taken: 0})).toBe("Take 60 tiles for")
+        expect(orderOf({kind: "takeFrom", country: "dz", goal: 40, taken: 0})).toBe("Take 40 tiles from")
+        expect(orderOf({kind: "takeIn", country: "br", goal: 200, taken: 0})).toBe("Take 200 tiles in")
     })
 })
 
 describe("waiting", () => {
     it("counts the missions done and not paid yet", () => {
         expect(waiting([
-            mission({id: "bank", progress: 60}),
-            mission({id: "rival", progress: 60, paid: true}),
-            mission({id: "ground", progress: 59}),
+            mission({id: "bank", done: true}),
+            mission({id: "rival", done: true, paid: true}),
+            mission({id: "ground"}),
         ])).toBe(1)
-        expect(done(mission({progress: 59}))).toBe(false)
     })
 })
 
 describe("newlyPaid", () => {
     it("is what was read unpaid and is paid now", () => {
-        const before = [mission({id: "bank", progress: 59}), mission({id: "rival", paid: true})]
+        const before = [mission({id: "bank", done: true}), mission({id: "rival", paid: true})]
 
         expect(newlyPaid(before, [
-            mission({id: "bank", progress: 60, paid: true}),
+            mission({id: "bank", done: true, paid: true}),
             mission({id: "rival", paid: true}),
             mission({id: "ground", paid: true}),
         ]).map((paid) => paid.id)).toEqual(["bank"])

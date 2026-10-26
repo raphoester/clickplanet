@@ -53,7 +53,7 @@ func enlist(t *testing.T, store *inmemory_mission_store.Store, flag string) {
 	t.Helper()
 
 	require.NoError(t, store.ChangeSheet(t.Context(), calendar.DayOf(now), ada, func(missions.Sheet) missions.Sheet {
-		return missions.SheetOf(missions.SheetSnapshot{Flag: flag, Taken: map[missions.MissionID]uint32{bankOf(flag): 7}})
+		return missions.SheetOf(missions.SheetSnapshot{Flag: flag, Progress: map[missions.MissionID]uint32{bankOf(flag): 7}})
 	}))
 }
 
@@ -80,8 +80,8 @@ func TestOnceEnlistedTheMissionsAreTheDaysFlagsWhateverIsPledgedSince(t *testing
 	require.NoError(t, err)
 	assert.Equal(t, "fr", out.Flag)
 	assert.True(t, out.Sheet.Enlisted())
-	assert.Equal(t, uint32(7), out.Sheet.Snapshot().Taken[bankOf("fr")])
-	assert.Equal(t, "fr", out.Brief.Snapshot()[0].Target)
+	assert.Equal(t, uint32(7), out.Sheet.Snapshot().Progress[bankOf("fr")])
+	assert.Equal(t, missions.TakeFor{Flag: "fr", Goal: 60}, out.Brief.Snapshot()[0].Order)
 }
 
 func TestWithNoFlagPledgedThereAreNoMissions(t *testing.T) {

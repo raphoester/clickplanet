@@ -49,15 +49,19 @@ func ask(t *testing.T, useCase *stubUseCase) (*missionsv1.GetMissionsResponse, e
 	return res.Msg, nil
 }
 
-func TestEachMissionIsAnsweredWithHowFarItWent(t *testing.T) {
+func charges(kind planetv1.BonusKind, amount uint32) *missionsv1.MissionReward {
+	return &missionsv1.MissionReward{Kind: &missionsv1.MissionReward_Charges{Charges: &missionsv1.Charges{Kind: kind, Amount: amount}}}
+}
+
+func TestEachMissionIsAnsweredInItsKindsOwnMessage(t *testing.T) {
 	brief, err := missions.BriefOf([]missions.MissionSnapshot{
-		{ID: bank, Kind: missions.KindTakeFor, Target: "fr", Goal: 60, Reward: missions.Reward{Kind: missions.RewardShields, Amount: 10}},
-		{ID: ground, Kind: missions.KindTakeIn, Target: "br", Goal: 200, Reward: missions.Reward{Kind: missions.RewardBomb, Amount: 1}},
+		{ID: bank, Order: missions.TakeFor{Flag: "fr", Goal: 60}, Reward: missions.Reward{Kind: missions.RewardShields, Amount: 10}},
+		{ID: ground, Order: missions.TakeIn{Ground: "br", Goal: 200}, Reward: missions.Reward{Kind: missions.RewardBomb, Amount: 1}},
 	})
 	require.NoError(t, err)
 	useCase := &stubUseCase{out: get_missions_usecase.Out{
 		Day: day, Flag: "fr", Brief: brief, Sheet: missions.SheetOf(missions.SheetSnapshot{
-			Flag: "fr", Taken: map[missions.MissionID]uint32{bank: 60, ground: 12}, Paid: cpcolls.NewSet(bank),
+			Flag: "fr", Progress: map[missions.MissionID]uint32{bank: 60, ground: 12}, Paid: cpcolls.NewSet(bank),
 		}),
 	}}
 
@@ -69,12 +73,12 @@ func TestEachMissionIsAnsweredWithHowFarItWent(t *testing.T) {
 		CountryId: "fr", Enlisted: true, EndsAtUnixMs: time.Date(2026, 10, 26, 21, 0, 0, 0, time.UTC).UnixMilli(),
 		Missions: []*missionsv1.Mission{
 			{
-				Id: bank.String(), Kind: missionsv1.MissionKind_MISSION_KIND_TAKE_FOR, TargetCountryId: "fr", Goal: 60, Progress: 60,
-				Paid: true, RewardKind: planetv1.BonusKind_BONUS_KIND_SHIELDS, RewardAmount: 10,
+				Id: bank.String(), Done: true, Paid: true, Reward: charges(planetv1.BonusKind_BONUS_KIND_SHIELDS, 10),
+				Kind: &missionsv1.Mission_TakeFor{TakeFor: &missionsv1.TakeFor{CountryId: "fr", Goal: 60, Taken: 60}},
 			},
 			{
-				Id: ground.String(), Kind: missionsv1.MissionKind_MISSION_KIND_TAKE_IN, TargetCountryId: "br", Goal: 200, Progress: 12,
-				RewardKind: planetv1.BonusKind_BONUS_KIND_BOMB, RewardAmount: 1,
+				Id: ground.String(), Reward: charges(planetv1.BonusKind_BONUS_KIND_BOMB, 1),
+				Kind: &missionsv1.Mission_TakeIn{TakeIn: &missionsv1.TakeIn{CountryId: "br", Goal: 200, Taken: 12}},
 			},
 		},
 	}, res))

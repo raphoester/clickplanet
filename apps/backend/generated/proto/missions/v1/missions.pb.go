@@ -22,61 +22,6 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type MissionKind int32
-
-const (
-	MissionKind_MISSION_KIND_UNSPECIFIED MissionKind = 0
-	// Take goal tiles for target_country_id, the day's flag.
-	MissionKind_MISSION_KIND_TAKE_FOR MissionKind = 1
-	// Take goal tiles that target_country_id held.
-	MissionKind_MISSION_KIND_TAKE_FROM MissionKind = 2
-	// Take goal tiles on target_country_id's ground.
-	MissionKind_MISSION_KIND_TAKE_IN MissionKind = 3
-)
-
-// Enum value maps for MissionKind.
-var (
-	MissionKind_name = map[int32]string{
-		0: "MISSION_KIND_UNSPECIFIED",
-		1: "MISSION_KIND_TAKE_FOR",
-		2: "MISSION_KIND_TAKE_FROM",
-		3: "MISSION_KIND_TAKE_IN",
-	}
-	MissionKind_value = map[string]int32{
-		"MISSION_KIND_UNSPECIFIED": 0,
-		"MISSION_KIND_TAKE_FOR":    1,
-		"MISSION_KIND_TAKE_FROM":   2,
-		"MISSION_KIND_TAKE_IN":     3,
-	}
-)
-
-func (x MissionKind) Enum() *MissionKind {
-	p := new(MissionKind)
-	*p = x
-	return p
-}
-
-func (x MissionKind) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (MissionKind) Descriptor() protoreflect.EnumDescriptor {
-	return file_missions_v1_missions_proto_enumTypes[0].Descriptor()
-}
-
-func (MissionKind) Type() protoreflect.EnumType {
-	return &file_missions_v1_missions_proto_enumTypes[0]
-}
-
-func (x MissionKind) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use MissionKind.Descriptor instead.
-func (MissionKind) EnumDescriptor() ([]byte, []int) {
-	return file_missions_v1_missions_proto_rawDescGZIP(), []int{0}
-}
-
 type GetMissionsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -182,17 +127,20 @@ func (x *GetMissionsResponse) GetMissions() []*Mission {
 	return nil
 }
 
+// What every mission has. What it asks is its kind's own message: a client skips a kind it does not know.
 type Mission struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	Id              string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Kind            MissionKind            `protobuf:"varint,2,opt,name=kind,proto3,enum=missions.v1.MissionKind" json:"kind,omitempty"`
-	TargetCountryId string                 `protobuf:"bytes,3,opt,name=target_country_id,json=targetCountryId,proto3" json:"target_country_id,omitempty"`
-	Goal            uint32                 `protobuf:"varint,4,opt,name=goal,proto3" json:"goal,omitempty"`
-	Progress        uint32                 `protobuf:"varint,5,opt,name=progress,proto3" json:"progress,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Id     string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Reward *MissionReward         `protobuf:"bytes,2,opt,name=reward,proto3" json:"reward,omitempty"`
+	Done   bool                   `protobuf:"varint,3,opt,name=done,proto3" json:"done,omitempty"`
 	// A done mission is paid at once, or a guest's when it signs in that day.
-	Paid          bool         `protobuf:"varint,6,opt,name=paid,proto3" json:"paid,omitempty"`
-	RewardKind    v1.BonusKind `protobuf:"varint,7,opt,name=reward_kind,json=rewardKind,proto3,enum=planet.v1.BonusKind" json:"reward_kind,omitempty"`
-	RewardAmount  uint32       `protobuf:"varint,8,opt,name=reward_amount,json=rewardAmount,proto3" json:"reward_amount,omitempty"`
+	Paid bool `protobuf:"varint,4,opt,name=paid,proto3" json:"paid,omitempty"`
+	// Types that are valid to be assigned to Kind:
+	//
+	//	*Mission_TakeFor
+	//	*Mission_TakeFrom
+	//	*Mission_TakeIn
+	Kind          isMission_Kind `protobuf_oneof:"kind"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -234,32 +182,18 @@ func (x *Mission) GetId() string {
 	return ""
 }
 
-func (x *Mission) GetKind() MissionKind {
+func (x *Mission) GetReward() *MissionReward {
 	if x != nil {
-		return x.Kind
+		return x.Reward
 	}
-	return MissionKind_MISSION_KIND_UNSPECIFIED
+	return nil
 }
 
-func (x *Mission) GetTargetCountryId() string {
+func (x *Mission) GetDone() bool {
 	if x != nil {
-		return x.TargetCountryId
+		return x.Done
 	}
-	return ""
-}
-
-func (x *Mission) GetGoal() uint32 {
-	if x != nil {
-		return x.Goal
-	}
-	return 0
-}
-
-func (x *Mission) GetProgress() uint32 {
-	if x != nil {
-		return x.Progress
-	}
-	return 0
+	return false
 }
 
 func (x *Mission) GetPaid() bool {
@@ -269,16 +203,360 @@ func (x *Mission) GetPaid() bool {
 	return false
 }
 
-func (x *Mission) GetRewardKind() v1.BonusKind {
+func (x *Mission) GetKind() isMission_Kind {
 	if x != nil {
-		return x.RewardKind
+		return x.Kind
+	}
+	return nil
+}
+
+func (x *Mission) GetTakeFor() *TakeFor {
+	if x != nil {
+		if x, ok := x.Kind.(*Mission_TakeFor); ok {
+			return x.TakeFor
+		}
+	}
+	return nil
+}
+
+func (x *Mission) GetTakeFrom() *TakeFrom {
+	if x != nil {
+		if x, ok := x.Kind.(*Mission_TakeFrom); ok {
+			return x.TakeFrom
+		}
+	}
+	return nil
+}
+
+func (x *Mission) GetTakeIn() *TakeIn {
+	if x != nil {
+		if x, ok := x.Kind.(*Mission_TakeIn); ok {
+			return x.TakeIn
+		}
+	}
+	return nil
+}
+
+type isMission_Kind interface {
+	isMission_Kind()
+}
+
+type Mission_TakeFor struct {
+	TakeFor *TakeFor `protobuf:"bytes,10,opt,name=take_for,json=takeFor,proto3,oneof"`
+}
+
+type Mission_TakeFrom struct {
+	TakeFrom *TakeFrom `protobuf:"bytes,11,opt,name=take_from,json=takeFrom,proto3,oneof"`
+}
+
+type Mission_TakeIn struct {
+	TakeIn *TakeIn `protobuf:"bytes,12,opt,name=take_in,json=takeIn,proto3,oneof"`
+}
+
+func (*Mission_TakeFor) isMission_Kind() {}
+
+func (*Mission_TakeFrom) isMission_Kind() {}
+
+func (*Mission_TakeIn) isMission_Kind() {}
+
+// Take goal tiles for country_id, the day's flag.
+type TakeFor struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CountryId     string                 `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	Goal          uint32                 `protobuf:"varint,2,opt,name=goal,proto3" json:"goal,omitempty"`
+	Taken         uint32                 `protobuf:"varint,3,opt,name=taken,proto3" json:"taken,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TakeFor) Reset() {
+	*x = TakeFor{}
+	mi := &file_missions_v1_missions_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TakeFor) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TakeFor) ProtoMessage() {}
+
+func (x *TakeFor) ProtoReflect() protoreflect.Message {
+	mi := &file_missions_v1_missions_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TakeFor.ProtoReflect.Descriptor instead.
+func (*TakeFor) Descriptor() ([]byte, []int) {
+	return file_missions_v1_missions_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *TakeFor) GetCountryId() string {
+	if x != nil {
+		return x.CountryId
+	}
+	return ""
+}
+
+func (x *TakeFor) GetGoal() uint32 {
+	if x != nil {
+		return x.Goal
+	}
+	return 0
+}
+
+func (x *TakeFor) GetTaken() uint32 {
+	if x != nil {
+		return x.Taken
+	}
+	return 0
+}
+
+// Take goal tiles that country_id held.
+type TakeFrom struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CountryId     string                 `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	Goal          uint32                 `protobuf:"varint,2,opt,name=goal,proto3" json:"goal,omitempty"`
+	Taken         uint32                 `protobuf:"varint,3,opt,name=taken,proto3" json:"taken,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TakeFrom) Reset() {
+	*x = TakeFrom{}
+	mi := &file_missions_v1_missions_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TakeFrom) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TakeFrom) ProtoMessage() {}
+
+func (x *TakeFrom) ProtoReflect() protoreflect.Message {
+	mi := &file_missions_v1_missions_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TakeFrom.ProtoReflect.Descriptor instead.
+func (*TakeFrom) Descriptor() ([]byte, []int) {
+	return file_missions_v1_missions_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *TakeFrom) GetCountryId() string {
+	if x != nil {
+		return x.CountryId
+	}
+	return ""
+}
+
+func (x *TakeFrom) GetGoal() uint32 {
+	if x != nil {
+		return x.Goal
+	}
+	return 0
+}
+
+func (x *TakeFrom) GetTaken() uint32 {
+	if x != nil {
+		return x.Taken
+	}
+	return 0
+}
+
+// Take goal tiles on country_id's land.
+type TakeIn struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CountryId     string                 `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	Goal          uint32                 `protobuf:"varint,2,opt,name=goal,proto3" json:"goal,omitempty"`
+	Taken         uint32                 `protobuf:"varint,3,opt,name=taken,proto3" json:"taken,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TakeIn) Reset() {
+	*x = TakeIn{}
+	mi := &file_missions_v1_missions_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TakeIn) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TakeIn) ProtoMessage() {}
+
+func (x *TakeIn) ProtoReflect() protoreflect.Message {
+	mi := &file_missions_v1_missions_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TakeIn.ProtoReflect.Descriptor instead.
+func (*TakeIn) Descriptor() ([]byte, []int) {
+	return file_missions_v1_missions_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *TakeIn) GetCountryId() string {
+	if x != nil {
+		return x.CountryId
+	}
+	return ""
+}
+
+func (x *TakeIn) GetGoal() uint32 {
+	if x != nil {
+		return x.Goal
+	}
+	return 0
+}
+
+func (x *TakeIn) GetTaken() uint32 {
+	if x != nil {
+		return x.Taken
+	}
+	return 0
+}
+
+// A client skips a mission whose reward it does not know.
+type MissionReward struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Kind:
+	//
+	//	*MissionReward_Charges
+	Kind          isMissionReward_Kind `protobuf_oneof:"kind"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MissionReward) Reset() {
+	*x = MissionReward{}
+	mi := &file_missions_v1_missions_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MissionReward) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MissionReward) ProtoMessage() {}
+
+func (x *MissionReward) ProtoReflect() protoreflect.Message {
+	mi := &file_missions_v1_missions_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MissionReward.ProtoReflect.Descriptor instead.
+func (*MissionReward) Descriptor() ([]byte, []int) {
+	return file_missions_v1_missions_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *MissionReward) GetKind() isMissionReward_Kind {
+	if x != nil {
+		return x.Kind
+	}
+	return nil
+}
+
+func (x *MissionReward) GetCharges() *Charges {
+	if x != nil {
+		if x, ok := x.Kind.(*MissionReward_Charges); ok {
+			return x.Charges
+		}
+	}
+	return nil
+}
+
+type isMissionReward_Kind interface {
+	isMissionReward_Kind()
+}
+
+type MissionReward_Charges struct {
+	Charges *Charges `protobuf:"bytes,1,opt,name=charges,proto3,oneof"`
+}
+
+func (*MissionReward_Charges) isMissionReward_Kind() {}
+
+type Charges struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Kind          v1.BonusKind           `protobuf:"varint,1,opt,name=kind,proto3,enum=planet.v1.BonusKind" json:"kind,omitempty"`
+	Amount        uint32                 `protobuf:"varint,2,opt,name=amount,proto3" json:"amount,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Charges) Reset() {
+	*x = Charges{}
+	mi := &file_missions_v1_missions_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Charges) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Charges) ProtoMessage() {}
+
+func (x *Charges) ProtoReflect() protoreflect.Message {
+	mi := &file_missions_v1_missions_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Charges.ProtoReflect.Descriptor instead.
+func (*Charges) Descriptor() ([]byte, []int) {
+	return file_missions_v1_missions_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *Charges) GetKind() v1.BonusKind {
+	if x != nil {
+		return x.Kind
 	}
 	return v1.BonusKind(0)
 }
 
-func (x *Mission) GetRewardAmount() uint32 {
+func (x *Charges) GetAmount() uint32 {
 	if x != nil {
-		return x.RewardAmount
+		return x.Amount
 	}
 	return 0
 }
@@ -294,22 +572,38 @@ const file_missions_v1_missions_proto_rawDesc = "" +
 	"country_id\x18\x01 \x01(\tR\tcountryId\x12\x1a\n" +
 	"\benlisted\x18\x02 \x01(\bR\benlisted\x12%\n" +
 	"\x0fends_at_unix_ms\x18\x03 \x01(\x03R\fendsAtUnixMs\x120\n" +
-	"\bmissions\x18\x04 \x03(\v2\x14.missions.v1.MissionR\bmissions\"\x93\x02\n" +
+	"\bmissions\x18\x04 \x03(\v2\x14.missions.v1.MissionR\bmissions\"\x96\x02\n" +
 	"\aMission\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12,\n" +
-	"\x04kind\x18\x02 \x01(\x0e2\x18.missions.v1.MissionKindR\x04kind\x12*\n" +
-	"\x11target_country_id\x18\x03 \x01(\tR\x0ftargetCountryId\x12\x12\n" +
-	"\x04goal\x18\x04 \x01(\rR\x04goal\x12\x1a\n" +
-	"\bprogress\x18\x05 \x01(\rR\bprogress\x12\x12\n" +
-	"\x04paid\x18\x06 \x01(\bR\x04paid\x125\n" +
-	"\vreward_kind\x18\a \x01(\x0e2\x14.planet.v1.BonusKindR\n" +
-	"rewardKind\x12#\n" +
-	"\rreward_amount\x18\b \x01(\rR\frewardAmount*|\n" +
-	"\vMissionKind\x12\x1c\n" +
-	"\x18MISSION_KIND_UNSPECIFIED\x10\x00\x12\x19\n" +
-	"\x15MISSION_KIND_TAKE_FOR\x10\x01\x12\x1a\n" +
-	"\x16MISSION_KIND_TAKE_FROM\x10\x02\x12\x18\n" +
-	"\x14MISSION_KIND_TAKE_IN\x10\x032b\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x122\n" +
+	"\x06reward\x18\x02 \x01(\v2\x1a.missions.v1.MissionRewardR\x06reward\x12\x12\n" +
+	"\x04done\x18\x03 \x01(\bR\x04done\x12\x12\n" +
+	"\x04paid\x18\x04 \x01(\bR\x04paid\x121\n" +
+	"\btake_for\x18\n" +
+	" \x01(\v2\x14.missions.v1.TakeForH\x00R\atakeFor\x124\n" +
+	"\ttake_from\x18\v \x01(\v2\x15.missions.v1.TakeFromH\x00R\btakeFrom\x12.\n" +
+	"\atake_in\x18\f \x01(\v2\x13.missions.v1.TakeInH\x00R\x06takeInB\x06\n" +
+	"\x04kind\"R\n" +
+	"\aTakeFor\x12\x1d\n" +
+	"\n" +
+	"country_id\x18\x01 \x01(\tR\tcountryId\x12\x12\n" +
+	"\x04goal\x18\x02 \x01(\rR\x04goal\x12\x14\n" +
+	"\x05taken\x18\x03 \x01(\rR\x05taken\"S\n" +
+	"\bTakeFrom\x12\x1d\n" +
+	"\n" +
+	"country_id\x18\x01 \x01(\tR\tcountryId\x12\x12\n" +
+	"\x04goal\x18\x02 \x01(\rR\x04goal\x12\x14\n" +
+	"\x05taken\x18\x03 \x01(\rR\x05taken\"Q\n" +
+	"\x06TakeIn\x12\x1d\n" +
+	"\n" +
+	"country_id\x18\x01 \x01(\tR\tcountryId\x12\x12\n" +
+	"\x04goal\x18\x02 \x01(\rR\x04goal\x12\x14\n" +
+	"\x05taken\x18\x03 \x01(\rR\x05taken\"I\n" +
+	"\rMissionReward\x120\n" +
+	"\acharges\x18\x01 \x01(\v2\x14.missions.v1.ChargesH\x00R\achargesB\x06\n" +
+	"\x04kind\"K\n" +
+	"\aCharges\x12(\n" +
+	"\x04kind\x18\x01 \x01(\x0e2\x14.planet.v1.BonusKindR\x04kind\x12\x16\n" +
+	"\x06amount\x18\x02 \x01(\rR\x06amount2b\n" +
 	"\x0eMissionService\x12P\n" +
 	"\vGetMissions\x12\x1f.missions.v1.GetMissionsRequest\x1a .missions.v1.GetMissionsResponseB\xc3\x01\n" +
 	"\x0fcom.missions.v1B\rMissionsProtoP\x01ZTgithub.com/raphoester/clickplanet.lol-backend/generated/proto/missions/v1;missionsv1\xa2\x02\x03MXX\xaa\x02\vMissions.V1\xca\x02\vMissions\\V1\xe2\x02\x17Missions\\V1\\GPBMetadata\xea\x02\fMissions::V1b\x06proto3"
@@ -326,26 +620,33 @@ func file_missions_v1_missions_proto_rawDescGZIP() []byte {
 	return file_missions_v1_missions_proto_rawDescData
 }
 
-var file_missions_v1_missions_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_missions_v1_missions_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_missions_v1_missions_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_missions_v1_missions_proto_goTypes = []any{
-	(MissionKind)(0),            // 0: missions.v1.MissionKind
-	(*GetMissionsRequest)(nil),  // 1: missions.v1.GetMissionsRequest
-	(*GetMissionsResponse)(nil), // 2: missions.v1.GetMissionsResponse
-	(*Mission)(nil),             // 3: missions.v1.Mission
-	(v1.BonusKind)(0),           // 4: planet.v1.BonusKind
+	(*GetMissionsRequest)(nil),  // 0: missions.v1.GetMissionsRequest
+	(*GetMissionsResponse)(nil), // 1: missions.v1.GetMissionsResponse
+	(*Mission)(nil),             // 2: missions.v1.Mission
+	(*TakeFor)(nil),             // 3: missions.v1.TakeFor
+	(*TakeFrom)(nil),            // 4: missions.v1.TakeFrom
+	(*TakeIn)(nil),              // 5: missions.v1.TakeIn
+	(*MissionReward)(nil),       // 6: missions.v1.MissionReward
+	(*Charges)(nil),             // 7: missions.v1.Charges
+	(v1.BonusKind)(0),           // 8: planet.v1.BonusKind
 }
 var file_missions_v1_missions_proto_depIdxs = []int32{
-	3, // 0: missions.v1.GetMissionsResponse.missions:type_name -> missions.v1.Mission
-	0, // 1: missions.v1.Mission.kind:type_name -> missions.v1.MissionKind
-	4, // 2: missions.v1.Mission.reward_kind:type_name -> planet.v1.BonusKind
-	1, // 3: missions.v1.MissionService.GetMissions:input_type -> missions.v1.GetMissionsRequest
-	2, // 4: missions.v1.MissionService.GetMissions:output_type -> missions.v1.GetMissionsResponse
-	4, // [4:5] is the sub-list for method output_type
-	3, // [3:4] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	2, // 0: missions.v1.GetMissionsResponse.missions:type_name -> missions.v1.Mission
+	6, // 1: missions.v1.Mission.reward:type_name -> missions.v1.MissionReward
+	3, // 2: missions.v1.Mission.take_for:type_name -> missions.v1.TakeFor
+	4, // 3: missions.v1.Mission.take_from:type_name -> missions.v1.TakeFrom
+	5, // 4: missions.v1.Mission.take_in:type_name -> missions.v1.TakeIn
+	7, // 5: missions.v1.MissionReward.charges:type_name -> missions.v1.Charges
+	8, // 6: missions.v1.Charges.kind:type_name -> planet.v1.BonusKind
+	0, // 7: missions.v1.MissionService.GetMissions:input_type -> missions.v1.GetMissionsRequest
+	1, // 8: missions.v1.MissionService.GetMissions:output_type -> missions.v1.GetMissionsResponse
+	8, // [8:9] is the sub-list for method output_type
+	7, // [7:8] is the sub-list for method input_type
+	7, // [7:7] is the sub-list for extension type_name
+	7, // [7:7] is the sub-list for extension extendee
+	0, // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_missions_v1_missions_proto_init() }
@@ -353,19 +654,26 @@ func file_missions_v1_missions_proto_init() {
 	if File_missions_v1_missions_proto != nil {
 		return
 	}
+	file_missions_v1_missions_proto_msgTypes[2].OneofWrappers = []any{
+		(*Mission_TakeFor)(nil),
+		(*Mission_TakeFrom)(nil),
+		(*Mission_TakeIn)(nil),
+	}
+	file_missions_v1_missions_proto_msgTypes[6].OneofWrappers = []any{
+		(*MissionReward_Charges)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_missions_v1_missions_proto_rawDesc), len(file_missions_v1_missions_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   3,
+			NumEnums:      0,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_missions_v1_missions_proto_goTypes,
 		DependencyIndexes: file_missions_v1_missions_proto_depIdxs,
-		EnumInfos:         file_missions_v1_missions_proto_enumTypes,
 		MessageInfos:      file_missions_v1_missions_proto_msgTypes,
 	}.Build()
 	File_missions_v1_missions_proto = out.File

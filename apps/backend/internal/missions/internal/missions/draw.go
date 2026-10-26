@@ -34,7 +34,7 @@ func Draw(day Day, flag string, world World) Brief {
 	random := rand.New(rand.NewPCG(seed.Sum64(), 0)) //nolint:gosec // a draw every player can see, not a secret.
 
 	return Brief{missions: []Mission{
-		{id: drawnID(day, flag, 1), order: takeFor{flag: flag}, goal: bankGoal, reward: Reward{Kind: RewardShields, Amount: 10}},
+		{id: drawnID(day, flag, 1), order: TakeFor{Flag: flag, Goal: bankGoal}, reward: Reward{Kind: RewardShields, Amount: 10}},
 		rivalOf(drawnID(day, flag, 2), flag, world),
 		groundOf(drawnID(day, flag, 3), flag, world, random),
 	}}
@@ -57,9 +57,9 @@ func rivalOf(id MissionID, flag string, world World) Mission {
 		}
 	}
 	if rival.Tiles < rivalAtLeast {
-		return Mission{id: id, order: takeFor{flag: flag}, goal: 2 * bankGoal, reward: reward}
+		return Mission{id: id, order: TakeFor{Flag: flag, Goal: 2 * bankGoal}, reward: reward}
 	}
-	return Mission{id: id, order: takeFrom{flag: rival.Country}, goal: rivalGoal, reward: reward}
+	return Mission{id: id, order: TakeFrom{Flag: rival.Country, Goal: rivalGoal}, reward: reward}
 }
 
 func groundOf(id MissionID, flag string, world World, random *rand.Rand) Mission {
@@ -72,8 +72,8 @@ func groundOf(id MissionID, flag string, world World, random *rand.Rand) Mission
 		}
 	}
 	if len(grounds) == 0 {
-		return Mission{id: id, order: takeFor{flag: flag}, goal: groundGoal, reward: reward}
+		return Mission{id: id, order: TakeFor{Flag: flag, Goal: groundGoal}, reward: reward}
 	}
 	slices.Sort(grounds)
-	return Mission{id: id, order: takeIn{ground: grounds[random.IntN(len(grounds))]}, goal: groundGoal, reward: reward}
+	return Mission{id: id, order: TakeIn{Ground: grounds[random.IntN(len(grounds))], Goal: groundGoal}, reward: reward}
 }

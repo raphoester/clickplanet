@@ -1,6 +1,7 @@
-import {Mission} from "../../backends/missions.ts"
+import {ReactNode} from "react"
+import {Mission, MissionOrder, TileOrder} from "../../backends/missions.ts"
 import {Countries} from "../../domain/countries.ts"
-import {done, orderOf, timeLeft} from "../../domain/missions.ts"
+import {orderOf, timeLeft} from "../../domain/missions.ts"
 import BonusIcon from "../components/BonusIcon.tsx"
 import CountryFlag from "../components/CountryFlag.tsx"
 import {useNow} from "../season/useNow.ts"
@@ -33,14 +34,11 @@ type MissionRowProps = {
 }
 
 function MissionRow({mission, onSignIn}: MissionRowProps) {
-    const country = Countries.get(mission.target)
-    const reached = Math.min(mission.progress, mission.goal)
+    const parts = partsOf(mission.order)
 
     return <li className={`panel-box mission${mission.paid ? " mission--paid" : ""}`}>
         <div className="mission-head">
-            <span className="mission-order">
-                {orderOf(mission)} <CountryFlag code={mission.target}/> {country?.name ?? mission.target}
-            </span>
+            <span className="mission-order">{parts.line}</span>
             <span className={`mission-reward mission-reward--${mission.reward.kind}`}
                   aria-label={`Reward: ${mission.reward.amount} ${mission.reward.kind}`}>
                 <BonusIcon kind={mission.reward.kind}/>
@@ -48,18 +46,44 @@ function MissionRow({mission, onSignIn}: MissionRowProps) {
             </span>
         </div>
         <div className="mission-foot">
-            <div className="mission-bar"
-                 role="progressbar"
-                 aria-valuemin={0}
-                 aria-valuemax={mission.goal}
-                 aria-valuenow={reached}
-                 aria-label={orderOf(mission)}>
-                <div className="mission-bar-filled" style={{width: `${reached / mission.goal * 100}%`}}/>
-            </div>
-            <span className="mission-count">{reached}/{mission.goal}</span>
-            {done(mission) && (!mission.paid && onSignIn
+            {parts.progress}
+            {mission.done && (!mission.paid && onSignIn
                 ? <button type="button" className="button button-mini" onClick={onSignIn}>Sign in to get it</button>
                 : <span className="chip mission-done">Done</span>)}
         </div>
     </li>
+}
+
+type OrderParts = {
+    line: ReactNode
+    progress: ReactNode
+}
+
+function partsOf(order: MissionOrder): OrderParts {
+    switch (order.kind) {
+        case "takeFor":
+        case "takeFrom":
+        case "takeIn":
+            return tilePartsOf(order)
+    }
+}
+
+function tilePartsOf(order: TileOrder): OrderParts {
+    const country = Countries.get(order.country)
+    const reached = Math.min(order.taken, order.goal)
+
+    return {
+        line: <>{orderOf(order)} <CountryFlag code={order.country}/> {country?.name ?? order.country}</>,
+        progress: <>
+            <div className="mission-bar"
+                 role="progressbar"
+                 aria-valuemin={0}
+                 aria-valuemax={order.goal}
+                 aria-valuenow={reached}
+                 aria-label={orderOf(order)}>
+                <div className="mission-bar-filled" style={{width: `${reached / order.goal * 100}%`}}/>
+            </div>
+            <span className="mission-count">{reached}/{order.goal}</span>
+        </>,
+    }
 }

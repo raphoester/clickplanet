@@ -7,12 +7,10 @@ import {MissionsState} from "./useMissions.ts"
 
 const mission = (overrides: Partial<Mission>): Mission => ({
     id: "bank",
-    kind: "takeFor",
-    target: "fr",
-    goal: 60,
-    progress: 60,
-    paid: false,
+    order: {kind: "takeFor", country: "fr", goal: 60, taken: 60},
     reward: {kind: "shields", amount: 10},
+    done: true,
+    paid: false,
     ...overrides,
 })
 

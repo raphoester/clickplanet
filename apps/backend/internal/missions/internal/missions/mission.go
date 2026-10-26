@@ -2,13 +2,12 @@ package missions
 
 import (
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/google/uuid"
 )
 
-var ErrUnknownKind = errors.New("not a kind of mission")
+var ErrNoOrder = errors.New("a mission has no order")
 
 type Take struct {
 	Account  AccountID
@@ -23,14 +22,6 @@ type MissionID uuid.UUID
 
 func (id MissionID) String() string { return uuid.UUID(id).String() }
 
-type Kind string
-
-const (
-	KindTakeFor  Kind = "take_for"
-	KindTakeFrom Kind = "take_from"
-	KindTakeIn   Kind = "take_in"
-)
-
 type RewardKind string
 
 const (
@@ -44,64 +35,73 @@ type Reward struct {
 	Amount uint32
 }
 
+// An order is one kind of mission: its own fields, and its own progress from 0. A new kind is a new type.
+type Order interface {
+	advanced(progress uint32, take Take) uint32
+	done(progress uint32) bool
+}
+
+// Take Goal tiles for Flag, the day's flag.
+type TakeFor struct {
+	Flag string
+	Goal uint32
+}
+
+func (o TakeFor) advanced(progress uint32, take Take) uint32 {
+	return tileTaken(progress, o.Goal, take.Flag == o.Flag)
+}
+func (o TakeFor) done(progress uint32) bool { return progress >= o.Goal }
+
+// Take Goal tiles that Flag held.
+type TakeFrom struct {
+	Flag string
+	Goal uint32
+}
+
+func (o TakeFrom) advanced(progress uint32, take Take) uint32 {
+	return tileTaken(progress, o.Goal, take.Previous == o.Flag)
+}
+func (o TakeFrom) done(progress uint32) bool { return progress >= o.Goal }
+
+// Take Goal tiles on Ground, a country's land.
+type TakeIn struct {
+	Ground string
+	Goal   uint32
+}
+
+func (o TakeIn) advanced(progress uint32, take Take) uint32 {
+	return tileTaken(progress, o.Goal, take.Ground == o.Ground)
+}
+func (o TakeIn) done(progress uint32) bool { return progress >= o.Goal }
+
+func tileTaken(progress, goal uint32, counts bool) uint32 {
+	if counts && progress < goal {
+		return progress + 1
+	}
+	return progress
+}
+
 type MissionSnapshot struct {
 	ID     MissionID
-	Kind   Kind
-	Target string
-	Goal   uint32
+	Order  Order
 	Reward Reward
 }
 
 type Mission struct {
 	id     MissionID
-	order  order
-	goal   uint32
+	order  Order
 	reward Reward
 }
 
-type order interface {
-	kind() Kind
-	target() string
-	counts(take Take) bool
-}
-
-type takeFor struct{ flag string }
-
-func (o takeFor) kind() Kind            { return KindTakeFor }
-func (o takeFor) target() string        { return o.flag }
-func (o takeFor) counts(take Take) bool { return take.Flag == o.flag }
-
-type takeFrom struct{ flag string }
-
-func (o takeFrom) kind() Kind            { return KindTakeFrom }
-func (o takeFrom) target() string        { return o.flag }
-func (o takeFrom) counts(take Take) bool { return take.Previous == o.flag }
-
-type takeIn struct{ ground string }
-
-func (o takeIn) kind() Kind            { return KindTakeIn }
-func (o takeIn) target() string        { return o.ground }
-func (o takeIn) counts(take Take) bool { return take.Ground == o.ground }
-
 func MissionOf(snapshot MissionSnapshot) (Mission, error) {
-	var rule order
-	switch snapshot.Kind {
-	case KindTakeFor:
-		rule = takeFor{flag: snapshot.Target}
-	case KindTakeFrom:
-		rule = takeFrom{flag: snapshot.Target}
-	case KindTakeIn:
-		rule = takeIn{ground: snapshot.Target}
-	default:
-		return Mission{}, fmt.Errorf("%w: %q", ErrUnknownKind, snapshot.Kind)
+	if snapshot.Order == nil {
+		return Mission{}, ErrNoOrder
 	}
-	return Mission{id: snapshot.ID, order: rule, goal: snapshot.Goal, reward: snapshot.Reward}, nil
+	return Mission{id: snapshot.ID, order: snapshot.Order, reward: snapshot.Reward}, nil
 }
-
-func (m Mission) Counts(take Take) bool { return m.order.counts(take) }
 
 func (m Mission) Snapshot() MissionSnapshot {
-	return MissionSnapshot{ID: m.id, Kind: m.order.kind(), Target: m.order.target(), Goal: m.goal, Reward: m.reward}
+	return MissionSnapshot{ID: m.id, Order: m.order, Reward: m.reward}
 }
 
 type Brief struct {

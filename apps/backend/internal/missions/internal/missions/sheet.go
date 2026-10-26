@@ -6,22 +6,22 @@ import (
 
 type SheetSnapshot struct {
 	Flag       string
-	Taken      map[MissionID]uint32
+	Progress   map[MissionID]uint32
 	Paid       *cpcolls.Set[MissionID]
 	TakesBelow uint64
 }
 
 type Sheet struct {
 	flag       string
-	taken      map[MissionID]uint32
+	progress   map[MissionID]uint32
 	paid       *cpcolls.Set[MissionID]
 	takesBelow uint64
 }
 
 func SheetOf(snapshot SheetSnapshot) Sheet {
-	sheet := Sheet{flag: snapshot.Flag, taken: map[MissionID]uint32{}, paid: cpcolls.NewSet[MissionID](), takesBelow: snapshot.TakesBelow}
-	for id, taken := range snapshot.Taken {
-		sheet.taken[id] = taken
+	sheet := Sheet{flag: snapshot.Flag, progress: map[MissionID]uint32{}, paid: cpcolls.NewSet[MissionID](), takesBelow: snapshot.TakesBelow}
+	for id, progress := range snapshot.Progress {
+		sheet.progress[id] = progress
 	}
 	if snapshot.Paid != nil {
 		sheet.paid.AddSet(snapshot.Paid)
@@ -30,12 +30,12 @@ func SheetOf(snapshot SheetSnapshot) Sheet {
 }
 
 func (s Sheet) clone() Sheet {
-	return SheetOf(SheetSnapshot{Flag: s.flag, Taken: s.taken, Paid: s.paid, TakesBelow: s.takesBelow})
+	return SheetOf(SheetSnapshot{Flag: s.flag, Progress: s.progress, Paid: s.paid, TakesBelow: s.takesBelow})
 }
 
 func (s Sheet) Snapshot() SheetSnapshot {
 	copied := s.clone()
-	return SheetSnapshot{Flag: copied.flag, Taken: copied.taken, Paid: copied.paid, TakesBelow: copied.takesBelow}
+	return SheetSnapshot{Flag: copied.flag, Progress: copied.progress, Paid: copied.paid, TakesBelow: copied.takesBelow}
 }
 
 func (s Sheet) Enlisted() bool { return s.flag != "" }
@@ -50,8 +50,8 @@ func (s Sheet) WithTake(take Take, brief Brief) Sheet {
 	next.flag = take.Flag
 	changed := s.flag == ""
 	for _, mission := range brief.missions {
-		if mission.Counts(take) && next.taken[mission.id] < mission.goal {
-			next.taken[mission.id]++
+		if advanced := mission.order.advanced(next.progress[mission.id], take); advanced != next.progress[mission.id] {
+			next.progress[mission.id] = advanced
 			changed = true
 		}
 	}
@@ -72,10 +72,31 @@ func (s Sheet) WithPayments(brief Brief) (Sheet, []Payment) {
 	next := s.clone()
 	var payments []Payment
 	for _, mission := range brief.missions {
-		if next.taken[mission.id] >= mission.goal && !next.paid.Contains(mission.id) {
+		if mission.order.done(next.progress[mission.id]) && !next.paid.Contains(mission.id) {
 			next.paid.Add(mission.id)
 			payments = append(payments, Payment{Mission: mission.id, Reward: mission.reward})
 		}
 	}
 	return next, payments
+}
+
+type MissionStatus struct {
+	Mission  MissionSnapshot
+	Progress uint32
+	Done     bool
+	Paid     bool
+}
+
+// How far the sheet took each mission of the brief, in the brief's order.
+func (s Sheet) Statuses(brief Brief) []MissionStatus {
+	statuses := make([]MissionStatus, 0, len(brief.missions))
+	for _, mission := range brief.missions {
+		statuses = append(statuses, MissionStatus{
+			Mission:  mission.Snapshot(),
+			Progress: s.progress[mission.id],
+			Done:     mission.order.done(s.progress[mission.id]),
+			Paid:     s.paid.Contains(mission.id),
+		})
+	}
+	return statuses
 }

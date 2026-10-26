@@ -1,9 +1,9 @@
 import {Code, ConnectError, createPromiseClient, PromiseClient} from "@connectrpc/connect"
 import {createConnectTransport} from "@connectrpc/connect-web"
 import {MissionService} from "../gen/grpc/missions/v1/missions_connect.ts"
-import {Mission as MissionPb, MissionKind as MissionKindPb} from "../gen/grpc/missions/v1/missions_pb.ts"
+import {Mission as MissionPb, MissionReward as MissionRewardPb} from "../gen/grpc/missions/v1/missions_pb.ts"
 import {chargeKindOf} from "./bonusKind.ts"
-import {DayMissions, Mission, MissionKind, MissionsBackend} from "./missions.ts"
+import {DayMissions, Mission, MissionOrder, MissionReward, MissionsBackend} from "./missions.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
 import {Config, retrying} from "./transport.ts"
 
@@ -54,23 +54,31 @@ export class ConnectMissionsBackend implements MissionsBackend {
     }
 }
 
-const MISSION_KINDS: Partial<Record<MissionKindPb, MissionKind>> = {
-    [MissionKindPb.TAKE_FOR]: "takeFor",
-    [MissionKindPb.TAKE_FROM]: "takeFrom",
-    [MissionKindPb.TAKE_IN]: "takeIn",
+function missionOf(mission: MissionPb): Mission | undefined {
+    const order = orderOf(mission.kind)
+    const reward = rewardOf(mission.reward)
+    if (!order || !reward) return undefined
+    return {id: mission.id, order, reward, done: mission.done, paid: mission.paid}
 }
 
-function missionOf(mission: MissionPb): Mission | undefined {
-    const kind = MISSION_KINDS[mission.kind]
-    const reward = chargeKindOf(mission.rewardKind)
-    if (!kind || !reward) return undefined
-    return {
-        id: mission.id,
-        kind,
-        target: mission.targetCountryId,
-        goal: mission.goal,
-        progress: mission.progress,
-        paid: mission.paid,
-        reward: {kind: reward, amount: mission.rewardAmount},
+function orderOf(kind: MissionPb["kind"]): MissionOrder | undefined {
+    switch (kind.case) {
+        case "takeFor":
+        case "takeFrom":
+        case "takeIn":
+            return {kind: kind.case, country: kind.value.countryId, goal: kind.value.goal, taken: kind.value.taken}
+        case undefined:
+            return undefined
+    }
+}
+
+function rewardOf(reward: MissionRewardPb | undefined): MissionReward | undefined {
+    switch (reward?.kind.case) {
+        case "charges": {
+            const kind = chargeKindOf(reward.kind.value.kind)
+            return kind && {kind, amount: reward.kind.value.amount}
+        }
+        case undefined:
+            return undefined
     }
 }

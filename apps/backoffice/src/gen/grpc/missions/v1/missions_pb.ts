@@ -8,44 +8,6 @@ import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
 import { BonusKind } from "../../planet/v1/planet_pb.js";
 
 /**
- * @generated from enum missions.v1.MissionKind
- */
-export enum MissionKind {
-  /**
-   * @generated from enum value: MISSION_KIND_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * Take goal tiles for target_country_id, the day's flag.
-   *
-   * @generated from enum value: MISSION_KIND_TAKE_FOR = 1;
-   */
-  TAKE_FOR = 1,
-
-  /**
-   * Take goal tiles that target_country_id held.
-   *
-   * @generated from enum value: MISSION_KIND_TAKE_FROM = 2;
-   */
-  TAKE_FROM = 2,
-
-  /**
-   * Take goal tiles on target_country_id's ground.
-   *
-   * @generated from enum value: MISSION_KIND_TAKE_IN = 3;
-   */
-  TAKE_IN = 3,
-}
-// Retrieve enum metadata with: proto3.getEnumType(MissionKind)
-proto3.util.setEnumType(MissionKind, "missions.v1.MissionKind", [
-  { no: 0, name: "MISSION_KIND_UNSPECIFIED" },
-  { no: 1, name: "MISSION_KIND_TAKE_FOR" },
-  { no: 2, name: "MISSION_KIND_TAKE_FROM" },
-  { no: 3, name: "MISSION_KIND_TAKE_IN" },
-]);
-
-/**
  * @generated from message missions.v1.GetMissionsRequest
  */
 export class GetMissionsRequest extends Message<GetMissionsRequest> {
@@ -134,6 +96,8 @@ export class GetMissionsResponse extends Message<GetMissionsResponse> {
 }
 
 /**
+ * What every mission has. What it asks is its kind's own message: a client skips a kind it does not know.
+ *
  * @generated from message missions.v1.Mission
  */
 export class Mission extends Message<Mission> {
@@ -143,41 +107,44 @@ export class Mission extends Message<Mission> {
   id = "";
 
   /**
-   * @generated from field: missions.v1.MissionKind kind = 2;
+   * @generated from field: missions.v1.MissionReward reward = 2;
    */
-  kind = MissionKind.UNSPECIFIED;
+  reward?: MissionReward;
 
   /**
-   * @generated from field: string target_country_id = 3;
+   * @generated from field: bool done = 3;
    */
-  targetCountryId = "";
-
-  /**
-   * @generated from field: uint32 goal = 4;
-   */
-  goal = 0;
-
-  /**
-   * @generated from field: uint32 progress = 5;
-   */
-  progress = 0;
+  done = false;
 
   /**
    * A done mission is paid at once, or a guest's when it signs in that day.
    *
-   * @generated from field: bool paid = 6;
+   * @generated from field: bool paid = 4;
    */
   paid = false;
 
   /**
-   * @generated from field: planet.v1.BonusKind reward_kind = 7;
+   * @generated from oneof missions.v1.Mission.kind
    */
-  rewardKind = BonusKind.UNSPECIFIED;
-
-  /**
-   * @generated from field: uint32 reward_amount = 8;
-   */
-  rewardAmount = 0;
+  kind: {
+    /**
+     * @generated from field: missions.v1.TakeFor take_for = 10;
+     */
+    value: TakeFor;
+    case: "takeFor";
+  } | {
+    /**
+     * @generated from field: missions.v1.TakeFrom take_from = 11;
+     */
+    value: TakeFrom;
+    case: "takeFrom";
+  } | {
+    /**
+     * @generated from field: missions.v1.TakeIn take_in = 12;
+     */
+    value: TakeIn;
+    case: "takeIn";
+  } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<Mission>) {
     super();
@@ -188,13 +155,12 @@ export class Mission extends Message<Mission> {
   static readonly typeName = "missions.v1.Mission";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "kind", kind: "enum", T: proto3.getEnumType(MissionKind) },
-    { no: 3, name: "target_country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "goal", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 5, name: "progress", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 6, name: "paid", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 7, name: "reward_kind", kind: "enum", T: proto3.getEnumType(BonusKind) },
-    { no: 8, name: "reward_amount", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "reward", kind: "message", T: MissionReward },
+    { no: 3, name: "done", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 4, name: "paid", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 10, name: "take_for", kind: "message", T: TakeFor, oneof: "kind" },
+    { no: 11, name: "take_from", kind: "message", T: TakeFrom, oneof: "kind" },
+    { no: 12, name: "take_in", kind: "message", T: TakeIn, oneof: "kind" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Mission {
@@ -211,6 +177,247 @@ export class Mission extends Message<Mission> {
 
   static equals(a: Mission | PlainMessage<Mission> | undefined, b: Mission | PlainMessage<Mission> | undefined): boolean {
     return proto3.util.equals(Mission, a, b);
+  }
+}
+
+/**
+ * Take goal tiles for country_id, the day's flag.
+ *
+ * @generated from message missions.v1.TakeFor
+ */
+export class TakeFor extends Message<TakeFor> {
+  /**
+   * @generated from field: string country_id = 1;
+   */
+  countryId = "";
+
+  /**
+   * @generated from field: uint32 goal = 2;
+   */
+  goal = 0;
+
+  /**
+   * @generated from field: uint32 taken = 3;
+   */
+  taken = 0;
+
+  constructor(data?: PartialMessage<TakeFor>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "missions.v1.TakeFor";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "goal", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "taken", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TakeFor {
+    return new TakeFor().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): TakeFor {
+    return new TakeFor().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): TakeFor {
+    return new TakeFor().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: TakeFor | PlainMessage<TakeFor> | undefined, b: TakeFor | PlainMessage<TakeFor> | undefined): boolean {
+    return proto3.util.equals(TakeFor, a, b);
+  }
+}
+
+/**
+ * Take goal tiles that country_id held.
+ *
+ * @generated from message missions.v1.TakeFrom
+ */
+export class TakeFrom extends Message<TakeFrom> {
+  /**
+   * @generated from field: string country_id = 1;
+   */
+  countryId = "";
+
+  /**
+   * @generated from field: uint32 goal = 2;
+   */
+  goal = 0;
+
+  /**
+   * @generated from field: uint32 taken = 3;
+   */
+  taken = 0;
+
+  constructor(data?: PartialMessage<TakeFrom>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "missions.v1.TakeFrom";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "goal", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "taken", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TakeFrom {
+    return new TakeFrom().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): TakeFrom {
+    return new TakeFrom().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): TakeFrom {
+    return new TakeFrom().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: TakeFrom | PlainMessage<TakeFrom> | undefined, b: TakeFrom | PlainMessage<TakeFrom> | undefined): boolean {
+    return proto3.util.equals(TakeFrom, a, b);
+  }
+}
+
+/**
+ * Take goal tiles on country_id's land.
+ *
+ * @generated from message missions.v1.TakeIn
+ */
+export class TakeIn extends Message<TakeIn> {
+  /**
+   * @generated from field: string country_id = 1;
+   */
+  countryId = "";
+
+  /**
+   * @generated from field: uint32 goal = 2;
+   */
+  goal = 0;
+
+  /**
+   * @generated from field: uint32 taken = 3;
+   */
+  taken = 0;
+
+  constructor(data?: PartialMessage<TakeIn>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "missions.v1.TakeIn";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "goal", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "taken", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TakeIn {
+    return new TakeIn().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): TakeIn {
+    return new TakeIn().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): TakeIn {
+    return new TakeIn().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: TakeIn | PlainMessage<TakeIn> | undefined, b: TakeIn | PlainMessage<TakeIn> | undefined): boolean {
+    return proto3.util.equals(TakeIn, a, b);
+  }
+}
+
+/**
+ * A client skips a mission whose reward it does not know.
+ *
+ * @generated from message missions.v1.MissionReward
+ */
+export class MissionReward extends Message<MissionReward> {
+  /**
+   * @generated from oneof missions.v1.MissionReward.kind
+   */
+  kind: {
+    /**
+     * @generated from field: missions.v1.Charges charges = 1;
+     */
+    value: Charges;
+    case: "charges";
+  } | { case: undefined; value?: undefined } = { case: undefined };
+
+  constructor(data?: PartialMessage<MissionReward>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "missions.v1.MissionReward";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "charges", kind: "message", T: Charges, oneof: "kind" },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MissionReward {
+    return new MissionReward().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): MissionReward {
+    return new MissionReward().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): MissionReward {
+    return new MissionReward().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: MissionReward | PlainMessage<MissionReward> | undefined, b: MissionReward | PlainMessage<MissionReward> | undefined): boolean {
+    return proto3.util.equals(MissionReward, a, b);
+  }
+}
+
+/**
+ * @generated from message missions.v1.Charges
+ */
+export class Charges extends Message<Charges> {
+  /**
+   * @generated from field: planet.v1.BonusKind kind = 1;
+   */
+  kind = BonusKind.UNSPECIFIED;
+
+  /**
+   * @generated from field: uint32 amount = 2;
+   */
+  amount = 0;
+
+  constructor(data?: PartialMessage<Charges>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "missions.v1.Charges";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "kind", kind: "enum", T: proto3.getEnumType(BonusKind) },
+    { no: 2, name: "amount", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Charges {
+    return new Charges().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Charges {
+    return new Charges().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Charges {
+    return new Charges().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Charges | PlainMessage<Charges> | undefined, b: Charges | PlainMessage<Charges> | undefined): boolean {
+    return proto3.util.equals(Charges, a, b);
   }
 }
 

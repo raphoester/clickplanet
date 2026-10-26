@@ -1,6 +1,6 @@
 import {ChargeKind} from "../domain/bonus.ts"
 import {AllegianceSource, TileClicker} from "./backend.ts"
-import {DayMissions, Mission, MissionsBackend} from "./missions.ts"
+import {DayMissions, Mission, MissionReward, MissionsBackend, TileOrder} from "./missions.ts"
 
 const DAY_MS = 24 * 3600_000
 const CUTOFF_MS = 21 * 3600_000
@@ -52,7 +52,7 @@ export class FakeMissionsBackend implements MissionsBackend {
         const flag = this.flag ?? this.pledged
         if (!flag) return
         for (const mission of this.brief(flag)) {
-            if (mission.progress < mission.goal || this.paid.has(mission.id)) continue
+            if (!mission.done || this.paid.has(mission.id)) continue
             this.paid.add(mission.id)
             this.grant(mission.reward.kind)
         }
@@ -60,14 +60,16 @@ export class FakeMissionsBackend implements MissionsBackend {
 
     private brief(flag: string): Mission[] {
         const rival = flag === "dz" ? "pw" : "dz"
-        const progress = (goal: number, share: number) => this.finished ? goal : Math.min(goal, Math.floor(this.taken * share))
-        const mission = (id: string, rest: Omit<Mission, "id" | "paid" | "progress">, share: number): Mission =>
-            ({id, ...rest, progress: progress(rest.goal, share), paid: this.paid.has(id)})
+        const taken = (goal: number, share: number) => this.finished ? goal : Math.min(goal, Math.floor(this.taken * share))
+        const mission = (id: string, order: Omit<TileOrder, "taken">, reward: MissionReward, share: number): Mission => {
+            const tiles = taken(order.goal, share)
+            return {id, order: {...order, taken: tiles}, reward, done: tiles >= order.goal, paid: this.paid.has(id)}
+        }
 
         return [
-            mission("bank", {kind: "takeFor", target: flag, goal: 60, reward: {kind: "shields", amount: 10}}, 1),
-            mission("rival", {kind: "takeFrom", target: rival, goal: 40, reward: {kind: "spreadClicks", amount: 4}}, 0.5),
-            mission("ground", {kind: "takeIn", target: "br", goal: 200, reward: {kind: "bomb", amount: 1}}, 0.25),
+            mission("bank", {kind: "takeFor", country: flag, goal: 60}, {kind: "shields", amount: 10}, 1),
+            mission("rival", {kind: "takeFrom", country: rival, goal: 40}, {kind: "spreadClicks", amount: 4}, 0.5),
+            mission("ground", {kind: "takeIn", country: "br", goal: 200}, {kind: "bomb", amount: 1}, 0.25),
         ]
     }
 

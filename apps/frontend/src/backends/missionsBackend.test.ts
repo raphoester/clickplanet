@@ -3,7 +3,6 @@ import {Code, ConnectError} from "@connectrpc/connect"
 import {
     GetMissionsResponse as GetMissionsResponsePb,
     Mission as MissionPb,
-    MissionKind as MissionKindPb,
 } from "../gen/grpc/missions/v1/missions_pb.ts"
 import {BonusKind as BonusKindPb} from "../gen/grpc/planet/v1/planet_pb.ts"
 import {ConnectMissionsBackend} from "./missionsBackend.ts"
@@ -22,15 +21,17 @@ const headersOf = (call: ReturnType<typeof vi.fn>) => ((call.mock.calls[0] as un
 afterEach(() => vi.restoreAllMocks())
 
 describe("ConnectMissionsBackend", () => {
-    it("reads the day's missions with the click token", async () => {
+    it("reads the day's missions with the click token, and skips a kind or a reward it does not know", async () => {
         const getMissions = vi.fn(async () => new GetMissionsResponsePb({
             countryId: "fr", enlisted: true, endsAtUnixMs: 1_000n,
             missions: [
                 new MissionPb({
-                    id: "m-2", kind: MissionKindPb.TAKE_FROM, targetCountryId: "dz", goal: 40, progress: 40, paid: true,
-                    rewardKind: BonusKindPb.SPREAD_CLICKS, rewardAmount: 4,
+                    id: "m-2", done: true, paid: true,
+                    kind: {case: "takeFrom", value: {countryId: "dz", goal: 40, taken: 40}},
+                    reward: {kind: {case: "charges", value: {kind: BonusKindPb.SPREAD_CLICKS, amount: 4}}},
                 }),
-                new MissionPb({id: "m-4", kind: MissionKindPb.UNSPECIFIED, rewardKind: BonusKindPb.SHIELDS}),
+                new MissionPb({id: "m-4", reward: {kind: {case: "charges", value: {kind: BonusKindPb.SHIELDS, amount: 1}}}}),
+                new MissionPb({id: "m-5", kind: {case: "takeFor", value: {countryId: "fr", goal: 60}}}),
             ],
         }))
 
@@ -41,7 +42,7 @@ describe("ConnectMissionsBackend", () => {
         expect(day).toEqual({
             countryCode: "fr", enlisted: true, endsAt: 1_000,
             missions: [{
-                id: "m-2", kind: "takeFrom", target: "dz", goal: 40, progress: 40, paid: true,
+                id: "m-2", order: {kind: "takeFrom", country: "dz", goal: 40, taken: 40}, done: true, paid: true,
                 reward: {kind: "spreadClicks", amount: 4},
             }],
         })

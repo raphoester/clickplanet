@@ -26,16 +26,6 @@ var _ missions.Store = (*Store)(nil)
 
 const sheetLock = 0x6d697373
 
-// A kind's own fields are omitempty, so a new kind adds fields and no column.
-type missionRecord struct {
-	ID     uuid.UUID `json:"id"`
-	Kind   string    `json:"kind"`
-	Goal   uint32    `json:"goal"`
-	Reward string    `json:"reward"`
-	Amount uint32    `json:"amount"`
-	Target string    `json:"target,omitempty"`
-}
-
 func (s *Store) Brief(ctx context.Context, day missions.Day, flag string) (missions.Brief, error) {
 	var kept []byte
 	err := s.db.On(ctx).QueryRowContext(ctx, `
@@ -54,10 +44,11 @@ func (s *Store) Brief(ctx context.Context, day missions.Day, flag string) (missi
 	}
 	snapshots := make([]missions.MissionSnapshot, 0, len(records))
 	for _, record := range records {
-		snapshots = append(snapshots, missions.MissionSnapshot{
-			ID: missions.MissionID(record.ID), Kind: missions.Kind(record.Kind), Target: record.Target, Goal: record.Goal,
-			Reward: missions.Reward{Kind: missions.RewardKind(record.Reward), Amount: record.Amount},
-		})
+		snapshot, err := record.snapshot()
+		if err != nil {
+			return missions.Brief{}, fmt.Errorf("failed to read %s's brief: %w", flag, err)
+		}
+		snapshots = append(snapshots, snapshot)
 	}
 	return missions.BriefOf(snapshots) //nolint:wrapcheck // the domain named it.
 }
@@ -66,10 +57,11 @@ func (s *Store) KeepBrief(ctx context.Context, day missions.Day, flag string, br
 	drawn := brief.Snapshot()
 	records := make([]missionRecord, 0, len(drawn))
 	for _, mission := range drawn {
-		records = append(records, missionRecord{
-			ID: uuid.UUID(mission.ID), Kind: string(mission.Kind), Goal: mission.Goal,
-			Reward: string(mission.Reward.Kind), Amount: mission.Reward.Amount, Target: mission.Target,
-		})
+		record, err := recordOf(mission)
+		if err != nil {
+			return missions.Brief{}, fmt.Errorf("failed to keep %s's brief: %w", flag, err)
+		}
+		records = append(records, record)
 	}
 	encoded, err := json.Marshal(records)
 	if err != nil {
@@ -90,7 +82,7 @@ func (s *Store) Sheet(ctx context.Context, day missions.Day, account missions.Ac
 }
 
 func sheetOf(ctx context.Context, db cppg.Querier, day missions.Day, account missions.AccountID) (missions.Sheet, error) {
-	snapshot := missions.SheetSnapshot{Taken: map[missions.MissionID]uint32{}, Paid: cpcolls.NewSet[missions.MissionID]()}
+	snapshot := missions.SheetSnapshot{Progress: map[missions.MissionID]uint32{}, Paid: cpcolls.NewSet[missions.MissionID]()}
 
 	var below int64
 	err := db.QueryRowContext(ctx, `
@@ -101,8 +93,8 @@ func sheetOf(ctx context.Context, db cppg.Querier, day missions.Day, account mis
 	}
 	snapshot.TakesBelow = uint64(below) //nolint:gosec // CHECK (counted_takes_below >= 0).
 
-	if err := perMission(ctx, db, `SELECT mission_id, taken FROM mission_progress WHERE day = $1::date AND account_id = $2`,
-		day, account, func(id missions.MissionID, taken uint32) { snapshot.Taken[id] = taken }); err != nil {
+	if err := perMission(ctx, db, `SELECT mission_id, progress FROM mission_progress WHERE day = $1::date AND account_id = $2`,
+		day, account, func(id missions.MissionID, progress uint32) { snapshot.Progress[id] = progress }); err != nil {
 		return missions.Sheet{}, fmt.Errorf("failed to read the day's progress: %w", err)
 	}
 	if err := perMission(ctx, db, `SELECT mission_id, 1 FROM mission_payments WHERE day = $1::date AND account_id = $2`,
@@ -159,14 +151,14 @@ func (s *Store) ChangeSheet(
 				return fmt.Errorf("failed to keep the day's flag: %w", err)
 			}
 		}
-		for id, taken := range after.Taken {
-			if taken == before.Taken[id] {
+		for id, progress := range after.Progress {
+			if progress == before.Progress[id] {
 				continue
 			}
 			if _, err := tx.ExecContext(ctx, `
-				INSERT INTO mission_progress (day, account_id, mission_id, taken) VALUES ($1::date, $2, $3, $4)
-				ON CONFLICT (day, account_id, mission_id) DO UPDATE SET taken = excluded.taken
-			`, day.String(), uuid.UUID(account), uuid.UUID(id), int64(taken)); err != nil {
+				INSERT INTO mission_progress (day, account_id, mission_id, progress) VALUES ($1::date, $2, $3, $4)
+				ON CONFLICT (day, account_id, mission_id) DO UPDATE SET progress = excluded.progress
+			`, day.String(), uuid.UUID(account), uuid.UUID(id), int64(progress)); err != nil {
 				return fmt.Errorf("failed to keep the progress of mission %s: %w", id, err)
 			}
 		}

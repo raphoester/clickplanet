@@ -36,9 +36,10 @@ func (a *accounts) Linked(context.Context, missions.AccountID) (bool, error) {
 }
 
 var (
-	day  = missions.NewCalendar(missions.Config{Cutoff: 21 * time.Hour}).DayOf(time.Date(2026, 10, 26, 12, 0, 0, 0, time.UTC))
-	ada  = missions.AccountID{15: 1}
-	bank = missions.Draw(day, "fr", missions.World{Territories: []missions.Holding{{Country: "dz", Tiles: 9_000}}}).Snapshot()[0]
+	day      = missions.NewCalendar(missions.Config{Cutoff: 21 * time.Hour}).DayOf(time.Date(2026, 10, 26, 12, 0, 0, 0, time.UTC))
+	ada      = missions.AccountID{15: 1}
+	bankGoal = uint32(60)
+	bank     = missions.Draw(day, "fr", missions.World{Territories: []missions.Holding{{Country: "dz", Tiles: 9_000}}}).Snapshot()[0]
 )
 
 func setUp(t *testing.T, accounts *accounts, taken uint32) (payroll.Payroll, *inmemory_mission_store.Store, *cpatomic.FakeOutbox) {
@@ -46,7 +47,7 @@ func setUp(t *testing.T, accounts *accounts, taken uint32) (payroll.Payroll, *in
 
 	store := inmemory_mission_store.New()
 	require.NoError(t, store.ChangeSheet(t.Context(), day, ada, func(missions.Sheet) missions.Sheet {
-		return missions.SheetOf(missions.SheetSnapshot{Flag: "fr", Taken: map[missions.MissionID]uint32{bank.ID: taken}})
+		return missions.SheetOf(missions.SheetSnapshot{Flag: "fr", Progress: map[missions.MissionID]uint32{bank.ID: taken}})
 	}))
 	outbox := &cpatomic.FakeOutbox{}
 	return payroll.New(store, missions.NewBriefing(store, fixedPlanet{}), accounts, outbox), store, outbox
@@ -61,7 +62,7 @@ func pay(t *testing.T, paying payroll.Payroll) error {
 }
 
 func TestASignedInAccountIsGrantedEachMissionDoneOnce(t *testing.T) {
-	paying, store, outbox := setUp(t, &accounts{linked: true}, bank.Goal)
+	paying, store, outbox := setUp(t, &accounts{linked: true}, bankGoal)
 
 	require.NoError(t, pay(t, paying))
 	require.NoError(t, pay(t, paying))
@@ -75,7 +76,7 @@ func TestASignedInAccountIsGrantedEachMissionDoneOnce(t *testing.T) {
 }
 
 func TestAGuestIsNotPaidYet(t *testing.T) {
-	paying, store, outbox := setUp(t, &accounts{linked: false}, bank.Goal)
+	paying, store, outbox := setUp(t, &accounts{linked: false}, bankGoal)
 
 	require.NoError(t, pay(t, paying))
 
@@ -87,7 +88,7 @@ func TestAGuestIsNotPaidYet(t *testing.T) {
 
 func TestWithNothingDoneAuthIsNotAsked(t *testing.T) {
 	asked := &accounts{linked: true}
-	paying, _, outbox := setUp(t, asked, bank.Goal-1)
+	paying, _, outbox := setUp(t, asked, bankGoal-1)
 
 	require.NoError(t, pay(t, paying))
 
@@ -96,7 +97,7 @@ func TestWithNothingDoneAuthIsNotAsked(t *testing.T) {
 }
 
 func TestAnAuthThatFailsPaysNothing(t *testing.T) {
-	paying, _, outbox := setUp(t, &accounts{err: errors.New("down")}, bank.Goal)
+	paying, _, outbox := setUp(t, &accounts{err: errors.New("down")}, bankGoal)
 
 	require.Error(t, pay(t, paying))
 

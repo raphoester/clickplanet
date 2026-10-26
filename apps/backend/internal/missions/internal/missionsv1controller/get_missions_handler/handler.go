@@ -37,12 +37,15 @@ func (h GetMissionsHandler) GetMissions(
 		return nil, err //nolint:wrapcheck // the error net answers what is not the caller's fault.
 	}
 
-	sheet := out.Sheet.Snapshot()
 	answer := &missionsv1.GetMissionsResponse{
 		CountryId: out.Flag, Enlisted: out.Sheet.Enlisted(), EndsAtUnixMs: out.Day.EndsAt().UnixMilli(),
 	}
-	for _, mission := range out.Brief.Snapshot() {
-		answer.Missions = append(answer.Missions, missionmessage.Mission(mission, sheet))
+	for _, status := range out.Sheet.Statuses(out.Brief) {
+		mission, err := missionmessage.Mission(status)
+		if err != nil {
+			return nil, err //nolint:wrapcheck // the error net answers what is not the caller's fault.
+		}
+		answer.Missions = append(answer.Missions, mission)
 	}
 	return connect.NewResponse(answer), nil
 }

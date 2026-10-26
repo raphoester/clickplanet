@@ -82,17 +82,23 @@ func (s *StoreContractSuite) TestAKeptBriefReadsBack() {
 }
 
 func (s *StoreContractSuite) TestABriefKeepsAsManyMissionsAsItHas() {
-	snapshots := make([]MissionSnapshot, 0, 5)
-	for n := range 5 {
+	orders := []Order{
+		TakeFor{Flag: "fr", Goal: 10},
+		TakeFrom{Flag: "dz", Goal: 11},
+		TakeIn{Ground: "br", Goal: 12},
+		TakeFor{Flag: "fr", Goal: 13},
+		TakeIn{Ground: "is", Goal: 14},
+	}
+	snapshots := make([]MissionSnapshot, 0, len(orders))
+	for n, order := range orders {
 		snapshots = append(snapshots, MissionSnapshot{
-			ID: drawnID(contractDay, "fr", n), Kind: KindTakeFor, Target: "fr", Goal: uint32(10 + n),
-			Reward: Reward{Kind: RewardShields, Amount: 1},
+			ID: drawnID(contractDay, "fr", n), Order: order, Reward: Reward{Kind: RewardShields, Amount: uint32(n + 1)},
 		})
 	}
 	brief, err := BriefOf(snapshots)
 	s.Require().NoError(err)
 
-	s.Equal(snapshots, s.keep(contractDay, "fr", brief).Snapshot(), "in the order drawn")
+	s.Equal(snapshots, s.keep(contractDay, "fr", brief).Snapshot(), "each kind with its own fields, in the order drawn")
 }
 
 func (s *StoreContractSuite) TestTheFirstBriefKeptForADayAndFlagWins() {
@@ -114,7 +120,7 @@ func (s *StoreContractSuite) TestBriefsAreKeptByDayAndFlag() {
 }
 
 func (s *StoreContractSuite) TestASheetNeverChangedIsEmpty() {
-	s.Equal(SheetSnapshot{Taken: map[MissionID]uint32{}, Paid: cpcolls.NewSet[MissionID]()}, s.sheet(contractDay, 1))
+	s.Equal(SheetSnapshot{Progress: map[MissionID]uint32{}, Paid: cpcolls.NewSet[MissionID]()}, s.sheet(contractDay, 1))
 }
 
 func (s *StoreContractSuite) TestChangesToASheetAddUp() {
@@ -122,7 +128,7 @@ func (s *StoreContractSuite) TestChangesToASheetAddUp() {
 	s.takeFor(contractDay, 1, Take{Flag: "fr", Ground: "es", At: contractAt})
 
 	s.Equal(SheetSnapshot{
-		Flag: "fr", Taken: map[MissionID]uint32{s.frMission(0): 2, s.frMission(1): 1}, Paid: cpcolls.NewSet[MissionID](),
+		Flag: "fr", Progress: map[MissionID]uint32{s.frMission(0): 2, s.frMission(1): 1}, Paid: cpcolls.NewSet[MissionID](),
 		TakesBelow: 3,
 	}, s.sheet(contractDay, 1))
 }
@@ -132,7 +138,7 @@ func (s *StoreContractSuite) TestTheMarkOfTheLastTakeCountedIsKept() {
 	s.takeFor(contractDay, 1, Take{Flag: "fr", At: contractAt, Position: 41})
 
 	s.Equal(uint64(42), s.sheet(contractDay, 1).TakesBelow)
-	s.Equal(uint32(1), s.sheet(contractDay, 1).Taken[s.frMission(0)], "the second telling counted nothing")
+	s.Equal(uint32(1), s.sheet(contractDay, 1).Progress[s.frMission(0)], "the second telling counted nothing")
 }
 
 func (s *StoreContractSuite) TestASheetIsKeptByDayAndAccount() {
@@ -158,7 +164,7 @@ func (s *StoreContractSuite) TestAPaymentIsKept() {
 	s.takeFor(contractDay, 1, Take{Flag: "fr", At: contractAt})
 
 	s.Equal(cpcolls.NewSet(s.frMission(0)), s.sheet(contractDay, 1).Paid)
-	s.Equal(uint32(2), s.sheet(contractDay, 1).Taken[s.frMission(0)], "and the takes after it")
+	s.Equal(uint32(2), s.sheet(contractDay, 1).Progress[s.frMission(0)], "and the takes after it")
 }
 
 func (s *StoreContractSuite) TestDeletingAnAccountForgetsItsDays() {

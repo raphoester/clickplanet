@@ -1,20 +1,26 @@
 import {ChargeKind} from "../domain/bonus.ts"
 
-export type MissionKind = "takeFor" | "takeFrom" | "takeIn"
-
 export type MissionReward = {
     kind: ChargeKind
     amount: number
 }
 
+export type TileOrder = {
+    kind: "takeFor" | "takeFrom" | "takeIn"
+    country: string
+    goal: number
+    taken: number
+}
+
+// One shape per kind of mission; a kind the client does not know is not read.
+export type MissionOrder = TileOrder
+
 export type Mission = {
     id: string
-    kind: MissionKind
-    target: string
-    goal: number
-    progress: number
-    paid: boolean
+    order: MissionOrder
     reward: MissionReward
+    done: boolean
+    paid: boolean
 }
 
 export type DayMissions = {

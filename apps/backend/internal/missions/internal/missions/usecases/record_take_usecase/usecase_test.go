@@ -54,7 +54,7 @@ func TestATakeCountsOnTheMissionsOfItsDay(t *testing.T) {
 	require.NoError(t, err)
 	drawn := missions.Draw(calendar.DayOf(at), "fr", missions.World{Territories: []missions.Holding{{Country: "dz", Tiles: 9_000}}}).Snapshot()
 	assert.Equal(t, missions.SheetSnapshot{
-		Flag: "fr", Taken: map[missions.MissionID]uint32{drawn[0].ID: 1, drawn[1].ID: 1, drawn[2].ID: 1},
+		Flag: "fr", Progress: map[missions.MissionID]uint32{drawn[0].ID: 1, drawn[1].ID: 1, drawn[2].ID: 1},
 		Paid:       cpcolls.NewSet[missions.MissionID](),
 		TakesBelow: 42,
 	}, sheet.Snapshot(), "with no ground big enough, the third mission is the flag's too")

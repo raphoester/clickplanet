@@ -19,7 +19,7 @@ CREATE TABLE mission_progress (
     day        date     NOT NULL,
     account_id uuid     NOT NULL,
     mission_id uuid     NOT NULL,
-    taken      integer  NOT NULL CHECK (taken > 0),
+    progress   integer  NOT NULL CHECK (progress > 0),
     PRIMARY KEY (day, account_id, mission_id),
     FOREIGN KEY (day, account_id) REFERENCES mission_sheets ON DELETE CASCADE
 );
