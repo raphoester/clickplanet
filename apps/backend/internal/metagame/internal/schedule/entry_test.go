@@ -1,6 +1,7 @@
 package schedule_test
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -12,8 +13,10 @@ import (
 
 var now = finale.Add(-time.Hour)
 
+const words schedule.Description = "Triple points. A bonus box every minute."
+
 func draft(set schedule.SetName, startsAt, endsAt time.Time, priority schedule.Priority) schedule.Draft {
-	return schedule.Draft{Set: set, StartsAt: startsAt, EndsAt: endsAt, Priority: priority}
+	return schedule.Draft{Set: set, Kind: schedule.Battle, Description: words, StartsAt: startsAt, EndsAt: endsAt, Priority: priority}
 }
 
 func TestAnEntryIsMadeNowAndPlaysItsDraft(t *testing.T) {
@@ -21,17 +24,56 @@ func TestAnEntryIsMadeNowAndPlaysItsDraft(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, schedule.EntrySnapshot{
-		ID: id(1), Set: "calm", StartsAt: finale, EndsAt: battleEnds, Priority: 1, MadeAt: now,
+		ID: id(1), Set: "calm", Kind: schedule.Battle, Description: words, StartsAt: finale, EndsAt: battleEnds, Priority: 1,
+		MadeAt: now,
 	}, made.TakeSnapshot())
 }
 
 func TestADraftIsRefusedWithEveryReason(t *testing.T) {
-	_, err := schedule.NewEntry(id(1), draft("Calm!", now, now.Add(-time.Minute), 0), now)
+	long := draft("Calm!", now, now.Add(-time.Minute), 0)
+	long.Description = schedule.Description(strings.Repeat("x", schedule.MaxDescription+1))
+
+	_, err := schedule.NewEntry(id(1), long, now)
 
 	require.ErrorIs(t, err, schedule.ErrInvalidEntry)
+	require.ErrorIs(t, err, schedule.ErrLongDescription)
 	assert.Contains(t, err.Error(), `"Calm!" is no rule set's name`)
+	assert.Contains(t, err.Error(), "the description is too long: 301 characters, at most 300")
 	assert.Contains(t, err.Error(), "not after now")
 	assert.Contains(t, err.Error(), "not after its start")
+}
+
+func TestADescriptionIsCountedInCharactersAndMayBeEmpty(t *testing.T) {
+	for _, description := range []schedule.Description{"", schedule.Description(strings.Repeat("é", schedule.MaxDescription))} {
+		fits := draft("calm", finale, battleEnds, 1)
+		fits.Description = description
+
+		_, err := schedule.NewEntry(id(1), fits, now)
+
+		require.NoError(t, err)
+	}
+}
+
+func TestAnEntryOfAKindNobodyKnowsIsRefused(t *testing.T) {
+	for _, kind := range []schedule.Kind{"", "siege"} {
+		unknown := draft("calm", finale, battleEnds, 1)
+		unknown.Kind = kind
+
+		_, err := schedule.NewEntry(id(1), unknown, now)
+
+		require.ErrorIs(t, err, schedule.ErrUnknownKind, "%q", kind)
+		assert.NotErrorIs(t, err, schedule.ErrInvalidEntry)
+	}
+}
+
+func TestAPlainEntryIsScheduled(t *testing.T) {
+	plain := draft("calm", finale, battleEnds, 1)
+	plain.Kind = schedule.Plain
+
+	made, err := schedule.NewEntry(id(1), plain, now)
+
+	require.NoError(t, err)
+	assert.Equal(t, schedule.Plain, made.TakeSnapshot().Kind)
 }
 
 func TestAnyPriorityIsScheduled(t *testing.T) {
@@ -49,12 +91,15 @@ func TestAnEntryWithNoEndIsRefused(t *testing.T) {
 func TestAnEntryToComeIsEditedAndKeepsItsPlaceInATie(t *testing.T) {
 	made, err := schedule.NewEntry(id(1), draft("calm", finale, battleEnds, 1), now)
 	require.NoError(t, err)
+	edit := draft("frozen", finale.Add(time.Minute), battleEnds, 2)
+	edit.Kind = schedule.Plain
 
-	edited, err := made.Edited(draft("frozen", finale.Add(time.Minute), battleEnds, 2), now.Add(time.Minute))
+	edited, err := made.Edited(edit, now.Add(time.Minute))
 
 	require.NoError(t, err)
 	assert.Equal(t, schedule.EntrySnapshot{
-		ID: id(1), Set: "frozen", StartsAt: finale.Add(time.Minute), EndsAt: battleEnds, Priority: 2, MadeAt: now,
+		ID: id(1), Set: "frozen", Kind: schedule.Plain, Description: words, StartsAt: finale.Add(time.Minute), EndsAt: battleEnds,
+		Priority: 2, MadeAt: now,
 	}, edited.TakeSnapshot())
 }
 

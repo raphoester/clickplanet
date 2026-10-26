@@ -1,7 +1,8 @@
 import {Timestamp} from "@bufbuild/protobuf"
 import {describe, expect, it} from "vitest"
 import {FakeAdmin} from "../fakeAdmin.ts"
-import {changeable, complete, draftOf, ended, lacking, playable, rowsOf} from "./schedule.ts"
+import {EntryKind} from "../gen/grpc/metagame/v1/metagame_pb.ts"
+import {changeable, complete, draftOf, ended, kinds, lacking, playable, questionOf, rowsOf, shortOf, wordOf} from "./schedule.ts"
 
 describe("the schedule's rows", () => {
     it("come by start", () => {
@@ -27,14 +28,43 @@ describe("the sets", () => {
     })
 })
 
+describe("the kinds", () => {
+    it("are every kind the proto names but unspecified, each with its word", () => {
+        expect(kinds()).toEqual([EntryKind.PLAIN, EntryKind.BATTLE])
+        expect(kinds().map(wordOf)).toEqual(["plain", "battle"])
+    })
+})
+
 describe("an entry's draft", () => {
-    it("starts empty on a set other than default, and is complete once each time is typed", () => {
+    it("starts empty on a set other than default, as a battle, and is complete once each time is typed", () => {
         const draft = draftOf(undefined, ["default", "rush"])
 
-        expect(draft).toEqual({set: "rush", startsAt: "", endsAt: "", priority: "1"})
+        expect(draft).toEqual({set: "rush", kind: EntryKind.BATTLE, description: "", startsAt: "", endsAt: "", priority: "1"})
         expect(complete(draft)).toBe(false)
-        expect(complete({...draft, startsAt: "2099-10-31T20:00", endsAt: "2099-10-31T23:00"})).toBe(true)
-        expect(complete({...draft, startsAt: "2099-10-31T20:00", endsAt: "2099-10-31T23:00", priority: "-1"})).toBe(false)
+        const typed = {...draft, startsAt: "2099-10-31T20:00", endsAt: "2099-10-31T23:00"}
+        expect(complete(typed)).toBe(true)
+        expect(complete({...typed, priority: "-1"})).toBe(false)
+        expect(complete({...typed, kind: EntryKind.UNSPECIFIED})).toBe(false)
+        expect(complete({...typed, description: "é".repeat(300)})).toBe(true)
+        expect(complete({...typed, description: "é".repeat(301)})).toBe(false)
+    })
+
+    it("of an entry kept is its description, shown short in the list", () => {
+        const entry = new FakeAdmin().schedule.entries[0]
+
+        expect(draftOf(entry, []).description).toBe("Triple points. A bonus box every minute.")
+        expect(shortOf(entry.description)).toBe("Triple points. A bonus box every minute.")
+        expect(shortOf("x".repeat(80))).toBe(`${"x".repeat(59)}…`)
+    })
+
+    it("asks with the set and the kind", () => {
+        const draft = {...draftOf(undefined, ["rush"]), kind: EntryKind.PLAIN, startsAt: "2099-10-31T20:00", endsAt: "2099-10-31T23:00"}
+
+        expect(questionOf(draft)).toMatch(/^Play rush as a plain entry from /)
+    })
+
+    it("of an entry kept is its kind", () => {
+        expect(draftOf(new FakeAdmin().schedule.entries[2], []).kind).toBe(EntryKind.BATTLE)
     })
 
     it("of an entry kept is its values in the operator's time", () => {

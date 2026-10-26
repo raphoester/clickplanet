@@ -16,8 +16,8 @@ reset go next. Its name was `rules` for a day; the user renamed it, since it org
 internal/metagame/
   module.go                         Config (database, redis), NewModule
   internal/
-    migrations/                     schedule_entries
-    schedule/                       EntryID, SetName, Priority, Draft, Entry (NewEntry, Edited, Changeable),
+    migrations/                     schedule_entries, entry_kind, entry_description
+    schedule/                       EntryID, SetName, Kind, Description, Priority, Draft, Entry (NewEntry, Edited, Changeable),
                                     Schedule (New, TurnAt, SinceAt), Turn; the Store, Keeper and IDProvider ports,
                                     Playable; the store's contract suite; FakeKeeper and FakeIDs (testing tag)
       inmemory_entry_store/         the Store in a map, behind the testing tag
@@ -31,28 +31,45 @@ internal/metagame/
       usecases/delete_entry_usecase/  audit_delete_entry/
       usecases/play_schedule_usecase/ the turn at now, commanded when it changes; Runner
         log_play_schedule/          logs each turn told, and a failure
-    metagamev1controller/              AdminService (a bag)
+    metagamev1controller/              AdminService and MetagameService (bags), NewCacheInterceptor
       get_schedule_handler/schedule_query/   PostgresQuery: every entry, and what plays now
       add_entry_handler/  edit_entry_handler/  delete_entry_handler/
-      schedulemessage/              DraftOf, and Refusal: the code of each refusal
+      get_turn_handler/turn_query/  PostgresQuery: the turn now, in the players' words, for the game client
+      listen_for_events_handler/    the stream: the turn, then each change, and heartbeats
+        inprocess_turn_feed/        reads the turn each second while a stream follows it; log_turn_reader
+      schedulemessage/              DraftOf, KindOf, and Refusal: the code of each refusal
 ```
 
 ## An entry
 
-**An entry is a rule set, a start, an end and a priority**, kept in `metagame.schedule_entries`. Each has an end: one that
-never ended could never be stopped.
+**An entry is a rule set, a kind, a description, a start, an end and a priority**, kept in
+`metagame.schedule_entries`. Each has an end: one that never ended could never be stopped.
+
+**The kind is what the entry is to the players** (`schedule.Kind`, the postgres enum `entry_kind`): `battle`, which
+the game client gives a war-like look, or `plain`, a change of the rules with no look for them (a quieter antibot
+bound for a day). The set's name is the operator's word and never crosses to the players; the kind is the published
+language the client reads (see [The game client](#the-game-client)). A kind nobody knows is refused
+(`ErrUnknownKind`). More kinds will come: each is a value of the enum, in the proto and in postgres, and a word the
+client interprets.
+
+**The description is the entry's words for the players** (`schedule.Description`): what its rules are, in plain
+text, which the client shows behind the battle chip ("Triple points. A bonus box every minute."). The client cannot
+know a set's values, so the operator writes them. At most `MaxDescription` (300) characters, counted in runes; a
+longer one is refused with `ErrLongDescription`, among the draft's other reasons. It may be empty.
 
 **At any time the game plays the running entry with the highest priority** (`Schedule.TurnAt`). A tie goes to the
 entry made last (`made_at`, then the id). An entry runs from its start to just before its end. With no entry running,
-`default` plays. `Schedule.SinceAt` is when the turn at a time began: the last start or end that changed it.
+`default` plays, as a plain turn. `Schedule.SinceAt` is when the turn at a time began: the last start or end that
+changed it.
 
-**A turn is the entry that plays and its set.** An entry is a turn of its own even when it plays the set already
-playing, so it is commanded again.
+**A turn is the entry that plays, its set, its kind and its description.** An entry is a turn of its own even when it
+plays the set already playing, so it is commanded again.
 
 ## Only an entry to come changes
 
 - **An operator adds an entry, or edits or deletes one that has not started** (`Entry.Changeable`). A start must be
-  after now, an end after the start, and the name a set's (`Draft.check`, every reason at once).
+  after now, an end after the start, the name a set's, and the description short enough (`Draft.check`, every reason
+  at once, each reason found by `errors.Is`).
 - **A running entry runs to its end.** To fix one, the operator adds an entry at a higher priority. There is no "end
   now", no override button, and no call that changes the rules at once.
 - **An edit keeps the entry's id and its `made_at`**, so it keeps its place in a tie.
@@ -61,7 +78,7 @@ playing, so it is commanded again.
   module that lacks it (`planet keeps no rule set of this name: "rush"`). **An antibot that is off** serves no route
   (`Unimplemented`): it judges with no set, so it lacks none.
 - Each change is logged at Warn by its audit decorator (`admin schedule entry added`, `edited`, `deleted`, or
-  `refused`, with the set, the times and the priority).
+  `refused`, with the set, the kind, the description, the times and the priority).
 
 ## A set a module lacks once the entry runs
 
@@ -118,20 +135,52 @@ Planet and the antibot do the same thing, each in its own `play_rules_usecase`:
 `metagame.v1.AdminService`, on the console and admin listeners (see [Operator tools](admin.md)), and the backoffice's
 Rule schedule page (see the backoffice's [Ops](../../backoffice/docs/ops.md)):
 
-- **`GetSchedule`** is a query (`schedule_query`): every entry (the past ones too), by start, and `playing`: the set,
-  since when, and the entry that plays (empty when none runs).
-- **`AddEntry`**, **`EditEntry`**, **`DeleteEntry`**: an entry that cannot be scheduled is `InvalidArgument`, a set a
-  module lacks or an entry that started `FailedPrecondition`, an unknown id `NotFound`.
+- **`GetSchedule`** is a query (`schedule_query`): every entry (the past ones too), by start, each with its kind and
+  its description, and `playing`: the set, the kind, since when, and the entry that plays (empty when none runs; the
+  kind is plain then).
+- **`AddEntry`**, **`EditEntry`**, **`DeleteEntry`**: an entry that cannot be scheduled (a description past 300
+  characters included), or a kind the wire does not name (`ENTRY_KIND_UNSPECIFIED` included), is `InvalidArgument`, a
+  set a module lacks or an entry that started `FailedPrecondition`, an unknown id `NotFound`. The kind crosses the
+  wire as `metagame.v1.EntryKind` (`schedulemessage.DraftOf` reads it, `KindOf` writes it, and a kept kind this build
+  does not know fails the read).
+
+## The game client
+
+**`metagame.v1.MetagameService`, on the public router, is what the client reads to give a battle its look.** Its
+`Turn` is the kind of the running entry (plain when none runs), its `description` (empty when none runs), `since`
+when the turn began (unset before any entry), and `ends_at`, when the running entry ends (unset when none runs).
+**Never the rule set's name**: the query (`turn_query`) reads the entries and computes the turn by `Schedule`'s rule,
+as `GetSchedule` does, and answers in the published language only.
+
+**`ListenForEvents` is how the client follows it: no polling.** A `MetagameEvent` is a `oneof` of `turn` and
+`heartbeat`, as the other live streams (see [The live streams](live-streams.md)). The stream sends the turn as its
+first event, then each change of it within a second, and a heartbeat every `httpServer.streamHeartbeat` meanwhile.
+So the client needs no read at the entry's end: when the entry ends, or one above it starts, the next turn arrives
+and the look changes then; `ends_at` is for a countdown. `inprocess_turn_feed` is the source: a runner
+(`metagame-turn`) that, while at least one stream follows, reads the turn each second through `turn_query` (the
+schedule runner reads the entries each second too) and hands it to every stream when it differs from the last one
+sent; a new stream gets the last turn at once, and the first one after nobody followed waits for a fresh read. A
+failed read is logged by `log_turn_reader` and the next second's read sends. Nobody following, it reads nothing. The
+handler returns when its context ends, so the drain ends it cleanly.
+
+**`GetTurn` is the same turn as a cached GET**, for a reader that does not follow the stream. It is
+`NO_SIDE_EFFECTS`, so Connect sends it as an HTTP GET, and `metagamev1controller.NewCacheInterceptor` sets
+`Cache-Control: public, max-age=5, s-maxage=5` on the answer (the map's pattern, see [The map load](map-load.md)):
+an answer read within five seconds of a change may still say the turn before it.
 
 ## Tests
 
-The rule is pinned by `schedule_test.go` (priorities, ties, the end, since when, two entries of one set) and
-`entry_test.go` (only an entry to come changes, every reason). `schedule.StoreContractSuite` runs on the memory and
-postgres stores. The runner's test pins a send at boot and at each change, none while the turn holds, and a send Redis
+The rule is pinned by `schedule_test.go` (priorities, ties, the end, since when, two entries of one set, the turn's
+kind) and `entry_test.go` (only an entry to come changes, every reason, a kind nobody knows). `schedule.StoreContractSuite`
+runs on the memory and postgres stores. `turn_query`'s test pins the public read while an entry runs, after the last
+one ended and before any; `cache_interceptor_test.go` pins the GET and its header. `inprocess_turn_feed`'s test pins
+the feed (a stream gets the turn once read, another at once, each change to every stream, a turn that holds not sent
+again, nothing read with nobody following, a failed read) and `listen_for_events_handler`'s the stream (the turn
+case, the heartbeat, the feed left when the stream closes, a clean end when the feed closes). The runner's test pins a send at boot and at each change, none while the turn holds, and a send Redis
 refused sent again. Each module's `play_rule_set_handler` test pins the latest decision, a redelivery and an unknown
 set; the choice stores have their own contract suite (`rules.ChoiceStoreContractSuite`). The smoke test
-`TestAnEntryOfTheScheduleIsPlayedByPlanetAndTheAntibot` adds an entry on the console listener and waits for both
-modules to play it.
+`TestAnEntryOfTheScheduleIsPlayedByPlanetAndTheAntibot` adds a battle entry on the console listener, waits for both
+modules to play it, reads its kind and its end on the public listener, and opens the stream, whose first event is it.
 
 ## Before the Final Battle (Sat 31 Oct 2026, 21:00 UTC)
 
@@ -139,7 +188,8 @@ Nothing plays `rush` until an entry names it. Before 21:00, on the backoffice:
 
 1. Ops → Game rules: Copy `default`, name it `rush`, tempo 3, box waits 60–120 s, 30 an hour. Save.
 2. Ops → Anti-bot rules: Copy `default`, name it `rush`, `cohort.certainMembers` 50. Save.
-3. Ops → Rule schedule: Add an entry: `rush`, from 31 Oct 21:00 UTC to 23:00 UTC, priority 1. It is refused until both
-   sets exist.
+3. Ops → Rule schedule: Add an entry: `rush`, kind battle, a description of its rules for the players, from 31 Oct
+   21:00 UTC to 23:00 UTC, priority 1. It is refused until both sets exist. The kind is what the game client shows: a
+   plain entry would play `rush` with no look.
 
 Once `rush` plays, neither module saves `rush`; an edit is a new set and a new entry.

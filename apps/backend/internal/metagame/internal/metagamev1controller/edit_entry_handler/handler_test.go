@@ -39,21 +39,34 @@ func TestTheEntryNamedTakesTheValuesAsked(t *testing.T) {
 	useCase := &stubUseCase{}
 
 	_, err := edit_entry_handler.New(useCase).EditEntry(t.Context(), connect.NewRequest(&metagamev1.EditEntryRequest{
-		Id: first, RuleSet: "calm", StartsAt: timestamppb.New(finale), EndsAt: timestamppb.New(finale.Add(time.Hour)), Priority: 3,
+		Id: first, RuleSet: "calm", Kind: metagamev1.EntryKind_ENTRY_KIND_PLAIN, Description: "A quieter antibot.",
+		StartsAt: timestamppb.New(finale), EndsAt: timestamppb.New(finale.Add(time.Hour)), Priority: 3,
 	}))
 
 	require.NoError(t, err)
 	assert.Equal(t, []edit{{
-		id:    schedule.EntryID(uuid.UUID{15: 1}),
-		draft: schedule.Draft{Set: "calm", StartsAt: finale, EndsAt: finale.Add(time.Hour), Priority: 3},
+		id: schedule.EntryID(uuid.UUID{15: 1}),
+		draft: schedule.Draft{
+			Set: "calm", Kind: schedule.Plain, Description: "A quieter antibot.", StartsAt: finale, EndsAt: finale.Add(time.Hour),
+			Priority: 3,
+		},
 	}}, useCase.asked)
 }
 
 func TestAnEntryThatStartedIsAFailedPrecondition(t *testing.T) {
 	_, err := edit_entry_handler.New(&stubUseCase{err: schedule.ErrStarted}).
-		EditEntry(t.Context(), connect.NewRequest(&metagamev1.EditEntryRequest{Id: first}))
+		EditEntry(t.Context(), connect.NewRequest(&metagamev1.EditEntryRequest{Id: first, Kind: metagamev1.EntryKind_ENTRY_KIND_BATTLE}))
 
 	assert.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
+}
+
+func TestAnUnspecifiedKindIsAnInvalidArgumentAndAsksNothing(t *testing.T) {
+	useCase := &stubUseCase{}
+
+	_, err := edit_entry_handler.New(useCase).EditEntry(t.Context(), connect.NewRequest(&metagamev1.EditEntryRequest{Id: first}))
+
+	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+	assert.Empty(t, useCase.asked)
 }
 
 func TestAnIDThatIsNoEntryIsNotFoundAndAsksNothing(t *testing.T) {

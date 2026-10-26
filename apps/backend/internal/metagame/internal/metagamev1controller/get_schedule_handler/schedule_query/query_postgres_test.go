@@ -37,8 +37,14 @@ func keep(t *testing.T, store *postgres_entry_store.Store, entries ...schedule.E
 func TestEveryEntryIsListedByStartWithWhatPlaysNow(t *testing.T) {
 	db := cppg.StartTestServer(t).OpenSchema(t, "metagame", migrations.FS)
 	keep(t, postgres_entry_store.New(db),
-		schedule.EntrySnapshot{ID: calm, Set: "calm", StartsAt: finale.Add(10 * time.Minute), EndsAt: finale.Add(30 * time.Minute), Priority: 2, MadeAt: madeAt},
-		schedule.EntrySnapshot{ID: rush, Set: "rush", StartsAt: finale, EndsAt: battleEnds, Priority: 1, MadeAt: madeAt},
+		schedule.EntrySnapshot{
+			ID: calm, Set: "calm", Kind: schedule.Plain, StartsAt: finale.Add(10 * time.Minute), EndsAt: finale.Add(30 * time.Minute),
+			Priority: 2, MadeAt: madeAt,
+		},
+		schedule.EntrySnapshot{
+			ID: rush, Set: "rush", Kind: schedule.Battle, Description: "Triple points.", StartsAt: finale, EndsAt: battleEnds,
+			Priority: 1, MadeAt: madeAt,
+		},
 	)
 
 	answer, err := schedule_query.NewPostgresQuery(db, cptime.NewFixedClock(finale.Add(15*time.Minute))).Schedule(t.Context())
@@ -47,25 +53,31 @@ func TestEveryEntryIsListedByStartWithWhatPlaysNow(t *testing.T) {
 	assert.True(t, proto.Equal(&metagamev1.GetScheduleResponse{
 		Entries: []*metagamev1.Entry{
 			{
-				Id: rush.String(), RuleSet: "rush", StartsAt: timestamppb.New(finale), EndsAt: timestamppb.New(battleEnds),
-				Priority: 1, MadeAt: timestamppb.New(madeAt),
+				Id: rush.String(), RuleSet: "rush", Kind: metagamev1.EntryKind_ENTRY_KIND_BATTLE, Description: "Triple points.",
+				StartsAt: timestamppb.New(finale), EndsAt: timestamppb.New(battleEnds), Priority: 1, MadeAt: timestamppb.New(madeAt),
 			},
 			{
-				Id: calm.String(), RuleSet: "calm", StartsAt: timestamppb.New(finale.Add(10 * time.Minute)),
-				EndsAt: timestamppb.New(finale.Add(30 * time.Minute)), Priority: 2, MadeAt: timestamppb.New(madeAt),
+				Id: calm.String(), RuleSet: "calm", Kind: metagamev1.EntryKind_ENTRY_KIND_PLAIN,
+				StartsAt: timestamppb.New(finale.Add(10 * time.Minute)), EndsAt: timestamppb.New(finale.Add(30 * time.Minute)),
+				Priority: 2, MadeAt: timestamppb.New(madeAt),
 			},
 		},
-		Playing: &metagamev1.Playing{RuleSet: "calm", Since: timestamppb.New(finale.Add(10 * time.Minute)), EntryId: calm.String()},
+		Playing: &metagamev1.Playing{
+			RuleSet: "calm", Since: timestamppb.New(finale.Add(10 * time.Minute)), EntryId: calm.String(),
+			Kind: metagamev1.EntryKind_ENTRY_KIND_PLAIN,
+		},
 	}, answer), "%v", answer)
 }
 
 func TestWithNoEntryRunningDefaultPlaysAndNamesNone(t *testing.T) {
 	db := cppg.StartTestServer(t).OpenSchema(t, "metagame", migrations.FS)
 	keep(t, postgres_entry_store.New(db),
-		schedule.EntrySnapshot{ID: rush, Set: "rush", StartsAt: finale, EndsAt: battleEnds, Priority: 1, MadeAt: madeAt})
+		schedule.EntrySnapshot{ID: rush, Set: "rush", Kind: schedule.Battle, StartsAt: finale, EndsAt: battleEnds, Priority: 1, MadeAt: madeAt})
 
 	answer, err := schedule_query.NewPostgresQuery(db, cptime.NewFixedClock(battleEnds.Add(time.Minute))).Schedule(t.Context())
 	require.NoError(t, err)
 
-	assert.True(t, proto.Equal(&metagamev1.Playing{RuleSet: "default", Since: timestamppb.New(battleEnds)}, answer.GetPlaying()))
+	assert.True(t, proto.Equal(&metagamev1.Playing{
+		RuleSet: "default", Since: timestamppb.New(battleEnds), Kind: metagamev1.EntryKind_ENTRY_KIND_PLAIN,
+	}, answer.GetPlaying()))
 }

@@ -1,6 +1,7 @@
 package e2e_test
 
 import (
+	"context"
 	"net/http"
 	"time"
 
@@ -38,9 +39,10 @@ func (s *testSuite) TestAnEntryOfTheScheduleIsPlayedByPlanetAndTheAntibot() {
 	}))
 	require.NoError(t, err)
 
-	startsAt := time.Now().Add(2 * time.Second)
+	startsAt, endsAt := time.Now().Add(2*time.Second), time.Now().Add(time.Hour)
 	added, err := schedule.AddEntry(ctx, connect.NewRequest(&metagamev1.AddEntryRequest{
-		RuleSet: "encore", StartsAt: timestamppb.New(startsAt), EndsAt: timestamppb.New(startsAt.Add(time.Hour)), Priority: 1,
+		RuleSet: "encore", Kind: metagamev1.EntryKind_ENTRY_KIND_BATTLE, Description: "The same rules, once more.",
+		StartsAt: timestamppb.New(startsAt), EndsAt: timestamppb.New(endsAt), Priority: 1,
 	}))
 	require.NoError(t, err, "the metagame module asks planet and the antibot over the internal listener whether they keep the set")
 
@@ -56,4 +58,19 @@ func (s *testSuite) TestAnEntryOfTheScheduleIsPlayedByPlanetAndTheAntibot() {
 	playing, err := schedule.GetSchedule(ctx, connect.NewRequest(&metagamev1.GetScheduleRequest{}))
 	require.NoError(t, err)
 	assert.Equal(t, added.Msg.GetId(), playing.Msg.GetPlaying().GetEntryId())
+
+	public := metagamev1connect.NewMetagameServiceClient(http.DefaultClient, s.game.baseURL)
+	turn, err := public.GetTurn(ctx, connect.NewRequest(&metagamev1.GetTurnRequest{}))
+	require.NoError(t, err, "the game client reads the turn on the public listener")
+	assert.Equal(t, metagamev1.EntryKind_ENTRY_KIND_BATTLE, turn.Msg.GetTurn().GetKind())
+	assert.Equal(t, "The same rules, once more.", turn.Msg.GetTurn().GetDescription())
+	assert.Equal(t, endsAt.UnixMilli(), turn.Msg.GetTurn().GetEndsAt().AsTime().UnixMilli())
+
+	listening, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	stream, err := public.ListenForEvents(listening, connect.NewRequest(&metagamev1.ListenForEventsRequest{}))
+	require.NoError(t, err)
+	defer func() { _ = stream.Close() }()
+	require.True(t, stream.Receive(), "the stream opens with the turn: %v", stream.Err())
+	assert.Equal(t, metagamev1.EntryKind_ENTRY_KIND_BATTLE, stream.Msg().GetTurn().GetKind())
 }

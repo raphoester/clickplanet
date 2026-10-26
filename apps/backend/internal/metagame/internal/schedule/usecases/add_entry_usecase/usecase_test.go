@@ -32,7 +32,9 @@ func adding(store *inmemory_entry_store.Store, keepers []schedule.Keeper) *add_e
 	return add_entry_usecase.New(store, keepers, &schedule.FakeIDs{IDs: []schedule.EntryID{first}}, cptime.NewFixedClock(now))
 }
 
-var rush = schedule.Draft{Set: "rush", StartsAt: finale, EndsAt: finale.Add(2 * time.Hour), Priority: 1}
+var rush = schedule.Draft{
+	Set: "rush", Kind: schedule.Battle, Description: "Triple points.", StartsAt: finale, EndsAt: finale.Add(2 * time.Hour), Priority: 1,
+}
 
 func TestAnEntryToComeOfASetEveryModuleKeepsIsKept(t *testing.T) {
 	store := inmemory_entry_store.New()
@@ -45,7 +47,8 @@ func TestAnEntryToComeOfASetEveryModuleKeepsIsKept(t *testing.T) {
 	entry, err := store.Entry(t.Context(), first)
 	require.NoError(t, err)
 	assert.Equal(t, schedule.EntrySnapshot{
-		ID: first, Set: "rush", StartsAt: finale, EndsAt: finale.Add(2 * time.Hour), Priority: 1, MadeAt: now,
+		ID: first, Set: "rush", Kind: schedule.Battle, Description: "Triple points.", StartsAt: finale, EndsAt: finale.Add(2 * time.Hour),
+		Priority: 1, MadeAt: now,
 	}, entry.TakeSnapshot())
 }
 
