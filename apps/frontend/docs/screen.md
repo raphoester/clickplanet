@@ -43,5 +43,6 @@ this is where each zone lives. `Viewer` composes them, and `useCompact`
   inside the menu or a sheet covers the page and not its panel.
 - **The other player's card** is the same `Modal`; on a phone its CSS makes it a
   bottom sheet as tall as the card.
-- **The card on who holds a tile is the one exception**: it opens beside the
-  pointer, not in a zone. See [Who holds a tile](tile-holder.md).
+- **The cards beside the pointer are the one exception**: the card on who holds a
+  tile, and in orbit the card on a territory, open beside the pointer, not in a zone.
+  See [Who holds a tile](tile-holder.md) and [A territory, from orbit](territory-card.md).
