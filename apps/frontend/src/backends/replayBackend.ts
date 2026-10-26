@@ -7,15 +7,21 @@ import {
     BonusListener,
     BonusLostError,
     ClaimedBonus,
+    Counts,
+    MapVersion,
     Ownerships,
     OwnershipsGetter,
+    TileRange,
     Update,
     UpdatesListener,
 } from "./backend.ts"
 import {bindingsOf, bombOf, enclosureOf, shieldsOf, spreadOf, updateOf} from "./planetBackend.ts"
 import {TileChange} from "../domain/clip/changes.ts"
+import {FakeCensus} from "./fakeCensus.ts"
 
 type Step = {at: number, event: PlanetEvent}
+
+export type ReplayLandmasses = {assignment: Uint16Array, count: number}
 
 type Reel = {
     since: number
@@ -23,22 +29,31 @@ type Reel = {
     opening: ReadonlyMap<number, string>
     shields: ReadonlyMap<number, number>
     steps: readonly Step[]
+    landmasses: ReplayLandmasses
 }
+
+// A replay counts its writes from its opening, as one start of the server.
+const EPOCH = 1
 
 // Plays a replay as the live stream would have: advanceTo hands over everything that happened up to a time.
 export class ReplayBackend implements OwnershipsGetter, UpdatesListener, BonusListener, Bomber {
     readonly since: number
     readonly until: number
     readonly opening: ReadonlyMap<number, string>
-    private readonly shields: ReadonlyMap<number, number>
+    private readonly openingShields: ReadonlyMap<number, number>
     private readonly steps: readonly Step[]
+    private readonly landmasses: ReplayLandmasses
+    private readonly owners: Map<number, string>
+    private readonly shields: Map<number, number>
+    private readonly census: FakeCensus
     private played = 0
     private readonly updateListeners = new Set<(update: Update) => void>()
     private readonly batchListeners = new Set<(updates: Update[]) => void>()
     private readonly bombListeners = new Set<(drop: BombDrop) => void>()
+    private readonly holdingsListeners = new Set<(change: Counts) => void>()
     private readonly bonusHandlers = new Set<BonusHandlers>()
 
-    static of(response: GetReplayResponse): ReplayBackend {
+    static of(response: GetReplayResponse, landmasses: ReplayLandmasses): ReplayBackend {
         const opening = response.opening
         if (!opening || !response.since || !response.until) throw new Error("a replay needs its opening and its window")
 
@@ -48,6 +63,7 @@ export class ReplayBackend implements OwnershipsGetter, UpdatesListener, BonusLi
             opening: bindingsOf(opening),
             shields: shieldsOf(opening),
             steps: response.events.flatMap(({at, event}) => at && event ? [{at: at.toDate().getTime(), event}] : []),
+            landmasses,
         })
     }
 
@@ -55,14 +71,20 @@ export class ReplayBackend implements OwnershipsGetter, UpdatesListener, BonusLi
         this.since = reel.since
         this.until = reel.until
         this.opening = reel.opening
-        this.shields = reel.shields
+        this.openingShields = reel.shields
         this.steps = reel.steps
+        this.landmasses = reel.landmasses
+        this.owners = new Map(reel.opening)
+        this.shields = new Map(reel.shields)
+        this.census = new FakeCensus(reel.landmasses.assignment, reel.landmasses.count)
+        this.owners.forEach((owner, tile) => this.census.moved(tile, undefined, owner))
+        this.census.changes(this.version())
     }
 
     // The same replay from since to until, opening on the map as it was at since.
     cut(since: number, until: number): ReplayBackend {
         const owners = new Map(this.opening)
-        const shields = new Map(this.shields)
+        const shields = new Map(this.openingShields)
         let first = 0
         for (; first < this.steps.length && this.steps[first].at < since; first++) {
             const {event} = this.steps[first]
@@ -78,8 +100,7 @@ export class ReplayBackend implements OwnershipsGetter, UpdatesListener, BonusLi
                 owners.delete(tile)
                 shields.delete(tile)
             }
-            for (const tile of bomb?.struck ?? []) {
-                const left = (shields.get(tile) ?? 1) - 1
+            for (const {tile, shields: left} of struckOf(event, shields)) {
                 if (left > 0) shields.set(tile, left)
                 else shields.delete(tile)
             }
@@ -91,6 +112,7 @@ export class ReplayBackend implements OwnershipsGetter, UpdatesListener, BonusLi
             opening: owners,
             shields,
             steps: this.steps.slice(first).filter((step) => step.at <= until),
+            landmasses: this.landmasses,
         })
     }
 
@@ -141,17 +163,25 @@ export class ReplayBackend implements OwnershipsGetter, UpdatesListener, BonusLi
 
         while (this.played < this.steps.length && this.steps[this.played].at <= at) {
             const {event} = this.steps[this.played++]
+            const version = this.version()
 
-            const update = updateOf(event)
-            if (update) {
+            const read = updateOf(event)
+            if (read) {
+                const update = {...read, version}
+                this.own(update.tile, update.newCountry, update.shields)
                 updates.push(update)
                 for (const listener of this.updateListeners) listener(update)
                 continue
             }
 
             flush()
-            const bomb = bombOf(event)
-            if (bomb) for (const listener of this.bombListeners) listener(bomb)
+            const dropped = bombOf(event)
+            if (dropped) {
+                const bomb = {...dropped, struck: struckOf(event, this.shields), version}
+                for (const tile of bomb.cleared) this.own(tile, undefined, 0)
+                for (const {tile, shields} of bomb.struck) this.own(tile, this.owners.get(tile), shields)
+                for (const listener of this.bombListeners) listener(bomb)
+            }
             const spread = spreadOf(event)
             if (spread) for (const handlers of this.bonusHandlers) handlers.onSpread(spread)
             const enclosure = enclosureOf(event)
@@ -159,18 +189,30 @@ export class ReplayBackend implements OwnershipsGetter, UpdatesListener, BonusLi
         }
 
         flush()
+        const change = this.census.changes(this.version())
+        if (change) for (const listener of this.holdingsListeners) listener(change)
     }
 
     async getFortresses(): Promise<Map<number, string>> {
         return new Map()
     }
 
-    async getCurrentOwnershipsByBatch(
-        _batchSize: number,
-        _maxIndex: number,
-        callback: (ownerships: Ownerships) => void,
-    ): Promise<void> {
-        callback({bindings: new Map(this.opening), shields: new Map(this.shields)})
+    async getHoldings(): Promise<Counts> {
+        return this.census.read(this.version())
+    }
+
+    async getOwnerships(ranges: readonly TileRange[], callback: (ownerships: Ownerships) => void): Promise<void> {
+        for (const range of ranges) {
+            const bindings = new Map<number, string>()
+            const shields = new Map<number, number>()
+            for (let tile = range.start; tile <= range.end; tile++) {
+                const owner = this.owners.get(tile)
+                if (owner !== undefined) bindings.set(tile, owner)
+                const held = this.shields.get(tile)
+                if (held) shields.set(tile, held)
+            }
+            callback({range, version: this.version(), bindings, shields})
+        }
     }
 
     listenForUpdates(callback: (update: Update) => void): () => void {
@@ -183,8 +225,14 @@ export class ReplayBackend implements OwnershipsGetter, UpdatesListener, BonusLi
         return () => this.batchListeners.delete(callback)
     }
 
-    listenForResumes(): () => void {
+    listenForOpenings(callback: (version: MapVersion) => void): () => void {
+        callback(this.version())
         return () => {}
+    }
+
+    listenForHoldings(callback: (change: Counts) => void): () => void {
+        this.holdingsListeners.add(callback)
+        return () => this.holdingsListeners.delete(callback)
     }
 
     listenForFortifications(): () => void {
@@ -208,4 +256,24 @@ export class ReplayBackend implements OwnershipsGetter, UpdatesListener, BonusLi
     dropBomb(): Promise<void> {
         return Promise.reject(new Error("a replay drops no bomb"))
     }
+
+    private version(): MapVersion {
+        return {epoch: EPOCH, seq: this.played}
+    }
+
+    private own(tile: number, owner: string | undefined, shields: number) {
+        this.census.moved(tile, this.owners.get(tile), owner)
+        if (owner === undefined) this.owners.delete(tile)
+        else this.owners.set(tile, owner)
+        if (shields > 0) this.shields.set(tile, shields)
+        else this.shields.delete(tile)
+    }
+}
+
+// A replay recorded before the server said what each struck tile kept: one shield less than the replay held.
+function struckOf(event: PlanetEvent, shields: ReadonlyMap<number, number>): {tile: number, shields: number}[] {
+    if (event.event.case !== "bombDropped") return []
+    const dropped = event.event.value
+    if (dropped.struck.length > 0) return dropped.struck.map(({tileId, shields: left}) => ({tile: tileId, shields: left}))
+    return dropped.struckTileIds.map((tile) => ({tile, shields: Math.max(0, (shields.get(tile) ?? 1) - 1)}))
 }

@@ -2,13 +2,16 @@
 
 A flag that takes all of a landmass gives each of its tiles a shield; the same flag
 never twice in a row (the rule is the server's, see the backend's [Fortify](../../backend/docs/fortify.md)).
-A landmass is a row of the borders blob's table, which `BorderField` already reads.
+A landmass is a row of the borders blob's table.
 
 - **The event is `Fortification`** (`landmass_fortified`, through
   `UpdatesListener.listenForFortifications`). `PlanetBackend` flushes the pending tile
   updates first, so the shields go on the owners the server had.
-  `TileShields.applyFortification` adds one to each tile of the landmass the flag
+  `MapTiles.applyFortification` adds one to each tile of the landmass the flag
   holds, up to `tileShields`: the same rule as the server, so no tile list travels.
+  It is the one value that comes as "one more", so it is taken at once only on a
+  tile read at the stream's opening or after, and waits for the next read of any
+  other (see [The counts are the server's](counts.md)).
 - **The wave** (`fortifyWaves.ts`, `domain/fortifyWave.ts`): each tile's shield is shown
   when a front from the closing tile reaches it, `FORTIFY_WAVE_SECONDS` to cross any
   landmass, and the tile shader glows steel as it passes (`fortifies`,
@@ -21,8 +24,10 @@ A landmass is a row of the borders blob's table, which `BorderField` already rea
   (`FortifyCard`, kept until "Got it", in `clickplanet-fortify-guide`).
 - **Close to fortifying** (`domain/fortifyTarget.ts`, `domain/fortifyTargets.ts`): a flag
   holding more than half of a landmass and `CLOSE_TILES` (25) or fewer from all of it,
-  and not the flag that fortified it last. The tiles it still misses pulse gold (a
-  `pulse` attribute, a ring in the fragment shader), for everyone. The locks come from
+  and not the flag that fortified it last. The target comes from the server's counts
+  (`recount` when they change); the tiles it still misses pulse gold (a `pulse`
+  attribute, a ring in the fragment shader), for everyone, but only a tile whose owner
+  is read: a batch that lands `touch`es its tiles. The locks come from
   `GetFortresses` at load and after a gap, then from the events; nothing pulses before
   they are read. **The pulse is drawn at `AMBIENT_FRAME_MS` (20 fps), and only while a
   pulsing landmass faces the camera** (`drawsFrame`'s `ambient`).

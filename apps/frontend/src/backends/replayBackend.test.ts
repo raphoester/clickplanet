@@ -1,8 +1,8 @@
 import {Timestamp} from "@bufbuild/protobuf"
 import {describe, expect, it} from "vitest"
 import {GetReplayResponse, ReplayedEvent} from "../gen/grpc/planet/v1/admin_pb.ts"
-import {BombDropped, GetMapResponse, PlanetEvent, TileUpdate, TilesEnclosed, TilesSpread} from "../gen/grpc/planet/v1/planet_pb.ts"
-import {BombDrop, SpreadClick, Update} from "./backend.ts"
+import {BombDropped, GetMapResponse, PlanetEvent, TileShields, TileUpdate, TilesEnclosed, TilesSpread} from "../gen/grpc/planet/v1/planet_pb.ts"
+import {BombDrop, Counts, MapVersion, Ownerships, SpreadClick, Update} from "./backend.ts"
 import {ReplayBackend} from "./replayBackend.ts"
 
 const SINCE = Date.UTC(2026, 9, 6, 12)
@@ -20,11 +20,12 @@ function update(seconds: number, tile: number, from: string, to: string): Replay
     })
 }
 
-function bomb(seconds: number, cleared: number[]): ReplayedEvent {
+function bomb(seconds: number, cleared: number[], struck: {tileId: number, shields: number}[] = []): ReplayedEvent {
     return new ReplayedEvent({
         at: at(seconds),
         event: new PlanetEvent({event: {case: "bombDropped", value: new BombDropped({
             tileId: cleared[0], countryId: "fr", radius: 0.03, clearedTileIds: cleared,
+            struck: struck.map((tile) => new TileShields(tile)),
         })}}),
     })
 }
@@ -38,25 +39,84 @@ function spread(seconds: number): ReplayedEvent {
     })
 }
 
+// Tiles 1 and 2 are landmass 1, tile 3 landmass 2; the map opens with 1 and 2 held by pl, 2 with 3 shields.
+const LANDMASSES = {assignment: new Uint16Array([1, 1, 2]), count: 3}
+
 function replay(...events: ReplayedEvent[]): ReplayBackend {
     return ReplayBackend.of(new GetReplayResponse({
-        opening: new GetMapResponse({startTileId: 1, codes: ["", "pl"], tiles: new Uint8Array([1, 0, 1, 0, 0, 0])}),
+        opening: new GetMapResponse({
+            startTileId: 1, codes: ["", "pl"], tiles: new Uint8Array([1, 0, 1, 0, 0, 0]),
+            shields: [new TileShields({tileId: 2, shields: 3})],
+        }),
         events,
         since: at(0),
         until: at(60),
-    }))
+    }), LANDMASSES)
 }
+
+const ALL = [{start: 1, end: 3}]
+
+async function readOf(backend: ReplayBackend): Promise<Ownerships[]> {
+    const read: Ownerships[] = []
+    await backend.getOwnerships(ALL, (ownerships) => read.push(ownerships))
+    return read
+}
+
+const rows = ({countries, landmasses}: Counts) => ({
+    countries: Object.fromEntries(countries),
+    landmasses: Object.fromEntries([...landmasses].map(([landmass, row]) => [landmass, Object.fromEntries(row)])),
+})
 
 describe("a replay", () => {
     it("opens on its map and says its window", async () => {
         const backend = replay()
-        const loaded: Map<number, string>[] = []
 
-        await backend.getCurrentOwnershipsByBatch(10_000, 3, ({bindings}) => loaded.push(bindings))
+        const [read] = await readOf(backend)
 
-        expect(loaded).toEqual([new Map([[1, "pl"], [2, "pl"]])])
+        expect(read.bindings).toEqual(new Map([[1, "pl"], [2, "pl"]]))
+        expect(read.shields).toEqual(new Map([[2, 3]]))
+        expect(read.range).toEqual({start: 1, end: 3})
         expect(backend.since).toBe(SINCE)
         expect(backend.until).toBe(SINCE + 60_000)
+    })
+
+    it("numbers each step it plays from its opening, as the stream would", async () => {
+        const backend = replay(update(1, 1, "pl", "de"), bomb(2, [2]), update(3, 3, "", "de"))
+        const seen: MapVersion[] = []
+        backend.listenForOpenings((version) => seen.push(version))
+        backend.listenForUpdatesBatch((updates: Update[]) => seen.push(...updates.map((u) => u.version)))
+        backend.listenForBombs((drop: BombDrop) => seen.push(drop.version))
+
+        backend.advanceTo(SINCE + 3_000)
+
+        expect(seen.map(({seq}) => seq)).toEqual([0, 1, 2, 3])
+        expect((await readOf(backend))[0].version.seq).toBe(3)
+    })
+
+    it("counts what each flag holds, and tells the rows each advance moved", async () => {
+        const backend = replay(update(1, 1, "pl", "de"), bomb(2, [2]), update(3, 3, "", "de"))
+        const changes: Counts[] = []
+        backend.listenForHoldings((change) => changes.push(change))
+
+        expect(rows(await backend.getHoldings())).toEqual({countries: {pl: 2}, landmasses: {1: {pl: 2}}})
+
+        backend.advanceTo(SINCE + 3_000)
+
+        expect(changes.map(rows)).toEqual([{countries: {pl: 0, de: 2}, landmasses: {1: {de: 1}, 2: {de: 1}}}])
+        expect(rows(await backend.getHoldings())).toEqual({countries: {de: 2}, landmasses: {1: {de: 1}, 2: {de: 1}}})
+    })
+
+    it("says what each struck tile kept, from its own map when the recording is older than the server saying it", () => {
+        const backend = replay(bomb(1, [], [{tileId: 2, shields: 1}]), new ReplayedEvent({
+            at: at(2),
+            event: new PlanetEvent({event: {case: "bombDropped", value: new BombDropped({tileId: 2, struckTileIds: [2]})}}),
+        }))
+        const struck: {tile: number, shields: number}[][] = []
+        backend.listenForBombs((drop: BombDrop) => struck.push(drop.struck))
+
+        backend.advanceTo(SINCE + 2_000)
+
+        expect(struck).toEqual([[{tile: 2, shields: 1}], [{tile: 2, shields: 0}]])
     })
 
     it("hands over what happened up to a time, once, the updates batched between the rest", () => {
@@ -110,11 +170,11 @@ describe("a replay", () => {
 
     it("cuts a window that opens on the map as it was at its start", async () => {
         const backend = replay(update(1, 1, "pl", "de"), bomb(2, [2]), update(3, 3, "", "de")).cut(SINCE + 2_500, SINCE + 60_000)
-        const loaded: Map<number, string>[] = []
 
-        await backend.getCurrentOwnershipsByBatch(10_000, 3, ({bindings}) => loaded.push(bindings))
+        const [read] = await readOf(backend)
 
-        expect(loaded).toEqual([new Map([[1, "de"]])])
+        expect(read.bindings).toEqual(new Map([[1, "de"]]))
+        expect(read.version.seq).toBe(0)
         expect(backend.since).toBe(SINCE + 2_500)
         expect(backend.changes()).toEqual([{tile: 3, from: undefined, to: "de", at: SINCE + 3_000}])
     })

@@ -20,8 +20,10 @@ planet and paint nothing recognisable anywhere.
 
 Each landmass flies the flag of whoever holds most of it, painted onto the sphere
 with distance measured **along the surface**, so it bends with the globe and is
-cropped by its own coastline. `BorderField` keeps the running count per landmass
-and writes one row per landmass into a `DataTexture` the vertex shader reads.
+cropped by its own coastline. `BorderField` paints each landmass from the
+server's row for it (`setRows`, with `Holdings.leaderOf`: see [The counts are the
+server's](counts.md)) into one row per landmass of a `DataTexture` the vertex
+shader reads.
 
 **The painted flag is read under the pixel, not per tile.** It still reaches the
 screen through the discs — that is what the widening is for — but what each

@@ -12,6 +12,7 @@ import {
     BonusOffer,
     ChargesRefresher,
     ClaimedBonus,
+    Counts,
     Enclosure,
     Fortification,
     GlobePoint,
@@ -26,8 +27,10 @@ import {
     TileClicker,
     LandmassReader,
     LandmassState,
+    MapVersion,
     TileHolder,
     TileHolders,
+    TileRange,
     Update,
     UpdatesListener,
     VPNBlockedError,
@@ -41,7 +44,11 @@ import {
     BonusKind,
     ChargesHeld,
     ClickBudget as ClickBudgetMessage,
+    GetHoldingsResponse,
     GetMapResponse,
+    HoldingsChanged,
+    LandmassHoldings,
+    MapVersion as MapVersionMessage,
     PlanetEvent,
     SharedWith,
 } from "../gen/grpc/planet/v1/planet_pb.ts";
@@ -73,13 +80,18 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
     private readonly quizCallbacks = new Map<string, (offer: QuizOffer) => void>()
     private readonly bombCallbacks = new Map<string, (drop: BombDrop) => void>()
     private readonly budgetCallbacks = new Map<string, (budget: ClickBudget) => void>()
-    private readonly resumeCallbacks = new Map<string, () => void>()
+    private readonly openingCallbacks = new Map<string, (version: MapVersion) => void>()
+    private readonly holdingsCallbacks = new Map<string, (change: Counts) => void>()
     private readonly fortificationCallbacks = new Map<string, (fortification: Fortification) => void>()
     private readonly allegianceCallbacks = new Map<string, (allegiance: Allegiance | undefined) => void>()
     private readonly flushTimer: ReturnType<typeof setInterval>
     private stopListening: () => void
 
     private streamToken: string | undefined
+
+    // The version of the last thing the stream told its listeners, and whether the next message opens a connection.
+    private streamVersion: MapVersion | undefined
+    private opening = false
 
     private budgetAnchor: ClickBudget | undefined
 
@@ -129,7 +141,8 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         this.quizCallbacks.clear()
         this.bombCallbacks.clear()
         this.budgetCallbacks.clear()
-        this.resumeCallbacks.clear()
+        this.openingCallbacks.clear()
+        this.holdingsCallbacks.clear()
         this.fortificationCallbacks.clear()
         this.allegianceCallbacks.clear()
         this.pendingUpdates = []
@@ -242,9 +255,8 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         return () => this.budgetCallbacks.delete(id)
     }
 
-    public async getCurrentOwnershipsByBatch(
-        batchSize: number,
-        maxIndex: number,
+    public async getOwnerships(
+        ranges: readonly TileRange[],
         callback: (ownerships: Ownerships) => void,
         signal?: AbortSignal,
     ) {
@@ -253,23 +265,27 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         if (signal?.aborted) stop()
         signal?.addEventListener("abort", stop, {once: true})
 
-        const batches = mapBatches(batchSize, maxIndex)
+        const batches = [...ranges]
         const read = async () => {
-            for (let batch = batches.shift(); batch; batch = batches.shift()) {
-                const {startTileId, endTileId} = batch
+            for (let range = batches.shift(); range; range = batches.shift()) {
+                const {start, end} = range
                 const res = await retrying(
-                    () => this.client.getMap(batch, {signal: reading.signal}),
-                    `getMap ${startTileId}..${endTileId}`,
+                    () => this.client.getMap({startTileId: start, endTileId: end}, {signal: reading.signal}),
+                    `getMap ${start}..${end}`,
                     reading.signal,
                 )
                 reading.signal.throwIfAborted()
-                callback({bindings: bindingsOf(res), shields: shieldsOf(res)})
+                callback(ownershipsOf(res, range))
             }
         }
 
         await Promise.all(Array.from({length: MAP_READS_IN_FLIGHT}, () => read().catch((e) => reading.abort(e))))
         signal?.removeEventListener("abort", stop)
         reading.signal.throwIfAborted()
+    }
+
+    public async getHoldings(signal?: AbortSignal): Promise<Counts> {
+        return countsOf(await retrying(() => this.client.getHoldings({}, {signal}), "getHoldings", signal))
     }
 
     public async getFortresses(signal?: AbortSignal): Promise<Map<number, string>> {
@@ -306,12 +322,31 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                 const headers = new Headers()
                 if (token) headers.set(SESSION_HEADER, token)
 
+                this.opening = true
                 return this.client.listenForEvents({}, {signal, headers, timeoutMs: NO_TIMEOUT})
             },
             (event) => {
+                const opened = this.opening
+                this.opening = false
+
+                const heartbeat = heartbeatOf(event)
+                if (heartbeat) {
+                    if (opened) this.streamOpened(heartbeat)
+                    return
+                }
+
                 const update = updateOf(event)
                 if (update) {
+                    this.streamVersion = update.version
                     this.updateCallbacks.forEach(callback => callback(update))
+                    return
+                }
+
+                const holdings = holdingsChangeOf(event)
+                if (holdings) {
+                    this.flushUpdates()
+                    this.streamVersion = holdings.version
+                    this.holdingsCallbacks.forEach(callback => callback(holdings))
                     return
                 }
 
@@ -337,6 +372,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                 if (drop) {
                     // Earlier tile updates go first, or they repaint over the crater.
                     this.flushUpdates()
+                    this.streamVersion = drop.version
                     this.bombCallbacks.forEach(callback => callback(drop))
                     return
                 }
@@ -345,6 +381,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                 if (fortification) {
                     // Its shields go on the owners the earlier updates leave.
                     this.flushUpdates()
+                    this.streamVersion = fortification.version
                     this.fortificationCallbacks.forEach(callback => callback(fortification))
                     return
                 }
@@ -362,14 +399,14 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                 if (spread) this.bonusCallbacks.forEach(handlers => handlers.onSpread(spread))
             },
             "planet events",
-            {
-                onResumed: () => {
-                    // Updates from before the gap land before the globe forgets them, or they would outrank the catch-up.
-                    this.flushUpdates()
-                    this.resumeCallbacks.forEach(callback => callback())
-                },
-            },
         )
+    }
+
+    // Updates from before a gap land before the globe hears of it, or they would outrank what it reads again.
+    private streamOpened(version: MapVersion) {
+        this.flushUpdates()
+        this.streamVersion = version
+        this.openingCallbacks.forEach(callback => callback(version))
     }
 
     // A returning player is named from load on, with no Turnstile check.
@@ -522,11 +559,21 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         return () => this.updateCallbacks.delete(id)
     }
 
-    public listenForResumes(callback: () => void): () => void {
+    public listenForOpenings(callback: (version: MapVersion) => void): () => void {
         const id = generateUUID()
-        this.resumeCallbacks.set(id, callback)
+        this.openingCallbacks.set(id, callback)
 
-        return () => this.resumeCallbacks.delete(id)
+        // What it missed is older than this, and a read from now on holds it.
+        this.flushUpdates()
+        if (this.streamVersion) callback(this.streamVersion)
+
+        return () => this.openingCallbacks.delete(id)
+    }
+
+    public listenForHoldings(callback: (change: Counts) => void): () => void {
+        const id = generateUUID()
+        this.holdingsCallbacks.set(id, callback)
+        return () => this.holdingsCallbacks.delete(id)
     }
 
     public listenForFortifications(callback: (fortification: Fortification) => void): () => void {
@@ -825,7 +872,7 @@ export function fortificationOf(event: PlanetEvent): Fortification | undefined {
     if (event.event.case !== "landmassFortified") return undefined
 
     const fortified = event.event.value
-    return {landmass: fortified.landmassId, countryId: fortified.countryId, tile: fortified.tileId}
+    return {landmass: fortified.landmassId, countryId: fortified.countryId, tile: fortified.tileId, version: versionOf(fortified.version)}
 }
 
 export function spreadOf(event: PlanetEvent): SpreadClick | undefined {
@@ -880,7 +927,8 @@ export function bombOf(event: PlanetEvent): BombDrop | undefined {
         countryId: dropped.countryId,
         radius: dropped.radius,
         cleared: dropped.clearedTileIds,
-        struck: dropped.struckTileIds,
+        struck: dropped.struck.map(({tileId, shields}) => ({tile: tileId, shields})),
+        version: versionOf(dropped.version),
     }
 }
 
@@ -966,13 +1014,30 @@ export function asClickError(e: unknown): unknown {
 
 const MAP_READS_IN_FLIGHT = 8
 
-// The server's end is inclusive, and a read past either end of the map is what the antibot calls a bot's walk.
-function mapBatches(batchSize: number, maxIndex: number): {startTileId: number, endTileId: number}[] {
-    const batches = []
-    for (let start = 1; start <= maxIndex; start += batchSize) {
-        batches.push({startTileId: start, endTileId: Math.min(start + batchSize - 1, maxIndex)})
+export function versionOf(version: MapVersionMessage | undefined): MapVersion {
+    return {epoch: version?.epoch ?? 0, seq: Number(version?.seq ?? 0)}
+}
+
+export function ownershipsOf(res: GetMapResponse, range: TileRange): Ownerships {
+    return {range, version: versionOf(res.version), bindings: bindingsOf(res), shields: shieldsOf(res)}
+}
+
+export function countsOf(message: GetHoldingsResponse | HoldingsChanged): Counts {
+    return {
+        version: versionOf(message.version),
+        countries: new Map(message.countries.map(({countryId, tiles}) => [countryId, tiles])),
+        landmasses: new Map(message.landmasses.map((row: LandmassHoldings) => [
+            row.landmassId, new Map(row.holdings.map(({countryId, tiles}) => [countryId, tiles])),
+        ])),
     }
-    return batches
+}
+
+export function holdingsChangeOf(event: PlanetEvent): Counts | undefined {
+    return event.event.case === "holdingsChanged" ? countsOf(event.event.value) : undefined
+}
+
+export function heartbeatOf(event: PlanetEvent): MapVersion | undefined {
+    return event.event.case === "heartbeat" ? versionOf(event.event.value.version) : undefined
 }
 
 export function bindingsOf(res: GetMapResponse): Map<number, string> {
@@ -1002,5 +1067,6 @@ export function updateOf(event: PlanetEvent): Update | undefined {
         newCountry: update.countryId === "" ? undefined : update.countryId,
         clicked: update.clicked,
         shields: update.shields,
+        version: versionOf(update.version),
     }
 }

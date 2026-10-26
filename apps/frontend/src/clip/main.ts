@@ -166,7 +166,7 @@ async function choose(): Promise<Chosen> {
 
     const answer = await fetch("/__clip/replay.json")
     if (!answer.ok) throw new Error(`no replay to play: ${answer.status}`)
-    const replay = ReplayBackend.of(GetReplayResponse.fromJson(await answer.json(), {ignoreUnknownFields: true}))
+    const recorded = GetReplayResponse.fromJson(await answer.json(), {ignoreUnknownFields: true})
     // The race, when the run fetched one: the day it closed last is a story of the run whose window holds its cutoff.
     const race = await fetch("/__clip/race.json")
     const day = race.ok ? dayOf(GetRaceResponse.fromJson(await race.json(), {ignoreUnknownFields: true}).race?.closed) : undefined
@@ -178,6 +178,7 @@ async function choose(): Promise<Chosen> {
     const focus = countryParam("focus")
     const {positions} = await loadPointGeometryData()
     const borders = await loadBorders(BORDERS_URL)
+    const replay = ReplayBackend.of(recorded, {assignment: borders.assignment, count: borders.codes.length})
     const pointAt = (tile: number) => pointOf(positions, tile)
     const groundAt = (tile: number) => countryOfTile(borders, tile)
     const continentAt = (tile: number) => {
@@ -456,7 +457,7 @@ async function choose(): Promise<Chosen> {
         const hashtags = hashtagsOf(story)
 
         let played = 0
-        await createGlobe({
+        const globe = await createGlobe({
             tileClicker: {clickTile: () => Promise.resolve()},
             ownershipsGetter: backend,
             updatesListener: backend,
@@ -483,6 +484,7 @@ async function choose(): Promise<Chosen> {
             onArmedChange: () => {},
             signal: new AbortController().signal,
         })
+        await globe.tilesRead
 
         await textures()
         await document.fonts.ready

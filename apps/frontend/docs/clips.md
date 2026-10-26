@@ -140,7 +140,9 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   served by `npm run dev` and **left out of the build** (it is not in `rollupOptions.input`). `src/clip/main.ts`
   builds the globe with `createGlobe` over `backends/replayBackend.ts`, which plays the replay through the same
   decoders as `PlanetBackend` (`updateOf`, `bombOf`, `spreadOf`, `enclosureOf`): tile updates in batches, and a
-  bomb, a spread or an enclosure as an effect. `ReplayBackend.cut` opens on the map at a later time.
+  bomb, a spread or an enclosure as an effect. It numbers each step from its opening and counts what each flag
+  holds from the borders' landmasses, as the server does (see [The counts are the server's](counts.md)), and the
+  clip waits for `Globe.tilesRead` before its first frame. `ReplayBackend.cut` opens on the map at a later time.
 - **The page chooses, then records** (`window.clip`, `src/clip/main.ts`): `shortlist` is the stories worth a clip,
   known before any globe is built, and `record()` builds the globe for the story asked for and answers what the
   recorder needs. A pick past the last story fails `record()`, never `shortlist`.

@@ -3,9 +3,11 @@
 The tile game's three interfaces are in `backend.ts`:
 
 - `TileClicker` — claims a tile
-- `OwnershipsGetter` — batched fetch of tile → country_code, takes an
-  `AbortSignal`
-- `UpdatesListener` — live tile changes
+- `OwnershipsGetter` — the map read range by range (`getOwnerships`), the
+  server's counts (`getHoldings`) and the fortresses, each with the version it
+  was read at; takes an `AbortSignal`
+- `UpdatesListener` — live tile changes, the counts that changed, and each
+  opening of the stream, each with its version
 
 The chat's three are in `chat.ts` — see [Live chat](chat.md). The two files
 share no types: they are separate bounded contexts on the backend and the split
@@ -49,8 +51,9 @@ work once something has come down it.
 **A reopened stream has a gap, and nothing replays it.** A phone that locks, or
 a tab the browser freezes, loses its connection, and whatever the server sent in
 the meantime is gone. So `openStream` calls `onResumed` on the first message of
-a connection when an earlier one had been live; the planet and the chat read
-the map and the history again there (see below). The roster and the board need
+a connection when an earlier one had been live, and the chat reads its history
+again there. The planet's first message on each connection is a heartbeat with
+the map's version, which `listenForOpenings` hands the globe (see below). The roster and the board need
 nothing: each connection starts with the whole of it. Two more things find a
 gap sooner:
 
@@ -89,9 +92,10 @@ are implicit in the position, so it is far smaller than a keyed map — 516 KB
 against 3.6 MB for a full map — and protobuf does all the framing, so there is
 no hand-rolled encoding to keep in step with the backend.
 
-**The map is read eight batches at a time.** `getCurrentOwnershipsByBatch` keeps
-`MAP_READS_IN_FLIGHT` (8) `GetMap` reads open and hands each batch over as it
-lands, in any order, since a batch only sets its own tiles. One after the other,
+**The map is read eight batches at a time.** `getOwnerships` keeps
+`MAP_READS_IN_FLIGHT` (8) `GetMap` reads open over the ranges it is given
+(`tileRanges`), and hands each batch over as it lands, in any order, with its
+range and version, since a batch only sets its own tiles. One after the other,
 the 27 batches were 27 round trips, plus a CORS preflight each, before the globe
 was playable: on DevTools' Fast 4G, 4.7s of a 9.6s load. Eight at a time it is
 0.7s, and four at a time 1.2s. A batch that fails after its retries stops the
@@ -197,14 +201,14 @@ bucket, so the counter is live in dev.
 exponential backoff. It is the only source of live changes, so a drop that is not
 retried freezes the globe until a reload.
 
-**A resumed stream makes the globe catch up.** `listenForResumes` is called
-after `PlanetBackend` has flushed the updates from before the gap. The globe then
-forgets which tiles the stream had set (`forgetLive`), waits
-`CATCH_UP_DELAY_MS`, reads the whole map again and applies it with `resync`.
-**The wait is `GetMap`'s `max-age`** (5s): a copy from the edge is never older
-than that, so after the wait it is never older than the resumed stream, and
-what the stream said since still wins. It costs a whole map, about 0.5 MB, per
-gap.
+**A stream that opens again makes the globe read again what it may have
+missed.** `listenForOpenings` is called with the opening heartbeat's version,
+after `PlanetBackend` has flushed the updates from before the gap, and a
+listener that comes late hears at once the version the stream already passed.
+The globe reads again, at once, the counts and every range older than that
+version, and again 5s later (`max-age`) while a read comes back older. What the
+stream said since still wins, by its version. A gap in which nothing moved reads
+nothing. See [The counts are the server's](counts.md).
 
 **The planet stream carries the click token it can have without a mint.** Each
 (re)connect puts `SessionProvider.held()` in `X-Session-Token`, so the server
