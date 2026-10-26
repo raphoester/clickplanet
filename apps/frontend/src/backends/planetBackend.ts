@@ -248,17 +248,28 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         callback: (ownerships: Ownerships) => void,
         signal?: AbortSignal,
     ) {
-        for (let start = 1; start <= maxIndex; start += batchSize) {
-            const endTileId = Math.min(start + batchSize, maxIndex)
+        const reading = new AbortController()
+        const stop = () => reading.abort(signal?.reason)
+        if (signal?.aborted) stop()
+        signal?.addEventListener("abort", stop, {once: true})
 
-            const res = await retrying(
-                () => this.client.getMap({startTileId: start, endTileId}, {signal}),
-                `getMap ${start}..${endTileId}`,
-                signal,
-            )
-
-            callback({bindings: bindingsOf(res), shields: shieldsOf(res)})
+        const batches = mapBatches(batchSize, maxIndex)
+        const read = async () => {
+            for (let batch = batches.shift(); batch; batch = batches.shift()) {
+                const {startTileId, endTileId} = batch
+                const res = await retrying(
+                    () => this.client.getMap(batch, {signal: reading.signal}),
+                    `getMap ${startTileId}..${endTileId}`,
+                    reading.signal,
+                )
+                reading.signal.throwIfAborted()
+                callback({bindings: bindingsOf(res), shields: shieldsOf(res)})
+            }
         }
+
+        await Promise.all(Array.from({length: MAP_READS_IN_FLIGHT}, () => read().catch((e) => reading.abort(e))))
+        signal?.removeEventListener("abort", stop)
+        reading.signal.throwIfAborted()
     }
 
     public async getFortresses(signal?: AbortSignal): Promise<Map<number, string>> {
@@ -951,6 +962,17 @@ export function asClickError(e: unknown): unknown {
     }
 
     return e
+}
+
+const MAP_READS_IN_FLIGHT = 8
+
+// The server's end is inclusive, and a read past either end of the map is what the antibot calls a bot's walk.
+function mapBatches(batchSize: number, maxIndex: number): {startTileId: number, endTileId: number}[] {
+    const batches = []
+    for (let start = 1; start <= maxIndex; start += batchSize) {
+        batches.push({startTileId: start, endTileId: Math.min(start + batchSize - 1, maxIndex)})
+    }
+    return batches
 }
 
 export function bindingsOf(res: GetMapResponse): Map<number, string> {
