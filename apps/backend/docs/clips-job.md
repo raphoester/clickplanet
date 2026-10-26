@@ -34,12 +34,12 @@ clips stats [-ssh <user@host>] [-since 2026-10-13]
   one chosen with its arms. A pick is a story's place in the shortlist, from 1 (`posts.Pick`): what the generator's
   `--pick` takes, and the arms are what its `--variants` takes (below, "Experiments"). It needs `ZERNIO_API_KEY`, to
   read what was told and what each platform holds. `-platforms` is `schedule`'s, so it counts the room of the
-  platforms the clips will go to. **On a run the experiment `editor` draws for the model** (below, "The editor") a
-  pick also carries the model's headline (`"headline":"BRAZIL STORMS ARGENTINA"`, left out for the generator's own),
-  which the render job hands the generator as `--headline`; `ANTHROPIC_API_KEY` is the model's key, and `-summary`
-  adds who chose the run, and what the call cost, to that file (the workflow's step summary). Its standard output
-  stays the picks alone.
-- **`edit` tries the editor by hand on a saved shortlist**, outside any run: no coin, `-count` clips (2), what was
+  platforms the clips will go to. **A pick also carries the model's headline** (below, "The editor";
+  `"headline":"BRAZIL STORMS ARGENTINA"`, left out for the generator's own, as on a run the rules made), which the
+  render job hands the generator as `--headline`; `ANTHROPIC_API_KEY` is the model's key, and `-summary` adds who
+  chose the run, and what the call cost, to that file (the workflow's step summary). Its standard output stays the
+  picks alone.
+- **`edit` tries the editor by hand on a saved shortlist**, outside any run: `-count` clips (2), what was
   told read from Zernio when `ZERNIO_API_KEY` is set and nothing told otherwise. It prints the instructions and the
   run's JSON as the model would get them, their size (counted by the API's free `count_tokens` with a key, else
   guessed at 4 characters a token), then what the model chose and what it cost, or why it fell back. **`-prompt`
@@ -99,16 +99,12 @@ story, so a short clip is not short because its story was small.
 - **`choose` flips one coin per experiment for each story chosen** (`Experiments.AssignEach`, with
   `posts.SystemDice`, in the order of the list), after the stories are chosen and apart from them: an arm never
   changes which story is told. A coin of its own per experiment makes two experiments at once a factorial design,
-  every pair of arms in about the share of their weights, so each one's effect is read across the other's.
-- **The one exception is an experiment on which stories are told** (`PerRun`): its coin is the run's, flipped once
-  before anything is chosen (`Experiments.AssignRun`, first of the dice), and every clip of the run carries its arm
-  beside its own. **Deliberately**: `editor` exists to change the choice, so a coin flipped after it would have
-  nothing left to decide, and a coin per clip would let one run mix two editors' stories, each choice leaning on the
-  other (a flag's share of the feed counts across the run). The arm is still a coin and not something read from the
-  stories, so the runs compare: what differs between them is who chose. The run's clips share their run's news, so
-  the analysis reads it per run as well as per clip.
+  every pair of arms in about the share of their weights, so each one's effect is read across the other's. **An
+  experiment on which stories are told needs a coin of the run's instead**, flipped once before anything is chosen
+  and carried by every clip of the run, since a coin per clip would let one run mix two editors' stories: `editor`
+  had one (below), and its code went with it.
 - **An arm of weight 0 is never drawn** (`posts.Arm{Name, Weight: 0}`): it is where a clip goes when the arm it was
-  drawn for could not be applied, so it is still checked and counted, apart (`editor`'s `fell-back`). An experiment
+  drawn for could not be applied, so it is still checked and counted, apart (`sound`'s `fell-back`). An experiment
   needs two arms a coin draws.
 - **The arms travel with the clip, as data**: `choose` prints them with the pick; the workflow's render job of the
   pick hands them to the generator (`--variants '{"length":"short"}'`), which applies the ones it acts on, refuses
@@ -137,12 +133,7 @@ story, so a short clip is not short because its story was small.
   fighting stays in one place is already 8.5s: both still record the arm, and `durationSeconds` in the record keeps
   the real length, so the analysis compares on the length a clip had as well as on its arm. The teaser rolled when
   posting is an experiment of its own already, at random and recorded (`teaser`), and the arms do not touch it.
-- **The second is `editor`** (started 2026-10-24, per run, even): `rules`, the control, is the run as before;
-  `model` is Claude Haiku choosing among the stories the rules let through and writing their headlines (below);
-  `fell-back` is a run drawn for the model that the rules made. Intent to treat is `model` and `fell-back` together;
-  what the model's choices did is `model` alone. A run drawn for the model with nothing to decide (a quiet run, a full
-  day, or a day won filling it) asks nothing and stays `model`: it is what the model's arm does then.
-- **The third is `sound`** (started 2026-10-25, per clip, even, on TikTok alone): does a clip do better with its
+- **The second is `sound`** (started 2026-10-25, per clip, even, on TikTok alone): does a clip do better with its
   national anthem, or with a track trending on TikTok now? It waited on the account's music library, which answers
   only for an account connected through the TikTok for Business app, a Business account or not: the stats of
   2026-10-25 found `clickplanetlol` `personal`, `commercialMusic=true` and its business lane live. `anthem`, the
@@ -182,10 +173,15 @@ story, so a short clip is not short because its story was small.
     name the track too.
   - **YouTube is sent the video as it is in every arm**, its target untouched: the arm is recorded on the whole post.
     **TikTok's daily cap is unchanged** (`dailyBudget`): a track changes what a post plays, not how many go out.
+- **`editor` ran from 2026-10-24 to 2026-10-26, per run, even**: `rules`, the control, the run as before, against
+  `model`, Claude Haiku choosing among the stories the rules let through and writing their headlines, and `fell-back`,
+  a run drawn for the model that the rules made. **Stopped with the model the editor of every run** (below), on the
+  owner's judgment that it does better, not on the numbers. The posts of those three days keep their arm in their
+  record, which the analysis still reads.
 
 **The editor: a model chooses the run's stories and writes their headlines, within the rules** (`posts/editor.go`,
-`posts/claude_editor/`, 2026-10-24). Step 1 of a model directing the clips: it picks and words, the renderer and its
-camera are as they were, and the rules stay the baseline to beat.
+`posts/claude_editor/`, 2026-10-24; every run since 2026-10-26). Step 1 of a model directing the clips: it picks and
+words, the renderer and its camera are as they were, and the rules are what a run falls back to.
 
 - **The rules decide what may be told; the model only ranks it.** `Shortlist.Offer` is what it is offered: the
   stories `Best` could tell (no key of the last 3 days, no headline of the last week, a flag in fewer than 2 of the
@@ -204,8 +200,9 @@ camera are as they were, and the rules stay the baseline to beat.
   as a flag), only letters of any script, digits and `! ? ' ’ % : , . & -`; not a headline of the last week, not
   another story's, not one of the story's own teasers (the caption never repeats the clip). **No key, an API error,
   a refusal, an answer cut short or not JSON, or one that does not hold all fall back to the rules**
-  (`choose_clips_usecase.Edit`): the run is never failed for it, its clips are recorded `editor: fell-back`, and the
-  reason goes to the log and the summary.
+  (`choose_clips_usecase.Edit`): the run is never failed for it, and the reason goes to the log (a warning, `the run
+  is made by the rules`) and the summary. **Nothing in the record says who chose**: a run the rules made is told
+  apart by its summary and its log alone.
 - **What it is sent** (`claude_editor.PromptOf`): the instructions, then the run's offer as compact JSON: `now`,
   `slots`, `toldFirst`, each story with its pick, headline, key, countries, teasers and `facts`
   (`clips.v1.StoryFacts`, which the generator's `--shortlist` now writes; the frontend's [Clips](../../frontend/docs/clips.md)),
@@ -222,8 +219,8 @@ camera are as they were, and the rules stay the baseline to beat.
   input, a read 0.1 times) go to the log and the summary (`posts.Spend`, `claude_editor.SpendOf`). Measured on the
   run of 2026-10-24 18:28 (its 25 stories and 71 posts, from its log): 8 stories offered, 32 recent posts, about
   1,700 tokens of instructions and 4,300 of run, so about 6,000 in, guessed from characters with no key at hand;
-  about $0.0006 in and, with its thinking, about $0.001 out a call. A run a model's in two, 12 runs a day, is about
-  $0.30 a month; every run would be $0.60. The owner's ceiling for all AI calls is $10 a month.
+  about $0.0006 in and, with its thinking, about $0.001 out a call: 12 runs a day is about $0.60 a month, where the
+  owner's ceiling for all AI calls is $10.
 - **The instructions are marked for caching** (`cache_control` on the system prompt), as the owner asked. **No run
   reads it back today**: a cache entry lives 5 minutes (an hour at most) and runs are 2 hours apart, so each call
   writes it again, about $0.00004 more a call. It pays once a call follows another within minutes (`clips edit`
@@ -236,7 +233,7 @@ camera are as they were, and the rules stay the baseline to beat.
   dependency: `cpanthropic.NewClient` makes it from `Config.Anthropic`, and `claude_editor.New(client, model)` never
   makes one of its own. The editor keeps only what is its own on each request: 2 minutes and one retry. **No key is
   an editor of its own, chosen there**: `claude_editor.Unkeyed` sends nothing and answers `cpanthropic.ErrNoKey`, so
-  every run drawn for the model falls back and says why.
+  every run falls back and says why.
 - **Tests never call the API**: the use case runs a fake `Editor`, and `claude_editor` a client pointed at a fake
   Messages API on `httptest` (`cpanthropic.Config.BaseURL`), which pins the request whole: the cached instructions,
   the schema, the prompt.

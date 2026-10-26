@@ -11,7 +11,7 @@ describe("the arms a clip is made in", () => {
     it("are the arm of each experiment, as the job wrote them", () => {
         expect(variantsOf(`{"length": "short"}`)).toEqual({length: "short"})
         expect(variantsOf(`{"length": "as-chosen"}`)).toEqual({length: "as-chosen"})
-        expect(variantsOf(`{"length": "short", "editor": "fell-back"}`)).toEqual({length: "short", editor: "fell-back"})
+        expect(variantsOf(`{"length": "short", "sound": "trending"}`)).toEqual({length: "short", sound: "trending"})
         expect(variantsOf(`{"sound": "trending"}`)).toEqual({sound: "trending"})
         expect(variantsOf(`{"sound": "anthem"}`)).toEqual({sound: "anthem"})
     })
