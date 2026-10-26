@@ -82,7 +82,7 @@ and says what is in it. Read the doc before you change its area.
 - [Chat](docs/chat.md) — messages, announcements, mutes, removals, replies, reactions, and what each account saw.
 - [Player](docs/player.md) — names and guest codes, stats, streaks, titles, and who is playing now.
 - [Seasons](docs/seasons.md) — the season calendar, its standings, the daily rounds and the finale.
-- [Missions](docs/missions.md) — three missions a day per flag, counted from `TileTaken`, paid once done with a
+- [Missions](docs/missions.md) — three to five missions a day per flag, counted from `TileTaken`, paid once done with a
   `GrantCharges` command to planet; why progress is not read from the ledger.
 - [Support](docs/support.md) — suggestions, bug reports and player reports, with their photos and videos.
 - [Clip stats](docs/clip-stats.md) — where the posted clips' daily numbers are kept, for the backoffice.

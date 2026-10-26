@@ -25,9 +25,10 @@ func (id MissionID) String() string { return uuid.UUID(id).String() }
 type RewardKind string
 
 const (
-	RewardShields      RewardKind = "shields"
-	RewardSpreadClicks RewardKind = "spread_clicks"
-	RewardBomb         RewardKind = "bomb"
+	RewardShields       RewardKind = "shields"
+	RewardSpreadClicks  RewardKind = "spread_clicks"
+	RewardBomb          RewardKind = "bomb"
+	RewardEncloseClicks RewardKind = "enclose_clicks"
 )
 
 type Reward struct {

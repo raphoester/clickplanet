@@ -4,9 +4,13 @@ name: clips stats
 # the backoffice: the metrics TikTok gives a business account come 24 to 48 hours after a post and only for posts
 # active in the last 7 days, so a day missed is lost for good. Never in this repository, its artifacts or its logs:
 # they are public, and some of the numbers are not.
+#
+# Just after midnight Pacific, in summer (07:00 UTC) and in winter (08:00): YouTube's Analytics quota, which every
+# curve of retention draws on, starts again then. At 05:41 UTC it was spent before the run began, and the curves of
+# Oct 25 and 26 were lost.
 on:
   schedule:
-    - cron: '41 5 * * *'
+    - cron: '17 8 * * *'
   workflow_dispatch:
     inputs:
       since:

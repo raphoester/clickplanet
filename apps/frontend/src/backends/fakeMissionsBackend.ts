@@ -73,9 +73,10 @@ export class FakeMissionsBackend implements MissionsBackend {
         }
 
         return [
-            mission("bank", {kind: "takeFor", country: flag, goal: 60}, {kind: "shields", amount: 10}, 1),
-            mission("rival", {kind: "takeFrom", country: rival, goal: 40}, {kind: "spreadClicks", amount: 4}, 0.5),
-            mission("ground", {kind: "takeIn", country: "br", goal: 200}, {kind: "bomb", amount: 1}, 0.25),
+            mission("bank", {kind: "takeFor", country: flag, goal: 180}, {kind: "shields", amount: 20}, 1),
+            mission("rival", {kind: "takeFrom", country: rival, goal: 120}, {kind: "spreadClicks", amount: 6}, 0.5),
+            mission("ground", {kind: "takeIn", country: "br", goal: 450}, {kind: "bomb", amount: 1}, 0.25),
+            mission("more", {kind: "takeIn", country: "ru", goal: 400}, {kind: "encloseClicks", amount: 2}, 0.2),
         ]
     }
 
