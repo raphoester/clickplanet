@@ -11,17 +11,17 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_holdings_handler/holdings_query"
 )
 
-type stubCensus struct {
+type stubTally struct {
 	version clicks.MapVersion
-	census  clicks.Census
+	tally   clicks.Tally
 }
 
-func (s stubCensus) Census() (clicks.MapVersion, clicks.Census) { return s.version, s.census }
+func (s stubTally) Tally() (clicks.MapVersion, clicks.Tally) { return s.version, s.tally }
 
-func TestTheHoldingsAreTheCensusAtItsVersion(t *testing.T) {
-	answer := holdings_query.NewMemoryQuery(stubCensus{
+func TestTheHoldingsAreTheTallyAtItsVersion(t *testing.T) {
+	answer := holdings_query.NewMemoryQuery(stubTally{
 		version: clicks.MapVersion{Epoch: 1_790_000_000, Seq: 42},
-		census: clicks.Census{
+		tally: clicks.Tally{
 			Countries: []clicks.FlagTiles{{Flag: "fr", Tiles: 5}, {Flag: "de", Tiles: 1}},
 			Landmasses: []clicks.LandmassTiles{
 				{Landmass: 3, Flags: []clicks.FlagTiles{{Flag: "fr", Tiles: 4}, {Flag: "de", Tiles: 1}}},

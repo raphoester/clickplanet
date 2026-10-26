@@ -107,9 +107,9 @@ func (s *Storage) Load(ctx context.Context) error {
 func (s *Storage) Name() string { return "tiles-storage" }
 
 func (s *Storage) Run(ctx context.Context) {
-	var census sync.WaitGroup
-	census.Go(func() { s.publishCensusEvery(ctx, censusInterval) })
-	defer census.Wait()
+	var ticking sync.WaitGroup
+	ticking.Go(func() { s.publishTallyEvery(ctx, tallyInterval) })
+	defer ticking.Wait()
 
 	ticker := time.NewTicker(s.config.FlushInterval)
 	defer ticker.Stop()

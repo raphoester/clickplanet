@@ -6,24 +6,24 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/planetmessage"
 )
 
-type Census interface {
-	Census() (clicks.MapVersion, clicks.Census)
+type Tally interface {
+	Tally() (clicks.MapVersion, clicks.Tally)
 }
 
-func NewMemoryQuery(census Census) *MemoryQuery {
-	return &MemoryQuery{census: census}
+func NewMemoryQuery(tally Tally) *MemoryQuery {
+	return &MemoryQuery{tally: tally}
 }
 
 type MemoryQuery struct {
-	census Census
+	tally Tally
 }
 
 func (q *MemoryQuery) Holdings() *planetv1.GetHoldingsResponse {
-	version, census := q.census.Census()
+	version, tally := q.tally.Tally()
 
 	return &planetv1.GetHoldingsResponse{
 		Version:    planetmessage.Version(version),
-		Countries:  planetmessage.Holdings(census.Countries),
-		Landmasses: planetmessage.LandmassHoldings(census.Landmasses),
+		Countries:  planetmessage.Holdings(tally.Countries),
+		Landmasses: planetmessage.LandmassHoldings(tally.Landmasses),
 	}
 }

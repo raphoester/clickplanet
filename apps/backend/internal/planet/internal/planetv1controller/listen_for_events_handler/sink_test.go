@@ -97,7 +97,7 @@ func TestASinkFramesTheHoldingsThatChanged(t *testing.T) {
 
 	require.NoError(t, listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
 		Version: clicks.MapVersion{Epoch: 1_790_000_000, Seq: 12},
-		Census: &clicks.Census{
+		Tally: &clicks.Tally{
 			Countries:  []clicks.FlagTiles{{Flag: "fr", Tiles: 3}, {Flag: "de"}},
 			Landmasses: []clicks.LandmassTiles{{Landmass: 4, Flags: []clicks.FlagTiles{{Flag: "fr", Tiles: 3}}}, {Landmass: 5}},
 		},

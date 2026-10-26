@@ -28,8 +28,8 @@ type Change struct {
 	Update        *TileUpdate
 	Blast         *Blast
 	Fortification *Fortification
-	// The rows the writes since the last census changed, each whole: a flag at zero is listed.
-	Census *Census
+	// The rows the writes since the last tally changed, each whole: a flag at zero is listed.
+	Tally *Tally
 }
 
 // Tiles holds two little-endian bytes per tile, each an index into Codes.

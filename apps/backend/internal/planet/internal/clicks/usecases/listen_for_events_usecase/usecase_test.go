@@ -233,10 +233,10 @@ func TestAStreamOpensWithAHeartbeat(t *testing.T) {
 	require.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true, Version: opening}}, sink.seen())
 }
 
-func TestACensusIsCarriedToTheSinkAtItsVersion(t *testing.T) {
+func TestATallyIsCarriedToTheSinkAtItsVersion(t *testing.T) {
 	updates := make(chan clicks.Change, 1)
-	census := &clicks.Census{Countries: []clicks.FlagTiles{{Flag: "fr", Tiles: 3}}}
-	updates <- clicks.Change{Version: opening, Census: census}
+	tally := &clicks.Tally{Countries: []clicks.FlagTiles{{Flag: "fr", Tiles: 3}}}
+	updates <- clicks.Change{Version: opening, Tally: tally}
 
 	ctx, cancel := context.WithCancel(t.Context())
 	sink := &recorder{fed: make(chan struct{}), stopped: ctx.Done()}
@@ -250,7 +250,7 @@ func TestACensusIsCarriedToTheSinkAtItsVersion(t *testing.T) {
 	cancel()
 	require.NoError(t, <-done)
 
-	require.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true, Version: opening}, {Version: opening, Census: census}}, sink.seen())
+	require.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true, Version: opening}, {Version: opening, Tally: tally}}, sink.seen())
 }
 
 func TestAHeartbeatSaysTheVersionOfTheLastChangeTheStreamSent(t *testing.T) {

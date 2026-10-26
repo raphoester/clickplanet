@@ -7,57 +7,57 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
-const censusInterval = time.Second
+const tallyInterval = time.Second
 
-func (s *Storage) Census() (clicks.MapVersion, clicks.Census) {
+func (s *Storage) Tally() (clicks.MapVersion, clicks.Tally) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	census := clicks.Census{Countries: s.board.counts()}
+	tally := clicks.Tally{Countries: s.board.counts()}
 	s.landmasses.each(func(landmass clicks.LandmassID) {
 		if row := s.landmasses.row(landmass, s.board.nameOf); len(row.Flags) > 0 {
-			census.Landmasses = append(census.Landmasses, row)
+			tally.Landmasses = append(tally.Landmasses, row)
 		}
 	})
 
-	return s.version, census
+	return s.version, tally
 }
 
 // Publishes the rows the writes changed since it last ran, with no new version: it reads, it writes nothing.
-func (s *Storage) PublishCensus() {
+func (s *Storage) PublishTally() {
 	s.mu.Lock()
-	if census, changed := s.recountLocked(); changed {
-		s.feed.publish(clicks.Change{Version: s.version, Census: &census})
+	if tally, changed := s.recountLocked(); changed {
+		s.feed.publish(clicks.Change{Version: s.version, Tally: &tally})
 	}
 	s.mu.Unlock()
 
 	s.feed.reportCut()
 }
 
-func (s *Storage) recountLocked() (clicks.Census, bool) {
-	var census clicks.Census
+func (s *Storage) recountLocked() (clicks.Tally, bool) {
+	var tally clicks.Tally
 	s.recount.flags.drain(func(code uint32) {
 		if code != uint32(unownedCode) {
-			census.Countries = append(census.Countries, s.board.countOf(uint16(code))) //nolint:gosec // a code the set was marked with.
+			tally.Countries = append(tally.Countries, s.board.countOf(uint16(code))) //nolint:gosec // a code the set was marked with.
 		}
 	})
 	s.recount.landmasses.drain(func(id uint32) {
 		if landmass := clicks.LandmassID(id); landmass != clicks.NoLandmass { //nolint:gosec // landmasses are uint16 in the blob.
-			census.Landmasses = append(census.Landmasses, s.landmasses.row(landmass, s.board.nameOf))
+			tally.Landmasses = append(tally.Landmasses, s.landmasses.row(landmass, s.board.nameOf))
 		}
 	})
 
-	return census, len(census.Countries) > 0 || len(census.Landmasses) > 0
+	return tally, len(tally.Countries) > 0 || len(tally.Landmasses) > 0
 }
 
-func (s *Storage) publishCensusEvery(ctx context.Context, interval time.Duration) {
+func (s *Storage) publishTallyEvery(ctx context.Context, interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ticker.C:
-			s.PublishCensus()
+			s.PublishTally()
 		case <-ctx.Done():
 			return
 		}

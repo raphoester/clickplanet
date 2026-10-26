@@ -20,8 +20,8 @@ type movingMap struct{ version clicks.MapVersion }
 
 func (m *movingMap) Version() clicks.MapVersion { return m.version }
 
-func (m *movingMap) Census() (clicks.MapVersion, clicks.Census) {
-	return m.version, clicks.Census{Countries: []clicks.FlagTiles{{Flag: "fr", Tiles: 3}}}
+func (m *movingMap) Tally() (clicks.MapVersion, clicks.Tally) {
+	return m.version, clicks.Tally{Countries: []clicks.FlagTiles{{Flag: "fr", Tiles: 3}}}
 }
 
 func holdingsServer(t *testing.T, board *movingMap) *httptest.Server {

@@ -6,7 +6,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
-// The landmasses and the flags whose counts changed since the last census was published.
+// The landmasses and the flags whose counts changed since the last tally was published.
 type recount struct {
 	landmasses dirtySet
 	flags      dirtySet

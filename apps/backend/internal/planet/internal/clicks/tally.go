@@ -16,7 +16,7 @@ type LandmassTiles struct {
 	Flags    []FlagTiles
 }
 
-type Census struct {
+type Tally struct {
 	Countries  []FlagTiles
 	Landmasses []LandmassTiles
 }

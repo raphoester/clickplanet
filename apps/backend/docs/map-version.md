@@ -18,22 +18,22 @@ be read again.
   `feed.publish` never blocks (a full channel is cut, see [The live streams](live-streams.md)), about 1-2 µs for 50 to
   100 streams, so the lock is held no longer than a click already holds it. The lock order is `s.mu` then `feed.mu`;
   nothing takes them the other way. The "cut off" Warn is the one write to stdout, so the feed only counts the cut
-  streams, and the census tick logs them after it lets the lock go: at most one line a second.
+  streams, and the tally tick logs them after it lets the lock go: at most one line a second.
 - **`Subscribe` answers the version too**, read under the same lock as the subscription is made: every change after
   that version is on the channel, and none before it. The stream's opening heartbeat carries it.
 - **`StateBatchDense` reads it under its read lock**, so a `GetMap` batch is the map at exactly its version.
 - **No write is told twice and none is kept**: there is no replay buffer. A client that misses a change reads again.
 
-## The census: what each flag holds
+## The tally: what each flag holds
 
-`Storage.Census()` walks `board.held` and `landmasses.held` under one read lock: every flag that holds a tile, and
+`Storage.Tally()` walks `board.held` and `landmasses.held` under one read lock: every flag that holds a tile, and
 every landmass with a tile held, whole (a flag a row does not list holds none of it), at the version it read.
 `ClickService/GetHoldings` serves it (`get_holdings_handler/holdings_query`, a `MemoryQuery`). It is not
 `HoldingsOf`, which is the accounts holding one landmass (see [Who holds the tiles](tile-holders.md)).
 
 **`holdings_changed` carries what changed, at most once a second.** `moveLocked` marks the landmass and the two
 flags of every change of owner in a `recount` (two `dirtySet`s, nothing else in memory). `Storage.Run` starts a
-one-second tick, `PublishCensus`, that drains them under the write lock and publishes one `clicks.Change{Census}` with
+one-second tick, `PublishTally`, that drains them under the write lock and publishes one `clicks.Change{Tally}` with
 the whole row of each landmass marked and the total of each flag marked, at the current version. It counts no write
 of its own. A flag that left the map is listed with no tile, and a landmass nobody holds any more with no flag.
 **Always totals, never "+1"**: a bomb, an enclosure (one put per tile, up to 75 per click) and an operator's batch
@@ -56,6 +56,6 @@ backend sees its own tag.
 
 The contract suite pins that each write counts one after the subscription's version, that a no-op counts nothing,
 that concurrent writes reach every subscriber in version order, and that a batch holds the map as it was at its
-version. `census_test.go` pins that after a take, a bomb, an enclosure and a reassign the published rows equal a
-`Census()` read right after, and list every row that changed; and that a fortify, which moves no count, publishes
+version. `tally_test.go` pins that after a take, a bomb, an enclosure and a reassign the published rows equal a
+`Tally()` read right after, and list every row that changed; and that a fortify, which moves no count, publishes
 none. `cache_interceptor_test.go` pins the tag, the 304 and the weak match.

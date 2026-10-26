@@ -28,7 +28,7 @@ type Event struct {
 	Update        *clicks.TileUpdate
 	Blast         *clicks.Blast
 	Fortification *clicks.Fortification
-	Census        *clicks.Census
+	Tally         *clicks.Tally
 	Heartbeat     bool
 
 	Offer    *bonuses.Offer
@@ -111,7 +111,7 @@ func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 			version = change.Version
 			if err := sink.Send(Event{
 				Version: change.Version, Update: change.Update, Blast: change.Blast,
-				Fortification: change.Fortification, Census: change.Census,
+				Fortification: change.Fortification, Tally: change.Tally,
 			}); err != nil {
 				return err
 			}

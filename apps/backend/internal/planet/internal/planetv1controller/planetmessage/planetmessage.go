@@ -60,13 +60,13 @@ func LandmassFortified(fortification *clicks.Fortification, version clicks.MapVe
 	}
 }
 
-func HoldingsChanged(census *clicks.Census, version clicks.MapVersion) *planetv1.PlanetEvent {
+func HoldingsChanged(tally *clicks.Tally, version clicks.MapVersion) *planetv1.PlanetEvent {
 	return &planetv1.PlanetEvent{
 		Event: &planetv1.PlanetEvent_HoldingsChanged{
 			HoldingsChanged: &planetv1.HoldingsChanged{
 				Version:    Version(version),
-				Countries:  Holdings(census.Countries),
-				Landmasses: LandmassHoldings(census.Landmasses),
+				Countries:  Holdings(tally.Countries),
+				Landmasses: LandmassHoldings(tally.Landmasses),
 			},
 		},
 	}
