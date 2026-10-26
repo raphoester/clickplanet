@@ -70,7 +70,8 @@ func NewModule(config Config) cpbootstrap.Module {
 				_ = db.Close()
 			}
 
-			ruleSets := postgres_rule_set_store.New(db)
+			parts := guard.Parts()
+			ruleSets := postgres_rule_set_store.New(db, parts)
 			inForce := rules.NewInForce()
 
 			book := bans.NewBook(rules.Reader(inForce, bans.Part), config.Evidence.WithDefaults().Retention, clock,
@@ -78,8 +79,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				db, outbox_planet_enforcer.New(cpoutbox.New(db)))
 
 			// The bans running at a deploy reach planet's refused callers with no hand migration.
-			parts := guard.Parts()
-			players := play_rules_usecase.New(ruleSets, parts, inForce, book)
+			players := play_rules_usecase.New(ruleSets, inForce, book)
 			playRules := log_play_rules.New(players, props.Logger)
 			if _, _, err := playRules.Execute(ctx); err != nil {
 				closeStores()
