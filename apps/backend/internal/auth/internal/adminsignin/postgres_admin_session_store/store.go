@@ -13,12 +13,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
-func New(db cppg.Querier) *Store {
+func New(db cppg.Conn) *Store {
 	return &Store{db: db}
 }
 
 type Store struct {
-	db cppg.Querier
+	db cppg.Conn
 }
 
 var _ adminsignin.Store = (*Store)(nil)
@@ -28,7 +28,7 @@ func (s *Store) Candidate(ctx context.Context, provider string, subject string) 
 		account  uuid.UUID
 		operates bool
 	)
-	err := s.db.QueryRowContext(ctx, `
+	err := s.db.On(ctx).QueryRowContext(ctx, `
 		SELECT accounts.id, accounts.operator
 		FROM identities JOIN accounts ON accounts.id = identities.account_id
 		WHERE identities.provider = $1::identity_provider AND identities.subject = $2
@@ -44,7 +44,7 @@ func (s *Store) Candidate(ctx context.Context, provider string, subject string) 
 }
 
 func (s *Store) SaveSession(ctx context.Context, session adminsignin.Snapshot) error {
-	_, err := s.db.ExecContext(ctx, `
+	_, err := s.db.On(ctx).ExecContext(ctx, `
 		INSERT INTO admin_sessions (token_hash, account_id, created_at, expires_at) VALUES ($1, $2, $3, $4)
 		ON CONFLICT (token_hash) DO UPDATE SET account_id = $2, created_at = $3, expires_at = $4
 	`, []byte(session.TokenHash), uuid.UUID(session.Account), session.CreatedAt.UTC(), session.ExpiresAt.UTC())
@@ -55,7 +55,7 @@ func (s *Store) SaveSession(ctx context.Context, session adminsignin.Snapshot) e
 }
 
 func (s *Store) DeleteSession(ctx context.Context, tokenHash accounts.TokenHash) error {
-	if _, err := s.db.ExecContext(ctx, `DELETE FROM admin_sessions WHERE token_hash = $1`, []byte(tokenHash)); err != nil {
+	if _, err := s.db.On(ctx).ExecContext(ctx, `DELETE FROM admin_sessions WHERE token_hash = $1`, []byte(tokenHash)); err != nil {
 		return fmt.Errorf("failed to delete the admin session: %w", err)
 	}
 	return nil

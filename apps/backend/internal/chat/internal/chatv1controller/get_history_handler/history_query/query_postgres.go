@@ -35,12 +35,12 @@ var (
 	ErrUnknownKind     = errors.New("a kept announcement of a kind nobody knows")
 )
 
-func NewPostgresQuery(db cppg.Querier, authors Authors, clock cptime.Clock, size int, retention time.Duration) *PostgresQuery {
+func NewPostgresQuery(db cppg.Conn, authors Authors, clock cptime.Clock, size int, retention time.Duration) *PostgresQuery {
 	return &PostgresQuery{db: db, authors: authors, clock: clock, size: size, retention: retention}
 }
 
 type PostgresQuery struct {
-	db        cppg.Querier
+	db        cppg.Conn
 	authors   Authors
 	clock     cptime.Clock
 	size      int
@@ -90,7 +90,7 @@ func (q *PostgresQuery) seenUntil(ctx context.Context, viewer cpsession.AccountI
 	}
 
 	var until int64
-	err := q.db.QueryRowContext(ctx, seenMark, uuid.UUID(viewer)).Scan(&until)
+	err := q.db.On(ctx).QueryRowContext(ctx, seenMark, uuid.UUID(viewer)).Scan(&until)
 	if errors.Is(err, sql.ErrNoRows) {
 		return 0, nil
 	}
@@ -214,7 +214,7 @@ func (q *PostgresQuery) shown(
 }
 
 func (q *PostgresQuery) rows(ctx context.Context, since time.Time, viewer cpsession.AccountID) ([]row, error) {
-	result, err := q.db.QueryContext(ctx, shownMessages, since, q.size, nullable(viewer))
+	result, err := q.db.On(ctx).QueryContext(ctx, shownMessages, since, q.size, nullable(viewer))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the chat history: %w", err)
 	}
@@ -402,7 +402,7 @@ const shownAnnouncements = `
 `
 
 func (q *PostgresQuery) announced(ctx context.Context, since time.Time) ([]*chatv1.Announcement, error) {
-	result, err := q.db.QueryContext(ctx, shownAnnouncements, since, q.size)
+	result, err := q.db.On(ctx).QueryContext(ctx, shownAnnouncements, since, q.size)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the chat announcements: %w", err)
 	}

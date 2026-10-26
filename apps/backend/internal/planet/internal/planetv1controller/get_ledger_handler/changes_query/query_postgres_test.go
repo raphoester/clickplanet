@@ -191,7 +191,7 @@ func (s *testSuite) TestAChangeBehindTheHeadIsNotRead() {
 		ledger.Taking{Tile: 1, Scope: "a", Country: "fr", At: at},
 		ledger.Taking{Tile: 2, Scope: "a", Country: "fr", At: at},
 	)
-	_, err := s.db.ExecContext(s.T().Context(), `UPDATE ledger_head SET head = 1`)
+	_, err := s.db.On(s.T().Context()).ExecContext(s.T().Context(), `UPDATE ledger_head SET head = 1`)
 	s.Require().NoError(err)
 
 	s.Len(s.ledger(at, at.Add(time.Minute)), 1)

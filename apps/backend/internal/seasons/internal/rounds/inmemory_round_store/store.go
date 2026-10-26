@@ -122,20 +122,20 @@ func (s *Store) numberOf(round rounds.Round) uint32 {
 	return number
 }
 
-func (s *Store) Close(_ context.Context, round rounds.Round, results []rounds.Result) error {
+func (s *Store) Close(_ context.Context, round rounds.Round, results []rounds.Result) (bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if s.failWith != nil {
-		return s.failWith
+		return false, s.failWith
 	}
 	at, known := s.rounds[keyOf(round)]
 	if !known || at.closed {
-		return nil
+		return false, nil
 	}
 	at.closed = true
 	at.results = slices.Clone(results)
-	return nil
+	return true, nil
 }
 
 func (s *Store) ClosedIn(_ context.Context, season calendar.Number) ([]rounds.Closed, error) {

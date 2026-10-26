@@ -1,5 +1,5 @@
 // Every experiment the generator knows, and the arms of each. Which experiments run, and which arm a clip is in, are
-// the job's (the backend's CLAUDE.md, "The clips job"): it flips the coins and hands the arms over with the pick. An
+// the job's (apps/backend/docs/clips-job.md): it flips the coins and hands the arms over with the pick. An
 // arm this app acts on is applied when the clip is rendered; an experiment that acts only when the clip is posted is
 // listed here too, with nothing reading it, so the generator still refuses an arm nobody knows and carries the rest to
 // the job in `ClipRecord.variants`.

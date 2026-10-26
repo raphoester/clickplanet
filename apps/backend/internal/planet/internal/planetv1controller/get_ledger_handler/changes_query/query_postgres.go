@@ -2,7 +2,6 @@ package changes_query
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"strconv"
@@ -26,12 +25,12 @@ var (
 	ErrInvalidPage   = errors.New("not a page this query gave")
 )
 
-func NewPostgresQuery(db cppg.Beginner, clock cptime.Clock) *PostgresQuery {
+func NewPostgresQuery(db cppg.Conn, clock cptime.Clock) *PostgresQuery {
 	return &PostgresQuery{db: db, clock: clock}
 }
 
 type PostgresQuery struct {
-	db    cppg.Beginner
+	db    cppg.Conn
 	clock cptime.Clock
 }
 
@@ -93,17 +92,23 @@ func (q *PostgresQuery) Ledger(ctx context.Context, since, until time.Time, page
 		return nil, err
 	}
 
-	tx, err := q.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+	var answer *planetv1.GetLedgerResponse
+	err = q.db.InTx(ctx, func(ctx context.Context) error {
+		// Postgres compiled a page's plan for 220ms, to run it in 80.
+		if _, err := q.db.On(ctx).ExecContext(ctx, `SET LOCAL jit = off`); err != nil {
+			return fmt.Errorf("failed to read the ledger: %w", err)
+		}
+		answer, err = q.page(ctx, since, until, from)
+		return err
+	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to read the ledger: %w", err)
+		return nil, err
 	}
-	defer func() { _ = tx.Rollback() }()
-	// Postgres compiled a page's plan for 220ms, to run it in 80.
-	if _, err := tx.ExecContext(ctx, `SET LOCAL jit = off`); err != nil {
-		return nil, fmt.Errorf("failed to read the ledger: %w", err)
-	}
+	return answer, nil
+}
 
-	rows, err := tx.QueryContext(ctx, changes, since, until, from, PageEvents)
+func (q *PostgresQuery) page(ctx context.Context, since, until time.Time, from int64) (*planetv1.GetLedgerResponse, error) {
+	rows, err := q.db.On(ctx).QueryContext(ctx, changes, since, until, from, PageEvents)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the ledger: %w", err)
 	}

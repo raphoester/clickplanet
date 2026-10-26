@@ -20,7 +20,7 @@ import (
 var endedAt = time.Date(2026, 10, 16, 21, 0, 0, 0, time.UTC)
 
 func subscriber(store *inmemory_announcement_storage.Storage) round_closed_subscriber.Subscriber {
-	return round_closed_subscriber.New(announce_usecase.New(store, inprocess_feed.New(0, slog.New(slog.DiscardHandler)), &announcements.SequentialIDs{}))
+	return round_closed_subscriber.New(announce_usecase.New(store, inprocess_feed.New(0, slog.New(slog.DiscardHandler))))
 }
 
 func TestARoundIsAnnouncedWithItsPodiumAtTheTimeItEnded(t *testing.T) {
@@ -63,6 +63,19 @@ func TestTheFinaleIsAnnouncedAsTheFinale(t *testing.T) {
 	kept := store.Kept()
 	require.Len(t, kept, 1)
 	assert.JSONEq(t, `{"number":23,"finale":true,"podium":[{"country":"fr","rank":1,"points":75}]}`, string(kept[0].Payload()))
+}
+
+func TestARoundToldTwiceIsAnnouncedOnce(t *testing.T) {
+	store := inmemory_announcement_storage.New()
+	closed := func(season, number uint32) *seasonsv1.RoundClosed {
+		return &seasonsv1.RoundClosed{Season: season, Number: number, EndedAt: timestamppb.New(endedAt)}
+	}
+
+	require.NoError(t, subscriber(store).Handle(t.Context(), closed(0, 5)))
+	require.NoError(t, subscriber(store).Handle(t.Context(), closed(0, 5)))
+	require.NoError(t, subscriber(store).Handle(t.Context(), closed(1, 5)))
+
+	assert.Len(t, store.Kept(), 2, "round 5 of seasons 0 and 1")
 }
 
 func TestARoundWithNoEndIsRefused(t *testing.T) {

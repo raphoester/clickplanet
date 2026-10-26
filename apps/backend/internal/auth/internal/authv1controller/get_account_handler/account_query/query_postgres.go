@@ -14,12 +14,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
-func NewPostgresQuery(db cppg.Querier) *PostgresQuery {
+func NewPostgresQuery(db cppg.Conn) *PostgresQuery {
 	return &PostgresQuery{db: db}
 }
 
 type PostgresQuery struct {
-	db cppg.Querier
+	db cppg.Conn
 }
 
 const account = `
@@ -32,7 +32,7 @@ func (q *PostgresQuery) Account(ctx context.Context, asked cpsession.AccountID) 
 		createdAt time.Time
 		linked    bool
 	)
-	err := q.db.QueryRowContext(ctx, account, uuid.UUID(asked)).Scan(&createdAt, &linked)
+	err := q.db.On(ctx).QueryRowContext(ctx, account, uuid.UUID(asked)).Scan(&createdAt, &linked)
 	if errors.Is(err, sql.ErrNoRows) {
 		return &authv1.GetAccountResponse{}, nil
 	}

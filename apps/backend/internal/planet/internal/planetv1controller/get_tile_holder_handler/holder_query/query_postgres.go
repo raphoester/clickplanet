@@ -11,17 +11,17 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
-func NewPostgresQuery(db cppg.Querier) *PostgresQuery {
+func NewPostgresQuery(db cppg.Conn) *PostgresQuery {
 	return &PostgresQuery{db: db}
 }
 
 type PostgresQuery struct {
-	db cppg.Querier
+	db cppg.Conn
 }
 
 // The last of the changes ledger.Taking replays for the tile: a take, a tile a spread or an enclose took, or a bomb's clear.
 const lastChange = `
-	SELECT account::text, country, taken_at FROM (
+	SELECT COALESCE(account::text, ''), country, taken_at FROM (
 		(SELECT position, account, country, taken_at FROM ledger_events
 		WHERE kind = 'take' AND tile = $1
 		ORDER BY position DESC LIMIT 1)
@@ -37,7 +37,7 @@ const lastChange = `
 		ORDER BY position DESC LIMIT 1)
 		ORDER BY position DESC LIMIT 1
 	) last
-	WHERE country <> '' AND account IS NOT NULL
+	WHERE country <> ''
 `
 
 func (q *PostgresQuery) TileHolder(ctx context.Context, tile uint32) (*planetv1.GetTileHolderResponse, error) {
@@ -45,7 +45,7 @@ func (q *PostgresQuery) TileHolder(ctx context.Context, tile uint32) (*planetv1.
 		holder  = &planetv1.TileHolder{}
 		takenAt time.Time
 	)
-	err := q.db.QueryRowContext(ctx, lastChange, tile).Scan(&holder.AccountId, &holder.CountryId, &takenAt)
+	err := q.db.On(ctx).QueryRowContext(ctx, lastChange, tile).Scan(&holder.AccountId, &holder.CountryId, &takenAt)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		return &planetv1.GetTileHolderResponse{}, nil

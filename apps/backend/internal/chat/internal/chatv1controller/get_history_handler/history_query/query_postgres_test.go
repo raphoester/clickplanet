@@ -156,7 +156,8 @@ func (s *testSuite) reacted(text string, reaction reactions.Reaction, reactor re
 }
 
 func (s *testSuite) announced(id announcements.AnnouncementID, kind announcements.Kind, at time.Time) {
-	s.Require().NoError(s.announcements.Append(s.T().Context(), announcements.NewAnnouncement(id, kind, at, json.RawMessage(`{"country":"fr","ground":"de","tile":42,"cleared":3}`))))
+	_, err := s.announcements.AppendOnce(s.T().Context(), announcements.NewAnnouncement(id, kind, at, json.RawMessage(`{"country":"fr","ground":"de","tile":42,"cleared":3}`)))
+	s.Require().NoError(err)
 }
 
 func texts(answer *chatv1.GetHistoryResponse) []string {
@@ -480,7 +481,7 @@ func (s *testSuite) TestAReactionTheProtoDoesNotNameIsAnError() {
 }
 
 func (s *testSuite) TestAnAnnouncementOfAKindNobodyKnowsIsAnError() {
-	_, err := s.db.ExecContext(s.T().Context(), `ALTER TYPE announcement_kind ADD VALUE IF NOT EXISTS 'meteor'`)
+	_, err := s.db.On(s.T().Context()).ExecContext(s.T().Context(), `ALTER TYPE announcement_kind ADD VALUE IF NOT EXISTS 'meteor'`)
 	s.Require().NoError(err)
 	s.announced(latest, announcements.Kind("meteor"), now.Add(-time.Hour))
 

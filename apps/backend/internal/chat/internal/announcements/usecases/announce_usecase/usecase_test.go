@@ -24,64 +24,46 @@ func (r *recordedFeed) Publish(update feed.Update) { r.updates = append(r.update
 
 type failingAppender struct{}
 
-func (failingAppender) Append(context.Context, announcements.Announcement) error {
-	return errors.New("postgres is down")
+func (failingAppender) AppendOnce(context.Context, announcements.Announcement) (bool, error) {
+	return false, errors.New("postgres is down")
 }
 
-type failingIDs struct{}
+func bomb(t *testing.T, position uint64, at time.Time) announcements.Announcement {
+	t.Helper()
 
-func (failingIDs) NewID() (announcements.AnnouncementID, error) {
-	return announcements.AnnouncementID{}, errors.New("no entropy")
+	announcement, err := announcements.BombOf(position, "fr", "de", 42, 3).Announcement(at)
+	require.NoError(t, err)
+	return announcement
 }
 
 func TestAnAnnouncementIsKeptThenPublished(t *testing.T) {
 	store := inmemory_announcement_storage.New()
 	updates := &recordedFeed{}
-	payload := json.RawMessage(`{"country":"fr","cleared":0}`)
 
-	err := announce_usecase.New(store, updates, &announcements.SequentialIDs{}).Execute(t.Context(),
-		announce_usecase.In{Kind: announcements.KindBomb, At: at, Payload: payload})
+	require.NoError(t, announce_usecase.New(store, updates).Execute(t.Context(), bomb(t, 7, at)))
 
-	require.NoError(t, err)
-	assert.Equal(t,
-		[]announcements.Announcement{announcements.NewAnnouncement(announcements.AnnouncementID{15: 1}, announcements.KindBomb, at, payload)},
-		store.Kept())
+	assert.Equal(t, []announcements.Announcement{bomb(t, 7, at)}, store.Kept())
 	assert.Equal(t, []feed.Update{feed.Announced(store.Kept()[0])}, updates.updates)
 }
 
-func TestEachAnnouncementGetsAnIDOfItsOwn(t *testing.T) {
+func TestAFactToldTwiceIsAnnouncedAndPublishedOnce(t *testing.T) {
 	store := inmemory_announcement_storage.New()
-	useCase := announce_usecase.New(store, &recordedFeed{}, &announcements.SequentialIDs{})
-	in := announce_usecase.In{Kind: announcements.KindBomb, At: at, Payload: json.RawMessage(`{}`)}
+	updates := &recordedFeed{}
+	useCase := announce_usecase.New(store, updates)
 
-	require.NoError(t, useCase.Execute(t.Context(), in))
-	require.NoError(t, useCase.Execute(t.Context(), in))
+	require.NoError(t, useCase.Execute(t.Context(), bomb(t, 7, at)))
+	require.NoError(t, useCase.Execute(t.Context(), bomb(t, 7, at.Add(time.Minute))))
+	require.NoError(t, useCase.Execute(t.Context(), bomb(t, 8, at)))
 
-	kept := store.Kept()
-	require.Len(t, kept, 2)
-	assert.Equal(t, announcements.AnnouncementID{15: 1}, kept[0].ID())
-	assert.Equal(t, announcements.AnnouncementID{15: 2}, kept[1].ID())
+	assert.Len(t, store.Kept(), 2, "bombs 7 and 8")
+	assert.Len(t, updates.updates, 2)
 }
 
 func TestAnAnnouncementThatCannotBeKeptIsNotPublished(t *testing.T) {
 	updates := &recordedFeed{}
 
-	err := announce_usecase.New(failingAppender{}, updates, &announcements.SequentialIDs{}).Execute(t.Context(),
-		announce_usecase.In{Kind: announcements.KindBomb, At: at, Payload: json.RawMessage(`{}`)})
+	require.Error(t, announce_usecase.New(failingAppender{}, updates).Execute(t.Context(), bomb(t, 7, at)))
 
-	require.Error(t, err)
-	assert.Empty(t, updates.updates)
-}
-
-func TestAnAnnouncementWithNoIDIsNeitherKeptNorPublished(t *testing.T) {
-	store := inmemory_announcement_storage.New()
-	updates := &recordedFeed{}
-
-	err := announce_usecase.New(store, updates, failingIDs{}).Execute(t.Context(),
-		announce_usecase.In{Kind: announcements.KindBomb, At: at, Payload: json.RawMessage(`{}`)})
-
-	require.Error(t, err)
-	assert.Empty(t, store.Kept())
 	assert.Empty(t, updates.updates)
 }
 
@@ -89,8 +71,8 @@ func TestAnAnnouncementOfAKindNobodyKnowsIsRefusedAndNeitherKeptNorPublished(t *
 	store := inmemory_announcement_storage.New()
 	updates := &recordedFeed{}
 
-	err := announce_usecase.New(store, updates, &announcements.SequentialIDs{}).Execute(t.Context(),
-		announce_usecase.In{Kind: "meteor", At: at, Payload: json.RawMessage(`{}`)})
+	err := announce_usecase.New(store, updates).Execute(t.Context(),
+		announcements.NewAnnouncement(announcements.AnnouncementID{15: 1}, "meteor", at, json.RawMessage(`{}`)))
 
 	require.ErrorIs(t, err, announcements.ErrUnknownKind)
 	assert.Empty(t, store.Kept())

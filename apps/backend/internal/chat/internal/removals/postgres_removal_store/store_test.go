@@ -35,7 +35,7 @@ func (s *testSuite) SetupTest() {
 var start = time.Date(2026, 10, 18, 12, 0, 0, 123_456_000, time.UTC)
 
 func (s *testSuite) kept() map[string]time.Time {
-	rows, err := s.db.QueryContext(s.T().Context(), `SELECT message_id, removed_at FROM removals`)
+	rows, err := s.db.On(s.T().Context()).QueryContext(s.T().Context(), `SELECT message_id, removed_at FROM removals`)
 	s.Require().NoError(err)
 	defer func() { _ = rows.Close() }()
 

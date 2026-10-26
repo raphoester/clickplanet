@@ -76,8 +76,10 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/usecases/start_email_sign_in_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/usecases/start_sign_in_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpoutbox"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -187,7 +189,12 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, signIns 
 		_ = db.Close()
 		return fmt.Errorf("failed to migrate the %s schema: %w", config.Database.Schema, err)
 	}
-	props.Closers.Add("auth-postgres", db.Close)
+
+	streams := cpredis.New(config.Redis, props.Metrics)
+	if err := streams.ConnectCtx(ctx); err != nil {
+		_ = db.Close()
+		return fmt.Errorf("failed to connect the auth module to redis: %w", err)
+	}
 
 	store := postgres_account_store.New(db)
 	clock := cptime.SystemClock{}
@@ -217,7 +224,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, signIns 
 	attemptLimiter := cpratelimit.New("email-attempt-limiter",
 		cpratelimit.Config{Burst: signin.MaxAttempts, PerSecond: 1 / signin.ChallengeTTL.Seconds()}, clock)
 	props.Runners.Add(attemptLimiter)
-	admitter := signin.NewAdmitter(store, uuid_id_provider.Provider{}, random_token_generator.Generator{}, config.Sessions, props.Events)
+	outbox := cpoutbox.New(db)
+	admitter := signin.NewAdmitter(db, store, outbox, uuid_id_provider.Provider{}, random_token_generator.Generator{}, config.Sessions)
 	challenges := signin.NewChallenges(config.Email.Enabled, random_secret_generator.Generator{}, mail.codes, sealer, attemptLimiter)
 	post := signin.NewPost(blocklist, sendLimiter, mail.mailer)
 
@@ -247,12 +255,14 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, signIns 
 			complete_email_sign_in_usecase.New(challenges, admitter, clock),
 			props.Logger,
 		),
-		SignOutHandler:           sign_out_handler.New(sign_out_usecase.New(store, props.Events)),
-		SignOutEverywhereHandler: sign_out_everywhere_handler.New(sign_out_everywhere_usecase.New(store, props.Events, clock)),
-		DeleteAccountHandler:     delete_account_handler.New(delete_account_usecase.New(store, props.Events, clock)),
+		SignOutHandler:           sign_out_handler.New(sign_out_usecase.New(store, streams)),
+		SignOutEverywhereHandler: sign_out_everywhere_handler.New(sign_out_everywhere_usecase.New(store, streams, clock)),
+		DeleteAccountHandler:     delete_account_handler.New(delete_account_usecase.New(db, store, outbox, clock)),
 	}
-	props.Runners.Add(prune_guests_usecase.NewRunner(config.Prune,
-		log_prune_guests.New(prune_guests_usecase.New(config.Prune, store, props.Events, clock), props.Logger)))
+	// Not closers: closers run before the outbox's last send.
+	props.Runners.Add(cppg.CloseAfter(db, props.Logger,
+		prune_guests_usecase.NewRunner(config.Prune, log_prune_guests.New(prune_guests_usecase.New(config.Prune, db, store, outbox, clock), props.Logger)),
+		cpredis.CloseAfter(streams, props.Logger, cpoutbox.NewRelay("auth-outbox", db, streams, props.Logger))))
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return authv1connect.NewAuthServiceHandler(authService, options...)
 	}, authv1controller.NewRateLimitInterceptor(mintLimiter),
@@ -340,6 +350,7 @@ type Config struct {
 	Turnstile turnstile.Config
 
 	Database cppg.Config
+	Redis    cpredis.Config
 
 	Sessions accounts.Lifetime
 
@@ -397,11 +408,15 @@ func (c Config) Validate() error {
 		return nil
 	}
 
-	var databaseErr error
+	var databaseErr, redisErr error
 	if err := c.Database.Validate(); err != nil {
 		databaseErr = fmt.Errorf("auth.database: %w", err)
 	}
-	return errors.Join(c.SignerConfig.Validate(), databaseErr, c.pruneError(), c.signInError(), c.emailError(), c.Admin.Validate())
+	if err := c.Redis.Validate(); err != nil {
+		redisErr = fmt.Errorf("auth.redis: %w", err)
+	}
+	return errors.Join(c.SignerConfig.Validate(), databaseErr, redisErr, c.pruneError(), c.signInError(), c.emailError(),
+		c.Admin.Validate())
 }
 
 func (c Config) pruneError() error {

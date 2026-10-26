@@ -12,18 +12,18 @@ import (
 
 const allegianceLock = 0x616c6c65
 
-func New(db cppg.QuerierBeginner) *Store {
+func New(db cppg.Conn) *Store {
 	return &Store{db: db}
 }
 
 type Store struct {
-	db cppg.QuerierBeginner
+	db cppg.Conn
 }
 
 var _ allegiances.Store = (*Store)(nil)
 
 func (s *Store) Allegiance(ctx context.Context, account allegiances.Account) (allegiances.Allegiance, error) {
-	kept, err := keptOf(ctx, s.db, account)
+	kept, err := keptOf(ctx, s.db.On(ctx), account)
 	if err != nil {
 		return allegiances.Allegiance{}, err
 	}
@@ -34,45 +34,34 @@ func (s *Store) Change(
 	ctx context.Context,
 	account allegiances.Account,
 	change func(allegiances.Allegiance) (allegiances.Allegiance, error),
-) (err error) {
-	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to begin changing the allegiance: %w", err)
-	}
-	defer func() {
+) error {
+	return s.db.InTx(ctx, func(ctx context.Context) error {
+		tx := s.db.On(ctx)
+		if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock($1, hashtext($2))`, allegianceLock, string(account)); err != nil {
+			return fmt.Errorf("failed to lock the allegiance: %w", err)
+		}
+
+		before, err := keptOf(ctx, tx, account)
 		if err != nil {
-			_ = tx.Rollback()
+			return err
 		}
-	}()
 
-	if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock($1, hashtext($2))`, allegianceLock, string(account)); err != nil {
-		return fmt.Errorf("failed to lock the allegiance: %w", err)
-	}
-
-	before, err := keptOf(ctx, tx, account)
-	if err != nil {
-		return err
-	}
-
-	after, err := change(before.Restore())
-	if err != nil {
-		return err
-	}
-
-	if kept := after.TakeSnapshot(); kept != before {
-		changedAt := sql.NullTime{Time: kept.ChangedAt.UTC(), Valid: !kept.ChangedAt.IsZero()}
-		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO allegiances (account, flag, changed_at) VALUES ($1, $2, $3)
-			ON CONFLICT (account) DO UPDATE SET flag = EXCLUDED.flag, changed_at = EXCLUDED.changed_at
-		`, string(account), kept.Flag, changedAt); err != nil {
-			return fmt.Errorf("failed to write the allegiance: %w", err)
+		after, err := change(before.Restore())
+		if err != nil {
+			return err
 		}
-	}
 
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit the allegiance: %w", err)
-	}
-	return nil
+		if kept := after.TakeSnapshot(); kept != before {
+			changedAt := sql.NullTime{Time: kept.ChangedAt.UTC(), Valid: !kept.ChangedAt.IsZero()}
+			if _, err := tx.ExecContext(ctx, `
+				INSERT INTO allegiances (account, flag, changed_at) VALUES ($1, $2, $3)
+				ON CONFLICT (account) DO UPDATE SET flag = EXCLUDED.flag, changed_at = EXCLUDED.changed_at
+			`, string(account), kept.Flag, changedAt); err != nil {
+				return fmt.Errorf("failed to write the allegiance: %w", err)
+			}
+		}
+		return nil
+	})
 }
 
 func keptOf(ctx context.Context, db cppg.Querier, account allegiances.Account) (allegiances.Snapshot, error) {

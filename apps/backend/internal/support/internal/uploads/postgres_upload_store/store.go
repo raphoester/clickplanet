@@ -2,7 +2,6 @@ package postgres_upload_store
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"time"
 
@@ -13,12 +12,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/uploads"
 )
 
-func New(db cppg.QuerierBeginner) *Store {
+func New(db cppg.Conn) *Store {
 	return &Store{db: db}
 }
 
 type Store struct {
-	db cppg.QuerierBeginner
+	db cppg.Conn
 }
 
 var _ uploads.Storage = (*Store)(nil)
@@ -27,7 +26,7 @@ var _ uploads.Storage = (*Store)(nil)
 const reserveLock = 0x75706c64
 
 func (s *Store) Held(ctx context.Context) (int64, error) {
-	return held(ctx, s.db)
+	return held(ctx, s.db.On(ctx))
 }
 
 func held(ctx context.Context, db cppg.Querier) (int64, error) {
@@ -38,39 +37,25 @@ func held(ctx context.Context, db cppg.Querier) (int64, error) {
 	return bytes, nil
 }
 
-func (s *Store) Reserve(ctx context.Context, upload uploads.Upload, check func(held int64) error) (err error) {
-	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to begin reserving an upload: %w", err)
-	}
-	defer func() {
-		if err != nil {
-			_ = tx.Rollback()
+func (s *Store) Reserve(ctx context.Context, upload uploads.Upload, check func(held int64) error) error {
+	return s.db.InTx(ctx, func(ctx context.Context) error {
+		tx := s.db.On(ctx)
+		if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock($1)`, reserveLock); err != nil {
+			return fmt.Errorf("failed to lock the uploads: %w", err)
 		}
-	}()
-
-	if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock($1)`, reserveLock); err != nil {
-		return fmt.Errorf("failed to lock the uploads: %w", err)
-	}
-	bytes, err := held(ctx, tx)
-	if err != nil {
-		return err
-	}
-	if err := check(bytes); err != nil {
-		return err
-	}
-	if err := write(ctx, tx, upload.TakeSnapshot()); err != nil {
-		return err
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit the upload reserved: %w", err)
-	}
-	return nil
+		bytes, err := held(ctx, tx)
+		if err != nil {
+			return err
+		}
+		if err := check(bytes); err != nil {
+			return err
+		}
+		return write(ctx, tx, upload.TakeSnapshot())
+	})
 }
 
 func (s *Store) Unsent(ctx context.Context, cutoff time.Time, limit int) ([]uploads.Upload, error) {
-	rows, err := s.db.QueryContext(ctx, `
+	rows, err := s.db.On(ctx).QueryContext(ctx, `
 		SELECT u.id, u.size_bytes, u.granted_at FROM uploads u
 		WHERE u.granted_at < $1 AND NOT EXISTS (SELECT 1 FROM attachments a WHERE a.id = u.id)
 		ORDER BY u.granted_at, u.id
@@ -104,22 +89,15 @@ func (s *Store) Unsent(ctx context.Context, cutoff time.Time, limit int) ([]uplo
 }
 
 func (s *Store) Save(ctx context.Context, saved ...uploads.Upload) error {
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("failed to begin saving uploads: %w", err)
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	for _, upload := range saved {
-		if err := write(ctx, tx, upload.TakeSnapshot()); err != nil {
-			return err
+	return s.db.InTx(ctx, func(ctx context.Context) error {
+		tx := s.db.On(ctx)
+		for _, upload := range saved {
+			if err := write(ctx, tx, upload.TakeSnapshot()); err != nil {
+				return err
+			}
 		}
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit the uploads saved: %w", err)
-	}
-	return nil
+		return nil
+	})
 }
 
 func write(ctx context.Context, tx cppg.Querier, kept uploads.Snapshot) error {

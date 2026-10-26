@@ -89,6 +89,17 @@ func TestTheCallerReachesTheUseCaseAndGetsItsToken(t *testing.T) {
 	assert.Equal(t, int64(1_800_000_000_000), res.GetExpiresAtUnixMs())
 }
 
+func TestAMintSetsNoCookie(t *testing.T) {
+	httpServer := server(t, &stubUseCase{token: minted}, allowAll{})
+	req := connect.NewRequest(&sessionv1.CreateSessionRequest{AttestationToken: "widget"})
+	req.Header().Set("X-Real-IP", "203.0.113.7")
+
+	res, err := sessionv1connect.NewSessionServiceClient(httpServer.Client(), httpServer.URL).CreateSession(t.Context(), req)
+	require.NoError(t, err)
+
+	assert.Empty(t, res.Header().Values("Set-Cookie"))
+}
+
 func TestARefusedAttestationAnswers403AndSaysNothingAboutWhy(t *testing.T) {
 	useCase := &stubUseCase{err: fmt.Errorf("%w: invalid-input-response", attestation.ErrAttestationFailed)}
 
