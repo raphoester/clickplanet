@@ -16,7 +16,8 @@
   changed ranges. Do not replace these attributes: doing so makes the renderer
   rebuild the whole GPU buffer instead of patching it.
 - `gpuPicking.ts` — `GpuPicker`. Persistent 1×1 render target and scene;
-  `setViewOffset` narrows the projection to the pixel under the cursor. Picks
+  `setViewOffset` narrows the projection to the pixel under the cursor. In orbit the
+  tiles are drawn wider for it, with no gap between them (`pickPointSize`). Picks
   are resolved once per frame, not once per mousemove — each one ends in a
   synchronous GPU read that stalls the pipeline.
 - `points.ts` — fetches and decodes the tile coordinates blob.

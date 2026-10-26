@@ -12,7 +12,7 @@ import {createBorderLines, loadBorderLines} from "./borderLines.ts";
 import {ATLAS_SIZE, ATLAS_URL} from "./atlasAsset.ts";
 import {BORDERS_URL} from "./bordersAsset.ts";
 import {BORDER_LINES_URL} from "./borderLinesAsset.ts";
-import {displayPointSize, flagPaint, inOrbit, tilePointSize} from "./pointSize.ts";
+import {displayPointSize, flagPaint, inOrbit, pickPointSize} from "./pointSize.ts";
 import {regions} from "./atlas.ts";
 import {Country} from "../../domain/countries.ts";
 import {Allegiance} from "../../domain/allegiance.ts";
@@ -292,7 +292,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         ...fortifyUniforms(),
     };
 
-    const pickingUniforms = {pointSize: {value: tilePointSize(camera.zoom, layoutViewport().height) * renderer.getPixelRatio()}}
+    const pickingUniforms = {pointSize: {value: pickPointSize(camera.zoom, layoutViewport().height) * renderer.getPixelRatio()}}
 
     const field = new TileField(uniforms, pickingUniforms, geometryData, graphics.tiles);
 
@@ -1143,7 +1143,7 @@ function startAnimation(
         const {y: height} = renderer.getSize(viewport);
         const ratio = renderer.getPixelRatio();
         uniforms.pointSize.value = displayPointSize(camera.zoom, height, mapView()) * ratio;
-        pickingUniforms.pointSize.value = tilePointSize(camera.zoom, height) * ratio;
+        pickingUniforms.pointSize.value = pickPointSize(camera.zoom, height) * ratio;
         uniforms.pixelRatio.value = ratio;
 
         uniforms.flagPaint.value = flagPaint(camera.zoom, height, mapView());

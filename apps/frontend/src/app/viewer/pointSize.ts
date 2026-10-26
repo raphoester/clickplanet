@@ -45,6 +45,11 @@ export function flagPaint(zoom: number, viewportHeight: number, view: MapView): 
     return 1 - handover(tilePointSize(zoom, viewportHeight), view)
 }
 
+// In orbit a tile is picked as wide as the painted flag's discs, which cover the ground: a gap between two tiles is still the territory.
+export function pickPointSize(zoom: number, viewportHeight: number): number {
+    return inOrbit(zoom, viewportHeight) ? displayPointSize(zoom, viewportHeight, "flags") : tilePointSize(zoom, viewportHeight)
+}
+
 export const MAX_PICK_WINDOW = 257
 
 export function pickWindowSize(pointSize: number): number {

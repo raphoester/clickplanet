@@ -32,6 +32,11 @@ the globe.
   lines; the blob says which two landmasses each run is between, see [The countries'
   outlines](country-outlines.md)). The globe lights the territory under the mouse,
   else the one whose card is open (`Globe.showTerritory`), and nothing out of orbit.
+- **In orbit a tile is picked as wide as the painted flag's discs** (`pickPointSize`),
+  which cover the ground. At its own size a tile is about a pixel, with a gap to the
+  next, and the one pixel the picker reads fell in a gap every few moves: the
+  territory went off and on under a moving mouse, and its card closed and opened
+  again. Past orbit a tile is picked at its own size, as before.
 - **The gestures are the tile card's**: a second `TilePeek`, keyed by landmass
   rather than tile, so a mouse moving inside one territory keeps its rest. Both
   peeks see every pointer event; the orbit decides which one gets a spot.
