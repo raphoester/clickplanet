@@ -1,5 +1,5 @@
 import {Landmasses} from "../domain/landmasses.ts"
-import {FakeCensus} from "./fakeCensus.ts"
+import {FakeTally} from "./fakeTally.ts"
 
 // The server's fortify rule for FakeBackend: a whole landmass is fortified, never twice in a row by one flag.
 export class FakeFortresses {
@@ -9,7 +9,7 @@ export class FakeFortresses {
     constructor(
         private readonly assignment: Uint16Array,
         count: number,
-        private readonly census: FakeCensus,
+        private readonly tally: FakeTally,
         ownerOf: (tile: number) => string | undefined,
     ) {
         this.landmasses = new Landmasses(assignment, count)
@@ -37,6 +37,6 @@ export class FakeFortresses {
     }
 
     private whole(landmass: number, flag: string): boolean {
-        return this.census.heldOf(landmass, flag) === this.landmasses.tilesOf(landmass).length
+        return this.tally.heldOf(landmass, flag) === this.landmasses.tilesOf(landmass).length
     }
 }

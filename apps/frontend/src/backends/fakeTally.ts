@@ -1,7 +1,7 @@
 import type {Counts, MapVersion} from "./backend.ts"
 
 // The server's counts, for the fakes: what each flag holds of the map and of each landmass, and what moved since they were last told.
-export class FakeCensus {
+export class FakeTally {
     private readonly countries = new Map<string, number>()
     private readonly landmasses: Map<string, number>[]
     private readonly movedCountries = new Set<string>()

@@ -44,7 +44,7 @@ import {v4 as UUIDv4} from 'uuid';
 import {Countries} from "../domain/countries.ts";
 import {nearestTile, tilesWithin} from "../domain/blast.ts";
 import {FakeFortresses} from "./fakeFortresses.ts";
-import {FakeCensus} from "./fakeCensus.ts";
+import {FakeTally} from "./fakeTally.ts";
 import {FAKE_TAKERS, FAKE_YOU} from "./fakeAccounts.ts";
 
 const CLICKS_PER_SECOND = 0.2
@@ -120,7 +120,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private holders: Map<number, TileHolder> = new Map()
     private readonly fortifications = new Map<number, LandmassFortification>()
     private tileCount = 0
-    private census: FakeCensus | undefined
+    private tally: FakeTally | undefined
     private readonly ready: Promise<void>
     private readonly epoch = Math.floor(Date.now() / 1000)
     private seq = 0
@@ -163,14 +163,14 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         this.sessionUnavailable = options.sessionUnavailable ?? false
         this.tilePositions = options.tilePositions
         this.ready = options.landmasses().then(({assignment, count}) => {
-            const census = new FakeCensus(assignment, count)
+            const tally = new FakeTally(assignment, count)
             for (let tile = 1; tile <= assignment.length; tile++) {
                 this.tileBindings.set(tile, "fr")
-                census.moved(tile, undefined, "fr")
+                tally.moved(tile, undefined, "fr")
             }
-            this.census = census
+            this.tally = tally
             this.tileCount = assignment.length
-            this.fortresses = new FakeFortresses(assignment, count, census, (tile) => this.tileBindings.get(tile))
+            this.fortresses = new FakeFortresses(assignment, count, tally, (tile) => this.tileBindings.get(tile))
         })
 
         this.listenForUpdates((update) => {
@@ -242,7 +242,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
             this.pendingUpdates = []
             this.updateBatchCallbacks.forEach(callback => callback(updates))
         }
-        const change = this.census?.changes(this.version())
+        const change = this.tally?.changes(this.version())
         if (change) this.holdingsCallbacks.forEach(callback => callback(change))
     }
 
@@ -451,7 +451,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     }
 
     private price(countryId: string): ClickPrice {
-        const share = this.tileCount > 0 ? (this.census?.heldBy(countryId) ?? 0) / this.tileCount : 0
+        const share = this.tileCount > 0 ? (this.tally?.heldBy(countryId) ?? 0) / this.tileCount : 0
 
         let slowdown = 1
         for (const step of TOLL_STEPS) {
@@ -476,7 +476,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         this.tileBindings.set(tileId, countryId)
         this.holders.set(tileId, {accountId: by, countryCode: countryId, takenAt: Date.now()})
         this.shields.delete(tileId)
-        this.census?.moved(tileId, prev, countryId)
+        this.tally?.moved(tileId, prev, countryId)
         const version = this.write()
         this.updateListeners.forEach(l => l({
             tile: tileId,
@@ -687,7 +687,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
                 struck.push({tile: id, shields: left})
                 continue
             }
-            this.census?.moved(id, owner, undefined)
+            this.tally?.moved(id, owner, undefined)
             this.tileBindings.delete(id)
             this.holders.delete(id)
             cleared.push(id)
@@ -776,7 +776,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     public async getHoldings(signal?: AbortSignal): Promise<Counts> {
         await this.ready
         signal?.throwIfAborted()
-        return this.census!.read(this.version())
+        return this.tally!.read(this.version())
     }
 
     public async getOwnerships(

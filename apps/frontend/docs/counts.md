@@ -66,8 +66,8 @@ A tile load that fails after its retries is tried again 5s later, so the loading
 
 ## The fakes
 
-`FakeBackend` plays the server: the real tile count (the borders blob's), a version on every write, `FakeCensus`
+`FakeBackend` plays the server: the real tile count (the borders blob's), a version on every write, `FakeTally`
 counting what each flag holds and sending `holdings_changed` after every flush of its updates, and an opening at
-once. `ReplayBackend` numbers each step it plays from its opening, counts with the same `FakeCensus` (it takes the
+once. `ReplayBackend` numbers each step it plays from its opening, counts with the same `FakeTally` (it takes the
 borders' landmasses: `ReplayBackend.of(response, landmasses)`), and fills the shields a struck tile kept from its
 own map for a replay recorded before the server said them. The clip awaits `Globe.tilesRead` before its first frame.

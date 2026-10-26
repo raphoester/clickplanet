@@ -17,7 +17,7 @@ import {
 } from "./backend.ts"
 import {bindingsOf, bombOf, enclosureOf, shieldsOf, spreadOf, updateOf} from "./planetBackend.ts"
 import {TileChange} from "../domain/clip/changes.ts"
-import {FakeCensus} from "./fakeCensus.ts"
+import {FakeTally} from "./fakeTally.ts"
 
 type Step = {at: number, event: PlanetEvent}
 
@@ -45,7 +45,7 @@ export class ReplayBackend implements OwnershipsGetter, UpdatesListener, BonusLi
     private readonly landmasses: ReplayLandmasses
     private readonly owners: Map<number, string>
     private readonly shields: Map<number, number>
-    private readonly census: FakeCensus
+    private readonly tally: FakeTally
     private played = 0
     private readonly updateListeners = new Set<(update: Update) => void>()
     private readonly batchListeners = new Set<(updates: Update[]) => void>()
@@ -76,9 +76,9 @@ export class ReplayBackend implements OwnershipsGetter, UpdatesListener, BonusLi
         this.landmasses = reel.landmasses
         this.owners = new Map(reel.opening)
         this.shields = new Map(reel.shields)
-        this.census = new FakeCensus(reel.landmasses.assignment, reel.landmasses.count)
-        this.owners.forEach((owner, tile) => this.census.moved(tile, undefined, owner))
-        this.census.changes(this.version())
+        this.tally = new FakeTally(reel.landmasses.assignment, reel.landmasses.count)
+        this.owners.forEach((owner, tile) => this.tally.moved(tile, undefined, owner))
+        this.tally.changes(this.version())
     }
 
     // The same replay from since to until, opening on the map as it was at since.
@@ -189,7 +189,7 @@ export class ReplayBackend implements OwnershipsGetter, UpdatesListener, BonusLi
         }
 
         flush()
-        const change = this.census.changes(this.version())
+        const change = this.tally.changes(this.version())
         if (change) for (const listener of this.holdingsListeners) listener(change)
     }
 
@@ -198,7 +198,7 @@ export class ReplayBackend implements OwnershipsGetter, UpdatesListener, BonusLi
     }
 
     async getHoldings(): Promise<Counts> {
-        return this.census.read(this.version())
+        return this.tally.read(this.version())
     }
 
     async getOwnerships(ranges: readonly TileRange[], callback: (ownerships: Ownerships) => void): Promise<void> {
@@ -262,7 +262,7 @@ export class ReplayBackend implements OwnershipsGetter, UpdatesListener, BonusLi
     }
 
     private own(tile: number, owner: string | undefined, shields: number) {
-        this.census.moved(tile, this.owners.get(tile), owner)
+        this.tally.moved(tile, this.owners.get(tile), owner)
         if (owner === undefined) this.owners.delete(tile)
         else this.owners.set(tile, owner)
         if (shields > 0) this.shields.set(tile, shields)
