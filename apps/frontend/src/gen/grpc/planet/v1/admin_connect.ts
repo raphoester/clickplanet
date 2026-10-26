@@ -106,7 +106,8 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Every change the live stream showed in a window of at most 72 hours, from the ledger in memory, and who made it.
+     * Every change the live stream showed in a window of at most 72 hours, from postgres, and who made it, a page at a
+     * time.
      *
      * @generated from rpc planet.v1.AdminService.GetLedger
      */
