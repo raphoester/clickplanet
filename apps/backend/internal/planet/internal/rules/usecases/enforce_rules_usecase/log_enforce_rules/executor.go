@@ -27,8 +27,7 @@ func (l *Logged) Execute(ctx context.Context) (rules.Snapshot, error) {
 			slog.Float64("tempo", enforced.Tempo),
 			slog.Duration("boxMinInterval", enforced.Boxes.MinInterval),
 			slog.Duration("boxMaxInterval", enforced.Boxes.MaxInterval),
-			slog.Int("boxMaxChargesPerHour", enforced.Boxes.MaxChargesPerHour),
-			slog.Int("crowd", enforced.Crowd))
+			slog.Int("boxMaxChargesPerHour", enforced.Boxes.MaxChargesPerHour))
 	}
 	if err != nil && ctx.Err() == nil {
 		l.logger.Error("failed to enforce the rules", slog.Any("error", err))

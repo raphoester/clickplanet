@@ -16,7 +16,6 @@ var rushSnapshot = rules.Snapshot{
 	Name:  "rush",
 	Tempo: 3,
 	Boxes: bonuses.Pace{MinInterval: time.Minute, MaxInterval: 2 * time.Minute, MaxChargesPerHour: 30},
-	Crowd: 50,
 }
 
 func TestASetIsWhatItWasMadeOf(t *testing.T) {
@@ -36,7 +35,6 @@ func TestASetThatCannotPlayIsRefused(t *testing.T) {
 		"no shortest wait":          func(s *rules.Snapshot) { s.Boxes.MinInterval = 0 },
 		"a longest wait too short":  func(s *rules.Snapshot) { s.Boxes.MaxInterval = 30 * time.Second },
 		"no hourly cap":             func(s *rules.Snapshot) { s.Boxes.MaxChargesPerHour = 0 },
-		"a crowd of one":            func(s *rules.Snapshot) { s.Crowd = 1 },
 	}
 	for name, breaks := range broken {
 		t.Run(name, func(t *testing.T) {

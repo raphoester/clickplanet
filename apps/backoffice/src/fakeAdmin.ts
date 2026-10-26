@@ -13,9 +13,14 @@ import {
     RemoveMessageResponse,
 } from "./gen/grpc/chat/v1/admin_pb.ts"
 import {
-    AntiBotRules,
     BanPlayerRequest,
     BanPlayerResponse,
+    InspectPlayerRequest,
+    InspectPlayerResponse,
+    UnbanPlayerRequest,
+    UnbanPlayerResponse,
+} from "./gen/grpc/antibot/v1/admin_pb.ts"
+import {
     BoxPace,
     FindPlayersRequest,
     FindPlayersResponse,
@@ -28,8 +33,6 @@ import {
     GetRulesResponse,
     GrantChargesRequest,
     GrantChargesResponse,
-    InspectPlayerRequest,
-    InspectPlayerResponse,
     PaintRandomTilesRequest,
     PaintRandomTilesResponse,
     Player,
@@ -42,8 +45,6 @@ import {
     SaveRuleSetResponse,
     TopPlayersRequest,
     TopPlayersResponse,
-    UnbanPlayerRequest,
-    UnbanPlayerResponse,
 } from "./gen/grpc/planet/v1/admin_pb.ts"
 import {
     ListRowsRequest,
@@ -78,7 +79,7 @@ import {
     NoteKind,
     Report,
 } from "./gen/grpc/support/v1/admin_pb.ts"
-import {ChatAdmin, ClipsAdmin, Clients, PlanetAdmin, PlayerAdmin, SupportAdmin} from "./clients.ts"
+import {AntibotAdmin, ChatAdmin, ClipsAdmin, Clients, PlanetAdmin, PlayerAdmin, SupportAdmin} from "./clients.ts"
 
 export const AT = new Date("2026-10-18T12:00:00Z")
 
@@ -93,7 +94,7 @@ function change(minutes: number, by: string, update: PartialMessage<TileUpdate>)
 }
 
 // What each fake was asked, and a refusal to answer with instead, by method.
-export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAdmin, ClipsAdmin {
+export class FakeAdmin implements AntibotAdmin, ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAdmin, ClipsAdmin {
     readonly kind = "fake admin"
     readonly asked: {method: string, request: unknown}[] = []
     readonly refusals = new Map<string, Code>()
@@ -174,7 +175,6 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
             boxes: new BoxPace({
                 minInterval: new Duration({seconds: 240n}), maxInterval: new Duration({seconds: 480n}), maxChargesPerHour: 12,
             }),
-            antiBot: new AntiBotRules({crowd: 6}),
         })],
     })
     roster = [
@@ -206,7 +206,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
     ]]
 
     clients(): Clients {
-        return {chat: this, planet: this, player: this, support: this, clips: this}
+        return {antibot: this, chat: this, planet: this, player: this, support: this, clips: this}
     }
 
     refuse(method: string, code: Code) {

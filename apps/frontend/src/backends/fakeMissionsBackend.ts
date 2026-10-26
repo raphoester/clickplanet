@@ -9,6 +9,7 @@ export class FakeMissionsBackend implements MissionsBackend {
     private taken = 0
     private flag?: string
     private pledged?: string
+    private primed = false
     private finished = false
     private readonly paid = new Set<string>()
 
@@ -28,14 +29,15 @@ export class FakeMissionsBackend implements MissionsBackend {
                 await clicker.clickTile(tileId, countryId, switches)
                 this.flag ??= countryId
                 if (countryId === this.flag) this.taken++
+                if (countryId === this.flag && this.primed) this.finished = true
                 this.payDone()
             },
         }
     }
 
-    public finish(): void {
-        this.finished = true
-        this.payDone()
+    // As on the server, a take finishes the missions and pays them: finishing them alone would pay with no take to show.
+    public prime(): void {
+        this.primed = true
     }
 
     public async missions(): Promise<DayMissions> {
@@ -60,7 +62,11 @@ export class FakeMissionsBackend implements MissionsBackend {
 
     private brief(flag: string): Mission[] {
         const rival = flag === "dz" ? "pw" : "dz"
-        const taken = (goal: number, share: number) => this.finished ? goal : Math.min(goal, Math.floor(this.taken * share))
+        const taken = (goal: number, share: number) => {
+            if (this.finished) return goal
+            const counted = Math.min(goal, Math.floor(this.taken * share))
+            return this.primed ? Math.max(counted, goal - 1) : counted
+        }
         const mission = (id: string, order: Omit<TileOrder, "taken">, reward: MissionReward, share: number): Mission => {
             const tiles = taken(order.goal, share)
             return {id, order: {...order, taken: tiles}, reward, done: tiles >= order.goal, paid: this.paid.has(id)}

@@ -26,7 +26,6 @@ var contractRush = Snapshot{
 	Name:  "rush",
 	Tempo: 3,
 	Boxes: bonuses.Pace{MinInterval: time.Minute, MaxInterval: 2 * time.Minute, MaxChargesPerHour: 30},
-	Crowd: 50,
 }
 
 func (s *StoreContractSuite) save(kept Snapshot) {
@@ -51,7 +50,7 @@ func (s *StoreContractSuite) TestASetNeverKeptIsUnknown() {
 func (s *StoreContractSuite) TestASetKeptAgainReplacesItsValues() {
 	s.save(contractRush)
 	quicker := contractRush
-	quicker.Tempo, quicker.Crowd = 4, 60
+	quicker.Tempo = 4
 	s.save(quicker)
 
 	set, err := s.store.Set(s.T().Context(), "rush")

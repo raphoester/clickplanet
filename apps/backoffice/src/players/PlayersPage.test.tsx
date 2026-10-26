@@ -7,7 +7,7 @@ import {afterEach, describe, expect, it} from "vitest"
 import {AROUND} from "../chat/theirConversations.ts"
 import {ACCOUNT, AT, FakeAdmin} from "../fakeAdmin.ts"
 import {KeptMessage} from "../gen/grpc/chat/v1/admin_pb.ts"
-import {InspectPlayerResponse} from "../gen/grpc/planet/v1/admin_pb.ts"
+import {InspectPlayerResponse} from "../gen/grpc/antibot/v1/admin_pb.ts"
 import {Author} from "../gen/grpc/player/v1/internal_pb.ts"
 import {CountryTiles} from "../gen/grpc/player/v1/player_pb.ts"
 import {Opened} from "../navigation.ts"
@@ -221,7 +221,7 @@ describe("one player", () => {
 
     it("says the antibot is off rather than failing", async () => {
         const admin = new FakeAdmin()
-        admin.refuse("inspectPlayer", Code.FailedPrecondition)
+        admin.refuse("inspectPlayer", Code.Unimplemented)
         render(<Page admin={admin} first={account}/>)
 
         expect(await screen.findByText("The antibot is off on this server, so it cannot ban, unban or inspect.")).toBeTruthy()

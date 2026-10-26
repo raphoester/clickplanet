@@ -64,7 +64,7 @@ export function ReportDetail({report, onBack, clients = CLIENTS}: Props) {
             {report.reportedAccountId !== "" && (
                 <ActPanel
                     chat={clients.chat}
-                    planet={clients.planet}
+                    antibot={clients.antibot}
                     accountId={report.reportedAccountId}
                     name={report.reportedName}
                 />

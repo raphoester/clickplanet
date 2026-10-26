@@ -21,7 +21,6 @@ var plain = rules.Snapshot{
 	Name:  rules.Default,
 	Tempo: 1,
 	Boxes: bonuses.Pace{MinInterval: 4 * time.Minute, MaxInterval: 8 * time.Minute, MaxChargesPerHour: 12},
-	Crowd: 6,
 }
 
 func keep(t *testing.T, store *rules.MemoryStore, kept rules.Snapshot) {

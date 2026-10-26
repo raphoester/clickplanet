@@ -1,4 +1,4 @@
-import {ChatAdmin, PlanetAdmin} from "../clients.ts"
+import {AntibotAdmin, ChatAdmin} from "../clients.ts"
 import {useOpenPlayer} from "../navigation.ts"
 import {whoOf} from "../players/caller.ts"
 import {InspectPanel} from "../players/InspectPanel.tsx"
@@ -6,13 +6,13 @@ import {BanAction, MuteAction} from "../players/Moderation.tsx"
 
 type Props = {
     chat: ChatAdmin
-    planet: PlanetAdmin
+    antibot: AntibotAdmin
     accountId: string
     name: string
 }
 
 // What a report usually calls for. The player page has the rest: unban, revert, its address.
-export function ActPanel({chat, planet, accountId, name}: Props) {
+export function ActPanel({chat, antibot, accountId, name}: Props) {
     const openPlayer = useOpenPlayer()
     const caller = {accountId}
     const who = whoOf(caller, name)
@@ -29,10 +29,10 @@ export function ActPanel({chat, planet, accountId, name}: Props) {
             </div>
 
             <MuteAction chat={chat} accountId={accountId} who={who}/>
-            <BanAction planet={planet} caller={caller} who={who}/>
+            <BanAction antibot={antibot} caller={caller} who={who}/>
 
             <div className="act">
-                <InspectPanel planet={planet} caller={caller}/>
+                <InspectPanel antibot={antibot} caller={caller}/>
             </div>
         </section>
     )

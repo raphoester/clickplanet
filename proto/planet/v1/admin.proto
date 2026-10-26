@@ -15,15 +15,24 @@ service AdminService {
 
   rpc TopPlayers(TopPlayersRequest) returns (TopPlayersResponse);
 
-  rpc BanPlayer(BanPlayerRequest) returns (BanPlayerResponse);
+  // Deprecated: antibot.v1.AdminService/BanPlayer, which answers it on this path until the backoffice calls it there.
+  rpc BanPlayer(BanPlayerRequest) returns (BanPlayerResponse) {
+    option deprecated = true;
+  }
 
-  rpc UnbanPlayer(UnbanPlayerRequest) returns (UnbanPlayerResponse);
+  // Deprecated: antibot.v1.AdminService/UnbanPlayer, which answers it on this path until the backoffice calls it there.
+  rpc UnbanPlayer(UnbanPlayerRequest) returns (UnbanPlayerResponse) {
+    option deprecated = true;
+  }
 
   rpc RevertPlayer(RevertPlayerRequest) returns (RevertPlayerResponse);
 
   rpc PaintRandomTiles(PaintRandomTilesRequest) returns (PaintRandomTilesResponse);
 
-  rpc InspectPlayer(InspectPlayerRequest) returns (InspectPlayerResponse);
+  // Deprecated: antibot.v1.AdminService/InspectPlayer, which answers it on this path until the backoffice calls it there.
+  rpc InspectPlayer(InspectPlayerRequest) returns (InspectPlayerResponse) {
+    option deprecated = true;
+  }
 
   rpc GrantCharges(GrantChargesRequest) returns (GrantChargesResponse);
 
@@ -183,7 +192,8 @@ message Player {
   google.protobuf.Timestamp last_at = 4;
   optional bool banned = 5;
   google.protobuf.Timestamp banned_until = 6;
-  uint32 offence = 7;
+  // Planet keeps no offence: antibot.v1.AdminService/InspectPlayer says it.
+  uint32 offence = 7 [deprecated = true];
   google.protobuf.Duration active_for = 8;
   double tiles_per_minute = 9;
   uint32 takes = 10;
@@ -259,18 +269,12 @@ message RuleSet {
   // How many times faster than rateLimiter.perSecond every bucket refills.
   double tempo = 2;
   BoxPace boxes = 3;
-  AntiBotRules anti_bot = 4;
 }
 
 message BoxPace {
   google.protobuf.Duration min_interval = 1;
   google.protobuf.Duration max_interval = 2;
   uint32 max_charges_per_hour = 3;
-}
-
-message AntiBotRules {
-  // How many networks of one prefix, starting and clicking in step, are banned as a crowd.
-  uint32 crowd = 1;
 }
 
 message SaveRuleSetRequest {

@@ -60,6 +60,18 @@ describe("MissionsPlace", () => {
         expect(screen.queryByRole("button")).toBeNull()
     })
 
+    it("tells what it showed, so the badge forgets it", () => {
+        const onSeen = vi.fn()
+        const shown = day(mission({}), mission({...doneBank, id: "rival"}))
+
+        render(<MissionsPlace state={{kind: "loading"}} onSeen={onSeen}/>)
+        expect(onSeen).not.toHaveBeenCalled()
+        cleanup()
+        render(<MissionsPlace state={shown} onSeen={onSeen}/>)
+
+        expect(onSeen).toHaveBeenCalledWith(shown.day.missions)
+    })
+
     it("says so when the missions could not be read", () => {
         render(<MissionsPlace state={{kind: "failed"}}/>)
 

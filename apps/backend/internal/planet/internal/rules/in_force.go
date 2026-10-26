@@ -14,20 +14,14 @@ type Schedule interface {
 	SetPace(pace bonuses.Pace)
 }
 
-type Guard interface {
-	SetCrowd(members int)
-}
-
-// NewInForce holds no set: until the first is enforced, the limiter is at its own tempo, no box is offered and no
-// crowd is banned.
-func NewInForce(tempo Tempo, schedule Schedule, guard Guard) *InForce {
-	return &InForce{tempo: tempo, schedule: schedule, guard: guard, watchers: make(map[uint64]chan Set)}
+// NewInForce holds no set: until the first is enforced, the limiter is at its own tempo and no box is offered.
+func NewInForce(tempo Tempo, schedule Schedule) *InForce {
+	return &InForce{tempo: tempo, schedule: schedule, watchers: make(map[uint64]chan Set)}
 }
 
 type InForce struct {
 	tempo    Tempo
 	schedule Schedule
-	guard    Guard
 
 	mu       sync.Mutex
 	set      Set
@@ -42,7 +36,6 @@ func (f *InForce) Enforce(set Set) {
 	f.set = set
 	f.tempo.SetTempo(set.tempo)
 	f.schedule.SetPace(set.boxes)
-	f.guard.SetCrowd(set.crowd)
 
 	for _, watcher := range f.watchers {
 		select {

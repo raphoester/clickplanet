@@ -29,7 +29,6 @@ func (a *Audited) Execute(ctx context.Context, in rules.Snapshot) error {
 		slog.Duration("boxMinInterval", in.Boxes.MinInterval),
 		slog.Duration("boxMaxInterval", in.Boxes.MaxInterval),
 		slog.Int("boxMaxChargesPerHour", in.Boxes.MaxChargesPerHour),
-		slog.Int("crowd", in.Crowd),
 	}
 
 	if err != nil {

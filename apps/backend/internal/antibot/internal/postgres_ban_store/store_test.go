@@ -63,7 +63,7 @@ func (s *testSuite) TestAccountsAreKeptApartFromScopes() {
 
 	running, err := scopes.Running(ctx, until.Add(-time.Hour))
 	s.Require().NoError(err)
-	s.Zero(running)
+	s.Empty(running)
 }
 
 func (s *testSuite) TestAKeyThatIsNotAnAccountIsAnError() {
@@ -76,7 +76,7 @@ func (s *testSuite) TestAKeyThatIsNotAnAccountIsAnError() {
 
 	running, err := accounts.Running(s.T().Context(), until)
 	s.Require().NoError(err)
-	s.Zero(running)
+	s.Empty(running)
 }
 
 func (s *testSuite) TestEveryPardonIsKept() {

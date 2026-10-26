@@ -32,6 +32,7 @@ type Config struct {
 	V6Bits int
 
 	CertainCohorts int
+	CertainMembers int
 	ChainWindow    time.Duration
 
 	TrackWindow time.Duration
@@ -50,6 +51,7 @@ const (
 	defaultV4Bits         = 24
 	defaultV6Bits         = 44
 	defaultCertainCohorts = 3
+	defaultCertainMembers = 6
 	defaultChainWindow    = 30 * time.Minute
 	defaultSweepInterval  = time.Minute
 
@@ -94,6 +96,9 @@ func (c Config) Validate() error {
 	if c.CertainCohorts < 0 || c.CertainCohorts == 1 {
 		errs = append(errs, fmt.Errorf("certainCohorts is %d: one cohort is a suspicion, a chain is at least 2", c.CertainCohorts))
 	}
+	if c.CertainMembers < 0 {
+		errs = append(errs, fmt.Errorf("certainMembers is %d: it must not be negative", c.CertainMembers))
+	}
 	if c.V4Bits < 0 || c.V4Bits > 32 {
 		errs = append(errs, fmt.Errorf("v4Bits is %d: an IPv4 prefix is 1 to 32 bits", c.V4Bits))
 	}
@@ -135,6 +140,12 @@ func (c Config) withDefaults() Config {
 	if c.CertainCohorts < 2 {
 		c.CertainCohorts = defaultCertainCohorts
 	}
+	if c.CertainMembers <= 0 {
+		c.CertainMembers = defaultCertainMembers
+	}
+	if c.CertainMembers < c.MinMembers {
+		c.CertainMembers = c.MinMembers
+	}
 	if c.ChainWindow <= 0 {
 		c.ChainWindow = defaultChainWindow
 	}
@@ -152,9 +163,8 @@ func New(config Config, clock cptime.Clock, onInStep func(scopes int)) *Watchdog
 		clock = cptime.SystemClock{}
 	}
 
-	config = config.withDefaults()
 	return &Watchdog{
-		config:   config,
+		config:   config.withDefaults(),
 		clock:    clock,
 		onInStep: onInStep,
 		members:  make(map[string]*member),
@@ -169,7 +179,6 @@ type Watchdog struct {
 	onInStep func(int)
 
 	mu      sync.Mutex
-	crowd   int
 	members map[string]*member
 
 	starts   map[int64]*cpcolls.Set[string]
@@ -177,20 +186,6 @@ type Watchdog struct {
 }
 
 var _ detect.Watchdog = (*Watchdog)(nil)
-
-// SetCrowd makes members scopes of one prefix in step a crowd from now on, never under minMembers. Until it is set,
-// or set to 0, there is no crowd rule: the rule set in force holds the bound.
-func (w *Watchdog) SetCrowd(members int) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-
-	switch {
-	case members <= 0:
-		w.crowd = 0
-	default:
-		w.crowd = max(members, w.config.MinMembers)
-	}
-}
 
 type member struct {
 	scope  string
@@ -298,7 +293,7 @@ func (w *Watchdog) judgeLocked(m *member, now time.Time) (detect.Verdict, detect
 		}
 	}
 
-	if w.crowd > 0 && sharing >= w.crowd {
+	if sharing >= w.config.CertainMembers {
 		return detect.Certain, detect.Evidence{
 			Rule:   "crowd",
 			Fields: append(fields, detect.Field{Key: "prefix", Value: m.prefix}),

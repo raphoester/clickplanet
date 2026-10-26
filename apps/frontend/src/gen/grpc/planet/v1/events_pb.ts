@@ -4,7 +4,80 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3, protoInt64, Timestamp } from "@bufbuild/protobuf";
+import { Duration, Message, proto3, protoInt64, Timestamp } from "@bufbuild/protobuf";
+import { GlobePoint } from "./planet_pb.js";
+
+/**
+ * @generated from enum planet.v1.ClickOutcome
+ */
+export enum ClickOutcome {
+  /**
+   * @generated from enum value: CLICK_OUTCOME_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: CLICK_OUTCOME_TAKEN = 1;
+   */
+  TAKEN = 1,
+
+  /**
+   * A shield took the click.
+   *
+   * @generated from enum value: CLICK_OUTCOME_STRUCK = 2;
+   */
+  STRUCK = 2,
+
+  /**
+   * The tile already wore the flag.
+   *
+   * @generated from enum value: CLICK_OUTCOME_UNCHANGED = 3;
+   */
+  UNCHANGED = 3,
+
+  /**
+   * @generated from enum value: CLICK_OUTCOME_THROTTLED = 4;
+   */
+  THROTTLED = 4,
+
+  /**
+   * The caller is refused.
+   *
+   * @generated from enum value: CLICK_OUTCOME_REFUSED = 5;
+   */
+  REFUSED = 5,
+
+  /**
+   * Not the flag the account plays for.
+   *
+   * @generated from enum value: CLICK_OUTCOME_OTHER_FLAG = 6;
+   */
+  OTHER_FLAG = 6,
+
+  /**
+   * An unknown flag, a tile off the map, or two bonuses together.
+   *
+   * @generated from enum value: CLICK_OUTCOME_INVALID = 7;
+   */
+  INVALID = 7,
+
+  /**
+   * @generated from enum value: CLICK_OUTCOME_FAILED = 8;
+   */
+  FAILED = 8,
+}
+// Retrieve enum metadata with: proto3.getEnumType(ClickOutcome)
+proto3.util.setEnumType(ClickOutcome, "planet.v1.ClickOutcome", [
+  { no: 0, name: "CLICK_OUTCOME_UNSPECIFIED" },
+  { no: 1, name: "CLICK_OUTCOME_TAKEN" },
+  { no: 2, name: "CLICK_OUTCOME_STRUCK" },
+  { no: 3, name: "CLICK_OUTCOME_UNCHANGED" },
+  { no: 4, name: "CLICK_OUTCOME_THROTTLED" },
+  { no: 5, name: "CLICK_OUTCOME_REFUSED" },
+  { no: 6, name: "CLICK_OUTCOME_OTHER_FLAG" },
+  { no: 7, name: "CLICK_OUTCOME_INVALID" },
+  { no: 8, name: "CLICK_OUTCOME_FAILED" },
+]);
 
 /**
  * @generated from message planet.v1.TileTaken
@@ -314,6 +387,353 @@ export class QuizAnswered extends Message<QuizAnswered> {
 
   static equals(a: QuizAnswered | PlainMessage<QuizAnswered> | undefined, b: QuizAnswered | PlainMessage<QuizAnswered> | undefined): boolean {
     return proto3.util.equals(QuizAnswered, a, b);
+  }
+}
+
+/**
+ * Every click a caller tried, whatever came of it. The callers' facts are told in the order they ended, each at a
+ * later time than the one before: a time names its fact.
+ *
+ * @generated from message planet.v1.ClickTried
+ */
+export class ClickTried extends Message<ClickTried> {
+  /**
+   * @generated from field: string scope = 1;
+   */
+  scope = "";
+
+  /**
+   * @generated from field: string account_id = 2;
+   */
+  accountId = "";
+
+  /**
+   * @generated from field: bool linked = 3;
+   */
+  linked = false;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp account_created_at = 4;
+   */
+  accountCreatedAt?: Timestamp;
+
+  /**
+   * @generated from field: uint32 tile_id = 5;
+   */
+  tileId = 0;
+
+  /**
+   * @generated from field: string country = 6;
+   */
+  country = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp tried_at = 7;
+   */
+  triedAt?: Timestamp;
+
+  /**
+   * @generated from field: planet.v1.ClickOutcome outcome = 8;
+   */
+  outcome = ClickOutcome.UNSPECIFIED;
+
+  /**
+   * The flag the tile wore before the try.
+   *
+   * @generated from field: string owner = 9;
+   */
+  owner = "";
+
+  /**
+   * Unset for a tile off the map.
+   *
+   * @generated from field: planet.v1.GlobePoint position = 10;
+   */
+  position?: GlobePoint;
+
+  /**
+   * How many times faster than the plain pace every bucket refilled when the click was tried; 0 is the plain pace.
+   *
+   * @generated from field: double tempo = 11;
+   */
+  tempo = 0;
+
+  constructor(data?: PartialMessage<ClickTried>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.ClickTried";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "scope", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "linked", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 4, name: "account_created_at", kind: "message", T: Timestamp },
+    { no: 5, name: "tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 6, name: "country", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 7, name: "tried_at", kind: "message", T: Timestamp },
+    { no: 8, name: "outcome", kind: "enum", T: proto3.getEnumType(ClickOutcome) },
+    { no: 9, name: "owner", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 10, name: "position", kind: "message", T: GlobePoint },
+    { no: 11, name: "tempo", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ClickTried {
+    return new ClickTried().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ClickTried {
+    return new ClickTried().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ClickTried {
+    return new ClickTried().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ClickTried | PlainMessage<ClickTried> | undefined, b: ClickTried | PlainMessage<ClickTried> | undefined): boolean {
+    return proto3.util.equals(ClickTried, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.MapRead
+ */
+export class MapRead extends Message<MapRead> {
+  /**
+   * @generated from field: string scope = 1;
+   */
+  scope = "";
+
+  /**
+   * The share of the map the read held.
+   *
+   * @generated from field: double maps = 2;
+   */
+  maps = 0;
+
+  /**
+   * A bound outside the map, which no page load asks for.
+   *
+   * @generated from field: bool off_map = 3;
+   */
+  offMap = false;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp read_at = 4;
+   */
+  readAt?: Timestamp;
+
+  constructor(data?: PartialMessage<MapRead>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.MapRead";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "scope", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "maps", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 3, name: "off_map", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 4, name: "read_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MapRead {
+    return new MapRead().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): MapRead {
+    return new MapRead().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): MapRead {
+    return new MapRead().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: MapRead | PlainMessage<MapRead> | undefined, b: MapRead | PlainMessage<MapRead> | undefined): boolean {
+    return proto3.util.equals(MapRead, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.StreamOpened
+ */
+export class StreamOpened extends Message<StreamOpened> {
+  /**
+   * @generated from field: string scope = 1;
+   */
+  scope = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp opened_at = 2;
+   */
+  openedAt?: Timestamp;
+
+  constructor(data?: PartialMessage<StreamOpened>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.StreamOpened";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "scope", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "opened_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): StreamOpened {
+    return new StreamOpened().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): StreamOpened {
+    return new StreamOpened().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): StreamOpened {
+    return new StreamOpened().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: StreamOpened | PlainMessage<StreamOpened> | undefined, b: StreamOpened | PlainMessage<StreamOpened> | undefined): boolean {
+    return proto3.util.equals(StreamOpened, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.BoxCaught
+ */
+export class BoxCaught extends Message<BoxCaught> {
+  /**
+   * @generated from field: string scope = 1;
+   */
+  scope = "";
+
+  /**
+   * From the offer to the claim.
+   *
+   * @generated from field: google.protobuf.Duration after = 2;
+   */
+  after?: Duration;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp caught_at = 3;
+   */
+  caughtAt?: Timestamp;
+
+  constructor(data?: PartialMessage<BoxCaught>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.BoxCaught";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "scope", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "after", kind: "message", T: Duration },
+    { no: 3, name: "caught_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BoxCaught {
+    return new BoxCaught().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BoxCaught {
+    return new BoxCaught().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BoxCaught {
+    return new BoxCaught().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BoxCaught | PlainMessage<BoxCaught> | undefined, b: BoxCaught | PlainMessage<BoxCaught> | undefined): boolean {
+    return proto3.util.equals(BoxCaught, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.BoxLapsed
+ */
+export class BoxLapsed extends Message<BoxLapsed> {
+  /**
+   * @generated from field: string scope = 1;
+   */
+  scope = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp lapsed_at = 2;
+   */
+  lapsedAt?: Timestamp;
+
+  constructor(data?: PartialMessage<BoxLapsed>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.BoxLapsed";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "scope", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "lapsed_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BoxLapsed {
+    return new BoxLapsed().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BoxLapsed {
+    return new BoxLapsed().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BoxLapsed {
+    return new BoxLapsed().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BoxLapsed | PlainMessage<BoxLapsed> | undefined, b: BoxLapsed | PlainMessage<BoxLapsed> | undefined): boolean {
+    return proto3.util.equals(BoxLapsed, a, b);
+  }
+}
+
+/**
+ * A claim of a box offered to another scope, or to nobody the registry remembers.
+ *
+ * @generated from message planet.v1.ForeignBoxClaimed
+ */
+export class ForeignBoxClaimed extends Message<ForeignBoxClaimed> {
+  /**
+   * @generated from field: string scope = 1;
+   */
+  scope = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp claimed_at = 2;
+   */
+  claimedAt?: Timestamp;
+
+  constructor(data?: PartialMessage<ForeignBoxClaimed>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.ForeignBoxClaimed";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "scope", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "claimed_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ForeignBoxClaimed {
+    return new ForeignBoxClaimed().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ForeignBoxClaimed {
+    return new ForeignBoxClaimed().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ForeignBoxClaimed {
+    return new ForeignBoxClaimed().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ForeignBoxClaimed | PlainMessage<ForeignBoxClaimed> | undefined, b: ForeignBoxClaimed | PlainMessage<ForeignBoxClaimed> | undefined): boolean {
+    return proto3.util.equals(ForeignBoxClaimed, a, b);
   }
 }
 

@@ -5,7 +5,7 @@ import {FailureNotice} from "../components/FailureNotice.tsx"
 import {GetRulesResponse} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {wordsOf} from "../refusal.ts"
 import {useCall} from "../useCall.ts"
-import {boxesOf, complete, crowdOf, DEFAULT_SET, Draft, draftOf, NEW_DRAFT, saveRuleSet, tempoOf} from "./rules.ts"
+import {boxesOf, complete, DEFAULT_SET, Draft, draftOf, NEW_DRAFT, saveRuleSet, tempoOf} from "./rules.ts"
 
 type Editing = {draft: Draft, made: boolean}
 
@@ -51,7 +51,7 @@ function Sets({rules, onEdit}: {rules: GetRulesResponse, onEdit: (set: GetRulesR
         <table className="table">
             <caption>Sets</caption>
             <thead>
-                <tr><th>Set</th><th>Refill</th><th>Boxes</th><th>Anti-bot</th><th/></tr>
+                <tr><th>Set</th><th>Refill</th><th>Boxes</th><th/></tr>
             </thead>
             <tbody>
                 {rules.sets.map(set => (
@@ -59,7 +59,6 @@ function Sets({rules, onEdit}: {rules: GetRulesResponse, onEdit: (set: GetRulesR
                         <td><strong>{set.name}</strong></td>
                         <td>{tempoOf(set)}</td>
                         <td>{boxesOf(set.boxes)}</td>
-                        <td>{crowdOf(set)}</td>
                         <td>
                             <button type="button" className="button-mini" onClick={() => onEdit(set)}>
                                 Edit {set.name}
@@ -77,7 +76,6 @@ const FIELDS: {key: Exclude<keyof Draft, "name">, label: string}[] = [
     {key: "minSeconds", label: "Shortest box wait (s)"},
     {key: "maxSeconds", label: "Longest box wait (s)"},
     {key: "cap", label: "Charges an hour, at most"},
-    {key: "crowd", label: "Networks in a crowd"},
 ]
 
 function SetForm({planet, editing, onCancel, onSaved}: {

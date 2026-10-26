@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
@@ -479,11 +478,11 @@ func TestAPlayersRatesAreItsCountsOverTheTimeFromFirstToLastTake(t *testing.T) {
 	assert.Zero(t, single.TakesPerMinute())
 }
 
-func TestAServingPlayerCarriesTheSentence(t *testing.T) {
+func TestARefusedPlayerCarriesWhenItsRefusalEnds(t *testing.T) {
 	player := ledger.Player{Scope: "bot"}
-	player.Serving(antibot.Sentence{Offence: 2, Until: start})
+	player.Refused(clicks.NewRefusal(start))
 
-	assert.Equal(t, ledger.Player{Scope: "bot", Banned: true, BannedUntil: start, Offence: 2}, player)
+	assert.Equal(t, ledger.Player{Scope: "bot", RefusedUntil: start}, player)
 }
 
 func replay(storage ledger.Storage) []ledger.Taking {

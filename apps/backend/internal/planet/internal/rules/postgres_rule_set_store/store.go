@@ -28,9 +28,9 @@ func (s *Store) Set(ctx context.Context, name rules.SetName) (rules.Set, error) 
 		minInterval, maxInterval int64
 	)
 	err := s.db.On(ctx).QueryRowContext(ctx, `
-		SELECT name, tempo, box_min_interval_ms, box_max_interval_ms, box_max_charges_per_hour, crowd
+		SELECT name, tempo, box_min_interval_ms, box_max_interval_ms, box_max_charges_per_hour
 		FROM rule_sets WHERE name = $1
-	`, string(name)).Scan(&kept.Name, &kept.Tempo, &minInterval, &maxInterval, &kept.Boxes.MaxChargesPerHour, &kept.Crowd)
+	`, string(name)).Scan(&kept.Name, &kept.Tempo, &minInterval, &maxInterval, &kept.Boxes.MaxChargesPerHour)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		return rules.Set{}, fmt.Errorf("%q: %w", name, rules.ErrUnknownSet)
@@ -53,13 +53,13 @@ func (s *Store) Set(ctx context.Context, name rules.SetName) (rules.Set, error) 
 func (s *Store) Save(ctx context.Context, set rules.Set) error {
 	kept := set.TakeSnapshot()
 	if _, err := s.db.On(ctx).ExecContext(ctx, `
-		INSERT INTO rule_sets (name, tempo, box_min_interval_ms, box_max_interval_ms, box_max_charges_per_hour, crowd)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO rule_sets (name, tempo, box_min_interval_ms, box_max_interval_ms, box_max_charges_per_hour)
+		VALUES ($1, $2, $3, $4, $5)
 		ON CONFLICT (name) DO UPDATE SET tempo = EXCLUDED.tempo, box_min_interval_ms = EXCLUDED.box_min_interval_ms,
 			box_max_interval_ms = EXCLUDED.box_max_interval_ms,
-			box_max_charges_per_hour = EXCLUDED.box_max_charges_per_hour, crowd = EXCLUDED.crowd
+			box_max_charges_per_hour = EXCLUDED.box_max_charges_per_hour
 	`, string(kept.Name), kept.Tempo, kept.Boxes.MinInterval.Milliseconds(), kept.Boxes.MaxInterval.Milliseconds(),
-		kept.Boxes.MaxChargesPerHour, kept.Crowd); err != nil {
+		kept.Boxes.MaxChargesPerHour); err != nil {
 		return fmt.Errorf("failed to keep the rule set %q: %w", kept.Name, err)
 	}
 

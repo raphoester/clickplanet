@@ -43,7 +43,10 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
+     * Deprecated: antibot.v1.AdminService/BanPlayer, which answers it on this path until the backoffice calls it there.
+     *
      * @generated from rpc planet.v1.AdminService.BanPlayer
+     * @deprecated
      */
     banPlayer: {
       name: "BanPlayer",
@@ -52,7 +55,10 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
+     * Deprecated: antibot.v1.AdminService/UnbanPlayer, which answers it on this path until the backoffice calls it there.
+     *
      * @generated from rpc planet.v1.AdminService.UnbanPlayer
+     * @deprecated
      */
     unbanPlayer: {
       name: "UnbanPlayer",
@@ -79,7 +85,10 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
+     * Deprecated: antibot.v1.AdminService/InspectPlayer, which answers it on this path until the backoffice calls it there.
+     *
      * @generated from rpc planet.v1.AdminService.InspectPlayer
+     * @deprecated
      */
     inspectPlayer: {
       name: "InspectPlayer",
