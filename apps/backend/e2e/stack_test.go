@@ -147,7 +147,7 @@ func (s gameStack) clickAtWill(t *testing.T) {
 	_, err := s.schema(t, "planet").On(t.Context()).ExecContext(t.Context(), `
 		UPDATE rule_sets
 		SET rules = jsonb_set(rules, '{clicks}', rules->'clicks' ||
-			'{"perSecond": 100, "burst": 100, "scopeMultiplier": 1, "newAccountClicks": 100}')
+			'{"perSecond": 100, "burst": 1000, "scopeMultiplier": 1, "newAccountClicks": 1000}')
 		WHERE name = 'default'
 	`)
 	require.NoError(t, err)
@@ -155,7 +155,7 @@ func (s gameStack) clickAtWill(t *testing.T) {
 	planet := planetv1connect.NewClickServiceClient(http.DefaultClient, s.baseURL)
 	require.Eventually(t, func() bool {
 		res, err := planet.GetBudget(t.Context(), connect.NewRequest(&planetv1.GetBudgetRequest{}))
-		return err == nil && res.Msg.GetBudget().GetCapacity() == 100
+		return err == nil && res.Msg.GetBudget().GetCapacity() == 1000
 	}, 5*time.Second, 50*time.Millisecond, "the game follows its rule set within a second")
 }
 

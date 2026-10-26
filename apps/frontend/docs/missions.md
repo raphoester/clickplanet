@@ -1,7 +1,8 @@
 # Missions
 
-Three missions a day for the flag played, the same for each of its players: one bank for the
-flag, tiles from the leader, tiles on a country's ground, each for a charge. The backend's
+Three to five missions a day for the flag played, the same for each of its players: a few banks for
+the flag, tiles from the leader, tiles on a big country's ground, then more rivals and grounds, each
+for a charge drawn with the day (shields, spread clicks, a bomb or enclosures). The backend's
 [Missions doc](../../backend/docs/missions.md) has the rules; the client only shows them: a mission done pays
 itself, with nothing to press.
 

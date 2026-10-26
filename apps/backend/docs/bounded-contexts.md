@@ -6,7 +6,7 @@
 - **`internal/player/`** — what the game keeps about one account: the name it chose, the tiles it took, its daily streak. See [Player](player.md).
 - **`internal/seasons/`** — the season calendar, each season's player standings and its daily rounds between countries, above the game. See [Seasons](seasons.md).
 - **`internal/support/`** — what a player sends the operator: a feature suggestion, a bug report or a report of another player. See [Support](support.md).
-- **`internal/missions/`** — the day's three missions of each flag, how far each account took them, and what each pays once done. See [Missions](missions.md).
+- **`internal/missions/`** — the day's three to five missions of each flag, how far each account took them, and what each pays once done. See [Missions](missions.md).
 - **`internal/antibot/`** — whether a caller plays by hand: the watchdogs, the jury and the bans. It hears what callers do from planet and asks planet to refuse the ones it bans. See [Anti-bot](antibot.md).
 
 Beside them, **`internal/clips/`** is a module of the server too, for one thing: it keeps the numbers of the clips

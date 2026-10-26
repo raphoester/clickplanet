@@ -2,11 +2,11 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {cleanup, render, screen} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import {DISCORD_INVITE, INSTAGRAM_PROFILE, TIKTOK_PROFILE} from "../../links.ts"
+import {DISCORD_INVITE, INSTAGRAM_PROFILE, TIKTOK_PROFILE, YOUTUBE_CHANNEL} from "../../links.ts"
 import DiscordBar from "./DiscordBar.tsx"
 import {DISCORD_BAR_RETURNS_AFTER_MS, DISCORD_BAR_STORAGE_KEY} from "./discordBar.ts"
 
-const link = () => screen.queryByRole("link", {name: "Join the Discord"})
+const link = () => screen.queryByRole("link", {name: "Join Discord"})
 const hide = () => userEvent.setup().click(screen.getByRole("button", {name: "Hide the links"}))
 
 beforeEach(() => window.localStorage.clear())
@@ -26,6 +26,7 @@ describe("DiscordBar", () => {
 
     it.each([
         ["TikTok", TIKTOK_PROFILE],
+        ["YouTube", YOUTUBE_CHANNEL],
         ["Instagram", INSTAGRAM_PROFILE],
     ])("links %s beside it, in a new tab", (name, href) => {
         render(<DiscordBar/>)

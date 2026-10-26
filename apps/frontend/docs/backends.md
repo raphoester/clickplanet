@@ -89,6 +89,18 @@ are implicit in the position, so it is far smaller than a keyed map — 516 KB
 against 3.6 MB for a full map — and protobuf does all the framing, so there is
 no hand-rolled encoding to keep in step with the backend.
 
+**The map is read eight batches at a time.** `getCurrentOwnershipsByBatch` keeps
+`MAP_READS_IN_FLIGHT` (8) `GetMap` reads open and hands each batch over as it
+lands, in any order, since a batch only sets its own tiles. One after the other,
+the 27 batches were 27 round trips, plus a CORS preflight each, before the globe
+was playable: on DevTools' Fast 4G, 4.7s of a 9.6s load. Eight at a time it is
+0.7s, and four at a time 1.2s. A batch that fails after its retries stops the
+others, and nothing that lands after that, or after the caller's abort, is handed
+over. **The server's end is inclusive**, so a batch ends at `start + batchSize - 1`,
+and no read starts at 0 or ends past `maxIndex`: the backend's antibot takes a
+read off the map for a bot's walk (its `scraper`, in
+[antibot.md](../../backend/docs/antibot.md)).
+
 Connect does not retry, so `retrying` wraps every read: eight attempts while the
 server cannot be reached or does not answer in time, and never a retry of an
 answer the server chose to send. **A failed fetch is `unknown`, not

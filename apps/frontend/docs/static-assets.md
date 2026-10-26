@@ -120,10 +120,11 @@ under a week of cache, so a retake gets a new name. The section links (`#how`,
 `#board`, `#creator`) work in the page, but a returning player who opens one
 directly is sent to the game like any other hash but `#home`.
 
-**The Discord invite and the TikTok and Instagram profiles are written once, in
-`src/links.ts`.** The chat's bar and About import them; `vite.config.ts` hands them
-to the plain pages, which write `%DISCORD_INVITE%`, `%TIKTOK_PROFILE%` and
-`%INSTAGRAM_PROFILE%` (Vite's own HTML replacement, fed through `define`).
+**The Discord invite and the TikTok, YouTube and Instagram profiles are written
+once, in `src/links.ts`.** The chat's bar and About import them; `vite.config.ts` hands them
+to the plain pages, which write `%DISCORD_INVITE%`, `%TIKTOK_PROFILE%`,
+`%YOUTUBE_CHANNEL%` and `%INSTAGRAM_PROFILE%` (Vite's own HTML replacement, fed
+through `define`).
 `links.test.ts` fails on one of them pasted into a page.
 
 **`terms.html` is the terms of service**, linked beside it and built

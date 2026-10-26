@@ -1,6 +1,6 @@
 # Missions (`internal/missions/`)
 
-**Every flag has three missions a day, the same for each of its players, and each pays itself once done.** It reads
+**Every flag has three to five missions a day, the same for each of its players, and each pays itself once done.** It reads
 planet's facts (`TileTaken`, `GetTerritories`, `GetCountrySizes`, `GetAllegianceOf`) and commands planet to grant a reward
 (`planet.v1.GrantCharges`, over Redis), as seasons asks planet what each country holds: planet never imports, calls or
 hears it.
@@ -31,12 +31,21 @@ internal/missions/internal/
   flag), `TakeFrom{Flag, Goal}` (tiles another flag held), `TakeIn{Ground, Goal}` (tiles on a country's land). It decides
   how a take moves its progress (`advanced`) and when it is done (`done`). The progress of a mission is one counter
   from 0 that only its order reads. A new kind is a new type and its cases in the store and the encoder.
-  - **`Draw(day, flag, world)` is the brief**, seeded by the day and the flag: 1. take 60 tiles (one bank) for the flag,
-    for 10 shields; 2. take 40 tiles from whoever holds the most ground but the flag, so every flag but the leader aims
-    at the leader, for 4 spread clicks (with no other flag holding 400 tiles, 120 for the flag); 3. take 200 tiles on a
-    ground of 1,000 tiles or more that is not the flag's, for a bomb (with none, 200 for the flag). **Never a refill**:
-    a mission pays what multiplies or guards clicks, not clicks. The world is planet's (`GetTerritories`, and
-    `GetCountrySizes`, `clicks.Borders.CountrySizes`).
+  - **`Draw(day, flag, world)` is the brief**, seeded by the day and the flag, so a day has its own count and goals.
+    **Every goal is drawn from its span**, in steps of 10 tiles (`span`, `draw.goal`): 1. take 120 to 240 tiles (two
+    to four banks) for the flag; 2. take 80 to 160 tiles from whoever holds the most ground but the flag, so every
+    flag but the leader aims at the leader (with no other flag holding 1,000 tiles, twice that for the flag); 3. take
+    300 to 600 tiles on a ground of 3,000 tiles or more that is not the flag's, seventeen countries on today's map
+    (with none, the same for the flag). **Then up to two more**, since a day has 3 to 5 missions (`fewestMissions`,
+    `mostMissions`): each is another rival holding 1,000 tiles, with a rival's goal, or another big ground, with a
+    ground's goal, drawn from the ones left; a world with none left gives a shorter day. The goals were a fixed 60,
+    40 and 200 until 2026-10-26, when a top player finished all three in ten minutes. The world is planet's
+    (`GetTerritories`, and `GetCountrySizes`, `clicks.Borders.CountrySizes`).
+  - **The rewards are drawn with the day too** (`draw.rewards`, from the `purses`): the four charges in a random
+    order, each once before any twice, so a day of five pays one charge twice, each as much as its purse gives: 15 to
+    30 shields, 4 to 8 spread clicks, one bomb, or 2 to 3 enclosures. A purse starts above what a box gives and tops
+    at the stack planet keeps (`bonus.*.held`), since a grant past it is lost. **Never a refill**: a mission pays
+    what multiplies or guards clicks, not clicks.
   - **`Briefing.Of(day, flag)` draws once and keeps it**: the store's first `KeepBrief` wins, so two takes racing to
     draw a flag's day read one brief, and a map that moves later never changes it.
   - **A mission is named by its `MissionID`**, a UUID the draw derives from the day, the flag and its place in the
