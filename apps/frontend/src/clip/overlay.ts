@@ -131,7 +131,15 @@ const named = (teasers: [name: string, line: string][]) => ({
     teaserNames: teasers.map(([name]) => name),
 })
 
+// headline: the editor's, in place of the generator's own. The caption never repeats the clip: a teaser that says the
+// headline is left out.
 export function wordsOf(story: Story, headline?: string): Words {
+    const words = wordedOf(story, headline)
+    const kept = words.teasers.map((_, i) => i).filter((i) => words.teasers[i] !== words.headline)
+    return {...words, teasers: kept.map((i) => words.teasers[i]), teaserNames: kept.map((i) => words.teaserNames[i])}
+}
+
+function wordedOf(story: Story, headline?: string): Words {
     if (story.kind === "callup") return callUpWordsOf(story, {nameOf, said}, headline)
 
     const attacker = said(nameOf(story.attacker))

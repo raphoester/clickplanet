@@ -37,6 +37,12 @@ import (
 
 type (
 	Pick            = posts.Pick
+	Story           = posts.Story
+	Chosen          = posts.Chosen
+	Skipped         = posts.Skipped
+	Offer           = posts.Offer
+	Findings        = posts.Findings
+	Seasonal        = posts.Seasonal
 	Assignment      = posts.Assignment
 	Choice          = posts.Choice
 	Editorial       = posts.Editorial
@@ -67,7 +73,7 @@ type Config struct {
 	StatsSince time.Time
 
 	Zernio zernio.Config
-	// The editor's. No key is no editor: every run drawn for the model falls back to the rules, and says why.
+	// The editor's. No key is no editor: every run is its seasonal stories alone, and says why.
 	Anthropic cpanthropic.Config
 }
 
@@ -117,6 +123,11 @@ func ChartCountryOf(code string) (string, error) {
 // What a call of input tokens in and output out costs the editor's model.
 func SpendOf(input, output int64) posts.Spend {
 	return claude_editor.SpendOf(claude_editor.DefaultModel, input, 0, 0, output)
+}
+
+// A story as the generator's --story takes it, in JSON.
+func StoryJSON(story Story) ([]byte, error) {
+	return generator_output.StoryJSON(story) //nolint:wrapcheck // a pure delegation: the adapter already named what failed.
 }
 
 func PlatformsOf(names ...string) ([]Platform, error) {
@@ -172,8 +183,9 @@ func Fetch(ctx context.Context, out, race, season string, config Config, logger 
 	return nil
 }
 
-// Each story to render, with the arm of each experiment that runs its clip is in (Choice.Assigned), and who chose them.
-func Choose(ctx context.Context, shortlist string, config Config, logger *slog.Logger) (Choice, error) {
+// Each story to render, with the arm of each experiment that runs its clip is in (Choice.Assigned), and how the
+// editor's call went.
+func Choose(ctx context.Context, findings string, config Config, logger *slog.Logger) (Choice, error) {
 	config = config.withDefaults()
 
 	experiments, err := posts.ExperimentsOf(running...)
@@ -191,7 +203,7 @@ func Choose(ctx context.Context, shortlist string, config Config, logger *slog.L
 	}
 
 	choose := log_choose_clips.New(choose_clips_usecase.New(
-		generator_output.ShortlistFile(shortlist), log_history.New(history, logger), history, cptime.SystemClock{},
+		generator_output.FindingsFile(findings), log_history.New(history, logger), history, cptime.SystemClock{},
 		choose_clips_usecase.Room{PerRun: config.PerRun, Budget: dailyBudget, Platforms: config.Platforms},
 		experiments, posts.SystemDice{}, editor,
 	), logger)
@@ -199,13 +211,13 @@ func Choose(ctx context.Context, shortlist string, config Config, logger *slog.L
 	return choose.Execute(ctx) //nolint:wrapcheck // the use case already named what failed.
 }
 
-// What chooses a run drawn for the model, and counts its prompt for `clips edit`.
+// What makes a run's stories, and counts its prompt for `clips edit`.
 type editor interface {
 	choose_clips_usecase.Editor
 	Count(ctx context.Context, offer posts.Offer) (int64, error)
 }
 
-// The editor on a client of Anthropic's API built here; with no key, one that sends nothing and always falls back.
+// The editor on a client of Anthropic's API built here; with no key, one that sends nothing.
 func editorOf(config cpanthropic.Config) (editor, error) {
 	client, err := cpanthropic.NewClient(config)
 	if errors.Is(err, cpanthropic.ErrNoKey) {
@@ -217,24 +229,23 @@ func editorOf(config cpanthropic.Config) (editor, error) {
 	return claude_editor.New(client, claude_editor.DefaultModel), nil
 }
 
-// What the editor would make of a saved shortlist: the prompt it is sent, its size as the model counts it (0 with
-// no key), and, unless only the prompt is asked for, the run it chose.
+// What the editor would make of saved findings: the prompt it is sent, its size as the model counts it (0 with no
+// key), and, unless only the prompt is asked for, the run it chose.
 type Trial struct {
 	Instructions string
 	Prompt       string
 	Tokens       int64
 	Offer        posts.Offer
 	Choice       Choice
-	Headlines    map[Pick]string
 }
 
-// The editor tried by hand on a saved shortlist, outside any run: every platform with room for PerRun clips, and what
+// The editor tried by hand on saved findings, outside any run: every platform with room for PerRun clips, and what
 // was told read from the posting service when a Zernio key is set, else nothing told.
-func Edit(ctx context.Context, shortlist string, promptOnly bool, config Config, logger *slog.Logger) (Trial, error) {
+func Edit(ctx context.Context, findings string, promptOnly bool, config Config, logger *slog.Logger) (Trial, error) {
 	config = config.withDefaults()
 	now := cptime.SystemClock{}.Now()
 
-	stories, err := generator_output.ShortlistFile(shortlist).Shortlist(ctx)
+	found, err := generator_output.FindingsFile(findings).Findings(ctx)
 	if err != nil {
 		return Trial{}, err //nolint:wrapcheck // the file already said what is wrong with it.
 	}
@@ -255,7 +266,7 @@ func Edit(ctx context.Context, shortlist string, promptOnly bool, config Config,
 	if err != nil {
 		return Trial{}, err
 	}
-	trial := Trial{Instructions: claude_editor.Instructions, Offer: stories.Offer(config.PerRun, told, now)}
+	trial := Trial{Instructions: claude_editor.Instructions, Offer: found.Offer(config.PerRun, told, now)}
 	if trial.Prompt, err = claude_editor.PromptOf(trial.Offer); err != nil {
 		return Trial{}, err //nolint:wrapcheck // the editor already said what it could not write.
 	}
@@ -263,7 +274,7 @@ func Edit(ctx context.Context, shortlist string, promptOnly bool, config Config,
 		logger.Warn("the prompt is not counted", slog.String("why", err.Error()))
 	}
 	if !promptOnly {
-		trial.Choice, trial.Headlines = choose_clips_usecase.Edit(ctx, editor, stories, config.PerRun, told, now)
+		trial.Choice = choose_clips_usecase.Edit(ctx, editor, found, config.PerRun, told, now)
 	}
 	return trial, nil
 }

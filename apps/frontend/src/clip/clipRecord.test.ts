@@ -4,7 +4,7 @@ import {clipRecordOf, languageOf, Shown} from "./clipRecord.ts"
 
 const SINCE = Date.parse("2026-10-23T09:00:00Z")
 
-const battle: Story = {kind: "battle", attacker: "fr", rival: "pw", victims: ["pw"], place: {country: "fr"}, taken: 900}
+const battle: Story = {kind: "battle", attacker: "fr", rival: "pw", victims: ["pw"], place: {country: "fr"}}
 
 const shown: Shown = {
     story: battle, generator: "8dc31d2fb470e667a4853de7674ed209d3efc945", seconds: 12.366666, music: {code: "fr", from: 31.25},
@@ -52,7 +52,7 @@ describe("what a clip was", () => {
 
     it("hears a call-up in its country's language, and every other clip in English", () => {
         const callUp: Story = {
-            kind: "callup", attacker: "pl", rival: undefined, victims: ["dz"], place: {region: "the world"}, taken: 275,
+            kind: "callup", attacker: "pl", rival: undefined, victims: ["dz"], place: {region: "the world"},
             finaleAt: Date.parse("2026-10-31T21:00:00Z"),
         }
 

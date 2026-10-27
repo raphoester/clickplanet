@@ -4,14 +4,15 @@
 (`.github/workflows/clips.yml`; the frontend's [Clips](../../frontend/docs/clips.md) has the four jobs and how a clip is made). The
 frontend's generator needs a browser, so it stays there. **Everything else is here**: the fetch of the replay,
 which clips, when each goes out, the client of the posting service, the retries and the run's summary. The two
-meet in files: the replay, the race and the season this job saves for the generator, and `clips.v1.Shortlist` and
-`clips.v1.Clip` (`proto/clips/v1/clips.proto`), which the generator writes as JSON.
+meet in files: the replay, the race and the season this job saves for the generator, `clips.v1.Findings`, which the
+generator writes as JSON, `clips.v1.Pick`, the story this job hands it back to render, and `clips.v1.Clip`, what it
+rendered (`proto/clips/v1/clips.proto`).
 
 ```
 clips fetch -out <replay.json> [-race <race.json>] [-season <season.json>] [-ssh <user@host>] [-hours 72] [-until <2026-10-12T12:00:00Z>]
-clips choose -shortlist <shortlist.json> [-count 2] [-platforms tiktok,youtube] [-summary <file>]
+clips choose -findings <findings.json> [-count 2] [-platforms tiktok,youtube] [-summary <file>]
 clips schedule -clips <folder> [-review 0] [-spacing 1h] [-platforms tiktok,youtube] [-sound-country US] [-summary <file>]
-clips edit -shortlist <shortlist.json> [-count 2] [-prompt]
+clips edit -findings <findings.json> [-count 2] [-prompt]
 clips stats [-ssh <user@host>] [-since 2026-10-13]
 ```
 
@@ -26,24 +27,22 @@ clips stats [-ssh <user@host>] [-since 2026-10-13]
   STRATY". A season left out calls nobody up.
   **It is cheap enough to run 12 times a day**: on 2026-10-24 the 12 hours of the noon run were 40,820 events, the
   three files 0.8 MB zipped, and the whole step, ssh, `go run`'s build and the race and the season included, 17s. The
-  ledger answers from memory. 12 hours and not 2: a story is found by the first run that sees it and skipped as told
-  by the next ones, and the generator searches its last 12 hours anyway (`newsSince`).
-- **`choose` prints the picks to render**, as a JSON array on the standard output, each with the arm of every
-  experiment its clip is in (`[{"pick":1,"variants":{"length":"short"}}]`, or `[]` on a quiet run or a full day): the
-  workflow makes one render job of each. The log goes to the standard error, with each story skipped as told and each
-  one chosen with its arms. A pick is a story's place in the shortlist, from 1 (`posts.Pick`): what the generator's
-  `--pick` takes, and the arms are what its `--variants` takes (below, "Experiments"). It needs `ZERNIO_API_KEY`, to
-  read what was told and what each platform holds. `-platforms` is `schedule`'s, so it counts the room of the
-  platforms the clips will go to. **A pick also carries the model's headline** (below, "The editor";
-  `"headline":"BRAZIL STORMS ARGENTINA"`, left out for the generator's own, as on a run the rules made), which the
-  render job hands the generator as `--headline`; `ANTHROPIC_API_KEY` is the model's key, and `-summary` adds who
-  chose the run, and what the call cost, to that file (the workflow's step summary). Its standard output stays the
+  ledger answers from memory. 12 hours and not 2: the editor sees a story whole, and reads the last posts to tell it
+  once; the generator searches its last 12 hours anyway (`newsSince`).
+- **`choose` prints the stories to render**, as a JSON array on the standard output, each with its number in the
+  run, the story as the generator's `--story` takes it, and the arm of every experiment its clip is in
+  (`[{"pick":1,"story":{"front":3,"kind":"battle",…,"headline":"FRANCE VS TURKEY"},"variants":{"length":"short"}}]`,
+  or `[]` on a quiet run or a full day): the workflow makes one render job of each. The log goes to the standard
+  error, with each story of the editor's skipped and why, and each one chosen with its key and its arms. It needs
+  `ZERNIO_API_KEY`, to read what was told and what each platform holds, and `ANTHROPIC_API_KEY`, the editor's.
+  `-platforms` is `schedule`'s, so it counts the room of the platforms the clips will go to. `-summary` adds how the
+  editor's call went, and what it cost, to that file (the workflow's step summary). Its standard output stays the
   picks alone.
-- **`edit` tries the editor by hand on a saved shortlist**, outside any run: `-count` clips (2), what was
+- **`edit` tries the editor by hand on saved findings**, outside any run: `-count` clips (2), what was
   told read from Zernio when `ZERNIO_API_KEY` is set and nothing told otherwise. It prints the instructions and the
   run's JSON as the model would get them, their size (counted by the API's free `count_tokens` with a key, else
-  guessed at 4 characters a token), then what the model chose and what it cost, or why it fell back. **`-prompt`
-  stops after the prompt and asks the model nothing.**
+  guessed at 4 characters a token), then what the model chose, each story as `--story` takes it, each one skipped
+  with why, and what it cost. **`-prompt` stops after the prompt and asks the model nothing.**
 - **`schedule` sends every clip of the folder** (`clip-<n>.json` with its `clip-<n>.mp4` beside it) to the posting
   service, **as one post on every platform that has room left in its day** (`-platforms`, default all:
   `tiktok,youtube`), and adds a table to the summary: a row for each clip on each platform, its arms, its time, and
@@ -69,14 +68,15 @@ clips stats [-ssh <user@host>] [-since 2026-10-13]
     the domain (`clips.PlatformsOf`: each known, each once). No flag pointer leaves it.
     Flags and not `cpconfigs`: the job has a few settings and two secrets, and a workflow passes them on the
     command line.
-  - **The work returns values and prints nothing**: `clips.Fetch`, `clips.Choose` (the picks, each with its arms,
-    and who chose), `clips.Edit` (the editor's trial), `clips.Schedule` (the `Report`) and `clips.Stats` (the
+  - **The work returns values and prints nothing**: `clips.Fetch`, `clips.Choose` (the stories, each with its arms,
+    and how the editor's call went), `clips.Edit` (the editor's trial), `clips.Schedule` (the `Report`) and `clips.Stats` (the
     `StatsReport`), in `internal/clips/job.go`, which wires the objects as a `module.go` does.
     A clip or a platform the service refused is in the report, not in the error: the error is for a run that
     could not be made at all.
   - **The display owns the output and says how it went** (`cmd/clips/internal/display`): `display.Picks`
-    writes the array (a clip in no experiment has `"variants":{}`, never `null`), `display.Editorial` adds who chose
-    the run to the summary, `display.Trial` prints `edit`'s, `display.Report` writes the table, to the summary file when one is named, and answers
+    writes the array (a clip in no experiment has `"variants":{}`, never `null`; the story is protojson of a
+    `clips.v1.Pick`, through `clips.StoryJSON`), `display.Editorial` adds how the editor's call went to the summary,
+    `display.Trial` prints `edit`'s, `display.Report` writes the table, to the summary file when one is named, and answers
     whether every clip is scheduled on each of its platforms. It does not turn that into an error: `schedule` in `main.go` decides, and
     exits 1 on `errUnsent`. **`stats` has no display**: the backoffice shows the snapshots (its [Clip
     stats](../../backoffice/docs/clip-stats.md)), and the log says what was kept and lost (`log_take_snapshot`). `snapshot` in `main.go` exits 1 on
@@ -106,8 +106,8 @@ story, so a short clip is not short because its story was small.
 - **An arm of weight 0 is never drawn** (`posts.Arm{Name, Weight: 0}`): it is where a clip goes when the arm it was
   drawn for could not be applied, so it is still checked and counted, apart (`sound`'s `fell-back`). An experiment
   needs two arms a coin draws.
-- **The arms travel with the clip, as data**: `choose` prints them with the pick; the workflow's render job of the
-  pick hands them to the generator (`--variants '{"length":"short"}'`), which applies the ones it acts on, refuses
+- **The arms travel with the clip, as data**: `choose` prints them with the story; the workflow's render job of the
+  clip hands them to the generator (`--variants '{"length":"short"}'`), which applies the ones it acts on, refuses
   one it does not know, and writes them all into the clip's `ClipRecord.variants` (the frontend's
   [Clips](../../frontend/docs/clips.md)); `schedule` reads them back from `clip-<n>.json` (`posts.ClipSnapshot.Variants`), checks every clip
   against `running` before it posts any, carries them on each post (`posts.PostSnapshot.Variants`) and writes them in
@@ -175,65 +175,87 @@ story, so a short clip is not short because its story was small.
     **TikTok's daily cap is unchanged** (`dailyBudget`): a track changes what a post plays, not how many go out.
 - **`editor` ran from 2026-10-24 to 2026-10-26, per run, even**: `rules`, the control, the run as before, against
   `model`, Claude Haiku choosing among the stories the rules let through and writing their headlines, and `fell-back`,
-  a run drawn for the model that the rules made. **Stopped with the model the editor of every run** (below), on the
-  owner's judgment that it does better, not on the numbers. The posts of those three days keep their arm in their
-  record, which the analysis still reads.
+  a run drawn for the model that the rules made. **Stopped with the model the editor of every run**, on the owner's
+  judgment that it does better, not on the numbers. The posts of those three days keep their arm in their record,
+  which the analysis still reads.
 
-**The editor: a model chooses the run's stories and writes their headlines, within the rules** (`posts/editor.go`,
-`posts/claude_editor/`, 2026-10-24; every run since 2026-10-26). Step 1 of a model directing the clips: it picks and
-words, the renderer and its camera are as they were, and the rules are what a run falls back to.
+**The editor: a model makes the run's stories from the findings, and headlines them** (`posts/editor.go`,
+`posts/findings.go`, `posts/claude_editor/`; it picked and worded within hand-written rules from 2026-10-24, and
+makes the stories since 2026-10-27). The renderer and its camera are as they were.
 
-- **The rules decide what may be told; the model only ranks it.** `Shortlist.Offer` is what it is offered: the
-  stories `Best` could tell (no key of the last 3 days, no headline of the last week, a flag in fewer than 2 of the
-  last 6 posts), the days won apart, told first whatever it says, how many clips the run makes (the budgets' count,
-  as before), the posts of the last 3 days, and how many of the last 6 showed each flag. **`Shortlist.Edited` walks
-  the run as `Best` does**, its next story the model's next one instead of the freshest flag: a day won first, then
-  the model's order, each story still skipped when an earlier one of the run filled its flag's share, then the
-  stories it left out, in the rules' order. So a run makes as many clips as the rules would, and never one they would
-  not tell. The angle-once and freshest-flag orders are the rules' taste, which the model replaces. **The run's two
-  clips still go out in the shortlist's order** (`Ranked`, by pick), whichever the model ranked first: the order of
-  posting is left as it was, and each post's `runPosition` records it.
-- **One call a run, and only when there is something to decide** (`Offer.Open`: room left after the days won, and a
-  story offered). A quiet run asks nothing.
-- **Its answer has to hold, or the run is the rules'**: every pick one offered, once; every headline upper case
-  once written (`headlineFrom`), 60 letters at most, starting with a letter or a digit (so `--headline` never reads
-  as a flag), only letters of any script, digits and `! ? ' ’ % : , . & -`; not a headline of the last week, not
-  another story's, not one of the story's own teasers (the caption never repeats the clip). **No key, an API error,
-  a refusal, an answer cut short or not JSON, or one that does not hold all fall back to the rules**
-  (`choose_clips_usecase.Edit`): the run is never failed for it, and the reason goes to the log (a warning, `the run
-  is made by the rules`) and the summary. **Nothing in the record says who chose**: a run the rules made is told
-  apart by its summary and its log alone.
-- **What it is sent** (`claude_editor.PromptOf`): the instructions, then the run's offer as compact JSON: `now`,
-  `slots`, `toldFirst`, each story with its pick, headline, key, countries, teasers and `facts`
-  (`clips.v1.StoryFacts`, which the generator's `--shortlist` now writes; the frontend's [Clips](../../frontend/docs/clips.md)),
-  `recentPosts` and `shownLately`. **The instructions are `claude_editor/instructions.md`, embedded**: prose on what
-  makes a story worth telling and a headline good, from the lessons of this section and of the frontend's. **Tuning
-  that file is how the model's taste is shaped**; a change ships with the next commit, and the record's `generator`
-  names the commit, so the analysis can tell the versions apart.
+- **The generator measures, the editor judges, and the job checks that it is true.** The findings are everything the
+  generator found, nothing decided: every front with who held and took what where, every flag taking across the
+  world, every place and its holder, and the season's stories (the frontend's [Clips](../../frontend/docs/clips.md),
+  "`--findings`"). `Findings.Offer` is what the editor is offered: all of it, how many clips the run makes (the
+  budgets' count), the seasonal stories told first (`First`, a day won not told in the last 3 days, by its number),
+  the posts of the last 3 days with their keys and countries, and how many of the last 6 showed each flag. **It keeps
+  nothing from the editor.** `Findings.Edited` is the run as the editor tells it: the seasonal stories first, then the
+  editor's stories in its order, each one **checked against the findings** (`Findings.Check`), with a headline that
+  can be drawn and was not a headline of the last week or of this run, one story a key in the run, up to the count;
+  every other is skipped with why (`Choice.Skipped`), in the log and `edit`'s output, and the run goes on with the
+  next. The run's clips go out in that order (`Ranked`, by pick), and each post's `runPosition` records it.
+- **A check is whether a story is true, never whether it is good**: a story of a front names a kind a front tells, an
+  attacker that took tiles on it and in the place it names, flags it took from that lost tiles there, a rival only in
+  a battle and one each side took from; a place of one or two countries of the front, or a continent of theirs; a
+  comeback by a flag at home there, a kickout by a flag that held the country when the front opened, a rout of a flag
+  that held it then, a team only for a continent's flags on their own continent. A tour, a place and a seasonal story
+  only have to exist. A headline is upper case once written (`headlineFrom`), 60 letters at most, starting with a
+  letter or a digit (so `--story` never reads as a flag), only letters of any script, digits and `! ? ' ’ % : , . & -`.
+  **Taste is the model's**: which front is a story, how fresh is fresh, how a feed varies, what a country is called
+  are the instructions' to say, never a threshold here.
+- **Why no rule chooses.** Until 2026-10-26 the generator decided what a front was a story of from thresholds (one
+  country at 90%, at war at 25%, main share at 35%, a rout at half of 300 tiles), and this job skipped a key told in
+  the last 3 days and held back a flag in 2 of the last 6 posts, counting the countries each post showed. That evening
+  France and Turkey fought the biggest battle in weeks, France took all of India, and a Slovenian player swept three
+  countries; the run of 20:28 posted "BRITTANY IS INVADING AUSTRALIA" and "SLOVAKIA IS SWALLOWING ANTARCTICA".
+  "TURKEY VS FRANCE" was skipped as told already: "TURKEY KICKS ALGERIA OUT OF IRAN" of the day before had the same
+  key, Turkey in the Middle East. "FRANCE VS TURKEY" and "FRANCE IS KICKING ALGERIA OUT OF INDIA" were passed over
+  because France, fighting everywhere, was a bystander country in 3 of the last 6 posts. The rules were built for the
+  week Palau was in half the clips, and locked out the dominant flag of the day exactly when it mattered. A rule is
+  an if on a number, and every one met a case it was not written for; the model reads the same facts and the same
+  last posts, and is told what each of those rules was for.
+- **The seasonal stories are the one key check left**: a day won, or a country called up after it, is keyed by the
+  day (`Round`), and the same key in a post of the last 3 days is the same story, so it is not told first again. The
+  generator finds the day in every run whose window holds its cutoff, up to 6 of them.
+- **One call a run, and only when there is something to decide** (`Offer.Open`: room left after the seasonal
+  stories, and a front, a tour or a place found). A quiet run asks nothing.
+- **No answer is a run of its seasonal stories alone**: no key, an API error, a refusal, an answer cut short or not
+  JSON (`choose_clips_usecase.Edit`). The run is never failed for it, and the reason goes to the log (a warning, `the
+  editor gave no answer, and the run is its seasonal stories alone`) and the summary. There is no other fallback: a
+  run with no answer and no day won posts nothing, and the next run, 2 hours on, sees the same stories.
+- **What it is sent** (`claude_editor.PromptOf`): the instructions, then the run's findings as compact JSON: `now`,
+  `slots`, `toldFirst`, the `window`, `names`, `continents`, each front numbered from 1 with its stretch in hours, its
+  countries and its flags, each tour and each place numbered the same, `recentPosts` with their keys and countries, and
+  `shownLately`. **The instructions are `claude_editor/instructions.md`, embedded**: prose on what the facts mean,
+  what makes a story worth telling and a headline good, from the lessons of this section and of the frontend's, the
+  evening of 2026-10-26 among them. **Tuning that file is how the model's taste is shaped**; a change ships with the
+  next commit, and the record's `generator` names the commit, so the analysis can tell the versions apart.
+- **What it answers** (`answerSchema`): `why`, then `stories`, best first, each with its `front`, `tour` or `place`
+  (the others 0), and for a front its `kind`, `attacker`, `rival`, `takenFrom`, `countries` or `continent`, `team`,
+  and its `headline`. A seasonal story is not its to answer: one it does is skipped.
 - **Claude Haiku 5.5** (`claude-haiku-5-5`), through Anthropic's Go SDK: adaptive thinking at effort `medium`,
-  `max_tokens` 8,000, the answer held to a JSON schema by structured outputs (`why`, then `stories` of `pick` and
-  `headline`), 2 minutes and one retry. **A refusal is the end of it**: Haiku has no fallback model on the server,
-  so `stop_reason: "refusal"` (with its category) falls back to the rules like any other failure.
+  `max_tokens` 8,000, the answer held to the schema by structured outputs, 2 minutes and one retry. **A refusal is the
+  end of it**: Haiku has no fallback model on the server, so `stop_reason: "refusal"` (with its category) is no answer
+  like any other failure.
 - **What it costs, said every run**: the call's tokens (in, written to the cache, read from it, out) and their price
   at $0.10 and $0.50 a million in and out (5 times both past 100K tokens of prompt, a cache write 1.25 times the
-  input, a read 0.1 times) go to the log and the summary (`posts.Spend`, `claude_editor.SpendOf`). Measured on the
-  run of 2026-10-24 18:28 (its 25 stories and 71 posts, from its log): 8 stories offered, 32 recent posts, about
-  1,700 tokens of instructions and 4,300 of run, so about 6,000 in, guessed from characters with no key at hand;
-  about $0.0006 in and, with its thinking, about $0.001 out a call: 12 runs a day is about $0.60 a month, where the
-  owner's ceiling for all AI calls is $10.
+  input, a read 0.1 times) go to the log and the summary (`posts.Spend`, `claude_editor.SpendOf`). The findings are
+  bigger than the shortlist was: 30 fronts of 6 countries and 6 flags each is about 10,000 tokens of run against
+  4,300, so a call is about $0.0015 in and, with its thinking, about $0.001 out: 12 runs a day is about $1 a month,
+  where the owner's ceiling for all AI calls is $10.
 - **The instructions are marked for caching** (`cache_control` on the system prompt), as the owner asked. **No run
   reads it back today**: a cache entry lives 5 minutes (an hour at most) and runs are 2 hours apart, so each call
   writes it again, about $0.00004 more a call. It pays once a call follows another within minutes (`clips edit`
   tried twice, or more calls a run).
 - **The key is a secret of the `choose` job alone** (`ANTHROPIC_API_KEY`), which runs no npm, as `ZERNIO_API_KEY`.
   An error never carries the request (`cpanthropic.Redacted`): the SDK's error dumps its headers, and the logs of a
-  public repo are public. **The headline is the model's text**: the render job passes it through the environment,
+  public repo are public. **The story is the model's text**: the render job passes it through the environment,
   never into the script.
 - **The client is built in `job.go` and handed to the editor** (`editorOf`), as `job.go` builds every other
   dependency: `cpanthropic.NewClient` makes it from `Config.Anthropic`, and `claude_editor.New(client, model)` never
   makes one of its own. The editor keeps only what is its own on each request: 2 minutes and one retry. **No key is
   an editor of its own, chosen there**: `claude_editor.Unkeyed` sends nothing and answers `cpanthropic.ErrNoKey`, so
-  every run falls back and says why.
+  every run says why.
 - **Tests never call the API**: the use case runs a fake `Editor`, and `claude_editor` a client pointed at a fake
   Messages API on `httptest` (`cpanthropic.Config.BaseURL`), which pins the request whole: the cached instructions,
   the schema, the prompt.
@@ -262,49 +284,10 @@ words, the renderer and its camera are as they were, and the rules are what a ru
 
 **`internal/clips/internal/posts/` is the domain of the rest**, with no file, no HTTP and no clock of its own:
 
-- **`Shortlist.Best(count, told, now)`** is which clips: `count` stories, all of them when there are fewer, 2 a
-  run at most (`Config.PerRun`) and fewer when the platforms' day is nearly full (`Budget.Clips`, below), **never a
-  story told already, and never mostly one flag**. Four rules, from the week of
-  Oct 13–17, when 18 clips told "ALGERIA STRIKES BACK" three times, "PALAU IS TAKING OVER THE WORLD" twice right
-  after the old one-day window, and Palau (two players on five accounts) in about half of them:
-  - **A key told in the last 3 days is skipped** (`retelling`): a `StoryKey` (a flag, a continent and an angle,
-    from the generator) a post holds that goes out within 72 hours or later, or that a story of the same run took.
-    The keys and not the headlines: "ALGERIA STRIKES BACK" and "ALGERIA VS FRANCE" are one story. **The angle is
-    what the story tells of its flag there** (`Angle`): what it did (`Deeds`, empty), how much of the place it holds
-    (`Holding`, "CROATIA HOLDS 80% OF EUROPE"), or a day of the season it won (`DayWon`, "FRANCE WINS DAY 5", whose
-    key names the day too, `Round`, "1.5": France winning two days is two stories), or the country called up to the
-    Final Battle after a day (`CallUp`, "POLSKA: 14 PUNKTÓW STRATY", keyed by the day it follows, so a country is called
-    up once a day at most). So a holding is not the story of what its flag did there. A key of a day with no day, a
-    day on another angle, or an angle this job does not know is refused.
-  - **A headline told in the last week is skipped** (`reheadlining`), whatever its continent: the same words read
-    as the same clip. Compared in upper case, spaces at the ends cut.
-  - **A flag the last 6 posts showed goes after the flags they did not** (`lately`, about 10 hours at 14 posts a day). **A
-    post shows its key's flag and every country of its story** (`Countries`, as the generator writes them: the
-    place, both sides, the flags it takes from): "FRANCE VS PALAU" and "VATICAN CITY VS PALAU" both show Palau. A
-    story ranks by its key's flag, then by the country of it the last posts showed most, then by the generator's
-    order. A story chosen counts as the newest post. A post made before the posts kept their countries shows its
-    key's flag only.
-  - **A flag that 2 of the last 6 posts showed waits** (`mostLately`): it is a third of the feed at most. **Both stay
-    counts of posts when the job posts more often** (2026-10-24): the feed a viewer scrolls is posts, not hours, so a
-    third of the last 6 is still a third of what they see. At 6 a run twice a day they covered about a day; at up to 14
-    a day they cover about 10 hours, and a flag waits that much less. So a
-    shortlist of one flag gives 2 clips in any 6 posts. Ranking alone was not enough at 6 a run: on Oct 15 a shortlist of
-    Palau and one other flag gave 5 clips of Palau. **Only the key's flag waits, not each country of the story**:
-    Palau and France defend in nearly every story of Oct 15–17, and waiting on all of them left 6 clips in those
-    2.5 days, none on the night of Oct 16.
-
-  And two from Oct 18, when the noon run skipped 8 of its 13 stories as told, nearly all one flag in Europe
-  ("SWEDEN IS INVADING UKRAINE", "… LITHUANIA", "… PORTUGAL" are one key), and posted 3, and every headline told what
-  a flag did:
-  - **A day of the season won goes first** (`DayWon`), whatever the last posts showed: it is the day's news, and
-    the flag that won a day is in most of the day's clips. It is still skipped when it was told.
-  - **A run tells each angle it has once before it tells any twice**, the freshest flag first within it: so a run
-    holds a holding when the shortlist has one, beside what the flags did.
-
-  It answers a `Choice`: the stories chosen, in the shortlist's order, the ones skipped (`Retold`), and the ones not
-  told whose flag 2 of the last posts showed, or that a story after them was chosen over, for a flag told less
-  lately or an angle the run had not told (`Passed`), which the log shows. A story with no key is refused when the
-  shortlist is read. With a day won and three holdings added to it by hand, the shortlist of Oct 18 gives 6 (a test of `Best`); what a real run gives is for its log to say.
+- **`Findings`, `Story` and `Choice`** are above: what the generator found, what the editor made of it, and the run.
+  `generator_output.FindingsFile` reads the generator's `clips.v1.Findings` (`protojson`, unknown fields dropped, so
+  the generator can add one first), and refuses a seasonal story with no day; `generator_output.StoryJSON` writes a
+  story as `clips.v1.Pick` for the generator.
 - **2 a run, every 2 hours, within a daily budget per platform** (2026-10-24, from 6 a run twice a day). A story's
   stretch ended 10 to 20 hours before its post then: up to 12 hours waiting for the run, 4 for the review, and up to
   10 more for the sixth clip's turn. Now a story waits for the next run (an hour on average, plus GitHub starting a
@@ -324,13 +307,14 @@ words, the renderer and its camera are as they were, and the rules are what a ru
     cannot be read fails the run**, rather than post over the cap.
   - **Known effect, not handled**: the budget is spent as the news comes, so a busy morning can fill the day, and once
     it is full a slot frees when yesterday's post leaves the window, so the posting hours follow yesterday's. The run
-    that gets the slot still tells the freshest story it has.
+    of 2026-10-26 16:31 had the war of the day in its findings and no room. The run that gets the slot still tells
+    the freshest story it has.
   - **`choose` makes as many clips as the platform with the most room takes** (`Budget.Clips`), so a clip goes to
     every platform that still has room, and a clip nobody has room for is never rendered. `schedule` reads the feed
     again and leaves a full platform out of the post; a clip with no platform left is held (`Report.WithHeld`): in the
     report, not a failure, and its story untold for a later run. Between the two only a post made by hand can fill a day.
   - **A full day says so**: `choose` logs `every platform has posted its day already` rather than that no story was
-    worth a clip (`Choice.Room`).
+    told (`Choice.Room`).
 - **What was told is Zernio's post list, not a table of ours**: each post keeps its key and its story's countries in
   its Zernio `metadata` (`storyFlag`, `storyContinent`, `storyCountries`, and `storyAngle` and `storyRound` when it
   has them, never published; a post with none is of what a flag did), and `choose` lists

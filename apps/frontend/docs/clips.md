@@ -1,11 +1,12 @@
 # Clips
 
 **A clip is the real globe playing back a war, for TikTok, Shorts and Reels**: 1080×1920, 8.5 to 22s, a headline,
-the map moving under it from the first frame, and the link at the end. `npm run clip` makes them from a replay
-and **chooses everything itself**: the stretch of time, the place, the headline, the camera, the look and the
-length. Each comes with a `.json` holding what to post with it, as data for the job that posts it (below), and a
-`.txt` with its teasers, one a line, for a person. `--count 3` makes the three best stories, for a
-person to pick one; `--plan` prints what they would be and renders nothing, and `--preview 3` renders only the
+the map moving under it from the first frame, and the link at the end. `npm run clip` makes one from a replay and a
+story: **the generator measures, the editor judges** (2026-10-27). `--findings` writes what the replay holds, every
+front, tour and place with its numbers and nothing decided; a model in the backend's job writes the stories from it;
+`--story` renders one of them, and chooses the camera, the look, the length and the music itself. Each comes with a
+`.json` holding what to post with it, as data for the job that posts it (below), and a `.txt` with its teasers, one a
+line, for a person. `--plan` prints what the clip would be and renders nothing, and `--preview 3` renders only the
 first 3 seconds; every choice can be forced (`npm run clip -- --help`).
 
 **Every 2 hours a workflow posts the best ones with no person and no laptop** (`.github/workflows/clips.yml`, at
@@ -16,23 +17,24 @@ happened rather than 10 to 20 under the two runs a day before (2026-10-24). Four
    `VPS_*` secrets. The job runs no npm at all, so the key to the VPS is in no job that installs this app's
    dependencies. The replay, the season's race and its calendar go on as an artifact; all are public data. A race or
    a season that could not be fetched is no file, and the run goes on without a day to tell or a country to call up.
-2. **shortlist** and **choose**: `npm run clip -- --shortlist shortlist.json`, then, in a job of its own (it holds
-   the Zernio key, and runs no npm), the backend's `clips choose` reads it and prints the picks to render, up to 2,
-   and no more than the platforms have left of their day (14 posts in a trailing 24 hours on TikTok, 8 on YouTube),
-   each with the arm of every experiment it put the clip in, `[{"pick":1,"variants":{"length":"short"}}]`.
-   **It skips a story told in the last 3 days**, by its key below, and a headline told in the last week, puts a
-   flag the last 6 posts showed after the others, and holds back a flag 2 of them showed, as their key or as one of
-   their countries: on Oct 13–17 Algeria in Africa was told three times and Palau in half the clips. **A day won goes
-   first**, whatever the posts showed, **then a run tells each angle it has once before any twice** (what changed,
-   what a flag holds). None is a quiet run, or a full day: the run ends there, green. **A model chooses within those
-   rules, and writes each headline** (the backend's [The clips job](../../backend/docs/clips-job.md), "The editor");
-   the job holds its key too, and makes the run by the rules alone when the model cannot answer.
-3. **render**: one job per pick, side by side, `--pick <n> --variants <its arms> --recorders 1`, and
-   `--headline <the model's>` when the model wrote one: `wordsOf` draws it in place of its own, a bridge until the
-   model writes a whole clip script, and the teasers stay the generator's. A runner has 4 cores and no GPU: Chrome
-   draws with SwiftShader, **1.9 to 3.1s a frame, by the runner it lands on** (measured 2026-10-12: the same 12s
-   clip in 11.5 minutes, then in 18.5; a 22s one would take 21 to 34), the same picture as with a GPU. More
-   recorders do not help there: each one draws every frame.
+2. **findings** and **choose**: `npm run clip -- --findings findings.json`, then, in a job of its own (it holds
+   the Zernio and Anthropic keys, and runs no npm), the backend's `clips choose` reads it and prints the stories to
+   render, up to 2, and no more than the platforms have left of their day (14 posts in a trailing 24 hours on TikTok, 8
+   on YouTube), each with its number in the run and the arm of every experiment it put the clip in,
+   `[{"pick":1,"story":{"front":3,…},"variants":{"length":"short"}}]`. **A day won goes first**, told once; **the
+   model makes the rest** (the backend's [The clips job](../../backend/docs/clips-job.md), "The editor"): which fronts
+   are stories, of what kind, between whom, where, and their headlines. The job checks each against the findings, and
+   against the headlines of the last week, and skips one that does not hold with why. None, or a full day: the run ends
+   there, green. **No rules choose any more.** Until 2026-10-26 hand-written rules decided what a front was a story of
+   and what may be told, and the model only ranked what they let through: that evening they posted Brittany taking a
+   corner of Australia while France and Turkey fought the biggest battle in weeks and France took all of India, both
+   skipped because a flag was "told already" on that continent or "shown lately" as a bystander in other clips.
+3. **render**: one job per story, side by side, `--pick <n> --story <its JSON> --variants <its arms> --recorders 1`.
+   The story goes through the environment, never into the script: it is the model's text. A runner has 4 cores and
+   no GPU: Chrome draws with SwiftShader, **1.9 to 3.1s a frame, by the runner it lands on** (measured 2026-10-12: the
+   same 12s clip in 11.5 minutes, then in 18.5; a 22s one would take 21 to 34), the same picture as with a GPU. More
+   recorders do not help there: each one draws every frame. Chrome gets a minute to start: 20s failed the run of
+   2026-10-26 18:40.
 4. **schedule**: the backend's `clips schedule` sends each clip to the posting service as one post on TikTok and
    YouTube Shorts, **for 5 minutes ahead, an hour after the last post on each**. There is no review: nobody cancels
    clips in the dashboard, so the 4 hours one cost were 4 hours of the story getting old. A clip can still be
@@ -42,45 +44,71 @@ What chooses, when a clip goes out, the client of the service and the run's summ
 (its [The clips job](../../backend/docs/clips-job.md)). **This app keeps only what needs the browser**, and hands the rest over as data,
 `clips.v1` in the shared `proto/`, written as JSON:
 
-- **`--shortlist <path>`** writes a `Shortlist` (`src/clip/shortlist.ts`): the title, the key and the countries of
-  every story worth a clip, best first, so a story's place from 1 is its `--pick`: a day won first, then what changed,
-  best first, then what flags hold, the biggest holding first. One page load, no globe, 6s. With no story it is `{}`, not an error.
-  **Each story also carries what the job's model editor judges it by** (2026-10-24): its `teasers`, which a headline of
-  the model's must not repeat, and its `facts` (`StoryFacts`, `storyFactsOf`): its kind, place, camera, sides and the
-  flags it takes from, how each code is said, its line and language, and the numbers its clip would record, the span
-  and when it ended, the tiles changed, the place's size, the counter at the start and the end, the effects in sight,
-  the solidity, a holding's share and the generator's score. **They are the numbers `record()` already works out,
-  measured once by `measuredOf`**, which the clip's record now reads too, so a story's facts and its clip's record
-  cannot disagree; no camera is built for them (the look, the screens crossed and a tour's stops stay the record's).
+- **`--findings <path>`** writes a `Findings` (`src/clip/findings.ts`, `findingsOf`): what the replay holds, measured
+  and not judged, for the editor to make the stories from. One page load, no globe, a few seconds. With nothing it is
+  `{}`, not an error.
+  - **`fronts`**: where tiles changed hands the most, the busiest first, 30 at most (`MOST_FRONTS`). Each is a
+    stretch of time and everything within about 2,900 km of where most changed hands (`window.ts`, `front.ts`, below),
+    on the whole map or on one country's ground alone (`scope`: each of the 12 countries whose ground changed hands
+    the most, 400 tiles or more, as `--focus` does, so Turkey's war is a front of its own beside the Middle East's),
+    with its numbers (`domain/clip/findings.ts`, `frontFactsOf`): the tiles changed and the ones taken from another
+    flag (`captured`: filling empty ground is not war); its countries by tiles changed there, each with its continent,
+    its size, who held the most of it when the front opened and when it ended (`holdersStart`, `holdersEnd`) and who
+    took the most there (`takers`); its flags by tiles taken and lost, each with what it took, filled, lost, whom it
+    took from and the solidity of what it took (below); the bombs, spreads and enclosures in sight; and the score it
+    was ranked by. So a flag that held most of a country at the start and took more of it is kicking someone out, a
+    flag that held much at the start and little at the end is thrown out, and two flags taking from each other are at
+    war: **the editor reads that, no threshold does.**
+  - **`tours`**: each flag taking land across the whole map, in its busiest stretch, with what it took on each
+    continent and from whom, what the second flag across the world took in the same stretch, and its solidity. A flag
+    far ahead of the next on two continents or more is taking over the world, which the camera tells as a tour (below).
+  - **`places`**: what the map is at the end: the flag holding the most of the world, of each continent and of each
+    country of 1,000 tiles or more (49 of them), with its share, the next holders and how many tiles of the place
+    changed hands to it or from it in the window, which is what its clip plays; a place where nothing did is left out,
+    since there is nothing to play. **Europe is held without Russia**: Russia's ground is 71% of Natural Earth's
+    Europe, so a flag holding Siberia would "hold Europe"; Russia is a place of its own. A share is of all the place's
+    tiles, empty ones too.
+  - **`seasonal`**: a day of the season won and each country called up after it (`round.ts`, `callup.ts`, below),
+    told whole by this app, with the title, the key, the countries and the facts their clips would record
+    (`StoryFacts`, `storyFactsOf`, the numbers `record()` works out, measured once by `measuredOf`).
+  - **`names`**, how a clip says each code in the findings ("gb": "the UK"), and **`continents`**, each with its own
+    flag when it has one (Europe's).
+- **`--story <json>`** is the story to render, a `Pick` (`toldOf`): one front, tour, place or seasonal story of the
+  findings by its number, from 1, and for a front what the editor made of it: its `kind` (`attack`, `invasion`,
+  `comeback`, `kickout`, `rout`, `battle`), its `attacker`, its `rival` in a battle, whom it took from (`takenFrom`,
+  the flag thrown out first), where it is told (`countries`, one or two, or `continent`), the continent whose flags
+  strike back together (`team`), and its `headline`. A tour, a place and a seasonal story are the facts' own: the
+  flag taking the world, the holder holding its share, the day won. **The page builds the `Story` from it and reads no
+  rule**: a pick that names no front, a kind no front tells, no attacker or no place is refused as it is read, and
+  the job checked it against the findings before the render. `--headline` overrides the story's.
 - **`--race <path>`** is the season's race, a `seasons.v1.GetRaceResponse` as the backend's `GetRace` answers it,
   served to the page at `/__clip/race.json` (`src/clip/race.ts` reads its closed round). With none, that path
   answers 404, never the app's fallback page, and no day is told.
 - **`--season <path>`** is the season, a `seasons.v1.GetSeasonResponse`, served at `/__clip/season.json` the same
   way: when its Final Battle starts. With none, nobody is called up.
 - **A story's key says which story it is, the headline never does** (`storyKeyOf`, `domain/clip/story.ts`): the
-  flag the clip is about and the continent it is told on, `{flag: "dz", continent: "Africa"}`. "ALGERIA STRIKES
-  BACK" and "ALGERIA VS FRANCE" are one key. **Its angle says what the story tells of the flag there**: none for what
-  it did, `holding` for what it holds, `round` for a day it won, with the day (`round: "1.5"`, season and number),
-  `callup` for a country called up after a day, with that day. So "CROATIA HOLDS 80% OF EUROPE" is not "CROATIA IS ATTACKING EUROPE" told again, and France winning day 5 and day 6 is
-  two stories. On Oct 18 a run of 13 stories skipped 8 as told already, nearly all one flag in Europe: every story was
-  what changed, so a flag had one story a continent every 3 days. The flag is the first of `sidesOf`: the loser of a rout, a continent's
-  own flag when it strikes back together. The continent is the place's (Asia's parts as the headlines name them,
-  `the world` for a tour), else its first country's, else that country.
+  flag the clip is about and the continent it is told on, `{flag: "dz", continent: "Africa"}`. **Its angle says what
+  the story tells of the flag there**: none for what it did, `holding` for what it holds, `round` for a day it won,
+  with the day (`round: "1.5"`, season and number), `callup` for a country called up after a day, with that day. The
+  flag is the first of `sidesOf`: the loser of a rout, a continent's own flag when it strikes back together. The
+  continent is the place's (Asia's parts as the headlines name them, `the world` for a tour), else its first
+  country's. The job keeps it on each post, so the editor reads what was told, and a day is told once. **It keeps
+  nothing else out**: the same key the next day is a new story when the facts say so, which the editor judges.
 - **A story's countries are every country it shows** (`storyCountriesOf`): its place's, both sides and the flags it
   takes from, only the game's countries. The job counts them in what it posted: "VATICAN CITY VS PALAU" is Vatican's
   story and shows Palau. The `Clip`'s countries are the same list, with their hashtags.
-- **`clip-<n>.json`** is a `Clip`: its pick, its title (the headline), its key, which the job keeps with the post,
-  and **the words of its caption that need the story**: its teasers, its countries with their hashtags, its
-  continent's hashtag, and the credit of its music. **The job writes the caption** from them (the backend's
-  [The clips job](../../backend/docs/clips-job.md)): this app has the names, the job has the platform. The repo is public and so are a
-  run's logs and artifacts: a clip can be watched there before it is out.
+- **`clip-<n>.json`** is a `Clip`: its number in the run (`--pick`), its title (the headline), its key, which the job
+  keeps with the post, and **the words of its caption that need the story**: its teasers, its countries with their
+  hashtags, its continent's hashtag, and the credit of its music. **The job writes the caption** from them (the
+  backend's [The clips job](../../backend/docs/clips-job.md)): this app has the names, the job has the platform. The
+  repo is public and so are a run's logs and artifacts: a clip can be watched there before it is out.
 - **A `Clip` also says what the clip was** (`record`, a `ClipRecord`, written by `clipRecordOf` in
   `src/clip/clipRecord.ts`): the job keeps it with the post, never published, and the backend's `clips stats` sets
   it beside the post's numbers on TikTok and YouTube every day (`.github/workflows/clips-stats.yml`; the backend's
   [The clips job](../../backend/docs/clips-job.md)), to learn what makes a clip do well. **It records, and chooses nothing**:
-  every value is one `record()` already worked out, read once the clip is decided, and the same replay gives the same
-  video, teasers and `Clip` byte for byte as before it, `record` and `teaserNames` aside (checked on 2026-10-23
-  against a render of `main`). **It is shaped to outlive this kind of clip**, since the clips will be experimented on:
+  every value is one `record()` already worked out, read once the clip is decided, and the same replay and the same
+  story give the same video, teasers and `Clip` byte for byte. **It is shaped to outlive this kind of clip**, since
+  the clips will be experimented on:
   - **`format` names the kind of video**, and the section that describes it: `globe-replay`, the game's globe, in
     `globe`. A clip made another way (another layout, a video made by AI) is a new format with a section of its own,
     beside `common`, what every format has.
@@ -120,9 +148,7 @@ What chooses, when a clip goes out, the client of the service and the run's summ
     story of its kind plays (`timelineOf(…, "short")`): 8.5s for a front, however far its fighting moves, 10 with a
     day's podium. **A tour is already its shortest**, each stop a flight and a stay, and is left as it is, as is a
     front whose fighting stays in one place: the arm is still recorded, and `durationSeconds` keeps the real length.
-    The camera fits the play it is given either way. Checked on 2026-10-24 on a replay of three invasions: `short`
-    made 10s and 9s clips 8.5s, and `as-chosen` rendered the same video and teasers as `main`, byte for byte, and the
-    same `Clip` but for `record.variants`.
+    The camera fits the play it is given either way.
 - **Each teaser has a name** (`Words.teaserNames`, beside `teasers`, in the same order): the name of its wording, the
   same for every flag and every language, `invades` and `under-attack-from` for an invasion, `can-anyone-stop` for a
   call-up's leader in any of its languages. The `Clip` carries them (`teaserNames`), so the job can say which wording
@@ -140,9 +166,9 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   bomb, a spread or an enclosure as an effect. It numbers each step from its opening and counts what each flag
   holds from the borders' landmasses, as the server does (see [The counts are the server's](counts.md)), and the
   clip waits for `Globe.tilesRead` before its first frame. `ReplayBackend.cut` opens on the map at a later time.
-- **The page chooses, then records** (`window.clip`, `src/clip/main.ts`): `shortlist` is the stories worth a clip,
-  known before any globe is built, and `record()` builds the globe for the story asked for and answers what the
-  recorder needs. A pick past the last story fails `record()`, never `shortlist`.
+- **The page measures, then records** (`window.clip`, `src/clip/main.ts`): `findings` is what the replay holds,
+  known before any globe is built, and `record()` builds the globe for the story `--story` names and answers what
+  the recorder needs. A story that names nothing in the findings fails `record()`, never `findings`.
 - **The recorder owns the clock.** `src/clip/virtualClock.ts` replaces `performance.now` and
   `requestAnimationFrame`, so a frame is drawn only when `window.clip.frame(i)` asks, and a bomb takes its second
   of video however long a frame takes to capture. **No CSS animation or transition on the page**: they run on the
@@ -161,69 +187,35 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   shows the flag it asks the viewer to fight for: the country to defend, the flag that strikes back, both sides of a
   battle, or a continent's own flag (Europe's alone, `static/countries/svg/eu.svg`, from the same set as the others).
 
-**`src/domain/clip/` is the director**, pure and under test:
+**`src/domain/clip/` measures and plays; it judges nothing**, pure and under test:
 
 - **`window.ts` finds the candidates**: for each length from 1 to 24 hours, the busiest stretch of a few places
   far apart, counting the tiles taken from another flag in each 10° cell and the eight around it. Filling empty
   ground is not war. **A clip is news**: with no window asked for, only the last 12 hours of the replay are searched
   (`newsSince`), since the busiest stretch of three days is rarely today's and would hide today's from the search;
   posted a day late, "Christmas Island is taking over the world" is about a flag already thrown out. A window asked
-  for (`--since`, `--until`) is split into its places the same way, so a war next door is a story of its own. **Every scale is searched**: the whole map, and each of the 12 countries whose
-  ground changed hands the most (400 tiles or more), on its own ground alone, as `--focus` does. So Germany and
-  Romania trading Germany is a story beside the war across Europe it is part of.
+  for (`--since`, `--until`) is split into its places the same way, so a war next door is a story of its own. **Every
+  scale is searched**: the whole map, and each of the 12 countries whose ground changed hands the most (400 tiles or
+  more), on its own ground alone, as `--focus` does: on 2026-10-26 the 12-hour front of Western Europe reached Ankara,
+  and Turkey's own front is how its war is seen whole.
 - **`front.ts` finds the front** of a candidate: the point where most tiles changed hands, and every change within
-  about 2,900 km of it, so a war in France brings in England, Spain and Germany. Once the story is known, the front
-  is found again from its own flags' fighting alone, so a war next door (Israel in Turkey) does not pull the
-  camera off Belgium's; with `--country`, it is that flag's fighting from the start.
-- **`story.ts` writes the story** (`storyOf`): the flag that took the most there, the flags it took from, and
-  where. Nearly all in one country (90%) is **"X IS INVADING FRANCE"**; spread over several, it is **"X IS
-  ATTACKING"** the continent holding 70% of it (`static/countries/regions.json`, written by `npm run regions` from
-  the snapshot the map is cut from), else **"X IS INVADING EGYPT AND TURKEY"** when two countries hold 70% of it,
-  else the world. Not a sub-region: "defend Western Europe" is not how anybody talks. But Asia is too big to be one
-  place, and nobody calls Saudi Arabia "Asia": its parts are named as people name them, **"THE MIDDLE EAST"** (western
-  Asia and Iran), South Asia, East Asia, Southeast Asia and Central Asia. A flag taking back its own ground, or its own continent from flags from elsewhere (Belgium taking Europe
-  back from Palestine), is **"X STRIKES BACK"**, when they lost it at least half of what it took there: Portugal taking
-  Europe from Israel first but from Germany, Poland and Spain more is attacking it; a flag that already held most of the country
-  when the story starts is **"X IS KICKING Y OUT OF AUSTRALIA"**, since the opening shot shows its flag there
-  already; a second flag taking 60% as much makes it **"X VS Y"**, but only when the two are at war, a quarter of
-  what each took taken from the other: Israel and Belgium both taking Europe from Palestine are allies, not a battle,
-  and Portugal nibbling at Romania while Romania takes the USA from Algeria is no battle either.
-  `src/clip/overlay.ts` words it.
-- **A story is about who leads the fighting** (`castOf`): its flags have to take 35% of everything taken around
-  it. Below that, flags of one continent taking it back together, with half of it between them, are the story,
-  **"EUROPE STRIKES BACK"**, under the continent's flag with one counter for them all. Otherwise nobody leads it
-  and it is skipped: Germany taking its own land back while Belgium and Israel made the war around it.
-- **A flag thrown out is its own story** (`routOf`): once the flag a story takes most from has lost half of what it
-  held in the place (300 tiles or more), a continent's flags taking it back together become **"PALESTINE GETS
-  KICKED OUT OF EUROPE"**, told from its side with its counter falling against the continent's, and one attacker
-  becomes **"ISRAEL IS KICKING PALESTINE OUT OF EUROPE"**. When many flags take it and none leads, it is the story
-  alone, placed where it lost its land: **"PALESTINE GETS KICKED OUT OF SOUTH AMERICA"**, with "Fight for
-  Palestine"; when the flag that took most of it leads there, though the flag of the front did not, it is that flag
-  kicking it out (`lossOf`, told from scratch). Only a flag thrown out makes a story of a front nobody leads: Portugal
-  losing France and taking it back by evening, 1,004 of its 1,110 tiles, is no "FRANCE IS KICKING PORTUGAL OUT OF
-  FRANCE", whatever the front's own story was. With `--country`, a story that flag leads nothing in is skipped. Nobody is kicked out of their own land: a flag losing its own continent **"IS LOSING AFRICA"**, its own
-  country **"IS FALLING"**, and one attacker taking it is an invasion. A flag taking its own ground back still strikes
-  back.
-- **A flag taking land on several continents at once is on a tour of the world** (`tour.ts`): the busiest stretches
-  of the whole map, for the 3 flags that took the most in each (or `--country`), when no continent holds 70% of
-  what the flag took and it leads the world (`leadsTheWorld`): twice as much taken as any other flag, since no flag
-  takes a third of all taken across the world, as one does on a front (Christmas Island took 28% of it on Oct 9). **"PORTUGAL IS TAKING OVER THE WORLD"**,
-  and its call is "Fight back", with no flag. Each continent (Asia's parts) with 5% of what it took is a stop, four at most,
-  in the order it got there (a fifth of it taken). Each stop is framed where it took the most there (Angola, not
-  all of Africa from Guinea-Bissau to Mozambique, which only the whole globe frames). The camera opens on the whole
-  globe over the first stop and dives into it, twice as close as that framing but never past where the painted flags
-  start to blend into the tiles (`flagsZoomOf`): the flags changing hands are what a tour shows. At each stop it
-  follows the flag's fighting there as it happens, as a clip follows its front, then flies to the next, rising a
-  little over a long way (1.6 times out at most), never out to the globe and back in, which was brutal. It pulls back
-  out to the globe over all of them at the end; 1.2s a flight and 2.6s a stop. Up close, a big country's painted flag
-  is blurred: the flag atlas is the game's. The counter counts
-  the flag across the world. A tour is told beside the flag's stories on each continent, not instead of them.
-- **One story per flag and what it did** (`sameStory`), whatever window or scale found it, told over the most of the
-  map (`widerThan`), else the best: one flag taking one place or one inside it, whoever it beat there ("Portugal is
-  invading Germany" is part of "Portugal is attacking Europe"), one flag thrown out of one place or one inside it, whoever threw it out ("Israel is kicking Christmas
-  Island out of Germany" is part of "Christmas Island gets kicked out of Europe"), one flag
-  striking back. Portugal beating France in Africa and in India is two stories. A battle is its two sides in one
-  place. `--plan` lists each one dropped with the one it repeats.
+  about 2,900 km of it, so a war in France brings in England, Spain and Germany. Two fronts within about 1,900 km on
+  one scale are one, whatever window found them, the busiest kept (`sameFront`): Paris and Amsterdam, not Paris and
+  Ankara. **Once the story is written, the front is found again
+  from its own sides' fighting where it is told** (`fightersOf`, `inPlace`): the attacker's, both sides' of a battle,
+  the loser's land going for a rout, every flag of the continent's for a team, in the country or the continent the
+  story names; so a war next door (Israel in Turkey) does not pull the camera off Belgium's, and Germany and Romania
+  trading Germany is told on Germany beside the war across Europe it is part of. A story whose sides fought nowhere in
+  its place fails the render, and the job's log says so.
+- **`findings.ts` measures a front, a tour and a place** (`frontFactsOf`, `tourFactsOf`, `placesOf`, above): who
+  held what, who took what from whom, where. It holds the few numbers that say what is big enough to count (a country
+  of 1,000 tiles is a place; the top 6 countries and flags of a front, the top 3 holders of a country) and none that
+  says what is worth telling.
+- **`story.ts` is what a clip tells, as the editor wrote it** (`Story`): its kind, its attacker, its rival, whom it
+  took from, its place, and the continent striking back together (`team`). `sidesOf` is who the clip is between,
+  `storyKeyOf` which story it is, `storyCountriesOf` what it shows, `fightersOf` whose fighting the camera follows.
+  `src/clip/overlay.ts` words it: the headline is the editor's, and `wordsOf` writes the teasers, the call and the
+  line of each kind, as before; its own headline stands in when none is given, as for a day won.
 - **A country is said as people say it.** The game's names are cut to fit its board ("Christmas", "N.Zealand", "Czech
   Rep."), so a clip says the English name they were cut from, from the CLDR data the browser carries
   (`Intl.DisplayNames`): "CHRISTMAS ISLAND IS TAKING OVER THE WORLD". A name the game chose over CLDR's stays: "Turkey",
@@ -239,7 +231,8 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   CHRISTMAS ISLAND", and a country throwing a flag out of its own land "ITALY RETAKES ITS LAND FROM PORTUGAL".
   A holding is "80% OF EUROPE FLIES THE FLAG OF CROATIA" and "CROATIA RULES EUROPE" (below half, "the biggest power
   in Europe"; the world's, "THE BIGGEST EMPIRE ON EARTH"), and asks to "TAKE EUROPE BACK"; a day won is "FRANCE TAKES
-  DAY 5" and "DAY 5 GOES TO FRANCE". A test checks that no kind ever gives the headline back.
+  DAY 5" and "DAY 5 GOES TO FRANCE". A teaser that says the editor's headline is left out, and a test checks that no
+  kind ever gives its own headline back.
 - **The hashtags are every flag of the story and the countries of its place** (`hashtagsOf`), bare
   (`#christmasisland`, `#uk`), and the place's continent. Palestine and Israel included: the user chose it on
   2026-10-14, though a flag's tag can be a political feed. A continent's own flag is not a country and has none.
@@ -260,21 +253,11 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   keyed by the content-addressed file, and both anthem scripts run it, since a new encode is a new file; a test
   fails when one is missing. A clip starts on the best highlight that leaves the anthem playing to its end, else
   early enough that it does.
-- **`holding.ts` tells what the map is, beside what changed on it**: as the map stands at the end, the flag holding the
-  most of each place, **"CROATIA HOLDS 80% OF EUROPE"**. The places are the world (from a tenth of it), each
-  continent (from 40%) and each country of 1,000 tiles or more (49 of them), held by a foreign flag (from 75%). **Europe
-  is held without Russia**: Russia's ground is 71% of Natural Earth's Europe, so a flag holding Siberia would "hold
-  Europe"; Russia is a place of its own. A share is of all the place's tiles, empty ones too, and the headline never
-  says more than it holds (79.96% is 79%). It is news only when its flag fought for it: 50 tiles of the place changed
-  hands to it or from it in the window, which is what the clip plays, all over the place, with the counter as the
-  flag's share of it. It is no story when it is mostly the flag's own country (Australia holding Oceania), and a flag
-  is told once, where it holds the most for the place's bar: 80% of Europe over 13% of the world, Antarctica the
-  continent over Antarctica the country. `--plan` lists each place's holder that fell short, and why: the bars are
-  guesses made with no production data, to tune from those lines.
+- **A holding's clip plays its flag's fighting for the place**, all over it, with the counter as the flag's share
+  of it (`holdingStoryOf`, `inHolding`), and opens on all it holds there.
 - **`round.ts` tells a day of the season** from the race (`--race`): **"FRANCE WINS DAY 5"**, or **"FRANCE WINS THE
   FINAL BATTLE"**, with where it leaves the winner in the season ("Leads the season with 86 points"). Only the run
-  whose window holds the cutoff tells it: the 21:17 run, for the day that closed at 21:00, and the runs after it skip it
-  as told. It plays the 3 hours before
+  whose window holds the cutoff finds it, and the job tells it once, by its key. It plays the 3 hours before
   the cutoff, the winner's fighting (anyone's when it fought none), opens on all the winner holds, counts its tiles
   (not its share of the map: a day is won on its average, which the podium's points say), and ends on the podium, the places that scored with their points, then "WHO WINS DAY 6?". The ending
   lasts 4s instead of 2.5, to read it.
@@ -290,13 +273,23 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   disagree ("18:00 BRT"). It plays as a day does, and ends on the leader's row and the country's, "YOUR COUNTRY
   NEEDS YOU" in its language, and the Final Battle's time. **Luckiest Guy draws Latin-1 only**: a clip with any
   other letter ("Ł", "Ț", "İ") is set in Rubik Black, never in two fonts.
-- **`score.ts` ranks the candidates**: the tiles taken from another flag, over the square root of the hours, times
-  the countries they were taken in (up to 4). A short war over several countries beats a long filling of one. A
-  story already told by a better candidate (same attacker, same front) is dropped.
-- **`solidity.ts` skips graffiti.** For each tile the attacker took and holds at the end, the share of its 6
-  neighbours it holds too: about 1 for land taken, 0.56 for names written across Canada. Under 0.75 the story is
-  skipped, and `--plan` says so. So is a front whose story lands in "the world": its tiles are spread over several
-  continents and there is no one place to show. Only a flag leading the world gets a tour of it.
+- **`score.ts` ranks the fronts**: the tiles taken from another flag, over the square root of the hours, times the
+  countries they were taken in (up to 4). A short war over several countries beats a long filling of one. It orders
+  the findings and caps them; the editor reads it as one number among the others.
+- **`solidity.ts` measures graffiti.** For each tile the attacker took and holds at the end, the share of its 6
+  neighbours it holds too: about 1 for land taken, 0.56 for names written across Canada. It is a fact of each
+  flag of a front, which the editor is told plays badly; nothing is skipped for it.
+- **A flag taking land across the world is on a tour of it** (`tour.ts`, for a `tour` of the findings): told over
+  the whole globe as **"PORTUGAL IS TAKING OVER THE WORLD"**, its call "Fight back", with no flag. Each continent
+  (Asia's parts) with 5% of what it took is a stop, four at most, in the order it got there (a fifth of it taken).
+  Each stop is framed where it took the most there (Angola, not all of Africa from Guinea-Bissau to Mozambique, which
+  only the whole globe frames). The camera opens on the whole globe over the first stop and dives into it, twice as
+  close as that framing but never past where the painted flags start to blend into the tiles (`flagsZoomOf`): the
+  flags changing hands are what a tour shows. At each stop it follows the flag's fighting there as it happens, as a
+  clip follows its front, then flies to the next, rising a little over a long way (1.6 times out at most), never out
+  to the globe and back in, which was brutal. It pulls back out to the globe over all of them at the end; 1.2s a
+  flight and 2.6s a stop. Up close, a big country's painted flag is blurred: the flag atlas is the game's. The counter
+  counts the flag across the world.
 - **`look.ts` picks when the camera comes back out of the tiles.** From far, a landmass's painted flag only
   changes when its biggest holder does (`flipsOf`, over the borders blob, read 8 times along the changes, so a
   landmass taken and taken back counts too). A front too wide to frame closer than
@@ -335,4 +328,4 @@ core. Each recorder is a Chrome of its own that plays every frame, so all hold t
 of its own only: frames 0, 4, 8 from the first, 1, 5, 9 from the second. They reach ffmpeg in order, and they are
 the frames one recorder would take, since the page's clock and dice are the recorder's (above). On 12 cores a 12s
 clip takes 40s instead of 90s, and a fifth recorder adds nothing. Each one holds the whole replay, 1.8GB for 72
-hours. The 14s before the first frame are the page reading the replay and choosing the story, once per clip.
+hours. The 14s before the first frame are the page reading the replay and measuring it, once per clip.

@@ -17,10 +17,10 @@ npm run landmask   # Write which lattice points are tiles, from the coordinates 
 npm run earth      # Cut the globe's texture from the tile field (see globe-texture.md)
 npm run flagFit    # Work out which flags stretch, and where each one is cropped
 npm run mobile     # Screenshot/inspect a URL as a phone (see styling.md)
-npm run clip -- --replay replay.json --count 3  # The 3 best stories in it, as vertical videos with what to post
-npm run clip -- --replay replay.json --shortlist shortlist.json  # Only the list of its stories, as data
-npm run clip -- --replay replay.json --race race.json --plan  # With the season's race: the day it closed is a story too
-npm run clip -- --replay replay.json --race race.json --season season.json --plan  # And the countries called up after it
+npm run clip -- --replay replay.json --findings findings.json  # What the replay holds for the editor, as data (clips.v1.Findings), and no clip
+npm run clip -- --replay replay.json --story '{"front":3,"kind":"battle","attacker":"fr","rival":"tr","countries":["tr"],"headline":"FRANCE VS TURKEY"}'  # One clip of a story of the findings, as the job's choose prints it
+npm run clip -- --replay replay.json --race race.json --story '{"seasonal":1}' --plan  # With the season's race: the day it closed is a story too
+npm run clip -- --replay replay.json --race race.json --season season.json --findings findings.json  # And the countries called up after it
 npm run clip:anthems # Vendor the anthems only the clips play (Europe's, Palestine's) into scripts/clip/anthems
 npm run clip:highlights # Measure where each anthem a clip plays is worth starting (run by both anthem scripts)
 npm run regions    # Rewrite each country's continent (Asia's part of it) from Natural Earth, for the clips' headlines

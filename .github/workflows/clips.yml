@@ -53,7 +53,7 @@ jobs:
             season.json
           retention-days: 1
 
-  shortlist:
+  findings:
     needs: fetch
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -74,22 +74,23 @@ jobs:
           name: replay
           path: apps/frontend
 
-      - name: list the stories worth a clip
+      # Every front, tour and place of the last 12 hours, measured and not judged, for the editor.
+      - name: measure what the replay holds
         working-directory: apps/frontend
         run: |
           race=$([ -f race.json ] && echo "--race race.json" || true)
           season=$([ -f season.json ] && echo "--season season.json" || true)
-          npm run clip -- --replay replay.json $race $season --shortlist shortlist.json
+          npm run clip -- --replay replay.json $race $season --findings findings.json
 
       - uses: actions/upload-artifact@v4
         with:
-          name: shortlist
-          path: apps/frontend/shortlist.json
+          name: findings
+          path: apps/frontend/findings.json
           retention-days: 1
 
   # Its own job: the Zernio and Anthropic keys are in no job that installs the frontend's dependencies.
   choose:
-    needs: shortlist
+    needs: findings
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
@@ -104,11 +105,12 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          name: shortlist
+          name: findings
 
-      # Up to 2, within what each platform has left of its trailing day, each with the arm of each experiment its
-      # clip is in, and the model's headline: [{"pick":1,"variants":{"length":"short"},"headline":"BRAZIL STORMS ARGENTINA"}].
-      # What the model's call cost goes to the summary; a model that fails leaves the run to the rules, and the summary says why.
+      # Up to 2, within what each platform has left of its trailing day: the model's stories of the findings, each
+      # checked against them, with the arm of each experiment its clip is in:
+      # [{"pick":1,"story":{"front":3,"kind":"battle",...,"headline":"FRANCE VS TURKEY"},"variants":{"length":"short"}}].
+      # What the model's call cost goes to the summary; a model that fails leaves the run its day won alone, and the summary says why.
       - name: choose the clips of the run
         id: choose
         working-directory: apps/backend
@@ -117,13 +119,13 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           PLATFORMS: ${{ vars.CLIPS_PLATFORMS }}
         run: |
-          picks=$(go run ./cmd/clips choose -shortlist "$GITHUB_WORKSPACE/shortlist.json" -platforms "$PLATFORMS" \
+          picks=$(go run ./cmd/clips choose -findings "$GITHUB_WORKSPACE/findings.json" -platforms "$PLATFORMS" \
             -summary "$GITHUB_STEP_SUMMARY")
           echo "picks=$picks" >> "$GITHUB_OUTPUT"
 
       - if: steps.choose.outputs.picks == '[]'
         run: |
-          echo "No clip this run: no new story worth one in the last 12 hours, or every platform has posted its day (the log says which)." \
+          echo "No clip this run: the editor told no story of the last 12 hours, or every platform has posted its day (the log says which)." \
             >> "$GITHUB_STEP_SUMMARY"
 
   render:
@@ -161,18 +163,17 @@ jobs:
           path: apps/frontend
 
       # One recorder: with no GPU each one draws every frame, so a second one adds nothing. The generator applies the
-      # arms it acts on, and writes every arm into the clip's record for schedule. The model's headline goes through
-      # the environment, never into the script: it is the model's text.
+      # arms it acts on, and writes every arm into the clip's record for schedule. The model's story, its headline in
+      # it, goes through the environment, never into the script: it is the model's text.
       - name: render the clip
         env:
           PICK: ${{ matrix.clip.pick }}
+          STORY: ${{ toJSON(matrix.clip.story) }}
           VARIANTS: ${{ toJSON(matrix.clip.variants) }}
-          HEADLINE: ${{ matrix.clip.headline }}
         run: |
           race=$([ -f race.json ] && echo "--race race.json" || true)
           season=$([ -f season.json ] && echo "--season season.json" || true)
-          npm run clip -- --replay replay.json $race $season --pick "$PICK" --variants "$VARIANTS" --recorders 1 \
-            ${HEADLINE:+--headline "$HEADLINE"}
+          npm run clip -- --replay replay.json $race $season --pick "$PICK" --story "$STORY" --variants "$VARIANTS" --recorders 1
 
       - uses: actions/upload-artifact@v4
         with:

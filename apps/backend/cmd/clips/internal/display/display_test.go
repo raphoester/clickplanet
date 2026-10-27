@@ -27,15 +27,16 @@ func (brokenPage) Write([]byte) (int, error) {
 	return 0, errors.New("the disk is full")
 }
 
-func TestThePicksAreAJSONArrayOnOneLineOfEachPickWithItsArms(t *testing.T) {
+func TestThePicksAreAJSONArrayOnOneLineOfEachClipsNumberStoryAndArms(t *testing.T) {
 	var out bytes.Buffer
 
 	require.NoError(t, display.Picks(&out, []clips.Assignment{
-		{Pick: 1, Variants: clips.Variants{"length": "short"}},
-		{Pick: 2, Variants: clips.Variants{"length": "as-chosen"}},
+		{Pick: 1, Story: clips.Story{Seasonal: 1}, Variants: clips.Variants{"length": "short"}},
+		{Pick: 2, Story: clips.Story{Front: 3, Kind: "battle", Attacker: "fr", Rival: "tr", Countries: []string{"tr"}, Headline: "FRANCE VS TURKEY"}, Variants: clips.Variants{"length": "as-chosen"}},
 	}))
 
-	assert.JSONEq(t, `[{"pick":1,"variants":{"length":"short"}},{"pick":2,"variants":{"length":"as-chosen"}}]`, out.String())
+	assert.JSONEq(t, `[{"pick":1,"story":{"seasonal":1},"variants":{"length":"short"}},`+
+		`{"pick":2,"story":{"front":3,"kind":"battle","attacker":"fr","rival":"tr","countries":["tr"],"headline":"FRANCE VS TURKEY"},"variants":{"length":"as-chosen"}}]`, out.String())
 	assert.Equal(t, 1, strings.Count(out.String(), "\n"))
 	assert.True(t, strings.HasSuffix(out.String(), "\n"))
 }
@@ -43,9 +44,9 @@ func TestThePicksAreAJSONArrayOnOneLineOfEachPickWithItsArms(t *testing.T) {
 func TestAPickInNoExperimentHasNoArmsNeverNull(t *testing.T) {
 	var out bytes.Buffer
 
-	require.NoError(t, display.Picks(&out, []clips.Assignment{{Pick: 3}}))
+	require.NoError(t, display.Picks(&out, []clips.Assignment{{Pick: 3, Story: clips.Story{Tour: 1}}}))
 
-	assert.JSONEq(t, `[{"pick":3,"variants":{}}]`, out.String())
+	assert.JSONEq(t, `[{"pick":3,"story":{"tour":1},"variants":{}}]`, out.String())
 }
 
 func TestNoPickIsAnEmptyArrayNeverNull(t *testing.T) {
