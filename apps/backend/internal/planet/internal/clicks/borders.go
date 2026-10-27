@@ -52,7 +52,15 @@ func NewBorders(asset string, regions []uint16, codes []string) (*Borders, error
 }
 
 func (b *Borders) CountryOf(tile uint32) string {
-	return b.codes[b.LandmassOf(tile)]
+	return b.CountryOfLandmass(b.LandmassOf(tile))
+}
+
+func (b *Borders) CountryOfLandmass(landmass LandmassID) string {
+	if int(landmass) >= len(b.codes) {
+		return ""
+	}
+
+	return b.codes[landmass]
 }
 
 func (b *Borders) LandmassOf(tile uint32) LandmassID {

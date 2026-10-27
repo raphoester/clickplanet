@@ -4,45 +4,124 @@ package clips.v1;
 
 import "google/protobuf/timestamp.proto";
 
-message Shortlist {
-  // Best first: a story's place, from 1, is what the generator's --pick takes.
-  repeated Story stories = 1;
+// What the generator found in a replay, for the job's editor to make the run's stories from: every front it
+// measured, every flag taking land across the world, what the map is at the end, and the stories data alone tells.
+message Findings {
+  google.protobuf.Timestamp since = 1;
+  google.protobuf.Timestamp until = 2;
+  // From 1, by their place in each list: what a Pick names.
+  repeated Front fronts = 3;
+  repeated Tour tours = 4;
+  repeated Place places = 5;
+  // A day of the season won, a country called up to its Final Battle: told first, with their own headlines.
+  repeated Seasonal seasonal = 6;
+  // How a clip says each country code of the findings: "pw": "Palau", "gb": "the UK".
+  map<string, string> names = 7;
+  repeated Continent continents = 8;
 }
 
-message Story {
+message Continent {
+  string name = 1;
+  // Its own flag, when it has one: "eu".
+  string flag = 2;
+}
+
+// Where tiles changed hands the most in one stretch of time: everything within about 2,900 km of it.
+message Front {
+  // The country whose ground alone it is measured on, a country fought over the most; empty for the whole map.
+  string scope = 1;
+  google.protobuf.Timestamp since = 2;
+  google.protobuf.Timestamp until = 3;
+  uint32 tiles_changed = 4;
+  // Of them, taken from another flag rather than off empty ground.
+  uint32 captured = 5;
+  // Where, by tiles changed, most first.
+  repeated FrontCountry countries = 6;
+  // Who, by tiles taken and lost, most first.
+  repeated FrontFlag flags = 7;
+  uint32 bombs = 8;
+  uint32 spreads = 9;
+  uint32 enclosures = 10;
+  double score = 11;
+}
+
+message FrontCountry {
+  string code = 1;
+  string continent = 2;
+  uint32 tiles = 3;
+  uint32 changed = 4;
+  // The flags holding the most of it when the front opens and when it ends: code to tiles.
+  map<string, uint32> holders_start = 5;
+  map<string, uint32> holders_end = 6;
+  // The flags that took the most from another flag there.
+  map<string, uint32> takers = 7;
+}
+
+message FrontFlag {
+  string code = 1;
+  string continent = 2;
+  // Tiles taken from another flag, taken off empty ground, and lost to another flag.
+  uint32 took = 3;
+  uint32 filled = 4;
+  uint32 lost = 5;
+  map<string, uint32> took_from = 6;
+  // Of what it took and holds at the end, from 0 (lines drawn on someone's land) to 1 (land taken whole).
+  double solidity = 7;
+}
+
+// A flag taking land across the whole map in one stretch of time.
+message Tour {
+  string flag = 1;
+  google.protobuf.Timestamp since = 2;
+  google.protobuf.Timestamp until = 3;
+  uint32 took = 4;
+  map<string, uint32> by_continent = 5;
+  map<string, uint32> took_from = 6;
+  // What the flag taking the second most across the world took in the same stretch.
+  uint32 next_took = 7;
+  double solidity = 8;
+  uint32 bombs = 9;
+  // The tiles of the landmasses whose painted flag switched to it, big enough to read from far, by continent: all a
+  // tour shows.
+  map<string, uint32> flipped_by_continent = 10;
+}
+
+// What the map is at the end: the flag holding the most of a place.
+message Place {
+  // "world", "continent" or "country".
+  string kind = 1;
+  // The country's code; empty for the world and a continent.
+  string code = 2;
+  // The continent, or a country's; empty for the world.
+  string continent = 3;
+  uint32 tiles = 4;
+  string holder = 5;
+  uint32 held = 6;
+  double share = 7;
+  // The flags holding the most after it.
+  map<string, uint32> rivals = 8;
+  // Tiles of the place that changed hands to the holder or from it in the window: what its clip plays.
+  uint32 changed = 9;
+}
+
+message Seasonal {
   string title = 1;
   StoryKey key = 2;
   repeated string countries = 3;
-  // What the generator knows of the story before it renders it, for the job's editor to judge it by.
   StoryFacts facts = 4;
-  // The headline said in other words, as the clip's caption would pick from: an editor's headline must not be one.
   repeated string teasers = 5;
 }
 
-// What a story of the shortlist is, as numbers the generator already worked out to find it. The same units as
-// GlobeReplay's, which a rendered clip records: a story's facts are what its clip would record, before the camera.
-// Additive only, as ClipRecord.
 message StoryFacts {
-  // As GlobeReplay.story_kind: "attack", "invasion", "comeback", "kickout", "rout", "battle", "holding", "round",
-  // "callup".
   string kind = 1;
-  // The place the headline names and the counter counts in, as the clip says it in English: "Europe", "France",
-  // "the world".
   string place = 2;
-  // "front" follows the fighting of one place, "tour" flies over the continents of a flag taking the world.
   string camera = 3;
-  // The flag that took the most there (the holder of a holding, the winner of a day), the flag it fights in a
-  // battle, and the flags it took from, best first: country codes.
   string attacker = 4;
   string rival = 5;
   repeated string taken_from = 6;
-  // How each country code of the story is said in a clip: "pw": "Palau", "gb": "the UK".
   map<string, string> names = 7;
-  // The line under the headline, when it has one: "The battle for France", "Leads the season with 86 points".
   string line = 8;
-  // The language of its words: "en", or the country's own for a call-up ("pl").
   string language = 9;
-  // How much of the replay's time the clip would play, quiet stretches included, and when that stretch ends.
   double span_minutes = 10;
   google.protobuf.Timestamp story_ended_at = 11;
   uint32 tiles_changed = 12;
@@ -54,11 +133,30 @@ message StoryFacts {
   uint32 spreads = 18;
   uint32 enclosures = 19;
   double solidity = 20;
-  // A holding's share of its place, from 0 to 1; 0 for any other kind.
   double share = 21;
-  // How the generator ranked what changed: tiles taken over the square root of the hours, times the countries they
-  // were taken in. 0 for a holding, a day and a call-up, which it ranks apart.
   double score = 22;
+}
+
+// A story to tell, as the generator's --story takes it: one front, one tour, one place or one seasonal story of the
+// findings, by its number from 1, and for a front what the editor made of it.
+message Pick {
+  uint32 front = 1;
+  uint32 tour = 2;
+  uint32 place = 3;
+  uint32 seasonal = 4;
+  // attack, invasion, comeback, kickout, rout or battle.
+  string kind = 5;
+  string attacker = 6;
+  string rival = 7;
+  // The flags it took from, the main one first.
+  repeated string taken_from = 8;
+  // Where it is told: one or two countries, else a continent.
+  repeated string countries = 9;
+  string continent = 10;
+  // The continent whose flags strike back together, for a comeback of them.
+  string team = 11;
+  // Empty for the generator's own.
+  string headline = 12;
 }
 
 message Clip {
@@ -68,150 +166,85 @@ message Clip {
   uint32 pick = 1;
   string title = 2;
   StoryKey key = 5;
-  // The headline said in other words: the job writes the caption, and picks one.
   repeated string teasers = 6;
-  // Every flag of the story that is a country, and its place's countries.
   repeated TaggedCountry countries = 7;
-  // With no #: "europe", "middleeast"; empty for the world.
   string continent_tag = 8;
-  // What the licence of the clip's music asks the caption to say; empty when none.
   string credit = 9;
-  // What the clip was, as the generator made it: the job keeps it with the post and never publishes it.
   ClipRecord record = 10;
-  // The name of each teaser's wording, in the same order: "invades", "under-attack-from".
   repeated string teaser_names = 11;
 }
 
-// What a clip was, to set beside how its post did. Every code is a word that says what it means; a number is a quantity
-// in the unit its name says. Additive only: a change that is not is a new message, under a new name.
 message ClipRecord {
-  // What kind of video it is, which names the section below that describes it: "globe-replay" (globe).
   string format = 1;
-  // The commit of this repository that made it, or "unknown".
   string generator = 2;
-  // What every format has.
   ClipCommon common = 3;
   GlobeReplay globe = 4;
-  // The arm of each experiment the clip is in, by experiment: {"end-card": "podium"}. Empty while none runs.
   map<string, string> variants = 5;
 }
 
 message ClipCommon {
-  // The whole clip, call to act included.
   double duration_seconds = 1;
-  // The country code of the anthem under the clip ("fr", "eu" for Europe's), or "none".
   string music = 2;
-  // Where in the anthem the clip starts it.
   double music_start_seconds = 3;
-  // The language of its words: "en", or the country's own for a call-up ("pl").
   string language = 4;
 }
 
-// The game's own globe playing back a stretch of the replay.
 message GlobeReplay {
-  // "front" follows the fighting of one place, "tour" flies over the continents of a flag taking the world.
   string camera = 1;
-  // When a front's camera comes back out of the tiles: "dive" at the end, "flags" halfway; "none" on a tour.
   string look = 2;
-  // What the story is, finer than its key's angle: "attack", "invasion", "comeback", "kickout", "rout", "battle",
-  // "holding", "round", "callup".
   string story_kind = 3;
-  // How much of the replay's time the clip plays, quiet stretches included.
   double span_minutes = 4;
-  // Every tile that changed hands in that time, where the story is told (a bomb's cleared tiles too).
   uint32 tiles_changed = 5;
-  // The changes the camera follows: the story's own fighting.
   uint32 story_tiles_changed = 6;
-  // The size of the place the headline names and the counter counts in: a country, two, a continent or the world.
   uint32 place_tiles = 7;
-  // The tiles the key's flag holds in the place when the clip starts and when it ends: the counter.
   uint32 flag_tiles_start = 8;
   uint32 flag_tiles_end = 9;
-  // Landmasses whose painted flag changed in the clip: what can be seen changing from far.
   uint32 landmasses_flipped = 10;
-  // The effects played in sight of the story: a bomb going off, a spread click, a shape closed.
   uint32 bombs = 11;
   uint32 spreads = 12;
   uint32 enclosures = 13;
-  // How far the camera travels up close, in screens; 0 on a tour.
   double screens_crossed = 14;
-  // The continents a tour stops at; 0 for a front.
   uint32 tour_stops = 15;
-  // How solid the land taken is, from 0 (lines drawn on the map) to 1 (land taken whole).
   double solidity = 16;
-  // When the stretch it plays ends: the newest moment of the story. The post's scheduled_at minus this is how long the
-  // story took to reach the feed.
   google.protobuf.Timestamp story_ended_at = 17;
 }
 
-// What the job keeps with a post in its Zernio metadata, under "record", written by protojson: what the clip was, and
-// what the job made of it. Never published, never read back by the job.
 message PostRecord {
-  // Which message this document is: "clips.v1.PostRecord".
   string schema = 1;
-  // Absent for a clip written before the generator kept one.
   ClipRecord clip = 2;
   PostFacts post = 3;
 }
 
 message PostFacts {
-  // The name of the teaser the caption opens with ("invades"), or "unnamed" for a clip whose teasers have none.
   string teaser = 1;
-  // The call to act the caption ends with ("join-the-battle").
   string call_to_action = 2;
-  // When the job scheduled it: the dashboard can move the post, this does not move.
   google.protobuf.Timestamp scheduled_at = 3;
-  // Its place in its run, from 1, in the order the run's posts go out, and how many the run has.
   uint32 run_position = 4;
   uint32 run_size = 5;
-  // The arm of each experiment the post went out in, when the job moved it to another at post time ({"sound":
-  // "fell-back"}: drawn for a trending track, posted with the anthem because the chart could not be read). Absent when
-  // it moved none: the post went out in the clip's own arms, clip.variants.
   map<string, string> variants = 6;
-  // The trending track attached on TikTok, for a post of the experiment "sound" drawn for one. Absent for a post with
-  // the anthem alone, and on YouTube, which is sent the video as it is.
   TikTokSound sound = 7;
 }
 
-// A track of TikTok's Commercial Music Library attached over the clip on TikTok, and how it was mixed. One protojson
-// leaves out is its zero: no original_volume is the video's own sound muted.
 message TikTokSound {
-  // What TikTok was sent as musicSoundId: the id of the track's trending excerpt, or of the whole track when it has
-  // none.
   string id = 1;
-  // Which of the two id is: "excerpt" or "track".
   string id_of = 2;
   string title = 3;
   string artist = 4;
-  // Its place in the chart it was picked from, from 1.
   uint32 rank = 5;
-  // The chart's country, ISO 3166-1 alpha-2 in upper case ("US").
   string chart_country = 6;
-  // How long what id names plays, as the chart said; 0 when it did not say.
   uint32 duration_seconds = 7;
-  // From 0 to 100: the track's volume (musicSoundVolume), and the video's own sound under it, the anthem
-  // (videoOriginalSoundVolume).
   uint32 track_volume = 8;
   uint32 original_volume = 9;
 }
 
 message TaggedCountry {
   string code = 1;
-  // With no #: "uk", "christmasisland".
   string tag = 2;
 }
 
-// Two stories with one key are one story told twice, whatever their headlines.
 message StoryKey {
-  // The country code of the flag the clip is about: the loser when a flag is thrown out, the holder of a place, the
-  // winner of a day.
   string flag = 1;
-  // As the headlines name it: "Africa", "Middle East", "the world".
   string continent = 2;
-  // What the clip tells of the flag there: empty for what it did (an attack, a battle, a flag thrown out),
-  // "holding" for how much of the place it holds, "round" for a day of the season it won, "callup" for a country
-  // called up to the Final Battle after a day.
   string angle = 3;
-  // The day a "round" tells or a "callup" follows, as its season and its number: "1.5". Empty for any other angle.
   string round = 4;
 }

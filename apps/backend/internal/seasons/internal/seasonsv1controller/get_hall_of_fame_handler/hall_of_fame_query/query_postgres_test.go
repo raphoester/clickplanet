@@ -81,12 +81,12 @@ func (s *testSuite) SetupTest() {
 	s.authors = &fakeAuthors{named: map[standings.AccountID]*playerv1.Author{}}
 }
 
-func (s *testSuite) counted(round rounds.Round) {
-	s.Require().NoError(s.rounds.RecordSnapshot(s.T().Context(), round, rounds.Snapshot{Tiles: 100, Held: map[rounds.Country]uint32{"fr": 1}}))
+func (s *testSuite) open(round rounds.Round) {
+	s.Require().NoError(s.rounds.Open(s.T().Context(), round))
 }
 
 func (s *testSuite) closed(round rounds.Round, results ...rounds.Result) {
-	s.counted(round)
+	s.open(round)
 	_, err := s.rounds.Close(s.T().Context(), round, results)
 	s.Require().NoError(err)
 }
@@ -144,7 +144,7 @@ func (s *testSuite) equalScores(want, got []*seasonsv1.Score) {
 
 func (s *testSuite) TestBeforeAFinaleClosesTheHallIsEmptyAndAsksNobody() {
 	s.closed(thirtieth, rounds.Result{Country: "fr", Rank: 1, Points: 25})
-	s.counted(finale)
+	s.open(finale)
 	s.player(0, 1, "fr", 3)
 
 	s.Empty(s.hall())

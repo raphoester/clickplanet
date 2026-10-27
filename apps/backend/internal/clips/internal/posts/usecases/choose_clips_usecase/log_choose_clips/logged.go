@@ -27,21 +27,25 @@ func (l *Logged) Execute(ctx context.Context) (posts.Choice, error) {
 		return choice, err //nolint:wrapcheck // a decorator adds a log line, not a sentence.
 	}
 
-	for _, story := range choice.Retold {
-		l.logger.Info("skipped a story told already", attributesOf(story)...)
-	}
-	for _, story := range choice.Passed {
-		l.logger.Info("passed a story for a flag or an angle told less lately", attributesOf(story)...)
-	}
 	switch {
 	case choice.Room == 0:
 		l.logger.Info("every platform has posted its day already")
 	case len(choice.Chosen) == 0:
-		l.logger.Info("no story is worth a clip")
+		l.logger.Info("no story is told this run")
 	}
 	l.logEditorial(choice)
-	for i, story := range choice.Chosen {
-		attributes := attributesOf(story)
+	for _, skipped := range choice.Skipped {
+		l.logger.Warn("skipped a story of the editor's", append(attributesOf(skipped.Story), slog.String("why", skipped.Why))...)
+	}
+	for i, chosen := range choice.Chosen {
+		attributes := append(attributesOf(chosen.Story), slog.Int("pick", int(chosen.Pick)),
+			slog.String("flag", chosen.Key.Flag), slog.String("continent", chosen.Key.Continent))
+		if chosen.Key.Angle != posts.Deeds {
+			attributes = append(attributes, slog.String("angle", string(chosen.Key.Angle)))
+		}
+		if chosen.Key.Round != "" {
+			attributes = append(attributes, slog.String("round", chosen.Key.Round))
+		}
 		if i < len(choice.Assigned) && len(choice.Assigned[i].Variants) > 0 {
 			attributes = append(attributes, slog.String("arms", choice.Assigned[i].Variants.String()))
 		}
@@ -51,7 +55,7 @@ func (l *Logged) Execute(ctx context.Context) (posts.Choice, error) {
 	return choice, nil
 }
 
-// Who made the run: the model, with what its call cost, or the rules and why. A quiet run says nothing of it.
+// How the editor's call went: what it cost, its reason, or why no answer was had. A quiet run says nothing of it.
 func (l *Logged) logEditorial(choice posts.Choice) {
 	editorial := choice.Editorial
 	var attributes []any
@@ -63,25 +67,33 @@ func (l *Logged) logEditorial(choice posts.Choice) {
 			slog.Int64("output_tokens", spend.OutputTokens), slog.String("usd", fmt.Sprintf("%.5f", spend.USD)))
 	}
 	switch {
-	case editorial.FellBack != "":
-		l.logger.Warn("the run is made by the rules", append(attributes, slog.String("why", editorial.FellBack))...)
+	case editorial.Failed != "":
+		l.logger.Warn("the editor gave no answer, and the run is its seasonal stories alone", append(attributes, slog.String("why", editorial.Failed))...)
 	case editorial.Asked:
-		l.logger.Info("the model edited the run", append(attributes, slog.String("why", editorial.Why))...)
+		l.logger.Info("the editor made the run", append(attributes, slog.String("why", editorial.Why))...)
 	case len(choice.Chosen) > 0:
-		l.logger.Info("the model had nothing to decide")
+		l.logger.Info("the editor had nothing to decide")
 	}
 }
 
 func attributesOf(story posts.Story) []any {
-	attributes := []any{
-		slog.Int("pick", int(story.Pick)), slog.String("title", story.Title),
-		slog.String("flag", story.Key.Flag), slog.String("continent", story.Key.Continent),
+	attributes := []any{slog.String("of", story.Names())}
+	if story.Headline != "" {
+		attributes = append(attributes, slog.String("headline", story.Headline))
 	}
-	if story.Key.Angle != posts.Deeds {
-		attributes = append(attributes, slog.String("angle", string(story.Key.Angle)))
+	if story.Front > 0 {
+		place := story.Continent
+		if place == "" {
+			place = strings.Join(story.Countries, "+")
+		}
+		attributes = append(attributes, slog.String("kind", string(story.Kind)), slog.String("attacker", story.Attacker),
+			slog.String("from", strings.Join(story.TakenFrom, ",")), slog.String("in", place))
+		if story.Rival != "" {
+			attributes = append(attributes, slog.String("rival", story.Rival))
+		}
+		if story.Team != "" {
+			attributes = append(attributes, slog.String("team", story.Team))
+		}
 	}
-	if story.Key.Round != "" {
-		attributes = append(attributes, slog.String("round", story.Key.Round))
-	}
-	return append(attributes, slog.String("countries", strings.Join(story.Countries, ",")))
+	return attributes
 }

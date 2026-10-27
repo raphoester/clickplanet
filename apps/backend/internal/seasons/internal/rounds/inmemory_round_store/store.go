@@ -5,7 +5,6 @@ package inmemory_round_store
 import (
 	"cmp"
 	"context"
-	"maps"
 	"slices"
 	"sync"
 	"time"
@@ -25,7 +24,6 @@ func keyOf(round rounds.Round) key {
 
 type kept struct {
 	round   rounds.Round
-	held    map[rounds.Country]uint64
 	closed  bool
 	results []rounds.Result
 }
@@ -49,22 +47,15 @@ func (s *Store) FailWith(err error) {
 	s.failWith = err
 }
 
-func (s *Store) RecordSnapshot(_ context.Context, round rounds.Round, snapshot rounds.Snapshot) error {
+func (s *Store) Open(_ context.Context, round rounds.Round) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if s.failWith != nil {
 		return s.failWith
 	}
-	at, known := s.rounds[keyOf(round)]
-	if !known {
-		at = &kept{round: round, held: map[rounds.Country]uint64{}}
-		s.rounds[keyOf(round)] = at
-	}
-	for country, tiles := range snapshot.Held {
-		if tiles > 0 {
-			at.held[country] += uint64(tiles)
-		}
+	if _, known := s.rounds[keyOf(round)]; !known {
+		s.rounds[keyOf(round)] = &kept{round: round}
 	}
 	return nil
 }
@@ -86,20 +77,6 @@ func (s *Store) Unclosed(_ context.Context, endedBy time.Time) ([]rounds.Round, 
 		return cmp.Or(a.EndsAt.Compare(b.EndsAt), cmp.Compare(a.Season, b.Season))
 	})
 	return ended, nil
-}
-
-func (s *Store) Held(_ context.Context, round rounds.Round) (map[rounds.Country]uint64, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if s.failWith != nil {
-		return nil, s.failWith
-	}
-	at, known := s.rounds[keyOf(round)]
-	if !known {
-		return map[rounds.Country]uint64{}, nil
-	}
-	return maps.Clone(at.held), nil
 }
 
 func (s *Store) Number(_ context.Context, round rounds.Round) (uint32, error) {

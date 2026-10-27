@@ -65,8 +65,8 @@ dropdown's rows again with it.
 purpose: four rows (`SeasonFacts`), the Final Battle with its day and hours, the
 daily rounds ("Win the day"), the winner's trophy in the Hall of Fame, and the
 titles. During the finale the first row is the power-ups instead of the date.
-**Say only what is decided**: a battle full of power-ups, points each day for the
-countries that held the most ground (triple in the Final Battle), a trophy for the winning country, a title for every
+**Say only what is decided**: a battle full of power-ups, points when a day ends for the
+countries holding the most ground then (triple in the Final Battle), a trophy for the winning country, a title for every
 signed-in player and one more for the winning country's. Guests get no title, so
 the row says "signed-in".
 

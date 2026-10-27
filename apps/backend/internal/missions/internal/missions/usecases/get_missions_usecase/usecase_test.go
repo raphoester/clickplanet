@@ -18,7 +18,7 @@ import (
 type fixedPlanet struct{}
 
 func (fixedPlanet) World(context.Context) (missions.World, error) {
-	return missions.World{Territories: []missions.Holding{{Country: "dz", Tiles: 9_000}}}, nil
+	return missions.World{Territories: []missions.Territory{{Flag: "dz", Tiles: 9_000}}}, nil
 }
 
 type pledges map[missions.AccountID]string
@@ -46,7 +46,7 @@ func setUp(allegiances get_missions_usecase.Allegiances) (*get_missions_usecase.
 }
 
 func bankOf(flag string) missions.MissionID {
-	return missions.Draw(calendar.DayOf(now), flag, missions.World{Territories: []missions.Holding{{Country: "dz", Tiles: 9_000}}}).Snapshot()[0].ID
+	return missions.Draw(calendar.DayOf(now), flag, missions.World{Territories: []missions.Territory{{Flag: "dz", Tiles: 9_000}}}).Snapshot()[0].ID
 }
 
 func enlist(t *testing.T, store *inmemory_mission_store.Store, flag string) {
@@ -66,7 +66,7 @@ func TestBeforeTheDaysFirstTakeTheMissionsAreThePledgedFlags(t *testing.T) {
 	assert.Equal(t, "fr", out.Flag)
 	assert.False(t, out.Sheet.Enlisted())
 	assert.Equal(t, missions.Draw(calendar.DayOf(now), "fr", missions.World{
-		Territories: []missions.Holding{{Country: "dz", Tiles: 9_000}},
+		Territories: []missions.Territory{{Flag: "dz", Tiles: 9_000}},
 	}).Snapshot(), out.Brief.Snapshot())
 	assert.Equal(t, time.Date(2026, 10, 26, 21, 0, 0, 0, time.UTC), out.Day.EndsAt())
 }

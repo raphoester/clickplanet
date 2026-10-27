@@ -70,17 +70,16 @@ func TestNoExperimentPutsAClipInNoArm(t *testing.T) {
 }
 
 func TestEachStoryChosenIsPutInItsOwnArmsInTheOrderOfTheRun(t *testing.T) {
-	chosen, err := posts.ShortlistOf(
-		posts.Story{Title: "A", Key: posts.StoryKey{Flag: "fr", Continent: "Europe"}},
-		posts.Story{Title: "B", Key: posts.StoryKey{Flag: "dz", Continent: "Africa"}},
-	)
-	require.NoError(t, err)
+	chosen := []posts.Chosen{
+		{Pick: 1, Story: posts.Story{Seasonal: 1}, Key: posts.StoryKey{Flag: "fr", Continent: "Europe", Angle: posts.DayWon, Round: "1.5"}},
+		{Pick: 2, Story: posts.Story{Front: 3, Kind: posts.Battle, Attacker: "fr", Rival: "tr", Headline: "FRANCE VS TURKEY"}, Key: posts.StoryKey{Flag: "fr", Continent: "Middle East"}},
+	}
 
-	assigned := experimentsOf(t, length).AssignEach(chosen, map[posts.Pick]string{2: "ALGERIA IS EVERYWHERE"}, &posts.RolledDice{Faces: []int{1, 0}})
+	assigned := experimentsOf(t, length).AssignEach(chosen, &posts.RolledDice{Faces: []int{1, 0}})
 
 	assert.Equal(t, []posts.Assignment{
-		{Pick: 1, Variants: posts.Variants{"length": "short"}},
-		{Pick: 2, Variants: posts.Variants{"length": "as-chosen"}, Headline: "ALGERIA IS EVERYWHERE"},
+		{Pick: 1, Story: posts.Story{Seasonal: 1}, Variants: posts.Variants{"length": "short"}},
+		{Pick: 2, Story: chosen[1].Story, Variants: posts.Variants{"length": "as-chosen"}},
 	}, assigned)
 }
 

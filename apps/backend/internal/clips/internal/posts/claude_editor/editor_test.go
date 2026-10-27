@@ -20,17 +20,25 @@ import (
 const key = "sk-ant-test-key"
 
 var (
-	at    = time.Date(2026, 10, 24, 12, 17, 0, 0, time.UTC)
+	at    = time.Date(2026, 10, 26, 20, 31, 0, 0, time.UTC)
 	offer = posts.Offer{
 		Count: 2, Now: at, Shown: map[string]int{"pw": 1},
-		Stories: posts.Shortlist{
-			{
-				Pick: 2, Title: "FRANCE VS GERMANY", Key: posts.StoryKey{Flag: "fr", Continent: "Europe"}, Countries: []string{"fr", "de"},
-				Teasers: []string{"THE BATTLE FOR FRANCE"}, Facts: posts.StoryFacts(`{"kind":"battle","storyTilesChanged":1200}`),
-			},
-			{Pick: 4, Title: "BRAZIL IS INVADING ARGENTINA", Key: posts.StoryKey{Flag: "br", Continent: "South America"}},
+		First: []int{1},
+		Findings: posts.Findings{
+			Since: at.Add(-12 * time.Hour), Until: at,
+			Seasonal: []posts.Seasonal{{Title: "PALAU WINS DAY 18", Key: posts.StoryKey{Flag: "pw", Continent: "the world", Angle: posts.DayWon, Round: "0.18"}}},
+			Fronts: []posts.Front{{
+				Since: at.Add(-5 * time.Hour), Until: at, TilesChanged: 9844, Captured: 9000,
+				Countries: []posts.FrontCountry{{Code: "tr", Continent: "Middle East", Tiles: 2500, Changed: 6000, HoldersStart: map[string]int{"tr": 2000}, HoldersEnd: map[string]int{"fr": 1500}, Takers: map[string]int{"fr": 5000}}},
+				Flags:     []posts.FrontFlag{{Code: "fr", Continent: "Europe", Took: 5000, Lost: 3000, TookFrom: map[string]int{"tr": 5000}, Solidity: 0.86}},
+				Bombs:     3, Score: 3886.5,
+			}},
+			Tours:      []posts.Tour{{Flag: "fr", Since: at.Add(-12 * time.Hour), Until: at, Took: 27992, ByContinent: map[string]int{"Europe": 12000}, NextTook: 9000, FlippedByContinent: map[string]int{"South Asia": 6246}}},
+			Places:     []posts.Place{{Kind: posts.ContinentPlace, Continent: "South Asia", Tiles: 9600, Holder: "fr", Held: 6170, Share: 0.643, Changed: 6000}},
+			Names:      map[string]string{"fr": "France", "tr": "Turkey"},
+			Continents: map[string]string{"Europe": "eu", "Middle East": ""},
 		},
-		Recent: []posts.Telling{{Title: "PALAU IS EVERYWHERE", Key: posts.StoryKey{Flag: "pw", Continent: "Asia"}, At: at.Add(-time.Hour)}},
+		Recent: []posts.Telling{{Title: "BRITTANY IS INVADING AUSTRALIA", Key: posts.StoryKey{Flag: "xb", Continent: "Oceania"}, Countries: []string{"au", "xb"}, At: at.Add(-time.Hour)}},
 	}
 )
 
@@ -85,13 +93,16 @@ func editorOf(t *testing.T, server *httptest.Server) *claude_editor.Editor {
 
 func TestTheModelsAnswerIsTheEditionAndItsCost(t *testing.T) {
 	api := &fake{status: http.StatusOK, answer: message("end_turn",
-		`{"why":"Brazil is fresher.","stories":[{"pick":4,"headline":"BRAZIL STORMS ARGENTINA"},{"pick":2,"headline":"FRANCE VS GERMANY"}]}`)}
+		`{"why":"The war is the day's story.","stories":[`+
+			`{"front":1,"tour":0,"place":0,"kind":"battle","attacker":"fr","rival":"tr","takenFrom":["tr"],"countries":["tr"],"continent":"","team":"","headline":"FRANCE VS TURKEY"},`+
+			`{"front":0,"tour":1,"place":0,"kind":"","attacker":"","rival":"","takenFrom":[],"countries":[],"continent":"","team":"","headline":"FRANCE IS EVERYWHERE"}]}`)}
 
 	edition, spend, err := editorOf(t, api.serve(t)).Edit(t.Context(), offer)
 
 	require.NoError(t, err)
-	assert.Equal(t, posts.Edition{Why: "Brazil is fresher.", Edits: []posts.Edit{
-		{Pick: 4, Headline: "BRAZIL STORMS ARGENTINA"}, {Pick: 2, Headline: "FRANCE VS GERMANY"},
+	assert.Equal(t, posts.Edition{Why: "The war is the day's story.", Stories: []posts.Story{
+		{Front: 1, Kind: posts.Battle, Attacker: "fr", Rival: "tr", TakenFrom: []string{"tr"}, Countries: []string{"tr"}, Headline: "FRANCE VS TURKEY"},
+		{Tour: 1, TakenFrom: []string{}, Countries: []string{}, Headline: "FRANCE IS EVERYWHERE"},
 	}}, edition)
 	assert.Equal(t, int64(1500), spend.InputTokens)
 	assert.Equal(t, int64(2000), spend.CacheWriteTokens)
@@ -116,6 +127,8 @@ func TestTheRequestCachesTheInstructionsAndAsksForTheAnswersShape(t *testing.T) 
 	format := request["output_config"].(map[string]any)["format"].(map[string]any)
 	assert.Equal(t, "json_schema", format["type"])
 	assert.Equal(t, []any{"why", "stories"}, format["schema"].(map[string]any)["required"])
+	story := format["schema"].(map[string]any)["properties"].(map[string]any)["stories"].(map[string]any)["items"].(map[string]any)
+	assert.Equal(t, []any{"front", "tour", "place", "kind", "attacker", "rival", "takenFrom", "countries", "continent", "team", "headline"}, story["required"])
 
 	prompt, err := claude_editor.PromptOf(offer)
 	require.NoError(t, err)
@@ -174,21 +187,46 @@ func TestWithNoKeyNothingIsSentAndTheRunFallsBack(t *testing.T) {
 	assert.Equal(t, posts.Spend{}, spend, "nothing sent, nothing asked")
 }
 
-func TestThePromptHoldsTheStoriesTheirFactsAndTheRecentPosts(t *testing.T) {
+func TestThePromptHoldsTheFindingsNumberedTheStoriesToldFirstAndTheRecentPosts(t *testing.T) {
 	prompt, err := claude_editor.PromptOf(offer)
 	require.NoError(t, err)
 
 	var written struct {
-		Now     time.Time `json:"now"`
-		Slots   int       `json:"slots"`
-		Stories []struct {
-			Pick     int             `json:"pick"`
-			Headline string          `json:"headline"`
-			Teasers  []string        `json:"teasers"`
-			Facts    json.RawMessage `json:"facts"`
-		} `json:"stories"`
+		Now        time.Time         `json:"now"`
+		Slots      int               `json:"slots"`
+		ToldFirst  []string          `json:"toldFirst"`
+		Names      map[string]string `json:"names"`
+		Continents []string          `json:"continents"`
+		Fronts     []struct {
+			Front     int     `json:"front"`
+			Hours     float64 `json:"hours"`
+			Captured  int     `json:"captured"`
+			Countries []struct {
+				Code         string         `json:"code"`
+				HoldersStart map[string]int `json:"holdersStart"`
+				Takers       map[string]int `json:"takers"`
+			} `json:"countries"`
+			Flags []struct {
+				Code     string         `json:"code"`
+				TookFrom map[string]int `json:"tookFrom"`
+				Solidity float64        `json:"solidity"`
+			} `json:"flags"`
+		} `json:"fronts"`
+		Tours []struct {
+			Tour               int            `json:"tour"`
+			Flag               string         `json:"flag"`
+			NextTook           int            `json:"nextTook"`
+			FlippedByContinent map[string]int `json:"flippedByContinent"`
+		} `json:"tours"`
+		Places []struct {
+			Place     int     `json:"place"`
+			Kind      string  `json:"kind"`
+			Continent string  `json:"continent"`
+			Share     float64 `json:"share"`
+		} `json:"places"`
 		RecentPosts []struct {
-			Headline string `json:"headline"`
+			Headline  string   `json:"headline"`
+			Countries []string `json:"countries"`
 		} `json:"recentPosts"`
 		ShownLately map[string]int `json:"shownLately"`
 	}
@@ -197,13 +235,25 @@ func TestThePromptHoldsTheStoriesTheirFactsAndTheRecentPosts(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(document), &written))
 
 	assert.Equal(t, at, written.Now)
-	assert.Equal(t, 2, written.Slots)
-	require.Len(t, written.Stories, 2)
-	assert.Equal(t, 2, written.Stories[0].Pick)
-	assert.Equal(t, []string{"THE BATTLE FOR FRANCE"}, written.Stories[0].Teasers)
-	assert.JSONEq(t, `{"kind":"battle","storyTilesChanged":1200}`, string(written.Stories[0].Facts))
-	assert.Empty(t, written.Stories[1].Facts)
-	assert.Equal(t, "PALAU IS EVERYWHERE", written.RecentPosts[0].Headline)
+	assert.Equal(t, 1, written.Slots)
+	assert.Equal(t, []string{"PALAU WINS DAY 18"}, written.ToldFirst)
+	assert.Equal(t, map[string]string{"fr": "France", "tr": "Turkey"}, written.Names)
+	assert.Equal(t, []string{"Europe", "Middle East"}, written.Continents)
+	require.Len(t, written.Fronts, 1)
+	assert.Equal(t, 1, written.Fronts[0].Front)
+	assert.InDelta(t, 5, written.Fronts[0].Hours, 0.01)
+	assert.Equal(t, 9000, written.Fronts[0].Captured)
+	assert.Equal(t, map[string]int{"tr": 2000}, written.Fronts[0].Countries[0].HoldersStart)
+	assert.Equal(t, map[string]int{"fr": 5000}, written.Fronts[0].Countries[0].Takers)
+	assert.Equal(t, map[string]int{"tr": 5000}, written.Fronts[0].Flags[0].TookFrom)
+	assert.InDelta(t, 0.86, written.Fronts[0].Flags[0].Solidity, 1e-9)
+	assert.Equal(t, 1, written.Tours[0].Tour)
+	assert.Equal(t, 9000, written.Tours[0].NextTook)
+	assert.Equal(t, map[string]int{"South Asia": 6246}, written.Tours[0].FlippedByContinent)
+	assert.Equal(t, 1, written.Places[0].Place)
+	assert.Equal(t, "South Asia", written.Places[0].Continent)
+	assert.Equal(t, "BRITTANY IS INVADING AUSTRALIA", written.RecentPosts[0].Headline)
+	assert.Equal(t, []string{"au", "xb"}, written.RecentPosts[0].Countries)
 	assert.Equal(t, map[string]int{"pw": 1}, written.ShownLately)
 }
 

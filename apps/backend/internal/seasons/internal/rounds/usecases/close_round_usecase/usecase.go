@@ -14,7 +14,6 @@ import (
 )
 
 type Rounds interface {
-	Held(ctx context.Context, round rounds.Round) (map[rounds.Country]uint64, error)
 	Number(ctx context.Context, round rounds.Round) (uint32, error)
 	ClosedIn(ctx context.Context, season calendar.Number) ([]rounds.Closed, error)
 	Close(ctx context.Context, round rounds.Round, results []rounds.Result) (bool, error)
@@ -30,11 +29,7 @@ func New(transactioner cpatomic.Transactioner, store Rounds, outbox cpatomic.Out
 	return &UseCase{transactioner: transactioner, store: store, outbox: outbox}
 }
 
-func (u *UseCase) Execute(ctx context.Context, round rounds.Round) (rounds.Closed, error) {
-	held, err := u.store.Held(ctx, round)
-	if err != nil {
-		return rounds.Closed{}, fmt.Errorf("failed to read what each country held in the round: %w", err)
-	}
+func (u *UseCase) Execute(ctx context.Context, round rounds.Round, snapshot rounds.Snapshot) (rounds.Closed, error) {
 	number, err := u.store.Number(ctx, round)
 	if err != nil {
 		return rounds.Closed{}, fmt.Errorf("failed to number the round: %w", err)
@@ -44,7 +39,7 @@ func (u *UseCase) Execute(ctx context.Context, round rounds.Round) (rounds.Close
 		return rounds.Closed{}, fmt.Errorf("failed to read the rounds the season closed: %w", err)
 	}
 
-	closing := round.Closed(number, held)
+	closing := round.Closed(number, snapshot)
 	told := []proto.Message{eventOf(closing)}
 	if end, over := closing.SeasonEnd(earlier); over {
 		told = append(told, seasonEventOf(end))

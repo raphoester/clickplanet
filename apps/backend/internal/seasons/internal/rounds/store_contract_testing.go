@@ -3,7 +3,6 @@
 package rounds
 
 import (
-	"sync"
 	"time"
 
 	"github.com/stretchr/testify/suite"
@@ -29,14 +28,10 @@ var (
 	contractFinale  = Round{EndsAt: time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC), Finale: true}
 )
 
-func (s *StoreContractSuite) snapshot(round Round, held map[Country]uint32) {
-	s.Require().NoError(s.store.RecordSnapshot(s.T().Context(), round, Snapshot{Tiles: 100, Held: held}))
-}
-
-func (s *StoreContractSuite) held(round Round) map[Country]uint64 {
-	held, err := s.store.Held(s.T().Context(), round)
-	s.Require().NoError(err)
-	return held
+func (s *StoreContractSuite) open(rounds ...Round) {
+	for _, round := range rounds {
+		s.Require().NoError(s.store.Open(s.T().Context(), round))
+	}
 }
 
 func (s *StoreContractSuite) unclosed(endedBy time.Time) []Round {
@@ -45,38 +40,8 @@ func (s *StoreContractSuite) unclosed(endedBy time.Time) []Round {
 	return ended
 }
 
-func (s *StoreContractSuite) TestARoundNobodyCountedHoldsNothing() {
-	s.Empty(s.held(contractDay))
-}
-
-func (s *StoreContractSuite) TestEachSnapshotAddsWhatEachCountryHeld() {
-	s.snapshot(contractDay, map[Country]uint32{"fr": 3, "de": 1})
-	s.snapshot(contractDay, map[Country]uint32{"fr": 2})
-
-	s.Equal(map[Country]uint64{"fr": 5, "de": 1}, s.held(contractDay))
-}
-
-func (s *StoreContractSuite) TestACountryThatHeldNothingIsNotKept() {
-	s.snapshot(contractDay, map[Country]uint32{"fr": 2, "de": 0})
-
-	s.Equal(map[Country]uint64{"fr": 2}, s.held(contractDay))
-}
-
-func (s *StoreContractSuite) TestEachRoundKeepsItsOwnSnapshots() {
-	nextSeason := Round{Season: 1, EndsAt: contractDay.EndsAt}
-	s.snapshot(contractDay, map[Country]uint32{"fr": 1})
-	s.snapshot(contractNextDay, map[Country]uint32{"de": 2})
-	s.snapshot(nextSeason, map[Country]uint32{"it": 3})
-
-	s.Equal(map[Country]uint64{"fr": 1}, s.held(contractDay))
-	s.Equal(map[Country]uint64{"de": 2}, s.held(contractNextDay))
-	s.Equal(map[Country]uint64{"it": 3}, s.held(nextSeason))
-}
-
 func (s *StoreContractSuite) TestARoundIsUnclosedFromItsEndUntilItIsClosed() {
-	s.snapshot(contractDay, map[Country]uint32{"fr": 1})
-	s.snapshot(contractNextDay, map[Country]uint32{"fr": 1})
-	s.snapshot(contractFinale, map[Country]uint32{"fr": 1})
+	s.open(contractDay, contractNextDay, contractFinale)
 
 	s.Empty(s.unclosed(contractDay.EndsAt.Add(-time.Second)))
 	s.Equal([]Round{contractDay}, s.unclosed(contractDay.EndsAt))
@@ -84,13 +49,20 @@ func (s *StoreContractSuite) TestARoundIsUnclosedFromItsEndUntilItIsClosed() {
 	s.Equal([]Round{contractDay, contractNextDay, contractFinale}, s.unclosed(contractFinale.EndsAt))
 }
 
-func (s *StoreContractSuite) TestARoundNobodyCountedIsNeverUnclosed() {
+func (s *StoreContractSuite) TestARoundNeverOpenedIsNeverUnclosed() {
 	s.Empty(s.unclosed(contractFinale.EndsAt.Add(Length)))
 }
 
+func (s *StoreContractSuite) TestARoundOpenedTwiceIsOneRound() {
+	s.open(contractDay, contractDay)
+
+	s.Equal([]Round{contractDay}, s.unclosed(contractDay.EndsAt))
+	s.Equal(uint32(2), s.number(contractNextDay))
+}
+
 func (s *StoreContractSuite) TestAClosedRoundKeepsItsResultsAndIsNoLongerUnclosed() {
-	s.snapshot(contractDay, map[Country]uint32{"fr": 2, "de": 1})
-	results := []Result{{Country: "fr", Rank: 1, Points: 25}, {Country: "de", Rank: 2, Points: 18}}
+	s.open(contractDay)
+	results := []Result{{Country: "fr", Rank: 1, Points: 25, Share: 0.3}, {Country: "de", Rank: 2, Points: 18, Share: 0.125}}
 
 	closed, err := s.store.Close(s.T().Context(), contractDay, results)
 
@@ -101,11 +73,11 @@ func (s *StoreContractSuite) TestAClosedRoundKeepsItsResultsAndIsNoLongerUnclose
 }
 
 func (s *StoreContractSuite) TestASecondCloseChangesNothing() {
-	s.snapshot(contractDay, map[Country]uint32{"fr": 2, "de": 1})
-	first := []Result{{Country: "fr", Rank: 1, Points: 25}, {Country: "de", Rank: 2, Points: 18}}
+	s.open(contractDay)
+	first := []Result{{Country: "fr", Rank: 1, Points: 25, Share: 0.3}, {Country: "de", Rank: 2, Points: 18, Share: 0.1}}
 	s.close(contractDay, first...)
 
-	closed, err := s.store.Close(s.T().Context(), contractDay, []Result{{Country: "de", Rank: 1, Points: 25}})
+	closed, err := s.store.Close(s.T().Context(), contractDay, []Result{{Country: "de", Rank: 1, Points: 25, Share: 0.5}})
 
 	s.Require().NoError(err)
 	s.False(closed, "only the first close closes the round")
@@ -125,11 +97,9 @@ func (s *StoreContractSuite) close(round Round, results ...Result) {
 
 func (s *StoreContractSuite) TestASeasonListsTheRoundsItClosedInTheirOrder() {
 	nextSeason := Round{Season: 1, EndsAt: contractFinale.EndsAt.Add(Length)}
-	for _, round := range []Round{contractDay, contractNextDay, contractFinale, nextSeason} {
-		s.snapshot(round, map[Country]uint32{"fr": 2, "de": 1})
-	}
-	day := []Result{{Country: "fr", Rank: 1, Points: 25}, {Country: "de", Rank: 2, Points: 18}}
-	nextDay := []Result{{Country: "de", Rank: 1, Points: 25}}
+	s.open(contractDay, contractNextDay, contractFinale, nextSeason)
+	day := []Result{{Country: "fr", Rank: 1, Points: 25, Share: 0.3}, {Country: "de", Rank: 2, Points: 18, Share: 0.1}}
+	nextDay := []Result{{Country: "de", Rank: 1, Points: 25, Share: 0.2}}
 	s.close(contractNextDay, nextDay...)
 	s.close(contractDay, day...)
 	s.close(nextSeason, day...)
@@ -141,14 +111,14 @@ func (s *StoreContractSuite) TestASeasonListsTheRoundsItClosedInTheirOrder() {
 }
 
 func (s *StoreContractSuite) TestARoundClosedWithNoResultsIsListedWithNone() {
-	s.snapshot(contractDay, map[Country]uint32{})
+	s.open(contractDay)
 	s.close(contractDay)
 
 	s.Equal([]Closed{{Round: contractDay, Number: 1}}, s.closedIn(0))
 }
 
 func (s *StoreContractSuite) TestASeasonWithNoRoundClosedListsNone() {
-	s.snapshot(contractDay, map[Country]uint32{"fr": 1})
+	s.open(contractDay)
 
 	s.Empty(s.closedIn(0))
 }
@@ -159,27 +129,12 @@ func (s *StoreContractSuite) number(round Round) uint32 {
 	return number
 }
 
-func (s *StoreContractSuite) TestARoundIsNumberedAfterTheRoundsOfItsSeasonCountedBeforeIt() {
+func (s *StoreContractSuite) TestARoundIsNumberedAfterTheRoundsOfItsSeasonOpenedBeforeIt() {
 	nextSeason := Round{Season: 1, EndsAt: contractNextDay.EndsAt.Add(Length)}
-	s.snapshot(contractDay, map[Country]uint32{"fr": 1})
-	s.snapshot(contractNextDay, map[Country]uint32{"fr": 1})
-	s.snapshot(nextSeason, map[Country]uint32{"fr": 1})
+	s.open(contractDay, contractNextDay, nextSeason)
 
 	s.Equal(uint32(1), s.number(contractDay))
 	s.Equal(uint32(2), s.number(contractNextDay))
 	s.Equal(uint32(3), s.number(contractFinale))
 	s.Equal(uint32(1), s.number(nextSeason))
-}
-
-func (s *StoreContractSuite) TestSnapshotsAtOnceAreAllCounted() {
-	var wg sync.WaitGroup
-	for range 40 {
-		wg.Go(func() {
-			s.NoError(s.store.RecordSnapshot(s.T().Context(), contractDay,
-				Snapshot{Tiles: 100, Held: map[Country]uint32{"fr": 1, "de": 2}}))
-		})
-	}
-	wg.Wait()
-
-	s.Equal(map[Country]uint64{"fr": 40, "de": 80}, s.held(contractDay))
 }

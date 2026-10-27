@@ -50,6 +50,13 @@ message GetTerritoriesResponse {
 message Territory {
   string country_id = 1;
   uint32 tiles = 2;
+  // Where the tiles are: how many on each country's land.
+  repeated Ground grounds = 3;
+}
+
+message Ground {
+  string country_id = 1;
+  uint32 tiles = 2;
 }
 
 message GetCountrySizesRequest {}

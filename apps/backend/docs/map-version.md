@@ -29,7 +29,9 @@ be read again.
 `Storage.Tally()` walks `board.held` and `landmasses.held` under one read lock: every flag that holds a tile, and
 every landmass with a tile held, whole (a flag a row does not list holds none of it), at the version it read.
 `ClickService/GetHoldings` serves it (`get_holdings_handler/holdings_query`, a `MemoryQuery`). It is not
-`HoldingsOf`, which is the accounts holding one landmass (see [Who holds the tiles](tile-holders.md)).
+`HoldingsOf`, which is the accounts holding one landmass (see [Who holds the tiles](tile-holders.md)). The internal
+`GetTerritories` reads the tally too (`territories_query`), adding each landmass row to its country, so a flag's
+territory says how many of its tiles lie on each country's land.
 
 **`holdings_changed` carries what changed, at most once a second.** `moveLocked` marks the landmass and the two
 flags of every change of owner in a `recount` (two `dirtySet`s, nothing else in memory). `Storage.Run` starts a

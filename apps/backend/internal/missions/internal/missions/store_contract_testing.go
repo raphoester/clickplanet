@@ -30,7 +30,7 @@ var (
 	contractDay      = contractCalendar.DayOf(contractAt)
 	contractNextDay  = contractCalendar.DayOf(contractAt.AddDate(0, 0, 1))
 	contractWorld    = World{
-		Territories:  []Holding{{Country: "dz", Tiles: 9_000}},
+		Territories:  []Territory{{Flag: "dz", Tiles: 9_000}},
 		CountrySizes: []Holding{{Country: "br", Tiles: 9_000}, {Country: "is", Tiles: 1_200}},
 	}
 )

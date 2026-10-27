@@ -33,14 +33,18 @@ internal/missions/internal/
   from 0 that only its order reads. A new kind is a new type and its cases in the store and the encoder.
   - **`Draw(day, flag, world)` is the brief**, seeded by the day and the flag, so a day has its own count and goals.
     **Every goal is drawn from its span**, in steps of 10 tiles (`span`, `draw.goal`): 1. take 120 to 240 tiles (two
-    to four banks) for the flag; 2. take 80 to 160 tiles from whoever holds the most ground but the flag, so every
-    flag but the leader aims at the leader (with no other flag holding 1,000 tiles, twice that for the flag); 3. take
-    300 to 600 tiles on a ground of 3,000 tiles or more that is not the flag's, seventeen countries on today's map
-    (with none, the same for the flag). **Then up to two more**, since a day has 3 to 5 missions (`fewestMissions`,
-    `mostMissions`): each is another rival holding 1,000 tiles, with a rival's goal, or another big ground, with a
-    ground's goal, drawn from the ones left; a world with none left gives a shorter day. The goals were a fixed 60,
-    40 and 200 until 2026-10-26, when a top player finished all three in ten minutes. The world is planet's
-    (`GetTerritories`, and `GetCountrySizes`, `clicks.Borders.CountrySizes`).
+    to four banks) for the flag; 2. take 80 to 160 tiles from a rival, a flag holding 1,000 tiles (`rivalAtLeast`),
+    drawn by the ground it holds (`draw.ranked`): a flag holding a third of the map is the target of a third of the
+    flags, so the leaders share the heat and a small rival gets its turn (with no rival, twice that for the flag);
+    3. take 300 to 600 tiles on a ground of 3,000 tiles or more (`groundAtLeast`) that is not the flag's and of which
+    1,000 tiles or more are not the flag's (`openAtLeast`), seventeen countries on today's map (with none, the same
+    for the flag). **Then up to two more**, since a day has 3 to 5 missions (`fewestMissions`, `mostMissions`): each
+    is another rival, with a rival's goal, or another big ground, with a ground's goal, drawn evenly from the ones
+    left; a world with none left gives a shorter day. The goals were a fixed 60, 40 and 200 until 2026-10-26, when a
+    top player finished all three in ten minutes. Until 2026-10-27 every flag aimed at the one leader, so everyone
+    attacked the same flag, and a flag could be sent to a ground it already held whole. The world is planet's
+    (`GetTerritories`: what each flag holds, and how many tiles of it on each country's land; `GetCountrySizes`,
+    `clicks.Borders.CountrySizes`).
   - **The rewards are drawn with the day too** (`draw.rewards`, from the `purses`): the four charges in a random
     order, each once before any twice, so a day of five pays one charge twice, each as much as its purse gives: 15 to
     30 shields, 4 to 8 spread clicks, one bomb, or 2 to 3 enclosures. A purse starts above what a box gives and tops

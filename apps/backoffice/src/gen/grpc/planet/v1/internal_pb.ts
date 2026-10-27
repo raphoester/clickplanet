@@ -218,6 +218,13 @@ export class Territory extends Message<Territory> {
    */
   tiles = 0;
 
+  /**
+   * Where the tiles are: how many on each country's land.
+   *
+   * @generated from field: repeated planet.v1.Ground grounds = 3;
+   */
+  grounds: Ground[] = [];
+
   constructor(data?: PartialMessage<Territory>) {
     super();
     proto3.util.initPartial(data, this);
@@ -228,6 +235,7 @@ export class Territory extends Message<Territory> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "grounds", kind: "message", T: Ground, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Territory {
@@ -244,6 +252,49 @@ export class Territory extends Message<Territory> {
 
   static equals(a: Territory | PlainMessage<Territory> | undefined, b: Territory | PlainMessage<Territory> | undefined): boolean {
     return proto3.util.equals(Territory, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.Ground
+ */
+export class Ground extends Message<Ground> {
+  /**
+   * @generated from field: string country_id = 1;
+   */
+  countryId = "";
+
+  /**
+   * @generated from field: uint32 tiles = 2;
+   */
+  tiles = 0;
+
+  constructor(data?: PartialMessage<Ground>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.Ground";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Ground {
+    return new Ground().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Ground {
+    return new Ground().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Ground {
+    return new Ground().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Ground | PlainMessage<Ground> | undefined, b: Ground | PlainMessage<Ground> | undefined): boolean {
+    return proto3.util.equals(Ground, a, b);
   }
 }
 

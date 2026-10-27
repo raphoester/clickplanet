@@ -49,7 +49,11 @@ func (r Reader) World(ctx context.Context) (missions.World, error) {
 
 	world := missions.World{}
 	for _, held := range territories.Msg.GetTerritories() {
-		world.Territories = append(world.Territories, missions.Holding{Country: held.GetCountryId(), Tiles: held.GetTiles()})
+		territory := missions.Territory{Flag: held.GetCountryId(), Tiles: held.GetTiles()}
+		for _, ground := range held.GetGrounds() {
+			territory.Grounds = append(territory.Grounds, missions.Holding{Country: ground.GetCountryId(), Tiles: ground.GetTiles()})
+		}
+		world.Territories = append(world.Territories, territory)
 	}
 	for _, size := range sizes.Msg.GetCountrySizes() {
 		world.CountrySizes = append(world.CountrySizes, missions.Holding{Country: size.GetCountryId(), Tiles: size.GetTiles()})

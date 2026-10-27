@@ -15,31 +15,29 @@ import (
 )
 
 var (
-	now             = time.Date(2026, 10, 14, 0, 57, 0, 0, time.UTC)
-	algeriaInAfrica = posts.StoryKey{Flag: "dz", Continent: "Africa"}
-	stories         = []posts.Story{
-		{Title: "ALGERIA STRIKES BACK", Key: algeriaInAfrica},
-		{Title: "ALGERIA VS FRANCE", Key: algeriaInAfrica},
-		{Title: "FRANCE IS ATTACKING EUROPE", Key: posts.StoryKey{Flag: "fr", Continent: "Europe"}},
-		{Title: "PORTUGAL STRIKES BACK", Key: posts.StoryKey{Flag: "pt", Continent: "Europe"}},
+	now   = time.Date(2026, 10, 26, 20, 31, 0, 0, time.UTC)
+	day18 = posts.StoryKey{Flag: "pw", Continent: "the world", Angle: posts.DayWon, Round: "0.18"}
+	// France and Turkey at war over Turkey, and a day won.
+	found = posts.Findings{
+		Fronts: []posts.Front{{
+			Countries: []posts.FrontCountry{{Code: "tr", Continent: "Middle East", HoldersStart: map[string]int{"tr": 2000}, Takers: map[string]int{"fr": 5000, "tr": 200}}},
+			Flags: []posts.FrontFlag{
+				{Code: "fr", Continent: "Europe", Took: 5000, Lost: 3000, TookFrom: map[string]int{"tr": 5000}},
+				{Code: "tr", Continent: "Middle East", Took: 3000, Lost: 5000, TookFrom: map[string]int{"fr": 3000}},
+			},
+		}},
+		Seasonal: []posts.Seasonal{{Title: "PALAU WINS DAY 18", Key: day18}},
 	}
+	battle = posts.Story{Front: 1, Kind: posts.Battle, Attacker: "fr", Rival: "tr", TakenFrom: []string{"tr"}, Countries: []string{"tr"}, Headline: "FRANCE VS TURKEY"}
 )
 
-func shortlistOf(t *testing.T) posts.Shortlist {
-	t.Helper()
-
-	shortlist, err := posts.ShortlistOf(stories...)
-	require.NoError(t, err)
-	return shortlist
-}
-
 type written struct {
-	shortlist posts.Shortlist
-	err       error
+	findings posts.Findings
+	err      error
 }
 
-func (w written) Shortlist(context.Context) (posts.Shortlist, error) {
-	return w.shortlist, w.err
+func (w written) Findings(context.Context) (posts.Findings, error) {
+	return w.findings, w.err
 }
 
 type history struct {
@@ -68,10 +66,6 @@ var room = choose_clips_usecase.Room{
 
 var errUnkeyed = errors.New("no ANTHROPIC_API_KEY")
 
-func choosing(w written, h *history) *choose_clips_usecase.UseCase {
-	return choose_clips_usecase.New(w, h, h, cptime.NewFixedClock(now), room, nil, posts.LoadedDice(0), &editor{err: errUnkeyed})
-}
-
 // A fake model: what it answers, and each offer it was asked about. No test calls the real one.
 type editor struct {
 	edition posts.Edition
@@ -85,28 +79,69 @@ func (e *editor) Edit(_ context.Context, offer posts.Offer) (posts.Edition, post
 	return e.edition, e.spend, e.err
 }
 
-func TestARunTakesTheBestStoriesNotToldLately(t *testing.T) {
-	past := &history{told: []posts.Telling{{Key: algeriaInAfrica, At: now.Add(-4 * time.Hour)}}}
-
-	choice, err := choosing(written{shortlist: shortlistOf(t)}, past).Execute(t.Context())
-
-	require.NoError(t, err)
-	assert.Equal(t, []posts.Pick{3, 4}, choice.Chosen.Picks())
-	assert.Equal(t, []posts.Pick{1, 2}, choice.Retold.Picks())
-	assert.Equal(t, []time.Time{now.Add(-7 * 24 * time.Hour)}, past.since)
+func editedBy(w written, h *history, model *editor) *choose_clips_usecase.UseCase {
+	return choose_clips_usecase.New(w, h, h, cptime.NewFixedClock(now), room, nil, posts.LoadedDice(0), model)
 }
 
-func TestARunWithNoStoryWorthAClipTakesNone(t *testing.T) {
-	choice, err := choosing(written{}, &history{}).Execute(t.Context())
+func answering(stories ...posts.Story) *editor {
+	return &editor{
+		edition: posts.Edition{Why: "the war", Stories: stories},
+		spend:   posts.Spend{Model: "claude-haiku-5-5", InputTokens: 6000, OutputTokens: 900, USD: 0.001},
+	}
+}
+
+func TestTheEditorIsOfferedTheFindingsAndWhatWasToldAndItsStoriesAreTheRun(t *testing.T) {
+	model := answering(battle)
+	past := &history{told: []posts.Telling{{Key: posts.StoryKey{Flag: "xb", Continent: "Oceania"}, Title: "BRITTANY IS INVADING AUSTRALIA", At: now.Add(-2 * time.Hour)}}}
+
+	choice, err := editedBy(written{findings: found}, past, model).Execute(t.Context())
+
+	require.NoError(t, err)
+	require.Len(t, model.offers, 1)
+	assert.Equal(t, found, model.offers[0].Findings)
+	assert.Equal(t, 1, model.offers[0].Slots(), "the day won takes a slot")
+	assert.Equal(t, past.told, model.offers[0].Recent)
+	assert.Equal(t, []time.Time{now.Add(-7 * 24 * time.Hour)}, past.since)
+	assert.Equal(t, []posts.Chosen{
+		{Pick: 1, Story: posts.Story{Seasonal: 1}, Key: day18},
+		{Pick: 2, Story: battle, Key: posts.StoryKey{Flag: "fr", Continent: "Middle East"}},
+	}, choice.Chosen)
+	assert.Equal(t, posts.Editorial{Asked: true, Why: "the war", Spend: model.spend}, choice.Editorial)
+	assert.Equal(t, []posts.Assignment{
+		{Pick: 1, Story: posts.Story{Seasonal: 1}, Variants: posts.Variants{}},
+		{Pick: 2, Story: battle, Variants: posts.Variants{}},
+	}, choice.Assigned)
+}
+
+func TestAStoryOfTheEditorsThatDoesNotHoldIsSkippedAndTheRunGoesOn(t *testing.T) {
+	wrong := battle
+	wrong.Attacker = "pw"
+	model := answering(wrong, battle)
+
+	choice, err := editedBy(written{findings: found}, &history{}, model).Execute(t.Context())
+
+	require.NoError(t, err)
+	assert.Equal(t, []posts.Pick{1, 2}, choice.Picks())
+	assert.Equal(t, battle, choice.Chosen[1].Story)
+	require.Len(t, choice.Skipped, 1)
+	assert.Contains(t, choice.Skipped[0].Why, `"pw" took nothing`)
+}
+
+func TestARunWithNothingFoundTakesNoneAndAsksNobody(t *testing.T) {
+	model := &editor{}
+
+	choice, err := editedBy(written{}, &history{}, model).Execute(t.Context())
 
 	require.NoError(t, err)
 	assert.Empty(t, choice.Chosen)
+	assert.Empty(t, model.offers)
+	assert.Equal(t, posts.Editorial{}, choice.Editorial)
 }
 
-func TestAShortlistThatCannotBeReadFailsTheRun(t *testing.T) {
+func TestFindingsThatCannotBeReadFailTheRun(t *testing.T) {
 	unreadable := errors.New("the file is gone")
 
-	_, err := choosing(written{err: unreadable}, &history{}).Execute(t.Context())
+	_, err := editedBy(written{err: unreadable}, &history{}, &editor{}).Execute(t.Context())
 
 	require.ErrorIs(t, err, unreadable)
 }
@@ -114,7 +149,7 @@ func TestAShortlistThatCannotBeReadFailsTheRun(t *testing.T) {
 func TestAHistoryThatCannotBeReadFailsTheRunRatherThanTellAStoryTwice(t *testing.T) {
 	unreachable := errors.New("zernio could not be reached")
 
-	_, err := choosing(written{shortlist: shortlistOf(t)}, &history{err: unreachable}).Execute(t.Context())
+	_, err := editedBy(written{findings: found}, &history{err: unreachable}, &editor{}).Execute(t.Context())
 
 	require.ErrorIs(t, err, unreachable)
 }
@@ -130,17 +165,19 @@ func hourly(count int) posts.Feed {
 
 func TestARunTakesNoMoreStoriesThanThePlatformsHaveRoomFor(t *testing.T) {
 	past := &history{feed: hourly(9)}
+	model := answering(battle)
 
-	choice, err := choosing(written{shortlist: shortlistOf(t)}, past).Execute(t.Context())
+	choice, err := editedBy(written{findings: found}, past, model).Execute(t.Context())
 
 	require.NoError(t, err)
-	assert.Equal(t, []posts.Pick{1}, choice.Chosen.Picks())
+	assert.Equal(t, []posts.Pick{1}, choice.Picks(), "the day won alone")
+	assert.Empty(t, model.offers, "nothing left to decide")
 	assert.Equal(t, 1, choice.Room)
 	assert.Equal(t, []time.Time{now.Add(-24 * time.Hour)}, past.postedFrom)
 }
 
 func TestARunWhoseEveryPlatformPostedItsDayTakesNone(t *testing.T) {
-	choice, err := choosing(written{shortlist: shortlistOf(t)}, &history{feed: hourly(10)}).Execute(t.Context())
+	choice, err := editedBy(written{findings: found}, &history{feed: hourly(10)}, answering(battle)).Execute(t.Context())
 
 	require.NoError(t, err)
 	assert.Empty(t, choice.Chosen)
@@ -150,112 +187,53 @@ func TestARunWhoseEveryPlatformPostedItsDayTakesNone(t *testing.T) {
 func TestAFeedThatCannotBeReadFailsTheRunRatherThanPostOverTheCap(t *testing.T) {
 	unreachable := errors.New("zernio could not be reached")
 
-	_, err := choosing(written{shortlist: shortlistOf(t)}, &history{feedErr: unreachable}).Execute(t.Context())
+	_, err := editedBy(written{findings: found}, &history{feedErr: unreachable}, &editor{}).Execute(t.Context())
 
 	require.ErrorIs(t, err, unreachable)
 }
 
-func TestEachStoryChosenIsPutInAnArmOfEveryExperimentAndNoneOtherIs(t *testing.T) {
+func TestEachStoryChosenIsPutInAnArmOfEveryExperiment(t *testing.T) {
 	length := posts.Experiments{{Name: "length", Arms: posts.EvenArms("as-chosen", "short"), Control: "as-chosen"}}
 	past := &history{}
 
 	choice, err := choose_clips_usecase.New(
-		written{shortlist: shortlistOf(t)}, past, past, cptime.NewFixedClock(now), room, length, &posts.RolledDice{Faces: []int{1, 0}},
-		&editor{err: errUnkeyed},
+		written{findings: found}, past, past, cptime.NewFixedClock(now), room, length, &posts.RolledDice{Faces: []int{1, 0}},
+		answering(battle),
 	).Execute(t.Context())
 
 	require.NoError(t, err)
 	require.Len(t, choice.Chosen, 2)
 	assert.Equal(t, []posts.Assignment{
-		{Pick: choice.Chosen[0].Pick, Variants: posts.Variants{"length": "short"}},
-		{Pick: choice.Chosen[1].Pick, Variants: posts.Variants{"length": "as-chosen"}},
+		{Pick: 1, Story: posts.Story{Seasonal: 1}, Variants: posts.Variants{"length": "short"}},
+		{Pick: 2, Story: battle, Variants: posts.Variants{"length": "as-chosen"}},
 	}, choice.Assigned)
 }
 
-func TestWithNoExperimentEachStoryChosenIsInNoArm(t *testing.T) {
-	choice, err := choosing(written{shortlist: shortlistOf(t)}, &history{}).Execute(t.Context())
-
-	require.NoError(t, err)
-	require.NotEmpty(t, choice.Assigned)
-	for _, assignment := range choice.Assigned {
-		assert.Equal(t, posts.Variants{}, assignment.Variants)
-	}
-}
-
-func editedBy(w written, h *history, model *editor) *choose_clips_usecase.UseCase {
-	return choose_clips_usecase.New(w, h, h, cptime.NewFixedClock(now), room, nil, posts.LoadedDice(0), model)
-}
-
-func TestTheModelTellsTheRunsStoriesWithItsHeadlines(t *testing.T) {
-	model := &editor{
-		edition: posts.Edition{Why: "Portugal is fresher.", Edits: []posts.Edit{
-			{Pick: 4, Headline: "PORTUGAL TAKES EUROPE BACK"}, {Pick: 2, Headline: "ALGERIA AND FRANCE AT WAR"},
-		}},
-		spend: posts.Spend{Model: "claude-haiku-5-5", InputTokens: 3000, OutputTokens: 400, USD: 0.0005},
-	}
-
-	choice, err := editedBy(written{shortlist: shortlistOf(t)}, &history{}, model).Execute(t.Context())
-
-	require.NoError(t, err)
-	require.Len(t, model.offers, 1)
-	assert.Equal(t, []posts.Pick{1, 2, 3, 4}, model.offers[0].Stories.Picks())
-	assert.Equal(t, []posts.Pick{2, 4}, choice.Chosen.Picks())
-	assert.Equal(t, posts.Editorial{Asked: true, Why: "Portugal is fresher.", Spend: model.spend}, choice.Editorial)
-	assert.Equal(t, []posts.Assignment{
-		{Pick: 2, Variants: posts.Variants{}, Headline: "ALGERIA AND FRANCE AT WAR"},
-		{Pick: 4, Variants: posts.Variants{}, Headline: "PORTUGAL TAKES EUROPE BACK"},
-	}, choice.Assigned)
-}
-
-func TestTheModelIsOfferedOnlyWhatTheRulesWouldTell(t *testing.T) {
-	model := &editor{err: errUnkeyed}
-	past := &history{told: []posts.Telling{{Key: algeriaInAfrica, At: now.Add(-4 * time.Hour)}}}
-
-	_, err := editedBy(written{shortlist: shortlistOf(t)}, past, model).Execute(t.Context())
-
-	require.NoError(t, err)
-	require.Len(t, model.offers, 1)
-	assert.Equal(t, []posts.Pick{3, 4}, model.offers[0].Stories.Picks())
-}
-
-func TestAModelThatCannotAnswerLeavesTheRunToTheRulesAndSaysSo(t *testing.T) {
+func TestAnEditorThatCannotAnswerLeavesTheRunItsDayWonAndSaysWhy(t *testing.T) {
 	refused := errors.New("the model refused (general_harms)")
 	model := &editor{err: refused, spend: posts.Spend{Model: "claude-haiku-5-5", InputTokens: 3000, USD: 0.0003}}
 
-	choice, err := editedBy(written{shortlist: shortlistOf(t)}, &history{}, model).Execute(t.Context())
+	choice, err := editedBy(written{findings: found}, &history{}, model).Execute(t.Context())
 
 	require.NoError(t, err, "never fails the run")
-	assert.Equal(t, shortlistOf(t).Best(2, nil, now).Chosen.Picks(), choice.Chosen.Picks())
-	assert.Equal(t, posts.Editorial{Asked: true, FellBack: refused.Error(), Spend: model.spend}, choice.Editorial)
-	for _, assignment := range choice.Assigned {
-		assert.Empty(t, assignment.Headline)
-	}
+	assert.Equal(t, []posts.Pick{1}, choice.Picks())
+	assert.Equal(t, posts.Story{Seasonal: 1}, choice.Chosen[0].Story)
+	assert.Equal(t, posts.Editorial{Asked: true, Failed: refused.Error(), Spend: model.spend}, choice.Editorial)
 }
 
-func TestAnAnswerThatDoesNotHoldLeavesTheRunToTheRules(t *testing.T) {
-	model := &editor{edition: posts.Edition{Edits: []posts.Edit{{Pick: 7, Headline: "A STORY NOBODY OFFERED"}}}, spend: posts.Spend{Model: "m"}}
-
-	choice, err := editedBy(written{shortlist: shortlistOf(t)}, &history{}, model).Execute(t.Context())
+func TestWithNoKeyNothingWasAskedAndTheRunIsItsDayWon(t *testing.T) {
+	choice, err := editedBy(written{findings: found}, &history{}, &editor{err: errUnkeyed}).Execute(t.Context())
 
 	require.NoError(t, err)
-	assert.Equal(t, shortlistOf(t).Best(2, nil, now).Chosen.Picks(), choice.Chosen.Picks())
-	assert.Contains(t, choice.Editorial.FellBack, posts.ErrInvalidEdition.Error())
+	assert.Equal(t, []posts.Pick{1}, choice.Picks())
+	assert.Equal(t, posts.Editorial{Failed: "no ANTHROPIC_API_KEY"}, choice.Editorial)
 }
 
-func TestWithNoKeyTheRunIsTheRulesAndNothingWasAsked(t *testing.T) {
-	choice, err := editedBy(written{shortlist: shortlistOf(t)}, &history{}, &editor{err: errUnkeyed}).Execute(t.Context())
+func TestADayWonToldAlreadyIsNotToldAgain(t *testing.T) {
+	past := &history{told: []posts.Telling{{Key: day18, Title: "PALAU WINS DAY 18", At: now.Add(-2 * time.Hour)}}}
+
+	choice, err := editedBy(written{findings: found}, past, answering(battle)).Execute(t.Context())
 
 	require.NoError(t, err)
-	assert.Equal(t, shortlistOf(t).Best(2, nil, now).Chosen.Picks(), choice.Chosen.Picks())
-	assert.Equal(t, posts.Editorial{FellBack: "no ANTHROPIC_API_KEY"}, choice.Editorial)
-}
-
-func TestAQuietRunAsksNobody(t *testing.T) {
-	model := &editor{}
-
-	choice, err := editedBy(written{}, &history{}, model).Execute(t.Context())
-
-	require.NoError(t, err)
-	assert.Empty(t, model.offers)
-	assert.Equal(t, posts.Editorial{}, choice.Editorial)
+	assert.Equal(t, []posts.Chosen{{Pick: 1, Story: battle, Key: posts.StoryKey{Flag: "fr", Continent: "Middle East"}}}, choice.Chosen)
 }
