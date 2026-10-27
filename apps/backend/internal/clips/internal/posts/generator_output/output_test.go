@@ -188,10 +188,12 @@ func TestAClipKeepsWhatItWasAndTheNamesOfItsTeasersAndOneWrittenBeforeThatHasNei
 	require.Len(t, clips, 2)
 	named := clips[0].TakeSnapshot()
 	assert.Equal(t, []string{"war-for", "fight-for"}, named.TeaserNames)
+	assert.InDelta(t, 12.37, named.Seconds, 0)
 	assert.JSONEq(t, `{"format": "globe-replay", "generator": "8dc31d2", "common": {"durationSeconds": 12.37, "music": "fr"},
 		"globe": {"camera": "front", "tilesChanged": 1480}}`, string(named.Record))
 	assert.Empty(t, clips[1].TakeSnapshot().TeaserNames)
 	assert.Empty(t, clips[1].TakeSnapshot().Record)
+	assert.Zero(t, clips[1].TakeSnapshot().Seconds)
 }
 
 func TestAFolderWithNoClipGivesNone(t *testing.T) {

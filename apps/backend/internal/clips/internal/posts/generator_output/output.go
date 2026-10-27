@@ -150,6 +150,7 @@ func (f Folder) Rendered(_ context.Context) ([]posts.Clip, error) {
 			Teasers: written.GetTeasers(), Countries: countriesOf(written.GetCountries()),
 			ContinentTag: written.GetContinentTag(), Attribution: written.GetCredit(), Video: posts.VideoFile(video),
 			TeaserNames: written.GetTeaserNames(), Record: record, Variants: written.GetRecord().GetVariants(),
+			Seconds: written.GetRecord().GetCommon().GetDurationSeconds(),
 		}.Restore()
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", filepath.Base(path), err)

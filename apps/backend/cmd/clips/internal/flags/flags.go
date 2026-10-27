@@ -29,7 +29,8 @@ the platform with the most room left in its day takes: 14 posts in a trailing 24
 schedule sends every clip of the folder to the posting service as one post on every platform with
 room left, as soon as it can with no -review, and never sooner than -spacing after the last post on each; it refuses a
 clip in an arm no experiment has. A clip the experiment "sound" drew for a trending track gets one of the top 20 of
-TikTok's chart of -sound-country on TikTok, the anthem muted, or goes out with its anthem when the chart cannot be read.
+TikTok's chart of -sound-country that play as long as it in the game's genres, the anthem muted, or goes out with
+its anthem when the chart cannot be read or lists none that fit.
 stats keeps a snapshot of the numbers of every post of the job scheduled since the
 date, default the last 4 weeks, in the backend's postgres, over ssh as fetch asks: a row for each platform of each
 post. All three need ZERNIO_API_KEY. A model that cannot answer leaves the run its day won alone; -summary adds how

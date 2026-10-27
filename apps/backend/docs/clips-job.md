@@ -140,10 +140,28 @@ story, so a short clip is not short because its story was small.
   control, is the clip as before. `trending` is the same video with a track of TikTok's Commercial Music Library
   attached when it is posted, the anthem muted under it (`posts.Soundtracks`, `schedule_clips_usecase`, and
   `posts/zernio`'s TikTok target). `fell-back` is a clip drawn for a track that went out with its anthem.
-  - **The track is one of the top 20 of the chart, at random** (`trendingTop`). The chart lists 100, rank 1 first: its
-    top is what a viewer hears everywhere now, and 20 is wide enough that, at about 7 trending clips a day, the arm is
-    not one song's, nor one song's fatigue. Its rank is recorded, so the analysis can tell whether a higher one did
-    better, and narrow or widen the top. A track the chart gives no id is skipped.
+  - **The track is one of the top 20 of the chart that play the whole clip, at random** (`trendingTop`,
+    `Track.plays`). The chart lists 100, rank 1 first: its top is what a viewer hears everywhere now, and 20 is wide
+    enough that, at about 7 trending clips a day, the arm is not one song's, nor one song's fatigue. Its rank is
+    recorded, so the analysis can tell whether a higher one did better, and narrow or widen the top. A track the chart
+    gives no id is skipped. **So is one shorter than the clip**: the chart ranks sound effects beside the songs (on
+    2026-10-27 the US chart had a 1s horn at 6, and effects of 2 to 9s at 23, 26, 27, 30, 31 and 33), TikTok does not
+    loop a track, and the anthem is muted under it, so a 10s clip went out with half a second of horn and silence
+    after it (TikTok video 7701207323607305504, the run of 04:30 UTC). The chart says how long each plays
+    (`durationSec`, or the excerpt's `clip.durationSec` when that is what is sent: `Track.Seconds`), and the clip's
+    length is its record's (`ClipCommon.duration_seconds`, `ClipSnapshot.Seconds`, 8.5 to 20.5s): a track plays the
+    clip when it is at least as long, and a track or a clip whose length is unknown never does. The top 20 is counted
+    after that, so for a 20s clip it reached rank 24 on that chart.
+    **And so is one outside the game's genres** (`genresOfTheGame`, `Track.fits`): the chart tags each track with
+    TikTok's genres (`genres`; 18 tags on 2026-10-27, `ALL` on the library's effects and beds, a third of the chart),
+    and every tag of a track has to be one the game plays: ELECTRONIC, HIP_HOP/RAP, ROCK, TECHNO, TRANCE or POP_ROCK.
+    Listened to on 2026-10-27, the chart's pop, jazz, kids' songs, drama themes and a cello sonata were not the
+    game's, nor its trap and indie: so a track tagged hip hop and trap is out, as one tagged electronic and tropical
+    house, and one with no tag. A genre new to the chart is let in by the set, never by the chart. That day's US chart
+    kept 30 of its 100, and a 10s clip's top 20 reached rank 78. The chart has no mood or theme tag, so "epic" cannot
+    be asked for, and Zernio exposes no search of the library, only this chart. Both are rules of the game, as the
+    length is, never a list of sounds by hand. A chart with none that fits falls back, as one that cannot be read
+    (below).
   - **The id sent is its trending excerpt's** (`clip.id`), the whole track's (`id`) only when it has none: Zernio's
     note on the operation says the whole track's has shown viewers "This song is not available in your country" on
     the sound's page (observed from Germany, 2026-10-06), and the excerpt's not. It plays **from 0**
@@ -164,9 +182,10 @@ story, so a short clip is not short because its story was small.
     not the upload's 10. A run with no clip drawn for a track, or one going to YouTube alone (TikTok's day full, or
     `CLIPS_PLATFORMS`), reads nothing: its clip keeps `trending`, and its post carries no track, which the analysis
     reads per platform as it reads every arm.
-  - **A chart that cannot be read or lists nothing to attach falls back** (above): the clip goes out with its anthem,
-    `sound: fell-back` in `post.variants`, a warning in the log (`a clip drawn for a trending track goes out with its
-    anthem`, with why), and its TikTok row of the summary says so in bold. Never retried: the clip goes out on time.
+  - **A chart that cannot be read, or lists nothing to attach that plays the clip, falls back** (above): the clip goes
+    out with its anthem, `sound: fell-back` in `post.variants`, a warning in the log (`a clip drawn for a trending track
+    goes out with its anthem`, with why), and its TikTok row of the summary says so in bold. Never retried: the clip
+    goes out on time.
   - **What went out is in the record** (`post.sound`, a `clips.v1.TikTokSound`): the id sent and which it is
     (`excerpt` or `track`), the title, the artist, the rank, the chart's country, how long it plays, and both volumes
     (protojson leaves out a zero, so no `originalVolume` is the anthem muted). The summary's TikTok row and the log
