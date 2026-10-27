@@ -40,6 +40,16 @@ message Turn {
   google.protobuf.Timestamp ends_at = 3;
   // The running entry's words for the players, plain text: what its rules are. Empty when none runs.
   string description = 4;
+  // The battle entry that starts next, after now; unset when none is scheduled. An entry to come may still be moved or
+  // deleted: the stream says so.
+  Upcoming next_battle = 5;
+}
+
+// An entry to come, in the players' words.
+message Upcoming {
+  google.protobuf.Timestamp starts_at = 1;
+  google.protobuf.Timestamp ends_at = 2;
+  string description = 3;
 }
 
 message ListenForEventsRequest {}

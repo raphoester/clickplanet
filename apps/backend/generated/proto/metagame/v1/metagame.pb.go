@@ -164,7 +164,10 @@ type Turn struct {
 	// When the running entry ends. Unset when none runs. An entry above it may start before that: the stream says so.
 	EndsAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=ends_at,json=endsAt,proto3" json:"ends_at,omitempty"`
 	// The running entry's words for the players, plain text: what its rules are. Empty when none runs.
-	Description   string `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
+	Description string `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
+	// The battle entry that starts next, after now; unset when none is scheduled. An entry to come may still be moved or
+	// deleted: the stream says so.
+	NextBattle    *Upcoming `protobuf:"bytes,5,opt,name=next_battle,json=nextBattle,proto3" json:"next_battle,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -227,6 +230,74 @@ func (x *Turn) GetDescription() string {
 	return ""
 }
 
+func (x *Turn) GetNextBattle() *Upcoming {
+	if x != nil {
+		return x.NextBattle
+	}
+	return nil
+}
+
+// An entry to come, in the players' words.
+type Upcoming struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	StartsAt      *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=starts_at,json=startsAt,proto3" json:"starts_at,omitempty"`
+	EndsAt        *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=ends_at,json=endsAt,proto3" json:"ends_at,omitempty"`
+	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Upcoming) Reset() {
+	*x = Upcoming{}
+	mi := &file_metagame_v1_metagame_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Upcoming) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Upcoming) ProtoMessage() {}
+
+func (x *Upcoming) ProtoReflect() protoreflect.Message {
+	mi := &file_metagame_v1_metagame_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Upcoming.ProtoReflect.Descriptor instead.
+func (*Upcoming) Descriptor() ([]byte, []int) {
+	return file_metagame_v1_metagame_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *Upcoming) GetStartsAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.StartsAt
+	}
+	return nil
+}
+
+func (x *Upcoming) GetEndsAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EndsAt
+	}
+	return nil
+}
+
+func (x *Upcoming) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
 type ListenForEventsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -235,7 +306,7 @@ type ListenForEventsRequest struct {
 
 func (x *ListenForEventsRequest) Reset() {
 	*x = ListenForEventsRequest{}
-	mi := &file_metagame_v1_metagame_proto_msgTypes[3]
+	mi := &file_metagame_v1_metagame_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -247,7 +318,7 @@ func (x *ListenForEventsRequest) String() string {
 func (*ListenForEventsRequest) ProtoMessage() {}
 
 func (x *ListenForEventsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_metagame_v1_metagame_proto_msgTypes[3]
+	mi := &file_metagame_v1_metagame_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -260,7 +331,7 @@ func (x *ListenForEventsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListenForEventsRequest.ProtoReflect.Descriptor instead.
 func (*ListenForEventsRequest) Descriptor() ([]byte, []int) {
-	return file_metagame_v1_metagame_proto_rawDescGZIP(), []int{3}
+	return file_metagame_v1_metagame_proto_rawDescGZIP(), []int{4}
 }
 
 type MetagameEvent struct {
@@ -276,7 +347,7 @@ type MetagameEvent struct {
 
 func (x *MetagameEvent) Reset() {
 	*x = MetagameEvent{}
-	mi := &file_metagame_v1_metagame_proto_msgTypes[4]
+	mi := &file_metagame_v1_metagame_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -288,7 +359,7 @@ func (x *MetagameEvent) String() string {
 func (*MetagameEvent) ProtoMessage() {}
 
 func (x *MetagameEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_metagame_v1_metagame_proto_msgTypes[4]
+	mi := &file_metagame_v1_metagame_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -301,7 +372,7 @@ func (x *MetagameEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MetagameEvent.ProtoReflect.Descriptor instead.
 func (*MetagameEvent) Descriptor() ([]byte, []int) {
-	return file_metagame_v1_metagame_proto_rawDescGZIP(), []int{4}
+	return file_metagame_v1_metagame_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *MetagameEvent) GetEvent() isMetagameEvent_Event {
@@ -353,7 +424,7 @@ type Heartbeat struct {
 
 func (x *Heartbeat) Reset() {
 	*x = Heartbeat{}
-	mi := &file_metagame_v1_metagame_proto_msgTypes[5]
+	mi := &file_metagame_v1_metagame_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -365,7 +436,7 @@ func (x *Heartbeat) String() string {
 func (*Heartbeat) ProtoMessage() {}
 
 func (x *Heartbeat) ProtoReflect() protoreflect.Message {
-	mi := &file_metagame_v1_metagame_proto_msgTypes[5]
+	mi := &file_metagame_v1_metagame_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -378,7 +449,7 @@ func (x *Heartbeat) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Heartbeat.ProtoReflect.Descriptor instead.
 func (*Heartbeat) Descriptor() ([]byte, []int) {
-	return file_metagame_v1_metagame_proto_rawDescGZIP(), []int{5}
+	return file_metagame_v1_metagame_proto_rawDescGZIP(), []int{6}
 }
 
 var File_metagame_v1_metagame_proto protoreflect.FileDescriptor
@@ -388,12 +459,18 @@ const file_metagame_v1_metagame_proto_rawDesc = "" +
 	"\x1ametagame/v1/metagame.proto\x12\vmetagame.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x10\n" +
 	"\x0eGetTurnRequest\"8\n" +
 	"\x0fGetTurnResponse\x12%\n" +
-	"\x04turn\x18\x01 \x01(\v2\x11.metagame.v1.TurnR\x04turn\"\xbb\x01\n" +
+	"\x04turn\x18\x01 \x01(\v2\x11.metagame.v1.TurnR\x04turn\"\xf3\x01\n" +
 	"\x04Turn\x12*\n" +
 	"\x04kind\x18\x01 \x01(\x0e2\x16.metagame.v1.EntryKindR\x04kind\x120\n" +
 	"\x05since\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\x123\n" +
 	"\aends_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x06endsAt\x12 \n" +
-	"\vdescription\x18\x04 \x01(\tR\vdescription\"\x18\n" +
+	"\vdescription\x18\x04 \x01(\tR\vdescription\x126\n" +
+	"\vnext_battle\x18\x05 \x01(\v2\x15.metagame.v1.UpcomingR\n" +
+	"nextBattle\"\x9a\x01\n" +
+	"\bUpcoming\x127\n" +
+	"\tstarts_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\bstartsAt\x123\n" +
+	"\aends_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x06endsAt\x12 \n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\"\x18\n" +
 	"\x16ListenForEventsRequest\"y\n" +
 	"\rMetagameEvent\x12'\n" +
 	"\x04turn\x18\x01 \x01(\v2\x11.metagame.v1.TurnH\x00R\x04turn\x126\n" +
@@ -422,33 +499,37 @@ func file_metagame_v1_metagame_proto_rawDescGZIP() []byte {
 }
 
 var file_metagame_v1_metagame_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_metagame_v1_metagame_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_metagame_v1_metagame_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_metagame_v1_metagame_proto_goTypes = []any{
 	(EntryKind)(0),                 // 0: metagame.v1.EntryKind
 	(*GetTurnRequest)(nil),         // 1: metagame.v1.GetTurnRequest
 	(*GetTurnResponse)(nil),        // 2: metagame.v1.GetTurnResponse
 	(*Turn)(nil),                   // 3: metagame.v1.Turn
-	(*ListenForEventsRequest)(nil), // 4: metagame.v1.ListenForEventsRequest
-	(*MetagameEvent)(nil),          // 5: metagame.v1.MetagameEvent
-	(*Heartbeat)(nil),              // 6: metagame.v1.Heartbeat
-	(*timestamppb.Timestamp)(nil),  // 7: google.protobuf.Timestamp
+	(*Upcoming)(nil),               // 4: metagame.v1.Upcoming
+	(*ListenForEventsRequest)(nil), // 5: metagame.v1.ListenForEventsRequest
+	(*MetagameEvent)(nil),          // 6: metagame.v1.MetagameEvent
+	(*Heartbeat)(nil),              // 7: metagame.v1.Heartbeat
+	(*timestamppb.Timestamp)(nil),  // 8: google.protobuf.Timestamp
 }
 var file_metagame_v1_metagame_proto_depIdxs = []int32{
-	3, // 0: metagame.v1.GetTurnResponse.turn:type_name -> metagame.v1.Turn
-	0, // 1: metagame.v1.Turn.kind:type_name -> metagame.v1.EntryKind
-	7, // 2: metagame.v1.Turn.since:type_name -> google.protobuf.Timestamp
-	7, // 3: metagame.v1.Turn.ends_at:type_name -> google.protobuf.Timestamp
-	3, // 4: metagame.v1.MetagameEvent.turn:type_name -> metagame.v1.Turn
-	6, // 5: metagame.v1.MetagameEvent.heartbeat:type_name -> metagame.v1.Heartbeat
-	1, // 6: metagame.v1.MetagameService.GetTurn:input_type -> metagame.v1.GetTurnRequest
-	4, // 7: metagame.v1.MetagameService.ListenForEvents:input_type -> metagame.v1.ListenForEventsRequest
-	2, // 8: metagame.v1.MetagameService.GetTurn:output_type -> metagame.v1.GetTurnResponse
-	5, // 9: metagame.v1.MetagameService.ListenForEvents:output_type -> metagame.v1.MetagameEvent
-	8, // [8:10] is the sub-list for method output_type
-	6, // [6:8] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	3,  // 0: metagame.v1.GetTurnResponse.turn:type_name -> metagame.v1.Turn
+	0,  // 1: metagame.v1.Turn.kind:type_name -> metagame.v1.EntryKind
+	8,  // 2: metagame.v1.Turn.since:type_name -> google.protobuf.Timestamp
+	8,  // 3: metagame.v1.Turn.ends_at:type_name -> google.protobuf.Timestamp
+	4,  // 4: metagame.v1.Turn.next_battle:type_name -> metagame.v1.Upcoming
+	8,  // 5: metagame.v1.Upcoming.starts_at:type_name -> google.protobuf.Timestamp
+	8,  // 6: metagame.v1.Upcoming.ends_at:type_name -> google.protobuf.Timestamp
+	3,  // 7: metagame.v1.MetagameEvent.turn:type_name -> metagame.v1.Turn
+	7,  // 8: metagame.v1.MetagameEvent.heartbeat:type_name -> metagame.v1.Heartbeat
+	1,  // 9: metagame.v1.MetagameService.GetTurn:input_type -> metagame.v1.GetTurnRequest
+	5,  // 10: metagame.v1.MetagameService.ListenForEvents:input_type -> metagame.v1.ListenForEventsRequest
+	2,  // 11: metagame.v1.MetagameService.GetTurn:output_type -> metagame.v1.GetTurnResponse
+	6,  // 12: metagame.v1.MetagameService.ListenForEvents:output_type -> metagame.v1.MetagameEvent
+	11, // [11:13] is the sub-list for method output_type
+	9,  // [9:11] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_metagame_v1_metagame_proto_init() }
@@ -456,7 +537,7 @@ func file_metagame_v1_metagame_proto_init() {
 	if File_metagame_v1_metagame_proto != nil {
 		return
 	}
-	file_metagame_v1_metagame_proto_msgTypes[4].OneofWrappers = []any{
+	file_metagame_v1_metagame_proto_msgTypes[5].OneofWrappers = []any{
 		(*MetagameEvent_Turn)(nil),
 		(*MetagameEvent_Heartbeat)(nil),
 	}
@@ -466,7 +547,7 @@ func file_metagame_v1_metagame_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_metagame_v1_metagame_proto_rawDesc), len(file_metagame_v1_metagame_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   6,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

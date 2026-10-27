@@ -86,6 +86,9 @@ export class Season extends Message<Season> {
   number = 0;
 
   /**
+   * The same as last_day_ends_at_unix_ms, for the clients from before it: the Final Battle followed the last day until
+   * it was a schedule entry of the metagame (metagame.v1.Turn.next_battle).
+   *
    * @generated from field: int64 finale_starts_at_unix_ms = 2;
    */
   finaleStartsAtUnixMs = protoInt64.zero;
@@ -94,6 +97,13 @@ export class Season extends Message<Season> {
    * @generated from field: int64 ends_at_unix_ms = 3;
    */
   endsAtUnixMs = protoInt64.zero;
+
+  /**
+   * When the season's last day ends. Every day ends at this time of day.
+   *
+   * @generated from field: int64 last_day_ends_at_unix_ms = 4;
+   */
+  lastDayEndsAtUnixMs = protoInt64.zero;
 
   constructor(data?: PartialMessage<Season>) {
     super();
@@ -106,6 +116,7 @@ export class Season extends Message<Season> {
     { no: 1, name: "number", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 2, name: "finale_starts_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
     { no: 3, name: "ends_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 4, name: "last_day_ends_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Season {
@@ -568,6 +579,8 @@ export class ClosedRound extends Message<ClosedRound> {
   season = 0;
 
   /**
+   * A day's place among the season's days; a round of its own's among the season's rounds of their own.
+   *
    * @generated from field: uint32 number = 2;
    */
   number = 0;
@@ -578,6 +591,8 @@ export class ClosedRound extends Message<ClosedRound> {
   endedAtUnixMs = protoInt64.zero;
 
   /**
+   * The round that ended the season.
+   *
    * @generated from field: bool finale = 4;
    */
   finale = false;
@@ -597,6 +612,42 @@ export class ClosedRound extends Message<ClosedRound> {
    */
   after: Score[] = [];
 
+  /**
+   * A round of its own: the window of a schedule entry whose set asked for one, not a day.
+   *
+   * @generated from field: bool own = 8;
+   */
+  own = false;
+
+  /**
+   * How many times a day's points it scored: 1 for a day.
+   *
+   * @generated from field: uint32 times = 9;
+   */
+  times = 0;
+
+  /**
+   * When a round of its own started; 0 for a day.
+   *
+   * @generated from field: int64 started_at_unix_ms = 10;
+   */
+  startedAtUnixMs = protoInt64.zero;
+
+  /**
+   * The tiles each country's players took during a round of its own, most first; none for a day.
+   *
+   * @generated from field: repeated seasons.v1.RoundTakes takes = 11;
+   */
+  takes: RoundTakes[] = [];
+
+  /**
+   * The top 10 signed-in players of a round of its own by the tiles they took during it, each under the flag it took
+   * the most for, named as the boards name them; none for a day.
+   *
+   * @generated from field: repeated seasons.v1.Standing players = 12;
+   */
+  players: Standing[] = [];
+
   constructor(data?: PartialMessage<ClosedRound>) {
     super();
     proto3.util.initPartial(data, this);
@@ -612,6 +663,11 @@ export class ClosedRound extends Message<ClosedRound> {
     { no: 5, name: "standings", kind: "message", T: RoundStanding, repeated: true },
     { no: 6, name: "before", kind: "message", T: Score, repeated: true },
     { no: 7, name: "after", kind: "message", T: Score, repeated: true },
+    { no: 8, name: "own", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 9, name: "times", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 10, name: "started_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 11, name: "takes", kind: "message", T: RoundTakes, repeated: true },
+    { no: 12, name: "players", kind: "message", T: Standing, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ClosedRound {
@@ -632,10 +688,14 @@ export class ClosedRound extends Message<ClosedRound> {
 }
 
 /**
+ * The round in progress that ends first: a day, or a round of its own.
+ *
  * @generated from message seasons.v1.Round
  */
 export class Round extends Message<Round> {
   /**
+   * A day's place among the season's days; a round of its own's among the season's rounds of their own.
+   *
    * @generated from field: uint32 number = 1;
    */
   number = 0;
@@ -646,6 +706,8 @@ export class Round extends Message<Round> {
   endsAtUnixMs = protoInt64.zero;
 
   /**
+   * The round that ends the season.
+   *
    * @generated from field: bool finale = 3;
    */
   finale = false;
@@ -654,6 +716,20 @@ export class Round extends Message<Round> {
    * @generated from field: repeated seasons.v1.RoundStanding standings = 4;
    */
   standings: RoundStanding[] = [];
+
+  /**
+   * A round of its own: the window of a schedule entry whose set asked for one, not a day.
+   *
+   * @generated from field: bool own = 5;
+   */
+  own = false;
+
+  /**
+   * How many times a day's points it scores: 1 for a day.
+   *
+   * @generated from field: uint32 times = 6;
+   */
+  times = 0;
 
   constructor(data?: PartialMessage<Round>) {
     super();
@@ -667,6 +743,8 @@ export class Round extends Message<Round> {
     { no: 2, name: "ends_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
     { no: 3, name: "finale", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 4, name: "standings", kind: "message", T: RoundStanding, repeated: true },
+    { no: 5, name: "own", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 6, name: "times", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Round {
@@ -683,6 +761,49 @@ export class Round extends Message<Round> {
 
   static equals(a: Round | PlainMessage<Round> | undefined, b: Round | PlainMessage<Round> | undefined): boolean {
     return proto3.util.equals(Round, a, b);
+  }
+}
+
+/**
+ * @generated from message seasons.v1.RoundTakes
+ */
+export class RoundTakes extends Message<RoundTakes> {
+  /**
+   * @generated from field: string country_id = 1;
+   */
+  countryId = "";
+
+  /**
+   * @generated from field: uint64 tiles = 2;
+   */
+  tiles = protoInt64.zero;
+
+  constructor(data?: PartialMessage<RoundTakes>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "seasons.v1.RoundTakes";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "tiles", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoundTakes {
+    return new RoundTakes().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoundTakes {
+    return new RoundTakes().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoundTakes {
+    return new RoundTakes().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RoundTakes | PlainMessage<RoundTakes> | undefined, b: RoundTakes | PlainMessage<RoundTakes> | undefined): boolean {
+    return proto3.util.equals(RoundTakes, a, b);
   }
 }
 

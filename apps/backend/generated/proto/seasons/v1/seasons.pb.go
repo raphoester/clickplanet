@@ -103,12 +103,16 @@ func (x *GetSeasonResponse) GetSeason() *Season {
 }
 
 type Season struct {
-	state                protoimpl.MessageState `protogen:"open.v1"`
-	Number               uint32                 `protobuf:"varint,1,opt,name=number,proto3" json:"number,omitempty"`
-	FinaleStartsAtUnixMs int64                  `protobuf:"varint,2,opt,name=finale_starts_at_unix_ms,json=finaleStartsAtUnixMs,proto3" json:"finale_starts_at_unix_ms,omitempty"`
-	EndsAtUnixMs         int64                  `protobuf:"varint,3,opt,name=ends_at_unix_ms,json=endsAtUnixMs,proto3" json:"ends_at_unix_ms,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Number uint32                 `protobuf:"varint,1,opt,name=number,proto3" json:"number,omitempty"`
+	// The same as last_day_ends_at_unix_ms, for the clients from before it: the Final Battle followed the last day until
+	// it was a schedule entry of the metagame (metagame.v1.Turn.next_battle).
+	FinaleStartsAtUnixMs int64 `protobuf:"varint,2,opt,name=finale_starts_at_unix_ms,json=finaleStartsAtUnixMs,proto3" json:"finale_starts_at_unix_ms,omitempty"`
+	EndsAtUnixMs         int64 `protobuf:"varint,3,opt,name=ends_at_unix_ms,json=endsAtUnixMs,proto3" json:"ends_at_unix_ms,omitempty"`
+	// When the season's last day ends. Every day ends at this time of day.
+	LastDayEndsAtUnixMs int64 `protobuf:"varint,4,opt,name=last_day_ends_at_unix_ms,json=lastDayEndsAtUnixMs,proto3" json:"last_day_ends_at_unix_ms,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *Season) Reset() {
@@ -158,6 +162,13 @@ func (x *Season) GetFinaleStartsAtUnixMs() int64 {
 func (x *Season) GetEndsAtUnixMs() int64 {
 	if x != nil {
 		return x.EndsAtUnixMs
+	}
+	return 0
+}
+
+func (x *Season) GetLastDayEndsAtUnixMs() int64 {
+	if x != nil {
+		return x.LastDayEndsAtUnixMs
 	}
 	return 0
 }
@@ -718,14 +729,27 @@ func (x *Race) GetClosed() *ClosedRound {
 }
 
 type ClosedRound struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Season        uint32                 `protobuf:"varint,1,opt,name=season,proto3" json:"season,omitempty"`
-	Number        uint32                 `protobuf:"varint,2,opt,name=number,proto3" json:"number,omitempty"`
-	EndedAtUnixMs int64                  `protobuf:"varint,3,opt,name=ended_at_unix_ms,json=endedAtUnixMs,proto3" json:"ended_at_unix_ms,omitempty"`
-	Finale        bool                   `protobuf:"varint,4,opt,name=finale,proto3" json:"finale,omitempty"`
-	Standings     []*RoundStanding       `protobuf:"bytes,5,rep,name=standings,proto3" json:"standings,omitempty"`
-	Before        []*Score               `protobuf:"bytes,6,rep,name=before,proto3" json:"before,omitempty"`
-	After         []*Score               `protobuf:"bytes,7,rep,name=after,proto3" json:"after,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Season uint32                 `protobuf:"varint,1,opt,name=season,proto3" json:"season,omitempty"`
+	// A day's place among the season's days; a round of its own's among the season's rounds of their own.
+	Number        uint32 `protobuf:"varint,2,opt,name=number,proto3" json:"number,omitempty"`
+	EndedAtUnixMs int64  `protobuf:"varint,3,opt,name=ended_at_unix_ms,json=endedAtUnixMs,proto3" json:"ended_at_unix_ms,omitempty"`
+	// The round that ended the season.
+	Finale    bool             `protobuf:"varint,4,opt,name=finale,proto3" json:"finale,omitempty"`
+	Standings []*RoundStanding `protobuf:"bytes,5,rep,name=standings,proto3" json:"standings,omitempty"`
+	Before    []*Score         `protobuf:"bytes,6,rep,name=before,proto3" json:"before,omitempty"`
+	After     []*Score         `protobuf:"bytes,7,rep,name=after,proto3" json:"after,omitempty"`
+	// A round of its own: the window of a schedule entry whose set asked for one, not a day.
+	Own bool `protobuf:"varint,8,opt,name=own,proto3" json:"own,omitempty"`
+	// How many times a day's points it scored: 1 for a day.
+	Times uint32 `protobuf:"varint,9,opt,name=times,proto3" json:"times,omitempty"`
+	// When a round of its own started; 0 for a day.
+	StartedAtUnixMs int64 `protobuf:"varint,10,opt,name=started_at_unix_ms,json=startedAtUnixMs,proto3" json:"started_at_unix_ms,omitempty"`
+	// The tiles each country's players took during a round of its own, most first; none for a day.
+	Takes []*RoundTakes `protobuf:"bytes,11,rep,name=takes,proto3" json:"takes,omitempty"`
+	// The top 10 signed-in players of a round of its own by the tiles they took during it, each under the flag it took
+	// the most for, named as the boards name them; none for a day.
+	Players       []*Standing `protobuf:"bytes,12,rep,name=players,proto3" json:"players,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -809,12 +833,54 @@ func (x *ClosedRound) GetAfter() []*Score {
 	return nil
 }
 
+func (x *ClosedRound) GetOwn() bool {
+	if x != nil {
+		return x.Own
+	}
+	return false
+}
+
+func (x *ClosedRound) GetTimes() uint32 {
+	if x != nil {
+		return x.Times
+	}
+	return 0
+}
+
+func (x *ClosedRound) GetStartedAtUnixMs() int64 {
+	if x != nil {
+		return x.StartedAtUnixMs
+	}
+	return 0
+}
+
+func (x *ClosedRound) GetTakes() []*RoundTakes {
+	if x != nil {
+		return x.Takes
+	}
+	return nil
+}
+
+func (x *ClosedRound) GetPlayers() []*Standing {
+	if x != nil {
+		return x.Players
+	}
+	return nil
+}
+
+// The round in progress that ends first: a day, or a round of its own.
 type Round struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Number        uint32                 `protobuf:"varint,1,opt,name=number,proto3" json:"number,omitempty"`
-	EndsAtUnixMs  int64                  `protobuf:"varint,2,opt,name=ends_at_unix_ms,json=endsAtUnixMs,proto3" json:"ends_at_unix_ms,omitempty"`
-	Finale        bool                   `protobuf:"varint,3,opt,name=finale,proto3" json:"finale,omitempty"`
-	Standings     []*RoundStanding       `protobuf:"bytes,4,rep,name=standings,proto3" json:"standings,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// A day's place among the season's days; a round of its own's among the season's rounds of their own.
+	Number       uint32 `protobuf:"varint,1,opt,name=number,proto3" json:"number,omitempty"`
+	EndsAtUnixMs int64  `protobuf:"varint,2,opt,name=ends_at_unix_ms,json=endsAtUnixMs,proto3" json:"ends_at_unix_ms,omitempty"`
+	// The round that ends the season.
+	Finale    bool             `protobuf:"varint,3,opt,name=finale,proto3" json:"finale,omitempty"`
+	Standings []*RoundStanding `protobuf:"bytes,4,rep,name=standings,proto3" json:"standings,omitempty"`
+	// A round of its own: the window of a schedule entry whose set asked for one, not a day.
+	Own bool `protobuf:"varint,5,opt,name=own,proto3" json:"own,omitempty"`
+	// How many times a day's points it scores: 1 for a day.
+	Times         uint32 `protobuf:"varint,6,opt,name=times,proto3" json:"times,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -877,6 +943,72 @@ func (x *Round) GetStandings() []*RoundStanding {
 	return nil
 }
 
+func (x *Round) GetOwn() bool {
+	if x != nil {
+		return x.Own
+	}
+	return false
+}
+
+func (x *Round) GetTimes() uint32 {
+	if x != nil {
+		return x.Times
+	}
+	return 0
+}
+
+type RoundTakes struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CountryId     string                 `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	Tiles         uint64                 `protobuf:"varint,2,opt,name=tiles,proto3" json:"tiles,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RoundTakes) Reset() {
+	*x = RoundTakes{}
+	mi := &file_seasons_v1_seasons_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoundTakes) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoundTakes) ProtoMessage() {}
+
+func (x *RoundTakes) ProtoReflect() protoreflect.Message {
+	mi := &file_seasons_v1_seasons_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoundTakes.ProtoReflect.Descriptor instead.
+func (*RoundTakes) Descriptor() ([]byte, []int) {
+	return file_seasons_v1_seasons_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *RoundTakes) GetCountryId() string {
+	if x != nil {
+		return x.CountryId
+	}
+	return ""
+}
+
+func (x *RoundTakes) GetTiles() uint64 {
+	if x != nil {
+		return x.Tiles
+	}
+	return 0
+}
+
 type RoundStanding struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Rank          uint32                 `protobuf:"varint,1,opt,name=rank,proto3" json:"rank,omitempty"`
@@ -889,7 +1021,7 @@ type RoundStanding struct {
 
 func (x *RoundStanding) Reset() {
 	*x = RoundStanding{}
-	mi := &file_seasons_v1_seasons_proto_msgTypes[14]
+	mi := &file_seasons_v1_seasons_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -901,7 +1033,7 @@ func (x *RoundStanding) String() string {
 func (*RoundStanding) ProtoMessage() {}
 
 func (x *RoundStanding) ProtoReflect() protoreflect.Message {
-	mi := &file_seasons_v1_seasons_proto_msgTypes[14]
+	mi := &file_seasons_v1_seasons_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -914,7 +1046,7 @@ func (x *RoundStanding) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoundStanding.ProtoReflect.Descriptor instead.
 func (*RoundStanding) Descriptor() ([]byte, []int) {
-	return file_seasons_v1_seasons_proto_rawDescGZIP(), []int{14}
+	return file_seasons_v1_seasons_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *RoundStanding) GetRank() uint32 {
@@ -957,7 +1089,7 @@ type Score struct {
 
 func (x *Score) Reset() {
 	*x = Score{}
-	mi := &file_seasons_v1_seasons_proto_msgTypes[15]
+	mi := &file_seasons_v1_seasons_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -969,7 +1101,7 @@ func (x *Score) String() string {
 func (*Score) ProtoMessage() {}
 
 func (x *Score) ProtoReflect() protoreflect.Message {
-	mi := &file_seasons_v1_seasons_proto_msgTypes[15]
+	mi := &file_seasons_v1_seasons_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -982,7 +1114,7 @@ func (x *Score) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Score.ProtoReflect.Descriptor instead.
 func (*Score) Descriptor() ([]byte, []int) {
-	return file_seasons_v1_seasons_proto_rawDescGZIP(), []int{15}
+	return file_seasons_v1_seasons_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *Score) GetRank() uint32 {
@@ -1021,7 +1153,7 @@ type Heartbeat struct {
 
 func (x *Heartbeat) Reset() {
 	*x = Heartbeat{}
-	mi := &file_seasons_v1_seasons_proto_msgTypes[16]
+	mi := &file_seasons_v1_seasons_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1033,7 +1165,7 @@ func (x *Heartbeat) String() string {
 func (*Heartbeat) ProtoMessage() {}
 
 func (x *Heartbeat) ProtoReflect() protoreflect.Message {
-	mi := &file_seasons_v1_seasons_proto_msgTypes[16]
+	mi := &file_seasons_v1_seasons_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1046,7 +1178,7 @@ func (x *Heartbeat) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Heartbeat.ProtoReflect.Descriptor instead.
 func (*Heartbeat) Descriptor() ([]byte, []int) {
-	return file_seasons_v1_seasons_proto_rawDescGZIP(), []int{16}
+	return file_seasons_v1_seasons_proto_rawDescGZIP(), []int{17}
 }
 
 type GetRaceRequest struct {
@@ -1057,7 +1189,7 @@ type GetRaceRequest struct {
 
 func (x *GetRaceRequest) Reset() {
 	*x = GetRaceRequest{}
-	mi := &file_seasons_v1_seasons_proto_msgTypes[17]
+	mi := &file_seasons_v1_seasons_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1069,7 +1201,7 @@ func (x *GetRaceRequest) String() string {
 func (*GetRaceRequest) ProtoMessage() {}
 
 func (x *GetRaceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_seasons_v1_seasons_proto_msgTypes[17]
+	mi := &file_seasons_v1_seasons_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1082,7 +1214,7 @@ func (x *GetRaceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRaceRequest.ProtoReflect.Descriptor instead.
 func (*GetRaceRequest) Descriptor() ([]byte, []int) {
-	return file_seasons_v1_seasons_proto_rawDescGZIP(), []int{17}
+	return file_seasons_v1_seasons_proto_rawDescGZIP(), []int{18}
 }
 
 type GetRaceResponse struct {
@@ -1094,7 +1226,7 @@ type GetRaceResponse struct {
 
 func (x *GetRaceResponse) Reset() {
 	*x = GetRaceResponse{}
-	mi := &file_seasons_v1_seasons_proto_msgTypes[18]
+	mi := &file_seasons_v1_seasons_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1106,7 +1238,7 @@ func (x *GetRaceResponse) String() string {
 func (*GetRaceResponse) ProtoMessage() {}
 
 func (x *GetRaceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_seasons_v1_seasons_proto_msgTypes[18]
+	mi := &file_seasons_v1_seasons_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1119,7 +1251,7 @@ func (x *GetRaceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRaceResponse.ProtoReflect.Descriptor instead.
 func (*GetRaceResponse) Descriptor() ([]byte, []int) {
-	return file_seasons_v1_seasons_proto_rawDescGZIP(), []int{18}
+	return file_seasons_v1_seasons_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *GetRaceResponse) GetRace() *Race {
@@ -1137,11 +1269,12 @@ const file_seasons_v1_seasons_proto_rawDesc = "" +
 	"seasons.v1\x1a\x15player/v1/color.proto\x1a\x15player/v1/title.proto\"\x12\n" +
 	"\x10GetSeasonRequest\"?\n" +
 	"\x11GetSeasonResponse\x12*\n" +
-	"\x06season\x18\x01 \x01(\v2\x12.seasons.v1.SeasonR\x06season\"\x7f\n" +
+	"\x06season\x18\x01 \x01(\v2\x12.seasons.v1.SeasonR\x06season\"\xb6\x01\n" +
 	"\x06Season\x12\x16\n" +
 	"\x06number\x18\x01 \x01(\rR\x06number\x126\n" +
 	"\x18finale_starts_at_unix_ms\x18\x02 \x01(\x03R\x14finaleStartsAtUnixMs\x12%\n" +
-	"\x0fends_at_unix_ms\x18\x03 \x01(\x03R\fendsAtUnixMs\"4\n" +
+	"\x0fends_at_unix_ms\x18\x03 \x01(\x03R\fendsAtUnixMs\x125\n" +
+	"\x18last_day_ends_at_unix_ms\x18\x04 \x01(\x03R\x13lastDayEndsAtUnixMs\"4\n" +
 	"\x13GetStandingsRequest\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x01 \x01(\tR\tcountryId\"J\n" +
@@ -1184,7 +1317,7 @@ const file_seasons_v1_seasons_proto_rawDesc = "" +
 	"\x04Race\x12'\n" +
 	"\x05round\x18\x01 \x01(\v2\x11.seasons.v1.RoundR\x05round\x12)\n" +
 	"\x06scores\x18\x02 \x03(\v2\x11.seasons.v1.ScoreR\x06scores\x12/\n" +
-	"\x06closed\x18\x03 \x01(\v2\x17.seasons.v1.ClosedRoundR\x06closed\"\x8b\x02\n" +
+	"\x06closed\x18\x03 \x01(\v2\x17.seasons.v1.ClosedRoundR\x06closed\"\xbe\x03\n" +
 	"\vClosedRound\x12\x16\n" +
 	"\x06season\x18\x01 \x01(\rR\x06season\x12\x16\n" +
 	"\x06number\x18\x02 \x01(\rR\x06number\x12'\n" +
@@ -1192,12 +1325,25 @@ const file_seasons_v1_seasons_proto_rawDesc = "" +
 	"\x06finale\x18\x04 \x01(\bR\x06finale\x127\n" +
 	"\tstandings\x18\x05 \x03(\v2\x19.seasons.v1.RoundStandingR\tstandings\x12)\n" +
 	"\x06before\x18\x06 \x03(\v2\x11.seasons.v1.ScoreR\x06before\x12'\n" +
-	"\x05after\x18\a \x03(\v2\x11.seasons.v1.ScoreR\x05after\"\x97\x01\n" +
+	"\x05after\x18\a \x03(\v2\x11.seasons.v1.ScoreR\x05after\x12\x10\n" +
+	"\x03own\x18\b \x01(\bR\x03own\x12\x14\n" +
+	"\x05times\x18\t \x01(\rR\x05times\x12+\n" +
+	"\x12started_at_unix_ms\x18\n" +
+	" \x01(\x03R\x0fstartedAtUnixMs\x12,\n" +
+	"\x05takes\x18\v \x03(\v2\x16.seasons.v1.RoundTakesR\x05takes\x12.\n" +
+	"\aplayers\x18\f \x03(\v2\x14.seasons.v1.StandingR\aplayers\"\xbf\x01\n" +
 	"\x05Round\x12\x16\n" +
 	"\x06number\x18\x01 \x01(\rR\x06number\x12%\n" +
 	"\x0fends_at_unix_ms\x18\x02 \x01(\x03R\fendsAtUnixMs\x12\x16\n" +
 	"\x06finale\x18\x03 \x01(\bR\x06finale\x127\n" +
-	"\tstandings\x18\x04 \x03(\v2\x19.seasons.v1.RoundStandingR\tstandings\"p\n" +
+	"\tstandings\x18\x04 \x03(\v2\x19.seasons.v1.RoundStandingR\tstandings\x12\x10\n" +
+	"\x03own\x18\x05 \x01(\bR\x03own\x12\x14\n" +
+	"\x05times\x18\x06 \x01(\rR\x05times\"A\n" +
+	"\n" +
+	"RoundTakes\x12\x1d\n" +
+	"\n" +
+	"country_id\x18\x01 \x01(\tR\tcountryId\x12\x14\n" +
+	"\x05tiles\x18\x02 \x01(\x04R\x05tiles\"p\n" +
 	"\rRoundStanding\x12\x12\n" +
 	"\x04rank\x18\x01 \x01(\rR\x04rank\x12\x1d\n" +
 	"\n" +
@@ -1237,7 +1383,7 @@ func file_seasons_v1_seasons_proto_rawDescGZIP() []byte {
 	return file_seasons_v1_seasons_proto_rawDescData
 }
 
-var file_seasons_v1_seasons_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
+var file_seasons_v1_seasons_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_seasons_v1_seasons_proto_goTypes = []any{
 	(*GetSeasonRequest)(nil),       // 0: seasons.v1.GetSeasonRequest
 	(*GetSeasonResponse)(nil),      // 1: seasons.v1.GetSeasonResponse
@@ -1253,47 +1399,50 @@ var file_seasons_v1_seasons_proto_goTypes = []any{
 	(*Race)(nil),                   // 11: seasons.v1.Race
 	(*ClosedRound)(nil),            // 12: seasons.v1.ClosedRound
 	(*Round)(nil),                  // 13: seasons.v1.Round
-	(*RoundStanding)(nil),          // 14: seasons.v1.RoundStanding
-	(*Score)(nil),                  // 15: seasons.v1.Score
-	(*Heartbeat)(nil),              // 16: seasons.v1.Heartbeat
-	(*GetRaceRequest)(nil),         // 17: seasons.v1.GetRaceRequest
-	(*GetRaceResponse)(nil),        // 18: seasons.v1.GetRaceResponse
-	(v1.NameColor)(0),              // 19: player.v1.NameColor
-	(*v1.Title)(nil),               // 20: player.v1.Title
+	(*RoundTakes)(nil),             // 14: seasons.v1.RoundTakes
+	(*RoundStanding)(nil),          // 15: seasons.v1.RoundStanding
+	(*Score)(nil),                  // 16: seasons.v1.Score
+	(*Heartbeat)(nil),              // 17: seasons.v1.Heartbeat
+	(*GetRaceRequest)(nil),         // 18: seasons.v1.GetRaceRequest
+	(*GetRaceResponse)(nil),        // 19: seasons.v1.GetRaceResponse
+	(v1.NameColor)(0),              // 20: player.v1.NameColor
+	(*v1.Title)(nil),               // 21: player.v1.Title
 }
 var file_seasons_v1_seasons_proto_depIdxs = []int32{
 	2,  // 0: seasons.v1.GetSeasonResponse.season:type_name -> seasons.v1.Season
 	5,  // 1: seasons.v1.GetStandingsResponse.standings:type_name -> seasons.v1.Standing
-	19, // 2: seasons.v1.Standing.color:type_name -> player.v1.NameColor
-	20, // 3: seasons.v1.Standing.worn_title:type_name -> player.v1.Title
-	20, // 4: seasons.v1.GetMySeasonResponse.worn_title:type_name -> player.v1.Title
+	20, // 2: seasons.v1.Standing.color:type_name -> player.v1.NameColor
+	21, // 3: seasons.v1.Standing.worn_title:type_name -> player.v1.Title
+	21, // 4: seasons.v1.GetMySeasonResponse.worn_title:type_name -> player.v1.Title
 	10, // 5: seasons.v1.SeasonEvent.board:type_name -> seasons.v1.Board
-	16, // 6: seasons.v1.SeasonEvent.heartbeat:type_name -> seasons.v1.Heartbeat
+	17, // 6: seasons.v1.SeasonEvent.heartbeat:type_name -> seasons.v1.Heartbeat
 	11, // 7: seasons.v1.SeasonEvent.race:type_name -> seasons.v1.Race
 	5,  // 8: seasons.v1.Board.standings:type_name -> seasons.v1.Standing
 	13, // 9: seasons.v1.Race.round:type_name -> seasons.v1.Round
-	15, // 10: seasons.v1.Race.scores:type_name -> seasons.v1.Score
+	16, // 10: seasons.v1.Race.scores:type_name -> seasons.v1.Score
 	12, // 11: seasons.v1.Race.closed:type_name -> seasons.v1.ClosedRound
-	14, // 12: seasons.v1.ClosedRound.standings:type_name -> seasons.v1.RoundStanding
-	15, // 13: seasons.v1.ClosedRound.before:type_name -> seasons.v1.Score
-	15, // 14: seasons.v1.ClosedRound.after:type_name -> seasons.v1.Score
-	14, // 15: seasons.v1.Round.standings:type_name -> seasons.v1.RoundStanding
-	11, // 16: seasons.v1.GetRaceResponse.race:type_name -> seasons.v1.Race
-	0,  // 17: seasons.v1.SeasonService.GetSeason:input_type -> seasons.v1.GetSeasonRequest
-	3,  // 18: seasons.v1.SeasonService.GetStandings:input_type -> seasons.v1.GetStandingsRequest
-	6,  // 19: seasons.v1.SeasonService.GetMySeason:input_type -> seasons.v1.GetMySeasonRequest
-	8,  // 20: seasons.v1.SeasonService.ListenForEvents:input_type -> seasons.v1.ListenForEventsRequest
-	17, // 21: seasons.v1.SeasonService.GetRace:input_type -> seasons.v1.GetRaceRequest
-	1,  // 22: seasons.v1.SeasonService.GetSeason:output_type -> seasons.v1.GetSeasonResponse
-	4,  // 23: seasons.v1.SeasonService.GetStandings:output_type -> seasons.v1.GetStandingsResponse
-	7,  // 24: seasons.v1.SeasonService.GetMySeason:output_type -> seasons.v1.GetMySeasonResponse
-	9,  // 25: seasons.v1.SeasonService.ListenForEvents:output_type -> seasons.v1.SeasonEvent
-	18, // 26: seasons.v1.SeasonService.GetRace:output_type -> seasons.v1.GetRaceResponse
-	22, // [22:27] is the sub-list for method output_type
-	17, // [17:22] is the sub-list for method input_type
-	17, // [17:17] is the sub-list for extension type_name
-	17, // [17:17] is the sub-list for extension extendee
-	0,  // [0:17] is the sub-list for field type_name
+	15, // 12: seasons.v1.ClosedRound.standings:type_name -> seasons.v1.RoundStanding
+	16, // 13: seasons.v1.ClosedRound.before:type_name -> seasons.v1.Score
+	16, // 14: seasons.v1.ClosedRound.after:type_name -> seasons.v1.Score
+	14, // 15: seasons.v1.ClosedRound.takes:type_name -> seasons.v1.RoundTakes
+	5,  // 16: seasons.v1.ClosedRound.players:type_name -> seasons.v1.Standing
+	15, // 17: seasons.v1.Round.standings:type_name -> seasons.v1.RoundStanding
+	11, // 18: seasons.v1.GetRaceResponse.race:type_name -> seasons.v1.Race
+	0,  // 19: seasons.v1.SeasonService.GetSeason:input_type -> seasons.v1.GetSeasonRequest
+	3,  // 20: seasons.v1.SeasonService.GetStandings:input_type -> seasons.v1.GetStandingsRequest
+	6,  // 21: seasons.v1.SeasonService.GetMySeason:input_type -> seasons.v1.GetMySeasonRequest
+	8,  // 22: seasons.v1.SeasonService.ListenForEvents:input_type -> seasons.v1.ListenForEventsRequest
+	18, // 23: seasons.v1.SeasonService.GetRace:input_type -> seasons.v1.GetRaceRequest
+	1,  // 24: seasons.v1.SeasonService.GetSeason:output_type -> seasons.v1.GetSeasonResponse
+	4,  // 25: seasons.v1.SeasonService.GetStandings:output_type -> seasons.v1.GetStandingsResponse
+	7,  // 26: seasons.v1.SeasonService.GetMySeason:output_type -> seasons.v1.GetMySeasonResponse
+	9,  // 27: seasons.v1.SeasonService.ListenForEvents:output_type -> seasons.v1.SeasonEvent
+	19, // 28: seasons.v1.SeasonService.GetRace:output_type -> seasons.v1.GetRaceResponse
+	24, // [24:29] is the sub-list for method output_type
+	19, // [19:24] is the sub-list for method input_type
+	19, // [19:19] is the sub-list for extension type_name
+	19, // [19:19] is the sub-list for extension extendee
+	0,  // [0:19] is the sub-list for field type_name
 }
 
 func init() { file_seasons_v1_seasons_proto_init() }
@@ -1312,7 +1461,7 @@ func file_seasons_v1_seasons_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_seasons_v1_seasons_proto_rawDesc), len(file_seasons_v1_seasons_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   19,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

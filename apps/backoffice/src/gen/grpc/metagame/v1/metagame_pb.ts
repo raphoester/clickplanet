@@ -139,6 +139,14 @@ export class Turn extends Message<Turn> {
    */
   description = "";
 
+  /**
+   * The battle entry that starts next, after now; unset when none is scheduled. An entry to come may still be moved or
+   * deleted: the stream says so.
+   *
+   * @generated from field: metagame.v1.Upcoming next_battle = 5;
+   */
+  nextBattle?: Upcoming;
+
   constructor(data?: PartialMessage<Turn>) {
     super();
     proto3.util.initPartial(data, this);
@@ -151,6 +159,7 @@ export class Turn extends Message<Turn> {
     { no: 2, name: "since", kind: "message", T: Timestamp },
     { no: 3, name: "ends_at", kind: "message", T: Timestamp },
     { no: 4, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "next_battle", kind: "message", T: Upcoming },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Turn {
@@ -167,6 +176,57 @@ export class Turn extends Message<Turn> {
 
   static equals(a: Turn | PlainMessage<Turn> | undefined, b: Turn | PlainMessage<Turn> | undefined): boolean {
     return proto3.util.equals(Turn, a, b);
+  }
+}
+
+/**
+ * An entry to come, in the players' words.
+ *
+ * @generated from message metagame.v1.Upcoming
+ */
+export class Upcoming extends Message<Upcoming> {
+  /**
+   * @generated from field: google.protobuf.Timestamp starts_at = 1;
+   */
+  startsAt?: Timestamp;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp ends_at = 2;
+   */
+  endsAt?: Timestamp;
+
+  /**
+   * @generated from field: string description = 3;
+   */
+  description = "";
+
+  constructor(data?: PartialMessage<Upcoming>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "metagame.v1.Upcoming";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "starts_at", kind: "message", T: Timestamp },
+    { no: 2, name: "ends_at", kind: "message", T: Timestamp },
+    { no: 3, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Upcoming {
+    return new Upcoming().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Upcoming {
+    return new Upcoming().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Upcoming {
+    return new Upcoming().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Upcoming | PlainMessage<Upcoming> | undefined, b: Upcoming | PlainMessage<Upcoming> | undefined): boolean {
+    return proto3.util.equals(Upcoming, a, b);
   }
 }
 
