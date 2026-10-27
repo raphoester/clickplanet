@@ -37,6 +37,13 @@ export class PlayRuleSet extends Message<PlayRuleSet> {
    */
   endsAt?: Timestamp;
 
+  /**
+   * The id of the schedule entry that plays the set; empty when default plays. A round of its own repeats it.
+   *
+   * @generated from field: string entry_id = 5;
+   */
+  entryId = "";
+
   constructor(data?: PartialMessage<PlayRuleSet>) {
     super();
     proto3.util.initPartial(data, this);
@@ -49,6 +56,7 @@ export class PlayRuleSet extends Message<PlayRuleSet> {
     { no: 2, name: "decided_at", kind: "message", T: Timestamp },
     { no: 3, name: "starts_at", kind: "message", T: Timestamp },
     { no: 4, name: "ends_at", kind: "message", T: Timestamp },
+    { no: 5, name: "entry_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PlayRuleSet {

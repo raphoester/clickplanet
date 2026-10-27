@@ -53,6 +53,13 @@ export class RoundClosed extends Message<RoundClosed> {
    */
   times = 0;
 
+  /**
+   * The id of the schedule entry whose window a round of its own is; empty for a day.
+   *
+   * @generated from field: string entry_id = 8;
+   */
+  entryId = "";
+
   constructor(data?: PartialMessage<RoundClosed>) {
     super();
     proto3.util.initPartial(data, this);
@@ -68,6 +75,7 @@ export class RoundClosed extends Message<RoundClosed> {
     { no: 5, name: "results", kind: "message", T: RoundResult, repeated: true },
     { no: 6, name: "own", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 7, name: "times", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 8, name: "entry_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoundClosed {

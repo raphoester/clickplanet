@@ -1,4 +1,6 @@
 import {ClosedRound, RoundStanding} from "../backends/standings.ts"
+import {Battle} from "./battle.ts"
+import {debriefedFor, debriefScreensOf} from "./battleBrief.ts"
 
 export const REVEAL_WITHIN_MS = 6 * 60 * 60 * 1000
 export const REVEAL_SEEN_STORAGE_KEY = "clickplanet-round-seen"
@@ -12,6 +14,10 @@ export function roundOverLine(round: {number: number, finale: boolean, own: bool
     return round.finale ? "The Final Battle is over!" : "The battle is over!"
 }
 
+export function battleFinishedLine(round: {finale: boolean}): string {
+    return round.finale ? "Final Battle finished!" : "Battle finished!"
+}
+
 export function seasonOverLine(season: number): string {
     return `Season ${season} is over!`
 }
@@ -22,14 +28,21 @@ export function medalOf(rank: number): string {
     return MEDALS[rank - 1] ?? ""
 }
 
-// round: a day's reveal. brief: a round of its own's. results: the season's table and its champion, after the brief of
-// the round that ended the season.
-export type Reveal = {kind: "round" | "brief" | "results", closed: ClosedRound}
+// round: a day's reveal. over, points, players: a battle's debrief, each a screen of its own. results: the season's
+// table and its champion, after the debrief of the round that ended the season.
+export type Reveal = {kind: "round" | "over" | "points" | "players" | "results", closed: ClosedRound}
 
-export function revealsOf(closed: ClosedRound): Reveal[] {
+// battle is the last one the page saw play: another battle's round of its own plays no debrief.
+export function revealsOf(closed: ClosedRound, battle?: Battle): Reveal[] {
     if (!closed.own) return [{kind: "round", closed}]
-    if (!closed.finale) return [{kind: "brief", closed}]
-    return [{kind: "brief", closed}, {kind: "results", closed}]
+    const debrief = debriefedFor(closed, battle) ? debriefScreensOf(closed).map((kind) => ({kind, closed})) : []
+    return closed.finale ? [...debrief, {kind: "results", closed}] : debrief
+}
+
+// More plays after it: its button goes on rather than back to the globe.
+export function revealFollowed(reveal: Reveal, battle?: Battle): boolean {
+    const reveals = revealsOf(reveal.closed, battle)
+    return reveals.findIndex((each) => each.kind === reveal.kind) < reveals.length - 1
 }
 
 export function revealKeyOf(reveal: Reveal): string {
@@ -37,17 +50,18 @@ export function revealKeyOf(reveal: Reveal): string {
     switch (reveal.kind) {
         case "round":
             return `${season}:${number}:${endedAt}`
-        case "brief":
-            return `${season}:own:${number}:${endedAt}`
+        case "over":
+        case "points":
+        case "players":
         case "results":
-            return `${season}:own:${number}:${endedAt}:results`
+            return `${season}:own:${number}:${endedAt}:${reveal.kind}`
     }
 }
 
 // The reveals after the one closed last.
-export function revealsDue(closed: ClosedRound | undefined, now: number, seen: string | null): Reveal[] {
+export function revealsDue(closed: ClosedRound | undefined, now: number, seen: string | null, battle?: Battle): Reveal[] {
     if (!closed || now - closed.endedAt >= REVEAL_WITHIN_MS) return []
-    const reveals = revealsOf(closed)
+    const reveals = revealsOf(closed, battle)
     return reveals.slice(reveals.findIndex((reveal) => revealKeyOf(reveal) === seen) + 1)
 }
 

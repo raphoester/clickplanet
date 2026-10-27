@@ -16,6 +16,7 @@ const FINALE: ClosedRound = {
     own: true,
     times: 3,
     startedAt: Date.UTC(2026, 9, 31, 21),
+    entryId: "entry-final",
     takes: [],
     players: [],
 }

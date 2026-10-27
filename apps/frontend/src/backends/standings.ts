@@ -31,6 +31,8 @@ export type Round = {
     standings: RoundStanding[]
     own: boolean
     times: number
+    // A round of its own's schedule entry, as the gamemaster's turn names it; empty for a day.
+    entryId: string
 }
 
 export type Score = {
@@ -56,6 +58,8 @@ export type ClosedRound = {
     own: boolean
     times: number
     startedAt: number
+    // A round of its own's schedule entry, as the gamemaster's turn names it; empty for a day.
+    entryId: string
     takes: RoundTakes[]
     players: Standing[]
 }

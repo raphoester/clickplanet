@@ -34,17 +34,33 @@ func startOf(round rounds.Round) sql.NullTime {
 	return sql.NullTime{Time: round.StartsAt.UTC(), Valid: true}
 }
 
+// Open keeps the entry of a round of its own opened first: a second entry that ends with it changes nothing.
 func (s *Store) Open(ctx context.Context, round rounds.Round) error {
-	if _, err := s.db.On(ctx).ExecContext(ctx, `
-		INSERT INTO rounds (season, ends_at, own, finale, starts_at, times) VALUES ($1, $2, $3, $4, $5, $6)
-		ON CONFLICT (season, ends_at, own) DO NOTHING
-	`, int64(round.Season), round.EndsAt, round.Own, round.Finale, startOf(round), int64(round.Times)); err != nil {
-		return fmt.Errorf("failed to open the round: %w", err)
-	}
-	return nil
+	return s.db.InTx(ctx, func(ctx context.Context) error {
+		tx := s.db.On(ctx)
+		if _, err := tx.ExecContext(ctx, `
+			INSERT INTO rounds (season, ends_at, own, finale, starts_at, times) VALUES ($1, $2, $3, $4, $5, $6)
+			ON CONFLICT (season, ends_at, own) DO NOTHING
+		`, int64(round.Season), round.EndsAt, round.Own, round.Finale, startOf(round), int64(round.Times)); err != nil {
+			return fmt.Errorf("failed to open the round: %w", err)
+		}
+		if !round.Own {
+			return nil
+		}
+		if _, err := tx.ExecContext(ctx, `
+			INSERT INTO own_rounds (season, ends_at, own, entry_id) VALUES ($1, $2, true, $3)
+			ON CONFLICT (season, ends_at, own) DO NOTHING
+		`, int64(round.Season), round.EndsAt, uuid.UUID(round.Entry)); err != nil {
+			return fmt.Errorf("failed to keep the entry of the round of its own: %w", err)
+		}
+		return nil
+	})
 }
 
-const roundColumns = `season, ends_at, own, finale, starts_at, times`
+const (
+	roundColumns = `season, ends_at, own, finale, starts_at, times, entry_id`
+	withEntries  = `rounds LEFT JOIN own_rounds USING (season, ends_at, own)`
+)
 
 type scanner interface {
 	Scan(dest ...any) error
@@ -54,9 +70,10 @@ func scanRound(row scanner, extra ...any) (rounds.Round, error) {
 	var (
 		season, times int64
 		startsAt      sql.NullTime
+		entry         uuid.NullUUID
 		round         rounds.Round
 	)
-	if err := row.Scan(append([]any{&season, &round.EndsAt, &round.Own, &round.Finale, &startsAt, &times}, extra...)...); err != nil {
+	if err := row.Scan(append([]any{&season, &round.EndsAt, &round.Own, &round.Finale, &startsAt, &times, &entry}, extra...)...); err != nil {
 		return rounds.Round{}, err //nolint:wrapcheck // each caller says what it read.
 	}
 	round.Season = calendar.Number(season) //nolint:gosec // CHECK (season >= 0).
@@ -65,12 +82,13 @@ func scanRound(row scanner, extra ...any) (rounds.Round, error) {
 	if startsAt.Valid {
 		round.StartsAt = startsAt.Time.UTC()
 	}
+	round.Entry = rounds.EntryID(entry.UUID)
 	return round, nil
 }
 
 func (s *Store) Unclosed(ctx context.Context, endedBy time.Time) ([]rounds.Round, error) {
 	rows, err := s.db.On(ctx).QueryContext(ctx, `
-		SELECT `+roundColumns+` FROM rounds WHERE NOT closed AND ends_at <= $1 ORDER BY ends_at, season, own
+		SELECT `+roundColumns+` FROM `+withEntries+` WHERE NOT closed AND ends_at <= $1 ORDER BY ends_at, season, own
 	`, endedBy)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the rounds left to close: %w", err)
@@ -155,11 +173,11 @@ func (s *Store) Close(ctx context.Context, round rounds.Round, results []rounds.
 func (s *Store) ClosedIn(ctx context.Context, season calendar.Number) ([]rounds.Closed, error) {
 	rows, err := s.db.On(ctx).QueryContext(ctx, `
 		WITH numbered AS (
-			SELECT season, ends_at, own, finale, starts_at, times, closed,
-			       row_number() OVER (PARTITION BY own ORDER BY ends_at) AS number
-			FROM rounds WHERE season = $1
+			SELECT `+roundColumns+`, closed, row_number() OVER (PARTITION BY own ORDER BY ends_at) AS number
+			FROM `+withEntries+` WHERE season = $1
 		)
-		SELECT round.season, round.ends_at, round.own, round.finale, round.starts_at, round.times, round.number,
+		SELECT round.season, round.ends_at, round.own, round.finale, round.starts_at, round.times, round.entry_id,
+		       round.number,
 		       result.country, result.rank, result.points, result.share
 		FROM numbered AS round LEFT JOIN round_results AS result USING (season, ends_at, own)
 		WHERE round.closed

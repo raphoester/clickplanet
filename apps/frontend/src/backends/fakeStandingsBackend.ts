@@ -54,7 +54,7 @@ export class FakeStandingsBackend implements StandingsBackend {
     private readonly season = new Map(Object.entries(SEASON_POINTS).map(([code, [points, roundsWon]]) => [code, {points, roundsWon}]))
     private day = FIRST_DAY
     private battles = 0
-    private battle?: {since: number, endsAt: number, times: number, taken: Map<string, number>}
+    private battle?: {entryId: string, since: number, endsAt: number, times: number, taken: Map<string, number>}
     private closed?: ClosedRound
     private timer?: ReturnType<typeof setInterval>
 
@@ -125,28 +125,31 @@ export class FakeStandingsBackend implements StandingsBackend {
         const standings = this.scored(this.standings(1, () => 0.4 + this.random()))
         const closed: ClosedRound = {
             season: 0, number: this.day, endedAt: this.now(), finale: false, standings, before, after: this.table(),
-            own: false, times: 1, startedAt: 0, takes: [], players: [],
+            own: false, times: 1, startedAt: 0, entryId: "", takes: [], players: [],
         }
         this.day += 1
         return this.close(closed)
     }
 
-    public openBattle(since: number, endsAt: number, times: number) {
-        this.battle = {since, endsAt, times, taken: new Map(this.taken)}
+    public openBattle(entryId: string, since: number, endsAt: number, times: number) {
+        this.battle = {entryId, since, endsAt, times, taken: new Map(this.taken)}
         this.listeners.forEach((send) => send())
     }
 
     // The battle opened, else one of 2 hours at ×3 that ends now.
     public closeBattle(finale = false): ClosedRound {
         const now = this.now()
-        const battle = this.battle ?? {since: now - 2 * 60 * 60 * 1000, endsAt: now, times: 3, taken: new Map(this.taken)}
+        const battle = this.battle ?? {
+            entryId: crypto.randomUUID(), since: now - 2 * 60 * 60 * 1000, endsAt: now, times: 3, taken: new Map(this.taken),
+        }
         const before = this.table()
         const standings = this.scored(this.standings(battle.times, () => 0.4 + this.random()))
         this.battles += 1
         this.battle = undefined
         return this.close({
             season: 0, number: this.battles, endedAt: Math.min(now, battle.endsAt), finale, standings, before, after: this.table(),
-            own: true, times: battle.times, startedAt: battle.since, takes: this.takes(battle.taken), players: this.fighters(),
+            own: true, times: battle.times, startedAt: battle.since, entryId: battle.entryId, takes: this.takes(battle.taken),
+            players: this.fighters(),
         })
     }
 
@@ -200,10 +203,10 @@ export class FakeStandingsBackend implements StandingsBackend {
 
     private round(): Round {
         if (this.battle) {
-            const {endsAt, times} = this.battle
-            return {number: this.battles + 1, endsAt, finale: false, standings: this.standings(times, () => 1), own: true, times}
+            const {entryId, endsAt, times} = this.battle
+            return {number: this.battles + 1, endsAt, finale: false, standings: this.standings(times, () => 1), own: true, times, entryId}
         }
-        return {number: this.day, endsAt: dayEndAfter(this.now()), finale: false, standings: this.standings(1, () => 1), own: false, times: 1}
+        return {number: this.day, endsAt: dayEndAfter(this.now()), finale: false, standings: this.standings(1, () => 1), own: false, times: 1, entryId: ""}
     }
 
     private standings(times: number, luck: () => number): RoundStanding[] {

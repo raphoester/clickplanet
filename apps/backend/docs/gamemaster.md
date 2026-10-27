@@ -112,10 +112,13 @@ boot's send. The outbox is for a command decided in the transaction of a change 
 
 **`redis_rule_set_commands` sends one command to each module, in its words**: `planet.v1.PlayRuleSet{rule_set,
 decided_at}`, `antibot.v1.PlayRuleSet{rule_set, decided_at}` and `scoring.v1.PlayRuleSet{rule_set, decided_at,
-starts_at, ends_at}`, each on its own command stream (`commands:planet.v1.PlayRuleSet`, `commands:antibot.v1.PlayRuleSet`,
-`commands:scoring.v1.PlayRuleSet`). `decided_at` is the runner's now. **Scoring is told the entry's window** (both unset
+starts_at, ends_at, entry_id}`, each on its own command stream (`commands:planet.v1.PlayRuleSet`, `commands:antibot.v1.PlayRuleSet`,
+`commands:scoring.v1.PlayRuleSet`). `decided_at` is the runner's now. **Scoring is told the entry's window and id** (all unset
 when `default` plays): a running entry's window never changes, so a set with a round of its own makes it of exactly
-that window, and the round's end is known from its start. No module hears of the gamemaster module.
+that window, and the round's end is known from its start. **The id is how a battle and its results meet**: scoring
+keeps it on the round of its own and repeats it in `RoundClosed` and the race's `ClosedRound`, and the client matches
+it to the `entry_id` of the turn it saw. Never the times: two entries may share a window (the owner, 2026-10-27). No
+module hears of the gamemaster module, and scoring never learns the words battle or finale: it repeats an entry's id.
 
 ## Playing it
 
@@ -157,7 +160,8 @@ Rule schedule page (see the backoffice's [Ops](../../backoffice/docs/ops.md)):
 
 **`gamemaster.v1.GamemasterService`, on the public router, is what the client reads to give a battle its look.** Its
 `Turn` is the kind of the running entry (plain when none runs), its `description` (empty when none runs), `since`
-when the turn began (unset before any entry), and `ends_at`, when the running entry ends (unset when none runs). **No
+when the turn began (unset before any entry), `ends_at`, when the running entry ends (unset when none runs), and
+`entry_id`, the running entry's id (empty when none runs), which the round of its own scoring closes repeats. **No
 entry to come crosses**: the client counts down to the end of the day and of the season (scoring's), not to a battle,
 since an entry to come may still be moved or deleted (the user, 2026-10-27).
 **Never the rule set's name**: the query (`turn_query`) reads the entries and computes the turn by `Schedule`'s rule,
@@ -183,11 +187,11 @@ an answer read within five seconds of a change may still say the turn before it.
 
 The rule is pinned by `schedule_test.go` (priorities, ties, the end, since when, two entries of one set, the turn's
 kind, its window) and `entry_test.go` (only an entry to come changes, every reason, a kind nobody knows). `schedule.StoreContractSuite`
-runs on the memory and postgres stores. `turn_query`'s test pins the public read while an entry runs, after the last
+runs on the memory and postgres stores. `turn_query`'s test pins the public read while an entry runs (its id among it), after the last
 one ended and before any; `cache_interceptor_test.go` pins the GET and its header. `inprocess_turn_feed`'s test pins
 the feed (a stream gets the turn once read, another at once, each change to every stream, a turn that holds not sent
 again, nothing read with nobody following, a failed read) and `listen_for_events_handler`'s the stream (the turn
-case, the heartbeat, the feed left when the stream closes, a clean end when the feed closes). The runner's test pins a send at boot and at each change, none while the turn holds, and a send Redis
+case, the heartbeat, the feed left when the stream closes, a clean end when the feed closes). `redis_rule_set_commands`' test pins scoring told the entry's id and window. The runner's test pins a send at boot and at each change, none while the turn holds, and a send Redis
 refused sent again. Each module's `play_rule_set_handler` test pins the latest decision, a redelivery and an unknown
 set; the choice stores have their own contract suite (`rules.ChoiceStoreContractSuite`). The smoke test
 `TestAnEntryOfTheScheduleIsPlayedByPlanetTheAntibotAndSeasons` adds a battle entry on the console listener, waits for

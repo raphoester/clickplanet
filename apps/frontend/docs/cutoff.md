@@ -12,14 +12,15 @@ once (`app/season/RoundReveal.tsx`; the rules are in `domain/roundReveal.ts`).
 - **A round closes at its end**, so `closed` reaches the page at most 10s
   after it, at the backend's next read of the race.
 - **What a closed round plays** (`revealsOf`, in this order): a day, its reveal
-  (`round`, below); a battle's round of its own, its brief (`brief`, see
-  [Battles](battle.md#the-brief)); and when that round ended the season, the
-  season's results after the brief (`results`). Each is one announcement.
+  (`round`, below); a battle's round of its own, its debrief (`over`, `points`,
+  `players`, see [Battles](battle.md#the-debrief)), when it is the battle the page saw;
+  and when that round ended the season, the season's results after the debrief
+  (`results`). Each is one announcement.
 - **When**: a round that ended less than 6 hours before the page opened
   (`REVEAL_WITHIN_MS`), or one that closes while the page is open. **Once per
   browser**: Close keeps the key of the screen closed in `clickplanet-round-seen`
-  (`season:number:end` for a day, `season:own:number:end` for a brief, and
-  `:results` after it for the season's results), and `revealsDue` plays only the
+  (`season:number:end` for a day, and `season:own:number:end:` followed by the
+  screen's kind for a battle's debrief and the season's results), and `revealsDue` plays only the
   screens after it, after a reload too. Only the last key is kept. A day and a round
   of its own are numbered apart, so `own` keeps their keys apart.
 - **Two stages.** First the podium: "Day 5 is over!", then the top 3 countries
@@ -38,8 +39,8 @@ once (`app/season/RoundReveal.tsx`; the rules are in `domain/roundReveal.ts`).
   `closed.after` (`championOf` in `domain/champion.ts`), so countries level on
   everything win together. A day that is not the finale has no third stage.
 - **The season's results are the same screen with no podium** (`results`):
-  after the Final Battle's brief, "Season 0 is over!" over the "Final table",
-  before and after the battle, then the champion. The podium was the brief's.
+  after the Final Battle's debrief, "Season 0 is over!" over the "Final table",
+  before and after the battle, then the champion. The points were the debrief's.
   Until 2026-10-27 the Final Battle played podium, table and champion as one
   reveal; a season that ends with a day still does.
 - **Nothing closes it before it is settled**: no button, and Escape does
@@ -57,4 +58,4 @@ once (`app/season/RoundReveal.tsx`; the rules are in `domain/roundReveal.ts`).
   `prefers-reduced-motion: reduce` the rows do not slide and the steps only fade
   in.
 - In fake mode `closeDay()` plays a day's reveal, and `closeFinale()` the Final
-  Battle's brief, then the season's results (see [Commands](commands.md)).
+  Battle's debrief, then the season's results (see [Commands](commands.md)).

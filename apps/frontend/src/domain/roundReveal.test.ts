@@ -1,10 +1,14 @@
 import {describe, expect, it} from "vitest"
+import {NameColor} from "../backends/player.ts"
 import {ClosedRound, RoundStanding, Score} from "../backends/standings.ts"
+import {Battle} from "./battle.ts"
 import {
+    battleFinishedLine,
     medalOf,
     moveOf,
     podiumOf,
     REVEAL_WITHIN_MS,
+    revealFollowed,
     revealKeyOf,
     revealRowsOf,
     revealsDue,
@@ -26,14 +30,19 @@ const DAY: ClosedRound = {
     own: false,
     times: 1,
     startedAt: 0,
+    entryId: "",
     takes: [],
     players: [],
 }
-const BATTLE: ClosedRound = {...DAY, number: 1, own: true, times: 3, startedAt: ENDED_AT - 7_200_000}
+const BATTLE: ClosedRound = {
+    ...DAY, number: 1, own: true, times: 3, startedAt: ENDED_AT - 7_200_000, entryId: "entry-final",
+    players: [{rank: 1, accountId: "account-ana", name: "Ana", color: NameColor.UNSPECIFIED, countryCode: "fr", tiles: 9}],
+}
 const FINAL_BATTLE: ClosedRound = {...BATTLE, finale: true}
 
-const kinds = (closed: ClosedRound | undefined, seen: string | null) =>
-    revealsDue(closed, ENDED_AT + 60_000, seen).map((reveal) => reveal.kind)
+const kinds = (closed: ClosedRound | undefined, seen: string | null, battle?: Battle) =>
+    revealsDue(closed, ENDED_AT + 60_000, seen, battle).map((reveal) => reveal.kind)
+const seenBattle = (entryId: string): Battle => ({entryId, since: BATTLE.startedAt, endsAt: ENDED_AT, description: ""})
 
 describe("revealsDue", () => {
     it("plays a day closed in the last hours that this browser has not seen", () => {
@@ -41,19 +50,29 @@ describe("revealsDue", () => {
         expect(revealsDue(DAY, ENDED_AT + REVEAL_WITHIN_MS - 1, "0:4:1")).toEqual([{kind: "round", closed: DAY}])
     })
 
-    it("plays a battle's brief, and the season's results after the brief of the round that ended the season", () => {
-        expect(kinds(BATTLE, null)).toEqual(["brief"])
-        expect(kinds(FINAL_BATTLE, null)).toEqual(["brief", "results"])
+    it("plays a battle's debrief, three screens, and the season's results after the round that ended the season", () => {
+        expect(kinds(BATTLE, null)).toEqual(["over", "points", "players"])
+        expect(kinds(FINAL_BATTLE, null)).toEqual(["over", "points", "players", "results"])
+    })
+
+    it("skips a debrief screen with nothing in it", () => {
+        expect(kinds({...BATTLE, standings: [], players: []}, null)).toEqual(["over"])
+    })
+
+    it("plays the debrief of the battle the page saw, and none of another battle's", () => {
+        expect(kinds(BATTLE, null, seenBattle("entry-final"))).toEqual(["over", "points", "players"])
+        expect(kinds(BATTLE, null, seenBattle("entry-before"))).toEqual([])
+        expect(kinds(FINAL_BATTLE, null, seenBattle("entry-before"))).toEqual(["results"])
     })
 
     it("does not play a reveal twice, and keeps what comes after the one closed", () => {
         expect(kinds(DAY, revealKeyOf({kind: "round", closed: DAY}))).toEqual([])
-        expect(kinds(FINAL_BATTLE, revealKeyOf({kind: "brief", closed: FINAL_BATTLE}))).toEqual(["results"])
+        expect(kinds(FINAL_BATTLE, revealKeyOf({kind: "points", closed: FINAL_BATTLE}))).toEqual(["players", "results"])
         expect(kinds(FINAL_BATTLE, revealKeyOf({kind: "results", closed: FINAL_BATTLE}))).toEqual([])
     })
 
     it("tells a day from the round of its own of the same number and end", () => {
-        expect(kinds(BATTLE, revealKeyOf({kind: "round", closed: {...BATTLE, own: false}}))).toEqual(["brief"])
+        expect(kinds(BATTLE, revealKeyOf({kind: "round", closed: {...BATTLE, own: false}}))).toEqual(["over", "points", "players"])
     })
 
     it("does not play a round closed long ago, or no round at all", () => {
@@ -120,6 +139,22 @@ describe("roundOverLine", () => {
         expect(roundOverLine({number: 23, finale: true, own: false})).toBe("Day 23 is over!")
         expect(roundOverLine({number: 1, finale: false, own: true})).toBe("The battle is over!")
         expect(roundOverLine({number: 2, finale: true, own: true})).toBe("The Final Battle is over!")
+    })
+})
+
+describe("revealFollowed", () => {
+    it("is true until the last screen", () => {
+        expect(revealFollowed({kind: "over", closed: BATTLE})).toBe(true)
+        expect(revealFollowed({kind: "players", closed: BATTLE})).toBe(false)
+        expect(revealFollowed({kind: "players", closed: FINAL_BATTLE})).toBe(true)
+        expect(revealFollowed({kind: "results", closed: FINAL_BATTLE})).toBe(false)
+    })
+})
+
+describe("battleFinishedLine", () => {
+    it("names the battle, or the Final Battle", () => {
+        expect(battleFinishedLine({finale: false})).toBe("Battle finished!")
+        expect(battleFinishedLine({finale: true})).toBe("Final Battle finished!")
     })
 })
 
