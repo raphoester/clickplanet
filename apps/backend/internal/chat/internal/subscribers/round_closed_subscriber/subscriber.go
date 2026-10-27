@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	seasonsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/seasons/v1"
+	scoringv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
@@ -23,11 +23,11 @@ type Subscriber struct {
 	useCase UseCase
 }
 
-var _ cpredis.Handler[*seasonsv1.RoundClosed] = Subscriber{}
+var _ cpredis.Handler[*scoringv1.RoundClosed] = Subscriber{}
 
 var errNoTime = errors.New("the round has no end")
 
-func (s Subscriber) Handle(ctx context.Context, event *seasonsv1.RoundClosed) error {
+func (s Subscriber) Handle(ctx context.Context, event *scoringv1.RoundClosed) error {
 	if err := event.GetEndedAt().CheckValid(); err != nil {
 		return fmt.Errorf("%w: %w", errNoTime, err)
 	}

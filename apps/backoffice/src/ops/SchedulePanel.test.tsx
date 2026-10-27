@@ -5,9 +5,9 @@ import {afterEach, describe, expect, it} from "vitest"
 import {FakeAdmin} from "../fakeAdmin.ts"
 import {GetRulesResponse as AntibotRules, RuleSet as AntibotRuleSet} from "../gen/grpc/antibot/v1/admin_pb.ts"
 import {GetRulesResponse, RuleSet} from "../gen/grpc/planet/v1/admin_pb.ts"
-import {GetRulesResponse as SeasonRules, RuleSet as SeasonRuleSet} from "../gen/grpc/seasons/v1/admin_pb.ts"
-import {AddEntryRequest, EditEntryRequest} from "../gen/grpc/metagame/v1/admin_pb.ts"
-import {EntryKind} from "../gen/grpc/metagame/v1/metagame_pb.ts"
+import {GetRulesResponse as SeasonRules, RuleSet as SeasonRuleSet} from "../gen/grpc/scoring/v1/admin_pb.ts"
+import {AddEntryRequest, EditEntryRequest} from "../gen/grpc/gamemaster/v1/admin_pb.ts"
+import {EntryKind} from "../gen/grpc/gamemaster/v1/gamemaster_pb.ts"
 import {SchedulePanel} from "./SchedulePanel.tsx"
 
 afterEach(cleanup)
@@ -18,7 +18,7 @@ const rowOf = (set: string) =>
 const type = (label: string, value: string) =>
     fireEvent.change(screen.getByLabelText(label), {target: {value}})
 
-// Planet, the antibot and seasons keep calm and frozen too, and play calm.
+// Planet, the antibot and scoring keep calm and frozen too, and play calm.
 function keeping(): FakeAdmin {
     const admin = new FakeAdmin()
     const planetDefault = admin.rules.sets[0]
@@ -40,7 +40,7 @@ function keeping(): FakeAdmin {
 }
 
 function show(admin: FakeAdmin) {
-    render(<SchedulePanel metagame={admin.metagame} planet={admin} antibot={admin.antibot} seasons={admin.seasons}/>)
+    render(<SchedulePanel gamemaster={admin.gamemaster} planet={admin} antibot={admin.antibot} scoring={admin.scoring}/>)
 }
 
 describe("the rule schedule page", () => {
@@ -58,7 +58,7 @@ describe("the rule schedule page", () => {
         expect(within(rowOf("frozen")).getByText("2")).toBeTruthy()
         expect(screen.getByText(/a plain entry, since/)).toBeTruthy()
         expect(screen.getByText(/the antibot plays/)).toBeTruthy()
-        expect(screen.getByText(/seasons plays/)).toBeTruthy()
+        expect(screen.getByText(/scoring plays/)).toBeTruthy()
         expect(screen.queryByRole("alert")).toBeNull()
     })
 
@@ -76,8 +76,8 @@ describe("the rule schedule page", () => {
         show(new FakeAdmin())
 
         await screen.findByRole("table")
-        expect(within(rowOf("frozen")).getByText("No set frozen in planet, the antibot or seasons.")).toBeTruthy()
-        expect(within(rowOf("calm")).getByText("No set calm in planet, the antibot or seasons.")).toBeTruthy()
+        expect(within(rowOf("frozen")).getByText("No set frozen in planet, the antibot or scoring.")).toBeTruthy()
+        expect(within(rowOf("calm")).getByText("No set calm in planet, the antibot or scoring.")).toBeTruthy()
         expect(within(rowOf("rush")).queryByRole("alert")).toBeNull()
     })
 
@@ -86,7 +86,7 @@ describe("the rule schedule page", () => {
 
         expect(await screen.findByText(/Planet does not play/)).toBeTruthy()
         expect(screen.getByText(/The antibot does not play/)).toBeTruthy()
-        expect(screen.getByText(/Seasons does not play/)).toBeTruthy()
+        expect(screen.getByText(/Scoring does not play/)).toBeTruthy()
     })
 
     it("adds an entry once confirmed, and reads the schedule again", async () => {

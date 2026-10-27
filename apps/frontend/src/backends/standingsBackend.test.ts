@@ -12,7 +12,7 @@ import {
     Score as ScorePb,
     SeasonEvent,
     Standing as StandingPb,
-} from "../gen/grpc/seasons/v1/seasons_pb.ts"
+} from "../gen/grpc/scoring/v1/scoring_pb.ts"
 import {Rank as RankPb, Title as TitlePb} from "../gen/grpc/player/v1/title_pb.ts"
 import {NameColor} from "./player.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"

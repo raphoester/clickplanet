@@ -16,8 +16,8 @@ import (
 	chatv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
-	seasonsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/seasons/v1"
-	"github.com/raphoester/clickplanet.lol-backend/generated/proto/seasons/v1/seasonsv1connect"
+	scoringv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1"
+	"github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1/scoringv1connect"
 	supportv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/support/v1"
 )
 
@@ -65,7 +65,7 @@ func (s *testSuite) TestATakeCountsOnThePlayersStatsAndInTheSeason() {
 	require.Eventually(t, func() bool { return ada.stats().GetTilesTaken() == 1 }, 5*time.Second, 20*time.Millisecond,
 		"planet relays the take to player")
 	require.Eventually(t, func() bool { return ada.mySeason().GetTiles() == 1 }, 5*time.Second, 20*time.Millisecond,
-		"and to seasons")
+		"and to scoring")
 	assert.Eventually(t, func() bool { return s.game.roundStandingOf(t, "pt") != nil }, 10*time.Second, 100*time.Millisecond,
 		"the race reads the map from planet for the round in progress")
 }
@@ -189,7 +189,7 @@ func (s *testSuite) TestADeletedAccountIsForgottenByEveryModule() {
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.Empty(c, leaving.profile().GetName(), "player")
 		assert.Zero(c, leaving.stats().GetTilesTaken(), "player")
-		assert.Zero(c, leaving.mySeason().GetTiles(), "seasons")
+		assert.Zero(c, leaving.mySeason().GetTiles(), "scoring")
 		assert.Zero(c, leaving.history().GetSeenUntilUnixMs(), "chat")
 		assert.Zero(c, leaving.missions()[0].GetTakeFor().GetTaken(), "missions")
 		note := s.game.noteOf(t, "a bug before leaving")
@@ -254,13 +254,13 @@ func nextTileUpdate(t *testing.T, updates <-chan *planetv1.TileUpdate) *planetv1
 }
 
 // A stream opened reads the race at once.
-func (s gameStack) roundStandingOf(t *testing.T, country string) *seasonsv1.RoundStanding {
+func (s gameStack) roundStandingOf(t *testing.T, country string) *scoringv1.RoundStanding {
 	t.Helper()
 
 	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
 	defer cancel()
-	stream, err := seasonsv1connect.NewSeasonServiceClient(http.DefaultClient, s.baseURL).
-		ListenForEvents(ctx, connect.NewRequest(&seasonsv1.ListenForEventsRequest{}))
+	stream, err := scoringv1connect.NewSeasonServiceClient(http.DefaultClient, s.baseURL).
+		ListenForEvents(ctx, connect.NewRequest(&scoringv1.ListenForEventsRequest{}))
 	if err != nil {
 		return nil
 	}

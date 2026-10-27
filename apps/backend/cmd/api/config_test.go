@@ -79,7 +79,7 @@ func TestTheLocalStackConfigHasTheMapOfTheExampleAndAnInternalListener(t *testin
 	require.NoError(t, cpconfigs.Load(&local, cpconfigs.FromFile("../../../../deploy/backend.yaml")))
 
 	assert.Equal(t, example.Planet.GameMap.MaxIndex, local.Planet.GameMap.MaxIndex)
-	assert.NotEmpty(t, local.HTTPServer.InternalBindAddress, "chat, player and seasons dial it while they are built")
+	assert.NotEmpty(t, local.HTTPServer.InternalBindAddress, "chat, player and scoring dial it while they are built")
 }
 
 // planet's rules are kept in postgres (planet.rule_sets): a rule left in a file would be read by nothing.
@@ -129,11 +129,11 @@ chat:
 player:
   database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: player}
   redis: {address: localhost:6379}
-seasons:
-  database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: seasons}
+scoring:
+  database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: scoring}
   redis: {address: localhost:6379}
-metagame:
-  database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: metagame}
+gamemaster:
+  database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: gamemaster}
   redis: {address: localhost:6379}
 missions:
   database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: missions}
@@ -284,33 +284,33 @@ func TestAuthWithoutADatabaseIsRefused(t *testing.T) {
 	require.ErrorContains(t, config.Validate(), "auth.database: [host port user dbName sslMode schema] is empty")
 }
 
-func TestTheExampleConfigReachesTheSeasonsBlock(t *testing.T) {
+func TestTheExampleConfigReachesTheScoringBlock(t *testing.T) {
 	var config Config
 	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
 
-	require.Len(t, config.Seasons.Calendar.List, 1)
-	season := config.Seasons.Calendar.List[0]
+	require.Len(t, config.Scoring.Calendar.List, 1)
+	season := config.Scoring.Calendar.List[0]
 	assert.Zero(t, season.Number)
 	assert.True(t, time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC).Equal(season.EndsAt))
-	assert.Equal(t, 21*time.Hour, config.Seasons.Calendar.DailyCutoff)
-	assert.Equal(t, "seasons", config.Seasons.Database.Schema)
-	require.NoError(t, config.Seasons.Database.Validate())
+	assert.Equal(t, 21*time.Hour, config.Scoring.Calendar.DailyCutoff)
+	assert.Equal(t, "scoring", config.Scoring.Database.Schema)
+	require.NoError(t, config.Scoring.Database.Validate())
 }
 
-func TestTheSeasonsModuleWithNoDatabaseIsRefused(t *testing.T) {
-	assert.ErrorContains(t, Config{}.Validate(), "seasons.database")
+func TestTheScoringModuleWithNoDatabaseIsRefused(t *testing.T) {
+	assert.ErrorContains(t, Config{}.Validate(), "scoring.database")
 }
 
-func TestTheExampleConfigReachesTheMetagameBlock(t *testing.T) {
+func TestTheExampleConfigReachesTheGamemasterBlock(t *testing.T) {
 	var config Config
 	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
 
-	assert.Equal(t, "metagame", config.Metagame.Database.Schema)
-	require.NoError(t, config.Metagame.Validate())
+	assert.Equal(t, "gamemaster", config.Gamemaster.Database.Schema)
+	require.NoError(t, config.Gamemaster.Validate())
 }
 
-func TestTheMetagameModuleWithNoDatabaseIsRefused(t *testing.T) {
-	assert.ErrorContains(t, Config{}.Validate(), "metagame.database")
+func TestTheGamemasterModuleWithNoDatabaseIsRefused(t *testing.T) {
+	assert.ErrorContains(t, Config{}.Validate(), "gamemaster.database")
 }
 
 func TestTheExampleConfigReachesTheSupportBlock(t *testing.T) {
@@ -344,7 +344,7 @@ func TestTheClipsModuleWithNoDatabaseIsRefused(t *testing.T) {
 func TestSeasonsThatDoNotCountUpAreRefused(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.yaml")
 	require.NoError(t, os.WriteFile(path, []byte(`
-seasons:
+scoring:
   list:
     - number: 1
       endsAt: 2026-10-31T23:00:00Z
@@ -352,7 +352,7 @@ seasons:
 
 	var config Config
 	err := cpconfigs.Load(&config, cpconfigs.FromFile(path))
-	require.ErrorContains(t, err, "seasons: list[0].number is 1")
+	require.ErrorContains(t, err, "scoring: list[0].number is 1")
 }
 
 func TestTheExampleConfigReachesTheAttachments(t *testing.T) {
@@ -431,8 +431,8 @@ func TestEveryModuleOfProductionTalksToTheSameRedis(t *testing.T) {
 
 	for name, redis := range map[string]cpredis.Config{
 		"auth": config.Auth.Redis, "chat": config.Chat.Redis, "player": config.Player.Redis,
-		"seasons": config.Seasons.Redis, "support": config.Support.Redis, "missions": config.Missions.Redis,
-		"antiBot": config.AntiBot.Redis, "metagame": config.Metagame.Redis,
+		"scoring": config.Scoring.Redis, "support": config.Support.Redis, "missions": config.Missions.Redis,
+		"antiBot": config.AntiBot.Redis, "gamemaster": config.Gamemaster.Redis,
 	} {
 		assert.Equal(t, config.Planet.Redis, redis, "%s.redis is the planet's block", name)
 	}

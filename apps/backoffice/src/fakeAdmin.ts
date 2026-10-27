@@ -73,16 +73,16 @@ import {
     GetScheduleRequest,
     GetScheduleResponse,
     Playing,
-} from "./gen/grpc/metagame/v1/admin_pb.ts"
-import {EntryKind} from "./gen/grpc/metagame/v1/metagame_pb.ts"
+} from "./gen/grpc/gamemaster/v1/admin_pb.ts"
+import {EntryKind} from "./gen/grpc/gamemaster/v1/gamemaster_pb.ts"
 import {
-    GetRulesRequest as SeasonsGetRulesRequest,
-    GetRulesResponse as SeasonsGetRulesResponse,
-    RuleSet as SeasonsRuleSet,
-    SaveRuleSetRequest as SeasonsSaveRuleSetRequest,
-    SaveRuleSetResponse as SeasonsSaveRuleSetResponse,
-} from "./gen/grpc/seasons/v1/admin_pb.ts"
-import {Rules as SeasonRules} from "./gen/grpc/seasons/v1/rules_pb.ts"
+    GetRulesRequest as ScoringGetRulesRequest,
+    GetRulesResponse as ScoringGetRulesResponse,
+    RuleSet as ScoringRuleSet,
+    SaveRuleSetRequest as ScoringSaveRuleSetRequest,
+    SaveRuleSetResponse as ScoringSaveRuleSetResponse,
+} from "./gen/grpc/scoring/v1/admin_pb.ts"
+import {Rules as SeasonRules} from "./gen/grpc/scoring/v1/rules_pb.ts"
 import {ChargesHeld, TileUpdate} from "./gen/grpc/planet/v1/planet_pb.ts"
 import {
     AdminGetPlayerRequest,
@@ -107,7 +107,7 @@ import {
     Report,
 } from "./gen/grpc/support/v1/admin_pb.ts"
 import {
-    AntibotAdmin, ChatAdmin, ClipsAdmin, Clients, MetagameAdmin, PlanetAdmin, PlayerAdmin, SeasonsAdmin, SupportAdmin,
+    AntibotAdmin, ChatAdmin, ClipsAdmin, Clients, GamemasterAdmin, PlanetAdmin, PlayerAdmin, ScoringAdmin, SupportAdmin,
 } from "./clients.ts"
 
 export const AT = new Date("2026-10-18T12:00:00Z")
@@ -127,8 +127,8 @@ function change(minutes: number, by: string, update: PartialMessage<TileUpdate>)
 export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAdmin, ClipsAdmin {
     readonly kind = "fake admin"
     readonly antibot: FakeAntibot = new FakeAntibot(this)
-    readonly metagame: FakeMetagame = new FakeMetagame(this)
-    readonly seasons: FakeSeasons = new FakeSeasons(this)
+    readonly gamemaster: FakeGamemaster = new FakeGamemaster(this)
+    readonly scoring: FakeScoring = new FakeScoring(this)
     readonly asked: {method: string, request: unknown}[] = []
     readonly refusals = new Map<string, Code>()
     private readonly holds = new Map<string, Promise<void>>()
@@ -181,10 +181,10 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         playing: "default",
     })
     // The set the migration keeps, and a battle's: its window a round of its own, worth 3 days.
-    seasonRules = new SeasonsGetRulesResponse({
+    seasonRules = new ScoringGetRulesResponse({
         sets: [
-            new SeasonsRuleSet({name: "default", rules: SeasonRules.fromJson({ownRound: {enabled: false, times: 1}})}),
-            new SeasonsRuleSet({name: "rush", rules: SeasonRules.fromJson({ownRound: {enabled: true, times: 3}})}),
+            new ScoringRuleSet({name: "default", rules: SeasonRules.fromJson({ownRound: {enabled: false, times: 1}})}),
+            new ScoringRuleSet({name: "rush", rules: SeasonRules.fromJson({ownRound: {enabled: true, times: 3}})}),
         ],
         playing: "default",
     })
@@ -294,8 +294,8 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
 
     clients(): Clients {
         return {
-            antibot: this.antibot, chat: this, planet: this, player: this, metagame: this.metagame, support: this, clips: this,
-            seasons: this.seasons,
+            antibot: this.antibot, chat: this, planet: this, player: this, gamemaster: this.gamemaster, support: this, clips: this,
+            scoring: this.scoring,
         }
     }
 
@@ -518,21 +518,21 @@ export class FakeAntibot implements AntibotAdmin {
     }
 }
 
-// seasons.v1's calls, asked of the same fake: planet.v1 and antibot.v1 have a getRules and a saveRuleSet of their own.
-export class FakeSeasons implements SeasonsAdmin {
+// scoring.v1's calls, asked of the same fake: planet.v1 and antibot.v1 have a getRules and a saveRuleSet of their own.
+export class FakeScoring implements ScoringAdmin {
     constructor(private readonly admin: FakeAdmin) {}
 
-    getRules(request: PartialMessage<SeasonsGetRulesRequest>): Promise<SeasonsGetRulesResponse> {
+    getRules(request: PartialMessage<ScoringGetRulesRequest>): Promise<ScoringGetRulesResponse> {
         return this.admin.answer("getRules", request, this.admin.seasonRules)
     }
 
     // Kept as the server keeps it: a set of the same name is replaced.
-    saveRuleSet(request: PartialMessage<SeasonsSaveRuleSetRequest>): Promise<SeasonsSaveRuleSetResponse> {
-        const answer = this.admin.answer("saveRuleSet", request, new SeasonsSaveRuleSetResponse())
+    saveRuleSet(request: PartialMessage<ScoringSaveRuleSetRequest>): Promise<ScoringSaveRuleSetResponse> {
+        const answer = this.admin.answer("saveRuleSet", request, new ScoringSaveRuleSetResponse())
         if (!this.admin.refusals.has("saveRuleSet") && request.set !== undefined) {
-            const saved = new SeasonsRuleSet(request.set)
+            const saved = new ScoringRuleSet(request.set)
             const others = this.admin.seasonRules.sets.filter(set => set.name !== saved.name)
-            this.admin.seasonRules = new SeasonsGetRulesResponse({
+            this.admin.seasonRules = new ScoringGetRulesResponse({
                 sets: [...others, saved].sort((a, b) => Number(a.name !== "default") - Number(b.name !== "default") ||
                     a.name.localeCompare(b.name)),
                 playing: this.admin.seasonRules.playing,
@@ -543,7 +543,7 @@ export class FakeSeasons implements SeasonsAdmin {
 }
 
 // Keeps the schedule's entries as the server does, and checks nothing.
-export class FakeMetagame implements MetagameAdmin {
+export class FakeGamemaster implements GamemasterAdmin {
     constructor(private readonly admin: FakeAdmin) {}
 
     getSchedule(request: PartialMessage<GetScheduleRequest>): Promise<GetScheduleResponse> {

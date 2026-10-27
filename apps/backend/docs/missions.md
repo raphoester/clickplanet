@@ -2,7 +2,7 @@
 
 **Every flag has three to five missions a day, the same for each of its players, and each pays itself once done.** It reads
 planet's facts (`TileTaken`, `GetTerritories`, `GetCountrySizes`, `GetAllegianceOf`) and commands planet to grant a reward
-(`planet.v1.GrantCharges`, over Redis), as seasons asks planet what each country holds: planet never imports, calls or
+(`planet.v1.GrantCharges`, over Redis), as scoring asks planet what each country holds: planet never imports, calls or
 hears it.
 Its public route, `/missions.v1.MissionService/*`, is listed in `deploy/vps/caddy/Caddyfile`, as every service's is.
 

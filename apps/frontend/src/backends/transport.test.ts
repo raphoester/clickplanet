@@ -4,8 +4,8 @@ import {createConnectTransport} from "@connectrpc/connect-web"
 import {Message} from "@bufbuild/protobuf"
 import {ClickService} from "../gen/grpc/planet/v1/planet_connect.ts"
 import {ClickResponse} from "../gen/grpc/planet/v1/planet_pb.ts"
-import {SeasonService} from "../gen/grpc/seasons/v1/seasons_connect.ts"
-import {GetSeasonResponse} from "../gen/grpc/seasons/v1/seasons_pb.ts"
+import {SeasonService} from "../gen/grpc/scoring/v1/scoring_connect.ts"
+import {GetSeasonResponse} from "../gen/grpc/scoring/v1/scoring_pb.ts"
 import {openStream, retrying, retryingAtOnce, SILENCE_LIMIT_MS, Wakeups} from "./transport.ts"
 
 type Opened<T> = {

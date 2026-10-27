@@ -21,11 +21,11 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat"
-	"github.com/raphoester/clickplanet.lol-backend/internal/metagame"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player"
-	"github.com/raphoester/clickplanet.lol-backend/internal/seasons"
+	"github.com/raphoester/clickplanet.lol-backend/internal/scoring"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconfigs"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
@@ -80,12 +80,12 @@ func startGame(t *testing.T) gameStack {
 
 	playerConfig := player.Config{Database: postgres.ConfigFor("player"), Redis: redis, TagSalt: "pepper"}
 
-	seasonsConfig := currentSeason(t, postgres.ConfigFor("seasons"))
-	seasonsConfig.Redis = redis
+	scoringConfig := currentSeason(t, postgres.ConfigFor("scoring"))
+	scoringConfig.Redis = redis
 
 	missionsConfig := missions.Config{Database: postgres.ConfigFor("missions"), Redis: redis}
 
-	metagameConfig := metagame.Config{Database: postgres.ConfigFor("metagame"), Redis: redis}
+	gamemasterConfig := gamemaster.Config{Database: postgres.ConfigFor("gamemaster"), Redis: redis}
 
 	chatConfig := chat.Config{Database: postgres.ConfigFor("chat"), Redis: redis}
 	chatConfig.RateLimiter.PerSecond = 100
@@ -114,8 +114,8 @@ func startGame(t *testing.T) gameStack {
 			Logger: logger,
 			Modules: []cpbootstrap.Module{
 				authModule, planet.NewModule(planetConfig), antibot.NewModule(antibotConfig), player.NewModule(playerConfig),
-				chat.NewModule(chatConfig), seasons.NewModule(seasonsConfig), support.NewModule(supportConfig),
-				missions.NewModule(missionsConfig), metagame.NewModule(metagameConfig),
+				chat.NewModule(chatConfig), scoring.NewModule(scoringConfig), support.NewModule(supportConfig),
+				missions.NewModule(missionsConfig), gamemaster.NewModule(gamemasterConfig),
 			},
 			AdminGate: gate,
 		}, public, internal, console, admin)
@@ -196,22 +196,22 @@ func waitUntilServed(t *testing.T, address string) {
 	require.NoError(t, res.Body.Close())
 }
 
-func currentSeason(t *testing.T, database cppg.Config) seasons.Config {
+func currentSeason(t *testing.T, database cppg.Config) scoring.Config {
 	t.Helper()
 
-	path := filepath.Join(t.TempDir(), "seasons.yaml")
+	path := filepath.Join(t.TempDir(), "scoring.yaml")
 	require.NoError(t, os.WriteFile(path, fmt.Appendf(nil, `
-seasons:
+scoring:
   dailyCutoff: 21h
   list:
     - number: 0
       endsAt: %s
 `, time.Now().Add(30*24*time.Hour).UTC().Format(time.RFC3339)), 0o600))
-	var config struct{ Seasons seasons.Config }
+	var config struct{ Scoring scoring.Config }
 	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile(path)))
-	config.Seasons.Database = database
+	config.Scoring.Database = database
 
-	return config.Seasons
+	return config.Scoring
 }
 
 func (s gameStack) schema(t *testing.T, name string) *cppg.Postgres {

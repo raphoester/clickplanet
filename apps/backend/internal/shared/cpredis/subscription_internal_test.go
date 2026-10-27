@@ -46,7 +46,7 @@ func readAll(t *testing.T, subscribed *group, n int) []string {
 
 func TestATrimKeepsWhatTheSlowestModuleHasNotHandled(t *testing.T) {
 	config := StartTestServer(t).Config()
-	fast, slow := groupOf(t, config, "player-fast"), groupOf(t, config, "seasons-slow")
+	fast, slow := groupOf(t, config, "player-fast"), groupOf(t, config, "scoring-slow")
 	publisher := New(config, prometheus.NewRegistry())
 	require.NoError(t, publisher.ConnectCtx(t.Context()))
 	t.Cleanup(func() { _ = publisher.Close() })

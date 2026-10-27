@@ -85,13 +85,13 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   flag taking the world, the holder holding its share, the day won. **The page builds the `Story` from it and reads no
   rule**: a pick that names no front, a kind no front tells, no attacker or no place is refused as it is read, and
   the job checked it against the findings before the render. `--headline` overrides the story's.
-- **`--race <path>`** is the season's race, a `seasons.v1.GetRaceResponse` as the backend's `GetRace` answers it,
+- **`--race <path>`** is the season's race, a `scoring.v1.GetRaceResponse` as the backend's `GetRace` answers it,
   served to the page at `/__clip/race.json` (`src/clip/race.ts` reads its closed round). With none, that path
   answers 404, never the app's fallback page, and no day is told. **A battle's round of its own is never told as a
   day** (`Day.own`): it is numbered apart from the days, so its clip says "wins the battle" ("the final battle" for
   the finale) and calls to play, never "day 1" or "who wins day 2", and nobody is called up after it, since its
   podium scored its times.
-- **`--season <path>`** is the season, a `seasons.v1.GetSeasonResponse`, served at `/__clip/season.json` the same
+- **`--season <path>`** is the season, a `scoring.v1.GetSeasonResponse`, served at `/__clip/season.json` the same
   way: when its Final Battle starts. With none, nobody is called up.
 - **A story's key says which story it is, the headline never does** (`storyKeyOf`, `domain/clip/story.ts`): the
   flag the clip is about and the continent it is told on, `{flag: "dz", continent: "Africa"}`. **Its angle says what

@@ -167,14 +167,14 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		log_subscriber.New(round_closed_subscriber.New(announce), props.Logger))
 	if err != nil {
 		closeStores()
-		return fmt.Errorf("failed to subscribe to seasons.v1.RoundClosed: %w", err)
+		return fmt.Errorf("failed to subscribe to scoring.v1.RoundClosed: %w", err)
 	}
 
 	seasonsClosed, err := cpredis.Subscribe(ctx, streams, "chat-announcements-seasons",
 		log_subscriber.New(season_closed_subscriber.New(announce), props.Logger))
 	if err != nil {
 		closeStores()
-		return fmt.Errorf("failed to subscribe to seasons.v1.SeasonClosed: %w", err)
+		return fmt.Errorf("failed to subscribe to scoring.v1.SeasonClosed: %w", err)
 	}
 
 	// Not closers: closers run before the runners stop, and the runners use both.
