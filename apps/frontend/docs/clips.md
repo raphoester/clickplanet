@@ -60,8 +60,12 @@ What chooses, when a clip goes out, the client of the service and the run's summ
     flag that held much at the start and little at the end is thrown out, and two flags taking from each other are at
     war: **the editor reads that, no threshold does.**
   - **`tours`**: each flag taking land across the whole map, in its busiest stretch, with what it took on each
-    continent and from whom, what the second flag across the world took in the same stretch, and its solidity. A flag
-    far ahead of the next on two continents or more is taking over the world, which the camera tells as a tour (below).
+    continent and from whom, what the second flag across the world took in the same stretch, its solidity, and **the
+    tiles of the landmasses whose painted flag switched to it, by continent** (`flippedByContinent`, from `flipsOf` and
+    `flippedTo`; a landmass under 100 tiles, Belgium's size, does not count: it is a speck at a continent's framing): a
+    tour's camera stays far out, where a landmass's painted flag switching is all a viewer sees. A flag far ahead of the
+    next, switching landmasses on two continents or more, is taking over the world, which the camera tells as a tour
+    (below); the job refuses a tour of a flag that switched none.
   - **`places`**: what the map is at the end: the flag holding the most of the world, of each continent and of each
     country of 1,000 tiles or more (49 of them), with its share, the next holders and how many tiles of the place
     changed hands to it or from it in the window, which is what its clip plays; a place where nothing did is left out,
@@ -280,8 +284,13 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   neighbours it holds too: about 1 for land taken, 0.56 for names written across Canada. It is a fact of each
   flag of a front, which the editor is told plays badly; nothing is skipped for it.
 - **A flag taking land across the world is on a tour of it** (`tour.ts`, for a `tour` of the findings): told over
-  the whole globe as **"PORTUGAL IS TAKING OVER THE WORLD"**, its call "Fight back", with no flag. Each continent
-  (Asia's parts) with 5% of what it took is a stop, four at most, in the order it got there (a fifth of it taken).
+  the whole globe as **"PORTUGAL IS TAKING OVER THE WORLD"**, its call "Fight back", with no flag. **A stop is framed
+  on the landmasses whose painted flag switched to the flag** (`flippedTo`), and only what it took on them counts as a
+  visit, since that is all the tour's zoom shows: on 2026-10-27 "BRAZIL IS TAKING OVER THE WORLD" spent half its length
+  over France, where Brazil had taken 223 tiles under other countries' big flags, while the pieces it had switched were
+  Peru and Guyana, and a player saw flashes and no Brazil. A tour with no such landmass fails the render. Among the
+  visits, each continent (Asia's parts) with 5% of them is a stop, four at most, in the order it got there (a fifth of
+  it taken).
   Each stop is framed where it took the most there (Angola, not all of Africa from Guinea-Bissau to Mozambique, which
   only the whole globe frames). The camera opens on the whole globe over the first stop and dives into it, twice as
   close as that framing but never past where the painted flags start to blend into the tiles (`flagsZoomOf`): the

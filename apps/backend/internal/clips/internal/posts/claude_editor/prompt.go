@@ -69,17 +69,18 @@ type flag struct {
 }
 
 type tour struct {
-	Tour        int            `json:"tour"`
-	Flag        string         `json:"flag"`
-	Since       time.Time      `json:"since"`
-	Until       time.Time      `json:"until"`
-	Hours       float64        `json:"hours"`
-	Took        int            `json:"took"`
-	ByContinent map[string]int `json:"byContinent"`
-	TookFrom    map[string]int `json:"tookFrom"`
-	NextTook    int            `json:"nextTook"`
-	Solidity    float64        `json:"solidity"`
-	Bombs       int            `json:"bombs"`
+	Tour               int            `json:"tour"`
+	Flag               string         `json:"flag"`
+	Since              time.Time      `json:"since"`
+	Until              time.Time      `json:"until"`
+	Hours              float64        `json:"hours"`
+	Took               int            `json:"took"`
+	ByContinent        map[string]int `json:"byContinent"`
+	TookFrom           map[string]int `json:"tookFrom"`
+	NextTook           int            `json:"nextTook"`
+	FlippedByContinent map[string]int `json:"flippedByContinent"`
+	Solidity           float64        `json:"solidity"`
+	Bombs              int            `json:"bombs"`
 }
 
 type place struct {
@@ -131,7 +132,7 @@ func PromptOf(offer posts.Offer) (string, error) {
 		written.Tours = append(written.Tours, tour{
 			Tour: i + 1, Flag: found.Flag, Since: found.Since.UTC(), Until: found.Until.UTC(), Hours: hoursOf(found.Since, found.Until),
 			Took: found.Took, ByContinent: found.ByContinent, TookFrom: found.TookFrom, NextTook: found.NextTook,
-			Solidity: found.Solidity, Bombs: found.Bombs,
+			FlippedByContinent: found.FlippedByContinent, Solidity: found.Solidity, Bombs: found.Bombs,
 		})
 	}
 	for i, found := range findings.Places {

@@ -17,7 +17,10 @@ const found: Found = {
             {code: "tr", continent: "Middle East", took: 3000, filled: 0, lost: 5000, tookFrom: {fr: 3000}, solidity: 0.9}],
         bombs: 3, spreads: 0, enclosures: 1, score: 3886.52,
     }],
-    tours: [{since: Date.UTC(2026, 9, 26, 8), until: Date.UTC(2026, 9, 26, 20), flag: "fr", took: 27000, byContinent: {Europe: 12000, "South Asia": 9000}, tookFrom: {dz: 8000}, nextTook: 9000, solidity: 0.95, bombs: 12}],
+    tours: [{
+        since: Date.UTC(2026, 9, 26, 8), until: Date.UTC(2026, 9, 26, 20), flag: "fr", took: 27000, byContinent: {Europe: 12000, "South Asia": 9000},
+        tookFrom: {dz: 8000}, nextTook: 9000, solidity: 0.95, bombs: 12, flippedByContinent: {"South Asia": 6246},
+    }],
     places: [{kind: "continent", place: {region: "South Asia"}, code: undefined, continent: "South Asia", tiles: 9600, holder: "fr", held: 6170, share: 0.6427, rivals: {dz: 1200}, changed: 6000}],
     seasonal: [{story: {kind: "round", attacker: "pw", rival: undefined, victims: ["dz"], place: {region: "the world"},
         day: {season: 0, number: 18, finale: false, endedAt: Date.UTC(2026, 9, 25, 21), podium: [{country: "pw", rank: 1, points: 30}], table: []}}, measured}],
@@ -34,7 +37,7 @@ describe("the findings", () => {
                 countries: [{code: "tr", continent: "Middle East", holdersEnd: {fr: 1500, tr: 900}, takers: {fr: 5000}}],
                 flags: [{code: "fr", took: 5000, lost: 3000, tookFrom: {tr: 4800}, solidity: 0.86}, {code: "tr"}],
             }],
-            tours: [{flag: "fr", took: 27000, byContinent: {Europe: 12000, "South Asia": 9000}, nextTook: 9000}],
+            tours: [{flag: "fr", took: 27000, byContinent: {Europe: 12000, "South Asia": 9000}, nextTook: 9000, flippedByContinent: {"South Asia": 6246}}],
             places: [{kind: "continent", continent: "South Asia", holder: "fr", share: 0.643, rivals: {dz: 1200}, changed: 6000}],
         })
     })

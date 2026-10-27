@@ -217,8 +217,10 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
   attacker that took tiles on it and in the place it names, flags it took from that lost tiles there, a rival only in
   a battle and one each side took from; a place of one or two countries of the front, or a continent of theirs; a
   comeback by a flag at home there, a kickout by a flag that held the country when the front opened, a rout of a flag
-  that held it then, a team only for a continent's flags on their own continent. A tour, a place and a seasonal story
-  only have to exist. A headline is upper case once written (`headlineFrom`), 60 letters at most, starting with a
+  that held it then, a team only for a continent's flags on their own continent. A tour is by a flag that switched a
+  landmass's painted flag somewhere (`FlippedByContinent`), since its camera shows nothing else from far: "BRAZIL IS
+  TAKING OVER THE WORLD" of 2026-10-27 switched none, and showed flashes under Europe's flags. A place and a seasonal
+  story only have to exist. A headline is upper case once written (`headlineFrom`), 60 letters at most, starting with a
   letter or a digit (so `--story` never reads as a flag), only letters of any script, digits and `! ? ' ’ % : , . & -`.
   **Taste is the model's**: which front is a story, how fresh is fresh, how a feed varies, what a country is called
   are the instructions' to say, never a threshold here.

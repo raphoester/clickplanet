@@ -35,9 +35,13 @@ func findings(t *testing.T) posts.Findings {
 			},
 			Bombs: 3, Score: 3886.5,
 		}},
-		Tours: []posts.Tour{{
-			Flag: "fr", Since: foundAt.Add(-12 * time.Hour), Until: foundAt, Took: 27000, ByContinent: map[string]int{"Europe": 12000, "South Asia": 9000}, NextTook: 9000,
-		}},
+		Tours: []posts.Tour{
+			{
+				Flag: "fr", Since: foundAt.Add(-12 * time.Hour), Until: foundAt, Took: 27000, ByContinent: map[string]int{"Europe": 12000, "South Asia": 9000},
+				NextTook: 9000, FlippedByContinent: map[string]int{"South Asia": 6246, "Europe": 800},
+			},
+			{Flag: "br", Since: foundAt.Add(-12 * time.Hour), Until: foundAt, Took: 3710, ByContinent: map[string]int{"South America": 2425}, NextTook: 3420},
+		},
 		Places: []posts.Place{
 			{Kind: posts.ContinentPlace, Continent: "South Asia", Tiles: 9600, Holder: "fr", Held: 6170, Share: 0.64, Changed: 6000},
 			{Kind: posts.World, Tiles: 262000, Holder: "pw", Held: 74000, Share: 0.28, Changed: 7000},
@@ -146,7 +150,8 @@ func TestAStoryNamesOneOfTheFindingsAndOneThatExists(t *testing.T) {
 	for why, story := range map[string]posts.Story{
 		"names 0 of a front, a tour, a place and a seasonal story, not one": {},
 		"names 2 of a front, a tour, a place and a seasonal story, not one": {Front: 1, Tour: 1},
-		"no tour 3 of 1":           {Tour: 3},
+		"no tour 3 of 2": {Tour: 3},
+		`no landmass's painted flag switched to "br" on tour 2`: {Tour: 2},
 		"no place 3 of 2":          {Place: 3},
 		"no seasonal story 2 of 1": {Seasonal: 2},
 		"no front 5 of 1":          {Front: 5},

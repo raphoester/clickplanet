@@ -1,5 +1,6 @@
 import {ranked, tally, TileChange} from "./changes.ts"
 import {Point} from "./geometry.ts"
+import {Flip, flippedTo} from "./look.ts"
 import {solidityOf} from "./solidity.ts"
 import {Place, RegionOf, Story, THE_WORLD} from "./story.ts"
 
@@ -51,6 +52,8 @@ export type TourFacts = {
     byContinent: Counts
     tookFrom: Counts
     solidity: number
+    // The tiles of the landmasses whose painted flag switched to the flag, by continent: all a tour shows from far.
+    flippedByContinent: Counts
 }
 
 // The flag holding the most of a place as the map stands, and what changed hands to it or from it there in the window.
@@ -87,6 +90,12 @@ const RIVALS = 2
 
 export function top(counts: ReadonlyMap<string, number>, most: number): Counts {
     return Object.fromEntries(ranked(counts).slice(0, most))
+}
+
+function sumBy(entries: Iterable<readonly [string, number]>): Map<string, number> {
+    const sums = new Map<string, number>()
+    for (const [key, count] of entries) sums.set(key, (sums.get(key) ?? 0) + count)
+    return sums
 }
 
 // How solid the land a flag took is, against all it holds at the end. taken: the tiles it took; held: every tile
@@ -140,20 +149,27 @@ export function frontFactsOf(
     return {tilesChanged: moves.length, captured: captured.length, countries, flags}
 }
 
-// A flag's taking across the world in a window: changes is what it took and lost there.
+// A flag's taking across the world in a window: changes is what it took and lost there, flips the landmasses whose
+// biggest holder changed along them.
 export function tourFactsOf(
     flag: string,
     changes: readonly TileChange[],
     after: Owners,
     continentOf: (tile: number) => string | undefined,
     pointOf: (tile: number) => Point,
+    flips: readonly Flip[],
 ): TourFacts {
     const taken = changes.filter((change): change is TileChange & {from: string} => change.to === flag && change.from !== undefined && change.from !== flag)
+    const flipped = flippedTo(flips, flag)
     return {
         took: taken.length,
         byContinent: top(tally(taken.flatMap(({tile}) => continentOf(tile) ?? [])), Infinity),
         tookFrom: top(tally(taken.map(({from}) => from)), MOST_HOLDERS),
         solidity: solidityAfter(flag, changes, after, pointOf),
+        flippedByContinent: top(sumBy(flipped.flatMap(({tile, tiles}) => {
+            const continent = continentOf(tile)
+            return continent === undefined ? [] : [[continent, tiles] as const]
+        })), Infinity),
     }
 }
 

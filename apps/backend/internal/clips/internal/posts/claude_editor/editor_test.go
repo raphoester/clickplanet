@@ -33,7 +33,7 @@ var (
 				Flags:     []posts.FrontFlag{{Code: "fr", Continent: "Europe", Took: 5000, Lost: 3000, TookFrom: map[string]int{"tr": 5000}, Solidity: 0.86}},
 				Bombs:     3, Score: 3886.5,
 			}},
-			Tours:      []posts.Tour{{Flag: "fr", Since: at.Add(-12 * time.Hour), Until: at, Took: 27992, ByContinent: map[string]int{"Europe": 12000}, NextTook: 9000}},
+			Tours:      []posts.Tour{{Flag: "fr", Since: at.Add(-12 * time.Hour), Until: at, Took: 27992, ByContinent: map[string]int{"Europe": 12000}, NextTook: 9000, FlippedByContinent: map[string]int{"South Asia": 6246}}},
 			Places:     []posts.Place{{Kind: posts.ContinentPlace, Continent: "South Asia", Tiles: 9600, Holder: "fr", Held: 6170, Share: 0.643, Changed: 6000}},
 			Names:      map[string]string{"fr": "France", "tr": "Turkey"},
 			Continents: map[string]string{"Europe": "eu", "Middle East": ""},
@@ -213,9 +213,10 @@ func TestThePromptHoldsTheFindingsNumberedTheStoriesToldFirstAndTheRecentPosts(t
 			} `json:"flags"`
 		} `json:"fronts"`
 		Tours []struct {
-			Tour     int    `json:"tour"`
-			Flag     string `json:"flag"`
-			NextTook int    `json:"nextTook"`
+			Tour               int            `json:"tour"`
+			Flag               string         `json:"flag"`
+			NextTook           int            `json:"nextTook"`
+			FlippedByContinent map[string]int `json:"flippedByContinent"`
 		} `json:"tours"`
 		Places []struct {
 			Place     int     `json:"place"`
@@ -248,6 +249,7 @@ func TestThePromptHoldsTheFindingsNumberedTheStoriesToldFirstAndTheRecentPosts(t
 	assert.InDelta(t, 0.86, written.Fronts[0].Flags[0].Solidity, 1e-9)
 	assert.Equal(t, 1, written.Tours[0].Tour)
 	assert.Equal(t, 9000, written.Tours[0].NextTook)
+	assert.Equal(t, map[string]int{"South Asia": 6246}, written.Tours[0].FlippedByContinent)
 	assert.Equal(t, 1, written.Places[0].Place)
 	assert.Equal(t, "South Asia", written.Places[0].Continent)
 	assert.Equal(t, "BRITTANY IS INVADING AUSTRALIA", written.RecentPosts[0].Headline)

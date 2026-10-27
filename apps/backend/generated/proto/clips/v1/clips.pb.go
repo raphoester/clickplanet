@@ -507,11 +507,14 @@ type Tour struct {
 	ByContinent map[string]uint32      `protobuf:"bytes,5,rep,name=by_continent,json=byContinent,proto3" json:"by_continent,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
 	TookFrom    map[string]uint32      `protobuf:"bytes,6,rep,name=took_from,json=tookFrom,proto3" json:"took_from,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
 	// What the flag taking the second most across the world took in the same stretch.
-	NextTook      uint32  `protobuf:"varint,7,opt,name=next_took,json=nextTook,proto3" json:"next_took,omitempty"`
-	Solidity      float64 `protobuf:"fixed64,8,opt,name=solidity,proto3" json:"solidity,omitempty"`
-	Bombs         uint32  `protobuf:"varint,9,opt,name=bombs,proto3" json:"bombs,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	NextTook uint32  `protobuf:"varint,7,opt,name=next_took,json=nextTook,proto3" json:"next_took,omitempty"`
+	Solidity float64 `protobuf:"fixed64,8,opt,name=solidity,proto3" json:"solidity,omitempty"`
+	Bombs    uint32  `protobuf:"varint,9,opt,name=bombs,proto3" json:"bombs,omitempty"`
+	// The tiles of the landmasses whose painted flag switched to it, big enough to read from far, by continent: all a
+	// tour shows.
+	FlippedByContinent map[string]uint32 `protobuf:"bytes,10,rep,name=flipped_by_continent,json=flippedByContinent,proto3" json:"flipped_by_continent,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *Tour) Reset() {
@@ -605,6 +608,13 @@ func (x *Tour) GetBombs() uint32 {
 		return x.Bombs
 	}
 	return 0
+}
+
+func (x *Tour) GetFlippedByContinent() map[string]uint32 {
+	if x != nil {
+		return x.FlippedByContinent
+	}
+	return nil
 }
 
 // What the map is at the end: the flag holding the most of a place.
@@ -2018,7 +2028,7 @@ const file_clips_v1_clips_proto_rawDesc = "" +
 	"\bsolidity\x18\a \x01(\x01R\bsolidity\x1a;\n" +
 	"\rTookFromEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\rR\x05value:\x028\x01\"\xdd\x03\n" +
+	"\x05value\x18\x02 \x01(\rR\x05value:\x028\x01\"\xfe\x04\n" +
 	"\x04Tour\x12\x12\n" +
 	"\x04flag\x18\x01 \x01(\tR\x04flag\x120\n" +
 	"\x05since\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\x120\n" +
@@ -2028,11 +2038,16 @@ const file_clips_v1_clips_proto_rawDesc = "" +
 	"\ttook_from\x18\x06 \x03(\v2\x1c.clips.v1.Tour.TookFromEntryR\btookFrom\x12\x1b\n" +
 	"\tnext_took\x18\a \x01(\rR\bnextTook\x12\x1a\n" +
 	"\bsolidity\x18\b \x01(\x01R\bsolidity\x12\x14\n" +
-	"\x05bombs\x18\t \x01(\rR\x05bombs\x1a>\n" +
+	"\x05bombs\x18\t \x01(\rR\x05bombs\x12X\n" +
+	"\x14flipped_by_continent\x18\n" +
+	" \x03(\v2&.clips.v1.Tour.FlippedByContinentEntryR\x12flippedByContinent\x1a>\n" +
 	"\x10ByContinentEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\rR\x05value:\x028\x01\x1a;\n" +
 	"\rTookFromEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\rR\x05value:\x028\x01\x1aE\n" +
+	"\x17FlippedByContinentEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\rR\x05value:\x028\x01\"\xaf\x02\n" +
 	"\x05Place\x12\x12\n" +
@@ -2202,7 +2217,7 @@ func file_clips_v1_clips_proto_rawDescGZIP() []byte {
 	return file_clips_v1_clips_proto_rawDescData
 }
 
-var file_clips_v1_clips_proto_msgTypes = make([]protoimpl.MessageInfo, 30)
+var file_clips_v1_clips_proto_msgTypes = make([]protoimpl.MessageInfo, 31)
 var file_clips_v1_clips_proto_goTypes = []any{
 	(*Findings)(nil),              // 0: clips.v1.Findings
 	(*Continent)(nil),             // 1: clips.v1.Continent
@@ -2230,55 +2245,57 @@ var file_clips_v1_clips_proto_goTypes = []any{
 	nil,                           // 23: clips.v1.FrontFlag.TookFromEntry
 	nil,                           // 24: clips.v1.Tour.ByContinentEntry
 	nil,                           // 25: clips.v1.Tour.TookFromEntry
-	nil,                           // 26: clips.v1.Place.RivalsEntry
-	nil,                           // 27: clips.v1.StoryFacts.NamesEntry
-	nil,                           // 28: clips.v1.ClipRecord.VariantsEntry
-	nil,                           // 29: clips.v1.PostFacts.VariantsEntry
-	(*timestamppb.Timestamp)(nil), // 30: google.protobuf.Timestamp
+	nil,                           // 26: clips.v1.Tour.FlippedByContinentEntry
+	nil,                           // 27: clips.v1.Place.RivalsEntry
+	nil,                           // 28: clips.v1.StoryFacts.NamesEntry
+	nil,                           // 29: clips.v1.ClipRecord.VariantsEntry
+	nil,                           // 30: clips.v1.PostFacts.VariantsEntry
+	(*timestamppb.Timestamp)(nil), // 31: google.protobuf.Timestamp
 }
 var file_clips_v1_clips_proto_depIdxs = []int32{
-	30, // 0: clips.v1.Findings.since:type_name -> google.protobuf.Timestamp
-	30, // 1: clips.v1.Findings.until:type_name -> google.protobuf.Timestamp
+	31, // 0: clips.v1.Findings.since:type_name -> google.protobuf.Timestamp
+	31, // 1: clips.v1.Findings.until:type_name -> google.protobuf.Timestamp
 	2,  // 2: clips.v1.Findings.fronts:type_name -> clips.v1.Front
 	5,  // 3: clips.v1.Findings.tours:type_name -> clips.v1.Tour
 	6,  // 4: clips.v1.Findings.places:type_name -> clips.v1.Place
 	7,  // 5: clips.v1.Findings.seasonal:type_name -> clips.v1.Seasonal
 	19, // 6: clips.v1.Findings.names:type_name -> clips.v1.Findings.NamesEntry
 	1,  // 7: clips.v1.Findings.continents:type_name -> clips.v1.Continent
-	30, // 8: clips.v1.Front.since:type_name -> google.protobuf.Timestamp
-	30, // 9: clips.v1.Front.until:type_name -> google.protobuf.Timestamp
+	31, // 8: clips.v1.Front.since:type_name -> google.protobuf.Timestamp
+	31, // 9: clips.v1.Front.until:type_name -> google.protobuf.Timestamp
 	3,  // 10: clips.v1.Front.countries:type_name -> clips.v1.FrontCountry
 	4,  // 11: clips.v1.Front.flags:type_name -> clips.v1.FrontFlag
 	20, // 12: clips.v1.FrontCountry.holders_start:type_name -> clips.v1.FrontCountry.HoldersStartEntry
 	21, // 13: clips.v1.FrontCountry.holders_end:type_name -> clips.v1.FrontCountry.HoldersEndEntry
 	22, // 14: clips.v1.FrontCountry.takers:type_name -> clips.v1.FrontCountry.TakersEntry
 	23, // 15: clips.v1.FrontFlag.took_from:type_name -> clips.v1.FrontFlag.TookFromEntry
-	30, // 16: clips.v1.Tour.since:type_name -> google.protobuf.Timestamp
-	30, // 17: clips.v1.Tour.until:type_name -> google.protobuf.Timestamp
+	31, // 16: clips.v1.Tour.since:type_name -> google.protobuf.Timestamp
+	31, // 17: clips.v1.Tour.until:type_name -> google.protobuf.Timestamp
 	24, // 18: clips.v1.Tour.by_continent:type_name -> clips.v1.Tour.ByContinentEntry
 	25, // 19: clips.v1.Tour.took_from:type_name -> clips.v1.Tour.TookFromEntry
-	26, // 20: clips.v1.Place.rivals:type_name -> clips.v1.Place.RivalsEntry
-	18, // 21: clips.v1.Seasonal.key:type_name -> clips.v1.StoryKey
-	8,  // 22: clips.v1.Seasonal.facts:type_name -> clips.v1.StoryFacts
-	27, // 23: clips.v1.StoryFacts.names:type_name -> clips.v1.StoryFacts.NamesEntry
-	30, // 24: clips.v1.StoryFacts.story_ended_at:type_name -> google.protobuf.Timestamp
-	18, // 25: clips.v1.Clip.key:type_name -> clips.v1.StoryKey
-	17, // 26: clips.v1.Clip.countries:type_name -> clips.v1.TaggedCountry
-	11, // 27: clips.v1.Clip.record:type_name -> clips.v1.ClipRecord
-	12, // 28: clips.v1.ClipRecord.common:type_name -> clips.v1.ClipCommon
-	13, // 29: clips.v1.ClipRecord.globe:type_name -> clips.v1.GlobeReplay
-	28, // 30: clips.v1.ClipRecord.variants:type_name -> clips.v1.ClipRecord.VariantsEntry
-	30, // 31: clips.v1.GlobeReplay.story_ended_at:type_name -> google.protobuf.Timestamp
-	11, // 32: clips.v1.PostRecord.clip:type_name -> clips.v1.ClipRecord
-	15, // 33: clips.v1.PostRecord.post:type_name -> clips.v1.PostFacts
-	30, // 34: clips.v1.PostFacts.scheduled_at:type_name -> google.protobuf.Timestamp
-	29, // 35: clips.v1.PostFacts.variants:type_name -> clips.v1.PostFacts.VariantsEntry
-	16, // 36: clips.v1.PostFacts.sound:type_name -> clips.v1.TikTokSound
-	37, // [37:37] is the sub-list for method output_type
-	37, // [37:37] is the sub-list for method input_type
-	37, // [37:37] is the sub-list for extension type_name
-	37, // [37:37] is the sub-list for extension extendee
-	0,  // [0:37] is the sub-list for field type_name
+	26, // 20: clips.v1.Tour.flipped_by_continent:type_name -> clips.v1.Tour.FlippedByContinentEntry
+	27, // 21: clips.v1.Place.rivals:type_name -> clips.v1.Place.RivalsEntry
+	18, // 22: clips.v1.Seasonal.key:type_name -> clips.v1.StoryKey
+	8,  // 23: clips.v1.Seasonal.facts:type_name -> clips.v1.StoryFacts
+	28, // 24: clips.v1.StoryFacts.names:type_name -> clips.v1.StoryFacts.NamesEntry
+	31, // 25: clips.v1.StoryFacts.story_ended_at:type_name -> google.protobuf.Timestamp
+	18, // 26: clips.v1.Clip.key:type_name -> clips.v1.StoryKey
+	17, // 27: clips.v1.Clip.countries:type_name -> clips.v1.TaggedCountry
+	11, // 28: clips.v1.Clip.record:type_name -> clips.v1.ClipRecord
+	12, // 29: clips.v1.ClipRecord.common:type_name -> clips.v1.ClipCommon
+	13, // 30: clips.v1.ClipRecord.globe:type_name -> clips.v1.GlobeReplay
+	29, // 31: clips.v1.ClipRecord.variants:type_name -> clips.v1.ClipRecord.VariantsEntry
+	31, // 32: clips.v1.GlobeReplay.story_ended_at:type_name -> google.protobuf.Timestamp
+	11, // 33: clips.v1.PostRecord.clip:type_name -> clips.v1.ClipRecord
+	15, // 34: clips.v1.PostRecord.post:type_name -> clips.v1.PostFacts
+	31, // 35: clips.v1.PostFacts.scheduled_at:type_name -> google.protobuf.Timestamp
+	30, // 36: clips.v1.PostFacts.variants:type_name -> clips.v1.PostFacts.VariantsEntry
+	16, // 37: clips.v1.PostFacts.sound:type_name -> clips.v1.TikTokSound
+	38, // [38:38] is the sub-list for method output_type
+	38, // [38:38] is the sub-list for method input_type
+	38, // [38:38] is the sub-list for extension type_name
+	38, // [38:38] is the sub-list for extension extendee
+	0,  // [0:38] is the sub-list for field type_name
 }
 
 func init() { file_clips_v1_clips_proto_init() }
@@ -2292,7 +2309,7 @@ func file_clips_v1_clips_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_clips_v1_clips_proto_rawDesc), len(file_clips_v1_clips_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   30,
+			NumMessages:   31,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

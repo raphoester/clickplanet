@@ -96,6 +96,8 @@ type Tour struct {
 	NextTook int
 	Solidity float64
 	Bombs    int
+	// The tiles of the landmasses whose painted flag switched to it, big enough to read from far, by continent.
+	FlippedByContinent map[string]int
 }
 
 type PlaceKind string
@@ -215,7 +217,12 @@ func (f Findings) Check(story Story) (StoryKey, error) {
 		if story.Tour > len(f.Tours) {
 			return StoryKey{}, fmt.Errorf("%w: no tour %d of %d", ErrInvalidStory, story.Tour, len(f.Tours))
 		}
-		return StoryKey{Flag: f.Tours[story.Tour-1].Flag, Continent: TheWorld}, nil
+		tour := f.Tours[story.Tour-1]
+		if len(tour.FlippedByContinent) == 0 {
+			return StoryKey{}, fmt.Errorf("%w: no landmass's painted flag switched to %q on tour %d, and a tour shows nothing else",
+				ErrInvalidStory, tour.Flag, story.Tour)
+		}
+		return StoryKey{Flag: tour.Flag, Continent: TheWorld}, nil
 	case story.Place > 0:
 		if story.Place > len(f.Places) {
 			return StoryKey{}, fmt.Errorf("%w: no place %d of %d", ErrInvalidStory, story.Place, len(f.Places))

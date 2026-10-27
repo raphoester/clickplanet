@@ -64,15 +64,31 @@ describe("the facts of a front", () => {
 })
 
 describe("the facts of a tour", () => {
-    it("counts what the flag took on each continent and from whom", () => {
-        const changes = [change(1, "fr", "pw"), change(2, "fr", "pw"), change(11, "dz", "pw"), change(5, undefined, "pw"), change(7, "pw", "de")]
-        const after = new Map<number, string>([[1, "pw"], [2, "pw"], [11, "pw"], [5, "pw"], [7, "de"]])
+    const changes = [change(1, "fr", "pw"), change(2, "fr", "pw"), change(11, "dz", "pw"), change(5, undefined, "pw"), change(7, "pw", "de")]
+    const after = new Map<number, string>([[1, "pw"], [2, "pw"], [11, "pw"], [5, "pw"], [7, "de"]])
+    const continentOf = (tile: number) => REGIONS[GROUND.get(tile) ?? ""]
 
-        const facts = tourFactsOf("pw", changes, after, (tile) => REGIONS[GROUND.get(tile) ?? ""], pointOf)
+    it("counts what the flag took on each continent and from whom", () => {
+        const facts = tourFactsOf("pw", changes, after, continentOf, pointOf, [])
 
         expect(facts.took).toBe(3)
         expect(facts.byContinent).toEqual({Europe: 2, Africa: 1})
         expect(facts.tookFrom).toEqual({fr: 2, dz: 1})
+        expect(facts.flippedByContinent).toEqual({})
+    })
+
+    it("sums the tiles of the landmasses whose painted flag switched to it, by continent: all a tour shows from far", () => {
+        const flips = [
+            {landmass: 1, tiles: 300, holders: ["fr", "pw"], tile: 1},
+            {landmass: 2, tiles: 140, holders: ["de", "pw"], tile: 7},
+            {landmass: 3, tiles: 80, holders: ["dz", "pw"], tile: 11},
+            {landmass: 4, tiles: 500, holders: ["pw", "de"], tile: 2},
+        ]
+
+        const facts = tourFactsOf("pw", changes, after, continentOf, pointOf, flips)
+
+        // The islet in Africa is too small to read.
+        expect(facts.flippedByContinent).toEqual({Europe: 440})
     })
 })
 

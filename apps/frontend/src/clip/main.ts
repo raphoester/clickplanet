@@ -25,7 +25,7 @@ import {ROUND_PLAY_MS, roundStoryOf} from "../domain/clip/round.ts"
 import {callUpsOf} from "../domain/clip/callup.ts"
 import {fightersOf, inPlace, Story, storyKeyOf, teamFlagOf, THE_WORLD} from "../domain/clip/story.ts"
 import {scoreOf} from "../domain/clip/score.ts"
-import {Flip, flipsOf, Look, lookOf} from "../domain/clip/look.ts"
+import {Flip, flippedTo, flipsOf, Look, lookOf} from "../domain/clip/look.ts"
 import {cameraOf, framingOf, openingOf, PullBack, screensOf} from "../domain/clip/camera.ts"
 import {paceOf, playedAt, PODIUM_ENDING_SECONDS, timelineFor, timelineOf} from "../domain/clip/pace.ts"
 import {stopsOf, tourOf, tourSecondsOf, Visit} from "../domain/clip/tour.ts"
@@ -263,11 +263,14 @@ async function choose(): Promise<Chosen> {
     const tours = focus === undefined ? sweeps.filter((one, i) => sweeps.findIndex((other) => other.flag === one.flag) === i) : []
     const tourFound = ({candidate, flag, front, nextTook}: SpottedTour): TourFound => {
         const backend = cutOf(front, candidate)
-        const facts = tourFactsOf(flag, front.changes, ownersAfter(backend.opening, backend.changes()), continentAt, pointAt)
+        const changes = backend.changes()
+        const flips = flipsOf(borders.assignment, backend.opening, changes, front.changes.map(({tile}) => tile))
+        const facts = tourFactsOf(flag, front.changes, ownersAfter(backend.opening, changes), continentAt, pointAt, flips)
         return {since: backend.since, until: backend.until, ...facts, flag, nextTook, bombs: backend.drops().filter(({drop}) => drop.tile !== undefined).length}
     }
-    const visitsOf = (front: Front, flag: string, shareOf: (at: number) => number): Visit[] =>
-        front.changes.flatMap(({tile, to, at}) => to === flag ? [{share: shareOf(at), point: pointAt(tile), region: continentAt(tile)}] : [])
+    // on: the tiles a visit counts on, when not all of them.
+    const visitsOf = (front: Front, flag: string, shareOf: (at: number) => number, on: (tile: number) => boolean = () => true): Visit[] =>
+        front.changes.flatMap(({tile, to, at}) => to === flag && on(tile) ? [{share: shareOf(at), point: pointAt(tile), region: continentAt(tile)}] : [])
 
     // What the map is, beside what changed on it: the flag holding the most of each place, as the map stands at the end.
     const window = everything.filter(({at}) => at >= since && at <= until)
@@ -391,7 +394,11 @@ async function choose(): Promise<Chosen> {
         const close = Math.max(first.zoom, tilesZoomOf(root.clientHeight) * DIVE_DEPTH)
         const screens = screensOf(front.changes.map(({tile}, i) => ({share: i / front.changes.length, point: pointAt(tile)})), close)
         const pace = paceOf(front.changes.map(({at}) => at), backend.since, backend.until)
-        const stops = world ? stopsOf(visitsOf(front, story.attacker, pace.shareOf), aspect) : []
+        // A tour stays far out, where only a landmass's painted flag switching is seen: its stops are framed on the
+        // landmasses that switched to the flag, and nowhere else.
+        const switched = new Set(flippedTo(flips, story.attacker).map(({landmass}) => landmass))
+        const stops = world ? stopsOf(visitsOf(front, story.attacker, pace.shareOf, (tile) => switched.has(borders.assignment[tile - 1])), aspect) : []
+        if (world && stops.length === 0) throw new Error(`no painted flag switches to ${nameOf(story.attacker)}: a tour shows nothing`)
         // A tour is already as short as it plays: each stop is its flight and its stay, so "short" leaves it as it is.
         const timeline = world ? timelineFor(tourSecondsOf(stops.length), numberParam("seconds"))
             : timelineOf(screens, numberParam("seconds"), seasonal ? PODIUM_ENDING_SECONDS : undefined, variants.length)
