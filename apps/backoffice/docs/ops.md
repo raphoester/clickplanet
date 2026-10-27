@@ -36,7 +36,7 @@ an `enabled` field, read off the proto, so a new one shows with no edit here.
   (`Rules.fromJsonString`: a typo in a key is refused here, with protobuf's words). The server holds the bounds; its
   refusal is quoted, every reason, and the form stays.
 
-**Season rules** (`SeasonRulesPanel`, `seasonRules.ts`) is `seasons.v1.AdminService/GetRules` and `SaveRuleSet` (the
+**Season rules** (`SeasonRulesPanel`, `seasonRules.ts`) is `scoring.v1.AdminService/GetRules` and `SaveRuleSet` (the
 backend's [season rules](../../backend/docs/season-rules.md)): every set postgres keeps, `default` first, with its round
 ("Days only", or "Of its own, 3× a day's points"), and the set playing, marked.
 
@@ -49,15 +49,15 @@ backend's [season rules](../../backend/docs/season-rules.md)): every set postgre
 - **Edit**, **Copy** and **Save** work as on Anti-bot rules: the set playing has no Edit, a save asks first, and the
   server's refusal is quoted ("A set of this name plays now. Save it under another name.").
 
-**Rule schedule** (`SchedulePanel`, `schedule.ts`) is `metagame.v1.AdminService` (the backend's
-[metagame module](../../backend/docs/metagame.md)), with planet's, the antibot's and seasons' `GetRules` beside it:
+**Rule schedule** (`SchedulePanel`, `schedule.ts`) is `gamemaster.v1.AdminService` (the backend's
+[gamemaster module](../../backend/docs/gamemaster.md)), with planet's, the antibot's and scoring's `GetRules` beside it:
 
-- **What plays now, its kind and since when**, from `GetSchedule.playing`, and what planet, the antibot and seasons
+- **What plays now, its kind and since when**, from `GetSchedule.playing`, and what planet, the antibot and scoring
   each play. When a module does not play the schedule's set, the page says so in red: a module refused it, since it
   keeps no such set.
 - **The schedule**: every entry, by start, with its kind and its description (cut at 60 characters, whole on hover),
   the row playing marked, an ended one muted. A row that has not ended and names a set a module keeps none of says
-  which ("No set rush in planet, the antibot or seasons.").
+  which ("No set rush in planet, the antibot or scoring.").
 - **Only an entry to come has Edit and Delete.** A running entry runs to its end; to change what plays, add an entry
   at a higher priority. There is no button that changes the rules at once.
 - **Add an entry** opens a form: the set (only the ones all three modules keep), its kind, its description, its start and
@@ -68,6 +68,6 @@ backend's [season rules](../../backend/docs/season-rules.md)): every set postgre
   ("Triple points. A bonus box every minute."): the client cannot know a set's values, so the operator writes them.
   At most 300 characters (`MAX_DESCRIPTION`, the server's bound, which the field and `complete` hold too); it may be
   empty.
-- **The kind is what the entry is to the players** (`metagame.v1.EntryKind`): `battle`, which the game client gives a
+- **The kind is what the entry is to the players** (`gamemaster.v1.EntryKind`): `battle`, which the game client gives a
   war-like look, or `plain`, a change of the rules with no look. A new entry starts as a battle. The picker lists every
   kind the proto names but unspecified (`kinds`, `wordOf`), so a kind added to the contract shows with no edit here.

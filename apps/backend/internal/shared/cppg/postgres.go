@@ -242,6 +242,34 @@ func (p *Postgres) Migrate(ctx context.Context, migrations fs.FS) error {
 	return nil
 }
 
+// Run before Migrate, which would make an empty schema of the new name and miss the history kept under the old one.
+func (p *Postgres) RenameSchemaFrom(ctx context.Context, old string) error {
+	if !schemaName.MatchString(old) {
+		return fmt.Errorf("schema %q is not a lowercase identifier", old)
+	}
+
+	var oldExists, newExists bool
+	if err := p.sqlClient.QueryRowContext(ctx, `
+		SELECT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = $1),
+		       EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = $2)
+	`, old, p.config.Schema).Scan(&oldExists, &newExists); err != nil {
+		return fmt.Errorf("failed to look for the schemas %s and %s: %w", old, p.config.Schema, err)
+	}
+
+	switch {
+	case !oldExists:
+		return nil
+	case newExists:
+		return fmt.Errorf("both the schemas %s and %s exist: keep one by hand", old, p.config.Schema)
+	}
+
+	if _, err := p.sqlClient.ExecContext(ctx,
+		"ALTER SCHEMA "+pq.QuoteIdentifier(old)+" RENAME TO "+pq.QuoteIdentifier(p.config.Schema)); err != nil {
+		return fmt.Errorf("failed to rename the schema %s to %s: %w", old, p.config.Schema, err)
+	}
+	return nil
+}
+
 func CloseAfter(db *Postgres, logger *slog.Logger, runners ...cpbootstrap.Runner) cpbootstrap.Runner {
 	return closeAfter{runners: runners, db: db, logger: logger}
 }

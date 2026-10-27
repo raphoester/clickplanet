@@ -1,7 +1,7 @@
 import {describe, expect, it, vi} from "vitest"
 import {Code, ConnectError} from "@connectrpc/connect"
 import {Timestamp} from "@bufbuild/protobuf"
-import {EntryKind, GetTurnResponse} from "../gen/grpc/metagame/v1/metagame_pb.ts"
+import {EntryKind, GetTurnResponse} from "../gen/grpc/gamemaster/v1/gamemaster_pb.ts"
 import {ConnectTurnBackend, turnOf} from "./turnBackend.ts"
 
 const noWakeups = () => () => {}

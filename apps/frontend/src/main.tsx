@@ -16,7 +16,7 @@ import {FakeMissionsBackend} from "./backends/fakeMissionsBackend.ts"
 import {FakeSeasonBackend, SEASON_ZERO} from "./backends/fakeSeasonBackend.ts"
 import {ConnectSeasonBackend, newSeasonServiceClient} from "./backends/seasonBackend.ts"
 import {FakeTurnBackend} from "./backends/fakeTurnBackend.ts"
-import {ConnectTurnBackend, newMetagameServiceClient} from "./backends/turnBackend.ts"
+import {ConnectTurnBackend, newGamemasterServiceClient} from "./backends/turnBackend.ts"
 import {API_BASE_URL} from "./backends/transport.ts"
 import {ConnectionHealth, connectionInterceptor, followBrowser} from "./backends/connection.ts"
 import {FakeStandingsBackend} from "./backends/fakeStandingsBackend.ts"
@@ -175,7 +175,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     const backend = new PlanetBackend(newClickServiceClient(config), 100, session)
     const chatBackend = new ChatServiceBackend(newChatServiceClient(config), session, newKeepaliveChatServiceClient(config))
     const season = new ConnectSeasonBackend(newSeasonServiceClient(config))
-    const turn = new ConnectTurnBackend(newMetagameServiceClient(config))
+    const turn = new ConnectTurnBackend(newGamemasterServiceClient(config))
     const player = new ConnectPlayerBackend(newPlayerServiceClient(config), session, newKeepalivePlayerServiceClient(config))
     const standings = new ConnectStandingsBackend(newSeasonServiceClient(config), session)
     const missions = new ConnectMissionsBackend(newMissionServiceClient(config), session)

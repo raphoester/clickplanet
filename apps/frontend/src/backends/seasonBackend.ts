@@ -1,7 +1,7 @@
 import {Code, ConnectError, createPromiseClient, PromiseClient} from "@connectrpc/connect"
 import {createConnectTransport} from "@connectrpc/connect-web"
-import {SeasonService} from "../gen/grpc/seasons/v1/seasons_connect.ts"
-import {Season as SeasonPb} from "../gen/grpc/seasons/v1/seasons_pb.ts"
+import {SeasonService} from "../gen/grpc/scoring/v1/scoring_connect.ts"
+import {Season as SeasonPb} from "../gen/grpc/scoring/v1/scoring_pb.ts"
 import {Season, SeasonBackend} from "./season.ts"
 import {Config, retrying} from "./transport.ts"
 

@@ -210,7 +210,7 @@ player:
     password: env://REDIS_PASSWORD
   tagSalt: env://CHAT_TAG_SALT
 
-seasons:
+scoring:
   dailyCutoff: 21h
   list:
     - number: 0
@@ -222,14 +222,14 @@ seasons:
     user: clickplanet
     dbName: clickplanet
     sslMode: disable
-    schema: seasons
+    schema: scoring
     pool:
       maxOpenConns: 2
   redis:
     address: redis:6379
     password: env://REDIS_PASSWORD
 
-metagame:
+gamemaster:
   database:
     host: postgres
     password: env://POSTGRES_PASSWORD
@@ -237,7 +237,7 @@ metagame:
     user: clickplanet
     dbName: clickplanet
     sslMode: disable
-    schema: metagame
+    schema: gamemaster
     pool:
       maxOpenConns: 2
   redis:

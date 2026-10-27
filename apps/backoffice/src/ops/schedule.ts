@@ -1,10 +1,10 @@
 import {proto3, Timestamp} from "@bufbuild/protobuf"
-import {MetagameAdmin} from "../clients.ts"
+import {GamemasterAdmin} from "../clients.ts"
 import {GetRulesResponse as AntibotRules} from "../gen/grpc/antibot/v1/admin_pb.ts"
 import {GetRulesResponse as PlanetRules} from "../gen/grpc/planet/v1/admin_pb.ts"
-import {GetRulesResponse as SeasonRules} from "../gen/grpc/seasons/v1/admin_pb.ts"
-import {Entry, GetScheduleResponse} from "../gen/grpc/metagame/v1/admin_pb.ts"
-import {EntryKind} from "../gen/grpc/metagame/v1/metagame_pb.ts"
+import {GetRulesResponse as SeasonRules} from "../gen/grpc/scoring/v1/admin_pb.ts"
+import {Entry, GetScheduleResponse} from "../gen/grpc/gamemaster/v1/admin_pb.ts"
+import {EntryKind} from "../gen/grpc/gamemaster/v1/gamemaster_pb.ts"
 
 // A line of the schedule: an entry and its times.
 export type Row = {entry: Entry, startsAt?: Date, endsAt?: Date}
@@ -26,14 +26,14 @@ export function changeable(row: Row, now: Date): boolean {
 }
 
 // What each module the schedule commands keeps and plays.
-export type Modules = {planet: PlanetRules, antibot: AntibotRules, seasons: SeasonRules}
+export type Modules = {planet: PlanetRules, antibot: AntibotRules, scoring: SeasonRules}
 
 // The modules that keep no set of this name.
 export function lacking(set: string, modules: Modules): string[] {
     const missing: string[] = []
     if (!modules.planet.sets.some(kept => kept.name === set)) missing.push("planet")
     if (!modules.antibot.sets.some(kept => kept.name === set)) missing.push("the antibot")
-    if (!modules.seasons.sets.some(kept => kept.name === set)) missing.push("seasons")
+    if (!modules.scoring.sets.some(kept => kept.name === set)) missing.push("scoring")
     return missing
 }
 
@@ -53,7 +53,7 @@ export function wordOf(kind: EntryKind): string {
     return (value?.localName ?? "unknown").toLowerCase()
 }
 
-// The server refuses a longer description (metagame.v1.AddEntryRequest.description).
+// The server refuses a longer description (gamemaster.v1.AddEntryRequest.description).
 export const MAX_DESCRIPTION = 300
 
 // What the list shows of a description.
@@ -105,14 +105,14 @@ export function questionOf(draft: Draft): string {
         `${new Date(draft.endsAt).toLocaleString()}, at priority ${draft.priority}?`
 }
 
-export async function addEntry(metagame: MetagameAdmin, draft: Draft): Promise<void> {
-    await metagame.addEntry(valuesOf(draft))
+export async function addEntry(gamemaster: GamemasterAdmin, draft: Draft): Promise<void> {
+    await gamemaster.addEntry(valuesOf(draft))
 }
 
-export async function editEntry(metagame: MetagameAdmin, id: string, draft: Draft): Promise<void> {
-    await metagame.editEntry({id, ...valuesOf(draft)})
+export async function editEntry(gamemaster: GamemasterAdmin, id: string, draft: Draft): Promise<void> {
+    await gamemaster.editEntry({id, ...valuesOf(draft)})
 }
 
-export async function deleteEntry(metagame: MetagameAdmin, id: string): Promise<void> {
-    await metagame.deleteEntry({id})
+export async function deleteEntry(gamemaster: GamemasterAdmin, id: string): Promise<void> {
+    await gamemaster.deleteEntry({id})
 }

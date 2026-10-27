@@ -7,7 +7,7 @@ once (`app/season/RoundReveal.tsx`; the rules are in `domain/roundReveal.ts`).
   the round closed last: its season, its number, its end, whether it was the
   finale, the countries that scored in it, and the season's table before and
   after it; for a round of its own also its start, its times, the tiles each flag
-  took and its top players (`ClosedRound`; the backend's [Seasons](../../backend/docs/seasons.md)).
+  took and its top players (`ClosedRound`; the backend's [Scoring](../../backend/docs/scoring.md)).
   `useRoundReveal` reads it from the race `Viewer` already follows (`useRace`).
 - **A round closes at its end**, so `closed` reaches the page at most 10s
   after it, at the backend's next read of the race.

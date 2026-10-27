@@ -22,8 +22,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
-	seasonsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/seasons/v1"
-	"github.com/raphoester/clickplanet.lol-backend/generated/proto/seasons/v1/seasonsv1connect"
+	scoringv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1"
+	"github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1/scoringv1connect"
 	supportv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/support/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/support/v1/supportv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth"
@@ -237,12 +237,12 @@ func (p *gamer) missions() []*missionsv1.Mission {
 	return res.Msg.GetMissions()
 }
 
-func (p *gamer) mySeason() *seasonsv1.GetMySeasonResponse {
+func (p *gamer) mySeason() *scoringv1.GetMySeasonResponse {
 	p.t.Helper()
 
-	req := connect.NewRequest(&seasonsv1.GetMySeasonRequest{})
+	req := connect.NewRequest(&scoringv1.GetMySeasonRequest{})
 	p.send(req.Header())
-	res, err := seasonsv1connect.NewSeasonServiceClient(http.DefaultClient, p.stack.baseURL).GetMySeason(p.t.Context(), req)
+	res, err := scoringv1connect.NewSeasonServiceClient(http.DefaultClient, p.stack.baseURL).GetMySeason(p.t.Context(), req)
 	require.NoError(p.t, err)
 	return res.Msg
 }

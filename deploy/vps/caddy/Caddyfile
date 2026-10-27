@@ -87,7 +87,13 @@
 		}
 	}
 
-	handle /seasons.v1.SeasonService/* {
+	handle /scoring.v1.SeasonService/* {
+		reverse_proxy backend:8080 {
+			header_up X-Real-IP {client_ip}
+		}
+	}
+
+	handle /gamemaster.v1.GamemasterService/* {
 		reverse_proxy backend:8080 {
 			header_up X-Real-IP {client_ip}
 		}

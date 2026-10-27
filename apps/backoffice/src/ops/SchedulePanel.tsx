@@ -1,11 +1,11 @@
 import {ConnectError, Code} from "@connectrpc/connect"
 import {useCallback, useState} from "react"
-import {AntibotAdmin, PlanetAdmin, MetagameAdmin, SeasonsAdmin} from "../clients.ts"
+import {AntibotAdmin, PlanetAdmin, GamemasterAdmin, ScoringAdmin} from "../clients.ts"
 import {ConfirmAction} from "../components/ConfirmAction.tsx"
 import {FailureNotice} from "../components/FailureNotice.tsx"
 import {When} from "../components/When.tsx"
-import {Entry, GetScheduleResponse} from "../gen/grpc/metagame/v1/admin_pb.ts"
-import {EntryKind} from "../gen/grpc/metagame/v1/metagame_pb.ts"
+import {Entry, GetScheduleResponse} from "../gen/grpc/gamemaster/v1/admin_pb.ts"
+import {EntryKind} from "../gen/grpc/gamemaster/v1/gamemaster_pb.ts"
 import {wordsOf} from "../refusal.ts"
 import {useCall} from "../useCall.ts"
 import {
@@ -25,16 +25,16 @@ const refusal = (err: unknown) => {
 // Editing: an entry to come, or undefined for a new one.
 type Editing = {entry: Entry | undefined}
 
-export function SchedulePanel({metagame, planet, antibot, seasons}: {
-    metagame: MetagameAdmin, planet: PlanetAdmin, antibot: AntibotAdmin, seasons: SeasonsAdmin,
+export function SchedulePanel({gamemaster, planet, antibot, scoring}: {
+    gamemaster: GamemasterAdmin, planet: PlanetAdmin, antibot: AntibotAdmin, scoring: ScoringAdmin,
 }) {
     const read = useCallback(async (signal: AbortSignal): Promise<Read> => {
         const [schedule, planetRules, antibotRules, seasonRules] = await Promise.all([
-            metagame.getSchedule({}, {signal}), planet.getRules({}, {signal}), antibot.getRules({}, {signal}),
-            seasons.getRules({}, {signal}),
+            gamemaster.getSchedule({}, {signal}), planet.getRules({}, {signal}), antibot.getRules({}, {signal}),
+            scoring.getRules({}, {signal}),
         ])
-        return {schedule, planet: planetRules, antibot: antibotRules, seasons: seasonRules}
-    }, [metagame, planet, antibot, seasons])
+        return {schedule, planet: planetRules, antibot: antibotRules, scoring: seasonRules}
+    }, [gamemaster, planet, antibot, scoring])
     const [state, again] = useCall(read)
     const [editing, setEditing] = useState<Editing | undefined>(undefined)
 
@@ -52,7 +52,7 @@ export function SchedulePanel({metagame, planet, antibot, seasons}: {
                     <Playing read={state.value}/>
                     <Rows
                         read={state.value}
-                        metagame={metagame}
+                        gamemaster={gamemaster}
                         onEdit={entry => setEditing({entry})}
                         onDeleted={changed}
                     />
@@ -64,7 +64,7 @@ export function SchedulePanel({metagame, planet, antibot, seasons}: {
                     {editing !== undefined && (
                         <EntryForm
                             key={editing.entry?.id ?? "new"}
-                            metagame={metagame}
+                            gamemaster={gamemaster}
                             entry={editing.entry}
                             sets={playable(state.value)}
                             onCancel={() => setEditing(undefined)}
@@ -88,7 +88,7 @@ function Playing({read}: {read: Read}) {
             </p>
             <p className="hint">
                 Planet plays <code>{read.planet.playing}</code>, the antibot plays <code>{read.antibot.playing}</code>,
-                seasons plays <code>{read.seasons.playing}</code>.
+                scoring plays <code>{read.scoring.playing}</code>.
             </p>
             {read.planet.playing !== set && (
                 <p className="action-refused" role="alert">Planet does not play <code>{set}</code>.</p>
@@ -96,15 +96,15 @@ function Playing({read}: {read: Read}) {
             {read.antibot.playing !== set && (
                 <p className="action-refused" role="alert">The antibot does not play <code>{set}</code>.</p>
             )}
-            {read.seasons.playing !== set && (
-                <p className="action-refused" role="alert">Seasons does not play <code>{set}</code>.</p>
+            {read.scoring.playing !== set && (
+                <p className="action-refused" role="alert">Scoring does not play <code>{set}</code>.</p>
             )}
         </>
     )
 }
 
-function Rows({read, metagame, onEdit, onDeleted}: {
-    read: Read, metagame: MetagameAdmin, onEdit: (entry: Entry) => void, onDeleted: () => void,
+function Rows({read, gamemaster, onEdit, onDeleted}: {
+    read: Read, gamemaster: GamemasterAdmin, onEdit: (entry: Entry) => void, onDeleted: () => void,
 }) {
     const now = new Date()
     const playing = read.schedule.playing?.entryId ?? ""
@@ -132,7 +132,7 @@ function Rows({read, metagame, onEdit, onDeleted}: {
                         <td title={row.entry.description}>{shortOf(row.entry.description)}</td>
                         <td>{row.entry.priority}</td>
                         <td>{changeable(row, now) && (
-                            <EntryActions row={row} metagame={metagame} onEdit={onEdit} onDeleted={onDeleted}/>
+                            <EntryActions row={row} gamemaster={gamemaster} onEdit={onEdit} onDeleted={onDeleted}/>
                         )}</td>
                     </tr>
                 ))}
@@ -148,8 +148,8 @@ function Lacking({set, read}: {set: string, read: Read}) {
     return <p className="action-refused" role="alert">No set {set} in {named}.</p>
 }
 
-function EntryActions({row, metagame, onEdit, onDeleted}: {
-    row: Row, metagame: MetagameAdmin, onEdit: (entry: Entry) => void, onDeleted: () => void,
+function EntryActions({row, gamemaster, onEdit, onDeleted}: {
+    row: Row, gamemaster: GamemasterAdmin, onEdit: (entry: Entry) => void, onDeleted: () => void,
 }) {
     return (
         <>
@@ -158,7 +158,7 @@ function EntryActions({row, metagame, onEdit, onDeleted}: {
                 label="Delete"
                 tone="danger"
                 question={`Delete the entry ${row.entry.ruleSet}, from ${row.startsAt?.toLocaleString()}?`}
-                run={() => deleteEntry(metagame, row.entry.id)}
+                run={() => deleteEntry(gamemaster, row.entry.id)}
                 said={() => "Deleted."}
                 refusal={refusal}
                 onDone={onDeleted}
@@ -167,8 +167,8 @@ function EntryActions({row, metagame, onEdit, onDeleted}: {
     )
 }
 
-function EntryForm({metagame, entry, sets, onCancel, onDone}: {
-    metagame: MetagameAdmin, entry: Entry | undefined, sets: string[], onCancel: () => void, onDone: () => void,
+function EntryForm({gamemaster, entry, sets, onCancel, onDone}: {
+    gamemaster: GamemasterAdmin, entry: Entry | undefined, sets: string[], onCancel: () => void, onDone: () => void,
 }) {
     const [draft, setDraft] = useState(() => draftOf(entry, sets))
     const change = (part: Partial<Draft>) => setDraft(was => ({...was, ...part}))
@@ -214,7 +214,7 @@ function EntryForm({metagame, entry, sets, onCancel, onDone}: {
                 label={entry === undefined ? "Add" : "Save"}
                 disabled={!complete(draft)}
                 question={questionOf(draft)}
-                run={() => entry === undefined ? addEntry(metagame, draft) : editEntry(metagame, entry.id, draft)}
+                run={() => entry === undefined ? addEntry(gamemaster, draft) : editEntry(gamemaster, entry.id, draft)}
                 said={() => "Scheduled."}
                 refusal={refusal}
                 onDone={onDone}

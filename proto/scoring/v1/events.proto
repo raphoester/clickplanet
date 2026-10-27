@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package scoring.v1;
+
+import "google/protobuf/timestamp.proto";
+
+message RoundClosed {
+  uint32 season = 1;
+  // A day's place among the season's days; a round of its own's among the season's rounds of their own.
+  uint32 number = 2;
+  // The round that ended the season.
+  bool finale = 3;
+  google.protobuf.Timestamp ended_at = 4;
+  repeated RoundResult results = 5;
+  // A round of its own: the window of a schedule entry whose set asked for one, not a day.
+  bool own = 6;
+  // How many times a day's points it scored: 1 for a day.
+  uint32 times = 7;
+}
+
+message RoundResult {
+  string country = 1;
+  uint32 rank = 2;
+  uint32 points = 3;
+}
+
+message SeasonClosed {
+  uint32 season = 1;
+  google.protobuf.Timestamp ended_at = 2;
+  repeated SeasonPlace table = 3;
+}
+
+message SeasonPlace {
+  string country = 1;
+  uint32 rank = 2;
+  uint32 points = 3;
+  uint32 rounds_won = 4;
+  uint32 finale_points = 5;
+}

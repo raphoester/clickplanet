@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package scoring.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// What another module asks of scoring, in scoring's words, over Redis Streams.
+
+// Counts points with the rule set of this name. Scoring keeps the latest decision by decided_at, so a command sent
+// twice, or after a newer one, changes nothing. A name scoring keeps no set of is refused, and scoring counts on with
+// the set it plays.
+message PlayRuleSet {
+  string rule_set = 1;
+  google.protobuf.Timestamp decided_at = 2;
+  // The window of the schedule entry that plays the set, which never changes once the entry runs: a set with a round of
+  // its own makes it of this window. Both unset when no entry runs and default plays.
+  google.protobuf.Timestamp starts_at = 3;
+  google.protobuf.Timestamp ends_at = 4;
+}

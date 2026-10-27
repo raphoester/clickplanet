@@ -1,7 +1,7 @@
 import {Timestamp} from "@bufbuild/protobuf"
 import {describe, expect, it} from "vitest"
 import {FakeAdmin} from "../fakeAdmin.ts"
-import {EntryKind} from "../gen/grpc/metagame/v1/metagame_pb.ts"
+import {EntryKind} from "../gen/grpc/gamemaster/v1/gamemaster_pb.ts"
 import {changeable, complete, draftOf, ended, kinds, lacking, playable, questionOf, rowsOf, shortOf, wordOf} from "./schedule.ts"
 
 describe("the schedule's rows", () => {
@@ -21,11 +21,11 @@ describe("the schedule's rows", () => {
 describe("the sets", () => {
     it("an entry plays are the ones every module keeps", () => {
         const admin = new FakeAdmin()
-        const modules = {planet: admin.rules, antibot: admin.antibotRules, seasons: admin.seasonRules}
+        const modules = {planet: admin.rules, antibot: admin.antibotRules, scoring: admin.seasonRules}
 
         expect(playable(modules)).toEqual(["default"])
         expect(lacking("rush", modules)).toEqual(["planet", "the antibot"])
-        expect(lacking("frozen", modules)).toEqual(["planet", "the antibot", "seasons"])
+        expect(lacking("frozen", modules)).toEqual(["planet", "the antibot", "scoring"])
         expect(lacking("default", modules)).toEqual([])
     })
 })

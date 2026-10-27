@@ -3,7 +3,7 @@ import {Code} from "@connectrpc/connect"
 import {cleanup, fireEvent, render, screen, waitFor, within} from "@testing-library/react"
 import {afterEach, describe, expect, it} from "vitest"
 import {FakeAdmin} from "../fakeAdmin.ts"
-import {RuleSet} from "../gen/grpc/seasons/v1/admin_pb.ts"
+import {RuleSet} from "../gen/grpc/scoring/v1/admin_pb.ts"
 import {SeasonRulesPanel} from "./SeasonRulesPanel.tsx"
 
 afterEach(cleanup)
@@ -21,7 +21,7 @@ const save = () => {
 
 describe("the season rules page", () => {
     it("lists every set with its round, the one playing marked", async () => {
-        render(<SeasonRulesPanel seasons={new FakeAdmin().seasons}/>)
+        render(<SeasonRulesPanel scoring={new FakeAdmin().scoring}/>)
 
         await screen.findByRole("button", {name: "Copy default"})
         expect(screen.getByText("default", {selector: "code"})).toBeTruthy()
@@ -31,7 +31,7 @@ describe("the season rules page", () => {
     })
 
     it("offers no edit of the set that plays, only a copy", async () => {
-        render(<SeasonRulesPanel seasons={new FakeAdmin().seasons}/>)
+        render(<SeasonRulesPanel scoring={new FakeAdmin().scoring}/>)
 
         await screen.findByRole("button", {name: "Copy default"})
         expect(screen.queryByRole("button", {name: "Edit default"})).toBeNull()
@@ -40,7 +40,7 @@ describe("the season rules page", () => {
 
     it("edits a set that does not play once confirmed, and reads the rules again", async () => {
         const admin = new FakeAdmin()
-        render(<SeasonRulesPanel seasons={admin.seasons}/>)
+        render(<SeasonRulesPanel scoring={admin.scoring}/>)
 
         fireEvent.click(await screen.findByRole("button", {name: "Edit rush"}))
         expect((screen.getByLabelText("Name") as HTMLInputElement).disabled).toBe(true)
@@ -56,7 +56,7 @@ describe("the season rules page", () => {
 
     it("makes a battle's set from a copy of default", async () => {
         const admin = new FakeAdmin()
-        render(<SeasonRulesPanel seasons={admin.seasons}/>)
+        render(<SeasonRulesPanel scoring={admin.scoring}/>)
 
         fireEvent.click(await screen.findByRole("button", {name: "Copy default"}))
         expect((screen.getByRole("button", {name: "Save"}) as HTMLButtonElement).disabled).toBe(true)
@@ -70,7 +70,7 @@ describe("the season rules page", () => {
 
     it("sends nothing while the points are not 1 to 10", async () => {
         const admin = new FakeAdmin()
-        render(<SeasonRulesPanel seasons={admin.seasons}/>)
+        render(<SeasonRulesPanel scoring={admin.scoring}/>)
 
         fireEvent.click(await screen.findByRole("button", {name: "Edit rush"}))
         for (const times of ["0", "11", "2.5", ""]) {
@@ -83,7 +83,7 @@ describe("the season rules page", () => {
     it("says a name that plays now cannot be saved", async () => {
         const admin = new FakeAdmin()
         admin.refuse("saveRuleSet", Code.FailedPrecondition)
-        render(<SeasonRulesPanel seasons={admin.seasons}/>)
+        render(<SeasonRulesPanel scoring={admin.scoring}/>)
 
         fireEvent.click(await screen.findByRole("button", {name: "Copy default"}))
         type("Name", "urf")

@@ -238,7 +238,7 @@ player:
     password: ""
   tagSalt: ""
 
-seasons:
+scoring:
   dailyCutoff: 21h
   list:
     - number: 0
@@ -250,14 +250,14 @@ seasons:
     password: postgres
     dbName: postgres
     sslMode: disable
-    schema: seasons
+    schema: scoring
     pool:
       maxOpenConns: 2
   redis:
     address: localhost:6379
     password: ""
 
-metagame:
+gamemaster:
   database:
     host: localhost
     port: "5432"
@@ -265,7 +265,7 @@ metagame:
     password: postgres
     dbName: postgres
     sslMode: disable
-    schema: metagame
+    schema: gamemaster
     pool:
       maxOpenConns: 2
   redis:

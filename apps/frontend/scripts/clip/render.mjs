@@ -23,9 +23,9 @@ if (!replay || has("help")) {
   --pick <n>          the clip's number in its run, which names its files: clip-<n>.mp4, default 1
   --out <path>        the video, default clip-<n>.mp4 beside the replay
   --plan              print what the clip would be, and make none
-  --race <path>       the season's race (seasons.v1.GetRaceResponse): the day it closed last is a story when its
+  --race <path>       the season's race (scoring.v1.GetRaceResponse): the day it closed last is a story when its
                       cutoff is in the window
-  --season <path>     the season (seasons.v1.GetSeasonResponse): with the race, each country that can still win it is
+  --season <path>     the season (scoring.v1.GetSeasonResponse): with the race, each country that can still win it is
                       called up to its Final Battle
   --silent            no anthem under the clip, for a sound added where it is posted
   --preview <s>       only the first s seconds of the clip

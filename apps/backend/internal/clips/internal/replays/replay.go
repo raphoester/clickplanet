@@ -49,7 +49,7 @@ type Store interface {
 
 // The race the season stream sends: the generator tells the day closed last when it ended in the replay.
 type Race struct {
-	// A seasons.v1.GetRaceResponse in JSON, as the backend answered it.
+	// A scoring.v1.GetRaceResponse in JSON, as the backend answered it.
 	Document []byte
 	// The day closed last as its season and its number, "1.5"; empty when no day closed yet.
 	Closed  string
@@ -65,7 +65,7 @@ type RaceStore interface {
 }
 
 type Season struct {
-	// A seasons.v1.GetSeasonResponse in JSON, as the backend answered it.
+	// A scoring.v1.GetSeasonResponse in JSON, as the backend answered it.
 	Document []byte
 	// Zero when no season is on.
 	FinaleStartsAt time.Time

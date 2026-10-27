@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	seasonsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/seasons/v1"
+	scoringv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/inmemory_announcement_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/usecases/announce_usecase"
@@ -23,10 +23,10 @@ func subscriber(store *inmemory_announcement_storage.Storage) season_closed_subs
 	return season_closed_subscriber.New(announce_usecase.New(store, inprocess_feed.New(0, slog.New(slog.DiscardHandler))))
 }
 
-var seasonZero = &seasonsv1.SeasonClosed{
+var seasonZero = &scoringv1.SeasonClosed{
 	Season:  0,
 	EndedAt: timestamppb.New(endedAt),
-	Table: []*seasonsv1.SeasonPlace{
+	Table: []*scoringv1.SeasonPlace{
 		{Country: "de", Rank: 1, Points: 118, RoundsWon: 2, FinalePoints: 75},
 		{Country: "fr", Rank: 2, Points: 97, RoundsWon: 1, FinalePoints: 54},
 	},
@@ -56,7 +56,7 @@ func TestASeasonToldAgainIsNotAnnouncedAgain(t *testing.T) {
 func TestASeasonNobodyScoredInIsNotAnnounced(t *testing.T) {
 	store := inmemory_announcement_storage.New()
 
-	require.NoError(t, subscriber(store).Handle(t.Context(), &seasonsv1.SeasonClosed{EndedAt: timestamppb.New(endedAt)}))
+	require.NoError(t, subscriber(store).Handle(t.Context(), &scoringv1.SeasonClosed{EndedAt: timestamppb.New(endedAt)}))
 
 	assert.Empty(t, store.Kept())
 }
@@ -64,7 +64,7 @@ func TestASeasonNobodyScoredInIsNotAnnounced(t *testing.T) {
 func TestASeasonWithNoEndIsRefused(t *testing.T) {
 	store := inmemory_announcement_storage.New()
 
-	require.Error(t, subscriber(store).Handle(t.Context(), &seasonsv1.SeasonClosed{Table: seasonZero.GetTable()}))
+	require.Error(t, subscriber(store).Handle(t.Context(), &scoringv1.SeasonClosed{Table: seasonZero.GetTable()}))
 
 	assert.Empty(t, store.Kept())
 }

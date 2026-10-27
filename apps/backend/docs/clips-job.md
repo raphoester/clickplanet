@@ -19,10 +19,10 @@ clips stats [-ssh <user@host>] [-since 2026-10-13]
 - **`fetch` saves a replay**: it asks the production backend's operator tool for one
   ([`GetReplay`](admin.md#getreplay)), over SSH, and writes the answer as it came. `CLICKPLANET_SSH` stands in for `-ssh`.
   With no `-hours` it is 72: the ledger keeps that much in memory, and a replay cannot reach further back.
-  **With `-race` it saves the season's race too** ([`GetRace`](seasons.md)), from which the generator
+  **With `-race` it saves the season's race too** ([`GetRace`](scoring.md)), from which the generator
   tells the day of the season closed in the replay, "FRANCE WINS DAY 5". **A race the backend does not answer is a
   warning, not a failure**: the run still has its replay, and tells no day. No race file is written then.
-  **With `-season` it saves the season's calendar** ([`GetSeason`](seasons.md)) the same way: the
+  **With `-season` it saves the season's calendar** ([`GetSeason`](scoring.md)) the same way: the
   generator calls each country that can still win up to the Final Battle, in its own language, "POLSKA: 14 PUNKTÓW
   STRATY". A season left out calls nobody up.
   **It is cheap enough to run 12 times a day**: on 2026-10-24 the 12 hours of the noon run were 40,820 events, the
@@ -297,10 +297,10 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
 - **An ssh that fails says what it complained of** (`Permission denied (publickey)`), from its standard error.
   In the workflow the host is a secret, which Actions masks in the log.
 - **The race is asked the same way, of the public listener** (`127.0.0.1:8080` in the container, `{}` for a body),
-  and checked the same: it has to read as a `seasons.v1.GetRaceResponse`. A backend from before `GetRace` answers
+  and checked the same: it has to read as a `scoring.v1.GetRaceResponse`. A backend from before `GetRace` answers
   404, which `wget` turns into a failed ssh. `fetch_race_usecase` keeps it, and `log_fetch_race` logs the day closed
   last, or warns that the race is left out: `clips.Fetch` goes on without it. The season is asked the same way, as
-  a `seasons.v1.GetSeasonResponse`, through `fetch_season_usecase` and `log_fetch_season`.
+  a `scoring.v1.GetSeasonResponse`, through `fetch_season_usecase` and `log_fetch_season`.
 - Its test runs a fake `ssh`, a shell script that keeps its arguments. No test runs the real one.
 
 **`internal/clips/internal/posts/` is the domain of the rest**, with no file, no HTTP and no clock of its own:

@@ -123,12 +123,12 @@ off in the YAML was never built. `TestAWatchdogTurnedOffKeepsWatchingAndCountsFo
 
 ## Which set plays
 
-**The schedule picks it**, in the metagame module, and commands it in the antibot's words (`antibot.v1.PlayRuleSet`, see
-[The metagame module](metagame.md)). The antibot was to follow the name of planet's set; now each module is told
+**The schedule picks it**, in the gamemaster module, and commands it in the antibot's words (`antibot.v1.PlayRuleSet`, see
+[The gamemaster module](gamemaster.md)). The antibot was to follow the name of planet's set; now each module is told
 on its own, so planet never hears of a crowd, and the antibot never follows planet.
 
 - **The antibot has no switch of its own for which set plays.** No operator call picks the set in force.
-- **`antibot.v1.InternalService/GetRuleSetNames`** answers the names of the sets postgres keeps, so the metagame module
+- **`antibot.v1.InternalService/GetRuleSetNames`** answers the names of the sets postgres keeps, so the gamemaster module
   refuses an entry of a set the antibot lacks.
 - **For the Final Battle** (Sat 31 Oct 2026, 21:00–23:00 UTC), an entry plays `rush`. An antibot set `rush`
   with `cohort.certainMembers` 50 makes the crowd bound 50 for the evening. It must be saved before 21:00: while `rush`

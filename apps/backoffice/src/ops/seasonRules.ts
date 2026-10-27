@@ -1,8 +1,8 @@
-import {SeasonsAdmin} from "../clients.ts"
-import {RuleSet} from "../gen/grpc/seasons/v1/admin_pb.ts"
-import {OwnRoundRules, Rules} from "../gen/grpc/seasons/v1/rules_pb.ts"
+import {ScoringAdmin} from "../clients.ts"
+import {RuleSet} from "../gen/grpc/scoring/v1/admin_pb.ts"
+import {OwnRoundRules, Rules} from "../gen/grpc/scoring/v1/rules_pb.ts"
 
-// The server refuses more (seasons' rules.MaxTimes): a slip of the keyboard cannot decide a season.
+// The server refuses more (scoring's rules.MaxTimes): a slip of the keyboard cannot decide a season.
 export const MAX_TIMES = 10
 
 // A set as the form edits it: whether the window of the entry that plays it is a round of its own, and its points'
@@ -24,8 +24,8 @@ export function complete(draft: Draft): boolean {
     return draft.name.trim() !== "" && Number.isInteger(times) && times >= 1 && times <= MAX_TIMES
 }
 
-export async function saveRuleSet(seasons: SeasonsAdmin, draft: Draft): Promise<void> {
-    await seasons.saveRuleSet({set: new RuleSet({
+export async function saveRuleSet(scoring: ScoringAdmin, draft: Draft): Promise<void> {
+    await scoring.saveRuleSet({set: new RuleSet({
         name: draft.name.trim(),
         rules: new Rules({ownRound: new OwnRoundRules({enabled: draft.ownRound, times: Number(draft.times)})}),
     })})

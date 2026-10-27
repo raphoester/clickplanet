@@ -1,9 +1,9 @@
 # Battles
 
-**The game shows when the schedule plays a battle.** The backend's metagame keeps a
+**The game shows when the schedule plays a battle.** The backend's gamemaster keeps a
 schedule of rule-set entries, and each entry has a kind (the backend's
-[metagame](../../backend/docs/metagame.md)). The client never hears a rule set's
-name, only the kind of the entry that plays, from `metagame.v1.MetagameService/GetTurn`:
+[gamemaster](../../backend/docs/gamemaster.md)). The client never hears a rule set's
+name, only the kind of the entry that plays, from `gamemaster.v1.GamemasterService/GetTurn`:
 `battle` or `plain`, since when, and when the running entry ends. A battle is the
 one kind with a look.
 
@@ -13,7 +13,7 @@ one kind with a look.
   `description`) and `TurnBackend`, with `turn()` and `changes()`, which tells when
   what it answers may have changed. `turnBackend.ts` reads `GetTurn` as a cached GET
   and tells of a change on a page wake (`pageWakeups`: a phone that locked may have
-  slept through a start). A server without the metagame (`Unimplemented`,
+  slept through a start). A server without the gamemaster (`Unimplemented`,
   `NotFound`) reads as a plain turn. A turn with no kind, or a kind this build does
   not know, is refused: the switch names every value. `fakeTurnBackend.ts` is the
   fake, with `startBattle(since, endsAt, description)` and `endBattle()`, which tell

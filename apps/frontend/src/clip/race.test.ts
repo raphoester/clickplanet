@@ -1,6 +1,6 @@
 import {describe, expect, it} from "vitest"
 import {protoInt64} from "@bufbuild/protobuf"
-import {ClosedRound} from "../gen/grpc/seasons/v1/seasons_pb.ts"
+import {ClosedRound} from "../gen/grpc/scoring/v1/scoring_pb.ts"
 import {dayOf} from "./race.ts"
 
 describe("the day a race closed last", () => {

@@ -1,0 +1,55 @@
+package log_board_reader_test
+
+import (
+	"bytes"
+	"context"
+	"errors"
+	"log/slog"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	scoringv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/listen_for_events_handler/inprocess_board_feed/log_board_reader"
+)
+
+type reader struct {
+	err error
+}
+
+func (r reader) Board(context.Context, string) (*scoringv1.Board, error) {
+	return &scoringv1.Board{}, r.err
+}
+
+func TestAFailedReadIsLoggedWithItsCountry(t *testing.T) {
+	var out bytes.Buffer
+	refused := errors.New("postgres is down")
+
+	_, err := log_board_reader.New(reader{err: refused}, slog.New(slog.NewTextHandler(&out, nil))).Board(t.Context(), "fr")
+
+	require.ErrorIs(t, err, refused)
+	assert.Contains(t, out.String(), "country=fr")
+	assert.Contains(t, out.String(), "postgres is down")
+}
+
+func TestAReadCutByTheShutdownLogsNothing(t *testing.T) {
+	var out bytes.Buffer
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	_, err := log_board_reader.New(reader{err: context.Canceled}, slog.New(slog.NewTextHandler(&out, nil))).Board(ctx, "")
+
+	require.ErrorIs(t, err, context.Canceled)
+	assert.Empty(t, out.String())
+}
+
+func TestAReadLogsNothing(t *testing.T) {
+	var out bytes.Buffer
+
+	board, err := log_board_reader.New(reader{}, slog.New(slog.NewTextHandler(&out, nil))).Board(t.Context(), "")
+
+	require.NoError(t, err)
+	assert.NotNil(t, board)
+	assert.Empty(t, out.String())
+}

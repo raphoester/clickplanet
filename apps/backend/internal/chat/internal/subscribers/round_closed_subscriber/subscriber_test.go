@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	seasonsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/seasons/v1"
+	scoringv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/inmemory_announcement_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/usecases/announce_usecase"
@@ -26,10 +26,10 @@ func subscriber(store *inmemory_announcement_storage.Storage) round_closed_subsc
 func TestARoundIsAnnouncedWithItsPodiumAtTheTimeItEnded(t *testing.T) {
 	store := inmemory_announcement_storage.New()
 
-	err := subscriber(store).Handle(t.Context(), &seasonsv1.RoundClosed{
+	err := subscriber(store).Handle(t.Context(), &scoringv1.RoundClosed{
 		Number:  5,
 		EndedAt: timestamppb.New(endedAt),
-		Results: []*seasonsv1.RoundResult{
+		Results: []*scoringv1.RoundResult{
 			{Country: "fr", Rank: 1, Points: 25},
 			{Country: "de", Rank: 2, Points: 18},
 			{Country: "es", Rank: 3, Points: 15},
@@ -52,11 +52,11 @@ func TestARoundIsAnnouncedWithItsPodiumAtTheTimeItEnded(t *testing.T) {
 func TestTheFinaleIsAnnouncedAsTheFinale(t *testing.T) {
 	store := inmemory_announcement_storage.New()
 
-	err := subscriber(store).Handle(t.Context(), &seasonsv1.RoundClosed{
+	err := subscriber(store).Handle(t.Context(), &scoringv1.RoundClosed{
 		Number:  23,
 		Finale:  true,
 		EndedAt: timestamppb.New(endedAt),
-		Results: []*seasonsv1.RoundResult{{Country: "fr", Rank: 1, Points: 75}},
+		Results: []*scoringv1.RoundResult{{Country: "fr", Rank: 1, Points: 75}},
 	})
 
 	require.NoError(t, err)
@@ -67,10 +67,10 @@ func TestTheFinaleIsAnnouncedAsTheFinale(t *testing.T) {
 
 func TestARoundOfItsOwnIsAnnouncedAsOneApartFromTheDayOfItsNumber(t *testing.T) {
 	store := inmemory_announcement_storage.New()
-	day := &seasonsv1.RoundClosed{Number: 1, EndedAt: timestamppb.New(endedAt), Times: 1}
-	battle := &seasonsv1.RoundClosed{
+	day := &scoringv1.RoundClosed{Number: 1, EndedAt: timestamppb.New(endedAt), Times: 1}
+	battle := &scoringv1.RoundClosed{
 		Number: 1, Finale: true, Own: true, Times: 3, EndedAt: timestamppb.New(endedAt),
-		Results: []*seasonsv1.RoundResult{{Country: "fr", Rank: 1, Points: 75}},
+		Results: []*scoringv1.RoundResult{{Country: "fr", Rank: 1, Points: 75}},
 	}
 
 	require.NoError(t, subscriber(store).Handle(t.Context(), day))
@@ -84,8 +84,8 @@ func TestARoundOfItsOwnIsAnnouncedAsOneApartFromTheDayOfItsNumber(t *testing.T) 
 
 func TestARoundToldTwiceIsAnnouncedOnce(t *testing.T) {
 	store := inmemory_announcement_storage.New()
-	closed := func(season, number uint32) *seasonsv1.RoundClosed {
-		return &seasonsv1.RoundClosed{Season: season, Number: number, EndedAt: timestamppb.New(endedAt)}
+	closed := func(season, number uint32) *scoringv1.RoundClosed {
+		return &scoringv1.RoundClosed{Season: season, Number: number, EndedAt: timestamppb.New(endedAt)}
 	}
 
 	require.NoError(t, subscriber(store).Handle(t.Context(), closed(0, 5)))
@@ -98,7 +98,7 @@ func TestARoundToldTwiceIsAnnouncedOnce(t *testing.T) {
 func TestARoundWithNoEndIsRefused(t *testing.T) {
 	store := inmemory_announcement_storage.New()
 
-	require.Error(t, subscriber(store).Handle(t.Context(), &seasonsv1.RoundClosed{Number: 1}))
+	require.Error(t, subscriber(store).Handle(t.Context(), &scoringv1.RoundClosed{Number: 1}))
 
 	assert.Empty(t, store.Kept())
 }

@@ -1,6 +1,6 @@
 import {describe, expect, it, vi} from "vitest"
 import {Code, ConnectError} from "@connectrpc/connect"
-import {GetSeasonResponse, Season as SeasonPb} from "../gen/grpc/seasons/v1/seasons_pb.ts"
+import {GetSeasonResponse, Season as SeasonPb} from "../gen/grpc/scoring/v1/scoring_pb.ts"
 import {ConnectSeasonBackend} from "./seasonBackend.ts"
 
 const backendWith = (getSeason: () => Promise<GetSeasonResponse>) =>

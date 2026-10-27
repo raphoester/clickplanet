@@ -97,3 +97,40 @@ func TestCloseAfterClosesThePoolOnceEveryRunnerStopped(t *testing.T) {
 	_, err := db.On(t.Context()).ExecContext(t.Context(), `SELECT 1`)
 	require.ErrorContains(t, err, "database is closed")
 }
+
+func TestASchemaRenamedKeepsItsTablesAndMigrationHistory(t *testing.T) {
+	migrations := fstest.MapFS{
+		"1_create_things.up.sql":   {Data: []byte(`CREATE TABLE things (id integer PRIMARY KEY)`)},
+		"1_create_things.down.sql": {Data: []byte(`DROP TABLE things`)},
+		"2_add_thing.up.sql":       {Data: []byte(`INSERT INTO things VALUES (2)`)},
+		"2_add_thing.down.sql":     {Data: []byte(`DELETE FROM things`)},
+	}
+	ctx := t.Context()
+	server := cppg.StartTestServer(t)
+	old := server.OpenSchema(t, "before", fstest.MapFS{
+		"1_create_things.up.sql":   migrations["1_create_things.up.sql"],
+		"1_create_things.down.sql": migrations["1_create_things.down.sql"],
+	})
+	_, err := old.On(ctx).ExecContext(ctx, `INSERT INTO things VALUES (1)`)
+	require.NoError(t, err)
+
+	renamed := cppg.New(server.ConfigFor("after"))
+	require.NoError(t, renamed.ConnectCtx(ctx))
+	t.Cleanup(func() { _ = renamed.Close() })
+	require.NoError(t, renamed.RenameSchemaFrom(ctx, "before"))
+	require.NoError(t, renamed.Migrate(ctx, migrations))
+
+	var count int
+	require.NoError(t, renamed.On(ctx).QueryRowContext(ctx, `SELECT count(*) FROM things`).Scan(&count))
+	assert.Equal(t, 2, count, "the row kept, and only the migration not yet run")
+	require.NoError(t, renamed.RenameSchemaFrom(ctx, "before"), "once renamed, nothing to do")
+}
+
+func TestARenameIsRefusedWhenBothSchemasExist(t *testing.T) {
+	migrations := fstest.MapFS{"1_create_things.up.sql": {Data: []byte(`CREATE TABLE things (id integer PRIMARY KEY)`)}}
+	server := cppg.StartTestServer(t)
+	server.OpenSchema(t, "before", migrations)
+	renamed := server.OpenSchema(t, "after", migrations)
+
+	require.ErrorContains(t, renamed.RenameSchemaFrom(t.Context(), "before"), "both the schemas before and after exist")
+}
