@@ -1,7 +1,6 @@
 package rounds
 
 import (
-	"slices"
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/calendar"
@@ -13,15 +12,10 @@ type SeasonEnd struct {
 	Table   []Placed
 }
 
-func (c Closed) SeasonEnd(earlier []Closed) (SeasonEnd, bool) {
-	if !c.Round.Finale {
-		return SeasonEnd{}, false
-	}
-	return SeasonEnd{
-		Season:  c.Round.Season,
-		EndedAt: c.Round.EndsAt,
-		Table:   TableOf(ScoresOf(append(slices.Clone(earlier), c))),
-	}, true
+// SeasonEndOf is a season's end, ranked from every round it closed. It ends at its end, whether a round ends with it or
+// none does.
+func SeasonEndOf(season calendar.Season, closed []Closed) SeasonEnd {
+	return SeasonEnd{Season: season.Number, EndedAt: season.EndsAt, Table: TableOf(ScoresOf(closed))}
 }
 
 func ScoresOf(season []Closed) []Score {

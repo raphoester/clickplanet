@@ -32,7 +32,8 @@ func (h GetSeasonHandler) GetSeason(
 
 	return connect.NewResponse(&seasonsv1.GetSeasonResponse{Season: &seasonsv1.Season{
 		Number:               uint32(season.Number),
-		FinaleStartsAtUnixMs: season.FinaleStartsAt.UnixMilli(),
+		FinaleStartsAtUnixMs: season.LastDayEndsAt.UnixMilli(),
 		EndsAtUnixMs:         season.EndsAt.UnixMilli(),
+		LastDayEndsAtUnixMs:  season.LastDayEndsAt.UnixMilli(),
 	}}), nil
 }

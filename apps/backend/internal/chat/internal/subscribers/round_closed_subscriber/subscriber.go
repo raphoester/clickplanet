@@ -36,8 +36,11 @@ func (s Subscriber) Handle(ctx context.Context, event *seasonsv1.RoundClosed) er
 	for _, result := range event.GetResults() {
 		places = append(places, announcements.PlaceOf(result.GetCountry(), result.GetRank(), result.GetPoints()))
 	}
-	announcement, err := announcements.RoundOf(event.GetSeason(), event.GetNumber(), event.GetFinale(), places).
-		Announcement(event.GetEndedAt().AsTime())
+	round := announcements.RoundOf(event.GetSeason(), event.GetNumber(), event.GetFinale(), places)
+	if event.GetOwn() {
+		round = announcements.OwnRoundOf(event.GetSeason(), event.GetNumber(), event.GetFinale(), event.GetTimes(), places)
+	}
+	announcement, err := round.Announcement(event.GetEndedAt().AsTime())
 	if err != nil {
 		return err //nolint:wrapcheck // Announcement named it.
 	}

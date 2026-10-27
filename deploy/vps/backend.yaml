@@ -211,10 +211,10 @@ player:
   tagSalt: env://CHAT_TAG_SALT
 
 seasons:
+  dailyCutoff: 21h
   list:
     - number: 0
       endsAt: 2026-10-31T23:00:00Z
-      finale: 2h
   database:
     host: postgres
     password: env://POSTGRES_PASSWORD

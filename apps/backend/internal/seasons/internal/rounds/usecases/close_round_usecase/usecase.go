@@ -4,18 +4,15 @@ import (
 	"context"
 	"fmt"
 
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	seasonsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/seasons/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/calendar"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 )
 
 type Rounds interface {
 	Number(ctx context.Context, round rounds.Round) (uint32, error)
-	ClosedIn(ctx context.Context, season calendar.Number) ([]rounds.Closed, error)
 	Close(ctx context.Context, round rounds.Round, results []rounds.Result) (bool, error)
 }
 
@@ -34,17 +31,8 @@ func (u *UseCase) Execute(ctx context.Context, round rounds.Round, snapshot roun
 	if err != nil {
 		return rounds.Closed{}, fmt.Errorf("failed to number the round: %w", err)
 	}
-	earlier, err := u.store.ClosedIn(ctx, round.Season)
-	if err != nil {
-		return rounds.Closed{}, fmt.Errorf("failed to read the rounds the season closed: %w", err)
-	}
 
 	closing := round.Closed(number, snapshot)
-	told := []proto.Message{eventOf(closing)}
-	if end, over := closing.SeasonEnd(earlier); over {
-		told = append(told, seasonEventOf(end))
-	}
-
 	err = u.transactioner.InTx(ctx, func(ctx context.Context) error {
 		closed, err := u.store.Close(ctx, round, closing.Results)
 		if err != nil {
@@ -53,7 +41,7 @@ func (u *UseCase) Execute(ctx context.Context, round rounds.Round, snapshot roun
 		if !closed {
 			return nil
 		}
-		if err := u.outbox.Record(ctx, told...); err != nil {
+		if err := u.outbox.Record(ctx, eventOf(closing)); err != nil {
 			return fmt.Errorf("failed to record the round's close: %w", err)
 		}
 		return nil
@@ -79,23 +67,7 @@ func eventOf(closed rounds.Closed) *seasonsv1.RoundClosed {
 		Finale:  closed.Round.Finale,
 		EndedAt: timestamppb.New(closed.Round.EndsAt),
 		Results: results,
-	}
-}
-
-func seasonEventOf(end rounds.SeasonEnd) *seasonsv1.SeasonClosed {
-	table := make([]*seasonsv1.SeasonPlace, 0, len(end.Table))
-	for _, placed := range end.Table {
-		table = append(table, &seasonsv1.SeasonPlace{
-			Country:      string(placed.Country),
-			Rank:         placed.Rank,
-			Points:       uint32(placed.Points), //nolint:gosec // 25 a day for a few weeks.
-			RoundsWon:    placed.RoundsWon,
-			FinalePoints: uint32(placed.FinalePoints), //nolint:gosec // 75 a finale.
-		})
-	}
-	return &seasonsv1.SeasonClosed{
-		Season:  uint32(end.Season),
-		EndedAt: timestamppb.New(end.EndedAt),
-		Table:   table,
+		Own:     closed.Round.Own,
+		Times:   closed.Round.Times,
 	}
 }

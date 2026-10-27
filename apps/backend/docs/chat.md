@@ -68,9 +68,11 @@ won a season.
 - **How a round gets here**: `seasons` keeps `seasons.v1.RoundClosed` in its outbox with the round's results;
   `round_closed_subscriber` turns it into a `Round`, payload `{number, finale, podium}`, and `announce_usecase`
   keeps it. The podium is `announcements.RoundOf`'s rule: the places ranked 3rd or better, ties included. The
-  announcement's time is the round's end, not the minute it closed.
-- **How a champion gets here, once**: `seasons` keeps `seasons.v1.SeasonClosed` in its outbox right after the
-  finale's `RoundClosed`; `season_closed_subscriber` keeps the countries ranked 1st (`announcements.ChampionOf`;
+  announcement's time is the round's end, not the minute it closed. **A round of its own** (a battle's,
+  `announcements.OwnRoundOf`) adds `own: true` and its `times` to the payload, and is told under an id of its own
+  (`seasons/<season>/own-rounds/<number>`), since its number counts the rounds of their own and not the days.
+- **How a champion gets here, once**: `seasons` keeps `seasons.v1.SeasonClosed` in its outbox at the season's end,
+  right after the Final Battle's `RoundClosed`; `season_closed_subscriber` keeps the countries ranked 1st (`announcements.ChampionOf`;
   level on everything, they win together) and `announce_usecase` keeps a `{season, countries}` payload at the
   season's end. A season nobody scored in announces nothing. Its id is the season's, so a second `SeasonClosed`,
   from a relay that sent it again or a retried close, shows nothing new.

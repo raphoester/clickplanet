@@ -9,18 +9,17 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/inmemory_round_store"
 )
 
-func TestRunSuite(t *testing.T) {
-	suite.Run(t, new(testSuite))
+func TestTheMemoryStoreKeepsTheContract(t *testing.T) {
+	suite.Run(t, &rounds.StoreContractSuite{NewStore: func() rounds.Store { return inmemory_round_store.New() }})
 }
 
-type testSuite struct {
-	rounds.StoreContractSuite
-}
-
-func (s *testSuite) SetupSuite() {
+func TestTheMemoryStoreCountsTheTakesAsTheContractSays(t *testing.T) {
 	var store *inmemory_round_store.Store
-	s.NewStore = func() rounds.Store {
-		store = inmemory_round_store.New()
-		return store
-	}
+	suite.Run(t, &rounds.TakesContractSuite{
+		NewStores: func() (rounds.Store, rounds.Takes) {
+			store = inmemory_round_store.New()
+			return store, store
+		},
+		CountedIn: func(round rounds.Round) rounds.Counted { return store.CountedIn(round) },
+	})
 }

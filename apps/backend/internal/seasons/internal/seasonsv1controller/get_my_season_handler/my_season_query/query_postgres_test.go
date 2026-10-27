@@ -57,7 +57,7 @@ var seasonZeroEnds = time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC)
 
 func seasonZero() calendar.Calendar {
 	return calendar.New(calendar.Config{List: []calendar.Entry{
-		{Number: 0, EndsAt: seasonZeroEnds, Finale: 2 * time.Hour},
+		{Number: 0, EndsAt: seasonZeroEnds},
 	}})
 }
 

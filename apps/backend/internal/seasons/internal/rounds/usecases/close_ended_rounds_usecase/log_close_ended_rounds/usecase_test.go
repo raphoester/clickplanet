@@ -32,7 +32,10 @@ func run(ctx context.Context, inner stubExecutor) (string, close_ended_rounds_us
 }
 
 var finale = rounds.Closed{
-	Round:   rounds.Round{EndsAt: time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC), Finale: true},
+	Round: rounds.Round{
+		EndsAt: time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC), Finale: true,
+		Own: true, StartsAt: time.Date(2026, 10, 31, 21, 0, 0, 0, time.UTC), Times: 3,
+	},
 	Number:  23,
 	Results: []rounds.Result{{Country: "fr", Rank: 1, Points: 75, Share: 0.3}},
 }
@@ -50,10 +53,10 @@ func TestEachRoundClosedIsLoggedAndPassedOnAsAWarningWhenTheMapWasReadLate(t *te
 
 	require.NoError(t, err)
 	assert.Equal(t, onTime, passed)
-	assert.Contains(t, logs, `level=INFO msg="closed a round" season=0 number=23 endsAt=2026-10-31T23:00:00.000Z finale=true ranked=1 late=20ms`)
+	assert.Contains(t, logs, `level=INFO msg="closed a round" season=0 number=23 endsAt=2026-10-31T23:00:00.000Z finale=true own=true times=3 ranked=1 late=20ms`)
 
 	logs, _, _ = run(t.Context(), stubExecutor{report: close_ended_rounds_usecase.Report{Closed: []rounds.Closed{finale}, ReadAt: finale.Round.EndsAt.Add(3 * time.Minute)}})
-	assert.Contains(t, logs, `level=WARN msg="closed a round" season=0 number=23 endsAt=2026-10-31T23:00:00.000Z finale=true ranked=1 late=3m0s`)
+	assert.Contains(t, logs, `level=WARN msg="closed a round" season=0 number=23 endsAt=2026-10-31T23:00:00.000Z finale=true own=true times=3 ranked=1 late=3m0s`)
 }
 
 func TestAFailureIsLoggedAndPassedOn(t *testing.T) {
@@ -73,4 +76,14 @@ func TestAFailureWhileStoppingIsNotLogged(t *testing.T) {
 
 	require.ErrorIs(t, err, context.Canceled)
 	assert.Empty(t, logs)
+}
+
+func TestEachSeasonEndedIsLogged(t *testing.T) {
+	logs, _, err := run(t.Context(), stubExecutor{report: close_ended_rounds_usecase.Report{Ended: []rounds.SeasonEnd{{
+		EndedAt: finale.Round.EndsAt,
+		Table:   []rounds.Placed{{Rank: 1, Score: rounds.Score{Country: "fr", Points: 75}}},
+	}}}})
+
+	require.NoError(t, err)
+	assert.Contains(t, logs, `level=WARN msg="ended a season" season=0 endedAt=2026-10-31T23:00:00.000Z ranked=1`)
 }

@@ -141,6 +141,17 @@ func TestTheRaceIsAskedOfThePublicListenerOverSSH(t *testing.T) {
 	}, race)
 }
 
+func TestARoundOfItsOwnClosedIsLabelledApartFromTheDayOfItsNumber(t *testing.T) {
+	battle := `{"race":{"closed":{"season":0,"number":1,"own":true,"times":3,"endedAtUnixMs":"1792270800000"}}}`
+	source, err := ssh_replay_source.New("deploy@vps.example", ssh(t, battle, "", 0).client)
+	require.NoError(t, err)
+
+	race, err := source.Race(t.Context())
+
+	require.NoError(t, err)
+	assert.Equal(t, "0.own1", race.Closed)
+}
+
 func TestARaceWithNoDayClosedYetIsARaceToo(t *testing.T) {
 	source, err := ssh_replay_source.New("deploy@vps.example", ssh(t, `{"race":{}}`, "", 0).client)
 	require.NoError(t, err)

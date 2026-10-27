@@ -4,12 +4,12 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/calendar"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds"
 )
 
-var finale = rounds.Round{EndsAt: utc(31, 23, 0, 0), Finale: true}
+var finale = rounds.Round{EndsAt: utc(31, 23, 0, 0), Finale: true, Own: true, StartsAt: utc(31, 21, 0, 0), Times: 3}
 
 func TestASeasonScoresTheRoundsItWonPlacesIn(t *testing.T) {
 	scores := rounds.ScoresOf([]rounds.Closed{
@@ -31,18 +31,17 @@ func TestACountryThatScoredNothingIsNotInTheSeason(t *testing.T) {
 	assert.Equal(t, []rounds.Score{{Country: "fr", Points: 25, RoundsWon: 1}}, scores)
 }
 
-func TestTheFinaleEndsTheSeasonWithItsTable(t *testing.T) {
-	earlier := []rounds.Closed{
+func TestASeasonEndsAtItsEndWithTheTableOfEveryRoundItClosed(t *testing.T) {
+	season := calendar.Season{Number: 0, LastDayEndsAt: utc(31, 21, 0, 0), EndsAt: utc(31, 23, 0, 0)}
+
+	end := rounds.SeasonEndOf(season, []rounds.Closed{
 		{Round: day, Results: []rounds.Result{{Country: "fr", Rank: 1, Points: 25}, {Country: "de", Rank: 2, Points: 18}}},
-	}
-	closing := rounds.Closed{Round: finale, Number: 2, Results: []rounds.Result{{Country: "de", Rank: 1, Points: 75}}}
+		{Round: finale, Number: 1, Results: []rounds.Result{{Country: "de", Rank: 1, Points: 75}}},
+	})
 
-	end, ended := closing.SeasonEnd(earlier)
-
-	require.True(t, ended)
 	assert.Equal(t, rounds.SeasonEnd{
 		Season:  0,
-		EndedAt: finale.EndsAt,
+		EndedAt: season.EndsAt,
 		Table: []rounds.Placed{
 			{Rank: 1, Score: rounds.Score{Country: "de", Points: 93, RoundsWon: 1, FinalePoints: 75}},
 			{Rank: 2, Score: rounds.Score{Country: "fr", Points: 25, RoundsWon: 1}},
@@ -50,8 +49,13 @@ func TestTheFinaleEndsTheSeasonWithItsTable(t *testing.T) {
 	}, end)
 }
 
-func TestADayEndsNoSeason(t *testing.T) {
-	_, ended := rounds.Closed{Round: day, Number: 1}.SeasonEnd(nil)
+func TestASeasonWithNoRoundAtItsEndEndsWithNoFinalePoints(t *testing.T) {
+	season := calendar.Season{Number: 0, LastDayEndsAt: utc(31, 21, 0, 0), EndsAt: utc(31, 23, 0, 0)}
 
-	assert.False(t, ended)
+	end := rounds.SeasonEndOf(season, []rounds.Closed{
+		{Round: day, Results: []rounds.Result{{Country: "fr", Rank: 1, Points: 25}}},
+	})
+
+	assert.Equal(t, []rounds.Placed{{Rank: 1, Score: rounds.Score{Country: "fr", Points: 25, RoundsWon: 1}}}, end.Table)
+	assert.Equal(t, season.EndsAt, end.EndedAt)
 }

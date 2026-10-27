@@ -95,9 +95,13 @@ func (s *Source) Race(ctx context.Context) (replays.Race, error) {
 	if closed == nil {
 		return replays.Race{Document: answered}, nil
 	}
+	label := fmt.Sprintf("%d.%d", closed.GetSeason(), closed.GetNumber())
+	if closed.GetOwn() {
+		label = fmt.Sprintf("%d.own%d", closed.GetSeason(), closed.GetNumber())
+	}
 	return replays.Race{
 		Document: answered,
-		Closed:   fmt.Sprintf("%d.%d", closed.GetSeason(), closed.GetNumber()),
+		Closed:   label,
 		EndedAt:  time.UnixMilli(closed.GetEndedAtUnixMs()).UTC(),
 	}, nil
 }
