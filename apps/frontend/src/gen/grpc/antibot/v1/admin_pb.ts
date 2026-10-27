@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Duration, Message, proto3, Timestamp } from "@bufbuild/protobuf";
+import { Duration, Message, proto3, protoInt64, Timestamp } from "@bufbuild/protobuf";
 import { Rules } from "./rules_pb.js";
 
 /**
@@ -646,6 +646,588 @@ export class WatchdogReading extends Message<WatchdogReading> {
 
   static equals(a: WatchdogReading | PlainMessage<WatchdogReading> | undefined, b: WatchdogReading | PlainMessage<WatchdogReading> | undefined): boolean {
     return proto3.util.equals(WatchdogReading, a, b);
+  }
+}
+
+/**
+ * @generated from message antibot.v1.ListConvictionsRequest
+ */
+export class ListConvictionsRequest extends Message<ListConvictionsRequest> {
+  /**
+   * @generated from field: google.protobuf.Timestamp since = 1;
+   */
+  since?: Timestamp;
+
+  /**
+   * Unset is now.
+   *
+   * @generated from field: google.protobuf.Timestamp until = 2;
+   */
+  until?: Timestamp;
+
+  constructor(data?: PartialMessage<ListConvictionsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "antibot.v1.ListConvictionsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "since", kind: "message", T: Timestamp },
+    { no: 2, name: "until", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListConvictionsRequest {
+    return new ListConvictionsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListConvictionsRequest {
+    return new ListConvictionsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListConvictionsRequest {
+    return new ListConvictionsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListConvictionsRequest | PlainMessage<ListConvictionsRequest> | undefined, b: ListConvictionsRequest | PlainMessage<ListConvictionsRequest> | undefined): boolean {
+    return proto3.util.equals(ListConvictionsRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message antibot.v1.ListConvictionsResponse
+ */
+export class ListConvictionsResponse extends Message<ListConvictionsResponse> {
+  /**
+   * @generated from field: repeated antibot.v1.Conviction convictions = 1;
+   */
+  convictions: Conviction[] = [];
+
+  constructor(data?: PartialMessage<ListConvictionsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "antibot.v1.ListConvictionsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "convictions", kind: "message", T: Conviction, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListConvictionsResponse {
+    return new ListConvictionsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListConvictionsResponse {
+    return new ListConvictionsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListConvictionsResponse {
+    return new ListConvictionsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListConvictionsResponse | PlainMessage<ListConvictionsResponse> | undefined, b: ListConvictionsResponse | PlainMessage<ListConvictionsResponse> | undefined): boolean {
+    return proto3.util.equals(ListConvictionsResponse, a, b);
+  }
+}
+
+/**
+ * The antibot ban line, kept: the sentence, every watchdog as the jury read it, and the click summary.
+ *
+ * @generated from message antibot.v1.Conviction
+ */
+export class Conviction extends Message<Conviction> {
+  /**
+   * @generated from field: google.protobuf.Timestamp at = 1;
+   */
+  at?: Timestamp;
+
+  /**
+   * @generated from field: string scope = 2;
+   */
+  scope = "";
+
+  /**
+   * @generated from field: string account_id = 3;
+   */
+  accountId = "";
+
+  /**
+   * The account whose click convicted this one, when it fell as that account's accomplice.
+   *
+   * @generated from field: string alongside_account_id = 4;
+   */
+  alongsideAccountId = "";
+
+  /**
+   * @generated from field: uint32 flags = 5;
+   */
+  flags = 0;
+
+  /**
+   * @generated from field: uint32 offence = 6;
+   */
+  offence = 0;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp banned_until = 7;
+   */
+  bannedUntil?: Timestamp;
+
+  /**
+   * @generated from field: repeated antibot.v1.WatchdogReading readings = 8;
+   */
+  readings: WatchdogReading[] = [];
+
+  /**
+   * @generated from field: uint32 clicks = 9;
+   */
+  clicks = 0;
+
+  /**
+   * @generated from field: google.protobuf.Duration active_for = 10;
+   */
+  activeFor?: Duration;
+
+  /**
+   * @generated from field: google.protobuf.Duration longest_gap = 11;
+   */
+  longestGap?: Duration;
+
+  /**
+   * @generated from field: string top_country = 12;
+   */
+  topCountry = "";
+
+  /**
+   * @generated from field: uint32 top_country_clicks = 13;
+   */
+  topCountryClicks = 0;
+
+  constructor(data?: PartialMessage<Conviction>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "antibot.v1.Conviction";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "at", kind: "message", T: Timestamp },
+    { no: 2, name: "scope", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "alongside_account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "flags", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 6, name: "offence", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 7, name: "banned_until", kind: "message", T: Timestamp },
+    { no: 8, name: "readings", kind: "message", T: WatchdogReading, repeated: true },
+    { no: 9, name: "clicks", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 10, name: "active_for", kind: "message", T: Duration },
+    { no: 11, name: "longest_gap", kind: "message", T: Duration },
+    { no: 12, name: "top_country", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 13, name: "top_country_clicks", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Conviction {
+    return new Conviction().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Conviction {
+    return new Conviction().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Conviction {
+    return new Conviction().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Conviction | PlainMessage<Conviction> | undefined, b: Conviction | PlainMessage<Conviction> | undefined): boolean {
+    return proto3.util.equals(Conviction, a, b);
+  }
+}
+
+/**
+ * @generated from message antibot.v1.GetMetricsRequest
+ */
+export class GetMetricsRequest extends Message<GetMetricsRequest> {
+  constructor(data?: PartialMessage<GetMetricsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "antibot.v1.GetMetricsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetMetricsRequest {
+    return new GetMetricsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetMetricsRequest {
+    return new GetMetricsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetMetricsRequest {
+    return new GetMetricsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetMetricsRequest | PlainMessage<GetMetricsRequest> | undefined, b: GetMetricsRequest | PlainMessage<GetMetricsRequest> | undefined): boolean {
+    return proto3.util.equals(GetMetricsRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message antibot.v1.GetMetricsResponse
+ */
+export class GetMetricsResponse extends Message<GetMetricsResponse> {
+  /**
+   * @generated from field: google.protobuf.Timestamp started_at = 1;
+   */
+  startedAt?: Timestamp;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp read_at = 2;
+   */
+  readAt?: Timestamp;
+
+  /**
+   * @generated from field: repeated antibot.v1.Metric metrics = 3;
+   */
+  metrics: Metric[] = [];
+
+  constructor(data?: PartialMessage<GetMetricsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "antibot.v1.GetMetricsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "started_at", kind: "message", T: Timestamp },
+    { no: 2, name: "read_at", kind: "message", T: Timestamp },
+    { no: 3, name: "metrics", kind: "message", T: Metric, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetMetricsResponse {
+    return new GetMetricsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetMetricsResponse {
+    return new GetMetricsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetMetricsResponse {
+    return new GetMetricsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetMetricsResponse | PlainMessage<GetMetricsResponse> | undefined, b: GetMetricsResponse | PlainMessage<GetMetricsResponse> | undefined): boolean {
+    return proto3.util.equals(GetMetricsResponse, a, b);
+  }
+}
+
+/**
+ * One series: a name, its labels and its value.
+ *
+ * @generated from message antibot.v1.Metric
+ */
+export class Metric extends Message<Metric> {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name = "";
+
+  /**
+   * @generated from field: repeated antibot.v1.Label labels = 2;
+   */
+  labels: Label[] = [];
+
+  /**
+   * @generated from oneof antibot.v1.Metric.value
+   */
+  value: {
+    /**
+     * @generated from field: double counter = 3;
+     */
+    value: number;
+    case: "counter";
+  } | {
+    /**
+     * @generated from field: double gauge = 4;
+     */
+    value: number;
+    case: "gauge";
+  } | {
+    /**
+     * @generated from field: antibot.v1.Histogram histogram = 5;
+     */
+    value: Histogram;
+    case: "histogram";
+  } | {
+    /**
+     * @generated from field: antibot.v1.Summary summary = 6;
+     */
+    value: Summary;
+    case: "summary";
+  } | { case: undefined; value?: undefined } = { case: undefined };
+
+  constructor(data?: PartialMessage<Metric>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "antibot.v1.Metric";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "labels", kind: "message", T: Label, repeated: true },
+    { no: 3, name: "counter", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, oneof: "value" },
+    { no: 4, name: "gauge", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, oneof: "value" },
+    { no: 5, name: "histogram", kind: "message", T: Histogram, oneof: "value" },
+    { no: 6, name: "summary", kind: "message", T: Summary, oneof: "value" },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Metric {
+    return new Metric().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Metric {
+    return new Metric().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Metric {
+    return new Metric().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Metric | PlainMessage<Metric> | undefined, b: Metric | PlainMessage<Metric> | undefined): boolean {
+    return proto3.util.equals(Metric, a, b);
+  }
+}
+
+/**
+ * @generated from message antibot.v1.Label
+ */
+export class Label extends Message<Label> {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name = "";
+
+  /**
+   * @generated from field: string value = 2;
+   */
+  value = "";
+
+  constructor(data?: PartialMessage<Label>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "antibot.v1.Label";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "value", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Label {
+    return new Label().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Label {
+    return new Label().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Label {
+    return new Label().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Label | PlainMessage<Label> | undefined, b: Label | PlainMessage<Label> | undefined): boolean {
+    return proto3.util.equals(Label, a, b);
+  }
+}
+
+/**
+ * @generated from message antibot.v1.Histogram
+ */
+export class Histogram extends Message<Histogram> {
+  /**
+   * @generated from field: uint64 count = 1;
+   */
+  count = protoInt64.zero;
+
+  /**
+   * @generated from field: double sum = 2;
+   */
+  sum = 0;
+
+  /**
+   * Cumulative, as Prometheus keeps them. The +Inf bucket is `count`.
+   *
+   * @generated from field: repeated antibot.v1.Bucket buckets = 3;
+   */
+  buckets: Bucket[] = [];
+
+  constructor(data?: PartialMessage<Histogram>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "antibot.v1.Histogram";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "count", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+    { no: 2, name: "sum", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 3, name: "buckets", kind: "message", T: Bucket, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Histogram {
+    return new Histogram().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Histogram {
+    return new Histogram().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Histogram {
+    return new Histogram().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Histogram | PlainMessage<Histogram> | undefined, b: Histogram | PlainMessage<Histogram> | undefined): boolean {
+    return proto3.util.equals(Histogram, a, b);
+  }
+}
+
+/**
+ * @generated from message antibot.v1.Bucket
+ */
+export class Bucket extends Message<Bucket> {
+  /**
+   * @generated from field: double upper_bound = 1;
+   */
+  upperBound = 0;
+
+  /**
+   * @generated from field: uint64 count = 2;
+   */
+  count = protoInt64.zero;
+
+  constructor(data?: PartialMessage<Bucket>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "antibot.v1.Bucket";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "upper_bound", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 2, name: "count", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Bucket {
+    return new Bucket().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Bucket {
+    return new Bucket().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Bucket {
+    return new Bucket().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Bucket | PlainMessage<Bucket> | undefined, b: Bucket | PlainMessage<Bucket> | undefined): boolean {
+    return proto3.util.equals(Bucket, a, b);
+  }
+}
+
+/**
+ * @generated from message antibot.v1.Summary
+ */
+export class Summary extends Message<Summary> {
+  /**
+   * @generated from field: uint64 count = 1;
+   */
+  count = protoInt64.zero;
+
+  /**
+   * @generated from field: double sum = 2;
+   */
+  sum = 0;
+
+  /**
+   * @generated from field: repeated antibot.v1.Quantile quantiles = 3;
+   */
+  quantiles: Quantile[] = [];
+
+  constructor(data?: PartialMessage<Summary>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "antibot.v1.Summary";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "count", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+    { no: 2, name: "sum", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 3, name: "quantiles", kind: "message", T: Quantile, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Summary {
+    return new Summary().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Summary {
+    return new Summary().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Summary {
+    return new Summary().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Summary | PlainMessage<Summary> | undefined, b: Summary | PlainMessage<Summary> | undefined): boolean {
+    return proto3.util.equals(Summary, a, b);
+  }
+}
+
+/**
+ * @generated from message antibot.v1.Quantile
+ */
+export class Quantile extends Message<Quantile> {
+  /**
+   * @generated from field: double quantile = 1;
+   */
+  quantile = 0;
+
+  /**
+   * @generated from field: double value = 2;
+   */
+  value = 0;
+
+  constructor(data?: PartialMessage<Quantile>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "antibot.v1.Quantile";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "quantile", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 2, name: "value", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Quantile {
+    return new Quantile().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Quantile {
+    return new Quantile().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Quantile {
+    return new Quantile().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Quantile | PlainMessage<Quantile> | undefined, b: Quantile | PlainMessage<Quantile> | undefined): boolean {
+    return proto3.util.equals(Quantile, a, b);
   }
 }
 

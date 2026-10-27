@@ -2076,6 +2076,510 @@ func (*SaveRuleSetResponse) Descriptor() ([]byte, []int) {
 	return file_planet_v1_admin_proto_rawDescGZIP(), []int{30}
 }
 
+type GetMetricsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetMetricsRequest) Reset() {
+	*x = GetMetricsRequest{}
+	mi := &file_planet_v1_admin_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetMetricsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetMetricsRequest) ProtoMessage() {}
+
+func (x *GetMetricsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_admin_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetMetricsRequest.ProtoReflect.Descriptor instead.
+func (*GetMetricsRequest) Descriptor() ([]byte, []int) {
+	return file_planet_v1_admin_proto_rawDescGZIP(), []int{31}
+}
+
+type GetMetricsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	StartedAt     *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	ReadAt        *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=read_at,json=readAt,proto3" json:"read_at,omitempty"`
+	Metrics       []*Metric              `protobuf:"bytes,3,rep,name=metrics,proto3" json:"metrics,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetMetricsResponse) Reset() {
+	*x = GetMetricsResponse{}
+	mi := &file_planet_v1_admin_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetMetricsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetMetricsResponse) ProtoMessage() {}
+
+func (x *GetMetricsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_admin_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetMetricsResponse.ProtoReflect.Descriptor instead.
+func (*GetMetricsResponse) Descriptor() ([]byte, []int) {
+	return file_planet_v1_admin_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *GetMetricsResponse) GetStartedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.StartedAt
+	}
+	return nil
+}
+
+func (x *GetMetricsResponse) GetReadAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ReadAt
+	}
+	return nil
+}
+
+func (x *GetMetricsResponse) GetMetrics() []*Metric {
+	if x != nil {
+		return x.Metrics
+	}
+	return nil
+}
+
+// One series: a name, its labels and its value.
+type Metric struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Name   string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Labels []*Label               `protobuf:"bytes,2,rep,name=labels,proto3" json:"labels,omitempty"`
+	// Types that are valid to be assigned to Value:
+	//
+	//	*Metric_Counter
+	//	*Metric_Gauge
+	//	*Metric_Histogram
+	//	*Metric_Summary
+	Value         isMetric_Value `protobuf_oneof:"value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Metric) Reset() {
+	*x = Metric{}
+	mi := &file_planet_v1_admin_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Metric) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Metric) ProtoMessage() {}
+
+func (x *Metric) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_admin_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Metric.ProtoReflect.Descriptor instead.
+func (*Metric) Descriptor() ([]byte, []int) {
+	return file_planet_v1_admin_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *Metric) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *Metric) GetLabels() []*Label {
+	if x != nil {
+		return x.Labels
+	}
+	return nil
+}
+
+func (x *Metric) GetValue() isMetric_Value {
+	if x != nil {
+		return x.Value
+	}
+	return nil
+}
+
+func (x *Metric) GetCounter() float64 {
+	if x != nil {
+		if x, ok := x.Value.(*Metric_Counter); ok {
+			return x.Counter
+		}
+	}
+	return 0
+}
+
+func (x *Metric) GetGauge() float64 {
+	if x != nil {
+		if x, ok := x.Value.(*Metric_Gauge); ok {
+			return x.Gauge
+		}
+	}
+	return 0
+}
+
+func (x *Metric) GetHistogram() *Histogram {
+	if x != nil {
+		if x, ok := x.Value.(*Metric_Histogram); ok {
+			return x.Histogram
+		}
+	}
+	return nil
+}
+
+func (x *Metric) GetSummary() *Summary {
+	if x != nil {
+		if x, ok := x.Value.(*Metric_Summary); ok {
+			return x.Summary
+		}
+	}
+	return nil
+}
+
+type isMetric_Value interface {
+	isMetric_Value()
+}
+
+type Metric_Counter struct {
+	Counter float64 `protobuf:"fixed64,3,opt,name=counter,proto3,oneof"`
+}
+
+type Metric_Gauge struct {
+	Gauge float64 `protobuf:"fixed64,4,opt,name=gauge,proto3,oneof"`
+}
+
+type Metric_Histogram struct {
+	Histogram *Histogram `protobuf:"bytes,5,opt,name=histogram,proto3,oneof"`
+}
+
+type Metric_Summary struct {
+	Summary *Summary `protobuf:"bytes,6,opt,name=summary,proto3,oneof"`
+}
+
+func (*Metric_Counter) isMetric_Value() {}
+
+func (*Metric_Gauge) isMetric_Value() {}
+
+func (*Metric_Histogram) isMetric_Value() {}
+
+func (*Metric_Summary) isMetric_Value() {}
+
+type Label struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Value         string                 `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Label) Reset() {
+	*x = Label{}
+	mi := &file_planet_v1_admin_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Label) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Label) ProtoMessage() {}
+
+func (x *Label) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_admin_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Label.ProtoReflect.Descriptor instead.
+func (*Label) Descriptor() ([]byte, []int) {
+	return file_planet_v1_admin_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *Label) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *Label) GetValue() string {
+	if x != nil {
+		return x.Value
+	}
+	return ""
+}
+
+type Histogram struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Count uint64                 `protobuf:"varint,1,opt,name=count,proto3" json:"count,omitempty"`
+	Sum   float64                `protobuf:"fixed64,2,opt,name=sum,proto3" json:"sum,omitempty"`
+	// Cumulative, as Prometheus keeps them. The +Inf bucket is `count`.
+	Buckets       []*Bucket `protobuf:"bytes,3,rep,name=buckets,proto3" json:"buckets,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Histogram) Reset() {
+	*x = Histogram{}
+	mi := &file_planet_v1_admin_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Histogram) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Histogram) ProtoMessage() {}
+
+func (x *Histogram) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_admin_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Histogram.ProtoReflect.Descriptor instead.
+func (*Histogram) Descriptor() ([]byte, []int) {
+	return file_planet_v1_admin_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *Histogram) GetCount() uint64 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
+func (x *Histogram) GetSum() float64 {
+	if x != nil {
+		return x.Sum
+	}
+	return 0
+}
+
+func (x *Histogram) GetBuckets() []*Bucket {
+	if x != nil {
+		return x.Buckets
+	}
+	return nil
+}
+
+type Bucket struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UpperBound    float64                `protobuf:"fixed64,1,opt,name=upper_bound,json=upperBound,proto3" json:"upper_bound,omitempty"`
+	Count         uint64                 `protobuf:"varint,2,opt,name=count,proto3" json:"count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Bucket) Reset() {
+	*x = Bucket{}
+	mi := &file_planet_v1_admin_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Bucket) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Bucket) ProtoMessage() {}
+
+func (x *Bucket) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_admin_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Bucket.ProtoReflect.Descriptor instead.
+func (*Bucket) Descriptor() ([]byte, []int) {
+	return file_planet_v1_admin_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *Bucket) GetUpperBound() float64 {
+	if x != nil {
+		return x.UpperBound
+	}
+	return 0
+}
+
+func (x *Bucket) GetCount() uint64 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
+type Summary struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Count         uint64                 `protobuf:"varint,1,opt,name=count,proto3" json:"count,omitempty"`
+	Sum           float64                `protobuf:"fixed64,2,opt,name=sum,proto3" json:"sum,omitempty"`
+	Quantiles     []*Quantile            `protobuf:"bytes,3,rep,name=quantiles,proto3" json:"quantiles,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Summary) Reset() {
+	*x = Summary{}
+	mi := &file_planet_v1_admin_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Summary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Summary) ProtoMessage() {}
+
+func (x *Summary) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_admin_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Summary.ProtoReflect.Descriptor instead.
+func (*Summary) Descriptor() ([]byte, []int) {
+	return file_planet_v1_admin_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *Summary) GetCount() uint64 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
+func (x *Summary) GetSum() float64 {
+	if x != nil {
+		return x.Sum
+	}
+	return 0
+}
+
+func (x *Summary) GetQuantiles() []*Quantile {
+	if x != nil {
+		return x.Quantiles
+	}
+	return nil
+}
+
+type Quantile struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Quantile      float64                `protobuf:"fixed64,1,opt,name=quantile,proto3" json:"quantile,omitempty"`
+	Value         float64                `protobuf:"fixed64,2,opt,name=value,proto3" json:"value,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Quantile) Reset() {
+	*x = Quantile{}
+	mi := &file_planet_v1_admin_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Quantile) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Quantile) ProtoMessage() {}
+
+func (x *Quantile) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_admin_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Quantile.ProtoReflect.Descriptor instead.
+func (*Quantile) Descriptor() ([]byte, []int) {
+	return file_planet_v1_admin_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *Quantile) GetQuantile() float64 {
+	if x != nil {
+		return x.Quantile
+	}
+	return 0
+}
+
+func (x *Quantile) GetValue() float64 {
+	if x != nil {
+		return x.Value
+	}
+	return 0
+}
+
 var File_planet_v1_admin_proto protoreflect.FileDescriptor
 
 const file_planet_v1_admin_proto_rawDesc = "" +
@@ -2252,7 +2756,39 @@ const file_planet_v1_admin_proto_rawDesc = "" +
 	"\x05rules\x18\x02 \x01(\v2\x10.planet.v1.RulesR\x05rules\":\n" +
 	"\x12SaveRuleSetRequest\x12$\n" +
 	"\x03set\x18\x01 \x01(\v2\x12.planet.v1.RuleSetR\x03set\"\x15\n" +
-	"\x13SaveRuleSetResponse2\xf3\b\n" +
+	"\x13SaveRuleSetResponse\"\x13\n" +
+	"\x11GetMetricsRequest\"\xb1\x01\n" +
+	"\x12GetMetricsResponse\x129\n" +
+	"\n" +
+	"started_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\x123\n" +
+	"\aread_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x06readAt\x12+\n" +
+	"\ametrics\x18\x03 \x03(\v2\x11.planet.v1.MetricR\ametrics\"\xe9\x01\n" +
+	"\x06Metric\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12(\n" +
+	"\x06labels\x18\x02 \x03(\v2\x10.planet.v1.LabelR\x06labels\x12\x1a\n" +
+	"\acounter\x18\x03 \x01(\x01H\x00R\acounter\x12\x16\n" +
+	"\x05gauge\x18\x04 \x01(\x01H\x00R\x05gauge\x124\n" +
+	"\thistogram\x18\x05 \x01(\v2\x14.planet.v1.HistogramH\x00R\thistogram\x12.\n" +
+	"\asummary\x18\x06 \x01(\v2\x12.planet.v1.SummaryH\x00R\asummaryB\a\n" +
+	"\x05value\"1\n" +
+	"\x05Label\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value\"`\n" +
+	"\tHistogram\x12\x14\n" +
+	"\x05count\x18\x01 \x01(\x04R\x05count\x12\x10\n" +
+	"\x03sum\x18\x02 \x01(\x01R\x03sum\x12+\n" +
+	"\abuckets\x18\x03 \x03(\v2\x11.planet.v1.BucketR\abuckets\"?\n" +
+	"\x06Bucket\x12\x1f\n" +
+	"\vupper_bound\x18\x01 \x01(\x01R\n" +
+	"upperBound\x12\x14\n" +
+	"\x05count\x18\x02 \x01(\x04R\x05count\"d\n" +
+	"\aSummary\x12\x14\n" +
+	"\x05count\x18\x01 \x01(\x04R\x05count\x12\x10\n" +
+	"\x03sum\x18\x02 \x01(\x01R\x03sum\x121\n" +
+	"\tquantiles\x18\x03 \x03(\v2\x13.planet.v1.QuantileR\tquantiles\"<\n" +
+	"\bQuantile\x12\x1a\n" +
+	"\bquantile\x18\x01 \x01(\x01R\bquantile\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x01R\x05value2\xbe\t\n" +
 	"\fAdminService\x12X\n" +
 	"\x0fReassignCountry\x12!.planet.v1.ReassignCountryRequest\x1a\".planet.v1.ReassignCountryResponse\x12L\n" +
 	"\vFindPlayers\x12\x1d.planet.v1.FindPlayersRequest\x1a\x1e.planet.v1.FindPlayersResponse\x12I\n" +
@@ -2266,7 +2802,9 @@ const file_planet_v1_admin_proto_rawDesc = "" +
 	"\fGrantCharges\x12\x1e.planet.v1.GrantChargesRequest\x1a\x1f.planet.v1.GrantChargesResponse\x12F\n" +
 	"\tGetReplay\x12\x1b.planet.v1.GetReplayRequest\x1a\x1c.planet.v1.GetReplayResponse\x12F\n" +
 	"\tGetLedger\x12\x1b.planet.v1.GetLedgerRequest\x1a\x1c.planet.v1.GetLedgerResponse\x12U\n" +
-	"\x0eGetTerritories\x12 .planet.v1.GetTerritoriesRequest\x1a!.planet.v1.GetTerritoriesResponse\x12C\n" +
+	"\x0eGetTerritories\x12 .planet.v1.GetTerritoriesRequest\x1a!.planet.v1.GetTerritoriesResponse\x12I\n" +
+	"\n" +
+	"GetMetrics\x12\x1c.planet.v1.GetMetricsRequest\x1a\x1d.planet.v1.GetMetricsResponse\x12C\n" +
 	"\bGetRules\x12\x1a.planet.v1.GetRulesRequest\x1a\x1b.planet.v1.GetRulesResponse\x12L\n" +
 	"\vSaveRuleSet\x12\x1d.planet.v1.SaveRuleSetRequest\x1a\x1e.planet.v1.SaveRuleSetResponseB\xb2\x01\n" +
 	"\rcom.planet.v1B\n" +
@@ -2285,7 +2823,7 @@ func file_planet_v1_admin_proto_rawDescGZIP() []byte {
 	return file_planet_v1_admin_proto_rawDescData
 }
 
-var file_planet_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 31)
+var file_planet_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 39)
 var file_planet_v1_admin_proto_goTypes = []any{
 	(*GetLedgerRequest)(nil),         // 0: planet.v1.GetLedgerRequest
 	(*GetLedgerResponse)(nil),        // 1: planet.v1.GetLedgerResponse
@@ -2318,85 +2856,103 @@ var file_planet_v1_admin_proto_goTypes = []any{
 	(*RuleSet)(nil),                  // 28: planet.v1.RuleSet
 	(*SaveRuleSetRequest)(nil),       // 29: planet.v1.SaveRuleSetRequest
 	(*SaveRuleSetResponse)(nil),      // 30: planet.v1.SaveRuleSetResponse
-	(*timestamppb.Timestamp)(nil),    // 31: google.protobuf.Timestamp
-	(*TileUpdate)(nil),               // 32: planet.v1.TileUpdate
-	(*GetMapResponse)(nil),           // 33: planet.v1.GetMapResponse
-	(*PlanetEvent)(nil),              // 34: planet.v1.PlanetEvent
-	(*ChargesHeld)(nil),              // 35: planet.v1.ChargesHeld
-	(*durationpb.Duration)(nil),      // 36: google.protobuf.Duration
-	(*Rules)(nil),                    // 37: planet.v1.Rules
-	(*GetTerritoriesRequest)(nil),    // 38: planet.v1.GetTerritoriesRequest
-	(*GetTerritoriesResponse)(nil),   // 39: planet.v1.GetTerritoriesResponse
+	(*GetMetricsRequest)(nil),        // 31: planet.v1.GetMetricsRequest
+	(*GetMetricsResponse)(nil),       // 32: planet.v1.GetMetricsResponse
+	(*Metric)(nil),                   // 33: planet.v1.Metric
+	(*Label)(nil),                    // 34: planet.v1.Label
+	(*Histogram)(nil),                // 35: planet.v1.Histogram
+	(*Bucket)(nil),                   // 36: planet.v1.Bucket
+	(*Summary)(nil),                  // 37: planet.v1.Summary
+	(*Quantile)(nil),                 // 38: planet.v1.Quantile
+	(*timestamppb.Timestamp)(nil),    // 39: google.protobuf.Timestamp
+	(*TileUpdate)(nil),               // 40: planet.v1.TileUpdate
+	(*GetMapResponse)(nil),           // 41: planet.v1.GetMapResponse
+	(*PlanetEvent)(nil),              // 42: planet.v1.PlanetEvent
+	(*ChargesHeld)(nil),              // 43: planet.v1.ChargesHeld
+	(*durationpb.Duration)(nil),      // 44: google.protobuf.Duration
+	(*Rules)(nil),                    // 45: planet.v1.Rules
+	(*GetTerritoriesRequest)(nil),    // 46: planet.v1.GetTerritoriesRequest
+	(*GetTerritoriesResponse)(nil),   // 47: planet.v1.GetTerritoriesResponse
 }
 var file_planet_v1_admin_proto_depIdxs = []int32{
-	31, // 0: planet.v1.GetLedgerRequest.since:type_name -> google.protobuf.Timestamp
-	31, // 1: planet.v1.GetLedgerRequest.until:type_name -> google.protobuf.Timestamp
+	39, // 0: planet.v1.GetLedgerRequest.since:type_name -> google.protobuf.Timestamp
+	39, // 1: planet.v1.GetLedgerRequest.until:type_name -> google.protobuf.Timestamp
 	2,  // 2: planet.v1.GetLedgerResponse.changes:type_name -> planet.v1.LedgerChange
-	31, // 3: planet.v1.LedgerChange.at:type_name -> google.protobuf.Timestamp
-	32, // 4: planet.v1.LedgerChange.update:type_name -> planet.v1.TileUpdate
-	31, // 5: planet.v1.GetReplayRequest.since:type_name -> google.protobuf.Timestamp
-	31, // 6: planet.v1.GetReplayRequest.until:type_name -> google.protobuf.Timestamp
-	33, // 7: planet.v1.GetReplayResponse.opening:type_name -> planet.v1.GetMapResponse
+	39, // 3: planet.v1.LedgerChange.at:type_name -> google.protobuf.Timestamp
+	40, // 4: planet.v1.LedgerChange.update:type_name -> planet.v1.TileUpdate
+	39, // 5: planet.v1.GetReplayRequest.since:type_name -> google.protobuf.Timestamp
+	39, // 6: planet.v1.GetReplayRequest.until:type_name -> google.protobuf.Timestamp
+	41, // 7: planet.v1.GetReplayResponse.opening:type_name -> planet.v1.GetMapResponse
 	5,  // 8: planet.v1.GetReplayResponse.events:type_name -> planet.v1.ReplayedEvent
-	31, // 9: planet.v1.GetReplayResponse.since:type_name -> google.protobuf.Timestamp
-	31, // 10: planet.v1.GetReplayResponse.until:type_name -> google.protobuf.Timestamp
-	31, // 11: planet.v1.ReplayedEvent.at:type_name -> google.protobuf.Timestamp
-	34, // 12: planet.v1.ReplayedEvent.event:type_name -> planet.v1.PlanetEvent
-	35, // 13: planet.v1.GrantChargesResponse.before:type_name -> planet.v1.ChargesHeld
-	35, // 14: planet.v1.GrantChargesResponse.after:type_name -> planet.v1.ChargesHeld
-	31, // 15: planet.v1.InspectPlayerResponse.banned_until:type_name -> google.protobuf.Timestamp
-	31, // 16: planet.v1.InspectPlayerResponse.pardoned_until:type_name -> google.protobuf.Timestamp
+	39, // 9: planet.v1.GetReplayResponse.since:type_name -> google.protobuf.Timestamp
+	39, // 10: planet.v1.GetReplayResponse.until:type_name -> google.protobuf.Timestamp
+	39, // 11: planet.v1.ReplayedEvent.at:type_name -> google.protobuf.Timestamp
+	42, // 12: planet.v1.ReplayedEvent.event:type_name -> planet.v1.PlanetEvent
+	43, // 13: planet.v1.GrantChargesResponse.before:type_name -> planet.v1.ChargesHeld
+	43, // 14: planet.v1.GrantChargesResponse.after:type_name -> planet.v1.ChargesHeld
+	39, // 15: planet.v1.InspectPlayerResponse.banned_until:type_name -> google.protobuf.Timestamp
+	39, // 16: planet.v1.InspectPlayerResponse.pardoned_until:type_name -> google.protobuf.Timestamp
 	12, // 17: planet.v1.InspectPlayerResponse.readings:type_name -> planet.v1.WatchdogReading
-	36, // 18: planet.v1.InspectPlayerResponse.active_for:type_name -> google.protobuf.Duration
-	36, // 19: planet.v1.InspectPlayerResponse.longest_gap:type_name -> google.protobuf.Duration
-	31, // 20: planet.v1.InspectPlayerResponse.last_click_at:type_name -> google.protobuf.Timestamp
-	31, // 21: planet.v1.WatchdogReading.at:type_name -> google.protobuf.Timestamp
+	44, // 18: planet.v1.InspectPlayerResponse.active_for:type_name -> google.protobuf.Duration
+	44, // 19: planet.v1.InspectPlayerResponse.longest_gap:type_name -> google.protobuf.Duration
+	39, // 20: planet.v1.InspectPlayerResponse.last_click_at:type_name -> google.protobuf.Timestamp
+	39, // 21: planet.v1.WatchdogReading.at:type_name -> google.protobuf.Timestamp
 	17, // 22: planet.v1.FindPlayersResponse.players:type_name -> planet.v1.Player
 	17, // 23: planet.v1.TopPlayersResponse.players:type_name -> planet.v1.Player
-	31, // 24: planet.v1.Player.first_at:type_name -> google.protobuf.Timestamp
-	31, // 25: planet.v1.Player.last_at:type_name -> google.protobuf.Timestamp
-	31, // 26: planet.v1.Player.banned_until:type_name -> google.protobuf.Timestamp
-	36, // 27: planet.v1.Player.active_for:type_name -> google.protobuf.Duration
-	36, // 28: planet.v1.BanPlayerRequest.duration:type_name -> google.protobuf.Duration
-	31, // 29: planet.v1.BanPlayerResponse.banned_until:type_name -> google.protobuf.Timestamp
-	31, // 30: planet.v1.UnbanPlayerResponse.banned_until:type_name -> google.protobuf.Timestamp
-	31, // 31: planet.v1.UnbanPlayerResponse.pardoned_until:type_name -> google.protobuf.Timestamp
+	39, // 24: planet.v1.Player.first_at:type_name -> google.protobuf.Timestamp
+	39, // 25: planet.v1.Player.last_at:type_name -> google.protobuf.Timestamp
+	39, // 26: planet.v1.Player.banned_until:type_name -> google.protobuf.Timestamp
+	44, // 27: planet.v1.Player.active_for:type_name -> google.protobuf.Duration
+	44, // 28: planet.v1.BanPlayerRequest.duration:type_name -> google.protobuf.Duration
+	39, // 29: planet.v1.BanPlayerResponse.banned_until:type_name -> google.protobuf.Timestamp
+	39, // 30: planet.v1.UnbanPlayerResponse.banned_until:type_name -> google.protobuf.Timestamp
+	39, // 31: planet.v1.UnbanPlayerResponse.pardoned_until:type_name -> google.protobuf.Timestamp
 	28, // 32: planet.v1.GetRulesResponse.sets:type_name -> planet.v1.RuleSet
-	37, // 33: planet.v1.RuleSet.rules:type_name -> planet.v1.Rules
+	45, // 33: planet.v1.RuleSet.rules:type_name -> planet.v1.Rules
 	28, // 34: planet.v1.SaveRuleSetRequest.set:type_name -> planet.v1.RuleSet
-	24, // 35: planet.v1.AdminService.ReassignCountry:input_type -> planet.v1.ReassignCountryRequest
-	13, // 36: planet.v1.AdminService.FindPlayers:input_type -> planet.v1.FindPlayersRequest
-	15, // 37: planet.v1.AdminService.TopPlayers:input_type -> planet.v1.TopPlayersRequest
-	18, // 38: planet.v1.AdminService.BanPlayer:input_type -> planet.v1.BanPlayerRequest
-	20, // 39: planet.v1.AdminService.UnbanPlayer:input_type -> planet.v1.UnbanPlayerRequest
-	22, // 40: planet.v1.AdminService.RevertPlayer:input_type -> planet.v1.RevertPlayerRequest
-	8,  // 41: planet.v1.AdminService.PaintRandomTiles:input_type -> planet.v1.PaintRandomTilesRequest
-	10, // 42: planet.v1.AdminService.InspectPlayer:input_type -> planet.v1.InspectPlayerRequest
-	6,  // 43: planet.v1.AdminService.GrantCharges:input_type -> planet.v1.GrantChargesRequest
-	3,  // 44: planet.v1.AdminService.GetReplay:input_type -> planet.v1.GetReplayRequest
-	0,  // 45: planet.v1.AdminService.GetLedger:input_type -> planet.v1.GetLedgerRequest
-	38, // 46: planet.v1.AdminService.GetTerritories:input_type -> planet.v1.GetTerritoriesRequest
-	26, // 47: planet.v1.AdminService.GetRules:input_type -> planet.v1.GetRulesRequest
-	29, // 48: planet.v1.AdminService.SaveRuleSet:input_type -> planet.v1.SaveRuleSetRequest
-	25, // 49: planet.v1.AdminService.ReassignCountry:output_type -> planet.v1.ReassignCountryResponse
-	14, // 50: planet.v1.AdminService.FindPlayers:output_type -> planet.v1.FindPlayersResponse
-	16, // 51: planet.v1.AdminService.TopPlayers:output_type -> planet.v1.TopPlayersResponse
-	19, // 52: planet.v1.AdminService.BanPlayer:output_type -> planet.v1.BanPlayerResponse
-	21, // 53: planet.v1.AdminService.UnbanPlayer:output_type -> planet.v1.UnbanPlayerResponse
-	23, // 54: planet.v1.AdminService.RevertPlayer:output_type -> planet.v1.RevertPlayerResponse
-	9,  // 55: planet.v1.AdminService.PaintRandomTiles:output_type -> planet.v1.PaintRandomTilesResponse
-	11, // 56: planet.v1.AdminService.InspectPlayer:output_type -> planet.v1.InspectPlayerResponse
-	7,  // 57: planet.v1.AdminService.GrantCharges:output_type -> planet.v1.GrantChargesResponse
-	4,  // 58: planet.v1.AdminService.GetReplay:output_type -> planet.v1.GetReplayResponse
-	1,  // 59: planet.v1.AdminService.GetLedger:output_type -> planet.v1.GetLedgerResponse
-	39, // 60: planet.v1.AdminService.GetTerritories:output_type -> planet.v1.GetTerritoriesResponse
-	27, // 61: planet.v1.AdminService.GetRules:output_type -> planet.v1.GetRulesResponse
-	30, // 62: planet.v1.AdminService.SaveRuleSet:output_type -> planet.v1.SaveRuleSetResponse
-	49, // [49:63] is the sub-list for method output_type
-	35, // [35:49] is the sub-list for method input_type
-	35, // [35:35] is the sub-list for extension type_name
-	35, // [35:35] is the sub-list for extension extendee
-	0,  // [0:35] is the sub-list for field type_name
+	39, // 35: planet.v1.GetMetricsResponse.started_at:type_name -> google.protobuf.Timestamp
+	39, // 36: planet.v1.GetMetricsResponse.read_at:type_name -> google.protobuf.Timestamp
+	33, // 37: planet.v1.GetMetricsResponse.metrics:type_name -> planet.v1.Metric
+	34, // 38: planet.v1.Metric.labels:type_name -> planet.v1.Label
+	35, // 39: planet.v1.Metric.histogram:type_name -> planet.v1.Histogram
+	37, // 40: planet.v1.Metric.summary:type_name -> planet.v1.Summary
+	36, // 41: planet.v1.Histogram.buckets:type_name -> planet.v1.Bucket
+	38, // 42: planet.v1.Summary.quantiles:type_name -> planet.v1.Quantile
+	24, // 43: planet.v1.AdminService.ReassignCountry:input_type -> planet.v1.ReassignCountryRequest
+	13, // 44: planet.v1.AdminService.FindPlayers:input_type -> planet.v1.FindPlayersRequest
+	15, // 45: planet.v1.AdminService.TopPlayers:input_type -> planet.v1.TopPlayersRequest
+	18, // 46: planet.v1.AdminService.BanPlayer:input_type -> planet.v1.BanPlayerRequest
+	20, // 47: planet.v1.AdminService.UnbanPlayer:input_type -> planet.v1.UnbanPlayerRequest
+	22, // 48: planet.v1.AdminService.RevertPlayer:input_type -> planet.v1.RevertPlayerRequest
+	8,  // 49: planet.v1.AdminService.PaintRandomTiles:input_type -> planet.v1.PaintRandomTilesRequest
+	10, // 50: planet.v1.AdminService.InspectPlayer:input_type -> planet.v1.InspectPlayerRequest
+	6,  // 51: planet.v1.AdminService.GrantCharges:input_type -> planet.v1.GrantChargesRequest
+	3,  // 52: planet.v1.AdminService.GetReplay:input_type -> planet.v1.GetReplayRequest
+	0,  // 53: planet.v1.AdminService.GetLedger:input_type -> planet.v1.GetLedgerRequest
+	46, // 54: planet.v1.AdminService.GetTerritories:input_type -> planet.v1.GetTerritoriesRequest
+	31, // 55: planet.v1.AdminService.GetMetrics:input_type -> planet.v1.GetMetricsRequest
+	26, // 56: planet.v1.AdminService.GetRules:input_type -> planet.v1.GetRulesRequest
+	29, // 57: planet.v1.AdminService.SaveRuleSet:input_type -> planet.v1.SaveRuleSetRequest
+	25, // 58: planet.v1.AdminService.ReassignCountry:output_type -> planet.v1.ReassignCountryResponse
+	14, // 59: planet.v1.AdminService.FindPlayers:output_type -> planet.v1.FindPlayersResponse
+	16, // 60: planet.v1.AdminService.TopPlayers:output_type -> planet.v1.TopPlayersResponse
+	19, // 61: planet.v1.AdminService.BanPlayer:output_type -> planet.v1.BanPlayerResponse
+	21, // 62: planet.v1.AdminService.UnbanPlayer:output_type -> planet.v1.UnbanPlayerResponse
+	23, // 63: planet.v1.AdminService.RevertPlayer:output_type -> planet.v1.RevertPlayerResponse
+	9,  // 64: planet.v1.AdminService.PaintRandomTiles:output_type -> planet.v1.PaintRandomTilesResponse
+	11, // 65: planet.v1.AdminService.InspectPlayer:output_type -> planet.v1.InspectPlayerResponse
+	7,  // 66: planet.v1.AdminService.GrantCharges:output_type -> planet.v1.GrantChargesResponse
+	4,  // 67: planet.v1.AdminService.GetReplay:output_type -> planet.v1.GetReplayResponse
+	1,  // 68: planet.v1.AdminService.GetLedger:output_type -> planet.v1.GetLedgerResponse
+	47, // 69: planet.v1.AdminService.GetTerritories:output_type -> planet.v1.GetTerritoriesResponse
+	32, // 70: planet.v1.AdminService.GetMetrics:output_type -> planet.v1.GetMetricsResponse
+	27, // 71: planet.v1.AdminService.GetRules:output_type -> planet.v1.GetRulesResponse
+	30, // 72: planet.v1.AdminService.SaveRuleSet:output_type -> planet.v1.SaveRuleSetResponse
+	58, // [58:73] is the sub-list for method output_type
+	43, // [43:58] is the sub-list for method input_type
+	43, // [43:43] is the sub-list for extension type_name
+	43, // [43:43] is the sub-list for extension extendee
+	0,  // [0:43] is the sub-list for field type_name
 }
 
 func init() { file_planet_v1_admin_proto_init() }
@@ -2409,13 +2965,19 @@ func file_planet_v1_admin_proto_init() {
 	file_planet_v1_rules_proto_init()
 	file_planet_v1_admin_proto_msgTypes[11].OneofWrappers = []any{}
 	file_planet_v1_admin_proto_msgTypes[17].OneofWrappers = []any{}
+	file_planet_v1_admin_proto_msgTypes[33].OneofWrappers = []any{
+		(*Metric_Counter)(nil),
+		(*Metric_Gauge)(nil),
+		(*Metric_Histogram)(nil),
+		(*Metric_Summary)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_planet_v1_admin_proto_rawDesc), len(file_planet_v1_admin_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   31,
+			NumMessages:   39,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

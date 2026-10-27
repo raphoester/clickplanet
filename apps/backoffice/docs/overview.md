@@ -4,7 +4,8 @@
 reachable only over SSH before, and **every admin method has a place on it**. One page at a time, picked in the
 burger menu (see [The menu](menu.md)), by group:
 
-- **Overview**: Home, how the game is doing now and over the last hours (see [The home page](home.md)).
+- **Overview**: Home, how the game is doing now and over the last hours (see [The home page](home.md)), and
+  Battle, the minutes of a busy stretch as they happen (see [The battle page](battle.md)).
 - **Feedback**: Ideas and bugs, the notes players send, read only, each with who sent it (see
   [Who sent a note](note-sender.md)) and its photos and videos (see
   [A note's photos and videos](note-media.md)).

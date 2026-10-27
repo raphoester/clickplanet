@@ -1,4 +1,6 @@
 import {Timestamp} from "@bufbuild/protobuf"
+import {LONG_CALL_MS} from "../api.ts"
+import {PlanetAdmin} from "../clients.ts"
 import {GetLedgerResponse, LedgerChange} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {Territory} from "../gen/grpc/planet/v1/internal_pb.ts"
 import {Slot} from "./activity.ts"
@@ -33,6 +35,22 @@ export function caughtUp(kept: Ledger | undefined, window: Window, since: Date, 
         return at >= window.since.getTime() && at < since.getTime()
     })
     return {window, changes: [...before, ...read]}
+}
+
+// The window's changes, read on from the ledger kept, every page of them.
+export async function readOn(planet: PlanetAdmin, kept: Ledger | undefined, window: Window, signal: AbortSignal): Promise<Ledger> {
+    const since = sinceOf(kept, window)
+    const read: LedgerChange[] = []
+    let page = ""
+    do {
+        const answer = await planet.getLedger(
+            {since: Timestamp.fromDate(since), until: Timestamp.fromDate(window.until), page},
+            {signal, timeoutMs: LONG_CALL_MS},
+        )
+        for (const change of answer.changes) read.push(change)
+        page = answer.nextPage
+    } while (page !== "")
+    return caughtUp(kept, window, since, read)
 }
 
 // The tile changed hands: a click, a spread, an enclosure or a bomb. A strike or a shield did not.

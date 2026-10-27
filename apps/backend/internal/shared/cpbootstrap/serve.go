@@ -20,9 +20,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpprom"
 )
 
-func mountMetrics(router *http.ServeMux, metrics *prometheus.Registry, logger *slog.Logger) {
+func mountMetrics(router *http.ServeMux, process *prometheus.Registry, modules []*prometheus.Registry, logger *slog.Logger) {
 	metricsRouter := http.NewServeMux()
-	metricsRouter.HandleFunc("GET /", cpprom.HandlerForRegistry(metrics).ServeHTTP)
+	metricsRouter.HandleFunc("GET /", cpprom.HandlerFor(process, modules...).ServeHTTP)
 
 	router.Handle("/metrics", cphttpserver.MiddlewareStack(
 		cphttpserver.NewLoggingMiddleware(logger),

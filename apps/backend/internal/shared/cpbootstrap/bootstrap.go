@@ -29,8 +29,9 @@ type Module struct {
 }
 
 type Props struct {
-	Logger  *slog.Logger
-	Metrics prometheus.Registerer
+	Logger *slog.Logger
+	// The module's own: /metrics serves every module's, and a module answers its own on its admin service.
+	Metrics *prometheus.Registry
 
 	Server ServerConfig
 
@@ -202,7 +203,8 @@ func run(ctx context.Context, options Options, listen listenFunc) error {
 	closers := newCloserRegistry()
 
 	registrars := registrars{routes: routes, admin: adminRoutes, internal: internalRoutes}
-	if err := buildModules(ctx, options, metrics, registrars, runners, closers); err != nil {
+	modules, err := buildModules(ctx, options, registrars, runners, closers)
+	if err != nil {
 		return err
 	}
 
@@ -212,7 +214,7 @@ func run(ctx context.Context, options Options, listen listenFunc) error {
 		cphttpserver.IPReaderMiddleware,
 		cphttpserver.NewCorsMiddleware(options.Server.AllowedOrigin),
 	))
-	mountMetrics(router, metrics, options.Logger)
+	mountMetrics(router, metrics, modules, options.Logger)
 
 	sides, err := listenSides(options, listen, adminRoutes, internalRoutes)
 	if err != nil {
@@ -271,13 +273,14 @@ type registrars struct {
 func buildModules(
 	ctx context.Context,
 	options Options,
-	metrics *prometheus.Registry,
 	registrars registrars,
 	runners *runnerRegistry,
 	closers *closerRegistry,
-) error {
+) ([]*prometheus.Registry, error) {
 	ctx, cancel := context.WithTimeout(ctx, options.Server.StartupTimeout)
 	defer cancel()
+
+	var registries []*prometheus.Registry
 
 	for _, module := range options.Modules {
 		if !module.Enabled {
@@ -286,6 +289,8 @@ func buildModules(
 		}
 
 		before := runners.count()
+		metrics := cpprom.NewRegistry()
+		registries = append(registries, metrics)
 
 		err := module.DiSequence(ctx, Props{
 			Logger:      options.Logger,
@@ -299,7 +304,7 @@ func buildModules(
 			Closers:     closers,
 		})
 		if err != nil {
-			return fmt.Errorf("failed to build the %s module: %w", module.Name, err)
+			return nil, fmt.Errorf("failed to build the %s module: %w", module.Name, err)
 		}
 
 		options.Logger.Debug("module built",
@@ -308,7 +313,7 @@ func buildModules(
 		)
 	}
 
-	return nil
+	return registries, nil
 }
 
 func (o Options) withDefaults() Options {

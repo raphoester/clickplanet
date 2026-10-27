@@ -28,7 +28,7 @@ origin with auth off refuses the boot.
 Caddy sends `/<package>.v1.AdminService/*` on the API's domain to it, so `cp_admin`, which is host-only on that
 domain, travels from the admin page, a page of the same site.
 
-The admin page is `apps/backoffice` (its [`CLAUDE.md`](../../backoffice/CLAUDE.md)). `planet.v1.AdminService` is the main one, in `proto/planet/v1/admin.proto`; `player.v1.AdminService` (`proto/player/v1/admin.proto`) has `ReconcileTitles`, and the reads that name players, `GetAuthors` and `GetPlayer`, and who plays now, `GetRoster` — see [Player](player.md); `chat.v1.AdminService` (`proto/chat/v1/admin.proto`) has `Mute`, `RemoveMessage`, `GetMessage` and `ListMessages` — see [Mutes](chat.md#mutes) and [Removals](chat.md#removals); `support.v1.AdminService` (`proto/support/v1/admin.proto`) has `ListNotes`, `ListReports` and `DecideReport` — see [Support](support.md); `clips.v1.AdminService` (`proto/clips/v1/admin.proto`) has `KeepSnapshot`, which the clips job calls over ssh, and `ListSnapshots` and `ListRows`, which the admin page reads — see [Clip stats](clip-stats.md); `auth.v1.AdminService` (`proto/auth/v1/admin.proto`) has the admin page's own sign-in and `WhoAmI` — see [Operators](auth.md#operators); `antibot.v1.AdminService` (`proto/antibot/v1/admin.proto`) has `BanPlayer`, `UnbanPlayer` and `InspectPlayer` — see [Manual bans](#manual-bans-findplayers-topplayers-banplayer-unbanplayer-revertplayer-inspectplayer) — and `GetRules` and `SaveRuleSet`, the rule sets the antibot judges with — see [The antibot's rules](antibot-rules.md). `planetv1controller.AdminService` is its bag of handlers, the way `ClickService` is. `ReassignCountry` runs `clicks/usecases/reassign_country_usecase`, wrapped in `audit_reassign`: every tile `from_country_id` holds goes to `to_country_id`, while the game runs.
+The admin page is `apps/backoffice` (its [`CLAUDE.md`](../../backoffice/CLAUDE.md)). `planet.v1.AdminService` is the main one, in `proto/planet/v1/admin.proto`; `player.v1.AdminService` (`proto/player/v1/admin.proto`) has `ReconcileTitles`, and the reads that name players, `GetAuthors` and `GetPlayer`, and who plays now, `GetRoster` — see [Player](player.md); `chat.v1.AdminService` (`proto/chat/v1/admin.proto`) has `Mute`, `RemoveMessage`, `GetMessage` and `ListMessages` — see [Mutes](chat.md#mutes) and [Removals](chat.md#removals); `support.v1.AdminService` (`proto/support/v1/admin.proto`) has `ListNotes`, `ListReports` and `DecideReport` — see [Support](support.md); `clips.v1.AdminService` (`proto/clips/v1/admin.proto`) has `KeepSnapshot`, which the clips job calls over ssh, and `ListSnapshots` and `ListRows`, which the admin page reads — see [Clip stats](clip-stats.md); `auth.v1.AdminService` (`proto/auth/v1/admin.proto`) has the admin page's own sign-in and `WhoAmI` — see [Operators](auth.md#operators); `antibot.v1.AdminService` (`proto/antibot/v1/admin.proto`) has `BanPlayer`, `UnbanPlayer` and `InspectPlayer` — see [Manual bans](#manual-bans-findplayers-topplayers-banplayer-unbanplayer-revertplayer-inspectplayer) — and `GetRules` and `SaveRuleSet`, the rule sets the antibot judges with — see [The antibot's rules](antibot-rules.md), and `ListConvictions` — see [The battle reads](#the-battle-reads-listconvictions-getmetrics-getrace); `seasons.v1.AdminService` (`proto/seasons/v1/admin.proto`) has `GetRace` — see [The battle reads](#the-battle-reads-listconvictions-getmetrics-getrace). `planetv1controller.AdminService` is its bag of handlers, the way `ClickService` is. `ReassignCountry` runs `clicks/usecases/reassign_country_usecase`, wrapped in `audit_reassign`: every tile `from_country_id` holds goes to `to_country_id`, while the game runs.
 
 - **The move is paced.** `inmemory_tile_storage.Reassign` moves one batch under the lock and returns where to resume; the use case sleeps 50ms between batches. A batch is a quarter of `tilesStorage.subscriberBuffer`, because each tile is one update on every open stream, the clicks still arriving need the rest of the buffer, and a stream that overflows it is closed.
 - **Each tile is an ordinary `TileUpdate`** with `Previous` set, not a new event kind: open clients repaint with no frontend release, `counts` move so the toll prices the next click right, and `dirty` puts it in the next flush.
@@ -123,6 +123,28 @@ set that plays now. See [The season rules](season-rules.md). The backoffice's Se
     changes, not flushed yet, is not in it.
 - **`GetTerritories`** is the internal service's, handler and all: the tiles each country holds now, how many of them on
   each country's land, and the map's size.
+
+## The battle reads: `ListConvictions`, `GetMetrics`, `GetRace`
+
+**What the admin page's Battle page reads, besides `GetLedger` and `GetRoster`** ([The battle page](../../backoffice/docs/battle.md)). Each is a raw read; the page counts and charts.
+
+- **`antibot.v1.AdminService/ListConvictions(since, until)`**: every ban the jury passed in the window, oldest first,
+  with its readings and its click summary (see [A ban is kept with its reasons](antibot.md#a-ban-is-kept-with-its-reasons)).
+  Unset `until` is now; no `since`, or one not before `until`, is `InvalidArgument`. The antibot off is not built, so
+  it 404s, as its other calls do. `antibotv1controller/list_convictions_handler` maps `Guard.Convictions` straight
+  onto the wire. It never was a `planet.v1` call, so it has no alias.
+- **`planet.v1.AdminService/GetMetrics`** and **`antibot.v1.AdminService/GetMetrics`**: every series of the module's
+  own registry (`props.Metrics`, see [The composite layer](composite-layer.md)), as `/metrics` would say it, with
+  `started_at` (when the module was built, so its counters started) and `read_at`. **The page subtracts two
+  answers**, as one reads the metrics poller's files, and never two with different `started_at`. Planet answers the
+  clicks and their refusals, the boxes and the quizzes; the antibot answers its watchdogs, its flags and its bans
+  running. Each module's `get_metrics_handler` maps Prometheus' families onto its own messages; a type the wire cannot
+  carry (untyped) is an error (`ErrUnknownType`). `/metrics` itself is on the public router, which Caddy does not
+  route.
+- **`seasons.v1.AdminService/GetRace`** is `SeasonService/GetRace`'s handler mounted again: Caddy answers CORS on the
+  game's routes for the game's origin alone, so the admin page cannot read the public one.
+- The smoke test of the admin page (`e2e/smoke_test.go`) reads them from the page once an operator signs in: the
+  wiring, and that planet answers none of the antibot's counters. What a conviction holds is pinned in the antibot's and the handler's tests.
 
 ## `PaintRandomTiles`
 

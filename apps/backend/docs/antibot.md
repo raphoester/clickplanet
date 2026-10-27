@@ -110,6 +110,22 @@ changes, until when to refuse it.
 - `TestARefusedCallerIsToldUntilWhenAndSpendsNoToken` pins the refusal over HTTP, and the e2e
   `TestABanReachesPlanetAndTheCallerIsRefused` the whole way round, through Redis.
 
+## A ban is kept with its reasons
+
+**Every ban the jury passes is a row of `antibot.convictions`**, beside the `antibot ban` log line, since journald
+is no page an operator watches a battle from. It is the line's facts: when, the scope, the account and the account
+whose click convicted it (`alongside`, for an accomplice), the sentence, every watchdog's reading in words, and the
+click summary. The tiles the line logs are left out.
+
+- **The jury writes it** (`jury.Convictions`, `convictions.Store`), after each flag the banner accepted and in the
+  same call, so a flag inside `reflagInterval` writes nothing. A write that fails is reported like a failed flag
+  (`OnStateError`), and the ban stands.
+- **An operator's `BanPlayer` writes none**: it has no reading to keep, and the operator knows it.
+- **Read with `Guard.Convictions(since, until)`**, oldest first, which `antibot.v1.AdminService/ListConvictions` serves (see
+  [The battle reads](admin.md#the-battle-reads-listconvictions-getmetrics-getrace)). Postgres directly, no copy in memory.
+- **A row is never deleted**, like the bans: it holds an address as `antibot.bans` does.
+  `TestABanTheJuryPassesIsListedWithWhatItReadAndAnOperatorsIsNot` pins it.
+
 ## Ten watchdogs, one jury
 
 A `Watchdog` measures one behaviour over one caller and returns a `Verdict`:

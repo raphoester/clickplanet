@@ -46,6 +46,11 @@ const (
 	// AdminServiceSaveRuleSetProcedure is the fully-qualified name of the AdminService's SaveRuleSet
 	// RPC.
 	AdminServiceSaveRuleSetProcedure = "/antibot.v1.AdminService/SaveRuleSet"
+	// AdminServiceListConvictionsProcedure is the fully-qualified name of the AdminService's
+	// ListConvictions RPC.
+	AdminServiceListConvictionsProcedure = "/antibot.v1.AdminService/ListConvictions"
+	// AdminServiceGetMetricsProcedure is the fully-qualified name of the AdminService's GetMetrics RPC.
+	AdminServiceGetMetricsProcedure = "/antibot.v1.AdminService/GetMetrics"
 )
 
 // AdminServiceClient is a client for the antibot.v1.AdminService service.
@@ -57,6 +62,11 @@ type AdminServiceClient interface {
 	// Makes a set, or replaces its values. A set that plays now is FailedPrecondition: the rules in force change only
 	// through the schedule.
 	SaveRuleSet(context.Context, *connect.Request[v1.SaveRuleSetRequest]) (*connect.Response[v1.SaveRuleSetResponse], error)
+	// Every ban the jury passed in a window, oldest first, with what it read. An operator's ban is not one.
+	ListConvictions(context.Context, *connect.Request[v1.ListConvictionsRequest]) (*connect.Response[v1.ListConvictionsResponse], error)
+	// What /metrics says of the antibot's own registry. A counter counts from `started_at`: two answers with the same
+	// `started_at` are subtracted, never two with different ones.
+	GetMetrics(context.Context, *connect.Request[v1.GetMetricsRequest]) (*connect.Response[v1.GetMetricsResponse], error)
 }
 
 // NewAdminServiceClient constructs a client for the antibot.v1.AdminService service. By default, it
@@ -100,16 +110,30 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("SaveRuleSet")),
 			connect.WithClientOptions(opts...),
 		),
+		listConvictions: connect.NewClient[v1.ListConvictionsRequest, v1.ListConvictionsResponse](
+			httpClient,
+			baseURL+AdminServiceListConvictionsProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("ListConvictions")),
+			connect.WithClientOptions(opts...),
+		),
+		getMetrics: connect.NewClient[v1.GetMetricsRequest, v1.GetMetricsResponse](
+			httpClient,
+			baseURL+AdminServiceGetMetricsProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("GetMetrics")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // adminServiceClient implements AdminServiceClient.
 type adminServiceClient struct {
-	banPlayer     *connect.Client[v1.BanPlayerRequest, v1.BanPlayerResponse]
-	unbanPlayer   *connect.Client[v1.UnbanPlayerRequest, v1.UnbanPlayerResponse]
-	inspectPlayer *connect.Client[v1.InspectPlayerRequest, v1.InspectPlayerResponse]
-	getRules      *connect.Client[v1.GetRulesRequest, v1.GetRulesResponse]
-	saveRuleSet   *connect.Client[v1.SaveRuleSetRequest, v1.SaveRuleSetResponse]
+	banPlayer       *connect.Client[v1.BanPlayerRequest, v1.BanPlayerResponse]
+	unbanPlayer     *connect.Client[v1.UnbanPlayerRequest, v1.UnbanPlayerResponse]
+	inspectPlayer   *connect.Client[v1.InspectPlayerRequest, v1.InspectPlayerResponse]
+	getRules        *connect.Client[v1.GetRulesRequest, v1.GetRulesResponse]
+	saveRuleSet     *connect.Client[v1.SaveRuleSetRequest, v1.SaveRuleSetResponse]
+	listConvictions *connect.Client[v1.ListConvictionsRequest, v1.ListConvictionsResponse]
+	getMetrics      *connect.Client[v1.GetMetricsRequest, v1.GetMetricsResponse]
 }
 
 // BanPlayer calls antibot.v1.AdminService.BanPlayer.
@@ -137,6 +161,16 @@ func (c *adminServiceClient) SaveRuleSet(ctx context.Context, req *connect.Reque
 	return c.saveRuleSet.CallUnary(ctx, req)
 }
 
+// ListConvictions calls antibot.v1.AdminService.ListConvictions.
+func (c *adminServiceClient) ListConvictions(ctx context.Context, req *connect.Request[v1.ListConvictionsRequest]) (*connect.Response[v1.ListConvictionsResponse], error) {
+	return c.listConvictions.CallUnary(ctx, req)
+}
+
+// GetMetrics calls antibot.v1.AdminService.GetMetrics.
+func (c *adminServiceClient) GetMetrics(ctx context.Context, req *connect.Request[v1.GetMetricsRequest]) (*connect.Response[v1.GetMetricsResponse], error) {
+	return c.getMetrics.CallUnary(ctx, req)
+}
+
 // AdminServiceHandler is an implementation of the antibot.v1.AdminService service.
 type AdminServiceHandler interface {
 	BanPlayer(context.Context, *connect.Request[v1.BanPlayerRequest]) (*connect.Response[v1.BanPlayerResponse], error)
@@ -146,6 +180,11 @@ type AdminServiceHandler interface {
 	// Makes a set, or replaces its values. A set that plays now is FailedPrecondition: the rules in force change only
 	// through the schedule.
 	SaveRuleSet(context.Context, *connect.Request[v1.SaveRuleSetRequest]) (*connect.Response[v1.SaveRuleSetResponse], error)
+	// Every ban the jury passed in a window, oldest first, with what it read. An operator's ban is not one.
+	ListConvictions(context.Context, *connect.Request[v1.ListConvictionsRequest]) (*connect.Response[v1.ListConvictionsResponse], error)
+	// What /metrics says of the antibot's own registry. A counter counts from `started_at`: two answers with the same
+	// `started_at` are subtracted, never two with different ones.
+	GetMetrics(context.Context, *connect.Request[v1.GetMetricsRequest]) (*connect.Response[v1.GetMetricsResponse], error)
 }
 
 // NewAdminServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -185,6 +224,18 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(adminServiceMethods.ByName("SaveRuleSet")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServiceListConvictionsHandler := connect.NewUnaryHandler(
+		AdminServiceListConvictionsProcedure,
+		svc.ListConvictions,
+		connect.WithSchema(adminServiceMethods.ByName("ListConvictions")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServiceGetMetricsHandler := connect.NewUnaryHandler(
+		AdminServiceGetMetricsProcedure,
+		svc.GetMetrics,
+		connect.WithSchema(adminServiceMethods.ByName("GetMetrics")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/antibot.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AdminServiceBanPlayerProcedure:
@@ -197,6 +248,10 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 			adminServiceGetRulesHandler.ServeHTTP(w, r)
 		case AdminServiceSaveRuleSetProcedure:
 			adminServiceSaveRuleSetHandler.ServeHTTP(w, r)
+		case AdminServiceListConvictionsProcedure:
+			adminServiceListConvictionsHandler.ServeHTTP(w, r)
+		case AdminServiceGetMetricsProcedure:
+			adminServiceGetMetricsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -224,4 +279,12 @@ func (UnimplementedAdminServiceHandler) GetRules(context.Context, *connect.Reque
 
 func (UnimplementedAdminServiceHandler) SaveRuleSet(context.Context, *connect.Request[v1.SaveRuleSetRequest]) (*connect.Response[v1.SaveRuleSetResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("antibot.v1.AdminService.SaveRuleSet is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) ListConvictions(context.Context, *connect.Request[v1.ListConvictionsRequest]) (*connect.Response[v1.ListConvictionsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("antibot.v1.AdminService.ListConvictions is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) GetMetrics(context.Context, *connect.Request[v1.GetMetricsRequest]) (*connect.Response[v1.GetMetricsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("antibot.v1.AdminService.GetMetrics is not implemented"))
 }

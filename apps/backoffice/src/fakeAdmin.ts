@@ -15,15 +15,21 @@ import {
 import {
     BanPlayerRequest,
     BanPlayerResponse,
+    Conviction,
+    GetMetricsRequest as AntibotGetMetricsRequest,
+    GetMetricsResponse as AntibotGetMetricsResponse,
     GetRulesRequest as AntibotGetRulesRequest,
     GetRulesResponse as AntibotGetRulesResponse,
     InspectPlayerRequest,
     InspectPlayerResponse,
+    ListConvictionsRequest,
+    ListConvictionsResponse,
     RuleSet as AntibotRuleSet,
     SaveRuleSetRequest as AntibotSaveRuleSetRequest,
     SaveRuleSetResponse as AntibotSaveRuleSetResponse,
     UnbanPlayerRequest,
     UnbanPlayerResponse,
+    WatchdogReading,
 } from "./gen/grpc/antibot/v1/admin_pb.ts"
 import {Rules} from "./gen/grpc/antibot/v1/rules_pb.ts"
 import {Rules as PlanetRules} from "./gen/grpc/planet/v1/rules_pb.ts"
@@ -35,6 +41,8 @@ import {
     GetReplayRequest,
     LedgerChange,
     GetReplayResponse,
+    GetMetricsRequest,
+    GetMetricsResponse,
     GetRulesRequest,
     GetRulesResponse,
     GrantChargesRequest,
@@ -95,6 +103,7 @@ import {
 } from "./gen/grpc/player/v1/admin_pb.ts"
 import {Author, GetAuthorsRequest, GetAuthorsResponse} from "./gen/grpc/player/v1/internal_pb.ts"
 import {CountryTiles, GetRosterRequest, GetRosterResponse, RosterEntry, Stats} from "./gen/grpc/player/v1/player_pb.ts"
+import {GetRaceRequest, GetRaceResponse, Race, Round, RoundStanding, Score} from "./gen/grpc/seasons/v1/seasons_pb.ts"
 import {
     DecideReportRequest,
     DecideReportResponse,
@@ -120,6 +129,68 @@ function change(minutes: number, by: string, update: PartialMessage<TileUpdate>)
     return new LedgerChange({
         at: Timestamp.fromDate(new Date(AT.getTime() - 3600_000 + minutes * 60_000)),
         update: new TileUpdate(update), by,
+    })
+}
+
+function at(seconds: number): Timestamp {
+    return Timestamp.fromDate(new Date(AT.getTime() + seconds * 1000))
+}
+
+// A series as either module's GetMetrics answers it.
+type Series = {name: string, labels: {name: string, value: string}[], value: {case: "counter" | "gauge", value: number}}
+
+function counter(name: string, value: number, labels: Record<string, string> = {}): Series {
+    return {name, value: {case: "counter", value}, labels: Object.entries(labels).map(([key, label]) => ({name: key, value: label}))}
+}
+
+function gauge(name: string, value: number, labels: Record<string, string> = {}): Series {
+    return {name, value: {case: "gauge", value}, labels: Object.entries(labels).map(([key, label]) => ({name: key, value: label}))}
+}
+
+// Planet's counters as it reads them `seconds` after AT, `minutes` minutes of play after the fake process started.
+export function planetMetricsAt(seconds: number, minutes: number): GetMetricsResponse {
+    return new GetMetricsResponse({
+        startedAt: at(-3600), readAt: at(seconds),
+        metrics: [
+            counter("clicks_total", 300 * minutes, {country_id: "fr", status: "ok"}),
+            counter("clicks_total", 100 * minutes, {country_id: "dz", status: "ok"}),
+            counter("throttled_clicks", 30 * minutes),
+            counter("refused_clicks", 3 * minutes),
+            counter("blocked_clicks", 0),
+            counter("bonus_offers_total", 20 * minutes),
+            counter("bonus_claims_total", 12 * minutes, {outcome: "granted"}),
+            counter("bonus_claims_total", minutes, {outcome: "refused"}),
+            counter("bonus_lapsed_total", 8 * minutes),
+            counter("bonus_claims_foreign_total", minutes),
+            {
+                name: "bonus_catch_seconds", labels: [],
+                value: {
+                    case: "histogram", value: {
+                        count: BigInt(12 * minutes), sum: 18 * minutes,
+                        buckets: [
+                            {upperBound: 0.5, count: BigInt(minutes)},
+                            {upperBound: 1, count: BigInt(3 * minutes)},
+                            {upperBound: 3, count: BigInt(12 * minutes)},
+                        ],
+                    },
+                },
+            },
+        ],
+    })
+}
+
+// The antibot's counters, read with planet's.
+export function antibotMetricsAt(seconds: number, minutes: number): AntibotGetMetricsResponse {
+    return new AntibotGetMetricsResponse({
+        startedAt: at(-3600), readAt: at(seconds),
+        metrics: [
+            gauge("banned_callers", 2),
+            gauge("antibot_opinions_standing", 4, {watchdog: "metronome", level: "suspect"}),
+            gauge("antibot_opinions_standing", 1, {watchdog: "metronome", level: "certain"}),
+            gauge("antibot_opinions_standing", 1, {watchdog: "catcher", level: "suspect"}),
+            gauge("antibot_opinions_standing", 0, {watchdog: "catcher", level: "certain"}),
+            counter("ban_flags", minutes, {watchdog: "catcher"}),
+        ],
     })
 }
 
@@ -241,6 +312,46 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
     territories = new GetTerritoriesResponse({
         tiles: 262119,
         territories: [new Territory({countryId: "fr", tiles: 1200}), new Territory({countryId: "dz", tiles: 800})],
+    })
+    // BraveFox42 caught every box, the guest it rotates with fell beside it, and an address with no account walked the ids.
+    convictions = [
+        new Conviction({
+            at: at(-600), scope: "203.0.113.7", accountId: ACCOUNT, flags: 1, offence: 1, bannedUntil: at(86_400),
+            readings: [
+                new WatchdogReading({watchdog: "retaker", level: "clear"}),
+                new WatchdogReading({watchdog: "catcher", level: "certain", evidence: "catch median=400ms", at: at(-610)}),
+                new WatchdogReading({watchdog: "metronome", level: "suspect", evidence: "stamina busy=5h40m", at: at(-620)}),
+            ],
+            clicks: 900, activeFor: new Duration({seconds: 1800n}), longestGap: new Duration({seconds: 2n}),
+            topCountry: "fr", topCountryClicks: 880,
+        }),
+        new Conviction({
+            at: at(-600), scope: "203.0.113.7", accountId: "account-guest", alongsideAccountId: ACCOUNT, flags: 1,
+            offence: 1, bannedUntil: at(86_400),
+            readings: [new WatchdogReading({watchdog: "catcher", level: "certain", evidence: "catch median=400ms", at: at(-610)})],
+            clicks: 900, topCountry: "fr", topCountryClicks: 880,
+        }),
+        new Conviction({
+            at: at(-60), scope: "2001:db8:1:2::/64", flags: 1, offence: 2, bannedUntil: at(604_800),
+            readings: [new WatchdogReading({watchdog: "sequencer", level: "certain", evidence: "walk steps=200", at: at(-61)})],
+            clicks: 240, topCountry: "dz", topCountryClicks: 240,
+        }),
+    ]
+    // Each GetMetrics answers its reads in turn, then the last again.
+    metricReads = [planetMetricsAt(-60, 59), planetMetricsAt(0, 60)]
+    antibotMetricReads = [antibotMetricsAt(-60, 59), antibotMetricsAt(0, 60)]
+    race = new Race({
+        round: new Round({
+            number: 12, endsAtUnixMs: BigInt(AT.getTime() + 3600_000), finale: true,
+            standings: [
+                new RoundStanding({rank: 1, countryId: "fr", share: 0.31, points: 25}),
+                new RoundStanding({rank: 2, countryId: "dz", share: 0.22, points: 18}),
+            ],
+        }),
+        scores: [
+            new Score({rank: 1, countryId: "dz", points: 210, roundsWon: 6}),
+            new Score({rank: 2, countryId: "fr", points: 190, roundsWon: 4}),
+        ],
     })
     // The set the migration keeps: the game's own rules.
     rules = new GetRulesResponse({sets: [new RuleSet({name: "default", rules: PlanetRules.fromJson({
@@ -415,6 +526,11 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         return this.answer("getLedger", request, new GetLedgerResponse({changes: pages[index] ?? [], nextPage: next}))
     }
 
+    getMetrics(request: PartialMessage<GetMetricsRequest>): Promise<GetMetricsResponse> {
+        const read = this.metricReads.length > 1 ? this.metricReads.shift() : this.metricReads[0]
+        return this.answer("getMetrics", request, read ?? new GetMetricsResponse())
+    }
+
     getTerritories(request: PartialMessage<GetTerritoriesRequest>): Promise<GetTerritoriesResponse> {
         return this.answer("getTerritories", request, this.territories)
     }
@@ -498,8 +614,18 @@ export class FakeAntibot implements AntibotAdmin {
         return this.admin.answer("inspectPlayer", request, this.admin.inspection)
     }
 
+    getMetrics(request: PartialMessage<AntibotGetMetricsRequest>): Promise<AntibotGetMetricsResponse> {
+        const reads = this.admin.antibotMetricReads
+        const read = reads.length > 1 ? reads.shift() : reads[0]
+        return this.admin.answer("getMetrics", request, read ?? new AntibotGetMetricsResponse())
+    }
+
     getRules(request: PartialMessage<AntibotGetRulesRequest>): Promise<AntibotGetRulesResponse> {
         return this.admin.answer("getRules", request, this.admin.antibotRules)
+    }
+
+    listConvictions(request: PartialMessage<ListConvictionsRequest>): Promise<ListConvictionsResponse> {
+        return this.admin.answer("listConvictions", request, new ListConvictionsResponse({convictions: this.admin.convictions}))
     }
 
     // Kept as the server keeps it: a set of the same name is replaced.
@@ -521,6 +647,10 @@ export class FakeAntibot implements AntibotAdmin {
 // seasons.v1's calls, asked of the same fake: planet.v1 and antibot.v1 have a getRules and a saveRuleSet of their own.
 export class FakeSeasons implements SeasonsAdmin {
     constructor(private readonly admin: FakeAdmin) {}
+
+    getRace(request: PartialMessage<GetRaceRequest>): Promise<GetRaceResponse> {
+        return this.admin.answer("getRace", request, new GetRaceResponse({race: this.admin.race}))
+    }
 
     getRules(request: PartialMessage<SeasonsGetRulesRequest>): Promise<SeasonsGetRulesResponse> {
         return this.admin.answer("getRules", request, this.admin.seasonRules)

@@ -1,10 +1,8 @@
 import {Timestamp} from "@bufbuild/protobuf"
 import {ReactNode, useCallback, useEffect, useMemo, useRef, useState} from "react"
-import {LONG_CALL_MS} from "../api.ts"
 import {Clients, CLIENTS, PlanetAdmin, SupportAdmin} from "../clients.ts"
 import {clockOf} from "../components/time.ts"
 import {FailureNotice} from "../components/FailureNotice.tsx"
-import {LedgerChange} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {PageId} from "../navigation.ts"
 import {Call, useCall} from "../useCall.ts"
 import {usePageVisible} from "../usePageVisible.ts"
@@ -12,7 +10,7 @@ import {ActivityCharts} from "./ActivityCharts.tsx"
 import {FIRST_SPAN, Span, SPANS, totalsOf, wholeOf} from "./activity.ts"
 import {CountryTable} from "./CountryTable.tsx"
 import {Heatmap} from "./Heatmap.tsx"
-import {caughtUp, changesOf, countriesOf, Ledger, playersOf, sinceOf, slotsOf, windowOf} from "./ledger.ts"
+import {changesOf, countriesOf, Ledger, playersOf, readOn, slotsOf, windowOf} from "./ledger.ts"
 import {loadPlaces, Places} from "./places.ts"
 import {PlayingNow} from "./PlayingNow.tsx"
 
@@ -137,7 +135,7 @@ export function HomePage({clients = CLIENTS, onGo, places: readPlaces = loadPlac
 
 type TileProps = {label: string, value: number | undefined, sub?: string, more?: boolean, onGo?: () => void}
 
-function Tile({label, value, sub, more = false, onGo}: TileProps) {
+export function Tile({label, value, sub, more = false, onGo}: TileProps) {
     const body: ReactNode = (
         <>
             <span className="tile-label">{label}</span>
@@ -166,19 +164,7 @@ function useLast<T>(call: Call<T>): T | undefined {
 }
 
 async function ledgerOf(planet: PlanetAdmin, span: Span, kept: Ledger | undefined, signal: AbortSignal) {
-    const window = windowOf(new Date(), span.hours, span.step)
-    const since = sinceOf(kept, window)
-    const read: LedgerChange[] = []
-    let page = ""
-    do {
-        const answer = await planet.getLedger(
-            {since: Timestamp.fromDate(since), until: Timestamp.fromDate(window.until), page},
-            {signal, timeoutMs: LONG_CALL_MS},
-        )
-        for (const change of answer.changes) read.push(change)
-        page = answer.nextPage
-    } while (page !== "")
-    return {...caughtUp(kept, window, since, read), span}
+    return {...await readOn(planet, kept, windowOf(new Date(), span.hours, span.step), signal), span}
 }
 
 async function mapOf(planet: PlanetAdmin, signal: AbortSignal) {

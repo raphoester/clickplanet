@@ -11,6 +11,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/catcher"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/churner"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/cohort"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/convictions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/defender"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/evidence"
@@ -32,6 +33,8 @@ type (
 	Report   = detect.Report
 	Sentence = bans.Sentence
 	Pardon   = bans.Pardon
+
+	Conviction = convictions.Conviction
 
 	Examination = detect.Examination
 	Reading     = detect.Reading
@@ -111,12 +114,13 @@ func New(
 	clock cptime.Clock,
 	observer Observer,
 	banner *bans.Book,
+	convicted convictions.Store,
 	evidences evidence.Persistence,
 	heard ...evidence.Section,
 ) *Guard {
 	onStateError := orNothing(observer.OnStateError)
 
-	g := &Guard{onStart: observer.OnStart, onStateError: onStateError, rules: inForce, banner: banner}
+	g := &Guard{onStart: observer.OnStart, onStateError: onStateError, rules: inForce, banner: banner, convictions: convicted}
 
 	onScopeAccounts := observer.OnScopeAccounts
 	if onScopeAccounts == nil {
@@ -151,7 +155,7 @@ func New(
 		sections = append(sections, watchdog)
 	}
 
-	g.jury = jury.New(config.Jury, rules.Reader(inForce, jury.Part), banner, clock, juryHooks(observer), g.watchdogs...)
+	g.jury = jury.New(config.Jury, rules.Reader(inForce, jury.Part), banner, convicted, clock, juryHooks(observer), g.watchdogs...)
 	g.runners = append(g.runners, g.jury.Run)
 
 	g.evidence = evidence.New(config.Evidence, clock, evidences, onStateError, append(append(sections, g.jury, g.jury.Accounts()), heard...)...)
@@ -193,15 +197,16 @@ type Description struct {
 }
 
 type Guard struct {
-	jury      *jury.Jury
-	banner    *bans.Book
-	evidence  *evidence.Store
-	catcher   *catcher.Watchdog
-	scraper   *scraper.Watchdog
-	runners   []func(context.Context)
-	watchdogs []detect.Watchdog
-	rules     *rules.InForce
-	onStart   func(Description)
+	jury        *jury.Jury
+	banner      *bans.Book
+	convictions convictions.Store
+	evidence    *evidence.Store
+	catcher     *catcher.Watchdog
+	scraper     *scraper.Watchdog
+	runners     []func(context.Context)
+	watchdogs   []detect.Watchdog
+	rules       *rules.InForce
+	onStart     func(Description)
 
 	onStateError func(error)
 }
@@ -299,6 +304,11 @@ func (g *Guard) Examine(ctx context.Context, scope, account string) (Examination
 	}
 
 	return examination, nil
+}
+
+// From since, until before until, oldest first.
+func (g *Guard) Convictions(ctx context.Context, since, until time.Time) ([]Conviction, error) {
+	return g.convictions.Between(ctx, since, until) //nolint:wrapcheck // the store already named what failed.
 }
 
 func (g *Guard) Enforcing() bool { return g.banner.Enforcing() }

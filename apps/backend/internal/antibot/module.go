@@ -11,11 +11,13 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1/antibotv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/ban_player_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/get_metrics_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/get_rule_set_names_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/get_rule_set_names_handler/rule_set_names_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/get_rules_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/get_rules_handler/rule_sets_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/inspect_player_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/list_convictions_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/save_rule_set_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/unban_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/bans"
@@ -27,6 +29,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/observer"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/postgres_ban_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/postgres_choice_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/postgres_conviction_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/postgres_evidence_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/postgres_rule_set_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rules"
@@ -97,7 +100,7 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			marks := listener.NewMarks()
 			watchdogs := guard.New(config.Config, inForce, clock, observer.New(props.Logger, props.Metrics), book,
-				postgres_evidence_store.New(db), marks)
+				postgres_conviction_store.New(db), postgres_evidence_store.New(db), marks)
 			if err := watchdogs.Load(ctx); err != nil {
 				closeStores()
 				return fmt.Errorf("failed to load the antibot state: %w", err)
@@ -123,6 +126,8 @@ func NewModule(config Config) cpbootstrap.Module {
 				GetRulesHandler:      get_rules_handler.New(rule_sets_query.NewPostgresQuery(db), inForce),
 				SaveRuleSetHandler: save_rule_set_handler.New(
 					audit_save_rule_set.New(save_rule_set_usecase.New(ruleSets, parts, players), props.Logger)),
+				ListConvictionsHandler: list_convictions_handler.New(watchdogs, clock),
+				GetMetricsHandler:      get_metrics_handler.New(props.Metrics, clock.Now(), clock),
 			}
 
 			if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {

@@ -23,7 +23,8 @@ What the page does with them:
 - **A span is picked above everything it scopes**: 6 hours in slots of 5 minutes, 24 hours (first) in 15, or 3 days
   in hours. **The last answer stays shown, dimmed, while the next is read** (`useLast`), so a refresh never empties
   the page.
-- **A refresh reads the ledger's new changes, not the span again** (`sinceOf`, `caughtUp` in `ledger.ts`): from a
+- **A refresh reads the ledger's new changes, not the span again** (`readOn`, over `sinceOf` and `caughtUp` in
+  `ledger.ts`, every page of them; the Battle page reads the same way): from a
   minute before the end of the last read (`SETTLE_MS`, since a change reaches postgres a flush after it happened, later
   when a flush fails), and the page keeps what it read before that, inside the span. A new span, or a pause longer than
   the span, reads it whole. **On 2026-10-25 a tab left open read 24 hours every minute**, 7 to 8s each on the 1 GB

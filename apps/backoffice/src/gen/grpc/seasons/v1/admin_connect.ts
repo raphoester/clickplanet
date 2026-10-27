@@ -5,10 +5,11 @@
 
 import { GetRulesRequest, GetRulesResponse, SaveRuleSetRequest, SaveRuleSetResponse } from "./admin_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
+import { GetRaceRequest, GetRaceResponse } from "./seasons_pb.js";
 
 /**
- * The rules seasons counts points with. No authentication of its own: served on the console listener, and on the admin
- * listener behind its gate. Never the public router.
+ * The rules seasons counts points with, and its race for the admin page. No authentication of its own: served on the
+ * console listener, and on the admin listener behind its gate. Never the public router.
  *
  * @generated from service seasons.v1.AdminService
  */
@@ -34,6 +35,17 @@ export const AdminService = {
       name: "SaveRuleSet",
       I: SaveRuleSetRequest,
       O: SaveRuleSetResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * SeasonService/GetRace, for the admin page: the public service answers the game's origin alone.
+     *
+     * @generated from rpc seasons.v1.AdminService.GetRace
+     */
+    getRace: {
+      name: "GetRace",
+      I: GetRaceRequest,
+      O: GetRaceResponse,
       kind: MethodKind.Unary,
     },
   }

@@ -189,11 +189,11 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	); err != nil {
 		return fmt.Errorf("failed to mount seasons.v1.SeasonService: %w", err)
 	}
-
 	admin := seasonsv1controller.AdminService{
 		GetRulesHandler: get_rules_handler.New(rule_sets_query.NewPostgresQuery(db), play),
 		SaveRuleSetHandler: save_rule_set_handler.New(
 			audit_save_rule_set.New(save_rule_set_usecase.New(ruleSets, play), props.Logger)),
+		GetRaceHandler: service.GetRaceHandler,
 	}
 	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return seasonsv1connect.NewAdminServiceHandler(admin, options...)

@@ -216,6 +216,12 @@ func (s *testSuite) TestAnOperatorSignsInOnTheAdminPageAndGrantsItselfABomb() {
 
 	require.NoError(t, err)
 	assert.True(t, granted.GetAfter().GetBomb())
+
+	read := operator.battleFromThePage()
+	assert.Contains(t, read.planet, "throttled_clicks", "planet answers the counters it keeps")
+	assert.NotContains(t, read.planet, "banned_callers", "and none of the antibot's")
+	assert.Contains(t, read.antibot, "banned_callers", "the antibot answers its own")
+	assert.NotNil(t, read.race, "seasons answers its race on the admin listener")
 }
 
 func (s gameStack) tileUpdates(t *testing.T) <-chan *planetv1.TileUpdate {

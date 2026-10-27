@@ -248,7 +248,7 @@ var File_seasons_v1_admin_proto protoreflect.FileDescriptor
 const file_seasons_v1_admin_proto_rawDesc = "" +
 	"\n" +
 	"\x16seasons/v1/admin.proto\x12\n" +
-	"seasons.v1\x1a\x16seasons/v1/rules.proto\"\x11\n" +
+	"seasons.v1\x1a\x16seasons/v1/rules.proto\x1a\x18seasons/v1/seasons.proto\"\x11\n" +
 	"\x0fGetRulesRequest\"U\n" +
 	"\x10GetRulesResponse\x12'\n" +
 	"\x04sets\x18\x01 \x03(\v2\x13.seasons.v1.RuleSetR\x04sets\x12\x18\n" +
@@ -258,10 +258,11 @@ const file_seasons_v1_admin_proto_rawDesc = "" +
 	"\x05rules\x18\x02 \x01(\v2\x11.seasons.v1.RulesR\x05rules\";\n" +
 	"\x12SaveRuleSetRequest\x12%\n" +
 	"\x03set\x18\x01 \x01(\v2\x13.seasons.v1.RuleSetR\x03set\"\x15\n" +
-	"\x13SaveRuleSetResponse2\xa5\x01\n" +
+	"\x13SaveRuleSetResponse2\xe9\x01\n" +
 	"\fAdminService\x12E\n" +
 	"\bGetRules\x12\x1b.seasons.v1.GetRulesRequest\x1a\x1c.seasons.v1.GetRulesResponse\x12N\n" +
-	"\vSaveRuleSet\x12\x1e.seasons.v1.SaveRuleSetRequest\x1a\x1f.seasons.v1.SaveRuleSetResponseB\xb9\x01\n" +
+	"\vSaveRuleSet\x12\x1e.seasons.v1.SaveRuleSetRequest\x1a\x1f.seasons.v1.SaveRuleSetResponse\x12B\n" +
+	"\aGetRace\x12\x1a.seasons.v1.GetRaceRequest\x1a\x1b.seasons.v1.GetRaceResponseB\xb9\x01\n" +
 	"\x0ecom.seasons.v1B\n" +
 	"AdminProtoP\x01ZRgithub.com/raphoester/clickplanet.lol-backend/generated/proto/seasons/v1;seasonsv1\xa2\x02\x03SXX\xaa\x02\n" +
 	"Seasons.V1\xca\x02\n" +
@@ -287,6 +288,8 @@ var file_seasons_v1_admin_proto_goTypes = []any{
 	(*SaveRuleSetRequest)(nil),  // 3: seasons.v1.SaveRuleSetRequest
 	(*SaveRuleSetResponse)(nil), // 4: seasons.v1.SaveRuleSetResponse
 	(*Rules)(nil),               // 5: seasons.v1.Rules
+	(*GetRaceRequest)(nil),      // 6: seasons.v1.GetRaceRequest
+	(*GetRaceResponse)(nil),     // 7: seasons.v1.GetRaceResponse
 }
 var file_seasons_v1_admin_proto_depIdxs = []int32{
 	2, // 0: seasons.v1.GetRulesResponse.sets:type_name -> seasons.v1.RuleSet
@@ -294,10 +297,12 @@ var file_seasons_v1_admin_proto_depIdxs = []int32{
 	2, // 2: seasons.v1.SaveRuleSetRequest.set:type_name -> seasons.v1.RuleSet
 	0, // 3: seasons.v1.AdminService.GetRules:input_type -> seasons.v1.GetRulesRequest
 	3, // 4: seasons.v1.AdminService.SaveRuleSet:input_type -> seasons.v1.SaveRuleSetRequest
-	1, // 5: seasons.v1.AdminService.GetRules:output_type -> seasons.v1.GetRulesResponse
-	4, // 6: seasons.v1.AdminService.SaveRuleSet:output_type -> seasons.v1.SaveRuleSetResponse
-	5, // [5:7] is the sub-list for method output_type
-	3, // [3:5] is the sub-list for method input_type
+	6, // 5: seasons.v1.AdminService.GetRace:input_type -> seasons.v1.GetRaceRequest
+	1, // 6: seasons.v1.AdminService.GetRules:output_type -> seasons.v1.GetRulesResponse
+	4, // 7: seasons.v1.AdminService.SaveRuleSet:output_type -> seasons.v1.SaveRuleSetResponse
+	7, // 8: seasons.v1.AdminService.GetRace:output_type -> seasons.v1.GetRaceResponse
+	6, // [6:9] is the sub-list for method output_type
+	3, // [3:6] is the sub-list for method input_type
 	3, // [3:3] is the sub-list for extension type_name
 	3, // [3:3] is the sub-list for extension extendee
 	0, // [0:3] is the sub-list for field type_name
@@ -309,6 +314,7 @@ func file_seasons_v1_admin_proto_init() {
 		return
 	}
 	file_seasons_v1_rules_proto_init()
+	file_seasons_v1_seasons_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

@@ -21,6 +21,8 @@ each line names a doc in [`docs/`](docs) and says what is in it.
 - [The menu](docs/menu.md) — a burger drawer below 1024px, a sidebar from 1024px.
 - [Every action, on every page](docs/actions.md) — every change asks first, then says what the server answered.
 - [The home page](docs/home.md) — how the game is doing, counted and charted on the page from raw reads.
+- [The battle page](docs/battle.md) — a rush live: bans as they fall, clicks and refused clicks a minute, the race,
+  the antibot, the boxes and the server.
 - [Who sent a note](docs/note-sender.md) — every note comes from an account.
 - [A note's photos and videos](docs/note-media.md) — how a note's files are shown.
 - [Acting on a report](docs/reports.md) — the Reports page: the list, one report, the tools to act and close it.

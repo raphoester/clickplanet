@@ -3,14 +3,14 @@ import {Player} from "./gen/grpc/planet/v1/admin_pb.ts"
 import {Caller} from "./players/caller.ts"
 
 export type PageId =
-    | "home" | "notes" | "reports" | "players" | "reassign" | "paint" | "replay" | "clips" | "titles" | "rules"
+    | "home" | "battle" | "notes" | "reports" | "players" | "reassign" | "paint" | "replay" | "clips" | "titles" | "rules"
     | "antibotRules" | "seasonRules" | "schedule"
 
 export type MenuGroup = {label: string, pages: {page: PageId, label: string}[]}
 
 // Every page, as the burger menu lists them. A page's label is its title too.
 export const MENU: MenuGroup[] = [
-    {label: "Overview", pages: [{page: "home", label: "Home"}]},
+    {label: "Overview", pages: [{page: "home", label: "Home"}, {page: "battle", label: "Battle"}]},
     {label: "Feedback", pages: [{page: "notes", label: "Ideas and bugs"}]},
     {label: "Moderation", pages: [{page: "reports", label: "Reports"}, {page: "players", label: "Players"}]},
     {

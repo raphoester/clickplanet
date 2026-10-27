@@ -15,6 +15,7 @@ import (
 
 	antibotv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/bans"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/convictions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/evidence"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/guard"
@@ -35,6 +36,7 @@ type stack struct {
 	bans           *bans.MemoryStore
 	accountBans    *bans.MemoryStore
 	enforcer       *bans.MemoryEnforcer
+	convictions    *convictions.MemoryStore
 	evidence       *evidence.MemoryPersistence
 	forgetEvidence bool
 
@@ -60,6 +62,7 @@ func newStack(t *testing.T, options ...option) *stack {
 		bans:        bans.NewMemoryStore(),
 		accountBans: bans.NewMemoryStore(),
 		enforcer:    &bans.MemoryEnforcer{},
+		convictions: convictions.NewMemoryStore(),
 		evidence:    evidence.NewMemoryPersistence(),
 		inForce:     rules.NewInForce(),
 	}
@@ -117,7 +120,7 @@ func (s *stack) boot() {
 		OnRise:       func(watchdog, level string) { s.rises = append(s.rises, watchdog+" "+level) },
 		OnStateError: func(err error) { s.errors = append(s.errors, err) },
 		OnStart:      func(guard.Description) { close(started) },
-	}, s.bans, s.accountBans, s.enforcer, s.evidence)
+	}, s.bans, s.accountBans, s.enforcer, s.convictions, s.evidence)
 	if err := built.Load(context.Background()); err != nil {
 		panic(err)
 	}
@@ -821,6 +824,44 @@ func TestALoopRestartedEveryFewMinutesIsStillCaught(t *testing.T) {
 			assert.Equal(t, detect.Certain, s.verdicts("looper")["metronome"])
 		})
 	}
+}
+
+func TestABanTheJuryPassesIsListedWithWhatItReadAndAnOperatorsIsNot(t *testing.T) {
+	s := newStack(t)
+	since := s.clock.Now()
+	s.ban("203.0.113.7", "", time.Hour)
+
+	tile := uint32(180000)
+	for range 400 {
+		s.clock.Advance(time.Second)
+		if s.click("sweeper", tile, "FR") {
+			break
+		}
+		tile++
+	}
+	s.restart(20 * time.Second)
+	defer func() { s.stop() }()
+
+	listed, err := s.guard.Convictions(t.Context(), since, s.clock.Now())
+	require.NoError(t, err)
+
+	require.Len(t, listed, 1)
+	conviction := listed[0]
+	assert.Equal(t, "sweeper", conviction.Scope)
+	assert.Equal(t, 1, conviction.Offence)
+	assert.Equal(t, s.reports[0].BannedUntil, conviction.BannedUntil)
+	assert.Equal(t, s.reports[0].Clicks, conviction.Clicks)
+	levels := map[string]string{}
+	for _, reading := range conviction.Readings {
+		levels[reading.Watchdog] = reading.Level
+	}
+	assert.Equal(t, "suspect", levels["sequencer"])
+	assert.Equal(t, "suspect", levels["metronome"])
+	assert.Equal(t, "clear", levels["retaker"])
+
+	none, err := s.guard.Convictions(t.Context(), since, conviction.At)
+	require.NoError(t, err)
+	assert.Empty(t, none, "a window ends before its until")
 }
 
 func TestExaminingABannedScopeCarriesItsSentence(t *testing.T) {

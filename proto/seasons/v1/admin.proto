@@ -3,15 +3,19 @@ syntax = "proto3";
 package seasons.v1;
 
 import "seasons/v1/rules.proto";
+import "seasons/v1/seasons.proto";
 
-// The rules seasons counts points with. No authentication of its own: served on the console listener, and on the admin
-// listener behind its gate. Never the public router.
+// The rules seasons counts points with, and its race for the admin page. No authentication of its own: served on the
+// console listener, and on the admin listener behind its gate. Never the public router.
 service AdminService {
   rpc GetRules(GetRulesRequest) returns (GetRulesResponse);
 
   // Makes a set, or replaces its values. A set that plays now is FailedPrecondition: the rules in force change only
   // through the schedule.
   rpc SaveRuleSet(SaveRuleSetRequest) returns (SaveRuleSetResponse);
+
+  // SeasonService/GetRace, for the admin page: the public service answers the game's origin alone.
+  rpc GetRace(GetRaceRequest) returns (GetRaceResponse);
 }
 
 message GetRulesRequest {}

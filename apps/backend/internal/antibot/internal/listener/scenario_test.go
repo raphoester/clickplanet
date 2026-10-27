@@ -13,6 +13,7 @@ import (
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/bans"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/convictions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/evidence"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/guard"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/listener"
@@ -47,7 +48,7 @@ func watch(t *testing.T) watched {
 	enforcer := &bans.MemoryEnforcer{}
 	marks := listener.NewMarks()
 	watchdogs := guard.NewInMemory(config, inForce, clock, guard.Observer{}, bans.NewMemoryStore(), bans.NewMemoryStore(),
-		enforcer, evidence.NewMemoryPersistence(), marks)
+		enforcer, convictions.NewMemoryStore(), evidence.NewMemoryPersistence(), marks)
 	require.NoError(t, watchdogs.Load(t.Context()))
 
 	ctx, cancel := context.WithCancel(t.Context())

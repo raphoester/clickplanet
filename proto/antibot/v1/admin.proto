@@ -21,6 +21,13 @@ service AdminService {
   // Makes a set, or replaces its values. A set that plays now is FailedPrecondition: the rules in force change only
   // through the schedule.
   rpc SaveRuleSet(SaveRuleSetRequest) returns (SaveRuleSetResponse);
+
+  // Every ban the jury passed in a window, oldest first, with what it read. An operator's ban is not one.
+  rpc ListConvictions(ListConvictionsRequest) returns (ListConvictionsResponse);
+
+  // What /metrics says of the antibot's own registry. A counter counts from `started_at`: two answers with the same
+  // `started_at` are subtracted, never two with different ones.
+  rpc GetMetrics(GetMetricsRequest) returns (GetMetricsResponse);
 }
 
 message GetRulesRequest {}
@@ -107,4 +114,80 @@ message WatchdogReading {
   string level = 2;
   string evidence = 3;
   google.protobuf.Timestamp at = 4;
+}
+
+message ListConvictionsRequest {
+  google.protobuf.Timestamp since = 1;
+  // Unset is now.
+  google.protobuf.Timestamp until = 2;
+}
+
+message ListConvictionsResponse {
+  repeated Conviction convictions = 1;
+}
+
+// The antibot ban line, kept: the sentence, every watchdog as the jury read it, and the click summary.
+message Conviction {
+  google.protobuf.Timestamp at = 1;
+  string scope = 2;
+  string account_id = 3;
+  // The account whose click convicted this one, when it fell as that account's accomplice.
+  string alongside_account_id = 4;
+  uint32 flags = 5;
+  uint32 offence = 6;
+  google.protobuf.Timestamp banned_until = 7;
+  repeated WatchdogReading readings = 8;
+  uint32 clicks = 9;
+  google.protobuf.Duration active_for = 10;
+  google.protobuf.Duration longest_gap = 11;
+  string top_country = 12;
+  uint32 top_country_clicks = 13;
+}
+
+message GetMetricsRequest {}
+
+message GetMetricsResponse {
+  google.protobuf.Timestamp started_at = 1;
+  google.protobuf.Timestamp read_at = 2;
+  repeated Metric metrics = 3;
+}
+
+// One series: a name, its labels and its value.
+message Metric {
+  string name = 1;
+  repeated Label labels = 2;
+  oneof value {
+    double counter = 3;
+    double gauge = 4;
+    Histogram histogram = 5;
+    Summary summary = 6;
+  }
+}
+
+message Label {
+  string name = 1;
+  string value = 2;
+}
+
+message Histogram {
+  uint64 count = 1;
+  double sum = 2;
+  // Cumulative, as Prometheus keeps them. The +Inf bucket is `count`.
+  repeated Bucket buckets = 3;
+}
+
+message Bucket {
+  double upper_bound = 1;
+  uint64 count = 2;
+}
+
+message Summary {
+  uint64 count = 1;
+  double sum = 2;
+  repeated Quantile quantiles = 3;
+}
+
+message Quantile {
+  double quantile = 1;
+  double value = 2;
 }

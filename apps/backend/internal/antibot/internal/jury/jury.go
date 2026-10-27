@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/bans"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/convictions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -56,6 +57,10 @@ type Banner interface {
 	Flagged(ctx context.Context) (int, error)
 }
 
+type Convictions interface {
+	Keep(ctx context.Context, conviction convictions.Conviction) error
+}
+
 type Hooks struct {
 	OnFlag func(detect.Report)
 
@@ -68,6 +73,7 @@ func New(
 	config Config,
 	rules func() Rules,
 	banner Banner,
+	convictions Convictions,
 	clock cptime.Clock,
 	hooks Hooks,
 	watchdogs ...detect.Watchdog,
@@ -77,24 +83,26 @@ func New(
 	}
 
 	return &Jury{
-		config:    config.withDefaults(),
-		rules:     rules,
-		banner:    banner,
-		clock:     clock,
-		hooks:     hooks,
-		watchdogs: watchdogs,
-		callers:   make(map[string]*caller),
-		accounts:  make(map[string]sighting),
+		config:      config.withDefaults(),
+		rules:       rules,
+		banner:      banner,
+		convictions: convictions,
+		clock:       clock,
+		hooks:       hooks,
+		watchdogs:   watchdogs,
+		callers:     make(map[string]*caller),
+		accounts:    make(map[string]sighting),
 	}
 }
 
 type Jury struct {
-	config    Config
-	rules     func() Rules
-	banner    Banner
-	clock     cptime.Clock
-	hooks     Hooks
-	watchdogs []detect.Watchdog
+	config      Config
+	rules       func() Rules
+	banner      Banner
+	convictions Convictions
+	clock       cptime.Clock
+	hooks       Hooks
+	watchdogs   []detect.Watchdog
 
 	mu       sync.Mutex
 	callers  map[string]*caller
@@ -160,7 +168,7 @@ func (j *Jury) flag(ctx context.Context, click detect.Click, report detect.Repor
 	for _, convict := range convictsOf(click, report) {
 		sentence, accepted, err := j.banner.Flag(ctx, convict)
 		errs = append(errs, err)
-		if !accepted || j.hooks.OnFlag == nil {
+		if !accepted {
 			continue
 		}
 
@@ -172,7 +180,11 @@ func (j *Jury) flag(ctx context.Context, click detect.Click, report detect.Repor
 		passed.Flags = sentence.Flags
 		passed.Offence = sentence.Offence
 		passed.BannedUntil = sentence.Until
-		j.hooks.OnFlag(passed)
+
+		errs = append(errs, j.convictions.Keep(ctx, convictions.Of(passed, j.clock.Now())))
+		if j.hooks.OnFlag != nil {
+			j.hooks.OnFlag(passed)
+		}
 	}
 
 	return errors.Join(errs...)

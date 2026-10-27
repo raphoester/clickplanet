@@ -77,7 +77,8 @@ and says what is in it. Read the doc before you change its area.
 - [Auth](docs/auth.md) — Turnstile, guest and signed-in accounts (Google, Discord, emailed code), operators,
   sign-out, deletion and pruning.
 - [Anti-bot](docs/antibot.md) — a module that hears planet's facts about callers, judges them, and asks planet to
-  refuse the ones it bans; what survives a restart, and the parts that are easy to get wrong.
+  refuse the ones it bans; each ban kept with its reasons, what survives a restart, and the parts that are easy to
+  get wrong.
 - [The antibot's rules](docs/antibot-rules.md) — every bound is a rule set in postgres, edited from the backoffice;
   the pointer the watchdogs read, which set plays, and what stays in the YAML.
 
@@ -99,6 +100,7 @@ and says what is in it. Read the doc before you change its area.
 ## Operator tools and jobs
 
 - [Operator tools (`AdminService`)](docs/admin.md) — the console and admin listeners; `GrantCharges`,
-  `GetReplay`, `GetLedger`, `PaintRandomTiles`, manual bans.
+  `GetReplay`, `GetLedger`, the battle reads (`ListConvictions`, `GetMetrics`, `GetRace`), `PaintRandomTiles`,
+  manual bans.
 - [The clips job](docs/clips-job.md) — `cmd/clips`: every 2 hours, picks the best clips and posts them; its
   experiments, the model editor and the stats.

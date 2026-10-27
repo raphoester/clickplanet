@@ -19,6 +19,8 @@ src/
                     Fact, Person, When
   home/             Home: the tiles, ActivityCharts, Heatmap, CountryTable, PlayingNow, over ledger.ts (the counts),
                     heat.ts (the picture), places.ts (the tile coordinates) and activity.ts
+  battle/           Battle: BanList, MinuteChart, RacePanel, CounterPanels, over counters.ts (the process's counters)
+                    and usePolling; the ledger is read with home/ledger.ts's readOn
   support/          Ideas and bugs: NoteList, Attachments, labels.ts (names, outcomes, device lines, sizes)
   chat/             Conversation and TheirMessages, which reports/ and players/ show, over chatPages.ts (a page of
                     ListMessages, the parties a report names) and theirConversations.ts
