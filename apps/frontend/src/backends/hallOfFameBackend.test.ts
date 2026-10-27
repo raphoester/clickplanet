@@ -1,6 +1,6 @@
 import {describe, expect, it, vi} from "vitest"
 import {Code, ConnectError} from "@connectrpc/connect"
-import {EndedSeason, GetHallOfFameResponse, Score, Standing} from "../gen/grpc/seasons/v1/seasons_pb.ts"
+import {EndedSeason, GetHallOfFameResponse, Score, Standing} from "../gen/grpc/scoring/v1/scoring_pb.ts"
 import {NameColor} from "../gen/grpc/player/v1/color_pb.ts"
 import {Title} from "../gen/grpc/player/v1/title_pb.ts"
 import {ConnectHallOfFameBackend} from "./hallOfFameBackend.ts"

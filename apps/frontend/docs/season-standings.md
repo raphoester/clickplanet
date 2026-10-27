@@ -5,7 +5,7 @@ ranked player: rank, name, color, worn title, the flag its tiles are for, tiles)
 and `MySeason` (the caller's line on one board: that flag, its tiles, its rank
 and its worn title), and the countries' `Race` (the `Round` in progress and the
 season's `Score`s). `standingsBackend.ts` implements it over
-`seasons.v1.SeasonService/ListenForEvents` and `GetMySeason`, and
+`scoring.v1.SeasonService/ListenForEvents` and `GetMySeason`, and
 `fakeStandingsBackend.ts` stands in for it in fake mode, counting the player's
 own clicks and moving the other players a few tiles every 1.5s. `app/standings/`
 draws it.
@@ -23,14 +23,19 @@ draws it.
   views.
 - **The countries' points are on the Countries board, where everybody looks.**
   Each day is a round, the top 10 countries by the ground they held score 25, 18,
-  15 … 1, and the Final Battle triple (the backend's [Seasons](../../backend/docs/seasons.md)).
+  15 … 1, and a battle's round of its own its times that (the Final Battle ×3; the
+  backend's [Scoring](../../backend/docs/scoring.md)).
   `listenForRace` follows the whole map's season stream and reads its `race`
   case, which every stream carries; the server reads it again every 10s.
   `Viewer` follows it once (`useRace`) and hands it to the board. With a race the
   board keeps "% of map" and adds two columns: Points, each country's points from
   the days closed, right-aligned, and Today, what it scores if the day ends now, in
   green ("+18") and left-aligned. **Today is its own column so the points line up**:
-  as a badge beside the points it pushed only the rows that had one. The leader
+  as a badge beside the points it pushed only the rows that had one. **While a
+  battle's round of its own is the round in progress** (`round.own`), the column is
+  the battle's: crossed swords and its times ("×3", in `--war`) for "Today", its own
+  hint (`battle`), and its points, already ×times, read "this battle" to a screen
+  reader. The leader
   frame shows the points where it showed the share, and the share beside its tiles,
   first, so the tiles' delta badge floats into the room after them. On a narrow
   phone the two wrap onto two lines rather than run into the points.

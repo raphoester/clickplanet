@@ -104,9 +104,12 @@ import {useTurn} from "../battle/useTurn.ts";
 import {useMood} from "../battle/useMood.ts";
 import {useBattleReveal} from "../battle/useBattleReveal.ts";
 import {useBattleOver} from "../battle/useBattleOver.ts";
+import {useSeenBattle} from "../battle/useSeenBattle.ts";
 import BattleChip, {BattleDetails} from "../battle/BattleChip.tsx";
 import BattleReveal from "../battle/BattleReveal.tsx";
 import BattleOver from "../battle/BattleOver.tsx";
+import BattleBrief from "../battle/BattleBrief.tsx";
+import {briefDescriptionOf} from "../../domain/battleBrief.ts";
 import {reigningChampionOf} from "../../domain/champion.ts";
 import {countryLines, CountryOrder, shownOrder} from "../../domain/race.ts";
 import {acceptedClicks} from "./acceptedClicks.ts";
@@ -184,10 +187,11 @@ export default function Viewer(props: ViewerProps) {
     const battle = battleOf(turn)
     useMood(battle ? "battle" : undefined)
     const battleReveal = useBattleReveal(battle)
-    const battleOver = useBattleOver(battle)
+    const battleOver = useBattleOver(battle, race)
+    const seenBattle = useSeenBattle(battle)
     useEffect(() => {
-        if (reveal.closed) announce({kind: "round", closed: reveal.closed})
-    }, [announce, reveal.closed])
+        for (const due of reveal.due) announce(due)
+    }, [announce, reveal.due])
     useEffect(() => {
         if (battleReveal.battle) announce({kind: "battle", battle: battleReveal.battle})
     }, [announce, battleReveal.battle])
@@ -550,12 +554,25 @@ export default function Viewer(props: ViewerProps) {
                                                               onWear={props.account?.wearTitle}
                                                               onClose={announcements.dismiss}/>}
 
-        {ready && current?.kind === "round" && <RoundReveal key={announcementKeyOf(current)}
+        {ready && (current?.kind === "round" || current?.kind === "results") && <RoundReveal
+            key={announcementKeyOf(current)}
+            closed={current.closed}
+            results={current.kind === "results"}
+            countryCode={countryState.code}
+            play={sound.play}
+            onClose={() => {
+                reveal.dismiss(current)
+                announcements.dismiss()
+            }}/>}
+
+        {ready && current?.kind === "brief" && <BattleBrief key={announcementKeyOf(current)}
                                                             closed={current.closed}
+                                                            description={briefDescriptionOf(seenBattle, current.closed)}
                                                             countryCode={countryState.code}
+                                                            accountId={ownAccountId}
                                                             play={sound.play}
                                                             onClose={() => {
-                                                                reveal.dismiss()
+                                                                reveal.dismiss(current)
                                                                 announcements.dismiss()
                                                             }}/>}
 
@@ -608,6 +625,7 @@ export default function Viewer(props: ViewerProps) {
         />}
 
         {battleOver.over && <BattleOver key={battleKeyOf(battleOver.over)}
+                                        awaiting={battleOver.awaiting}
                                         lowered={quiz.state.phase !== 'idle'}
                                         onDone={battleOver.dismiss}/>}
 

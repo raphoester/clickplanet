@@ -11,11 +11,11 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips"
-	"github.com/raphoester/clickplanet.lol-backend/internal/metagame"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player"
-	"github.com/raphoester/clickplanet.lol-backend/internal/seasons"
+	"github.com/raphoester/clickplanet.lol-backend/internal/scoring"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconfigs"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support"
@@ -26,14 +26,14 @@ type Config struct {
 
 	Planet planet.Config `koanf:",squash"`
 
-	Auth     auth.Config
-	AntiBot  antibot.Config
-	Chat     chat.Config
-	Player   player.Config
-	Seasons  seasons.Config
-	Metagame metagame.Config
-	Missions missions.Config
-	Support  support.Config
+	Auth       auth.Config
+	AntiBot    antibot.Config
+	Chat       chat.Config
+	Player     player.Config
+	Scoring    scoring.Config
+	Gamemaster gamemaster.Config
+	Missions   missions.Config
+	Support    support.Config
 	// The numbers of the clips the clips job posted.
 	Clips clips.ModuleConfig
 }
@@ -76,8 +76,8 @@ func describeModules(config Config) []cpbootstrap.Module {
 		antibot.NewModule(config.AntiBot),
 		chat.NewModule(config.Chat),
 		player.NewModule(config.Player),
-		seasons.NewModule(config.Seasons),
-		metagame.NewModule(config.Metagame),
+		scoring.NewModule(config.Scoring),
+		gamemaster.NewModule(config.Gamemaster),
 		missions.NewModule(config.Missions),
 		support.NewModule(config.Support),
 		clips.NewModule(config.Clips),
@@ -101,8 +101,8 @@ func (c Config) Validate() error {
 		c.Chat.Validate(),
 		c.Auth.Validate(),
 		c.Player.Validate(),
-		c.Seasons.Validate(),
-		c.Metagame.Validate(),
+		c.Scoring.Validate(),
+		c.Gamemaster.Validate(),
 		c.Missions.Validate(),
 		c.Support.Validate(),
 		c.Clips.Validate(),

@@ -316,6 +316,8 @@ export function decodedAnnouncement(announcement: AnnouncementPb): ChatAnnouncem
                 announcedAt: Number(announcement.announcedAtUnixMs),
                 number: values.number,
                 finale: values.finale === true,
+                own: values.own === true,
+                times: typeof values.times === "number" && values.times > 0 ? values.times : 1,
                 podium: values.podium.filter(isPodiumPlace),
             }
         case "champion": {

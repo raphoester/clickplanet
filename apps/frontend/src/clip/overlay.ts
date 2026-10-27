@@ -170,7 +170,7 @@ function wordedOf(story: Story, headline?: string): Words {
 
     if (story.kind === "round" && story.day !== undefined) {
         const day = story.day
-        const won = day.finale ? "the final battle" : `day ${day.number}`
+        const won = day.finale ? "the final battle" : day.own ? "the battle" : `day ${day.number}`
         const after = day.table.find(({country}) => country === story.attacker)
         const points = after === undefined ? "" : `${NUMBER.format(after.points)} ${after.points === 1 ? "point" : "points"}`
         return {
@@ -178,7 +178,7 @@ function wordedOf(story: Story, headline?: string): Words {
             line: after === undefined ? undefined
                 : after.rank > 1 ? `${ordinalOf(after.rank)} in the season with ${points}`
                     : day.finale ? `Wins the season with ${points}` : `Leads the season with ${points}`,
-            call: day.finale ? "PLAY FOR YOUR COUNTRY" : `WHO WINS DAY ${day.number + 1}?`,
+            call: day.finale || day.own ? "PLAY FOR YOUR COUNTRY" : `WHO WINS DAY ${day.number + 1}?`,
             callFlags: [],
             link: SITE,
             ...named([["takes-the-day", `${attacker} takes ${won}`], ["day-goes-to", `${won} goes to ${attacker}`]]),

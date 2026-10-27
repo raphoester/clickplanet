@@ -63,7 +63,7 @@ player:
     address: redis:6379
   tagSalt: "local-development-salt"
 
-seasons:
+scoring:
   dailyCutoff: 21h
   list:
     - number: 0
@@ -75,11 +75,11 @@ seasons:
     password: postgres
     dbName: postgres
     sslMode: disable
-    schema: seasons
+    schema: scoring
   redis:
     address: redis:6379
 
-metagame:
+gamemaster:
   database:
     host: postgres
     port: "5432"
@@ -87,7 +87,7 @@ metagame:
     password: postgres
     dbName: postgres
     sslMode: disable
-    schema: metagame
+    schema: gamemaster
   redis:
     address: redis:6379
 

@@ -23,9 +23,9 @@ if (!replay || has("help")) {
   --pick <n>          the clip's number in its run, which names its files: clip-<n>.mp4, default 1
   --out <path>        the video, default clip-<n>.mp4 beside the replay
   --plan              print what the clip would be, and make none
-  --race <path>       the season's race (seasons.v1.GetRaceResponse): the day it closed last is a story when its
+  --race <path>       the season's race (scoring.v1.GetRaceResponse): the day it closed last is a story when its
                       cutoff is in the window
-  --season <path>     the season (seasons.v1.GetSeasonResponse): with the race, each country that can still win it is
+  --season <path>     the season (scoring.v1.GetSeasonResponse): with the race, each country that can still win it is
                       called up to its Final Battle
   --silent            no anthem under the clip, for a sound added where it is posted
   --preview <s>       only the first s seconds of the clip
@@ -36,12 +36,11 @@ Everything below is chosen from the replay when left out:
   --since, --until    the window searched, as ISO times; default the last 12 hours
   --hours <n>         the window's length, its busiest stretches
   --seconds <n>       the clip's length, at most 22; default 8.5 to 17.5 by how far the fighting moves (10 to 19 with a
-                      day's podium), 9 to 20.5 for a tour by its stops. Not with the experiment "length"
+                      day's podium), 6.5 to 19 for a tour by its stops. Not with the experiment "length"
   --focus <code>      only what changed hands on that country's ground
   --flags             come back out of the tiles halfway, to watch the painted flags change
   --dive              come back out of the tiles at the end
   --headline <text>   the headline, over the story's own
-  --hold <s>          how long the opening holds on the whole front before diving in, default 0.3
   --fps <n>           frames a second, default 30
   --recorders <n>     the browsers taking the frames in turn, default one for every 3 cores, 4 at most
   --headed            show the browser
@@ -239,7 +238,7 @@ const COMMIT = commitOf()
 
 function pageOf() {
     const query = new URLSearchParams({fps: flag("fps", "30"), commit: COMMIT})
-    for (const name of ["since", "until", "hours", "seconds", "focus", "headline", "hold", "variants", "story", "pick"]) {
+    for (const name of ["since", "until", "hours", "seconds", "focus", "headline", "variants", "story", "pick"]) {
         if (flag(name)) query.set(name, flag(name))
     }
     for (const name of ["flags", "dive", "silent"]) {

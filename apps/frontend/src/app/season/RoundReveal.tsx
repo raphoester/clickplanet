@@ -11,6 +11,7 @@ import {
     revealRowsOf,
     ROUND_REVEAL,
     roundOverLine,
+    seasonOverLine,
 } from "../../domain/roundReveal.ts"
 import CountryFlag from "../components/CountryFlag.tsx"
 import {useModalDialog} from "../components/useDialog.ts"
@@ -22,6 +23,7 @@ const COUNT_STEPS = 24
 
 export type RoundRevealProps = {
     closed: ClosedRound
+    results?: boolean
     countryCode: string
     play: PlaySound
     onClose: () => void
@@ -29,10 +31,10 @@ export type RoundRevealProps = {
 
 type Stage = "podium" | "table" | "champion"
 
-export default function RoundReveal({closed, countryCode, play, onClose}: RoundRevealProps) {
+export default function RoundReveal({closed, results = false, countryCode, play, onClose}: RoundRevealProps) {
     const dialog = useRef<HTMLDivElement>(null)
     const headId = useId()
-    const [podium] = useState(() => podiumOf(closed))
+    const [podium] = useState(() => results ? [] : podiumOf(closed))
     const [rows] = useState(() => revealRowsOf(closed, countryCode))
     const [champion] = useState(() => championOf(closed))
     const [stage, setStage] = useState<Stage>(podium.length > 0 ? "podium" : "table")
@@ -87,11 +89,11 @@ export default function RoundReveal({closed, countryCode, play, onClose}: RoundR
              style={{"--steps": podium.length} as CSSProperties}>
             <div className="round-reveal-stage">
                 <h2 id={headId} className="title-reveal-head round-reveal-head">
-                    {stage === "champion" && champion ? winsLine(champion) : roundOverLine(closed)}
+                    {stage === "champion" && champion ? winsLine(champion) : results ? seasonOverLine(closed.season) : roundOverLine(closed)}
                 </h2>
 
                 {stage === "podium" && <Podium podium={podium}/>}
-                {stage === "table" && <Table season={closed.season} rows={rows} moved={moved}/>}
+                {stage === "table" && <Table label={results ? "Final table" : `Season ${closed.season}`} rows={rows} moved={moved}/>}
                 {stage === "champion" && champion && <Crowned champion={champion}/>}
 
                 <div className="title-reveal-actions round-reveal-actions">
@@ -107,7 +109,7 @@ export default function RoundReveal({closed, countryCode, play, onClose}: RoundR
     )
 }
 
-function Podium({podium}: {podium: RoundStanding[]}) {
+export function Podium({podium}: {podium: RoundStanding[]}) {
     const [first, second, third] = podium
     const shown = [second, first, third].filter((standing): standing is RoundStanding => standing !== undefined)
 
@@ -136,9 +138,9 @@ function Crowned({champion}: {champion: Champion}) {
     </div>
 }
 
-function Table({season, rows, moved}: {season: number, rows: RevealRow[], moved: boolean}) {
+function Table({label, rows, moved}: {label: string, rows: RevealRow[], moved: boolean}) {
     return <>
-        <p className="round-reveal-season">Season {season}</p>
+        <p className="round-reveal-season">{label}</p>
         <ol className="round-reveal-table" style={{"--rows": rows.length} as CSSProperties}>
             {rows.map((row) => {
                 const move = moveOf(row)

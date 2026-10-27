@@ -4,7 +4,7 @@ import * as THREE from "three"
 import type {JsonValue} from "@bufbuild/protobuf"
 import {Clip} from "../gen/grpc/clips/v1/clips_pb.ts"
 import {GetReplayResponse} from "../gen/grpc/planet/v1/admin_pb.ts"
-import {GetRaceResponse, GetSeasonResponse} from "../gen/grpc/seasons/v1/seasons_pb.ts"
+import {GetRaceResponse, GetSeasonResponse} from "../gen/grpc/scoring/v1/scoring_pb.ts"
 import {ReplayBackend} from "../backends/replayBackend.ts"
 import {createGlobe} from "../app/viewer/globe.ts"
 import {loadPointGeometryData} from "../app/viewer/points.ts"
@@ -26,7 +26,7 @@ import {callUpsOf} from "../domain/clip/callup.ts"
 import {fightersOf, inPlace, Story, storyKeyOf, teamFlagOf, THE_WORLD} from "../domain/clip/story.ts"
 import {scoreOf} from "../domain/clip/score.ts"
 import {Flip, flippedTo, flipsOf, Look, lookOf} from "../domain/clip/look.ts"
-import {cameraOf, framingOf, openingOf, PullBack, screensOf} from "../domain/clip/camera.ts"
+import {cameraOf, framingOf, overviewOf, PullBack, screensOf} from "../domain/clip/camera.ts"
 import {paceOf, playedAt, PODIUM_ENDING_SECONDS, timelineFor, timelineOf} from "../domain/clip/pace.ts"
 import {stopsOf, tourOf, tourSecondsOf, Visit} from "../domain/clip/tour.ts"
 import {flagsZoomOf, tilesZoomOf} from "../app/viewer/pointSize.ts"
@@ -389,9 +389,9 @@ async function choose(): Promise<Chosen> {
         const touched = front.changes.map(({tile}) => tile)
         const flips = flipsOf(borders.assignment, backend.opening, changes, touched)
         const look = lookParam() ?? lookOf(flips, wide.zoom)
-        const first = openingOf(wide)
+        const overview = overviewOf(wide)
 
-        const close = Math.max(first.zoom, tilesZoomOf(root.clientHeight) * DIVE_DEPTH)
+        const close = Math.max(overview.zoom, tilesZoomOf(root.clientHeight) * DIVE_DEPTH)
         const screens = screensOf(front.changes.map(({tile}, i) => ({share: i / front.changes.length, point: pointAt(tile)})), close)
         const pace = paceOf(front.changes.map(({at}) => at), backend.since, backend.until)
         // A tour stays far out, where only a landmass's painted flag switching is seen: its stops are framed on the
@@ -403,11 +403,10 @@ async function choose(): Promise<Chosen> {
         const timeline = world ? timelineFor(tourSecondsOf(stops.length), numberParam("seconds"))
             : timelineOf(screens, numberParam("seconds"), seasonal ? PODIUM_ENDING_SECONDS : undefined, variants.length)
         const camera = world ? tourOf(stops, aspect, timeline.seconds - timeline.ending, flagsZoomOf(root.clientHeight))
-            : cameraOf(first, front.changes.map(({tile, at}) => ({share: pace.shareOf(at), point: pointAt(tile)})), {
+            : cameraOf(overview, front.changes.map(({tile, at}) => ({share: pace.shareOf(at), point: pointAt(tile)})), {
                 close,
                 seconds: timeline.seconds - timeline.ending,
                 pullBack: PULL_BACKS[look],
-                hold: numberParam("hold"),
             })
 
         const owners = new Map([...backend.opening].filter(([tile]) => inArea(tile)))

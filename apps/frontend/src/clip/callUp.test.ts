@@ -7,7 +7,7 @@ const CUTOFF = Date.parse("2026-10-23T21:00:00Z")
 const FINALE = Date.parse("2026-10-31T21:00:00Z")
 
 const day: Day = {
-    season: 0, number: 15, finale: false, endedAt: CUTOFF,
+    season: 0, number: 15, finale: false, own: false, endedAt: CUTOFF,
     podium: [{country: "dz", rank: 1, points: 25}],
     table: [
         {country: "dz", rank: 1, points: 289}, {country: "pl", rank: 2, points: 275}, {country: "br", rank: 3, points: 145},

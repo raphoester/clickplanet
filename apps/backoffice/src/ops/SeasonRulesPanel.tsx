@@ -1,8 +1,8 @@
 import {useCallback, useState} from "react"
-import {SeasonsAdmin} from "../clients.ts"
+import {ScoringAdmin} from "../clients.ts"
 import {ConfirmAction} from "../components/ConfirmAction.tsx"
 import {FailureNotice} from "../components/FailureNotice.tsx"
-import {GetRulesResponse, RuleSet} from "../gen/grpc/seasons/v1/admin_pb.ts"
+import {GetRulesResponse, RuleSet} from "../gen/grpc/scoring/v1/admin_pb.ts"
 import {wordsOf} from "../refusal.ts"
 import {useCall} from "../useCall.ts"
 import {complete, copyOf, Draft, draftOf, MAX_TIMES, roundOf, saveRuleSet} from "./seasonRules.ts"
@@ -14,8 +14,8 @@ const refusal = (err: unknown) =>
     wordsOf(err, {failedPrecondition: "A set of this name plays now. Save it under another name."})
 
 // Every season rule set postgres keeps, and a form to make one or change one.
-export function SeasonRulesPanel({seasons}: {seasons: SeasonsAdmin}) {
-    const read = useCallback((signal: AbortSignal) => seasons.getRules({}, {signal}), [seasons])
+export function SeasonRulesPanel({scoring}: {scoring: ScoringAdmin}) {
+    const read = useCallback((signal: AbortSignal) => scoring.getRules({}, {signal}), [scoring])
     const [rules, again] = useCall(read)
     const [editing, setEditing] = useState<Editing | undefined>(undefined)
 
@@ -45,7 +45,7 @@ export function SeasonRulesPanel({seasons}: {seasons: SeasonsAdmin}) {
             {editing !== undefined && (
                 <SetForm
                     key={`${editing.made ? "edit" : "copy"} ${editing.from}`}
-                    seasons={seasons}
+                    scoring={scoring}
                     editing={editing}
                     onCancel={() => setEditing(undefined)}
                     onSaved={saved}
@@ -86,8 +86,8 @@ function Sets({rules, onEdit, onCopy}: {
     )
 }
 
-function SetForm({seasons, editing, onCancel, onSaved}: {
-    seasons: SeasonsAdmin, editing: Editing, onCancel: () => void, onSaved: () => void,
+function SetForm({scoring, editing, onCancel, onSaved}: {
+    scoring: ScoringAdmin, editing: Editing, onCancel: () => void, onSaved: () => void,
 }) {
     const [draft, setDraft] = useState(editing.draft)
     const title = editing.made ? `Edit ${editing.from}` : `New set from ${editing.from}`
@@ -128,7 +128,7 @@ function SetForm({seasons, editing, onCancel, onSaved}: {
                 label="Save"
                 disabled={!complete(draft)}
                 question={`Save ${draft.name.trim()}?`}
-                run={() => saveRuleSet(seasons, draft)}
+                run={() => saveRuleSet(scoring, draft)}
                 said={() => "Saved."}
                 refusal={refusal}
                 onDone={onSaved}

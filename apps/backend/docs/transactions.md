@@ -39,7 +39,7 @@ type Conn interface {
 - **`InTx` joins the transaction `ctx` carries, or begins one.** A store's own multi-statement write
   (`s.db.InTx(ctx, func(ctx context.Context) error { tx := s.db.On(ctx); ... })`) is atomic alone, and part of the
   use case's transaction inside one. A failure or a panic rolls back. There is no `BeginTx` left outside `cppg`.
-- **The transaction is keyed by the database.** A context that carries auth's transaction reaches seasons' pool
+- **The transaction is keyed by the database.** A context that carries auth's transaction reaches scoring's pool
   as the pool.
 - **`Outbox.Record` refuses outside a transaction** (`cppg.ErrNoTransaction`, through `InOpenTx`): an event is
   never kept apart from what it tells of.

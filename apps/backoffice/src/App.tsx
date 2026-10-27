@@ -92,10 +92,10 @@ function Console({operator, onSignedOut}: {operator: string, onSignedOut: () => 
                 {page === "titles" && <TitlesPanel player={CLIENTS.player}/>}
                 {page === "rules" && <RulesPanel planet={CLIENTS.planet}/>}
                 {page === "antibotRules" && <AntibotRulesPanel antibot={CLIENTS.antibot}/>}
-                {page === "seasonRules" && <SeasonRulesPanel seasons={CLIENTS.seasons}/>}
+                {page === "seasonRules" && <SeasonRulesPanel scoring={CLIENTS.scoring}/>}
                 {page === "schedule" && (
                     <SchedulePanel
-                        metagame={CLIENTS.metagame} planet={CLIENTS.planet} antibot={CLIENTS.antibot} seasons={CLIENTS.seasons}
+                        gamemaster={CLIENTS.gamemaster} planet={CLIENTS.planet} antibot={CLIENTS.antibot} scoring={CLIENTS.scoring}
                     />
                 )}
             </Page>

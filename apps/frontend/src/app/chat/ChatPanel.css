@@ -755,6 +755,16 @@ button.chat-quote:hover {
     text-shadow: var(--text-outline);
 }
 
+.chat-round-times {
+    padding: 0 6px;
+    border: var(--outline-thin) solid var(--ink);
+    border-radius: var(--radius-pill);
+    background: var(--war);
+    font-family: var(--font-display);
+    color: var(--cream);
+    text-shadow: var(--text-drop);
+}
+
 .chat-round-podium {
     display: flex;
     flex-wrap: wrap;

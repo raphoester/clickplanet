@@ -77,8 +77,8 @@ internal/chat/internal/
     bomb_landed_subscriber/             planet.v1.BombLanded → announce_usecase, as a Bomb
     fortified_subscriber/               planet.v1.Fortified → announce_usecase, as a Fortify of 50 tiles or more
     account_muted_subscriber/           chat.v1.AccountMuted → announce_mute_usecase
-    round_closed_subscriber/            seasons.v1.RoundClosed → announce_usecase, as a Round
-    season_closed_subscriber/           seasons.v1.SeasonClosed → announce_usecase, as a Champion
+    round_closed_subscriber/            scoring.v1.RoundClosed → announce_usecase, as a Round
+    season_closed_subscriber/           scoring.v1.SeasonClosed → announce_usecase, as a Champion
     account_deleted_subscriber/         auth.v1.AccountDeleted → forget_seen_usecase
     log_subscriber/                     logs an event a subscriber refused (player's, copied)
   migrations/                           the chat schema

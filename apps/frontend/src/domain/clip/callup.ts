@@ -5,8 +5,9 @@ const FINALE_TIMES = 3
 const DAY_MS = 86_400_000
 
 // A country contends when winning every day left and the Final Battle, the leader second each time, brings it level.
+// Only a day calls up: a battle's podium scored its times.
 export function callUpsOf(day: Day | undefined, finaleAt: number | undefined, since: number, until: number): Story[] {
-    if (day === undefined || finaleAt === undefined || day.finale) return []
+    if (day === undefined || finaleAt === undefined || day.finale || day.own) return []
     if (day.endedAt <= since || day.endedAt > until || day.endedAt >= finaleAt) return []
 
     const [first, second] = [...day.podium].sort((a, b) => b.points - a.points).map(({points}) => points)

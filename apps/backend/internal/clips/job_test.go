@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 type sentPost struct {
@@ -105,6 +106,11 @@ func zernioWith(t *testing.T, posts *[]sentPost, chart func(country string) (int
 	return server
 }
 
+// Today at 15:00 UTC, in TikTok's hours.
+func inTikToksHours() *cptime.FixedClock {
+	return cptime.NewFixedClock(time.Now().UTC().Truncate(24 * time.Hour).Add(15 * time.Hour))
+}
+
 func rendered(t *testing.T, folder string, pick int, title, flag string, countries ...string) {
 	t.Helper()
 
@@ -128,9 +134,10 @@ func TestARunSchedulesEveryClipOfTheFolderAtOnceAnHourApartAndReportsEachOne(t *
 	config.Zernio.APIKey = "the-key"
 	config.Zernio.BaseURL = server.URL
 	var logs bytes.Buffer
-	before := time.Now()
+	clock := inTikToksHours()
+	before := clock.Now()
 
-	report, err := clips.Schedule(t.Context(), folder, config, slog.New(slog.NewTextHandler(&logs, nil)))
+	report, err := clips.Schedule(t.Context(), folder, config, clock, slog.New(slog.NewTextHandler(&logs, nil)))
 
 	require.NoError(t, err)
 	require.Len(t, posts, 2)
@@ -160,9 +167,10 @@ func TestARunSchedulesEveryClipOfTheFolderAtOnceAnHourApartAndReportsEachOne(t *
 
 	require.Len(t, report, 2)
 	assert.Equal(t, "KOSOVO IS ATTACKING THE MIDDLE EAST", report[0].Title)
+	// TikTok takes a run's best clip alone.
 	assert.Equal(t, clips.Report{{
 		Title: "FRANCE IS ATTACKING EUROPE", At: report[1].At, Post: "post-2",
-		Platforms: []clips.PlatformOutcome{{Platform: "tiktok"}, {Platform: "youtube"}},
+		Platforms: []clips.PlatformOutcome{{Platform: "youtube"}},
 	}}, report[1:])
 	assert.True(t, first.Equal(report[0].At))
 	assert.True(t, second.Equal(report[1].At))
@@ -189,7 +197,7 @@ func TestARunThatZernioRefusesReportsWhyForEachClip(t *testing.T) {
 	config.Zernio.BaseURL = server.URL
 	var logs bytes.Buffer
 
-	report, err := clips.Schedule(t.Context(), folder, config, slog.New(slog.NewTextHandler(&logs, nil)))
+	report, err := clips.Schedule(t.Context(), folder, config, inTikToksHours(), slog.New(slog.NewTextHandler(&logs, nil)))
 
 	require.NoError(t, err)
 	require.Len(t, report, 1)
@@ -212,7 +220,7 @@ func TestARunThatCannotReadWhatThePlatformsHoldSendsNothing(t *testing.T) {
 	folder := t.TempDir()
 	rendered(t, folder, 1, "KOSOVO IS ATTACKING THE MIDDLE EAST", "xk")
 
-	_, err := clips.Schedule(t.Context(), folder, configFor(server), slog.New(slog.DiscardHandler))
+	_, err := clips.Schedule(t.Context(), folder, configFor(server), inTikToksHours(), slog.New(slog.DiscardHandler))
 
 	require.ErrorContains(t, err, "zernio answered 401 to the list of posts: Invalid API key")
 }
@@ -277,8 +285,8 @@ func TestARunAfterADayOfPostsOnEveryPlatformChoosesNothing(t *testing.T) {
 	assert.Contains(t, logs.String(), `msg="every platform has posted its day already"`)
 }
 
-func TestTikTokTakesFourteenADayLeavingOneOfItsFifteenForAPostByHand(t *testing.T) {
-	for given, want := range map[int]int{10: 2, 13: 1, 14: 0} {
+func TestTikTokTakesTheBestClipOfARunThreeTimesADay(t *testing.T) {
+	for given, want := range map[int]int{0: 1, 2: 1, 3: 0} {
 		t.Run(fmt.Sprint(given), func(t *testing.T) {
 			posts := day(given, "tiktok")
 			config := configFor(zernio(t, &posts))
@@ -290,6 +298,21 @@ func TestTikTokTakesFourteenADayLeavingOneOfItsFifteenForAPostByHand(t *testing.
 			assert.Len(t, picks.Assigned, want)
 		})
 	}
+}
+
+func TestOutOfTikToksHoursARunPostsOnYouTubeAlone(t *testing.T) {
+	var posts []sentPost
+	folder := t.TempDir()
+	rendered(t, folder, 1, "KOSOVO IS ATTACKING THE MIDDLE EAST", "xk")
+	morning := cptime.NewFixedClock(time.Now().UTC().Truncate(24 * time.Hour).Add(9 * time.Hour))
+
+	report, err := clips.Schedule(t.Context(), folder, configFor(zernio(t, &posts)), morning, slog.New(slog.DiscardHandler))
+
+	require.NoError(t, err)
+	require.Len(t, posts, 1)
+	require.Len(t, posts[0].Platforms, 1)
+	assert.Equal(t, "youtube", posts[0].Platforms[0].Platform)
+	assert.True(t, report.Complete())
 }
 
 // count posts on the platforms, an hour apart, the newest an hour ago.
@@ -311,7 +334,7 @@ func TestADayOneRunScheduledIsNotToldByTheNext(t *testing.T) {
 	clip := `{"pick": 1, "title": "ALGERIA WINS DAY 17", "teasers": ["ALGERIA TAKES DAY 17"], "key": {"flag": "dz", "continent": "the world", "angle": "round", "round": "0.17"}}`
 	require.NoError(t, os.WriteFile(filepath.Join(folder, "clip-1.json"), []byte(clip), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(folder, "clip-1.mp4"), []byte("the video"), 0o600))
-	_, err := clips.Schedule(t.Context(), folder, configFor(server), slog.New(slog.DiscardHandler))
+	_, err := clips.Schedule(t.Context(), folder, configFor(server), inTikToksHours(), slog.New(slog.DiscardHandler))
 	require.NoError(t, err)
 
 	picks, err := clips.Choose(t.Context(), findings(t), configFor(server), slog.New(slog.DiscardHandler))
@@ -335,7 +358,7 @@ func TestTheArmsAClipWasMadeInAreKeptWithItsPostAndReported(t *testing.T) {
 	folder := t.TempDir()
 	renderedIn(t, folder, 1, "ALGERIA STRIKES BACK", `{"length": "short"}`)
 
-	report, err := clips.Schedule(t.Context(), folder, configFor(zernio(t, &posts)), slog.New(slog.DiscardHandler))
+	report, err := clips.Schedule(t.Context(), folder, configFor(zernio(t, &posts)), inTikToksHours(), slog.New(slog.DiscardHandler))
 
 	require.NoError(t, err)
 	require.Len(t, posts, 1)
@@ -350,7 +373,7 @@ func TestAClipInAnArmThatDoesNotRunIsNotPosted(t *testing.T) {
 	folder := t.TempDir()
 	renderedIn(t, folder, 1, "ALGERIA STRIKES BACK", `{"length": "long"}`)
 
-	_, err := clips.Schedule(t.Context(), folder, configFor(zernio(t, &posts)), slog.New(slog.DiscardHandler))
+	_, err := clips.Schedule(t.Context(), folder, configFor(zernio(t, &posts)), inTikToksHours(), slog.New(slog.DiscardHandler))
 
 	require.ErrorContains(t, err, `the experiment "length" has no arm "long"`)
 	assert.Empty(t, posts)
@@ -370,7 +393,7 @@ func TestAClipDrawnForATrendingTrackGoesOutOnTikTokWithOneOfTheChartOfTheCountry
 	config := configFor(server)
 	config.SoundCountry = "FR"
 
-	report, err := clips.Schedule(t.Context(), folder, config, slog.New(slog.DiscardHandler))
+	report, err := clips.Schedule(t.Context(), folder, config, inTikToksHours(), slog.New(slog.DiscardHandler))
 
 	require.NoError(t, err)
 	require.Len(t, posts, 1)
@@ -398,7 +421,7 @@ func TestTheChartIsTheUSOnesWhenNoCountryIsSet(t *testing.T) {
 		return http.StatusOK, `{"tracks":[{"id":"track-1","name":"Song One","artist":"Singer","rank":1}]}`
 	})
 
-	_, err := clips.Schedule(t.Context(), folder, configFor(server), slog.New(slog.DiscardHandler))
+	_, err := clips.Schedule(t.Context(), folder, configFor(server), inTikToksHours(), slog.New(slog.DiscardHandler))
 
 	require.NoError(t, err)
 	assert.Equal(t, []string{"US"}, countries)
@@ -414,7 +437,7 @@ func TestAChartThatCannotBeReadSendsTheClipWithItsAnthemAndSaysWhy(t *testing.T)
 	})
 	var logs bytes.Buffer
 
-	report, err := clips.Schedule(t.Context(), folder, configFor(server), slog.New(slog.NewTextHandler(&logs, nil)))
+	report, err := clips.Schedule(t.Context(), folder, configFor(server), inTikToksHours(), slog.New(slog.NewTextHandler(&logs, nil)))
 
 	require.NoError(t, err)
 	require.Len(t, posts, 1)

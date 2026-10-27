@@ -1,9 +1,9 @@
 # Battles
 
-**The game shows when the schedule plays a battle.** The backend's metagame keeps a
+**The game shows when the schedule plays a battle.** The backend's gamemaster keeps a
 schedule of rule-set entries, and each entry has a kind (the backend's
-[metagame](../../backend/docs/metagame.md)). The client never hears a rule set's
-name, only the kind of the entry that plays, from `metagame.v1.MetagameService/GetTurn`:
+[gamemaster](../../backend/docs/gamemaster.md)). The client never hears a rule set's
+name, only the kind of the entry that plays, from `gamemaster.v1.GamemasterService/GetTurn`:
 `battle` or `plain`, since when, and when the running entry ends. A battle is the
 one kind with a look.
 
@@ -13,11 +13,11 @@ one kind with a look.
   `description`) and `TurnBackend`, with `turn()` and `changes()`, which tells when
   what it answers may have changed. `turnBackend.ts` reads `GetTurn` as a cached GET
   and tells of a change on a page wake (`pageWakeups`: a phone that locked may have
-  slept through a start). A server without the metagame (`Unimplemented`,
+  slept through a start). A server without the gamemaster (`Unimplemented`,
   `NotFound`) reads as a plain turn. A turn with no kind, or a kind this build does
   not know, is refused: the switch names every value. `fakeTurnBackend.ts` is the
-  fake, with `startBattle(minutes, description)` and `endBattle()`, which tell of
-  the change at once.
+  fake, with `startBattle(since, endsAt, description)` and `endBattle()`, which tell
+  of the change at once.
 - **`description` is the entry's, the operator's words for the players**, written
   on the backoffice's Rule schedule page (at most 300 characters, the backend's
   rule). Empty when the operator wrote none, or when no entry runs.
@@ -74,26 +74,58 @@ colour, the description and when it ends, then "To the globe" once it settled
 so a reload does not play it again; a player who arrives mid-battle sees it, since
 the battle is on. It plays through the announcements queue (below).
 
-**The end is quiet for now**: the mood goes, the halo turns blue again, and one line
-in the moments zone says "The battle is over" (`BattleOver`, `useBattleOver`, 5 s),
-only when the battle ended while the page was open. A debrief of the battle, with
-its numbers from the backend, is planned; it will be an announcement like the
-others.
+**At the end** the mood goes, the halo turns blue again, and one line in the moments
+zone says "The battle is over" (`BattleOver`, `useBattleOver`, 5 s), only when the
+battle ended while the page was open. **When the battle has a round of its own, its
+results follow as the brief** (below), within the race feed's 10 s: while the race
+still shows that round in progress (`briefAwaited`: `Race.round` is of its own and
+ends at or before the battle's end), the line adds "The results are coming" and stays,
+with no timer, until the race carries the round closed. Then it goes, as the brief
+comes.
+
+## The brief
+
+**A battle's round of its own closed plays its brief, full screen** (`BattleBrief`,
+rules in `domain/battleBrief.ts`): from the race's `closed` when it is `own` (see
+[The cutoff, revealed](cutoff.md) for when a closed round plays, and once per
+browser). It has the battle's look: the warning tape along the top of the screen,
+the rays in `--war`, and "Points ×3" (the round's `times`) in a war chip under the
+head. The head is `roundOverLine`: "The battle is over!", or "The Final Battle is
+over!" for the round that ended the season.
+
+- **Three stages, each skipped when it has nothing**: who won (the podium of
+  `standings`, `RoundReveal`'s `Podium`, the points already ×times), the tiles each
+  flag took (`takes`, a bar each against the flag that took the most, the first
+  `TAKES_SHOWN` (8) and the player's under them), then the top players (`players`:
+  rank, flag, name in its colour, the title worn, tiles; the player's own row
+  marked). Each stage moves on after `BATTLE_BRIEF` (3.4 s, 4.2 s), or on Next; the
+  last one shows Close after `BATTLE_BRIEF.settle` (1.8 s). Escape closes it then.
+- **The description is the turn's, when the page saw the battle play**
+  (`useSeenBattle` keeps the last battle seen, `briefDescriptionOf` takes its words
+  when its window is the round's: one end or one start). A page opened after the
+  battle shows the brief with none.
+- **When the closed round is also the finale, the season's results follow** as a
+  second announcement: the table before and after, then the champion (see
+  [The cutoff, revealed](cutoff.md)).
 
 ## The announcements queue
 
 **One full-screen moment at a time, in the order they arrive.** `domain/announcements.ts`
 and `app/announcements/useAnnouncements.ts` keep the queue: a title unlocked, a
-battle's start, a round closed (the cutoff's reveal). `Viewer` announces each as it
-learns of it, shows the head of the queue once the map is loaded, and the next
-starts when the player closes the current one. An announcement is queued once, by
-its key. So a round that closes while the player reads a battle's screens waits
-its turn, and nothing is drawn over anything.
+battle's start, a day closed (the cutoff's reveal), a battle's brief, the season's
+results. `Viewer` announces each as it learns of it, shows the head of the queue once
+the map is loaded, and the next starts when the player closes the current one. An
+announcement is queued once, by its key. So a round that closes while the player
+reads a battle's screens waits its turn, the season's results wait for the brief
+queued before them, and nothing is drawn over anything.
 
 The round's "once per browser" and the battle's keep their own rule (`useRoundReveal`,
 `useBattleReveal`): the queue only orders what is due.
 
 ## In fake mode
 
-`startBattle(minutes = 120, description)` and `endBattle()` on the console (see
-[Commands](commands.md)): the mood, the halo, the chip and the moment follow at once.
+`startBattle(minutes = 120, description, times = 3)` and `endBattle()` on the console
+(see [Commands](commands.md)): the mood, the halo, the chip, the moment and the
+board's battle column follow at once. `endBattle()` leaves the round of its own in
+progress, so "The results are coming" stays; `closeBattle()` closes it and plays the
+brief, `closeFinale()` closes it as the Final Battle, and the season's results follow.

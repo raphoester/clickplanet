@@ -13,7 +13,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	seasonsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/seasons/v1"
+	scoringv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays"
 )
 
@@ -28,8 +28,8 @@ const operatorTool = "cd /opt/clickplanet/deploy/vps && docker compose exec -T b
 const (
 	publicTool = "cd /opt/clickplanet/deploy/vps && docker compose exec -T backend wget -qO-" +
 		" --header 'Content-Type: application/json' --post-data '{}' http://127.0.0.1:8080/"
-	raceTool   = publicTool + "seasons.v1.SeasonService/GetRace"
-	seasonTool = publicTool + "seasons.v1.SeasonService/GetSeason"
+	raceTool   = publicTool + "scoring.v1.SeasonService/GetRace"
+	seasonTool = publicTool + "scoring.v1.SeasonService/GetSeason"
 )
 
 var decoder = protojson.UnmarshalOptions{DiscardUnknown: true}
@@ -86,9 +86,9 @@ func (s *Source) Race(ctx context.Context) (replays.Race, error) {
 		return replays.Race{}, err
 	}
 
-	var race seasonsv1.GetRaceResponse
+	var race scoringv1.GetRaceResponse
 	if err := decoder.Unmarshal(answered, &race); err != nil {
-		return replays.Race{}, fmt.Errorf("the backend answered what is not a seasons.v1.GetRaceResponse: %w", err)
+		return replays.Race{}, fmt.Errorf("the backend answered what is not a scoring.v1.GetRaceResponse: %w", err)
 	}
 
 	closed := race.GetRace().GetClosed()
@@ -114,9 +114,9 @@ func (s *Source) Season(ctx context.Context) (replays.Season, error) {
 		return replays.Season{}, err
 	}
 
-	var season seasonsv1.GetSeasonResponse
+	var season scoringv1.GetSeasonResponse
 	if err := decoder.Unmarshal(answered, &season); err != nil {
-		return replays.Season{}, fmt.Errorf("the backend answered what is not a seasons.v1.GetSeasonResponse: %w", err)
+		return replays.Season{}, fmt.Errorf("the backend answered what is not a scoring.v1.GetSeasonResponse: %w", err)
 	}
 
 	current := season.GetSeason()

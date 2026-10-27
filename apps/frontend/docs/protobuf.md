@@ -16,13 +16,13 @@ the whole `proto` directory, so a new package needs no config change; run
   deprecated mint, no longer called
 - [`player/v1/player.proto`](../../../proto/player/v1/player.proto) — the
   username and who is playing (`PlayerService`)
-- [`seasons/v1/seasons.proto`](../../../proto/seasons/v1/seasons.proto) — the
+- [`scoring/v1/scoring.proto`](../../../proto/scoring/v1/scoring.proto) — the
   current season (`SeasonService`)
 - [`support/v1/support.proto`](../../../proto/support/v1/support.proto) — what a
   player sends the operator (`SupportService`)
-- [`metagame/v1/metagame.proto`](../../../proto/metagame/v1/metagame.proto) — the
+- [`gamemaster/v1/gamemaster.proto`](../../../proto/gamemaster/v1/gamemaster.proto) — the
   kind of the schedule's entry that plays, a battle or a plain one
-  (`MetagameService`, see [Battles](battle.md))
+  (`GamemasterService`, see [Battles](battle.md))
 
 `ChatMessage.sentAtUnixMs` is an `int64`, which `protoc-gen-es` gives you as a
 `bigint` — `chatBackend.ts` converts it at the edge so nothing above it deals in

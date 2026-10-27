@@ -109,17 +109,17 @@ func TestAnEventIsNeverRecordedOutsideATransaction(t *testing.T) {
 func TestATransactionOfOneDatabaseNeverReachesAnother(t *testing.T) {
 	server := cppg.StartTestServer(t)
 	auth, _, _ := open(t, server, "auth")
-	seasons, seasonNotes, seasonsOutbox := open(t, server, "seasons")
+	scoring, scoringNotes, scoringOutbox := open(t, server, "scoring")
 
 	require.Error(t, auth.InTx(t.Context(), func(ctx context.Context) error {
-		if err := seasonNotes.Save(ctx, "a"); err != nil {
+		if err := scoringNotes.Save(ctx, "a"); err != nil {
 			return err
 		}
-		require.ErrorIs(t, seasonsOutbox.Record(ctx, wrapperspb.String("saved")), cppg.ErrNoTransaction)
+		require.ErrorIs(t, scoringOutbox.Record(ctx, wrapperspb.String("saved")), cppg.ErrNoTransaction)
 		return context.Canceled
 	}))
 
-	assert.Equal(t, 1, count(t, seasons, "notes"), "seasons wrote in its own transaction")
+	assert.Equal(t, 1, count(t, scoring, "notes"), "scoring wrote in its own transaction")
 }
 
 func TestAWriteOnTheOuterContextIsNotInTheTransaction(t *testing.T) {

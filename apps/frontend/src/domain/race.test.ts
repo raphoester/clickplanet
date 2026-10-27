@@ -7,7 +7,7 @@ import {countryLines, shownOrder} from "./race.ts"
 const today = (rank: number, countryCode: string, points: number): RoundStanding => ({rank, countryCode, share: 0.1, points})
 const score = (rank: number, countryCode: string, points: number, roundsWon = 0): Score => ({rank, countryCode, points, roundsWon})
 const race = (number: number, standings: RoundStanding[], scores: Score[]): Race =>
-    ({round: {number, endsAt: 0, finale: false, standings}, scores})
+    ({round: {number, endsAt: 0, finale: false, standings, own: false, times: 1}, scores})
 const held = (code: string, tiles: number): LeaderboardEntry => ({country: Countries.get(code)!, tiles})
 const shown = (lines: ReturnType<typeof countryLines>) =>
     lines.map((line) => `${line.country.code} ${line.tiles} ${line.points}+${line.today}`)

@@ -1,6 +1,6 @@
 import {Code, ConnectError, PromiseClient} from "@connectrpc/connect"
-import {SeasonService} from "../gen/grpc/seasons/v1/seasons_connect.ts"
-import {EndedSeason as EndedSeasonPb} from "../gen/grpc/seasons/v1/seasons_pb.ts"
+import {SeasonService} from "../gen/grpc/scoring/v1/scoring_connect.ts"
+import {EndedSeason as EndedSeasonPb} from "../gen/grpc/scoring/v1/scoring_pb.ts"
 import {EndedSeason, HallOfFameBackend} from "./hallOfFame.ts"
 import {scoreOf, standingOf} from "./standingsBackend.ts"
 import {retrying} from "./transport.ts"

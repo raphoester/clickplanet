@@ -1,7 +1,7 @@
 # The season
 
 `backends/season.ts` is the contract, `seasonBackend.ts` reads
-`seasons.v1.SeasonService/GetSeason` once per page load (a cached GET), and
+`scoring.v1.SeasonService/GetSeason` once per page load (a cached GET), and
 `fakeSeasonBackend.ts` answers Season 0 in fake mode. A 404 reads as no season.
 
 - `domain/seasonClock.ts` — `countdownsOf`, the chip's faces: the time left to
@@ -14,7 +14,7 @@
   countdown unit by unit, for the home page, and `endsLine` its end in the
   player's own time zone ("Sat 31 Oct · 23:00").
 - **No battle is counted down to.** Since 2026-10-27 the Final Battle is an entry of the
-  metagame's schedule (see [Battles](battle.md)), which an operator may still move: the
+  gamemaster's schedule (see [Battles](battle.md)), which an operator may still move: the
   client knows a battle only once it plays. `GetSeason`'s `finale_starts_at` is read only
   from a server from before `last_day_ends_at`, which sent the same time under it.
 - `domain/champion.ts` — `championOf`, the countries ranked 1st once a finale
@@ -24,7 +24,8 @@
   across it goes back to no season), `SeasonChip`, `ChampionChip`, `SeasonDetails`,
   `SeasonFacts`, the rows both of them open on, `useRotation`, which turns the
   chip's faces, and `RoundReveal` with `useRoundReveal` (see [The cutoff,
-  revealed](cutoff.md)).
+  revealed](cutoff.md)): a day's reveal, and the season's results after the Final
+  Battle's brief (see [Battles](battle.md#the-brief)).
 
 **The season is a chip in the status zone, and it turns between two
 countdowns**: today's cutoff, because the day is what scores, and the season's

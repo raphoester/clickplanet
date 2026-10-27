@@ -1,4 +1,4 @@
-import {ClosedRound} from "../gen/grpc/seasons/v1/seasons_pb.ts"
+import {ClosedRound} from "../gen/grpc/scoring/v1/scoring_pb.ts"
 import {Day} from "../domain/clip/story.ts"
 
 const PODIUM = 3
@@ -11,6 +11,7 @@ export function dayOf(closed: ClosedRound | undefined): Day | undefined {
         season: closed.season,
         number: closed.number,
         finale: closed.finale,
+        own: closed.own,
         endedAt: Number(closed.endedAtUnixMs),
         podium: closed.standings
             .filter(({rank, points}) => rank <= PODIUM && points > 0)

@@ -10,6 +10,11 @@ const FINALE: ClosedRound = {
     standings: [],
     before: [],
     after: [{rank: 1, countryCode: "de", points: 118, roundsWon: 2}, {rank: 2, countryCode: "fr", points: 97, roundsWon: 1}],
+    own: true,
+    times: 3,
+    startedAt: Date.UTC(2026, 9, 31, 21),
+    takes: [],
+    players: [],
 }
 
 const championsIn = async (chat: FakeChatBackend) =>

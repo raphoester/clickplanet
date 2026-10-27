@@ -103,9 +103,12 @@ const (
 var (
 	defaultBackoff   = posts.Backoff{time.Minute, 5 * time.Minute, 15 * time.Minute}
 	defaultPlatforms = []Platform{posts.TikTok, posts.YouTube}
-	// Posts in a trailing 24 hours. TikTok holds a post over 15 on an account of its Business app, and Zernio counts
-	// those 15 over the same window: 14 leaves one for a post made by hand. YouTube lets a channel upload about 10 a day.
-	dailyBudget = posts.Budget{posts.TikTok: 14, posts.YouTube: 8}
+	// TikTok's views per clip fell from about 600 to 15 the day the job went to 10 posts a day there (2026-10-19): the
+	// best of a run, at Europe's after-school hours. YouTube lets a channel upload about 10 a day.
+	dailyBudget = posts.Budget{
+		posts.TikTok:  {PerDay: 3, Hours: posts.Hours{From: 14, To: 20}, BestOnly: true},
+		posts.YouTube: {PerDay: 8},
+	}
 )
 
 const TikTok = posts.TikTok
@@ -279,9 +282,9 @@ func Edit(ctx context.Context, findings string, promptOnly bool, config Config, 
 	return trial, nil
 }
 
-func Schedule(ctx context.Context, folder string, config Config, logger *slog.Logger) (Report, error) {
+// clock: the time each post is planned from, which TikTok's hours read.
+func Schedule(ctx context.Context, folder string, config Config, clock cptime.Clock, logger *slog.Logger) (Report, error) {
 	config = config.withDefaults()
-	clock := cptime.SystemClock{}
 
 	experiments, err := posts.ExperimentsOf(running...)
 	if err != nil {

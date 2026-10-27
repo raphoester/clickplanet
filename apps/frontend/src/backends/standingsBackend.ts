@@ -1,12 +1,12 @@
 import {Code, ConnectError, PromiseClient} from "@connectrpc/connect"
-import {SeasonService} from "../gen/grpc/seasons/v1/seasons_connect.ts"
+import {SeasonService} from "../gen/grpc/scoring/v1/scoring_connect.ts"
 import {
     GetMySeasonResponse,
     Race as RacePb,
     RoundStanding as RoundStandingPb,
     Score as ScorePb,
     Standing as StandingPb,
-} from "../gen/grpc/seasons/v1/seasons_pb.ts"
+} from "../gen/grpc/scoring/v1/scoring_pb.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
 import {MySeason, Race, RoundStanding, Score, Standing, StandingsBackend} from "./standings.ts"
 import {titleOf} from "./title.ts"
@@ -79,6 +79,8 @@ function raceOf(race: RacePb): Race {
             endsAt: Number(race.round.endsAtUnixMs),
             finale: race.round.finale,
             standings: race.round.standings.map(roundStandingOf),
+            own: race.round.own,
+            times: race.round.times,
         },
         scores: race.scores.map(scoreOf),
         closed: race.closed && {
@@ -89,6 +91,11 @@ function raceOf(race: RacePb): Race {
             standings: race.closed.standings.map(roundStandingOf),
             before: race.closed.before.map(scoreOf),
             after: race.closed.after.map(scoreOf),
+            own: race.closed.own,
+            times: race.closed.times,
+            startedAt: Number(race.closed.startedAtUnixMs),
+            takes: race.closed.takes.map((takes) => ({countryCode: takes.countryId, tiles: Number(takes.tiles)})),
+            players: race.closed.players.map(standingOf),
         },
     }
 }

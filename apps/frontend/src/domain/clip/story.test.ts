@@ -32,10 +32,12 @@ describe("the key of a story", () => {
     })
 
     it("names the day a round tells or a call-up follows", () => {
-        const day = {season: 1, number: 5, finale: false, endedAt: 0, podium: [], table: []}
+        const day = {season: 1, number: 5, finale: false, own: false, endedAt: 0, podium: [], table: []}
 
         expect(storyKeyOf({...attack, kind: "round", day}, regionOf)).toEqual({flag: "hr", continent: "Europe", angle: "round", round: "1.5"})
         expect(storyKeyOf({...attack, kind: "callup", day}, regionOf)).toEqual({flag: "hr", continent: "Europe", angle: "callup", round: "1.5"})
+        expect(storyKeyOf({...attack, kind: "round", day: {...day, own: true}}, regionOf))
+            .toEqual({flag: "hr", continent: "Europe", angle: "round", round: "1.battle.5"})
     })
 })
 

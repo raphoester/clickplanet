@@ -1,12 +1,12 @@
 import {Code, ConnectError, createPromiseClient, PromiseClient} from "@connectrpc/connect"
 import {createConnectTransport} from "@connectrpc/connect-web"
-import {MetagameService} from "../gen/grpc/metagame/v1/metagame_connect.ts"
-import {EntryKind, GetTurnResponse} from "../gen/grpc/metagame/v1/metagame_pb.ts"
+import {GamemasterService} from "../gen/grpc/gamemaster/v1/gamemaster_connect.ts"
+import {EntryKind, GetTurnResponse} from "../gen/grpc/gamemaster/v1/gamemaster_pb.ts"
 import {Config, pageWakeups, retrying, Wakeups} from "./transport.ts"
 import {PLAIN_TURN, Turn, TurnBackend, TurnKind} from "./turn.ts"
 
-export function newMetagameServiceClient(config: Config): PromiseClient<typeof MetagameService> {
-    return createPromiseClient(MetagameService, createConnectTransport({
+export function newGamemasterServiceClient(config: Config): PromiseClient<typeof GamemasterService> {
+    return createPromiseClient(GamemasterService, createConnectTransport({
         baseUrl: config.baseUrl,
         interceptors: config.interceptors,
         useBinaryFormat: true,
@@ -17,7 +17,7 @@ export function newMetagameServiceClient(config: Config): PromiseClient<typeof M
 
 export class ConnectTurnBackend implements TurnBackend {
     constructor(
-        private readonly client: PromiseClient<typeof MetagameService>,
+        private readonly client: PromiseClient<typeof GamemasterService>,
         private readonly wakeups: Wakeups = pageWakeups,
     ) {
     }

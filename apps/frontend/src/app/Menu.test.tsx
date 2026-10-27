@@ -22,7 +22,7 @@ import {AllegianceLockedError} from "../backends/backend.ts"
 
 const france = Countries.get("fr")!
 const RACE: Race = {
-    round: {number: 5, endsAt: 0, finale: false, standings: [{rank: 1, countryCode: "fr", share: 0.5, points: 25}]},
+    round: {number: 5, endsAt: 0, finale: false, standings: [{rank: 1, countryCode: "fr", share: 0.5, points: 25}], own: false, times: 1},
     scores: [{rank: 1, countryCode: "fr", points: 43, roundsWon: 1}],
 }
 const entry = (code: string, tiles: number) => ({country: Countries.get(code)!, tiles})

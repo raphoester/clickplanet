@@ -132,7 +132,7 @@ func TestTheRaceIsAskedOfThePublicListenerOverSSH(t *testing.T) {
 		"--",
 		"deploy@vps.example",
 		"cd /opt/clickplanet/deploy/vps && docker compose exec -T backend wget -qO- --header 'Content-Type: application/json'" +
-			" --post-data '{}' http://127.0.0.1:8080/seasons.v1.SeasonService/GetRace",
+			" --post-data '{}' http://127.0.0.1:8080/scoring.v1.SeasonService/GetRace",
 	}, fake.asked(t))
 	assert.Equal(t, replays.Race{
 		Document: []byte(raced),
@@ -202,7 +202,7 @@ func TestTheSeasonIsAskedOfThePublicListenerOverSSH(t *testing.T) {
 		"--",
 		"deploy@vps.example",
 		"cd /opt/clickplanet/deploy/vps && docker compose exec -T backend wget -qO- --header 'Content-Type: application/json'" +
-			" --post-data '{}' http://127.0.0.1:8080/seasons.v1.SeasonService/GetSeason",
+			" --post-data '{}' http://127.0.0.1:8080/scoring.v1.SeasonService/GetSeason",
 	}, fake.asked(t))
 	assert.Equal(t, replays.Season{Document: []byte(seasoned), FinaleStartsAt: time.Date(2026, 10, 31, 21, 0, 0, 0, time.UTC)}, season)
 }
