@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/protobuf/proto"
 
@@ -64,7 +65,10 @@ var (
 	fourteenth = rounds.Round{EndsAt: utc(14, 21), Times: 1}
 	fifteenth  = rounds.Round{EndsAt: utc(15, 21), Times: 1}
 	sixteenth  = rounds.Round{EndsAt: utc(16, 21), Times: 1}
-	finale     = rounds.Round{EndsAt: utc(31, 23), Finale: true, Own: true, StartsAt: utc(31, 21), Times: 3}
+	finale     = rounds.Round{
+		EndsAt: utc(31, 23), Finale: true, Own: true, Entry: rounds.EntryID(uuid.MustParse("0192f5a0-7c00-7000-8000-000000000031")),
+		StartsAt: utc(31, 21), Times: 3,
+	}
 	// battle is a round of its own on the sixteenth, before the day ends.
 	battle = rounds.Round{EndsAt: utc(16, 20), Own: true, StartsAt: utc(16, 18), Times: 2}
 )
@@ -143,6 +147,7 @@ func (s *testSuite) TestTheFinaleIsTheRoundOfItsOwnThatRunsToTheSeasonsEnd() {
 		Standings:    []*scoringv1.RoundStanding{{Rank: 1, CountryId: "fr", Share: 0.5, Points: 75}},
 		Own:          true,
 		Times:        3,
+		EntryId:      "0192f5a0-7c00-7000-8000-000000000031",
 	}, race.GetRound()), race.GetRound())
 }
 
@@ -336,6 +341,7 @@ func (s *testSuite) TestARoundOfItsOwnClosedCarriesItsStartTheTilesEachFlagTookA
 	s.True(closed.GetFinale())
 	s.Equal(uint32(3), closed.GetTimes())
 	s.Equal(finale.StartsAt.UnixMilli(), closed.GetStartedAtUnixMs())
+	s.Equal("0192f5a0-7c00-7000-8000-000000000031", closed.GetEntryId(), "it repeats the entry's id")
 	s.True(proto.Equal(&scoringv1.ClosedRound{Takes: []*scoringv1.RoundTakes{
 		{CountryId: "de", Tiles: 11}, {CountryId: "fr", Tiles: 3}, {CountryId: "it", Tiles: 2}, {CountryId: "be", Tiles: 1},
 	}}, &scoringv1.ClosedRound{Takes: closed.GetTakes()}), "%v", closed.GetTakes())
@@ -357,6 +363,7 @@ func (s *testSuite) TestADayClosedCarriesNoNumbersOfARoundOfItsOwn() {
 
 	s.False(closed.GetOwn())
 	s.Zero(closed.GetStartedAtUnixMs())
+	s.Empty(closed.GetEntryId())
 	s.Empty(closed.GetTakes())
 	s.Empty(closed.GetPlayers())
 }

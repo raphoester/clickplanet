@@ -69,6 +69,7 @@ export function turnOf(turn: TurnMessage): Turn {
         since: turn.since?.toDate().getTime(),
         endsAt: turn.endsAt?.toDate().getTime(),
         description: turn.description,
+        entryId: turn.entryId,
     }
 }
 

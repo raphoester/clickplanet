@@ -43,8 +43,8 @@ describe("useSchedule", () => {
         act(() => backend.deleteBattle(id))
         expect(latest?.battles).toEqual([])
 
-        act(() => backend.startBattle(Date.now(), Date.now() + HOUR, "Triple points."))
-        expect(latest?.turn).toMatchObject({kind: "battle", description: "Triple points."})
+        act(() => backend.startBattle("entry-final", Date.now(), Date.now() + HOUR, "Triple points."))
+        expect(latest?.turn).toMatchObject({kind: "battle", description: "Triple points.", entryId: "entry-final"})
     })
 
     it("stops following once unmounted", () => {
@@ -52,7 +52,7 @@ describe("useSchedule", () => {
         const {unmount} = render(<Harness backend={backend}/>)
         unmount()
 
-        act(() => backend.startBattle(Date.now(), Date.now() + HOUR))
+        act(() => backend.startBattle("entry-final", Date.now(), Date.now() + HOUR))
         expect(latest?.turn).toEqual(PLAIN_TURN)
     })
 })

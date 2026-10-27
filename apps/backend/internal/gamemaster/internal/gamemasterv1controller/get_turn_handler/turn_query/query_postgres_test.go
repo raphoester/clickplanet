@@ -50,7 +50,7 @@ func turnAt(t *testing.T, db cppg.Conn, at time.Time) *gamemasterv1.Turn {
 	return nowAt(t, db, at).GetTurn()
 }
 
-func TestWhileAnEntryRunsTheTurnIsItsKindItsWordsAndItsEnd(t *testing.T) {
+func TestWhileAnEntryRunsTheTurnIsItsIdItsKindItsWordsAndItsEnd(t *testing.T) {
 	db := cppg.StartTestServer(t).OpenSchema(t, "gamemaster", migrations.FS)
 	battle(t, db)
 
@@ -58,7 +58,7 @@ func TestWhileAnEntryRunsTheTurnIsItsKindItsWordsAndItsEnd(t *testing.T) {
 
 	assert.True(t, proto.Equal(&gamemasterv1.Turn{
 		Kind: gamemasterv1.EntryKind_ENTRY_KIND_BATTLE, Description: "Triple points.", Since: timestamppb.New(finale),
-		EndsAt: timestamppb.New(battleEnds),
+		EndsAt: timestamppb.New(battleEnds), EntryId: uuid.UUID{15: 1}.String(),
 	}, answer), "%v", answer)
 }
 

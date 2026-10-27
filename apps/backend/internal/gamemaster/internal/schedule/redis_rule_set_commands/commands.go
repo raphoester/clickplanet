@@ -25,7 +25,7 @@ func New(commands Sender) Commands {
 }
 
 // Commands tells planet, the antibot and scoring, each in its own words, the set the schedule plays. Scoring is told
-// the entry's window too, for a round of its own.
+// the entry's id and window too, for a round of its own.
 type Commands struct {
 	commands Sender
 }
@@ -39,6 +39,7 @@ func (c Commands) Play(ctx context.Context, turn schedule.Turn, decidedAt time.T
 	scoring := &scoringv1.PlayRuleSet{RuleSet: set, DecidedAt: at}
 	if !played.EndsAt.IsZero() {
 		scoring.StartsAt, scoring.EndsAt = timestamppb.New(played.StartsAt), timestamppb.New(played.EndsAt)
+		scoring.EntryId = played.Entry.String()
 	}
 	if err := c.commands.Send(ctx,
 		&planetv1.PlayRuleSet{RuleSet: set, DecidedAt: at},

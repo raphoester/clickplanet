@@ -104,8 +104,9 @@ import {useSeenBattle} from "../battle/useSeenBattle.ts";
 import BattleChip, {BattleDetails} from "../battle/BattleChip.tsx";
 import BattleReveal from "../battle/BattleReveal.tsx";
 import BattleOver from "../battle/BattleOver.tsx";
-import BattleBrief from "../battle/BattleBrief.tsx";
+import BattleDebrief from "../battle/BattleDebrief.tsx";
 import {briefDescriptionOf} from "../../domain/battleBrief.ts";
+import {revealFollowed} from "../../domain/roundReveal.ts";
 import {reigningChampionOf} from "../../domain/champion.ts";
 import {countryLines, CountryOrder, shownOrder} from "../../domain/race.ts";
 import {acceptedClicks} from "./acceptedClicks.ts";
@@ -177,7 +178,6 @@ export default function Viewer(props: ViewerProps) {
     const roster = useRoster(props.presence, (title) => announce({kind: "title", title}))
     const season = useSeason(props.season)
     const race = useRace(props.standings)
-    const reveal = useRoundReveal(race)
     const schedule = useSchedule(props.turn)
     const battle = battleOf(schedule.turn)
     const nextBattle = nextBattleOf(schedule.battles, Date.now())
@@ -185,6 +185,7 @@ export default function Viewer(props: ViewerProps) {
     const battleReveal = useBattleReveal(battle)
     const battleOver = useBattleOver(battle, race)
     const seenBattle = useSeenBattle(battle)
+    const reveal = useRoundReveal(race, seenBattle)
     useEffect(() => {
         for (const due of reveal.due) announce(due)
     }, [announce, reveal.due])
@@ -544,16 +545,19 @@ export default function Viewer(props: ViewerProps) {
                 announcements.dismiss()
             }}/>}
 
-        {ready && current?.kind === "brief" && <BattleBrief key={announcementKeyOf(current)}
-                                                            closed={current.closed}
-                                                            description={briefDescriptionOf(seenBattle, current.closed)}
-                                                            countryCode={countryState.code}
-                                                            accountId={ownAccountId}
-                                                            play={sound.play}
-                                                            onClose={() => {
-                                                                reveal.dismiss(current)
-                                                                announcements.dismiss()
-                                                            }}/>}
+        {ready && (current?.kind === "over" || current?.kind === "points" || current?.kind === "players") && <BattleDebrief
+            key={announcementKeyOf(current)}
+            screen={current.kind}
+            closed={current.closed}
+            description={briefDescriptionOf(seenBattle, current.closed)}
+            countryCode={countryState.code}
+            accountId={ownAccountId}
+            more={revealFollowed(current, seenBattle)}
+            play={sound.play}
+            onClose={() => {
+                reveal.dismiss(current)
+                announcements.dismiss()
+            }}/>}
 
         {ready && current?.kind === "battle" && <BattleReveal key={announcementKeyOf(current)}
                                                               battle={current.battle}

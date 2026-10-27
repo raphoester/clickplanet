@@ -15,8 +15,8 @@ const MINUTE = 60 * SECOND
 const HOUR = 60 * MINUTE
 
 const now = Date.UTC(2026, 9, 31, 21, 30)
-const turn: Turn = {kind: "battle", since: now - 30 * MINUTE, endsAt: now + 2 * HOUR, description: "Triple points."}
-const battle: Battle = {since: turn.since!, endsAt: turn.endsAt!, description: "Triple points."}
+const turn: Turn = {kind: "battle", since: now - 30 * MINUTE, endsAt: now + 2 * HOUR, description: "Triple points.", entryId: "entry-final"}
+const battle: Battle = {entryId: "entry-final", since: turn.since!, endsAt: turn.endsAt!, description: "Triple points."}
 
 describe("battleOf", () => {
     it("is the battle the turn plays", () => {
@@ -24,9 +24,9 @@ describe("battleOf", () => {
     })
 
     it("is nothing for a plain turn, no turn, or a battle with no end", () => {
-        expect(battleOf({kind: "plain", description: ""})).toBeUndefined()
+        expect(battleOf({kind: "plain", description: "", entryId: ""})).toBeUndefined()
         expect(battleOf(undefined)).toBeUndefined()
-        expect(battleOf({kind: "battle", description: ""})).toBeUndefined()
+        expect(battleOf({kind: "battle", description: "", entryId: "entry-final"})).toBeUndefined()
     })
 })
 
@@ -46,13 +46,13 @@ describe("nextBattleOf", () => {
 })
 
 describe("the battle's key", () => {
-    it("is its start and its end", () => {
-        expect(battleKeyOf(battle)).toBe(`${battle.since}:${battle.endsAt}`)
+    it("is its entry's id", () => {
+        expect(battleKeyOf(battle)).toBe("entry-final")
     })
 
     it("is due until it was seen", () => {
         expect(battleDue(battle, null)).toBe(true)
-        expect(battleDue(battle, "1:2")).toBe(true)
+        expect(battleDue(battle, "entry-before")).toBe(true)
         expect(battleDue(battle, battleKeyOf(battle))).toBe(false)
         expect(battleDue(undefined, null)).toBe(false)
     })

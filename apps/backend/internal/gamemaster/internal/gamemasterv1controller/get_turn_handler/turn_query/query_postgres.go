@@ -63,6 +63,9 @@ func (q *PostgresQuery) Now(ctx context.Context) (*gamemasterv1.GetTurnResponse,
 		return nil, fmt.Errorf("failed to read what plays: %w", err)
 	}
 	answer := &gamemasterv1.Turn{Kind: kind, EndsAt: ends[turn.Entry], Description: string(turn.Description)}
+	if _, runs := ends[turn.Entry]; runs {
+		answer.EntryId = turn.Entry.String()
+	}
 	if since := sched.SinceAt(now); !since.IsZero() {
 		answer.Since = timestamppb.New(since)
 	}

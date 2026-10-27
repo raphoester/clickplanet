@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -21,6 +22,8 @@ func utc(hour int) time.Time {
 
 var seasonZero = calendar.New(calendar.Config{DailyCutoff: 21 * time.Hour, List: []calendar.Entry{{Number: 0, EndsAt: utc(23)}}})
 
+var battle = rounds.EntryID(uuid.MustParse("0192f5a0-7c00-7000-8000-000000000031"))
+
 type waker struct{ woken int }
 
 func (w *waker) Wake() { w.woken++ }
@@ -29,12 +32,12 @@ func TestAWindowOpensItsRoundAndWakesTheRunner(t *testing.T) {
 	store, woken := inmemory_round_store.New(), &waker{}
 
 	err := open_own_round_usecase.New(seasonZero, store, cptime.NewFixedClock(utc(21)), woken).
-		Execute(t.Context(), 3, utc(21), utc(23))
+		Execute(t.Context(), battle, 3, utc(21), utc(23))
 
 	require.NoError(t, err)
 	unclosed, err := store.Unclosed(t.Context(), utc(23))
 	require.NoError(t, err)
-	assert.Equal(t, []rounds.Round{{EndsAt: utc(23), Finale: true, Own: true, StartsAt: utc(21), Times: 3}}, unclosed)
+	assert.Equal(t, []rounds.Round{{EndsAt: utc(23), Finale: true, Own: true, Entry: battle, StartsAt: utc(21), Times: 3}}, unclosed)
 	assert.Equal(t, 1, woken.woken)
 }
 
@@ -42,7 +45,7 @@ func TestAWindowHeardOfOnceItEndedOpensNothing(t *testing.T) {
 	store, woken := inmemory_round_store.New(), &waker{}
 
 	err := open_own_round_usecase.New(seasonZero, store, cptime.NewFixedClock(utc(23)), woken).
-		Execute(t.Context(), 3, utc(21), utc(23))
+		Execute(t.Context(), battle, 3, utc(21), utc(23))
 
 	require.NoError(t, err)
 	first, found, err := store.FirstEnd(t.Context())
@@ -56,7 +59,7 @@ func TestARoundThatCannotBeOpenedIsAnError(t *testing.T) {
 	store.FailWith(errors.New("postgres is down"))
 
 	err := open_own_round_usecase.New(seasonZero, store, cptime.NewFixedClock(utc(21)), &waker{}).
-		Execute(t.Context(), 3, utc(21), utc(23))
+		Execute(t.Context(), battle, 3, utc(21), utc(23))
 
 	require.Error(t, err)
 }

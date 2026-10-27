@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
@@ -88,7 +89,10 @@ func (f fixture) closedIn(t *testing.T) []rounds.Closed {
 var (
 	sixteenth   = rounds.Round{EndsAt: utc(16, 21, 0), Times: 1}
 	seventeenth = rounds.Round{EndsAt: utc(17, 21, 0), Times: 1}
-	battle      = rounds.Round{EndsAt: utc(31, 23, 0), Finale: true, Own: true, StartsAt: utc(31, 21, 0), Times: 3}
+	battle      = rounds.Round{
+		EndsAt: utc(31, 23, 0), Finale: true, Own: true, Entry: rounds.EntryID(uuid.MustParse("0192f5a0-7c00-7000-8000-000000000031")),
+		StartsAt: utc(31, 21, 0), Times: 3,
+	}
 )
 
 func TestARoundIsScoredFromWhatEachCountryHoldsAtItsEnd(t *testing.T) {
@@ -192,6 +196,7 @@ func TestARoundOfItsOwnClosesAtItsEndAndTheSeasonEndsWithItsTable(t *testing.T) 
 		Results: []*scoringv1.RoundResult{{Country: "de", Rank: 1, Points: 75}, {Country: "fr", Rank: 2, Points: 54}},
 		Own:     true,
 		Times:   3,
+		EntryId: "0192f5a0-7c00-7000-8000-000000000031",
 	}, published[1]), "got %v", published[1])
 	assert.True(t, proto.Equal(&scoringv1.SeasonClosed{
 		Season:  0,

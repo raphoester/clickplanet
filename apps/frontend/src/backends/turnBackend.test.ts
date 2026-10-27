@@ -33,7 +33,7 @@ describe("ConnectTurnBackend", () => {
         await vi.waitFor(() => expect(followed.battles).toHaveLength(2))
         followed.stop()
 
-        expect(followed.turns).toEqual([{kind: "plain", since: undefined, endsAt: undefined, description: ""}])
+        expect(followed.turns).toEqual([{kind: "plain", since: undefined, endsAt: undefined, description: "", entryId: ""}])
         expect(followed.battles).toEqual([
             [{entryId: "finale", startsAt: since, endsAt, description: "Triple points."}],
             [],
@@ -41,9 +41,14 @@ describe("ConnectTurnBackend", () => {
     })
 
     it("reads the battle that plays, in milliseconds, as the wire carries it", () => {
-        const sent = new TurnMessage({kind: EntryKind.BATTLE, since: at(since), endsAt: at(endsAt), description: "Triple points."})
+        const sent = new TurnMessage({
+            kind: EntryKind.BATTLE, since: at(since), endsAt: at(endsAt), description: "Triple points.",
+            entryId: "0192f5a0-7c00-7000-8000-000000000031",
+        })
 
-        expect(turnOf(TurnMessage.fromBinary(sent.toBinary()))).toEqual({kind: "battle", since, endsAt, description: "Triple points."})
+        expect(turnOf(TurnMessage.fromBinary(sent.toBinary()))).toEqual({
+            kind: "battle", since, endsAt, description: "Triple points.", entryId: "0192f5a0-7c00-7000-8000-000000000031",
+        })
     })
 
     it("plays plain with no battle to come on a server without a schedule, and does not reconnect", async () => {
@@ -63,7 +68,7 @@ describe("ConnectTurnBackend", () => {
             backend.follow({onTurn, onBattles})
             await vi.advanceTimersByTimeAsync(60_000)
 
-            expect(onTurn.mock.calls).toEqual([[{kind: "plain", description: ""}]])
+            expect(onTurn.mock.calls).toEqual([[{kind: "plain", description: "", entryId: ""}]])
             expect(onBattles.mock.calls).toEqual([[[]]])
             expect(listenForEvents).toHaveBeenCalledTimes(1)
         }

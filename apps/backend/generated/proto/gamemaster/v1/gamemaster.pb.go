@@ -172,7 +172,9 @@ type Turn struct {
 	// When the running entry ends. Unset when none runs. An entry above it may start before that: the stream says so.
 	EndsAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=ends_at,json=endsAt,proto3" json:"ends_at,omitempty"`
 	// The running entry's words for the players, plain text: what its rules are. Empty when none runs.
-	Description   string `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
+	Description string `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
+	// The running entry's id; empty when none runs. A round of its own that scoring closes repeats it.
+	EntryId       string `protobuf:"bytes,5,opt,name=entry_id,json=entryId,proto3" json:"entry_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -231,6 +233,13 @@ func (x *Turn) GetEndsAt() *timestamppb.Timestamp {
 func (x *Turn) GetDescription() string {
 	if x != nil {
 		return x.Description
+	}
+	return ""
+}
+
+func (x *Turn) GetEntryId() string {
+	if x != nil {
+		return x.EntryId
 	}
 	return ""
 }
@@ -529,12 +538,13 @@ const file_gamemaster_v1_gamemaster_proto_rawDesc = "" +
 	"\x0eGetTurnRequest\"o\n" +
 	"\x0fGetTurnResponse\x12'\n" +
 	"\x04turn\x18\x01 \x01(\v2\x13.gamemaster.v1.TurnR\x04turn\x123\n" +
-	"\btimeline\x18\x02 \x01(\v2\x17.gamemaster.v1.TimelineR\btimeline\"\xbd\x01\n" +
+	"\btimeline\x18\x02 \x01(\v2\x17.gamemaster.v1.TimelineR\btimeline\"\xd8\x01\n" +
 	"\x04Turn\x12,\n" +
 	"\x04kind\x18\x01 \x01(\x0e2\x18.gamemaster.v1.EntryKindR\x04kind\x120\n" +
 	"\x05since\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\x123\n" +
 	"\aends_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x06endsAt\x12 \n" +
-	"\vdescription\x18\x04 \x01(\tR\vdescription\";\n" +
+	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x19\n" +
+	"\bentry_id\x18\x05 \x01(\tR\aentryId\";\n" +
 	"\bTimeline\x12/\n" +
 	"\abattles\x18\x01 \x03(\v2\x15.gamemaster.v1.BattleR\abattles\"\xb3\x01\n" +
 	"\x06Battle\x12\x19\n" +

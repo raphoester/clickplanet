@@ -225,6 +225,7 @@ describe("Leaderboard with the season's race", () => {
             ],
             own: false,
             times: 1,
+            entryId: "",
         },
         scores: [{rank: 1, countryCode: "fr", points: 43, roundsWon: 1}],
     }

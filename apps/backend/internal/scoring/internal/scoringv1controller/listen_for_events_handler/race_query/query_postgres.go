@@ -75,7 +75,7 @@ func (q *PostgresQuery) Race(ctx context.Context) (*scoringv1.Race, error) {
 	return race, nil
 }
 
-const roundColumns = `round.season, round.ends_at, round.own, round.finale, round.starts_at, round.times,
+const roundColumns = `round.season, round.ends_at, round.own, round.finale, round.starts_at, round.times, own_round.entry_id,
 	(SELECT count(*) FROM rounds AS earlier
 	 WHERE earlier.season = round.season AND earlier.own = round.own AND earlier.ends_at < round.ends_at)`
 
@@ -87,9 +87,10 @@ func scanRound(row scanner) (rounds.Round, uint32, error) {
 	var (
 		season, times, earlier int64
 		startsAt               sql.NullTime
+		entry                  uuid.NullUUID
 		round                  rounds.Round
 	)
-	if err := row.Scan(&season, &round.EndsAt, &round.Own, &round.Finale, &startsAt, &times, &earlier); err != nil {
+	if err := row.Scan(&season, &round.EndsAt, &round.Own, &round.Finale, &startsAt, &times, &entry, &earlier); err != nil {
 		return rounds.Round{}, 0, err //nolint:wrapcheck // each caller says what it read.
 	}
 	round.Season = calendar.Number(season) //nolint:gosec // CHECK (season >= 0).
@@ -98,13 +99,15 @@ func scanRound(row scanner) (rounds.Round, uint32, error) {
 	if startsAt.Valid {
 		round.StartsAt = startsAt.Time.UTC()
 	}
+	round.Entry = rounds.EntryID(entry.UUID)
 	return round, uint32(earlier + 1), nil //nolint:gosec // a round a day.
 }
 
 func (q *PostgresQuery) closed(ctx context.Context) (*scoringv1.ClosedRound, error) {
 	round, number, err := scanRound(q.db.On(ctx).QueryRowContext(ctx, `
 		SELECT `+roundColumns+`
-		FROM rounds AS round WHERE round.closed ORDER BY round.ends_at DESC, round.own DESC, round.season DESC LIMIT 1
+		FROM rounds AS round LEFT JOIN own_rounds AS own_round USING (season, ends_at, own)
+		WHERE round.closed ORDER BY round.ends_at DESC, round.own DESC, round.season DESC LIMIT 1
 	`))
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil //nolint:nilnil // no round closed yet: the race carries none.
@@ -120,6 +123,7 @@ func (q *PostgresQuery) closed(ctx context.Context) (*scoringv1.ClosedRound, err
 		Finale:        round.Finale,
 		Own:           round.Own,
 		Times:         round.Times,
+		EntryId:       round.Entry.String(),
 	}
 	group, ctx := errgroup.WithContext(ctx)
 	group.Go(func() (err error) {
@@ -291,7 +295,8 @@ func (q *PostgresQuery) named(ctx context.Context, lines []line) ([]*scoringv1.S
 func (q *PostgresQuery) round(ctx context.Context, season calendar.Season, now time.Time) (*scoringv1.Round, error) {
 	own, ownNumber, err := scanRound(q.db.On(ctx).QueryRowContext(ctx, `
 		SELECT `+roundColumns+`
-		FROM rounds AS round WHERE round.own AND NOT round.closed AND round.season = $1 AND round.ends_at > $2
+		FROM rounds AS round LEFT JOIN own_rounds AS own_round USING (season, ends_at, own)
+		WHERE round.own AND NOT round.closed AND round.season = $1 AND round.ends_at > $2
 		ORDER BY round.ends_at LIMIT 1
 	`, int64(season.Number), now))
 	hasOwn := err == nil
@@ -320,6 +325,7 @@ func (q *PostgresQuery) round(ctx context.Context, season calendar.Season, now t
 		Standings:    []*scoringv1.RoundStanding{},
 		Own:          round.Own,
 		Times:        round.Times,
+		EntryId:      round.Entry.String(),
 	}
 	for _, result := range round.Results(held) {
 		shown.Standings = append(shown.Standings, &scoringv1.RoundStanding{

@@ -145,6 +145,13 @@ export class Turn extends Message<Turn> {
    */
   description = "";
 
+  /**
+   * The running entry's id; empty when none runs. A round of its own that scoring closes repeats it.
+   *
+   * @generated from field: string entry_id = 5;
+   */
+  entryId = "";
+
   constructor(data?: PartialMessage<Turn>) {
     super();
     proto3.util.initPartial(data, this);
@@ -157,6 +164,7 @@ export class Turn extends Message<Turn> {
     { no: 2, name: "since", kind: "message", T: Timestamp },
     { no: 3, name: "ends_at", kind: "message", T: Timestamp },
     { no: 4, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "entry_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Turn {

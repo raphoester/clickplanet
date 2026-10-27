@@ -5,9 +5,11 @@ export type Turn = {
     since?: number
     endsAt?: number
     description: string
+    // The running entry's id, empty when none runs: the closed round of its own repeats it.
+    entryId: string
 }
 
-export const PLAIN_TURN: Turn = {kind: "plain", description: ""}
+export const PLAIN_TURN: Turn = {kind: "plain", description: "", entryId: ""}
 
 export type BattleToCome = {
     entryId: string

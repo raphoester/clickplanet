@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
@@ -30,11 +31,13 @@ func (s *sent) Send(_ context.Context, commands ...proto.Message) error {
 
 var finale = time.Date(2026, 10, 31, 21, 0, 0, 0, time.UTC)
 
+var battle = schedule.EntryID(uuid.MustParse("0192f5a0-7c00-7000-8000-000000000031"))
+
 func rush(t *testing.T) schedule.Turn {
 	t.Helper()
 
 	return schedule.New(schedule.EntrySnapshot{
-		Set: "rush", StartsAt: finale, EndsAt: finale.Add(2 * time.Hour), Priority: 1, MadeAt: finale.Add(-time.Hour),
+		ID: battle, Set: "rush", StartsAt: finale, EndsAt: finale.Add(2 * time.Hour), Priority: 1, MadeAt: finale.Add(-time.Hour),
 	}.Restore()).TurnAt(finale)
 }
 
@@ -49,7 +52,8 @@ func TestPlanetTheAntibotAndScoringAreEachToldTheSetInTheirWords(t *testing.T) {
 	assert.True(t, proto.Equal(&scoringv1.PlayRuleSet{
 		RuleSet: "rush", DecidedAt: timestamppb.New(finale),
 		StartsAt: timestamppb.New(finale), EndsAt: timestamppb.New(finale.Add(2 * time.Hour)),
-	}, commands.commands[2]), "scoring is told the entry's window: %v", commands.commands[2])
+		EntryId: "0192f5a0-7c00-7000-8000-000000000031",
+	}, commands.commands[2]), "scoring is told the entry's id and window: %v", commands.commands[2])
 }
 
 func TestDefaultIsToldToScoringWithNoWindow(t *testing.T) {

@@ -5,6 +5,7 @@ package rounds
 import (
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/calendar"
@@ -27,10 +28,14 @@ var (
 	contractNextDay = Round{EndsAt: contractDay.EndsAt.Add(Length), Times: 1}
 	contractFinale  = Round{
 		EndsAt: time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC), Finale: true,
-		Own: true, StartsAt: time.Date(2026, 10, 31, 21, 0, 0, 0, time.UTC), Times: 3,
+		Own: true, Entry: EntryID(uuid.MustParse("0192f5a0-7c00-7000-8000-000000000031")),
+		StartsAt: time.Date(2026, 10, 31, 21, 0, 0, 0, time.UTC), Times: 3,
 	}
 	// contractBattle is a round of its own that ends with a day.
-	contractBattle = Round{EndsAt: contractDay.EndsAt, Own: true, StartsAt: contractDay.EndsAt.Add(-2 * time.Hour), Times: 2}
+	contractBattle = Round{
+		EndsAt: contractDay.EndsAt, Own: true, Entry: EntryID(uuid.MustParse("0192f5a0-7c00-7000-8000-000000000016")),
+		StartsAt: contractDay.EndsAt.Add(-2 * time.Hour), Times: 2,
+	}
 )
 
 func (s *StoreContractSuite) open(rounds ...Round) {
@@ -63,6 +68,14 @@ func (s *StoreContractSuite) TestARoundOpenedTwiceIsOneRound() {
 
 	s.Equal([]Round{contractDay}, s.unclosed(contractDay.EndsAt))
 	s.Equal(uint32(2), s.number(contractNextDay))
+}
+
+func (s *StoreContractSuite) TestARoundOfItsOwnOpenedAgainByAnotherEntryKeepsTheFirstEntry() {
+	other := contractFinale
+	other.Entry = contractBattle.Entry
+	s.open(contractFinale, other)
+
+	s.Equal([]Round{contractFinale}, s.unclosed(contractFinale.EndsAt))
 }
 
 func (s *StoreContractSuite) TestAClosedRoundKeepsItsResultsAndIsNoLongerUnclosed() {

@@ -38,7 +38,7 @@ func (l *Logged) log(ctx context.Context, played play_rules_usecase.Played, took
 		written, _ := protojson.Marshal(played.Set.Rules)
 		attrs := []any{slog.String("set", string(played.Set.Name)), slog.String("rules", string(written))}
 		if !played.Window.None() {
-			attrs = append(attrs, slog.Time("startsAt", played.Window.StartsAt), slog.Time("endsAt", played.Window.EndsAt))
+			attrs = append(attrs, slog.String("entry", played.Window.Entry.String()), slog.Time("startsAt", played.Window.StartsAt), slog.Time("endsAt", played.Window.EndsAt))
 		}
 		l.logger.Warn("season rules in force", attrs...)
 	}

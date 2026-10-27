@@ -17,8 +17,8 @@ export class FakeTurnBackend implements TurnBackend {
         }
     }
 
-    public startBattle(since: number, endsAt: number, description = "Triple points. A bonus box every minute."): void {
-        this.current = {kind: "battle", since, endsAt, description}
+    public startBattle(entryId: string, since: number, endsAt: number, description = "Triple points. A bonus box every minute."): void {
+        this.current = {kind: "battle", since, endsAt, description, entryId}
         for (const listener of this.listeners) listener.onTurn(this.current)
     }
 

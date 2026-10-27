@@ -118,8 +118,9 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         startBattle: (minutes = 120, description?: string, times = 3) => {
             const since = Date.now()
             const endsAt = since + minutes * 60_000
-            fakeTurn.startBattle(since, endsAt, description)
-            fakeStandings.openBattle(since, endsAt, times)
+            const entryId = crypto.randomUUID()
+            fakeTurn.startBattle(entryId, since, endsAt, description)
+            fakeStandings.openBattle(entryId, since, endsAt, times)
             return `a battle is on, at ×${times}`
         },
         endBattle: () => {

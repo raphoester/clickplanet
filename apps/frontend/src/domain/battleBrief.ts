@@ -1,42 +1,50 @@
-import {ClosedRound, Race, RoundTakes} from "../backends/standings.ts"
+import {ClosedRound, Race, RoundStanding} from "../backends/standings.ts"
 import {Battle} from "./battle.ts"
-import {podiumOf, ROUND_REVEAL} from "./roundReveal.ts"
 
-export const TAKES_SHOWN = 8
+export const POINTS_SHOWN = 10
 
-// Seconds a stage shows before the next one; the last one waits settle before Close.
-export const BATTLE_BRIEF = {podium: ROUND_REVEAL.podium, takes: 4.2, players: 4.2, settle: 1.8} as const
+// Seconds before a screen shows its button.
+export const BATTLE_DEBRIEF = {over: 2.4, points: 2.2, players: 2.2} as const
 
-export type BriefStage = "podium" | "takes" | "players"
+export type DebriefScreen = keyof typeof BATTLE_DEBRIEF
 
-// Only the stages with something to show; the head alone when none has.
-export function briefStagesOf(closed: ClosedRound): BriefStage[] {
-    const stages: BriefStage[] = []
-    if (podiumOf(closed).length > 0) stages.push("podium")
-    if (closed.takes.some(({tiles}) => tiles > 0)) stages.push("takes")
-    if (closed.players.length > 0) stages.push("players")
-    return stages.length > 0 ? stages : ["podium"]
+// A round of its own plays its debrief when it is the battle the page saw, or when the page saw none.
+export function debriefedFor(closed: ClosedRound, seen: Battle | undefined): boolean {
+    return !seen || seen.entryId === closed.entryId
 }
 
-export type TakesRow = RoundTakes & {width: number, mine: boolean}
+// The battle finished, then only the screens with something to show.
+export function debriefScreensOf(closed: ClosedRound): DebriefScreen[] {
+    const screens: DebriefScreen[] = ["over"]
+    if (closed.standings.some(({points}) => points > 0)) screens.push("points")
+    if (closed.players.length > 0) screens.push("players")
+    return screens
+}
 
-export function takesRowsOf(closed: ClosedRound, countryCode: string, shown = TAKES_SHOWN): TakesRow[] {
-    const taken = closed.takes.filter(({tiles}) => tiles > 0)
-    const most = Math.max(1, ...taken.map(({tiles}) => tiles))
-    const mine = taken.findIndex((takes) => takes.countryCode === countryCode)
-    return taken
+export type PointsRow = RoundStanding & {won: number, width: number, mine: boolean}
+
+// won is the points before the round's times.
+export function pointsRowsOf(closed: ClosedRound, countryCode: string, shown = POINTS_SHOWN): PointsRow[] {
+    const scored = closed.standings.filter(({points}) => points > 0)
+    const most = Math.max(1, ...scored.map(({points}) => points))
+    const mine = scored.findIndex((standing) => standing.countryCode === countryCode)
+    return scored
         .filter((_, i) => i < shown || i === mine)
-        .map((takes) => ({...takes, width: takes.tiles / most, mine: takes.countryCode === countryCode}))
+        .map((standing) => ({
+            ...standing,
+            won: Math.round(standing.points / Math.max(1, closed.times)),
+            width: standing.points / most,
+            mine: standing.countryCode === countryCode,
+        }))
 }
 
-// The page read the battle's words while it played. Its window is the round's: one end or one start is enough, since a
-// round of its own is cut at the season's end.
+// The battle's words, when the page saw this battle play.
 export function briefDescriptionOf(seen: Battle | undefined, closed: ClosedRound): string {
-    if (!seen || (seen.endsAt !== closed.endedAt && seen.since !== closed.startedAt)) return ""
+    if (!seen || seen.entryId !== closed.entryId) return ""
     return seen.description
 }
 
-// The battle ended with a round of its own the race still shows in progress: its brief is on the way.
+// The battle ended with its round of its own the race still shows in progress: its debrief is on the way.
 export function briefAwaited(over: Battle, race: Race | undefined): boolean {
-    return race?.round?.own === true && race.round.endsAt <= over.endsAt
+    return race?.round?.own === true && race.round.entryId === over.entryId
 }
