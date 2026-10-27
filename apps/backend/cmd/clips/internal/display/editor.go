@@ -9,7 +9,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips"
 )
 
-// Who chose the run, added to the summary file: the model with what its call cost, or why the rules made the run.
+// How the editor's call went, added to the summary file: what it cost and its reason, or why no answer was had.
 // Nothing with no file named: choose's standard output is the picks, and its log says it too.
 func Editorial(summaryFile string, editorial clips.Editorial) error {
 	if summaryFile == "" {
@@ -30,8 +30,8 @@ func Editorial(summaryFile string, editorial clips.Editorial) error {
 func editorialOf(editorial clips.Editorial) string {
 	var page strings.Builder
 	switch {
-	case editorial.FellBack != "":
-		fmt.Fprintf(&page, "**Editor: the model, fallen back to the rules.** %s.", oneLine(editorial.FellBack))
+	case editorial.Failed != "":
+		fmt.Fprintf(&page, "**Editor: no answer, the run is its day won alone.** %s.", oneLine(editorial.Failed))
 	case editorial.Asked:
 		page.WriteString("**Editor: the model.**")
 		if editorial.Why != "" {
@@ -50,7 +50,8 @@ func editorialOf(editorial clips.Editorial) string {
 	return page.String()
 }
 
-// The editor tried on a shortlist: the prompt, and unless only that was asked for, what it chose and what it cost.
+// The editor tried on findings: the prompt, and unless only that was asked for, what it chose, as the generator's
+// --story takes each story, and what it cost.
 func Trial(out io.Writer, trial clips.Trial, promptOnly bool) error {
 	var page strings.Builder
 	page.WriteString("=== instructions (cached) ===\n" + trial.Instructions + "\n=== the run ===\n" + trial.Prompt + "\n\n")
@@ -71,12 +72,19 @@ func Trial(out io.Writer, trial clips.Trial, promptOnly bool) error {
 	}
 
 	page.WriteString(editorialOf(trial.Choice.Editorial))
-	for _, story := range trial.Choice.Chosen {
-		edited := ""
-		if _, changed := trial.Headlines[story.Pick]; changed {
-			edited = " (the model's headline)"
+	for _, skipped := range trial.Choice.Skipped {
+		fmt.Fprintf(&page, "skipped %s: %s\n", skipped.Story.Names(), oneLine(skipped.Why))
+	}
+	for _, chosen := range trial.Choice.Chosen {
+		story, err := clips.StoryJSON(chosen.Story)
+		if err != nil {
+			return wrapped(err)
 		}
-		fmt.Fprintf(&page, "#%d %s%s\n", story.Pick, story.Title, edited)
+		title := chosen.Story.Headline
+		if chosen.Story.Seasonal > 0 {
+			title = trial.Offer.Findings.Seasonal[chosen.Story.Seasonal-1].Title
+		}
+		fmt.Fprintf(&page, "#%d %s\n  --story '%s'\n", chosen.Pick, title, story)
 	}
 	_, err := io.WriteString(out, page.String())
 	return wrapped(err)

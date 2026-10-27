@@ -16,10 +16,10 @@ import (
 func TestChooseWithNoKeyFailsBeforeItAsksTheServiceAnything(t *testing.T) {
 	t.Setenv(flags.KeyVariable, "")
 	var out bytes.Buffer
-	stories := filepath.Join(t.TempDir(), "shortlist.json")
-	require.NoError(t, os.WriteFile(stories, []byte(`{"stories":[{"title":"BEST","key":{"flag":"dz","continent":"Africa"}}]}`), 0o600))
+	findings := filepath.Join(t.TempDir(), "findings.json")
+	require.NoError(t, os.WriteFile(findings, []byte(`{"fronts":[{"tilesChanged":900}]}`), 0o600))
 
-	err := run(t.Context(), []string{"choose", "-shortlist", stories}, &out)
+	err := run(t.Context(), []string{"choose", "-findings", findings}, &out)
 
 	require.ErrorContains(t, err, "the zernio api key is empty")
 	assert.Empty(t, out.String())
@@ -44,7 +44,7 @@ func TestACommandNoStageIsWrittenForIsAnErrorAndDoesNothing(t *testing.T) {
 		var out bytes.Buffer
 		parsed := flags.Config{
 			Command:    flags.Command(command),
-			ReplayFile: filepath.Join(folder, "replay.json"), ShortlistFile: filepath.Join(folder, "shortlist.json"),
+			ReplayFile: filepath.Join(folder, "replay.json"), FindingsFile: filepath.Join(folder, "shortlist.json"),
 			ClipsFolder: folder, SummaryFile: filepath.Join(folder, "summary.md"),
 		}
 

@@ -19,10 +19,9 @@ const day: Day = {
 function calledUp(country: string, table = day.table): Story {
     const ranked = [...table].sort((a, b) => b.points - a.points)
     const against = ranked[0].country === country ? ranked[1] : ranked[0]
-    const own = table.find((standing) => standing.country === country)
     return {
         kind: "callup", attacker: country, rival: undefined, victims: [against.country], place: {region: "the world"},
-        taken: own?.points ?? 0, day: {...day, table}, finaleAt: FINALE,
+        day: {...day, table}, finaleAt: FINALE,
     }
 }
 

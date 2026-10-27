@@ -12,56 +12,62 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
 
-// A headline is drawn over the globe in a font of a few sizes, two lines at most for this many letters.
+// Two lines at most over the globe.
 const headlineRunes = 60
 
-// What the editor is offered: never a story the rules would not tell.
-type Offer struct {
-	// How many clips the run makes.
-	Count int
-	// Told first whatever the editor says, with their own headlines: a day won, the day's news.
-	First Shortlist
-	// The editor's to rank and headline: not told in the last 3 days, no headline of the last week, and their flag in
-	// fewer than 2 of the last posts.
-	Stories Shortlist
-	// The posts of the last 3 days, newest first, for the editor to vary on.
-	Recent []Telling
-	// How many of the last posts showed each flag: a flag in 2 waits, so a flag in 1 takes one clip of the run at most.
-	Shown map[string]int
-	Now   time.Time
+// A post the job made.
+type Telling struct {
+	Key       StoryKey
+	Countries []string
+	At        time.Time
+	Title     string
+	State     string
+	Failure   string
 }
 
-// How many stories of the run are the editor's.
+const (
+	recent       = 72 * time.Hour
+	reheadlining = 7 * 24 * time.Hour
+	lately       = 6
+)
+
+// Inclusive: the posts at this time or after are what was told.
+func ToldSince(now time.Time) time.Time {
+	return now.Add(-reheadlining)
+}
+
+type Offer struct {
+	Count int
+	// The seasonal stories told first whatever the editor says, by their number in the findings, from 1.
+	First    []int
+	Findings Findings
+	Recent   []Telling
+	Shown    map[string]int
+	Now      time.Time
+}
+
 func (o Offer) Slots() int {
 	return max(o.Count-len(o.First), 0)
 }
 
-// Whether the editor has anything to decide: a quiet run, or a run of days won alone, asks nobody.
 func (o Offer) Open() bool {
-	return o.Slots() > 0 && len(o.Stories) > 0
+	return o.Slots() > 0 && o.Findings.Any()
 }
 
-// Recent are the posts of the last retelling window, Shown the flags of the last `lately` of them.
-func (s Shortlist) Offer(count int, told []Telling, now time.Time) Offer {
+// A seasonal story is told once; nothing else is kept from the editor.
+func (f Findings) Offer(count int, told []Telling, now time.Time) Offer {
 	past := pastOf(told, now)
-	offer := Offer{Count: count, Shown: map[string]int{}, Now: now}
-	for _, story := range s {
-		switch {
-		case !past.untold(story):
-		case story.Key.Angle == DayWon:
-			if len(offer.First) < count {
-				offer.First = append(offer.First, story)
-			}
-		case past.crowded(story.Key.Flag):
-		default:
-			offer.Stories = append(offer.Stories, story)
+	offer := Offer{Count: count, Findings: f, Shown: map[string]int{}, Now: now}
+	for i, seasonal := range f.Seasonal {
+		if len(offer.First) < count && !past.keys.Contains(seasonal.Key) {
+			offer.First = append(offer.First, i+1)
 		}
 	}
 	for _, flags := range past.shown {
 		flags.ForEach(func(flag string) { offer.Shown[flag]++ })
 	}
 	for _, telling := range told {
-		if !telling.At.Before(now.Add(-retelling)) {
+		if !telling.At.Before(now.Add(-recent)) {
 			offer.Recent = append(offer.Recent, telling)
 		}
 	}
@@ -69,120 +75,144 @@ func (s Shortlist) Offer(count int, told []Telling, now time.Time) Offer {
 	return offer
 }
 
-// A story the editor tells, and its headline.
-type Edit struct {
-	Pick     Pick
-	Headline string
-}
-
-// The editor's answer: the stories of the offer it would tell, best first, each with its headline, and why.
 type Edition struct {
-	Edits []Edit
-	Why   string
+	Stories []Story
+	Why     string
 }
 
-// What one call to the model cost. Zero when nothing was sent.
+// Zero when nothing was sent; USD is estimated from the model's prices.
 type Spend struct {
 	Model            string
 	InputTokens      int64
 	CacheWriteTokens int64
 	CacheReadTokens  int64
 	OutputTokens     int64
-	// Estimated from the model's prices: the bill is the provider's.
-	USD float64
+	USD              float64
 }
 
-// Who chose the run, as its summary and its log say it: the model, or the rules when it could not.
 type Editorial struct {
-	// Whether the model was called: not on a run with nothing to decide.
 	Asked bool
-	// Why the rules made the run (no key, no answer, a refusal, one that did not hold); empty when the model did.
-	FellBack string
-	// The model's own reason.
+	// Why no answer was had: no key, an API error, a refusal, an answer that cannot be read.
+	Failed string
+	Why    string
+	Spend  Spend
+}
+
+type Chosen struct {
+	Pick  Pick
+	Story Story
+	Key   StoryKey
+}
+
+type Skipped struct {
+	Story Story
 	Why   string
-	Spend Spend
 }
 
-var ErrInvalidEdition = errors.New("the edition does not hold")
-
-// The run as the editor would tell it, within the rules: the days won first, then the editor's order, each story
-// still skipped when an earlier one of the run filled its flag's share, and the stories it left out last, in the
-// rules' order, so the run makes as many clips as the rules would. Also each headline the editor changed, by pick.
-func (s Shortlist) Edited(offer Offer, edition Edition, told []Telling, now time.Time) (Choice, map[Pick]string, error) {
-	headlines, err := s.checked(offer, edition, pastOf(told, now))
-	if err != nil {
-		return Choice{}, nil, err
-	}
-
-	retitled := slices.Clone(s)
-	order := make([]Pick, 0, len(edition.Edits))
-	for _, edit := range edition.Edits {
-		order = append(order, edit.Pick)
-		if headline, changed := headlines[edit.Pick]; changed {
-			retitled[edit.Pick-1].Title = headline
-		}
-	}
-	next := func(past *past, _ *cpcolls.Set[Angle]) (Story, bool) {
-		if story, found := retitled.dayWon(past); found {
-			return story, true
-		}
-		for _, pick := range order {
-			if story := retitled[pick-1]; past.untold(story) && !past.crowded(story.Key.Flag) {
-				return story, true
-			}
-		}
-		return retitled.freshest(past, func(Story) bool { return true })
-	}
-	return retitled.walk(offer.Count, pastOf(told, now), next), headlines, nil
+type Choice struct {
+	Chosen  []Chosen
+	Skipped []Skipped
+	// 0 when every platform's day is full.
+	Room      int
+	Assigned  []Assignment
+	Editorial Editorial
 }
 
-// Each headline that differs from the generator's, upper case, by pick; an error for an edition that strays from
-// the offer or a headline the rules would skip.
-func (s Shortlist) checked(offer Offer, edition Edition, past *past) (map[Pick]string, error) {
-	if len(edition.Edits) == 0 {
-		return nil, fmt.Errorf("%w: it tells no story", ErrInvalidEdition)
+func (c Choice) Picks() []Pick {
+	picks := make([]Pick, 0, len(c.Chosen))
+	for _, chosen := range c.Chosen {
+		picks = append(picks, chosen.Pick)
 	}
-	offered := cpcolls.NewSet(offer.Stories.Picks()...)
-	taken := cpcolls.NewSet[string]()
-	for _, story := range offer.First {
-		taken.Add(headlineOf(story.Title))
+	return picks
+}
+
+// The seasonal stories first, then the editor's that hold, one story a key; the rest skipped with why.
+func (f Findings) Edited(offer Offer, edition Edition, told []Telling, now time.Time) Choice {
+	past := pastOf(told, now)
+	choice := Choice{Room: offer.Count}
+	tell := func(story Story, key StoryKey) {
+		choice.Chosen = append(choice.Chosen, Chosen{Pick: Pick(len(choice.Chosen) + 1), Story: story, Key: key})
+	}
+	skip := func(story Story, why string) {
+		choice.Skipped = append(choice.Skipped, Skipped{Story: story, Why: why})
 	}
 
-	edited := cpcolls.NewSet[Pick]()
-	headlines := map[Pick]string{}
-	for _, edit := range edition.Edits {
-		if !offered.Contains(edit.Pick) || edited.Contains(edit.Pick) {
-			return nil, fmt.Errorf("%w: story %d is not offered, or told twice", ErrInvalidEdition, edit.Pick)
+	for _, number := range offer.First {
+		seasonal := f.Seasonal[number-1]
+		past.headlines.Add(headlineOf(seasonal.Title))
+		tell(Story{Seasonal: number}, seasonal.Key)
+	}
+
+	keys := cpcolls.NewSet[StoryKey]()
+	for _, story := range edition.Stories {
+		if len(choice.Chosen) >= offer.Count {
+			skip(story, "the run is full")
+			continue
 		}
-		edited.Add(edit.Pick)
-
-		story := s[edit.Pick-1]
-		headline, err := headlineFrom(edit.Headline)
+		key, err := f.Check(story)
 		if err != nil {
-			return nil, fmt.Errorf("%w: story %d: %w", ErrInvalidEdition, edit.Pick, err)
+			skip(story, err.Error())
+			continue
 		}
-		if headline != headlineOf(story.Title) && past.headlines.Contains(headline) {
-			return nil, fmt.Errorf("%w: story %d: %q was a headline of the last week", ErrInvalidEdition, edit.Pick, headline)
+		if story.Seasonal > 0 {
+			skip(story, "a seasonal story is the run's to tell first, not the editor's")
+			continue
 		}
-		if taken.Contains(headline) {
-			return nil, fmt.Errorf("%w: story %d: %q is another story's headline", ErrInvalidEdition, edit.Pick, headline)
+		headline, err := headlineFrom(story.Headline)
+		if err != nil {
+			skip(story, err.Error())
+			continue
 		}
-		if slices.ContainsFunc(story.Teasers, func(teaser string) bool { return headlineOf(teaser) == headline }) {
-			return nil, fmt.Errorf("%w: story %d: %q is a teaser of its caption", ErrInvalidEdition, edit.Pick, headline)
+		if past.headlines.Contains(headline) {
+			skip(story, fmt.Sprintf("%q was a headline of the last week, or of this run", headline))
+			continue
 		}
-		taken.Add(headline)
-		if headline != story.Title {
-			headlines[edit.Pick] = headline
+		if keys.Contains(key) {
+			skip(story, fmt.Sprintf("%s in %s is told already in this run", key.Flag, key.Continent))
+			continue
+		}
+		keys.Add(key)
+		past.headlines.Add(headline)
+		story.Headline = headline
+		tell(story, key)
+	}
+	return choice
+}
+
+type past struct {
+	keys      *cpcolls.Set[StoryKey]
+	headlines *cpcolls.Set[string]
+	shown     []*cpcolls.Set[string]
+}
+
+func pastOf(told []Telling, now time.Time) *past {
+	newest := slices.SortedFunc(slices.Values(told), func(a, b Telling) int { return b.At.Compare(a.At) })
+
+	p := &past{keys: cpcolls.NewSet[StoryKey](), headlines: cpcolls.NewSet[string]()}
+	for _, telling := range newest {
+		if telling.At.Before(ToldSince(now)) {
+			continue
+		}
+		if !telling.At.Before(now.Add(-recent)) {
+			p.keys.Add(telling.Key)
+		}
+		p.headlines.Add(headlineOf(telling.Title))
+		if len(p.shown) < lately {
+			flags := cpcolls.NewSet(telling.Countries...)
+			flags.Add(telling.Key.Flag)
+			p.shown = append(p.shown, flags)
 		}
 	}
-	return headlines, nil
+	return p
+}
+
+func headlineOf(title string) string {
+	return strings.ToUpper(strings.TrimSpace(title))
 }
 
 var errHeadline = errors.New("the headline cannot be drawn")
 
-// Upper case, its spaces one each: letters of any script, digits, and the punctuation of a headline, as the clip's
-// font draws them, starting with a letter or a digit, so the generator never reads it as a flag. No emoji, no line
-// break, no quotes to close.
+// Starts with a letter or a digit, so the generator never reads it as a flag.
 func headlineFrom(written string) (string, error) {
 	headline := headlineOf(strings.Join(strings.Fields(written), " "))
 	if headline == "" || utf8.RuneCountInString(headline) > headlineRunes {

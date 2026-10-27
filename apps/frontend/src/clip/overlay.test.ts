@@ -9,7 +9,7 @@ const day: Day = {
 }
 
 function story(kind: Story["kind"], place: Story["place"], rival?: string): Story {
-    return {kind, attacker: "ps", rival, victims: ["fr", "es"], place, taken: 2593}
+    return {kind, attacker: "ps", rival, victims: ["fr", "es"], place}
 }
 
 describe("the headline of a clip", () => {

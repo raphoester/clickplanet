@@ -1,4 +1,4 @@
-// Package claude_editor asks a Claude model to edit a run: which of the stories offered it tells, and their headlines.
+// Package claude_editor asks a Claude model to make a run's stories from the findings, and to headline them.
 package claude_editor
 
 import (
@@ -27,9 +27,9 @@ const (
 	// The cheapest model, at $0.10 and $0.50 a million tokens in and out while a prompt stays at 100K or fewer.
 	DefaultModel = "claude-haiku-5-5"
 
-	// Room for its thinking, which counts, and a ranking of a dozen stories with their headlines.
+	// Room for its thinking, which counts, and a few stories with their headlines.
 	maxTokens = 8000
-	// One call a run, in a job of 10 minutes: a model that does not answer in 2 leaves the run to the rules.
+	// One call a run, in a job of 10 minutes: a model that does not answer in 2 leaves the run quiet.
 	timeout = 2 * time.Minute
 	retries = 1
 )
@@ -50,7 +50,6 @@ var (
 	ErrNoAnswer = errors.New("the model gave no answer the run can read")
 )
 
-// The editor's own patience, on the client it is given.
 var requestOptions = []option.RequestOption{option.WithRequestTimeout(timeout), option.WithMaxRetries(retries)}
 
 func (e *Editor) Edit(ctx context.Context, offer posts.Offer) (posts.Edition, posts.Spend, error) {
@@ -115,8 +114,17 @@ func (e *Editor) Count(ctx context.Context, offer posts.Offer) (int64, error) {
 type answer struct {
 	Why     string `json:"why"`
 	Stories []struct {
-		Pick     int    `json:"pick"`
-		Headline string `json:"headline"`
+		Front     int      `json:"front"`
+		Tour      int      `json:"tour"`
+		Place     int      `json:"place"`
+		Kind      string   `json:"kind"`
+		Attacker  string   `json:"attacker"`
+		Rival     string   `json:"rival"`
+		TakenFrom []string `json:"takenFrom"`
+		Countries []string `json:"countries"`
+		Continent string   `json:"continent"`
+		Team      string   `json:"team"`
+		Headline  string   `json:"headline"`
 	} `json:"stories"`
 }
 
@@ -131,10 +139,21 @@ var answerSchema = map[string]any{
 			"items": map[string]any{
 				"type":                 "object",
 				"additionalProperties": false,
-				"required":             []string{"pick", "headline"},
+				"required": []string{
+					"front", "tour", "place", "kind", "attacker", "rival", "takenFrom", "countries", "continent", "team", "headline",
+				},
 				"properties": map[string]any{
-					"pick":     map[string]any{"type": "integer"},
-					"headline": map[string]any{"type": "string"},
+					"front":     map[string]any{"type": "integer"},
+					"tour":      map[string]any{"type": "integer"},
+					"place":     map[string]any{"type": "integer"},
+					"kind":      map[string]any{"type": "string", "enum": []string{"attack", "invasion", "comeback", "kickout", "rout", "battle", ""}},
+					"attacker":  map[string]any{"type": "string"},
+					"rival":     map[string]any{"type": "string"},
+					"takenFrom": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+					"countries": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+					"continent": map[string]any{"type": "string"},
+					"team":      map[string]any{"type": "string"},
+					"headline":  map[string]any{"type": "string"},
 				},
 			},
 		},
@@ -154,7 +173,11 @@ func editionOf(content []anthropic.ContentBlockUnion) (posts.Edition, error) {
 		}
 		edition := posts.Edition{Why: strings.TrimSpace(answered.Why)}
 		for _, story := range answered.Stories {
-			edition.Edits = append(edition.Edits, posts.Edit{Pick: posts.Pick(story.Pick), Headline: story.Headline})
+			edition.Stories = append(edition.Stories, posts.Story{
+				Front: story.Front, Tour: story.Tour, Place: story.Place, Kind: posts.Kind(story.Kind),
+				Attacker: story.Attacker, Rival: story.Rival, TakenFrom: story.TakenFrom, Countries: story.Countries,
+				Continent: story.Continent, Team: story.Team, Headline: story.Headline,
+			})
 		}
 		return edition, nil
 	}

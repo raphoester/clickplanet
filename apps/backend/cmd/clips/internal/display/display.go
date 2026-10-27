@@ -12,17 +12,16 @@ import (
 
 const timeLayout = "Mon 2 Jan, 15:04 UTC"
 
-// What the workflow's render job of a clip reads: its pick, and the arm of each experiment it is in, for the
-// generator's --pick and --variants.
+// What the workflow's render job of a clip reads: its number, its story and the arm of each experiment it is in, for
+// the generator's --pick, --story and --variants.
 type assigned struct {
-	Pick     clips.Pick     `json:"pick"`
-	Variants clips.Variants `json:"variants"`
-	// The editor's, for the generator's --headline; left out for the generator's own.
-	Headline string `json:"headline,omitempty"`
+	Pick     clips.Pick      `json:"pick"`
+	Story    json.RawMessage `json:"story"`
+	Variants clips.Variants  `json:"variants"`
 }
 
-// A JSON array on one line, `[{"pick":1,"variants":{"length":"short"}}]`: the workflow makes one render job of each.
-// Variants are `{}` for a clip in no experiment, never null.
+// A JSON array on one line, `[{"pick":1,"story":{"front":3,...},"variants":{"length":"short"}}]`: the workflow makes
+// one render job of each. Variants are `{}` for a clip in no experiment, never null.
 func Picks(out io.Writer, assignments []clips.Assignment) error {
 	picks := make([]assigned, 0, len(assignments))
 	for _, assignment := range assignments {
@@ -30,7 +29,11 @@ func Picks(out io.Writer, assignments []clips.Assignment) error {
 		if variants == nil {
 			variants = clips.Variants{}
 		}
-		picks = append(picks, assigned{Pick: assignment.Pick, Variants: variants, Headline: assignment.Headline})
+		story, err := clips.StoryJSON(assignment.Story)
+		if err != nil {
+			return fmt.Errorf("failed to write the picks: %w", err)
+		}
+		picks = append(picks, assigned{Pick: assignment.Pick, Story: story, Variants: variants})
 	}
 	if err := json.NewEncoder(out).Encode(picks); err != nil {
 		return fmt.Errorf("failed to write the picks: %w", err)

@@ -25,7 +25,7 @@ describe("a country called up to the Final Battle", () => {
 
         expect(called(told)).toEqual([["dz", "pl"], ["pl", "dz"]])
         expect(told[1]).toEqual({
-            kind: "callup", attacker: "pl", rival: undefined, victims: ["dz"], place: {region: "the world"}, taken: 275,
+            kind: "callup", attacker: "pl", rival: undefined, victims: ["dz"], place: {region: "the world"},
             day, finaleAt: FINALE,
         })
     })

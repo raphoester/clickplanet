@@ -48,39 +48,39 @@ func TestFetchTakesItsHostFromTheEnvironmentAndAFlagWinsOverIt(t *testing.T) {
 	assert.Equal(t, "me@other.example", fromFlag.Job.Replay.SSH)
 }
 
-func TestChooseFlagsSayWhichShortlistHowManyClipsAndTheKeyToReadWhatWasTold(t *testing.T) {
+func TestChooseFlagsSayWhichFindingsHowManyClipsAndTheKeyToReadWhatWasTold(t *testing.T) {
 	t.Setenv(flags.KeyVariable, "the-key")
 	t.Setenv(flags.EditorKeyVariable, "")
 
-	parsed, err := flags.Parse([]string{"choose", "-shortlist", "shortlist.json", "-count", "3"})
+	parsed, err := flags.Parse([]string{"choose", "-findings", "findings.json", "-count", "3"})
 
 	require.NoError(t, err)
 	job := clips.Config{PerRun: 3}
 	job.Zernio.APIKey = "the-key"
-	assert.Equal(t, flags.Config{Command: flags.Choose, ShortlistFile: "shortlist.json", Job: job}, parsed)
+	assert.Equal(t, flags.Config{Command: flags.Choose, FindingsFile: "findings.json", Job: job}, parsed)
 }
 
 func TestChooseTakesTheEditorsKeyAndWhereItSaysWhoChose(t *testing.T) {
 	t.Setenv(flags.KeyVariable, "the-key")
 	t.Setenv(flags.EditorKeyVariable, "sk-ant-key")
 
-	parsed, err := flags.Parse([]string{"choose", "-shortlist", "shortlist.json", "-summary", "summary.md"})
+	parsed, err := flags.Parse([]string{"choose", "-findings", "findings.json", "-summary", "summary.md"})
 
 	require.NoError(t, err)
 	assert.Equal(t, "sk-ant-key", parsed.Job.Anthropic.APIKey)
 	assert.Equal(t, "summary.md", parsed.SummaryFile)
 }
 
-func TestEditFlagsSayWhichShortlistHowManyClipsAndWhetherOnlyThePrompt(t *testing.T) {
+func TestEditFlagsSayWhichFindingsHowManyClipsAndWhetherOnlyThePrompt(t *testing.T) {
 	t.Setenv(flags.KeyVariable, "")
 	t.Setenv(flags.EditorKeyVariable, "sk-ant-key")
 
-	parsed, err := flags.Parse([]string{"edit", "-shortlist", "shortlist.json", "-count", "3", "-prompt"})
+	parsed, err := flags.Parse([]string{"edit", "-findings", "findings.json", "-count", "3", "-prompt"})
 
 	require.NoError(t, err)
 	job := clips.Config{PerRun: 3}
 	job.Anthropic.APIKey = "sk-ant-key"
-	assert.Equal(t, flags.Config{Command: flags.Edit, ShortlistFile: "shortlist.json", PromptOnly: true, Job: job}, parsed)
+	assert.Equal(t, flags.Config{Command: flags.Edit, FindingsFile: "findings.json", PromptOnly: true, Job: job}, parsed)
 
 	_, err = flags.Parse([]string{"edit"})
 	require.ErrorIs(t, err, flags.ErrArguments)
@@ -117,7 +117,7 @@ func TestScheduleFlagsSayWhichCountrysChartATrendingTrackIsPickedFrom(t *testing
 }
 
 func TestChooseCountsTheRoomOfThePlatformsItIsGiven(t *testing.T) {
-	parsed, err := flags.Parse([]string{"choose", "-shortlist", "shortlist.json", "-platforms", "tiktok"})
+	parsed, err := flags.Parse([]string{"choose", "-findings", "findings.json", "-platforms", "tiktok"})
 
 	require.NoError(t, err)
 	assert.Equal(t, []clips.Platform{"tiktok"}, parsed.Job.Platforms)
@@ -151,8 +151,8 @@ func TestFlagsWithAPartMissingOrWrongSayHowToCallTheCommand(t *testing.T) {
 		"fetch, a wrong time":        {"fetch", "-ssh", "deploy@vps.example", "-out", "replay.json", "-until", "yesterday"},
 		"fetch, wrong hours":         {"fetch", "-ssh", "deploy@vps.example", "-out", "replay.json", "-hours", "many"},
 		"choose, no shortlist":       {"choose"},
-		"choose, a wrong count":      {"choose", "-shortlist", "shortlist.json", "-count", "two"},
-		"choose, no such platform":   {"choose", "-shortlist", "shortlist.json", "-platforms", "instagram"},
+		"choose, a wrong count":      {"choose", "-findings", "findings.json", "-count", "two"},
+		"choose, no such platform":   {"choose", "-findings", "findings.json", "-platforms", "instagram"},
 		"schedule, no folder":        {"schedule"},
 		"schedule, a wrong gap":      {"schedule", "-clips", "clips", "-spacing", "soon"},
 		"schedule, no such platform": {"schedule", "-clips", "clips", "-platforms", "tiktok,instagram"},
@@ -169,7 +169,7 @@ func TestFlagsWithAPartMissingOrWrongSayHowToCallTheCommand(t *testing.T) {
 
 func TestAMissingPartIsToldApartFromAFlagThatDoesNotParse(t *testing.T) {
 	_, missing := flags.Parse([]string{"choose"})
-	_, unparsed := flags.Parse([]string{"choose", "-shortlist", "shortlist.json", "-count", "two"})
+	_, unparsed := flags.Parse([]string{"choose", "-findings", "findings.json", "-count", "two"})
 
 	require.ErrorIs(t, missing, flags.ErrArguments)
 	require.NotErrorIs(t, unparsed, flags.ErrArguments)

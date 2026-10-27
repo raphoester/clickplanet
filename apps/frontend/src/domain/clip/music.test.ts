@@ -5,7 +5,7 @@ import {Story} from "./story.ts"
 const recorded = (country: string) => ["fr", "nl", "tr", "es", "eu"].includes(country)
 
 function story(attacker: string, place: Story["place"], rival?: string): Story {
-    return {kind: "invasion", attacker, rival, victims: ["es", "fr"], place, taken: 100}
+    return {kind: "invasion", attacker, rival, victims: ["es", "fr"], place}
 }
 
 describe("the anthem of a clip", () => {
