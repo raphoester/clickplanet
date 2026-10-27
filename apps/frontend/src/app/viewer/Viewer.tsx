@@ -71,7 +71,6 @@ import {usePresence} from "../players/usePresence.ts";
 import {useRoster} from "../players/useRoster.ts";
 import SignInPitchModal from "../account/SignInPitchModal.tsx";
 import {LeaderboardEntry, rankOf} from "../../domain/leaderboard.ts";
-import {SeasonBackend} from "../../backends/season.ts";
 import {useSeason} from "../season/useSeason.ts";
 import SeasonChip, {ChampionChip, SeasonDetails} from "../season/SeasonChip.tsx";
 import {useCompact} from "../compact.ts";
@@ -109,6 +108,7 @@ import {briefDescriptionOf} from "../../domain/battleBrief.ts";
 import {revealFollowed} from "../../domain/roundReveal.ts";
 import {reigningChampionOf} from "../../domain/champion.ts";
 import {countryLines, CountryOrder, shownOrder} from "../../domain/race.ts";
+import {dayEndOf} from "../../domain/seasonClock.ts";
 import {acceptedClicks} from "./acceptedClicks.ts";
 import "./Viewer.css"
 
@@ -138,7 +138,6 @@ export type ViewerProps = {
     playerInfo?: PlayerInfoBackend
     tileHolders?: TileHolders
     landmasses?: LandmassReader
-    season?: SeasonBackend
     turn?: TurnBackend
     standings?: StandingsBackend
     support?: SupportBackend
@@ -176,9 +175,10 @@ export default function Viewer(props: ViewerProps) {
     const announcements = useAnnouncements()
     const {announce, current} = announcements
     const roster = useRoster(props.presence, (title) => announce({kind: "title", title}))
-    const season = useSeason(props.season)
     const race = useRace(props.standings)
     const schedule = useSchedule(props.turn)
+    const season = useSeason(schedule.seasons.current)
+    const dayEndsAt = dayEndOf(race?.round)
     const battle = battleOf(schedule.turn)
     const nextBattle = nextBattleOf(schedule.battles, Date.now())
     useMood(battle ? "battle" : undefined)
@@ -404,6 +404,7 @@ export default function Viewer(props: ViewerProps) {
         {ready && !compact && !battle && champion && <ChampionChip champion={champion} compact={false}/>}
         {ready && !compact && !battle && !champion && season && <SeasonChip season={season}
                                                                  nextBattle={nextBattle}
+                                                                 dayEndsAt={dayEndsAt}
                                                                  compact={false}
                                                                  open={seasonOpen}
                                                                  onToggle={() => setSeasonOpen((open) => !open)}/>}
@@ -422,6 +423,7 @@ export default function Viewer(props: ViewerProps) {
                                                 ? <ChampionChip champion={champion} compact/>
                                                 : season && <SeasonChip season={season}
                                                                         nextBattle={nextBattle}
+                                                                        dayEndsAt={dayEndsAt}
                                                                         compact
                                                                         open={sheet === "season"}
                                                                         onToggle={() => toggleSheet("season")}/>}/>}
@@ -477,7 +479,7 @@ export default function Viewer(props: ViewerProps) {
                 <SettingsPlace {...settings}/>
             </Sheet>}
             {sheet === "season" && season && <Sheet title={`Season ${season.number}`} onClose={closeSheet}>
-                <SeasonDetails season={season} nextBattle={nextBattle}/>
+                <SeasonDetails season={season} nextBattle={nextBattle} dayEndsAt={dayEndsAt}/>
             </Sheet>}
             {sheet === "battle" && battle && <Sheet title="Battle" onClose={closeSheet}>
                 <BattleDetails battle={battle} season={season}/>

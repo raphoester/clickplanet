@@ -1,30 +1,38 @@
 import {Season} from "../../backends/season.ts"
 import {Countdown, endClock, endsLine, twoDigits} from "../../domain/seasonClock.ts"
+import {Shown} from "./battle.ts"
 
 const TICK_MS = 1000
 const UNITS: (keyof Countdown)[] = ["days", "hours", "minutes", "seconds"]
 
-// The season and the time left in it, until it ends.
-export function showSeason(root: ParentNode, season: Season): () => void {
-    write(root, "season-number", String(season.number))
-    write(root, "season-ends", endsLine(season))
-
+// The season that runs and the time left in it, following its moves, until it ends.
+export function seasonShown(root: ParentNode): Shown<Season | undefined> {
     const shown = [...root.querySelectorAll<HTMLElement>("[data-season]")]
-    const tick = (): boolean => {
-        const clock = endClock(season, Date.now())
-        for (const element of shown) element.hidden = !clock
-        if (!clock) return false
+    let timer: ReturnType<typeof setInterval> | undefined
 
-        write(root, "season-left", clock.left)
-        for (const unit of UNITS) write(root, `countdown-${unit}`, twoDigits(clock.countdown[unit]))
-        return true
+    const stop = () => clearInterval(timer)
+    const show = (season: Season | undefined) => {
+        stop()
+        const tick = (): boolean => {
+            const clock = season && endClock(season, Date.now())
+            for (const element of shown) element.hidden = !clock
+            if (!season || !clock) return false
+
+            write(root, "season-left", clock.left)
+            for (const unit of UNITS) write(root, `countdown-${unit}`, twoDigits(clock.countdown[unit]))
+            return true
+        }
+
+        if (season) {
+            write(root, "season-number", String(season.number))
+            write(root, "season-ends", endsLine(season))
+        }
+        if (!tick()) return
+        timer = setInterval(() => {
+            if (!tick()) stop()
+        }, TICK_MS)
     }
-
-    if (!tick()) return () => {}
-    const timer = setInterval(() => {
-        if (!tick()) clearInterval(timer)
-    }, TICK_MS)
-    return () => clearInterval(timer)
+    return {show, stop}
 }
 
 function write(root: ParentNode, field: string, text: string) {

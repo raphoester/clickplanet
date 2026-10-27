@@ -5,9 +5,9 @@ package gamemaster.v1;
 import "google/protobuf/timestamp.proto";
 import "gamemaster/v1/gamemaster.proto";
 
-// The rule schedule: which rule set planet and the antibot play, and when. No authentication of its own: served on the
-// console listener, and on the admin listener behind its gate. Never the public router. No call changes what plays
-// now: only an entry to come is added, changed or deleted.
+// The rule schedule: which rule set planet and the antibot play, and when; and the seasons. No authentication of its
+// own: served on the console listener, and on the admin listener behind its gate. Never the public router. No call
+// changes what plays now: only an entry to come is added, changed or deleted.
 service AdminService {
   rpc GetSchedule(GetScheduleRequest) returns (GetScheduleResponse);
 
@@ -19,6 +19,19 @@ service AdminService {
 
   // Deletes an entry that has not started. FailedPrecondition once it started.
   rpc DeleteEntry(DeleteEntryRequest) returns (DeleteEntryResponse);
+
+  // Every season, by number. Scoring is told each one's start and end once it starts.
+  rpc GetSeasons(GetSeasonsRequest) returns (GetSeasonsResponse);
+
+  // Adds a season that starts later, after the end of the last one, under the next number.
+  rpc AddSeason(AddSeasonRequest) returns (AddSeasonResponse);
+
+  // Changes a season that has not ended. One that started keeps its start, and its end moves only to a time after now:
+  // FailedPrecondition otherwise.
+  rpc EditSeason(EditSeasonRequest) returns (EditSeasonResponse);
+
+  // Deletes the last season, when it has not started. FailedPrecondition otherwise.
+  rpc DeleteSeason(DeleteSeasonRequest) returns (DeleteSeasonResponse);
 }
 
 message GetScheduleRequest {}
@@ -86,3 +99,32 @@ message DeleteEntryRequest {
 }
 
 message DeleteEntryResponse {}
+
+message GetSeasonsRequest {}
+
+message GetSeasonsResponse {
+  repeated Season seasons = 1;
+}
+
+message AddSeasonRequest {
+  google.protobuf.Timestamp starts_at = 1;
+  google.protobuf.Timestamp ends_at = 2;
+}
+
+message AddSeasonResponse {
+  uint32 number = 1;
+}
+
+message EditSeasonRequest {
+  uint32 number = 1;
+  google.protobuf.Timestamp starts_at = 2;
+  google.protobuf.Timestamp ends_at = 3;
+}
+
+message EditSeasonResponse {}
+
+message DeleteSeasonRequest {
+  uint32 number = 1;
+}
+
+message DeleteSeasonResponse {}

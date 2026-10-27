@@ -15,6 +15,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/postgres_entry_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/postgres_season_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -23,6 +25,9 @@ var (
 	finale     = time.Date(2026, 10, 31, 21, 0, 0, 0, time.UTC)
 	battleEnds = finale.Add(2 * time.Hour)
 	madeAt     = finale.Add(-time.Hour)
+	seasonZero = &gamemasterv1.Season{
+		Number: 0, StartsAt: timestamppb.New(time.Date(2026, 10, 3, 0, 0, 0, 0, time.UTC)), EndsAt: timestamppb.New(battleEnds),
+	}
 )
 
 func battle(t *testing.T, db cppg.Conn) {
@@ -95,7 +100,7 @@ func TestTheTimelineIsTheBattlesToComeInThePlayersWords(t *testing.T) {
 	assert.True(t, proto.Equal(&gamemasterv1.Timeline{Battles: []*gamemasterv1.Battle{{
 		EntryId: uuid.UUID{15: 1}.String(), StartsAt: timestamppb.New(finale), EndsAt: timestamppb.New(battleEnds),
 		Description: "Triple points.",
-	}}}, timeline), "%v", timeline)
+	}}, Current: seasonZero}, timeline), "season 0 is seeded: %v", timeline)
 }
 
 func TestABattleThatStartedLeavesTheTimeline(t *testing.T) {
@@ -106,4 +111,20 @@ func TestABattleThatStartedLeavesTheTimeline(t *testing.T) {
 
 	require.NotNil(t, timeline)
 	assert.Empty(t, timeline.GetBattles())
+}
+
+func TestTheTimelineCarriesTheRunningSeasonAndTheNextOne(t *testing.T) {
+	db := cppg.StartTestServer(t).OpenSchema(t, "gamemaster", migrations.FS)
+	next := season.Snapshot{Number: 1, StartsAt: battleEnds.Add(time.Hour), EndsAt: battleEnds.AddDate(0, 1, 0)}
+	require.NoError(t, postgres_season_store.New(db).Save(t.Context(), next.Restore()))
+
+	timeline := nowAt(t, db, finale).GetTimeline()
+	assert.True(t, proto.Equal(seasonZero, timeline.GetCurrent()), "%v", timeline)
+	assert.True(t, proto.Equal(&gamemasterv1.Season{
+		Number: 1, StartsAt: timestamppb.New(next.StartsAt), EndsAt: timestamppb.New(next.EndsAt),
+	}, timeline.GetNext()), "%v", timeline)
+
+	between := nowAt(t, db, battleEnds).GetTimeline()
+	assert.Nil(t, between.GetCurrent(), "a season is over at its end")
+	assert.Equal(t, uint32(1), between.GetNext().GetNumber())
 }

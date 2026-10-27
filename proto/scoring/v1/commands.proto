@@ -19,3 +19,13 @@ message PlayRuleSet {
   // The id of the schedule entry that plays the set; empty when default plays. A round of its own repeats it.
   string entry_id = 5;
 }
+
+// Counts the points of a season from its start to its end. Scoring keeps the latest decision on each season by
+// decided_at, so a command sent twice, or after a newer one, changes nothing. Sent once the season starts, when its end
+// moves, and at each boot of the sender.
+message PlaySeason {
+  uint32 number = 1;
+  google.protobuf.Timestamp starts_at = 2;
+  google.protobuf.Timestamp ends_at = 3;
+  google.protobuf.Timestamp decided_at = 4;
+}

@@ -4,9 +4,11 @@ import {GamemasterService} from "../gen/grpc/gamemaster/v1/gamemaster_connect.ts
 import {
     EntryKind,
     GamemasterEvent,
+    Season as SeasonMessage,
     Timeline,
     Turn as TurnMessage,
 } from "../gen/grpc/gamemaster/v1/gamemaster_pb.ts"
+import {Season, Seasons} from "./season.ts"
 import {Config, NO_TIMEOUT, openStream, pageWakeups, Wakeups} from "./transport.ts"
 import {BattleToCome, PLAIN_TURN, Turn, TurnBackend, TurnKind, TurnListener} from "./turn.ts"
 
@@ -26,7 +28,7 @@ export class ConnectTurnBackend implements TurnBackend {
     ) {
     }
 
-    public follow({onTurn, onBattles}: TurnListener): () => void {
+    public follow({onTurn, onBattles, onSeasons}: TurnListener): () => void {
         const client = this.client
         let stop = () => {}
         stop = openStream(
@@ -37,6 +39,7 @@ export class ConnectTurnBackend implements TurnBackend {
                     if (e instanceof ConnectError && (e.code === Code.Unimplemented || e.code === Code.NotFound)) {
                         onTurn(PLAIN_TURN)
                         onBattles([])
+                        onSeasons({})
                         stop()
                         return
                     }
@@ -50,6 +53,7 @@ export class ConnectTurnBackend implements TurnBackend {
                         return
                     case "timeline":
                         onBattles(battlesOf(event.event.value))
+                        onSeasons(seasonsOf(event.event.value))
                         return
                     case "heartbeat":
                     case undefined:
@@ -82,6 +86,15 @@ export function battlesOf(timeline: Timeline): BattleToCome[] {
             description: battle.description,
         }]
         : [])
+}
+
+export function seasonsOf(timeline: Timeline): Seasons {
+    return {current: seasonOf(timeline.current), next: seasonOf(timeline.next)}
+}
+
+function seasonOf(season: SeasonMessage | undefined): Season | undefined {
+    if (!season?.startsAt || !season.endsAt) return undefined
+    return {number: season.number, startsAt: season.startsAt.toDate().getTime(), endsAt: season.endsAt.toDate().getTime()}
 }
 
 function kindOf(kind: EntryKind): TurnKind {

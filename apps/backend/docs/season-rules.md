@@ -5,7 +5,8 @@ Season rules), as planet's game rules (see [Rules](rules.md)) and the antibot's 
 [The antibot's rules](antibot-rules.md)). Which set plays is the gamemaster's schedule (see
 [The gamemaster module](gamemaster.md)): scoring sits under it as planet and the antibot do (the user, 2026-10-27), and
 the gamemaster never hears of a point. Until 2026-10-27 the Final Battle was a round of scoring's calendar (`finale: 2h`)
-and its ×3 a constant, while the battle's look and rules were a schedule entry: two clocks for one battle.
+and its ×3 a constant, while the battle's look and rules were a schedule entry: two clocks for one battle. The
+seasons' windows are the gamemaster's too (see [The seasons](gamemaster.md#the-seasons)).
 
 ## A rule set
 

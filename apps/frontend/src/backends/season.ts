@@ -1,10 +1,12 @@
+// A season, as the gamemaster's timeline names it.
 export type Season = {
     number: number
-    // When the season's last day ends: every day ends at this time of day.
-    lastDayEndsAt: number
+    startsAt: number
     endsAt: number
 }
 
-export interface SeasonBackend {
-    season(): Promise<Season | undefined>
+export type Seasons = {
+    // The season that runs now; none between two seasons.
+    current?: Season
+    next?: Season
 }

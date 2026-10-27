@@ -71,3 +71,13 @@ backend's [season rules](../../backend/docs/season-rules.md)): every set postgre
 - **The kind is what the entry is to the players** (`gamemaster.v1.EntryKind`): `battle`, which the game client gives a
   war-like look, or `plain`, a change of the rules with no look. A new entry starts as a battle. The picker lists every
   kind the proto names but unspecified (`kinds`, `wordOf`), so a kind added to the contract shows with no edit here.
+
+**Seasons** (`SeasonsPanel`, `seasons.ts`) is `gamemaster.v1.AdminService/GetSeasons`, `AddSeason`, `EditSeason` and
+`DeleteSeason`:
+
+- **Every season, by number**, with its start, its end and whether it is done, running or to come; the running one
+  marked, a done one muted.
+- **A season that has not ended has Edit**; a running one keeps its start (the field is locked) and moves only its end.
+  A time left as it was is sent as kept, to the second. **Only the last season, before it starts, has Delete.**
+- **Add a season** opens a form, its start at the end of the last season. The server gives the number. Add, Save and
+  Delete ask first (`ConfirmAction`); the server's refusal is quoted, and the form stays.

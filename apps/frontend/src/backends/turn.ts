@@ -1,3 +1,5 @@
+import {Seasons} from "./season.ts"
+
 export type TurnKind = "battle" | "plain"
 
 export type Turn = {
@@ -21,9 +23,10 @@ export type BattleToCome = {
 export type TurnListener = {
     onTurn: (turn: Turn) => void
     onBattles: (battles: BattleToCome[]) => void
+    onSeasons: (seasons: Seasons) => void
 }
 
 export interface TurnBackend {
-    // The turn and the battles to come at once, then each change of either.
+    // The turn, the battles to come and the seasons at once, then each change of any.
     follow(listener: TurnListener): () => void
 }

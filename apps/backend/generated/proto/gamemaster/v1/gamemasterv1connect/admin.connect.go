@@ -43,6 +43,15 @@ const (
 	// AdminServiceDeleteEntryProcedure is the fully-qualified name of the AdminService's DeleteEntry
 	// RPC.
 	AdminServiceDeleteEntryProcedure = "/gamemaster.v1.AdminService/DeleteEntry"
+	// AdminServiceGetSeasonsProcedure is the fully-qualified name of the AdminService's GetSeasons RPC.
+	AdminServiceGetSeasonsProcedure = "/gamemaster.v1.AdminService/GetSeasons"
+	// AdminServiceAddSeasonProcedure is the fully-qualified name of the AdminService's AddSeason RPC.
+	AdminServiceAddSeasonProcedure = "/gamemaster.v1.AdminService/AddSeason"
+	// AdminServiceEditSeasonProcedure is the fully-qualified name of the AdminService's EditSeason RPC.
+	AdminServiceEditSeasonProcedure = "/gamemaster.v1.AdminService/EditSeason"
+	// AdminServiceDeleteSeasonProcedure is the fully-qualified name of the AdminService's DeleteSeason
+	// RPC.
+	AdminServiceDeleteSeasonProcedure = "/gamemaster.v1.AdminService/DeleteSeason"
 )
 
 // AdminServiceClient is a client for the gamemaster.v1.AdminService service.
@@ -54,6 +63,15 @@ type AdminServiceClient interface {
 	EditEntry(context.Context, *connect.Request[v1.EditEntryRequest]) (*connect.Response[v1.EditEntryResponse], error)
 	// Deletes an entry that has not started. FailedPrecondition once it started.
 	DeleteEntry(context.Context, *connect.Request[v1.DeleteEntryRequest]) (*connect.Response[v1.DeleteEntryResponse], error)
+	// Every season, by number. Scoring is told each one's start and end once it starts.
+	GetSeasons(context.Context, *connect.Request[v1.GetSeasonsRequest]) (*connect.Response[v1.GetSeasonsResponse], error)
+	// Adds a season that starts later, after the end of the last one, under the next number.
+	AddSeason(context.Context, *connect.Request[v1.AddSeasonRequest]) (*connect.Response[v1.AddSeasonResponse], error)
+	// Changes a season that has not ended. One that started keeps its start, and its end moves only to a time after now:
+	// FailedPrecondition otherwise.
+	EditSeason(context.Context, *connect.Request[v1.EditSeasonRequest]) (*connect.Response[v1.EditSeasonResponse], error)
+	// Deletes the last season, when it has not started. FailedPrecondition otherwise.
+	DeleteSeason(context.Context, *connect.Request[v1.DeleteSeasonRequest]) (*connect.Response[v1.DeleteSeasonResponse], error)
 }
 
 // NewAdminServiceClient constructs a client for the gamemaster.v1.AdminService service. By default,
@@ -91,15 +109,43 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("DeleteEntry")),
 			connect.WithClientOptions(opts...),
 		),
+		getSeasons: connect.NewClient[v1.GetSeasonsRequest, v1.GetSeasonsResponse](
+			httpClient,
+			baseURL+AdminServiceGetSeasonsProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("GetSeasons")),
+			connect.WithClientOptions(opts...),
+		),
+		addSeason: connect.NewClient[v1.AddSeasonRequest, v1.AddSeasonResponse](
+			httpClient,
+			baseURL+AdminServiceAddSeasonProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("AddSeason")),
+			connect.WithClientOptions(opts...),
+		),
+		editSeason: connect.NewClient[v1.EditSeasonRequest, v1.EditSeasonResponse](
+			httpClient,
+			baseURL+AdminServiceEditSeasonProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("EditSeason")),
+			connect.WithClientOptions(opts...),
+		),
+		deleteSeason: connect.NewClient[v1.DeleteSeasonRequest, v1.DeleteSeasonResponse](
+			httpClient,
+			baseURL+AdminServiceDeleteSeasonProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("DeleteSeason")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // adminServiceClient implements AdminServiceClient.
 type adminServiceClient struct {
-	getSchedule *connect.Client[v1.GetScheduleRequest, v1.GetScheduleResponse]
-	addEntry    *connect.Client[v1.AddEntryRequest, v1.AddEntryResponse]
-	editEntry   *connect.Client[v1.EditEntryRequest, v1.EditEntryResponse]
-	deleteEntry *connect.Client[v1.DeleteEntryRequest, v1.DeleteEntryResponse]
+	getSchedule  *connect.Client[v1.GetScheduleRequest, v1.GetScheduleResponse]
+	addEntry     *connect.Client[v1.AddEntryRequest, v1.AddEntryResponse]
+	editEntry    *connect.Client[v1.EditEntryRequest, v1.EditEntryResponse]
+	deleteEntry  *connect.Client[v1.DeleteEntryRequest, v1.DeleteEntryResponse]
+	getSeasons   *connect.Client[v1.GetSeasonsRequest, v1.GetSeasonsResponse]
+	addSeason    *connect.Client[v1.AddSeasonRequest, v1.AddSeasonResponse]
+	editSeason   *connect.Client[v1.EditSeasonRequest, v1.EditSeasonResponse]
+	deleteSeason *connect.Client[v1.DeleteSeasonRequest, v1.DeleteSeasonResponse]
 }
 
 // GetSchedule calls gamemaster.v1.AdminService.GetSchedule.
@@ -122,6 +168,26 @@ func (c *adminServiceClient) DeleteEntry(ctx context.Context, req *connect.Reque
 	return c.deleteEntry.CallUnary(ctx, req)
 }
 
+// GetSeasons calls gamemaster.v1.AdminService.GetSeasons.
+func (c *adminServiceClient) GetSeasons(ctx context.Context, req *connect.Request[v1.GetSeasonsRequest]) (*connect.Response[v1.GetSeasonsResponse], error) {
+	return c.getSeasons.CallUnary(ctx, req)
+}
+
+// AddSeason calls gamemaster.v1.AdminService.AddSeason.
+func (c *adminServiceClient) AddSeason(ctx context.Context, req *connect.Request[v1.AddSeasonRequest]) (*connect.Response[v1.AddSeasonResponse], error) {
+	return c.addSeason.CallUnary(ctx, req)
+}
+
+// EditSeason calls gamemaster.v1.AdminService.EditSeason.
+func (c *adminServiceClient) EditSeason(ctx context.Context, req *connect.Request[v1.EditSeasonRequest]) (*connect.Response[v1.EditSeasonResponse], error) {
+	return c.editSeason.CallUnary(ctx, req)
+}
+
+// DeleteSeason calls gamemaster.v1.AdminService.DeleteSeason.
+func (c *adminServiceClient) DeleteSeason(ctx context.Context, req *connect.Request[v1.DeleteSeasonRequest]) (*connect.Response[v1.DeleteSeasonResponse], error) {
+	return c.deleteSeason.CallUnary(ctx, req)
+}
+
 // AdminServiceHandler is an implementation of the gamemaster.v1.AdminService service.
 type AdminServiceHandler interface {
 	GetSchedule(context.Context, *connect.Request[v1.GetScheduleRequest]) (*connect.Response[v1.GetScheduleResponse], error)
@@ -131,6 +197,15 @@ type AdminServiceHandler interface {
 	EditEntry(context.Context, *connect.Request[v1.EditEntryRequest]) (*connect.Response[v1.EditEntryResponse], error)
 	// Deletes an entry that has not started. FailedPrecondition once it started.
 	DeleteEntry(context.Context, *connect.Request[v1.DeleteEntryRequest]) (*connect.Response[v1.DeleteEntryResponse], error)
+	// Every season, by number. Scoring is told each one's start and end once it starts.
+	GetSeasons(context.Context, *connect.Request[v1.GetSeasonsRequest]) (*connect.Response[v1.GetSeasonsResponse], error)
+	// Adds a season that starts later, after the end of the last one, under the next number.
+	AddSeason(context.Context, *connect.Request[v1.AddSeasonRequest]) (*connect.Response[v1.AddSeasonResponse], error)
+	// Changes a season that has not ended. One that started keeps its start, and its end moves only to a time after now:
+	// FailedPrecondition otherwise.
+	EditSeason(context.Context, *connect.Request[v1.EditSeasonRequest]) (*connect.Response[v1.EditSeasonResponse], error)
+	// Deletes the last season, when it has not started. FailedPrecondition otherwise.
+	DeleteSeason(context.Context, *connect.Request[v1.DeleteSeasonRequest]) (*connect.Response[v1.DeleteSeasonResponse], error)
 }
 
 // NewAdminServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -164,6 +239,30 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(adminServiceMethods.ByName("DeleteEntry")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServiceGetSeasonsHandler := connect.NewUnaryHandler(
+		AdminServiceGetSeasonsProcedure,
+		svc.GetSeasons,
+		connect.WithSchema(adminServiceMethods.ByName("GetSeasons")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServiceAddSeasonHandler := connect.NewUnaryHandler(
+		AdminServiceAddSeasonProcedure,
+		svc.AddSeason,
+		connect.WithSchema(adminServiceMethods.ByName("AddSeason")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServiceEditSeasonHandler := connect.NewUnaryHandler(
+		AdminServiceEditSeasonProcedure,
+		svc.EditSeason,
+		connect.WithSchema(adminServiceMethods.ByName("EditSeason")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServiceDeleteSeasonHandler := connect.NewUnaryHandler(
+		AdminServiceDeleteSeasonProcedure,
+		svc.DeleteSeason,
+		connect.WithSchema(adminServiceMethods.ByName("DeleteSeason")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/gamemaster.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AdminServiceGetScheduleProcedure:
@@ -174,6 +273,14 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 			adminServiceEditEntryHandler.ServeHTTP(w, r)
 		case AdminServiceDeleteEntryProcedure:
 			adminServiceDeleteEntryHandler.ServeHTTP(w, r)
+		case AdminServiceGetSeasonsProcedure:
+			adminServiceGetSeasonsHandler.ServeHTTP(w, r)
+		case AdminServiceAddSeasonProcedure:
+			adminServiceAddSeasonHandler.ServeHTTP(w, r)
+		case AdminServiceEditSeasonProcedure:
+			adminServiceEditSeasonHandler.ServeHTTP(w, r)
+		case AdminServiceDeleteSeasonProcedure:
+			adminServiceDeleteSeasonHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -197,4 +304,20 @@ func (UnimplementedAdminServiceHandler) EditEntry(context.Context, *connect.Requ
 
 func (UnimplementedAdminServiceHandler) DeleteEntry(context.Context, *connect.Request[v1.DeleteEntryRequest]) (*connect.Response[v1.DeleteEntryResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("gamemaster.v1.AdminService.DeleteEntry is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) GetSeasons(context.Context, *connect.Request[v1.GetSeasonsRequest]) (*connect.Response[v1.GetSeasonsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("gamemaster.v1.AdminService.GetSeasons is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) AddSeason(context.Context, *connect.Request[v1.AddSeasonRequest]) (*connect.Response[v1.AddSeasonResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("gamemaster.v1.AdminService.AddSeason is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) EditSeason(context.Context, *connect.Request[v1.EditSeasonRequest]) (*connect.Response[v1.EditSeasonResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("gamemaster.v1.AdminService.EditSeason is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) DeleteSeason(context.Context, *connect.Request[v1.DeleteSeasonRequest]) (*connect.Response[v1.DeleteSeasonResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("gamemaster.v1.AdminService.DeleteSeason is not implemented"))
 }

@@ -51,6 +51,18 @@ message Turn {
 message Timeline {
   // The battles that have not started, by start. Never a plain entry.
   repeated Battle battles = 1;
+  // The season that runs now; unset between two seasons.
+  Season current = 2;
+  // The first season that has not started; unset when none is scheduled.
+  Season next = 3;
+}
+
+// A season: scoring counts its points from its start to its end. An operator may move the end of one that runs: the
+// stream sends the timeline again then.
+message Season {
+  uint32 number = 1;
+  google.protobuf.Timestamp starts_at = 2;
+  google.protobuf.Timestamp ends_at = 3;
 }
 
 message Battle {

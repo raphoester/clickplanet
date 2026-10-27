@@ -15,10 +15,15 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1/scoringv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/gamemasterv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/gamemasterv1controller/add_entry_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/gamemasterv1controller/add_season_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/gamemasterv1controller/delete_entry_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/gamemasterv1controller/delete_season_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/gamemasterv1controller/edit_entry_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/gamemasterv1controller/edit_season_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/gamemasterv1controller/get_schedule_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/gamemasterv1controller/get_schedule_handler/schedule_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/gamemasterv1controller/get_seasons_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/gamemasterv1controller/get_seasons_handler/seasons_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/gamemasterv1controller/get_turn_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/gamemasterv1controller/get_turn_handler/turn_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/gamemasterv1controller/listen_for_events_handler"
@@ -40,6 +45,16 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/usecases/play_schedule_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/usecases/play_schedule_usecase/log_play_schedule"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/uuid_id_provider"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/postgres_season_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/redis_season_commands"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/usecases/add_season_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/usecases/add_season_usecase/audit_add_season"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/usecases/delete_season_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/usecases/delete_season_usecase/audit_delete_season"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/usecases/edit_season_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/usecases/edit_season_usecase/audit_edit_season"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/usecases/play_seasons_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/usecases/play_seasons_usecase/log_play_seasons"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
@@ -96,9 +111,12 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	entries := postgres_entry_store.New(db)
 	ruleSchedule := play_schedule_usecase.NewRunner(scheduleCheck, log_play_schedule.New(
 		play_schedule_usecase.New(entries, redis_rule_set_commands.New(streams.Commands()), clock), props.Logger))
+	seasons := postgres_season_store.New(db)
+	seasonPlay := play_seasons_usecase.NewRunner(scheduleCheck, log_play_seasons.New(
+		play_seasons_usecase.New(seasons, redis_season_commands.New(streams.Commands()), clock), props.Logger))
 	turns := turn_query.NewPostgresQuery(db, clock)
 	turnFeed := inprocess_turn_feed.New(log_turn_reader.New(turns, props.Logger))
-	props.Runners.Add(cppg.CloseAfter(db, props.Logger, turnFeed, cpredis.CloseAfter(streams, props.Logger, ruleSchedule)))
+	props.Runners.Add(cppg.CloseAfter(db, props.Logger, turnFeed, cpredis.CloseAfter(streams, props.Logger, ruleSchedule, seasonPlay)))
 
 	admin := gamemasterv1controller.AdminService{
 		GetScheduleHandler: get_schedule_handler.New(schedule_query.NewPostgresQuery(db, clock)),
@@ -108,6 +126,13 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 			edit_entry_usecase.New(entries, keepers, clock), props.Logger)),
 		DeleteEntryHandler: delete_entry_handler.New(audit_delete_entry.New(
 			delete_entry_usecase.New(entries, clock), props.Logger)),
+		GetSeasonsHandler: get_seasons_handler.New(seasons_query.NewPostgresQuery(db)),
+		AddSeasonHandler: add_season_handler.New(audit_add_season.New(
+			add_season_usecase.New(seasons, clock), props.Logger)),
+		EditSeasonHandler: edit_season_handler.New(audit_edit_season.New(
+			edit_season_usecase.New(seasons, clock), props.Logger)),
+		DeleteSeasonHandler: delete_season_handler.New(audit_delete_season.New(
+			delete_season_usecase.New(seasons, clock), props.Logger)),
 	}
 	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return gamemasterv1connect.NewAdminServiceHandler(admin, options...)

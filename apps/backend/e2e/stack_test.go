@@ -2,14 +2,11 @@ package e2e_test
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"log/slog"
 	"net"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"strconv"
 	"sync"
 	"testing"
@@ -27,7 +24,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconfigs"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
@@ -80,12 +76,13 @@ func startGame(t *testing.T) gameStack {
 
 	playerConfig := player.Config{Database: postgres.ConfigFor("player"), Redis: redis, TagSalt: "pepper"}
 
-	scoringConfig := currentSeason(t, postgres.ConfigFor("scoring"))
-	scoringConfig.Redis = redis
+	scoringConfig := scoring.Config{Database: postgres.ConfigFor("scoring"), Redis: redis}
+	scoringConfig.Calendar.DailyCutoff = 21 * time.Hour
 
 	missionsConfig := missions.Config{Database: postgres.ConfigFor("missions"), Redis: redis}
 
 	gamemasterConfig := gamemaster.Config{Database: postgres.ConfigFor("gamemaster"), Redis: redis}
+	seasonRuns(t, gamemasterConfig.Database, scoringConfig.Database)
 
 	chatConfig := chat.Config{Database: postgres.ConfigFor("chat"), Redis: redis}
 	chatConfig.RateLimiter.PerSecond = 100
@@ -196,22 +193,22 @@ func waitUntilServed(t *testing.T, address string) {
 	require.NoError(t, res.Body.Close())
 }
 
-func currentSeason(t *testing.T, database cppg.Config) scoring.Config {
+// Season 0 runs 30 days more, in the gamemaster and in scoring alike, whatever the day the tests run.
+func seasonRuns(t *testing.T, gamemasterDatabase, scoringDatabase cppg.Config) {
 	t.Helper()
 
-	path := filepath.Join(t.TempDir(), "scoring.yaml")
-	require.NoError(t, os.WriteFile(path, fmt.Appendf(nil, `
-scoring:
-  dailyCutoff: 21h
-  list:
-    - number: 0
-      endsAt: %s
-`, time.Now().Add(30*24*time.Hour).UTC().Format(time.RFC3339)), 0o600))
-	var config struct{ Scoring scoring.Config }
-	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile(path)))
-	config.Scoring.Database = database
-
-	return config.Scoring
+	endsAt := time.Now().Add(30 * 24 * time.Hour).UTC()
+	for _, each := range []struct {
+		database cppg.Config
+		migrate  func(context.Context, cppg.Config) error
+	}{{gamemasterDatabase, gamemaster.Migrate}, {scoringDatabase, scoring.Migrate}} {
+		require.NoError(t, each.migrate(t.Context(), each.database))
+		db := cppg.New(each.database)
+		require.NoError(t, db.ConnectCtx(t.Context()))
+		_, err := db.On(t.Context()).ExecContext(t.Context(), `UPDATE seasons SET ends_at = $1 WHERE number = 0`, endsAt)
+		_ = db.Close()
+		require.NoError(t, err)
+	}
 }
 
 func (s gameStack) schema(t *testing.T, name string) *cppg.Postgres {

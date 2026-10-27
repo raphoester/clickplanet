@@ -10,6 +10,7 @@ import (
 	gamemasterv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/gamemaster/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/gamemasterv1controller/schedulemessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -23,7 +24,8 @@ type PostgresQuery struct {
 	clock cptime.Clock
 }
 
-// Now is what plays now and the battles to come, by schedule.Schedule's rules, in the players' words: no set's name.
+// Now is what plays now, the battles to come and the seasons, by schedule.Schedule's and season.Calendar's rules, in the
+// players' words: no set's name.
 func (q *PostgresQuery) Now(ctx context.Context) (*gamemasterv1.GetTurnResponse, error) {
 	now := q.clock.Now()
 	rows, err := q.db.On(ctx).QueryContext(ctx, `
@@ -69,7 +71,50 @@ func (q *PostgresQuery) Now(ctx context.Context) (*gamemasterv1.GetTurnResponse,
 	if since := sched.SinceAt(now); !since.IsZero() {
 		answer.Since = timestamppb.New(since)
 	}
-	return &gamemasterv1.GetTurnResponse{Turn: answer, Timeline: timelineOf(sched.BattlesAfter(now))}, nil
+	timeline := timelineOf(sched.BattlesAfter(now))
+	seasons, err := q.seasons(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if running, ok := seasons.RunningAt(now); ok {
+		timeline.Current = seasonOf(running)
+	}
+	if next, ok := seasons.NextAfter(now); ok {
+		timeline.Next = seasonOf(next)
+	}
+	return &gamemasterv1.GetTurnResponse{Turn: answer, Timeline: timeline}, nil
+}
+
+func (q *PostgresQuery) seasons(ctx context.Context) (season.Calendar, error) {
+	rows, err := q.db.On(ctx).QueryContext(ctx, `SELECT number, starts_at, ends_at FROM seasons`)
+	if err != nil {
+		return season.Calendar{}, fmt.Errorf("failed to read the seasons: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var seasons []season.Season
+	for rows.Next() {
+		var (
+			number int64
+			kept   season.Snapshot
+		)
+		if err := rows.Scan(&number, &kept.StartsAt, &kept.EndsAt); err != nil {
+			return season.Calendar{}, fmt.Errorf("failed to read a season: %w", err)
+		}
+		kept.Number = season.Number(number) //nolint:gosec // CHECK (number >= 0 AND number <= 4294967295).
+		seasons = append(seasons, kept.Restore())
+	}
+	if err := rows.Err(); err != nil {
+		return season.Calendar{}, fmt.Errorf("failed to read the seasons: %w", err)
+	}
+	return season.NewCalendar(seasons...), nil
+}
+
+func seasonOf(played season.Season) *gamemasterv1.Season {
+	snapshot := played.TakeSnapshot()
+	return &gamemasterv1.Season{
+		Number: uint32(snapshot.Number), StartsAt: timestamppb.New(snapshot.StartsAt), EndsAt: timestamppb.New(snapshot.EndsAt),
+	}
 }
 
 func timelineOf(battles []schedule.EntrySnapshot) *gamemasterv1.Timeline {

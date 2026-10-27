@@ -2,7 +2,7 @@
 import {afterEach, describe, expect, it} from "vitest"
 import {act, cleanup, render} from "@testing-library/react"
 import {PLAIN_TURN, TurnBackend} from "../../backends/turn.ts"
-import {FakeTurnBackend} from "../../backends/fakeTurnBackend.ts"
+import {FakeTurnBackend, SEASON_ZERO} from "../../backends/fakeTurnBackend.ts"
 import {Schedule, useSchedule} from "./useSchedule.ts"
 
 const HOUR = 3_600_000
@@ -19,12 +19,12 @@ afterEach(cleanup)
 describe("useSchedule", () => {
     it("knows no turn and no battle with no backend", () => {
         render(<Harness/>)
-        expect(latest).toEqual({turn: undefined, battles: []})
+        expect(latest).toEqual({turn: undefined, battles: [], seasons: {}})
     })
 
     it("holds the turn and the battles the backend sends first", () => {
         render(<Harness backend={new FakeTurnBackend()}/>)
-        expect(latest).toEqual({turn: PLAIN_TURN, battles: []})
+        expect(latest).toEqual({turn: PLAIN_TURN, battles: [], seasons: {current: SEASON_ZERO}})
     })
 
     it("follows each change of the turn and of the battles to come", () => {

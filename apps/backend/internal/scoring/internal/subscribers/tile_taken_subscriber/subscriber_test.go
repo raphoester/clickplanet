@@ -21,9 +21,7 @@ const account = "0b6d4f7e-5d7c-4a36-9a51-3f1f8f0c2a11"
 var seasonZeroEnds = time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC)
 
 func subscriber(store *inmemory_contribution_store.Store) tile_taken_subscriber.Subscriber {
-	return tile_taken_subscriber.New(record_take_usecase.New(calendar.New(calendar.Config{List: []calendar.Entry{
-		{Number: 0, EndsAt: seasonZeroEnds},
-	}}), store))
+	return tile_taken_subscriber.New(record_take_usecase.New(calendar.New(calendar.Config{}, calendar.Window{Number: 0, StartsAt: time.Date(2026, 10, 3, 0, 0, 0, 0, time.UTC), EndsAt: seasonZeroEnds}), store))
 }
 
 func TestATakeCountsForItsFlagAtTheTimeItWasTaken(t *testing.T) {

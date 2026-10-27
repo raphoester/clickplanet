@@ -27,9 +27,7 @@ func utc(day, hour, minute int) time.Time {
 	return time.Date(2026, 10, day, hour, minute, 0, 0, time.UTC)
 }
 
-var seasonZero = calendar.New(calendar.Config{DailyCutoff: 21 * time.Hour, List: []calendar.Entry{
-	{Number: 0, EndsAt: utc(31, 23, 0)},
-}})
+var seasonZero = calendar.New(calendar.Config{DailyCutoff: 21 * time.Hour}, calendar.Window{Number: 0, StartsAt: time.Date(2026, 10, 3, 0, 0, 0, 0, time.UTC), EndsAt: utc(31, 23, 0)})
 
 type stubTerritory struct {
 	held  map[rounds.Country]uint32

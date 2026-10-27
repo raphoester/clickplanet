@@ -249,7 +249,11 @@ func (x *Turn) GetEntryId() string {
 type Timeline struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The battles that have not started, by start. Never a plain entry.
-	Battles       []*Battle `protobuf:"bytes,1,rep,name=battles,proto3" json:"battles,omitempty"`
+	Battles []*Battle `protobuf:"bytes,1,rep,name=battles,proto3" json:"battles,omitempty"`
+	// The season that runs now; unset between two seasons.
+	Current *Season `protobuf:"bytes,2,opt,name=current,proto3" json:"current,omitempty"`
+	// The first season that has not started; unset when none is scheduled.
+	Next          *Season `protobuf:"bytes,3,opt,name=next,proto3" json:"next,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -291,6 +295,82 @@ func (x *Timeline) GetBattles() []*Battle {
 	return nil
 }
 
+func (x *Timeline) GetCurrent() *Season {
+	if x != nil {
+		return x.Current
+	}
+	return nil
+}
+
+func (x *Timeline) GetNext() *Season {
+	if x != nil {
+		return x.Next
+	}
+	return nil
+}
+
+// A season: scoring counts its points from its start to its end. An operator may move the end of one that runs: the
+// stream sends the timeline again then.
+type Season struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Number        uint32                 `protobuf:"varint,1,opt,name=number,proto3" json:"number,omitempty"`
+	StartsAt      *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=starts_at,json=startsAt,proto3" json:"starts_at,omitempty"`
+	EndsAt        *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=ends_at,json=endsAt,proto3" json:"ends_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Season) Reset() {
+	*x = Season{}
+	mi := &file_gamemaster_v1_gamemaster_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Season) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Season) ProtoMessage() {}
+
+func (x *Season) ProtoReflect() protoreflect.Message {
+	mi := &file_gamemaster_v1_gamemaster_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Season.ProtoReflect.Descriptor instead.
+func (*Season) Descriptor() ([]byte, []int) {
+	return file_gamemaster_v1_gamemaster_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *Season) GetNumber() uint32 {
+	if x != nil {
+		return x.Number
+	}
+	return 0
+}
+
+func (x *Season) GetStartsAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.StartsAt
+	}
+	return nil
+}
+
+func (x *Season) GetEndsAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EndsAt
+	}
+	return nil
+}
+
 type Battle struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
 	EntryId  string                 `protobuf:"bytes,1,opt,name=entry_id,json=entryId,proto3" json:"entry_id,omitempty"`
@@ -304,7 +384,7 @@ type Battle struct {
 
 func (x *Battle) Reset() {
 	*x = Battle{}
-	mi := &file_gamemaster_v1_gamemaster_proto_msgTypes[4]
+	mi := &file_gamemaster_v1_gamemaster_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -316,7 +396,7 @@ func (x *Battle) String() string {
 func (*Battle) ProtoMessage() {}
 
 func (x *Battle) ProtoReflect() protoreflect.Message {
-	mi := &file_gamemaster_v1_gamemaster_proto_msgTypes[4]
+	mi := &file_gamemaster_v1_gamemaster_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -329,7 +409,7 @@ func (x *Battle) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Battle.ProtoReflect.Descriptor instead.
 func (*Battle) Descriptor() ([]byte, []int) {
-	return file_gamemaster_v1_gamemaster_proto_rawDescGZIP(), []int{4}
+	return file_gamemaster_v1_gamemaster_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *Battle) GetEntryId() string {
@@ -368,7 +448,7 @@ type ListenForEventsRequest struct {
 
 func (x *ListenForEventsRequest) Reset() {
 	*x = ListenForEventsRequest{}
-	mi := &file_gamemaster_v1_gamemaster_proto_msgTypes[5]
+	mi := &file_gamemaster_v1_gamemaster_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -380,7 +460,7 @@ func (x *ListenForEventsRequest) String() string {
 func (*ListenForEventsRequest) ProtoMessage() {}
 
 func (x *ListenForEventsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_gamemaster_v1_gamemaster_proto_msgTypes[5]
+	mi := &file_gamemaster_v1_gamemaster_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -393,7 +473,7 @@ func (x *ListenForEventsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListenForEventsRequest.ProtoReflect.Descriptor instead.
 func (*ListenForEventsRequest) Descriptor() ([]byte, []int) {
-	return file_gamemaster_v1_gamemaster_proto_rawDescGZIP(), []int{5}
+	return file_gamemaster_v1_gamemaster_proto_rawDescGZIP(), []int{6}
 }
 
 type GamemasterEvent struct {
@@ -410,7 +490,7 @@ type GamemasterEvent struct {
 
 func (x *GamemasterEvent) Reset() {
 	*x = GamemasterEvent{}
-	mi := &file_gamemaster_v1_gamemaster_proto_msgTypes[6]
+	mi := &file_gamemaster_v1_gamemaster_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -422,7 +502,7 @@ func (x *GamemasterEvent) String() string {
 func (*GamemasterEvent) ProtoMessage() {}
 
 func (x *GamemasterEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_gamemaster_v1_gamemaster_proto_msgTypes[6]
+	mi := &file_gamemaster_v1_gamemaster_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -435,7 +515,7 @@ func (x *GamemasterEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GamemasterEvent.ProtoReflect.Descriptor instead.
 func (*GamemasterEvent) Descriptor() ([]byte, []int) {
-	return file_gamemaster_v1_gamemaster_proto_rawDescGZIP(), []int{6}
+	return file_gamemaster_v1_gamemaster_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *GamemasterEvent) GetEvent() isGamemasterEvent_Event {
@@ -502,7 +582,7 @@ type Heartbeat struct {
 
 func (x *Heartbeat) Reset() {
 	*x = Heartbeat{}
-	mi := &file_gamemaster_v1_gamemaster_proto_msgTypes[7]
+	mi := &file_gamemaster_v1_gamemaster_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -514,7 +594,7 @@ func (x *Heartbeat) String() string {
 func (*Heartbeat) ProtoMessage() {}
 
 func (x *Heartbeat) ProtoReflect() protoreflect.Message {
-	mi := &file_gamemaster_v1_gamemaster_proto_msgTypes[7]
+	mi := &file_gamemaster_v1_gamemaster_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -527,7 +607,7 @@ func (x *Heartbeat) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Heartbeat.ProtoReflect.Descriptor instead.
 func (*Heartbeat) Descriptor() ([]byte, []int) {
-	return file_gamemaster_v1_gamemaster_proto_rawDescGZIP(), []int{7}
+	return file_gamemaster_v1_gamemaster_proto_rawDescGZIP(), []int{8}
 }
 
 var File_gamemaster_v1_gamemaster_proto protoreflect.FileDescriptor
@@ -544,9 +624,15 @@ const file_gamemaster_v1_gamemaster_proto_rawDesc = "" +
 	"\x05since\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\x123\n" +
 	"\aends_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x06endsAt\x12 \n" +
 	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x19\n" +
-	"\bentry_id\x18\x05 \x01(\tR\aentryId\";\n" +
+	"\bentry_id\x18\x05 \x01(\tR\aentryId\"\x97\x01\n" +
 	"\bTimeline\x12/\n" +
-	"\abattles\x18\x01 \x03(\v2\x15.gamemaster.v1.BattleR\abattles\"\xb3\x01\n" +
+	"\abattles\x18\x01 \x03(\v2\x15.gamemaster.v1.BattleR\abattles\x12/\n" +
+	"\acurrent\x18\x02 \x01(\v2\x15.gamemaster.v1.SeasonR\acurrent\x12)\n" +
+	"\x04next\x18\x03 \x01(\v2\x15.gamemaster.v1.SeasonR\x04next\"\x8e\x01\n" +
+	"\x06Season\x12\x16\n" +
+	"\x06number\x18\x01 \x01(\rR\x06number\x127\n" +
+	"\tstarts_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\bstartsAt\x123\n" +
+	"\aends_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x06endsAt\"\xb3\x01\n" +
 	"\x06Battle\x12\x19\n" +
 	"\bentry_id\x18\x01 \x01(\tR\aentryId\x127\n" +
 	"\tstarts_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\bstartsAt\x123\n" +
@@ -581,40 +667,45 @@ func file_gamemaster_v1_gamemaster_proto_rawDescGZIP() []byte {
 }
 
 var file_gamemaster_v1_gamemaster_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_gamemaster_v1_gamemaster_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_gamemaster_v1_gamemaster_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_gamemaster_v1_gamemaster_proto_goTypes = []any{
 	(EntryKind)(0),                 // 0: gamemaster.v1.EntryKind
 	(*GetTurnRequest)(nil),         // 1: gamemaster.v1.GetTurnRequest
 	(*GetTurnResponse)(nil),        // 2: gamemaster.v1.GetTurnResponse
 	(*Turn)(nil),                   // 3: gamemaster.v1.Turn
 	(*Timeline)(nil),               // 4: gamemaster.v1.Timeline
-	(*Battle)(nil),                 // 5: gamemaster.v1.Battle
-	(*ListenForEventsRequest)(nil), // 6: gamemaster.v1.ListenForEventsRequest
-	(*GamemasterEvent)(nil),        // 7: gamemaster.v1.GamemasterEvent
-	(*Heartbeat)(nil),              // 8: gamemaster.v1.Heartbeat
-	(*timestamppb.Timestamp)(nil),  // 9: google.protobuf.Timestamp
+	(*Season)(nil),                 // 5: gamemaster.v1.Season
+	(*Battle)(nil),                 // 6: gamemaster.v1.Battle
+	(*ListenForEventsRequest)(nil), // 7: gamemaster.v1.ListenForEventsRequest
+	(*GamemasterEvent)(nil),        // 8: gamemaster.v1.GamemasterEvent
+	(*Heartbeat)(nil),              // 9: gamemaster.v1.Heartbeat
+	(*timestamppb.Timestamp)(nil),  // 10: google.protobuf.Timestamp
 }
 var file_gamemaster_v1_gamemaster_proto_depIdxs = []int32{
 	3,  // 0: gamemaster.v1.GetTurnResponse.turn:type_name -> gamemaster.v1.Turn
 	4,  // 1: gamemaster.v1.GetTurnResponse.timeline:type_name -> gamemaster.v1.Timeline
 	0,  // 2: gamemaster.v1.Turn.kind:type_name -> gamemaster.v1.EntryKind
-	9,  // 3: gamemaster.v1.Turn.since:type_name -> google.protobuf.Timestamp
-	9,  // 4: gamemaster.v1.Turn.ends_at:type_name -> google.protobuf.Timestamp
-	5,  // 5: gamemaster.v1.Timeline.battles:type_name -> gamemaster.v1.Battle
-	9,  // 6: gamemaster.v1.Battle.starts_at:type_name -> google.protobuf.Timestamp
-	9,  // 7: gamemaster.v1.Battle.ends_at:type_name -> google.protobuf.Timestamp
-	3,  // 8: gamemaster.v1.GamemasterEvent.turn:type_name -> gamemaster.v1.Turn
-	8,  // 9: gamemaster.v1.GamemasterEvent.heartbeat:type_name -> gamemaster.v1.Heartbeat
-	4,  // 10: gamemaster.v1.GamemasterEvent.timeline:type_name -> gamemaster.v1.Timeline
-	1,  // 11: gamemaster.v1.GamemasterService.GetTurn:input_type -> gamemaster.v1.GetTurnRequest
-	6,  // 12: gamemaster.v1.GamemasterService.ListenForEvents:input_type -> gamemaster.v1.ListenForEventsRequest
-	2,  // 13: gamemaster.v1.GamemasterService.GetTurn:output_type -> gamemaster.v1.GetTurnResponse
-	7,  // 14: gamemaster.v1.GamemasterService.ListenForEvents:output_type -> gamemaster.v1.GamemasterEvent
-	13, // [13:15] is the sub-list for method output_type
-	11, // [11:13] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	10, // 3: gamemaster.v1.Turn.since:type_name -> google.protobuf.Timestamp
+	10, // 4: gamemaster.v1.Turn.ends_at:type_name -> google.protobuf.Timestamp
+	6,  // 5: gamemaster.v1.Timeline.battles:type_name -> gamemaster.v1.Battle
+	5,  // 6: gamemaster.v1.Timeline.current:type_name -> gamemaster.v1.Season
+	5,  // 7: gamemaster.v1.Timeline.next:type_name -> gamemaster.v1.Season
+	10, // 8: gamemaster.v1.Season.starts_at:type_name -> google.protobuf.Timestamp
+	10, // 9: gamemaster.v1.Season.ends_at:type_name -> google.protobuf.Timestamp
+	10, // 10: gamemaster.v1.Battle.starts_at:type_name -> google.protobuf.Timestamp
+	10, // 11: gamemaster.v1.Battle.ends_at:type_name -> google.protobuf.Timestamp
+	3,  // 12: gamemaster.v1.GamemasterEvent.turn:type_name -> gamemaster.v1.Turn
+	9,  // 13: gamemaster.v1.GamemasterEvent.heartbeat:type_name -> gamemaster.v1.Heartbeat
+	4,  // 14: gamemaster.v1.GamemasterEvent.timeline:type_name -> gamemaster.v1.Timeline
+	1,  // 15: gamemaster.v1.GamemasterService.GetTurn:input_type -> gamemaster.v1.GetTurnRequest
+	7,  // 16: gamemaster.v1.GamemasterService.ListenForEvents:input_type -> gamemaster.v1.ListenForEventsRequest
+	2,  // 17: gamemaster.v1.GamemasterService.GetTurn:output_type -> gamemaster.v1.GetTurnResponse
+	8,  // 18: gamemaster.v1.GamemasterService.ListenForEvents:output_type -> gamemaster.v1.GamemasterEvent
+	17, // [17:19] is the sub-list for method output_type
+	15, // [15:17] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_gamemaster_v1_gamemaster_proto_init() }
@@ -622,7 +713,7 @@ func file_gamemaster_v1_gamemaster_proto_init() {
 	if File_gamemaster_v1_gamemaster_proto != nil {
 		return
 	}
-	file_gamemaster_v1_gamemaster_proto_msgTypes[6].OneofWrappers = []any{
+	file_gamemaster_v1_gamemaster_proto_msgTypes[7].OneofWrappers = []any{
 		(*GamemasterEvent_Turn)(nil),
 		(*GamemasterEvent_Heartbeat)(nil),
 		(*GamemasterEvent_Timeline)(nil),
@@ -633,7 +724,7 @@ func file_gamemaster_v1_gamemaster_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_gamemaster_v1_gamemaster_proto_rawDesc), len(file_gamemaster_v1_gamemaster_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   8,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

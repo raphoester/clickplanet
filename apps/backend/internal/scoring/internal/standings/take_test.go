@@ -12,15 +12,13 @@ import (
 )
 
 var (
-	seasonZeroEnds = time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC)
-	seasonOneEnds  = time.Date(2026, 12, 31, 23, 0, 0, 0, time.UTC)
+	seasonZeroStarts = time.Date(2026, 10, 3, 0, 0, 0, 0, time.UTC)
+	seasonZeroEnds   = time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC)
+	seasonOneEnds    = time.Date(2026, 12, 31, 23, 0, 0, 0, time.UTC)
 )
 
 func twoSeasons() calendar.Calendar {
-	return calendar.New(calendar.Config{List: []calendar.Entry{
-		{Number: 0, EndsAt: seasonZeroEnds},
-		{Number: 1, EndsAt: seasonOneEnds},
-	}})
+	return calendar.New(calendar.Config{}, calendar.Window{Number: 0, StartsAt: seasonZeroStarts, EndsAt: seasonZeroEnds}, calendar.Window{Number: 1, StartsAt: seasonZeroEnds, EndsAt: seasonOneEnds})
 }
 
 func TestATakeCountsInTheSeasonWhoseIntervalHoldsIt(t *testing.T) {
@@ -28,7 +26,7 @@ func TestATakeCountsInTheSeasonWhoseIntervalHoldsIt(t *testing.T) {
 		at     time.Time
 		season calendar.Number
 	}{
-		{time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC), 0},
+		{seasonZeroStarts, 0},
 		{seasonZeroEnds.Add(-time.Nanosecond), 0},
 		{seasonZeroEnds, 1},
 		{seasonOneEnds.Add(-time.Nanosecond), 1},
@@ -43,6 +41,9 @@ func TestATakeCountsInTheSeasonWhoseIntervalHoldsIt(t *testing.T) {
 func TestATakeInNoSeasonCountsNowhere(t *testing.T) {
 	_, ok := standings.Take{At: seasonOneEnds}.Season(twoSeasons())
 	assert.False(t, ok)
+
+	_, ok = standings.Take{At: seasonZeroStarts.Add(-time.Nanosecond)}.Season(twoSeasons())
+	assert.False(t, ok, "before the first season starts")
 
 	_, ok = standings.Take{At: seasonZeroEnds}.Season(calendar.New(calendar.Config{}))
 	assert.False(t, ok, "an empty calendar has no season")

@@ -20,9 +20,7 @@ var (
 )
 
 func seasonZero() calendar.Calendar {
-	return calendar.New(calendar.Config{List: []calendar.Entry{
-		{Number: 0, EndsAt: seasonZeroEnds},
-	}})
+	return calendar.New(calendar.Config{}, calendar.Window{Number: 0, StartsAt: time.Date(2026, 10, 3, 0, 0, 0, 0, time.UTC), EndsAt: seasonZeroEnds})
 }
 
 func TestATakeCountsOneTileForItsFlagInItsSeason(t *testing.T) {

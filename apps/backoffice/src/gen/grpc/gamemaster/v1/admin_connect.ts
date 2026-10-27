@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AddEntryRequest, AddEntryResponse, DeleteEntryRequest, DeleteEntryResponse, EditEntryRequest, EditEntryResponse, GetScheduleRequest, GetScheduleResponse } from "./admin_pb.js";
+import { AddEntryRequest, AddEntryResponse, AddSeasonRequest, AddSeasonResponse, DeleteEntryRequest, DeleteEntryResponse, DeleteSeasonRequest, DeleteSeasonResponse, EditEntryRequest, EditEntryResponse, EditSeasonRequest, EditSeasonResponse, GetScheduleRequest, GetScheduleResponse, GetSeasonsRequest, GetSeasonsResponse } from "./admin_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -56,6 +56,51 @@ export const AdminService = {
       name: "DeleteEntry",
       I: DeleteEntryRequest,
       O: DeleteEntryResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Every season, by number. Scoring is told each one's start and end once it starts.
+     *
+     * @generated from rpc gamemaster.v1.AdminService.GetSeasons
+     */
+    getSeasons: {
+      name: "GetSeasons",
+      I: GetSeasonsRequest,
+      O: GetSeasonsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Adds a season that starts later, after the end of the last one, under the next number.
+     *
+     * @generated from rpc gamemaster.v1.AdminService.AddSeason
+     */
+    addSeason: {
+      name: "AddSeason",
+      I: AddSeasonRequest,
+      O: AddSeasonResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Changes a season that has not ended. One that started keeps its start, and its end moves only to a time after now:
+     * FailedPrecondition otherwise.
+     *
+     * @generated from rpc gamemaster.v1.AdminService.EditSeason
+     */
+    editSeason: {
+      name: "EditSeason",
+      I: EditSeasonRequest,
+      O: EditSeasonResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Deletes the last season, when it has not started. FailedPrecondition otherwise.
+     *
+     * @generated from rpc gamemaster.v1.AdminService.DeleteSeason
+     */
+    deleteSeason: {
+      name: "DeleteSeason",
+      I: DeleteSeasonRequest,
+      O: DeleteSeasonResponse,
       kind: MethodKind.Unary,
     },
   }

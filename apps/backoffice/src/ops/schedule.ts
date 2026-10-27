@@ -77,7 +77,7 @@ export function draftOf(entry: Entry | undefined, sets: string[]): Draft {
     }
 }
 
-function localOf(date: Date | undefined): string {
+export function localOf(date: Date | undefined): string {
     if (date === undefined) return ""
     const pad = (n: number) => String(n).padStart(2, "0")
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`

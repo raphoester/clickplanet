@@ -11,15 +11,16 @@ battles to come. A battle is the one kind with a look.
 
 - `backends/turn.ts` is the contract: `Turn` (`kind`, `since`, `endsAt`,
   `description`, `entryId`), `BattleToCome` (`entryId`, `startsAt`, `endsAt`, `description`)
-  and `TurnBackend`, whose `follow` hands on the turn and the battles to come at
-  once, then each change of either. `turnBackend.ts` follows the stream (`openStream`:
+  and `TurnBackend`, whose `follow` hands on the turn, the battles to come and the
+  seasons (`onSeasons`, see [The season](season.md)) at once, then each change of any. `turnBackend.ts` follows the stream (`openStream`:
   heartbeats, reconnects, a page wake); no read polls. A server without the
   gamemaster (`Unimplemented`, `NotFound`) reads as a plain turn with no battle to
-  come, and the stream is not opened again. A turn with no kind, or a kind this build
+  come and no season, and the stream is not opened again. A turn with no kind, or a kind this build
   does not know, is refused: the switch names every value. `fakeTurnBackend.ts` is the
   fake, with `startBattle(entryId, since, endsAt, description)`, `endBattle()`, and
-  `scheduleBattle`, `moveBattle`, `deleteBattle` for the battles to come, which tell of
-  the change at once.
+  `scheduleBattle`, `moveBattle`, `deleteBattle` for the battles to come, and
+  `moveSeasonEnd`, which tell of the change at once. It answers Season 0 as the
+  season that runs (`SEASON_ZERO`).
 - **A battle is its entry's id** (`entryId`, empty when no entry runs): the battle's
   key, the start moment's "seen" mark, and how a closed round is matched to the
   battle the page saw. The scoring round of its own repeats the id the gamemaster

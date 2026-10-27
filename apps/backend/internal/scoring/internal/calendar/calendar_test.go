@@ -11,111 +11,99 @@ import (
 )
 
 var (
-	seasonZeroEnds = time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC)
-	seasonOneEnds  = time.Date(2026, 12, 31, 23, 0, 0, 0, time.UTC)
+	seasonZeroStarts = time.Date(2026, 10, 3, 0, 0, 0, 0, time.UTC)
+	seasonZeroEnds   = time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC)
+	seasonOneStarts  = time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)
+	seasonOneEnds    = time.Date(2026, 12, 31, 23, 0, 0, 0, time.UTC)
+	cutoff           = calendar.Config{DailyCutoff: 21 * time.Hour}
 )
 
-func twoSeasons() calendar.Config {
-	return calendar.Config{DailyCutoff: 21 * time.Hour, List: []calendar.Entry{
-		{Number: 0, EndsAt: seasonZeroEnds},
-		{Number: 1, EndsAt: seasonOneEnds},
-	}}
+func twoSeasons() calendar.Calendar {
+	return calendar.New(cutoff,
+		calendar.Window{Number: 1, StartsAt: seasonOneStarts, EndsAt: seasonOneEnds},
+		calendar.Window{Number: 0, StartsAt: seasonZeroStarts, EndsAt: seasonZeroEnds},
+	)
 }
 
-func TestTheCurrentSeasonIsTheFirstThatHasNotEnded(t *testing.T) {
-	seasons := calendar.New(twoSeasons())
+func TestTheCurrentSeasonIsTheOneThatRuns(t *testing.T) {
+	seasons := twoSeasons()
 
 	season, ok := seasons.Current(seasonZeroEnds.Add(-time.Second))
 	require.True(t, ok)
 	assert.Equal(t, calendar.Season{
 		Number:        0,
+		StartsAt:      seasonZeroStarts,
 		LastDayEndsAt: time.Date(2026, 10, 31, 21, 0, 0, 0, time.UTC),
 		EndsAt:        seasonZeroEnds,
 	}, season)
 
-	season, ok = seasons.Current(seasonZeroEnds.Add(time.Second))
+	_, ok = seasons.Current(seasonZeroEnds)
+	assert.False(t, ok, "a season is over at its end, and none runs until the next starts")
+
+	season, ok = seasons.Current(seasonOneStarts)
 	require.True(t, ok)
 	assert.Equal(t, calendar.Season{
 		Number:        1,
+		StartsAt:      seasonOneStarts,
 		LastDayEndsAt: time.Date(2026, 12, 31, 21, 0, 0, 0, time.UTC),
 		EndsAt:        seasonOneEnds,
 	}, season)
 
-	season, ok = seasons.Current(seasonOneEnds.Add(-time.Second))
-	require.True(t, ok)
-	assert.Equal(t, calendar.Number(1), season.Number)
-
-	_, ok = seasons.Current(seasonOneEnds.Add(time.Second))
+	_, ok = seasons.Current(seasonZeroStarts.Add(-time.Second))
+	assert.False(t, ok, "before its start")
+	_, ok = seasons.Current(seasonOneEnds)
 	assert.False(t, ok)
 }
 
-func TestASeasonIsOverAtTheInstantItEnds(t *testing.T) {
-	season, ok := calendar.New(twoSeasons()).Current(seasonZeroEnds)
-
-	require.True(t, ok)
-	assert.Equal(t, calendar.Number(1), season.Number)
-}
-
-func TestAnEmptyListHasNoSeason(t *testing.T) {
-	require.NoError(t, calendar.Config{}.Validate())
-
-	_, ok := calendar.New(calendar.Config{}).Current(seasonZeroEnds)
+func TestNoSeasonToldIsNoSeason(t *testing.T) {
+	_, ok := calendar.New(cutoff).Current(seasonZeroEnds)
 
 	assert.False(t, ok)
 }
 
-func TestTwoSeasonsAreAccepted(t *testing.T) {
-	require.NoError(t, twoSeasons().Validate())
-}
+func TestEveryCopyReadsTheSeasonsPlayedLast(t *testing.T) {
+	seasons := calendar.New(cutoff, calendar.Window{Number: 0, StartsAt: seasonZeroStarts, EndsAt: seasonZeroEnds})
+	copied := seasons
 
-func TestNumbersThatDoNotCountUpFromZeroAreRefused(t *testing.T) {
-	config := twoSeasons()
-	config.List[0].Number = 1
-	config.List[1].Number = 2
-	require.ErrorContains(t, config.Validate(), "list[0].number is 1")
+	seasons.Play(calendar.Window{Number: 0, StartsAt: seasonZeroStarts, EndsAt: seasonZeroEnds.AddDate(0, 0, 7)})
 
-	config = twoSeasons()
-	config.List[1].Number = 2
-	require.ErrorContains(t, config.Validate(), "list[1].number is 2")
-}
-
-func TestEndsThatDoNotGoUpAreRefused(t *testing.T) {
-	config := twoSeasons()
-	config.List[1].EndsAt = seasonZeroEnds
-	require.ErrorContains(t, config.Validate(), "list[1].endsAt")
-
-	config = twoSeasons()
-	config.List[0].EndsAt = time.Time{}
-	require.ErrorContains(t, config.Validate(), "list[0].endsAt")
+	season, ok := copied.Current(seasonZeroEnds)
+	require.True(t, ok)
+	assert.Equal(t, seasonZeroEnds.AddDate(0, 0, 7), season.EndsAt)
 }
 
 func TestASeasonThatEndsAtACutoffEndsItsLastDayThen(t *testing.T) {
-	config := twoSeasons()
-	config.List[0].EndsAt = time.Date(2026, 10, 31, 21, 0, 0, 0, time.UTC)
+	ends := time.Date(2026, 10, 31, 21, 0, 0, 0, time.UTC)
 
-	season, ok := calendar.New(config).Current(time.Date(2026, 10, 31, 20, 0, 0, 0, time.UTC))
+	season, ok := calendar.New(cutoff, calendar.Window{Number: 0, StartsAt: seasonZeroStarts, EndsAt: ends}).
+		Current(time.Date(2026, 10, 31, 20, 0, 0, 0, time.UTC))
 
 	require.True(t, ok)
-	assert.Equal(t, config.List[0].EndsAt, season.LastDayEndsAt)
+	assert.Equal(t, ends, season.LastDayEndsAt)
 }
 
 func TestACutoffOutsideADayIsRefused(t *testing.T) {
-	for _, cutoff := range []time.Duration{-time.Second, 24 * time.Hour} {
-		config := twoSeasons()
-		config.DailyCutoff = cutoff
-		require.ErrorContains(t, config.Validate(), "dailyCutoff")
+	require.NoError(t, cutoff.Validate())
+	for _, at := range []time.Duration{-time.Second, 24 * time.Hour} {
+		require.ErrorContains(t, calendar.Config{DailyCutoff: at}.Validate(), "dailyCutoff")
 	}
 }
 
-func TestASeasonThatHoldsNoEndOfADayIsRefused(t *testing.T) {
-	config := twoSeasons()
-	config.List[1].EndsAt = time.Date(2026, 11, 1, 20, 0, 0, 0, time.UTC)
+func TestAWindowEndsAfterItsStart(t *testing.T) {
+	require.NoError(t, calendar.Window{StartsAt: seasonZeroStarts, EndsAt: seasonZeroEnds}.Check())
+	require.ErrorIs(t, calendar.Window{StartsAt: seasonZeroEnds, EndsAt: seasonZeroEnds}.Check(), calendar.ErrInvalidSeason)
+}
 
-	require.ErrorContains(t, config.Validate(), "list[1].endsAt is 2026-11-01T20:00:00Z: a season holds the end of a day")
+func TestTheLatestDecisionOverrules(t *testing.T) {
+	kept := calendar.Decision{DecidedAt: seasonZeroStarts}
+
+	assert.True(t, calendar.Decision{DecidedAt: seasonZeroStarts.Add(time.Second)}.Overrules(kept))
+	assert.False(t, kept.Overrules(kept), "a command sent again changes nothing")
+	assert.False(t, calendar.Decision{DecidedAt: seasonZeroStarts.Add(-time.Second)}.Overrules(kept))
 }
 
 func TestTheNextCutoffIsTheFirstEndOfADayAfterATime(t *testing.T) {
-	seasons := calendar.New(twoSeasons())
+	seasons := twoSeasons()
 	at := func(day, hour, minute int) time.Time { return time.Date(2026, 10, day, hour, minute, 0, 0, time.UTC) }
 
 	assert.Equal(t, at(30, 21, 0), seasons.CutoffAfter(at(30, 3, 0)))
@@ -125,7 +113,7 @@ func TestTheNextCutoffIsTheFirstEndOfADayAfterATime(t *testing.T) {
 }
 
 func TestTheSeasonsEndedAreThoseWhoseEndIsPast(t *testing.T) {
-	seasons := calendar.New(twoSeasons())
+	seasons := twoSeasons()
 
 	assert.Empty(t, seasons.Ended(seasonZeroEnds.Add(-time.Second)))
 	ended := seasons.Ended(seasonZeroEnds)

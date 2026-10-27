@@ -20,7 +20,7 @@ func utc(hour int) time.Time {
 	return time.Date(2026, 10, 31, hour, 0, 0, 0, time.UTC)
 }
 
-var seasonZero = calendar.New(calendar.Config{DailyCutoff: 21 * time.Hour, List: []calendar.Entry{{Number: 0, EndsAt: utc(23)}}})
+var seasonZero = calendar.New(calendar.Config{DailyCutoff: 21 * time.Hour}, calendar.Window{Number: 0, StartsAt: time.Date(2026, 10, 3, 0, 0, 0, 0, time.UTC), EndsAt: utc(23)})
 
 var battle = rounds.EntryID(uuid.MustParse("0192f5a0-7c00-7000-8000-000000000031"))
 

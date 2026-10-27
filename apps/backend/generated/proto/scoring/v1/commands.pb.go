@@ -104,6 +104,77 @@ func (x *PlayRuleSet) GetEntryId() string {
 	return ""
 }
 
+// Counts the points of a season from its start to its end. Scoring keeps the latest decision on each season by
+// decided_at, so a command sent twice, or after a newer one, changes nothing. Sent once the season starts, when its end
+// moves, and at each boot of the sender.
+type PlaySeason struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Number        uint32                 `protobuf:"varint,1,opt,name=number,proto3" json:"number,omitempty"`
+	StartsAt      *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=starts_at,json=startsAt,proto3" json:"starts_at,omitempty"`
+	EndsAt        *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=ends_at,json=endsAt,proto3" json:"ends_at,omitempty"`
+	DecidedAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=decided_at,json=decidedAt,proto3" json:"decided_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PlaySeason) Reset() {
+	*x = PlaySeason{}
+	mi := &file_scoring_v1_commands_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PlaySeason) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PlaySeason) ProtoMessage() {}
+
+func (x *PlaySeason) ProtoReflect() protoreflect.Message {
+	mi := &file_scoring_v1_commands_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PlaySeason.ProtoReflect.Descriptor instead.
+func (*PlaySeason) Descriptor() ([]byte, []int) {
+	return file_scoring_v1_commands_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *PlaySeason) GetNumber() uint32 {
+	if x != nil {
+		return x.Number
+	}
+	return 0
+}
+
+func (x *PlaySeason) GetStartsAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.StartsAt
+	}
+	return nil
+}
+
+func (x *PlaySeason) GetEndsAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EndsAt
+	}
+	return nil
+}
+
+func (x *PlaySeason) GetDecidedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.DecidedAt
+	}
+	return nil
+}
+
 var File_scoring_v1_commands_proto protoreflect.FileDescriptor
 
 const file_scoring_v1_commands_proto_rawDesc = "" +
@@ -116,7 +187,14 @@ const file_scoring_v1_commands_proto_rawDesc = "" +
 	"decided_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tdecidedAt\x127\n" +
 	"\tstarts_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\bstartsAt\x123\n" +
 	"\aends_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x06endsAt\x12\x19\n" +
-	"\bentry_id\x18\x05 \x01(\tR\aentryIdB\xbc\x01\n" +
+	"\bentry_id\x18\x05 \x01(\tR\aentryId\"\xcd\x01\n" +
+	"\n" +
+	"PlaySeason\x12\x16\n" +
+	"\x06number\x18\x01 \x01(\rR\x06number\x127\n" +
+	"\tstarts_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\bstartsAt\x123\n" +
+	"\aends_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x06endsAt\x129\n" +
+	"\n" +
+	"decided_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tdecidedAtB\xbc\x01\n" +
 	"\x0ecom.scoring.v1B\rCommandsProtoP\x01ZRgithub.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1;scoringv1\xa2\x02\x03SXX\xaa\x02\n" +
 	"Scoring.V1\xca\x02\n" +
 	"Scoring\\V1\xe2\x02\x16Scoring\\V1\\GPBMetadata\xea\x02\vScoring::V1b\x06proto3"
@@ -133,20 +211,24 @@ func file_scoring_v1_commands_proto_rawDescGZIP() []byte {
 	return file_scoring_v1_commands_proto_rawDescData
 }
 
-var file_scoring_v1_commands_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_scoring_v1_commands_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_scoring_v1_commands_proto_goTypes = []any{
 	(*PlayRuleSet)(nil),           // 0: scoring.v1.PlayRuleSet
-	(*timestamppb.Timestamp)(nil), // 1: google.protobuf.Timestamp
+	(*PlaySeason)(nil),            // 1: scoring.v1.PlaySeason
+	(*timestamppb.Timestamp)(nil), // 2: google.protobuf.Timestamp
 }
 var file_scoring_v1_commands_proto_depIdxs = []int32{
-	1, // 0: scoring.v1.PlayRuleSet.decided_at:type_name -> google.protobuf.Timestamp
-	1, // 1: scoring.v1.PlayRuleSet.starts_at:type_name -> google.protobuf.Timestamp
-	1, // 2: scoring.v1.PlayRuleSet.ends_at:type_name -> google.protobuf.Timestamp
-	3, // [3:3] is the sub-list for method output_type
-	3, // [3:3] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	2, // 0: scoring.v1.PlayRuleSet.decided_at:type_name -> google.protobuf.Timestamp
+	2, // 1: scoring.v1.PlayRuleSet.starts_at:type_name -> google.protobuf.Timestamp
+	2, // 2: scoring.v1.PlayRuleSet.ends_at:type_name -> google.protobuf.Timestamp
+	2, // 3: scoring.v1.PlaySeason.starts_at:type_name -> google.protobuf.Timestamp
+	2, // 4: scoring.v1.PlaySeason.ends_at:type_name -> google.protobuf.Timestamp
+	2, // 5: scoring.v1.PlaySeason.decided_at:type_name -> google.protobuf.Timestamp
+	6, // [6:6] is the sub-list for method output_type
+	6, // [6:6] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_scoring_v1_commands_proto_init() }
@@ -160,7 +242,7 @@ func file_scoring_v1_commands_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_scoring_v1_commands_proto_rawDesc), len(file_scoring_v1_commands_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   1,
+			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

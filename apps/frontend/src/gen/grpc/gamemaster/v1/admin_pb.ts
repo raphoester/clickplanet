@@ -5,7 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
-import { EntryKind } from "./gamemaster_pb.js";
+import { EntryKind, Season } from "./gamemaster_pb.js";
 
 /**
  * @generated from message gamemaster.v1.GetScheduleRequest
@@ -508,6 +508,302 @@ export class DeleteEntryResponse extends Message<DeleteEntryResponse> {
 
   static equals(a: DeleteEntryResponse | PlainMessage<DeleteEntryResponse> | undefined, b: DeleteEntryResponse | PlainMessage<DeleteEntryResponse> | undefined): boolean {
     return proto3.util.equals(DeleteEntryResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message gamemaster.v1.GetSeasonsRequest
+ */
+export class GetSeasonsRequest extends Message<GetSeasonsRequest> {
+  constructor(data?: PartialMessage<GetSeasonsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "gamemaster.v1.GetSeasonsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetSeasonsRequest {
+    return new GetSeasonsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetSeasonsRequest {
+    return new GetSeasonsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetSeasonsRequest {
+    return new GetSeasonsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetSeasonsRequest | PlainMessage<GetSeasonsRequest> | undefined, b: GetSeasonsRequest | PlainMessage<GetSeasonsRequest> | undefined): boolean {
+    return proto3.util.equals(GetSeasonsRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message gamemaster.v1.GetSeasonsResponse
+ */
+export class GetSeasonsResponse extends Message<GetSeasonsResponse> {
+  /**
+   * @generated from field: repeated gamemaster.v1.Season seasons = 1;
+   */
+  seasons: Season[] = [];
+
+  constructor(data?: PartialMessage<GetSeasonsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "gamemaster.v1.GetSeasonsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "seasons", kind: "message", T: Season, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetSeasonsResponse {
+    return new GetSeasonsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetSeasonsResponse {
+    return new GetSeasonsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetSeasonsResponse {
+    return new GetSeasonsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetSeasonsResponse | PlainMessage<GetSeasonsResponse> | undefined, b: GetSeasonsResponse | PlainMessage<GetSeasonsResponse> | undefined): boolean {
+    return proto3.util.equals(GetSeasonsResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message gamemaster.v1.AddSeasonRequest
+ */
+export class AddSeasonRequest extends Message<AddSeasonRequest> {
+  /**
+   * @generated from field: google.protobuf.Timestamp starts_at = 1;
+   */
+  startsAt?: Timestamp;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp ends_at = 2;
+   */
+  endsAt?: Timestamp;
+
+  constructor(data?: PartialMessage<AddSeasonRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "gamemaster.v1.AddSeasonRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "starts_at", kind: "message", T: Timestamp },
+    { no: 2, name: "ends_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AddSeasonRequest {
+    return new AddSeasonRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AddSeasonRequest {
+    return new AddSeasonRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AddSeasonRequest {
+    return new AddSeasonRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: AddSeasonRequest | PlainMessage<AddSeasonRequest> | undefined, b: AddSeasonRequest | PlainMessage<AddSeasonRequest> | undefined): boolean {
+    return proto3.util.equals(AddSeasonRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message gamemaster.v1.AddSeasonResponse
+ */
+export class AddSeasonResponse extends Message<AddSeasonResponse> {
+  /**
+   * @generated from field: uint32 number = 1;
+   */
+  number = 0;
+
+  constructor(data?: PartialMessage<AddSeasonResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "gamemaster.v1.AddSeasonResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "number", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AddSeasonResponse {
+    return new AddSeasonResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AddSeasonResponse {
+    return new AddSeasonResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AddSeasonResponse {
+    return new AddSeasonResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: AddSeasonResponse | PlainMessage<AddSeasonResponse> | undefined, b: AddSeasonResponse | PlainMessage<AddSeasonResponse> | undefined): boolean {
+    return proto3.util.equals(AddSeasonResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message gamemaster.v1.EditSeasonRequest
+ */
+export class EditSeasonRequest extends Message<EditSeasonRequest> {
+  /**
+   * @generated from field: uint32 number = 1;
+   */
+  number = 0;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp starts_at = 2;
+   */
+  startsAt?: Timestamp;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp ends_at = 3;
+   */
+  endsAt?: Timestamp;
+
+  constructor(data?: PartialMessage<EditSeasonRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "gamemaster.v1.EditSeasonRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "number", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "starts_at", kind: "message", T: Timestamp },
+    { no: 3, name: "ends_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): EditSeasonRequest {
+    return new EditSeasonRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): EditSeasonRequest {
+    return new EditSeasonRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): EditSeasonRequest {
+    return new EditSeasonRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: EditSeasonRequest | PlainMessage<EditSeasonRequest> | undefined, b: EditSeasonRequest | PlainMessage<EditSeasonRequest> | undefined): boolean {
+    return proto3.util.equals(EditSeasonRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message gamemaster.v1.EditSeasonResponse
+ */
+export class EditSeasonResponse extends Message<EditSeasonResponse> {
+  constructor(data?: PartialMessage<EditSeasonResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "gamemaster.v1.EditSeasonResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): EditSeasonResponse {
+    return new EditSeasonResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): EditSeasonResponse {
+    return new EditSeasonResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): EditSeasonResponse {
+    return new EditSeasonResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: EditSeasonResponse | PlainMessage<EditSeasonResponse> | undefined, b: EditSeasonResponse | PlainMessage<EditSeasonResponse> | undefined): boolean {
+    return proto3.util.equals(EditSeasonResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message gamemaster.v1.DeleteSeasonRequest
+ */
+export class DeleteSeasonRequest extends Message<DeleteSeasonRequest> {
+  /**
+   * @generated from field: uint32 number = 1;
+   */
+  number = 0;
+
+  constructor(data?: PartialMessage<DeleteSeasonRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "gamemaster.v1.DeleteSeasonRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "number", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DeleteSeasonRequest {
+    return new DeleteSeasonRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DeleteSeasonRequest {
+    return new DeleteSeasonRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DeleteSeasonRequest {
+    return new DeleteSeasonRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DeleteSeasonRequest | PlainMessage<DeleteSeasonRequest> | undefined, b: DeleteSeasonRequest | PlainMessage<DeleteSeasonRequest> | undefined): boolean {
+    return proto3.util.equals(DeleteSeasonRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message gamemaster.v1.DeleteSeasonResponse
+ */
+export class DeleteSeasonResponse extends Message<DeleteSeasonResponse> {
+  constructor(data?: PartialMessage<DeleteSeasonResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "gamemaster.v1.DeleteSeasonResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DeleteSeasonResponse {
+    return new DeleteSeasonResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DeleteSeasonResponse {
+    return new DeleteSeasonResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DeleteSeasonResponse {
+    return new DeleteSeasonResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DeleteSeasonResponse | PlainMessage<DeleteSeasonResponse> | undefined, b: DeleteSeasonResponse | PlainMessage<DeleteSeasonResponse> | undefined): boolean {
+    return proto3.util.equals(DeleteSeasonResponse, a, b);
   }
 }
 

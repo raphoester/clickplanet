@@ -16,10 +16,7 @@ func utc(day, hour, minute, second int) time.Time {
 	return time.Date(2026, 10, day, hour, minute, second, 0, time.UTC)
 }
 
-var twoSeasons = calendar.New(calendar.Config{DailyCutoff: 21 * time.Hour, List: []calendar.Entry{
-	{Number: 0, EndsAt: utc(31, 23, 0, 0)},
-	{Number: 1, EndsAt: time.Date(2026, 11, 30, 23, 0, 0, 0, time.UTC)},
-}})
+var twoSeasons = calendar.New(calendar.Config{DailyCutoff: 21 * time.Hour}, calendar.Window{Number: 0, StartsAt: time.Date(2026, 10, 3, 0, 0, 0, 0, time.UTC), EndsAt: utc(31, 23, 0, 0)}, calendar.Window{Number: 1, StartsAt: utc(31, 23, 0, 0), EndsAt: time.Date(2026, 11, 30, 23, 0, 0, 0, time.UTC)})
 
 func TestADayEndsAtTheNextCutoff(t *testing.T) {
 	for _, tc := range []struct {
@@ -47,7 +44,7 @@ func TestNoDayRunsFromTheLastCutoffToTheSeasonsEnd(t *testing.T) {
 }
 
 func TestADayThatEndsWithTheSeasonIsItsFinale(t *testing.T) {
-	seasons := calendar.New(calendar.Config{DailyCutoff: 21 * time.Hour, List: []calendar.Entry{{Number: 0, EndsAt: utc(31, 21, 0, 0)}}})
+	seasons := calendar.New(calendar.Config{DailyCutoff: 21 * time.Hour}, calendar.Window{Number: 0, StartsAt: time.Date(2026, 10, 3, 0, 0, 0, 0, time.UTC), EndsAt: utc(31, 21, 0, 0)})
 
 	round, ok := rounds.Day(seasons, utc(31, 20, 0, 0))
 

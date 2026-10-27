@@ -198,6 +198,20 @@ export class Timeline extends Message<Timeline> {
    */
   battles: Battle[] = [];
 
+  /**
+   * The season that runs now; unset between two seasons.
+   *
+   * @generated from field: gamemaster.v1.Season current = 2;
+   */
+  current?: Season;
+
+  /**
+   * The first season that has not started; unset when none is scheduled.
+   *
+   * @generated from field: gamemaster.v1.Season next = 3;
+   */
+  next?: Season;
+
   constructor(data?: PartialMessage<Timeline>) {
     super();
     proto3.util.initPartial(data, this);
@@ -207,6 +221,8 @@ export class Timeline extends Message<Timeline> {
   static readonly typeName = "gamemaster.v1.Timeline";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "battles", kind: "message", T: Battle, repeated: true },
+    { no: 2, name: "current", kind: "message", T: Season },
+    { no: 3, name: "next", kind: "message", T: Season },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Timeline {
@@ -223,6 +239,58 @@ export class Timeline extends Message<Timeline> {
 
   static equals(a: Timeline | PlainMessage<Timeline> | undefined, b: Timeline | PlainMessage<Timeline> | undefined): boolean {
     return proto3.util.equals(Timeline, a, b);
+  }
+}
+
+/**
+ * A season: scoring counts its points from its start to its end. An operator may move the end of one that runs: the
+ * stream sends the timeline again then.
+ *
+ * @generated from message gamemaster.v1.Season
+ */
+export class Season extends Message<Season> {
+  /**
+   * @generated from field: uint32 number = 1;
+   */
+  number = 0;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp starts_at = 2;
+   */
+  startsAt?: Timestamp;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp ends_at = 3;
+   */
+  endsAt?: Timestamp;
+
+  constructor(data?: PartialMessage<Season>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "gamemaster.v1.Season";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "number", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "starts_at", kind: "message", T: Timestamp },
+    { no: 3, name: "ends_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Season {
+    return new Season().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Season {
+    return new Season().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Season {
+    return new Season().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Season | PlainMessage<Season> | undefined, b: Season | PlainMessage<Season> | undefined): boolean {
+    return proto3.util.equals(Season, a, b);
   }
 }
 

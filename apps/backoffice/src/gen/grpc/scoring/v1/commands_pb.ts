@@ -76,3 +76,62 @@ export class PlayRuleSet extends Message<PlayRuleSet> {
   }
 }
 
+/**
+ * Counts the points of a season from its start to its end. Scoring keeps the latest decision on each season by
+ * decided_at, so a command sent twice, or after a newer one, changes nothing. Sent once the season starts, when its end
+ * moves, and at each boot of the sender.
+ *
+ * @generated from message scoring.v1.PlaySeason
+ */
+export class PlaySeason extends Message<PlaySeason> {
+  /**
+   * @generated from field: uint32 number = 1;
+   */
+  number = 0;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp starts_at = 2;
+   */
+  startsAt?: Timestamp;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp ends_at = 3;
+   */
+  endsAt?: Timestamp;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp decided_at = 4;
+   */
+  decidedAt?: Timestamp;
+
+  constructor(data?: PartialMessage<PlaySeason>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "scoring.v1.PlaySeason";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "number", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "starts_at", kind: "message", T: Timestamp },
+    { no: 3, name: "ends_at", kind: "message", T: Timestamp },
+    { no: 4, name: "decided_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PlaySeason {
+    return new PlaySeason().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PlaySeason {
+    return new PlaySeason().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PlaySeason {
+    return new PlaySeason().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: PlaySeason | PlainMessage<PlaySeason> | undefined, b: PlaySeason | PlainMessage<PlaySeason> | undefined): boolean {
+    return proto3.util.equals(PlaySeason, a, b);
+  }
+}
+

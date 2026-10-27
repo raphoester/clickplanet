@@ -13,8 +13,7 @@ import {BORDERS_URL} from "./app/viewer/bordersAsset.ts"
 import {FakeChatBackend} from "./backends/fakeChatBackend.ts"
 import {FakePresenceBackend} from "./backends/fakePresenceBackend.ts"
 import {FakeMissionsBackend} from "./backends/fakeMissionsBackend.ts"
-import {FakeSeasonBackend, SEASON_ZERO} from "./backends/fakeSeasonBackend.ts"
-import {ConnectSeasonBackend, newSeasonServiceClient} from "./backends/seasonBackend.ts"
+import {newSeasonServiceClient} from "./backends/seasonBackend.ts"
 import {battleCommands, FakeTurnBackend} from "./backends/fakeTurnBackend.ts"
 import {ConnectTurnBackend, newGamemasterServiceClient} from "./backends/turnBackend.ts"
 import {API_BASE_URL} from "./backends/transport.ts"
@@ -132,7 +131,6 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     const fakeChat = new FakeChatBackend()
     const fakeSupport = new FakeSupportBackend()
     Object.assign(window, {fakeChat, fakeSupport})
-    const fakeSeason = new FakeSeasonBackend(SEASON_ZERO)
     const fakeTurn = new FakeTurnBackend()
     Object.assign(window, battleCommands(fakeTurn))
     const fakeStandings = new FakeStandingsBackend()
@@ -163,7 +161,6 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     playerInfo={fakePresence}
                     tileHolders={fake}
                     landmasses={fake}
-                    season={fakeSeason}
                     turn={fakeTurn}
                     standings={fakeStandings}
                     support={fakeSupport}
@@ -176,7 +173,6 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
 } else {
     const backend = new PlanetBackend(newClickServiceClient(config), 100, session)
     const chatBackend = new ChatServiceBackend(newChatServiceClient(config), session, newKeepaliveChatServiceClient(config))
-    const season = new ConnectSeasonBackend(newSeasonServiceClient(config))
     const turn = new ConnectTurnBackend(newGamemasterServiceClient(config))
     const player = new ConnectPlayerBackend(newPlayerServiceClient(config), session, newKeepalivePlayerServiceClient(config))
     const standings = new ConnectStandingsBackend(newSeasonServiceClient(config), session)
@@ -209,7 +205,6 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     playerInfo={player}
                     tileHolders={backend}
                     landmasses={backend}
-                    season={season}
                     turn={turn}
                     standings={standings}
                     support={support}

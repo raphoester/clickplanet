@@ -3,6 +3,7 @@ import {Code, ConnectError} from "@connectrpc/connect"
 import {Timestamp} from "@bufbuild/protobuf"
 import {EntryKind, GamemasterEvent, Timeline, Turn as TurnMessage} from "../gen/grpc/gamemaster/v1/gamemaster_pb.ts"
 import {ConnectTurnBackend, turnOf} from "./turnBackend.ts"
+import {Seasons} from "./season.ts"
 import {BattleToCome, Turn} from "./turn.ts"
 
 const noWakeups = () => () => {}
@@ -15,8 +16,11 @@ function follow(listenForEvents: () => AsyncIterable<GamemasterEvent>) {
     const backend = new ConnectTurnBackend({listenForEvents: vi.fn(listenForEvents)} as never, noWakeups)
     const turns: Turn[] = []
     const battles: BattleToCome[][] = []
-    const stop = backend.follow({onTurn: (turn) => turns.push(turn), onBattles: (next) => battles.push(next)})
-    return {turns, battles, stop}
+    const seasons: Seasons[] = []
+    const stop = backend.follow({
+        onTurn: (turn) => turns.push(turn), onBattles: (next) => battles.push(next), onSeasons: (next) => seasons.push(next),
+    })
+    return {turns, battles, seasons, stop}
 }
 
 describe("ConnectTurnBackend", () => {
@@ -37,6 +41,27 @@ describe("ConnectTurnBackend", () => {
         expect(followed.battles).toEqual([
             [{entryId: "finale", startsAt: since, endsAt, description: "Triple points."}],
             [],
+        ])
+    })
+
+    it("hands on the season that runs and the next one the timeline names", async () => {
+        const followed = follow(async function* () {
+            yield new GamemasterEvent({event: {case: "timeline", value: new Timeline({
+                current: {number: 0, startsAt: at(Date.UTC(2026, 9, 3)), endsAt: at(endsAt)},
+                next: {number: 1, startsAt: at(endsAt + 3_600_000), endsAt: at(Date.UTC(2026, 10, 30, 23))},
+            })}})
+            yield new GamemasterEvent({event: {case: "timeline", value: new Timeline()}})
+            await new Promise(() => {})
+        })
+        await vi.waitFor(() => expect(followed.seasons).toHaveLength(2))
+        followed.stop()
+
+        expect(followed.seasons).toEqual([
+            {
+                current: {number: 0, startsAt: Date.UTC(2026, 9, 3), endsAt},
+                next: {number: 1, startsAt: endsAt + 3_600_000, endsAt: Date.UTC(2026, 10, 30, 23)},
+            },
+            {current: undefined, next: undefined},
         ])
     })
 
@@ -64,12 +89,14 @@ describe("ConnectTurnBackend", () => {
             const backend = new ConnectTurnBackend({listenForEvents} as never, noWakeups)
             const onTurn = vi.fn()
             const onBattles = vi.fn()
+            const onSeasons = vi.fn()
 
-            backend.follow({onTurn, onBattles})
+            backend.follow({onTurn, onBattles, onSeasons})
             await vi.advanceTimersByTimeAsync(60_000)
 
             expect(onTurn.mock.calls).toEqual([[{kind: "plain", description: "", entryId: ""}]])
             expect(onBattles.mock.calls).toEqual([[[]]])
+            expect(onSeasons.mock.calls).toEqual([[{}]])
             expect(listenForEvents).toHaveBeenCalledTimes(1)
         }
         vi.useRealTimers()

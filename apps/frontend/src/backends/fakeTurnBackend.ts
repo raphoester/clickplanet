@@ -1,17 +1,30 @@
+import {Season, Seasons} from "./season.ts"
 import {BattleToCome, PLAIN_TURN, Turn, TurnBackend, TurnListener} from "./turn.ts"
 
 const MINUTE = 60_000
 
+export const SEASON_ZERO: Season = {
+    number: 0,
+    startsAt: Date.UTC(2026, 9, 3),
+    endsAt: Date.UTC(2026, 9, 31, 23),
+}
+
 export class FakeTurnBackend implements TurnBackend {
     private current: Turn = PLAIN_TURN
     private battles: BattleToCome[] = []
+    private seasons: Seasons
     private made = 0
     private readonly listeners = new Set<TurnListener>()
+
+    constructor(current: Season | undefined = SEASON_ZERO) {
+        this.seasons = {current}
+    }
 
     public follow(listener: TurnListener): () => void {
         this.listeners.add(listener)
         listener.onTurn(this.current)
         listener.onBattles(this.battles)
+        listener.onSeasons(this.seasons)
         return () => {
             this.listeners.delete(listener)
         }
@@ -43,6 +56,13 @@ export class FakeTurnBackend implements TurnBackend {
         this.setBattles(this.battles.filter((battle) => battle.entryId !== entryId))
     }
 
+    public moveSeasonEnd(endsAt: number): void {
+        const current = this.seasons.current
+        if (!current) return
+        this.seasons = {...this.seasons, current: {...current, endsAt}}
+        for (const listener of this.listeners) listener.onSeasons(this.seasons)
+    }
+
     private setBattles(battles: BattleToCome[]) {
         this.battles = [...battles].sort((a, b) => a.startsAt - b.startsAt)
         for (const listener of this.listeners) listener.onBattles(this.battles)
@@ -60,6 +80,10 @@ export function battleCommands(turns: FakeTurnBackend) {
         deleteBattle: (entryId: string) => {
             turns.deleteBattle(entryId)
             return `${entryId} is deleted`
+        },
+        moveSeasonEnd: (inMinutes: number) => {
+            turns.moveSeasonEnd(Date.now() + inMinutes * MINUTE)
+            return `the season ends in ${inMinutes} minutes`
         },
     }
 }

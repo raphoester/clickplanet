@@ -1,6 +1,6 @@
 # The gamemaster module (`internal/gamemaster/`)
 
-**The game's meta: which rules play together, and when.** Planet keeps its game rules in its sets (see
+**The game's meta: which rules play together, and when, and when each season runs.** Planet keeps its game rules in its sets (see
 [Rules](rules.md)), the antibot its bounds in its own (see [The antibot's rules](antibot-rules.md)), scoring how it
 counts points in its own (see [The season rules](season-rules.md)). The gamemaster module never holds a rule: it picks
 which set each module plays, by name, so a set of planet, one of the antibot and one of scoring play as one. No module
@@ -19,7 +19,7 @@ game stop and a map reset go next. Its name was `rules` for a day; the user rena
 internal/gamemaster/
   module.go                         Config (database, redis), NewModule
   internal/
-    migrations/                     schedule_entries, entry_kind, entry_description
+    migrations/                     schedule_entries, entry_kind, entry_description, seasons (season 0 seeded)
     schedule/                       EntryID, SetName, Kind, Description, Priority, Draft, Entry (NewEntry, Edited, Changeable),
                                     Schedule (New, TurnAt, SinceAt, BattlesAfter), Turn; the Store, Keeper and IDProvider ports,
                                     Playable; the store's contract suite; FakeKeeper and FakeIDs (testing tag)
@@ -35,13 +35,27 @@ internal/gamemaster/
       usecases/delete_entry_usecase/  audit_delete_entry/
       usecases/play_schedule_usecase/ the turn at now, commanded when it changes; Runner
         log_play_schedule/          logs each turn told, and a failure
+    season/                         Number, Draft, Season, Calendar (Added, Edited, Deletable, RunningAt, NextAfter,
+                                    StartedBy); the Store port and its contract suite
+      inmemory_season_store/        the Store in a map, behind the testing tag
+      postgres_season_store/        the Store over gamemaster.seasons
+      redis_season_commands/        scoring.v1.PlaySeason, on its command stream
+      usecases/add_season_usecase/     audit_add_season/
+      usecases/edit_season_usecase/    audit_edit_season/
+      usecases/delete_season_usecase/  audit_delete_season/
+      usecases/play_seasons_usecase/   each started season told to scoring; Runner
+        log_play_seasons/           logs each season told, and a failure
     gamemasterv1controller/              AdminService and GamemasterService (bags), NewCacheInterceptor
       get_schedule_handler/schedule_query/   PostgresQuery: every entry, and what plays now
       add_entry_handler/  edit_entry_handler/  delete_entry_handler/
-      get_turn_handler/turn_query/  PostgresQuery: the turn now and the battles to come, in the players' words
+      get_seasons_handler/seasons_query/   PostgresQuery: every season, by number
+      add_season_handler/  edit_season_handler/  delete_season_handler/
+      get_turn_handler/turn_query/  PostgresQuery: the turn now, the battles to come and the seasons, in the players'
+                                    words
       listen_for_events_handler/    the stream: the turn and the timeline, then each change of either, and heartbeats
         inprocess_turn_feed/        reads both each second while a stream follows them; log_turn_reader
       schedulemessage/              DraftOf, KindOf, and Refusal: the code of each refusal
+      seasonmessage/                DraftOf and Refusal, for the seasons
 ```
 
 ## An entry
@@ -156,6 +170,38 @@ Rule schedule page (see the backoffice's [Ops](../../backoffice/docs/ops.md)):
   wire as `gamemaster.v1.EntryKind` (`schedulemessage.DraftOf` reads it, `KindOf` writes it, and a kept kind this build
   does not know fails the read).
 
+## The seasons
+
+**The gamemaster owns game time: the entries, the battles, and each season's start and end** (the owner,
+2026-10-27). Scoring only counts points: it is told each season's window, as it is told a battle's, and owns no clock
+of its own. One event has one clock; nothing is matched by timestamp. All commands go one way, gamemaster to scoring;
+scoring never asks back.
+
+- **A season is a number, a start and an end** (`season.Season`), kept in `gamemaster.seasons`, apart from the
+  entries: it has a lifecycle of its own. The type stays open to one optional finale (a length, a rule set, a
+  description), added in a later change.
+- **Numbers count up from 0, and the gamemaster gives the next one** (`Calendar.Added`).
+- **The rules are the calendar's** (`season.Calendar`, every reason found by `errors.Is`): the end is after the start
+  (`ErrInvalidSeason`); the seasons follow each other by number, each starting at or after the end of the one before,
+  so none overlap; an added season starts after now; **a season that started keeps its start** (`ErrStarted`); **one
+  that ended is not edited** (`ErrEnded`); **an end moves only to a time after now**. Only the last season, before it
+  starts, is deleted (`ErrNotLast`): numbers keep counting with no gap, and scoring never heard of it.
+- **Season 0 had no start**: scoring's YAML list only kept its end. Migration `20261028120000_seasons` seeds it from
+  2026-10-03 00:00 UTC, the day its countdown shipped (#282), before scoring counted any take (#298, the next day), to
+  2026-10-31 23:00 UTC.
+- **The operator** calls `GetSeasons`, `AddSeason`, `EditSeason` and `DeleteSeason` on `gamemaster.v1.AdminService`,
+  from the backoffice's Seasons page; each change is logged at Warn by its audit decorator (`admin season added`,
+  `edited`, `deleted`, or `refused`). A refusal is `InvalidArgument`, `FailedPrecondition` or `NotFound`
+  (`seasonmessage.Refusal`).
+
+**`play_seasons_usecase` tells scoring each season** (`gamemaster-seasons`, every second, level-triggered as the
+schedule is): once a season starts, again when its window changes (an end moved), and every started season once at
+each boot, when it remembers none. A season to come is never told. `redis_season_commands` sends
+`scoring.v1.PlaySeason{number, starts_at, ends_at, decided_at}` on its own command stream
+(`commands:scoring.v1.PlaySeason`); `decided_at` is the runner's now. Planet and the antibot hear nothing of seasons.
+The seasons and the turn go on two streams, so their order at scoring is not fixed: a battle that starts in the very
+second its season starts may reach scoring before the season does, and get no round of its own.
+
 ## The game client
 
 **`gamemaster.v1.GamemasterService`, on the public router, is what the client reads to give a battle its look and
@@ -170,7 +216,9 @@ computes the turn by `Schedule`'s rule, as `GetSchedule` does, and answers in th
 end and its description. **Never a plain entry**: a quiet antibot change stays the operator's. An entry to come may
 still be moved or deleted; the stream sends each change within a second, so a countdown is fixed at once (the user
 lifted the rule "no entry to come crosses", 2026-10-27). A `Battle` is a message of its own, so a fact of a battle
-(the season it ends, for the finale) is a field of it.
+(the season it ends, for the finale) is a field of it. **The timeline carries the seasons too**: `current`, the season
+that runs (unset between two), and `next`, the first that has not started, each a `Season{number, starts_at, ends_at}`.
+The client's season countdown reads them there, not from scoring.
 
 **`ListenForEvents` is how the client follows them: no polling.** A `GamemasterEvent` is a `oneof` of `turn`,
 `timeline` and `heartbeat`, as the other live streams (see [The live streams](live-streams.md)). The stream sends the
@@ -196,7 +244,10 @@ kind, its window, the battles after a time and their order) and `entry_test.go` 
 runs on the memory and postgres stores. `turn_query`'s test pins the public read while an entry runs (its id among it), after the last
 one ended and before any, and the timeline (a battle to come in the players' words, no plain entry, none once started); `cache_interceptor_test.go` pins the GET and its header. `inprocess_turn_feed`'s test pins
 the feed (a stream gets the turn once read, another at once, each change to every stream, a battle added, edited or
-deleted sent, a turn that holds not sent again, nothing read with nobody following, a failed read) and `listen_for_events_handler`'s the stream (the turn then the timeline first, only the part that changed after, the heartbeat, the feed left when the stream closes, a clean end when the feed closes). `redis_rule_set_commands`' test pins scoring told the entry's id and window. The runner's test pins a send at boot and at each change, none while the turn holds, and a send Redis
+deleted sent, a turn that holds not sent again, nothing read with nobody following, a failed read) and `listen_for_events_handler`'s the stream (the turn then the timeline first, only the part that changed after, the heartbeat, the feed left when the stream closes, a clean end when the feed closes). `redis_rule_set_commands`' test pins scoring told the entry's id and window. `season`'s tests pin the calendar's rules,
+`season.StoreContractSuite` runs on both stores, `play_seasons_usecase`'s test pins a send at boot, at a start and at a
+moved end, none for a season to come, and a send Redis refused sent again; `turn_query`'s test pins the seasons on the
+timeline. The runner's test pins a send at boot and at each change, none while the turn holds, and a send Redis
 refused sent again. Each module's `play_rule_set_handler` test pins the latest decision, a redelivery and an unknown
 set; the choice stores have their own contract suite (`rules.ChoiceStoreContractSuite`). The smoke test
 `TestAnEntryOfTheScheduleIsPlayedByPlanetTheAntibotAndSeasons` adds a battle entry on the console listener, waits for
@@ -204,8 +255,8 @@ the three modules to play it, reads its kind and its end on the public listener,
 
 ## Before the Final Battle (Sat 31 Oct 2026, 21:00 UTC)
 
-Nothing plays `rush` until an entry names it, and **the Final Battle is that entry**: scoring's calendar keeps the
-season's end (23:00) and the daily cutoff (21:00), not the battle. Before 21:00, on the backoffice:
+Nothing plays `rush` until an entry names it, and **the Final Battle is that entry**: season 0's end (23:00) is the
+gamemaster's season, which scoring is told, and the daily cutoff (21:00) is scoring's; neither is the battle. Before 21:00, on the backoffice:
 
 1. Ops → Game rules: Copy `default`, name it `rush`, tempo 3, box waits 60–120 s, 30 an hour. Save.
 2. Ops → Anti-bot rules: Copy `default`, name it `rush`, `cohort.certainMembers` 50. Save.

@@ -76,7 +76,7 @@ var (
 func (s *testSuite) SetupSuite() {
 	s.db = cppg.StartTestServer(s.T()).OpenSchema(s.T(), "scoring", migrations.FS)
 	s.store = postgres_round_store.New(s.db)
-	s.seasons = calendar.New(calendar.Config{DailyCutoff: 21 * time.Hour, List: []calendar.Entry{{Number: 0, EndsAt: utc(31, 23)}}})
+	s.seasons = calendar.New(calendar.Config{DailyCutoff: 21 * time.Hour}, calendar.Window{Number: 0, StartsAt: time.Date(2026, 10, 3, 0, 0, 0, 0, time.UTC), EndsAt: utc(31, 23)})
 }
 
 func (s *testSuite) SetupTest() {

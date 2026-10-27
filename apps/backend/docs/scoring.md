@@ -1,12 +1,17 @@
 # Scoring (`internal/scoring/`)
 
-**The season's scorekeeper: when a season and each day end, how points are counted, and who leads.** Planet never imports, calls or hears it: scoring asks planet what each country holds (`planet.v1.InternalService/GetTerritories`), at each round's end and for the live race, never the other way. **The gamemaster commands it** a rule set, as it does planet and the antibot (`scoring.v1.PlayRuleSet`, see [The season rules](season-rules.md)): a battle's set makes the battle's window a round of its own, and the Final Battle is the one that ends the season.
+**The season's scorekeeper: when each day ends, how points are counted, and who leads.** Planet never imports, calls or hears it: scoring asks planet what each country holds (`planet.v1.InternalService/GetTerritories`), at each round's end and for the live race, never the other way. **The gamemaster commands it** a rule set, as it does planet and the antibot (`scoring.v1.PlayRuleSet`, see [The season rules](season-rules.md)): a battle's set makes the battle's window a round of its own, and the Final Battle is the one that ends the season. **It is told each season's window too** (`scoring.v1.PlaySeason`), and owns no clock but the daily cutoff.
 
 ```
 internal/scoring/internal/
-  calendar/                       Number, Season (LastDayEndsAt), Entry, Config (its Validate), Calendar (Current, Ended,
-                                  CutoffAfter)
+  calendar/                       Number, Season (StartsAt, LastDayEndsAt), Config (DailyCutoff, its Validate), Window
+                                  (Check), Decision (Overrules), Calendar (Play, Current, Ended, CutoffAfter); the Store
+                                  port and its contract suite
+    postgres_season_store/        the Store over scoring.seasons
+    inmemory_season_store/        the same port in a map, behind the testing tag
     usecases/get_season_usecase/  the calendar and the clock
+    usecases/play_season_usecase/ keeps a season told when it is newer, plays every season kept, and wakes the runner
+      log_play_season/            logs each season in force, and a failure
   standings/                      AccountID, Country, Take (Season), Tally (WithTake); the Store port (RecordTake,
                                   DeleteAccount) and its contract suite
     postgres_contribution_store/  the Store over scoring.contributions
@@ -35,6 +40,7 @@ internal/scoring/internal/
     postgres_rule_set_store/  postgres_choice_store/
     usecases/play_rules_usecase/ (log_play_rules/)  save_rule_set_usecase/ (audit_save_rule_set/)
   commands/play_rule_set_handler/ scoring.v1.PlayRuleSet, from the gamemaster
+  commands/play_season_handler/   scoring.v1.PlaySeason, from the gamemaster
   scoringv1controller/            SeasonService (a bag), the cache interceptor, the session interceptor
     get_season_handler/
     get_race_handler/             the race of the stream, once, through race_query — Query
@@ -57,16 +63,26 @@ internal/scoring/internal/
   migrations/
 ```
 
-- **The calendar is the config**: `scoring.list`, each season's number and end, and `scoring.dailyCutoff`, the time
-  of day (UTC) every day ends at (21:00 in production, evening in Europe, so every day ends while people play). An
-  empty list is no season. **The calendar holds no Final Battle**: since 2026-10-27 the Final Battle is a schedule
-  entry of the gamemaster (see [The gamemaster module](gamemaster.md)), and `finale` is no key of a season.
-- **`Calendar.Current(now)` is the first season whose end is after now.** A season starts when the one before it ends; the first started before anything. `Season.LastDayEndsAt` is its last cutoff, at or before its end.
-- **The boot is refused** when the numbers do not count up from 0, the ends do not go up, the cutoff is not a time of
-  day, or a season holds no end of a day.
+- **The seasons are the gamemaster's** (see [The seasons](gamemaster.md#the-seasons)): scoring is told each one's
+  number, start and end by `scoring.v1.PlaySeason` and keeps them in `scoring.seasons` (`number`, `starts_at`,
+  `ends_at`, `decided_at`), one row a season. **The latest decision wins** (`Decision.Overrules`): one sent again, or
+  older, changes nothing. A window that ends at or before its start is refused, logged and dropped
+  (`ErrInvalidSeason`). A newer one is kept, every season kept is put in force (`Calendar.Play`, an atomic pointer
+  every copy of the calendar reads), and the rounds' runner is woken: an end may have moved. Migration
+  `20261028120000_seasons` seeds season 0 as the gamemaster does, decided at its start, so scoring counts from the
+  first boot, before the gamemaster's boot send; at boot the module reads every season kept. Until 2026-10-28 the
+  seasons were scoring's YAML list (`scoring.list`).
+- **The daily cutoff stays scoring's rule**: `scoring.dailyCutoff`, the time of day (UTC) every day ends at (21:00 in
+  production, evening in Europe, so every day ends while people play). The boot is refused when it is not a time of
+  day. **The calendar holds no Final Battle**: the Final Battle is a schedule entry of the gamemaster (see
+  [The gamemaster module](gamemaster.md)).
+- **`Calendar.Current(now)` is the season that runs: from its start to just before its end.** None runs between two
+  seasons, so a take then counts in none. `Season.LastDayEndsAt` is its last cutoff, at or before its end; a season that
+  holds no cutoff has no day.
 - **`GetSeason` is a GET** (`NO_SIDE_EFFECTS`), answered `public, max-age=60`: the number, the end, and
-  `last_day_ends_at`. `finale_starts_at` says the same as `last_day_ends_at`, for the clients from before it: the
-  Final Battle followed the last day, and does in Season 0. No current season is an empty answer.
+  `last_day_ends_at`, read from the seasons told. `finale_starts_at` says the same as `last_day_ends_at`, for the
+  clients from before it. No current season is an empty answer. The game client no longer reads it: its season
+  countdown reads the gamemaster's `Timeline`. Its time fields go in a later change.
 
 **A player's season score is the tiles it took this season for its main flag**, the flag it took the most tiles for, so a player cannot add up several flags. **A country's board is every player who took tiles for that country, ranked by those tiles**, so a player is on the board of each flag it took for, and a change of flag shows at the first take rather than when the main flag moves.
 

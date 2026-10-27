@@ -16,17 +16,18 @@ import "./Season.css"
 export type SeasonChipProps = {
     season: Season
     nextBattle?: BattleToCome
+    dayEndsAt?: number
     compact: boolean
     open: boolean
     onToggle: () => void
 }
 
-export default function SeasonChip({season, nextBattle, compact, open, onToggle}: SeasonChipProps) {
+export default function SeasonChip({season, nextBattle, dayEndsAt, compact, open, onToggle}: SeasonChipProps) {
     const [chip, setChip] = useState<HTMLElement | null>(null)
     useBottomEdge(compact ? null : chip, STATUS_BOTTOM)
 
     const now = useNow()
-    const countdowns = countdownsOf(season, now, nextBattle)
+    const countdowns = countdownsOf(season, now, nextBattle, dayEndsAt)
     const {shown, holds} = useRotation(countdowns.length)
 
     if (countdowns.length === 0) return null
@@ -104,8 +105,8 @@ function SeasonPopover({onClose}: {onClose: () => void}) {
     return <div className="season-chip-body"><SeasonFacts/></div>
 }
 
-export function SeasonDetails({season, nextBattle}: {season: Season, nextBattle?: BattleToCome}) {
-    const countdowns = countdownsOf(season, useNow(), nextBattle)
+export function SeasonDetails({season, nextBattle, dayEndsAt}: {season: Season, nextBattle?: BattleToCome, dayEndsAt?: number}) {
+    const countdowns = countdownsOf(season, useNow(), nextBattle, dayEndsAt)
     if (countdowns.length === 0) return null
 
     return <>

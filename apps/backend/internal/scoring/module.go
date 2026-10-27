@@ -13,8 +13,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1/scoringv1connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/calendar"
+	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/calendar/postgres_season_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/calendar/usecases/get_season_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/calendar/usecases/play_season_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/calendar/usecases/play_season_usecase/log_play_season"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/commands/play_rule_set_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/commands/play_season_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/rounds/postgres_round_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/rounds/rpc_planet_territories"
@@ -82,7 +86,6 @@ func NewModule(config Config) cpbootstrap.Module {
 
 func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	clock := cptime.SystemClock{}
-	seasons := calendar.New(config.Calendar)
 	countries := cpcountries.New()
 
 	internal, baseURL, err := props.Internal.Dial()
@@ -114,6 +117,14 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		_ = streams.Close()
 		_ = db.Close()
 	}
+
+	seasonStore := postgres_season_store.New(db)
+	told, err := seasonStore.Decisions(ctx)
+	if err != nil {
+		closeStores()
+		return fmt.Errorf("failed to read the seasons the gamemaster told: %w", err)
+	}
+	seasons := calendar.New(config.Calendar, calendar.WindowsOf(told)...)
 
 	contributions := postgres_contribution_store.New(db)
 	standingsQuery := standings_query.NewPostgresQuery(db, standings_authors.New(player), seasons, clock, countries)
@@ -172,8 +183,15 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to handle scoring.v1.PlayRuleSet: %w", err)
 	}
 
+	seasonsPlayed, err := cpredis.Handle(ctx, streams, play_season_handler.New(
+		log_play_season.New(play_season_usecase.New(seasonStore, seasons, closing), props.Logger)))
+	if err != nil {
+		closeStores()
+		return fmt.Errorf("failed to handle scoring.v1.PlaySeason: %w", err)
+	}
+
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger, boards, races, closing, cpredis.CloseAfter(streams, props.Logger,
-		takes, deletions, roundTakes, roundDeletions, chosen, cpoutbox.NewRelay("scoring-outbox", db, streams, props.Logger))))
+		takes, deletions, roundTakes, roundDeletions, chosen, seasonsPlayed, cpoutbox.NewRelay("scoring-outbox", db, streams, props.Logger))))
 
 	service := scoringv1controller.SeasonService{
 		GetSeasonHandler: get_season_handler.New(
@@ -214,7 +232,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to mount scoring.v1.InternalService: %w", err)
 	}
 
-	props.Logger.Info("scoring built", slog.Int("seasons", len(config.Calendar.List)), slog.String("schema", config.Database.Schema))
+	props.Logger.Info("scoring built", slog.Int("seasons", len(told)), slog.String("schema", config.Database.Schema))
 
 	return nil
 }

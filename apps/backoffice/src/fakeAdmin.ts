@@ -65,16 +65,24 @@ import {GetTerritoriesRequest, GetTerritoriesResponse, Territory} from "./gen/gr
 import {
     AddEntryRequest,
     AddEntryResponse,
+    AddSeasonRequest,
+    AddSeasonResponse,
     DeleteEntryRequest,
     DeleteEntryResponse,
+    DeleteSeasonRequest,
+    DeleteSeasonResponse,
     EditEntryRequest,
     EditEntryResponse,
+    EditSeasonRequest,
+    EditSeasonResponse,
     Entry,
     GetScheduleRequest,
     GetScheduleResponse,
+    GetSeasonsRequest,
+    GetSeasonsResponse,
     Playing,
 } from "./gen/grpc/gamemaster/v1/admin_pb.ts"
-import {EntryKind} from "./gen/grpc/gamemaster/v1/gamemaster_pb.ts"
+import {EntryKind, Season} from "./gen/grpc/gamemaster/v1/gamemaster_pb.ts"
 import {
     GetRulesRequest as ScoringGetRulesRequest,
     GetRulesResponse as ScoringGetRulesResponse,
@@ -207,6 +215,21 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
             }),
         ],
         playing: new Playing({ruleSet: "calm", kind: EntryKind.PLAIN, since: Timestamp.fromDate(AT), entryId: "entry-running"}),
+    })
+    // A season that ended, one that runs until 2098, and one to come.
+    seasons = new GetSeasonsResponse({
+        seasons: [
+            new Season({
+                number: 1, startsAt: Timestamp.fromDate(new Date("2020-09-01T00:00:00Z")), endsAt: Timestamp.fromDate(AT),
+            }),
+            new Season({
+                number: 2, startsAt: Timestamp.fromDate(AT), endsAt: Timestamp.fromDate(new Date("2098-01-01T00:00:00Z")),
+            }),
+            new Season({
+                number: 3, startsAt: Timestamp.fromDate(new Date("2098-01-01T00:00:00Z")),
+                endsAt: Timestamp.fromDate(new Date("2098-04-01T00:00:00Z")),
+            }),
+        ],
     })
     authors = [new Author({accountId: ACCOUNT, name: "BraveFox42"})]
     profile = new AdminGetPlayerResponse({
@@ -542,7 +565,7 @@ export class FakeScoring implements ScoringAdmin {
     }
 }
 
-// Keeps the schedule's entries as the server does, and checks nothing.
+// Keeps the schedule's entries and the seasons as the server does, and checks nothing.
 export class FakeGamemaster implements GamemasterAdmin {
     constructor(private readonly admin: FakeAdmin) {}
 
@@ -575,7 +598,40 @@ export class FakeGamemaster implements GamemasterAdmin {
         return answer
     }
 
+    getSeasons(request: PartialMessage<GetSeasonsRequest>): Promise<GetSeasonsResponse> {
+        return this.admin.answer("getSeasons", request, this.admin.seasons)
+    }
+
+    addSeason(request: PartialMessage<AddSeasonRequest>): Promise<AddSeasonResponse> {
+        const number = Math.max(0, ...this.admin.seasons.seasons.map(season => season.number)) + 1
+        const answer = this.admin.answer("addSeason", request, new AddSeasonResponse({number}))
+        if (!this.admin.refusals.has("addSeason")) {
+            this.keepSeasons([...this.admin.seasons.seasons, new Season({...request, number})])
+        }
+        return answer
+    }
+
+    editSeason(request: PartialMessage<EditSeasonRequest>): Promise<EditSeasonResponse> {
+        const answer = this.admin.answer("editSeason", request, new EditSeasonResponse())
+        if (!this.admin.refusals.has("editSeason")) {
+            this.keepSeasons(this.admin.seasons.seasons.map(season => season.number === request.number ? new Season({...season, ...request}) : season))
+        }
+        return answer
+    }
+
+    deleteSeason(request: PartialMessage<DeleteSeasonRequest>): Promise<DeleteSeasonResponse> {
+        const answer = this.admin.answer("deleteSeason", request, new DeleteSeasonResponse())
+        if (!this.admin.refusals.has("deleteSeason")) {
+            this.keepSeasons(this.admin.seasons.seasons.filter(season => season.number !== request.number))
+        }
+        return answer
+    }
+
     private keep(entries: Entry[]) {
         this.admin.schedule = new GetScheduleResponse({...this.admin.schedule, entries})
+    }
+
+    private keepSeasons(seasons: Season[]) {
+        this.admin.seasons = new GetSeasonsResponse({seasons})
     }
 }
