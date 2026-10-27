@@ -1,5 +1,6 @@
 import {useId, useState} from "react"
 import {Season} from "../../backends/season.ts"
+import {BattleToCome} from "../../backends/turn.ts"
 import {Champion, championNames, winsLine} from "../../domain/champion.ts"
 import {countdownsOf, SeasonCountdown, shortLeft} from "../../domain/seasonClock.ts"
 import CountryFlag from "../components/CountryFlag.tsx"
@@ -14,17 +15,18 @@ import "./Season.css"
 
 export type SeasonChipProps = {
     season: Season
+    nextBattle?: BattleToCome
     compact: boolean
     open: boolean
     onToggle: () => void
 }
 
-export default function SeasonChip({season, compact, open, onToggle}: SeasonChipProps) {
+export default function SeasonChip({season, nextBattle, compact, open, onToggle}: SeasonChipProps) {
     const [chip, setChip] = useState<HTMLElement | null>(null)
     useBottomEdge(compact ? null : chip, STATUS_BOTTOM)
 
     const now = useNow()
-    const countdowns = countdownsOf(season, now)
+    const countdowns = countdownsOf(season, now, nextBattle)
     const {shown, holds} = useRotation(countdowns.length)
 
     if (countdowns.length === 0) return null
@@ -102,8 +104,8 @@ function SeasonPopover({onClose}: {onClose: () => void}) {
     return <div className="season-chip-body"><SeasonFacts/></div>
 }
 
-export function SeasonDetails({season}: {season: Season}) {
-    const countdowns = countdownsOf(season, useNow())
+export function SeasonDetails({season, nextBattle}: {season: Season, nextBattle?: BattleToCome}) {
+    const countdowns = countdownsOf(season, useNow(), nextBattle)
     if (countdowns.length === 0) return null
 
     return <>

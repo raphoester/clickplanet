@@ -93,10 +93,10 @@ import {useRace} from "../standings/useRace.ts";
 import RoundReveal from "../season/RoundReveal.tsx";
 import {useRoundReveal} from "../season/useRoundReveal.ts";
 import {TurnBackend} from "../../backends/turn.ts";
-import {battleKeyOf, battleOf} from "../../domain/battle.ts";
+import {battleKeyOf, battleOf, nextBattleOf} from "../../domain/battle.ts";
 import {announcementKeyOf} from "../../domain/announcements.ts";
 import {useAnnouncements} from "../announcements/useAnnouncements.ts";
-import {useTurn} from "../battle/useTurn.ts";
+import {useSchedule} from "../battle/useSchedule.ts";
 import {useMood} from "../battle/useMood.ts";
 import {useBattleReveal} from "../battle/useBattleReveal.ts";
 import {useBattleOver} from "../battle/useBattleOver.ts";
@@ -178,8 +178,9 @@ export default function Viewer(props: ViewerProps) {
     const season = useSeason(props.season)
     const race = useRace(props.standings)
     const reveal = useRoundReveal(race)
-    const turn = useTurn(props.turn)
-    const battle = battleOf(turn)
+    const schedule = useSchedule(props.turn)
+    const battle = battleOf(schedule.turn)
+    const nextBattle = nextBattleOf(schedule.battles, Date.now())
     useMood(battle ? "battle" : undefined)
     const battleReveal = useBattleReveal(battle)
     const battleOver = useBattleOver(battle, race)
@@ -401,6 +402,7 @@ export default function Viewer(props: ViewerProps) {
                                                     onToggle={() => setBattleOpen((open) => !open)}/>}
         {ready && !compact && !battle && champion && <ChampionChip champion={champion} compact={false}/>}
         {ready && !compact && !battle && !champion && season && <SeasonChip season={season}
+                                                                 nextBattle={nextBattle}
                                                                  compact={false}
                                                                  open={seasonOpen}
                                                                  onToggle={() => setSeasonOpen((open) => !open)}/>}
@@ -418,6 +420,7 @@ export default function Viewer(props: ViewerProps) {
                                             : champion
                                                 ? <ChampionChip champion={champion} compact/>
                                                 : season && <SeasonChip season={season}
+                                                                        nextBattle={nextBattle}
                                                                         compact
                                                                         open={sheet === "season"}
                                                                         onToggle={() => toggleSheet("season")}/>}/>}
@@ -473,7 +476,7 @@ export default function Viewer(props: ViewerProps) {
                 <SettingsPlace {...settings}/>
             </Sheet>}
             {sheet === "season" && season && <Sheet title={`Season ${season.number}`} onClose={closeSheet}>
-                <SeasonDetails season={season}/>
+                <SeasonDetails season={season} nextBattle={nextBattle}/>
             </Sheet>}
             {sheet === "battle" && battle && <Sheet title="Battle" onClose={closeSheet}>
                 <BattleDetails battle={battle} season={season}/>

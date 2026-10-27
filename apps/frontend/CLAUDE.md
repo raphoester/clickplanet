@@ -45,9 +45,10 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 - [Support](docs/support.md) — suggestions, bug reports and reports of a player.
 - [Titles](docs/titles.md) — the ranks on each track, the medals, the unlock moment.
 - [Season standings](docs/season-standings.md) — the players' table of the season.
-- [The season](docs/season.md) — the season chip and its clock.
-- [Battles](docs/battle.md) — the battle look from the schedule's turn: the mood, the chip and its clock, the start
-  moment, the brief when its round closes, and the announcements queue that shows one full-screen moment at a time.
+- [The season](docs/season.md) — the season chip and its clocks, and the home page's countdowns.
+- [Battles](docs/battle.md) — the schedule's stream, the countdown to the next battle, and the battle look: the mood,
+  the chip and its clock, the start moment, the brief when its round closes, and the announcements queue that shows
+  one full-screen moment at a time.
 - [The cutoff, revealed](docs/cutoff.md) — the full-screen reveal when a day closes, and the season's results after
   the Final Battle's brief.
 - [The flag played for](docs/flag.md) — `PledgeAllegiance`, and one flag an hour.

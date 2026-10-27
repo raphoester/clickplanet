@@ -12,38 +12,38 @@ import (
 )
 
 type Reader interface {
-	Turn(ctx context.Context) (*gamemasterv1.Turn, error)
+	Now(ctx context.Context) (*gamemasterv1.GetTurnResponse, error)
 }
 
-// The schedule runner ticks every second too: a change of turn is seen within one.
+// The schedule runner ticks every second too: a change of turn, or of an entry to come, is seen within one.
 const Every = time.Second
 
 func New(reader Reader) *Feed {
 	return &Feed{
 		reader:  reader,
 		wake:    make(chan struct{}, 1),
-		streams: cpcolls.NewSet[chan *gamemasterv1.Turn](),
+		streams: cpcolls.NewSet[chan *gamemasterv1.GetTurnResponse](),
 	}
 }
 
-// Feed reads the turn while anyone follows it, and hands each change to every stream.
+// Feed reads the turn and the timeline while anyone follows them, and hands each change of either to every stream.
 type Feed struct {
 	reader Reader
 	wake   chan struct{}
 
 	mu      sync.Mutex
-	streams *cpcolls.Set[chan *gamemasterv1.Turn]
-	turn    *gamemasterv1.Turn
+	streams *cpcolls.Set[chan *gamemasterv1.GetTurnResponse]
+	now     *gamemasterv1.GetTurnResponse
 }
 
-func (f *Feed) Subscribe(ctx context.Context) <-chan *gamemasterv1.Turn {
-	turns := make(chan *gamemasterv1.Turn, 1)
+func (f *Feed) Subscribe(ctx context.Context) <-chan *gamemasterv1.GetTurnResponse {
+	nows := make(chan *gamemasterv1.GetTurnResponse, 1)
 
 	f.mu.Lock()
 	first := f.streams.Empty()
-	f.streams.Add(turns)
-	if f.turn != nil {
-		turns <- f.turn
+	f.streams.Add(nows)
+	if f.now != nil {
+		nows <- f.now
 	}
 	f.mu.Unlock()
 
@@ -60,14 +60,14 @@ func (f *Feed) Subscribe(ctx context.Context) <-chan *gamemasterv1.Turn {
 		f.mu.Lock()
 		defer f.mu.Unlock()
 
-		f.streams.Delete(turns)
+		f.streams.Delete(nows)
 		if f.streams.Empty() {
-			f.turn = nil
+			f.now = nil
 		}
-		close(turns)
+		close(nows)
 	}()
 
-	return turns
+	return nows
 }
 
 func (f *Feed) Name() string { return "gamemaster-turn" }
@@ -91,7 +91,7 @@ func (f *Feed) Refresh(ctx context.Context) {
 	if !f.followed() {
 		return
 	}
-	turn, err := f.reader.Turn(ctx)
+	now, err := f.reader.Now(ctx)
 	if err != nil {
 		return
 	}
@@ -99,16 +99,16 @@ func (f *Feed) Refresh(ctx context.Context) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	if f.streams.Empty() || (f.turn != nil && proto.Equal(f.turn, turn)) {
+	if f.streams.Empty() || (f.now != nil && proto.Equal(f.now, now)) {
 		return
 	}
-	f.turn = turn
-	f.streams.ForEach(func(stream chan *gamemasterv1.Turn) {
+	f.now = now
+	f.streams.ForEach(func(stream chan *gamemasterv1.GetTurnResponse) {
 		select {
 		case <-stream:
 		default:
 		}
-		stream <- turn
+		stream <- now
 	})
 }
 

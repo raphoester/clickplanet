@@ -18,15 +18,15 @@ type reader struct {
 	err error
 }
 
-func (r reader) Turn(context.Context) (*gamemasterv1.Turn, error) {
-	return &gamemasterv1.Turn{}, r.err
+func (r reader) Now(context.Context) (*gamemasterv1.GetTurnResponse, error) {
+	return &gamemasterv1.GetTurnResponse{}, r.err
 }
 
 func TestAFailedReadIsLogged(t *testing.T) {
 	var out bytes.Buffer
 	down := errors.New("postgres is down")
 
-	_, err := log_turn_reader.New(reader{err: down}, slog.New(slog.NewTextHandler(&out, nil))).Turn(t.Context())
+	_, err := log_turn_reader.New(reader{err: down}, slog.New(slog.NewTextHandler(&out, nil))).Now(t.Context())
 
 	require.ErrorIs(t, err, down)
 	assert.Contains(t, out.String(), `level=ERROR msg="failed to read the live turn" error="postgres is down"`)
@@ -37,7 +37,7 @@ func TestAReadCutByTheShutdownLogsNothing(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
-	_, err := log_turn_reader.New(reader{err: context.Canceled}, slog.New(slog.NewTextHandler(&out, nil))).Turn(ctx)
+	_, err := log_turn_reader.New(reader{err: context.Canceled}, slog.New(slog.NewTextHandler(&out, nil))).Now(ctx)
 
 	require.ErrorIs(t, err, context.Canceled)
 	assert.Empty(t, out.String())
@@ -46,9 +46,9 @@ func TestAReadCutByTheShutdownLogsNothing(t *testing.T) {
 func TestAReadLogsNothing(t *testing.T) {
 	var out bytes.Buffer
 
-	turn, err := log_turn_reader.New(reader{}, slog.New(slog.NewTextHandler(&out, nil))).Turn(t.Context())
+	now, err := log_turn_reader.New(reader{}, slog.New(slog.NewTextHandler(&out, nil))).Now(t.Context())
 
 	require.NoError(t, err)
-	assert.NotNil(t, turn)
+	assert.NotNil(t, now)
 	assert.Empty(t, out.String())
 }

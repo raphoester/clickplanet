@@ -3,34 +3,44 @@
 **The game shows when the schedule plays a battle.** The backend's gamemaster keeps a
 schedule of rule-set entries, and each entry has a kind (the backend's
 [gamemaster](../../backend/docs/gamemaster.md)). The client never hears a rule set's
-name, only the kind of the entry that plays, from `gamemaster.v1.GamemasterService/GetTurn`:
-`battle` or `plain`, since when, and when the running entry ends. A battle is the
-one kind with a look.
+name, only the kind of the entry that plays, from `gamemaster.v1.GamemasterService/ListenForEvents`:
+`battle` or `plain`, since when, and when the running entry ends, and the battles to
+come. A battle is the one kind with a look.
 
 ## Reading what plays
 
 - `backends/turn.ts` is the contract: `Turn` (`kind`, `since`, `endsAt`,
-  `description`) and `TurnBackend`, with `turn()` and `changes()`, which tells when
-  what it answers may have changed. `turnBackend.ts` reads `GetTurn` as a cached GET
-  and tells of a change on a page wake (`pageWakeups`: a phone that locked may have
-  slept through a start). A server without the gamemaster (`Unimplemented`,
-  `NotFound`) reads as a plain turn. A turn with no kind, or a kind this build does
-  not know, is refused: the switch names every value. `fakeTurnBackend.ts` is the
-  fake, with `startBattle(since, endsAt, description)` and `endBattle()`, which tell
-  of the change at once.
+  `description`), `BattleToCome` (`entryId`, `startsAt`, `endsAt`, `description`)
+  and `TurnBackend`, whose `follow` hands on the turn and the battles to come at
+  once, then each change of either. `turnBackend.ts` follows the stream (`openStream`:
+  heartbeats, reconnects, a page wake); no read polls. A server without the
+  gamemaster (`Unimplemented`, `NotFound`) reads as a plain turn with no battle to
+  come, and the stream is not opened again. A turn with no kind, or a kind this build
+  does not know, is refused: the switch names every value. `fakeTurnBackend.ts` is the
+  fake, with `startBattle(since, endsAt, description)`, `endBattle()`, and
+  `scheduleBattle`, `moveBattle`, `deleteBattle` for the battles to come, which tell of
+  the change at once.
 - **`description` is the entry's, the operator's words for the players**, written
   on the backoffice's Rule schedule page (at most 300 characters, the backend's
   rule). Empty when the operator wrote none, or when no entry runs.
-- `app/battle/useTurn.ts` holds the turn: read at mount, read again on a change,
-  at the running entry's end, and once a minute otherwise (`domain/battle.ts`,
-  `nextReadAt`): an entry at a higher priority may start before the end, and the
-  answer is 5 s fresh. A read that fails is logged and tried again at the next
-  tick.
+- `app/battle/useSchedule.ts` holds the turn and the battles to come, as the stream
+  sends them. The end of a battle needs no read of its own: the stream sends the next
+  turn within a second.
 - `domain/battle.ts` — `battleOf(turn)`, the `Battle` a battle turn is (nothing for
   a plain turn or a battle with no end), its key (`since:endsAt`), its clock
   (`battleLeft`, `timeLeftTo` from the season clock, stopped at zero), and
   `battleEndsLine`, "Ends at 23:00" in the player's time, with the weekday when the
   end is not today.
+
+## The battles to come
+
+**The next battle is counted down to, on the season chip and on the home page**
+("Next battle in", see [The season](season.md)). `domain/battle.ts`'s `nextBattleOf`
+is the first battle to come that has not started at the client's now: the server's
+list is of its last read, and a battle whose start passed leaves the countdown before
+its turn arrives. With none to come there is no face and no pill. During a battle the
+battle chip is the chip, as below. The countdown says "next battle", never "final":
+an entry of the schedule carries no fact of the season.
 
 ## The look
 
