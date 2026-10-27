@@ -45,23 +45,6 @@ func (s Schedule) TurnAt(at time.Time) Turn {
 	}
 }
 
-// NextOfKind is the entry of a kind that starts first after a time; false when none is to come.
-func (s Schedule) NextOfKind(kind Kind, at time.Time) (EntrySnapshot, bool) {
-	var (
-		next  Entry
-		found bool
-	)
-	for _, entry := range s.entries {
-		if entry.kind != kind || !entry.startsAt.After(at) {
-			continue
-		}
-		if !found || entry.startsAt.Before(next.startsAt) || (entry.startsAt.Equal(next.startsAt) && entry.outranks(next)) {
-			next, found = entry, true
-		}
-	}
-	return next.TakeSnapshot(), found
-}
-
 // SinceAt is when the turn at a time began: the last start or end before it that changed the turn. The zero time is
 // before any entry.
 func (s Schedule) SinceAt(at time.Time) time.Time {

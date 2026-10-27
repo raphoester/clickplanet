@@ -81,27 +81,6 @@ func TestATurnCarriesItsEntrysWindowInUTC(t *testing.T) {
 	assert.True(t, schedule.New().TurnAt(finale).TakeSnapshot().EndsAt.IsZero(), "default has no window")
 }
 
-func TestTheNextBattleIsTheBattleEntryThatStartsFirstAfterATime(t *testing.T) {
-	plain := entry(3, "calm", finale.Add(-2*time.Hour), finale.Add(-time.Hour), 1, madeAt).TakeSnapshot()
-	plain.Kind = schedule.Plain
-	sched := schedule.New(
-		entry(1, "rush", finale, battleEnds, 1, madeAt),
-		entry(2, "rush", finale.Add(24*time.Hour), battleEnds.Add(24*time.Hour), 1, madeAt),
-		plain.Restore(),
-	)
-
-	next, found := sched.NextOfKind(schedule.Battle, finale.Add(-3*time.Hour))
-	assert.True(t, found)
-	assert.Equal(t, id(1), next.ID, "a plain entry is no battle")
-
-	next, found = sched.NextOfKind(schedule.Battle, finale)
-	assert.True(t, found)
-	assert.Equal(t, id(2), next.ID, "one that started is not to come")
-
-	_, found = sched.NextOfKind(schedule.Battle, finale.Add(24*time.Hour))
-	assert.False(t, found)
-}
-
 func TestTheHighestPriorityPlays(t *testing.T) {
 	sched := schedule.New(
 		entry(1, "calm", finale, battleEnds, 3, madeAt.Add(-time.Hour)),

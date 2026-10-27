@@ -21,7 +21,7 @@ internal/metagame/
   internal/
     migrations/                     schedule_entries, entry_kind, entry_description
     schedule/                       EntryID, SetName, Kind, Description, Priority, Draft, Entry (NewEntry, Edited, Changeable),
-                                    Schedule (New, TurnAt, SinceAt, NextOfKind), Turn; the Store, Keeper and IDProvider ports,
+                                    Schedule (New, TurnAt, SinceAt), Turn; the Store, Keeper and IDProvider ports,
                                     Playable; the store's contract suite; FakeKeeper and FakeIDs (testing tag)
       inmemory_entry_store/         the Store in a map, behind the testing tag
       postgres_entry_store/         the Store over metagame.schedule_entries
@@ -68,7 +68,7 @@ changed it.
 
 **A turn is the entry that plays, its set, its kind, its description and its window** (its start and its end, in UTC,
 zero when none runs). An entry is a turn of its own even when it plays the set already playing, so it is commanded
-again. `Schedule.NextOfKind` is the entry of a kind that starts first after a time, for the client's countdown.
+again.
 
 ## Only an entry to come changes
 
@@ -157,10 +157,9 @@ Rule schedule page (see the backoffice's [Ops](../../backoffice/docs/ops.md)):
 
 **`metagame.v1.MetagameService`, on the public router, is what the client reads to give a battle its look.** Its
 `Turn` is the kind of the running entry (plain when none runs), its `description` (empty when none runs), `since`
-when the turn began (unset before any entry), `ends_at`, when the running entry ends (unset when none runs), and
-`next_battle`, the battle entry that starts first after now, with its start, its end and its description (unset when
-none is to come): the season chip's "Final Battle in 3 days" counts down to it, since seasons no longer knows when the
-Final Battle starts. An entry to come may still be moved or deleted; the stream says so, as the turn is read whole.
+when the turn began (unset before any entry), and `ends_at`, when the running entry ends (unset when none runs). **No
+entry to come crosses**: the client counts down to the end of the day and of the season (seasons'), not to a battle,
+since an entry to come may still be moved or deleted (the user, 2026-10-27).
 **Never the rule set's name**: the query (`turn_query`) reads the entries and computes the turn by `Schedule`'s rule,
 as `GetSchedule` does, and answers in the published language only.
 
@@ -183,9 +182,9 @@ an answer read within five seconds of a change may still say the turn before it.
 ## Tests
 
 The rule is pinned by `schedule_test.go` (priorities, ties, the end, since when, two entries of one set, the turn's
-kind, its window, the next battle) and `entry_test.go` (only an entry to come changes, every reason, a kind nobody knows). `schedule.StoreContractSuite`
+kind, its window) and `entry_test.go` (only an entry to come changes, every reason, a kind nobody knows). `schedule.StoreContractSuite`
 runs on the memory and postgres stores. `turn_query`'s test pins the public read while an entry runs, after the last
-one ended and before any, and the battle to come; `cache_interceptor_test.go` pins the GET and its header. `inprocess_turn_feed`'s test pins
+one ended and before any; `cache_interceptor_test.go` pins the GET and its header. `inprocess_turn_feed`'s test pins
 the feed (a stream gets the turn once read, another at once, each change to every stream, a turn that holds not sent
 again, nothing read with nobody following, a failed read) and `listen_for_events_handler`'s the stream (the turn
 case, the heartbeat, the feed left when the stream closes, a clean end when the feed closes). The runner's test pins a send at boot and at each change, none while the turn holds, and a send Redis

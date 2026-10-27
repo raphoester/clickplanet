@@ -106,7 +106,7 @@ type Season struct {
 	state  protoimpl.MessageState `protogen:"open.v1"`
 	Number uint32                 `protobuf:"varint,1,opt,name=number,proto3" json:"number,omitempty"`
 	// The same as last_day_ends_at_unix_ms, for the clients from before it: the Final Battle followed the last day until
-	// it was a schedule entry of the metagame (metagame.v1.Turn.next_battle).
+	// it was a schedule entry of the metagame.
 	FinaleStartsAtUnixMs int64 `protobuf:"varint,2,opt,name=finale_starts_at_unix_ms,json=finaleStartsAtUnixMs,proto3" json:"finale_starts_at_unix_ms,omitempty"`
 	EndsAtUnixMs         int64 `protobuf:"varint,3,opt,name=ends_at_unix_ms,json=endsAtUnixMs,proto3" json:"ends_at_unix_ms,omitempty"`
 	// When the season's last day ends. Every day ends at this time of day.

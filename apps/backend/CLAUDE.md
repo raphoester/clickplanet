@@ -90,7 +90,7 @@ and says what is in it. Read the doc before you change its area.
 - [The season rules](docs/season-rules.md) — how seasons counts points while a set plays: a round of its own and its
   times, in rule sets in postgres; the entry's window the metagame sends.
 - [The metagame](docs/metagame.md) — which rule sets play together, and when: a schedule by priority that commands
-  planet, the antibot and seasons to play a set; only an entry to come changes; the next battle for the client.
+  planet, the antibot and seasons to play a set; only an entry to come changes.
 - [Missions](docs/missions.md) — three to five missions a day per flag, counted from `TileTaken`, paid once done with a
   `GrantCharges` command to planet; why progress is not read from the ledger.
 - [Support](docs/support.md) — suggestions, bug reports and player reports, with their photos and videos.

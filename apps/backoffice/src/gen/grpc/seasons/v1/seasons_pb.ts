@@ -87,7 +87,7 @@ export class Season extends Message<Season> {
 
   /**
    * The same as last_day_ends_at_unix_ms, for the clients from before it: the Final Battle followed the last day until
-   * it was a schedule entry of the metagame (metagame.v1.Turn.next_battle).
+   * it was a schedule entry of the metagame.
    *
    * @generated from field: int64 finale_starts_at_unix_ms = 2;
    */

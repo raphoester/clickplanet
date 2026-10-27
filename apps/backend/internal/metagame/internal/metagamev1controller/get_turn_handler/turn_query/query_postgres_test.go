@@ -69,20 +69,5 @@ func TestBeforeAnyEntryTheTurnIsPlainWithNoSince(t *testing.T) {
 
 	answer := turnAt(t, db, finale.Add(-time.Minute))
 
-	assert.True(t, proto.Equal(&metagamev1.Turn{
-		Kind: metagamev1.EntryKind_ENTRY_KIND_PLAIN,
-		NextBattle: &metagamev1.Upcoming{
-			StartsAt: timestamppb.New(finale), EndsAt: timestamppb.New(battleEnds), Description: "Triple points.",
-		},
-	}, answer), "the battle to come: %v", answer)
-}
-
-func TestAPlainEntryToComeIsNoBattleToCome(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "metagame", migrations.FS)
-	require.NoError(t, postgres_entry_store.New(db).Save(t.Context(), schedule.EntrySnapshot{
-		ID: schedule.EntryID(uuid.UUID{15: 2}), Set: "calm", Kind: schedule.Plain, StartsAt: finale, EndsAt: battleEnds,
-		Priority: 1, MadeAt: madeAt,
-	}.Restore()))
-
-	assert.Nil(t, turnAt(t, db, finale.Add(-time.Minute)).GetNextBattle())
+	assert.True(t, proto.Equal(&metagamev1.Turn{Kind: metagamev1.EntryKind_ENTRY_KIND_PLAIN}, answer), "%v", answer)
 }
