@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 )
@@ -31,40 +32,76 @@ const Default SetName = "default"
 // The higher plays.
 type Priority uint32
 
+// Kind is what an entry is to the players, who never hear a set's name.
+type Kind string
+
+const (
+	Plain  Kind = "plain"
+	Battle Kind = "battle"
+)
+
+// Description is the entry's words for the players: what its rules are, in plain text.
+type Description string
+
+const MaxDescription = 300
+
 var (
-	ErrInvalidEntry = errors.New("this entry cannot be scheduled")
-	ErrStarted      = errors.New("this entry has started, and runs to its end: schedule another at a higher priority")
-	ErrUnknownEntry = errors.New("no entry has this id")
-	ErrUnknownSet   = errors.New("keeps no rule set of this name")
+	ErrInvalidEntry    = errors.New("this entry cannot be scheduled")
+	ErrStarted         = errors.New("this entry has started, and runs to its end: schedule another at a higher priority")
+	ErrUnknownEntry    = errors.New("no entry has this id")
+	ErrUnknownSet      = errors.New("keeps no rule set of this name")
+	ErrUnknownKind     = errors.New("no entry is of this kind: plain or battle")
+	ErrLongDescription = errors.New("the description is too long")
 )
 
 var namePattern = regexp.MustCompile(`^[a-z][a-z0-9_-]{0,31}$`)
 
 // Draft is what an operator asks the schedule to play.
 type Draft struct {
-	Set      SetName
-	StartsAt time.Time
-	EndsAt   time.Time
-	Priority Priority
+	Set         SetName
+	Kind        Kind
+	Description Description
+	StartsAt    time.Time
+	EndsAt      time.Time
+	Priority    Priority
 }
 
 // Every reason at once: only an entry to come, with an end, is scheduled.
 func (d Draft) check(now time.Time) error {
-	var reasons []string
+	if err := d.Kind.check(); err != nil {
+		return err
+	}
+	var found reasons
 	if err := d.Set.check(); err != nil {
-		reasons = append(reasons, err.Error())
+		found = append(found, err)
+	}
+	if err := d.Description.check(); err != nil {
+		found = append(found, err)
 	}
 	if !d.StartsAt.After(now) {
-		reasons = append(reasons, fmt.Sprintf("it starts at %s, not after now", d.StartsAt.UTC().Format(time.RFC3339)))
+		found = append(found, fmt.Errorf("it starts at %s, not after now", d.StartsAt.UTC().Format(time.RFC3339)))
 	}
 	if !d.EndsAt.After(d.StartsAt) {
-		reasons = append(reasons, fmt.Sprintf("it ends at %s, not after its start", d.EndsAt.UTC().Format(time.RFC3339)))
+		found = append(found, fmt.Errorf("it ends at %s, not after its start", d.EndsAt.UTC().Format(time.RFC3339)))
 	}
-	if len(reasons) > 0 {
-		return fmt.Errorf("%w: %s", ErrInvalidEntry, strings.Join(reasons, "; "))
+	if len(found) > 0 {
+		return fmt.Errorf("%w: %w", ErrInvalidEntry, found)
 	}
 	return nil
 }
+
+// reasons reads as one sentence, and errors.Is finds each.
+type reasons []error
+
+func (r reasons) Error() string {
+	words := make([]string, 0, len(r))
+	for _, reason := range r {
+		words = append(words, reason.Error())
+	}
+	return strings.Join(words, "; ")
+}
+
+func (r reasons) Unwrap() []error { return r }
 
 func (n SetName) check() error {
 	if !namePattern.MatchString(string(n)) {
@@ -73,13 +110,30 @@ func (n SetName) check() error {
 	return nil
 }
 
+func (d Description) check() error {
+	if n := utf8.RuneCountInString(string(d)); n > MaxDescription {
+		return fmt.Errorf("%w: %d characters, at most %d", ErrLongDescription, n, MaxDescription)
+	}
+	return nil
+}
+
+func (k Kind) check() error {
+	switch k {
+	case Plain, Battle:
+		return nil
+	}
+	return fmt.Errorf("%w: %q", ErrUnknownKind, k)
+}
+
 type Entry struct {
-	id       EntryID
-	set      SetName
-	startsAt time.Time
-	endsAt   time.Time
-	priority Priority
-	madeAt   time.Time
+	id          EntryID
+	set         SetName
+	kind        Kind
+	description Description
+	startsAt    time.Time
+	endsAt      time.Time
+	priority    Priority
+	madeAt      time.Time
 }
 
 func NewEntry(id EntryID, draft Draft, now time.Time) (Entry, error) {
@@ -87,7 +141,8 @@ func NewEntry(id EntryID, draft Draft, now time.Time) (Entry, error) {
 		return Entry{}, err
 	}
 	return Entry{
-		id: id, set: draft.Set, startsAt: draft.StartsAt, endsAt: draft.EndsAt, priority: draft.Priority, madeAt: now,
+		id: id, set: draft.Set, kind: draft.Kind, description: draft.Description, startsAt: draft.StartsAt, endsAt: draft.EndsAt,
+		priority: draft.Priority, madeAt: now,
 	}, nil
 }
 
@@ -108,25 +163,32 @@ func (e Entry) Edited(draft Draft, now time.Time) (Entry, error) {
 		return Entry{}, err
 	}
 	return Entry{
-		id: e.id, set: draft.Set, startsAt: draft.StartsAt, endsAt: draft.EndsAt, priority: draft.Priority, madeAt: e.madeAt,
+		id: e.id, set: draft.Set, kind: draft.Kind, description: draft.Description, startsAt: draft.StartsAt, endsAt: draft.EndsAt,
+		priority: draft.Priority, madeAt: e.madeAt,
 	}, nil
 }
 
 func (e Entry) TakeSnapshot() EntrySnapshot {
 	return EntrySnapshot{
-		ID: e.id, Set: e.set, StartsAt: e.startsAt, EndsAt: e.endsAt, Priority: e.priority, MadeAt: e.madeAt,
+		ID: e.id, Set: e.set, Kind: e.kind, Description: e.description, StartsAt: e.startsAt, EndsAt: e.endsAt,
+		Priority: e.priority, MadeAt: e.madeAt,
 	}
 }
 
 type EntrySnapshot struct {
-	ID       EntryID
-	Set      SetName
-	StartsAt time.Time
-	EndsAt   time.Time
-	Priority Priority
-	MadeAt   time.Time
+	ID          EntryID
+	Set         SetName
+	Kind        Kind
+	Description Description
+	StartsAt    time.Time
+	EndsAt      time.Time
+	Priority    Priority
+	MadeAt      time.Time
 }
 
 func (s EntrySnapshot) Restore() Entry {
-	return Entry{id: s.ID, set: s.Set, startsAt: s.StartsAt, endsAt: s.EndsAt, priority: s.Priority, madeAt: s.MadeAt}
+	return Entry{
+		id: s.ID, set: s.Set, kind: s.Kind, description: s.Description, startsAt: s.StartsAt, endsAt: s.EndsAt,
+		priority: s.Priority, madeAt: s.MadeAt,
+	}
 }

@@ -23,7 +23,7 @@ type Store struct {
 	db cppg.Conn
 }
 
-const columns = `id, rule_set, starts_at, ends_at, priority, made_at`
+const columns = `id, rule_set, kind, description, starts_at, ends_at, priority, made_at`
 
 func (s *Store) Entry(ctx context.Context, id schedule.EntryID) (schedule.Entry, error) {
 	entry, err := scan(s.db.On(ctx).QueryRowContext(ctx,
@@ -62,10 +62,11 @@ func (s *Store) Unended(ctx context.Context, at time.Time) ([]schedule.Entry, er
 func (s *Store) Save(ctx context.Context, entry schedule.Entry) error {
 	kept := entry.TakeSnapshot()
 	if _, err := s.db.On(ctx).ExecContext(ctx, `
-		INSERT INTO schedule_entries (`+columns+`) VALUES ($1, $2, $3, $4, $5, $6)
-		ON CONFLICT (id) DO UPDATE SET rule_set = EXCLUDED.rule_set, starts_at = EXCLUDED.starts_at,
-			ends_at = EXCLUDED.ends_at, priority = EXCLUDED.priority, made_at = EXCLUDED.made_at
-	`, uuid.UUID(kept.ID), string(kept.Set), kept.StartsAt.UTC(), kept.EndsAt.UTC(), int64(kept.Priority), kept.MadeAt.UTC()); err != nil {
+		INSERT INTO schedule_entries (`+columns+`) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		ON CONFLICT (id) DO UPDATE SET rule_set = EXCLUDED.rule_set, kind = EXCLUDED.kind, description = EXCLUDED.description,
+			starts_at = EXCLUDED.starts_at, ends_at = EXCLUDED.ends_at, priority = EXCLUDED.priority, made_at = EXCLUDED.made_at
+	`, uuid.UUID(kept.ID), string(kept.Set), string(kept.Kind), string(kept.Description), kept.StartsAt.UTC(), kept.EndsAt.UTC(),
+		int64(kept.Priority), kept.MadeAt.UTC()); err != nil {
 		return fmt.Errorf("failed to keep the entry %s: %w", kept.ID, err)
 	}
 	return nil
@@ -80,14 +81,15 @@ func (s *Store) Delete(ctx context.Context, id schedule.EntryID) error {
 
 func scan(row interface{ Scan(dest ...any) error }) (schedule.Entry, error) {
 	var (
-		id       uuid.UUID
-		set      string
-		priority int64
-		kept     schedule.EntrySnapshot
+		id                     uuid.UUID
+		set, kind, description string
+		priority               int64
+		kept                   schedule.EntrySnapshot
 	)
-	if err := row.Scan(&id, &set, &kept.StartsAt, &kept.EndsAt, &priority, &kept.MadeAt); err != nil {
+	if err := row.Scan(&id, &set, &kind, &description, &kept.StartsAt, &kept.EndsAt, &priority, &kept.MadeAt); err != nil {
 		return schedule.Entry{}, err //nolint:wrapcheck // each caller names what it read.
 	}
-	kept.ID, kept.Set, kept.Priority = schedule.EntryID(id), schedule.SetName(set), schedule.Priority(priority) //nolint:gosec // CHECK (priority >= 0 AND priority <= 4294967295).
+	kept.ID, kept.Set, kept.Kind = schedule.EntryID(id), schedule.SetName(set), schedule.Kind(kind)
+	kept.Description, kept.Priority = schedule.Description(description), schedule.Priority(priority) //nolint:gosec // CHECK (priority >= 0 AND priority <= 4294967295).
 	return kept.Restore(), nil
 }

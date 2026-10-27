@@ -10,6 +10,6 @@ export function roundStoryOf(day: Day | undefined, since: number, until: number)
     if (winner === undefined) return undefined
     return {
         kind: "round", attacker: winner.country, rival: undefined, victims: next.map(({country}) => country),
-        place: {region: THE_WORLD}, taken: winner.points, day,
+        place: {region: THE_WORLD}, day,
     }
 }

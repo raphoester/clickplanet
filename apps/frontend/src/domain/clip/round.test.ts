@@ -15,7 +15,7 @@ describe("a day of the season", () => {
         const run = {since: Date.parse("2026-10-17T12:17:00Z"), until: Date.parse("2026-10-18T00:17:00Z")}
 
         expect(roundStoryOf(day, run.since, run.until)).toEqual({
-            kind: "round", attacker: "fr", rival: undefined, victims: ["pw", "dz"], place: {region: "the world"}, taken: 25, day,
+            kind: "round", attacker: "fr", rival: undefined, victims: ["pw", "dz"], place: {region: "the world"}, day,
         })
     })
 

@@ -217,15 +217,16 @@ func TestARunThatCannotReadWhatThePlatformsHoldSendsNothing(t *testing.T) {
 	require.ErrorContains(t, err, "zernio answered 401 to the list of posts: Invalid API key")
 }
 
-func shortlist(t *testing.T) string {
+// A day won and a country called up after it, which the run tells first, and the front of the war it would ask the
+// editor about.
+func findings(t *testing.T) string {
 	t.Helper()
 
-	path := filepath.Join(t.TempDir(), "shortlist.json")
-	require.NoError(t, os.WriteFile(path, []byte(`{"stories":[`+
-		`{"title":"ALGERIA STRIKES BACK","key":{"flag":"dz","continent":"Africa"}},`+
-		`{"title":"ALGERIA VS FRANCE","key":{"flag":"dz","continent":"Africa"}},`+
-		`{"title":"PALESTINE IS KICKING ROMANIA OUT OF KAZAKHSTAN","key":{"flag":"ps","continent":"Central Asia"}},`+
-		`{"title":"FRANCE IS ATTACKING EUROPE","key":{"flag":"fr","continent":"Europe"}}]}`), 0o600))
+	path := filepath.Join(t.TempDir(), "findings.json")
+	require.NoError(t, os.WriteFile(path, []byte(`{"fronts":[{"countries":[{"code":"tr","continent":"Middle East","takers":{"fr":5000}}],`+
+		`"flags":[{"code":"fr","continent":"Europe","took":5000}]}],"seasonal":[`+
+		`{"title":"ALGERIA WINS DAY 17","key":{"flag":"dz","continent":"the world","angle":"round","round":"0.17"}},`+
+		`{"title":"POLSKA: 14 PUNKTÓW STRATY","key":{"flag":"pl","continent":"the world","angle":"callup","round":"0.17"}}]}`), 0o600))
 	return path
 }
 
@@ -236,38 +237,39 @@ func configFor(server *httptest.Server) clips.Config {
 	return config
 }
 
-// The picks, each in an arm of the length experiment: the coins are the system's, so which arm is not known. With no
-// ANTHROPIC_API_KEY the run falls back to the rules, so the picks are the rules'.
-func picksOf(t *testing.T, choice clips.Choice) []clips.Pick {
+// The stories told, each in an arm of the length experiment: the coins are the system's, so which arm is not known.
+// With no ANTHROPIC_API_KEY the run is its seasonal stories alone.
+func toldBy(t *testing.T, choice clips.Choice) []clips.Story {
 	t.Helper()
 
-	picks := make([]clips.Pick, 0, len(choice.Assigned))
-	for _, assignment := range choice.Assigned {
+	stories := make([]clips.Story, 0, len(choice.Assigned))
+	for i, assignment := range choice.Assigned {
 		assert.Contains(t, []string{"as-chosen", "short"}, assignment.Variants["length"])
 		assert.NotContains(t, assignment.Variants, "editor")
-		assert.Empty(t, assignment.Headline)
-		picks = append(picks, assignment.Pick)
+		assert.Equal(t, clips.Pick(i+1), assignment.Pick)
+		stories = append(stories, assignment.Story)
 	}
-	return picks
+	return stories
 }
 
-func TestChoosingGivesTheBestStoriesOfDifferentFlagsOrContinents(t *testing.T) {
+func TestChoosingWithNoEditorKeyTellsTheSeasonalStoriesAloneAndSaysWhy(t *testing.T) {
 	var posts []sentPost
 	var logs bytes.Buffer
+	config := configFor(zernio(t, &posts))
+	config.PerRun = 3
 
-	picks, err := clips.Choose(t.Context(), shortlist(t), configFor(zernio(t, &posts)), slog.New(slog.NewTextHandler(&logs, nil)))
+	picks, err := clips.Choose(t.Context(), findings(t), config, slog.New(slog.NewTextHandler(&logs, nil)))
 
 	require.NoError(t, err)
-	assert.Equal(t, []clips.Pick{1, 3}, picksOf(t, picks))
-	assert.Contains(t, logs.String(), `msg="skipped a story told already" pick=2 title="ALGERIA VS FRANCE"`)
-	assert.Contains(t, logs.String(), `level=WARN msg="the run is made by the rules" why="no ANTHROPIC_API_KEY"`)
+	assert.Equal(t, []clips.Story{{Seasonal: 1}, {Seasonal: 2}}, toldBy(t, picks))
+	assert.Contains(t, logs.String(), `level=WARN msg="the editor gave no answer, and the run is its seasonal stories alone" why="no ANTHROPIC_API_KEY"`)
 }
 
 func TestARunAfterADayOfPostsOnEveryPlatformChoosesNothing(t *testing.T) {
 	posts := day(14, "tiktok", "youtube")
 	var logs bytes.Buffer
 
-	picks, err := clips.Choose(t.Context(), shortlist(t), configFor(zernio(t, &posts)), slog.New(slog.NewTextHandler(&logs, nil)))
+	picks, err := clips.Choose(t.Context(), findings(t), configFor(zernio(t, &posts)), slog.New(slog.NewTextHandler(&logs, nil)))
 
 	require.NoError(t, err)
 	assert.Empty(t, picks.Assigned)
@@ -282,7 +284,7 @@ func TestTikTokTakesFourteenADayLeavingOneOfItsFifteenForAPostByHand(t *testing.
 			config := configFor(zernio(t, &posts))
 			config.Platforms = []clips.Platform{"tiktok"}
 
-			picks, err := clips.Choose(t.Context(), shortlist(t), config, slog.New(slog.DiscardHandler))
+			picks, err := clips.Choose(t.Context(), findings(t), config, slog.New(slog.DiscardHandler))
 
 			require.NoError(t, err)
 			assert.Len(t, picks.Assigned, want)
@@ -302,44 +304,28 @@ func day(count int, platforms ...string) []sentPost {
 	return posts
 }
 
-func TestAStoryOneRunScheduledIsNotChosenByTheNext(t *testing.T) {
+func TestADayOneRunScheduledIsNotToldByTheNext(t *testing.T) {
 	var posts []sentPost
 	server := zernio(t, &posts)
 	folder := t.TempDir()
-	rendered(t, folder, 1, "ALGERIA STRIKES BACK", "dz")
+	clip := `{"pick": 1, "title": "ALGERIA WINS DAY 17", "teasers": ["ALGERIA TAKES DAY 17"], "key": {"flag": "dz", "continent": "the world", "angle": "round", "round": "0.17"}}`
+	require.NoError(t, os.WriteFile(filepath.Join(folder, "clip-1.json"), []byte(clip), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(folder, "clip-1.mp4"), []byte("the video"), 0o600))
 	_, err := clips.Schedule(t.Context(), folder, configFor(server), slog.New(slog.DiscardHandler))
 	require.NoError(t, err)
 
-	picks, err := clips.Choose(t.Context(), shortlist(t), configFor(server), slog.New(slog.DiscardHandler))
+	picks, err := clips.Choose(t.Context(), findings(t), configFor(server), slog.New(slog.DiscardHandler))
 
 	require.NoError(t, err)
-	assert.Equal(t, []clips.Pick{3, 4}, picksOf(t, picks))
-}
-
-func TestAFlagTheLastRunShowedTwiceWaitsThoughNeitherClipWasAboutIt(t *testing.T) {
-	var posts []sentPost
-	server := zernio(t, &posts)
-	folder := t.TempDir()
-	rendered(t, folder, 1, "ALGERIA VS PALAU", "dz", "dz", "pw")
-	rendered(t, folder, 2, "FRANCE VS PALAU", "fr", "fr", "pw")
-	_, err := clips.Schedule(t.Context(), folder, configFor(server), slog.New(slog.DiscardHandler))
-	require.NoError(t, err)
-	path := filepath.Join(t.TempDir(), "shortlist.json")
-	require.NoError(t, os.WriteFile(path, []byte(`{"stories":[`+
-		`{"title":"PALAU IS ATTACKING EUROPE","key":{"flag":"pw","continent":"Europe"},"countries":["pw","pl"]},`+
-		`{"title":"PALESTINE IS KICKING ROMANIA OUT OF KAZAKHSTAN","key":{"flag":"ps","continent":"Central Asia"}}]}`), 0o600))
-
-	picks, err := clips.Choose(t.Context(), path, configFor(server), slog.New(slog.DiscardHandler))
-
-	require.NoError(t, err)
-	assert.Equal(t, []clips.Pick{2}, picksOf(t, picks))
+	assert.Equal(t, []clips.Story{{Seasonal: 2}}, toldBy(t, picks))
 }
 
 func renderedIn(t *testing.T, folder string, pick int, title, variants string) {
 	t.Helper()
 
 	clip := fmt.Sprintf(`{"pick": %d, "title": %q, "teasers": [%q], "key": {"flag": "dz", "continent": "Africa"}, `+
-		`"record": {"format": "globe-replay", "variants": %s}}`, pick, title, "SAID ANOTHER WAY: "+title, variants)
+		`"record": {"format": "globe-replay", "common": {"durationSeconds": 10}, "variants": %s}}`,
+		pick, title, "SAID ANOTHER WAY: "+title, variants)
 	require.NoError(t, os.WriteFile(filepath.Join(folder, fmt.Sprintf("clip-%d.json", pick)), []byte(clip), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(folder, fmt.Sprintf("clip-%d.mp4", pick)), []byte(title), 0o600))
 }
@@ -379,7 +365,7 @@ func TestAClipDrawnForATrendingTrackGoesOutOnTikTokWithOneOfTheChartOfTheCountry
 	renderedIn(t, folder, 1, "ALGERIA STRIKES BACK", `{"sound": "trending"}`)
 	server := zernioWith(t, &posts, func(country string) (int, string) {
 		countries = append(countries, country)
-		return http.StatusOK, `{"tracks":[{"id":"track-1","name":"Song One","artist":"Singer","rank":1,"clip":{"id":"clip-1","durationSec":30}}]}`
+		return http.StatusOK, `{"tracks":[{"id":"track-1","name":"Song One","artist":"Singer","rank":1,"genres":["ROCK"],"clip":{"id":"clip-1","durationSec":30}}]}`
 	})
 	config := configFor(server)
 	config.SoundCountry = "FR"

@@ -76,11 +76,11 @@ func startGame(t *testing.T) gameStack {
 	planetConfig.Auth = cpsession.VerifierConfig{Enabled: true, Enforce: true}
 
 	antibotConfig := antibot.Config{Enabled: true, Database: postgres.ConfigFor("antibot"), Redis: redis}
+	watchNoOne(t, antibotConfig.Database)
 
 	playerConfig := player.Config{Database: postgres.ConfigFor("player"), Redis: redis, TagSalt: "pepper"}
 
 	seasonsConfig := currentSeason(t, postgres.ConfigFor("seasons"))
-	seasonsConfig.Snapshot.Interval = 50 * time.Millisecond
 	seasonsConfig.Redis = redis
 
 	missionsConfig := missions.Config{Database: postgres.ConfigFor("missions"), Redis: redis}
@@ -154,6 +154,26 @@ func clickAtWill(t *testing.T, database cppg.Config) {
 	require.NoError(t, err)
 }
 
+// Every test clicks from one address, faster than a hand: no watchdog may ban them. Bans by hand still apply.
+func watchNoOne(t *testing.T, database cppg.Config) {
+	t.Helper()
+
+	require.NoError(t, antibot.Migrate(t.Context(), database))
+	db := cppg.New(database)
+	require.NoError(t, db.ConnectCtx(t.Context()))
+	defer func() { _ = db.Close() }()
+
+	_, err := db.On(t.Context()).ExecContext(t.Context(), `
+		UPDATE rule_sets
+		SET rules = (
+			SELECT jsonb_object_agg(key, CASE WHEN value ? 'enabled' THEN value || '{"enabled": false}' ELSE value END)
+			FROM jsonb_each(rules)
+		)
+		WHERE name = 'default'
+	`)
+	require.NoError(t, err)
+}
+
 func listen(t *testing.T) net.Listener {
 	t.Helper()
 
@@ -182,10 +202,10 @@ func currentSeason(t *testing.T, database cppg.Config) seasons.Config {
 	path := filepath.Join(t.TempDir(), "seasons.yaml")
 	require.NoError(t, os.WriteFile(path, fmt.Appendf(nil, `
 seasons:
+  dailyCutoff: 21h
   list:
     - number: 0
       endsAt: %s
-      finale: 2h
 `, time.Now().Add(30*24*time.Hour).UTC().Format(time.RFC3339)), 0o600))
 	var config struct{ Seasons seasons.Config }
 	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile(path)))

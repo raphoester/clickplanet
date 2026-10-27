@@ -101,16 +101,6 @@ func (b *board) heldBy(country string) uint32 {
 	return b.held[id]
 }
 
-func (b *board) holdings() map[string]uint32 {
-	held := map[string]uint32{}
-	for id, count := range b.held {
-		if id != int(unownedCode) && count > 0 {
-			held[b.codes.nameOf(uint16(id))] = count //nolint:gosec // an index of the code table.
-		}
-	}
-	return held
-}
-
 func (b *board) counts() []clicks.FlagTiles {
 	var counts []clicks.FlagTiles
 	for code, tiles := range b.held {

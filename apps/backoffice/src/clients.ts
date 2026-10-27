@@ -16,11 +16,11 @@ export type AntibotAdmin = PromiseClient<typeof AntibotAdminService>
 export type PlanetAdmin = Omit<PromiseClient<typeof PlanetAdminService>, "banPlayer" | "unbanPlayer" | "inspectPlayer">
 export type PlayerAdmin = PromiseClient<typeof PlayerAdminService>
 export type MetagameAdmin = PromiseClient<typeof MetagameAdminService>
+export type SeasonsAdmin = PromiseClient<typeof SeasonsAdminService>
 export type SupportAdmin = Pick<PromiseClient<typeof SupportAdminService>, "listNotes" | "listReports" | "decideReport">
 
 // The page reads; the clips job keeps (KeepSnapshot), over ssh.
 export type ClipsAdmin = Pick<PromiseClient<typeof ClipsAdminService>, "listSnapshots" | "listRows">
-export type SeasonsAdmin = PromiseClient<typeof SeasonsAdminService>
 
 export type Clients = {
     antibot: AntibotAdmin, chat: ChatAdmin, planet: PlanetAdmin, player: PlayerAdmin, metagame: MetagameAdmin, support: SupportAdmin,

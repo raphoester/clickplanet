@@ -67,7 +67,7 @@ func (s *testSuite) TestATakeCountsOnThePlayersStatsAndInTheSeason() {
 	require.Eventually(t, func() bool { return ada.mySeason().GetTiles() == 1 }, 5*time.Second, 20*time.Millisecond,
 		"and to seasons")
 	assert.Eventually(t, func() bool { return s.game.roundStandingOf(t, "pt") != nil }, 10*time.Second, 100*time.Millisecond,
-		"seasons reads the map from planet at each snapshot")
+		"the race reads the map from planet for the round in progress")
 }
 
 func (s *testSuite) TestAPlayerDoesAMissionAndIsPaid() {
@@ -259,7 +259,7 @@ func nextTileUpdate(t *testing.T, updates <-chan *planetv1.TileUpdate) *planetv1
 	}
 }
 
-// A stream opened after a snapshot reads the race at once.
+// A stream opened reads the race at once.
 func (s gameStack) roundStandingOf(t *testing.T, country string) *seasonsv1.RoundStanding {
 	t.Helper()
 

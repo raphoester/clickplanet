@@ -130,19 +130,17 @@ func (e Experiments) Check(variants Variants) error {
 	return nil
 }
 
-// What a run renders: a story, and the arm of each experiment its clip is in.
+// What a run renders: a story, its number in the run, and the arm of each experiment its clip is in.
 type Assignment struct {
 	Pick     Pick
+	Story    Story
 	Variants Variants
-	// The editor's headline, for the generator's --headline; empty for the generator's own.
-	Headline string
 }
 
-// headlines: the editor's, by pick.
-func (e Experiments) AssignEach(chosen Shortlist, headlines map[Pick]string, dice Dice) []Assignment {
+func (e Experiments) AssignEach(chosen []Chosen, dice Dice) []Assignment {
 	assignments := make([]Assignment, 0, len(chosen))
 	for _, story := range chosen {
-		assignments = append(assignments, Assignment{Pick: story.Pick, Variants: e.Assign(dice), Headline: headlines[story.Pick]})
+		assignments = append(assignments, Assignment{Pick: story.Pick, Story: story.Story, Variants: e.Assign(dice)})
 	}
 	return assignments
 }

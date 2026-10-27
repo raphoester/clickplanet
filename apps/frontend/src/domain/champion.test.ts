@@ -15,8 +15,8 @@ const FINALE: ClosedRound = {
     after: [score(1, "de", 365), score(2, "fr", 354)],
 }
 
-const SEASON_ZERO: Season = {number: 0, finaleStartsAt: Date.UTC(2026, 9, 31, 21), endsAt: Date.UTC(2026, 9, 31, 23)}
-const SEASON_ONE: Season = {number: 1, finaleStartsAt: Date.UTC(2026, 10, 30, 21), endsAt: Date.UTC(2026, 10, 30, 23)}
+const SEASON_ZERO: Season = {number: 0, lastDayEndsAt: Date.UTC(2026, 9, 31, 21), endsAt: Date.UTC(2026, 9, 31, 23)}
+const SEASON_ONE: Season = {number: 1, lastDayEndsAt: Date.UTC(2026, 10, 30, 21), endsAt: Date.UTC(2026, 10, 30, 23)}
 
 describe("championOf", () => {
     it("is the country first in the table once the Final Battle closed", () => {

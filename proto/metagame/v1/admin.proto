@@ -3,6 +3,7 @@ syntax = "proto3";
 package metagame.v1;
 
 import "google/protobuf/timestamp.proto";
+import "metagame/v1/metagame.proto";
 
 // The rule schedule: which rule set planet and the antibot play, and when. No authentication of its own: served on the
 // console listener, and on the admin listener behind its gate. Never the public router. No call changes what plays
@@ -36,6 +37,10 @@ message Entry {
   // The higher plays. At one priority, the entry made last plays.
   uint32 priority = 5;
   google.protobuf.Timestamp made_at = 6;
+  // What the entry is to the players: the game client reads it from MetagameService.GetTurn.
+  EntryKind kind = 7;
+  // For the players, in plain text: what the rules of the entry are ("Triple points. A bonus box every minute.").
+  string description = 8;
 }
 
 // What the schedule plays now: the running entry with the highest priority, else "default".
@@ -45,6 +50,8 @@ message Playing {
   google.protobuf.Timestamp since = 2;
   // The entry that plays; empty when none runs.
   string entry_id = 3;
+  // The entry's kind; plain when none runs.
+  EntryKind kind = 4;
 }
 
 message AddEntryRequest {
@@ -52,6 +59,10 @@ message AddEntryRequest {
   google.protobuf.Timestamp starts_at = 2;
   google.protobuf.Timestamp ends_at = 3;
   uint32 priority = 4;
+  // Battle or plain: unspecified is InvalidArgument.
+  EntryKind kind = 5;
+  // At most 300 characters: InvalidArgument past that.
+  string description = 6;
 }
 
 message AddEntryResponse {
@@ -64,6 +75,8 @@ message EditEntryRequest {
   google.protobuf.Timestamp starts_at = 3;
   google.protobuf.Timestamp ends_at = 4;
   uint32 priority = 5;
+  EntryKind kind = 6;
+  string description = 7;
 }
 
 message EditEntryResponse {}

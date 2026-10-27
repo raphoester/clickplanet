@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -13,28 +14,37 @@ import (
 )
 
 const (
-	writtenShortlist = `{
-  "stories": [
+	writtenFindings = `{
+  "since": "2026-10-26T08:29:17Z",
+  "until": "2026-10-26T20:29:17Z",
+  "fronts": [
     {
-      "title": "KOSOVO IS ATTACKING THE MIDDLE EAST",
-      "key": {
-        "flag": "xk",
-        "continent": "Middle East"
-      },
+      "scope": "tr",
+      "since": "2026-10-26T15:03:00Z",
+      "until": "2026-10-26T20:29:17Z",
+      "tilesChanged": 9844,
+      "captured": 9000,
       "countries": [
-        "xk",
-        "tr",
-        "pw"
-      ]
-    },
-    {
-      "title": "FRANCE IS ATTACKING EUROPE",
-      "key": {
-        "flag": "fr",
-        "continent": "Europe"
-      }
+        {"code": "tr", "continent": "Middle East", "tiles": 2500, "changed": 6000, "holdersStart": {"tr": 2000}, "holdersEnd": {"fr": 1500, "tr": 900}, "takers": {"fr": 5000}}
+      ],
+      "flags": [
+        {"code": "fr", "continent": "Europe", "took": 5000, "filled": 100, "lost": 3000, "tookFrom": {"tr": 4800}, "solidity": 0.86}
+      ],
+      "bombs": 3,
+      "score": 3886.5
     }
-  ]
+  ],
+  "tours": [
+    {"flag": "fr", "since": "2026-10-26T08:29:17Z", "until": "2026-10-26T20:29:17Z", "took": 27992, "byContinent": {"Europe": 12000}, "tookFrom": {"dz": 8000}, "nextTook": 9000, "solidity": 0.95, "bombs": 12, "flippedByContinent": {"South Asia": 6246}}
+  ],
+  "places": [
+    {"kind": "continent", "continent": "South Asia", "tiles": 9600, "holder": "fr", "held": 6170, "share": 0.643, "rivals": {"dz": 1200}, "changed": 6000}
+  ],
+  "seasonal": [
+    {"title": "PALAU WINS DAY 18", "key": {"flag": "pw", "continent": "the world", "angle": "round", "round": "0.18"}, "countries": ["pw", "dz"], "teasers": ["PALAU TAKES DAY 18"], "facts": {"kind": "round", "storyTilesChanged": 1200}}
+  ],
+  "names": {"fr": "France", "tr": "Turkey"},
+  "continents": [{"name": "Europe", "flag": "eu"}, {"name": "Middle East"}]
 }
 `
 	writtenClip = `{
@@ -72,53 +82,69 @@ func write(t *testing.T, folder, name, content string) string {
 	return path
 }
 
-func TestAShortlistIsTheStoriesTheGeneratorWroteBestFirst(t *testing.T) {
-	file := write(t, t.TempDir(), "shortlist.json", writtenShortlist)
+func TestTheFindingsAreEveryFrontTourPlaceAndSeasonalStoryTheGeneratorWrote(t *testing.T) {
+	file := write(t, t.TempDir(), "findings.json", writtenFindings)
 
-	shortlist, err := generator_output.ShortlistFile(file).Shortlist(t.Context())
-
-	require.NoError(t, err)
-	assert.Equal(t, posts.Shortlist{
-		{
-			Pick: 1, Title: "KOSOVO IS ATTACKING THE MIDDLE EAST", Key: posts.StoryKey{Flag: "xk", Continent: "Middle East"},
-			Countries: []string{"xk", "tr", "pw"},
-		},
-		{Pick: 2, Title: "FRANCE IS ATTACKING EUROPE", Key: posts.StoryKey{Flag: "fr", Continent: "Europe"}},
-	}, shortlist)
-}
-
-func TestAStoryKeepsWhatItTellsOfItsFlagAndTheDayItTells(t *testing.T) {
-	file := write(t, t.TempDir(), "shortlist.json", `{"stories":[`+
-		`{"title":"FRANCE WINS DAY 5","key":{"flag":"fr","continent":"the world","angle":"round","round":"1.5"}},`+
-		`{"title":"CROATIA HOLDS 80% OF EUROPE","key":{"flag":"hr","continent":"Europe","angle":"holding"}}`+
-		`]}`)
-
-	shortlist, err := generator_output.ShortlistFile(file).Shortlist(t.Context())
+	findings, err := generator_output.FindingsFile(file).Findings(t.Context())
 
 	require.NoError(t, err)
-	assert.Equal(t, []posts.StoryKey{
-		{Flag: "fr", Continent: "the world", Angle: posts.DayWon, Round: "1.5"},
-		{Flag: "hr", Continent: "Europe", Angle: posts.Holding},
-	}, []posts.StoryKey{shortlist[0].Key, shortlist[1].Key})
+	assert.Equal(t, time.Date(2026, 10, 26, 8, 29, 17, 0, time.UTC), findings.Since)
+	assert.Equal(t, []posts.Front{{
+		Scope: "tr", Since: time.Date(2026, 10, 26, 15, 3, 0, 0, time.UTC), Until: time.Date(2026, 10, 26, 20, 29, 17, 0, time.UTC),
+		TilesChanged: 9844, Captured: 9000,
+		Countries: []posts.FrontCountry{{
+			Code: "tr", Continent: "Middle East", Tiles: 2500, Changed: 6000, HoldersStart: map[string]int{"tr": 2000},
+			HoldersEnd: map[string]int{"fr": 1500, "tr": 900}, Takers: map[string]int{"fr": 5000},
+		}},
+		Flags: []posts.FrontFlag{{Code: "fr", Continent: "Europe", Took: 5000, Filled: 100, Lost: 3000, TookFrom: map[string]int{"tr": 4800}, Solidity: 0.86}},
+		Bombs: 3, Score: 3886.5,
+	}}, findings.Fronts)
+	assert.Equal(t, []posts.Tour{{
+		Flag: "fr", Since: findings.Since, Until: findings.Until, Took: 27992, ByContinent: map[string]int{"Europe": 12000},
+		TookFrom: map[string]int{"dz": 8000}, NextTook: 9000, Solidity: 0.95, Bombs: 12, FlippedByContinent: map[string]int{"South Asia": 6246},
+	}}, findings.Tours)
+	assert.Equal(t, []posts.Place{{
+		Kind: posts.ContinentPlace, Continent: "South Asia", Tiles: 9600, Holder: "fr", Held: 6170, Share: 0.643,
+		Rivals: map[string]int{"dz": 1200}, Changed: 6000,
+	}}, findings.Places)
+	require.Len(t, findings.Seasonal, 1)
+	assert.Equal(t, "PALAU WINS DAY 18", findings.Seasonal[0].Title)
+	assert.Equal(t, posts.StoryKey{Flag: "pw", Continent: "the world", Angle: posts.DayWon, Round: "0.18"}, findings.Seasonal[0].Key)
+	assert.Equal(t, []string{"PALAU TAKES DAY 18"}, findings.Seasonal[0].Teasers)
+	assert.JSONEq(t, `{"kind":"round","storyTilesChanged":1200}`, string(findings.Seasonal[0].Facts))
+	assert.Equal(t, map[string]string{"fr": "France", "tr": "Turkey"}, findings.Names)
+	assert.Equal(t, map[string]string{"Europe": "eu", "Middle East": ""}, findings.Continents)
 }
 
-func TestAShortlistWithNoStoryIsEmpty(t *testing.T) {
-	file := write(t, t.TempDir(), "shortlist.json", "{}\n")
+func TestFindingsWithNothingFoundAreEmpty(t *testing.T) {
+	file := write(t, t.TempDir(), "findings.json", "{}\n")
 
-	shortlist, err := generator_output.ShortlistFile(file).Shortlist(t.Context())
+	findings, err := generator_output.FindingsFile(file).Findings(t.Context())
 
 	require.NoError(t, err)
-	assert.Empty(t, shortlist)
+	assert.False(t, findings.Any())
 }
 
-func TestAShortlistThatIsMissingOrIsNotOneIsAnError(t *testing.T) {
+func TestFindingsThatAreMissingOrAreNotFindingsAreAnError(t *testing.T) {
 	folder := t.TempDir()
 
-	_, err := generator_output.ShortlistFile(filepath.Join(folder, "gone.json")).Shortlist(t.Context())
+	_, err := generator_output.FindingsFile(filepath.Join(folder, "gone.json")).Findings(t.Context())
 	require.Error(t, err)
 
-	_, err = generator_output.ShortlistFile(write(t, folder, "shortlist.json", "saved 8 stories")).Shortlist(t.Context())
-	require.ErrorContains(t, err, "is not a clips.v1.Shortlist")
+	_, err = generator_output.FindingsFile(write(t, folder, "findings.json", "saved 8 fronts")).Findings(t.Context())
+	require.ErrorContains(t, err, "are not a clips.v1.Findings")
+}
+
+func TestAStoryIsWrittenAsTheGeneratorsStoryFlagTakesIt(t *testing.T) {
+	front, err := generator_output.StoryJSON(posts.Story{
+		Front: 3, Kind: posts.Battle, Attacker: "fr", Rival: "tr", TakenFrom: []string{"tr"}, Countries: []string{"tr", "sy"}, Headline: "FRANCE VS TURKEY",
+	})
+	require.NoError(t, err)
+	seasonal, err := generator_output.StoryJSON(posts.Story{Seasonal: 1})
+	require.NoError(t, err)
+
+	assert.JSONEq(t, `{"front":3,"kind":"battle","attacker":"fr","rival":"tr","takenFrom":["tr"],"countries":["tr","sy"],"headline":"FRANCE VS TURKEY"}`, string(front))
+	assert.JSONEq(t, `{"seasonal":1}`, string(seasonal))
 }
 
 func TestAFolderGivesEachClipWithItsVideo(t *testing.T) {
@@ -162,10 +188,12 @@ func TestAClipKeepsWhatItWasAndTheNamesOfItsTeasersAndOneWrittenBeforeThatHasNei
 	require.Len(t, clips, 2)
 	named := clips[0].TakeSnapshot()
 	assert.Equal(t, []string{"war-for", "fight-for"}, named.TeaserNames)
+	assert.InDelta(t, 12.37, named.Seconds, 0)
 	assert.JSONEq(t, `{"format": "globe-replay", "generator": "8dc31d2", "common": {"durationSeconds": 12.37, "music": "fr"},
 		"globe": {"camera": "front", "tilesChanged": 1480}}`, string(named.Record))
 	assert.Empty(t, clips[1].TakeSnapshot().TeaserNames)
 	assert.Empty(t, clips[1].TakeSnapshot().Record)
+	assert.Zero(t, clips[1].TakeSnapshot().Seconds)
 }
 
 func TestAFolderWithNoClipGivesNone(t *testing.T) {

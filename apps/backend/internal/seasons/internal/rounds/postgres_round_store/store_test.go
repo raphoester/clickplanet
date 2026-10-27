@@ -2,8 +2,9 @@ package postgres_round_store_test
 
 import (
 	"testing"
-	"time"
 
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/migrations"
@@ -33,15 +34,55 @@ func (s *testSuite) SetupTest() {
 	s.StoreContractSuite.SetupTest()
 }
 
-func (s *testSuite) TestEachSnapshotIsOneSampleAndKeepsTheSizeOfTheMap() {
-	store := postgres_round_store.New(s.db)
-	round := rounds.Round{EndsAt: time.Date(2026, 10, 16, 21, 0, 0, 0, time.UTC)}
-	s.Require().NoError(store.RecordSnapshot(s.T().Context(), round, rounds.Snapshot{Tiles: 100, Held: map[rounds.Country]uint32{"fr": 1}}))
-	s.Require().NoError(store.RecordSnapshot(s.T().Context(), round, rounds.Snapshot{Tiles: 120}))
+func TestThePostgresStoreCountsTheTakesAsTheContractSays(t *testing.T) {
+	db := cppg.StartTestServer(t).OpenSchema(t, "seasons", migrations.FS)
+	store := postgres_round_store.New(db)
 
-	var samples, mapTiles int
-	s.Require().NoError(s.db.On(s.T().Context()).QueryRowContext(s.T().Context(),
-		`SELECT samples, map_tiles FROM rounds`).Scan(&samples, &mapTiles))
-	s.Equal(2, samples)
-	s.Equal(120, mapTiles)
+	suite.Run(t, &rounds.TakesContractSuite{
+		NewStores: func() (rounds.Store, rounds.Takes) {
+			require.NoError(t, db.Purge(t.Context()))
+			return store, store
+		},
+		CountedIn: func(round rounds.Round) rounds.Counted { return countedIn(t, db, round) },
+	})
+}
+
+func countedIn(t *testing.T, db *cppg.Postgres, round rounds.Round) rounds.Counted {
+	t.Helper()
+
+	counted := rounds.Counted{Countries: map[rounds.Country]uint64{}, Players: map[rounds.AccountID]map[rounds.Country]uint64{}}
+	countries, err := db.On(t.Context()).QueryContext(t.Context(), `
+		SELECT country, tiles FROM round_takes WHERE season = $1 AND ends_at = $2 AND own = $3
+	`, int64(round.Season), round.EndsAt, round.Own)
+	require.NoError(t, err)
+	defer func() { _ = countries.Close() }()
+	for countries.Next() {
+		var (
+			country string
+			tiles   int64
+		)
+		require.NoError(t, countries.Scan(&country, &tiles))
+		counted.Countries[rounds.Country(country)] = uint64(tiles) //nolint:gosec // CHECK (tiles > 0).
+	}
+	require.NoError(t, countries.Err())
+
+	players, err := db.On(t.Context()).QueryContext(t.Context(), `
+		SELECT account_id, country, tiles FROM round_players WHERE season = $1 AND ends_at = $2 AND own = $3
+	`, int64(round.Season), round.EndsAt, round.Own)
+	require.NoError(t, err)
+	defer func() { _ = players.Close() }()
+	for players.Next() {
+		var (
+			account uuid.UUID
+			country string
+			tiles   int64
+		)
+		require.NoError(t, players.Scan(&account, &country, &tiles))
+		if counted.Players[rounds.AccountID(account)] == nil {
+			counted.Players[rounds.AccountID(account)] = map[rounds.Country]uint64{}
+		}
+		counted.Players[rounds.AccountID(account)][rounds.Country(country)] = uint64(tiles) //nolint:gosec // CHECK (tiles > 0).
+	}
+	require.NoError(t, players.Err())
+	return counted
 }

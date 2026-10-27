@@ -319,7 +319,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			pace := clicks.Pacing{Batch: adminBatch, Pause: 50 * time.Millisecond}
 
 			getTerritories := get_territories_handler.New(
-				territories_query.NewMemoryQuery(tilesStorage, config.GameMap.MaxIndex))
+				territories_query.NewMemoryQuery(tilesStorage, borders, config.GameMap.MaxIndex))
 			adminService := planetv1controller.AdminService{
 				ReassignCountryHandler: reassign_country_handler.New(audit_reassign.New(
 					reassign_country_usecase.New(tilesStorage, countries, pace), props.Logger)),

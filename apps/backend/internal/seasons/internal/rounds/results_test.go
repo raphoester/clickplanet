@@ -10,36 +10,40 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds"
 )
 
-var day = rounds.Round{EndsAt: utc(16, 21, 0, 0)}
+var day = rounds.Round{EndsAt: utc(16, 21, 0, 0), Times: 1}
 
-func TestTheCountryThatHeldTheMostGroundWinsTheRound(t *testing.T) {
-	results := day.Results(map[rounds.Country]uint64{"de": 20, "fr": 30, "es": 10})
+func atTheEnd(held map[rounds.Country]uint32) rounds.Snapshot {
+	return rounds.Snapshot{Tiles: 100, Held: held}
+}
+
+func TestTheCountryThatHoldsTheMostGroundAtTheEndWinsTheRound(t *testing.T) {
+	results := day.Results(atTheEnd(map[rounds.Country]uint32{"de": 20, "fr": 30, "es": 10}))
 
 	assert.Equal(t, []rounds.Result{
-		{Country: "fr", Rank: 1, Points: 25},
-		{Country: "de", Rank: 2, Points: 18},
-		{Country: "es", Rank: 3, Points: 15},
+		{Country: "fr", Rank: 1, Points: 25, Share: 0.3},
+		{Country: "de", Rank: 2, Points: 18, Share: 0.2},
+		{Country: "es", Rank: 3, Points: 15, Share: 0.1},
 	}, results)
 }
 
-func TestCountriesThatHeldTheSameGroundShareTheRankAndItsPoints(t *testing.T) {
-	results := day.Results(map[rounds.Country]uint64{"it": 20, "fr": 30, "de": 20, "es": 10})
+func TestCountriesThatHoldTheSameGroundShareTheRankAndItsPoints(t *testing.T) {
+	results := day.Results(atTheEnd(map[rounds.Country]uint32{"it": 20, "fr": 30, "de": 20, "es": 10}))
 
 	assert.Equal(t, []rounds.Result{
-		{Country: "fr", Rank: 1, Points: 25},
-		{Country: "de", Rank: 2, Points: 18},
-		{Country: "it", Rank: 2, Points: 18},
-		{Country: "es", Rank: 4, Points: 12},
+		{Country: "fr", Rank: 1, Points: 25, Share: 0.3},
+		{Country: "de", Rank: 2, Points: 18, Share: 0.2},
+		{Country: "it", Rank: 2, Points: 18, Share: 0.2},
+		{Country: "es", Rank: 4, Points: 12, Share: 0.1},
 	}, results)
 }
 
 func TestOnlyTheTopTenScore(t *testing.T) {
-	held := map[rounds.Country]uint64{}
+	held := map[rounds.Country]uint32{}
 	for i := range 12 {
-		held[rounds.Country(fmt.Sprintf("c%02d", i))] = uint64(100 - i)
+		held[rounds.Country(fmt.Sprintf("c%02d", i))] = uint32(100 - i) //nolint:gosec // 12 countries.
 	}
 
-	results := day.Results(held)
+	results := day.Results(rounds.Snapshot{Tiles: 2000, Held: held})
 
 	require.Len(t, results, 12)
 	points := make([]uint32, 0, len(results))
@@ -49,19 +53,19 @@ func TestOnlyTheTopTenScore(t *testing.T) {
 	assert.Equal(t, []uint32{25, 18, 15, 12, 10, 8, 6, 4, 2, 1, 0, 0}, points)
 }
 
-func TestTheFinaleScoresThreeTimesAsMuch(t *testing.T) {
-	finale := rounds.Round{EndsAt: utc(31, 23, 0, 0), Finale: true}
+func TestARoundOfItsOwnScoresItsTimesADaysPoints(t *testing.T) {
+	battle := rounds.Round{EndsAt: utc(31, 23, 0, 0), Own: true, StartsAt: utc(31, 21, 0, 0), Times: 3}
 
-	results := finale.Results(map[rounds.Country]uint64{"fr": 30, "de": 20})
+	results := battle.Results(atTheEnd(map[rounds.Country]uint32{"fr": 30, "de": 20}))
 
 	assert.Equal(t, []rounds.Result{
-		{Country: "fr", Rank: 1, Points: 75},
-		{Country: "de", Rank: 2, Points: 54},
+		{Country: "fr", Rank: 1, Points: 75, Share: 0.3},
+		{Country: "de", Rank: 2, Points: 54, Share: 0.2},
 	}, results)
 }
 
-func TestACountryThatHeldNothingIsNotRanked(t *testing.T) {
-	assert.Equal(t, []rounds.Result{{Country: "fr", Rank: 1, Points: 25}},
-		day.Results(map[rounds.Country]uint64{"fr": 1, "de": 0}))
-	assert.Empty(t, day.Results(map[rounds.Country]uint64{}))
+func TestACountryThatHoldsNothingAtTheEndIsNotRanked(t *testing.T) {
+	assert.Equal(t, []rounds.Result{{Country: "fr", Rank: 1, Points: 25, Share: 0.01}},
+		day.Results(atTheEnd(map[rounds.Country]uint32{"fr": 1, "de": 0})))
+	assert.Empty(t, day.Results(atTheEnd(map[rounds.Country]uint32{})))
 }

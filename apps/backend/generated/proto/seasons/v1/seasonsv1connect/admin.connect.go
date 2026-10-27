@@ -33,12 +33,21 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// AdminServiceGetRulesProcedure is the fully-qualified name of the AdminService's GetRules RPC.
+	AdminServiceGetRulesProcedure = "/seasons.v1.AdminService/GetRules"
+	// AdminServiceSaveRuleSetProcedure is the fully-qualified name of the AdminService's SaveRuleSet
+	// RPC.
+	AdminServiceSaveRuleSetProcedure = "/seasons.v1.AdminService/SaveRuleSet"
 	// AdminServiceGetRaceProcedure is the fully-qualified name of the AdminService's GetRace RPC.
 	AdminServiceGetRaceProcedure = "/seasons.v1.AdminService/GetRace"
 )
 
 // AdminServiceClient is a client for the seasons.v1.AdminService service.
 type AdminServiceClient interface {
+	GetRules(context.Context, *connect.Request[v1.GetRulesRequest]) (*connect.Response[v1.GetRulesResponse], error)
+	// Makes a set, or replaces its values. A set that plays now is FailedPrecondition: the rules in force change only
+	// through the schedule.
+	SaveRuleSet(context.Context, *connect.Request[v1.SaveRuleSetRequest]) (*connect.Response[v1.SaveRuleSetResponse], error)
 	// SeasonService/GetRace, for the admin page: the public service answers the game's origin alone.
 	GetRace(context.Context, *connect.Request[v1.GetRaceRequest]) (*connect.Response[v1.GetRaceResponse], error)
 }
@@ -54,6 +63,18 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 	baseURL = strings.TrimRight(baseURL, "/")
 	adminServiceMethods := v1.File_seasons_v1_admin_proto.Services().ByName("AdminService").Methods()
 	return &adminServiceClient{
+		getRules: connect.NewClient[v1.GetRulesRequest, v1.GetRulesResponse](
+			httpClient,
+			baseURL+AdminServiceGetRulesProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("GetRules")),
+			connect.WithClientOptions(opts...),
+		),
+		saveRuleSet: connect.NewClient[v1.SaveRuleSetRequest, v1.SaveRuleSetResponse](
+			httpClient,
+			baseURL+AdminServiceSaveRuleSetProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("SaveRuleSet")),
+			connect.WithClientOptions(opts...),
+		),
 		getRace: connect.NewClient[v1.GetRaceRequest, v1.GetRaceResponse](
 			httpClient,
 			baseURL+AdminServiceGetRaceProcedure,
@@ -65,7 +86,19 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 
 // adminServiceClient implements AdminServiceClient.
 type adminServiceClient struct {
-	getRace *connect.Client[v1.GetRaceRequest, v1.GetRaceResponse]
+	getRules    *connect.Client[v1.GetRulesRequest, v1.GetRulesResponse]
+	saveRuleSet *connect.Client[v1.SaveRuleSetRequest, v1.SaveRuleSetResponse]
+	getRace     *connect.Client[v1.GetRaceRequest, v1.GetRaceResponse]
+}
+
+// GetRules calls seasons.v1.AdminService.GetRules.
+func (c *adminServiceClient) GetRules(ctx context.Context, req *connect.Request[v1.GetRulesRequest]) (*connect.Response[v1.GetRulesResponse], error) {
+	return c.getRules.CallUnary(ctx, req)
+}
+
+// SaveRuleSet calls seasons.v1.AdminService.SaveRuleSet.
+func (c *adminServiceClient) SaveRuleSet(ctx context.Context, req *connect.Request[v1.SaveRuleSetRequest]) (*connect.Response[v1.SaveRuleSetResponse], error) {
+	return c.saveRuleSet.CallUnary(ctx, req)
 }
 
 // GetRace calls seasons.v1.AdminService.GetRace.
@@ -75,6 +108,10 @@ func (c *adminServiceClient) GetRace(ctx context.Context, req *connect.Request[v
 
 // AdminServiceHandler is an implementation of the seasons.v1.AdminService service.
 type AdminServiceHandler interface {
+	GetRules(context.Context, *connect.Request[v1.GetRulesRequest]) (*connect.Response[v1.GetRulesResponse], error)
+	// Makes a set, or replaces its values. A set that plays now is FailedPrecondition: the rules in force change only
+	// through the schedule.
+	SaveRuleSet(context.Context, *connect.Request[v1.SaveRuleSetRequest]) (*connect.Response[v1.SaveRuleSetResponse], error)
 	// SeasonService/GetRace, for the admin page: the public service answers the game's origin alone.
 	GetRace(context.Context, *connect.Request[v1.GetRaceRequest]) (*connect.Response[v1.GetRaceResponse], error)
 }
@@ -86,6 +123,18 @@ type AdminServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	adminServiceMethods := v1.File_seasons_v1_admin_proto.Services().ByName("AdminService").Methods()
+	adminServiceGetRulesHandler := connect.NewUnaryHandler(
+		AdminServiceGetRulesProcedure,
+		svc.GetRules,
+		connect.WithSchema(adminServiceMethods.ByName("GetRules")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServiceSaveRuleSetHandler := connect.NewUnaryHandler(
+		AdminServiceSaveRuleSetProcedure,
+		svc.SaveRuleSet,
+		connect.WithSchema(adminServiceMethods.ByName("SaveRuleSet")),
+		connect.WithHandlerOptions(opts...),
+	)
 	adminServiceGetRaceHandler := connect.NewUnaryHandler(
 		AdminServiceGetRaceProcedure,
 		svc.GetRace,
@@ -94,6 +143,10 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 	)
 	return "/seasons.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case AdminServiceGetRulesProcedure:
+			adminServiceGetRulesHandler.ServeHTTP(w, r)
+		case AdminServiceSaveRuleSetProcedure:
+			adminServiceSaveRuleSetHandler.ServeHTTP(w, r)
 		case AdminServiceGetRaceProcedure:
 			adminServiceGetRaceHandler.ServeHTTP(w, r)
 		default:
@@ -104,6 +157,14 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 
 // UnimplementedAdminServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedAdminServiceHandler struct{}
+
+func (UnimplementedAdminServiceHandler) GetRules(context.Context, *connect.Request[v1.GetRulesRequest]) (*connect.Response[v1.GetRulesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("seasons.v1.AdminService.GetRules is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) SaveRuleSet(context.Context, *connect.Request[v1.SaveRuleSetRequest]) (*connect.Response[v1.SaveRuleSetResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("seasons.v1.AdminService.SaveRuleSet is not implemented"))
+}
 
 func (UnimplementedAdminServiceHandler) GetRace(context.Context, *connect.Request[v1.GetRaceRequest]) (*connect.Response[v1.GetRaceResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("seasons.v1.AdminService.GetRace is not implemented"))

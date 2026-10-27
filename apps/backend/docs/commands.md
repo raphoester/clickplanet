@@ -50,8 +50,8 @@ make dBuild
 
 # The clips job, as the clips workflow runs it (see clips-job.md)
 go run ./cmd/clips fetch -ssh <user@host> -out ../frontend/replay.json
-go run ./cmd/clips choose -shortlist ../frontend/shortlist.json
+go run ./cmd/clips choose -findings ../frontend/findings.json
 ZERNIO_API_KEY=... go run ./cmd/clips schedule -clips ../frontend/clips
-# The model editor on a saved shortlist: -prompt prints what it would be sent and asks nothing (see clips-job.md, "The editor")
-ANTHROPIC_API_KEY=... go run ./cmd/clips edit -shortlist ../frontend/shortlist.json [-prompt]
+# The editor on saved findings: -prompt prints what it would be sent and asks nothing (see clips-job.md, "The editor")
+ANTHROPIC_API_KEY=... go run ./cmd/clips edit -findings ../frontend/findings.json [-prompt]
 ```

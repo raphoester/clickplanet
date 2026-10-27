@@ -3,17 +3,40 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetRaceRequest, GetRaceResponse } from "./seasons_pb.js";
+import { GetRulesRequest, GetRulesResponse, SaveRuleSetRequest, SaveRuleSetResponse } from "./admin_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
+import { GetRaceRequest, GetRaceResponse } from "./seasons_pb.js";
 
 /**
- * No authentication of its own: served on the console listener, and on the admin listener behind its gate. Never the public router.
+ * The rules seasons counts points with, and its race for the admin page. No authentication of its own: served on the
+ * console listener, and on the admin listener behind its gate. Never the public router.
  *
  * @generated from service seasons.v1.AdminService
  */
 export const AdminService = {
   typeName: "seasons.v1.AdminService",
   methods: {
+    /**
+     * @generated from rpc seasons.v1.AdminService.GetRules
+     */
+    getRules: {
+      name: "GetRules",
+      I: GetRulesRequest,
+      O: GetRulesResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Makes a set, or replaces its values. A set that plays now is FailedPrecondition: the rules in force change only
+     * through the schedule.
+     *
+     * @generated from rpc seasons.v1.AdminService.SaveRuleSet
+     */
+    saveRuleSet: {
+      name: "SaveRuleSet",
+      I: SaveRuleSetRequest,
+      O: SaveRuleSetResponse,
+      kind: MethodKind.Unary,
+    },
     /**
      * SeasonService/GetRace, for the admin page: the public service answers the game's origin alone.
      *

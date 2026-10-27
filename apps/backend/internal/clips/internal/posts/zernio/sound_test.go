@@ -16,7 +16,7 @@ import (
 // The document's shape: rank 1 first, a track with its trending excerpt, one without, one with neither id, and a field
 // added later.
 const chart = `{"tracks":[
-	{"id":"7300000000000000001","commercialMusicId":"cm-1","name":"Song One","artist":"Singer","durationSec":182,"rank":1,
+	{"id":"7300000000000000001","commercialMusicId":"cm-1","name":"Song One","artist":"Singer","durationSec":182,"genres":["JAZZ"],"rank":1,
 	 "clip":{"id":"7400000000000000001","durationSec":30,"previewUrl":"https://cdn.example/1.mp3"},"popularity":99},
 	{"id":"7300000000000000002","commercialMusicId":"cm-2","name":"Song Two","artist":"Band","durationSec":201,"rank":2},
 	{"commercialMusicId":"cm-3","name":"Song Three","artist":"Duo","rank":3,"clip":{}}
@@ -42,7 +42,7 @@ func TestTheTrendingChartIsReadForTheTikTokAccountInTheCountryEachTrackByItsExce
 	assert.Equal(t, url.Values{"countryCode": {"US"}}, fake.queries["GET /v1/accounts/acc-1/tiktok/commercial-music"])
 	assert.Equal(t, "Bearer the-key", fake.headers["GET /v1/accounts/acc-1/tiktok/commercial-music"].Get("Authorization"))
 	assert.Equal(t, []posts.Track{
-		{ID: "7400000000000000001", Excerpt: true, Title: "Song One", Artist: "Singer", Rank: 1, Seconds: 30},
+		{ID: "7400000000000000001", Excerpt: true, Title: "Song One", Artist: "Singer", Rank: 1, Seconds: 30, Genres: []string{"JAZZ"}},
 		{ID: "7300000000000000002", Title: "Song Two", Artist: "Band", Rank: 2, Seconds: 201},
 		{Title: "Song Three", Artist: "Duo", Rank: 3},
 	}, tracks)

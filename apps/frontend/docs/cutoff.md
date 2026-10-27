@@ -8,6 +8,8 @@ once (`app/season/RoundReveal.tsx`; the rules are in `domain/roundReveal.ts`).
   finale, the countries that scored in it, and the season's table before and
   after it (`ClosedRound`; the backend's [Seasons](../../backend/docs/seasons.md)). `useRoundReveal`
   reads it from the race `Viewer` already follows (`useRace`).
+- **A round closes at its cutoff**, so `closed` reaches the page at most 10s
+  after it, at the backend's next read of the race.
 - **When**: a round that ended less than 6 hours before the page opened
   (`REVEAL_WITHIN_MS`), or one that closes while the page is open. **Once per
   browser**: Close keeps the round's key (`season:number:end`) in
@@ -34,9 +36,10 @@ once (`app/season/RoundReveal.tsx`; the rules are in `domain/roundReveal.ts`).
   `ROUND_REVEAL.champion` (2.2s). Then Close appears and Escape works.
   The rule is the title unlock's: a player spamming the globe would close it
   unseen.
-- **It waits for a title unlock to close.** `Viewer` mounts it once the map is
-  loaded and only while no `TitleUnlocked` is queued, so a title earned at the
-  cutoff plays first and the reveal plays after it.
+- **It takes its turn in the announcements queue** (see
+  [Battles](battle.md#the-announcements-queue)): `Viewer` announces the round
+  closed when it is due, and shows it once the map is loaded and once whatever
+  arrived before it, a title unlocked or a battle's start, was closed.
 - It looks like the unlock: a portal on the body, the `title-reveal` classes of
   `TitleUnlocked.css`, and the `title` sound. Under
   `prefers-reduced-motion: reduce` the rows do not slide and the steps only fade

@@ -1,5 +1,6 @@
 import * as THREE from "three"
 import {regions} from "./atlas.ts"
+import type {Slots} from "./slotRanking.ts"
 import flagFit from "../../../static/countries/flagFit.json"
 
 const LANDMASS_TEXELS = 4
@@ -77,6 +78,32 @@ export class BorderField {
 
     sizeOf(landmass: number): number {
         return this.data.totals[landmass] ?? 0
+    }
+
+    // Each painted flag's largest landmass, as the half-width of its frame along the ground.
+    flagNeeds(): Map<string, number> {
+        const needs = new Map<string, number>()
+        for (let landmass = 1; landmass < this.landmassCount; landmass++) {
+            const holder = this.painted[landmass]
+            const at = landmass * LANDMASS_TEXELS * 4
+            if (holder === undefined || this.rows[at + 10] <= 0) continue
+            needs.set(holder, Math.max(needs.get(holder) ?? 0, this.rows[at + 3]))
+        }
+        return needs
+    }
+
+    // Points each painted landmass at the slot its holder's flag is drawn in, 0 for the atlas.
+    markSlots(slots: Slots) {
+        let changed = false
+        for (let landmass = 1; landmass < this.landmassCount; landmass++) {
+            const holder = this.painted[landmass]
+            const mark = holder === undefined ? 0 : slots.indexOf(holder) + 1
+            const at = landmass * LANDMASS_TEXELS * 4
+            if (this.rows[at + 13] === mark) continue
+            this.rows[at + 13] = mark
+            changed = true
+        }
+        if (changed) this.landmassData.needsUpdate = true
     }
 
     // Paints each landmass from its row: the flag that leads it, at the share of it that flag holds.

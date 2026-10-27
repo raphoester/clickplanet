@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import {OrbitControls} from "three/addons/controls/OrbitControls.js";
 import {addDisplayObjects, pixelRatio, setupScene} from "./scene.ts";
+import {Halo, paintHalo} from "./atmosphere.ts";
 import {graphicsOf} from "./graphics.ts";
 import {loadPointGeometryData} from "./points.ts";
 import {GpuPicker} from "./gpuPicking.ts";
@@ -15,6 +16,8 @@ import {BORDERS_URL} from "./bordersAsset.ts";
 import {BORDER_LINES_URL} from "./borderLinesAsset.ts";
 import {displayPointSize, flagPaint, flownZoomsOf, inOrbit, pickPointSize} from "./pointSize.ts";
 import {regions} from "./atlas.ts";
+import {SlotRanking} from "./slotRanking.ts";
+import {FlagSlots} from "./flagSlots.ts";
 import {Country} from "../../domain/countries.ts";
 import {Allegiance} from "../../domain/allegiance.ts";
 import {MapView, Rendering} from "../../domain/displaySettings.ts";
@@ -91,6 +94,8 @@ type Uniforms = BlastUniforms & FortifyUniforms & {
     shieldMarks: THREE.IUniform<THREE.Texture>
     shieldCells: THREE.IUniform<THREE.Vector2>
     highlight: THREE.IUniform<number>
+    slotTexture: THREE.IUniform<THREE.Texture | null>
+    slotFrames: THREE.IUniform<THREE.Vector4[]>
 }
 
 const SHAKE_SECONDS = 0.5
@@ -217,6 +222,7 @@ export type Globe = {
     readonly tilesRead: Promise<void>
     setCountry(country: Country): void
     setMapView(view: MapView): void
+    setHalo(halo: Halo): void
     takeReward(claimed: ClaimedBonus): void
     setArmed(armed: boolean): void
     setSwitch(name: keyof Switches, on: boolean): void
@@ -300,6 +306,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         dirty = true
     }
 
+    const slots = new FlagSlots(invalidate)
+
     const uniforms: Uniforms = {
         pointSize: {value: displayPointSize(camera.zoom, layoutViewport().height, mapView) * renderer.getPixelRatio()},
         atlasTexture: {value: textureLoader.load(ATLAS_URL)},
@@ -313,6 +321,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         shieldMarks: {value: drawShieldMarks(SHIELD_MOST_UNTIL_READ, invalidate)},
         shieldCells: {value: shieldCellsOf(SHIELD_MOST_UNTIL_READ)},
         highlight: {value: 0},
+        slotTexture: slots.texture,
+        slotFrames: slots.frames,
         ...blastUniforms(prefersReducedMotion()),
         ...fortifyUniforms(),
     };
@@ -326,6 +336,17 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     field.setLandmasses(borders.assignment)
     uniforms.landmassData.value = territories.landmassData
     uniforms.landmassCount.value = borders.codes.length
+
+    const ranking = new SlotRanking()
+
+    const slotFlags = () => {
+        const ranked = ranking.rank(territories.flagNeeds())
+        slots.show(ranked, (code) => {
+            const region = regions.get(code)
+            return region === undefined ? undefined : region.width / region.height
+        })
+        territories.markSlots(ranked)
+    }
 
     const sphere = innerSphere()
     const picker = new GpuPicker(renderer, field.pickingPoints, sphere);
@@ -432,6 +453,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const recount = ({countries, landmasses}: Recount, live: boolean) => {
         if (landmasses.length > 0) {
             territories.setRows(landmasses, (landmass) => holdings.leaderOf(landmass))
+            slotFlags()
             if (tracking) {
                 const entered = targets.recount(landmasses)
                 if (live) announceClose(entered)
@@ -1055,7 +1077,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         if (tracking) targets.lock(fortification.landmass, fortification.countryId)
     })
 
-    addDisplayObjects(scene, field.displayPoints, graphics, sphere)
+    const atmosphere = addDisplayObjects(scene, field.displayPoints, graphics, sphere)
 
     let captureRequests: CaptureRequest[] = []
 
@@ -1129,6 +1151,10 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             mapView = view
             invalidate()
         },
+        setHalo: (halo: Halo) => {
+            paintHalo(atmosphere, halo)
+            invalidate()
+        },
         takeReward,
         setArmed: (on: boolean) => on ? arm() : disarm(),
         setSwitch: (name: keyof Switches, on: boolean) => {
@@ -1181,6 +1207,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             blasts.dispose()
             field.dispose()
             territories.dispose()
+            slots.dispose()
             outline.dispose()
             bonusBox.dispose()
             enclosures.dispose()

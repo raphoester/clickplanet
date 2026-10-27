@@ -18,12 +18,12 @@ export function callUpsOf(day: Day | undefined, finaleAt: number | undefined, si
 
     const contenders = table.filter(({points}) => points > 0 && points + left >= leader.points)
     if (contenders.length < 2) return []
-    return contenders.map(({country, points}) => {
+    return contenders.map(({country}) => {
         const next = contenders.find((other) => other.country !== country)
         return {
             kind: "callup", attacker: country, rival: undefined,
             victims: [country === leader.country && next !== undefined ? next.country : leader.country],
-            place: {region: THE_WORLD}, taken: points, day, finaleAt,
+            place: {region: THE_WORLD}, day, finaleAt,
         }
     })
 }

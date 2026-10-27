@@ -18,8 +18,8 @@ var (
 
 func twoSeasons() calendar.Calendar {
 	return calendar.New(calendar.Config{List: []calendar.Entry{
-		{Number: 0, EndsAt: seasonZeroEnds, Finale: 2 * time.Hour},
-		{Number: 1, EndsAt: seasonOneEnds, Finale: 2 * time.Hour},
+		{Number: 0, EndsAt: seasonZeroEnds},
+		{Number: 1, EndsAt: seasonOneEnds},
 	}})
 }
 

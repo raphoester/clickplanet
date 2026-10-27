@@ -8,8 +8,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpanthropic"
 )
 
-// The editor of a job with no ANTHROPIC_API_KEY: it sends nothing, and every run drawn for the model falls back to
-// the rules, saying why.
+// The editor of a job with no ANTHROPIC_API_KEY: it sends nothing, and every run is its seasonal stories alone, saying why.
 type Unkeyed struct{}
 
 var _ choose_clips_usecase.Editor = Unkeyed{}

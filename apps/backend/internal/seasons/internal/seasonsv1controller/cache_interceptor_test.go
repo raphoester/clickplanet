@@ -25,7 +25,7 @@ func TestTheSeasonIsAGetAnyCacheMayKeepForAMinute(t *testing.T) {
 	ends := time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC)
 	service := seasonsv1controller.SeasonService{
 		GetSeasonHandler: get_season_handler.New(get_season_usecase.New(
-			calendar.New(calendar.Config{List: []calendar.Entry{{Number: 0, EndsAt: ends, Finale: 2 * time.Hour}}}),
+			calendar.New(calendar.Config{List: []calendar.Entry{{Number: 0, EndsAt: ends}}}),
 			cptime.NewFixedClock(ends.Add(-time.Hour)),
 		)),
 	}

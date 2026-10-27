@@ -13,6 +13,7 @@ import {OpenPlayer, Opened, PageId, titleOf} from "./navigation.ts"
 import {RulesPanel} from "./ops/RulesPanel.tsx"
 import {AntibotRulesPanel} from "./ops/AntibotRulesPanel.tsx"
 import {SchedulePanel} from "./ops/SchedulePanel.tsx"
+import {SeasonRulesPanel} from "./ops/SeasonRulesPanel.tsx"
 import {TitlesPanel} from "./ops/TitlesPanel.tsx"
 import {idOf} from "./players/caller.ts"
 import {PlayersPage} from "./players/PlayersPage.tsx"
@@ -93,8 +94,11 @@ function Console({operator, onSignedOut}: {operator: string, onSignedOut: () => 
                 {page === "titles" && <TitlesPanel player={CLIENTS.player}/>}
                 {page === "rules" && <RulesPanel planet={CLIENTS.planet}/>}
                 {page === "antibotRules" && <AntibotRulesPanel antibot={CLIENTS.antibot}/>}
+                {page === "seasonRules" && <SeasonRulesPanel seasons={CLIENTS.seasons}/>}
                 {page === "schedule" && (
-                    <SchedulePanel metagame={CLIENTS.metagame} planet={CLIENTS.planet} antibot={CLIENTS.antibot}/>
+                    <SchedulePanel
+                        metagame={CLIENTS.metagame} planet={CLIENTS.planet} antibot={CLIENTS.antibot} seasons={CLIENTS.seasons}
+                    />
                 )}
             </Page>
         </OpenPlayer.Provider>

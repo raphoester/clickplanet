@@ -25,13 +25,17 @@ func kept(t *testing.T) *inmemory_entry_store.Store {
 	t.Helper()
 
 	store := inmemory_entry_store.New()
-	entry, err := schedule.NewEntry(first, schedule.Draft{Set: "rush", StartsAt: finale, EndsAt: finale.Add(2 * time.Hour), Priority: 1}, madeAt)
+	entry, err := schedule.NewEntry(first, schedule.Draft{
+		Set: "rush", Kind: schedule.Battle, StartsAt: finale, EndsAt: finale.Add(2 * time.Hour), Priority: 1,
+	}, madeAt)
 	require.NoError(t, err)
 	require.NoError(t, store.Save(t.Context(), entry))
 	return store
 }
 
-var calm = schedule.Draft{Set: "calm", StartsAt: finale.Add(time.Hour), EndsAt: finale.Add(2 * time.Hour), Priority: 2}
+var calm = schedule.Draft{
+	Set: "calm", Kind: schedule.Plain, StartsAt: finale.Add(time.Hour), EndsAt: finale.Add(2 * time.Hour), Priority: 2,
+}
 
 func TestAnEntryToComeTakesTheNewValues(t *testing.T) {
 	store := kept(t)
@@ -42,7 +46,8 @@ func TestAnEntryToComeTakesTheNewValues(t *testing.T) {
 	entry, err := store.Entry(t.Context(), first)
 	require.NoError(t, err)
 	assert.Equal(t, schedule.EntrySnapshot{
-		ID: first, Set: "calm", StartsAt: finale.Add(time.Hour), EndsAt: finale.Add(2 * time.Hour), Priority: 2, MadeAt: madeAt,
+		ID: first, Set: "calm", Kind: schedule.Plain, StartsAt: finale.Add(time.Hour), EndsAt: finale.Add(2 * time.Hour),
+		Priority: 2, MadeAt: madeAt,
 	}, entry.TakeSnapshot())
 }
 

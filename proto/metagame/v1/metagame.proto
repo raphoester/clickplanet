@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package metagame.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// What the schedule plays now, in the players' words: the kind of the running entry, never a rule set's name, which
+// is the operator's. On the public router.
+service MetagameService {
+  rpc GetTurn(GetTurnRequest) returns (GetTurnResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // The turn now, as the first event, then each change of it within a second; a heartbeat every 30 s meanwhile.
+  rpc ListenForEvents(ListenForEventsRequest) returns (stream MetagameEvent);
+}
+
+// What an entry is to the players. The game client reads the kind that plays and gives it a look: a battle has one,
+// a plain entry none.
+enum EntryKind {
+  ENTRY_KIND_UNSPECIFIED = 0;
+  // A change of the rules with no look for the players: a quieter antibot bound for a day.
+  ENTRY_KIND_PLAIN = 1;
+  ENTRY_KIND_BATTLE = 2;
+}
+
+message GetTurnRequest {}
+
+message GetTurnResponse {
+  Turn turn = 1;
+}
+
+// What the schedule plays now.
+message Turn {
+  // The kind of the running entry with the highest priority; plain when none runs.
+  EntryKind kind = 1;
+  // When this turn began. Unset when it has played since before any entry.
+  google.protobuf.Timestamp since = 2;
+  // When the running entry ends. Unset when none runs. An entry above it may start before that: the stream says so.
+  google.protobuf.Timestamp ends_at = 3;
+  // The running entry's words for the players, plain text: what its rules are. Empty when none runs.
+  string description = 4;
+}
+
+message ListenForEventsRequest {}
+
+message MetagameEvent {
+  oneof event {
+    Turn turn = 1;
+    Heartbeat heartbeat = 2;
+  }
+}
+
+message Heartbeat {}

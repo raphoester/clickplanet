@@ -12,181 +12,166 @@ import (
 )
 
 var (
-	editedAt     = time.Date(2026, 10, 24, 12, 17, 0, 0, time.UTC)
-	palauEurope  = posts.StoryKey{Flag: "pw", Continent: "Europe"}
-	franceEurope = posts.StoryKey{Flag: "fr", Continent: "Europe"}
-	algeriaAfric = posts.StoryKey{Flag: "dz", Continent: "Africa"}
-	brazilSouth  = posts.StoryKey{Flag: "br", Continent: "South America"}
-	day5         = posts.StoryKey{Flag: "fr", Continent: "Europe", Angle: posts.DayWon, Round: "1.5"}
+	battle = posts.Story{Front: 1, Kind: posts.Battle, Attacker: "fr", Rival: "tr", TakenFrom: []string{"tr"}, Countries: []string{"tr", "sy"}, Headline: "France vs Turkey"}
+	india  = posts.Story{Front: 1, Kind: posts.Rout, Attacker: "fr", TakenFrom: []string{"dz"}, Countries: []string{"in"}, Headline: "ALGERIA LOSES ALL OF INDIA"}
+	tour   = posts.Story{Tour: 1, Headline: "FRANCE IS EVERYWHERE"}
 )
 
-func editedShortlist(t *testing.T, stories ...posts.Story) posts.Shortlist {
-	t.Helper()
-
-	shortlist, err := posts.ShortlistOf(stories...)
-	require.NoError(t, err)
-	return shortlist
+func told(key posts.StoryKey, title string, ago time.Duration, countries ...string) posts.Telling {
+	return posts.Telling{Key: key, Title: title, At: foundAt.Add(-ago), Countries: countries}
 }
 
-// Five stories: Palau, told in Europe 4 hours ago; France; Algeria, whose flag 2 of the last posts showed; Brazil; and
-// Spain, with a teaser of its own.
-func fiveStories(t *testing.T) (posts.Shortlist, []posts.Telling) {
-	t.Helper()
-
-	shortlist := editedShortlist(t,
-		posts.Story{Title: "PALAU IS ATTACKING EUROPE", Key: palauEurope, Countries: []string{"pw"}},
-		posts.Story{Title: "FRANCE VS GERMANY", Key: franceEurope, Countries: []string{"fr", "de"}},
-		posts.Story{Title: "ALGERIA STRIKES BACK", Key: algeriaAfric, Countries: []string{"dz"}},
-		posts.Story{Title: "BRAZIL IS INVADING ARGENTINA", Key: brazilSouth, Countries: []string{"br", "ar"}},
-		posts.Story{
-			Title: "SPAIN IS ATTACKING AFRICA", Key: posts.StoryKey{Flag: "es", Continent: "Africa"}, Countries: []string{"es", "dz"},
-			Teasers: []string{"SPAIN TAKES AFRICA"},
-		},
-	)
-	told := []posts.Telling{
-		{Key: palauEurope, Title: "PALAU IS ATTACKING EUROPE", At: editedAt.Add(-4 * time.Hour)},
-		{Key: algeriaAfric, Title: "ALGERIA VS MOROCCO", At: editedAt.Add(-5 * 24 * time.Hour)},
-		{Key: posts.StoryKey{Flag: "ma", Continent: "Africa"}, Title: "MOROCCO IS FALLING", Countries: []string{"ma", "dz"}, At: editedAt.Add(-2 * time.Hour)},
-		{Key: posts.StoryKey{Flag: "tn", Continent: "Africa"}, Title: "ALGERIA IS EVERYWHERE", Countries: []string{"tn", "dz"}, At: editedAt.Add(-3 * time.Hour)},
+func TestTheOfferIsTheFindingsWholeAndTheLastPostsToVaryOn(t *testing.T) {
+	found := findings(t)
+	posted := []posts.Telling{
+		told(posts.StoryKey{Flag: "tr", Continent: "Middle East"}, "TURKEY KICKS ALGERIA OUT OF IRAN", 28*time.Hour, "ir", "tr", "dz"),
+		told(posts.StoryKey{Flag: "bg", Continent: "East Asia"}, "BULGARIA IS INVADING MONGOLIA", 4*time.Hour, "mn", "bg", "fr"),
+		told(posts.StoryKey{Flag: "es", Continent: "Africa"}, "SPAIN IS SWALLOWING MOROCCO", 5*24*time.Hour, "ma", "es"),
 	}
-	return shortlist, told
-}
 
-func TestTheEditorIsOfferedOnlyTheStoriesTheRulesWouldTell(t *testing.T) {
-	shortlist, told := fiveStories(t)
+	offer := found.Offer(2, posted, foundAt)
 
-	offer := shortlist.Offer(2, told, editedAt)
-
-	assert.Equal(t, []posts.Pick{2, 4, 5}, offer.Stories.Picks(), "Palau told, Algeria in 2 of the last posts")
-	assert.Equal(t, 2, offer.Slots())
+	assert.Equal(t, found, offer.Findings, "nothing is kept from the editor")
+	assert.Equal(t, []int{1}, offer.First)
+	assert.Equal(t, 1, offer.Slots())
 	assert.True(t, offer.Open())
-	assert.Equal(t, 3, offer.Shown["dz"])
-	assert.Equal(t, 1, offer.Shown["pw"])
-	assert.Equal(t, []string{"MOROCCO IS FALLING", "ALGERIA IS EVERYWHERE", "PALAU IS ATTACKING EUROPE"}, titlesOf(offer.Recent),
-		"the last 3 days, newest first")
+	assert.Equal(t, []string{"BULGARIA IS INVADING MONGOLIA", "TURKEY KICKS ALGERIA OUT OF IRAN"}, titlesOf(offer.Recent), "the last 3 days, newest first")
+	assert.Equal(t, map[string]int{"ir": 1, "tr": 1, "dz": 1, "mn": 1, "bg": 1, "fr": 1, "ma": 1, "es": 1}, offer.Shown)
 }
 
-func TestADayWonIsToldFirstAndLeavesTheEditorTheRest(t *testing.T) {
-	shortlist := editedShortlist(t,
-		posts.Story{Title: "FRANCE WINS DAY 5", Key: day5},
-		posts.Story{Title: "BRAZIL IS INVADING ARGENTINA", Key: brazilSouth},
-	)
-
-	assert.Equal(t, 1, shortlist.Offer(2, nil, editedAt).Slots())
-	assert.Equal(t, []posts.Pick{1}, shortlist.Offer(2, nil, editedAt).First.Picks())
-	assert.False(t, shortlist.Offer(1, nil, editedAt).Open(), "a run of one day won asks nobody")
-	assert.False(t, shortlist.Offer(0, nil, editedAt).Open(), "a full day asks nobody")
-	assert.False(t, editedShortlist(t).Offer(2, nil, editedAt).Open(), "a quiet run asks nobody")
+func titlesOf(tellings []posts.Telling) []string {
+	titles := make([]string, 0, len(tellings))
+	for _, telling := range tellings {
+		titles = append(titles, telling.Title)
+	}
+	return titles
 }
 
-func TestTheRunFollowsTheEditorsOrderAndHeadlines(t *testing.T) {
-	shortlist, told := fiveStories(t)
-	offer := shortlist.Offer(2, told, editedAt)
+func TestASeasonalStoryToldInTheLastThreeDaysIsNotToldFirstAgain(t *testing.T) {
+	found := findings(t)
 
-	choice, headlines, err := shortlist.Edited(offer, posts.Edition{Edits: []posts.Edit{
-		{Pick: 4, Headline: "  brazil storms  argentina! "},
-		{Pick: 2, Headline: "FRANCE VS GERMANY"},
-	}}, told, editedAt)
+	offer := found.Offer(2, []posts.Telling{told(day18, "PALAU WINS DAY 18", 2*time.Hour)}, foundAt)
 
-	require.NoError(t, err)
-	assert.Equal(t, []posts.Pick{2, 4}, choice.Chosen.Picks())
-	assert.Equal(t, []string{"FRANCE VS GERMANY", "BRAZIL STORMS ARGENTINA!"}, titlesOf(choice.Chosen))
-	assert.Equal(t, map[posts.Pick]string{4: "BRAZIL STORMS ARGENTINA!"}, headlines, "only the headlines it changed")
-	assert.Equal(t, []posts.Pick{1}, choice.Retold.Picks())
+	assert.Empty(t, offer.First)
+	assert.Equal(t, 2, offer.Slots())
 }
 
-func TestTheRulesStillCountTheRunAndFillWhatTheEditorLeftOut(t *testing.T) {
-	shortlist, told := fiveStories(t)
-	offer := shortlist.Offer(2, told, editedAt)
+func TestARunWithNoFrontTourOrPlaceAsksNobody(t *testing.T) {
+	found := findings(t)
+	found.Fronts, found.Tours, found.Places = nil, nil, nil
 
-	choice, _, err := shortlist.Edited(offer, posts.Edition{Edits: []posts.Edit{{Pick: 5, Headline: "SPAIN MARCHES ON AFRICA"}}}, told, editedAt)
-
-	require.NoError(t, err)
-	assert.Len(t, choice.Chosen, 2, "as many as the rules would make")
-	assert.Contains(t, choice.Chosen.Picks(), posts.Pick(5))
+	assert.False(t, found.Offer(2, nil, foundAt).Open())
+	assert.False(t, findings(t).Offer(1, nil, foundAt).Open(), "the day won fills the run")
 }
 
-// A flag the last posts showed once takes one more clip: the editor's second story of it gives way to the next.
-func TestAStoryOfTheEditorsWhoseFlagTheRunFilledGivesWay(t *testing.T) {
-	shortlist := editedShortlist(t,
-		posts.Story{Title: "PALAU IS ATTACKING EUROPE", Key: palauEurope},
-		posts.Story{Title: "PALAU IS INVADING BRAZIL", Key: posts.StoryKey{Flag: "pw", Continent: "South America"}},
-		posts.Story{Title: "FRANCE VS GERMANY", Key: franceEurope},
-	)
-	told := []posts.Telling{{Key: posts.StoryKey{Flag: "pw", Continent: "Asia"}, Title: "PALAU IS EVERYWHERE", At: editedAt.Add(-time.Hour)}}
-	offer := shortlist.Offer(2, told, editedAt)
+func TestTheRunIsItsSeasonalStoryFirstThenTheEditorsInItsOrderWithTheirKeys(t *testing.T) {
+	found := findings(t)
+	offer := found.Offer(3, nil, foundAt)
 
-	choice, _, err := shortlist.Edited(offer, posts.Edition{Edits: []posts.Edit{
-		{Pick: 1, Headline: "PALAU TAKES EUROPE"}, {Pick: 2, Headline: "PALAU TAKES BRAZIL"}, {Pick: 3, Headline: "FRANCE VS GERMANY"},
-	}}, told, editedAt)
+	choice := found.Edited(offer, posts.Edition{Stories: []posts.Story{battle, india, tour}}, nil, foundAt)
 
-	require.NoError(t, err)
-	assert.Equal(t, []posts.Pick{1, 3}, choice.Chosen.Picks())
+	require.Len(t, choice.Chosen, 3)
+	assert.Equal(t, posts.Chosen{Pick: 1, Story: posts.Story{Seasonal: 1}, Key: day18}, choice.Chosen[0])
+	assert.Equal(t, posts.Chosen{Pick: 2, Story: with(battle, func(s *posts.Story) { s.Headline = "FRANCE VS TURKEY" }), Key: posts.StoryKey{Flag: "fr", Continent: "Middle East"}}, choice.Chosen[1])
+	assert.Equal(t, posts.Chosen{Pick: 3, Story: india, Key: posts.StoryKey{Flag: "dz", Continent: "South Asia"}}, choice.Chosen[2])
+	assert.Equal(t, []posts.Pick{1, 2, 3}, choice.Picks())
+	assert.Equal(t, []posts.Skipped{{Story: tour, Why: "the run is full"}}, choice.Skipped)
+	assert.Equal(t, 3, choice.Room)
 }
 
-func TestADayWonGoesFirstWhateverTheEditorSays(t *testing.T) {
-	shortlist := editedShortlist(t,
-		posts.Story{Title: "FRANCE WINS DAY 5", Key: day5},
-		posts.Story{Title: "BRAZIL IS INVADING ARGENTINA", Key: brazilSouth},
-		posts.Story{Title: "ALGERIA STRIKES BACK", Key: algeriaAfric},
-	)
-	offer := shortlist.Offer(2, nil, editedAt)
+func TestAStoryThatDoesNotHoldIsSkippedWithWhyAndTheRunGoesOn(t *testing.T) {
+	found := findings(t)
+	wrong := with(battle, func(s *posts.Story) { s.Rival = "dz" })
 
-	choice, _, err := shortlist.Edited(offer, posts.Edition{Edits: []posts.Edit{{Pick: 3, Headline: "ALGERIA FIGHTS BACK"}}}, nil, editedAt)
+	choice := found.Edited(found.Offer(2, nil, foundAt), posts.Edition{Stories: []posts.Story{wrong, india}}, nil, foundAt)
 
-	require.NoError(t, err)
-	assert.Equal(t, []posts.Pick{1, 3}, choice.Chosen.Picks())
+	assert.Equal(t, []posts.Pick{1, 2}, choice.Picks())
+	assert.Equal(t, india, choice.Chosen[1].Story)
+	require.Len(t, choice.Skipped, 1)
+	assert.Equal(t, wrong, choice.Skipped[0].Story)
+	assert.Contains(t, choice.Skipped[0].Why, `"fr" and "dz" did not take from each other`)
 }
 
-func TestAnEditionThatStraysFromTheRulesDoesNotHold(t *testing.T) {
-	shortlist, told := fiveStories(t)
-	offer := shortlist.Offer(2, told, editedAt)
+func TestAHeadlineOfTheLastWeekOrOfThisRunIsSkippedAndSoIsAKeyToldTwiceInTheRun(t *testing.T) {
+	found := findings(t)
+	posted := []posts.Telling{told(posts.StoryKey{Flag: "fr", Continent: "Europe"}, "France vs Turkey ", 6*24*time.Hour)}
+	again := with(india, func(s *posts.Story) { s.Headline = "ALGERIA LOSES ALL OF INDIA" })
+	middleEast := posts.Story{Front: 1, Kind: posts.Attack, Attacker: "fr", TakenFrom: []string{"tr"}, Continent: "Middle East", Headline: "FRANCE STORMS THE MIDDLE EAST"}
+	sameKey := with(middleEast, func(s *posts.Story) {
+		s.Kind, s.Continent, s.Countries, s.Headline = posts.Invasion, "", []string{"sy"}, "FRANCE TAKES SYRIA"
+	})
 
-	for name, edits := range map[string][]posts.Edit{
-		"no story":                     nil,
-		"a story told lately":          {{Pick: 1, Headline: "PALAU AGAIN"}},
-		"a flag the last posts filled": {{Pick: 3, Headline: "ALGERIA RISES"}},
-		"a story not in the shortlist": {{Pick: 9, Headline: "NOWHERE"}},
-		"a story twice":                {{Pick: 2, Headline: "A"}, {Pick: 2, Headline: "B"}},
-		"no headline":                  {{Pick: 2, Headline: "  "}},
-		"a headline too long":          {{Pick: 2, Headline: strings.Repeat("FRANCE ", 9)}},
-		"an emoji":                     {{Pick: 2, Headline: "FRANCE 🔥 GERMANY"}},
-		"a flag of the generator":      {{Pick: 2, Headline: "--PLAN"}},
-		"a quote":                      {{Pick: 2, Headline: "FRANCE \"VS\" GERMANY"}},
-		"a headline of the last week":  {{Pick: 2, Headline: "algeria vs morocco"}},
-		"a teaser of its caption":      {{Pick: 5, Headline: "Spain takes Africa"}},
-		"one headline for two":         {{Pick: 2, Headline: "WAR IN THE WEST"}, {Pick: 4, Headline: "WAR IN THE WEST"}},
+	choice := found.Edited(found.Offer(6, posted, foundAt), posts.Edition{Stories: []posts.Story{battle, india, again, middleEast, sameKey, tour}}, posted, foundAt)
+
+	require.Len(t, choice.Chosen, 4)
+	assert.Equal(t, []posts.Story{india, middleEast, tour}, []posts.Story{choice.Chosen[1].Story, choice.Chosen[2].Story, choice.Chosen[3].Story})
+	assert.Equal(t, []string{
+		`"FRANCE VS TURKEY" was a headline of the last week, or of this run`,
+		`"ALGERIA LOSES ALL OF INDIA" was a headline of the last week, or of this run`,
+		"fr in Middle East is told already in this run",
+	}, whysOf(choice.Skipped))
+}
+
+func whysOf(skipped []posts.Skipped) []string {
+	whys := make([]string, 0, len(skipped))
+	for _, skip := range skipped {
+		whys = append(whys, skip.Why)
+	}
+	return whys
+}
+
+func TestASeasonalStoryIsTheRunsToTellNotTheEditors(t *testing.T) {
+	found := findings(t)
+
+	choice := found.Edited(found.Offer(2, nil, foundAt), posts.Edition{Stories: []posts.Story{{Seasonal: 1, Headline: "PALAU TAKES THE DAY"}}}, nil, foundAt)
+
+	assert.Equal(t, []posts.Pick{1}, choice.Picks())
+	assert.Equal(t, []string{"a seasonal story is the run's to tell first, not the editor's"}, whysOf(choice.Skipped))
+}
+
+func TestAHeadlineTheClipCannotDrawIsSkipped(t *testing.T) {
+	found := findings(t)
+	offer := found.Offer(5, nil, foundAt)
+
+	for name, c := range map[string]struct{ headline, why string }{
+		"too long":  {strings.Repeat("A", 61), "is empty or over 60 letters"},
+		"blank":     {"   ", `"   " is empty`},
+		"a dash":    {"-- FRANCE", `starts with '-'`},
+		"an emoji":  {"FRANCE 🔥", `has '🔥'`},
+		"quotes":    {`"FRANCE"`, `starts with '"'`},
+		"a newline": {"FRANCE\nVS TURKEY", "FRANCE VS TURKEY"},
 	} {
 		t.Run(name, func(t *testing.T) {
-			_, _, err := shortlist.Edited(offer, posts.Edition{Edits: edits}, told, editedAt)
+			choice := found.Edited(offer, posts.Edition{Stories: []posts.Story{with(battle, func(s *posts.Story) { s.Headline = c.headline })}}, nil, foundAt)
 
-			require.ErrorIs(t, err, posts.ErrInvalidEdition)
+			if name == "a newline" {
+				require.Len(t, choice.Chosen, 2, "a line break is a space")
+				assert.Equal(t, c.why, choice.Chosen[1].Story.Headline)
+				return
+			}
+			assert.Equal(t, []posts.Pick{1}, choice.Picks())
+			require.Len(t, choice.Skipped, 1)
+			assert.Contains(t, choice.Skipped[0].Why, c.why)
 		})
 	}
 }
 
-func TestAHeadlineInTheCountrysOwnLanguageHolds(t *testing.T) {
-	shortlist := editedShortlist(t, posts.Story{
-		Title: "POLSKA: 14 PUNKTÓW STRATY", Key: posts.StoryKey{Flag: "pl", Continent: "Europe", Angle: posts.CallUp, Round: "1.5"},
-	})
+func TestAHeadlineKeepsAnyScriptItsPunctuationAndOneSpaceBetweenWords(t *testing.T) {
+	found := findings(t)
+	kept := with(battle, func(s *posts.Story) { s.Headline = "  Polska:  14 punktów straty! Ça va?  " })
 
-	choice, headlines, err := shortlist.Edited(shortlist.Offer(1, nil, editedAt),
-		posts.Edition{Edits: []posts.Edit{{Pick: 1, Headline: "Polska, do boju!"}}}, nil, editedAt)
+	choice := found.Edited(found.Offer(2, nil, foundAt), posts.Edition{Stories: []posts.Story{kept}}, nil, foundAt)
 
-	require.NoError(t, err)
-	assert.Equal(t, "POLSKA, DO BOJU!", headlines[1])
-	assert.Equal(t, []string{"POLSKA, DO BOJU!"}, titlesOf(choice.Chosen))
+	require.Len(t, choice.Chosen, 2)
+	assert.Equal(t, "POLSKA: 14 PUNKTÓW STRATY! ÇA VA?", choice.Chosen[1].Story.Headline)
 }
 
-func titlesOf[T posts.Story | posts.Telling](items []T) []string {
-	titles := make([]string, 0, len(items))
-	for _, item := range items {
-		switch of := any(item).(type) {
-		case posts.Story:
-			titles = append(titles, of.Title)
-		case posts.Telling:
-			titles = append(titles, of.Title)
-		}
-	}
-	return titles
+func TestWithNoEditionTheRunIsItsSeasonalStoryAlone(t *testing.T) {
+	found := findings(t)
+
+	choice := found.Edited(found.Offer(2, nil, foundAt), posts.Edition{}, nil, foundAt)
+
+	assert.Equal(t, []posts.Pick{1}, choice.Picks())
+	assert.Equal(t, posts.Story{Seasonal: 1}, choice.Chosen[0].Story)
+	assert.Empty(t, choice.Skipped)
 }

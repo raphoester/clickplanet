@@ -9,13 +9,13 @@ type Result struct {
 	Country Country
 	Rank    uint32
 	Points  uint32
+	Share   float64
 }
 
 var points = []uint32{25, 18, 15, 12, 10, 8, 6, 4, 2, 1}
 
-const finaleTimes = 3
-
-func (r Round) Results(held map[Country]uint64) []Result {
+func (r Round) Results(snapshot Snapshot) []Result {
+	held := snapshot.Held
 	countries := make([]Country, 0, len(held))
 	for country, tiles := range held {
 		if tiles > 0 {
@@ -32,7 +32,7 @@ func (r Round) Results(held map[Country]uint64) []Result {
 		if i > 0 && held[country] == held[countries[i-1]] {
 			rank = results[i-1].Rank
 		}
-		results = append(results, Result{Country: country, Rank: rank, Points: r.pointsAt(rank)})
+		results = append(results, Result{Country: country, Rank: rank, Points: r.pointsAt(rank), Share: float64(held[country]) / float64(snapshot.Tiles)})
 	}
 	return results
 }
@@ -41,8 +41,5 @@ func (r Round) pointsAt(rank uint32) uint32 {
 	if int(rank) > len(points) {
 		return 0
 	}
-	if r.Finale {
-		return points[rank-1] * finaleTimes
-	}
-	return points[rank-1]
+	return points[rank-1] * r.Times
 }

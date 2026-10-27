@@ -6,6 +6,6 @@ type Closed struct {
 	Results []Result
 }
 
-func (r Round) Closed(number uint32, held map[Country]uint64) Closed {
-	return Closed{Round: r, Number: number, Results: r.Results(held)}
+func (r Round) Closed(number uint32, snapshot Snapshot) Closed {
+	return Closed{Round: r, Number: number, Results: r.Results(snapshot)}
 }

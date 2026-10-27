@@ -5,6 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
+import { EntryKind } from "./metagame_pb.js";
 
 /**
  * @generated from message metagame.v1.GetScheduleRequest
@@ -118,6 +119,20 @@ export class Entry extends Message<Entry> {
    */
   madeAt?: Timestamp;
 
+  /**
+   * What the entry is to the players: the game client reads it from MetagameService.GetTurn.
+   *
+   * @generated from field: metagame.v1.EntryKind kind = 7;
+   */
+  kind = EntryKind.UNSPECIFIED;
+
+  /**
+   * For the players, in plain text: what the rules of the entry are ("Triple points. A bonus box every minute.").
+   *
+   * @generated from field: string description = 8;
+   */
+  description = "";
+
   constructor(data?: PartialMessage<Entry>) {
     super();
     proto3.util.initPartial(data, this);
@@ -132,6 +147,8 @@ export class Entry extends Message<Entry> {
     { no: 4, name: "ends_at", kind: "message", T: Timestamp },
     { no: 5, name: "priority", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 6, name: "made_at", kind: "message", T: Timestamp },
+    { no: 7, name: "kind", kind: "enum", T: proto3.getEnumType(EntryKind) },
+    { no: 8, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Entry {
@@ -176,6 +193,13 @@ export class Playing extends Message<Playing> {
    */
   entryId = "";
 
+  /**
+   * The entry's kind; plain when none runs.
+   *
+   * @generated from field: metagame.v1.EntryKind kind = 4;
+   */
+  kind = EntryKind.UNSPECIFIED;
+
   constructor(data?: PartialMessage<Playing>) {
     super();
     proto3.util.initPartial(data, this);
@@ -187,6 +211,7 @@ export class Playing extends Message<Playing> {
     { no: 1, name: "rule_set", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "since", kind: "message", T: Timestamp },
     { no: 3, name: "entry_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "kind", kind: "enum", T: proto3.getEnumType(EntryKind) },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Playing {
@@ -230,6 +255,20 @@ export class AddEntryRequest extends Message<AddEntryRequest> {
    */
   priority = 0;
 
+  /**
+   * Battle or plain: unspecified is InvalidArgument.
+   *
+   * @generated from field: metagame.v1.EntryKind kind = 5;
+   */
+  kind = EntryKind.UNSPECIFIED;
+
+  /**
+   * At most 300 characters: InvalidArgument past that.
+   *
+   * @generated from field: string description = 6;
+   */
+  description = "";
+
   constructor(data?: PartialMessage<AddEntryRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -242,6 +281,8 @@ export class AddEntryRequest extends Message<AddEntryRequest> {
     { no: 2, name: "starts_at", kind: "message", T: Timestamp },
     { no: 3, name: "ends_at", kind: "message", T: Timestamp },
     { no: 4, name: "priority", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 5, name: "kind", kind: "enum", T: proto3.getEnumType(EntryKind) },
+    { no: 6, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AddEntryRequest {
@@ -327,6 +368,16 @@ export class EditEntryRequest extends Message<EditEntryRequest> {
    */
   priority = 0;
 
+  /**
+   * @generated from field: metagame.v1.EntryKind kind = 6;
+   */
+  kind = EntryKind.UNSPECIFIED;
+
+  /**
+   * @generated from field: string description = 7;
+   */
+  description = "";
+
   constructor(data?: PartialMessage<EditEntryRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -340,6 +391,8 @@ export class EditEntryRequest extends Message<EditEntryRequest> {
     { no: 3, name: "starts_at", kind: "message", T: Timestamp },
     { no: 4, name: "ends_at", kind: "message", T: Timestamp },
     { no: 5, name: "priority", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 6, name: "kind", kind: "enum", T: proto3.getEnumType(EntryKind) },
+    { no: 7, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): EditEntryRequest {

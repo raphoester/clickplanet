@@ -22,30 +22,63 @@ func id(n byte) schedule.EntryID {
 
 func entry(n byte, set schedule.SetName, startsAt, endsAt time.Time, priority schedule.Priority, madeAt time.Time) schedule.Entry {
 	return schedule.EntrySnapshot{
-		ID: id(n), Set: set, StartsAt: startsAt, EndsAt: endsAt, Priority: priority, MadeAt: madeAt,
+		ID: id(n), Set: set, Kind: schedule.Battle, Description: schedule.Description(set) + " rules", StartsAt: startsAt,
+		EndsAt: endsAt, Priority: priority, MadeAt: madeAt,
 	}.Restore()
 }
 
 func turn(entry schedule.EntryID, set schedule.SetName) schedule.TurnSnapshot {
-	return schedule.TurnSnapshot{Entry: entry, Set: set}
+	return schedule.TurnSnapshot{Entry: entry, Set: set, Kind: schedule.Battle, Description: schedule.Description(set) + " rules"}
 }
 
-var none = schedule.EntryID{}
+// played is a turn's snapshot with no window: TestATurnCarriesItsEntrysWindow pins the window.
+func played(turn schedule.Turn) schedule.TurnSnapshot {
+	snapshot := turn.TakeSnapshot()
+	snapshot.StartsAt, snapshot.EndsAt = time.Time{}, time.Time{}
+	return snapshot
+}
 
-func TestWithNoEntryDefaultPlays(t *testing.T) {
+var (
+	none        = schedule.EntryID{}
+	defaultTurn = schedule.TurnSnapshot{Entry: none, Set: schedule.Default, Kind: schedule.Plain}
+)
+
+func TestWithNoEntryDefaultPlaysAsAPlainTurn(t *testing.T) {
 	sched := schedule.New()
 
-	assert.Equal(t, turn(none, schedule.Default), sched.TurnAt(finale).TakeSnapshot())
+	assert.Equal(t, defaultTurn, played(sched.TurnAt(finale)))
 	assert.True(t, sched.SinceAt(finale).IsZero())
 }
 
 func TestAnEntryPlaysFromItsStartToJustBeforeItsEnd(t *testing.T) {
 	sched := schedule.New(entry(1, "rush", finale, battleEnds, 1, madeAt))
 
-	assert.Equal(t, turn(none, schedule.Default), sched.TurnAt(finale.Add(-time.Nanosecond)).TakeSnapshot())
-	assert.Equal(t, turn(id(1), "rush"), sched.TurnAt(finale).TakeSnapshot(), "the battle starts on time")
-	assert.Equal(t, turn(id(1), "rush"), sched.TurnAt(battleEnds.Add(-time.Nanosecond)).TakeSnapshot())
-	assert.Equal(t, turn(none, schedule.Default), sched.TurnAt(battleEnds).TakeSnapshot(), "over at its end")
+	assert.Equal(t, defaultTurn, played(sched.TurnAt(finale.Add(-time.Nanosecond))))
+	assert.Equal(t, turn(id(1), "rush"), played(sched.TurnAt(finale)), "the battle starts on time")
+	assert.Equal(t, turn(id(1), "rush"), played(sched.TurnAt(battleEnds.Add(-time.Nanosecond))))
+	assert.Equal(t, defaultTurn, played(sched.TurnAt(battleEnds)), "over at its end")
+}
+
+func TestTheTurnIsOfTheEntrysKindWithItsWords(t *testing.T) {
+	plain := entry(1, "calm", finale, battleEnds, 1, madeAt).TakeSnapshot()
+	plain.Kind, plain.Description = schedule.Plain, "A quieter antibot."
+	sched := schedule.New(plain.Restore())
+
+	assert.Equal(t, schedule.TurnSnapshot{Entry: id(1), Set: "calm", Kind: schedule.Plain, Description: "A quieter antibot."},
+		played(sched.TurnAt(finale)))
+}
+
+func TestATurnCarriesItsEntrysWindowInUTC(t *testing.T) {
+	paris := time.FixedZone("CET", 3600)
+	sched := schedule.New(entry(1, "rush", finale.In(paris), battleEnds.In(paris), 1, madeAt))
+
+	snapshot := sched.TurnAt(finale).TakeSnapshot()
+
+	assert.Equal(t, finale, snapshot.StartsAt)
+	assert.Equal(t, battleEnds, snapshot.EndsAt)
+	assert.Equal(t, sched.TurnAt(finale), schedule.New(entry(1, "rush", finale, battleEnds, 1, madeAt)).TurnAt(finale),
+		"two reads of one entry are one turn")
+	assert.True(t, schedule.New().TurnAt(finale).TakeSnapshot().EndsAt.IsZero(), "default has no window")
 }
 
 func TestTheHighestPriorityPlays(t *testing.T) {
@@ -54,7 +87,7 @@ func TestTheHighestPriorityPlays(t *testing.T) {
 		entry(2, "frozen", finale, battleEnds, 2, madeAt),
 	)
 
-	assert.Equal(t, turn(id(1), "calm"), sched.TurnAt(finale).TakeSnapshot(), "made first, but above")
+	assert.Equal(t, turn(id(1), "calm"), played(sched.TurnAt(finale)), "made first, but above")
 }
 
 func TestAnEntryAboveAnotherPlaysWhileItRuns(t *testing.T) {
@@ -63,9 +96,9 @@ func TestAnEntryAboveAnotherPlaysWhileItRuns(t *testing.T) {
 		entry(2, "calm", finale.Add(30*time.Minute), finale.Add(time.Hour), 2, madeAt),
 	)
 
-	assert.Equal(t, turn(id(1), "rush"), sched.TurnAt(finale.Add(30*time.Minute-time.Nanosecond)).TakeSnapshot())
-	assert.Equal(t, turn(id(2), "calm"), sched.TurnAt(finale.Add(30*time.Minute)).TakeSnapshot())
-	assert.Equal(t, turn(id(1), "rush"), sched.TurnAt(finale.Add(time.Hour)).TakeSnapshot(), "the one under it again")
+	assert.Equal(t, turn(id(1), "rush"), played(sched.TurnAt(finale.Add(30*time.Minute-time.Nanosecond))))
+	assert.Equal(t, turn(id(2), "calm"), played(sched.TurnAt(finale.Add(30*time.Minute))))
+	assert.Equal(t, turn(id(1), "rush"), played(sched.TurnAt(finale.Add(time.Hour))), "the one under it again")
 }
 
 func TestATieGoesToTheEntryMadeLast(t *testing.T) {
@@ -74,7 +107,7 @@ func TestATieGoesToTheEntryMadeLast(t *testing.T) {
 		entry(1, "calm", finale, battleEnds, 2, madeAt.Add(-time.Hour)),
 	)
 
-	assert.Equal(t, turn(id(2), "frozen"), sched.TurnAt(finale).TakeSnapshot())
+	assert.Equal(t, turn(id(2), "frozen"), played(sched.TurnAt(finale)))
 }
 
 func TestATieMadeAtOnceGoesToTheGreaterID(t *testing.T) {
@@ -83,7 +116,7 @@ func TestATieMadeAtOnceGoesToTheGreaterID(t *testing.T) {
 		entry(2, "frozen", finale, battleEnds, 2, madeAt),
 	)
 
-	assert.Equal(t, turn(id(2), "frozen"), sched.TurnAt(finale).TakeSnapshot())
+	assert.Equal(t, turn(id(2), "frozen"), played(sched.TurnAt(finale)))
 }
 
 func TestATurnBeganAtTheLastChange(t *testing.T) {

@@ -140,6 +140,36 @@ describe("opacity", () => {
     })
 })
 
+describe("the flags drawn large", () => {
+    it("needs each painted flag's largest landmass, and nothing of ground nobody paints", () => {
+        const field = new BorderField(world(8))
+        expect(field.flagNeeds().size).toBe(0)
+
+        paint(field, {fr: 5})
+
+        const needs = field.flagNeeds()
+        expect([...needs.keys()]).toEqual(["fr"])
+        expect(needs.get("fr")).toBeCloseTo(0.1)
+    })
+
+    it("marks each painted landmass with its holder's slot, 0 for the atlas, re-uploading only on a change", () => {
+        const field = new BorderField(world(8))
+        paint(field, {fr: 5})
+        const uploaded = field.landmassData.version
+
+        field.markSlots(["de", "fr"])
+        expect(rows(field)[TEXELS * 4 + 13]).toBe(2)
+        expect(field.landmassData.version).toBeGreaterThan(uploaded)
+
+        const marked = field.landmassData.version
+        field.markSlots(["de", "fr"])
+        expect(field.landmassData.version).toBe(marked)
+
+        field.markSlots(["de"])
+        expect(rows(field)[TEXELS * 4 + 13]).toBe(0)
+    })
+})
+
 describe("the landmass table", () => {
     it("is not re-uploaded when nothing about a landmass changed", () => {
         const field = new BorderField(world(8))

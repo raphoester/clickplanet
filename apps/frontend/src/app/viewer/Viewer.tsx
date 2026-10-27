@@ -59,7 +59,7 @@ import {useAnthem} from "../anthem/useAnthem.ts";
 import {AccountStore} from "../account/accountStore.ts";
 import {useAccount} from "../account/useAccount.ts";
 import {hueOf} from "../../domain/authorColor.ts";
-import {PlayerInfoBackend, PlayerLine, PlayerTitle, PresenceBackend} from "../../backends/player.ts";
+import {PlayerInfoBackend, PlayerLine, PresenceBackend} from "../../backends/player.ts";
 import PlayerCard from "../players/PlayerCard.tsx";
 import HolderCard from "../players/HolderCard.tsx";
 import TerritoryCard from "../territory/TerritoryCard.tsx";
@@ -92,7 +92,17 @@ import {BoardStandings, BoardView} from "../standings/BoardViews.tsx";
 import {useRace} from "../standings/useRace.ts";
 import RoundReveal from "../season/RoundReveal.tsx";
 import {useRoundReveal} from "../season/useRoundReveal.ts";
-import {revealKeyOf} from "../../domain/roundReveal.ts";
+import {TurnBackend} from "../../backends/turn.ts";
+import {battleKeyOf, battleOf} from "../../domain/battle.ts";
+import {announcementKeyOf} from "../../domain/announcements.ts";
+import {useAnnouncements} from "../announcements/useAnnouncements.ts";
+import {useTurn} from "../battle/useTurn.ts";
+import {useMood} from "../battle/useMood.ts";
+import {useBattleReveal} from "../battle/useBattleReveal.ts";
+import {useBattleOver} from "../battle/useBattleOver.ts";
+import BattleChip, {BattleDetails} from "../battle/BattleChip.tsx";
+import BattleReveal from "../battle/BattleReveal.tsx";
+import BattleOver from "../battle/BattleOver.tsx";
 import {reigningChampionOf} from "../../domain/champion.ts";
 import {countryLines, CountryOrder, shownOrder} from "../../domain/race.ts";
 import {acceptedClicks} from "./acceptedClicks.ts";
@@ -103,7 +113,7 @@ const NO_LEADERBOARD: readonly LeaderboardEntry[] = []
 // After the wave has run over the land.
 const FORTIFY_CARD_DELAY_MS = 1600
 
-type SheetName = "board" | "missions" | "chat" | "you" | "share" | "settings" | "season" | "clicks"
+type SheetName = "board" | "missions" | "chat" | "you" | "share" | "settings" | "season" | "battle" | "clicks"
 
 export type ViewerProps = {
     sharedCountry?: Country
@@ -125,6 +135,7 @@ export type ViewerProps = {
     tileHolders?: TileHolders
     landmasses?: LandmassReader
     season?: SeasonBackend
+    turn?: TurnBackend
     standings?: StandingsBackend
     support?: SupportBackend
     missions?: MissionsBackend
@@ -158,11 +169,23 @@ export default function Viewer(props: ViewerProps) {
     usePresence(props.presence, {countryCode: countryState.code, username, color})
 
     const quiz = useQuiz(props.quizMaster, countryState.code, sound.play)
-    const [unlocked, setUnlocked] = useState<readonly PlayerTitle[]>([])
-    const roster = useRoster(props.presence, (title) => setUnlocked((queue) => [...queue, title]))
+    const announcements = useAnnouncements()
+    const {announce, current} = announcements
+    const roster = useRoster(props.presence, (title) => announce({kind: "title", title}))
     const season = useSeason(props.season)
     const race = useRace(props.standings)
     const reveal = useRoundReveal(race)
+    const turn = useTurn(props.turn)
+    const battle = battleOf(turn)
+    useMood(battle ? "battle" : undefined)
+    const battleReveal = useBattleReveal(battle)
+    const battleOver = useBattleOver(battle)
+    useEffect(() => {
+        if (reveal.closed) announce({kind: "round", closed: reveal.closed})
+    }, [announce, reveal.closed])
+    useEffect(() => {
+        if (battleReveal.battle) announce({kind: "battle", battle: battleReveal.battle})
+    }, [announce, battleReveal.battle])
     const champion = reigningChampionOf(season, race?.closed)
     const [countryOrder, setCountryOrder] = useState<CountryOrder>("season")
     const boardGuide = useBoardGuide()
@@ -175,6 +198,7 @@ export default function Viewer(props: ViewerProps) {
     const [sheet, setSheet] = useState<SheetName>()
     const [menuTab, setMenuTab] = useState<MenuTab>("board")
     const [seasonOpen, setSeasonOpen] = useState(false)
+    const [battleOpen, setBattleOpen] = useState(false)
     const [clicksOpen, setClicksOpen] = useState(false)
     const [unread, setUnread] = useState(0)
     const [boardView, setBoardView] = useState<BoardView>("countries")
@@ -185,6 +209,7 @@ export default function Viewer(props: ViewerProps) {
     useEffect(() => {
         setSheet(undefined)
         setSeasonOpen(false)
+        setBattleOpen(false)
         setClicksOpen(false)
     }, [compact])
 
@@ -238,6 +263,7 @@ export default function Viewer(props: ViewerProps) {
         country: countryState,
         clickHue: hueOf(color),
         mapView: display.settings.mapView,
+        halo: battle ? "war" : "calm",
         rendering: display.settings.rendering,
     })
 
@@ -364,8 +390,13 @@ export default function Viewer(props: ViewerProps) {
                                     tab={menuTab}
                                     onTab={setMenuTab}/>}
 
-        {ready && !compact && champion && <ChampionChip champion={champion} compact={false}/>}
-        {ready && !compact && !champion && season && <SeasonChip season={season}
+        {ready && !compact && battle && <BattleChip battle={battle}
+                                                    season={season}
+                                                    compact={false}
+                                                    open={battleOpen}
+                                                    onToggle={() => setBattleOpen((open) => !open)}/>}
+        {ready && !compact && !battle && champion && <ChampionChip champion={champion} compact={false}/>}
+        {ready && !compact && !battle && !champion && season && <SeasonChip season={season}
                                                                  compact={false}
                                                                  open={seasonOpen}
                                                                  onToggle={() => setSeasonOpen((open) => !open)}/>}
@@ -374,12 +405,18 @@ export default function Viewer(props: ViewerProps) {
                                         rank={rankOf(lines, countryState)}
                                         boardOpen={sheet === "board"}
                                         onOpenBoard={() => toggleSheet("board")}
-                                        trailing={champion
-                                            ? <ChampionChip champion={champion} compact/>
-                                            : season && <SeasonChip season={season}
-                                                                    compact
-                                                                    open={sheet === "season"}
-                                                                    onToggle={() => toggleSheet("season")}/>}/>}
+                                        trailing={battle
+                                            ? <BattleChip battle={battle}
+                                                          season={season}
+                                                          compact
+                                                          open={sheet === "battle"}
+                                                          onToggle={() => toggleSheet("battle")}/>
+                                            : champion
+                                                ? <ChampionChip champion={champion} compact/>
+                                                : season && <SeasonChip season={season}
+                                                                        compact
+                                                                        open={sheet === "season"}
+                                                                        onToggle={() => toggleSheet("season")}/>}/>}
 
         {ready && <ClickBudgetMeter budget={clickBudget}
                                     refusals={refusals}
@@ -434,6 +471,9 @@ export default function Viewer(props: ViewerProps) {
             {sheet === "season" && season && <Sheet title={`Season ${season.number}`} onClose={closeSheet}>
                 <SeasonDetails season={season}/>
             </Sheet>}
+            {sheet === "battle" && battle && <Sheet title="Battle" onClose={closeSheet}>
+                <BattleDetails battle={battle} season={season}/>
+            </Sheet>}
             {sheet === "clicks" && <Sheet title="Your clicks" onClose={closeSheet}>{clicks}</Sheet>}
 
             <TabBar open={sheet}
@@ -480,17 +520,28 @@ export default function Viewer(props: ViewerProps) {
                                                        reporter={openPlayer.accountId === ownAccountId ? undefined : props.support}
                                                        onClose={() => setOpenPlayer(undefined)}/>}
 
-        {unlocked.length > 0 && <TitleUnlocked key={unlocked[0].id}
-                                               title={unlocked[0]}
-                                               play={sound.play}
-                                               onWear={props.account?.wearTitle}
-                                               onClose={() => setUnlocked((queue) => queue.slice(1))}/>}
+        {ready && current?.kind === "title" && <TitleUnlocked key={announcementKeyOf(current)}
+                                                              title={current.title}
+                                                              play={sound.play}
+                                                              onWear={props.account?.wearTitle}
+                                                              onClose={announcements.dismiss}/>}
 
-        {ready && unlocked.length === 0 && reveal.closed && <RoundReveal key={revealKeyOf(reveal.closed)}
-                                                                         closed={reveal.closed}
-                                                                         countryCode={countryState.code}
-                                                                         play={sound.play}
-                                                                         onClose={reveal.dismiss}/>}
+        {ready && current?.kind === "round" && <RoundReveal key={announcementKeyOf(current)}
+                                                            closed={current.closed}
+                                                            countryCode={countryState.code}
+                                                            play={sound.play}
+                                                            onClose={() => {
+                                                                reveal.dismiss()
+                                                                announcements.dismiss()
+                                                            }}/>}
+
+        {ready && current?.kind === "battle" && <BattleReveal key={announcementKeyOf(current)}
+                                                              battle={current.battle}
+                                                              play={sound.play}
+                                                              onClose={() => {
+                                                                  battleReveal.dismiss()
+                                                                  announcements.dismiss()
+                                                              }}/>}
 
         {missionsDone && rules && <MissionsDone missions={missionsDone}
                                                 rules={rules}
@@ -531,6 +582,10 @@ export default function Viewer(props: ViewerProps) {
             lowered={quiz.state.phase !== 'idle'}
             onDone={dismissBomb}
         />}
+
+        {battleOver.over && <BattleOver key={battleKeyOf(battleOver.over)}
+                                        lowered={quiz.state.phase !== 'idle'}
+                                        onDone={battleOver.dismiss}/>}
 
         <Quiz state={quiz.state} onOpen={quiz.open} onAnswer={quiz.answer}/>
 

@@ -23,12 +23,18 @@ const (
 )
 
 type RoundClosed struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Season        uint32                 `protobuf:"varint,1,opt,name=season,proto3" json:"season,omitempty"`
-	Number        uint32                 `protobuf:"varint,2,opt,name=number,proto3" json:"number,omitempty"`
-	Finale        bool                   `protobuf:"varint,3,opt,name=finale,proto3" json:"finale,omitempty"`
-	EndedAt       *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=ended_at,json=endedAt,proto3" json:"ended_at,omitempty"`
-	Results       []*RoundResult         `protobuf:"bytes,5,rep,name=results,proto3" json:"results,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Season uint32                 `protobuf:"varint,1,opt,name=season,proto3" json:"season,omitempty"`
+	// A day's place among the season's days; a round of its own's among the season's rounds of their own.
+	Number uint32 `protobuf:"varint,2,opt,name=number,proto3" json:"number,omitempty"`
+	// The round that ended the season.
+	Finale  bool                   `protobuf:"varint,3,opt,name=finale,proto3" json:"finale,omitempty"`
+	EndedAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=ended_at,json=endedAt,proto3" json:"ended_at,omitempty"`
+	Results []*RoundResult         `protobuf:"bytes,5,rep,name=results,proto3" json:"results,omitempty"`
+	// A round of its own: the window of a schedule entry whose set asked for one, not a day.
+	Own bool `protobuf:"varint,6,opt,name=own,proto3" json:"own,omitempty"`
+	// How many times a day's points it scored: 1 for a day.
+	Times         uint32 `protobuf:"varint,7,opt,name=times,proto3" json:"times,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -96,6 +102,20 @@ func (x *RoundClosed) GetResults() []*RoundResult {
 		return x.Results
 	}
 	return nil
+}
+
+func (x *RoundClosed) GetOwn() bool {
+	if x != nil {
+		return x.Own
+	}
+	return false
+}
+
+func (x *RoundClosed) GetTimes() uint32 {
+	if x != nil {
+		return x.Times
+	}
+	return 0
 }
 
 type RoundResult struct {
@@ -299,13 +319,15 @@ var File_seasons_v1_events_proto protoreflect.FileDescriptor
 const file_seasons_v1_events_proto_rawDesc = "" +
 	"\n" +
 	"\x17seasons/v1/events.proto\x12\n" +
-	"seasons.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xbf\x01\n" +
+	"seasons.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe7\x01\n" +
 	"\vRoundClosed\x12\x16\n" +
 	"\x06season\x18\x01 \x01(\rR\x06season\x12\x16\n" +
 	"\x06number\x18\x02 \x01(\rR\x06number\x12\x16\n" +
 	"\x06finale\x18\x03 \x01(\bR\x06finale\x125\n" +
 	"\bended_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\aendedAt\x121\n" +
-	"\aresults\x18\x05 \x03(\v2\x17.seasons.v1.RoundResultR\aresults\"S\n" +
+	"\aresults\x18\x05 \x03(\v2\x17.seasons.v1.RoundResultR\aresults\x12\x10\n" +
+	"\x03own\x18\x06 \x01(\bR\x03own\x12\x14\n" +
+	"\x05times\x18\a \x01(\rR\x05times\"S\n" +
 	"\vRoundResult\x12\x18\n" +
 	"\acountry\x18\x01 \x01(\tR\acountry\x12\x12\n" +
 	"\x04rank\x18\x02 \x01(\rR\x04rank\x12\x16\n" +

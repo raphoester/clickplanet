@@ -154,13 +154,6 @@ func (s *Storage) Held(country string) int {
 	return int(s.board.heldBy(country))
 }
 
-func (s *Storage) Territories() map[string]uint32 {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	return s.board.holdings()
-}
-
 func (s *Storage) Owner(tile uint32) (string, bool) {
 	if tile > s.board.last() {
 		return "", false

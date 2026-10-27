@@ -75,9 +75,14 @@ rules page calls both.
 
 ## The rule schedule: `metagame.v1.AdminService`
 
-`GetSchedule`, `AddEntry`, `EditEntry`, `DeleteEntry`: the entries that decide the rule set planet and the antibot
-play. Only an entry to come changes. See [The metagame module](metagame.md). The
+`GetSchedule`, `AddEntry`, `EditEntry`, `DeleteEntry`: the entries that decide the rule set planet, the antibot and
+seasons play. Only an entry to come changes. See [The metagame module](metagame.md). The
 backoffice's Rule schedule page calls all four.
+
+## The season rules: `seasons.v1.AdminService`
+
+`GetRules`, `SaveRuleSet`: how seasons counts points while a set plays, a round of its own and its times, never the
+set that plays now. See [The season rules](season-rules.md). The backoffice's Season rules page calls both.
 
 ## `GetLedger`, `GetTerritories`
 
@@ -116,8 +121,8 @@ backoffice's Rule schedule page calls all four.
   - **A window of 72 hours at most**, the ledger's retention, and `since` before `until` (unset: now); anything else is
     `InvalidArgument` (`changes_query.ErrInvalidWindow`). It changes nothing and logs nothing. The last second of
     changes, not flushed yet, is not in it.
-- **`GetTerritories`** is the internal service's, handler and all: the tiles each country holds now, and the map's
-  size.
+- **`GetTerritories`** is the internal service's, handler and all: the tiles each country holds now, how many of them on
+  each country's land, and the map's size.
 
 ## The battle reads: `ListConvictions`, `GetMetrics`, `GetRace`
 

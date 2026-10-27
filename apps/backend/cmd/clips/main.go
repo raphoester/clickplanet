@@ -67,7 +67,7 @@ func fetch(ctx context.Context, parsed flags.Config, logger *slog.Logger) error 
 }
 
 func choose(ctx context.Context, parsed flags.Config, out io.Writer, logger *slog.Logger) error {
-	choice, err := clips.Choose(ctx, parsed.ShortlistFile, parsed.Job, logger)
+	choice, err := clips.Choose(ctx, parsed.FindingsFile, parsed.Job, logger)
 	if err != nil {
 		return fmt.Errorf("failed to choose the clips of the run: %w", err)
 	}
@@ -78,7 +78,7 @@ func choose(ctx context.Context, parsed flags.Config, out io.Writer, logger *slo
 }
 
 func edit(ctx context.Context, parsed flags.Config, out io.Writer, logger *slog.Logger) error {
-	trial, err := clips.Edit(ctx, parsed.ShortlistFile, parsed.PromptOnly, parsed.Job, logger)
+	trial, err := clips.Edit(ctx, parsed.FindingsFile, parsed.PromptOnly, parsed.Job, logger)
 	if err != nil {
 		return fmt.Errorf("failed to try the editor: %w", err)
 	}

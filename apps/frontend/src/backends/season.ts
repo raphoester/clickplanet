@@ -1,6 +1,7 @@
 export type Season = {
     number: number
-    finaleStartsAt: number
+    // When the season's last day ends: every day ends at this time of day.
+    lastDayEndsAt: number
     endsAt: number
 }
 

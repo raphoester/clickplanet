@@ -4,15 +4,19 @@
 `seasons.v1.SeasonService/GetSeason` once per page load (a cached GET), and
 `fakeSeasonBackend.ts` answers Season 0 in fake mode. A 404 reads as no season.
 
-- `domain/seasonClock.ts` — `seasonClock`, the time left to today's cutoff to the
-  second (`13h 05m 12s`, `52m 10s`), or to the season's end once the finale runs,
-  and whether it runs, nothing once over. **A day ends at the time of day the
-  finale starts**, the backend's `rounds.Current`: worked out here from the
-  season, so the chip needs no race. `finaleClock` and `finaleWindow` are the
-  finale's countdown and its day and hours in the player's own time zone.
-  `countdownsOf` is the chip's faces, made from the two clocks: today's cutoff
-  and the finale's start. On the last day they are the same time, so there is
-  one face. During the finale there is one, to the season's end. After it, none.
+- `domain/seasonClock.ts` — `countdownsOf`, the chip's faces: the time left to
+  today's cutoff to the second (`13h 05m 12s`, `52m 10s`), and to the season's
+  end. **A day ends at the time of day the season's last day ends**
+  (`Season.lastDayEndsAt`, the backend's `rounds.Day`): worked out here from the
+  season, so the chip needs no race. From the last day's end to the season's end
+  there is no day, and one face, the season's; a last day that ends with the
+  season is one face too. After the season, none. `endClock` is the season's
+  countdown unit by unit, for the home page, and `endsLine` its end in the
+  player's own time zone ("Sat 31 Oct · 23:00").
+- **No battle is counted down to.** Since 2026-10-27 the Final Battle is an entry of the
+  metagame's schedule (see [Battles](battle.md)), which an operator may still move: the
+  client knows a battle only once it plays. `GetSeason`'s `finale_starts_at` is read only
+  from a server from before `last_day_ends_at`, which sent the same time under it.
 - `domain/champion.ts` — `championOf`, the countries ranked 1st once a finale
   closed, `reigningChampionOf`, that champion while no newer season is current,
   and `winsLine`, "Germany wins Season 0", for the reveal, the chip and the chat.
@@ -23,21 +27,24 @@
   revealed](cutoff.md)).
 
 **The season is a chip in the status zone, and it turns between two
-countdowns**: today's cutoff, because the day is what scores, and the start of
-the Final Battle. Each face shows for 6 seconds. A face is a label and its time
+countdowns**: today's cutoff, because the day is what scores, and the season's
+end. Each face shows for 6 seconds. A face is a label and its time
 together, so a look never shows one countdown's time under the other's label.
 The next face slides up into place; under `prefers-reduced-motion` it changes
 with no movement. The mouse over the chip, or focus on it, stops the turns. With
 one face the chip does not turn.
 
-On a desktop it sits at the top centre: "Today ends in 13h 05m 12s", then "Final
-Battle in 23d 04h 12m 05s", and a press opens a dropdown (Escape closes it). On a
+On a desktop it sits at the top centre: "Today ends in 13h 05m 12s", then "Season
+ends in 23d 06h 12m 05s", and a press opens a dropdown (Escape closes it). On a
 phone it is the right end of the status bar, the two largest units alone
-("13h 05m"), under a short tag ("Today", "Final") when there are two faces. A
+("13h 05m"), under a short tag ("Today", "Season") when there are two faces. A
 press opens the same details as a sheet, with both countdowns at once. The chip's
 name holds both countdowns in full, so a screen reader does not wait for a turn.
-The faces are hidden from it, and they are not a live region. During the finale
-it glows and says "Final Battle ends in"; it still opens.
+The faces are hidden from it, and they are not a live region.
+
+**While a battle plays, the chip is the battle's** (`BattleChip`, see
+[Battles](battle.md)): the season's countdowns move into its facts, and the season
+chip is back when the battle ends.
 
 **After the season, the chip is the champion's** (`ChampionChip`): a trophy,
 "Season 0 champion", the flag and the name, from the race's `closed` once it is
@@ -58,20 +65,19 @@ every second: a chip as wide as its text moved every second and wrapped the
 dropdown's rows again with it.
 
 **What it opens is the one place the UI explains the rules**, asked for on
-purpose: four rows (`SeasonFacts`), the Final Battle with its day and hours, the
-daily rounds ("Win the day"), the winner's trophy in the Hall of Fame, and the
-titles. During the finale the first row is the power-ups instead of the date.
-**Say only what is decided**: a battle full of power-ups, points each day for the
-countries that held the most ground (triple in the Final Battle), a trophy for the winning country, a title for every
-signed-in player and one more for the winning country's. Guests get no title, so
+purpose: three rows (`SeasonFacts`), the daily rounds ("Win the day"), the
+winner's trophy in the Hall of Fame, and the titles. **Say only what is
+decided**: points when a day ends for the countries holding the most ground then,
+a trophy for the winning country, a title for every signed-in player and one
+more for the winning country's. A battle and what it is worth are the schedule's:
+the battle chip says them, in the operator's words, while one plays. Guests get no title, so
 the row says "signed-in".
 
-**The home page counts down to the Final Battle.** `src/home.ts` reads the
-season with the same client, and `app/home/finale.ts` fills the pill in the hero
-and the `#final-battle` section, both `hidden` until a season is known and again
-once it is over. `finaleClock` counts to the battle's start, then to the season's
-end, when both go live and glow. The page's text stays in `index.html`; the
-module only writes the numbers and toggles `finale-live`. **It imports no CSS**:
+**The home page counts down to the season's end.** `src/home.ts` reads the
+season with the same client, and `app/home/season.ts` fills the pill in the hero
+("Season 0 · ends in") and the `#season` section (when it ends, the countdown,
+the rows of the chip), both `hidden` until a season is known and again once it is
+over. The page's text stays in `index.html`; the module only writes the numbers. **It imports no CSS**:
 a stylesheet shared with `play.html` becomes its own file, linked before
 `play-*.css`, and moves the game's cascade. The art's styles are copied into the
 page's `<style>`, as `.panel` and `.button` are.

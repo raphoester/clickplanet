@@ -15,10 +15,15 @@ func New(entries ...Entry) Schedule {
 }
 
 // Turn is what the schedule plays at a time: the running entry with the highest priority, a tie going to the entry
-// made last, and default when none runs.
+// made last, and default, a plain turn, when none runs.
 type Turn struct {
-	entry EntryID
-	set   SetName
+	entry       EntryID
+	set         SetName
+	kind        Kind
+	description Description
+	// startsAt and endsAt are the playing entry's window, in UTC so that two turns compare: zero when none runs.
+	startsAt time.Time
+	endsAt   time.Time
 }
 
 func (s Schedule) TurnAt(at time.Time) Turn {
@@ -32,9 +37,12 @@ func (s Schedule) TurnAt(at time.Time) Turn {
 		}
 	}
 	if !found {
-		return Turn{set: Default}
+		return Turn{set: Default, kind: Plain}
 	}
-	return Turn{entry: playing.id, set: playing.set}
+	return Turn{
+		entry: playing.id, set: playing.set, kind: playing.kind, description: playing.description,
+		startsAt: playing.startsAt.UTC(), endsAt: playing.endsAt.UTC(),
+	}
 }
 
 // SinceAt is when the turn at a time began: the last start or end before it that changed the turn. The zero time is
@@ -70,11 +78,17 @@ func (e Entry) outranks(other Entry) bool {
 }
 
 func (t Turn) TakeSnapshot() TurnSnapshot {
-	return TurnSnapshot{Entry: t.entry, Set: t.set}
+	return TurnSnapshot{
+		Entry: t.entry, Set: t.set, Kind: t.kind, Description: t.description, StartsAt: t.startsAt, EndsAt: t.endsAt,
+	}
 }
 
-// TurnSnapshot names the entry that plays: the zero id when none runs, and default plays.
+// TurnSnapshot names the entry that plays: the zero id and no window when none runs, and default plays.
 type TurnSnapshot struct {
-	Entry EntryID
-	Set   SetName
+	Entry       EntryID
+	Set         SetName
+	Kind        Kind
+	Description Description
+	StartsAt    time.Time
+	EndsAt      time.Time
 }

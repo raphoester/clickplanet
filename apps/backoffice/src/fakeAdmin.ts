@@ -82,6 +82,15 @@ import {
     GetScheduleResponse,
     Playing,
 } from "./gen/grpc/metagame/v1/admin_pb.ts"
+import {EntryKind} from "./gen/grpc/metagame/v1/metagame_pb.ts"
+import {
+    GetRulesRequest as SeasonsGetRulesRequest,
+    GetRulesResponse as SeasonsGetRulesResponse,
+    RuleSet as SeasonsRuleSet,
+    SaveRuleSetRequest as SeasonsSaveRuleSetRequest,
+    SaveRuleSetResponse as SeasonsSaveRuleSetResponse,
+} from "./gen/grpc/seasons/v1/admin_pb.ts"
+import {Rules as SeasonRules} from "./gen/grpc/seasons/v1/rules_pb.ts"
 import {ChargesHeld, TileUpdate} from "./gen/grpc/planet/v1/planet_pb.ts"
 import {
     AdminGetPlayerRequest,
@@ -107,15 +116,7 @@ import {
     Report,
 } from "./gen/grpc/support/v1/admin_pb.ts"
 import {
-    AntibotAdmin,
-    ChatAdmin,
-    ClipsAdmin,
-    Clients,
-    MetagameAdmin,
-    PlanetAdmin,
-    PlayerAdmin,
-    SeasonsAdmin,
-    SupportAdmin,
+    AntibotAdmin, ChatAdmin, ClipsAdmin, Clients, MetagameAdmin, PlanetAdmin, PlayerAdmin, SeasonsAdmin, SupportAdmin,
 } from "./clients.ts"
 
 export const AT = new Date("2026-10-18T12:00:00Z")
@@ -194,10 +195,11 @@ export function antibotMetricsAt(seconds: number, minutes: number): AntibotGetMe
 }
 
 // What each fake was asked, and a refusal to answer with instead, by method.
-export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAdmin, ClipsAdmin, SeasonsAdmin {
+export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAdmin, ClipsAdmin {
     readonly kind = "fake admin"
     readonly antibot: FakeAntibot = new FakeAntibot(this)
     readonly metagame: FakeMetagame = new FakeMetagame(this)
+    readonly seasons: FakeSeasons = new FakeSeasons(this)
     readonly asked: {method: string, request: unknown}[] = []
     readonly refusals = new Map<string, Code>()
     private readonly holds = new Map<string, Promise<void>>()
@@ -249,23 +251,33 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         })],
         playing: "default",
     })
-    // An entry that ended, one that runs until 2098, and one to come.
+    // The set the migration keeps, and a battle's: its window a round of its own, worth 3 days.
+    seasonRules = new SeasonsGetRulesResponse({
+        sets: [
+            new SeasonsRuleSet({name: "default", rules: SeasonRules.fromJson({ownRound: {enabled: false, times: 1}})}),
+            new SeasonsRuleSet({name: "rush", rules: SeasonRules.fromJson({ownRound: {enabled: true, times: 3}})}),
+        ],
+        playing: "default",
+    })
+    // A battle that ended, a plain entry that runs until 2098, and a battle to come.
     schedule = new GetScheduleResponse({
         entries: [
             new Entry({
-                id: "entry-ended", ruleSet: "rush", startsAt: Timestamp.fromDate(new Date("2020-10-31T21:00:00Z")),
+                id: "entry-ended", ruleSet: "rush", kind: EntryKind.BATTLE, description: "Triple points. A bonus box every minute.",
+                startsAt: Timestamp.fromDate(new Date("2020-10-31T21:00:00Z")),
                 endsAt: Timestamp.fromDate(new Date("2020-10-31T23:00:00Z")), priority: 1, madeAt: Timestamp.fromDate(AT),
             }),
             new Entry({
-                id: "entry-running", ruleSet: "calm", startsAt: Timestamp.fromDate(AT),
+                id: "entry-running", ruleSet: "calm", kind: EntryKind.PLAIN, startsAt: Timestamp.fromDate(AT),
                 endsAt: Timestamp.fromDate(new Date("2098-01-01T00:00:00Z")), priority: 1, madeAt: Timestamp.fromDate(AT),
             }),
             new Entry({
-                id: "entry-to-come", ruleSet: "frozen", startsAt: Timestamp.fromDate(new Date("2098-06-01T20:00:00Z")),
+                id: "entry-to-come", ruleSet: "frozen", kind: EntryKind.BATTLE, description: "Frozen tiles.",
+                startsAt: Timestamp.fromDate(new Date("2098-06-01T20:00:00Z")),
                 endsAt: Timestamp.fromDate(new Date("2098-06-01T22:00:00Z")), priority: 2, madeAt: Timestamp.fromDate(AT),
             }),
         ],
-        playing: new Playing({ruleSet: "calm", since: Timestamp.fromDate(AT), entryId: "entry-running"}),
+        playing: new Playing({ruleSet: "calm", kind: EntryKind.PLAIN, since: Timestamp.fromDate(AT), entryId: "entry-running"}),
     })
     authors = [new Author({accountId: ACCOUNT, name: "BraveFox42"})]
     profile = new AdminGetPlayerResponse({
@@ -394,7 +406,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
     clients(): Clients {
         return {
             antibot: this.antibot, chat: this, planet: this, player: this, metagame: this.metagame, support: this, clips: this,
-            seasons: this,
+            seasons: this.seasons,
         }
     }
 
@@ -519,10 +531,6 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         return this.answer("getMetrics", request, read ?? new GetMetricsResponse())
     }
 
-    getRace(request: PartialMessage<GetRaceRequest>): Promise<GetRaceResponse> {
-        return this.answer("getRace", request, new GetRaceResponse({race: this.race}))
-    }
-
     getTerritories(request: PartialMessage<GetTerritoriesRequest>): Promise<GetTerritoriesResponse> {
         return this.answer("getTerritories", request, this.territories)
     }
@@ -630,6 +638,34 @@ export class FakeAntibot implements AntibotAdmin {
                 sets: [...others, saved].sort((a, b) => Number(a.name !== "default") - Number(b.name !== "default") ||
                     a.name.localeCompare(b.name)),
                 playing: this.admin.antibotRules.playing,
+            })
+        }
+        return answer
+    }
+}
+
+// seasons.v1's calls, asked of the same fake: planet.v1 and antibot.v1 have a getRules and a saveRuleSet of their own.
+export class FakeSeasons implements SeasonsAdmin {
+    constructor(private readonly admin: FakeAdmin) {}
+
+    getRace(request: PartialMessage<GetRaceRequest>): Promise<GetRaceResponse> {
+        return this.admin.answer("getRace", request, new GetRaceResponse({race: this.admin.race}))
+    }
+
+    getRules(request: PartialMessage<SeasonsGetRulesRequest>): Promise<SeasonsGetRulesResponse> {
+        return this.admin.answer("getRules", request, this.admin.seasonRules)
+    }
+
+    // Kept as the server keeps it: a set of the same name is replaced.
+    saveRuleSet(request: PartialMessage<SeasonsSaveRuleSetRequest>): Promise<SeasonsSaveRuleSetResponse> {
+        const answer = this.admin.answer("saveRuleSet", request, new SeasonsSaveRuleSetResponse())
+        if (!this.admin.refusals.has("saveRuleSet") && request.set !== undefined) {
+            const saved = new SeasonsRuleSet(request.set)
+            const others = this.admin.seasonRules.sets.filter(set => set.name !== saved.name)
+            this.admin.seasonRules = new SeasonsGetRulesResponse({
+                sets: [...others, saved].sort((a, b) => Number(a.name !== "default") - Number(b.name !== "default") ||
+                    a.name.localeCompare(b.name)),
+                playing: this.admin.seasonRules.playing,
             })
         }
         return answer

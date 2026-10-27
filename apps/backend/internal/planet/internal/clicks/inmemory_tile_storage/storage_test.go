@@ -169,7 +169,8 @@ func (s *testSuite) TestTheTerritoriesAreTheTilesEachCountryHoldsAndNoneForACoun
 	_, err := storage.Clear(ctx, clicks.Blast{Cleared: []uint32{3}})
 	s.Require().NoError(err)
 
-	s.Equal(map[string]uint32{"fr": 3}, storage.Territories())
+	_, tally := storage.Tally()
+	s.Equal([]clicks.FlagTiles{{Flag: "fr", Tiles: 3}}, tally.Countries)
 }
 
 var _ clicks.Claimable = (*inmemory_tile_storage.Storage)(nil)

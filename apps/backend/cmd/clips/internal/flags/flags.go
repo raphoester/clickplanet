@@ -14,29 +14,29 @@ import (
 
 const usage = `usage:
   clips fetch -out <replay.json> [-race <race.json>] [-season <season.json>] [-ssh <user@host>] [-hours 72] [-until <2026-10-12T12:00:00Z>]
-  clips choose -shortlist <shortlist.json> [-count 2] [-platforms tiktok,youtube] [-summary <file>]
-  clips edit -shortlist <shortlist.json> [-count 2] [-prompt]
+  clips choose -findings <findings.json> [-count 2] [-platforms tiktok,youtube] [-summary <file>]
+  clips edit -findings <findings.json> [-count 2] [-prompt]
   clips schedule -clips <folder> [-review 0] [-spacing 1h] [-platforms tiktok,youtube] [-sound-country US] [-summary <file>]
   clips stats [-ssh <user@host>] [-since 2026-10-13]
 
 fetch asks the production backend's operator tool for a replay, over ssh: CLICKPLANET_SSH stands in for -ssh, and
 the ledger keeps 72 hours in memory, so a replay cannot reach further back. With -race and -season it asks for the
 season's race and calendar too, and leaves each out with a warning when the backend does not answer it. choose prints
-the picks of the stories to render, as a JSON array, each in an arm of every experiment that runs: a day of the season
-won first, then each angle once before any twice; it skips a story the posting service holds a post of from the last 3
-days, or a headline from the last week, puts a flag of the last 6 posts after the others, and holds back a flag in 2 of
-them. It takes no more than the platform with the most room left in its day takes: 14 posts in a trailing 24 hours on
-TikTok, 8 on YouTube. schedule sends every clip of the folder to the posting service as one post on every platform with
+the stories to render, as a JSON array, each with its number in the run and in an arm of every experiment that runs:
+a day of the season won first, not told yet, then the stories Claude (ANTHROPIC_API_KEY) makes of the generator's
+findings and headlines, each checked against them and against the headlines of the last week. It takes no more than
+the platform with the most room left in its day takes: 14 posts in a trailing 24 hours on TikTok, 8 on YouTube.
+schedule sends every clip of the folder to the posting service as one post on every platform with
 room left, as soon as it can with no -review, and never sooner than -spacing after the last post on each; it refuses a
 clip in an arm no experiment has. A clip the experiment "sound" drew for a trending track gets one of the top 20 of
-TikTok's chart of -sound-country on TikTok, the anthem muted, or goes out with its anthem when the chart cannot be read.
+TikTok's chart of -sound-country that play as long as it in the game's genres, the anthem muted, or goes out with
+its anthem when the chart cannot be read or lists none that fit.
 stats keeps a snapshot of the numbers of every post of the job scheduled since the
 date, default the last 4 weeks, in the backend's postgres, over ssh as fetch asks: a row for each platform of each
-post. All three need ZERNIO_API_KEY. choose asks Claude (ANTHROPIC_API_KEY) to rank the stories the rules let through
-and write their headlines, and makes the run by the rules when it cannot; -summary adds who chose, and what the call
-cost, to that file. edit tries the editor on a saved
-shortlist, as many clips as -count, the told stories read when ZERNIO_API_KEY is set: -prompt prints what it would be
-sent, counted when ANTHROPIC_API_KEY is set, and asks for no answer.`
+post. All three need ZERNIO_API_KEY. A model that cannot answer leaves the run its day won alone; -summary adds how
+the call went, and what it cost, to that file. edit tries the editor on saved findings, as many clips as -count, the
+told stories read when ZERNIO_API_KEY is set: -prompt prints what it would be sent, counted when ANTHROPIC_API_KEY is
+set, and asks for no answer.`
 
 type Command string
 
@@ -63,9 +63,9 @@ type Config struct {
 	// Empty is no race.
 	RaceFile string
 	// Empty is no season.
-	SeasonFile    string
-	ShortlistFile string
-	ClipsFolder   string
+	SeasonFile   string
+	FindingsFile string
+	ClipsFolder  string
 	// Empty is the standard output for schedule, and none for choose, whose standard output is the picks.
 	SummaryFile string
 	// edit: print the prompt, ask for no answer.
@@ -129,14 +129,14 @@ func parseChoose(args []string) (Config, error) {
 	parsed.Job.Anthropic.APIKey = os.Getenv(EditorKeyVariable)
 
 	flags := flag.NewFlagSet(string(Choose), flag.ContinueOnError)
-	flags.StringVar(&parsed.ShortlistFile, "shortlist", "", "the file the generator's --shortlist wrote")
+	flags.StringVar(&parsed.FindingsFile, "findings", "", "the file the generator's --findings wrote")
 	flags.IntVar(&parsed.Job.PerRun, "count", 0, "how many clips a run schedules at most")
 	flags.StringVar(&parsed.SummaryFile, "summary", "", "the file who chose the run is added to, default none")
 	platforms := flags.String("platforms", "", "where each clip goes, default every platform")
 	if err := flags.Parse(args); err != nil {
 		return Config{}, misused(err)
 	}
-	if parsed.ShortlistFile == "" {
+	if parsed.FindingsFile == "" {
 		return Config{}, misused(ErrArguments)
 	}
 	return withPlatforms(parsed, *platforms)
@@ -148,13 +148,13 @@ func parseEdit(args []string) (Config, error) {
 	parsed.Job.Anthropic.APIKey = os.Getenv(EditorKeyVariable)
 
 	flags := flag.NewFlagSet(string(Edit), flag.ContinueOnError)
-	flags.StringVar(&parsed.ShortlistFile, "shortlist", "", "the file the generator's --shortlist wrote")
+	flags.StringVar(&parsed.FindingsFile, "findings", "", "the file the generator's --findings wrote")
 	flags.IntVar(&parsed.Job.PerRun, "count", 0, "how many clips the run makes, default 2")
 	flags.BoolVar(&parsed.PromptOnly, "prompt", false, "print what the model would be sent, and ask for no answer")
 	if err := flags.Parse(args); err != nil {
 		return Config{}, misused(err)
 	}
-	if parsed.ShortlistFile == "" {
+	if parsed.FindingsFile == "" {
 		return Config{}, misused(ErrArguments)
 	}
 	return parsed, nil

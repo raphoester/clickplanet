@@ -2,7 +2,7 @@ import {Season, SeasonBackend} from "./season.ts"
 
 export const SEASON_ZERO: Season = {
     number: 0,
-    finaleStartsAt: Date.UTC(2026, 9, 31, 21),
+    lastDayEndsAt: Date.UTC(2026, 9, 31, 21),
     endsAt: Date.UTC(2026, 9, 31, 23),
 }
 
