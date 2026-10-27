@@ -51,10 +51,10 @@ draws it.
   heading's line, beside the view picked, and only on the Countries view: a row of
   its own with two full buttons cost the table two of its rows on a phone. Season ranks by the points of the days closed, then
   by tiles (`domain/race.ts`, `countryLines`), and lists a country with points that
-  holds no ground. **Today's points do not move the order**: they come from the
-  ground held on average since the day started, not from the tiles held now, so a
-  country can score less today than one under it. Ranked by them, two countries at
-  0 points swapped against their tiles, which read as a bug (2026-10-08).
+  holds no ground. **Today's points do not move the order**: they are what the
+  tiles held now would score, so they follow the tiles, which already break the
+  ties. When a day was won on its average, ranked by them, two countries at 0
+  points swapped against their tiles, which read as a bug (2026-10-08).
   Territory is the order by tiles held now, as the board was. `Viewer` holds the
   choice. With no race, there is no switch and the board is as it was
   (`shownOrder`). **The rank and the anthem follow the order picked**: the rank

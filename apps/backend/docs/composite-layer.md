@@ -61,7 +61,7 @@ return []bootstrap.Module{
 | `player` | `auth.v1.InternalService/GetAccounts` | whether each account of a page is linked and when it was made, once per page of a title reconciliation | `players/rpc_account_reader` |
 | `chat` | `player.v1.InternalService/GetAuthor` | the name a sender is shown under, on each `SendMessage` | `messages/rpc_player_authors` |
 | `chat` | `player.v1.InternalService/GetAuthors` | who everyone in the window is, once per `GetHistory`; who reacted, once per `React`; who wrote each message of a page, once per `ListMessages` | `get_history_handler/history_query/rpc_player_authors`, `messages/rpc_player_authors`, `list_messages_handler/messages_query/rpc_player_authors` |
-| `seasons` | `planet.v1.InternalService/GetTerritories` | the tiles each country holds and the size of the map, for each snapshot (once a minute) | `rounds/rpc_planet_territories` |
+| `seasons` | `planet.v1.InternalService/GetTerritories` | the tiles each country holds and the size of the map, once at each round's end to score it, and for each read of the live race (every 10s while a stream follows it, and each `GetRace`) | `rounds/rpc_planet_territories`, for both |
 | `seasons` | `player.v1.InternalService/GetAuthors` | the name and color of each account of a page of standings, and whether it is a guest, on each `GetStandings` and `GetMySeason`, and each read of a live board | `get_standings_handler/standings_query/rpc_player_authors`, `get_my_season_handler/my_season_query/rpc_player_authors` |
 | `support` | `player.v1.InternalService/GetAuthors` | the name of both accounts of each report of a page, on each `ListReports` | `list_reports_handler/reports_query/rpc_player_authors` |
 | `support` | `player.v1.InternalService/GetAuthors` | the name of each account a page of reports names, on each `ListReports` | `list_reports_handler/reports_query/rpc_player_authors` |
@@ -197,8 +197,8 @@ The events today:
 | `chat.v1.MessageSent{message_id, account_id, sent_at}` | `chat`, `send_message_usecase/publishing_send_message` | after each message is kept; a refused or failed post publishes nothing | `player`, for the stats |
 | `chat.v1.AccountMuted{account_id, muted_at, duration, mute_id}` | `chat`, `mute_usecase/publishing_mute` | after each mute is kept; a refused or failed mute publishes nothing. Never the network it holds | `chat`, which announces it |
 | `player.v1.StatsChanged{account_id}` | `player`, `record_stats_usecase` | after each take, message, bomb, fortify, box or right answer is counted on the account's stats; a failed write publishes nothing | `player`, which grants the titles the stats now earn |
-| `seasons.v1.RoundClosed{season, number, finale, ended_at, results}` | `seasons`, through its outbox, from `take_snapshot_usecase` | with each round's results | `chat`, which announces the podium |
-| `seasons.v1.SeasonClosed{season, ended_at, table}` | `seasons`, through its outbox, from `take_snapshot_usecase` | with the finale's results, right after its `RoundClosed`: the season's whole table, ranked by `rounds.TableOf`, the champion first | `chat`, which announces the champion |
+| `seasons.v1.RoundClosed{season, number, finale, ended_at, results}` | `seasons`, through its outbox, from `close_round_usecase` | with each round's results, scored from the map at its end | `chat`, which announces the podium |
+| `seasons.v1.SeasonClosed{season, ended_at, table}` | `seasons`, through its outbox, from `close_round_usecase` | with the finale's results, right after its `RoundClosed`: the season's whole table, ranked by `rounds.TableOf`, the champion first | `chat`, which announces the champion |
 
 Adding a context that callers talk to means a `proto/<name>/v1`, an `internal/<name>/` with a `module.go`, and one line in the slice. Connect derives the route from the proto package, so there is no prefix to allocate and no router to edit.
 

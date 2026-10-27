@@ -123,7 +123,7 @@ describe("SeasonChip", () => {
         rerender(<SeasonChip season={season} compact={false} open onToggle={onToggle}/>)
         expect(screen.getByRole("button", {name: /Today ends in/}).getAttribute("aria-expanded")).toBe("true")
         expect(finaleLine()).not.toBeNull()
-        expect(screen.getByText("Each day, the countries that held the most ground score points. The Final Battle scores triple.")).toBeDefined()
+        expect(screen.getByText("When a day ends, the countries holding the most ground score points. The Final Battle scores triple.")).toBeDefined()
 
         fireEvent.keyDown(document, {key: "Escape"})
         expect(onToggle).toHaveBeenCalledTimes(2)
@@ -144,7 +144,7 @@ describe("SeasonChip", () => {
 
         rerender(<SeasonChip season={season} compact={false} open onToggle={onToggle}/>)
         expect(screen.getByText("Power-ups for all")).toBeDefined()
-        expect(screen.getByText("The countries holding the most ground score triple points.")).toBeDefined()
+        expect(screen.getByText("When it ends, the countries holding the most ground score triple points.")).toBeDefined()
         expect(finaleLine()).toBeNull()
     })
 

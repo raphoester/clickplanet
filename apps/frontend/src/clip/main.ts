@@ -375,8 +375,8 @@ async function choose(): Promise<Chosen> {
         const {front, story, backend, world, solidity} = picked
         const {measured, changes, inArea, placeTiles, sideOf, opening, key, drops} = measuredOf(picked)
 
-        // A holding's counter is the share of the place its flag holds. A day was won on a day's average, not on the
-        // map now: its counter counts tiles, as any clip's, and the podium says the points.
+        // A holding's counter is the share of the place its flag holds. A day's counter counts tiles, as any clip's,
+        // and the podium says the points.
         const ground = story.kind === "holding" ? placeTiles : undefined
         // What the map is opens on all its flag holds there.
         const seasonal = story.kind === "round" || story.kind === "callup"

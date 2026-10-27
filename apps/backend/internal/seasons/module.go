@@ -17,9 +17,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/postgres_round_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/rpc_planet_territories"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/usecases/close_ended_rounds_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/usecases/close_ended_rounds_usecase/log_close_ended_rounds"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/usecases/close_round_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/usecases/take_snapshot_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/usecases/take_snapshot_usecase/log_take_snapshot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_my_season_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_my_season_handler/my_season_query"
@@ -110,16 +110,17 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to subscribe to auth.v1.AccountDeleted: %w", err)
 	}
 
-	race := log_race_reader.New(race_query.NewPostgresQuery(db, seasons, clock), props.Logger)
+	territories := rpc_planet_territories.New(planet)
+	race := log_race_reader.New(race_query.NewPostgresQuery(db, territories, seasons, clock), props.Logger)
 	races := inprocess_race_feed.New(race)
 	roundStore := postgres_round_store.New(db)
-	snapshot := take_snapshot_usecase.NewRunner(config.Snapshot, log_take_snapshot.New(
-		take_snapshot_usecase.New(rpc_planet_territories.New(planet), roundStore,
+	closing := close_ended_rounds_usecase.NewRunner(log_close_ended_rounds.New(
+		close_ended_rounds_usecase.New(territories, roundStore,
 			close_round_usecase.New(db, roundStore, cpoutbox.New(db)), seasons, clock),
 		props.Logger,
-	))
+	), clock, close_ended_rounds_usecase.Retry)
 
-	props.Runners.Add(cppg.CloseAfter(db, props.Logger, boards, races, snapshot, cpredis.CloseAfter(streams, props.Logger,
+	props.Runners.Add(cppg.CloseAfter(db, props.Logger, boards, races, closing, cpredis.CloseAfter(streams, props.Logger,
 		takes, deletions, cpoutbox.NewRelay("seasons-outbox", db, streams, props.Logger))))
 
 	service := seasonsv1controller.SeasonService{
@@ -149,7 +150,6 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 type Config struct {
 	Calendar calendar.Config `koanf:",squash"`
-	Snapshot take_snapshot_usecase.Config
 	Database cppg.Config
 	Redis    cpredis.Config
 }

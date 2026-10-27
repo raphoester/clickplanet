@@ -10,7 +10,7 @@ import (
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds"
-	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/usecases/take_snapshot_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/usecases/close_ended_rounds_usecase"
 )
 
 type Planet interface {
@@ -32,7 +32,7 @@ type Territories struct {
 	planet Planet
 }
 
-var _ take_snapshot_usecase.Territory = (*Territories)(nil)
+var _ close_ended_rounds_usecase.Territory = (*Territories)(nil)
 
 func (t *Territories) Snapshot(ctx context.Context) (rounds.Snapshot, error) {
 	ctx, cancel := context.WithTimeout(ctx, askTimeout)

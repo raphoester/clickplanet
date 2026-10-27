@@ -23,33 +23,13 @@ type Store struct {
 
 var _ rounds.Store = (*Store)(nil)
 
-func (s *Store) RecordSnapshot(ctx context.Context, round rounds.Round, snapshot rounds.Snapshot) (err error) {
-	countries := make([]string, 0, len(snapshot.Held))
-	tiles := make([]int64, 0, len(snapshot.Held))
-	for country, held := range snapshot.Held {
-		if held > 0 {
-			countries = append(countries, string(country))
-			tiles = append(tiles, int64(held))
-		}
+func (s *Store) Open(ctx context.Context, round rounds.Round) error {
+	if _, err := s.db.On(ctx).ExecContext(ctx, `
+		INSERT INTO rounds (season, ends_at, finale) VALUES ($1, $2, $3) ON CONFLICT (season, ends_at) DO NOTHING
+	`, int64(round.Season), round.EndsAt, round.Finale); err != nil {
+		return fmt.Errorf("failed to open the round: %w", err)
 	}
-
-	return s.db.InTx(ctx, func(ctx context.Context) error {
-		tx := s.db.On(ctx)
-		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO rounds (season, ends_at, finale, samples, map_tiles) VALUES ($1, $2, $3, 1, $4)
-			ON CONFLICT (season, ends_at) DO UPDATE SET samples = rounds.samples + 1, map_tiles = excluded.map_tiles
-		`, int64(round.Season), round.EndsAt, round.Finale, int64(snapshot.Tiles)); err != nil {
-			return fmt.Errorf("failed to count the snapshot in its round: %w", err)
-		}
-		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO round_holdings (season, ends_at, country, tiles)
-			SELECT $1, $2, held.country, held.tiles FROM unnest($3::text[], $4::bigint[]) AS held (country, tiles)
-			ON CONFLICT (season, ends_at, country) DO UPDATE SET tiles = round_holdings.tiles + excluded.tiles
-		`, int64(round.Season), round.EndsAt, pq.Array(countries), pq.Array(tiles)); err != nil {
-			return fmt.Errorf("failed to add what each country held: %w", err)
-		}
-		return nil
-	})
+	return nil
 }
 
 func (s *Store) Unclosed(ctx context.Context, endedBy time.Time) ([]rounds.Round, error) {
@@ -80,32 +60,6 @@ func (s *Store) Unclosed(ctx context.Context, endedBy time.Time) ([]rounds.Round
 	return ended, nil
 }
 
-func (s *Store) Held(ctx context.Context, round rounds.Round) (map[rounds.Country]uint64, error) {
-	rows, err := s.db.On(ctx).QueryContext(ctx, `
-		SELECT country, tiles FROM round_holdings WHERE season = $1 AND ends_at = $2
-	`, int64(round.Season), round.EndsAt)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read what each country held: %w", err)
-	}
-	defer func() { _ = rows.Close() }()
-
-	held := map[rounds.Country]uint64{}
-	for rows.Next() {
-		var (
-			country string
-			tiles   int64
-		)
-		if err := rows.Scan(&country, &tiles); err != nil {
-			return nil, fmt.Errorf("failed to read what a country held: %w", err)
-		}
-		held[rounds.Country(country)] = uint64(tiles) //nolint:gosec // CHECK (tiles > 0).
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("failed to read what each country held: %w", err)
-	}
-	return held, nil
-}
-
 func (s *Store) Number(ctx context.Context, round rounds.Round) (uint32, error) {
 	var earlier int64
 	if err := s.db.On(ctx).QueryRowContext(ctx, `
@@ -121,10 +75,12 @@ func (s *Store) Close(ctx context.Context, round rounds.Round, results []rounds.
 	countries := make([]string, 0, len(results))
 	ranks := make([]int64, 0, len(results))
 	points := make([]int64, 0, len(results))
+	shares := make([]float64, 0, len(results))
 	for _, result := range results {
 		countries = append(countries, string(result.Country))
 		ranks = append(ranks, int64(result.Rank))
 		points = append(points, int64(result.Points))
+		shares = append(shares, result.Share)
 	}
 
 	closed := false
@@ -145,10 +101,10 @@ func (s *Store) Close(ctx context.Context, round rounds.Round, results []rounds.
 		}
 
 		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO round_results (season, ends_at, country, rank, points)
-			SELECT $1, $2, result.country, result.rank, result.points
-			FROM unnest($3::text[], $4::integer[], $5::integer[]) AS result (country, rank, points)
-		`, int64(round.Season), round.EndsAt, pq.Array(countries), pq.Array(ranks), pq.Array(points)); err != nil {
+			INSERT INTO round_results (season, ends_at, country, rank, points, share)
+			SELECT $1, $2, result.country, result.rank, result.points, result.share
+			FROM unnest($3::text[], $4::integer[], $5::integer[], $6::double precision[]) AS result (country, rank, points, share)
+		`, int64(round.Season), round.EndsAt, pq.Array(countries), pq.Array(ranks), pq.Array(points), pq.Array(shares)); err != nil {
 			return fmt.Errorf("failed to keep the round's results: %w", err)
 		}
 		closed = true
@@ -163,7 +119,7 @@ func (s *Store) ClosedIn(ctx context.Context, season calendar.Number) ([]rounds.
 			SELECT season, ends_at, finale, closed, row_number() OVER (ORDER BY ends_at) AS number
 			FROM rounds WHERE season = $1
 		)
-		SELECT round.ends_at, round.finale, round.number, result.country, result.rank, result.points
+		SELECT round.ends_at, round.finale, round.number, result.country, result.rank, result.points, result.share
 		FROM numbered AS round LEFT JOIN round_results AS result USING (season, ends_at)
 		WHERE round.closed
 		ORDER BY round.ends_at, result.rank, result.country
@@ -181,8 +137,9 @@ func (s *Store) ClosedIn(ctx context.Context, season calendar.Number) ([]rounds.
 			number       int64
 			country      sql.NullString
 			rank, points sql.NullInt64
+			share        sql.NullFloat64
 		)
-		if err := rows.Scan(&endsAt, &finale, &number, &country, &rank, &points); err != nil {
+		if err := rows.Scan(&endsAt, &finale, &number, &country, &rank, &points, &share); err != nil {
 			return nil, fmt.Errorf("failed to read a result of a round the season closed: %w", err)
 		}
 		round := rounds.Round{Season: season, EndsAt: endsAt.UTC(), Finale: finale}
@@ -195,6 +152,7 @@ func (s *Store) ClosedIn(ctx context.Context, season calendar.Number) ([]rounds.
 				Country: rounds.Country(country.String),
 				Rank:    uint32(rank.Int64),   //nolint:gosec // a few hundred countries at most.
 				Points:  uint32(points.Int64), //nolint:gosec // 75 a round at most.
+				Share:   share.Float64,
 			})
 		}
 	}
