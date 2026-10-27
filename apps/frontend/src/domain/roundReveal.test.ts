@@ -1,6 +1,15 @@
 import {describe, expect, it} from "vitest"
 import {ClosedRound, RoundStanding, Score} from "../backends/standings.ts"
-import {medalOf, moveOf, podiumOf, REVEAL_WITHIN_MS, revealDue, revealKeyOf, revealRowsOf, roundOverLine} from "./roundReveal.ts"
+import {
+    medalOf,
+    moveOf,
+    podiumOf,
+    REVEAL_WITHIN_MS,
+    revealKeyOf,
+    revealRowsOf,
+    revealsDue,
+    roundOverLine,
+} from "./roundReveal.ts"
 
 const result = (rank: number, countryCode: string, points: number): RoundStanding => ({rank, countryCode, share: 0.1, points})
 const score = (rank: number, countryCode: string, points: number): Score => ({rank, countryCode, points, roundsWon: 0})
@@ -14,21 +23,42 @@ const DAY: ClosedRound = {
     standings: [result(1, "fr", 25), result(2, "de", 18), result(3, "es", 15), result(4, "it", 12)],
     before: [score(1, "de", 50), score(2, "br", 40), score(3, "fr", 30)],
     after: [score(1, "de", 68), score(2, "fr", 55), score(3, "br", 40), score(4, "es", 15), score(5, "it", 12)],
+    own: false,
+    times: 1,
+    startedAt: 0,
+    takes: [],
+    players: [],
 }
+const BATTLE: ClosedRound = {...DAY, number: 1, own: true, times: 3, startedAt: ENDED_AT - 7_200_000}
+const FINAL_BATTLE: ClosedRound = {...BATTLE, finale: true}
 
-describe("revealDue", () => {
-    it("plays a round closed in the last hours that this browser has not seen", () => {
-        expect(revealDue(DAY, ENDED_AT + 60_000, null)).toBe(true)
-        expect(revealDue(DAY, ENDED_AT + REVEAL_WITHIN_MS - 1, "0:4:1")).toBe(true)
+const kinds = (closed: ClosedRound | undefined, seen: string | null) =>
+    revealsDue(closed, ENDED_AT + 60_000, seen).map((reveal) => reveal.kind)
+
+describe("revealsDue", () => {
+    it("plays a day closed in the last hours that this browser has not seen", () => {
+        expect(kinds(DAY, null)).toEqual(["round"])
+        expect(revealsDue(DAY, ENDED_AT + REVEAL_WITHIN_MS - 1, "0:4:1")).toEqual([{kind: "round", closed: DAY}])
     })
 
-    it("does not play it twice", () => {
-        expect(revealDue(DAY, ENDED_AT + 60_000, revealKeyOf(DAY))).toBe(false)
+    it("plays a battle's brief, and the season's results after the brief of the round that ended the season", () => {
+        expect(kinds(BATTLE, null)).toEqual(["brief"])
+        expect(kinds(FINAL_BATTLE, null)).toEqual(["brief", "results"])
+    })
+
+    it("does not play a reveal twice, and keeps what comes after the one closed", () => {
+        expect(kinds(DAY, revealKeyOf({kind: "round", closed: DAY}))).toEqual([])
+        expect(kinds(FINAL_BATTLE, revealKeyOf({kind: "brief", closed: FINAL_BATTLE}))).toEqual(["results"])
+        expect(kinds(FINAL_BATTLE, revealKeyOf({kind: "results", closed: FINAL_BATTLE}))).toEqual([])
+    })
+
+    it("tells a day from the round of its own of the same number and end", () => {
+        expect(kinds(BATTLE, revealKeyOf({kind: "round", closed: {...BATTLE, own: false}}))).toEqual(["brief"])
     })
 
     it("does not play a round closed long ago, or no round at all", () => {
-        expect(revealDue(DAY, ENDED_AT + REVEAL_WITHIN_MS, null)).toBe(false)
-        expect(revealDue(undefined, ENDED_AT, null)).toBe(false)
+        expect(revealsDue(DAY, ENDED_AT + REVEAL_WITHIN_MS, null)).toEqual([])
+        expect(revealsDue(undefined, ENDED_AT, null)).toEqual([])
     })
 })
 
@@ -85,9 +115,11 @@ describe("revealRowsOf", () => {
 })
 
 describe("roundOverLine", () => {
-    it("names the day, or the Final Battle", () => {
-        expect(roundOverLine({number: 5, finale: false})).toBe("Day 5 is over!")
-        expect(roundOverLine({number: 23, finale: true})).toBe("The Final Battle is over!")
+    it("names the day, the battle, or the Final Battle", () => {
+        expect(roundOverLine({number: 5, finale: false, own: false})).toBe("Day 5 is over!")
+        expect(roundOverLine({number: 23, finale: true, own: false})).toBe("Day 23 is over!")
+        expect(roundOverLine({number: 1, finale: false, own: true})).toBe("The battle is over!")
+        expect(roundOverLine({number: 2, finale: true, own: true})).toBe("The Final Battle is over!")
     })
 })
 

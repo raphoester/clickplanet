@@ -79,6 +79,8 @@ function raceOf(race: RacePb): Race {
             endsAt: Number(race.round.endsAtUnixMs),
             finale: race.round.finale,
             standings: race.round.standings.map(roundStandingOf),
+            own: race.round.own,
+            times: race.round.times,
         },
         scores: race.scores.map(scoreOf),
         closed: race.closed && {
@@ -89,6 +91,11 @@ function raceOf(race: RacePb): Race {
             standings: race.closed.standings.map(roundStandingOf),
             before: race.closed.before.map(scoreOf),
             after: race.closed.after.map(scoreOf),
+            own: race.closed.own,
+            times: race.closed.times,
+            startedAt: Number(race.closed.startedAtUnixMs),
+            takes: race.closed.takes.map((takes) => ({countryCode: takes.countryId, tiles: Number(takes.tiles)})),
+            players: race.closed.players.map(standingOf),
         },
     }
 }

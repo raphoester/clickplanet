@@ -3,11 +3,13 @@ import {flagOfContinent} from "../regions.ts"
 
 export type Place = {country: string} | {countries: [string, string]} | {region: string}
 
-// A day of the season once it closed: the countries that scored the most in it, and the season's table after it.
+// A round of the season once it closed, a day or a battle's round of its own (own, numbered apart): the countries
+// that scored the most in it, and the season's table after it.
 export type Day = {
     season: number
     number: number
     finale: boolean
+    own: boolean
     endedAt: number
     podium: {country: string, rank: number, points: number}[]
     table: {country: string, rank: number, points: number}[]
@@ -64,7 +66,7 @@ export function fightersOf(story: Story, regionOf: RegionOf): (flag: string | un
 }
 
 // Two stories with one key are one story told twice, whatever their headlines. angle: what the story tells of its flag
-// there, none for what it did; round: the day a round tells or a callup follows, "1.5".
+// there, none for what it did; round: the day a round tells or a callup follows, "1.5", or the battle, "1.battle.2".
 export type StoryKey = {flag: string, continent: string, angle?: "holding" | "round" | "callup", round?: string}
 
 export function storyKeyOf(story: Story, regionOf: RegionOf): StoryKey {
@@ -75,9 +77,13 @@ export function storyKeyOf(story: Story, regionOf: RegionOf): StoryKey {
         continent: "region" in place ? place.region : country === undefined ? THE_WORLD : regionOf(country) ?? country,
     }
     if (story.kind === "holding") return {...key, angle: "holding"}
-    if (story.kind === "round" && story.day !== undefined) return {...key, angle: "round", round: `${story.day.season}.${story.day.number}`}
-    if (story.kind === "callup" && story.day !== undefined) return {...key, angle: "callup", round: `${story.day.season}.${story.day.number}`}
+    if (story.kind === "round" && story.day !== undefined) return {...key, angle: "round", round: roundKeyOf(story.day)}
+    if (story.kind === "callup" && story.day !== undefined) return {...key, angle: "callup", round: roundKeyOf(story.day)}
     return key
+}
+
+function roundKeyOf(day: Day): string {
+    return day.own ? `${day.season}.battle.${day.number}` : `${day.season}.${day.number}`
 }
 
 // Every country a story shows: its place's, its flags' and the flags it takes from. A continent's own flag is not one.

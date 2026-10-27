@@ -1,7 +1,5 @@
 import {PLAIN_TURN, Turn, TurnBackend} from "./turn.ts"
 
-const MINUTE_MS = 60_000
-
 export class FakeTurnBackend implements TurnBackend {
     private current: Turn = PLAIN_TURN
     private readonly listeners = new Set<() => void>()
@@ -17,9 +15,8 @@ export class FakeTurnBackend implements TurnBackend {
         }
     }
 
-    public startBattle(minutes = 120, description = "Triple points. A bonus box every minute."): void {
-        const now = Date.now()
-        this.current = {kind: "battle", since: now, endsAt: now + minutes * MINUTE_MS, description}
+    public startBattle(since: number, endsAt: number, description = "Triple points. A bonus box every minute."): void {
+        this.current = {kind: "battle", since, endsAt, description}
         this.tell()
     }
 

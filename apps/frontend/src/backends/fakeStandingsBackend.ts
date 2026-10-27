@@ -2,7 +2,7 @@ import {fakeAccountId} from "./fakeAccounts.ts"
 import {STANDINGS_SHOWN} from "../domain/standings.ts"
 import {TileClicker} from "./backend.ts"
 import {NameColor, PlayerTitle} from "./player.ts"
-import {ClosedRound, MySeason, Race, RoundStanding, Score, Standing, StandingsBackend} from "./standings.ts"
+import {ClosedRound, MySeason, Race, Round, RoundStanding, RoundTakes, Score, Standing, StandingsBackend} from "./standings.ts"
 
 export type FakePlayer = Pick<Standing, "name" | "color" | "wornTitle"> & {tiles: Record<string, number>}
 
@@ -36,8 +36,10 @@ const SEASON_POINTS: Record<string, [points: number, roundsWon: number]> = {
     fr: [61, 2], br: [43, 1], in: [36, 1], nz: [25, 1], es: [18, 0], ru: [12, 0],
 }
 const DAY_POINTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1]
-const FINALE_TIMES = 3
 const FIRST_DAY = 5
+const PLAYERS_SHOWN = 10
+// The part of what a flag holds its players took during a battle.
+const TAKEN_IN_BATTLE = 0.2
 const MAP_TILES = 262_119
 const DAY_ENDS_AT_UTC_HOUR = 21
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -51,6 +53,8 @@ export class FakeStandingsBackend implements StandingsBackend {
     private readonly listeners = new Set<() => void>()
     private readonly season = new Map(Object.entries(SEASON_POINTS).map(([code, [points, roundsWon]]) => [code, {points, roundsWon}]))
     private day = FIRST_DAY
+    private battles = 0
+    private battle?: {since: number, endsAt: number, times: number, taken: Map<string, number>}
     private closed?: ClosedRound
     private timer?: ReturnType<typeof setInterval>
 
@@ -116,9 +120,43 @@ export class FakeStandingsBackend implements StandingsBackend {
             .slice(0, STANDINGS_SHOWN)
     }
 
-    public closeRound(finale = false): ClosedRound {
+    public closeRound(): ClosedRound {
         const before = this.table()
-        const standings = this.standings(finale, () => 0.4 + this.random())
+        const standings = this.scored(this.standings(1, () => 0.4 + this.random()))
+        const closed: ClosedRound = {
+            season: 0, number: this.day, endedAt: this.now(), finale: false, standings, before, after: this.table(),
+            own: false, times: 1, startedAt: 0, takes: [], players: [],
+        }
+        this.day += 1
+        return this.close(closed)
+    }
+
+    public openBattle(since: number, endsAt: number, times: number) {
+        this.battle = {since, endsAt, times, taken: new Map(this.taken)}
+        this.listeners.forEach((send) => send())
+    }
+
+    // The battle opened, else one of 2 hours at ×3 that ends now.
+    public closeBattle(finale = false): ClosedRound {
+        const now = this.now()
+        const battle = this.battle ?? {since: now - 2 * 60 * 60 * 1000, endsAt: now, times: 3, taken: new Map(this.taken)}
+        const before = this.table()
+        const standings = this.scored(this.standings(battle.times, () => 0.4 + this.random()))
+        this.battles += 1
+        this.battle = undefined
+        return this.close({
+            season: 0, number: this.battles, endedAt: Math.min(now, battle.endsAt), finale, standings, before, after: this.table(),
+            own: true, times: battle.times, startedAt: battle.since, takes: this.takes(battle.taken), players: this.fighters(),
+        })
+    }
+
+    private close(closed: ClosedRound): ClosedRound {
+        this.closed = closed
+        this.listeners.forEach((send) => send())
+        return closed
+    }
+
+    private scored(standings: RoundStanding[]): RoundStanding[] {
         for (const standing of standings) {
             const kept = this.season.get(standing.countryCode) ?? {points: 0, roundsWon: 0}
             this.season.set(standing.countryCode, {
@@ -126,29 +164,49 @@ export class FakeStandingsBackend implements StandingsBackend {
                 roundsWon: kept.roundsWon + (standing.rank === 1 ? 1 : 0),
             })
         }
-        this.closed = {
-            season: 0,
-            number: this.day,
-            endedAt: this.now(),
-            finale,
-            standings: standings.filter((standing) => standing.points > 0),
-            before,
-            after: this.table(),
+        return standings.filter((standing) => standing.points > 0)
+    }
+
+    private takes(takenBefore: ReadonlyMap<string, number>): RoundTakes[] {
+        const takes = new Map<string, number>()
+        for (const [code, tiles] of this.taken) takes.set(code, tiles - (takenBefore.get(code) ?? 0))
+        for (const player of this.players) {
+            for (const [code, tiles] of Object.entries(player.tiles)) {
+                takes.set(code, (takes.get(code) ?? 0) + Math.round(tiles * TAKEN_IN_BATTLE * this.random()))
+            }
         }
-        this.day += 1
-        this.listeners.forEach((send) => send())
-        return this.closed
+        return [...takes]
+            .filter(([, tiles]) => tiles > 0)
+            .sort(([a, x], [b, y]) => y - x || a.localeCompare(b))
+            .map(([countryCode, tiles]) => ({countryCode, tiles}))
+    }
+
+    private fighters(): Standing[] {
+        const sorted = this.players
+            .map(({tiles, ...player}) => {
+                const [countryCode, held] = Object.entries(tiles).sort(([, x], [, y]) => y - x)[0]
+                return {...player, accountId: fakeAccountId(player.name), countryCode, tiles: Math.round(held * TAKEN_IN_BATTLE * this.random())}
+            })
+            .filter((line) => line.tiles > 0)
+            .sort((a, b) => b.tiles - a.tiles)
+        return sorted
+            .map((line) => ({...line, rank: sorted.findIndex((other) => other.tiles === line.tiles) + 1}))
+            .slice(0, PLAYERS_SHOWN)
     }
 
     private race(): Race {
-        return {
-            round: {number: this.day, endsAt: dayEndAfter(this.now()), finale: false, standings: this.standings(false, () => 1)},
-            scores: this.table(),
-            closed: this.closed,
-        }
+        return {round: this.round(), scores: this.table(), closed: this.closed}
     }
 
-    private standings(finale: boolean, luck: () => number): RoundStanding[] {
+    private round(): Round {
+        if (this.battle) {
+            const {endsAt, times} = this.battle
+            return {number: this.battles + 1, endsAt, finale: false, standings: this.standings(times, () => 1), own: true, times}
+        }
+        return {number: this.day, endsAt: dayEndAfter(this.now()), finale: false, standings: this.standings(1, () => 1), own: false, times: 1}
+    }
+
+    private standings(times: number, luck: () => number): RoundStanding[] {
         const held = new Map(this.taken)
         for (const player of this.players) {
             for (const [code, tiles] of Object.entries(player.tiles)) held.set(code, (held.get(code) ?? 0) + tiles)
@@ -160,7 +218,7 @@ export class FakeStandingsBackend implements StandingsBackend {
                 rank: i + 1,
                 countryCode,
                 share: tiles / MAP_TILES,
-                points: (DAY_POINTS[i] ?? 0) * (finale ? FINALE_TIMES : 1),
+                points: (DAY_POINTS[i] ?? 0) * times,
             }))
     }
 

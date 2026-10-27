@@ -6,17 +6,24 @@ once (`app/season/RoundReveal.tsx`; the rules are in `domain/roundReveal.ts`).
 - **It plays from the race.** The race on the season stream carries `closed`,
   the round closed last: its season, its number, its end, whether it was the
   finale, the countries that scored in it, and the season's table before and
-  after it (`ClosedRound`; the backend's [Seasons](../../backend/docs/seasons.md)). `useRoundReveal`
-  reads it from the race `Viewer` already follows (`useRace`).
-- **A round closes at its cutoff**, so `closed` reaches the page at most 10s
+  after it; for a round of its own also its start, its times, the tiles each flag
+  took and its top players (`ClosedRound`; the backend's [Seasons](../../backend/docs/seasons.md)).
+  `useRoundReveal` reads it from the race `Viewer` already follows (`useRace`).
+- **A round closes at its end**, so `closed` reaches the page at most 10s
   after it, at the backend's next read of the race.
+- **What a closed round plays** (`revealsOf`, in this order): a day, its reveal
+  (`round`, below); a battle's round of its own, its brief (`brief`, see
+  [Battles](battle.md#the-brief)); and when that round ended the season, the
+  season's results after the brief (`results`). Each is one announcement.
 - **When**: a round that ended less than 6 hours before the page opened
   (`REVEAL_WITHIN_MS`), or one that closes while the page is open. **Once per
-  browser**: Close keeps the round's key (`season:number:end`) in
-  `clickplanet-round-seen`, and a round with that key does not play again, after
-  a reload too. Only the last key is kept.
-- **Two stages.** First the podium: "Day 5 is over!" or "The Final Battle is
-  over!", then the top 3 countries rise on steps (2nd, 1st, 3rd), each with its
+  browser**: Close keeps the key of the screen closed in `clickplanet-round-seen`
+  (`season:number:end` for a day, `season:own:number:end` for a brief, and
+  `:results` after it for the season's results), and `revealsDue` plays only the
+  screens after it, after a reload too. Only the last key is kept. A day and a round
+  of its own are numbered apart, so `own` keeps their keys apart.
+- **Two stages.** First the podium: "Day 5 is over!", then the top 3 countries
+  rise on steps (2nd, 1st, 3rd), each with its
   flag, its name and the points it won. Only places with points; ties share a
   rank. After `ROUND_REVEAL.podium` (3.4s), or on Next, the season table: the
   top 10 in their order before the round, and the player's country, marked,
@@ -24,12 +31,17 @@ once (`app/season/RoundReveal.tsx`; the rules are in `domain/roundReveal.ts`).
   order, the points count up to the new total, and each row shows what it won
   and how it moved (▲2, ▼1, New, –). With no podium it opens on the table; with
   no table it stops on the podium.
-- **The Final Battle ends on the champion**, a third stage: `ROUND_REVEAL.hold`
+- **The finale ends on the champion**, a third stage: `ROUND_REVEAL.hold`
   (2.4s) after the table settled, or on Next, the head becomes "Germany wins
   Season 0" (`winsLine`) over a trophy, rays, a flash and the flag, and the
   `title` sound plays again. The champion is every country ranked 1st in
   `closed.after` (`championOf` in `domain/champion.ts`), so countries level on
-  everything win together. A day has no third stage.
+  everything win together. A day that is not the finale has no third stage.
+- **The season's results are the same screen with no podium** (`results`):
+  after the Final Battle's brief, "Season 0 is over!" over the "Final table",
+  before and after the battle, then the champion. The podium was the brief's.
+  Until 2026-10-27 the Final Battle played podium, table and champion as one
+  reveal; a season that ends with a day still does.
 - **Nothing closes it before it is settled**: no button, and Escape does
   nothing, until the rows have moved (`ROUND_REVEAL.slide` + `settle`), or the
   podium has run when there is no table, or the champion has had
@@ -44,5 +56,5 @@ once (`app/season/RoundReveal.tsx`; the rules are in `domain/roundReveal.ts`).
   `TitleUnlocked.css`, and the `title` sound. Under
   `prefers-reduced-motion: reduce` the rows do not slide and the steps only fade
   in.
-- In fake mode `closeDay()` and `closeFinale()` play it (see
-  [Commands](commands.md)).
+- In fake mode `closeDay()` plays a day's reveal, and `closeFinale()` the Final
+  Battle's brief, then the season's results (see [Commands](commands.md)).

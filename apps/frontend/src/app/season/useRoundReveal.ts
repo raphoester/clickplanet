@@ -1,6 +1,6 @@
-import {useCallback, useState} from "react"
-import {ClosedRound, Race} from "../../backends/standings.ts"
-import {REVEAL_SEEN_STORAGE_KEY, revealDue, revealKeyOf} from "../../domain/roundReveal.ts"
+import {useCallback, useMemo, useState} from "react"
+import {Race} from "../../backends/standings.ts"
+import {Reveal, REVEAL_SEEN_STORAGE_KEY, revealKeyOf, revealsDue} from "../../domain/roundReveal.ts"
 
 function readSeen(): string | null {
     try {
@@ -19,8 +19,8 @@ function writeSeen(key: string) {
 }
 
 export type RoundRevealState = {
-    closed?: ClosedRound
-    dismiss: () => void
+    due: readonly Reveal[]
+    dismiss: (reveal: Reveal) => void
 }
 
 export function useRoundReveal(race: Race | undefined): RoundRevealState {
@@ -28,12 +28,12 @@ export function useRoundReveal(race: Race | undefined): RoundRevealState {
     const [seen, setSeen] = useState(readSeen)
     const closed = race?.closed
 
-    const dismiss = useCallback(() => {
-        if (!closed) return
-        const key = revealKeyOf(closed)
+    const dismiss = useCallback((reveal: Reveal) => {
+        const key = revealKeyOf(reveal)
         writeSeen(key)
         setSeen(key)
-    }, [closed])
+    }, [])
 
-    return {closed: revealDue(closed, openedAt, seen) ? closed : undefined, dismiss}
+    const due = useMemo(() => revealsDue(closed, openedAt, seen), [closed, openedAt, seen])
+    return {due, dismiss}
 }

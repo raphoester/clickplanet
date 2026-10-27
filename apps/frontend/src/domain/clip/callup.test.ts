@@ -7,7 +7,7 @@ const FINALE = Date.parse("2026-10-31T21:00:00Z")
 const RUN = {since: Date.parse("2026-10-23T12:17:00Z"), until: Date.parse("2026-10-24T00:17:00Z")}
 
 const day: Day = {
-    season: 0, number: 15, finale: false, endedAt: CUTOFF,
+    season: 0, number: 15, finale: false, own: false, endedAt: CUTOFF,
     podium: [{country: "dz", rank: 1, points: 25}, {country: "pw", rank: 2, points: 18}, {country: "ps", rank: 3, points: 15}],
     table: [
         {country: "dz", rank: 1, points: 289},
@@ -52,6 +52,7 @@ describe("a country called up to the Final Battle", () => {
     it("is nobody once the Final Battle started or the season ended, nor with no season or no race", () => {
         expect(callUpsOf({...day, endedAt: FINALE}, FINALE, FINALE - 1, FINALE)).toEqual([])
         expect(callUpsOf({...day, finale: true}, FINALE, RUN.since, RUN.until)).toEqual([])
+        expect(callUpsOf({...day, own: true}, FINALE, RUN.since, RUN.until)).toEqual([])
         expect(callUpsOf(day, undefined, RUN.since, RUN.until)).toEqual([])
         expect(callUpsOf(undefined, FINALE, RUN.since, RUN.until)).toEqual([])
     })

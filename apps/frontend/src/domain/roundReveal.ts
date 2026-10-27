@@ -7,8 +7,13 @@ const PODIUM = 3
 
 export const ROUND_REVEAL = {podium: 3.4, slide: 0.7, settle: 1.6, hold: 2.4, champion: 2.2} as const
 
-export function roundOverLine(round: {number: number, finale: boolean}): string {
-    return round.finale ? "The Final Battle is over!" : `Day ${round.number} is over!`
+export function roundOverLine(round: {number: number, finale: boolean, own: boolean}): string {
+    if (!round.own) return `Day ${round.number} is over!`
+    return round.finale ? "The Final Battle is over!" : "The battle is over!"
+}
+
+export function seasonOverLine(season: number): string {
+    return `Season ${season} is over!`
 }
 
 export const MEDALS = ["🥇", "🥈", "🥉"] as const
@@ -17,13 +22,33 @@ export function medalOf(rank: number): string {
     return MEDALS[rank - 1] ?? ""
 }
 
-export function revealKeyOf(closed: ClosedRound): string {
-    return `${closed.season}:${closed.number}:${closed.endedAt}`
+// round: a day's reveal. brief: a round of its own's. results: the season's table and its champion, after the brief of
+// the round that ended the season.
+export type Reveal = {kind: "round" | "brief" | "results", closed: ClosedRound}
+
+export function revealsOf(closed: ClosedRound): Reveal[] {
+    if (!closed.own) return [{kind: "round", closed}]
+    if (!closed.finale) return [{kind: "brief", closed}]
+    return [{kind: "brief", closed}, {kind: "results", closed}]
 }
 
-export function revealDue(closed: ClosedRound | undefined, now: number, seen: string | null): closed is ClosedRound {
-    if (!closed) return false
-    return now - closed.endedAt < REVEAL_WITHIN_MS && revealKeyOf(closed) !== seen
+export function revealKeyOf(reveal: Reveal): string {
+    const {season, number, endedAt} = reveal.closed
+    switch (reveal.kind) {
+        case "round":
+            return `${season}:${number}:${endedAt}`
+        case "brief":
+            return `${season}:own:${number}:${endedAt}`
+        case "results":
+            return `${season}:own:${number}:${endedAt}:results`
+    }
+}
+
+// The reveals after the one closed last.
+export function revealsDue(closed: ClosedRound | undefined, now: number, seen: string | null): Reveal[] {
+    if (!closed || now - closed.endedAt >= REVEAL_WITHIN_MS) return []
+    const reveals = revealsOf(closed)
+    return reveals.slice(reveals.findIndex((reveal) => revealKeyOf(reveal) === seen) + 1)
 }
 
 export function podiumOf(closed: ClosedRound): RoundStanding[] {

@@ -9,6 +9,7 @@ import {DELTA_HOLD_MS, NO_TILE_DELTAS, signed, TileDelta, TileDeltas} from "../d
 import {truncate} from "./truncate.ts";
 import Bubble from "./components/Bubble.tsx";
 import CountryFlag from "./components/CountryFlag.tsx";
+import {SwordsIcon} from "./components/icons.tsx";
 import RankCoin from "./components/RankCoin.tsx";
 
 type LeaderboardProps = {
@@ -36,6 +37,7 @@ export default function Leaderboard(props: LeaderboardProps) {
     const titleId = useId()
     const deltas = props.deltas ?? NO_TILE_DELTAS
     const race = props.race
+    const battle = race?.round?.own ? race.round : undefined
     const [leader, ...rest] = countryLines(props.data, race, shownOrder(race, props.order))
     const [shown, setShown] = useState<Shown>()
     const [guiding, setGuiding] = useState(false)
@@ -69,6 +71,7 @@ export default function Leaderboard(props: LeaderboardProps) {
 
         {leader && <LeaderFrame line={leader}
                                 scored={race !== undefined}
+                                battle={battle !== undefined}
                                 tilesCount={props.tilesCount}
                                 delta={deltas.get(leader.country.code)}
                                 isPlayer={leader.country.code === props.highlight?.code}
@@ -92,7 +95,11 @@ export default function Leaderboard(props: LeaderboardProps) {
                             <Hint {...hint("points", "head")}>Points</Hint>
                         </th>
                         <th className="leaderboard-table-head leaderboard-table-today" scope="col">
-                            <Hint {...hint("today", "head")}>Today</Hint>
+                            {battle
+                                ? <Hint {...hint("battle", "head")} className="leaderboard-battle">
+                                    <SwordsIcon size={12}/><span className="sr-only">Battle</span> ×{battle.times}
+                                </Hint>
+                                : <Hint {...hint("today", "head")}>Today</Hint>}
                         </th>
                     </>}
                 </tr>
@@ -119,7 +126,7 @@ export default function Leaderboard(props: LeaderboardProps) {
                         </td>
                         {race && <>
                             <td className="leaderboard-table-number leaderboard-table-points">{line.points}</td>
-                            <td className="leaderboard-table-today"><Today points={line.today}/></td>
+                            <td className="leaderboard-table-today"><Today points={line.today} battle={battle !== undefined}/></td>
                         </>}
                     </tr>
                 })}
@@ -144,6 +151,7 @@ export function OrderSwitch({order, onOrder}: {order: CountryOrder, onOrder: (or
 type LeaderFrameProps = {
     line: CountryLine
     scored: boolean
+    battle: boolean
     tilesCount: number
     delta?: TileDelta
     isPlayer: boolean
@@ -151,7 +159,7 @@ type LeaderFrameProps = {
     hint: (figure: Figure) => HintProps
 }
 
-function LeaderFrame({line, scored, tilesCount, delta, isPlayer, anthem, hint}: LeaderFrameProps) {
+function LeaderFrame({line, scored, battle, tilesCount, delta, isPlayer, anthem, hint}: LeaderFrameProps) {
     const className = isPlayer ? "leader-frame panel-box leader-frame--you" : "leader-frame panel-box"
 
     return <section className={className}
@@ -174,7 +182,7 @@ function LeaderFrame({line, scored, tilesCount, delta, isPlayer, anthem, hint}: 
             </span>
             {scored
                 ? <Hint {...hint("points")} className="leader-frame-share">
-                    <span>{line.points}<Today points={line.today}/></span>
+                    <span>{line.points}<Today points={line.today} battle={battle}/></span>
                     <span className="leader-frame-share-unit">points</span>
                 </Hint>
                 : <Hint {...hint("share")} className="leader-frame-share">
@@ -219,9 +227,9 @@ function Hint({figure, open, onShow, onHide, onLost, className, children}: HintP
     </>
 }
 
-function Today({points}: {points: number}) {
+function Today({points, battle}: {points: number, battle: boolean}) {
     if (points <= 0) return null
-    return <span className="leaderboard-today">+{points}<span className="sr-only"> today</span></span>
+    return <span className="leaderboard-today">+{points}<span className="sr-only">{battle ? " this battle" : " today"}</span></span>
 }
 
 function DeltaBadge({delta}: {delta?: TileDelta}) {

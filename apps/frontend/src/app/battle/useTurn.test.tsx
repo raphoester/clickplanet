@@ -41,7 +41,7 @@ describe("useTurn", () => {
         })
 
         await act(async () => {
-            backend.startBattle(30, "Triple points.")
+            backend.startBattle(Date.now(), Date.now() + 30 * 60_000, "Triple points.")
         })
 
         expect(latest?.kind).toBe("battle")

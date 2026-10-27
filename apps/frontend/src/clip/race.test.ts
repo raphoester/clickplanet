@@ -18,13 +18,19 @@ describe("the day a race closed last", () => {
         })
 
         expect(dayOf(closed)).toEqual({
-            season: 1, number: 5, finale: false, endedAt: 1_760_734_800_000,
+            season: 1, number: 5, finale: false, own: false, endedAt: 1_760_734_800_000,
             podium: [
                 {country: "fr", rank: 1, points: 25}, {country: "pw", rank: 2, points: 18},
                 {country: "br", rank: 2, points: 18}, {country: "dz", rank: 3, points: 15},
             ],
             table: [{country: "fr", rank: 1, points: 86}],
         })
+    })
+
+    it("keeps a battle's round of its own apart from a day", () => {
+        const closed = new ClosedRound({season: 0, number: 1, finale: true, own: true, times: 3, endedAtUnixMs: protoInt64.parse(1_793_487_600_000)})
+
+        expect(dayOf(closed)).toMatchObject({season: 0, number: 1, finale: true, own: true})
     })
 
     it("is none when no round closed yet", () => {

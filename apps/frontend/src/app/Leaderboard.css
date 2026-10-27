@@ -109,6 +109,13 @@
     color: var(--text);
 }
 
+.leaderboard-battle {
+    display: inline-flex;
+    align-items: center;
+    gap: 1px;
+    color: var(--war);
+}
+
 .leaderboard-today {
     font-family: var(--font-text);
     font-weight: 700;

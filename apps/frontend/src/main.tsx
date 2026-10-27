@@ -104,19 +104,27 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
             fakeChat.announceRound(closed)
             return `day ${closed.number} is over`
         },
+        closeBattle: () => {
+            const closed = fakeStandings.closeBattle()
+            fakeChat.announceRound(closed)
+            return `battle ${closed.number} is closed`
+        },
         closeFinale: () => {
-            const closed = fakeStandings.closeRound(true)
+            const closed = fakeStandings.closeBattle(true)
             fakeChat.announceRound(closed)
             fakeChat.announceChampion(closed)
-            return "the Final Battle is over"
+            return "the Final Battle is closed, and the season with it"
         },
-        startBattle: (minutes?: number, description?: string) => {
-            fakeTurn.startBattle(minutes, description)
-            return "a battle is on"
+        startBattle: (minutes = 120, description?: string, times = 3) => {
+            const since = Date.now()
+            const endsAt = since + minutes * 60_000
+            fakeTurn.startBattle(since, endsAt, description)
+            fakeStandings.openBattle(since, endsAt, times)
+            return `a battle is on, at ×${times}`
         },
         endBattle: () => {
             fakeTurn.endBattle()
-            return "the battle is over"
+            return "the battle is over: closeBattle() or closeFinale() sends its results"
         },
     })
 

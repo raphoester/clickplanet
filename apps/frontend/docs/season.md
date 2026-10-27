@@ -24,7 +24,8 @@
   across it goes back to no season), `SeasonChip`, `ChampionChip`, `SeasonDetails`,
   `SeasonFacts`, the rows both of them open on, `useRotation`, which turns the
   chip's faces, and `RoundReveal` with `useRoundReveal` (see [The cutoff,
-  revealed](cutoff.md)).
+  revealed](cutoff.md)): a day's reveal, and the season's results after the Final
+  Battle's brief (see [Battles](battle.md#the-brief)).
 
 **The season is a chip in the status zone, and it turns between two
 countdowns**: today's cutoff, because the day is what scores, and the season's
