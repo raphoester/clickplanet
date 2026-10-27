@@ -22,7 +22,7 @@ var seasonZeroEnds = time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC)
 
 func subscriber(store *inmemory_contribution_store.Store) tile_taken_subscriber.Subscriber {
 	return tile_taken_subscriber.New(record_take_usecase.New(calendar.New(calendar.Config{List: []calendar.Entry{
-		{Number: 0, EndsAt: seasonZeroEnds, Finale: 2 * time.Hour},
+		{Number: 0, EndsAt: seasonZeroEnds},
 	}}), store))
 }
 

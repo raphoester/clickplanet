@@ -10,7 +10,7 @@ const HOUR = 60 * MINUTE
 
 const now = Date.UTC(2026, 9, 31, 21, 30)
 const battle = {since: now - 30 * MINUTE, endsAt: now + HOUR + 23 * MINUTE + 5 * SECOND, description: "Triple points."}
-const season = {number: 0, finaleStartsAt: Date.UTC(2026, 11, 5, 21), endsAt: Date.UTC(2026, 11, 5, 23)}
+const season = {number: 0, lastDayEndsAt: Date.UTC(2026, 11, 5, 21), endsAt: Date.UTC(2026, 11, 5, 23)}
 
 afterEach(() => {
     cleanup()
@@ -40,7 +40,7 @@ describe("BattleChip", () => {
         fireEvent.pointerEnter(screen.getByRole("region", {name: "Battle"}))
         expect(screen.getByText("Triple points.")).toBeDefined()
         expect(screen.getByText(battleEndsLine(battle, now))).toBeDefined()
-        expect(screen.getByText("Final Battle in")).toBeDefined()
+        expect(screen.getByText("Season ends in")).toBeDefined()
 
         fireEvent.pointerLeave(screen.getByRole("region", {name: "Battle"}))
         expect(screen.queryByText("Triple points.")).toBeNull()

@@ -58,6 +58,14 @@ func TestCountriesTiedOnThePodiumAreAllNamed(t *testing.T) {
 	]}`, payloadOf(t, round.Announcement))
 }
 
+func TestARoundOfItsOwnSaysItIsAndItsTimes(t *testing.T) {
+	round := announcements.OwnRoundOf(0, 1, true, 3, []announcements.Place{announcements.PlaceOf("fr", 1, 75)})
+
+	assert.JSONEq(t, `{"number":1,"finale":true,"own":true,"times":3,"podium":[
+		{"country":"fr","rank":1,"points":75}
+	]}`, payloadOf(t, round.Announcement))
+}
+
 func TestARoundNobodyHeldGroundInHasAnEmptyPodium(t *testing.T) {
 	assert.JSONEq(t, `{"number":1,"podium":[]}`, payloadOf(t, announcements.RoundOf(0, 1, false, nil).Announcement))
 }
@@ -119,6 +127,7 @@ func TestAFactIsAnnouncedUnderAnIDOfItsOwn(t *testing.T) {
 		"mute 1":        announcements.MutedOf(mutes.MuteID{15: 1}, "guest_a1b2c3", time.Hour).Announcement,
 		"round 5":       announcements.RoundOf(0, 5, false, nil).Announcement,
 		"round 5 of 1":  announcements.RoundOf(1, 5, false, nil).Announcement,
+		"own round 5":   announcements.OwnRoundOf(0, 5, false, 2, nil).Announcement,
 		"champion of 0": announcements.ChampionOf(0, nil).Announcement,
 	} {
 		first, err := told(at)
@@ -130,5 +139,5 @@ func TestAFactIsAnnouncedUnderAnIDOfItsOwn(t *testing.T) {
 		ids[first.ID()] += name
 	}
 
-	assert.Len(t, ids, 7, "each fact has an id no other fact has")
+	assert.Len(t, ids, 8, "each fact has an id no other fact has")
 }

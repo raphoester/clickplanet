@@ -1,27 +1,39 @@
 # Seasons (`internal/seasons/`)
 
-**When a season ends, when its finale starts, and who leads it.** Planet never imports, calls or hears it: seasons asks planet what each country holds (`planet.v1.InternalService/GetTerritories`), at each round's end and for the live race, never the other way.
+**The season's scorekeeper: when a season and each day end, how points are counted, and who leads.** Planet never imports, calls or hears it: seasons asks planet what each country holds (`planet.v1.InternalService/GetTerritories`), at each round's end and for the live race, never the other way. **The metagame commands it** a rule set, as it does planet and the antibot (`seasons.v1.PlayRuleSet`, see [The season rules](season-rules.md)): a battle's set makes the battle's window a round of its own, and the Final Battle is the one that ends the season.
 
 ```
 internal/seasons/internal/
-  calendar/                       Number, Season, Entry, Config (its Validate), Calendar (Current)
+  calendar/                       Number, Season (LastDayEndsAt), Entry, Config (its Validate), Calendar (Current, Ended,
+                                  CutoffAfter)
     usecases/get_season_usecase/  the calendar and the clock
   standings/                      AccountID, Country, Take (Season), Tally (WithTake); the Store port (RecordTake,
                                   DeleteAccount) and its contract suite
     postgres_contribution_store/  the Store over seasons.contributions
     inmemory_contribution_store/  the same port in a map, behind the testing tag
     usecases/record_take_usecase/  forget_account_usecase/
-  rounds/                         Country, Round (Current, Results, Closed), Snapshot, Result, Closed (SeasonEnd),
-                                  Score (ScoresOf), Placed (TableOf), SeasonEnd; the Store port (Open, Unclosed,
-                                  Number, Close, ClosedIn) and its contract suite; Close answers whether this call
-                                  closed the round
-    postgres_round_store/         the Store over seasons.rounds and round_results
-    inmemory_round_store/         the same port in maps, behind the testing tag
+  rounds/                         Country, Round (Day, Own, Results, Closed), Snapshot, Result, Closed, Score (ScoresOf),
+                                  Placed (TableOf), SeasonEnd (SeasonEndOf), Take; the Store port (Open, Unclosed,
+                                  FirstEnd, Number, Close, ClosedIn, End, Ended) and the Takes port (Count,
+                                  ForgetAccount), each with its contract suite; Close and End answer whether this call
+                                  did it
+    postgres_round_store/         both ports over seasons.rounds, round_results, round_takes, round_players and
+                                  ended_seasons
+    inmemory_round_store/         the same ports in maps, behind the testing tag
     rpc_planet_territories/         the map now, from planet.v1.InternalService/GetTerritories
-    usecases/close_round_usecase/  closes one round from the map at its end and records it, and the season's end
-                                  with its finale, in the outbox, in one transaction
-    usecases/close_ended_rounds_usecase/ closes the rounds that ended, then opens the one in progress; Runner
-      log_close_ended_rounds/       logs each round closed, at Warn when late, and a failure
+    usecases/close_round_usecase/  closes one round from the map at its end and records it in the outbox, in one
+                                  transaction
+    usecases/close_season_usecase/ ends a season from every round it closed and records its table, in one transaction
+    usecases/close_ended_rounds_usecase/ closes the rounds that ended, ends the seasons that ended, then opens the day
+                                  in progress; Runner (Wake)
+      log_close_ended_rounds/       logs each round closed, at Warn when late, each season ended, and a failure
+    usecases/open_own_round_usecase/ opens the round of its own of an entry's window, and wakes the runner
+    usecases/count_take_usecase/  forget_account_usecase/   a round of its own's numbers
+  rules/                          SetName, Set, OwnRound, Snapshot (Restore), Window, Choice; the Store and Choices
+                                  ports, their fakes and contract suites — see [The season rules](season-rules.md)
+    postgres_rule_set_store/  postgres_choice_store/
+    usecases/play_rules_usecase/ (log_play_rules/)  save_rule_set_usecase/ (audit_save_rule_set/)
+  commands/play_rule_set_handler/ seasons.v1.PlayRuleSet, from the metagame
   seasonsv1controller/            SeasonService (a bag), the cache interceptor, the session interceptor
     get_season_handler/
     get_race_handler/             the race of the stream, once, through race_query — Query
@@ -39,14 +51,21 @@ internal/seasons/internal/
     get_my_season_handler/my_season_query/   PostgresQuery: GetMySeasonResponse from SQL, ranked — Authors
       rpc_player_authors/         the same adapter, for this query
     caller/                       the account on the context, or Unauthenticated
-  subscribers/                    tile_taken_subscriber/  account_deleted_subscriber/  log_subscriber/
+  subscribers/                    tile_taken_subscriber/  round_take_subscriber/  account_deleted_subscriber/
+                                  log_subscriber/
   migrations/
 ```
 
-- **The calendar is the config**, `seasons.list`. An empty list is no season.
-- **`Calendar.Current(now)` is the first season whose end is after now.** A season starts when the one before it ends; the first started before anything.
-- **The boot is refused** when the numbers do not count up from 0, the ends do not go up, or a finale is not above 0 and shorter than its season.
-- **`GetSeason` is a GET** (`NO_SIDE_EFFECTS`), answered `public, max-age=60`. No current season is an empty answer.
+- **The calendar is the config**: `seasons.list`, each season's number and end, and `seasons.dailyCutoff`, the time
+  of day (UTC) every day ends at (21:00 in production, evening in Europe, so every day ends while people play). An
+  empty list is no season. **The calendar holds no Final Battle**: since 2026-10-27 the Final Battle is a schedule
+  entry of the metagame (see [The metagame module](metagame.md)), and `finale` is no key of a season.
+- **`Calendar.Current(now)` is the first season whose end is after now.** A season starts when the one before it ends; the first started before anything. `Season.LastDayEndsAt` is its last cutoff, at or before its end.
+- **The boot is refused** when the numbers do not count up from 0, the ends do not go up, the cutoff is not a time of
+  day, or a season holds no end of a day.
+- **`GetSeason` is a GET** (`NO_SIDE_EFFECTS`), answered `public, max-age=60`: the number, the end, and
+  `last_day_ends_at`. `finale_starts_at` says the same as `last_day_ends_at`, for the clients from before it: the
+  Final Battle followed the last day, and does in Season 0. No current season is an empty answer.
 
 **A player's season score is the tiles it took this season for its main flag**, the flag it took the most tiles for, so a player cannot add up several flags. **A country's board is every player who took tiles for that country, ranked by those tiles**, so a player is on the board of each flag it took for, and a change of flag shows at the first take rather than when the main flag moves.
 
@@ -67,60 +86,82 @@ internal/seasons/internal/
 **A country's season score is the points of the rounds it won places in**, counted from the ground it held at
 each round's end: the standings rank players, the rounds rank countries.
 
-- **A round is a day, and the Final Battle is the last one** (`rounds.Current`). A day round ends at the time of day
-  the finale starts (21:00 UTC in production, evening in Europe), so every day ends while people play. The finale is
-  a round of its own, from its start to the season's end. A round is kept by its season and its end
-  (`Round{Season, EndsAt, Finale}`); its number is the read side's, from the rounds counted before it, so a season
-  with no start (Season 0) still says "day 1".
+- **A round is a day, or a round of its own.** A day ends at each cutoff (`rounds.Day`); none runs from the season's
+  last cutoff to its end. **A round of its own is the window of a schedule entry whose seasons set asks for one**
+  (`rounds.Own`, opened by `open_own_round_usecase` when seasons plays the set, see
+  [The season rules](season-rules.md)): of the season its window starts in, cut at that season's end, and worth its
+  set's times a day's points. A day and a round of its own run at once and are scored apart, each from the map at its
+  end. A round is kept by its season, its end and whether it is of its own (`Round{Season, EndsAt, Own}`, with
+  `Finale`, `StartsAt` and `Times`); a day and a round of its own may end at one time. Its number is the read side's,
+  among its season's rounds of its kind (day 5, the first round of its own), so a season with no start (Season 0)
+  still says "day 1".
+- **The finale is the round that ends the season**: the round of its own whose window runs to the season's end (the
+  Final Battle), or a day when the season ends at a cutoff. A season with no such round has none.
 - **A round is scored from the map at the moment it ends** (`close_ended_rounds_usecase`): one `GetTerritories` at
   the cutoff. Until 2026-10-27 (Season 0) it was scored on each country's average share; those rounds keep their
   results.
 - **`Round.Results` is the rule**: countries ranked by the tiles held at the end, ties sharing a rank and its points,
-  and the top 10 scoring 25, 18, 15, 12, 10, 8, 6, 4, 2, 1. The finale scores 3 times that. A day's win is worth the
-  same at 1% as at 30%, so an early lead cannot be banked.
-- **The round in progress is opened** (`Store.Open`); **the runner waits until it ends**, reads the map once and
-  closes every round that ended (`Store.Unclosed`), each in one transaction that marks it closed and records its
-  events; a second close changes nothing. Closing does not need a current season, so the finale closes after the last
-  season ends. A failure is tried again 5s later and logged (`log_close_ended_rounds`, which logs each round closed).
+  and the top 10 scoring 25, 18, 15, 12, 10, 8, 6, 4, 2, 1, times the round's `Times` (1 for a day). A day's win is
+  worth the same at 1% as at 30%, so an early lead cannot be banked.
+- **The day in progress is opened** (`Store.Open`); **the runner waits until the first end of a round or of the
+  season** (`Store.FirstEnd`, the season's end), reads the map once and closes every round that ended
+  (`Store.Unclosed`, a day before a round of its own that ends with it), each in one transaction that marks it closed
+  and records its event; a second close changes nothing. A round of its own opened wakes the runner
+  (`Runner.Wake`), since it may end before the round it waits for. A failure is tried again 5s later and logged
+  (`log_close_ended_rounds`, which logs each round closed).
 - **A round that ended while the server was down is closed at boot, from the map as read then**, logged at Warn
-  (`late` over a second). Nothing freezes the map: the owner accepted the risk. A round never opened is not played.
-- **Each round closed is told to the other modules** as `seasons.v1.RoundClosed`: its season, its number
-  (`Store.Number`, the rounds of its season opened before it, as the read side counts them), whether it is the
-  finale, its end and its results. The use case records it in the outbox in the transaction that closes the round: a
-  round that failed to close is not published, and is closed and published by the next try. The chat announces it —
-  see [Announcements](chat.md#announcements).
-- **The finale closing ends the season, and that is told too** as `seasons.v1.SeasonClosed`: its season, its end and
-  its whole table, the champion first, for the chat and for the titles. `Closed.SeasonEnd` is the rule: only a finale
-  ends its season, and its table is `TableOf(ScoresOf(...))` of every round the season closed, the finale last.
+  (`late` over a second). Nothing freezes the map: the owner accepted the risk. A round never opened is not played,
+  and a round of its own heard of once it ended is never opened.
+- **Each round closed is told to the other modules** as `seasons.v1.RoundClosed`: its season, its number, whether it
+  is the finale, whether it is of its own and its times, its end and its results. The use case records it in the
+  outbox in the transaction that closes the round: a round that failed to close is not published, and is closed and
+  published by the next try. The chat announces it — see [Announcements](chat.md#announcements).
+- **A season ends at its end, whether a round ends with it or none does** (`close_season_usecase`), once every round
+  that ended is closed: so the Final Battle's `RoundClosed` comes first, then `seasons.v1.SeasonClosed`, its season,
+  its end and its whole table, the champion first, for the chat and for the titles. `rounds.SeasonEndOf` is the rule:
+  its table is `TableOf(ScoresOf(...))` of every round the season closed, the rounds of their own among them.
   `ScoresOf` adds the results up as `race_query`'s SQL does, and `race_query`'s test pins the two against each other.
-  **Everything is read before the round is closed** (`Store.ClosedIn`, the rounds of a season closed so far, in
-  order, with their results), so a failed read leaves the finale to close, and the next try closes it and tells
-  both events once. A closed round is never unclosed, so nothing tells a season twice; the chat keys its line by the
-  season anyway.
+  **Everything is read before the season is ended** (`Store.ClosedIn`), so a failed read leaves it to end at the next
+  try. **`ended_seasons` keeps each season ended** (`Store.End`, one row, in the transaction that records the event):
+  nothing tells a season twice; the chat keys its line by the season anyway.
 - **`rounds.TableOf` ranks the season**: points, then rounds won, then the finale's points. Countries level on all
   three share the rank. The champion is the country ranked 1st; the titles at the season's end read the same table,
   from `SeasonClosed`.
-- **Kept in `seasons.rounds`** (`season`, `ends_at`, `finale`, `closed`) and **`round_results`** (`rank`, `points`,
-  `share` held at the end; for a round closed before 2026-10-27, its average). The rule stays in Go: SQL keeps what
-  `Results` said.
+- **A round of its own counts its numbers** for the client's brief: the tiles each flag's players took during its
+  window (`round_takes`), and each account's, by flag (`round_players`). `round_take_subscriber` hears
+  `planet.v1.TileTaken` (`seasons-rounds`) and `count_take_usecase` counts each take in every round of its own whose
+  window holds its time, in one statement that moves the round's mark past the take's ledger position
+  (`counted_takes_below`), so a take told twice counts once. `auth.v1.AccountDeleted` (`seasons-rounds-accounts`)
+  forgets the account's rows; its flag keeps its tiles. A day counts no numbers.
+- **Kept in `seasons.rounds`** (`season`, `ends_at`, `own`, `finale`, `starts_at`, `times`, `closed`,
+  `counted_takes_below`; key `(season, ends_at, own)`), **`round_results`** (`rank`, `points`, `share` held at the
+  end; for a round closed before 2026-10-27, its average), **`round_takes`**, **`round_players`** and
+  **`ended_seasons`**, migration `20261027210000_rounds_of_their_own`. The rule stays in Go: SQL keeps what `Results`
+  said.
 - **The race is live on the season stream** (`SeasonEvent.race`), to every stream whatever its view. `race_query`
-  reads the round in progress (its number, its end, each country's rank, share of the map now and the points it
-  would score if the round ended now, from `GetTerritories`), and the season's scores,
-  best first, of every country with points. **It also carries the round closed last** (`closed`), in any season, so
-  the finale still shows once its season is over: its number, its end, the countries that scored in it with their
-  share, and its season's table before and after it, both ranked by `rounds.TableOf`. A client
-  plays the cutoff from it. **One read for every stream**: `inprocess_race_feed` reads it when the first stream opens
-  and then every 10s (`Every`) while a stream follows it, and sends it only when it changed. **Nothing tells it a
-  round closed**: reading on its own clock is at most 10s late, and the close use case knows nothing of who reads its
-  rows. It forgets the race when the last stream closes. A failed read is logged (`log_race_reader`) and the next tick
-  reads again. No season is a race with no round and no scores, and no round closed yet is a race with no `closed`.
+  reads **the round in progress that ends first**, a day or a round of its own, which wins a tie (its number, its end,
+  whether it is of its own and its times, each country's rank, share of the map now and the points it would score if
+  the round ended now, from `GetTerritories`; none from the last cutoff to the season's end when no round of its own
+  runs), and the season's scores, best first, of every country with points. **It also carries the round closed
+  last** (`closed`), in any season, so the finale still shows once its season is over: its number, its end, the
+  countries that scored in it with their share, and its season's table before and after it, both ranked by
+  `rounds.TableOf`; and, for a round of its own, its start, its times, the tiles each flag took (`takes`, most first)
+  and its top 10 players (`players`, by the tiles each took for the flag it took the most for, named as the boards
+  name them, guests skipped, from the best 50 and one `GetAuthors`). A client plays the cutoff, and a battle's brief,
+  from it. **One read for every stream**:
+  `inprocess_race_feed` reads it when the first stream opens and then every 10s (`Every`) while a stream follows it, and
+  sends it only when it changed. **Nothing tells it a round closed**: reading on its own clock is at most 10s late, and
+  the close use case knows nothing of who reads its rows. It forgets the race when the last stream closes. A failed
+  read is logged (`log_race_reader`) and the next tick reads again. No season is a race with no round and no scores,
+  and no round closed yet is a race with no `closed`.
 - **`GetRace` is the same race, once**, for a reader that follows no stream: the clips job, which tells the day closed
   last (see [The clips job](clips-job.md)). It needs no token, is a GET (`NO_SIDE_EFFECTS`)
   and answers `public, max-age=10`. It reads through `race_query` itself, logged by `log_race_reader` as the feed is,
   and never through the feed: a feed with no stream holds no race.
-- `rounds.StoreContractSuite` runs on `inmemory_round_store` and on postgres. `race_query`'s suite ranks a
-  round from a fake planet's map, `close_ended_rounds_usecase` closes the finale and tells the season's table, and
-  chat's `season_closed_subscriber` names the champion once.
+- `rounds.StoreContractSuite` and `rounds.TakesContractSuite` run on `inmemory_round_store` and on postgres.
+  `race_query`'s suite ranks a round from a fake planet's map, picks the round that ends first and names a round of its
+  own's players; `close_ended_rounds_usecase` closes a round of its own at ×3, ends the season with and without a round
+  at its end, and tells its table once; chat's `season_closed_subscriber` names the champion once.
 - `standings.StoreContractSuite` runs on `inmemory_contribution_store` and on postgres. It reads what a store kept through a `TallyOf` hook each adapter's test fills, since the write side reads nothing back. The use cases are tested over the in-memory one; the queries on postgres, seeded through `postgres_contribution_store`.
 
 

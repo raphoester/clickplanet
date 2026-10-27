@@ -75,9 +75,14 @@ rules page calls both.
 
 ## The rule schedule: `metagame.v1.AdminService`
 
-`GetSchedule`, `AddEntry`, `EditEntry`, `DeleteEntry`: the entries that decide the rule set planet and the antibot
-play. Only an entry to come changes. See [The metagame module](metagame.md). The
+`GetSchedule`, `AddEntry`, `EditEntry`, `DeleteEntry`: the entries that decide the rule set planet, the antibot and
+seasons play. Only an entry to come changes. See [The metagame module](metagame.md). The
 backoffice's Rule schedule page calls all four.
+
+## The season rules: `seasons.v1.AdminService`
+
+`GetRules`, `SaveRuleSet`: how seasons counts points while a set plays, a round of its own and its times, never the
+set that plays now. See [The season rules](season-rules.md). The backoffice's Season rules page calls both.
 
 ## `GetLedger`, `GetTerritories`
 

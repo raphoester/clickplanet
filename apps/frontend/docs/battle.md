@@ -58,8 +58,8 @@ ends.
   units, and a press opens the "Battle" sheet (`BattleDetails`): the clock and the
   same facts.
 - **The facts are the description, when the operator wrote one, and when the battle
-  ends.** The season's countdowns follow, so a player loses no clock while the chip
-  is the battle's; not during the finale, where the battle's clock is the season's.
+  ends.** The season's countdowns follow (today's end and the season's), so a player
+  loses no clock while the chip is the battle's.
   The facts explain no rule on their own: what a battle changes is the operator's
   description, read from the server.
 - The chip's name holds the clock in full, and the visible clock is hidden from a

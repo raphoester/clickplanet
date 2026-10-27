@@ -40,7 +40,8 @@ export class ConnectSeasonBackend implements SeasonBackend {
 function seasonOf(season: SeasonPb): Season {
     return {
         number: season.number,
-        finaleStartsAt: Number(season.finaleStartsAtUnixMs),
+        // A server from before last_day_ends_at sent the same time as finale_starts_at.
+        lastDayEndsAt: Number(season.lastDayEndsAtUnixMs || season.finaleStartsAtUnixMs),
         endsAt: Number(season.endsAtUnixMs),
     }
 }

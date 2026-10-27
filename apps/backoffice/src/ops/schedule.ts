@@ -2,6 +2,7 @@ import {proto3, Timestamp} from "@bufbuild/protobuf"
 import {MetagameAdmin} from "../clients.ts"
 import {GetRulesResponse as AntibotRules} from "../gen/grpc/antibot/v1/admin_pb.ts"
 import {GetRulesResponse as PlanetRules} from "../gen/grpc/planet/v1/admin_pb.ts"
+import {GetRulesResponse as SeasonRules} from "../gen/grpc/seasons/v1/admin_pb.ts"
 import {Entry, GetScheduleResponse} from "../gen/grpc/metagame/v1/admin_pb.ts"
 import {EntryKind} from "../gen/grpc/metagame/v1/metagame_pb.ts"
 
@@ -24,17 +25,21 @@ export function changeable(row: Row, now: Date): boolean {
     return row.startsAt !== undefined && now < row.startsAt
 }
 
+// What each module the schedule commands keeps and plays.
+export type Modules = {planet: PlanetRules, antibot: AntibotRules, seasons: SeasonRules}
+
 // The modules that keep no set of this name.
-export function lacking(set: string, planet: PlanetRules, antibot: AntibotRules): string[] {
+export function lacking(set: string, modules: Modules): string[] {
     const missing: string[] = []
-    if (!planet.sets.some(kept => kept.name === set)) missing.push("planet")
-    if (!antibot.sets.some(kept => kept.name === set)) missing.push("the antibot")
+    if (!modules.planet.sets.some(kept => kept.name === set)) missing.push("planet")
+    if (!modules.antibot.sets.some(kept => kept.name === set)) missing.push("the antibot")
+    if (!modules.seasons.sets.some(kept => kept.name === set)) missing.push("seasons")
     return missing
 }
 
-// The sets an entry may play: the ones both modules keep.
-export function playable(planet: PlanetRules, antibot: AntibotRules): string[] {
-    return planet.sets.map(set => set.name).filter(name => antibot.sets.some(kept => kept.name === name))
+// The sets an entry may play: the ones every module keeps.
+export function playable(modules: Modules): string[] {
+    return modules.planet.sets.map(set => set.name).filter(name => lacking(name, modules).length === 0)
 }
 
 // The kinds an entry may be, read off the proto, so a new one shows with no edit here.
@@ -78,7 +83,7 @@ function localOf(date: Date | undefined): string {
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
 
-// The server holds the rest: a start after now, an end after it, a set both modules keep.
+// The server holds the rest: a start after now, an end after it, a set every module keeps.
 export function complete(draft: Draft): boolean {
     return draft.set !== "" && draft.kind !== EntryKind.UNSPECIFIED && [...draft.description].length <= MAX_DESCRIPTION &&
         draft.startsAt !== "" && draft.endsAt !== "" && Number.isInteger(Number(draft.priority)) && Number(draft.priority) >= 0

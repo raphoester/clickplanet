@@ -10,7 +10,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds"
 )
 
-var day = rounds.Round{EndsAt: utc(16, 21, 0, 0)}
+var day = rounds.Round{EndsAt: utc(16, 21, 0, 0), Times: 1}
 
 func atTheEnd(held map[rounds.Country]uint32) rounds.Snapshot {
 	return rounds.Snapshot{Tiles: 100, Held: held}
@@ -53,10 +53,10 @@ func TestOnlyTheTopTenScore(t *testing.T) {
 	assert.Equal(t, []uint32{25, 18, 15, 12, 10, 8, 6, 4, 2, 1, 0, 0}, points)
 }
 
-func TestTheFinaleScoresThreeTimesAsMuch(t *testing.T) {
-	finale := rounds.Round{EndsAt: utc(31, 23, 0, 0), Finale: true}
+func TestARoundOfItsOwnScoresItsTimesADaysPoints(t *testing.T) {
+	battle := rounds.Round{EndsAt: utc(31, 23, 0, 0), Own: true, StartsAt: utc(31, 21, 0, 0), Times: 3}
 
-	results := finale.Results(atTheEnd(map[rounds.Country]uint32{"fr": 30, "de": 20}))
+	results := battle.Results(atTheEnd(map[rounds.Country]uint32{"fr": 30, "de": 20}))
 
 	assert.Equal(t, []rounds.Result{
 		{Country: "fr", Rank: 1, Points: 75, Share: 0.3},

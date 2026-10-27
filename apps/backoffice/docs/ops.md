@@ -36,18 +36,31 @@ an `enabled` field, read off the proto, so a new one shows with no edit here.
   (`Rules.fromJsonString`: a typo in a key is refused here, with protobuf's words). The server holds the bounds; its
   refusal is quoted, every reason, and the form stays.
 
-**Rule schedule** (`SchedulePanel`, `schedule.ts`) is `metagame.v1.AdminService` (the backend's
-[metagame module](../../backend/docs/metagame.md)), with planet's and the antibot's `GetRules` beside it:
+**Season rules** (`SeasonRulesPanel`, `seasonRules.ts`) is `seasons.v1.AdminService/GetRules` and `SaveRuleSet` (the
+backend's [season rules](../../backend/docs/season-rules.md)): every set postgres keeps, `default` first, with its round
+("Days only", or "Of its own, 3× a day's points"), and the set playing, marked.
 
-- **What plays now, its kind and since when**, from `GetSchedule.playing`, and what planet and the antibot each play.
-  When a module does not play the schedule's set, the page says so in red: a module refused it, since it keeps no such
-  set.
+- **A round of its own** is the window of the schedule entry that plays the set: a round scored from the map at its
+  end, as a day is, and worth its points' times. The one that ends with the season is the Final Battle. `default`
+  keeps days only; a battle's set is a copy of it with the round on and its times set.
+- **A form of two values**: the round's switch and its points' times, a whole number from 1 to 10 (`MAX_TIMES`, the
+  server's bound), written when the round is off too. Save is off until the set has a name and the times are whole
+  and in bounds.
+- **Edit**, **Copy** and **Save** work as on Anti-bot rules: the set playing has no Edit, a save asks first, and the
+  server's refusal is quoted ("A set of this name plays now. Save it under another name.").
+
+**Rule schedule** (`SchedulePanel`, `schedule.ts`) is `metagame.v1.AdminService` (the backend's
+[metagame module](../../backend/docs/metagame.md)), with planet's, the antibot's and seasons' `GetRules` beside it:
+
+- **What plays now, its kind and since when**, from `GetSchedule.playing`, and what planet, the antibot and seasons
+  each play. When a module does not play the schedule's set, the page says so in red: a module refused it, since it
+  keeps no such set.
 - **The schedule**: every entry, by start, with its kind and its description (cut at 60 characters, whole on hover),
-  the row playing marked, an ended one muted. A row that has not ended and names a set planet or the antibot keeps
-  none of says which ("No set rush in planet or the antibot.").
+  the row playing marked, an ended one muted. A row that has not ended and names a set a module keeps none of says
+  which ("No set rush in planet, the antibot or seasons.").
 - **Only an entry to come has Edit and Delete.** A running entry runs to its end; to change what plays, add an entry
   at a higher priority. There is no button that changes the rules at once.
-- **Add an entry** opens a form: the set (only the ones both modules keep), its kind, its description, its start and
+- **Add an entry** opens a form: the set (only the ones all three modules keep), its kind, its description, its start and
   end (`datetime-local`, the operator's own time) and its priority (the higher plays). Add, Save and Delete ask first
   (`ConfirmAction`); the server's refusal is quoted (a set a module lacks, an entry that started, a start in the past),
   and the form stays.

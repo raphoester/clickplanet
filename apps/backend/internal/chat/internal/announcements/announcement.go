@@ -153,6 +153,9 @@ type Round struct {
 	season uint32
 	number uint32
 	finale bool
+	// own is a round of its own: numbered apart from the days, and worth times a day's points.
+	own    bool
+	times  uint32
 	podium []Place
 }
 
@@ -166,6 +169,13 @@ func RoundOf(season uint32, number uint32, finale bool, places []Place) Round {
 	return Round{season: season, number: number, finale: finale, podium: kept}
 }
 
+// OwnRoundOf is a round of its own: a schedule entry's window, worth times a day's points.
+func OwnRoundOf(season uint32, number uint32, finale bool, times uint32, places []Place) Round {
+	round := RoundOf(season, number, finale, places)
+	round.own, round.times = true, times
+	return round
+}
+
 type placePayload struct {
 	Country string `json:"country"`
 	Rank    uint32 `json:"rank"`
@@ -175,6 +185,8 @@ type placePayload struct {
 type roundPayload struct {
 	Number uint32         `json:"number"`
 	Finale bool           `json:"finale,omitempty"`
+	Own    bool           `json:"own,omitempty"`
+	Times  uint32         `json:"times,omitempty"`
 	Podium []placePayload `json:"podium"`
 }
 
@@ -183,11 +195,15 @@ func (r Round) Announcement(at time.Time) (Announcement, error) {
 	for _, place := range r.podium {
 		places = append(places, placePayload{Country: place.country, Rank: place.rank, Points: place.points})
 	}
-	payload, err := json.Marshal(roundPayload{Number: r.number, Finale: r.finale, Podium: places})
+	payload, err := json.Marshal(roundPayload{Number: r.number, Finale: r.finale, Own: r.own, Times: r.times, Podium: places})
 	if err != nil {
 		return Announcement{}, fmt.Errorf("failed to encode a round announcement: %w", err)
 	}
-	return NewAnnouncement(toldOnce(fmt.Sprintf("seasons/%d/rounds/%d", r.season, r.number)), KindRound, at, payload), nil
+	kind := "rounds"
+	if r.own {
+		kind = "own-rounds"
+	}
+	return NewAnnouncement(toldOnce(fmt.Sprintf("seasons/%d/%s/%d", r.season, kind, r.number)), KindRound, at, payload), nil
 }
 
 type Champion struct {

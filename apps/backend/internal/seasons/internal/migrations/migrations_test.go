@@ -34,11 +34,11 @@ func TestARoundClosedOnItsAverageKeepsItsResultsWithItsAverageShareAndTheRoundIn
 	store := postgres_round_store.New(db)
 	kept, err := store.ClosedIn(t.Context(), 0)
 	require.NoError(t, err)
-	assert.Equal(t, []rounds.Closed{{Round: rounds.Round{EndsAt: closed}, Number: 1, Results: []rounds.Result{
+	assert.Equal(t, []rounds.Closed{{Round: rounds.Round{EndsAt: closed, Times: 1}, Number: 1, Results: []rounds.Result{
 		{Country: "fr", Rank: 1, Points: 25, Share: 0.25},
 		{Country: "de", Rank: 2, Points: 18, Share: 0.1},
 	}}}, kept)
 	unclosed, err := store.Unclosed(t.Context(), open)
 	require.NoError(t, err)
-	assert.Equal(t, []rounds.Round{{EndsAt: open}}, unclosed, "the round in progress is closed at its end, from the map")
+	assert.Equal(t, []rounds.Round{{EndsAt: open, Times: 1}}, unclosed, "the round in progress is closed at its end, from the map")
 }

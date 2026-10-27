@@ -16,11 +16,15 @@ export class RoundClosed extends Message<RoundClosed> {
   season = 0;
 
   /**
+   * A day's place among the season's days; a round of its own's among the season's rounds of their own.
+   *
    * @generated from field: uint32 number = 2;
    */
   number = 0;
 
   /**
+   * The round that ended the season.
+   *
    * @generated from field: bool finale = 3;
    */
   finale = false;
@@ -35,6 +39,20 @@ export class RoundClosed extends Message<RoundClosed> {
    */
   results: RoundResult[] = [];
 
+  /**
+   * A round of its own: the window of a schedule entry whose set asked for one, not a day.
+   *
+   * @generated from field: bool own = 6;
+   */
+  own = false;
+
+  /**
+   * How many times a day's points it scored: 1 for a day.
+   *
+   * @generated from field: uint32 times = 7;
+   */
+  times = 0;
+
   constructor(data?: PartialMessage<RoundClosed>) {
     super();
     proto3.util.initPartial(data, this);
@@ -48,6 +66,8 @@ export class RoundClosed extends Message<RoundClosed> {
     { no: 3, name: "finale", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 4, name: "ended_at", kind: "message", T: Timestamp },
     { no: 5, name: "results", kind: "message", T: RoundResult, repeated: true },
+    { no: 6, name: "own", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 7, name: "times", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoundClosed {

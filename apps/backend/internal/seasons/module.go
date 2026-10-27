@@ -14,17 +14,32 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/calendar"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/calendar/usecases/get_season_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/commands/play_rule_set_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/postgres_round_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/rpc_planet_territories"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/usecases/close_ended_rounds_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/usecases/close_ended_rounds_usecase/log_close_ended_rounds"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/usecases/close_round_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/usecases/close_season_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/usecases/count_take_usecase"
+	round_forget_account_usecase "github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/usecases/forget_account_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/usecases/open_own_round_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rules/postgres_choice_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rules/postgres_rule_set_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rules/usecases/play_rules_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rules/usecases/play_rules_usecase/log_play_rules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rules/usecases/save_rule_set_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rules/usecases/save_rule_set_usecase/audit_save_rule_set"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_my_season_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_my_season_handler/my_season_query"
 	my_season_authors "github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_my_season_handler/my_season_query/rpc_player_authors"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_race_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_rule_set_names_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_rule_set_names_handler/rule_set_names_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_rules_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_rules_handler/rule_sets_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_season_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_standings_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_standings_handler/standings_query"
@@ -35,11 +50,14 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/listen_for_events_handler/inprocess_race_feed"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/listen_for_events_handler/inprocess_race_feed/log_race_reader"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/listen_for_events_handler/race_query"
+	race_authors "github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/listen_for_events_handler/race_query/rpc_player_authors"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/save_rule_set_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/standings/postgres_contribution_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/standings/usecases/forget_account_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/standings/usecases/record_take_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/subscribers/account_deleted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/subscribers/log_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/subscribers/round_take_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/subscribers/tile_taken_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
@@ -111,17 +129,46 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	}
 
 	territories := rpc_planet_territories.New(planet)
-	race := log_race_reader.New(race_query.NewPostgresQuery(db, territories, seasons, clock), props.Logger)
+	race := log_race_reader.New(
+		race_query.NewPostgresQuery(db, territories, race_authors.New(player), seasons, clock), props.Logger)
 	races := inprocess_race_feed.New(race)
 	roundStore := postgres_round_store.New(db)
+	outbox := cpoutbox.New(db)
 	closing := close_ended_rounds_usecase.NewRunner(log_close_ended_rounds.New(
 		close_ended_rounds_usecase.New(territories, roundStore,
-			close_round_usecase.New(db, roundStore, cpoutbox.New(db)), seasons, clock),
+			close_round_usecase.New(db, roundStore, outbox), close_season_usecase.New(db, roundStore, outbox), seasons, clock),
 		props.Logger,
 	), clock, close_ended_rounds_usecase.Retry)
 
+	roundTakes, err := cpredis.Subscribe(ctx, streams, "seasons-rounds",
+		log_subscriber.New(round_take_subscriber.New(count_take_usecase.New(roundStore)), props.Logger))
+	if err != nil {
+		closeStores()
+		return fmt.Errorf("failed to subscribe the rounds to planet.v1.TileTaken: %w", err)
+	}
+	roundDeletions, err := cpredis.Subscribe(ctx, streams, "seasons-rounds-accounts",
+		log_subscriber.New(account_deleted_subscriber.New(round_forget_account_usecase.New(roundStore)), props.Logger))
+	if err != nil {
+		closeStores()
+		return fmt.Errorf("failed to subscribe the rounds to auth.v1.AccountDeleted: %w", err)
+	}
+
+	ruleSets := postgres_rule_set_store.New(db)
+	play := play_rules_usecase.New(ruleSets, postgres_choice_store.New(db),
+		open_own_round_usecase.New(seasons, roundStore, clock, closing))
+	playRules := log_play_rules.New(play, props.Logger)
+	if _, _, err := playRules.Execute(ctx); err != nil {
+		closeStores()
+		return fmt.Errorf("failed to play the season rules postgres keeps: %w", err)
+	}
+	chosen, err := cpredis.Handle(ctx, streams, play_rule_set_handler.New(playRules))
+	if err != nil {
+		closeStores()
+		return fmt.Errorf("failed to handle seasons.v1.PlayRuleSet: %w", err)
+	}
+
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger, boards, races, closing, cpredis.CloseAfter(streams, props.Logger,
-		takes, deletions, cpoutbox.NewRelay("seasons-outbox", db, streams, props.Logger))))
+		takes, deletions, roundTakes, roundDeletions, chosen, cpoutbox.NewRelay("seasons-outbox", db, streams, props.Logger))))
 
 	service := seasonsv1controller.SeasonService{
 		GetSeasonHandler: get_season_handler.New(
@@ -141,6 +188,25 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		seasonsv1controller.NewSessionInterceptor(verifier, clock, props.Metrics),
 	); err != nil {
 		return fmt.Errorf("failed to mount seasons.v1.SeasonService: %w", err)
+	}
+
+	admin := seasonsv1controller.AdminService{
+		GetRulesHandler: get_rules_handler.New(rule_sets_query.NewPostgresQuery(db), play),
+		SaveRuleSetHandler: save_rule_set_handler.New(
+			audit_save_rule_set.New(save_rule_set_usecase.New(ruleSets, play), props.Logger)),
+	}
+	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
+		return seasonsv1connect.NewAdminServiceHandler(admin, options...)
+	}); err != nil {
+		return fmt.Errorf("failed to mount seasons.v1.AdminService: %w", err)
+	}
+	internalService := seasonsv1controller.InternalService{
+		GetRuleSetNamesHandler: get_rule_set_names_handler.New(rule_set_names_query.NewPostgresQuery(db)),
+	}
+	if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
+		return seasonsv1connect.NewInternalServiceHandler(internalService, options...)
+	}); err != nil {
+		return fmt.Errorf("failed to mount seasons.v1.InternalService: %w", err)
 	}
 
 	props.Logger.Info("seasons built", slog.Int("seasons", len(config.Calendar.List)), slog.String("schema", config.Database.Schema))
