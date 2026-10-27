@@ -15,8 +15,14 @@ type Holding struct {
 	Tiles   uint32
 }
 
+type Territory struct {
+	Flag    string
+	Tiles   uint32
+	Grounds []Holding
+}
+
 type World struct {
-	Territories  []Holding
+	Territories  []Territory
 	CountrySizes []Holding
 }
 
@@ -36,6 +42,7 @@ const (
 
 	rivalAtLeast  = 1_000
 	groundAtLeast = 3_000
+	openAtLeast   = 1_000
 
 	fewestMissions = 3
 	mostMissions   = 5
@@ -59,7 +66,7 @@ func Draw(day Day, flag string, world World) Brief {
 	_, _ = seed.Write([]byte(day.String() + "/" + flag))
 	d := draw{flag: flag, random: rand.New(rand.NewPCG(seed.Sum64(), 0))} //nolint:gosec // a draw every player can see, not a secret.
 
-	orders := d.orders(rivalsOf(flag, world), groundsOf(flag, world))
+	orders := d.orders(d.ranked(rivalsOf(flag, world)), groundsOf(flag, world))
 	rewards := d.rewards(len(orders))
 
 	missions := make([]Mission, 0, len(orders))
@@ -76,29 +83,34 @@ func drawnID(day Day, flag string, n int) MissionID {
 }
 
 // The flags holding rivalAtLeast tiles but the flag, the biggest first.
-func rivalsOf(flag string, world World) []string {
+func rivalsOf(flag string, world World) []Holding {
 	var rivals []Holding
 	for _, held := range world.Territories {
-		if held.Country != flag && held.Tiles >= rivalAtLeast {
-			rivals = append(rivals, held)
+		if held.Flag != flag && held.Tiles >= rivalAtLeast {
+			rivals = append(rivals, Holding{Country: held.Flag, Tiles: held.Tiles})
 		}
 	}
 	slices.SortFunc(rivals, func(a, b Holding) int {
 		return cmp.Or(cmp.Compare(b.Tiles, a.Tiles), cmp.Compare(a.Country, b.Country))
 	})
-
-	flags := make([]string, 0, len(rivals))
-	for _, rival := range rivals {
-		flags = append(flags, rival.Country)
-	}
-	return flags
+	return rivals
 }
 
-// The countries of groundAtLeast tiles or more but the flag, by code.
+// The countries of groundAtLeast tiles or more but the flag, with openAtLeast tiles the flag does not hold, by code.
 func groundsOf(flag string, world World) []string {
+	held := make(map[string]uint32)
+	for _, territory := range world.Territories {
+		if territory.Flag != flag {
+			continue
+		}
+		for _, ground := range territory.Grounds {
+			held[ground.Country] = ground.Tiles
+		}
+	}
+
 	var grounds []string
 	for _, size := range world.CountrySizes {
-		if size.Country != flag && size.Tiles >= groundAtLeast {
+		if size.Country != flag && size.Tiles >= groundAtLeast && size.Tiles >= held[size.Country]+openAtLeast {
 			grounds = append(grounds, size.Country)
 		}
 	}
@@ -115,7 +127,28 @@ func (d draw) goal(of span) uint32 {
 	return of.least + goalStep*d.random.Uint32N((of.most-of.least)/goalStep+1)
 }
 
-// The bank, the leader and a ground, then more rivals and grounds up to what the day gives.
+// Every rival once, each drawn by the ground it holds, so the leader is the likeliest first and never the only one.
+func (d draw) ranked(rivals []Holding) []string {
+	left := slices.Clone(rivals)
+	ranked := make([]string, 0, len(left))
+	for len(left) > 0 {
+		var total uint64
+		for _, rival := range left {
+			total += uint64(rival.Tiles)
+		}
+		drawn := d.random.Uint64N(total)
+		n := 0
+		for drawn >= uint64(left[n].Tiles) {
+			drawn -= uint64(left[n].Tiles)
+			n++
+		}
+		ranked = append(ranked, left[n].Country)
+		left = slices.Delete(left, n, n+1)
+	}
+	return ranked
+}
+
+// The bank, a rival and a ground, then more rivals and grounds up to what the day gives.
 func (d draw) orders(rivals, grounds []string) []Order {
 	count := fewestMissions + d.random.IntN(mostMissions-fewestMissions+1)
 

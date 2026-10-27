@@ -116,8 +116,8 @@ backoffice's Rule schedule page calls all four.
   - **A window of 72 hours at most**, the ledger's retention, and `since` before `until` (unset: now); anything else is
     `InvalidArgument` (`changes_query.ErrInvalidWindow`). It changes nothing and logs nothing. The last second of
     changes, not flushed yet, is not in it.
-- **`GetTerritories`** is the internal service's, handler and all: the tiles each country holds now, and the map's
-  size.
+- **`GetTerritories`** is the internal service's, handler and all: the tiles each country holds now, how many of them on
+  each country's land, and the map's size.
 
 ## `PaintRandomTiles`
 

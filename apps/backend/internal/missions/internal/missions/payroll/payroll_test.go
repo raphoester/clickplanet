@@ -21,7 +21,7 @@ import (
 type fixedPlanet struct{}
 
 func (fixedPlanet) World(context.Context) (missions.World, error) {
-	return missions.World{Territories: []missions.Holding{{Country: "dz", Tiles: 9_000}}}, nil
+	return missions.World{Territories: []missions.Territory{{Flag: "dz", Tiles: 9_000}}}, nil
 }
 
 type accounts struct {
@@ -38,7 +38,7 @@ func (a *accounts) Linked(context.Context, missions.AccountID) (bool, error) {
 var (
 	day      = missions.NewCalendar(missions.Config{Cutoff: 21 * time.Hour}).DayOf(time.Date(2026, 10, 26, 12, 0, 0, 0, time.UTC))
 	ada      = missions.AccountID{15: 1}
-	bank     = missions.Draw(day, "fr", missions.World{Territories: []missions.Holding{{Country: "dz", Tiles: 9_000}}}).Snapshot()[0]
+	bank     = missions.Draw(day, "fr", missions.World{Territories: []missions.Territory{{Flag: "dz", Tiles: 9_000}}}).Snapshot()[0]
 	bankGoal = bank.Order.(missions.TakeFor).Goal
 )
 

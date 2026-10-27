@@ -20,19 +20,12 @@ var (
 )
 
 var world = missions.World{
-	Territories: []missions.Holding{
-		{Country: "dz", Tiles: 90_000}, {Country: "pw", Tiles: 70_000}, {Country: "us", Tiles: 1_000}, {Country: "fr", Tiles: 999},
+	Territories: []missions.Territory{
+		{Flag: "dz", Tiles: 90_000}, {Flag: "pw", Tiles: 70_000}, {Flag: "us", Tiles: 1_000}, {Flag: "fr", Tiles: 999},
 	},
 	CountrySizes: []missions.Holding{
 		{Country: "br", Tiles: 9_000}, {Country: "fr", Tiles: 3_000}, {Country: "is", Tiles: 2_999}, {Country: "va", Tiles: 1},
 	},
-}
-
-func leaderFor(flag string) string {
-	if flag == "dz" {
-		return "pw"
-	}
-	return "dz"
 }
 
 // What a mission aims at, whatever its goal.
@@ -119,17 +112,36 @@ func TestTheFirstMissionIsTwoToFourBanksForTheFlag(t *testing.T) {
 	assert.Greater(t, goals.Len(), 1, "the goal changes with the day")
 }
 
-func TestTheSecondMissionAimsAtTheLeaderOrTheRunnerUpForTheLeader(t *testing.T) {
+func TestTheSecondMissionTakesFromARivalHoldingAThousandTiles(t *testing.T) {
 	for d := range briefs(30) {
 		order, ok := d.brief[1].Order.(missions.TakeFrom)
 		require.True(t, ok, "%s: %T", d, d.brief[1].Order)
-		assert.Equal(t, leaderFor(d.flag), order.Flag, d)
+		assert.Contains(t, []string{"dz", "pw", "us"}, order.Flag, "%s: no rival under 1,000 tiles", d)
+		assert.NotEqual(t, d.flag, order.Flag, d)
 		within(t, order.Goal, 80, 160, d)
 	}
 }
 
+func TestTheRivalIsDrawnByTheGroundItHolds(t *testing.T) {
+	shares := missions.World{Territories: []missions.Territory{
+		{Flag: "dz", Tiles: 60_000}, {Flag: "pw", Tiles: 30_000}, {Flag: "us", Tiles: 10_000},
+	}}
+	const days = 1_000
+
+	drawn := map[string]int{}
+	for day := range days {
+		order, ok := missions.Draw(calendar.DayOf(monday.AddDate(0, 0, day)), "fr", shares).Snapshot()[1].Order.(missions.TakeFrom)
+		require.True(t, ok, "day %d", day)
+		drawn[order.Flag]++
+	}
+
+	assert.InDelta(t, 0.6, float64(drawn["dz"])/days, 0.05, "the leader, drawn %d days of %d", drawn["dz"], days)
+	assert.InDelta(t, 0.3, float64(drawn["pw"])/days, 0.05, "the runner-up, drawn %d days of %d", drawn["pw"], days)
+	assert.InDelta(t, 0.1, float64(drawn["us"])/days, 0.05, "the smallest, drawn %d days of %d", drawn["us"], days)
+}
+
 func TestWithNoRivalBigEnoughTheSecondMissionIsForTheFlag(t *testing.T) {
-	empty := missions.World{Territories: []missions.Holding{{Country: "de", Tiles: 999}}}
+	empty := missions.World{Territories: []missions.Territory{{Flag: "de", Tiles: 999}}}
 
 	second := missions.Draw(calendar.DayOf(monday), "fr", empty).Snapshot()[1]
 
@@ -147,6 +159,29 @@ func TestTheThirdMissionIsABigGroundThatIsNotTheFlags(t *testing.T) {
 		assert.NotEqual(t, d.flag, order.Ground, d)
 		within(t, order.Goal, 300, 600, d)
 	}
+}
+
+func TestAGroundTheFlagHoldsAllButAThousandTilesOfIsNoTarget(t *testing.T) {
+	held := missions.World{
+		Territories: []missions.Territory{
+			{Flag: "fr", Tiles: 10_001, Grounds: []missions.Holding{{Country: "in", Tiles: 2_001}, {Country: "br", Tiles: 8_000}}},
+		},
+		CountrySizes: []missions.Holding{{Country: "in", Tiles: 3_000}, {Country: "br", Tiles: 9_000}},
+	}
+
+	grounds := map[string]*cpcolls.Set[string]{"fr": cpcolls.NewSet[string](), "de": cpcolls.NewSet[string]()}
+	for flag, targets := range grounds {
+		for day := range 30 {
+			for _, mission := range missions.Draw(calendar.DayOf(monday.AddDate(0, 0, day)), flag, held).Snapshot() {
+				if order, ok := mission.Order.(missions.TakeIn); ok {
+					targets.Add(order.Ground)
+				}
+			}
+		}
+	}
+
+	assert.Equal(t, cpcolls.NewSet("br"), grounds["fr"], "999 tiles of India are not France's, 1,000 of Brazil are")
+	assert.Equal(t, cpcolls.NewSet("br", "in"), grounds["de"], "Germany holds none of either")
 }
 
 func TestWithNoGroundBigEnoughTheThirdMissionIsForTheFlag(t *testing.T) {
@@ -192,7 +227,7 @@ func TestTheExtraMissionsAreMoreRivalsAndGroundsNeverAimedAtTwice(t *testing.T) 
 }
 
 func TestWithNothingMoreToAimAtADayHasThreeMissions(t *testing.T) {
-	bare := missions.World{Territories: []missions.Holding{{Country: "dz", Tiles: 9_000}}}
+	bare := missions.World{Territories: []missions.Territory{{Flag: "dz", Tiles: 9_000}}}
 
 	for day := range 30 {
 		assert.Len(t, missions.Draw(calendar.DayOf(monday.AddDate(0, 0, day)), "fr", bare).Snapshot(), 3, "day %d", day)
