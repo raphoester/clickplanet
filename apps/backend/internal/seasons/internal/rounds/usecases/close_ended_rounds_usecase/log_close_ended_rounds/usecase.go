@@ -25,12 +25,11 @@ func (l *Logged) Execute(ctx context.Context) (close_ended_rounds_usecase.Report
 	report, err := l.inner.Execute(ctx)
 
 	for _, round := range report.Closed {
-		level, message := slog.LevelInfo, "closed a round"
-		late := report.ReadAt.Sub(round.Round.EndsAt)
+		level, late := slog.LevelInfo, report.ReadAt.Sub(round.Round.EndsAt)
 		if late >= lateAfter {
-			level, message = slog.LevelWarn, "closed a round late, from the map as read then"
+			level = slog.LevelWarn
 		}
-		l.logger.Log(ctx, level, message,
+		l.logger.Log(ctx, level, "closed a round",
 			slog.Uint64("season", uint64(round.Round.Season)),
 			slog.Uint64("number", uint64(round.Number)),
 			slog.Time("endsAt", round.Round.EndsAt),

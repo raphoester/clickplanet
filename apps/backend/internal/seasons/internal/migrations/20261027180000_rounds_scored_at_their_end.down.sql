@@ -2,8 +2,6 @@ ALTER TABLE rounds
     ADD COLUMN samples integer NOT NULL DEFAULT 1 CHECK (samples > 0),
     ADD COLUMN map_tiles integer NOT NULL DEFAULT 1 CHECK (map_tiles > 0);
 
-ALTER TABLE rounds ALTER COLUMN samples DROP DEFAULT, ALTER COLUMN map_tiles DROP DEFAULT;
-
 CREATE TABLE round_holdings (
     season  integer     NOT NULL,
     ends_at timestamptz NOT NULL,

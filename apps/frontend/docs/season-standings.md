@@ -52,11 +52,9 @@ draws it.
   its own with two full buttons cost the table two of its rows on a phone. Season ranks by the points of the days closed, then
   by tiles (`domain/race.ts`, `countryLines`), and lists a country with points that
   holds no ground. **Today's points do not move the order**: they are what the
-  tiles held now would score if the day ended now (a day is won by the ground held
-  at its cutoff, since 2026-10-27), so they follow the tiles, which already break
-  the ties. Until then a day was won on its average, and ranked by today's points
-  two countries at 0 points swapped against their tiles, which read as a bug
-  (2026-10-08).
+  tiles held now would score, so they follow the tiles, which already break the
+  ties. When a day was won on its average, ranked by them, two countries at 0
+  points swapped against their tiles, which read as a bug (2026-10-08).
   Territory is the order by tiles held now, as the board was. `Viewer` holds the
   choice. With no race, there is no switch and the board is as it was
   (`shownOrder`). **The rank and the anthem follow the order picked**: the rank

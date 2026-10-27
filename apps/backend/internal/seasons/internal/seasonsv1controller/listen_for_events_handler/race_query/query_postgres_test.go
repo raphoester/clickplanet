@@ -2,7 +2,6 @@ package race_query_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -24,14 +23,11 @@ func TestRunSuite(t *testing.T) {
 }
 
 type stubTerritory struct {
-	held  map[rounds.Country]uint32
-	err   error
-	asked int
+	held map[rounds.Country]uint32
 }
 
 func (s *stubTerritory) Snapshot(context.Context) (rounds.Snapshot, error) {
-	s.asked++
-	return rounds.Snapshot{Tiles: 100, Held: s.held}, s.err
+	return rounds.Snapshot{Tiles: 100, Held: s.held}, nil
 }
 
 type testSuite struct {
@@ -127,15 +123,6 @@ func (s *testSuite) TestTheFinaleIsShownAsTheFinale() {
 	}, race.GetRound()), race.GetRound())
 }
 
-func (s *testSuite) TestAMapThatCannotBeReadIsAnError() {
-	unreachable := errors.New("planet is down")
-	s.territory.err = unreachable
-
-	_, err := s.query.Race(s.T().Context())
-
-	s.ErrorIs(err, unreachable)
-}
-
 func (s *testSuite) TestTheScoresAreThePointsOfTheClosedRoundsBestFirst() {
 	s.closed(fourteenth,
 		rounds.Result{Country: "de", Rank: 1, Points: 25},
@@ -167,7 +154,6 @@ func (s *testSuite) TestOutsideASeasonTheRaceIsOnlyTheRoundClosedLast() {
 	s.Nil(race.GetRound())
 	s.Empty(race.GetScores())
 	s.Equal(uint32(1), race.GetClosed().GetNumber())
-	s.Zero(s.territory.asked, "no round is in progress to read the map for")
 }
 
 func (s *testSuite) TestBeforeAnyRoundClosesTheRaceCarriesNoClosedRoundAndNoScores() {

@@ -35,7 +35,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/listen_for_events_handler/inprocess_race_feed"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/listen_for_events_handler/inprocess_race_feed/log_race_reader"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/listen_for_events_handler/race_query"
-	race_territories "github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/listen_for_events_handler/race_query/rpc_planet_territories"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/standings/postgres_contribution_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/standings/usecases/forget_account_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/standings/usecases/record_take_usecase"
@@ -111,11 +110,12 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to subscribe to auth.v1.AccountDeleted: %w", err)
 	}
 
-	race := log_race_reader.New(race_query.NewPostgresQuery(db, race_territories.New(planet), seasons, clock), props.Logger)
+	territories := rpc_planet_territories.New(planet)
+	race := log_race_reader.New(race_query.NewPostgresQuery(db, territories, seasons, clock), props.Logger)
 	races := inprocess_race_feed.New(race)
 	roundStore := postgres_round_store.New(db)
 	closing := close_ended_rounds_usecase.NewRunner(log_close_ended_rounds.New(
-		close_ended_rounds_usecase.New(rpc_planet_territories.New(planet), roundStore,
+		close_ended_rounds_usecase.New(territories, roundStore,
 			close_round_usecase.New(db, roundStore, cpoutbox.New(db)), seasons, clock),
 		props.Logger,
 	), clock, close_ended_rounds_usecase.Retry)

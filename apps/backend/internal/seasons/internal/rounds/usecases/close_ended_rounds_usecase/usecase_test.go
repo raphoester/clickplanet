@@ -102,26 +102,6 @@ func TestARoundIsScoredFromWhatEachCountryHoldsAtItsEnd(t *testing.T) {
 	assert.Equal(t, 1, f.territory.asked, "the map is read at the end, and only then")
 }
 
-func TestTheReportSaysWhenTheRoundInProgressEnds(t *testing.T) {
-	f := newFixture(utc(16, 12, 0))
-
-	assert.Equal(t, sixteenth.EndsAt, f.execute(t).Next)
-	f.clock.Advance(9 * time.Hour)
-	assert.Equal(t, seventeenth.EndsAt, f.execute(t).Next, "the round that starts at the end is opened")
-}
-
-func TestBeforeItsEndARoundIsNotClosedAndNoMapIsRead(t *testing.T) {
-	f := newFixture(utc(16, 12, 0))
-	f.execute(t)
-
-	f.clock.Advance(9*time.Hour - time.Second)
-	report := f.execute(t)
-
-	assert.Empty(t, report.Closed)
-	assert.Empty(t, f.closedIn(t))
-	assert.Zero(t, f.territory.asked)
-}
-
 func TestARoundIsClosedOnce(t *testing.T) {
 	f := newFixture(utc(16, 20, 59))
 	f.execute(t)

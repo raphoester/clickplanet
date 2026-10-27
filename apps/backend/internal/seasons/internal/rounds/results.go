@@ -34,7 +34,7 @@ func (r Round) Results(snapshot Snapshot) []Result {
 		if i > 0 && held[country] == held[countries[i-1]] {
 			rank = results[i-1].Rank
 		}
-		results = append(results, Result{Country: country, Rank: rank, Points: r.pointsAt(rank), Share: snapshot.shareOf(country)})
+		results = append(results, Result{Country: country, Rank: rank, Points: r.pointsAt(rank), Share: float64(held[country]) / float64(snapshot.Tiles)})
 	}
 	return results
 }

@@ -33,10 +33,3 @@ type Snapshot struct {
 	Tiles uint32
 	Held  map[Country]uint32
 }
-
-func (s Snapshot) shareOf(country Country) float64 {
-	if s.Tiles == 0 {
-		return 0
-	}
-	return float64(s.Held[country]) / float64(s.Tiles)
-}

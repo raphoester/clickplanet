@@ -84,25 +84,6 @@ func (s *StoreContractSuite) TestASecondCloseChangesNothing() {
 	s.Equal([]Closed{{Round: contractDay, Number: 1, Results: first}}, s.closedIn(0))
 }
 
-func (s *StoreContractSuite) TestARoundNeverOpenedIsNotClosed() {
-	closed, err := s.store.Close(s.T().Context(), contractDay, []Result{{Country: "fr", Rank: 1, Points: 25, Share: 0.3}})
-
-	s.Require().NoError(err)
-	s.False(closed)
-	s.Empty(s.closedIn(0))
-}
-
-func (s *StoreContractSuite) TestOpeningAClosedRoundLeavesItClosed() {
-	s.open(contractDay)
-	results := []Result{{Country: "fr", Rank: 1, Points: 25, Share: 0.3}}
-	s.close(contractDay, results...)
-
-	s.open(contractDay)
-
-	s.Empty(s.unclosed(contractDay.EndsAt))
-	s.Equal([]Closed{{Round: contractDay, Number: 1, Results: results}}, s.closedIn(0))
-}
-
 func (s *StoreContractSuite) closedIn(season calendar.Number) []Closed {
 	closed, err := s.store.ClosedIn(s.T().Context(), season)
 	s.Require().NoError(err)

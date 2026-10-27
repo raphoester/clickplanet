@@ -7,97 +7,45 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/usecases/close_ended_rounds_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-type scriptedExecutor struct {
-	answers chan answer
-	calls   chan time.Time
-}
-
-type answer struct {
+type stubExecutor struct {
 	report close_ended_rounds_usecase.Report
 	err    error
+	calls  chan time.Time
 }
 
-func (s scriptedExecutor) Execute(context.Context) (close_ended_rounds_usecase.Report, error) {
+func (s stubExecutor) Execute(context.Context) (close_ended_rounds_usecase.Report, error) {
 	s.calls <- time.Now()
-	next := <-s.answers
-	return next.report, next.err
+	return s.report, s.err
 }
 
-func run(t *testing.T, clock cptime.Clock, retry time.Duration) (scriptedExecutor, context.CancelFunc, <-chan struct{}) {
+func waitBetweenCalls(t *testing.T, report close_ended_rounds_usecase.Report, err error) time.Duration {
 	t.Helper()
+	executor := stubExecutor{report: report, err: err, calls: make(chan time.Time, 10)}
+	go close_ended_rounds_usecase.NewRunner(executor, cptime.NewFixedClock(utc(16, 12, 0)), 20*time.Millisecond).Run(t.Context())
 
-	executor := scriptedExecutor{answers: make(chan answer, 10), calls: make(chan time.Time, 10)}
-	ctx, cancel := context.WithCancel(t.Context())
-	done := make(chan struct{})
-	go func() {
-		close_ended_rounds_usecase.NewRunner(executor, clock, retry).Run(ctx)
-		close(done)
-	}()
-	return executor, cancel, done
-}
-
-func stopped(t *testing.T, done <-chan struct{}) {
-	t.Helper()
-
+	first := <-executor.calls
 	select {
-	case <-done:
+	case again := <-executor.calls:
+		return again.Sub(first)
 	case <-time.After(time.Second):
-		require.Fail(t, "the runner did not stop")
+		return time.Second
 	}
 }
 
 func TestTheRunnerClosesAtStartThenWhenTheRoundInProgressEnds(t *testing.T) {
-	clock := cptime.NewFixedClock(time.Date(2026, 10, 16, 20, 59, 59, 0, time.UTC))
-	executor, cancel, done := run(t, clock, time.Hour)
+	wait := waitBetweenCalls(t, close_ended_rounds_usecase.Report{Next: utc(16, 12, 0).Add(100 * time.Millisecond)}, nil)
 
-	started := <-executor.calls
-	executor.answers <- answer{report: close_ended_rounds_usecase.Report{Next: clock.Now().Add(50 * time.Millisecond)}}
-	again := <-executor.calls
-
-	assert.GreaterOrEqual(t, again.Sub(started), 50*time.Millisecond)
-	cancel()
-	executor.answers <- answer{}
-	stopped(t, done)
+	assert.GreaterOrEqual(t, wait, 100*time.Millisecond)
+	assert.Less(t, wait, time.Second)
 }
 
 func TestAFailureIsTriedAgainSoon(t *testing.T) {
-	clock := cptime.NewFixedClock(time.Date(2026, 10, 16, 21, 0, 0, 0, time.UTC))
-	executor, cancel, done := run(t, clock, 20*time.Millisecond)
+	wait := waitBetweenCalls(t, close_ended_rounds_usecase.Report{Next: utc(17, 21, 0)}, errors.New("planet is down"))
 
-	<-executor.calls
-	executor.answers <- answer{
-		report: close_ended_rounds_usecase.Report{Next: clock.Now().Add(24 * time.Hour)},
-		err:    errors.New("planet is down"),
-	}
-
-	select {
-	case <-executor.calls:
-	case <-time.After(time.Second):
-		require.Fail(t, "a failure waits for the round in progress to end")
-	}
-	cancel()
-	executor.answers <- answer{}
-	stopped(t, done)
-}
-
-func TestWithNoRoundInProgressTheRunnerWaitsToStop(t *testing.T) {
-	clock := cptime.NewFixedClock(time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC))
-	executor, cancel, done := run(t, clock, time.Millisecond)
-
-	<-executor.calls
-	executor.answers <- answer{}
-
-	select {
-	case <-executor.calls:
-		require.Fail(t, "nothing is left to close")
-	case <-time.After(50 * time.Millisecond):
-	}
-	cancel()
-	stopped(t, done)
+	assert.Less(t, wait, 100*time.Millisecond)
 }

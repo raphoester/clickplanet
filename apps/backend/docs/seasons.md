@@ -18,11 +18,10 @@ internal/seasons/internal/
     postgres_round_store/         the Store over seasons.rounds and round_results
     inmemory_round_store/         the same port in maps, behind the testing tag
     rpc_planet_territories/         the map now, from planet.v1.InternalService/GetTerritories
-    usecases/close_round_usecase/  scores one round from the map at its end and records it, and the season's end
+    usecases/close_round_usecase/  closes one round from the map at its end and records it, and the season's end
                                   with its finale, in the outbox, in one transaction
-    usecases/close_ended_rounds_usecase/ reads the map once and closes the rounds that ended through
-                                  close_round_usecase, then opens the round in progress; Runner, which waits for its end
-      log_close_ended_rounds/       logs each round closed, at Warn when the map was read late, and a failure
+    usecases/close_ended_rounds_usecase/ closes the rounds that ended, then opens the one in progress; Runner
+      log_close_ended_rounds/       logs each round closed, at Warn when late, and a failure
   seasonsv1controller/            SeasonService (a bag), the cache interceptor, the session interceptor
     get_season_handler/
     get_race_handler/             the race of the stream, once, through race_query — Query
@@ -35,9 +34,8 @@ internal/seasons/internal/
         log_board_reader/         logs a board it could not read
       inprocess_race_feed/        the race every stream follows, read through race_query; a Runner
         log_race_reader/          logs a race it could not read
-      race_query/                 PostgresQuery: the Race from SQL and the map now, ranked by rounds.Round.Results
-                                  and rounds.TableOf — Territory
-        rpc_planet_territories/   the map now, from planet.v1.InternalService/GetTerritories, for this query
+      race_query/                 PostgresQuery: the Race from SQL and the map, ranked by rounds.Round.Results and
+                                  rounds.TableOf — Territory, rounds/rpc_planet_territories
     get_my_season_handler/my_season_query/   PostgresQuery: GetMySeasonResponse from SQL, ranked — Authors
       rpc_player_authors/         the same adapter, for this query
     caller/                       the account on the context, or Unauthenticated
@@ -74,24 +72,18 @@ each round's end: the standings rank players, the rounds rank countries.
   a round of its own, from its start to the season's end. A round is kept by its season and its end
   (`Round{Season, EndsAt, Finale}`); its number is the read side's, from the rounds counted before it, so a season
   with no start (Season 0) still says "day 1".
-- **A round is scored from the map at the moment it ends** (`close_ended_rounds_usecase`): one
-  `GetTerritories` at the cutoff, each country ranked by the tiles it holds then. **What happens before the cutoff
-  counts only through the ground it leaves.** Until 2026-10-27, during Season 0, a round was scored on each country's
-  average share, from a snapshot a minute; the owner changed the rule mid-season, to make it simple to build and to
-  understand, and so that a round closes at its end. The rounds closed before keep the results they had.
+- **A round is scored from the map at the moment it ends** (`close_ended_rounds_usecase`): one `GetTerritories` at
+  the cutoff. Until 2026-10-27 (Season 0) it was scored on each country's average share; those rounds keep their
+  results.
 - **`Round.Results` is the rule**: countries ranked by the tiles held at the end, ties sharing a rank and its points,
   and the top 10 scoring 25, 18, 15, 12, 10, 8, 6, 4, 2, 1. The finale scores 3 times that. A day's win is worth the
-  same at 1% as at 30%, so an early lead cannot be banked. Each result keeps the share of the map held at the end.
-- **The round in progress is opened** (`Store.Open`) at boot and as soon as the round before it closed, so the
-  store knows which round was being played. **The runner waits until it ends**, then reads the map once and closes
-  every round that ended (`Store.Unclosed`), in one transaction each that marks it closed and records its events; a
-  second close changes nothing. Closing does not need a current season, so the finale closes after the last season
-  ends. A failed read or close is tried again 5s later (`close_ended_rounds_usecase.Retry`) and logged.
-  `log_close_ended_rounds` logs each round closed.
-- **A round that ended while the server was down is closed at boot, from the map as read then**, and logged at Warn
-  (`late`, the time from its end to the read, over a second). The map may have changed since the cutoff: the owner
-  accepted the risk, and nothing freezes the map. A round that started and ended while the server was down was
-  never opened, so it is not played.
+  same at 1% as at 30%, so an early lead cannot be banked.
+- **The round in progress is opened** (`Store.Open`); **the runner waits until it ends**, reads the map once and
+  closes every round that ended (`Store.Unclosed`), each in one transaction that marks it closed and records its
+  events; a second close changes nothing. Closing does not need a current season, so the finale closes after the last
+  season ends. A failure is tried again 5s later and logged (`log_close_ended_rounds`, which logs each round closed).
+- **A round that ended while the server was down is closed at boot, from the map as read then**, logged at Warn
+  (`late` over a second). Nothing freezes the map: the owner accepted the risk. A round never opened is not played.
 - **Each round closed is told to the other modules** as `seasons.v1.RoundClosed`: its season, its number
   (`Store.Number`, the rounds of its season opened before it, as the read side counts them), whether it is the
   finale, its end and its results. The use case records it in the outbox in the transaction that closes the round: a
@@ -108,33 +100,27 @@ each round's end: the standings rank players, the rounds rank countries.
 - **`rounds.TableOf` ranks the season**: points, then rounds won, then the finale's points. Countries level on all
   three share the rank. The champion is the country ranked 1st; the titles at the season's end read the same table,
   from `SeasonClosed`.
-- **Kept in `seasons.rounds`** (`season`, `ends_at`, `finale`, `closed`: each round opened) and **`round_results`**
-  (`rank`, `points`, `share`), migrations `20261009120000_rounds` and `20261027180000_rounds_scored_at_their_end`.
-  The second dropped `round_holdings` (the sum of each country's counts), `samples` and `map_tiles`, and gave each
-  result of a round closed before it its average share as its `share`. The rule stays in Go: SQL keeps what
+- **Kept in `seasons.rounds`** (`season`, `ends_at`, `finale`, `closed`) and **`round_results`** (`rank`, `points`,
+  `share` held at the end; for a round closed before 2026-10-27, its average). The rule stays in Go: SQL keeps what
   `Results` said.
 - **The race is live on the season stream** (`SeasonEvent.race`), to every stream whatever its view. `race_query`
-  reads the round in progress from the map now, through its own `rpc_planet_territories` (its number, its end, each
-  country's rank, share of the map and the points it would score if the round ended now), and the season's scores,
+  reads the round in progress (its number, its end, each country's rank, share of the map now and the points it
+  would score if the round ended now, from `GetTerritories`), and the season's scores,
   best first, of every country with points. **It also carries the round closed last** (`closed`), in any season, so
-  the finale still shows once its season is over: its number, its end, the countries that scored in it with the
-  share they held at its end, and its season's table before and after it, both ranked by `rounds.TableOf`. A client
+  the finale still shows once its season is over: its number, its end, the countries that scored in it with their
+  share, and its season's table before and after it, both ranked by `rounds.TableOf`. A client
   plays the cutoff from it. **One read for every stream**: `inprocess_race_feed` reads it when the first stream opens
   and then every 10s (`Every`) while a stream follows it, and sends it only when it changed. **Nothing tells it a
   round closed**: reading on its own clock is at most 10s late, and the close use case knows nothing of who reads its
-  rows. Each read costs one `GetTerritories`, a count per country that planet keeps, not a walk over the map. It
-  forgets the race when the last stream closes. A failed read is logged (`log_race_reader`) and the next tick reads
-  again. No season is a race with no round and no scores, and does not read the map; no round closed yet is a race
-  with no `closed`.
+  rows. It forgets the race when the last stream closes. A failed read is logged (`log_race_reader`) and the next tick
+  reads again. No season is a race with no round and no scores, and no round closed yet is a race with no `closed`.
 - **`GetRace` is the same race, once**, for a reader that follows no stream: the clips job, which tells the day closed
   last (see [The clips job](clips-job.md)). It needs no token, is a GET (`NO_SIDE_EFFECTS`)
   and answers `public, max-age=10`. It reads through `race_query` itself, logged by `log_race_reader` as the feed is,
   and never through the feed: a feed with no stream holds no race.
-- `rounds.StoreContractSuite` runs on `inmemory_round_store` and on postgres. `race_query`'s suite ranks the round in
-  progress from a fake planet's map, `close_ended_rounds_usecase` scores a round from the map at its end, closes it
-  once, closes at boot a round that ended while the server was down, closes the finale and tells the season's table,
-  the migrations test keeps a round closed on its average, and chat's `season_closed_subscriber` names the champion
-  once.
+- `rounds.StoreContractSuite` runs on `inmemory_round_store` and on postgres. `race_query`'s suite ranks a
+  round from a fake planet's map, `close_ended_rounds_usecase` closes the finale and tells the season's table, and
+  chat's `season_closed_subscriber` names the champion once.
 - `standings.StoreContractSuite` runs on `inmemory_contribution_store` and on postgres. It reads what a store kept through a `TallyOf` hook each adapter's test fills, since the write side reads nothing back. The use cases are tested over the in-memory one; the queries on postgres, seeded through `postgres_contribution_store`.
 
 

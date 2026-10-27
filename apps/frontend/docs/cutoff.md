@@ -8,10 +8,8 @@ once (`app/season/RoundReveal.tsx`; the rules are in `domain/roundReveal.ts`).
   finale, the countries that scored in it, and the season's table before and
   after it (`ClosedRound`; the backend's [Seasons](../../backend/docs/seasons.md)). `useRoundReveal`
   reads it from the race `Viewer` already follows (`useRace`).
-- **A round closes at its cutoff**, scored from the ground each country holds
-  then, so `closed` reaches the page at most 10s after it (the backend reads
-  the race every 10s). Before 2026-10-27 a day closed on the first minute's
-  snapshot after its end, up to about 70s late.
+- **A round closes at its cutoff**, so `closed` reaches the page at most 10s
+  after it, at the backend's next read of the race.
 - **When**: a round that ended less than 6 hours before the page opened
   (`REVEAL_WITHIN_MS`), or one that closes while the page is open. **Once per
   browser**: Close keeps the round's key (`season:number:end`) in

@@ -44,30 +44,16 @@ func TestACallThatClosedNothingLogsNothing(t *testing.T) {
 	assert.Empty(t, logs)
 }
 
-func TestARoundClosedAtItsEndIsLoggedAndPassedOn(t *testing.T) {
-	report := close_ended_rounds_usecase.Report{
-		Closed: []rounds.Closed{finale},
-		ReadAt: finale.Round.EndsAt.Add(20 * time.Millisecond),
-	}
-
-	logs, passed, err := run(t.Context(), stubExecutor{report: report})
+func TestEachRoundClosedIsLoggedAndPassedOnAsAWarningWhenTheMapWasReadLate(t *testing.T) {
+	onTime := close_ended_rounds_usecase.Report{Closed: []rounds.Closed{finale}, ReadAt: finale.Round.EndsAt.Add(20 * time.Millisecond)}
+	logs, passed, err := run(t.Context(), stubExecutor{report: onTime})
 
 	require.NoError(t, err)
-	assert.Equal(t, report, passed)
+	assert.Equal(t, onTime, passed)
 	assert.Contains(t, logs, `level=INFO msg="closed a round" season=0 number=23 endsAt=2026-10-31T23:00:00.000Z finale=true ranked=1 late=20ms`)
-}
 
-func TestARoundClosedFromAMapReadLateIsAWarning(t *testing.T) {
-	report := close_ended_rounds_usecase.Report{
-		Closed: []rounds.Closed{finale},
-		ReadAt: finale.Round.EndsAt.Add(3 * time.Minute),
-	}
-
-	logs, _, err := run(t.Context(), stubExecutor{report: report})
-
-	require.NoError(t, err)
-	assert.Contains(t, logs, `level=WARN msg="closed a round late, from the map as read then" season=0 number=23`)
-	assert.Contains(t, logs, `late=3m0s`)
+	logs, _, _ = run(t.Context(), stubExecutor{report: close_ended_rounds_usecase.Report{Closed: []rounds.Closed{finale}, ReadAt: finale.Round.EndsAt.Add(3 * time.Minute)}})
+	assert.Contains(t, logs, `level=WARN msg="closed a round" season=0 number=23 endsAt=2026-10-31T23:00:00.000Z finale=true ranked=1 late=3m0s`)
 }
 
 func TestAFailureIsLoggedAndPassedOn(t *testing.T) {
