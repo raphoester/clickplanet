@@ -1,7 +1,7 @@
 import {useId, useState} from "react"
 import {Season} from "../../backends/season.ts"
 import {Battle, battleEndsLine, battleLeft} from "../../domain/battle.ts"
-import {countdownsOf, finaleClock, shortLeft} from "../../domain/seasonClock.ts"
+import {countdownsOf, shortLeft} from "../../domain/seasonClock.ts"
 import {ChevronIcon, SwordsIcon} from "../components/icons.tsx"
 import {useBottomEdge} from "../components/useBottomEdge.ts"
 import {useEscape} from "../components/useDialog.ts"
@@ -86,8 +86,7 @@ function BattlePopover({battle, season, now, open, onClose}: BattlePopoverProps)
 }
 
 export function BattleFacts({battle, season, now}: {battle: Battle, season?: Season, now: number}) {
-    const finaleLive = season ? finaleClock(season, now)?.live ?? false : false
-    const countdowns = season && !finaleLive ? countdownsOf(season, now) : []
+    const countdowns = season ? countdownsOf(season, now) : []
 
     return <div className="battle-facts">
         {battle.description && <p className="battle-facts-text">{battle.description}</p>}

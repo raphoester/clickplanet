@@ -4,7 +4,6 @@ import {act, cleanup, fireEvent, render, screen} from "@testing-library/react"
 import SeasonChip, {ChampionChip, SeasonDetails} from "./SeasonChip.tsx"
 import {TURN_MS} from "./useRotation.ts"
 import {STATUS_BOTTOM} from "../hud/StatusBar.tsx"
-import {finaleWindow} from "../../domain/seasonClock.ts"
 
 const SECOND = 1000
 const MINUTE = 60 * SECOND
@@ -12,9 +11,8 @@ const HOUR = 60 * MINUTE
 const DAY = 24 * HOUR
 
 const endsAt = Date.UTC(2026, 9, 31, 23)
-const season = {number: 0, finaleStartsAt: endsAt - 2 * HOUR, endsAt}
-const finale = finaleWindow(season)
-const finaleLine = () => screen.queryByText(`${finale.day} · ${finale.from}–${finale.to}`)
+const season = {number: 0, lastDayEndsAt: endsAt - 2 * HOUR, endsAt}
+const battleTeased = () => screen.queryByText(/Final Battle/)
 
 const shownFace = () => [...document.querySelectorAll(".season-chip-face:not(.season-chip-face--away) > *")]
     .map((part) => part.textContent)
@@ -27,17 +25,17 @@ afterEach(() => {
 })
 
 describe("SeasonChip", () => {
-    it("counts down to today's cutoff, at the time of day the Final Battle starts", () => {
+    it("counts down to today's cutoff, at the time of day the last day ends", () => {
         vi.useFakeTimers({now: endsAt - 27 * DAY - 14 * HOUR})
         render(<SeasonChip season={season} compact={false} open={false} onToggle={vi.fn()}/>)
 
         expect(screen.getByRole("region", {name: "Season 0"})).toBeDefined()
         expect(shownFace()).toEqual(["Today ends in", "12h 00m 00s"])
-        expect(finaleLine()).toBeNull()
+        expect(battleTeased()).toBeNull()
     })
 
     it("ticks down every second", () => {
-        vi.useFakeTimers({now: season.finaleStartsAt - 3 * DAY - (2 * HOUR + 52 * MINUTE + 10 * SECOND)})
+        vi.useFakeTimers({now: season.lastDayEndsAt - 3 * DAY - (2 * HOUR + 52 * MINUTE + 10 * SECOND)})
         render(<SeasonChip season={season} compact={false} open={false} onToggle={vi.fn()}/>)
         expect(shownFace()).toEqual(["Today ends in", "2h 52m 10s"])
 
@@ -45,7 +43,7 @@ describe("SeasonChip", () => {
         expect(shownFace()).toEqual(["Today ends in", "2h 52m 09s"])
     })
 
-    it("turns to the Final Battle's countdown, then back to today's", () => {
+    it("turns to the season's countdown, then back to today's", () => {
         vi.useFakeTimers({now: endsAt - 27 * DAY - 14 * HOUR})
         render(<SeasonChip season={season} compact={false} open={false} onToggle={vi.fn()}/>)
 
@@ -53,7 +51,7 @@ describe("SeasonChip", () => {
         expect(shownFace()).toEqual(["Today ends in", "11h 59m 55s"])
 
         act(() => vi.advanceTimersByTime(SECOND))
-        expect(shownFace()).toEqual(["Final Battle in", "27d 11h 59m 54s"])
+        expect(shownFace()).toEqual(["Season ends in", "27d 13h 59m 54s"])
 
         turn()
         expect(shownFace()).toEqual(["Today ends in", "11h 59m 48s"])
@@ -63,10 +61,10 @@ describe("SeasonChip", () => {
         vi.useFakeTimers({now: endsAt - 27 * DAY - 14 * HOUR})
         const {container} = render(<SeasonChip season={season} compact={false} open={false} onToggle={vi.fn()}/>)
 
-        const name = "Today ends in 12h 00m 00s, Final Battle in 27d 12h 00m 00s"
+        const name = "Today ends in 12h 00m 00s, Season ends in 27d 14h 00m 00s"
         expect(screen.getByRole("button", {name})).toBeDefined()
         turn()
-        expect(screen.getByRole("button", {name: "Today ends in 11h 59m 54s, Final Battle in 27d 11h 59m 54s"})).toBeDefined()
+        expect(screen.getByRole("button", {name: "Today ends in 11h 59m 54s, Season ends in 27d 13h 59m 54s"})).toBeDefined()
 
         expect(screen.queryByRole("timer")).toBeNull()
         expect(container.querySelector("[aria-live]")).toBeNull()
@@ -83,7 +81,7 @@ describe("SeasonChip", () => {
 
         fireEvent.mouseLeave(screen.getByRole("region", {name: "Season 0"}))
         turn()
-        expect(shownFace()[0]).toBe("Final Battle in")
+        expect(shownFace()[0]).toBe("Season ends in")
     })
 
     it("holds still while it has focus", () => {
@@ -97,22 +95,23 @@ describe("SeasonChip", () => {
 
         act(() => chip.blur())
         turn()
-        expect(shownFace()[0]).toBe("Final Battle in")
+        expect(shownFace()[0]).toBe("Season ends in")
     })
 
-    it("counts the last day once, and does not turn", () => {
-        vi.useFakeTimers({now: season.finaleStartsAt - 3 * HOUR})
+    it("counts the season alone once its last day ended, and does not turn", () => {
+        vi.useFakeTimers({now: endsAt - HOUR - 12 * MINUTE})
         render(<SeasonChip season={season} compact={false} open={false} onToggle={vi.fn()}/>)
 
-        expect(screen.getByRole("button", {name: "Final Battle in 3h 00m 00s"})).toBeDefined()
-        expect(shownFace()).toEqual(["Final Battle in", "3h 00m 00s"])
+        expect(screen.getByRole("region", {name: "Season 0"})).toBeDefined()
+        expect(screen.getByRole("button", {name: "Season ends in 1h 12m 00s"})).toBeDefined()
+        expect(shownFace()).toEqual(["Season ends in", "1h 12m 00s"])
 
         turn()
         turn()
-        expect(shownFace()).toEqual(["Final Battle in", "2h 59m 48s"])
+        expect(shownFace()).toEqual(["Season ends in", "1h 11m 48s"])
     })
 
-    it("opens on the finale's day and hours", () => {
+    it("opens on what a season is, and promises no battle", () => {
         vi.useFakeTimers({now: endsAt - 27 * DAY})
         const onToggle = vi.fn()
         const {rerender} = render(<SeasonChip season={season} compact={false} open={false} onToggle={onToggle}/>)
@@ -122,30 +121,11 @@ describe("SeasonChip", () => {
 
         rerender(<SeasonChip season={season} compact={false} open onToggle={onToggle}/>)
         expect(screen.getByRole("button", {name: /Today ends in/}).getAttribute("aria-expanded")).toBe("true")
-        expect(finaleLine()).not.toBeNull()
-        expect(screen.getByText("When a day ends, the countries holding the most ground score points. The Final Battle scores triple.")).toBeDefined()
+        expect(screen.getByText("When a day ends, the countries holding the most ground score points.")).toBeDefined()
+        expect(battleTeased()).toBeNull()
 
         fireEvent.keyDown(document, {key: "Escape"})
         expect(onToggle).toHaveBeenCalledTimes(2)
-    })
-
-    it("names the finale while it runs, does not turn, and opens on what it gives", () => {
-        vi.useFakeTimers({now: endsAt - HOUR - 12 * MINUTE})
-        const onToggle = vi.fn()
-        const {rerender} = render(<SeasonChip season={season} compact={false} open={false} onToggle={onToggle}/>)
-
-        expect(screen.getByRole("region", {name: "Final Battle"})).toBeDefined()
-        expect(shownFace()).toEqual(["Final Battle ends in", "1h 12m 00s"])
-        turn()
-        expect(shownFace()).toEqual(["Final Battle ends in", "1h 11m 54s"])
-
-        fireEvent.click(screen.getByRole("button", {name: "Final Battle ends in 1h 11m 54s"}))
-        expect(onToggle).toHaveBeenCalledTimes(1)
-
-        rerender(<SeasonChip season={season} compact={false} open onToggle={onToggle}/>)
-        expect(screen.getByText("Power-ups for all")).toBeDefined()
-        expect(screen.getByText("When it ends, the countries holding the most ground score triple points.")).toBeDefined()
-        expect(finaleLine()).toBeNull()
     })
 
     it("is gone once the season is over", () => {
@@ -170,12 +150,12 @@ describe("SeasonChip", () => {
             vi.useFakeTimers({now: endsAt - 27 * DAY - 14 * HOUR - 5 * MINUTE})
             render(<SeasonChip season={season} compact open={false} onToggle={vi.fn()}/>)
 
-            const chip = screen.getByRole("button", {name: "Today ends in 12h 05m 00s, Final Battle in 27d 12h 05m 00s"})
+            const chip = screen.getByRole("button", {name: "Today ends in 12h 05m 00s, Season ends in 27d 14h 05m 00s"})
             expect(chip.getAttribute("aria-expanded")).toBe("false")
             expect(shownFace()).toEqual(["Today", "12h 05m"])
 
             turn()
-            expect(shownFace()).toEqual(["Final", "27d 12h"])
+            expect(shownFace()).toEqual(["Season", "27d 14h"])
         })
 
         it("holds still while the mouse is over it", () => {
@@ -188,11 +168,11 @@ describe("SeasonChip", () => {
         })
 
         it("has no tag with one countdown", () => {
-            vi.useFakeTimers({now: season.finaleStartsAt - 3 * HOUR})
+            vi.useFakeTimers({now: endsAt - HOUR})
             render(<SeasonChip season={season} compact open={false} onToggle={vi.fn()}/>)
 
-            expect(screen.getByRole("button", {name: "Final Battle in 3h 00m 00s"})).toBeDefined()
-            expect(shownFace()).toEqual(["3h 00m"])
+            expect(screen.getByRole("button", {name: "Season ends in 1h 00m 00s"})).toBeDefined()
+            expect(shownFace()).toEqual(["1h 00m"])
         })
 
         it("leaves the moments to the status bar", () => {
@@ -203,27 +183,25 @@ describe("SeasonChip", () => {
 })
 
 describe("SeasonDetails", () => {
-    it("shows both countdowns at once, and the finale's day and hours", () => {
+    it("shows both countdowns at once, and promises no battle", () => {
         vi.useFakeTimers({now: endsAt - 27 * DAY})
         render(<SeasonDetails season={season}/>)
 
         expect(screen.getByRole("timer", {name: "Today ends in"}).textContent).toBe("22h 00m 00s")
-        expect(screen.getByRole("timer", {name: "Final Battle in"}).textContent).toBe("26d 22h 00m 00s")
-        expect(finaleLine()).not.toBeNull()
+        expect(screen.getByRole("timer", {name: "Season ends in"}).textContent).toBe("27d 00h 00m 00s")
+        expect(battleTeased()).toBeNull()
 
         turn()
         expect(screen.getByRole("timer", {name: "Today ends in"}).textContent).toBe("21h 59m 54s")
-        expect(screen.getByRole("timer", {name: "Final Battle in"}).textContent).toBe("26d 21h 59m 54s")
+        expect(screen.getByRole("timer", {name: "Season ends in"}).textContent).toBe("26d 23h 59m 54s")
     })
 
-    it("says what the finale gives while it runs", () => {
+    it("counts the season alone once its last day ended", () => {
         vi.useFakeTimers({now: endsAt - HOUR})
         render(<SeasonDetails season={season}/>)
 
         expect(screen.getAllByRole("timer")).toHaveLength(1)
-        expect(screen.getByRole("timer", {name: "Final Battle ends in"}).textContent).toBe("1h 00m 00s")
-        expect(screen.getByText("Power-ups for all")).toBeDefined()
-        expect(finaleLine()).toBeNull()
+        expect(screen.getByRole("timer", {name: "Season ends in"}).textContent).toBe("1h 00m 00s")
     })
 })
 

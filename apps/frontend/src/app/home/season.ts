@@ -1,26 +1,21 @@
 import {Season} from "../../backends/season.ts"
-import {Countdown, finaleClock, finaleWindow, twoDigits} from "../../domain/seasonClock.ts"
+import {Countdown, endClock, endsLine, twoDigits} from "../../domain/seasonClock.ts"
 
 const TICK_MS = 1000
-const LIVE = "finale-live"
 const UNITS: (keyof Countdown)[] = ["days", "hours", "minutes", "seconds"]
 
-export function showFinale(root: ParentNode, season: Season): () => void {
-    const when = finaleWindow(season)
+// The season and the time left in it, until it ends.
+export function showSeason(root: ParentNode, season: Season): () => void {
     write(root, "season-number", String(season.number))
-    write(root, "finale-date", when.day)
-    write(root, "finale-time", `${when.from}–${when.to}`)
+    write(root, "season-ends", endsLine(season))
 
-    const shown = [...root.querySelectorAll<HTMLElement>("[data-finale]")]
+    const shown = [...root.querySelectorAll<HTMLElement>("[data-season]")]
     const tick = (): boolean => {
-        const clock = finaleClock(season, Date.now())
-        for (const element of shown) {
-            element.hidden = !clock
-            element.classList.toggle(LIVE, clock?.live ?? false)
-        }
+        const clock = endClock(season, Date.now())
+        for (const element of shown) element.hidden = !clock
         if (!clock) return false
 
-        write(root, "finale-left", clock.left)
+        write(root, "season-left", clock.left)
         for (const unit of UNITS) write(root, `countdown-${unit}`, twoDigits(clock.countdown[unit]))
         return true
     }

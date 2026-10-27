@@ -27,15 +27,6 @@
     cursor: pointer;
 }
 
-.season-chip--live {
-    box-shadow: var(--drop-l), inset 0 2px 0 var(--sheen), 0 0 18px color-mix(in srgb, var(--action) 30%, transparent);
-    animation: season-chip-live 2.4s ease-in-out infinite;
-}
-
-.season-chip--compact.season-chip--live {
-    box-shadow: var(--drop-s), 0 0 14px color-mix(in srgb, var(--action) 45%, transparent);
-}
-
 .season-chip-head {
     display: flex;
     align-items: center;
@@ -210,11 +201,6 @@
     background: var(--panel-sunk);
 }
 
-.season-fact-art--bomb {
-    background: var(--bomb);
-}
-
-.season-fact-art .bonus-icon,
 .season-art {
     width: 28px;
     height: 28px;
@@ -235,14 +221,6 @@
     line-height: 1.1;
     color: var(--gold);
     text-shadow: var(--text-drop);
-}
-
-.season-fact-when {
-    font-family: var(--font-text);
-    font-weight: 600;
-    font-size: var(--text-s);
-    color: var(--text);
-    white-space: nowrap;
 }
 
 .season-fact-text {
@@ -307,12 +285,6 @@
     stroke-width: 1.6;
 }
 
-@keyframes season-chip-live {
-    50% {
-        box-shadow: var(--drop-l), inset 0 2px 0 var(--sheen), 0 0 30px color-mix(in srgb, var(--action) 60%, transparent);
-    }
-}
-
 @keyframes season-chip-turn {
     from {
         opacity: 0;
@@ -321,7 +293,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .season-chip--live,
     .season-chip-face {
         animation: none;
     }

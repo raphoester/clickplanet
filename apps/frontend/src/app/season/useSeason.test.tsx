@@ -27,7 +27,7 @@ describe("useSeason", () => {
     })
 
     it("holds the season the backend answers", async () => {
-        const season = {number: 0, finaleStartsAt: Date.now() + DAY, endsAt: Date.now() + 2 * DAY}
+        const season = {number: 0, lastDayEndsAt: Date.now() + DAY, endsAt: Date.now() + 2 * DAY}
         await act(async () => {
             render(<Harness backend={new FakeSeasonBackend(season)}/>)
         })
@@ -43,7 +43,7 @@ describe("useSeason", () => {
 
     it("lets the season go at its end, even weeks away", async () => {
         vi.useFakeTimers({now: Date.UTC(2026, 9, 3, 12)})
-        const season = {number: 0, finaleStartsAt: Date.UTC(2026, 9, 31, 21), endsAt: Date.UTC(2026, 9, 31, 23)}
+        const season = {number: 0, lastDayEndsAt: Date.UTC(2026, 9, 31, 21), endsAt: Date.UTC(2026, 9, 31, 23)}
         await act(async () => {
             render(<Harness backend={new FakeSeasonBackend(season)}/>)
         })
