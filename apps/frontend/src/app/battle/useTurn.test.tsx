@@ -41,7 +41,7 @@ describe("useTurn", () => {
         })
 
         await act(async () => {
-            backend.startBattle(Date.now(), Date.now() + 30 * 60_000, "Triple points.")
+            backend.startBattle("entry-final", Date.now(), Date.now() + 30 * 60_000, "Triple points.")
         })
 
         expect(latest?.kind).toBe("battle")
@@ -51,7 +51,7 @@ describe("useTurn", () => {
     it("reads again at the entry's end, and a minute later otherwise", async () => {
         vi.useFakeTimers({now: Date.UTC(2026, 9, 31, 21)})
         const endsAt = Date.now() + 10 * SECOND
-        const turn = vi.fn(async (): Promise<Turn> => ({kind: "battle", since: Date.now(), endsAt, description: ""}))
+        const turn = vi.fn(async (): Promise<Turn> => ({kind: "battle", since: Date.now(), endsAt, description: "", entryId: "entry-final"}))
         const backend: TurnBackend = {turn, changes: () => () => {}}
         await act(async () => {
             render(<Harness backend={backend}/>)

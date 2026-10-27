@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	scoringv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/rounds"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/rules/usecases/play_rules_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/subscribers"
@@ -32,10 +33,14 @@ func (h Handler) Handle(ctx context.Context, command *scoringv1.PlayRuleSet) err
 	choice := rules.Choice{Set: rules.SetName(command.GetRuleSet()), DecidedAt: command.GetDecidedAt().AsTime()}
 	if command.GetEndsAt() != nil {
 		choice.Window = rules.Window{StartsAt: command.GetStartsAt().AsTime(), EndsAt: command.GetEndsAt().AsTime()}
+		// An id that is none leaves the window with no entry, which the use case refuses.
+		if entry, err := rounds.ParseEntryID(command.GetEntryId()); err == nil {
+			choice.Window.Entry = entry
+		}
 	}
 	_, _, err := h.rules.Play(ctx, choice)
 	// A set refused is logged and dropped: delivered again, it would hold back the next choice.
-	if errors.Is(err, rules.ErrUnknownSet) || errors.Is(err, rules.ErrInvalidSet) {
+	if errors.Is(err, rules.ErrUnknownSet) || errors.Is(err, rules.ErrInvalidSet) || errors.Is(err, rules.ErrNoEntry) {
 		return nil
 	}
 	return err //nolint:wrapcheck // the use case named it.

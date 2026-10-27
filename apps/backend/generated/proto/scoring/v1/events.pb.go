@@ -34,7 +34,9 @@ type RoundClosed struct {
 	// A round of its own: the window of a schedule entry whose set asked for one, not a day.
 	Own bool `protobuf:"varint,6,opt,name=own,proto3" json:"own,omitempty"`
 	// How many times a day's points it scored: 1 for a day.
-	Times         uint32 `protobuf:"varint,7,opt,name=times,proto3" json:"times,omitempty"`
+	Times uint32 `protobuf:"varint,7,opt,name=times,proto3" json:"times,omitempty"`
+	// The id of the schedule entry whose window a round of its own is; empty for a day.
+	EntryId       string `protobuf:"bytes,8,opt,name=entry_id,json=entryId,proto3" json:"entry_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -116,6 +118,13 @@ func (x *RoundClosed) GetTimes() uint32 {
 		return x.Times
 	}
 	return 0
+}
+
+func (x *RoundClosed) GetEntryId() string {
+	if x != nil {
+		return x.EntryId
+	}
+	return ""
 }
 
 type RoundResult struct {
@@ -319,7 +328,7 @@ var File_scoring_v1_events_proto protoreflect.FileDescriptor
 const file_scoring_v1_events_proto_rawDesc = "" +
 	"\n" +
 	"\x17scoring/v1/events.proto\x12\n" +
-	"scoring.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe7\x01\n" +
+	"scoring.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x82\x02\n" +
 	"\vRoundClosed\x12\x16\n" +
 	"\x06season\x18\x01 \x01(\rR\x06season\x12\x16\n" +
 	"\x06number\x18\x02 \x01(\rR\x06number\x12\x16\n" +
@@ -327,7 +336,8 @@ const file_scoring_v1_events_proto_rawDesc = "" +
 	"\bended_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\aendedAt\x121\n" +
 	"\aresults\x18\x05 \x03(\v2\x17.scoring.v1.RoundResultR\aresults\x12\x10\n" +
 	"\x03own\x18\x06 \x01(\bR\x03own\x12\x14\n" +
-	"\x05times\x18\a \x01(\rR\x05times\"S\n" +
+	"\x05times\x18\a \x01(\rR\x05times\x12\x19\n" +
+	"\bentry_id\x18\b \x01(\tR\aentryId\"S\n" +
 	"\vRoundResult\x12\x18\n" +
 	"\acountry\x18\x01 \x01(\tR\acountry\x12\x12\n" +
 	"\x04rank\x18\x02 \x01(\rR\x04rank\x12\x16\n" +

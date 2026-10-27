@@ -40,6 +40,8 @@ message Turn {
   google.protobuf.Timestamp ends_at = 3;
   // The running entry's words for the players, plain text: what its rules are. Empty when none runs.
   string description = 4;
+  // The running entry's id; empty when none runs. A round of its own that scoring closes repeats it.
+  string entry_id = 5;
 }
 
 message ListenForEventsRequest {}

@@ -43,6 +43,7 @@ export function turnOf(res: GetTurnResponse): Turn {
         since: turn?.since?.toDate().getTime(),
         endsAt: turn?.endsAt?.toDate().getTime(),
         description: turn?.description ?? "",
+        entryId: turn?.entryId ?? "",
     }
 }
 

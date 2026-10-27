@@ -31,8 +31,10 @@ type PlayRuleSet struct {
 	DecidedAt *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=decided_at,json=decidedAt,proto3" json:"decided_at,omitempty"`
 	// The window of the schedule entry that plays the set, which never changes once the entry runs: a set with a round of
 	// its own makes it of this window. Both unset when no entry runs and default plays.
-	StartsAt      *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=starts_at,json=startsAt,proto3" json:"starts_at,omitempty"`
-	EndsAt        *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=ends_at,json=endsAt,proto3" json:"ends_at,omitempty"`
+	StartsAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=starts_at,json=startsAt,proto3" json:"starts_at,omitempty"`
+	EndsAt   *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=ends_at,json=endsAt,proto3" json:"ends_at,omitempty"`
+	// The id of the schedule entry that plays the set; empty when default plays. A round of its own repeats it.
+	EntryId       string `protobuf:"bytes,5,opt,name=entry_id,json=entryId,proto3" json:"entry_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -95,18 +97,26 @@ func (x *PlayRuleSet) GetEndsAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *PlayRuleSet) GetEntryId() string {
+	if x != nil {
+		return x.EntryId
+	}
+	return ""
+}
+
 var File_scoring_v1_commands_proto protoreflect.FileDescriptor
 
 const file_scoring_v1_commands_proto_rawDesc = "" +
 	"\n" +
 	"\x19scoring/v1/commands.proto\x12\n" +
-	"scoring.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xd1\x01\n" +
+	"scoring.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xec\x01\n" +
 	"\vPlayRuleSet\x12\x19\n" +
 	"\brule_set\x18\x01 \x01(\tR\aruleSet\x129\n" +
 	"\n" +
 	"decided_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tdecidedAt\x127\n" +
 	"\tstarts_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\bstartsAt\x123\n" +
-	"\aends_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x06endsAtB\xbc\x01\n" +
+	"\aends_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x06endsAt\x12\x19\n" +
+	"\bentry_id\x18\x05 \x01(\tR\aentryIdB\xbc\x01\n" +
 	"\x0ecom.scoring.v1B\rCommandsProtoP\x01ZRgithub.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1;scoringv1\xa2\x02\x03SXX\xaa\x02\n" +
 	"Scoring.V1\xca\x02\n" +
 	"Scoring\\V1\xe2\x02\x16Scoring\\V1\\GPBMetadata\xea\x02\vScoring::V1b\x06proto3"

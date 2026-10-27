@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/rounds"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/rules"
 )
 
@@ -20,7 +21,7 @@ type Choices interface {
 
 // Opener opens the round of its own a set asks of the window of the entry that plays it.
 type Opener interface {
-	Execute(ctx context.Context, times uint32, startsAt, endsAt time.Time) error
+	Execute(ctx context.Context, entry rounds.EntryID, times uint32, startsAt, endsAt time.Time) error
 }
 
 // Played is the set scoring counts with, and the window of the entry that plays it.
@@ -99,6 +100,9 @@ func (u *UseCase) Play(ctx context.Context, choice rules.Choice) (Played, bool, 
 	if !choice.Overrules(u.chosen) {
 		return u.played(), false, nil
 	}
+	if !choice.Window.None() && choice.Window.Entry == (rounds.EntryID{}) {
+		return u.played(), false, fmt.Errorf("could not play the rule set %q: %w", choice.Set, rules.ErrNoEntry)
+	}
 
 	set, err := u.sets.Set(ctx, choice.Set)
 	if err != nil {
@@ -120,7 +124,7 @@ func (u *UseCase) open(ctx context.Context, set rules.Set, window rules.Window) 
 	if !own.Enabled || window.None() {
 		return nil
 	}
-	if err := u.opener.Execute(ctx, own.Times, window.StartsAt, window.EndsAt); err != nil {
+	if err := u.opener.Execute(ctx, window.Entry, own.Times, window.StartsAt, window.EndsAt); err != nil {
 		return fmt.Errorf("could not open the round of its own of the rule set %q: %w", set.TakeSnapshot().Name, err)
 	}
 	return nil

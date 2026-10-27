@@ -30,6 +30,7 @@ const DAY: ClosedRound = {
     own: false,
     times: 1,
     startedAt: 0,
+    entryId: "",
     takes: [],
     players: [],
 }

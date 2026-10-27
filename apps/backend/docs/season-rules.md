@@ -32,11 +32,16 @@ runs on both.
 **`play_rules_usecase` plays the set the schedule chose last, and `default` until it chose one** (`Execute`, at boot),
 then each `scoring.v1.PlayRuleSet` the gamemaster sends (`Play`, from `commands/play_rule_set_handler`):
 
-- **The command carries the entry's window** (`starts_at`, `ends_at`; both unset when `default` plays). A running
-  entry's window never changes, so the round of its own is exactly the entry, and its end is known from its start:
-  the race shows it, and the runner closes it on time.
+- **The command carries the entry's window and id** (`starts_at`, `ends_at`, `entry_id`; all unset when `default`
+  plays). A running entry's window never changes, so the round of its own is exactly the entry, and its end is known
+  from its start: the race shows it, and the runner closes it on time. The id is the gamemaster's, a uuid, kept as
+  `rounds.EntryID` (`rules.Window.Entry`): scoring only repeats it on the round (see [Scoring](scoring.md)). **A window
+  with no id is refused** (`rules.ErrNoEntry`): logged at Error and dropped, as a set refused is.
 - **The latest decision wins** (`rules.Choice.Overrules`): a command decided at or before the one kept changes
-  nothing. The choice, its window with it, is kept in `scoring.rule_set_choice` (one row, `postgres_choice_store`).
+  nothing. The choice, its window and entry with it, is kept in `scoring.rule_set_choice` (one row, `postgres_choice_store`;
+  `entry_id` is set exactly when the window is). Migration `20261028100000_entries_of_rounds` forgot a choice kept
+  with a window from before the id: at boot scoring plays `default` until the gamemaster's boot command plays it
+  again, with the id.
 - **A set with a round of its own opens it before the choice is kept** (`open_own_round_usecase`, through the use
   case's `Opener` port): a round that failed to open fails the handler, Redis delivers the command again, and it
   opens then. Opened twice, it is one round; a window heard of once it ended opens none. Opening it wakes the runner
@@ -45,7 +50,8 @@ then each `scoring.v1.PlayRuleSet` the gamemaster sends (`Play`, from `commands/
   the boot.
 - **A set scoring keeps none of, or one that cannot play, is refused**: the set in force stays, the choice is not
   kept, the log says so at Error, and the command is dropped. Scoring then opens no round of its own for the entry.
-- `log_play_rules` logs each set taken at Warn (`season rules in force`, `set`, `rules`, and the window).
+- `log_play_rules` logs each set taken at Warn (`season rules in force`, `set`, `rules`, and the entry and its
+  window).
 
 Nothing else reads the set in force: a day is always worth 1, and a round of its own keeps its times from when it
 opened.
@@ -70,5 +76,5 @@ Season rules page (see the backoffice's [Ops](../../backoffice/docs/ops.md)):
 
 The rules are pinned by `set_test.go`, the store and choice contract suites (memory and postgres) and the seed's test,
 `play_rules_usecase`'s (default at first, a boot that opens its round again, a window per entry, a decision sent again,
-a set refused, a round that failed to open), the handlers', and the smoke test
+a set refused, a window with no entry, a round that failed to open), the handlers', and the smoke test
 `TestAnEntryOfTheScheduleIsPlayedByPlanetTheAntibotAndSeasons`.

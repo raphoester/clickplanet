@@ -19,9 +19,12 @@ describe("ConnectTurnBackend", () => {
             since: Timestamp.fromDate(new Date(since)),
             endsAt: Timestamp.fromDate(new Date(endsAt)),
             description: "Triple points.",
+            entryId: "0192f5a0-7c00-7000-8000-000000000031",
         }}))
 
-        expect(await backend.turn()).toEqual({kind: "battle", since, endsAt, description: "Triple points."})
+        expect(await backend.turn()).toEqual({
+            kind: "battle", since, endsAt, description: "Triple points.", entryId: "0192f5a0-7c00-7000-8000-000000000031",
+        })
     })
 
     it("reads the battle a server sends in binary, as the wire carries it", async () => {
@@ -33,7 +36,7 @@ describe("ConnectTurnBackend", () => {
 
     it("reads a plain turn with no entry", async () => {
         expect(await backendWith(async () => new GetTurnResponse({turn: {kind: EntryKind.PLAIN}})).turn())
-            .toEqual({kind: "plain", since: undefined, endsAt: undefined, description: ""})
+            .toEqual({kind: "plain", since: undefined, endsAt: undefined, description: "", entryId: ""})
     })
 
     it("plays plain on a server without a schedule", async () => {
@@ -41,7 +44,7 @@ describe("ConnectTurnBackend", () => {
             throw new ConnectError("not here", Code.Unimplemented)
         })
 
-        expect(await backend.turn()).toEqual({kind: "plain", description: ""})
+        expect(await backend.turn()).toEqual({kind: "plain", description: "", entryId: ""})
     })
 
     it("passes on a refusal it does not know", async () => {

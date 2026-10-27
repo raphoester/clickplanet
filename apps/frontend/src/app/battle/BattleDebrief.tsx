@@ -1,50 +1,41 @@
 import {CSSProperties, useEffect, useId, useRef, useState} from "react"
 import {createPortal} from "react-dom"
 import {ClosedRound, Standing} from "../../backends/standings.ts"
-import {BATTLE_BRIEF, briefStagesOf, TakesRow, takesRowsOf} from "../../domain/battleBrief.ts"
+import {BATTLE_DEBRIEF, DebriefScreen, PointsRow, pointsRowsOf} from "../../domain/battleBrief.ts"
 import {Countries} from "../../domain/countries.ts"
-import {podiumOf, roundOverLine} from "../../domain/roundReveal.ts"
+import {battleFinishedLine} from "../../domain/roundReveal.ts"
 import {authorStyle} from "../chat/authorStyle.ts"
 import CountryFlag from "../components/CountryFlag.tsx"
 import {SwordsIcon} from "../components/icons.tsx"
 import {useModalDialog} from "../components/useDialog.ts"
-import {Podium} from "../season/RoundReveal.tsx"
 import {PlaySound} from "../sound/soundPlayer.ts"
 import TitleBadge from "../titles/TitleBadge.tsx"
 import "../titles/TitleUnlocked.css"
 import "../season/RoundReveal.css"
 import "./Battle.css"
 
-export type BattleBriefProps = {
+export type BattleDebriefProps = {
+    screen: DebriefScreen
     closed: ClosedRound
     description: string
     countryCode: string
     accountId?: string
+    // Another screen follows this one.
+    more: boolean
     play: PlaySound
     onClose: () => void
 }
 
-export default function BattleBrief({closed, description, countryCode, accountId, play, onClose}: BattleBriefProps) {
+export default function BattleDebrief({screen, closed, description, countryCode, accountId, more, play, onClose}: BattleDebriefProps) {
     const dialog = useRef<HTMLDivElement>(null)
     const headId = useId()
-    const [stages] = useState(() => briefStagesOf(closed))
-    const [podium] = useState(() => podiumOf(closed))
-    const [takes] = useState(() => takesRowsOf(closed, countryCode))
-    const [at, setAt] = useState(0)
     const [ready, setReady] = useState(false)
-    const stage = stages[at]
-    const last = at === stages.length - 1
 
     useEffect(() => {
-        play("title")
-    }, [play])
-
-    useEffect(() => {
-        const timer = last
-            ? setTimeout(() => setReady(true), BATTLE_BRIEF.settle * 1000)
-            : setTimeout(() => setAt(at + 1), BATTLE_BRIEF[stage] * 1000)
+        if (screen === "over") play("title")
+        const timer = setTimeout(() => setReady(true), BATTLE_DEBRIEF[screen] * 1000)
         return () => clearTimeout(timer)
-    }, [at, last, stage])
+    }, [play, screen])
 
     useModalDialog(dialog, () => {
         if (ready) onClose()
@@ -56,50 +47,63 @@ export default function BattleBrief({closed, description, countryCode, accountId
              role="dialog"
              aria-modal="true"
              aria-labelledby={headId}
-             tabIndex={-1}
-             style={{"--steps": podium.length} as CSSProperties}>
+             tabIndex={-1}>
             <div className="round-reveal-stage battle-brief-stage">
-                <h2 id={headId} className="title-reveal-head round-reveal-head">{roundOverLine(closed)}</h2>
-                {closed.times > 1 && <p className="battle-brief-times">
-                    <SwordsIcon size={20}/>
-                    <span>Points ×{closed.times}</span>
-                </p>}
-                {description && <p className="battle-brief-text">{description}</p>}
-
-                {stage === "podium" && <Podium podium={podium}/>}
-                {stage === "takes" && <Takes rows={takes}/>}
-                {stage === "players" && <Players players={closed.players} accountId={accountId}/>}
+                {screen === "over" && <Over headId={headId} closed={closed} description={description}/>}
+                {screen === "points" && <Points headId={headId} closed={closed} rows={pointsRowsOf(closed, countryCode)}/>}
+                {screen === "players" && <Players headId={headId} players={closed.players} accountId={accountId}/>}
 
                 <div className="title-reveal-actions round-reveal-actions">
-                    {!ready && !last &&
-                        <button type="button" className="button" onClick={() => setAt(at + 1)}>Next</button>}
-                    {ready && <button type="button" className="button button-gold" onClick={onClose}>Close</button>}
+                    {ready && <button type="button" className={more ? "button" : "button button-gold"} onClick={onClose}>
+                        {more ? "Next" : "To the globe"}
+                    </button>}
                 </div>
             </div>
-            {stage === "podium" && <div className="title-reveal-flash round-reveal-flash" aria-hidden="true"/>}
+            {screen === "over" && <div className="title-reveal-flash" aria-hidden="true"/>}
         </div>,
         document.body,
     )
 }
 
-function Takes({rows}: {rows: TakesRow[]}) {
+function Over({headId, closed, description}: {headId: string, closed: ClosedRound, description: string}) {
     return <>
-        <p className="round-reveal-season">Tiles taken</p>
-        <ol className="battle-brief-list" aria-label="Tiles taken">
+        <h2 id={headId} className="title-reveal-head round-reveal-head">{battleFinishedLine(closed)}</h2>
+        <div className="title-reveal-medal">
+            <div className="title-reveal-rays" aria-hidden="true"/>
+            <div className="title-reveal-wave" aria-hidden="true"/>
+            <span className="title-reveal-float">
+                <span className="battle-reveal-disc" aria-hidden="true"><SwordsIcon size={110}/></span>
+            </span>
+        </div>
+        {description && <p className="battle-brief-text">{description}</p>}
+    </>
+}
+
+function Points({headId, closed, rows}: {headId: string, closed: ClosedRound, rows: PointsRow[]}) {
+    return <>
+        <h2 id={headId} className="title-reveal-head round-reveal-head">Points won</h2>
+        {closed.times > 1 && <p className="battle-brief-times">
+            <SwordsIcon size={20}/>
+            <span>Points ×{closed.times}</span>
+        </p>}
+        <ol className="battle-brief-list" aria-label="Points won">
             {rows.map((row, i) => <li key={row.countryCode}
                                       className={row.mine ? "battle-brief-row battle-brief-row-mine" : "battle-brief-row"}
-                                      style={{"--share": row.width, "--enter": i} as CSSProperties}>
+                                      style={{"--share": row.width, "--enter": i} as CSSProperties}
+                                      aria-current={row.mine ? "true" : undefined}>
+                <span className="round-reveal-rank">{row.rank}</span>
                 <CountryFlag code={row.countryCode}/>
                 <span className="battle-brief-name">{nameOf(row.countryCode)}</span>
-                <span className="battle-brief-tiles">{row.tiles}</span>
+                {closed.times > 1 && <span className="battle-brief-times-of">{row.won} ×{closed.times}</span>}
+                <span className="battle-brief-tiles">{row.points}</span>
             </li>)}
         </ol>
     </>
 }
 
-function Players({players, accountId}: {players: Standing[], accountId?: string}) {
+function Players({headId, players, accountId}: {headId: string, players: Standing[], accountId?: string}) {
     return <>
-        <p className="round-reveal-season">Top players</p>
+        <h2 id={headId} className="title-reveal-head round-reveal-head">Top players</h2>
         <ol className="battle-brief-list" aria-label="Top players">
             {players.map((player, i) => {
                 const you = player.accountId === accountId

@@ -14,7 +14,9 @@ export function announcementKeyOf(announcement: Announcement): string {
         case "battle":
             return `battle:${battleKeyOf(announcement.battle)}`
         case "round":
-        case "brief":
+        case "over":
+        case "points":
+        case "players":
         case "results":
             return `${announcement.kind}:${revealKeyOf(announcement)}`
     }

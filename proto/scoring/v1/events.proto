@@ -16,6 +16,8 @@ message RoundClosed {
   bool own = 6;
   // How many times a day's points it scored: 1 for a day.
   uint32 times = 7;
+  // The id of the schedule entry whose window a round of its own is; empty for a day.
+  string entry_id = 8;
 }
 
 message RoundResult {
