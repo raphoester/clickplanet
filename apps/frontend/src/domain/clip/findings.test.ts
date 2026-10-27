@@ -87,7 +87,8 @@ describe("the facts of a tour", () => {
 
         const facts = tourFactsOf("pw", changes, after, continentOf, pointOf, flips)
 
-        expect(facts.flippedByContinent).toEqual({Europe: 440}, "the islet in Africa is too small to read")
+        // The islet in Africa is too small to read.
+        expect(facts.flippedByContinent).toEqual({Europe: 440})
     })
 })
 
