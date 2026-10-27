@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest"
-import {cameraOf, framingOf, openingOf, screensOf} from "./camera.ts"
+import {cameraOf, framingOf, overviewOf, screensOf} from "./camera.ts"
 import {Point} from "./geometry.ts"
 
 const at = (angle: number): Point => ({x: Math.sin(angle), y: 0, z: Math.cos(angle)})
@@ -21,72 +21,59 @@ describe("the framing of a front", () => {
     })
 })
 
-describe("the opening shot", () => {
+describe("the overview", () => {
     it("is the whole front, and never closer than a continent", () => {
-        expect(openingOf({direction: at(0), zoom: 1.2}).zoom).toBe(1.2)
-        expect(openingOf({direction: at(0), zoom: 4.6}).zoom).toBe(1.5)
+        expect(overviewOf({direction: at(0), zoom: 1.2}).zoom).toBe(1.2)
+        expect(overviewOf({direction: at(0), zoom: 4.6}).zoom).toBe(1.5)
     })
 })
 
 describe("the camera over a clip", () => {
-    const opening = {direction: at(0), zoom: 1.5}
+    const overview = {direction: at(0), zoom: 1.5}
     const still = Array.from({length: 100}, (_, i) => ({share: i / 100, point: at(0.3)}))
     const moving = Array.from({length: 100}, (_, i) => ({share: i / 100, point: at(-1.2 + 2.4 * i / 100)}))
     const seconds = 10
-    const camera = cameraOf(opening, still, {close: 6, seconds, pullBack: "atEnd" as const})
+    const camera = cameraOf(overview, still, {close: 6, seconds, pullBack: "atEnd" as const})
     const after = (time: number) => camera(time / seconds)
 
-    it("holds on the opening shot for a moment", () => {
-        expect(after(0).zoom).toBeCloseTo(1.5)
-        expect(after(0.25).zoom).toBeCloseTo(1.5)
-    })
-
-    it("then dives fast into where the tiles change hands", () => {
-        expect(after(0.65).zoom).toBeGreaterThan(2.5)
-        expect(after(1).zoom).toBeCloseTo(6)
-        expect(after(4).direction.x).toBeCloseTo(Math.sin(0.3), 1)
-    })
-
-    it("holds as long as it is told before it dives", () => {
-        const late = cameraOf(opening, still, {close: 6, seconds, pullBack: "atEnd" as const, hold: 1.5})
-
-        expect(late(1.4 / seconds).zoom).toBeCloseTo(1.5)
-        expect(late(2.2 / seconds).zoom).toBeCloseTo(6)
+    it("opens down in the tiles where they change hands", () => {
+        expect(after(0).zoom).toBeCloseTo(6)
+        expect(after(0).direction.x).toBeCloseTo(Math.sin(0.3), 1)
     })
 
     it("breathes out to the painted flags and back in where the action stays in one place", () => {
-        expect(after(2.5).zoom).toBeCloseTo(3, 1)
-        expect(after(4).zoom).toBeCloseTo(6, 1)
-        expect(after(5.5).zoom).toBeCloseTo(3, 1)
+        expect(after(1.5).zoom).toBeCloseTo(3, 1)
+        expect(after(3).zoom).toBeCloseTo(6, 1)
+        expect(after(4.5).zoom).toBeCloseTo(3, 1)
     })
 
     it("does not breathe where the action crosses the map", () => {
-        const travelling = cameraOf(opening, moving, {close: 6, seconds, pullBack: "atEnd" as const})
+        const travelling = cameraOf(overview, moving, {close: 6, seconds, pullBack: "atEnd" as const})
 
         expect(travelling(0.25).zoom).toBeCloseTo(6, 1)
         expect(travelling(0.55).zoom).toBeCloseTo(6, 1)
     })
 
-    it("pulls back out to the opening at the end, and holds there a second before the call to act", () => {
+    it("pulls back out to the overview at the end, and holds there a second before the call to act", () => {
         expect(after(9).zoom).toBeCloseTo(1.5)
         expect(after(10).zoom).toBeCloseTo(1.5)
         expect(after(10).direction.x).toBeLessThan(0.1)
     })
 
     it("pulls back out at the end even when the action crosses the map", () => {
-        expect(cameraOf(opening, moving, {close: 6, seconds, pullBack: "atEnd" as const})(0.9).zoom).toBeCloseTo(1.5)
+        expect(cameraOf(overview, moving, {close: 6, seconds, pullBack: "atEnd" as const})(0.9).zoom).toBeCloseTo(1.5)
     })
 
     it("pulls back halfway and stays out, for a steamroll's painted flags", () => {
-        const steamroll = cameraOf(opening, moving, {close: 6, seconds, pullBack: "midway"})
+        const steamroll = cameraOf(overview, moving, {close: 6, seconds, pullBack: "midway"})
 
         expect(steamroll(0.3).zoom).toBeCloseTo(6, 1)
         expect(steamroll(0.75).zoom).toBeCloseTo(1.5)
         expect(steamroll(1).zoom).toBeCloseTo(1.5)
     })
 
-    it("stays on the opening's direction where nothing happens", () => {
-        const {direction} = cameraOf(opening, [], {close: 6, seconds, pullBack: "atEnd" as const})(0.5)
+    it("stays on the overview's direction where nothing happens", () => {
+        const {direction} = cameraOf(overview, [], {close: 6, seconds, pullBack: "atEnd" as const})(0.5)
 
         expect(direction.x).toBeCloseTo(0)
         expect(direction.z).toBeCloseTo(1)
