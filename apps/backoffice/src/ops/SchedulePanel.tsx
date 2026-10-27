@@ -1,21 +1,19 @@
 import {ConnectError, Code} from "@connectrpc/connect"
 import {useCallback, useState} from "react"
-import {AntibotAdmin, PlanetAdmin, MetagameAdmin} from "../clients.ts"
+import {AntibotAdmin, PlanetAdmin, MetagameAdmin, SeasonsAdmin} from "../clients.ts"
 import {ConfirmAction} from "../components/ConfirmAction.tsx"
 import {FailureNotice} from "../components/FailureNotice.tsx"
 import {When} from "../components/When.tsx"
-import {GetRulesResponse as AntibotRules} from "../gen/grpc/antibot/v1/admin_pb.ts"
-import {GetRulesResponse as PlanetRules} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {Entry, GetScheduleResponse} from "../gen/grpc/metagame/v1/admin_pb.ts"
 import {EntryKind} from "../gen/grpc/metagame/v1/metagame_pb.ts"
 import {wordsOf} from "../refusal.ts"
 import {useCall} from "../useCall.ts"
 import {
-    addEntry, changeable, complete, deleteEntry, Draft, draftOf, editEntry, ended, kinds, lacking, MAX_DESCRIPTION, playable, questionOf,
-    Row, rowsOf, shortOf, wordOf,
+    addEntry, changeable, complete, deleteEntry, Draft, draftOf, editEntry, ended, kinds, lacking, MAX_DESCRIPTION, Modules, playable,
+    questionOf, Row, rowsOf, shortOf, wordOf,
 } from "./schedule.ts"
 
-type Read = {schedule: GetScheduleResponse, planet: PlanetRules, antibot: AntibotRules}
+type Read = Modules & {schedule: GetScheduleResponse}
 
 // The server says which module lacks the set, or since when the entry runs.
 const refusal = (err: unknown) => {
@@ -27,13 +25,16 @@ const refusal = (err: unknown) => {
 // Editing: an entry to come, or undefined for a new one.
 type Editing = {entry: Entry | undefined}
 
-export function SchedulePanel({metagame, planet, antibot}: {metagame: MetagameAdmin, planet: PlanetAdmin, antibot: AntibotAdmin}) {
+export function SchedulePanel({metagame, planet, antibot, seasons}: {
+    metagame: MetagameAdmin, planet: PlanetAdmin, antibot: AntibotAdmin, seasons: SeasonsAdmin,
+}) {
     const read = useCallback(async (signal: AbortSignal): Promise<Read> => {
-        const [schedule, planetRules, antibotRules] = await Promise.all([
+        const [schedule, planetRules, antibotRules, seasonRules] = await Promise.all([
             metagame.getSchedule({}, {signal}), planet.getRules({}, {signal}), antibot.getRules({}, {signal}),
+            seasons.getRules({}, {signal}),
         ])
-        return {schedule, planet: planetRules, antibot: antibotRules}
-    }, [metagame, planet, antibot])
+        return {schedule, planet: planetRules, antibot: antibotRules, seasons: seasonRules}
+    }, [metagame, planet, antibot, seasons])
     const [state, again] = useCall(read)
     const [editing, setEditing] = useState<Editing | undefined>(undefined)
 
@@ -65,7 +66,7 @@ export function SchedulePanel({metagame, planet, antibot}: {metagame: MetagameAd
                             key={editing.entry?.id ?? "new"}
                             metagame={metagame}
                             entry={editing.entry}
-                            sets={playable(state.value.planet, state.value.antibot)}
+                            sets={playable(state.value)}
                             onCancel={() => setEditing(undefined)}
                             onDone={changed}
                         />
@@ -86,13 +87,17 @@ function Playing({read}: {read: Read}) {
                 {playing?.since !== undefined && <>, since <When at={playing.since}/></>}
             </p>
             <p className="hint">
-                Planet plays <code>{read.planet.playing}</code>, the antibot plays <code>{read.antibot.playing}</code>.
+                Planet plays <code>{read.planet.playing}</code>, the antibot plays <code>{read.antibot.playing}</code>,
+                seasons plays <code>{read.seasons.playing}</code>.
             </p>
             {read.planet.playing !== set && (
                 <p className="action-refused" role="alert">Planet does not play <code>{set}</code>.</p>
             )}
             {read.antibot.playing !== set && (
                 <p className="action-refused" role="alert">The antibot does not play <code>{set}</code>.</p>
+            )}
+            {read.seasons.playing !== set && (
+                <p className="action-refused" role="alert">Seasons does not play <code>{set}</code>.</p>
             )}
         </>
     )
@@ -137,9 +142,10 @@ function Rows({read, metagame, onEdit, onDeleted}: {
 }
 
 function Lacking({set, read}: {set: string, read: Read}) {
-    const missing = lacking(set, read.planet, read.antibot)
+    const missing = lacking(set, read)
     if (missing.length === 0) return null
-    return <p className="action-refused" role="alert">No set {set} in {missing.join(" or ")}.</p>
+    const named = missing.length === 1 ? missing[0] : `${missing.slice(0, -1).join(", ")} or ${missing[missing.length - 1]}`
+    return <p className="action-refused" role="alert">No set {set} in {named}.</p>
 }
 
 function EntryActions({row, metagame, onEdit, onDeleted}: {
