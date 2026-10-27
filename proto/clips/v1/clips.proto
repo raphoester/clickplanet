@@ -81,6 +81,9 @@ message Tour {
   uint32 next_took = 7;
   double solidity = 8;
   uint32 bombs = 9;
+  // The tiles of the landmasses whose painted flag switched to it, big enough to read from far, by continent: all a
+  // tour shows.
+  map<string, uint32> flipped_by_continent = 10;
 }
 
 // What the map is at the end: the flag holding the most of a place.

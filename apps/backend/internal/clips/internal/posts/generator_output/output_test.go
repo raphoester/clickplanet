@@ -35,7 +35,7 @@ const (
     }
   ],
   "tours": [
-    {"flag": "fr", "since": "2026-10-26T08:29:17Z", "until": "2026-10-26T20:29:17Z", "took": 27992, "byContinent": {"Europe": 12000}, "tookFrom": {"dz": 8000}, "nextTook": 9000, "solidity": 0.95, "bombs": 12}
+    {"flag": "fr", "since": "2026-10-26T08:29:17Z", "until": "2026-10-26T20:29:17Z", "took": 27992, "byContinent": {"Europe": 12000}, "tookFrom": {"dz": 8000}, "nextTook": 9000, "solidity": 0.95, "bombs": 12, "flippedByContinent": {"South Asia": 6246}}
   ],
   "places": [
     {"kind": "continent", "continent": "South Asia", "tiles": 9600, "holder": "fr", "held": 6170, "share": 0.643, "rivals": {"dz": 1200}, "changed": 6000}
@@ -101,7 +101,7 @@ func TestTheFindingsAreEveryFrontTourPlaceAndSeasonalStoryTheGeneratorWrote(t *t
 	}}, findings.Fronts)
 	assert.Equal(t, []posts.Tour{{
 		Flag: "fr", Since: findings.Since, Until: findings.Until, Took: 27992, ByContinent: map[string]int{"Europe": 12000},
-		TookFrom: map[string]int{"dz": 8000}, NextTook: 9000, Solidity: 0.95, Bombs: 12,
+		TookFrom: map[string]int{"dz": 8000}, NextTook: 9000, Solidity: 0.95, Bombs: 12, FlippedByContinent: map[string]int{"South Asia": 6246},
 	}}, findings.Tours)
 	assert.Equal(t, []posts.Place{{
 		Kind: posts.ContinentPlace, Continent: "South Asia", Tiles: 9600, Holder: "fr", Held: 6170, Share: 0.643,

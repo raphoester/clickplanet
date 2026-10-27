@@ -36,8 +36,12 @@ that says what they do not is skipped with the reason in the log: name only flag
   - `score`: the generator's measure of how busy it was, tiles taken over the square root of the hours, times the
     countries they were taken in. The order of `fronts` is by it.
 - `tours`: each flag taking land across the whole map in a stretch, with what it `took`, where (`byContinent`), from
-  whom, how much the second flag across the world took in the same stretch (`nextTook`), and its solidity. A flag far
-  ahead of the next, on two continents or more, is taking over the world.
+  whom, how much the second flag across the world took in the same stretch (`nextTook`), its solidity, and the tiles
+  of the landmasses whose painted flag switched to it, by continent (`flippedByContinent`; a landmass too small to read
+  from far does not count). A tour's camera stays far out, where a viewer sees only the big painted flag of each
+  landmass: a landmass switching to the flag is all it shows, and its stops are framed on the ones that switched. A
+  flag far ahead of the next, switching big landmasses on two continents or more, is taking over the world; a flag
+  that switched none is no tour, and is skipped.
 - `places`: what the map is at the end, the world, each continent and each big country, with its `holder`, how much it
   holds (`held`, `share`), the next holders (`rivals`), and how many tiles of the place `changed` hands to the holder
   or from it in the window, which is what its clip plays. A flag holding its own country is no news.
@@ -82,6 +86,13 @@ to a country they know, that looks big on a globe.
 - **Places people know.** France, the USA, Brazil, Europe, the Middle East read at a glance. A fight over a tiny island
   reads as nothing on a globe, however many tiles changed.
 - **Land, not graffiti.** A low `solidity` is lines drawn on the map: it plays badly.
+- **A headline claims only what the clip shows.** A viewer judges the words against the map: "TAKES OVER" and "RULES"
+  need the painted flags to show it, "HOLDS" needs the share, "INVADES" and "ATTACKS" are enough for a flag taking
+  land it does not hold yet. On 2026-10-27 "BRAZIL IS TAKING OVER THE WORLD" played half its length over Europe under
+  other countries' big flags, with flashes beneath them and no flag switching: Brazil had taken 3,710 tiles to the
+  next flag's 3,420, most of them inside South America, where its flag already flew. That was a holding of South
+  America or its biggest front, never a tour, and a player watching it called it out. Twice the next flag, and
+  landmasses switching on two continents, is taking over the world; less is not.
 - **The last posts are context, not a ban.** Vary the feed when two stories are as good: not the same flag, the same
   place or the same kind of story as the last posts, and a flag in half the last posts should earn its next clip. But a
   new fight is a new story even for a flag told yesterday, and a flag that only appeared as a bystander in other

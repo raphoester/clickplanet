@@ -74,6 +74,7 @@ export function findingsOf(found: Found): Findings {
         tours: found.tours.map((tour) => new Tour({
             flag: tour.flag, since: at(tour.since), until: at(tour.until), took: tour.took, byContinent: tour.byContinent,
             tookFrom: tour.tookFrom, nextTook: tour.nextTook, solidity: rounded(tour.solidity, 2), bombs: tour.bombs,
+            flippedByContinent: tour.flippedByContinent,
         })),
         places: found.places.map((place) => new PlaceWritten({
             kind: place.kind, code: place.code ?? "", continent: place.continent ?? "", tiles: place.tiles, holder: place.holder,

@@ -453,6 +453,14 @@ export class Tour extends Message<Tour> {
    */
   bombs = 0;
 
+  /**
+   * The tiles of the landmasses whose painted flag switched to it, big enough to read from far, by continent: all a
+   * tour shows.
+   *
+   * @generated from field: map<string, uint32> flipped_by_continent = 10;
+   */
+  flippedByContinent: { [key: string]: number } = {};
+
   constructor(data?: PartialMessage<Tour>) {
     super();
     proto3.util.initPartial(data, this);
@@ -470,6 +478,7 @@ export class Tour extends Message<Tour> {
     { no: 7, name: "next_took", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 8, name: "solidity", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
     { no: 9, name: "bombs", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 10, name: "flipped_by_continent", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "scalar", T: 13 /* ScalarType.UINT32 */} },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Tour {

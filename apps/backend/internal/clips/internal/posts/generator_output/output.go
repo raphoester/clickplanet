@@ -49,6 +49,7 @@ func (f FindingsFile) Findings(_ context.Context) (posts.Findings, error) {
 			Flag: tour.GetFlag(), Since: tour.GetSince().AsTime(), Until: tour.GetUntil().AsTime(), Took: int(tour.GetTook()),
 			ByContinent: countsOf(tour.GetByContinent()), TookFrom: countsOf(tour.GetTookFrom()), NextTook: int(tour.GetNextTook()),
 			Solidity: tour.GetSolidity(), Bombs: int(tour.GetBombs()),
+			FlippedByContinent: countsOf(tour.GetFlippedByContinent()),
 		})
 	}
 	for _, place := range written.GetPlaces() {
