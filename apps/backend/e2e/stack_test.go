@@ -80,7 +80,6 @@ func startGame(t *testing.T) gameStack {
 	playerConfig := player.Config{Database: postgres.ConfigFor("player"), Redis: redis, TagSalt: "pepper"}
 
 	seasonsConfig := currentSeason(t, postgres.ConfigFor("seasons"))
-	seasonsConfig.Snapshot.Interval = 50 * time.Millisecond
 	seasonsConfig.Redis = redis
 
 	missionsConfig := missions.Config{Database: postgres.ConfigFor("missions"), Redis: redis}

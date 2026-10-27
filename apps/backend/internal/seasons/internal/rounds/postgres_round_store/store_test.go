@@ -2,7 +2,6 @@ package postgres_round_store_test
 
 import (
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/suite"
 
@@ -31,17 +30,4 @@ func (s *testSuite) SetupSuite() {
 func (s *testSuite) SetupTest() {
 	s.Require().NoError(s.db.Purge(s.T().Context()))
 	s.StoreContractSuite.SetupTest()
-}
-
-func (s *testSuite) TestEachSnapshotIsOneSampleAndKeepsTheSizeOfTheMap() {
-	store := postgres_round_store.New(s.db)
-	round := rounds.Round{EndsAt: time.Date(2026, 10, 16, 21, 0, 0, 0, time.UTC)}
-	s.Require().NoError(store.RecordSnapshot(s.T().Context(), round, rounds.Snapshot{Tiles: 100, Held: map[rounds.Country]uint32{"fr": 1}}))
-	s.Require().NoError(store.RecordSnapshot(s.T().Context(), round, rounds.Snapshot{Tiles: 120}))
-
-	var samples, mapTiles int
-	s.Require().NoError(s.db.On(s.T().Context()).QueryRowContext(s.T().Context(),
-		`SELECT samples, map_tiles FROM rounds`).Scan(&samples, &mapTiles))
-	s.Equal(2, samples)
-	s.Equal(120, mapTiles)
 }

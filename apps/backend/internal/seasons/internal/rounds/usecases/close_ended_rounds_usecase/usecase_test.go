@@ -1,4 +1,4 @@
-package take_snapshot_usecase_test
+package close_ended_rounds_usecase_test
 
 import (
 	"context"
@@ -15,8 +15,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/calendar"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/inmemory_round_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/usecases/close_ended_rounds_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/usecases/close_round_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/usecases/take_snapshot_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -45,18 +45,17 @@ type fixture struct {
 	store     *inmemory_round_store.Store
 	outbox    *cpatomic.FakeOutbox
 	clock     *cptime.FixedClock
-	useCase   *take_snapshot_usecase.UseCase
+	useCase   *close_ended_rounds_usecase.UseCase
 }
 
-func (f fixture) on(store close_round_usecase.Rounds) *take_snapshot_usecase.UseCase {
+func (f fixture) on(store close_round_usecase.Rounds) *close_ended_rounds_usecase.UseCase {
 	closer := close_round_usecase.New(cpatomic.FakeTransactioner{}, store, f.outbox)
-	return take_snapshot_usecase.New(f.territory, f.store, closer, seasonZero, f.clock)
+	return close_ended_rounds_usecase.New(f.territory, f.store, closer, seasonZero, f.clock)
 }
 
 func newFixture(now time.Time) fixture {
-	territory := &stubTerritory{held: map[rounds.Country]uint32{"fr": 3, "de": 1}}
 	f := fixture{
-		territory: territory,
+		territory: &stubTerritory{held: map[rounds.Country]uint32{"fr": 3, "de": 1}},
 		store:     inmemory_round_store.New(),
 		outbox:    &cpatomic.FakeOutbox{},
 		clock:     cptime.NewFixedClock(now),
@@ -65,11 +64,11 @@ func newFixture(now time.Time) fixture {
 	return f
 }
 
-func (f fixture) held(t *testing.T, round rounds.Round) map[rounds.Country]uint64 {
+func (f fixture) execute(t *testing.T) close_ended_rounds_usecase.Report {
 	t.Helper()
-	held, err := f.store.Held(t.Context(), round)
+	report, err := f.useCase.Execute(t.Context())
 	require.NoError(t, err)
-	return held
+	return report
 }
 
 func (f fixture) closedIn(t *testing.T) []rounds.Closed {
@@ -80,54 +79,89 @@ func (f fixture) closedIn(t *testing.T) []rounds.Closed {
 }
 
 var (
-	sixteenth = rounds.Round{EndsAt: utc(16, 21, 0)}
-	finale    = rounds.Round{EndsAt: utc(31, 23, 0), Finale: true}
+	sixteenth   = rounds.Round{EndsAt: utc(16, 21, 0)}
+	seventeenth = rounds.Round{EndsAt: utc(17, 21, 0)}
+	finale      = rounds.Round{EndsAt: utc(31, 23, 0), Finale: true}
 )
 
-func TestASnapshotAddsWhatEachCountryHoldsToTheRoundInProgress(t *testing.T) {
+func TestARoundIsScoredFromWhatEachCountryHoldsAtItsEnd(t *testing.T) {
 	f := newFixture(utc(16, 12, 0))
+	f.execute(t)
+	f.territory.held = map[rounds.Country]uint32{"de": 4, "fr": 1}
 
-	_, err := f.useCase.Execute(t.Context())
-	require.NoError(t, err)
-	f.clock.Advance(time.Minute)
-	_, err = f.useCase.Execute(t.Context())
-	require.NoError(t, err)
+	f.clock.Advance(9 * time.Hour)
+	report := f.execute(t)
 
-	assert.Equal(t, map[rounds.Country]uint64{"fr": 6, "de": 2}, f.held(t, sixteenth))
+	results := []rounds.Result{
+		{Country: "de", Rank: 1, Points: 25, Share: 0.04},
+		{Country: "fr", Rank: 2, Points: 18, Share: 0.01},
+	}
+	assert.Equal(t, []rounds.Closed{{Round: sixteenth, Number: 1, Results: results}}, report.Closed)
+	assert.Equal(t, utc(16, 21, 0), report.ReadAt)
+	assert.Equal(t, []rounds.Closed{{Round: sixteenth, Number: 1, Results: results}}, f.closedIn(t))
+	assert.Equal(t, 1, f.territory.asked, "the map is read at the end, and only then")
 }
 
-func TestTheFirstSnapshotAfterARoundEndsClosesItWithItsResults(t *testing.T) {
+func TestTheReportSaysWhenTheRoundInProgressEnds(t *testing.T) {
+	f := newFixture(utc(16, 12, 0))
+
+	assert.Equal(t, sixteenth.EndsAt, f.execute(t).Next)
+	f.clock.Advance(9 * time.Hour)
+	assert.Equal(t, seventeenth.EndsAt, f.execute(t).Next, "the round that starts at the end is opened")
+}
+
+func TestBeforeItsEndARoundIsNotClosedAndNoMapIsRead(t *testing.T) {
+	f := newFixture(utc(16, 12, 0))
+	f.execute(t)
+
+	f.clock.Advance(9*time.Hour - time.Second)
+	report := f.execute(t)
+
+	assert.Empty(t, report.Closed)
+	assert.Empty(t, f.closedIn(t))
+	assert.Zero(t, f.territory.asked)
+}
+
+func TestARoundIsClosedOnce(t *testing.T) {
 	f := newFixture(utc(16, 20, 59))
-	_, err := f.useCase.Execute(t.Context())
-	require.NoError(t, err)
-
+	f.execute(t)
 	f.clock.Advance(time.Minute)
-	closed, err := f.useCase.Execute(t.Context())
+	f.execute(t)
+
+	f.clock.Advance(time.Second)
+	report := f.execute(t)
+
+	assert.Empty(t, report.Closed)
+	assert.Len(t, f.closedIn(t), 1)
+	assert.Len(t, f.outbox.Recorded(), 1)
+}
+
+func TestARoundThatEndedWhileTheServerWasDownIsClosedAtBootFromTheMapAsReadThen(t *testing.T) {
+	f := newFixture(utc(16, 12, 0))
+	f.execute(t)
+	f.clock.Advance(21 * time.Hour)
+	f.territory.held = map[rounds.Country]uint32{"it": 7}
+	booted := f.on(f.store)
+
+	report, err := booted.Execute(t.Context())
 
 	require.NoError(t, err)
-	results := []rounds.Result{
-		{Country: "fr", Rank: 1, Points: 25},
-		{Country: "de", Rank: 2, Points: 18},
-	}
-	assert.Equal(t, []rounds.Closed{{Round: sixteenth, Number: 1, Results: results}}, closed)
-	assert.Equal(t, []rounds.Closed{{Round: sixteenth, Number: 1, Results: results}}, f.closedIn(t))
-	assert.Equal(t, map[rounds.Country]uint64{"fr": 3, "de": 1}, f.held(t, rounds.Round{EndsAt: utc(17, 21, 0)}),
-		"the snapshot at the end counts for the round that starts")
+	assert.Equal(t, []rounds.Closed{{Round: sixteenth, Number: 1, Results: []rounds.Result{
+		{Country: "it", Rank: 1, Points: 25, Share: 0.07},
+	}}}, report.Closed)
+	assert.Equal(t, utc(17, 9, 0), report.ReadAt)
+	assert.Equal(t, seventeenth.EndsAt, report.Next)
 }
 
 func TestClosingARoundTellsTheOtherModulesItsResults(t *testing.T) {
 	f := newFixture(utc(15, 20, 59))
-	_, err := f.useCase.Execute(t.Context())
-	require.NoError(t, err)
+	f.execute(t)
 	f.clock.Advance(time.Minute)
-	_, err = f.useCase.Execute(t.Context())
-	require.NoError(t, err)
-	f.territory.held = map[rounds.Country]uint32{"de": 4, "fr": 1}
+	f.execute(t)
 
 	f.clock.Advance(24 * time.Hour)
-	_, err = f.useCase.Execute(t.Context())
+	f.execute(t)
 
-	require.NoError(t, err)
 	published := f.outbox.Recorded()
 	require.Len(t, published, 2)
 	assert.True(t, proto.Equal(&seasonsv1.RoundClosed{
@@ -141,19 +175,22 @@ func TestClosingARoundTellsTheOtherModulesItsResults(t *testing.T) {
 	}, published[1]), "got %v", published[1])
 }
 
-func TestClosingTheFinaleTellsTheOtherModulesTheSeasonsTable(t *testing.T) {
+func TestClosingTheFinaleScoresItThreeTimesAndTellsTheSeasonsTable(t *testing.T) {
 	f := newFixture(utc(31, 20, 59))
-	_, err := f.useCase.Execute(t.Context())
-	require.NoError(t, err)
+	f.execute(t)
 	f.clock.Advance(time.Minute)
+	f.execute(t)
 	f.territory.held = map[rounds.Country]uint32{"de": 4, "fr": 1}
-	_, err = f.useCase.Execute(t.Context())
-	require.NoError(t, err)
 
 	f.clock.Advance(2 * time.Hour)
-	_, err = f.useCase.Execute(t.Context())
+	report := f.execute(t)
 
-	require.NoError(t, err)
+	require.Len(t, report.Closed, 1)
+	assert.Equal(t, []rounds.Result{
+		{Country: "de", Rank: 1, Points: 75, Share: 0.04},
+		{Country: "fr", Rank: 2, Points: 54, Share: 0.01},
+	}, report.Closed[0].Results)
+	assert.Zero(t, report.Next, "no round follows the last season's finale")
 	published := f.outbox.Recorded()
 	require.Len(t, published, 3)
 	assert.True(t, proto.Equal(&seasonsv1.SeasonClosed{
@@ -179,7 +216,7 @@ func (u *unreadSeasons) ClosedIn(ctx context.Context, season calendar.Number) ([
 	return u.Store.ClosedIn(ctx, season) //nolint:wrapcheck // the fake fails or is the store.
 }
 
-func TestAFinaleWhoseSeasonCouldNotBeReadClosesAtTheNextSnapshotAndIsToldOnce(t *testing.T) {
+func TestAFinaleWhoseSeasonCouldNotBeReadClosesAtTheNextTryAndIsToldOnce(t *testing.T) {
 	f := newFixture(utc(31, 22, 0))
 	store := &unreadSeasons{Store: f.store}
 	useCase := f.on(store)
@@ -194,10 +231,10 @@ func TestAFinaleWhoseSeasonCouldNotBeReadClosesAtTheNextSnapshotAndIsToldOnce(t 
 	assert.Empty(t, f.closedIn(t), "the finale is left to close")
 
 	store.err = nil
-	f.clock.Advance(time.Minute)
+	f.clock.Advance(close_ended_rounds_usecase.Retry)
 	_, err = useCase.Execute(t.Context())
 	require.NoError(t, err)
-	f.clock.Advance(time.Minute)
+	f.clock.Advance(close_ended_rounds_usecase.Retry)
 	_, err = useCase.Execute(t.Context())
 	require.NoError(t, err)
 
@@ -207,51 +244,35 @@ func TestAFinaleWhoseSeasonCouldNotBeReadClosesAtTheNextSnapshotAndIsToldOnce(t 
 	assert.IsType(t, &seasonsv1.SeasonClosed{}, published[1])
 }
 
-func TestARoundThatFailedToCloseTellsNothing(t *testing.T) {
+func TestAMapThatCannotBeReadIsAnErrorAndTheRoundIsLeftToClose(t *testing.T) {
 	f := newFixture(utc(16, 20, 59))
-	_, err := f.useCase.Execute(t.Context())
-	require.NoError(t, err)
-	f.store.FailWith(errors.New("postgres is down"))
-
-	f.clock.Advance(time.Minute)
-	_, err = f.useCase.Execute(t.Context())
-
-	require.Error(t, err)
-	assert.Empty(t, f.outbox.Recorded())
-}
-
-func TestAfterTheLastSeasonNothingIsCountedAndTheFinaleStillCloses(t *testing.T) {
-	f := newFixture(utc(31, 22, 0))
-	_, err := f.useCase.Execute(t.Context())
-	require.NoError(t, err)
-
-	f.clock.Advance(2 * time.Hour)
-	closed, err := f.useCase.Execute(t.Context())
-
-	require.NoError(t, err)
-	results := []rounds.Result{
-		{Country: "fr", Rank: 1, Points: 75},
-		{Country: "de", Rank: 2, Points: 54},
-	}
-	assert.Equal(t, []rounds.Closed{{Round: finale, Number: 1, Results: results}}, closed)
-	assert.Equal(t, []rounds.Closed{{Round: finale, Number: 1, Results: results}}, f.closedIn(t))
-	assert.Equal(t, 1, f.territory.asked)
-}
-
-func TestATerritoryThatCannotBeReadIsAnErrorAndTheEndedRoundsStillClose(t *testing.T) {
-	f := newFixture(utc(16, 20, 59))
-	_, err := f.useCase.Execute(t.Context())
-	require.NoError(t, err)
+	f.execute(t)
 	unreachable := errors.New("planet is down")
 	f.territory.err = unreachable
 
 	f.clock.Advance(time.Minute)
-	closed, err := f.useCase.Execute(t.Context())
+	report, err := f.useCase.Execute(t.Context())
 
 	require.ErrorIs(t, err, unreachable)
-	require.Len(t, closed, 1)
-	assert.Equal(t, sixteenth, closed[0].Round)
-	assert.Empty(t, f.held(t, rounds.Round{EndsAt: utc(17, 21, 0)}))
+	assert.Empty(t, report.Closed)
+	assert.Equal(t, seventeenth.EndsAt, report.Next, "the round that starts is opened anyway")
+	assert.Empty(t, f.closedIn(t))
+
+	f.territory.err = nil
+	f.clock.Advance(close_ended_rounds_usecase.Retry)
+	assert.Len(t, f.execute(t).Closed, 1)
+}
+
+func TestARoundThatFailedToCloseTellsNothing(t *testing.T) {
+	f := newFixture(utc(16, 20, 59))
+	f.execute(t)
+	f.store.FailWith(errors.New("postgres is down"))
+
+	f.clock.Advance(time.Minute)
+	_, err := f.useCase.Execute(t.Context())
+
+	require.Error(t, err)
+	assert.Empty(t, f.outbox.Recorded())
 }
 
 func TestAStoreThatFailsIsAnError(t *testing.T) {

@@ -1,6 +1,8 @@
 package race_query_test
 
 import (
+	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -21,13 +23,25 @@ func TestRunSuite(t *testing.T) {
 	suite.Run(t, new(testSuite))
 }
 
+type stubTerritory struct {
+	held  map[rounds.Country]uint32
+	err   error
+	asked int
+}
+
+func (s *stubTerritory) Snapshot(context.Context) (rounds.Snapshot, error) {
+	s.asked++
+	return rounds.Snapshot{Tiles: 100, Held: s.held}, s.err
+}
+
 type testSuite struct {
 	suite.Suite
 
-	db      *cppg.Postgres
-	store   *postgres_round_store.Store
-	seasons calendar.Calendar
-	query   *race_query.PostgresQuery
+	db        *cppg.Postgres
+	store     *postgres_round_store.Store
+	territory *stubTerritory
+	seasons   calendar.Calendar
+	query     *race_query.PostgresQuery
 }
 
 func utc(day, hour int) time.Time {
@@ -49,19 +63,20 @@ func (s *testSuite) SetupSuite() {
 
 func (s *testSuite) SetupTest() {
 	s.Require().NoError(s.db.Purge(s.T().Context()))
+	s.territory = &stubTerritory{}
 	s.at(utc(16, 12))
 }
 
 func (s *testSuite) at(now time.Time) {
-	s.query = race_query.NewPostgresQuery(s.db, s.seasons, cptime.NewFixedClock(now))
+	s.query = race_query.NewPostgresQuery(s.db, s.territory, s.seasons, cptime.NewFixedClock(now))
 }
 
-func (s *testSuite) snapshot(round rounds.Round, held map[rounds.Country]uint32) {
-	s.Require().NoError(s.store.RecordSnapshot(s.T().Context(), round, rounds.Snapshot{Tiles: 100, Held: held}))
+func (s *testSuite) open(round rounds.Round) {
+	s.Require().NoError(s.store.Open(s.T().Context(), round))
 }
 
 func (s *testSuite) closed(round rounds.Round, results ...rounds.Result) {
-	s.snapshot(round, map[rounds.Country]uint32{"fr": 1})
+	s.open(round)
 	_, err := s.store.Close(s.T().Context(), round, results)
 	s.Require().NoError(err)
 }
@@ -72,10 +87,10 @@ func (s *testSuite) race() *seasonsv1.Race {
 	return race
 }
 
-func (s *testSuite) TestTheRoundInProgressRanksEachCountryByItsAverageShareOfTheMap() {
+func (s *testSuite) TestTheRoundInProgressRanksEachCountryByItsShareOfTheMapNow() {
 	s.closed(fifteenth)
-	s.snapshot(sixteenth, map[rounds.Country]uint32{"fr": 30, "de": 10})
-	s.snapshot(sixteenth, map[rounds.Country]uint32{"fr": 20, "de": 10})
+	s.open(sixteenth)
+	s.territory.held = map[rounds.Country]uint32{"fr": 25, "de": 10}
 
 	race := s.race()
 
@@ -89,7 +104,7 @@ func (s *testSuite) TestTheRoundInProgressRanksEachCountryByItsAverageShareOfThe
 	}, race.GetRound()), race.GetRound())
 }
 
-func (s *testSuite) TestARoundNobodyCountedYetIsShownWithNoStandings() {
+func (s *testSuite) TestARoundNobodyHoldsGroundInIsShownWithNoStandings() {
 	s.closed(fifteenth)
 
 	race := s.race()
@@ -100,7 +115,7 @@ func (s *testSuite) TestARoundNobodyCountedYetIsShownWithNoStandings() {
 
 func (s *testSuite) TestTheFinaleIsShownAsTheFinale() {
 	s.at(utc(31, 22))
-	s.snapshot(finale, map[rounds.Country]uint32{"fr": 50})
+	s.territory.held = map[rounds.Country]uint32{"fr": 50}
 
 	race := s.race()
 
@@ -112,6 +127,15 @@ func (s *testSuite) TestTheFinaleIsShownAsTheFinale() {
 	}, race.GetRound()), race.GetRound())
 }
 
+func (s *testSuite) TestAMapThatCannotBeReadIsAnError() {
+	unreachable := errors.New("planet is down")
+	s.territory.err = unreachable
+
+	_, err := s.query.Race(s.T().Context())
+
+	s.ErrorIs(err, unreachable)
+}
+
 func (s *testSuite) TestTheScoresAreThePointsOfTheClosedRoundsBestFirst() {
 	s.closed(fourteenth,
 		rounds.Result{Country: "de", Rank: 1, Points: 25},
@@ -120,7 +144,7 @@ func (s *testSuite) TestTheScoresAreThePointsOfTheClosedRoundsBestFirst() {
 	s.closed(fifteenth,
 		rounds.Result{Country: "fr", Rank: 1, Points: 25},
 		rounds.Result{Country: "de", Rank: 2, Points: 18})
-	s.snapshot(sixteenth, map[rounds.Country]uint32{"it": 99})
+	s.territory.held = map[rounds.Country]uint32{"it": 99}
 
 	race := s.race()
 
@@ -143,10 +167,12 @@ func (s *testSuite) TestOutsideASeasonTheRaceIsOnlyTheRoundClosedLast() {
 	s.Nil(race.GetRound())
 	s.Empty(race.GetScores())
 	s.Equal(uint32(1), race.GetClosed().GetNumber())
+	s.Zero(s.territory.asked, "no round is in progress to read the map for")
 }
 
 func (s *testSuite) TestBeforeAnyRoundClosesTheRaceCarriesNoClosedRoundAndNoScores() {
-	s.snapshot(sixteenth, map[rounds.Country]uint32{"fr": 30})
+	s.open(sixteenth)
+	s.territory.held = map[rounds.Country]uint32{"fr": 30}
 
 	race := s.race()
 
@@ -154,19 +180,16 @@ func (s *testSuite) TestBeforeAnyRoundClosesTheRaceCarriesNoClosedRoundAndNoScor
 	s.Empty(race.GetScores())
 }
 
-func (s *testSuite) TestTheRoundClosedLastCarriesItsResultsAndTheTableBeforeAndAfterIt() {
+func (s *testSuite) TestTheRoundClosedLastCarriesItsResultsWithTheShareHeldAtItsEndAndTheTableBeforeAndAfterIt() {
 	s.closed(fourteenth,
 		rounds.Result{Country: "de", Rank: 1, Points: 25},
 		rounds.Result{Country: "fr", Rank: 2, Points: 18})
-	s.snapshot(fifteenth, map[rounds.Country]uint32{"fr": 30, "de": 10, "es": 1})
-	s.snapshot(fifteenth, map[rounds.Country]uint32{"fr": 20, "de": 10, "es": 1})
-	_, err := s.store.Close(s.T().Context(), fifteenth, []rounds.Result{
-		{Country: "fr", Rank: 1, Points: 25},
-		{Country: "de", Rank: 2, Points: 18},
-		{Country: "es", Rank: 11, Points: 0},
-	})
-	s.Require().NoError(err)
-	s.snapshot(sixteenth, map[rounds.Country]uint32{"it": 99})
+	s.closed(fifteenth,
+		rounds.Result{Country: "fr", Rank: 1, Points: 25, Share: 0.25},
+		rounds.Result{Country: "de", Rank: 2, Points: 18, Share: 0.1},
+		rounds.Result{Country: "es", Rank: 11, Points: 0, Share: 0.01})
+	s.open(sixteenth)
+	s.territory.held = map[rounds.Country]uint32{"it": 99}
 
 	s.True(proto.Equal(&seasonsv1.ClosedRound{
 		Season:        0,

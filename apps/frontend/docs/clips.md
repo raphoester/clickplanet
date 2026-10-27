@@ -263,7 +263,7 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   FINAL BATTLE"**, with where it leaves the winner in the season ("Leads the season with 86 points"). Only the run
   whose window holds the cutoff finds it, and the job tells it once, by its key. It plays the 3 hours before
   the cutoff, the winner's fighting (anyone's when it fought none), opens on all the winner holds, counts its tiles
-  (not its share of the map: a day is won on its average, which the podium's points say), and ends on the podium, the places that scored with their points, then "WHO WINS DAY 6?". The ending
+  (the podium's points say who won: a day is won by the ground held at its cutoff), and ends on the podium, the places that scored with their points, then "WHO WINS DAY 6?". The ending
   lasts 4s instead of 2.5, to read it.
 - **`callup.ts` calls up each country that can still win the season** (`--race` and `--season`), after the day the
   race closed last, told by the same run as the day: a country contends when winning every day left and the Final
