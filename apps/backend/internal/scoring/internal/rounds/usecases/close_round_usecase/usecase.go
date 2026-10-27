@@ -69,5 +69,6 @@ func eventOf(closed rounds.Closed) *scoringv1.RoundClosed {
 		Results: results,
 		Own:     closed.Round.Own,
 		Times:   closed.Round.Times,
+		EntryId: closed.Round.Entry.String(),
 	}
 }

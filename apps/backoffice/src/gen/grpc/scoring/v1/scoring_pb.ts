@@ -648,6 +648,13 @@ export class ClosedRound extends Message<ClosedRound> {
    */
   players: Standing[] = [];
 
+  /**
+   * The id of the schedule entry whose window a round of its own is; empty for a day.
+   *
+   * @generated from field: string entry_id = 13;
+   */
+  entryId = "";
+
   constructor(data?: PartialMessage<ClosedRound>) {
     super();
     proto3.util.initPartial(data, this);
@@ -668,6 +675,7 @@ export class ClosedRound extends Message<ClosedRound> {
     { no: 10, name: "started_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
     { no: 11, name: "takes", kind: "message", T: RoundTakes, repeated: true },
     { no: 12, name: "players", kind: "message", T: Standing, repeated: true },
+    { no: 13, name: "entry_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ClosedRound {
@@ -731,6 +739,13 @@ export class Round extends Message<Round> {
    */
   times = 0;
 
+  /**
+   * The id of the schedule entry whose window a round of its own is; empty for a day.
+   *
+   * @generated from field: string entry_id = 7;
+   */
+  entryId = "";
+
   constructor(data?: PartialMessage<Round>) {
     super();
     proto3.util.initPartial(data, this);
@@ -745,6 +760,7 @@ export class Round extends Message<Round> {
     { no: 4, name: "standings", kind: "message", T: RoundStanding, repeated: true },
     { no: 5, name: "own", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 6, name: "times", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 7, name: "entry_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Round {

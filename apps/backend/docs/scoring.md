@@ -12,7 +12,7 @@ internal/scoring/internal/
     postgres_contribution_store/  the Store over scoring.contributions
     inmemory_contribution_store/  the same port in a map, behind the testing tag
     usecases/record_take_usecase/  forget_account_usecase/
-  rounds/                         Country, Round (Day, Own, Results, Closed), Snapshot, Result, Closed, Score (ScoresOf),
+  rounds/                         Country, EntryID, Round (Day, Own, Results, Closed), Snapshot, Result, Closed, Score (ScoresOf),
                                   Placed (TableOf), SeasonEnd (SeasonEndOf), Take; the Store port (Open, Unclosed,
                                   FirstEnd, Number, Close, ClosedIn, End, Ended) and the Takes port (Count,
                                   ForgetAccount), each with its contract suite; Close and End answer whether this call
@@ -27,7 +27,8 @@ internal/scoring/internal/
     usecases/close_ended_rounds_usecase/ closes the rounds that ended, ends the seasons that ended, then opens the day
                                   in progress; Runner (Wake)
       log_close_ended_rounds/       logs each round closed, at Warn when late, each season ended, and a failure
-    usecases/open_own_round_usecase/ opens the round of its own of an entry's window, and wakes the runner
+    usecases/open_own_round_usecase/ opens the round of its own of an entry's window, with the entry's id, and wakes the
+                                  runner
     usecases/count_take_usecase/  forget_account_usecase/   a round of its own's numbers
   rules/                          SetName, Set, OwnRound, Snapshot (Restore), Window, Choice; the Store and Choices
                                   ports, their fakes and contract suites — see [The season rules](season-rules.md)
@@ -93,9 +94,12 @@ each round's end: the standings rank players, the rounds rank countries.
   last cutoff to its end. **A round of its own is the window of a schedule entry whose scoring set asks for one**
   (`rounds.Own`, opened by `open_own_round_usecase` when scoring plays the set, see
   [The season rules](season-rules.md)): of the season its window starts in, cut at that season's end, and worth its
-  set's times a day's points. A day and a round of its own run at once and are scored apart, each from the map at its
+  set's times a day's points. **It keeps the id of the entry it is the window of** (`rounds.EntryID`, the gamemaster's
+  `schedule.EntryID` repeated): the one word that joins a battle to its results, in the gamemaster's published
+  language. Scoring never says battle or finale of it. Opened again by a second entry that ends with it, it keeps the
+  first entry. A day and a round of its own run at once and are scored apart, each from the map at its
   end. A round is kept by its season, its end and whether it is of its own (`Round{Season, EndsAt, Own}`, with
-  `Finale`, `StartsAt` and `Times`); a day and a round of its own may end at one time. Its number is the read side's,
+  `Finale`, `Entry`, `StartsAt` and `Times`); a day and a round of its own may end at one time. Its number is the read side's,
   among its season's rounds of its kind (day 5, the first round of its own), so a season with no start (Season 0)
   still says "day 1".
 - **The finale is the round that ends the season**: the round of its own whose window runs to the season's end (the
@@ -116,7 +120,7 @@ each round's end: the standings rank players, the rounds rank countries.
   (`late` over a second). Nothing freezes the map: the owner accepted the risk. A round never opened is not played,
   and a round of its own heard of once it ended is never opened.
 - **Each round closed is told to the other modules** as `scoring.v1.RoundClosed`: its season, its number, whether it
-  is the finale, whether it is of its own and its times, its end and its results. The use case records it in the
+  is the finale, whether it is of its own and its times, its entry's id (empty for a day), its end and its results. The use case records it in the
   outbox in the transaction that closes the round: a round that failed to close is not published, and is closed and
   published by the next try. The chat announces it — see [Announcements](chat.md#announcements).
 - **A season ends at its end, whether a round ends with it or none does** (`close_season_usecase`), once every round
@@ -139,16 +143,19 @@ each round's end: the standings rank players, the rounds rank countries.
 - **Kept in `scoring.rounds`** (`season`, `ends_at`, `own`, `finale`, `starts_at`, `times`, `closed`,
   `counted_takes_below`; key `(season, ends_at, own)`), **`round_results`** (`rank`, `points`, `share` held at the
   end; for a round closed before 2026-10-27, its average), **`round_takes`**, **`round_players`** and
-  **`ended_seasons`**, migration `20261027210000_rounds_of_their_own`. The rule stays in Go: SQL keeps what `Results`
+  **`ended_seasons`**, migration `20261027210000_rounds_of_their_own`; **`own_rounds`** (`season`, `ends_at`, `own`,
+  `entry_id`), migration `20261028100000_entries_of_rounds`: a day has no entry, so the id is a table of its own, not
+  a column only some rows of `rounds` fill. A round of its own opened before the id was told has no row, and reads
+  with none. The rule stays in Go: SQL keeps what `Results`
   said.
 - **The race is live on the season stream** (`SeasonEvent.race`), to every stream whatever its view. `race_query`
   reads **the round in progress that ends first**, a day or a round of its own, which wins a tie (its number, its end,
-  whether it is of its own and its times, each country's rank, share of the map now and the points it would score if
+  whether it is of its own, its times and its entry's id, each country's rank, share of the map now and the points it would score if
   the round ended now, from `GetTerritories`; none from the last cutoff to the season's end when no round of its own
   runs), and the season's scores, best first, of every country with points. **It also carries the round closed
   last** (`closed`), in any season, so the finale still shows once its season is over: its number, its end, the
   countries that scored in it with their share, and its season's table before and after it, both ranked by
-  `rounds.TableOf`; and, for a round of its own, its start, its times, the tiles each flag took (`takes`, most first)
+  `rounds.TableOf`; and, for a round of its own, its entry's id, its start, its times, the tiles each flag took (`takes`, most first)
   and its top 10 players (`players`, by the tiles each took for the flag it took the most for, named as the boards
   name them, guests skipped, from the best 50 and one `GetAuthors`). A client plays the cutoff, and a battle's brief,
   from it. **One read for every stream**:

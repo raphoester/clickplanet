@@ -18,17 +18,17 @@ import (
 )
 
 type stubTurns struct {
-	turns chan *gamemasterv1.Turn
+	turns chan *gamemasterv1.GetTurnResponse
 
 	mu  sync.Mutex
 	ctx context.Context
 }
 
 func newStubTurns() *stubTurns {
-	return &stubTurns{turns: make(chan *gamemasterv1.Turn, 4)}
+	return &stubTurns{turns: make(chan *gamemasterv1.GetTurnResponse, 4)}
 }
 
-func (s *stubTurns) Subscribe(ctx context.Context) <-chan *gamemasterv1.Turn {
+func (s *stubTurns) Subscribe(ctx context.Context) <-chan *gamemasterv1.GetTurnResponse {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -54,21 +54,53 @@ func serve(t *testing.T, turns *stubTurns, heartbeat time.Duration) gamemasterv1
 	return gamemasterv1connect.NewGamemasterServiceClient(server.Client(), server.URL)
 }
 
-func TestTheStreamSendsEachTurnAsTheTurnCase(t *testing.T) {
-	turns := newStubTurns()
-	turns.turns <- &gamemasterv1.Turn{Kind: gamemasterv1.EntryKind_ENTRY_KIND_PLAIN}
-	turns.turns <- &gamemasterv1.Turn{Kind: gamemasterv1.EntryKind_ENTRY_KIND_BATTLE, Description: "Triple points."}
+func now(kind gamemasterv1.EntryKind, description string, battles ...string) *gamemasterv1.GetTurnResponse {
+	timeline := &gamemasterv1.Timeline{}
+	for _, id := range battles {
+		timeline.Battles = append(timeline.Battles, &gamemasterv1.Battle{EntryId: id})
+	}
+	return &gamemasterv1.GetTurnResponse{Turn: &gamemasterv1.Turn{Kind: kind, Description: description}, Timeline: timeline}
+}
 
+func open(t *testing.T, turns *stubTurns) *connect.ServerStreamForClient[gamemasterv1.GamemasterEvent] {
+	t.Helper()
 	stream, err := serve(t, turns, time.Hour).ListenForEvents(t.Context(), connect.NewRequest(&gamemasterv1.ListenForEventsRequest{}))
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = stream.Close() })
+	return stream
+}
 
-	for _, want := range []gamemasterv1.EntryKind{gamemasterv1.EntryKind_ENTRY_KIND_PLAIN, gamemasterv1.EntryKind_ENTRY_KIND_BATTLE} {
-		require.True(t, stream.Receive(), stream.Err())
-		require.NotNil(t, stream.Msg().GetTurn(), "a turn travels as the turn case")
-		assert.Equal(t, want, stream.Msg().GetTurn().GetKind())
-	}
-	assert.Equal(t, "Triple points.", stream.Msg().GetTurn().GetDescription())
+func receive(t *testing.T, stream *connect.ServerStreamForClient[gamemasterv1.GamemasterEvent]) *gamemasterv1.GamemasterEvent {
+	t.Helper()
+	require.True(t, stream.Receive(), stream.Err())
+	return stream.Msg()
+}
+
+const (
+	plain  = gamemasterv1.EntryKind_ENTRY_KIND_PLAIN
+	battle = gamemasterv1.EntryKind_ENTRY_KIND_BATTLE
+)
+
+func TestTheStreamSendsTheTurnThenTheTimelineFirst(t *testing.T) {
+	turns := newStubTurns()
+	turns.turns <- now(plain, "", "finale")
+	stream := open(t, turns)
+
+	assert.Equal(t, plain, receive(t, stream).GetTurn().GetKind(), "a turn travels as the turn case")
+	assert.Equal(t, "finale", receive(t, stream).GetTimeline().GetBattles()[0].GetEntryId(), "the timeline as its own case")
+}
+
+func TestTheStreamSendsOnlyWhatChanged(t *testing.T) {
+	turns := newStubTurns()
+	turns.turns <- now(plain, "", "finale")
+	turns.turns <- now(plain, "", "finale", "rush")
+	turns.turns <- now(battle, "Triple points.", "finale", "rush")
+	stream := open(t, turns)
+	receive(t, stream)
+	receive(t, stream)
+
+	assert.Len(t, receive(t, stream).GetTimeline().GetBattles(), 2, "a battle added sends the timeline alone")
+	assert.Equal(t, "Triple points.", receive(t, stream).GetTurn().GetDescription(), "a battle that starts sends the turn alone")
 }
 
 func TestAQuietStreamSendsAHeartbeat(t *testing.T) {
@@ -83,7 +115,7 @@ func TestAQuietStreamSendsAHeartbeat(t *testing.T) {
 
 func TestTheFeedIsLeftWhenTheStreamCloses(t *testing.T) {
 	turns := newStubTurns()
-	turns.turns <- &gamemasterv1.Turn{Kind: gamemasterv1.EntryKind_ENTRY_KIND_PLAIN}
+	turns.turns <- now(plain, "")
 	stream, err := serve(t, turns, time.Hour).ListenForEvents(t.Context(), connect.NewRequest(&gamemasterv1.ListenForEventsRequest{}))
 	require.NoError(t, err)
 	require.True(t, stream.Receive(), stream.Err())
@@ -95,11 +127,10 @@ func TestTheFeedIsLeftWhenTheStreamCloses(t *testing.T) {
 
 func TestAFeedThatClosesEndsTheStreamCleanly(t *testing.T) {
 	turns := newStubTurns()
-	turns.turns <- &gamemasterv1.Turn{Kind: gamemasterv1.EntryKind_ENTRY_KIND_PLAIN}
-	stream, err := serve(t, turns, time.Hour).ListenForEvents(t.Context(), connect.NewRequest(&gamemasterv1.ListenForEventsRequest{}))
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = stream.Close() })
-	require.True(t, stream.Receive(), stream.Err())
+	turns.turns <- now(plain, "")
+	stream := open(t, turns)
+	receive(t, stream)
+	receive(t, stream)
 
 	close(turns.turns)
 

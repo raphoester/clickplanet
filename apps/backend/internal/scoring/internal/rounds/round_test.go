@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -67,29 +68,31 @@ func TestThereIsNoDayAfterTheLastSeason(t *testing.T) {
 	assert.False(t, ok)
 }
 
+var battle = rounds.EntryID(uuid.MustParse("0192f5a0-7c00-7000-8000-000000000031"))
+
 func TestARoundOfItsOwnIsItsEntrysWindow(t *testing.T) {
-	round, ok := rounds.Own(twoSeasons, 3, utc(20, 18, 0, 0), utc(20, 20, 0, 0), utc(20, 18, 0, 1))
+	round, ok := rounds.Own(twoSeasons, battle, 3, utc(20, 18, 0, 0), utc(20, 20, 0, 0), utc(20, 18, 0, 1))
 
 	require.True(t, ok)
-	assert.Equal(t, rounds.Round{Season: 0, EndsAt: utc(20, 20, 0, 0), Own: true, StartsAt: utc(20, 18, 0, 0), Times: 3}, round)
+	assert.Equal(t, rounds.Round{Season: 0, EndsAt: utc(20, 20, 0, 0), Own: true, Entry: battle, StartsAt: utc(20, 18, 0, 0), Times: 3}, round)
 }
 
 func TestARoundOfItsOwnThatEndsWithTheSeasonIsItsFinale(t *testing.T) {
-	round, ok := rounds.Own(twoSeasons, 3, utc(31, 21, 0, 0), utc(31, 23, 0, 0), utc(31, 21, 0, 0))
+	round, ok := rounds.Own(twoSeasons, battle, 3, utc(31, 21, 0, 0), utc(31, 23, 0, 0), utc(31, 21, 0, 0))
 
 	require.True(t, ok)
 	assert.True(t, round.Finale)
 }
 
 func TestARoundOfItsOwnIsCutAtTheEndOfTheSeasonItStartsIn(t *testing.T) {
-	round, ok := rounds.Own(twoSeasons, 3, utc(31, 22, 0, 0), time.Date(2026, 11, 1, 2, 0, 0, 0, time.UTC), utc(31, 22, 0, 0))
+	round, ok := rounds.Own(twoSeasons, battle, 3, utc(31, 22, 0, 0), time.Date(2026, 11, 1, 2, 0, 0, 0, time.UTC), utc(31, 22, 0, 0))
 
 	require.True(t, ok)
-	assert.Equal(t, rounds.Round{Season: 0, EndsAt: utc(31, 23, 0, 0), Finale: true, Own: true, StartsAt: utc(31, 22, 0, 0), Times: 3}, round)
+	assert.Equal(t, rounds.Round{Season: 0, EndsAt: utc(31, 23, 0, 0), Finale: true, Own: true, Entry: battle, StartsAt: utc(31, 22, 0, 0), Times: 3}, round)
 }
 
 func TestARoundOfItsOwnHeardOfOnceItEndedIsNotPlayed(t *testing.T) {
-	_, ok := rounds.Own(twoSeasons, 3, utc(20, 18, 0, 0), utc(20, 20, 0, 0), utc(20, 20, 0, 0))
+	_, ok := rounds.Own(twoSeasons, battle, 3, utc(20, 18, 0, 0), utc(20, 20, 0, 0), utc(20, 20, 0, 0))
 
 	assert.False(t, ok)
 }

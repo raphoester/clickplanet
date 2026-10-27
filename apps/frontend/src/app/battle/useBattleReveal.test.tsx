@@ -4,8 +4,8 @@ import {act, cleanup, render} from "@testing-library/react"
 import {Battle, BATTLE_SEEN_STORAGE_KEY} from "../../domain/battle.ts"
 import {BattleRevealState, useBattleReveal} from "./useBattleReveal.ts"
 
-const battle: Battle = {since: 1, endsAt: 2, description: ""}
-const later: Battle = {since: 3, endsAt: 4, description: ""}
+const battle: Battle = {entryId: "entry-1", since: 1, endsAt: 2, description: ""}
+const later: Battle = {entryId: "entry-2", since: 3, endsAt: 4, description: ""}
 
 let latest: BattleRevealState
 
@@ -27,14 +27,14 @@ describe("useBattleReveal", () => {
 
         act(() => latest.dismiss())
         expect(latest.battle).toBeUndefined()
-        expect(window.localStorage.getItem(BATTLE_SEEN_STORAGE_KEY)).toBe("1:2")
+        expect(window.localStorage.getItem(BATTLE_SEEN_STORAGE_KEY)).toBe("entry-1")
 
         rerender(<Harness battle={later}/>)
         expect(latest.battle).toEqual(later)
     })
 
     it("remembers across a reload", () => {
-        window.localStorage.setItem(BATTLE_SEEN_STORAGE_KEY, "1:2")
+        window.localStorage.setItem(BATTLE_SEEN_STORAGE_KEY, "entry-1")
         render(<Harness battle={battle}/>)
         expect(latest.battle).toBeUndefined()
     })

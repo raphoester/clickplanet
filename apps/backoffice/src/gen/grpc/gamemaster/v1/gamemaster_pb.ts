@@ -77,6 +77,11 @@ export class GetTurnResponse extends Message<GetTurnResponse> {
    */
   turn?: Turn;
 
+  /**
+   * @generated from field: gamemaster.v1.Timeline timeline = 2;
+   */
+  timeline?: Timeline;
+
   constructor(data?: PartialMessage<GetTurnResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -86,6 +91,7 @@ export class GetTurnResponse extends Message<GetTurnResponse> {
   static readonly typeName = "gamemaster.v1.GetTurnResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "turn", kind: "message", T: Turn },
+    { no: 2, name: "timeline", kind: "message", T: Timeline },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetTurnResponse {
@@ -139,6 +145,13 @@ export class Turn extends Message<Turn> {
    */
   description = "";
 
+  /**
+   * The running entry's id; empty when none runs. A round of its own that scoring closes repeats it.
+   *
+   * @generated from field: string entry_id = 5;
+   */
+  entryId = "";
+
   constructor(data?: PartialMessage<Turn>) {
     super();
     proto3.util.initPartial(data, this);
@@ -151,6 +164,7 @@ export class Turn extends Message<Turn> {
     { no: 2, name: "since", kind: "message", T: Timestamp },
     { no: 3, name: "ends_at", kind: "message", T: Timestamp },
     { no: 4, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "entry_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Turn {
@@ -167,6 +181,105 @@ export class Turn extends Message<Turn> {
 
   static equals(a: Turn | PlainMessage<Turn> | undefined, b: Turn | PlainMessage<Turn> | undefined): boolean {
     return proto3.util.equals(Turn, a, b);
+  }
+}
+
+/**
+ * What the schedule will play that the players may wait for. An operator may still move or delete an entry to come:
+ * the stream sends the timeline again then.
+ *
+ * @generated from message gamemaster.v1.Timeline
+ */
+export class Timeline extends Message<Timeline> {
+  /**
+   * The battles that have not started, by start. Never a plain entry.
+   *
+   * @generated from field: repeated gamemaster.v1.Battle battles = 1;
+   */
+  battles: Battle[] = [];
+
+  constructor(data?: PartialMessage<Timeline>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "gamemaster.v1.Timeline";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "battles", kind: "message", T: Battle, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Timeline {
+    return new Timeline().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Timeline {
+    return new Timeline().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Timeline {
+    return new Timeline().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Timeline | PlainMessage<Timeline> | undefined, b: Timeline | PlainMessage<Timeline> | undefined): boolean {
+    return proto3.util.equals(Timeline, a, b);
+  }
+}
+
+/**
+ * @generated from message gamemaster.v1.Battle
+ */
+export class Battle extends Message<Battle> {
+  /**
+   * @generated from field: string entry_id = 1;
+   */
+  entryId = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp starts_at = 2;
+   */
+  startsAt?: Timestamp;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp ends_at = 3;
+   */
+  endsAt?: Timestamp;
+
+  /**
+   * The entry's words for the players, plain text: what its rules are.
+   *
+   * @generated from field: string description = 4;
+   */
+  description = "";
+
+  constructor(data?: PartialMessage<Battle>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "gamemaster.v1.Battle";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "entry_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "starts_at", kind: "message", T: Timestamp },
+    { no: 3, name: "ends_at", kind: "message", T: Timestamp },
+    { no: 4, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Battle {
+    return new Battle().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Battle {
+    return new Battle().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Battle {
+    return new Battle().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Battle | PlainMessage<Battle> | undefined, b: Battle | PlainMessage<Battle> | undefined): boolean {
+    return proto3.util.equals(Battle, a, b);
   }
 }
 
@@ -220,6 +333,12 @@ export class GamemasterEvent extends Message<GamemasterEvent> {
      */
     value: Heartbeat;
     case: "heartbeat";
+  } | {
+    /**
+     * @generated from field: gamemaster.v1.Timeline timeline = 3;
+     */
+    value: Timeline;
+    case: "timeline";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<GamemasterEvent>) {
@@ -232,6 +351,7 @@ export class GamemasterEvent extends Message<GamemasterEvent> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "turn", kind: "message", T: Turn, oneof: "event" },
     { no: 2, name: "heartbeat", kind: "message", T: Heartbeat, oneof: "event" },
+    { no: 3, name: "timeline", kind: "message", T: Timeline, oneof: "event" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GamemasterEvent {

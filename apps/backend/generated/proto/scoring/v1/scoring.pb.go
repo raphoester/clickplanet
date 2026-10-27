@@ -749,7 +749,9 @@ type ClosedRound struct {
 	Takes []*RoundTakes `protobuf:"bytes,11,rep,name=takes,proto3" json:"takes,omitempty"`
 	// The top 10 signed-in players of a round of its own by the tiles they took during it, each under the flag it took
 	// the most for, named as the boards name them; none for a day.
-	Players       []*Standing `protobuf:"bytes,12,rep,name=players,proto3" json:"players,omitempty"`
+	Players []*Standing `protobuf:"bytes,12,rep,name=players,proto3" json:"players,omitempty"`
+	// The id of the schedule entry whose window a round of its own is; empty for a day.
+	EntryId       string `protobuf:"bytes,13,opt,name=entry_id,json=entryId,proto3" json:"entry_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -868,6 +870,13 @@ func (x *ClosedRound) GetPlayers() []*Standing {
 	return nil
 }
 
+func (x *ClosedRound) GetEntryId() string {
+	if x != nil {
+		return x.EntryId
+	}
+	return ""
+}
+
 // The round in progress that ends first: a day, or a round of its own.
 type Round struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -880,7 +889,9 @@ type Round struct {
 	// A round of its own: the window of a schedule entry whose set asked for one, not a day.
 	Own bool `protobuf:"varint,5,opt,name=own,proto3" json:"own,omitempty"`
 	// How many times a day's points it scores: 1 for a day.
-	Times         uint32 `protobuf:"varint,6,opt,name=times,proto3" json:"times,omitempty"`
+	Times uint32 `protobuf:"varint,6,opt,name=times,proto3" json:"times,omitempty"`
+	// The id of the schedule entry whose window a round of its own is; empty for a day.
+	EntryId       string `protobuf:"bytes,7,opt,name=entry_id,json=entryId,proto3" json:"entry_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -955,6 +966,13 @@ func (x *Round) GetTimes() uint32 {
 		return x.Times
 	}
 	return 0
+}
+
+func (x *Round) GetEntryId() string {
+	if x != nil {
+		return x.EntryId
+	}
+	return ""
 }
 
 type RoundTakes struct {
@@ -1466,7 +1484,7 @@ const file_scoring_v1_scoring_proto_rawDesc = "" +
 	"\x04Race\x12'\n" +
 	"\x05round\x18\x01 \x01(\v2\x11.scoring.v1.RoundR\x05round\x12)\n" +
 	"\x06scores\x18\x02 \x03(\v2\x11.scoring.v1.ScoreR\x06scores\x12/\n" +
-	"\x06closed\x18\x03 \x01(\v2\x17.scoring.v1.ClosedRoundR\x06closed\"\xbe\x03\n" +
+	"\x06closed\x18\x03 \x01(\v2\x17.scoring.v1.ClosedRoundR\x06closed\"\xd9\x03\n" +
 	"\vClosedRound\x12\x16\n" +
 	"\x06season\x18\x01 \x01(\rR\x06season\x12\x16\n" +
 	"\x06number\x18\x02 \x01(\rR\x06number\x12'\n" +
@@ -1480,14 +1498,16 @@ const file_scoring_v1_scoring_proto_rawDesc = "" +
 	"\x12started_at_unix_ms\x18\n" +
 	" \x01(\x03R\x0fstartedAtUnixMs\x12,\n" +
 	"\x05takes\x18\v \x03(\v2\x16.scoring.v1.RoundTakesR\x05takes\x12.\n" +
-	"\aplayers\x18\f \x03(\v2\x14.scoring.v1.StandingR\aplayers\"\xbf\x01\n" +
+	"\aplayers\x18\f \x03(\v2\x14.scoring.v1.StandingR\aplayers\x12\x19\n" +
+	"\bentry_id\x18\r \x01(\tR\aentryId\"\xda\x01\n" +
 	"\x05Round\x12\x16\n" +
 	"\x06number\x18\x01 \x01(\rR\x06number\x12%\n" +
 	"\x0fends_at_unix_ms\x18\x02 \x01(\x03R\fendsAtUnixMs\x12\x16\n" +
 	"\x06finale\x18\x03 \x01(\bR\x06finale\x127\n" +
 	"\tstandings\x18\x04 \x03(\v2\x19.scoring.v1.RoundStandingR\tstandings\x12\x10\n" +
 	"\x03own\x18\x05 \x01(\bR\x03own\x12\x14\n" +
-	"\x05times\x18\x06 \x01(\rR\x05times\"A\n" +
+	"\x05times\x18\x06 \x01(\rR\x05times\x12\x19\n" +
+	"\bentry_id\x18\a \x01(\tR\aentryId\"A\n" +
 	"\n" +
 	"RoundTakes\x12\x1d\n" +
 	"\n" +

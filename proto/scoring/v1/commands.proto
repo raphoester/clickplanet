@@ -16,4 +16,6 @@ message PlayRuleSet {
   // its own makes it of this window. Both unset when no entry runs and default plays.
   google.protobuf.Timestamp starts_at = 3;
   google.protobuf.Timestamp ends_at = 4;
+  // The id of the schedule entry that plays the set; empty when default plays. A round of its own repeats it.
+  string entry_id = 5;
 }

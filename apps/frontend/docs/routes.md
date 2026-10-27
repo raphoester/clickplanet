@@ -5,7 +5,7 @@ Two pages, built by Vite as a multi-page app (`build.rollupOptions.input` in
 
 | Path | File | What |
 |---|---|---|
-| `/` | `index.html` | The home page. Plain HTML, and one small module for the season's countdown. |
+| `/` | `index.html` | The home page. Plain HTML, and one small module for the season's countdown and the next battle's. |
 | `/play` | `play.html` | The game. |
 | `/auth/callback` | `auth/callback.html` | The game again, for the sign-in callback. |
 | `/privacy`, `/terms` | `privacy.html`, `terms.html` | Plain pages, no bundle. |

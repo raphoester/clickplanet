@@ -50,6 +50,21 @@ describe("countdownsOf", () => {
         expect(countdownsOf(season, endsAt)).toEqual([])
         expect(countdownsOf(season, endsAt + DAY)).toEqual([])
     })
+
+    const battle = {entryId: "finale", startsAt: lastDayEndsAt, endsAt, description: "Triple points."}
+
+    it("counts down to the next battle between today's end and the season's", () => {
+        expect(countdownsOf(season, lastDayEndsAt - DAY - 3 * HOUR, battle)).toEqual([
+            {label: "Today ends in", tag: "Today", left: "3h 00m 00s"},
+            {label: "Next battle in", tag: "Battle", left: "1d 03h 00m 00s"},
+            {label: "Season ends in", tag: "Season", left: "1d 05h 00m 00s"},
+        ])
+    })
+
+    it("drops the battle once it starts", () => {
+        expect(countdownsOf(season, battle.startsAt - SECOND, battle).map((c) => c.tag)).toEqual(["Today", "Battle", "Season"])
+        expect(countdownsOf(season, battle.startsAt, battle).map((c) => c.tag)).toEqual(["Season"])
+    })
 })
 
 describe("endClock", () => {

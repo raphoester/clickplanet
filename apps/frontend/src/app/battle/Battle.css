@@ -217,6 +217,12 @@
     color: hsl(var(--author-hue, 0) calc(var(--author-saturation) * var(--author-chroma, 1)) var(--author-name-lightness));
 }
 
+.battle-brief-times-of {
+    font-size: var(--text-s);
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
 .battle-brief-tiles {
     font-family: var(--font-display);
     font-size: var(--text-l);

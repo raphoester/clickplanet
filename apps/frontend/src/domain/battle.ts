@@ -1,11 +1,11 @@
-import {Turn} from "../backends/turn.ts"
+import {BattleToCome, Turn} from "../backends/turn.ts"
 import {timeLeftTo} from "./seasonClock.ts"
 
 export const BATTLE_SEEN_STORAGE_KEY = "clickplanet-battle-seen"
-export const TURN_REREAD_MS = 60_000
 export const BATTLE_OVER_MS = 5000
 
 export type Battle = {
+    entryId: string
     since: number
     endsAt: number
     description: string
@@ -13,17 +13,16 @@ export type Battle = {
 
 export function battleOf(turn: Turn | undefined): Battle | undefined {
     if (!turn || turn.kind !== "battle" || turn.endsAt === undefined) return undefined
-    return {since: turn.since ?? 0, endsAt: turn.endsAt, description: turn.description}
+    return {entryId: turn.entryId, since: turn.since ?? 0, endsAt: turn.endsAt, description: turn.description}
 }
 
-export function nextReadAt(turn: Turn | undefined, now: number): number {
-    const soon = now + TURN_REREAD_MS
-    if (turn?.endsAt !== undefined && turn.endsAt > now) return Math.min(soon, turn.endsAt)
-    return soon
+// The server's list is of its read: a battle whose start passed since is no longer to come.
+export function nextBattleOf(battles: BattleToCome[], now: number): BattleToCome | undefined {
+    return battles.find((battle) => battle.startsAt > now)
 }
 
 export function battleKeyOf(battle: Battle): string {
-    return `${battle.since}:${battle.endsAt}`
+    return battle.entryId
 }
 
 export function battleDue(battle: Battle | undefined, seen: string | null): battle is Battle {

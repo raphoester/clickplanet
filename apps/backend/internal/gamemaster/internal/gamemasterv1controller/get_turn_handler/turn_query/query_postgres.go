@@ -23,8 +23,8 @@ type PostgresQuery struct {
 	clock cptime.Clock
 }
 
-// Turn is what plays now by schedule.Schedule's rule, in the players' words: no set's name.
-func (q *PostgresQuery) Turn(ctx context.Context) (*gamemasterv1.Turn, error) {
+// Now is what plays now and the battles to come, by schedule.Schedule's rules, in the players' words: no set's name.
+func (q *PostgresQuery) Now(ctx context.Context) (*gamemasterv1.GetTurnResponse, error) {
 	now := q.clock.Now()
 	rows, err := q.db.On(ctx).QueryContext(ctx, `
 		SELECT id, rule_set, kind, description, starts_at, ends_at, priority, made_at FROM schedule_entries`)
@@ -63,8 +63,22 @@ func (q *PostgresQuery) Turn(ctx context.Context) (*gamemasterv1.Turn, error) {
 		return nil, fmt.Errorf("failed to read what plays: %w", err)
 	}
 	answer := &gamemasterv1.Turn{Kind: kind, EndsAt: ends[turn.Entry], Description: string(turn.Description)}
+	if _, runs := ends[turn.Entry]; runs {
+		answer.EntryId = turn.Entry.String()
+	}
 	if since := sched.SinceAt(now); !since.IsZero() {
 		answer.Since = timestamppb.New(since)
 	}
-	return answer, nil
+	return &gamemasterv1.GetTurnResponse{Turn: answer, Timeline: timelineOf(sched.BattlesAfter(now))}, nil
+}
+
+func timelineOf(battles []schedule.EntrySnapshot) *gamemasterv1.Timeline {
+	timeline := &gamemasterv1.Timeline{Battles: make([]*gamemasterv1.Battle, 0, len(battles))}
+	for _, battle := range battles {
+		timeline.Battles = append(timeline.Battles, &gamemasterv1.Battle{
+			EntryId: battle.ID.String(), StartsAt: timestamppb.New(battle.StartsAt), EndsAt: timestamppb.New(battle.EndsAt),
+			Description: string(battle.Description),
+		})
+	}
+	return timeline
 }

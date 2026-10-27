@@ -335,8 +335,19 @@
             line-height: 1.3;
         }
 
-        .season-pill {
+        .hero-pills {
             align-self: flex-start;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            max-width: 100%;
+        }
+
+        .hero-pills:not(:has(> :not([hidden]))) {
+            display: none;
+        }
+
+        .season-pill {
             display: inline-flex;
             align-items: center;
             gap: 10px;
@@ -365,6 +376,10 @@
             font-weight: 600;
             color: var(--text-soft);
             white-space: nowrap;
+        }
+
+        .battle-pill, .battle-pill:hover, .battle-pill:focus-visible, .battle-pill .season-pill-left {
+            color: var(--war);
         }
 
         .season-pill-left {
@@ -1372,30 +1387,40 @@
     <section class="hero">
         <div class="wrap">
             <div class="hero-text">
-                <a class="season-pill champion-pill" href="/play" data-champion hidden>
-                    <svg viewBox="0 0 48 48" aria-hidden="true">
-                        <path class="season-art-handle-ink" d="M33 10h6a4 4 0 0 1 0 8h-6M15 10H9a4 4 0 0 0 0 8h6"/>
-                        <path class="season-art-handle" d="M33 10h6a4 4 0 0 1 0 8h-6M15 10H9a4 4 0 0 0 0 8h6"/>
-                        <path class="season-art-gold" d="M14 6h20v10a10 10 0 0 1-20 0z"/>
-                        <path class="season-art-gold-shade" d="M21 27h6v7h-6z"/>
-                        <path class="season-art-gold" d="M15 34h18v7H15z"/>
-                        <path class="season-art-shine" d="M19 9v7"/>
-                    </svg>
-                    <span class="season-pill-label">Season <span data-champion-season></span> champion</span>
-                    <span class="season-pill-left" data-champion-country></span>
-                </a>
-                <a class="season-pill" href="#season" data-season hidden>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                         stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <circle cx="12" cy="13" r="8"/>
-                        <path d="M12 9v4l2.5 2.5M9 2h6"/>
-                    </svg>
-                    <span class="season-pill-label">
-                        <span class="season-pill-season">Season <span data-season-number></span> ·</span>
-                        <span>ends in</span>
-                    </span>
-                    <span class="season-pill-left" role="timer" data-season-left></span>
-                </a>
+                <div class="hero-pills">
+                    <a class="season-pill champion-pill" href="/play" data-champion hidden>
+                        <svg viewBox="0 0 48 48" aria-hidden="true">
+                            <path class="season-art-handle-ink" d="M33 10h6a4 4 0 0 1 0 8h-6M15 10H9a4 4 0 0 0 0 8h6"/>
+                            <path class="season-art-handle" d="M33 10h6a4 4 0 0 1 0 8h-6M15 10H9a4 4 0 0 0 0 8h6"/>
+                            <path class="season-art-gold" d="M14 6h20v10a10 10 0 0 1-20 0z"/>
+                            <path class="season-art-gold-shade" d="M21 27h6v7h-6z"/>
+                            <path class="season-art-gold" d="M15 34h18v7H15z"/>
+                            <path class="season-art-shine" d="M19 9v7"/>
+                        </svg>
+                        <span class="season-pill-label">Season <span data-champion-season></span> champion</span>
+                        <span class="season-pill-left" data-champion-country></span>
+                    </a>
+                    <a class="season-pill" href="#season" data-season hidden>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                             stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <circle cx="12" cy="13" r="8"/>
+                            <path d="M12 9v4l2.5 2.5M9 2h6"/>
+                        </svg>
+                        <span class="season-pill-label">
+                            <span class="season-pill-season">Season <span data-season-number></span> ·</span>
+                            <span>ends in</span>
+                        </span>
+                        <span class="season-pill-left" role="timer" data-season-left></span>
+                    </a>
+                    <a class="season-pill battle-pill" href="/play" data-battle hidden>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                             stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M4 4l12 12M20 4L8 16M4 20l4-4M20 20l-4-4M3 13l4 4M21 13l-4 4"/>
+                        </svg>
+                        <span class="season-pill-label">Next battle in</span>
+                        <span class="season-pill-left" role="timer" data-battle-left></span>
+                    </a>
+                </div>
                 <ul class="chips">
                     <li>Free</li>
                     <li>In your browser</li>

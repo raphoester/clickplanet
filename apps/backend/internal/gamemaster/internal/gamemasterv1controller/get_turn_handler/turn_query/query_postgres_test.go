@@ -27,20 +27,30 @@ var (
 
 func battle(t *testing.T, db cppg.Conn) {
 	t.Helper()
-	require.NoError(t, postgres_entry_store.New(db).Save(t.Context(), schedule.EntrySnapshot{
+	save(t, db, schedule.EntrySnapshot{
 		ID: schedule.EntryID(uuid.UUID{15: 1}), Set: "rush", Kind: schedule.Battle, Description: "Triple points.",
 		StartsAt: finale, EndsAt: battleEnds, Priority: 1, MadeAt: madeAt,
-	}.Restore()))
+	})
 }
 
-func turnAt(t *testing.T, db cppg.Conn, at time.Time) *gamemasterv1.Turn {
+func save(t *testing.T, db cppg.Conn, entry schedule.EntrySnapshot) {
 	t.Helper()
-	answer, err := turn_query.NewPostgresQuery(db, cptime.NewFixedClock(at)).Turn(t.Context())
+	require.NoError(t, postgres_entry_store.New(db).Save(t.Context(), entry.Restore()))
+}
+
+func nowAt(t *testing.T, db cppg.Conn, at time.Time) *gamemasterv1.GetTurnResponse {
+	t.Helper()
+	answer, err := turn_query.NewPostgresQuery(db, cptime.NewFixedClock(at)).Now(t.Context())
 	require.NoError(t, err)
 	return answer
 }
 
-func TestWhileAnEntryRunsTheTurnIsItsKindItsWordsAndItsEnd(t *testing.T) {
+func turnAt(t *testing.T, db cppg.Conn, at time.Time) *gamemasterv1.Turn {
+	t.Helper()
+	return nowAt(t, db, at).GetTurn()
+}
+
+func TestWhileAnEntryRunsTheTurnIsItsIdItsKindItsWordsAndItsEnd(t *testing.T) {
 	db := cppg.StartTestServer(t).OpenSchema(t, "gamemaster", migrations.FS)
 	battle(t, db)
 
@@ -48,7 +58,7 @@ func TestWhileAnEntryRunsTheTurnIsItsKindItsWordsAndItsEnd(t *testing.T) {
 
 	assert.True(t, proto.Equal(&gamemasterv1.Turn{
 		Kind: gamemasterv1.EntryKind_ENTRY_KIND_BATTLE, Description: "Triple points.", Since: timestamppb.New(finale),
-		EndsAt: timestamppb.New(battleEnds),
+		EndsAt: timestamppb.New(battleEnds), EntryId: uuid.UUID{15: 1}.String(),
 	}, answer), "%v", answer)
 }
 
@@ -70,4 +80,30 @@ func TestBeforeAnyEntryTheTurnIsPlainWithNoSince(t *testing.T) {
 	answer := turnAt(t, db, finale.Add(-time.Minute))
 
 	assert.True(t, proto.Equal(&gamemasterv1.Turn{Kind: gamemasterv1.EntryKind_ENTRY_KIND_PLAIN}, answer), "%v", answer)
+}
+
+func TestTheTimelineIsTheBattlesToComeInThePlayersWords(t *testing.T) {
+	db := cppg.StartTestServer(t).OpenSchema(t, "gamemaster", migrations.FS)
+	battle(t, db)
+	save(t, db, schedule.EntrySnapshot{
+		ID: schedule.EntryID(uuid.UUID{15: 2}), Set: "quiet", Kind: schedule.Plain, Description: "Fewer bans.",
+		StartsAt: finale, EndsAt: battleEnds, Priority: 2, MadeAt: madeAt,
+	})
+
+	timeline := nowAt(t, db, finale.Add(-time.Minute)).GetTimeline()
+
+	assert.True(t, proto.Equal(&gamemasterv1.Timeline{Battles: []*gamemasterv1.Battle{{
+		EntryId: uuid.UUID{15: 1}.String(), StartsAt: timestamppb.New(finale), EndsAt: timestamppb.New(battleEnds),
+		Description: "Triple points.",
+	}}}, timeline), "%v", timeline)
+}
+
+func TestABattleThatStartedLeavesTheTimeline(t *testing.T) {
+	db := cppg.StartTestServer(t).OpenSchema(t, "gamemaster", migrations.FS)
+	battle(t, db)
+
+	timeline := nowAt(t, db, finale).GetTimeline()
+
+	require.NotNil(t, timeline)
+	assert.Empty(t, timeline.GetBattles())
 }

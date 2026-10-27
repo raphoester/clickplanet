@@ -119,6 +119,8 @@ message ClosedRound {
   // The top 10 signed-in players of a round of its own by the tiles they took during it, each under the flag it took
   // the most for, named as the boards name them; none for a day.
   repeated Standing players = 12;
+  // The id of the schedule entry whose window a round of its own is; empty for a day.
+  string entry_id = 13;
 }
 
 // The round in progress that ends first: a day, or a round of its own.
@@ -133,6 +135,8 @@ message Round {
   bool own = 5;
   // How many times a day's points it scores: 1 for a day.
   uint32 times = 6;
+  // The id of the schedule entry whose window a round of its own is; empty for a day.
+  string entry_id = 7;
 }
 
 message RoundTakes {

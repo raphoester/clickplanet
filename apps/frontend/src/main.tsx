@@ -17,7 +17,7 @@ import {FakeSeasonBackend, SEASON_ZERO} from "./backends/fakeSeasonBackend.ts"
 import {ConnectSeasonBackend, newSeasonServiceClient} from "./backends/seasonBackend.ts"
 import {FakeHallOfFameBackend, sampleEndedSeason} from "./backends/fakeHallOfFameBackend.ts"
 import {ConnectHallOfFameBackend} from "./backends/hallOfFameBackend.ts"
-import {FakeTurnBackend} from "./backends/fakeTurnBackend.ts"
+import {battleCommands, FakeTurnBackend} from "./backends/fakeTurnBackend.ts"
 import {ConnectTurnBackend, newGamemasterServiceClient} from "./backends/turnBackend.ts"
 import {API_BASE_URL} from "./backends/transport.ts"
 import {ConnectionHealth, connectionInterceptor, followBrowser} from "./backends/connection.ts"
@@ -120,8 +120,9 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         startBattle: (minutes = 120, description?: string, times = 3) => {
             const since = Date.now()
             const endsAt = since + minutes * 60_000
-            fakeTurn.startBattle(since, endsAt, description)
-            fakeStandings.openBattle(since, endsAt, times)
+            const entryId = crypto.randomUUID()
+            fakeTurn.startBattle(entryId, since, endsAt, description)
+            fakeStandings.openBattle(entryId, since, endsAt, times)
             return `a battle is on, at ×${times}`
         },
         endBattle: () => {
@@ -135,6 +136,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     Object.assign(window, {fakeChat, fakeSupport})
     const fakeSeason = new FakeSeasonBackend(SEASON_ZERO)
     const fakeTurn = new FakeTurnBackend()
+    Object.assign(window, battleCommands(fakeTurn))
     const fakeStandings = new FakeStandingsBackend()
     const clicker = fakeMissions.counting(fakeStandings.counting(fake))
     fake.listenForBombs((drop) => fakeChat.announceBomb(drop))

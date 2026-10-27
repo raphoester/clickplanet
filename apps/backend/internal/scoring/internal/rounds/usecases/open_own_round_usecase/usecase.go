@@ -30,10 +30,10 @@ type UseCase struct {
 	waker   Waker
 }
 
-// Execute opens the round of its own of an entry's window. Opened twice, it is one round; heard of once it ended, it is
+// Execute opens the round of its own of an entry's window. Opened twice, it is one round, of the entry that opened it first; heard of once it ended, it is
 // none.
-func (u *UseCase) Execute(ctx context.Context, times uint32, startsAt, endsAt time.Time) error {
-	round, ok := rounds.Own(u.seasons, times, startsAt, endsAt, u.clock.Now())
+func (u *UseCase) Execute(ctx context.Context, entry rounds.EntryID, times uint32, startsAt, endsAt time.Time) error {
+	round, ok := rounds.Own(u.seasons, entry, times, startsAt, endsAt, u.clock.Now())
 	if !ok {
 		return nil
 	}
