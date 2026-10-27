@@ -20,7 +20,7 @@ func schedule(t *testing.T, inner *posts.ScriptedService) (string, posts.Schedul
 		Pick: 1, Title: "FRANCE IS ATTACKING EUROPE", Teasers: []string{"FRANCE TAKES OVER EUROPE"}, Key: posts.StoryKey{Flag: "fr", Continent: "Europe"}, Video: "clip-1.mp4",
 	}.Restore()
 	require.NoError(t, err)
-	post := posts.Plan{Review: 4 * time.Hour, Platforms: []posts.Platform{posts.TikTok}, Budget: posts.Budget{posts.TikTok: 10, posts.YouTube: 8}}.Posts([]posts.Clip{clip}, time.Date(2026, 10, 12, 12, 0, 0, 0, time.UTC), posts.LoadedDice(0))[0]
+	post := posts.Plan{Review: 4 * time.Hour, Platforms: []posts.Platform{posts.TikTok}, Budget: posts.Budget{posts.TikTok: {PerDay: 10}, posts.YouTube: {PerDay: 8}}}.Posts([]posts.Clip{clip}, time.Date(2026, 10, 12, 12, 0, 0, 0, time.UTC), posts.LoadedDice(0))[0]
 
 	var logs bytes.Buffer
 	scheduled, err := log_service.New(inner, slog.New(slog.NewTextHandler(&logs, nil))).Schedule(t.Context(), post)

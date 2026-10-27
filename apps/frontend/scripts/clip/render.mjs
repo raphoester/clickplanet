@@ -36,12 +36,11 @@ Everything below is chosen from the replay when left out:
   --since, --until    the window searched, as ISO times; default the last 12 hours
   --hours <n>         the window's length, its busiest stretches
   --seconds <n>       the clip's length, at most 22; default 8.5 to 17.5 by how far the fighting moves (10 to 19 with a
-                      day's podium), 9 to 20.5 for a tour by its stops. Not with the experiment "length"
+                      day's podium), 6.5 to 19 for a tour by its stops. Not with the experiment "length"
   --focus <code>      only what changed hands on that country's ground
   --flags             come back out of the tiles halfway, to watch the painted flags change
   --dive              come back out of the tiles at the end
   --headline <text>   the headline, over the story's own
-  --hold <s>          how long the opening holds on the whole front before diving in, default 0.3
   --fps <n>           frames a second, default 30
   --recorders <n>     the browsers taking the frames in turn, default one for every 3 cores, 4 at most
   --headed            show the browser
@@ -239,7 +238,7 @@ const COMMIT = commitOf()
 
 function pageOf() {
     const query = new URLSearchParams({fps: flag("fps", "30"), commit: COMMIT})
-    for (const name of ["since", "until", "hours", "seconds", "focus", "headline", "hold", "variants", "story", "pick"]) {
+    for (const name of ["since", "until", "hours", "seconds", "focus", "headline", "variants", "story", "pick"]) {
         if (flag(name)) query.set(name, flag(name))
     }
     for (const name of ["flags", "dive", "silent"]) {

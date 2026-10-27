@@ -296,9 +296,9 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   visits, each continent (Asia's parts) with 5% of them is a stop, four at most, in the order it got there (a fifth of
   it taken).
   Each stop is framed where it took the most there (Angola, not all of Africa from Guinea-Bissau to Mozambique, which
-  only the whole globe frames). The camera opens on the whole globe over the first stop and dives into it, twice as
-  close as that framing but never past where the painted flags start to blend into the tiles (`flagsZoomOf`): the
-  flags changing hands are what a tour shows. At each stop it follows the flag's fighting there as it happens, as a
+  only the whole globe frames). The camera opens at the first stop, twice as close as that framing but never past
+  where the painted flags start to blend into the tiles (`flagsZoomOf`): the flags changing hands are what a tour
+  shows, and they change from the first second. At each stop it follows the flag's fighting there as it happens, as a
   clip follows its front, then flies to the next, rising a little over a long way (1.6 times out at most), never out
   to the globe and back in, which was brutal. It pulls back out to the globe over all of them at the end; 1.2s a
   flight and 2.6s a stop. Up close, a big country's painted flag is blurred: the flag atlas is the game's. The counter
@@ -309,11 +309,12 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   `TILES_ZOOM` (3) is **flags** when at least 2 landmasses changed their biggest holder and those hold 2,000 tiles
   or more: a steamroll, which comes back out halfway so its painted flags change on screen. Everything else is a
   **dive**, which comes back out at the end.
-- **`camera.ts` opens on the map and dives into the tiles**: every clip opens on the middle of the front's
-  changes, zoomed until 95% of them fit but never closer than a continent (`openingOf`), so the first frame is the
-  map with its painted flags. It holds there 0.3s (`--hold`), then dives in 0.7s past the zoom the painted flags
-  are gone at (`tilesZoomOf`), to where the most tiles change hands, so the fight is seen tile by tile. It follows
-  the densest fighting, and comes back out to the opening as the look says. **Every clip ends pulled back out**,
+- **`camera.ts` opens down in the tiles**: the first frame is where the most tiles change hands, past the zoom the
+  painted flags are gone at (`tilesZoomOf`), so the fight is seen tile by tile from the first second. Until
+  2026-10-28 a clip opened on the map with its painted flags, held 0.3s and dived in 0.7s: a second with nothing
+  moving up close, while 70 to 90% of TikTok viewers left before the end. It follows the densest fighting, and comes
+  back out as the look says to the overview: the middle of the front's changes, zoomed until 95% of them fit but
+  never closer than a continent (`overviewOf`), the map with its painted flags. **Every clip ends pulled back out**,
   and holds there 1s before the call to act while the last tiles change hands: close-ups are for the middle, and
   the end shows the rest of the map as it is now. **It never sits still**: where the
   fighting crosses less than 0.4 screens a second, it breathes, out to where the painted flags show and back into
@@ -324,10 +325,9 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   always drawn with the painted flags on, so the zoom alone hands them over to the tiles, as in the game.
 - **`pace.ts` spends the clip on what happens and nothing else**: the replay's clock jumps over every quiet
   stretch, so the map moves from the first frame to the last. **A clip is as long as its camera has somewhere to
-  go**: 6s for a fight in one place, however many hours it lasted (room for the dive, the close-ups and the pull back
-  out), and 1.2s more for every screen the fighting
+  go**: 6s for a fight in one place, however many hours it lasted (room for the close-ups and the pull back out), and 1.2s more for every screen the fighting
   crosses up close (`screensOf`, on the camera's smoothed path), up to 15s. A bomb adds nothing. The last 2.5s are the call to act, and nothing runs past 22s.
-  So a front runs 8.5 to 17.5s (10 to 19 with a day's 4s podium) and a tour 9 to 20.5, by its stops; only `--seconds`
+  So a front runs 8.5 to 17.5s (10 to 19 with a day's 4s podium) and a tour 6.5 to 19, by its stops; only `--seconds`
   reaches 22. The experiment `length` tries the shortest of each against it (above).
 
 **`scripts/clip/render.mjs` is the recorder**: it starts Vite, serves the replay at `/__clip/replay.json`, opens

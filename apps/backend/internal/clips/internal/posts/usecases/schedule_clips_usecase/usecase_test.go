@@ -17,7 +17,7 @@ import (
 
 var (
 	now     = time.Date(2026, 10, 12, 12, 40, 0, 0, time.UTC)
-	budget  = posts.Budget{posts.TikTok: 10, posts.YouTube: 8}
+	budget  = posts.Budget{posts.TikTok: {PerDay: 10}, posts.YouTube: {PerDay: 8}}
 	both    = []posts.Platform{posts.TikTok, posts.YouTube}
 	plan    = posts.Plan{Review: 4 * time.Hour, Spacing: 2 * time.Hour, Platforms: both, Budget: budget}
 	first   = now.Add(4 * time.Hour)
@@ -210,7 +210,7 @@ func TestAClipNoPlatformHasRoomForIsHeldAndTheRunIsStillComplete(t *testing.T) {
 	assert.False(t, report[1].Held)
 
 	tight := asap
-	tight.Budget = posts.Budget{posts.TikTok: 10}
+	tight.Budget = posts.Budget{posts.TikTok: {PerDay: 10}}
 	r = schedulingWith(tight, &feeds{feed: full}, folder{clips: []posts.Clip{clip(t, 1, "BEST"), clip(t, 2, "SECOND")}})
 
 	report, err = r.usecase.Execute(t.Context())
