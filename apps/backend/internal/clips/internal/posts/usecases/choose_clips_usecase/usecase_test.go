@@ -61,7 +61,7 @@ func (h *history) Posted(_ context.Context, since time.Time) (posts.Feed, error)
 }
 
 var room = choose_clips_usecase.Room{
-	PerRun: 2, Budget: posts.Budget{posts.TikTok: 10, posts.YouTube: 8}, Platforms: []posts.Platform{posts.TikTok, posts.YouTube},
+	PerRun: 2, Budget: posts.Budget{posts.TikTok: {PerDay: 10}, posts.YouTube: {PerDay: 8}}, Platforms: []posts.Platform{posts.TikTok, posts.YouTube},
 }
 
 var errUnkeyed = errors.New("no ANTHROPIC_API_KEY")

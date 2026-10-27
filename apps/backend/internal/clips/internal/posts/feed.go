@@ -59,19 +59,47 @@ func (f Feed) With(post Post, scheduled Scheduled) Feed {
 	return append(slices.Clone(f), Posting{At: post.at, Platforms: took})
 }
 
-// How many posts each platform takes in a trailing day. A platform it does not name takes none.
-type Budget map[Platform]int
+// What each platform takes. A platform it does not name takes none.
+type Budget map[Platform]Allowance
+
+type Allowance struct {
+	PerDay   int
+	Hours    Hours
+	BestOnly bool
+}
+
+// UTC, From included, To not. Zero is every hour.
+type Hours struct {
+	From int
+	To   int
+}
+
+func (h Hours) hold(at time.Time) bool {
+	if h == (Hours{}) {
+		return true
+	}
+	hour := at.UTC().Hour()
+	return hour >= h.From && hour < h.To
+}
 
 func (b Budget) left(platform Platform, feed Feed, now time.Time) int {
-	return max(0, b[platform]-feed.spent(platform, now))
+	return max(0, b[platform].PerDay-feed.spent(platform, now))
+}
+
+func (b Budget) takes(platform Platform, place int, feed Feed, now time.Time) bool {
+	return b.left(platform, feed, now) > 0 && (!b[platform].BestOnly || place == 1)
 }
 
 // How many clips a run makes: perRun at most, and no more than the platform with the most room left takes, since a
-// clip goes to every platform that still has room.
+// clip goes to every platform that still has room. Not the hours: a clip's time is known once it is rendered.
 func (b Budget) Clips(perRun int, platforms []Platform, feed Feed, now time.Time) int {
 	room := 0
 	for _, platform := range platforms {
-		room = max(room, b.left(platform, feed, now))
+		left := b.left(platform, feed, now)
+		if b[platform].BestOnly {
+			left = min(left, 1)
+		}
+		room = max(room, left)
 	}
 	return min(perRun, room)
 }

@@ -63,3 +63,12 @@ func TestTheFeedKeepsAPostOnThePlatformsThatTookIt(t *testing.T) {
 	assert.Equal(t, posts.Feed{{At: now.Add(5 * time.Minute), Platforms: tiktok}}, feed)
 	assert.Empty(t, posts.Feed{}.With(post, posts.Scheduled{}))
 }
+
+func TestAPlatformThatTakesTheBestOnlyMakesOneClipARun(t *testing.T) {
+	now := time.Date(2026, 10, 27, 14, 0, 0, 0, time.UTC)
+	best := posts.Budget{posts.TikTok: {PerDay: 3, BestOnly: true}, posts.YouTube: {PerDay: 8}}
+
+	assert.Equal(t, 1, best.Clips(2, tiktok, nil, now))
+	assert.Equal(t, 2, best.Clips(2, both, nil, now))
+	assert.Equal(t, 0, best.Clips(2, tiktok, postings(3, now.Add(-20*time.Hour), posts.TikTok), now))
+}

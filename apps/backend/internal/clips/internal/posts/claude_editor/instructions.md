@@ -2,7 +2,7 @@
 
 ClickPlanet is a multiplayer game on a globe of 262,000 tiles: anyone clicks tiles for a country, and countries take
 each other's land, all day, all over the world. Every 2 hours a job posts the best stories of the last 12 hours on
-TikTok and YouTube Shorts, as vertical clips of 8 to 22 seconds: the game's real globe playing the fighting back, a
+TikTok and YouTube Shorts, as vertical clips of 6 to 22 seconds: the game's real globe playing the fighting back, a
 headline across the top from the first frame, a counter of the flag's tiles in the place the headline names, and a
 call to play at the end. The caption under the clip is written apart, from teasers that say the headline in other words.
 
@@ -105,11 +105,13 @@ to a country they know, that looks big on a globe.
   the run's slots on different stories.
 - Answer every story you would tell, best first, a few more than `slots`: one that does not hold is skipped and the
   next takes its place. Leave out only what should not be posted at all.
+- **Your first story is the run's only one on TikTok**, and only in the afternoon runs: put first the one a stranger
+  who never heard of the game would stop scrolling for.
 
 ## What makes a headline good
 
-The headline is the hook: the first thing read, over the opening shot of the map, with the flag of each side in front
-of it.
+The headline is the hook: the first thing read, over the fighting up close, with the flag of each side in front of
+it.
 
 - **Short and loud.** Upper case, present tense, a subject and a verb, 25 to 45 letters; never over 60. Two lines
   at most on a phone.

@@ -29,7 +29,7 @@ const (
 
 var (
 	at     = time.Date(2026, 10, 12, 16, 40, 0, 0, time.UTC)
-	budget = posts.Budget{posts.TikTok: 10, posts.YouTube: 8}
+	budget = posts.Budget{posts.TikTok: {PerDay: 10}, posts.YouTube: {PerDay: 8}}
 )
 
 type zernioFake struct {

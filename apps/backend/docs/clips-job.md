@@ -44,8 +44,8 @@ clips stats [-ssh <user@host>] [-since 2026-10-13]
   guessed at 4 characters a token), then what the model chose, each story as `--story` takes it, each one skipped
   with why, and what it cost. **`-prompt` stops after the prompt and asks the model nothing.**
 - **`schedule` sends every clip of the folder** (`clip-<n>.json` with its `clip-<n>.mp4` beside it) to the posting
-  service, **as one post on every platform that has room left in its day** (`-platforms`, default all:
-  `tiktok,youtube`), and adds a table to the summary: a row for each clip on each platform, its arms, its time, and
+  service, **as one post on every platform that takes it** (`-platforms`, default all: `tiktok,youtube`): room left
+  in its day, its hours, and on TikTok the run's best clip alone (below, "`Budget`"), and adds a table to the summary: a row for each clip on each platform, its arms, its time, and
   whether it is scheduled there, or one row for a clip held because every platform has posted its day. **A clip in an
   experiment that does not run, or in an arm it has not, fails the run before anything is posted**
   (`posts.ErrUnknownVariant`): once out, it would be counted in the wrong arm. It exits 1 when a
@@ -127,7 +127,7 @@ story, so a short clip is not short because its story was small.
 - **Adding one** is an entry in `running`, its name and arms in the generator's `src/clip/experiments.ts`, and the
   code that acts on its arms, never on its control.
 - **The first is `length`** (started 2026-10-24): `as-chosen`, the control, as long as the camera has somewhere to
-  go (8.5 to 17.5s for a front, by how far its fighting moves, 10 to 19 with a day's podium, 9 to 20.5 for a tour, by
+  go (8.5 to 17.5s for a front, by how far its fighting moves, 10 to 19 with a day's podium, 6.5 to 19 for a tour, by
   its stops), against `short`, the shortest a story of its kind plays: 8.5s for a front, 10 with a day's podium. **A
   tour is already its shortest**, each stop its flight and its stay, so `short` leaves it as it is, and a front whose
   fighting stays in one place is already 8.5s: both still record the arm, and `durationSeconds` in the record keeps
@@ -142,14 +142,14 @@ story, so a short clip is not short because its story was small.
   `posts/zernio`'s TikTok target). `fell-back` is a clip drawn for a track that went out with its anthem.
   - **The track is one of the top 20 of the chart that play the whole clip, at random** (`trendingTop`,
     `Track.plays`). The chart lists 100, rank 1 first: its top is what a viewer hears everywhere now, and 20 is wide
-    enough that, at about 7 trending clips a day, the arm is not one song's, nor one song's fatigue. Its rank is
+    enough that, at a trending clip or two a day, the arm is not one song's, nor one song's fatigue. Its rank is
     recorded, so the analysis can tell whether a higher one did better, and narrow or widen the top. A track the chart
     gives no id is skipped. **So is one shorter than the clip**: the chart ranks sound effects beside the songs (on
     2026-10-27 the US chart had a 1s horn at 6, and effects of 2 to 9s at 23, 26, 27, 30, 31 and 33), TikTok does not
     loop a track, and the anthem is muted under it, so a 10s clip went out with half a second of horn and silence
     after it (TikTok video 7701207323607305504, the run of 04:30 UTC). The chart says how long each plays
     (`durationSec`, or the excerpt's `clip.durationSec` when that is what is sent: `Track.Seconds`), and the clip's
-    length is its record's (`ClipCommon.duration_seconds`, `ClipSnapshot.Seconds`, 8.5 to 20.5s): a track plays the
+    length is its record's (`ClipCommon.duration_seconds`, `ClipSnapshot.Seconds`, 6.5 to 19s): a track plays the
     clip when it is at least as long, and a track or a clip whose length is unknown never does. The top 20 is counted
     after that, so for a 20s clip it reached rank 24 on that chart.
     **And so is one outside the game's genres** (`genresOfTheGame`, `Track.fits`): the chart tags each track with
@@ -315,23 +315,36 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
   scheduled run 20 to 40 minutes late, as the runs of Oct 22–24 did), its render (10 to 35 minutes) and 5 minutes of
   lead: **2 to 3 hours**, and an hour more for the second clip of a run. Replayed over Oct 14–17, a 12-hour window held 5
   to 11 stories of different keys, so 2 every 2 hours is not short of stories; a quiet run posts nothing.
-  - **`Budget` is posts in a trailing 24 hours, per platform: 14 on TikTok, 8 on YouTube** (`dailyBudget` in
-    `job.go`). TikTok holds a video over 15 a trailing day on an account of its Business app, which every new Zernio
-    connection is, and Zernio does not refuse it: it moves the post to when the oldest leaves the window, which
-    would quietly undo the speed. 14 leaves room for one post made by hand (it shipped at 10 on 2026-10-24, and was
-    raised the same day: one by hand is all the room needed). YouTube lets a channel upload about 10 a day.
-    So a day of news is 8 clips on both and 6 more on TikTok alone, the rest held; 12 runs of 2 would be 24.
+  - **`Budget` is what each platform takes** (`dailyBudget` in `job.go`, a `posts.Allowance` each). **YouTube: 8
+    posts in a trailing 24 hours, at any hour, every clip of a run**: a channel uploads about 10 a day. **TikTok: 3,
+    the best clip of a run alone (`BestOnly`), from 14:00 to 20:00 UTC (`Hours`)**: after school across Europe,
+    16:00 to 22:00 in Paris in winter, 15:00 to 21:00 in London, 17:00 to 23:00 in Istanbul.
+  - **Why so few on TikTok** (2026-10-28): until then it took 14, every clip, at any hour. Its views per clip fell
+    from about 600 to about 15 on 2026-10-19, the day the job reached 10 to 13 posts a day there, and stayed there.
+    The Zernio posts of Oct 13–17, at about 4 a day, had 285 to 636, so posting through Zernio is not the cause, and
+    YouTube kept about 1,000 a clip at the same pace. TikTok viewers bring more players too: the day of 2.4k TikTok
+    views (Oct 24) brought 53 new players, a normal day of 12k YouTube views about 28.
+  - **So a day is 3 TikTok posts at most**: the best of the runs of 14:17, 16:17 and 18:17, out at about 15:00, 17:00
+    and 19:00. The trailing day makes it 2 on some days, as a post of yesterday at 15:05 still counts at 14:58. A post
+    made by hand takes one of the 3. TikTok itself holds a video over 15 a trailing day, and Zernio moves it to when
+    the oldest leaves the window rather than refuse it.
+  - **A platform out of its hours is left out of the post, never waited for** (`Plan.Next`): the clip goes out on
+    the others at once. A platform left out no longer holds the post back, so its time is found again without it: a
+    TikTok post by hand at 19:30 does not push a YouTube post to 20:30. The hours are UTC, so they move an hour
+    against Europe's clocks in summer. `Schedule` takes the clock they are read on; `main.go` passes the system's.
   - **What counts is Zernio's post list** (`Service.Posted`, a `Feed` of `Posting`s): every post on the platform in
     the trailing day, **made by hand or not**, and every one still to go out, at the platform's own time (a TikTok
     target held over the cap carries the time it will go out). A draft, a post cancelled or failed, and a target that
     failed or was unpublished count for nothing. One list of posts serves this and what was told. **A feed that
     cannot be read fails the run**, rather than post over the cap.
-  - **Known effect, not handled**: the budget is spent as the news comes, so a busy morning can fill the day, and once
+  - **Known effect, not handled**: YouTube's budget is spent as the news comes, so a busy morning can fill the day, and once
     it is full a slot frees when yesterday's post leaves the window, so the posting hours follow yesterday's. The run
     of 2026-10-26 16:31 had the war of the day in its findings and no room. The run that gets the slot still tells
     the freshest story it has.
   - **`choose` makes as many clips as the platform with the most room takes** (`Budget.Clips`), so a clip goes to
-    every platform that still has room, and a clip nobody has room for is never rendered. `schedule` reads the feed
+    every platform that still has room, and a clip nobody has room for is never rendered. A platform that takes the
+    best alone takes one. It counts no hours: a clip's time is known once it is rendered, so a run on TikTok alone out
+    of its hours renders a clip and holds it. `schedule` reads the feed
     again and leaves a full platform out of the post; a clip with no platform left is held (`Report.WithHeld`): in the
     report, not a failure, and its story untold for a later run. Between the two only a post made by hand can fill a day.
   - **A full day says so**: `choose` logs `every platform has posted its day already` rather than that no story was
