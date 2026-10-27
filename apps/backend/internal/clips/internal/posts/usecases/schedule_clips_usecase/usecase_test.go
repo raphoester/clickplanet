@@ -81,7 +81,8 @@ func clipIn(t *testing.T, pick posts.Pick, title string, variants posts.Variants
 	t.Helper()
 
 	restored, err := posts.ClipSnapshot{
-		Pick: pick, Title: title, Teasers: []string{title + " 1", title + " 2"}, Key: key(title), Video: "clip.mp4", Variants: variants,
+		Pick: pick, Title: title, Teasers: []string{title + " 1", title + " 2"}, Key: key(title), Video: "clip.mp4", Seconds: 10,
+		Variants: variants,
 	}.Restore()
 	require.NoError(t, err)
 	return restored
@@ -356,6 +357,7 @@ func TestAChartThatCannotBeReadOrListsNothingSendsTheClipWithItsAnthemCountedApa
 		"unreadable":          {err: errors.New("zernio answered 400 to the commercial music library")},
 		"empty":               {},
 		"with nothing to use": {tracks: []posts.Track{{Title: "No id"}}},
+		"with a horn alone":   {tracks: []posts.Track{{ID: "clip-1", Excerpt: true, Title: "Breakout sound", Rank: 1, Seconds: 1}}},
 	} {
 		t.Run(name, func(t *testing.T) {
 			r := scheduling(folder{clips: []posts.Clip{

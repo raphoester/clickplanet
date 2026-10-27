@@ -94,7 +94,7 @@ func (u *UseCase) Execute(ctx context.Context) (posts.Report, error) {
 			continue
 		}
 		if post.WantsTrendingSound() {
-			post = u.withTrendingSound(ctx, post, chart)
+			post = u.withTrendingSound(ctx, post, clip, chart)
 		}
 		sent, scheduled, err := u.sender.Send(ctx, post)
 		report = report.With(sent, scheduled, err)
@@ -121,16 +121,16 @@ func (u *UseCase) chartOnce() func(ctx context.Context) ([]posts.Track, error) {
 	}
 }
 
-// A chart that cannot be read, or lists nothing to attach, never fails the run: the clip goes out as the control
-// would, counted apart (posts.FellBack), and the report says why.
+// A chart that cannot be read, or lists nothing to attach that plays the whole clip, never fails the run: the clip
+// goes out as the control would, counted apart (posts.FellBack), and the report says why.
 func (u *UseCase) withTrendingSound(
-	ctx context.Context, post posts.Post, chart func(ctx context.Context) ([]posts.Track, error),
+	ctx context.Context, post posts.Post, clip posts.Clip, chart func(ctx context.Context) ([]posts.Track, error),
 ) posts.Post {
 	tracks, err := chart(ctx)
 	if err != nil {
 		return post.FellBack(posts.SoundExperiment, err)
 	}
-	sound, err := u.soundtracks.Pick(tracks, u.dice)
+	sound, err := u.soundtracks.Pick(tracks, clip, u.dice)
 	if err != nil {
 		return post.FellBack(posts.SoundExperiment, err)
 	}

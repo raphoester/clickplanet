@@ -13,7 +13,7 @@ func rendered(pick posts.Pick, title string) posts.ClipSnapshot {
 	return posts.ClipSnapshot{
 		Pick: pick, Title: title, Teasers: []string{"ALGERIA TAKES " + title, "ALGERIA INVADES " + title},
 		Countries: []posts.TaggedCountry{{Code: "dz", Tag: "algeria"}}, ContinentTag: "africa",
-		Key: posts.StoryKey{Flag: "dz", Continent: title}, Video: posts.VideoFile("clip-" + title + ".mp4"),
+		Key: posts.StoryKey{Flag: "dz", Continent: title}, Video: posts.VideoFile("clip-" + title + ".mp4"), Seconds: 10,
 		TeaserNames: []string{"takes", "invades"}, Record: posts.ClipRecord(`{"format":"globe-replay","generator":"8dc31d2"}`),
 	}
 }

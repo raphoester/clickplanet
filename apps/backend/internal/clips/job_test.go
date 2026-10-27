@@ -324,7 +324,8 @@ func renderedIn(t *testing.T, folder string, pick int, title, variants string) {
 	t.Helper()
 
 	clip := fmt.Sprintf(`{"pick": %d, "title": %q, "teasers": [%q], "key": {"flag": "dz", "continent": "Africa"}, `+
-		`"record": {"format": "globe-replay", "variants": %s}}`, pick, title, "SAID ANOTHER WAY: "+title, variants)
+		`"record": {"format": "globe-replay", "common": {"durationSeconds": 10}, "variants": %s}}`,
+		pick, title, "SAID ANOTHER WAY: "+title, variants)
 	require.NoError(t, os.WriteFile(filepath.Join(folder, fmt.Sprintf("clip-%d.json", pick)), []byte(clip), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(folder, fmt.Sprintf("clip-%d.mp4", pick)), []byte(title), 0o600))
 }

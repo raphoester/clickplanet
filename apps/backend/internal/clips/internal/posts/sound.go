@@ -19,7 +19,8 @@ const (
 )
 
 // TikTok's trending chart lists 100: the top of it is what a viewer hears everywhere now, and 20 is wide enough that
-// the arm is not one song's. The rank is kept with the post, so the analysis can tell whether a higher one did better.
+// the arm is not one song's. Counted among the tracks that play the whole clip: the chart ranks sound effects of a
+// second too. The rank is kept with the post, so the analysis can tell whether a higher one did better.
 const trendingTop = 20
 
 var (
@@ -65,13 +66,17 @@ func ChartCountryOf(code string) (string, error) {
 	return code, nil
 }
 
-// One of the top of the chart at random, the chart's own order kept (rank 1 first), mixed alone over a muted video:
-// the anthem at 0 rather than the API's default, so nothing rests on a default that may change, and the track at
-// 100, since it is all a viewer hears, and a quieter track would put a softer clip against the anthem's.
-func (s Soundtracks) Pick(chart []Track, dice Dice) (Sound, error) {
+// One of the top of the chart that play the whole clip, at random, the chart's own order kept (rank 1 first), mixed
+// alone over a muted video: the anthem at 0 rather than the API's default, so nothing rests on a default that may
+// change, and the track at 100, since it is all a viewer hears, and a quieter track would put a softer clip against
+// the anthem's.
+func (s Soundtracks) Pick(chart []Track, clip Clip, dice Dice) (Sound, error) {
+	if clip.seconds <= 0 {
+		return Sound{}, fmt.Errorf("%w: how long the clip plays is unknown", ErrNoTrendingTrack)
+	}
 	var top []Track
 	for place, track := range chart {
-		if track.ID == "" {
+		if track.ID == "" || !track.plays(clip) {
 			continue
 		}
 		if track.Rank <= 0 {
@@ -83,9 +88,15 @@ func (s Soundtracks) Pick(chart []Track, dice Dice) (Sound, error) {
 		}
 	}
 	if len(top) == 0 {
-		return Sound{}, fmt.Errorf("%w: the %s chart lists none", ErrNoTrendingTrack, s.Country)
+		return Sound{}, fmt.Errorf("%w: the %s chart lists none that plays the clip's %.1fs", ErrNoTrendingTrack, s.Country, clip.seconds)
 	}
 	return Sound{Track: top[dice.IntN(len(top))], Country: s.Country, TrackVolume: 100, OriginalVolume: 0}, nil
+}
+
+// Whether what the track's ID names plays to the end of the clip: TikTok does not loop a track, and the anthem is muted
+// under it, so a shorter one leaves the rest of the clip silent. A length the chart did not give is no length.
+func (t Track) plays(clip Clip) bool {
+	return t.Seconds > 0 && float64(t.Seconds) >= clip.seconds
 }
 
 // Whether the post is to carry a trending track: drawn for one, and going to TikTok.

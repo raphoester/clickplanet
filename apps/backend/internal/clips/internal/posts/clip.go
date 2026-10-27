@@ -24,6 +24,7 @@ type Clip struct {
 	continentTag string
 	attribution  string
 	video        VideoFile
+	seconds      float64
 	teaserNames  []string
 	record       ClipRecord
 	variants     Variants
@@ -40,8 +41,8 @@ func (c Clip) countryCodes() []string {
 func (c Clip) TakeSnapshot() ClipSnapshot {
 	return ClipSnapshot{
 		Pick: c.pick, Title: c.title, Key: c.key, Teasers: c.teasers, Countries: c.countries,
-		ContinentTag: c.continentTag, Attribution: c.attribution, Video: c.video, TeaserNames: c.teaserNames, Record: c.record,
-		Variants: c.variants,
+		ContinentTag: c.continentTag, Attribution: c.attribution, Video: c.video, Seconds: c.seconds, TeaserNames: c.teaserNames,
+		Record: c.record, Variants: c.variants,
 	}
 }
 
@@ -56,6 +57,8 @@ type ClipSnapshot struct {
 	// What the licence of the clip's music asks the caption to say; empty when none.
 	Attribution string
 	Video       VideoFile
+	// How long the video plays, from the generator's record: 0 for a clip written before it kept one.
+	Seconds float64
 	// The name of each teaser's wording, in the same order; none for a clip written before they were named.
 	TeaserNames []string
 	Record      ClipRecord
@@ -96,7 +99,7 @@ func (s ClipSnapshot) Restore() (Clip, error) {
 	}
 	return Clip{
 		pick: s.Pick, title: s.Title, key: s.Key, teasers: s.Teasers, countries: s.Countries,
-		continentTag: s.ContinentTag, attribution: s.Attribution, video: s.Video, teaserNames: s.TeaserNames, record: s.Record,
-		variants: s.Variants,
+		continentTag: s.ContinentTag, attribution: s.Attribution, video: s.Video, seconds: s.Seconds, teaserNames: s.TeaserNames,
+		record: s.Record, variants: s.Variants,
 	}, nil
 }
