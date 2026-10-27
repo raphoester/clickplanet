@@ -13,6 +13,7 @@ import (
 
 	antibotv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
+	seasonsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/seasons/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/metagame/internal/schedule"
 	"github.com/raphoester/clickplanet.lol-backend/internal/metagame/internal/schedule/redis_rule_set_commands"
 )
@@ -37,14 +38,27 @@ func rush(t *testing.T) schedule.Turn {
 	}.Restore()).TurnAt(finale)
 }
 
-func TestPlanetAndTheAntibotAreEachToldTheSetInTheirWords(t *testing.T) {
+func TestPlanetTheAntibotAndSeasonsAreEachToldTheSetInTheirWords(t *testing.T) {
 	commands := &sent{}
 
 	require.NoError(t, redis_rule_set_commands.New(commands).Play(t.Context(), rush(t), finale))
 
-	require.Len(t, commands.commands, 2)
+	require.Len(t, commands.commands, 3)
 	assert.True(t, proto.Equal(&planetv1.PlayRuleSet{RuleSet: "rush", DecidedAt: timestamppb.New(finale)}, commands.commands[0]))
 	assert.True(t, proto.Equal(&antibotv1.PlayRuleSet{RuleSet: "rush", DecidedAt: timestamppb.New(finale)}, commands.commands[1]))
+	assert.True(t, proto.Equal(&seasonsv1.PlayRuleSet{
+		RuleSet: "rush", DecidedAt: timestamppb.New(finale),
+		StartsAt: timestamppb.New(finale), EndsAt: timestamppb.New(finale.Add(2 * time.Hour)),
+	}, commands.commands[2]), "seasons is told the entry's window: %v", commands.commands[2])
+}
+
+func TestDefaultIsToldToSeasonsWithNoWindow(t *testing.T) {
+	commands := &sent{}
+
+	require.NoError(t, redis_rule_set_commands.New(commands).Play(t.Context(), schedule.New().TurnAt(finale), finale))
+
+	require.Len(t, commands.commands, 3)
+	assert.True(t, proto.Equal(&seasonsv1.PlayRuleSet{RuleSet: "default", DecidedAt: timestamppb.New(finale)}, commands.commands[2]))
 }
 
 func TestACommandRedisDidNotTakeIsAnError(t *testing.T) {

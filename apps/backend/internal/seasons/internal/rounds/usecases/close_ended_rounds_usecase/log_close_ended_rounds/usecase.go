@@ -34,8 +34,16 @@ func (l *Logged) Execute(ctx context.Context) (close_ended_rounds_usecase.Report
 			slog.Uint64("number", uint64(round.Number)),
 			slog.Time("endsAt", round.Round.EndsAt),
 			slog.Bool("finale", round.Round.Finale),
+			slog.Bool("own", round.Round.Own),
+			slog.Uint64("times", uint64(round.Round.Times)),
 			slog.Int("ranked", len(round.Results)),
 			slog.Duration("late", late))
+	}
+	for _, season := range report.Ended {
+		l.logger.Warn("ended a season",
+			slog.Uint64("season", uint64(season.Season)),
+			slog.Time("endedAt", season.EndedAt),
+			slog.Int("ranked", len(season.Table)))
 	}
 	if err != nil && ctx.Err() == nil {
 		l.logger.Error("failed to close the rounds that ended", slog.Any("error", err))

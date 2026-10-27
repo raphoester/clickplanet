@@ -1,44 +1,24 @@
 import {ReactNode} from "react"
-import {Season} from "../../backends/season.ts"
-import {finaleWindow} from "../../domain/seasonClock.ts"
-import BonusIcon from "../components/BonusIcon.tsx"
 
-export default function SeasonFacts({season, finale}: {season: Season, finale: boolean}) {
+// What a season is, the same every day: no battle is promised here, since the schedule decides them.
+export default function SeasonFacts() {
     return <ul className="season-facts">
-        {finale
-            ? <Fact art={<BombArt/>} name="Power-ups for all" text="The climax of the season. Everybody gets tons of them."/>
-            : <Fact art={<BombArt/>}
-                    name="Final Battle"
-                    when={finaleLine(season)}
-                    text="The climax of the season. Everybody gets tons of power-ups."/>}
         <Fact art={<GroundArt/>}
               name="Win the day"
-              text={finale
-                  ? "When it ends, the countries holding the most ground score triple points."
-                  : "When a day ends, the countries holding the most ground score points. The Final Battle scores triple."}/>
+              text="When a day ends, the countries holding the most ground score points."/>
         <Fact art={<TrophyArt/>} name="Win" text="The winning country gets a trophy in the Hall of Fame."/>
         <Fact art={<MedalArt/>} name="Titles" text="Every signed-in player gets a title, and one more if their country wins."/>
     </ul>
 }
 
-function Fact({art, name, when, text}: {art: ReactNode, name: string, when?: string, text: string}) {
+function Fact({art, name, text}: {art: ReactNode, name: string, text: string}) {
     return <li className="season-fact">
         {art}
         <span className="season-fact-body">
             <span className="season-fact-name">{name}</span>
-            {when && <span className="season-fact-when">{when}</span>}
             <span className="season-fact-text">{text}</span>
         </span>
     </li>
-}
-
-function finaleLine(season: Season): string {
-    const finale = finaleWindow(season)
-    return `${finale.day} · ${finale.from}–${finale.to}`
-}
-
-function BombArt() {
-    return <span className="season-fact-art season-fact-art--bomb"><BonusIcon kind="bomb"/></span>
 }
 
 function GroundArt() {

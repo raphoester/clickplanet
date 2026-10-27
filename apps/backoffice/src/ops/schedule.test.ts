@@ -19,12 +19,14 @@ describe("the schedule's rows", () => {
 })
 
 describe("the sets", () => {
-    it("an entry plays are the ones both modules keep", () => {
+    it("an entry plays are the ones every module keeps", () => {
         const admin = new FakeAdmin()
+        const modules = {planet: admin.rules, antibot: admin.antibotRules, seasons: admin.seasonRules}
 
-        expect(playable(admin.rules, admin.antibotRules)).toEqual(["default"])
-        expect(lacking("rush", admin.rules, admin.antibotRules)).toEqual(["planet", "the antibot"])
-        expect(lacking("default", admin.rules, admin.antibotRules)).toEqual([])
+        expect(playable(modules)).toEqual(["default"])
+        expect(lacking("rush", modules)).toEqual(["planet", "the antibot"])
+        expect(lacking("frozen", modules)).toEqual(["planet", "the antibot", "seasons"])
+        expect(lacking("default", modules)).toEqual([])
     })
 })
 

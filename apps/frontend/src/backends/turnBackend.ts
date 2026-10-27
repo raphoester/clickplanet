@@ -37,11 +37,12 @@ export class ConnectTurnBackend implements TurnBackend {
 }
 
 export function turnOf(res: GetTurnResponse): Turn {
+    const turn = res.turn
     return {
-        kind: kindOf(res.kind),
-        since: res.since?.toDate().getTime(),
-        endsAt: res.endsAt?.toDate().getTime(),
-        description: res.description,
+        kind: kindOf(turn?.kind ?? EntryKind.UNSPECIFIED),
+        since: turn?.since?.toDate().getTime(),
+        endsAt: turn?.endsAt?.toDate().getTime(),
+        description: turn?.description ?? "",
     }
 }
 

@@ -49,3 +49,24 @@ func TestAFailureIsTriedAgainSoon(t *testing.T) {
 
 	assert.Less(t, wait, 100*time.Millisecond)
 }
+
+func TestAWakeRunsAgainAtOnce(t *testing.T) {
+	executor := stubExecutor{report: close_ended_rounds_usecase.Report{Next: utc(17, 21, 0)}, calls: make(chan time.Time, 10)}
+	runner := close_ended_rounds_usecase.NewRunner(executor, cptime.NewFixedClock(utc(16, 12, 0)), 20*time.Millisecond)
+	go runner.Run(t.Context())
+	<-executor.calls
+
+	runner.Wake()
+
+	select {
+	case <-executor.calls:
+	case <-time.After(time.Second):
+		t.Fatal("a wake did not run the executor again")
+	}
+}
+
+func TestWithNothingLeftToEndOnlyAWakeRunsAgain(t *testing.T) {
+	wait := waitBetweenCalls(t, close_ended_rounds_usecase.Report{}, nil)
+
+	assert.Equal(t, time.Second, wait, "no call came")
+}

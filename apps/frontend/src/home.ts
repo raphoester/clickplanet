@@ -1,5 +1,5 @@
 import {showChampion} from "./app/home/champion.ts"
-import {showFinale} from "./app/home/finale.ts"
+import {showSeason} from "./app/home/season.ts"
 import {carryQuery} from "./app/home/playLinks.ts"
 import {FakeHallOfFameBackend, sampleEndedSeason} from "./backends/fakeHallOfFameBackend.ts"
 import {FakeSeasonBackend, SEASON_ZERO} from "./backends/fakeSeasonBackend.ts"
@@ -20,7 +20,7 @@ const hallOfFame: HallOfFameBackend = import.meta.env.DEV && import.meta.env.VIT
 carryQuery(document, location.search)
 
 seasons.season().then(
-    (season) => season && showFinale(document, season),
+    (season) => season && showSeason(document, season),
     (e) => console.error("Could not read the season", e),
 )
 

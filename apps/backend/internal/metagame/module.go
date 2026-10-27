@@ -12,6 +12,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1/antibotv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/metagame/v1/metagamev1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
+	"github.com/raphoester/clickplanet.lol-backend/generated/proto/seasons/v1/seasonsv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/metagame/internal/metagamev1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/metagame/internal/metagamev1controller/add_entry_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/metagame/internal/metagamev1controller/delete_entry_handler"
@@ -29,6 +30,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/metagame/internal/schedule/redis_rule_set_commands"
 	"github.com/raphoester/clickplanet.lol-backend/internal/metagame/internal/schedule/rpc_antibot_rule_sets"
 	"github.com/raphoester/clickplanet.lol-backend/internal/metagame/internal/schedule/rpc_planet_rule_sets"
+	"github.com/raphoester/clickplanet.lol-backend/internal/metagame/internal/schedule/rpc_seasons_rule_sets"
 	"github.com/raphoester/clickplanet.lol-backend/internal/metagame/internal/schedule/usecases/add_entry_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/metagame/internal/schedule/usecases/add_entry_usecase/audit_add_entry"
 	"github.com/raphoester/clickplanet.lol-backend/internal/metagame/internal/schedule/usecases/delete_entry_usecase"
@@ -64,11 +66,12 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	internal, baseURL, err := props.Internal.Dial()
 	if err != nil {
-		return fmt.Errorf("the metagame module asks planet and the antibot which rule sets they keep: %w", err)
+		return fmt.Errorf("the metagame module asks planet, the antibot and seasons which rule sets they keep: %w", err)
 	}
 	keepers := []schedule.Keeper{
 		rpc_planet_rule_sets.New(planetv1connect.NewInternalServiceClient(internal, baseURL)),
 		rpc_antibot_rule_sets.New(antibotv1connect.NewInternalServiceClient(internal, baseURL)),
+		rpc_seasons_rule_sets.New(seasonsv1connect.NewInternalServiceClient(internal, baseURL)),
 	}
 
 	db := cppg.New(config.Database)

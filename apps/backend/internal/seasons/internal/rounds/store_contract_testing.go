@@ -23,9 +23,14 @@ func (s *StoreContractSuite) SetupTest() {
 }
 
 var (
-	contractDay     = Round{EndsAt: time.Date(2026, 10, 16, 21, 0, 0, 0, time.UTC)}
-	contractNextDay = Round{EndsAt: contractDay.EndsAt.Add(Length)}
-	contractFinale  = Round{EndsAt: time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC), Finale: true}
+	contractDay     = Round{EndsAt: time.Date(2026, 10, 16, 21, 0, 0, 0, time.UTC), Times: 1}
+	contractNextDay = Round{EndsAt: contractDay.EndsAt.Add(Length), Times: 1}
+	contractFinale  = Round{
+		EndsAt: time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC), Finale: true,
+		Own: true, StartsAt: time.Date(2026, 10, 31, 21, 0, 0, 0, time.UTC), Times: 3,
+	}
+	// contractBattle is a round of its own that ends with a day.
+	contractBattle = Round{EndsAt: contractDay.EndsAt, Own: true, StartsAt: contractDay.EndsAt.Add(-2 * time.Hour), Times: 2}
 )
 
 func (s *StoreContractSuite) open(rounds ...Round) {
@@ -96,7 +101,7 @@ func (s *StoreContractSuite) close(round Round, results ...Result) {
 }
 
 func (s *StoreContractSuite) TestASeasonListsTheRoundsItClosedInTheirOrder() {
-	nextSeason := Round{Season: 1, EndsAt: contractFinale.EndsAt.Add(Length)}
+	nextSeason := Round{Season: 1, EndsAt: contractFinale.EndsAt.Add(Length), Times: 1}
 	s.open(contractDay, contractNextDay, contractFinale, nextSeason)
 	day := []Result{{Country: "fr", Rank: 1, Points: 25, Share: 0.3}, {Country: "de", Rank: 2, Points: 18, Share: 0.1}}
 	nextDay := []Result{{Country: "de", Rank: 1, Points: 25, Share: 0.2}}
@@ -129,12 +134,141 @@ func (s *StoreContractSuite) number(round Round) uint32 {
 	return number
 }
 
-func (s *StoreContractSuite) TestARoundIsNumberedAfterTheRoundsOfItsSeasonOpenedBeforeIt() {
-	nextSeason := Round{Season: 1, EndsAt: contractNextDay.EndsAt.Add(Length)}
-	s.open(contractDay, contractNextDay, nextSeason)
+func (s *StoreContractSuite) TestARoundIsNumberedAfterTheRoundsOfItsSeasonAndItsKindOpenedBeforeIt() {
+	nextSeason := Round{Season: 1, EndsAt: contractNextDay.EndsAt.Add(Length), Times: 1}
+	s.open(contractDay, contractBattle, contractNextDay, nextSeason)
 
 	s.Equal(uint32(1), s.number(contractDay))
 	s.Equal(uint32(2), s.number(contractNextDay))
-	s.Equal(uint32(3), s.number(contractFinale))
+	s.Equal(uint32(1), s.number(contractBattle))
+	s.Equal(uint32(2), s.number(contractFinale))
 	s.Equal(uint32(1), s.number(nextSeason))
+}
+
+func (s *StoreContractSuite) TestADayAndARoundOfItsOwnThatEndTogetherAreTwoRoundsTheDayFirst() {
+	s.open(contractBattle, contractDay)
+
+	s.Equal([]Round{contractDay, contractBattle}, s.unclosed(contractDay.EndsAt))
+
+	s.close(contractBattle, Result{Country: "de", Rank: 1, Points: 50, Share: 0.4})
+	s.close(contractDay, Result{Country: "fr", Rank: 1, Points: 25, Share: 0.3})
+	s.Equal([]Closed{
+		{Round: contractDay, Number: 1, Results: []Result{{Country: "fr", Rank: 1, Points: 25, Share: 0.3}}},
+		{Round: contractBattle, Number: 1, Results: []Result{{Country: "de", Rank: 1, Points: 50, Share: 0.4}}},
+	}, s.closedIn(0))
+}
+
+func (s *StoreContractSuite) firstEnd() (time.Time, bool) {
+	first, found, err := s.store.FirstEnd(s.T().Context())
+	s.Require().NoError(err)
+	return first, found
+}
+
+func (s *StoreContractSuite) TestTheFirstEndIsTheEarliestOfTheRoundsLeftToClose() {
+	_, found := s.firstEnd()
+	s.False(found)
+
+	s.open(contractNextDay, contractFinale, contractDay)
+	first, found := s.firstEnd()
+	s.True(found)
+	s.True(contractDay.EndsAt.Equal(first), "%s", first)
+
+	s.close(contractDay)
+	first, _ = s.firstEnd()
+	s.True(contractNextDay.EndsAt.Equal(first), "%s", first)
+}
+
+func (s *StoreContractSuite) TestASeasonEndsOnce() {
+	season := calendar.Season{Number: 0, LastDayEndsAt: contractDay.EndsAt, EndsAt: contractFinale.EndsAt}
+
+	ended, err := s.store.Ended(s.T().Context(), 0)
+	s.Require().NoError(err)
+	s.False(ended)
+
+	first, err := s.store.End(s.T().Context(), season)
+	s.Require().NoError(err)
+	again, err := s.store.End(s.T().Context(), season)
+	s.Require().NoError(err)
+
+	s.True(first)
+	s.False(again, "only the first end ends the season")
+	ended, err = s.store.Ended(s.T().Context(), 0)
+	s.Require().NoError(err)
+	s.True(ended)
+	ended, err = s.store.Ended(s.T().Context(), 1)
+	s.Require().NoError(err)
+	s.False(ended)
+}
+
+// TakesContractSuite pins what a round of its own counts of its takes. CountedIn reads it back, since the write side
+// reads nothing.
+type TakesContractSuite struct {
+	suite.Suite
+
+	NewStores func() (Store, Takes)
+	CountedIn func(round Round) Counted
+
+	store Store
+	takes Takes
+}
+
+// Counted is the tiles a round counted for each flag, and for each account and flag.
+type Counted struct {
+	Countries map[Country]uint64
+	Players   map[AccountID]map[Country]uint64
+}
+
+func (s *TakesContractSuite) SetupTest() {
+	s.store, s.takes = s.NewStores()
+}
+
+var (
+	contractPlayer = AccountID{1}
+	contractOther  = AccountID{2}
+)
+
+func (s *TakesContractSuite) count(takes ...Take) {
+	for _, take := range takes {
+		s.Require().NoError(s.takes.Count(s.T().Context(), take))
+	}
+}
+
+func (s *TakesContractSuite) TestARoundOfItsOwnCountsTheTakesOfItsWindowOnce() {
+	s.Require().NoError(s.store.Open(s.T().Context(), contractFinale))
+	s.Require().NoError(s.store.Open(s.T().Context(), contractDay))
+	at := contractFinale.StartsAt
+
+	s.count(
+		Take{Account: contractPlayer, Country: "fr", At: at.Add(-time.Second), Position: 1},
+		Take{Account: contractPlayer, Country: "fr", At: at, Position: 2},
+		Take{Account: contractPlayer, Country: "fr", At: at.Add(time.Minute), Position: 3},
+		Take{Account: contractPlayer, Country: "fr", At: at.Add(time.Minute), Position: 3},
+		Take{Account: contractPlayer, Country: "be", At: at.Add(time.Hour), Position: 4},
+		Take{Account: contractOther, Country: "de", At: at.Add(time.Hour), Position: 5},
+		Take{Account: contractOther, Country: "de", At: contractFinale.EndsAt, Position: 6},
+	)
+
+	s.Equal(Counted{
+		Countries: map[Country]uint64{"fr": 2, "be": 1, "de": 1},
+		Players: map[AccountID]map[Country]uint64{
+			contractPlayer: {"fr": 2, "be": 1},
+			contractOther:  {"de": 1},
+		},
+	}, s.CountedIn(contractFinale), "from its start, to before its end, a take told again once")
+	s.Empty(s.CountedIn(contractDay).Countries, "a day counts no takes")
+}
+
+func (s *TakesContractSuite) TestAnAccountDeletedIsForgottenAndItsFlagKeepsItsTiles() {
+	s.Require().NoError(s.store.Open(s.T().Context(), contractFinale))
+	s.count(
+		Take{Account: contractPlayer, Country: "fr", At: contractFinale.StartsAt, Position: 1},
+		Take{Account: contractOther, Country: "fr", At: contractFinale.StartsAt, Position: 2},
+	)
+
+	s.Require().NoError(s.takes.ForgetAccount(s.T().Context(), contractPlayer))
+
+	s.Equal(Counted{
+		Countries: map[Country]uint64{"fr": 2},
+		Players:   map[AccountID]map[Country]uint64{contractOther: {"fr": 1}},
+	}, s.CountedIn(contractFinale))
 }

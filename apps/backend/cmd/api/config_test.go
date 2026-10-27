@@ -292,7 +292,7 @@ func TestTheExampleConfigReachesTheSeasonsBlock(t *testing.T) {
 	season := config.Seasons.Calendar.List[0]
 	assert.Zero(t, season.Number)
 	assert.True(t, time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC).Equal(season.EndsAt))
-	assert.Equal(t, 2*time.Hour, season.Finale)
+	assert.Equal(t, 21*time.Hour, config.Seasons.Calendar.DailyCutoff)
 	assert.Equal(t, "seasons", config.Seasons.Database.Schema)
 	require.NoError(t, config.Seasons.Database.Validate())
 }
@@ -348,7 +348,6 @@ seasons:
   list:
     - number: 1
       endsAt: 2026-10-31T23:00:00Z
-      finale: 2h
 `), 0o600))
 
 	var config Config

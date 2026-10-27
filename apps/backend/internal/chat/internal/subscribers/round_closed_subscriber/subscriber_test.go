@@ -65,6 +65,23 @@ func TestTheFinaleIsAnnouncedAsTheFinale(t *testing.T) {
 	assert.JSONEq(t, `{"number":23,"finale":true,"podium":[{"country":"fr","rank":1,"points":75}]}`, string(kept[0].Payload()))
 }
 
+func TestARoundOfItsOwnIsAnnouncedAsOneApartFromTheDayOfItsNumber(t *testing.T) {
+	store := inmemory_announcement_storage.New()
+	day := &seasonsv1.RoundClosed{Number: 1, EndedAt: timestamppb.New(endedAt), Times: 1}
+	battle := &seasonsv1.RoundClosed{
+		Number: 1, Finale: true, Own: true, Times: 3, EndedAt: timestamppb.New(endedAt),
+		Results: []*seasonsv1.RoundResult{{Country: "fr", Rank: 1, Points: 75}},
+	}
+
+	require.NoError(t, subscriber(store).Handle(t.Context(), day))
+	require.NoError(t, subscriber(store).Handle(t.Context(), battle))
+
+	kept := store.Kept()
+	require.Len(t, kept, 2, "day 1 and the first round of its own")
+	assert.JSONEq(t, `{"number":1,"finale":true,"own":true,"times":3,"podium":[{"country":"fr","rank":1,"points":75}]}`,
+		string(kept[1].Payload()))
+}
+
 func TestARoundToldTwiceIsAnnouncedOnce(t *testing.T) {
 	store := inmemory_announcement_storage.New()
 	closed := func(season, number uint32) *seasonsv1.RoundClosed {

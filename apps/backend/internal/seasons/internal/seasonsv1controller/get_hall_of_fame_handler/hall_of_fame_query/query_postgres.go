@@ -59,7 +59,7 @@ func (q *PostgresQuery) HallOfFame(ctx context.Context) (*seasonsv1.GetHallOfFam
 
 func (q *PostgresQuery) ended(ctx context.Context) ([]*seasonsv1.EndedSeason, error) {
 	rows, err := q.db.On(ctx).QueryContext(ctx, `
-		SELECT season, ends_at FROM rounds WHERE finale AND closed ORDER BY season DESC
+		SELECT season, ended_at FROM ended_seasons ORDER BY season DESC
 	`)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the seasons that ended: %w", err)
@@ -69,15 +69,15 @@ func (q *PostgresQuery) ended(ctx context.Context) ([]*seasonsv1.EndedSeason, er
 	ended := []*seasonsv1.EndedSeason{}
 	for rows.Next() {
 		var (
-			season int64
-			endsAt time.Time
+			season  int64
+			endedAt time.Time
 		)
-		if err := rows.Scan(&season, &endsAt); err != nil {
+		if err := rows.Scan(&season, &endedAt); err != nil {
 			return nil, fmt.Errorf("failed to read a season that ended: %w", err)
 		}
 		ended = append(ended, &seasonsv1.EndedSeason{
 			Number:        uint32(season), //nolint:gosec // CHECK (season >= 0).
-			EndedAtUnixMs: endsAt.UnixMilli(),
+			EndedAtUnixMs: endedAt.UnixMilli(),
 		})
 	}
 	if err := rows.Err(); err != nil {
@@ -92,7 +92,7 @@ func (q *PostgresQuery) scores(ctx context.Context, season uint32) ([]*seasonsv1
 		       sum(result.points),
 		       count(*) FILTER (WHERE result.rank = 1),
 		       coalesce(sum(result.points) FILTER (WHERE round.finale), 0)
-		FROM round_results AS result JOIN rounds AS round USING (season, ends_at)
+		FROM round_results AS result JOIN rounds AS round USING (season, ends_at, own)
 		WHERE result.season = $1
 		GROUP BY result.country
 		HAVING sum(result.points) > 0

@@ -9,10 +9,20 @@ const backendWith = (getSeason: () => Promise<GetSeasonResponse>) =>
 describe("ConnectSeasonBackend", () => {
     it("reads the season in milliseconds", async () => {
         const backend = backendWith(async () => new GetSeasonResponse({
+            season: new SeasonPb({
+                number: 2, lastDayEndsAtUnixMs: 1793480400000n, finaleStartsAtUnixMs: 1793480400000n, endsAtUnixMs: 1793487600000n,
+            }),
+        }))
+
+        expect(await backend.season()).toEqual({number: 2, lastDayEndsAt: 1793480400000, endsAt: 1793487600000})
+    })
+
+    it("reads the last day's end of a server from before it, which sent it as the finale's start", async () => {
+        const backend = backendWith(async () => new GetSeasonResponse({
             season: new SeasonPb({number: 2, finaleStartsAtUnixMs: 1793480400000n, endsAtUnixMs: 1793487600000n}),
         }))
 
-        expect(await backend.season()).toEqual({number: 2, finaleStartsAt: 1793480400000, endsAt: 1793487600000})
+        expect((await backend.season())?.lastDayEndsAt).toBe(1793480400000)
     })
 
     it("has no season when the server answers none", async () => {

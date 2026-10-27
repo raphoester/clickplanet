@@ -36,8 +36,12 @@ message GetSeasonResponse {
 
 message Season {
   uint32 number = 1;
+  // The same as last_day_ends_at_unix_ms, for the clients from before it: the Final Battle followed the last day until
+  // it was a schedule entry of the metagame.
   int64 finale_starts_at_unix_ms = 2;
   int64 ends_at_unix_ms = 3;
+  // When the season's last day ends. Every day ends at this time of day.
+  int64 last_day_ends_at_unix_ms = 4;
 }
 
 message GetStandingsRequest {
@@ -96,19 +100,44 @@ message Race {
 
 message ClosedRound {
   uint32 season = 1;
+  // A day's place among the season's days; a round of its own's among the season's rounds of their own.
   uint32 number = 2;
   int64 ended_at_unix_ms = 3;
+  // The round that ended the season.
   bool finale = 4;
   repeated RoundStanding standings = 5;
   repeated Score before = 6;
   repeated Score after = 7;
+  // A round of its own: the window of a schedule entry whose set asked for one, not a day.
+  bool own = 8;
+  // How many times a day's points it scored: 1 for a day.
+  uint32 times = 9;
+  // When a round of its own started; 0 for a day.
+  int64 started_at_unix_ms = 10;
+  // The tiles each country's players took during a round of its own, most first; none for a day.
+  repeated RoundTakes takes = 11;
+  // The top 10 signed-in players of a round of its own by the tiles they took during it, each under the flag it took
+  // the most for, named as the boards name them; none for a day.
+  repeated Standing players = 12;
 }
 
+// The round in progress that ends first: a day, or a round of its own.
 message Round {
+  // A day's place among the season's days; a round of its own's among the season's rounds of their own.
   uint32 number = 1;
   int64 ends_at_unix_ms = 2;
+  // The round that ends the season.
   bool finale = 3;
   repeated RoundStanding standings = 4;
+  // A round of its own: the window of a schedule entry whose set asked for one, not a day.
+  bool own = 5;
+  // How many times a day's points it scores: 1 for a day.
+  uint32 times = 6;
+}
+
+message RoundTakes {
+  string country_id = 1;
+  uint64 tiles = 2;
 }
 
 message RoundStanding {

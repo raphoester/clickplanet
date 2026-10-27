@@ -54,10 +54,10 @@ func utc(month time.Month, day, hour int) time.Time {
 }
 
 var (
-	thirtieth   = rounds.Round{EndsAt: utc(10, 30, 21)}
-	thirtyFirst = rounds.Round{EndsAt: utc(10, 31, 21)}
-	finale      = rounds.Round{EndsAt: utc(10, 31, 23), Finale: true}
-	nextFinale  = rounds.Round{Season: 1, EndsAt: utc(12, 31, 23), Finale: true}
+	thirtieth   = rounds.Round{EndsAt: utc(10, 30, 21), Times: 1}
+	thirtyFirst = rounds.Round{EndsAt: utc(10, 31, 21), Times: 1}
+	finale      = rounds.Round{EndsAt: utc(10, 31, 23), Finale: true, Own: true, StartsAt: utc(10, 31, 21), Times: 3}
+	nextFinale  = rounds.Round{Season: 1, EndsAt: utc(12, 31, 23), Finale: true, Own: true, StartsAt: utc(12, 31, 21), Times: 3}
 )
 
 type testSuite struct {
@@ -89,6 +89,16 @@ func (s *testSuite) closed(round rounds.Round, results ...rounds.Result) {
 	s.open(round)
 	_, err := s.rounds.Close(s.T().Context(), round, results)
 	s.Require().NoError(err)
+}
+
+func (s *testSuite) ended(season calendar.Number, at time.Time) {
+	_, err := s.rounds.End(s.T().Context(), calendar.Season{Number: season, EndsAt: at})
+	s.Require().NoError(err)
+}
+
+func (s *testSuite) endedWith(finale rounds.Round, results ...rounds.Result) {
+	s.closed(finale, results...)
+	s.ended(finale.Season, finale.EndsAt)
 }
 
 func account(n int) standings.AccountID {
@@ -142,17 +152,17 @@ func (s *testSuite) equalScores(want, got []*seasonsv1.Score) {
 	}
 }
 
-func (s *testSuite) TestBeforeAFinaleClosesTheHallIsEmptyAndAsksNobody() {
+func (s *testSuite) TestBeforeASeasonEndsTheHallIsEmptyAndAsksNobody() {
 	s.closed(thirtieth, rounds.Result{Country: "fr", Rank: 1, Points: 25})
-	s.open(finale)
+	s.closed(finale, rounds.Result{Country: "fr", Rank: 1, Points: 75})
 	s.player(0, 1, "fr", 3)
 
 	s.Empty(s.hall())
 	s.Zero(s.authors.asked)
 }
 
-func (s *testSuite) TestASeasonWhoseFinaleClosedIsInTheHallWithItsEnd() {
-	s.closed(finale, rounds.Result{Country: "fr", Rank: 1, Points: 75})
+func (s *testSuite) TestASeasonThatEndedIsInTheHallWithItsEnd() {
+	s.endedWith(finale, rounds.Result{Country: "fr", Rank: 1, Points: 75})
 
 	season := s.onlySeason()
 
@@ -168,7 +178,7 @@ func (s *testSuite) TestTheTableIsEveryCountryWithPointsChampionFirst() {
 	s.closed(thirtyFirst,
 		rounds.Result{Country: "fr", Rank: 1, Points: 25},
 		rounds.Result{Country: "de", Rank: 2, Points: 18})
-	s.closed(finale,
+	s.endedWith(finale,
 		rounds.Result{Country: "fr", Rank: 1, Points: 75},
 		rounds.Result{Country: "it", Rank: 2, Points: 54})
 
@@ -179,6 +189,27 @@ func (s *testSuite) TestTheTableIsEveryCountryWithPointsChampionFirst() {
 	}, s.onlySeason().GetScores())
 }
 
+func (s *testSuite) TestASeasonThatEndsWithNoRoundEndingWithItIsInTheHall() {
+	s.closed(thirtyFirst, rounds.Result{Country: "fr", Rank: 1, Points: 25})
+	s.ended(0, finale.EndsAt)
+
+	s.equalScores([]*seasonsv1.Score{{Rank: 1, CountryId: "fr", Points: 25, RoundsWon: 1}}, s.onlySeason().GetScores())
+}
+
+func (s *testSuite) TestADayAndARoundOfItsOwnEndingTogetherEachCountOnce() {
+	battle := rounds.Round{EndsAt: thirtyFirst.EndsAt, Own: true, StartsAt: utc(10, 31, 19), Times: 2}
+	s.closed(thirtyFirst, rounds.Result{Country: "fr", Rank: 1, Points: 25})
+	s.closed(battle,
+		rounds.Result{Country: "fr", Rank: 1, Points: 50},
+		rounds.Result{Country: "de", Rank: 2, Points: 36})
+	s.ended(0, finale.EndsAt)
+
+	s.equalScores([]*seasonsv1.Score{
+		{Rank: 1, CountryId: "fr", Points: 75, RoundsWon: 2},
+		{Rank: 2, CountryId: "de", Points: 36},
+	}, s.onlySeason().GetScores())
+}
+
 func (s *testSuite) TestCountriesLevelOnPointsAreRankedByTheRoundsTheyWon() {
 	s.closed(thirtieth,
 		rounds.Result{Country: "de", Rank: 1, Points: 25},
@@ -186,7 +217,7 @@ func (s *testSuite) TestCountriesLevelOnPointsAreRankedByTheRoundsTheyWon() {
 	s.closed(thirtyFirst,
 		rounds.Result{Country: "de", Rank: 1, Points: 25},
 		rounds.Result{Country: "fr", Rank: 9, Points: 2})
-	s.closed(finale,
+	s.endedWith(finale,
 		rounds.Result{Country: "fr", Rank: 1, Points: 75},
 		rounds.Result{Country: "de", Rank: 3, Points: 45})
 
@@ -201,7 +232,7 @@ func (s *testSuite) TestCountriesLevelOnEverythingShareTheTitle() {
 		rounds.Result{Country: "de", Rank: 1, Points: 25},
 		rounds.Result{Country: "fr", Rank: 1, Points: 25},
 		rounds.Result{Country: "it", Rank: 3, Points: 15})
-	s.closed(finale,
+	s.endedWith(finale,
 		rounds.Result{Country: "de", Rank: 1, Points: 75},
 		rounds.Result{Country: "fr", Rank: 1, Points: 75})
 
@@ -213,7 +244,7 @@ func (s *testSuite) TestCountriesLevelOnEverythingShareTheTitle() {
 }
 
 func (s *testSuite) TestTheTopPlayersAreTheTenBestWithAUsernameByTheirMainFlag() {
-	s.closed(finale, rounds.Result{Country: "fr", Rank: 1, Points: 75})
+	s.endedWith(finale, rounds.Result{Country: "fr", Rank: 1, Points: 75})
 	for n := 1; n <= 12; n++ {
 		s.player(0, n, "fr", 20-n)
 	}
@@ -233,7 +264,7 @@ func (s *testSuite) TestTheTopPlayersAreTheTenBestWithAUsernameByTheirMainFlag()
 }
 
 func (s *testSuite) TestEachTopPlayerWearsTheTitleItWearsNow() {
-	s.closed(finale, rounds.Result{Country: "fr", Rank: 1, Points: 75})
+	s.endedWith(finale, rounds.Result{Country: "fr", Rank: 1, Points: 75})
 	warmaster := &playerv1.Title{Id: "warmaster", Name: "Warmaster"}
 	s.player(0, 1, "fr", 5)
 	s.authors.named[account(1)].WornTitle = warmaster
@@ -245,7 +276,7 @@ func (s *testSuite) TestEachTopPlayerWearsTheTitleItWearsNow() {
 }
 
 func (s *testSuite) TestTheTopReadsPastAPageOfGuests() {
-	s.closed(finale, rounds.Result{Country: "fr", Rank: 1, Points: 75})
+	s.endedWith(finale, rounds.Result{Country: "fr", Rank: 1, Points: 75})
 	for n := range 250 {
 		s.guest(0, 1000+n, "fr", 2)
 	}
@@ -256,8 +287,8 @@ func (s *testSuite) TestTheTopReadsPastAPageOfGuests() {
 }
 
 func (s *testSuite) TestEachSeasonEndedIsInTheHallNewestFirstWithItsOwnTableAndPlayers() {
-	s.closed(finale, rounds.Result{Country: "fr", Rank: 1, Points: 75})
-	s.closed(nextFinale, rounds.Result{Country: "de", Rank: 1, Points: 75})
+	s.endedWith(finale, rounds.Result{Country: "fr", Rank: 1, Points: 75})
+	s.endedWith(nextFinale, rounds.Result{Country: "de", Rank: 1, Points: 75})
 	s.player(0, 1, "fr", 3)
 	s.player(1, 2, "de", 4)
 
@@ -274,14 +305,14 @@ func (s *testSuite) TestEachSeasonEndedIsInTheHallNewestFirstWithItsOwnTableAndP
 }
 
 func (s *testSuite) TestASeasonWithNobodyRankedHasNoPlayers() {
-	s.closed(finale, rounds.Result{Country: "fr", Rank: 1, Points: 75})
+	s.endedWith(finale, rounds.Result{Country: "fr", Rank: 1, Points: 75})
 	s.guest(0, 1, "fr", 3)
 
 	s.Empty(s.onlySeason().GetStandings())
 }
 
 func (s *testSuite) TestAFailureToNameIsAnError() {
-	s.closed(finale, rounds.Result{Country: "fr", Rank: 1, Points: 75})
+	s.endedWith(finale, rounds.Result{Country: "fr", Rank: 1, Points: 75})
 	s.player(0, 1, "fr", 3)
 	refused := errors.New("the player module is down")
 	s.authors.err = refused

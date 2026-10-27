@@ -118,7 +118,9 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `player.database.*` — profiles and stats, same shape as `database`, schema `player`; required. `player.database.password` belongs in the environment
 - `missions.cutoff` — the time of day, in UTC, a mission day ends (production 21h, the daily round's; unset, midnight). From 0 up to 24h, or the boot is refused
 - `missions.database.*` — the briefs, the sheets and the collections, same shape as `database`, schema `missions`; required. `missions.database.password` belongs in the environment
-- `seasons.list` — each season's `number` (0 up), `endsAt` (RFC 3339) and `finale` (a duration); empty is no season
+- `seasons.list` — each season's `number` (0 up) and `endsAt` (RFC 3339); empty is no season. The Final Battle is a
+  schedule entry, not a key (see [The season rules](season-rules.md))
+- `seasons.dailyCutoff` — the time of day, UTC, every day ends at, as a duration from midnight (`21h`); 0s to under 24h
 - `seasons.database.*` — the standings and the rounds, same shape as `database`, schema `seasons`; required. `seasons.database.password` belongs in the environment
 - `metagame.database.*` — the rule schedule's entries, same shape as `database`, schema `metagame`; required. `metagame.database.password` belongs in the environment. See [The metagame module](metagame.md)
 - `support.database.*` — what players send the operator, same shape as `database`, schema `support`; required. `support.database.password` belongs in the environment

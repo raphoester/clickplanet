@@ -13,28 +13,37 @@ type Runner struct {
 	executor Executor
 	clock    cptime.Clock
 	retry    time.Duration
+	wake     chan struct{}
 }
 
 func NewRunner(executor Executor, clock cptime.Clock, retry time.Duration) *Runner {
-	return &Runner{executor: executor, clock: clock, retry: retry}
+	return &Runner{executor: executor, clock: clock, retry: retry, wake: make(chan struct{}, 1)}
 }
 
 func (r *Runner) Name() string { return "seasons-rounds" }
 
+// Wake runs the executor again at once: a round of its own just opened may end before the one the runner waits for.
+func (r *Runner) Wake() {
+	select {
+	case r.wake <- struct{}{}:
+	default:
+	}
+}
+
 func (r *Runner) Run(ctx context.Context) {
 	for {
 		report, err := r.executor.Execute(ctx)
-		wait := r.retry
-		if err == nil {
-			if report.Next.IsZero() {
-				<-ctx.Done()
-				return
-			}
-			wait = report.Next.Sub(r.clock.Now())
+		var due <-chan time.Time
+		switch {
+		case err != nil:
+			due = time.After(r.retry)
+		case !report.Next.IsZero():
+			due = time.After(report.Next.Sub(r.clock.Now()))
 		}
 
 		select {
-		case <-time.After(wait):
+		case <-due:
+		case <-r.wake:
 		case <-ctx.Done():
 			return
 		}

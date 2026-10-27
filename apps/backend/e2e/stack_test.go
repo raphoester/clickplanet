@@ -202,10 +202,10 @@ func currentSeason(t *testing.T, database cppg.Config) seasons.Config {
 	path := filepath.Join(t.TempDir(), "seasons.yaml")
 	require.NoError(t, os.WriteFile(path, fmt.Appendf(nil, `
 seasons:
+  dailyCutoff: 21h
   list:
     - number: 0
       endsAt: %s
-      finale: 2h
 `, time.Now().Add(30*24*time.Hour).UTC().Format(time.RFC3339)), 0o600))
 	var config struct{ Seasons seasons.Config }
 	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile(path)))
