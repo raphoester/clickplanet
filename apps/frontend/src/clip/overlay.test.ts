@@ -3,7 +3,7 @@ import {Day, sidesOf, Story, teamFlagOf, THE_WORLD} from "../domain/clip/story.t
 import {hashtagsOf, nameOf, wordsOf} from "./overlay.ts"
 
 const day: Day = {
-    season: 1, number: 5, finale: false, endedAt: 0,
+    season: 1, number: 5, finale: false, own: false, endedAt: 0,
     podium: [{country: "fr", rank: 1, points: 25}, {country: "pw", rank: 2, points: 18}],
     table: [{country: "fr", rank: 1, points: 86}],
 }
@@ -245,6 +245,14 @@ describe("a day of the season", () => {
         expect(words.headline).toBe("FRANCE WINS THE FINAL BATTLE")
         expect(words.line).toBe("Wins the season with 86 points")
         expect(words.call).toBe("PLAY FOR YOUR COUNTRY")
+    })
+
+    it("tells a battle's round of its own as the battle, never as a day", () => {
+        const words = wordsOf({...story("round", {region: "the world"}), attacker: "fr", day: {...day, number: 2, own: true}})
+
+        expect(words.headline).toBe("FRANCE WINS THE BATTLE")
+        expect(words.call).toBe("PLAY FOR YOUR COUNTRY")
+        expect(words.teasers).toEqual(["FRANCE TAKES THE BATTLE", "THE BATTLE GOES TO FRANCE"])
     })
 })
 

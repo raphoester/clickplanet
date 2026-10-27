@@ -13,6 +13,11 @@ const FINALE: ClosedRound = {
     standings: [],
     before: [score(1, "fr", 300), score(2, "de", 290)],
     after: [score(1, "de", 365), score(2, "fr", 354)],
+    own: true,
+    times: 3,
+    startedAt: Date.UTC(2026, 9, 31, 21),
+    takes: [],
+    players: [],
 }
 
 const SEASON_ZERO: Season = {number: 0, lastDayEndsAt: Date.UTC(2026, 9, 31, 21), endsAt: Date.UTC(2026, 9, 31, 23)}

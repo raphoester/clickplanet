@@ -345,8 +345,9 @@ function FortifyLine({announcement}: {announcement: FortifyAnnouncement}) {
 function RoundLine({announcement}: {announcement: RoundAnnouncement}) {
     return <li className="chat-announcement chat-announcement-round" data-at={announcement.announcedAt}>
         <span className="chat-round-head">
-            <span className="chat-announcement-icon" aria-hidden="true">🏁</span>
+            <span className="chat-announcement-icon" aria-hidden="true">{announcement.own ? "⚔️" : "🏁"}</span>
             <strong>{roundOverLine(announcement)}</strong>
+            {announcement.own && announcement.times > 1 && <span className="chat-round-times">×{announcement.times}</span>}
             <time className="chat-announcement-time" dateTime={new Date(announcement.announcedAt).toISOString()}>
                 {clock.format(announcement.announcedAt)}
             </time>

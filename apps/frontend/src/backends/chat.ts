@@ -79,6 +79,8 @@ export type RoundAnnouncement = {
     announcedAt: number
     number: number
     finale: boolean
+    own: boolean
+    times: number
     podium: PodiumPlace[]
 }
 

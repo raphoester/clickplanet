@@ -260,12 +260,16 @@ tiles or more a flag fortified, and `champion`, the country that won a season.
   the bomber's flag and the time. It ends the run above it, so the next message
   says again who is talking.
 - **A round is a gold card** (`RoundLine`, `.chat-announcement-round`): "Day 5
-  is over!" or "The Final Battle is over!" (`roundOverLine`, the words of the
-  reveal), the time, then one place per podium country: its medal, its flag,
-  its name and the points it won. The payload is `{number, finale, podium}`; the
-  podium is the places ranked 3rd or better, ties included (the backend's
-  [Announcements](../../backend/docs/chat.md#announcements)). A place with no country, or with a rank or points
-  under 1, is dropped. Its time is the round's end.
+  is over!" (`roundOverLine`, the words of the reveal), the time, then one place
+  per podium country: its medal, its flag, its name and the points it won. **A
+  battle's round of its own is told as the battle's, never as a day**: ⚔️ for 🏁,
+  "The battle is over!" or "The Final Battle is over!", and its times in a war chip
+  ("×3"), since a round of its own is numbered apart from the days. The payload is
+  `{number, finale, own, times, podium}`, `own` and `times` absent for a day (read
+  as a day, ×1); the podium is the places ranked 3rd or better, ties included (the
+  backend's [Announcements](../../backend/docs/chat.md#announcements)). A place
+  with no country, or with a rank or points under 1, is dropped. Its time is the
+  round's end.
 - **A champion is a gold line** (`ChampionLine`, `.chat-announcement-champion`):
   🏆, the flag of each champion and "Germany wins Season 0" (`winsLine`, the
   words of the reveal). The payload is `{season, countries}`; a champion with
@@ -273,7 +277,7 @@ tiles or more a flag fortified, and `champion`, the country that won a season.
   season, so it shows once.
 - In fake mode `main.tsx` hands every `FakeBackend` bomb to
   `FakeChatBackend.announceBomb`, with no ground: the fake has no borders.
-  `closeDay()` and `closeFinale()` announce their round through
+  `closeDay()`, `closeBattle()` and `closeFinale()` announce their round through
   `FakeChatBackend.announceRound`, and `closeFinale()` its champion through
   `FakeChatBackend.announceChampion`, once a season as the server does.
   `fakeChat.mute()` in the console announces a mute of the player for an hour

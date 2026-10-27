@@ -79,9 +79,31 @@ describe("FakeStandingsBackend.listenForRace", () => {
         stop()
     })
 
-    it("scores the Final Battle triple", () => {
-        const backend = new FakeStandingsBackend(PLAYERS, () => 0, () => 0)
+    it("shows a battle's round of its own while it is open, at its times", async () => {
+        vi.useFakeTimers()
+        const now = Date.UTC(2026, 9, 31, 21)
+        const backend = new FakeStandingsBackend(PLAYERS, () => 0, () => now)
+        let latest: Race | undefined
+        const stop = backend.listenForRace((race) => latest = race)
+        await vi.advanceTimersByTimeAsync(0)
 
-        expect(backend.closeRound(true).standings.map((s) => s.points)).toEqual([75, 54])
+        backend.openBattle(now, now + 7_200_000, 3)
+
+        expect(latest?.round).toMatchObject({number: 1, endsAt: now + 7_200_000, own: true, times: 3})
+        expect(latest?.round?.standings.map((s) => s.points)).toEqual([75, 54])
+        stop()
+    })
+
+    it("closes a battle with its numbers: triple points, the tiles each flag took and its top players", () => {
+        const now = Date.UTC(2026, 9, 31, 23)
+        const backend = new FakeStandingsBackend(PLAYERS, () => 0.5, () => now)
+        backend.openBattle(now - 7_200_000, now, 3)
+
+        const closed = backend.closeBattle(true)
+
+        expect(closed).toMatchObject({number: 1, endedAt: now, startedAt: now - 7_200_000, finale: true, own: true, times: 3})
+        expect(closed.standings.map((s) => s.points)).toEqual([75, 54])
+        expect(closed.takes).toEqual([{countryCode: "fr", tiles: 5}, {countryCode: "gh", tiles: 2}])
+        expect(closed.players.map((p) => `${p.rank} ${p.name} ${p.countryCode} ${p.tiles}`)).toEqual(["1 Ana fr 3", "2 Kofi gh 2", "3 Bastien fr 1"])
     })
 })

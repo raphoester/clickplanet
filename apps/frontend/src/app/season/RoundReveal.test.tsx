@@ -27,9 +27,15 @@ const DAY: ClosedRound = {
     standings: [result(1, "fr", 25), result(2, "de", 18), result(3, "es", 15)],
     before: [score(1, "de", 50), score(2, "fr", 30)],
     after: [score(1, "de", 68), score(2, "fr", 55), score(3, "es", 15)],
+    own: false,
+    times: 1,
+    startedAt: 0,
+    takes: [],
+    players: [],
 }
 
 const FINALE: ClosedRound = {...DAY, number: 23, finale: true}
+const FINAL_BATTLE: ClosedRound = {...DAY, number: 1, finale: true, own: true, times: 3, startedAt: Date.UTC(2026, 9, 16, 19)}
 
 const user = () => userEvent.setup({advanceTimers: vi.advanceTimersByTime})
 
@@ -47,10 +53,10 @@ describe("RoundReveal", () => {
         expect(within(dialog).getByLabelText("Rank 2")).toBeDefined()
     })
 
-    it("names the Final Battle", () => {
-        render(<RoundReveal closed={{...DAY, finale: true}} countryCode="fr" play={vi.fn()} onClose={vi.fn()}/>)
+    it("names a day that ends the season by its number", () => {
+        render(<RoundReveal closed={FINALE} countryCode="fr" play={vi.fn()} onClose={vi.fn()}/>)
 
-        expect(screen.getByRole("dialog", {name: "The Final Battle is over!"})).toBeDefined()
+        expect(screen.getByRole("dialog", {name: "Day 23 is over!"})).toBeDefined()
     })
 
     it("plays the fanfare as it opens", () => {
@@ -145,6 +151,26 @@ describe("RoundReveal", () => {
         expect(screen.queryByText("🏆")).toBeNull()
         expect(screen.getByText("Season 0")).toBeDefined()
         expect(screen.getByRole("button", {name: "Close"})).toBeDefined()
+    })
+
+    it("shows the season's results with no podium: the table before and after, then the champion", async () => {
+        const onClose = vi.fn()
+        render(<RoundReveal closed={FINAL_BATTLE} results countryCode="fr" play={vi.fn()} onClose={onClose}/>)
+
+        expect(screen.getByRole("dialog", {name: "Season 0 is over!"})).toBeDefined()
+        expect(screen.queryByLabelText("Rank 2")).toBeNull()
+        expect(screen.getByText("Final table")).toBeDefined()
+        expect(within(rowOf("France")).getByText("30")).toBeDefined()
+
+        after(ROUND_REVEAL.slide)
+        after(ROUND_REVEAL.settle)
+        expect(within(rowOf("France")).getByText("55")).toBeDefined()
+        after(ROUND_REVEAL.hold)
+
+        expect(screen.getByRole("dialog", {name: "Germany wins Season 0"})).toBeDefined()
+        after(ROUND_REVEAL.champion)
+        await user().click(screen.getByRole("button", {name: "Close"}))
+        expect(onClose).toHaveBeenCalledOnce()
     })
 
     it("goes straight to the season when nobody scored the day", () => {

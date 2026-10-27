@@ -1,12 +1,11 @@
 import {PlayerTitle} from "../backends/player.ts"
-import {ClosedRound} from "../backends/standings.ts"
 import {Battle, battleKeyOf} from "./battle.ts"
-import {revealKeyOf} from "./roundReveal.ts"
+import {Reveal, revealKeyOf} from "./roundReveal.ts"
 
 export type Announcement =
     | {kind: "title", title: PlayerTitle}
     | {kind: "battle", battle: Battle}
-    | {kind: "round", closed: ClosedRound}
+    | Reveal
 
 export function announcementKeyOf(announcement: Announcement): string {
     switch (announcement.kind) {
@@ -15,7 +14,9 @@ export function announcementKeyOf(announcement: Announcement): string {
         case "battle":
             return `battle:${battleKeyOf(announcement.battle)}`
         case "round":
-            return `round:${revealKeyOf(announcement.closed)}`
+        case "brief":
+        case "results":
+            return `${announcement.kind}:${revealKeyOf(announcement)}`
     }
 }
 

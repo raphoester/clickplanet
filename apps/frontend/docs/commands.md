@@ -56,13 +56,18 @@ banner up at once, `giveTitle("warlord")` plays the unlock of any title (the fak
 wires no account, so the overlay offers Close only), `closeDay()` closes the
 fake's day: its countries score with a little luck, the race carries the round
 closed with the season's table before and after it, and the chat announces the
-podium, so the cutoff plays (see [The cutoff, revealed](cutoff.md)).
-`closeFinale()` does the same for the Final Battle, at triple points, then
-crowns the champion: the reveal ends on it, the chat says who won, and the
-season chip becomes the champion's. `startBattle(minutes = 120, description)`
-plays a battle at once: the mood, the halo, the chip and the start moment (see
-[Battles](battle.md)); `endBattle()` ends it. Each call
-closes the next day, so the reveal plays again. `fakeBackend.botBomb(tile, "fr")`,
+podium, so the cutoff plays (see [The cutoff, revealed](cutoff.md)). Each call
+closes the next day, so the reveal plays again.
+`startBattle(minutes = 120, description, times = 3)` plays a battle at once: the
+mood, the halo, the chip, the start moment, and a round of its own at `times` in
+the race, so the board's column is the battle's (see [Battles](battle.md)).
+`endBattle()` ends the turn and leaves the round in progress, as the race does for
+up to 10 s, so the line says the results are coming. `closeBattle()` closes the
+round with its numbers (its points at its times, the tiles each flag took, its top
+players, drawn with a little luck) and the brief plays; with no battle started it
+closes one of 2 hours at ×3 that ends now. `closeFinale()` closes it as the Final
+Battle: the brief, then the season's results, which end on the champion; the chat
+says who won, and the season chip becomes the champion's. `fakeBackend.botBomb(tile, "fr")`,
 `fakeBackend.botSpread(tile, "fr")` and `fakeBackend.botShield(tile, "fr")` play
 somebody else's bomb, spread click or shield. `fakeBackend.takeLandmass(landmass, "es", leave)`
 takes a landmass for a flag, shields and all, and leaves the last `leave` tiles to

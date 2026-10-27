@@ -87,13 +87,17 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   the job checked it against the findings before the render. `--headline` overrides the story's.
 - **`--race <path>`** is the season's race, a `seasons.v1.GetRaceResponse` as the backend's `GetRace` answers it,
   served to the page at `/__clip/race.json` (`src/clip/race.ts` reads its closed round). With none, that path
-  answers 404, never the app's fallback page, and no day is told.
+  answers 404, never the app's fallback page, and no day is told. **A battle's round of its own is never told as a
+  day** (`Day.own`): it is numbered apart from the days, so its clip says "wins the battle" ("the final battle" for
+  the finale) and calls to play, never "day 1" or "who wins day 2", and nobody is called up after it, since its
+  podium scored its times.
 - **`--season <path>`** is the season, a `seasons.v1.GetSeasonResponse`, served at `/__clip/season.json` the same
   way: when its Final Battle starts. With none, nobody is called up.
 - **A story's key says which story it is, the headline never does** (`storyKeyOf`, `domain/clip/story.ts`): the
   flag the clip is about and the continent it is told on, `{flag: "dz", continent: "Africa"}`. **Its angle says what
   the story tells of the flag there**: none for what it did, `holding` for what it holds, `round` for a day it won,
-  with the day (`round: "1.5"`, season and number), `callup` for a country called up after a day, with that day. The
+  with the day (`round: "1.5"`, season and number; `"1.battle.2"` for a battle's round of its own), `callup` for a
+  country called up after a day, with that day. The
   flag is the first of `sidesOf`: the loser of a rout, a continent's own flag when it strikes back together. The
   continent is the place's (Asia's parts as the headlines name them, `the world` for a tour), else its first
   country's. The job keeps it on each post, so the editor reads what was told, and a day is told once. **It keeps

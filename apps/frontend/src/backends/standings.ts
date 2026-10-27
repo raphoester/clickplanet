@@ -29,6 +29,8 @@ export type Round = {
     endsAt: number
     finale: boolean
     standings: RoundStanding[]
+    own: boolean
+    times: number
 }
 
 export type Score = {
@@ -36,6 +38,11 @@ export type Score = {
     countryCode: string
     points: number
     roundsWon: number
+}
+
+export type RoundTakes = {
+    countryCode: string
+    tiles: number
 }
 
 export type ClosedRound = {
@@ -46,6 +53,11 @@ export type ClosedRound = {
     standings: RoundStanding[]
     before: Score[]
     after: Score[]
+    own: boolean
+    times: number
+    startedAt: number
+    takes: RoundTakes[]
+    players: Standing[]
 }
 
 export type Race = {

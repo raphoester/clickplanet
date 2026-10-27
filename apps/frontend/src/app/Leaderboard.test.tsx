@@ -223,6 +223,8 @@ describe("Leaderboard with the season's race", () => {
                 {rank: 1, countryCode: "de", share: 0.5, points: 25},
                 {rank: 2, countryCode: "fr", share: 0.3, points: 18},
             ],
+            own: false,
+            times: 1,
         },
         scores: [{rank: 1, countryCode: "fr", points: 43, roundsWon: 1}],
     }
@@ -239,6 +241,19 @@ describe("Leaderboard with the season's race", () => {
             ["2", "Germany", "500", "50.00", "0", "+25 today"],
             ["3", "Spain", "100", "10.00", "0", ""],
         ])
+    })
+
+    it("heads the round in progress as the battle's, at its times, while a battle's round of its own runs", () => {
+        const battle: Race = {...RACE, round: {...RACE.round!, number: 1, own: true, times: 3, standings: [
+            {rank: 1, countryCode: "de", share: 0.5, points: 75},
+            {rank: 2, countryCode: "fr", share: 0.3, points: 54},
+        ]}}
+        render(<Leaderboard tilesCount={1000} data={MAP} race={battle}/>)
+
+        headers("#", "Country", "Tiles", "% of map", "Points", "Battle ×3")
+        expect(screen.queryByRole("columnheader", {name: "Today"})).toBeNull()
+        expect(within(leader()!).getByText(/^43/).textContent).toBe("43+54 this battle")
+        expect(cells()[0]).toEqual(["2", "Germany", "500", "50.00", "0", "+75 this battle"])
     })
 
     it("keeps the first country's share of the map beside its tiles", () => {

@@ -47,8 +47,9 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 - [Season standings](docs/season-standings.md) — the players' table of the season.
 - [The season](docs/season.md) — the season chip and its clock.
 - [Battles](docs/battle.md) — the battle look from the schedule's turn: the mood, the chip and its clock, the start
-  moment, and the announcements queue that shows one full-screen moment at a time.
-- [The cutoff, revealed](docs/cutoff.md) — the full-screen reveal when a day closes.
+  moment, the brief when its round closes, and the announcements queue that shows one full-screen moment at a time.
+- [The cutoff, revealed](docs/cutoff.md) — the full-screen reveal when a day closes, and the season's results after
+  the Final Battle's brief.
 - [The flag played for](docs/flag.md) — `PledgeAllegiance`, and one flag an hour.
 - [Charges](docs/charges.md) — what a bonus box holds, off by default and one at a time, and the inventory.
 - [Missions](docs/missions.md) — the Missions tab, its badge, a mission paid, and the fake.

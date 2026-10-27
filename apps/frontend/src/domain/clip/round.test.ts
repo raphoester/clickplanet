@@ -5,7 +5,7 @@ import {Day, storyKeyOf} from "./story.ts"
 const CUTOFF = Date.parse("2026-10-17T21:00:00Z")
 
 const day: Day = {
-    season: 1, number: 5, finale: false, endedAt: CUTOFF,
+    season: 1, number: 5, finale: false, own: false, endedAt: CUTOFF,
     podium: [{country: "fr", rank: 1, points: 25}, {country: "pw", rank: 2, points: 18}, {country: "dz", rank: 3, points: 15}],
     table: [{country: "fr", rank: 1, points: 86}],
 }

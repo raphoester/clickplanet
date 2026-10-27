@@ -301,15 +301,20 @@ describe("decodedAnnouncement", () => {
             announcedAt: 1_700_000_000_000,
             number: 5,
             finale: false,
+            own: false,
+            times: 1,
             podium: [{country: "fr", rank: 1, points: 25}, {country: "de", rank: 2, points: 18}],
         })
     })
 
-    it("reads the Final Battle, and skips a place it cannot read", () => {
-        const payload = `{"number":23,"finale":true,"podium":[{"country":"fr","rank":1,"points":75},{"rank":2}]}`
+    it("reads the Final Battle, a round of its own and its times, and skips a place it cannot read", () => {
+        const payload = `{"number":1,"finale":true,"own":true,"times":3,"podium":[{"country":"fr","rank":1,"points":75},{"rank":2}]}`
 
         expect(decodedAnnouncement(bomb(payload, "round"))).toMatchObject({
+            number: 1,
             finale: true,
+            own: true,
+            times: 3,
             podium: [{country: "fr", rank: 1, points: 75}],
         })
     })

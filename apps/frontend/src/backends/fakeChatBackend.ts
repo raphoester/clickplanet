@@ -225,6 +225,8 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
             announcedAt: closed.endedAt,
             number: closed.number,
             finale: closed.finale,
+            own: closed.own,
+            times: closed.times,
             podium: podiumOf(closed).map((standing) => ({
                 country: standing.countryCode,
                 rank: standing.rank,

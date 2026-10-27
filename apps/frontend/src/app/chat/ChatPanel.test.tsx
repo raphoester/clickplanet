@@ -309,6 +309,23 @@ describe("ChatPanel", () => {
         expect(line.querySelectorAll(".country-flag")).toHaveLength(1)
     })
 
+    it("tells a day's result by its number, and a battle's as the battle's, with its times", async () => {
+        const {backend, announce} = stubBackend()
+        setup(backend)
+
+        await screen.findByText("Nobody has said anything yet. Go on.")
+        const podium = [{country: "fr", rank: 1, points: 75}]
+        act(() => announce({kind: "round", id: "day", announcedAt: Date.now(), number: 1, finale: false, own: false, times: 1, podium}))
+        act(() => announce({kind: "round", id: "battle", announcedAt: Date.now(), number: 1, finale: false, own: true, times: 3, podium}))
+        act(() => announce({kind: "round", id: "finale", announcedAt: Date.now(), number: 2, finale: true, own: true, times: 3, podium}))
+
+        expect(await screen.findByText("Day 1 is over!")).toBeDefined()
+        const battle = screen.getByText("The battle is over!").closest("li")!
+        expect(within(battle).getByText("×3")).toBeDefined()
+        expect(within(battle).queryByText(/Day/)).toBeNull()
+        expect(screen.getByText("The Final Battle is over!")).toBeDefined()
+    })
+
     it("says a message an operator removed was deleted, in its place and in the quote of a reply to it", async () => {
         const insult = message("a", "you all suck")
         const {backend, remove} = stubBackend([

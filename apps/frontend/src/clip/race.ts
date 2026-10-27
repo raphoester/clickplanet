@@ -11,6 +11,7 @@ export function dayOf(closed: ClosedRound | undefined): Day | undefined {
         season: closed.season,
         number: closed.number,
         finale: closed.finale,
+        own: closed.own,
         endedAt: Number(closed.endedAtUnixMs),
         podium: closed.standings
             .filter(({rank, points}) => rank <= PODIUM && points > 0)

@@ -8,6 +8,7 @@ import {
     Race as RacePb,
     Round as RoundPb,
     RoundStanding as RoundStandingPb,
+    RoundTakes as RoundTakesPb,
     Score as ScorePb,
     SeasonEvent,
     Standing as StandingPb,
@@ -216,9 +217,11 @@ describe("ConnectStandingsBackend.listenForRace", () => {
                 event: {
                     case: "race", value: new RacePb({
                         round: new RoundPb({
-                            number: 5,
+                            number: 1,
                             endsAtUnixMs: 1_792_191_600_000n,
-                            standings: [new RoundStandingPb({rank: 1, countryId: "fr", share: 0.25, points: 25})],
+                            standings: [new RoundStandingPb({rank: 1, countryId: "fr", share: 0.25, points: 75})],
+                            own: true,
+                            times: 3,
                         }),
                         scores: [new ScorePb({rank: 1, countryId: "de", points: 43, roundsWon: 2})],
                     }),
@@ -235,10 +238,12 @@ describe("ConnectStandingsBackend.listenForRace", () => {
         expect(seen).toEqual([
             {
                 round: {
-                    number: 5,
+                    number: 1,
                     endsAt: 1_792_191_600_000,
                     finale: false,
-                    standings: [{rank: 1, countryCode: "fr", share: 0.25, points: 25}],
+                    standings: [{rank: 1, countryCode: "fr", share: 0.25, points: 75}],
+                    own: true,
+                    times: 3,
                 },
                 scores: [{rank: 1, countryCode: "de", points: 43, roundsWon: 2}],
                 closed: undefined,
@@ -248,13 +253,13 @@ describe("ConnectStandingsBackend.listenForRace", () => {
         stop()
     })
 
-    it("reads the round closed last, its results and its season's table before and after it", async () => {
+    it("reads the round closed last, its results, its season's table before and after it, and a battle's numbers", async () => {
         const listenForEvents = streaming(new SeasonEvent({
             event: {
                 case: "race", value: new RacePb({
                     closed: new ClosedRoundPb({
                         season: 0,
-                        number: 4,
+                        number: 1,
                         endedAtUnixMs: 1_792_105_200_000n,
                         finale: true,
                         standings: [new RoundStandingPb({rank: 1, countryId: "fr", share: 0.3, points: 75})],
@@ -263,6 +268,11 @@ describe("ConnectStandingsBackend.listenForRace", () => {
                             new ScorePb({rank: 1, countryId: "fr", points: 93, roundsWon: 2}),
                             new ScorePb({rank: 2, countryId: "de", points: 43, roundsWon: 2}),
                         ],
+                        own: true,
+                        times: 3,
+                        startedAtUnixMs: 1_792_098_000_000n,
+                        takes: [new RoundTakesPb({countryId: "fr", tiles: 4210n}), new RoundTakesPb({countryId: "de", tiles: 3105n})],
+                        players: [new StandingPb({rank: 1, accountId: "account-ana", name: "Ana", countryId: "fr", tiles: 912n})],
                     }),
                 }),
             },
@@ -274,7 +284,7 @@ describe("ConnectStandingsBackend.listenForRace", () => {
         await vi.waitFor(() => expect(seen).toHaveLength(1))
         expect(seen[0].closed).toEqual({
             season: 0,
-            number: 4,
+            number: 1,
             endedAt: 1_792_105_200_000,
             finale: true,
             standings: [{rank: 1, countryCode: "fr", share: 0.3, points: 75}],
@@ -283,6 +293,11 @@ describe("ConnectStandingsBackend.listenForRace", () => {
                 {rank: 1, countryCode: "fr", points: 93, roundsWon: 2},
                 {rank: 2, countryCode: "de", points: 43, roundsWon: 2},
             ],
+            own: true,
+            times: 3,
+            startedAt: 1_792_098_000_000,
+            takes: [{countryCode: "fr", tiles: 4210}, {countryCode: "de", tiles: 3105}],
+            players: [{rank: 1, accountId: "account-ana", name: "Ana", color: NameColor.UNSPECIFIED, countryCode: "fr", tiles: 912, wornTitle: undefined}],
         })
         stop()
     })

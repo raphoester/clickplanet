@@ -98,6 +98,132 @@
     color: var(--text);
 }
 
+.battle-brief {
+    --row: 42px;
+}
+
+.battle-brief::after {
+    content: "";
+    position: fixed;
+    inset: 0 0 auto;
+    height: 8px;
+    background: var(--tape);
+    pointer-events: none;
+}
+
+.battle-brief .title-reveal-rays {
+    background: repeating-conic-gradient(var(--war) 0deg 7deg, transparent 7deg 18deg);
+}
+
+.battle-brief-times {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: var(--space-3) 0 0;
+    padding: var(--space-1) var(--space-3);
+    border: var(--outline-thin) solid var(--ink);
+    border-radius: var(--radius-pill);
+    background: var(--war);
+    box-shadow: var(--drop-xs);
+    font-family: var(--font-display);
+    font-size: var(--text-l);
+    color: var(--cream);
+    text-shadow: var(--text-outline);
+    animation: title-reveal-pop 380ms cubic-bezier(0.3, 1.6, 0.5, 1) 520ms both;
+}
+
+.battle-brief-times span {
+    padding-top: 2px;
+}
+
+.battle-brief-text {
+    max-width: 440px;
+    margin: var(--space-3) 0 0;
+    font-size: var(--text-m);
+    line-height: 1.38;
+    color: var(--text);
+    animation: title-reveal-rise 300ms ease-out 640ms both;
+}
+
+.battle-brief-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: min(440px, 100%);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    text-align: left;
+}
+
+.battle-brief-row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    height: calc(var(--row) - 6px);
+    padding: 0 var(--space-3);
+    box-sizing: border-box;
+    overflow: hidden;
+    border: var(--outline-thin) solid var(--ink);
+    border-radius: var(--radius-s);
+    background: var(--panel-raised);
+    box-shadow: var(--drop-xs);
+    font-family: var(--font-text);
+    font-size: var(--text-m);
+    color: var(--text);
+    animation: round-reveal-enter 320ms ease-out calc(var(--enter) * 60ms) both;
+}
+
+.battle-brief-row::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: calc(var(--share, 0) * 100%);
+    background: color-mix(in srgb, var(--war) 45%, var(--panel-raised));
+    transform-origin: left;
+    animation: battle-brief-fill 700ms cubic-bezier(0.2, 0.8, 0.3, 1) calc(var(--enter) * 60ms + 200ms) both;
+}
+
+.battle-brief-row > * {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.battle-brief-row .country-flag {
+    margin: 0;
+}
+
+.battle-brief-row-mine {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 2px var(--gold), var(--drop-s);
+}
+
+.battle-brief-flag {
+    display: flex;
+}
+
+.battle-brief-name {
+    flex: 1;
+    flex-shrink: 1;
+    min-width: 0;
+    overflow: hidden;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.battle-brief-player {
+    color: hsl(var(--author-hue, 0) calc(var(--author-saturation) * var(--author-chroma, 1)) var(--author-name-lightness));
+}
+
+.battle-brief-tiles {
+    font-family: var(--font-display);
+    font-size: var(--text-l);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
 .battle-over {
     position: fixed;
     top: calc(var(--status-bottom, 8px) + 8px);
@@ -121,6 +247,16 @@
     animation: battle-over 5s ease-out forwards;
 }
 
+.battle-over--awaiting .battle-over-line {
+    animation: battle-over-in 600ms ease-out both;
+}
+
+.battle-over-text {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
 .battle-over-line strong {
     padding-top: 3px;
     font-family: var(--font-display);
@@ -130,9 +266,40 @@
     text-shadow: var(--text-drop);
 }
 
+.battle-over-coming {
+    font-weight: 600;
+    font-size: var(--text-s);
+    color: var(--text-soft);
+    animation: battle-over-wait 1.6s ease-in-out infinite;
+}
+
 @keyframes battle-chip-live {
     50% {
         box-shadow: var(--drop-l), inset 0 2px 0 var(--sheen), 0 0 30px color-mix(in srgb, var(--war) 60%, transparent);
+    }
+}
+
+@keyframes battle-brief-fill {
+    from { scale: 0 1; }
+}
+
+@keyframes battle-over-in {
+    0% {
+        opacity: 0;
+        transform: translateY(-12px) scale(0.9);
+    }
+    60% {
+        opacity: 1;
+        transform: translateY(0) scale(1.04);
+    }
+    100% {
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes battle-over-wait {
+    50% {
+        opacity: 0.45;
     }
 }
 
@@ -158,8 +325,17 @@
 
 @media (prefers-reduced-motion: reduce) {
     .battle-chip.panel,
-    .battle-reveal-disc {
+    .battle-reveal-disc,
+    .battle-brief-row,
+    .battle-brief-row::before,
+    .battle-over-coming,
+    .battle-over--awaiting .battle-over-line {
         animation: none;
+    }
+
+    .battle-brief-times,
+    .battle-brief-text {
+        animation: title-reveal-appear 300ms ease-out both;
     }
 
     .battle-over-line {
