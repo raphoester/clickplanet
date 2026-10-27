@@ -23,7 +23,7 @@ type countingPlanet struct {
 
 func (p *countingPlanet) World(context.Context) (missions.World, error) {
 	p.asked++
-	return missions.World{Territories: []missions.Holding{{Country: "dz", Tiles: 9_000}}}, p.err
+	return missions.World{Territories: []missions.Territory{{Flag: "dz", Tiles: 9_000}}}, p.err
 }
 
 type recordingPayroll struct {
@@ -52,7 +52,7 @@ func TestATakeCountsOnTheMissionsOfItsDay(t *testing.T) {
 
 	sheet, err := store.Sheet(t.Context(), calendar.DayOf(at), ada)
 	require.NoError(t, err)
-	drawn := missions.Draw(calendar.DayOf(at), "fr", missions.World{Territories: []missions.Holding{{Country: "dz", Tiles: 9_000}}}).Snapshot()
+	drawn := missions.Draw(calendar.DayOf(at), "fr", missions.World{Territories: []missions.Territory{{Flag: "dz", Tiles: 9_000}}}).Snapshot()
 	assert.Equal(t, missions.SheetSnapshot{
 		Flag: "fr", Progress: map[missions.MissionID]uint32{drawn[0].ID: 1, drawn[1].ID: 1, drawn[2].ID: 1},
 		Paid:       cpcolls.NewSet[missions.MissionID](),
@@ -92,7 +92,7 @@ func TestOnlyTheTakeThatFinishesAMissionPaysIt(t *testing.T) {
 	useCase := record_take_usecase.New(calendar, missions.NewBriefing(store, &countingPlanet{}), store,
 		cpatomic.FakeTransactioner{}, payroll)
 
-	drawn := missions.Draw(calendar.DayOf(at), "fr", missions.World{Territories: []missions.Holding{{Country: "dz", Tiles: 9_000}}}).Snapshot()
+	drawn := missions.Draw(calendar.DayOf(at), "fr", missions.World{Territories: []missions.Territory{{Flag: "dz", Tiles: 9_000}}}).Snapshot()
 	goal := drawn[0].Order.(missions.TakeFor).Goal
 
 	for position := range uint64(goal + 1) {
