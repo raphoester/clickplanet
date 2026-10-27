@@ -23,7 +23,7 @@ type PostgresQuery struct {
 	clock cptime.Clock
 }
 
-// Turn is what plays now by schedule.Schedule's rule, in the players' words: no set's name.
+// Turn is what plays now by schedule.Schedule's rule, and the battle to come, in the players' words: no set's name.
 func (q *PostgresQuery) Turn(ctx context.Context) (*metagamev1.Turn, error) {
 	now := q.clock.Now()
 	rows, err := q.db.On(ctx).QueryContext(ctx, `
@@ -65,6 +65,11 @@ func (q *PostgresQuery) Turn(ctx context.Context) (*metagamev1.Turn, error) {
 	answer := &metagamev1.Turn{Kind: kind, EndsAt: ends[turn.Entry], Description: string(turn.Description)}
 	if since := sched.SinceAt(now); !since.IsZero() {
 		answer.Since = timestamppb.New(since)
+	}
+	if next, ok := sched.NextOfKind(schedule.Battle, now); ok {
+		answer.NextBattle = &metagamev1.Upcoming{
+			StartsAt: timestamppb.New(next.StartsAt), EndsAt: timestamppb.New(next.EndsAt), Description: string(next.Description),
+		}
 	}
 	return answer, nil
 }

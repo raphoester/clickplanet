@@ -21,6 +21,9 @@ type Turn struct {
 	set         SetName
 	kind        Kind
 	description Description
+	// startsAt and endsAt are the playing entry's window, in UTC so that two turns compare: zero when none runs.
+	startsAt time.Time
+	endsAt   time.Time
 }
 
 func (s Schedule) TurnAt(at time.Time) Turn {
@@ -36,7 +39,27 @@ func (s Schedule) TurnAt(at time.Time) Turn {
 	if !found {
 		return Turn{set: Default, kind: Plain}
 	}
-	return Turn{entry: playing.id, set: playing.set, kind: playing.kind, description: playing.description}
+	return Turn{
+		entry: playing.id, set: playing.set, kind: playing.kind, description: playing.description,
+		startsAt: playing.startsAt.UTC(), endsAt: playing.endsAt.UTC(),
+	}
+}
+
+// NextOfKind is the entry of a kind that starts first after a time; false when none is to come.
+func (s Schedule) NextOfKind(kind Kind, at time.Time) (EntrySnapshot, bool) {
+	var (
+		next  Entry
+		found bool
+	)
+	for _, entry := range s.entries {
+		if entry.kind != kind || !entry.startsAt.After(at) {
+			continue
+		}
+		if !found || entry.startsAt.Before(next.startsAt) || (entry.startsAt.Equal(next.startsAt) && entry.outranks(next)) {
+			next, found = entry, true
+		}
+	}
+	return next.TakeSnapshot(), found
 }
 
 // SinceAt is when the turn at a time began: the last start or end before it that changed the turn. The zero time is
@@ -72,13 +95,17 @@ func (e Entry) outranks(other Entry) bool {
 }
 
 func (t Turn) TakeSnapshot() TurnSnapshot {
-	return TurnSnapshot{Entry: t.entry, Set: t.set, Kind: t.kind, Description: t.description}
+	return TurnSnapshot{
+		Entry: t.entry, Set: t.set, Kind: t.kind, Description: t.description, StartsAt: t.startsAt, EndsAt: t.endsAt,
+	}
 }
 
-// TurnSnapshot names the entry that plays: the zero id when none runs, and default plays.
+// TurnSnapshot names the entry that plays: the zero id and no window when none runs, and default plays.
 type TurnSnapshot struct {
 	Entry       EntryID
 	Set         SetName
 	Kind        Kind
 	Description Description
+	StartsAt    time.Time
+	EndsAt      time.Time
 }
