@@ -32,16 +32,18 @@ function GroundArt() {
 }
 
 function TrophyArt() {
-    return <span className="season-fact-art">
-        <svg className="season-art" viewBox="0 0 48 48" aria-hidden="true">
-            <path className="season-art-handle-ink" d="M33 10h6a4 4 0 0 1 0 8h-6M15 10H9a4 4 0 0 0 0 8h6"/>
-            <path className="season-art-handle" d="M33 10h6a4 4 0 0 1 0 8h-6M15 10H9a4 4 0 0 0 0 8h6"/>
-            <path className="season-art-gold" d="M14 6h20v10a10 10 0 0 1-20 0z"/>
-            <path className="season-art-gold-shade" d="M21 27h6v7h-6z"/>
-            <path className="season-art-gold" d="M15 34h18v7H15z"/>
-            <path className="season-art-shine" d="M19 9v7"/>
-        </svg>
-    </span>
+    return <span className="season-fact-art"><Trophy/></span>
+}
+
+export function Trophy() {
+    return <svg className="season-art" viewBox="0 0 48 48" aria-hidden="true">
+        <path className="season-art-handle-ink" d="M33 10h6a4 4 0 0 1 0 8h-6M15 10H9a4 4 0 0 0 0 8h6"/>
+        <path className="season-art-handle" d="M33 10h6a4 4 0 0 1 0 8h-6M15 10H9a4 4 0 0 0 0 8h6"/>
+        <path className="season-art-gold" d="M14 6h20v10a10 10 0 0 1-20 0z"/>
+        <path className="season-art-gold-shade" d="M21 27h6v7h-6z"/>
+        <path className="season-art-gold" d="M15 34h18v7H15z"/>
+        <path className="season-art-shine" d="M19 9v7"/>
+    </svg>
 }
 
 function MedalArt() {

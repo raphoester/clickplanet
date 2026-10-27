@@ -51,6 +51,9 @@ internal/scoring/internal/
                                   rounds.TableOf — Territory, rounds/rpc_planet_territories
     get_my_season_handler/my_season_query/   PostgresQuery: GetMySeasonResponse from SQL, ranked — Authors
       rpc_player_authors/         the same adapter, for this query
+    get_hall_of_fame_handler/hall_of_fame_query/   PostgresQuery: each season ended, its table by rounds.TableOf and
+                                  its top players, named — Authors
+      rpc_player_authors/         the same adapter, for this query
     caller/                       the account on the context, or Unauthenticated
   subscribers/                    tile_taken_subscriber/  round_take_subscriber/  account_deleted_subscriber/
                                   log_subscriber/
@@ -129,8 +132,8 @@ each round's end: the standings rank players, the rounds rank countries.
   try. **`ended_seasons` keeps each season ended** (`Store.End`, one row, in the transaction that records the event):
   nothing tells a season twice; the chat keys its line by the season anyway.
 - **`rounds.TableOf` ranks the season**: points, then rounds won, then the finale's points. Countries level on all
-  three share the rank. The champion is the country ranked 1st; the titles at the season's end read the same table,
-  from `SeasonClosed`.
+  three share the rank. The champion is the country ranked 1st; the Hall of Fame reads the same table, and the titles
+  at the season's end read it from `SeasonClosed`.
 - **A round of its own counts its numbers** for the client's brief: the tiles each flag's players took during its
   window (`round_takes`), and each account's, by flag (`round_players`). `round_take_subscriber` hears
   `planet.v1.TileTaken` (`seasons-rounds`) and `count_take_usecase` counts each take in every round of its own whose
@@ -165,6 +168,13 @@ each round's end: the standings rank players, the rounds rank countries.
   last (see [The clips job](clips-job.md)). It needs no token, is a GET (`NO_SIDE_EFFECTS`)
   and answers `public, max-age=10`. It reads through `race_query` itself, logged by `log_race_reader` as the feed is,
   and never through the feed: a feed with no stream holds no race.
+- **`GetHallOfFame` is every season that ended**, newest first: a season is in it once it is in `ended_seasons`,
+  whether a round ended with it or none did, so before Season 0 ends the answer is empty. Each is its number, its end,
+  its final table (`rounds.TableOf` over the results of its closed rounds, days and rounds of their own, every country
+  with points) and its top 10 players by their main flag's tiles, signed-in only, named and ranked as `GetStandings`
+  does. Raw facts: the client crowns the countries ranked 1. It needs no token, is a GET (`NO_SIDE_EFFECTS`) and
+  answers `public, max-age=60`. `hall_of_fame_query` reads `scoring.ended_seasons`, `rounds`, `round_results` and
+  `contributions` itself; its tests seed through `postgres_round_store` and `postgres_contribution_store`.
 - `rounds.StoreContractSuite` and `rounds.TakesContractSuite` run on `inmemory_round_store` and on postgres.
   `race_query`'s suite ranks a round from a fake planet's map, picks the round that ends first and names a round of its
   own's players; `close_ended_rounds_usecase` closes a round of its own at ×3, ends the season with and without a round

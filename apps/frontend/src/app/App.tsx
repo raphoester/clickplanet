@@ -30,6 +30,7 @@ export default function App(props: AppProps) {
             turn={props.turn}
             standings={props.standings}
             support={props.support}
+            hallOfFame={props.hallOfFame}
             missions={props.missions}
             chargesRefresher={props.chargesRefresher}
         />

@@ -86,6 +86,19 @@ a stylesheet shared with `play.html` becomes its own file, linked before
 `play-*.css`, and moves the game's cascade. The art's styles are copied into the
 page's `<style>`, as `.panel` and `.button` are.
 
+**The Hall of Fame is a trophy button in the status zone** (`app/hallOfFame/`), once a season has ended: beside
+the season chip or the champion chip, or alone where they were. It opens a card (`HallOfFame`, a `Modal`) with each
+season ended, newest first: the trophy (`Trophy`, the art of `SeasonFacts`) and the champion, the countries ranked 1
+of its final table (`domain/hallOfFame.ts`, every country level on first place is crowned), the top 10 of that table
+and the player's country under it, and the top players (`StandingsTable`). A name opens the player card by its
+account id, and closes the Hall of Fame: two `Modal`s at once fight over the keyboard. `backends/hallOfFame.ts` is
+the contract, `hallOfFameBackend.ts` reads `GetHallOfFame`, and `fakeHallOfFameBackend.ts` answers a sample ended
+season in fake mode (`sampleEndedSeason`, a function so the build drops it). **`useHallOfFame` reads it at load, and
+again when the race's closed round is a finale the hall does not hold yet**: the read is cached for a minute, so it
+tries again every 20s, six times at most. So the trophy shows within about a minute of the season's end on a page
+already open. The home page names the last season's champion (`app/home/champion.ts`, the `[data-champion]` pill in
+the hero).
+
 **The desktop chip writes its bottom edge on `:root` as `--status-bottom`**
 (`useBottomEdge`), and on a phone the status bar does: the quiz and the bomb
 news sit under it. With neither, the property is unset and they sit at the top.

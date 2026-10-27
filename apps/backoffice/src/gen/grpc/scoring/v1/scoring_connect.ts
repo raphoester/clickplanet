@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetMySeasonRequest, GetMySeasonResponse, GetRaceRequest, GetRaceResponse, GetSeasonRequest, GetSeasonResponse, GetStandingsRequest, GetStandingsResponse, ListenForEventsRequest, SeasonEvent } from "./scoring_pb.js";
+import { GetHallOfFameRequest, GetHallOfFameResponse, GetMySeasonRequest, GetMySeasonResponse, GetRaceRequest, GetRaceResponse, GetSeasonRequest, GetSeasonResponse, GetStandingsRequest, GetStandingsResponse, ListenForEventsRequest, SeasonEvent } from "./scoring_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -59,6 +59,16 @@ export const SeasonService = {
       name: "GetRace",
       I: GetRaceRequest,
       O: GetRaceResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * @generated from rpc scoring.v1.SeasonService.GetHallOfFame
+     */
+    getHallOfFame: {
+      name: "GetHallOfFame",
+      I: GetHallOfFameRequest,
+      O: GetHallOfFameResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
     },

@@ -22,6 +22,10 @@ service SeasonService {
   rpc GetRace(GetRaceRequest) returns (GetRaceResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+
+  rpc GetHallOfFame(GetHallOfFameRequest) returns (GetHallOfFameResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 }
 
 message GetSeasonRequest {}
@@ -160,4 +164,18 @@ message GetRaceRequest {}
 
 message GetRaceResponse {
   Race race = 1;
+}
+
+message GetHallOfFameRequest {}
+
+message GetHallOfFameResponse {
+  // Newest first.
+  repeated EndedSeason seasons = 1;
+}
+
+message EndedSeason {
+  uint32 number = 1;
+  int64 ended_at_unix_ms = 2;
+  repeated Score scores = 3;
+  repeated Standing standings = 4;
 }

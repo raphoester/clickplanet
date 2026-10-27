@@ -15,6 +15,8 @@ import {FakePresenceBackend} from "./backends/fakePresenceBackend.ts"
 import {FakeMissionsBackend} from "./backends/fakeMissionsBackend.ts"
 import {FakeSeasonBackend, SEASON_ZERO} from "./backends/fakeSeasonBackend.ts"
 import {ConnectSeasonBackend, newSeasonServiceClient} from "./backends/seasonBackend.ts"
+import {FakeHallOfFameBackend, sampleEndedSeason} from "./backends/fakeHallOfFameBackend.ts"
+import {ConnectHallOfFameBackend} from "./backends/hallOfFameBackend.ts"
 import {battleCommands, FakeTurnBackend} from "./backends/fakeTurnBackend.ts"
 import {ConnectTurnBackend, newGamemasterServiceClient} from "./backends/turnBackend.ts"
 import {API_BASE_URL} from "./backends/transport.ts"
@@ -167,6 +169,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     turn={fakeTurn}
                     standings={fakeStandings}
                     support={fakeSupport}
+                    hallOfFame={new FakeHallOfFameBackend([sampleEndedSeason()])}
                     missions={fakeMissions}
                     chargesRefresher={fake}
                 />
@@ -182,6 +185,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     const standings = new ConnectStandingsBackend(newSeasonServiceClient(config), session)
     const missions = new ConnectMissionsBackend(newMissionServiceClient(config), session)
     const support = new ConnectSupportBackend(newSupportServiceClient(config), session)
+    const hallOfFame = new ConnectHallOfFameBackend(newSeasonServiceClient(config))
     const account = new AccountStore(new ConnectAccountBackend(authClient, attest), player, session, {
         navigate: (url) => window.location.assign(url),
         remember: rememberSignIn,
@@ -213,6 +217,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     turn={turn}
                     standings={standings}
                     support={support}
+                    hallOfFame={hallOfFame}
                     missions={missions}
                     chargesRefresher={backend}
                 />

@@ -60,7 +60,7 @@ function absent(e: unknown): boolean {
     return e instanceof ConnectError && (e.code === Code.Unimplemented || e.code === Code.NotFound)
 }
 
-function standingOf(standing: StandingPb): Standing {
+export function standingOf(standing: StandingPb): Standing {
     return {
         rank: standing.rank,
         accountId: standing.accountId,
@@ -106,7 +106,7 @@ function roundStandingOf(standing: RoundStandingPb): RoundStanding {
     return {rank: standing.rank, countryCode: standing.countryId, share: standing.share, points: standing.points}
 }
 
-function scoreOf(score: ScorePb): Score {
+export function scoreOf(score: ScorePb): Score {
     return {rank: score.rank, countryCode: score.countryId, points: score.points, roundsWon: score.roundsWon}
 }
 
