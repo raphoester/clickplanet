@@ -151,8 +151,17 @@ story, so a short clip is not short because its story was small.
     (`durationSec`, or the excerpt's `clip.durationSec` when that is what is sent: `Track.Seconds`), and the clip's
     length is its record's (`ClipCommon.duration_seconds`, `ClipSnapshot.Seconds`, 8.5 to 20.5s): a track plays the
     clip when it is at least as long, and a track or a clip whose length is unknown never does. The top 20 is counted
-    after that, so for a 20s clip it reached rank 24 on that chart. A chart with none long enough falls back, as one
-    that cannot be read (below).
+    after that, so for a 20s clip it reached rank 24 on that chart.
+    **And so is one outside the game's genres** (`genresOfTheGame`, `Track.fits`): the chart tags each track with
+    TikTok's genres (`genres`; 18 tags on 2026-10-27, `ALL` on the library's effects and beds, a third of the chart),
+    and every tag of a track has to be one the game plays: ELECTRONIC, HIP_HOP/RAP, ROCK, TECHNO, TRANCE or POP_ROCK.
+    Listened to on 2026-10-27, the chart's pop, jazz, kids' songs, drama themes and a cello sonata were not the
+    game's, nor its trap and indie: so a track tagged hip hop and trap is out, as one tagged electronic and tropical
+    house, and one with no tag. A genre new to the chart is let in by the set, never by the chart. That day's US chart
+    kept 30 of its 100, and a 10s clip's top 20 reached rank 78. The chart has no mood or theme tag, so "epic" cannot
+    be asked for, and Zernio exposes no search of the library, only this chart. Both are rules of the game, as the
+    length is, never a list of sounds by hand. A chart with none that fits falls back, as one that cannot be read
+    (below).
   - **The id sent is its trending excerpt's** (`clip.id`), the whole track's (`id`) only when it has none: Zernio's
     note on the operation says the whole track's has shown viewers "This song is not available in your country" on
     the sound's page (observed from Germany, 2026-10-06), and the excerpt's not. It plays **from 0**

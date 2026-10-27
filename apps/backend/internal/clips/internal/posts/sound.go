@@ -23,6 +23,12 @@ const (
 // second too. The rank is kept with the post, so the analysis can tell whether a higher one did better.
 const trendingTop = 20
 
+// The genres the game plays, of TikTok's tags on the chart's tracks: a track is in when every tag of it is one of them.
+// A tag the set does not name is out, so a genre new to the chart is let in here. ALL is the library's effects and beds.
+var genresOfTheGame = map[string]bool{
+	"ELECTRONIC": true, "HIP_HOP/RAP": true, "ROCK": true, "TECHNO": true, "TRANCE": true, "POP_ROCK": true,
+}
+
 var (
 	ErrNoTrendingTrack = errors.New("no trending track to attach")
 	ErrChartCountry    = errors.New("a chart's country is two letters, ISO 3166-1")
@@ -40,6 +46,8 @@ type Track struct {
 	Rank int
 	// How long what ID names plays; 0 when the chart did not say.
 	Seconds int
+	// TikTok's tags on it, in upper case ("ELECTRONIC", "HIP_HOP/RAP"); none when the chart gave none.
+	Genres []string
 }
 
 // A track attached over a clip on TikTok, and how it is mixed: volumes from 0 to 100.
@@ -66,17 +74,17 @@ func ChartCountryOf(code string) (string, error) {
 	return code, nil
 }
 
-// One of the top of the chart that play the whole clip, at random, the chart's own order kept (rank 1 first), mixed
-// alone over a muted video: the anthem at 0 rather than the API's default, so nothing rests on a default that may
-// change, and the track at 100, since it is all a viewer hears, and a quieter track would put a softer clip against
-// the anthem's.
+// One of the top of the chart that play the whole clip in the game's genres, at random, the chart's own order kept
+// (rank 1 first), mixed alone over a muted video: the anthem at 0 rather than the API's default, so nothing rests on a
+// default that may change, and the track at 100, since it is all a viewer hears, and a quieter track would put a
+// softer clip against the anthem's.
 func (s Soundtracks) Pick(chart []Track, clip Clip, dice Dice) (Sound, error) {
 	if clip.seconds <= 0 {
 		return Sound{}, fmt.Errorf("%w: how long the clip plays is unknown", ErrNoTrendingTrack)
 	}
 	var top []Track
 	for place, track := range chart {
-		if track.ID == "" || !track.plays(clip) {
+		if track.ID == "" || !track.plays(clip) || !track.fits() {
 			continue
 		}
 		if track.Rank <= 0 {
@@ -88,7 +96,8 @@ func (s Soundtracks) Pick(chart []Track, clip Clip, dice Dice) (Sound, error) {
 		}
 	}
 	if len(top) == 0 {
-		return Sound{}, fmt.Errorf("%w: the %s chart lists none that plays the clip's %.1fs", ErrNoTrendingTrack, s.Country, clip.seconds)
+		return Sound{}, fmt.Errorf("%w: the %s chart lists none in the game's genres that plays the clip's %.1fs",
+			ErrNoTrendingTrack, s.Country, clip.seconds)
 	}
 	return Sound{Track: top[dice.IntN(len(top))], Country: s.Country, TrackVolume: 100, OriginalVolume: 0}, nil
 }
@@ -97,6 +106,19 @@ func (s Soundtracks) Pick(chart []Track, clip Clip, dice Dice) (Sound, error) {
 // under it, so a shorter one leaves the rest of the clip silent. A length the chart did not give is no length.
 func (t Track) plays(clip Clip) bool {
 	return t.Seconds > 0 && float64(t.Seconds) >= clip.seconds
+}
+
+// Whether the track is in the game's genres: tagged, and with no tag beside them.
+func (t Track) fits() bool {
+	if len(t.Genres) == 0 {
+		return false
+	}
+	for _, genre := range t.Genres {
+		if !genresOfTheGame[genre] {
+			return false
+		}
+	}
+	return true
 }
 
 // Whether the post is to carry a trending track: drawn for one, and going to TikTok.

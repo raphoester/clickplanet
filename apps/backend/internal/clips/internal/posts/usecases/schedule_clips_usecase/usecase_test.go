@@ -31,8 +31,8 @@ var (
 	}
 	trending = posts.Variants{posts.SoundExperiment: posts.WithTrending}
 	chart    = []posts.Track{
-		{ID: "clip-1", Excerpt: true, Title: "Song One", Artist: "Singer", Rank: 1, Seconds: 30},
-		{ID: "clip-2", Excerpt: true, Title: "Song Two", Artist: "Band", Rank: 2, Seconds: 25},
+		{ID: "clip-1", Excerpt: true, Title: "Song One", Artist: "Singer", Rank: 1, Seconds: 30, Genres: []string{"ROCK"}},
+		{ID: "clip-2", Excerpt: true, Title: "Song Two", Artist: "Band", Rank: 2, Seconds: 25, Genres: []string{"ELECTRONIC"}},
 	}
 )
 
@@ -357,7 +357,8 @@ func TestAChartThatCannotBeReadOrListsNothingSendsTheClipWithItsAnthemCountedApa
 		"unreadable":          {err: errors.New("zernio answered 400 to the commercial music library")},
 		"empty":               {},
 		"with nothing to use": {tracks: []posts.Track{{Title: "No id"}}},
-		"with a horn alone":   {tracks: []posts.Track{{ID: "clip-1", Excerpt: true, Title: "Breakout sound", Rank: 1, Seconds: 1}}},
+		"with a horn alone":   {tracks: []posts.Track{{ID: "clip-1", Excerpt: true, Title: "Breakout sound", Rank: 1, Seconds: 1, Genres: []string{"ALL"}}}},
+		"with a kids' song":   {tracks: []posts.Track{{ID: "clip-1", Excerpt: true, Title: "Roy G. Biv", Rank: 1, Seconds: 60, Genres: []string{"CHILDHOOD"}}}},
 	} {
 		t.Run(name, func(t *testing.T) {
 			r := scheduling(folder{clips: []posts.Clip{

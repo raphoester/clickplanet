@@ -10,12 +10,13 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts"
 )
 
-// n tracks ranked from 1, each with the id of its excerpt, of 30s.
+// n tracks ranked from 1, each with the id of its excerpt, of 30s, electronic.
 func chartOf(n int) []posts.Track {
 	tracks := make([]posts.Track, 0, n)
 	for rank := 1; rank <= n; rank++ {
 		tracks = append(tracks, posts.Track{
 			ID: fmt.Sprintf("clip-%d", rank), Excerpt: true, Title: fmt.Sprintf("Song %d", rank), Rank: rank, Seconds: 30,
+			Genres: []string{"ELECTRONIC"},
 		})
 	}
 	return tracks
@@ -70,10 +71,11 @@ func TestAChartShorterThanTheTopIsPickedWhole(t *testing.T) {
 
 // A track TikTok could not be sent is no track, and a rank the chart left out is its place in the list.
 func TestATrackWithNoIDIsSkippedAndARankLeftOutIsItsPlace(t *testing.T) {
+	rock := []string{"ROCK"}
 	chart := []posts.Track{
-		{Title: "No id", Rank: 1, Seconds: 30},
-		{ID: "track-2", Title: "Whole track", Seconds: 201},
-		{ID: "clip-3", Excerpt: true, Rank: 3, Seconds: 30},
+		{Title: "No id", Rank: 1, Seconds: 30, Genres: rock},
+		{ID: "track-2", Title: "Whole track", Seconds: 201, Genres: rock},
+		{ID: "clip-3", Excerpt: true, Rank: 3, Seconds: 30, Genres: rock},
 	}
 
 	first, err := posts.Soundtracks{Country: "FR"}.Pick(chart, clipOf(t, 10), posts.LoadedDice(0))
@@ -81,7 +83,7 @@ func TestATrackWithNoIDIsSkippedAndARankLeftOutIsItsPlace(t *testing.T) {
 	second, err := posts.Soundtracks{Country: "FR"}.Pick(chart, clipOf(t, 10), posts.LoadedDice(1))
 	require.NoError(t, err)
 
-	assert.Equal(t, posts.Track{ID: "track-2", Title: "Whole track", Rank: 2, Seconds: 201}, first.Track)
+	assert.Equal(t, posts.Track{ID: "track-2", Title: "Whole track", Rank: 2, Seconds: 201, Genres: rock}, first.Track)
 	assert.Equal(t, "FR", first.Country)
 	assert.Equal(t, "clip-3", second.Track.ID)
 }
@@ -109,18 +111,43 @@ func TestATrackShorterThanTheClipIsSkippedAndTheTopCountedWithoutIt(t *testing.T
 	}
 }
 
+// The chart's genres are TikTok's tags: every tag of a track has to be one the game plays, so a mix with trap is out as
+// a kids' song is, and the library's effects and beds, tagged ALL, with them.
+func TestATrackOutsideTheGamesGenresIsSkippedWhateverItsOtherTags(t *testing.T) {
+	chart := chartOf(25)
+	chart[0].Genres = []string{"HIP_HOP/RAP", "TRAP_RAP"}
+	chart[1].Genres = []string{"ALL"}
+	chart[2].Genres = nil
+	chart[3].Genres = []string{"ELECTRONIC", "TECHNO"}
+	dice := &countingDice{}
+
+	sound, err := posts.Soundtracks{Country: "US"}.Pick(chart, clipOf(t, 10), dice)
+
+	require.NoError(t, err)
+	assert.Equal(t, []int{20}, dice.asked)
+	assert.Equal(t, 23, sound.Track.Rank)
+	for i := range 20 {
+		sound, err := posts.Soundtracks{Country: "US"}.Pick(chart, clipOf(t, 10), posts.LoadedDice(i))
+
+		require.NoError(t, err)
+		assert.GreaterOrEqual(t, sound.Track.Rank, 4)
+	}
+}
+
 func TestAChartWithNothingToAttachIsAnError(t *testing.T) {
 	for name, chart := range map[string][]posts.Track{
 		"empty":        nil,
-		"no id":        {{Title: "No id", Rank: 1, Seconds: 30}},
-		"a horn":       {{ID: "clip-1", Excerpt: true, Title: "Breakout sound", Rank: 1, Seconds: 1}},
-		"of no length": {{ID: "clip-1", Excerpt: true, Title: "Unsaid", Rank: 1}},
+		"no id":        {{Title: "No id", Rank: 1, Seconds: 30, Genres: []string{"ROCK"}}},
+		"a horn":       {{ID: "clip-1", Excerpt: true, Title: "Breakout sound", Rank: 1, Seconds: 1, Genres: []string{"ALL"}}},
+		"of no length": {{ID: "clip-1", Excerpt: true, Title: "Unsaid", Rank: 1, Genres: []string{"ROCK"}}},
+		"a kids' song": {{ID: "clip-1", Excerpt: true, Title: "Roy G. Biv", Rank: 1, Seconds: 60, Genres: []string{"CHILDHOOD"}}},
+		"of no genre":  {{ID: "clip-1", Excerpt: true, Title: "Untagged", Rank: 1, Seconds: 60}},
 	} {
 		t.Run(name, func(t *testing.T) {
 			_, err := posts.Soundtracks{Country: "US"}.Pick(chart, clipOf(t, 12.37), posts.LoadedDice(0))
 
 			require.ErrorIs(t, err, posts.ErrNoTrendingTrack)
-			assert.Contains(t, err.Error(), "the US chart lists none that plays the clip's 12.4s")
+			assert.Contains(t, err.Error(), "the US chart lists none in the game's genres that plays the clip's 12.4s")
 		})
 	}
 }

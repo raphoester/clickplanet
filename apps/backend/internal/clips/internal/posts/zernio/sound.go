@@ -37,7 +37,7 @@ func (s *Service) Trending(ctx context.Context, country string) ([]posts.Track, 
 	for _, listed := range *answer.JSON200.Tracks {
 		track := posts.Track{
 			ID: valueOf(listed.Id), Title: valueOf(listed.Name), Artist: valueOf(listed.Artist), Rank: valueOf(listed.Rank),
-			Seconds: valueOf(listed.DurationSec),
+			Seconds: valueOf(listed.DurationSec), Genres: valueOf(listed.Genres),
 		}
 		if listed.Clip != nil && valueOf(listed.Clip.Id) != "" {
 			track.ID, track.Excerpt, track.Seconds = *listed.Clip.Id, true, valueOf(listed.Clip.DurationSec)

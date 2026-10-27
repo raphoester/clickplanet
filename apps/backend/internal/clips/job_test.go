@@ -365,7 +365,7 @@ func TestAClipDrawnForATrendingTrackGoesOutOnTikTokWithOneOfTheChartOfTheCountry
 	renderedIn(t, folder, 1, "ALGERIA STRIKES BACK", `{"sound": "trending"}`)
 	server := zernioWith(t, &posts, func(country string) (int, string) {
 		countries = append(countries, country)
-		return http.StatusOK, `{"tracks":[{"id":"track-1","name":"Song One","artist":"Singer","rank":1,"clip":{"id":"clip-1","durationSec":30}}]}`
+		return http.StatusOK, `{"tracks":[{"id":"track-1","name":"Song One","artist":"Singer","rank":1,"genres":["ROCK"],"clip":{"id":"clip-1","durationSec":30}}]}`
 	})
 	config := configFor(server)
 	config.SoundCountry = "FR"
