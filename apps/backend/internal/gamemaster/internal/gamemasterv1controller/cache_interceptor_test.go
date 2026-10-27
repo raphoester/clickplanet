@@ -18,8 +18,8 @@ import (
 
 type battle struct{}
 
-func (battle) Turn(context.Context) (*gamemasterv1.Turn, error) {
-	return &gamemasterv1.Turn{Kind: gamemasterv1.EntryKind_ENTRY_KIND_BATTLE}, nil
+func (battle) Now(context.Context) (*gamemasterv1.GetTurnResponse, error) {
+	return &gamemasterv1.GetTurnResponse{Turn: &gamemasterv1.Turn{Kind: gamemasterv1.EntryKind_ENTRY_KIND_BATTLE}}, nil
 }
 
 func TestTheTurnIsAGetAnyCacheMayKeepForFiveSeconds(t *testing.T) {

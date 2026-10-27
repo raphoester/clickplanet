@@ -1,4 +1,5 @@
 import {Season} from "../backends/season.ts"
+import {BattleToCome} from "../backends/turn.ts"
 
 const MINUTE = 60
 const HOUR = 60 * MINUTE
@@ -17,15 +18,17 @@ export type SeasonCountdown = {
     left: string
 }
 
-// The day's end while a day runs, then the season's. None once the season ended.
-export function countdownsOf(season: Season, now: number): SeasonCountdown[] {
+// The day's end while a day runs, the next battle's start, then the season's end. None once the season ended.
+export function countdownsOf(season: Season, now: number, battle?: BattleToCome): SeasonCountdown[] {
     if (now >= season.endsAt) return []
 
     const ends = {label: "Season ends in", tag: "Season", left: timeLeft(countdownTo(season.endsAt, now))}
-    if (now >= season.lastDayEndsAt) return [ends]
+    const battles = battle && battle.startsAt > now
+        ? [{label: "Next battle in", tag: "Battle", left: timeLeft(countdownTo(battle.startsAt, now))}]
+        : []
     const cutoff = cutoffOf(season, now)
-    if (cutoff === season.endsAt) return [ends]
-    return [{label: "Today ends in", tag: "Today", left: timeLeft(countdownTo(cutoff, now))}, ends]
+    if (now >= season.lastDayEndsAt || cutoff === season.endsAt) return [...battles, ends]
+    return [{label: "Today ends in", tag: "Today", left: timeLeft(countdownTo(cutoff, now))}, ...battles, ends]
 }
 
 export type EndClock = {

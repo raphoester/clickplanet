@@ -61,6 +61,10 @@ closes the next day, so the reveal plays again.
 `startBattle(minutes = 120, description, times = 3)` plays a battle at once, under a
 new entry id: the mood, the halo, the chip, the start moment, and a round of its own
 of that entry at `times` in the race, so the board's column is the battle's (see [Battles](battle.md)).
+`scheduleBattle(inMinutes = 90, minutes = 120, description)` adds a battle to come
+and answers its id, `moveBattle(id, inMinutes)` moves it and `deleteBattle(id)`
+deletes it, as an operator's edit does: the chip's and the home page's "Next battle
+in" follow at once (the home page has these three alone).
 `endBattle()` ends the turn and leaves the round in progress, as the race does for
 up to 10 s, so the line says the results are coming. `closeBattle()` closes the
 round with its numbers (its points at its times, the tiles each flag took, its top

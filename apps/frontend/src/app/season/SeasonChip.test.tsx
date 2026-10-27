@@ -34,6 +34,17 @@ describe("SeasonChip", () => {
         expect(battleTeased()).toBeNull()
     })
 
+    it("turns to the next battle's countdown between today's and the season's", () => {
+        vi.useFakeTimers({now: endsAt - 27 * DAY - 14 * HOUR})
+        const nextBattle = {entryId: "rush", startsAt: Date.now() + DAY, endsAt: Date.now() + DAY + 2 * HOUR, description: ""}
+        render(<SeasonChip season={season} nextBattle={nextBattle} compact={false} open={false} onToggle={vi.fn()}/>)
+
+        turn()
+        expect(shownFace()).toEqual(["Next battle in", "23h 59m 54s"])
+        turn()
+        expect(shownFace()[0]).toBe("Season ends in")
+    })
+
     it("ticks down every second", () => {
         vi.useFakeTimers({now: season.lastDayEndsAt - 3 * DAY - (2 * HOUR + 52 * MINUTE + 10 * SECOND)})
         render(<SeasonChip season={season} compact={false} open={false} onToggle={vi.fn()}/>)

@@ -11,9 +11,19 @@ export type Turn = {
 
 export const PLAIN_TURN: Turn = {kind: "plain", description: "", entryId: ""}
 
-export interface TurnBackend {
-    turn(): Promise<Turn>
+export type BattleToCome = {
+    entryId: string
+    startsAt: number
+    endsAt: number
+    description: string
+}
 
-    // Tells when what it answers may have changed, so the caller reads again.
-    changes(onChange: () => void): () => void
+export type TurnListener = {
+    onTurn: (turn: Turn) => void
+    onBattles: (battles: BattleToCome[]) => void
+}
+
+export interface TurnBackend {
+    // The turn and the battles to come at once, then each change of either.
+    follow(listener: TurnListener): () => void
 }

@@ -140,3 +140,30 @@ func TestTwoEntriesOfOneSetInARowAreTwoTurns(t *testing.T) {
 	assert.NotEqual(t, sched.TurnAt(finale), sched.TurnAt(finale.Add(time.Hour)), "the second is commanded again")
 	assert.Equal(t, finale.Add(time.Hour), sched.SinceAt(finale.Add(90*time.Minute)))
 }
+
+func plainEntry(n byte, startsAt, endsAt time.Time) schedule.Entry {
+	return schedule.EntrySnapshot{
+		ID: id(n), Set: "quiet", Kind: schedule.Plain, StartsAt: startsAt, EndsAt: endsAt, Priority: 1, MadeAt: madeAt,
+	}.Restore()
+}
+
+func TestTheBattlesAfterATimeAreThoseNotStartedByStartAndNeverAPlainEntry(t *testing.T) {
+	running := entry(1, "rush", finale.Add(-time.Hour), finale, 1, madeAt)
+	late := entry(2, "rush", battleEnds, battleEnds.Add(time.Hour), 1, madeAt)
+	soon := entry(3, "rush", finale, battleEnds, 1, madeAt)
+	sched := schedule.New(running, late, soon, plainEntry(4, finale, battleEnds))
+
+	battles := sched.BattlesAfter(finale.Add(-time.Minute))
+
+	assert.Equal(t, []schedule.EntrySnapshot{soon.TakeSnapshot(), late.TakeSnapshot()}, battles)
+	assert.Empty(t, sched.BattlesAfter(battleEnds), "a battle that starts now has started")
+}
+
+func TestBattlesThatStartTogetherComeInTheOrderTheyWereMade(t *testing.T) {
+	second := entry(1, "rush", finale, battleEnds, 1, madeAt.Add(time.Minute))
+	first := entry(2, "rush", finale, battleEnds, 1, madeAt)
+
+	battles := schedule.New(second, first).BattlesAfter(madeAt)
+
+	assert.Equal(t, []schedule.EntrySnapshot{first.TakeSnapshot(), second.TakeSnapshot()}, battles)
+}

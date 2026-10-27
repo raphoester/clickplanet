@@ -16,12 +16,12 @@ import (
 
 type reader struct {
 	mu    sync.Mutex
-	turn  *gamemasterv1.Turn
+	now   *gamemasterv1.GetTurnResponse
 	reads int
 	err   error
 }
 
-func (r *reader) Turn(context.Context) (*gamemasterv1.Turn, error) {
+func (r *reader) Now(context.Context) (*gamemasterv1.GetTurnResponse, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -29,14 +29,24 @@ func (r *reader) Turn(context.Context) (*gamemasterv1.Turn, error) {
 	if r.err != nil {
 		return nil, r.err
 	}
-	return proto.CloneOf(r.turn), nil
+	return proto.CloneOf(r.now), nil
 }
 
 func (r *reader) play(kind gamemasterv1.EntryKind) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	r.turn = &gamemasterv1.Turn{Kind: kind}
+	r.now.Turn = &gamemasterv1.Turn{Kind: kind}
+}
+
+func (r *reader) schedule(battles ...string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.now.Timeline = &gamemasterv1.Timeline{}
+	for _, id := range battles {
+		r.now.Timeline.Battles = append(r.now.Timeline.Battles, &gamemasterv1.Battle{EntryId: id})
+	}
 }
 
 func (r *reader) fail(err error) {
@@ -59,22 +69,27 @@ const (
 )
 
 func newFeed() (*inprocess_turn_feed.Feed, *reader) {
-	reader := &reader{turn: &gamemasterv1.Turn{Kind: plain}}
+	reader := &reader{now: &gamemasterv1.GetTurnResponse{Turn: &gamemasterv1.Turn{Kind: plain}, Timeline: &gamemasterv1.Timeline{}}}
 	return inprocess_turn_feed.New(reader), reader
 }
 
-func next(t *testing.T, turns <-chan *gamemasterv1.Turn) gamemasterv1.EntryKind {
+func next(t *testing.T, turns <-chan *gamemasterv1.GetTurnResponse) gamemasterv1.EntryKind {
+	t.Helper()
+	return nextNow(t, turns).GetTurn().GetKind()
+}
+
+func nextNow(t *testing.T, turns <-chan *gamemasterv1.GetTurnResponse) *gamemasterv1.GetTurnResponse {
 	t.Helper()
 	select {
-	case turn := <-turns:
-		return turn.GetKind()
+	case now := <-turns:
+		return now
 	default:
 		require.Fail(t, "no turn was sent")
-		return gamemasterv1.EntryKind_ENTRY_KIND_UNSPECIFIED
+		return nil
 	}
 }
 
-func quiet(t *testing.T, turns <-chan *gamemasterv1.Turn) {
+func quiet(t *testing.T, turns <-chan *gamemasterv1.GetTurnResponse) {
 	t.Helper()
 	select {
 	case turn := <-turns:
@@ -83,7 +98,7 @@ func quiet(t *testing.T, turns <-chan *gamemasterv1.Turn) {
 	}
 }
 
-func closed(t *testing.T, turns <-chan *gamemasterv1.Turn) {
+func closed(t *testing.T, turns <-chan *gamemasterv1.GetTurnResponse) {
 	t.Helper()
 	require.Eventually(t, func() bool {
 		select {
@@ -133,6 +148,25 @@ func TestEachChangeOfTurnIsSentToEveryStream(t *testing.T) {
 
 	assert.Equal(t, battle, next(t, first), "the battle starts")
 	assert.Equal(t, battle, next(t, second))
+}
+
+func TestABattleAddedEditedOrDeletedIsSentToEveryStream(t *testing.T) {
+	feed, reader := newFeed()
+	turns := feed.Subscribe(t.Context())
+	feed.Refresh(t.Context())
+	next(t, turns)
+
+	for _, battles := range [][]string{{"finale"}, {"finale", "rush"}, {"rush"}} {
+		reader.schedule(battles...)
+		feed.Refresh(t.Context())
+
+		timeline := nextNow(t, turns).GetTimeline().GetBattles()
+		sent := make([]string, 0, len(timeline))
+		for _, battle := range timeline {
+			sent = append(sent, battle.GetEntryId())
+		}
+		assert.Equal(t, battles, sent)
+	}
 }
 
 func TestATurnThatHoldsIsNotSentAgain(t *testing.T) {
@@ -207,7 +241,7 @@ func TestTheRunnerReadsForANewStreamAndStopsWithItsContext(t *testing.T) {
 	require.Eventually(t, func() bool {
 		select {
 		case turn := <-turns:
-			return assert.Equal(t, battle, turn.GetKind())
+			return assert.Equal(t, battle, turn.GetTurn().GetKind())
 		default:
 			return false
 		}

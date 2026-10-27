@@ -11,7 +11,8 @@ service GamemasterService {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 
-  // The turn now, as the first event, then each change of it within a second; a heartbeat every 30 s meanwhile.
+  // The turn now and the timeline, as the first events, then each change of either within a second; a heartbeat every
+  // 30 s meanwhile.
   rpc ListenForEvents(ListenForEventsRequest) returns (stream GamemasterEvent);
 }
 
@@ -28,6 +29,7 @@ message GetTurnRequest {}
 
 message GetTurnResponse {
   Turn turn = 1;
+  Timeline timeline = 2;
 }
 
 // What the schedule plays now.
@@ -44,12 +46,28 @@ message Turn {
   string entry_id = 5;
 }
 
+// What the schedule will play that the players may wait for. An operator may still move or delete an entry to come:
+// the stream sends the timeline again then.
+message Timeline {
+  // The battles that have not started, by start. Never a plain entry.
+  repeated Battle battles = 1;
+}
+
+message Battle {
+  string entry_id = 1;
+  google.protobuf.Timestamp starts_at = 2;
+  google.protobuf.Timestamp ends_at = 3;
+  // The entry's words for the players, plain text: what its rules are.
+  string description = 4;
+}
+
 message ListenForEventsRequest {}
 
 message GamemasterEvent {
   oneof event {
     Turn turn = 1;
     Heartbeat heartbeat = 2;
+    Timeline timeline = 3;
   }
 }
 

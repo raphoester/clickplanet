@@ -21,7 +21,7 @@ internal/gamemaster/
   internal/
     migrations/                     schedule_entries, entry_kind, entry_description
     schedule/                       EntryID, SetName, Kind, Description, Priority, Draft, Entry (NewEntry, Edited, Changeable),
-                                    Schedule (New, TurnAt, SinceAt), Turn; the Store, Keeper and IDProvider ports,
+                                    Schedule (New, TurnAt, SinceAt, BattlesAfter), Turn; the Store, Keeper and IDProvider ports,
                                     Playable; the store's contract suite; FakeKeeper and FakeIDs (testing tag)
       inmemory_entry_store/         the Store in a map, behind the testing tag
       postgres_entry_store/         the Store over gamemaster.schedule_entries
@@ -38,9 +38,9 @@ internal/gamemaster/
     gamemasterv1controller/              AdminService and GamemasterService (bags), NewCacheInterceptor
       get_schedule_handler/schedule_query/   PostgresQuery: every entry, and what plays now
       add_entry_handler/  edit_entry_handler/  delete_entry_handler/
-      get_turn_handler/turn_query/  PostgresQuery: the turn now, in the players' words, for the game client
-      listen_for_events_handler/    the stream: the turn, then each change, and heartbeats
-        inprocess_turn_feed/        reads the turn each second while a stream follows it; log_turn_reader
+      get_turn_handler/turn_query/  PostgresQuery: the turn now and the battles to come, in the players' words
+      listen_for_events_handler/    the stream: the turn and the timeline, then each change of either, and heartbeats
+        inprocess_turn_feed/        reads both each second while a stream follows them; log_turn_reader
       schedulemessage/              DraftOf, KindOf, and Refusal: the code of each refusal
 ```
 
@@ -158,27 +158,33 @@ Rule schedule page (see the backoffice's [Ops](../../backoffice/docs/ops.md)):
 
 ## The game client
 
-**`gamemaster.v1.GamemasterService`, on the public router, is what the client reads to give a battle its look.** Its
-`Turn` is the kind of the running entry (plain when none runs), its `description` (empty when none runs), `since`
-when the turn began (unset before any entry), `ends_at`, when the running entry ends (unset when none runs), and
-`entry_id`, the running entry's id (empty when none runs), which the round of its own scoring closes repeats. **No
-entry to come crosses**: the client counts down to the end of the day and of the season (scoring's), not to a battle,
-since an entry to come may still be moved or deleted (the user, 2026-10-27).
-**Never the rule set's name**: the query (`turn_query`) reads the entries and computes the turn by `Schedule`'s rule,
-as `GetSchedule` does, and answers in the published language only.
+**`gamemaster.v1.GamemasterService`, on the public router, is what the client reads to give a battle its look and
+to count down to the next one.** Its `Turn` is the kind of the running entry (plain when none runs), its
+`description` (empty when none runs), `since` when the turn began (unset before any entry), `ends_at`, when the
+running entry ends (unset when none runs), and `entry_id`, the running entry's id (empty when none runs), which the
+round of its own scoring closes repeats. **Never the rule set's name**: the query (`turn_query`) reads the entries and
+computes the turn by `Schedule`'s rule, as `GetSchedule` does, and answers in the published language only.
 
-**`ListenForEvents` is how the client follows it: no polling.** A `GamemasterEvent` is a `oneof` of `turn` and
-`heartbeat`, as the other live streams (see [The live streams](live-streams.md)). The stream sends the turn as its
-first event, then each change of it within a second, and a heartbeat every `httpServer.streamHeartbeat` meanwhile.
-So the client needs no read at the entry's end: when the entry ends, or one above it starts, the next turn arrives
-and the look changes then; `ends_at` is for a countdown. `inprocess_turn_feed` is the source: a runner
-(`gamemaster-turn`) that, while at least one stream follows, reads the turn each second through `turn_query` (the
-schedule runner reads the entries each second too) and hands it to every stream when it differs from the last one
-sent; a new stream gets the last turn at once, and the first one after nobody followed waits for a fresh read. A
-failed read is logged by `log_turn_reader` and the next second's read sends. Nobody following, it reads nothing. The
-handler returns when its context ends, so the drain ends it cleanly.
+**The `Timeline` is the battles to come**, next to the turn: each entry of kind battle that has not started
+(`Schedule.BattlesAfter`), by start, a tie going to the entry made first, as a `Battle`: its entry id, its start, its
+end and its description. **Never a plain entry**: a quiet antibot change stays the operator's. An entry to come may
+still be moved or deleted; the stream sends each change within a second, so a countdown is fixed at once (the user
+lifted the rule "no entry to come crosses", 2026-10-27). A `Battle` is a message of its own, so a fact of a battle
+(the season it ends, for the finale) is a field of it.
 
-**`GetTurn` is the same turn as a cached GET**, for a reader that does not follow the stream. It is
+**`ListenForEvents` is how the client follows them: no polling.** A `GamemasterEvent` is a `oneof` of `turn`,
+`timeline` and `heartbeat`, as the other live streams (see [The live streams](live-streams.md)). The stream sends the
+turn and the timeline as its first events, then each one again only when it changed, within a second, and a heartbeat
+every `httpServer.streamHeartbeat` meanwhile. So the client needs no read at the entry's end: when the entry ends, or
+one above it starts, the next turn arrives and the look changes then (and the battle that started leaves the
+timeline); `ends_at` is for a countdown. `inprocess_turn_feed` is the source: a runner (`gamemaster-turn`) that, while
+at least one stream follows, reads the turn and the timeline each second through `turn_query` (the schedule runner reads
+the entries each second too) and hands them to every stream when either differs from the last one read; the handler
+sends the part that changed. A new stream gets the last read at once, and the first one after nobody followed waits for
+a fresh read. A failed read is logged by `log_turn_reader` and the next second's read sends. Nobody following, it reads
+nothing. The handler returns when its context ends, so the drain ends it cleanly.
+
+**`GetTurn` is the same turn and timeline as a cached GET**, for a reader that does not follow the stream. It is
 `NO_SIDE_EFFECTS`, so Connect sends it as an HTTP GET, and `gamemasterv1controller.NewCacheInterceptor` sets
 `Cache-Control: public, max-age=5, s-maxage=5` on the answer (the map's pattern, see [The map load](map-load.md)):
 an answer read within five seconds of a change may still say the turn before it.
@@ -186,12 +192,11 @@ an answer read within five seconds of a change may still say the turn before it.
 ## Tests
 
 The rule is pinned by `schedule_test.go` (priorities, ties, the end, since when, two entries of one set, the turn's
-kind, its window) and `entry_test.go` (only an entry to come changes, every reason, a kind nobody knows). `schedule.StoreContractSuite`
+kind, its window, the battles after a time and their order) and `entry_test.go` (only an entry to come changes, every reason, a kind nobody knows). `schedule.StoreContractSuite`
 runs on the memory and postgres stores. `turn_query`'s test pins the public read while an entry runs (its id among it), after the last
-one ended and before any; `cache_interceptor_test.go` pins the GET and its header. `inprocess_turn_feed`'s test pins
-the feed (a stream gets the turn once read, another at once, each change to every stream, a turn that holds not sent
-again, nothing read with nobody following, a failed read) and `listen_for_events_handler`'s the stream (the turn
-case, the heartbeat, the feed left when the stream closes, a clean end when the feed closes). `redis_rule_set_commands`' test pins scoring told the entry's id and window. The runner's test pins a send at boot and at each change, none while the turn holds, and a send Redis
+one ended and before any, and the timeline (a battle to come in the players' words, no plain entry, none once started); `cache_interceptor_test.go` pins the GET and its header. `inprocess_turn_feed`'s test pins
+the feed (a stream gets the turn once read, another at once, each change to every stream, a battle added, edited or
+deleted sent, a turn that holds not sent again, nothing read with nobody following, a failed read) and `listen_for_events_handler`'s the stream (the turn then the timeline first, only the part that changed after, the heartbeat, the feed left when the stream closes, a clean end when the feed closes). `redis_rule_set_commands`' test pins scoring told the entry's id and window. The runner's test pins a send at boot and at each change, none while the turn holds, and a send Redis
 refused sent again. Each module's `play_rule_set_handler` test pins the latest decision, a redelivery and an unknown
 set; the choice stores have their own contract suite (`rules.ChoiceStoreContractSuite`). The smoke test
 `TestAnEntryOfTheScheduleIsPlayedByPlanetTheAntibotAndSeasons` adds a battle entry on the console listener, waits for

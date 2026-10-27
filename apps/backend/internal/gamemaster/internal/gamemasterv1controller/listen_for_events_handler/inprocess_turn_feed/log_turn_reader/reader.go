@@ -19,10 +19,10 @@ type Logged struct {
 
 var _ inprocess_turn_feed.Reader = (*Logged)(nil)
 
-func (l *Logged) Turn(ctx context.Context) (*gamemasterv1.Turn, error) {
-	turn, err := l.inner.Turn(ctx)
+func (l *Logged) Now(ctx context.Context) (*gamemasterv1.GetTurnResponse, error) {
+	now, err := l.inner.Now(ctx)
 	if err != nil && ctx.Err() == nil {
 		l.logger.Error("failed to read the live turn", slog.Any("error", err))
 	}
-	return turn, err //nolint:wrapcheck // a decorator adds a log line, not a sentence.
+	return now, err //nolint:wrapcheck // a decorator adds a log line, not a sentence.
 }

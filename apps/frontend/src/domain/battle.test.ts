@@ -7,8 +7,7 @@ import {
     battleKeyOf,
     battleLeft,
     battleOf,
-    nextReadAt,
-    TURN_REREAD_MS,
+    nextBattleOf,
 } from "./battle.ts"
 
 const SECOND = 1000
@@ -31,19 +30,18 @@ describe("battleOf", () => {
     })
 })
 
-describe("nextReadAt", () => {
-    it("reads again in a minute", () => {
-        expect(nextReadAt(undefined, now)).toBe(now + TURN_REREAD_MS)
-        expect(nextReadAt({kind: "plain", description: "", entryId: ""}, now)).toBe(now + TURN_REREAD_MS)
-        expect(nextReadAt(turn, now)).toBe(now + TURN_REREAD_MS)
+describe("nextBattleOf", () => {
+    const soon = {entryId: "soon", startsAt: now + HOUR, endsAt: now + 3 * HOUR, description: "Triple points."}
+    const later = {...soon, entryId: "later", startsAt: now + 2 * HOUR}
+
+    it("is the first battle that has not started", () => {
+        expect(nextBattleOf([soon, later], now)).toBe(soon)
+        expect(nextBattleOf([soon, later], soon.startsAt)).toBe(later)
     })
 
-    it("reads again at the entry's end when it is sooner", () => {
-        expect(nextReadAt({...turn, endsAt: now + 10 * SECOND}, now)).toBe(now + 10 * SECOND)
-    })
-
-    it("does not wait on an end already passed", () => {
-        expect(nextReadAt({...turn, endsAt: now - SECOND}, now)).toBe(now + TURN_REREAD_MS)
+    it("is nothing with no battle to come", () => {
+        expect(nextBattleOf([], now)).toBeUndefined()
+        expect(nextBattleOf([soon], later.startsAt)).toBeUndefined()
     })
 })
 

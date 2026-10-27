@@ -5,12 +5,13 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/proto"
 
 	gamemasterv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/gamemaster/v1"
 )
 
 type Turns interface {
-	Subscribe(ctx context.Context) <-chan *gamemasterv1.Turn
+	Subscribe(ctx context.Context) <-chan *gamemasterv1.GetTurnResponse
 }
 
 // Well under Cloudflare's ~125s idle cut on a silent stream.
@@ -40,6 +41,8 @@ func (h ListenForEventsHandler) ListenForEvents(
 	heartbeat := time.NewTicker(h.heartbeat)
 	defer heartbeat.Stop()
 
+	var sent *gamemasterv1.GetTurnResponse
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -52,15 +55,36 @@ func (h ListenForEventsHandler) ListenForEvents(
 				return err //nolint:wrapcheck // the stream's own error.
 			}
 
-		case turn, open := <-turns:
+		case now, open := <-turns:
 			if !open {
 				return nil
 			}
-			if err := stream.Send(&gamemasterv1.GamemasterEvent{
-				Event: &gamemasterv1.GamemasterEvent_Turn{Turn: turn},
-			}); err != nil {
-				return err //nolint:wrapcheck // the stream's own error.
+			if err := sendChanges(stream, sent, now); err != nil {
+				return err
 			}
+			sent = now
 		}
 	}
+}
+
+// The turn, then the timeline, each only when it differs from the one sent last.
+func sendChanges(
+	stream *connect.ServerStream[gamemasterv1.GamemasterEvent],
+	sent, now *gamemasterv1.GetTurnResponse,
+) error {
+	if sent == nil || !proto.Equal(sent.GetTurn(), now.GetTurn()) {
+		if err := stream.Send(&gamemasterv1.GamemasterEvent{
+			Event: &gamemasterv1.GamemasterEvent_Turn{Turn: now.GetTurn()},
+		}); err != nil {
+			return err //nolint:wrapcheck // the stream's own error.
+		}
+	}
+	if sent == nil || !proto.Equal(sent.GetTimeline(), now.GetTimeline()) {
+		if err := stream.Send(&gamemasterv1.GamemasterEvent{
+			Event: &gamemasterv1.GamemasterEvent_Timeline{Timeline: now.GetTimeline()},
+		}); err != nil {
+			return err //nolint:wrapcheck // the stream's own error.
+		}
+	}
+	return nil
 }

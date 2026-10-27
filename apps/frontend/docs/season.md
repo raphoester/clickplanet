@@ -5,18 +5,18 @@
 `fakeSeasonBackend.ts` answers Season 0 in fake mode. A 404 reads as no season.
 
 - `domain/seasonClock.ts` — `countdownsOf`, the chip's faces: the time left to
-  today's cutoff to the second (`13h 05m 12s`, `52m 10s`), and to the season's
-  end. **A day ends at the time of day the season's last day ends**
+  today's cutoff to the second (`13h 05m 12s`, `52m 10s`), to the next battle's
+  start when one is to come, and to the season's end. **A day ends at the time of day the season's last day ends**
   (`Season.lastDayEndsAt`, the backend's `rounds.Day`): worked out here from the
   season, so the chip needs no race. From the last day's end to the season's end
   there is no day, and one face, the season's; a last day that ends with the
   season is one face too. After the season, none. `endClock` is the season's
   countdown unit by unit, for the home page, and `endsLine` its end in the
   player's own time zone ("Sat 31 Oct · 23:00").
-- **No battle is counted down to.** Since 2026-10-27 the Final Battle is an entry of the
-  gamemaster's schedule (see [Battles](battle.md)), which an operator may still move: the
-  client knows a battle only once it plays. `GetSeason`'s `finale_starts_at` is read only
-  from a server from before `last_day_ends_at`, which sent the same time under it.
+- **The next battle is the schedule's** (see [Battles](battle.md#the-battles-to-come)):
+  an operator may move or delete it, and the stream says so within a second.
+  `GetSeason`'s `finale_starts_at` is read only from a server from before
+  `last_day_ends_at`, which sent the same time under it.
 - `domain/champion.ts` — `championOf`, the countries ranked 1st once a finale
   closed, `reigningChampionOf`, that champion while no newer season is current,
   and `winsLine`, "Germany wins Season 0", for the reveal, the chip and the chat.
@@ -27,8 +27,9 @@
   revealed](cutoff.md)): a day's reveal, and the season's results after the Final
   Battle's brief (see [Battles](battle.md#the-brief)).
 
-**The season is a chip in the status zone, and it turns between two
-countdowns**: today's cutoff, because the day is what scores, and the season's
+**The season is a chip in the status zone, and it turns between its
+countdowns**: today's cutoff, because the day is what scores, the next battle's
+start ("Next battle in", tag "Battle"), while one is to come, and the season's
 end. Each face shows for 6 seconds. A face is a label and its time
 together, so a look never shows one countdown's time under the other's label.
 The next face slides up into place; under `prefers-reduced-motion` it changes
@@ -74,11 +75,13 @@ more for the winning country's. A battle and what it is worth are the schedule's
 the battle chip says them, in the operator's words, while one plays. Guests get no title, so
 the row says "signed-in".
 
-**The home page counts down to the season's end.** `src/home.ts` reads the
+**The home page counts down to the season's end, and to the next battle.** `src/home.ts` reads the
 season with the same client, and `app/home/season.ts` fills the pill in the hero
 ("Season 0 · ends in") and the `#season` section (when it ends, the countdown,
 the rows of the chip), both `hidden` until a season is known and again once it is
-over. The page's text stays in `index.html`; the module only writes the numbers. **It imports no CSS**:
+over. `app/home/battle.ts` follows the gamemaster's stream with the game's own
+client and fills the second pill ("Next battle in", `[data-battle]`), `hidden` while
+no battle is to come; an edit of the schedule moves it at once. The page's text stays in `index.html`; the module only writes the numbers. **It imports no CSS**:
 a stylesheet shared with `play.html` becomes its own file, linked before
 `play-*.css`, and moves the game's cascade. The art's styles are copied into the
 page's `<style>`, as `.panel` and `.button` are.

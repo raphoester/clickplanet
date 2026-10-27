@@ -2,6 +2,8 @@ package schedule
 
 import (
 	"bytes"
+	"cmp"
+	"slices"
 	"time"
 )
 
@@ -61,6 +63,21 @@ func (s Schedule) SinceAt(at time.Time) time.Time {
 		}
 	}
 	return since
+}
+
+// BattlesAfter are the battles that have not started at a time, by start, a tie going to the entry made first. A plain
+// entry is the operator's alone.
+func (s Schedule) BattlesAfter(at time.Time) []EntrySnapshot {
+	var battles []EntrySnapshot
+	for _, entry := range s.entries {
+		if entry.kind == Battle && entry.startsAt.After(at) {
+			battles = append(battles, entry.TakeSnapshot())
+		}
+	}
+	slices.SortFunc(battles, func(a, b EntrySnapshot) int {
+		return cmp.Or(a.StartsAt.Compare(b.StartsAt), a.MadeAt.Compare(b.MadeAt), bytes.Compare(a.ID[:], b.ID[:]))
+	})
+	return battles
 }
 
 func (e Entry) runs(at time.Time) bool {
