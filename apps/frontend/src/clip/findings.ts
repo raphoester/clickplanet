@@ -1,7 +1,8 @@
 import {Timestamp} from "@bufbuild/protobuf"
 import {Findings, Front, Pick, Place as PlaceWritten, Seasonal, StoryFacts, Tour} from "../gen/grpc/clips/v1/clips_pb.ts"
-import {FrontFacts, PlaceFacts, TourFacts} from "../domain/clip/findings.ts"
+import {Counts, FrontFacts, PlaceFacts, TourFacts} from "../domain/clip/findings.ts"
 import {KINDS, Place, Story, storyCountriesOf, storyKeyOf} from "../domain/clip/story.ts"
+import {Look, LOOKS} from "../domain/clip/look.ts"
 import {continents, flagOfContinent, regionOf} from "../domain/regions.ts"
 import {nameOf, placeName, said, wordsOf, Written} from "./overlay.ts"
 import {languageOf} from "./clipRecord.ts"
@@ -28,6 +29,9 @@ export type FrontFound = Window & FrontFacts & {scope: string | undefined, bombs
 
 export type TourFound = Window & TourFacts & {flag: string, nextTook: number, bombs: number}
 
+// flippedByContinent: the tiles of the landmasses whose painted flag switched to the holder in the window.
+export type PlaceFound = PlaceFacts & {flippedByContinent: Counts}
+
 export type SeasonalFound = {story: Story, measured: Measured}
 
 export type Found = {
@@ -35,7 +39,7 @@ export type Found = {
     until: number
     fronts: FrontFound[]
     tours: TourFound[]
-    places: PlaceFacts[]
+    places: PlaceFound[]
     seasonal: SeasonalFound[]
     anthems: string[]
 }
@@ -68,7 +72,8 @@ export function findingsOf(found: Found): Findings {
             })),
             flags: front.flags.map((flag) => ({
                 code: flag.code, continent: flag.continent ?? "", took: flag.took, filled: flag.filled, lost: flag.lost,
-                tookFrom: flag.tookFrom, solidity: rounded(flag.solidity, 2), fighters: flag.fighters,
+                tookFrom: flag.tookFrom, solidity: rounded(flag.solidity, 2), flippedByContinent: flag.flippedByContinent,
+                fighters: flag.fighters,
             })),
             bombs: front.bombs, spreads: front.spreads, enclosures: front.enclosures, score: rounded(front.score, 1),
         })),
@@ -79,7 +84,8 @@ export function findingsOf(found: Found): Findings {
         })),
         places: found.places.map((place) => new PlaceWritten({
             kind: place.kind, code: place.code ?? "", continent: place.continent ?? "", tiles: place.tiles, holder: place.holder,
-            held: place.held, share: rounded(place.share, 3), rivals: place.rivals, changed: place.changed, fighters: place.fighters,
+            held: place.held, share: rounded(place.share, 3), rivals: place.rivals, changed: place.changed,
+            flippedByContinent: place.flippedByContinent, fighters: place.fighters,
         })),
         seasonal: found.seasonal.map(({story, measured}) => {
             const words = wordsOf(story)
@@ -123,17 +129,18 @@ export function storyFactsOf(story: Story, line: string | undefined, measured: M
     })
 }
 
-// What --story names: one of the findings, and for a front what the editor made of it.
+// What --story names: one of the findings, for a front what the editor made of it, and for a front or a place the look
+// the editor chose.
 export type Told =
-    | {front: number, story: Story}
+    | {front: number, story: Story, look: Look}
     | {tour: number}
-    | {place: number}
+    | {place: number, look: Look}
     | {seasonal: number}
 
 // The story the editor wrote, as a clips.v1.Pick says it, with its words; a seasonal story has words of its own. Nothing
-// is judged here: a pick that names no front, no kind, no flag or no words is refused as it is read, and the job checked
-// it against the findings before the render. fighters: the players of the cast it names, by number; a seasonal story
-// names nobody.
+// is judged here: a pick that names no front, no kind, no flag, no words or no look is refused as it is read, and the
+// job checked it against the findings before the render. fighters: the players of the cast it names, by number; a
+// seasonal story names nobody.
 export function toldOf(json: string): {told: Told, written: Written | undefined, fighters: number[]} {
     const pick = Pick.fromJson(JSON.parse(json), {ignoreUnknownFields: true})
     const fighters = pick.fighters
@@ -146,7 +153,9 @@ export function toldOf(json: string): {told: Told, written: Written | undefined,
         callFlags: pick.callFlags, anthem: pick.anthem === "" ? undefined : pick.anthem,
     }
     if (pick.tour > 0) return {told: {tour: pick.tour}, written, fighters}
-    if (pick.place > 0) return {told: {place: pick.place}, written, fighters}
+    const look = LOOKS.find((known) => known === pick.look)
+    if (look === undefined) throw new Error(`a front or a place is told with the look "flags" or "dive", not "${pick.look}"`)
+    if (pick.place > 0) return {told: {place: pick.place, look}, written, fighters}
 
     const kind = KINDS.find((known) => known === pick.kind)
     if (kind === undefined || kind === "holding" || kind === "round" || kind === "callup") {
@@ -158,7 +167,7 @@ export function toldOf(json: string): {told: Told, written: Written | undefined,
         kind, attacker: pick.attacker, rival: pick.rival === "" ? undefined : pick.rival, victims: pick.takenFrom, place,
         ...pick.team === "" ? {} : {team: pick.team},
     }
-    return {told: {front: pick.front, story}, written, fighters}
+    return {told: {front: pick.front, story, look}, written, fighters}
 }
 
 function placeOfPick(countries: string[], continent: string): Place {

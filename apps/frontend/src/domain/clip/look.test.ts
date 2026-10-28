@@ -1,6 +1,6 @@
 import {describe, expect, it} from "vitest"
 import {TileChange} from "./changes.ts"
-import {Flip, flippedTo, flipsOf, lookOf, TILES_ZOOM} from "./look.ts"
+import {Flip, flippedTo, flipsOf} from "./look.ts"
 
 const landmassOf = [...Array(30).fill(1), ...Array(30).fill(2), ...Array(5).fill(3), 0]
 
@@ -34,28 +34,6 @@ describe("the landmasses that changed hands", () => {
 
     it("count a landmass emptied by bombs", () => {
         expect(flipsOf(landmassOf, holding("pl", 1, 30), taking(undefined, "pl", 1, 30), [1])).toEqual([{landmass: 1, tiles: 30, holders: ["pl", ""], tile: 1}])
-    })
-})
-
-describe("the look of a clip", () => {
-    const flip = (tiles: number): Flip => ({landmass: 1, tiles, holders: ["fr", "ps"], tile: 1})
-
-    it("is painted flags when several big landmasses changed hands over a wide front", () => {
-        expect(lookOf([flip(1500), flip(900)], 1.5)).toBe("flags")
-    })
-
-    it("dives into the tiles when a wide front changed one big landmass, or some smaller ones", () => {
-        expect(lookOf([flip(2500)], 1.5)).toBe("dive")
-        expect(lookOf([flip(1000), flip(600)], 1.5)).toBe("dive")
-    })
-
-    it("dives when nothing big enough to see from far changed hands", () => {
-        expect(lookOf([flip(60), flip(40), flip(30)], 1.5)).toBe("dive")
-        expect(lookOf([], 1.5)).toBe("dive")
-    })
-
-    it("dives rather than paint flags all along when the fight fits a view close enough to read the tiles", () => {
-        expect(lookOf([flip(1500), flip(900)], TILES_ZOOM)).toBe("dive")
     })
 })
 

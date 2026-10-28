@@ -39,51 +39,40 @@ var (
 	ada      = missions.AccountID{15: 1}
 )
 
-func setUp(allegiances get_missions_usecase.Allegiances) (*get_missions_usecase.UseCase, *inmemory_mission_store.Store) {
+func setUp(allegiances missions.Allegiances) (*get_missions_usecase.UseCase, *inmemory_mission_store.Store) {
 	store := inmemory_mission_store.New()
 	return get_missions_usecase.New(calendar, cptime.NewFixedClock(now), store,
-		missions.NewBriefing(store, fixedPlanet{}), allegiances), store
+		missions.NewBriefing(store, fixedPlanet{}, allegiances)), store
 }
 
-func bankOf(flag string) missions.MissionID {
-	return missions.Draw(calendar.DayOf(now), flag, missions.World{Territories: []missions.Territory{{Flag: "dz", Tiles: 9_000}}}).Snapshot()[0].ID
-}
-
-func enlist(t *testing.T, store *inmemory_mission_store.Store, flag string) {
-	t.Helper()
-
-	require.NoError(t, store.ChangeSheet(t.Context(), calendar.DayOf(now), ada, func(missions.Sheet) missions.Sheet {
-		return missions.SheetOf(missions.SheetSnapshot{Flag: flag, Progress: map[missions.MissionID]uint32{bankOf(flag): 7}})
-	}))
-}
-
-func TestBeforeTheDaysFirstTakeTheMissionsAreThePledgedFlags(t *testing.T) {
+func TestTheFirstReadDrawsTheDayForThePledgedFlag(t *testing.T) {
 	useCase, _ := setUp(pledges{ada: "fr"})
 
 	out, err := useCase.Execute(t.Context(), get_missions_usecase.In{Account: ada})
 
 	require.NoError(t, err)
-	assert.Equal(t, "fr", out.Flag)
-	assert.False(t, out.Sheet.Enlisted())
-	assert.Equal(t, missions.Draw(calendar.DayOf(now), "fr", missions.World{
+	assert.Equal(t, missions.Draw(calendar.DayOf(now), ada, "fr", missions.World{
 		Territories: []missions.Territory{{Flag: "dz", Tiles: 9_000}},
 	}).Snapshot(), out.Brief.Snapshot())
 	assert.Equal(t, time.Date(2026, 10, 26, 21, 0, 0, 0, time.UTC), out.Day.EndsAt())
 }
 
-func TestOnceEnlistedTheMissionsAreTheDaysFlagsWhateverIsPledgedSince(t *testing.T) {
-	useCase, store := setUp(pledges{ada: "de"})
-	enlist(t, store, "fr")
+func TestTheDayStaysTheOneDrawnWhateverIsPledgedSince(t *testing.T) {
+	pledged := pledges{ada: "fr"}
+	useCase, store := setUp(pledged)
+	first, err := useCase.Execute(t.Context(), get_missions_usecase.In{Account: ada})
+	require.NoError(t, err)
+	bank := first.Brief.Snapshot()[0].ID
+	require.NoError(t, store.ChangeSheet(t.Context(), calendar.DayOf(now), ada, func(missions.Sheet) missions.Sheet {
+		return missions.SheetOf(missions.SheetSnapshot{Progress: map[missions.MissionID]uint32{bank: 7}})
+	}))
+	pledged[ada] = "de"
 
 	out, err := useCase.Execute(t.Context(), get_missions_usecase.In{Account: ada})
 
 	require.NoError(t, err)
-	assert.Equal(t, "fr", out.Flag)
-	assert.True(t, out.Sheet.Enlisted())
-	assert.Equal(t, uint32(7), out.Sheet.Snapshot().Progress[bankOf("fr")])
-	bank, ok := out.Brief.Snapshot()[0].Order.(missions.TakeFor)
-	require.True(t, ok)
-	assert.Equal(t, "fr", bank.Flag)
+	assert.Equal(t, first.Brief.Snapshot(), out.Brief.Snapshot())
+	assert.Equal(t, uint32(7), out.Sheet.Snapshot().Progress[bank])
 }
 
 func TestWithNoFlagPledgedThereAreNoMissions(t *testing.T) {

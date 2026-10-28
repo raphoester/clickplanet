@@ -26,6 +26,10 @@ func (p *countingPlanet) World(context.Context) (missions.World, error) {
 	return missions.World{Territories: []missions.Territory{{Flag: "dz", Tiles: 9_000}}}, p.err
 }
 
+type pledged string
+
+func (p pledged) FlagOf(context.Context, missions.AccountID) (string, error) { return string(p), nil }
+
 type recordingPayroll struct {
 	paid []missions.AccountID
 }
@@ -43,7 +47,7 @@ var (
 
 func TestATakeCountsOnTheMissionsOfItsDay(t *testing.T) {
 	store := inmemory_mission_store.New()
-	useCase := record_take_usecase.New(calendar, missions.NewBriefing(store, &countingPlanet{}), store,
+	useCase := record_take_usecase.New(calendar, missions.NewBriefing(store, &countingPlanet{}, pledged("fr")), store,
 		cpatomic.FakeTransactioner{}, &recordingPayroll{})
 
 	require.NoError(t, useCase.Execute(t.Context(), missions.Take{
@@ -52,18 +56,18 @@ func TestATakeCountsOnTheMissionsOfItsDay(t *testing.T) {
 
 	sheet, err := store.Sheet(t.Context(), calendar.DayOf(at), ada)
 	require.NoError(t, err)
-	drawn := missions.Draw(calendar.DayOf(at), "fr", missions.World{Territories: []missions.Territory{{Flag: "dz", Tiles: 9_000}}}).Snapshot()
+	drawn := missions.Draw(calendar.DayOf(at), ada, "fr", missions.World{Territories: []missions.Territory{{Flag: "dz", Tiles: 9_000}}}).Snapshot()
 	assert.Equal(t, missions.SheetSnapshot{
-		Flag: "fr", Progress: map[missions.MissionID]uint32{drawn[0].ID: 1, drawn[1].ID: 1, drawn[2].ID: 1},
+		Progress:   map[missions.MissionID]uint32{drawn[0].ID: 1, drawn[1].ID: 1, drawn[2].ID: 1},
 		Paid:       cpcolls.NewSet[missions.MissionID](),
 		TakesBelow: 42,
 	}, sheet.Snapshot(), "with no ground big enough, the third mission is the flag's too")
 }
 
-func TestAFlagsMissionsAreDrawnOnceADay(t *testing.T) {
+func TestAnAccountsMissionsAreDrawnOnceADay(t *testing.T) {
 	store := inmemory_mission_store.New()
 	planet := &countingPlanet{}
-	useCase := record_take_usecase.New(calendar, missions.NewBriefing(store, planet), store,
+	useCase := record_take_usecase.New(calendar, missions.NewBriefing(store, planet, pledged("fr")), store,
 		cpatomic.FakeTransactioner{}, &recordingPayroll{})
 
 	for range 3 {
@@ -76,23 +80,23 @@ func TestAFlagsMissionsAreDrawnOnceADay(t *testing.T) {
 
 func TestAMapThatCannotBeReadCountsNothing(t *testing.T) {
 	store := inmemory_mission_store.New()
-	useCase := record_take_usecase.New(calendar, missions.NewBriefing(store, &countingPlanet{err: errors.New("down")}), store,
+	useCase := record_take_usecase.New(calendar, missions.NewBriefing(store, &countingPlanet{err: errors.New("down")}, pledged("fr")), store,
 		cpatomic.FakeTransactioner{}, &recordingPayroll{})
 
 	require.Error(t, useCase.Execute(t.Context(), missions.Take{Account: ada, Flag: "fr", At: at}))
 
 	sheet, err := store.Sheet(t.Context(), calendar.DayOf(at), ada)
 	require.NoError(t, err)
-	assert.False(t, sheet.Enlisted())
+	assert.Empty(t, sheet.Snapshot().Progress)
 }
 
 func TestOnlyTheTakeThatFinishesAMissionPaysIt(t *testing.T) {
 	store := inmemory_mission_store.New()
 	payroll := &recordingPayroll{}
-	useCase := record_take_usecase.New(calendar, missions.NewBriefing(store, &countingPlanet{}), store,
+	useCase := record_take_usecase.New(calendar, missions.NewBriefing(store, &countingPlanet{}, pledged("fr")), store,
 		cpatomic.FakeTransactioner{}, payroll)
 
-	drawn := missions.Draw(calendar.DayOf(at), "fr", missions.World{Territories: []missions.Territory{{Flag: "dz", Tiles: 9_000}}}).Snapshot()
+	drawn := missions.Draw(calendar.DayOf(at), ada, "fr", missions.World{Territories: []missions.Territory{{Flag: "dz", Tiles: 9_000}}}).Snapshot()
 	goal := drawn[0].Order.(missions.TakeFor).Goal
 
 	for position := range uint64(goal + 1) {

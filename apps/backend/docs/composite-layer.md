@@ -67,8 +67,8 @@ return []bootstrap.Module{
 | `support` | `player.v1.InternalService/GetAuthors` | the name of each account a page of reports names, on each `ListReports` | `list_reports_handler/reports_query/rpc_player_authors` |
 | `auth`'s admin gate, which `main` builds | `auth.v1.InternalService/GetOperator` | who calls the admin listener, and whether that account operates, on each admin call | `admingate/admission/rpc_operators` |
 | `player` | `planet.v1.InternalService/GetTakesByCountry` | the flags an account took tiles for and the flags that held them, from the ledger, on each `GetFronts`, on each `GetPlayer` the cache does not answer, and on each operator's `AdminService/GetPlayer` | `playerv1controller/rpc_planet_fronts` |
-| `missions` | `planet.v1.InternalService/GetTerritories` and `GetCountrySizes` | what each flag holds and where, and how many tiles of land each country has, once per flag and day, to draw its missions | `missions/rpc_planet_world` |
-| `missions` | `planet.v1.InternalService/GetAllegianceOf` | the flag the caller pledged, on each `GetMissions` before the day's first take | `missions/rpc_planet_allegiance` |
+| `missions` | `planet.v1.InternalService/GetTerritories` and `GetCountrySizes` | what each flag holds and where, and how many tiles of land each country has, once per account and day, to draw its missions | `missions/rpc_planet_world` |
+| `missions` | `planet.v1.InternalService/GetAllegianceOf` | the flag an account pledged, once per account and day, to draw its missions | `missions/rpc_planet_allegiance` |
 | `missions` | `auth.v1.InternalService/GetAccount` | whether an account is signed in, when a take finishes one of its missions | `missions/rpc_auth_accounts` |
 | `clips` | `planet.v1.InternalService/GetLedger` | who took which tile in a run's window, page after page, on each `MakeCast` | `casts/rpc_planet_ledger` |
 | `clips` | `player.v1.InternalService/GetAuthors` | the name each of those accounts may be shown under in the clips, on each `MakeCast` | `casts/rpc_player_names` |

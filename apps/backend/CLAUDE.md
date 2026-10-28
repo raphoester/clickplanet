@@ -92,7 +92,7 @@ and says what is in it. Read the doc before you change its area.
 - [The gamemaster](docs/gamemaster.md) — every moment of the game: the rule schedule that commands planet and the
   antibot, the seasons, days and battles it opens and closes in scoring's books, each season's finale (the Final
   Battle), the events in the game's words, and the steps before the Final Battle.
-- [Missions](docs/missions.md) — three to five missions a day per flag, counted from `TileTaken`, paid once done with a
+- [Missions](docs/missions.md) — three to five missions a day per player, counted from `TileTaken`, paid once done with a
   `GrantCharges` command to planet; why progress is not read from the ledger.
 - [Support](docs/support.md) — suggestions, bug reports and player reports, with their photos and videos.
 - [Clip stats](docs/clip-stats.md) — where the posted clips' daily numbers are kept, for the backoffice.

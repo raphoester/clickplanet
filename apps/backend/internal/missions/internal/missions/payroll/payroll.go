@@ -2,6 +2,7 @@ package payroll
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"google.golang.org/protobuf/proto"
@@ -11,42 +12,38 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 )
 
-type Sheets interface {
+type Store interface {
+	Brief(ctx context.Context, day missions.Day, account missions.AccountID) (missions.Brief, error)
 	Sheet(ctx context.Context, day missions.Day, account missions.AccountID) (missions.Sheet, error)
 	ChangeSheet(ctx context.Context, day missions.Day, account missions.AccountID, change func(missions.Sheet) missions.Sheet) error
-}
-
-type Briefing interface {
-	Of(ctx context.Context, day missions.Day, flag string) (missions.Brief, error)
 }
 
 type Accounts interface {
 	Linked(ctx context.Context, account missions.AccountID) (bool, error)
 }
 
-func New(sheets Sheets, briefing Briefing, accounts Accounts, outbox cpatomic.Outbox) Payroll {
-	return Payroll{sheets: sheets, briefing: briefing, accounts: accounts, outbox: outbox}
+func New(store Store, accounts Accounts, outbox cpatomic.Outbox) Payroll {
+	return Payroll{store: store, accounts: accounts, outbox: outbox}
 }
 
 type Payroll struct {
-	sheets   Sheets
-	briefing Briefing
+	store    Store
 	accounts Accounts
 	outbox   cpatomic.Outbox
 }
 
 // Pay runs in a transaction: the grants are recorded with the payments, or neither is.
 func (p Payroll) Pay(ctx context.Context, day missions.Day, account missions.AccountID) error {
-	sheet, err := p.sheets.Sheet(ctx, day, account)
-	if err != nil {
-		return fmt.Errorf("failed to read the day's missions: %w", err)
-	}
-	if !sheet.Enlisted() {
+	brief, err := p.store.Brief(ctx, day, account)
+	if errors.Is(err, missions.ErrNoBrief) {
 		return nil
 	}
-	brief, err := p.briefing.Of(ctx, day, sheet.Snapshot().Flag)
 	if err != nil {
 		return fmt.Errorf("failed to read the day's missions: %w", err)
+	}
+	sheet, err := p.store.Sheet(ctx, day, account)
+	if err != nil {
+		return fmt.Errorf("failed to read the day's progress: %w", err)
 	}
 	if _, due := sheet.WithPayments(brief); len(due) == 0 {
 		return nil
@@ -61,7 +58,7 @@ func (p Payroll) Pay(ctx context.Context, day missions.Day, account missions.Acc
 	}
 
 	var paid []missions.Payment
-	if err := p.sheets.ChangeSheet(ctx, day, account, func(sheet missions.Sheet) missions.Sheet {
+	if err := p.store.ChangeSheet(ctx, day, account, func(sheet missions.Sheet) missions.Sheet {
 		next, payments := sheet.WithPayments(brief)
 		paid = payments
 		return next

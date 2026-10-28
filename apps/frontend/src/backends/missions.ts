@@ -24,8 +24,6 @@ export type Mission = {
 }
 
 export type DayMissions = {
-    countryCode: string
-    enlisted: boolean
     endsAt: number
     missions: Mission[]
 }

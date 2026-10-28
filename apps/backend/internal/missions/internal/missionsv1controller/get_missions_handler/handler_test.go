@@ -60,8 +60,8 @@ func TestEachMissionIsAnsweredInItsKindsOwnMessage(t *testing.T) {
 	})
 	require.NoError(t, err)
 	useCase := &stubUseCase{out: get_missions_usecase.Out{
-		Day: day, Flag: "fr", Brief: brief, Sheet: missions.SheetOf(missions.SheetSnapshot{
-			Flag: "fr", Progress: map[missions.MissionID]uint32{bank: 60, ground: 12}, Paid: cpcolls.NewSet(bank),
+		Day: day, Brief: brief, Sheet: missions.SheetOf(missions.SheetSnapshot{
+			Progress: map[missions.MissionID]uint32{bank: 60, ground: 12}, Paid: cpcolls.NewSet(bank),
 		}),
 	}}
 
@@ -70,7 +70,7 @@ func TestEachMissionIsAnsweredInItsKindsOwnMessage(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, get_missions_usecase.In{Account: ada}, useCase.in)
 	assert.True(t, proto.Equal(&missionsv1.GetMissionsResponse{
-		CountryId: "fr", Enlisted: true, EndsAtUnixMs: time.Date(2026, 10, 26, 21, 0, 0, 0, time.UTC).UnixMilli(),
+		EndsAtUnixMs: time.Date(2026, 10, 26, 21, 0, 0, 0, time.UTC).UnixMilli(),
 		Missions: []*missionsv1.Mission{
 			{
 				Id: bank.String(), Done: true, Paid: true, Reward: charges(planetv1.BonusKind_BONUS_KIND_SHIELDS, 10),
@@ -88,7 +88,6 @@ func TestAnAnswerBeforeAnyFlagHasNoMissions(t *testing.T) {
 	res, err := ask(t, &stubUseCase{out: get_missions_usecase.Out{Day: day, Sheet: missions.SheetOf(missions.SheetSnapshot{})}})
 
 	require.NoError(t, err)
-	assert.False(t, res.GetEnlisted())
 	assert.Empty(t, res.GetMissions())
 }
 

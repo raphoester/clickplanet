@@ -229,8 +229,9 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
   that held it then, a team only for a continent's flags on their own continent. A tour is by a flag that switched a
   landmass's painted flag somewhere (`FlippedByContinent`), since its camera shows nothing else from far: "BRAZIL IS
   TAKING OVER THE WORLD" of 2026-10-27 switched none, and showed flashes under Europe's flags. A place and a seasonal
-  story only have to exist. A headline is upper case once written (`headlineFrom`), 60 letters at most, starting with a
-  letter or a digit (so `--story` never reads as a flag), only letters of any script, digits and `! ? ' ’ % : , . & -`.
+  story only have to exist. A front and a place have a look the camera knows, `flags` or `dive` (`checkLook`). A
+  headline is upper case once written (`headlineFrom`), 60 letters at most, starting with a letter or a digit (so
+  `--story` never reads as a flag), only letters of any script, digits and `! ? ' ’ % : , . & -`.
   A teaser is upper case too (`teasersFrom`); one that says the headline, says another teaser again, or is over 86
   letters (the YouTube title keeps the brand after it) is left out, and a story with none left is skipped. The call is
   drawn as the headline is, in 30 letters at most, and the line, when there is one, in 60, as written. The call's
@@ -263,19 +264,24 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
   countries and its flags, each tour and each place numbered the same, `recentPosts` with their keys and countries, and
   `shownLately`. **The instructions are `claude_editor/instructions.md`, embedded**: prose on what the facts mean,
   what makes a story worth telling and a headline good, from the lessons of this section and of the frontend's, the
-  evening of 2026-10-26 among them. **Tuning that file is how the model's taste is shaped**; a change ships with the
+  evening of 2026-10-26 among them, and the feed of 2026-10-28, five headlines in a day made of fractions ("BRAZIL
+  LOSES MOST OF ARGENTINA"). **Tuning that file is how the model's taste is shaped**; a change ships with the
   next commit, and the record's `generator` names the commit, so the analysis can tell the versions apart.
 - **What it answers** (`answerSchema`): `why`, then `stories`, best first, each with its `front`, `tour` or `place`
   (the others 0), and for a front its `kind`, `attacker`, `rival`, `takenFrom`, `countries` or `continent`, `team`,
-  and for every story its `headline`, `teasers`, `line`, `call`, `callFlags`, `anthem` and `fighters`. A seasonal
-  story is not its to answer: one it does is skipped.
+  for every story its `headline`, `teasers`, `line`, `call`, `callFlags`, `anthem` and `fighters`, and for a front or
+  a place its `look`: `flags`, the camera back out of the tiles halfway so the painted flags switch on screen, for a
+  steamroll, or `dive`, back out at the end, for a fight seen tile by tile; empty for a tour, whose camera stays out.
+  It reads each flag's and each place's `flippedByContinent` for it: the tiles of the landmasses whose painted flag
+  switched to it. A seasonal story is not its to answer: one it does is skipped.
 - **Every editorial choice is the model's, never a rule's** (2026-10-28): the headline, the teasers, the line, the
-  call and its flags, the anthem. Until then the generator wrote all but the headline from branches on the story, and
-  the caption opened with one of its two teasers per kind: every rout outside the loser's home could be "GENERATIONAL
-  DOWNFALL OF X", so a YouTube Short of China losing Finland, most of the little it held, was titled "GENERATIONAL
-  DOWNFALL OF CHINA". The model writes them from the same facts; the `Pick` carries them to the render, which draws
-  them and puts the teasers in the `Clip`. Only a day won and a call-up keep the generator's own, since no editor
-  writes them.
+  call and its flags, the anthem, the look. Until then the generator wrote all but the headline from branches on the
+  story, and the caption opened with one of its two teasers per kind: every rout outside the loser's home could be
+  "GENERATIONAL DOWNFALL OF X", so a YouTube Short of China losing Finland, most of the little it held, was titled
+  "GENERATIONAL DOWNFALL OF CHINA". The look was a threshold on the landmasses that switched (the frontend's
+  [Clips](../../frontend/docs/clips.md)). The model writes them from the same facts; the `Pick` carries them to the
+  render, which draws them, plays the look, and puts the teasers in the `Clip`. Only a day won and a call-up keep the
+  generator's own, since no editor writes them: their own words, and a dive.
 - **The editor chooses the players a clip names** (2026-10-28): each flag of a front, each tour and each place's
   holder comes with its top fighters of the cast (`Fighter`: number, name, tiles taken; the frontend's
   [Clips](../../frontend/docs/clips.md)), and each story answers the numbers to name (`Story.Fighters`, the generator's

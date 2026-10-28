@@ -9,7 +9,7 @@ import (
 )
 
 type Briefing interface {
-	Of(ctx context.Context, day missions.Day, flag string) (missions.Brief, error)
+	Of(ctx context.Context, day missions.Day, account missions.AccountID) (missions.Brief, error)
 }
 
 type Sheets interface {
@@ -37,9 +37,9 @@ type UseCase struct {
 func (u *UseCase) Execute(ctx context.Context, take missions.Take) error {
 	day := u.calendar.DayOf(take.At)
 
-	brief, err := u.briefing.Of(ctx, day, take.Flag)
+	brief, err := u.briefing.Of(ctx, day, take.Account)
 	if err != nil {
-		return fmt.Errorf("failed to read %s's missions: %w", take.Flag, err)
+		return fmt.Errorf("failed to read the account's missions: %w", err)
 	}
 
 	return u.transactioner.InTx(ctx, func(ctx context.Context) error {

@@ -18,7 +18,8 @@ if (!replay || has("help")) {
 
   --story <json>      the story to tell, a clips.v1.Pick: one front, tour, place or seasonal story of the findings by
                       its number, for a front its kind, sides and place as the editor wrote them, and the editor's words:
-                      headline, teasers, line, call, its flags and the anthem. A seasonal story has words of its own.
+                      headline, teasers, line, call, its flags and the anthem; for a front or a place its look, flags
+                      or dive. A seasonal story has words of its own, and dives.
                       The job's choose prints one for each clip of a run; clips edit prints the model's by hand
   --findings <path>   write what the replay holds for the editor (clips.v1.Findings), as JSON, and make no clip
   --pick <n>          the clip's number in its run, which names its files: clip-<n>.mp4, default 1
@@ -41,8 +42,8 @@ Everything below is chosen from the replay when left out:
   --seconds <n>       the clip's length, at most 22; default 8.5 to 17.5 by how far the fighting moves (10 to 19 with a
                       day's podium), 6.5 to 19 for a tour by its stops. Not with the experiment "length"
   --focus <code>      only what changed hands on that country's ground
-  --flags             come back out of the tiles halfway, to watch the painted flags change
-  --dive              come back out of the tiles at the end
+  --flags             come back out of the tiles halfway, to watch the painted flags change, over the story's look
+  --dive              come back out of the tiles at the end, over the story's look
   --headline <text>   the headline, over the editor's or the seasonal story's own
   --fps <n>           frames a second, default 30
   --recorders <n>     the browsers taking the frames in turn, default one for every 3 cores, 4 at most

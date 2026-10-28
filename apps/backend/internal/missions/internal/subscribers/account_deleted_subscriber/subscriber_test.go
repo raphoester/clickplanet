@@ -20,7 +20,7 @@ func TestADeletedAccountLeavesItsMissions(t *testing.T) {
 	require.NoError(t, err)
 	day := missions.NewCalendar(missions.Config{}).DayOf(time.Date(2026, 10, 26, 12, 0, 0, 0, time.UTC))
 	require.NoError(t, store.ChangeSheet(t.Context(), day, account, func(missions.Sheet) missions.Sheet {
-		return missions.SheetOf(missions.SheetSnapshot{Flag: "fr"})
+		return missions.SheetOf(missions.SheetSnapshot{Progress: map[missions.MissionID]uint32{{15: 1}: 1}})
 	}))
 
 	err = account_deleted_subscriber.New(forget_account_usecase.New(store)).Handle(t.Context(),
@@ -29,7 +29,7 @@ func TestADeletedAccountLeavesItsMissions(t *testing.T) {
 	require.NoError(t, err)
 	sheet, err := store.Sheet(t.Context(), day, account)
 	require.NoError(t, err)
-	assert.False(t, sheet.Enlisted())
+	assert.Empty(t, sheet.Snapshot().Progress)
 }
 
 func TestAnEventWithNoAccountIsRefused(t *testing.T) {

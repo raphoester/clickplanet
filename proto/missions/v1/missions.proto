@@ -10,10 +10,10 @@ service MissionService {
 
 message GetMissionsRequest {}
 
-// The day's missions are for the flag of the day's first take, and for the caller's pledged flag until then.
+// The caller's own missions of the day, drawn at its first read or take for the flag it played then.
 message GetMissionsResponse {
-  string country_id = 1;
-  bool enlisted = 2;
+  string country_id = 1 [deprecated = true];
+  bool enlisted = 2 [deprecated = true];
   int64 ends_at_unix_ms = 3;
   repeated Mission missions = 4;
 }
@@ -33,7 +33,7 @@ message Mission {
   }
 }
 
-// Take goal tiles for country_id, the day's flag.
+// Take goal tiles for country_id.
 message TakeFor {
   string country_id = 1;
   uint32 goal = 2;

@@ -375,9 +375,17 @@ export class FrontFlag extends Message<FrontFlag> {
   solidity = 0;
 
   /**
+   * The tiles of the landmasses whose painted flag switched to it on the front, big enough to read from far, by
+   * continent.
+   *
+   * @generated from field: map<string, uint32> flipped_by_continent = 8;
+   */
+  flippedByContinent: { [key: string]: number } = {};
+
+  /**
    * The players of the cast who took the most for it here, most first.
    *
-   * @generated from field: repeated clips.v1.TopFighter fighters = 8;
+   * @generated from field: repeated clips.v1.TopFighter fighters = 9;
    */
   fighters: TopFighter[] = [];
 
@@ -396,7 +404,8 @@ export class FrontFlag extends Message<FrontFlag> {
     { no: 5, name: "lost", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 6, name: "took_from", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "scalar", T: 13 /* ScalarType.UINT32 */} },
     { no: 7, name: "solidity", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
-    { no: 8, name: "fighters", kind: "message", T: TopFighter, repeated: true },
+    { no: 8, name: "flipped_by_continent", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "scalar", T: 13 /* ScalarType.UINT32 */} },
+    { no: 9, name: "fighters", kind: "message", T: TopFighter, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FrontFlag {
@@ -635,9 +644,16 @@ export class Place extends Message<Place> {
   changed = 0;
 
   /**
+   * The tiles of the landmasses whose painted flag switched to the holder in the window, by continent.
+   *
+   * @generated from field: map<string, uint32> flipped_by_continent = 10;
+   */
+  flippedByContinent: { [key: string]: number } = {};
+
+  /**
    * The players of the cast who took the most of the place for the holder in the window, most first.
    *
-   * @generated from field: repeated clips.v1.TopFighter fighters = 10;
+   * @generated from field: repeated clips.v1.TopFighter fighters = 11;
    */
   fighters: TopFighter[] = [];
 
@@ -658,7 +674,8 @@ export class Place extends Message<Place> {
     { no: 7, name: "share", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
     { no: 8, name: "rivals", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "scalar", T: 13 /* ScalarType.UINT32 */} },
     { no: 9, name: "changed", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 10, name: "fighters", kind: "message", T: TopFighter, repeated: true },
+    { no: 10, name: "flipped_by_continent", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "scalar", T: 13 /* ScalarType.UINT32 */} },
+    { no: 11, name: "fighters", kind: "message", T: TopFighter, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Place {
@@ -1012,9 +1029,16 @@ export class Pick extends Message<Pick> {
   anthem = "";
 
   /**
+   * When the camera comes back out of the tiles, for a front or a place: "flags" halfway, "dive" at the end.
+   *
+   * @generated from field: string look = 18;
+   */
+  look = "";
+
+  /**
    * The players the clip names, by their number in the cast.
    *
-   * @generated from field: repeated uint32 fighters = 18;
+   * @generated from field: repeated uint32 fighters = 19;
    */
   fighters: number[] = [];
 
@@ -1043,7 +1067,8 @@ export class Pick extends Message<Pick> {
     { no: 15, name: "call", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 16, name: "call_flags", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
     { no: 17, name: "anthem", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 18, name: "fighters", kind: "scalar", T: 13 /* ScalarType.UINT32 */, repeated: true },
+    { no: 18, name: "look", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 19, name: "fighters", kind: "scalar", T: 13 /* ScalarType.UINT32 */, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Pick {

@@ -19,7 +19,7 @@ const doneBank: Partial<Mission> = {order: {kind: "takeFor", country: "fr", goal
 
 const day = (...missions: Mission[]): {kind: "ready", day: DayMissions} => ({
     kind: "ready",
-    day: {countryCode: "fr", enlisted: true, endsAt: Date.UTC(2026, 9, 26, 21, 0), missions},
+    day: {endsAt: Date.UTC(2026, 9, 26, 21, 0), missions},
 })
 
 afterEach(() => {

@@ -39,6 +39,8 @@ export type FrontFlag = {
     tookFrom: Counts
     // Of what it took and holds at the end; 1 for a flag that took nothing.
     solidity: number
+    // The tiles of the landmasses whose painted flag switched to the flag on the front, by continent.
+    flippedByContinent: Counts
     fighters: TopFighter[]
 }
 
@@ -111,17 +113,31 @@ export function solidityAfter(flag: string, changes: readonly TileChange[], afte
     return solidityOf(taken.map(pointOf), held)
 }
 
+// The tiles of the landmasses whose painted flag switched to the flag, by continent.
+export function flippedByContinentOf(flips: readonly Flip[], flag: string, continentOf: (tile: number) => string | undefined): Counts {
+    return top(sumBy(flippedTo(flips, flag).flatMap(({tile, tiles}) => {
+        const continent = continentOf(tile)
+        return continent === undefined ? [] : [[continent, tiles] as const]
+    })), Infinity)
+}
+
 // What a front is, measured and not judged: where its tiles changed hands and who held each country at its start and
-// its end, who took and lost how much there and from whom. opening and after: the map when the front opens and when it
-// ends; cast: the cast's takes while it lasts.
+// its end, who took and lost how much there and from whom, whose painted flags switched. opening and after: the map
+// when the front opens and when it ends; flips: the landmasses whose biggest holder changed along it; cast: the
+// cast's takes while it lasts.
 export function frontFactsOf(
     changes: readonly TileChange[],
     opening: Owners,
     after: Owners,
     ground: Ground,
     pointOf: (tile: number) => Point,
+    flips: readonly Flip[],
     cast: Cast,
 ): FrontFacts {
+    const continentOf = (tile: number) => {
+        const country = ground.groundOf(tile)
+        return country === undefined ? undefined : ground.regionOf(country)
+    }
     const moves = changes.filter(({from, to}) => from !== to)
     const captured = moves.filter((change): change is TileChange & {from: string, to: string} =>
         change.from !== undefined && change.to !== undefined)
@@ -150,6 +166,7 @@ export function frontFactsOf(
         code, continent: ground.regionOf(code), took: took.get(code) ?? 0, filled: filled.get(code) ?? 0, lost: lost.get(code) ?? 0,
         tookFrom: top(tally(captured.flatMap(({from, to}) => to === code ? [from] : [])), MOST_HOLDERS),
         solidity: takers.includes(code) ? solidityAfter(code, moves, after, pointOf) : 1,
+        flippedByContinent: flippedByContinentOf(flips, code, continentOf),
         fighters: topFightersOf(cast, cast.takes.filter(({tile, flag}) => flag === code && touched.has(tile))),
     }))
 
@@ -168,17 +185,13 @@ export function tourFactsOf(
     cast: Cast,
 ): TourFacts {
     const taken = changes.filter((change): change is TileChange & {from: string} => change.to === flag && change.from !== undefined && change.from !== flag)
-    const flipped = flippedTo(flips, flag)
     const touched = new Set(changes.map(({tile}) => tile))
     return {
         took: taken.length,
         byContinent: top(tally(taken.flatMap(({tile}) => continentOf(tile) ?? [])), Infinity),
         tookFrom: top(tally(taken.map(({from}) => from)), MOST_HOLDERS),
         solidity: solidityAfter(flag, changes, after, pointOf),
-        flippedByContinent: top(sumBy(flipped.flatMap(({tile, tiles}) => {
-            const continent = continentOf(tile)
-            return continent === undefined ? [] : [[continent, tiles] as const]
-        })), Infinity),
+        flippedByContinent: flippedByContinentOf(flips, flag, continentOf),
         fighters: topFightersOf(cast, cast.takes.filter((take) => take.flag === flag && touched.has(take.tile))),
     }
 }

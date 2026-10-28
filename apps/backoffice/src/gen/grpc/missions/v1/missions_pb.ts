@@ -39,18 +39,20 @@ export class GetMissionsRequest extends Message<GetMissionsRequest> {
 }
 
 /**
- * The day's missions are for the flag of the day's first take, and for the caller's pledged flag until then.
+ * The caller's own missions of the day, drawn at its first read or take for the flag it played then.
  *
  * @generated from message missions.v1.GetMissionsResponse
  */
 export class GetMissionsResponse extends Message<GetMissionsResponse> {
   /**
-   * @generated from field: string country_id = 1;
+   * @generated from field: string country_id = 1 [deprecated = true];
+   * @deprecated
    */
   countryId = "";
 
   /**
-   * @generated from field: bool enlisted = 2;
+   * @generated from field: bool enlisted = 2 [deprecated = true];
+   * @deprecated
    */
   enlisted = false;
 
@@ -181,7 +183,7 @@ export class Mission extends Message<Mission> {
 }
 
 /**
- * Take goal tiles for country_id, the day's flag.
+ * Take goal tiles for country_id.
  *
  * @generated from message missions.v1.TakeFor
  */

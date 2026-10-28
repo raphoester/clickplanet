@@ -27,8 +27,6 @@ export class ConnectMissionsBackend implements MissionsBackend {
         const res = await this.authenticated((headers) =>
             retrying(() => this.client.getMissions({}, {headers}), "GetMissions"))
         return {
-            countryCode: res.countryId,
-            enlisted: res.enlisted,
             endsAt: Number(res.endsAtUnixMs),
             missions: res.missions.flatMap((mission) => missionOf(mission) ?? []),
         }

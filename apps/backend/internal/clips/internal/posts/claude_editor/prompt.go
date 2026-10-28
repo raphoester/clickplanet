@@ -60,14 +60,15 @@ type country struct {
 }
 
 type flag struct {
-	Code      string         `json:"code"`
-	Continent string         `json:"continent"`
-	Took      int            `json:"took"`
-	Filled    int            `json:"filled"`
-	Lost      int            `json:"lost"`
-	TookFrom  map[string]int `json:"tookFrom"`
-	Solidity  float64        `json:"solidity"`
-	Fighters  []fighter      `json:"fighters,omitempty"`
+	Code               string         `json:"code"`
+	Continent          string         `json:"continent"`
+	Took               int            `json:"took"`
+	Filled             int            `json:"filled"`
+	Lost               int            `json:"lost"`
+	TookFrom           map[string]int `json:"tookFrom"`
+	Solidity           float64        `json:"solidity"`
+	FlippedByContinent map[string]int `json:"flippedByContinent"`
+	Fighters           []fighter      `json:"fighters,omitempty"`
 }
 
 type fighter struct {
@@ -93,17 +94,18 @@ type tour struct {
 }
 
 type place struct {
-	Place     int            `json:"place"`
-	Kind      string         `json:"kind"`
-	Code      string         `json:"code,omitempty"`
-	Continent string         `json:"continent,omitempty"`
-	Tiles     int            `json:"tiles"`
-	Holder    string         `json:"holder"`
-	Held      int            `json:"held"`
-	Share     float64        `json:"share"`
-	Rivals    map[string]int `json:"rivals"`
-	Changed   int            `json:"changed"`
-	Fighters  []fighter      `json:"fighters,omitempty"`
+	Place              int            `json:"place"`
+	Kind               string         `json:"kind"`
+	Code               string         `json:"code,omitempty"`
+	Continent          string         `json:"continent,omitempty"`
+	Tiles              int            `json:"tiles"`
+	Holder             string         `json:"holder"`
+	Held               int            `json:"held"`
+	Share              float64        `json:"share"`
+	Rivals             map[string]int `json:"rivals"`
+	Changed            int            `json:"changed"`
+	FlippedByContinent map[string]int `json:"flippedByContinent"`
+	Fighters           []fighter      `json:"fighters,omitempty"`
 }
 
 type recent struct {
@@ -151,7 +153,8 @@ func PromptOf(offer posts.Offer) (string, error) {
 		written.Places = append(written.Places, place{
 			Place: i + 1, Kind: string(found.Kind), Code: found.Code, Continent: found.Continent, Tiles: found.Tiles,
 			Holder: found.Holder, Held: found.Held, Share: found.Share, Rivals: found.Rivals, Changed: found.Changed,
-			Fighters: fightersOf(found.Fighters),
+			FlippedByContinent: found.FlippedByContinent,
+			Fighters:           fightersOf(found.Fighters),
 		})
 	}
 	for _, telling := range offer.Recent {
@@ -183,7 +186,8 @@ func frontOf(number int, found posts.Front) front {
 	for _, f := range found.Flags {
 		written.Flags = append(written.Flags, flag{
 			Code: f.Code, Continent: f.Continent, Took: f.Took, Filled: f.Filled, Lost: f.Lost, TookFrom: f.TookFrom, Solidity: f.Solidity,
-			Fighters: fightersOf(f.Fighters),
+			FlippedByContinent: f.FlippedByContinent,
+			Fighters:           fightersOf(f.Fighters),
 		})
 	}
 	return written

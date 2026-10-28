@@ -36,8 +36,13 @@ describe("the facts of a front", () => {
         change(5, undefined, "fr"), change(11, "dz", "dz"),
     ]
     const after = new Map<number, string>([[1, "pw"], [2, "pw"], [3, "pw"], [4, "fr"], [5, "fr"], [7, "pw"], [8, "fr"], [9, "pw"], [11, "dz"]])
+    const flips = [
+        {landmass: 1, tiles: 300, holders: ["fr", "pw"], tile: 1},
+        {landmass: 2, tiles: 150, holders: ["de", "fr"], tile: 8},
+        {landmass: 3, tiles: 60, holders: ["de", "pw"], tile: 9},
+    ]
 
-    const facts = frontFactsOf(changes, opening, after, ground, pointOf, NO_CAST)
+    const facts = frontFactsOf(changes, opening, after, ground, pointOf, flips, NO_CAST)
 
     it("counts what changed hands and what was taken from another flag", () => {
         expect(facts.tilesChanged).toBe(7)
@@ -63,6 +68,15 @@ describe("the facts of a front", () => {
         ])
     })
 
+    it("sums, for each flag, the tiles of the landmasses whose painted flag switched to it, by continent", () => {
+        // The islet of Germany is too small to read from far.
+        expect(facts.flags.map(({code, flippedByContinent}) => ({code, flippedByContinent}))).toEqual([
+            {code: "pw", flippedByContinent: {Europe: 300}},
+            {code: "fr", flippedByContinent: {Europe: 150}},
+            {code: "de", flippedByContinent: {}},
+        ])
+    })
+
     it("judges nothing: no kind, no attacker, no place", () => {
         expect(Object.keys(facts).sort()).toEqual(["captured", "countries", "flags", "tilesChanged"])
     })
@@ -70,7 +84,7 @@ describe("the facts of a front", () => {
     it("names each flag's top fighters by what they took for it on the front's tiles", () => {
         const cast = castOf(take(1, "pw", 1), take(1, "pw", 2), take(2, "pw", 7), take(3, "fr", 8), take(2, "pw", 12), take(3, "pw", 9))
 
-        const fighters = frontFactsOf(changes, opening, after, ground, pointOf, cast).flags.map(({code, fighters}) => [code, fighters])
+        const fighters = frontFactsOf(changes, opening, after, ground, pointOf, [], cast).flags.map(({code, fighters}) => [code, fighters])
 
         expect(fighters).toEqual([
             ["pw", [{number: 1, name: "BraveFox42", took: 2}, {number: 2, name: "StormWolf", took: 1}, {number: 3, name: "Toto", took: 1}]],

@@ -42,7 +42,7 @@ type Order interface {
 	done(progress uint32) bool
 }
 
-// Take Goal tiles for Flag, the day's flag.
+// Take Goal tiles for Flag.
 type TakeFor struct {
 	Flag string
 	Goal uint32

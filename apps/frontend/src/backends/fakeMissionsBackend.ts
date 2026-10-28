@@ -28,8 +28,8 @@ export class FakeMissionsBackend implements MissionsBackend {
             clickTile: async (tileId, countryId, switches) => {
                 await clicker.clickTile(tileId, countryId, switches)
                 this.flag ??= countryId
-                if (countryId === this.flag) this.taken++
-                if (countryId === this.flag && this.primed) this.finished = true
+                this.taken++
+                if (this.primed) this.finished = true
                 this.payDone()
             },
         }
@@ -41,19 +41,13 @@ export class FakeMissionsBackend implements MissionsBackend {
     }
 
     public async missions(): Promise<DayMissions> {
-        const flag = this.flag ?? this.pledged
-        return {
-            countryCode: flag ?? "",
-            enlisted: this.flag !== undefined,
-            endsAt: this.endOfDay(),
-            missions: flag ? this.brief(flag) : [],
-        }
+        this.flag ??= this.pledged
+        return {endsAt: this.endOfDay(), missions: this.flag ? this.brief(this.flag) : []}
     }
 
     private payDone(): void {
-        const flag = this.flag ?? this.pledged
-        if (!flag) return
-        for (const mission of this.brief(flag)) {
+        if (!this.flag) return
+        for (const mission of this.brief(this.flag)) {
             if (!mission.done || this.paid.has(mission.id)) continue
             this.paid.add(mission.id)
             this.grant(mission.reward.kind)
