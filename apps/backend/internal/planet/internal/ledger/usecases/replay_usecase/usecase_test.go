@@ -14,6 +14,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/replay_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/resets"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -42,10 +43,59 @@ func (t *tiles) StateBatchDense(start uint32, end uint32) (clicks.DenseBatch, er
 
 func setup(t *testing.T, owners ...string) (*inmemory_ledger_storage.Storage, *tiles, *replay_usecase.UseCase) {
 	t.Helper()
+	book, now, useCase, _ := setupWithResets(t, owners...)
+	return book, now, useCase
+}
+
+func setupWithResets(t *testing.T, owners ...string) (*inmemory_ledger_storage.Storage, *tiles, *replay_usecase.UseCase, *resets.MemoryStore) {
+	t.Helper()
 	book := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{},
 		inmemory_ledger_storage.NewMemoryPersistence(), slog.New(slog.DiscardHandler))
 	now := &tiles{owners: owners}
-	return book, now, replay_usecase.New(book, board(len(owners)), now, cptime.NewFixedClock(start.Add(time.Hour)))
+	kept := resets.NewMemoryStore()
+	return book, now, replay_usecase.New(book, kept, board(len(owners)), now, cptime.NewFixedClock(start.Add(time.Hour))), kept
+}
+
+func reset(t *testing.T, kept *resets.MemoryStore, id string, at time.Time) {
+	t.Helper()
+	applied, err := resets.New(id, at)
+	require.NoError(t, err)
+	_, err = kept.Keep(t.Context(), applied)
+	require.NoError(t, err)
+}
+
+func TestAReplayOverAResetStartsAtItOnTheBlankMap(t *testing.T) {
+	book, _, useCase, kept := setupWithResets(t, "de")
+	book.Append(ledger.Taking{Tile: 1, Scope: "a", Country: "fr", Previous: "it", At: start})
+	reset(t, kept, "season-1", start.Add(time.Minute))
+	book.Append(ledger.Taking{Tile: 1, Scope: "b", Country: "de", Previous: "", At: start.Add(2 * time.Minute)})
+
+	out, err := useCase.Execute(t.Context(), replay_usecase.In{Since: start})
+	require.NoError(t, err)
+
+	assert.Equal(t, start.Add(time.Minute), out.Since)
+	assert.Empty(t, out.Opening.Codes[binary.LittleEndian.Uint16(out.Opening.Tiles)], "the tile was blank at the reset")
+	require.Len(t, out.Scenes, 1)
+	assert.Equal(t, "de", out.Scenes[0].Change.Value)
+}
+
+func TestAReplayThatEndedBeforeAResetIsRefused(t *testing.T) {
+	_, _, useCase, kept := setupWithResets(t, "de")
+	reset(t, kept, "season-1", start.Add(30*time.Minute))
+
+	_, err := useCase.Execute(t.Context(), replay_usecase.In{Since: start, Until: start.Add(10 * time.Minute)})
+
+	require.ErrorIs(t, err, replay_usecase.ErrBeforeReset)
+}
+
+func TestAResetBeforeTheWindowChangesNothing(t *testing.T) {
+	_, _, useCase, kept := setupWithResets(t, "de")
+	reset(t, kept, "season-1", start.Add(-time.Hour))
+
+	out, err := useCase.Execute(t.Context(), replay_usecase.In{Since: start})
+
+	require.NoError(t, err)
+	assert.Equal(t, start, out.Since)
 }
 
 func TestAReplayOpensOnTheMapAtSinceAndShowsWhatCameAfter(t *testing.T) {

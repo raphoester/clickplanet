@@ -26,6 +26,7 @@ func New(
 	config = config.withDefaults()
 
 	return &Storage{
+		clock:       clock,
 		config:      config,
 		logger:      logger,
 		persistence: persistence,
@@ -38,9 +39,13 @@ func New(
 }
 
 type Storage struct {
+	clock       cptime.Clock
 	config      Config
 	logger      *slog.Logger
 	persistence Persistence
+
+	// Held through a flush, from what it takes to what it saves, so a wipe never meets a save of the map before it.
+	flushing sync.Mutex
 
 	// Guards the board, the landmasses and the version, which change together, and the feed's order.
 	mu         sync.RWMutex

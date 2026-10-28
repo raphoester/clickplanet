@@ -130,6 +130,22 @@ func (m *MemoryPersistence) Save(_ context.Context, tiles []Tile, landmasses []L
 	return nil
 }
 
+func (m *MemoryPersistence) Wipe(ctx context.Context, keep func(ctx context.Context) (bool, error)) (bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.failing != nil {
+		return false, m.failing
+	}
+	kept, err := keep(ctx)
+	if err != nil || !kept {
+		return false, err
+	}
+	m.rows, m.shields, m.holders = map[uint32]string{}, map[uint32]int{}, map[uint32]cpsession.AccountID{}
+	m.landmasses = map[string]map[clicks.LandmassID]string{}
+	return true, nil
+}
+
 func (m *MemoryPersistence) Stored() map[uint32]string {
 	m.mu.Lock()
 	defer m.mu.Unlock()

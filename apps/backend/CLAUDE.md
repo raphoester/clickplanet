@@ -47,6 +47,8 @@ and says what is in it. Read the doc before you change its area.
 
 - [Key flow](docs/key-flow.md) — the path of one click, step by step, from the mint to the stream.
 - [The map load](docs/map-load.md) — `GetMap` is a cached HTTP GET; the stream carries what follows.
+- [The map reset](docs/map-reset.md) — a season after season 0 starts on a blank map: the gamemaster's `ResetMap`,
+  wiped once per reset, a new epoch, and replays that start at the reset.
 - [The map's version](docs/map-version.md) — every write counts one, published under the tiles lock so streams get
   them in order; `GetHoldings` and the one-second `holdings_changed`; the ETag and the 304.
 - [The live streams](docs/live-streams.md) — the `ListenForEvents` streams, served two ways, and how they end on

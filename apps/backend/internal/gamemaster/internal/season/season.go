@@ -85,3 +85,8 @@ func refused(format string, args ...any) error {
 }
 
 func stamp(at time.Time) string { return at.UTC().Format(time.RFC3339) }
+
+// StartsOnBlankMap is true for every season after season 0: its start resets the map.
+func (w Window) StartsOnBlankMap() bool {
+	return w.Number > 0
+}

@@ -42,6 +42,9 @@ func (h GetReplayHandler) GetReplay(
 	if errors.Is(err, replay_usecase.ErrInvalidWindow) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
+	if errors.Is(err, replay_usecase.ErrBeforeReset) {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
 	if err != nil {
 		return nil, err
 	}
