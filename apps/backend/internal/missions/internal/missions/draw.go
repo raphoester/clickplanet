@@ -66,7 +66,7 @@ func Draw(day Day, account AccountID, flag string, world World) Brief {
 	_, _ = seed.Write([]byte(day.String() + "/" + account.String()))
 	d := draw{flag: flag, random: rand.New(rand.NewPCG(seed.Sum64(), 0))} //nolint:gosec // a draw every player can see, not a secret.
 
-	orders := d.orders(d.ranked(rivalsOf(flag, world)), groundsOf(flag, world))
+	orders := d.orders(d.ranked(world.RivalsOf(flag)), world.GroundsOf(flag))
 	rewards := d.rewards(len(orders))
 
 	missions := make([]Mission, 0, len(orders))
@@ -83,9 +83,9 @@ func drawnID(day Day, account AccountID, n int) MissionID {
 }
 
 // The flags holding rivalAtLeast tiles but the flag, the biggest first.
-func rivalsOf(flag string, world World) []Holding {
+func (w World) RivalsOf(flag string) []Holding {
 	var rivals []Holding
-	for _, held := range world.Territories {
+	for _, held := range w.Territories {
 		if held.Flag != flag && held.Tiles >= rivalAtLeast {
 			rivals = append(rivals, Holding{Country: held.Flag, Tiles: held.Tiles})
 		}
@@ -97,9 +97,9 @@ func rivalsOf(flag string, world World) []Holding {
 }
 
 // The countries of groundAtLeast tiles or more but the flag, with openAtLeast tiles the flag does not hold, by code.
-func groundsOf(flag string, world World) []string {
+func (w World) GroundsOf(flag string) []string {
 	held := make(map[string]uint32)
-	for _, territory := range world.Territories {
+	for _, territory := range w.Territories {
 		if territory.Flag != flag {
 			continue
 		}
@@ -109,7 +109,7 @@ func groundsOf(flag string, world World) []string {
 	}
 
 	var grounds []string
-	for _, size := range world.CountrySizes {
+	for _, size := range w.CountrySizes {
 		if size.Country != flag && size.Tiles >= groundAtLeast && size.Tiles >= held[size.Country]+openAtLeast {
 			grounds = append(grounds, size.Country)
 		}

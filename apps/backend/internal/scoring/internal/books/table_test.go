@@ -2,6 +2,7 @@ package books_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -50,9 +51,26 @@ func TestABookIsRankedFromItsRoundsWithItsTiebreakAsTheThirdKey(t *testing.T) {
 	assert.Equal(t, []books.Placed{
 		{Rank: 1, Score: books.Score{Country: "de", Points: 93, RoundsWon: 1, TiebreakPoints: 75}},
 		{Rank: 2, Score: books.Score{Country: "fr", Points: 79, RoundsWon: 1, TiebreakPoints: 54}},
-	}, closed.Table(scored))
+	}, closed.Table(scored, nil))
 	assert.Equal(t, []books.Placed{
 		{Rank: 1, Score: books.Score{Country: "de", Points: 93, RoundsWon: 1}},
 		{Rank: 2, Score: books.Score{Country: "fr", Points: 79, RoundsWon: 1}},
-	}, books.NewBook("season-0", utc(8, 0)).Table(scored), "no tiebreak while it runs")
+	}, books.NewBook("season-0", utc(8, 0)).Table(scored, nil), "no tiebreak while it runs")
+}
+
+func TestAGrantAddsPointsToTheBooksOpenAtItsTimeAndWinsNoRound(t *testing.T) {
+	scored := []books.Scored{{Round: day, Results: []books.Result{{Country: "fr", Rank: 1, Points: 25}}}}
+	grants := []books.Grant{
+		{ID: "before", Country: "fr", Points: 3, At: utc(8, 0).Add(-time.Second)},
+		{ID: "fr", Country: "fr", Points: 2, At: utc(9, 0)},
+		{ID: "it", Country: "it", Points: 1, At: utc(9, 0)},
+		{ID: "after", Country: "it", Points: 3, At: utc(31, 23)},
+	}
+
+	closed := books.NewBook("season-0", utc(8, 0)).ClosedAt(utc(31, 23), day.ID)
+
+	assert.Equal(t, []books.Placed{
+		{Rank: 1, Score: books.Score{Country: "fr", Points: 27, RoundsWon: 1, TiebreakPoints: 25}},
+		{Rank: 2, Score: books.Score{Country: "it", Points: 1}},
+	}, closed.Table(scored, grants))
 }

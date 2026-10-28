@@ -16,14 +16,17 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/books"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/books/postgres_book_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/books/postgres_grant_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/books/postgres_round_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/books/rpc_planet_territories"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/books/usecases/close_book_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/books/usecases/close_round_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/books/usecases/count_take_usecase"
 	round_forget_account_usecase "github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/books/usecases/forget_account_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/books/usecases/grant_points_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/books/usecases/open_book_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/books/usecases/open_round_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/commands/grant_points_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/commands/log_command"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/commands/scoring_command_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/migrations"
@@ -113,6 +116,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	bookStore := postgres_book_store.New(db)
 	roundStore := postgres_round_store.New(db)
+	grantStore := postgres_grant_store.New(db)
 	contributions := postgres_contribution_store.New(db)
 	territories := rpc_planet_territories.New(planet)
 	outbox := cpoutbox.New(db)
@@ -148,11 +152,17 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 			OpenBook:   log_command.New("open_book", open_book_usecase.New(bookStore), props.Logger),
 			OpenRound:  log_command.New("open_round", open_round_usecase.New(bookStore, roundStore), props.Logger),
 			CloseRound: log_command.New("close_round", close_round_usecase.New(db, territories, roundStore, outbox), props.Logger),
-			CloseBook:  log_command.New("close_book", close_book_usecase.New(db, bookStore, roundStore, outbox), props.Logger),
+			CloseBook:  log_command.New("close_book", close_book_usecase.New(db, bookStore, roundStore, grantStore, outbox), props.Logger),
 		}), props.Logger)))
 	if err != nil {
 		closeStores()
 		return fmt.Errorf("failed to handle scoring.v1.ScoringCommand: %w", err)
+	}
+	grants, err := cpredis.Handle(ctx, streams, scoring_command_handler.New(log_subscriber.New[*scoringv1.GrantPoints](
+		grant_points_handler.New(log_command.New("grant_points", grant_points_usecase.New(grantStore), props.Logger)), props.Logger)))
+	if err != nil {
+		closeStores()
+		return fmt.Errorf("failed to handle scoring.v1.GrantPoints: %w", err)
 	}
 
 	boardQuery := board_query.NewPostgresQuery(db, board_authors.New(player), countries)
@@ -166,7 +176,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		log_reader.New[books.RoundID, *scoringv1.Round]("round", roundQuery, props.Logger), clock, roundsEvery)
 
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger, boards, scores, rounds, cpredis.CloseAfter(streams, props.Logger,
-		takes, deletions, roundTakes, roundDeletions, commands, cpoutbox.NewRelay("scoring-outbox", db, streams, props.Logger))))
+		takes, deletions, roundTakes, roundDeletions, commands, grants, cpoutbox.NewRelay("scoring-outbox", db, streams, props.Logger))))
 
 	getRound := get_round_handler.New(roundQuery)
 	service := scoringv1controller.ScoringService{

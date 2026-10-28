@@ -1,7 +1,7 @@
 import {ReactNode} from "react"
-import {MissionOrder, TileOrder} from "../../backends/missions.ts"
+import {FlagMissionOrder, MissionOrder, ShieldOrder, TileOrder} from "../../backends/missions.ts"
 import {Countries} from "../../domain/countries.ts"
-import {orderOf} from "../../domain/missions.ts"
+import {orderOf, shieldOrderOf} from "../../domain/missions.ts"
 import CountryFlag from "../components/CountryFlag.tsx"
 
 export type OrderParts = {
@@ -9,31 +9,41 @@ export type OrderParts = {
     progress: ReactNode
 }
 
-export function partsOf(order: MissionOrder): OrderParts {
+export function partsOf(order: MissionOrder | FlagMissionOrder): OrderParts {
     switch (order.kind) {
         case "takeFor":
         case "takeFrom":
         case "takeIn":
             return tilePartsOf(order)
+        case "breakShields":
+            return shieldPartsOf(order)
     }
 }
 
 function tilePartsOf(order: TileOrder): OrderParts {
-    const country = Countries.get(order.country)
-    const reached = Math.min(order.taken, order.goal)
+    return countedParts(orderOf(order), order.country, order.taken, order.goal)
+}
+
+function shieldPartsOf(order: ShieldOrder): OrderParts {
+    return countedParts(shieldOrderOf(order), order.country, order.broken, order.goal)
+}
+
+function countedParts(text: string, code: string, count: number, goal: number): OrderParts {
+    const country = Countries.get(code)
+    const reached = Math.min(count, goal)
 
     return {
-        line: <>{orderOf(order)} <CountryFlag code={order.country}/> {country?.name ?? order.country}</>,
+        line: <>{text} <CountryFlag code={code}/> {country?.name ?? code}</>,
         progress: <>
             <div className="mission-bar"
                  role="progressbar"
                  aria-valuemin={0}
-                 aria-valuemax={order.goal}
+                 aria-valuemax={goal}
                  aria-valuenow={reached}
-                 aria-label={orderOf(order)}>
-                <div className="mission-bar-filled" style={{width: `${reached / order.goal * 100}%`}}/>
+                 aria-label={text}>
+                <div className="mission-bar-filled" style={{width: `${reached / goal * 100}%`}}/>
             </div>
-            <span className="mission-count">{reached}/{order.goal}</span>
+            <span className="mission-count">{reached}/{goal}</span>
         </>,
     }
 }

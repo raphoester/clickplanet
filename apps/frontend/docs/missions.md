@@ -12,6 +12,9 @@ itself, with nothing to press.
   **Done** once the backend says so (`done`: the client does not decide it). A guest sees
   the same rows and **Sign in to get it** on a mission done, which opens the sign-in pitch: its
   pay waits for the sign-in that day. "Ends in" is the day's own end, 21:00 UTC.
+- **The flag's mission comes first**, in a panel of its own (`FlagMissionRow`): "Flag mission", its order ("Break 300
+  shields of", then the flag; or a ground's tiles), its bar, and the season points it gives the flag in gold. The
+  whole flag counts on it, and the backend says when it is done. The badge does not count it.
 - **`useMissions` lives in `Viewer`, not in the place**, so the badge is right with the tab closed. It reads `GetMissions` at load, on a change of the pledged flag (`useAllegiance`), after
   each run of clicks (`useReadsAfterClicks`) and once more `FOLLOW_UP_MS` (3 s) later, and once the day ends.
   The read after clicks comes 2 s after the last one, and the backend counts a take one to three seconds
@@ -36,5 +39,5 @@ itself, with nothing to press.
   kind or reward it does not know.
 - `backends/missions.ts` is the contract, `ConnectMissionsBackend` (`missions.v1.MissionService`) the real one,
   `FakeMissionsBackend` the fake: it draws the day for the flag pledged at its first read (or its first
-  take's), counts every take of this tab, pays each mission done at once, and `finishMissions()` in the console puts
+  take's), with a flag mission to break a rival's shields that this tab's takes stand for, counts every take of this tab, pays each mission done at once, and `finishMissions()` in the console puts
   every mission one tile from done: the next take finishes and pays them all, as a take does on the server.

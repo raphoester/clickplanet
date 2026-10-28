@@ -1,9 +1,21 @@
 import {Code, ConnectError, createPromiseClient, PromiseClient} from "@connectrpc/connect"
 import {createConnectTransport} from "@connectrpc/connect-web"
 import {MissionService} from "../gen/grpc/missions/v1/missions_connect.ts"
-import {Mission as MissionPb, MissionReward as MissionRewardPb} from "../gen/grpc/missions/v1/missions_pb.ts"
+import {
+    FlagMission as FlagMissionPb,
+    Mission as MissionPb,
+    MissionReward as MissionRewardPb,
+} from "../gen/grpc/missions/v1/missions_pb.ts"
 import {chargeKindOf} from "./bonusKind.ts"
-import {DayMissions, Mission, MissionOrder, MissionReward, MissionsBackend} from "./missions.ts"
+import {
+    DayMissions,
+    FlagMission,
+    FlagMissionOrder,
+    Mission,
+    MissionOrder,
+    MissionReward,
+    MissionsBackend,
+} from "./missions.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
 import {Config, retrying} from "./transport.ts"
 
@@ -29,6 +41,7 @@ export class ConnectMissionsBackend implements MissionsBackend {
         return {
             endsAt: Number(res.endsAtUnixMs),
             missions: res.missions.flatMap((mission) => missionOf(mission) ?? []),
+            flagMission: res.flagMission && flagMissionOf(res.flagMission),
         }
     }
 
@@ -65,6 +78,22 @@ function orderOf(kind: MissionPb["kind"]): MissionOrder | undefined {
         case "takeFrom":
         case "takeIn":
             return {kind: kind.case, country: kind.value.countryId, goal: kind.value.goal, taken: kind.value.taken}
+        case undefined:
+            return undefined
+    }
+}
+
+function flagMissionOf(mission: FlagMissionPb): FlagMission | undefined {
+    const order = flagOrderOf(mission.kind)
+    return order && {id: mission.id, order, points: mission.points, done: mission.done}
+}
+
+function flagOrderOf(kind: FlagMissionPb["kind"]): FlagMissionOrder | undefined {
+    switch (kind.case) {
+        case "takeIn":
+            return {kind: kind.case, country: kind.value.countryId, goal: kind.value.goal, taken: kind.value.taken}
+        case "breakShields":
+            return {kind: kind.case, country: kind.value.countryId, goal: kind.value.goal, broken: kind.value.broken}
         case undefined:
             return undefined
     }

@@ -39,5 +39,7 @@ type Day struct {
 
 func (d Day) EndsAt() time.Time { return d.end }
 
+func (d Day) Previous() Day { return Day{end: d.end.AddDate(0, 0, -1)} }
+
 // The date the day ends on: its key in the store.
 func (d Day) String() string { return d.end.Format(time.DateOnly) }

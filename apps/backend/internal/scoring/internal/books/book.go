@@ -27,7 +27,7 @@ func checkID(id string) error {
 	return nil
 }
 
-// Book gathers the points of its rounds and each player's takes, from its start until it is closed.
+// Book gathers the points of its rounds and grants and each player's takes, from its start until it is closed.
 type Book struct {
 	ID       BookID
 	StartsAt time.Time
@@ -52,7 +52,13 @@ func (b Book) ClosedAt(endsAt time.Time, tiebreak RoundID) Book {
 	return b
 }
 
-// Table ranks the book from the rounds it scored.
-func (b Book) Table(scored []Scored) []Placed {
-	return TableOf(ScoresOf(scored, b.Tiebreak))
+// Table ranks the book from the rounds it scored and the grants it holds.
+func (b Book) Table(scored []Scored, grants []Grant) []Placed {
+	var held []Grant
+	for _, grant := range grants {
+		if b.Holds(grant.At) {
+			held = append(held, grant)
+		}
+	}
+	return TableOf(ScoresOf(scored, held, b.Tiebreak))
 }

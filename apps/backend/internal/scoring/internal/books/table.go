@@ -17,8 +17,9 @@ type Placed struct {
 	Rank uint32
 }
 
-// ScoresOf adds up the results of the rounds scored, every country with points; tiebreak's points are the third key.
-func ScoresOf(scored []Scored, tiebreak RoundID) []Score {
+// ScoresOf adds up the results of the rounds scored and the grants, every country with points; tiebreak's points are
+// the third key. A grant wins no round.
+func ScoresOf(scored []Scored, grants []Grant, tiebreak RoundID) []Score {
 	scores := map[Country]Score{}
 	for _, round := range scored {
 		for _, result := range round.Results {
@@ -36,6 +37,12 @@ func ScoresOf(scored []Scored, tiebreak RoundID) []Score {
 			}
 			scores[result.Country] = score
 		}
+	}
+	for _, grant := range grants {
+		score := scores[grant.Country]
+		score.Country = grant.Country
+		score.Points += uint64(grant.Points)
+		scores[grant.Country] = score
 	}
 
 	listed := make([]Score, 0, len(scores))

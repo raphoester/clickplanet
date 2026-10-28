@@ -16,6 +16,8 @@ message GetMissionsResponse {
   bool enlisted = 2 [deprecated = true];
   int64 ends_at_unix_ms = 3;
   repeated Mission missions = 4;
+  // The day's mission of the flag the caller plays now, the same for each of its players. Unset with no flag.
+  FlagMission flag_mission = 5;
 }
 
 // What every mission has. What it asks is its kind's own message: a client skips a kind it does not know.
@@ -52,6 +54,25 @@ message TakeIn {
   string country_id = 1;
   uint32 goal = 2;
   uint32 taken = 3;
+}
+
+// Done once for the whole flag, it gives the flag `points` in the season. A client skips a kind it does not know.
+message FlagMission {
+  string id = 1;
+  uint32 points = 2;
+  bool done = 3;
+
+  oneof kind {
+    TakeIn take_in = 10;
+    BreakShields break_shields = 11;
+  }
+}
+
+// Break goal shields of country_id.
+message BreakShields {
+  string country_id = 1;
+  uint32 goal = 2;
+  uint32 broken = 3;
 }
 
 // A client skips a mission whose reward it does not know.

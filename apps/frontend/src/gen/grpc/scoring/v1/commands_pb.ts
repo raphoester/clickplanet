@@ -277,3 +277,61 @@ export class CloseBook extends Message<CloseBook> {
   }
 }
 
+/**
+ * Gives a country points in every book open at granted_at, beside its rounds' points: no round won, no tiebreak. Its
+ * own stream. A grant_id told twice is granted once.
+ *
+ * @generated from message scoring.v1.GrantPoints
+ */
+export class GrantPoints extends Message<GrantPoints> {
+  /**
+   * @generated from field: string grant_id = 1;
+   */
+  grantId = "";
+
+  /**
+   * @generated from field: string country = 2;
+   */
+  country = "";
+
+  /**
+   * @generated from field: uint32 points = 3;
+   */
+  points = 0;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp granted_at = 4;
+   */
+  grantedAt?: Timestamp;
+
+  constructor(data?: PartialMessage<GrantPoints>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "scoring.v1.GrantPoints";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "grant_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "country", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "points", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 4, name: "granted_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GrantPoints {
+    return new GrantPoints().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GrantPoints {
+    return new GrantPoints().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GrantPoints {
+    return new GrantPoints().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GrantPoints | PlainMessage<GrantPoints> | undefined, b: GrantPoints | PlainMessage<GrantPoints> | undefined): boolean {
+    return proto3.util.equals(GrantPoints, a, b);
+  }
+}
+

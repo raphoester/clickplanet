@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 
+	"google.golang.org/protobuf/proto"
+
 	scoringv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/books"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/books/usecases/close_book_usecase"
@@ -42,18 +44,18 @@ var (
 	errNoTime    = errors.New("the command has no time")
 )
 
-func New(inner cpredis.Handler[*scoringv1.ScoringCommand]) Handler {
-	return Handler{inner: inner}
+func New[C proto.Message](inner cpredis.Handler[C]) Handler[C] {
+	return Handler[C]{inner: inner}
 }
 
-// Handler drops a command refused: delivered again, it would hold back every command after it on the one stream.
-type Handler struct {
-	inner cpredis.Handler[*scoringv1.ScoringCommand]
+// Handler drops a command refused: delivered again, it would hold back every command after it on its stream.
+type Handler[C proto.Message] struct {
+	inner cpredis.Handler[C]
 }
 
-var _ cpredis.Handler[*scoringv1.ScoringCommand] = Handler{}
+var _ cpredis.Handler[*scoringv1.ScoringCommand] = Handler[*scoringv1.ScoringCommand]{}
 
-func (h Handler) Handle(ctx context.Context, command *scoringv1.ScoringCommand) error {
+func (h Handler[C]) Handle(ctx context.Context, command C) error {
 	if err := h.inner.Handle(ctx, command); err != nil && !errors.Is(err, books.ErrRefused) {
 		return err //nolint:wrapcheck // the dispatcher named it.
 	}

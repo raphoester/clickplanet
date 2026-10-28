@@ -45,5 +45,10 @@ func (h GetMissionsHandler) GetMissions(
 		}
 		answer.Missions = append(answer.Missions, mission)
 	}
+	if status, ok := out.Flag.Status(); ok {
+		if answer.FlagMission, err = missionmessage.FlagMission(status); err != nil {
+			return nil, err //nolint:wrapcheck // the error net answers what is not the caller's fault.
+		}
+	}
 	return connect.NewResponse(answer), nil
 }

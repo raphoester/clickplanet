@@ -44,6 +44,19 @@ describe("MissionsPlace", () => {
         expect(screen.queryByRole("button")).toBeNull()
     })
 
+    it("shows the flag's mission above the player's, with the points it gives the flag", () => {
+        render(<MissionsPlace state={{kind: "ready", day: {
+            ...day(mission({})).day,
+            flagMission: {id: "flag", order: {kind: "breakShields", country: "dz", goal: 300, broken: 120}, points: 2, done: false},
+        }}}/>)
+
+        const flag = screen.getByRole("region", {name: "Flag mission"})
+        expect(flag.textContent).toContain("Break 300 shields of")
+        expect(flag.textContent).toContain("Algeria")
+        expect(flag.textContent).toContain("+2 points")
+        expect(screen.getByText("120/300")).toBeDefined()
+    })
+
     it("asks a guest to sign in to get a mission it finished", () => {
         const onSignIn = vi.fn()
         render(<MissionsPlace state={day(mission(doneBank))} onSignIn={onSignIn}/>)

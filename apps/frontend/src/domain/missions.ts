@@ -1,4 +1,4 @@
-import {Mission, MissionReward, TileOrder} from "../backends/missions.ts"
+import {Mission, MissionReward, ShieldOrder, TileOrder} from "../backends/missions.ts"
 import {BonusReward, BonusRules} from "./bonus.ts"
 
 const PREPOSITIONS: Record<TileOrder["kind"], string> = {
@@ -9,6 +9,10 @@ const PREPOSITIONS: Record<TileOrder["kind"], string> = {
 
 export function orderOf(order: TileOrder): string {
     return `Take ${order.goal} tiles ${PREPOSITIONS[order.kind]}`
+}
+
+export function shieldOrderOf(order: ShieldOrder): string {
+    return `Break ${order.goal} shields of`
 }
 
 export const SEEN_MISSIONS_STORAGE_KEY = "clickplanet-missions-seen"

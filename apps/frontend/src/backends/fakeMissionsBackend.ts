@@ -1,6 +1,6 @@
 import {ChargeKind} from "../domain/bonus.ts"
 import {AllegianceSource, TileClicker} from "./backend.ts"
-import {DayMissions, Mission, MissionReward, MissionsBackend, TileOrder} from "./missions.ts"
+import {DayMissions, FlagMission, Mission, MissionReward, MissionsBackend, TileOrder} from "./missions.ts"
 
 const DAY_MS = 24 * 3600_000
 const CUTOFF_MS = 21 * 3600_000
@@ -42,7 +42,8 @@ export class FakeMissionsBackend implements MissionsBackend {
 
     public async missions(): Promise<DayMissions> {
         this.flag ??= this.pledged
-        return {endsAt: this.endOfDay(), missions: this.flag ? this.brief(this.flag) : []}
+        if (!this.flag) return {endsAt: this.endOfDay(), missions: []}
+        return {endsAt: this.endOfDay(), missions: this.brief(this.flag), flagMission: this.flagMission(this.flag)}
     }
 
     private payDone(): void {
@@ -54,13 +55,21 @@ export class FakeMissionsBackend implements MissionsBackend {
         }
     }
 
+    private counted(goal: number, share: number): number {
+        if (this.finished) return goal
+        const counted = Math.min(goal, Math.floor(this.taken * share))
+        return this.primed ? Math.max(counted, goal - 1) : counted
+    }
+
+    // The tab's takes stand for the whole flag's shields broken.
+    private flagMission(flag: string): FlagMission {
+        const broken = this.counted(300, 0.1)
+        return {id: "flag", order: {kind: "breakShields", country: rivalOf(flag), goal: 300, broken}, points: 2, done: broken >= 300}
+    }
+
     private brief(flag: string): Mission[] {
-        const rival = flag === "dz" ? "pw" : "dz"
-        const taken = (goal: number, share: number) => {
-            if (this.finished) return goal
-            const counted = Math.min(goal, Math.floor(this.taken * share))
-            return this.primed ? Math.max(counted, goal - 1) : counted
-        }
+        const rival = rivalOf(flag)
+        const taken = (goal: number, share: number) => this.counted(goal, share)
         const mission = (id: string, order: Omit<TileOrder, "taken">, reward: MissionReward, share: number): Mission => {
             const tiles = taken(order.goal, share)
             return {id, order: {...order, taken: tiles}, reward, done: tiles >= order.goal, paid: this.paid.has(id)}
@@ -79,4 +88,8 @@ export class FakeMissionsBackend implements MissionsBackend {
         const cutoff = Math.floor(now / DAY_MS) * DAY_MS + CUTOFF_MS
         return now < cutoff ? cutoff : cutoff + DAY_MS
     }
+}
+
+function rivalOf(flag: string): string {
+    return flag === "dz" ? "pw" : "dz"
 }

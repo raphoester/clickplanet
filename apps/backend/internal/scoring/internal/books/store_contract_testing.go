@@ -290,3 +290,47 @@ func (s *TakesContractSuite) TestAnAccountDeletedIsForgottenAndItsFlagKeepsItsTi
 		Players:   map[AccountID]map[Country]uint64{contractOther: {"fr": 1}},
 	}, s.CountedIn(contractBattle.ID))
 }
+
+type GrantsContractSuite struct {
+	suite.Suite
+
+	NewStore func() Grants
+
+	store Grants
+}
+
+func (s *GrantsContractSuite) SetupTest() {
+	s.store = s.NewStore()
+}
+
+func (s *GrantsContractSuite) keep(grant Grant) bool {
+	kept, err := s.store.Keep(s.T().Context(), grant)
+	s.Require().NoError(err)
+	return kept
+}
+
+func (s *GrantsContractSuite) since(at time.Time) []Grant {
+	grants, err := s.store.Since(s.T().Context(), at)
+	s.Require().NoError(err)
+	return grants
+}
+
+var contractGrant = Grant{ID: "0192f5a0-7c00-7000-8000-0000000000a1", Country: "fr", Points: 2, At: contractEnd.Add(-3 * time.Hour)}
+
+func (s *GrantsContractSuite) TestAGrantIsKeptOnce() {
+	s.True(s.keep(contractGrant))
+	s.False(s.keep(Grant{ID: contractGrant.ID, Country: "de", Points: 3, At: contractEnd}))
+
+	s.Equal([]Grant{contractGrant}, s.since(contractStart))
+}
+
+func (s *GrantsContractSuite) TestTheGrantsFromATimeAreListedInTheOrderGranted() {
+	later := Grant{ID: "later", Country: "de", Points: 1, At: contractEnd}
+	earlier := Grant{ID: "earlier", Country: "it", Points: 3, At: contractStart}
+	for _, grant := range []Grant{later, contractGrant, earlier} {
+		s.keep(grant)
+	}
+
+	s.Equal([]Grant{earlier, contractGrant, later}, s.since(contractStart))
+	s.Equal([]Grant{later}, s.since(contractEnd), "from the time on")
+}

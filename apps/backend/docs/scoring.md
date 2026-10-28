@@ -1,10 +1,12 @@
 # Scoring (`internal/scoring/`)
 
-**A points accountant: it knows two words, book and round, by the ids it is given.** A book gathers the points of its
-rounds and each player's takes; a round credits its book once it closes. Scoring knows no season, day, battle, finale,
+**A points accountant: it knows three words, book, round and grant, by the ids it is given.** A book gathers the points
+of its rounds and grants and each player's takes; a round credits its book once it closes; a grant credits every book
+open at its time. Scoring knows no season, day, battle, finale,
 clock, calendar, cutoff or rule set, and never names the gamemaster. **The gamemaster owns time and the game's words**
 (see [The gamemaster](gamemaster.md)): it commands scoring over one command stream, and scoring tells what it scored as
-events. Planet never imports, calls or hears scoring: scoring asks planet what each country holds
+events. Missions grants points the same way, by a command, and scoring never learns the word mission. Planet never
+imports, calls or hears scoring: scoring asks planet what each country holds
 (`planet.v1.InternalService/GetTerritories`), when a round closes and for an open round's live standings.
 
 Until 2026-10-28 scoring kept a calendar (seasons, daily cutoff), rule sets (`scoring.v1.PlayRuleSet`, a round of its
@@ -13,22 +15,26 @@ gamemaster sends the moments, and scoring has no rule set any more.
 
 ```
 internal/scoring/internal/
-  books/                          BookID, RoundID (ParseBookID, ParseRoundID: 1 to 64 characters), Book (NewBook, Holds,
-                                  ClosedAt, Table), Round (NewRound, Holds, ScoredAt, Results), Scored, Result, Score,
-                                  Placed (ScoresOf, TableOf), Take, ErrRefused; the Books, Rounds and Takes ports and
-                                  their contract suites
+  books/                          BookID, RoundID, GrantID (ParseBookID, ParseRoundID, ParseGrantID: 1 to 64 characters),
+                                  Book (NewBook, Holds, ClosedAt, Table), Round (NewRound, Holds, ScoredAt, Results),
+                                  Grant (NewGrant), Scored, Result, Score, Placed (ScoresOf, TableOf), Take, ErrRefused;
+                                  the Books, Rounds, Grants and Takes ports and their contract suites
     postgres_book_store/          Books over books, closed_books, book_tiebreaks
+    postgres_grant_store/         Grants over grants
     postgres_round_store/         Rounds and Takes over rounds, scored_rounds, round_results, round_takes,
                                   round_players
-    inmemory_book_store/  inmemory_round_store/   the same ports in maps, behind the testing tag
+    inmemory_book_store/  inmemory_round_store/  inmemory_grant_store/   the same ports in maps, behind the testing tag
     rpc_planet_territories/       the map now, from planet.v1.InternalService/GetTerritories
     usecases/open_book_usecase/   open_round_usecase/   close_round_usecase/   close_book_usecase/
+    usecases/grant_points_usecase/
     usecases/count_take_usecase/  forget_account_usecase/   a round's numbers
   standings/                      AccountID, Country, Take, Tally (WithTake); the Store port (RecordTake by book,
                                   DeleteAccount) and its contract suite
     postgres_contribution_store/  inmemory_contribution_store/
     usecases/record_take_usecase/  forget_account_usecase/
-  commands/scoring_command_handler/  Dispatcher (one case, one use case) and Handler (drops a command refused)
+  commands/scoring_command_handler/  Dispatcher (one case, one use case) and Handler (drops a command refused, of
+                                  either stream)
+  commands/grant_points_handler/  parses a GrantPoints for its use case
   commands/log_command/           logs each command applied
   scoringv1controller/            ScoringService and InternalService (bags), the cache and session interceptors
     get_board_handler/board_query/          a book's top 10, of every flag or of one; View; Live for the stream
@@ -72,6 +78,13 @@ store's insert (`ON CONFLICT DO NOTHING`, which answers whether this call did it
   the tiebreak round it is given and never picks one: the gamemaster names its season's finale, or none when the season
   had no finale (see [The gamemaster](gamemaster.md#the-finale)).
 
+**`scoring.v1.GrantPoints{grant_id, country, points, granted_at}`** is a stream of its own
+(`commands:scoring.v1.GrantPoints`, group `handler`): missions sends one when a flag finishes its flag mission.
+`grant_points_handler` parses it for `grant_points_usecase`, behind `log_command` and `log_subscriber`, and the same
+`Handler` drops a refusal: an id that is not one, no country, no points or no time (`books.NewGrant`, `ErrEmptyGrant`).
+A grant is kept once per `grant_id` (`grants`, `ON CONFLICT DO NOTHING`); it needs no book open when it comes, since
+the books read the grants by time.
+
 `scoring_command_handler/season_end_test.go` plays season 0's end: day 24 closed at 21:00, the battle ×3 from 21:00 to
 23:00 as the tiebreak, then the book; the outbox holds the two `RoundScored` then `BookClosed`, and every command sent
 again changes nothing.
@@ -84,6 +97,9 @@ again changes nothing.
   rounds keep their results.
 - **`books.TableOf` ranks a book**: points, then rounds won, then the points of its tiebreak round (`ScoresOf`; none
   while the book is open, or when the close named none). Countries level on all three share the rank.
+- **A grant counts in every book open at its time** (`Book.Table` keeps the grants it `Holds`): its points add to the
+  country's, and it wins no round and gives no tiebreak points. A country with only grants is on the table. A grant
+  told after its book closed, at a time before the end, shows in the book's scores but not in its `BookClosed`.
 - **A take counts in every book open at its time** (`Book.Holds`: from its start, and before its end once closed), and
   in every round of such a book open at its time (`Round.Holds`: from its start, and before its end once scored). A take
   told after its round or book closed still counts when it happened before the end. Every round counts its takes and
@@ -122,7 +138,7 @@ in one statement that moves each round's mark past the take's ledger position (`
 ## Kept
 
 `books` (`book_id`, `starts_at`), `closed_books` (`ended_at`), `book_tiebreaks` (`round_id`: a book closed with no
-tiebreak has no row), `rounds` (`round_id`, `book_id`, `times`, `starts_at`, `counted_takes_below`), `scored_rounds`
+tiebreak has no row), `grants` (`grant_id`, `country`, `points`, `granted_at`, by `granted_at`), `rounds` (`round_id`, `book_id`, `times`, `starts_at`, `counted_takes_below`), `scored_rounds`
 (`ended_at`), `round_results` (`rank`, `points`, `share`), `round_takes`, `round_players`, and the outbox
 (`outbox_event`: `scoring.v1.RoundScored`, `scoring.v1.BookClosed`). An end is a table of its own, not a nullable
 column: an open book or round has none. The rules stay in Go; SQL keeps what they said.
@@ -154,11 +170,12 @@ id that is not one is `InvalidArgument`.
 - **`GetRound(round_id)`** (`round_query`), on the public and the internal listener: NotFound for a round never opened.
   While open: each country's share of the map now and the points it would score (`Round.Results`). Once scored: its
   results (the countries that scored), its end, and the book's scores before and after it (`scores_query.Around`:
-  rounds ended before it, and through it). Always: the tiles each flag took during it (most first) and its top 10
+  rounds ended before it, and through it; both with the grants made before its end, so they differ by the round
+  alone). Always: the tiles each flag took during it (most first) and its top 10
   signed-in players by the tiles each took for the flag it took the most for, from the best 50 and one `GetAuthors`.
   A GET, `public, max-age=10`.
-- **`GetScores(book_id)`** (`scores_query`): the book's countries with points, ranked by `Book.Table`. A GET,
-  `public, max-age=10`. A book never opened has none.
+- **`GetScores(book_id)`** (`scores_query`): the book's countries with points, grants included, ranked by
+  `Book.Table`. A GET, `public, max-age=10`. A book never opened has none.
 - **`InternalService/GetTable(book_id)`**: the same table with each tiebreak's points, and `closed`; NotFound for a book
   never opened.
 - **`ListenForEvents(book_id, country_id, round_ids)`**: the book's board and scores, each round asked (10 at most, a

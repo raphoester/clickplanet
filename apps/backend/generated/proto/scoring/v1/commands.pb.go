@@ -379,6 +379,76 @@ func (x *CloseBook) GetTiebreakRoundId() string {
 	return ""
 }
 
+// Gives a country points in every book open at granted_at, beside its rounds' points: no round won, no tiebreak. Its
+// own stream. A grant_id told twice is granted once.
+type GrantPoints struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	GrantId       string                 `protobuf:"bytes,1,opt,name=grant_id,json=grantId,proto3" json:"grant_id,omitempty"`
+	Country       string                 `protobuf:"bytes,2,opt,name=country,proto3" json:"country,omitempty"`
+	Points        uint32                 `protobuf:"varint,3,opt,name=points,proto3" json:"points,omitempty"`
+	GrantedAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=granted_at,json=grantedAt,proto3" json:"granted_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GrantPoints) Reset() {
+	*x = GrantPoints{}
+	mi := &file_scoring_v1_commands_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GrantPoints) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GrantPoints) ProtoMessage() {}
+
+func (x *GrantPoints) ProtoReflect() protoreflect.Message {
+	mi := &file_scoring_v1_commands_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GrantPoints.ProtoReflect.Descriptor instead.
+func (*GrantPoints) Descriptor() ([]byte, []int) {
+	return file_scoring_v1_commands_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *GrantPoints) GetGrantId() string {
+	if x != nil {
+		return x.GrantId
+	}
+	return ""
+}
+
+func (x *GrantPoints) GetCountry() string {
+	if x != nil {
+		return x.Country
+	}
+	return ""
+}
+
+func (x *GrantPoints) GetPoints() uint32 {
+	if x != nil {
+		return x.Points
+	}
+	return 0
+}
+
+func (x *GrantPoints) GetGrantedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.GrantedAt
+	}
+	return nil
+}
+
 var File_scoring_v1_commands_proto protoreflect.FileDescriptor
 
 const file_scoring_v1_commands_proto_rawDesc = "" +
@@ -409,7 +479,13 @@ const file_scoring_v1_commands_proto_rawDesc = "" +
 	"\tCloseBook\x12\x17\n" +
 	"\abook_id\x18\x01 \x01(\tR\x06bookId\x123\n" +
 	"\aends_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x06endsAt\x12*\n" +
-	"\x11tiebreak_round_id\x18\x03 \x01(\tR\x0ftiebreakRoundIdB\xbc\x01\n" +
+	"\x11tiebreak_round_id\x18\x03 \x01(\tR\x0ftiebreakRoundId\"\x95\x01\n" +
+	"\vGrantPoints\x12\x19\n" +
+	"\bgrant_id\x18\x01 \x01(\tR\agrantId\x12\x18\n" +
+	"\acountry\x18\x02 \x01(\tR\acountry\x12\x16\n" +
+	"\x06points\x18\x03 \x01(\rR\x06points\x129\n" +
+	"\n" +
+	"granted_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tgrantedAtB\xbc\x01\n" +
 	"\x0ecom.scoring.v1B\rCommandsProtoP\x01ZRgithub.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1;scoringv1\xa2\x02\x03SXX\xaa\x02\n" +
 	"Scoring.V1\xca\x02\n" +
 	"Scoring\\V1\xe2\x02\x16Scoring\\V1\\GPBMetadata\xea\x02\vScoring::V1b\x06proto3"
@@ -426,29 +502,31 @@ func file_scoring_v1_commands_proto_rawDescGZIP() []byte {
 	return file_scoring_v1_commands_proto_rawDescData
 }
 
-var file_scoring_v1_commands_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_scoring_v1_commands_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_scoring_v1_commands_proto_goTypes = []any{
 	(*ScoringCommand)(nil),        // 0: scoring.v1.ScoringCommand
 	(*OpenBook)(nil),              // 1: scoring.v1.OpenBook
 	(*OpenRound)(nil),             // 2: scoring.v1.OpenRound
 	(*CloseRound)(nil),            // 3: scoring.v1.CloseRound
 	(*CloseBook)(nil),             // 4: scoring.v1.CloseBook
-	(*timestamppb.Timestamp)(nil), // 5: google.protobuf.Timestamp
+	(*GrantPoints)(nil),           // 5: scoring.v1.GrantPoints
+	(*timestamppb.Timestamp)(nil), // 6: google.protobuf.Timestamp
 }
 var file_scoring_v1_commands_proto_depIdxs = []int32{
 	1, // 0: scoring.v1.ScoringCommand.open_book:type_name -> scoring.v1.OpenBook
 	2, // 1: scoring.v1.ScoringCommand.open_round:type_name -> scoring.v1.OpenRound
 	3, // 2: scoring.v1.ScoringCommand.close_round:type_name -> scoring.v1.CloseRound
 	4, // 3: scoring.v1.ScoringCommand.close_book:type_name -> scoring.v1.CloseBook
-	5, // 4: scoring.v1.OpenBook.starts_at:type_name -> google.protobuf.Timestamp
-	5, // 5: scoring.v1.OpenRound.starts_at:type_name -> google.protobuf.Timestamp
-	5, // 6: scoring.v1.CloseRound.ends_at:type_name -> google.protobuf.Timestamp
-	5, // 7: scoring.v1.CloseBook.ends_at:type_name -> google.protobuf.Timestamp
-	8, // [8:8] is the sub-list for method output_type
-	8, // [8:8] is the sub-list for method input_type
-	8, // [8:8] is the sub-list for extension type_name
-	8, // [8:8] is the sub-list for extension extendee
-	0, // [0:8] is the sub-list for field type_name
+	6, // 4: scoring.v1.OpenBook.starts_at:type_name -> google.protobuf.Timestamp
+	6, // 5: scoring.v1.OpenRound.starts_at:type_name -> google.protobuf.Timestamp
+	6, // 6: scoring.v1.CloseRound.ends_at:type_name -> google.protobuf.Timestamp
+	6, // 7: scoring.v1.CloseBook.ends_at:type_name -> google.protobuf.Timestamp
+	6, // 8: scoring.v1.GrantPoints.granted_at:type_name -> google.protobuf.Timestamp
+	9, // [9:9] is the sub-list for method output_type
+	9, // [9:9] is the sub-list for method input_type
+	9, // [9:9] is the sub-list for extension type_name
+	9, // [9:9] is the sub-list for extension extendee
+	0, // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_scoring_v1_commands_proto_init() }
@@ -468,7 +546,7 @@ func file_scoring_v1_commands_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_scoring_v1_commands_proto_rawDesc), len(file_scoring_v1_commands_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

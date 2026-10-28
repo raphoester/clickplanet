@@ -13,6 +13,7 @@ import (
 
 	missionsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/missions/v1"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/flagmissions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/usecases/get_missions_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missionsv1controller/get_missions_handler"
@@ -84,11 +85,28 @@ func TestEachMissionIsAnsweredInItsKindsOwnMessage(t *testing.T) {
 	}, res))
 }
 
+func TestTheFlagsMissionIsAnsweredWithItsPoints(t *testing.T) {
+	mission := flagmissions.MissionID{15: 7}
+	flag, err := flagmissions.DayOf(flagmissions.DaySnapshot{Progress: 40, Mission: &flagmissions.MissionSnapshot{
+		ID: mission, Order: flagmissions.BreakShields{Flag: "dz", Goal: 150}, Points: 2,
+	}})
+	require.NoError(t, err)
+
+	res, err := ask(t, &stubUseCase{out: get_missions_usecase.Out{Day: day, Flag: flag}})
+
+	require.NoError(t, err)
+	assert.True(t, proto.Equal(&missionsv1.FlagMission{
+		Id: mission.String(), Points: 2,
+		Kind: &missionsv1.FlagMission_BreakShields{BreakShields: &missionsv1.BreakShields{CountryId: "dz", Goal: 150, Broken: 40}},
+	}, res.GetFlagMission()))
+}
+
 func TestAnAnswerBeforeAnyFlagHasNoMissions(t *testing.T) {
 	res, err := ask(t, &stubUseCase{out: get_missions_usecase.Out{Day: day, Sheet: missions.SheetOf(missions.SheetSnapshot{})}})
 
 	require.NoError(t, err)
 	assert.Empty(t, res.GetMissions())
+	assert.Nil(t, res.GetFlagMission())
 }
 
 func TestAFailedReadIsTheErrorNets(t *testing.T) {
