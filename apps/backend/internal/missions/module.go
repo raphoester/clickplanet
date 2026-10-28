@@ -80,8 +80,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	}
 
 	store := postgres_mission_store.New(db)
-	briefing := missions.NewBriefing(store, rpc_planet_world.New(planet))
-	pay := payroll.New(store, briefing, rpc_auth_accounts.New(auth), cpoutbox.New(db))
+	briefing := missions.NewBriefing(store, rpc_planet_world.New(planet), rpc_planet_allegiance.New(planet))
+	pay := payroll.New(store, rpc_auth_accounts.New(auth), cpoutbox.New(db))
 
 	takes, err := cpredis.Subscribe(ctx, streams, "missions-progress",
 		log_subscriber.New(tile_taken_subscriber.New(record_take_usecase.New(calendar, briefing, store, db, pay)), props.Logger))
@@ -107,7 +107,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	service := missionsv1controller.MissionService{
 		GetMissionsHandler: get_missions_handler.New(
-			get_missions_usecase.New(calendar, clock, store, briefing, rpc_planet_allegiance.New(planet)),
+			get_missions_usecase.New(calendar, clock, store, briefing),
 		),
 	}
 	verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", moduleName)))

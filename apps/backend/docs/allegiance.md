@@ -31,7 +31,7 @@ player could paint for one country and defend another click to click. **Only
   from postgres), as `Identified`: unset for an account that never pledged a flag,
   and `changeable_at_unix_ms` 0 for a flag never changed. Not `NO_SIDE_EFFECTS`.
 - **`InternalService/GetAllegianceOf(account_id)`** is the same read for another module
-  (`missions`, before the day's first take), with the same query. An id that is no account is `InvalidArgument`.
+  (`missions`, to draw an account's day), with the same query. An id that is no account is `InvalidArgument`.
 - **`ClickService/PledgeAllegiance(country_id)`** is `Book.Pledge`, and answers
   nothing: the client reads `GetAllegiance` after it. `Identified`, since it writes
   only the caller's own state. No account is `Unauthenticated`, a flag that is no

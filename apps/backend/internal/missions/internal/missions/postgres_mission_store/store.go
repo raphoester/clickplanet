@@ -26,55 +26,57 @@ var _ missions.Store = (*Store)(nil)
 
 const sheetLock = 0x6d697373
 
-func (s *Store) Brief(ctx context.Context, day missions.Day, flag string) (missions.Brief, error) {
+func (s *Store) Brief(ctx context.Context, day missions.Day, account missions.AccountID) (missions.Brief, error) {
 	var kept []byte
 	err := s.db.On(ctx).QueryRowContext(ctx, `
-		SELECT missions FROM mission_briefs WHERE day = $1::date AND flag = $2
-	`, day.String(), flag).Scan(&kept)
+		SELECT missions FROM mission_briefs WHERE day = $1::date AND account_id = $2
+	`, day.String(), uuid.UUID(account)).Scan(&kept)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		return missions.Brief{}, missions.ErrNoBrief
 	case err != nil:
-		return missions.Brief{}, fmt.Errorf("failed to read %s's brief: %w", flag, err)
+		return missions.Brief{}, fmt.Errorf("failed to read the day's brief: %w", err)
 	}
 
 	var records []missionRecord
 	if err := json.Unmarshal(kept, &records); err != nil {
-		return missions.Brief{}, fmt.Errorf("failed to decode %s's brief: %w", flag, err)
+		return missions.Brief{}, fmt.Errorf("failed to decode the day's brief: %w", err)
 	}
 	snapshots := make([]missions.MissionSnapshot, 0, len(records))
 	for _, record := range records {
 		snapshot, err := record.snapshot()
 		if err != nil {
-			return missions.Brief{}, fmt.Errorf("failed to read %s's brief: %w", flag, err)
+			return missions.Brief{}, fmt.Errorf("failed to read the day's brief: %w", err)
 		}
 		snapshots = append(snapshots, snapshot)
 	}
 	return missions.BriefOf(snapshots) //nolint:wrapcheck // the domain named it.
 }
 
-func (s *Store) KeepBrief(ctx context.Context, day missions.Day, flag string, brief missions.Brief) (missions.Brief, error) {
+func (s *Store) KeepBrief(
+	ctx context.Context, day missions.Day, account missions.AccountID, brief missions.Brief,
+) (missions.Brief, error) {
 	drawn := brief.Snapshot()
 	records := make([]missionRecord, 0, len(drawn))
 	for _, mission := range drawn {
 		record, err := recordOf(mission)
 		if err != nil {
-			return missions.Brief{}, fmt.Errorf("failed to keep %s's brief: %w", flag, err)
+			return missions.Brief{}, fmt.Errorf("failed to keep the day's brief: %w", err)
 		}
 		records = append(records, record)
 	}
 	encoded, err := json.Marshal(records)
 	if err != nil {
-		return missions.Brief{}, fmt.Errorf("failed to encode %s's brief: %w", flag, err)
+		return missions.Brief{}, fmt.Errorf("failed to encode the day's brief: %w", err)
 	}
 
 	if _, err := s.db.On(ctx).ExecContext(ctx, `
-		INSERT INTO mission_briefs (day, flag, missions) VALUES ($1::date, $2, $3::jsonb)
-		ON CONFLICT (day, flag) DO NOTHING
-	`, day.String(), flag, encoded); err != nil {
-		return missions.Brief{}, fmt.Errorf("failed to keep %s's brief: %w", flag, err)
+		INSERT INTO mission_briefs (day, account_id, missions) VALUES ($1::date, $2, $3::jsonb)
+		ON CONFLICT (day, account_id) DO NOTHING
+	`, day.String(), uuid.UUID(account), encoded); err != nil {
+		return missions.Brief{}, fmt.Errorf("failed to keep the day's brief: %w", err)
 	}
-	return s.Brief(ctx, day, flag)
+	return s.Brief(ctx, day, account)
 }
 
 func (s *Store) Sheet(ctx context.Context, day missions.Day, account missions.AccountID) (missions.Sheet, error) {
@@ -86,10 +88,10 @@ func sheetOf(ctx context.Context, db cppg.Querier, day missions.Day, account mis
 
 	var below int64
 	err := db.QueryRowContext(ctx, `
-		SELECT flag, counted_takes_below FROM mission_sheets WHERE day = $1::date AND account_id = $2
-	`, day.String(), uuid.UUID(account)).Scan(&snapshot.Flag, &below)
+		SELECT counted_takes_below FROM mission_sheets WHERE day = $1::date AND account_id = $2
+	`, day.String(), uuid.UUID(account)).Scan(&below)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return missions.Sheet{}, fmt.Errorf("failed to read the day's flag: %w", err)
+		return missions.Sheet{}, fmt.Errorf("failed to read the day's last take: %w", err)
 	}
 	snapshot.TakesBelow = uint64(below) //nolint:gosec // CHECK (counted_takes_below >= 0).
 
@@ -143,12 +145,12 @@ func (s *Store) ChangeSheet(
 		}
 		before, after := current.Snapshot(), change(current).Snapshot()
 
-		if after.Flag != "" && (after.Flag != before.Flag || after.TakesBelow != before.TakesBelow) {
+		if after.TakesBelow != before.TakesBelow {
 			if _, err := tx.ExecContext(ctx, `
-				INSERT INTO mission_sheets (day, account_id, flag, counted_takes_below) VALUES ($1::date, $2, $3, $4)
-				ON CONFLICT (day, account_id) DO UPDATE SET flag = excluded.flag, counted_takes_below = excluded.counted_takes_below
-			`, day.String(), uuid.UUID(account), after.Flag, int64(after.TakesBelow)); err != nil { //nolint:gosec // a ledger position fits in int64.
-				return fmt.Errorf("failed to keep the day's flag: %w", err)
+				INSERT INTO mission_sheets (day, account_id, counted_takes_below) VALUES ($1::date, $2, $3)
+				ON CONFLICT (day, account_id) DO UPDATE SET counted_takes_below = excluded.counted_takes_below
+			`, day.String(), uuid.UUID(account), int64(after.TakesBelow)); err != nil { //nolint:gosec // a ledger position fits in int64.
+				return fmt.Errorf("failed to keep the day's last take: %w", err)
 			}
 		}
 		for id, progress := range after.Progress {
@@ -182,6 +184,9 @@ func (s *Store) ChangeSheet(
 func (s *Store) DeleteAccount(ctx context.Context, account missions.AccountID) error {
 	if _, err := s.db.On(ctx).ExecContext(ctx, `DELETE FROM mission_sheets WHERE account_id = $1`, uuid.UUID(account)); err != nil {
 		return fmt.Errorf("failed to forget the account's days: %w", err)
+	}
+	if _, err := s.db.On(ctx).ExecContext(ctx, `DELETE FROM mission_briefs WHERE account_id = $1`, uuid.UUID(account)); err != nil {
+		return fmt.Errorf("failed to forget the account's briefs: %w", err)
 	}
 	return nil
 }

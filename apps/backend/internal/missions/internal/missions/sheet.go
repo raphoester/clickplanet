@@ -5,21 +5,19 @@ import (
 )
 
 type SheetSnapshot struct {
-	Flag       string
 	Progress   map[MissionID]uint32
 	Paid       *cpcolls.Set[MissionID]
 	TakesBelow uint64
 }
 
 type Sheet struct {
-	flag       string
 	progress   map[MissionID]uint32
 	paid       *cpcolls.Set[MissionID]
 	takesBelow uint64
 }
 
 func SheetOf(snapshot SheetSnapshot) Sheet {
-	sheet := Sheet{flag: snapshot.Flag, progress: map[MissionID]uint32{}, paid: cpcolls.NewSet[MissionID](), takesBelow: snapshot.TakesBelow}
+	sheet := Sheet{progress: map[MissionID]uint32{}, paid: cpcolls.NewSet[MissionID](), takesBelow: snapshot.TakesBelow}
 	for id, progress := range snapshot.Progress {
 		sheet.progress[id] = progress
 	}
@@ -30,25 +28,22 @@ func SheetOf(snapshot SheetSnapshot) Sheet {
 }
 
 func (s Sheet) clone() Sheet {
-	return SheetOf(SheetSnapshot{Flag: s.flag, Progress: s.progress, Paid: s.paid, TakesBelow: s.takesBelow})
+	return SheetOf(SheetSnapshot{Progress: s.progress, Paid: s.paid, TakesBelow: s.takesBelow})
 }
 
 func (s Sheet) Snapshot() SheetSnapshot {
 	copied := s.clone()
-	return SheetSnapshot{Flag: copied.flag, Progress: copied.progress, Paid: copied.paid, TakesBelow: copied.takesBelow}
+	return SheetSnapshot{Progress: copied.progress, Paid: copied.paid, TakesBelow: copied.takesBelow}
 }
-
-func (s Sheet) Enlisted() bool { return s.flag != "" }
 
 // A take can be told twice: one below the mark was counted already. Takes come in ledger order.
 func (s Sheet) WithTake(take Take, brief Brief) Sheet {
-	if take.Position < s.takesBelow || s.flag != "" && take.Flag != s.flag {
+	if take.Position < s.takesBelow {
 		return s
 	}
 
 	next := s.clone()
-	next.flag = take.Flag
-	changed := s.flag == ""
+	changed := false
 	for _, mission := range brief.missions {
 		if advanced := mission.order.advanced(next.progress[mission.id], take); advanced != next.progress[mission.id] {
 			next.progress[mission.id] = advanced

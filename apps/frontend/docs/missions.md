@@ -1,7 +1,7 @@
 # Missions
 
-Three to five missions a day for the flag played, the same for each of its players: a few banks for
-the flag, tiles from the leader, tiles on a big country's ground, then more rivals and grounds, each
+Three to five missions a day of the player's own, drawn for the flag it played at its first read: a few
+banks for the flag, tiles from a rival, tiles on a big country's ground, then more rivals and grounds, each
 for a charge drawn with the day (shields, spread clicks, a bomb or enclosures). The backend's
 [Missions doc](../../backend/docs/missions.md) has the rules; the client only shows them: a mission done pays
 itself, with nothing to press.
@@ -35,6 +35,6 @@ itself, with nothing to press.
   (`MissionOrder`, `TileOrder` today); `ConnectMissionsBackend` reads the proto's `oneof` and skips a mission whose
   kind or reward it does not know.
 - `backends/missions.ts` is the contract, `ConnectMissionsBackend` (`missions.v1.MissionService`) the real one,
-  `FakeMissionsBackend` the fake: it counts this tab's takes for its first flag (the pledged one
-  before), pays each mission done at once, and `finishMissions()` in the console puts every mission one tile from
-  done: the next take for the flag finishes and pays them all, as a take does on the server.
+  `FakeMissionsBackend` the fake: it draws the day for the flag pledged at its first read (or its first
+  take's), counts every take of this tab, pays each mission done at once, and `finishMissions()` in the console puts
+  every mission one tile from done: the next take finishes and pays them all, as a take does on the server.

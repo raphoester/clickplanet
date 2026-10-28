@@ -61,9 +61,9 @@ var purses = []purse{
 	{kind: RewardEncloseClicks, least: 2, most: 3},
 }
 
-func Draw(day Day, flag string, world World) Brief {
+func Draw(day Day, account AccountID, flag string, world World) Brief {
 	seed := fnv.New64a()
-	_, _ = seed.Write([]byte(day.String() + "/" + flag))
+	_, _ = seed.Write([]byte(day.String() + "/" + account.String()))
 	d := draw{flag: flag, random: rand.New(rand.NewPCG(seed.Sum64(), 0))} //nolint:gosec // a draw every player can see, not a secret.
 
 	orders := d.orders(d.ranked(rivalsOf(flag, world)), groundsOf(flag, world))
@@ -71,15 +71,15 @@ func Draw(day Day, flag string, world World) Brief {
 
 	missions := make([]Mission, 0, len(orders))
 	for n, order := range orders {
-		missions = append(missions, Mission{id: drawnID(day, flag, n+1), order: order, reward: rewards[n]})
+		missions = append(missions, Mission{id: drawnID(day, account, n+1), order: order, reward: rewards[n]})
 	}
 	return Brief{missions: missions}
 }
 
 var drawnSpace = uuid.MustParse("4d697373-696f-4e73-8000-6d697373696f")
 
-func drawnID(day Day, flag string, n int) MissionID {
-	return MissionID(uuid.NewSHA1(drawnSpace, fmt.Appendf(nil, "%s/%s/%d", day, flag, n)))
+func drawnID(day Day, account AccountID, n int) MissionID {
+	return MissionID(uuid.NewSHA1(drawnSpace, fmt.Appendf(nil, "%s/%s/%d", day, account, n)))
 }
 
 // The flags holding rivalAtLeast tiles but the flag, the biggest first.

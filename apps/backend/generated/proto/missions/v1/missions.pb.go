@@ -58,13 +58,15 @@ func (*GetMissionsRequest) Descriptor() ([]byte, []int) {
 	return file_missions_v1_missions_proto_rawDescGZIP(), []int{0}
 }
 
-// The day's missions are for the flag of the day's first take, and for the caller's pledged flag until then.
+// The caller's own missions of the day, drawn at its first read or take for the flag it played then.
 type GetMissionsResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	CountryId     string                 `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
-	Enlisted      bool                   `protobuf:"varint,2,opt,name=enlisted,proto3" json:"enlisted,omitempty"`
-	EndsAtUnixMs  int64                  `protobuf:"varint,3,opt,name=ends_at_unix_ms,json=endsAtUnixMs,proto3" json:"ends_at_unix_ms,omitempty"`
-	Missions      []*Mission             `protobuf:"bytes,4,rep,name=missions,proto3" json:"missions,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Deprecated: Marked as deprecated in missions/v1/missions.proto.
+	CountryId string `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	// Deprecated: Marked as deprecated in missions/v1/missions.proto.
+	Enlisted      bool       `protobuf:"varint,2,opt,name=enlisted,proto3" json:"enlisted,omitempty"`
+	EndsAtUnixMs  int64      `protobuf:"varint,3,opt,name=ends_at_unix_ms,json=endsAtUnixMs,proto3" json:"ends_at_unix_ms,omitempty"`
+	Missions      []*Mission `protobuf:"bytes,4,rep,name=missions,proto3" json:"missions,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -99,6 +101,7 @@ func (*GetMissionsResponse) Descriptor() ([]byte, []int) {
 	return file_missions_v1_missions_proto_rawDescGZIP(), []int{1}
 }
 
+// Deprecated: Marked as deprecated in missions/v1/missions.proto.
 func (x *GetMissionsResponse) GetCountryId() string {
 	if x != nil {
 		return x.CountryId
@@ -106,6 +109,7 @@ func (x *GetMissionsResponse) GetCountryId() string {
 	return ""
 }
 
+// Deprecated: Marked as deprecated in missions/v1/missions.proto.
 func (x *GetMissionsResponse) GetEnlisted() bool {
 	if x != nil {
 		return x.Enlisted
@@ -259,7 +263,7 @@ func (*Mission_TakeFrom) isMission_Kind() {}
 
 func (*Mission_TakeIn) isMission_Kind() {}
 
-// Take goal tiles for country_id, the day's flag.
+// Take goal tiles for country_id.
 type TakeFor struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	CountryId     string                 `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
@@ -566,11 +570,11 @@ var File_missions_v1_missions_proto protoreflect.FileDescriptor
 const file_missions_v1_missions_proto_rawDesc = "" +
 	"\n" +
 	"\x1amissions/v1/missions.proto\x12\vmissions.v1\x1a\x16planet/v1/planet.proto\"\x14\n" +
-	"\x12GetMissionsRequest\"\xa9\x01\n" +
-	"\x13GetMissionsResponse\x12\x1d\n" +
+	"\x12GetMissionsRequest\"\xb1\x01\n" +
+	"\x13GetMissionsResponse\x12!\n" +
 	"\n" +
-	"country_id\x18\x01 \x01(\tR\tcountryId\x12\x1a\n" +
-	"\benlisted\x18\x02 \x01(\bR\benlisted\x12%\n" +
+	"country_id\x18\x01 \x01(\tB\x02\x18\x01R\tcountryId\x12\x1e\n" +
+	"\benlisted\x18\x02 \x01(\bB\x02\x18\x01R\benlisted\x12%\n" +
 	"\x0fends_at_unix_ms\x18\x03 \x01(\x03R\fendsAtUnixMs\x120\n" +
 	"\bmissions\x18\x04 \x03(\v2\x14.missions.v1.MissionR\bmissions\"\x96\x02\n" +
 	"\aMission\x12\x0e\n" +

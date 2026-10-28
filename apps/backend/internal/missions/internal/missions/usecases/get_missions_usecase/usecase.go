@@ -13,11 +13,7 @@ type Sheets interface {
 }
 
 type Briefing interface {
-	Of(ctx context.Context, day missions.Day, flag string) (missions.Brief, error)
-}
-
-type Allegiances interface {
-	FlagOf(ctx context.Context, account missions.AccountID) (string, error)
+	Of(ctx context.Context, day missions.Day, account missions.AccountID) (missions.Brief, error)
 }
 
 type In struct {
@@ -26,21 +22,19 @@ type In struct {
 
 type Out struct {
 	Day   missions.Day
-	Flag  string
 	Brief missions.Brief
 	Sheet missions.Sheet
 }
 
-func New(calendar missions.Calendar, clock cptime.Clock, sheets Sheets, briefing Briefing, allegiances Allegiances) *UseCase {
-	return &UseCase{calendar: calendar, clock: clock, sheets: sheets, briefing: briefing, allegiances: allegiances}
+func New(calendar missions.Calendar, clock cptime.Clock, sheets Sheets, briefing Briefing) *UseCase {
+	return &UseCase{calendar: calendar, clock: clock, sheets: sheets, briefing: briefing}
 }
 
 type UseCase struct {
-	calendar    missions.Calendar
-	clock       cptime.Clock
-	sheets      Sheets
-	briefing    Briefing
-	allegiances Allegiances
+	calendar missions.Calendar
+	clock    cptime.Clock
+	sheets   Sheets
+	briefing Briefing
 }
 
 func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
@@ -48,23 +42,11 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 
 	sheet, err := u.sheets.Sheet(ctx, day, in.Account)
 	if err != nil {
+		return Out{}, fmt.Errorf("failed to read the day's progress: %w", err)
+	}
+	brief, err := u.briefing.Of(ctx, day, in.Account)
+	if err != nil {
 		return Out{}, fmt.Errorf("failed to read the day's missions: %w", err)
 	}
-
-	out := Out{Day: day, Flag: sheet.Snapshot().Flag, Sheet: sheet}
-	if !sheet.Enlisted() {
-		out.Flag, err = u.allegiances.FlagOf(ctx, in.Account)
-		if err != nil {
-			return Out{}, fmt.Errorf("failed to read the flag the account plays for: %w", err)
-		}
-	}
-	if out.Flag == "" {
-		return out, nil
-	}
-
-	out.Brief, err = u.briefing.Of(ctx, day, out.Flag)
-	if err != nil {
-		return Out{}, fmt.Errorf("failed to read %s's missions: %w", out.Flag, err)
-	}
-	return out, nil
+	return Out{Day: day, Brief: brief, Sheet: sheet}, nil
 }
