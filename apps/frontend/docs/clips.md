@@ -85,7 +85,8 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   strike back together (`team`), and its `headline`. A tour, a place and a seasonal story are the facts' own: the
   flag taking the world, the holder holding its share, the day won. **The page builds the `Story` from it and reads no
   rule**: a pick that names no front, a kind no front tells, no attacker or no place is refused as it is read, and
-  the job checked it against the findings before the render. `--headline` overrides the story's.
+  the job checked it against the findings before the render. `--headline` overrides the story's. Its `teasers` are
+  the editor's too, and the caption's (below).
 - **`--season <path>`** is the gamemaster's turn, a `gamemaster.v1.GetTurnResponse` as `GetTurn` answers it, served
   to the page at `/__clip/season.json`. Its `debrief` is the moment scoring scored last, in the game's words: a day
   (`DayEnded`), a battle (`BattleEnded`, `ends_season` for the finale) or the season's end (`SeasonEnded`, told as
@@ -163,10 +164,10 @@ What chooses, when a clip goes out, the client of the service and the run's summ
     day's podium. **A tour is already its shortest**, each stop a flight and a stay, and is left as it is, as is a
     front whose fighting stays in one place: the arm is still recorded, and `durationSeconds` keeps the real length.
     The camera fits the play it is given either way.
-- **Each teaser has a name** (`Words.teaserNames`, beside `teasers`, in the same order): the name of its wording, the
-  same for every flag and every language, `invades` and `under-attack-from` for an invasion, `can-anyone-stop` for a
-  call-up's leader in any of its languages. The `Clip` carries them (`teaserNames`), so the job can say which wording
-  a post opens with and the posts can be compared by it. A test checks every kind names each of its teasers once.
+- **Each teaser has a name** (`Words.teaserNames`, beside `teasers`, in the same order): `editor` for the editor's,
+  and for this app's own the name of its wording, the same for every flag and every language, `takes-the-day` for a
+  day won, `can-anyone-stop` for a call-up's leader in any of its languages. The `Clip` carries them (`teaserNames`),
+  so the job can say which wording a post opens with and the posts can be compared by it.
 
 - **The replay is the backend's** (`planet.v1.AdminService/GetReplay`, see the backend's [GetReplay](../../backend/docs/admin.md#getreplay)): the map as it
   was at the start, and every act after it as the live stream sent it. The backend's job asks for the last
@@ -228,8 +229,8 @@ What chooses, when a clip goes out, the client of the service and the run's summ
 - **`story.ts` is what a clip tells, as the editor wrote it** (`Story`): its kind, its attacker, its rival, whom it
   took from, its place, and the continent striking back together (`team`). `sidesOf` is who the clip is between,
   `storyKeyOf` which story it is, `storyCountriesOf` what it shows, `fightersOf` whose fighting the camera follows.
-  `src/clip/overlay.ts` words it: the headline is the editor's, and `wordsOf` writes the teasers, the call and the
-  line of each kind, as before; its own headline stands in when none is given, as for a day won.
+  `src/clip/overlay.ts` words it: the headline and the teasers are the editor's, and `wordsOf` writes the call and
+  the line of each kind; its own headline stands in when none is given, as for a day won.
 - **A country is said as people say it.** The game's names are cut to fit its board ("Christmas", "N.Zealand", "Czech
   Rep."), so a clip says the English name they were cut from, from the CLDR data the browser carries
   (`Intl.DisplayNames`): "CHRISTMAS ISLAND IS TAKING OVER THE WORLD". A name the game chose over CLDR's stays: "Turkey",
@@ -238,15 +239,12 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   Republic". Tags keep them bare.
 - **The words say nothing the map says better.** Only a battle has a line under its headline, "The battle for
   France": no count of tiles and no "in 3 hours", which the counter shows and which read as written by a machine.
-- **The caption never repeats the headline** (`teasers` in `wordsOf`): the clip already shows it, and the
-  posts written by hand read better. Each kind of story says it two ways, which the job picks between: "PALESTINE
-  IS KICKING ROMANIA OUT OF KAZAKHSTAN" is "PALESTINE TAKES KAZAKHSTAN FROM ROMANIA", an invasion that threw
-  another flag out "CROATIA INVADES CHINA AND KICKS OUT FRANCE", a flag thrown out "GENERATIONAL DOWNFALL OF
-  CHRISTMAS ISLAND", and a country throwing a flag out of its own land "ITALY RETAKES ITS LAND FROM PORTUGAL".
-  A holding is "80% OF EUROPE FLIES THE FLAG OF CROATIA" and "CROATIA RULES EUROPE" (below half, "the biggest power
-  in Europe"; the world's, "THE BIGGEST EMPIRE ON EARTH"), and asks to "TAKE EUROPE BACK"; a day won is "FRANCE TAKES
-  DAY 5" and "DAY 5 GOES TO FRANCE". A teaser that says the editor's headline is left out, and a test checks that no
-  kind ever gives its own headline back.
+- **The teasers are the editor's** (`teasers` in `wordsOf`, from the pick): the headline said in other words, which
+  the caption opens with and YouTube shows as the title. **No rule here writes them**: until 2026-10-28 each kind said
+  the headline two ways, and every rout outside the loser's home could be "GENERATIONAL DOWNFALL OF X", so China
+  losing Finland was titled "GENERATIONAL DOWNFALL OF CHINA". Only a day won ("FRANCE TAKES DAY 5", "DAY 5 GOES TO
+  FRANCE") and a call-up have teasers of their own, since no editor writes them. **The caption never repeats the
+  headline**: the clip already shows it, so a teaser that says it is left out.
 - **The hashtags are every flag of the story and the countries of its place** (`hashtagsOf`), bare
   (`#christmasisland`, `#uk`), and the place's continent. Palestine and Israel included: the user chose it on
   2026-10-14, though a flag's tag can be a political feed. A continent's own flag is not a country and has none.

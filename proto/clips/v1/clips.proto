@@ -157,6 +157,8 @@ message Pick {
   string team = 11;
   // Empty for the generator's own.
   string headline = 12;
+  // The headline said in other words, for the caption: the editor's. Empty for the generator's own.
+  repeated string teasers = 13;
 }
 
 message Clip {
