@@ -100,11 +100,13 @@ tiles**, so a player is on the board of each flag it took for.
   first.
 - **Takes come from `planet.v1.TileTaken`** (`seasons-standings`), one tile per event, in ledger order.
   `record_take_usecase` reads every book and records the take in each one that holds it. The tally keeps the position
-  after the last take it counted (`counted_takes_below`), so a take told twice counts once. A strike on a shield, a
+  and index past the last take it counted (`standings.TakeMark`: `counted_takes_below`, `counted_takes_below_index`),
+  so a take told twice counts once, and each take of a spread or an enclose, which share one position, counts. A strike on a shield, a
   click the ban refuses and a revert publish nothing, so they change no score.
 - **One transaction per take and book**, under `pg_advisory_xact_lock` on the account: read the account's rows for the
   book, apply `WithTake`, upsert the flag's row and move `main`.
-- **Kept in `scoring.contributions`** (`book_id`, `account_id`, `country`, `tiles`, `main`, `counted_takes_below`;
+- **Kept in `scoring.contributions`** (`book_id`, `account_id`, `country`, `tiles`, `main`, `counted_takes_below`,
+  `counted_takes_below_index`;
   primary key `(book_id, account_id, country)`), with its own block, `scoring.database`. `main` marks one row per account
   and book (a partial unique index); `contributions_board` serves the whole map's board and
   `contributions_country_board` a country's.
@@ -117,12 +119,14 @@ tiles**, so a player is on the board of each flag it took for.
 
 `round_take_subscriber` hears `planet.v1.TileTaken` (`seasons-rounds`) and `count_take_usecase` counts each take in the
 rounds that hold it: the tiles each flag's players took (`round_takes`) and each account's, by flag (`round_players`),
-in one statement that moves each round's mark past the take's ledger position (`counted_takes_below`).
+in one statement that moves each round's mark past the take's ledger position and index (`counted_takes_below`,
+`counted_takes_below_index`).
 
 ## Kept
 
 `books` (`book_id`, `starts_at`), `closed_books` (`ended_at`), `book_tiebreaks` (`round_id`: a book closed with no
-tiebreak has no row), `rounds` (`round_id`, `book_id`, `times`, `starts_at`, `counted_takes_below`), `scored_rounds`
+tiebreak has no row), `rounds` (`round_id`, `book_id`, `times`, `starts_at`, `counted_takes_below`,
+`counted_takes_below_index`), `scored_rounds`
 (`ended_at`), `round_results` (`rank`, `points`, `share`), `round_takes`, `round_players`, and the outbox
 (`outbox_event`: `scoring.v1.RoundScored`, `scoring.v1.BookClosed`). An end is a table of its own, not a nullable
 column: an open book or round has none. The rules stay in Go; SQL keeps what they said.

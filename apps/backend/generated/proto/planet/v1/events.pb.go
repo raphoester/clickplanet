@@ -96,14 +96,16 @@ func (ClickOutcome) EnumDescriptor() ([]byte, []int) {
 }
 
 type TileTaken struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
-	TileId        uint32                 `protobuf:"varint,2,opt,name=tile_id,json=tileId,proto3" json:"tile_id,omitempty"`
-	Country       string                 `protobuf:"bytes,3,opt,name=country,proto3" json:"country,omitempty"`
-	TakenAt       *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=taken_at,json=takenAt,proto3" json:"taken_at,omitempty"`
-	Position      uint64                 `protobuf:"varint,5,opt,name=position,proto3" json:"position,omitempty"`
-	Previous      string                 `protobuf:"bytes,6,opt,name=previous,proto3" json:"previous,omitempty"`
-	Ground        string                 `protobuf:"bytes,7,opt,name=ground,proto3" json:"ground,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	AccountId string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	TileId    uint32                 `protobuf:"varint,2,opt,name=tile_id,json=tileId,proto3" json:"tile_id,omitempty"`
+	Country   string                 `protobuf:"bytes,3,opt,name=country,proto3" json:"country,omitempty"`
+	TakenAt   *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=taken_at,json=takenAt,proto3" json:"taken_at,omitempty"`
+	Position  uint64                 `protobuf:"varint,5,opt,name=position,proto3" json:"position,omitempty"`
+	Previous  string                 `protobuf:"bytes,6,opt,name=previous,proto3" json:"previous,omitempty"`
+	Ground    string                 `protobuf:"bytes,7,opt,name=ground,proto3" json:"ground,omitempty"`
+	// A spread or an enclose is one ledger event, at one position, that holds several takes: each has its index in it.
+	Index         uint32 `protobuf:"varint,8,opt,name=index,proto3" json:"index,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -185,6 +187,13 @@ func (x *TileTaken) GetGround() string {
 		return x.Ground
 	}
 	return ""
+}
+
+func (x *TileTaken) GetIndex() uint32 {
+	if x != nil {
+		return x.Index
+	}
+	return 0
 }
 
 type BombLanded struct {
@@ -904,7 +913,7 @@ var File_planet_v1_events_proto protoreflect.FileDescriptor
 
 const file_planet_v1_events_proto_rawDesc = "" +
 	"\n" +
-	"\x16planet/v1/events.proto\x12\tplanet.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x16planet/v1/planet.proto\"\xe4\x01\n" +
+	"\x16planet/v1/events.proto\x12\tplanet.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x16planet/v1/planet.proto\"\xfa\x01\n" +
 	"\tTileTaken\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12\x17\n" +
@@ -913,7 +922,8 @@ const file_planet_v1_events_proto_rawDesc = "" +
 	"\btaken_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\atakenAt\x12\x1a\n" +
 	"\bposition\x18\x05 \x01(\x04R\bposition\x12\x1a\n" +
 	"\bprevious\x18\x06 \x01(\tR\bprevious\x12\x16\n" +
-	"\x06ground\x18\a \x01(\tR\x06ground\"\xe5\x01\n" +
+	"\x06ground\x18\a \x01(\tR\x06ground\x12\x14\n" +
+	"\x05index\x18\b \x01(\rR\x05index\"\xe5\x01\n" +
 	"\n" +
 	"BombLanded\x12\x18\n" +
 	"\acountry\x18\x01 \x01(\tR\acountry\x12\x17\n" +

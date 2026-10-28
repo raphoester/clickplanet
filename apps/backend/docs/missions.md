@@ -72,8 +72,9 @@ internal/missions/internal/
     since an account has one day. The client never names the flag. **Progress is counted from `TileTaken`** (`missions-progress`, `tile_taken_subscriber`), up to each goal,
     in one transaction under `pg_advisory_xact_lock` per take, with nothing written once nothing changed. **Not from the
     ledger**: `ledger_events` has no time index, and an account's takes since the cutoff would read every take it ever
-    made. **A take told twice counts once**: Redis delivers at least once, and the sheet keeps the ledger position after
-    the last take it counted (`counted_takes_below`), so one below it counts nothing.
+    made. **A take told twice counts once**: Redis delivers at least once, and the sheet keeps the ledger position and
+    index past the last take it counted (`missions.TakeMark`: `counted_takes_below`, `counted_takes_below_index`), so
+    one below it counts nothing. The takes of a spread or an enclose share one position, and each has its own index.
   - **A mission done is paid at once, with no claim** (`payroll.Pay`, `Sheet.WithPayments`). The take that finishes it
     writes the payment (`mission_payments`) and records the `planet.v1.GrantCharges` command in missions' outbox, in
     the transaction that counts the take: both are kept, or neither and the take is told again. `missions-outbox`

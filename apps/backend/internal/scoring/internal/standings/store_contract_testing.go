@@ -56,7 +56,7 @@ func (s *StoreContractSuite) TestEachTakeAddsOneTileToItsFlag() {
 	s.take(contractBook, 1, "fr", 3)
 	s.take(contractBook, 1, "de", 2)
 
-	s.Equal(Tally{Main: "fr", Tiles: map[Country]uint64{"fr": 3, "de": 2}, TakesBelow: 5}, s.tally(contractBook, 1))
+	s.Equal(Tally{Main: "fr", Tiles: map[Country]uint64{"fr": 3, "de": 2}, TakesBelow: TakeMark{Position: 4, Index: 1}}, s.tally(contractBook, 1))
 }
 
 func (s *StoreContractSuite) TestAFlagThatOvertakesTheMainOneBecomesIt() {
@@ -72,8 +72,8 @@ func (s *StoreContractSuite) TestEachBookCountsItsOwnTakes() {
 	s.take(contractBook, 1, "fr", 3)
 	s.take(contractNext, 1, "de", 1)
 
-	s.Equal(Tally{Main: "fr", Tiles: map[Country]uint64{"fr": 3}, TakesBelow: 3}, s.tally(contractBook, 1))
-	s.Equal(Tally{Main: "de", Tiles: map[Country]uint64{"de": 1}, TakesBelow: 4}, s.tally(contractNext, 1))
+	s.Equal(Tally{Main: "fr", Tiles: map[Country]uint64{"fr": 3}, TakesBelow: TakeMark{Position: 2, Index: 1}}, s.tally(contractBook, 1))
+	s.Equal(Tally{Main: "de", Tiles: map[Country]uint64{"de": 1}, TakesBelow: TakeMark{Position: 3, Index: 1}}, s.tally(contractNext, 1))
 }
 
 func (s *StoreContractSuite) TestADeletedAccountLeavesEveryBookAndTheOthersStay() {
@@ -85,7 +85,7 @@ func (s *StoreContractSuite) TestADeletedAccountLeavesEveryBookAndTheOthersStay(
 
 	s.True(s.tally(contractBook, 1).Empty())
 	s.True(s.tally(contractNext, 1).Empty())
-	s.Equal(Tally{Main: "de", Tiles: map[Country]uint64{"de": 1}, TakesBelow: 4}, s.tally(contractBook, 2))
+	s.Equal(Tally{Main: "de", Tiles: map[Country]uint64{"de": 1}, TakesBelow: TakeMark{Position: 3, Index: 1}}, s.tally(contractBook, 2))
 }
 
 func (s *StoreContractSuite) TestDeletingAnAccountThatTookNothingIsNotAnError() {
@@ -98,7 +98,26 @@ func (s *StoreContractSuite) TestATakeToldAgainAfterItWasKeptIsNotCountedAgain()
 			Take{Account: contractAccount(1), Country: "fr", At: contractAt, Position: position}))
 	}
 
-	s.Equal(Tally{Main: "fr", Tiles: map[Country]uint64{"fr": 1}, TakesBelow: 8}, s.tally(contractBook, 1))
+	s.Equal(Tally{Main: "fr", Tiles: map[Country]uint64{"fr": 1}, TakesBelow: TakeMark{Position: 7, Index: 1}}, s.tally(contractBook, 1))
+}
+
+func (s *StoreContractSuite) TestEachTakeOfASpreadIsCountedOnceThoughTheyShareAPosition() {
+	takes := []Take{
+		{Country: "de", Position: 8},
+		{Country: "fr", Position: 9, Index: 0},
+		{Country: "fr", Position: 9, Index: 1},
+		{Country: "fr", Position: 9, Index: 2},
+	}
+	for range 2 {
+		for _, take := range takes {
+			take.Account, take.At = contractAccount(1), contractAt
+			s.Require().NoError(s.store.RecordTake(s.T().Context(), contractBook, take))
+		}
+	}
+
+	s.Equal(Tally{
+		Main: "fr", Tiles: map[Country]uint64{"de": 1, "fr": 3}, TakesBelow: TakeMark{Position: 9, Index: 3},
+	}, s.tally(contractBook, 1))
 }
 
 func (s *StoreContractSuite) TestTheTakesOfManyAccountsAtOnceAreAllCounted() {
@@ -114,6 +133,7 @@ func (s *StoreContractSuite) TestTheTakesOfManyAccountsAtOnceAreAllCounted() {
 	wg.Wait()
 
 	for account := range byte(20) {
-		s.Equal(Tally{Main: "de", Tiles: map[Country]uint64{"fr": 1, "de": 2}, TakesBelow: 3}, s.tally(contractBook, account))
+		s.Equal(Tally{Main: "de", Tiles: map[Country]uint64{"fr": 1, "de": 2}, TakesBelow: TakeMark{Position: 2, Index: 1}},
+			s.tally(contractBook, account))
 	}
 }

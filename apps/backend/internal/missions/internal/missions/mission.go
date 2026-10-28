@@ -16,6 +16,20 @@ type Take struct {
 	Ground   string
 	At       time.Time
 	Position uint64
+	Index    uint32
+}
+
+type TakeMark struct {
+	Position uint64
+	Index    uint32
+}
+
+func takeMarkPast(take Take) TakeMark {
+	return TakeMark{Position: take.Position, Index: take.Index + 1}
+}
+
+func (m TakeMark) counted(take Take) bool {
+	return take.Position < m.Position || take.Position == m.Position && take.Index < m.Index
 }
 
 type MissionID uuid.UUID

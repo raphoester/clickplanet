@@ -73,6 +73,7 @@ func (u *UseCase) Execute(ctx context.Context) (int, error) {
 
 func (u *UseCase) factsOf(position ledger.Position, event ledger.Event) []proto.Message {
 	var facts []proto.Message
+	var index uint32
 	event.Replay(func(taking ledger.Taking) {
 		if taking.Account == "" || taking.Cleared() {
 			return
@@ -85,7 +86,9 @@ func (u *UseCase) factsOf(position ledger.Position, event ledger.Event) []proto.
 			Position:  uint64(position),
 			Previous:  taking.Previous,
 			Ground:    u.borders.CountryOf(taking.Tile),
+			Index:     index,
 		})
+		index++
 	})
 
 	switch told := event.(type) {

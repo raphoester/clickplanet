@@ -28,7 +28,7 @@ func contractProfile(account byte, name Name) Profile {
 }
 
 func (s *StoreContractSuite) recordTake(account byte, position uint64, at time.Time) {
-	s.Require().NoError(s.store.Record(s.T().Context(), AccountID{15: account}, TakeAt(position, at)))
+	s.Require().NoError(s.store.Record(s.T().Context(), AccountID{15: account}, TakeAt(position, 0, at)))
 }
 
 func (s *StoreContractSuite) record(account byte, change func(Stats) Stats) {
@@ -135,8 +135,8 @@ func (s *StoreContractSuite) TestEachTakeIsCountedByTheDomainsRule() {
 	s.recordTake(1, 1, contractAt.Add(time.Minute))
 	s.recordTake(1, 2, contractAt.Add(time.Hour))
 
-	want := NewStats(AccountID{15: 1}).WithTake(0, contractAt).WithTake(1, contractAt.Add(time.Minute)).
-		WithTake(2, contractAt.Add(time.Hour))
+	want := NewStats(AccountID{15: 1}).WithTake(0, 0, contractAt).WithTake(1, 0, contractAt.Add(time.Minute)).
+		WithTake(2, 0, contractAt.Add(time.Hour))
 	s.Equal(want, s.stats(1))
 	s.Equal(uint32(2), s.stats(1).Streak().Days(), "the third take is past UTC midnight")
 }
@@ -163,7 +163,7 @@ func (s *StoreContractSuite) TestMessagesAndTakesAddUpOnOneAccount() {
 	s.record(1, MessageAt(contractAt.Add(time.Second)))
 	s.record(2, MessageAt(contractAt))
 
-	s.Equal(NewStats(AccountID{15: 1}).WithMessage(contractAt).WithTake(0, contractAt).
+	s.Equal(NewStats(AccountID{15: 1}).WithMessage(contractAt).WithTake(0, 0, contractAt).
 		WithMessage(contractAt.Add(time.Second)), s.stats(1))
 	s.Equal(uint64(1), s.stats(2).MessagesSent())
 }
@@ -184,7 +184,7 @@ func (s *StoreContractSuite) TestEveryCounterReadsBack() {
 func (s *StoreContractSuite) TestAFactToldAgainAfterItWasKeptIsNotCountedAgain() {
 	for range 2 {
 		for _, change := range []func(Stats) Stats{
-			TakeAt(4, contractAt), MessageAt(contractAt), BombAt(5), FortifyAt(6, 60), BonusAt(contractAt),
+			TakeAt(4, 0, contractAt), MessageAt(contractAt), BombAt(5), FortifyAt(6, 60), BonusAt(contractAt),
 			RightAnswerAt(contractAt),
 		} {
 			s.record(1, change)
@@ -195,10 +195,21 @@ func (s *StoreContractSuite) TestAFactToldAgainAfterItWasKeptIsNotCountedAgain()
 		Account: AccountID{15: 1}, TilesTaken: 1, Streak: StreakOf(1, DayOf(contractAt)), StreakBest: 1, MessagesSent: 1,
 		BombsDropped: 1, TilesFortified: 60, BonusesClaimed: 1, RightAnswers: 1,
 		Counted: Counted{
-			TakesBelow: 5, BombsBelow: 6, FortifiesBelow: 7,
+			TakesBelow: TakeMark{Position: 4, Index: 1}, BombsBelow: 6, FortifiesBelow: 7,
 			MessagesUntil: contractAt, BonusesUntil: contractAt, AnswersUntil: contractAt,
 		},
 	}, s.stats(1).TakeSnapshot())
+}
+
+func (s *StoreContractSuite) TestEachTakeOfASpreadIsCountedOnceThoughTheyShareAPosition() {
+	for range 2 {
+		for index := range uint32(3) {
+			s.record(1, TakeAt(4, index, contractAt))
+		}
+	}
+
+	s.Equal(uint64(3), s.stats(1).TilesTaken())
+	s.Equal(TakeMark{Position: 4, Index: 3}, s.stats(1).TakeSnapshot().Counted.TakesBelow)
 }
 
 func (s *StoreContractSuite) TestADeletedAccountLosesBothAndTheOthersKeepTheirs() {

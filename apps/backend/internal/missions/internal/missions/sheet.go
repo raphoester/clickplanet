@@ -7,13 +7,13 @@ import (
 type SheetSnapshot struct {
 	Progress   map[MissionID]uint32
 	Paid       *cpcolls.Set[MissionID]
-	TakesBelow uint64
+	TakesBelow TakeMark
 }
 
 type Sheet struct {
 	progress   map[MissionID]uint32
 	paid       *cpcolls.Set[MissionID]
-	takesBelow uint64
+	takesBelow TakeMark
 }
 
 func SheetOf(snapshot SheetSnapshot) Sheet {
@@ -36,9 +36,9 @@ func (s Sheet) Snapshot() SheetSnapshot {
 	return SheetSnapshot{Progress: copied.progress, Paid: copied.paid, TakesBelow: copied.takesBelow}
 }
 
-// A take can be told twice: one below the mark was counted already. Takes come in ledger order.
+// A take can be told twice: one below the mark was counted already. Takes come in ledger order, then index order.
 func (s Sheet) WithTake(take Take, brief Brief) Sheet {
-	if take.Position < s.takesBelow {
+	if s.takesBelow.counted(take) {
 		return s
 	}
 
@@ -53,7 +53,7 @@ func (s Sheet) WithTake(take Take, brief Brief) Sheet {
 	if !changed {
 		return s
 	}
-	next.takesBelow = take.Position + 1
+	next.takesBelow = takeMarkPast(take)
 	return next
 }
 

@@ -37,9 +37,9 @@ type Stats struct {
 	counted        Counted
 }
 
-// A fact can be told twice: one before its kind's mark was counted already. Ledger facts come in ledger order.
+// A fact can be told twice: one before its kind's mark was counted already. Ledger facts come in ledger order, then index order.
 type Counted struct {
-	TakesBelow     uint64
+	TakesBelow     TakeMark
 	BombsBelow     uint64
 	FortifiesBelow uint64
 	MessagesUntil  time.Time
@@ -120,8 +120,21 @@ func (s Stats) BonusesClaimed() uint64 { return s.bonusesClaimed }
 
 func (s Stats) RightAnswers() uint64 { return s.rightAnswers }
 
-func TakeAt(position uint64, at time.Time) func(Stats) Stats {
-	return func(s Stats) Stats { return s.WithTake(position, at) }
+type TakeMark struct {
+	Position uint64
+	Index    uint32
+}
+
+func takeMarkPast(position uint64, index uint32) TakeMark {
+	return TakeMark{Position: position, Index: index + 1}
+}
+
+func (m TakeMark) counted(position uint64, index uint32) bool {
+	return position < m.Position || position == m.Position && index < m.Index
+}
+
+func TakeAt(position uint64, index uint32, at time.Time) func(Stats) Stats {
+	return func(s Stats) Stats { return s.WithTake(position, index, at) }
 }
 
 func MessageAt(at time.Time) func(Stats) Stats {
@@ -147,11 +160,11 @@ func RightAnswerAt(at time.Time) func(Stats) Stats {
 // Postgres keeps a time to the microsecond: a fact told again must compare equal to the one kept.
 func momentOf(at time.Time) time.Time { return at.UTC().Truncate(time.Microsecond) }
 
-func (s Stats) WithTake(position uint64, at time.Time) Stats {
-	if position < s.counted.TakesBelow {
+func (s Stats) WithTake(position uint64, index uint32, at time.Time) Stats {
+	if s.counted.TakesBelow.counted(position, index) {
 		return s
 	}
-	s.counted.TakesBelow = position + 1
+	s.counted.TakesBelow = takeMarkPast(position, index)
 
 	day := DayOf(at)
 	s.tilesTaken++

@@ -118,6 +118,13 @@ export class TileTaken extends Message<TileTaken> {
    */
   ground = "";
 
+  /**
+   * A spread or an enclose is one ledger event, at one position, that holds several takes: each has its index in it.
+   *
+   * @generated from field: uint32 index = 8;
+   */
+  index = 0;
+
   constructor(data?: PartialMessage<TileTaken>) {
     super();
     proto3.util.initPartial(data, this);
@@ -133,6 +140,7 @@ export class TileTaken extends Message<TileTaken> {
     { no: 5, name: "position", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
     { no: 6, name: "previous", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 7, name: "ground", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 8, name: "index", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TileTaken {

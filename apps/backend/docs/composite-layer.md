@@ -114,11 +114,11 @@ The proto sits beside the public one in the module's package (`proto/auth/v1/int
 
 | subscriber | why a second delivery changes nothing |
 |---|---|
-| `player-stats`, `player-stats-bombs`, `player-stats-fortifies` | `planet` tells its map facts in ledger order with their `position`. The stats row keeps the position after the last take, bomb and fortify it counted (`players.Counted`); one below it was counted already |
+| `player-stats`, `player-stats-bombs`, `player-stats-fortifies` | `planet` tells its map facts in ledger order with their `position`, and each take with its `index` in its event. The stats row keeps a mark past the last take, bomb and fortify it counted (`players.Counted`); one below it was counted already. A take's mark is its position and index (`players.TakeMark`): a spread or an enclose is one ledger event, at one position, that holds several takes |
 | `player-stats-messages`, `player-stats-bonuses`, `player-stats-quizzes` | the same with the time of the last message, box and right answer counted, compared to the microsecond postgres keeps |
-| `seasons-standings` | the tally keeps the position after the last take it counted (`standings.Tally.TakesBelow`: a column of each contributions row, the highest is the tally's) |
-| `seasons-rounds` | each round of its own keeps the position after the last take it counted (`rounds.counted_takes_below`), moved in the statement that counts the take |
-| `missions-progress` | an account's day keeps the position after the last take it counted (`missions.Sheet`, `mission_sheets.counted_takes_below`) |
+| `seasons-standings` | the tally keeps the position and index past the last take it counted (`standings.Tally.TakesBelow`: two columns of each contributions row, the highest pair is the tally's) |
+| `seasons-rounds` | each round of its own keeps the position and index past the last take it counted (`rounds.counted_takes_below`, `counted_takes_below_index`), moved in the statement that counts the take |
+| `missions-progress` | an account's day keeps the position and index past the last take it counted (`missions.Sheet`, `mission_sheets.counted_takes_below`, `counted_takes_below_index`) |
 | `missions-sign-ins` | pays only the missions not paid yet (`mission_payments`) |
 | `planet`'s `planet.v1.GrantCharges` handler | keeps each `grant_id` it applied, in the transaction of the grant (`charge_grants`) |
 | `chat-announcements-*` | an announcement is named after the fact it tells (the bomb's or the fortify's ledger position, the mute's id, the round's season and number, the champion's season) and kept with `AppendOnce`: a second one is neither kept nor shown |
@@ -190,7 +190,7 @@ The events today:
 
 | event | published by | when | heard by |
 |---|---|---|---|
-| `planet.v1.TileTaken{account_id, tile_id, country, taken_at, position, previous, ground}` | `planet`, `ledger/usecases/relay_ledger_usecase` | each take the ledger flushed with an account: a click, a spread or an enclose, one event per tile, in ledger order; `previous` is the flag that held it, `ground` the country it is on (`clicks.Borders`) | `player`, for the stats; `scoring`, for the books' boards and each round's takes and players; `missions`, for the day's progress |
+| `planet.v1.TileTaken{account_id, tile_id, country, taken_at, position, previous, ground, index}` | `planet`, `ledger/usecases/relay_ledger_usecase` | each take the ledger flushed with an account: a click, a spread or an enclose, one event per tile, in ledger order; `previous` is the flag that held it, `ground` the country it is on (`clicks.Borders`); `index` is the take's place in its ledger event, from 0, since a spread's or an enclose's takes share one `position` | `player`, for the stats; `scoring`, for the books' boards and each round's takes and players; `missions`, for the day's progress |
 | `planet.v1.BombLanded{country, tile_id, ground, cleared, landed_at, account_id, position}` | `planet`, `ledger/usecases/relay_ledger_usecase` | each bomb the ledger flushed, on land or in the sea; a refused drop is not in the ledger | `chat`, which announces it; `player`, for the stats |
 | `planet.v1.Fortified{country, landmass_id, tiles, ground, fortified_at, account_id, position}` | `planet`, `ledger/usecases/relay_ledger_usecase` | each landmass a take fortified (see [Fortify](fortify.md)); `account_id` is the account that took the last tile, empty for a click with no account | `chat`, which announces the ones of 50 tiles or more; `player`, for the stats |
 | `planet.v1.BonusClaimed{account_id, claimed_at}` | `planet`, `claim_bonus_usecase` | after a caught box's charge is held; a refused claim, or a caller with no account, publishes nothing | `player`, for the stats |

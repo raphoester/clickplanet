@@ -15,4 +15,5 @@ type Take struct {
 	Country  Country
 	At       time.Time
 	Position uint64
+	Index    uint32
 }

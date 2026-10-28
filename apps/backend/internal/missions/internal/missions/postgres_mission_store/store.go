@@ -86,14 +86,14 @@ func (s *Store) Sheet(ctx context.Context, day missions.Day, account missions.Ac
 func sheetOf(ctx context.Context, db cppg.Querier, day missions.Day, account missions.AccountID) (missions.Sheet, error) {
 	snapshot := missions.SheetSnapshot{Progress: map[missions.MissionID]uint32{}, Paid: cpcolls.NewSet[missions.MissionID]()}
 
-	var below int64
+	var below, index int64
 	err := db.QueryRowContext(ctx, `
-		SELECT counted_takes_below FROM mission_sheets WHERE day = $1::date AND account_id = $2
-	`, day.String(), uuid.UUID(account)).Scan(&below)
+		SELECT counted_takes_below, counted_takes_below_index FROM mission_sheets WHERE day = $1::date AND account_id = $2
+	`, day.String(), uuid.UUID(account)).Scan(&below, &index)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return missions.Sheet{}, fmt.Errorf("failed to read the day's last take: %w", err)
 	}
-	snapshot.TakesBelow = uint64(below) //nolint:gosec // CHECK (counted_takes_below >= 0).
+	snapshot.TakesBelow = missions.TakeMark{Position: uint64(below), Index: uint32(index)} //nolint:gosec // CHECK (>= 0).
 
 	if err := perMission(ctx, db, `SELECT mission_id, progress FROM mission_progress WHERE day = $1::date AND account_id = $2`,
 		day, account, func(id missions.MissionID, progress uint32) { snapshot.Progress[id] = progress }); err != nil {
@@ -147,9 +147,11 @@ func (s *Store) ChangeSheet(
 
 		if after.TakesBelow != before.TakesBelow {
 			if _, err := tx.ExecContext(ctx, `
-				INSERT INTO mission_sheets (day, account_id, counted_takes_below) VALUES ($1::date, $2, $3)
-				ON CONFLICT (day, account_id) DO UPDATE SET counted_takes_below = excluded.counted_takes_below
-			`, day.String(), uuid.UUID(account), int64(after.TakesBelow)); err != nil { //nolint:gosec // a ledger position fits in int64.
+				INSERT INTO mission_sheets (day, account_id, counted_takes_below, counted_takes_below_index) VALUES ($1::date, $2, $3, $4)
+				ON CONFLICT (day, account_id) DO UPDATE
+				SET counted_takes_below = excluded.counted_takes_below, counted_takes_below_index = excluded.counted_takes_below_index
+			`, day.String(), uuid.UUID(account),
+				int64(after.TakesBelow.Position), int64(after.TakesBelow.Index)); err != nil { //nolint:gosec // a ledger position fits in int64.
 				return fmt.Errorf("failed to keep the day's last take: %w", err)
 			}
 		}

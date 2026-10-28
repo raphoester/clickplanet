@@ -44,12 +44,14 @@ func (s *Store) RecordTake(ctx context.Context, book books.BookID, take standing
 			}
 		}
 		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO contributions (book_id, account_id, country, tiles, main, counted_takes_below) VALUES ($1, $2, $3, $4, $5, $6)
+			INSERT INTO contributions (book_id, account_id, country, tiles, main, counted_takes_below, counted_takes_below_index)
+			VALUES ($1, $2, $3, $4, $5, $6, $7)
 			ON CONFLICT (book_id, account_id, country) DO UPDATE
-			SET tiles = excluded.tiles, main = excluded.main, counted_takes_below = excluded.counted_takes_below
+			SET tiles = excluded.tiles, main = excluded.main, counted_takes_below = excluded.counted_takes_below,
+				counted_takes_below_index = excluded.counted_takes_below_index
 		`, string(book), uuid.UUID(take.Account), string(take.Country),
 			int64(next.Tiles[take.Country]), next.Main == take.Country, //nolint:gosec // one a tile taken: never past int64.
-			int64(next.TakesBelow)); err != nil { //nolint:gosec // a ledger position fits in int64.
+			int64(next.TakesBelow.Position), int64(next.TakesBelow.Index)); err != nil { //nolint:gosec // a ledger position fits in int64.
 			return fmt.Errorf("failed to save the take: %w", err)
 		}
 		return nil
@@ -58,7 +60,8 @@ func (s *Store) RecordTake(ctx context.Context, book books.BookID, take standing
 
 func tallyOf(ctx context.Context, db cppg.Querier, book books.BookID, account standings.AccountID) (standings.Tally, error) {
 	rows, err := db.QueryContext(ctx, `
-		SELECT country, tiles, main, counted_takes_below FROM contributions WHERE book_id = $1 AND account_id = $2
+		SELECT country, tiles, main, counted_takes_below, counted_takes_below_index FROM contributions
+		WHERE book_id = $1 AND account_id = $2 ORDER BY counted_takes_below, counted_takes_below_index
 	`, string(book), uuid.UUID(account))
 	if err != nil {
 		return standings.Tally{}, fmt.Errorf("failed to read the account's contributions: %w", err)
@@ -72,12 +75,13 @@ func tallyOf(ctx context.Context, db cppg.Querier, book books.BookID, account st
 			tiles   int64
 			main    bool
 			below   int64
+			index   int64
 		)
-		if err := rows.Scan(&country, &tiles, &main, &below); err != nil {
+		if err := rows.Scan(&country, &tiles, &main, &below, &index); err != nil {
 			return standings.Tally{}, fmt.Errorf("failed to read a contribution: %w", err)
 		}
-		tally.Tiles[standings.Country(country)] = uint64(tiles) //nolint:gosec // CHECK (tiles > 0).
-		tally.TakesBelow = max(tally.TakesBelow, uint64(below)) //nolint:gosec // CHECK (counted_takes_below >= 0).
+		tally.Tiles[standings.Country(country)] = uint64(tiles)                              //nolint:gosec // CHECK (tiles > 0).
+		tally.TakesBelow = standings.TakeMark{Position: uint64(below), Index: uint32(index)} //nolint:gosec // CHECK (>= 0); the last row's mark is the highest.
 		if main {
 			tally.Main = standings.Country(country)
 		}

@@ -388,11 +388,24 @@ func TestATakeToldTwiceCountsOnce(t *testing.T) {
 	sheet := missions.SheetOf(missions.SheetSnapshot{}).WithTake(told, brief).WithTake(told, brief)
 
 	assert.Equal(t, map[missions.MissionID]uint32{bank: 1, rival: 1}, sheet.Snapshot().Progress)
-	assert.Equal(t, told.Position+1, sheet.Snapshot().TakesBelow)
+	assert.Equal(t, missions.TakeMark{Position: told.Position, Index: 1}, sheet.Snapshot().TakesBelow)
+}
+
+func TestEachTakeOfASpreadCountsOnceThoughTheyShareAPosition(t *testing.T) {
+	brief := briefOf(t, frBrief...)
+	sheet := missions.SheetOf(missions.SheetSnapshot{})
+	for range 2 {
+		for index := range uint32(2) {
+			sheet = sheet.WithTake(missions.Take{Account: ada, Flag: "fr", At: monday, Position: 7, Index: index}, brief)
+		}
+	}
+
+	assert.Equal(t, uint32(2), sheet.Snapshot().Progress[bank])
+	assert.Equal(t, missions.TakeMark{Position: 7, Index: 2}, sheet.Snapshot().TakesBelow)
 }
 
 func TestATakeBelowTheMarkCountsNothing(t *testing.T) {
-	sheet := missions.SheetOf(missions.SheetSnapshot{TakesBelow: 1_000})
+	sheet := missions.SheetOf(missions.SheetSnapshot{TakesBelow: missions.TakeMark{Position: 1_000}})
 
 	sheet = sheet.WithTake(missions.Take{Account: ada, Flag: "fr", At: monday, Position: 999}, briefOf(t, frBrief...))
 
@@ -400,11 +413,11 @@ func TestATakeBelowTheMarkCountsNothing(t *testing.T) {
 }
 
 func TestATakeThatCountsNothingLeavesTheMark(t *testing.T) {
-	sheet := missions.SheetOf(missions.SheetSnapshot{TakesBelow: 5})
+	sheet := missions.SheetOf(missions.SheetSnapshot{TakesBelow: missions.TakeMark{Position: 5}})
 
 	sheet = sheet.WithTake(missions.Take{Account: ada, Flag: "de", At: monday, Position: 9}, briefOf(t, frBrief...))
 
-	assert.Equal(t, uint64(5), sheet.Snapshot().TakesBelow)
+	assert.Equal(t, missions.TakeMark{Position: 5}, sheet.Snapshot().TakesBelow)
 }
 
 func TestAWithTakeLeavesTheSheetItWasCalledOnAlone(t *testing.T) {

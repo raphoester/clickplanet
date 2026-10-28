@@ -47,5 +47,6 @@ func (s Subscriber) Handle(ctx context.Context, event *planetv1.TileTaken) error
 		Country:  standings.Country(event.GetCountry()),
 		At:       event.GetTakenAt().AsTime(),
 		Position: event.GetPosition(),
+		Index:    event.GetIndex(),
 	})
 }

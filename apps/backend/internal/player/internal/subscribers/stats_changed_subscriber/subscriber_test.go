@@ -30,7 +30,7 @@ func TestChangedStatsAreCheckedForTitles(t *testing.T) {
 	stats, held := inmemory_player_store.New(), inmemory_title_store.New()
 	account, err := players.AccountIDOf("0b6d4f7e-5d7c-4a36-9a51-3f1f8f0c2a11")
 	require.NoError(t, err)
-	require.NoError(t, stats.Record(t.Context(), account, players.TakeAt(0, now)))
+	require.NoError(t, stats.Record(t.Context(), account, players.TakeAt(0, 0, now)))
 
 	err = subscriber(stats, held, account).Handle(t.Context(), &playerv1.StatsChanged{AccountId: account.String()})
 

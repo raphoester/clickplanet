@@ -41,7 +41,7 @@ func TestATakeCountsOneTileForItsFlagInEveryBookOpenAtItsTime(t *testing.T) {
 	require.NoError(t, useCase.Execute(t.Context(),
 		standings.Take{Account: ada, Country: "fr", At: seasonZeroEnds.Add(-time.Minute), Position: 1}))
 
-	two := standings.Tally{Main: "fr", Tiles: map[standings.Country]uint64{"fr": 2}, TakesBelow: 2}
+	two := standings.Tally{Main: "fr", Tiles: map[standings.Country]uint64{"fr": 2}, TakesBelow: standings.TakeMark{Position: 1, Index: 1}}
 	assert.Equal(t, two, store.Tally("season-0", ada))
 	assert.Equal(t, two, store.Tally("lifetime", ada))
 }
@@ -55,7 +55,10 @@ func TestATakeOutsideABooksTimeCountsNothingInIt(t *testing.T) {
 		standings.Take{Account: ada, Country: "de", At: seasonZeroStarts.Add(-time.Minute), Position: 1}))
 
 	assert.True(t, store.Tally("season-0", ada).Empty(), "at its end, and before its start")
-	assert.Equal(t, standings.Tally{Main: "fr", Tiles: map[standings.Country]uint64{"fr": 1, "de": 1}, TakesBelow: 2},
+	assert.Equal(t, standings.Tally{
+		Main: "fr", Tiles: map[standings.Country]uint64{"fr": 1, "de": 1},
+		TakesBelow: standings.TakeMark{Position: 1, Index: 1},
+	},
 		store.Tally("lifetime", ada))
 }
 

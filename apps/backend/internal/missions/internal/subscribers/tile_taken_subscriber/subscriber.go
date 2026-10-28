@@ -46,5 +46,6 @@ func (s Subscriber) Handle(ctx context.Context, event *planetv1.TileTaken) error
 		Ground:   event.GetGround(),
 		At:       event.GetTakenAt().AsTime(),
 		Position: event.GetPosition(),
+		Index:    event.GetIndex(),
 	})
 }
