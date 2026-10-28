@@ -45,10 +45,18 @@ func dayEnded(told moments.DayEnded) *gamemasterv1.DayEnded {
 
 func battleEnded(told moments.BattleEnded) *gamemasterv1.BattleEnded {
 	return &gamemasterv1.BattleEnded{
-		Season: uint32(told.Battle.Season), Number: told.Battle.Number, EntryId: told.Battle.Entry.String(),
+		Season: uint32(told.Battle.Season), Number: told.Battle.Number, EntryId: EntryIDOf(told.Battle),
 		Times: uint32(told.Battle.Times), EndsSeason: told.Battle.EndsSeason, RoundId: string(told.Battle.Round()),
 		EndedAt: timestamppb.New(told.EndedAt),
 	}
+}
+
+// EntryIDOf is a battle's entry's id; empty for a season's finale, which is no entry's.
+func EntryIDOf(battle moments.Battle) string {
+	if battle.EndsSeason {
+		return ""
+	}
+	return battle.Entry.String()
 }
 
 func seasonEnded(told moments.SeasonEnded) *gamemasterv1.SeasonEnded {

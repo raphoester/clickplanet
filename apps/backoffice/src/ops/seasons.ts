@@ -1,6 +1,6 @@
 import {Duration} from "@bufbuild/protobuf"
 import {GamemasterAdmin} from "../clients.ts"
-import {GetSeasonsResponse, ScheduledSeason} from "../gen/grpc/gamemaster/v1/admin_pb.ts"
+import {GetSeasonsResponse, ScheduledSeason, SeasonFinale} from "../gen/grpc/gamemaster/v1/admin_pb.ts"
 
 const HOUR = 3600
 const DAY = 24 * HOUR
@@ -62,15 +62,56 @@ function filled(span: Span): boolean {
         Number.isInteger(Number(span.days))
 }
 
-export type Draft = {breakBefore: Span, length: Span}
+// A season's last battle, as the form edits it: off for a season with none.
+export type FinaleDraft = {on: boolean, length: Span, ruleSet: string, description: string, times: string}
+
+export type Draft = {breakBefore: Span, length: Span, finale: FinaleDraft}
+
+const NO_FINALE: FinaleDraft = {on: false, length: {days: "0", hours: "2"}, ruleSet: "", description: "", times: "3"}
+
+function finaleDraftOf(finale: SeasonFinale | undefined): FinaleDraft {
+    if (finale === undefined) return NO_FINALE
+    return {
+        on: true, length: spanDraftOf(finale.length), ruleSet: finale.ruleSet, description: finale.description,
+        times: String(finale.times),
+    }
+}
 
 export function draftOf(scheduled: ScheduledSeason | undefined): Draft {
-    if (scheduled === undefined) return {breakBefore: {days: "0", hours: "0"}, length: {days: "28", hours: "0"}}
-    return {breakBefore: spanDraftOf(scheduled.breakBefore), length: spanDraftOf(scheduled.length)}
+    if (scheduled === undefined) return {breakBefore: {days: "0", hours: "0"}, length: {days: "28", hours: "0"}, finale: NO_FINALE}
+    return {
+        breakBefore: spanDraftOf(scheduled.breakBefore), length: spanDraftOf(scheduled.length),
+        finale: finaleDraftOf(scheduled.finale),
+    }
+}
+
+function finaleComplete(finale: FinaleDraft): boolean {
+    if (!finale.on) return true
+    const times = Number(finale.times)
+    return filled(finale.length) && spanSecondsOf(finale.length) > 0 && finale.ruleSet.trim() !== "" &&
+        Number.isInteger(times) && times >= 1 && times <= 10
 }
 
 export function complete(draft: Draft): boolean {
-    return filled(draft.breakBefore) && filled(draft.length) && spanSecondsOf(draft.length) > 0
+    return filled(draft.breakBefore) && filled(draft.length) && spanSecondsOf(draft.length) > 0 && finaleComplete(draft.finale)
+}
+
+// "2 h, rush × 3", or none.
+export function finaleSummaryOf(finale: SeasonFinale | undefined): string {
+    return finale === undefined ? "none" : `${spanOf(finale.length)}, ${finale.ruleSet} × ${finale.times}`
+}
+
+// When the season's finale starts: its length before the season's end.
+export function finaleStartOf(row: Row): Date | undefined {
+    const finale = row.scheduled.finale
+    if (finale === undefined || row.endsAt === undefined) return undefined
+    return new Date(row.endsAt.getTime() - secondsOf(finale.length) * 1000)
+}
+
+// Once its finale started, a season's end and its finale stay.
+export function finaleStarted(row: Row, now: Date): boolean {
+    const startsAt = finaleStartOf(row)
+    return startsAt !== undefined && startsAt <= now
 }
 
 // The window the durations give: the break after the season before's end; season 0's counts from its origin.
@@ -90,16 +131,29 @@ function durationOf(span: Span, kept: Duration | undefined): Duration {
     return new Duration({seconds: BigInt(spanSecondsOf(span))})
 }
 
+// The finale the form sends: unset for none, and its length as kept when the form left it.
+function finaleOf(finale: FinaleDraft, kept: SeasonFinale | undefined): SeasonFinale | undefined {
+    if (!finale.on) return undefined
+    return new SeasonFinale({
+        length: durationOf(finale.length, kept?.length), ruleSet: finale.ruleSet.trim(), description: finale.description,
+        times: Number(finale.times),
+    })
+}
+
 export function questionOf(draft: Draft, row: Row | undefined, rows: Row[]): string {
     const window = windowOf(draft, row, rows)
     const span = `a break of ${spanOf(durationOf(draft.breakBefore, undefined))}, then ${spanOf(durationOf(draft.length, undefined))}`
     const dates = window === undefined ? "" : `, from ${window.startsAt.toLocaleString()} to ${window.endsAt.toLocaleString()}`
-    return row === undefined ? `Add a season: ${span}${dates}?` : `Run season ${row.number}: ${span}${dates}?`
+    const finale = draft.finale.on
+        ? `, ending with a final battle of ${finaleSummaryOf(finaleOf(draft.finale, undefined))}`
+        : ", with no final battle"
+    return row === undefined ? `Add a season: ${span}${dates}${finale}?` : `Run season ${row.number}: ${span}${dates}${finale}?`
 }
 
 export async function addSeason(gamemaster: GamemasterAdmin, draft: Draft): Promise<number> {
     const added = await gamemaster.addSeason({
         breakBefore: durationOf(draft.breakBefore, undefined), length: durationOf(draft.length, undefined),
+        finale: finaleOf(draft.finale, undefined),
     })
     return added.number
 }
@@ -107,7 +161,7 @@ export async function addSeason(gamemaster: GamemasterAdmin, draft: Draft): Prom
 export async function editSeason(gamemaster: GamemasterAdmin, row: Row, draft: Draft): Promise<void> {
     await gamemaster.editSeason({
         number: row.number, breakBefore: durationOf(draft.breakBefore, row.scheduled.breakBefore),
-        length: durationOf(draft.length, row.scheduled.length),
+        length: durationOf(draft.length, row.scheduled.length), finale: finaleOf(draft.finale, row.scheduled.finale),
     })
 }
 

@@ -58,6 +58,10 @@ an `enabled` field, read off the proto, so a new one shows with no edit here.
 - **The kind is what the entry is to the players** (`gamemaster.v1.EntryKind`): `battle`, which the game client gives a
   war-like look, or `plain`, a change of the rules with no look. A new entry starts as a battle. The picker lists every
   kind the proto names but unspecified (`kinds`, `wordOf`), so a kind added to the contract shows with no edit here.
+- **A season's Final Battle is in the list too** (`linesOf`, `FinaleLine`), from `GetSchedule.finales`: its set, kind
+  battle, its times and words, "above all" for its priority, and "Season N's final battle" where an entry has its
+  buttons. It comes from its season and is changed on the Seasons page only. While it plays, "Playing" names it
+  (`Playing.finale_season`) and its row is marked.
 - **A battle's times** (`Entry.times`) are what its points are worth: scoring scores the battle's window as a round of
   its own, its points times this. A whole number from 1 to 10 (`MAX_TIMES`, the server's bound); a new battle starts at
   3. A plain entry has no round: the field is hidden and the page sends 0 (`timesOf`). Scoring keeps no rule set:
@@ -66,8 +70,13 @@ an `enabled` field, read off the proto, so a new one shows with no edit here.
 **Seasons** (`SeasonsPanel`, `seasons.ts`) is `gamemaster.v1.AdminService/GetSeasons`, `AddSeason`, `EditSeason` and
 `DeleteSeason`. The operator plans a season by its break and its length; the server works out its window.
 
-- **Every season, by number**, with its break, start, length and end, and whether it is done, running or to come; the
-  running one marked, a done one muted.
+- **Every season, by number**, with its break, start, length, end and Final Battle ("2 h, rush × 3 from …", or none),
+  and whether it is done, running or to come; the running one marked, a done one muted.
+- **The form edits the season's Final Battle** (`FinaleDraft`): "Ends with a final battle", then its length in days and
+  hours, its rule set, its times (1 to 10) and its words for the players. Add and Save are off until the set is named
+  and the times are whole. **Every Save sends the finale the form holds**, so an edit of the length keeps it; unticked,
+  the season has none. Once it started, the length and the finale are locked: the server refuses them
+  (`FailedPrecondition`).
 - **The form takes the break and the length in days and hours** and shows, as they are typed, the window they give
   (`windowOf`: after the season before's end, or season 0's own start). A new season has no break and 28 days.
 - **A season that has not ended has Edit**; a running one keeps its break (the fields are locked). A duration left as

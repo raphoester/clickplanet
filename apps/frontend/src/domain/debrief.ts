@@ -63,7 +63,7 @@ export function closedOf(debrief: Debrief, round: Round | undefined, scores: rea
                 number: battle?.number ?? 0,
                 finale: true,
                 times: round?.times ?? battle?.times ?? 1,
-                entryId: battle?.entryId ?? "",
+                entryId: "",
             }
         }
     }

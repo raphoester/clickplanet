@@ -118,9 +118,9 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	}
 
 	entries := postgres_entry_store.New(db)
-	ruleSchedule := play_schedule_usecase.NewRunner(scheduleCheck, log_play_schedule.New(
-		play_schedule_usecase.New(entries, redis_rule_set_commands.New(streams.Commands()), clock), props.Logger))
 	seasons := postgres_season_store.New(db)
+	ruleSchedule := play_schedule_usecase.NewRunner(scheduleCheck, log_play_schedule.New(
+		play_schedule_usecase.New(entries, seasons, redis_rule_set_commands.New(streams.Commands()), clock), props.Logger))
 	heard := postgres_moment_store.New(db)
 	planner := moments.NewPlanner(seasons, entries, heard, cutoff)
 	scoringPlay := play_scoring_usecase.NewRunner(scheduleCheck, log_play_scoring.New(
@@ -150,16 +150,16 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	admin := gamemasterv1controller.AdminService{
 		GetScheduleHandler: get_schedule_handler.New(schedule_query.NewPostgresQuery(db, clock)),
 		AddEntryHandler: add_entry_handler.New(audit_add_entry.New(
-			add_entry_usecase.New(entries, keepers, uuid_id_provider.Provider{}, clock), props.Logger)),
+			add_entry_usecase.New(entries, seasons, keepers, uuid_id_provider.Provider{}, clock), props.Logger)),
 		EditEntryHandler: edit_entry_handler.New(audit_edit_entry.New(
-			edit_entry_usecase.New(entries, keepers, clock), props.Logger)),
+			edit_entry_usecase.New(entries, seasons, keepers, clock), props.Logger)),
 		DeleteEntryHandler: delete_entry_handler.New(audit_delete_entry.New(
 			delete_entry_usecase.New(entries, clock), props.Logger)),
 		GetSeasonsHandler: get_seasons_handler.New(seasons_query.NewPostgresQuery(db)),
 		AddSeasonHandler: add_season_handler.New(audit_add_season.New(
-			add_season_usecase.New(seasons, clock), props.Logger)),
+			add_season_usecase.New(seasons, entries, keepers, clock), props.Logger)),
 		EditSeasonHandler: edit_season_handler.New(audit_edit_season.New(
-			edit_season_usecase.New(seasons, clock), props.Logger)),
+			edit_season_usecase.New(seasons, entries, keepers, clock), props.Logger)),
 		DeleteSeasonHandler: delete_season_handler.New(audit_delete_season.New(
 			delete_season_usecase.New(seasons, clock), props.Logger)),
 	}

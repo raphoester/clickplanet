@@ -7,14 +7,16 @@ export type Turn = {
     since?: number
     endsAt?: number
     description: string
-    // The running entry's id, empty when none runs.
+    // The running entry's id, empty when none runs and for a season's finale.
     entryId: string
     // The running battle's round in scoring; empty when no battle runs.
     roundId: string
     times: number
+    // The running battle is the season's finale.
+    endsSeason: boolean
 }
 
-export const PLAIN_TURN: Turn = {kind: "plain", description: "", entryId: "", roundId: "", times: 0}
+export const PLAIN_TURN: Turn = {kind: "plain", description: "", entryId: "", roundId: "", times: 0, endsSeason: false}
 
 export type BattleToCome = {
     entryId: string

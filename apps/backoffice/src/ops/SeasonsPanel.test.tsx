@@ -155,4 +155,46 @@ describe("the seasons page", () => {
         expect(await screen.findByText("The server refused it: refused")).toBeTruthy()
         expect(screen.getByRole("region", {name: "New season"})).toBeTruthy()
     })
+
+    it("shows each season's final battle, and keeps it on an edit of the rest", async () => {
+        const admin = new FakeAdmin()
+        show(admin)
+
+        await screen.findByRole("table")
+        expect(within(rowOf(2)).getByText(/2 h, rush × 3/)).toBeTruthy()
+        expect(within(rowOf(1)).getByText("none")).toBeTruthy()
+        fireEvent.click(within(rowOf(2)).getByRole("button", {name: "Edit"}))
+        expect((screen.getByLabelText("Ends with a final battle") as HTMLInputElement).checked).toBe(true)
+        type("Break, days", "1")
+        fireEvent.click(screen.getByRole("button", {name: "Save"}))
+        expect(screen.getByText(/ending with a final battle of 2 h, rush × 3\?$/)).toBeTruthy()
+        fireEvent.click(screen.getByRole("button", {name: "Yes, save"}))
+
+        await waitFor(() => expect(admin.askedFor("editSeason")).toHaveLength(1))
+        const [asked] = admin.askedFor("editSeason") as EditSeasonRequest[]
+        expect(asked.finale?.ruleSet).toBe("rush")
+        expect(asked.finale?.times).toBe(3)
+        expect(asked.finale?.description).toBe("Triple points.")
+        expect(asked.finale?.length).toBe(admin.seasons.seasons[2].finale?.length)
+    })
+
+    it("adds a season with a final battle once its set and times are filled", async () => {
+        const admin = new FakeAdmin()
+        show(admin)
+
+        fireEvent.click(await screen.findByRole("button", {name: "Add a season"}))
+        fireEvent.click(screen.getByLabelText("Ends with a final battle"))
+        expect((screen.getByRole("button", {name: "Add"}) as HTMLButtonElement).disabled).toBe(true)
+        type("Rule set", "rush")
+        type("Times", "3")
+        type("Description", "Triple points.")
+        fireEvent.click(screen.getByRole("button", {name: "Add"}))
+        fireEvent.click(screen.getByRole("button", {name: "Yes, add"}))
+
+        await waitFor(() => expect(admin.askedFor("addSeason")).toHaveLength(1))
+        const [asked] = admin.askedFor("addSeason") as AddSeasonRequest[]
+        expect(asked.finale?.length?.seconds).toBe(BigInt(2 * 3600))
+        expect(asked.finale?.ruleSet).toBe("rush")
+        expect(asked.finale?.times).toBe(3)
+    })
 })

@@ -64,3 +64,30 @@ func (s *StoreContractSuite) TestADeletedSeasonIsGone() {
 
 	s.Equal([]Snapshot{first.TakeSnapshot()}, s.read())
 }
+
+func (s *StoreContractSuite) TestAFinaleIsKeptWithItsSeason() {
+	finale := Finale{Length: 2 * time.Hour, Set: "rush", Description: "Triple points.", Times: 3}
+	planned := Snapshot{Number: 0, Length: 24 * time.Hour, Finale: finale}.Restore()
+	s.save(planned, kept(1, time.Hour, time.Hour))
+
+	s.Equal([]Snapshot{planned.TakeSnapshot(), kept(1, time.Hour, time.Hour).TakeSnapshot()}, s.read())
+}
+
+func (s *StoreContractSuite) TestAFinaleKeptAgainIsReplacedOrGone() {
+	s.save(Snapshot{Number: 0, Length: 24 * time.Hour, Finale: Finale{Length: time.Hour, Set: "rush", Times: 3}}.Restore())
+	changed := Snapshot{Number: 0, Length: 24 * time.Hour, Finale: Finale{Length: 3 * time.Hour, Set: "storm", Description: "Double points.", Times: 2}}.Restore()
+	s.save(changed)
+	s.Equal([]Snapshot{changed.TakeSnapshot()}, s.read())
+
+	s.save(kept(0, 0, 24*time.Hour))
+	s.Equal([]Snapshot{kept(0, 0, 24*time.Hour).TakeSnapshot()}, s.read())
+}
+
+func (s *StoreContractSuite) TestADeletedSeasonTakesItsFinale() {
+	s.save(kept(0, 0, time.Hour), Snapshot{Number: 1, Length: time.Hour, Finale: Finale{Length: time.Hour, Set: "rush", Times: 3}}.Restore())
+
+	s.Require().NoError(s.store.Delete(s.T().Context(), 1))
+	s.save(kept(1, 0, time.Hour))
+
+	s.Equal([]Snapshot{kept(0, 0, time.Hour).TakeSnapshot(), kept(1, 0, time.Hour).TakeSnapshot()}, s.read())
+}

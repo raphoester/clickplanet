@@ -20,10 +20,11 @@ var (
 	ErrNotLast       = errors.New("only the last season is deleted")
 )
 
-// Draft is how an operator plans a season: the break after the season before, then its length.
+// Draft is how an operator plans a season: the break after the season before, then its length, and its finale.
 type Draft struct {
 	Break  time.Duration
 	Length time.Duration
+	Finale Finale
 }
 
 func (d Draft) check() error {
@@ -33,7 +34,7 @@ func (d Draft) check() error {
 	if d.Length <= 0 {
 		return refused("its length is %s, not above none", d.Length)
 	}
-	return nil
+	return d.Finale.check(d.Length)
 }
 
 // Season is kept as it was planned: its window follows from the seasons before it.
@@ -41,27 +42,30 @@ type Season struct {
 	number Number
 	brk    time.Duration
 	length time.Duration
+	finale Finale
 }
 
 func (s Season) TakeSnapshot() Snapshot {
-	return Snapshot{Number: s.number, Break: s.brk, Length: s.length}
+	return Snapshot{Number: s.number, Break: s.brk, Length: s.length, Finale: s.finale}
 }
 
 type Snapshot struct {
 	Number Number
 	Break  time.Duration
 	Length time.Duration
+	Finale Finale
 }
 
 func (s Snapshot) Restore() Season {
-	return Season{number: s.Number, brk: s.Break, length: s.Length}
+	return Season{number: s.Number, brk: s.Break, length: s.Length, finale: s.Finale}
 }
 
-// Window is a season's start and end, which the calendar works out.
+// Window is a season's start and end, which the calendar works out, and its finale.
 type Window struct {
 	Number   Number
 	StartsAt time.Time
 	EndsAt   time.Time
+	Finale   Finale
 }
 
 func (w Window) Runs(at time.Time) bool {

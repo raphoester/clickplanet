@@ -68,7 +68,9 @@ store's insert (`ON CONFLICT DO NOTHING`, which answers whether this call did it
   scores nothing and is tried again. Nothing freezes the map: a round closed late is scored from the map as it is then.
 - **`CloseBook{book_id, ends_at, tiebreak_round_id}`**: a book never opened, or closed, is not ranked. Else
   `close_book_usecase` reads every round of the book scored, ranks them (`Book.Table`), closes the book and records
-  **`scoring.v1.BookClosed`** (book, end, the table with each tiebreak's points), in one transaction.
+  **`scoring.v1.BookClosed`** (book, end, the table with each tiebreak's points), in one transaction. Scoring ranks by
+  the tiebreak round it is given and never picks one: the gamemaster names its season's finale, or none when the season
+  had no finale (see [The gamemaster](gamemaster.md#the-finale)).
 
 `scoring_command_handler/season_end_test.go` plays season 0's end: day 24 closed at 21:00, the battle ×3 from 21:00 to
 23:00 as the tiebreak, then the book; the outbox holds the two `RoundScored` then `BookClosed`, and every command sent

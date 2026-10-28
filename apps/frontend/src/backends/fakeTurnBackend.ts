@@ -41,8 +41,20 @@ export class FakeTurnBackend implements TurnBackend {
     }
 
     public startBattle(entryId: string, since: number, endsAt: number, description = "Triple points. A bonus box every minute.", times = 3): void {
-        this.current = {kind: "battle", since, endsAt, description, entryId, roundId: entryId, times}
+        this.current = {kind: "battle", since, endsAt, description, entryId, roundId: entryId, times, endsSeason: false}
         for (const listener of this.listeners) listener.onTurn(this.current)
+    }
+
+    // The season's finale plays: no entry's, named by its round, and it ends with the season.
+    public startFinale(since: number, description = "Triple points.", times = 3): string {
+        const current = this.seasons.current
+        const roundId = `${current?.bookId ?? "season-0"}/finale`
+        this.setBattles(this.battles.filter((battle) => !battle.endsSeason))
+        this.current = {
+            kind: "battle", since, endsAt: current?.endsAt ?? since, description, entryId: "", roundId, times, endsSeason: true,
+        }
+        for (const listener of this.listeners) listener.onTurn(this.current)
+        return roundId
     }
 
     public endBattle(): void {
@@ -62,15 +74,15 @@ export class FakeTurnBackend implements TurnBackend {
         return debrief
     }
 
-    public endBattleRound(entryId: string, times: number, endedAt: number, endsSeason: boolean): BattleEnded {
+    public endBattleRound(roundId: string, times: number, endedAt: number, endsSeason: boolean): BattleEnded {
         const debrief: BattleEnded = {
             kind: "battle",
             season: this.seasons.current?.number ?? 0,
             number: ++this.battlesEnded,
-            entryId,
+            entryId: endsSeason ? "" : roundId,
             times,
             endsSeason,
-            roundId: entryId,
+            roundId,
             endedAt,
         }
         this.debrief(debrief)
@@ -95,6 +107,17 @@ export class FakeTurnBackend implements TurnBackend {
         return entryId
     }
 
+    // The season's finale, its length before the season's end.
+    public scheduleFinale(minutes: number, description = "Triple points."): string {
+        const current = this.seasons.current
+        if (!current) return ""
+        const roundId = `${current.bookId}/finale`
+        this.setBattles([...this.battles.filter((battle) => !battle.endsSeason), {
+            entryId: "", startsAt: current.endsAt - minutes * MINUTE, endsAt: current.endsAt, description, times: 3, endsSeason: true, roundId,
+        }])
+        return roundId
+    }
+
     public moveBattle(entryId: string, startsAt: number): void {
         this.setBattles(this.battles.map((battle) => battle.entryId === entryId
             ? {...battle, startsAt, endsAt: startsAt + battle.endsAt - battle.startsAt}
@@ -111,6 +134,11 @@ export class FakeTurnBackend implements TurnBackend {
         const moved = {...current, endsAt}
         this.seasons = {...this.seasons, current: moved, today: dayOf(moved, this.now())}
         for (const listener of this.listeners) listener.onSeasons(this.seasons)
+        if (this.battles.some((battle) => battle.endsSeason)) {
+            this.setBattles(this.battles.map((battle) => battle.endsSeason
+                ? {...battle, startsAt: endsAt - (battle.endsAt - battle.startsAt), endsAt}
+                : battle))
+        }
     }
 
     private debrief(debrief: Debrief) {
@@ -159,6 +187,10 @@ export function battleCommands(turns: FakeTurnBackend) {
         moveSeasonEnd: (inMinutes: number) => {
             turns.moveSeasonEnd(Date.now() + inMinutes * MINUTE)
             return `the season ends in ${inMinutes} minutes`
+        },
+        scheduleFinale: (inMinutes = 90, minutes = 120) => {
+            turns.moveSeasonEnd(Date.now() + (inMinutes + minutes) * MINUTE)
+            return `${turns.scheduleFinale(minutes)} starts in ${inMinutes} minutes`
         },
     }
 }

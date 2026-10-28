@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -52,13 +53,13 @@ func (q *PostgresQuery) Now(ctx context.Context) (*gamemasterv1.GetTurnResponse,
 		return nil, err
 	}
 	plan := moments.NewPlan(seasons, q.cutoff, opened, snapshots...)
-	sched := schedule.New(entries...)
+	sched := schedule.New(entries...).With(seasons.Finales()...)
 
 	turn, err := turnOf(sched, plan, now)
 	if err != nil {
 		return nil, err
 	}
-	timeline := timelineOf(sched.BattlesAfter(now), plan)
+	timeline := timelineOf(sched.BattlesAfter(now), plan.FinalesAfter(now), plan)
 	if running, ok := seasons.RunningAt(now); ok {
 		timeline.Current = seasonmessage.SeasonOf(running)
 	}
@@ -86,10 +87,17 @@ func turnOf(sched schedule.Schedule, plan moments.Plan, now time.Time) (*gamemas
 	}
 	answer := &gamemasterv1.Turn{Kind: kind, Description: string(turn.Description)}
 	if !turn.EndsAt.IsZero() {
-		answer.EntryId, answer.EndsAt = turn.Entry.String(), timestamppb.New(turn.EndsAt)
+		answer.EndsAt = timestamppb.New(turn.EndsAt)
 	}
-	if battle, ok := plan.BattleOf(turn.Entry); ok && !turn.EndsAt.IsZero() {
-		answer.RoundId, answer.Times = string(battle.Round()), uint32(battle.Times)
+	battle, ok := plan.BattleOf(turn.Entry)
+	if turn.Finale {
+		battle, ok = plan.FinaleAt(now)
+	}
+	if !turn.EndsAt.IsZero() && !turn.Finale {
+		answer.EntryId = turn.Entry.String()
+	}
+	if ok && !turn.EndsAt.IsZero() {
+		answer.RoundId, answer.Times, answer.EndsSeason = string(battle.Round()), uint32(battle.Times), battle.EndsSeason
 	}
 	if since := sched.SinceAt(now); !since.IsZero() {
 		answer.Since = timestamppb.New(since)
@@ -97,18 +105,29 @@ func turnOf(sched schedule.Schedule, plan moments.Plan, now time.Time) (*gamemas
 	return answer, nil
 }
 
-func timelineOf(battles []schedule.EntrySnapshot, plan moments.Plan) *gamemasterv1.Timeline {
-	timeline := &gamemasterv1.Timeline{Battles: make([]*gamemasterv1.Battle, 0, len(battles))}
+// The battles to come by start, the finales among them; a tie goes to the entry made first, then the finale.
+func timelineOf(battles []schedule.EntrySnapshot, finales []moments.Battle, plan moments.Plan) *gamemasterv1.Timeline {
+	timeline := &gamemasterv1.Timeline{Battles: make([]*gamemasterv1.Battle, 0, len(battles)+len(finales))}
 	for _, entry := range battles {
 		battle := &gamemasterv1.Battle{
 			EntryId: entry.ID.String(), StartsAt: timestamppb.New(entry.StartsAt), EndsAt: timestamppb.New(entry.EndsAt),
 			Description: string(entry.Description), Times: uint32(entry.Times),
 		}
 		if planned, ok := plan.BattleOf(entry.ID); ok {
-			battle.EndsSeason, battle.RoundId = planned.EndsSeason, string(planned.Round())
+			battle.RoundId = string(planned.Round())
 		}
 		timeline.Battles = append(timeline.Battles, battle)
 	}
+	for _, finale := range finales {
+		timeline.Battles = append(timeline.Battles, &gamemasterv1.Battle{
+			StartsAt: timestamppb.New(finale.StartsAt), EndsAt: timestamppb.New(finale.EndsAt),
+			Description: string(finale.Description), Times: uint32(finale.Times), EndsSeason: true,
+			RoundId: string(finale.Round()),
+		})
+	}
+	slices.SortStableFunc(timeline.Battles, func(a, b *gamemasterv1.Battle) int {
+		return a.GetStartsAt().AsTime().Compare(b.GetStartsAt().AsTime())
+	})
 	return timeline
 }
 
@@ -202,8 +221,9 @@ func (q *PostgresQuery) entries(ctx context.Context) ([]schedule.Entry, error) {
 
 func (q *PostgresQuery) seasons(ctx context.Context) (season.Calendar, error) {
 	rows, err := q.db.On(ctx).QueryContext(ctx, `
-		SELECT number, (EXTRACT(EPOCH FROM break_before) * 1000000)::bigint, (EXTRACT(EPOCH FROM length) * 1000000)::bigint
-		FROM seasons`)
+		SELECT s.number, (EXTRACT(EPOCH FROM s.break_before) * 1000000)::bigint, (EXTRACT(EPOCH FROM s.length) * 1000000)::bigint,
+			(EXTRACT(EPOCH FROM f.length) * 1000000)::bigint, f.rule_set, f.description, f.times
+		FROM seasons AS s LEFT JOIN season_finales AS f ON f.season = s.number`)
 	if err != nil {
 		return season.Calendar{}, fmt.Errorf("failed to read the seasons: %w", err)
 	}
@@ -211,14 +231,26 @@ func (q *PostgresQuery) seasons(ctx context.Context) (season.Calendar, error) {
 
 	var seasons []season.Season
 	for rows.Next() {
-		var number, brk, length int64
-		if err := rows.Scan(&number, &brk, &length); err != nil {
+		var (
+			number, brk, length       int64
+			finaleLength, times       sql.NullInt64
+			finaleSet, finaleDescribe sql.NullString
+		)
+		if err := rows.Scan(&number, &brk, &length, &finaleLength, &finaleSet, &finaleDescribe, &times); err != nil {
 			return season.Calendar{}, fmt.Errorf("failed to read a season: %w", err)
 		}
-		seasons = append(seasons, season.Snapshot{
+		planned := season.Snapshot{
 			Number: season.Number(number), //nolint:gosec // CHECK (number >= 0 AND number <= 4294967295).
 			Break:  time.Duration(brk) * time.Microsecond, Length: time.Duration(length) * time.Microsecond,
-		}.Restore())
+		}
+		if finaleLength.Valid {
+			planned.Finale = season.Finale{
+				Length: time.Duration(finaleLength.Int64) * time.Microsecond, Set: schedule.SetName(finaleSet.String),
+				Description: schedule.Description(finaleDescribe.String),
+				Times:       schedule.Times(times.Int64), //nolint:gosec // CHECK (times BETWEEN 1 AND 10).
+			}
+		}
+		seasons = append(seasons, planned.Restore())
 	}
 	if err := rows.Err(); err != nil {
 		return season.Calendar{}, fmt.Errorf("failed to read the seasons: %w", err)

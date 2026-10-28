@@ -7,8 +7,8 @@ import {When} from "../components/When.tsx"
 import {wordsOf} from "../refusal.ts"
 import {useCall} from "../useCall.ts"
 import {
-    addSeason, complete, deletable, deleteSeason, Draft, draftOf, editSeason, phaseOf, questionOf, Row, rowsOf, Span, spanOf,
-    windowOf,
+    addSeason, complete, deletable, deleteSeason, Draft, draftOf, editSeason, FinaleDraft, finaleStarted, finaleStartOf,
+    finaleSummaryOf, phaseOf, questionOf, Row, rowsOf, Span, spanOf, windowOf,
 } from "./seasons.ts"
 
 // The server says why: a season that started, or a window that ends before now.
@@ -73,7 +73,7 @@ function Rows({rows, gamemaster, onEdit, onDeleted}: {
         <table className="table">
             <caption>Seasons</caption>
             <thead>
-                <tr><th>Season</th><th>Break</th><th>From</th><th>Length</th><th>To</th><th>State</th><th/></tr>
+                <tr><th>Season</th><th>Break</th><th>From</th><th>Length</th><th>To</th><th>Final battle</th><th>State</th><th/></tr>
             </thead>
             <tbody>
                 {rows.map(row => {
@@ -89,6 +89,10 @@ function Rows({rows, gamemaster, onEdit, onDeleted}: {
                             <td><When at={row.startsAt}/></td>
                             <td>{spanOf(row.scheduled.length)}</td>
                             <td><When at={row.endsAt}/></td>
+                            <td>
+                                {finaleSummaryOf(row.scheduled.finale)}
+                                {finaleStartOf(row) !== undefined && <> from <When at={finaleStartOf(row)}/></>}
+                            </td>
                             <td>{phase}</td>
                             <td>
                                 {phase !== "done" && (
@@ -121,6 +125,7 @@ function SeasonForm({gamemaster, row, rows, onCancel, onDone}: {
     const change = (part: Partial<Draft>) => setDraft(was => ({...was, ...part}))
     const title = row === undefined ? "New season" : `Edit season ${row.number}`
     const locked = row !== undefined && phaseOf(row, new Date()) === "running"
+    const ending = row !== undefined && finaleStarted(row, new Date())
     const window = windowOf(draft, row, rows)
 
     return (
@@ -128,8 +133,9 @@ function SeasonForm({gamemaster, row, rows, onCancel, onDone}: {
             <h2>{title}</h2>
             <div className="fields">
                 <SpanFields label="Break" span={draft.breakBefore} disabled={locked} onChange={breakBefore => change({breakBefore})}/>
-                <SpanFields label="Length" span={draft.length} disabled={false} onChange={length => change({length})}/>
+                <SpanFields label="Length" span={draft.length} disabled={ending} onChange={length => change({length})}/>
             </div>
+            <FinaleFields finale={draft.finale} disabled={ending} onChange={finale => change({finale})}/>
             {window !== undefined && (
                 <p className="hint">From <When at={window.startsAt}/> to <When at={window.endsAt}/></p>
             )}
@@ -148,6 +154,39 @@ function SeasonForm({gamemaster, row, rows, onCancel, onDone}: {
             />
             <button type="button" className="button" onClick={onCancel}>Cancel</button>
         </section>
+    )
+}
+
+function FinaleFields({finale, disabled, onChange}: {
+    finale: FinaleDraft, disabled: boolean, onChange: (finale: FinaleDraft) => void,
+}) {
+    const change = (part: Partial<FinaleDraft>) => onChange({...finale, ...part})
+    return (
+        <fieldset className="fields" aria-label="Final battle">
+            <label className="field">
+                <span className="muted">Ends with a final battle</span>
+                <input type="checkbox" checked={finale.on} disabled={disabled} onChange={e => change({on: e.target.checked})}/>
+            </label>
+            {finale.on && (
+                <>
+                    <SpanFields label="Final battle" span={finale.length} disabled={disabled} onChange={length => change({length})}/>
+                    <label className="field">
+                        <span className="muted">Rule set</span>
+                        <input value={finale.ruleSet} disabled={disabled} onChange={e => change({ruleSet: e.target.value})}/>
+                    </label>
+                    <label className="field">
+                        <span className="muted">Times</span>
+                        <input type="number" inputMode="numeric" min={1} max={10} step={1} value={finale.times} disabled={disabled}
+                            onChange={e => change({times: e.target.value})}/>
+                    </label>
+                    <label className="field">
+                        <span className="muted">Description</span>
+                        <textarea maxLength={300} value={finale.description} disabled={disabled}
+                            onChange={e => change({description: e.target.value})}/>
+                    </label>
+                </>
+            )}
+        </fieldset>
     )
 }
 

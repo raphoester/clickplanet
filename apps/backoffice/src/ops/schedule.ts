@@ -2,7 +2,7 @@ import {proto3, Timestamp} from "@bufbuild/protobuf"
 import {GamemasterAdmin} from "../clients.ts"
 import {GetRulesResponse as AntibotRules} from "../gen/grpc/antibot/v1/admin_pb.ts"
 import {GetRulesResponse as PlanetRules} from "../gen/grpc/planet/v1/admin_pb.ts"
-import {Entry, GetScheduleResponse} from "../gen/grpc/gamemaster/v1/admin_pb.ts"
+import {Entry, GetScheduleResponse, ScheduledFinale} from "../gen/grpc/gamemaster/v1/admin_pb.ts"
 import {EntryKind} from "../gen/grpc/gamemaster/v1/gamemaster_pb.ts"
 
 // A line of the schedule: an entry and its times.
@@ -15,7 +15,16 @@ export function rowsOf(schedule: GetScheduleResponse): Row[] {
         .sort((a, b) => (a.startsAt?.getTime() ?? 0) - (b.startsAt?.getTime() ?? 0))
 }
 
-export function ended(row: Row, now: Date): boolean {
+// A season's final battle: it plays above every entry, and is changed on its season.
+export type FinaleRow = {finale: ScheduledFinale, startsAt?: Date, endsAt?: Date}
+
+// The entries and the seasons' final battles, by start.
+export function linesOf(schedule: GetScheduleResponse): (Row | FinaleRow)[] {
+    const finales: FinaleRow[] = schedule.finales.map(finale => ({finale, startsAt: finale.startsAt?.toDate(), endsAt: finale.endsAt?.toDate()}))
+    return [...rowsOf(schedule), ...finales].sort((a, b) => (a.startsAt?.getTime() ?? 0) - (b.startsAt?.getTime() ?? 0))
+}
+
+export function ended(row: {endsAt?: Date}, now: Date): boolean {
     return row.endsAt !== undefined && row.endsAt <= now
 }
 

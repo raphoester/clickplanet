@@ -32,7 +32,8 @@ rounds' `roundId` (see [Season standings](season-standings.md)).
 
 **The season is a chip in the status zone, and it turns between its
 countdowns**: today's cutoff, because the day is what scores, the next battle's
-start ("Next battle in", tag "Battle"), while one is to come, and the season's
+start ("Next battle in", tag "Battle", or "Final Battle in", tag "Final", when it is the
+season's finale), while one is to come, and the season's
 end. Each face shows for 6 seconds. A face is a label and its time
 together, so a look never shows one countdown's time under the other's label.
 The next face slides up into place; under `prefers-reduced-motion` it changes
@@ -82,7 +83,7 @@ the row says "signed-in".
 gamemaster's stream once, and `app/home/season.ts` (`seasonShown`) fills the pill in the hero
 ("Season 0 · ends in") and the `#season` section (when it ends, the countdown,
 the rows of the chip), both `hidden` until a season is known and again once it is
-over, and follows a moved end. `app/home/battle.ts` (`nextBattleShown`) fills the second pill ("Next battle in", `[data-battle]`), `hidden` while
+over, and follows a moved end. `app/home/battle.ts` (`nextBattleShown`) fills the second pill ("Next battle in", or "Final Battle in" for the season's finale, `[data-battle-label]`, `[data-battle]`), `hidden` while
 no battle is to come; an edit of the schedule moves it at once. The page's text stays in `index.html`; the module only writes the numbers. **It imports no CSS**:
 a stylesheet shared with `play.html` becomes its own file, linked before
 `play-*.css`, and moves the game's cascade. The art's styles are copied into the

@@ -182,12 +182,14 @@ type Turn struct {
 	EndsAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=ends_at,json=endsAt,proto3" json:"ends_at,omitempty"`
 	// The running entry's words for the players, plain text: what its rules are. Empty when none runs.
 	Description string `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
-	// The running entry's id; empty when none runs.
+	// The running entry's id; empty when none runs, and while a season's finale plays.
 	EntryId string `protobuf:"bytes,5,opt,name=entry_id,json=entryId,proto3" json:"entry_id,omitempty"`
 	// The running battle's round in scoring's books; empty when no battle runs.
 	RoundId string `protobuf:"bytes,6,opt,name=round_id,json=roundId,proto3" json:"round_id,omitempty"`
 	// The running battle's points' times; 0 when no battle runs.
-	Times         uint32 `protobuf:"varint,7,opt,name=times,proto3" json:"times,omitempty"`
+	Times uint32 `protobuf:"varint,7,opt,name=times,proto3" json:"times,omitempty"`
+	// The running battle is the season's finale.
+	EndsSeason    bool `protobuf:"varint,8,opt,name=ends_season,json=endsSeason,proto3" json:"ends_season,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -271,11 +273,18 @@ func (x *Turn) GetTimes() uint32 {
 	return 0
 }
 
+func (x *Turn) GetEndsSeason() bool {
+	if x != nil {
+		return x.EndsSeason
+	}
+	return false
+}
+
 // What the schedule will play that the players may wait for. An operator may still move or delete an entry to come:
 // the stream sends the timeline again then.
 type Timeline struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// The battles that have not started, by start. Never a plain entry.
+	// The battles that have not started, by start, the seasons' finales among them. Never a plain entry.
 	Battles []*Battle `protobuf:"bytes,1,rep,name=battles,proto3" json:"battles,omitempty"`
 	// The season that runs now; unset between two seasons.
 	Current *Season `protobuf:"bytes,2,opt,name=current,proto3" json:"current,omitempty"`
@@ -486,7 +495,8 @@ func (x *Season) GetBookId() string {
 }
 
 type Battle struct {
-	state    protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Empty for a season's finale, which is the season's and no entry's.
 	EntryId  string                 `protobuf:"bytes,1,opt,name=entry_id,json=entryId,proto3" json:"entry_id,omitempty"`
 	StartsAt *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=starts_at,json=startsAt,proto3" json:"starts_at,omitempty"`
 	EndsAt   *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=ends_at,json=endsAt,proto3" json:"ends_at,omitempty"`
@@ -494,7 +504,7 @@ type Battle struct {
 	Description string `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
 	// How many times a day's points the battle scores.
 	Times uint32 `protobuf:"varint,5,opt,name=times,proto3" json:"times,omitempty"`
-	// The battle runs to the season's end: its finale.
+	// The battle is the season's finale.
 	EndsSeason    bool   `protobuf:"varint,6,opt,name=ends_season,json=endsSeason,proto3" json:"ends_season,omitempty"`
 	RoundId       string `protobuf:"bytes,7,opt,name=round_id,json=roundId,proto3" json:"round_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -874,7 +884,7 @@ const file_gamemaster_v1_gamemaster_proto_rawDesc = "" +
 	"\x0fGetTurnResponse\x12'\n" +
 	"\x04turn\x18\x01 \x01(\v2\x13.gamemaster.v1.TurnR\x04turn\x123\n" +
 	"\btimeline\x18\x02 \x01(\v2\x17.gamemaster.v1.TimelineR\btimeline\x120\n" +
-	"\adebrief\x18\x03 \x01(\v2\x16.gamemaster.v1.DebriefR\adebrief\"\x89\x02\n" +
+	"\adebrief\x18\x03 \x01(\v2\x16.gamemaster.v1.DebriefR\adebrief\"\xaa\x02\n" +
 	"\x04Turn\x12,\n" +
 	"\x04kind\x18\x01 \x01(\x0e2\x18.gamemaster.v1.EntryKindR\x04kind\x120\n" +
 	"\x05since\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\x123\n" +
@@ -882,7 +892,9 @@ const file_gamemaster_v1_gamemaster_proto_rawDesc = "" +
 	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x19\n" +
 	"\bentry_id\x18\x05 \x01(\tR\aentryId\x12\x19\n" +
 	"\bround_id\x18\x06 \x01(\tR\aroundId\x12\x14\n" +
-	"\x05times\x18\a \x01(\rR\x05times\"\xc1\x01\n" +
+	"\x05times\x18\a \x01(\rR\x05times\x12\x1f\n" +
+	"\vends_season\x18\b \x01(\bR\n" +
+	"endsSeason\"\xc1\x01\n" +
 	"\bTimeline\x12/\n" +
 	"\abattles\x18\x01 \x03(\v2\x15.gamemaster.v1.BattleR\abattles\x12/\n" +
 	"\acurrent\x18\x02 \x01(\v2\x15.gamemaster.v1.SeasonR\acurrent\x12)\n" +

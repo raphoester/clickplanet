@@ -64,7 +64,8 @@ export type Moment = "day" | "battle" | "season"
 export type ClosedRound = {
     moment: Moment
     season: number
-    // A day's place among the season's days, a battle's among its battles, or the season's Final Battle's.
+    // A day's place among the season's days, a battle's among its battles, or the season's finale's; 0 for a season that
+    // had no finale.
     number: number
     roundId: string
     endedAt: number
@@ -75,8 +76,8 @@ export type ClosedRound = {
     after: Score[]
     times: number
     startedAt: number
-    // A battle's schedule entry, as the gamemaster's turn names it, or the season's Final Battle's; empty for a day, or a
-    // season no battle finished.
+    // A battle's schedule entry, as the gamemaster's turn names it; empty for a day, a season, and a season's finale, which
+    // is no entry's.
     entryId: string
     takes: RoundTakes[]
     players: Standing[]

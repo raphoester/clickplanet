@@ -155,7 +155,7 @@ export class Turn extends Message<Turn> {
   description = "";
 
   /**
-   * The running entry's id; empty when none runs.
+   * The running entry's id; empty when none runs, and while a season's finale plays.
    *
    * @generated from field: string entry_id = 5;
    */
@@ -175,6 +175,13 @@ export class Turn extends Message<Turn> {
    */
   times = 0;
 
+  /**
+   * The running battle is the season's finale.
+   *
+   * @generated from field: bool ends_season = 8;
+   */
+  endsSeason = false;
+
   constructor(data?: PartialMessage<Turn>) {
     super();
     proto3.util.initPartial(data, this);
@@ -190,6 +197,7 @@ export class Turn extends Message<Turn> {
     { no: 5, name: "entry_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 6, name: "round_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 7, name: "times", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 8, name: "ends_season", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Turn {
@@ -217,7 +225,7 @@ export class Turn extends Message<Turn> {
  */
 export class Timeline extends Message<Timeline> {
   /**
-   * The battles that have not started, by start. Never a plain entry.
+   * The battles that have not started, by start, the seasons' finales among them. Never a plain entry.
    *
    * @generated from field: repeated gamemaster.v1.Battle battles = 1;
    */
@@ -397,6 +405,8 @@ export class Season extends Message<Season> {
  */
 export class Battle extends Message<Battle> {
   /**
+   * Empty for a season's finale, which is the season's and no entry's.
+   *
    * @generated from field: string entry_id = 1;
    */
   entryId = "";
@@ -426,7 +436,7 @@ export class Battle extends Message<Battle> {
   times = 0;
 
   /**
-   * The battle runs to the season's end: its finale.
+   * The battle is the season's finale.
    *
    * @generated from field: bool ends_season = 6;
    */

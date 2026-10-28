@@ -27,6 +27,8 @@ func (a *Audited) Execute(ctx context.Context, number season.Number, draft seaso
 		slog.Uint64("season", uint64(number)),
 		slog.Duration("break", draft.Break),
 		slog.Duration("length", draft.Length),
+		slog.Group("finale", slog.Duration("length", draft.Finale.Length), slog.String("set", string(draft.Finale.Set)),
+			slog.String("description", string(draft.Finale.Description)), slog.Uint64("times", uint64(draft.Finale.Times))),
 	}
 	if err != nil {
 		a.logger.Warn("admin season edit refused", append(attrs, slog.Any("error", err))...)

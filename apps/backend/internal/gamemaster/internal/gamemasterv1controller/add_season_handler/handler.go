@@ -26,7 +26,7 @@ func (h AddSeasonHandler) AddSeason(
 	ctx context.Context,
 	req *connect.Request[gamemasterv1.AddSeasonRequest],
 ) (*connect.Response[gamemasterv1.AddSeasonResponse], error) {
-	number, err := h.useCase.Execute(ctx, seasonmessage.DraftOf(req.Msg.GetBreakBefore(), req.Msg.GetLength()))
+	number, err := h.useCase.Execute(ctx, seasonmessage.DraftOf(req.Msg.GetBreakBefore(), req.Msg.GetLength(), req.Msg.GetFinale()))
 	if err != nil {
 		return nil, seasonmessage.Refusal(err) //nolint:wrapcheck // the error net answers what is not the operator's.
 	}

@@ -31,17 +31,20 @@ var (
 		Number: 0, StartsAt: timestamppb.New(time.Date(2026, 10, 8, 0, 0, 0, 0, time.UTC)), EndsAt: timestamppb.New(battleEnds),
 		BookId: "season-0",
 	}
-	rush    = uuid.UUID{15: 1}.String()
-	dayLast = &gamemasterv1.Day{
+	early     = uuid.UUID{15: 1}.String()
+	earlyAt   = finale.Add(-27 * time.Hour)
+	earlyEnds = earlyAt.Add(2 * time.Hour)
+	dayLast   = &gamemasterv1.Day{
 		Number: 24, StartsAt: timestamppb.New(finale.Add(-24 * time.Hour)), EndsAt: timestamppb.New(finale), RoundId: "season-0/day-24",
 	}
 )
 
+// Season 0 is seeded with its finale, rush × 3 from 21:00 to 23:00 on 31 Oct; a battle entry runs the day before.
 func battle(t *testing.T, db cppg.Conn) {
 	t.Helper()
 	save(t, db, schedule.EntrySnapshot{
-		ID: schedule.EntryID(uuid.UUID{15: 1}), Set: "rush", Kind: schedule.Battle, Description: "Triple points.",
-		StartsAt: finale, EndsAt: battleEnds, Priority: 1, Times: 3, MadeAt: madeAt,
+		ID: schedule.EntryID(uuid.UUID{15: 1}), Set: "storm", Kind: schedule.Battle, Description: "Double points.",
+		StartsAt: earlyAt, EndsAt: earlyEnds, Priority: 1, Times: 2, MadeAt: madeAt,
 	})
 }
 
@@ -66,11 +69,26 @@ func TestWhileABattleRunsTheTurnIsItsIdItsKindItsWordsItsEndAndItsRound(t *testi
 	db := cppg.StartTestServer(t).OpenSchema(t, "gamemaster", migrations.FS)
 	battle(t, db)
 
+	answer := turnAt(t, db, earlyAt.Add(time.Minute))
+
+	assert.True(t, proto.Equal(&gamemasterv1.Turn{
+		Kind: gamemasterv1.EntryKind_ENTRY_KIND_BATTLE, Description: "Double points.", Since: timestamppb.New(earlyAt),
+		EndsAt: timestamppb.New(earlyEnds), EntryId: early, RoundId: early, Times: 2,
+	}, answer), "%v", answer)
+}
+
+func TestWhileTheFinalePlaysTheTurnIsTheSeasonsAboveAnyEntry(t *testing.T) {
+	db := cppg.StartTestServer(t).OpenSchema(t, "gamemaster", migrations.FS)
+	save(t, db, schedule.EntrySnapshot{
+		ID: schedule.EntryID(uuid.UUID{15: 2}), Set: "quiet", Kind: schedule.Plain, Description: "Fewer bans.",
+		StartsAt: finale.Add(-time.Hour), EndsAt: battleEnds.Add(time.Hour), Priority: 9, MadeAt: madeAt,
+	})
+
 	answer := turnAt(t, db, finale.Add(time.Minute))
 
 	assert.True(t, proto.Equal(&gamemasterv1.Turn{
 		Kind: gamemasterv1.EntryKind_ENTRY_KIND_BATTLE, Description: "Triple points.", Since: timestamppb.New(finale),
-		EndsAt: timestamppb.New(battleEnds), EntryId: rush, RoundId: rush, Times: 3,
+		EndsAt: timestamppb.New(battleEnds), RoundId: "season-0/finale", Times: 3, EndsSeason: true,
 	}, answer), "%v", answer)
 }
 
@@ -78,10 +96,10 @@ func TestWithNoEntryRunningTheTurnIsPlainSinceTheLastEnd(t *testing.T) {
 	db := cppg.StartTestServer(t).OpenSchema(t, "gamemaster", migrations.FS)
 	battle(t, db)
 
-	answer := turnAt(t, db, battleEnds)
+	answer := turnAt(t, db, earlyEnds)
 
 	assert.True(t, proto.Equal(&gamemasterv1.Turn{
-		Kind: gamemasterv1.EntryKind_ENTRY_KIND_PLAIN, Since: timestamppb.New(battleEnds),
+		Kind: gamemasterv1.EntryKind_ENTRY_KIND_PLAIN, Since: timestamppb.New(earlyEnds),
 	}, answer), "%v", answer)
 }
 
@@ -89,35 +107,39 @@ func TestBeforeAnyEntryTheTurnIsPlainWithNoSince(t *testing.T) {
 	db := cppg.StartTestServer(t).OpenSchema(t, "gamemaster", migrations.FS)
 	battle(t, db)
 
-	answer := turnAt(t, db, finale.Add(-time.Minute))
+	answer := turnAt(t, db, earlyAt.Add(-time.Minute))
 
 	assert.True(t, proto.Equal(&gamemasterv1.Turn{Kind: gamemasterv1.EntryKind_ENTRY_KIND_PLAIN}, answer), "%v", answer)
 }
 
-func TestTheTimelineIsTheBattlesToComeInThePlayersWords(t *testing.T) {
+func TestTheTimelineIsTheBattlesToComeInThePlayersWordsTheFinaleAmongThem(t *testing.T) {
 	db := cppg.StartTestServer(t).OpenSchema(t, "gamemaster", migrations.FS)
 	battle(t, db)
 	save(t, db, schedule.EntrySnapshot{
 		ID: schedule.EntryID(uuid.UUID{15: 2}), Set: "quiet", Kind: schedule.Plain, Description: "Fewer bans.",
-		StartsAt: finale, EndsAt: battleEnds, Priority: 2, MadeAt: madeAt,
+		StartsAt: earlyAt, EndsAt: earlyEnds, Priority: 2, MadeAt: madeAt,
 	})
 
-	timeline := nowAt(t, db, finale.Add(-time.Minute)).GetTimeline()
+	timeline := nowAt(t, db, earlyAt.Add(-time.Minute)).GetTimeline()
 
 	assert.True(t, proto.Equal(&gamemasterv1.Timeline{Battles: []*gamemasterv1.Battle{{
-		EntryId: rush, StartsAt: timestamppb.New(finale), EndsAt: timestamppb.New(battleEnds), Description: "Triple points.",
-		Times: 3, EndsSeason: true, RoundId: rush,
-	}}, Current: seasonZero, Today: dayLast}, timeline), "season 0 is seeded: %v", timeline)
+		EntryId: early, StartsAt: timestamppb.New(earlyAt), EndsAt: timestamppb.New(earlyEnds), Description: "Double points.",
+		Times: 2, RoundId: early,
+	}, {
+		StartsAt: timestamppb.New(finale), EndsAt: timestamppb.New(battleEnds), Description: "Triple points.", Times: 3,
+		EndsSeason: true, RoundId: "season-0/finale",
+	}}, Current: seasonZero, Today: &gamemasterv1.Day{
+		Number: 23, StartsAt: timestamppb.New(finale.Add(-48 * time.Hour)), EndsAt: timestamppb.New(finale.Add(-24 * time.Hour)),
+		RoundId: "season-0/day-23",
+	}}, timeline), "season 0 and its finale are seeded: %v", timeline)
 }
 
 func TestABattleThatStartedLeavesTheTimeline(t *testing.T) {
 	db := cppg.StartTestServer(t).OpenSchema(t, "gamemaster", migrations.FS)
 	battle(t, db)
 
-	timeline := nowAt(t, db, finale).GetTimeline()
-
-	require.NotNil(t, timeline)
-	assert.Empty(t, timeline.GetBattles())
+	assert.Len(t, nowAt(t, db, earlyAt).GetTimeline().GetBattles(), 1, "the finale is still to come")
+	assert.Empty(t, nowAt(t, db, finale).GetTimeline().GetBattles())
 }
 
 func TestTheTimelineCarriesTheRunningSeasonAndTheNextOne(t *testing.T) {
@@ -162,14 +184,17 @@ func TestTheDebriefIsTheLastMomentScoringScoredAndNoneBeforeAny(t *testing.T) {
 		Season: 0, Day: 24, RoundId: "season-0/day-24", EndedAt: timestamppb.New(finale),
 	}}}, nowAt(t, db, finale).GetDebrief()))
 
-	_, err = store.KeepRound(t.Context(), moments.ScoredRound{Round: moments.RoundID(rush), Book: "season-0", EndedAt: battleEnds})
+	_, err = store.KeepRound(t.Context(), moments.ScoredRound{Round: "season-0/finale", Book: "season-0", EndedAt: battleEnds})
 	require.NoError(t, err)
+	finaleEnded := &gamemasterv1.BattleEnded{
+		Season: 0, Number: 2, Times: 3, EndsSeason: true, RoundId: "season-0/finale", EndedAt: timestamppb.New(battleEnds),
+	}
+	assert.True(t, proto.Equal(&gamemasterv1.Debrief{Moment: &gamemasterv1.Debrief_Battle{Battle: finaleEnded}},
+		nowAt(t, db, battleEnds).GetDebrief()))
 	_, err = store.KeepBook(t.Context(), moments.ClosedBook{Book: "season-0", EndedAt: battleEnds})
 	require.NoError(t, err)
 	assert.True(t, proto.Equal(&gamemasterv1.Debrief{Moment: &gamemasterv1.Debrief_Season{Season: &gamemasterv1.SeasonEnded{
-		Season: 0, BookId: "season-0", EndedAt: timestamppb.New(battleEnds), FinaleRoundId: rush,
-		FinaleBattle: &gamemasterv1.BattleEnded{
-			Season: 0, Number: 1, EntryId: rush, Times: 3, EndsSeason: true, RoundId: rush, EndedAt: timestamppb.New(battleEnds),
-		},
+		Season: 0, BookId: "season-0", EndedAt: timestamppb.New(battleEnds), FinaleRoundId: "season-0/finale",
+		FinaleBattle: finaleEnded,
 	}}}, nowAt(t, db, battleEnds).GetDebrief()), "the book closes after the round that ends with it")
 }

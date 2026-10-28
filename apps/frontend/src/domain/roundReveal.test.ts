@@ -80,6 +80,7 @@ describe("revealsDue", () => {
     it("plays the season's results, after its Final Battle's debrief when a battle finished it", () => {
         expect(kinds(SEASON, null)).toEqual(["over", "points", "players", "results"])
         expect(kinds(SEASON, null, seenBattle("entry-before"))).toEqual(["over", "points", "players", "results"])
+        expect(kinds({...SEASON, entryId: "", number: 2, roundId: "season-0/finale"}, null)).toEqual(["over", "points", "players", "results"])
         expect(kinds({...SEASON, entryId: "", number: 0}, null)).toEqual(["results"])
     })
 

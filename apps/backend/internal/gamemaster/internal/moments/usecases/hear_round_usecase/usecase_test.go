@@ -29,7 +29,6 @@ var (
 	finale         = time.Date(2026, 10, 31, 21, 0, 0, 0, time.UTC)
 	seasonZeroEnds = finale.Add(2 * time.Hour)
 	early          = schedule.EntryID(uuid.MustParse("0192f5a0-7c00-7000-8000-000000000001"))
-	rush           = schedule.EntryID(uuid.MustParse("0192f5a0-7c00-7000-8000-000000000031"))
 )
 
 type harness struct {
@@ -43,16 +42,13 @@ func newHarness(t *testing.T) *harness {
 	t.Helper()
 
 	seasons, entries := inmemory_season_store.New(), inmemory_entry_store.New()
-	require.NoError(t, seasons.Save(t.Context(), season.Snapshot{Number: 0, Length: 23*day + 23*time.Hour}.Restore()))
-	for _, battle := range []schedule.EntrySnapshot{
-		{ID: rush, Set: "rush", Kind: schedule.Battle, StartsAt: finale, EndsAt: seasonZeroEnds, Times: 3, MadeAt: finale.Add(-day)},
-		{
-			ID: early, Set: "rush", Kind: schedule.Battle, StartsAt: finale.Add(-day), EndsAt: finale.Add(-day + time.Hour), Times: 2,
-			MadeAt: finale.Add(-2 * day),
-		},
-	} {
-		require.NoError(t, entries.Save(t.Context(), battle.Restore()))
-	}
+	require.NoError(t, seasons.Save(t.Context(), season.Snapshot{
+		Number: 0, Length: 23*day + 23*time.Hour, Finale: season.Finale{Length: 2 * time.Hour, Set: "rush", Times: 3},
+	}.Restore()))
+	require.NoError(t, entries.Save(t.Context(), schedule.EntrySnapshot{
+		ID: early, Set: "rush", Kind: schedule.Battle, StartsAt: finale.Add(-day), EndsAt: finale.Add(-day + time.Hour), Times: 2,
+		MadeAt: finale.Add(-2 * day),
+	}.Restore()))
 
 	h := &harness{t: t, store: inmemory_moment_store.New(), outbox: &cpatomic.FakeOutbox{}}
 	h.useCase = hear_round_usecase.New(moments.NewPlanner(seasons, entries, inmemory_moment_store.New(), season.Cutoff(21*time.Hour)), h.store,
@@ -80,23 +76,35 @@ func TestADayScoredIsToldOnceAsTheDayItWas(t *testing.T) {
 	}, recorded[0]), "%v", recorded[0])
 }
 
-func TestTheFinalBattleScoredIsToldAsTheSeasonsSecondBattleThatEndsIt(t *testing.T) {
+func TestTheFinaleScoredIsToldAsTheSeasonsSecondBattleThatEndsIt(t *testing.T) {
 	h := newHarness(t)
 
-	assert.Equal(t, hear_round_usecase.Told, h.hear(moments.RoundID(rush.String()), seasonZeroEnds))
+	assert.Equal(t, hear_round_usecase.Told, h.hear("season-0/finale", seasonZeroEnds))
 
 	recorded := h.outbox.Recorded()
 	require.Len(t, recorded, 1)
 	assert.True(t, proto.Equal(&gamemasterv1.BattleEnded{
-		Season: 0, Number: 2, EntryId: rush.String(), Times: 3, EndsSeason: true, RoundId: rush.String(),
-		EndedAt: timestamppb.New(seasonZeroEnds),
+		Season: 0, Number: 2, Times: 3, EndsSeason: true, RoundId: "season-0/finale", EndedAt: timestamppb.New(seasonZeroEnds),
+	}, recorded[0]), "%v", recorded[0])
+}
+
+func TestABattleOfAnEntryScoredIsNoFinale(t *testing.T) {
+	h := newHarness(t)
+
+	assert.Equal(t, hear_round_usecase.Told, h.hear(moments.RoundID(early.String()), finale.Add(-day+time.Hour)))
+
+	recorded := h.outbox.Recorded()
+	require.Len(t, recorded, 1)
+	assert.True(t, proto.Equal(&gamemasterv1.BattleEnded{
+		Season: 0, Number: 1, EntryId: early.String(), Times: 2, RoundId: early.String(),
+		EndedAt: timestamppb.New(finale.Add(-day + time.Hour)),
 	}, recorded[0]), "%v", recorded[0])
 }
 
 func TestARoundNoDayOrBattleHasIsDroppedAndKeptNot(t *testing.T) {
 	h := newHarness(t)
 
-	for _, round := range []moments.RoundID{"season-0/day-25", "season-0/own-1", "0192f5a0-7c00-7000-8000-000000000099"} {
+	for _, round := range []moments.RoundID{"season-0/day-25", "season-0/own-1", "season-1/finale", "0192f5a0-7c00-7000-8000-000000000099"} {
 		assert.Equal(t, hear_round_usecase.Unknown, h.hear(round, finale), "%q", round)
 	}
 

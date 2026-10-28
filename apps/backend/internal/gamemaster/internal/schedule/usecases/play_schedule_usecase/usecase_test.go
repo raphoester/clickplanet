@@ -13,6 +13,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/inmemory_entry_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/usecases/play_schedule_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/inmemory_season_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -51,16 +53,20 @@ type harness struct {
 	t        *testing.T
 	clock    *cptime.FixedClock
 	entries  *inmemory_entry_store.Store
+	seasons  *inmemory_season_store.Store
 	commands *commanded
 	useCase  *play_schedule_usecase.UseCase
 }
 
-// The Final Battle is scheduled: rush from 21:00 to 23:00.
+// A battle is scheduled: rush from 21:00 to 23:00.
 func newHarness(t *testing.T, at time.Time) *harness {
 	t.Helper()
 
-	h := &harness{t: t, clock: cptime.NewFixedClock(at), entries: inmemory_entry_store.New(), commands: &commanded{}}
-	h.useCase = play_schedule_usecase.New(h.entries, h.commands, h.clock)
+	h := &harness{
+		t: t, clock: cptime.NewFixedClock(at), entries: inmemory_entry_store.New(), seasons: inmemory_season_store.New(),
+		commands: &commanded{},
+	}
+	h.useCase = play_schedule_usecase.New(h.entries, h.seasons, h.commands, h.clock)
 	h.schedule(9, "rush", finale, battleEnds, 1)
 	return h
 }
@@ -161,6 +167,60 @@ func TestAScheduleThatCannotBeReadSendsNothing(t *testing.T) {
 	h := newHarness(t, finale)
 	down := errors.New("postgres is down")
 	h.entries.FailWith(down)
+
+	_, told, err := h.useCase.Execute(t.Context())
+
+	require.ErrorIs(t, err, down)
+	assert.False(t, told)
+	assert.Empty(t, h.commands.sent)
+}
+
+// Season 0 ends at 23:00 with its finale, storm from 21:00: no entry is the finale.
+func (h *harness) finale(set schedule.SetName) {
+	h.t.Helper()
+	require.NoError(h.t, h.entries.Delete(h.t.Context(), schedule.EntryID(uuid.UUID{15: 9})))
+	require.NoError(h.t, h.seasons.Save(h.t.Context(), season.Snapshot{
+		Number: 0, Length: battleEnds.Sub(season.Origin), Finale: season.Finale{Length: 2 * time.Hour, Set: set, Times: 3},
+	}.Restore()))
+}
+
+func TestASeasonsFinalePlaysItsSetOverItsWindow(t *testing.T) {
+	h := newHarness(t, finale.Add(-time.Second))
+	h.finale("storm")
+	h.execute()
+
+	h.clock.Advance(time.Second)
+	assert.True(t, h.execute(), "the finale starts")
+	h.clock.Advance(time.Hour)
+	assert.False(t, h.execute())
+	h.clock.Advance(time.Hour)
+	assert.True(t, h.execute(), "the finale is over")
+
+	assert.Equal(t, []command{
+		{set: "default", decidedAt: finale.Add(-time.Second)},
+		{set: "storm", decidedAt: finale},
+		{set: "default", decidedAt: battleEnds},
+	}, h.commands.sent)
+}
+
+func TestAFinalePlaysAboveEveryEntryWhateverItsPriority(t *testing.T) {
+	h := newHarness(t, finale.Add(-time.Minute))
+	h.finale("storm")
+	h.schedule(1, "calm", finale.Add(-time.Minute), battleEnds.Add(time.Minute), 4294967295)
+	h.execute()
+
+	h.clock.Advance(time.Minute)
+	h.execute()
+	h.clock.Advance(2 * time.Hour)
+	h.execute()
+
+	assert.Equal(t, []schedule.SetName{"calm", "storm", "calm"}, h.commands.sets())
+}
+
+func TestSeasonsThatCannotBeReadSendNothing(t *testing.T) {
+	h := newHarness(t, finale)
+	down := errors.New("postgres is down")
+	h.seasons.FailWith(down)
 
 	_, told, err := h.useCase.Execute(t.Context())
 

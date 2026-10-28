@@ -38,7 +38,7 @@ describe("closedOf", () => {
             entryId: "finale", takes: ROUND.takes, players: [],
         })
         expect(closedOf(DAY, {...ROUND, roundId: "season-0/day-24", times: 1})).toMatchObject({moment: "day", number: 24, finale: false, entryId: ""})
-        expect(closedOf(SEASON, ROUND)).toMatchObject({moment: "season", season: 0, number: 2, entryId: "finale", finale: true, after: ROUND.after})
+        expect(closedOf(SEASON, ROUND)).toMatchObject({moment: "season", season: 0, number: 2, entryId: "", finale: true, after: ROUND.after})
         expect(closedOf({...SEASON, finaleBattle: undefined}, ROUND)).toMatchObject({moment: "season", number: 0, entryId: ""})
     })
 

@@ -11,19 +11,28 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season"
 )
 
-// Battle is an entry of kind battle that starts while a season runs: a round of that season's book, cut at its end.
+// Battle is a round of a season's book with a battle's look: an entry of kind battle that starts while the season
+// runs, cut at its end, or the season's finale.
 type Battle struct {
+	// Entry is the zero id for the finale, which is the season's and no entry's.
 	Entry  schedule.EntryID
 	Season season.Number
 	// Number is the battle's place among the season's battles, by start.
-	Number     uint32
-	Times      schedule.Times
-	StartsAt   time.Time
-	EndsAt     time.Time
+	Number      uint32
+	Times       schedule.Times
+	Description schedule.Description
+	StartsAt    time.Time
+	EndsAt      time.Time
+	// EndsSeason is true for the season's finale alone.
 	EndsSeason bool
 }
 
-func (b Battle) Round() RoundID { return BattleRoundOf(b.Entry) }
+func (b Battle) Round() RoundID {
+	if b.EndsSeason {
+		return FinaleRoundOf(b.Season)
+	}
+	return BattleRoundOf(b.Entry)
+}
 
 // Book is a season's book: its days and its battles.
 type Book struct {
@@ -34,18 +43,15 @@ type Book struct {
 
 func (b Book) ID() BookID { return BookOf(b.Window.Number) }
 
-// Finale is the round that ends at the season's end, which breaks a tie: the battle if one does, else a day, else none.
-func (b Book) Finale() RoundID {
+// Tiebreak is the round that breaks a tie: the season's finale, or none.
+func (b Book) Tiebreak() RoundID {
 	if battle, ok := b.FinaleBattle(); ok {
 		return battle.Round()
-	}
-	if last := len(b.Days) - 1; last >= 0 && b.Days[last].EndsAt.Equal(b.Window.EndsAt) {
-		return DayRoundOf(b.Days[last])
 	}
 	return ""
 }
 
-// FinaleBattle is the battle that ends at the season's end, when one does.
+// FinaleBattle is the season's finale, when it has one.
 func (b Book) FinaleBattle() (Battle, bool) {
 	for _, battle := range b.Battles {
 		if battle.EndsSeason {
@@ -104,9 +110,19 @@ func NewPlan(calendar season.Calendar, cutoff season.Cutoff, opened []RoundID, e
 				ends = window.EndsAt
 			}
 			book.Battles = append(book.Battles, Battle{
-				Entry: entry.ID, Season: window.Number, Number: uint32(len(book.Battles) + 1), Times: entry.Times,
-				StartsAt: entry.StartsAt.UTC(), EndsAt: ends, EndsSeason: ends.Equal(window.EndsAt),
+				Entry: entry.ID, Season: window.Number, Times: entry.Times, Description: entry.Description,
+				StartsAt: entry.StartsAt.UTC(), EndsAt: ends,
 			})
+		}
+		if window.Finale.Planned() {
+			book.Battles = append(book.Battles, Battle{
+				Season: window.Number, Times: window.Finale.Times, Description: window.Finale.Description,
+				StartsAt: window.FinaleStartsAt(), EndsAt: window.EndsAt, EndsSeason: true,
+			})
+		}
+		slices.SortStableFunc(book.Battles, func(a, b Battle) int { return a.StartsAt.Compare(b.StartsAt) })
+		for i := range book.Battles {
+			book.Battles[i].Number = uint32(i + 1) //nolint:gosec // a season holds far fewer battles.
 		}
 		books = append(books, book)
 	}
@@ -134,7 +150,7 @@ func (p Plan) DueAt(now time.Time) []Command {
 			}
 		}
 		if book.Window.Ended(now) {
-			due = append(due, Command{Action: CloseBook, Book: book.ID(), Tiebreak: book.Finale(), At: book.Window.EndsAt})
+			due = append(due, Command{Action: CloseBook, Book: book.ID(), Tiebreak: book.Tiebreak(), At: book.Window.EndsAt})
 		}
 	}
 	slices.SortStableFunc(due, func(a, b Command) int {
@@ -171,12 +187,36 @@ func (p Plan) DayAt(at time.Time) (season.Day, bool) {
 func (p Plan) BattleOf(entry schedule.EntryID) (Battle, bool) {
 	for _, book := range p.books {
 		for _, battle := range book.Battles {
-			if battle.Entry == entry {
+			if !battle.EndsSeason && battle.Entry == entry {
 				return battle, true
 			}
 		}
 	}
 	return Battle{}, false
+}
+
+// FinaleAt is the finale that runs at a time.
+func (p Plan) FinaleAt(at time.Time) (Battle, bool) {
+	book, ok := p.BookAt(at)
+	if !ok {
+		return Battle{}, false
+	}
+	finale, ok := book.FinaleBattle()
+	if !ok || at.Before(finale.StartsAt) {
+		return Battle{}, false
+	}
+	return finale, true
+}
+
+// FinalesAfter are the finales that have not started at a time, by start.
+func (p Plan) FinalesAfter(at time.Time) []Battle {
+	var finales []Battle
+	for _, book := range p.books {
+		if finale, ok := book.FinaleBattle(); ok && finale.StartsAt.After(at) {
+			finales = append(finales, finale)
+		}
+	}
+	return finales
 }
 
 // RoundEnded is what a round scoring scored was, in the game's words.
@@ -193,6 +233,12 @@ func (p Plan) RoundEnded(id RoundID, endedAt time.Time) (Moment, error) {
 	}
 	book, err := p.book(named.Season)
 	if err != nil {
+		return nil, fmt.Errorf("%w: %q", ErrUnknownRound, id)
+	}
+	if named.Finale {
+		if finale, ok := book.FinaleBattle(); ok {
+			return BattleEnded{Battle: finale, EndedAt: endedAt}, nil
+		}
 		return nil, fmt.Errorf("%w: %q", ErrUnknownRound, id)
 	}
 	for _, day := range book.Days {
@@ -213,7 +259,7 @@ func (p Plan) BookClosed(id BookID, endedAt time.Time) (Moment, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%w: %q", ErrUnknownBook, id)
 	}
-	ended := SeasonEnded{Season: number, Book: id, Finale: book.Finale(), EndedAt: endedAt}
+	ended := SeasonEnded{Season: number, Book: id, Finale: book.Tiebreak(), EndedAt: endedAt}
 	if battle, ok := book.FinaleBattle(); ok {
 		ended.FinaleBattle = &BattleEnded{Battle: battle, EndedAt: battle.EndsAt}
 	}

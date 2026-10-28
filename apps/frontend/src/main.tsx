@@ -129,6 +129,12 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
             fakeTurn.startBattle(entryId, since, endsAt, description, times)
             return `a battle is on, at ×${times}`
         },
+        startFinale: (description?: string, times = 3) => {
+            const since = Date.now()
+            const roundId = fakeTurn.startFinale(since, description, times)
+            fakeStandings.openBattle(roundId, since, times)
+            return `the final battle is on, at ×${times}`
+        },
         endBattle: () => {
             fakeTurn.endBattle()
             return "the battle is over: closeBattle() or closeFinale() sends its results"

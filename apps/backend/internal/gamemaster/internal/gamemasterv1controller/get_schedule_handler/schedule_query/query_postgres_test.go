@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	gamemasterv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/gamemaster/v1"
@@ -20,11 +21,19 @@ import (
 )
 
 var (
-	finale     = time.Date(2026, 10, 31, 21, 0, 0, 0, time.UTC)
+	finale     = time.Date(2026, 10, 30, 21, 0, 0, 0, time.UTC)
 	battleEnds = finale.Add(2 * time.Hour)
 	madeAt     = finale.Add(-time.Hour)
-	rush       = schedule.EntryID(uuid.UUID{15: 1})
-	calm       = schedule.EntryID(uuid.UUID{15: 2})
+	seasonEnds = time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC)
+	// Season 0's finale is seeded.
+	seeded = &gamemasterv1.ScheduledFinale{
+		Season: 0, Finale: &gamemasterv1.SeasonFinale{
+			Length: durationpb.New(2 * time.Hour), RuleSet: "rush", Description: "Triple points.", Times: 3,
+		},
+		StartsAt: timestamppb.New(seasonEnds.Add(-2 * time.Hour)), EndsAt: timestamppb.New(seasonEnds),
+	}
+	rush = schedule.EntryID(uuid.UUID{15: 1})
+	calm = schedule.EntryID(uuid.UUID{15: 2})
 )
 
 func keep(t *testing.T, store *postgres_entry_store.Store, entries ...schedule.EntrySnapshot) {
@@ -67,7 +76,23 @@ func TestEveryEntryIsListedByStartWithWhatPlaysNow(t *testing.T) {
 			RuleSet: "calm", Since: timestamppb.New(finale.Add(10 * time.Minute)), EntryId: calm.String(),
 			Kind: gamemasterv1.EntryKind_ENTRY_KIND_PLAIN,
 		},
+		Finales: []*gamemasterv1.ScheduledFinale{seeded},
 	}, answer), "%v", answer)
+}
+
+func TestWhileASeasonsFinalePlaysItNamesTheSeasonAndNoEntry(t *testing.T) {
+	db := cppg.StartTestServer(t).OpenSchema(t, "gamemaster", migrations.FS)
+	keep(t, postgres_entry_store.New(db), schedule.EntrySnapshot{
+		ID: calm, Set: "calm", Kind: schedule.Plain, StartsAt: finale, EndsAt: seasonEnds.Add(time.Hour), Priority: 9, MadeAt: madeAt,
+	})
+
+	answer, err := schedule_query.NewPostgresQuery(db, cptime.NewFixedClock(seasonEnds.Add(-time.Hour))).Schedule(t.Context())
+	require.NoError(t, err)
+
+	zero := uint32(0)
+	assert.True(t, proto.Equal(&gamemasterv1.Playing{
+		RuleSet: "rush", Since: seeded.GetStartsAt(), Kind: gamemasterv1.EntryKind_ENTRY_KIND_BATTLE, FinaleSeason: &zero,
+	}, answer.GetPlaying()), "%v", answer.GetPlaying())
 }
 
 func TestWithNoEntryRunningDefaultPlaysAndNamesNone(t *testing.T) {

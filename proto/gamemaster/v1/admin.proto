@@ -12,7 +12,8 @@ import "gamemaster/v1/gamemaster.proto";
 service AdminService {
   rpc GetSchedule(GetScheduleRequest) returns (GetScheduleResponse);
 
-  // Adds an entry that starts later. Its set must be one planet and the antibot keep: FailedPrecondition otherwise.
+  // Adds an entry that starts later. Its set must be one planet and the antibot keep, and a battle may not overlap a
+  // season's finale: FailedPrecondition otherwise.
   rpc AddEntry(AddEntryRequest) returns (AddEntryResponse);
 
   // Changes an entry that has not started, by the rules of AddEntry. FailedPrecondition once it started.
@@ -25,11 +26,13 @@ service AdminService {
   rpc GetSeasons(GetSeasonsRequest) returns (GetSeasonsResponse);
 
   // Adds a season after the last one, under the next number: it starts a break after the last one's end, and must
-  // start after now.
+  // start after now. Its finale's set must be one planet and the antibot keep, and no battle may overlap the finale:
+  // FailedPrecondition otherwise.
   rpc AddSeason(AddSeasonRequest) returns (AddSeasonResponse);
 
   // Changes a season that has not ended; the seasons after it move with it. One that started keeps its break, and its
-  // end moves only to a time after now: FailedPrecondition otherwise.
+  // end moves only to a time after now. Once its finale started, its end and its finale stay; a finale that changes or
+  // moves starts after now: FailedPrecondition otherwise.
   rpc EditSeason(EditSeasonRequest) returns (EditSeasonResponse);
 
   // Deletes the last season, when it has not started. FailedPrecondition otherwise.
@@ -42,6 +45,16 @@ message GetScheduleResponse {
   // Every entry, by start, the past ones too.
   repeated Entry entries = 1;
   Playing playing = 2;
+  // Every season's finale, by start: each plays above every entry, and is changed on its season.
+  repeated ScheduledFinale finales = 3;
+}
+
+// A season's finale, with the window its season works out.
+message ScheduledFinale {
+  uint32 season = 1;
+  SeasonFinale finale = 2;
+  google.protobuf.Timestamp starts_at = 3;
+  google.protobuf.Timestamp ends_at = 4;
 }
 
 message Entry {
@@ -60,7 +73,7 @@ message Entry {
   uint32 times = 9;
 }
 
-// What the schedule plays now: the running entry with the highest priority, else "default".
+// What the schedule plays now: a season's finale, else the running entry with the highest priority, else "default".
 message Playing {
   string rule_set = 1;
   // Unset when it has played since before any entry.
@@ -69,6 +82,8 @@ message Playing {
   string entry_id = 3;
   // The entry's kind; plain when none runs.
   EntryKind kind = 4;
+  // The season whose finale plays; unset when none does.
+  optional uint32 finale_season = 5;
 }
 
 message AddEntryRequest {
@@ -119,11 +134,27 @@ message ScheduledSeason {
   // The time from the end of the season before to its start, when no season runs. Season 0's counts from its start.
   google.protobuf.Duration break_before = 2;
   google.protobuf.Duration length = 3;
+  // Unset when the season has none.
+  SeasonFinale finale = 4;
+}
+
+// A season's last battle: it ends at the season's end and starts its length before. Planet and the antibot play its
+// set over it, above every entry; it is a round of the season's book, worth its times, and breaks a tie.
+message SeasonFinale {
+  // Above none, and at most the season's length.
+  google.protobuf.Duration length = 1;
+  string rule_set = 2;
+  // For the players, in plain text: what its rules are. At most 300 characters.
+  string description = 3;
+  // 1 to 10.
+  uint32 times = 4;
 }
 
 message AddSeasonRequest {
   google.protobuf.Duration break_before = 1;
   google.protobuf.Duration length = 2;
+  // Unset for a season with no finale.
+  SeasonFinale finale = 3;
 }
 
 message AddSeasonResponse {
@@ -134,6 +165,8 @@ message EditSeasonRequest {
   uint32 number = 1;
   google.protobuf.Duration break_before = 2;
   google.protobuf.Duration length = 3;
+  // Unset for a season with no finale.
+  SeasonFinale finale = 4;
 }
 
 message EditSeasonResponse {}

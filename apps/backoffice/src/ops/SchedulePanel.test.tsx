@@ -5,7 +5,7 @@ import {afterEach, describe, expect, it} from "vitest"
 import {FakeAdmin} from "../fakeAdmin.ts"
 import {GetRulesResponse as AntibotRules, RuleSet as AntibotRuleSet} from "../gen/grpc/antibot/v1/admin_pb.ts"
 import {GetRulesResponse, RuleSet} from "../gen/grpc/planet/v1/admin_pb.ts"
-import {AddEntryRequest, EditEntryRequest} from "../gen/grpc/gamemaster/v1/admin_pb.ts"
+import {AddEntryRequest, EditEntryRequest, Playing} from "../gen/grpc/gamemaster/v1/admin_pb.ts"
 import {EntryKind} from "../gen/grpc/gamemaster/v1/gamemaster_pb.ts"
 import {SchedulePanel} from "./SchedulePanel.tsx"
 
@@ -43,7 +43,7 @@ describe("the rule schedule page", () => {
 
         await screen.findByRole("table")
         const sets = screen.getAllByRole("row").slice(1).map(row => row.querySelector("strong")?.textContent)
-        expect(sets).toEqual(["rush", "calm", "frozen"])
+        expect(sets).toEqual(["rush", "calm", "rush", "frozen"])
         expect(rowOf("calm").getAttribute("aria-current")).toBe("true")
         expect(rowOf("rush").className).toBe("muted")
         expect(within(rowOf("frozen")).getByText("battle")).toBeTruthy()
@@ -55,6 +55,30 @@ describe("the rule schedule page", () => {
         expect(screen.getByText(/a plain entry, since/)).toBeTruthy()
         expect(screen.getByText(/the antibot plays/)).toBeTruthy()
         expect(screen.queryByRole("alert")).toBeNull()
+    })
+
+    it("shows a season's final battle among the entries, above all, changed only on its season", async () => {
+        show(keeping())
+
+        await screen.findByRole("table")
+        const finale = screen.getByText("Season 2's final battle").closest("tr") as HTMLElement
+        expect(within(finale).getByText("rush")).toBeTruthy()
+        expect(within(finale).getByText("battle")).toBeTruthy()
+        expect(within(finale).getByText("3×")).toBeTruthy()
+        expect(within(finale).getByText("Triple points.")).toBeTruthy()
+        expect(within(finale).getByText("above all")).toBeTruthy()
+        expect(within(finale).queryByRole("button")).toBeNull()
+    })
+
+    it("says when a season's final battle plays", async () => {
+        const admin = keeping()
+        admin.schedule.playing = new Playing({ruleSet: "rush", kind: EntryKind.BATTLE, finaleSeason: 2})
+        admin.rules.playing = "rush"
+        admin.antibotRules.playing = "rush"
+        show(admin)
+
+        expect(await screen.findByText(/season 2's final battle/)).toBeTruthy()
+        expect(screen.getByText("Season 2's final battle").closest("tr")?.getAttribute("aria-current")).toBe("true")
     })
 
     it("offers a change only of an entry to come", async () => {

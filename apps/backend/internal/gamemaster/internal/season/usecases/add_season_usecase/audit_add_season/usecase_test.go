@@ -31,7 +31,7 @@ func TestEverySeasonAddedIsLoggedWithItsWindow(t *testing.T) {
 	_, err := audit_add_season.New(stubUseCase{number: 1}, slog.New(slog.NewTextHandler(&logs, nil))).Execute(t.Context(), one)
 
 	require.NoError(t, err)
-	assert.Contains(t, logs.String(), `level=WARN msg="admin season added" break=1h0m0s length=672h0m0s season=1`)
+	assert.Contains(t, logs.String(), `level=WARN msg="admin season added" break=1h0m0s length=672h0m0s finale.length=0s finale.set="" finale.description="" finale.times=0 season=1`)
 }
 
 func TestARefusalIsLoggedWithWhyAndPassedOn(t *testing.T) {
