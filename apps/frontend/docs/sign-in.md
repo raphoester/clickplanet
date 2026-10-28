@@ -118,8 +118,8 @@ keeps the color the server answers, or the old one on a refusal; `GetProfile` an
 both. A color is refused without a username (`FailedPrecondition` → `unnamed`),
 which is why the picker only shows with one. `usePresence` announces again once
 the color held still for a second (`SETTLE_MS`), so the roster line follows.
-Under the color, the same player has the "Show my name in clips" switch, set the same way (see [In a
-clip](clip-appearances.md)).
+Under the color, the same player has the "Show my name in clips" switch, which the clips service keeps, not
+the account (see [In a clip](clip-appearances.md)).
 
 **A signed-in account's panel has two tabs**: Progress, open first (see
 [Titles](titles.md)), and Account, which holds the username, the color, linking

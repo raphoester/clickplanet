@@ -4,7 +4,7 @@ import {cleanup, render, screen} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import {useSyncExternalStore} from "react"
 import {AccountBackend, Provider} from "../../backends/account.ts"
-import {ColoredProfile, NameColor, PlayerBackend, PlayerError, Profile, RenameTooSoonError} from "../../backends/player.ts"
+import {ColoredProfile, NameColor, PlayerBackend, Profile, RenameTooSoonError} from "../../backends/player.ts"
 import {AccountStore} from "./accountStore.ts"
 import AccountPanel from "./AccountPanel.tsx"
 
@@ -28,7 +28,6 @@ async function signedIn(profile: ColoredProfile, setName: (name: string) => Prom
         profile: vi.fn(async () => profile),
         setName: vi.fn(setName),
         setColor: vi.fn(async (color: NameColor) => color),
-        setShownInClips: vi.fn(async (shown: boolean) => shown),
         titles: vi.fn(async () => ({wearable: [], tracks: []})),
         fronts: vi.fn(async () => ({playsFor: [], playsAgainst: []})),
         wearTitle: vi.fn(async () => undefined),
@@ -50,7 +49,7 @@ async function signedIn(profile: ColoredProfile, setName: (name: string) => Prom
 
 describe("UsernameForm", () => {
     it("waits until the name may change again, and says when", async () => {
-        await signedIn({accountId: "account-1", name: "Ana", color: NameColor.UNSPECIFIED, shownInClips: true, renamableAt: Date.now() + 10 * DAY_MS},
+        await signedIn({accountId: "account-1", name: "Ana", color: NameColor.UNSPECIFIED, renamableAt: Date.now() + 10 * DAY_MS},
             async (name) => ({accountId: "account-1", name}))
 
         expect((screen.getByLabelText("Username") as HTMLInputElement).disabled).toBe(true)
@@ -59,7 +58,7 @@ describe("UsernameForm", () => {
     })
 
     it("is open again once that time has passed", async () => {
-        await signedIn({accountId: "account-1", name: "Ana", color: NameColor.UNSPECIFIED, shownInClips: true, renamableAt: Date.now() - 1000},
+        await signedIn({accountId: "account-1", name: "Ana", color: NameColor.UNSPECIFIED, renamableAt: Date.now() - 1000},
             async (name) => ({accountId: "account-1", name}))
 
         expect((screen.getByLabelText("Username") as HTMLInputElement).disabled).toBe(false)
@@ -67,7 +66,7 @@ describe("UsernameForm", () => {
     })
 
     it("says when a change refused as too soon is allowed, and waits for it", async () => {
-        const {user} = await signedIn({accountId: "account-1", name: "Ana", color: NameColor.UNSPECIFIED, shownInClips: true}, async () => {
+        const {user} = await signedIn({accountId: "account-1", name: "Ana", color: NameColor.UNSPECIFIED}, async () => {
             throw new RenameTooSoonError(Date.now() + 5 * DAY_MS)
         })
 
@@ -78,37 +77,5 @@ describe("UsernameForm", () => {
         expect(await screen.findByText(/^You can change it on /)).toBeDefined()
         expect((screen.getByLabelText("Username") as HTMLInputElement).disabled).toBe(true)
         expect(screen.queryByRole("alert")).toBeNull()
-    })
-})
-
-describe("ClipsSwitch", () => {
-    const profile: ColoredProfile = {accountId: "account-1", name: "Ana", color: NameColor.UNSPECIFIED, shownInClips: true}
-    const keep = async (name: string) => ({accountId: "account-1", name})
-
-    it("shows the choice the server keeps", async () => {
-        await signedIn({...profile, shownInClips: false}, keep)
-
-        expect((screen.getByRole("switch", {name: "Show my name in clips"}) as HTMLInputElement).checked).toBe(false)
-    })
-
-    it("sends the choice and shows the one stored", async () => {
-        const {player, user} = await signedIn(profile, keep)
-        const toggle = screen.getByRole("switch", {name: "Show my name in clips"}) as HTMLInputElement
-
-        await user.click(toggle)
-
-        expect(player.setShownInClips).toHaveBeenCalledWith(false)
-        expect(toggle.checked).toBe(false)
-    })
-
-    it("says why a choice was refused, and shows the one kept", async () => {
-        const {player, user} = await signedIn(profile, keep)
-        player.setShownInClips.mockRejectedValue(new PlayerError("failed"))
-        const toggle = screen.getByRole("switch", {name: "Show my name in clips"}) as HTMLInputElement
-
-        await user.click(toggle)
-
-        expect(await screen.findByRole("alert")).toBeDefined()
-        expect(toggle.checked).toBe(true)
     })
 })

@@ -4,11 +4,13 @@ package clips.v1;
 
 import "google/protobuf/timestamp.proto";
 
-// The clips that name the caller, on the public router: each needs the identity token, and reads the caller's alone.
+// The clips that name the caller, on the public router: each needs the identity token, and acts on the caller's alone.
 service ClipsService {
   rpc GetAppearances(GetAppearancesRequest) returns (GetAppearancesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+  // Whether the clips may name the caller.
+  rpc SetNameShown(SetNameShownRequest) returns (SetNameShownResponse);
 }
 
 message GetAppearancesRequest {}
@@ -16,6 +18,16 @@ message GetAppearancesRequest {}
 message GetAppearancesResponse {
   // The posts out in the last 7 days that name the caller, the newest first.
   repeated Appearance appearances = 1;
+  // True until the caller turns it off.
+  bool name_shown = 2;
+}
+
+message SetNameShownRequest {
+  bool name_shown = 1;
+}
+
+message SetNameShownResponse {
+  bool name_shown = 1;
 }
 
 message Appearance {

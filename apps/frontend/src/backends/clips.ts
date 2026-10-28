@@ -16,3 +16,9 @@ export type Appearance = {
 export interface ClipsBackend {
     appearances(): Promise<Appearance[]>
 }
+
+export interface ClipsNameBackend {
+    nameShown(): Promise<boolean>
+
+    setNameShown(shown: boolean): Promise<boolean>
+}

@@ -48,6 +48,13 @@ export class GetAppearancesResponse extends Message<GetAppearancesResponse> {
    */
   appearances: Appearance[] = [];
 
+  /**
+   * True until the caller turns it off.
+   *
+   * @generated from field: bool name_shown = 2;
+   */
+  nameShown = false;
+
   constructor(data?: PartialMessage<GetAppearancesResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -57,6 +64,7 @@ export class GetAppearancesResponse extends Message<GetAppearancesResponse> {
   static readonly typeName = "clips.v1.GetAppearancesResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "appearances", kind: "message", T: Appearance, repeated: true },
+    { no: 2, name: "name_shown", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetAppearancesResponse {
@@ -73,6 +81,80 @@ export class GetAppearancesResponse extends Message<GetAppearancesResponse> {
 
   static equals(a: GetAppearancesResponse | PlainMessage<GetAppearancesResponse> | undefined, b: GetAppearancesResponse | PlainMessage<GetAppearancesResponse> | undefined): boolean {
     return proto3.util.equals(GetAppearancesResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message clips.v1.SetNameShownRequest
+ */
+export class SetNameShownRequest extends Message<SetNameShownRequest> {
+  /**
+   * @generated from field: bool name_shown = 1;
+   */
+  nameShown = false;
+
+  constructor(data?: PartialMessage<SetNameShownRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "clips.v1.SetNameShownRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "name_shown", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetNameShownRequest {
+    return new SetNameShownRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SetNameShownRequest {
+    return new SetNameShownRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SetNameShownRequest {
+    return new SetNameShownRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SetNameShownRequest | PlainMessage<SetNameShownRequest> | undefined, b: SetNameShownRequest | PlainMessage<SetNameShownRequest> | undefined): boolean {
+    return proto3.util.equals(SetNameShownRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message clips.v1.SetNameShownResponse
+ */
+export class SetNameShownResponse extends Message<SetNameShownResponse> {
+  /**
+   * @generated from field: bool name_shown = 1;
+   */
+  nameShown = false;
+
+  constructor(data?: PartialMessage<SetNameShownResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "clips.v1.SetNameShownResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "name_shown", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetNameShownResponse {
+    return new SetNameShownResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SetNameShownResponse {
+    return new SetNameShownResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SetNameShownResponse {
+    return new SetNameShownResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SetNameShownResponse | PlainMessage<SetNameShownResponse> | undefined, b: SetNameShownResponse | PlainMessage<SetNameShownResponse> | undefined): boolean {
+    return proto3.util.equals(SetNameShownResponse, a, b);
   }
 }
 

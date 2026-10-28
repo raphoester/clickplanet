@@ -22,7 +22,4 @@ func (s *testSuite) SetupSuite() {
 	s.MakeAdmin = func(store players.Store, account players.AccountID) {
 		store.(*inmemory_player_store.Store).MakeAdmin(account)
 	}
-	s.ShownInClips = func(store players.Store, account players.AccountID) bool {
-		return store.(*inmemory_player_store.Store).ShownInClips(account)
-	}
 }

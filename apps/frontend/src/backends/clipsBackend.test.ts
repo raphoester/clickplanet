@@ -5,6 +5,7 @@ import {
     Appearance as AppearancePb,
     ClipLink as ClipLinkPb,
     GetAppearancesResponse as GetAppearancesResponsePb,
+    SetNameShownResponse as SetNameShownResponsePb,
 } from "../gen/grpc/clips/v1/appearances_pb.ts"
 import {ConnectClipsBackend} from "./clipsBackend.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
@@ -67,5 +68,23 @@ describe("ConnectClipsBackend", () => {
         const getAppearances = vi.fn().mockRejectedValue(new ConnectError("no", Code.Internal))
 
         await expect(backendWith({getAppearances}).appearances()).rejects.toMatchObject({code: Code.Internal})
+    })
+
+    it("reads and sets whether the clips name the player, with the identity token", async () => {
+        const getAppearances = vi.fn(async () => new GetAppearancesResponsePb({nameShown: true}))
+        const setNameShown = vi.fn(async () => new SetNameShownResponsePb({nameShown: false}))
+        const backend = backendWith({getAppearances, setNameShown})
+
+        expect(await backend.nameShown()).toBe(true)
+        expect(await backend.setNameShown(false)).toBe(false)
+        expect(setNameShown).toHaveBeenCalledWith({nameShown: false}, expect.anything())
+        expect(headersOf(setNameShown).get(SESSION_HEADER)).toBe("identity-1")
+    })
+
+    it("refuses the switch, and asks nothing, without an identity", async () => {
+        const setNameShown = vi.fn()
+
+        await expect(backendWith({setNameShown}, sessionWith(undefined)).setNameShown(false)).rejects.toThrow("no identity")
+        expect(setNameShown).not.toHaveBeenCalled()
     })
 })

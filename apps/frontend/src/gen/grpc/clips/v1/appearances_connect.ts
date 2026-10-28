@@ -3,11 +3,11 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetAppearancesRequest, GetAppearancesResponse } from "./appearances_pb.js";
+import { GetAppearancesRequest, GetAppearancesResponse, SetNameShownRequest, SetNameShownResponse } from "./appearances_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
- * The clips that name the caller, on the public router: each needs the identity token, and reads the caller's alone.
+ * The clips that name the caller, on the public router: each needs the identity token, and acts on the caller's alone.
  *
  * @generated from service clips.v1.ClipsService
  */
@@ -23,6 +23,17 @@ export const ClipsService = {
       O: GetAppearancesResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * Whether the clips may name the caller.
+     *
+     * @generated from rpc clips.v1.ClipsService.SetNameShown
+     */
+    setNameShown: {
+      name: "SetNameShown",
+      I: SetNameShownRequest,
+      O: SetNameShownResponse,
+      kind: MethodKind.Unary,
     },
   }
 } as const;

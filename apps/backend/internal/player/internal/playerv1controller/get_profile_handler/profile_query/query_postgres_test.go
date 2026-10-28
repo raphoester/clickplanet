@@ -55,16 +55,6 @@ func (s *testSuite) TestAnAccountThatNeverChoseANameHasAnEmptyOne() {
 	s.Equal(ada.String(), answer.GetProfile().GetAccountId())
 	s.Empty(answer.GetProfile().GetName())
 	s.Equal(playerv1.NameColor_NAME_COLOR_UNSPECIFIED, answer.GetColor())
-	s.False(answer.GetShownInClips(), "a guest has no name to show")
-}
-
-func (s *testSuite) TestAUsernameIsShownInClipsUntilItsPlayerSaysNo() {
-	s.Require().NoError(s.players.SaveProfile(s.T().Context(), players.NewProfile(ada, "Ada_L", at)))
-	s.True(s.profile(ada).GetShownInClips())
-
-	s.Require().NoError(s.players.SaveShownInClips(s.T().Context(), ada, false))
-
-	s.False(s.profile(ada).GetShownInClips())
 }
 
 func (s *testSuite) TestTheChosenNameAndColorAreAnswered() {

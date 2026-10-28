@@ -186,31 +186,6 @@ describe("ConnectPlayerBackend", () => {
         expect(headersOf(setName).headers.get(SESSION_HEADER)).toBe("token-1")
     })
 
-    it("reads whether the clips may show the name, with the color", async () => {
-        const getProfile = vi.fn(async () => ({
-            profile: new ProfilePb({accountId: "account-1", name: "Ana"}), color: NameColor.TEAL, shownInClips: true,
-        }))
-
-        expect(await backendWith({getProfile}).profile())
-            .toEqual({accountId: "account-1", name: "Ana", color: NameColor.TEAL, shownInClips: true})
-    })
-
-    it("sends whether the clips may show the name with the click token, and answers what the server stored", async () => {
-        const setShownInClips = vi.fn(async () => ({shown: false}))
-        const backend = backendWith({setShownInClips})
-
-        expect(await backend.setShownInClips(false)).toBe(false)
-        expect(setShownInClips).toHaveBeenCalledWith({shown: false}, expect.anything())
-        expect(headersOf(setShownInClips).headers.get(SESSION_HEADER)).toBe("token-1")
-    })
-
-    it("reports the clips choice of a player with no username as unnamed", async () => {
-        const error = await backendWith({setShownInClips: refusing(Code.FailedPrecondition)}).setShownInClips(true).catch((e) => e)
-
-        expect(error).toBeInstanceOf(PlayerError)
-        expect(error).toMatchObject({failure: "unnamed"})
-    })
-
     it("answers when the name may change again", async () => {
         const setName = vi.fn(async () => ({
             profile: new ProfilePb({accountId: "account-1", name: "Ana", renamableAtUnixMs: BigInt(1_700_000_000_000)}),

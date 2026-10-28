@@ -20,7 +20,6 @@ type Store interface {
 	SaveProfile(ctx context.Context, profile Profile) error
 	CreateProfile(ctx context.Context, profile Profile) error
 	SaveColor(ctx context.Context, account AccountID, color Color) error
-	SaveShownInClips(ctx context.Context, account AccountID, shown bool) error
 	Stats(ctx context.Context, account AccountID) (Stats, error)
 	Record(ctx context.Context, account AccountID, change func(Stats) Stats) error
 	StatsAfter(ctx context.Context, after AccountID, limit int) ([]Stats, error)

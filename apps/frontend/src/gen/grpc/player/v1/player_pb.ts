@@ -102,11 +102,6 @@ export class GetProfileResponse extends Message<GetProfileResponse> {
    */
   color = NameColor.UNSPECIFIED;
 
-  /**
-   * @generated from field: bool shown_in_clips = 3;
-   */
-  shownInClips = false;
-
   constructor(data?: PartialMessage<GetProfileResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -117,7 +112,6 @@ export class GetProfileResponse extends Message<GetProfileResponse> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "profile", kind: "message", T: Profile },
     { no: 2, name: "color", kind: "enum", T: proto3.getEnumType(NameColor) },
-    { no: 3, name: "shown_in_clips", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetProfileResponse {
@@ -319,80 +313,6 @@ export class SetColorResponse extends Message<SetColorResponse> {
 
   static equals(a: SetColorResponse | PlainMessage<SetColorResponse> | undefined, b: SetColorResponse | PlainMessage<SetColorResponse> | undefined): boolean {
     return proto3.util.equals(SetColorResponse, a, b);
-  }
-}
-
-/**
- * @generated from message player.v1.SetShownInClipsRequest
- */
-export class SetShownInClipsRequest extends Message<SetShownInClipsRequest> {
-  /**
-   * @generated from field: bool shown = 1;
-   */
-  shown = false;
-
-  constructor(data?: PartialMessage<SetShownInClipsRequest>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "player.v1.SetShownInClipsRequest";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "shown", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetShownInClipsRequest {
-    return new SetShownInClipsRequest().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SetShownInClipsRequest {
-    return new SetShownInClipsRequest().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SetShownInClipsRequest {
-    return new SetShownInClipsRequest().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: SetShownInClipsRequest | PlainMessage<SetShownInClipsRequest> | undefined, b: SetShownInClipsRequest | PlainMessage<SetShownInClipsRequest> | undefined): boolean {
-    return proto3.util.equals(SetShownInClipsRequest, a, b);
-  }
-}
-
-/**
- * @generated from message player.v1.SetShownInClipsResponse
- */
-export class SetShownInClipsResponse extends Message<SetShownInClipsResponse> {
-  /**
-   * @generated from field: bool shown = 1;
-   */
-  shown = false;
-
-  constructor(data?: PartialMessage<SetShownInClipsResponse>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "player.v1.SetShownInClipsResponse";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "shown", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetShownInClipsResponse {
-    return new SetShownInClipsResponse().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SetShownInClipsResponse {
-    return new SetShownInClipsResponse().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SetShownInClipsResponse {
-    return new SetShownInClipsResponse().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: SetShownInClipsResponse | PlainMessage<SetShownInClipsResponse> | undefined, b: SetShownInClipsResponse | PlainMessage<SetShownInClipsResponse> | undefined): boolean {
-    return proto3.util.equals(SetShownInClipsResponse, a, b);
   }
 }
 

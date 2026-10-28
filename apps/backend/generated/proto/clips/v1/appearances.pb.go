@@ -61,7 +61,9 @@ func (*GetAppearancesRequest) Descriptor() ([]byte, []int) {
 type GetAppearancesResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The posts out in the last 7 days that name the caller, the newest first.
-	Appearances   []*Appearance `protobuf:"bytes,1,rep,name=appearances,proto3" json:"appearances,omitempty"`
+	Appearances []*Appearance `protobuf:"bytes,1,rep,name=appearances,proto3" json:"appearances,omitempty"`
+	// True until the caller turns it off.
+	NameShown     bool `protobuf:"varint,2,opt,name=name_shown,json=nameShown,proto3" json:"name_shown,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -103,6 +105,101 @@ func (x *GetAppearancesResponse) GetAppearances() []*Appearance {
 	return nil
 }
 
+func (x *GetAppearancesResponse) GetNameShown() bool {
+	if x != nil {
+		return x.NameShown
+	}
+	return false
+}
+
+type SetNameShownRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	NameShown     bool                   `protobuf:"varint,1,opt,name=name_shown,json=nameShown,proto3" json:"name_shown,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetNameShownRequest) Reset() {
+	*x = SetNameShownRequest{}
+	mi := &file_clips_v1_appearances_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetNameShownRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetNameShownRequest) ProtoMessage() {}
+
+func (x *SetNameShownRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_clips_v1_appearances_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetNameShownRequest.ProtoReflect.Descriptor instead.
+func (*SetNameShownRequest) Descriptor() ([]byte, []int) {
+	return file_clips_v1_appearances_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *SetNameShownRequest) GetNameShown() bool {
+	if x != nil {
+		return x.NameShown
+	}
+	return false
+}
+
+type SetNameShownResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	NameShown     bool                   `protobuf:"varint,1,opt,name=name_shown,json=nameShown,proto3" json:"name_shown,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetNameShownResponse) Reset() {
+	*x = SetNameShownResponse{}
+	mi := &file_clips_v1_appearances_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetNameShownResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetNameShownResponse) ProtoMessage() {}
+
+func (x *SetNameShownResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_clips_v1_appearances_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetNameShownResponse.ProtoReflect.Descriptor instead.
+func (*SetNameShownResponse) Descriptor() ([]byte, []int) {
+	return file_clips_v1_appearances_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *SetNameShownResponse) GetNameShown() bool {
+	if x != nil {
+		return x.NameShown
+	}
+	return false
+}
+
 type Appearance struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The Zernio post id.
@@ -116,7 +213,7 @@ type Appearance struct {
 
 func (x *Appearance) Reset() {
 	*x = Appearance{}
-	mi := &file_clips_v1_appearances_proto_msgTypes[2]
+	mi := &file_clips_v1_appearances_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -128,7 +225,7 @@ func (x *Appearance) String() string {
 func (*Appearance) ProtoMessage() {}
 
 func (x *Appearance) ProtoReflect() protoreflect.Message {
-	mi := &file_clips_v1_appearances_proto_msgTypes[2]
+	mi := &file_clips_v1_appearances_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -141,7 +238,7 @@ func (x *Appearance) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Appearance.ProtoReflect.Descriptor instead.
 func (*Appearance) Descriptor() ([]byte, []int) {
-	return file_clips_v1_appearances_proto_rawDescGZIP(), []int{2}
+	return file_clips_v1_appearances_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *Appearance) GetPostId() string {
@@ -183,7 +280,7 @@ type ClipLink struct {
 
 func (x *ClipLink) Reset() {
 	*x = ClipLink{}
-	mi := &file_clips_v1_appearances_proto_msgTypes[3]
+	mi := &file_clips_v1_appearances_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -195,7 +292,7 @@ func (x *ClipLink) String() string {
 func (*ClipLink) ProtoMessage() {}
 
 func (x *ClipLink) ProtoReflect() protoreflect.Message {
-	mi := &file_clips_v1_appearances_proto_msgTypes[3]
+	mi := &file_clips_v1_appearances_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -208,7 +305,7 @@ func (x *ClipLink) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClipLink.ProtoReflect.Descriptor instead.
 func (*ClipLink) Descriptor() ([]byte, []int) {
-	return file_clips_v1_appearances_proto_rawDescGZIP(), []int{3}
+	return file_clips_v1_appearances_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ClipLink) GetPlatform() string {
@@ -230,9 +327,17 @@ var File_clips_v1_appearances_proto protoreflect.FileDescriptor
 const file_clips_v1_appearances_proto_rawDesc = "" +
 	"\n" +
 	"\x1aclips/v1/appearances.proto\x12\bclips.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x17\n" +
-	"\x15GetAppearancesRequest\"P\n" +
+	"\x15GetAppearancesRequest\"o\n" +
 	"\x16GetAppearancesResponse\x126\n" +
-	"\vappearances\x18\x01 \x03(\v2\x14.clips.v1.AppearanceR\vappearances\"\xa4\x01\n" +
+	"\vappearances\x18\x01 \x03(\v2\x14.clips.v1.AppearanceR\vappearances\x12\x1d\n" +
+	"\n" +
+	"name_shown\x18\x02 \x01(\bR\tnameShown\"4\n" +
+	"\x13SetNameShownRequest\x12\x1d\n" +
+	"\n" +
+	"name_shown\x18\x01 \x01(\bR\tnameShown\"5\n" +
+	"\x14SetNameShownResponse\x12\x1d\n" +
+	"\n" +
+	"name_shown\x18\x01 \x01(\bR\tnameShown\"\xa4\x01\n" +
 	"\n" +
 	"Appearance\x12\x17\n" +
 	"\apost_id\x18\x01 \x01(\tR\x06postId\x12\x14\n" +
@@ -241,9 +346,10 @@ const file_clips_v1_appearances_proto_rawDesc = "" +
 	"\x05links\x18\x04 \x03(\v2\x12.clips.v1.ClipLinkR\x05links\"8\n" +
 	"\bClipLink\x12\x1a\n" +
 	"\bplatform\x18\x01 \x01(\tR\bplatform\x12\x10\n" +
-	"\x03url\x18\x02 \x01(\tR\x03url2h\n" +
+	"\x03url\x18\x02 \x01(\tR\x03url2\xb7\x01\n" +
 	"\fClipsService\x12X\n" +
-	"\x0eGetAppearances\x12\x1f.clips.v1.GetAppearancesRequest\x1a .clips.v1.GetAppearancesResponse\"\x03\x90\x02\x01B\xb1\x01\n" +
+	"\x0eGetAppearances\x12\x1f.clips.v1.GetAppearancesRequest\x1a .clips.v1.GetAppearancesResponse\"\x03\x90\x02\x01\x12M\n" +
+	"\fSetNameShown\x12\x1d.clips.v1.SetNameShownRequest\x1a\x1e.clips.v1.SetNameShownResponseB\xb1\x01\n" +
 	"\fcom.clips.v1B\x10AppearancesProtoP\x01ZNgithub.com/raphoester/clickplanet.lol-backend/generated/proto/clips/v1;clipsv1\xa2\x02\x03CXX\xaa\x02\bClips.V1\xca\x02\bClips\\V1\xe2\x02\x14Clips\\V1\\GPBMetadata\xea\x02\tClips::V1b\x06proto3"
 
 var (
@@ -258,22 +364,26 @@ func file_clips_v1_appearances_proto_rawDescGZIP() []byte {
 	return file_clips_v1_appearances_proto_rawDescData
 }
 
-var file_clips_v1_appearances_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_clips_v1_appearances_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_clips_v1_appearances_proto_goTypes = []any{
 	(*GetAppearancesRequest)(nil),  // 0: clips.v1.GetAppearancesRequest
 	(*GetAppearancesResponse)(nil), // 1: clips.v1.GetAppearancesResponse
-	(*Appearance)(nil),             // 2: clips.v1.Appearance
-	(*ClipLink)(nil),               // 3: clips.v1.ClipLink
-	(*timestamppb.Timestamp)(nil),  // 4: google.protobuf.Timestamp
+	(*SetNameShownRequest)(nil),    // 2: clips.v1.SetNameShownRequest
+	(*SetNameShownResponse)(nil),   // 3: clips.v1.SetNameShownResponse
+	(*Appearance)(nil),             // 4: clips.v1.Appearance
+	(*ClipLink)(nil),               // 5: clips.v1.ClipLink
+	(*timestamppb.Timestamp)(nil),  // 6: google.protobuf.Timestamp
 }
 var file_clips_v1_appearances_proto_depIdxs = []int32{
-	2, // 0: clips.v1.GetAppearancesResponse.appearances:type_name -> clips.v1.Appearance
-	4, // 1: clips.v1.Appearance.scheduled_at:type_name -> google.protobuf.Timestamp
-	3, // 2: clips.v1.Appearance.links:type_name -> clips.v1.ClipLink
+	4, // 0: clips.v1.GetAppearancesResponse.appearances:type_name -> clips.v1.Appearance
+	6, // 1: clips.v1.Appearance.scheduled_at:type_name -> google.protobuf.Timestamp
+	5, // 2: clips.v1.Appearance.links:type_name -> clips.v1.ClipLink
 	0, // 3: clips.v1.ClipsService.GetAppearances:input_type -> clips.v1.GetAppearancesRequest
-	1, // 4: clips.v1.ClipsService.GetAppearances:output_type -> clips.v1.GetAppearancesResponse
-	4, // [4:5] is the sub-list for method output_type
-	3, // [3:4] is the sub-list for method input_type
+	2, // 4: clips.v1.ClipsService.SetNameShown:input_type -> clips.v1.SetNameShownRequest
+	1, // 5: clips.v1.ClipsService.GetAppearances:output_type -> clips.v1.GetAppearancesResponse
+	3, // 6: clips.v1.ClipsService.SetNameShown:output_type -> clips.v1.SetNameShownResponse
+	5, // [5:7] is the sub-list for method output_type
+	3, // [3:5] is the sub-list for method input_type
 	3, // [3:3] is the sub-list for extension type_name
 	3, // [3:3] is the sub-list for extension extendee
 	0, // [0:3] is the sub-list for field type_name
@@ -290,7 +400,7 @@ func file_clips_v1_appearances_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_clips_v1_appearances_proto_rawDesc), len(file_clips_v1_appearances_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

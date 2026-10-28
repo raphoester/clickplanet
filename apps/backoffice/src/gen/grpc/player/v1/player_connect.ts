@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AnnounceRequest, AnnounceResponse, GetFrontsRequest, GetFrontsResponse, GetPlayerRequest, GetPlayerResponse, GetProfileRequest, GetProfileResponse, GetRosterRequest, GetRosterResponse, GetStatsRequest, GetStatsResponse, GetTitlesRequest, GetTitlesResponse, LeaveRequest, LeaveResponse, ListenForEventsRequest, PlayerEvent, SetColorRequest, SetColorResponse, SetNameRequest, SetNameResponse, SetShownInClipsRequest, SetShownInClipsResponse, WearTitleRequest, WearTitleResponse } from "./player_pb.js";
+import { AnnounceRequest, AnnounceResponse, GetFrontsRequest, GetFrontsResponse, GetPlayerRequest, GetPlayerResponse, GetProfileRequest, GetProfileResponse, GetRosterRequest, GetRosterResponse, GetStatsRequest, GetStatsResponse, GetTitlesRequest, GetTitlesResponse, LeaveRequest, LeaveResponse, ListenForEventsRequest, PlayerEvent, SetColorRequest, SetColorResponse, SetNameRequest, SetNameResponse, WearTitleRequest, WearTitleResponse } from "./player_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -37,17 +37,6 @@ export const PlayerService = {
       name: "SetColor",
       I: SetColorRequest,
       O: SetColorResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Whether the clips may show the caller's username. FailedPrecondition with no username.
-     *
-     * @generated from rpc player.v1.PlayerService.SetShownInClips
-     */
-    setShownInClips: {
-      name: "SetShownInClips",
-      I: SetShownInClipsRequest,
-      O: SetShownInClipsResponse,
       kind: MethodKind.Unary,
     },
     /**

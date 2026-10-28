@@ -27,7 +27,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/set_color_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/set_name_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/set_name_usecase/renaming_set_name"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/set_shown_in_clips_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/admin_get_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/admin_get_player_handler/admin_player_query"
@@ -58,7 +57,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/search_players_handler/matches_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/set_color_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/set_name_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/set_shown_in_clips_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/wear_title_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/inmemory_visit_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/usecases/announce_usecase"
@@ -274,9 +272,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		SetNameHandler: set_name_handler.New(
 			renaming_set_name.New(set_name_usecase.New(store, accounts, clock), visits),
 		),
-		SetColorHandler:        set_color_handler.New(set_color_usecase.New(store)),
-		SetShownInClipsHandler: set_shown_in_clips_handler.New(set_shown_in_clips_usecase.New(store)),
-		GetStatsHandler:        get_stats_handler.New(stats_query.NewPostgresQuery(db, clock)),
+		SetColorHandler: set_color_handler.New(set_color_usecase.New(store)),
+		GetStatsHandler: get_stats_handler.New(stats_query.NewPostgresQuery(db, clock)),
 		AnnounceHandler: announce_handler.New(
 			announce_usecase.New(authors, visits, cpcountries.New(), clock, tagSalt),
 		),

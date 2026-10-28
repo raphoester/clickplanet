@@ -230,16 +230,14 @@ func (x *GetAuthorsResponse) GetAuthors() []*Author {
 }
 
 type Author struct {
-	state     protoimpl.MessageState `protogen:"open.v1"`
-	AccountId string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
-	Name      string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Admin     bool                   `protobuf:"varint,3,opt,name=admin,proto3" json:"admin,omitempty"`
-	Color     NameColor              `protobuf:"varint,4,opt,name=color,proto3,enum=player.v1.NameColor" json:"color,omitempty"`
-	Streak    uint32                 `protobuf:"varint,5,opt,name=streak,proto3" json:"streak,omitempty"`
-	WornTitle *Title                 `protobuf:"bytes,6,opt,name=worn_title,json=wornTitle,proto3" json:"worn_title,omitempty"`
-	Guest     bool                   `protobuf:"varint,7,opt,name=guest,proto3" json:"guest,omitempty"`
-	// A username whose player lets the clips show it.
-	ShownInClips  bool `protobuf:"varint,8,opt,name=shown_in_clips,json=shownInClips,proto3" json:"shown_in_clips,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Admin         bool                   `protobuf:"varint,3,opt,name=admin,proto3" json:"admin,omitempty"`
+	Color         NameColor              `protobuf:"varint,4,opt,name=color,proto3,enum=player.v1.NameColor" json:"color,omitempty"`
+	Streak        uint32                 `protobuf:"varint,5,opt,name=streak,proto3" json:"streak,omitempty"`
+	WornTitle     *Title                 `protobuf:"bytes,6,opt,name=worn_title,json=wornTitle,proto3" json:"worn_title,omitempty"`
+	Guest         bool                   `protobuf:"varint,7,opt,name=guest,proto3" json:"guest,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -323,13 +321,6 @@ func (x *Author) GetGuest() bool {
 	return false
 }
 
-func (x *Author) GetShownInClips() bool {
-	if x != nil {
-		return x.ShownInClips
-	}
-	return false
-}
-
 var File_player_v1_internal_proto protoreflect.FileDescriptor
 
 const file_player_v1_internal_proto_rawDesc = "" +
@@ -349,7 +340,7 @@ const file_player_v1_internal_proto_rawDesc = "" +
 	"\vaccount_ids\x18\x01 \x03(\tR\n" +
 	"accountIds\"A\n" +
 	"\x12GetAuthorsResponse\x12+\n" +
-	"\aauthors\x18\x01 \x03(\v2\x11.player.v1.AuthorR\aauthors\"\x82\x02\n" +
+	"\aauthors\x18\x01 \x03(\v2\x11.player.v1.AuthorR\aauthors\"\xdc\x01\n" +
 	"\x06Author\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12\x12\n" +
@@ -359,8 +350,7 @@ const file_player_v1_internal_proto_rawDesc = "" +
 	"\x06streak\x18\x05 \x01(\rR\x06streak\x12/\n" +
 	"\n" +
 	"worn_title\x18\x06 \x01(\v2\x10.player.v1.TitleR\twornTitle\x12\x14\n" +
-	"\x05guest\x18\a \x01(\bR\x05guest\x12$\n" +
-	"\x0eshown_in_clips\x18\b \x01(\bR\fshownInClips2\xa9\x01\n" +
+	"\x05guest\x18\a \x01(\bR\x05guest2\xa9\x01\n" +
 	"\x0fInternalService\x12F\n" +
 	"\tGetAuthor\x12\x1b.player.v1.GetAuthorRequest\x1a\x1c.player.v1.GetAuthorResponse\x12N\n" +
 	"\n" +

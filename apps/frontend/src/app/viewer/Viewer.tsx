@@ -112,7 +112,7 @@ import {reigningChampionOf} from "../../domain/champion.ts";
 import {countryLines, CountryOrder, shownOrder} from "../../domain/race.ts";
 import {endedBookOf} from "../../domain/debrief.ts";
 import {acceptedClicks} from "./acceptedClicks.ts";
-import {ClipsBackend} from "../../backends/clips.ts";
+import {ClipsBackend, ClipsNameBackend} from "../../backends/clips.ts";
 import ClipNotice from "../clips/ClipNotice.tsx";
 import {useClipNotice} from "../clips/useClipNotice.ts";
 import "./Viewer.css"
@@ -148,7 +148,7 @@ export type ViewerProps = {
     support?: SupportBackend
     missions?: MissionsBackend
     chargesRefresher?: ChargesRefresher
-    clips?: ClipsBackend
+    clips?: ClipsBackend & ClipsNameBackend
 }
 
 // Planet grants a mission's reward from a command, after the read that says it is paid.
@@ -376,6 +376,7 @@ export default function Viewer(props: ViewerProps) {
         linkedMultiplier: clickBudget?.linkedMultiplier,
         playerInfo: props.playerInfo,
         listenForClicks: accepted.listenForClicks,
+        clips: props.clips,
     }
     const share = {
         onTakePicture: () => {

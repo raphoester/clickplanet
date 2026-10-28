@@ -14,6 +14,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/casts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/get_appearances_handler/appearances_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/migrations"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/optouts/postgres_optout_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -79,7 +80,7 @@ func (s *testSuite) TestThePostsOutThisWeekNameTheCallerNewestFirst() {
 	s.keep("today", now.Add(-time.Hour), []appearances.Platform{appearances.YouTube}, ada)
 	s.keep("later", now.Add(time.Hour), both, ada)
 
-	want := &clipsv1.GetAppearancesResponse{Appearances: []*clipsv1.Appearance{
+	want := &clipsv1.GetAppearancesResponse{NameShown: true, Appearances: []*clipsv1.Appearance{
 		{
 			PostId: "today", Title: "FRANCE VS TURKEY", ScheduledAt: timestamppb.New(now.Add(-time.Hour)),
 			Links: []*clipsv1.ClipLink{{Platform: "youtube"}},
@@ -142,4 +143,12 @@ func (s *testSuite) TestADeletedAccountIsInNoPost() {
 
 	s.Empty(s.appearances(ada).GetAppearances())
 	s.Len(s.appearances(bob).GetAppearances(), 1)
+}
+
+func (s *testSuite) TestAPlayerWhoKeepsOutReadsTheirNameNotShown() {
+	ada, bob := s.account("01"), s.account("02")
+	s.Require().NoError(postgres_optout_store.New(s.db).Keep(s.T().Context(), ada))
+
+	s.False(s.appearances(ada).GetNameShown())
+	s.True(s.appearances(bob).GetNameShown())
 }

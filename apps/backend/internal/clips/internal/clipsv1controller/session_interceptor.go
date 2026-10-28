@@ -26,5 +26,6 @@ func NewSessionInterceptor(verifier cpconnect.SessionVerifier, clock cptime.Cloc
 		true,
 		func(verdict cpconnect.SessionVerdict) { checks.WithLabelValues(string(verdict)).Inc() },
 		cpconnect.Identified(clipsv1connect.ClipsServiceGetAppearancesProcedure),
+		cpconnect.Identified(clipsv1connect.ClipsServiceSetNameShownProcedure),
 	)
 }

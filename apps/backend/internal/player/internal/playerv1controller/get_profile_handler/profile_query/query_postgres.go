@@ -28,20 +28,18 @@ type PostgresQuery struct {
 }
 
 const profile = `
-	SELECT COALESCE(profiles.name, ''), COALESCE(profiles.color, 0), profiles.name_chosen_at,
-		COALESCE(profiles.shown_in_clips, false)
+	SELECT COALESCE(profiles.name, ''), COALESCE(profiles.color, 0), profiles.name_chosen_at
 	FROM (SELECT $1::uuid AS account_id) asked
 	LEFT JOIN profiles ON profiles.account_id = asked.account_id
 `
 
 func (q *PostgresQuery) Profile(ctx context.Context, account cpsession.AccountID) (*playerv1.GetProfileResponse, error) {
 	var (
-		name         string
-		color        int32
-		chosenAt     sql.NullTime
-		shownInClips bool
+		name     string
+		color    int32
+		chosenAt sql.NullTime
 	)
-	if err := q.db.On(ctx).QueryRowContext(ctx, profile, uuid.UUID(account)).Scan(&name, &color, &chosenAt, &shownInClips); err != nil {
+	if err := q.db.On(ctx).QueryRowContext(ctx, profile, uuid.UUID(account)).Scan(&name, &color, &chosenAt); err != nil {
 		return nil, fmt.Errorf("failed to read the profile: %w", err)
 	}
 
@@ -56,8 +54,7 @@ func (q *PostgresQuery) Profile(ctx context.Context, account cpsession.AccountID
 	}
 
 	return &playerv1.GetProfileResponse{
-		Profile:      &playerv1.Profile{AccountId: account.String(), Name: name, RenamableAtUnixMs: q.renames.RenamableAt(chosen)},
-		Color:        kept,
-		ShownInClips: shownInClips,
+		Profile: &playerv1.Profile{AccountId: account.String(), Name: name, RenamableAtUnixMs: q.renames.RenamableAt(chosen)},
+		Color:   kept,
 	}, nil
 }

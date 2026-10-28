@@ -22,11 +22,13 @@ them, so they watch it and share it, and lets them keep their name out.
 - **A link is the video, or the channel until the video's address is known** (`watchLinksOf`):
   `TIKTOK_PROFILE` and `YOUTUBE_CHANNEL` from `links.ts`. One button per platform; a platform this build
   does not know is dropped at the wire (`platformOf` in `clipsBackend.ts`).
-- **The switch is "Show my name in clips"**, in the Account tab under the name color, for a player with a
-  username only. It follows the color: `AccountStore.setShownInClips` shows the choice at once, sends
-  `SetShownInClips` and keeps what the server answers, or the old choice and a line on a refusal
-  (`FailedPrecondition` without a username → `unnamed`). `GetProfile` answers it with the name.
-- `backends/clips.ts` is the contract, `ConnectClipsBackend` the real one: it sends the identity token
-  (`session.identity()`, no mint) and reads a server without the service, or a token refused, as no clip.
+- **The switch is "Show my name in clips"**, `app/clips/ClipsSwitch.tsx`, in the Account tab under the name
+  color, for a player with a username only. **It is the clips service's, not the player's**: it reads
+  `GetAppearances`' `name_shown` when it mounts, shows nothing until then, and sends `SetNameShown`. It shows
+  the choice at once and keeps what the server answers, or the old choice and a line on a failure. It is keyed
+  by the account id, so another account reads its own.
+- `backends/clips.ts` is the contract: `ClipsBackend` for the notice, `ClipsNameBackend` for the switch.
+  `ConnectClipsBackend` is the real one: it sends the identity token (`session.identity()`, no mint), reads a
+  server without the service, or a token refused, as no clip, and refuses the switch with no token.
   `FakeClipsBackend` is the fake: `giveClip("France vs Turkey")` in the console posts a clip that names
   you, and `signIn()` signs the fake account in (see [Sign-in](sign-in.md)), which reads it at once.

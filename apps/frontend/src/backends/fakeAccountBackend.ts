@@ -7,12 +7,10 @@ export class FakeAccountBackend implements AccountBackend, PlayerBackend {
     private linked: Provider[] = []
     private name = ""
     private color = NameColor.UNSPECIFIED
-    private shownInClips = false
 
     public signIn(name: string): void {
         this.linked = ["google"]
         this.name = name
-        this.shownInClips = true
     }
 
     public async signInOptions(): Promise<Provider[]> {
@@ -52,7 +50,7 @@ export class FakeAccountBackend implements AccountBackend, PlayerBackend {
     }
 
     public async profile(): Promise<ColoredProfile> {
-        return {accountId: FAKE_YOU, name: this.name, color: this.color, shownInClips: this.shownInClips}
+        return {accountId: FAKE_YOU, name: this.name, color: this.color}
     }
 
     public async setName(name: string): Promise<Profile> {
@@ -65,12 +63,6 @@ export class FakeAccountBackend implements AccountBackend, PlayerBackend {
         this.requireSignedIn()
         this.color = color
         return color
-    }
-
-    public async setShownInClips(shown: boolean): Promise<boolean> {
-        this.requireSignedIn()
-        this.shownInClips = shown
-        return shown
     }
 
     public async titles(): Promise<TitleDashboard> {
@@ -93,6 +85,5 @@ export class FakeAccountBackend implements AccountBackend, PlayerBackend {
         this.linked = []
         this.name = ""
         this.color = NameColor.UNSPECIFIED
-        this.shownInClips = false
     }
 }

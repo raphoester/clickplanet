@@ -2,7 +2,7 @@ import {Code, ConnectError, createPromiseClient, PromiseClient} from "@connectrp
 import {createConnectTransport} from "@connectrpc/connect-web"
 import {ClipsService} from "../gen/grpc/clips/v1/appearances_connect.ts"
 import {Appearance as AppearancePb, ClipLink as ClipLinkPb} from "../gen/grpc/clips/v1/appearances_pb.ts"
-import {Appearance, ClipLink, ClipsBackend, Platform} from "./clips.ts"
+import {Appearance, ClipLink, ClipsBackend, ClipsNameBackend, Platform} from "./clips.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
 import {Config, retrying} from "./transport.ts"
 
@@ -16,7 +16,7 @@ export function newClipsServiceClient(config: Config): PromiseClient<typeof Clip
     }))
 }
 
-export class ConnectClipsBackend implements ClipsBackend {
+export class ConnectClipsBackend implements ClipsBackend, ClipsNameBackend {
     constructor(
         private readonly client: PromiseClient<typeof ClipsService>,
         private readonly session: SessionProvider,
@@ -35,6 +35,23 @@ export class ConnectClipsBackend implements ClipsBackend {
             if (e instanceof ConnectError && [Code.Unimplemented, Code.NotFound, Code.Unauthenticated].includes(e.code)) return []
             throw e
         }
+    }
+
+    public async nameShown(): Promise<boolean> {
+        const headers = await this.identified()
+        const res = await retrying(() => this.client.getAppearances({}, {headers}), "GetAppearances")
+        return res.nameShown
+    }
+
+    public async setNameShown(shown: boolean): Promise<boolean> {
+        const res = await this.client.setNameShown({nameShown: shown}, {headers: await this.identified()})
+        return res.nameShown
+    }
+
+    private async identified(): Promise<Headers> {
+        const token = await this.session.identity()
+        if (!token) throw new Error("no identity token to answer for")
+        return new Headers({[SESSION_HEADER]: token})
     }
 }
 

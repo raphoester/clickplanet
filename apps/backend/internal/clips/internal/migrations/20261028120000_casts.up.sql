@@ -37,3 +37,8 @@ CREATE INDEX appearances_scheduled_at ON appearances (scheduled_at);
 
 -- A post's address on a platform, read from its newest snapshot.
 CREATE INDEX snapshot_rows_post ON snapshot_rows (post_id, platform, taken_at DESC);
+
+-- A player who keeps their name out of the clips: no cast names them.
+CREATE TABLE opt_outs (
+    account uuid PRIMARY KEY
+);

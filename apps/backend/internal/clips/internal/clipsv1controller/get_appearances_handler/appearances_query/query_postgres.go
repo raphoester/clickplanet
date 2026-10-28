@@ -67,5 +67,10 @@ func (q *PostgresQuery) Appearances(ctx context.Context, account casts.AccountID
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("failed to read the posts that name the player: %w", err)
 	}
+
+	if err := q.db.On(ctx).QueryRowContext(ctx, `SELECT NOT EXISTS (SELECT 1 FROM opt_outs WHERE account = $1)`,
+		uuid.UUID(account)).Scan(&answer.NameShown); err != nil {
+		return nil, fmt.Errorf("failed to read whether the player keeps out of the clips: %w", err)
+	}
 	return answer, nil
 }

@@ -72,7 +72,7 @@ export class ConnectPlayerBackend implements PlayerBackend, PresenceBackend, Pla
     public async profile(): Promise<ColoredProfile> {
         const res = await this.authenticated((headers) =>
             retrying(() => this.client.getProfile({}, {headers}), "GetProfile"))
-        return {...profileOf(res.profile), color: res.color, shownInClips: res.shownInClips}
+        return {...profileOf(res.profile), color: res.color}
     }
 
     public async setName(name: string): Promise<Profile> {
@@ -83,11 +83,6 @@ export class ConnectPlayerBackend implements PlayerBackend, PresenceBackend, Pla
     public async setColor(color: NameColor): Promise<NameColor> {
         const res = await this.authenticated((headers) => this.client.setColor({color}, {headers}))
         return res.color
-    }
-
-    public async setShownInClips(shown: boolean): Promise<boolean> {
-        const res = await this.authenticated((headers) => this.client.setShownInClips({shown}, {headers}))
-        return res.shown
     }
 
     public async titles(): Promise<TitleDashboard> {

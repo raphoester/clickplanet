@@ -9,7 +9,6 @@ import (
 
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/casts"
-	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/casts/usecases/make_cast_usecase"
 )
 
 type Player interface {
@@ -29,12 +28,12 @@ type Names struct {
 	player Player
 }
 
-var _ make_cast_usecase.Names = (*Names)(nil)
+var _ casts.Usernames = (*Names)(nil)
 
-func (n *Names) Shown(ctx context.Context, accounts []casts.AccountID) (map[casts.AccountID]string, error) {
-	shown := make(map[casts.AccountID]string, len(accounts))
+func (n *Names) Of(ctx context.Context, accounts []casts.AccountID) (map[casts.AccountID]string, error) {
+	names := make(map[casts.AccountID]string, len(accounts))
 	if len(accounts) == 0 {
-		return shown, nil
+		return names, nil
 	}
 
 	ids := make([]string, 0, len(accounts))
@@ -51,14 +50,14 @@ func (n *Names) Shown(ctx context.Context, accounts []casts.AccountID) (map[cast
 	}
 
 	for _, author := range answer.Msg.GetAuthors() {
-		if !author.GetShownInClips() {
+		if author.GetGuest() {
 			continue
 		}
 		account, err := casts.AccountIDOf(author.GetAccountId())
 		if err != nil {
 			return nil, fmt.Errorf("the player module answered for %q: %w", author.GetAccountId(), err)
 		}
-		shown[account] = author.GetName()
+		names[account] = author.GetName()
 	}
-	return shown, nil
+	return names, nil
 }

@@ -96,7 +96,6 @@ func TestTheReadsOfTheCallerTakeTheIdentityTokenOfAResumedSession(t *testing.T) 
 		playerv1connect.PlayerServiceGetProfileProcedure,
 		playerv1connect.PlayerServiceGetStatsProcedure,
 		playerv1connect.PlayerServiceLeaveProcedure,
-		playerv1connect.PlayerServiceSetShownInClipsProcedure,
 		playerv1connect.PlayerServiceGetTitlesProcedure,
 		playerv1connect.PlayerServiceGetFrontsProcedure,
 	} {

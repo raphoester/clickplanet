@@ -40,9 +40,6 @@ const (
 	PlayerServiceSetNameProcedure = "/player.v1.PlayerService/SetName"
 	// PlayerServiceSetColorProcedure is the fully-qualified name of the PlayerService's SetColor RPC.
 	PlayerServiceSetColorProcedure = "/player.v1.PlayerService/SetColor"
-	// PlayerServiceSetShownInClipsProcedure is the fully-qualified name of the PlayerService's
-	// SetShownInClips RPC.
-	PlayerServiceSetShownInClipsProcedure = "/player.v1.PlayerService/SetShownInClips"
 	// PlayerServiceGetStatsProcedure is the fully-qualified name of the PlayerService's GetStats RPC.
 	PlayerServiceGetStatsProcedure = "/player.v1.PlayerService/GetStats"
 	// PlayerServiceAnnounceProcedure is the fully-qualified name of the PlayerService's Announce RPC.
@@ -69,8 +66,6 @@ type PlayerServiceClient interface {
 	GetProfile(context.Context, *connect.Request[v1.GetProfileRequest]) (*connect.Response[v1.GetProfileResponse], error)
 	SetName(context.Context, *connect.Request[v1.SetNameRequest]) (*connect.Response[v1.SetNameResponse], error)
 	SetColor(context.Context, *connect.Request[v1.SetColorRequest]) (*connect.Response[v1.SetColorResponse], error)
-	// Whether the clips may show the caller's username. FailedPrecondition with no username.
-	SetShownInClips(context.Context, *connect.Request[v1.SetShownInClipsRequest]) (*connect.Response[v1.SetShownInClipsResponse], error)
 	GetStats(context.Context, *connect.Request[v1.GetStatsRequest]) (*connect.Response[v1.GetStatsResponse], error)
 	Announce(context.Context, *connect.Request[v1.AnnounceRequest]) (*connect.Response[v1.AnnounceResponse], error)
 	Leave(context.Context, *connect.Request[v1.LeaveRequest]) (*connect.Response[v1.LeaveResponse], error)
@@ -109,12 +104,6 @@ func NewPlayerServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			httpClient,
 			baseURL+PlayerServiceSetColorProcedure,
 			connect.WithSchema(playerServiceMethods.ByName("SetColor")),
-			connect.WithClientOptions(opts...),
-		),
-		setShownInClips: connect.NewClient[v1.SetShownInClipsRequest, v1.SetShownInClipsResponse](
-			httpClient,
-			baseURL+PlayerServiceSetShownInClipsProcedure,
-			connect.WithSchema(playerServiceMethods.ByName("SetShownInClips")),
 			connect.WithClientOptions(opts...),
 		),
 		getStats: connect.NewClient[v1.GetStatsRequest, v1.GetStatsResponse](
@@ -181,7 +170,6 @@ type playerServiceClient struct {
 	getProfile      *connect.Client[v1.GetProfileRequest, v1.GetProfileResponse]
 	setName         *connect.Client[v1.SetNameRequest, v1.SetNameResponse]
 	setColor        *connect.Client[v1.SetColorRequest, v1.SetColorResponse]
-	setShownInClips *connect.Client[v1.SetShownInClipsRequest, v1.SetShownInClipsResponse]
 	getStats        *connect.Client[v1.GetStatsRequest, v1.GetStatsResponse]
 	announce        *connect.Client[v1.AnnounceRequest, v1.AnnounceResponse]
 	leave           *connect.Client[v1.LeaveRequest, v1.LeaveResponse]
@@ -206,11 +194,6 @@ func (c *playerServiceClient) SetName(ctx context.Context, req *connect.Request[
 // SetColor calls player.v1.PlayerService.SetColor.
 func (c *playerServiceClient) SetColor(ctx context.Context, req *connect.Request[v1.SetColorRequest]) (*connect.Response[v1.SetColorResponse], error) {
 	return c.setColor.CallUnary(ctx, req)
-}
-
-// SetShownInClips calls player.v1.PlayerService.SetShownInClips.
-func (c *playerServiceClient) SetShownInClips(ctx context.Context, req *connect.Request[v1.SetShownInClipsRequest]) (*connect.Response[v1.SetShownInClipsResponse], error) {
-	return c.setShownInClips.CallUnary(ctx, req)
 }
 
 // GetStats calls player.v1.PlayerService.GetStats.
@@ -263,8 +246,6 @@ type PlayerServiceHandler interface {
 	GetProfile(context.Context, *connect.Request[v1.GetProfileRequest]) (*connect.Response[v1.GetProfileResponse], error)
 	SetName(context.Context, *connect.Request[v1.SetNameRequest]) (*connect.Response[v1.SetNameResponse], error)
 	SetColor(context.Context, *connect.Request[v1.SetColorRequest]) (*connect.Response[v1.SetColorResponse], error)
-	// Whether the clips may show the caller's username. FailedPrecondition with no username.
-	SetShownInClips(context.Context, *connect.Request[v1.SetShownInClipsRequest]) (*connect.Response[v1.SetShownInClipsResponse], error)
 	GetStats(context.Context, *connect.Request[v1.GetStatsRequest]) (*connect.Response[v1.GetStatsResponse], error)
 	Announce(context.Context, *connect.Request[v1.AnnounceRequest]) (*connect.Response[v1.AnnounceResponse], error)
 	Leave(context.Context, *connect.Request[v1.LeaveRequest]) (*connect.Response[v1.LeaveResponse], error)
@@ -299,12 +280,6 @@ func NewPlayerServiceHandler(svc PlayerServiceHandler, opts ...connect.HandlerOp
 		PlayerServiceSetColorProcedure,
 		svc.SetColor,
 		connect.WithSchema(playerServiceMethods.ByName("SetColor")),
-		connect.WithHandlerOptions(opts...),
-	)
-	playerServiceSetShownInClipsHandler := connect.NewUnaryHandler(
-		PlayerServiceSetShownInClipsProcedure,
-		svc.SetShownInClips,
-		connect.WithSchema(playerServiceMethods.ByName("SetShownInClips")),
 		connect.WithHandlerOptions(opts...),
 	)
 	playerServiceGetStatsHandler := connect.NewUnaryHandler(
@@ -371,8 +346,6 @@ func NewPlayerServiceHandler(svc PlayerServiceHandler, opts ...connect.HandlerOp
 			playerServiceSetNameHandler.ServeHTTP(w, r)
 		case PlayerServiceSetColorProcedure:
 			playerServiceSetColorHandler.ServeHTTP(w, r)
-		case PlayerServiceSetShownInClipsProcedure:
-			playerServiceSetShownInClipsHandler.ServeHTTP(w, r)
 		case PlayerServiceGetStatsProcedure:
 			playerServiceGetStatsHandler.ServeHTTP(w, r)
 		case PlayerServiceAnnounceProcedure:
@@ -410,10 +383,6 @@ func (UnimplementedPlayerServiceHandler) SetName(context.Context, *connect.Reque
 
 func (UnimplementedPlayerServiceHandler) SetColor(context.Context, *connect.Request[v1.SetColorRequest]) (*connect.Response[v1.SetColorResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.PlayerService.SetColor is not implemented"))
-}
-
-func (UnimplementedPlayerServiceHandler) SetShownInClips(context.Context, *connect.Request[v1.SetShownInClipsRequest]) (*connect.Response[v1.SetShownInClipsResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.PlayerService.SetShownInClips is not implemented"))
 }
 
 func (UnimplementedPlayerServiceHandler) GetStats(context.Context, *connect.Request[v1.GetStatsRequest]) (*connect.Response[v1.GetStatsResponse], error) {

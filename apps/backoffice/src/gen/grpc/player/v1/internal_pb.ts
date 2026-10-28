@@ -219,13 +219,6 @@ export class Author extends Message<Author> {
    */
   guest = false;
 
-  /**
-   * A username whose player lets the clips show it.
-   *
-   * @generated from field: bool shown_in_clips = 8;
-   */
-  shownInClips = false;
-
   constructor(data?: PartialMessage<Author>) {
     super();
     proto3.util.initPartial(data, this);
@@ -241,7 +234,6 @@ export class Author extends Message<Author> {
     { no: 5, name: "streak", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 6, name: "worn_title", kind: "message", T: Title },
     { no: 7, name: "guest", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 8, name: "shown_in_clips", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Author {

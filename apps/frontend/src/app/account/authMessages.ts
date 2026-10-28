@@ -72,22 +72,6 @@ export function colorMessageOf(failure: PlayerFailure): string {
     }
 }
 
-export function clipsMessageOf(failure: PlayerFailure): string {
-    switch (failure) {
-        case "unnamed":
-            return "Pick a username first."
-        case "notSignedIn":
-            return "We could not check who you are. Try again."
-        case "guest":
-            return "Sign in first."
-        case "invalid":
-        case "taken":
-        case "tooSoon":
-        case "failed":
-            return "Something went wrong. Try again."
-    }
-}
-
 export type Retry = "complete" | "start" | "none"
 
 export function retryOf(failure: AuthFailure): Retry {

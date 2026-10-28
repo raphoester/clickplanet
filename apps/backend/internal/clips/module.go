@@ -15,6 +15,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/appearances/postgres_appearance_store"
 	forget_appearances "github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/appearances/usecases/forget_account_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/appearances/usecases/keep_appearance_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/casts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/casts/postgres_cast_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/casts/rpc_planet_ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/casts/rpc_player_names"
@@ -31,7 +32,11 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/list_snapshots_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/list_snapshots_handler/snapshots_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/make_cast_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/set_name_shown_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/migrations"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/optouts/postgres_optout_store"
+	forget_optouts "github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/optouts/usecases/forget_account_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/optouts/usecases/set_name_shown_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/stats/snapshots/postgres_snapshot_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/stats/snapshots/usecases/keep_snapshot_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/subscribers/account_deleted_subscriber"
@@ -85,11 +90,12 @@ func build(ctx context.Context, config ModuleConfig, props cpbootstrap.Props) er
 		_ = db.Close()
 	}
 
-	casts := postgres_cast_store.New(db)
+	castStore := postgres_cast_store.New(db)
 	appearances := postgres_appearance_store.New(db)
+	optOuts := postgres_optout_store.New(db)
 
 	forgottenCasts, err := cpredis.Subscribe(ctx, streams, "clips-casts-accounts",
-		log_subscriber.New(account_deleted_subscriber.New(forget_casts.New(casts)), props.Logger))
+		log_subscriber.New(account_deleted_subscriber.New(forget_casts.New(castStore)), props.Logger))
 	if err != nil {
 		closeStores()
 		return fmt.Errorf("failed to subscribe the casts to auth.v1.AccountDeleted: %w", err)
@@ -100,9 +106,15 @@ func build(ctx context.Context, config ModuleConfig, props cpbootstrap.Props) er
 		closeStores()
 		return fmt.Errorf("failed to subscribe the appearances to auth.v1.AccountDeleted: %w", err)
 	}
+	forgottenOptOuts, err := cpredis.Subscribe(ctx, streams, "clips-optouts-accounts",
+		log_subscriber.New(account_deleted_subscriber.New(forget_optouts.New(optOuts)), props.Logger))
+	if err != nil {
+		closeStores()
+		return fmt.Errorf("failed to subscribe the opt-outs to auth.v1.AccountDeleted: %w", err)
+	}
 	// Not closers: closers run before the runners stop, and the runners use both.
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger, cpredis.CloseAfter(streams, props.Logger,
-		forgottenCasts, forgottenAppearances)))
+		forgottenCasts, forgottenAppearances, forgottenOptOuts)))
 
 	adminService := clipsv1controller.AdminService{
 		KeepSnapshotHandler:  keep_snapshot_handler.New(keep_snapshot_usecase.New(postgres_snapshot_store.New(db))),
@@ -110,10 +122,10 @@ func build(ctx context.Context, config ModuleConfig, props cpbootstrap.Props) er
 		ListRowsHandler:      list_rows_handler.New(rows_query.NewPostgresQuery(db)),
 		MakeCastHandler: make_cast_handler.New(make_cast_usecase.New(
 			rpc_planet_ledger.New(planetv1connect.NewInternalServiceClient(internal, baseURL)),
-			rpc_player_names.New(playerv1connect.NewInternalServiceClient(internal, baseURL)),
-			casts, uuid_id_provider.Provider{}, clock,
+			casts.NewShownNames(rpc_player_names.New(playerv1connect.NewInternalServiceClient(internal, baseURL)), optOuts),
+			castStore, uuid_id_provider.Provider{}, clock,
 		)),
-		KeepAppearanceHandler: keep_appearance_handler.New(keep_appearance_usecase.New(casts, appearances, clock)),
+		KeepAppearanceHandler: keep_appearance_handler.New(keep_appearance_usecase.New(castStore, appearances, clock)),
 	}
 	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return clipsv1connect.NewAdminServiceHandler(adminService, options...)
@@ -123,6 +135,7 @@ func build(ctx context.Context, config ModuleConfig, props cpbootstrap.Props) er
 
 	clipsService := clipsv1controller.ClipsService{
 		GetAppearancesHandler: get_appearances_handler.New(appearances_query.NewPostgresQuery(db, clock)),
+		SetNameShownHandler:   set_name_shown_handler.New(set_name_shown_usecase.New(optOuts)),
 	}
 	verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", moduleName)))
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {

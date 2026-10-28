@@ -36,11 +36,16 @@ const (
 	// ClipsServiceGetAppearancesProcedure is the fully-qualified name of the ClipsService's
 	// GetAppearances RPC.
 	ClipsServiceGetAppearancesProcedure = "/clips.v1.ClipsService/GetAppearances"
+	// ClipsServiceSetNameShownProcedure is the fully-qualified name of the ClipsService's SetNameShown
+	// RPC.
+	ClipsServiceSetNameShownProcedure = "/clips.v1.ClipsService/SetNameShown"
 )
 
 // ClipsServiceClient is a client for the clips.v1.ClipsService service.
 type ClipsServiceClient interface {
 	GetAppearances(context.Context, *connect.Request[v1.GetAppearancesRequest]) (*connect.Response[v1.GetAppearancesResponse], error)
+	// Whether the clips may name the caller.
+	SetNameShown(context.Context, *connect.Request[v1.SetNameShownRequest]) (*connect.Response[v1.SetNameShownResponse], error)
 }
 
 // NewClipsServiceClient constructs a client for the clips.v1.ClipsService service. By default, it
@@ -61,12 +66,19 @@ func NewClipsServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		setNameShown: connect.NewClient[v1.SetNameShownRequest, v1.SetNameShownResponse](
+			httpClient,
+			baseURL+ClipsServiceSetNameShownProcedure,
+			connect.WithSchema(clipsServiceMethods.ByName("SetNameShown")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // clipsServiceClient implements ClipsServiceClient.
 type clipsServiceClient struct {
 	getAppearances *connect.Client[v1.GetAppearancesRequest, v1.GetAppearancesResponse]
+	setNameShown   *connect.Client[v1.SetNameShownRequest, v1.SetNameShownResponse]
 }
 
 // GetAppearances calls clips.v1.ClipsService.GetAppearances.
@@ -74,9 +86,16 @@ func (c *clipsServiceClient) GetAppearances(ctx context.Context, req *connect.Re
 	return c.getAppearances.CallUnary(ctx, req)
 }
 
+// SetNameShown calls clips.v1.ClipsService.SetNameShown.
+func (c *clipsServiceClient) SetNameShown(ctx context.Context, req *connect.Request[v1.SetNameShownRequest]) (*connect.Response[v1.SetNameShownResponse], error) {
+	return c.setNameShown.CallUnary(ctx, req)
+}
+
 // ClipsServiceHandler is an implementation of the clips.v1.ClipsService service.
 type ClipsServiceHandler interface {
 	GetAppearances(context.Context, *connect.Request[v1.GetAppearancesRequest]) (*connect.Response[v1.GetAppearancesResponse], error)
+	// Whether the clips may name the caller.
+	SetNameShown(context.Context, *connect.Request[v1.SetNameShownRequest]) (*connect.Response[v1.SetNameShownResponse], error)
 }
 
 // NewClipsServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -93,10 +112,18 @@ func NewClipsServiceHandler(svc ClipsServiceHandler, opts ...connect.HandlerOpti
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	clipsServiceSetNameShownHandler := connect.NewUnaryHandler(
+		ClipsServiceSetNameShownProcedure,
+		svc.SetNameShown,
+		connect.WithSchema(clipsServiceMethods.ByName("SetNameShown")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/clips.v1.ClipsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ClipsServiceGetAppearancesProcedure:
 			clipsServiceGetAppearancesHandler.ServeHTTP(w, r)
+		case ClipsServiceSetNameShownProcedure:
+			clipsServiceSetNameShownHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -108,4 +135,8 @@ type UnimplementedClipsServiceHandler struct{}
 
 func (UnimplementedClipsServiceHandler) GetAppearances(context.Context, *connect.Request[v1.GetAppearancesRequest]) (*connect.Response[v1.GetAppearancesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("clips.v1.ClipsService.GetAppearances is not implemented"))
+}
+
+func (UnimplementedClipsServiceHandler) SetNameShown(context.Context, *connect.Request[v1.SetNameShownRequest]) (*connect.Response[v1.SetNameShownResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("clips.v1.ClipsService.SetNameShown is not implemented"))
 }
