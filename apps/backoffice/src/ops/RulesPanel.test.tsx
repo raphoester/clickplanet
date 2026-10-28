@@ -42,12 +42,18 @@ describe("the game rules page", () => {
         expect(within(row).getByText("Every 4 min to 8 min, 12 an hour at most")).toBeTruthy()
     })
 
-    it("offers no edit of the set that plays", async () => {
-        render(<RulesPanel planet={withCalm()}/>)
+    it("edits the set that plays, and says it takes over at once", async () => {
+        const admin = withCalm()
+        render(<RulesPanel planet={admin}/>)
 
-        await screen.findByRole("button", {name: "Edit calm"})
-        expect(screen.queryByRole("button", {name: "Edit default"})).toBeNull()
-        expect(screen.getByRole("button", {name: "Copy default"})).toBeTruthy()
+        fireEvent.click(await screen.findByRole("button", {name: "Edit default"}))
+        type("New account, clicks in hand", "60")
+        fireEvent.click(screen.getByRole("button", {name: "Save"}))
+        expect(screen.getByText("It plays now: it takes over at once.")).toBeTruthy()
+        fireEvent.click(screen.getByRole("button", {name: "Yes, save"}))
+
+        await waitFor(() => expect(sent(admin)?.name).toBe("default"))
+        expect(sent(admin)?.rules?.clicks?.newAccountClicks).toBe(60)
     })
 
     it("edits a set once confirmed, and reads the rules again", async () => {
@@ -90,6 +96,7 @@ describe("the game rules page", () => {
             "Frozen no → yes",
             "Boxes · Shortest box wait (s) 4 min → 2 min",
         ])
+        expect(screen.queryByText("It plays now: it takes over at once.")).toBeNull()
     })
 
     it("switches quizzes off and edits the toll", async () => {
@@ -150,17 +157,5 @@ describe("the game rules page", () => {
 
         expect((await screen.findByRole("alert")).textContent).toContain("The server refused it")
         expect(screen.getByRole("region", {name: "Edit calm"})).toBeTruthy()
-    })
-
-    it("says why a save of the set that plays now is refused", async () => {
-        const admin = new FakeAdmin()
-        admin.refuse("saveRuleSet", Code.FailedPrecondition)
-        render(<RulesPanel planet={admin}/>)
-
-        fireEvent.click(await screen.findByRole("button", {name: "Copy default"}))
-        type("Name", "default")
-        save()
-
-        expect((await screen.findByRole("alert")).textContent).toContain("plays now")
     })
 })

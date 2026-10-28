@@ -8,7 +8,6 @@ import (
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/usecases/save_rule_set_usecase"
 )
 
 type UseCase interface {
@@ -35,8 +34,6 @@ func (h SaveRuleSetHandler) SaveRuleSet(
 		return connect.NewResponse(&planetv1.SaveRuleSetResponse{}), nil
 	case errors.Is(err, rules.ErrInvalidSet):
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
-	case errors.Is(err, save_rule_set_usecase.ErrPlaying):
-		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	default:
 		return nil, err
 	}

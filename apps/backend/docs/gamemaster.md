@@ -123,7 +123,8 @@ even when it plays the set already playing, so it is commanded again.
   after now, an end after the start, the name a set's, and the description short enough (`Draft.check`, every reason
   at once, each reason found by `errors.Is`).
 - **A running entry runs to its end.** To fix one, the operator adds an entry at a higher priority. There is no "end
-  now", no override button, and no call that changes the rules at once.
+  now", no override button, and no call that changes which set plays at once; a save of the set in force changes its
+  values at once (see [Rules](rules.md#the-operator)).
 - **An edit keeps the entry's id and its `made_at`**, so it keeps its place in a tie.
 - **A battle may not overlap a season's finale** (`Calendar.Overlapped`, `season.ErrFinaleOverlap`,
   `FailedPrecondition`): a new or edited entry of kind battle whose window touches a finale's is refused. A plain entry
@@ -181,8 +182,8 @@ Planet and the antibot do the same thing, each in its own `play_rules_usecase`:
 - The antibot also tells planet every running ban again under each set it takes (`bans.Book.Restate`). A failed
   restatement fails the handler, and the command delivered again restates them.
 
-**No set plays while it is edited**: each module's `SaveRuleSet` refuses the set in force with `FailedPrecondition`
-(`ErrPlaying`). To change the rules that play, the operator saves another set and schedules it.
+**A save of the set in force takes over at once**: each module's `SaveRuleSet` keeps the set, then plays the set chosen
+last again (`Execute`), which enforces the new values. A save of another set plays when the schedule plays it.
 
 ## The operator
 

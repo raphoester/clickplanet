@@ -70,7 +70,7 @@ stream sent it. The frontend's clip generator plays it back (see its [Clips](../
 
 ## `GetRules`, `SaveRuleSet`
 
-The rule sets an operator reads and writes, never the one that plays now: see [Rules](rules.md). The backoffice's Game
+The rule sets an operator reads and writes; a save of the one that plays now takes over at once: see [Rules](rules.md). The backoffice's Game
 rules page calls both.
 
 ## The rule schedule: `gamemaster.v1.AdminService`
