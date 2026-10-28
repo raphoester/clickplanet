@@ -88,6 +88,22 @@ func (s *Store) ChangeSheet(
 	return nil
 }
 
+func (s *Store) PaidInAll(_ context.Context, account missions.AccountID) (uint64, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.failWith != nil {
+		return 0, s.failWith
+	}
+	var paid uint64
+	for key, sheet := range s.sheets {
+		if key.account == account && sheet.Paid != nil {
+			paid += uint64(sheet.Paid.Len())
+		}
+	}
+	return paid, nil
+}
+
 func (s *Store) DeleteAccount(_ context.Context, account missions.AccountID) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

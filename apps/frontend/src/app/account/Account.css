@@ -155,6 +155,13 @@
     opacity: 0.6;
 }
 
+.account-clips {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: var(--space-2);
+}
+
 .account-legal {
     margin: var(--space-2) 0 0 0;
     font-weight: 600;

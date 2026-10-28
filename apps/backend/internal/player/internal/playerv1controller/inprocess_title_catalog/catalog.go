@@ -36,6 +36,7 @@ func (c Catalog) Tracks(held []string, career playerread.Career) []*playerv1.Tra
 		TilesFortified: career.TilesFortified,
 		BonusesClaimed: career.BonusesClaimed,
 		RightAnswers:   career.RightAnswers,
+		MissionsDone:   career.MissionsDone,
 	}.Restore()
 	progress := c.catalog.Progress(titles.CareerOf(stats, players.AccountOf(false, time.Time{})), idsOf(held))
 

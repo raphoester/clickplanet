@@ -16,6 +16,10 @@ type ScriptedSource struct {
 	RoundsAsked []RoundID
 	round       Round
 	roundErr    error
+
+	CastsAsked []Window
+	cast       Cast
+	castErr    error
 }
 
 func NewScriptedSource(replay Replay) *ScriptedSource {
@@ -102,4 +106,19 @@ func (s *MemoryStore) SaveRound(_ context.Context, round Round) error {
 	}
 	s.SavedRounds = append(s.SavedRounds, round)
 	return nil
+}
+
+var _ CastSource = (*ScriptedSource)(nil)
+
+func (s *ScriptedSource) AnswerCast(cast Cast) {
+	s.cast = cast
+}
+
+func (s *ScriptedSource) FailCastWith(err error) {
+	s.castErr = err
+}
+
+func (s *ScriptedSource) Cast(_ context.Context, window Window) (Cast, error) {
+	s.CastsAsked = append(s.CastsAsked, window)
+	return s.cast, s.castErr
 }

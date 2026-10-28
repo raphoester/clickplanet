@@ -12,8 +12,8 @@ import (
 )
 
 var (
-	battle = posts.Story{Front: 1, Kind: posts.Battle, Attacker: "fr", Rival: "tr", TakenFrom: []string{"tr"}, Countries: []string{"tr", "sy"}, Headline: "France vs Turkey", Teasers: []string{"THE WAR FOR TURKEY"}, Call: "PICK A SIDE", CallFlags: []string{"fr", "tr"}, Anthem: "fr"}
-	india  = posts.Story{Front: 1, Kind: posts.Rout, Attacker: "fr", TakenFrom: []string{"dz"}, Countries: []string{"in"}, Headline: "ALGERIA LOSES ALL OF INDIA", Teasers: []string{"FRANCE TAKES INDIA"}, Call: "FIGHT FOR ALGERIA", CallFlags: []string{"dz"}}
+	battle = posts.Story{Front: 1, Kind: posts.Battle, Attacker: "fr", Rival: "tr", TakenFrom: []string{"tr"}, Countries: []string{"tr", "sy"}, Headline: "France vs Turkey", Teasers: []string{"THE WAR FOR TURKEY"}, Call: "PICK A SIDE", CallFlags: []string{"fr", "tr"}, Anthem: "fr", Look: posts.Dive}
+	india  = posts.Story{Front: 1, Kind: posts.Rout, Attacker: "fr", TakenFrom: []string{"dz"}, Countries: []string{"in"}, Headline: "ALGERIA LOSES ALL OF INDIA", Teasers: []string{"FRANCE TAKES INDIA"}, Call: "FIGHT FOR ALGERIA", CallFlags: []string{"dz"}, Look: posts.PaintedFlags}
 	tour   = posts.Story{Tour: 1, Headline: "FRANCE IS EVERYWHERE", Teasers: []string{"NOBODY CAN STOP FRANCE"}, Call: "FIGHT BACK", Anthem: "fr"}
 )
 
@@ -96,7 +96,7 @@ func TestAHeadlineOfTheLastWeekOrOfThisRunIsSkippedAndSoIsAKeyToldTwiceInTheRun(
 	found := findings(t)
 	posted := []posts.Telling{told(posts.StoryKey{Flag: "fr", Continent: "Europe"}, "France vs Turkey ", 6*24*time.Hour)}
 	again := with(india, func(s *posts.Story) { s.Headline = "ALGERIA LOSES ALL OF INDIA" })
-	middleEast := posts.Story{Front: 1, Kind: posts.Attack, Attacker: "fr", TakenFrom: []string{"tr"}, Continent: "Middle East", Headline: "FRANCE STORMS THE MIDDLE EAST", Teasers: []string{"FRANCE TAKES THE MIDDLE EAST"}, Call: "DEFEND THE MIDDLE EAST"}
+	middleEast := posts.Story{Front: 1, Kind: posts.Attack, Attacker: "fr", TakenFrom: []string{"tr"}, Continent: "Middle East", Headline: "FRANCE STORMS THE MIDDLE EAST", Teasers: []string{"FRANCE TAKES THE MIDDLE EAST"}, Call: "DEFEND THE MIDDLE EAST", Look: posts.Dive}
 	sameKey := with(middleEast, func(s *posts.Story) {
 		s.Kind, s.Continent, s.Countries, s.Headline = posts.Invasion, "", []string{"sy"}, "FRANCE TAKES SYRIA"
 	})

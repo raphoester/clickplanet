@@ -2,9 +2,15 @@ syntax = "proto3";
 
 package planet.v1;
 
+import "planet/v1/ledger.proto";
 import "planet/v1/planet.proto";
 
 service InternalService {
+  // AdminService/GetLedger, for the clips module's cast: who took which tile.
+  rpc GetLedger(GetLedgerRequest) returns (GetLedgerResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
   rpc GetTakesByCountry(GetTakesByCountryRequest) returns (GetTakesByCountryResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }

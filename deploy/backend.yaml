@@ -122,3 +122,5 @@ clips:
     dbName: postgres
     sslMode: disable
     schema: clips
+  redis:
+    address: redis:6379

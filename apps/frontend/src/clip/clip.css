@@ -22,7 +22,8 @@ html, body {
     --font-display: "Rubik", system-ui, sans-serif;
 }
 
-.clip--fallback-font :is(.clip-headline, .clip-counter, .clip-site, .clip-call, .clip-when, .clip-url, .clip-podium-place) {
+.clip--fallback-font :is(.clip-headline, .clip-counter, .clip-site, .clip-call, .clip-when, .clip-url, .clip-podium-place,
+    .clip-fighters-title, .clip-fighter) {
     font-weight: 900;
 }
 
@@ -261,4 +262,70 @@ html, body {
 
 .clip-podium-points {
     color: var(--gain);
+}
+
+/* No panel, so the map shows through; clear of the buttons that run down the right. */
+.clip-fighters {
+    align-self: center;
+    max-width: calc(100% - 2 * (var(--safe-right) - var(--safe-side)));
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    opacity: 0;
+}
+
+.clip-fighters-title {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 15px;
+    font-weight: normal;
+    color: var(--gold);
+    -webkit-text-stroke: 4px var(--ink);
+    paint-order: stroke fill;
+}
+
+.clip-fighters-side {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.clip-fighters-side + .clip-fighters-side {
+    padding-top: 6px;
+}
+
+.clip-fighter {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-family: var(--font-display);
+    font-size: 15px;
+    line-height: 1.2;
+    color: var(--text);
+    -webkit-text-stroke: 4px var(--ink);
+    paint-order: stroke fill;
+}
+
+.clip-fighter-flag {
+    width: 1.35em;
+    height: 0.9em;
+    object-fit: cover;
+    border: 1.5px solid var(--ink);
+    border-radius: 2px;
+}
+
+.clip-fighter-name {
+    flex: 1;
+    min-width: 0;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.clip-fighter-took {
+    margin-left: 10px;
+    color: var(--gain);
+    white-space: nowrap;
 }

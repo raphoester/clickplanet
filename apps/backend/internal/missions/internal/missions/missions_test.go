@@ -447,7 +447,7 @@ func TestATakeThatCountsNothingLeavesTheMark(t *testing.T) {
 	assert.Equal(t, uint64(5), sheet.Snapshot().Counted.TakesBelow)
 }
 
-func TestAWithTakeLeavesTheSheetItWasCalledOnAlone(t *testing.T) {
+func TestAWithFactLeavesTheSheetItWasCalledOnAlone(t *testing.T) {
 	before := missions.SheetOf(missions.SheetSnapshot{})
 
 	_ = before.WithFact(take("fr", "", ""), briefOf(t, frBrief...))

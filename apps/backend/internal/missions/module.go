@@ -16,6 +16,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/payroll"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/postgres_mission_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/redis_outbox_sender"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/rpc_auth_accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/rpc_planet_allegiance"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/rpc_planet_world"
@@ -107,7 +108,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	}
 
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger, cpredis.CloseAfter(streams, props.Logger,
-		append(facts, deletions, signIns, cpoutbox.NewRelay("missions-outbox", db, streams.Commands(), props.Logger))...)))
+		append(facts, deletions, signIns, cpoutbox.NewRelay("missions-outbox", db, redis_outbox_sender.New(streams, streams.Commands()), props.Logger))...)))
 
 	service := missionsv1controller.MissionService{
 		GetMissionsHandler: get_missions_handler.New(

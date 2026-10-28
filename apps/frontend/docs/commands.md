@@ -53,7 +53,7 @@ shields, a box adding 1 to 4, 1 to 3 and 5 to 20 of them, spread and enclose
 spent only while switched on,
 both at once refused, a refill refused on a full bank), `giveQuiz()` puts a quiz
 banner up at once, `giveTitle("warlord")` plays the unlock of any title (the fake
-wires no account, so the overlay offers Close only), `closeDay()` closes the
+account wears nothing, so Wear it only closes it), `closeDay()` closes the
 fake's day: scoring scores today's round, its countries with a little luck, the
 fake gamemaster debriefs it and the next day runs, and the chat announces the
 podium, so the cutoff plays (see [The cutoff, revealed](cutoff.md)). Each call
@@ -90,6 +90,10 @@ close nothing, for the bubble that says so, and `closeShapes(true)` puts it back
 minutes, as a ban does, and `fakeBackend.ban(0)` lifts it.
 `fakeBackend.setTempo(3)` refills the bank three times as fast, as a rule set
 of the server can, and `fakeBackend.setTempo(1)` puts it back.
+`signIn("Nova")` signs the fake account in, with that username (see [Sign-in](sign-in.md)), and
+`giveClip("France vs Turkey")` posts a clip that names it: `signIn()` reads it at once, so the notice
+plays (see [In a clip](clip-appearances.md)). `localStorage.removeItem("clickplanet-clips-shown")`
+makes the clips shown new again.
 `localStorage.removeItem("clickplanet-bonus-guide")` makes the bonuses new again.
 `fakeSupport.refuse("rate-limited")` (or `"rejected"`, `"no-session"`,
 `"reported-already"`, `"failed"`) refuses what Settings and a player's card

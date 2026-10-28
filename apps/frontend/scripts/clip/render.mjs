@@ -18,7 +18,8 @@ if (!replay || has("help")) {
 
   --story <json>      the story to tell, a clips.v1.Pick: one front, tour, place or seasonal story of the findings by
                       its number, for a front its kind, sides and place as the editor wrote them, and the editor's words:
-                      headline, teasers, line, call, its flags and the anthem. A seasonal story has words of its own.
+                      headline, teasers, line, call, its flags and the anthem; for a front or a place its look, flags
+                      or dive. A seasonal story has words of its own, and dives.
                       The job's choose prints one for each clip of a run; clips edit prints the model's by hand
   --findings <path>   write what the replay holds for the editor (clips.v1.Findings), as JSON, and make no clip
   --pick <n>          the clip's number in its run, which names its files: clip-<n>.mp4, default 1
@@ -28,6 +29,8 @@ if (!replay || has("help")) {
                       cutoff is in the window
   --season <path>     the season (scoring.v1.GetSeasonResponse): with the race, each country that can still win it is
                       called up to its Final Battle
+  --cast <path>       who took which tiles (clips.v1.Cast): the fighters the story names are on its end card, and the
+                      findings name each front's, tour's and place's top fighters
   --silent            no anthem under the clip, for a sound added where it is posted
   --preview <s>       only the first s seconds of the clip
   --variants <json>   the arm of each experiment the clip is in, as the posting job assigned it: {"length":"short"}.
@@ -39,8 +42,8 @@ Everything below is chosen from the replay when left out:
   --seconds <n>       the clip's length, at most 22; default 8.5 to 17.5 by how far the fighting moves (10 to 19 with a
                       day's podium), 6.5 to 19 for a tour by its stops. Not with the experiment "length"
   --focus <code>      only what changed hands on that country's ground
-  --flags             come back out of the tiles halfway, to watch the painted flags change
-  --dive              come back out of the tiles at the end
+  --flags             come back out of the tiles halfway, to watch the painted flags change, over the story's look
+  --dive              come back out of the tiles at the end, over the story's look
   --headline <text>   the headline, over the editor's or the seasonal story's own
   --fps <n>           frames a second, default 30
   --recorders <n>     the browsers taking the frames in turn, default one for every 3 cores, 4 at most
@@ -77,6 +80,7 @@ const optionalPath = (name) => {
 }
 const racePath = optionalPath("race")
 const seasonPath = optionalPath("season")
+const castPath = optionalPath("cast")
 
 const server = await createServer({
     root: APP,
@@ -91,8 +95,8 @@ const server = await createServer({
                 res.setHeader("Content-Length", statSync(replayPath).size)
                 createReadStream(replayPath).pipe(res)
             })
-            // Answered either way: with no race or no season, a day or a call-up is no story, and the page must not read
-            // the app's fallback page.
+            // Answered either way: with no race or no season, a day or a call-up is no story, with no cast nobody is named,
+            // and the page must not read the app's fallback page.
             const optional = (path) => (_req, res) => {
                 if (path === undefined) {
                     res.statusCode = 404
@@ -105,6 +109,7 @@ const server = await createServer({
             }
             vite.middlewares.use("/__clip/race.json", optional(racePath))
             vite.middlewares.use("/__clip/season.json", optional(seasonPath))
+            vite.middlewares.use("/__clip/cast.json", optional(castPath))
         },
     }],
 })
@@ -258,6 +263,8 @@ async function record(recorders) {
         `  place: ${recording.place}, ${recording.seconds}s`,
         `  look: ${recording.look}`,
         `  music: ${recording.music ? `${recording.music.title}, the anthem of ${recording.music.whose}, from ${recording.music.from.toFixed(1)}s` : "none"}`,
+        ...recording.fighters.length > 0
+            ? [`  fighters: ${recording.fighters.map(({number, name, flag, took}) => `#${number} ${name} for ${flag} (${took} ${took === 1 ? "tile" : "tiles"})`).join(", ")}`] : [],
         ...Object.keys(recording.variants).length > 0
             ? [`  arms: ${Object.entries(recording.variants).map(([name, arm]) => `${name} ${arm}`).join(", ")}`] : [],
     ].join("\n"))

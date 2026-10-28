@@ -40,3 +40,14 @@ func (s RoundStore) SaveRound(_ context.Context, round replays.Round) error {
 	}
 	return nil
 }
+
+type CastStore string
+
+var _ replays.CastStore = CastStore("")
+
+func (s CastStore) SaveCast(_ context.Context, cast replays.Cast) error {
+	if err := os.WriteFile(string(s), cast.Document, 0o600); err != nil {
+		return fmt.Errorf("failed to write the cast: %w", err)
+	}
+	return nil
+}

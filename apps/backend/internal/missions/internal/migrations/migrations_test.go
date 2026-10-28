@@ -13,7 +13,7 @@ import (
 
 const (
 	briefsPerAccount = "20261028120000"
-	countedFacts     = "20261028180000"
+	countedFacts     = "20261028200000"
 )
 
 func TestASheetKeptBeforeCountedFactsKeepsItsTakesAndCountedNothingElse(t *testing.T) {

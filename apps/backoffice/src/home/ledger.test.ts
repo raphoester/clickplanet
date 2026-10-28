@@ -1,7 +1,7 @@
 import {Timestamp} from "@bufbuild/protobuf"
 import {describe, expect, it} from "vitest"
 import {AT, FakeAdmin} from "../fakeAdmin.ts"
-import {LedgerChange} from "../gen/grpc/planet/v1/admin_pb.ts"
+import {LedgerChange} from "../gen/grpc/planet/v1/ledger_pb.ts"
 import {caughtUp, changesOf, countriesBy, countriesOf, playersOf, sinceOf, slotsOf, windowOf} from "./ledger.ts"
 
 const MINUTE = 60_000

@@ -85,3 +85,13 @@ func (Quiz) Name() string { return "Quiz" }
 func (Quiz) Ranks() []Rank { return []Rank{Student{}, Expert{}, Professor{}, Genius{}} }
 
 func (Quiz) Progress(career Career) uint64 { return career.Stats().RightAnswers() }
+
+type Missions struct{}
+
+func (Missions) ID() TrackID { return "missions" }
+
+func (Missions) Name() string { return "Missions" }
+
+func (Missions) Ranks() []Rank { return []Rank{Rookie{}, Agent{}, Operative{}, Spymaster{}} }
+
+func (Missions) Progress(career Career) uint64 { return career.Stats().MissionsDone() }
