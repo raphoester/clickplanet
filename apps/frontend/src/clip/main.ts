@@ -163,7 +163,7 @@ function windowParam(replay: ReplayBackend): Window | undefined {
     }
 }
 
-function storyParam(): {told: Told, headline: string | undefined} {
+function storyParam(): ReturnType<typeof toldOf> {
     const written = params.get("story")
     if (written === null) throw new Error("no story to tell: --story names one, and --findings lists what the replay holds")
     return toldOf(written)
@@ -370,7 +370,7 @@ async function choose(): Promise<Chosen> {
         // The arms the job put the clip in, read before anything is built: an arm nobody knows fails the clip.
         const variants = variantsOf(params.get("variants"))
         const pick = numberParam("pick") ?? 1
-        const {told, headline: written} = storyParam()
+        const {told, headline: written, teasers} = storyParam()
         const picked = reviewOf(told)
         const {front, story, backend, world, solidity} = picked
         const {measured, changes, inArea, placeTiles, sideOf, opening, key, drops} = measuredOf(picked)
@@ -423,7 +423,7 @@ async function choose(): Promise<Chosen> {
         backend.listenForUpdates((update) => own(update.tile, update.newCountry))
         backend.listenForBombs((drop) => drop.cleared.forEach((tile) => own(tile, undefined)))
 
-        const words = wordsOf(story, params.get("headline") ?? written)
+        const words = wordsOf(story, params.get("headline") ?? written, teasers)
         const overlay = createOverlay(root, story, words, opening, ground)
         const music = params.has("silent") ? undefined : musicOf(story, timeline.seconds)
         const hashtags = hashtagsOf(story)

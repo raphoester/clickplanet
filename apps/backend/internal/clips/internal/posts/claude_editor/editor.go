@@ -125,6 +125,7 @@ type answer struct {
 		Continent string   `json:"continent"`
 		Team      string   `json:"team"`
 		Headline  string   `json:"headline"`
+		Teasers   []string `json:"teasers"`
 	} `json:"stories"`
 }
 
@@ -140,7 +141,7 @@ var answerSchema = map[string]any{
 				"type":                 "object",
 				"additionalProperties": false,
 				"required": []string{
-					"front", "tour", "place", "kind", "attacker", "rival", "takenFrom", "countries", "continent", "team", "headline",
+					"front", "tour", "place", "kind", "attacker", "rival", "takenFrom", "countries", "continent", "team", "headline", "teasers",
 				},
 				"properties": map[string]any{
 					"front":     map[string]any{"type": "integer"},
@@ -154,6 +155,7 @@ var answerSchema = map[string]any{
 					"continent": map[string]any{"type": "string"},
 					"team":      map[string]any{"type": "string"},
 					"headline":  map[string]any{"type": "string"},
+					"teasers":   map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
 				},
 			},
 		},
@@ -176,7 +178,7 @@ func editionOf(content []anthropic.ContentBlockUnion) (posts.Edition, error) {
 			edition.Stories = append(edition.Stories, posts.Story{
 				Front: story.Front, Tour: story.Tour, Place: story.Place, Kind: posts.Kind(story.Kind),
 				Attacker: story.Attacker, Rival: story.Rival, TakenFrom: story.TakenFrom, Countries: story.Countries,
-				Continent: story.Continent, Team: story.Team, Headline: story.Headline,
+				Continent: story.Continent, Team: story.Team, Headline: story.Headline, Teasers: story.Teasers,
 			})
 		}
 		return edition, nil

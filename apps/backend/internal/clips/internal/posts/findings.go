@@ -178,6 +178,7 @@ type Story struct {
 	// The continent whose flags strike back together.
 	Team     string
 	Headline string
+	Teasers  []string
 }
 
 func (s Story) Names() string {

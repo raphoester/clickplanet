@@ -1039,7 +1039,9 @@ type Pick struct {
 	// The continent whose flags strike back together, for a comeback of them.
 	Team string `protobuf:"bytes,11,opt,name=team,proto3" json:"team,omitempty"`
 	// Empty for the generator's own.
-	Headline      string `protobuf:"bytes,12,opt,name=headline,proto3" json:"headline,omitempty"`
+	Headline string `protobuf:"bytes,12,opt,name=headline,proto3" json:"headline,omitempty"`
+	// The headline said in other words, for the caption: the editor's. Empty for the generator's own.
+	Teasers       []string `protobuf:"bytes,13,rep,name=teasers,proto3" json:"teasers,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1156,6 +1158,13 @@ func (x *Pick) GetHeadline() string {
 		return x.Headline
 	}
 	return ""
+}
+
+func (x *Pick) GetTeasers() []string {
+	if x != nil {
+		return x.Teasers
+	}
+	return nil
 }
 
 type Clip struct {
@@ -2101,7 +2110,7 @@ const file_clips_v1_clips_proto_rawDesc = "" +
 	"\n" +
 	"NamesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xb3\x02\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xcd\x02\n" +
 	"\x04Pick\x12\x14\n" +
 	"\x05front\x18\x01 \x01(\rR\x05front\x12\x12\n" +
 	"\x04tour\x18\x02 \x01(\rR\x04tour\x12\x14\n" +
@@ -2116,7 +2125,8 @@ const file_clips_v1_clips_proto_rawDesc = "" +
 	"\tcontinent\x18\n" +
 	" \x01(\tR\tcontinent\x12\x12\n" +
 	"\x04team\x18\v \x01(\tR\x04team\x12\x1a\n" +
-	"\bheadline\x18\f \x01(\tR\bheadline\"\xd0\x02\n" +
+	"\bheadline\x18\f \x01(\tR\bheadline\x12\x18\n" +
+	"\ateasers\x18\r \x03(\tR\ateasers\"\xd0\x02\n" +
 	"\x04Clip\x12\x12\n" +
 	"\x04pick\x18\x01 \x01(\rR\x04pick\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12$\n" +
