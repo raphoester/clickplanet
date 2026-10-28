@@ -67,10 +67,7 @@ func (q *PostgresQuery) Now(ctx context.Context) (*gamemasterv1.GetTurnResponse,
 		timeline.Next = seasonmessage.SeasonOf(next)
 	}
 	if today, ok := plan.DayAt(now); ok {
-		timeline.Today = &gamemasterv1.Day{
-			Number: uint32(today.Number), StartsAt: timestamppb.New(today.StartsAt), EndsAt: timestamppb.New(today.EndsAt),
-			RoundId: string(moments.DayRoundOf(today)),
-		}
+		timeline.Today = seasonmessage.DayOf(today)
 	}
 	debrief, err := q.debrief(ctx, plan)
 	if err != nil {

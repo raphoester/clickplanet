@@ -13,12 +13,13 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
-func NewPostgresQuery(db cppg.Conn) *PostgresQuery {
-	return &PostgresQuery{db: db}
+func NewPostgresQuery(db cppg.Conn, cutoff season.Cutoff) *PostgresQuery {
+	return &PostgresQuery{db: db, cutoff: cutoff}
 }
 
 type PostgresQuery struct {
-	db cppg.Conn
+	db     cppg.Conn
+	cutoff season.Cutoff
 }
 
 // Seasons is every season, by number, as planned and with the window season.Calendar works out.
@@ -30,7 +31,7 @@ func (q *PostgresQuery) Seasons(ctx context.Context) (*gamemasterv1.GetSeasonsRe
 	answer := &gamemasterv1.GetSeasonsResponse{}
 	planned := seasons.TakeSnapshot()
 	for i, window := range seasons.Windows() {
-		answer.Seasons = append(answer.Seasons, seasonmessage.ScheduledOf(planned[i], window))
+		answer.Seasons = append(answer.Seasons, seasonmessage.ScheduledOf(planned[i], window, q.cutoff))
 	}
 	return answer, nil
 }

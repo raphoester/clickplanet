@@ -26,11 +26,22 @@ func DraftOf(brk, length *durationpb.Duration, finale *gamemasterv1.SeasonFinale
 	return draft
 }
 
-// ScheduledOf is a season as the operator plans it, with the window the calendar works out.
-func ScheduledOf(planned season.Snapshot, window season.Window) *gamemasterv1.ScheduledSeason {
-	return &gamemasterv1.ScheduledSeason{
+// ScheduledOf is a season as the operator plans it, with the window the calendar works out and its days.
+func ScheduledOf(planned season.Snapshot, window season.Window, cutoff season.Cutoff) *gamemasterv1.ScheduledSeason {
+	scheduled := &gamemasterv1.ScheduledSeason{
 		Season: SeasonOf(window), BreakBefore: durationpb.New(planned.Break), Length: durationpb.New(planned.Length),
 		Finale: FinaleOf(planned.Finale),
+	}
+	for _, day := range window.Days(cutoff) {
+		scheduled.Days = append(scheduled.Days, DayOf(day))
+	}
+	return scheduled
+}
+
+func DayOf(day season.Day) *gamemasterv1.Day {
+	return &gamemasterv1.Day{
+		Number: uint32(day.Number), StartsAt: timestamppb.New(day.StartsAt), EndsAt: timestamppb.New(day.EndsAt),
+		RoundId: string(moments.DayRoundOf(day)),
 	}
 }
 
