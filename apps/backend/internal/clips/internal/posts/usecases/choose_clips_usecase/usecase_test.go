@@ -28,7 +28,7 @@ var (
 		}},
 		Seasonal: []posts.Seasonal{{Title: "PALAU WINS DAY 18", Key: day18}},
 	}
-	battle = posts.Story{Front: 1, Kind: posts.Battle, Attacker: "fr", Rival: "tr", TakenFrom: []string{"tr"}, Countries: []string{"tr"}, Headline: "FRANCE VS TURKEY", Teasers: []string{"THE WAR FOR TURKEY"}, Call: "PICK A SIDE"}
+	battle = posts.Story{Front: 1, Kind: posts.Battle, Attacker: "fr", Rival: "tr", TakenFrom: []string{"tr"}, Countries: []string{"tr"}, Headline: "FRANCE VS TURKEY", Teasers: []string{"THE WAR FOR TURKEY"}, Call: "PICK A SIDE", Look: posts.Dive}
 )
 
 type written struct {

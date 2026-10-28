@@ -58,15 +58,15 @@ func findings(t *testing.T) posts.Findings {
 func TestAStoryOfAFrontHoldsWhenItsFlagsAndItsPlaceAreTheFrontsAndItsKeyIsItsFirstSideThere(t *testing.T) {
 	found := findings(t)
 
-	battle, err := found.Check(posts.Story{Front: 1, Kind: posts.Battle, Attacker: "fr", Rival: "tr", TakenFrom: []string{"tr"}, Countries: []string{"tr", "sy"}})
+	battle, err := found.Check(posts.Story{Front: 1, Kind: posts.Battle, Attacker: "fr", Rival: "tr", TakenFrom: []string{"tr"}, Countries: []string{"tr", "sy"}, Look: posts.Dive})
 	require.NoError(t, err)
-	kickout, err := found.Check(posts.Story{Front: 1, Kind: posts.Kickout, Attacker: "tr", TakenFrom: []string{"fr"}, Countries: []string{"tr"}})
+	kickout, err := found.Check(posts.Story{Front: 1, Kind: posts.Kickout, Attacker: "tr", TakenFrom: []string{"fr"}, Countries: []string{"tr"}, Look: posts.Dive})
 	require.NoError(t, err)
-	rout, err := found.Check(posts.Story{Front: 1, Kind: posts.Rout, Attacker: "fr", TakenFrom: []string{"dz"}, Countries: []string{"in"}})
+	rout, err := found.Check(posts.Story{Front: 1, Kind: posts.Rout, Attacker: "fr", TakenFrom: []string{"dz"}, Countries: []string{"in"}, Look: posts.PaintedFlags})
 	require.NoError(t, err)
-	attack, err := found.Check(posts.Story{Front: 1, Kind: posts.Attack, Attacker: "fr", TakenFrom: []string{"tr", "dz"}, Continent: "Middle East"})
+	attack, err := found.Check(posts.Story{Front: 1, Kind: posts.Attack, Attacker: "fr", TakenFrom: []string{"tr", "dz"}, Continent: "Middle East", Look: posts.PaintedFlags})
 	require.NoError(t, err)
-	comeback, err := found.Check(posts.Story{Front: 1, Kind: posts.Comeback, Attacker: "tr", TakenFrom: []string{"fr"}, Continent: "Middle East", Team: "Middle East"})
+	comeback, err := found.Check(posts.Story{Front: 1, Kind: posts.Comeback, Attacker: "tr", TakenFrom: []string{"fr"}, Continent: "Middle East", Team: "Middle East", Look: posts.Dive})
 	require.NoError(t, err)
 
 	assert.Equal(t, posts.StoryKey{Flag: "fr", Continent: "Middle East"}, battle)
@@ -78,7 +78,7 @@ func TestAStoryOfAFrontHoldsWhenItsFlagsAndItsPlaceAreTheFrontsAndItsKeyIsItsFir
 
 func TestAStoryThatSaysWhatTheFrontsFactsDoNotIsRefusedWithWhy(t *testing.T) {
 	found := findings(t)
-	fr := posts.Story{Front: 1, Kind: posts.Invasion, Attacker: "fr", TakenFrom: []string{"tr"}, Countries: []string{"tr"}}
+	fr := posts.Story{Front: 1, Kind: posts.Invasion, Attacker: "fr", TakenFrom: []string{"tr"}, Countries: []string{"tr"}, Look: posts.Dive}
 
 	for why, story := range map[string]posts.Story{
 		"no front 2 of 1":                    {Front: 2, Kind: posts.Invasion, Attacker: "fr", Countries: []string{"tr"}},
@@ -132,9 +132,9 @@ func TestATourAPlaceAndASeasonalStoryAreTheirOwnAndKeyedAsTheGeneratorKeysThem(t
 
 	tour, err := found.Check(posts.Story{Tour: 1})
 	require.NoError(t, err)
-	continent, err := found.Check(posts.Story{Place: 1})
+	continent, err := found.Check(posts.Story{Place: 1, Look: posts.PaintedFlags})
 	require.NoError(t, err)
-	world, err := found.Check(posts.Story{Place: 2})
+	world, err := found.Check(posts.Story{Place: 2, Look: posts.Dive})
 	require.NoError(t, err)
 	seasonal, err := found.Check(posts.Story{Seasonal: 1})
 	require.NoError(t, err)
@@ -156,8 +156,10 @@ func TestAStoryNamesOneOfTheFindingsAndOneThatExists(t *testing.T) {
 		"no place 3 of 2":          {Place: 3},
 		"no seasonal story 2 of 1": {Seasonal: 2},
 		"no front 5 of 1":          {Front: 5},
-		`the call's flag "xb" is no flag of the findings`: {Place: 1, CallFlags: []string{"fr", "eu", "xb"}},
-		`there is no anthem of "pw"`:                      {Place: 1, Anthem: "pw"},
+		`the call's flag "xb" is no flag of the findings`:    {Place: 1, CallFlags: []string{"fr", "eu", "xb"}},
+		`there is no anthem of "pw"`:                         {Place: 1, Anthem: "pw"},
+		`place 1 has the look "", not "flags" or "dive"`:     {Place: 1},
+		`front 1 has the look "tour", not "flags" or "dive"`: {Front: 1, Kind: posts.Invasion, Attacker: "fr", TakenFrom: []string{"tr"}, Countries: []string{"tr"}, Look: "tour"},
 	} {
 		t.Run(why, func(t *testing.T) {
 			_, err := found.Check(story)

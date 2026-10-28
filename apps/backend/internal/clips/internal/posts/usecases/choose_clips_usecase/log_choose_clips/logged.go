@@ -93,6 +93,9 @@ func attributesOf(story posts.Story) []any {
 	if story.Anthem != "" {
 		attributes = append(attributes, slog.String("anthem", story.Anthem))
 	}
+	if story.Look != "" {
+		attributes = append(attributes, slog.String("look", string(story.Look)))
+	}
 	if story.Front > 0 {
 		place := story.Continent
 		if place == "" {

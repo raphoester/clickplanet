@@ -3,15 +3,9 @@ import {ranked, TileChange} from "./changes.ts"
 // flags: back out of the tiles halfway, so the painted flags change on screen. dive: back out at the end.
 export type Look = "flags" | "dive"
 
-// Below TILES_ZOOM a tile is a few pixels and its flag a blur: tiles only move on screen above it.
-export const TILES_ZOOM = 3
+export const LOOKS: readonly Look[] = ["flags", "dive"]
 
 const MIN_LANDMASS_TILES = 20
-
-const MIN_FLIPS = 2
-
-// About two Frances: less than that changing its painted flag is a still picture from far.
-const FLAGS_GROUND = 2000
 
 // A landmass taken and taken back changed hands too: its holder is read this many times along the changes.
 const CHECKPOINTS = 8
@@ -75,10 +69,4 @@ export function flipsOf(
 // its at the end.
 export function flippedTo(flips: readonly Flip[], flag: string): Flip[] {
     return flips.filter(({holders, tiles}) => tiles >= READABLE_FLIP_TILES && holders[0] !== flag && holders[holders.length - 1] === flag)
-}
-
-// A wide front where big land changed hands shows its painted flags change for half the clip; anything else dives.
-export function lookOf(flips: readonly Flip[], zoom: number): Look {
-    const ground = flips.reduce((sum, {tiles}) => sum + tiles, 0)
-    return zoom < TILES_ZOOM && flips.length >= MIN_FLIPS && ground >= FLAGS_GROUND ? "flags" : "dive"
 }

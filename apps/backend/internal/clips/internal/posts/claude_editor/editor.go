@@ -130,6 +130,7 @@ type answer struct {
 		Call      string   `json:"call"`
 		CallFlags []string `json:"callFlags"`
 		Anthem    string   `json:"anthem"`
+		Look      string   `json:"look"`
 	} `json:"stories"`
 }
 
@@ -146,7 +147,7 @@ var answerSchema = map[string]any{
 				"additionalProperties": false,
 				"required": []string{
 					"front", "tour", "place", "kind", "attacker", "rival", "takenFrom", "countries", "continent", "team", "headline", "teasers",
-					"line", "call", "callFlags", "anthem",
+					"line", "call", "callFlags", "anthem", "look",
 				},
 				"properties": map[string]any{
 					"front":     map[string]any{"type": "integer"},
@@ -165,6 +166,7 @@ var answerSchema = map[string]any{
 					"call":      map[string]any{"type": "string"},
 					"callFlags": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
 					"anthem":    map[string]any{"type": "string"},
+					"look":      map[string]any{"type": "string", "enum": []string{"flags", "dive", ""}},
 				},
 			},
 		},
@@ -188,7 +190,7 @@ func editionOf(content []anthropic.ContentBlockUnion) (posts.Edition, error) {
 				Front: story.Front, Tour: story.Tour, Place: story.Place, Kind: posts.Kind(story.Kind),
 				Attacker: story.Attacker, Rival: story.Rival, TakenFrom: story.TakenFrom, Countries: story.Countries,
 				Continent: story.Continent, Team: story.Team, Headline: story.Headline, Teasers: story.Teasers,
-				Line: story.Line, Call: story.Call, CallFlags: story.CallFlags, Anthem: story.Anthem,
+				Line: story.Line, Call: story.Call, CallFlags: story.CallFlags, Anthem: story.Anthem, Look: posts.Look(story.Look),
 			})
 		}
 		return edition, nil

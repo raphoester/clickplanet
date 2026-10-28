@@ -374,6 +374,14 @@ export class FrontFlag extends Message<FrontFlag> {
    */
   solidity = 0;
 
+  /**
+   * The tiles of the landmasses whose painted flag switched to it on the front, big enough to read from far, by
+   * continent.
+   *
+   * @generated from field: map<string, uint32> flipped_by_continent = 8;
+   */
+  flippedByContinent: { [key: string]: number } = {};
+
   constructor(data?: PartialMessage<FrontFlag>) {
     super();
     proto3.util.initPartial(data, this);
@@ -389,6 +397,7 @@ export class FrontFlag extends Message<FrontFlag> {
     { no: 5, name: "lost", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 6, name: "took_from", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "scalar", T: 13 /* ScalarType.UINT32 */} },
     { no: 7, name: "solidity", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 8, name: "flipped_by_continent", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "scalar", T: 13 /* ScalarType.UINT32 */} },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FrontFlag {
@@ -567,6 +576,13 @@ export class Place extends Message<Place> {
    */
   changed = 0;
 
+  /**
+   * The tiles of the landmasses whose painted flag switched to the holder in the window, by continent.
+   *
+   * @generated from field: map<string, uint32> flipped_by_continent = 10;
+   */
+  flippedByContinent: { [key: string]: number } = {};
+
   constructor(data?: PartialMessage<Place>) {
     super();
     proto3.util.initPartial(data, this);
@@ -584,6 +600,7 @@ export class Place extends Message<Place> {
     { no: 7, name: "share", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
     { no: 8, name: "rivals", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "scalar", T: 13 /* ScalarType.UINT32 */} },
     { no: 9, name: "changed", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 10, name: "flipped_by_continent", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "scalar", T: 13 /* ScalarType.UINT32 */} },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Place {
@@ -936,6 +953,13 @@ export class Pick extends Message<Pick> {
    */
   anthem = "";
 
+  /**
+   * When the camera comes back out of the tiles, for a front or a place: "flags" halfway, "dive" at the end.
+   *
+   * @generated from field: string look = 18;
+   */
+  look = "";
+
   constructor(data?: PartialMessage<Pick>) {
     super();
     proto3.util.initPartial(data, this);
@@ -961,6 +985,7 @@ export class Pick extends Message<Pick> {
     { no: 15, name: "call", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 16, name: "call_flags", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
     { no: 17, name: "anthem", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 18, name: "look", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Pick {

@@ -31,8 +31,13 @@ describe("the facts of a front", () => {
         change(5, undefined, "fr"), change(11, "dz", "dz"),
     ]
     const after = new Map<number, string>([[1, "pw"], [2, "pw"], [3, "pw"], [4, "fr"], [5, "fr"], [7, "pw"], [8, "fr"], [9, "pw"], [11, "dz"]])
+    const flips = [
+        {landmass: 1, tiles: 300, holders: ["fr", "pw"], tile: 1},
+        {landmass: 2, tiles: 150, holders: ["de", "fr"], tile: 8},
+        {landmass: 3, tiles: 60, holders: ["de", "pw"], tile: 9},
+    ]
 
-    const facts = frontFactsOf(changes, opening, after, ground, pointOf)
+    const facts = frontFactsOf(changes, opening, after, ground, pointOf, flips)
 
     it("counts what changed hands and what was taken from another flag", () => {
         expect(facts.tilesChanged).toBe(7)
@@ -55,6 +60,15 @@ describe("the facts of a front", () => {
             {code: "pw", took: 5, filled: 0, lost: 0, tookFrom: {fr: 3, de: 2}},
             {code: "fr", took: 1, filled: 1, lost: 3, tookFrom: {de: 1}},
             {code: "de", took: 0, filled: 0, lost: 3, tookFrom: {}},
+        ])
+    })
+
+    it("sums, for each flag, the tiles of the landmasses whose painted flag switched to it, by continent", () => {
+        // The islet of Germany is too small to read from far.
+        expect(facts.flags.map(({code, flippedByContinent}) => ({code, flippedByContinent}))).toEqual([
+            {code: "pw", flippedByContinent: {Europe: 300}},
+            {code: "fr", flippedByContinent: {Europe: 150}},
+            {code: "de", flippedByContinent: {}},
         ])
     })
 

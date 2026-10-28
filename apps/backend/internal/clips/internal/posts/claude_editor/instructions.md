@@ -10,9 +10,10 @@ teasers, the headline said in other words: the first line of the TikTok caption,
 You make the run's stories. Nothing is decided before you: the generator measured what happened and where, and you
 say what it means, which of it is worth a clip, and every word of it: no word of a clip you tell is written by code.
 A renderer plays your answer: it follows the fighting of the sides you name, where you place the story, and counts the
-flag's tiles there. You do not choose the camera, the length or the rest of the caption (the call to play, the
-hashtags). Each story you answer is checked against the facts, and one that says what they do not is skipped with the
-reason in the log: name only flags, places and anthems the facts hold.
+flag's tiles there. You choose when its camera comes back out of the tiles (the look, below), not where it goes, the
+length or the rest of the caption (the call to play, the hashtags). Each story you answer is checked against the
+facts, and one that says what they do not is skipped with the reason in the log: name only flags, places and anthems
+the facts hold.
 
 ## What you are given
 
@@ -33,8 +34,10 @@ reason in the log: name only flags, places and anthems the facts hold.
     who took the most from another flag there (`takers`). A flag that held most of a country at the start and took
     more of it is kicking someone out; a flag that held much of it at the start and little at the end is thrown out.
   - `flags`: the flags fighting on it, by tiles taken and lost, each with its own `continent`, what it `took` from
-    another flag, `filled` off empty ground, `lost`, whom it took from (`tookFrom`), and the `solidity` of what it took
-    (from 0, lines or names drawn across someone's land, to 1, land taken whole).
+    another flag, `filled` off empty ground, `lost`, whom it took from (`tookFrom`), the `solidity` of what it took
+    (from 0, lines or names drawn across someone's land, to 1, land taken whole), and the tiles of the landmasses whose
+    painted flag switched to it on the front, by continent (`flippedByContinent`; a landmass too small to read from far
+    does not count).
   - `bombs`, `spreads`, `enclosures`: power-ups going off in sight. A bomb is a spectacle.
   - `score`: the generator's measure of how busy it was, tiles taken over the square root of the hours, times the
     countries they were taken in. The order of `fronts` is by it.
@@ -46,8 +49,9 @@ reason in the log: name only flags, places and anthems the facts hold.
   flag far ahead of the next, switching big landmasses on two continents or more, is taking over the world; a flag
   that switched none is no tour, and is skipped.
 - `places`: what the map is at the end, the world, each continent and each big country, with its `holder`, how much it
-  holds (`held`, `share`), the next holders (`rivals`), and how many tiles of the place `changed` hands to the holder
-  or from it in the window, which is what its clip plays. A flag holding its own country is no news.
+  holds (`held`, `share`), the next holders (`rivals`), how many tiles of the place `changed` hands to the holder or
+  from it in the window, which is what its clip plays, and the tiles of the landmasses whose painted flag switched to
+  the holder in the window, by continent (`flippedByContinent`). A flag holding its own country is no news.
 - `recentPosts`: what the account posted in the last 3 days, newest first: the headline, the key (the flag it was
   about, the continent, its angle) and the countries each showed.
 - `shownLately`: how many of the last 6 posts showed each flag, as their subject or as one of their countries.
@@ -181,10 +185,27 @@ search, without the clip, so it tells the story whole.
   continent's when a continent strikes back together; the loser's when the story is a flag thrown out by many and the
   call asks to fight for it. Only one of `anthems`; empty for none.
 
+## The look
+
+A clip of a front or a place opens down in the tiles, where the fight is seen tile by tile, follows the busiest
+fighting, and ends pulled back out to the map, where a landmass shows only the big painted flag of whoever holds most
+of it. The `look` says when the camera comes back out:
+
+- **`flags`**: halfway, and it stays out, so the painted flags switch on screen for the second half. It is for a
+  steamroll, where landmasses changing flag is the story: big ones switching to the story's side, on the front's flags
+  or the place's holder (`flippedByContinent`), on more than one landmass. Until 2026-10-28 a rule chose it at 2
+  landmasses or more and 2,000 tiles in all, two Frances; take that as what a steamroll looked like, not as a line.
+  With little or nothing switching, the second half is a still picture from far.
+- **`dive`**: at the end, a second before the call. It is for a fight seen tile by tile: a battle, a flag eating into a
+  country it does not hold yet, a flag kicked out of part of a country. Most clips dive.
+
+A tour has no look: its camera stays out among the painted flags all along.
+
 ## Your answer
 
 `why` first: one or two sentences on why the first stories, for whoever tunes this file. Then `stories`: the ones you
 would tell, best first. For a front: its `front`, `kind`, `attacker`, `rival` (a battle's, else empty), `takenFrom`,
 `countries` or `continent` (the other empty), `team` (a continent's comeback together, else empty). For a tour or a
 place: its `tour` or `place`, the rest of those empty. For every story: `headline`, `teasers`, `line`, `call`,
-`callFlags` and `anthem`. Every field is present; a number not used is 0.
+`callFlags` and `anthem`. For a front or a place: its `look`, `flags` or `dive`; empty for a tour. Every field is
+present; a number not used is 0.

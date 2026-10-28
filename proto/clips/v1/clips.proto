@@ -69,6 +69,9 @@ message FrontFlag {
   map<string, uint32> took_from = 6;
   // Of what it took and holds at the end, from 0 (lines drawn on someone's land) to 1 (land taken whole).
   double solidity = 7;
+  // The tiles of the landmasses whose painted flag switched to it on the front, big enough to read from far, by
+  // continent.
+  map<string, uint32> flipped_by_continent = 8;
 }
 
 // A flag taking land across the whole map in one stretch of time.
@@ -104,6 +107,8 @@ message Place {
   map<string, uint32> rivals = 8;
   // Tiles of the place that changed hands to the holder or from it in the window: what its clip plays.
   uint32 changed = 9;
+  // The tiles of the landmasses whose painted flag switched to the holder in the window, by continent.
+  map<string, uint32> flipped_by_continent = 10;
 }
 
 message Seasonal {
@@ -168,6 +173,8 @@ message Pick {
   repeated string call_flags = 16;
   // The code whose anthem plays under the clip, one of the findings' anthems; empty for none.
   string anthem = 17;
+  // When the camera comes back out of the tiles, for a front or a place: "flags" halfway, "dive" at the end.
+  string look = 18;
 }
 
 message Clip {

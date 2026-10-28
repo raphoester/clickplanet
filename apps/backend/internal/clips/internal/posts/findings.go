@@ -87,6 +87,7 @@ type FrontFlag struct {
 	Took, Filled, Lost int
 	TookFrom           map[string]int
 	Solidity           float64
+	FlippedByContinent map[string]int
 }
 
 type Tour struct {
@@ -111,15 +112,16 @@ const (
 )
 
 type Place struct {
-	Kind      PlaceKind
-	Code      string
-	Continent string
-	Tiles     int
-	Holder    string
-	Held      int
-	Share     float64
-	Rivals    map[string]int
-	Changed   int
+	Kind               PlaceKind
+	Code               string
+	Continent          string
+	Tiles              int
+	Holder             string
+	Held               int
+	Share              float64
+	Rivals             map[string]int
+	Changed            int
+	FlippedByContinent map[string]int
 }
 
 // A day won or a call-up, headlined by the generator.
@@ -167,6 +169,13 @@ const (
 
 var frontKinds = []Kind{Attack, Invasion, Comeback, Kickout, Rout, Battle}
 
+type Look string
+
+const (
+	PaintedFlags Look = "flags"
+	Dive         Look = "dive"
+)
+
 // A story to tell, as the generator's --story takes it. The editor makes one of a front, picks a tour or a place, and
 // words each; a seasonal story has words of its own.
 type Story struct {
@@ -185,6 +194,7 @@ type Story struct {
 	Call      string
 	CallFlags []string
 	Anthem    string
+	Look      Look
 }
 
 func (s Story) Names() string {
@@ -237,6 +247,9 @@ func (f Findings) Check(story Story) (StoryKey, error) {
 		if story.Place > len(f.Places) {
 			return StoryKey{}, fmt.Errorf("%w: no place %d of %d", ErrInvalidStory, story.Place, len(f.Places))
 		}
+		if err := story.checkLook(); err != nil {
+			return StoryKey{}, err
+		}
 		place := f.Places[story.Place-1]
 		continent := place.Continent
 		if place.Kind == World {
@@ -247,7 +260,19 @@ func (f Findings) Check(story Story) (StoryKey, error) {
 		if story.Front > len(f.Fronts) {
 			return StoryKey{}, fmt.Errorf("%w: no front %d of %d", ErrInvalidStory, story.Front, len(f.Fronts))
 		}
+		if err := story.checkLook(); err != nil {
+			return StoryKey{}, err
+		}
 		return f.checkFront(story, f.Fronts[story.Front-1])
+	}
+}
+
+func (s Story) checkLook() error {
+	switch s.Look {
+	case PaintedFlags, Dive:
+		return nil
+	default:
+		return fmt.Errorf("%w: %s has the look %q, not %q or %q", ErrInvalidStory, s.Names(), s.Look, PaintedFlags, Dive)
 	}
 }
 

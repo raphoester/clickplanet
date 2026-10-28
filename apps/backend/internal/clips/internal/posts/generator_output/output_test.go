@@ -28,7 +28,7 @@ const (
         {"code": "tr", "continent": "Middle East", "tiles": 2500, "changed": 6000, "holdersStart": {"tr": 2000}, "holdersEnd": {"fr": 1500, "tr": 900}, "takers": {"fr": 5000}}
       ],
       "flags": [
-        {"code": "fr", "continent": "Europe", "took": 5000, "filled": 100, "lost": 3000, "tookFrom": {"tr": 4800}, "solidity": 0.86}
+        {"code": "fr", "continent": "Europe", "took": 5000, "filled": 100, "lost": 3000, "tookFrom": {"tr": 4800}, "solidity": 0.86, "flippedByContinent": {"Middle East": 2400}}
       ],
       "bombs": 3,
       "score": 3886.5
@@ -38,7 +38,7 @@ const (
     {"flag": "fr", "since": "2026-10-26T08:29:17Z", "until": "2026-10-26T20:29:17Z", "took": 27992, "byContinent": {"Europe": 12000}, "tookFrom": {"dz": 8000}, "nextTook": 9000, "solidity": 0.95, "bombs": 12, "flippedByContinent": {"South Asia": 6246}}
   ],
   "places": [
-    {"kind": "continent", "continent": "South Asia", "tiles": 9600, "holder": "fr", "held": 6170, "share": 0.643, "rivals": {"dz": 1200}, "changed": 6000}
+    {"kind": "continent", "continent": "South Asia", "tiles": 9600, "holder": "fr", "held": 6170, "share": 0.643, "rivals": {"dz": 1200}, "changed": 6000, "flippedByContinent": {"South Asia": 5200}}
   ],
   "seasonal": [
     {"title": "PALAU WINS DAY 18", "key": {"flag": "pw", "continent": "the world", "angle": "round", "round": "0.18"}, "countries": ["pw", "dz"], "teasers": ["PALAU TAKES DAY 18"], "facts": {"kind": "round", "storyTilesChanged": 1200}}
@@ -97,7 +97,7 @@ func TestTheFindingsAreEveryFrontTourPlaceAndSeasonalStoryTheGeneratorWrote(t *t
 			Code: "tr", Continent: "Middle East", Tiles: 2500, Changed: 6000, HoldersStart: map[string]int{"tr": 2000},
 			HoldersEnd: map[string]int{"fr": 1500, "tr": 900}, Takers: map[string]int{"fr": 5000},
 		}},
-		Flags: []posts.FrontFlag{{Code: "fr", Continent: "Europe", Took: 5000, Filled: 100, Lost: 3000, TookFrom: map[string]int{"tr": 4800}, Solidity: 0.86}},
+		Flags: []posts.FrontFlag{{Code: "fr", Continent: "Europe", Took: 5000, Filled: 100, Lost: 3000, TookFrom: map[string]int{"tr": 4800}, Solidity: 0.86, FlippedByContinent: map[string]int{"Middle East": 2400}}},
 		Bombs: 3, Score: 3886.5,
 	}}, findings.Fronts)
 	assert.Equal(t, []posts.Tour{{
@@ -106,7 +106,7 @@ func TestTheFindingsAreEveryFrontTourPlaceAndSeasonalStoryTheGeneratorWrote(t *t
 	}}, findings.Tours)
 	assert.Equal(t, []posts.Place{{
 		Kind: posts.ContinentPlace, Continent: "South Asia", Tiles: 9600, Holder: "fr", Held: 6170, Share: 0.643,
-		Rivals: map[string]int{"dz": 1200}, Changed: 6000,
+		Rivals: map[string]int{"dz": 1200}, Changed: 6000, FlippedByContinent: map[string]int{"South Asia": 5200},
 	}}, findings.Places)
 	require.Len(t, findings.Seasonal, 1)
 	assert.Equal(t, "PALAU WINS DAY 18", findings.Seasonal[0].Title)
@@ -141,12 +141,13 @@ func TestAStoryIsWrittenAsTheGeneratorsStoryFlagTakesIt(t *testing.T) {
 	front, err := generator_output.StoryJSON(posts.Story{
 		Front: 3, Kind: posts.Battle, Attacker: "fr", Rival: "tr", TakenFrom: []string{"tr"}, Countries: []string{"tr", "sy"}, Headline: "FRANCE VS TURKEY",
 		Teasers: []string{"THE WAR FOR TURKEY"}, Line: "The battle for Turkey", Call: "PICK A SIDE", CallFlags: []string{"fr", "tr"}, Anthem: "fr",
+		Look: posts.PaintedFlags,
 	})
 	require.NoError(t, err)
 	seasonal, err := generator_output.StoryJSON(posts.Story{Seasonal: 1})
 	require.NoError(t, err)
 
-	assert.JSONEq(t, `{"front":3,"kind":"battle","attacker":"fr","rival":"tr","takenFrom":["tr"],"countries":["tr","sy"],"headline":"FRANCE VS TURKEY","teasers":["THE WAR FOR TURKEY"],"line":"The battle for Turkey","call":"PICK A SIDE","callFlags":["fr","tr"],"anthem":"fr"}`, string(front))
+	assert.JSONEq(t, `{"front":3,"kind":"battle","attacker":"fr","rival":"tr","takenFrom":["tr"],"countries":["tr","sy"],"headline":"FRANCE VS TURKEY","teasers":["THE WAR FOR TURKEY"],"line":"The battle for Turkey","call":"PICK A SIDE","callFlags":["fr","tr"],"anthem":"fr","look":"flags"}`, string(front))
 	assert.JSONEq(t, `{"seasonal":1}`, string(seasonal))
 }
 
