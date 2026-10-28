@@ -9,7 +9,7 @@ type Step<T> =
 
 type Props<T> = {
     label: string
-    question: string
+    question: ReactNode
     run: () => Promise<T>
     said: (value: T) => ReactNode
     refusal: (err: unknown) => string
@@ -40,7 +40,7 @@ export function ConfirmAction<T>({label, question, run, said, refusal, onDone, d
     if (state.step === "asking" || state.step === "running") {
         return (
             <div className="confirm" role="group" aria-label={label}>
-                <p className="confirm-question">{question}</p>
+                <div className="confirm-question">{question}</div>
                 <div className="confirm-buttons">
                     <button
                         type="button"

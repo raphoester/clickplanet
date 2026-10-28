@@ -1,68 +1,68 @@
 import {useCallback} from "react"
-import {supportAdmin} from "../api.ts"
-import {FailureNotice} from "../components/FailureNotice.tsx"
-import {Person} from "../components/Person.tsx"
-import {When} from "../components/When.tsx"
-import {Report} from "../gen/grpc/support/v1/admin_pb.ts"
-import {countOf, reasonLabel} from "../support/labels.ts"
+import {ChatAdmin} from "../clients.ts"
+import {Ago} from "../components/When.tsx"
+import {Report, ReportOutcome} from "../gen/grpc/support/v1/admin_pb.ts"
+import {outcomeLabel, reasonLabel} from "../support/labels.ts"
 import {useCall} from "../useCall.ts"
-import {DecisionLine} from "./DecisionLine.tsx"
 
 type Props = {
-    openOnly: boolean
-    onOpenOnly: (openOnly: boolean) => void
-    onOpen: (report: Report) => void
+    chat: ChatAdmin
+    reports: Report[]
+    // How many reports, open or closed, name each account.
+    counts: Map<string, number>
+    opened: string
+    onOpen: (reportId: string) => void
 }
 
-export function ReportList({openOnly, onOpenOnly, onOpen}: Props) {
-    const list = useCallback(
-        (signal: AbortSignal) => supportAdmin.listReports({openOnly}, {signal}).then(answer => answer.reports),
-        [openOnly],
-    )
-    const [reports, again] = useCall(list)
-
+// One row a report: what it is about, who, how long ago, and what was said, so most are judged from the list.
+export function ReportList({chat, reports, counts, opened, onOpen}: Props) {
     return (
-        <section aria-label="Reports">
-            <div className="toolbar">
-                <div className="segmented" role="group" aria-label="Which reports">
-                    <button type="button" aria-pressed={openOnly} onClick={() => onOpenOnly(true)}>Open</button>
-                    <button type="button" aria-pressed={!openOnly} onClick={() => onOpenOnly(false)}>All</button>
-                </div>
-                <button type="button" className="button" onClick={again}>Reload</button>
-            </div>
-
-            {reports.state === "loading" && <p className="muted">Loading…</p>}
-            {reports.state === "failed" && <FailureNotice failure={reports} onRetry={again}/>}
-            {reports.state === "done" && (
-                <>
-                    <p className="muted">{countOf(reports.value.length, openOnly ? "open report" : "report")}</p>
-                    <ol className="cards">
-                        {reports.value.map(report => (
-                            <ReportCard key={report.id} report={report} onOpen={() => onOpen(report)}/>
-                        ))}
-                    </ol>
-                </>
-            )}
-        </section>
+        <ol className="rows" aria-label="The reports">
+            {reports.map(report => (
+                <li key={report.id}>
+                    <button
+                        type="button"
+                        className="row"
+                        aria-current={report.id === opened ? "true" : undefined}
+                        onClick={() => onOpen(report.id)}
+                    >
+                        <span className="row-head">
+                            <span className="badge badge-report">{reasonLabel(report.reason)}</span>
+                            <span className="name">{report.reportedName === "" ? "no name" : report.reportedName}</span>
+                            {(counts.get(report.reportedAccountId) ?? 0) > 1 && (
+                                <span className="count" title="Reports on this account">
+                                    ×{counts.get(report.reportedAccountId)}
+                                </span>
+                            )}
+                            <span className="row-end"><Ago at={report.createdAt}/></span>
+                        </span>
+                        {report.messageId !== "" && report.decision === undefined
+                            ? <ReportedText chat={chat} messageId={report.messageId} fallback={report.text}/>
+                            : report.text !== "" && <span className="row-text">{report.text}</span>}
+                        <span className="row-sub muted">
+                            by {report.reporterName === "" ? "no name" : report.reporterName}
+                            {report.decision !== undefined && (
+                                <>
+                                    {" · "}
+                                    <span className={report.decision.outcome === ReportOutcome.ACTED ? "outcome-acted" : ""}>
+                                        {outcomeLabel(report.decision.outcome)}
+                                    </span>
+                                    {report.decision.comment !== "" && `: ${report.decision.comment}`}
+                                </>
+                            )}
+                        </span>
+                    </button>
+                </li>
+            ))}
+        </ol>
     )
 }
 
-function ReportCard({report, onOpen}: {report: Report, onOpen: () => void}) {
-    return (
-        <li className="card">
-            <div className="card-head">
-                <span className="badge badge-report">{reasonLabel(report.reason)}</span>
-                <When at={report.createdAt}/>
-            </div>
-            <dl className="people">
-                <Person label="Reported" name={report.reportedName} id={report.reportedAccountId}/>
-                <Person label="By" name={report.reporterName} id={report.reporterAccountId}/>
-            </dl>
-            {report.text !== "" && <p className="text">{report.text}</p>}
-            <div className="card-foot">
-                {report.decision !== undefined ? <DecisionLine decision={report.decision}/> : <span/>}
-                <button type="button" className="button" onClick={onOpen}>Open</button>
-            </div>
-        </li>
-    )
+// The reported line, read for each open report. What the reporter wrote stands in while it loads, or when it is gone.
+function ReportedText({chat, messageId, fallback}: {chat: ChatAdmin, messageId: string, fallback: string}) {
+    const read = useCallback((signal: AbortSignal) => chat.getMessage({messageId}, {signal}), [chat, messageId])
+    const [message] = useCall(read)
+    if (message.state !== "done") return fallback === "" ? null : <span className="row-text">{fallback}</span>
+    const removed = message.value.removedAt !== undefined
+    return <q className={removed ? "row-text line-removed" : "row-text"}>{message.value.text}</q>
 }

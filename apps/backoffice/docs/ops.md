@@ -3,41 +3,48 @@
 `src/ops/`: `ReconcileTitles` (`TitlesPanel`, after a deploy that adds a title or changes a rule). It asks first, and
 it is harmless twice.
 
+**Both rule pages edit a set the same way.** The list of sets marks the one playing ("Playing now"). **Edit** opens a
+set, its name fixed; **Copy** opens a copy of a set, with no name. The set playing has no Edit: the rules in force
+change only through the schedule, and the server refuses a save of the set that plays now (`FailedPrecondition`, "A
+set of this name plays now. Save it under another name."). The form takes the page's place, with "← All sets" back.
+
+- **What the form changes shows as it is typed** (`changesOf`, `components/Changes`): a value changed is outlined and
+  says what it was ("2 min · was 4 min"), and the bar at the bottom of the window counts the changes. A duration says
+  what it reads as beside its seconds ("240" → "4 min", `secondsWord`); "3" and "3.0" are one value.
+- **Save** sits in that bar, always in reach. It asks first (`ConfirmAction`) with **the list of changes**, each
+  value's place, what it held and what it will hold. It is off until the set has a name and every value is a number,
+  and, for an Edit, until something changed; a Copy may save as it came, under its new name. The server holds the
+  rest: a refusal quotes its words (`The server refused it: …`, with the value's path), and the form stays.
+
 **Game rules** (`RulesPanel`, `rules.ts`) is `planet.v1.AdminService/GetRules` and `SaveRuleSet` (the backend's
 [Rules](../../backend/docs/rules.md)): every set postgres keeps, `default` first, with its map (`Open`, or `Frozen` for
-a set that takes no play, `playOf`), its tempo (`3×`), its clicks
-(`60 in hand, 0.2 a second`) and its boxes, and the set playing, marked. **Edit** opens a set, its name fixed; **Copy**
-opens a copy of a set, with no name. The set playing has no Edit, as on Anti-bot rules: the rules in force change only
-through the schedule, and the server refuses a save of the set that plays now (`FailedPrecondition`, "A set of this
-name plays now. Save it under another name.").
+a set that takes no play, `playOf`), its tempo (`3×`), its clicks (`60 in hand, 0.2 a second`) and its boxes.
 
 **The form edits every value of a set, grouped**, under one switch, "Frozen: the map takes no play" (the set's
 `frozen`: while it plays, planet refuses every click, bomb, shield, refill, box and quiz; see the backend's
 [A frozen map](../../backend/docs/rules.md#a-frozen-map)): Clicks (the tempo with them), Boxes, What a box is (the kinds'
 weights), Charges, New accounts, Quizzes (with their on switch), and the Toll, whose steps are rows to add and remove.
 `GROUPS` names each value by its path in the set's rules (`Rules.toJson`), so the form needs no code per value: a
-duration is typed in seconds, a count is rounded to a whole one, a toll share is typed in percent. **A grouped form,
-not a JSON editor**: every value has a label and a number field, so a value cannot be left out or misspelled; a test
-(`edits every value of a set`) fails when the set gains a value the form does not name.
-
-Save asks first (`ConfirmAction`) and is off until every value is a number and the set has a name. The server holds
-the rest: a refusal quotes its words (`The server refused it: …`, with the value's path), and the form stays.
+duration is typed in seconds, a count is rounded to a whole one, a toll share is typed in percent. Every value has a
+label and a number field, so a value cannot be left out or misspelled; a test (`edits every value of a set`) fails when
+the set gains a value the form does not name.
 
 **Anti-bot rules** (`AntibotRulesPanel`, `antibotRules.ts`) is `antibot.v1.AdminService/GetRules` and `SaveRuleSet`
 (the backend's [antibot rules](../../backend/docs/antibot-rules.md)): every set postgres keeps, `default` first, with
 whether it enforces its bans, the watchdogs it turns off (`<watchdog>.enabled` false: the jury reads them as clear), and its
-crowd (`cohort.certainMembers`), and the set playing, marked. The watchdogs are the parts of `antibot.v1.Rules` that have
-an `enabled` field, read off the proto, so a new one shows with no edit here.
+crowd (`cohort.certainMembers`). The watchdogs are the parts of `antibot.v1.Rules` that have an `enabled` field, read
+off the proto, so a new one shows with no edit here.
 
-- **A JSON editor, not a form**: a set holds about 85 values in a dozen parts, and a field each would be a page of
-  inputs. The text is the set's `antibot.v1.Rules` as protojson, every value written (`emitDefaultValues`); a bound
-  left unset (`metronome.shape.maxSkew`) is left out.
-- **Edit** opens a set, its name fixed; **Copy** opens a copy of a set, with no name. The set playing has no Edit: the
-  rules in force change only through the schedule, and the server refuses a save of a set that plays now
-  (`FailedPrecondition`, "A set of this name plays now. Save it under another name.").
-- **Save** asks first (`ConfirmAction`) and is off until the set has a name and the text is an `antibot.v1.Rules`
-  (`Rules.fromJsonString`: a typo in a key is refused here, with protobuf's words). The server holds the bounds; its
-  refusal is quoted, every reason, and the form stays.
+- **A form read off the proto** (`PARTS`, `LEAVES`): a set holds 94 values in a dozen parts, so each part (Bans,
+  Jury, each watchdog) is folded under one line that says whether it is on and how many of its values the form
+  changed. Inside, its switch first, then a field per value, labelled from its name ("minReactions" → "Min
+  reactions", the whole place as the field's name: "Metronome · Min reactions"), and its inner parts (Shape, Clock…)
+  framed. A value the proto gains shows with no edit here; a kind of value the form has no field for (an enum, a map,
+  a string) fails loud.
+- **A value as it is typed**: a bool is a box, a count is rounded to a whole one, a duration is in seconds, and the
+  ban ladder (`bans.banDurations`) is steps to add and remove. An optional bound (`metronome.shape.maxSkew`) or a
+  duration left empty is left unset; any other value must be a number, and the form says which is not
+  (`flawOf`). A part the set leaves unset reads as zeros, as proto3 reads it.
 
 **Rule schedule** (`SchedulePanel`, `schedule.ts`) is `gamemaster.v1.AdminService` (the backend's
 [gamemaster module](../../backend/docs/gamemaster.md)), with planet's and the antibot's `GetRules` beside it:
