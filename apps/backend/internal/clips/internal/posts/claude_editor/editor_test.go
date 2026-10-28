@@ -37,6 +37,7 @@ var (
 			Places:     []posts.Place{{Kind: posts.ContinentPlace, Continent: "South Asia", Tiles: 9600, Holder: "fr", Held: 6170, Share: 0.643, Changed: 6000}},
 			Names:      map[string]string{"fr": "France", "tr": "Turkey"},
 			Continents: map[string]string{"Europe": "eu", "Middle East": ""},
+			Anthems:    []string{"eu", "fr", "tr"},
 		},
 		Recent: []posts.Telling{{Title: "BRITTANY IS INVADING AUSTRALIA", Key: posts.StoryKey{Flag: "xb", Continent: "Oceania"}, Countries: []string{"au", "xb"}, At: at.Add(-time.Hour)}},
 	}
@@ -94,15 +95,21 @@ func editorOf(t *testing.T, server *httptest.Server) *claude_editor.Editor {
 func TestTheModelsAnswerIsTheEditionAndItsCost(t *testing.T) {
 	api := &fake{status: http.StatusOK, answer: message("end_turn",
 		`{"why":"The war is the day's story.","stories":[`+
-			`{"front":1,"tour":0,"place":0,"kind":"battle","attacker":"fr","rival":"tr","takenFrom":["tr"],"countries":["tr"],"continent":"","team":"","headline":"FRANCE VS TURKEY","teasers":["THE WAR FOR TURKEY"]},`+
-			`{"front":0,"tour":1,"place":0,"kind":"","attacker":"","rival":"","takenFrom":[],"countries":[],"continent":"","team":"","headline":"FRANCE IS EVERYWHERE","teasers":["NOBODY CAN STOP FRANCE"]}]}`)}
+			`{"front":1,"tour":0,"place":0,"kind":"battle","attacker":"fr","rival":"tr","takenFrom":["tr"],"countries":["tr"],"continent":"","team":"","headline":"FRANCE VS TURKEY","teasers":["THE WAR FOR TURKEY"],"line":"The battle for Turkey","call":"PICK A SIDE","callFlags":["fr","tr"],"anthem":"fr"},`+
+			`{"front":0,"tour":1,"place":0,"kind":"","attacker":"","rival":"","takenFrom":[],"countries":[],"continent":"","team":"","headline":"FRANCE IS EVERYWHERE","teasers":["NOBODY CAN STOP FRANCE"],"line":"","call":"FIGHT BACK","callFlags":[],"anthem":""}]}`)}
 
 	edition, spend, err := editorOf(t, api.serve(t)).Edit(t.Context(), offer)
 
 	require.NoError(t, err)
 	assert.Equal(t, posts.Edition{Why: "The war is the day's story.", Stories: []posts.Story{
-		{Front: 1, Kind: posts.Battle, Attacker: "fr", Rival: "tr", TakenFrom: []string{"tr"}, Countries: []string{"tr"}, Headline: "FRANCE VS TURKEY", Teasers: []string{"THE WAR FOR TURKEY"}},
-		{Tour: 1, TakenFrom: []string{}, Countries: []string{}, Headline: "FRANCE IS EVERYWHERE", Teasers: []string{"NOBODY CAN STOP FRANCE"}},
+		{
+			Front: 1, Kind: posts.Battle, Attacker: "fr", Rival: "tr", TakenFrom: []string{"tr"}, Countries: []string{"tr"}, Headline: "FRANCE VS TURKEY", Teasers: []string{"THE WAR FOR TURKEY"},
+			Line: "The battle for Turkey", Call: "PICK A SIDE", CallFlags: []string{"fr", "tr"}, Anthem: "fr",
+		},
+		{
+			Tour: 1, TakenFrom: []string{}, Countries: []string{}, Headline: "FRANCE IS EVERYWHERE", Teasers: []string{"NOBODY CAN STOP FRANCE"},
+			Call: "FIGHT BACK", CallFlags: []string{},
+		},
 	}}, edition)
 	assert.Equal(t, int64(1500), spend.InputTokens)
 	assert.Equal(t, int64(2000), spend.CacheWriteTokens)
@@ -128,7 +135,7 @@ func TestTheRequestCachesTheInstructionsAndAsksForTheAnswersShape(t *testing.T) 
 	assert.Equal(t, "json_schema", format["type"])
 	assert.Equal(t, []any{"why", "stories"}, format["schema"].(map[string]any)["required"])
 	story := format["schema"].(map[string]any)["properties"].(map[string]any)["stories"].(map[string]any)["items"].(map[string]any)
-	assert.Equal(t, []any{"front", "tour", "place", "kind", "attacker", "rival", "takenFrom", "countries", "continent", "team", "headline", "teasers"}, story["required"])
+	assert.Equal(t, []any{"front", "tour", "place", "kind", "attacker", "rival", "takenFrom", "countries", "continent", "team", "headline", "teasers", "line", "call", "callFlags", "anthem"}, story["required"])
 
 	prompt, err := claude_editor.PromptOf(offer)
 	require.NoError(t, err)
@@ -197,6 +204,7 @@ func TestThePromptHoldsTheFindingsNumberedTheStoriesToldFirstAndTheRecentPosts(t
 		ToldFirst  []string          `json:"toldFirst"`
 		Names      map[string]string `json:"names"`
 		Continents []string          `json:"continents"`
+		Anthems    []string          `json:"anthems"`
 		Fronts     []struct {
 			Front     int     `json:"front"`
 			Hours     float64 `json:"hours"`
@@ -238,6 +246,7 @@ func TestThePromptHoldsTheFindingsNumberedTheStoriesToldFirstAndTheRecentPosts(t
 	assert.Equal(t, 1, written.Slots)
 	assert.Equal(t, []string{"PALAU WINS DAY 18"}, written.ToldFirst)
 	assert.Equal(t, map[string]string{"fr": "France", "tr": "Turkey"}, written.Names)
+	assert.Equal(t, []string{"eu", "fr", "tr"}, written.Anthems)
 	assert.Equal(t, []string{"Europe", "Middle East"}, written.Continents)
 	require.Len(t, written.Fronts, 1)
 	assert.Equal(t, 1, written.Fronts[0].Front)

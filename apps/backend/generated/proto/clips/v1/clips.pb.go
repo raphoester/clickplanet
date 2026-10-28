@@ -35,8 +35,10 @@ type Findings struct {
 	// A day of the season won, a country called up to its Final Battle: told first, with their own headlines.
 	Seasonal []*Seasonal `protobuf:"bytes,6,rep,name=seasonal,proto3" json:"seasonal,omitempty"`
 	// How a clip says each country code of the findings: "pw": "Palau", "gb": "the UK".
-	Names         map[string]string `protobuf:"bytes,7,rep,name=names,proto3" json:"names,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	Continents    []*Continent      `protobuf:"bytes,8,rep,name=continents,proto3" json:"continents,omitempty"`
+	Names      map[string]string `protobuf:"bytes,7,rep,name=names,proto3" json:"names,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Continents []*Continent      `protobuf:"bytes,8,rep,name=continents,proto3" json:"continents,omitempty"`
+	// The codes a clip has an anthem for, a continent's own flag among them: what a Pick's anthem names.
+	Anthems       []string `protobuf:"bytes,9,rep,name=anthems,proto3" json:"anthems,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -123,6 +125,13 @@ func (x *Findings) GetNames() map[string]string {
 func (x *Findings) GetContinents() []*Continent {
 	if x != nil {
 		return x.Continents
+	}
+	return nil
+}
+
+func (x *Findings) GetAnthems() []string {
+	if x != nil {
+		return x.Anthems
 	}
 	return nil
 }
@@ -1020,7 +1029,8 @@ func (x *StoryFacts) GetScore() float64 {
 }
 
 // A story to tell, as the generator's --story takes it: one front, one tour, one place or one seasonal story of the
-// findings, by its number from 1, and for a front what the editor made of it.
+// findings, by its number from 1, for a front what the editor made of it, and the editor's words. A seasonal story has
+// words of its own, and none of the editor's.
 type Pick struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
 	Front    uint32                 `protobuf:"varint,1,opt,name=front,proto3" json:"front,omitempty"`
@@ -1037,11 +1047,17 @@ type Pick struct {
 	Countries []string `protobuf:"bytes,9,rep,name=countries,proto3" json:"countries,omitempty"`
 	Continent string   `protobuf:"bytes,10,opt,name=continent,proto3" json:"continent,omitempty"`
 	// The continent whose flags strike back together, for a comeback of them.
-	Team string `protobuf:"bytes,11,opt,name=team,proto3" json:"team,omitempty"`
-	// Empty for the generator's own.
+	Team     string `protobuf:"bytes,11,opt,name=team,proto3" json:"team,omitempty"`
 	Headline string `protobuf:"bytes,12,opt,name=headline,proto3" json:"headline,omitempty"`
-	// The headline said in other words, for the caption: the editor's. Empty for the generator's own.
-	Teasers       []string `protobuf:"bytes,13,rep,name=teasers,proto3" json:"teasers,omitempty"`
+	// The headline said in other words, for the caption.
+	Teasers []string `protobuf:"bytes,13,rep,name=teasers,proto3" json:"teasers,omitempty"`
+	// Under the headline; empty for none.
+	Line string `protobuf:"bytes,14,opt,name=line,proto3" json:"line,omitempty"`
+	// The call to act at the end, and the flags it asks the viewer to fight for.
+	Call      string   `protobuf:"bytes,15,opt,name=call,proto3" json:"call,omitempty"`
+	CallFlags []string `protobuf:"bytes,16,rep,name=call_flags,json=callFlags,proto3" json:"call_flags,omitempty"`
+	// The code whose anthem plays under the clip, one of the findings' anthems; empty for none.
+	Anthem        string `protobuf:"bytes,17,opt,name=anthem,proto3" json:"anthem,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1165,6 +1181,34 @@ func (x *Pick) GetTeasers() []string {
 		return x.Teasers
 	}
 	return nil
+}
+
+func (x *Pick) GetLine() string {
+	if x != nil {
+		return x.Line
+	}
+	return ""
+}
+
+func (x *Pick) GetCall() string {
+	if x != nil {
+		return x.Call
+	}
+	return ""
+}
+
+func (x *Pick) GetCallFlags() []string {
+	if x != nil {
+		return x.CallFlags
+	}
+	return nil
+}
+
+func (x *Pick) GetAnthem() string {
+	if x != nil {
+		return x.Anthem
+	}
+	return ""
 }
 
 type Clip struct {
@@ -1975,7 +2019,7 @@ var File_clips_v1_clips_proto protoreflect.FileDescriptor
 
 const file_clips_v1_clips_proto_rawDesc = "" +
 	"\n" +
-	"\x14clips/v1/clips.proto\x12\bclips.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xba\x03\n" +
+	"\x14clips/v1/clips.proto\x12\bclips.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xd4\x03\n" +
 	"\bFindings\x120\n" +
 	"\x05since\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\x120\n" +
 	"\x05until\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x05until\x12'\n" +
@@ -1986,7 +2030,8 @@ const file_clips_v1_clips_proto_rawDesc = "" +
 	"\x05names\x18\a \x03(\v2\x1d.clips.v1.Findings.NamesEntryR\x05names\x123\n" +
 	"\n" +
 	"continents\x18\b \x03(\v2\x13.clips.v1.ContinentR\n" +
-	"continents\x1a8\n" +
+	"continents\x12\x18\n" +
+	"\aanthems\x18\t \x03(\tR\aanthems\x1a8\n" +
 	"\n" +
 	"NamesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
@@ -2110,7 +2155,7 @@ const file_clips_v1_clips_proto_rawDesc = "" +
 	"\n" +
 	"NamesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xcd\x02\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xac\x03\n" +
 	"\x04Pick\x12\x14\n" +
 	"\x05front\x18\x01 \x01(\rR\x05front\x12\x12\n" +
 	"\x04tour\x18\x02 \x01(\rR\x04tour\x12\x14\n" +
@@ -2126,7 +2171,12 @@ const file_clips_v1_clips_proto_rawDesc = "" +
 	" \x01(\tR\tcontinent\x12\x12\n" +
 	"\x04team\x18\v \x01(\tR\x04team\x12\x1a\n" +
 	"\bheadline\x18\f \x01(\tR\bheadline\x12\x18\n" +
-	"\ateasers\x18\r \x03(\tR\ateasers\"\xd0\x02\n" +
+	"\ateasers\x18\r \x03(\tR\ateasers\x12\x12\n" +
+	"\x04line\x18\x0e \x01(\tR\x04line\x12\x12\n" +
+	"\x04call\x18\x0f \x01(\tR\x04call\x12\x1d\n" +
+	"\n" +
+	"call_flags\x18\x10 \x03(\tR\tcallFlags\x12\x16\n" +
+	"\x06anthem\x18\x11 \x01(\tR\x06anthem\"\xd0\x02\n" +
 	"\x04Clip\x12\x12\n" +
 	"\x04pick\x18\x01 \x01(\rR\x04pick\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12$\n" +
