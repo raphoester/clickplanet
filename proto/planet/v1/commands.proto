@@ -41,3 +41,11 @@ message PlayRuleSet {
   string rule_set = 1;
   google.protobuf.Timestamp decided_at = 2;
 }
+
+// Wipes the map: every tile goes blank, with no holder and no shield, and every fortify lock goes. The map starts a
+// new epoch, so every client reads it again. Planet keeps each reset_id it applied, so a reset told twice, or after a
+// restart, wipes once. decided_at is when the reset is due: a replay never reaches before it.
+message ResetMap {
+  string reset_id = 1;
+  google.protobuf.Timestamp decided_at = 2;
+}

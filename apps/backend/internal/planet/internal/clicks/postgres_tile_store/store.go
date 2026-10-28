@@ -159,3 +159,26 @@ func saveLandmasses(ctx context.Context, tx cppg.Querier, landmasses []inmemory_
 
 	return nil
 }
+
+func (s *Store) Wipe(ctx context.Context, keep func(ctx context.Context) (bool, error)) (bool, error) {
+	wiped := false
+	err := s.db.InTx(ctx, func(ctx context.Context) error {
+		kept, err := keep(ctx)
+		if err != nil || !kept {
+			return err
+		}
+		tx := s.db.On(ctx)
+		if _, err := tx.ExecContext(ctx, `DELETE FROM tiles`); err != nil {
+			return fmt.Errorf("failed to delete the tiles: %w", err)
+		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM landmasses`); err != nil {
+			return fmt.Errorf("failed to delete the landmasses' locks: %w", err)
+		}
+		wiped = true
+		return nil
+	})
+	if err != nil {
+		return false, err //nolint:wrapcheck // each step names itself.
+	}
+	return wiped, nil
+}

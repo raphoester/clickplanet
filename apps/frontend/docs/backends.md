@@ -199,6 +199,10 @@ refused is a bug the player sees.
 - **The click dock says so** (`ClickBudgetMeter`'s `frozen`): "The map is frozen" in
   place of the clicks and the inventory, and "Season N starts in …" when the
   gamemaster's timeline has a next season.
+- **A map reset needs nothing here**: planet cuts every stream and starts a new epoch
+  (see the backend's [The map reset](../../backend/docs/map-reset.md)), so the stream
+  opens again, the tiles see another start, and the tiles, the holdings and the
+  fortresses are read again, as after a restart.
 - **In fake mode** `freezeMap()` and `thawMap()` on the console freeze and thaw the
   fake planet, and `startBreak(nextInMinutes = 960)` ends the fake season with the
   next one to come, so the countdown shows.

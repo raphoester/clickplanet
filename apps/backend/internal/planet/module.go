@@ -59,6 +59,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/commands/apply_grant_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/commands/play_rule_set_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/commands/refuse_caller_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/commands/reset_map_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/facts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
@@ -122,6 +123,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/refusals"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/refusals/log_refusals"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/refusals/postgres_refusal_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/resets/postgres_reset_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/resets/usecases/reset_map_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/resets/usecases/reset_map_usecase/log_reset_map"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/parts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/postgres_choice_store"
@@ -217,6 +221,13 @@ func NewModule(config Config) cpbootstrap.Module {
 				closeStores()
 				return fmt.Errorf("failed to handle planet.v1.PlayRuleSet: %w", err)
 			}
+			resetStore := postgres_reset_store.New(db)
+			resetMap := log_reset_map.New(reset_map_usecase.New(tilesStorage, resetStore), props.Logger)
+			resetting, err := cpredis.Handle(ctx, streams, reset_map_handler.New(resetMap))
+			if err != nil {
+				closeStores()
+				return fmt.Errorf("failed to handle planet.v1.ResetMap: %w", err)
+			}
 			throttle := rules.Reader(inForce, clicks.ThrottlePart)
 			game := rules.Reader(inForce, bonuses.Part)
 			freeze := rules.Reader(inForce, clicks.FreezePart)
@@ -258,7 +269,7 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			// Not closers: closers run before the runners' last flush, and the relays' last send.
 			props.Runners.Add(cppg.CloseAfter(db, props.Logger, tilesStorage, takings,
-				cpredis.CloseAfter(streams, props.Logger, deletions, relay, grants, refused, admitted, chosen,
+				cpredis.CloseAfter(streams, props.Logger, deletions, relay, grants, refused, admitted, chosen, resetting,
 					facts.NewRelay(told, streams, factsRelayInterval))))
 			props.Runners.Add(ledger.NewRetention(config.Ledger, takings, clock))
 
@@ -332,7 +343,7 @@ func NewModule(config Config) cpbootstrap.Module {
 					props.Logger)),
 				GrantChargesHandler: grant_charges_handler.New(
 					audit_grant_charges.New(grant_charges_usecase.New(charges), props.Logger)),
-				GetReplayHandler:      get_replay_handler.New(replay_usecase.New(takings, tilesChecker, tilesStorage, clock)),
+				GetReplayHandler:      get_replay_handler.New(replay_usecase.New(takings, resetStore, tilesChecker, tilesStorage, clock)),
 				GetLedgerHandler:      get_ledger_handler.New(changes_query.NewPostgresQuery(db, clock)),
 				GetTerritoriesHandler: getTerritories,
 				GetRulesHandler:       get_rules_handler.New(rule_sets_query.NewPostgresQuery(db), inForce),

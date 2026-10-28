@@ -233,3 +233,50 @@ export class PlayRuleSet extends Message<PlayRuleSet> {
   }
 }
 
+/**
+ * Wipes the map: every tile goes blank, with no holder and no shield, and every fortify lock goes. The map starts a
+ * new epoch, so every client reads it again. Planet keeps each reset_id it applied, so a reset told twice, or after a
+ * restart, wipes once. decided_at is when the reset is due: a replay never reaches before it.
+ *
+ * @generated from message planet.v1.ResetMap
+ */
+export class ResetMap extends Message<ResetMap> {
+  /**
+   * @generated from field: string reset_id = 1;
+   */
+  resetId = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp decided_at = 2;
+   */
+  decidedAt?: Timestamp;
+
+  constructor(data?: PartialMessage<ResetMap>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.ResetMap";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "reset_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "decided_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ResetMap {
+    return new ResetMap().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ResetMap {
+    return new ResetMap().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ResetMap {
+    return new ResetMap().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ResetMap | PlainMessage<ResetMap> | undefined, b: ResetMap | PlainMessage<ResetMap> | undefined): boolean {
+    return proto3.util.equals(ResetMap, a, b);
+  }
+}
+

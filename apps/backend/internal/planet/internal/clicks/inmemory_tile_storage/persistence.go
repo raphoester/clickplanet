@@ -16,6 +16,8 @@ type Persistence interface {
 	Load(ctx context.Context, visit func(tile Tile)) error
 	LoadLandmasses(ctx context.Context, asset string, visit func(landmass clicks.LandmassID, fortifiedBy string)) error
 	Save(ctx context.Context, tiles []Tile, landmasses []Landmass) error
+	// Wipe deletes every tile and every landmass's lock, in one transaction with keep, once keep says to.
+	Wipe(ctx context.Context, keep func(ctx context.Context) (bool, error)) (bool, error)
 }
 
 type Tile struct {
@@ -135,6 +137,9 @@ func (s *Storage) flushOrLog(ctx context.Context) {
 }
 
 func (s *Storage) Flush(ctx context.Context) error {
+	s.flushing.Lock()
+	defer s.flushing.Unlock()
+
 	tiles, landmasses := s.takeDirty()
 	if len(tiles) == 0 && len(landmasses) == 0 {
 		return nil

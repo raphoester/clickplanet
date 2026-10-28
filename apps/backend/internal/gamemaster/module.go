@@ -57,12 +57,15 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/uuid_id_provider"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/postgres_season_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/redis_map_commands"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/usecases/add_season_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/usecases/add_season_usecase/audit_add_season"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/usecases/delete_season_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/usecases/delete_season_usecase/audit_delete_season"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/usecases/edit_season_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/usecases/edit_season_usecase/audit_edit_season"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/usecases/play_resets_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/usecases/play_resets_usecase/log_play_resets"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpoutbox"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
@@ -121,6 +124,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	seasons := postgres_season_store.New(db)
 	ruleSchedule := play_schedule_usecase.NewRunner(scheduleCheck, log_play_schedule.New(
 		play_schedule_usecase.New(entries, seasons, redis_rule_set_commands.New(streams.Commands()), clock), props.Logger))
+	resetting := play_resets_usecase.NewRunner(scheduleCheck, log_play_resets.New(
+		play_resets_usecase.New(seasons, redis_map_commands.New(streams.Commands()), clock), props.Logger))
 	heard := postgres_moment_store.New(db)
 	planner := moments.NewPlanner(seasons, entries, heard, cutoff)
 	scoringPlay := play_scoring_usecase.NewRunner(scheduleCheck, log_play_scoring.New(
@@ -145,7 +150,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	turns := turn_query.NewPostgresQuery(db, clock, cutoff)
 	turnFeed := inprocess_turn_feed.New(log_turn_reader.New(turns, props.Logger))
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger, turnFeed, cpredis.CloseAfter(streams, props.Logger,
-		ruleSchedule, scoringPlay, rounds, books, cpoutbox.NewRelay("gamemaster-outbox", db, streams, props.Logger))))
+		ruleSchedule, resetting, scoringPlay, rounds, books, cpoutbox.NewRelay("gamemaster-outbox", db, streams, props.Logger))))
 
 	admin := gamemasterv1controller.AdminService{
 		GetScheduleHandler: get_schedule_handler.New(schedule_query.NewPostgresQuery(db, clock)),

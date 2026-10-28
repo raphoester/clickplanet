@@ -59,6 +59,18 @@ func (f *feed) publish(change clicks.Change) {
 	f.cut += len(behind)
 }
 
+// cutAll ends every stream: a client that opens again reads the map from its new start.
+func (f *feed) cutAll() {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	var open []chan clicks.Change
+	f.subscribers.ForEach(func(changes chan clicks.Change) { open = append(open, changes) })
+	for _, changes := range open {
+		f.unsubscribe(changes)
+	}
+}
+
 // Never under the storage's lock, which publish runs under: the log writes to stdout.
 func (f *feed) reportCut() {
 	f.mu.Lock()

@@ -47,6 +47,9 @@ internal/gamemaster/
                                     Cutoff, DayNumber, Day, Window.Days; the Store port and its contract suite
       inmemory_season_store/        the Store in a map, behind the testing tag
       postgres_season_store/        the Store over gamemaster.seasons and season_finales
+      redis_map_commands/           planet.v1.ResetMap, on planet's command stream
+      usecases/play_resets_usecase/ a season after season 0 starts on a blank map, told once per process; Runner
+        log_play_resets/            logs each reset told, and a failure
       usecases/add_season_usecase/     audit_add_season/
       usecases/edit_season_usecase/    audit_edit_season/
       usecases/delete_season_usecase/  audit_delete_season/
@@ -207,7 +210,8 @@ commands go one way, gamemaster to scoring; scoring never asks back.
   finale (see [The finale](#the-finale)).
 - **The seasons are a chain, appended to** (the owner, 2026-10-28): each starts its break after the end of the one
   before, and ends its length later (`Calendar.Windows`). So none can overlap, and **moving the running season's end
-  moves every season after it**. The break is the time no season runs: no book is open and no day runs. Freezing the
+  moves every season after it**. The break is the time no season runs: no book is open and no day runs. **A season after season 0 starts on a blank
+  map**: planet is told to reset it (see [The map reset](map-reset.md)). Freezing the
   map during it is a rule set the schedule plays over the break, not a fact of the season.
 - **Season 0's break counts from `season.Origin`, 2026-10-08 00:00 UTC**, so its days keep the numbers scoring gave
   them: day 1 ended 2026-10-08 21:00, when rounds shipped (#360). Migration `20261028120000_seasons` seeds it with no
@@ -434,3 +438,6 @@ entry for that night. The entry was deleted and season 0's finale edited to play
    on the frozen dock.
 4. Ops → Rule schedule: add a plain entry `frozen`, from Sat 31 Oct 23:00 to Sun 1 Nov 15:00 UTC, priority 1. It
    starts as the Final Battle ends, so it overlaps no finale.
+
+At 15:00 the freeze ends, season 1 opens its book and day 1, and **the map is reset** (see [The map reset](map-reset.md)):
+the gamemaster tells planet `ResetMap{season-1}`, once.
