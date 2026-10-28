@@ -114,22 +114,44 @@ to a country they know, that looks big on a globe.
 ## What makes a headline good
 
 The headline is the hook: the first thing read, over the fighting up close, with the flag of each side in front of
-it.
+it. It is a war cry, not a report: the counter under it gives the numbers.
 
 - **Short and loud.** Upper case, present tense, a subject and a verb, 25 to 45 letters; never over 60. Two lines
   at most on a phone.
-- **Name the flags and the place as people say them**, from `names`: "THE UK", "THE NETHERLANDS". The subject is the
-  story's flag: the loser of a rout, the attacker otherwise.
-- **True to the story.** Say only what its kind and its facts say. "KICKED OUT" only for a kickout or a rout; "VS" or
-  "WAR" only for a battle; a holding holds, it does not invade; never a bigger share than `share` (79.9% is 79%). No
-  country, number or event the facts do not hold.
-- **The size of the words is the size of the story.** "DOWNFALL", "COLLAPSE" and "THE END OF" are for a flag that led
-  the world and fell far down it, never for one place lost: on 2026-10-28 a YouTube title called China losing Finland,
-  most of the little China held, "GENERATIONAL DOWNFALL OF CHINA". A flag losing a place loses it, or gets kicked out.
+- **Who does what to whom.** A winner, a verb and a loser read as a war, and the viewer picks a side: "BULGARIA KICKS
+  BRAZIL OUT OF ARGENTINA". Name the attacker, and the loser too when someone was thrown out. A stranger knows the
+  real map, not the game's: "BRAZIL LOSES ARGENTINA" reads as nonsense to them, since Argentina was never Brazil's,
+  and a loss with nobody doing it reads as nothing happening.
+- **A strong verb, never a fraction.** "MOST OF", "ALMOST ALL", "HALF OF", "PART OF", "NEARLY", "LOSES ITS GRIP ON"
+  turn a headline into a report. On 2026-10-28 the feed said "CHINA LOSES MOST OF FINLAND", "ISRAEL LOSES MOST OF
+  EGYPT", "BULGARIA TAKES HALF OF ARGENTINA FROM BRAZIL", "BRAZIL LOSES MOST OF ARGENTINA" and "BRITTANY TAKES ALMOST
+  ALL OF AUSTRALIA", and the owner asked who would stop scrolling for that. A headline is made true by choosing the
+  verb that is true whole, not by shrinking a bigger one. Algeria went from 3,360 tiles of Australia to 215:
+  "BRITTANY WIPES ALGERIA OUT OF AUSTRALIA" is true, with no fraction. Bulgaria took 3,314 of Brazil's 3,874 tiles of
+  Argentina: "BULGARIA KICKS BRAZIL OUT OF ARGENTINA" is true. Two flags splitting a country are at war, "BULGARIA VS
+  BRAZIL FOR ARGENTINA". When no verb is true without a fraction, the story is smaller than it looked: tell what is
+  true whole (the attack, "BULGARIA STORMS ARGENTINA"), or tell another story.
+- **Verbs a teenager knows from games**: TAKES, INVADES, STORMS, CRUSHES, KICKS OUT, WIPES OUT, STEALS, CONQUERS,
+  SWALLOWS, VS. Simple words a non-native speaker knows, never "STRIPS", "ROUTS" or "ANNEXES".
+- **The odd pair is the hook.** A flag fighting far from home, a small one beating a big one, two neighbours at war:
+  Bulgaria in Argentina, Brittany in Australia, Brazil against Argentina are what a stranger stops for. Put the names
+  that show it at the front.
+- **Name the flags and the place as people say them**, from `names`: "THE UK", "THE NETHERLANDS".
+- **True to the story.** Say only what its kind and its facts say. "KICKS OUT" and "WIPES OUT" only for a kickout or
+  a rout: Brittany held 71% of Australia when the front opened, so Algeria thrown out of it is a kickout, not an
+  invasion. "VS" or "WAR" only for a battle; a holding holds, it does not invade; "TAKES OVER" and "RULES" need the
+  painted flags to show it; never a bigger share than `share` (79.9% is 79%). No country, number or event the facts
+  do not hold.
+- **The size of the words is the size of the story.** "DOWNFALL", "COLLAPSE" and "THE END OF" speak of a flag's whole
+  fate: they are for a flag that led the world and fell far down it, never for one place lost. On 2026-10-28 a YouTube
+  title called China losing Finland, most of the little China held, "GENERATIONAL DOWNFALL OF CHINA". The verb of what
+  happened in one place can be as loud as the swing there: a flag thrown out of a country is kicked out or wiped out
+  of it.
 - **No numbers the clip already shows.** No tile counts, no "in 3 hours": the counter shows them, and they read as
   written by a machine.
-- **Not the same words twice.** Never a headline of `recentPosts`: the same words read as the same clip. A question
-  ("CAN ANYONE STOP FRANCE?") or an exclamation ("FRANCE IS EVERYWHERE!") can hook, used sparingly.
+- **Not the same words twice, nor the same shape.** Never a headline of `recentPosts`, and not their pattern with
+  other names, nor one of another story of this run: "X LOSES MOST OF Y" four times in a day reads as a machine. A question ("CAN ANYONE STOP FRANCE?") or an
+  exclamation ("FRANCE IS EVERYWHERE!") can hook, used sparingly.
 - Letters, digits, spaces and `! ? ' % : , . & -` only. No emoji, no hashtags, no quotes.
 
 ## What makes a teaser good
@@ -138,10 +160,13 @@ A teaser is the post's title: one is picked at random for each post. On YouTube 
 search, without the clip, so it tells the story whole.
 
 - **Two or three, each in other words than the headline**: the clip already shows the headline, so a teaser that says
-  it again is left out. "CHINA GETS KICKED OUT OF FINLAND" could be "SWEDEN TAKES FINLAND FROM CHINA" and "CHINA LOSES
-  FINLAND".
-- **Everything a headline must be**: upper case, true to the story, the size of the story, the names as people say
-  them, no numbers the clip shows, no emoji, no hashtags. 86 letters at most, so the brand fits after it.
+  it again is left out. "BULGARIA KICKS BRAZIL OUT OF ARGENTINA" could be "BRAZIL GETS CRUSHED IN ARGENTINA" and
+  "ARGENTINA IS BULGARIA'S NOW".
+- **Each one a headline of its own**: someone does something to someone. "THE UK IS SHRINKING FAST" and "BRAZIL'S
+  GRIP ON ARGENTINA IS BREAKING" have nobody doing it; "SLOVENIA IS EATING THE UK" has.
+- **Everything a headline must be**: upper case, a strong verb and no fraction, true to the story, the size of the
+  story, the names as people say them, no numbers the clip shows, no emoji, no hashtags. 86 letters at most, so the
+  brand fits after it.
 
 ## The line, the call and the anthem
 
