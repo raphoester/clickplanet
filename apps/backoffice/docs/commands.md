@@ -2,6 +2,7 @@
 
 ```bash
 npm run dev        # Vite on http://localhost:5174: set it as the backend's auth.admin.origin
+npm run demo       # The same page on a made-up backend in the page itself: no backend, no sign-in
 npm run build      # TypeScript check + Vite bundle → /dist
 npm test           # vitest, once (node; a .test.tsx opens with `// @vitest-environment jsdom`)
 npm run lint       # ESLint

@@ -24,3 +24,16 @@ export function whoOf(caller: Caller, name = ""): string {
     if (name !== "") return name
     return isAccount(caller) ? "this account" : "this address"
 }
+
+// What the search box holds: a player to open by its account id or its address, or a part of a name to look for.
+export type Search = {open: Caller} | {name: string}
+
+const ADDRESS = /^(\d{1,3}(\.\d{1,3}){3}|[0-9a-f]*:[0-9a-f:.]*)(\/\d{1,3})?$/i
+
+export function searchOf(typed: string): Search | undefined {
+    const text = typed.trim()
+    if (text === "") return undefined
+    if (ACCOUNT_ID.test(text)) return {open: {accountId: text.toLowerCase()}}
+    if (ADDRESS.test(text)) return {open: {scope: text}}
+    return {name: text}
+}

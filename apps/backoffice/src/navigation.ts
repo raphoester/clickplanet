@@ -43,10 +43,19 @@ export function titleOf(page: PageId): string {
     return MENU.flatMap(group => group.pages).find(item => item.page === page)?.label ?? page
 }
 
-// The page an address names (#/reports), and the first page for an address that names none.
-export function pageOf(hash: string): PageId {
-    const named = hash.replace(/^#\/?/, "")
-    return PAGES.find(page => page === named) ?? FIRST_PAGE
+// A page and what is open on it: a report's id, a player's account id or address, or "" for its list.
+export type Route = {page: PageId, item: string}
+
+// The route an address names (#/reports, #/players/203.0.113.7), and the first page for an address that names none.
+export function routeOf(hash: string): Route {
+    const [named, ...rest] = hash.replace(/^#\/?/, "").split("/")
+    const page = PAGES.find(each => each === named)
+    if (page === undefined) return {page: FIRST_PAGE, item: ""}
+    return {page, item: decodeURIComponent(rest.join("/"))}
+}
+
+export function hashOf({page, item}: Route): string {
+    return item === "" ? `#/${page}` : `#/${page}/${encodeURIComponent(item)}`
 }
 
 // A player to open on the Players page: who, and what the page that opens it already knows of it.

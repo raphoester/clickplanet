@@ -15,8 +15,7 @@ export function RevertPanel({planet, caller, who}: Props) {
     const counted = count.step === "done" ? count.value : undefined
 
     return (
-        <section className="panel" aria-label="Revert">
-            <h2>Revert {who}</h2>
+        <div className="tool-body">
             <p className="hint">
                 Gives each tile {who} still holds back to what it held before. Ban first, or the player paints again
                 behind the revert. {isAccount(caller)
@@ -50,6 +49,6 @@ export function RevertPanel({planet, caller, who}: Props) {
                     + (done.restored < done.held ? " The rest were retaken while it ran." : "")}
                 refusal={refused}
             />
-        </section>
+        </div>
     )
 }

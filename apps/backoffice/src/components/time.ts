@@ -10,3 +10,22 @@ const CLOCK = new Intl.DateTimeFormat(undefined, {timeStyle: "short"})
 export function clockOf(date: Date): string {
     return CLOCK.format(date)
 }
+
+// How long ago, as a list reads it: "just now", "12 min ago", "3 h ago", "2 d ago".
+export function agoOf(date: Date, now: Date = new Date()): string {
+    const minutes = Math.floor((now.getTime() - date.getTime()) / 60_000)
+    if (minutes < 1) return "just now"
+    if (minutes < 60) return `${minutes} min ago`
+    const hours = Math.floor(minutes / 60)
+    if (hours < 48) return `${hours} h ago`
+    return `${Math.floor(hours / 24)} d ago`
+}
+
+// A span of seconds in the unit it reads best in: "0.3 s", "5 min", "2 h", "1095 d".
+export function secondsWord(seconds: number): string {
+    if (!Number.isFinite(seconds)) return ""
+    for (const [unit, size] of [["d", 86_400], ["h", 3600], ["min", 60]] as const) {
+        if (seconds >= size && seconds % size === 0) return `${seconds / size} ${unit}`
+    }
+    return `${seconds} s`
+}

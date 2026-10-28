@@ -1,5 +1,7 @@
 import {Duration, JsonObject, JsonValue} from "@bufbuild/protobuf"
 import {PlanetAdmin} from "../clients.ts"
+import {Change} from "../components/Changes.tsx"
+import {secondsWord} from "../components/time.ts"
 import {RuleSet} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {BoxPace, ClickRules, Rules} from "../gen/grpc/planet/v1/rules_pb.ts"
 
@@ -136,6 +138,47 @@ function textOf(value: JsonValue | undefined): string {
 export function complete(draft: Draft): boolean {
     const numbers = [...Object.values(draft.values), ...draft.toll.flatMap(step => [step.share, step.slowdown])]
     return draft.name.trim() !== "" && numbers.every(value => value.trim() !== "" && Number.isFinite(Number(value)))
+}
+
+// Every value the draft holds otherwise than `before`, the set it started from.
+export function changesOf(before: Draft, after: Draft): Change[] {
+    const changes: Change[] = []
+    if (before.frozen !== after.frozen) changes.push({label: "Frozen", before: yesOf(before.frozen), after: yesOf(after.frozen)})
+    if (before.quiz !== after.quiz) changes.push({label: "Quizzes on", before: yesOf(before.quiz), after: yesOf(after.quiz)})
+    for (const group of GROUPS) {
+        for (const field of group.fields) {
+            if (sameNumber(before.values[field.path], after.values[field.path])) continue
+            changes.push({
+                label: `${group.title} · ${field.label}`,
+                before: shownOf(field, before.values[field.path]),
+                after: shownOf(field, after.values[field.path]),
+            })
+        }
+    }
+    const tollOf = (draft: Draft) => draft.toll.map(step => `${step.share}% ×${step.slowdown}`).join(", ")
+    if (tollOf(before) !== tollOf(after)) changes.push({label: "Toll", before: tollOf(before), after: tollOf(after)})
+    return changes
+}
+
+// Whether a field holds otherwise than `before`: "3" and "3.0" are one value.
+export function changedAt(before: Draft, after: Draft, path: string): boolean {
+    return !sameNumber(before.values[path], after.values[path])
+}
+
+// A value as the operator reads it: a duration in the unit it reads best in.
+export function shownOf(field: Field, typed: string): string {
+    if (field.kind !== "seconds" || typed.trim() === "" || !Number.isFinite(Number(typed))) return typed
+    return secondsWord(Number(typed))
+}
+
+function sameNumber(a: string | undefined, b: string | undefined): boolean {
+    const x = (a ?? "").trim()
+    const y = (b ?? "").trim()
+    return x === y || (x !== "" && y !== "" && Number(x) === Number(y))
+}
+
+function yesOf(on: boolean): string {
+    return on ? "yes" : "no"
 }
 
 export function ruleSetOf(draft: Draft): RuleSet {

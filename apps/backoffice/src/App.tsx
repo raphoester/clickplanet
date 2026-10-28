@@ -15,7 +15,7 @@ import {SchedulePanel} from "./ops/SchedulePanel.tsx"
 import {SeasonsPanel} from "./ops/SeasonsPanel.tsx"
 import {TimelinePanel} from "./ops/TimelinePanel.tsx"
 import {TitlesPanel} from "./ops/TitlesPanel.tsx"
-import {idOf} from "./players/caller.ts"
+import {callerOf, idOf} from "./players/caller.ts"
 import {PlayersPage} from "./players/PlayersPage.tsx"
 import {ReportsView} from "./reports/ReportsView.tsx"
 import {Callback} from "./signIn/callback.ts"
@@ -23,7 +23,7 @@ import {SignInCallback} from "./signIn/SignInCallback.tsx"
 import {SignOutButton} from "./signIn/SignOutButton.tsx"
 import {NoteList} from "./support/NoteList.tsx"
 import {useCall} from "./useCall.ts"
-import {usePage} from "./usePage.ts"
+import {useRoute} from "./useRoute.ts"
 import {useWide} from "./useWide.ts"
 
 export function App({callback}: {callback: Callback | undefined}) {
@@ -53,21 +53,22 @@ function Operator() {
 
 // The signed-in page: the menu picks one page, and its title says which.
 function Console({operator, onSignedOut}: {operator: string, onSignedOut: () => void}) {
-    const [page, setPage] = usePage()
+    const [route, setRoute] = useRoute()
+    const {page} = route
     const wide = useWide()
-    const [player, setPlayer] = useState<Opened | undefined>(undefined)
+    // What the page that opened a player knew of it (its name, its row): the address bar keeps its id alone.
+    const [known, setKnown] = useState<Opened | undefined>(undefined)
 
     // A report opens its player on the Players page, where every tool on it is. The player already open keeps its row.
     const openPlayer = useCallback((opened: Opened) => {
-        setPlayer(shown => shown !== undefined && idOf(shown.caller) === idOf(opened.caller) ? shown : opened)
-        setPage("players")
-    }, [setPage])
+        setKnown(shown => shown !== undefined && idOf(shown.caller) === idOf(opened.caller) ? shown : opened)
+        setRoute({page: "players", item: idOf(opened.caller)})
+    }, [setRoute])
 
-    // Picking the page shown goes back to its top: Players to its list.
-    const go = (to: PageId) => {
-        if (to === "players" && page === "players") setPlayer(undefined)
-        setPage(to)
-    }
+    // A page picked in the menu opens at its top: Players at its list, Reports with none open.
+    const go = (to: PageId) => setRoute({page: to, item: ""})
+    const player = page !== "players" || route.item === "" ? undefined
+        : known !== undefined && idOf(known.caller) === route.item ? known : openedOf(route.item)
 
     return (
         <OpenPlayer.Provider value={openPlayer}>
@@ -84,8 +85,15 @@ function Console({operator, onSignedOut}: {operator: string, onSignedOut: () => 
                 <h2 className="page-title">{titleOf(page)}</h2>
                 {page === "home" && <HomePage onGo={go}/>}
                 {page === "notes" && <NoteList/>}
-                {page === "reports" && <ReportsView/>}
-                {page === "players" && <PlayersPage opened={player} onOpen={setPlayer}/>}
+                {page === "reports" && (
+                    <ReportsView opened={route.item} onOpen={id => setRoute({page: "reports", item: id})}/>
+                )}
+                {page === "players" && (
+                    <PlayersPage
+                        opened={player}
+                        onOpen={opened => opened === undefined ? go("players") : openPlayer(opened)}
+                    />
+                )}
                 {page === "reassign" && <ReassignPanel planet={CLIENTS.planet}/>}
                 {page === "paint" && <PaintPanel planet={CLIENTS.planet}/>}
                 {page === "replay" && <ReplayPanel planet={CLIENTS.planet}/>}
@@ -103,6 +111,12 @@ function Console({operator, onSignedOut}: {operator: string, onSignedOut: () => 
             </Page>
         </OpenPlayer.Provider>
     )
+}
+
+// A player the address bar names, with nothing else known of it.
+function openedOf(item: string): Opened | undefined {
+    const caller = callerOf(item)
+    return caller === undefined ? undefined : {caller}
 }
 
 type PageProps = {menu?: ReactNode, sidebar?: ReactNode, header: ReactNode, children: ReactNode}

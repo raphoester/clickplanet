@@ -2,7 +2,7 @@ import {useState} from "react"
 import {AntibotAdmin, ChatAdmin} from "../clients.ts"
 import {ConfirmAction} from "../components/ConfirmAction.tsx"
 import {timeOf} from "../components/time.ts"
-import {ban, Banned, DEFAULT_MUTE_SECONDS, LADDER, mute, refusalOf, unban, Unbanned} from "./actions.ts"
+import {ban, bannedWords, DEFAULT_MUTE_SECONDS, LADDER, mute, refusalOf, unban, Unbanned} from "./actions.ts"
 import {Caller} from "./caller.ts"
 import {BAN_CHOICES, Choice, labelOf, MUTE_CHOICES} from "./durations.ts"
 
@@ -61,11 +61,6 @@ export function UnbanAction({antibot, caller, who, onDone}: BanProps) {
             />
         </div>
     )
-}
-
-function bannedWords(banned: Banned): string {
-    return `Banned until ${timeOf(banned.until)}, offence ${banned.offence}.`
-        + (banned.enforced ? "" : " Not enforced: the antibot only watches on this server.")
 }
 
 function unbannedWords(lifted: Unbanned): string {
