@@ -84,6 +84,15 @@ func attributesOf(story posts.Story) []any {
 	if len(story.Teasers) > 0 {
 		attributes = append(attributes, slog.String("teasers", strings.Join(story.Teasers, " / ")))
 	}
+	if story.Line != "" {
+		attributes = append(attributes, slog.String("line", story.Line))
+	}
+	if story.Call != "" {
+		attributes = append(attributes, slog.String("call", story.Call), slog.String("call_flags", strings.Join(story.CallFlags, ",")))
+	}
+	if story.Anthem != "" {
+		attributes = append(attributes, slog.String("anthem", story.Anthem))
+	}
 	if story.Front > 0 {
 		place := story.Continent
 		if place == "" {

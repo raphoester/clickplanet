@@ -33,7 +33,6 @@ describe("a country called up to the Final Battle", () => {
         expect(words.line).toBe("FINAŁOWA BITWA: SOBOTA, 31 PAŹDZIERNIKA 22:00")
         expect(words.call).toBe("TWÓJ KRAJ CIĘ POTRZEBUJE")
         expect(words.callFlags).toEqual(["pl"])
-        expect(words.link).toBe("https://clickplanet.lol/?f=pl")
         expect(words.table).toEqual([
             {rank: 1, country: "dz", name: "ALGIERIA", points: "289"}, {rank: 2, country: "pl", name: "POLSKA", points: "275"},
         ])

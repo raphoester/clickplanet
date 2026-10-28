@@ -3,7 +3,7 @@ import {Findings, Front, Pick, Place as PlaceWritten, Seasonal, StoryFacts, Tour
 import {FrontFacts, PlaceFacts, TourFacts} from "../domain/clip/findings.ts"
 import {KINDS, Place, Story, storyCountriesOf, storyKeyOf} from "../domain/clip/story.ts"
 import {continents, flagOfContinent, regionOf} from "../domain/regions.ts"
-import {nameOf, placeName, said, wordsOf} from "./overlay.ts"
+import {nameOf, placeName, said, wordsOf, Written} from "./overlay.ts"
 import {languageOf} from "./clipRecord.ts"
 
 // What the generator measured of a story to find it, before any camera: the numbers its clip would record.
@@ -37,6 +37,7 @@ export type Found = {
     tours: TourFound[]
     places: PlaceFacts[]
     seasonal: SeasonalFound[]
+    anthems: string[]
 }
 
 const rounded = (value: number, places: number) => Math.round(value * 10 ** places) / 10 ** places
@@ -89,6 +90,7 @@ export function findingsOf(found: Found): Findings {
         }),
         names: Object.fromEntries([...codes].sort().map((code) => [code, said(nameOf(code))])),
         continents: continents().map((name) => ({name, flag: flagOfContinent(name) ?? ""})),
+        anthems: found.anthems,
     })
 }
 
@@ -128,17 +130,21 @@ export type Told =
     | {place: number}
     | {seasonal: number}
 
-// The story the editor wrote of a front, as a clips.v1.Pick says it. Nothing is judged here: a pick that names no
-// front, no kind or no flag is refused as it is read, and the job checked it against the findings before the render.
-export function toldOf(written: string): {told: Told, headline: string | undefined, teasers: string[]} {
-    const pick = Pick.fromJson(JSON.parse(written), {ignoreUnknownFields: true})
-    const headline = pick.headline === "" ? undefined : pick.headline
-    const teasers = pick.teasers
+// The story the editor wrote, as a clips.v1.Pick says it, with its words; a seasonal story has words of its own. Nothing
+// is judged here: a pick that names no front, no kind, no flag or no words is refused as it is read, and the job checked
+// it against the findings before the render.
+export function toldOf(json: string): {told: Told, written: Written | undefined} {
+    const pick = Pick.fromJson(JSON.parse(json), {ignoreUnknownFields: true})
     const named = [pick.front, pick.tour, pick.place, pick.seasonal].filter((number) => number > 0)
     if (named.length !== 1) throw new Error("a story names one front, one tour, one place or one seasonal story")
-    if (pick.tour > 0) return {told: {tour: pick.tour}, headline, teasers}
-    if (pick.place > 0) return {told: {place: pick.place}, headline, teasers}
-    if (pick.seasonal > 0) return {told: {seasonal: pick.seasonal}, headline, teasers}
+    if (pick.seasonal > 0) return {told: {seasonal: pick.seasonal}, written: undefined}
+    if (pick.headline === "" || pick.call === "") throw new Error("a story the editor tells has its headline and its call")
+    const written: Written = {
+        headline: pick.headline, teasers: pick.teasers, line: pick.line === "" ? undefined : pick.line, call: pick.call,
+        callFlags: pick.callFlags, anthem: pick.anthem === "" ? undefined : pick.anthem,
+    }
+    if (pick.tour > 0) return {told: {tour: pick.tour}, written}
+    if (pick.place > 0) return {told: {place: pick.place}, written}
 
     const kind = KINDS.find((known) => known === pick.kind)
     if (kind === undefined || kind === "holding" || kind === "round" || kind === "callup") {
@@ -150,7 +156,7 @@ export function toldOf(written: string): {told: Told, headline: string | undefin
         kind, attacker: pick.attacker, rival: pick.rival === "" ? undefined : pick.rival, victims: pick.takenFrom, place,
         ...pick.team === "" ? {} : {team: pick.team},
     }
-    return {told: {front: pick.front, story}, headline, teasers}
+    return {told: {front: pick.front, story}, written}
 }
 
 function placeOfPick(countries: string[], continent: string): Place {

@@ -1,6 +1,6 @@
 import {describe, expect, it} from "vitest"
 import {Day, sidesOf, Story, teamFlagOf, THE_WORLD} from "../domain/clip/story.ts"
-import {hashtagsOf, nameOf, wordsOf} from "./overlay.ts"
+import {hashtagsOf, nameOf, said, wordsOf, Written} from "./overlay.ts"
 
 const day: Day = {
     season: 1, number: 5, finale: false, own: false, endedAt: 0,
@@ -12,58 +12,46 @@ function story(kind: Story["kind"], place: Story["place"], rival?: string): Stor
     return {kind, attacker: "ps", rival, victims: ["fr", "es"], place}
 }
 
-describe("the headline of a clip", () => {
-    it("says who kicks whom out when the attacker already held most of the place", () => {
-        const words = wordsOf({...story("kickout", {country: "au"}), attacker: "fr", victims: ["pl"]})
+const written: Written = {
+    headline: "CHINA GETS KICKED OUT OF FINLAND", teasers: ["China loses Finland", "CHINA GETS KICKED OUT OF FINLAND"],
+    line: "Sweden's war", call: "FIGHT FOR CHINA", callFlags: ["cn"], anthem: "se",
+}
 
-        expect(words.headline).toBe("FRANCE IS KICKING POLAND OUT OF AUSTRALIA")
-        expect(words.call).toBe("PICK A SIDE")
-        expect(words.callFlags).toEqual(["fr", "pl"])
+describe("the words of a story the editor tells", () => {
+    const rout: Story = {...story("rout", {country: "fi"}), attacker: "se", victims: ["cn"]}
+
+    it("are the editor's alone: the headline, the line, the call and its flags", () => {
+        const words = wordsOf(rout, written)
+
+        expect(words.headline).toBe("CHINA GETS KICKED OUT OF FINLAND")
+        expect(words.line).toBe("Sweden's war")
+        expect(words.call).toBe("FIGHT FOR CHINA")
+        expect(words.callFlags).toEqual(["cn"])
     })
-})
 
-describe("a place of two countries", () => {
-    it("names both, tags both and asks to defend both", () => {
-        const words = wordsOf({...story("invasion", {countries: ["eg", "tr"]}), attacker: "il"})
+    it("have teasers in capitals, named the editor's, and never the headline", () => {
+        const words = wordsOf(rout, written)
 
-        expect(words.headline).toBe("ISRAEL IS INVADING EGYPT AND TURKEY")
-        expect(words.callFlags).toEqual(["eg", "tr"])
+        expect(words.teasers).toEqual(["CHINA LOSES FINLAND"])
+        expect(words.teaserNames).toEqual(["editor"])
+    })
+
+    it("take a headline given by hand over the editor's", () => {
+        expect(wordsOf(rout, written, "CHINA IS OUT").headline).toBe("CHINA IS OUT")
+    })
+
+    it("are none of the generator's own: with no words of the editor, there is no clip", () => {
+        expect(() => wordsOf(rout)).toThrow("a rout is told in the editor's words, and none were given")
+        expect(() => wordsOf({...story("holding", {region: "Europe"}), attacker: "hr", share: 0.8})).toThrow("none were given")
     })
 })
 
 describe("a flag thrown out of a continent", () => {
-    it("is told from its side, against the continent's flag", () => {
-        const words = wordsOf({...story("rout", {region: "Europe"}), attacker: "de", victims: ["ps"], team: "Europe"})
-
-        expect(words.headline).toBe("PALESTINE GETS KICKED OUT OF EUROPE")
-        expect(words.call).toBe("PICK A SIDE")
-        expect(words.callFlags).toEqual(["ps", "eu"])
-    })
-
     it("counts the continent under its flag, and the flag thrown out under its own", () => {
         const rout: Story = {...story("rout", {region: "Europe"}), attacker: "de", victims: ["ps"], team: "Europe"}
 
         expect(teamFlagOf(rout)).toBe("eu")
         expect(sidesOf(rout)).toEqual(["ps", "eu"])
-    })
-})
-
-describe("a flag losing land nobody leads the taking of", () => {
-    it("gets kicked out of a place that is not its own, and is asked to be saved", () => {
-        const words = wordsOf({...story("rout", {region: "South America"}), attacker: "cy", victims: ["ps"]})
-
-        expect(words.headline).toBe("PALESTINE GETS KICKED OUT OF SOUTH AMERICA")
-        expect(words.call).toBe("FIGHT FOR PALESTINE")
-        expect(words.callFlags).toEqual(["ps"])
-    })
-
-    it("is falling when the land it loses is its own country", () => {
-        expect(wordsOf({...story("rout", {country: "dz"}), attacker: "bg", victims: ["dz"]}).headline).toBe("ALGERIA IS FALLING")
-    })
-
-    it("is losing a place that is its own", () => {
-        expect(wordsOf({...story("rout", {region: "Africa"}), attacker: "il", victims: ["dz"]}).headline)
-            .toBe("ALGERIA IS LOSING AFRICA")
     })
 })
 
@@ -84,106 +72,12 @@ describe("the name of a country", () => {
         expect(nameOf("xb")).toBe("Brittany")
     })
 
-    it("tells a small island taking over the world as itself", () => {
-        expect(wordsOf({...story("attack", {region: "the world"}), attacker: "cx"}).headline).toBe("CHRISTMAS ISLAND IS TAKING OVER THE WORLD")
-        expect(wordsOf({...story("battle", {country: "do"}, "cx")}).line).toBe("The battle for the Dominican Republic")
-    })
-})
-
-describe("names said with their article", () => {
-    it("say the UK and the Netherlands, and tag them bare", () => {
-        const words = wordsOf({...story("kickout", {countries: ["no", "se"]}), attacker: "gb", victims: ["il"]})
-
-        expect(words.headline).toBe("THE UK IS KICKING ISRAEL OUT OF NORWAY AND SWEDEN")
-        expect(wordsOf(story("battle", {country: "gb"}, "nl")).line).toBe("The battle for the UK")
-    })
-
-    it("say the Middle East, a part of Asia, and tag it bare", () => {
-        const words = wordsOf({...story("attack", {region: "Middle East"}), attacker: "dz"})
-
-        expect(words.headline).toBe("ALGERIA IS ATTACKING THE MIDDLE EAST")
-        expect(words.call).toBe("DEFEND THE MIDDLE EAST")
-        expect(wordsOf({...story("comeback", {region: "Middle East"}), team: "Middle East"}).headline).toBe("THE MIDDLE EAST STRIKES BACK")
-    })
-})
-
-describe("a continent striking back together", () => {
-    it("is the continent's story, under its flag", () => {
-        const words = wordsOf({...story("comeback", {region: "Europe"}), attacker: "de", team: "Europe"})
-
-        expect(words.headline).toBe("EUROPE STRIKES BACK")
-        expect(words.call).toBe("FIGHT FOR EUROPE")
-        expect(words.callFlags).toEqual(["eu"])
-    })
-})
-
-describe("the line under the headline", () => {
-    it("names the battle and nothing else", () => {
-        expect(wordsOf(story("battle", {country: "fr"}, "nl")).line).toBe("The battle for France")
-    })
-
-    it("is left out when it would only count tiles and hours", () => {
-        expect(wordsOf(story("invasion", {country: "tr"})).line).toBeUndefined()
-        expect(wordsOf(story("attack", {region: "Europe"})).line).toBeUndefined()
-        expect(wordsOf(story("comeback", {country: "ps"})).line).toBeUndefined()
-    })
-})
-
-describe("the teasers of a caption", () => {
-    it("are the editor's, in capitals, never the headline", () => {
-        const words = wordsOf({...story("rout", {country: "fi"}), attacker: "se", victims: ["cn"]}, "CHINA LOSES FINLAND",
-            ["China loses Finland", "Sweden takes Finland from China"])
-
-        expect(words.teasers).toEqual(["SWEDEN TAKES FINLAND FROM CHINA"])
-        expect(words.teaserNames).toEqual(["editor"])
-    })
-
-    it("are none of the generator's own for a story the editor tells", () => {
-        const stories: Story[] = [
-            story("invasion", {country: "tr"}), story("attack", {region: "Europe"}), story("attack", {region: "the world"}),
-            story("comeback", {country: "ps"}), story("battle", {country: "fr"}, "nl"),
-            {...story("kickout", {country: "au"}), attacker: "fr", victims: ["pl"]},
-            {...story("rout", {region: "Europe"}), victims: ["ps"], team: "Europe"}, {...story("rout", {country: "dz"}), victims: ["dz"]},
-            {...story("comeback", {region: "Europe"}), attacker: "de", team: "Europe"},
-            {...story("holding", {region: "Europe"}), attacker: "hr", share: 0.8},
-        ]
-        for (const told of stories) expect(wordsOf(told, "A HEADLINE").teasers).toEqual([])
-    })
-
-    it("of a day won are its own, never its headline, each named once", () => {
-        for (const told of [{...story("round", {region: "the world"}), attacker: "fr", day}, {...story("round", {region: "the world"}), attacker: "fr", day: {...day, finale: true}}]) {
-            const words = wordsOf(told)
-            expect(words.teasers.length).toBeGreaterThanOrEqual(2)
-            expect(words.teasers).not.toContain(words.headline)
-            expect(new Set(words.teaserNames).size).toBe(words.teasers.length)
-        }
-    })
-})
-
-describe("what a flag holds", () => {
-    it("says the share of the place it holds, never more than it holds, and asks to take it back", () => {
-        const words = wordsOf({...story("holding", {region: "Europe"}), attacker: "hr", victims: ["se"], share: 0.7996})
-
-        expect(words.headline).toBe("CROATIA HOLDS 79% OF EUROPE")
-        expect(words.line).toBeUndefined()
-        expect(words.call).toBe("TAKE EUROPE BACK")
-        expect(words.callFlags).toEqual(["eu"])
-    })
-
-    it("asks a country's players to take it back from a foreign flag", () => {
-        const words = wordsOf({...story("holding", {country: "br"}), attacker: "pt", share: 0.92})
-
-        expect(words.headline).toBe("PORTUGAL HOLDS 92% OF BRAZIL")
-        expect(words.callFlags).toEqual(["br"])
-        expect(words.link).toBe("https://clickplanet.lol/?f=br")
-    })
-
-    it("asks everyone to fight back the world's biggest holder", () => {
-        const words = wordsOf({...story("holding", {region: "the world"}), attacker: "pw", share: 0.124})
-
-        expect(words.headline).toBe("PALAU HOLDS 12% OF THE WORLD")
-        expect(words.call).toBe("FIGHT BACK")
-        expect(words.callFlags).toEqual([])
+    it("is said with its article where English wants one", () => {
+        expect(said(nameOf("gb"))).toBe("the UK")
+        expect(said(nameOf("nl"))).toBe("the Netherlands")
+        expect(said(nameOf("do"))).toBe("the Dominican Republic")
+        expect(said("Middle East")).toBe("the Middle East")
+        expect(said(nameOf("fr"))).toBe("France")
     })
 })
 
@@ -219,6 +113,13 @@ describe("a day of the season", () => {
         expect(words.call).toBe("PLAY FOR YOUR COUNTRY")
         expect(words.teasers).toEqual(["FRANCE TAKES THE BATTLE", "THE BATTLE GOES TO FRANCE"])
     })
+
+    it("has teasers never its headline, each named once", () => {
+        const words = wordsOf({...story("round", {region: "the world"}), attacker: "fr", day}, undefined, "FRANCE TAKES DAY 5")
+
+        expect(words.teasers).toEqual(["DAY 5 GOES TO FRANCE"])
+        expect(words.teaserNames).toEqual(["day-goes-to"])
+    })
 })
 
 describe("the hashtags of a story", () => {
@@ -239,45 +140,5 @@ describe("the hashtags of a story", () => {
     it("leave out a continent's own flag, and the world", () => {
         expect(hashtagsOf({...story("rout", {region: THE_WORLD}), attacker: "eu", victims: ["ps"], team: "Europe"}))
             .toEqual({countries: [{code: "ps", tag: "palestine"}], continent: undefined})
-    })
-})
-
-describe("a tour of the world", () => {
-    it("says a flag taking land on every continent at once is taking over the world, and asks to fight back", () => {
-        const words = wordsOf({...story("attack", {region: "the world"}), attacker: "pt"})
-
-        expect(words.headline).toBe("PORTUGAL IS TAKING OVER THE WORLD")
-        expect(words.call).toBe("FIGHT BACK")
-        expect(words.callFlags).toEqual([])
-        expect(words.link).toBe("https://clickplanet.lol")
-    })
-})
-
-describe("the call at the end of a clip", () => {
-    it("shows the flag it asks to defend, which the link opens on", () => {
-        const words = wordsOf(story("invasion", {country: "fr"}))
-
-        expect(words.call).toBe("DEFEND FRANCE")
-        expect(words.callFlags).toEqual(["fr"])
-        expect(words.link).toBe("https://clickplanet.lol/?f=fr")
-    })
-
-    it("shows the continent's flag when it asks to defend a continent", () => {
-        const words = wordsOf(story("attack", {region: "Europe"}))
-
-        expect(words.call).toBe("DEFEND EUROPE")
-        expect(words.callFlags).toEqual(["eu"])
-    })
-
-    it("shows no flag for a continent that has none", () => {
-        expect(wordsOf(story("attack", {region: "Africa"})).callFlags).toEqual([])
-    })
-
-    it("shows the flag that strikes back when it asks to fight for it", () => {
-        expect(wordsOf(story("comeback", {country: "ps"})).callFlags).toEqual(["ps"])
-    })
-
-    it("shows both flags when it asks to pick a side", () => {
-        expect(wordsOf(story("battle", {country: "fr"}, "fr")).callFlags).toEqual(["ps", "fr"])
     })
 })

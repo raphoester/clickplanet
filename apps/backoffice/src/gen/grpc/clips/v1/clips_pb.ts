@@ -59,6 +59,13 @@ export class Findings extends Message<Findings> {
    */
   continents: Continent[] = [];
 
+  /**
+   * The codes a clip has an anthem for, a continent's own flag among them: what a Pick's anthem names.
+   *
+   * @generated from field: repeated string anthems = 9;
+   */
+  anthems: string[] = [];
+
   constructor(data?: PartialMessage<Findings>) {
     super();
     proto3.util.initPartial(data, this);
@@ -75,6 +82,7 @@ export class Findings extends Message<Findings> {
     { no: 6, name: "seasonal", kind: "message", T: Seasonal, repeated: true },
     { no: 7, name: "names", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "scalar", T: 9 /* ScalarType.STRING */} },
     { no: 8, name: "continents", kind: "message", T: Continent, repeated: true },
+    { no: 9, name: "anthems", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Findings {
@@ -821,7 +829,8 @@ export class StoryFacts extends Message<StoryFacts> {
 
 /**
  * A story to tell, as the generator's --story takes it: one front, one tour, one place or one seasonal story of the
- * findings, by its number from 1, and for a front what the editor made of it.
+ * findings, by its number from 1, for a front what the editor made of it, and the editor's words. A seasonal story has
+ * words of its own, and none of the editor's.
  *
  * @generated from message clips.v1.Pick
  */
@@ -890,18 +899,42 @@ export class Pick extends Message<Pick> {
   team = "";
 
   /**
-   * Empty for the generator's own.
-   *
    * @generated from field: string headline = 12;
    */
   headline = "";
 
   /**
-   * The headline said in other words, for the caption: the editor's. Empty for the generator's own.
+   * The headline said in other words, for the caption.
    *
    * @generated from field: repeated string teasers = 13;
    */
   teasers: string[] = [];
+
+  /**
+   * Under the headline; empty for none.
+   *
+   * @generated from field: string line = 14;
+   */
+  line = "";
+
+  /**
+   * The call to act at the end, and the flags it asks the viewer to fight for.
+   *
+   * @generated from field: string call = 15;
+   */
+  call = "";
+
+  /**
+   * @generated from field: repeated string call_flags = 16;
+   */
+  callFlags: string[] = [];
+
+  /**
+   * The code whose anthem plays under the clip, one of the findings' anthems; empty for none.
+   *
+   * @generated from field: string anthem = 17;
+   */
+  anthem = "";
 
   constructor(data?: PartialMessage<Pick>) {
     super();
@@ -924,6 +957,10 @@ export class Pick extends Message<Pick> {
     { no: 11, name: "team", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 12, name: "headline", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 13, name: "teasers", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 14, name: "line", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 15, name: "call", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 16, name: "call_flags", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 17, name: "anthem", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Pick {

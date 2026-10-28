@@ -36,7 +36,7 @@ func (f FindingsFile) Findings(_ context.Context) (posts.Findings, error) {
 
 	findings := posts.Findings{
 		Since: written.GetSince().AsTime(), Until: written.GetUntil().AsTime(),
-		Names: written.GetNames(), Continents: map[string]string{},
+		Names: written.GetNames(), Continents: map[string]string{}, Anthems: written.GetAnthems(),
 	}
 	for _, continent := range written.GetContinents() {
 		findings.Continents[continent.GetName()] = continent.GetFlag()
@@ -106,7 +106,8 @@ func StoryJSON(story posts.Story) ([]byte, error) {
 	written, err := protojson.MarshalOptions{UseProtoNames: false}.Marshal(&clipsv1.Pick{
 		Front: uint32(story.Front), Tour: uint32(story.Tour), Place: uint32(story.Place), Seasonal: uint32(story.Seasonal), //nolint:gosec // from 1, a few dozen at most.
 		Kind: string(story.Kind), Attacker: story.Attacker, Rival: story.Rival, TakenFrom: story.TakenFrom,
-		Countries: story.Countries, Continent: story.Continent, Team: story.Team, Headline: story.Headline, Teasers: story.Teasers,
+		Countries: story.Countries, Continent: story.Continent, Team: story.Team,
+		Headline: story.Headline, Teasers: story.Teasers, Line: story.Line, Call: story.Call, CallFlags: story.CallFlags, Anthem: story.Anthem,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to write the story: %w", err)

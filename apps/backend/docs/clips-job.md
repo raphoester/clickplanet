@@ -201,7 +201,7 @@ story, so a short clip is not short because its story was small.
   judgment that it does better, not on the numbers. The posts of those three days keep their arm in their record,
   which the analysis still reads.
 
-**The editor: a model makes the run's stories from the findings, and headlines and titles them** (`posts/editor.go`,
+**The editor: a model makes the run's stories from the findings, and writes every word of them** (`posts/editor.go`,
 `posts/findings.go`, `posts/claude_editor/`; it picked and worded within hand-written rules from 2026-10-24, and
 makes the stories since 2026-10-27). The renderer and its camera are as they were.
 
@@ -213,8 +213,8 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
   the posts of the last 3 days with their keys and countries, and how many of the last 6 showed each flag. **It keeps
   nothing from the editor.** `Findings.Edited` is the run as the editor tells it: the seasonal stories first, then the
   editor's stories in its order, each one **checked against the findings** (`Findings.Check`), with a headline that
-  can be drawn and was not a headline of the last week or of this run, a teaser at least, one story a key in the run,
-  up to the count;
+  can be drawn and was not a headline of the last week or of this run, a teaser at least, a call that can be drawn,
+  one story a key in the run, up to the count;
   every other is skipped with why (`Choice.Skipped`), in the log and `edit`'s output, and the run goes on with the
   next. The run's clips go out in that order (`Ranked`, by pick), and each post's `runPosition` records it.
 - **A check is whether a story is true, never whether it is good**: a story of a front names a kind a front tells, an
@@ -227,7 +227,10 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
   story only have to exist. A headline is upper case once written (`headlineFrom`), 60 letters at most, starting with a
   letter or a digit (so `--story` never reads as a flag), only letters of any script, digits and `! ? ' ’ % : , . & -`.
   A teaser is upper case too (`teasersFrom`); one that says the headline, says another teaser again, or is over 86
-  letters (the YouTube title keeps the brand after it) is left out, and a story with none left is skipped.
+  letters (the YouTube title keeps the brand after it) is left out, and a story with none left is skipped. The call is
+  drawn as the headline is, in 30 letters at most, and the line, when there is one, in 60, as written. The call's
+  flags are flags of the findings (`names`) or a continent's own, and the anthem one the generator has (`anthems`),
+  or the story does not hold (`checkDrawn`).
   **Taste is the model's**: which front is a story, how fresh is fresh, how a feed varies, what a country is called
   are the instructions' to say, never a threshold here.
 - **Why no rule chooses.** Until 2026-10-26 the generator decided what a front was a story of from thresholds (one
@@ -251,7 +254,7 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
   editor gave no answer, and the run is its seasonal stories alone`) and the summary. There is no other fallback: a
   run with no answer and no day won posts nothing, and the next run, 2 hours on, sees the same stories.
 - **What it is sent** (`claude_editor.PromptOf`): the instructions, then the run's findings as compact JSON: `now`,
-  `slots`, `toldFirst`, the `window`, `names`, `continents`, each front numbered from 1 with its stretch in hours, its
+  `slots`, `toldFirst`, the `window`, `names`, `continents`, `anthems`, each front numbered from 1 with its stretch in hours, its
   countries and its flags, each tour and each place numbered the same, `recentPosts` with their keys and countries, and
   `shownLately`. **The instructions are `claude_editor/instructions.md`, embedded**: prose on what the facts mean,
   what makes a story worth telling and a headline good, from the lessons of this section and of the frontend's, the
@@ -259,12 +262,15 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
   next commit, and the record's `generator` names the commit, so the analysis can tell the versions apart.
 - **What it answers** (`answerSchema`): `why`, then `stories`, best first, each with its `front`, `tour` or `place`
   (the others 0), and for a front its `kind`, `attacker`, `rival`, `takenFrom`, `countries` or `continent`, `team`,
-  and for every story its `headline` and its `teasers`. A seasonal story is not its to answer: one it does is skipped.
-- **The titles are the model's, never a rule's** (2026-10-28). Until then the generator wrote two teasers for each
-  kind of story, and the caption opened with one: every rout outside the loser's home could be "GENERATIONAL DOWNFALL
-  OF X", so a YouTube Short of China losing Finland, most of the little it held, was titled "GENERATIONAL DOWNFALL OF
-  CHINA". The model writes the teasers with the headline, from the same facts; the `Pick` carries them to the render,
-  which puts them in the `Clip`. Only a day won and a call-up keep the generator's own, since no editor writes them.
+  and for every story its `headline`, `teasers`, `line`, `call`, `callFlags` and `anthem`. A seasonal story is not its
+  to answer: one it does is skipped.
+- **Every editorial choice is the model's, never a rule's** (2026-10-28): the headline, the teasers, the line, the
+  call and its flags, the anthem. Until then the generator wrote all but the headline from branches on the story, and
+  the caption opened with one of its two teasers per kind: every rout outside the loser's home could be "GENERATIONAL
+  DOWNFALL OF X", so a YouTube Short of China losing Finland, most of the little it held, was titled "GENERATIONAL
+  DOWNFALL OF CHINA". The model writes them from the same facts; the `Pick` carries them to the render, which draws
+  them and puts the teasers in the `Clip`. Only a day won and a call-up keep the generator's own, since no editor
+  writes them.
 - **Claude Haiku 5.5** (`claude-haiku-5-5`), through Anthropic's Go SDK: adaptive thinking at effort `medium`,
   `max_tokens` 8,000, the answer held to the schema by structured outputs, 2 minutes and one retry. **A refusal is the
   end of it**: Haiku has no fallback model on the server, so `stop_reason: "refusal"` (with its category) is no answer

@@ -12,8 +12,13 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
 
-// Two lines at most over the globe.
-const headlineRunes = 60
+const (
+	// Two lines at most over the globe.
+	headlineRunes = 60
+	// Two lines at most at the end, in its big letters.
+	callRunes = 30
+	lineRunes = 60
+)
 
 // A post the job made.
 type Telling struct {
@@ -168,6 +173,16 @@ func (f Findings) Edited(offer Offer, edition Edition, told []Telling, now time.
 			skip(story, err.Error())
 			continue
 		}
+		call, err := drawn("call", headlineOf(oneLine(story.Call)), callRunes)
+		if err != nil {
+			skip(story, err.Error())
+			continue
+		}
+		line, err := lineFrom(story.Line)
+		if err != nil {
+			skip(story, err.Error())
+			continue
+		}
 		if past.headlines.Contains(headline) {
 			skip(story, fmt.Sprintf("%q was a headline of the last week, or of this run", headline))
 			continue
@@ -178,7 +193,7 @@ func (f Findings) Edited(offer Offer, edition Edition, told []Telling, now time.
 		}
 		keys.Add(key)
 		past.headlines.Add(headline)
-		story.Headline, story.Teasers = headline, teasers
+		story.Headline, story.Teasers, story.Call, story.Line = headline, teasers, call, line
 		tell(story, key)
 	}
 	return choice
@@ -215,23 +230,38 @@ func headlineOf(title string) string {
 	return strings.ToUpper(strings.TrimSpace(title))
 }
 
-var errHeadline = errors.New("the headline cannot be drawn")
+var errUndrawable = errors.New("the words cannot be drawn")
+
+func headlineFrom(written string) (string, error) {
+	return drawn("headline", headlineOf(oneLine(written)), headlineRunes)
+}
+
+// None is no line; one is drawn as written, not in capitals.
+func lineFrom(written string) (string, error) {
+	if line := oneLine(written); line != "" {
+		return drawn("line", line, lineRunes)
+	}
+	return "", nil
+}
+
+func oneLine(written string) string {
+	return strings.Join(strings.Fields(written), " ")
+}
 
 // Starts with a letter or a digit, so the generator never reads it as a flag.
-func headlineFrom(written string) (string, error) {
-	headline := headlineOf(strings.Join(strings.Fields(written), " "))
-	if headline == "" || utf8.RuneCountInString(headline) > headlineRunes {
-		return "", fmt.Errorf("%w: %q is empty or over %d letters", errHeadline, written, headlineRunes)
+func drawn(what, words string, runes int) (string, error) {
+	if words == "" || utf8.RuneCountInString(words) > runes {
+		return "", fmt.Errorf("%w: the %s %q is empty or over %d letters", errUndrawable, what, words, runes)
 	}
-	if first, _ := utf8.DecodeRuneInString(headline); !unicode.IsLetter(first) && !unicode.IsDigit(first) {
-		return "", fmt.Errorf("%w: %q starts with %q", errHeadline, written, first)
+	if first, _ := utf8.DecodeRuneInString(words); !unicode.IsLetter(first) && !unicode.IsDigit(first) {
+		return "", fmt.Errorf("%w: the %s %q starts with %q", errUndrawable, what, words, first)
 	}
-	for _, r := range headline {
+	for _, r := range words {
 		if !unicode.IsLetter(r) && !unicode.IsMark(r) && !unicode.IsDigit(r) && !strings.ContainsRune(" !?'’%:,.&-", r) {
-			return "", fmt.Errorf("%w: %q has %q", errHeadline, written, r)
+			return "", fmt.Errorf("%w: the %s %q has %q", errUndrawable, what, words, r)
 		}
 	}
-	return headline, nil
+	return words, nil
 }
 
 // YouTube's title is a teaser and the brand.
@@ -242,7 +272,7 @@ var errTeasers = errors.New("the caption has no teaser")
 func teasersFrom(written []string, headline string) ([]string, error) {
 	var teasers []string
 	for _, teaser := range written {
-		said := headlineOf(strings.Join(strings.Fields(teaser), " "))
+		said := headlineOf(oneLine(teaser))
 		if said == "" || said == headline || utf8.RuneCountInString(said) > teaserRunes || slices.Contains(teasers, said) {
 			continue
 		}

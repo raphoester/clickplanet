@@ -76,17 +76,18 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   - **`seasonal`**: a day of the season won and each country called up after it (`round.ts`, `callup.ts`, below),
     told whole by this app, with the title, the key, the countries and the facts their clips would record
     (`StoryFacts`, `storyFactsOf`, the numbers `record()` works out, measured once by `measuredOf`).
-  - **`names`**, how a clip says each code in the findings ("gb": "the UK"), and **`continents`**, each with its own
-    flag when it has one (Europe's).
+  - **`names`**, how a clip says each code in the findings ("gb": "the UK"), **`continents`**, each with its own
+    flag when it has one (Europe's), and **`anthems`**, the codes a clip has a recording for (below).
 - **`--story <json>`** is the story to render, a `Pick` (`toldOf`): one front, tour, place or seasonal story of the
   findings by its number, from 1, and for a front what the editor made of it: its `kind` (`attack`, `invasion`,
   `comeback`, `kickout`, `rout`, `battle`), its `attacker`, its `rival` in a battle, whom it took from (`takenFrom`,
   the flag thrown out first), where it is told (`countries`, one or two, or `continent`), the continent whose flags
-  strike back together (`team`), and its `headline`. A tour, a place and a seasonal story are the facts' own: the
-  flag taking the world, the holder holding its share, the day won. **The page builds the `Story` from it and reads no
-  rule**: a pick that names no front, a kind no front tells, no attacker or no place is refused as it is read, and
-  the job checked it against the findings before the render. `--headline` overrides the story's. Its `teasers` are
-  the editor's too, and the caption's (below).
+  strike back together (`team`). A tour, a place and a seasonal story are the facts' own: the flag taking the world,
+  the holder holding its share, the day won. **Every story but a seasonal one comes with the editor's words**: its
+  `headline`, its `teasers`, its `line` (empty for none), its `call` and the flags it asks to fight for
+  (`callFlags`), and the `anthem` under it (below). **The page builds the `Story` from it and reads no rule**: a pick
+  that names no front, a kind no front tells, no attacker, no place, no headline or no call is refused as it is read,
+  and the job checked it against the findings before the render. `--headline` overrides the story's.
 - **`--season <path>`** is the gamemaster's turn, a `gamemaster.v1.GetTurnResponse` as `GetTurn` answers it, served
   to the page at `/__clip/season.json`. Its `debrief` is the moment scoring scored last, in the game's words: a day
   (`DayEnded`), a battle (`BattleEnded`, `ends_season` for the finale) or the season's end (`SeasonEnded`, told as
@@ -199,8 +200,8 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   phone crops the sides, the tabs cover the top, the buttons run down the right from the middle, and the name and
   the caption cover the bottom. The counter sits left of the buttons, and the call to act in the top half, darkening only that half: the map
   pulled back out stays in sight under it. The call
-  shows the flag it asks the viewer to fight for: the country to defend, the flag that strikes back, both sides of a
-  battle, or a continent's own flag (Europe's alone, `static/countries/svg/eu.svg`, from the same set as the others).
+  shows the flags the editor names it with (`callFlags`): a country's, or a continent's own flag (Europe's alone,
+  `static/countries/svg/eu.svg`, from the same set as the others).
 
 **`src/domain/clip/` measures and plays; it judges nothing**, pure and under test:
 
@@ -229,29 +230,27 @@ What chooses, when a clip goes out, the client of the service and the run's summ
 - **`story.ts` is what a clip tells, as the editor wrote it** (`Story`): its kind, its attacker, its rival, whom it
   took from, its place, and the continent striking back together (`team`). `sidesOf` is who the clip is between,
   `storyKeyOf` which story it is, `storyCountriesOf` what it shows, `fightersOf` whose fighting the camera follows.
-  `src/clip/overlay.ts` words it: the headline and the teasers are the editor's, and `wordsOf` writes the call and
-  the line of each kind; its own headline stands in when none is given, as for a day won.
+  `src/clip/overlay.ts` draws its words (`wordsOf`): the editor's, every one, and its own only for a day won and a
+  call-up, which no editor writes. A story the editor tells with no words is no clip.
 - **A country is said as people say it.** The game's names are cut to fit its board ("Christmas", "N.Zealand", "Czech
   Rep."), so a clip says the English name they were cut from, from the CLDR data the browser carries
   (`Intl.DisplayNames`): "CHRISTMAS ISLAND IS TAKING OVER THE WORLD". A name the game chose over CLDR's stays: "Turkey",
   "Ivory Coast", "UAE", "DR Congo", and its own flags'.
 - **Names are said with their article** where English wants one: "the UK", "the Netherlands", "the Dominican
   Republic". Tags keep them bare.
-- **The words say nothing the map says better.** Only a battle has a line under its headline, "The battle for
-  France": no count of tiles and no "in 3 hours", which the counter shows and which read as written by a machine.
-- **The teasers are the editor's** (`teasers` in `wordsOf`, from the pick): the headline said in other words, which
-  the caption opens with and YouTube shows as the title. **No rule here writes them**: until 2026-10-28 each kind said
-  the headline two ways, and every rout outside the loser's home could be "GENERATIONAL DOWNFALL OF X", so China
-  losing Finland was titled "GENERATIONAL DOWNFALL OF CHINA". Only a day won ("FRANCE TAKES DAY 5", "DAY 5 GOES TO
-  FRANCE") and a call-up have teasers of their own, since no editor writes them. **The caption never repeats the
-  headline**: the clip already shows it, so a teaser that says it is left out.
+- **Every editorial choice is the model's, never a rule here** (2026-10-28): the headline, the teasers, the line
+  under the headline, the call at the end with its flags, and the anthem. Until then each kind of story had its words
+  and its anthem in code, chosen by branches on the story (its kind, whether the loser was at home, whether two flags
+  fought): every rout outside the loser's home could be "GENERATIONAL DOWNFALL OF X", so a YouTube Short of China
+  losing Finland was titled "GENERATIONAL DOWNFALL OF CHINA". The editor's instructions say what each was for. Only a
+  day won ("FRANCE WINS DAY 5", "FRANCE TAKES DAY 5", "WHO WINS DAY 6?") and a call-up keep words of their own, since
+  no editor writes them. **The caption never repeats the headline**: the clip already shows it, so a teaser that says
+  it is left out.
 - **The hashtags are every flag of the story and the countries of its place** (`hashtagsOf`), bare
   (`#christmasisland`, `#uk`), and the place's continent. Palestine and Israel included: the user chose it on
   2026-10-14, though a flag's tag can be a political feed. A continent's own flag is not a country and has none.
-- **`music.ts` picks the anthem under the clip**, since YouTube Shorts cannot add a sound to an upload: the anthem
-  of whoever makes the moves, the leading flag's, else the other side's in a battle, or the continent's when a
-  continent strikes back. Never a loser's, but for a flag thrown out by many flags none of which leads ("ALGERIA IS
-  FALLING"): the clip names no other flag. A clip with none plays none. They are the game's own anthems (see [The
+- **The anthem under the clip is the editor's** (the pick's `anthem`), since YouTube Shorts cannot add a sound to an
+  upload; a day won and a call-up play their flag's. A clip with none plays none. They are the game's own anthems (see [The
   leader's anthem](sound.md#the-leaders-anthem)), US Navy Band recordings in the public domain, and two the game does not
   play, vendored by `npm run clip:anthems` into `scripts/clip/anthems/`: the Anthem of Europe (Navy Band too) and
   Palestine's Fida'i, which the Navy Band never recorded, in an instrumental under CC BY 3.0. A recording under a

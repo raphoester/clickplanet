@@ -12,10 +12,10 @@ import {loadPointGeometryData} from "../app/viewer/points.ts"
 import {countryOfTile, loadBorders} from "../app/viewer/borderField.ts"
 import {BORDERS_URL} from "../app/viewer/bordersAsset.ts"
 import {Countries} from "../domain/countries.ts"
-import {regionOf} from "../domain/regions.ts"
+import {continents, flagOfContinent, regionOf} from "../domain/regions.ts"
 import {foughtOver, ownersAfter, ranked as rankedBy, tally, TileChange} from "../domain/clip/changes.ts"
 import {cellOf, meanOf, pointOf} from "../domain/clip/geometry.ts"
-import {anthemOf, startOf} from "../domain/clip/music.ts"
+import {startOf} from "../domain/clip/music.ts"
 import {ANTHEMS} from "../app/anthem/anthemsAsset.ts"
 import {HIGHLIGHTS} from "./anthemHighlightsAsset.ts"
 import {CLIP_ANTHEMS} from "./clipAnthemsAsset.ts"
@@ -54,7 +54,6 @@ export type Recording = {
     headline: string
     line: string
     call: string
-    link: string
     teasers: string[]
     // The arm of each experiment the clip is in.
     variants: Variants
@@ -136,11 +135,11 @@ type Review = {front: Front, story: Story, score: number, scope: string | undefi
 
 const RECORDED: Readonly<Record<string, {url: string, title: string, credit?: string}>> = {...ANTHEMS, ...CLIP_ANTHEMS}
 
-function musicOf(story: Story, seconds: number): Recording["music"] {
-    const code = anthemOf(story, (anthem) => anthem in RECORDED)
-    if (code === undefined) return undefined
+function musicOf(code: string | undefined, seconds: number): Recording["music"] {
+    if (code === undefined || !(code in RECORDED)) return undefined
     const recording = RECORDED[code]
-    return {...recording, whose: story.team ?? nameOf(code), code, from: startOf(HIGHLIGHTS[recording.url], seconds)}
+    const whose = continents().find((continent) => flagOfContinent(continent) === code) ?? nameOf(code)
+    return {...recording, whose, code, from: startOf(HIGHLIGHTS[recording.url], seconds)}
 }
 
 function lookParam(): Look | undefined {
@@ -164,9 +163,9 @@ function windowParam(replay: ReplayBackend): Window | undefined {
 }
 
 function storyParam(): ReturnType<typeof toldOf> {
-    const written = params.get("story")
-    if (written === null) throw new Error("no story to tell: --story names one, and --findings lists what the replay holds")
-    return toldOf(written)
+    const json = params.get("story")
+    if (json === null) throw new Error("no story to tell: --story names one, and --findings lists what the replay holds")
+    return toldOf(json)
 }
 
 async function choose(): Promise<Chosen> {
@@ -360,7 +359,7 @@ async function choose(): Promise<Chosen> {
         const fighters = fightersOf(story, regionOf)
         const own = frontOf(found.inside.filter(({tile, from, to}) =>
             (fighters(to) || fighters(from)) && inPlace(story.place, groundAt(tile), regionOf)), pointAt)
-        if (!own) throw new Error(`nobody of "${wordsOf(story).headline}" fought in ${placeName(story.place)} on front ${told.front}`)
+        if (!own) throw new Error(`no side of the ${story.kind} of ${nameOf(story.attacker)} fought in ${placeName(story.place)} on front ${told.front}`)
         const backend = cutOf(own, found.candidate)
         const solidity = solidityAfter(story.attacker, own.changes, ownersAfter(backend.opening, backend.changes()), pointAt)
         return {front: own, story, score: found.score, scope: found.scope, world: false, backend, solidity}
@@ -373,7 +372,7 @@ async function choose(): Promise<Chosen> {
             throw new Error(`--seconds and the arm "${variants.length}" of the experiment "length" both set the clip's length`)
         }
         const pick = numberParam("pick") ?? 1
-        const {told, headline: written, teasers} = storyParam()
+        const {told, written} = storyParam()
         const picked = reviewOf(told)
         const {front, story, backend, world, solidity} = picked
         const {measured, changes, inArea, placeTiles, sideOf, opening, key, drops} = measuredOf(picked)
@@ -427,9 +426,10 @@ async function choose(): Promise<Chosen> {
         backend.listenForUpdates((update) => own(update.tile, update.newCountry))
         backend.listenForBombs((drop) => drop.cleared.forEach((tile) => own(tile, undefined)))
 
-        const words = wordsOf(story, params.get("headline") ?? written, teasers)
+        const words = wordsOf(story, written, params.get("headline") ?? undefined)
         const overlay = createOverlay(root, story, words, opening, ground)
-        const music = params.has("silent") ? undefined : musicOf(story, timeline.seconds)
+        // A seasonal story plays its flag's anthem: no editor chose one.
+        const music = params.has("silent") ? undefined : musicOf(seasonal ? story.attacker : written?.anthem, timeline.seconds)
         const hashtags = hashtagsOf(story)
 
         let played = 0
@@ -498,7 +498,6 @@ async function choose(): Promise<Chosen> {
             headline: words.headline,
             line: words.line ?? "",
             call: words.call,
-            link: words.link,
             teasers: words.teasers,
             variants,
             clip: new Clip({
@@ -511,7 +510,10 @@ async function choose(): Promise<Chosen> {
     }
 
     return {
-        findings: findingsOf({since, until, fronts: fronts.map(frontFound), tours: toursFound, places, seasonal: seasonalFound}).toJson(),
+        findings: findingsOf({
+            since, until, fronts: fronts.map(frontFound), tours: toursFound, places, seasonal: seasonalFound,
+            anthems: Object.keys(RECORDED).sort(),
+        }).toJson(),
         record,
     }
 }
