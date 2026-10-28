@@ -34,6 +34,7 @@ import {
     Update,
     UpdatesListener,
     VPNBlockedError,
+    FrozenError,
 } from "./backend.ts";
 import {ALL_OFF, BonusReward, BonusRules, Charges, NO_CHARGES, Switches} from "../domain/bonus.ts";
 import {QuizOffer, QuizOutcome, QuizQuestion} from "../domain/quiz.ts";
@@ -42,6 +43,7 @@ import {
     Allegiance as AllegianceMessage,
     BanRefusal,
     BonusKind,
+    FrozenRefusal,
     ChargesHeld,
     ClickBudget as ClickBudgetMessage,
     GetHoldingsResponse,
@@ -223,6 +225,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
             price: priced ? priceOf(budget) : this.budgetAnchor?.price,
             linkedMultiplier: budget.linkedMultiplier > 1 ? budget.linkedMultiplier : undefined,
             sharedWith: SHARED_BY[budget.sharedWith],
+            frozen: budget.frozen,
             readAt: budgetNow(),
         }
 
@@ -1021,6 +1024,7 @@ export function asClickError(e: unknown): unknown {
     if (locked) return new AllegianceLockedError(locked, {cause: e})
 
     if (e instanceof ConnectError) {
+        if (e.code === Code.FailedPrecondition && e.findDetails(FrozenRefusal).length > 0) return new FrozenError({cause: e})
         if (e.code === Code.ResourceExhausted) return new RateLimitedError({cause: e})
         if (e.code === Code.PermissionDenied) return bannedOf(e) ?? new VPNBlockedError({cause: e})
         if (e.code === Code.Unauthenticated) return new SessionUnavailableError({cause: e})

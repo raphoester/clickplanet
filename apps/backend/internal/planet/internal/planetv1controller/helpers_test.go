@@ -83,7 +83,7 @@ func clickServerWith(
 	mux.Handle(planetv1connect.NewClickServiceHandler(
 		ClickService{
 			ClickHandler:      click_handler.New(clickUseCase),
-			GetBudgetHandler:  get_budget_handler.New(get_budget_usecase.New(budgets, onePrice, buckets)),
+			GetBudgetHandler:  get_budget_handler.New(get_budget_usecase.New(budgets, onePrice, buckets, thawed)),
 			MapDensityHandler: map_density_handler.New(map_density_usecase.New(stubChecker{})),
 			GetMapHandler:     get_map_handler.New(get_map_usecase.New(stubChecker{}, stubMapReader{}, facts.NewLog(cptime.SystemClock{}))),
 			ListenForEventsHandler: listen_for_events_handler.New(
@@ -195,3 +195,5 @@ type noBoxes struct{}
 func (noBoxes) Attend(bonuses.Entrant) (<-chan bonuses.Event, func()) {
 	return nil, func() {}
 }
+
+func thawed() clicks.Freeze { return false }

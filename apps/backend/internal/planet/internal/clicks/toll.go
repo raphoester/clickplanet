@@ -27,6 +27,7 @@ type Budget struct {
 	SharedWith       SharedWith
 	Price            Price
 	LinkedMultiplier float64
+	Frozen           Freeze
 }
 
 func (b Budget) Empty() bool {

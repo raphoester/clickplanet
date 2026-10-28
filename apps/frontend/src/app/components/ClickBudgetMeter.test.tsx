@@ -15,6 +15,21 @@ const pips = () => Array.from(document.querySelectorAll(".click-budget-pip"))
 const tokens = () => meter().style.getPropertyValue("--click-budget-tokens")
 
 describe("ClickBudgetMeter", () => {
+    it("says the map is frozen in place of the clicks, and when the next season starts", () => {
+        render(<ClickBudgetMeter budget={reading()} frozen={{nextSeason: {number: 1, startsAt: Date.now() + 2 * 3600_000}}}/>)
+
+        expect(screen.queryByRole("meter")).toBeNull()
+        expect(screen.getByRole("status").textContent).toContain("The map is frozen")
+        expect(screen.getByText(/Season 1 starts in/)).toBeTruthy()
+        expect(screen.getByRole("timer").textContent).toMatch(/^(1h 59m|2h 00m)/)
+    })
+
+    it("says the map is frozen with no countdown when no season is planned", () => {
+        render(<ClickBudgetMeter budget={reading()} frozen={{}}/>)
+
+        expect(screen.getByRole("status").textContent).toBe("The map is frozen")
+    })
+
     it("shows nothing against a server that reports no allowance", () => {
         const {container} = render(<ClickBudgetMeter/>)
         expect(container.innerHTML).toBe("")

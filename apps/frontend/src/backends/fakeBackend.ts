@@ -34,6 +34,7 @@ import {
     Update,
     UpdatesListener,
     VPNBlockedError,
+    FrozenError,
 } from "./backend.ts";
 import {ALL_OFF, BonusReward, BonusRules, Charges, NO_CHARGES, Switches} from "../domain/bonus.ts";
 import {QuizOffer, QuizOutcome, QuizQuestion} from "../domain/quiz.ts";
@@ -154,6 +155,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private pace = 1
     private tempo = 1
     private sharedWith: SharedBy | undefined
+    private frozen = false
     private shapesClose = true
     private bannedUntil: number | undefined
     private readonly vpnBlocked: boolean
@@ -261,6 +263,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         if (this.sessionUnavailable) throw new SessionUnavailableError()
         this.refuseBanned()
         if (this.vpnBlocked) throw new VPNBlockedError()
+        if (this.frozen) throw new FrozenError()
         this.play(countryId)
 
         const allowed = this.allow(countryId)
@@ -434,6 +437,12 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         this.reportBudget()
     }
 
+    // The rules in force freeze the map, as the schedule's frozen set does: every click is refused.
+    public freeze(frozen: boolean): void {
+        this.frozen = frozen
+        this.reportBudget()
+    }
+
     public shareClicks(sharedWith?: SharedBy): void {
         this.sharedWith = sharedWith
         this.reportBudget()
@@ -453,6 +462,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
             perSecond: CLICKS_PER_SECOND * this.pace * this.tempo,
             price: this.price(this.budgetCountry),
             sharedWith: this.sharedWith,
+            frozen: this.frozen,
             readAt: budgetNow(),
         }
     }

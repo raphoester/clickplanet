@@ -247,6 +247,14 @@ export class RateLimitedError extends Error {
     }
 }
 
+// The rules in force freeze the map: it takes no play until they change.
+export class FrozenError extends Error {
+    constructor(options?: {cause?: unknown}) {
+        super("the map is frozen", options)
+        this.name = "FrozenError"
+    }
+}
+
 export class VPNBlockedError extends Error {
     constructor(options?: {cause?: unknown}) {
         super("clicks from VPN addresses are refused", options)

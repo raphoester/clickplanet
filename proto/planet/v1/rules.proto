@@ -11,6 +11,9 @@ message Rules {
   ClickRules clicks = 1;
   TollRules toll = 2;
   BonusRules bonuses = 3;
+  // The map takes no play: Click, DropBomb, PlaceShield, UseRefill, ClaimBonus, OpenQuiz and AnswerQuiz are refused. The
+  // map still loads and streams.
+  bool frozen = 4;
 }
 
 message ClickRules {

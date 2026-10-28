@@ -3,7 +3,7 @@ import {describe, expect, it} from "vitest"
 import {RuleSet} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {BoxPace, ClickRules} from "../gen/grpc/planet/v1/rules_pb.ts"
 import {FakeAdmin} from "../fakeAdmin.ts"
-import {boxesOf, clicksOf, complete, copyOf, draftOf, GROUPS, ruleSetOf, saveRuleSet, tempoOf} from "./rules.ts"
+import {boxesOf, clicksOf, complete, copyOf, draftOf, GROUPS, ruleSetOf, saveRuleSet, tempoOf, playOf} from "./rules.ts"
 
 const minutes = (n: number) => new Duration({seconds: BigInt(n * 60)})
 
@@ -42,7 +42,7 @@ describe("the rules", () => {
     })
 
     it("edits every value of a set", () => {
-        const edited = new Set([...GROUPS.flatMap(group => group.fields.map(field => field.path)), "bonuses.quiz.enabled", "toll.steps"])
+        const edited = new Set([...GROUPS.flatMap(group => group.fields.map(field => field.path)), "bonuses.quiz.enabled", "toll.steps", "frozen"])
 
         const values = leaves(played().rules!.toJson({emitDefaultValues: true}))
 
@@ -74,6 +74,19 @@ describe("the rules", () => {
         expect(sent?.toll?.steps.at(-1)?.slowdown).toBe(6)
         expect(sent?.bonuses?.quiz?.enabled).toBe(false)
         expect(sent?.bonuses?.shield?.perTile).toBe(12)
+    })
+
+    it("freezes a set, and says so in the list", () => {
+        const draft = copyOf(rush())
+        draft.name = "frozen"
+        draft.frozen = true
+
+        const sent = ruleSetOf(draft)
+
+        expect(sent.rules?.frozen).toBe(true)
+        expect(playOf(sent)).toBe("Frozen")
+        expect(playOf(rush())).toBe("Open")
+        expect(draftOf(sent).frozen).toBe(true)
     })
 
     it("copies a set with no name", () => {

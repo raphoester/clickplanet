@@ -29,6 +29,14 @@ export class Rules extends Message<Rules> {
    */
   bonuses?: BonusRules;
 
+  /**
+   * The map takes no play: Click, DropBomb, PlaceShield, UseRefill, ClaimBonus, OpenQuiz and AnswerQuiz are refused. The
+   * map still loads and streams.
+   *
+   * @generated from field: bool frozen = 4;
+   */
+  frozen = false;
+
   constructor(data?: PartialMessage<Rules>) {
     super();
     proto3.util.initPartial(data, this);
@@ -40,6 +48,7 @@ export class Rules extends Message<Rules> {
     { no: 1, name: "clicks", kind: "message", T: ClickRules },
     { no: 2, name: "toll", kind: "message", T: TollRules },
     { no: 3, name: "bonuses", kind: "message", T: BonusRules },
+    { no: 4, name: "frozen", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Rules {

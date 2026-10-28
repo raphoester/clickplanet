@@ -91,6 +91,18 @@ describe("the game rules page", () => {
         expect(sent(admin)?.rules?.toll?.steps.map(step => [step.share, step.slowdown])).toEqual([[0.2, 2.5], [0.3, 4], [0.4, 6]])
     })
 
+    it("freezes a set: the map takes no play", async () => {
+        const admin = withCalm()
+        render(<RulesPanel planet={admin}/>)
+
+        fireEvent.click(await screen.findByRole("button", {name: "Edit calm"}))
+        fireEvent.click(screen.getByLabelText("Frozen: the map takes no play"))
+        save()
+
+        await waitFor(() => expect(sent(admin)).toBeDefined())
+        expect(sent(admin)?.rules?.frozen).toBe(true)
+    })
+
     it("makes a new set from a copy of another", async () => {
         const admin = new FakeAdmin()
         render(<RulesPanel planet={admin}/>)

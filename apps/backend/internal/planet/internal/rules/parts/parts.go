@@ -8,5 +8,5 @@ import (
 
 // All is the one list of the game's parts: a concept that reads the rules adds its Part here.
 func All() rules.Parts {
-	return rules.Parts{clicks.ThrottlePart, clicks.TollPart, bonuses.Part}
+	return rules.Parts{clicks.ThrottlePart, clicks.TollPart, clicks.FreezePart, bonuses.Part}
 }

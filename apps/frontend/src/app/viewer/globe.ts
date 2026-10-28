@@ -44,6 +44,7 @@ import {
     Update,
     UpdatesListener,
     VPNBlockedError,
+    FrozenError,
 } from "../../backends/backend.ts";
 import {SessionUnavailableError} from "../../backends/session.ts";
 import {LeaderboardEntry, rankCountries} from "../../domain/leaderboard.ts";
@@ -189,6 +190,8 @@ export type GlobeOptions = {
     onLoadProgress: (share: number) => void
     onOrbitChange?: (orbit: boolean) => void
     onRateLimited: () => void
+    // A click on a frozen map, refused here or by the server.
+    onFrozen: () => void
     onVPNBlocked: () => void
     onBanned: (until: number) => void
     onSessionUnavailable: () => void
@@ -253,6 +256,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         onLoadProgress,
         onOrbitChange = () => {},
         onRateLimited,
+        onFrozen,
         onVPNBlocked,
         onBanned,
         onSessionUnavailable,
@@ -889,6 +893,12 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
         if (!loaded) return
 
+        if (budget?.frozen) {
+            onFrozen()
+            playSound("refused")
+            return
+        }
+
         if (!regions.get(country.code)) {
             warnOnce(`No sprite region for country "${country.code}", ignoring the click`)
             return
@@ -945,7 +955,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         }, (e) => {
             if (lifetime.signal.aborted) return
             applyChanges(ownership.rollback(claim))
-            if (reportClickFailure(e, {onRateLimited, onVPNBlocked, onBanned, onSessionUnavailable, onAllegianceLocked})) playSound("refused")
+            if (reportClickFailure(e, {onRateLimited, onFrozen, onVPNBlocked, onBanned, onSessionUnavailable, onAllegianceLocked})) playSound("refused")
         })
     }, listenerOptions);
 
@@ -1364,6 +1374,7 @@ export function reportClickFailure(
     error: unknown,
     handlers: {
         onRateLimited: () => void,
+        onFrozen: () => void,
         onVPNBlocked: () => void,
         onBanned: (until: number) => void,
         onSessionUnavailable: () => void,
@@ -1371,6 +1382,7 @@ export function reportClickFailure(
     },
 ): boolean {
     if (error instanceof RateLimitedError) handlers.onRateLimited()
+    else if (error instanceof FrozenError) handlers.onFrozen()
     else if (error instanceof VPNBlockedError) handlers.onVPNBlocked()
     else if (error instanceof BannedError) handlers.onBanned(error.until)
     else if (error instanceof SessionUnavailableError) handlers.onSessionUnavailable()

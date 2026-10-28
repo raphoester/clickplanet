@@ -346,3 +346,23 @@
         animation: none;
     }
 }
+
+.click-budget-frozen {
+    color: var(--text);
+}
+
+.click-budget-frozen-lines {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.click-budget-frozen-head {
+    font-weight: 700;
+}
+
+.click-budget-frozen-next {
+    color: var(--text-soft);
+    font-size: var(--text-s);
+    font-variant-numeric: tabular-nums;
+}
