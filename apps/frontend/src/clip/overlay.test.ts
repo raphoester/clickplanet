@@ -136,13 +136,25 @@ describe("the teasers of a caption", () => {
         expect(wordsOf({...story("invasion", {country: "cn"}), attacker: "hr", victims: ["fr"]}).teasers)
             .toContain("CROATIA INVADES CHINA AND KICKS OUT FRANCE")
         expect(wordsOf({...story("rout", {region: "Europe"}), attacker: "de", victims: ["cx"], team: "Europe"}).teasers)
-            .toContain("GENERATIONAL DOWNFALL OF CHRISTMAS ISLAND")
+            .toContain("CHRISTMAS ISLAND IS THROWN OUT OF EUROPE")
         expect(wordsOf({...story("attack", {region: "Europe"}), attacker: "cx"}).teasers)
             .toContain("CHRISTMAS ISLAND TAKES OVER EUROPE")
     })
 
     it("tell a country throwing a flag out of its own land as taking it back", () => {
         expect(wordsOf({...story("rout", {country: "it"}), attacker: "it", victims: ["pt"]}).teasers)
+            .toEqual(["ITALY RETAKES ITS LAND FROM PORTUGAL", "PORTUGAL LOSES ITALY"])
+    })
+
+    it("call one place lost a loss, never a generational downfall", () => {
+        expect(wordsOf({...story("rout", {country: "fi"}), attacker: "se", victims: ["cn"]}).teasers)
+            .toEqual(["CHINA LOSES FINLAND", "CHINA IS THROWN OUT OF FINLAND"])
+    })
+
+    it("call a flag falling from the top of the world a generational downfall", () => {
+        expect(wordsOf({...story("rout", {country: "fi"}), attacker: "se", victims: ["cn"], downfall: true}).teasers)
+            .toEqual(["CHINA LOSES FINLAND", "GENERATIONAL DOWNFALL OF CHINA"])
+        expect(wordsOf({...story("rout", {country: "it"}), attacker: "it", victims: ["pt"], downfall: true}).teasers)
             .toEqual(["ITALY RETAKES ITS LAND FROM PORTUGAL", "GENERATIONAL DOWNFALL OF PORTUGAL"])
     })
 
@@ -158,6 +170,8 @@ describe("the teasers of a caption", () => {
             {...story("kickout", {country: "au"}), attacker: "fr", victims: ["pl"]},
             {...story("rout", {region: "Europe"}), victims: ["ps"], team: "Europe"},
             {...story("rout", {country: "dz"}), victims: ["dz"]}, {...story("rout", {region: "Africa"}), victims: ["dz"]},
+            {...story("rout", {country: "fi"}), victims: ["cn"]}, {...story("rout", {country: "fi"}), victims: ["cn"], downfall: true},
+            {...story("rout", {country: "it"}), attacker: "it", victims: ["pt"]},
             {...story("comeback", {region: "Europe"}), attacker: "de", team: "Europe"},
             {...story("holding", {region: "Europe"}), attacker: "hr", share: 0.8},
             {...story("holding", {region: "the world"}), share: 0.12}, {...story("holding", {country: "br"}), share: 0.92},

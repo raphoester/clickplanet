@@ -190,6 +190,10 @@ function wordedOf(story: Story, headline?: string): Words {
         const home = inPlace(story.place, sides[0], regionOf)
         const ownCountry = "country" in story.place && story.place.country === sides[0]
         const takerAtHome = "country" in story.place && story.place.country === story.attacker && story.team === undefined
+        const told: [string, string][] = ownCountry ? [["the-fall-of", `the fall of ${loser}`], ["collapses", `${loser} collapses`]]
+            : home ? [["loses-ground-in", `${loser} loses ground in ${place}`], ["in-trouble-in", `${loser} is in trouble in ${place}`]]
+                : takerAtHome ? [["retakes-its-land-from", `${attacker} retakes its land from ${loser}`], ["loses-place", `${loser} loses ${place}`]]
+                    : [["loses-place", `${loser} loses ${place}`], ["thrown-out-of", `${loser} is thrown out of ${place}`]]
         return {
             headline: headline ?? (ownCountry ? `${loser} IS FALLING`
                 : home ? `${loser} IS LOSING ${place}` : `${loser} GETS KICKED OUT OF ${place}`).toUpperCase(),
@@ -197,11 +201,7 @@ function wordedOf(story: Story, headline?: string): Words {
             call: sides.length === 2 ? "PICK A SIDE" : `FIGHT FOR ${loser}`.toUpperCase(),
             callFlags: sides,
             link: sides.length === 2 ? SITE : `${SITE}/?f=${sides[0]}`,
-            ...named(ownCountry ? [["the-fall-of", `the fall of ${loser}`], ["collapses", `${loser} collapses`]]
-                : home ? [["loses-ground-in", `${loser} loses ground in ${place}`], ["in-trouble-in", `${loser} is in trouble in ${place}`]]
-                    : takerAtHome ? [["retakes-its-land-from", `${attacker} retakes its land from ${loser}`],
-                        ["generational-downfall", `generational downfall of ${loser}`]]
-                        : [["generational-downfall", `generational downfall of ${loser}`], ["loses-place", `${loser} loses ${place}`]]),
+            ...named(story.downfall ? [told[0], ["generational-downfall", `generational downfall of ${loser}`]] : told),
         }
     }
 

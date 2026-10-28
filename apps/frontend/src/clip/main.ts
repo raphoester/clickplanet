@@ -24,6 +24,7 @@ import {Front, frontOf, inSightOf, sameFront, spanOf} from "../domain/clip/front
 import {frontFactsOf, Ground, holdingStoryOf, inHolding, placesOf, solidityAfter, tourFactsOf} from "../domain/clip/findings.ts"
 import {ROUND_PLAY_MS, roundStoryOf} from "../domain/clip/round.ts"
 import {callUpsOf} from "../domain/clip/callup.ts"
+import {downfallOf} from "../domain/clip/downfall.ts"
 import {fightersOf, inPlace, Story, storyKeyOf, teamFlagOf, THE_WORLD} from "../domain/clip/story.ts"
 import {scoreOf} from "../domain/clip/score.ts"
 import {Flip, flippedTo, flipsOf, Look, lookOf} from "../domain/clip/look.ts"
@@ -362,8 +363,12 @@ async function choose(): Promise<Chosen> {
             (fighters(to) || fighters(from)) && inPlace(story.place, groundAt(tile), regionOf)), pointAt)
         if (!own) throw new Error(`nobody of "${wordsOf(story).headline}" fought in ${placeName(story.place)} on front ${told.front}`)
         const backend = cutOf(own, found.candidate)
-        const solidity = solidityAfter(story.attacker, own.changes, ownersAfter(backend.opening, backend.changes()), pointAt)
-        return {front: own, story, score: found.score, scope: found.scope, world: false, backend, solidity}
+        const end = ownersAfter(backend.opening, backend.changes())
+        const solidity = solidityAfter(story.attacker, own.changes, end, pointAt)
+        return {
+            front: own, story: {...story, downfall: downfallOf(story, backend.opening, end)},
+            score: found.score, scope: found.scope, world: false, backend, solidity,
+        }
     }
 
     const record = async (): Promise<Recording> => {

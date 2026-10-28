@@ -120,6 +120,9 @@ it.
 - **True to the story.** Say only what its kind and its facts say. "KICKED OUT" only for a kickout or a rout; "VS" or
   "WAR" only for a battle; a holding holds, it does not invade; never a bigger share than `share` (79.9% is 79%). No
   country, number or event the facts do not hold.
+- **The size of the words is the size of the story.** "DOWNFALL", "COLLAPSE" and "THE END OF" are for a flag that led
+  the world and fell far down it, never for one place lost: on 2026-10-28 a post called China losing Finland, most of
+  the little China held, "GENERATIONAL DOWNFALL OF CHINA". A flag losing a place loses it, or gets kicked out of it.
 - **No numbers the clip already shows.** No tile counts, no "in 3 hours": the counter shows them, and they read as
   written by a machine.
 - **Not the same words twice.** Never a headline of `recentPosts`: the same words read as the same clip. A question

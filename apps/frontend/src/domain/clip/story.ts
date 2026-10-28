@@ -21,7 +21,8 @@ export type Kind = "attack" | "invasion" | "comeback" | "kickout" | "rout" | "ba
 // whose flags strike back together. A holding is what the map is rather than what changed on it: its flag (attacker)
 // holds share of the place, the flags holding the most after it are its victims. A round is a day of the season its flag
 // won, the next places on its podium its victims. A callup is a country that can still win the season after a day,
-// called to the Final Battle at finaleAt: the leader its victim.
+// called to the Final Battle at finaleAt: the leader its victim. downfall: a rout of a flag from the top of the world to
+// far down it, as the replay measured it (downfallOf).
 export type Story = {
     kind: Kind
     attacker: string
@@ -32,6 +33,7 @@ export type Story = {
     share?: number
     day?: Day
     finaleAt?: number
+    downfall?: boolean
 }
 
 export const KINDS: readonly Kind[] = ["attack", "invasion", "comeback", "kickout", "rout", "battle", "holding", "round", "callup"]

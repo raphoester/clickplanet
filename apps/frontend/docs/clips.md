@@ -241,8 +241,11 @@ What chooses, when a clip goes out, the client of the service and the run's summ
 - **The caption never repeats the headline** (`teasers` in `wordsOf`): the clip already shows it, and the
   posts written by hand read better. Each kind of story says it two ways, which the job picks between: "PALESTINE
   IS KICKING ROMANIA OUT OF KAZAKHSTAN" is "PALESTINE TAKES KAZAKHSTAN FROM ROMANIA", an invasion that threw
-  another flag out "CROATIA INVADES CHINA AND KICKS OUT FRANCE", a flag thrown out "GENERATIONAL DOWNFALL OF
-  CHRISTMAS ISLAND", and a country throwing a flag out of its own land "ITALY RETAKES ITS LAND FROM PORTUGAL".
+  another flag out "CROATIA INVADES CHINA AND KICKS OUT FRANCE", a flag thrown out "CHINA LOSES FINLAND", and a
+  country throwing a flag out of its own land "ITALY RETAKES ITS LAND FROM PORTUGAL". **"GENERATIONAL DOWNFALL OF
+  CHINA" is only a flag in the world's top 3 when the clip's stretch opens and out of the top 10 when it ends**
+  (`downfallOf`, `domain/clip/downfall.ts`, measured on the whole map as the render cuts the replay), never one place
+  lost: on 2026-10-28 it was the title of China losing Finland, most of the little China held.
   A holding is "80% OF EUROPE FLIES THE FLAG OF CROATIA" and "CROATIA RULES EUROPE" (below half, "the biggest power
   in Europe"; the world's, "THE BIGGEST EMPIRE ON EARTH"), and asks to "TAKE EUROPE BACK"; a day won is "FRANCE TAKES
   DAY 5" and "DAY 5 GOES TO FRANCE". A teaser that says the editor's headline is left out, and a test checks that no
