@@ -95,10 +95,11 @@ type BattleEnded struct {
 	state  protoimpl.MessageState `protogen:"open.v1"`
 	Season uint32                 `protobuf:"varint,1,opt,name=season,proto3" json:"season,omitempty"`
 	// The battle's place among the season's battles.
-	Number  uint32 `protobuf:"varint,2,opt,name=number,proto3" json:"number,omitempty"`
+	Number uint32 `protobuf:"varint,2,opt,name=number,proto3" json:"number,omitempty"`
+	// Empty for the season's finale, which is the season's and no entry's.
 	EntryId string `protobuf:"bytes,3,opt,name=entry_id,json=entryId,proto3" json:"entry_id,omitempty"`
 	Times   uint32 `protobuf:"varint,4,opt,name=times,proto3" json:"times,omitempty"`
-	// The battle ran to the season's end: its finale.
+	// The battle was the season's finale.
 	EndsSeason    bool                   `protobuf:"varint,5,opt,name=ends_season,json=endsSeason,proto3" json:"ends_season,omitempty"`
 	RoundId       string                 `protobuf:"bytes,6,opt,name=round_id,json=roundId,proto3" json:"round_id,omitempty"`
 	EndedAt       *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=ended_at,json=endedAt,proto3" json:"ended_at,omitempty"`
@@ -190,10 +191,9 @@ type SeasonEnded struct {
 	Season  uint32                 `protobuf:"varint,1,opt,name=season,proto3" json:"season,omitempty"`
 	BookId  string                 `protobuf:"bytes,2,opt,name=book_id,json=bookId,proto3" json:"book_id,omitempty"`
 	EndedAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=ended_at,json=endedAt,proto3" json:"ended_at,omitempty"`
-	// The round that ran to the season's end, which breaks a tie; empty when none did.
+	// The season's finale's round, which breaks a tie; empty when the season had no finale.
 	FinaleRoundId string `protobuf:"bytes,4,opt,name=finale_round_id,json=finaleRoundId,proto3" json:"finale_round_id,omitempty"`
-	// The battle that ran to the season's end, when the finale was one: it ended with the season, and the season's
-	// debrief replaces its own.
+	// The season's finale, when it had one: it ended with the season, and the season's debrief replaces its own.
 	FinaleBattle  *BattleEnded `protobuf:"bytes,5,opt,name=finale_battle,json=finaleBattle,proto3" json:"finale_battle,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

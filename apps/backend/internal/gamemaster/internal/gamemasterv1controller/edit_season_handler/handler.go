@@ -26,7 +26,7 @@ func (h EditSeasonHandler) EditSeason(
 	ctx context.Context,
 	req *connect.Request[gamemasterv1.EditSeasonRequest],
 ) (*connect.Response[gamemasterv1.EditSeasonResponse], error) {
-	draft := seasonmessage.DraftOf(req.Msg.GetBreakBefore(), req.Msg.GetLength())
+	draft := seasonmessage.DraftOf(req.Msg.GetBreakBefore(), req.Msg.GetLength(), req.Msg.GetFinale())
 	if err := h.useCase.Execute(ctx, season.Number(req.Msg.GetNumber()), draft); err != nil {
 		return nil, seasonmessage.Refusal(err) //nolint:wrapcheck // the error net answers what is not the operator's.
 	}

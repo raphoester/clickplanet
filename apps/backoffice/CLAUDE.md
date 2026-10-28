@@ -29,4 +29,5 @@ each line names a doc in [`docs/`](docs) and says what is in it.
 - [Clip stats](docs/clip-stats.md) — the daily numbers of the posted clips, and a CSV of them.
 - [Ops](docs/ops.md) — `ReconcileTitles`, after a deploy; Game rules: planet's sets, made and edited; the
   antibot's rule sets, edited as JSON; the rule schedule: which set plays when, a battle's points' times, entries to
-  come added and changed; the seasons: their breaks and lengths, added, moved and deleted.
+  come added and changed, and each season's Final Battle among them; the seasons: their breaks, lengths and Final
+  Battles, added, moved and deleted.

@@ -81,7 +81,9 @@ import {
     GetSeasonsRequest,
     GetSeasonsResponse,
     Playing,
+    ScheduledFinale,
     ScheduledSeason,
+    SeasonFinale,
 } from "./gen/grpc/gamemaster/v1/admin_pb.ts"
 import {EntryKind, Season} from "./gen/grpc/gamemaster/v1/gamemaster_pb.ts"
 import {ChargesHeld, TileUpdate} from "./gen/grpc/planet/v1/planet_pb.ts"
@@ -200,13 +202,17 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         ],
         playing: new Playing({ruleSet: "calm", kind: EntryKind.PLAIN, since: Timestamp.fromDate(AT), entryId: "entry-running"}),
     })
-    // A season that ended, one that runs until 2098 after a day's break, and one of 90 days to come.
+    // A season that ended, one that runs until 2098 after a day's break, and one of 90 days to come that ends with a
+    // final battle.
     seasons = seasonsOf(new Date("2020-09-01T00:00:00Z"), [
         {breakBefore: 0, length: (AT.getTime() - new Date("2020-09-01T00:00:00Z").getTime()) / 1000},
         {breakBefore: DAY, length: (new Date("2098-01-01T00:00:00Z").getTime() - AT.getTime()) / 1000 - DAY},
-        {breakBefore: 0, length: 90 * DAY},
-    ].map(({breakBefore, length}) => ({
-        breakBefore: new Duration({seconds: BigInt(breakBefore)}), length: new Duration({seconds: BigInt(length)}),
+        {
+            breakBefore: 0, length: 90 * DAY,
+            finale: new SeasonFinale({length: new Duration({seconds: BigInt(2 * 3600)}), ruleSet: "rush", description: "Triple points.", times: 3}),
+        },
+    ].map(({breakBefore, length, finale}) => ({
+        breakBefore: new Duration({seconds: BigInt(breakBefore)}), length: new Duration({seconds: BigInt(length)}), finale,
     })))
     authors = [new Author({accountId: ACCOUNT, name: "BraveFox42"})]
     profile = new AdminGetPlayerResponse({
@@ -522,7 +528,15 @@ export class FakeGamemaster implements GamemasterAdmin {
     constructor(private readonly admin: FakeAdmin) {}
 
     getSchedule(request: PartialMessage<GetScheduleRequest>): Promise<GetScheduleResponse> {
-        return this.admin.answer("getSchedule", request, this.admin.schedule)
+        const finales = this.admin.seasons.seasons.filter(scheduled => scheduled.finale !== undefined).map(scheduled => {
+            const endsAt = scheduled.season?.endsAt?.toDate() ?? new Date()
+            const startsAt = new Date(endsAt.getTime() - Number(scheduled.finale?.length?.seconds ?? 0n) * 1000)
+            return new ScheduledFinale({
+                season: scheduled.season?.number, finale: scheduled.finale, startsAt: Timestamp.fromDate(startsAt),
+                endsAt: Timestamp.fromDate(endsAt),
+            })
+        })
+        return this.admin.answer("getSchedule", request, new GetScheduleResponse({...this.admin.schedule, finales}))
     }
 
     addEntry(request: PartialMessage<AddEntryRequest>): Promise<AddEntryResponse> {
@@ -558,7 +572,7 @@ export class FakeGamemaster implements GamemasterAdmin {
         const number = this.admin.seasons.seasons.length
         const answer = this.admin.answer("addSeason", request, new AddSeasonResponse({number}))
         if (!this.admin.refusals.has("addSeason")) {
-            this.keepSeasons([...this.plans(), {breakBefore: new Duration(request.breakBefore), length: new Duration(request.length)}])
+            this.keepSeasons([...this.plans(), planOf(request)])
         }
         return answer
     }
@@ -566,9 +580,7 @@ export class FakeGamemaster implements GamemasterAdmin {
     editSeason(request: PartialMessage<EditSeasonRequest>): Promise<EditSeasonResponse> {
         const answer = this.admin.answer("editSeason", request, new EditSeasonResponse())
         if (!this.admin.refusals.has("editSeason")) {
-            this.keepSeasons(this.plans().map((plan, number) => number === request.number
-                ? {breakBefore: new Duration(request.breakBefore), length: new Duration(request.length)}
-                : plan))
+            this.keepSeasons(this.plans().map((plan, number) => number === request.number ? planOf(request) : plan))
         }
         return answer
     }
@@ -583,7 +595,7 @@ export class FakeGamemaster implements GamemasterAdmin {
 
     private plans(): Plan[] {
         return this.admin.seasons.seasons.map(scheduled => ({
-            breakBefore: scheduled.breakBefore ?? new Duration(), length: scheduled.length ?? new Duration(),
+            breakBefore: scheduled.breakBefore ?? new Duration(), length: scheduled.length ?? new Duration(), finale: scheduled.finale,
         }))
     }
 
@@ -597,7 +609,14 @@ export class FakeGamemaster implements GamemasterAdmin {
     }
 }
 
-type Plan = {breakBefore: Duration, length: Duration}
+type Plan = {breakBefore: Duration, length: Duration, finale?: SeasonFinale}
+
+function planOf(request: PartialMessage<AddSeasonRequest> | PartialMessage<EditSeasonRequest>): Plan {
+    return {
+        breakBefore: new Duration(request.breakBefore), length: new Duration(request.length),
+        finale: request.finale === undefined ? undefined : new SeasonFinale(request.finale),
+    }
+}
 
 const DAY = 24 * 3600
 
@@ -610,7 +629,7 @@ function seasonsOf(first: Date, plans: Plan[]): GetSeasonsResponse {
             end = new Date(startsAt.getTime() + Number(plan.length.seconds) * 1000)
             return new ScheduledSeason({
                 season: new Season({number, startsAt: Timestamp.fromDate(startsAt), endsAt: Timestamp.fromDate(end)}),
-                breakBefore: plan.breakBefore, length: plan.length,
+                breakBefore: plan.breakBefore, length: plan.length, finale: plan.finale,
             })
         }),
     })

@@ -31,6 +31,19 @@ describe("BattleChip", () => {
         expect(screen.getByRole("button", {name: "Battle ends in 1h 23m 00s"})).toBeDefined()
     })
 
+    it("names the season's finale the final battle", () => {
+        vi.useFakeTimers({now})
+        const finale = {...battle, entryId: "", roundId: "season-0/finale", endsSeason: true}
+        render(<BattleChip battle={finale} compact={false} open={false} onToggle={vi.fn()}/>)
+
+        expect(screen.getByRole("region", {name: "Final Battle"})).toBeDefined()
+        expect(screen.getByRole("button", {name: "Final Battle ends in 1h 23m 05s"})).toBeDefined()
+        cleanup()
+
+        render(<BattleChip battle={finale} compact={true} open={false} onToggle={vi.fn()}/>)
+        expect(screen.getByRole("button", {name: "Final Battle ends in 1h 23m 05s"}).textContent).toContain("Final")
+    })
+
     it("tells the battle's facts on hover, and on a press", () => {
         vi.useFakeTimers({now})
         const onToggle = vi.fn()

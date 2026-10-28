@@ -30,9 +30,12 @@ const (
 var (
 	finale         = time.Date(2026, 10, 31, 21, 0, 0, 0, time.UTC)
 	seasonZeroEnds = time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC)
-	zero           = season.Snapshot{Number: 0, Length: 23*day + 23*time.Hour}
-	rush           = schedule.EntryID(uuid.MustParse("0192f5a0-7c00-7000-8000-000000000031"))
-	battle         = moments.RoundID(rush.String())
+	zero           = season.Snapshot{
+		Number: 0, Length: 23*day + 23*time.Hour,
+		Finale: season.Finale{Length: 2 * time.Hour, Set: "rush", Description: "Triple points.", Times: 3},
+	}
+	battle = moments.RoundID("season-0/finale")
+	rush   = schedule.EntryID(uuid.MustParse("0192f5a0-7c00-7000-8000-000000000031"))
 )
 
 type commanded struct {
@@ -58,7 +61,7 @@ type harness struct {
 	useCase  *play_scoring_usecase.UseCase
 }
 
-// Season 0 runs from its origin to 31 Oct 23:00, and its Final Battle is rush × 3 from 21:00 to 23:00.
+// Season 0 runs from its origin to 31 Oct 23:00, and its finale, the Final Battle, is rush × 3 from 21:00 to 23:00.
 func newHarness(t *testing.T, at time.Time) *harness {
 	t.Helper()
 
@@ -67,12 +70,20 @@ func newHarness(t *testing.T, at time.Time) *harness {
 		opened: inmemory_moment_store.New(),
 	}
 	require.NoError(t, h.seasons.Save(t.Context(), zero.Restore()))
-	require.NoError(t, h.entries.Save(t.Context(), schedule.EntrySnapshot{
+	h.boot()
+	return h
+}
+
+// Season 0 has no finale, and a battle entry, rush × 3, runs from 21:00 to 23:00.
+func (h *harness) noFinale() {
+	h.t.Helper()
+	plain := zero
+	plain.Finale = season.Finale{}
+	require.NoError(h.t, h.seasons.Save(h.t.Context(), plain.Restore()))
+	require.NoError(h.t, h.entries.Save(h.t.Context(), schedule.EntrySnapshot{
 		ID: rush, Set: "rush", Kind: schedule.Battle, Description: "Triple points.", StartsAt: finale, EndsAt: seasonZeroEnds,
 		Priority: 1, Times: 3, MadeAt: finale.Add(-day),
 	}.Restore()))
-	h.boot()
-	return h
 }
 
 func (h *harness) boot() {
@@ -156,37 +167,44 @@ func TestABootMidDayOpensTheBookAndTheRunningDay(t *testing.T) {
 	assert.Empty(t, h.execute(), "each is sent once")
 }
 
-func TestAMovedSeasonEndMovesItsBookAndItsDays(t *testing.T) {
-	h := newHarness(t, finale.Add(time.Hour))
+func TestAMovedSeasonEndMovesItsBookItsDaysAndItsFinale(t *testing.T) {
+	h := newHarness(t, finale.Add(-day))
 	h.execute()
 	moved := zero
 	moved.Length += 7 * day
 	require.NoError(t, h.seasons.Save(t.Context(), moved.Restore()))
 
-	h.clock.Advance(time.Second)
+	h.at(finale)
 	assert.Equal(t, []moments.Command{
+		closeDay(24),
 		{Action: moments.OpenRound, Book: book, Round: dayRound(25), Times: 1, At: finale},
-	}, h.execute(), "a day runs from 21:00 now")
+	}, h.execute(), "a day runs from 21:00 now, and the finale waits for the new end")
 
 	h.at(seasonZeroEnds)
+	assert.Empty(t, h.execute())
+
+	h.at(finale.Add(7 * day))
+	sent := h.execute()
+	require.Len(t, sent, 8, "the days 25 to 31 close")
 	assert.Equal(t, []moments.Command{
-		{Action: moments.CloseRound, Book: book, Round: battle, At: seasonZeroEnds},
-	}, h.execute(), "the battle no longer ends the season")
+		closeDay(31),
+		{Action: moments.OpenRound, Book: book, Round: battle, Times: 3, At: finale.Add(7 * day)},
+	}, sent[6:])
 
 	h.at(seasonZeroEnds.Add(7 * day))
-	sent := h.execute()
-	require.Len(t, sent, 8)
-	assert.Equal(t, closeDay(31), sent[6])
-	assert.Equal(t, moments.Command{Action: moments.CloseBook, Book: book, At: seasonZeroEnds.Add(7 * day)}, sent[7],
-		"no round ends at 23:00: no tiebreak")
+	assert.Equal(t, []moments.Command{
+		{Action: moments.CloseRound, Book: book, Round: battle, At: seasonZeroEnds.Add(7 * day)},
+		{Action: moments.CloseBook, Book: book, Tiebreak: battle, At: seasonZeroEnds.Add(7 * day)},
+	}, h.execute())
 }
 
-func TestADayThatOpenedRunsToASeasonEndMovedBeforeItsCutoffAndBreaksTheTie(t *testing.T) {
+func TestADayThatOpenedRunsToASeasonEndMovedBeforeItsCutoff(t *testing.T) {
 	h := newHarness(t, time.Date(2026, 10, 20, 12, 0, 0, 0, time.UTC))
+	h.noFinale()
 	h.execute()
 	end := dayEnds(13).Add(-2 * time.Hour)
 	moved := zero
-	moved.Length = end.Sub(season.Origin)
+	moved.Length, moved.Finale = end.Sub(season.Origin), season.Finale{}
 	require.NoError(t, h.seasons.Save(t.Context(), moved.Restore()))
 
 	h.at(end.Add(-time.Second))
@@ -195,8 +213,8 @@ func TestADayThatOpenedRunsToASeasonEndMovedBeforeItsCutoffAndBreaksTheTie(t *te
 	h.at(end)
 	assert.Equal(t, []moments.Command{
 		{Action: moments.CloseRound, Book: book, Round: dayRound(13), At: end},
-		{Action: moments.CloseBook, Book: book, Tiebreak: dayRound(13), At: end},
-	}, h.execute(), "the day is cut at the season's end, and is its finale")
+		{Action: moments.CloseBook, Book: book, At: end},
+	}, h.execute(), "the day is cut at the season's end; with no finale, no round breaks a tie")
 
 	h.boot()
 	sent := h.execute()
@@ -204,18 +222,19 @@ func TestADayThatOpenedRunsToASeasonEndMovedBeforeItsCutoffAndBreaksTheTie(t *te
 		"a boot after it remembers the day opened")
 }
 
-func TestABattleRunningWhenTheSeasonEndMovesIsCutAtTheNewEnd(t *testing.T) {
+func TestABattleEntryRunningWhenTheSeasonEndMovesIsCutAtTheNewEndAndIsNoFinale(t *testing.T) {
 	h := newHarness(t, finale.Add(time.Minute))
+	h.noFinale()
 	h.execute()
 	end := finale.Add(time.Hour)
 	moved := zero
-	moved.Length = end.Sub(season.Origin)
+	moved.Length, moved.Finale = end.Sub(season.Origin), season.Finale{}
 	require.NoError(t, h.seasons.Save(t.Context(), moved.Restore()))
 
 	h.at(end)
 	assert.Equal(t, []moments.Command{
-		{Action: moments.CloseRound, Book: book, Round: battle, At: end},
-		{Action: moments.CloseBook, Book: book, Tiebreak: battle, At: end},
+		{Action: moments.CloseRound, Book: book, Round: moments.RoundID(rush.String()), At: end},
+		{Action: moments.CloseBook, Book: book, At: end},
 	}, h.execute())
 }
 

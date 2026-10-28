@@ -80,6 +80,8 @@ export class BattleEnded extends Message<BattleEnded> {
   number = 0;
 
   /**
+   * Empty for the season's finale, which is the season's and no entry's.
+   *
    * @generated from field: string entry_id = 3;
    */
   entryId = "";
@@ -90,7 +92,7 @@ export class BattleEnded extends Message<BattleEnded> {
   times = 0;
 
   /**
-   * The battle ran to the season's end: its finale.
+   * The battle was the season's finale.
    *
    * @generated from field: bool ends_season = 5;
    */
@@ -160,15 +162,14 @@ export class SeasonEnded extends Message<SeasonEnded> {
   endedAt?: Timestamp;
 
   /**
-   * The round that ran to the season's end, which breaks a tie; empty when none did.
+   * The season's finale's round, which breaks a tie; empty when the season had no finale.
    *
    * @generated from field: string finale_round_id = 4;
    */
   finaleRoundId = "";
 
   /**
-   * The battle that ran to the season's end, when the finale was one: it ended with the season, and the season's
-   * debrief replaces its own.
+   * The season's finale, when it had one: it ended with the season, and the season's debrief replaces its own.
    *
    * @generated from field: gamemaster.v1.BattleEnded finale_battle = 5;
    */

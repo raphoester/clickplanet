@@ -11,11 +11,21 @@ export type Battle = {
     description: string
     // Its round in scoring; empty for a battle that scores nothing.
     roundId: string
+    // The season's finale: its last battle.
+    endsSeason?: boolean
 }
 
 export function battleOf(turn: Turn | undefined): Battle | undefined {
     if (!turn || turn.kind !== "battle" || turn.endsAt === undefined) return undefined
-    return {entryId: turn.entryId, since: turn.since ?? 0, endsAt: turn.endsAt, description: turn.description, roundId: turn.roundId}
+    return {
+        entryId: turn.entryId, since: turn.since ?? 0, endsAt: turn.endsAt, description: turn.description, roundId: turn.roundId,
+        endsSeason: turn.endsSeason,
+    }
+}
+
+// What the players call a battle: the season's finale is its final battle.
+export function battleNameOf(battle: {endsSeason?: boolean}): string {
+    return battle.endsSeason ? "Final Battle" : "Battle"
 }
 
 // The server's list is of its read: a battle whose start passed since is no longer to come.
@@ -23,8 +33,9 @@ export function nextBattleOf(battles: BattleToCome[], now: number): BattleToCome
     return battles.find((battle) => battle.startsAt > now)
 }
 
+// A season's finale has no entry: its round names it.
 export function battleKeyOf(battle: Battle): string {
-    return battle.entryId
+    return battle.entryId || battle.roundId
 }
 
 export function battleDue(battle: Battle | undefined, seen: string | null): battle is Battle {

@@ -64,7 +64,10 @@ at `times` in scoring, so the board's column is the battle's (see [Battles](batt
 `scheduleBattle(inMinutes = 90, minutes = 120, description)` adds a battle to come
 and answers its id, `moveBattle(id, inMinutes)` moves it and `deleteBattle(id)`
 deletes it, as an operator's edit does: the chip's and the home page's "Next battle
-in" follow at once. `moveSeasonEnd(inMinutes)` moves Season 0's end, as an operator's
+in" follow at once. `scheduleFinale(inMinutes = 90, minutes = 120)` gives Season 0 a
+finale: its end moves to after it, and the countdowns say "Final Battle in".
+`startFinale(description, times = 3)` plays the finale at once, to the season's end,
+under its round `season-0/finale`: the chip and the start moment say "Final Battle". `moveSeasonEnd(inMinutes)` moves Season 0's end, as an operator's
 edit of the season does: every season countdown follows (the home page has these four alone).
 `endBattle()` ends the turn and leaves the battle's round undebriefed, so the line says
 the results are coming. `closeBattle()` scores the round with its numbers (its points at

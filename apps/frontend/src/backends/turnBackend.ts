@@ -84,6 +84,7 @@ export function turnOf(turn: TurnMessage): Turn {
         entryId: turn.entryId,
         roundId: turn.roundId,
         times: turn.times,
+        endsSeason: turn.endsSeason,
     }
 }
 

@@ -167,3 +167,17 @@ func TestBattlesThatStartTogetherComeInTheOrderTheyWereMade(t *testing.T) {
 
 	assert.Equal(t, []schedule.EntrySnapshot{first.TakeSnapshot(), second.TakeSnapshot()}, battles)
 }
+
+func TestAFinalePlaysAboveEveryEntryOverItsWindow(t *testing.T) {
+	sched := schedule.New(entry(1, "calm", madeAt, battleEnds.Add(time.Hour), 4294967295, madeAt)).With(schedule.Finale{
+		Set: "rush", Description: "Triple points.", StartsAt: finale, EndsAt: battleEnds,
+	})
+
+	assert.Equal(t, schedule.TurnSnapshot{
+		Set: "rush", Kind: schedule.Battle, Description: "Triple points.", StartsAt: finale, EndsAt: battleEnds, Finale: true,
+	}, sched.TurnAt(finale).TakeSnapshot())
+	assert.Equal(t, finale, sched.SinceAt(finale.Add(time.Minute)))
+	assert.Equal(t, turn(id(1), "calm"), played(sched.TurnAt(battleEnds)))
+	assert.Equal(t, battleEnds, sched.SinceAt(battleEnds.Add(time.Minute)))
+	assert.Equal(t, turn(id(1), "calm"), played(sched.TurnAt(finale.Add(-time.Nanosecond))))
+}

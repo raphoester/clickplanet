@@ -14,20 +14,23 @@ what it scored; the gamemaster tells the other modules what that was, in the gam
 
 **A battle is not bound to a season** (the user, 2026-10-26): an operator may launch an unplanned battle tonight
 without touching the seasons. A battle is an entry of kind battle with its points' `times`; while a season runs, its
-window is a round of that season's book. The Final Battle is an entry like any other, worth three days, the round that
-ends the season. It is where a game stop and a map reset go next. Its name was `rules` for a day; the user renamed it,
-since it organises the rules and holds none. PR #475 tried a loopback call from scoring, a baseline table and an
-override button; this replaced it.
+window is a round of that season's book. **The Final Battle is the season's finale, declared on the season** (the
+owner, 2026-10-28; see [The finale](#the-finale)): its window follows the season's end and can never drift, and no
+battle is ever the finale because its end matches the season's. It is where a game stop and a map reset go next. The
+module's name was `rules` for a day; the user renamed it, since it organises the rules and holds none. PR #475 tried a
+loopback call from scoring, a baseline table and an override button; this replaced it.
 
 ```
 internal/gamemaster/
   module.go                         Config (dailyCutoff, database, redis), NewModule
   internal/
     migrations/                     schedule_entries, entry_kind, entry_description, seasons (season 0 seeded),
-                                    entry_times, scored_moments (scored_rounds, opened_rounds, closed_books, outbox)
+                                    entry_times, scored_moments (scored_rounds, opened_rounds, closed_books, outbox),
+                                    season_finales (season 0's Final Battle seeded)
     schedule/                       EntryID, SetName, Kind, Description, Times, Priority, Draft, Entry (NewEntry, Edited,
-                                    Changeable), Schedule (New, TurnAt, SinceAt, BattlesAfter), Turn; the Store, Keeper and
-                                    IDProvider ports, Playable; the store's contract suite; FakeKeeper and FakeIDs (testing tag)
+                                    Changeable), Schedule (New, With, TurnAt, SinceAt, BattlesAfter), Finale, Turn; the
+                                    Store, Keeper and IDProvider ports, Playable; the store's contract suite; FakeKeeper and
+                                    FakeIDs (testing tag)
       inmemory_entry_store/         the Store in a map, behind the testing tag
       postgres_entry_store/         the Store over gamemaster.schedule_entries
       uuid_id_provider/             a uuidv7 for each entry
@@ -39,16 +42,17 @@ internal/gamemaster/
       usecases/delete_entry_usecase/  audit_delete_entry/
       usecases/play_schedule_usecase/ the turn at now, commanded when it changes; Runner
         log_play_schedule/          logs each turn told, and a failure
-    season/                         Number, Origin, Draft, Season, Window, Calendar (Added, Edited, Deletable, Windows,
-                                    RunningAt, NextAfter); Cutoff, DayNumber, Day, Window.Days; the Store port and its
-                                    contract suite
+    season/                         Number, Origin, Draft, Season, Window, Calendar (Added, Edited, Deletable, With,
+                                    Windows, RunningAt, NextAfter, Finales, Overlapped); Finale, Window.FinaleStartsAt;
+                                    Cutoff, DayNumber, Day, Window.Days; the Store port and its contract suite
       inmemory_season_store/        the Store in a map, behind the testing tag
-      postgres_season_store/        the Store over gamemaster.seasons
+      postgres_season_store/        the Store over gamemaster.seasons and season_finales
       usecases/add_season_usecase/     audit_add_season/
       usecases/edit_season_usecase/    audit_edit_season/
       usecases/delete_season_usecase/  audit_delete_season/
-    moments/                        BookID, RoundID (BookOf, DayRoundOf, BattleRoundOf, SeasonOf, NamedOf), Battle, Book,
-                                    Plan (DueAt, BookAt, DayAt, BattleOf, RoundEnded, BookClosed), Planner, Command, Action,
+    moments/                        BookID, RoundID (BookOf, DayRoundOf, FinaleRoundOf, BattleRoundOf, SeasonOf, NamedOf),
+                                    Battle, Book (Tiebreak, FinaleBattle), Plan (DueAt, BookAt, DayAt, BattleOf, FinaleAt,
+                                    FinalesAfter, RoundEnded, BookClosed), Planner, Command, Action,
                                     Key, Moment (DayEnded, BattleEnded, SeasonEnded); the Store and Events ports, the store's
                                     contract suite
       inmemory_moment_store/        the Store in maps, behind the testing tag
@@ -62,8 +66,9 @@ internal/gamemaster/
         log_play_scoring/           logs each command sent, and a failure
       usecases/hear_round_usecase/  keeps a scored round, and records its day's or battle's end once; log_hear_round/
       usecases/hear_book_usecase/   keeps a closed book, and records its season's end once; log_hear_book/
+    finalnight/                     a test alone: season 0's last day and its Final Battle, second by second
     gamemasterv1controller/              AdminService and GamemasterService (bags), NewCacheInterceptor
-      get_schedule_handler/schedule_query/   PostgresQuery: every entry, and what plays now
+      get_schedule_handler/schedule_query/   PostgresQuery: every entry, every finale, and what plays now
       add_entry_handler/  edit_entry_handler/  delete_entry_handler/
       get_seasons_handler/seasons_query/   PostgresQuery: every season, by number, planned and with its window
       add_season_handler/  edit_season_handler/  delete_season_handler/
@@ -97,14 +102,17 @@ text, which the client shows behind the battle chip ("Triple points. A bonus box
 know a set's values, so the operator writes them. At most `MaxDescription` (300) characters, counted in runes; a
 longer one is refused with `ErrLongDescription`, among the draft's other reasons. It may be empty.
 
-**At any time the game plays the running entry with the highest priority** (`Schedule.TurnAt`). A tie goes to the
-entry made last (`made_at`, then the id). An entry runs from its start to just before its end. With no entry running,
-`default` plays, as a plain turn. `Schedule.SinceAt` is when the turn at a time began: the last start or end that
-changed it.
+**At any time the game plays a season's finale while one runs, else the running entry with the highest priority**
+(`Schedule.TurnAt`). **A finale is above the priority scale**: it outranks every entry, whatever its priority, so no
+entry can take the Final Battle's rules away (a plain entry may overlap it, and waits under it; a battle may not, see
+below). The schedule hears the finales from the calendar (`Schedule.With(calendar.Finales()...)`), each a set, words
+and a window. A tie between entries goes to the entry made last (`made_at`, then the id). An entry runs from its start
+to just before its end. With nothing running, `default` plays, as a plain turn. `Schedule.SinceAt` is when the turn at
+a time began: the last start or end, of an entry or a finale, that changed it.
 
 **A turn is the entry that plays, its set, its kind, its description and its window** (its start and its end, in UTC,
-zero when none runs). An entry is a turn of its own even when it plays the set already playing, so it is commanded
-again.
+zero when none runs). A finale's turn is kind battle with the zero entry and `Finale` set. An entry is a turn of its own
+even when it plays the set already playing, so it is commanded again.
 
 ## Only an entry to come changes
 
@@ -114,6 +122,9 @@ again.
 - **A running entry runs to its end.** To fix one, the operator adds an entry at a higher priority. There is no "end
   now", no override button, and no call that changes the rules at once.
 - **An edit keeps the entry's id and its `made_at`**, so it keeps its place in a tie.
+- **A battle may not overlap a season's finale** (`Calendar.Overlapped`, `season.ErrFinaleOverlap`,
+  `FailedPrecondition`): a new or edited entry of kind battle whose window touches a finale's is refused. A plain entry
+  may.
 - **A new or edited entry must name a set planet and the antibot both keep** (`schedule.Playable`): the module asks
   each, in its own words, which sets it keeps (`GetRuleSetNames` on its internal service), and the refusal names each
   module that lacks it (`planet keeps no rule set of this name: "rush"`). **An antibot that is off** serves no route
@@ -176,8 +187,9 @@ Planet and the antibot do the same thing, each in its own `play_rules_usecase`:
 Rule schedule page (see the backoffice's [Ops](../../backoffice/docs/ops.md)):
 
 - **`GetSchedule`** is a query (`schedule_query`): every entry (the past ones too), by start, each with its kind and
-  its description, and `playing`: the set, the kind, since when, and the entry that plays (empty when none runs; the
-  kind is plain then).
+  its description; `finales`, every season's finale with its window (changed on its season only); and `playing`: the
+  set, the kind, since when, the entry that plays (empty when none runs; the kind is plain then), and `finale_season`,
+  the season whose finale plays, read as the season running now.
 - **`AddEntry`**, **`EditEntry`**, **`DeleteEntry`**: an entry that cannot be scheduled (a description past 300
   characters included), or a kind the wire does not name (`ENTRY_KIND_UNSPECIFIED` included), is `InvalidArgument`, a
   set a module lacks or an entry that started `FailedPrecondition`, an unknown id `NotFound`. The kind crosses the
@@ -191,8 +203,8 @@ Rule schedule page (see the backoffice's [Ops](../../backoffice/docs/ops.md)):
 commands go one way, gamemaster to scoring; scoring never asks back.
 
 - **A season is planned as a break and a length** (`season.Season`), kept in `gamemaster.seasons` (`number`,
-  `break_before`, `length`, two intervals), apart from the entries: it has a lifecycle of its own. The type stays open
-  to one optional finale (a length, a rule set, a description), added in a later change.
+  `break_before`, `length`, two intervals), apart from the entries: it has a lifecycle of its own. It may have one
+  finale (see [The finale](#the-finale)).
 - **The seasons are a chain, appended to** (the owner, 2026-10-28): each starts its break after the end of the one
   before, and ends its length later (`Calendar.Windows`). So none can overlap, and **moving the running season's end
   moves every season after it**. The break is the time no season runs: no book is open and no day runs. Freezing the
@@ -206,10 +218,39 @@ commands go one way, gamemaster to scoring; scoring never asks back.
   ago must be longer; **a season that started keeps its break** (`ErrStarted`); **one that ended is not edited**
   (`ErrEnded`); **an end moves only to a time after now**. Only the last season, before it starts, is deleted
   (`ErrNotLast`): numbers keep counting with no gap, and scoring never heard of it.
-- **The operator** calls `GetSeasons` (each season's break, length and window), `AddSeason{break_before, length}`,
-  `EditSeason` and `DeleteSeason` on `gamemaster.v1.AdminService`, from the backoffice's Seasons page; each change is
-  logged at Warn by its audit decorator (`admin season added`, `edited`, `deleted`, or `refused`). A refusal is
-  `InvalidArgument`, `FailedPrecondition` or `NotFound` (`seasonmessage.Refusal`).
+- **The operator** calls `GetSeasons` (each season's break, length, finale and window), `AddSeason{break_before, length,
+  finale}`, `EditSeason` and `DeleteSeason` on `gamemaster.v1.AdminService`, from the backoffice's Seasons page; each
+  change is logged at Warn by its audit decorator (`admin season added`, `edited`, `deleted`, or `refused`, with the
+  finale's fields). A refusal is `InvalidArgument`, `FailedPrecondition` or `NotFound` (`seasonmessage.Refusal`). An
+  edit sends the whole plan: an edit with no finale removes it.
+
+## The finale
+
+**A season may declare one finale: its last battle, the Final Battle** (the owner, 2026-10-28). It is the only battle
+that ends a season. Before, a battle was the finale when its end equalled the season's: moving the end earlier made a
+running battle the finale by accident, and moving it later dropped the planned one. The owner rejected identity by
+times. Now the fact "ends season S" is the season's own.
+
+- **A finale is a length, a rule set, a description for the players and its `times`** (`season.Finale`). **Its window
+  is computed, never typed**: from the season's end minus its length to the season's end (`Window.FinaleStartsAt`). So
+  it follows any move of the end. A season with none has the zero `Finale`.
+- **It is kept with its season, in `gamemaster.season_finales`** (`season` → `seasons.number`, cascade on delete;
+  `length`, `rule_set`, `description`, `times`): one row per season that has one, so no season row holds an empty
+  finale. `postgres_season_store` saves both in one statement.
+- **Its rules** (every reason found by `errors.Is`): a length above none and at most the season's, a set's name, a
+  description of at most 300 characters and times 1 to 10 (`ErrInvalidSeason`); **once it started, the season's end
+  and the finale stay** (`ErrFinaleStarted`, `FailedPrecondition`); a finale that is added, changed or moved starts
+  after now; **its set is one planet and the antibot keep** (`schedule.Playable`, `FailedPrecondition`); **no battle
+  overlaps it** (`ErrFinaleOverlap`), checked on the season's add and edit against every battle that has not ended, and
+  on every battle added or edited.
+- **It is a battle on the same path as an entry's** (`moments.Battle` with `EndsSeason`, the zero entry): a round of
+  the season's book, `season-N/finale` (`FinaleRoundOf`, read back by `NamedOf`), worth its times, numbered by start
+  among the season's battles; its set plays over its window above every entry (see [An entry](#an-entry)). It is in the
+  `Timeline` with `ends_season` and no entry id, and the `Turn` carries `ends_season` while it plays.
+- **`EndsSeason` is true for the finale alone.** A battle entry that runs past a season's end is still cut there, but
+  is no finale. With a finale, no battle can run past the end: it would overlap.
+- **The tiebreak is the finale, or none** (`Book.Tiebreak`). A day is never the tiebreak, even one that ends with the
+  season: a season with no finale closes with no tiebreak round, and scoring ranks by points and rounds won.
 
 ## The days
 
@@ -230,11 +271,10 @@ The gamemaster's format; scoring treats each as an opaque string (`moments`):
 
 ## Commanding scoring
 
-**`moments.Plan` is every book**: one per season, its days, and its battles, each an entry of kind battle with times
-of 1 or more that **starts while the season runs**, a round of that book cut at the season's end, numbered by start
-among the season's battles (a tie goes to the entry made first). A battle that starts in a break is no round. **A
-book's finale** is the round that ends exactly at the season's end: the battle if one does, else a day, else none; it is
-the tiebreak scoring ranks the book by.
+**`moments.Plan` is every book**: one per season, its days, and its battles: each entry of kind battle with times of 1
+or more that **starts while the season runs**, a round of that book cut at the season's end, and the season's finale,
+all numbered by start among the season's battles (a tie goes to the entry made first, then the finale). A battle that
+starts in a break is no round. **A book's tiebreak** is its finale's round, or none (`Book.Tiebreak`).
 
 **`play_scoring_usecase` runs every second** (`gamemaster-scoring`): it plans the books (`moments.Planner` reads the
 seasons and the entries that end after `season.Origin`) and sends each command whose time has come
@@ -253,11 +293,11 @@ once Redis took it.
   `log_play_scoring` logs each command at Warn (`scoring is commanded`).
 - `redis_scoring_commands` sends each as one `scoring.v1.ScoringCommand` on its one stream
   (`commands:scoring.v1.ScoringCommand`), so a round's close always reaches scoring before its book's.
-- **A moved season end** moves its book's close, its days (a day may start now, from the old last cutoff) and its
-  battles' cut; a battle that no longer ends the season is no finale. **A day that opened keeps running when the end
-  moves before its cutoff**: it is cut at the season's end (`Window.CutDay`), closed just before the book, and no day
-  opens after it; it is the finale unless a battle ends there. A running battle is cut at the new end the same way. The
-  runner keeps each round it opens in `opened_rounds` before it sends the open, so a boot still knows the cut day.
+- **A moved season end** moves its book's close, its days (a day may start now, from the old last cutoff), its battles'
+  cut and its finale, which keeps its length before the new end. **A day that opened keeps running when the end moves
+  before its cutoff**: it is cut at the season's end (`Window.CutDay`), closed just before the book, and no day opens
+  after it; it breaks no tie. A running battle entry is cut at the new end the same way, and is no finale. The runner
+  keeps each round it opens in `opened_rounds` before it sends the open, so a boot still knows the cut day.
 
 ## Hearing scoring
 
@@ -268,8 +308,9 @@ its moment in the gamemaster outbox, relayed by `cpoutbox.NewRelay` (`gamemaster
 
 - `gamemaster.v1.DayEnded{season, day, round_id, ended_at}` for a day;
 - `gamemaster.v1.BattleEnded{season, number, entry_id, times, ends_season, round_id, ended_at}` for a battle;
+  `ends_season` is the finale's alone, and its `entry_id` is empty;
 - `gamemaster.v1.SeasonEnded{season, book_id, ended_at, finale_round_id, finale_battle}` for a book; `finale_battle` is
-  the `BattleEnded` of the finale when it is a battle, unset otherwise.
+  the `BattleEnded` of the season's finale, unset with none (and `finale_round_id` empty then).
 
 They carry ids, not numbers: whoever needs the points reads scoring by id. **A round or book id no day, battle or
 season has is logged at Warn and dropped** (acked, not kept). A second delivery finds the row and records nothing.
@@ -280,13 +321,15 @@ season has is logged at Warn and dropped** (acked, not kept). A second delivery 
 count down to the next one, and to play a debrief.** Its `Turn` is the kind of the running entry (plain when none runs),
 its `description` (empty when none runs), `since` when the turn began (unset before any entry), `ends_at`, when the
 running entry ends (unset when none runs), `entry_id`, and for a running battle that is a round, `round_id` and
-`times`. **Never the rule set's name**: the query (`turn_query`) reads the entries and the seasons and computes the
+`times`. **While a season's finale plays**, the turn is kind battle, its description, its window, `round_id`
+`season-N/finale`, its `times` and `ends_season`, with no `entry_id`; which finale is the season running now
+(`Plan.FinaleAt`). **Never the rule set's name**: the query (`turn_query`) reads the entries and the seasons and computes the
 turn, the plan and the timeline by the domain's rules, and answers in the published language only.
 
 **The `Timeline` is the battles to come**, next to the turn: each entry of kind battle that has not started
-(`Schedule.BattlesAfter`), by start, a tie going to the entry made first, as a `Battle`: its entry id, its start, its
-end, its description, its `times`, and, when it starts in a season, its `round_id` and `ends_season` (its round ends at
-the season's end: the finale). **Never a plain entry**: a quiet antibot change stays the operator's. An entry to come
+(`Schedule.BattlesAfter`) and each season's finale that has not started (`Plan.FinalesAfter`), by start, a tie going to
+the entry made first then the finale, as a `Battle`: its entry id (empty for a finale), its start, its end, its
+description, its `times`, its `round_id` when it is a round, and `ends_season` for a finale alone. **Never a plain entry**: a quiet antibot change stays the operator's. An entry to come
 may still be moved or deleted; the stream sends each change within a second, so a countdown is fixed at once (the user
 lifted the rule "no entry to come crosses", 2026-10-27). **The timeline carries the seasons and the day too**:
 `current`, the season that runs (unset between two), `next`, the first that has not started, each a
@@ -319,20 +362,29 @@ an answer read within five seconds of a change may still say the turn before it.
 The rule is pinned by `schedule_test.go` (priorities, ties, the end, since when, two entries of one set, the turn's
 kind, its window, the battles after a time and their order) and `entry_test.go` (only an entry to come changes, every
 reason, a kind nobody knows, a battle's times 1 to 10 and a plain entry's none). `schedule.StoreContractSuite` runs on
-the memory and postgres stores. `season`'s tests pin the calendar's rules and the days (season 0's day 1 ends
+the memory and postgres stores. `finale_test.go` pins the finale's window, its rules, an end that stays once it started, a moved end that moves it, and
+no battle over it. `season`'s tests pin the calendar's rules and the days (season 0's day 1 ends
 2026-10-08 21:00, day 24 2026-10-31 21:00, none from 21:00 to 23:00), and `season.StoreContractSuite` runs on both
 stores. `moments`' tests pin the ids read back; `moments.StoreContractSuite` (each round and book kept once) runs on
 both stores.
 
-**`play_scoring_usecase`'s test is the Final Battle night**: season 0 to 2026-10-31 23:00, cutoff 21h, a battle rush × 3
-from 21:00 to 23:00; second by second through the night, exactly `CloseRound season-0/day-24` then `OpenRound <entry>
-× 3` at 21:00, `CloseRound <entry>` then `CloseBook season-0` tiebreak `<entry>` at 23:00, nothing in between, and a
-boot at 23:05 that sends every close again and no open. It also pins a day cut by a season end moved before its cutoff
-(its close then the book's, tiebreak the day, again after a boot), a running battle cut the same way, a boot mid-day (the book and the running day
-opened, the ended days closed), a moved season end, a send Redis refused sent again in order, and nothing before any
-season. `hear_round_usecase`'s and `hear_book_usecase`'s tests pin the event recorded once (a day, the Final Battle as
+**`finalnight`'s test is the safety net for Sat 31 Oct**: season 0 as the migrations seed it, from the start of day 24
+to after 23:00, second by second through `play_schedule_usecase`, `play_scoring_usecase` and a fake scoring that
+answers each close through `hear_round_usecase` and `hear_book_usecase`: planet and the antibot are told `rush` at
+21:00 and `default` at 23:00 and nothing else; `CloseRound season-0/day-24` then `OpenRound season-0/finale × 3` at
+21:00, `CloseRound season-0/finale` then `CloseBook season-0` tiebreak `season-0/finale` at 23:00; and the outbox
+holds `DayEnded` day 24, then `BattleEnded` (`ends_season`), then `SeasonEnded` with that finale.
+`postgres_season_store`'s test pins the seed: season 0's finale, rush × 3, 31 Oct 21:00 to 23:00.
+
+**`play_scoring_usecase`'s test is the Final Battle night** too: `CloseRound season-0/day-24` then `OpenRound
+season-0/finale × 3` at 21:00, the closes at 23:00, nothing in between, and a boot at 23:05 that sends every close again
+and no open. It also pins a moved season end that moves the finale, a day cut by a season end moved before its cutoff
+(its close then the book's, no tiebreak, again after a boot), a running battle entry cut the same way and no finale, a
+boot mid-day (the book and the running day opened, the ended days closed), a send Redis refused sent again in order,
+and nothing before any season. `hear_round_usecase`'s and `hear_book_usecase`'s tests pin the event recorded once (a day, the Final Battle as
 the season's second battle that ends it, the season's end with its finale and its finale battle), a second delivery that records nothing,
-an unknown id dropped, and a failed keep. `redis_scoring_commands`' test pins each command in scoring's words, and
+an unknown id dropped (`season-1/finale` of a season with none included), and a failed keep. `play_schedule_usecase`'s
+test pins a finale's set played over its window and above an entry at the highest priority. `redis_scoring_commands`' test pins each command in scoring's words, and
 `redis_rule_set_commands`' that scoring hears no rule set.
 
 `turn_query`'s test pins the public read while a battle runs (its id and round among it), after the last one ended and
@@ -350,15 +402,21 @@ is it.
 
 ## Before the Final Battle (Sat 31 Oct 2026, 21:00 UTC)
 
-Nothing plays `rush` until an entry names it, and **the Final Battle is that entry**: season 0's end (23:00) is the
-gamemaster's season, and the last daily cutoff (21:00) ends day 24; neither is the battle. Before 21:00, on the
-backoffice:
+**Season 0's finale is the Final Battle**: migration `20261028150000_season_finales` gives season 0 a finale of 2
+hours, set `rush`, times 3, "Triple points.". It runs 21:00 to 23:00 UTC because season 0 ends at 23:00; moving the end
+moves it. No entry is needed, and none may be a battle over it. Before 21:00:
 
-1. Ops → Game rules: Copy `default`, name it `rush`, tempo 3, box waits 60–120 s, 30 an hour. Save.
-2. Ops → Anti-bot rules: Copy `default`, name it `rush`, `cohort.certainMembers` 50. Save.
-3. Ops → Rule schedule: Add an entry: `rush`, kind battle, times 3, a description of its rules for the players
-   ("Triple points."), from 31 Oct 21:00 UTC to 23:00 UTC, priority 1. It is refused until both sets exist. The kind is
-   what the game client shows, and a battle is a round of season 0's book: a plain entry would play `rush` with no look
-   and no points. It ends at the season's end, so it is the finale and breaks a tie.
+1. Ops → Game rules: if planet keeps no `rush`, Copy `default`, name it `rush`, tempo 3, box waits 60–120 s, 30 an
+   hour. Save.
+2. Ops → Anti-bot rules: if the antibot keeps no `rush`, Copy `default`, name it `rush`, `cohort.certainMembers` 50.
+   Save.
+3. Ops → Rule schedule: season 0's Final Battle shows as a row "Season 0's final battle". **A battle entry added
+   earlier for that night** (the former way: `rush`, kind battle, 21:00 to 23:00) **must be deleted**: it would be a
+   second round × 3 in season 0's book, and a second battle on the client's timeline. Delete it before 21:00 (only an
+   entry to come is deleted). The row warns while a module lacks `rush`.
+4. Ops → Seasons: season 0 shows "2 h, rush × 3". To change its words or times, edit season 0 before 21:00; from 21:00
+   its end and its finale are locked.
 
-Once `rush` plays, no module saves `rush`; an edit is a new set and a new entry.
+If a module lacks `rush` at 21:00, it refuses the command and plays on with its set (see [A set a module lacks once
+the entry runs](#a-set-a-module-lacks-once-the-entry-runs)); the round × 3 still runs in scoring. Once `rush` plays, no
+module saves `rush`.

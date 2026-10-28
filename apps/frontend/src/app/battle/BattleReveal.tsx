@@ -1,6 +1,6 @@
 import {CSSProperties, useEffect, useId, useRef, useState} from "react"
 import {createPortal} from "react-dom"
-import {Battle, battleEndsLine} from "../../domain/battle.ts"
+import {Battle, battleEndsLine, battleNameOf} from "../../domain/battle.ts"
 import {TITLE_REVEAL} from "../../domain/titleReveal.ts"
 import {SwordsIcon} from "../components/icons.tsx"
 import {useModalDialog} from "../components/useDialog.ts"
@@ -41,7 +41,7 @@ export default function BattleReveal({battle, play, onClose}: BattleRevealProps)
              tabIndex={-1}
              style={timing}>
             <div className="title-reveal-stage">
-                <h2 id={headId} className="title-reveal-head">Battle!</h2>
+                <h2 id={headId} className="title-reveal-head">{battleNameOf(battle)}!</h2>
                 <div className="title-reveal-medal">
                     <div className="title-reveal-rays" aria-hidden="true"/>
                     <div className="title-reveal-wave" aria-hidden="true"/>

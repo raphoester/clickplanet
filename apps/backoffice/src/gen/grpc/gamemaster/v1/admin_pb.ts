@@ -54,6 +54,13 @@ export class GetScheduleResponse extends Message<GetScheduleResponse> {
    */
   playing?: Playing;
 
+  /**
+   * Every season's finale, by start: each plays above every entry, and is changed on its season.
+   *
+   * @generated from field: repeated gamemaster.v1.ScheduledFinale finales = 3;
+   */
+  finales: ScheduledFinale[] = [];
+
   constructor(data?: PartialMessage<GetScheduleResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -64,6 +71,7 @@ export class GetScheduleResponse extends Message<GetScheduleResponse> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "entries", kind: "message", T: Entry, repeated: true },
     { no: 2, name: "playing", kind: "message", T: Playing },
+    { no: 3, name: "finales", kind: "message", T: ScheduledFinale, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetScheduleResponse {
@@ -80,6 +88,63 @@ export class GetScheduleResponse extends Message<GetScheduleResponse> {
 
   static equals(a: GetScheduleResponse | PlainMessage<GetScheduleResponse> | undefined, b: GetScheduleResponse | PlainMessage<GetScheduleResponse> | undefined): boolean {
     return proto3.util.equals(GetScheduleResponse, a, b);
+  }
+}
+
+/**
+ * A season's finale, with the window its season works out.
+ *
+ * @generated from message gamemaster.v1.ScheduledFinale
+ */
+export class ScheduledFinale extends Message<ScheduledFinale> {
+  /**
+   * @generated from field: uint32 season = 1;
+   */
+  season = 0;
+
+  /**
+   * @generated from field: gamemaster.v1.SeasonFinale finale = 2;
+   */
+  finale?: SeasonFinale;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp starts_at = 3;
+   */
+  startsAt?: Timestamp;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp ends_at = 4;
+   */
+  endsAt?: Timestamp;
+
+  constructor(data?: PartialMessage<ScheduledFinale>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "gamemaster.v1.ScheduledFinale";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "season", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "finale", kind: "message", T: SeasonFinale },
+    { no: 3, name: "starts_at", kind: "message", T: Timestamp },
+    { no: 4, name: "ends_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ScheduledFinale {
+    return new ScheduledFinale().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ScheduledFinale {
+    return new ScheduledFinale().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ScheduledFinale {
+    return new ScheduledFinale().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ScheduledFinale | PlainMessage<ScheduledFinale> | undefined, b: ScheduledFinale | PlainMessage<ScheduledFinale> | undefined): boolean {
+    return proto3.util.equals(ScheduledFinale, a, b);
   }
 }
 
@@ -177,7 +242,7 @@ export class Entry extends Message<Entry> {
 }
 
 /**
- * What the schedule plays now: the running entry with the highest priority, else "default".
+ * What the schedule plays now: a season's finale, else the running entry with the highest priority, else "default".
  *
  * @generated from message gamemaster.v1.Playing
  */
@@ -208,6 +273,13 @@ export class Playing extends Message<Playing> {
    */
   kind = EntryKind.UNSPECIFIED;
 
+  /**
+   * The season whose finale plays; unset when none does.
+   *
+   * @generated from field: optional uint32 finale_season = 5;
+   */
+  finaleSeason?: number;
+
   constructor(data?: PartialMessage<Playing>) {
     super();
     proto3.util.initPartial(data, this);
@@ -220,6 +292,7 @@ export class Playing extends Message<Playing> {
     { no: 2, name: "since", kind: "message", T: Timestamp },
     { no: 3, name: "entry_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "kind", kind: "enum", T: proto3.getEnumType(EntryKind) },
+    { no: 5, name: "finale_season", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Playing {
@@ -624,6 +697,13 @@ export class ScheduledSeason extends Message<ScheduledSeason> {
    */
   length?: Duration;
 
+  /**
+   * Unset when the season has none.
+   *
+   * @generated from field: gamemaster.v1.SeasonFinale finale = 4;
+   */
+  finale?: SeasonFinale;
+
   constructor(data?: PartialMessage<ScheduledSeason>) {
     super();
     proto3.util.initPartial(data, this);
@@ -635,6 +715,7 @@ export class ScheduledSeason extends Message<ScheduledSeason> {
     { no: 1, name: "season", kind: "message", T: Season },
     { no: 2, name: "break_before", kind: "message", T: Duration },
     { no: 3, name: "length", kind: "message", T: Duration },
+    { no: 4, name: "finale", kind: "message", T: SeasonFinale },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ScheduledSeason {
@@ -655,6 +736,70 @@ export class ScheduledSeason extends Message<ScheduledSeason> {
 }
 
 /**
+ * A season's last battle: it ends at the season's end and starts its length before. Planet and the antibot play its
+ * set over it, above every entry; it is a round of the season's book, worth its times, and breaks a tie.
+ *
+ * @generated from message gamemaster.v1.SeasonFinale
+ */
+export class SeasonFinale extends Message<SeasonFinale> {
+  /**
+   * Above none, and at most the season's length.
+   *
+   * @generated from field: google.protobuf.Duration length = 1;
+   */
+  length?: Duration;
+
+  /**
+   * @generated from field: string rule_set = 2;
+   */
+  ruleSet = "";
+
+  /**
+   * For the players, in plain text: what its rules are. At most 300 characters.
+   *
+   * @generated from field: string description = 3;
+   */
+  description = "";
+
+  /**
+   * 1 to 10.
+   *
+   * @generated from field: uint32 times = 4;
+   */
+  times = 0;
+
+  constructor(data?: PartialMessage<SeasonFinale>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "gamemaster.v1.SeasonFinale";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "length", kind: "message", T: Duration },
+    { no: 2, name: "rule_set", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "times", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SeasonFinale {
+    return new SeasonFinale().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SeasonFinale {
+    return new SeasonFinale().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SeasonFinale {
+    return new SeasonFinale().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SeasonFinale | PlainMessage<SeasonFinale> | undefined, b: SeasonFinale | PlainMessage<SeasonFinale> | undefined): boolean {
+    return proto3.util.equals(SeasonFinale, a, b);
+  }
+}
+
+/**
  * @generated from message gamemaster.v1.AddSeasonRequest
  */
 export class AddSeasonRequest extends Message<AddSeasonRequest> {
@@ -668,6 +813,13 @@ export class AddSeasonRequest extends Message<AddSeasonRequest> {
    */
   length?: Duration;
 
+  /**
+   * Unset for a season with no finale.
+   *
+   * @generated from field: gamemaster.v1.SeasonFinale finale = 3;
+   */
+  finale?: SeasonFinale;
+
   constructor(data?: PartialMessage<AddSeasonRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -678,6 +830,7 @@ export class AddSeasonRequest extends Message<AddSeasonRequest> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "break_before", kind: "message", T: Duration },
     { no: 2, name: "length", kind: "message", T: Duration },
+    { no: 3, name: "finale", kind: "message", T: SeasonFinale },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AddSeasonRequest {
@@ -753,6 +906,13 @@ export class EditSeasonRequest extends Message<EditSeasonRequest> {
    */
   length?: Duration;
 
+  /**
+   * Unset for a season with no finale.
+   *
+   * @generated from field: gamemaster.v1.SeasonFinale finale = 4;
+   */
+  finale?: SeasonFinale;
+
   constructor(data?: PartialMessage<EditSeasonRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -764,6 +924,7 @@ export class EditSeasonRequest extends Message<EditSeasonRequest> {
     { no: 1, name: "number", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 2, name: "break_before", kind: "message", T: Duration },
     { no: 3, name: "length", kind: "message", T: Duration },
+    { no: 4, name: "finale", kind: "message", T: SeasonFinale },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): EditSeasonRequest {

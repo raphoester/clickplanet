@@ -23,15 +23,16 @@ func (c Calendar) Added(draft Draft, now time.Time) (Season, error) {
 	if err := draft.check(); err != nil {
 		return Season{}, err
 	}
-	added := Season{number: c.next(), brk: draft.Break, length: draft.Length}
-	if window := c.with(added).windowOf(added.number); !window.StartsAt.After(now) {
+	added := Season{number: c.next(), brk: draft.Break, length: draft.Length, finale: draft.Finale}
+	if window := c.With(added).windowOf(added.number); !window.StartsAt.After(now) {
 		return Season{}, refused("it would start at %s, not after now", stamp(window.StartsAt))
 	}
 	return added, nil
 }
 
 // Edited is a season that has not ended, planned again; the seasons after it move with it. One that started keeps its
-// break, and its end moves only to a time after now.
+// break, and its end moves only to a time after now. Once its finale started, its end and its finale stay; a finale
+// that changes or moves starts after now.
 func (c Calendar) Edited(number Number, draft Draft, now time.Time) (Season, error) {
 	kept, err := c.season(number)
 	if err != nil {
@@ -44,8 +45,8 @@ func (c Calendar) Edited(number Number, draft Draft, now time.Time) (Season, err
 	if window.Ended(now) {
 		return Season{}, fmt.Errorf("season %d, since %s: %w", number, stamp(window.EndsAt), ErrEnded)
 	}
-	edited := Season{number: number, brk: draft.Break, length: draft.Length}
-	moved := c.with(edited).windowOf(number)
+	edited := Season{number: number, brk: draft.Break, length: draft.Length, finale: draft.Finale}
+	moved := c.With(edited).windowOf(number)
 	if window.Started(now) && draft.Break != kept.brk {
 		return Season{}, fmt.Errorf("season %d keeps its start, %s: %w", number, stamp(window.StartsAt), ErrStarted)
 	}
@@ -54,6 +55,13 @@ func (c Calendar) Edited(number Number, draft Draft, now time.Time) (Season, err
 	}
 	if !moved.EndsAt.Equal(window.EndsAt) && !moved.EndsAt.After(now) {
 		return Season{}, refused("its end would move to %s, not after now", stamp(moved.EndsAt))
+	}
+	unmoved := moved.EndsAt.Equal(window.EndsAt) && draft.Finale == kept.finale
+	if window.finaleStarted(now) && !unmoved {
+		return Season{}, fmt.Errorf("season %d, since %s: %w", number, stamp(window.FinaleStartsAt()), ErrFinaleStarted)
+	}
+	if !unmoved && moved.Finale.Planned() && !moved.FinaleStartsAt().After(now) {
+		return Season{}, refused("its finale would start at %s, not after now", stamp(moved.FinaleStartsAt()))
 	}
 	return edited, nil
 }
@@ -78,7 +86,7 @@ func (c Calendar) Windows() []Window {
 	for _, season := range c.seasons {
 		start := end.Add(season.brk)
 		end = start.Add(season.length)
-		windows = append(windows, Window{Number: season.number, StartsAt: start, EndsAt: end})
+		windows = append(windows, Window{Number: season.number, StartsAt: start, EndsAt: end, Finale: season.finale})
 	}
 	return windows
 }
@@ -134,7 +142,8 @@ func (c Calendar) windowOf(number Number) Window {
 	return Window{}
 }
 
-func (c Calendar) with(changed Season) Calendar {
+// With is the calendar with a season added or changed.
+func (c Calendar) With(changed Season) Calendar {
 	seasons := slices.DeleteFunc(slices.Clone(c.seasons), func(s Season) bool { return s.number == changed.number })
 	return NewCalendar(append(seasons, changed)...)
 }

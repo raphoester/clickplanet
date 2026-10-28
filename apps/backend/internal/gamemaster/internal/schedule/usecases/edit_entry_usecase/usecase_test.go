@@ -11,6 +11,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/inmemory_entry_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/usecases/edit_entry_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/inmemory_season_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -40,7 +42,7 @@ var calm = schedule.Draft{
 func TestAnEntryToComeTakesTheNewValues(t *testing.T) {
 	store := kept(t)
 
-	require.NoError(t, edit_entry_usecase.New(store, all, cptime.NewFixedClock(finale.Add(-time.Minute))).
+	require.NoError(t, edit_entry_usecase.New(store, inmemory_season_store.New(), all, cptime.NewFixedClock(finale.Add(-time.Minute))).
 		Execute(t.Context(), first, calm))
 
 	entry, err := store.Entry(t.Context(), first)
@@ -54,7 +56,7 @@ func TestAnEntryToComeTakesTheNewValues(t *testing.T) {
 func TestAnEntryThatStartedRunsAsItIs(t *testing.T) {
 	store := kept(t)
 
-	err := edit_entry_usecase.New(store, all, cptime.NewFixedClock(finale)).Execute(t.Context(), first, calm)
+	err := edit_entry_usecase.New(store, inmemory_season_store.New(), all, cptime.NewFixedClock(finale)).Execute(t.Context(), first, calm)
 
 	require.ErrorIs(t, err, schedule.ErrStarted)
 	entry, err := store.Entry(t.Context(), first)
@@ -66,14 +68,31 @@ func TestASetAModuleLacksIsRefused(t *testing.T) {
 	frozen := calm
 	frozen.Set = "frozen"
 
-	err := edit_entry_usecase.New(kept(t), all, cptime.NewFixedClock(madeAt)).Execute(t.Context(), first, frozen)
+	err := edit_entry_usecase.New(kept(t), inmemory_season_store.New(), all, cptime.NewFixedClock(madeAt)).Execute(t.Context(), first, frozen)
 
 	require.ErrorIs(t, err, schedule.ErrUnknownSet)
 }
 
 func TestAnEntryNeverKeptIsUnknown(t *testing.T) {
-	err := edit_entry_usecase.New(kept(t), all, cptime.NewFixedClock(madeAt)).
+	err := edit_entry_usecase.New(kept(t), inmemory_season_store.New(), all, cptime.NewFixedClock(madeAt)).
 		Execute(t.Context(), schedule.EntryID(uuid.UUID{15: 9}), calm)
 
 	require.ErrorIs(t, err, schedule.ErrUnknownEntry)
+}
+
+func TestABattleMovedOverASeasonsFinaleIsRefused(t *testing.T) {
+	store := kept(t)
+	seasons := inmemory_season_store.New()
+	require.NoError(t, seasons.Save(t.Context(), season.Snapshot{
+		Number: 0, Length: finale.Add(5 * time.Hour).Sub(season.Origin),
+		Finale: season.Finale{Length: 2 * time.Hour, Set: "rush", Times: 3},
+	}.Restore()))
+	moved := schedule.Draft{Set: "rush", Kind: schedule.Battle, StartsAt: finale, EndsAt: finale.Add(4 * time.Hour), Priority: 1, Times: 3}
+
+	err := edit_entry_usecase.New(store, seasons, all, cptime.NewFixedClock(madeAt)).Execute(t.Context(), first, moved)
+
+	require.ErrorIs(t, err, season.ErrFinaleOverlap)
+	entry, err := store.Entry(t.Context(), first)
+	require.NoError(t, err)
+	assert.Equal(t, finale.Add(2*time.Hour), entry.TakeSnapshot().EndsAt)
 }

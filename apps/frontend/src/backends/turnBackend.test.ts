@@ -43,7 +43,7 @@ describe("ConnectTurnBackend", () => {
         await vi.waitFor(() => expect(followed.battles).toHaveLength(2))
         followed.stop()
 
-        expect(followed.turns).toEqual([{kind: "plain", since: undefined, endsAt: undefined, description: "", entryId: "", roundId: "", times: 0}])
+        expect(followed.turns).toEqual([{kind: "plain", since: undefined, endsAt: undefined, description: "", entryId: "", roundId: "", times: 0, endsSeason: false}])
         expect(followed.battles).toEqual([
             [{entryId: "finale", startsAt: since, endsAt, description: "Triple points.", times: 3, endsSeason: true, roundId: "finale"}],
             [],
@@ -81,7 +81,19 @@ describe("ConnectTurnBackend", () => {
 
         expect(turnOf(TurnMessage.fromBinary(sent.toBinary()))).toEqual({
             kind: "battle", since, endsAt, description: "Triple points.", entryId: "0192f5a0-7c00-7000-8000-000000000031",
-            roundId: "0192f5a0-7c00-7000-8000-000000000031", times: 3,
+            roundId: "0192f5a0-7c00-7000-8000-000000000031", times: 3, endsSeason: false,
+        })
+    })
+
+    it("reads the season's finale as the wire carries it: no entry, its round, and the season it ends", () => {
+        const sent = new TurnMessage({
+            kind: EntryKind.BATTLE, since: at(since), endsAt: at(endsAt), description: "Triple points.", roundId: "season-0/finale",
+            times: 3, endsSeason: true,
+        })
+
+        expect(turnOf(TurnMessage.fromBinary(sent.toBinary()))).toEqual({
+            kind: "battle", since, endsAt, description: "Triple points.", entryId: "", roundId: "season-0/finale", times: 3,
+            endsSeason: true,
         })
     })
 
@@ -104,7 +116,7 @@ describe("ConnectTurnBackend", () => {
             backend.follow({onTurn, onBattles, onSeasons, onDebrief})
             await vi.advanceTimersByTimeAsync(60_000)
 
-            expect(onTurn.mock.calls).toEqual([[{kind: "plain", description: "", entryId: "", roundId: "", times: 0}]])
+            expect(onTurn.mock.calls).toEqual([[{kind: "plain", description: "", entryId: "", roundId: "", times: 0, endsSeason: false}]])
             expect(onBattles.mock.calls).toEqual([[[]]])
             expect(onSeasons.mock.calls).toEqual([[{}]])
             expect(onDebrief.mock.calls).toEqual([[undefined]])

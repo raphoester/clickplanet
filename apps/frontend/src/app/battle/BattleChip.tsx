@@ -1,6 +1,6 @@
 import {useId, useState} from "react"
 import {Season} from "../../backends/season.ts"
-import {Battle, battleEndsLine, battleLeft} from "../../domain/battle.ts"
+import {Battle, battleEndsLine, battleLeft, battleNameOf} from "../../domain/battle.ts"
 import {countdownsOf, shortLeft} from "../../domain/seasonClock.ts"
 import {ChevronIcon, SwordsIcon} from "../components/icons.tsx"
 import {useBottomEdge} from "../components/useBottomEdge.ts"
@@ -11,6 +11,10 @@ import "../season/Season.css"
 import "./Battle.css"
 
 export const BATTLE_LABEL = "Battle ends in"
+
+function labelOf(battle: Battle): string {
+    return `${battleNameOf(battle)} ends in`
+}
 
 export type BattleChipProps = {
     battle: Battle
@@ -27,7 +31,7 @@ export default function BattleChip({battle, season, compact, open, onToggle}: Ba
 
     const now = useNow()
     const left = battleLeft(battle, now)
-    const name = `${BATTLE_LABEL} ${left}`
+    const name = `${labelOf(battle)} ${left}`
 
     if (compact) {
         return <button type="button"
@@ -38,7 +42,7 @@ export default function BattleChip({battle, season, compact, open, onToggle}: Ba
             <SwordsIcon/>
             <span className="season-chip-faces" aria-hidden="true">
                 <span className="season-chip-face">
-                    <span className="season-chip-tag">Battle</span>
+                    <span className="season-chip-tag">{battle.endsSeason ? "Final" : "Battle"}</span>
                     <span className="season-chip-left">{shortLeft(left)}</span>
                 </span>
             </span>
@@ -49,7 +53,7 @@ export default function BattleChip({battle, season, compact, open, onToggle}: Ba
 
     return <section ref={setChip}
                     className="panel season-chip battle-chip"
-                    aria-label="Battle"
+                    aria-label={battleNameOf(battle)}
                     onPointerEnter={() => setHovered(true)}
                     onPointerLeave={() => setHovered(false)}>
         <button type="button"
@@ -60,7 +64,7 @@ export default function BattleChip({battle, season, compact, open, onToggle}: Ba
             <SwordsIcon/>
             <span className="season-chip-faces" aria-hidden="true">
                 <span className="season-chip-face">
-                    <span className="season-chip-label">{BATTLE_LABEL}</span>
+                    <span className="season-chip-label">{labelOf(battle)}</span>
                     <span className="season-chip-left">{left}</span>
                 </span>
             </span>
@@ -105,7 +109,7 @@ export function BattleDetails({battle, season}: {battle: Battle, season?: Season
     return <>
         <div className="panel-box season-details-countdowns">
             <div className="season-details-countdown">
-                <span id={label} className="menu-label">{BATTLE_LABEL}</span>
+                <span id={label} className="menu-label">{labelOf(battle)}</span>
                 <span className="season-chip-left battle-chip-left" role="timer" aria-labelledby={label}>{battleLeft(battle, now)}</span>
             </div>
         </div>

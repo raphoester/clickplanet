@@ -12,6 +12,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/inmemory_entry_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/usecases/add_entry_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/inmemory_season_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -29,7 +31,7 @@ func keepers(planet, antibot []schedule.SetName) []schedule.Keeper {
 }
 
 func adding(store *inmemory_entry_store.Store, keepers []schedule.Keeper) *add_entry_usecase.UseCase {
-	return add_entry_usecase.New(store, keepers, &schedule.FakeIDs{IDs: []schedule.EntryID{first}}, cptime.NewFixedClock(now))
+	return add_entry_usecase.New(store, inmemory_season_store.New(), keepers, &schedule.FakeIDs{IDs: []schedule.EntryID{first}}, cptime.NewFixedClock(now))
 }
 
 var rush = schedule.Draft{
@@ -86,4 +88,25 @@ func TestAFailedSaveIsAnError(t *testing.T) {
 	_, err := adding(store, keepers([]schedule.SetName{"rush"}, []schedule.SetName{"rush"})).Execute(t.Context(), rush)
 
 	require.ErrorIs(t, err, down)
+}
+
+func TestABattleOverASeasonsFinaleIsRefused(t *testing.T) {
+	store := inmemory_entry_store.New()
+	seasons := inmemory_season_store.New()
+	require.NoError(t, seasons.Save(t.Context(), season.Snapshot{
+		Number: 0, Length: finale.Add(2 * time.Hour).Sub(season.Origin),
+		Finale: season.Finale{Length: 2 * time.Hour, Set: "rush", Times: 3},
+	}.Restore()))
+	all := keepers([]schedule.SetName{"rush", "calm"}, []schedule.SetName{"rush", "calm"})
+	ids := &schedule.FakeIDs{IDs: []schedule.EntryID{first, schedule.EntryID(uuid.UUID{15: 2})}}
+	useCase := add_entry_usecase.New(store, seasons, all, ids, cptime.NewFixedClock(now))
+
+	_, err := useCase.Execute(t.Context(), rush)
+	require.ErrorIs(t, err, season.ErrFinaleOverlap)
+	_, err = store.Entry(t.Context(), first)
+	require.ErrorIs(t, err, schedule.ErrUnknownEntry)
+
+	calm := schedule.Draft{Set: "calm", Kind: schedule.Plain, StartsAt: finale, EndsAt: finale.Add(2 * time.Hour), Priority: 9}
+	_, err = useCase.Execute(t.Context(), calm)
+	require.NoError(t, err, "the finale plays above a plain entry")
 }

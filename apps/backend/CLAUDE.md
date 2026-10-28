@@ -88,7 +88,8 @@ and says what is in it. Read the doc before you change its area.
 - [Scoring](docs/scoring.md) — a points accountant: books and rounds by the ids it is given, opened and closed by the
   gamemaster's commands, each round scored from the map when it closes; no season, day, battle or clock.
 - [The gamemaster](docs/gamemaster.md) — every moment of the game: the rule schedule that commands planet and the
-  antibot, the seasons, days and battles it opens and closes in scoring's books, and the events in the game's words.
+  antibot, the seasons, days and battles it opens and closes in scoring's books, each season's finale (the Final
+  Battle), the events in the game's words, and the steps before the Final Battle.
 - [Missions](docs/missions.md) — three to five missions a day per flag, counted from `TileTaken`, paid once done with a
   `GrantCharges` command to planet; why progress is not read from the ledger.
 - [Support](docs/support.md) — suggestions, bug reports and player reports, with their photos and videos.

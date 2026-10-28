@@ -78,13 +78,13 @@ func (d Draft) check(now time.Time) error {
 		return err
 	}
 	var found reasons
-	if err := d.Set.check(); err != nil {
+	if err := d.Set.Check(); err != nil {
 		found = append(found, err)
 	}
-	if err := d.Description.check(); err != nil {
+	if err := d.Description.Check(); err != nil {
 		found = append(found, err)
 	}
-	if err := d.Times.check(d.Kind); err != nil {
+	if err := d.Times.Check(d.Kind); err != nil {
 		found = append(found, err)
 	}
 	if !d.StartsAt.After(now) {
@@ -112,21 +112,21 @@ func (r reasons) Error() string {
 
 func (r reasons) Unwrap() []error { return r }
 
-func (n SetName) check() error {
+func (n SetName) Check() error {
 	if !namePattern.MatchString(string(n)) {
 		return fmt.Errorf("%q is no rule set's name: a lowercase letter, then up to 31 of a-z, 0-9, - and _", n)
 	}
 	return nil
 }
 
-func (d Description) check() error {
+func (d Description) Check() error {
 	if n := utf8.RuneCountInString(string(d)); n > MaxDescription {
 		return fmt.Errorf("%w: %d characters, at most %d", ErrLongDescription, n, MaxDescription)
 	}
 	return nil
 }
 
-func (t Times) check(kind Kind) error {
+func (t Times) Check(kind Kind) error {
 	switch kind {
 	case Battle:
 		if t < 1 || t > MaxTimes {

@@ -15,8 +15,8 @@ const MINUTE = 60 * SECOND
 const HOUR = 60 * MINUTE
 
 const now = Date.UTC(2026, 9, 31, 21, 30)
-const turn: Turn = {kind: "battle", since: now - 30 * MINUTE, endsAt: now + 2 * HOUR, description: "Triple points.", entryId: "entry-final", roundId: "entry-final", times: 3}
-const battle: Battle = {entryId: "entry-final", since: turn.since!, endsAt: turn.endsAt!, description: "Triple points.", roundId: "entry-final"}
+const turn: Turn = {kind: "battle", since: now - 30 * MINUTE, endsAt: now + 2 * HOUR, description: "Triple points.", entryId: "entry-final", roundId: "entry-final", times: 3, endsSeason: false}
+const battle: Battle = {entryId: "entry-final", since: turn.since!, endsAt: turn.endsAt!, description: "Triple points.", roundId: "entry-final", endsSeason: false}
 
 describe("battleOf", () => {
     it("is the battle the turn plays", () => {
@@ -24,9 +24,9 @@ describe("battleOf", () => {
     })
 
     it("is nothing for a plain turn, no turn, or a battle with no end", () => {
-        expect(battleOf({kind: "plain", description: "", entryId: "", roundId: "", times: 0})).toBeUndefined()
+        expect(battleOf({kind: "plain", description: "", entryId: "", roundId: "", times: 0, endsSeason: false})).toBeUndefined()
         expect(battleOf(undefined)).toBeUndefined()
-        expect(battleOf({kind: "battle", description: "", entryId: "entry-final", roundId: "entry-final", times: 3})).toBeUndefined()
+        expect(battleOf({kind: "battle", description: "", entryId: "entry-final", roundId: "entry-final", times: 3, endsSeason: false})).toBeUndefined()
     })
 })
 

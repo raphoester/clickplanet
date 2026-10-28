@@ -55,6 +55,17 @@ describe("the next battle on the home page", () => {
         expect(left()).toBe("4d 02h 59m 59s")
     })
 
+    it("names the season's finale the final battle", () => {
+        const label = () => page.querySelector("[data-battle-label]")?.textContent
+        turns.scheduleBattle(now + HOUR, 30)
+        turns.scheduleFinale(120)
+        stop = follow()
+        expect(label()).toBe("Next battle in")
+
+        vi.advanceTimersByTime(HOUR)
+        expect(label()).toBe("Final Battle in")
+    })
+
     it("follows a battle moved, added before it, and deleted", () => {
         const finale = turns.scheduleBattle(now + DAY, 120)
         stop = follow()

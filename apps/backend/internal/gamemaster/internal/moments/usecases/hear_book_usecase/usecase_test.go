@@ -28,16 +28,18 @@ const day = 24 * time.Hour
 var (
 	finale         = time.Date(2026, 10, 31, 21, 0, 0, 0, time.UTC)
 	seasonZeroEnds = finale.Add(2 * time.Hour)
-	rush           = schedule.EntryID(uuid.MustParse("0192f5a0-7c00-7000-8000-000000000031"))
+	early          = schedule.EntryID(uuid.MustParse("0192f5a0-7c00-7000-8000-000000000001"))
 )
 
 func newHearing(t *testing.T, store *inmemory_moment_store.Store, outbox *cpatomic.FakeOutbox) *hear_book_usecase.Hearing {
 	t.Helper()
 
 	seasons, entries := inmemory_season_store.New(), inmemory_entry_store.New()
-	require.NoError(t, seasons.Save(t.Context(), season.Snapshot{Number: 0, Length: 23*day + 23*time.Hour}.Restore()))
+	require.NoError(t, seasons.Save(t.Context(), season.Snapshot{
+		Number: 0, Length: 23*day + 23*time.Hour, Finale: season.Finale{Length: 2 * time.Hour, Set: "rush", Times: 3},
+	}.Restore()))
 	require.NoError(t, entries.Save(t.Context(), schedule.EntrySnapshot{
-		ID: rush, Set: "rush", Kind: schedule.Battle, StartsAt: finale, EndsAt: seasonZeroEnds, Times: 3, MadeAt: finale.Add(-day),
+		ID: early, Set: "rush", Kind: schedule.Battle, StartsAt: finale.Add(-time.Hour), EndsAt: finale, Times: 2, MadeAt: finale.Add(-day),
 	}.Restore()))
 	return hear_book_usecase.New(moments.NewPlanner(seasons, entries, inmemory_moment_store.New(), season.Cutoff(21*time.Hour)), store,
 		outbox_moment_events.New(outbox), cpatomic.FakeTransactioner{})
@@ -58,10 +60,9 @@ func TestAClosedBookIsToldOnceAsTheSeasonsEndWithItsFinale(t *testing.T) {
 	recorded := outbox.Recorded()
 	require.Len(t, recorded, 1)
 	assert.True(t, proto.Equal(&gamemasterv1.SeasonEnded{
-		Season: 0, BookId: "season-0", EndedAt: timestamppb.New(seasonZeroEnds), FinaleRoundId: rush.String(),
+		Season: 0, BookId: "season-0", EndedAt: timestamppb.New(seasonZeroEnds), FinaleRoundId: "season-0/finale",
 		FinaleBattle: &gamemasterv1.BattleEnded{
-			Season: 0, Number: 1, EntryId: rush.String(), Times: 3, EndsSeason: true, RoundId: rush.String(),
-			EndedAt: timestamppb.New(seasonZeroEnds),
+			Season: 0, Number: 2, Times: 3, EndsSeason: true, RoundId: "season-0/finale", EndedAt: timestamppb.New(seasonZeroEnds),
 		},
 	}, recorded[0]), "%v", recorded[0])
 }

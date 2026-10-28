@@ -20,6 +20,9 @@ export function nextBattleShown(root: ParentNode): Shown<BattleToCome[]> {
         for (const element of shown) element.hidden = !next
         if (!next) return
         for (const element of root.querySelectorAll("[data-battle-left]")) element.textContent = timeLeftTo(next.startsAt, now)
+        for (const element of root.querySelectorAll("[data-battle-label]")) {
+            element.textContent = next.endsSeason ? "Final Battle in" : "Next battle in"
+        }
     }
 
     const timer = setInterval(tick, TICK_MS)

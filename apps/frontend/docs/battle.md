@@ -51,8 +51,11 @@ or a season scoring scored). A battle is the one kind with a look.
 is the first battle to come that has not started at the client's now: the server's
 list is of its last read, and a battle whose start passed leaves the countdown before
 its turn arrives. With none to come there is no face and no pill. During a battle the
-battle chip is the chip, as below. The countdown says "next battle", never "final":
-an entry of the schedule carries no fact of the season.
+battle chip is the chip, as below. **The season's finale is the Final Battle**: when the
+next battle has `endsSeason`, the countdown says "Final Battle in" (tag "Final"), and
+"Next battle in" otherwise. The fact is the gamemaster's, set on the season's own
+battle; the client never guesses it from times. A finale has no entry: its
+`entryId` is empty and its round, `season-N/finale`, is its key (`battleKeyOf`).
 
 ## The look
 
@@ -87,10 +90,14 @@ ends.
 - The chip's name holds the clock in full, and the visible clock is hidden from a
   screen reader, as the season chip's is.
 
+**The chip of the season's finale says "Final Battle"**: its name ("Final Battle ends in …"), its label, the
+compact tag ("Final") and the sheet's clock, from the turn's `endsSeason`.
+
 ## The start moment, and the end
 
 **The start plays once per battle per browser** (`BattleReveal`, `useBattleReveal`):
-the title unlock's slam, "Battle!", a disc of crossed swords in the battle's
+the title unlock's slam, "Battle!" ("Final Battle!" for the season's finale,
+`battleNameOf`), a disc of crossed swords in the battle's
 colour, the description and when it ends, then "To the globe" once it settled
 (`TITLE_REVEAL.ready`). Close keeps the battle's key in `clickplanet-battle-seen`,
 so a reload does not play it again; a player who arrives mid-battle sees it, since
@@ -155,7 +162,7 @@ The round's "once per browser" and the battle's keep their own rule (`useRoundRe
 
 ## In fake mode
 
-`startBattle(minutes = 120, description, times = 3)` and `endBattle()` on the console
+`startBattle(minutes = 120, description, times = 3)`, `startFinale(description, times = 3)` and `endBattle()` on the console
 (see [Commands](commands.md)): the mood, the halo, the chip, the moment and the
 board's battle column follow at once. `endBattle()` leaves the battle's round
 undebriefed, so "The results are coming" stays; `closeBattle()` scores it and the fake

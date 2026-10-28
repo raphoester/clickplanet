@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -12,13 +13,18 @@ type Entries interface {
 	Save(ctx context.Context, entry schedule.Entry) error
 }
 
-func New(entries Entries, keepers []schedule.Keeper, ids schedule.IDProvider, clock cptime.Clock) *UseCase {
-	return &UseCase{entries: entries, keepers: keepers, ids: ids, clock: clock}
+type Seasons interface {
+	Calendar(ctx context.Context) (season.Calendar, error)
 }
 
-// UseCase schedules an entry to come, of a set every module keeps.
+func New(entries Entries, seasons Seasons, keepers []schedule.Keeper, ids schedule.IDProvider, clock cptime.Clock) *UseCase {
+	return &UseCase{entries: entries, seasons: seasons, keepers: keepers, ids: ids, clock: clock}
+}
+
+// UseCase schedules an entry to come, of a set every module keeps. A battle may not overlap a season's finale.
 type UseCase struct {
 	entries Entries
+	seasons Seasons
 	keepers []schedule.Keeper
 	ids     schedule.IDProvider
 	clock   cptime.Clock
@@ -32,6 +38,13 @@ func (u *UseCase) Execute(ctx context.Context, draft schedule.Draft) (schedule.E
 	entry, err := schedule.NewEntry(id, draft, u.clock.Now())
 	if err != nil {
 		return schedule.EntryID{}, err //nolint:wrapcheck // the entry says every reason.
+	}
+	calendar, err := u.seasons.Calendar(ctx)
+	if err != nil {
+		return schedule.EntryID{}, fmt.Errorf("could not read the seasons: %w", err)
+	}
+	if err := calendar.Overlapped(entry); err != nil {
+		return schedule.EntryID{}, err //nolint:wrapcheck // the calendar names the finale.
 	}
 	if err := schedule.Playable(ctx, draft.Set, u.keepers...); err != nil {
 		return schedule.EntryID{}, fmt.Errorf("cannot schedule the rule set %q: %w", draft.Set, err)

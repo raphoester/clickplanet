@@ -45,18 +45,20 @@ message Turn {
   google.protobuf.Timestamp ends_at = 3;
   // The running entry's words for the players, plain text: what its rules are. Empty when none runs.
   string description = 4;
-  // The running entry's id; empty when none runs.
+  // The running entry's id; empty when none runs, and while a season's finale plays.
   string entry_id = 5;
   // The running battle's round in scoring's books; empty when no battle runs.
   string round_id = 6;
   // The running battle's points' times; 0 when no battle runs.
   uint32 times = 7;
+  // The running battle is the season's finale.
+  bool ends_season = 8;
 }
 
 // What the schedule will play that the players may wait for. An operator may still move or delete an entry to come:
 // the stream sends the timeline again then.
 message Timeline {
-  // The battles that have not started, by start. Never a plain entry.
+  // The battles that have not started, by start, the seasons' finales among them. Never a plain entry.
   repeated Battle battles = 1;
   // The season that runs now; unset between two seasons.
   Season current = 2;
@@ -85,6 +87,7 @@ message Season {
 }
 
 message Battle {
+  // Empty for a season's finale, which is the season's and no entry's.
   string entry_id = 1;
   google.protobuf.Timestamp starts_at = 2;
   google.protobuf.Timestamp ends_at = 3;
@@ -92,7 +95,7 @@ message Battle {
   string description = 4;
   // How many times a day's points the battle scores.
   uint32 times = 5;
-  // The battle runs to the season's end: its finale.
+  // The battle is the season's finale.
   bool ends_season = 6;
   string round_id = 7;
 }

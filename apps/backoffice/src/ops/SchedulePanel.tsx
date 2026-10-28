@@ -10,7 +10,7 @@ import {wordsOf} from "../refusal.ts"
 import {useCall} from "../useCall.ts"
 import {
     addEntry, changeable, complete, deleteEntry, Draft, draftOf, editEntry, ended, kinds, lacking, MAX_DESCRIPTION, MAX_TIMES, Modules, playable,
-    questionOf, Row, rowsOf, shortOf, wordOf,
+    FinaleRow, linesOf, questionOf, Row, shortOf, wordOf,
 } from "./schedule.ts"
 
 type Read = Modules & {schedule: GetScheduleResponse}
@@ -82,7 +82,9 @@ function Playing({read}: {read: Read}) {
     return (
         <>
             <p className="hint">
-                Playing: <code>{set}</code>, a {wordOf(playing?.kind ?? EntryKind.PLAIN)} entry
+                Playing: <code>{set}</code>, {playing?.finaleSeason === undefined
+                    ? <>a {wordOf(playing?.kind ?? EntryKind.PLAIN)} entry</>
+                    : <>season {playing.finaleSeason}'s final battle</>}
                 {playing?.since !== undefined && <>, since <When at={playing.since}/></>}
             </p>
             <p className="hint">
@@ -111,7 +113,9 @@ function Rows({read, gamemaster, onEdit, onDeleted}: {
                 <tr><th>From</th><th>To</th><th>Set</th><th>Kind</th><th>Times</th><th>Description</th><th>Priority</th><th/></tr>
             </thead>
             <tbody>
-                {rowsOf(read.schedule).map(row => (
+                {linesOf(read.schedule).map(row => "finale" in row ? (
+                    <FinaleLine key={`finale-${row.finale.season}`} row={row} read={read} now={now}/>
+                ) : (
                     <tr
                         key={row.entry.id}
                         aria-current={row.entry.id === playing ? "true" : undefined}
@@ -134,6 +138,28 @@ function Rows({read, gamemaster, onEdit, onDeleted}: {
                 ))}
             </tbody>
         </table>
+    )
+}
+
+function FinaleLine({row, read, now}: {row: FinaleRow, read: Read, now: Date}) {
+    const set = row.finale.finale?.ruleSet ?? ""
+    return (
+        <tr
+            aria-current={read.schedule.playing?.finaleSeason === row.finale.season ? "true" : undefined}
+            className={ended(row, now) ? "muted" : undefined}
+        >
+            <td><When at={row.startsAt}/></td>
+            <td><When at={row.endsAt}/></td>
+            <td>
+                <strong>{set}</strong>
+                {!ended(row, now) && <Lacking set={set} read={read}/>}
+            </td>
+            <td>{wordOf(EntryKind.BATTLE)}</td>
+            <td>{`${row.finale.finale?.times ?? 0}×`}</td>
+            <td title={row.finale.finale?.description}>{shortOf(row.finale.finale?.description ?? "")}</td>
+            <td>above all</td>
+            <td className="muted">Season {row.finale.season}'s final battle</td>
+        </tr>
     )
 }
 

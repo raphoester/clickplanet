@@ -24,7 +24,9 @@ export function countdownsOf(season: Season, now: number, battle?: BattleToCome,
 
     const ends = {label: "Season ends in", tag: "Season", left: timeLeft(countdownTo(season.endsAt, now))}
     const battles = battle && battle.startsAt > now
-        ? [{label: "Next battle in", tag: "Battle", left: timeLeft(countdownTo(battle.startsAt, now))}]
+        ? [battle.endsSeason
+            ? {label: "Final Battle in", tag: "Final", left: timeLeft(countdownTo(battle.startsAt, now))}
+            : {label: "Next battle in", tag: "Battle", left: timeLeft(countdownTo(battle.startsAt, now))}]
         : []
     if (dayEndsAt === undefined || dayEndsAt <= now || dayEndsAt >= season.endsAt) return [...battles, ends]
     return [{label: "Today ends in", tag: "Today", left: timeLeft(countdownTo(dayEndsAt, now))}, ...battles, ends]

@@ -10,6 +10,7 @@ import (
 
 	gamemasterv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/gamemaster/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season"
 )
 
 // DraftOf reads an unset time as none, which the schedule refuses; a kind the wire does not name is refused here.
@@ -62,7 +63,7 @@ func Refusal(err error) error {
 		return connect.NewError(connect.CodeInvalidArgument, err)
 	case errors.Is(err, schedule.ErrUnknownEntry):
 		return connect.NewError(connect.CodeNotFound, err)
-	case errors.Is(err, schedule.ErrStarted), errors.Is(err, schedule.ErrUnknownSet):
+	case errors.Is(err, schedule.ErrStarted), errors.Is(err, schedule.ErrUnknownSet), errors.Is(err, season.ErrFinaleOverlap):
 		return connect.NewError(connect.CodeFailedPrecondition, err)
 	}
 	return err

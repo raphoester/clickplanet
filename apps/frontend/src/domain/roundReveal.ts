@@ -42,7 +42,7 @@ export function revealsOf(closed: ClosedRound, battle?: Battle): Reveal[] {
             return closed.finale ? [...debrief, {kind: "results", closed}] : debrief
         }
         case "season":
-            return [...(closed.entryId !== "" ? screensOf(closed) : []), {kind: "results", closed}]
+            return [...(closed.number > 0 ? screensOf(closed) : []), {kind: "results", closed}]
     }
 }
 
