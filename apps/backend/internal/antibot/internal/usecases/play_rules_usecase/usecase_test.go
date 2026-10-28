@@ -169,7 +169,6 @@ func TestASetTheAntibotDoesNotKeepIsRefusedAndTheRulesInForceStay(t *testing.T) 
 	_, kept, err := h.choices.Choice(t.Context())
 	require.NoError(t, err)
 	assert.False(t, kept, "a refused choice is not kept")
-	assert.False(t, h.useCase.Plays("rush"), "so a rush can be saved")
 }
 
 func TestAFailedReadKeepsTheRulesInForce(t *testing.T) {
@@ -234,18 +233,4 @@ func TestAnOperatorsSaveAndTheSchedulesChoiceArePlayedOneAtATime(t *testing.T) {
 	plays.Wait()
 
 	assert.Equal(t, 2, h.bans.Times(), "default at first, then rush once")
-}
-
-func TestTheSetThatPlaysNowIsTheOneInForce(t *testing.T) {
-	h := newHarness(t, rules.Seeded(), rush)
-	h.execute()
-
-	assert.True(t, h.useCase.Plays(rules.Default))
-	assert.False(t, h.useCase.Plays("rush"))
-
-	_, _, err := h.play("rush", finale)
-	require.NoError(t, err)
-
-	assert.False(t, h.useCase.Plays(rules.Default))
-	assert.True(t, h.useCase.Plays("rush"))
 }

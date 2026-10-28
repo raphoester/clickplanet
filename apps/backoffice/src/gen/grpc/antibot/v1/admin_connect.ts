@@ -53,8 +53,7 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Makes a set, or replaces its values. A set that plays now is FailedPrecondition: the rules in force change only
-     * through the schedule.
+     * Makes a set, or replaces its values. A save of the set that plays now takes over at once.
      *
      * @generated from rpc antibot.v1.AdminService.SaveRuleSet
      */

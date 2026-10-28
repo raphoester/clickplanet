@@ -43,11 +43,18 @@ describe("the antibot rules page", () => {
         expect(within(row).getByText("defender")).toBeTruthy()
     })
 
-    it("offers no edit of the set that plays, only a copy", async () => {
-        render(<AntibotRulesPanel antibot={withCalm().antibot}/>)
-        await screen.findByRole("button", {name: "Copy default"})
-        expect(screen.queryByRole("button", {name: "Edit default"})).toBeNull()
-        expect(screen.getByRole("button", {name: "Edit calm"})).toBeTruthy()
+    it("edits the set that plays, and says it takes over at once", async () => {
+        const admin = withCalm()
+        render(<AntibotRulesPanel antibot={admin.antibot}/>)
+        fireEvent.click(await screen.findByRole("button", {name: "Edit default"}))
+        type("Cohort · Certain members", "50")
+        fireEvent.click(saveButton())
+        expect(screen.getByText("It plays now: it takes over at once.")).toBeTruthy()
+        fireEvent.click(screen.getByRole("button", {name: "Yes, save"}))
+        await waitFor(() => expect(admin.askedFor("saveRuleSet")).toHaveLength(1))
+        const [asked] = admin.askedFor("saveRuleSet") as {set: RuleSet}[]
+        expect(asked.set.name).toBe("default")
+        expect(asked.set.rules?.cohort?.certainMembers).toBe(50)
     })
 
     it("edits a set that does not play, asks with what changes, and reads the rules again", async () => {
@@ -66,6 +73,7 @@ describe("the antibot rules page", () => {
             "Bans · Reflag interval 5 min → 10 min",
             "Defender · Enabled off → on",
         ])
+        expect(screen.queryByText("It plays now: it takes over at once.")).toBeNull()
         fireEvent.click(screen.getByRole("button", {name: "Yes, save"}))
         await waitFor(() => expect(within(rowOf("calm")).getByText("None")).toBeTruthy())
         const [asked] = admin.askedFor("saveRuleSet") as {set: RuleSet}[]
@@ -121,16 +129,5 @@ describe("the antibot rules page", () => {
         save()
         expect((await screen.findByRole("alert")).textContent).toContain("The server refused it")
         expect(screen.getByRole("region", {name: "Edit calm"})).toBeTruthy()
-    })
-
-    it("says a name that plays now cannot be saved", async () => {
-        const admin = new FakeAdmin()
-        admin.refuse("saveRuleSet", Code.FailedPrecondition)
-        render(<AntibotRulesPanel antibot={admin.antibot}/>)
-        fireEvent.click(await screen.findByRole("button", {name: "Copy default"}))
-        type("Name", "rush")
-        save()
-        expect((await screen.findByRole("alert")).textContent)
-            .toBe("A set of this name plays now. Save it under another name.")
     })
 })

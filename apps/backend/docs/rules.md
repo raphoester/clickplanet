@@ -99,8 +99,8 @@ The readers call it where they use the rules, not when they are built: a set tak
 - `bonuses.Part` — the box registry (waits, kinds, flight, miss, activity, welcome, quizzes, the quiz lean),
   `bonuses.Charges` (the stacks), `bonuses.Bombing` (the radius), `enclose_click`, `place_shield_usecase`,
   `clicks.Claiming` (a tile's most shields, for a fortify) and `GetBonusRules`.
-- **`play_rules_usecase` plays when something changes, never on a timer**: at boot (`Execute`) the set the schedule
-  chose last, and `default` until it chose one; then each `planet.v1.PlayRuleSet` the schedule sends (`Play`, from
+- **`play_rules_usecase` plays when something changes, never on a timer**: at boot and after each save (`Execute`) the
+  set the schedule chose last, and `default` until it chose one; then each `planet.v1.PlayRuleSet` the schedule sends (`Play`, from
   `commands/play_rule_set_handler`). A missing or broken set at boot refuses the boot. Each time it reads the set to
   play from the store and enforces it when its values changed (`Set.Equal`), one play at a time under a lock. A failed
   read, or a kept set that cannot play, keeps the rules in force, and `log_play_rules` logs it; each set taken is
@@ -137,8 +137,9 @@ A value read where it is used applies from the next use. **A value that carries 
 ## Which set plays
 
 **The schedule picks it**, in the gamemaster module: the running entry with the highest priority, else `default` (see
-[The gamemaster module](gamemaster.md)). No operator call picks the set in force or changes its values (the user's rule,
-2026-10-26: an operator never overrides the schedule, here or anywhere). `planet.v1.InternalService/GetRuleSetNames`
+[The gamemaster module](gamemaster.md)). No operator call picks the set in force (the user's rule, 2026-10-26: an
+operator never overrides the schedule, here or anywhere). Its values change with a save: a save of the set in force
+takes over at once (2026-10-28, see [The operator](#the-operator)). `planet.v1.InternalService/GetRuleSetNames`
 answers the names of the sets postgres keeps, so the gamemaster module refuses an entry of a set planet lacks.
 
 ## The machine, in the YAML
@@ -155,7 +156,10 @@ YAML file's planet keys with unused keys refused: a rule left in a file would be
 - **`GetRules`** answers every set postgres keeps, `default` first, as kept (one that cannot play too, so it can be
   mended), and `playing`, the name of the set in force (`rule_sets_query` beside the name `InForce` holds).
 - **`SaveRuleSet{set}`** makes a set or replaces its values: `save_rule_set_usecase` restores the snapshot the call
-  carries, and hands the store the set. A set `Restore` refuses is `InvalidArgument`, with every reason. **The set in force is refused** with `FailedPrecondition` (`ErrPlaying`): saving it would change what plays.
+  carries, and hands the store the set. A set `Restore` refuses is `InvalidArgument`, with every reason. **Then it plays the set chosen last again**
+  (`play_rules_usecase.Execute`, through `log_play_rules`): a save of the set in force takes over at once, and a save of
+  another set changes nothing. A play that fails after the save is an error; the set stays kept and plays at the next
+  play or boot.
   `audit_save_rule_set` logs every save at Warn (`admin rule set saved` or `refused`, with the rules).
 
 The rules are pinned by each part's tests, `Set`'s (one refusal per impossible value), the store's contract suite and

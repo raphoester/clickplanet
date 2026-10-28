@@ -3,7 +3,6 @@ package save_rule_set_handler_test
 import (
 	"context"
 	"errors"
-	"fmt"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -14,7 +13,6 @@ import (
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/save_rule_set_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/usecases/save_rule_set_usecase"
 )
 
 type stubUseCase struct {
@@ -52,12 +50,6 @@ func TestASetThatCannotPlayIsAnInvalidArgument(t *testing.T) {
 	err := save(t, &stubUseCase{err: rules.ErrInvalidSet})
 
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
-}
-
-func TestTheSetThatPlaysNowIsAFailedPrecondition(t *testing.T) {
-	err := save(t, &stubUseCase{err: fmt.Errorf("cannot keep the rule set %q: %w", "default", save_rule_set_usecase.ErrPlaying)})
-
-	assert.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
 }
 
 func TestAFailureIsPassedOnForTheErrorNet(t *testing.T) {

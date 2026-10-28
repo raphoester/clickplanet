@@ -18,9 +18,9 @@
 it is harmless twice.
 
 **Both rule pages edit a set the same way.** The list of sets marks the one playing ("Playing now"). **Edit** opens a
-set, its name fixed; **Copy** opens a copy of a set, with no name. The set playing has no Edit: the rules in force
-change only through the schedule, and the server refuses a save of the set that plays now (`FailedPrecondition`, "A
-set of this name plays now. Save it under another name."). The form takes the page's place, with "← All sets" back.
+set, its name fixed, the one playing too; **Copy** opens a copy of a set, with no name. A save of the set playing takes
+over at once, and the save's question says so ("It plays now: it takes over at once."), for an Edit and for a Copy
+given its name. The form takes the page's place, with "← All sets" back.
 
 - **What the form changes shows as it is typed** (`changesOf`, `components/Changes`): a value changed is outlined and
   says what it was ("2 min · was 4 min"), and the bar at the bottom of the window counts the changes. A duration says
@@ -70,7 +70,7 @@ off the proto, so a new one shows with no edit here.
   characters, whole on hover), the row playing marked, an ended one muted. A row that has not ended and names a set a module keeps none of says
   which ("No set rush in planet or the antibot.").
 - **Only an entry to come has Edit and Delete.** A running entry runs to its end; to change what plays, add an entry
-  at a higher priority. There is no button that changes the rules at once.
+  at a higher priority. There is no button that changes which set plays at once; the set playing is edited on its rules page.
 - **Add an entry** opens a form: the set (only the ones both modules keep), its kind, a battle's times, its description, its start and
   end (`datetime-local`, the operator's own time) and its priority (the higher plays). Add, Save and Delete ask first
   (`ConfirmAction`); the server's refusal is quoted (a set a module lacks, an entry that started, a start in the past),
