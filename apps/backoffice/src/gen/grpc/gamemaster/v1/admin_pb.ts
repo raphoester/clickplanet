@@ -5,7 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Duration, Message, proto3, Timestamp } from "@bufbuild/protobuf";
-import { EntryKind, Season } from "./gamemaster_pb.js";
+import { Day, EntryKind, Season } from "./gamemaster_pb.js";
 
 /**
  * @generated from message gamemaster.v1.GetScheduleRequest
@@ -704,6 +704,13 @@ export class ScheduledSeason extends Message<ScheduledSeason> {
    */
   finale?: SeasonFinale;
 
+  /**
+   * Its days, by number, each ending at the daily cutoff. None runs from its last cutoff to its end.
+   *
+   * @generated from field: repeated gamemaster.v1.Day days = 5;
+   */
+  days: Day[] = [];
+
   constructor(data?: PartialMessage<ScheduledSeason>) {
     super();
     proto3.util.initPartial(data, this);
@@ -716,6 +723,7 @@ export class ScheduledSeason extends Message<ScheduledSeason> {
     { no: 2, name: "break_before", kind: "message", T: Duration },
     { no: 3, name: "length", kind: "message", T: Duration },
     { no: 4, name: "finale", kind: "message", T: SeasonFinale },
+    { no: 5, name: "days", kind: "message", T: Day, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ScheduledSeason {

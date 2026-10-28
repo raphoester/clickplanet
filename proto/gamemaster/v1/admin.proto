@@ -136,6 +136,8 @@ message ScheduledSeason {
   google.protobuf.Duration length = 3;
   // Unset when the season has none.
   SeasonFinale finale = 4;
+  // Its days, by number, each ending at the daily cutoff. None runs from its last cutoff to its end.
+  repeated Day days = 5;
 }
 
 // A season's last battle: it ends at the season's end and starts its length before. Planet and the antibot play its

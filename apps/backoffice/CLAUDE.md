@@ -27,7 +27,7 @@ each line names a doc in [`docs/`](docs) and says what is in it.
 - [The player page](docs/player-page.md) — an account or an address, and every tool on one player.
 - [The map tools](docs/map-tools.md) — reassign a country, paint random tiles, download a replay.
 - [Clip stats](docs/clip-stats.md) — the daily numbers of the posted clips, and a CSV of them.
-- [Ops](docs/ops.md) — `ReconcileTitles`, after a deploy; Game rules: planet's sets, made and edited; the
+- [Ops](docs/ops.md) — the Timeline: what the gamemaster does next, drawn from its reads; `ReconcileTitles`, after a deploy; Game rules: planet's sets, made and edited; the
   antibot's rule sets, edited as JSON; the rule schedule: which set plays when, a battle's points' times, entries to
   come added and changed, and each season's Final Battle among them; the seasons: their breaks, lengths and Final
   Battles, added, moved and deleted.

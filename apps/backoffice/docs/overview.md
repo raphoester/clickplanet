@@ -13,7 +13,7 @@ burger menu (see [The menu](menu.md)), by group:
 - **Map**: Reassign a country, Paint random tiles, Download a replay (see [The map tools](map-tools.md)).
 - **Clips**: Clip stats, the daily numbers of the clips the clips job posts, and a CSV of them (see
   [Clip stats](clip-stats.md)).
-- **Ops**: Reconcile titles, the run after a deploy; Game rules, the rule sets the game plays by; Anti-bot rules,
+- **Ops**: Timeline, what the gamemaster does next, as blocks and a list; Reconcile titles, the run after a deploy; Game rules, the rule sets the game plays by; Anti-bot rules,
   the rule sets the antibot judges with; Rule schedule, which set both play and when, and a battle's points' times; and Seasons, each season's window (see [Ops](ops.md)).
 
 What is left of the plan is a live chat view: `ListMessages` pages through the chat (the report and player pages

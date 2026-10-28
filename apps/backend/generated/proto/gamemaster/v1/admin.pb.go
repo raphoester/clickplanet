@@ -826,7 +826,9 @@ type ScheduledSeason struct {
 	BreakBefore *durationpb.Duration `protobuf:"bytes,2,opt,name=break_before,json=breakBefore,proto3" json:"break_before,omitempty"`
 	Length      *durationpb.Duration `protobuf:"bytes,3,opt,name=length,proto3" json:"length,omitempty"`
 	// Unset when the season has none.
-	Finale        *SeasonFinale `protobuf:"bytes,4,opt,name=finale,proto3" json:"finale,omitempty"`
+	Finale *SeasonFinale `protobuf:"bytes,4,opt,name=finale,proto3" json:"finale,omitempty"`
+	// Its days, by number, each ending at the daily cutoff. None runs from its last cutoff to its end.
+	Days          []*Day `protobuf:"bytes,5,rep,name=days,proto3" json:"days,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -885,6 +887,13 @@ func (x *ScheduledSeason) GetLength() *durationpb.Duration {
 func (x *ScheduledSeason) GetFinale() *SeasonFinale {
 	if x != nil {
 		return x.Finale
+	}
+	return nil
+}
+
+func (x *ScheduledSeason) GetDays() []*Day {
+	if x != nil {
+		return x.Days
 	}
 	return nil
 }
@@ -1309,12 +1318,13 @@ const file_gamemaster_v1_admin_proto_rawDesc = "" +
 	"\x13DeleteEntryResponse\"\x13\n" +
 	"\x11GetSeasonsRequest\"N\n" +
 	"\x12GetSeasonsResponse\x128\n" +
-	"\aseasons\x18\x01 \x03(\v2\x1e.gamemaster.v1.ScheduledSeasonR\aseasons\"\xe6\x01\n" +
+	"\aseasons\x18\x01 \x03(\v2\x1e.gamemaster.v1.ScheduledSeasonR\aseasons\"\x8e\x02\n" +
 	"\x0fScheduledSeason\x12-\n" +
 	"\x06season\x18\x01 \x01(\v2\x15.gamemaster.v1.SeasonR\x06season\x12<\n" +
 	"\fbreak_before\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\vbreakBefore\x121\n" +
 	"\x06length\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\x06length\x123\n" +
-	"\x06finale\x18\x04 \x01(\v2\x1b.gamemaster.v1.SeasonFinaleR\x06finale\"\x94\x01\n" +
+	"\x06finale\x18\x04 \x01(\v2\x1b.gamemaster.v1.SeasonFinaleR\x06finale\x12&\n" +
+	"\x04days\x18\x05 \x03(\v2\x12.gamemaster.v1.DayR\x04days\"\x94\x01\n" +
 	"\fSeasonFinale\x121\n" +
 	"\x06length\x18\x01 \x01(\v2\x19.google.protobuf.DurationR\x06length\x12\x19\n" +
 	"\brule_set\x18\x02 \x01(\tR\aruleSet\x12 \n" +
@@ -1388,6 +1398,7 @@ var file_gamemaster_v1_admin_proto_goTypes = []any{
 	(EntryKind)(0),                // 22: gamemaster.v1.EntryKind
 	(*Season)(nil),                // 23: gamemaster.v1.Season
 	(*durationpb.Duration)(nil),   // 24: google.protobuf.Duration
+	(*Day)(nil),                   // 25: gamemaster.v1.Day
 }
 var file_gamemaster_v1_admin_proto_depIdxs = []int32{
 	3,  // 0: gamemaster.v1.GetScheduleResponse.entries:type_name -> gamemaster.v1.Entry
@@ -1413,34 +1424,35 @@ var file_gamemaster_v1_admin_proto_depIdxs = []int32{
 	24, // 20: gamemaster.v1.ScheduledSeason.break_before:type_name -> google.protobuf.Duration
 	24, // 21: gamemaster.v1.ScheduledSeason.length:type_name -> google.protobuf.Duration
 	14, // 22: gamemaster.v1.ScheduledSeason.finale:type_name -> gamemaster.v1.SeasonFinale
-	24, // 23: gamemaster.v1.SeasonFinale.length:type_name -> google.protobuf.Duration
-	24, // 24: gamemaster.v1.AddSeasonRequest.break_before:type_name -> google.protobuf.Duration
-	24, // 25: gamemaster.v1.AddSeasonRequest.length:type_name -> google.protobuf.Duration
-	14, // 26: gamemaster.v1.AddSeasonRequest.finale:type_name -> gamemaster.v1.SeasonFinale
-	24, // 27: gamemaster.v1.EditSeasonRequest.break_before:type_name -> google.protobuf.Duration
-	24, // 28: gamemaster.v1.EditSeasonRequest.length:type_name -> google.protobuf.Duration
-	14, // 29: gamemaster.v1.EditSeasonRequest.finale:type_name -> gamemaster.v1.SeasonFinale
-	0,  // 30: gamemaster.v1.AdminService.GetSchedule:input_type -> gamemaster.v1.GetScheduleRequest
-	5,  // 31: gamemaster.v1.AdminService.AddEntry:input_type -> gamemaster.v1.AddEntryRequest
-	7,  // 32: gamemaster.v1.AdminService.EditEntry:input_type -> gamemaster.v1.EditEntryRequest
-	9,  // 33: gamemaster.v1.AdminService.DeleteEntry:input_type -> gamemaster.v1.DeleteEntryRequest
-	11, // 34: gamemaster.v1.AdminService.GetSeasons:input_type -> gamemaster.v1.GetSeasonsRequest
-	15, // 35: gamemaster.v1.AdminService.AddSeason:input_type -> gamemaster.v1.AddSeasonRequest
-	17, // 36: gamemaster.v1.AdminService.EditSeason:input_type -> gamemaster.v1.EditSeasonRequest
-	19, // 37: gamemaster.v1.AdminService.DeleteSeason:input_type -> gamemaster.v1.DeleteSeasonRequest
-	1,  // 38: gamemaster.v1.AdminService.GetSchedule:output_type -> gamemaster.v1.GetScheduleResponse
-	6,  // 39: gamemaster.v1.AdminService.AddEntry:output_type -> gamemaster.v1.AddEntryResponse
-	8,  // 40: gamemaster.v1.AdminService.EditEntry:output_type -> gamemaster.v1.EditEntryResponse
-	10, // 41: gamemaster.v1.AdminService.DeleteEntry:output_type -> gamemaster.v1.DeleteEntryResponse
-	12, // 42: gamemaster.v1.AdminService.GetSeasons:output_type -> gamemaster.v1.GetSeasonsResponse
-	16, // 43: gamemaster.v1.AdminService.AddSeason:output_type -> gamemaster.v1.AddSeasonResponse
-	18, // 44: gamemaster.v1.AdminService.EditSeason:output_type -> gamemaster.v1.EditSeasonResponse
-	20, // 45: gamemaster.v1.AdminService.DeleteSeason:output_type -> gamemaster.v1.DeleteSeasonResponse
-	38, // [38:46] is the sub-list for method output_type
-	30, // [30:38] is the sub-list for method input_type
-	30, // [30:30] is the sub-list for extension type_name
-	30, // [30:30] is the sub-list for extension extendee
-	0,  // [0:30] is the sub-list for field type_name
+	25, // 23: gamemaster.v1.ScheduledSeason.days:type_name -> gamemaster.v1.Day
+	24, // 24: gamemaster.v1.SeasonFinale.length:type_name -> google.protobuf.Duration
+	24, // 25: gamemaster.v1.AddSeasonRequest.break_before:type_name -> google.protobuf.Duration
+	24, // 26: gamemaster.v1.AddSeasonRequest.length:type_name -> google.protobuf.Duration
+	14, // 27: gamemaster.v1.AddSeasonRequest.finale:type_name -> gamemaster.v1.SeasonFinale
+	24, // 28: gamemaster.v1.EditSeasonRequest.break_before:type_name -> google.protobuf.Duration
+	24, // 29: gamemaster.v1.EditSeasonRequest.length:type_name -> google.protobuf.Duration
+	14, // 30: gamemaster.v1.EditSeasonRequest.finale:type_name -> gamemaster.v1.SeasonFinale
+	0,  // 31: gamemaster.v1.AdminService.GetSchedule:input_type -> gamemaster.v1.GetScheduleRequest
+	5,  // 32: gamemaster.v1.AdminService.AddEntry:input_type -> gamemaster.v1.AddEntryRequest
+	7,  // 33: gamemaster.v1.AdminService.EditEntry:input_type -> gamemaster.v1.EditEntryRequest
+	9,  // 34: gamemaster.v1.AdminService.DeleteEntry:input_type -> gamemaster.v1.DeleteEntryRequest
+	11, // 35: gamemaster.v1.AdminService.GetSeasons:input_type -> gamemaster.v1.GetSeasonsRequest
+	15, // 36: gamemaster.v1.AdminService.AddSeason:input_type -> gamemaster.v1.AddSeasonRequest
+	17, // 37: gamemaster.v1.AdminService.EditSeason:input_type -> gamemaster.v1.EditSeasonRequest
+	19, // 38: gamemaster.v1.AdminService.DeleteSeason:input_type -> gamemaster.v1.DeleteSeasonRequest
+	1,  // 39: gamemaster.v1.AdminService.GetSchedule:output_type -> gamemaster.v1.GetScheduleResponse
+	6,  // 40: gamemaster.v1.AdminService.AddEntry:output_type -> gamemaster.v1.AddEntryResponse
+	8,  // 41: gamemaster.v1.AdminService.EditEntry:output_type -> gamemaster.v1.EditEntryResponse
+	10, // 42: gamemaster.v1.AdminService.DeleteEntry:output_type -> gamemaster.v1.DeleteEntryResponse
+	12, // 43: gamemaster.v1.AdminService.GetSeasons:output_type -> gamemaster.v1.GetSeasonsResponse
+	16, // 44: gamemaster.v1.AdminService.AddSeason:output_type -> gamemaster.v1.AddSeasonResponse
+	18, // 45: gamemaster.v1.AdminService.EditSeason:output_type -> gamemaster.v1.EditSeasonResponse
+	20, // 46: gamemaster.v1.AdminService.DeleteSeason:output_type -> gamemaster.v1.DeleteSeasonResponse
+	39, // [39:47] is the sub-list for method output_type
+	31, // [31:39] is the sub-list for method input_type
+	31, // [31:31] is the sub-list for extension type_name
+	31, // [31:31] is the sub-list for extension extendee
+	0,  // [0:31] is the sub-list for field type_name
 }
 
 func init() { file_gamemaster_v1_admin_proto_init() }
