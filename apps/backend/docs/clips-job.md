@@ -255,7 +255,8 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
   countries and its flags, each tour and each place numbered the same, `recentPosts` with their keys and countries, and
   `shownLately`. **The instructions are `claude_editor/instructions.md`, embedded**: prose on what the facts mean,
   what makes a story worth telling and a headline good, from the lessons of this section and of the frontend's, the
-  evening of 2026-10-26 among them. **Tuning that file is how the model's taste is shaped**; a change ships with the
+  evening of 2026-10-26 among them, and the feed of 2026-10-28, five headlines in a day made of fractions ("BRAZIL
+  LOSES MOST OF ARGENTINA"). **Tuning that file is how the model's taste is shaped**; a change ships with the
   next commit, and the record's `generator` names the commit, so the analysis can tell the versions apart.
 - **What it answers** (`answerSchema`): `why`, then `stories`, best first, each with its `front`, `tour` or `place`
   (the others 0), and for a front its `kind`, `attacker`, `rival`, `takenFrom`, `countries` or `continent`, `team`,
