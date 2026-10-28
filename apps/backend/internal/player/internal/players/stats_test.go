@@ -136,3 +136,11 @@ func TestAFactToldAgainWithMoreThanMicrosecondsIsTheOneKept(t *testing.T) {
 
 	assert.Equal(t, uint64(1), kept.Restore().WithMessage(sent).MessagesSent(), "postgres gave back the time it kept")
 }
+
+func TestTheMissionsDoneAreTheMostMissionsTellsItPaid(t *testing.T) {
+	stats := players.Stats{}.WithMissionsPaid(3).WithMissionsPaid(3).WithMissionsPaid(2)
+
+	assert.Equal(t, uint64(3), stats.MissionsDone(), "a payment told twice or late counts nothing more")
+	assert.Equal(t, uint64(12), stats.WithMissionsPaid(12).MissionsDone(), "the first one heard brings every mission before it")
+	assert.Equal(t, players.Streak{}, stats.Streak())
+}

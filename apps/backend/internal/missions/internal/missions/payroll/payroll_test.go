@@ -10,12 +10,14 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 
+	missionsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/missions/v1"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/inmemory_mission_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/payroll"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/planetgrant"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
 
 type accounts struct {
@@ -64,12 +66,25 @@ func TestASignedInAccountIsGrantedEachMissionDoneOnce(t *testing.T) {
 	require.NoError(t, pay(t, paying))
 	require.NoError(t, pay(t, paying))
 
-	require.Len(t, outbox.Recorded(), 1)
+	require.Len(t, outbox.Recorded(), 2)
 	assert.True(t, proto.Equal(planetgrant.Of(ada, missions.Payment{Mission: bank.ID, Reward: bank.Reward}), outbox.Recorded()[0]))
 	assert.NotEqual(t, planetv1.BonusKind_BONUS_KIND_UNSPECIFIED, outbox.Recorded()[0].(*planetv1.GrantCharges).GetKind())
+	assert.True(t, proto.Equal(&missionsv1.MissionsPaid{AccountId: ada.String(), PaidInAll: 1}, outbox.Recorded()[1]))
 	sheet, err := store.Sheet(t.Context(), day, ada)
 	require.NoError(t, err)
 	assert.True(t, sheet.Snapshot().Paid.Contains(bank.ID))
+}
+
+func TestTheMissionsPaidCountEveryDayOfTheAccount(t *testing.T) {
+	paying, store, outbox := setUp(t, &accounts{linked: true}, bankGoal)
+	yesterday := missions.NewCalendar(missions.Config{Cutoff: 21 * time.Hour}).DayOf(time.Date(2026, 10, 25, 12, 0, 0, 0, time.UTC))
+	require.NoError(t, store.ChangeSheet(t.Context(), yesterday, ada, func(missions.Sheet) missions.Sheet {
+		return missions.SheetOf(missions.SheetSnapshot{Paid: cpcolls.NewSet(missions.MissionID{15: 1}, missions.MissionID{15: 2})})
+	}))
+
+	require.NoError(t, pay(t, paying))
+
+	assert.True(t, proto.Equal(&missionsv1.MissionsPaid{AccountId: ada.String(), PaidInAll: 3}, outbox.Recorded()[1]))
 }
 
 func TestAGuestIsNotPaidYet(t *testing.T) {

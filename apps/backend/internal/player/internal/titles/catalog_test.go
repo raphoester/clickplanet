@@ -32,6 +32,8 @@ func bonuses(n uint64) titles.Career { return careerOf(players.StatsSnapshot{Bon
 
 func answers(n uint64) titles.Career { return careerOf(players.StatsSnapshot{RightAnswers: n}) }
 
+func missions(n uint64) titles.Career { return careerOf(players.StatsSnapshot{MissionsDone: n}) }
+
 func TestEachTitleIsEarnedAtItsThresholdAndNotBefore(t *testing.T) {
 	for _, c := range []struct {
 		title         titles.Title
@@ -65,6 +67,10 @@ func TestEachTitleIsEarnedAtItsThresholdAndNotBefore(t *testing.T) {
 		{titles.Expert{}, answers(49), answers(50)},
 		{titles.Professor{}, answers(249), answers(250)},
 		{titles.Genius{}, answers(999), answers(1_000)},
+		{titles.Rookie{}, missions(0), missions(1)},
+		{titles.Agent{}, missions(24), missions(25)},
+		{titles.Operative{}, missions(99), missions(100)},
+		{titles.Spymaster{}, missions(499), missions(500)},
 	} {
 		assert.False(t, c.title.EarnedBy(c.before), "%s at %+v", c.title.ID(), c.before)
 		assert.True(t, c.title.EarnedBy(c.after), "%s at %+v", c.title.ID(), c.after)
@@ -93,6 +99,7 @@ func TestEachTrackClimbsItsRanksByItsOwnMeasure(t *testing.T) {
 		titles.Bombs{},
 		titles.Loot{},
 		titles.Quiz{},
+		titles.Missions{},
 	} {
 		var previous uint64
 		for _, rank := range track.Ranks() {
@@ -100,7 +107,7 @@ func TestEachTrackClimbsItsRanksByItsOwnMeasure(t *testing.T) {
 			n := rank.Threshold()
 			reached := players.StatsSnapshot{
 				TilesTaken: n, StreakBest: uint32(n), MessagesSent: n,
-				BombsDropped: n, TilesFortified: n, BonusesClaimed: n, RightAnswers: n,
+				BombsDropped: n, TilesFortified: n, BonusesClaimed: n, RightAnswers: n, MissionsDone: n,
 			}.Restore()
 			assert.True(t, rank.EarnedBy(titles.CareerOf(reached, players.Account{})),
 				"%s: %s is earned at its threshold", track.ID(), rank.ID())
@@ -110,7 +117,7 @@ func TestEachTrackClimbsItsRanksByItsOwnMeasure(t *testing.T) {
 
 	career := titles.CareerOf(players.StatsSnapshot{
 		TilesTaken: 14_468, Streak: players.StreakOf(4, players.Day{}), StreakBest: 7, MessagesSent: 312,
-		TilesFortified: 2_046, BombsDropped: 9, BonusesClaimed: 61, RightAnswers: 23,
+		TilesFortified: 2_046, BombsDropped: 9, BonusesClaimed: 61, RightAnswers: 23, MissionsDone: 17,
 	}.Restore(), players.Account{})
 	assert.Equal(t, uint64(14_468), titles.Conquest{}.Progress(career))
 	assert.Equal(t, uint64(4), titles.Devotion{}.Progress(career), "the streak a player is on now, not its best")
@@ -119,6 +126,7 @@ func TestEachTrackClimbsItsRanksByItsOwnMeasure(t *testing.T) {
 	assert.Equal(t, uint64(9), titles.Bombs{}.Progress(career))
 	assert.Equal(t, uint64(61), titles.Loot{}.Progress(career))
 	assert.Equal(t, uint64(23), titles.Quiz{}.Progress(career))
+	assert.Equal(t, uint64(17), titles.Missions{}.Progress(career))
 }
 
 func TestEveryTitleHasItsOwnIDTheStoreTakesAndAName(t *testing.T) {

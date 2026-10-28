@@ -35,6 +35,7 @@ const CHEST_LID = "M30 50 V43 C30 33 70 33 70 43 V50 Z"
 const COMPASS = "M30 50 A20 20 0 1 0 70 50 A20 20 0 1 0 30 50"
 const GLOBE = "M31 50 A19 19 0 1 0 69 50 A19 19 0 1 0 31 50 Z"
 const MAP = "M29 37 L42 32 L58 38 L71 33 V63 L58 68 L42 62 L29 67 Z"
+const SCOPE = "M31 50 A19 19 0 1 0 69 50 A19 19 0 1 0 31 50"
 const SMALLER = "translate(50 49) scale(0.9) translate(-50 -49)"
 const LOYAL = "translate(50 52) scale(0.82) translate(-50 -52)"
 const UNBROKEN = "translate(50 52) scale(0.7) translate(-50 -52)"
@@ -69,6 +70,13 @@ function Bomb({accent, cream}: {accent: string, cream: string}) {
         <Shape d={BOMB} color={accent}/>
         <path d="M39 52 C40 49 42 47 45 46" style={{stroke: LIGHT}} strokeOpacity="0.85" strokeWidth="3"
               strokeLinecap="round" fill="none"/>
+    </>
+}
+
+function Target({accent, cream, x = 50, y = 50, r = 20}: {accent: string, cream: string, x?: number, y?: number, r?: number}) {
+    return <>
+        <circle cx={x} cy={y} r={r} style={{fill: accent, stroke: INK}} strokeWidth="3"/>
+        <circle cx={x} cy={y} r={r * 0.6} style={{fill: cream, stroke: INK}} strokeWidth="3"/>
     </>
 }
 
@@ -240,6 +248,29 @@ function icon(title: PlayerTitle, accent: string, cream: string): ReactNode {
                 <Meridians/>
                 <Line d="M50 76 V84 M40 86 H60" color={cream} width={3.5}/>
             </g>
+        case "rookie":
+            return <>
+                <Target accent={accent} cream={cream} r={23}/>
+                <circle cx="50" cy="50" r="6" style={{fill: accent, stroke: INK}} strokeWidth="2.5"/>
+            </>
+        case "agent":
+            return <>
+                <Line d={SCOPE} color={accent} width={4}/>
+                <Line d="M50 25 V39 M50 61 V75 M25 50 H39 M61 50 H75" color={cream} width={3}/>
+                <circle cx="50" cy="50" r="4.5" style={{fill: accent, stroke: INK}} strokeWidth="2.5"/>
+            </>
+        case "operative":
+            return <>
+                <Target accent={accent} cream={cream} x={47} y={53} r={19}/>
+                <Line d="M47 53 L70 30" color={cream} width={3}/>
+                <Line d="M61 39 V32 M61 39 H68 M66 34 V27 M66 34 H73" color={accent} width={3}/>
+            </>
+        case "spymaster":
+            return <>
+                <circle cx="50" cy="50" r="29" style={{stroke: cream}} strokeWidth="3" strokeDasharray="5 6" fill="none"/>
+                <Target accent={accent} cream={cream} r={21}/>
+                <Shape d={STAR} color={accent} width={2.5} transform="translate(0 8)"/>
+            </>
         default:
             return <Letters text={title.name.slice(0, 1)} color={accent}/>
     }

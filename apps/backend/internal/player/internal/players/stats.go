@@ -34,6 +34,7 @@ type Stats struct {
 	tilesFortified uint64
 	bonusesClaimed uint64
 	rightAnswers   uint64
+	missionsDone   uint64
 	counted        Counted
 }
 
@@ -57,6 +58,7 @@ type StatsSnapshot struct {
 	TilesFortified uint64
 	BonusesClaimed uint64
 	RightAnswers   uint64
+	MissionsDone   uint64
 	Counted        Counted
 }
 
@@ -71,6 +73,7 @@ func (s StatsSnapshot) Restore() Stats {
 		tilesFortified: s.TilesFortified,
 		bonusesClaimed: s.BonusesClaimed,
 		rightAnswers:   s.RightAnswers,
+		missionsDone:   s.MissionsDone,
 		counted:        s.Counted,
 	}
 }
@@ -86,6 +89,7 @@ func (s Stats) TakeSnapshot() StatsSnapshot {
 		TilesFortified: s.tilesFortified,
 		BonusesClaimed: s.bonusesClaimed,
 		RightAnswers:   s.rightAnswers,
+		MissionsDone:   s.missionsDone,
 		Counted:        s.counted,
 	}
 }
@@ -120,6 +124,8 @@ func (s Stats) BonusesClaimed() uint64 { return s.bonusesClaimed }
 
 func (s Stats) RightAnswers() uint64 { return s.rightAnswers }
 
+func (s Stats) MissionsDone() uint64 { return s.missionsDone }
+
 func TakeAt(position uint64, at time.Time) func(Stats) Stats {
 	return func(s Stats) Stats { return s.WithTake(position, at) }
 }
@@ -142,6 +148,10 @@ func BonusAt(at time.Time) func(Stats) Stats {
 
 func RightAnswerAt(at time.Time) func(Stats) Stats {
 	return func(s Stats) Stats { return s.WithRightAnswer(at) }
+}
+
+func MissionsPaid(inAll uint64) func(Stats) Stats {
+	return func(s Stats) Stats { return s.WithMissionsPaid(inAll) }
 }
 
 // Postgres keeps a time to the microsecond: a fact told again must compare equal to the one kept.
@@ -215,6 +225,12 @@ func (s Stats) WithRightAnswer(at time.Time) Stats {
 	}
 	s.counted.AnswersUntil = momentOf(at)
 	s.rightAnswers++
+	return s
+}
+
+// Missions tells how many it paid in all, so a payment told twice or late counts nothing more.
+func (s Stats) WithMissionsPaid(inAll uint64) Stats {
+	s.missionsDone = max(s.missionsDone, inAll)
 	return s
 }
 

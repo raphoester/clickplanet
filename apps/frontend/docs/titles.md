@@ -7,7 +7,7 @@ is the player's own view.
 - **Most titles are ranks on a track** (`TitleRank`: the track, the rank's
   number, how many ranks). Conquest counts tiles taken, Devotion the streak,
   Chatter messages, Defense fortified tiles, Bombs bombs dropped, Loot boxes
-  caught and Quiz right answers; OG stands alone. A track this build does
+  caught, Quiz right answers and Missions the missions done; OG stands alone. A track this build does
   not know is drawn in Conquest's colors, and its steps as bare numbers. **Only the highest rank of each track is ever shown or worn**, so
   the client never filters: it draws what the server sends, in its order.
 - **Every title is a medal** (`TitleEmblem`): an SVG per id, drawn by the

@@ -2,7 +2,7 @@ import {PlayerTitle, TitleTrack} from "../../backends/player.ts"
 
 export type Metal = "bronze" | "silver" | "gold" | "platinum" | "prism" | "holo"
 
-const TRACKS = ["conquest", "chatter", "devotion", "defense", "bombs", "loot", "quiz"] as const
+const TRACKS = ["conquest", "chatter", "devotion", "defense", "bombs", "loot", "quiz", "missions"] as const
 
 type Track = typeof TRACKS[number] | "og"
 
@@ -50,6 +50,10 @@ const TITLE_METALS: Partial<Record<string, Metal>> = {
     expert: "silver",
     professor: "gold",
     genius: "prism",
+    rookie: "bronze",
+    agent: "silver",
+    operative: "gold",
+    spymaster: "prism",
 }
 
 export function metalOf(title: PlayerTitle): Metal {
@@ -118,6 +122,10 @@ const TRACK_UNITS: Partial<Record<string, {step: (n: string) => string, left: (n
     quiz: {
         step: (n) => `${n} right answers`,
         left: (n, next) => `${n} ${n === "1" ? "right answer" : "right answers"} to ${next}`,
+    },
+    missions: {
+        step: (n) => `${n} ${n === "1" ? "mission" : "missions"}`,
+        left: (n, next) => `${n} ${n === "1" ? "mission" : "missions"} to ${next}`,
     },
 }
 

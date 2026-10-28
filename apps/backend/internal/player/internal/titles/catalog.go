@@ -11,7 +11,7 @@ type Catalog struct {
 }
 
 func NewCatalog() Catalog {
-	return CatalogOf([]Title{OG{}}, Conquest{}, Devotion{}, Chatter{}, Defense{}, Bombs{}, Loot{}, Quiz{})
+	return CatalogOf([]Title{OG{}}, Conquest{}, Devotion{}, Chatter{}, Defense{}, Bombs{}, Loot{}, Quiz{}, Missions{})
 }
 
 func CatalogOf(standalone []Title, tracks ...Track) Catalog {
@@ -408,6 +408,46 @@ func (Captain) Threshold() uint64 { return 2_500 }
 func (c Captain) EarnedBy(career Career) bool {
 	return career.stats.BonusesClaimed() >= c.Threshold()
 }
+
+type Rookie struct{}
+
+func (Rookie) ID() ID { return "rookie" }
+
+func (Rookie) Name() string { return "Rookie" }
+
+func (Rookie) Threshold() uint64 { return 1 }
+
+func (r Rookie) EarnedBy(career Career) bool { return career.stats.MissionsDone() >= r.Threshold() }
+
+type Agent struct{}
+
+func (Agent) ID() ID { return "agent" }
+
+func (Agent) Name() string { return "Agent" }
+
+func (Agent) Threshold() uint64 { return 25 }
+
+func (a Agent) EarnedBy(career Career) bool { return career.stats.MissionsDone() >= a.Threshold() }
+
+type Operative struct{}
+
+func (Operative) ID() ID { return "operative" }
+
+func (Operative) Name() string { return "Operative" }
+
+func (Operative) Threshold() uint64 { return 100 }
+
+func (o Operative) EarnedBy(career Career) bool { return career.stats.MissionsDone() >= o.Threshold() }
+
+type Spymaster struct{}
+
+func (Spymaster) ID() ID { return "spymaster" }
+
+func (Spymaster) Name() string { return "Spymaster" }
+
+func (Spymaster) Threshold() uint64 { return 500 }
+
+func (s Spymaster) EarnedBy(career Career) bool { return career.stats.MissionsDone() >= s.Threshold() }
 
 type Student struct{}
 
