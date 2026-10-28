@@ -72,6 +72,26 @@ describe("the game rules page", () => {
         expect(screen.queryByRole("region", {name: "Edit calm"})).toBeNull()
     })
 
+    it("asks to save with what changes, each value changed saying what it was", async () => {
+        render(<RulesPanel planet={withCalm()}/>)
+
+        fireEvent.click(await screen.findByRole("button", {name: "Edit calm"}))
+        expect((screen.getByRole("button", {name: "Save"}) as HTMLButtonElement).disabled).toBe(true)
+        expect(screen.getByText("No change yet")).toBeTruthy()
+        type("Shortest box wait (s)", "120")
+        type("Clicks in hand", "60.0")
+        fireEvent.click(screen.getByLabelText("Frozen: the map takes no play"))
+        expect(screen.getByText("2 changes")).toBeTruthy()
+        expect(screen.getByText("2 min · was 4 min")).toBeTruthy()
+        fireEvent.click(screen.getByRole("button", {name: "Save"}))
+
+        const changes = within(screen.getByRole("list", {name: "What changes"})).getAllByRole("listitem")
+        expect(changes.map(change => change.textContent)).toEqual([
+            "Frozen no → yes",
+            "Boxes · Shortest box wait (s) 4 min → 2 min",
+        ])
+    })
+
     it("switches quizzes off and edits the toll", async () => {
         const admin = withCalm()
         render(<RulesPanel planet={admin}/>)
@@ -125,6 +145,7 @@ describe("the game rules page", () => {
         render(<RulesPanel planet={admin}/>)
 
         fireEvent.click(await screen.findByRole("button", {name: "Edit calm"}))
+        type("Refill, times as fast", "3")
         save()
 
         expect((await screen.findByRole("alert")).textContent).toContain("The server refused it")

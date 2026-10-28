@@ -28,9 +28,22 @@ function said(n: number, accountId = ACCOUNT, authorName = "BraveFox42") {
     })
 }
 
+function tool(name: string) {
+    fireEvent.click(screen.getByRole("tab", {name}))
+}
+
 function confirm(label: string, yes: string) {
     fireEvent.click(screen.getByRole("button", {name: label}))
     fireEvent.click(screen.getByRole("button", {name: yes}))
+}
+
+// The rows of the list, its head left out.
+function rows(): HTMLElement[] {
+    return screen.getAllByRole("row").slice(1)
+}
+
+function search(typed: string) {
+    fireEvent.change(screen.getByRole("searchbox", {name: "Name, account id or address"}), {target: {value: typed}})
 }
 
 describe("the player list", () => {
@@ -39,7 +52,7 @@ describe("the player list", () => {
         render(<Page admin={admin}/>)
 
         expect(await screen.findByText("2 of 75 players")).toBeTruthy()
-        const [named, anonymous] = screen.getAllByRole("listitem")
+        const [named, anonymous] = rows()
         expect(within(named).getByText("BraveFox42")).toBeTruthy()
         expect(within(named).getByText("\u{1F1EB}\u{1F1F7}")).toBeTruthy()
         expect(within(named).getByText("France")).toBeTruthy()
@@ -50,67 +63,81 @@ describe("the player list", () => {
         expect(admin.askedFor("getAuthors")).toEqual([{accountIds: [ACCOUNT]}])
     })
 
+    it("sorts the rows read by a column, most first, then least first", async () => {
+        render(<Page admin={new FakeAdmin()}/>)
+
+        await screen.findByText("2 of 75 players")
+        fireEvent.click(screen.getByRole("button", {name: "Held"}))
+        expect(within(rows()[0]).getByText("No account")).toBeTruthy()
+        expect(screen.getByRole("columnheader", {name: "Held ▾"}).getAttribute("aria-sort")).toBe("descending")
+        fireEvent.click(screen.getByRole("button", {name: "Held ▾"}))
+        expect(within(rows()[0]).getByText("BraveFox42")).toBeTruthy()
+    })
+
     it("still lists the players when their names cannot be read, and says why", async () => {
         const admin = new FakeAdmin()
         admin.refuse("getAuthors", Code.Unavailable)
         render(<Page admin={admin}/>)
 
         expect(await screen.findByText("The names could not be read. The call failed: refused")).toBeTruthy()
-        expect(within(screen.getAllByRole("listitem")[0]).getByText("Unnamed")).toBeTruthy()
+        expect(within(rows()[0]).getByText("Unnamed")).toBeTruthy()
     })
 
-    it("finds who painted a flag on a country's ground", async () => {
+    it("finds who painted a flag on a country's ground, and goes back to the most active", async () => {
         const admin = new FakeAdmin()
         render(<Page admin={admin}/>)
-        await screen.findByText("2 of 75 players")
 
-        fireEvent.click(screen.getByRole("button", {name: "By flag"}))
+        await screen.findByText("2 of 75 players")
         fireEvent.change(screen.getByRole("textbox", {name: "Flag"}), {target: {value: "PS"}})
         fireEvent.change(screen.getByRole("textbox", {name: "On the ground of"}), {target: {value: "il"}})
         expect(screen.getByText("Palestinian Territories")).toBeTruthy()
-        fireEvent.click(screen.getByRole("button", {name: "Find"}))
+        fireEvent.click(screen.getByRole("button", {name: "Filter"}))
 
         expect(await screen.findByText("2 players")).toBeTruthy()
+        expect(screen.getByRole("heading", {name: "Took tiles for Palestinian Territories on Israel's ground"})).toBeTruthy()
         expect(admin.askedFor("findPlayers")).toEqual([{flagCountryId: "ps", areaCountryId: "il", limit: 20}])
+        fireEvent.click(screen.getByRole("button", {name: "× Back to the most active"}))
+        expect(await screen.findByText("2 of 75 players")).toBeTruthy()
     })
 
     it("finds any account by a part of its name, and opens it", async () => {
         const admin = new FakeAdmin()
         admin.authors.push(new Author({accountId: "5e0c1b2a-3d4e-4f60-8a71-9b2c3d4e5f60", name: "guest_a1b2c3", guest: true}))
         render(<Page admin={admin}/>)
+
         await screen.findByText("2 of 75 players")
-
-        fireEvent.click(screen.getByRole("button", {name: "By name"}))
-        const find = within(screen.getByRole("form", {name: "Find players by name"}))
-        expect(find.getByRole("button", {name: "Find"}).hasAttribute("disabled")).toBe(true)
-        fireEvent.change(find.getByRole("textbox", {name: "Name"}), {target: {value: " GUEST_A1 "}})
-        fireEvent.click(find.getByRole("button", {name: "Find"}))
-
+        expect((screen.getByRole("button", {name: "Find"}) as HTMLButtonElement).disabled).toBe(true)
+        search(" GUEST_A1 ")
+        fireEvent.click(screen.getByRole("button", {name: "Find"}))
         expect(await screen.findByText("1 account")).toBeTruthy()
-        expect(within(screen.getByRole("listitem")).getByText("guest code")).toBeTruthy()
+        expect(within(rows()[0]).getByText("guest code")).toBeTruthy()
         expect(admin.askedFor("searchPlayers")).toEqual([{name: "GUEST_A1", limit: 20}])
 
-        fireEvent.change(find.getByRole("textbox", {name: "Name"}), {target: {value: "brave"}})
-        fireEvent.click(find.getByRole("button", {name: "Find"}))
-        const card = within(await screen.findByRole("listitem"))
-        expect(await card.findByText("BraveFox42")).toBeTruthy()
-        expect(card.getByText("username")).toBeTruthy()
-
-        fireEvent.click(card.getByRole("button", {name: "Open"}))
+        search("brave")
+        fireEvent.click(screen.getByRole("button", {name: "Find"}))
+        const row = within(await screen.findByRole("row", {name: /BraveFox42/}))
+        expect(row.getByText("username")).toBeTruthy()
+        fireEvent.click(row.getByRole("button", {name: "BraveFox42"}))
         expect(await screen.findByRole("heading", {name: "BraveFox42 France"})).toBeTruthy()
         expect(admin.askedFor("inspectPlayer")).toEqual([{accountId: ACCOUNT}])
+    })
+
+    it("says when no name holds what was typed", async () => {
+        render(<Page admin={new FakeAdmin()}/>)
+
+        search("nobody")
+        fireEvent.click(screen.getByRole("button", {name: "Find"}))
+        expect(await screen.findByText("No account has a name holding “nobody”.")).toBeTruthy()
     })
 
     it("says when a name search fails, and tries again", async () => {
         const admin = new FakeAdmin()
         admin.refuse("searchPlayers", Code.Unavailable)
         render(<Page admin={admin}/>)
+
         await screen.findByText("2 of 75 players")
-
-        fireEvent.click(screen.getByRole("button", {name: "By name"}))
-        fireEvent.change(screen.getByRole("textbox", {name: "Name"}), {target: {value: "brave"}})
+        search("brave")
         fireEvent.click(screen.getByRole("button", {name: "Find"}))
-
         fireEvent.click(await screen.findByRole("button", {name: "Try again"}))
         expect(admin.askedFor("searchPlayers")).toHaveLength(2)
     })
@@ -118,16 +145,17 @@ describe("the player list", () => {
     it("opens a row by its account, and its address from there", async () => {
         const admin = new FakeAdmin()
         render(<Page admin={admin}/>)
-        await screen.findByText("2 of 75 players")
 
-        fireEvent.click(within(screen.getAllByRole("listitem")[0]).getByRole("button", {name: "Open"}))
+        await screen.findByText("2 of 75 players")
+        fireEvent.click(within(rows()[0]).getByRole("button", {name: "BraveFox42 France"}))
         expect(await screen.findByText(/^0 of 0$/)).toBeTruthy()
         expect(screen.getByRole("heading", {name: "BraveFox42 France"})).toBeTruthy()
         expect(admin.askedFor("inspectPlayer")).toEqual([{accountId: ACCOUNT}])
 
         const card = screen.getByRole("article")
         fireEvent.click(within(card).getByRole("button", {name: "Open"}))
-        await screen.findByRole("heading", {name: "Ban"})
+        expect(await screen.findByRole("heading", {name: "203.0.113.7"})).toBeTruthy()
+        await screen.findByText(/^0 of 0$/)
         expect(admin.askedFor("inspectPlayer")).toEqual([{accountId: ACCOUNT}, {scope: "203.0.113.7"}])
     })
 
@@ -135,11 +163,11 @@ describe("the player list", () => {
         const admin = new FakeAdmin()
         render(<Page admin={admin}/>)
 
-        fireEvent.change(screen.getByRole("textbox", {name: "Account id or address"}), {target: {value: " 198.51.100.4 "}})
+        search(" 198.51.100.4 ")
         fireEvent.click(screen.getByRole("button", {name: "Open"}))
-
-        await screen.findByRole("heading", {name: "Ban"})
+        await screen.findByText(/^0 of 0$/)
         expect(admin.askedFor("inspectPlayer")).toEqual([{scope: "198.51.100.4"}])
+        expect(admin.askedFor("searchPlayers")).toEqual([])
     })
 })
 
@@ -184,18 +212,21 @@ describe("one player", () => {
         cleanup()
 
         render(<Page admin={admin} first={address}/>)
-        await screen.findByRole("heading", {name: "Ban"})
+        await screen.findByText(/^0 of 0$/)
         expect(screen.queryByRole("region", {name: "Profile"})).toBeNull()
         expect(admin.askedFor("getPlayer")).toHaveLength(1)
     })
 
-    it("shows what the account said in its conversations, read by its account id, no one tagged", async () => {
+    it("shows what the account said in its conversations on asking, read by its account id, no one tagged", async () => {
         const admin = new FakeAdmin()
         admin.chat = [said(1, "account-cleo", "Cleo"), said(2), said(3, "account-dan", "Dan")]
         render(<Page admin={admin} first={account}/>)
 
         const messages = within(await screen.findByRole("region", {name: "Their messages"}))
-        expect(await messages.findByRole("heading", {name: "What BraveFox42 said"})).toBeTruthy()
+        const fold = await messages.findByRole("button", {name: /^What BraveFox42 said/})
+        expect(await messages.findByText("4 messages")).toBeTruthy()
+        expect(admin.askedFor("listMessages")).toEqual([])
+        fireEvent.click(fold)
         const list = await messages.findByRole("list", {name: "Their conversations, newest first"})
         const shown = within(list).getAllByRole("list", {name: "A conversation"}).map(conversation =>
             within(conversation).getAllByText(/^\w+ \d+$/, {selector: ".line-text"}).map(line => line.textContent))
@@ -214,7 +245,7 @@ describe("one player", () => {
         const admin = new FakeAdmin()
         render(<Page admin={admin} first={address}/>)
 
-        await screen.findByRole("heading", {name: "Ban"})
+        await screen.findByText(/^0 of 0$/)
         expect(screen.queryByRole("region", {name: "Their messages"})).toBeNull()
         expect(admin.askedFor("listMessages")).toEqual([])
     })
@@ -239,10 +270,11 @@ describe("one player", () => {
         expect(admin.askedFor("inspectPlayer")).toHaveLength(2)
     })
 
-    it("shows a pardon only while one runs", async () => {
+    it("says at the top whether the player is banned, and shows a pardon only while one runs", async () => {
         const admin = new FakeAdmin()
         render(<Page admin={admin} first={account}/>)
         await screen.findByText(/^42 in /)
+        expect(screen.getByText("Not banned")).toBeTruthy()
         expect(screen.queryByText("Pardoned")).toBeNull()
         cleanup()
 
@@ -255,6 +287,7 @@ describe("one player", () => {
         const admin = new FakeAdmin()
         render(<Page admin={admin} first={address}/>)
 
+        tool("Unban")
         confirm("Unban", "Yes, unban")
         expect(await screen.findByText(/^Lifted offence 2: its ban was until .*\. Pardoned until .*\.$/)).toBeTruthy()
         expect(admin.askedFor("unbanPlayer")).toEqual([{scope: "203.0.113.7"}])
@@ -268,6 +301,7 @@ describe("one player", () => {
         const admin = new FakeAdmin()
         render(<Page admin={admin} first={account}/>)
 
+        tool("Revert")
         const revert = () => screen.getByRole("button", {name: "Revert"}) as HTMLButtonElement
         expect(revert().disabled).toBe(true)
 
@@ -289,6 +323,7 @@ describe("one player", () => {
         const admin = new FakeAdmin()
         render(<Page admin={admin} first={account}/>)
 
+        tool("Charges")
         const grant = () => screen.getByRole("button", {name: "Grant"}) as HTMLButtonElement
         expect(grant().disabled).toBe(true)
 
@@ -308,6 +343,7 @@ describe("one player", () => {
         const admin = new FakeAdmin()
         render(<Page admin={admin} first={account}/>)
 
+        tool("Charges")
         fireEvent.click(screen.getByRole("button", {name: "Max out"}))
         expect(screen.getByText("Give BraveFox42 every charge, as many as fit?")).toBeTruthy()
         fireEvent.click(screen.getByRole("button", {name: "Yes, max out"}))
@@ -321,12 +357,12 @@ describe("one player", () => {
     it("mutes an account, and offers neither a mute nor charges to an address", async () => {
         const admin = new FakeAdmin()
         render(<Page admin={admin} first={account}/>)
+        tool("Mute")
         confirm("Mute", "Yes, mute")
         expect(await screen.findByText(/^Muted until /)).toBeTruthy()
         cleanup()
 
         render(<Page admin={admin} first={address}/>)
-        expect(screen.queryByRole("button", {name: "Mute"})).toBeNull()
-        expect(screen.queryByRole("button", {name: "Grant"})).toBeNull()
+        expect(screen.getAllByRole("tab").map(tab => tab.textContent)).toEqual(["Ban", "Unban", "Revert"])
     })
 })

@@ -4,13 +4,15 @@ ClickPlanet is a multiplayer game on a globe of 262,000 tiles: anyone clicks til
 each other's land, all day, all over the world. Every 2 hours a job posts the best stories of the last 12 hours on
 TikTok and YouTube Shorts, as vertical clips of 6 to 22 seconds: the game's real globe playing the fighting back, a
 headline across the top from the first frame, a counter of the flag's tiles in the place the headline names, and a
-call to play at the end. The caption under the clip is written apart, from teasers that say the headline in other words.
+call to play at the end. Each post opens with one of your teasers, the headline said in other words: the first line of
+the TikTok caption, and the title of the YouTube video.
 
 You make the run's stories. Nothing is decided before you: the generator measured what happened and where, and you
-say what it means, which of it is worth a clip, and how each clip is headlined. A renderer plays your answer: it
-follows the fighting of the sides you name, where you place the story, and counts the flag's tiles there. You do not
-choose the camera, the length, the music or the caption. Each story you answer is checked against the facts, and one
-that says what they do not is skipped with the reason in the log: name only flags and places the facts hold.
+say what it means, which of it is worth a clip, and how each clip is headlined and titled. A renderer plays your
+answer: it follows the fighting of the sides you name, where you place the story, and counts the flag's tiles there.
+You do not choose the camera, the length, the music or the rest of the caption. Each story you answer is checked
+against the facts, and one that says what they do not is skipped with the reason in the log: name only flags and
+places the facts hold.
 
 ## What you are given
 
@@ -120,16 +122,30 @@ it.
 - **True to the story.** Say only what its kind and its facts say. "KICKED OUT" only for a kickout or a rout; "VS" or
   "WAR" only for a battle; a holding holds, it does not invade; never a bigger share than `share` (79.9% is 79%). No
   country, number or event the facts do not hold.
+- **The size of the words is the size of the story.** "DOWNFALL", "COLLAPSE" and "THE END OF" are for a flag that led
+  the world and fell far down it, never for one place lost: on 2026-10-28 a YouTube title called China losing Finland,
+  most of the little China held, "GENERATIONAL DOWNFALL OF CHINA". A flag losing a place loses it, or gets kicked out.
 - **No numbers the clip already shows.** No tile counts, no "in 3 hours": the counter shows them, and they read as
   written by a machine.
 - **Not the same words twice.** Never a headline of `recentPosts`: the same words read as the same clip. A question
   ("CAN ANYONE STOP FRANCE?") or an exclamation ("FRANCE IS EVERYWHERE!") can hook, used sparingly.
 - Letters, digits, spaces and `! ? ' % : , . & -` only. No emoji, no hashtags, no quotes.
 
+## What makes a teaser good
+
+A teaser is the post's title: one is picked at random for each post. On YouTube it is read in a list of videos and in
+search, without the clip, so it tells the story whole.
+
+- **Two or three, each in other words than the headline**: the clip already shows the headline, so a teaser that says
+  it again is left out. "CHINA GETS KICKED OUT OF FINLAND" could be "SWEDEN TAKES FINLAND FROM CHINA" and "CHINA LOSES
+  FINLAND".
+- **Everything a headline must be**: upper case, true to the story, the size of the story, the names as people say
+  them, no numbers the clip shows, no emoji, no hashtags. 86 letters at most, so the brand fits after it.
+
 ## Your answer
 
 `why` first: one or two sentences on why the first stories, for whoever tunes this file. Then `stories`: the ones you
 would tell, best first. For a front: its `front`, `kind`, `attacker`, `rival` (a battle's, else empty), `takenFrom`,
-`countries` or `continent` (the other empty), `team` (a continent's comeback together, else empty) and `headline`.
-For a tour or a place: its `tour` or `place` and its `headline`, the rest empty. Every field is present; a number not
-used is 0.
+`countries` or `continent` (the other empty), `team` (a continent's comeback together, else empty), `headline` and
+`teasers`. For a tour or a place: its `tour` or `place`, its `headline` and its `teasers`, the rest empty. Every field
+is present; a number not used is 0.

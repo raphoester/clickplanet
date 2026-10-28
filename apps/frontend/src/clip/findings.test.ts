@@ -61,10 +61,10 @@ describe("the findings", () => {
 describe("the story --story names", () => {
     it("is a front with the story the editor wrote of it, in one country, two, or a continent", () => {
         const invasion: Story = {kind: "invasion", attacker: "fr", rival: undefined, victims: ["dz"], place: {country: "in"}}
-        expect(toldOf(`{"front":3,"kind":"invasion","attacker":"fr","takenFrom":["dz"],"countries":["in"],"headline":"FRANCE TAKES INDIA"}`))
-            .toEqual({told: {front: 3, story: invasion}, headline: "FRANCE TAKES INDIA"})
+        expect(toldOf(`{"front":3,"kind":"invasion","attacker":"fr","takenFrom":["dz"],"countries":["in"],"headline":"FRANCE TAKES INDIA","teasers":["ALGERIA LOSES INDIA"]}`))
+            .toEqual({told: {front: 3, story: invasion}, headline: "FRANCE TAKES INDIA", teasers: ["ALGERIA LOSES INDIA"]})
         expect(toldOf(`{"front":1,"kind":"battle","attacker":"fr","rival":"tr","countries":["tr","sy"]}`)).toEqual({
-            told: {front: 1, story: {kind: "battle", attacker: "fr", rival: "tr", victims: [], place: {countries: ["tr", "sy"]}}}, headline: undefined,
+            told: {front: 1, story: {kind: "battle", attacker: "fr", rival: "tr", victims: [], place: {countries: ["tr", "sy"]}}}, headline: undefined, teasers: [],
         })
         expect(toldOf(`{"front":2,"kind":"comeback","attacker":"de","takenFrom":["ps"],"continent":"Europe","team":"Europe"}`).told).toEqual({
             front: 2, story: {kind: "comeback", attacker: "de", rival: undefined, victims: ["ps"], place: {region: "Europe"}, team: "Europe"},
@@ -72,9 +72,10 @@ describe("the story --story names", () => {
     })
 
     it("is a tour, a place or a seasonal story by its number alone", () => {
-        expect(toldOf(`{"tour":1,"headline":"FRANCE IS EVERYWHERE"}`)).toEqual({told: {tour: 1}, headline: "FRANCE IS EVERYWHERE"})
-        expect(toldOf(`{"place":4}`)).toEqual({told: {place: 4}, headline: undefined})
-        expect(toldOf(`{"seasonal":1}`)).toEqual({told: {seasonal: 1}, headline: undefined})
+        expect(toldOf(`{"tour":1,"headline":"FRANCE IS EVERYWHERE","teasers":["NOBODY CAN STOP FRANCE"]}`))
+            .toEqual({told: {tour: 1}, headline: "FRANCE IS EVERYWHERE", teasers: ["NOBODY CAN STOP FRANCE"]})
+        expect(toldOf(`{"place":4}`)).toEqual({told: {place: 4}, headline: undefined, teasers: []})
+        expect(toldOf(`{"seasonal":1}`)).toEqual({told: {seasonal: 1}, headline: undefined, teasers: []})
     })
 
     it("is refused when it names nothing or two things, a kind no front tells, no attacker, or no place", () => {

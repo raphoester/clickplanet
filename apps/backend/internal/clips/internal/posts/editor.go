@@ -163,6 +163,11 @@ func (f Findings) Edited(offer Offer, edition Edition, told []Telling, now time.
 			skip(story, err.Error())
 			continue
 		}
+		teasers, err := teasersFrom(story.Teasers, headline)
+		if err != nil {
+			skip(story, err.Error())
+			continue
+		}
 		if past.headlines.Contains(headline) {
 			skip(story, fmt.Sprintf("%q was a headline of the last week, or of this run", headline))
 			continue
@@ -173,7 +178,7 @@ func (f Findings) Edited(offer Offer, edition Edition, told []Telling, now time.
 		}
 		keys.Add(key)
 		past.headlines.Add(headline)
-		story.Headline = headline
+		story.Headline, story.Teasers = headline, teasers
 		tell(story, key)
 	}
 	return choice
@@ -227,4 +232,24 @@ func headlineFrom(written string) (string, error) {
 		}
 	}
 	return headline, nil
+}
+
+// YouTube's title is a teaser and the brand.
+var teaserRunes = youtubeTitleLength - utf8.RuneCountInString(brand)
+
+var errTeasers = errors.New("the caption has no teaser")
+
+func teasersFrom(written []string, headline string) ([]string, error) {
+	var teasers []string
+	for _, teaser := range written {
+		said := headlineOf(strings.Join(strings.Fields(teaser), " "))
+		if said == "" || said == headline || utf8.RuneCountInString(said) > teaserRunes || slices.Contains(teasers, said) {
+			continue
+		}
+		teasers = append(teasers, said)
+	}
+	if len(teasers) == 0 {
+		return nil, fmt.Errorf("%w: none of %q is the headline in other words, in %d letters or fewer", errTeasers, written, teaserRunes)
+	}
+	return teasers, nil
 }

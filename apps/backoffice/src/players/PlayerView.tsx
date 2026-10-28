@@ -1,23 +1,24 @@
-import {Code, ConnectError} from "@connectrpc/connect"
-import {useCallback} from "react"
+import {useCallback, useState} from "react"
+import {theirTitleOf} from "../chat/theirConversations.ts"
 import {TheirMessages} from "../chat/TheirMessages.tsx"
 import {Clients} from "../clients.ts"
 import {Copyable} from "../components/AccountId.tsx"
 import {FailureNotice} from "../components/FailureNotice.tsx"
-import {When} from "../components/When.tsx"
-import {InspectPlayerResponse} from "../gen/grpc/antibot/v1/admin_pb.ts"
+import {Fold} from "../components/Fold.tsx"
+import {Ago} from "../components/When.tsx"
 import {Player} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {Opened} from "../navigation.ts"
 import {useCall} from "../useCall.ts"
-import {ANTIBOT_OFF, inspect, Profile, profileOf} from "./actions.ts"
+import {ANTIBOT_OFF, Profile, profileOf, readingOf} from "./actions.ts"
 import {Caller, idOf, isAccount, whoOf} from "./caller.ts"
 import {GrantPanel} from "./GrantPanel.tsx"
 import {Inspection} from "./InspectPanel.tsx"
 import {BanAction, MuteAction, UnbanAction} from "./Moderation.tsx"
 import {PlayerName} from "./PlayerName.tsx"
-import {BanLine, PlayerStats} from "./PlayerStats.tsx"
+import {PlayerStats} from "./PlayerStats.tsx"
 import {ProfilePanel} from "./ProfilePanel.tsx"
 import {RevertPanel} from "./RevertPanel.tsx"
+import {Standing} from "./Standing.tsx"
 
 type Props = {
     clients: Clients
@@ -26,17 +27,16 @@ type Props = {
     onOpen: (opened: Opened) => void
 }
 
-type Read = {on: true, value: InspectPlayerResponse} | {on: false}
+type Tool = "ban" | "unban" | "mute" | "revert" | "charges"
 
-// One player, by account or by address: who it is, what the antibot reads of it, and every tool that takes it.
+// One player, by account or by address: who it is and where it stands, the tools that take it, then what the game
+// and the antibot keep about it, and what it said.
 export function PlayerView({clients, opened, onBack, onOpen}: Props) {
     const {caller, row} = opened
-    const other = otherOf(opened)
+    const account = isAccount(caller)
 
     const readProfile = useCallback(
-        (signal: AbortSignal) => isAccount(caller)
-            ? profileOf(clients.player, caller.accountId, signal)
-            : Promise.resolve(undefined),
+        (signal: AbortSignal) => isAccount(caller) ? profileOf(clients.player, caller.accountId, signal) : Promise.resolve(undefined),
         [clients.player, caller],
     )
     const [profile, readProfileAgain] = useCall(readProfile)
@@ -44,30 +44,23 @@ export function PlayerView({clients, opened, onBack, onOpen}: Props) {
     const name = kept?.name ?? opened.name ?? ""
     const who = whoOf(caller, name)
 
-    const read = useCallback(
-        (signal: AbortSignal): Promise<Read> => inspect(clients.antibot, caller, signal).then(
-            value => ({on: true, value}),
-            (err: unknown) => {
-                if (ConnectError.from(err).code === Code.Unimplemented) return {on: false}
-                throw err
-            },
-        ),
-        [clients.antibot, caller],
-    )
-    const [inspection, again] = useCall(read)
+    const read = useCallback((signal: AbortSignal) => readingOf(clients.antibot, caller, signal), [clients.antibot, caller])
+    const [reading, readAgain] = useCall(read)
+    const other = otherOf(caller, row, reading.state === "done" && reading.value.on ? reading.value.value.scope : "")
 
     return (
         <section className="detail" aria-label="Player">
-            <button type="button" className="button-small" onClick={onBack}>← Players</button>
-
-            <article className="card">
+            <button type="button" className="button-small back" onClick={onBack}>← Players</button>
+            <article className="card player-head">
                 <div className="card-head">
-                    {isAccount(caller)
-                        ? <h2 className="player-heading"><PlayerName name={name} flag={shownFlagOf(row, kept)} unnamed="Unnamed"/></h2>
-                        : <span/>}
-                    {row?.lastAt !== undefined && <span className="muted">last take <When at={row.lastAt}/></span>}
+                    <h2 className="player-heading">
+                        {account
+                            ? <PlayerName name={name} flag={shownFlagOf(row, kept)} unnamed="Unnamed"/>
+                            : <span className="mono">{idOf(caller)}</span>}
+                    </h2>
+                    {row?.lastAt !== undefined && <span className="muted">last take <Ago at={row.lastAt}/></span>}
                 </div>
-                {row !== undefined && <BanLine player={row}/>}
+                <Standing reading={reading}/>
                 <dl className="people">
                     <div>
                         <dt>{labelOf(caller)}</dt>
@@ -87,47 +80,80 @@ export function PlayerView({clients, opened, onBack, onOpen}: Props) {
                 </dl>
                 {row !== undefined && <PlayerStats player={row}/>}
             </article>
-
-            {isAccount(caller) && <ProfilePanel profile={profile} onReload={readProfileAgain}/>}
-
+            <Tools clients={clients} caller={caller} who={who} onBanned={readAgain}/>
+            <div className="columns">
+                {account && <ProfilePanel profile={profile} onReload={readProfileAgain}/>}
+                <section className="panel" aria-label="Antibot">
+                    <div className="panel-head">
+                        <h2>Antibot</h2>
+                        <button type="button" className="button-small" onClick={readAgain}>Read again</button>
+                    </div>
+                    {reading.state === "loading" && <p className="muted">Loading…</p>}
+                    {reading.state === "failed" && <FailureNotice failure={reading} onRetry={readAgain}/>}
+                    {reading.state === "done" && !reading.value.on && <p className="muted">{ANTIBOT_OFF}</p>}
+                    {reading.state === "done" && reading.value.on && <Inspection value={reading.value.value} caller={caller}/>}
+                </section>
+            </div>
             {isAccount(caller) && (
-                <TheirMessages chat={clients.chat} accountId={caller.accountId} name={name} parties={undefined}/>
+                <Fold label="Their messages" title={theirTitleOf(name)} sub={messagesOf(kept)}>
+                    <TheirMessages chat={clients.chat} accountId={caller.accountId} parties={undefined}/>
+                </Fold>
             )}
-
-            <section className="panel" aria-label="Antibot">
-                <div className="panel-head">
-                    <h2>Antibot</h2>
-                    <button type="button" className="button-small" onClick={again}>Inspect again</button>
-                </div>
-                {inspection.state === "loading" && <p className="muted">Loading…</p>}
-                {inspection.state === "failed" && <FailureNotice failure={inspection} onRetry={again}/>}
-                {inspection.state === "done" && !inspection.value.on && <p className="muted">{ANTIBOT_OFF}</p>}
-                {inspection.state === "done" && inspection.value.on && (
-                    <Inspection
-                        value={inspection.value.value}
-                        caller={caller}
-                        onOpenScope={scope => onOpen({caller: {scope}})}
-                    />
-                )}
-            </section>
-
-            <section className="panel" aria-label="Ban and mute">
-                <h2>{isAccount(caller) ? "Ban and mute" : "Ban"}</h2>
-                <p className="hint">
-                    {isAccount(caller)
-                        ? "An account is banned alone, from any address. A guest drops its account with a new cookie: ban its address too."
-                        : "An address is banned as its scope (the address over IPv4, the /64 over IPv6): every account behind it."}
-                </p>
-                <BanAction antibot={clients.antibot} caller={caller} who={who} onDone={again}/>
-                <UnbanAction antibot={clients.antibot} caller={caller} who={who} onDone={again}/>
-                {isAccount(caller) && <MuteAction chat={clients.chat} accountId={caller.accountId} who={who}/>}
-            </section>
-
-            <RevertPanel planet={clients.planet} caller={caller} who={who}/>
-
-            {isAccount(caller) && <GrantPanel planet={clients.planet} accountId={caller.accountId} who={who}/>}
         </section>
     )
+}
+
+type ToolsProps = {clients: Clients, caller: Caller, who: string, onBanned: () => void}
+
+// Every tool on one player, one at a time: the page stays short, and the one in use sits under the player.
+function Tools({clients, caller, who, onBanned}: ToolsProps) {
+    const [tool, setTool] = useState<Tool>("ban")
+    const tools: {key: Tool, label: string}[] = [
+        {key: "ban", label: "Ban"},
+        {key: "unban", label: "Unban"},
+        ...(isAccount(caller) ? [{key: "mute" as const, label: "Mute"}] : []),
+        {key: "revert", label: "Revert"},
+        ...(isAccount(caller) ? [{key: "charges" as const, label: "Charges"}] : []),
+    ]
+    return (
+        <section className="panel tools" aria-label="Tools">
+            <div className="segmented" role="tablist" aria-label="Tool">
+                {tools.map(each => (
+                    <button
+                        key={each.key}
+                        type="button"
+                        role="tab"
+                        aria-selected={tool === each.key}
+                        onClick={() => setTool(each.key)}
+                    >
+                        {each.label}
+                    </button>
+                ))}
+            </div>
+            <div role="tabpanel" aria-label={tools.find(each => each.key === tool)?.label}>
+                {tool === "ban" && (
+                    <>
+                        <p className="hint">
+                            {isAccount(caller)
+                                ? "An account is banned alone, from any address. A guest drops its account with a new cookie: ban its address too."
+                                : "An address is banned as its scope (the address over IPv4, the /64 over IPv6): every account behind it."}
+                        </p>
+                        <BanAction antibot={clients.antibot} caller={caller} who={who} onDone={onBanned}/>
+                    </>
+                )}
+                {tool === "unban" && <UnbanAction antibot={clients.antibot} caller={caller} who={who} onDone={onBanned}/>}
+                {tool === "mute" && isAccount(caller) && <MuteAction chat={clients.chat} accountId={caller.accountId} who={who}/>}
+                {tool === "revert" && <RevertPanel planet={clients.planet} caller={caller} who={who}/>}
+                {tool === "charges" && isAccount(caller) && <GrantPanel planet={clients.planet} accountId={caller.accountId} who={who}/>}
+            </div>
+        </section>
+    )
+}
+
+function messagesOf(profile: Profile | undefined): string | undefined {
+    if (profile === undefined) return undefined
+    const sent = Number(profile.messagesSent)
+    return sent === 1 ? "1 message" : `${sent} messages`
 }
 
 // The flag the row painted most in the ledger's 72 hours, or else the one the account took the most tiles for.
@@ -136,11 +162,14 @@ function shownFlagOf(row: Player | undefined, profile: Profile | undefined): str
     return profile?.playsFor[0]?.countryId ?? ""
 }
 
-// The other half of a ledger row: the address of an account opened from it, or the account of an address.
-function otherOf({caller, row}: Opened): Caller | undefined {
-    if (row === undefined) return undefined
-    if (isAccount(caller)) return row.scope !== "" ? {scope: row.scope} : undefined
-    return row.accountId !== "" ? {accountId: row.accountId} : undefined
+// The other half of a player: the address of an account, from its row or else where the antibot last read it, or
+// the account of an address's row.
+function otherOf(caller: Caller, row: Player | undefined, scope: string): Caller | undefined {
+    if (isAccount(caller)) {
+        const address = row?.scope || scope
+        return address !== "" ? {scope: address} : undefined
+    }
+    return row !== undefined && row.accountId !== "" ? {accountId: row.accountId} : undefined
 }
 
 function labelOf(caller: Caller): string {

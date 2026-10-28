@@ -138,12 +138,13 @@ func TestFindingsThatAreMissingOrAreNotFindingsAreAnError(t *testing.T) {
 func TestAStoryIsWrittenAsTheGeneratorsStoryFlagTakesIt(t *testing.T) {
 	front, err := generator_output.StoryJSON(posts.Story{
 		Front: 3, Kind: posts.Battle, Attacker: "fr", Rival: "tr", TakenFrom: []string{"tr"}, Countries: []string{"tr", "sy"}, Headline: "FRANCE VS TURKEY",
+		Teasers: []string{"THE WAR FOR TURKEY"},
 	})
 	require.NoError(t, err)
 	seasonal, err := generator_output.StoryJSON(posts.Story{Seasonal: 1})
 	require.NoError(t, err)
 
-	assert.JSONEq(t, `{"front":3,"kind":"battle","attacker":"fr","rival":"tr","takenFrom":["tr"],"countries":["tr","sy"],"headline":"FRANCE VS TURKEY"}`, string(front))
+	assert.JSONEq(t, `{"front":3,"kind":"battle","attacker":"fr","rival":"tr","takenFrom":["tr"],"countries":["tr","sy"],"headline":"FRANCE VS TURKEY","teasers":["THE WAR FOR TURKEY"]}`, string(front))
 	assert.JSONEq(t, `{"seasonal":1}`, string(seasonal))
 }
 

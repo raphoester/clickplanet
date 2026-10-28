@@ -58,3 +58,8 @@ function withoutShown(theirs: KeptMessage[], windows: Window[]): KeptMessage[] {
     const shown = new Set(windows.flatMap(window => window.lines.map(line => line.messageId)))
     return theirs.filter(message => !shown.has(message.messageId))
 }
+
+// The title of the panel that holds what one account said.
+export function theirTitleOf(name: string): string {
+    return name === "" ? "What they said" : `What ${name} said`
+}

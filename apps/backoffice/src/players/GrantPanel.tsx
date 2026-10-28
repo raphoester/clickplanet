@@ -24,8 +24,7 @@ export function GrantPanel({planet, accountId, who}: Props) {
     const set = (change: Partial<Grant>) => setCharges(was => ({...was, ...change}))
 
     return (
-        <section className="panel" aria-label="Grant charges">
-            <h2>Give {who} charges</h2>
+        <div className="tool-body">
             <div className="checks">
                 <label className="check">
                     <input type="checkbox" checked={charges.refill} onChange={e => set({refill: e.target.checked})}/>
@@ -66,6 +65,6 @@ export function GrantPanel({planet, accountId, who}: Props) {
                 said={heldSaid}
                 refusal={err => refusalOf("grant", err)}
             />
-        </section>
+        </div>
     )
 }

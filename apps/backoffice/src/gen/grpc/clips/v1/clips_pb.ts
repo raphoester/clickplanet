@@ -896,6 +896,13 @@ export class Pick extends Message<Pick> {
    */
   headline = "";
 
+  /**
+   * The headline said in other words, for the caption: the editor's. Empty for the generator's own.
+   *
+   * @generated from field: repeated string teasers = 13;
+   */
+  teasers: string[] = [];
+
   constructor(data?: PartialMessage<Pick>) {
     super();
     proto3.util.initPartial(data, this);
@@ -916,6 +923,7 @@ export class Pick extends Message<Pick> {
     { no: 10, name: "continent", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 11, name: "team", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 12, name: "headline", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 13, name: "teasers", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Pick {

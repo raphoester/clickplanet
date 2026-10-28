@@ -81,6 +81,9 @@ func attributesOf(story posts.Story) []any {
 	if story.Headline != "" {
 		attributes = append(attributes, slog.String("headline", story.Headline))
 	}
+	if len(story.Teasers) > 0 {
+		attributes = append(attributes, slog.String("teasers", strings.Join(story.Teasers, " / ")))
+	}
 	if story.Front > 0 {
 		place := story.Continent
 		if place == "" {

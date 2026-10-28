@@ -130,14 +130,15 @@ export type Told =
 
 // The story the editor wrote of a front, as a clips.v1.Pick says it. Nothing is judged here: a pick that names no
 // front, no kind or no flag is refused as it is read, and the job checked it against the findings before the render.
-export function toldOf(written: string): {told: Told, headline: string | undefined} {
+export function toldOf(written: string): {told: Told, headline: string | undefined, teasers: string[]} {
     const pick = Pick.fromJson(JSON.parse(written), {ignoreUnknownFields: true})
     const headline = pick.headline === "" ? undefined : pick.headline
+    const teasers = pick.teasers
     const named = [pick.front, pick.tour, pick.place, pick.seasonal].filter((number) => number > 0)
     if (named.length !== 1) throw new Error("a story names one front, one tour, one place or one seasonal story")
-    if (pick.tour > 0) return {told: {tour: pick.tour}, headline}
-    if (pick.place > 0) return {told: {place: pick.place}, headline}
-    if (pick.seasonal > 0) return {told: {seasonal: pick.seasonal}, headline}
+    if (pick.tour > 0) return {told: {tour: pick.tour}, headline, teasers}
+    if (pick.place > 0) return {told: {place: pick.place}, headline, teasers}
+    if (pick.seasonal > 0) return {told: {seasonal: pick.seasonal}, headline, teasers}
 
     const kind = KINDS.find((known) => known === pick.kind)
     if (kind === undefined || kind === "holding" || kind === "round" || kind === "callup") {
@@ -149,7 +150,7 @@ export function toldOf(written: string): {told: Told, headline: string | undefin
         kind, attacker: pick.attacker, rival: pick.rival === "" ? undefined : pick.rival, victims: pick.takenFrom, place,
         ...pick.team === "" ? {} : {team: pick.team},
     }
-    return {told: {front: pick.front, story}, headline}
+    return {told: {front: pick.front, story}, headline, teasers}
 }
 
 function placeOfPick(countries: string[], continent: string): Place {

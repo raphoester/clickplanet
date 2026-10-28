@@ -1,6 +1,14 @@
 # Running it locally
 
-The page needs a backend with auth on and an admin listener. In a copy of `apps/backend/cmd/api/example.yaml`:
+**To see the page without a backend, `npm run demo`** (`vite --mode demo`, on `:5174`). The mode serves
+`src/demo/api.ts` in place of `src/api.ts` (an alias in `vite.config.ts`): every client answers in the page, from
+`DemoAdmin` (`src/demo/demoAdmin.ts`), a `FakeAdmin` with a hundred and twenty made-up players, a day and a half of
+chat with insults in it, a dozen reports and four rule sets, the same on every load. It keeps what the operator does
+(a ban, a mute, a closed report, a saved set) until the page reloads, and answers each call after a quarter of a
+second, so the loading states show. `WhoAmI` answers a made-up operator, so there is no sign-in. A production build
+never holds it: the alias is the demo mode's alone.
+
+**For the real API**, the page needs a backend with auth on and an admin listener. In a copy of `apps/backend/cmd/api/example.yaml`:
 `httpServer.adminBindAddress: 127.0.0.1:8083`, `auth.admin.origin: http://localhost:5174`, `auth.enabled: true` and
 an `auth.secret` (`openssl rand -hex 32`). Postgres on `localhost:5432`. Then
 `VITE_API_BASE_URL=http://localhost:8083 npm run dev`.

@@ -2,7 +2,9 @@
 
 - **Every action that changes something asks first** (`components/ConfirmAction`): the button opens a question
   with "Yes, …" and Cancel, and only Yes calls the server. Then it says what the server answered ("Muted until
-  …"), or the refusal. **A read asks nothing** (inspect, a dry run, a list, a replay): `useAction` runs it on a
+  …"), or the refusal. **Steps the operator picks together ask one question that names each** (a report's verdict:
+  "Remove the message, mute Ana for 1 day and close this report as Acted?"), run in order, and stop at the first
+  refused, saying what was done before it. **A read asks nothing** (inspect, a dry run, a list, a replay): `useAction` runs it on a
   click and holds its answer, as `useCall` does on mount.
 - **What can be undone by nothing counts first**: a revert, a reassign and a paint stay disabled until their dry
   run, and the question quotes it ("Give back the 120 tiles Ana holds?"). The dry run holds for the inputs it ran

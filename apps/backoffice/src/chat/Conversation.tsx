@@ -1,4 +1,4 @@
-import {useCallback, useState} from "react"
+import {useCallback, useLayoutEffect, useRef, useState} from "react"
 import {ChatAdmin} from "../clients.ts"
 import {FailureNotice} from "../components/FailureNotice.tsx"
 import {clockOf, timeOf} from "../components/time.ts"
@@ -63,9 +63,17 @@ function Pages({chat, first, reported, parties}: PagesProps) {
     const [after, setAfter] = useState(first.after)
     const oldest = before.messages[0]?.messageId ?? reported.line.messageId
     const newest = after.messages.at(-1)?.messageId ?? reported.line.messageId
+    const box = useRef<HTMLDivElement>(null)
+
+    // The box opens on the reported line, in its middle, whatever was said before it.
+    useLayoutEffect(() => {
+        const line = box.current?.querySelector<HTMLElement>("[aria-current=true]")
+        if (box.current === null || line == null) return
+        box.current.scrollTop = line.offsetTop - (box.current.clientHeight - line.clientHeight) / 2
+    }, [])
 
     return (
-        <div className="conversation">
+        <div className="conversation chat-box" ref={box}>
             {before.messages.length === 0 && <p className="hint">Nothing said before it is kept.</p>}
             {before.more && (
                 <More

@@ -7,6 +7,7 @@ import {Player} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {ChargesHeld} from "../gen/grpc/planet/v1/planet_pb.ts"
 import {AdminGetPlayerResponse, PlayerMatch} from "../gen/grpc/player/v1/admin_pb.ts"
 import {Author} from "../gen/grpc/player/v1/internal_pb.ts"
+import {timeOf} from "../components/time.ts"
 import {Meanings, wordsOf} from "../refusal.ts"
 import {Caller} from "./caller.ts"
 
@@ -63,6 +64,18 @@ export async function revert(planet: PlanetAdmin, caller: Caller, dryRun: boolea
 
 export async function inspect(antibot: AntibotAdmin, caller: Caller, signal?: AbortSignal): Promise<InspectPlayerResponse> {
     return antibot.inspectPlayer(caller, {signal})
+}
+
+// The antibot's reading, or that it is off on this server (its service absent), which is no failure.
+export type Reading = {on: true, value: InspectPlayerResponse} | {on: false}
+
+export async function readingOf(antibot: AntibotAdmin, caller: Caller, signal?: AbortSignal): Promise<Reading> {
+    try {
+        return {on: true, value: await inspect(antibot, caller, signal)}
+    } catch (err) {
+        if (ConnectError.from(err).code === Code.Unimplemented) return {on: false}
+        throw err
+    }
 }
 
 // A charge is an account's: the caps hold, so `after` says what fit.
@@ -122,6 +135,11 @@ export async function profileOf(player: PlayerAdmin, accountId: string, signal?:
         if (ConnectError.from(err).code === Code.NotFound) return undefined
         throw err
     }
+}
+
+export function bannedWords(banned: Banned): string {
+    return `Banned until ${timeOf(banned.until)}, offence ${banned.offence}.`
+        + (banned.enforced ? "" : " Not enforced: the antibot only watches on this server.")
 }
 
 export type Action = "mute" | "ban" | "unban" | "revert" | "inspect" | "grant" | "list"
