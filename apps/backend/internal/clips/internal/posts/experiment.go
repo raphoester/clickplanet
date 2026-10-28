@@ -32,15 +32,6 @@ type Arm struct {
 // The arm of weight 0 an experiment moves a clip to when the arm it drew could not be applied.
 const FellBack = "fell-back"
 
-// Arms of one weight each: an even split.
-func EvenArms(names ...string) []Arm {
-	arms := make([]Arm, 0, len(names))
-	for _, name := range names {
-		arms = append(arms, Arm{Name: name, Weight: 1})
-	}
-	return arms
-}
-
 type Experiment struct {
 	Name string
 	Arms []Arm

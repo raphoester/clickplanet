@@ -93,7 +93,7 @@ clips stats [-ssh <user@host>] [-since 2026-10-13]
 story, so a short clip is not short because its story was small.
 
 - **`running` in `experiments.go` is the one list of the experiments that run.** Each has a name, its arms with their
-  weights (`posts.EvenArms` for an even split, or `posts.Arm{Name, Weight}`: 3 to 1 is three clips in four), and its
+  weights (`posts.Arm{Name, Weight}`: 1 to 1 is an even split, 3 to 1 is three clips in four), and its
   control, **the arm that is exactly what a clip was before the experiment**. `posts.ExperimentsOf` refuses a list
   with no name or one name twice, an experiment of fewer than two arms, an arm with no name, twice or with no weight,
   or a control that is no arm; `choose` and `schedule` both fail then. **Stopping an experiment is taking its entry
