@@ -1,4 +1,5 @@
 import {Countries} from "../domain/countries.ts"
+import {NamedSide} from "../domain/clip/cast.ts"
 import {Place, sidesOf, Story, storyCountriesOf, THE_WORLD} from "../domain/clip/story.ts"
 import {regionOf} from "../domain/regions.ts"
 import {callUpWordsOf} from "./callUp.ts"
@@ -35,11 +36,14 @@ export type Moment = {
     replayAt: number
     played: number
     held: ReadonlyMap<string, number>
+    // Seconds into the call to act, below 0 before it.
     ending: number
 }
 
 export type Overlay = {
     show(moment: Moment): void
+    // Once the fonts are in: sets a name too long for its row smaller, never cut nor wrapped.
+    fit(): void
 }
 
 const NUMBER = new Intl.NumberFormat("en-US")
@@ -189,12 +193,26 @@ function shareOf(count: number, ground: number): string {
     return `${(Math.floor(count / Math.max(1, ground) * 1000) / 10).toFixed(1)}%`
 }
 
-// ground: the tiles of the place, when the counter says what share of it a side holds rather than how many tiles.
+const TOP_FIGHTERS = "TOP FIGHTERS"
+
+// The call fades in as the counter fades out, and the end card only once the counter is gone: it covers where the
+// counter was.
+const FADE_SECONDS = 0.5
+
+const faded = (seconds: number) => Math.min(1, Math.max(0, seconds / FADE_SECONDS))
+
+function tilesSaid(count: number): string {
+    return `${NUMBER.format(count)} ${count === 1 ? "tile" : "tiles"}`
+}
+
+// named: the players the end card names, by side. ground: the tiles of the place, when the counter says what share of
+// it a side holds rather than how many tiles.
 export function createOverlay(
     root: HTMLElement,
     story: Story,
     words: Words,
     opening: ReadonlyMap<string, number>,
+    named: readonly NamedSide[],
     ground?: number,
 ): Overlay {
     const sides = sidesOf(story)
@@ -202,6 +220,8 @@ export function createOverlay(
     const said = [
         words.headline, words.call, words.when ?? "", ...(words.table ?? []).map(({name, points}) => `${name} ${points}`),
         ...speech === undefined ? [] : [0, 1, 2, 5, 22, 1234].map(speech.tiles),
+        ...named.length === 0 ? [] : [TOP_FIGHTERS],
+        ...named.flatMap(({fighters}) => fighters.map(({name, took}) => `${name} ${tilesSaid(took)}`)),
     ]
     if (!said.every((text) => DISPLAY_FONT_DRAWS.test(text))) root.classList.add("clip--fallback-font")
 
@@ -252,14 +272,30 @@ export function createOverlay(
     element("p", "clip-call", ending).textContent = words.call
     if (words.when !== undefined) element("p", "clip-when", ending).textContent = words.when
     element("p", "clip-url", ending).textContent = "clickplanet.lol"
+    const card = named.length === 0 ? undefined : element("section", "clip-fighters", ending)
+    const names: HTMLElement[] = []
+    if (card !== undefined) {
+        element("h2", "clip-fighters-title", card).textContent = TOP_FIGHTERS
+        for (const side of named) {
+            const rows = element("ol", "clip-fighters-side", card)
+            for (const {name, took} of side.fighters) {
+                const row = element("li", "clip-fighter", rows)
+                flag(side.flag, "clip-fighter-flag", row)
+                const shown = element("span", "clip-fighter-name", row)
+                shown.textContent = name
+                names.push(shown)
+                element("span", "clip-fighter-took", row).textContent = tilesSaid(took)
+            }
+        }
+    }
 
     return {
-        show({replayAt, played, held, ending: over}) {
+        show({replayAt, played, held, ending: into}) {
+            const over = faded(into)
             for (const {side, tiles, delta} of shown) {
                 const count = held.get(side) ?? 0
                 const moved = count - (opening.get(side) ?? 0)
-                tiles.textContent = ground !== undefined ? shareOf(count, ground)
-                    : speech?.tiles(count) ?? `${NUMBER.format(count)} ${count === 1 ? "tile" : "tiles"}`
+                tiles.textContent = ground !== undefined ? shareOf(count, ground) : speech?.tiles(count) ?? tilesSaid(count)
                 const by = ground !== undefined ? shareOf(Math.abs(moved), ground)
                     : speech?.number(Math.abs(moved)) ?? NUMBER.format(Math.abs(moved))
                 delta.textContent = moved === 0 || by === "0.0%" ? "" : `${moved > 0 ? "+" : "−"}${by}`
@@ -271,6 +307,12 @@ export function createOverlay(
             ending.style.opacity = String(over)
             top.style.opacity = String(1 - over)
             bottom.style.opacity = String(1 - over)
+            if (card !== undefined) card.style.opacity = String(faded(into - FADE_SECONDS))
+        },
+        fit() {
+            for (const name of names) {
+                if (name.scrollWidth > name.clientWidth) name.style.fontSize = `${Math.floor(name.clientWidth / name.scrollWidth * 100) / 100}em`
+            }
         },
     }
 }

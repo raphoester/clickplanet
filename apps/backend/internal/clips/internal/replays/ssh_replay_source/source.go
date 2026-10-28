@@ -13,6 +13,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	clipsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/clips/v1"
 	gamemasterv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/gamemaster/v1"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	scoringv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1"
@@ -22,9 +23,12 @@ import (
 const OpenSSH = "ssh"
 
 // The body goes between single quotes: it holds two times and nothing a shell reads.
-const operatorTool = "cd /opt/clickplanet/deploy/vps && docker compose exec -T backend wget -qO-" +
-	" --header 'Content-Type: application/json' --post-data '%s'" +
-	" http://127.0.0.1:8081/planet.v1.AdminService/GetReplay"
+const (
+	operatorTool = "cd /opt/clickplanet/deploy/vps && docker compose exec -T backend wget -qO-" +
+		" --header 'Content-Type: application/json' --post-data '%s' http://127.0.0.1:8081/%s"
+	replayProcedure = "planet.v1.AdminService/GetReplay"
+	castProcedure   = "clips.v1.AdminService/MakeCast"
+)
 
 // The turn and the round are public: the backend serves them on the listener every browser reaches. The body holds a
 // round id, which RoundIDOf keeps to what no shell reads.
@@ -53,15 +57,12 @@ type Source struct {
 var _ replays.Source = (*Source)(nil)
 
 func (s *Source) Replay(ctx context.Context, window replays.Window) (replays.Replay, error) {
-	body, err := json.Marshal(map[string]string{
-		"since": window.Since.UTC().Format(time.RFC3339Nano),
-		"until": window.Until.UTC().Format(time.RFC3339Nano),
-	})
+	body, err := windowOf(window)
 	if err != nil {
-		return replays.Replay{}, fmt.Errorf("failed to encode the request: %w", err)
+		return replays.Replay{}, err
 	}
 
-	answered, err := s.ask(ctx, fmt.Sprintf(operatorTool, body))
+	answered, err := s.ask(ctx, fmt.Sprintf(operatorTool, body, replayProcedure))
 	if err != nil {
 		return replays.Replay{}, err
 	}
@@ -79,6 +80,45 @@ func (s *Source) Replay(ctx context.Context, window replays.Window) (replays.Rep
 		Events:   len(replay.GetEvents()),
 		Window:   replays.Window{Since: replay.GetSince().AsTime(), Until: replay.GetUntil().AsTime()},
 	}, nil
+}
+
+func windowOf(window replays.Window) ([]byte, error) {
+	body, err := json.Marshal(map[string]string{
+		"since": window.Since.UTC().Format(time.RFC3339Nano),
+		"until": window.Until.UTC().Format(time.RFC3339Nano),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode the request: %w", err)
+	}
+	return body, nil
+}
+
+var _ replays.CastSource = (*Source)(nil)
+
+// The cast alone is written, as a clips.v1.Cast, for the generator to read.
+func (s *Source) Cast(ctx context.Context, window replays.Window) (replays.Cast, error) {
+	body, err := windowOf(window)
+	if err != nil {
+		return replays.Cast{}, err
+	}
+
+	answered, err := s.ask(ctx, fmt.Sprintf(operatorTool, body, castProcedure))
+	if err != nil {
+		return replays.Cast{}, err
+	}
+
+	var made clipsv1.MakeCastResponse
+	if err := decoder.Unmarshal(answered, &made); err != nil {
+		return replays.Cast{}, fmt.Errorf("the backend answered what is not a clips.v1.MakeCastResponse: %w", err)
+	}
+	if made.GetCast().GetId() == "" {
+		return replays.Cast{}, errors.New("the backend answered a cast with no id")
+	}
+	document, err := protojson.Marshal(made.GetCast())
+	if err != nil {
+		return replays.Cast{}, fmt.Errorf("failed to write the cast: %w", err)
+	}
+	return replays.Cast{Document: document, Fighters: len(made.GetCast().GetFighters()), Takes: len(made.GetCast().GetTakes())}, nil
 }
 
 var _ replays.TurnSource = (*Source)(nil)

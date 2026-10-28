@@ -77,3 +77,30 @@ func TestAnAmericanStoryGetsItsFlag(t *testing.T) {
 
 	assert.Contains(t, captionOf(t, restored, 0).TikTok.Caption, "#usa #usatiktok🇺🇸")
 }
+
+func franceVsTurkey(t *testing.T) posts.Clip {
+	t.Helper()
+
+	restored, err := posts.ClipSnapshot{
+		Pick: 1, Title: "FRANCE VS TURKEY", Key: posts.StoryKey{Flag: "fr", Continent: "Middle East"},
+		Teasers: []string{"WAR FOR TURKEY"}, Countries: []posts.TaggedCountry{{Code: "fr", Tag: "france"}, {Code: "tr", Tag: "turkey"}},
+		Video: "clip-1.mp4", Cast: "5f0c2a11-0b6d-4f7e-9a51-3f1f8f0c2a11",
+		Fighters: []posts.ClipFighter{{Number: 1, Name: "BraveFox42", Flag: "fr"}, {Number: 2, Name: "Ankara 55", Flag: "tr"}, {Number: 3, Name: "Kosovar", Flag: "xk"}},
+	}.Restore()
+	require.NoError(t, err)
+	return restored
+}
+
+func TestTheFightersAClipNamesFollowItsTeaser(t *testing.T) {
+	post := captionOf(t, franceVsTurkey(t), 0)
+
+	assert.True(t, strings.HasPrefix(post.TikTok.Caption, "WAR FOR TURKEY | CLICKPLANET\n"+
+		"⚔️ Top fighters: BraveFox42 🇫🇷, Ankara 55 🇹🇷, Kosovar\n"+
+		"Join the battle now 👉 https://clickplanet.lol\n"), post.TikTok.Caption)
+	assert.True(t, strings.HasPrefix(post.YouTube.Description, "⚔️ Top fighters: BraveFox42 🇫🇷, Ankara 55 🇹🇷, Kosovar\n"+
+		"Join the battle now"), post.YouTube.Description)
+}
+
+func TestAClipThatNamesNobodyHasNoLineOfFighters(t *testing.T) {
+	assert.NotContains(t, captionOf(t, portugalInItaly(t, ""), 0).TikTok.Caption, "Top fighters")
+}

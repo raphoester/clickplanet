@@ -72,6 +72,15 @@ message FrontFlag {
   // The tiles of the landmasses whose painted flag switched to it on the front, big enough to read from far, by
   // continent.
   map<string, uint32> flipped_by_continent = 8;
+  // The players of the cast who took the most for it here, most first.
+  repeated TopFighter fighters = 9;
+}
+
+// A player of the cast, and the tiles it took from another flag.
+message TopFighter {
+  uint32 number = 1;
+  string name = 2;
+  uint32 took = 3;
 }
 
 // A flag taking land across the whole map in one stretch of time.
@@ -89,6 +98,8 @@ message Tour {
   // The tiles of the landmasses whose painted flag switched to it, big enough to read from far, by continent: all a
   // tour shows.
   map<string, uint32> flipped_by_continent = 10;
+  // The players of the cast who took the most for the flag in the stretch, most first.
+  repeated TopFighter fighters = 11;
 }
 
 // What the map is at the end: the flag holding the most of a place.
@@ -109,6 +120,8 @@ message Place {
   uint32 changed = 9;
   // The tiles of the landmasses whose painted flag switched to the holder in the window, by continent.
   map<string, uint32> flipped_by_continent = 10;
+  // The players of the cast who took the most of the place for the holder in the window, most first.
+  repeated TopFighter fighters = 11;
 }
 
 message Seasonal {
@@ -175,6 +188,8 @@ message Pick {
   string anthem = 17;
   // When the camera comes back out of the tiles, for a front or a place: "flags" halfway, "dive" at the end.
   string look = 18;
+  // The players the clip names, by their number in the cast.
+  repeated uint32 fighters = 19;
 }
 
 message Clip {
@@ -190,6 +205,16 @@ message Clip {
   string credit = 9;
   ClipRecord record = 10;
   repeated string teaser_names = 11;
+  // The cast the fighters are numbered in; empty for a clip that names nobody.
+  string cast = 12;
+  repeated ClipFighter fighters = 13;
+}
+
+// A player the clip names, with the flag it fought for.
+message ClipFighter {
+  uint32 number = 1;
+  string name = 2;
+  string flag = 3;
 }
 
 message ClipRecord {
@@ -205,6 +230,8 @@ message ClipCommon {
   string music = 2;
   double music_start_seconds = 3;
   string language = 4;
+  // The players it names.
+  uint32 fighters = 5;
 }
 
 message GlobeReplay {
@@ -265,4 +292,29 @@ message StoryKey {
   string continent = 2;
   string angle = 3;
   string round = 4;
+}
+
+// Who took which tiles in a window, under numbers of this cast alone: an account id never leaves the server, so a cast
+// can go in a run's public files. Only a player with a username who lets the clips show it is in it, and only its
+// takes from another flag.
+message Cast {
+  string id = 1;
+  google.protobuf.Timestamp since = 2;
+  google.protobuf.Timestamp until = 3;
+  // From 1, by tiles taken, most first.
+  repeated Fighter fighters = 4;
+  repeated CastTake takes = 5;
+}
+
+message Fighter {
+  uint32 number = 1;
+  string name = 2;
+}
+
+message CastTake {
+  google.protobuf.Timestamp at = 1;
+  uint32 tile_id = 2;
+  string country_id = 3;
+  string previous_country_id = 4;
+  uint32 fighter = 5;
 }

@@ -73,18 +73,19 @@ export function findingsOf(found: Found): Findings {
             flags: front.flags.map((flag) => ({
                 code: flag.code, continent: flag.continent ?? "", took: flag.took, filled: flag.filled, lost: flag.lost,
                 tookFrom: flag.tookFrom, solidity: rounded(flag.solidity, 2), flippedByContinent: flag.flippedByContinent,
+                fighters: flag.fighters,
             })),
             bombs: front.bombs, spreads: front.spreads, enclosures: front.enclosures, score: rounded(front.score, 1),
         })),
         tours: found.tours.map((tour) => new Tour({
             flag: tour.flag, since: at(tour.since), until: at(tour.until), took: tour.took, byContinent: tour.byContinent,
             tookFrom: tour.tookFrom, nextTook: tour.nextTook, solidity: rounded(tour.solidity, 2), bombs: tour.bombs,
-            flippedByContinent: tour.flippedByContinent,
+            flippedByContinent: tour.flippedByContinent, fighters: tour.fighters,
         })),
         places: found.places.map((place) => new PlaceWritten({
             kind: place.kind, code: place.code ?? "", continent: place.continent ?? "", tiles: place.tiles, holder: place.holder,
             held: place.held, share: rounded(place.share, 3), rivals: place.rivals, changed: place.changed,
-            flippedByContinent: place.flippedByContinent,
+            flippedByContinent: place.flippedByContinent, fighters: place.fighters,
         })),
         seasonal: found.seasonal.map(({story, measured}) => {
             const words = wordsOf(story)
@@ -138,21 +139,23 @@ export type Told =
 
 // The story the editor wrote, as a clips.v1.Pick says it, with its words; a seasonal story has words of its own. Nothing
 // is judged here: a pick that names no front, no kind, no flag, no words or no look is refused as it is read, and the
-// job checked it against the findings before the render.
-export function toldOf(json: string): {told: Told, written: Written | undefined} {
+// job checked it against the findings before the render. fighters: the players of the cast it names, by number; a
+// seasonal story names nobody.
+export function toldOf(json: string): {told: Told, written: Written | undefined, fighters: number[]} {
     const pick = Pick.fromJson(JSON.parse(json), {ignoreUnknownFields: true})
+    const fighters = pick.fighters
     const named = [pick.front, pick.tour, pick.place, pick.seasonal].filter((number) => number > 0)
     if (named.length !== 1) throw new Error("a story names one front, one tour, one place or one seasonal story")
-    if (pick.seasonal > 0) return {told: {seasonal: pick.seasonal}, written: undefined}
+    if (pick.seasonal > 0) return {told: {seasonal: pick.seasonal}, written: undefined, fighters: []}
     if (pick.headline === "" || pick.call === "") throw new Error("a story the editor tells has its headline and its call")
     const written: Written = {
         headline: pick.headline, teasers: pick.teasers, line: pick.line === "" ? undefined : pick.line, call: pick.call,
         callFlags: pick.callFlags, anthem: pick.anthem === "" ? undefined : pick.anthem,
     }
-    if (pick.tour > 0) return {told: {tour: pick.tour}, written}
+    if (pick.tour > 0) return {told: {tour: pick.tour}, written, fighters}
     const look = LOOKS.find((known) => known === pick.look)
     if (look === undefined) throw new Error(`a front or a place is told with the look "flags" or "dive", not "${pick.look}"`)
-    if (pick.place > 0) return {told: {place: pick.place, look}, written}
+    if (pick.place > 0) return {told: {place: pick.place, look}, written, fighters}
 
     const kind = KINDS.find((known) => known === pick.kind)
     if (kind === undefined || kind === "holding" || kind === "round" || kind === "callup") {
@@ -164,7 +167,7 @@ export function toldOf(json: string): {told: Told, written: Written | undefined}
         kind, attacker: pick.attacker, rival: pick.rival === "" ? undefined : pick.rival, victims: pick.takenFrom, place,
         ...pick.team === "" ? {} : {team: pick.team},
     }
-    return {told: {front: pick.front, story, look}, written}
+    return {told: {front: pick.front, story, look}, written, fighters}
 }
 
 function placeOfPick(countries: string[], continent: string): Place {

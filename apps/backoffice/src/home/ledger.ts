@@ -1,5 +1,5 @@
 import {Timestamp} from "@bufbuild/protobuf"
-import {GetLedgerResponse, LedgerChange} from "../gen/grpc/planet/v1/admin_pb.ts"
+import {GetLedgerResponse, LedgerChange} from "../gen/grpc/planet/v1/ledger_pb.ts"
 import {Territory} from "../gen/grpc/planet/v1/internal_pb.ts"
 import {Slot} from "./activity.ts"
 

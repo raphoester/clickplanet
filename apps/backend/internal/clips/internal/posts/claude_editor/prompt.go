@@ -68,6 +68,13 @@ type flag struct {
 	TookFrom           map[string]int `json:"tookFrom"`
 	Solidity           float64        `json:"solidity"`
 	FlippedByContinent map[string]int `json:"flippedByContinent"`
+	Fighters           []fighter      `json:"fighters,omitempty"`
+}
+
+type fighter struct {
+	Number int    `json:"number"`
+	Name   string `json:"name"`
+	Took   int    `json:"took"`
 }
 
 type tour struct {
@@ -83,6 +90,7 @@ type tour struct {
 	FlippedByContinent map[string]int `json:"flippedByContinent"`
 	Solidity           float64        `json:"solidity"`
 	Bombs              int            `json:"bombs"`
+	Fighters           []fighter      `json:"fighters,omitempty"`
 }
 
 type place struct {
@@ -97,6 +105,7 @@ type place struct {
 	Rivals             map[string]int `json:"rivals"`
 	Changed            int            `json:"changed"`
 	FlippedByContinent map[string]int `json:"flippedByContinent"`
+	Fighters           []fighter      `json:"fighters,omitempty"`
 }
 
 type recent struct {
@@ -137,6 +146,7 @@ func PromptOf(offer posts.Offer) (string, error) {
 			Tour: i + 1, Flag: found.Flag, Since: found.Since.UTC(), Until: found.Until.UTC(), Hours: hoursOf(found.Since, found.Until),
 			Took: found.Took, ByContinent: found.ByContinent, TookFrom: found.TookFrom, NextTook: found.NextTook,
 			FlippedByContinent: found.FlippedByContinent, Solidity: found.Solidity, Bombs: found.Bombs,
+			Fighters: fightersOf(found.Fighters),
 		})
 	}
 	for i, found := range findings.Places {
@@ -144,6 +154,7 @@ func PromptOf(offer posts.Offer) (string, error) {
 			Place: i + 1, Kind: string(found.Kind), Code: found.Code, Continent: found.Continent, Tiles: found.Tiles,
 			Holder: found.Holder, Held: found.Held, Share: found.Share, Rivals: found.Rivals, Changed: found.Changed,
 			FlippedByContinent: found.FlippedByContinent,
+			Fighters:           fightersOf(found.Fighters),
 		})
 	}
 	for _, telling := range offer.Recent {
@@ -176,7 +187,16 @@ func frontOf(number int, found posts.Front) front {
 		written.Flags = append(written.Flags, flag{
 			Code: f.Code, Continent: f.Continent, Took: f.Took, Filled: f.Filled, Lost: f.Lost, TookFrom: f.TookFrom, Solidity: f.Solidity,
 			FlippedByContinent: f.FlippedByContinent,
+			Fighters:           fightersOf(f.Fighters),
 		})
+	}
+	return written
+}
+
+func fightersOf(found []posts.Fighter) []fighter {
+	written := make([]fighter, 0, len(found))
+	for _, f := range found {
+		written = append(written, fighter{Number: int(f.Number), Name: f.Name, Took: f.Took})
 	}
 	return written
 }

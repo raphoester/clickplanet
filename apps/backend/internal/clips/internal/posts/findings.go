@@ -88,6 +88,17 @@ type FrontFlag struct {
 	TookFrom           map[string]int
 	Solidity           float64
 	FlippedByContinent map[string]int
+	Fighters           []Fighter
+}
+
+// A player's number in the run's cast, from 1: the server alone knows its account.
+type FighterNumber int
+
+// A player of the cast, and the tiles it took from another flag there.
+type Fighter struct {
+	Number FighterNumber
+	Name   string
+	Took   int
 }
 
 type Tour struct {
@@ -101,6 +112,7 @@ type Tour struct {
 	Bombs    int
 	// The tiles of the landmasses whose painted flag switched to it, big enough to read from far, by continent.
 	FlippedByContinent map[string]int
+	Fighters           []Fighter
 }
 
 type PlaceKind string
@@ -122,6 +134,8 @@ type Place struct {
 	Rivals             map[string]int
 	Changed            int
 	FlippedByContinent map[string]int
+	// The holder's.
+	Fighters []Fighter
 }
 
 // A day won or a call-up, headlined by the generator.
@@ -195,6 +209,8 @@ type Story struct {
 	CallFlags []string
 	Anthem    string
 	Look      Look
+	// The players the clip names.
+	Fighters []FighterNumber
 }
 
 func (s Story) Names() string {
@@ -227,6 +243,17 @@ func (f Findings) Check(story Story) (StoryKey, error) {
 		return StoryKey{}, err
 	}
 
+	key, err := f.keyOf(story)
+	if err != nil {
+		return StoryKey{}, err
+	}
+	if err := checkFighters(story, f.sidesOf(story)); err != nil {
+		return StoryKey{}, err
+	}
+	return key, nil
+}
+
+func (f Findings) keyOf(story Story) (StoryKey, error) {
 	switch {
 	case story.Seasonal > 0:
 		if story.Seasonal > len(f.Seasonal) {
@@ -407,4 +434,36 @@ func (f Findings) keyFlagOf(story Story, attacker FrontFlag) string {
 	default:
 		return attacker.Code
 	}
+}
+
+// The fighters of the flags a story is between, once its numbers are known to hold. A seasonal story names nobody.
+func (f Findings) sidesOf(story Story) []Fighter {
+	switch {
+	case story.Seasonal > 0:
+		return nil
+	case story.Tour > 0:
+		return f.Tours[story.Tour-1].Fighters
+	case story.Place > 0:
+		return f.Places[story.Place-1].Fighters
+	default:
+		var sides []Fighter
+		for _, flag := range f.Fronts[story.Front-1].Flags {
+			if flag.Code == story.Attacker || flag.Code == story.Rival || slices.Contains(story.TakenFrom, flag.Code) {
+				sides = append(sides, flag.Fighters...)
+			}
+		}
+		return sides
+	}
+}
+
+func checkFighters(story Story, sides []Fighter) error {
+	for i, number := range story.Fighters {
+		if slices.Index(story.Fighters, number) != i {
+			return fmt.Errorf("%w: it names fighter %d twice", ErrInvalidStory, number)
+		}
+		if !slices.ContainsFunc(sides, func(fighter Fighter) bool { return fighter.Number == number }) {
+			return fmt.Errorf("%w: fighter %d took nothing for a side of %s", ErrInvalidStory, number, story.Names())
+		}
+	}
+	return nil
 }

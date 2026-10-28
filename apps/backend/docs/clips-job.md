@@ -9,9 +9,9 @@ generator writes as JSON, `clips.v1.Pick`, the story this job hands it back to r
 rendered (`proto/clips/v1/clips.proto`).
 
 ```
-clips fetch -out <replay.json> [-race <race.json>] [-season <season.json>] [-ssh <user@host>] [-hours 72] [-until <2026-10-12T12:00:00Z>]
+clips fetch -out <replay.json> [-race <race.json>] [-season <season.json>] [-cast <cast.json>] [-ssh <user@host>] [-hours 72] [-until <2026-10-12T12:00:00Z>]
 clips choose -findings <findings.json> [-count 2] [-platforms tiktok,youtube] [-summary <file>]
-clips schedule -clips <folder> [-review 0] [-spacing 1h] [-platforms tiktok,youtube] [-sound-country US] [-summary <file>]
+clips schedule -clips <folder> [-review 0] [-spacing 1h] [-platforms tiktok,youtube] [-sound-country US] [-ssh <user@host>] [-summary <file>]
 clips edit -findings <findings.json> [-count 2] [-prompt]
 clips stats [-ssh <user@host>] [-since 2026-10-13]
 ```
@@ -26,8 +26,11 @@ clips stats [-ssh <user@host>] [-since 2026-10-13]
   ([`ScoringService/GetRound`](scoring.md) by the debrief's `round_id`, the finale's for a season's end): its podium
   and the season's scores after it, from which the generator tells "FRANCE WINS DAY 5". A turn with no debrief, or a
   season's end with no finale round, writes `{}` as the round, so a round of an earlier run is never told again.
-  **A turn or a round the backend does not answer is a warning, not a failure**: the run still has its replay, and
-  tells no round. No file is written then. The flags keep their names, `-race` and `-season`, for the workflow.
+  **With `-cast` it saves the replay's cast too** ([`MakeCast`](clip-appearances.md), for the replay's own window):
+  each player who took tiles in it under a number of this run, with its name, and their takes, never an account id,
+  since the file is a public artifact. The generator ranks each story's fighters from it. **A turn, a round or a cast
+  the backend does not answer is a warning, not a failure**: the run still has its replay, and tells no round, or
+  names nobody. No file is written then. The flags keep their names, `-race` and `-season`, for the workflow.
   **It is cheap enough to run 12 times a day**: on 2026-10-24 the 12 hours of the noon run were 40,820 events, the
   three files 0.8 MB zipped, and the whole step, ssh, `go run`'s build and the race and the season included, 17s. The
   ledger answers from memory. 12 hours and not 2: the editor sees a story whole, and reads the last posts to tell it
@@ -54,6 +57,11 @@ clips stats [-ssh <user@host>] [-since 2026-10-13]
   (`posts.ErrUnknownVariant`): once out, it would be counted in the wrong arm. It exits 1 when a
   platform did not take a clip, when the folder holds none, or when the summary cannot be written. **Platforms are
   independent**: a platform that refuses does not stop the others, and a clip refused does not stop the next one.
+  **Then it tells the backend who each post names** ([`KeepAppearance`](clip-appearances.md), over ssh as `fetch`
+  asks, `-ssh` or `CLICKPLANET_SSH`), the platforms that took it with it, so the game tells each player
+  (`keep_appearances_usecase`, from `Report.Appearances`). The body goes on ssh's standard input: it holds the model's
+  headline. One the backend refuses, or a run with no ssh host, is a warning (`log_keep_appearances`, counts and the
+  post, never a name): the clip is out already.
   The workflow passes the repository variable `CLIPS_PLATFORMS` (Settings → Variables), so `tiktok` alone turns
   YouTube off with no commit; unset is every platform. **`-sound-country` is the country of TikTok's trending chart**
   a clip of the experiment `sound` drawn for a trending track gets one from (below, "Experiments"): two letters,
@@ -261,11 +269,11 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
   next commit, and the record's `generator` names the commit, so the analysis can tell the versions apart.
 - **What it answers** (`answerSchema`): `why`, then `stories`, best first, each with its `front`, `tour` or `place`
   (the others 0), and for a front its `kind`, `attacker`, `rival`, `takenFrom`, `countries` or `continent`, `team`,
-  for every story its `headline`, `teasers`, `line`, `call`, `callFlags` and `anthem`, and for a front or a place its
-  `look`: `flags`, the camera back out of the tiles halfway so the painted flags switch on screen, for a steamroll, or
-  `dive`, back out at the end, for a fight seen tile by tile; empty for a tour, whose camera stays out. It reads each
-  flag's and each place's `flippedByContinent` for it: the tiles of the landmasses whose painted flag switched to it.
-  A seasonal story is not its to answer: one it does is skipped.
+  for every story its `headline`, `teasers`, `line`, `call`, `callFlags`, `anthem` and `fighters`, and for a front or
+  a place its `look`: `flags`, the camera back out of the tiles halfway so the painted flags switch on screen, for a
+  steamroll, or `dive`, back out at the end, for a fight seen tile by tile; empty for a tour, whose camera stays out.
+  It reads each flag's and each place's `flippedByContinent` for it: the tiles of the landmasses whose painted flag
+  switched to it. A seasonal story is not its to answer: one it does is skipped.
 - **Every editorial choice is the model's, never a rule's** (2026-10-28): the headline, the teasers, the line, the
   call and its flags, the anthem, the look. Until then the generator wrote all but the headline from branches on the
   story, and the caption opened with one of its two teasers per kind: every rout outside the loser's home could be
@@ -274,6 +282,14 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
   [Clips](../../frontend/docs/clips.md)). The model writes them from the same facts; the `Pick` carries them to the
   render, which draws them, plays the look, and puts the teasers in the `Clip`. Only a day won and a call-up keep the
   generator's own, since no editor writes them: their own words, and a dive.
+- **The editor chooses the players a clip names** (2026-10-28): each flag of a front, each tour and each place's
+  holder comes with its top fighters of the cast (`Fighter`: number, name, tiles taken; the frontend's
+  [Clips](../../frontend/docs/clips.md)), and each story answers the numbers to name (`Story.Fighters`, the generator's
+  `Pick.fighters`). **A check holds them to the story's sides** (`checkFighters`: a fighter of its attacker, its rival
+  or a flag it took from, of a tour's flag or of a place's holder, each once; none for a seasonal story), never to
+  taste. **Which names may be shown is the model's call**: players choose their names freely and the game filters
+  none, so the instructions ask it to leave out anything that would get a post taken down or shame the game, and to
+  leave a name out when unsure. A name is never in the words it writes, and the log never prints one.
 - **Claude Haiku 5.5** (`claude-haiku-5-5`), through Anthropic's Go SDK: adaptive thinking at effort `medium`,
   `max_tokens` 8,000, the answer held to the schema by structured outputs, 2 minutes and one retry. **A refusal is the
   end of it**: Haiku has no fallback model on the server, so `stop_reason: "refusal"` (with its category) is no answer
@@ -433,6 +449,9 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
   Play for free 👉 https://clickplanet.lol
   #clickplanet #rplace #wplace #pixelwar #map #geographygame #conquestgame #videogame #clickergame #viral #europe #italy #portugal #portugaltiktok🇵🇹
   ```
+  **A clip that names players says them on the line after its teaser** (`fightersLine`), each with its side's flag
+  emoji: `⚔️ Top fighters: BraveFox42 🇫🇷, Ankara55 🇹🇷`, so a player searching their name finds the clip; YouTube's
+  description opens with it. A clip that names nobody has no such line.
   A teaser and a call to act are picked at random, the call from `callsToAction`, and **the call's id is kept in
   the post's Zernio metadata** (`callToAction`), so the calls can be compared on the posts' numbers. A caption
   link cannot be clicked on TikTok, so a call is compared by how its posts do, not by visits. The music's credit,

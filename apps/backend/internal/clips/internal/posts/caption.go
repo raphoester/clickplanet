@@ -54,11 +54,23 @@ type TikTokWords struct {
 	Caption string
 }
 
-// A teaser that says where it happens, a call with the site, the music's credit, then the tags.
+// A teaser that says where it happens, the players it names, a call with the site, the music's credit, then the tags.
 func (w wording) tiktok(clip Clip) TikTokWords {
-	lines := append([]string{w.teaser + brand}, w.callAndCredit(clip)...)
+	lines := append(append([]string{w.teaser + brand}, fightersLine(clip)...), w.callAndCredit(clip)...)
 	tags := append(tagsOf(clip), communityTagsOf(clip)...)
 	return TikTokWords{Caption: strings.Join(append(lines, hashtagged(tags)), "\n")}
+}
+
+// A player searching their name finds the clip; none when it names nobody.
+func fightersLine(clip Clip) []string {
+	if len(clip.fighters) == 0 {
+		return nil
+	}
+	named := make([]string, 0, len(clip.fighters))
+	for _, fighter := range clip.fighters {
+		named = append(named, strings.TrimSpace(fighter.Name+" "+flagOf(fighter.Flag)))
+	}
+	return []string{"⚔️ Top fighters: " + strings.Join(named, ", ")}
 }
 
 func (w wording) callAndCredit(clip Clip) []string {
