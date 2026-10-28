@@ -104,10 +104,10 @@ var (
 	defaultBackoff   = posts.Backoff{time.Minute, 5 * time.Minute, 15 * time.Minute}
 	defaultPlatforms = []Platform{posts.TikTok, posts.YouTube}
 	// TikTok's views per clip fell from about 600 to 15 the day the job went to 10 posts a day there (2026-10-19): the
-	// best of a run, at Europe's after-school hours. YouTube lets a channel upload about 10 a day.
+	// best of a run, at Europe's after-school hours. YouTube kept about 1,000 views a clip at 5 to 11 a day.
 	dailyBudget = posts.Budget{
 		posts.TikTok:  {PerDay: 3, Hours: posts.Hours{From: 14, To: 20}, BestOnly: true},
-		posts.YouTube: {PerDay: 8},
+		posts.YouTube: {PerDay: 12},
 	}
 )
 

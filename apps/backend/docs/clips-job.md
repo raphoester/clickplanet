@@ -328,10 +328,16 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
   scheduled run 20 to 40 minutes late, as the runs of Oct 22–24 did), its render (10 to 35 minutes) and 5 minutes of
   lead: **2 to 3 hours**, and an hour more for the second clip of a run. Replayed over Oct 14–17, a 12-hour window held 5
   to 11 stories of different keys, so 2 every 2 hours is not short of stories; a quiet run posts nothing.
-  - **`Budget` is what each platform takes** (`dailyBudget` in `job.go`, a `posts.Allowance` each). **YouTube: 8
-    posts in a trailing 24 hours, at any hour, every clip of a run**: a channel uploads about 10 a day. **TikTok: 3,
-    the best clip of a run alone (`BestOnly`), from 14:00 to 20:00 UTC (`Hours`)**: after school across Europe,
-    16:00 to 22:00 in Paris in winter, 15:00 to 21:00 in London, 17:00 to 23:00 in Istanbul.
+  - **`Budget` is what each platform takes** (`dailyBudget` in `job.go`, a `posts.Allowance` each). **YouTube: 12
+    posts in a trailing 24 hours, at any hour, every clip of a run.** **TikTok: 3, the best clip of a run alone
+    (`BestOnly`), from 14:00 to 20:00 UTC (`Hours`)**: after school across Europe, 16:00 to 22:00 in Paris in winter,
+    15:00 to 21:00 in London, 17:00 to 23:00 in Istanbul.
+  - **Why 12 on YouTube** (2026-10-28): it was 8 from 2026-10-24, on the belief that a channel uploads about 10 a day.
+    YouTube publishes no daily number. The channel took 11 on 2026-10-21 and refused none, and its views per clip
+    stayed about 1,000 at 5 to 11 a day (Oct 18–26). At 8, every run past the 8th of a trailing day logged `every
+    platform has posted its day already` and posted nothing: YouTube went from 9 to 11 a day to 5 to 7, about 5,000
+    views a day fewer, while new players come from them. An upload YouTube refuses fails its target, and the next
+    run's history says so (`a post of the last week was refused`).
   - **Why so few on TikTok** (2026-10-28): until then it took 14, every clip, at any hour. Its views per clip fell
     from about 600 to about 15 on 2026-10-19, the day the job reached 10 to 13 posts a day there, and stayed there.
     The Zernio posts of Oct 13–17, at about 4 a day, had 285 to 636, so posting through Zernio is not the cause, and
