@@ -26,8 +26,8 @@ export const GamemasterService = {
       idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
-     * The turn now and the timeline, as the first events, then each change of either within a second; a heartbeat every
-     * 30 s meanwhile.
+     * The turn now, the timeline and the last debrief, as the first events, then each change of any within a second; a
+     * heartbeat every 30 s meanwhile.
      *
      * @generated from rpc gamemaster.v1.GamemasterService.ListenForEvents
      */

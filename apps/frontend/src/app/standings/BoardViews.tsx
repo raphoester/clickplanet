@@ -1,6 +1,6 @@
 import {ReactNode} from "react"
 import {PlayerLine} from "../../backends/player.ts"
-import {StandingsBackend} from "../../backends/standings.ts"
+import {Boards} from "../../backends/standings.ts"
 import {Country} from "../../domain/countries.ts"
 import CountryFlag from "../components/CountryFlag.tsx"
 import HeadingSelect, {HeadingChoice} from "../components/HeadingSelect.tsx"
@@ -12,7 +12,7 @@ import "./Standings.css"
 export type BoardView = "countries" | "players" | "country"
 
 export type BoardStandings = {
-    backend: StandingsBackend
+    backend: Boards
     caller: Caller
     listenForClicks: ListenForClicks
     onSignIn?: () => void

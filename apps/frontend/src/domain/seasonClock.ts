@@ -1,5 +1,4 @@
 import {Season} from "../backends/season.ts"
-import {Round} from "../backends/standings.ts"
 import {BattleToCome} from "../backends/turn.ts"
 
 const MINUTE = 60
@@ -29,11 +28,6 @@ export function countdownsOf(season: Season, now: number, battle?: BattleToCome,
         : []
     if (dayEndsAt === undefined || dayEndsAt <= now || dayEndsAt >= season.endsAt) return [...battles, ends]
     return [{label: "Today ends in", tag: "Today", left: timeLeft(countdownTo(dayEndsAt, now))}, ...battles, ends]
-}
-
-// Scoring's round in progress, when it is a day: a round of its own, or the one that ends the season, is no day.
-export function dayEndOf(round: Round | undefined): number | undefined {
-    return round && !round.own && !round.finale ? round.endsAt : undefined
 }
 
 export type EndClock = {

@@ -10,10 +10,11 @@ const FINALE: ClosedRound = {
     standings: [],
     before: [],
     after: [{rank: 1, countryCode: "de", points: 118, roundsWon: 2}, {rank: 2, countryCode: "fr", points: 97, roundsWon: 1}],
-    own: true,
+    moment: "battle",
     times: 3,
     startedAt: Date.UTC(2026, 9, 31, 21),
     entryId: "entry-final",
+    roundId: "entry-final",
     takes: [],
     players: [],
 }

@@ -124,7 +124,9 @@ type Entry struct {
 	// What the entry is to the players: the game client reads it from GamemasterService.GetTurn.
 	Kind EntryKind `protobuf:"varint,7,opt,name=kind,proto3,enum=gamemaster.v1.EntryKind" json:"kind,omitempty"`
 	// For the players, in plain text: what the rules of the entry are ("Triple points. A bonus box every minute.").
-	Description   string `protobuf:"bytes,8,opt,name=description,proto3" json:"description,omitempty"`
+	Description string `protobuf:"bytes,8,opt,name=description,proto3" json:"description,omitempty"`
+	// A battle's points' times, 1 to 10: its window is a round in scoring's books. 0 for a plain entry.
+	Times         uint32 `protobuf:"varint,9,opt,name=times,proto3" json:"times,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -215,6 +217,13 @@ func (x *Entry) GetDescription() string {
 	return ""
 }
 
+func (x *Entry) GetTimes() uint32 {
+	if x != nil {
+		return x.Times
+	}
+	return 0
+}
+
 // What the schedule plays now: the running entry with the highest priority, else "default".
 type Playing struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
@@ -296,7 +305,9 @@ type AddEntryRequest struct {
 	// Battle or plain: unspecified is InvalidArgument.
 	Kind EntryKind `protobuf:"varint,5,opt,name=kind,proto3,enum=gamemaster.v1.EntryKind" json:"kind,omitempty"`
 	// At most 300 characters: InvalidArgument past that.
-	Description   string `protobuf:"bytes,6,opt,name=description,proto3" json:"description,omitempty"`
+	Description string `protobuf:"bytes,6,opt,name=description,proto3" json:"description,omitempty"`
+	// 1 to 10 for a battle, 0 for a plain entry: InvalidArgument otherwise.
+	Times         uint32 `protobuf:"varint,7,opt,name=times,proto3" json:"times,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -373,6 +384,13 @@ func (x *AddEntryRequest) GetDescription() string {
 	return ""
 }
 
+func (x *AddEntryRequest) GetTimes() uint32 {
+	if x != nil {
+		return x.Times
+	}
+	return 0
+}
+
 type AddEntryResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -426,6 +444,7 @@ type EditEntryRequest struct {
 	Priority      uint32                 `protobuf:"varint,5,opt,name=priority,proto3" json:"priority,omitempty"`
 	Kind          EntryKind              `protobuf:"varint,6,opt,name=kind,proto3,enum=gamemaster.v1.EntryKind" json:"kind,omitempty"`
 	Description   string                 `protobuf:"bytes,7,opt,name=description,proto3" json:"description,omitempty"`
+	Times         uint32                 `protobuf:"varint,8,opt,name=times,proto3" json:"times,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -507,6 +526,13 @@ func (x *EditEntryRequest) GetDescription() string {
 		return x.Description
 	}
 	return ""
+}
+
+func (x *EditEntryRequest) GetTimes() uint32 {
+	if x != nil {
+		return x.Times
+	}
+	return 0
 }
 
 type EditEntryResponse struct {
@@ -1047,7 +1073,7 @@ const file_gamemaster_v1_admin_proto_rawDesc = "" +
 	"\x12GetScheduleRequest\"w\n" +
 	"\x13GetScheduleResponse\x12.\n" +
 	"\aentries\x18\x01 \x03(\v2\x14.gamemaster.v1.EntryR\aentries\x120\n" +
-	"\aplaying\x18\x02 \x01(\v2\x16.gamemaster.v1.PlayingR\aplaying\"\xc1\x02\n" +
+	"\aplaying\x18\x02 \x01(\v2\x16.gamemaster.v1.PlayingR\aplaying\"\xd7\x02\n" +
 	"\x05Entry\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
 	"\brule_set\x18\x02 \x01(\tR\aruleSet\x127\n" +
@@ -1056,21 +1082,23 @@ const file_gamemaster_v1_admin_proto_rawDesc = "" +
 	"\bpriority\x18\x05 \x01(\rR\bpriority\x123\n" +
 	"\amade_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\x06madeAt\x12,\n" +
 	"\x04kind\x18\a \x01(\x0e2\x18.gamemaster.v1.EntryKindR\x04kind\x12 \n" +
-	"\vdescription\x18\b \x01(\tR\vdescription\"\x9f\x01\n" +
+	"\vdescription\x18\b \x01(\tR\vdescription\x12\x14\n" +
+	"\x05times\x18\t \x01(\rR\x05times\"\x9f\x01\n" +
 	"\aPlaying\x12\x19\n" +
 	"\brule_set\x18\x01 \x01(\tR\aruleSet\x120\n" +
 	"\x05since\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\x12\x19\n" +
 	"\bentry_id\x18\x03 \x01(\tR\aentryId\x12,\n" +
-	"\x04kind\x18\x04 \x01(\x0e2\x18.gamemaster.v1.EntryKindR\x04kind\"\x86\x02\n" +
+	"\x04kind\x18\x04 \x01(\x0e2\x18.gamemaster.v1.EntryKindR\x04kind\"\x9c\x02\n" +
 	"\x0fAddEntryRequest\x12\x19\n" +
 	"\brule_set\x18\x01 \x01(\tR\aruleSet\x127\n" +
 	"\tstarts_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\bstartsAt\x123\n" +
 	"\aends_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x06endsAt\x12\x1a\n" +
 	"\bpriority\x18\x04 \x01(\rR\bpriority\x12,\n" +
 	"\x04kind\x18\x05 \x01(\x0e2\x18.gamemaster.v1.EntryKindR\x04kind\x12 \n" +
-	"\vdescription\x18\x06 \x01(\tR\vdescription\"\"\n" +
+	"\vdescription\x18\x06 \x01(\tR\vdescription\x12\x14\n" +
+	"\x05times\x18\a \x01(\rR\x05times\"\"\n" +
 	"\x10AddEntryResponse\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"\x97\x02\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"\xad\x02\n" +
 	"\x10EditEntryRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
 	"\brule_set\x18\x02 \x01(\tR\aruleSet\x127\n" +
@@ -1078,7 +1106,8 @@ const file_gamemaster_v1_admin_proto_rawDesc = "" +
 	"\aends_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x06endsAt\x12\x1a\n" +
 	"\bpriority\x18\x05 \x01(\rR\bpriority\x12,\n" +
 	"\x04kind\x18\x06 \x01(\x0e2\x18.gamemaster.v1.EntryKindR\x04kind\x12 \n" +
-	"\vdescription\x18\a \x01(\tR\vdescription\"\x13\n" +
+	"\vdescription\x18\a \x01(\tR\vdescription\x12\x14\n" +
+	"\x05times\x18\b \x01(\rR\x05times\"\x13\n" +
 	"\x11EditEntryResponse\"$\n" +
 	"\x12DeleteEntryRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"\x15\n" +

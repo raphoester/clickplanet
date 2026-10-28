@@ -288,7 +288,6 @@ func TestTheExampleConfigReachesTheScoringBlock(t *testing.T) {
 	var config Config
 	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
 
-	assert.Equal(t, 21*time.Hour, config.Scoring.Calendar.DailyCutoff)
 	assert.Equal(t, "scoring", config.Scoring.Database.Schema)
 	require.NoError(t, config.Scoring.Database.Validate())
 }
@@ -302,6 +301,7 @@ func TestTheExampleConfigReachesTheGamemasterBlock(t *testing.T) {
 	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
 
 	assert.Equal(t, "gamemaster", config.Gamemaster.Database.Schema)
+	assert.Equal(t, 21*time.Hour, config.Gamemaster.DailyCutoff, "the days end at 21:00 UTC, as the missions turn")
 	require.NoError(t, config.Gamemaster.Validate())
 }
 

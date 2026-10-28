@@ -28,7 +28,7 @@ var (
 	finale = time.Date(2026, 10, 31, 21, 0, 0, 0, time.UTC)
 	rush   = schedule.Draft{
 		Set: "rush", Kind: schedule.Battle, Description: "Triple points.", StartsAt: finale, EndsAt: finale.Add(2 * time.Hour),
-		Priority: 1,
+		Priority: 1, Times: 3,
 	}
 )
 
@@ -40,7 +40,7 @@ func TestEveryEntryAddedIsLoggedWithItsValues(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Contains(t, logs.String(), `level=WARN msg="admin schedule entry added" set=rush kind=battle description="Triple points." `+
-		`starts_at=2026-10-31T21:00:00Z ends_at=2026-10-31T23:00:00Z priority=1 entry=00000000-0000-0000-0000-000000000001`)
+		`starts_at=2026-10-31T21:00:00Z ends_at=2026-10-31T23:00:00Z priority=1 times=3 entry=00000000-0000-0000-0000-000000000001`)
 }
 
 func TestARefusalIsLoggedWithWhyAndPassedOn(t *testing.T) {

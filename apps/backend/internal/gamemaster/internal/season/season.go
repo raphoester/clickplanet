@@ -9,8 +9,8 @@ import (
 // Number counts the seasons up from 0.
 type Number uint32
 
-// Origin is where season 0's break counts from: the day its countdown shipped, before scoring counted any take.
-var Origin = time.Date(2026, 10, 3, 0, 0, 0, 0, time.UTC)
+// Origin is where season 0's break counts from: the day its first day was scored (#360), so its days keep their numbers.
+var Origin = time.Date(2026, 10, 8, 0, 0, 0, 0, time.UTC)
 
 var (
 	ErrInvalidSeason = errors.New("this season cannot be scheduled")
@@ -64,15 +64,15 @@ type Window struct {
 	EndsAt   time.Time
 }
 
-func (w Window) runs(at time.Time) bool {
+func (w Window) Runs(at time.Time) bool {
 	return !at.Before(w.StartsAt) && at.Before(w.EndsAt)
 }
 
-func (w Window) started(at time.Time) bool {
+func (w Window) Started(at time.Time) bool {
 	return !at.Before(w.StartsAt)
 }
 
-func (w Window) ended(at time.Time) bool {
+func (w Window) Ended(at time.Time) bool {
 	return !at.Before(w.EndsAt)
 }
 

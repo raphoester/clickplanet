@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/calendar"
+	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/books"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/standings"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/standings/postgres_contribution_store"
@@ -27,15 +27,15 @@ func (s *testSuite) SetupSuite() {
 	s.db = cppg.StartTestServer(s.T()).OpenSchema(s.T(), "scoring", migrations.FS)
 	store := postgres_contribution_store.New(s.db)
 	s.NewStore = func() standings.Store { return store }
-	s.TallyOf = func(_ standings.Store, season calendar.Number, account standings.AccountID) standings.Tally {
-		return s.tallyOf(season, account)
+	s.TallyOf = func(_ standings.Store, book books.BookID, account standings.AccountID) standings.Tally {
+		return s.tallyOf(book, account)
 	}
 }
 
-func (s *testSuite) tallyOf(season calendar.Number, account standings.AccountID) standings.Tally {
+func (s *testSuite) tallyOf(book books.BookID, account standings.AccountID) standings.Tally {
 	rows, err := s.db.On(s.T().Context()).QueryContext(s.T().Context(),
-		`SELECT country, tiles, main, counted_takes_below FROM contributions WHERE season = $1 AND account_id = $2`,
-		int64(season), uuid.UUID(account))
+		`SELECT country, tiles, main, counted_takes_below FROM contributions WHERE book_id = $1 AND account_id = $2`,
+		string(book), uuid.UUID(account))
 	s.Require().NoError(err)
 	defer func() { _ = rows.Close() }()
 
@@ -63,9 +63,9 @@ func (s *testSuite) SetupTest() {
 	s.StoreContractSuite.SetupTest()
 }
 
-func (s *testSuite) TestOneRowIsMainPerAccountAndSeason() {
+func (s *testSuite) TestOneRowIsMainPerAccountAndBook() {
 	for position, country := range []standings.Country{"fr", "de", "de", "it", "it", "it"} {
-		s.Require().NoError(postgres_contribution_store.New(s.db).RecordTake(s.T().Context(), 0,
+		s.Require().NoError(postgres_contribution_store.New(s.db).RecordTake(s.T().Context(), "season-0",
 			standings.Take{Account: standings.AccountID{15: 1}, Country: country, Position: uint64(position)}))
 	}
 

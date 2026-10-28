@@ -27,7 +27,7 @@ describe("the next battle on the home page", () => {
 
     const follow = () => {
         const battle = nextBattleShown(page)
-        const unfollow = turns.follow({onTurn: () => {}, onBattles: battle.show, onSeasons: () => {}})
+        const unfollow = turns.follow({onTurn: () => {}, onBattles: battle.show, onSeasons: () => {}, onDebrief: () => {}})
         return () => {
             unfollow()
             battle.stop()

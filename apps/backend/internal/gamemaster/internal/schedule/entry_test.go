@@ -16,7 +16,9 @@ var now = finale.Add(-time.Hour)
 const words schedule.Description = "Triple points. A bonus box every minute."
 
 func draft(set schedule.SetName, startsAt, endsAt time.Time, priority schedule.Priority) schedule.Draft {
-	return schedule.Draft{Set: set, Kind: schedule.Battle, Description: words, StartsAt: startsAt, EndsAt: endsAt, Priority: priority}
+	return schedule.Draft{
+		Set: set, Kind: schedule.Battle, Description: words, StartsAt: startsAt, EndsAt: endsAt, Priority: priority, Times: 3,
+	}
 }
 
 func TestAnEntryIsMadeNowAndPlaysItsDraft(t *testing.T) {
@@ -25,7 +27,7 @@ func TestAnEntryIsMadeNowAndPlaysItsDraft(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, schedule.EntrySnapshot{
 		ID: id(1), Set: "calm", Kind: schedule.Battle, Description: words, StartsAt: finale, EndsAt: battleEnds, Priority: 1,
-		MadeAt: now,
+		Times: 3, MadeAt: now,
 	}, made.TakeSnapshot())
 }
 
@@ -68,12 +70,34 @@ func TestAnEntryOfAKindNobodyKnowsIsRefused(t *testing.T) {
 
 func TestAPlainEntryIsScheduled(t *testing.T) {
 	plain := draft("calm", finale, battleEnds, 1)
-	plain.Kind = schedule.Plain
+	plain.Kind, plain.Times = schedule.Plain, 0
 
 	made, err := schedule.NewEntry(id(1), plain, now)
 
 	require.NoError(t, err)
 	assert.Equal(t, schedule.Plain, made.TakeSnapshot().Kind)
+}
+
+func TestABattleScoresOneToTenTimesAndAPlainEntryNone(t *testing.T) {
+	for _, refused := range []struct {
+		kind  schedule.Kind
+		times schedule.Times
+	}{{schedule.Battle, 0}, {schedule.Battle, 11}, {schedule.Plain, 1}} {
+		asked := draft("calm", finale, battleEnds, 1)
+		asked.Kind, asked.Times = refused.kind, refused.times
+
+		_, err := schedule.NewEntry(id(1), asked, now)
+
+		require.ErrorIs(t, err, schedule.ErrInvalidEntry, "%s × %d", refused.kind, refused.times)
+	}
+	for _, times := range []schedule.Times{1, 10} {
+		asked := draft("calm", finale, battleEnds, 1)
+		asked.Times = times
+
+		_, err := schedule.NewEntry(id(1), asked, now)
+
+		require.NoError(t, err)
+	}
 }
 
 func TestAnyPriorityIsScheduled(t *testing.T) {
@@ -92,7 +116,7 @@ func TestAnEntryToComeIsEditedAndKeepsItsPlaceInATie(t *testing.T) {
 	made, err := schedule.NewEntry(id(1), draft("calm", finale, battleEnds, 1), now)
 	require.NoError(t, err)
 	edit := draft("frozen", finale.Add(time.Minute), battleEnds, 2)
-	edit.Kind = schedule.Plain
+	edit.Kind, edit.Times = schedule.Plain, 0
 
 	edited, err := made.Edited(edit, now.Add(time.Minute))
 

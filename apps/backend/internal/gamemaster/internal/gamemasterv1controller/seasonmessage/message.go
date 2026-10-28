@@ -8,7 +8,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	gamemasterv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/gamemaster/v1"
-
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season"
 )
 
@@ -25,7 +25,10 @@ func ScheduledOf(planned season.Snapshot, window season.Window) *gamemasterv1.Sc
 }
 
 func SeasonOf(window season.Window) *gamemasterv1.Season {
-	return &gamemasterv1.Season{Number: uint32(window.Number), StartsAt: timestamppb.New(window.StartsAt), EndsAt: timestamppb.New(window.EndsAt)}
+	return &gamemasterv1.Season{
+		Number: uint32(window.Number), StartsAt: timestamppb.New(window.StartsAt), EndsAt: timestamppb.New(window.EndsAt),
+		BookId: string(moments.BookOf(window.Number)),
+	}
 }
 
 // Refusal is the code of what the calendar refused, and the error as it is for anything else.

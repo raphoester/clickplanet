@@ -6,7 +6,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/calendar"
+	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/books"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/standings"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
@@ -23,14 +23,14 @@ var _ standings.Store = (*Store)(nil)
 
 const takeLock = 0x73656173
 
-func (s *Store) RecordTake(ctx context.Context, season calendar.Number, take standings.Take) error {
+func (s *Store) RecordTake(ctx context.Context, book books.BookID, take standings.Take) error {
 	return s.db.InTx(ctx, func(ctx context.Context) error {
 		tx := s.db.On(ctx)
 		if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock($1, hashtext($2))`, takeLock, take.Account.String()); err != nil {
 			return fmt.Errorf("failed to lock the account's contributions: %w", err)
 		}
 
-		tally, err := tallyOf(ctx, tx, season, take.Account)
+		tally, err := tallyOf(ctx, tx, book, take.Account)
 		if err != nil {
 			return err
 		}
@@ -38,16 +38,16 @@ func (s *Store) RecordTake(ctx context.Context, season calendar.Number, take sta
 
 		if tally.Main != "" && next.Main != tally.Main {
 			if _, err := tx.ExecContext(ctx, `
-				UPDATE contributions SET main = false WHERE season = $1 AND account_id = $2 AND country = $3
-			`, int64(season), uuid.UUID(take.Account), string(tally.Main)); err != nil {
+				UPDATE contributions SET main = false WHERE book_id = $1 AND account_id = $2 AND country = $3
+			`, string(book), uuid.UUID(take.Account), string(tally.Main)); err != nil {
 				return fmt.Errorf("failed to move the main flag: %w", err)
 			}
 		}
 		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO contributions (season, account_id, country, tiles, main, counted_takes_below) VALUES ($1, $2, $3, $4, $5, $6)
-			ON CONFLICT (season, account_id, country) DO UPDATE
+			INSERT INTO contributions (book_id, account_id, country, tiles, main, counted_takes_below) VALUES ($1, $2, $3, $4, $5, $6)
+			ON CONFLICT (book_id, account_id, country) DO UPDATE
 			SET tiles = excluded.tiles, main = excluded.main, counted_takes_below = excluded.counted_takes_below
-		`, int64(season), uuid.UUID(take.Account), string(take.Country),
+		`, string(book), uuid.UUID(take.Account), string(take.Country),
 			int64(next.Tiles[take.Country]), next.Main == take.Country, //nolint:gosec // one a tile taken: never past int64.
 			int64(next.TakesBelow)); err != nil { //nolint:gosec // a ledger position fits in int64.
 			return fmt.Errorf("failed to save the take: %w", err)
@@ -56,10 +56,10 @@ func (s *Store) RecordTake(ctx context.Context, season calendar.Number, take sta
 	})
 }
 
-func tallyOf(ctx context.Context, db cppg.Querier, season calendar.Number, account standings.AccountID) (standings.Tally, error) {
+func tallyOf(ctx context.Context, db cppg.Querier, book books.BookID, account standings.AccountID) (standings.Tally, error) {
 	rows, err := db.QueryContext(ctx, `
-		SELECT country, tiles, main, counted_takes_below FROM contributions WHERE season = $1 AND account_id = $2
-	`, int64(season), uuid.UUID(account))
+		SELECT country, tiles, main, counted_takes_below FROM contributions WHERE book_id = $1 AND account_id = $2
+	`, string(book), uuid.UUID(account))
 	if err != nil {
 		return standings.Tally{}, fmt.Errorf("failed to read the account's contributions: %w", err)
 	}

@@ -23,7 +23,7 @@ describe("useSeason", () => {
     })
 
     it("holds the season the timeline says runs, and its moved end", () => {
-        const season = {number: 0, startsAt: Date.now() - 1000, endsAt: Date.now() + 1000 * 60}
+        const season = {number: 0, startsAt: Date.now() - 1000, endsAt: Date.now() + 1000 * 60, bookId: "season-0"}
         const {rerender} = render(<Harness current={season}/>)
         expect(latest).toEqual(season)
 
@@ -34,7 +34,7 @@ describe("useSeason", () => {
 
     it("lets the season go at its end, even weeks away", () => {
         vi.useFakeTimers({now: Date.UTC(2026, 9, 3, 12)})
-        const season = {number: 0, startsAt: Date.UTC(2026, 9, 3), endsAt: Date.UTC(2026, 9, 31, 23)}
+        const season = {number: 0, startsAt: Date.UTC(2026, 9, 3), endsAt: Date.UTC(2026, 9, 31, 23), bookId: "season-0"}
         render(<Harness current={season}/>)
         expect(latest).toEqual(season)
 

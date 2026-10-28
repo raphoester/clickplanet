@@ -2,52 +2,12 @@ package standings_test
 
 import (
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/calendar"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/standings"
 )
-
-var (
-	seasonZeroStarts = time.Date(2026, 10, 3, 0, 0, 0, 0, time.UTC)
-	seasonZeroEnds   = time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC)
-	seasonOneEnds    = time.Date(2026, 12, 31, 23, 0, 0, 0, time.UTC)
-)
-
-func twoSeasons() calendar.Calendar {
-	return calendar.New(calendar.Config{}, calendar.Window{Number: 0, StartsAt: seasonZeroStarts, EndsAt: seasonZeroEnds}, calendar.Window{Number: 1, StartsAt: seasonZeroEnds, EndsAt: seasonOneEnds})
-}
-
-func TestATakeCountsInTheSeasonWhoseIntervalHoldsIt(t *testing.T) {
-	for _, tc := range []struct {
-		at     time.Time
-		season calendar.Number
-	}{
-		{seasonZeroStarts, 0},
-		{seasonZeroEnds.Add(-time.Nanosecond), 0},
-		{seasonZeroEnds, 1},
-		{seasonOneEnds.Add(-time.Nanosecond), 1},
-	} {
-		season, ok := standings.Take{At: tc.at}.Season(twoSeasons())
-
-		require.True(t, ok, tc.at)
-		assert.Equal(t, tc.season, season, tc.at)
-	}
-}
-
-func TestATakeInNoSeasonCountsNowhere(t *testing.T) {
-	_, ok := standings.Take{At: seasonOneEnds}.Season(twoSeasons())
-	assert.False(t, ok)
-
-	_, ok = standings.Take{At: seasonZeroStarts.Add(-time.Nanosecond)}.Season(twoSeasons())
-	assert.False(t, ok, "before the first season starts")
-
-	_, ok = standings.Take{At: seasonZeroEnds}.Season(calendar.New(calendar.Config{}))
-	assert.False(t, ok, "an empty calendar has no season")
-}
 
 func TestAnAccountIDIsAUUIDThatIsNotNil(t *testing.T) {
 	account, err := standings.AccountIDOf("0b6d4f7e-5d7c-4a36-9a51-3f1f8f0c2a11")

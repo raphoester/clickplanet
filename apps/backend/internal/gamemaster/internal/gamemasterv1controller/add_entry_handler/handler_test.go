@@ -39,7 +39,7 @@ func TestTheEntryAskedIsAddedAndNamed(t *testing.T) {
 
 	res, err := add(t, useCase, &gamemasterv1.AddEntryRequest{
 		RuleSet: "rush", Kind: gamemasterv1.EntryKind_ENTRY_KIND_BATTLE, Description: "Triple points.",
-		StartsAt: timestamppb.New(finale), EndsAt: timestamppb.New(finale.Add(time.Hour)), Priority: 2,
+		StartsAt: timestamppb.New(finale), EndsAt: timestamppb.New(finale.Add(time.Hour)), Priority: 2, Times: 3,
 	})
 
 	require.NoError(t, err)
@@ -47,6 +47,7 @@ func TestTheEntryAskedIsAddedAndNamed(t *testing.T) {
 	require.Len(t, useCase.asked, 1)
 	assert.Equal(t, schedule.Draft{
 		Set: "rush", Kind: schedule.Battle, Description: "Triple points.", StartsAt: finale, EndsAt: finale.Add(time.Hour), Priority: 2,
+		Times: 3,
 	}, useCase.asked[0])
 }
 

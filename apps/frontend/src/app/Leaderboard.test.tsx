@@ -215,17 +215,19 @@ describe("Leaderboard tile deltas", () => {
 describe("Leaderboard with the season's race", () => {
     const MAP = [entry("de", 500), entry("fr", 300), entry("es", 100)]
     const RACE: Race = {
-        round: {
-            number: 5,
-            endsAt: 0,
-            finale: false,
+        today: {
+            roundId: "season-0/day-5",
+            times: 1,
+            startedAt: 0,
+            endedAt: 0,
             standings: [
                 {rank: 1, countryCode: "de", share: 0.5, points: 25},
                 {rank: 2, countryCode: "fr", share: 0.3, points: 18},
             ],
-            own: false,
-            times: 1,
-            entryId: "",
+            takes: [],
+            players: [],
+            before: [],
+            after: [],
         },
         scores: [{rank: 1, countryCode: "fr", points: 43, roundsWon: 1}],
     }
@@ -244,8 +246,8 @@ describe("Leaderboard with the season's race", () => {
         ])
     })
 
-    it("heads the round in progress as the battle's, at its times, while a battle's round of its own runs", () => {
-        const battle: Race = {...RACE, round: {...RACE.round!, number: 1, own: true, times: 3, standings: [
+    it("heads the round in progress as the battle's, at its times, while a battle's round runs", () => {
+        const battle: Race = {...RACE, battle: {...RACE.today!, roundId: "entry-1", times: 3, standings: [
             {rank: 1, countryCode: "de", share: 0.5, points: 75},
             {rank: 2, countryCode: "fr", share: 0.3, points: 54},
         ]}}

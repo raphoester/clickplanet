@@ -2,15 +2,25 @@ syntax = "proto3";
 
 package scoring.v1;
 
+import "scoring/v1/scoring.proto";
+
+// What another module reads of scoring's books, by the ids it was given.
 service InternalService {
-  rpc GetRuleSetNames(GetRuleSetNamesRequest) returns (GetRuleSetNamesResponse) {
+  rpc GetRound(GetRoundRequest) returns (GetRoundResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  rpc GetTable(GetTableRequest) returns (GetTableResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 }
 
-message GetRuleSetNamesRequest {}
+message GetTableRequest {
+  string book_id = 1;
+}
 
-// The name of every rule set postgres keeps.
-message GetRuleSetNamesResponse {
-  repeated string names = 1;
+// The book ranked now: every country with points. Closed once CloseBook was handled.
+message GetTableResponse {
+  repeated TablePlace table = 1;
+  bool closed = 2;
 }

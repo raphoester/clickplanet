@@ -15,7 +15,7 @@ carryQuery(document, location.search)
 
 const season = seasonShown(document)
 const battle = nextBattleShown(document)
-turns.follow({onTurn: () => {}, onBattles: battle.show, onSeasons: ({current}) => season.show(current)})
+turns.follow({onTurn: () => {}, onBattles: battle.show, onSeasons: ({current}) => season.show(current), onDebrief: () => {}})
 
 function fakeTurns(): FakeTurnBackend {
     const turns = new FakeTurnBackend()

@@ -1,16 +1,20 @@
+import {Timestamp} from "@bufbuild/protobuf"
 import {Code, ConnectError, createPromiseClient, PromiseClient} from "@connectrpc/connect"
 import {createConnectTransport} from "@connectrpc/connect-web"
 import {GamemasterService} from "../gen/grpc/gamemaster/v1/gamemaster_connect.ts"
 import {
+    Day as DayMessage,
+    Debrief as DebriefMessage,
     EntryKind,
     GamemasterEvent,
     Season as SeasonMessage,
     Timeline,
     Turn as TurnMessage,
 } from "../gen/grpc/gamemaster/v1/gamemaster_pb.ts"
-import {Season, Seasons} from "./season.ts"
+import {BattleEnded as BattleEndedMessage} from "../gen/grpc/gamemaster/v1/events_pb.ts"
+import {Day, Season, Seasons} from "./season.ts"
 import {Config, NO_TIMEOUT, openStream, pageWakeups, Wakeups} from "./transport.ts"
-import {BattleToCome, PLAIN_TURN, Turn, TurnBackend, TurnKind, TurnListener} from "./turn.ts"
+import {BattleEnded, BattleToCome, Debrief, PLAIN_TURN, Turn, TurnBackend, TurnKind, TurnListener} from "./turn.ts"
 
 export function newGamemasterServiceClient(config: Config): PromiseClient<typeof GamemasterService> {
     return createPromiseClient(GamemasterService, createConnectTransport({
@@ -28,7 +32,7 @@ export class ConnectTurnBackend implements TurnBackend {
     ) {
     }
 
-    public follow({onTurn, onBattles, onSeasons}: TurnListener): () => void {
+    public follow({onTurn, onBattles, onSeasons, onDebrief}: TurnListener): () => void {
         const client = this.client
         let stop = () => {}
         stop = openStream(
@@ -40,6 +44,7 @@ export class ConnectTurnBackend implements TurnBackend {
                         onTurn(PLAIN_TURN)
                         onBattles([])
                         onSeasons({})
+                        onDebrief(undefined)
                         stop()
                         return
                     }
@@ -54,6 +59,9 @@ export class ConnectTurnBackend implements TurnBackend {
                     case "timeline":
                         onBattles(battlesOf(event.event.value))
                         onSeasons(seasonsOf(event.event.value))
+                        return
+                    case "debrief":
+                        onDebrief(debriefOf(event.event.value))
                         return
                     case "heartbeat":
                     case undefined:
@@ -74,6 +82,8 @@ export function turnOf(turn: TurnMessage): Turn {
         endsAt: turn.endsAt?.toDate().getTime(),
         description: turn.description,
         entryId: turn.entryId,
+        roundId: turn.roundId,
+        times: turn.times,
     }
 }
 
@@ -84,17 +94,74 @@ export function battlesOf(timeline: Timeline): BattleToCome[] {
             startsAt: battle.startsAt.toDate().getTime(),
             endsAt: battle.endsAt.toDate().getTime(),
             description: battle.description,
+            times: battle.times,
+            endsSeason: battle.endsSeason,
+            roundId: battle.roundId,
         }]
         : [])
 }
 
 export function seasonsOf(timeline: Timeline): Seasons {
-    return {current: seasonOf(timeline.current), next: seasonOf(timeline.next)}
+    return {current: seasonOf(timeline.current), next: seasonOf(timeline.next), today: dayOf(timeline.today)}
 }
 
 function seasonOf(season: SeasonMessage | undefined): Season | undefined {
     if (!season?.startsAt || !season.endsAt) return undefined
-    return {number: season.number, startsAt: season.startsAt.toDate().getTime(), endsAt: season.endsAt.toDate().getTime()}
+    return {
+        number: season.number,
+        startsAt: season.startsAt.toDate().getTime(),
+        endsAt: season.endsAt.toDate().getTime(),
+        bookId: season.bookId,
+    }
+}
+
+function dayOf(day: DayMessage | undefined): Day | undefined {
+    if (!day?.startsAt || !day.endsAt) return undefined
+    return {number: day.number, startsAt: day.startsAt.toDate().getTime(), endsAt: day.endsAt.toDate().getTime(), roundId: day.roundId}
+}
+
+export function debriefOf(debrief: DebriefMessage): Debrief | undefined {
+    const moment = debrief.moment
+    switch (moment.case) {
+        case "day":
+            return {
+                kind: "day",
+                season: moment.value.season,
+                number: moment.value.day,
+                roundId: moment.value.roundId,
+                endedAt: msOf(moment.value.endedAt),
+            }
+        case "battle":
+            return battleEndedOf(moment.value)
+        case "season":
+            return {
+                kind: "season",
+                season: moment.value.season,
+                bookId: moment.value.bookId,
+                endedAt: msOf(moment.value.endedAt),
+                finaleRoundId: moment.value.finaleRoundId,
+                finaleBattle: moment.value.finaleBattle && battleEndedOf(moment.value.finaleBattle),
+            }
+        case undefined:
+            return undefined
+    }
+}
+
+function battleEndedOf(battle: BattleEndedMessage): BattleEnded {
+    return {
+        kind: "battle",
+        season: battle.season,
+        number: battle.number,
+        entryId: battle.entryId,
+        times: battle.times,
+        endsSeason: battle.endsSeason,
+        roundId: battle.roundId,
+        endedAt: msOf(battle.endedAt),
+    }
+}
+
+function msOf(at: Timestamp | undefined): number {
+    return at?.toDate().getTime() ?? 0
 }
 
 function kindOf(kind: EntryKind): TurnKind {

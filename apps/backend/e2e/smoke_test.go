@@ -64,10 +64,10 @@ func (s *testSuite) TestATakeCountsOnThePlayersStatsAndInTheSeason() {
 
 	require.Eventually(t, func() bool { return ada.stats().GetTilesTaken() == 1 }, 5*time.Second, 20*time.Millisecond,
 		"planet relays the take to player")
-	require.Eventually(t, func() bool { return ada.mySeason().GetTiles() == 1 }, 5*time.Second, 20*time.Millisecond,
+	require.Eventually(t, func() bool { return ada.myTally().GetTiles() == 1 }, 5*time.Second, 20*time.Millisecond,
 		"and to scoring")
 	assert.Eventually(t, func() bool { return s.game.roundStandingOf(t, "pt") != nil }, 10*time.Second, 100*time.Millisecond,
-		"the race reads the map from planet for the round in progress")
+		"scoring reads the map from planet for today's round")
 }
 
 func (s *testSuite) TestAPlayerDoesAMissionAndIsPaid() {
@@ -177,7 +177,7 @@ func (s *testSuite) TestADeletedAccountIsForgottenByEveryModule() {
 	leaving.markSeen(time.Now().Add(-time.Minute))
 	leaving.reportBug("a bug before leaving")
 	require.Eventually(t, func() bool {
-		return leaving.stats().GetTilesTaken() == 1 && leaving.mySeason().GetTiles() == 1 &&
+		return leaving.stats().GetTilesTaken() == 1 && leaving.myTally().GetTiles() == 1 &&
 			leaving.missions()[0].GetTakeFor().GetTaken() == 1
 	}, 5*time.Second, 20*time.Millisecond)
 	require.NotZero(t, leaving.history().GetSeenUntilUnixMs())
@@ -189,7 +189,7 @@ func (s *testSuite) TestADeletedAccountIsForgottenByEveryModule() {
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.Empty(c, leaving.profile().GetName(), "player")
 		assert.Zero(c, leaving.stats().GetTilesTaken(), "player")
-		assert.Zero(c, leaving.mySeason().GetTiles(), "scoring")
+		assert.Zero(c, leaving.myTally().GetTiles(), "scoring")
 		assert.Zero(c, leaving.history().GetSeenUntilUnixMs(), "chat")
 		assert.Zero(c, leaving.missions()[0].GetTakeFor().GetTaken(), "missions")
 		note := s.game.noteOf(t, "a bug before leaving")
@@ -253,21 +253,22 @@ func nextTileUpdate(t *testing.T, updates <-chan *planetv1.TileUpdate) *planetv1
 	}
 }
 
-// A stream opened reads the race at once.
+// A stream opened reads today's round at once.
 func (s gameStack) roundStandingOf(t *testing.T, country string) *scoringv1.RoundStanding {
 	t.Helper()
 
+	today := s.today(t)
 	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
 	defer cancel()
-	stream, err := scoringv1connect.NewSeasonServiceClient(http.DefaultClient, s.baseURL).
-		ListenForEvents(ctx, connect.NewRequest(&scoringv1.ListenForEventsRequest{}))
+	stream, err := scoringv1connect.NewScoringServiceClient(http.DefaultClient, s.baseURL).
+		ListenForEvents(ctx, connect.NewRequest(&scoringv1.ListenForEventsRequest{BookId: today.book, RoundIds: []string{today.round}}))
 	if err != nil {
 		return nil
 	}
 	defer func() { _ = stream.Close() }()
 
 	for stream.Receive() {
-		for _, standing := range stream.Msg().GetRace().GetRound().GetStandings() {
+		for _, standing := range stream.Msg().GetRound().GetStandings() {
 			if standing.GetCountryId() == country {
 				return standing
 			}

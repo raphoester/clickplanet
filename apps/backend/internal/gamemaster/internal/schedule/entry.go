@@ -45,6 +45,11 @@ type Description string
 
 const MaxDescription = 300
 
+// Times is how many times a day's points a battle scores, 1 to 10. A plain entry scores none: 0.
+type Times uint32
+
+const MaxTimes Times = 10
+
 var (
 	ErrInvalidEntry    = errors.New("this entry cannot be scheduled")
 	ErrStarted         = errors.New("this entry has started, and runs to its end: schedule another at a higher priority")
@@ -64,6 +69,7 @@ type Draft struct {
 	StartsAt    time.Time
 	EndsAt      time.Time
 	Priority    Priority
+	Times       Times
 }
 
 // Every reason at once: only an entry to come, with an end, is scheduled.
@@ -76,6 +82,9 @@ func (d Draft) check(now time.Time) error {
 		found = append(found, err)
 	}
 	if err := d.Description.check(); err != nil {
+		found = append(found, err)
+	}
+	if err := d.Times.check(d.Kind); err != nil {
 		found = append(found, err)
 	}
 	if !d.StartsAt.After(now) {
@@ -117,6 +126,20 @@ func (d Description) check() error {
 	return nil
 }
 
+func (t Times) check(kind Kind) error {
+	switch kind {
+	case Battle:
+		if t < 1 || t > MaxTimes {
+			return fmt.Errorf("a battle scores %d times a day's points, not 1 to %d", t, MaxTimes)
+		}
+	case Plain:
+		if t != 0 {
+			return fmt.Errorf("a plain entry scores no points, not %d times", t)
+		}
+	}
+	return nil
+}
+
 func (k Kind) check() error {
 	switch k {
 	case Plain, Battle:
@@ -133,6 +156,7 @@ type Entry struct {
 	startsAt    time.Time
 	endsAt      time.Time
 	priority    Priority
+	times       Times
 	madeAt      time.Time
 }
 
@@ -142,7 +166,7 @@ func NewEntry(id EntryID, draft Draft, now time.Time) (Entry, error) {
 	}
 	return Entry{
 		id: id, set: draft.Set, kind: draft.Kind, description: draft.Description, startsAt: draft.StartsAt, endsAt: draft.EndsAt,
-		priority: draft.Priority, madeAt: now,
+		priority: draft.Priority, times: draft.Times, madeAt: now,
 	}, nil
 }
 
@@ -164,14 +188,14 @@ func (e Entry) Edited(draft Draft, now time.Time) (Entry, error) {
 	}
 	return Entry{
 		id: e.id, set: draft.Set, kind: draft.Kind, description: draft.Description, startsAt: draft.StartsAt, endsAt: draft.EndsAt,
-		priority: draft.Priority, madeAt: e.madeAt,
+		priority: draft.Priority, times: draft.Times, madeAt: e.madeAt,
 	}, nil
 }
 
 func (e Entry) TakeSnapshot() EntrySnapshot {
 	return EntrySnapshot{
 		ID: e.id, Set: e.set, Kind: e.kind, Description: e.description, StartsAt: e.startsAt, EndsAt: e.endsAt,
-		Priority: e.priority, MadeAt: e.madeAt,
+		Priority: e.priority, Times: e.times, MadeAt: e.madeAt,
 	}
 }
 
@@ -183,12 +207,13 @@ type EntrySnapshot struct {
 	StartsAt    time.Time
 	EndsAt      time.Time
 	Priority    Priority
+	Times       Times
 	MadeAt      time.Time
 }
 
 func (s EntrySnapshot) Restore() Entry {
 	return Entry{
 		id: s.ID, set: s.Set, kind: s.Kind, description: s.Description, startsAt: s.StartsAt, endsAt: s.EndsAt,
-		priority: s.Priority, madeAt: s.MadeAt,
+		priority: s.Priority, times: s.Times, madeAt: s.MadeAt,
 	}
 }

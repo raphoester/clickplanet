@@ -24,17 +24,6 @@ export type RoundStanding = {
     points: number
 }
 
-export type Round = {
-    number: number
-    endsAt: number
-    finale: boolean
-    standings: RoundStanding[]
-    own: boolean
-    times: number
-    // A round of its own's schedule entry, as the gamemaster's turn names it; empty for a day.
-    entryId: string
-}
-
 export type Score = {
     rank: number
     countryCode: string
@@ -47,33 +36,81 @@ export type RoundTakes = {
     tiles: number
 }
 
-export type ClosedRound = {
-    season: number
-    number: number
+// A round of scoring, by the id the gamemaster gave it: its live standings while open, its results once scored.
+export type Round = {
+    roundId: string
+    times: number
+    startedAt: number
+    // 0 while it runs.
     endedAt: number
+    standings: RoundStanding[]
+    takes: RoundTakes[]
+    players: Standing[]
+    // The book's scores before and after the round; none while it runs.
+    before: Score[]
+    after: Score[]
+}
+
+// The book's points, and what today's round and the running battle's would score now.
+export type Race = {
+    today?: Round
+    battle?: Round
+    scores: Score[]
+}
+
+export type Moment = "day" | "battle" | "season"
+
+// A moment the gamemaster debriefed, with scoring's numbers.
+export type ClosedRound = {
+    moment: Moment
+    season: number
+    // A day's place among the season's days, a battle's among its battles, or the season's Final Battle's.
+    number: number
+    roundId: string
+    endedAt: number
+    // The battle that ended the season, or the season itself.
     finale: boolean
     standings: RoundStanding[]
     before: Score[]
     after: Score[]
-    own: boolean
     times: number
     startedAt: number
-    // A round of its own's schedule entry, as the gamemaster's turn names it; empty for a day.
+    // A battle's schedule entry, as the gamemaster's turn names it, or the season's Final Battle's; empty for a day, or a
+    // season no battle finished.
     entryId: string
     takes: RoundTakes[]
     players: Standing[]
 }
 
-export type Race = {
-    round?: Round
-    scores: Score[]
-    closed?: ClosedRound
+export type RaceListener = {
+    onScores: (scores: Score[]) => void
+    onRound: (round: Round) => void
+}
+
+// The boards of one book.
+export interface Boards {
+    listenForStandings(countryCode: string, onStandings: (standings: Standing[]) => void): () => void
+
+    mySeason(countryCode: string): Promise<MySeason | undefined>
 }
 
 export interface StandingsBackend {
-    listenForStandings(countryCode: string, onStandings: (standings: Standing[]) => void): () => void
+    listenForStandings(bookId: string, countryCode: string, onStandings: (standings: Standing[]) => void): () => void
 
-    listenForRace(onRace: (race: Race) => void): () => void
+    // The book's scores and the rounds asked for, then each change.
+    listenForRace(bookId: string, roundIds: readonly string[], listener: RaceListener): () => void
 
-    mySeason(countryCode: string): Promise<MySeason | undefined>
+    mySeason(bookId: string, countryCode: string): Promise<MySeason | undefined>
+
+    // None for a round never opened.
+    round(roundId: string): Promise<Round | undefined>
+
+    scores(bookId: string): Promise<Score[]>
+}
+
+export function boardsOf(backend: StandingsBackend, bookId: string): Boards {
+    return {
+        listenForStandings: (countryCode, onStandings) => backend.listenForStandings(bookId, countryCode, onStandings),
+        mySeason: (countryCode) => backend.mySeason(bookId, countryCode),
+    }
 }

@@ -2,7 +2,6 @@ import {proto3, Timestamp} from "@bufbuild/protobuf"
 import {GamemasterAdmin} from "../clients.ts"
 import {GetRulesResponse as AntibotRules} from "../gen/grpc/antibot/v1/admin_pb.ts"
 import {GetRulesResponse as PlanetRules} from "../gen/grpc/planet/v1/admin_pb.ts"
-import {GetRulesResponse as SeasonRules} from "../gen/grpc/scoring/v1/admin_pb.ts"
 import {Entry, GetScheduleResponse} from "../gen/grpc/gamemaster/v1/admin_pb.ts"
 import {EntryKind} from "../gen/grpc/gamemaster/v1/gamemaster_pb.ts"
 
@@ -26,14 +25,13 @@ export function changeable(row: Row, now: Date): boolean {
 }
 
 // What each module the schedule commands keeps and plays.
-export type Modules = {planet: PlanetRules, antibot: AntibotRules, scoring: SeasonRules}
+export type Modules = {planet: PlanetRules, antibot: AntibotRules}
 
 // The modules that keep no set of this name.
 export function lacking(set: string, modules: Modules): string[] {
     const missing: string[] = []
     if (!modules.planet.sets.some(kept => kept.name === set)) missing.push("planet")
     if (!modules.antibot.sets.some(kept => kept.name === set)) missing.push("the antibot")
-    if (!modules.scoring.sets.some(kept => kept.name === set)) missing.push("scoring")
     return missing
 }
 
@@ -61,19 +59,30 @@ export function shortOf(description: string, max = 60): string {
     return description.length <= max ? description : `${description.slice(0, max - 1)}…`
 }
 
+// The server's bound (gamemaster.v1.AddEntryRequest.times).
+export const MAX_TIMES = 10
+
+// A battle's points' times; a plain entry has none.
+export function timesOf(kind: EntryKind, times: string): number {
+    return kind === EntryKind.BATTLE ? Number(times) : 0
+}
+
 // An entry as the form edits it: each time a datetime-local, in the operator's own time.
-export type Draft = {set: string, kind: EntryKind, description: string, startsAt: string, endsAt: string, priority: string}
+export type Draft = {
+    set: string, kind: EntryKind, description: string, startsAt: string, endsAt: string, priority: string, times: string,
+}
 
 export function draftOf(entry: Entry | undefined, sets: string[]): Draft {
     if (entry === undefined) {
         return {
             set: sets.find(set => set !== "default") ?? sets[0] ?? "", kind: EntryKind.BATTLE, description: "", startsAt: "", endsAt: "",
-            priority: "1",
+            priority: "1", times: "3",
         }
     }
     return {
         set: entry.ruleSet, kind: entry.kind, description: entry.description, startsAt: localOf(entry.startsAt?.toDate()),
         endsAt: localOf(entry.endsAt?.toDate()), priority: String(entry.priority),
+        times: entry.kind === EntryKind.BATTLE ? String(entry.times) : "3",
     }
 }
 
@@ -85,8 +94,14 @@ export function localOf(date: Date | undefined): string {
 
 // The server holds the rest: a start after now, an end after it, a set every module keeps.
 export function complete(draft: Draft): boolean {
-    return draft.set !== "" && draft.kind !== EntryKind.UNSPECIFIED && [...draft.description].length <= MAX_DESCRIPTION &&
+    return timesFit(draft) && draft.set !== "" && draft.kind !== EntryKind.UNSPECIFIED && [...draft.description].length <= MAX_DESCRIPTION &&
         draft.startsAt !== "" && draft.endsAt !== "" && Number.isInteger(Number(draft.priority)) && Number(draft.priority) >= 0
+}
+
+function timesFit(draft: Draft): boolean {
+    if (draft.kind !== EntryKind.BATTLE) return true
+    const times = Number(draft.times)
+    return Number.isInteger(times) && times >= 1 && times <= MAX_TIMES
 }
 
 function valuesOf(draft: Draft) {
@@ -97,11 +112,13 @@ function valuesOf(draft: Draft) {
         startsAt: Timestamp.fromDate(new Date(draft.startsAt)),
         endsAt: Timestamp.fromDate(new Date(draft.endsAt)),
         priority: Number(draft.priority),
+        times: timesOf(draft.kind, draft.times),
     }
 }
 
 export function questionOf(draft: Draft): string {
-    return `Play ${draft.set} as a ${wordOf(draft.kind)} entry from ${new Date(draft.startsAt).toLocaleString()} to ` +
+    const times = draft.kind === EntryKind.BATTLE ? ` worth ${draft.times}× points` : ""
+    return `Play ${draft.set} as a ${wordOf(draft.kind)} entry${times} from ${new Date(draft.startsAt).toLocaleString()} to ` +
         `${new Date(draft.endsAt).toLocaleString()}, at priority ${draft.priority}?`
 }
 

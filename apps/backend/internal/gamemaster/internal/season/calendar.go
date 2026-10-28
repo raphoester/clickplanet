@@ -41,15 +41,15 @@ func (c Calendar) Edited(number Number, draft Draft, now time.Time) (Season, err
 		return Season{}, err
 	}
 	window := c.windowOf(number)
-	if window.ended(now) {
+	if window.Ended(now) {
 		return Season{}, fmt.Errorf("season %d, since %s: %w", number, stamp(window.EndsAt), ErrEnded)
 	}
 	edited := Season{number: number, brk: draft.Break, length: draft.Length}
 	moved := c.with(edited).windowOf(number)
-	if window.started(now) && draft.Break != kept.brk {
+	if window.Started(now) && draft.Break != kept.brk {
 		return Season{}, fmt.Errorf("season %d keeps its start, %s: %w", number, stamp(window.StartsAt), ErrStarted)
 	}
-	if !window.started(now) && !moved.StartsAt.After(now) {
+	if !window.Started(now) && !moved.StartsAt.After(now) {
 		return Season{}, refused("it would start at %s, not after now", stamp(moved.StartsAt))
 	}
 	if !moved.EndsAt.Equal(window.EndsAt) && !moved.EndsAt.After(now) {
@@ -63,7 +63,7 @@ func (c Calendar) Deletable(number Number, now time.Time) error {
 	if _, err := c.season(number); err != nil {
 		return err
 	}
-	if window := c.windowOf(number); window.started(now) {
+	if window := c.windowOf(number); window.Started(now) {
 		return fmt.Errorf("season %d, since %s: %w", number, stamp(window.StartsAt), ErrStarted)
 	}
 	if number != c.seasons[len(c.seasons)-1].number {
@@ -85,7 +85,7 @@ func (c Calendar) Windows() []Window {
 
 func (c Calendar) RunningAt(at time.Time) (Window, bool) {
 	for _, window := range c.Windows() {
-		if window.runs(at) {
+		if window.Runs(at) {
 			return window, true
 		}
 	}
@@ -94,22 +94,11 @@ func (c Calendar) RunningAt(at time.Time) (Window, bool) {
 
 func (c Calendar) NextAfter(at time.Time) (Window, bool) {
 	for _, window := range c.Windows() {
-		if !window.started(at) {
+		if !window.Started(at) {
 			return window, true
 		}
 	}
 	return Window{}, false
-}
-
-// StartedBy is every season that has started at a time, the ended ones too: the ones scoring is told.
-func (c Calendar) StartedBy(at time.Time) []Window {
-	var started []Window
-	for _, window := range c.Windows() {
-		if window.started(at) {
-			started = append(started, window)
-		}
-	}
-	return started
 }
 
 func (c Calendar) TakeSnapshot() []Snapshot {

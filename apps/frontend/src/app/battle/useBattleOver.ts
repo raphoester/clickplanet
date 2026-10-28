@@ -1,5 +1,5 @@
 import {useCallback, useEffect, useRef, useState} from "react"
-import {Race} from "../../backends/standings.ts"
+import {Debrief} from "../../backends/turn.ts"
 import {Battle} from "../../domain/battle.ts"
 import {briefAwaited} from "../../domain/battleBrief.ts"
 
@@ -9,7 +9,7 @@ export type BattleOverState = {
     dismiss: () => void
 }
 
-export function useBattleOver(battle: Battle | undefined, race: Race | undefined): BattleOverState {
+export function useBattleOver(battle: Battle | undefined, debrief: Debrief | undefined): BattleOverState {
     const [over, setOver] = useState<Battle>()
     const previous = useRef(battle)
 
@@ -21,5 +21,5 @@ export function useBattleOver(battle: Battle | undefined, race: Race | undefined
 
     const dismiss = useCallback(() => setOver(undefined), [])
 
-    return {over, awaiting: over !== undefined && briefAwaited(over, race), dismiss}
+    return {over, awaiting: over !== undefined && briefAwaited(over, debrief), dismiss}
 }

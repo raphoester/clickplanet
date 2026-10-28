@@ -1,4 +1,4 @@
-import {useEffect, useRef, useState} from 'react';
+import {useEffect, useMemo, useRef, useState} from 'react';
 import {
     AllegianceSource,
     BankFullError,
@@ -84,11 +84,12 @@ import {unseen} from "../../domain/missions.ts";
 import MissionsDone from "../missions/MissionsDone.tsx";
 import {useSeenMissions} from "../missions/useSeenMissions.ts";
 import {usePaidMissions} from "../missions/usePaidMissions.ts";
-import {StandingsBackend} from "../../backends/standings.ts";
+import {boardsOf, StandingsBackend} from "../../backends/standings.ts";
 import {SupportBackend} from "../../backends/support.ts";
 import {pageContextOf} from "../support/pageContext.ts";
 import {BoardStandings, BoardView} from "../standings/BoardViews.tsx";
 import {useRace} from "../standings/useRace.ts";
+import {useDebriefed} from "../season/useDebriefed.ts";
 import RoundReveal from "../season/RoundReveal.tsx";
 import {useRoundReveal} from "../season/useRoundReveal.ts";
 import {TurnBackend} from "../../backends/turn.ts";
@@ -108,7 +109,7 @@ import {briefDescriptionOf} from "../../domain/battleBrief.ts";
 import {revealFollowed} from "../../domain/roundReveal.ts";
 import {reigningChampionOf} from "../../domain/champion.ts";
 import {countryLines, CountryOrder, shownOrder} from "../../domain/race.ts";
-import {dayEndOf} from "../../domain/seasonClock.ts";
+import {endedBookOf} from "../../domain/debrief.ts";
 import {acceptedClicks} from "./acceptedClicks.ts";
 import "./Viewer.css"
 
@@ -175,24 +176,26 @@ export default function Viewer(props: ViewerProps) {
     const announcements = useAnnouncements()
     const {announce, current} = announcements
     const roster = useRoster(props.presence, (title) => announce({kind: "title", title}))
-    const race = useRace(props.standings)
     const schedule = useSchedule(props.turn)
     const season = useSeason(schedule.seasons.current)
-    const dayEndsAt = dayEndOf(race?.round)
+    const bookId = schedule.seasons.current?.bookId ?? endedBookOf(schedule.debrief)
+    const dayEndsAt = schedule.seasons.today?.endsAt
     const battle = battleOf(schedule.turn)
+    const race = useRace(props.standings, bookId, schedule.seasons.today?.roundId, battle?.roundId)
+    const closed = useDebriefed(props.standings, schedule.debrief)
     const nextBattle = nextBattleOf(schedule.battles, Date.now())
     useMood(battle ? "battle" : undefined)
     const battleReveal = useBattleReveal(battle)
-    const battleOver = useBattleOver(battle, race)
+    const battleOver = useBattleOver(battle, schedule.debrief)
     const seenBattle = useSeenBattle(battle)
-    const reveal = useRoundReveal(race, seenBattle)
+    const reveal = useRoundReveal(closed, seenBattle)
     useEffect(() => {
         for (const due of reveal.due) announce(due)
     }, [announce, reveal.due])
     useEffect(() => {
         if (battleReveal.battle) announce({kind: "battle", battle: battleReveal.battle})
     }, [announce, battleReveal.battle])
-    const champion = reigningChampionOf(season, race?.closed)
+    const champion = reigningChampionOf(season, closed)
     const [countryOrder, setCountryOrder] = useState<CountryOrder>("season")
     const boardGuide = useBoardGuide()
     const [pitchOpen, setPitchOpen] = useState(false)
@@ -316,8 +319,9 @@ export default function Viewer(props: ViewerProps) {
     const linked = account.kind === 'ready' && account.me.linked.length > 0
     const toll = rules?.toll ?? []
     const held = leaderboard.find((entry) => entry.country.code === countryState.code)?.tiles ?? 0
-    const standings: BoardStandings | undefined = props.standings && {
-        backend: props.standings,
+    const boards = useMemo(() => props.standings && bookId ? boardsOf(props.standings, bookId) : undefined, [props.standings, bookId])
+    const standings: BoardStandings | undefined = boards && {
+        backend: boards,
         caller: {accountId: ownAccountId, username, color, linked},
         listenForClicks: accepted.listenForClicks,
         onSignIn: clickBudget?.linkedMultiplier ? openPitch : undefined,

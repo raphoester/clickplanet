@@ -19,12 +19,32 @@ afterEach(cleanup)
 describe("useSchedule", () => {
     it("knows no turn and no battle with no backend", () => {
         render(<Harness/>)
-        expect(latest).toEqual({turn: undefined, battles: [], seasons: {}})
+        expect(latest).toEqual({turn: undefined, battles: [], seasons: {}, debrief: undefined})
     })
 
-    it("holds the turn and the battles the backend sends first", () => {
-        render(<Harness backend={new FakeTurnBackend()}/>)
-        expect(latest).toEqual({turn: PLAIN_TURN, battles: [], seasons: {current: SEASON_ZERO}})
+    it("holds the turn, the battles, the seasons and the day the backend sends first", () => {
+        render(<Harness backend={new FakeTurnBackend(SEASON_ZERO, () => Date.UTC(2026, 9, 28, 12))}/>)
+        expect(latest).toEqual({
+            turn: PLAIN_TURN,
+            battles: [],
+            seasons: {
+                current: SEASON_ZERO,
+                today: {number: 21, startsAt: Date.UTC(2026, 9, 27, 21), endsAt: Date.UTC(2026, 9, 28, 21), roundId: "season-0/day-21"},
+            },
+            debrief: undefined,
+        })
+    })
+
+    it("holds the last debrief, and the next day once a day ended", () => {
+        const backend = new FakeTurnBackend(SEASON_ZERO, () => Date.UTC(2026, 9, 28, 12))
+        render(<Harness backend={backend}/>)
+
+        act(() => {
+            backend.endDay()
+        })
+
+        expect(latest?.debrief).toEqual({kind: "day", season: 0, number: 21, roundId: "season-0/day-21", endedAt: Date.UTC(2026, 9, 28, 12)})
+        expect(latest?.seasons.today).toMatchObject({number: 22, roundId: "season-0/day-22"})
     })
 
     it("follows each change of the turn and of the battles to come", () => {

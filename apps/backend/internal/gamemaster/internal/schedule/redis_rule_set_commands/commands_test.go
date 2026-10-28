@@ -14,7 +14,6 @@ import (
 
 	antibotv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	scoringv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/redis_rule_set_commands"
 )
@@ -31,38 +30,23 @@ func (s *sent) Send(_ context.Context, commands ...proto.Message) error {
 
 var finale = time.Date(2026, 10, 31, 21, 0, 0, 0, time.UTC)
 
-var battle = schedule.EntryID(uuid.MustParse("0192f5a0-7c00-7000-8000-000000000031"))
-
 func rush(t *testing.T) schedule.Turn {
 	t.Helper()
 
 	return schedule.New(schedule.EntrySnapshot{
-		ID: battle, Set: "rush", StartsAt: finale, EndsAt: finale.Add(2 * time.Hour), Priority: 1, MadeAt: finale.Add(-time.Hour),
+		ID: schedule.EntryID(uuid.MustParse("0192f5a0-7c00-7000-8000-000000000031")), Set: "rush", Kind: schedule.Battle,
+		StartsAt: finale, EndsAt: finale.Add(2 * time.Hour), Priority: 1, Times: 3, MadeAt: finale.Add(-time.Hour),
 	}.Restore()).TurnAt(finale)
 }
 
-func TestPlanetTheAntibotAndScoringAreEachToldTheSetInTheirWords(t *testing.T) {
+func TestPlanetAndTheAntibotAreEachToldTheSetInTheirWords(t *testing.T) {
 	commands := &sent{}
 
 	require.NoError(t, redis_rule_set_commands.New(commands).Play(t.Context(), rush(t), finale))
 
-	require.Len(t, commands.commands, 3)
+	require.Len(t, commands.commands, 2, "scoring hears no rule set")
 	assert.True(t, proto.Equal(&planetv1.PlayRuleSet{RuleSet: "rush", DecidedAt: timestamppb.New(finale)}, commands.commands[0]))
 	assert.True(t, proto.Equal(&antibotv1.PlayRuleSet{RuleSet: "rush", DecidedAt: timestamppb.New(finale)}, commands.commands[1]))
-	assert.True(t, proto.Equal(&scoringv1.PlayRuleSet{
-		RuleSet: "rush", DecidedAt: timestamppb.New(finale),
-		StartsAt: timestamppb.New(finale), EndsAt: timestamppb.New(finale.Add(2 * time.Hour)),
-		EntryId: "0192f5a0-7c00-7000-8000-000000000031",
-	}, commands.commands[2]), "scoring is told the entry's id and window: %v", commands.commands[2])
-}
-
-func TestDefaultIsToldToScoringWithNoWindow(t *testing.T) {
-	commands := &sent{}
-
-	require.NoError(t, redis_rule_set_commands.New(commands).Play(t.Context(), schedule.New().TurnAt(finale), finale))
-
-	require.Len(t, commands.commands, 3)
-	assert.True(t, proto.Equal(&scoringv1.PlayRuleSet{RuleSet: "default", DecidedAt: timestamppb.New(finale)}, commands.commands[2]))
 }
 
 func TestACommandRedisDidNotTakeIsAnError(t *testing.T) {

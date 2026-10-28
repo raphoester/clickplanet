@@ -64,7 +64,6 @@ player:
   tagSalt: "local-development-salt"
 
 scoring:
-  dailyCutoff: 21h
   database:
     host: postgres
     port: "5432"
@@ -77,6 +76,7 @@ scoring:
     address: redis:6379
 
 gamemaster:
+  dailyCutoff: 21h
   database:
     host: postgres
     port: "5432"

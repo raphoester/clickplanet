@@ -1,6 +1,7 @@
 import {describe, expect, it} from "vitest"
 import {NameColor} from "../backends/player.ts"
-import {ClosedRound, Race, Standing} from "../backends/standings.ts"
+import {ClosedRound, Standing} from "../backends/standings.ts"
+import {Debrief} from "../backends/turn.ts"
 import {Battle} from "./battle.ts"
 import {briefAwaited, briefDescriptionOf, debriefedFor, debriefScreensOf, pointsRowsOf} from "./battleBrief.ts"
 
@@ -11,8 +12,10 @@ const player = (rank: number, name: string, countryCode: string, tiles: number):
     ({rank, accountId: `account-${name}`, name, color: NameColor.UNSPECIFIED, countryCode, tiles})
 
 const BATTLE_ROUND: ClosedRound = {
+    moment: "battle",
     season: 0,
     number: 1,
+    roundId: "entry-final",
     endedAt: ENDED_AT,
     finale: true,
     standings: [
@@ -23,7 +26,6 @@ const BATTLE_ROUND: ClosedRound = {
     ],
     before: [],
     after: [],
-    own: true,
     times: 3,
     startedAt: STARTED_AT,
     entryId: "entry-final",
@@ -31,11 +33,11 @@ const BATTLE_ROUND: ClosedRound = {
     players: [player(1, "Ana", "de", 900)],
 }
 
-const battle: Battle = {entryId: "entry-final", since: STARTED_AT, endsAt: ENDED_AT, description: "Triple points."}
-const another: Battle = {...battle, entryId: "entry-before", description: "Rush."}
+const battle: Battle = {entryId: "entry-final", since: STARTED_AT, endsAt: ENDED_AT, description: "Triple points.", roundId: "entry-final"}
+const another: Battle = {...battle, entryId: "entry-before", description: "Rush.", roundId: "entry-before"}
 
 describe("debriefedFor", () => {
-    it("is the battle the page saw, by its entry's id, or any battle when the page saw none", () => {
+    it("is the battle the page saw, by its round, or any battle when the page saw none", () => {
         expect(debriefedFor(BATTLE_ROUND, battle)).toBe(true)
         expect(debriefedFor(BATTLE_ROUND, undefined)).toBe(true)
         expect(debriefedFor(BATTLE_ROUND, another)).toBe(false)
@@ -83,17 +85,20 @@ describe("briefDescriptionOf", () => {
 })
 
 describe("briefAwaited", () => {
-    const racing = (round: Race["round"]): Race => ({round, scores: []})
-    const own = {number: 1, endsAt: ENDED_AT, finale: true, standings: [], own: true, times: 3}
+    const ended = (roundId: string, endsSeason = true): Debrief =>
+        ({kind: "battle", season: 0, number: 1, entryId: roundId, times: 3, endsSeason, roundId, endedAt: ENDED_AT})
+    const seasonEnded = (finaleRoundId: string): Debrief =>
+        ({kind: "season", season: 0, bookId: "season-0", endedAt: ENDED_AT, finaleRoundId})
 
-    it("waits while the race still shows the battle's round of its own", () => {
-        expect(briefAwaited(battle, racing({...own, entryId: "entry-final"}))).toBe(true)
+    it("waits while the gamemaster has not debriefed the battle's round", () => {
+        expect(briefAwaited(battle, undefined)).toBe(true)
+        expect(briefAwaited(battle, ended("entry-before", false))).toBe(true)
+        expect(briefAwaited(battle, {kind: "day", season: 0, number: 24, roundId: "season-0/day-24", endedAt: ENDED_AT})).toBe(true)
     })
 
-    it("waits for nothing once the round closed, for a day, or for another entry's round", () => {
-        expect(briefAwaited(battle, racing(undefined))).toBe(false)
-        expect(briefAwaited(battle, racing({...own, own: false, finale: false, times: 1, entryId: ""}))).toBe(false)
-        expect(briefAwaited(battle, racing({...own, entryId: "entry-next"}))).toBe(false)
-        expect(briefAwaited(battle, undefined)).toBe(false)
+    it("waits for nothing once its round is debriefed, by the battle or the season, or for a battle with no round", () => {
+        expect(briefAwaited(battle, ended("entry-final"))).toBe(false)
+        expect(briefAwaited(battle, seasonEnded("entry-final"))).toBe(false)
+        expect(briefAwaited({...battle, roundId: ""}, undefined)).toBe(false)
     })
 })

@@ -103,6 +103,25 @@ func TestTheStreamSendsOnlyWhatChanged(t *testing.T) {
 	assert.Equal(t, "Triple points.", receive(t, stream).GetTurn().GetDescription(), "a battle that starts sends the turn alone")
 }
 
+func debriefed(answer *gamemasterv1.GetTurnResponse, day uint32) *gamemasterv1.GetTurnResponse {
+	answer.Debrief = &gamemasterv1.Debrief{Moment: &gamemasterv1.Debrief_Day{Day: &gamemasterv1.DayEnded{Day: day}}}
+	return answer
+}
+
+func TestTheStreamSendsTheLastDebriefAfterTheTimelineAndEachNewOne(t *testing.T) {
+	turns := newStubTurns()
+	turns.turns <- debriefed(now(plain, ""), 23)
+	turns.turns <- debriefed(now(battle, "Triple points."), 23)
+	turns.turns <- debriefed(now(battle, "Triple points."), 24)
+	stream := open(t, turns)
+	receive(t, stream)
+	receive(t, stream)
+
+	assert.Equal(t, uint32(23), receive(t, stream).GetDebrief().GetDay().GetDay(), "the last debrief is a first event")
+	assert.NotNil(t, receive(t, stream).GetTurn(), "a debrief that holds is not sent again")
+	assert.Equal(t, uint32(24), receive(t, stream).GetDebrief().GetDay().GetDay())
+}
+
 func TestAQuietStreamSendsAHeartbeat(t *testing.T) {
 	stream, err := serve(t, newStubTurns(), 10*time.Millisecond).ListenForEvents(t.Context(),
 		connect.NewRequest(&gamemasterv1.ListenForEventsRequest{}))

@@ -7,131 +7,273 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 
 /**
- * Counts points with the rule set of this name. Scoring keeps the latest decision by decided_at, so a command sent
- * twice, or after a newer one, changes nothing. A name scoring keeps no set of is refused, and scoring counts on with
- * the set it plays.
+ * One stream for every command, handled in order: a round closed, then its book, is always scored in that order. Each
+ * command is idempotent by its ids: one handled twice, or one that is too late, changes nothing.
  *
- * @generated from message scoring.v1.PlayRuleSet
+ * @generated from message scoring.v1.ScoringCommand
  */
-export class PlayRuleSet extends Message<PlayRuleSet> {
+export class ScoringCommand extends Message<ScoringCommand> {
   /**
-   * @generated from field: string rule_set = 1;
+   * @generated from oneof scoring.v1.ScoringCommand.command
    */
-  ruleSet = "";
+  command: {
+    /**
+     * @generated from field: scoring.v1.OpenBook open_book = 1;
+     */
+    value: OpenBook;
+    case: "openBook";
+  } | {
+    /**
+     * @generated from field: scoring.v1.OpenRound open_round = 2;
+     */
+    value: OpenRound;
+    case: "openRound";
+  } | {
+    /**
+     * @generated from field: scoring.v1.CloseRound close_round = 3;
+     */
+    value: CloseRound;
+    case: "closeRound";
+  } | {
+    /**
+     * @generated from field: scoring.v1.CloseBook close_book = 4;
+     */
+    value: CloseBook;
+    case: "closeBook";
+  } | { case: undefined; value?: undefined } = { case: undefined };
 
-  /**
-   * @generated from field: google.protobuf.Timestamp decided_at = 2;
-   */
-  decidedAt?: Timestamp;
-
-  /**
-   * The window of the schedule entry that plays the set, which never changes once the entry runs: a set with a round of
-   * its own makes it of this window. Both unset when no entry runs and default plays.
-   *
-   * @generated from field: google.protobuf.Timestamp starts_at = 3;
-   */
-  startsAt?: Timestamp;
-
-  /**
-   * @generated from field: google.protobuf.Timestamp ends_at = 4;
-   */
-  endsAt?: Timestamp;
-
-  /**
-   * The id of the schedule entry that plays the set; empty when default plays. A round of its own repeats it.
-   *
-   * @generated from field: string entry_id = 5;
-   */
-  entryId = "";
-
-  constructor(data?: PartialMessage<PlayRuleSet>) {
+  constructor(data?: PartialMessage<ScoringCommand>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "scoring.v1.PlayRuleSet";
+  static readonly typeName = "scoring.v1.ScoringCommand";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "rule_set", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "decided_at", kind: "message", T: Timestamp },
-    { no: 3, name: "starts_at", kind: "message", T: Timestamp },
-    { no: 4, name: "ends_at", kind: "message", T: Timestamp },
-    { no: 5, name: "entry_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 1, name: "open_book", kind: "message", T: OpenBook, oneof: "command" },
+    { no: 2, name: "open_round", kind: "message", T: OpenRound, oneof: "command" },
+    { no: 3, name: "close_round", kind: "message", T: CloseRound, oneof: "command" },
+    { no: 4, name: "close_book", kind: "message", T: CloseBook, oneof: "command" },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PlayRuleSet {
-    return new PlayRuleSet().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ScoringCommand {
+    return new ScoringCommand().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PlayRuleSet {
-    return new PlayRuleSet().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ScoringCommand {
+    return new ScoringCommand().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PlayRuleSet {
-    return new PlayRuleSet().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ScoringCommand {
+    return new ScoringCommand().fromJsonString(jsonString, options);
   }
 
-  static equals(a: PlayRuleSet | PlainMessage<PlayRuleSet> | undefined, b: PlayRuleSet | PlainMessage<PlayRuleSet> | undefined): boolean {
-    return proto3.util.equals(PlayRuleSet, a, b);
+  static equals(a: ScoringCommand | PlainMessage<ScoringCommand> | undefined, b: ScoringCommand | PlainMessage<ScoringCommand> | undefined): boolean {
+    return proto3.util.equals(ScoringCommand, a, b);
   }
 }
 
 /**
- * Counts the points of a season from its start to its end. Scoring keeps the latest decision on each season by
- * decided_at, so a command sent twice, or after a newer one, changes nothing. Sent once the season starts, when its end
- * moves, and at each boot of the sender.
+ * A book gathers the points of its rounds and each player's takes, from starts_at until it is closed. A take counts in
+ * every book open at its time.
  *
- * @generated from message scoring.v1.PlaySeason
+ * @generated from message scoring.v1.OpenBook
  */
-export class PlaySeason extends Message<PlaySeason> {
+export class OpenBook extends Message<OpenBook> {
   /**
-   * @generated from field: uint32 number = 1;
+   * @generated from field: string book_id = 1;
    */
-  number = 0;
+  bookId = "";
 
   /**
    * @generated from field: google.protobuf.Timestamp starts_at = 2;
    */
   startsAt?: Timestamp;
 
-  /**
-   * @generated from field: google.protobuf.Timestamp ends_at = 3;
-   */
-  endsAt?: Timestamp;
-
-  /**
-   * @generated from field: google.protobuf.Timestamp decided_at = 4;
-   */
-  decidedAt?: Timestamp;
-
-  constructor(data?: PartialMessage<PlaySeason>) {
+  constructor(data?: PartialMessage<OpenBook>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "scoring.v1.PlaySeason";
+  static readonly typeName = "scoring.v1.OpenBook";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "number", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 1, name: "book_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "starts_at", kind: "message", T: Timestamp },
-    { no: 3, name: "ends_at", kind: "message", T: Timestamp },
-    { no: 4, name: "decided_at", kind: "message", T: Timestamp },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PlaySeason {
-    return new PlaySeason().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): OpenBook {
+    return new OpenBook().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PlaySeason {
-    return new PlaySeason().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): OpenBook {
+    return new OpenBook().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PlaySeason {
-    return new PlaySeason().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): OpenBook {
+    return new OpenBook().fromJsonString(jsonString, options);
   }
 
-  static equals(a: PlaySeason | PlainMessage<PlaySeason> | undefined, b: PlaySeason | PlainMessage<PlaySeason> | undefined): boolean {
-    return proto3.util.equals(PlaySeason, a, b);
+  static equals(a: OpenBook | PlainMessage<OpenBook> | undefined, b: OpenBook | PlainMessage<OpenBook> | undefined): boolean {
+    return proto3.util.equals(OpenBook, a, b);
+  }
+}
+
+/**
+ * A round credits its book once it closes: the countries ranked by their share of the map then, points by rank, times
+ * `times`. Takes from starts_at count in it. A round whose book is not open is refused.
+ *
+ * @generated from message scoring.v1.OpenRound
+ */
+export class OpenRound extends Message<OpenRound> {
+  /**
+   * @generated from field: string round_id = 1;
+   */
+  roundId = "";
+
+  /**
+   * @generated from field: string book_id = 2;
+   */
+  bookId = "";
+
+  /**
+   * 1 to 10.
+   *
+   * @generated from field: uint32 times = 3;
+   */
+  times = 0;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp starts_at = 4;
+   */
+  startsAt?: Timestamp;
+
+  constructor(data?: PartialMessage<OpenRound>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "scoring.v1.OpenRound";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "round_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "book_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "times", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 4, name: "starts_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): OpenRound {
+    return new OpenRound().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): OpenRound {
+    return new OpenRound().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): OpenRound {
+    return new OpenRound().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: OpenRound | PlainMessage<OpenRound> | undefined, b: OpenRound | PlainMessage<OpenRound> | undefined): boolean {
+    return proto3.util.equals(OpenRound, a, b);
+  }
+}
+
+/**
+ * Scores the round from the map now. Takes before ends_at still count in its numbers when they arrive after it. A round
+ * never opened, or already scored, is not scored.
+ *
+ * @generated from message scoring.v1.CloseRound
+ */
+export class CloseRound extends Message<CloseRound> {
+  /**
+   * @generated from field: string round_id = 1;
+   */
+  roundId = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp ends_at = 2;
+   */
+  endsAt?: Timestamp;
+
+  constructor(data?: PartialMessage<CloseRound>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "scoring.v1.CloseRound";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "round_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "ends_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CloseRound {
+    return new CloseRound().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CloseRound {
+    return new CloseRound().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CloseRound {
+    return new CloseRound().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CloseRound | PlainMessage<CloseRound> | undefined, b: CloseRound | PlainMessage<CloseRound> | undefined): boolean {
+    return proto3.util.equals(CloseRound, a, b);
+  }
+}
+
+/**
+ * Ranks the book from its rounds: points, then rounds won, then the points of tiebreak_round_id (empty: no third key).
+ * Takes after ends_at count in it no more.
+ *
+ * @generated from message scoring.v1.CloseBook
+ */
+export class CloseBook extends Message<CloseBook> {
+  /**
+   * @generated from field: string book_id = 1;
+   */
+  bookId = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp ends_at = 2;
+   */
+  endsAt?: Timestamp;
+
+  /**
+   * @generated from field: string tiebreak_round_id = 3;
+   */
+  tiebreakRoundId = "";
+
+  constructor(data?: PartialMessage<CloseBook>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "scoring.v1.CloseBook";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "book_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "ends_at", kind: "message", T: Timestamp },
+    { no: 3, name: "tiebreak_round_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CloseBook {
+    return new CloseBook().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CloseBook {
+    return new CloseBook().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CloseBook {
+    return new CloseBook().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CloseBook | PlainMessage<CloseBook> | undefined, b: CloseBook | PlainMessage<CloseBook> | undefined): boolean {
+    return proto3.util.equals(CloseBook, a, b);
   }
 }
 

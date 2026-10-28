@@ -211,7 +211,6 @@ player:
   tagSalt: env://CHAT_TAG_SALT
 
 scoring:
-  dailyCutoff: 21h
   database:
     host: postgres
     password: env://POSTGRES_PASSWORD
@@ -227,6 +226,7 @@ scoring:
     password: env://REDIS_PASSWORD
 
 gamemaster:
+  dailyCutoff: 21h
   database:
     host: postgres
     password: env://POSTGRES_PASSWORD

@@ -9,8 +9,8 @@ const MINUTE = 60 * SECOND
 const HOUR = 60 * MINUTE
 
 const now = Date.UTC(2026, 9, 31, 21, 30)
-const battle = {entryId: "entry-final", since: now - 30 * MINUTE, endsAt: now + HOUR + 23 * MINUTE + 5 * SECOND, description: "Triple points."}
-const season = {number: 0, startsAt: Date.UTC(2026, 9, 3), endsAt: Date.UTC(2026, 11, 5, 23)}
+const battle = {entryId: "entry-final", since: now - 30 * MINUTE, endsAt: now + HOUR + 23 * MINUTE + 5 * SECOND, description: "Triple points.", roundId: "entry-final"}
+const season = {number: 0, startsAt: Date.UTC(2026, 9, 3), endsAt: Date.UTC(2026, 11, 5, 23), bookId: "season-0"}
 
 afterEach(() => {
     cleanup()

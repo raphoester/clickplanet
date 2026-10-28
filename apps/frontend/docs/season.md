@@ -1,26 +1,27 @@
 # The season
 
-**The season is the gamemaster's**: `backends/season.ts` is `Season` (`number`,
-`startsAt`, `endsAt`) and `Seasons` (`current`, `next`), which the gamemaster's
+**The season and its days are the gamemaster's**: `backends/season.ts` is `Season`
+(`number`, `startsAt`, `endsAt`, `bookId`), `Day` (`number`, `startsAt`, `endsAt`,
+`roundId`) and `Seasons` (`current`, `next`, `today`), which the gamemaster's
 `Timeline` carries and `TurnBackend.follow` hands on (`onSeasons`, see
 [Battles](battle.md#reading-what-plays)). An end the operator moves reaches the page
-within a second. A server without the gamemaster reads as no season. The client no
-longer reads scoring's `GetSeason`; `seasonBackend.ts` only makes the
-`SeasonService` client the standings use.
+within a second. A server without the gamemaster reads as no season. **Scoring only
+counts points**, by the ids the gamemaster names: the season's `bookId` and the
+rounds' `roundId` (see [Season standings](season-standings.md)).
+`scoringBackend.ts` makes the `ScoringService` client.
 
 - `domain/seasonClock.ts` — `countdownsOf`, the chip's faces: the time left to
   today's cutoff to the second (`13h 05m 12s`, `52m 10s`), to the next battle's
-  start when one is to come, and to the season's end. **Today's end is scoring's**:
-  the end of the race's round in progress when it is a day (`dayEndOf`: not a round
-  of its own, not the finale), since the daily cutoff is scoring's rule. With no day
-  running (after the last day, during a battle's round of its own), or a day that
+  start when one is to come, and to the season's end. **Today's end is the
+  gamemaster's**: `Timeline.today.ends_at`, the daily cutoff. With no day
+  running (after the season's last cutoff), or a day that
   ends with the season, there is one face, the season's. After the season, none. `endClock` is the season's
   countdown unit by unit, for the home page, and `endsLine` its end in the
   player's own time zone ("Sat 31 Oct · 23:00").
 - **The next battle is the schedule's** (see [Battles](battle.md#the-battles-to-come)):
   an operator may move or delete it, and the stream says so within a second.
-- `domain/champion.ts` — `championOf`, the countries ranked 1st once a finale
-  closed, `reigningChampionOf`, that champion while no newer season is current,
+- `domain/champion.ts` — `championOf`, the countries ranked 1st once the Final
+  Battle or the season was debriefed, `reigningChampionOf`, that champion while no newer season is current,
   and `winsLine`, "Germany wins Season 0", for the reveal, the chip and the chat.
 - `app/season/` — `useSeason`, the timeline's current season, dropped at its end on
   this clock (a page open across it goes back to no season), `SeasonChip`, `ChampionChip`, `SeasonDetails`,
@@ -51,8 +52,8 @@ The faces are hidden from it, and they are not a live region.
 chip is back when the battle ends.
 
 **After the season, the chip is the champion's** (`ChampionChip`): a trophy,
-"Season 0 champion", the flag and the name, from the race's `closed` once it is
-the finale. It replaces the countdown as soon as the finale of the current
+"Season 0 champion", the flag and the name, from the last debrief once it is the
+Final Battle's or the season's (`SeasonEnded`), with the book's table read from scoring. It replaces the countdown as soon as the finale of the current
 season closed, and stays until a newer season is current
 (`reigningChampionOf`). It opens nothing: with no season there are no facts to
 show. Its name is the chat's line, "Germany wins Season 0". On a phone it is the

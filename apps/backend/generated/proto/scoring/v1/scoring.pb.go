@@ -22,26 +22,28 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type GetSeasonRequest struct {
+type GetBoardRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	BookId        string                 `protobuf:"bytes,1,opt,name=book_id,json=bookId,proto3" json:"book_id,omitempty"`
+	CountryId     string                 `protobuf:"bytes,2,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GetSeasonRequest) Reset() {
-	*x = GetSeasonRequest{}
+func (x *GetBoardRequest) Reset() {
+	*x = GetBoardRequest{}
 	mi := &file_scoring_v1_scoring_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetSeasonRequest) String() string {
+func (x *GetBoardRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetSeasonRequest) ProtoMessage() {}
+func (*GetBoardRequest) ProtoMessage() {}
 
-func (x *GetSeasonRequest) ProtoReflect() protoreflect.Message {
+func (x *GetBoardRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_scoring_v1_scoring_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -53,192 +55,47 @@ func (x *GetSeasonRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetSeasonRequest.ProtoReflect.Descriptor instead.
-func (*GetSeasonRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetBoardRequest.ProtoReflect.Descriptor instead.
+func (*GetBoardRequest) Descriptor() ([]byte, []int) {
 	return file_scoring_v1_scoring_proto_rawDescGZIP(), []int{0}
 }
 
-type GetSeasonResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Season        *Season                `protobuf:"bytes,1,opt,name=season,proto3" json:"season,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetSeasonResponse) Reset() {
-	*x = GetSeasonResponse{}
-	mi := &file_scoring_v1_scoring_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetSeasonResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetSeasonResponse) ProtoMessage() {}
-
-func (x *GetSeasonResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scoring_v1_scoring_proto_msgTypes[1]
+func (x *GetBoardRequest) GetBookId() string {
 	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
+		return x.BookId
 	}
-	return mi.MessageOf(x)
+	return ""
 }
 
-// Deprecated: Use GetSeasonResponse.ProtoReflect.Descriptor instead.
-func (*GetSeasonResponse) Descriptor() ([]byte, []int) {
-	return file_scoring_v1_scoring_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *GetSeasonResponse) GetSeason() *Season {
-	if x != nil {
-		return x.Season
-	}
-	return nil
-}
-
-type Season struct {
-	state  protoimpl.MessageState `protogen:"open.v1"`
-	Number uint32                 `protobuf:"varint,1,opt,name=number,proto3" json:"number,omitempty"`
-	// The same as last_day_ends_at_unix_ms, for the clients from before it: the Final Battle followed the last day until
-	// it was a schedule entry of the gamemaster.
-	FinaleStartsAtUnixMs int64 `protobuf:"varint,2,opt,name=finale_starts_at_unix_ms,json=finaleStartsAtUnixMs,proto3" json:"finale_starts_at_unix_ms,omitempty"`
-	EndsAtUnixMs         int64 `protobuf:"varint,3,opt,name=ends_at_unix_ms,json=endsAtUnixMs,proto3" json:"ends_at_unix_ms,omitempty"`
-	// When the season's last day ends. Every day ends at this time of day.
-	LastDayEndsAtUnixMs int64 `protobuf:"varint,4,opt,name=last_day_ends_at_unix_ms,json=lastDayEndsAtUnixMs,proto3" json:"last_day_ends_at_unix_ms,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
-}
-
-func (x *Season) Reset() {
-	*x = Season{}
-	mi := &file_scoring_v1_scoring_proto_msgTypes[2]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *Season) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*Season) ProtoMessage() {}
-
-func (x *Season) ProtoReflect() protoreflect.Message {
-	mi := &file_scoring_v1_scoring_proto_msgTypes[2]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use Season.ProtoReflect.Descriptor instead.
-func (*Season) Descriptor() ([]byte, []int) {
-	return file_scoring_v1_scoring_proto_rawDescGZIP(), []int{2}
-}
-
-func (x *Season) GetNumber() uint32 {
-	if x != nil {
-		return x.Number
-	}
-	return 0
-}
-
-func (x *Season) GetFinaleStartsAtUnixMs() int64 {
-	if x != nil {
-		return x.FinaleStartsAtUnixMs
-	}
-	return 0
-}
-
-func (x *Season) GetEndsAtUnixMs() int64 {
-	if x != nil {
-		return x.EndsAtUnixMs
-	}
-	return 0
-}
-
-func (x *Season) GetLastDayEndsAtUnixMs() int64 {
-	if x != nil {
-		return x.LastDayEndsAtUnixMs
-	}
-	return 0
-}
-
-type GetStandingsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	CountryId     string                 `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetStandingsRequest) Reset() {
-	*x = GetStandingsRequest{}
-	mi := &file_scoring_v1_scoring_proto_msgTypes[3]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetStandingsRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetStandingsRequest) ProtoMessage() {}
-
-func (x *GetStandingsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scoring_v1_scoring_proto_msgTypes[3]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetStandingsRequest.ProtoReflect.Descriptor instead.
-func (*GetStandingsRequest) Descriptor() ([]byte, []int) {
-	return file_scoring_v1_scoring_proto_rawDescGZIP(), []int{3}
-}
-
-func (x *GetStandingsRequest) GetCountryId() string {
+func (x *GetBoardRequest) GetCountryId() string {
 	if x != nil {
 		return x.CountryId
 	}
 	return ""
 }
 
-type GetStandingsResponse struct {
+type GetBoardResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Standings     []*Standing            `protobuf:"bytes,1,rep,name=standings,proto3" json:"standings,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GetStandingsResponse) Reset() {
-	*x = GetStandingsResponse{}
-	mi := &file_scoring_v1_scoring_proto_msgTypes[4]
+func (x *GetBoardResponse) Reset() {
+	*x = GetBoardResponse{}
+	mi := &file_scoring_v1_scoring_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetStandingsResponse) String() string {
+func (x *GetBoardResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetStandingsResponse) ProtoMessage() {}
+func (*GetBoardResponse) ProtoMessage() {}
 
-func (x *GetStandingsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scoring_v1_scoring_proto_msgTypes[4]
+func (x *GetBoardResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_scoring_v1_scoring_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -249,12 +106,12 @@ func (x *GetStandingsResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetStandingsResponse.ProtoReflect.Descriptor instead.
-func (*GetStandingsResponse) Descriptor() ([]byte, []int) {
-	return file_scoring_v1_scoring_proto_rawDescGZIP(), []int{4}
+// Deprecated: Use GetBoardResponse.ProtoReflect.Descriptor instead.
+func (*GetBoardResponse) Descriptor() ([]byte, []int) {
+	return file_scoring_v1_scoring_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *GetStandingsResponse) GetStandings() []*Standing {
+func (x *GetBoardResponse) GetStandings() []*Standing {
 	if x != nil {
 		return x.Standings
 	}
@@ -276,7 +133,7 @@ type Standing struct {
 
 func (x *Standing) Reset() {
 	*x = Standing{}
-	mi := &file_scoring_v1_scoring_proto_msgTypes[5]
+	mi := &file_scoring_v1_scoring_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -288,7 +145,7 @@ func (x *Standing) String() string {
 func (*Standing) ProtoMessage() {}
 
 func (x *Standing) ProtoReflect() protoreflect.Message {
-	mi := &file_scoring_v1_scoring_proto_msgTypes[5]
+	mi := &file_scoring_v1_scoring_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -301,7 +158,7 @@ func (x *Standing) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Standing.ProtoReflect.Descriptor instead.
 func (*Standing) Descriptor() ([]byte, []int) {
-	return file_scoring_v1_scoring_proto_rawDescGZIP(), []int{5}
+	return file_scoring_v1_scoring_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *Standing) GetRank() uint32 {
@@ -353,28 +210,29 @@ func (x *Standing) GetAccountId() string {
 	return ""
 }
 
-type GetMySeasonRequest struct {
+type GetMyTallyRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	CountryId     string                 `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	BookId        string                 `protobuf:"bytes,1,opt,name=book_id,json=bookId,proto3" json:"book_id,omitempty"`
+	CountryId     string                 `protobuf:"bytes,2,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GetMySeasonRequest) Reset() {
-	*x = GetMySeasonRequest{}
-	mi := &file_scoring_v1_scoring_proto_msgTypes[6]
+func (x *GetMyTallyRequest) Reset() {
+	*x = GetMyTallyRequest{}
+	mi := &file_scoring_v1_scoring_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetMySeasonRequest) String() string {
+func (x *GetMyTallyRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetMySeasonRequest) ProtoMessage() {}
+func (*GetMyTallyRequest) ProtoMessage() {}
 
-func (x *GetMySeasonRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scoring_v1_scoring_proto_msgTypes[6]
+func (x *GetMyTallyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scoring_v1_scoring_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -385,19 +243,26 @@ func (x *GetMySeasonRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetMySeasonRequest.ProtoReflect.Descriptor instead.
-func (*GetMySeasonRequest) Descriptor() ([]byte, []int) {
-	return file_scoring_v1_scoring_proto_rawDescGZIP(), []int{6}
+// Deprecated: Use GetMyTallyRequest.ProtoReflect.Descriptor instead.
+func (*GetMyTallyRequest) Descriptor() ([]byte, []int) {
+	return file_scoring_v1_scoring_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *GetMySeasonRequest) GetCountryId() string {
+func (x *GetMyTallyRequest) GetBookId() string {
+	if x != nil {
+		return x.BookId
+	}
+	return ""
+}
+
+func (x *GetMyTallyRequest) GetCountryId() string {
 	if x != nil {
 		return x.CountryId
 	}
 	return ""
 }
 
-type GetMySeasonResponse struct {
+type GetMyTallyResponse struct {
 	state      protoimpl.MessageState `protogen:"open.v1"`
 	CountryId  string                 `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
 	Tiles      uint64                 `protobuf:"varint,2,opt,name=tiles,proto3" json:"tiles,omitempty"`
@@ -410,21 +275,21 @@ type GetMySeasonResponse struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GetMySeasonResponse) Reset() {
-	*x = GetMySeasonResponse{}
-	mi := &file_scoring_v1_scoring_proto_msgTypes[7]
+func (x *GetMyTallyResponse) Reset() {
+	*x = GetMyTallyResponse{}
+	mi := &file_scoring_v1_scoring_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetMySeasonResponse) String() string {
+func (x *GetMyTallyResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetMySeasonResponse) ProtoMessage() {}
+func (*GetMyTallyResponse) ProtoMessage() {}
 
-func (x *GetMySeasonResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scoring_v1_scoring_proto_msgTypes[7]
+func (x *GetMyTallyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_scoring_v1_scoring_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -435,75 +300,75 @@ func (x *GetMySeasonResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetMySeasonResponse.ProtoReflect.Descriptor instead.
-func (*GetMySeasonResponse) Descriptor() ([]byte, []int) {
-	return file_scoring_v1_scoring_proto_rawDescGZIP(), []int{7}
+// Deprecated: Use GetMyTallyResponse.ProtoReflect.Descriptor instead.
+func (*GetMyTallyResponse) Descriptor() ([]byte, []int) {
+	return file_scoring_v1_scoring_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *GetMySeasonResponse) GetCountryId() string {
+func (x *GetMyTallyResponse) GetCountryId() string {
 	if x != nil {
 		return x.CountryId
 	}
 	return ""
 }
 
-func (x *GetMySeasonResponse) GetTiles() uint64 {
+func (x *GetMyTallyResponse) GetTiles() uint64 {
 	if x != nil {
 		return x.Tiles
 	}
 	return 0
 }
 
-func (x *GetMySeasonResponse) GetGlobalRank() uint32 {
+func (x *GetMyTallyResponse) GetGlobalRank() uint32 {
 	if x != nil {
 		return x.GlobalRank
 	}
 	return 0
 }
 
-func (x *GetMySeasonResponse) GetCountryRank() uint32 {
+func (x *GetMyTallyResponse) GetCountryRank() uint32 {
 	if x != nil {
 		return x.CountryRank
 	}
 	return 0
 }
 
-func (x *GetMySeasonResponse) GetWornTitle() *v1.Title {
+func (x *GetMyTallyResponse) GetWornTitle() *v1.Title {
 	if x != nil {
 		return x.WornTitle
 	}
 	return nil
 }
 
-func (x *GetMySeasonResponse) GetCountryTiles() uint64 {
+func (x *GetMyTallyResponse) GetCountryTiles() uint64 {
 	if x != nil {
 		return x.CountryTiles
 	}
 	return 0
 }
 
-type ListenForEventsRequest struct {
+type GetRoundRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	CountryId     string                 `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	RoundId       string                 `protobuf:"bytes,1,opt,name=round_id,json=roundId,proto3" json:"round_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ListenForEventsRequest) Reset() {
-	*x = ListenForEventsRequest{}
-	mi := &file_scoring_v1_scoring_proto_msgTypes[8]
+func (x *GetRoundRequest) Reset() {
+	*x = GetRoundRequest{}
+	mi := &file_scoring_v1_scoring_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ListenForEventsRequest) String() string {
+func (x *GetRoundRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ListenForEventsRequest) ProtoMessage() {}
+func (*GetRoundRequest) ProtoMessage() {}
 
-func (x *ListenForEventsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scoring_v1_scoring_proto_msgTypes[8]
+func (x *GetRoundRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scoring_v1_scoring_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -514,184 +379,41 @@ func (x *ListenForEventsRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ListenForEventsRequest.ProtoReflect.Descriptor instead.
-func (*ListenForEventsRequest) Descriptor() ([]byte, []int) {
-	return file_scoring_v1_scoring_proto_rawDescGZIP(), []int{8}
+// Deprecated: Use GetRoundRequest.ProtoReflect.Descriptor instead.
+func (*GetRoundRequest) Descriptor() ([]byte, []int) {
+	return file_scoring_v1_scoring_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *ListenForEventsRequest) GetCountryId() string {
+func (x *GetRoundRequest) GetRoundId() string {
 	if x != nil {
-		return x.CountryId
+		return x.RoundId
 	}
 	return ""
 }
 
-type SeasonEvent struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Types that are valid to be assigned to Event:
-	//
-	//	*SeasonEvent_Board
-	//	*SeasonEvent_Heartbeat
-	//	*SeasonEvent_Race
-	Event         isSeasonEvent_Event `protobuf_oneof:"event"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *SeasonEvent) Reset() {
-	*x = SeasonEvent{}
-	mi := &file_scoring_v1_scoring_proto_msgTypes[9]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SeasonEvent) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SeasonEvent) ProtoMessage() {}
-
-func (x *SeasonEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_scoring_v1_scoring_proto_msgTypes[9]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SeasonEvent.ProtoReflect.Descriptor instead.
-func (*SeasonEvent) Descriptor() ([]byte, []int) {
-	return file_scoring_v1_scoring_proto_rawDescGZIP(), []int{9}
-}
-
-func (x *SeasonEvent) GetEvent() isSeasonEvent_Event {
-	if x != nil {
-		return x.Event
-	}
-	return nil
-}
-
-func (x *SeasonEvent) GetBoard() *Board {
-	if x != nil {
-		if x, ok := x.Event.(*SeasonEvent_Board); ok {
-			return x.Board
-		}
-	}
-	return nil
-}
-
-func (x *SeasonEvent) GetHeartbeat() *Heartbeat {
-	if x != nil {
-		if x, ok := x.Event.(*SeasonEvent_Heartbeat); ok {
-			return x.Heartbeat
-		}
-	}
-	return nil
-}
-
-func (x *SeasonEvent) GetRace() *Race {
-	if x != nil {
-		if x, ok := x.Event.(*SeasonEvent_Race); ok {
-			return x.Race
-		}
-	}
-	return nil
-}
-
-type isSeasonEvent_Event interface {
-	isSeasonEvent_Event()
-}
-
-type SeasonEvent_Board struct {
-	Board *Board `protobuf:"bytes,1,opt,name=board,proto3,oneof"`
-}
-
-type SeasonEvent_Heartbeat struct {
-	Heartbeat *Heartbeat `protobuf:"bytes,2,opt,name=heartbeat,proto3,oneof"`
-}
-
-type SeasonEvent_Race struct {
-	Race *Race `protobuf:"bytes,3,opt,name=race,proto3,oneof"`
-}
-
-func (*SeasonEvent_Board) isSeasonEvent_Event() {}
-
-func (*SeasonEvent_Heartbeat) isSeasonEvent_Event() {}
-
-func (*SeasonEvent_Race) isSeasonEvent_Event() {}
-
-type Board struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Standings     []*Standing            `protobuf:"bytes,1,rep,name=standings,proto3" json:"standings,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *Board) Reset() {
-	*x = Board{}
-	mi := &file_scoring_v1_scoring_proto_msgTypes[10]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *Board) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*Board) ProtoMessage() {}
-
-func (x *Board) ProtoReflect() protoreflect.Message {
-	mi := &file_scoring_v1_scoring_proto_msgTypes[10]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use Board.ProtoReflect.Descriptor instead.
-func (*Board) Descriptor() ([]byte, []int) {
-	return file_scoring_v1_scoring_proto_rawDescGZIP(), []int{10}
-}
-
-func (x *Board) GetStandings() []*Standing {
-	if x != nil {
-		return x.Standings
-	}
-	return nil
-}
-
-type Race struct {
+// NotFound for a round never opened.
+type GetRoundResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Round         *Round                 `protobuf:"bytes,1,opt,name=round,proto3" json:"round,omitempty"`
-	Scores        []*Score               `protobuf:"bytes,2,rep,name=scores,proto3" json:"scores,omitempty"`
-	Closed        *ClosedRound           `protobuf:"bytes,3,opt,name=closed,proto3" json:"closed,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *Race) Reset() {
-	*x = Race{}
-	mi := &file_scoring_v1_scoring_proto_msgTypes[11]
+func (x *GetRoundResponse) Reset() {
+	*x = GetRoundResponse{}
+	mi := &file_scoring_v1_scoring_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *Race) String() string {
+func (x *GetRoundResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*Race) ProtoMessage() {}
+func (*GetRoundResponse) ProtoMessage() {}
 
-func (x *Race) ProtoReflect() protoreflect.Message {
-	mi := &file_scoring_v1_scoring_proto_msgTypes[11]
+func (x *GetRoundResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_scoring_v1_scoring_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -702,203 +424,43 @@ func (x *Race) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use Race.ProtoReflect.Descriptor instead.
-func (*Race) Descriptor() ([]byte, []int) {
-	return file_scoring_v1_scoring_proto_rawDescGZIP(), []int{11}
+// Deprecated: Use GetRoundResponse.ProtoReflect.Descriptor instead.
+func (*GetRoundResponse) Descriptor() ([]byte, []int) {
+	return file_scoring_v1_scoring_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *Race) GetRound() *Round {
+func (x *GetRoundResponse) GetRound() *Round {
 	if x != nil {
 		return x.Round
 	}
 	return nil
 }
 
-func (x *Race) GetScores() []*Score {
-	if x != nil {
-		return x.Scores
-	}
-	return nil
-}
-
-func (x *Race) GetClosed() *ClosedRound {
-	if x != nil {
-		return x.Closed
-	}
-	return nil
-}
-
-type ClosedRound struct {
-	state  protoimpl.MessageState `protogen:"open.v1"`
-	Season uint32                 `protobuf:"varint,1,opt,name=season,proto3" json:"season,omitempty"`
-	// A day's place among the season's days; a round of its own's among the season's rounds of their own.
-	Number        uint32 `protobuf:"varint,2,opt,name=number,proto3" json:"number,omitempty"`
-	EndedAtUnixMs int64  `protobuf:"varint,3,opt,name=ended_at_unix_ms,json=endedAtUnixMs,proto3" json:"ended_at_unix_ms,omitempty"`
-	// The round that ended the season.
-	Finale    bool             `protobuf:"varint,4,opt,name=finale,proto3" json:"finale,omitempty"`
-	Standings []*RoundStanding `protobuf:"bytes,5,rep,name=standings,proto3" json:"standings,omitempty"`
-	Before    []*Score         `protobuf:"bytes,6,rep,name=before,proto3" json:"before,omitempty"`
-	After     []*Score         `protobuf:"bytes,7,rep,name=after,proto3" json:"after,omitempty"`
-	// A round of its own: the window of a schedule entry whose set asked for one, not a day.
-	Own bool `protobuf:"varint,8,opt,name=own,proto3" json:"own,omitempty"`
-	// How many times a day's points it scored: 1 for a day.
-	Times uint32 `protobuf:"varint,9,opt,name=times,proto3" json:"times,omitempty"`
-	// When a round of its own started; 0 for a day.
-	StartedAtUnixMs int64 `protobuf:"varint,10,opt,name=started_at_unix_ms,json=startedAtUnixMs,proto3" json:"started_at_unix_ms,omitempty"`
-	// The tiles each country's players took during a round of its own, most first; none for a day.
-	Takes []*RoundTakes `protobuf:"bytes,11,rep,name=takes,proto3" json:"takes,omitempty"`
-	// The top 10 signed-in players of a round of its own by the tiles they took during it, each under the flag it took
-	// the most for, named as the boards name them; none for a day.
-	Players []*Standing `protobuf:"bytes,12,rep,name=players,proto3" json:"players,omitempty"`
-	// The id of the schedule entry whose window a round of its own is; empty for a day.
-	EntryId       string `protobuf:"bytes,13,opt,name=entry_id,json=entryId,proto3" json:"entry_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ClosedRound) Reset() {
-	*x = ClosedRound{}
-	mi := &file_scoring_v1_scoring_proto_msgTypes[12]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ClosedRound) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ClosedRound) ProtoMessage() {}
-
-func (x *ClosedRound) ProtoReflect() protoreflect.Message {
-	mi := &file_scoring_v1_scoring_proto_msgTypes[12]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ClosedRound.ProtoReflect.Descriptor instead.
-func (*ClosedRound) Descriptor() ([]byte, []int) {
-	return file_scoring_v1_scoring_proto_rawDescGZIP(), []int{12}
-}
-
-func (x *ClosedRound) GetSeason() uint32 {
-	if x != nil {
-		return x.Season
-	}
-	return 0
-}
-
-func (x *ClosedRound) GetNumber() uint32 {
-	if x != nil {
-		return x.Number
-	}
-	return 0
-}
-
-func (x *ClosedRound) GetEndedAtUnixMs() int64 {
-	if x != nil {
-		return x.EndedAtUnixMs
-	}
-	return 0
-}
-
-func (x *ClosedRound) GetFinale() bool {
-	if x != nil {
-		return x.Finale
-	}
-	return false
-}
-
-func (x *ClosedRound) GetStandings() []*RoundStanding {
-	if x != nil {
-		return x.Standings
-	}
-	return nil
-}
-
-func (x *ClosedRound) GetBefore() []*Score {
-	if x != nil {
-		return x.Before
-	}
-	return nil
-}
-
-func (x *ClosedRound) GetAfter() []*Score {
-	if x != nil {
-		return x.After
-	}
-	return nil
-}
-
-func (x *ClosedRound) GetOwn() bool {
-	if x != nil {
-		return x.Own
-	}
-	return false
-}
-
-func (x *ClosedRound) GetTimes() uint32 {
-	if x != nil {
-		return x.Times
-	}
-	return 0
-}
-
-func (x *ClosedRound) GetStartedAtUnixMs() int64 {
-	if x != nil {
-		return x.StartedAtUnixMs
-	}
-	return 0
-}
-
-func (x *ClosedRound) GetTakes() []*RoundTakes {
-	if x != nil {
-		return x.Takes
-	}
-	return nil
-}
-
-func (x *ClosedRound) GetPlayers() []*Standing {
-	if x != nil {
-		return x.Players
-	}
-	return nil
-}
-
-func (x *ClosedRound) GetEntryId() string {
-	if x != nil {
-		return x.EntryId
-	}
-	return ""
-}
-
-// The round in progress that ends first: a day, or a round of its own.
 type Round struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// A day's place among the season's days; a round of its own's among the season's rounds of their own.
-	Number       uint32 `protobuf:"varint,1,opt,name=number,proto3" json:"number,omitempty"`
-	EndsAtUnixMs int64  `protobuf:"varint,2,opt,name=ends_at_unix_ms,json=endsAtUnixMs,proto3" json:"ends_at_unix_ms,omitempty"`
-	// The round that ends the season.
-	Finale    bool             `protobuf:"varint,3,opt,name=finale,proto3" json:"finale,omitempty"`
-	Standings []*RoundStanding `protobuf:"bytes,4,rep,name=standings,proto3" json:"standings,omitempty"`
-	// A round of its own: the window of a schedule entry whose set asked for one, not a day.
-	Own bool `protobuf:"varint,5,opt,name=own,proto3" json:"own,omitempty"`
-	// How many times a day's points it scores: 1 for a day.
-	Times uint32 `protobuf:"varint,6,opt,name=times,proto3" json:"times,omitempty"`
-	// The id of the schedule entry whose window a round of its own is; empty for a day.
-	EntryId       string `protobuf:"bytes,7,opt,name=entry_id,json=entryId,proto3" json:"entry_id,omitempty"`
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	RoundId         string                 `protobuf:"bytes,1,opt,name=round_id,json=roundId,proto3" json:"round_id,omitempty"`
+	BookId          string                 `protobuf:"bytes,2,opt,name=book_id,json=bookId,proto3" json:"book_id,omitempty"`
+	Times           uint32                 `protobuf:"varint,3,opt,name=times,proto3" json:"times,omitempty"`
+	StartedAtUnixMs int64                  `protobuf:"varint,4,opt,name=started_at_unix_ms,json=startedAtUnixMs,proto3" json:"started_at_unix_ms,omitempty"`
+	// 0 while it runs.
+	EndedAtUnixMs int64 `protobuf:"varint,5,opt,name=ended_at_unix_ms,json=endedAtUnixMs,proto3" json:"ended_at_unix_ms,omitempty"`
+	// While it runs, each country's share of the map now and the points it would score; once scored, its results.
+	Standings []*RoundStanding `protobuf:"bytes,6,rep,name=standings,proto3" json:"standings,omitempty"`
+	// The tiles each country's players took during the round, most first.
+	Takes []*RoundTakes `protobuf:"bytes,7,rep,name=takes,proto3" json:"takes,omitempty"`
+	// The top 10 signed-in players of the round by the tiles they took during it, each under the flag it took the most
+	// for.
+	Players []*Standing `protobuf:"bytes,8,rep,name=players,proto3" json:"players,omitempty"`
+	// The book's scores before and after the round; empty while it runs.
+	Before        []*Score `protobuf:"bytes,9,rep,name=before,proto3" json:"before,omitempty"`
+	After         []*Score `protobuf:"bytes,10,rep,name=after,proto3" json:"after,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Round) Reset() {
 	*x = Round{}
-	mi := &file_scoring_v1_scoring_proto_msgTypes[13]
+	mi := &file_scoring_v1_scoring_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -910,7 +472,7 @@ func (x *Round) String() string {
 func (*Round) ProtoMessage() {}
 
 func (x *Round) ProtoReflect() protoreflect.Message {
-	mi := &file_scoring_v1_scoring_proto_msgTypes[13]
+	mi := &file_scoring_v1_scoring_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -923,42 +485,21 @@ func (x *Round) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Round.ProtoReflect.Descriptor instead.
 func (*Round) Descriptor() ([]byte, []int) {
-	return file_scoring_v1_scoring_proto_rawDescGZIP(), []int{13}
+	return file_scoring_v1_scoring_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *Round) GetNumber() uint32 {
+func (x *Round) GetRoundId() string {
 	if x != nil {
-		return x.Number
+		return x.RoundId
 	}
-	return 0
+	return ""
 }
 
-func (x *Round) GetEndsAtUnixMs() int64 {
+func (x *Round) GetBookId() string {
 	if x != nil {
-		return x.EndsAtUnixMs
+		return x.BookId
 	}
-	return 0
-}
-
-func (x *Round) GetFinale() bool {
-	if x != nil {
-		return x.Finale
-	}
-	return false
-}
-
-func (x *Round) GetStandings() []*RoundStanding {
-	if x != nil {
-		return x.Standings
-	}
-	return nil
-}
-
-func (x *Round) GetOwn() bool {
-	if x != nil {
-		return x.Own
-	}
-	return false
+	return ""
 }
 
 func (x *Round) GetTimes() uint32 {
@@ -968,63 +509,53 @@ func (x *Round) GetTimes() uint32 {
 	return 0
 }
 
-func (x *Round) GetEntryId() string {
+func (x *Round) GetStartedAtUnixMs() int64 {
 	if x != nil {
-		return x.EntryId
-	}
-	return ""
-}
-
-type RoundTakes struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	CountryId     string                 `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
-	Tiles         uint64                 `protobuf:"varint,2,opt,name=tiles,proto3" json:"tiles,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RoundTakes) Reset() {
-	*x = RoundTakes{}
-	mi := &file_scoring_v1_scoring_proto_msgTypes[14]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RoundTakes) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RoundTakes) ProtoMessage() {}
-
-func (x *RoundTakes) ProtoReflect() protoreflect.Message {
-	mi := &file_scoring_v1_scoring_proto_msgTypes[14]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RoundTakes.ProtoReflect.Descriptor instead.
-func (*RoundTakes) Descriptor() ([]byte, []int) {
-	return file_scoring_v1_scoring_proto_rawDescGZIP(), []int{14}
-}
-
-func (x *RoundTakes) GetCountryId() string {
-	if x != nil {
-		return x.CountryId
-	}
-	return ""
-}
-
-func (x *RoundTakes) GetTiles() uint64 {
-	if x != nil {
-		return x.Tiles
+		return x.StartedAtUnixMs
 	}
 	return 0
+}
+
+func (x *Round) GetEndedAtUnixMs() int64 {
+	if x != nil {
+		return x.EndedAtUnixMs
+	}
+	return 0
+}
+
+func (x *Round) GetStandings() []*RoundStanding {
+	if x != nil {
+		return x.Standings
+	}
+	return nil
+}
+
+func (x *Round) GetTakes() []*RoundTakes {
+	if x != nil {
+		return x.Takes
+	}
+	return nil
+}
+
+func (x *Round) GetPlayers() []*Standing {
+	if x != nil {
+		return x.Players
+	}
+	return nil
+}
+
+func (x *Round) GetBefore() []*Score {
+	if x != nil {
+		return x.Before
+	}
+	return nil
+}
+
+func (x *Round) GetAfter() []*Score {
+	if x != nil {
+		return x.After
+	}
+	return nil
 }
 
 type RoundStanding struct {
@@ -1039,7 +570,7 @@ type RoundStanding struct {
 
 func (x *RoundStanding) Reset() {
 	*x = RoundStanding{}
-	mi := &file_scoring_v1_scoring_proto_msgTypes[15]
+	mi := &file_scoring_v1_scoring_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1051,7 +582,7 @@ func (x *RoundStanding) String() string {
 func (*RoundStanding) ProtoMessage() {}
 
 func (x *RoundStanding) ProtoReflect() protoreflect.Message {
-	mi := &file_scoring_v1_scoring_proto_msgTypes[15]
+	mi := &file_scoring_v1_scoring_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1064,7 +595,7 @@ func (x *RoundStanding) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoundStanding.ProtoReflect.Descriptor instead.
 func (*RoundStanding) Descriptor() ([]byte, []int) {
-	return file_scoring_v1_scoring_proto_rawDescGZIP(), []int{15}
+	return file_scoring_v1_scoring_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *RoundStanding) GetRank() uint32 {
@@ -1095,6 +626,199 @@ func (x *RoundStanding) GetPoints() uint32 {
 	return 0
 }
 
+type RoundTakes struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CountryId     string                 `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	Tiles         uint64                 `protobuf:"varint,2,opt,name=tiles,proto3" json:"tiles,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RoundTakes) Reset() {
+	*x = RoundTakes{}
+	mi := &file_scoring_v1_scoring_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoundTakes) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoundTakes) ProtoMessage() {}
+
+func (x *RoundTakes) ProtoReflect() protoreflect.Message {
+	mi := &file_scoring_v1_scoring_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoundTakes.ProtoReflect.Descriptor instead.
+func (*RoundTakes) Descriptor() ([]byte, []int) {
+	return file_scoring_v1_scoring_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *RoundTakes) GetCountryId() string {
+	if x != nil {
+		return x.CountryId
+	}
+	return ""
+}
+
+func (x *RoundTakes) GetTiles() uint64 {
+	if x != nil {
+		return x.Tiles
+	}
+	return 0
+}
+
+type GetScoresRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	BookId        string                 `protobuf:"bytes,1,opt,name=book_id,json=bookId,proto3" json:"book_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetScoresRequest) Reset() {
+	*x = GetScoresRequest{}
+	mi := &file_scoring_v1_scoring_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetScoresRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetScoresRequest) ProtoMessage() {}
+
+func (x *GetScoresRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scoring_v1_scoring_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetScoresRequest.ProtoReflect.Descriptor instead.
+func (*GetScoresRequest) Descriptor() ([]byte, []int) {
+	return file_scoring_v1_scoring_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *GetScoresRequest) GetBookId() string {
+	if x != nil {
+		return x.BookId
+	}
+	return ""
+}
+
+type GetScoresResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Scores        *Scores                `protobuf:"bytes,1,opt,name=scores,proto3" json:"scores,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetScoresResponse) Reset() {
+	*x = GetScoresResponse{}
+	mi := &file_scoring_v1_scoring_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetScoresResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetScoresResponse) ProtoMessage() {}
+
+func (x *GetScoresResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_scoring_v1_scoring_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetScoresResponse.ProtoReflect.Descriptor instead.
+func (*GetScoresResponse) Descriptor() ([]byte, []int) {
+	return file_scoring_v1_scoring_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *GetScoresResponse) GetScores() *Scores {
+	if x != nil {
+		return x.Scores
+	}
+	return nil
+}
+
+type Scores struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	BookId string                 `protobuf:"bytes,1,opt,name=book_id,json=bookId,proto3" json:"book_id,omitempty"`
+	// Best first, every country with points.
+	Scores        []*Score `protobuf:"bytes,2,rep,name=scores,proto3" json:"scores,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Scores) Reset() {
+	*x = Scores{}
+	mi := &file_scoring_v1_scoring_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Scores) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Scores) ProtoMessage() {}
+
+func (x *Scores) ProtoReflect() protoreflect.Message {
+	mi := &file_scoring_v1_scoring_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Scores.ProtoReflect.Descriptor instead.
+func (*Scores) Descriptor() ([]byte, []int) {
+	return file_scoring_v1_scoring_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *Scores) GetBookId() string {
+	if x != nil {
+		return x.BookId
+	}
+	return ""
+}
+
+func (x *Scores) GetScores() []*Score {
+	if x != nil {
+		return x.Scores
+	}
+	return nil
+}
+
 type Score struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Rank          uint32                 `protobuf:"varint,1,opt,name=rank,proto3" json:"rank,omitempty"`
@@ -1107,7 +831,7 @@ type Score struct {
 
 func (x *Score) Reset() {
 	*x = Score{}
-	mi := &file_scoring_v1_scoring_proto_msgTypes[16]
+	mi := &file_scoring_v1_scoring_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1119,7 +843,7 @@ func (x *Score) String() string {
 func (*Score) ProtoMessage() {}
 
 func (x *Score) ProtoReflect() protoreflect.Message {
-	mi := &file_scoring_v1_scoring_proto_msgTypes[16]
+	mi := &file_scoring_v1_scoring_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1132,7 +856,7 @@ func (x *Score) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Score.ProtoReflect.Descriptor instead.
 func (*Score) Descriptor() ([]byte, []int) {
-	return file_scoring_v1_scoring_proto_rawDescGZIP(), []int{16}
+	return file_scoring_v1_scoring_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *Score) GetRank() uint32 {
@@ -1163,6 +887,309 @@ func (x *Score) GetRoundsWon() uint32 {
 	return 0
 }
 
+// A closed book's place: the tiebreak too.
+type TablePlace struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	CountryId      string                 `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	Rank           uint32                 `protobuf:"varint,2,opt,name=rank,proto3" json:"rank,omitempty"`
+	Points         uint32                 `protobuf:"varint,3,opt,name=points,proto3" json:"points,omitempty"`
+	RoundsWon      uint32                 `protobuf:"varint,4,opt,name=rounds_won,json=roundsWon,proto3" json:"rounds_won,omitempty"`
+	TiebreakPoints uint32                 `protobuf:"varint,5,opt,name=tiebreak_points,json=tiebreakPoints,proto3" json:"tiebreak_points,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *TablePlace) Reset() {
+	*x = TablePlace{}
+	mi := &file_scoring_v1_scoring_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TablePlace) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TablePlace) ProtoMessage() {}
+
+func (x *TablePlace) ProtoReflect() protoreflect.Message {
+	mi := &file_scoring_v1_scoring_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TablePlace.ProtoReflect.Descriptor instead.
+func (*TablePlace) Descriptor() ([]byte, []int) {
+	return file_scoring_v1_scoring_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *TablePlace) GetCountryId() string {
+	if x != nil {
+		return x.CountryId
+	}
+	return ""
+}
+
+func (x *TablePlace) GetRank() uint32 {
+	if x != nil {
+		return x.Rank
+	}
+	return 0
+}
+
+func (x *TablePlace) GetPoints() uint32 {
+	if x != nil {
+		return x.Points
+	}
+	return 0
+}
+
+func (x *TablePlace) GetRoundsWon() uint32 {
+	if x != nil {
+		return x.RoundsWon
+	}
+	return 0
+}
+
+func (x *TablePlace) GetTiebreakPoints() uint32 {
+	if x != nil {
+		return x.TiebreakPoints
+	}
+	return 0
+}
+
+type ListenForEventsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	BookId        string                 `protobuf:"bytes,1,opt,name=book_id,json=bookId,proto3" json:"book_id,omitempty"`
+	CountryId     string                 `protobuf:"bytes,2,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	RoundIds      []string               `protobuf:"bytes,3,rep,name=round_ids,json=roundIds,proto3" json:"round_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListenForEventsRequest) Reset() {
+	*x = ListenForEventsRequest{}
+	mi := &file_scoring_v1_scoring_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListenForEventsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListenForEventsRequest) ProtoMessage() {}
+
+func (x *ListenForEventsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scoring_v1_scoring_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListenForEventsRequest.ProtoReflect.Descriptor instead.
+func (*ListenForEventsRequest) Descriptor() ([]byte, []int) {
+	return file_scoring_v1_scoring_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *ListenForEventsRequest) GetBookId() string {
+	if x != nil {
+		return x.BookId
+	}
+	return ""
+}
+
+func (x *ListenForEventsRequest) GetCountryId() string {
+	if x != nil {
+		return x.CountryId
+	}
+	return ""
+}
+
+func (x *ListenForEventsRequest) GetRoundIds() []string {
+	if x != nil {
+		return x.RoundIds
+	}
+	return nil
+}
+
+type ScoringEvent struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Event:
+	//
+	//	*ScoringEvent_Board
+	//	*ScoringEvent_Heartbeat
+	//	*ScoringEvent_Scores
+	//	*ScoringEvent_Round
+	Event         isScoringEvent_Event `protobuf_oneof:"event"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ScoringEvent) Reset() {
+	*x = ScoringEvent{}
+	mi := &file_scoring_v1_scoring_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ScoringEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ScoringEvent) ProtoMessage() {}
+
+func (x *ScoringEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_scoring_v1_scoring_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ScoringEvent.ProtoReflect.Descriptor instead.
+func (*ScoringEvent) Descriptor() ([]byte, []int) {
+	return file_scoring_v1_scoring_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *ScoringEvent) GetEvent() isScoringEvent_Event {
+	if x != nil {
+		return x.Event
+	}
+	return nil
+}
+
+func (x *ScoringEvent) GetBoard() *Board {
+	if x != nil {
+		if x, ok := x.Event.(*ScoringEvent_Board); ok {
+			return x.Board
+		}
+	}
+	return nil
+}
+
+func (x *ScoringEvent) GetHeartbeat() *Heartbeat {
+	if x != nil {
+		if x, ok := x.Event.(*ScoringEvent_Heartbeat); ok {
+			return x.Heartbeat
+		}
+	}
+	return nil
+}
+
+func (x *ScoringEvent) GetScores() *Scores {
+	if x != nil {
+		if x, ok := x.Event.(*ScoringEvent_Scores); ok {
+			return x.Scores
+		}
+	}
+	return nil
+}
+
+func (x *ScoringEvent) GetRound() *Round {
+	if x != nil {
+		if x, ok := x.Event.(*ScoringEvent_Round); ok {
+			return x.Round
+		}
+	}
+	return nil
+}
+
+type isScoringEvent_Event interface {
+	isScoringEvent_Event()
+}
+
+type ScoringEvent_Board struct {
+	Board *Board `protobuf:"bytes,1,opt,name=board,proto3,oneof"`
+}
+
+type ScoringEvent_Heartbeat struct {
+	Heartbeat *Heartbeat `protobuf:"bytes,2,opt,name=heartbeat,proto3,oneof"`
+}
+
+type ScoringEvent_Scores struct {
+	Scores *Scores `protobuf:"bytes,3,opt,name=scores,proto3,oneof"`
+}
+
+type ScoringEvent_Round struct {
+	Round *Round `protobuf:"bytes,4,opt,name=round,proto3,oneof"`
+}
+
+func (*ScoringEvent_Board) isScoringEvent_Event() {}
+
+func (*ScoringEvent_Heartbeat) isScoringEvent_Event() {}
+
+func (*ScoringEvent_Scores) isScoringEvent_Event() {}
+
+func (*ScoringEvent_Round) isScoringEvent_Event() {}
+
+type Board struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	BookId        string                 `protobuf:"bytes,1,opt,name=book_id,json=bookId,proto3" json:"book_id,omitempty"`
+	Standings     []*Standing            `protobuf:"bytes,2,rep,name=standings,proto3" json:"standings,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Board) Reset() {
+	*x = Board{}
+	mi := &file_scoring_v1_scoring_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Board) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Board) ProtoMessage() {}
+
+func (x *Board) ProtoReflect() protoreflect.Message {
+	mi := &file_scoring_v1_scoring_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Board.ProtoReflect.Descriptor instead.
+func (*Board) Descriptor() ([]byte, []int) {
+	return file_scoring_v1_scoring_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *Board) GetBookId() string {
+	if x != nil {
+		return x.BookId
+	}
+	return ""
+}
+
+func (x *Board) GetStandings() []*Standing {
+	if x != nil {
+		return x.Standings
+	}
+	return nil
+}
+
 type Heartbeat struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -1171,7 +1198,7 @@ type Heartbeat struct {
 
 func (x *Heartbeat) Reset() {
 	*x = Heartbeat{}
-	mi := &file_scoring_v1_scoring_proto_msgTypes[17]
+	mi := &file_scoring_v1_scoring_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1183,7 +1210,7 @@ func (x *Heartbeat) String() string {
 func (*Heartbeat) ProtoMessage() {}
 
 func (x *Heartbeat) ProtoReflect() protoreflect.Message {
-	mi := &file_scoring_v1_scoring_proto_msgTypes[17]
+	mi := &file_scoring_v1_scoring_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1196,87 +1223,7 @@ func (x *Heartbeat) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Heartbeat.ProtoReflect.Descriptor instead.
 func (*Heartbeat) Descriptor() ([]byte, []int) {
-	return file_scoring_v1_scoring_proto_rawDescGZIP(), []int{17}
-}
-
-type GetRaceRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetRaceRequest) Reset() {
-	*x = GetRaceRequest{}
-	mi := &file_scoring_v1_scoring_proto_msgTypes[18]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetRaceRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetRaceRequest) ProtoMessage() {}
-
-func (x *GetRaceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scoring_v1_scoring_proto_msgTypes[18]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetRaceRequest.ProtoReflect.Descriptor instead.
-func (*GetRaceRequest) Descriptor() ([]byte, []int) {
 	return file_scoring_v1_scoring_proto_rawDescGZIP(), []int{18}
-}
-
-type GetRaceResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Race          *Race                  `protobuf:"bytes,1,opt,name=race,proto3" json:"race,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetRaceResponse) Reset() {
-	*x = GetRaceResponse{}
-	mi := &file_scoring_v1_scoring_proto_msgTypes[19]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetRaceResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetRaceResponse) ProtoMessage() {}
-
-func (x *GetRaceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scoring_v1_scoring_proto_msgTypes[19]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetRaceResponse.ProtoReflect.Descriptor instead.
-func (*GetRaceResponse) Descriptor() ([]byte, []int) {
-	return file_scoring_v1_scoring_proto_rawDescGZIP(), []int{19}
-}
-
-func (x *GetRaceResponse) GetRace() *Race {
-	if x != nil {
-		return x.Race
-	}
-	return nil
 }
 
 var File_scoring_v1_scoring_proto protoreflect.FileDescriptor
@@ -1284,19 +1231,12 @@ var File_scoring_v1_scoring_proto protoreflect.FileDescriptor
 const file_scoring_v1_scoring_proto_rawDesc = "" +
 	"\n" +
 	"\x18scoring/v1/scoring.proto\x12\n" +
-	"scoring.v1\x1a\x15player/v1/color.proto\x1a\x15player/v1/title.proto\"\x12\n" +
-	"\x10GetSeasonRequest\"?\n" +
-	"\x11GetSeasonResponse\x12*\n" +
-	"\x06season\x18\x01 \x01(\v2\x12.scoring.v1.SeasonR\x06season\"\xb6\x01\n" +
-	"\x06Season\x12\x16\n" +
-	"\x06number\x18\x01 \x01(\rR\x06number\x126\n" +
-	"\x18finale_starts_at_unix_ms\x18\x02 \x01(\x03R\x14finaleStartsAtUnixMs\x12%\n" +
-	"\x0fends_at_unix_ms\x18\x03 \x01(\x03R\fendsAtUnixMs\x125\n" +
-	"\x18last_day_ends_at_unix_ms\x18\x04 \x01(\x03R\x13lastDayEndsAtUnixMs\"4\n" +
-	"\x13GetStandingsRequest\x12\x1d\n" +
+	"scoring.v1\x1a\x15player/v1/color.proto\x1a\x15player/v1/title.proto\"I\n" +
+	"\x0fGetBoardRequest\x12\x17\n" +
+	"\abook_id\x18\x01 \x01(\tR\x06bookId\x12\x1d\n" +
 	"\n" +
-	"country_id\x18\x01 \x01(\tR\tcountryId\"J\n" +
-	"\x14GetStandingsResponse\x122\n" +
+	"country_id\x18\x02 \x01(\tR\tcountryId\"F\n" +
+	"\x10GetBoardResponse\x122\n" +
 	"\tstandings\x18\x01 \x03(\v2\x14.scoring.v1.StandingR\tstandings\"\xe3\x01\n" +
 	"\bStanding\x12\x12\n" +
 	"\x04rank\x18\x01 \x01(\rR\x04rank\x12\x12\n" +
@@ -1308,11 +1248,12 @@ const file_scoring_v1_scoring_proto_rawDesc = "" +
 	"\n" +
 	"worn_title\x18\x06 \x01(\v2\x10.player.v1.TitleR\twornTitle\x12\x1d\n" +
 	"\n" +
-	"account_id\x18\a \x01(\tR\taccountId\"3\n" +
-	"\x12GetMySeasonRequest\x12\x1d\n" +
+	"account_id\x18\a \x01(\tR\taccountId\"K\n" +
+	"\x11GetMyTallyRequest\x12\x17\n" +
+	"\abook_id\x18\x01 \x01(\tR\x06bookId\x12\x1d\n" +
 	"\n" +
-	"country_id\x18\x01 \x01(\tR\tcountryId\"\xe4\x01\n" +
-	"\x13GetMySeasonResponse\x12\x1d\n" +
+	"country_id\x18\x02 \x01(\tR\tcountryId\"\xe3\x01\n" +
+	"\x12GetMyTallyResponse\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x01 \x01(\tR\tcountryId\x12\x14\n" +
 	"\x05tiles\x18\x02 \x01(\x04R\x05tiles\x12\x1f\n" +
@@ -1321,72 +1262,79 @@ const file_scoring_v1_scoring_proto_rawDesc = "" +
 	"\fcountry_rank\x18\x04 \x01(\rR\vcountryRank\x12/\n" +
 	"\n" +
 	"worn_title\x18\x05 \x01(\v2\x10.player.v1.TitleR\twornTitle\x12#\n" +
-	"\rcountry_tiles\x18\x06 \x01(\x04R\fcountryTiles\"7\n" +
-	"\x16ListenForEventsRequest\x12\x1d\n" +
-	"\n" +
-	"country_id\x18\x01 \x01(\tR\tcountryId\"\xa0\x01\n" +
-	"\vSeasonEvent\x12)\n" +
-	"\x05board\x18\x01 \x01(\v2\x11.scoring.v1.BoardH\x00R\x05board\x125\n" +
-	"\theartbeat\x18\x02 \x01(\v2\x15.scoring.v1.HeartbeatH\x00R\theartbeat\x12&\n" +
-	"\x04race\x18\x03 \x01(\v2\x10.scoring.v1.RaceH\x00R\x04raceB\a\n" +
-	"\x05event\";\n" +
-	"\x05Board\x122\n" +
-	"\tstandings\x18\x01 \x03(\v2\x14.scoring.v1.StandingR\tstandings\"\x8b\x01\n" +
-	"\x04Race\x12'\n" +
-	"\x05round\x18\x01 \x01(\v2\x11.scoring.v1.RoundR\x05round\x12)\n" +
-	"\x06scores\x18\x02 \x03(\v2\x11.scoring.v1.ScoreR\x06scores\x12/\n" +
-	"\x06closed\x18\x03 \x01(\v2\x17.scoring.v1.ClosedRoundR\x06closed\"\xd9\x03\n" +
-	"\vClosedRound\x12\x16\n" +
-	"\x06season\x18\x01 \x01(\rR\x06season\x12\x16\n" +
-	"\x06number\x18\x02 \x01(\rR\x06number\x12'\n" +
-	"\x10ended_at_unix_ms\x18\x03 \x01(\x03R\rendedAtUnixMs\x12\x16\n" +
-	"\x06finale\x18\x04 \x01(\bR\x06finale\x127\n" +
-	"\tstandings\x18\x05 \x03(\v2\x19.scoring.v1.RoundStandingR\tstandings\x12)\n" +
-	"\x06before\x18\x06 \x03(\v2\x11.scoring.v1.ScoreR\x06before\x12'\n" +
-	"\x05after\x18\a \x03(\v2\x11.scoring.v1.ScoreR\x05after\x12\x10\n" +
-	"\x03own\x18\b \x01(\bR\x03own\x12\x14\n" +
-	"\x05times\x18\t \x01(\rR\x05times\x12+\n" +
-	"\x12started_at_unix_ms\x18\n" +
-	" \x01(\x03R\x0fstartedAtUnixMs\x12,\n" +
-	"\x05takes\x18\v \x03(\v2\x16.scoring.v1.RoundTakesR\x05takes\x12.\n" +
-	"\aplayers\x18\f \x03(\v2\x14.scoring.v1.StandingR\aplayers\x12\x19\n" +
-	"\bentry_id\x18\r \x01(\tR\aentryId\"\xda\x01\n" +
-	"\x05Round\x12\x16\n" +
-	"\x06number\x18\x01 \x01(\rR\x06number\x12%\n" +
-	"\x0fends_at_unix_ms\x18\x02 \x01(\x03R\fendsAtUnixMs\x12\x16\n" +
-	"\x06finale\x18\x03 \x01(\bR\x06finale\x127\n" +
-	"\tstandings\x18\x04 \x03(\v2\x19.scoring.v1.RoundStandingR\tstandings\x12\x10\n" +
-	"\x03own\x18\x05 \x01(\bR\x03own\x12\x14\n" +
-	"\x05times\x18\x06 \x01(\rR\x05times\x12\x19\n" +
-	"\bentry_id\x18\a \x01(\tR\aentryId\"A\n" +
-	"\n" +
-	"RoundTakes\x12\x1d\n" +
-	"\n" +
-	"country_id\x18\x01 \x01(\tR\tcountryId\x12\x14\n" +
-	"\x05tiles\x18\x02 \x01(\x04R\x05tiles\"p\n" +
+	"\rcountry_tiles\x18\x06 \x01(\x04R\fcountryTiles\",\n" +
+	"\x0fGetRoundRequest\x12\x19\n" +
+	"\bround_id\x18\x01 \x01(\tR\aroundId\";\n" +
+	"\x10GetRoundResponse\x12'\n" +
+	"\x05round\x18\x01 \x01(\v2\x11.scoring.v1.RoundR\x05round\"\x92\x03\n" +
+	"\x05Round\x12\x19\n" +
+	"\bround_id\x18\x01 \x01(\tR\aroundId\x12\x17\n" +
+	"\abook_id\x18\x02 \x01(\tR\x06bookId\x12\x14\n" +
+	"\x05times\x18\x03 \x01(\rR\x05times\x12+\n" +
+	"\x12started_at_unix_ms\x18\x04 \x01(\x03R\x0fstartedAtUnixMs\x12'\n" +
+	"\x10ended_at_unix_ms\x18\x05 \x01(\x03R\rendedAtUnixMs\x127\n" +
+	"\tstandings\x18\x06 \x03(\v2\x19.scoring.v1.RoundStandingR\tstandings\x12,\n" +
+	"\x05takes\x18\a \x03(\v2\x16.scoring.v1.RoundTakesR\x05takes\x12.\n" +
+	"\aplayers\x18\b \x03(\v2\x14.scoring.v1.StandingR\aplayers\x12)\n" +
+	"\x06before\x18\t \x03(\v2\x11.scoring.v1.ScoreR\x06before\x12'\n" +
+	"\x05after\x18\n" +
+	" \x03(\v2\x11.scoring.v1.ScoreR\x05after\"p\n" +
 	"\rRoundStanding\x12\x12\n" +
 	"\x04rank\x18\x01 \x01(\rR\x04rank\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x02 \x01(\tR\tcountryId\x12\x14\n" +
 	"\x05share\x18\x03 \x01(\x01R\x05share\x12\x16\n" +
-	"\x06points\x18\x04 \x01(\rR\x06points\"q\n" +
+	"\x06points\x18\x04 \x01(\rR\x06points\"A\n" +
+	"\n" +
+	"RoundTakes\x12\x1d\n" +
+	"\n" +
+	"country_id\x18\x01 \x01(\tR\tcountryId\x12\x14\n" +
+	"\x05tiles\x18\x02 \x01(\x04R\x05tiles\"+\n" +
+	"\x10GetScoresRequest\x12\x17\n" +
+	"\abook_id\x18\x01 \x01(\tR\x06bookId\"?\n" +
+	"\x11GetScoresResponse\x12*\n" +
+	"\x06scores\x18\x01 \x01(\v2\x12.scoring.v1.ScoresR\x06scores\"L\n" +
+	"\x06Scores\x12\x17\n" +
+	"\abook_id\x18\x01 \x01(\tR\x06bookId\x12)\n" +
+	"\x06scores\x18\x02 \x03(\v2\x11.scoring.v1.ScoreR\x06scores\"q\n" +
 	"\x05Score\x12\x12\n" +
 	"\x04rank\x18\x01 \x01(\rR\x04rank\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x02 \x01(\tR\tcountryId\x12\x16\n" +
 	"\x06points\x18\x03 \x01(\rR\x06points\x12\x1d\n" +
 	"\n" +
-	"rounds_won\x18\x04 \x01(\rR\troundsWon\"\v\n" +
-	"\tHeartbeat\"\x10\n" +
-	"\x0eGetRaceRequest\"7\n" +
-	"\x0fGetRaceResponse\x12$\n" +
-	"\x04race\x18\x01 \x01(\v2\x10.scoring.v1.RaceR\x04race2\xa1\x03\n" +
-	"\rSeasonService\x12M\n" +
-	"\tGetSeason\x12\x1c.scoring.v1.GetSeasonRequest\x1a\x1d.scoring.v1.GetSeasonResponse\"\x03\x90\x02\x01\x12V\n" +
-	"\fGetStandings\x12\x1f.scoring.v1.GetStandingsRequest\x1a .scoring.v1.GetStandingsResponse\"\x03\x90\x02\x01\x12N\n" +
-	"\vGetMySeason\x12\x1e.scoring.v1.GetMySeasonRequest\x1a\x1f.scoring.v1.GetMySeasonResponse\x12P\n" +
-	"\x0fListenForEvents\x12\".scoring.v1.ListenForEventsRequest\x1a\x17.scoring.v1.SeasonEvent0\x01\x12G\n" +
-	"\aGetRace\x12\x1a.scoring.v1.GetRaceRequest\x1a\x1b.scoring.v1.GetRaceResponse\"\x03\x90\x02\x01B\xbb\x01\n" +
+	"rounds_won\x18\x04 \x01(\rR\troundsWon\"\x9f\x01\n" +
+	"\n" +
+	"TablePlace\x12\x1d\n" +
+	"\n" +
+	"country_id\x18\x01 \x01(\tR\tcountryId\x12\x12\n" +
+	"\x04rank\x18\x02 \x01(\rR\x04rank\x12\x16\n" +
+	"\x06points\x18\x03 \x01(\rR\x06points\x12\x1d\n" +
+	"\n" +
+	"rounds_won\x18\x04 \x01(\rR\troundsWon\x12'\n" +
+	"\x0ftiebreak_points\x18\x05 \x01(\rR\x0etiebreakPoints\"m\n" +
+	"\x16ListenForEventsRequest\x12\x17\n" +
+	"\abook_id\x18\x01 \x01(\tR\x06bookId\x12\x1d\n" +
+	"\n" +
+	"country_id\x18\x02 \x01(\tR\tcountryId\x12\x1b\n" +
+	"\tround_ids\x18\x03 \x03(\tR\broundIds\"\xd2\x01\n" +
+	"\fScoringEvent\x12)\n" +
+	"\x05board\x18\x01 \x01(\v2\x11.scoring.v1.BoardH\x00R\x05board\x125\n" +
+	"\theartbeat\x18\x02 \x01(\v2\x15.scoring.v1.HeartbeatH\x00R\theartbeat\x12,\n" +
+	"\x06scores\x18\x03 \x01(\v2\x12.scoring.v1.ScoresH\x00R\x06scores\x12)\n" +
+	"\x05round\x18\x04 \x01(\v2\x11.scoring.v1.RoundH\x00R\x05roundB\a\n" +
+	"\x05event\"T\n" +
+	"\x05Board\x12\x17\n" +
+	"\abook_id\x18\x01 \x01(\tR\x06bookId\x122\n" +
+	"\tstandings\x18\x02 \x03(\v2\x14.scoring.v1.StandingR\tstandings\"\v\n" +
+	"\tHeartbeat2\x97\x03\n" +
+	"\x0eScoringService\x12J\n" +
+	"\bGetBoard\x12\x1b.scoring.v1.GetBoardRequest\x1a\x1c.scoring.v1.GetBoardResponse\"\x03\x90\x02\x01\x12K\n" +
+	"\n" +
+	"GetMyTally\x12\x1d.scoring.v1.GetMyTallyRequest\x1a\x1e.scoring.v1.GetMyTallyResponse\x12J\n" +
+	"\bGetRound\x12\x1b.scoring.v1.GetRoundRequest\x1a\x1c.scoring.v1.GetRoundResponse\"\x03\x90\x02\x01\x12M\n" +
+	"\tGetScores\x12\x1c.scoring.v1.GetScoresRequest\x1a\x1d.scoring.v1.GetScoresResponse\"\x03\x90\x02\x01\x12Q\n" +
+	"\x0fListenForEvents\x12\".scoring.v1.ListenForEventsRequest\x1a\x18.scoring.v1.ScoringEvent0\x01B\xbb\x01\n" +
 	"\x0ecom.scoring.v1B\fScoringProtoP\x01ZRgithub.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1;scoringv1\xa2\x02\x03SXX\xaa\x02\n" +
 	"Scoring.V1\xca\x02\n" +
 	"Scoring\\V1\xe2\x02\x16Scoring\\V1\\GPBMetadata\xea\x02\vScoring::V1b\x06proto3"
@@ -1403,66 +1351,63 @@ func file_scoring_v1_scoring_proto_rawDescGZIP() []byte {
 	return file_scoring_v1_scoring_proto_rawDescData
 }
 
-var file_scoring_v1_scoring_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
+var file_scoring_v1_scoring_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
 var file_scoring_v1_scoring_proto_goTypes = []any{
-	(*GetSeasonRequest)(nil),       // 0: scoring.v1.GetSeasonRequest
-	(*GetSeasonResponse)(nil),      // 1: scoring.v1.GetSeasonResponse
-	(*Season)(nil),                 // 2: scoring.v1.Season
-	(*GetStandingsRequest)(nil),    // 3: scoring.v1.GetStandingsRequest
-	(*GetStandingsResponse)(nil),   // 4: scoring.v1.GetStandingsResponse
-	(*Standing)(nil),               // 5: scoring.v1.Standing
-	(*GetMySeasonRequest)(nil),     // 6: scoring.v1.GetMySeasonRequest
-	(*GetMySeasonResponse)(nil),    // 7: scoring.v1.GetMySeasonResponse
-	(*ListenForEventsRequest)(nil), // 8: scoring.v1.ListenForEventsRequest
-	(*SeasonEvent)(nil),            // 9: scoring.v1.SeasonEvent
-	(*Board)(nil),                  // 10: scoring.v1.Board
-	(*Race)(nil),                   // 11: scoring.v1.Race
-	(*ClosedRound)(nil),            // 12: scoring.v1.ClosedRound
-	(*Round)(nil),                  // 13: scoring.v1.Round
-	(*RoundTakes)(nil),             // 14: scoring.v1.RoundTakes
-	(*RoundStanding)(nil),          // 15: scoring.v1.RoundStanding
-	(*Score)(nil),                  // 16: scoring.v1.Score
-	(*Heartbeat)(nil),              // 17: scoring.v1.Heartbeat
-	(*GetRaceRequest)(nil),         // 18: scoring.v1.GetRaceRequest
-	(*GetRaceResponse)(nil),        // 19: scoring.v1.GetRaceResponse
-	(v1.NameColor)(0),              // 20: player.v1.NameColor
-	(*v1.Title)(nil),               // 21: player.v1.Title
+	(*GetBoardRequest)(nil),        // 0: scoring.v1.GetBoardRequest
+	(*GetBoardResponse)(nil),       // 1: scoring.v1.GetBoardResponse
+	(*Standing)(nil),               // 2: scoring.v1.Standing
+	(*GetMyTallyRequest)(nil),      // 3: scoring.v1.GetMyTallyRequest
+	(*GetMyTallyResponse)(nil),     // 4: scoring.v1.GetMyTallyResponse
+	(*GetRoundRequest)(nil),        // 5: scoring.v1.GetRoundRequest
+	(*GetRoundResponse)(nil),       // 6: scoring.v1.GetRoundResponse
+	(*Round)(nil),                  // 7: scoring.v1.Round
+	(*RoundStanding)(nil),          // 8: scoring.v1.RoundStanding
+	(*RoundTakes)(nil),             // 9: scoring.v1.RoundTakes
+	(*GetScoresRequest)(nil),       // 10: scoring.v1.GetScoresRequest
+	(*GetScoresResponse)(nil),      // 11: scoring.v1.GetScoresResponse
+	(*Scores)(nil),                 // 12: scoring.v1.Scores
+	(*Score)(nil),                  // 13: scoring.v1.Score
+	(*TablePlace)(nil),             // 14: scoring.v1.TablePlace
+	(*ListenForEventsRequest)(nil), // 15: scoring.v1.ListenForEventsRequest
+	(*ScoringEvent)(nil),           // 16: scoring.v1.ScoringEvent
+	(*Board)(nil),                  // 17: scoring.v1.Board
+	(*Heartbeat)(nil),              // 18: scoring.v1.Heartbeat
+	(v1.NameColor)(0),              // 19: player.v1.NameColor
+	(*v1.Title)(nil),               // 20: player.v1.Title
 }
 var file_scoring_v1_scoring_proto_depIdxs = []int32{
-	2,  // 0: scoring.v1.GetSeasonResponse.season:type_name -> scoring.v1.Season
-	5,  // 1: scoring.v1.GetStandingsResponse.standings:type_name -> scoring.v1.Standing
-	20, // 2: scoring.v1.Standing.color:type_name -> player.v1.NameColor
-	21, // 3: scoring.v1.Standing.worn_title:type_name -> player.v1.Title
-	21, // 4: scoring.v1.GetMySeasonResponse.worn_title:type_name -> player.v1.Title
-	10, // 5: scoring.v1.SeasonEvent.board:type_name -> scoring.v1.Board
-	17, // 6: scoring.v1.SeasonEvent.heartbeat:type_name -> scoring.v1.Heartbeat
-	11, // 7: scoring.v1.SeasonEvent.race:type_name -> scoring.v1.Race
-	5,  // 8: scoring.v1.Board.standings:type_name -> scoring.v1.Standing
-	13, // 9: scoring.v1.Race.round:type_name -> scoring.v1.Round
-	16, // 10: scoring.v1.Race.scores:type_name -> scoring.v1.Score
-	12, // 11: scoring.v1.Race.closed:type_name -> scoring.v1.ClosedRound
-	15, // 12: scoring.v1.ClosedRound.standings:type_name -> scoring.v1.RoundStanding
-	16, // 13: scoring.v1.ClosedRound.before:type_name -> scoring.v1.Score
-	16, // 14: scoring.v1.ClosedRound.after:type_name -> scoring.v1.Score
-	14, // 15: scoring.v1.ClosedRound.takes:type_name -> scoring.v1.RoundTakes
-	5,  // 16: scoring.v1.ClosedRound.players:type_name -> scoring.v1.Standing
-	15, // 17: scoring.v1.Round.standings:type_name -> scoring.v1.RoundStanding
-	11, // 18: scoring.v1.GetRaceResponse.race:type_name -> scoring.v1.Race
-	0,  // 19: scoring.v1.SeasonService.GetSeason:input_type -> scoring.v1.GetSeasonRequest
-	3,  // 20: scoring.v1.SeasonService.GetStandings:input_type -> scoring.v1.GetStandingsRequest
-	6,  // 21: scoring.v1.SeasonService.GetMySeason:input_type -> scoring.v1.GetMySeasonRequest
-	8,  // 22: scoring.v1.SeasonService.ListenForEvents:input_type -> scoring.v1.ListenForEventsRequest
-	18, // 23: scoring.v1.SeasonService.GetRace:input_type -> scoring.v1.GetRaceRequest
-	1,  // 24: scoring.v1.SeasonService.GetSeason:output_type -> scoring.v1.GetSeasonResponse
-	4,  // 25: scoring.v1.SeasonService.GetStandings:output_type -> scoring.v1.GetStandingsResponse
-	7,  // 26: scoring.v1.SeasonService.GetMySeason:output_type -> scoring.v1.GetMySeasonResponse
-	9,  // 27: scoring.v1.SeasonService.ListenForEvents:output_type -> scoring.v1.SeasonEvent
-	19, // 28: scoring.v1.SeasonService.GetRace:output_type -> scoring.v1.GetRaceResponse
-	24, // [24:29] is the sub-list for method output_type
-	19, // [19:24] is the sub-list for method input_type
-	19, // [19:19] is the sub-list for extension type_name
-	19, // [19:19] is the sub-list for extension extendee
-	0,  // [0:19] is the sub-list for field type_name
+	2,  // 0: scoring.v1.GetBoardResponse.standings:type_name -> scoring.v1.Standing
+	19, // 1: scoring.v1.Standing.color:type_name -> player.v1.NameColor
+	20, // 2: scoring.v1.Standing.worn_title:type_name -> player.v1.Title
+	20, // 3: scoring.v1.GetMyTallyResponse.worn_title:type_name -> player.v1.Title
+	7,  // 4: scoring.v1.GetRoundResponse.round:type_name -> scoring.v1.Round
+	8,  // 5: scoring.v1.Round.standings:type_name -> scoring.v1.RoundStanding
+	9,  // 6: scoring.v1.Round.takes:type_name -> scoring.v1.RoundTakes
+	2,  // 7: scoring.v1.Round.players:type_name -> scoring.v1.Standing
+	13, // 8: scoring.v1.Round.before:type_name -> scoring.v1.Score
+	13, // 9: scoring.v1.Round.after:type_name -> scoring.v1.Score
+	12, // 10: scoring.v1.GetScoresResponse.scores:type_name -> scoring.v1.Scores
+	13, // 11: scoring.v1.Scores.scores:type_name -> scoring.v1.Score
+	17, // 12: scoring.v1.ScoringEvent.board:type_name -> scoring.v1.Board
+	18, // 13: scoring.v1.ScoringEvent.heartbeat:type_name -> scoring.v1.Heartbeat
+	12, // 14: scoring.v1.ScoringEvent.scores:type_name -> scoring.v1.Scores
+	7,  // 15: scoring.v1.ScoringEvent.round:type_name -> scoring.v1.Round
+	2,  // 16: scoring.v1.Board.standings:type_name -> scoring.v1.Standing
+	0,  // 17: scoring.v1.ScoringService.GetBoard:input_type -> scoring.v1.GetBoardRequest
+	3,  // 18: scoring.v1.ScoringService.GetMyTally:input_type -> scoring.v1.GetMyTallyRequest
+	5,  // 19: scoring.v1.ScoringService.GetRound:input_type -> scoring.v1.GetRoundRequest
+	10, // 20: scoring.v1.ScoringService.GetScores:input_type -> scoring.v1.GetScoresRequest
+	15, // 21: scoring.v1.ScoringService.ListenForEvents:input_type -> scoring.v1.ListenForEventsRequest
+	1,  // 22: scoring.v1.ScoringService.GetBoard:output_type -> scoring.v1.GetBoardResponse
+	4,  // 23: scoring.v1.ScoringService.GetMyTally:output_type -> scoring.v1.GetMyTallyResponse
+	6,  // 24: scoring.v1.ScoringService.GetRound:output_type -> scoring.v1.GetRoundResponse
+	11, // 25: scoring.v1.ScoringService.GetScores:output_type -> scoring.v1.GetScoresResponse
+	16, // 26: scoring.v1.ScoringService.ListenForEvents:output_type -> scoring.v1.ScoringEvent
+	22, // [22:27] is the sub-list for method output_type
+	17, // [17:22] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
 }
 
 func init() { file_scoring_v1_scoring_proto_init() }
@@ -1470,10 +1415,11 @@ func file_scoring_v1_scoring_proto_init() {
 	if File_scoring_v1_scoring_proto != nil {
 		return
 	}
-	file_scoring_v1_scoring_proto_msgTypes[9].OneofWrappers = []any{
-		(*SeasonEvent_Board)(nil),
-		(*SeasonEvent_Heartbeat)(nil),
-		(*SeasonEvent_Race)(nil),
+	file_scoring_v1_scoring_proto_msgTypes[16].OneofWrappers = []any{
+		(*ScoringEvent_Board)(nil),
+		(*ScoringEvent_Heartbeat)(nil),
+		(*ScoringEvent_Scores)(nil),
+		(*ScoringEvent_Round)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -1481,7 +1427,7 @@ func file_scoring_v1_scoring_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_scoring_v1_scoring_proto_rawDesc), len(file_scoring_v1_scoring_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   20,
+			NumMessages:   19,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

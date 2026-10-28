@@ -47,8 +47,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 - [Season standings](docs/season-standings.md) — the players' table of the season.
 - [The season](docs/season.md) — the season chip and its clocks, and the home page's countdowns.
 - [Battles](docs/battle.md) — the schedule's stream, the countdown to the next battle, and the battle look: the mood,
-  the chip and its clock, the start moment, the debrief's three screens when its round closes, matched by the entry's
-  id, and the announcements queue that shows one full-screen moment at a time.
+  the chip and its clock, the start moment, the debrief's three screens when the gamemaster debriefs its round, matched
+  by the round's id, and the announcements queue that shows one full-screen moment at a time.
 - [The cutoff, revealed](docs/cutoff.md) — the full-screen reveal when a day closes, and the season's results after
   the Final Battle's debrief.
 - [The flag played for](docs/flag.md) — `PledgeAllegiance`, and one flag an hour.

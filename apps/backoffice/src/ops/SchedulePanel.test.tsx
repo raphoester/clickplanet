@@ -5,7 +5,6 @@ import {afterEach, describe, expect, it} from "vitest"
 import {FakeAdmin} from "../fakeAdmin.ts"
 import {GetRulesResponse as AntibotRules, RuleSet as AntibotRuleSet} from "../gen/grpc/antibot/v1/admin_pb.ts"
 import {GetRulesResponse, RuleSet} from "../gen/grpc/planet/v1/admin_pb.ts"
-import {GetRulesResponse as SeasonRules, RuleSet as SeasonRuleSet} from "../gen/grpc/scoring/v1/admin_pb.ts"
 import {AddEntryRequest, EditEntryRequest} from "../gen/grpc/gamemaster/v1/admin_pb.ts"
 import {EntryKind} from "../gen/grpc/gamemaster/v1/gamemaster_pb.ts"
 import {SchedulePanel} from "./SchedulePanel.tsx"
@@ -18,7 +17,7 @@ const rowOf = (set: string) =>
 const type = (label: string, value: string) =>
     fireEvent.change(screen.getByLabelText(label), {target: {value}})
 
-// Planet, the antibot and scoring keep calm and frozen too, and play calm.
+// Planet and the antibot keep calm and frozen too, and play calm.
 function keeping(): FakeAdmin {
     const admin = new FakeAdmin()
     const planetDefault = admin.rules.sets[0]
@@ -31,16 +30,11 @@ function keeping(): FakeAdmin {
         sets: ["default", "calm", "frozen", "rush"].map(name => new AntibotRuleSet({name, rules: antibotDefault.rules?.clone()})),
         playing: "calm",
     })
-    const seasonDefault = admin.seasonRules.sets[0]
-    admin.seasonRules = new SeasonRules({
-        sets: ["default", "calm", "frozen", "rush"].map(name => new SeasonRuleSet({name, rules: seasonDefault.rules?.clone()})),
-        playing: "calm",
-    })
     return admin
 }
 
 function show(admin: FakeAdmin) {
-    render(<SchedulePanel gamemaster={admin.gamemaster} planet={admin} antibot={admin.antibot} scoring={admin.scoring}/>)
+    render(<SchedulePanel gamemaster={admin.gamemaster} planet={admin} antibot={admin.antibot}/>)
 }
 
 describe("the rule schedule page", () => {
@@ -56,9 +50,10 @@ describe("the rule schedule page", () => {
         expect(within(rowOf("frozen")).getByText("Frozen tiles.")).toBeTruthy()
         expect(within(rowOf("calm")).getByText("plain")).toBeTruthy()
         expect(within(rowOf("frozen")).getByText("2")).toBeTruthy()
+        expect(within(rowOf("frozen")).getByText("4×")).toBeTruthy()
+        expect(within(rowOf("calm")).queryByText(/×/)).toBeNull()
         expect(screen.getByText(/a plain entry, since/)).toBeTruthy()
         expect(screen.getByText(/the antibot plays/)).toBeTruthy()
-        expect(screen.getByText(/scoring plays/)).toBeTruthy()
         expect(screen.queryByRole("alert")).toBeNull()
     })
 
@@ -76,8 +71,8 @@ describe("the rule schedule page", () => {
         show(new FakeAdmin())
 
         await screen.findByRole("table")
-        expect(within(rowOf("frozen")).getByText("No set frozen in planet, the antibot or scoring.")).toBeTruthy()
-        expect(within(rowOf("calm")).getByText("No set calm in planet, the antibot or scoring.")).toBeTruthy()
+        expect(within(rowOf("frozen")).getByText("No set frozen in planet or the antibot.")).toBeTruthy()
+        expect(within(rowOf("calm")).getByText("No set calm in planet or the antibot.")).toBeTruthy()
         expect(within(rowOf("rush")).queryByRole("alert")).toBeNull()
     })
 
@@ -86,7 +81,6 @@ describe("the rule schedule page", () => {
 
         expect(await screen.findByText(/Planet does not play/)).toBeTruthy()
         expect(screen.getByText(/The antibot does not play/)).toBeTruthy()
-        expect(screen.getByText(/Scoring does not play/)).toBeTruthy()
     })
 
     it("adds an entry once confirmed, and reads the schedule again", async () => {
@@ -96,6 +90,7 @@ describe("the rule schedule page", () => {
         fireEvent.click(await screen.findByRole("button", {name: "Add an entry"}))
         type("Set", "rush")
         type("Kind", String(EntryKind.PLAIN))
+        expect(screen.queryByLabelText("Times")).toBeNull()
         type("Description", "A quieter antibot.")
         type("Starts", "2099-10-31T20:00")
         type("Ends", "2099-10-31T23:30")
@@ -112,7 +107,26 @@ describe("the rule schedule page", () => {
         expect(asked.startsAt?.toDate()).toEqual(new Date("2099-10-31T20:00"))
         expect(asked.endsAt?.toDate()).toEqual(new Date("2099-10-31T23:30"))
         expect(asked.priority).toBe(3)
+        expect(asked.times).toBe(0)
         expect(admin.askedFor("getSchedule")).toHaveLength(2)
+    })
+
+    it("adds a battle worth its times, 3 to start with", async () => {
+        const admin = keeping()
+        show(admin)
+
+        fireEvent.click(await screen.findByRole("button", {name: "Add an entry"}))
+        expect((screen.getByLabelText("Times") as HTMLInputElement).value).toBe("3")
+        type("Times", "5")
+        type("Starts", "2099-10-31T20:00")
+        type("Ends", "2099-10-31T23:30")
+        fireEvent.click(screen.getByRole("button", {name: "Add"}))
+        fireEvent.click(screen.getByRole("button", {name: "Yes, add"}))
+
+        await waitFor(() => expect(admin.askedFor("addEntry")).toHaveLength(1))
+        const [asked] = admin.askedFor("addEntry") as AddEntryRequest[]
+        expect(asked.kind).toBe(EntryKind.BATTLE)
+        expect(asked.times).toBe(5)
     })
 
     it("offers only the sets both modules keep", async () => {
@@ -144,6 +158,7 @@ describe("the rule schedule page", () => {
         expect((screen.getByLabelText("Priority") as HTMLInputElement).value).toBe("2")
         expect((screen.getByLabelText("Kind") as HTMLSelectElement).value).toBe(String(EntryKind.BATTLE))
         expect((screen.getByLabelText("Description") as HTMLTextAreaElement).value).toBe("Frozen tiles.")
+        expect((screen.getByLabelText("Times") as HTMLInputElement).value).toBe("4")
         type("Set", "calm")
         fireEvent.click(screen.getByRole("button", {name: "Save"}))
         fireEvent.click(screen.getByRole("button", {name: "Yes, save"}))
@@ -155,6 +170,7 @@ describe("the rule schedule page", () => {
         expect(asked.kind).toBe(EntryKind.BATTLE)
         expect(asked.description).toBe("Frozen tiles.")
         expect(asked.priority).toBe(2)
+        expect(asked.times).toBe(4)
     })
 
     it("deletes an entry to come once confirmed", async () => {

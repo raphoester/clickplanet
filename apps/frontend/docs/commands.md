@@ -54,25 +54,25 @@ spent only while switched on,
 both at once refused, a refill refused on a full bank), `giveQuiz()` puts a quiz
 banner up at once, `giveTitle("warlord")` plays the unlock of any title (the fake
 wires no account, so the overlay offers Close only), `closeDay()` closes the
-fake's day: its countries score with a little luck, the race carries the round
-closed with the season's table before and after it, and the chat announces the
+fake's day: scoring scores today's round, its countries with a little luck, the
+fake gamemaster debriefs it and the next day runs, and the chat announces the
 podium, so the cutoff plays (see [The cutoff, revealed](cutoff.md)). Each call
 closes the next day, so the reveal plays again.
 `startBattle(minutes = 120, description, times = 3)` plays a battle at once, under a
-new entry id: the mood, the halo, the chip, the start moment, and a round of its own
-of that entry at `times` in the race, so the board's column is the battle's (see [Battles](battle.md)).
+new entry id: the mood, the halo, the chip, the start moment, and the battle's round
+at `times` in scoring, so the board's column is the battle's (see [Battles](battle.md)).
 `scheduleBattle(inMinutes = 90, minutes = 120, description)` adds a battle to come
 and answers its id, `moveBattle(id, inMinutes)` moves it and `deleteBattle(id)`
 deletes it, as an operator's edit does: the chip's and the home page's "Next battle
 in" follow at once. `moveSeasonEnd(inMinutes)` moves Season 0's end, as an operator's
 edit of the season does: every season countdown follows (the home page has these four alone).
-`endBattle()` ends the turn and leaves the round in progress, as the race does for
-up to 10 s, so the line says the results are coming. `closeBattle()` closes the
-round with its numbers (its points at its times, the tiles each flag took, its top
-players, drawn with a little luck) and the debrief plays; with no battle started it
-closes one of 2 hours at ×3 that ends now, under an id the page never saw, so it plays
-no debrief once the page saw a battle. `closeFinale()` closes it as the Final
-Battle: the debrief, then the season's results, which end on the champion; the chat
+`endBattle()` ends the turn and leaves the battle's round undebriefed, so the line says
+the results are coming. `closeBattle()` scores the round with its numbers (its points at
+its times, the tiles each flag took, its top players, drawn with a little luck) and the
+fake gamemaster debriefs it, so the debrief plays; with no battle started it scores one
+of 2 hours at ×3 that ends now, under an id the page never saw, so it plays no debrief
+once the page saw a battle. `closeFinale()` debriefs it as the Final Battle, then the
+season: the debrief, then the season's results, which end on the champion; the chat
 says who won, and the season chip becomes the champion's. `fakeBackend.botBomb(tile, "fr")`,
 `fakeBackend.botSpread(tile, "fr")` and `fakeBackend.botShield(tile, "fr")` play
 somebody else's bomb, spread click or shield. `fakeBackend.takeLandmass(landmass, "es", leave)`

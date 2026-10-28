@@ -44,8 +44,8 @@ const (
 // GamemasterServiceClient is a client for the gamemaster.v1.GamemasterService service.
 type GamemasterServiceClient interface {
 	GetTurn(context.Context, *connect.Request[v1.GetTurnRequest]) (*connect.Response[v1.GetTurnResponse], error)
-	// The turn now and the timeline, as the first events, then each change of either within a second; a heartbeat every
-	// 30 s meanwhile.
+	// The turn now, the timeline and the last debrief, as the first events, then each change of any within a second; a
+	// heartbeat every 30 s meanwhile.
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest]) (*connect.ServerStreamForClient[v1.GamemasterEvent], error)
 }
 
@@ -95,8 +95,8 @@ func (c *gamemasterServiceClient) ListenForEvents(ctx context.Context, req *conn
 // GamemasterServiceHandler is an implementation of the gamemaster.v1.GamemasterService service.
 type GamemasterServiceHandler interface {
 	GetTurn(context.Context, *connect.Request[v1.GetTurnRequest]) (*connect.Response[v1.GetTurnResponse], error)
-	// The turn now and the timeline, as the first events, then each change of either within a second; a heartbeat every
-	// 30 s meanwhile.
+	// The turn now, the timeline and the last debrief, as the first events, then each change of any within a second; a
+	// heartbeat every 30 s meanwhile.
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest], *connect.ServerStream[v1.GamemasterEvent]) error
 }
 

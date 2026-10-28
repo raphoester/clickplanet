@@ -9,11 +9,13 @@ export type Battle = {
     since: number
     endsAt: number
     description: string
+    // Its round in scoring; empty for a battle that scores nothing.
+    roundId: string
 }
 
 export function battleOf(turn: Turn | undefined): Battle | undefined {
     if (!turn || turn.kind !== "battle" || turn.endsAt === undefined) return undefined
-    return {entryId: turn.entryId, since: turn.since ?? 0, endsAt: turn.endsAt, description: turn.description}
+    return {entryId: turn.entryId, since: turn.since ?? 0, endsAt: turn.endsAt, description: turn.description, roundId: turn.roundId}
 }
 
 // The server's list is of its read: a battle whose start passed since is no longer to come.

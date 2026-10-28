@@ -14,7 +14,7 @@ import (
 
 // DraftOf reads an unset time as none, which the schedule refuses; a kind the wire does not name is refused here.
 func DraftOf(
-	set string, kind gamemasterv1.EntryKind, description string, startsAt, endsAt *timestamppb.Timestamp, priority uint32,
+	set string, kind gamemasterv1.EntryKind, description string, startsAt, endsAt *timestamppb.Timestamp, priority, times uint32,
 ) (schedule.Draft, error) {
 	known, err := kindOf(kind)
 	if err != nil {
@@ -22,7 +22,7 @@ func DraftOf(
 	}
 	return schedule.Draft{
 		Set: schedule.SetName(set), Kind: known, Description: schedule.Description(description),
-		StartsAt: timeOf(startsAt), EndsAt: timeOf(endsAt), Priority: schedule.Priority(priority),
+		StartsAt: timeOf(startsAt), EndsAt: timeOf(endsAt), Priority: schedule.Priority(priority), Times: schedule.Times(times),
 	}, nil
 }
 

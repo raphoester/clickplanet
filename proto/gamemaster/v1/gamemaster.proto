@@ -3,6 +3,7 @@ syntax = "proto3";
 package gamemaster.v1;
 
 import "google/protobuf/timestamp.proto";
+import "gamemaster/v1/events.proto";
 
 // What the schedule plays now, in the players' words: the kind of the running entry, never a rule set's name, which
 // is the operator's. On the public router.
@@ -11,8 +12,8 @@ service GamemasterService {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 
-  // The turn now and the timeline, as the first events, then each change of either within a second; a heartbeat every
-  // 30 s meanwhile.
+  // The turn now, the timeline and the last debrief, as the first events, then each change of any within a second; a
+  // heartbeat every 30 s meanwhile.
   rpc ListenForEvents(ListenForEventsRequest) returns (stream GamemasterEvent);
 }
 
@@ -30,6 +31,8 @@ message GetTurnRequest {}
 message GetTurnResponse {
   Turn turn = 1;
   Timeline timeline = 2;
+  // The last moment scoring scored; unset before any.
+  Debrief debrief = 3;
 }
 
 // What the schedule plays now.
@@ -42,8 +45,12 @@ message Turn {
   google.protobuf.Timestamp ends_at = 3;
   // The running entry's words for the players, plain text: what its rules are. Empty when none runs.
   string description = 4;
-  // The running entry's id; empty when none runs. A round of its own that scoring closes repeats it.
+  // The running entry's id; empty when none runs.
   string entry_id = 5;
+  // The running battle's round in scoring's books; empty when no battle runs.
+  string round_id = 6;
+  // The running battle's points' times; 0 when no battle runs.
+  uint32 times = 7;
 }
 
 // What the schedule will play that the players may wait for. An operator may still move or delete an entry to come:
@@ -55,6 +62,16 @@ message Timeline {
   Season current = 2;
   // The first season that has not started; unset when none is scheduled.
   Season next = 3;
+  // The day in progress; unset between two seasons, and from the season's last cutoff to its end.
+  Day today = 4;
+}
+
+// A day of a season: a round scored at the daily cutoff.
+message Day {
+  uint32 number = 1;
+  google.protobuf.Timestamp starts_at = 2;
+  google.protobuf.Timestamp ends_at = 3;
+  string round_id = 4;
 }
 
 // A season: scoring counts its points from its start to its end. An operator may move the end of one that runs: the
@@ -63,6 +80,8 @@ message Season {
   uint32 number = 1;
   google.protobuf.Timestamp starts_at = 2;
   google.protobuf.Timestamp ends_at = 3;
+  // The season's book in scoring.
+  string book_id = 4;
 }
 
 message Battle {
@@ -71,6 +90,20 @@ message Battle {
   google.protobuf.Timestamp ends_at = 3;
   // The entry's words for the players, plain text: what its rules are.
   string description = 4;
+  // How many times a day's points the battle scores.
+  uint32 times = 5;
+  // The battle runs to the season's end: its finale.
+  bool ends_season = 6;
+  string round_id = 7;
+}
+
+// What scoring just scored, for the screens: the ids to read its numbers by.
+message Debrief {
+  oneof moment {
+    DayEnded day = 1;
+    BattleEnded battle = 2;
+    SeasonEnded season = 3;
+  }
 }
 
 message ListenForEventsRequest {}
@@ -80,6 +113,7 @@ message GamemasterEvent {
     Turn turn = 1;
     Heartbeat heartbeat = 2;
     Timeline timeline = 3;
+    Debrief debrief = 4;
   }
 }
 

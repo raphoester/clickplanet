@@ -27,16 +27,17 @@ const DAY: ClosedRound = {
     standings: [result(1, "fr", 25), result(2, "de", 18), result(3, "es", 15)],
     before: [score(1, "de", 50), score(2, "fr", 30)],
     after: [score(1, "de", 68), score(2, "fr", 55), score(3, "es", 15)],
-    own: false,
+    moment: "day",
     times: 1,
     startedAt: 0,
     entryId: "",
+    roundId: "season-0/day-5",
     takes: [],
     players: [],
 }
 
 const FINALE: ClosedRound = {...DAY, number: 23, finale: true}
-const FINAL_BATTLE: ClosedRound = {...DAY, number: 1, finale: true, own: true, times: 3, startedAt: Date.UTC(2026, 9, 16, 19)}
+const FINAL_BATTLE: ClosedRound = {...DAY, number: 1, finale: true, moment: "battle", times: 3, startedAt: Date.UTC(2026, 9, 16, 19), roundId: "entry-final"}
 
 const user = () => userEvent.setup({advanceTimers: vi.advanceTimersByTime})
 

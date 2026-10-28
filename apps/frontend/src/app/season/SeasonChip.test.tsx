@@ -11,7 +11,7 @@ const HOUR = 60 * MINUTE
 const DAY = 24 * HOUR
 
 const endsAt = Date.UTC(2026, 9, 31, 23)
-const season = {number: 0, startsAt: Date.UTC(2026, 9, 3), endsAt}
+const season = {number: 0, startsAt: Date.UTC(2026, 9, 3), endsAt, bookId: "season-0"}
 const lastDayEndsAt = endsAt - 2 * HOUR
 // Scoring's day in progress ends at the next 21:00 UTC.
 const dayEndsAt = () => lastDayEndsAt - Math.floor((lastDayEndsAt - Date.now() - 1) / DAY) * DAY
@@ -39,7 +39,7 @@ describe("SeasonChip", () => {
 
     it("turns to the next battle's countdown between today's and the season's", () => {
         vi.useFakeTimers({now: endsAt - 27 * DAY - 14 * HOUR})
-        const nextBattle = {entryId: "rush", startsAt: Date.now() + DAY, endsAt: Date.now() + DAY + 2 * HOUR, description: ""}
+        const nextBattle = {entryId: "rush", startsAt: Date.now() + DAY, endsAt: Date.now() + DAY + 2 * HOUR, description: "", times: 3, endsSeason: false, roundId: "rush"}
         render(<SeasonChip season={season} dayEndsAt={dayEndsAt()} nextBattle={nextBattle} compact={false} open={false} onToggle={vi.fn()}/>)
 
         turn()

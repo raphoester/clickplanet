@@ -67,7 +67,7 @@ func (h ListenForEventsHandler) ListenForEvents(
 	}
 }
 
-// The turn, then the timeline, each only when it differs from the one sent last.
+// The turn, the timeline, then the debrief, each only when it differs from the one sent last; no debrief before any.
 func sendChanges(
 	stream *connect.ServerStream[gamemasterv1.GamemasterEvent],
 	sent, now *gamemasterv1.GetTurnResponse,
@@ -82,6 +82,13 @@ func sendChanges(
 	if sent == nil || !proto.Equal(sent.GetTimeline(), now.GetTimeline()) {
 		if err := stream.Send(&gamemasterv1.GamemasterEvent{
 			Event: &gamemasterv1.GamemasterEvent_Timeline{Timeline: now.GetTimeline()},
+		}); err != nil {
+			return err //nolint:wrapcheck // the stream's own error.
+		}
+	}
+	if now.GetDebrief() != nil && (sent == nil || !proto.Equal(sent.GetDebrief(), now.GetDebrief())) {
+		if err := stream.Send(&gamemasterv1.GamemasterEvent{
+			Event: &gamemasterv1.GamemasterEvent_Debrief{Debrief: now.GetDebrief()},
 		}); err != nil {
 			return err //nolint:wrapcheck // the stream's own error.
 		}

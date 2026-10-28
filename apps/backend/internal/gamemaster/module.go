@@ -12,7 +12,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1/antibotv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/gamemaster/v1/gamemasterv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
-	"github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1/scoringv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/gamemasterv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/gamemasterv1controller/add_entry_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/gamemasterv1controller/add_season_handler"
@@ -30,12 +29,23 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/gamemasterv1controller/listen_for_events_handler/inprocess_turn_feed"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/gamemasterv1controller/listen_for_events_handler/inprocess_turn_feed/log_turn_reader"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/migrations"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/book_closed_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/outbox_moment_events"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/postgres_moment_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/redis_scoring_commands"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/round_scored_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/hear_book_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/hear_book_usecase/log_hear_book"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/hear_round_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/hear_round_usecase/log_hear_round"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/play_scoring_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/play_scoring_usecase/log_play_scoring"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/postgres_entry_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/redis_rule_set_commands"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/rpc_antibot_rule_sets"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/rpc_planet_rule_sets"
-	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/rpc_scoring_rule_sets"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/usecases/add_entry_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/usecases/add_entry_usecase/audit_add_entry"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/usecases/delete_entry_usecase"
@@ -45,17 +55,16 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/usecases/play_schedule_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/usecases/play_schedule_usecase/log_play_schedule"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/uuid_id_provider"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/postgres_season_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/redis_season_commands"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/usecases/add_season_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/usecases/add_season_usecase/audit_add_season"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/usecases/delete_season_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/usecases/delete_season_usecase/audit_delete_season"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/usecases/edit_season_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/usecases/edit_season_usecase/audit_edit_season"
-	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/usecases/play_seasons_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/usecases/play_seasons_usecase/log_play_seasons"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpoutbox"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -78,15 +87,15 @@ func NewModule(config Config) cpbootstrap.Module {
 
 func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	clock := cptime.SystemClock{}
+	cutoff := season.Cutoff(config.DailyCutoff)
 
 	internal, baseURL, err := props.Internal.Dial()
 	if err != nil {
-		return fmt.Errorf("the gamemaster module asks planet, the antibot and scoring which rule sets they keep: %w", err)
+		return fmt.Errorf("the gamemaster module asks planet and the antibot which rule sets they keep: %w", err)
 	}
 	keepers := []schedule.Keeper{
 		rpc_planet_rule_sets.New(planetv1connect.NewInternalServiceClient(internal, baseURL)),
 		rpc_antibot_rule_sets.New(antibotv1connect.NewInternalServiceClient(internal, baseURL)),
-		rpc_scoring_rule_sets.New(scoringv1connect.NewInternalServiceClient(internal, baseURL)),
 	}
 
 	db := cppg.New(config.Database)
@@ -112,11 +121,31 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	ruleSchedule := play_schedule_usecase.NewRunner(scheduleCheck, log_play_schedule.New(
 		play_schedule_usecase.New(entries, redis_rule_set_commands.New(streams.Commands()), clock), props.Logger))
 	seasons := postgres_season_store.New(db)
-	seasonPlay := play_seasons_usecase.NewRunner(scheduleCheck, log_play_seasons.New(
-		play_seasons_usecase.New(seasons, redis_season_commands.New(streams.Commands()), clock), props.Logger))
-	turns := turn_query.NewPostgresQuery(db, clock)
+	heard := postgres_moment_store.New(db)
+	planner := moments.NewPlanner(seasons, entries, heard, cutoff)
+	scoringPlay := play_scoring_usecase.NewRunner(scheduleCheck, log_play_scoring.New(
+		play_scoring_usecase.New(planner, heard, redis_scoring_commands.New(streams.Commands()), clock), props.Logger))
+
+	told := outbox_moment_events.New(cpoutbox.New(db))
+	rounds, err := cpredis.Subscribe(ctx, streams, "gamemaster-rounds", round_scored_subscriber.New(
+		log_hear_round.New(hear_round_usecase.New(planner, heard, told, db), props.Logger)))
+	if err != nil {
+		_ = streams.Close()
+		_ = db.Close()
+		return fmt.Errorf("failed to subscribe to scoring.v1.RoundScored: %w", err)
+	}
+	books, err := cpredis.Subscribe(ctx, streams, "gamemaster-books", book_closed_subscriber.New(
+		log_hear_book.New(hear_book_usecase.New(planner, heard, told, db), props.Logger)))
+	if err != nil {
+		_ = streams.Close()
+		_ = db.Close()
+		return fmt.Errorf("failed to subscribe to scoring.v1.BookClosed: %w", err)
+	}
+
+	turns := turn_query.NewPostgresQuery(db, clock, cutoff)
 	turnFeed := inprocess_turn_feed.New(log_turn_reader.New(turns, props.Logger))
-	props.Runners.Add(cppg.CloseAfter(db, props.Logger, turnFeed, cpredis.CloseAfter(streams, props.Logger, ruleSchedule, seasonPlay)))
+	props.Runners.Add(cppg.CloseAfter(db, props.Logger, turnFeed, cpredis.CloseAfter(streams, props.Logger,
+		ruleSchedule, scoringPlay, rounds, books, cpoutbox.NewRelay("gamemaster-outbox", db, streams, props.Logger))))
 
 	admin := gamemasterv1controller.AdminService{
 		GetScheduleHandler: get_schedule_handler.New(schedule_query.NewPostgresQuery(db, clock)),
@@ -150,17 +179,23 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to mount gamemaster.v1.GamemasterService: %w", err)
 	}
 
-	props.Logger.Info("gamemaster built", slog.String("schema", config.Database.Schema))
+	props.Logger.Info("gamemaster built", slog.Duration("daily_cutoff", config.DailyCutoff),
+		slog.String("schema", config.Database.Schema))
 
 	return nil
 }
 
 type Config struct {
-	Database cppg.Config
-	Redis    cpredis.Config
+	// DailyCutoff is the time of day, UTC, every day of a season ends at.
+	DailyCutoff time.Duration
+	Database    cppg.Config
+	Redis       cpredis.Config
 }
 
 func (c Config) Validate() error {
+	if err := season.Cutoff(c.DailyCutoff).Check(); err != nil {
+		return fmt.Errorf("gamemaster.dailyCutoff: %w", err)
+	}
 	if err := c.Database.Validate(); err != nil {
 		return fmt.Errorf("gamemaster.database: %w", err)
 	}

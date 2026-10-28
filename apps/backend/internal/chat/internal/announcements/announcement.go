@@ -153,27 +153,29 @@ type Round struct {
 	season uint32
 	number uint32
 	finale bool
-	// own is a round of its own: numbered apart from the days, and worth times a day's points.
+	// own is a battle's round: numbered apart from the days, and worth times a day's points.
 	own    bool
 	times  uint32
 	podium []Place
 }
 
-func RoundOf(season uint32, number uint32, finale bool, places []Place) Round {
+func DayOf(season uint32, number uint32) Round {
+	return Round{season: season, number: number}
+}
+
+func BattleOf(season uint32, number uint32, finale bool, times uint32) Round {
+	return Round{season: season, number: number, finale: finale, own: true, times: times}
+}
+
+func (r Round) Placed(places []Place) Round {
 	kept := make([]Place, 0, podium)
 	for _, place := range places {
 		if place.rank <= podium && place.points > 0 {
 			kept = append(kept, place)
 		}
 	}
-	return Round{season: season, number: number, finale: finale, podium: kept}
-}
-
-// OwnRoundOf is a round of its own: a schedule entry's window, worth times a day's points.
-func OwnRoundOf(season uint32, number uint32, finale bool, times uint32, places []Place) Round {
-	round := RoundOf(season, number, finale, places)
-	round.own, round.times = true, times
-	return round
+	r.podium = kept
+	return r
 }
 
 type placePayload struct {
@@ -235,6 +237,33 @@ func (c Champion) Announcement(at time.Time) (Announcement, error) {
 	}
 	return NewAnnouncement(toldOnce(fmt.Sprintf("seasons/%d/champion", c.season)), KindChampion, at, payload), nil
 }
+
+type RoundID string
+
+type BookID string
+
+var (
+	ErrNoRound = errors.New("no round id")
+	ErrNoBook  = errors.New("no book id")
+)
+
+func RoundIDOf(id string) (RoundID, error) {
+	if id == "" {
+		return "", ErrNoRound
+	}
+	return RoundID(id), nil
+}
+
+func (r RoundID) String() string { return string(r) }
+
+func BookIDOf(id string) (BookID, error) {
+	if id == "" {
+		return "", ErrNoBook
+	}
+	return BookID(id), nil
+}
+
+func (b BookID) String() string { return string(b) }
 
 type Storage interface {
 	AppendOnce(ctx context.Context, announcement Announcement) (bool, error)

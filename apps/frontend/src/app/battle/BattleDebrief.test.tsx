@@ -31,10 +31,11 @@ const FINAL_BATTLE: ClosedRound = {
     ],
     before: [],
     after: [],
-    own: true,
+    moment: "battle",
     times: 3,
     startedAt: Date.UTC(2026, 9, 31, 21),
     entryId: "entry-final",
+    roundId: "entry-final",
     takes: [],
     players: [
         {rank: 1, accountId: "account-ana", name: "Ana", color: NameColor.PINK, countryCode: "fr", tiles: 912, wornTitle: WARLORD},

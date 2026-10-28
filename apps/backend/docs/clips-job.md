@@ -4,7 +4,7 @@
 (`.github/workflows/clips.yml`; the frontend's [Clips](../../frontend/docs/clips.md) has the four jobs and how a clip is made). The
 frontend's generator needs a browser, so it stays there. **Everything else is here**: the fetch of the replay,
 which clips, when each goes out, the client of the posting service, the retries and the run's summary. The two
-meet in files: the replay, the race and the season this job saves for the generator, `clips.v1.Findings`, which the
+meet in files: the replay, the turn and the round this job saves for the generator, `clips.v1.Findings`, which the
 generator writes as JSON, `clips.v1.Pick`, the story this job hands it back to render, and `clips.v1.Clip`, what it
 rendered (`proto/clips/v1/clips.proto`).
 
@@ -19,12 +19,15 @@ clips stats [-ssh <user@host>] [-since 2026-10-13]
 - **`fetch` saves a replay**: it asks the production backend's operator tool for one
   ([`GetReplay`](admin.md#getreplay)), over SSH, and writes the answer as it came. `CLICKPLANET_SSH` stands in for `-ssh`.
   With no `-hours` it is 72: the ledger keeps that much in memory, and a replay cannot reach further back.
-  **With `-race` it saves the season's race too** ([`GetRace`](scoring.md)), from which the generator
-  tells the day of the season closed in the replay, "FRANCE WINS DAY 5". **A race the backend does not answer is a
-  warning, not a failure**: the run still has its replay, and tells no day. No race file is written then.
-  **With `-season` it saves the season's calendar** ([`GetSeason`](scoring.md)) the same way: the
-  generator calls each country that can still win up to the Final Battle, in its own language, "POLSKA: 14 PUNKTÓW
-  STRATY". A season left out calls nobody up.
+  **With `-season` it saves the gamemaster's turn too** ([`GetTurn`](gamemaster.md)): the timeline, whose battle
+  that `ends_season` is the finale the generator calls each country that can still win up to, in its own language,
+  "POLSKA: 14 PUNKTÓW STRATY", and the last debrief, the moment scoring scored last (a day, a battle or the season's
+  end) with the ids to read its numbers by. **With `-race`, which needs `-season`, it saves that moment's round**
+  ([`ScoringService/GetRound`](scoring.md) by the debrief's `round_id`, the finale's for a season's end): its podium
+  and the season's scores after it, from which the generator tells "FRANCE WINS DAY 5". A turn with no debrief, or a
+  season's end with no finale round, writes `{}` as the round, so a round of an earlier run is never told again.
+  **A turn or a round the backend does not answer is a warning, not a failure**: the run still has its replay, and
+  tells no round. No file is written then. The flags keep their names, `-race` and `-season`, for the workflow.
   **It is cheap enough to run 12 times a day**: on 2026-10-24 the 12 hours of the noon run were 40,820 events, the
   three files 0.8 MB zipped, and the whole step, ssh, `go run`'s build and the race and the season included, 17s. The
   ledger answers from memory. 12 hours and not 2: the editor sees a story whole, and reads the last posts to tell it
@@ -296,11 +299,13 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
   browser. The file holds the answer byte for byte, never a re-encoding: the generator reads the backend's JSON.
 - **An ssh that fails says what it complained of** (`Permission denied (publickey)`), from its standard error.
   In the workflow the host is a secret, which Actions masks in the log.
-- **The race is asked the same way, of the public listener** (`127.0.0.1:8080` in the container, `{}` for a body),
-  and checked the same: it has to read as a `scoring.v1.GetRaceResponse`. A backend from before `GetRace` answers
-  404, which `wget` turns into a failed ssh. `fetch_race_usecase` keeps it, and `log_fetch_race` logs the day closed
-  last, or warns that the race is left out: `clips.Fetch` goes on without it. The season is asked the same way, as
-  a `scoring.v1.GetSeasonResponse`, through `fetch_season_usecase` and `log_fetch_season`.
+- **The turn and the round are asked the same way, of the public listener** (`127.0.0.1:8080` in the container),
+  and checked the same: the turn has to read as a `gamemaster.v1.GetTurnResponse` (`{}` for a body), the round as a
+  `scoring.v1.GetRoundResponse` of the round asked (`{"roundId":…}`). A round id holds only letters, digits, dashes
+  and slashes (`replays.RoundIDOf`), so nothing a shell reads goes between the single quotes. `fetch_turn_usecase`
+  keeps the turn, and `log_fetch_turn` logs the moment debriefed ("0.20", "0.battle.2"; a season's end as its `finale_battle`, "0.battle.3", or "0.finale" with none) and the finale,
+  or warns that the turn is left out: `clips.Fetch` goes on without it, and without the round. `fetch_round_usecase`
+  and `log_fetch_round` do the same for the round.
 - Its test runs a fake `ssh`, a shell script that keeps its arguments. No test runs the real one.
 
 **`internal/clips/internal/posts/` is the domain of the rest**, with no file, no HTTP and no clock of its own:

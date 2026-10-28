@@ -21,12 +21,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/file_replay_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/ssh_replay_source"
-	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/usecases/fetch_race_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/usecases/fetch_race_usecase/log_fetch_race"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/usecases/fetch_replay_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/usecases/fetch_replay_usecase/log_fetch_replay"
-	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/usecases/fetch_season_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/usecases/fetch_season_usecase/log_fetch_season"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/usecases/fetch_round_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/usecases/fetch_round_usecase/log_fetch_round"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/usecases/fetch_turn_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/usecases/fetch_turn_usecase/log_fetch_turn"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/stats"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/stats/ssh_stats_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/stats/usecases/take_snapshot_usecase"
@@ -157,9 +157,10 @@ func (c Config) withDefaults() Config {
 	return c
 }
 
-// race, season: where each is written, or empty for none. One the backend does not answer is no error: the replay is
-// what the run needs, and they only add the day of the season closed in it and the countries called up.
-func Fetch(ctx context.Context, out, race, season string, config Config, logger *slog.Logger) error {
+// turn, round: where the gamemaster's turn and the round it debriefs are written, or empty for none; a round needs its
+// turn. One the backend does not answer is no error: the replay is what the run needs, and they only add the round of
+// the season scored in it and the countries called up.
+func Fetch(ctx context.Context, out, turn, round string, config Config, logger *slog.Logger) error {
 	config = config.withDefaults()
 
 	source, err := ssh_replay_source.New(config.Replay.SSH, ssh_replay_source.OpenSSH)
@@ -176,13 +177,15 @@ func Fetch(ctx context.Context, out, race, season string, config Config, logger 
 		return err
 	}
 
-	// Their decorators warn that the race or the season is left out.
-	if race != "" {
-		_, _ = log_fetch_race.New(fetch_race_usecase.New(source, file_replay_store.RaceStore(race)), logger).Execute(ctx)
+	if turn == "" {
+		return nil
 	}
-	if season != "" {
-		_, _ = log_fetch_season.New(fetch_season_usecase.New(source, file_replay_store.SeasonStore(season)), logger).Execute(ctx)
+	// Their decorators warn that the turn or the round is left out.
+	told, err := log_fetch_turn.New(fetch_turn_usecase.New(source, file_replay_store.TurnStore(turn)), logger).Execute(ctx)
+	if err != nil || round == "" {
+		return nil //nolint:nilerr // the decorator warned: a run with no turn still has its replay.
 	}
+	_, _ = log_fetch_round.New(fetch_round_usecase.New(source, file_replay_store.RoundStore(round)), logger).Execute(ctx, told)
 	return nil
 }
 

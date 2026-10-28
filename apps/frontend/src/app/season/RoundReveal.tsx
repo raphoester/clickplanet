@@ -89,7 +89,7 @@ export default function RoundReveal({closed, results = false, countryCode, play,
              style={{"--steps": podium.length} as CSSProperties}>
             <div className="round-reveal-stage">
                 <h2 id={headId} className="title-reveal-head round-reveal-head">
-                    {stage === "champion" && champion ? winsLine(champion) : results ? seasonOverLine(closed.season) : roundOverLine(closed)}
+                    {stage === "champion" && champion ? winsLine(champion) : results ? seasonOverLine(closed.season) : roundOverLine({...closed, own: closed.moment !== "day"})}
                 </h2>
 
                 {stage === "podium" && <Podium podium={podium}/>}

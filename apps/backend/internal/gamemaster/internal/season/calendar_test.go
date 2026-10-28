@@ -131,11 +131,3 @@ func TestTheRunningAndTheNextSeasonAreReadAtATime(t *testing.T) {
 	_, ok = calendar.NextAfter(next.StartsAt)
 	assert.False(t, ok)
 }
-
-func TestTheStartedSeasonsAreTheEndedOnesAndTheOneThatRuns(t *testing.T) {
-	calendar := planned(zero, season.Snapshot{Number: 1, Break: day, Length: 28 * day})
-
-	assert.Empty(t, calendar.StartedBy(season.Origin.Add(-time.Second)))
-	assert.Len(t, calendar.StartedBy(now), 1)
-	assert.Len(t, calendar.StartedBy(seasonZeroEnds.Add(30*day)), 2)
-}

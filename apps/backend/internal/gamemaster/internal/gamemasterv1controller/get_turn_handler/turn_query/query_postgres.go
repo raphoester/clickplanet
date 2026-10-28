@@ -2,6 +2,8 @@ package turn_query
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -11,80 +13,191 @@ import (
 	gamemasterv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/gamemaster/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/gamemasterv1controller/schedulemessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/gamemasterv1controller/seasonmessage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/momentmessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-func NewPostgresQuery(db cppg.Conn, clock cptime.Clock) *PostgresQuery {
-	return &PostgresQuery{db: db, clock: clock}
+func NewPostgresQuery(db cppg.Conn, clock cptime.Clock, cutoff season.Cutoff) *PostgresQuery {
+	return &PostgresQuery{db: db, clock: clock, cutoff: cutoff}
 }
 
 type PostgresQuery struct {
-	db    cppg.Conn
-	clock cptime.Clock
+	db     cppg.Conn
+	clock  cptime.Clock
+	cutoff season.Cutoff
 }
 
-// Now is what plays now, the battles to come and the seasons, by schedule.Schedule's and season.Calendar's rules, in the
-// players' words: no set's name.
+// Now is what plays now, the battles to come, the seasons and the day, and the last moment scoring scored, by
+// schedule.Schedule's, season.Calendar's and moments.Plan's rules, in the players' words: no set's name.
 func (q *PostgresQuery) Now(ctx context.Context) (*gamemasterv1.GetTurnResponse, error) {
 	now := q.clock.Now()
-	rows, err := q.db.On(ctx).QueryContext(ctx, `
-		SELECT id, rule_set, kind, description, starts_at, ends_at, priority, made_at FROM schedule_entries`)
+	entries, err := q.entries(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read the schedule: %w", err)
+		return nil, err
 	}
-	defer func() { _ = rows.Close() }()
-
-	var (
-		entries []schedule.Entry
-		ends    = map[schedule.EntryID]*timestamppb.Timestamp{}
-	)
-	for rows.Next() {
-		var (
-			id                     uuid.UUID
-			set, kind, description string
-			priority               int64
-			entry                  schedule.EntrySnapshot
-		)
-		if err := rows.Scan(&id, &set, &kind, &description, &entry.StartsAt, &entry.EndsAt, &priority, &entry.MadeAt); err != nil {
-			return nil, fmt.Errorf("failed to read an entry of the schedule: %w", err)
-		}
-		entry.ID, entry.Set, entry.Kind = schedule.EntryID(id), schedule.SetName(set), schedule.Kind(kind)
-		entry.Description, entry.Priority = schedule.Description(description), schedule.Priority(priority) //nolint:gosec // CHECK (priority >= 0 AND priority <= 4294967295).
-		entries = append(entries, entry.Restore())
-		ends[entry.ID] = timestamppb.New(entry.EndsAt)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("failed to read the schedule: %w", err)
-	}
-
-	sched := schedule.New(entries...)
-	turn := sched.TurnAt(now).TakeSnapshot()
-	kind, err := schedulemessage.KindOf(turn.Kind)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read what plays: %w", err)
-	}
-	answer := &gamemasterv1.Turn{Kind: kind, EndsAt: ends[turn.Entry], Description: string(turn.Description)}
-	if _, runs := ends[turn.Entry]; runs {
-		answer.EntryId = turn.Entry.String()
-	}
-	if since := sched.SinceAt(now); !since.IsZero() {
-		answer.Since = timestamppb.New(since)
-	}
-	timeline := timelineOf(sched.BattlesAfter(now))
 	seasons, err := q.seasons(ctx)
 	if err != nil {
 		return nil, err
 	}
+	snapshots := make([]schedule.EntrySnapshot, 0, len(entries))
+	for _, entry := range entries {
+		snapshots = append(snapshots, entry.TakeSnapshot())
+	}
+	opened, err := q.opened(ctx)
+	if err != nil {
+		return nil, err
+	}
+	plan := moments.NewPlan(seasons, q.cutoff, opened, snapshots...)
+	sched := schedule.New(entries...)
+
+	turn, err := turnOf(sched, plan, now)
+	if err != nil {
+		return nil, err
+	}
+	timeline := timelineOf(sched.BattlesAfter(now), plan)
 	if running, ok := seasons.RunningAt(now); ok {
 		timeline.Current = seasonmessage.SeasonOf(running)
 	}
 	if next, ok := seasons.NextAfter(now); ok {
 		timeline.Next = seasonmessage.SeasonOf(next)
 	}
-	return &gamemasterv1.GetTurnResponse{Turn: answer, Timeline: timeline}, nil
+	if today, ok := plan.DayAt(now); ok {
+		timeline.Today = &gamemasterv1.Day{
+			Number: uint32(today.Number), StartsAt: timestamppb.New(today.StartsAt), EndsAt: timestamppb.New(today.EndsAt),
+			RoundId: string(moments.DayRoundOf(today)),
+		}
+	}
+	debrief, err := q.debrief(ctx, plan)
+	if err != nil {
+		return nil, err
+	}
+	return &gamemasterv1.GetTurnResponse{Turn: turn, Timeline: timeline, Debrief: debrief}, nil
+}
+
+func turnOf(sched schedule.Schedule, plan moments.Plan, now time.Time) (*gamemasterv1.Turn, error) {
+	turn := sched.TurnAt(now).TakeSnapshot()
+	kind, err := schedulemessage.KindOf(turn.Kind)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read what plays: %w", err)
+	}
+	answer := &gamemasterv1.Turn{Kind: kind, Description: string(turn.Description)}
+	if !turn.EndsAt.IsZero() {
+		answer.EntryId, answer.EndsAt = turn.Entry.String(), timestamppb.New(turn.EndsAt)
+	}
+	if battle, ok := plan.BattleOf(turn.Entry); ok && !turn.EndsAt.IsZero() {
+		answer.RoundId, answer.Times = string(battle.Round()), uint32(battle.Times)
+	}
+	if since := sched.SinceAt(now); !since.IsZero() {
+		answer.Since = timestamppb.New(since)
+	}
+	return answer, nil
+}
+
+func timelineOf(battles []schedule.EntrySnapshot, plan moments.Plan) *gamemasterv1.Timeline {
+	timeline := &gamemasterv1.Timeline{Battles: make([]*gamemasterv1.Battle, 0, len(battles))}
+	for _, entry := range battles {
+		battle := &gamemasterv1.Battle{
+			EntryId: entry.ID.String(), StartsAt: timestamppb.New(entry.StartsAt), EndsAt: timestamppb.New(entry.EndsAt),
+			Description: string(entry.Description), Times: uint32(entry.Times),
+		}
+		if planned, ok := plan.BattleOf(entry.ID); ok {
+			battle.EndsSeason, battle.RoundId = planned.EndsSeason, string(planned.Round())
+		}
+		timeline.Battles = append(timeline.Battles, battle)
+	}
+	return timeline
+}
+
+// The latest round or book scoring told, a book first at one time: it closes after its rounds.
+func (q *PostgresQuery) debrief(ctx context.Context, plan moments.Plan) (*gamemasterv1.Debrief, error) {
+	var (
+		book    bool
+		id      string
+		endedAt time.Time
+	)
+	err := q.db.On(ctx).QueryRowContext(ctx, `
+		SELECT book, id, ended_at FROM (
+			SELECT false AS book, round_id AS id, ended_at FROM scored_rounds
+			UNION ALL
+			SELECT true, book_id, ended_at FROM closed_books
+		) heard
+		ORDER BY ended_at DESC, book DESC, id
+		LIMIT 1`).Scan(&book, &id, &endedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil //nolint:nilnil // no debrief before scoring scored any.
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to read the last moment scoring scored: %w", err)
+	}
+
+	var moment moments.Moment
+	if book {
+		moment, err = plan.BookClosed(moments.BookID(id), endedAt)
+	} else {
+		moment, err = plan.RoundEnded(moments.RoundID(id), endedAt)
+	}
+	if errors.Is(err, moments.ErrUnknownRound) || errors.Is(err, moments.ErrUnknownBook) {
+		return nil, nil //nolint:nilnil // a moment the plan no longer knows is told no more.
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to read the last moment scoring scored: %w", err)
+	}
+	return momentmessage.DebriefOf(moment) //nolint:wrapcheck // it names the moment.
+}
+
+func (q *PostgresQuery) opened(ctx context.Context) ([]moments.RoundID, error) {
+	rows, err := q.db.On(ctx).QueryContext(ctx, `SELECT round_id FROM opened_rounds`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read the rounds opened: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var opened []moments.RoundID
+	for rows.Next() {
+		var round string
+		if err := rows.Scan(&round); err != nil {
+			return nil, fmt.Errorf("failed to read a round opened: %w", err)
+		}
+		opened = append(opened, moments.RoundID(round))
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to read the rounds opened: %w", err)
+	}
+	return opened, nil
+}
+
+func (q *PostgresQuery) entries(ctx context.Context) ([]schedule.Entry, error) {
+	rows, err := q.db.On(ctx).QueryContext(ctx, `
+		SELECT id, rule_set, kind, description, starts_at, ends_at, priority, times, made_at FROM schedule_entries`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read the schedule: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var entries []schedule.Entry
+	for rows.Next() {
+		var (
+			id                     uuid.UUID
+			set, kind, description string
+			priority, times        int64
+			entry                  schedule.EntrySnapshot
+		)
+		if err := rows.Scan(&id, &set, &kind, &description, &entry.StartsAt, &entry.EndsAt, &priority, &times, &entry.MadeAt); err != nil {
+			return nil, fmt.Errorf("failed to read an entry of the schedule: %w", err)
+		}
+		entry.ID, entry.Set, entry.Kind = schedule.EntryID(id), schedule.SetName(set), schedule.Kind(kind)
+		entry.Description, entry.Priority = schedule.Description(description), schedule.Priority(priority) //nolint:gosec // CHECK (priority >= 0 AND priority <= 4294967295).
+		entry.Times = schedule.Times(times)                                                                //nolint:gosec // CHECK times BETWEEN 0 AND 10.
+		entries = append(entries, entry.Restore())
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to read the schedule: %w", err)
+	}
+	return entries, nil
 }
 
 func (q *PostgresQuery) seasons(ctx context.Context) (season.Calendar, error) {
@@ -111,15 +224,4 @@ func (q *PostgresQuery) seasons(ctx context.Context) (season.Calendar, error) {
 		return season.Calendar{}, fmt.Errorf("failed to read the seasons: %w", err)
 	}
 	return season.NewCalendar(seasons...), nil
-}
-
-func timelineOf(battles []schedule.EntrySnapshot) *gamemasterv1.Timeline {
-	timeline := &gamemasterv1.Timeline{Battles: make([]*gamemasterv1.Battle, 0, len(battles))}
-	for _, battle := range battles {
-		timeline.Battles = append(timeline.Battles, &gamemasterv1.Battle{
-			EntryId: battle.ID.String(), StartsAt: timestamppb.New(battle.StartsAt), EndsAt: timestamppb.New(battle.EndsAt),
-			Description: string(battle.Description),
-		})
-	}
-	return timeline
 }

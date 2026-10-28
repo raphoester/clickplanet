@@ -10,7 +10,7 @@ const HOUR = 60 * MINUTE
 const DAY = 24 * HOUR
 
 const endsAt = Date.UTC(2026, 9, 31, 23)
-const season = {number: 1, startsAt: Date.UTC(2026, 9, 3), endsAt}
+const season = {number: 1, startsAt: Date.UTC(2026, 9, 3), endsAt, bookId: "season-1"}
 
 describe("the season on the home page", () => {
     let page: Document

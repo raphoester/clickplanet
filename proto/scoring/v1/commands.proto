@@ -4,28 +4,48 @@ package scoring.v1;
 
 import "google/protobuf/timestamp.proto";
 
-// What another module asks of scoring, in scoring's words, over Redis Streams.
+// What another module asks of scoring, in scoring's words, over Redis Streams. Scoring is a points accountant: it
+// knows books and rounds by the ids it is given, and no season, day, battle or clock.
 
-// Counts points with the rule set of this name. Scoring keeps the latest decision by decided_at, so a command sent
-// twice, or after a newer one, changes nothing. A name scoring keeps no set of is refused, and scoring counts on with
-// the set it plays.
-message PlayRuleSet {
-  string rule_set = 1;
-  google.protobuf.Timestamp decided_at = 2;
-  // The window of the schedule entry that plays the set, which never changes once the entry runs: a set with a round of
-  // its own makes it of this window. Both unset when no entry runs and default plays.
-  google.protobuf.Timestamp starts_at = 3;
-  google.protobuf.Timestamp ends_at = 4;
-  // The id of the schedule entry that plays the set; empty when default plays. A round of its own repeats it.
-  string entry_id = 5;
+// One stream for every command, handled in order: a round closed, then its book, is always scored in that order. Each
+// command is idempotent by its ids: one handled twice, or one that is too late, changes nothing.
+message ScoringCommand {
+  oneof command {
+    OpenBook open_book = 1;
+    OpenRound open_round = 2;
+    CloseRound close_round = 3;
+    CloseBook close_book = 4;
+  }
 }
 
-// Counts the points of a season from its start to its end. Scoring keeps the latest decision on each season by
-// decided_at, so a command sent twice, or after a newer one, changes nothing. Sent once the season starts, when its end
-// moves, and at each boot of the sender.
-message PlaySeason {
-  uint32 number = 1;
+// A book gathers the points of its rounds and each player's takes, from starts_at until it is closed. A take counts in
+// every book open at its time.
+message OpenBook {
+  string book_id = 1;
   google.protobuf.Timestamp starts_at = 2;
-  google.protobuf.Timestamp ends_at = 3;
-  google.protobuf.Timestamp decided_at = 4;
+}
+
+// A round credits its book once it closes: the countries ranked by their share of the map then, points by rank, times
+// `times`. Takes from starts_at count in it. A round whose book is not open is refused.
+message OpenRound {
+  string round_id = 1;
+  string book_id = 2;
+  // 1 to 10.
+  uint32 times = 3;
+  google.protobuf.Timestamp starts_at = 4;
+}
+
+// Scores the round from the map now. Takes before ends_at still count in its numbers when they arrive after it. A round
+// never opened, or already scored, is not scored.
+message CloseRound {
+  string round_id = 1;
+  google.protobuf.Timestamp ends_at = 2;
+}
+
+// Ranks the book from its rounds: points, then rounds won, then the points of tiebreak_round_id (empty: no third key).
+// Takes after ends_at count in it no more.
+message CloseBook {
+  string book_id = 1;
+  google.protobuf.Timestamp ends_at = 2;
+  string tiebreak_round_id = 3;
 }

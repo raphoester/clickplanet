@@ -22,39 +22,31 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type RoundClosed struct {
-	state  protoimpl.MessageState `protogen:"open.v1"`
-	Season uint32                 `protobuf:"varint,1,opt,name=season,proto3" json:"season,omitempty"`
-	// A day's place among the season's days; a round of its own's among the season's rounds of their own.
-	Number uint32 `protobuf:"varint,2,opt,name=number,proto3" json:"number,omitempty"`
-	// The round that ended the season.
-	Finale  bool                   `protobuf:"varint,3,opt,name=finale,proto3" json:"finale,omitempty"`
-	EndedAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=ended_at,json=endedAt,proto3" json:"ended_at,omitempty"`
-	Results []*RoundResult         `protobuf:"bytes,5,rep,name=results,proto3" json:"results,omitempty"`
-	// A round of its own: the window of a schedule entry whose set asked for one, not a day.
-	Own bool `protobuf:"varint,6,opt,name=own,proto3" json:"own,omitempty"`
-	// How many times a day's points it scored: 1 for a day.
-	Times uint32 `protobuf:"varint,7,opt,name=times,proto3" json:"times,omitempty"`
-	// The id of the schedule entry whose window a round of its own is; empty for a day.
-	EntryId       string `protobuf:"bytes,8,opt,name=entry_id,json=entryId,proto3" json:"entry_id,omitempty"`
+// A round was scored: its results credit its book.
+type RoundScored struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoundId       string                 `protobuf:"bytes,1,opt,name=round_id,json=roundId,proto3" json:"round_id,omitempty"`
+	BookId        string                 `protobuf:"bytes,2,opt,name=book_id,json=bookId,proto3" json:"book_id,omitempty"`
+	EndedAt       *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=ended_at,json=endedAt,proto3" json:"ended_at,omitempty"`
+	Results       []*RoundResult         `protobuf:"bytes,4,rep,name=results,proto3" json:"results,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *RoundClosed) Reset() {
-	*x = RoundClosed{}
+func (x *RoundScored) Reset() {
+	*x = RoundScored{}
 	mi := &file_scoring_v1_events_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *RoundClosed) String() string {
+func (x *RoundScored) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*RoundClosed) ProtoMessage() {}
+func (*RoundScored) ProtoMessage() {}
 
-func (x *RoundClosed) ProtoReflect() protoreflect.Message {
+func (x *RoundScored) ProtoReflect() protoreflect.Message {
 	mi := &file_scoring_v1_events_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -66,72 +58,46 @@ func (x *RoundClosed) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use RoundClosed.ProtoReflect.Descriptor instead.
-func (*RoundClosed) Descriptor() ([]byte, []int) {
+// Deprecated: Use RoundScored.ProtoReflect.Descriptor instead.
+func (*RoundScored) Descriptor() ([]byte, []int) {
 	return file_scoring_v1_events_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *RoundClosed) GetSeason() uint32 {
+func (x *RoundScored) GetRoundId() string {
 	if x != nil {
-		return x.Season
+		return x.RoundId
 	}
-	return 0
+	return ""
 }
 
-func (x *RoundClosed) GetNumber() uint32 {
+func (x *RoundScored) GetBookId() string {
 	if x != nil {
-		return x.Number
+		return x.BookId
 	}
-	return 0
+	return ""
 }
 
-func (x *RoundClosed) GetFinale() bool {
-	if x != nil {
-		return x.Finale
-	}
-	return false
-}
-
-func (x *RoundClosed) GetEndedAt() *timestamppb.Timestamp {
+func (x *RoundScored) GetEndedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.EndedAt
 	}
 	return nil
 }
 
-func (x *RoundClosed) GetResults() []*RoundResult {
+func (x *RoundScored) GetResults() []*RoundResult {
 	if x != nil {
 		return x.Results
 	}
 	return nil
 }
 
-func (x *RoundClosed) GetOwn() bool {
-	if x != nil {
-		return x.Own
-	}
-	return false
-}
-
-func (x *RoundClosed) GetTimes() uint32 {
-	if x != nil {
-		return x.Times
-	}
-	return 0
-}
-
-func (x *RoundClosed) GetEntryId() string {
-	if x != nil {
-		return x.EntryId
-	}
-	return ""
-}
-
 type RoundResult struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Country       string                 `protobuf:"bytes,1,opt,name=country,proto3" json:"country,omitempty"`
-	Rank          uint32                 `protobuf:"varint,2,opt,name=rank,proto3" json:"rank,omitempty"`
-	Points        uint32                 `protobuf:"varint,3,opt,name=points,proto3" json:"points,omitempty"`
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Country string                 `protobuf:"bytes,1,opt,name=country,proto3" json:"country,omitempty"`
+	Rank    uint32                 `protobuf:"varint,2,opt,name=rank,proto3" json:"rank,omitempty"`
+	// Times the round's times.
+	Points        uint32  `protobuf:"varint,3,opt,name=points,proto3" json:"points,omitempty"`
+	Share         float64 `protobuf:"fixed64,4,opt,name=share,proto3" json:"share,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -187,29 +153,37 @@ func (x *RoundResult) GetPoints() uint32 {
 	return 0
 }
 
-type SeasonClosed struct {
+func (x *RoundResult) GetShare() float64 {
+	if x != nil {
+		return x.Share
+	}
+	return 0
+}
+
+// A book was closed and ranked.
+type BookClosed struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Season        uint32                 `protobuf:"varint,1,opt,name=season,proto3" json:"season,omitempty"`
+	BookId        string                 `protobuf:"bytes,1,opt,name=book_id,json=bookId,proto3" json:"book_id,omitempty"`
 	EndedAt       *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=ended_at,json=endedAt,proto3" json:"ended_at,omitempty"`
-	Table         []*SeasonPlace         `protobuf:"bytes,3,rep,name=table,proto3" json:"table,omitempty"`
+	Table         []*Place               `protobuf:"bytes,3,rep,name=table,proto3" json:"table,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *SeasonClosed) Reset() {
-	*x = SeasonClosed{}
+func (x *BookClosed) Reset() {
+	*x = BookClosed{}
 	mi := &file_scoring_v1_events_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *SeasonClosed) String() string {
+func (x *BookClosed) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SeasonClosed) ProtoMessage() {}
+func (*BookClosed) ProtoMessage() {}
 
-func (x *SeasonClosed) ProtoReflect() protoreflect.Message {
+func (x *BookClosed) ProtoReflect() protoreflect.Message {
 	mi := &file_scoring_v1_events_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -221,57 +195,58 @@ func (x *SeasonClosed) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SeasonClosed.ProtoReflect.Descriptor instead.
-func (*SeasonClosed) Descriptor() ([]byte, []int) {
+// Deprecated: Use BookClosed.ProtoReflect.Descriptor instead.
+func (*BookClosed) Descriptor() ([]byte, []int) {
 	return file_scoring_v1_events_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *SeasonClosed) GetSeason() uint32 {
+func (x *BookClosed) GetBookId() string {
 	if x != nil {
-		return x.Season
+		return x.BookId
 	}
-	return 0
+	return ""
 }
 
-func (x *SeasonClosed) GetEndedAt() *timestamppb.Timestamp {
+func (x *BookClosed) GetEndedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.EndedAt
 	}
 	return nil
 }
 
-func (x *SeasonClosed) GetTable() []*SeasonPlace {
+func (x *BookClosed) GetTable() []*Place {
 	if x != nil {
 		return x.Table
 	}
 	return nil
 }
 
-type SeasonPlace struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Country       string                 `protobuf:"bytes,1,opt,name=country,proto3" json:"country,omitempty"`
-	Rank          uint32                 `protobuf:"varint,2,opt,name=rank,proto3" json:"rank,omitempty"`
-	Points        uint32                 `protobuf:"varint,3,opt,name=points,proto3" json:"points,omitempty"`
-	RoundsWon     uint32                 `protobuf:"varint,4,opt,name=rounds_won,json=roundsWon,proto3" json:"rounds_won,omitempty"`
-	FinalePoints  uint32                 `protobuf:"varint,5,opt,name=finale_points,json=finalePoints,proto3" json:"finale_points,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+type Place struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Country   string                 `protobuf:"bytes,1,opt,name=country,proto3" json:"country,omitempty"`
+	Rank      uint32                 `protobuf:"varint,2,opt,name=rank,proto3" json:"rank,omitempty"`
+	Points    uint32                 `protobuf:"varint,3,opt,name=points,proto3" json:"points,omitempty"`
+	RoundsWon uint32                 `protobuf:"varint,4,opt,name=rounds_won,json=roundsWon,proto3" json:"rounds_won,omitempty"`
+	// The points of the book's tiebreak round.
+	TiebreakPoints uint32 `protobuf:"varint,5,opt,name=tiebreak_points,json=tiebreakPoints,proto3" json:"tiebreak_points,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
-func (x *SeasonPlace) Reset() {
-	*x = SeasonPlace{}
+func (x *Place) Reset() {
+	*x = Place{}
 	mi := &file_scoring_v1_events_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *SeasonPlace) String() string {
+func (x *Place) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SeasonPlace) ProtoMessage() {}
+func (*Place) ProtoMessage() {}
 
-func (x *SeasonPlace) ProtoReflect() protoreflect.Message {
+func (x *Place) ProtoReflect() protoreflect.Message {
 	mi := &file_scoring_v1_events_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -283,42 +258,42 @@ func (x *SeasonPlace) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SeasonPlace.ProtoReflect.Descriptor instead.
-func (*SeasonPlace) Descriptor() ([]byte, []int) {
+// Deprecated: Use Place.ProtoReflect.Descriptor instead.
+func (*Place) Descriptor() ([]byte, []int) {
 	return file_scoring_v1_events_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *SeasonPlace) GetCountry() string {
+func (x *Place) GetCountry() string {
 	if x != nil {
 		return x.Country
 	}
 	return ""
 }
 
-func (x *SeasonPlace) GetRank() uint32 {
+func (x *Place) GetRank() uint32 {
 	if x != nil {
 		return x.Rank
 	}
 	return 0
 }
 
-func (x *SeasonPlace) GetPoints() uint32 {
+func (x *Place) GetPoints() uint32 {
 	if x != nil {
 		return x.Points
 	}
 	return 0
 }
 
-func (x *SeasonPlace) GetRoundsWon() uint32 {
+func (x *Place) GetRoundsWon() uint32 {
 	if x != nil {
 		return x.RoundsWon
 	}
 	return 0
 }
 
-func (x *SeasonPlace) GetFinalePoints() uint32 {
+func (x *Place) GetTiebreakPoints() uint32 {
 	if x != nil {
-		return x.FinalePoints
+		return x.TiebreakPoints
 	}
 	return 0
 }
@@ -328,31 +303,29 @@ var File_scoring_v1_events_proto protoreflect.FileDescriptor
 const file_scoring_v1_events_proto_rawDesc = "" +
 	"\n" +
 	"\x17scoring/v1/events.proto\x12\n" +
-	"scoring.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x82\x02\n" +
-	"\vRoundClosed\x12\x16\n" +
-	"\x06season\x18\x01 \x01(\rR\x06season\x12\x16\n" +
-	"\x06number\x18\x02 \x01(\rR\x06number\x12\x16\n" +
-	"\x06finale\x18\x03 \x01(\bR\x06finale\x125\n" +
-	"\bended_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\aendedAt\x121\n" +
-	"\aresults\x18\x05 \x03(\v2\x17.scoring.v1.RoundResultR\aresults\x12\x10\n" +
-	"\x03own\x18\x06 \x01(\bR\x03own\x12\x14\n" +
-	"\x05times\x18\a \x01(\rR\x05times\x12\x19\n" +
-	"\bentry_id\x18\b \x01(\tR\aentryId\"S\n" +
+	"scoring.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xab\x01\n" +
+	"\vRoundScored\x12\x19\n" +
+	"\bround_id\x18\x01 \x01(\tR\aroundId\x12\x17\n" +
+	"\abook_id\x18\x02 \x01(\tR\x06bookId\x125\n" +
+	"\bended_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\aendedAt\x121\n" +
+	"\aresults\x18\x04 \x03(\v2\x17.scoring.v1.RoundResultR\aresults\"i\n" +
 	"\vRoundResult\x12\x18\n" +
 	"\acountry\x18\x01 \x01(\tR\acountry\x12\x12\n" +
 	"\x04rank\x18\x02 \x01(\rR\x04rank\x12\x16\n" +
-	"\x06points\x18\x03 \x01(\rR\x06points\"\x8c\x01\n" +
-	"\fSeasonClosed\x12\x16\n" +
-	"\x06season\x18\x01 \x01(\rR\x06season\x125\n" +
-	"\bended_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\aendedAt\x12-\n" +
-	"\x05table\x18\x03 \x03(\v2\x17.scoring.v1.SeasonPlaceR\x05table\"\x97\x01\n" +
-	"\vSeasonPlace\x12\x18\n" +
+	"\x06points\x18\x03 \x01(\rR\x06points\x12\x14\n" +
+	"\x05share\x18\x04 \x01(\x01R\x05share\"\x85\x01\n" +
+	"\n" +
+	"BookClosed\x12\x17\n" +
+	"\abook_id\x18\x01 \x01(\tR\x06bookId\x125\n" +
+	"\bended_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\aendedAt\x12'\n" +
+	"\x05table\x18\x03 \x03(\v2\x11.scoring.v1.PlaceR\x05table\"\x95\x01\n" +
+	"\x05Place\x12\x18\n" +
 	"\acountry\x18\x01 \x01(\tR\acountry\x12\x12\n" +
 	"\x04rank\x18\x02 \x01(\rR\x04rank\x12\x16\n" +
 	"\x06points\x18\x03 \x01(\rR\x06points\x12\x1d\n" +
 	"\n" +
-	"rounds_won\x18\x04 \x01(\rR\troundsWon\x12#\n" +
-	"\rfinale_points\x18\x05 \x01(\rR\ffinalePointsB\xba\x01\n" +
+	"rounds_won\x18\x04 \x01(\rR\troundsWon\x12'\n" +
+	"\x0ftiebreak_points\x18\x05 \x01(\rR\x0etiebreakPointsB\xba\x01\n" +
 	"\x0ecom.scoring.v1B\vEventsProtoP\x01ZRgithub.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1;scoringv1\xa2\x02\x03SXX\xaa\x02\n" +
 	"Scoring.V1\xca\x02\n" +
 	"Scoring\\V1\xe2\x02\x16Scoring\\V1\\GPBMetadata\xea\x02\vScoring::V1b\x06proto3"
@@ -371,17 +344,17 @@ func file_scoring_v1_events_proto_rawDescGZIP() []byte {
 
 var file_scoring_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_scoring_v1_events_proto_goTypes = []any{
-	(*RoundClosed)(nil),           // 0: scoring.v1.RoundClosed
+	(*RoundScored)(nil),           // 0: scoring.v1.RoundScored
 	(*RoundResult)(nil),           // 1: scoring.v1.RoundResult
-	(*SeasonClosed)(nil),          // 2: scoring.v1.SeasonClosed
-	(*SeasonPlace)(nil),           // 3: scoring.v1.SeasonPlace
+	(*BookClosed)(nil),            // 2: scoring.v1.BookClosed
+	(*Place)(nil),                 // 3: scoring.v1.Place
 	(*timestamppb.Timestamp)(nil), // 4: google.protobuf.Timestamp
 }
 var file_scoring_v1_events_proto_depIdxs = []int32{
-	4, // 0: scoring.v1.RoundClosed.ended_at:type_name -> google.protobuf.Timestamp
-	1, // 1: scoring.v1.RoundClosed.results:type_name -> scoring.v1.RoundResult
-	4, // 2: scoring.v1.SeasonClosed.ended_at:type_name -> google.protobuf.Timestamp
-	3, // 3: scoring.v1.SeasonClosed.table:type_name -> scoring.v1.SeasonPlace
+	4, // 0: scoring.v1.RoundScored.ended_at:type_name -> google.protobuf.Timestamp
+	1, // 1: scoring.v1.RoundScored.results:type_name -> scoring.v1.RoundResult
+	4, // 2: scoring.v1.BookClosed.ended_at:type_name -> google.protobuf.Timestamp
+	3, // 3: scoring.v1.BookClosed.table:type_name -> scoring.v1.Place
 	4, // [4:4] is the sub-list for method output_type
 	4, // [4:4] is the sub-list for method input_type
 	4, // [4:4] is the sub-list for extension type_name

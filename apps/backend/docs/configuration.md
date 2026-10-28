@@ -118,9 +118,10 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `player.database.*` — profiles and stats, same shape as `database`, schema `player`; required. `player.database.password` belongs in the environment
 - `missions.cutoff` — the time of day, in UTC, a mission day ends (production 21h, the daily round's; unset, midnight). From 0 up to 24h, or the boot is refused
 - `missions.database.*` — the briefs, the sheets and the collections, same shape as `database`, schema `missions`; required. `missions.database.password` belongs in the environment
-- `scoring.dailyCutoff` — the time of day, UTC, every day ends at, as a duration from midnight (`21h`); 0s to under 24h
 - `scoring.database.*` — the standings and the rounds, same shape as `database`, schema `scoring`; required. `scoring.database.password` belongs in the environment
-- `gamemaster.database.*` — the rule schedule's entries, same shape as `database`, schema `gamemaster`; required. `gamemaster.database.password` belongs in the environment. See [The gamemaster module](gamemaster.md)
+- `gamemaster.dailyCutoff` — the time of day, UTC, every day of a season ends at, as a duration from midnight (`21h`); 0s
+  to under 24h. A day is a round the gamemaster tells scoring to score (see [The gamemaster module](gamemaster.md))
+- `gamemaster.database.*` — the rule schedule's entries, the seasons, same shape as `database`, schema `gamemaster`; required. `gamemaster.database.password` belongs in the environment. See [The gamemaster module](gamemaster.md)
 - `support.database.*` — what players send the operator, same shape as `database`, schema `support`; required. `support.database.password` belongs in the environment
 - `clips.database.*` — the daily snapshots of the clips' numbers, same shape as `database`, schema `clips`; required. `clips.database.password` belongs in the environment
 - `support.retention`, `support.pruneInterval` — how long a note keeps its sender (default 90 days; the text is kept after) and how long a report is kept, and how often the prune runs (1h)

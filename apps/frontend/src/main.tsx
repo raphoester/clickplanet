@@ -13,7 +13,8 @@ import {BORDERS_URL} from "./app/viewer/bordersAsset.ts"
 import {FakeChatBackend} from "./backends/fakeChatBackend.ts"
 import {FakePresenceBackend} from "./backends/fakePresenceBackend.ts"
 import {FakeMissionsBackend} from "./backends/fakeMissionsBackend.ts"
-import {newSeasonServiceClient} from "./backends/seasonBackend.ts"
+import {newScoringServiceClient} from "./backends/scoringBackend.ts"
+import {closedOf} from "./domain/debrief.ts"
 import {battleCommands, FakeTurnBackend} from "./backends/fakeTurnBackend.ts"
 import {ConnectTurnBackend, newGamemasterServiceClient} from "./backends/turnBackend.ts"
 import {API_BASE_URL} from "./backends/transport.ts"
@@ -99,27 +100,33 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
             return "every mission is one tile from done: take a tile for your flag to finish and get them"
         },
         closeDay: () => {
-            const closed = fakeStandings.closeRound()
-            fakeChat.announceRound(closed)
-            return `day ${closed.number} is over`
+            const today = fakeTurn.today()
+            if (!today) return "no day runs"
+            const round = fakeStandings.closeRound(today.roundId)
+            const debrief = fakeTurn.endDay()
+            if (debrief) fakeChat.announceRound(closedOf(debrief, round))
+            return `day ${today.number} is over`
         },
         closeBattle: () => {
-            const closed = fakeStandings.closeBattle()
-            fakeChat.announceRound(closed)
-            return `battle ${closed.number} is closed`
+            const round = fakeStandings.closeBattle()
+            const debrief = fakeTurn.endBattleRound(round.roundId, round.times, round.endedAt, false)
+            fakeChat.announceRound(closedOf(debrief, round))
+            return `battle ${debrief.number} is closed`
         },
         closeFinale: () => {
-            const closed = fakeStandings.closeBattle(true)
-            fakeChat.announceRound(closed)
-            fakeChat.announceChampion(closed)
+            const round = fakeStandings.closeBattle()
+            const battle = fakeTurn.endBattleRound(round.roundId, round.times, round.endedAt, true)
+            fakeChat.announceRound(closedOf(battle, round))
+            const season = fakeTurn.endSeason(round.roundId, battle)
+            if (season) fakeChat.announceChampion(closedOf(season, round))
             return "the Final Battle is closed, and the season with it"
         },
         startBattle: (minutes = 120, description?: string, times = 3) => {
             const since = Date.now()
             const endsAt = since + minutes * 60_000
             const entryId = crypto.randomUUID()
-            fakeTurn.startBattle(entryId, since, endsAt, description)
-            fakeStandings.openBattle(entryId, since, endsAt, times)
+            fakeStandings.openBattle(entryId, since, times)
+            fakeTurn.startBattle(entryId, since, endsAt, description, times)
             return `a battle is on, at ×${times}`
         },
         endBattle: () => {
@@ -175,7 +182,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     const chatBackend = new ChatServiceBackend(newChatServiceClient(config), session, newKeepaliveChatServiceClient(config))
     const turn = new ConnectTurnBackend(newGamemasterServiceClient(config))
     const player = new ConnectPlayerBackend(newPlayerServiceClient(config), session, newKeepalivePlayerServiceClient(config))
-    const standings = new ConnectStandingsBackend(newSeasonServiceClient(config), session)
+    const standings = new ConnectStandingsBackend(newScoringServiceClient(config), session)
     const missions = new ConnectMissionsBackend(newMissionServiceClient(config), session)
     const support = new ConnectSupportBackend(newSupportServiceClient(config), session)
     const account = new AccountStore(new ConnectAccountBackend(authClient, attest), player, session, {

@@ -28,34 +28,34 @@ func TestAReplayThatCannotBeWrittenIsAnError(t *testing.T) {
 	require.Error(t, file_replay_store.Store(path).Save(t.Context(), replays.Replay{Document: []byte(`{}`)}))
 }
 
-func TestARaceIsWrittenAsTheBackendAnsweredIt(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "race.json")
-
-	require.NoError(t, file_replay_store.RaceStore(path).SaveRace(t.Context(), replays.Race{Document: []byte(`{"race":{}}`)}))
-
-	written, err := os.ReadFile(path) //nolint:gosec // the file the test wrote.
-	require.NoError(t, err)
-	assert.JSONEq(t, `{"race":{}}`, string(written))
-}
-
-func TestARaceThatCannotBeWrittenIsAnError(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "no-such-folder", "race.json")
-
-	require.Error(t, file_replay_store.RaceStore(path).SaveRace(t.Context(), replays.Race{Document: []byte(`{}`)}))
-}
-
-func TestASeasonIsWrittenAsTheBackendAnsweredIt(t *testing.T) {
+func TestATurnIsWrittenAsTheBackendAnsweredIt(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "season.json")
 
-	require.NoError(t, file_replay_store.SeasonStore(path).SaveSeason(t.Context(), replays.Season{Document: []byte(`{"season":{}}`)}))
+	require.NoError(t, file_replay_store.TurnStore(path).SaveTurn(t.Context(), replays.Turn{Document: []byte(`{"timeline":{}}`)}))
 
 	written, err := os.ReadFile(path) //nolint:gosec // the file the test wrote.
 	require.NoError(t, err)
-	assert.JSONEq(t, `{"season":{}}`, string(written))
+	assert.JSONEq(t, `{"timeline":{}}`, string(written))
 }
 
-func TestASeasonThatCannotBeWrittenIsAnError(t *testing.T) {
+func TestATurnThatCannotBeWrittenIsAnError(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "no-such-folder", "season.json")
 
-	require.Error(t, file_replay_store.SeasonStore(path).SaveSeason(t.Context(), replays.Season{Document: []byte(`{}`)}))
+	require.Error(t, file_replay_store.TurnStore(path).SaveTurn(t.Context(), replays.Turn{Document: []byte(`{}`)}))
+}
+
+func TestARoundIsWrittenAsTheBackendAnsweredIt(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "race.json")
+
+	require.NoError(t, file_replay_store.RoundStore(path).SaveRound(t.Context(), replays.Round{Document: []byte(`{"round":{}}`)}))
+
+	written, err := os.ReadFile(path) //nolint:gosec // the file the test wrote.
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"round":{}}`, string(written))
+}
+
+func TestARoundThatCannotBeWrittenIsAnError(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "no-such-folder", "race.json")
+
+	require.Error(t, file_replay_store.RoundStore(path).SaveRound(t.Context(), replays.NoRound))
 }

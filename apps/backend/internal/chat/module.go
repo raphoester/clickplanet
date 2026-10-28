@@ -11,9 +11,13 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1/chatv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
+	"github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1/scoringv1connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/postgres_announcement_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/rpc_scoring_results"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/usecases/announce_champion_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/usecases/announce_mute_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/usecases/announce_round_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/usecases/announce_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/get_history_handler"
@@ -60,11 +64,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/seen/usecases/mark_seen_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/account_deleted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/account_muted_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/battle_ended_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/bomb_landed_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/day_ended_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/fortified_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/log_subscriber"
-	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/round_closed_subscriber"
-	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/season_closed_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/season_ended_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
@@ -90,9 +95,10 @@ func NewModule(config Config) cpbootstrap.Module {
 func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	internal, baseURL, err := props.Internal.Dial()
 	if err != nil {
-		return fmt.Errorf("the chat asks the player module who posts: %w", err)
+		return fmt.Errorf("the chat asks the player module who posts and scoring who won: %w", err)
 	}
 	player := playerv1connect.NewInternalServiceClient(internal, baseURL)
+	results := rpc_scoring_results.New(scoringv1connect.NewInternalServiceClient(internal, baseURL))
 
 	db := cppg.New(config.Database)
 	if err := db.ConnectCtx(ctx); err != nil {
@@ -163,23 +169,30 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to subscribe to chat.v1.AccountMuted: %w", err)
 	}
 
-	roundsClosed, err := cpredis.Subscribe(ctx, streams, "chat-announcements-rounds",
-		log_subscriber.New(round_closed_subscriber.New(announce), props.Logger))
+	days, err := cpredis.Subscribe(ctx, streams, "chat-announcements-days",
+		log_subscriber.New(day_ended_subscriber.New(announce_round_usecase.New(results, announce)), props.Logger))
 	if err != nil {
 		closeStores()
-		return fmt.Errorf("failed to subscribe to scoring.v1.RoundClosed: %w", err)
+		return fmt.Errorf("failed to subscribe to gamemaster.v1.DayEnded: %w", err)
 	}
 
-	seasonsClosed, err := cpredis.Subscribe(ctx, streams, "chat-announcements-seasons",
-		log_subscriber.New(season_closed_subscriber.New(announce), props.Logger))
+	battles, err := cpredis.Subscribe(ctx, streams, "chat-announcements-battles",
+		log_subscriber.New(battle_ended_subscriber.New(announce_round_usecase.New(results, announce)), props.Logger))
 	if err != nil {
 		closeStores()
-		return fmt.Errorf("failed to subscribe to scoring.v1.SeasonClosed: %w", err)
+		return fmt.Errorf("failed to subscribe to gamemaster.v1.BattleEnded: %w", err)
+	}
+
+	champions, err := cpredis.Subscribe(ctx, streams, "chat-announcements-champions",
+		log_subscriber.New(season_ended_subscriber.New(announce_champion_usecase.New(results, announce)), props.Logger))
+	if err != nil {
+		closeStores()
+		return fmt.Errorf("failed to subscribe to gamemaster.v1.SeasonEnded: %w", err)
 	}
 
 	// Not closers: closers run before the runners stop, and the runners use both.
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger, prune_usecase.NewRunner(storage.PruneInterval, prune),
-		cpredis.CloseAfter(streams, props.Logger, bombs, fortifies, deletions, mutings, roundsClosed, seasonsClosed)))
+		cpredis.CloseAfter(streams, props.Logger, bombs, fortifies, deletions, mutings, days, battles, champions)))
 
 	messageLimiter := cpratelimit.New("message-limiter", config.RateLimiter, cptime.SystemClock{})
 	props.Runners.Add(messageLimiter)

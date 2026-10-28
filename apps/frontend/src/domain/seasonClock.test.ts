@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest"
-import {countdownsOf, dayEndOf, endClock, endsLine} from "./seasonClock.ts"
+import {countdownsOf, endClock, endsLine} from "./seasonClock.ts"
 
 const SECOND = 1000
 const MINUTE = 60 * SECOND
@@ -7,10 +7,10 @@ const HOUR = 60 * MINUTE
 const DAY = 24 * HOUR
 
 const endsAt = Date.UTC(2026, 9, 31, 23)
-const season = {number: 0, startsAt: Date.UTC(2026, 9, 3), endsAt}
+const season = {number: 0, startsAt: Date.UTC(2026, 9, 3), endsAt, bookId: "season-0"}
 const lastDayEndsAt = endsAt - 2 * HOUR
 
-const day = {number: 28, endsAt: lastDayEndsAt - 3 * DAY, finale: false, standings: [], own: false, times: 1, entryId: ""}
+const day = {number: 21, startsAt: lastDayEndsAt - 4 * DAY, endsAt: lastDayEndsAt - 3 * DAY, roundId: "season-0/day-21"}
 
 describe("countdownsOf", () => {
     it("counts down to today's end and to the season's", () => {
@@ -41,7 +41,7 @@ describe("countdownsOf", () => {
         expect(countdownsOf(season, endsAt + DAY)).toEqual([])
     })
 
-    const battle = {entryId: "finale", startsAt: lastDayEndsAt, endsAt, description: "Triple points."}
+    const battle = {entryId: "finale", startsAt: lastDayEndsAt, endsAt, description: "Triple points.", times: 3, endsSeason: true, roundId: "finale"}
 
     it("counts down to the next battle between today's end and the season's", () => {
         expect(countdownsOf(season, lastDayEndsAt - DAY - 3 * HOUR, battle, lastDayEndsAt - DAY)).toEqual([
@@ -54,15 +54,6 @@ describe("countdownsOf", () => {
     it("drops the battle once it starts", () => {
         expect(countdownsOf(season, battle.startsAt - SECOND, battle, lastDayEndsAt).map((c) => c.tag)).toEqual(["Today", "Battle", "Season"])
         expect(countdownsOf(season, battle.startsAt, battle, lastDayEndsAt).map((c) => c.tag)).toEqual(["Season"])
-    })
-})
-
-describe("dayEndOf", () => {
-    it("is the end of scoring's round in progress when it is a day", () => {
-        expect(dayEndOf(day)).toBe(day.endsAt)
-        expect(dayEndOf(undefined)).toBeUndefined()
-        expect(dayEndOf({...day, own: true, times: 3, entryId: "rush"})).toBeUndefined()
-        expect(dayEndOf({...day, finale: true})).toBeUndefined()
     })
 })
 

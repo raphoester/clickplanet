@@ -4,7 +4,8 @@ import * as THREE from "three"
 import type {JsonValue} from "@bufbuild/protobuf"
 import {Clip} from "../gen/grpc/clips/v1/clips_pb.ts"
 import {GetReplayResponse} from "../gen/grpc/planet/v1/admin_pb.ts"
-import {GetRaceResponse, GetSeasonResponse} from "../gen/grpc/scoring/v1/scoring_pb.ts"
+import {GetRoundResponse} from "../gen/grpc/scoring/v1/scoring_pb.ts"
+import {GetTurnResponse} from "../gen/grpc/gamemaster/v1/gamemaster_pb.ts"
 import {ReplayBackend} from "../backends/replayBackend.ts"
 import {createGlobe} from "../app/viewer/globe.ts"
 import {loadPointGeometryData} from "../app/viewer/points.ts"
@@ -36,7 +37,7 @@ import {createOverlay, hashtagsOf, nameOf, placeName, wordsOf} from "./overlay.t
 import {findingsOf, FrontFound, Measured, SeasonalFound, Told, toldOf, TourFound} from "./findings.ts"
 import {clipRecordOf} from "./clipRecord.ts"
 import {Variants, variantsOf} from "./experiments.ts"
-import {dayOf} from "./race.ts"
+import {dayOf, finaleAtOf} from "./race.ts"
 
 export type Recording = {
     pick: number
@@ -177,12 +178,14 @@ async function choose(): Promise<Chosen> {
     const answer = await fetch("/__clip/replay.json")
     if (!answer.ok) throw new Error(`no replay to play: ${answer.status}`)
     const recorded = GetReplayResponse.fromJson(await answer.json(), {ignoreUnknownFields: true})
-    // The race, when the run fetched one: the day it closed last is a story of the run whose window holds its cutoff.
-    const race = await fetch("/__clip/race.json")
-    const day = race.ok ? dayOf(GetRaceResponse.fromJson(await race.json(), {ignoreUnknownFields: true}).race?.closed) : undefined
+    // The gamemaster's turn and the round it debriefs, when the run fetched them: that round is a story of the run whose
+    // window holds its end, and the countries that can still win are called up to the finale.
     const calendar = await fetch("/__clip/season.json")
-    const finale = calendar.ok ? GetSeasonResponse.fromJson(await calendar.json(), {ignoreUnknownFields: true}).season : undefined
-    const finaleAt = finale === undefined ? undefined : Number(finale.finaleStartsAtUnixMs)
+    const turn = calendar.ok ? GetTurnResponse.fromJson(await calendar.json(), {ignoreUnknownFields: true}) : undefined
+    const race = await fetch("/__clip/race.json")
+    const round = race.ok ? GetRoundResponse.fromJson(await race.json(), {ignoreUnknownFields: true}).round : undefined
+    const day = dayOf(turn?.debrief, round)
+    const finaleAt = finaleAtOf(turn?.timeline)
 
     const focus = countryParam("focus")
     const {positions} = await loadPointGeometryData()

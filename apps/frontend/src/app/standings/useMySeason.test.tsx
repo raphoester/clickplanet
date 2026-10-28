@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {act, cleanup, render} from "@testing-library/react"
-import {MySeason, StandingsBackend} from "../../backends/standings.ts"
+import {MySeason, Boards} from "../../backends/standings.ts"
 import {AcceptedClicks, acceptedClicks} from "../viewer/acceptedClicks.ts"
 import {LONGEST_MS, SETTLE_MS} from "../viewer/useAcceptedClicks.ts"
 import {Caller, useMySeason} from "./useMySeason.ts"
@@ -10,7 +10,7 @@ const GUEST: Caller = {linked: false}
 
 let latest: MySeason | undefined
 
-type HarnessProps = {backend: StandingsBackend, caller: Caller, clicks: AcceptedClicks, countryCode?: string}
+type HarnessProps = {backend: Boards, caller: Caller, clicks: AcceptedClicks, countryCode?: string}
 
 function Harness({backend, caller, clicks, countryCode = ""}: HarnessProps) {
     latest = useMySeason(backend, caller, clicks.listenForClicks, countryCode)
@@ -22,14 +22,14 @@ function server(tiles = 10) {
     return {
         kept,
         listenForStandings: vi.fn(() => () => {}),
-        listenForRace: vi.fn(() => () => {}),
+
         mySeason: vi.fn(async (countryCode: string): Promise<MySeason> => countryCode === "de"
             ? {countryCode: "de", tiles: kept.de}
             : {countryCode: "fr", tiles: kept.tiles}),
     }
 }
 
-async function shown(backend: StandingsBackend, caller = GUEST, countryCode = "") {
+async function shown(backend: Boards, caller = GUEST, countryCode = "") {
     const clicks = acceptedClicks()
     const view = render(<Harness backend={backend} caller={caller} clicks={clicks} countryCode={countryCode}/>)
     await act(async () => {})

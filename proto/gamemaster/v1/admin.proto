@@ -56,6 +56,8 @@ message Entry {
   EntryKind kind = 7;
   // For the players, in plain text: what the rules of the entry are ("Triple points. A bonus box every minute.").
   string description = 8;
+  // A battle's points' times, 1 to 10: its window is a round in scoring's books. 0 for a plain entry.
+  uint32 times = 9;
 }
 
 // What the schedule plays now: the running entry with the highest priority, else "default".
@@ -78,6 +80,8 @@ message AddEntryRequest {
   EntryKind kind = 5;
   // At most 300 characters: InvalidArgument past that.
   string description = 6;
+  // 1 to 10 for a battle, 0 for a plain entry: InvalidArgument otherwise.
+  uint32 times = 7;
 }
 
 message AddEntryResponse {
@@ -92,6 +96,7 @@ message EditEntryRequest {
   uint32 priority = 5;
   EntryKind kind = 6;
   string description = 7;
+  uint32 times = 8;
 }
 
 message EditEntryResponse {}

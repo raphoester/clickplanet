@@ -239,7 +239,6 @@ player:
   tagSalt: ""
 
 scoring:
-  dailyCutoff: 21h
   database:
     host: localhost
     port: "5432"
@@ -255,6 +254,7 @@ scoring:
     password: ""
 
 gamemaster:
+  dailyCutoff: 21h
   database:
     host: localhost
     port: "5432"

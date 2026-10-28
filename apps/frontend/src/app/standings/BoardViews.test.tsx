@@ -5,7 +5,7 @@ import {act, cleanup, render, screen, within} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import {AccountBackend, Provider} from "../../backends/account.ts"
 import {NameColor, PlayerBackend, PlayerLine, PlayerTitle} from "../../backends/player.ts"
-import {MySeason, Standing, StandingsBackend} from "../../backends/standings.ts"
+import {MySeason, Standing, Boards} from "../../backends/standings.ts"
 import {Countries, Country} from "../../domain/countries.ts"
 import {hueOf} from "../../domain/authorColor.ts"
 import {AccountStore} from "../account/accountStore.ts"
@@ -56,13 +56,13 @@ function backendOf(mine?: Mine, world = WORLD, french = FRENCH) {
             void Promise.resolve().then(() => onStandings(countryCode === "" ? world : countryCode === "fr" ? french : []))
             return () => {}
         }),
-        listenForRace: vi.fn(() => () => {}),
+
         mySeason: vi.fn(async (countryCode: string) => mine?.(countryCode)),
-    } satisfies StandingsBackend
+    } satisfies Boards
 }
 
 type HarnessProps = {
-    backend: StandingsBackend
+    backend: Boards
     caller: Caller
     country?: Country
     view?: BoardView
@@ -147,9 +147,9 @@ describe("BoardViews", () => {
                 onStandings(WORLD)
                 return () => {}
             }),
-            listenForRace: vi.fn(() => () => {}),
+
             mySeason: vi.fn(async () => undefined),
-        } satisfies StandingsBackend
+        } satisfies Boards
         await shown({backend, caller: GUEST, view: "players"})
 
         act(() => send([

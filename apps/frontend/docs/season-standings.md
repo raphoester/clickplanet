@@ -3,12 +3,17 @@
 `backends/standings.ts` is the contract: `StandingsBackend`, `Standing` (a
 ranked player: rank, name, color, worn title, the flag its tiles are for, tiles)
 and `MySeason` (the caller's line on one board: that flag, its tiles, its rank
-and its worn title), and the countries' `Race` (the `Round` in progress and the
-season's `Score`s). `standingsBackend.ts` implements it over
-`scoring.v1.SeasonService/ListenForEvents` and `GetMySeason`, and
+and its worn title), scoring's `Round` (live standings while open, results once
+scored), and the countries' `Race` (the book's `Score`s, today's round and the
+running battle's). Scoring knows no season, day or battle: every read takes the
+gamemaster's ids, the season's `bookId` and the rounds' `roundId`.
+`standingsBackend.ts` implements it over `scoring.v1.ScoringService`
+(`ListenForEvents`, `GetMyTally`, `GetRound`, `GetScores`), and
 `fakeStandingsBackend.ts` stands in for it in fake mode, counting the player's
-own clicks and moving the other players a few tiles every 1.5s. `app/standings/`
-draws it.
+own clicks and moving the other players a few tiles every 1.5s. `Boards`
+(`boardsOf`) is the players' boards of one book, which `Viewer` makes for the
+current season's book (the ended season's, from its debrief, until another runs).
+With no book there are no boards. `app/standings/` draws it.
 
 - **A player's season is the tiles it took this season for its main flag**, the
   flag it took the most for: that is the Players board. **A country's board is
@@ -23,16 +28,18 @@ draws it.
   views.
 - **The countries' points are on the Countries board, where everybody looks.**
   Each day is a round, the top 10 countries by the ground they held score 25, 18,
-  15 … 1, and a battle's round of its own its times that (the Final Battle ×3; the
+  15 … 1, and a battle's round its times that (the Final Battle ×3; the
   backend's [Scoring](../../backend/docs/scoring.md)).
-  `listenForRace` follows the whole map's season stream and reads its `race`
-  case, which every stream carries; the server reads it again every 10s.
-  `Viewer` follows it once (`useRace`) and hands it to the board. With a race the
+  `listenForRace` follows the stream for the book and the rounds asked for, today's
+  (`Timeline.today.round_id`) and the running battle's (`Turn.round_id`), and reads
+  its `scores` and `round` cases. `useRace` follows it again when either id changes,
+  and keeps a round only while it is open (`raceOf`). `Viewer` follows it once and
+  hands it to the board. With a race the
   board keeps "% of map" and adds two columns: Points, each country's points from
   the days closed, right-aligned, and Today, what it scores if the day ends now, in
   green ("+18") and left-aligned. **Today is its own column so the points line up**:
   as a badge beside the points it pushed only the rows that had one. **While a
-  battle's round of its own is the round in progress** (`round.own`), the column is
+  battle's round is open** (`race.battle`, `scoringNow`), the column is
   the battle's: crossed swords and its times ("×3", in `--war`) for "Today", its own
   hint (`battle`), and its points, already ×times, read "this battle" to a screen
   reader. The leader
@@ -91,14 +98,14 @@ draws it.
   frame (a sheet grows upward as the board loads), opens upward with no room
   below, and closes when something that holds it scrolls.
 - **The board is streamed.** `useStandings` follows `ListenForEvents` for the
-  view shown (`country_id`, empty for every player) through `openStream`, with
+  view shown (`book_id`, and `country_id`, empty for every player) through `openStream`, with
   no token and `NO_TIMEOUT`, and stops when the view changes or closes. The
   server sends the view's whole top 10 when the stream opens and again each time
   it changes, at most once a second; a `board` replaces what is shown, a
   `heartbeat` is skipped. While the stream is down the last board stays, and a
   reconnect starts with a whole board. A server without the stream is retried
-  with `openStream`'s backoff. `GetStandings` is no longer called.
-- **`GetMySeason` reads as the identity token** (`identity()`: a fresh token, or
+  with `openStream`'s backoff. `GetBoard` is not called.
+- **`GetMyTally` reads as the identity token** (`identity()`: a fresh token, or
   one resumed from the cookie, never a Turnstile mint), so a player back the next
   day sees its season at once. With none to be had it is not sent, and
   `unauthenticated` reads as unknown and keeps the token. **It is asked for the
@@ -135,7 +142,7 @@ draws it.
   one shown. A guest gets a Sign in button beside its tiles, which opens
   `SignInPitchModal`. In the table the caller's row is the same line: marked
   when it is in the top 10, and otherwise added under it with its rank there.
-  Its name and color come from the profile, its title from `GetMySeason`: read
+  Its name and color come from the profile, its title from `GetMyTally`: read
   again after clicks, it follows a rank-up, and a title picked meanwhile shows
   at the next read.
 - **A name opens the player card**, as in the roster and the chat, with the

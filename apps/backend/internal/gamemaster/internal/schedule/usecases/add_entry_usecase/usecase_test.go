@@ -34,6 +34,7 @@ func adding(store *inmemory_entry_store.Store, keepers []schedule.Keeper) *add_e
 
 var rush = schedule.Draft{
 	Set: "rush", Kind: schedule.Battle, Description: "Triple points.", StartsAt: finale, EndsAt: finale.Add(2 * time.Hour), Priority: 1,
+	Times: 3,
 }
 
 func TestAnEntryToComeOfASetEveryModuleKeepsIsKept(t *testing.T) {
@@ -48,7 +49,7 @@ func TestAnEntryToComeOfASetEveryModuleKeepsIsKept(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, schedule.EntrySnapshot{
 		ID: first, Set: "rush", Kind: schedule.Battle, Description: "Triple points.", StartsAt: finale, EndsAt: finale.Add(2 * time.Hour),
-		Priority: 1, MadeAt: now,
+		Priority: 1, Times: 3, MadeAt: now,
 	}, entry.TakeSnapshot())
 }
 

@@ -40,5 +40,6 @@ func attrsOf(draft schedule.Draft) []any {
 		slog.String("starts_at", draft.StartsAt.UTC().Format(time.RFC3339)),
 		slog.String("ends_at", draft.EndsAt.UTC().Format(time.RFC3339)),
 		slog.Uint64("priority", uint64(draft.Priority)),
+		slog.Uint64("times", uint64(draft.Times)),
 	}
 }
