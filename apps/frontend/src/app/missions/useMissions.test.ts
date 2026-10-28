@@ -6,7 +6,7 @@ import {acceptedClicks} from "../viewer/acceptedClicks.ts"
 import {SETTLE_MS} from "../viewer/useAcceptedClicks.ts"
 import {FOLLOW_UP_MS, useMissions} from "./useMissions.ts"
 
-const day: DayMissions = {countryCode: "fr", enlisted: true, endsAt: Date.UTC(2026, 9, 26, 21, 0), missions: []}
+const day: DayMissions = {endsAt: Date.UTC(2026, 9, 26, 21, 0), missions: []}
 
 afterEach(() => {
     cleanup()

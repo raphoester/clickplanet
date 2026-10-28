@@ -9,27 +9,22 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 )
 
-type briefKey struct {
-	day  string
-	flag string
-}
-
-type sheetKey struct {
+type dayKey struct {
 	day     string
 	account missions.AccountID
 }
 
 type Store struct {
 	mu       sync.Mutex
-	briefs   map[briefKey][]missions.MissionSnapshot
-	sheets   map[sheetKey]missions.SheetSnapshot
+	briefs   map[dayKey][]missions.MissionSnapshot
+	sheets   map[dayKey]missions.SheetSnapshot
 	failWith error
 }
 
 var _ missions.Store = (*Store)(nil)
 
 func New() *Store {
-	return &Store{briefs: map[briefKey][]missions.MissionSnapshot{}, sheets: map[sheetKey]missions.SheetSnapshot{}}
+	return &Store{briefs: map[dayKey][]missions.MissionSnapshot{}, sheets: map[dayKey]missions.SheetSnapshot{}}
 }
 
 func (s *Store) FailWith(err error) {
@@ -39,28 +34,30 @@ func (s *Store) FailWith(err error) {
 	s.failWith = err
 }
 
-func (s *Store) Brief(_ context.Context, day missions.Day, flag string) (missions.Brief, error) {
+func (s *Store) Brief(_ context.Context, day missions.Day, account missions.AccountID) (missions.Brief, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if s.failWith != nil {
 		return missions.Brief{}, s.failWith
 	}
-	kept, ok := s.briefs[briefKey{day: day.String(), flag: flag}]
+	kept, ok := s.briefs[dayKey{day: day.String(), account: account}]
 	if !ok {
 		return missions.Brief{}, missions.ErrNoBrief
 	}
 	return missions.BriefOf(kept) //nolint:wrapcheck // the domain named it.
 }
 
-func (s *Store) KeepBrief(_ context.Context, day missions.Day, flag string, brief missions.Brief) (missions.Brief, error) {
+func (s *Store) KeepBrief(
+	_ context.Context, day missions.Day, account missions.AccountID, brief missions.Brief,
+) (missions.Brief, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if s.failWith != nil {
 		return missions.Brief{}, s.failWith
 	}
-	key := briefKey{day: day.String(), flag: flag}
+	key := dayKey{day: day.String(), account: account}
 	if _, ok := s.briefs[key]; !ok {
 		s.briefs[key] = brief.Snapshot()
 	}
@@ -74,7 +71,7 @@ func (s *Store) Sheet(_ context.Context, day missions.Day, account missions.Acco
 	if s.failWith != nil {
 		return missions.Sheet{}, s.failWith
 	}
-	return missions.SheetOf(s.sheets[sheetKey{day: day.String(), account: account}]), nil
+	return missions.SheetOf(s.sheets[dayKey{day: day.String(), account: account}]), nil
 }
 
 func (s *Store) ChangeSheet(
@@ -86,7 +83,7 @@ func (s *Store) ChangeSheet(
 	if s.failWith != nil {
 		return s.failWith
 	}
-	key := sheetKey{day: day.String(), account: account}
+	key := dayKey{day: day.String(), account: account}
 	s.sheets[key] = change(missions.SheetOf(s.sheets[key])).Snapshot()
 	return nil
 }
@@ -101,6 +98,11 @@ func (s *Store) DeleteAccount(_ context.Context, account missions.AccountID) err
 	for key := range s.sheets {
 		if key.account == account {
 			delete(s.sheets, key)
+		}
+	}
+	for key := range s.briefs {
+		if key.account == account {
+			delete(s.briefs, key)
 		}
 	}
 	return nil

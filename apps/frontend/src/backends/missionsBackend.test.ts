@@ -23,7 +23,7 @@ afterEach(() => vi.restoreAllMocks())
 describe("ConnectMissionsBackend", () => {
     it("reads the day's missions with the click token, and skips a kind or a reward it does not know", async () => {
         const getMissions = vi.fn(async () => new GetMissionsResponsePb({
-            countryId: "fr", enlisted: true, endsAtUnixMs: 1_000n,
+            endsAtUnixMs: 1_000n,
             missions: [
                 new MissionPb({
                     id: "m-2", done: true, paid: true,
@@ -40,7 +40,7 @@ describe("ConnectMissionsBackend", () => {
         expect((getMissions.mock.calls[0] as unknown[])[0]).toEqual({})
         expect(headersOf(getMissions).get(SESSION_HEADER)).toBe("token-1")
         expect(day).toEqual({
-            countryCode: "fr", enlisted: true, endsAt: 1_000,
+            endsAt: 1_000,
             missions: [{
                 id: "m-2", order: {kind: "takeFrom", country: "dz", goal: 40, taken: 40}, done: true, paid: true,
                 reward: {kind: "spreadClicks", amount: 4},
@@ -51,11 +51,11 @@ describe("ConnectMissionsBackend", () => {
     it("tries once more with a fresh session when the token was refused", async () => {
         const getMissions = vi.fn()
             .mockRejectedValueOnce(new ConnectError("expired", Code.Unauthenticated))
-            .mockResolvedValueOnce(new GetMissionsResponsePb({countryId: "fr"}))
+            .mockResolvedValueOnce(new GetMissionsResponsePb({endsAtUnixMs: 1_000n}))
 
         const day = await backendWith({getMissions}).missions()
 
-        expect(day.countryCode).toBe("fr")
+        expect(day.endsAt).toBe(1_000)
         expect(getMissions).toHaveBeenCalledTimes(2)
     })
 })

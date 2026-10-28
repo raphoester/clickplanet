@@ -16,7 +16,7 @@ const mission = (overrides: Partial<Mission>): Mission => ({
 
 const ready = (...missions: Mission[]): MissionsState => ({
     kind: "ready",
-    day: {countryCode: "fr", enlisted: true, endsAt: 0, missions},
+    day: {endsAt: 0, missions},
 })
 
 describe("usePaidMissions", () => {

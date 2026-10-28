@@ -18,12 +18,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 )
 
-type fixedPlanet struct{}
-
-func (fixedPlanet) World(context.Context) (missions.World, error) {
-	return missions.World{Territories: []missions.Territory{{Flag: "dz", Tiles: 9_000}}}, nil
-}
-
 type accounts struct {
 	linked bool
 	err    error
@@ -38,7 +32,8 @@ func (a *accounts) Linked(context.Context, missions.AccountID) (bool, error) {
 var (
 	day      = missions.NewCalendar(missions.Config{Cutoff: 21 * time.Hour}).DayOf(time.Date(2026, 10, 26, 12, 0, 0, 0, time.UTC))
 	ada      = missions.AccountID{15: 1}
-	bank     = missions.Draw(day, "fr", missions.World{Territories: []missions.Territory{{Flag: "dz", Tiles: 9_000}}}).Snapshot()[0]
+	drawn    = missions.Draw(day, ada, "fr", missions.World{Territories: []missions.Territory{{Flag: "dz", Tiles: 9_000}}})
+	bank     = drawn.Snapshot()[0]
 	bankGoal = bank.Order.(missions.TakeFor).Goal
 )
 
@@ -46,11 +41,13 @@ func setUp(t *testing.T, accounts *accounts, taken uint32) (payroll.Payroll, *in
 	t.Helper()
 
 	store := inmemory_mission_store.New()
+	_, err := store.KeepBrief(t.Context(), day, ada, drawn)
+	require.NoError(t, err)
 	require.NoError(t, store.ChangeSheet(t.Context(), day, ada, func(missions.Sheet) missions.Sheet {
-		return missions.SheetOf(missions.SheetSnapshot{Flag: "fr", Progress: map[missions.MissionID]uint32{bank.ID: taken}})
+		return missions.SheetOf(missions.SheetSnapshot{Progress: map[missions.MissionID]uint32{bank.ID: taken}})
 	}))
 	outbox := &cpatomic.FakeOutbox{}
-	return payroll.New(store, missions.NewBriefing(store, fixedPlanet{}), accounts, outbox), store, outbox
+	return payroll.New(store, accounts, outbox), store, outbox
 }
 
 func pay(t *testing.T, paying payroll.Payroll) error {
@@ -91,6 +88,16 @@ func TestWithNothingDoneAuthIsNotAsked(t *testing.T) {
 	paying, _, outbox := setUp(t, asked, bankGoal-1)
 
 	require.NoError(t, pay(t, paying))
+
+	assert.Zero(t, asked.asked)
+	assert.Empty(t, outbox.Recorded())
+}
+
+func TestADayNeverDrawnPaysNothing(t *testing.T) {
+	asked := &accounts{linked: true}
+	outbox := &cpatomic.FakeOutbox{}
+
+	require.NoError(t, pay(t, payroll.New(inmemory_mission_store.New(), asked, outbox)))
 
 	assert.Zero(t, asked.asked)
 	assert.Empty(t, outbox.Recorded())
