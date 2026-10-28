@@ -369,9 +369,6 @@ async function choose(): Promise<Chosen> {
     const record = async (): Promise<Recording> => {
         // The arms the job put the clip in, read before anything is built: an arm nobody knows fails the clip.
         const variants = variantsOf(params.get("variants"))
-        if (variants.length !== undefined && params.has("seconds")) {
-            throw new Error(`--seconds and the arm "${variants.length}" of the experiment "length" both set the clip's length`)
-        }
         const pick = numberParam("pick") ?? 1
         const {told, headline: written} = storyParam()
         const picked = reviewOf(told)
@@ -402,9 +399,8 @@ async function choose(): Promise<Chosen> {
         const switched = new Set(flippedTo(flips, story.attacker).map(({landmass}) => landmass))
         const stops = world ? stopsOf(visitsOf(front, story.attacker, pace.shareOf, (tile) => switched.has(borders.assignment[tile - 1])), aspect) : []
         if (world && stops.length === 0) throw new Error(`no painted flag switches to ${nameOf(story.attacker)}: a tour shows nothing`)
-        // A tour is already as short as it plays: each stop is its flight and its stay, so "short" leaves it as it is.
         const timeline = world ? timelineFor(tourSecondsOf(stops.length), numberParam("seconds"))
-            : timelineOf(screens, numberParam("seconds"), seasonal ? PODIUM_ENDING_SECONDS : undefined, variants.length)
+            : timelineOf(screens, numberParam("seconds"), seasonal ? PODIUM_ENDING_SECONDS : undefined)
         const camera = world ? tourOf(stops, aspect, timeline.seconds - timeline.ending, flagsZoomOf(root.clientHeight))
             : cameraOf(overview, front.changes.map(({tile, at}) => ({share: pace.shareOf(at), point: pointAt(tile)})), {
                 close,

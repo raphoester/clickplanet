@@ -4,8 +4,6 @@
 // listed here too, with nothing reading it, so the generator still refuses an arm nobody knows and carries the rest to
 // the job in `ClipRecord.variants`.
 export const EXPERIMENTS = {
-    // as-chosen: as long as its camera has somewhere to go (`pace.ts`). short: the shortest a story of its kind is.
-    length: ["as-chosen", "short"],
     // TikTok's sound, applied by the job when it posts: anthem, as before, or a track trending on TikTok attached over
     // the muted video. Nothing to apply here: the video is the same in both, anthem included. The job's own fell-back
     // (a trending clip posted with the anthem, the chart unread) is decided after the render, so it never reaches this
@@ -19,7 +17,7 @@ export type Variants = {readonly [Name in keyof Experiments]?: Experiments[Name]
 
 const known = (name: string): name is keyof Experiments => Object.hasOwn(EXPERIMENTS, name)
 
-// written: the arms as the job wrote them, a JSON object of words, `{"length":"short"}`; none is no experiment. An
+// written: the arms as the job wrote them, a JSON object of words, `{"sound":"trending"}`; none is no experiment. An
 // experiment or an arm this app does not know fails the clip: a clip made in the wrong arm would be counted in it.
 export function variantsOf(written: string | null): Variants {
     if (written === null || written.trim() === "") return {}

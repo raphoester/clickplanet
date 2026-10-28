@@ -10,7 +10,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
 
-// The arm of each experiment a clip is in, by experiment: {"length": "short"}.
+// The arm of each experiment a clip is in, by experiment: {"sound": "trending"}.
 type Variants map[string]string
 
 func (v Variants) String() string {

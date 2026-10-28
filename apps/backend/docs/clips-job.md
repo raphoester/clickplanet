@@ -34,7 +34,7 @@ clips stats [-ssh <user@host>] [-since 2026-10-13]
   once; the generator searches its last 12 hours anyway (`newsSince`).
 - **`choose` prints the stories to render**, as a JSON array on the standard output, each with its number in the
   run, the story as the generator's `--story` takes it, and the arm of every experiment its clip is in
-  (`[{"pick":1,"story":{"front":3,"kind":"battle",…,"headline":"FRANCE VS TURKEY"},"variants":{"length":"short"}}]`,
+  (`[{"pick":1,"story":{"front":3,"kind":"battle",…,"headline":"FRANCE VS TURKEY"},"variants":{"sound":"trending"}}]`,
   or `[]` on a quiet run or a full day): the workflow makes one render job of each. The log goes to the standard
   error, with each story of the editor's skipped and why, and each one chosen with its key and its arms. It needs
   `ZERNIO_API_KEY`, to read what was told and what each platform holds, and `ANTHROPIC_API_KEY`, the editor's.
@@ -110,7 +110,7 @@ story, so a short clip is not short because its story was small.
   drawn for could not be applied, so it is still checked and counted, apart (`sound`'s `fell-back`). An experiment
   needs two arms a coin draws.
 - **The arms travel with the clip, as data**: `choose` prints them with the story; the workflow's render job of the
-  clip hands them to the generator (`--variants '{"length":"short"}'`), which applies the ones it acts on, refuses
+  clip hands them to the generator (`--variants '{"sound":"trending"}'`), which applies the ones it acts on, refuses
   one it does not know, and writes them all into the clip's `ClipRecord.variants` (the frontend's
   [Clips](../../frontend/docs/clips.md)); `schedule` reads them back from `clip-<n>.json` (`posts.ClipSnapshot.Variants`), checks every clip
   against `running` before it posts any, carries them on each post (`posts.PostSnapshot.Variants`) and writes them in
@@ -129,14 +129,11 @@ story, so a short clip is not short because its story was small.
   did the second.
 - **Adding one** is an entry in `running`, its name and arms in the generator's `src/clip/experiments.ts`, and the
   code that acts on its arms, never on its control.
-- **The first is `length`** (started 2026-10-24): `as-chosen`, the control, as long as the camera has somewhere to
-  go (8.5 to 17.5s for a front, by how far its fighting moves, 10 to 19 with a day's podium, 6.5 to 19 for a tour, by
-  its stops), against `short`, the shortest a story of its kind plays: 8.5s for a front, 10 with a day's podium. **A
-  tour is already its shortest**, each stop its flight and its stay, so `short` leaves it as it is, and a front whose
-  fighting stays in one place is already 8.5s: both still record the arm, and `durationSeconds` in the record keeps
-  the real length, so the analysis compares on the length a clip had as well as on its arm. The teaser rolled when
-  posting is an experiment of its own already, at random and recorded (`teaser`), and the arms do not touch it.
-- **The second is `sound`** (started 2026-10-25, per clip, even, on TikTok alone): does a clip do better with its
+- **`length` ran from 2026-10-24 to 2026-10-28**: `as-chosen`, the control, against `short`, the shortest a story of
+  its kind plays (8.5s for a front, 10 with a day's podium). It was stopped by judgment, not on the numbers: an 8.5s
+  clip is too short a format. Its posts keep their arm in their record. The teaser rolled when posting is an
+  experiment of its own, at random and recorded (`teaser`), and the arms do not touch it.
+- **`sound`** (started 2026-10-25, per clip, even, on TikTok alone): does a clip do better with its
   national anthem, or with a track trending on TikTok now? It waited on the account's music library, which answers
   only for an account connected through the TikTok for Business app, a Business account or not: the stats of
   2026-10-25 found `clickplanetlol` `personal`, `commercialMusic=true` and its business lane live. `anthem`, the
