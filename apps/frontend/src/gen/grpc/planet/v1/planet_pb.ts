@@ -317,6 +317,13 @@ export class ClickBudget extends Message<ClickBudget> {
    */
   sharedWith = SharedWith.UNSPECIFIED;
 
+  /**
+   * The map takes no play: the rules in force freeze it. Set by GetBudget alone.
+   *
+   * @generated from field: bool frozen = 12;
+   */
+  frozen = false;
+
   constructor(data?: PartialMessage<ClickBudget>) {
     super();
     proto3.util.initPartial(data, this);
@@ -334,6 +341,7 @@ export class ClickBudget extends Message<ClickBudget> {
     { no: 9, name: "next_slowdown", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
     { no: 10, name: "linked_multiplier", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
     { no: 11, name: "shared_with", kind: "enum", T: proto3.getEnumType(SharedWith) },
+    { no: 12, name: "frozen", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ClickBudget {
@@ -442,6 +450,40 @@ export class ClickResponse extends Message<ClickResponse> {
 
   static equals(a: ClickResponse | PlainMessage<ClickResponse> | undefined, b: ClickResponse | PlainMessage<ClickResponse> | undefined): boolean {
     return proto3.util.equals(ClickResponse, a, b);
+  }
+}
+
+/**
+ * The detail of the FailedPrecondition that Click, DropBomb, PlaceShield, UseRefill, ClaimBonus, OpenQuiz and AnswerQuiz
+ * answer while the rules in force freeze the map.
+ *
+ * @generated from message planet.v1.FrozenRefusal
+ */
+export class FrozenRefusal extends Message<FrozenRefusal> {
+  constructor(data?: PartialMessage<FrozenRefusal>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.FrozenRefusal";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FrozenRefusal {
+    return new FrozenRefusal().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): FrozenRefusal {
+    return new FrozenRefusal().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): FrozenRefusal {
+    return new FrozenRefusal().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: FrozenRefusal | PlainMessage<FrozenRefusal> | undefined, b: FrozenRefusal | PlainMessage<FrozenRefusal> | undefined): boolean {
+    return proto3.util.equals(FrozenRefusal, a, b);
   }
 }
 

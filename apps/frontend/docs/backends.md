@@ -135,6 +135,9 @@ Connect code is:
   backend's VPN and proxy blocklist.
 - `unauthenticated` → `SessionUnavailableError`, **and only after a retry** —
   see [Sessions](sessions.md).
+- `failed_precondition` with a `FrozenRefusal` detail → `FrozenError`. The rules in
+  force freeze the map (see [A frozen map](#a-frozen-map)); the click meter shakes,
+  as for the throttle.
 
 They are separate classes rather than one with a field because each one says
 something different: ease off for a second (the click meter shakes — no dialog),
@@ -178,6 +181,27 @@ without it the server reads the bucket of an address with no account, which is
 never spent and always full, and the next click contradicts it. It also subtracts its own clicks in
 flight, so the counter only ever *under*-promises: a counter that says 1 and is
 refused is a bug the player sees.
+
+## A frozen map
+
+**Planet says when the map takes no play, since planet is what refuses it**:
+`ClickBudget.frozen`, set by `GetBudget` alone (see the backend's
+[A frozen map](../../backend/docs/rules.md#a-frozen-map)). A set taking over sends
+`rulesChanged`, so an open tab reads the freeze, and its end, within a second.
+
+- **The mood is decided in one place**, `domain/mood.ts`'s `moodOf(battle, budget)`:
+  frozen wins over a battle, since planet takes no play whatever the schedule's turn
+  says. `useMood` writes it on the root (`data-mood="frozen"`), and the battle look
+  goes with it.
+- **`globe.ts` sends no click on a frozen map**: a click on a tile shakes the meter
+  (`onFrozen`) and plays the refusal sound; a click from orbit still flies down. A
+  `FrozenError` from the server, in the second before the reading lands, does the same.
+- **The click dock says so** (`ClickBudgetMeter`'s `frozen`): "The map is frozen" in
+  place of the clicks and the inventory, and "Season N starts in …" when the
+  gamemaster's timeline has a next season.
+- **In fake mode** `freezeMap()` and `thawMap()` on the console freeze and thaw the
+  fake planet, and `startBreak(nextInMinutes = 960)` ends the fake season with the
+  next one to come, so the countdown shows.
 
 **The globe sends no click the counter cannot pay** (`canClick`). It paints
 nothing, plays the refusal and shakes the meter, as a 429 would. A painted tile

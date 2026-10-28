@@ -75,6 +75,14 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     Object.assign(window, {
         fakeBackend: fake,
         connection,
+        freezeMap: () => {
+            fake.freeze(true)
+            return "the map is frozen: every click is refused"
+        },
+        thawMap: () => {
+            fake.freeze(false)
+            return "the map takes play again"
+        },
         giveBomb: () => {
             const globe = (window as {clickplanetGlobe?: Globe}).clickplanetGlobe
             if (!globe) return "the globe is not loaded yet"

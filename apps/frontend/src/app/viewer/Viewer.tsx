@@ -98,6 +98,7 @@ import {announcementKeyOf} from "../../domain/announcements.ts";
 import {useAnnouncements} from "../announcements/useAnnouncements.ts";
 import {useSchedule} from "../battle/useSchedule.ts";
 import {useMood} from "../battle/useMood.ts";
+import {moodOf} from "../../domain/mood.ts";
 import {useBattleReveal} from "../battle/useBattleReveal.ts";
 import {useBattleOver} from "../battle/useBattleOver.ts";
 import {useSeenBattle} from "../battle/useSeenBattle.ts";
@@ -184,7 +185,8 @@ export default function Viewer(props: ViewerProps) {
     const race = useRace(props.standings, bookId, schedule.seasons.today?.roundId, battle?.roundId)
     const closed = useDebriefed(props.standings, schedule.debrief)
     const nextBattle = nextBattleOf(schedule.battles, Date.now())
-    useMood(battle ? "battle" : undefined)
+    const mood = moodOf(battle, clickBudget)
+    useMood(mood)
     const battleReveal = useBattleReveal(battle)
     const battleOver = useBattleOver(battle, schedule.debrief)
     const seenBattle = useSeenBattle(battle)
@@ -433,6 +435,7 @@ export default function Viewer(props: ViewerProps) {
                                                                         onToggle={() => toggleSheet("season")}/>}/>}
 
         {ready && <ClickBudgetMeter budget={clickBudget}
+                                    frozen={mood === "frozen" ? {nextSeason: schedule.seasons.next} : undefined}
                                     refusals={refusals}
                                     said={lockedOut && {text: heldLine(lockedOut.allegiance, Date.now()), id: lockedOut.id}}
                                     onSignIn={openPitch}

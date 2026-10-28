@@ -420,3 +420,17 @@ moves it. No entry is needed, and none may be a battle over it. Before 21:00:
 If a module lacks `rush` at 21:00, it refuses the command and plays on with its set (see [A set a module lacks once
 the entry runs](#a-set-a-module-lacks-once-the-entry-runs)); the round × 3 still runs in scoring. Once `rush` plays, no
 module saves `rush`.
+
+**On prod (2026-10-28) the set is `urf`, not `rush`**: the operator had made `urf` in both modules and a `urf` battle
+entry for that night. The entry was deleted and season 0's finale edited to play `urf` (2 h, × 3); the migration's
+`rush` seed is what a fresh database gets.
+
+**The freeze after it (Sat 31 Oct 23:00 to Sun 1 Nov 15:00 UTC)**: the map is frozen over the break before season 1
+(see [A frozen map](rules.md#a-frozen-map)). Before 23:00:
+
+1. Ops → Game rules: Copy `default`, name it `frozen`, tick "Frozen: the map takes no play". Save.
+2. Ops → Anti-bot rules: Copy `default`, name it `frozen`. Save.
+3. Ops → Seasons: add season 1 with a break of 16 h, so it starts Sun 1 Nov 15:00 UTC; the client counts down to it
+   on the frozen dock.
+4. Ops → Rule schedule: add a plain entry `frozen`, from Sat 31 Oct 23:00 to Sun 1 Nov 15:00 UTC, priority 1. It
+   starts as the Final Battle ends, so it overlaps no finale.

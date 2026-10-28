@@ -141,6 +141,16 @@ export class FakeTurnBackend implements TurnBackend {
         }
     }
 
+    // The running season is over, and the next one starts later: the break between two seasons.
+    public startBreak(nextStartsAt: number, days = 28): void {
+        const ended = this.seasons.current
+        const number = (ended?.number ?? -1) + 1
+        this.seasons = {
+            next: {number, startsAt: nextStartsAt, endsAt: nextStartsAt + days * DAY_MS, bookId: `season-${number}`},
+        }
+        for (const listener of this.listeners) listener.onSeasons(this.seasons)
+    }
+
     private debrief(debrief: Debrief) {
         this.debriefed = debrief
         for (const listener of this.listeners) listener.onDebrief(debrief)
@@ -187,6 +197,10 @@ export function battleCommands(turns: FakeTurnBackend) {
         moveSeasonEnd: (inMinutes: number) => {
             turns.moveSeasonEnd(Date.now() + inMinutes * MINUTE)
             return `the season ends in ${inMinutes} minutes`
+        },
+        startBreak: (nextInMinutes = 960) => {
+            turns.startBreak(Date.now() + nextInMinutes * MINUTE)
+            return `the season is over; the next one starts in ${nextInMinutes} minutes`
         },
         scheduleFinale: (inMinutes = 90, minutes = 120) => {
             turns.moveSeasonEnd(Date.now() + (inMinutes + minutes) * MINUTE)

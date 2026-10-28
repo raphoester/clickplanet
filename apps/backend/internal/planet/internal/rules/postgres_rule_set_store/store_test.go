@@ -8,11 +8,13 @@ import (
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/parts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/postgres_rule_set_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 func TestThePostgresStoreKeepsTheContract(t *testing.T) {
@@ -39,7 +41,7 @@ func TestTheMigrationSeedsDefaultWithProductionsRules(t *testing.T) {
 func TestAValueThisBuildDoesNotKnowIsIgnored(t *testing.T) {
 	db := cppg.StartTestServer(t).OpenSchema(t, "planet", migrations.FS)
 	_, err := db.On(t.Context()).ExecContext(t.Context(),
-		`UPDATE rule_sets SET rules = jsonb_set(rules, '{frozen}', 'true') WHERE name = 'default'`)
+		`UPDATE rule_sets SET rules = jsonb_set(rules, '{paused}', 'true') WHERE name = 'default'`)
 	require.NoError(t, err)
 
 	set, err := postgres_rule_set_store.New(db, parts.All()).Set(t.Context(), rules.Default)
@@ -71,4 +73,19 @@ func TestEveryValueIsWrittenZerosIncluded(t *testing.T) {
 		`SELECT rules->'bonuses'->'kinds' ? 'refill' AND rules->'bonuses'->'quiz' ? 'leaderBias' FROM rule_sets WHERE name = 'calm'`).
 		Scan(&written))
 	assert.True(t, written)
+}
+
+func TestAFrozenSetIsReadFrozen(t *testing.T) {
+	db := cppg.StartTestServer(t).OpenSchema(t, "planet", migrations.FS)
+	_, err := db.On(t.Context()).ExecContext(t.Context(),
+		`INSERT INTO rule_sets (name, rules) SELECT 'frozen', jsonb_set(rules, '{frozen}', 'true') FROM rule_sets WHERE name = 'default'`)
+	require.NoError(t, err)
+
+	set, err := postgres_rule_set_store.New(db, parts.All()).Set(t.Context(), "frozen")
+	require.NoError(t, err)
+
+	assert.True(t, set.TakeSnapshot().Rules.GetFrozen())
+	inForce := rules.NewInForce(cptime.SystemClock{})
+	inForce.Enforce(set)
+	assert.Equal(t, clicks.Freeze(true), rules.Reader(inForce, clicks.FreezePart)())
 }

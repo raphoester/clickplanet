@@ -54,6 +54,23 @@ the operator's calls carry and the log lines print as it is. `Snapshot.Restore(p
   1 min); `0s` is off. See [A newcomer's first box and first quiz](welcome-bonus.md)
 - `bonuses.quiz.enabled`, `minInterval`, `maxInterval`, `maxChargesPerHour`, `offerTtl`, `answerWindow`, `missRetry`,
   `leaderBias` — the quizzes (on, 4–8 min, 12, 25 s, 8 s, 2 min, 1). See [Quizzes](quizzes.md)
+- `frozen` — the map takes no play (off). See [A frozen map](#a-frozen-map)
+
+## A frozen map
+
+**A set with `frozen` takes no play** (`clicks.Freeze`, part `frozen`): while it is in force,
+`planetv1controller.NewFreezeInterceptor` refuses Click, DropBomb, PlaceShield, UseRefill, ClaimBonus, OpenQuiz and
+AnswerQuiz with `FailedPrecondition` and a `planet.v1.FrozenRefusal` detail (`clicks.ErrFrozen`), before any of them
+spends a click or a charge. The map still loads and streams; tile cards, the board and PledgeAllegiance go on, and so
+do the operator's tools. A freeze is played like any set: the schedule picks it (a plain entry over the break between
+two seasons, see [Before the Final Battle](gamemaster.md#before-the-final-battle-sat-31-oct-2026-2100-utc)), so no
+operator call freezes the map at once.
+
+- **The client learns it from planet, the module that refuses**: `GetBudget` answers `ClickBudget.frozen` (only
+  GetBudget sets it), and a set taking over sends `rules_changed`, so an open tab reads it again within a second.
+- **Boxes and quizzes are offered on a timer** to a caller who clicked within `bonuses.activeWithin`, so one may still
+  be offered in the first minutes of a freeze: claiming or answering it is refused, and it lapses.
+- **The antibot needs a set of the same name** for the entry to be scheduled (a copy of `default` does).
 
 ## Where it is kept
 

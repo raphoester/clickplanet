@@ -4,13 +4,16 @@
 it is harmless twice.
 
 **Game rules** (`RulesPanel`, `rules.ts`) is `planet.v1.AdminService/GetRules` and `SaveRuleSet` (the backend's
-[Rules](../../backend/docs/rules.md)): every set postgres keeps, `default` first, with its tempo (`3×`), its clicks
+[Rules](../../backend/docs/rules.md)): every set postgres keeps, `default` first, with its map (`Open`, or `Frozen` for
+a set that takes no play, `playOf`), its tempo (`3×`), its clicks
 (`60 in hand, 0.2 a second`) and its boxes, and the set playing, marked. **Edit** opens a set, its name fixed; **Copy**
 opens a copy of a set, with no name. The set playing has no Edit, as on Anti-bot rules: the rules in force change only
 through the schedule, and the server refuses a save of the set that plays now (`FailedPrecondition`, "A set of this
 name plays now. Save it under another name.").
 
-**The form edits every value of a set, grouped**: Clicks (the tempo with them), Boxes, What a box is (the kinds'
+**The form edits every value of a set, grouped**, under one switch, "Frozen: the map takes no play" (the set's
+`frozen`: while it plays, planet refuses every click, bomb, shield, refill, box and quiz; see the backend's
+[A frozen map](../../backend/docs/rules.md#a-frozen-map)): Clicks (the tempo with them), Boxes, What a box is (the kinds'
 weights), Charges, New accounts, Quizzes (with their on switch), and the Toll, whose steps are rows to add and remove.
 `GROUPS` names each value by its path in the set's rules (`Rules.toJson`), so the form needs no code per value: a
 duration is typed in seconds, a count is rounded to a whole one, a toll share is typed in percent. **A grouped form,

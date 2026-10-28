@@ -5,7 +5,7 @@ import {FailureNotice} from "../components/FailureNotice.tsx"
 import {GetRulesResponse, RuleSet} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {wordsOf} from "../refusal.ts"
 import {useCall} from "../useCall.ts"
-import {boxesOf, clicksOf, complete, copyOf, Draft, draftOf, GROUPS, saveRuleSet, tempoOf, TollStep} from "./rules.ts"
+import {boxesOf, clicksOf, complete, copyOf, Draft, draftOf, GROUPS, playOf, saveRuleSet, tempoOf, TollStep} from "./rules.ts"
 
 // made: an edit of a set kept, with its name fixed; otherwise a new set copied from `from`.
 type Editing = {draft: Draft, made: boolean, from: string}
@@ -58,12 +58,13 @@ function Sets({rules, onEdit, onCopy}: {
         <table className="table">
             <caption>Sets</caption>
             <thead>
-                <tr><th>Set</th><th>Refill</th><th>Clicks</th><th>Boxes</th><th/></tr>
+                <tr><th>Set</th><th>Map</th><th>Refill</th><th>Clicks</th><th>Boxes</th><th/></tr>
             </thead>
             <tbody>
                 {rules.sets.map(set => (
                     <tr key={set.name} aria-current={set.name === rules.playing ? "true" : undefined}>
                         <td><strong>{set.name}</strong></td>
+                        <td>{playOf(set)}</td>
                         <td>{tempoOf(set)}</td>
                         <td>{clicksOf(set.rules?.clicks)}</td>
                         <td>{boxesOf(set.rules?.bonuses?.boxes)}</td>
@@ -98,6 +99,10 @@ function SetForm({planet, editing, onCancel, onSaved}: {
             <label className="field">
                 <span className="muted">Name</span>
                 <input value={draft.name} disabled={editing.made} onChange={e => change({name: e.target.value})}/>
+            </label>
+            <label className="check">
+                <input type="checkbox" checked={draft.frozen} onChange={e => change({frozen: e.target.checked})}/>
+                Frozen: the map takes no play
             </label>
             {GROUPS.map(group => (
                 <fieldset key={group.title} className="rule-group">

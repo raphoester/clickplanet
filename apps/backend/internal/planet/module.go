@@ -219,6 +219,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			}
 			throttle := rules.Reader(inForce, clicks.ThrottlePart)
 			game := rules.Reader(inForce, bonuses.Part)
+			freeze := rules.Reader(inForce, clicks.FreezePart)
 
 			charges := bonuses.NewCharges(postgres_charge_store.New(db), game)
 
@@ -370,6 +371,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			interceptors := []connect.Interceptor{
 				planetv1controller.NewCacheInterceptor(tilesStorage),
 				planetv1controller.NewVPNBlockInterceptor(blocklist, props.Metrics),
+				planetv1controller.NewFreezeInterceptor(freeze),
 			}
 
 			if config.Auth.Enabled {
@@ -417,7 +419,7 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			service := planetv1controller.ClickService{
 				ClickHandler:       click_handler.New(clickUseCase),
-				GetBudgetHandler:   get_budget_handler.New(get_budget_usecase.New(limiter, pricer, buckets)),
+				GetBudgetHandler:   get_budget_handler.New(get_budget_usecase.New(limiter, pricer, buckets, freeze)),
 				MapDensityHandler:  map_density_handler.New(map_density_usecase.New(tilesChecker)),
 				GetMapHandler:      get_map_handler.New(get_map_usecase.New(tilesChecker, tilesStorage, told)),
 				GetHoldingsHandler: get_holdings_handler.New(holdings_query.NewMemoryQuery(tilesStorage)),

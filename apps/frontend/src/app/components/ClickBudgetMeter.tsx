@@ -1,7 +1,9 @@
 import {ReactNode, useEffect, useRef} from 'react'
 import {ClickBudget, nextClickProgress, now, secondsToOneMore, tokensAt} from "../../backends/clickBudget.ts"
 import {factor} from "../../domain/clickPrice.ts"
-import {HourglassIcon, UsersIcon} from "./icons.tsx"
+import {HourglassIcon, LockIcon, UsersIcon} from "./icons.tsx"
+import {timeLeftTo} from "../../domain/seasonClock.ts"
+import {useNow} from "../season/useNow.ts"
 import {useEscape} from "./useDialog.ts"
 import {offerText, SHARED_WITH} from "./clickOffer.ts"
 import Bubble from "./Bubble.tsx"
@@ -17,6 +19,8 @@ export type ClickBudgetMeterProps = {
     onToggleOpen?: () => void
     popover?: ReactNode
     said?: {text: string, id: number}
+    // The map takes no play: the dock says so, and when the next season starts when one is planned.
+    frozen?: {nextSeason?: {number: number, startsAt: number}}
 }
 
 const MAX_PIPS = 12
@@ -37,6 +41,7 @@ export default function ClickBudgetMeter({
     onToggleOpen,
     popover,
     said,
+    frozen,
 }: ClickBudgetMeterProps) {
     const root = useRef<HTMLDivElement>(null)
     const count = useRef<HTMLSpanElement>(null)
@@ -109,6 +114,15 @@ export default function ClickBudgetMeter({
 
         return () => cancelAnimationFrame(frame)
     }, [budget])
+
+    if (frozen) {
+        return <div className="click-budget-dock panel">
+            <div ref={root} className="click-budget click-budget-frozen" role="status">
+                <LockIcon/>
+                <FrozenLines nextSeason={frozen.nextSeason}/>
+            </div>
+        </div>
+    }
 
     if (!budget) return children ? <div className="click-budget-dock panel">{children}</div> : null
 
@@ -206,4 +220,14 @@ export function BoltIcon() {
                 aria-hidden="true">
         <path d="M13 2 4 14h7l-1 8 9-12h-7z"/>
     </svg>
+}
+
+function FrozenLines({nextSeason}: {nextSeason?: {number: number, startsAt: number}}) {
+    const now = useNow()
+    return <span className="click-budget-frozen-lines">
+        <span className="click-budget-frozen-head">The map is frozen</span>
+        {nextSeason && nextSeason.startsAt > now && <span className="click-budget-frozen-next">
+            Season {nextSeason.number} starts in <span role="timer">{timeLeftTo(nextSeason.startsAt, now)}</span>
+        </span>}
+    </span>
 }

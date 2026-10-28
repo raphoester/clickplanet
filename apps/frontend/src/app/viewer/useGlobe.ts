@@ -146,6 +146,7 @@ export function useGlobe(options: UseGlobeOptions) {
                 if (!cancelled) setOrbit(inOrbit)
             },
             onRateLimited: () => setRefusals(n => n + 1),
+            onFrozen: () => setRefusals(n => n + 1),
             onVPNBlocked: () => setVPNBlocked(true),
             onBanned: setBannedUntil,
             onSessionUnavailable: () => setSessionUnavailable(true),

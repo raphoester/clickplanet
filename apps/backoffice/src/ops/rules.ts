@@ -9,6 +9,11 @@ export function tempoOf(set: RuleSet): string {
     return `${set.rules?.clicks?.tempo ?? 0}×`
 }
 
+// A frozen set takes no play: no click, bomb, shield, refill, box or quiz.
+export function playOf(set: RuleSet): string {
+    return set.rules?.frozen ? "Frozen" : "Open"
+}
+
 export function clicksOf(clicks: ClickRules | undefined): string {
     if (clicks === undefined) return "—"
 
@@ -91,7 +96,7 @@ const FIELDS = GROUPS.flatMap(group => group.fields)
 export type TollStep = {share: string, slowdown: string}
 
 // A set as the form edits it: every value as typed.
-export type Draft = {name: string, values: Record<string, string>, quiz: boolean, toll: TollStep[]}
+export type Draft = {name: string, values: Record<string, string>, quiz: boolean, frozen: boolean, toll: TollStep[]}
 
 export function draftOf(set: RuleSet): Draft {
     const rules = set.rules ?? new Rules()
@@ -101,6 +106,7 @@ export function draftOf(set: RuleSet): Draft {
         name: set.name,
         values: Object.fromEntries(FIELDS.map(field => [field.path, textOf(valueAt(json, field.path))])),
         quiz: rules.bonuses?.quiz?.enabled ?? false,
+        frozen: rules.frozen,
         toll: (rules.toll?.steps ?? []).map(step => ({
             share: String(Number((step.share * 100).toPrecision(12))), slowdown: String(step.slowdown),
         })),
@@ -133,7 +139,7 @@ export function complete(draft: Draft): boolean {
 }
 
 export function ruleSetOf(draft: Draft): RuleSet {
-    const json: JsonObject = {bonuses: {quiz: {enabled: draft.quiz}}}
+    const json: JsonObject = {bonuses: {quiz: {enabled: draft.quiz}}, frozen: draft.frozen}
     for (const field of FIELDS) {
         put(json, field.path, jsonOf(Number(draft.values[field.path]), field))
     }

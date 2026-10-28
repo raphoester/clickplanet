@@ -22,8 +22,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 
 - [Architecture](docs/architecture.md) — the layers: `domain/`, `backends/`, `app/viewer/`, `app/`.
 - [`src/domain/`](docs/domain.md) — the logic worth testing: no GPU, no DOM, no React.
-- [`src/backends/`](docs/backends.md) — the contracts and the one Connect transport; the click budget;
-  connection health.
+- [`src/backends/`](docs/backends.md) — the contracts and the one Connect transport; the click budget; a frozen
+  map; connection health.
 - [The screen: four zones](docs/screen.md) — nothing is drawn over the globe but four zones.
 - [Data flow](docs/data-flow.md) — from `createGlobe` to the screen, step by step.
 - [Sessions](docs/sessions.md) — the click token the backend gates `Click` on.

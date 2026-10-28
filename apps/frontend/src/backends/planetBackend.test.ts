@@ -18,6 +18,7 @@ import {Code, ConnectError} from "@connectrpc/connect"
 import {
     Allegiance as AllegianceMessage,
     BanRefusal,
+    FrozenRefusal,
     BombDropped,
     BonusKind,
     BonusOffered,
@@ -50,7 +51,7 @@ import {
     TilesSpread,
     TileUpdate,
 } from "../gen/grpc/planet/v1/planet_pb.ts"
-import {AllegianceLockedError, BankFullError, BannedError, BonusLostError, ShieldRefusedError, RateLimitedError, VPNBlockedError} from "./backend.ts"
+import {AllegianceLockedError, BankFullError, BannedError, BonusLostError, FrozenError, ShieldRefusedError, RateLimitedError, VPNBlockedError} from "./backend.ts"
 import {SESSION_HEADER, type SessionProvider, SessionUnavailableError} from "./session.ts"
 import type {ClickBudget} from "./clickBudget.ts"
 import type {BonusRules, Charges} from "../domain/bonus.ts"
@@ -491,6 +492,32 @@ describe("PlanetBackend.clickTile", () => {
         await expect(backend.clickTile(1, "fr")).rejects.toBeInstanceOf(VPNBlockedError)
         await expect(backend.clickTile(1, "fr")).rejects.not.toBeInstanceOf(RateLimitedError)
         expect(click).toHaveBeenCalledTimes(2)
+        backend.close()
+    })
+
+    it("reports a click on a frozen map as a FrozenError", async () => {
+        const refused = new ConnectError("the map is frozen", Code.FailedPrecondition, undefined, [new FrozenRefusal()])
+        const click = vi.fn().mockRejectedValue(refused)
+        const backend = backendWith(click)
+
+        await expect(backend.clickTile(1, "fr")).rejects.toBeInstanceOf(FrozenError)
+        expect(click).toHaveBeenCalledTimes(1)
+        backend.close()
+    })
+
+    it("says when the rules freeze the map", async () => {
+        const click = vi.fn()
+            .mockResolvedValueOnce({budget: new ClickBudgetMessage({tokens: 6, capacity: 10, refillPerSecond: 1, frozen: true})})
+            .mockResolvedValueOnce({budget: new ClickBudgetMessage({tokens: 6, capacity: 10, refillPerSecond: 1})})
+        const backend = backendWith(click)
+
+        const seen: (boolean | undefined)[] = []
+        backend.watchClickBudget(b => seen.push(b.frozen))
+        await backend.clickTile(1, "fr")
+        expect(seen.at(-1)).toBe(true)
+        await backend.clickTile(2, "fr")
+        expect(seen.at(-1)).toBe(false)
+
         backend.close()
     })
 
