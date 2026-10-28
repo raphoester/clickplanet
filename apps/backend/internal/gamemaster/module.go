@@ -160,7 +160,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 			edit_entry_usecase.New(entries, seasons, keepers, clock), props.Logger)),
 		DeleteEntryHandler: delete_entry_handler.New(audit_delete_entry.New(
 			delete_entry_usecase.New(entries, clock), props.Logger)),
-		GetSeasonsHandler: get_seasons_handler.New(seasons_query.NewPostgresQuery(db)),
+		GetSeasonsHandler: get_seasons_handler.New(seasons_query.NewPostgresQuery(db, cutoff)),
 		AddSeasonHandler: add_season_handler.New(audit_add_season.New(
 			add_season_usecase.New(seasons, entries, keepers, clock), props.Logger)),
 		EditSeasonHandler: edit_season_handler.New(audit_edit_season.New(

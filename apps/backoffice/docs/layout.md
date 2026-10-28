@@ -26,7 +26,8 @@ src/
   reports/          Reports: ReportsView (the inbox), ReportList, ReportDetail, VerdictPanel over verdict.ts, actions.ts
   players/          Players: list, PlayerName, PlayerView, Standing, ProfilePanel, the tools on one player, actions.ts
   map/              Reassign a country, Paint random tiles, Download a replay
-  ops/              Reconcile titles, Game rules, Anti-bot rules (a form read off the proto), Rule schedule, Seasons
+  ops/              Reconcile titles, Game rules, Anti-bot rules (a form read off the proto), Rule schedule, Seasons,
+                    Timeline
   gen/grpc/         generated from ../../proto, committed
   gen/map/          the tile coordinates, copied from ../../map, committed
 ```

@@ -85,7 +85,7 @@ import {
     ScheduledSeason,
     SeasonFinale,
 } from "./gen/grpc/gamemaster/v1/admin_pb.ts"
-import {EntryKind, Season} from "./gen/grpc/gamemaster/v1/gamemaster_pb.ts"
+import {Day, EntryKind, Season} from "./gen/grpc/gamemaster/v1/gamemaster_pb.ts"
 import {ChargesHeld, TileUpdate} from "./gen/grpc/planet/v1/planet_pb.ts"
 import {
     AdminGetPlayerRequest,
@@ -629,8 +629,23 @@ function seasonsOf(first: Date, plans: Plan[]): GetSeasonsResponse {
             end = new Date(startsAt.getTime() + Number(plan.length.seconds) * 1000)
             return new ScheduledSeason({
                 season: new Season({number, startsAt: Timestamp.fromDate(startsAt), endsAt: Timestamp.fromDate(end)}),
-                breakBefore: plan.breakBefore, length: plan.length, finale: plan.finale,
+                breakBefore: plan.breakBefore, length: plan.length, finale: plan.finale, days: daysOf(startsAt, end),
             })
         }),
     })
+}
+
+// A season's days at a 21:00 UTC cutoff, as the server works them out; none for a season that runs for years.
+function daysOf(startsAt: Date, endsAt: Date): Day[] {
+    if (endsAt.getTime() - startsAt.getTime() > 120 * DAY * 1000) return []
+    const days: Day[] = []
+    let start = startsAt
+    let end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate(), 21))
+    if (end <= start) end = new Date(end.getTime() + DAY * 1000)
+    while (end <= endsAt) {
+        days.push(new Day({number: days.length + 1, startsAt: Timestamp.fromDate(start), endsAt: Timestamp.fromDate(end)}))
+        start = end
+        end = new Date(end.getTime() + DAY * 1000)
+    }
+    return days
 }

@@ -1683,4 +1683,141 @@ button.chip:hover {
 .save-count {
     font-weight: 600;
     color: var(--accent);
+
+.timeline {
+    display: grid;
+    gap: 16px;
+    min-width: 0;
+}
+
+.timeline-tools {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: space-between;
+}
+
+.lanes {
+    display: grid;
+    gap: 6px;
+    padding: 12px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    overflow-x: auto;
+}
+
+.lane {
+    display: grid;
+    grid-template-columns: 110px minmax(560px, 1fr);
+    align-items: center;
+    gap: 8px;
+}
+
+.lane-label {
+    font-size: 13px;
+}
+
+.lane-track {
+    position: relative;
+    height: 30px;
+    background: var(--bg);
+    border-radius: 6px;
+}
+
+.lane-ticks .lane-track {
+    height: 18px;
+    background: none;
+}
+
+.tick {
+    position: absolute;
+    top: 0;
+    font-size: 11px;
+    white-space: nowrap;
+    border-left: 1px solid var(--line);
+    padding-left: 3px;
+}
+
+.lane-now {
+    position: absolute;
+    top: -4px;
+    bottom: -4px;
+    width: 2px;
+    background: var(--bug);
+}
+
+.block {
+    position: absolute;
+    top: 3px;
+    bottom: 3px;
+    overflow: hidden;
+    padding: 0 6px;
+    font-size: 12px;
+    line-height: 24px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    border-radius: 4px;
+    border: 1px solid var(--surface);
+    color: #ffffff;
+}
+
+.block-season { background: #2a78d6; }
+.block-break { background: #8a94a3; }
+.block-finale { background: #b3261e; }
+.block-battle { background: #d9461f; }
+.block-plain { background: #6b5bd2; }
+.block-frozen { background: #1f8fa8; }
+.block-default { background: #8a94a3; }
+.block-day { background: #1d7a46; }
+
+.chronology {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.instant {
+    display: grid;
+    grid-template-columns: minmax(150px, 200px) 1fr;
+    gap: 12px;
+    padding: 10px 14px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+}
+
+.instant[aria-current="true"] {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent);
+}
+
+.instant-when {
+    display: grid;
+}
+
+.instant-what {
+    display: grid;
+    gap: 2px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.dot {
+    display: inline-block;
+    position: static;
+    width: 10px;
+    height: 10px;
+    margin-right: 8px;
+    border-radius: 50%;
+}
+
+@media (max-width: 600px) {
+    .instant {
+        grid-template-columns: 1fr;
+        gap: 4px;
+    }
 }

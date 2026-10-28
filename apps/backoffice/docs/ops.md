@@ -1,5 +1,19 @@
 # Ops
 
+**Timeline** (`TimelinePanel`, `timeline.ts`) is what the gamemaster does next, read from `GetSchedule`, `GetSeasons`
+(with each season's days) and planet's `GetRules`, and worked out on the page:
+
+- **Four lanes of blocks** over the range picked (1 day, 3 days, 1 week, 4 weeks, from a little before now), with a
+  red line at now: Seasons (and the breaks between them), Rules in force, Battles (the entries and the seasons'
+  Final Battles) and Days. Hovering a block gives its words and times.
+- **Rules in force follows the gamemaster's rule**: a season's finale above all, else the running entry of the highest
+  priority (at one priority, the one made last), else `default`, which is left blank. A set planet keeps as frozen is
+  drawn as frozen.
+- **The list below is every time something happens in the range**, the next one marked, each with how long until
+  it, and what happens then in the gamemaster's order: a day closes, a battle ends, a season ends, a season starts,
+  the map is reset (every season but the first), a battle starts, a rule set plays.
+- **It reads, and changes nothing.** Reload reads again; the times move on by themselves every 30 s.
+
 `src/ops/`: `ReconcileTitles` (`TitlesPanel`, after a deploy that adds a title or changes a rule). It asks first, and
 it is harmless twice.
 
