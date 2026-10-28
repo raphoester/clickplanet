@@ -81,6 +81,7 @@ import {
     GetSeasonsRequest,
     GetSeasonsResponse,
     Playing,
+    ScheduledSeason,
 } from "./gen/grpc/gamemaster/v1/admin_pb.ts"
 import {EntryKind, Season} from "./gen/grpc/gamemaster/v1/gamemaster_pb.ts"
 import {
@@ -216,21 +217,14 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         ],
         playing: new Playing({ruleSet: "calm", kind: EntryKind.PLAIN, since: Timestamp.fromDate(AT), entryId: "entry-running"}),
     })
-    // A season that ended, one that runs until 2098, and one to come.
-    seasons = new GetSeasonsResponse({
-        seasons: [
-            new Season({
-                number: 1, startsAt: Timestamp.fromDate(new Date("2020-09-01T00:00:00Z")), endsAt: Timestamp.fromDate(AT),
-            }),
-            new Season({
-                number: 2, startsAt: Timestamp.fromDate(AT), endsAt: Timestamp.fromDate(new Date("2098-01-01T00:00:00Z")),
-            }),
-            new Season({
-                number: 3, startsAt: Timestamp.fromDate(new Date("2098-01-01T00:00:00Z")),
-                endsAt: Timestamp.fromDate(new Date("2098-04-01T00:00:00Z")),
-            }),
-        ],
-    })
+    // A season that ended, one that runs until 2098 after a day's break, and one of 90 days to come.
+    seasons = seasonsOf(new Date("2020-09-01T00:00:00Z"), [
+        {breakBefore: 0, length: (AT.getTime() - new Date("2020-09-01T00:00:00Z").getTime()) / 1000},
+        {breakBefore: DAY, length: (new Date("2098-01-01T00:00:00Z").getTime() - AT.getTime()) / 1000 - DAY},
+        {breakBefore: 0, length: 90 * DAY},
+    ].map(({breakBefore, length}) => ({
+        breakBefore: new Duration({seconds: BigInt(breakBefore)}), length: new Duration({seconds: BigInt(length)}),
+    })))
     authors = [new Author({accountId: ACCOUNT, name: "BraveFox42"})]
     profile = new AdminGetPlayerResponse({
         name: "BraveFox42", linked: true, createdAtUnixMs: BigInt(AT.getTime()), messagesSent: 4n,
@@ -603,10 +597,10 @@ export class FakeGamemaster implements GamemasterAdmin {
     }
 
     addSeason(request: PartialMessage<AddSeasonRequest>): Promise<AddSeasonResponse> {
-        const number = Math.max(0, ...this.admin.seasons.seasons.map(season => season.number)) + 1
+        const number = this.admin.seasons.seasons.length
         const answer = this.admin.answer("addSeason", request, new AddSeasonResponse({number}))
         if (!this.admin.refusals.has("addSeason")) {
-            this.keepSeasons([...this.admin.seasons.seasons, new Season({...request, number})])
+            this.keepSeasons([...this.plans(), {breakBefore: new Duration(request.breakBefore), length: new Duration(request.length)}])
         }
         return answer
     }
@@ -614,7 +608,9 @@ export class FakeGamemaster implements GamemasterAdmin {
     editSeason(request: PartialMessage<EditSeasonRequest>): Promise<EditSeasonResponse> {
         const answer = this.admin.answer("editSeason", request, new EditSeasonResponse())
         if (!this.admin.refusals.has("editSeason")) {
-            this.keepSeasons(this.admin.seasons.seasons.map(season => season.number === request.number ? new Season({...season, ...request}) : season))
+            this.keepSeasons(this.plans().map((plan, number) => number === request.number
+                ? {breakBefore: new Duration(request.breakBefore), length: new Duration(request.length)}
+                : plan))
         }
         return answer
     }
@@ -622,16 +618,42 @@ export class FakeGamemaster implements GamemasterAdmin {
     deleteSeason(request: PartialMessage<DeleteSeasonRequest>): Promise<DeleteSeasonResponse> {
         const answer = this.admin.answer("deleteSeason", request, new DeleteSeasonResponse())
         if (!this.admin.refusals.has("deleteSeason")) {
-            this.keepSeasons(this.admin.seasons.seasons.filter(season => season.number !== request.number))
+            this.keepSeasons(this.plans().filter((_, number) => number !== request.number))
         }
         return answer
+    }
+
+    private plans(): Plan[] {
+        return this.admin.seasons.seasons.map(scheduled => ({
+            breakBefore: scheduled.breakBefore ?? new Duration(), length: scheduled.length ?? new Duration(),
+        }))
+    }
+
+    private keepSeasons(plans: Plan[]) {
+        const first = this.admin.seasons.seasons[0]?.season?.startsAt?.toDate() ?? new Date()
+        this.admin.seasons = seasonsOf(first, plans)
     }
 
     private keep(entries: Entry[]) {
         this.admin.schedule = new GetScheduleResponse({...this.admin.schedule, entries})
     }
+}
 
-    private keepSeasons(seasons: Season[]) {
-        this.admin.seasons = new GetSeasonsResponse({seasons})
-    }
+type Plan = {breakBefore: Duration, length: Duration}
+
+const DAY = 24 * 3600
+
+// Season 0 starts at its own start; each next one its break after the end before, as the server works them out.
+function seasonsOf(first: Date, plans: Plan[]): GetSeasonsResponse {
+    let end: Date | undefined
+    return new GetSeasonsResponse({
+        seasons: plans.map((plan, number) => {
+            const startsAt = end === undefined ? first : new Date(end.getTime() + Number(plan.breakBefore.seconds) * 1000)
+            end = new Date(startsAt.getTime() + Number(plan.length.seconds) * 1000)
+            return new ScheduledSeason({
+                season: new Season({number, startsAt: Timestamp.fromDate(startsAt), endsAt: Timestamp.fromDate(end)}),
+                breakBefore: plan.breakBefore, length: plan.length,
+            })
+        }),
+    })
 }

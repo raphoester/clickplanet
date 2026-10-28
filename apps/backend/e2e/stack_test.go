@@ -201,11 +201,15 @@ func seasonRuns(t *testing.T, gamemasterDatabase, scoringDatabase cppg.Config) {
 	for _, each := range []struct {
 		database cppg.Config
 		migrate  func(context.Context, cppg.Config) error
-	}{{gamemasterDatabase, gamemaster.Migrate}, {scoringDatabase, scoring.Migrate}} {
+		update   string
+	}{
+		{gamemasterDatabase, gamemaster.Migrate, `UPDATE seasons SET length = $1::timestamptz - timestamptz '2026-10-03T00:00:00Z' WHERE number = 0`},
+		{scoringDatabase, scoring.Migrate, `UPDATE seasons SET ends_at = $1 WHERE number = 0`},
+	} {
 		require.NoError(t, each.migrate(t.Context(), each.database))
 		db := cppg.New(each.database)
 		require.NoError(t, db.ConnectCtx(t.Context()))
-		_, err := db.On(t.Context()).ExecContext(t.Context(), `UPDATE seasons SET ends_at = $1 WHERE number = 0`, endsAt)
+		_, err := db.On(t.Context()).ExecContext(t.Context(), each.update, endsAt)
 		_ = db.Close()
 		require.NoError(t, err)
 	}

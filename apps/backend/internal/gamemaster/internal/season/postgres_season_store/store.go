@@ -3,6 +3,7 @@ package postgres_season_store
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
@@ -18,8 +19,10 @@ type Store struct {
 	db cppg.Conn
 }
 
+const columns = `number, (EXTRACT(EPOCH FROM break_before) * 1000000)::bigint, (EXTRACT(EPOCH FROM length) * 1000000)::bigint`
+
 func (s *Store) Calendar(ctx context.Context) (season.Calendar, error) {
-	rows, err := s.db.On(ctx).QueryContext(ctx, `SELECT number, starts_at, ends_at FROM seasons`)
+	rows, err := s.db.On(ctx).QueryContext(ctx, `SELECT `+columns+` FROM seasons`)
 	if err != nil {
 		return season.Calendar{}, fmt.Errorf("failed to read the seasons: %w", err)
 	}
@@ -27,15 +30,11 @@ func (s *Store) Calendar(ctx context.Context) (season.Calendar, error) {
 
 	var seasons []season.Season
 	for rows.Next() {
-		var (
-			number int64
-			kept   season.Snapshot
-		)
-		if err := rows.Scan(&number, &kept.StartsAt, &kept.EndsAt); err != nil {
+		kept, err := scan(rows)
+		if err != nil {
 			return season.Calendar{}, fmt.Errorf("failed to read a season: %w", err)
 		}
-		kept.Number = season.Number(number) //nolint:gosec // CHECK (number >= 0 AND number <= 4294967295).
-		seasons = append(seasons, kept.Restore())
+		seasons = append(seasons, kept)
 	}
 	if err := rows.Err(); err != nil {
 		return season.Calendar{}, fmt.Errorf("failed to read the seasons: %w", err)
@@ -46,9 +45,10 @@ func (s *Store) Calendar(ctx context.Context) (season.Calendar, error) {
 func (s *Store) Save(ctx context.Context, kept season.Season) error {
 	snapshot := kept.TakeSnapshot()
 	if _, err := s.db.On(ctx).ExecContext(ctx, `
-		INSERT INTO seasons (number, starts_at, ends_at) VALUES ($1, $2, $3)
-		ON CONFLICT (number) DO UPDATE SET starts_at = EXCLUDED.starts_at, ends_at = EXCLUDED.ends_at
-	`, int64(snapshot.Number), snapshot.StartsAt.UTC(), snapshot.EndsAt.UTC()); err != nil {
+		INSERT INTO seasons (number, break_before, length)
+		VALUES ($1, $2 * interval '1 microsecond', $3 * interval '1 microsecond')
+		ON CONFLICT (number) DO UPDATE SET break_before = EXCLUDED.break_before, length = EXCLUDED.length
+	`, int64(snapshot.Number), snapshot.Break.Microseconds(), snapshot.Length.Microseconds()); err != nil {
 		return fmt.Errorf("failed to keep season %d: %w", snapshot.Number, err)
 	}
 	return nil
@@ -59,4 +59,15 @@ func (s *Store) Delete(ctx context.Context, number season.Number) error {
 		return fmt.Errorf("failed to delete season %d: %w", number, err)
 	}
 	return nil
+}
+
+func scan(row interface{ Scan(dest ...any) error }) (season.Season, error) {
+	var number, brk, length int64
+	if err := row.Scan(&number, &brk, &length); err != nil {
+		return season.Season{}, err //nolint:wrapcheck // each caller names what it read.
+	}
+	return season.Snapshot{
+		Number: season.Number(number), //nolint:gosec // CHECK (number >= 0 AND number <= 4294967295).
+		Break:  time.Duration(brk) * time.Microsecond, Length: time.Duration(length) * time.Microsecond,
+	}.Restore(), nil
 }

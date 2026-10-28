@@ -65,10 +65,11 @@ type AdminServiceClient interface {
 	DeleteEntry(context.Context, *connect.Request[v1.DeleteEntryRequest]) (*connect.Response[v1.DeleteEntryResponse], error)
 	// Every season, by number. Scoring is told each one's start and end once it starts.
 	GetSeasons(context.Context, *connect.Request[v1.GetSeasonsRequest]) (*connect.Response[v1.GetSeasonsResponse], error)
-	// Adds a season that starts later, after the end of the last one, under the next number.
+	// Adds a season after the last one, under the next number: it starts a break after the last one's end, and must
+	// start after now.
 	AddSeason(context.Context, *connect.Request[v1.AddSeasonRequest]) (*connect.Response[v1.AddSeasonResponse], error)
-	// Changes a season that has not ended. One that started keeps its start, and its end moves only to a time after now:
-	// FailedPrecondition otherwise.
+	// Changes a season that has not ended; the seasons after it move with it. One that started keeps its break, and its
+	// end moves only to a time after now: FailedPrecondition otherwise.
 	EditSeason(context.Context, *connect.Request[v1.EditSeasonRequest]) (*connect.Response[v1.EditSeasonResponse], error)
 	// Deletes the last season, when it has not started. FailedPrecondition otherwise.
 	DeleteSeason(context.Context, *connect.Request[v1.DeleteSeasonRequest]) (*connect.Response[v1.DeleteSeasonResponse], error)
@@ -199,10 +200,11 @@ type AdminServiceHandler interface {
 	DeleteEntry(context.Context, *connect.Request[v1.DeleteEntryRequest]) (*connect.Response[v1.DeleteEntryResponse], error)
 	// Every season, by number. Scoring is told each one's start and end once it starts.
 	GetSeasons(context.Context, *connect.Request[v1.GetSeasonsRequest]) (*connect.Response[v1.GetSeasonsResponse], error)
-	// Adds a season that starts later, after the end of the last one, under the next number.
+	// Adds a season after the last one, under the next number: it starts a break after the last one's end, and must
+	// start after now.
 	AddSeason(context.Context, *connect.Request[v1.AddSeasonRequest]) (*connect.Response[v1.AddSeasonResponse], error)
-	// Changes a season that has not ended. One that started keeps its start, and its end moves only to a time after now:
-	// FailedPrecondition otherwise.
+	// Changes a season that has not ended; the seasons after it move with it. One that started keeps its break, and its
+	// end moves only to a time after now: FailedPrecondition otherwise.
 	EditSeason(context.Context, *connect.Request[v1.EditSeasonRequest]) (*connect.Response[v1.EditSeasonResponse], error)
 	// Deletes the last season, when it has not started. FailedPrecondition otherwise.
 	DeleteSeason(context.Context, *connect.Request[v1.DeleteSeasonRequest]) (*connect.Response[v1.DeleteSeasonResponse], error)

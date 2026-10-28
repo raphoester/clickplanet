@@ -15,9 +15,9 @@ import (
 )
 
 var (
-	zero = season.Snapshot{Number: 0, StartsAt: time.Date(2026, 10, 3, 0, 0, 0, 0, time.UTC), EndsAt: time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC)}
+	zero = season.Snapshot{Number: 0, Length: time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC).Sub(season.Origin)}
 	now  = time.Date(2026, 10, 28, 12, 0, 0, 0, time.UTC)
-	one  = season.Draft{StartsAt: zero.EndsAt.Add(time.Hour), EndsAt: zero.EndsAt.AddDate(0, 1, 0)}
+	one  = season.Draft{Break: time.Hour, Length: 28 * 24 * time.Hour}
 )
 
 func store(t *testing.T) *inmemory_season_store.Store {
@@ -36,13 +36,13 @@ func TestASeasonIsAddedUnderTheNextNumber(t *testing.T) {
 	assert.Equal(t, season.Number(1), number)
 	calendar, err := seasons.Calendar(t.Context())
 	require.NoError(t, err)
-	assert.Equal(t, []season.Snapshot{zero, {Number: 1, StartsAt: one.StartsAt, EndsAt: one.EndsAt}}, calendar.TakeSnapshot())
+	assert.Equal(t, []season.Snapshot{zero, {Number: 1, Break: one.Break, Length: one.Length}}, calendar.TakeSnapshot())
 }
 
 func TestARefusedSeasonIsNotKept(t *testing.T) {
 	seasons := store(t)
 
-	_, err := add_season_usecase.New(seasons, cptime.NewFixedClock(now)).Execute(t.Context(), season.Draft{StartsAt: now.Add(time.Hour), EndsAt: one.EndsAt})
+	_, err := add_season_usecase.New(seasons, cptime.NewFixedClock(now)).Execute(t.Context(), season.Draft{Break: time.Hour})
 
 	require.ErrorIs(t, err, season.ErrInvalidSeason)
 	calendar, err := seasons.Calendar(t.Context())

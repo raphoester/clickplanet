@@ -23,7 +23,7 @@ func (s stubUseCase) Execute(context.Context, season.Draft) (season.Number, erro
 	return s.number, s.err
 }
 
-var one = season.Draft{StartsAt: time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC), EndsAt: time.Date(2026, 11, 29, 23, 0, 0, 0, time.UTC)}
+var one = season.Draft{Break: time.Hour, Length: 28 * 24 * time.Hour}
 
 func TestEverySeasonAddedIsLoggedWithItsWindow(t *testing.T) {
 	var logs bytes.Buffer
@@ -31,7 +31,7 @@ func TestEverySeasonAddedIsLoggedWithItsWindow(t *testing.T) {
 	_, err := audit_add_season.New(stubUseCase{number: 1}, slog.New(slog.NewTextHandler(&logs, nil))).Execute(t.Context(), one)
 
 	require.NoError(t, err)
-	assert.Contains(t, logs.String(), `level=WARN msg="admin season added" starts_at=2026-11-01T00:00:00Z ends_at=2026-11-29T23:00:00Z season=1`)
+	assert.Contains(t, logs.String(), `level=WARN msg="admin season added" break=1h0m0s length=672h0m0s season=1`)
 }
 
 func TestARefusalIsLoggedWithWhyAndPassedOn(t *testing.T) {
@@ -40,5 +40,5 @@ func TestARefusalIsLoggedWithWhyAndPassedOn(t *testing.T) {
 	_, err := audit_add_season.New(stubUseCase{err: season.ErrInvalidSeason}, slog.New(slog.NewTextHandler(&logs, nil))).Execute(t.Context(), one)
 
 	require.ErrorIs(t, err, season.ErrInvalidSeason)
-	assert.Contains(t, logs.String(), `level=WARN msg="admin season refused" starts_at=2026-11-01T00:00:00Z`)
+	assert.Contains(t, logs.String(), `level=WARN msg="admin season refused" break=1h0m0s length=672h0m0s`)
 }

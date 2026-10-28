@@ -10,110 +10,105 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season"
 )
 
+const day = 24 * time.Hour
+
 var (
-	seasonZeroStarts = time.Date(2026, 10, 3, 0, 0, 0, 0, time.UTC)
-	seasonZeroEnds   = time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC)
-	now              = time.Date(2026, 10, 28, 12, 0, 0, 0, time.UTC)
+	seasonZeroEnds = time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC)
+	now            = time.Date(2026, 10, 28, 12, 0, 0, 0, time.UTC)
+	zero           = season.Snapshot{Number: 0, Length: seasonZeroEnds.Sub(season.Origin)}
+	month          = season.Draft{Break: day, Length: 28 * day}
 )
 
-func seasonZero() season.Season {
-	return season.Snapshot{Number: 0, StartsAt: seasonZeroStarts, EndsAt: seasonZeroEnds}.Restore()
+func planned(snapshots ...season.Snapshot) season.Calendar {
+	seasons := make([]season.Season, 0, len(snapshots))
+	for _, snapshot := range snapshots {
+		seasons = append(seasons, snapshot.Restore())
+	}
+	return season.NewCalendar(seasons...)
 }
 
-func later(days int) season.Draft {
-	return season.Draft{StartsAt: seasonZeroEnds.AddDate(0, 0, days), EndsAt: seasonZeroEnds.AddDate(0, 0, days+28)}
+func TestEachSeasonStartsItsBreakAfterTheEndOfTheOneBefore(t *testing.T) {
+	calendar := planned(season.Snapshot{Number: 1, Break: day, Length: 28 * day}, zero)
+
+	assert.Equal(t, []season.Window{
+		{Number: 0, StartsAt: season.Origin, EndsAt: seasonZeroEnds},
+		{Number: 1, StartsAt: seasonZeroEnds.Add(day), EndsAt: seasonZeroEnds.Add(29 * day)},
+	}, calendar.Windows())
 }
 
-func TestTheFirstSeasonIsNumberZero(t *testing.T) {
-	added, err := season.NewCalendar().Added(later(1), now)
+func TestAnAddedSeasonTakesTheNextNumberAfterTheLast(t *testing.T) {
+	added, err := planned(zero).Added(month, now)
 
 	require.NoError(t, err)
-	assert.Equal(t, season.Number(0), added.TakeSnapshot().Number)
+	assert.Equal(t, season.Snapshot{Number: 1, Break: day, Length: 28 * day}, added.TakeSnapshot())
 }
 
-func TestAnAddedSeasonTakesTheNextNumber(t *testing.T) {
-	added, err := season.NewCalendar(seasonZero()).Added(later(1), now)
+func TestASeasonWithNoBreakStartsAtTheEndOfTheOneBefore(t *testing.T) {
+	added, err := planned(zero).Added(season.Draft{Length: 28 * day}, now)
 
 	require.NoError(t, err)
-	assert.Equal(t, season.Snapshot{Number: 1, StartsAt: later(1).StartsAt, EndsAt: later(1).EndsAt}, added.TakeSnapshot())
+	assert.Equal(t, seasonZeroEnds, planned(zero, added.TakeSnapshot()).Windows()[1].StartsAt)
 }
 
-func TestASeasonEndsAfterItsStart(t *testing.T) {
-	draft := later(1)
-	draft.EndsAt = draft.StartsAt
-
-	_, err := season.NewCalendar(seasonZero()).Added(draft, now)
-
+func TestASeasonHasALengthAndNoBreakBelowNone(t *testing.T) {
+	_, err := planned(zero).Added(season.Draft{Break: day}, now)
 	require.ErrorIs(t, err, season.ErrInvalidSeason)
-}
 
-func TestASeasonDoesNotOverlapTheOneBefore(t *testing.T) {
-	_, err := season.NewCalendar(seasonZero()).Added(season.Draft{
-		StartsAt: seasonZeroEnds.Add(-time.Hour), EndsAt: seasonZeroEnds.AddDate(0, 0, 7),
-	}, now)
-
+	_, err = planned(zero).Added(season.Draft{Break: -time.Hour, Length: day}, now)
 	require.ErrorIs(t, err, season.ErrInvalidSeason)
-}
-
-func TestASeasonMayStartAtTheEndOfTheOneBefore(t *testing.T) {
-	_, err := season.NewCalendar(seasonZero()).Added(season.Draft{StartsAt: seasonZeroEnds, EndsAt: seasonZeroEnds.AddDate(0, 0, 7)}, now)
-
-	require.NoError(t, err)
 }
 
 func TestAnAddedSeasonStartsAfterNow(t *testing.T) {
-	_, err := season.NewCalendar().Added(season.Draft{StartsAt: now, EndsAt: now.Add(time.Hour)}, now)
+	_, err := planned(zero).Added(month, seasonZeroEnds.Add(day))
 
-	require.ErrorIs(t, err, season.ErrInvalidSeason)
+	require.ErrorIs(t, err, season.ErrInvalidSeason, "the last season ended long ago: the break is too short")
 }
 
-func TestTheEndOfARunningSeasonMovesToATimeAfterNow(t *testing.T) {
-	calendar := season.NewCalendar(seasonZero())
+func TestMovingTheEndOfTheRunningSeasonMovesTheSeasonsAfterIt(t *testing.T) {
+	calendar := planned(zero, season.Snapshot{Number: 1, Break: day, Length: 28 * day})
 
-	moved, err := calendar.Edited(0, season.Draft{StartsAt: seasonZeroStarts, EndsAt: seasonZeroEnds.AddDate(0, 0, 7)}, now)
+	moved, err := calendar.Edited(0, season.Draft{Length: zero.Length + 7*day}, now)
 	require.NoError(t, err)
-	assert.Equal(t, seasonZeroEnds.AddDate(0, 0, 7), moved.TakeSnapshot().EndsAt)
 
-	_, err = calendar.Edited(0, season.Draft{StartsAt: seasonZeroStarts, EndsAt: now}, now)
+	windows := planned(moved.TakeSnapshot(), season.Snapshot{Number: 1, Break: day, Length: 28 * day}).Windows()
+	assert.Equal(t, seasonZeroEnds.Add(7*day), windows[0].EndsAt)
+	assert.Equal(t, seasonZeroEnds.Add(8*day), windows[1].StartsAt)
+}
+
+func TestTheEndOfTheRunningSeasonMovesOnlyToATimeAfterNow(t *testing.T) {
+	_, err := planned(zero).Edited(0, season.Draft{Length: now.Sub(season.Origin)}, now)
+
 	require.ErrorIs(t, err, season.ErrInvalidSeason)
 }
 
-func TestARunningSeasonKeepsItsStart(t *testing.T) {
-	_, err := season.NewCalendar(seasonZero()).Edited(0, season.Draft{
-		StartsAt: seasonZeroStarts.Add(time.Hour), EndsAt: seasonZeroEnds,
-	}, now)
+func TestARunningSeasonKeepsItsBreak(t *testing.T) {
+	_, err := planned(zero).Edited(0, season.Draft{Break: time.Hour, Length: zero.Length}, now)
 
 	require.ErrorIs(t, err, season.ErrStarted)
 }
 
+func TestASeasonToComeMayChangeItsBreak(t *testing.T) {
+	calendar := planned(zero, season.Snapshot{Number: 1, Break: day, Length: 28 * day})
+
+	_, err := calendar.Edited(1, season.Draft{Break: 3 * day, Length: 7 * day}, now)
+
+	require.NoError(t, err)
+}
+
 func TestAnEndedSeasonCannotBeEdited(t *testing.T) {
-	_, err := season.NewCalendar(seasonZero()).Edited(0, season.Draft{
-		StartsAt: seasonZeroStarts, EndsAt: seasonZeroEnds.AddDate(0, 0, 7),
-	}, seasonZeroEnds)
+	_, err := planned(zero).Edited(0, season.Draft{Length: zero.Length + 7*day}, seasonZeroEnds)
 
 	require.ErrorIs(t, err, season.ErrEnded)
 }
 
-func TestAnEditedSeasonDoesNotOverlapTheOneAfter(t *testing.T) {
-	calendar := season.NewCalendar(seasonZero(), season.Snapshot{Number: 1, StartsAt: later(1).StartsAt, EndsAt: later(1).EndsAt}.Restore())
-
-	_, err := calendar.Edited(0, season.Draft{StartsAt: seasonZeroStarts, EndsAt: later(2).StartsAt}, now)
-
-	require.ErrorIs(t, err, season.ErrInvalidSeason)
-}
-
 func TestAnUnknownSeasonIsNotEdited(t *testing.T) {
-	_, err := season.NewCalendar(seasonZero()).Edited(4, later(1), now)
+	_, err := planned(zero).Edited(4, month, now)
 
 	require.ErrorIs(t, err, season.ErrUnknownSeason)
 }
 
 func TestOnlyTheLastSeasonToComeIsDeleted(t *testing.T) {
-	calendar := season.NewCalendar(
-		seasonZero(),
-		season.Snapshot{Number: 1, StartsAt: later(1).StartsAt, EndsAt: later(1).EndsAt}.Restore(),
-		season.Snapshot{Number: 2, StartsAt: later(30).StartsAt, EndsAt: later(30).EndsAt}.Restore(),
-	)
+	calendar := planned(zero, season.Snapshot{Number: 1, Break: day, Length: 28 * day}, season.Snapshot{Number: 2, Length: day})
 
 	require.ErrorIs(t, calendar.Deletable(0, now), season.ErrStarted)
 	require.ErrorIs(t, calendar.Deletable(1, now), season.ErrNotLast)
@@ -122,27 +117,25 @@ func TestOnlyTheLastSeasonToComeIsDeleted(t *testing.T) {
 }
 
 func TestTheRunningAndTheNextSeasonAreReadAtATime(t *testing.T) {
-	next := season.Snapshot{Number: 1, StartsAt: later(1).StartsAt, EndsAt: later(1).EndsAt}
-	calendar := season.NewCalendar(next.Restore(), seasonZero())
+	calendar := planned(zero, season.Snapshot{Number: 1, Break: day, Length: 28 * day})
 
 	running, ok := calendar.RunningAt(now)
 	require.True(t, ok)
-	assert.Equal(t, season.Number(0), running.TakeSnapshot().Number)
-	coming, ok := calendar.NextAfter(now)
+	assert.Equal(t, season.Number(0), running.Number)
+	next, ok := calendar.NextAfter(now)
 	require.True(t, ok)
-	assert.Equal(t, next, coming.TakeSnapshot())
+	assert.Equal(t, season.Window{Number: 1, StartsAt: seasonZeroEnds.Add(day), EndsAt: seasonZeroEnds.Add(29 * day)}, next)
 
 	_, ok = calendar.RunningAt(seasonZeroEnds)
-	assert.False(t, ok, "a season is over at its end, and the next one starts a day later")
+	assert.False(t, ok, "a season is over at its end, and the break runs")
 	_, ok = calendar.NextAfter(next.StartsAt)
 	assert.False(t, ok)
 }
 
 func TestTheStartedSeasonsAreTheEndedOnesAndTheOneThatRuns(t *testing.T) {
-	next := season.Snapshot{Number: 1, StartsAt: later(1).StartsAt, EndsAt: later(1).EndsAt}
-	calendar := season.NewCalendar(seasonZero(), next.Restore())
+	calendar := planned(zero, season.Snapshot{Number: 1, Break: day, Length: 28 * day})
 
-	assert.Empty(t, calendar.StartedBy(seasonZeroStarts.Add(-time.Second)))
+	assert.Empty(t, calendar.StartedBy(season.Origin.Add(-time.Second)))
 	assert.Len(t, calendar.StartedBy(now), 1)
-	assert.Len(t, calendar.StartedBy(next.EndsAt.Add(time.Hour)), 2)
+	assert.Len(t, calendar.StartedBy(seasonZeroEnds.Add(30*day)), 2)
 }

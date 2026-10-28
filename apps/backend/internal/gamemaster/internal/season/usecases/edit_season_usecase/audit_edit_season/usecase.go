@@ -3,7 +3,6 @@ package audit_edit_season
 import (
 	"context"
 	"log/slog"
-	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season"
 )
@@ -26,8 +25,8 @@ func (a *Audited) Execute(ctx context.Context, number season.Number, draft seaso
 
 	attrs := []any{
 		slog.Uint64("season", uint64(number)),
-		slog.String("starts_at", draft.StartsAt.UTC().Format(time.RFC3339)),
-		slog.String("ends_at", draft.EndsAt.UTC().Format(time.RFC3339)),
+		slog.Duration("break", draft.Break),
+		slog.Duration("length", draft.Length),
 	}
 	if err != nil {
 		a.logger.Warn("admin season edit refused", append(attrs, slog.Any("error", err))...)

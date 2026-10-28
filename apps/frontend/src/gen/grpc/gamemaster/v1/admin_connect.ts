@@ -7,9 +7,9 @@ import { AddEntryRequest, AddEntryResponse, AddSeasonRequest, AddSeasonResponse,
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
- * The rule schedule: which rule set planet and the antibot play, and when. No authentication of its own: served on the
- * console listener, and on the admin listener behind its gate. Never the public router. No call changes what plays
- * now: only an entry to come is added, changed or deleted.
+ * The rule schedule: which rule set planet and the antibot play, and when; and the seasons. No authentication of its
+ * own: served on the console listener, and on the admin listener behind its gate. Never the public router. No call
+ * changes what plays now: only an entry to come is added, changed or deleted.
  *
  * @generated from service gamemaster.v1.AdminService
  */
@@ -70,7 +70,8 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Adds a season that starts later, after the end of the last one, under the next number.
+     * Adds a season after the last one, under the next number: it starts a break after the last one's end, and must
+     * start after now.
      *
      * @generated from rpc gamemaster.v1.AdminService.AddSeason
      */
@@ -81,8 +82,8 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Changes a season that has not ended. One that started keeps its start, and its end moves only to a time after now:
-     * FailedPrecondition otherwise.
+     * Changes a season that has not ended; the seasons after it move with it. One that started keeps its break, and its
+     * end moves only to a time after now: FailedPrecondition otherwise.
      *
      * @generated from rpc gamemaster.v1.AdminService.EditSeason
      */

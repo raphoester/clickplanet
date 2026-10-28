@@ -14,8 +14,8 @@ import (
 )
 
 var (
-	zero = season.Snapshot{Number: 0, StartsAt: time.Date(2026, 10, 3, 0, 0, 0, 0, time.UTC), EndsAt: time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC)}
-	one  = season.Snapshot{Number: 1, StartsAt: zero.EndsAt.Add(time.Hour), EndsAt: zero.EndsAt.AddDate(0, 1, 0)}
+	zero = season.Snapshot{Number: 0, Length: time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC).Sub(season.Origin)}
+	one  = season.Snapshot{Number: 1, Break: time.Hour, Length: 28 * 24 * time.Hour}
 	now  = time.Date(2026, 10, 28, 12, 0, 0, 0, time.UTC)
 )
 

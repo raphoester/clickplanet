@@ -73,11 +73,12 @@ backend's [season rules](../../backend/docs/season-rules.md)): every set postgre
   kind the proto names but unspecified (`kinds`, `wordOf`), so a kind added to the contract shows with no edit here.
 
 **Seasons** (`SeasonsPanel`, `seasons.ts`) is `gamemaster.v1.AdminService/GetSeasons`, `AddSeason`, `EditSeason` and
-`DeleteSeason`:
+`DeleteSeason`. The operator plans a season by its break and its length; the server works out its window.
 
-- **Every season, by number**, with its start, its end and whether it is done, running or to come; the running one
-  marked, a done one muted.
-- **A season that has not ended has Edit**; a running one keeps its start (the field is locked) and moves only its end.
-  A time left as it was is sent as kept, to the second. **Only the last season, before it starts, has Delete.**
-- **Add a season** opens a form, its start at the end of the last season. The server gives the number. Add, Save and
-  Delete ask first (`ConfirmAction`); the server's refusal is quoted, and the form stays.
+- **Every season, by number**, with its break, start, length and end, and whether it is done, running or to come; the
+  running one marked, a done one muted.
+- **The form takes the break and the length in days and hours** and shows, as they are typed, the window they give
+  (`windowOf`: after the season before's end, or season 0's own start). A new season has no break and 28 days.
+- **A season that has not ended has Edit**; a running one keeps its break (the fields are locked). A duration left as
+  it was is sent as kept, to the nanosecond. **Only the last season, before it starts, has Delete.**
+- Add, Save and Delete ask first (`ConfirmAction`); the server's refusal is quoted, and the form stays.

@@ -20,10 +20,8 @@ func (s *StoreContractSuite) SetupTest() {
 	s.store = s.NewStore()
 }
 
-var contractStart = time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)
-
-func kept(number Number, startsAt, endsAt time.Time) Season {
-	return Snapshot{Number: number, StartsAt: startsAt, EndsAt: endsAt}.Restore()
+func kept(number Number, brk, length time.Duration) Season {
+	return Snapshot{Number: number, Break: brk, Length: length}.Restore()
 }
 
 func (s *StoreContractSuite) save(seasons ...Season) {
@@ -35,11 +33,7 @@ func (s *StoreContractSuite) save(seasons ...Season) {
 func (s *StoreContractSuite) read() []Snapshot {
 	calendar, err := s.store.Calendar(s.T().Context())
 	s.Require().NoError(err)
-	snapshots := calendar.TakeSnapshot()
-	for i := range snapshots {
-		snapshots[i].StartsAt, snapshots[i].EndsAt = snapshots[i].StartsAt.UTC(), snapshots[i].EndsAt.UTC()
-	}
-	return snapshots
+	return calendar.TakeSnapshot()
 }
 
 func (s *StoreContractSuite) TestNoSeasonIsAnEmptyCalendar() {
@@ -47,23 +41,23 @@ func (s *StoreContractSuite) TestNoSeasonIsAnEmptyCalendar() {
 }
 
 func (s *StoreContractSuite) TestTheSeasonsAreReadAsTheyWereKeptByNumber() {
-	first := kept(0, contractStart, contractStart.Add(time.Hour+123456*time.Microsecond))
-	second := kept(1, contractStart.Add(2*time.Hour), contractStart.Add(3*time.Hour))
+	first := kept(0, 0, 28*24*time.Hour+23*time.Hour+123456*time.Microsecond)
+	second := kept(1, 3*time.Hour, 7*24*time.Hour)
 	s.save(second, first)
 
 	s.Equal([]Snapshot{first.TakeSnapshot(), second.TakeSnapshot()}, s.read())
 }
 
-func (s *StoreContractSuite) TestASeasonKeptAgainReplacesItsWindow() {
-	s.save(kept(0, contractStart, contractStart.Add(time.Hour)))
-	moved := kept(0, contractStart, contractStart.Add(5*time.Hour))
+func (s *StoreContractSuite) TestASeasonKeptAgainReplacesItsPlan() {
+	s.save(kept(0, 0, time.Hour))
+	moved := kept(0, time.Minute, 5*time.Hour)
 	s.save(moved)
 
 	s.Equal([]Snapshot{moved.TakeSnapshot()}, s.read())
 }
 
 func (s *StoreContractSuite) TestADeletedSeasonIsGone() {
-	first, second := kept(0, contractStart, contractStart.Add(time.Hour)), kept(1, contractStart.Add(time.Hour), contractStart.Add(2*time.Hour))
+	first, second := kept(0, 0, time.Hour), kept(1, 0, time.Hour)
 	s.save(first, second)
 
 	s.Require().NoError(s.store.Delete(s.T().Context(), 1))

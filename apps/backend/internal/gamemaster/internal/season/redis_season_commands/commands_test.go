@@ -30,7 +30,7 @@ var (
 	starts = time.Date(2026, 10, 3, 0, 0, 0, 0, time.UTC)
 	ends   = time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC)
 	now    = time.Date(2026, 10, 28, 12, 0, 0, 0, time.UTC)
-	zero   = season.Snapshot{Number: 0, StartsAt: starts, EndsAt: ends}.Restore()
+	zero   = season.Window{Number: 0, StartsAt: starts, EndsAt: ends}
 )
 
 func TestScoringIsToldTheSeasonsWindowInItsWords(t *testing.T) {

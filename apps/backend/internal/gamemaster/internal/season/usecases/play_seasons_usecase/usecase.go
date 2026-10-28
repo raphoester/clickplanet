@@ -15,16 +15,16 @@ type Seasons interface {
 }
 
 type Commands interface {
-	Play(ctx context.Context, season season.Season, decidedAt time.Time) error
+	Play(ctx context.Context, window season.Window, decidedAt time.Time) error
 }
 
 // Execute answers the seasons it told this time.
 type Executor interface {
-	Execute(ctx context.Context) (told []season.Season, err error)
+	Execute(ctx context.Context) (told []season.Window, err error)
 }
 
 func New(seasons Seasons, commands Commands, clock cptime.Clock) *UseCase {
-	return &UseCase{seasons: seasons, commands: commands, clock: clock, told: map[season.Number]season.Snapshot{}}
+	return &UseCase{seasons: seasons, commands: commands, clock: clock, told: map[season.Number]season.Window{}}
 }
 
 // UseCase tells scoring each season once it starts, again when its window changes, and every started season once after
@@ -34,10 +34,10 @@ type UseCase struct {
 	commands Commands
 	clock    cptime.Clock
 
-	told map[season.Number]season.Snapshot
+	told map[season.Number]season.Window
 }
 
-func (u *UseCase) Execute(ctx context.Context) ([]season.Season, error) {
+func (u *UseCase) Execute(ctx context.Context) ([]season.Window, error) {
 	now := u.clock.Now()
 	calendar, err := u.seasons.Calendar(ctx)
 	if err != nil {
@@ -45,19 +45,18 @@ func (u *UseCase) Execute(ctx context.Context) ([]season.Season, error) {
 	}
 
 	var (
-		told []season.Season
+		told []season.Window
 		errs []error
 	)
 	for _, started := range calendar.StartedBy(now) {
-		snapshot := started.TakeSnapshot()
-		if last, ok := u.told[snapshot.Number]; ok && last.StartsAt.Equal(snapshot.StartsAt) && last.EndsAt.Equal(snapshot.EndsAt) {
+		if last, ok := u.told[started.Number]; ok && last.StartsAt.Equal(started.StartsAt) && last.EndsAt.Equal(started.EndsAt) {
 			continue
 		}
 		if err := u.commands.Play(ctx, started, now); err != nil {
 			errs = append(errs, err)
 			continue
 		}
-		u.told[snapshot.Number] = snapshot
+		u.told[started.Number] = started
 		told = append(told, started)
 	}
 	return told, errors.Join(errs...)

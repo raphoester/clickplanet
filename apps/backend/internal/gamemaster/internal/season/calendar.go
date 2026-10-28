@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// Calendar is every season, which follow each other by number: each starts at or after the end of the one before.
+// Calendar is every season, one after the other by number: each starts its break after the end of the one before.
 type Calendar struct {
 	seasons []Season
 }
@@ -18,52 +18,53 @@ func NewCalendar(seasons ...Season) Calendar {
 	return Calendar{seasons: sorted}
 }
 
-// Added is the season of a draft under the next number: one to come, after the last season.
+// Added is the season of a draft after the last one, under the next number. It starts after now.
 func (c Calendar) Added(draft Draft, now time.Time) (Season, error) {
-	if !draft.StartsAt.After(now) {
-		return Season{}, refused("it starts at %s, not after now", stamp(draft.StartsAt))
-	}
-	added := Season{number: c.next(), startsAt: draft.StartsAt, endsAt: draft.EndsAt}
-	if err := c.with(added).check(); err != nil {
+	if err := draft.check(); err != nil {
 		return Season{}, err
+	}
+	added := Season{number: c.next(), brk: draft.Break, length: draft.Length}
+	if window := c.with(added).windowOf(added.number); !window.StartsAt.After(now) {
+		return Season{}, refused("it would start at %s, not after now", stamp(window.StartsAt))
 	}
 	return added, nil
 }
 
-// Edited is a season that has not ended with a draft's window. One that started keeps its start, and its end moves
-// only to a time after now.
+// Edited is a season that has not ended, planned again; the seasons after it move with it. One that started keeps its
+// break, and its end moves only to a time after now.
 func (c Calendar) Edited(number Number, draft Draft, now time.Time) (Season, error) {
 	kept, err := c.season(number)
 	if err != nil {
 		return Season{}, err
 	}
-	if kept.ended(now) {
-		return Season{}, fmt.Errorf("season %d, since %s: %w", number, stamp(kept.endsAt), ErrEnded)
-	}
-	if kept.started(now) && !draft.StartsAt.Equal(kept.startsAt) {
-		return Season{}, fmt.Errorf("season %d keeps its start, %s: %w", number, stamp(kept.startsAt), ErrStarted)
-	}
-	if !kept.started(now) && !draft.StartsAt.After(now) {
-		return Season{}, refused("it starts at %s, not after now", stamp(draft.StartsAt))
-	}
-	if !draft.EndsAt.Equal(kept.endsAt) && !draft.EndsAt.After(now) {
-		return Season{}, refused("its end moves to %s, not after now", stamp(draft.EndsAt))
-	}
-	edited := Season{number: number, startsAt: draft.StartsAt, endsAt: draft.EndsAt}
-	if err := c.with(edited).check(); err != nil {
+	if err := draft.check(); err != nil {
 		return Season{}, err
+	}
+	window := c.windowOf(number)
+	if window.ended(now) {
+		return Season{}, fmt.Errorf("season %d, since %s: %w", number, stamp(window.EndsAt), ErrEnded)
+	}
+	edited := Season{number: number, brk: draft.Break, length: draft.Length}
+	moved := c.with(edited).windowOf(number)
+	if window.started(now) && draft.Break != kept.brk {
+		return Season{}, fmt.Errorf("season %d keeps its start, %s: %w", number, stamp(window.StartsAt), ErrStarted)
+	}
+	if !window.started(now) && !moved.StartsAt.After(now) {
+		return Season{}, refused("it would start at %s, not after now", stamp(moved.StartsAt))
+	}
+	if !moved.EndsAt.Equal(window.EndsAt) && !moved.EndsAt.After(now) {
+		return Season{}, refused("its end would move to %s, not after now", stamp(moved.EndsAt))
 	}
 	return edited, nil
 }
 
 // Deletable is nil for the last season when it has not started: numbers keep counting up with no gap.
 func (c Calendar) Deletable(number Number, now time.Time) error {
-	kept, err := c.season(number)
-	if err != nil {
+	if _, err := c.season(number); err != nil {
 		return err
 	}
-	if kept.started(now) {
-		return fmt.Errorf("season %d, since %s: %w", number, stamp(kept.startsAt), ErrStarted)
+	if window := c.windowOf(number); window.started(now) {
+		return fmt.Errorf("season %d, since %s: %w", number, stamp(window.StartsAt), ErrStarted)
 	}
 	if number != c.seasons[len(c.seasons)-1].number {
 		return fmt.Errorf("season %d: %w", number, ErrNotLast)
@@ -71,32 +72,41 @@ func (c Calendar) Deletable(number Number, now time.Time) error {
 	return nil
 }
 
-// RunningAt is the season that runs at a time.
-func (c Calendar) RunningAt(at time.Time) (Season, bool) {
+func (c Calendar) Windows() []Window {
+	windows := make([]Window, 0, len(c.seasons))
+	end := Origin
 	for _, season := range c.seasons {
-		if season.runs(at) {
-			return season, true
-		}
+		start := end.Add(season.brk)
+		end = start.Add(season.length)
+		windows = append(windows, Window{Number: season.number, StartsAt: start, EndsAt: end})
 	}
-	return Season{}, false
+	return windows
 }
 
-// NextAfter is the first season that has not started at a time.
-func (c Calendar) NextAfter(at time.Time) (Season, bool) {
-	for _, season := range c.seasons {
-		if !season.started(at) {
-			return season, true
+func (c Calendar) RunningAt(at time.Time) (Window, bool) {
+	for _, window := range c.Windows() {
+		if window.runs(at) {
+			return window, true
 		}
 	}
-	return Season{}, false
+	return Window{}, false
+}
+
+func (c Calendar) NextAfter(at time.Time) (Window, bool) {
+	for _, window := range c.Windows() {
+		if !window.started(at) {
+			return window, true
+		}
+	}
+	return Window{}, false
 }
 
 // StartedBy is every season that has started at a time, the ended ones too: the ones scoring is told.
-func (c Calendar) StartedBy(at time.Time) []Season {
-	var started []Season
-	for _, season := range c.seasons {
-		if season.started(at) {
-			started = append(started, season)
+func (c Calendar) StartedBy(at time.Time) []Window {
+	var started []Window
+	for _, window := range c.Windows() {
+		if window.started(at) {
+			started = append(started, window)
 		}
 	}
 	return started
@@ -126,20 +136,16 @@ func (c Calendar) season(number Number) (Season, error) {
 	return Season{}, fmt.Errorf("%d: %w", number, ErrUnknownSeason)
 }
 
+func (c Calendar) windowOf(number Number) Window {
+	for _, window := range c.Windows() {
+		if window.Number == number {
+			return window
+		}
+	}
+	return Window{}
+}
+
 func (c Calendar) with(changed Season) Calendar {
 	seasons := slices.DeleteFunc(slices.Clone(c.seasons), func(s Season) bool { return s.number == changed.number })
 	return NewCalendar(append(seasons, changed)...)
-}
-
-func (c Calendar) check() error {
-	for i, season := range c.seasons {
-		if !season.endsAt.After(season.startsAt) {
-			return refused("season %d ends at %s, not after its start", season.number, stamp(season.endsAt))
-		}
-		if i > 0 && season.startsAt.Before(c.seasons[i-1].endsAt) {
-			return refused("season %d starts at %s, before season %d ends", season.number, stamp(season.startsAt),
-				c.seasons[i-1].number)
-		}
-	}
-	return nil
 }

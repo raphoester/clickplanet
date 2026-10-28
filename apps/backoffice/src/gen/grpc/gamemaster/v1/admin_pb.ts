@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
+import { Duration, Message, proto3, Timestamp } from "@bufbuild/protobuf";
 import { EntryKind, Season } from "./gamemaster_pb.js";
 
 /**
@@ -547,9 +547,9 @@ export class GetSeasonsRequest extends Message<GetSeasonsRequest> {
  */
 export class GetSeasonsResponse extends Message<GetSeasonsResponse> {
   /**
-   * @generated from field: repeated gamemaster.v1.Season seasons = 1;
+   * @generated from field: repeated gamemaster.v1.ScheduledSeason seasons = 1;
    */
-  seasons: Season[] = [];
+  seasons: ScheduledSeason[] = [];
 
   constructor(data?: PartialMessage<GetSeasonsResponse>) {
     super();
@@ -559,7 +559,7 @@ export class GetSeasonsResponse extends Message<GetSeasonsResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "gamemaster.v1.GetSeasonsResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "seasons", kind: "message", T: Season, repeated: true },
+    { no: 1, name: "seasons", kind: "message", T: ScheduledSeason, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetSeasonsResponse {
@@ -580,18 +580,71 @@ export class GetSeasonsResponse extends Message<GetSeasonsResponse> {
 }
 
 /**
+ * A season as the operator plans it: its break and its length. Its window follows from the seasons before it.
+ *
+ * @generated from message gamemaster.v1.ScheduledSeason
+ */
+export class ScheduledSeason extends Message<ScheduledSeason> {
+  /**
+   * @generated from field: gamemaster.v1.Season season = 1;
+   */
+  season?: Season;
+
+  /**
+   * The time from the end of the season before to its start, when no season runs. Season 0's counts from its start.
+   *
+   * @generated from field: google.protobuf.Duration break_before = 2;
+   */
+  breakBefore?: Duration;
+
+  /**
+   * @generated from field: google.protobuf.Duration length = 3;
+   */
+  length?: Duration;
+
+  constructor(data?: PartialMessage<ScheduledSeason>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "gamemaster.v1.ScheduledSeason";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "season", kind: "message", T: Season },
+    { no: 2, name: "break_before", kind: "message", T: Duration },
+    { no: 3, name: "length", kind: "message", T: Duration },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ScheduledSeason {
+    return new ScheduledSeason().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ScheduledSeason {
+    return new ScheduledSeason().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ScheduledSeason {
+    return new ScheduledSeason().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ScheduledSeason | PlainMessage<ScheduledSeason> | undefined, b: ScheduledSeason | PlainMessage<ScheduledSeason> | undefined): boolean {
+    return proto3.util.equals(ScheduledSeason, a, b);
+  }
+}
+
+/**
  * @generated from message gamemaster.v1.AddSeasonRequest
  */
 export class AddSeasonRequest extends Message<AddSeasonRequest> {
   /**
-   * @generated from field: google.protobuf.Timestamp starts_at = 1;
+   * @generated from field: google.protobuf.Duration break_before = 1;
    */
-  startsAt?: Timestamp;
+  breakBefore?: Duration;
 
   /**
-   * @generated from field: google.protobuf.Timestamp ends_at = 2;
+   * @generated from field: google.protobuf.Duration length = 2;
    */
-  endsAt?: Timestamp;
+  length?: Duration;
 
   constructor(data?: PartialMessage<AddSeasonRequest>) {
     super();
@@ -601,8 +654,8 @@ export class AddSeasonRequest extends Message<AddSeasonRequest> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "gamemaster.v1.AddSeasonRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "starts_at", kind: "message", T: Timestamp },
-    { no: 2, name: "ends_at", kind: "message", T: Timestamp },
+    { no: 1, name: "break_before", kind: "message", T: Duration },
+    { no: 2, name: "length", kind: "message", T: Duration },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AddSeasonRequest {
@@ -669,14 +722,14 @@ export class EditSeasonRequest extends Message<EditSeasonRequest> {
   number = 0;
 
   /**
-   * @generated from field: google.protobuf.Timestamp starts_at = 2;
+   * @generated from field: google.protobuf.Duration break_before = 2;
    */
-  startsAt?: Timestamp;
+  breakBefore?: Duration;
 
   /**
-   * @generated from field: google.protobuf.Timestamp ends_at = 3;
+   * @generated from field: google.protobuf.Duration length = 3;
    */
-  endsAt?: Timestamp;
+  length?: Duration;
 
   constructor(data?: PartialMessage<EditSeasonRequest>) {
     super();
@@ -687,8 +740,8 @@ export class EditSeasonRequest extends Message<EditSeasonRequest> {
   static readonly typeName = "gamemaster.v1.EditSeasonRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "number", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 2, name: "starts_at", kind: "message", T: Timestamp },
-    { no: 3, name: "ends_at", kind: "message", T: Timestamp },
+    { no: 2, name: "break_before", kind: "message", T: Duration },
+    { no: 3, name: "length", kind: "message", T: Duration },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): EditSeasonRequest {

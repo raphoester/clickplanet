@@ -16,14 +16,15 @@ import (
 )
 
 var (
-	seasonZero = season.Snapshot{
-		Number: 0, StartsAt: time.Date(2026, 10, 3, 0, 0, 0, 0, time.UTC), EndsAt: time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC),
-	}
-	seasonOne = season.Snapshot{Number: 1, StartsAt: seasonZero.EndsAt.Add(time.Hour), EndsAt: seasonZero.EndsAt.AddDate(0, 1, 0)}
+	seasonZeroEnds = time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC)
+	zero           = season.Snapshot{Number: 0, Length: seasonZeroEnds.Sub(season.Origin)}
+	one            = season.Snapshot{Number: 1, Break: time.Hour, Length: 30 * 24 * time.Hour}
+	zeroWindow     = season.Window{Number: 0, StartsAt: season.Origin, EndsAt: seasonZeroEnds}
+	oneWindow      = season.Window{Number: 1, StartsAt: seasonZeroEnds.Add(time.Hour), EndsAt: seasonZeroEnds.Add(time.Hour + 30*24*time.Hour)}
 )
 
 type command struct {
-	season    season.Snapshot
+	window    season.Window
 	decidedAt time.Time
 }
 
@@ -32,11 +33,11 @@ type commanded struct {
 	err  error
 }
 
-func (c *commanded) Play(_ context.Context, played season.Season, decidedAt time.Time) error {
+func (c *commanded) Play(_ context.Context, window season.Window, decidedAt time.Time) error {
 	if c.err != nil {
 		return c.err
 	}
-	c.sent = append(c.sent, command{season: played.TakeSnapshot(), decidedAt: decidedAt})
+	c.sent = append(c.sent, command{window: window, decidedAt: decidedAt})
 	return nil
 }
 
@@ -53,7 +54,7 @@ func newHarness(t *testing.T, at time.Time) *harness {
 
 	h := &harness{t: t, clock: cptime.NewFixedClock(at), seasons: inmemory_season_store.New(), commands: &commanded{}}
 	h.useCase = play_seasons_usecase.New(h.seasons, h.commands, h.clock)
-	h.save(seasonZero, seasonOne)
+	h.save(zero, one)
 	return h
 }
 
@@ -72,24 +73,24 @@ func (h *harness) execute() int {
 }
 
 func TestTheFirstExecuteTellsEveryStartedSeason(t *testing.T) {
-	now := seasonOne.StartsAt.Add(time.Minute)
+	now := oneWindow.StartsAt.Add(time.Minute)
 	h := newHarness(t, now)
 
 	assert.Equal(t, 2, h.execute(), "scoring may have missed a command before the boot")
 
-	assert.Equal(t, []command{{season: seasonZero, decidedAt: now}, {season: seasonOne, decidedAt: now}}, h.commands.sent)
+	assert.Equal(t, []command{{window: zeroWindow, decidedAt: now}, {window: oneWindow, decidedAt: now}}, h.commands.sent)
 }
 
 func TestASeasonToComeIsNotTold(t *testing.T) {
-	h := newHarness(t, seasonZero.EndsAt.Add(-time.Hour))
+	h := newHarness(t, seasonZeroEnds.Add(-time.Hour))
 
 	h.execute()
 
-	assert.Equal(t, []command{{season: seasonZero, decidedAt: seasonZero.EndsAt.Add(-time.Hour)}}, h.commands.sent)
+	assert.Equal(t, []command{{window: zeroWindow, decidedAt: seasonZeroEnds.Add(-time.Hour)}}, h.commands.sent)
 }
 
 func TestNothingIsSentWhileNoSeasonChanges(t *testing.T) {
-	h := newHarness(t, seasonZero.EndsAt.Add(-time.Hour))
+	h := newHarness(t, seasonZeroEnds.Add(-time.Hour))
 	h.execute()
 
 	for range 3 {
@@ -98,31 +99,34 @@ func TestNothingIsSentWhileNoSeasonChanges(t *testing.T) {
 	}
 }
 
-func TestASeasonIsToldAtItsStart(t *testing.T) {
-	h := newHarness(t, seasonOne.StartsAt.Add(-time.Second))
+func TestASeasonIsToldAtItsStartAfterItsBreak(t *testing.T) {
+	h := newHarness(t, oneWindow.StartsAt.Add(-time.Second))
 	h.execute()
 
 	h.clock.Advance(time.Second)
 
 	assert.Equal(t, 1, h.execute())
-	assert.Equal(t, command{season: seasonOne, decidedAt: seasonOne.StartsAt}, h.commands.sent[1])
+	assert.Equal(t, command{window: oneWindow, decidedAt: oneWindow.StartsAt}, h.commands.sent[1])
 }
 
 func TestAMovedEndIsToldAgain(t *testing.T) {
-	h := newHarness(t, seasonZero.EndsAt.Add(-time.Hour))
+	h := newHarness(t, seasonZeroEnds.Add(-time.Hour))
 	h.execute()
-	moved := seasonZero
-	moved.EndsAt = seasonZero.EndsAt.Add(30 * time.Minute)
+	moved := zero
+	moved.Length += 30 * time.Minute
 	h.save(moved)
 
 	h.clock.Advance(time.Second)
 
 	assert.Equal(t, 1, h.execute())
-	assert.Equal(t, command{season: moved, decidedAt: seasonZero.EndsAt.Add(-time.Hour + time.Second)}, h.commands.sent[1])
+	assert.Equal(t, command{
+		window:    season.Window{Number: 0, StartsAt: season.Origin, EndsAt: seasonZeroEnds.Add(30 * time.Minute)},
+		decidedAt: seasonZeroEnds.Add(-time.Hour + time.Second),
+	}, h.commands.sent[1])
 }
 
 func TestACommandRedisDidNotTakeIsSentAtTheNextExecute(t *testing.T) {
-	h := newHarness(t, seasonZero.EndsAt.Add(-time.Hour))
+	h := newHarness(t, seasonZeroEnds.Add(-time.Hour))
 	down := errors.New("redis is down")
 	h.commands.err = down
 
@@ -134,7 +138,7 @@ func TestACommandRedisDidNotTakeIsSentAtTheNextExecute(t *testing.T) {
 }
 
 func TestSeasonsThatCannotBeReadSendNothing(t *testing.T) {
-	h := newHarness(t, seasonZero.EndsAt.Add(-time.Hour))
+	h := newHarness(t, seasonZeroEnds.Add(-time.Hour))
 	down := errors.New("postgres is down")
 	h.seasons.FailWith(down)
 

@@ -115,13 +115,14 @@ func TestABattleThatStartedLeavesTheTimeline(t *testing.T) {
 
 func TestTheTimelineCarriesTheRunningSeasonAndTheNextOne(t *testing.T) {
 	db := cppg.StartTestServer(t).OpenSchema(t, "gamemaster", migrations.FS)
-	next := season.Snapshot{Number: 1, StartsAt: battleEnds.Add(time.Hour), EndsAt: battleEnds.AddDate(0, 1, 0)}
-	require.NoError(t, postgres_season_store.New(db).Save(t.Context(), next.Restore()))
+	require.NoError(t, postgres_season_store.New(db).Save(t.Context(), season.Snapshot{
+		Number: 1, Break: time.Hour, Length: 30 * 24 * time.Hour,
+	}.Restore()))
 
 	timeline := nowAt(t, db, finale).GetTimeline()
 	assert.True(t, proto.Equal(seasonZero, timeline.GetCurrent()), "%v", timeline)
 	assert.True(t, proto.Equal(&gamemasterv1.Season{
-		Number: 1, StartsAt: timestamppb.New(next.StartsAt), EndsAt: timestamppb.New(next.EndsAt),
+		Number: 1, StartsAt: timestamppb.New(battleEnds.Add(time.Hour)), EndsAt: timestamppb.New(battleEnds.Add(time.Hour + 30*24*time.Hour)),
 	}, timeline.GetNext()), "%v", timeline)
 
 	between := nowAt(t, db, battleEnds).GetTimeline()

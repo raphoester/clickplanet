@@ -27,16 +27,15 @@ type Commands struct {
 	commands Sender
 }
 
-func (c Commands) Play(ctx context.Context, played season.Season, decidedAt time.Time) error {
+func (c Commands) Play(ctx context.Context, window season.Window, decidedAt time.Time) error {
 	ctx, cancel := context.WithTimeout(ctx, sendTimeout)
 	defer cancel()
 
-	snapshot := played.TakeSnapshot()
 	if err := c.commands.Send(ctx, &scoringv1.PlaySeason{
-		Number: uint32(snapshot.Number), StartsAt: timestamppb.New(snapshot.StartsAt), EndsAt: timestamppb.New(snapshot.EndsAt),
+		Number: uint32(window.Number), StartsAt: timestamppb.New(window.StartsAt), EndsAt: timestamppb.New(window.EndsAt),
 		DecidedAt: timestamppb.New(decidedAt),
 	}); err != nil {
-		return fmt.Errorf("failed to command season %d: %w", snapshot.Number, err)
+		return fmt.Errorf("failed to command season %d: %w", window.Number, err)
 	}
 	return nil
 }

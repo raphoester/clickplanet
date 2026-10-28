@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package gamemaster.v1;
 
+import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 import "gamemaster/v1/gamemaster.proto";
 
@@ -23,11 +24,12 @@ service AdminService {
   // Every season, by number. Scoring is told each one's start and end once it starts.
   rpc GetSeasons(GetSeasonsRequest) returns (GetSeasonsResponse);
 
-  // Adds a season that starts later, after the end of the last one, under the next number.
+  // Adds a season after the last one, under the next number: it starts a break after the last one's end, and must
+  // start after now.
   rpc AddSeason(AddSeasonRequest) returns (AddSeasonResponse);
 
-  // Changes a season that has not ended. One that started keeps its start, and its end moves only to a time after now:
-  // FailedPrecondition otherwise.
+  // Changes a season that has not ended; the seasons after it move with it. One that started keeps its break, and its
+  // end moves only to a time after now: FailedPrecondition otherwise.
   rpc EditSeason(EditSeasonRequest) returns (EditSeasonResponse);
 
   // Deletes the last season, when it has not started. FailedPrecondition otherwise.
@@ -103,12 +105,20 @@ message DeleteEntryResponse {}
 message GetSeasonsRequest {}
 
 message GetSeasonsResponse {
-  repeated Season seasons = 1;
+  repeated ScheduledSeason seasons = 1;
+}
+
+// A season as the operator plans it: its break and its length. Its window follows from the seasons before it.
+message ScheduledSeason {
+  Season season = 1;
+  // The time from the end of the season before to its start, when no season runs. Season 0's counts from its start.
+  google.protobuf.Duration break_before = 2;
+  google.protobuf.Duration length = 3;
 }
 
 message AddSeasonRequest {
-  google.protobuf.Timestamp starts_at = 1;
-  google.protobuf.Timestamp ends_at = 2;
+  google.protobuf.Duration break_before = 1;
+  google.protobuf.Duration length = 2;
 }
 
 message AddSeasonResponse {
@@ -117,8 +127,8 @@ message AddSeasonResponse {
 
 message EditSeasonRequest {
   uint32 number = 1;
-  google.protobuf.Timestamp starts_at = 2;
-  google.protobuf.Timestamp ends_at = 3;
+  google.protobuf.Duration break_before = 2;
+  google.protobuf.Duration length = 3;
 }
 
 message EditSeasonResponse {}

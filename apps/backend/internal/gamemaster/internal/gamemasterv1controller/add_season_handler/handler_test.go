@@ -9,7 +9,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/types/known/timestamppb"
+	"google.golang.org/protobuf/types/known/durationpb"
 
 	gamemasterv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/gamemaster/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/gamemasterv1controller/add_season_handler"
@@ -26,8 +26,6 @@ func (s *stubUseCase) Execute(_ context.Context, draft season.Draft) (season.Num
 	return 1, s.err
 }
 
-var starts = time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)
-
 func add(t *testing.T, useCase *stubUseCase, req *gamemasterv1.AddSeasonRequest) (*connect.Response[gamemasterv1.AddSeasonResponse], error) {
 	t.Helper()
 	return add_season_handler.New(useCase).AddSeason(t.Context(), connect.NewRequest(req)) //nolint:wrapcheck // the test reads the handler's own error.
@@ -37,12 +35,21 @@ func TestTheSeasonAskedIsAddedAndNumbered(t *testing.T) {
 	useCase := &stubUseCase{}
 
 	res, err := add(t, useCase, &gamemasterv1.AddSeasonRequest{
-		StartsAt: timestamppb.New(starts), EndsAt: timestamppb.New(starts.AddDate(0, 1, 0)),
+		BreakBefore: durationpb.New(time.Hour), Length: durationpb.New(28 * 24 * time.Hour),
 	})
 
 	require.NoError(t, err)
 	assert.Equal(t, uint32(1), res.Msg.GetNumber())
-	assert.Equal(t, []season.Draft{{StartsAt: starts, EndsAt: starts.AddDate(0, 1, 0)}}, useCase.asked)
+	assert.Equal(t, []season.Draft{{Break: time.Hour, Length: 28 * 24 * time.Hour}}, useCase.asked)
+}
+
+func TestAnUnsetDurationIsNone(t *testing.T) {
+	useCase := &stubUseCase{}
+
+	_, err := add(t, useCase, &gamemasterv1.AddSeasonRequest{})
+
+	require.NoError(t, err)
+	assert.Equal(t, []season.Draft{{}}, useCase.asked)
 }
 
 func TestEachRefusalHasItsCode(t *testing.T) {

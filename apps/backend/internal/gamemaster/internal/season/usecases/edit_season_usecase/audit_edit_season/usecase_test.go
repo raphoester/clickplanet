@@ -18,14 +18,14 @@ type stubUseCase struct{ err error }
 
 func (s stubUseCase) Execute(context.Context, season.Number, season.Draft) error { return s.err }
 
-var moved = season.Draft{StartsAt: time.Date(2026, 10, 3, 0, 0, 0, 0, time.UTC), EndsAt: time.Date(2026, 11, 7, 23, 0, 0, 0, time.UTC)}
+var moved = season.Draft{Length: 35 * 24 * time.Hour}
 
 func TestEveryEditIsLoggedWithTheNewWindow(t *testing.T) {
 	var logs bytes.Buffer
 
 	require.NoError(t, audit_edit_season.New(stubUseCase{}, slog.New(slog.NewTextHandler(&logs, nil))).Execute(t.Context(), 0, moved))
 
-	assert.Contains(t, logs.String(), `level=WARN msg="admin season edited" season=0 starts_at=2026-10-03T00:00:00Z ends_at=2026-11-07T23:00:00Z`)
+	assert.Contains(t, logs.String(), `level=WARN msg="admin season edited" season=0 break=0s length=840h0m0s`)
 }
 
 func TestARefusalIsLoggedWithWhyAndPassedOn(t *testing.T) {

@@ -3,7 +3,6 @@ package audit_add_season
 import (
 	"context"
 	"log/slog"
-	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season"
 )
@@ -34,7 +33,7 @@ func (a *Audited) Execute(ctx context.Context, draft season.Draft) (season.Numbe
 
 func attrsOf(draft season.Draft) []any {
 	return []any{
-		slog.String("starts_at", draft.StartsAt.UTC().Format(time.RFC3339)),
-		slog.String("ends_at", draft.EndsAt.UTC().Format(time.RFC3339)),
+		slog.Duration("break", draft.Break),
+		slog.Duration("length", draft.Length),
 	}
 }

@@ -20,13 +20,12 @@ type Logged struct {
 
 var _ play_seasons_usecase.Executor = (*Logged)(nil)
 
-func (l *Logged) Execute(ctx context.Context) ([]season.Season, error) {
+func (l *Logged) Execute(ctx context.Context) ([]season.Window, error) {
 	told, err := l.inner.Execute(ctx)
 	for _, each := range told {
-		snapshot := each.TakeSnapshot()
-		l.logger.Warn("the season plays", slog.Uint64("season", uint64(snapshot.Number)),
-			slog.String("starts_at", snapshot.StartsAt.UTC().Format(time.RFC3339)),
-			slog.String("ends_at", snapshot.EndsAt.UTC().Format(time.RFC3339)))
+		l.logger.Warn("the season plays", slog.Uint64("season", uint64(each.Number)),
+			slog.String("starts_at", each.StartsAt.UTC().Format(time.RFC3339)),
+			slog.String("ends_at", each.EndsAt.UTC().Format(time.RFC3339)))
 	}
 	if err != nil && ctx.Err() == nil {
 		l.logger.Error("failed to play the seasons", slog.Any("error", err))

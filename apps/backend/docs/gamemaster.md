@@ -35,8 +35,8 @@ internal/gamemaster/
       usecases/delete_entry_usecase/  audit_delete_entry/
       usecases/play_schedule_usecase/ the turn at now, commanded when it changes; Runner
         log_play_schedule/          logs each turn told, and a failure
-    season/                         Number, Draft, Season, Calendar (Added, Edited, Deletable, RunningAt, NextAfter,
-                                    StartedBy); the Store port and its contract suite
+    season/                         Number, Origin, Draft, Season, Window, Calendar (Added, Edited, Deletable, Windows,
+                                    RunningAt, NextAfter, StartedBy); the Store port and its contract suite
       inmemory_season_store/        the Store in a map, behind the testing tag
       postgres_season_store/        the Store over gamemaster.seasons
       redis_season_commands/        scoring.v1.PlaySeason, on its command stream
@@ -48,14 +48,14 @@ internal/gamemaster/
     gamemasterv1controller/              AdminService and GamemasterService (bags), NewCacheInterceptor
       get_schedule_handler/schedule_query/   PostgresQuery: every entry, and what plays now
       add_entry_handler/  edit_entry_handler/  delete_entry_handler/
-      get_seasons_handler/seasons_query/   PostgresQuery: every season, by number
+      get_seasons_handler/seasons_query/   PostgresQuery: every season, by number, planned and with its window
       add_season_handler/  edit_season_handler/  delete_season_handler/
       get_turn_handler/turn_query/  PostgresQuery: the turn now, the battles to come and the seasons, in the players'
                                     words
       listen_for_events_handler/    the stream: the turn and the timeline, then each change of either, and heartbeats
         inprocess_turn_feed/        reads both each second while a stream follows them; log_turn_reader
       schedulemessage/              DraftOf, KindOf, and Refusal: the code of each refusal
-      seasonmessage/                DraftOf and Refusal, for the seasons
+      seasonmessage/                DraftOf, ScheduledOf, SeasonOf and Refusal, for the seasons
 ```
 
 ## An entry
@@ -177,25 +177,29 @@ Rule schedule page (see the backoffice's [Ops](../../backoffice/docs/ops.md)):
 of its own. One event has one clock; nothing is matched by timestamp. All commands go one way, gamemaster to scoring;
 scoring never asks back.
 
-- **A season is a number, a start and an end** (`season.Season`), kept in `gamemaster.seasons`, apart from the
-  entries: it has a lifecycle of its own. The type stays open to one optional finale (a length, a rule set, a
-  description), added in a later change.
-- **Numbers count up from 0, and the gamemaster gives the next one** (`Calendar.Added`).
-- **The rules are the calendar's** (`season.Calendar`, every reason found by `errors.Is`): the end is after the start
-  (`ErrInvalidSeason`); the seasons follow each other by number, each starting at or after the end of the one before,
-  so none overlap; an added season starts after now; **a season that started keeps its start** (`ErrStarted`); **one
-  that ended is not edited** (`ErrEnded`); **an end moves only to a time after now**. Only the last season, before it
-  starts, is deleted (`ErrNotLast`): numbers keep counting with no gap, and scoring never heard of it.
-- **Season 0 had no start**: scoring's YAML list only kept its end. Migration `20261028120000_seasons` seeds it from
-  2026-10-03 00:00 UTC, the day its countdown shipped (#282), before scoring counted any take (#298, the next day), to
-  2026-10-31 23:00 UTC.
-- **The operator** calls `GetSeasons`, `AddSeason`, `EditSeason` and `DeleteSeason` on `gamemaster.v1.AdminService`,
-  from the backoffice's Seasons page; each change is logged at Warn by its audit decorator (`admin season added`,
+- **A season is planned as a break and a length** (`season.Season`), kept in `gamemaster.seasons` (`number`,
+  `break_before`, `length`, two intervals), apart from the entries: it has a lifecycle of its own. The type stays open
+  to one optional finale (a length, a rule set, a description), added in a later change.
+- **The seasons are a chain, appended to** (the owner, 2026-10-28): each starts its break after the end of the one
+  before, and ends its length later (`Calendar.Windows`). So none can overlap, and **moving the running season's end
+  moves every season after it**. The break is the time no season runs: no take counts and no day opens. Freezing the
+  map during it is a rule set the schedule plays over the break, not a fact of the season.
+- **Season 0's break counts from `season.Origin`**, 2026-10-03 00:00 UTC, the day its countdown shipped (#282), before
+  scoring counted any take (#298, the next day). Scoring's YAML list only kept its end: migration
+  `20261028120000_seasons` seeds it with no break and a length to 2026-10-31 23:00 UTC.
+- **Numbers count up from 0, and the gamemaster gives the next one** (`Calendar.Added`), after the last season.
+- **The rules are the calendar's** (every reason found by `errors.Is`): a length above none and no break below none
+  (`ErrInvalidSeason`); an added or edited season to come starts after now, so a break after a season that ended long
+  ago must be longer; **a season that started keeps its break** (`ErrStarted`); **one that ended is not edited**
+  (`ErrEnded`); **an end moves only to a time after now**. Only the last season, before it starts, is deleted
+  (`ErrNotLast`): numbers keep counting with no gap, and scoring never heard of it.
+- **The operator** calls `GetSeasons` (each season's break, length and window), `AddSeason{break_before, length}`,
+  `EditSeason` and `DeleteSeason` on `gamemaster.v1.AdminService`, from the backoffice's Seasons page; each change is logged at Warn by its audit decorator (`admin season added`,
   `edited`, `deleted`, or `refused`). A refusal is `InvalidArgument`, `FailedPrecondition` or `NotFound`
   (`seasonmessage.Refusal`).
 
 **`play_seasons_usecase` tells scoring each season** (`gamemaster-seasons`, every second, level-triggered as the
-schedule is): once a season starts, again when its window changes (an end moved), and every started season once at
+schedule is): once a season starts, again when its window changes (its end, or one before it, moved), and every started season once at
 each boot, when it remembers none. A season to come is never told. `redis_season_commands` sends
 `scoring.v1.PlaySeason{number, starts_at, ends_at, decided_at}` on its own command stream
 (`commands:scoring.v1.PlaySeason`); `decided_at` is the runner's now. Planet and the antibot hear nothing of seasons.
