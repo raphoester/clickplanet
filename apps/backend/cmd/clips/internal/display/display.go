@@ -20,7 +20,7 @@ type assigned struct {
 	Variants clips.Variants  `json:"variants"`
 }
 
-// A JSON array on one line, `[{"pick":1,"story":{"front":3,...},"variants":{"length":"short"}}]`: the workflow makes
+// A JSON array on one line, `[{"pick":1,"story":{"front":3,...},"variants":{"sound":"trending"}}]`: the workflow makes
 // one render job of each. Variants are `{}` for a clip in no experiment, never null.
 func Picks(out io.Writer, assignments []clips.Assignment) error {
 	picks := make([]assigned, 0, len(assignments))

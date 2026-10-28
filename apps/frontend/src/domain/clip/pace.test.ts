@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest"
-import {paceOf, playedAt, PODIUM_ENDING_SECONDS, timelineFor, timelineOf} from "./pace.ts"
+import {paceOf, playedAt, timelineFor, timelineOf} from "./pace.ts"
 
 describe("the pace of a replay", () => {
     const quietThenBusy = [...Array.from({length: 90}, (_, i) => 900 + i), 10, 20, 30]
@@ -39,20 +39,6 @@ describe("the length of a clip", () => {
 
     it("is as long as it plays, and the call to act", () => {
         expect(timelineFor(16.1).seconds).toBe(18.5)
-    })
-
-    it("is the same in the control arm of the length experiment as with no arm, whatever happens", () => {
-        for (const screens of [0, 0.4, 1, 2.5, 5, 7.5, 100]) {
-            for (const ending of [undefined, PODIUM_ENDING_SECONDS]) {
-                expect(timelineOf(screens, undefined, ending, "as-chosen")).toEqual(timelineOf(screens, undefined, ending))
-            }
-        }
-    })
-
-    it("is the shortest a front plays in the short arm, however far its fighting moves", () => {
-        expect(timelineOf(5, undefined, undefined, "short")).toEqual({seconds: 8.5, ending: 2.5})
-        expect(timelineOf(100, undefined, undefined, "short")).toEqual(timelineOf(0))
-        expect(timelineOf(5, undefined, PODIUM_ENDING_SECONDS, "short")).toEqual({seconds: 10, ending: PODIUM_ENDING_SECONDS})
     })
 
     it("is what it is told, never past 22", () => {

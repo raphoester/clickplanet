@@ -10,7 +10,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
 
-// The arm of each experiment a clip is in, by experiment: {"length": "short"}.
+// The arm of each experiment a clip is in, by experiment: {"sound": "trending"}.
 type Variants map[string]string
 
 func (v Variants) String() string {
@@ -31,15 +31,6 @@ type Arm struct {
 
 // The arm of weight 0 an experiment moves a clip to when the arm it drew could not be applied.
 const FellBack = "fell-back"
-
-// Arms of one weight each: an even split.
-func EvenArms(names ...string) []Arm {
-	arms := make([]Arm, 0, len(names))
-	for _, name := range names {
-		arms = append(arms, Arm{Name: name, Weight: 1})
-	}
-	return arms
-}
 
 type Experiment struct {
 	Name string

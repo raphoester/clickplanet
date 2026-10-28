@@ -245,14 +245,14 @@ func configFor(server *httptest.Server) clips.Config {
 	return config
 }
 
-// The stories told, each in an arm of the length experiment: the coins are the system's, so which arm is not known.
+// The stories told, each in an arm of the sound experiment: the coins are the system's, so which arm is not known.
 // With no ANTHROPIC_API_KEY the run is its seasonal stories alone.
 func toldBy(t *testing.T, choice clips.Choice) []clips.Story {
 	t.Helper()
 
 	stories := make([]clips.Story, 0, len(choice.Assigned))
 	for i, assignment := range choice.Assigned {
-		assert.Contains(t, []string{"as-chosen", "short"}, assignment.Variants["length"])
+		assert.Contains(t, []string{"anthem", "trending"}, assignment.Variants["sound"])
 		assert.NotContains(t, assignment.Variants, "editor")
 		assert.Equal(t, clips.Pick(i+1), assignment.Pick)
 		stories = append(stories, assignment.Story)
@@ -356,7 +356,7 @@ func renderedIn(t *testing.T, folder string, pick int, title, variants string) {
 func TestTheArmsAClipWasMadeInAreKeptWithItsPostAndReported(t *testing.T) {
 	var posts []sentPost
 	folder := t.TempDir()
-	renderedIn(t, folder, 1, "ALGERIA STRIKES BACK", `{"length": "short"}`)
+	renderedIn(t, folder, 1, "ALGERIA STRIKES BACK", `{"sound": "anthem"}`)
 
 	report, err := clips.Schedule(t.Context(), folder, configFor(zernio(t, &posts)), inTikToksHours(), slog.New(slog.DiscardHandler))
 
@@ -364,18 +364,18 @@ func TestTheArmsAClipWasMadeInAreKeptWithItsPostAndReported(t *testing.T) {
 	require.Len(t, posts, 1)
 	record, ok := posts[0].Metadata["record"].(map[string]any)
 	require.True(t, ok)
-	assert.Equal(t, map[string]any{"length": "short"}, record["clip"].(map[string]any)["variants"])
-	assert.Equal(t, clips.Variants{"length": "short"}, report[0].Variants)
+	assert.Equal(t, map[string]any{"sound": "anthem"}, record["clip"].(map[string]any)["variants"])
+	assert.Equal(t, clips.Variants{"sound": "anthem"}, report[0].Variants)
 }
 
 func TestAClipInAnArmThatDoesNotRunIsNotPosted(t *testing.T) {
 	var posts []sentPost
 	folder := t.TempDir()
-	renderedIn(t, folder, 1, "ALGERIA STRIKES BACK", `{"length": "long"}`)
+	renderedIn(t, folder, 1, "ALGERIA STRIKES BACK", `{"sound": "loud"}`)
 
 	_, err := clips.Schedule(t.Context(), folder, configFor(zernio(t, &posts)), inTikToksHours(), slog.New(slog.DiscardHandler))
 
-	require.ErrorContains(t, err, `the experiment "length" has no arm "long"`)
+	require.ErrorContains(t, err, `the experiment "sound" has no arm "loud"`)
 	assert.Empty(t, posts)
 }
 

@@ -37,7 +37,7 @@ describe("what a clip was", () => {
     })
 
     it("keeps the arm of each experiment the clip was made in, and none when it is in none", () => {
-        expect(clipRecordOf({...shown, variants: {length: "short"}}).toJson()).toMatchObject({variants: {length: "short"}})
+        expect(clipRecordOf({...shown, variants: {sound: "trending"}}).toJson()).toMatchObject({variants: {sound: "trending"}})
         expect(clipRecordOf(shown).toJson()).not.toHaveProperty("variants")
     })
 

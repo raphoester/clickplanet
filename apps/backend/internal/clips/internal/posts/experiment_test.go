@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	length = posts.Experiment{Name: "length", Arms: posts.EvenArms("as-chosen", "short"), Control: "as-chosen"}
+	length = posts.Experiment{Name: "length", Arms: []posts.Arm{{Name: "as-chosen", Weight: 1}, {Name: "short", Weight: 1}}, Control: "as-chosen"}
 	music  = posts.Experiment{
 		Name: "music", Arms: []posts.Arm{{Name: "anthem", Weight: 3}, {Name: "trending", Weight: 1}}, Control: "anthem",
 	}
@@ -97,15 +97,15 @@ func TestAnArmOfNoWeightIsNeverDrawnButIsAnArmAClipCanBeIn(t *testing.T) {
 
 func TestAnExperimentThatCannotRunIsRefused(t *testing.T) {
 	for name, experiments := range map[string][]posts.Experiment{
-		"no name":           {{Arms: posts.EvenArms("a", "b"), Control: "a"}},
+		"no name":           {{Arms: []posts.Arm{{Name: "a", Weight: 1}, {Name: "b", Weight: 1}}, Control: "a"}},
 		"two of one name":   {length, length},
-		"one arm":           {{Name: "x", Arms: posts.EvenArms("a"), Control: "a"}},
-		"an arm twice":      {{Name: "x", Arms: posts.EvenArms("a", "a"), Control: "a"}},
-		"an arm of no name": {{Name: "x", Arms: posts.EvenArms("a", ""), Control: "a"}},
+		"one arm":           {{Name: "x", Arms: []posts.Arm{{Name: "a", Weight: 1}}, Control: "a"}},
+		"an arm twice":      {{Name: "x", Arms: []posts.Arm{{Name: "a", Weight: 1}, {Name: "a", Weight: 1}}, Control: "a"}},
+		"an arm of no name": {{Name: "x", Arms: []posts.Arm{{Name: "a", Weight: 1}, {Name: "", Weight: 1}}, Control: "a"}},
 		"one arm drawn":     {{Name: "x", Arms: []posts.Arm{{Name: "a", Weight: 1}, {Name: "b"}}, Control: "a"}},
 		"a weight under 0":  {{Name: "x", Arms: []posts.Arm{{Name: "a", Weight: 1}, {Name: "b", Weight: 1}, {Name: "c", Weight: -1}}, Control: "a"}},
-		"no control":        {{Name: "x", Arms: posts.EvenArms("a", "b")}},
-		"a control no arm":  {{Name: "x", Arms: posts.EvenArms("a", "b"), Control: "c"}},
+		"no control":        {{Name: "x", Arms: []posts.Arm{{Name: "a", Weight: 1}, {Name: "b", Weight: 1}}}},
+		"a control no arm":  {{Name: "x", Arms: []posts.Arm{{Name: "a", Weight: 1}, {Name: "b", Weight: 1}}, Control: "c"}},
 	} {
 		t.Run(name, func(t *testing.T) {
 			_, err := posts.ExperimentsOf(experiments...)

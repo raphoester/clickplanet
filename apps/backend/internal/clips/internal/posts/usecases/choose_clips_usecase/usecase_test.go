@@ -193,7 +193,7 @@ func TestAFeedThatCannotBeReadFailsTheRunRatherThanPostOverTheCap(t *testing.T) 
 }
 
 func TestEachStoryChosenIsPutInAnArmOfEveryExperiment(t *testing.T) {
-	length := posts.Experiments{{Name: "length", Arms: posts.EvenArms("as-chosen", "short"), Control: "as-chosen"}}
+	length := posts.Experiments{{Name: "length", Arms: []posts.Arm{{Name: "as-chosen", Weight: 1}, {Name: "short", Weight: 1}}, Control: "as-chosen"}}
 	past := &history{}
 
 	choice, err := choose_clips_usecase.New(

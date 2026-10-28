@@ -22,7 +22,7 @@ happened rather than 10 to 20 under the two runs a day before (2026-10-24). Four
    the Zernio and Anthropic keys, and runs no npm), the backend's `clips choose` reads it and prints the stories to
    render, up to 2, and no more than the platforms have left of their day (14 posts in a trailing 24 hours on TikTok, 8
    on YouTube), each with its number in the run and the arm of every experiment it put the clip in,
-   `[{"pick":1,"story":{"front":3,…},"variants":{"length":"short"}}]`. **A day won goes first**, told once; **the
+   `[{"pick":1,"story":{"front":3,…},"variants":{"sound":"trending"}}]`. **A day won goes first**, told once; **the
    model makes the rest** (the backend's [The clips job](../../backend/docs/clips-job.md), "The editor"): which fronts
    are stories, of what kind, between whom, where, and their headlines. The job checks each against the findings, and
    against the headlines of the last week, and skips one that does not hold with why. None, or a full day: the run ends
@@ -142,29 +142,24 @@ What chooses, when a clip goes out, the client of the service and the run's summ
     reach the feed, which is what running every 2 hours set out to cut.
   - **`generator` is the commit that made it**: `render.mjs` passes the workflow's `GITHUB_SHA`, else the checkout's
     `HEAD`, to the page as `commit`; `unknown` without either.
-  - **`variants` is the arm of each experiment the clip is in**, by name (`{"length": "short"}`): a free map of
+  - **`variants` is the arm of each experiment the clip is in**, by name (`{"sound": "trending"}`): a free map of
     words, so an experiment needs no change of shape. Empty for a clip in none, as one made by hand.
   - **Additive only**: a new value is a field at the end of its message. A change that is not is a new message
     under a new name, since the job names the message it writes (the backend's [The clips job](../../backend/docs/clips-job.md)).
 - **`--variants <json>` is the arm of each experiment the clip is in**, as the job's `choose` assigned it
-  (`{"length":"short"}`). **Which experiments run, and which arm a clip is in, is the job's alone** (the backend's
+  (`{"sound":"trending"}`). **Which experiments run, and which arm a clip is in, is the job's alone** (the backend's
   [The clips job](../../backend/docs/clips-job.md), "Experiments"): a coin, not something this app picks from the story, or the arms would not compare.
   `src/clip/experiments.ts` lists every experiment this app knows and its arms (`EXPERIMENTS`); `variantsOf` reads
   them when the clip is recorded, before anything is built, and **an experiment or an arm it does not know fails the
   clip**, which the run then does not post. It applies the arms it acts on, and writes every arm it was given into
   `record.variants`, the ones it applied and the ones the job acts on when posting, which it lists with nothing to
   apply: so `schedule` reads them all from `clip-<n>.json`. With no `--variants` a clip is in no experiment and is
-  made as before; `--seconds` with an arm of `length` is refused, since both set the length. `--plan` prints the arms.
+  made as before. `--plan` prints the arms.
   - **`sound`**: `anthem` or `trending`, the job's coin for each clip. Nothing to apply here: the video is the same in
     both, anthem included, and the job attaches a track trending on TikTok over it when it posts a `trending` clip,
     the anthem muted (the backend's [The clips job](../../backend/docs/clips-job.md), "Experiments"). The job's `fell-back`, a `trending` clip posted with its
     anthem when the chart could not be read, is decided after the render, so it never reaches this app, which refuses
     it like any arm the job does not draw.
-  - **`length`**: `as-chosen`, the control, is exactly the length `pace.ts` gives (below); `short` is the shortest a
-    story of its kind plays (`timelineOf(…, "short")`): 8.5s for a front, however far its fighting moves, 10 with a
-    day's podium. **A tour is already its shortest**, each stop a flight and a stay, and is left as it is, as is a
-    front whose fighting stays in one place: the arm is still recorded, and `durationSeconds` keeps the real length.
-    The camera fits the play it is given either way.
 - **Each teaser has a name** (`Words.teaserNames`, beside `teasers`, in the same order): `editor` for the editor's,
   and for this app's own the name of its wording, the same for every flag and every language, `takes-the-day` for a
   day won, `can-anyone-stop` for a call-up's leader in any of its languages. The `Clip` carries them (`teaserNames`),
@@ -331,7 +326,7 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   go**: 6s for a fight in one place, however many hours it lasted (room for the close-ups and the pull back out), and 1.2s more for every screen the fighting
   crosses up close (`screensOf`, on the camera's smoothed path), up to 15s. A bomb adds nothing. The last 2.5s are the call to act, and nothing runs past 22s.
   So a front runs 8.5 to 17.5s (10 to 19 with a day's 4s podium) and a tour 6.5 to 19, by its stops; only `--seconds`
-  reaches 22. The experiment `length` tries the shortest of each against it (above).
+  reaches 22.
 
 **`scripts/clip/render.mjs` is the recorder**: it starts Vite, serves the replay at `/__clip/replay.json`, opens
 headless Chrome at 540×960 at 2×, waits for `window.clip.record()`, then for each frame calls `window.clip.frame(i)`,
