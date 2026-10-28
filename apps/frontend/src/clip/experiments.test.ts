@@ -9,21 +9,19 @@ describe("the arms a clip is made in", () => {
     })
 
     it("are the arm of each experiment, as the job wrote them", () => {
-        expect(variantsOf(`{"length": "short"}`)).toEqual({length: "short"})
-        expect(variantsOf(`{"length": "as-chosen"}`)).toEqual({length: "as-chosen"})
-        expect(variantsOf(`{"length": "short", "sound": "trending"}`)).toEqual({length: "short", sound: "trending"})
         expect(variantsOf(`{"sound": "trending"}`)).toEqual({sound: "trending"})
         expect(variantsOf(`{"sound": "anthem"}`)).toEqual({sound: "anthem"})
     })
 
     it("refuse an experiment the generator does not know, so no clip is counted in an arm it was not made in", () => {
         expect(() => variantsOf(`{"end-card": "podium"}`)).toThrow(`no experiment "end-card"`)
+        expect(() => variantsOf(`{"length": "short"}`)).toThrow(`no experiment "length"`)
         expect(() => variantsOf(`{"constructor": "short"}`)).toThrow(`no experiment "constructor"`)
     })
 
     it("refuse an arm the experiment does not have", () => {
-        expect(() => variantsOf(`{"length": "long"}`)).toThrow(`no arm "long" in the experiment "length": as-chosen, short`)
-        expect(() => variantsOf(`{"length": 8.5}`)).toThrow(`no arm 8.5`)
+        expect(() => variantsOf(`{"sound": "loud"}`)).toThrow(`no arm "loud" in the experiment "sound": anthem, trending`)
+        expect(() => variantsOf(`{"sound": 8.5}`)).toThrow(`no arm 8.5`)
         expect(() => variantsOf(`{"sound": "fell-back"}`)).toThrow(`no arm "fell-back" in the experiment "sound": anthem, trending`)
     })
 

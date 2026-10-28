@@ -3,6 +3,7 @@ package posts
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"time"
 )
@@ -56,6 +57,7 @@ type Findings struct {
 	Names        map[string]string
 	// Each continent's own flag, empty for none.
 	Continents map[string]string
+	Anthems    []string
 }
 
 type Front struct {
@@ -179,8 +181,8 @@ const (
 
 var frontKinds = []Kind{Attack, Invasion, Comeback, Kickout, Rout, Battle}
 
-// A story to tell, as the generator's --story takes it. The editor makes one of a front; a tour, a place or a seasonal
-// story it only picks.
+// A story to tell, as the generator's --story takes it. The editor makes one of a front, picks a tour or a place, and
+// words each; a seasonal story has words of its own.
 type Story struct {
 	Front, Tour, Place, Seasonal int
 	Kind                         Kind
@@ -190,8 +192,13 @@ type Story struct {
 	Countries []string
 	Continent string
 	// The continent whose flags strike back together.
-	Team     string
-	Headline string
+	Team      string
+	Headline  string
+	Teasers   []string
+	Line      string
+	Call      string
+	CallFlags []string
+	Anthem    string
 	// The players the clip names.
 	Fighters []FighterNumber
 }
@@ -221,6 +228,9 @@ func (f Findings) Check(story Story) (StoryKey, error) {
 	}
 	if named != 1 {
 		return StoryKey{}, fmt.Errorf("%w: it names %d of a front, a tour, a place and a seasonal story, not one", ErrInvalidStory, named)
+	}
+	if err := f.checkDrawn(story); err != nil {
+		return StoryKey{}, err
 	}
 
 	key, err := f.keyOf(story)
@@ -266,6 +276,19 @@ func (f Findings) keyOf(story Story) (StoryKey, error) {
 		}
 		return f.checkFront(story, f.Fronts[story.Front-1])
 	}
+}
+
+// A flag the clip cannot draw at its end, or an anthem it does not have, is none the findings hold.
+func (f Findings) checkDrawn(story Story) error {
+	for _, code := range story.CallFlags {
+		if _, named := f.Names[code]; !named && !slices.Contains(slices.Collect(maps.Values(f.Continents)), code) {
+			return fmt.Errorf("%w: the call's flag %q is no flag of the findings", ErrInvalidStory, code)
+		}
+	}
+	if story.Anthem != "" && !slices.Contains(f.Anthems, story.Anthem) {
+		return fmt.Errorf("%w: there is no anthem of %q", ErrInvalidStory, story.Anthem)
+	}
+	return nil
 }
 
 func (f Findings) checkFront(story Story, front Front) (StoryKey, error) {

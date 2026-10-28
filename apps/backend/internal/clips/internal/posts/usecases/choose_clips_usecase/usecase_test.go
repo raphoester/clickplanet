@@ -28,7 +28,7 @@ var (
 		}},
 		Seasonal: []posts.Seasonal{{Title: "PALAU WINS DAY 18", Key: day18}},
 	}
-	battle = posts.Story{Front: 1, Kind: posts.Battle, Attacker: "fr", Rival: "tr", TakenFrom: []string{"tr"}, Countries: []string{"tr"}, Headline: "FRANCE VS TURKEY"}
+	battle = posts.Story{Front: 1, Kind: posts.Battle, Attacker: "fr", Rival: "tr", TakenFrom: []string{"tr"}, Countries: []string{"tr"}, Headline: "FRANCE VS TURKEY", Teasers: []string{"THE WAR FOR TURKEY"}, Call: "PICK A SIDE"}
 )
 
 type written struct {
@@ -193,7 +193,7 @@ func TestAFeedThatCannotBeReadFailsTheRunRatherThanPostOverTheCap(t *testing.T) 
 }
 
 func TestEachStoryChosenIsPutInAnArmOfEveryExperiment(t *testing.T) {
-	length := posts.Experiments{{Name: "length", Arms: posts.EvenArms("as-chosen", "short"), Control: "as-chosen"}}
+	length := posts.Experiments{{Name: "length", Arms: []posts.Arm{{Name: "as-chosen", Weight: 1}, {Name: "short", Weight: 1}}, Control: "as-chosen"}}
 	past := &history{}
 
 	choice, err := choose_clips_usecase.New(

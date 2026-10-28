@@ -18,6 +18,8 @@ message Findings {
   // How a clip says each country code of the findings: "pw": "Palau", "gb": "the UK".
   map<string, string> names = 7;
   repeated Continent continents = 8;
+  // The codes a clip has an anthem for, a continent's own flag among them: what a Pick's anthem names.
+  repeated string anthems = 9;
 }
 
 message Continent {
@@ -151,7 +153,8 @@ message StoryFacts {
 }
 
 // A story to tell, as the generator's --story takes it: one front, one tour, one place or one seasonal story of the
-// findings, by its number from 1, and for a front what the editor made of it.
+// findings, by its number from 1, for a front what the editor made of it, and the editor's words. A seasonal story has
+// words of its own, and none of the editor's.
 message Pick {
   uint32 front = 1;
   uint32 tour = 2;
@@ -168,10 +171,18 @@ message Pick {
   string continent = 10;
   // The continent whose flags strike back together, for a comeback of them.
   string team = 11;
-  // Empty for the generator's own.
   string headline = 12;
+  // The headline said in other words, for the caption.
+  repeated string teasers = 13;
+  // Under the headline; empty for none.
+  string line = 14;
+  // The call to act at the end, and the flags it asks the viewer to fight for.
+  string call = 15;
+  repeated string call_flags = 16;
+  // The code whose anthem plays under the clip, one of the findings' anthems; empty for none.
+  string anthem = 17;
   // The players the clip names, by their number in the cast.
-  repeated uint32 fighters = 13;
+  repeated uint32 fighters = 18;
 }
 
 message Clip {

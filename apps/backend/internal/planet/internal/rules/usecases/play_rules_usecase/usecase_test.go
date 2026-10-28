@@ -85,7 +85,6 @@ func TestAChoicePlaysItsSetAndIsKept(t *testing.T) {
 	assert.True(t, took)
 	assert.Equal(t, rules.SetName("rush"), taken.Name)
 	assert.Equal(t, []rules.SetName{rules.Default, "rush"}, inForce.names())
-	assert.True(t, useCase.Plays("rush"))
 	kept, _, err := choices.Choice(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, rules.Choice{Set: "rush", DecidedAt: finale}, kept)
@@ -169,13 +168,19 @@ func TestWithNoDefaultNothingPlays(t *testing.T) {
 	assert.Empty(t, inForce.sets)
 }
 
-func TestTheSetThatPlaysNowIsTheOneInForce(t *testing.T) {
-	useCase := play_rules_usecase.New(keeping(t, rules.Seeded()), rules.NewMemoryChoices(), &enforced{})
-	assert.False(t, useCase.Plays(rules.Default), "nothing plays before the first play")
+func TestAChangeOfTheSetInForceIsTakenAtTheNextExecute(t *testing.T) {
+	sets := keeping(t, rules.Seeded())
+	useCase, inForce := booted(t, sets, rules.NewMemoryChoices())
 
-	_, _, err := useCase.Execute(t.Context())
+	_, took, err := useCase.Execute(t.Context())
 	require.NoError(t, err)
+	assert.False(t, took, "unchanged, it is not taken again")
 
-	assert.True(t, useCase.Plays(rules.Default))
-	assert.False(t, useCase.Plays("rush"))
+	sets.Keep(rules.Named(rules.Default, func(r *planetv1.Rules) { r.Clicks.NewAccountClicks = 60 }))
+	_, took, err = useCase.Execute(t.Context())
+
+	require.NoError(t, err)
+	assert.True(t, took)
+	require.Len(t, inForce.sets, 2)
+	assert.InDelta(t, 60, inForce.sets[1].Rules.GetClicks().GetNewAccountClicks(), 0)
 }

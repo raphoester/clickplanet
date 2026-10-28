@@ -22,7 +22,7 @@ happened rather than 10 to 20 under the two runs a day before (2026-10-24). Four
    the Zernio and Anthropic keys, and runs no npm), the backend's `clips choose` reads it and prints the stories to
    render, up to 2, and no more than the platforms have left of their day (14 posts in a trailing 24 hours on TikTok, 8
    on YouTube), each with its number in the run and the arm of every experiment it put the clip in,
-   `[{"pick":1,"story":{"front":3,…},"variants":{"length":"short"}}]`. **A day won goes first**, told once; **the
+   `[{"pick":1,"story":{"front":3,…},"variants":{"sound":"trending"}}]`. **A day won goes first**, told once; **the
    model makes the rest** (the backend's [The clips job](../../backend/docs/clips-job.md), "The editor"): which fronts
    are stories, of what kind, between whom, where, and their headlines. The job checks each against the findings, and
    against the headlines of the last week, and skips one that does not hold with why. None, or a full day: the run ends
@@ -77,8 +77,8 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   - **`seasonal`**: a day of the season won and each country called up after it (`round.ts`, `callup.ts`, below),
     told whole by this app, with the title, the key, the countries and the facts their clips would record
     (`StoryFacts`, `storyFactsOf`, the numbers `record()` works out, measured once by `measuredOf`).
-  - **`names`**, how a clip says each code in the findings ("gb": "the UK"), and **`continents`**, each with its own
-    flag when it has one (Europe's).
+  - **`names`**, how a clip says each code in the findings ("gb": "the UK"), **`continents`**, each with its own
+    flag when it has one (Europe's), and **`anthems`**, the codes a clip has a recording for (below).
   - **`fighters`**, with a cast (`--cast`): the players who took the most, 3 at most (`topFightersOf`,
     `domain/clip/cast.ts`), each with its number in the cast, its name and the tiles it took from another flag. On each
     front's flag, its takes on the front's tiles in the front's stretch; on each tour, the flag's on the tour's tiles;
@@ -88,11 +88,13 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   findings by its number, from 1, and for a front what the editor made of it: its `kind` (`attack`, `invasion`,
   `comeback`, `kickout`, `rout`, `battle`), its `attacker`, its `rival` in a battle, whom it took from (`takenFrom`,
   the flag thrown out first), where it is told (`countries`, one or two, or `continent`), the continent whose flags
-  strike back together (`team`), and its `headline`. A tour, a place and a seasonal story are the facts' own: the
-  flag taking the world, the holder holding its share, the day won. **The page builds the `Story` from it and reads no
-  rule**: a pick that names no front, a kind no front tells, no attacker or no place is refused as it is read, and
-  the job checked it against the findings before the render. `--headline` overrides the story's. Its `fighters` are
-  the players the editor names, by their number in the cast, each a top fighter of a side of the story in the
+  strike back together (`team`). A tour, a place and a seasonal story are the facts' own: the flag taking the world,
+  the holder holding its share, the day won. **Every story but a seasonal one comes with the editor's words**: its
+  `headline`, its `teasers`, its `line` (empty for none), its `call` and the flags it asks to fight for
+  (`callFlags`), and the `anthem` under it (below). **The page builds the `Story` from it and reads no rule**: a pick
+  that names no front, a kind no front tells, no attacker, no place, no headline or no call is refused as it is read,
+  and the job checked it against the findings before the render. `--headline` overrides the story's. Its `fighters`
+  are the players the editor names, by their number in the cast, each a top fighter of a side of the story in the
   findings; a number the cast does not have fails the render. A seasonal story names nobody.
 - **`--season <path>`** is the gamemaster's turn, a `gamemaster.v1.GetTurnResponse` as `GetTurn` answers it, served
   to the page at `/__clip/season.json`. Its `debrief` is the moment scoring scored last, in the game's words: a day
@@ -154,33 +156,28 @@ What chooses, when a clip goes out, the client of the service and the run's summ
     reach the feed, which is what running every 2 hours set out to cut.
   - **`generator` is the commit that made it**: `render.mjs` passes the workflow's `GITHUB_SHA`, else the checkout's
     `HEAD`, to the page as `commit`; `unknown` without either.
-  - **`variants` is the arm of each experiment the clip is in**, by name (`{"length": "short"}`): a free map of
+  - **`variants` is the arm of each experiment the clip is in**, by name (`{"sound": "trending"}`): a free map of
     words, so an experiment needs no change of shape. Empty for a clip in none, as one made by hand.
   - **Additive only**: a new value is a field at the end of its message. A change that is not is a new message
     under a new name, since the job names the message it writes (the backend's [The clips job](../../backend/docs/clips-job.md)).
 - **`--variants <json>` is the arm of each experiment the clip is in**, as the job's `choose` assigned it
-  (`{"length":"short"}`). **Which experiments run, and which arm a clip is in, is the job's alone** (the backend's
+  (`{"sound":"trending"}`). **Which experiments run, and which arm a clip is in, is the job's alone** (the backend's
   [The clips job](../../backend/docs/clips-job.md), "Experiments"): a coin, not something this app picks from the story, or the arms would not compare.
   `src/clip/experiments.ts` lists every experiment this app knows and its arms (`EXPERIMENTS`); `variantsOf` reads
   them when the clip is recorded, before anything is built, and **an experiment or an arm it does not know fails the
   clip**, which the run then does not post. It applies the arms it acts on, and writes every arm it was given into
   `record.variants`, the ones it applied and the ones the job acts on when posting, which it lists with nothing to
   apply: so `schedule` reads them all from `clip-<n>.json`. With no `--variants` a clip is in no experiment and is
-  made as before; `--seconds` with an arm of `length` is refused, since both set the length. `--plan` prints the arms.
+  made as before. `--plan` prints the arms.
   - **`sound`**: `anthem` or `trending`, the job's coin for each clip. Nothing to apply here: the video is the same in
     both, anthem included, and the job attaches a track trending on TikTok over it when it posts a `trending` clip,
     the anthem muted (the backend's [The clips job](../../backend/docs/clips-job.md), "Experiments"). The job's `fell-back`, a `trending` clip posted with its
     anthem when the chart could not be read, is decided after the render, so it never reaches this app, which refuses
     it like any arm the job does not draw.
-  - **`length`**: `as-chosen`, the control, is exactly the length `pace.ts` gives (below); `short` is the shortest a
-    story of its kind plays (`timelineOf(…, "short")`): 8.5s for a front, however far its fighting moves, 10 with a
-    day's podium. **A tour is already its shortest**, each stop a flight and a stay, and is left as it is, as is a
-    front whose fighting stays in one place: the arm is still recorded, and `durationSeconds` keeps the real length.
-    The camera fits the play it is given either way.
-- **Each teaser has a name** (`Words.teaserNames`, beside `teasers`, in the same order): the name of its wording, the
-  same for every flag and every language, `invades` and `under-attack-from` for an invasion, `can-anyone-stop` for a
-  call-up's leader in any of its languages. The `Clip` carries them (`teaserNames`), so the job can say which wording
-  a post opens with and the posts can be compared by it. A test checks every kind names each of its teasers once.
+- **Each teaser has a name** (`Words.teaserNames`, beside `teasers`, in the same order): `editor` for the editor's,
+  and for this app's own the name of its wording, the same for every flag and every language, `takes-the-day` for a
+  day won, `can-anyone-stop` for a call-up's leader in any of its languages. The `Clip` carries them (`teaserNames`),
+  so the job can say which wording a post opens with and the posts can be compared by it.
 
 - **The replay is the backend's** (`planet.v1.AdminService/GetReplay`, see the backend's [GetReplay](../../backend/docs/admin.md#getreplay)): the map as it
   was at the start, and every act after it as the live stream sent it. The backend's job asks for the last
@@ -212,14 +209,14 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   phone crops the sides, the tabs cover the top, the buttons run down the right from the middle, and the name and
   the caption cover the bottom. The counter sits left of the buttons, and the call to act in the top half, darkening only that half: the map
   pulled back out stays in sight under it. The call
-  shows the flag it asks the viewer to fight for: the country to defend, the flag that strikes back, both sides of a
-  battle, or a continent's own flag (Europe's alone, `static/countries/svg/eu.svg`, from the same set as the others).
+  shows the flags the editor names it with (`callFlags`): a country's, or a continent's own flag (Europe's alone,
+  `static/countries/svg/eu.svg`, from the same set as the others).
 - **The end card names the top fighters** the pick names: "TOP FIGHTERS" under the call, then each side's players
   (`sidesOf`), two sides and 3 a side at most, a row each with the side's flag, the name and the tiles it took in what
   the clip plays, counted again from the cast on the story's tiles in the stretch the clip is cut to
   (`namedSidesOf`). Each is under the side it took the most for; one who took nothing for a side there is left out.
   `--plan` prints them. It fades in once the counter has faded out, half a second into the call, and covers where the
-  counter was, left of the buttons. **A name is the player's, in any script**: one Luckiest Guy cannot draw sets the
+  counter was, left of the buttons, in small outlined words and no panel, so the map shows through. **A name is the player's, in any script**: one Luckiest Guy cannot draw sets the
   clip in Rubik Black, as a call-up's words do, and one too long for its row is set smaller (`fit`), never cut.
 
 **`src/domain/clip/` measures and plays; it judges nothing**, pure and under test:
@@ -249,32 +246,27 @@ What chooses, when a clip goes out, the client of the service and the run's summ
 - **`story.ts` is what a clip tells, as the editor wrote it** (`Story`): its kind, its attacker, its rival, whom it
   took from, its place, and the continent striking back together (`team`). `sidesOf` is who the clip is between,
   `storyKeyOf` which story it is, `storyCountriesOf` what it shows, `fightersOf` whose fighting the camera follows.
-  `src/clip/overlay.ts` words it: the headline is the editor's, and `wordsOf` writes the teasers, the call and the
-  line of each kind, as before; its own headline stands in when none is given, as for a day won.
+  `src/clip/overlay.ts` draws its words (`wordsOf`): the editor's, every one, and its own only for a day won and a
+  call-up, which no editor writes. A story the editor tells with no words is no clip.
 - **A country is said as people say it.** The game's names are cut to fit its board ("Christmas", "N.Zealand", "Czech
   Rep."), so a clip says the English name they were cut from, from the CLDR data the browser carries
   (`Intl.DisplayNames`): "CHRISTMAS ISLAND IS TAKING OVER THE WORLD". A name the game chose over CLDR's stays: "Turkey",
   "Ivory Coast", "UAE", "DR Congo", and its own flags'.
 - **Names are said with their article** where English wants one: "the UK", "the Netherlands", "the Dominican
   Republic". Tags keep them bare.
-- **The words say nothing the map says better.** Only a battle has a line under its headline, "The battle for
-  France": no count of tiles and no "in 3 hours", which the counter shows and which read as written by a machine.
-- **The caption never repeats the headline** (`teasers` in `wordsOf`): the clip already shows it, and the
-  posts written by hand read better. Each kind of story says it two ways, which the job picks between: "PALESTINE
-  IS KICKING ROMANIA OUT OF KAZAKHSTAN" is "PALESTINE TAKES KAZAKHSTAN FROM ROMANIA", an invasion that threw
-  another flag out "CROATIA INVADES CHINA AND KICKS OUT FRANCE", a flag thrown out "GENERATIONAL DOWNFALL OF
-  CHRISTMAS ISLAND", and a country throwing a flag out of its own land "ITALY RETAKES ITS LAND FROM PORTUGAL".
-  A holding is "80% OF EUROPE FLIES THE FLAG OF CROATIA" and "CROATIA RULES EUROPE" (below half, "the biggest power
-  in Europe"; the world's, "THE BIGGEST EMPIRE ON EARTH"), and asks to "TAKE EUROPE BACK"; a day won is "FRANCE TAKES
-  DAY 5" and "DAY 5 GOES TO FRANCE". A teaser that says the editor's headline is left out, and a test checks that no
-  kind ever gives its own headline back.
+- **Every editorial choice is the model's, never a rule here** (2026-10-28): the headline, the teasers, the line
+  under the headline, the call at the end with its flags, and the anthem. Until then each kind of story had its words
+  and its anthem in code, chosen by branches on the story (its kind, whether the loser was at home, whether two flags
+  fought): every rout outside the loser's home could be "GENERATIONAL DOWNFALL OF X", so a YouTube Short of China
+  losing Finland was titled "GENERATIONAL DOWNFALL OF CHINA". The editor's instructions say what each was for. Only a
+  day won ("FRANCE WINS DAY 5", "FRANCE TAKES DAY 5", "WHO WINS DAY 6?") and a call-up keep words of their own, since
+  no editor writes them. **The caption never repeats the headline**: the clip already shows it, so a teaser that says
+  it is left out.
 - **The hashtags are every flag of the story and the countries of its place** (`hashtagsOf`), bare
   (`#christmasisland`, `#uk`), and the place's continent. Palestine and Israel included: the user chose it on
   2026-10-14, though a flag's tag can be a political feed. A continent's own flag is not a country and has none.
-- **`music.ts` picks the anthem under the clip**, since YouTube Shorts cannot add a sound to an upload: the anthem
-  of whoever makes the moves, the leading flag's, else the other side's in a battle, or the continent's when a
-  continent strikes back. Never a loser's, but for a flag thrown out by many flags none of which leads ("ALGERIA IS
-  FALLING"): the clip names no other flag. A clip with none plays none. They are the game's own anthems (see [The
+- **The anthem under the clip is the editor's** (the pick's `anthem`), since YouTube Shorts cannot add a sound to an
+  upload; a day won and a call-up play their flag's. A clip with none plays none. They are the game's own anthems (see [The
   leader's anthem](sound.md#the-leaders-anthem)), US Navy Band recordings in the public domain, and two the game does not
   play, vendored by `npm run clip:anthems` into `scripts/clip/anthems/`: the Anthem of Europe (Navy Band too) and
   Palestine's Fida'i, which the Navy Band never recorded, in an instrumental under CC BY 3.0. A recording under a
@@ -355,7 +347,7 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   go**: 6s for a fight in one place, however many hours it lasted (room for the close-ups and the pull back out), and 1.2s more for every screen the fighting
   crosses up close (`screensOf`, on the camera's smoothed path), up to 15s. A bomb adds nothing. The last 2.5s are the call to act, and nothing runs past 22s.
   So a front runs 8.5 to 17.5s (10 to 19 with a day's 4s podium) and a tour 6.5 to 19, by its stops; only `--seconds`
-  reaches 22. The experiment `length` tries the shortest of each against it (above).
+  reaches 22.
 
 **`scripts/clip/render.mjs` is the recorder**: it starts Vite, serves the replay at `/__clip/replay.json`, opens
 headless Chrome at 540×960 at 2×, waits for `window.clip.record()`, then for each frame calls `window.clip.frame(i)`,

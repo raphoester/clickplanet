@@ -14,10 +14,7 @@ import {
 
 // made: an edit of a set kept, with its name fixed; otherwise a new set copied from `from`. Either way the form
 // shows what it changes from that set.
-type Editing = {draft: Draft, made: boolean, from: string}
-
-const refusal = (err: unknown) =>
-    wordsOf(err, {failedPrecondition: "A set of this name plays now. Save it under another name."})
+type Editing = {draft: Draft, made: boolean, from: string, playing: string}
 
 // Every rule set postgres keeps, and a form to make one or change one.
 export function RulesPanel({planet}: {planet: PlanetAdmin}) {
@@ -51,8 +48,8 @@ export function RulesPanel({planet}: {planet: PlanetAdmin}) {
                     <p className="hint">Playing: <code>{rules.value.playing}</code></p>
                     <Sets
                         rules={rules.value}
-                        onEdit={set => setEditing({draft: draftOf(set), made: true, from: set.name})}
-                        onCopy={set => setEditing({draft: copyOf(set), made: false, from: set.name})}
+                        onEdit={set => setEditing({draft: draftOf(set), made: true, from: set.name, playing: rules.value.playing})}
+                        onCopy={set => setEditing({draft: copyOf(set), made: false, from: set.name, playing: rules.value.playing})}
                     />
                 </>
             )}
@@ -79,11 +76,9 @@ function Sets({rules, onEdit, onCopy}: {
                         <td>{clicksOf(set.rules?.clicks)}</td>
                         <td>{boxesOf(set.rules?.bonuses?.boxes)}</td>
                         <td className="row-buttons">
-                            {set.name !== rules.playing && (
-                                <button type="button" className="button-small" aria-label={`Edit ${set.name}`} onClick={() => onEdit(set)}>
-                                    Edit
-                                </button>
-                            )}
+                            <button type="button" className="button-small" aria-label={`Edit ${set.name}`} onClick={() => onEdit(set)}>
+                                Edit
+                            </button>
                             <button type="button" className="button-small" aria-label={`Copy ${set.name}`} onClick={() => onCopy(set)}>
                                 Copy
                             </button>
@@ -151,12 +146,13 @@ function SetForm({planet, editing, onCancel, onSaved}: {
                     question={(
                         <>
                             <p>Save {draft.name.trim()}{changes.length === 0 ? `, as ${editing.from} is?` : "?"}</p>
+                            {draft.name.trim() === editing.playing && <p>It plays now: it takes over at once.</p>}
                             {changes.length > 0 && <ChangeList changes={changes}/>}
                         </>
                     )}
                     run={() => saveRuleSet(planet, draft)}
                     said={() => "Saved."}
-                    refusal={refusal}
+                    refusal={wordsOf}
                     onDone={onSaved}
                 />
                 <button type="button" className="button" onClick={onCancel}>Cancel</button>

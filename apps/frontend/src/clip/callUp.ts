@@ -226,8 +226,6 @@ export type Naming = {
     said(name: string): string
 }
 
-const SITE = "https://clickplanet.lol"
-
 export function callUpWordsOf(story: Story, naming: Naming, headline?: string): Words {
     const day = story.day
     const finaleAt = story.finaleAt
@@ -275,7 +273,6 @@ export function callUpWordsOf(story: Story, naming: Naming, headline?: string): 
         line: words.finale(when),
         call: words.call(voice.region),
         callFlags: [story.attacker],
-        link: `${SITE}/?f=${story.attacker}`,
         teasers: words.teasers[place](country, gap),
         teaserNames: CALL_UP_TEASERS[place],
         table: (leads ? [own, other] : [other, own]).map(standing),

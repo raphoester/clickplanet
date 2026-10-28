@@ -23,7 +23,7 @@ var (
 	first   = now.Add(4 * time.Hour)
 	second  = now.Add(6 * time.Hour)
 	running = posts.Experiments{
-		{Name: "length", Arms: posts.EvenArms("as-chosen", "short"), Control: "as-chosen"},
+		{Name: "length", Arms: []posts.Arm{{Name: "as-chosen", Weight: 1}, {Name: "short", Weight: 1}}, Control: "as-chosen"},
 		{
 			Name: posts.SoundExperiment, Control: posts.WithAnthem,
 			Arms: []posts.Arm{{Name: posts.WithAnthem, Weight: 1}, {Name: posts.WithTrending, Weight: 1}, {Name: posts.FellBack, Weight: 0}},

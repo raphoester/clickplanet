@@ -1,7 +1,7 @@
 import {Countries} from "../domain/countries.ts"
 import {NamedSide} from "../domain/clip/cast.ts"
-import {inPlace, Place, sidesOf, Story, storyCountriesOf, THE_WORLD} from "../domain/clip/story.ts"
-import {flagOfContinent, regionOf} from "../domain/regions.ts"
+import {Place, sidesOf, Story, storyCountriesOf, THE_WORLD} from "../domain/clip/story.ts"
+import {regionOf} from "../domain/regions.ts"
 import {callUpWordsOf} from "./callUp.ts"
 
 export type Words = {
@@ -11,11 +11,10 @@ export type Words = {
     call: string
     // The flags of what the call asks the viewer to fight for.
     callFlags: string[]
-    link: string
     // The headline said in other words, for the caption: the posting job picks one.
     teasers: string[]
-    // The name of each teaser's wording, in the same order: the same for every flag and every language, so the posts
-    // can be compared by it ("invades", "under-attack-from").
+    // The name of each teaser's wording, in the same order, so the posts can be compared by it: "editor" for the
+    // editor's, the same for every flag and every language for the generator's own ("takes-the-day").
     teaserNames: string[]
     table?: Standing[]
     when?: string
@@ -52,8 +51,6 @@ const NUMBER = new Intl.NumberFormat("en-US")
 const TIME = new Intl.DateTimeFormat("en-GB", {
     weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "UTC",
 })
-
-const SITE = "https://clickplanet.lol"
 
 const ENGLISH = new Intl.DisplayNames(["en"], {type: "region", style: "short"})
 
@@ -104,17 +101,6 @@ export function placeName(place: Place): string {
     return "region" in place ? place.region : countriesOf(place).map(nameOf).join(" and ")
 }
 
-function placeSaid(place: Place): string {
-    return "region" in place ? said(place.region) : countriesOf(place).map((country) => said(nameOf(country))).join(" and ")
-}
-
-// The flags of a place: its countries', or its continent's own when it has one.
-function placeFlags(place: Place): string[] {
-    if (!("region" in place)) return countriesOf(place)
-    const flag = flagOfContinent(place.region)
-    return flag === undefined ? [] : [flag]
-}
-
 function tagOf(name: string): string {
     return name.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "")
 }
@@ -130,144 +116,58 @@ export function hashtagsOf(story: Story): Hashtags {
     }
 }
 
+// Every word the editor wrote of a story, for its clip and its caption, and the code whose anthem plays under it.
+export type Written = {
+    headline: string
+    teasers: string[]
+    line: string | undefined
+    call: string
+    callFlags: string[]
+    anthem: string | undefined
+}
+
 const named = (teasers: [name: string, line: string][]) => ({
     teasers: teasers.map(([, line]) => line.toUpperCase()),
     teaserNames: teasers.map(([name]) => name),
 })
 
-// headline: the editor's, in place of the generator's own. The caption never repeats the clip: a teaser that says the
-// headline is left out.
-export function wordsOf(story: Story, headline?: string): Words {
-    const words = wordedOf(story, headline)
+// A story the editor tells is told in its words alone; a day won and a call-up, which no editor writes, in their own.
+// headline: one given by hand, over either. The caption never repeats the clip: a teaser that says the headline is
+// left out.
+export function wordsOf(story: Story, written?: Written, headline?: string): Words {
+    const words = story.kind === "callup" ? callUpWordsOf(story, {nameOf, said}, headline)
+        : story.kind === "round" ? roundWordsOf(story, headline)
+            : editedOf(story, written, headline)
     const kept = words.teasers.map((_, i) => i).filter((i) => words.teasers[i] !== words.headline)
     return {...words, teasers: kept.map((i) => words.teasers[i]), teaserNames: kept.map((i) => words.teaserNames[i])}
 }
 
-function wordedOf(story: Story, headline?: string): Words {
-    if (story.kind === "callup") return callUpWordsOf(story, {nameOf, said}, headline)
-
-    const attacker = said(nameOf(story.attacker))
-    const place = placeSaid(story.place)
-    const sides = sidesOf(story)
-    const victim = story.victims[0] === undefined ? undefined : said(nameOf(story.victims[0]))
-
-    if (story.kind === "holding") {
-        const world = "region" in story.place && story.place.region === THE_WORLD
-        const share = story.share ?? 0
-        // Never more than it holds: 79.6% is 79%.
-        const percent = `${Math.floor(share * 100)}%`
-        const country = countriesOf(story.place)[0]
-        return {
-            headline: headline ?? `${attacker} HOLDS ${percent} OF ${place}`.toUpperCase(),
-            line: undefined,
-            call: world ? "FIGHT BACK" : `TAKE ${place} BACK`.toUpperCase(),
-            callFlags: world ? [] : placeFlags(story.place),
-            link: country === undefined ? SITE : `${SITE}/?f=${country}`,
-            ...named([
-                ["flies-the-flag-of", `${percent} of ${place} flies the flag of ${attacker}`],
-                world ? ["biggest-empire-on-earth", `the biggest empire on earth: ${attacker}`]
-                    : share >= 0.5 ? ["rules", `${attacker} rules ${place}`]
-                        : ["biggest-power-in", `${attacker} is the biggest power in ${place}`],
-            ]),
-        }
-    }
-
-    if (story.kind === "round" && story.day !== undefined) {
-        const day = story.day
-        const won = day.finale ? "the final battle" : day.own ? "the battle" : `day ${day.number}`
-        const after = day.table.find(({country}) => country === story.attacker)
-        const points = after === undefined ? "" : `${NUMBER.format(after.points)} ${after.points === 1 ? "point" : "points"}`
-        return {
-            headline: headline ?? `${attacker} WINS ${won}`.toUpperCase(),
-            line: after === undefined ? undefined
-                : after.rank > 1 ? `${ordinalOf(after.rank)} in the season with ${points}`
-                    : day.finale ? `Wins the season with ${points}` : `Leads the season with ${points}`,
-            call: day.finale || day.own ? "PLAY FOR YOUR COUNTRY" : `WHO WINS DAY ${day.number + 1}?`,
-            callFlags: [],
-            link: SITE,
-            ...named([["takes-the-day", `${attacker} takes ${won}`], ["day-goes-to", `${won} goes to ${attacker}`]]),
-        }
-    }
-
-    if (story.kind === "rout") {
-        const loser = said(nameOf(sides[0]))
-        const home = inPlace(story.place, sides[0], regionOf)
-        const ownCountry = "country" in story.place && story.place.country === sides[0]
-        const takerAtHome = "country" in story.place && story.place.country === story.attacker && story.team === undefined
-        return {
-            headline: headline ?? (ownCountry ? `${loser} IS FALLING`
-                : home ? `${loser} IS LOSING ${place}` : `${loser} GETS KICKED OUT OF ${place}`).toUpperCase(),
-            line: undefined,
-            call: sides.length === 2 ? "PICK A SIDE" : `FIGHT FOR ${loser}`.toUpperCase(),
-            callFlags: sides,
-            link: sides.length === 2 ? SITE : `${SITE}/?f=${sides[0]}`,
-            ...named(ownCountry ? [["the-fall-of", `the fall of ${loser}`], ["collapses", `${loser} collapses`]]
-                : home ? [["loses-ground-in", `${loser} loses ground in ${place}`], ["in-trouble-in", `${loser} is in trouble in ${place}`]]
-                    : takerAtHome ? [["retakes-its-land-from", `${attacker} retakes its land from ${loser}`],
-                        ["generational-downfall", `generational downfall of ${loser}`]]
-                        : [["generational-downfall", `generational downfall of ${loser}`], ["loses-place", `${loser} loses ${place}`]]),
-        }
-    }
-
-    if (story.team !== undefined) {
-        const team = said(story.team)
-        return {
-            headline: headline ?? `${team} STRIKES BACK`.toUpperCase(),
-            line: undefined,
-            call: `FIGHT FOR ${team}`.toUpperCase(),
-            callFlags: sides,
-            link: SITE,
-            ...named(victim === undefined ? [["fights-back", `${team} fights back`], ["unites", `${team} unites`]]
-                : [["unites-against", `${team} unites against ${victim}`], ["fights-back-against", `${team} fights back against ${victim}`]]),
-        }
-    }
-
-    if (sides.length === 2) {
-        const other = said(nameOf(sides[1]))
-        return {
-            headline: headline ?? (story.kind === "kickout"
-                ? `${attacker} IS KICKING ${other} OUT OF ${place}`
-                : `${attacker} VS ${other}`).toUpperCase(),
-            line: story.kind === "battle" ? `The battle for ${place}` : undefined,
-            call: "PICK A SIDE",
-            callFlags: sides,
-            link: SITE,
-            ...named(story.kind === "kickout"
-                ? [["takes-place-from", `${attacker} takes ${place} from ${other}`], ["loses-place-to", `${other} loses ${place} to ${attacker}`]]
-                : [["war-for", `war for ${place}: ${attacker} vs ${other}`], ["fight-for", `${attacker} and ${other} fight for ${place}`]]),
-        }
-    }
-
-    if (story.kind === "comeback") {
-        const ownCountry = "country" in story.place && story.place.country === story.attacker
-        return {
-            headline: headline ?? `${attacker} STRIKES BACK`.toUpperCase(),
-            line: undefined,
-            call: `FIGHT FOR ${attacker}`.toUpperCase(),
-            callFlags: [story.attacker],
-            link: `${SITE}/?f=${story.attacker}`,
-            ...named(ownCountry && victim !== undefined
-                ? [["retakes-its-land-from", `${attacker} retakes its land from ${victim}`], ["fights-back-against", `${attacker} fights back against ${victim}`]]
-                : [["fights-back-in", `${attacker} fights back in ${place}`], ["is-back-in", `${attacker} is back in ${place}`]]),
-        }
-    }
-
-    const world = "region" in story.place && story.place.region === THE_WORLD
-    const defended = world ? undefined : countriesOf(story.place)[0] ?? story.victims[0]
-    const kicked = victim !== undefined && !countriesOf(story.place).includes(story.victims[0])
+function editedOf(story: Story, written: Written | undefined, headline: string | undefined): Words {
+    if (written === undefined) throw new Error(`a ${story.kind} is told in the editor's words, and none were given`)
     return {
-        headline: headline ?? (world ? `${attacker} IS TAKING OVER ${place}`
-            : story.kind === "invasion" ? `${attacker} IS INVADING ${place}`
-                : `${attacker} IS ATTACKING ${place}`).toUpperCase(),
-        line: undefined,
-        call: world ? "FIGHT BACK" : `DEFEND ${place}`.toUpperCase(),
-        callFlags: placeFlags(story.place),
-        link: defended === undefined ? SITE : `${SITE}/?f=${defended}`,
-        ...named(world ? [["takes-over-the-world", `${attacker} takes over the world`], ["nobody-can-stop", `nobody can stop ${attacker}`]]
-            : story.kind === "invasion"
-                ? [kicked ? ["invades-and-kicks-out", `${attacker} invades ${place} and kicks out ${victim}`] : ["invades", `${attacker} invades ${place}`],
-                    ["under-attack-from", `${place} is under attack from ${attacker}`]]
-                : [["takes-over", `${attacker} takes over ${place}`], ["under-attack-from", `${place} is under attack from ${attacker}`]]),
+        headline: headline ?? written.headline,
+        line: written.line,
+        call: written.call,
+        callFlags: written.callFlags,
+        ...named(written.teasers.map((teaser): [string, string] => ["editor", teaser])),
+    }
+}
+
+function roundWordsOf(story: Story, headline: string | undefined): Words {
+    const day = story.day
+    if (day === undefined) throw new Error("a day won needs its day")
+    const attacker = said(nameOf(story.attacker))
+    const won = day.finale ? "the final battle" : day.own ? "the battle" : `day ${day.number}`
+    const after = day.table.find(({country}) => country === story.attacker)
+    const points = after === undefined ? "" : `${NUMBER.format(after.points)} ${after.points === 1 ? "point" : "points"}`
+    return {
+        headline: headline ?? `${attacker} WINS ${won}`.toUpperCase(),
+        line: after === undefined ? undefined
+            : after.rank > 1 ? `${ordinalOf(after.rank)} in the season with ${points}`
+                : day.finale ? `Wins the season with ${points}` : `Leads the season with ${points}`,
+        call: day.finale || day.own ? "PLAY FOR YOUR COUNTRY" : `WHO WINS DAY ${day.number + 1}?`,
+        callFlags: [],
+        ...named([["takes-the-day", `${attacker} takes ${won}`], ["day-goes-to", `${won} goes to ${attacker}`]]),
     }
 }
 

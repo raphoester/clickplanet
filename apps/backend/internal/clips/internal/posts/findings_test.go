@@ -56,6 +56,7 @@ func findings(t *testing.T) posts.Findings {
 		Seasonal:   []posts.Seasonal{{Title: "PALAU WINS DAY 18", Key: day18, Countries: []string{"pw", "dz"}}},
 		Names:      map[string]string{"fr": "France", "tr": "Turkey", "dz": "Algeria", "in": "India", "sy": "Syria", "pw": "Palau"},
 		Continents: map[string]string{"Europe": "eu", "Middle East": "", "South Asia": "", "Africa": ""},
+		Anthems:    []string{"fr", "tr", "dz", "eu"},
 	})
 	require.NoError(t, err)
 	return found
@@ -162,6 +163,8 @@ func TestAStoryNamesOneOfTheFindingsAndOneThatExists(t *testing.T) {
 		"no place 3 of 2":          {Place: 3},
 		"no seasonal story 2 of 1": {Seasonal: 2},
 		"no front 5 of 1":          {Front: 5},
+		`the call's flag "xb" is no flag of the findings`: {Place: 1, CallFlags: []string{"fr", "eu", "xb"}},
+		`there is no anthem of "pw"`:                      {Place: 1, Anthem: "pw"},
 	} {
 		t.Run(why, func(t *testing.T) {
 			_, err := found.Check(story)

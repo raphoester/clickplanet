@@ -25,8 +25,8 @@ type Bans interface {
 	Restate(ctx context.Context) error
 }
 
-// Execute plays the set chosen last, at boot; Play plays a newer choice. took is false when the set is in force
-// already.
+// Execute plays the set chosen last, at boot and after a save; Play plays a newer choice. took is false when the set is
+// in force already.
 type Executor interface {
 	Execute(ctx context.Context) (taken rules.Snapshot, took bool, err error)
 	Play(ctx context.Context, choice rules.Choice) (taken rules.Snapshot, took bool, err error)
@@ -47,14 +47,6 @@ type UseCase struct {
 	chosen rules.Choice
 	taken  rules.Set
 	untold bool
-}
-
-// Plays is true for the set in force.
-func (u *UseCase) Plays(name rules.SetName) bool {
-	u.mu.Lock()
-	defer u.mu.Unlock()
-
-	return u.taken.Is(name)
 }
 
 func (u *UseCase) Execute(ctx context.Context) (rules.Snapshot, bool, error) {

@@ -97,12 +97,12 @@ judgement sees one set.
 
 - **`play_rules_usecase` plays when something changes, never on a timer**: at boot (`Execute`) the set the schedule
   chose last, and `default` until it chose one; then each `antibot.v1.PlayRuleSet` the schedule sends (`Play`, from
-  `commands/play_rule_set_handler`). A save never changes the rules in force (see [The operator](#the-operator)), so
-  it plays nothing. Each time it reads the set to play from the store, which restores it, and enforces it when its
+  `commands/play_rule_set_handler`). After each save, `Execute` plays the set chosen last again (see [The
+  operator](#the-operator)), so a save of the set in force takes over at once. Each time it reads the set to play from the store, which restores it, and enforces it when its
   values changed (`Set.Equal`), one play at a time under a lock. A missing set at boot refuses the boot. A failed read,
   or a kept set that cannot play, keeps the rules in force; the caller gets the error and `log_play_rules` logs it.
-  Until 2026-10-26 a runner read postgres every second; with the schedule as the only thing that changes the set in
-  force, a push is enough, and a hand edit in SQL takes effect at the next play or boot.
+  Until 2026-10-26 a runner read postgres every second; with the schedule and the operator's saves as the only things
+  that change the rules in force, a push is enough, and a hand edit in SQL takes effect at the next play or boot.
 - **The choice is kept** in `antibot.rule_set_choice` (`rules.Choice`, one row, `postgres_choice_store`): a later
   decision overrules it, and an older one or one sent again changes nothing. A set the antibot keeps none of is
   refused: the rules in force stay, the choice is not kept, and the command is dropped.
@@ -162,7 +162,8 @@ in a file would be read by nothing.
   holds: it reads the documents, not the store, which refuses a set that cannot play.
 - **`SaveRuleSet{set}`** makes a set or replaces its values. A set `Restore` refuses is `InvalidArgument`, with every
   reason. `audit_save_rule_set` logs every save at Warn (`admin antibot rule set saved` or `refused`, with the rules).
-- **No operator call changes the rules in force.** What plays is the schedule, with its priorities; an operator
-  never overrides it, here or anywhere (the user's rule, 2026-10-26). So `SaveRuleSet` refuses, with
-  `FailedPrecondition`, the set that plays now (`ErrPlaying`). To change the live rules, the operator saves another
-  set and the schedule plays it. `play_rules_usecase.Plays(name)` answers it.
+- **No operator call picks the set in force.** What plays is the schedule, with its priorities; an operator never
+  overrides it, here or anywhere (the user's rule, 2026-10-26). **A save of the set in force takes over at once**
+  (2026-10-28): `SaveRuleSet` keeps the set, then `play_rules_usecase.Execute` plays the set chosen last again, under
+  the lock the schedule's plays take, and enforces the new values. A play that fails after the save is an error; the
+  set stays kept.

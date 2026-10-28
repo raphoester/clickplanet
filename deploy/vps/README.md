@@ -1373,9 +1373,9 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
 
 Every bound the antibot judges with is a rule of a set kept in postgres
 (`antibot.rule_sets`), not in `backend.yaml`. Edit them on the backoffice: Ops →
-Anti-bot rules. No one edits the set that plays now: the rules in force change
-only through planet's schedule. Copy the set into a new one, change it, and the
-schedule plays it; the antibot then logs `antibot rules in force` with its values.
+Anti-bot rules. A save of the set that plays now takes over at once; a save of
+another set plays when planet's schedule plays it. Either way the antibot then
+logs `antibot rules in force` with its values.
 
 - The antibot plays the set named like the planet rule set in force, and
   `default` when it has no set of that name. For the Final Battle, planet plays

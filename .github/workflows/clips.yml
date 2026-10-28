@@ -112,7 +112,7 @@ jobs:
 
       # Up to 2, within what each platform has left of its trailing day: the model's stories of the findings, each
       # checked against them, with the arm of each experiment its clip is in:
-      # [{"pick":1,"story":{"front":3,"kind":"battle",...,"headline":"FRANCE VS TURKEY"},"variants":{"length":"short"}}].
+      # [{"pick":1,"story":{"front":3,"kind":"battle",...,"headline":"FRANCE VS TURKEY"},"variants":{"sound":"trending"}}].
       # What the model's call cost goes to the summary; a model that fails leaves the run its day won alone, and the summary says why.
       - name: choose the clips of the run
         id: choose

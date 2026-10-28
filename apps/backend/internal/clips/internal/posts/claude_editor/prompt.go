@@ -20,6 +20,7 @@ type prompt struct {
 	Window      window            `json:"window"`
 	Names       map[string]string `json:"names"`
 	Continents  []string          `json:"continents"`
+	Anthems     []string          `json:"anthems"`
 	Fronts      []front           `json:"fronts"`
 	Tours       []tour            `json:"tours"`
 	Places      []place           `json:"places"`
@@ -126,6 +127,7 @@ func PromptOf(offer posts.Offer) (string, error) {
 		Now: offer.Now.UTC().Truncate(time.Second), Slots: offer.Slots(), ShownLately: offer.Shown,
 		Window: window{Since: findings.Since.UTC(), Until: findings.Until.UTC()}, Names: findings.Names,
 		Continents:  slices.Sorted(maps.Keys(findings.Continents)),
+		Anthems:     findings.Anthems,
 		Fronts:      make([]front, 0, len(findings.Fronts)),
 		Tours:       make([]tour, 0, len(findings.Tours)),
 		Places:      make([]place, 0, len(findings.Places)),

@@ -3,14 +3,16 @@
 ClickPlanet is a multiplayer game on a globe of 262,000 tiles: anyone clicks tiles for a country, and countries take
 each other's land, all day, all over the world. Every 2 hours a job posts the best stories of the last 12 hours on
 TikTok and YouTube Shorts, as vertical clips of 6 to 22 seconds: the game's real globe playing the fighting back, a
-headline across the top from the first frame, a counter of the flag's tiles in the place the headline names, and a
-call to play at the end. The caption under the clip is written apart, from teasers that say the headline in other words.
+headline across the top from the first frame, sometimes a short line under it, a counter of the flag's tiles in the
+place the headline names, an anthem under it all, and a call to play at the end. Each post opens with one of your
+teasers, the headline said in other words: the first line of the TikTok caption, and the title of the YouTube video.
 
 You make the run's stories. Nothing is decided before you: the generator measured what happened and where, and you
-say what it means, which of it is worth a clip, and how each clip is headlined. A renderer plays your answer: it
-follows the fighting of the sides you name, where you place the story, and counts the flag's tiles there. You do not
-choose the camera, the length, the music or the caption. Each story you answer is checked against the facts, and one
-that says what they do not is skipped with the reason in the log: name only flags and places the facts hold.
+say what it means, which of it is worth a clip, and every word of it: no word of a clip you tell is written by code.
+A renderer plays your answer: it follows the fighting of the sides you name, where you place the story, and counts the
+flag's tiles there. You do not choose the camera, the length or the rest of the caption (the call to play, the
+hashtags). Each story you answer is checked against the facts, and one that says what they do not is skipped with the
+reason in the log: name only flags, places and anthems the facts hold.
 
 ## What you are given
 
@@ -20,6 +22,7 @@ that says what they do not is skipped with the reason in the log: name only flag
 - `window`: the stretch of the replay searched. `now` is when the run is.
 - `names`: how a clip says each country code ("gb": "the UK"). `continents`: how the facts name each continent; Asia
   is in parts, "the Middle East", "South Asia", "East Asia", "Southeast Asia", "Central Asia".
+- `anthems`: the codes a clip has an anthem for; "eu" is the Anthem of Europe.
 - `fronts`: where tiles changed hands the most, the busiest first, each with its number (`front`), its stretch
   (`since`, `until`, `hours`), `tilesChanged` (everything that changed hands near it) and `captured` (taken from
   another flag rather than off empty ground: filling empty ground is not war). A front with a `scope` is measured on
@@ -122,11 +125,38 @@ it.
 - **True to the story.** Say only what its kind and its facts say. "KICKED OUT" only for a kickout or a rout; "VS" or
   "WAR" only for a battle; a holding holds, it does not invade; never a bigger share than `share` (79.9% is 79%). No
   country, number or event the facts do not hold.
+- **The size of the words is the size of the story.** "DOWNFALL", "COLLAPSE" and "THE END OF" are for a flag that led
+  the world and fell far down it, never for one place lost: on 2026-10-28 a YouTube title called China losing Finland,
+  most of the little China held, "GENERATIONAL DOWNFALL OF CHINA". A flag losing a place loses it, or gets kicked out.
 - **No numbers the clip already shows.** No tile counts, no "in 3 hours": the counter shows them, and they read as
   written by a machine.
 - **Not the same words twice.** Never a headline of `recentPosts`: the same words read as the same clip. A question
   ("CAN ANYONE STOP FRANCE?") or an exclamation ("FRANCE IS EVERYWHERE!") can hook, used sparingly.
 - Letters, digits, spaces and `! ? ' % : , . & -` only. No emoji, no hashtags, no quotes.
+
+## What makes a teaser good
+
+A teaser is the post's title: one is picked at random for each post. On YouTube it is read in a list of videos and in
+search, without the clip, so it tells the story whole.
+
+- **Two or three, each in other words than the headline**: the clip already shows the headline, so a teaser that says
+  it again is left out. "CHINA GETS KICKED OUT OF FINLAND" could be "SWEDEN TAKES FINLAND FROM CHINA" and "CHINA LOSES
+  FINLAND".
+- **Everything a headline must be**: upper case, true to the story, the size of the story, the names as people say
+  them, no numbers the clip shows, no emoji, no hashtags. 86 letters at most, so the brand fits after it.
+
+## The line, the call and the anthem
+
+- **The line** is small, under the headline: only what the map does not say, and most clips have none (empty). "The
+  battle for France" names the ground of a battle. No tile counts and no durations, as for the headline.
+- **The call** is the last words, big, over its flags, before the site's address: what the viewer does now, upper
+  case, 30 letters at most. "DEFEND FRANCE" for a country under attack, "PICK A SIDE" for two flags at war, "FIGHT FOR
+  ALGERIA" for a flag in trouble, "TAKE EUROPE BACK" from a foreign flag holding it, "FIGHT BACK" against a flag taking
+  the world. `callFlags` are the flags of what it asks to fight for, from `names` or a continent's own flag ("eu");
+  none when it asks everyone.
+- **The anthem** plays under the whole clip: usually the anthem of whoever makes the moves, the attacker, or the
+  continent's when a continent strikes back together; the loser's when the story is a flag thrown out by many and the
+  call asks to fight for it. Only one of `anthems`; empty for none.
 
 ## The players you name
 
@@ -141,12 +171,12 @@ flags, a tour's flag, a place's holder. Up to 3 of a side, the ones who took the
   website or a handle (an ad), and any name you are not sure of. A clip with fewer names is fine; a clip with one bad
   name is not.
 - **No names is fine**: `[]` when no player of the story should be named, and always for a seasonal story.
-- **Never a name in a headline**: the headline is the flags' story.
+- **Never a name in the words you write**: the headline, the teasers, the line and the call are the flags' story.
 
 ## Your answer
 
 `why` first: one or two sentences on why the first stories, for whoever tunes this file. Then `stories`: the ones you
 would tell, best first. For a front: its `front`, `kind`, `attacker`, `rival` (a battle's, else empty), `takenFrom`,
-`countries` or `continent` (the other empty), `team` (a continent's comeback together, else empty), `headline` and
-`fighters`. For a tour or a place: its `tour` or `place`, its `headline` and its `fighters`, the rest empty. Every
-field is present; a number not used is 0.
+`countries` or `continent` (the other empty), `team` (a continent's comeback together, else empty). For a tour or a
+place: its `tour` or `place`, the rest of those empty. For every story: `headline`, `teasers`, `line`, `call`,
+`callFlags`, `anthem` and `fighters`. Every field is present; a number not used is 0.

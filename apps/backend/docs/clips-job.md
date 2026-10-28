@@ -37,7 +37,7 @@ clips stats [-ssh <user@host>] [-since 2026-10-13]
   once; the generator searches its last 12 hours anyway (`newsSince`).
 - **`choose` prints the stories to render**, as a JSON array on the standard output, each with its number in the
   run, the story as the generator's `--story` takes it, and the arm of every experiment its clip is in
-  (`[{"pick":1,"story":{"front":3,"kind":"battle",…,"headline":"FRANCE VS TURKEY"},"variants":{"length":"short"}}]`,
+  (`[{"pick":1,"story":{"front":3,"kind":"battle",…,"headline":"FRANCE VS TURKEY"},"variants":{"sound":"trending"}}]`,
   or `[]` on a quiet run or a full day): the workflow makes one render job of each. The log goes to the standard
   error, with each story of the editor's skipped and why, and each one chosen with its key and its arms. It needs
   `ZERNIO_API_KEY`, to read what was told and what each platform holds, and `ANTHROPIC_API_KEY`, the editor's.
@@ -101,7 +101,7 @@ clips stats [-ssh <user@host>] [-since 2026-10-13]
 story, so a short clip is not short because its story was small.
 
 - **`running` in `experiments.go` is the one list of the experiments that run.** Each has a name, its arms with their
-  weights (`posts.EvenArms` for an even split, or `posts.Arm{Name, Weight}`: 3 to 1 is three clips in four), and its
+  weights (`posts.Arm{Name, Weight}`: 1 to 1 is an even split, 3 to 1 is three clips in four), and its
   control, **the arm that is exactly what a clip was before the experiment**. `posts.ExperimentsOf` refuses a list
   with no name or one name twice, an experiment of fewer than two arms, an arm with no name, twice or with no weight,
   or a control that is no arm; `choose` and `schedule` both fail then. **Stopping an experiment is taking its entry
@@ -118,7 +118,7 @@ story, so a short clip is not short because its story was small.
   drawn for could not be applied, so it is still checked and counted, apart (`sound`'s `fell-back`). An experiment
   needs two arms a coin draws.
 - **The arms travel with the clip, as data**: `choose` prints them with the story; the workflow's render job of the
-  clip hands them to the generator (`--variants '{"length":"short"}'`), which applies the ones it acts on, refuses
+  clip hands them to the generator (`--variants '{"sound":"trending"}'`), which applies the ones it acts on, refuses
   one it does not know, and writes them all into the clip's `ClipRecord.variants` (the frontend's
   [Clips](../../frontend/docs/clips.md)); `schedule` reads them back from `clip-<n>.json` (`posts.ClipSnapshot.Variants`), checks every clip
   against `running` before it posts any, carries them on each post (`posts.PostSnapshot.Variants`) and writes them in
@@ -137,14 +137,11 @@ story, so a short clip is not short because its story was small.
   did the second.
 - **Adding one** is an entry in `running`, its name and arms in the generator's `src/clip/experiments.ts`, and the
   code that acts on its arms, never on its control.
-- **The first is `length`** (started 2026-10-24): `as-chosen`, the control, as long as the camera has somewhere to
-  go (8.5 to 17.5s for a front, by how far its fighting moves, 10 to 19 with a day's podium, 6.5 to 19 for a tour, by
-  its stops), against `short`, the shortest a story of its kind plays: 8.5s for a front, 10 with a day's podium. **A
-  tour is already its shortest**, each stop its flight and its stay, so `short` leaves it as it is, and a front whose
-  fighting stays in one place is already 8.5s: both still record the arm, and `durationSeconds` in the record keeps
-  the real length, so the analysis compares on the length a clip had as well as on its arm. The teaser rolled when
-  posting is an experiment of its own already, at random and recorded (`teaser`), and the arms do not touch it.
-- **The second is `sound`** (started 2026-10-25, per clip, even, on TikTok alone): does a clip do better with its
+- **`length` ran from 2026-10-24 to 2026-10-28**: `as-chosen`, the control, against `short`, the shortest a story of
+  its kind plays (8.5s for a front, 10 with a day's podium). It was stopped by judgment, not on the numbers: an 8.5s
+  clip is too short a format. Its posts keep their arm in their record. The teaser rolled when posting is an
+  experiment of its own, at random and recorded (`teaser`), and the arms do not touch it.
+- **`sound`** (started 2026-10-25, per clip, even, on TikTok alone): does a clip do better with its
   national anthem, or with a track trending on TikTok now? It waited on the account's music library, which answers
   only for an account connected through the TikTok for Business app, a Business account or not: the stats of
   2026-10-25 found `clickplanetlol` `personal`, `commercialMusic=true` and its business lane live. `anthem`, the
@@ -209,7 +206,7 @@ story, so a short clip is not short because its story was small.
   judgment that it does better, not on the numbers. The posts of those three days keep their arm in their record,
   which the analysis still reads.
 
-**The editor: a model makes the run's stories from the findings, and headlines them** (`posts/editor.go`,
+**The editor: a model makes the run's stories from the findings, and writes every word of them** (`posts/editor.go`,
 `posts/findings.go`, `posts/claude_editor/`; it picked and worded within hand-written rules from 2026-10-24, and
 makes the stories since 2026-10-27). The renderer and its camera are as they were.
 
@@ -221,7 +218,8 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
   the posts of the last 3 days with their keys and countries, and how many of the last 6 showed each flag. **It keeps
   nothing from the editor.** `Findings.Edited` is the run as the editor tells it: the seasonal stories first, then the
   editor's stories in its order, each one **checked against the findings** (`Findings.Check`), with a headline that
-  can be drawn and was not a headline of the last week or of this run, one story a key in the run, up to the count;
+  can be drawn and was not a headline of the last week or of this run, a teaser at least, a call that can be drawn,
+  one story a key in the run, up to the count;
   every other is skipped with why (`Choice.Skipped`), in the log and `edit`'s output, and the run goes on with the
   next. The run's clips go out in that order (`Ranked`, by pick), and each post's `runPosition` records it.
 - **A check is whether a story is true, never whether it is good**: a story of a front names a kind a front tells, an
@@ -233,6 +231,11 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
   TAKING OVER THE WORLD" of 2026-10-27 switched none, and showed flashes under Europe's flags. A place and a seasonal
   story only have to exist. A headline is upper case once written (`headlineFrom`), 60 letters at most, starting with a
   letter or a digit (so `--story` never reads as a flag), only letters of any script, digits and `! ? ' ’ % : , . & -`.
+  A teaser is upper case too (`teasersFrom`); one that says the headline, says another teaser again, or is over 86
+  letters (the YouTube title keeps the brand after it) is left out, and a story with none left is skipped. The call is
+  drawn as the headline is, in 30 letters at most, and the line, when there is one, in 60, as written. The call's
+  flags are flags of the findings (`names`) or a continent's own, and the anthem one the generator has (`anthems`),
+  or the story does not hold (`checkDrawn`).
   **Taste is the model's**: which front is a story, how fresh is fresh, how a feed varies, what a country is called
   are the instructions' to say, never a threshold here.
 - **Why no rule chooses.** Until 2026-10-26 the generator decided what a front was a story of from thresholds (one
@@ -256,7 +259,7 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
   editor gave no answer, and the run is its seasonal stories alone`) and the summary. There is no other fallback: a
   run with no answer and no day won posts nothing, and the next run, 2 hours on, sees the same stories.
 - **What it is sent** (`claude_editor.PromptOf`): the instructions, then the run's findings as compact JSON: `now`,
-  `slots`, `toldFirst`, the `window`, `names`, `continents`, each front numbered from 1 with its stretch in hours, its
+  `slots`, `toldFirst`, the `window`, `names`, `continents`, `anthems`, each front numbered from 1 with its stretch in hours, its
   countries and its flags, each tour and each place numbered the same, `recentPosts` with their keys and countries, and
   `shownLately`. **The instructions are `claude_editor/instructions.md`, embedded**: prose on what the facts mean,
   what makes a story worth telling and a headline good, from the lessons of this section and of the frontend's, the
@@ -264,7 +267,15 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
   next commit, and the record's `generator` names the commit, so the analysis can tell the versions apart.
 - **What it answers** (`answerSchema`): `why`, then `stories`, best first, each with its `front`, `tour` or `place`
   (the others 0), and for a front its `kind`, `attacker`, `rival`, `takenFrom`, `countries` or `continent`, `team`,
-  its `headline` and its `fighters`. A seasonal story is not its to answer: one it does is skipped.
+  and for every story its `headline`, `teasers`, `line`, `call`, `callFlags`, `anthem` and `fighters`. A seasonal
+  story is not its to answer: one it does is skipped.
+- **Every editorial choice is the model's, never a rule's** (2026-10-28): the headline, the teasers, the line, the
+  call and its flags, the anthem. Until then the generator wrote all but the headline from branches on the story, and
+  the caption opened with one of its two teasers per kind: every rout outside the loser's home could be "GENERATIONAL
+  DOWNFALL OF X", so a YouTube Short of China losing Finland, most of the little it held, was titled "GENERATIONAL
+  DOWNFALL OF CHINA". The model writes them from the same facts; the `Pick` carries them to the render, which draws
+  them and puts the teasers in the `Clip`. Only a day won and a call-up keep the generator's own, since no editor
+  writes them.
 - **The editor chooses the players a clip names** (2026-10-28): each flag of a front, each tour and each place's
   holder comes with its top fighters of the cast (`Fighter`: number, name, tiles taken; the frontend's
   [Clips](../../frontend/docs/clips.md)), and each story answers the numbers to name (`Story.Fighters`, the generator's
@@ -272,7 +283,7 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
   or a flag it took from, of a tour's flag or of a place's holder, each once; none for a seasonal story), never to
   taste. **Which names may be shown is the model's call**: players choose their names freely and the game filters
   none, so the instructions ask it to leave out anything that would get a post taken down or shame the game, and to
-  leave a name out when unsure. A name is never in a headline, and the log never prints one.
+  leave a name out when unsure. A name is never in the words it writes, and the log never prints one.
 - **Claude Haiku 5.5** (`claude-haiku-5-5`), through Anthropic's Go SDK: adaptive thinking at effort `medium`,
   `max_tokens` 8,000, the answer held to the schema by structured outputs, 2 minutes and one retry. **A refusal is the
   end of it**: Haiku has no fallback model on the server, so `stop_reason: "refusal"` (with its category) is no answer
@@ -336,10 +347,16 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
   scheduled run 20 to 40 minutes late, as the runs of Oct 22–24 did), its render (10 to 35 minutes) and 5 minutes of
   lead: **2 to 3 hours**, and an hour more for the second clip of a run. Replayed over Oct 14–17, a 12-hour window held 5
   to 11 stories of different keys, so 2 every 2 hours is not short of stories; a quiet run posts nothing.
-  - **`Budget` is what each platform takes** (`dailyBudget` in `job.go`, a `posts.Allowance` each). **YouTube: 8
-    posts in a trailing 24 hours, at any hour, every clip of a run**: a channel uploads about 10 a day. **TikTok: 3,
-    the best clip of a run alone (`BestOnly`), from 14:00 to 20:00 UTC (`Hours`)**: after school across Europe,
-    16:00 to 22:00 in Paris in winter, 15:00 to 21:00 in London, 17:00 to 23:00 in Istanbul.
+  - **`Budget` is what each platform takes** (`dailyBudget` in `job.go`, a `posts.Allowance` each). **YouTube: 12
+    posts in a trailing 24 hours, at any hour, every clip of a run.** **TikTok: 3, the best clip of a run alone
+    (`BestOnly`), from 14:00 to 20:00 UTC (`Hours`)**: after school across Europe, 16:00 to 22:00 in Paris in winter,
+    15:00 to 21:00 in London, 17:00 to 23:00 in Istanbul.
+  - **Why 12 on YouTube** (2026-10-28): it was 8 from 2026-10-24, on the belief that a channel uploads about 10 a day.
+    YouTube publishes no daily number. The channel took 11 on 2026-10-21 and refused none, and its views per clip
+    stayed about 1,000 at 5 to 11 a day (Oct 18–26). At 8, every run past the 8th of a trailing day logged `every
+    platform has posted its day already` and posted nothing: YouTube went from 9 to 11 a day to 5 to 7, about 5,000
+    views a day fewer, while new players come from them. An upload YouTube refuses fails its target, and the next
+    run's history says so (`a post of the last week was refused`).
   - **Why so few on TikTok** (2026-10-28): until then it took 14, every clip, at any hour. Its views per clip fell
     from about 600 to about 15 on 2026-10-19, the day the job reached 10 to 13 posts a day there, and stayed there.
     The Zernio posts of Oct 13–17, at about 4 a day, had 285 to 636, so posting through Zernio is not the cause, and
@@ -389,8 +406,8 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
     what it holds. `clip` is what the generator wrote (`clips.v1.ClipRecord`: its format, its commit, what every
     format has, its format's own section, its experiments' arms; the frontend's [Clips](../../frontend/docs/clips.md)), kept as written
     (`posts.ClipRecord`, which the job never reads); absent for a clip written before the generator kept one. `post`
-    is what this job made of the clip: `teaser`, the name of the teaser rolled (`invades`; `unnamed` for a clip whose
-    teasers have none), `callToAction`, `scheduledAt` (the time planned: the dashboard can move the post, this
+    is what this job made of the clip: `teaser`, the name of the teaser rolled (`editor` for the model's,
+    `takes-the-day` for the generator's own; `unnamed` for a clip whose teasers have none), `callToAction`, `scheduledAt` (the time planned: the dashboard can move the post, this
     does not move), `runPosition` and `runSize`, its place in its run from 1 and how many it has, and, for the
     experiment `sound`, `sound` (the trending track attached on TikTok) and `variants` (the arms it went out in, only
     when the job moved one, `sound: fell-back`; see "Experiments"). **How fresh a

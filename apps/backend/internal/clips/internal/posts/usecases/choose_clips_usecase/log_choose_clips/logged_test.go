@@ -32,7 +32,7 @@ func run(t *testing.T, inner stubExecutor) (string, error) {
 }
 
 var (
-	battle = posts.Story{Front: 3, Kind: posts.Battle, Attacker: "fr", Rival: "tr", TakenFrom: []string{"tr"}, Countries: []string{"tr", "sy"}, Headline: "FRANCE VS TURKEY"}
+	battle = posts.Story{Front: 3, Kind: posts.Battle, Attacker: "fr", Rival: "tr", TakenFrom: []string{"tr"}, Countries: []string{"tr", "sy"}, Headline: "FRANCE VS TURKEY", Teasers: []string{"THE WAR FOR TURKEY", "TURKEY FIGHTS BACK"}, Call: "PICK A SIDE", CallFlags: []string{"fr", "tr"}, Anthem: "fr"}
 	day18  = posts.Chosen{Pick: 1, Story: posts.Story{Seasonal: 1}, Key: posts.StoryKey{Flag: "pw", Continent: "the world", Angle: posts.DayWon, Round: "0.18"}}
 )
 
@@ -45,7 +45,7 @@ func TestEachChosenStoryIsLoggedWithWhatItTellsItsPickAndItsKey(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Contains(t, logs, `msg="chose a story" of="seasonal 1" pick=1 flag=pw continent="the world" angle=round round=0.18`)
-	assert.Contains(t, logs, `msg="chose a story" of="front 3" headline="FRANCE VS TURKEY" kind=battle attacker=fr from=tr in=tr+sy rival=tr pick=2 flag=fr continent="Middle East"`)
+	assert.Contains(t, logs, `msg="chose a story" of="front 3" headline="FRANCE VS TURKEY" teasers="THE WAR FOR TURKEY / TURKEY FIGHTS BACK" call="PICK A SIDE" call_flags=fr,tr anthem=fr kind=battle attacker=fr from=tr in=tr+sy rival=tr pick=2 flag=fr continent="Middle East"`)
 	assert.Contains(t, logs, `msg="chose a story" of="place 2" headline="FRANCE RULES SOUTH ASIA" pick=3 flag=fr continent="South Asia" angle=holding`)
 }
 
@@ -55,7 +55,7 @@ func TestEachStoryOfTheEditorsSkippedIsLoggedWithWhy(t *testing.T) {
 	logs, err := run(t, stubExecutor{choice: posts.Choice{Chosen: []posts.Chosen{day18}, Skipped: []posts.Skipped{{Story: wrong, Why: "a team is a continent's flags striking back together"}}}})
 
 	require.NoError(t, err)
-	assert.Contains(t, logs, `level=WARN msg="skipped a story of the editor's" of="front 3" headline="FRANCE VS TURKEY" kind=battle attacker=fr from=tr in="Middle East" rival=tr team="Middle East" why="a team is a continent's flags striking back together"`)
+	assert.Contains(t, logs, `level=WARN msg="skipped a story of the editor's" of="front 3" headline="FRANCE VS TURKEY" teasers="THE WAR FOR TURKEY / TURKEY FIGHTS BACK" call="PICK A SIDE" call_flags=fr,tr anthem=fr kind=battle attacker=fr from=tr in="Middle East" rival=tr team="Middle East" why="a team is a continent's flags striking back together"`)
 }
 
 func TestAQuietRunIsLoggedAsSuch(t *testing.T) {

@@ -47,7 +47,8 @@ const (
     {"title": "PALAU WINS DAY 18", "key": {"flag": "pw", "continent": "the world", "angle": "round", "round": "0.18"}, "countries": ["pw", "dz"], "teasers": ["PALAU TAKES DAY 18"], "facts": {"kind": "round", "storyTilesChanged": 1200}}
   ],
   "names": {"fr": "France", "tr": "Turkey"},
-  "continents": [{"name": "Europe", "flag": "eu"}, {"name": "Middle East"}]
+  "continents": [{"name": "Europe", "flag": "eu"}, {"name": "Middle East"}],
+  "anthems": ["eu", "fr", "tr"]
 }
 `
 	writtenClip = `{
@@ -121,6 +122,7 @@ func TestTheFindingsAreEveryFrontTourPlaceAndSeasonalStoryTheGeneratorWrote(t *t
 	assert.JSONEq(t, `{"kind":"round","storyTilesChanged":1200}`, string(findings.Seasonal[0].Facts))
 	assert.Equal(t, map[string]string{"fr": "France", "tr": "Turkey"}, findings.Names)
 	assert.Equal(t, map[string]string{"Europe": "eu", "Middle East": ""}, findings.Continents)
+	assert.Equal(t, []string{"eu", "fr", "tr"}, findings.Anthems)
 }
 
 func TestFindingsWithNothingFoundAreEmpty(t *testing.T) {
@@ -145,13 +147,14 @@ func TestFindingsThatAreMissingOrAreNotFindingsAreAnError(t *testing.T) {
 func TestAStoryIsWrittenAsTheGeneratorsStoryFlagTakesIt(t *testing.T) {
 	front, err := generator_output.StoryJSON(posts.Story{
 		Front: 3, Kind: posts.Battle, Attacker: "fr", Rival: "tr", TakenFrom: []string{"tr"}, Countries: []string{"tr", "sy"}, Headline: "FRANCE VS TURKEY",
+		Teasers: []string{"THE WAR FOR TURKEY"}, Line: "The battle for Turkey", Call: "PICK A SIDE", CallFlags: []string{"fr", "tr"}, Anthem: "fr",
 		Fighters: []posts.FighterNumber{2, 1},
 	})
 	require.NoError(t, err)
 	seasonal, err := generator_output.StoryJSON(posts.Story{Seasonal: 1})
 	require.NoError(t, err)
 
-	assert.JSONEq(t, `{"front":3,"kind":"battle","attacker":"fr","rival":"tr","takenFrom":["tr"],"countries":["tr","sy"],"headline":"FRANCE VS TURKEY","fighters":[2,1]}`, string(front))
+	assert.JSONEq(t, `{"front":3,"kind":"battle","attacker":"fr","rival":"tr","takenFrom":["tr"],"countries":["tr","sy"],"headline":"FRANCE VS TURKEY","teasers":["THE WAR FOR TURKEY"],"line":"The battle for Turkey","call":"PICK A SIDE","callFlags":["fr","tr"],"anthem":"fr","fighters":[2,1]}`, string(front))
 	assert.JSONEq(t, `{"seasonal":1}`, string(seasonal))
 }
 

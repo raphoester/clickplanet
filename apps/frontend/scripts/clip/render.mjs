@@ -17,7 +17,8 @@ if (!replay || has("help")) {
     console.error(`usage: npm run clip -- --replay <replay.json> [options]
 
   --story <json>      the story to tell, a clips.v1.Pick: one front, tour, place or seasonal story of the findings by
-                      its number, and for a front its kind, sides and place as the editor wrote them, with its headline.
+                      its number, for a front its kind, sides and place as the editor wrote them, and the editor's words:
+                      headline, teasers, line, call, its flags and the anthem. A seasonal story has words of its own.
                       The job's choose prints one for each clip of a run; clips edit prints the model's by hand
   --findings <path>   write what the replay holds for the editor (clips.v1.Findings), as JSON, and make no clip
   --pick <n>          the clip's number in its run, which names its files: clip-<n>.mp4, default 1
@@ -42,7 +43,7 @@ Everything below is chosen from the replay when left out:
   --focus <code>      only what changed hands on that country's ground
   --flags             come back out of the tiles halfway, to watch the painted flags change
   --dive              come back out of the tiles at the end
-  --headline <text>   the headline, over the story's own
+  --headline <text>   the headline, over the editor's or the seasonal story's own
   --fps <n>           frames a second, default 30
   --recorders <n>     the browsers taking the frames in turn, default one for every 3 cores, 4 at most
   --headed            show the browser

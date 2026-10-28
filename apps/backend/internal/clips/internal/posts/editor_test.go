@@ -12,9 +12,9 @@ import (
 )
 
 var (
-	battle = posts.Story{Front: 1, Kind: posts.Battle, Attacker: "fr", Rival: "tr", TakenFrom: []string{"tr"}, Countries: []string{"tr", "sy"}, Headline: "France vs Turkey"}
-	india  = posts.Story{Front: 1, Kind: posts.Rout, Attacker: "fr", TakenFrom: []string{"dz"}, Countries: []string{"in"}, Headline: "ALGERIA LOSES ALL OF INDIA"}
-	tour   = posts.Story{Tour: 1, Headline: "FRANCE IS EVERYWHERE"}
+	battle = posts.Story{Front: 1, Kind: posts.Battle, Attacker: "fr", Rival: "tr", TakenFrom: []string{"tr"}, Countries: []string{"tr", "sy"}, Headline: "France vs Turkey", Teasers: []string{"THE WAR FOR TURKEY"}, Call: "PICK A SIDE", CallFlags: []string{"fr", "tr"}, Anthem: "fr"}
+	india  = posts.Story{Front: 1, Kind: posts.Rout, Attacker: "fr", TakenFrom: []string{"dz"}, Countries: []string{"in"}, Headline: "ALGERIA LOSES ALL OF INDIA", Teasers: []string{"FRANCE TAKES INDIA"}, Call: "FIGHT FOR ALGERIA", CallFlags: []string{"dz"}}
+	tour   = posts.Story{Tour: 1, Headline: "FRANCE IS EVERYWHERE", Teasers: []string{"NOBODY CAN STOP FRANCE"}, Call: "FIGHT BACK", Anthem: "fr"}
 )
 
 func told(key posts.StoryKey, title string, ago time.Duration, countries ...string) posts.Telling {
@@ -96,7 +96,7 @@ func TestAHeadlineOfTheLastWeekOrOfThisRunIsSkippedAndSoIsAKeyToldTwiceInTheRun(
 	found := findings(t)
 	posted := []posts.Telling{told(posts.StoryKey{Flag: "fr", Continent: "Europe"}, "France vs Turkey ", 6*24*time.Hour)}
 	again := with(india, func(s *posts.Story) { s.Headline = "ALGERIA LOSES ALL OF INDIA" })
-	middleEast := posts.Story{Front: 1, Kind: posts.Attack, Attacker: "fr", TakenFrom: []string{"tr"}, Continent: "Middle East", Headline: "FRANCE STORMS THE MIDDLE EAST"}
+	middleEast := posts.Story{Front: 1, Kind: posts.Attack, Attacker: "fr", TakenFrom: []string{"tr"}, Continent: "Middle East", Headline: "FRANCE STORMS THE MIDDLE EAST", Teasers: []string{"FRANCE TAKES THE MIDDLE EAST"}, Call: "DEFEND THE MIDDLE EAST"}
 	sameKey := with(middleEast, func(s *posts.Story) {
 		s.Kind, s.Continent, s.Countries, s.Headline = posts.Invasion, "", []string{"sy"}, "FRANCE TAKES SYRIA"
 	})
@@ -135,7 +135,7 @@ func TestAHeadlineTheClipCannotDrawIsSkipped(t *testing.T) {
 
 	for name, c := range map[string]struct{ headline, why string }{
 		"too long":  {strings.Repeat("A", 61), "is empty or over 60 letters"},
-		"blank":     {"   ", `"   " is empty`},
+		"blank":     {"   ", `the headline "" is empty`},
 		"a dash":    {"-- FRANCE", `starts with '-'`},
 		"an emoji":  {"FRANCE 🔥", `has '🔥'`},
 		"quotes":    {`"FRANCE"`, `starts with '"'`},
@@ -164,6 +164,60 @@ func TestAHeadlineKeepsAnyScriptItsPunctuationAndOneSpaceBetweenWords(t *testing
 
 	require.Len(t, choice.Chosen, 2)
 	assert.Equal(t, "POLSKA: 14 PUNKTÓW STRATY! ÇA VA?", choice.Chosen[1].Story.Headline)
+}
+
+func TestTheTeasersAreTheEditorsSaidAsAHeadlineLeavingOutTheHeadlineAndOnesTooLongForYouTube(t *testing.T) {
+	found := findings(t)
+	written := with(battle, func(s *posts.Story) {
+		s.Teasers = []string{" The war  for Turkey ", "france vs turkey", strings.Repeat("A", 87), "THE WAR FOR TURKEY", "Turkey fights back"}
+	})
+
+	choice := found.Edited(found.Offer(2, nil, foundAt), posts.Edition{Stories: []posts.Story{written}}, nil, foundAt)
+
+	require.Len(t, choice.Chosen, 2)
+	assert.Equal(t, []string{"THE WAR FOR TURKEY", "TURKEY FIGHTS BACK"}, choice.Chosen[1].Story.Teasers)
+}
+
+func TestAStoryWithNoTeaserForTheCaptionIsSkipped(t *testing.T) {
+	found := findings(t)
+	written := with(battle, func(s *posts.Story) { s.Teasers = []string{"FRANCE VS TURKEY", " "} })
+
+	choice := found.Edited(found.Offer(2, nil, foundAt), posts.Edition{Stories: []posts.Story{written}}, nil, foundAt)
+
+	assert.Equal(t, []posts.Pick{1}, choice.Picks())
+	require.Len(t, choice.Skipped, 1)
+	assert.Contains(t, choice.Skipped[0].Why, "the caption has no teaser")
+}
+
+func TestTheCallIsDrawnInCapitalsAndTheLineAsWrittenOrNotAtAll(t *testing.T) {
+	found := findings(t)
+	written := with(battle, func(s *posts.Story) { s.Call, s.Line = " pick  a side ", "  The battle for  Turkey " })
+	unlined := with(india, func(s *posts.Story) { s.Line = "   " })
+
+	choice := found.Edited(found.Offer(3, nil, foundAt), posts.Edition{Stories: []posts.Story{written, unlined}}, nil, foundAt)
+
+	require.Len(t, choice.Chosen, 3)
+	assert.Equal(t, "PICK A SIDE", choice.Chosen[1].Story.Call)
+	assert.Equal(t, "The battle for Turkey", choice.Chosen[1].Story.Line)
+	assert.Empty(t, choice.Chosen[2].Story.Line)
+}
+
+func TestAStoryWithACallOrALineTheClipCannotDrawIsSkipped(t *testing.T) {
+	found := findings(t)
+	stories := []posts.Story{
+		with(battle, func(s *posts.Story) { s.Call = "" }),
+		with(battle, func(s *posts.Story) { s.Call = "FIGHT FOR FRANCE AND FOR ALL OF EUROPE" }),
+		with(battle, func(s *posts.Story) { s.Line = "The battle 🔥" }),
+	}
+
+	choice := found.Edited(found.Offer(4, nil, foundAt), posts.Edition{Stories: stories}, nil, foundAt)
+
+	assert.Equal(t, []posts.Pick{1}, choice.Picks())
+	assert.Equal(t, []string{
+		`the words cannot be drawn: the call "" is empty or over 30 letters`,
+		`the words cannot be drawn: the call "FIGHT FOR FRANCE AND FOR ALL OF EUROPE" is empty or over 30 letters`,
+		`the words cannot be drawn: the line "The battle 🔥" has '🔥'`,
+	}, whysOf(choice.Skipped))
 }
 
 func TestWithNoEditionTheRunIsItsSeasonalStoryAlone(t *testing.T) {
