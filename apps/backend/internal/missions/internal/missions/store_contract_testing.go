@@ -167,6 +167,28 @@ func (s *StoreContractSuite) TestAPaymentIsKept() {
 	s.Equal(uint32(2), s.sheet(contractDay, 1).Progress[s.frMission(1, 0)], "and the takes after it")
 }
 
+func (s *StoreContractSuite) paidInAll(account byte) uint64 {
+	paid, err := s.store.PaidInAll(s.T().Context(), s.account(account))
+	s.Require().NoError(err)
+	return paid
+}
+
+func (s *StoreContractSuite) TestTheMissionsPaidAddUpOverEveryDay() {
+	s.Zero(s.paidInAll(1))
+
+	for _, day := range []Day{contractDay, contractNextDay} {
+		s.takeFor(day, 1, Take{Flag: "fr", At: contractAt})
+	}
+	s.takeFor(contractDay, 2, Take{Flag: "fr", At: contractAt})
+	s.pay(contractDay, 1, s.frMission(1, 0))
+	s.pay(contractDay, 1, s.frMission(1, 1))
+	s.pay(contractNextDay, 1, Draw(contractNextDay, s.account(1), "fr", contractWorld).Snapshot()[0].ID)
+	s.pay(contractDay, 2, s.frMission(2, 0))
+
+	s.Equal(uint64(3), s.paidInAll(1))
+	s.Equal(uint64(1), s.paidInAll(2))
+}
+
 func (s *StoreContractSuite) TestDeletingAnAccountForgetsItsDays() {
 	for account := range byte(2) {
 		s.keep(contractDay, account+1, Draw(contractDay, s.account(account+1), "fr", contractWorld))
@@ -179,6 +201,7 @@ func (s *StoreContractSuite) TestDeletingAnAccountForgetsItsDays() {
 	s.noBrief(contractDay, 1)
 	s.Empty(s.sheet(contractDay, 1).Progress)
 	s.True(s.sheet(contractDay, 1).Paid.Empty())
+	s.Zero(s.paidInAll(1))
 	_, err := s.store.Brief(s.T().Context(), contractDay, s.account(2))
 	s.Require().NoError(err, "another account keeps its day")
 	s.NotEmpty(s.sheet(contractDay, 2).Progress)

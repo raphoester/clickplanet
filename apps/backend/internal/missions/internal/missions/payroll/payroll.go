@@ -7,6 +7,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	missionsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/missions/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/planetgrant"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
@@ -16,6 +17,7 @@ type Store interface {
 	Brief(ctx context.Context, day missions.Day, account missions.AccountID) (missions.Brief, error)
 	Sheet(ctx context.Context, day missions.Day, account missions.AccountID) (missions.Sheet, error)
 	ChangeSheet(ctx context.Context, day missions.Day, account missions.AccountID, change func(missions.Sheet) missions.Sheet) error
+	PaidInAll(ctx context.Context, account missions.AccountID) (uint64, error)
 }
 
 type Accounts interface {
@@ -66,11 +68,20 @@ func (p Payroll) Pay(ctx context.Context, day missions.Day, account missions.Acc
 		return fmt.Errorf("failed to keep the day's payments: %w", err)
 	}
 
-	grants := make([]proto.Message, 0, len(paid))
-	for _, payment := range paid {
-		grants = append(grants, planetgrant.Of(account, payment))
+	if len(paid) == 0 {
+		return nil
 	}
-	if err := p.outbox.Record(ctx, grants...); err != nil {
+	inAll, err := p.store.PaidInAll(ctx, account)
+	if err != nil {
+		return fmt.Errorf("failed to count the account's missions paid: %w", err)
+	}
+
+	told := make([]proto.Message, 0, len(paid)+1)
+	for _, payment := range paid {
+		told = append(told, planetgrant.Of(account, payment))
+	}
+	told = append(told, &missionsv1.MissionsPaid{AccountId: account.String(), PaidInAll: inAll})
+	if err := p.outbox.Record(ctx, told...); err != nil {
 		return fmt.Errorf("failed to record the day's grants: %w", err)
 	}
 	return nil

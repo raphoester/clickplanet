@@ -40,6 +40,7 @@ const career = `
 		COALESCE(stats.tiles_fortified, 0),
 		COALESCE(stats.bonuses_claimed, 0),
 		COALESCE(stats.right_answers, 0),
+		COALESCE(stats.missions_done, 0),
 		COALESCE(worn_titles.title, ''),
 		COALESCE(
 			(SELECT array_agg(titles.title ORDER BY titles.earned_at, titles.title) FROM titles WHERE titles.account_id = asked.account_id),
@@ -58,7 +59,7 @@ func (q *PostgresQuery) Titles(ctx context.Context, account cpsession.AccountID)
 	)
 	if err := q.db.On(ctx).QueryRowContext(ctx, career, uuid.UUID(account), q.clock.Now().UTC().Format(time.DateOnly)).Scan(
 		&progress.TilesTaken, &progress.StreakNow, &progress.MessagesSent,
-		&progress.BombsDropped, &progress.TilesFortified, &progress.BonusesClaimed, &progress.RightAnswers,
+		&progress.BombsDropped, &progress.TilesFortified, &progress.BonusesClaimed, &progress.RightAnswers, &progress.MissionsDone,
 		&choice, pq.Array(&held),
 	); err != nil {
 		return nil, fmt.Errorf("failed to read the titles: %w", err)

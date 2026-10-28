@@ -42,7 +42,7 @@ describe("TitleEmblem", () => {
         const fills = (container: HTMLElement) => [...container.querySelectorAll("path, circle")]
             .map((shape) => (shape as SVGElement).style.fill)
 
-        for (const track of ["defense", "bombs", "loot", "quiz"]) {
+        for (const track of ["defense", "bombs", "loot", "quiz", "missions"]) {
             const {container} = render(<TitleEmblem title={ranked(`${track}-rank`, track)} size={56} ribbon/>)
             expect(fills(container)).toContain(`var(--${track})`)
             expect(fills(container)).toContain(`var(--${track}-enamel)`)
