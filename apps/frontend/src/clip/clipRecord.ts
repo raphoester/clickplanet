@@ -29,6 +29,8 @@ export type Shown = {
     solidity: number
     // The arm of each experiment the clip was made in, as applied: none when it is in none.
     variants: Variants
+    // The players its end card names.
+    fighters: number
 }
 
 const NONE = "none"
@@ -50,6 +52,7 @@ export function clipRecordOf(shown: Shown): ClipRecord {
             music: shown.music?.code ?? NONE,
             musicStartSeconds: rounded(shown.music?.from ?? 0, 2),
             language: languageOf(shown.story),
+            fighters: shown.fighters,
         },
         globe: {
             camera: tour ? "tour" : "front",

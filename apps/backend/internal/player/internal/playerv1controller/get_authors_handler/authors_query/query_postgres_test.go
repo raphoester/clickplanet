@@ -111,6 +111,16 @@ func (s *testSuite) TestAGuestIsToldApartFromAUsername() {
 	s.True(authors[guest.String()].GetGuest())
 }
 
+func (s *testSuite) TestAUsernameIsShownInClipsUnlessItsPlayerSaidNoAndAGuestNever() {
+	s.Require().NoError(s.players.SaveShownInClips(s.T().Context(), bob, false))
+
+	authors := s.authors(ada, bob, guest)
+
+	s.True(authors[ada.String()].GetShownInClips())
+	s.False(authors[bob.String()].GetShownInClips())
+	s.False(authors[guest.String()].GetShownInClips())
+}
+
 func (s *testSuite) TestAnAdminCarriesItsMark() {
 	_, err := s.db.On(s.T().Context()).ExecContext(s.T().Context(), `UPDATE profiles SET admin = true WHERE account_id = $1`, uuid.UUID(ada))
 	s.Require().NoError(err)
@@ -250,13 +260,14 @@ func (s *testSuite) TestEachAuthorIsWhatGetAuthorAnswersForIt() {
 		s.Require().NoError(err)
 
 		s.True(proto.Equal(&playerv1.Author{
-			AccountId: account.String(),
-			Name:      one.Name(),
-			Admin:     one.Admin(),
-			Color:     playermessage.Color(one.Color()),
-			Streak:    one.Streak().Days(),
-			WornTitle: playermessage.Title(one.Worn()),
-			Guest:     one.Guest(),
+			AccountId:    account.String(),
+			Name:         one.Name(),
+			Admin:        one.Admin(),
+			Color:        playermessage.Color(one.Color()),
+			Streak:       one.Streak().Days(),
+			WornTitle:    playermessage.Title(one.Worn()),
+			Guest:        one.Guest(),
+			ShownInClips: !one.Guest(),
 		}, many[account.String()]), "%s: GetAuthor and GetAuthors must name an account alike, got %v", one.Name(), many[account.String()])
 	}
 }

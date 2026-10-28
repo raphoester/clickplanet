@@ -13,15 +13,20 @@ const found: Found = {
     fronts: [{
         scope: "tr", since: Date.UTC(2026, 9, 26, 15), until: Date.UTC(2026, 9, 26, 18), tilesChanged: 9000, captured: 8400,
         countries: [{code: "tr", continent: "Middle East", tiles: 2500, changed: 6000, holdersStart: {tr: 2000}, holdersEnd: {fr: 1500, tr: 900}, takers: {fr: 5000}}],
-        flags: [{code: "fr", continent: "Europe", took: 5000, filled: 100, lost: 3000, tookFrom: {tr: 4800}, solidity: 0.861},
-            {code: "tr", continent: "Middle East", took: 3000, filled: 0, lost: 5000, tookFrom: {fr: 3000}, solidity: 0.9}],
+        flags: [{code: "fr", continent: "Europe", took: 5000, filled: 100, lost: 3000, tookFrom: {tr: 4800}, solidity: 0.861,
+            fighters: [{number: 1, name: "BraveFox42", took: 900}, {number: 4, name: "ŁukaszPL", took: 300}]},
+        {code: "tr", continent: "Middle East", took: 3000, filled: 0, lost: 5000, tookFrom: {fr: 3000}, solidity: 0.9, fighters: []}],
         bombs: 3, spreads: 0, enclosures: 1, score: 3886.52,
     }],
     tours: [{
         since: Date.UTC(2026, 9, 26, 8), until: Date.UTC(2026, 9, 26, 20), flag: "fr", took: 27000, byContinent: {Europe: 12000, "South Asia": 9000},
         tookFrom: {dz: 8000}, nextTook: 9000, solidity: 0.95, bombs: 12, flippedByContinent: {"South Asia": 6246},
+        fighters: [{number: 1, name: "BraveFox42", took: 2100}],
     }],
-    places: [{kind: "continent", place: {region: "South Asia"}, code: undefined, continent: "South Asia", tiles: 9600, holder: "fr", held: 6170, share: 0.6427, rivals: {dz: 1200}, changed: 6000}],
+    places: [{
+        kind: "continent", place: {region: "South Asia"}, code: undefined, continent: "South Asia", tiles: 9600, holder: "fr", held: 6170,
+        share: 0.6427, rivals: {dz: 1200}, changed: 6000, fighters: [{number: 2, name: "StormWolf", took: 40}],
+    }],
     seasonal: [{story: {kind: "round", attacker: "pw", rival: undefined, victims: ["dz"], place: {region: "the world"},
         day: {season: 0, number: 18, finale: false, own: false, endedAt: Date.UTC(2026, 9, 25, 21), podium: [{country: "pw", rank: 1, points: 30}], table: []}}, measured}],
 }
@@ -40,6 +45,15 @@ describe("the findings", () => {
             tours: [{flag: "fr", took: 27000, byContinent: {Europe: 12000, "South Asia": 9000}, nextTook: 9000, flippedByContinent: {"South Asia": 6246}}],
             places: [{kind: "continent", continent: "South Asia", holder: "fr", share: 0.643, rivals: {dz: 1200}, changed: 6000}],
         })
+    })
+
+    it("name the top fighters of each front's flags, of each tour and of each place, by their number in the cast", () => {
+        expect(json).toMatchObject({
+            fronts: [{flags: [{code: "fr", fighters: [{number: 1, name: "BraveFox42", took: 900}, {number: 4, name: "ŁukaszPL", took: 300}]}, {code: "tr"}]}],
+            tours: [{fighters: [{number: 1, name: "BraveFox42", took: 2100}]}],
+            places: [{fighters: [{number: 2, name: "StormWolf", took: 40}]}],
+        })
+        expect((json.fronts as {flags: object[]}[])[0].flags[1]).not.toHaveProperty("fighters")
     })
 
     it("say how every code in them is said, and name every continent with its own flag", () => {
@@ -62,9 +76,10 @@ describe("the story --story names", () => {
     it("is a front with the story the editor wrote of it, in one country, two, or a continent", () => {
         const invasion: Story = {kind: "invasion", attacker: "fr", rival: undefined, victims: ["dz"], place: {country: "in"}}
         expect(toldOf(`{"front":3,"kind":"invasion","attacker":"fr","takenFrom":["dz"],"countries":["in"],"headline":"FRANCE TAKES INDIA"}`))
-            .toEqual({told: {front: 3, story: invasion}, headline: "FRANCE TAKES INDIA"})
+            .toEqual({told: {front: 3, story: invasion}, headline: "FRANCE TAKES INDIA", fighters: []})
         expect(toldOf(`{"front":1,"kind":"battle","attacker":"fr","rival":"tr","countries":["tr","sy"]}`)).toEqual({
             told: {front: 1, story: {kind: "battle", attacker: "fr", rival: "tr", victims: [], place: {countries: ["tr", "sy"]}}}, headline: undefined,
+            fighters: [],
         })
         expect(toldOf(`{"front":2,"kind":"comeback","attacker":"de","takenFrom":["ps"],"continent":"Europe","team":"Europe"}`).told).toEqual({
             front: 2, story: {kind: "comeback", attacker: "de", rival: undefined, victims: ["ps"], place: {region: "Europe"}, team: "Europe"},
@@ -72,9 +87,16 @@ describe("the story --story names", () => {
     })
 
     it("is a tour, a place or a seasonal story by its number alone", () => {
-        expect(toldOf(`{"tour":1,"headline":"FRANCE IS EVERYWHERE"}`)).toEqual({told: {tour: 1}, headline: "FRANCE IS EVERYWHERE"})
-        expect(toldOf(`{"place":4}`)).toEqual({told: {place: 4}, headline: undefined})
-        expect(toldOf(`{"seasonal":1}`)).toEqual({told: {seasonal: 1}, headline: undefined})
+        expect(toldOf(`{"tour":1,"headline":"FRANCE IS EVERYWHERE"}`)).toEqual({told: {tour: 1}, headline: "FRANCE IS EVERYWHERE", fighters: []})
+        expect(toldOf(`{"place":4}`)).toEqual({told: {place: 4}, headline: undefined, fighters: []})
+        expect(toldOf(`{"seasonal":1}`)).toEqual({told: {seasonal: 1}, headline: undefined, fighters: []})
+    })
+
+    it("names the players of the cast the editor chose, by number, but for a seasonal story, which names nobody", () => {
+        expect(toldOf(`{"front":2,"kind":"battle","attacker":"fr","rival":"tr","countries":["tr"],"fighters":[3,1,7]}`).fighters).toEqual([3, 1, 7])
+        expect(toldOf(`{"tour":1,"fighters":[2]}`).fighters).toEqual([2])
+        expect(toldOf(`{"place":1,"fighters":[5]}`).fighters).toEqual([5])
+        expect(toldOf(`{"seasonal":1,"fighters":[1]}`).fighters).toEqual([])
     })
 
     it("is refused when it names nothing or two things, a kind no front tells, no attacker, or no place", () => {

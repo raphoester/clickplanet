@@ -12,20 +12,22 @@ import (
 )
 
 type Store struct {
-	mu       sync.Mutex
-	profiles map[players.AccountID]players.Profile
-	codes    map[players.AccountID]players.GuestCode
-	stats    map[players.AccountID]players.Stats
-	failWith error
+	mu              sync.Mutex
+	profiles        map[players.AccountID]players.Profile
+	hiddenFromClips map[players.AccountID]bool
+	codes           map[players.AccountID]players.GuestCode
+	stats           map[players.AccountID]players.Stats
+	failWith        error
 }
 
 var _ players.Store = (*Store)(nil)
 
 func New() *Store {
 	return &Store{
-		profiles: map[players.AccountID]players.Profile{},
-		codes:    map[players.AccountID]players.GuestCode{},
-		stats:    map[players.AccountID]players.Stats{},
+		profiles:        map[players.AccountID]players.Profile{},
+		hiddenFromClips: map[players.AccountID]bool{},
+		codes:           map[players.AccountID]players.GuestCode{},
+		stats:           map[players.AccountID]players.Stats{},
 	}
 }
 
@@ -104,6 +106,28 @@ func (s *Store) SaveColor(_ context.Context, account players.AccountID, color pl
 	colored.Color = color
 	s.profiles[account] = colored.Restore()
 	return nil
+}
+
+func (s *Store) SaveShownInClips(_ context.Context, account players.AccountID, shown bool) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.failWith != nil {
+		return s.failWith
+	}
+	if _, ok := s.profiles[account]; !ok {
+		return players.ErrNoProfile
+	}
+	s.hiddenFromClips[account] = !shown
+	return nil
+}
+
+func (s *Store) ShownInClips(account players.AccountID) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	_, named := s.profiles[account]
+	return named && !s.hiddenFromClips[account]
 }
 
 func (s *Store) GuestCode(_ context.Context, account players.AccountID) (players.GuestCode, error) {
@@ -202,6 +226,7 @@ func (s *Store) DeleteAccount(_ context.Context, account players.AccountID) erro
 		return s.failWith
 	}
 	delete(s.profiles, account)
+	delete(s.hiddenFromClips, account)
 	delete(s.codes, account)
 	delete(s.stats, account)
 	return nil

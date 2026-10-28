@@ -42,6 +42,7 @@ export type Profile = {
 
 export type ColoredProfile = Profile & {
     color: NameColor
+    shownInClips: boolean
 }
 
 export interface PlayerBackend {
@@ -50,6 +51,8 @@ export interface PlayerBackend {
     setName(name: string): Promise<Profile>
 
     setColor(color: NameColor): Promise<NameColor>
+
+    setShownInClips(shown: boolean): Promise<boolean>
 
     titles(): Promise<TitleDashboard>
 

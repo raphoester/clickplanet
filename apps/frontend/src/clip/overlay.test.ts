@@ -1,6 +1,8 @@
+// @vitest-environment jsdom
 import {describe, expect, it} from "vitest"
+import {NamedSide} from "../domain/clip/cast.ts"
 import {Day, sidesOf, Story, teamFlagOf, THE_WORLD} from "../domain/clip/story.ts"
-import {hashtagsOf, nameOf, wordsOf} from "./overlay.ts"
+import {createOverlay, hashtagsOf, nameOf, wordsOf} from "./overlay.ts"
 
 const day: Day = {
     season: 1, number: 5, finale: false, own: false, endedAt: 0,
@@ -315,5 +317,72 @@ describe("the call at the end of a clip", () => {
 
     it("shows both flags when it asks to pick a side", () => {
         expect(wordsOf(story("battle", {country: "fr"}, "fr")).callFlags).toEqual(["ps", "fr"])
+    })
+})
+
+describe("the end card of the players a clip names", () => {
+    const battle = story("battle", {country: "fr"}, "nl")
+    const named: NamedSide[] = [
+        {flag: "ps", fighters: [{number: 1, name: "BraveFox42", took: 1234}, {number: 3, name: "Toto", took: 1}]},
+        {flag: "nl", fighters: [{number: 2, name: "StormWolf", took: 40}]},
+    ]
+    const overlaid = (sides: NamedSide[]) => {
+        const root = document.createElement("div")
+        return {root, overlay: createOverlay(root, battle, wordsOf(battle), new Map(), sides)}
+    }
+
+    it("lists each side's players under its flag with the tiles each took, the sides apart", () => {
+        const {root} = overlaid(named)
+
+        expect(root.querySelector(".clip-ending .clip-fighters-title")?.textContent).toBe("TOP FIGHTERS")
+        expect([...root.querySelectorAll(".clip-fighters-side")].map((side) => [...side.querySelectorAll(".clip-fighter")].map((row) => [
+            row.querySelector(".clip-fighter-flag")?.getAttribute("src"),
+            row.querySelector(".clip-fighter-name")?.textContent,
+            row.querySelector(".clip-fighter-took")?.textContent,
+        ]))).toEqual([
+            [["/static/countries/svg/ps.svg", "BraveFox42", "1,234 tiles"], ["/static/countries/svg/ps.svg", "Toto", "1 tile"]],
+            [["/static/countries/svg/nl.svg", "StormWolf", "40 tiles"]],
+        ])
+    })
+
+    it("shows in the call to act once the counter is gone, never over it", () => {
+        const {root, overlay} = overlaid(named)
+        const opacities = (ending: number) => {
+            overlay.show({replayAt: 0, played: 1, held: new Map(), ending})
+            return [".clip-bottom", ".clip-ending", ".clip-fighters"].map((part) => root.querySelector<HTMLElement>(part)?.style.opacity)
+        }
+
+        expect(opacities(-1)).toEqual(["1", "0", "0"])
+        expect(opacities(0.25)).toEqual(["0.5", "0.5", "0"])
+        expect(opacities(0.5)).toEqual(["0", "1", "0"])
+        expect(opacities(0.75)).toEqual(["0", "1", "0.5"])
+        expect(opacities(2)).toEqual(["0", "1", "1"])
+    })
+
+    it("sets a name too long for its row smaller to fit it, never cut nor wrapped", () => {
+        const {root, overlay} = overlaid(named)
+        const [long, short] = root.querySelectorAll<HTMLElement>(".clip-fighter-name")
+        const measured = (name: HTMLElement, clientWidth: number, scrollWidth: number) => {
+            Object.defineProperty(name, "clientWidth", {value: clientWidth})
+            Object.defineProperty(name, "scrollWidth", {value: scrollWidth})
+        }
+        measured(long, 200, 300)
+        measured(short, 200, 120)
+
+        overlay.fit()
+
+        expect([long.style.fontSize, short.style.fontSize]).toEqual(["0.66em", ""])
+    })
+
+    it("is left out when the clip names nobody", () => {
+        expect(overlaid([]).root.querySelector(".clip-fighters")).toBeNull()
+    })
+
+    it("sets the whole clip in Rubik for a name Luckiest Guy cannot draw, and only then", () => {
+        const named = (name: string) => [{flag: "ps", fighters: [{number: 1, name, took: 12}]}]
+
+        expect(overlaid(named("مقاتل_7")).root.classList.contains("clip--fallback-font")).toBe(true)
+        expect(overlaid(named("ŁukaszPL")).root.classList.contains("clip--fallback-font")).toBe(true)
+        expect(overlaid(named("Jérôme_99")).root.classList.contains("clip--fallback-font")).toBe(false)
     })
 })

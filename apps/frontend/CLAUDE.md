@@ -60,6 +60,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 - [Sharing the globe](docs/sharing.md) — the photo card of the globe, and the recruit link.
 - [Clips](docs/clips.md) — `npm run clip`: a replay played back as a short video, and what it hands to the
   backend's clips job.
+- [In a clip](docs/clip-appearances.md) — "You are in a clip!" with links to watch it, and the switch that keeps
+  a name out of the clips.
 - [Sound](docs/sound.md) — every sound built with Web Audio, no audio file; the leader's anthem.
 
 ## The globe (`src/app/viewer/`)

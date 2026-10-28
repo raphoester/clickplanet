@@ -18,6 +18,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/search_players_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/set_color_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/set_name_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/set_shown_in_clips_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/wear_title_handler"
 )
 
@@ -25,6 +26,7 @@ type PlayerService struct {
 	get_profile_handler.GetProfileHandler
 	set_name_handler.SetNameHandler
 	set_color_handler.SetColorHandler
+	set_shown_in_clips_handler.SetShownInClipsHandler
 	get_stats_handler.GetStatsHandler
 	announce_handler.AnnounceHandler
 	leave_handler.LeaveHandler

@@ -443,9 +443,10 @@ async function guestStore() {
         deleteAccount: vi.fn(async () => undefined),
     } satisfies AccountBackend
     const player = {
-        profile: vi.fn(async () => ({accountId: "account-1", name: "", color: NameColor.UNSPECIFIED})),
+        profile: vi.fn(async () => ({accountId: "account-1", name: "", color: NameColor.UNSPECIFIED, shownInClips: false})),
         setName: vi.fn(async (name: string) => ({accountId: "account-1", name})),
         setColor: vi.fn(async (color: NameColor) => color),
+        setShownInClips: vi.fn(async (shown: boolean) => shown),
         titles: vi.fn(async () => ({wearable: [], tracks: []})),
         fronts: vi.fn(async () => ({playsFor: [], playsAgainst: []})),
         wearTitle: vi.fn(async () => undefined),

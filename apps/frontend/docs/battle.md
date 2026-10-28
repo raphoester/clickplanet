@@ -151,7 +151,7 @@ screen and the rays in `--war`.
 **One full-screen moment at a time, in the order they arrive.** `domain/announcements.ts`
 and `app/announcements/useAnnouncements.ts` keep the queue: a title unlocked, a
 battle's start, a day closed (the cutoff's reveal), a battle's three debrief screens,
-the season's results. `Viewer` announces each as it learns of it, shows the head of the queue once
+the season's results, a clip that names the player (see [In a clip](clip-appearances.md)). `Viewer` announces each as it learns of it, shows the head of the queue once
 the map is loaded, and the next starts when the player closes the current one. An
 announcement is queued once, by its key. So a round that closes while the player
 reads a battle's screens waits its turn, the season's results wait for the debrief

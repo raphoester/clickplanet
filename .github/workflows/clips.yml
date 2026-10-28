@@ -29,7 +29,8 @@ jobs:
 
       # No npm here: the VPS key is in no job that installs the frontend's dependencies.
       # The race tells the day of the season closed in the replay, and the season who is called up to its Final Battle;
-      # a backend that does not answer one leaves it out.
+      # the cast, the players who took tiles in it, numbered and named, never an account id (the artifact is public).
+      # A backend that does not answer one leaves it out.
       - name: fetch the last 12 hours
         working-directory: apps/backend
         env:
@@ -42,7 +43,7 @@ jobs:
           install -m 700 -d ~/.ssh
           ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts 2> /dev/null
           go run ./cmd/clips fetch -hours 12 -out "$GITHUB_WORKSPACE/replay.json" -race "$GITHUB_WORKSPACE/race.json" \
-            -season "$GITHUB_WORKSPACE/season.json"
+            -season "$GITHUB_WORKSPACE/season.json" -cast "$GITHUB_WORKSPACE/cast.json"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -51,6 +52,7 @@ jobs:
             replay.json
             race.json
             season.json
+            cast.json
           retention-days: 1
 
   findings:
@@ -80,7 +82,8 @@ jobs:
         run: |
           race=$([ -f race.json ] && echo "--race race.json" || true)
           season=$([ -f season.json ] && echo "--season season.json" || true)
-          npm run clip -- --replay replay.json $race $season --findings findings.json
+          cast=$([ -f cast.json ] && echo "--cast cast.json" || true)
+          npm run clip -- --replay replay.json $race $season $cast --findings findings.json
 
       - uses: actions/upload-artifact@v4
         with:
@@ -152,10 +155,11 @@ jobs:
 
       - run: npm ci
 
-      - name: install ffmpeg
+      # The fighters' names are any script: Rubik draws no CJK.
+      - name: install ffmpeg and the CJK fonts
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq --no-install-recommends ffmpeg
+          sudo apt-get install -y -qq --no-install-recommends ffmpeg fonts-noto-cjk
 
       - uses: actions/download-artifact@v4
         with:
@@ -173,7 +177,9 @@ jobs:
         run: |
           race=$([ -f race.json ] && echo "--race race.json" || true)
           season=$([ -f season.json ] && echo "--season season.json" || true)
-          npm run clip -- --replay replay.json $race $season --pick "$PICK" --story "$STORY" --variants "$VARIANTS" --recorders 1
+          cast=$([ -f cast.json ] && echo "--cast cast.json" || true)
+          npm run clip -- --replay replay.json $race $season $cast --pick "$PICK" --story "$STORY" --variants "$VARIANTS" \
+            --recorders 1
 
       - uses: actions/upload-artifact@v4
         with:
@@ -207,12 +213,20 @@ jobs:
       # The repository variable CLIPS_PLATFORMS turns a platform off with no commit: "tiktok" alone. Unset is every platform.
       # CLIPS_SOUND_COUNTRY is the country of TikTok's trending chart a clip drawn for a trending track gets one from
       # (the experiment "sound"): two letters, unset is US. A chart that cannot be read sends the clip with its anthem.
+      # Then the backend keeps who each post names, over ssh, so the game tells them: no npm in this job either.
       - name: schedule the clips on TikTok and YouTube
         working-directory: apps/backend
         env:
           ZERNIO_API_KEY: ${{ secrets.ZERNIO_API_KEY }}
           PLATFORMS: ${{ vars.CLIPS_PLATFORMS }}
           SOUND_COUNTRY: ${{ vars.CLIPS_SOUND_COUNTRY }}
+          CLICKPLANET_SSH: ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
         run: |
+          eval "$(ssh-agent -s)" > /dev/null
+          ssh-add -q - <<< "$VPS_SSH_KEY"
+          install -m 700 -d ~/.ssh
+          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts 2> /dev/null
           go run ./cmd/clips schedule -clips "$GITHUB_WORKSPACE/clips" -platforms "$PLATFORMS" -sound-country "$SOUND_COUNTRY" \
             -summary "$GITHUB_STEP_SUMMARY"

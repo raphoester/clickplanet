@@ -3,15 +3,17 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { KeepSnapshotRequest, KeepSnapshotResponse, ListRowsRequest, ListRowsResponse, ListSnapshotsRequest, ListSnapshotsResponse } from "./admin_pb.js";
+import { KeepAppearanceRequest, KeepAppearanceResponse, KeepSnapshotRequest, KeepSnapshotResponse, ListRowsRequest, ListRowsResponse, ListSnapshotsRequest, ListSnapshotsResponse, MakeCastRequest, MakeCastResponse } from "./admin_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
  * What became of the clips the clips job posts: a snapshot a day of each post's numbers on each platform, sent by the
- * job's `clips stats` over ssh and read by the backoffice, which makes the table. The rest of the package is what the
- * frontend's generator hands the job (clips.proto), with no service. Not public: some of the numbers are
- * not. No authentication of its own: served on the console listener, and on the admin listener behind its gate.
- * Never the public router.
+ * job's `clips stats` over ssh and read by the backoffice, which makes the table. And the players a clip names: the
+ * cast of a run, which the job's `clips fetch` makes, and who each post named, which `clips schedule` keeps. The rest
+ * of the package is what the frontend's generator hands the job (clips.proto), and what a player reads of the clips
+ * that name it (appearances.proto). Not public: some of the numbers are not, and a cast holds account ids. No
+ * authentication of its own: served on the console listener, and on the admin listener behind its gate. Never the
+ * public router.
  *
  * @generated from service clips.v1.AdminService
  */
@@ -51,6 +53,31 @@ export const AdminService = {
       name: "ListRows",
       I: ListRowsRequest,
       O: ListRowsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Numbers each player who took tiles from another flag in a window, at most 72 hours, and keeps which account each
+     * number is, for 3 days. The answer holds names and numbers, never an account id.
+     *
+     * @generated from rpc clips.v1.AdminService.MakeCast
+     */
+    makeCast: {
+      name: "MakeCast",
+      I: MakeCastRequest,
+      O: MakeCastResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Keeps that a post names these players of a cast, so each is told in the game once the post is out. Kept again,
+     * the same post and player is kept once. NotFound for a cast forgotten or never made; InvalidArgument for a number
+     * it does not have.
+     *
+     * @generated from rpc clips.v1.AdminService.KeepAppearance
+     */
+    keepAppearance: {
+      name: "KeepAppearance",
+      I: KeepAppearanceRequest,
+      O: KeepAppearanceResponse,
       kind: MethodKind.Unary,
     },
   }

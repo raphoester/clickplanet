@@ -121,6 +121,7 @@ type GetProfileResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Profile       *Profile               `protobuf:"bytes,1,opt,name=profile,proto3" json:"profile,omitempty"`
 	Color         NameColor              `protobuf:"varint,2,opt,name=color,proto3,enum=player.v1.NameColor" json:"color,omitempty"`
+	ShownInClips  bool                   `protobuf:"varint,3,opt,name=shown_in_clips,json=shownInClips,proto3" json:"shown_in_clips,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -167,6 +168,13 @@ func (x *GetProfileResponse) GetColor() NameColor {
 		return x.Color
 	}
 	return NameColor_NAME_COLOR_UNSPECIFIED
+}
+
+func (x *GetProfileResponse) GetShownInClips() bool {
+	if x != nil {
+		return x.ShownInClips
+	}
+	return false
 }
 
 type SetNameRequest struct {
@@ -389,6 +397,94 @@ func (x *SetColorResponse) GetColor() NameColor {
 	return NameColor_NAME_COLOR_UNSPECIFIED
 }
 
+type SetShownInClipsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Shown         bool                   `protobuf:"varint,1,opt,name=shown,proto3" json:"shown,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetShownInClipsRequest) Reset() {
+	*x = SetShownInClipsRequest{}
+	mi := &file_player_v1_player_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetShownInClipsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetShownInClipsRequest) ProtoMessage() {}
+
+func (x *SetShownInClipsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_player_v1_player_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetShownInClipsRequest.ProtoReflect.Descriptor instead.
+func (*SetShownInClipsRequest) Descriptor() ([]byte, []int) {
+	return file_player_v1_player_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *SetShownInClipsRequest) GetShown() bool {
+	if x != nil {
+		return x.Shown
+	}
+	return false
+}
+
+type SetShownInClipsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Shown         bool                   `protobuf:"varint,1,opt,name=shown,proto3" json:"shown,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetShownInClipsResponse) Reset() {
+	*x = SetShownInClipsResponse{}
+	mi := &file_player_v1_player_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetShownInClipsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetShownInClipsResponse) ProtoMessage() {}
+
+func (x *SetShownInClipsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_player_v1_player_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetShownInClipsResponse.ProtoReflect.Descriptor instead.
+func (*SetShownInClipsResponse) Descriptor() ([]byte, []int) {
+	return file_player_v1_player_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *SetShownInClipsResponse) GetShown() bool {
+	if x != nil {
+		return x.Shown
+	}
+	return false
+}
+
 type Stats struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	TilesTaken    uint64                 `protobuf:"varint,1,opt,name=tiles_taken,json=tilesTaken,proto3" json:"tiles_taken,omitempty"`
@@ -401,7 +497,7 @@ type Stats struct {
 
 func (x *Stats) Reset() {
 	*x = Stats{}
-	mi := &file_player_v1_player_proto_msgTypes[8]
+	mi := &file_player_v1_player_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -413,7 +509,7 @@ func (x *Stats) String() string {
 func (*Stats) ProtoMessage() {}
 
 func (x *Stats) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_player_proto_msgTypes[8]
+	mi := &file_player_v1_player_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -426,7 +522,7 @@ func (x *Stats) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Stats.ProtoReflect.Descriptor instead.
 func (*Stats) Descriptor() ([]byte, []int) {
-	return file_player_v1_player_proto_rawDescGZIP(), []int{8}
+	return file_player_v1_player_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *Stats) GetTilesTaken() uint64 {
@@ -465,7 +561,7 @@ type GetStatsRequest struct {
 
 func (x *GetStatsRequest) Reset() {
 	*x = GetStatsRequest{}
-	mi := &file_player_v1_player_proto_msgTypes[9]
+	mi := &file_player_v1_player_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -477,7 +573,7 @@ func (x *GetStatsRequest) String() string {
 func (*GetStatsRequest) ProtoMessage() {}
 
 func (x *GetStatsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_player_proto_msgTypes[9]
+	mi := &file_player_v1_player_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -490,7 +586,7 @@ func (x *GetStatsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetStatsRequest.ProtoReflect.Descriptor instead.
 func (*GetStatsRequest) Descriptor() ([]byte, []int) {
-	return file_player_v1_player_proto_rawDescGZIP(), []int{9}
+	return file_player_v1_player_proto_rawDescGZIP(), []int{11}
 }
 
 type GetStatsResponse struct {
@@ -502,7 +598,7 @@ type GetStatsResponse struct {
 
 func (x *GetStatsResponse) Reset() {
 	*x = GetStatsResponse{}
-	mi := &file_player_v1_player_proto_msgTypes[10]
+	mi := &file_player_v1_player_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -514,7 +610,7 @@ func (x *GetStatsResponse) String() string {
 func (*GetStatsResponse) ProtoMessage() {}
 
 func (x *GetStatsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_player_proto_msgTypes[10]
+	mi := &file_player_v1_player_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -527,7 +623,7 @@ func (x *GetStatsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetStatsResponse.ProtoReflect.Descriptor instead.
 func (*GetStatsResponse) Descriptor() ([]byte, []int) {
-	return file_player_v1_player_proto_rawDescGZIP(), []int{10}
+	return file_player_v1_player_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *GetStatsResponse) GetStats() *Stats {
@@ -546,7 +642,7 @@ type AnnounceRequest struct {
 
 func (x *AnnounceRequest) Reset() {
 	*x = AnnounceRequest{}
-	mi := &file_player_v1_player_proto_msgTypes[11]
+	mi := &file_player_v1_player_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -558,7 +654,7 @@ func (x *AnnounceRequest) String() string {
 func (*AnnounceRequest) ProtoMessage() {}
 
 func (x *AnnounceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_player_proto_msgTypes[11]
+	mi := &file_player_v1_player_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -571,7 +667,7 @@ func (x *AnnounceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AnnounceRequest.ProtoReflect.Descriptor instead.
 func (*AnnounceRequest) Descriptor() ([]byte, []int) {
-	return file_player_v1_player_proto_rawDescGZIP(), []int{11}
+	return file_player_v1_player_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *AnnounceRequest) GetCountryId() string {
@@ -589,7 +685,7 @@ type AnnounceResponse struct {
 
 func (x *AnnounceResponse) Reset() {
 	*x = AnnounceResponse{}
-	mi := &file_player_v1_player_proto_msgTypes[12]
+	mi := &file_player_v1_player_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -601,7 +697,7 @@ func (x *AnnounceResponse) String() string {
 func (*AnnounceResponse) ProtoMessage() {}
 
 func (x *AnnounceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_player_proto_msgTypes[12]
+	mi := &file_player_v1_player_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -614,7 +710,7 @@ func (x *AnnounceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AnnounceResponse.ProtoReflect.Descriptor instead.
 func (*AnnounceResponse) Descriptor() ([]byte, []int) {
-	return file_player_v1_player_proto_rawDescGZIP(), []int{12}
+	return file_player_v1_player_proto_rawDescGZIP(), []int{14}
 }
 
 type LeaveRequest struct {
@@ -625,7 +721,7 @@ type LeaveRequest struct {
 
 func (x *LeaveRequest) Reset() {
 	*x = LeaveRequest{}
-	mi := &file_player_v1_player_proto_msgTypes[13]
+	mi := &file_player_v1_player_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -637,7 +733,7 @@ func (x *LeaveRequest) String() string {
 func (*LeaveRequest) ProtoMessage() {}
 
 func (x *LeaveRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_player_proto_msgTypes[13]
+	mi := &file_player_v1_player_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -650,7 +746,7 @@ func (x *LeaveRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LeaveRequest.ProtoReflect.Descriptor instead.
 func (*LeaveRequest) Descriptor() ([]byte, []int) {
-	return file_player_v1_player_proto_rawDescGZIP(), []int{13}
+	return file_player_v1_player_proto_rawDescGZIP(), []int{15}
 }
 
 type LeaveResponse struct {
@@ -661,7 +757,7 @@ type LeaveResponse struct {
 
 func (x *LeaveResponse) Reset() {
 	*x = LeaveResponse{}
-	mi := &file_player_v1_player_proto_msgTypes[14]
+	mi := &file_player_v1_player_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -673,7 +769,7 @@ func (x *LeaveResponse) String() string {
 func (*LeaveResponse) ProtoMessage() {}
 
 func (x *LeaveResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_player_proto_msgTypes[14]
+	mi := &file_player_v1_player_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -686,7 +782,7 @@ func (x *LeaveResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LeaveResponse.ProtoReflect.Descriptor instead.
 func (*LeaveResponse) Descriptor() ([]byte, []int) {
-	return file_player_v1_player_proto_rawDescGZIP(), []int{14}
+	return file_player_v1_player_proto_rawDescGZIP(), []int{16}
 }
 
 type GetRosterRequest struct {
@@ -697,7 +793,7 @@ type GetRosterRequest struct {
 
 func (x *GetRosterRequest) Reset() {
 	*x = GetRosterRequest{}
-	mi := &file_player_v1_player_proto_msgTypes[15]
+	mi := &file_player_v1_player_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -709,7 +805,7 @@ func (x *GetRosterRequest) String() string {
 func (*GetRosterRequest) ProtoMessage() {}
 
 func (x *GetRosterRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_player_proto_msgTypes[15]
+	mi := &file_player_v1_player_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -722,7 +818,7 @@ func (x *GetRosterRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRosterRequest.ProtoReflect.Descriptor instead.
 func (*GetRosterRequest) Descriptor() ([]byte, []int) {
-	return file_player_v1_player_proto_rawDescGZIP(), []int{15}
+	return file_player_v1_player_proto_rawDescGZIP(), []int{17}
 }
 
 type GetRosterResponse struct {
@@ -734,7 +830,7 @@ type GetRosterResponse struct {
 
 func (x *GetRosterResponse) Reset() {
 	*x = GetRosterResponse{}
-	mi := &file_player_v1_player_proto_msgTypes[16]
+	mi := &file_player_v1_player_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -746,7 +842,7 @@ func (x *GetRosterResponse) String() string {
 func (*GetRosterResponse) ProtoMessage() {}
 
 func (x *GetRosterResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_player_proto_msgTypes[16]
+	mi := &file_player_v1_player_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -759,7 +855,7 @@ func (x *GetRosterResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRosterResponse.ProtoReflect.Descriptor instead.
 func (*GetRosterResponse) Descriptor() ([]byte, []int) {
-	return file_player_v1_player_proto_rawDescGZIP(), []int{16}
+	return file_player_v1_player_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *GetRosterResponse) GetEntries() []*RosterEntry {
@@ -786,7 +882,7 @@ type RosterEntry struct {
 
 func (x *RosterEntry) Reset() {
 	*x = RosterEntry{}
-	mi := &file_player_v1_player_proto_msgTypes[17]
+	mi := &file_player_v1_player_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -798,7 +894,7 @@ func (x *RosterEntry) String() string {
 func (*RosterEntry) ProtoMessage() {}
 
 func (x *RosterEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_player_proto_msgTypes[17]
+	mi := &file_player_v1_player_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -811,7 +907,7 @@ func (x *RosterEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RosterEntry.ProtoReflect.Descriptor instead.
 func (*RosterEntry) Descriptor() ([]byte, []int) {
-	return file_player_v1_player_proto_rawDescGZIP(), []int{17}
+	return file_player_v1_player_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *RosterEntry) GetName() string {
@@ -885,7 +981,7 @@ type ListenForEventsRequest struct {
 
 func (x *ListenForEventsRequest) Reset() {
 	*x = ListenForEventsRequest{}
-	mi := &file_player_v1_player_proto_msgTypes[18]
+	mi := &file_player_v1_player_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -897,7 +993,7 @@ func (x *ListenForEventsRequest) String() string {
 func (*ListenForEventsRequest) ProtoMessage() {}
 
 func (x *ListenForEventsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_player_proto_msgTypes[18]
+	mi := &file_player_v1_player_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -910,7 +1006,7 @@ func (x *ListenForEventsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListenForEventsRequest.ProtoReflect.Descriptor instead.
 func (*ListenForEventsRequest) Descriptor() ([]byte, []int) {
-	return file_player_v1_player_proto_rawDescGZIP(), []int{18}
+	return file_player_v1_player_proto_rawDescGZIP(), []int{20}
 }
 
 type PlayerEvent struct {
@@ -929,7 +1025,7 @@ type PlayerEvent struct {
 
 func (x *PlayerEvent) Reset() {
 	*x = PlayerEvent{}
-	mi := &file_player_v1_player_proto_msgTypes[19]
+	mi := &file_player_v1_player_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -941,7 +1037,7 @@ func (x *PlayerEvent) String() string {
 func (*PlayerEvent) ProtoMessage() {}
 
 func (x *PlayerEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_player_proto_msgTypes[19]
+	mi := &file_player_v1_player_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -954,7 +1050,7 @@ func (x *PlayerEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlayerEvent.ProtoReflect.Descriptor instead.
 func (*PlayerEvent) Descriptor() ([]byte, []int) {
-	return file_player_v1_player_proto_rawDescGZIP(), []int{19}
+	return file_player_v1_player_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *PlayerEvent) GetEvent() isPlayerEvent_Event {
@@ -1052,7 +1148,7 @@ type Roster struct {
 
 func (x *Roster) Reset() {
 	*x = Roster{}
-	mi := &file_player_v1_player_proto_msgTypes[20]
+	mi := &file_player_v1_player_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1064,7 +1160,7 @@ func (x *Roster) String() string {
 func (*Roster) ProtoMessage() {}
 
 func (x *Roster) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_player_proto_msgTypes[20]
+	mi := &file_player_v1_player_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1077,7 +1173,7 @@ func (x *Roster) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Roster.ProtoReflect.Descriptor instead.
 func (*Roster) Descriptor() ([]byte, []int) {
-	return file_player_v1_player_proto_rawDescGZIP(), []int{20}
+	return file_player_v1_player_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *Roster) GetEntries() []*RosterEntry {
@@ -1096,7 +1192,7 @@ type PlayerLeft struct {
 
 func (x *PlayerLeft) Reset() {
 	*x = PlayerLeft{}
-	mi := &file_player_v1_player_proto_msgTypes[21]
+	mi := &file_player_v1_player_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1108,7 +1204,7 @@ func (x *PlayerLeft) String() string {
 func (*PlayerLeft) ProtoMessage() {}
 
 func (x *PlayerLeft) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_player_proto_msgTypes[21]
+	mi := &file_player_v1_player_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1121,7 +1217,7 @@ func (x *PlayerLeft) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlayerLeft.ProtoReflect.Descriptor instead.
 func (*PlayerLeft) Descriptor() ([]byte, []int) {
-	return file_player_v1_player_proto_rawDescGZIP(), []int{21}
+	return file_player_v1_player_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *PlayerLeft) GetKey() string {
@@ -1139,7 +1235,7 @@ type Heartbeat struct {
 
 func (x *Heartbeat) Reset() {
 	*x = Heartbeat{}
-	mi := &file_player_v1_player_proto_msgTypes[22]
+	mi := &file_player_v1_player_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1151,7 +1247,7 @@ func (x *Heartbeat) String() string {
 func (*Heartbeat) ProtoMessage() {}
 
 func (x *Heartbeat) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_player_proto_msgTypes[22]
+	mi := &file_player_v1_player_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1164,7 +1260,7 @@ func (x *Heartbeat) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Heartbeat.ProtoReflect.Descriptor instead.
 func (*Heartbeat) Descriptor() ([]byte, []int) {
-	return file_player_v1_player_proto_rawDescGZIP(), []int{22}
+	return file_player_v1_player_proto_rawDescGZIP(), []int{24}
 }
 
 type GetPlayerRequest struct {
@@ -1176,7 +1272,7 @@ type GetPlayerRequest struct {
 
 func (x *GetPlayerRequest) Reset() {
 	*x = GetPlayerRequest{}
-	mi := &file_player_v1_player_proto_msgTypes[23]
+	mi := &file_player_v1_player_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1188,7 +1284,7 @@ func (x *GetPlayerRequest) String() string {
 func (*GetPlayerRequest) ProtoMessage() {}
 
 func (x *GetPlayerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_player_proto_msgTypes[23]
+	mi := &file_player_v1_player_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1201,7 +1297,7 @@ func (x *GetPlayerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPlayerRequest.ProtoReflect.Descriptor instead.
 func (*GetPlayerRequest) Descriptor() ([]byte, []int) {
-	return file_player_v1_player_proto_rawDescGZIP(), []int{23}
+	return file_player_v1_player_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *GetPlayerRequest) GetAccountId() string {
@@ -1220,7 +1316,7 @@ type GetPlayerResponse struct {
 
 func (x *GetPlayerResponse) Reset() {
 	*x = GetPlayerResponse{}
-	mi := &file_player_v1_player_proto_msgTypes[24]
+	mi := &file_player_v1_player_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1232,7 +1328,7 @@ func (x *GetPlayerResponse) String() string {
 func (*GetPlayerResponse) ProtoMessage() {}
 
 func (x *GetPlayerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_player_proto_msgTypes[24]
+	mi := &file_player_v1_player_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1245,7 +1341,7 @@ func (x *GetPlayerResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPlayerResponse.ProtoReflect.Descriptor instead.
 func (*GetPlayerResponse) Descriptor() ([]byte, []int) {
-	return file_player_v1_player_proto_rawDescGZIP(), []int{24}
+	return file_player_v1_player_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *GetPlayerResponse) GetPlayer() *Player {
@@ -1274,7 +1370,7 @@ type Player struct {
 
 func (x *Player) Reset() {
 	*x = Player{}
-	mi := &file_player_v1_player_proto_msgTypes[25]
+	mi := &file_player_v1_player_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1286,7 +1382,7 @@ func (x *Player) String() string {
 func (*Player) ProtoMessage() {}
 
 func (x *Player) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_player_proto_msgTypes[25]
+	mi := &file_player_v1_player_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1299,7 +1395,7 @@ func (x *Player) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Player.ProtoReflect.Descriptor instead.
 func (*Player) Descriptor() ([]byte, []int) {
-	return file_player_v1_player_proto_rawDescGZIP(), []int{25}
+	return file_player_v1_player_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *Player) GetName() string {
@@ -1382,7 +1478,7 @@ type CountryTiles struct {
 
 func (x *CountryTiles) Reset() {
 	*x = CountryTiles{}
-	mi := &file_player_v1_player_proto_msgTypes[26]
+	mi := &file_player_v1_player_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1394,7 +1490,7 @@ func (x *CountryTiles) String() string {
 func (*CountryTiles) ProtoMessage() {}
 
 func (x *CountryTiles) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_player_proto_msgTypes[26]
+	mi := &file_player_v1_player_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1407,7 +1503,7 @@ func (x *CountryTiles) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CountryTiles.ProtoReflect.Descriptor instead.
 func (*CountryTiles) Descriptor() ([]byte, []int) {
-	return file_player_v1_player_proto_rawDescGZIP(), []int{26}
+	return file_player_v1_player_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *CountryTiles) GetCountryId() string {
@@ -1432,7 +1528,7 @@ type GetFrontsRequest struct {
 
 func (x *GetFrontsRequest) Reset() {
 	*x = GetFrontsRequest{}
-	mi := &file_player_v1_player_proto_msgTypes[27]
+	mi := &file_player_v1_player_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1444,7 +1540,7 @@ func (x *GetFrontsRequest) String() string {
 func (*GetFrontsRequest) ProtoMessage() {}
 
 func (x *GetFrontsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_player_proto_msgTypes[27]
+	mi := &file_player_v1_player_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1457,7 +1553,7 @@ func (x *GetFrontsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetFrontsRequest.ProtoReflect.Descriptor instead.
 func (*GetFrontsRequest) Descriptor() ([]byte, []int) {
-	return file_player_v1_player_proto_rawDescGZIP(), []int{27}
+	return file_player_v1_player_proto_rawDescGZIP(), []int{29}
 }
 
 type GetFrontsResponse struct {
@@ -1470,7 +1566,7 @@ type GetFrontsResponse struct {
 
 func (x *GetFrontsResponse) Reset() {
 	*x = GetFrontsResponse{}
-	mi := &file_player_v1_player_proto_msgTypes[28]
+	mi := &file_player_v1_player_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1482,7 +1578,7 @@ func (x *GetFrontsResponse) String() string {
 func (*GetFrontsResponse) ProtoMessage() {}
 
 func (x *GetFrontsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_player_proto_msgTypes[28]
+	mi := &file_player_v1_player_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1495,7 +1591,7 @@ func (x *GetFrontsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetFrontsResponse.ProtoReflect.Descriptor instead.
 func (*GetFrontsResponse) Descriptor() ([]byte, []int) {
-	return file_player_v1_player_proto_rawDescGZIP(), []int{28}
+	return file_player_v1_player_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *GetFrontsResponse) GetPlaysFor() []*CountryTiles {
@@ -1521,7 +1617,7 @@ type TitleEarned struct {
 
 func (x *TitleEarned) Reset() {
 	*x = TitleEarned{}
-	mi := &file_player_v1_player_proto_msgTypes[29]
+	mi := &file_player_v1_player_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1533,7 +1629,7 @@ func (x *TitleEarned) String() string {
 func (*TitleEarned) ProtoMessage() {}
 
 func (x *TitleEarned) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_player_proto_msgTypes[29]
+	mi := &file_player_v1_player_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1546,7 +1642,7 @@ func (x *TitleEarned) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TitleEarned.ProtoReflect.Descriptor instead.
 func (*TitleEarned) Descriptor() ([]byte, []int) {
-	return file_player_v1_player_proto_rawDescGZIP(), []int{29}
+	return file_player_v1_player_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *TitleEarned) GetTitle() *Title {
@@ -1564,7 +1660,7 @@ type GetTitlesRequest struct {
 
 func (x *GetTitlesRequest) Reset() {
 	*x = GetTitlesRequest{}
-	mi := &file_player_v1_player_proto_msgTypes[30]
+	mi := &file_player_v1_player_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1576,7 +1672,7 @@ func (x *GetTitlesRequest) String() string {
 func (*GetTitlesRequest) ProtoMessage() {}
 
 func (x *GetTitlesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_player_proto_msgTypes[30]
+	mi := &file_player_v1_player_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1589,7 +1685,7 @@ func (x *GetTitlesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTitlesRequest.ProtoReflect.Descriptor instead.
 func (*GetTitlesRequest) Descriptor() ([]byte, []int) {
-	return file_player_v1_player_proto_rawDescGZIP(), []int{30}
+	return file_player_v1_player_proto_rawDescGZIP(), []int{32}
 }
 
 type GetTitlesResponse struct {
@@ -1603,7 +1699,7 @@ type GetTitlesResponse struct {
 
 func (x *GetTitlesResponse) Reset() {
 	*x = GetTitlesResponse{}
-	mi := &file_player_v1_player_proto_msgTypes[31]
+	mi := &file_player_v1_player_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1615,7 +1711,7 @@ func (x *GetTitlesResponse) String() string {
 func (*GetTitlesResponse) ProtoMessage() {}
 
 func (x *GetTitlesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_player_proto_msgTypes[31]
+	mi := &file_player_v1_player_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1628,7 +1724,7 @@ func (x *GetTitlesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTitlesResponse.ProtoReflect.Descriptor instead.
 func (*GetTitlesResponse) Descriptor() ([]byte, []int) {
-	return file_player_v1_player_proto_rawDescGZIP(), []int{31}
+	return file_player_v1_player_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *GetTitlesResponse) GetWorn() *Title {
@@ -1664,7 +1760,7 @@ type Track struct {
 
 func (x *Track) Reset() {
 	*x = Track{}
-	mi := &file_player_v1_player_proto_msgTypes[32]
+	mi := &file_player_v1_player_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1676,7 +1772,7 @@ func (x *Track) String() string {
 func (*Track) ProtoMessage() {}
 
 func (x *Track) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_player_proto_msgTypes[32]
+	mi := &file_player_v1_player_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1689,7 +1785,7 @@ func (x *Track) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Track.ProtoReflect.Descriptor instead.
 func (*Track) Descriptor() ([]byte, []int) {
-	return file_player_v1_player_proto_rawDescGZIP(), []int{32}
+	return file_player_v1_player_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *Track) GetId() string {
@@ -1731,7 +1827,7 @@ type Step struct {
 
 func (x *Step) Reset() {
 	*x = Step{}
-	mi := &file_player_v1_player_proto_msgTypes[33]
+	mi := &file_player_v1_player_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1743,7 +1839,7 @@ func (x *Step) String() string {
 func (*Step) ProtoMessage() {}
 
 func (x *Step) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_player_proto_msgTypes[33]
+	mi := &file_player_v1_player_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1756,7 +1852,7 @@ func (x *Step) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Step.ProtoReflect.Descriptor instead.
 func (*Step) Descriptor() ([]byte, []int) {
-	return file_player_v1_player_proto_rawDescGZIP(), []int{33}
+	return file_player_v1_player_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *Step) GetTitle() *Title {
@@ -1789,7 +1885,7 @@ type WearTitleRequest struct {
 
 func (x *WearTitleRequest) Reset() {
 	*x = WearTitleRequest{}
-	mi := &file_player_v1_player_proto_msgTypes[34]
+	mi := &file_player_v1_player_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1801,7 +1897,7 @@ func (x *WearTitleRequest) String() string {
 func (*WearTitleRequest) ProtoMessage() {}
 
 func (x *WearTitleRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_player_proto_msgTypes[34]
+	mi := &file_player_v1_player_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1814,7 +1910,7 @@ func (x *WearTitleRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WearTitleRequest.ProtoReflect.Descriptor instead.
 func (*WearTitleRequest) Descriptor() ([]byte, []int) {
-	return file_player_v1_player_proto_rawDescGZIP(), []int{34}
+	return file_player_v1_player_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *WearTitleRequest) GetTitleId() string {
@@ -1833,7 +1929,7 @@ type WearTitleResponse struct {
 
 func (x *WearTitleResponse) Reset() {
 	*x = WearTitleResponse{}
-	mi := &file_player_v1_player_proto_msgTypes[35]
+	mi := &file_player_v1_player_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1845,7 +1941,7 @@ func (x *WearTitleResponse) String() string {
 func (*WearTitleResponse) ProtoMessage() {}
 
 func (x *WearTitleResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_player_proto_msgTypes[35]
+	mi := &file_player_v1_player_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1858,7 +1954,7 @@ func (x *WearTitleResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WearTitleResponse.ProtoReflect.Descriptor instead.
 func (*WearTitleResponse) Descriptor() ([]byte, []int) {
-	return file_player_v1_player_proto_rawDescGZIP(), []int{35}
+	return file_player_v1_player_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *WearTitleResponse) GetWorn() *Title {
@@ -1878,10 +1974,11 @@ const file_player_v1_player_proto_rawDesc = "" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12/\n" +
 	"\x14renamable_at_unix_ms\x18\x03 \x01(\x03R\x11renamableAtUnixMs\"\x13\n" +
-	"\x11GetProfileRequest\"n\n" +
+	"\x11GetProfileRequest\"\x94\x01\n" +
 	"\x12GetProfileResponse\x12,\n" +
 	"\aprofile\x18\x01 \x01(\v2\x12.player.v1.ProfileR\aprofile\x12*\n" +
-	"\x05color\x18\x02 \x01(\x0e2\x14.player.v1.NameColorR\x05color\"$\n" +
+	"\x05color\x18\x02 \x01(\x0e2\x14.player.v1.NameColorR\x05color\x12$\n" +
+	"\x0eshown_in_clips\x18\x03 \x01(\bR\fshownInClips\"$\n" +
 	"\x0eSetNameRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\"?\n" +
 	"\x0fSetNameResponse\x12,\n" +
@@ -1891,7 +1988,11 @@ const file_player_v1_player_proto_rawDesc = "" +
 	"\x0fSetColorRequest\x12*\n" +
 	"\x05color\x18\x01 \x01(\x0e2\x14.player.v1.NameColorR\x05color\">\n" +
 	"\x10SetColorResponse\x12*\n" +
-	"\x05color\x18\x01 \x01(\x0e2\x14.player.v1.NameColorR\x05color\"\x98\x01\n" +
+	"\x05color\x18\x01 \x01(\x0e2\x14.player.v1.NameColorR\x05color\".\n" +
+	"\x16SetShownInClipsRequest\x12\x14\n" +
+	"\x05shown\x18\x01 \x01(\bR\x05shown\"/\n" +
+	"\x17SetShownInClipsResponse\x12\x14\n" +
+	"\x05shown\x18\x01 \x01(\bR\x05shown\"\x98\x01\n" +
 	"\x05Stats\x12\x1f\n" +
 	"\vtiles_taken\x18\x01 \x01(\x04R\n" +
 	"tilesTaken\x12%\n" +
@@ -1985,12 +2086,13 @@ const file_player_v1_player_proto_rawDesc = "" +
 	"\x10WearTitleRequest\x12\x19\n" +
 	"\btitle_id\x18\x01 \x01(\tR\atitleId\"9\n" +
 	"\x11WearTitleResponse\x12$\n" +
-	"\x04worn\x18\x01 \x01(\v2\x10.player.v1.TitleR\x04worn2\xe9\x06\n" +
+	"\x04worn\x18\x01 \x01(\v2\x10.player.v1.TitleR\x04worn2\xc3\a\n" +
 	"\rPlayerService\x12I\n" +
 	"\n" +
 	"GetProfile\x12\x1c.player.v1.GetProfileRequest\x1a\x1d.player.v1.GetProfileResponse\x12@\n" +
 	"\aSetName\x12\x19.player.v1.SetNameRequest\x1a\x1a.player.v1.SetNameResponse\x12C\n" +
-	"\bSetColor\x12\x1a.player.v1.SetColorRequest\x1a\x1b.player.v1.SetColorResponse\x12C\n" +
+	"\bSetColor\x12\x1a.player.v1.SetColorRequest\x1a\x1b.player.v1.SetColorResponse\x12X\n" +
+	"\x0fSetShownInClips\x12!.player.v1.SetShownInClipsRequest\x1a\".player.v1.SetShownInClipsResponse\x12C\n" +
 	"\bGetStats\x12\x1a.player.v1.GetStatsRequest\x1a\x1b.player.v1.GetStatsResponse\x12C\n" +
 	"\bAnnounce\x12\x1a.player.v1.AnnounceRequest\x1a\x1b.player.v1.AnnounceResponse\x12:\n" +
 	"\x05Leave\x12\x17.player.v1.LeaveRequest\x1a\x18.player.v1.LeaveResponse\x12K\n" +
@@ -2015,105 +2117,109 @@ func file_player_v1_player_proto_rawDescGZIP() []byte {
 	return file_player_v1_player_proto_rawDescData
 }
 
-var file_player_v1_player_proto_msgTypes = make([]protoimpl.MessageInfo, 36)
+var file_player_v1_player_proto_msgTypes = make([]protoimpl.MessageInfo, 38)
 var file_player_v1_player_proto_goTypes = []any{
-	(*Profile)(nil),                // 0: player.v1.Profile
-	(*GetProfileRequest)(nil),      // 1: player.v1.GetProfileRequest
-	(*GetProfileResponse)(nil),     // 2: player.v1.GetProfileResponse
-	(*SetNameRequest)(nil),         // 3: player.v1.SetNameRequest
-	(*SetNameResponse)(nil),        // 4: player.v1.SetNameResponse
-	(*RenameRefusal)(nil),          // 5: player.v1.RenameRefusal
-	(*SetColorRequest)(nil),        // 6: player.v1.SetColorRequest
-	(*SetColorResponse)(nil),       // 7: player.v1.SetColorResponse
-	(*Stats)(nil),                  // 8: player.v1.Stats
-	(*GetStatsRequest)(nil),        // 9: player.v1.GetStatsRequest
-	(*GetStatsResponse)(nil),       // 10: player.v1.GetStatsResponse
-	(*AnnounceRequest)(nil),        // 11: player.v1.AnnounceRequest
-	(*AnnounceResponse)(nil),       // 12: player.v1.AnnounceResponse
-	(*LeaveRequest)(nil),           // 13: player.v1.LeaveRequest
-	(*LeaveResponse)(nil),          // 14: player.v1.LeaveResponse
-	(*GetRosterRequest)(nil),       // 15: player.v1.GetRosterRequest
-	(*GetRosterResponse)(nil),      // 16: player.v1.GetRosterResponse
-	(*RosterEntry)(nil),            // 17: player.v1.RosterEntry
-	(*ListenForEventsRequest)(nil), // 18: player.v1.ListenForEventsRequest
-	(*PlayerEvent)(nil),            // 19: player.v1.PlayerEvent
-	(*Roster)(nil),                 // 20: player.v1.Roster
-	(*PlayerLeft)(nil),             // 21: player.v1.PlayerLeft
-	(*Heartbeat)(nil),              // 22: player.v1.Heartbeat
-	(*GetPlayerRequest)(nil),       // 23: player.v1.GetPlayerRequest
-	(*GetPlayerResponse)(nil),      // 24: player.v1.GetPlayerResponse
-	(*Player)(nil),                 // 25: player.v1.Player
-	(*CountryTiles)(nil),           // 26: player.v1.CountryTiles
-	(*GetFrontsRequest)(nil),       // 27: player.v1.GetFrontsRequest
-	(*GetFrontsResponse)(nil),      // 28: player.v1.GetFrontsResponse
-	(*TitleEarned)(nil),            // 29: player.v1.TitleEarned
-	(*GetTitlesRequest)(nil),       // 30: player.v1.GetTitlesRequest
-	(*GetTitlesResponse)(nil),      // 31: player.v1.GetTitlesResponse
-	(*Track)(nil),                  // 32: player.v1.Track
-	(*Step)(nil),                   // 33: player.v1.Step
-	(*WearTitleRequest)(nil),       // 34: player.v1.WearTitleRequest
-	(*WearTitleResponse)(nil),      // 35: player.v1.WearTitleResponse
-	(NameColor)(0),                 // 36: player.v1.NameColor
-	(*Title)(nil),                  // 37: player.v1.Title
+	(*Profile)(nil),                 // 0: player.v1.Profile
+	(*GetProfileRequest)(nil),       // 1: player.v1.GetProfileRequest
+	(*GetProfileResponse)(nil),      // 2: player.v1.GetProfileResponse
+	(*SetNameRequest)(nil),          // 3: player.v1.SetNameRequest
+	(*SetNameResponse)(nil),         // 4: player.v1.SetNameResponse
+	(*RenameRefusal)(nil),           // 5: player.v1.RenameRefusal
+	(*SetColorRequest)(nil),         // 6: player.v1.SetColorRequest
+	(*SetColorResponse)(nil),        // 7: player.v1.SetColorResponse
+	(*SetShownInClipsRequest)(nil),  // 8: player.v1.SetShownInClipsRequest
+	(*SetShownInClipsResponse)(nil), // 9: player.v1.SetShownInClipsResponse
+	(*Stats)(nil),                   // 10: player.v1.Stats
+	(*GetStatsRequest)(nil),         // 11: player.v1.GetStatsRequest
+	(*GetStatsResponse)(nil),        // 12: player.v1.GetStatsResponse
+	(*AnnounceRequest)(nil),         // 13: player.v1.AnnounceRequest
+	(*AnnounceResponse)(nil),        // 14: player.v1.AnnounceResponse
+	(*LeaveRequest)(nil),            // 15: player.v1.LeaveRequest
+	(*LeaveResponse)(nil),           // 16: player.v1.LeaveResponse
+	(*GetRosterRequest)(nil),        // 17: player.v1.GetRosterRequest
+	(*GetRosterResponse)(nil),       // 18: player.v1.GetRosterResponse
+	(*RosterEntry)(nil),             // 19: player.v1.RosterEntry
+	(*ListenForEventsRequest)(nil),  // 20: player.v1.ListenForEventsRequest
+	(*PlayerEvent)(nil),             // 21: player.v1.PlayerEvent
+	(*Roster)(nil),                  // 22: player.v1.Roster
+	(*PlayerLeft)(nil),              // 23: player.v1.PlayerLeft
+	(*Heartbeat)(nil),               // 24: player.v1.Heartbeat
+	(*GetPlayerRequest)(nil),        // 25: player.v1.GetPlayerRequest
+	(*GetPlayerResponse)(nil),       // 26: player.v1.GetPlayerResponse
+	(*Player)(nil),                  // 27: player.v1.Player
+	(*CountryTiles)(nil),            // 28: player.v1.CountryTiles
+	(*GetFrontsRequest)(nil),        // 29: player.v1.GetFrontsRequest
+	(*GetFrontsResponse)(nil),       // 30: player.v1.GetFrontsResponse
+	(*TitleEarned)(nil),             // 31: player.v1.TitleEarned
+	(*GetTitlesRequest)(nil),        // 32: player.v1.GetTitlesRequest
+	(*GetTitlesResponse)(nil),       // 33: player.v1.GetTitlesResponse
+	(*Track)(nil),                   // 34: player.v1.Track
+	(*Step)(nil),                    // 35: player.v1.Step
+	(*WearTitleRequest)(nil),        // 36: player.v1.WearTitleRequest
+	(*WearTitleResponse)(nil),       // 37: player.v1.WearTitleResponse
+	(NameColor)(0),                  // 38: player.v1.NameColor
+	(*Title)(nil),                   // 39: player.v1.Title
 }
 var file_player_v1_player_proto_depIdxs = []int32{
 	0,  // 0: player.v1.GetProfileResponse.profile:type_name -> player.v1.Profile
-	36, // 1: player.v1.GetProfileResponse.color:type_name -> player.v1.NameColor
+	38, // 1: player.v1.GetProfileResponse.color:type_name -> player.v1.NameColor
 	0,  // 2: player.v1.SetNameResponse.profile:type_name -> player.v1.Profile
-	36, // 3: player.v1.SetColorRequest.color:type_name -> player.v1.NameColor
-	36, // 4: player.v1.SetColorResponse.color:type_name -> player.v1.NameColor
-	8,  // 5: player.v1.GetStatsResponse.stats:type_name -> player.v1.Stats
-	17, // 6: player.v1.GetRosterResponse.entries:type_name -> player.v1.RosterEntry
-	36, // 7: player.v1.RosterEntry.color:type_name -> player.v1.NameColor
-	37, // 8: player.v1.RosterEntry.worn_title:type_name -> player.v1.Title
-	20, // 9: player.v1.PlayerEvent.roster:type_name -> player.v1.Roster
-	17, // 10: player.v1.PlayerEvent.entry:type_name -> player.v1.RosterEntry
-	21, // 11: player.v1.PlayerEvent.left:type_name -> player.v1.PlayerLeft
-	22, // 12: player.v1.PlayerEvent.heartbeat:type_name -> player.v1.Heartbeat
-	29, // 13: player.v1.PlayerEvent.title_earned:type_name -> player.v1.TitleEarned
-	17, // 14: player.v1.Roster.entries:type_name -> player.v1.RosterEntry
-	25, // 15: player.v1.GetPlayerResponse.player:type_name -> player.v1.Player
-	8,  // 16: player.v1.Player.stats:type_name -> player.v1.Stats
-	36, // 17: player.v1.Player.color:type_name -> player.v1.NameColor
-	37, // 18: player.v1.Player.titles:type_name -> player.v1.Title
-	37, // 19: player.v1.Player.worn_title:type_name -> player.v1.Title
-	26, // 20: player.v1.Player.plays_for:type_name -> player.v1.CountryTiles
-	26, // 21: player.v1.Player.plays_against:type_name -> player.v1.CountryTiles
-	26, // 22: player.v1.GetFrontsResponse.plays_for:type_name -> player.v1.CountryTiles
-	26, // 23: player.v1.GetFrontsResponse.plays_against:type_name -> player.v1.CountryTiles
-	37, // 24: player.v1.TitleEarned.title:type_name -> player.v1.Title
-	37, // 25: player.v1.GetTitlesResponse.worn:type_name -> player.v1.Title
-	37, // 26: player.v1.GetTitlesResponse.wearable:type_name -> player.v1.Title
-	32, // 27: player.v1.GetTitlesResponse.tracks:type_name -> player.v1.Track
-	33, // 28: player.v1.Track.steps:type_name -> player.v1.Step
-	37, // 29: player.v1.Step.title:type_name -> player.v1.Title
-	37, // 30: player.v1.WearTitleResponse.worn:type_name -> player.v1.Title
+	38, // 3: player.v1.SetColorRequest.color:type_name -> player.v1.NameColor
+	38, // 4: player.v1.SetColorResponse.color:type_name -> player.v1.NameColor
+	10, // 5: player.v1.GetStatsResponse.stats:type_name -> player.v1.Stats
+	19, // 6: player.v1.GetRosterResponse.entries:type_name -> player.v1.RosterEntry
+	38, // 7: player.v1.RosterEntry.color:type_name -> player.v1.NameColor
+	39, // 8: player.v1.RosterEntry.worn_title:type_name -> player.v1.Title
+	22, // 9: player.v1.PlayerEvent.roster:type_name -> player.v1.Roster
+	19, // 10: player.v1.PlayerEvent.entry:type_name -> player.v1.RosterEntry
+	23, // 11: player.v1.PlayerEvent.left:type_name -> player.v1.PlayerLeft
+	24, // 12: player.v1.PlayerEvent.heartbeat:type_name -> player.v1.Heartbeat
+	31, // 13: player.v1.PlayerEvent.title_earned:type_name -> player.v1.TitleEarned
+	19, // 14: player.v1.Roster.entries:type_name -> player.v1.RosterEntry
+	27, // 15: player.v1.GetPlayerResponse.player:type_name -> player.v1.Player
+	10, // 16: player.v1.Player.stats:type_name -> player.v1.Stats
+	38, // 17: player.v1.Player.color:type_name -> player.v1.NameColor
+	39, // 18: player.v1.Player.titles:type_name -> player.v1.Title
+	39, // 19: player.v1.Player.worn_title:type_name -> player.v1.Title
+	28, // 20: player.v1.Player.plays_for:type_name -> player.v1.CountryTiles
+	28, // 21: player.v1.Player.plays_against:type_name -> player.v1.CountryTiles
+	28, // 22: player.v1.GetFrontsResponse.plays_for:type_name -> player.v1.CountryTiles
+	28, // 23: player.v1.GetFrontsResponse.plays_against:type_name -> player.v1.CountryTiles
+	39, // 24: player.v1.TitleEarned.title:type_name -> player.v1.Title
+	39, // 25: player.v1.GetTitlesResponse.worn:type_name -> player.v1.Title
+	39, // 26: player.v1.GetTitlesResponse.wearable:type_name -> player.v1.Title
+	34, // 27: player.v1.GetTitlesResponse.tracks:type_name -> player.v1.Track
+	35, // 28: player.v1.Track.steps:type_name -> player.v1.Step
+	39, // 29: player.v1.Step.title:type_name -> player.v1.Title
+	39, // 30: player.v1.WearTitleResponse.worn:type_name -> player.v1.Title
 	1,  // 31: player.v1.PlayerService.GetProfile:input_type -> player.v1.GetProfileRequest
 	3,  // 32: player.v1.PlayerService.SetName:input_type -> player.v1.SetNameRequest
 	6,  // 33: player.v1.PlayerService.SetColor:input_type -> player.v1.SetColorRequest
-	9,  // 34: player.v1.PlayerService.GetStats:input_type -> player.v1.GetStatsRequest
-	11, // 35: player.v1.PlayerService.Announce:input_type -> player.v1.AnnounceRequest
-	13, // 36: player.v1.PlayerService.Leave:input_type -> player.v1.LeaveRequest
-	15, // 37: player.v1.PlayerService.GetRoster:input_type -> player.v1.GetRosterRequest
-	18, // 38: player.v1.PlayerService.ListenForEvents:input_type -> player.v1.ListenForEventsRequest
-	23, // 39: player.v1.PlayerService.GetPlayer:input_type -> player.v1.GetPlayerRequest
-	30, // 40: player.v1.PlayerService.GetTitles:input_type -> player.v1.GetTitlesRequest
-	34, // 41: player.v1.PlayerService.WearTitle:input_type -> player.v1.WearTitleRequest
-	27, // 42: player.v1.PlayerService.GetFronts:input_type -> player.v1.GetFrontsRequest
-	2,  // 43: player.v1.PlayerService.GetProfile:output_type -> player.v1.GetProfileResponse
-	4,  // 44: player.v1.PlayerService.SetName:output_type -> player.v1.SetNameResponse
-	7,  // 45: player.v1.PlayerService.SetColor:output_type -> player.v1.SetColorResponse
-	10, // 46: player.v1.PlayerService.GetStats:output_type -> player.v1.GetStatsResponse
-	12, // 47: player.v1.PlayerService.Announce:output_type -> player.v1.AnnounceResponse
-	14, // 48: player.v1.PlayerService.Leave:output_type -> player.v1.LeaveResponse
-	16, // 49: player.v1.PlayerService.GetRoster:output_type -> player.v1.GetRosterResponse
-	19, // 50: player.v1.PlayerService.ListenForEvents:output_type -> player.v1.PlayerEvent
-	24, // 51: player.v1.PlayerService.GetPlayer:output_type -> player.v1.GetPlayerResponse
-	31, // 52: player.v1.PlayerService.GetTitles:output_type -> player.v1.GetTitlesResponse
-	35, // 53: player.v1.PlayerService.WearTitle:output_type -> player.v1.WearTitleResponse
-	28, // 54: player.v1.PlayerService.GetFronts:output_type -> player.v1.GetFrontsResponse
-	43, // [43:55] is the sub-list for method output_type
-	31, // [31:43] is the sub-list for method input_type
+	8,  // 34: player.v1.PlayerService.SetShownInClips:input_type -> player.v1.SetShownInClipsRequest
+	11, // 35: player.v1.PlayerService.GetStats:input_type -> player.v1.GetStatsRequest
+	13, // 36: player.v1.PlayerService.Announce:input_type -> player.v1.AnnounceRequest
+	15, // 37: player.v1.PlayerService.Leave:input_type -> player.v1.LeaveRequest
+	17, // 38: player.v1.PlayerService.GetRoster:input_type -> player.v1.GetRosterRequest
+	20, // 39: player.v1.PlayerService.ListenForEvents:input_type -> player.v1.ListenForEventsRequest
+	25, // 40: player.v1.PlayerService.GetPlayer:input_type -> player.v1.GetPlayerRequest
+	32, // 41: player.v1.PlayerService.GetTitles:input_type -> player.v1.GetTitlesRequest
+	36, // 42: player.v1.PlayerService.WearTitle:input_type -> player.v1.WearTitleRequest
+	29, // 43: player.v1.PlayerService.GetFronts:input_type -> player.v1.GetFrontsRequest
+	2,  // 44: player.v1.PlayerService.GetProfile:output_type -> player.v1.GetProfileResponse
+	4,  // 45: player.v1.PlayerService.SetName:output_type -> player.v1.SetNameResponse
+	7,  // 46: player.v1.PlayerService.SetColor:output_type -> player.v1.SetColorResponse
+	9,  // 47: player.v1.PlayerService.SetShownInClips:output_type -> player.v1.SetShownInClipsResponse
+	12, // 48: player.v1.PlayerService.GetStats:output_type -> player.v1.GetStatsResponse
+	14, // 49: player.v1.PlayerService.Announce:output_type -> player.v1.AnnounceResponse
+	16, // 50: player.v1.PlayerService.Leave:output_type -> player.v1.LeaveResponse
+	18, // 51: player.v1.PlayerService.GetRoster:output_type -> player.v1.GetRosterResponse
+	21, // 52: player.v1.PlayerService.ListenForEvents:output_type -> player.v1.PlayerEvent
+	26, // 53: player.v1.PlayerService.GetPlayer:output_type -> player.v1.GetPlayerResponse
+	33, // 54: player.v1.PlayerService.GetTitles:output_type -> player.v1.GetTitlesResponse
+	37, // 55: player.v1.PlayerService.WearTitle:output_type -> player.v1.WearTitleResponse
+	30, // 56: player.v1.PlayerService.GetFronts:output_type -> player.v1.GetFrontsResponse
+	44, // [44:57] is the sub-list for method output_type
+	31, // [31:44] is the sub-list for method input_type
 	31, // [31:31] is the sub-list for extension type_name
 	31, // [31:31] is the sub-list for extension extendee
 	0,  // [0:31] is the sub-list for field type_name
@@ -2126,7 +2232,7 @@ func file_player_v1_player_proto_init() {
 	}
 	file_player_v1_color_proto_init()
 	file_player_v1_title_proto_init()
-	file_player_v1_player_proto_msgTypes[19].OneofWrappers = []any{
+	file_player_v1_player_proto_msgTypes[21].OneofWrappers = []any{
 		(*PlayerEvent_Roster)(nil),
 		(*PlayerEvent_Entry)(nil),
 		(*PlayerEvent_Left)(nil),
@@ -2139,7 +2245,7 @@ func file_player_v1_player_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_player_v1_player_proto_rawDesc), len(file_player_v1_player_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   36,
+			NumMessages:   38,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

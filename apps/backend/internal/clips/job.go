@@ -13,14 +13,19 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts/generator_output"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts/log_history"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts/log_service"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts/ssh_appearance_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts/usecases/choose_clips_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts/usecases/choose_clips_usecase/log_choose_clips"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts/usecases/keep_appearances_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts/usecases/keep_appearances_usecase/log_keep_appearances"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts/usecases/schedule_clips_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts/usecases/schedule_clips_usecase/log_schedule_clips"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts/zernio"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/file_replay_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/ssh_replay_source"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/usecases/fetch_cast_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/usecases/fetch_cast_usecase/log_fetch_cast"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/usecases/fetch_replay_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/usecases/fetch_replay_usecase/log_fetch_replay"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/usecases/fetch_round_usecase"
@@ -157,10 +162,10 @@ func (c Config) withDefaults() Config {
 	return c
 }
 
-// turn, round: where the gamemaster's turn and the round it debriefs are written, or empty for none; a round needs its
-// turn. One the backend does not answer is no error: the replay is what the run needs, and they only add the round of
-// the season scored in it and the countries called up.
-func Fetch(ctx context.Context, out, turn, round string, config Config, logger *slog.Logger) error {
+// turn, round, cast: where the gamemaster's turn, the round it debriefs and the replay's cast are written, or empty for
+// none; a round needs its turn. One the backend does not answer is no error: the replay is what the run needs, and they
+// only add the round of the season scored in it, the countries called up and the players the clips name.
+func Fetch(ctx context.Context, out, turn, round, cast string, config Config, logger *slog.Logger) error {
 	config = config.withDefaults()
 
 	source, err := ssh_replay_source.New(config.Replay.SSH, ssh_replay_source.OpenSSH)
@@ -173,8 +178,14 @@ func Fetch(ctx context.Context, out, turn, round string, config Config, logger *
 		cptime.SystemClock{}, source, file_replay_store.Store(out),
 	), logger)
 
-	if _, err := fetch.Execute(ctx); err != nil {
-		return err
+	replay, err := fetch.Execute(ctx)
+	if err != nil {
+		return err //nolint:wrapcheck // the use case already named what failed.
+	}
+	if cast != "" {
+		// Its decorator warns that the cast is left out.
+		_, _ = log_fetch_cast.New(fetch_cast_usecase.New(source, file_replay_store.CastStore(cast)), logger).
+			Execute(ctx, replay.Window)
 	}
 
 	if turn == "" {
@@ -285,7 +296,8 @@ func Edit(ctx context.Context, findings string, promptOnly bool, config Config, 
 	return trial, nil
 }
 
-// clock: the time each post is planned from, which TikTok's hours read.
+// clock: the time each post is planned from, which TikTok's hours read. Then the server keeps who each post names, over
+// ssh: one it cannot keep is a warning, the post is out already.
 func Schedule(ctx context.Context, folder string, config Config, clock cptime.Clock, logger *slog.Logger) (Report, error) {
 	config = config.withDefaults()
 
@@ -311,7 +323,23 @@ func Schedule(ctx context.Context, folder string, config Config, clock cptime.Cl
 		clock, posts.SystemDice{}, sender, experiments, charts, posts.Soundtracks{Country: config.SoundCountry},
 	), logger)
 
-	return schedule.Execute(ctx)
+	report, err := schedule.Execute(ctx)
+	if err != nil {
+		return nil, err //nolint:wrapcheck // the use case already named what failed.
+	}
+	if len(report.Appearances()) == 0 {
+		return report, nil
+	}
+	if config.Replay.SSH == "" {
+		logger.Warn("no ssh host: the players the posts name will not be told in the game")
+		return report, nil
+	}
+	appearances, err := ssh_appearance_store.New(config.Replay.SSH, ssh_appearance_store.OpenSSH)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build the store of the appearances: %w", err)
+	}
+	log_keep_appearances.New(keep_appearances_usecase.New(appearances), logger).Execute(ctx, report)
+	return report, nil
 }
 
 // Keeps a snapshot of the numbers of every post of the job in the backend's postgres, over ssh, with what each post

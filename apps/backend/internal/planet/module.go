@@ -330,6 +330,7 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			getTerritories := get_territories_handler.New(
 				territories_query.NewMemoryQuery(tilesStorage, borders, config.GameMap.MaxIndex))
+			getLedger := get_ledger_handler.New(changes_query.NewPostgresQuery(db, clock))
 			adminService := planetv1controller.AdminService{
 				ReassignCountryHandler: reassign_country_handler.New(audit_reassign.New(
 					reassign_country_usecase.New(tilesStorage, countries, pace), props.Logger)),
@@ -344,7 +345,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				GrantChargesHandler: grant_charges_handler.New(
 					audit_grant_charges.New(grant_charges_usecase.New(charges), props.Logger)),
 				GetReplayHandler:      get_replay_handler.New(replay_usecase.New(takings, resetStore, tilesChecker, tilesStorage, clock)),
-				GetLedgerHandler:      get_ledger_handler.New(changes_query.NewPostgresQuery(db, clock)),
+				GetLedgerHandler:      getLedger,
 				GetTerritoriesHandler: getTerritories,
 				GetRulesHandler:       get_rules_handler.New(rule_sets_query.NewPostgresQuery(db), inForce),
 				SaveRuleSetHandler: save_rule_set_handler.New(
@@ -358,6 +359,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			}
 
 			internalService := planetv1controller.InternalService{
+				GetLedgerHandler:         getLedger,
 				GetTakesByCountryHandler: get_takes_by_country_handler.New(takes_query.NewPostgresQuery(db)),
 				GetTerritoriesHandler:    getTerritories,
 				GetCountrySizesHandler:   get_country_sizes_handler.New(borders),

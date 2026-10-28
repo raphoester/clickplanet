@@ -18,6 +18,9 @@ type Outcome struct {
 	SoundMissed string
 	// Not sent: every platform's day was full. Not a failure: its story is still untold, for a later run.
 	Held bool
+	// The players it names, by their number in its cast.
+	Cast     string
+	Fighters []FighterNumber
 }
 
 type PlatformOutcome struct {
@@ -31,7 +34,7 @@ type Report []Outcome
 func (r Report) With(post Post, scheduled Scheduled, failure error) Report {
 	outcome := Outcome{
 		Title: post.clip.title, Variants: post.variants(), At: post.at, Post: scheduled.ID, Sound: post.sound,
-		SoundMissed: messageOf(post.missed),
+		SoundMissed: messageOf(post.missed), Cast: post.clip.cast, Fighters: post.clip.fighterNumbers(),
 	}
 	if failure != nil {
 		outcome.Post = ""
@@ -63,4 +66,36 @@ func messageOf(err error) string {
 		return ""
 	}
 	return err.Error()
+}
+
+// A post that names players of a cast, on the platforms that took it: the server tells each in the game once it is out.
+type Appearance struct {
+	Cast      string
+	Fighters  []FighterNumber
+	Post      PostID
+	Title     string
+	Platforms []Platform
+	At        time.Time
+}
+
+// The posts made that name someone.
+func (r Report) Appearances() []Appearance {
+	var named []Appearance
+	for _, outcome := range r {
+		if outcome.Held || outcome.Post == "" || len(outcome.Fighters) == 0 {
+			continue
+		}
+		appearance := Appearance{
+			Cast: outcome.Cast, Fighters: outcome.Fighters, Post: outcome.Post, Title: outcome.Title, At: outcome.At,
+		}
+		for _, platform := range outcome.Platforms {
+			if platform.Failure == "" {
+				appearance.Platforms = append(appearance.Platforms, platform.Platform)
+			}
+		}
+		if len(appearance.Platforms) > 0 {
+			named = append(named, appearance)
+		}
+	}
+	return named
 }

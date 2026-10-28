@@ -34,9 +34,10 @@ type FakePlayer = {[K in keyof PlayerBackend]: ReturnType<typeof vi.fn>}
 
 function fakePlayer(name = "", color = NameColor.UNSPECIFIED): FakePlayer {
     return {
-        profile: vi.fn(async (): Promise<ColoredProfile> => ({accountId: "account-1", name, color})),
+        profile: vi.fn(async (): Promise<ColoredProfile> => ({accountId: "account-1", name, color, shownInClips: name !== ""})),
         setName: vi.fn(async (name: string): Promise<Profile> => ({accountId: "account-1", name})),
         setColor: vi.fn(async (color: NameColor): Promise<NameColor> => color),
+        setShownInClips: vi.fn(async (shown: boolean): Promise<boolean> => shown),
         titles: vi.fn(async (): Promise<TitleDashboard> => ({wearable: [], tracks: []})),
         fronts: vi.fn(async (): Promise<Fronts> => ({playsFor: [], playsAgainst: []})),
         wearTitle: vi.fn(async () => undefined),
@@ -356,6 +357,7 @@ describe("AccountStore", () => {
 
             await vi.waitFor(() => expect(store.state()).toEqual({
                 kind: "ready", offered: ["google"], me: {linked: ["google"]}, accountId: "account-1", username: "ana", color: NameColor.UNSPECIFIED,
+                shownInClips: true,
             }))
             expect(player.profile).toHaveBeenCalledTimes(1)
         })
@@ -480,7 +482,7 @@ describe("AccountStore", () => {
 
                 expect(store.state()).toEqual({
                     kind: "ready", offered: ["google"], me: {linked: ["google"]}, accountId: "account-1", username: "ana", color: NameColor.UNSPECIFIED,
-                    nameFailure: "taken",
+                    shownInClips: true, nameFailure: "taken",
                 })
             })
 
@@ -614,6 +616,7 @@ describe("AccountStore", () => {
 
             expect(store.state()).toEqual({
                 kind: "ready", offered: ["google"], me: {linked: ["google"]}, accountId: "account-1", username: "ana", color: NameColor.PINK,
+                shownInClips: true,
             })
         })
 
@@ -656,6 +659,93 @@ describe("AccountStore", () => {
             await store.signOut()
 
             expect(store.state()).not.toHaveProperty("color", NameColor.TEAL)
+        })
+    })
+
+    describe("showing the name in clips", () => {
+        const linked = () => fakeBackend(["google"], {linked: ["google"]})
+
+        async function named(player: FakePlayer = fakePlayer("ana")) {
+            const set = setup(linked(), player)
+            await set.store.load()
+            await vi.waitFor(() => expect(set.store.state()).toMatchObject({username: "ana"}))
+            return set
+        }
+
+        it("is read with the username", async () => {
+            const {store} = await named()
+
+            expect(store.state()).toMatchObject({shownInClips: true})
+        })
+
+        it("shows the choice while the server answers, then the one it stored", async () => {
+            const player = fakePlayer("ana")
+            const saved = held<boolean>()
+            player.setShownInClips.mockReturnValue(saved.promise)
+            const {store} = await named(player)
+
+            const saving = store.setShownInClips(false)
+            expect(player.setShownInClips).toHaveBeenCalledWith(false)
+            expect(store.state()).toMatchObject({shownInClips: false, savingShown: true})
+
+            saved.release(false)
+            await saving
+
+            expect(store.state()).toEqual({
+                kind: "ready", offered: ["google"], me: {linked: ["google"]}, accountId: "account-1", username: "ana",
+                color: NameColor.UNSPECIFIED, shownInClips: false,
+            })
+        })
+
+        it("reports why it was refused and keeps the choice it had", async () => {
+            const player = fakePlayer("ana")
+            player.setShownInClips.mockImplementation(refusingName("unnamed"))
+            const {store} = await named(player)
+
+            await store.setShownInClips(false)
+
+            expect(store.state()).toMatchObject({shownInClips: true, shownFailure: "unnamed"})
+        })
+
+        it("is not asked for before a username is known", async () => {
+            const {store, player} = setup(linked(), fakePlayer(""))
+            await store.load()
+
+            await store.setShownInClips(false)
+
+            expect(player.setShownInClips).not.toHaveBeenCalled()
+        })
+
+        it("takes no color pick while it saves", async () => {
+            const player = fakePlayer("ana")
+            const saved = held<boolean>()
+            player.setShownInClips.mockReturnValue(saved.promise)
+            const {store} = await named(player)
+
+            const saving = store.setShownInClips(false)
+            await store.setColor(NameColor.PINK)
+            saved.release(false)
+            await saving
+
+            expect(player.setColor).not.toHaveBeenCalled()
+        })
+
+        it("is kept through a color pick and a rename", async () => {
+            const {store} = await named()
+            await store.setShownInClips(false)
+
+            await store.setColor(NameColor.PINK)
+            await store.setUsername("bo")
+
+            expect(store.state()).toMatchObject({username: "bo", color: NameColor.PINK, shownInClips: false})
+        })
+
+        it("is forgotten with the account", async () => {
+            const {store} = await named()
+
+            await store.signOut()
+
+            expect(store.state()).not.toHaveProperty("shownInClips", true)
         })
     })
 

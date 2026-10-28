@@ -45,4 +45,6 @@ message Author {
   uint32 streak = 5;
   Title worn_title = 6;
   bool guest = 7;
+  // A username whose player lets the clips show it.
+  bool shown_in_clips = 8;
 }

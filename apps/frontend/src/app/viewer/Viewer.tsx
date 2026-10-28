@@ -112,6 +112,9 @@ import {reigningChampionOf} from "../../domain/champion.ts";
 import {countryLines, CountryOrder, shownOrder} from "../../domain/race.ts";
 import {endedBookOf} from "../../domain/debrief.ts";
 import {acceptedClicks} from "./acceptedClicks.ts";
+import {ClipsBackend} from "../../backends/clips.ts";
+import ClipNotice from "../clips/ClipNotice.tsx";
+import {useClipNotice} from "../clips/useClipNotice.ts";
 import "./Viewer.css"
 
 const NO_LEADERBOARD: readonly LeaderboardEntry[] = []
@@ -145,6 +148,7 @@ export type ViewerProps = {
     support?: SupportBackend
     missions?: MissionsBackend
     chargesRefresher?: ChargesRefresher
+    clips?: ClipsBackend
 }
 
 // Planet grants a mission's reward from a command, after the read that says it is paid.
@@ -170,6 +174,7 @@ export default function Viewer(props: ViewerProps) {
     const username = account.kind === 'ready' ? account.username : undefined
     const ownAccountId = account.kind === 'ready' ? account.accountId : undefined
     const color = account.kind === 'ready' ? account.color : undefined
+    const linked = account.kind === 'ready' && account.me.linked.length > 0
 
     usePresence(props.presence, {countryCode: countryState.code, username, color})
 
@@ -197,6 +202,10 @@ export default function Viewer(props: ViewerProps) {
     useEffect(() => {
         if (battleReveal.battle) announce({kind: "battle", battle: battleReveal.battle})
     }, [announce, battleReveal.battle])
+    const clipNotice = useClipNotice(props.clips, linked && username !== undefined ? ownAccountId : undefined)
+    useEffect(() => {
+        if (clipNotice.appearance) announce({kind: "clip", appearance: clipNotice.appearance})
+    }, [announce, clipNotice.appearance])
     const champion = reigningChampionOf(season, closed)
     const [countryOrder, setCountryOrder] = useState<CountryOrder>("season")
     const boardGuide = useBoardGuide()
@@ -318,7 +327,6 @@ export default function Viewer(props: ViewerProps) {
         setPitchOpen(true)
     } : undefined
 
-    const linked = account.kind === 'ready' && account.me.linked.length > 0
     const toll = rules?.toll ?? []
     const held = leaderboard.find((entry) => entry.country.code === countryState.code)?.tiles ?? 0
     const boards = useMemo(() => props.standings && bookId ? boardsOf(props.standings, bookId) : undefined, [props.standings, bookId])
@@ -575,6 +583,14 @@ export default function Viewer(props: ViewerProps) {
                                                                   battleReveal.dismiss()
                                                                   announcements.dismiss()
                                                               }}/>}
+
+        {ready && current?.kind === "clip" && <ClipNotice key={announcementKeyOf(current)}
+                                                          appearance={current.appearance}
+                                                          play={sound.play}
+                                                          onClose={() => {
+                                                              clipNotice.dismiss(current.appearance)
+                                                              announcements.dismiss()
+                                                          }}/>}
 
         {missionsDone && rules && <MissionsDone missions={missionsDone}
                                                 rules={rules}

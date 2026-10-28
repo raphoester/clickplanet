@@ -33,6 +33,9 @@ export type AccountState =
         color?: NameColor
         coloring?: true
         colorFailure?: PlayerFailure
+        shownInClips?: boolean
+        savingShown?: true
+        shownFailure?: PlayerFailure
     }
 
 type Ready = Extract<AccountState, {kind: "ready"}>
@@ -198,7 +201,7 @@ export class AccountStore {
 
     public async setUsername(name: string): Promise<void> {
         const ready = this.current
-        if (ready.kind !== "ready" || ready.busy || ready.naming || ready.coloring || ready.me.linked.length === 0) return
+        if (ready.kind !== "ready" || ready.busy || saving(ready) || ready.me.linked.length === 0) return
 
         this.set({...kept(ready), naming: true})
         const generation = this.generation
@@ -219,7 +222,7 @@ export class AccountStore {
 
     public async setColor(color: NameColor): Promise<void> {
         const ready = this.current
-        if (ready.kind !== "ready" || ready.busy || ready.naming || ready.coloring || ready.username === undefined) return
+        if (ready.kind !== "ready" || ready.busy || saving(ready) || ready.username === undefined) return
 
         this.set({...kept(ready), color, coloring: true})
         const generation = this.generation
@@ -234,32 +237,51 @@ export class AccountStore {
         }
     }
 
+    public async setShownInClips(shown: boolean): Promise<void> {
+        const ready = this.current
+        if (ready.kind !== "ready" || ready.busy || saving(ready) || ready.username === undefined) return
+
+        this.set({...kept(ready), shownInClips: shown, savingShown: true})
+        const generation = this.generation
+
+        try {
+            const saved = await this.player.setShownInClips(shown)
+            if (generation !== this.generation) return
+            this.set({...kept(ready), shownInClips: saved})
+        } catch (e) {
+            if (generation !== this.generation) return
+            this.set({...kept(ready), shownFailure: playerFailureOf(e)})
+        }
+    }
+
     private async readProfile(generation: number): Promise<void> {
         let accountId: string | undefined
         let name: string
         let color: NameColor
         let renamableAt: number | undefined
+        let shownInClips: boolean
         try {
             const profile = await this.player.profile()
             accountId = profile.accountId || undefined
             name = profile.name
             color = profile.color
             renamableAt = profile.renamableAt
+            shownInClips = profile.shownInClips
         } catch {
             return
         }
 
         const ready = this.current
         if (generation !== this.generation || ready.kind !== "ready") return
-        if (!name || ready.naming || ready.coloring || ready.username !== undefined) {
+        if (!name || saving(ready) || ready.username !== undefined) {
             this.set({...ready, accountId})
             return
         }
-        this.set({...ready, accountId, username: name, color, renamableAt})
+        this.set({...ready, accountId, username: name, color, renamableAt, shownInClips})
     }
 
     private begin(action: AccountAction) {
-        if (this.current.kind !== "ready" || this.current.busy || this.current.naming || this.current.coloring) return undefined
+        if (this.current.kind !== "ready" || this.current.busy || saving(this.current)) return undefined
 
         const ready = this.current
         this.set({...kept(ready), busy: action})
@@ -270,7 +292,8 @@ export class AccountStore {
         offered: Provider[],
         me: Me,
         extra: {
-            failure?: AuthFailure, accountId?: string, username?: string, renamableAt?: number, color?: NameColor, code?: PendingCode
+            failure?: AuthFailure, accountId?: string, username?: string, renamableAt?: number, color?: NameColor,
+            shownInClips?: boolean, code?: PendingCode
         } = {},
     ) {
         const ordered = PROVIDERS.filter((p) => offered.includes(p))
@@ -283,8 +306,9 @@ export class AccountStore {
         const username = linked ? extra.username : undefined
         const color = linked && username !== undefined ? extra.color : undefined
         const renamableAt = linked && username !== undefined ? extra.renamableAt : undefined
+        const shownInClips = linked && username !== undefined ? extra.shownInClips : undefined
         const code = ordered.includes("email") ? extra.code : undefined
-        this.set({kind: "ready", offered: ordered, me, failure: extra.failure, accountId, username, renamableAt, color, code})
+        this.set({kind: "ready", offered: ordered, me, failure: extra.failure, accountId, username, renamableAt, color, shownInClips, code})
     }
 
     private set(state: AccountState) {
@@ -298,5 +322,12 @@ function kept(ready: Ready): Ready {
 }
 
 function named(ready: Ready) {
-    return {accountId: ready.accountId, username: ready.username, renamableAt: ready.renamableAt, color: ready.color}
+    return {
+        accountId: ready.accountId, username: ready.username, renamableAt: ready.renamableAt, color: ready.color,
+        shownInClips: ready.shownInClips,
+    }
+}
+
+function saving(ready: Ready): boolean {
+    return ready.naming === true || ready.coloring === true || ready.savingShown === true
 }

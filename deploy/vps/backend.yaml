@@ -288,6 +288,7 @@ support:
       secretAccessKey: env://SUPPORT_BUCKET_SECRET
 
 # The numbers of the clips the clips job posted: `clips stats` sends a snapshot a day over ssh, the backoffice reads them.
+# And who each clip names: `clips fetch` makes a run's cast, `clips schedule` keeps who each post names.
 clips:
   database:
     host: postgres
@@ -299,3 +300,6 @@ clips:
     schema: clips
     pool:
       maxOpenConns: 2
+  redis:
+    address: redis:6379
+    password: env://REDIS_PASSWORD

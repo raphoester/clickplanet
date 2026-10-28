@@ -9,6 +9,8 @@ service PlayerService {
   rpc GetProfile(GetProfileRequest) returns (GetProfileResponse);
   rpc SetName(SetNameRequest) returns (SetNameResponse);
   rpc SetColor(SetColorRequest) returns (SetColorResponse);
+  // Whether the clips may show the caller's username. FailedPrecondition with no username.
+  rpc SetShownInClips(SetShownInClipsRequest) returns (SetShownInClipsResponse);
   rpc GetStats(GetStatsRequest) returns (GetStatsResponse);
 
   rpc Announce(AnnounceRequest) returns (AnnounceResponse);
@@ -43,6 +45,7 @@ message GetProfileRequest {}
 message GetProfileResponse {
   Profile profile = 1;
   NameColor color = 2;
+  bool shown_in_clips = 3;
 }
 
 message SetNameRequest {
@@ -63,6 +66,14 @@ message SetColorRequest {
 
 message SetColorResponse {
   NameColor color = 1;
+}
+
+message SetShownInClipsRequest {
+  bool shown = 1;
+}
+
+message SetShownInClipsResponse {
+  bool shown = 1;
 }
 
 message Stats {

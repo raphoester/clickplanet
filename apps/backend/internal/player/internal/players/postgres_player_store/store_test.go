@@ -34,6 +34,12 @@ func (s *testSuite) SetupSuite() {
 		_, err := s.db.On(s.T().Context()).ExecContext(s.T().Context(), `UPDATE profiles SET admin = true WHERE account_id = $1`, uuid.UUID(account))
 		s.Require().NoError(err)
 	}
+	s.ShownInClips = func(_ players.Store, account players.AccountID) bool {
+		var shown bool
+		s.Require().NoError(s.db.On(s.T().Context()).QueryRowContext(s.T().Context(),
+			`SELECT shown_in_clips FROM profiles WHERE account_id = $1`, uuid.UUID(account)).Scan(&shown))
+		return shown
+	}
 }
 
 func (s *testSuite) SetupTest() {

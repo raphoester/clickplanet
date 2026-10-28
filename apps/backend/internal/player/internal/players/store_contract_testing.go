@@ -11,8 +11,9 @@ import (
 type StoreContractSuite struct {
 	suite.Suite
 
-	NewStore  func() Store
-	MakeAdmin func(store Store, account AccountID)
+	NewStore     func() Store
+	MakeAdmin    func(store Store, account AccountID)
+	ShownInClips func(store Store, account AccountID) bool
 
 	store Store
 }
@@ -366,4 +367,43 @@ func (s *StoreContractSuite) TestAColorCanBeTakenBack() {
 	profile, err := s.store.Profile(s.T().Context(), AccountID{15: 1})
 	s.Require().NoError(err)
 	s.Equal(Color(0), profile.TakeSnapshot().Color)
+}
+
+func (s *StoreContractSuite) TestBeingShownInClipsNeedsAProfile() {
+	err := s.store.SaveShownInClips(s.T().Context(), AccountID{15: 1}, false)
+
+	s.Require().ErrorIs(err, ErrNoProfile, "a guest has no name to show")
+}
+
+func (s *StoreContractSuite) TestAUsernameIsShownInClipsUntilItsPlayerSaysNo() {
+	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Ada")))
+	s.Require().NoError(s.store.CreateProfile(s.T().Context(), contractProfile(2, "BraveFox42")))
+	s.True(s.ShownInClips(s.store, AccountID{15: 1}))
+	s.True(s.ShownInClips(s.store, AccountID{15: 2}))
+
+	s.Require().NoError(s.store.SaveShownInClips(s.T().Context(), AccountID{15: 1}, false))
+	s.False(s.ShownInClips(s.store, AccountID{15: 1}))
+	s.True(s.ShownInClips(s.store, AccountID{15: 2}))
+
+	s.Require().NoError(s.store.SaveShownInClips(s.T().Context(), AccountID{15: 1}, true))
+	s.True(s.ShownInClips(s.store, AccountID{15: 1}))
+}
+
+func (s *StoreContractSuite) TestARenameKeepsTheClipsChoice() {
+	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Ada")))
+	s.Require().NoError(s.store.SaveShownInClips(s.T().Context(), AccountID{15: 1}, false))
+
+	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Ada_L")))
+
+	s.False(s.ShownInClips(s.store, AccountID{15: 1}))
+}
+
+func (s *StoreContractSuite) TestADeletedAccountTakesItsClipsChoiceWithIt() {
+	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Ada")))
+	s.Require().NoError(s.store.SaveShownInClips(s.T().Context(), AccountID{15: 1}, false))
+	s.Require().NoError(s.store.DeleteAccount(s.T().Context(), AccountID{15: 1}))
+
+	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Ada")))
+
+	s.True(s.ShownInClips(s.store, AccountID{15: 1}))
 }

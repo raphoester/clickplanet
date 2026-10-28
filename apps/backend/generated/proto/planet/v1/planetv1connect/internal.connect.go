@@ -33,6 +33,9 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// InternalServiceGetLedgerProcedure is the fully-qualified name of the InternalService's GetLedger
+	// RPC.
+	InternalServiceGetLedgerProcedure = "/planet.v1.InternalService/GetLedger"
 	// InternalServiceGetTakesByCountryProcedure is the fully-qualified name of the InternalService's
 	// GetTakesByCountry RPC.
 	InternalServiceGetTakesByCountryProcedure = "/planet.v1.InternalService/GetTakesByCountry"
@@ -52,6 +55,8 @@ const (
 
 // InternalServiceClient is a client for the planet.v1.InternalService service.
 type InternalServiceClient interface {
+	// AdminService/GetLedger, for the clips module's cast: who took which tile.
+	GetLedger(context.Context, *connect.Request[v1.GetLedgerRequest]) (*connect.Response[v1.GetLedgerResponse], error)
 	GetTakesByCountry(context.Context, *connect.Request[v1.GetTakesByCountryRequest]) (*connect.Response[v1.GetTakesByCountryResponse], error)
 	GetTerritories(context.Context, *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error)
 	GetCountrySizes(context.Context, *connect.Request[v1.GetCountrySizesRequest]) (*connect.Response[v1.GetCountrySizesResponse], error)
@@ -70,6 +75,13 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 	baseURL = strings.TrimRight(baseURL, "/")
 	internalServiceMethods := v1.File_planet_v1_internal_proto.Services().ByName("InternalService").Methods()
 	return &internalServiceClient{
+		getLedger: connect.NewClient[v1.GetLedgerRequest, v1.GetLedgerResponse](
+			httpClient,
+			baseURL+InternalServiceGetLedgerProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("GetLedger")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 		getTakesByCountry: connect.NewClient[v1.GetTakesByCountryRequest, v1.GetTakesByCountryResponse](
 			httpClient,
 			baseURL+InternalServiceGetTakesByCountryProcedure,
@@ -110,11 +122,17 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 
 // internalServiceClient implements InternalServiceClient.
 type internalServiceClient struct {
+	getLedger         *connect.Client[v1.GetLedgerRequest, v1.GetLedgerResponse]
 	getTakesByCountry *connect.Client[v1.GetTakesByCountryRequest, v1.GetTakesByCountryResponse]
 	getTerritories    *connect.Client[v1.GetTerritoriesRequest, v1.GetTerritoriesResponse]
 	getCountrySizes   *connect.Client[v1.GetCountrySizesRequest, v1.GetCountrySizesResponse]
 	getAllegianceOf   *connect.Client[v1.GetAllegianceOfRequest, v1.GetAllegianceOfResponse]
 	getRuleSetNames   *connect.Client[v1.GetRuleSetNamesRequest, v1.GetRuleSetNamesResponse]
+}
+
+// GetLedger calls planet.v1.InternalService.GetLedger.
+func (c *internalServiceClient) GetLedger(ctx context.Context, req *connect.Request[v1.GetLedgerRequest]) (*connect.Response[v1.GetLedgerResponse], error) {
+	return c.getLedger.CallUnary(ctx, req)
 }
 
 // GetTakesByCountry calls planet.v1.InternalService.GetTakesByCountry.
@@ -144,6 +162,8 @@ func (c *internalServiceClient) GetRuleSetNames(ctx context.Context, req *connec
 
 // InternalServiceHandler is an implementation of the planet.v1.InternalService service.
 type InternalServiceHandler interface {
+	// AdminService/GetLedger, for the clips module's cast: who took which tile.
+	GetLedger(context.Context, *connect.Request[v1.GetLedgerRequest]) (*connect.Response[v1.GetLedgerResponse], error)
 	GetTakesByCountry(context.Context, *connect.Request[v1.GetTakesByCountryRequest]) (*connect.Response[v1.GetTakesByCountryResponse], error)
 	GetTerritories(context.Context, *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error)
 	GetCountrySizes(context.Context, *connect.Request[v1.GetCountrySizesRequest]) (*connect.Response[v1.GetCountrySizesResponse], error)
@@ -158,6 +178,13 @@ type InternalServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	internalServiceMethods := v1.File_planet_v1_internal_proto.Services().ByName("InternalService").Methods()
+	internalServiceGetLedgerHandler := connect.NewUnaryHandler(
+		InternalServiceGetLedgerProcedure,
+		svc.GetLedger,
+		connect.WithSchema(internalServiceMethods.ByName("GetLedger")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	internalServiceGetTakesByCountryHandler := connect.NewUnaryHandler(
 		InternalServiceGetTakesByCountryProcedure,
 		svc.GetTakesByCountry,
@@ -195,6 +222,8 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 	)
 	return "/planet.v1.InternalService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case InternalServiceGetLedgerProcedure:
+			internalServiceGetLedgerHandler.ServeHTTP(w, r)
 		case InternalServiceGetTakesByCountryProcedure:
 			internalServiceGetTakesByCountryHandler.ServeHTTP(w, r)
 		case InternalServiceGetTerritoriesProcedure:
@@ -213,6 +242,10 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 
 // UnimplementedInternalServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedInternalServiceHandler struct{}
+
+func (UnimplementedInternalServiceHandler) GetLedger(context.Context, *connect.Request[v1.GetLedgerRequest]) (*connect.Response[v1.GetLedgerResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.GetLedger is not implemented"))
+}
 
 func (UnimplementedInternalServiceHandler) GetTakesByCountry(context.Context, *connect.Request[v1.GetTakesByCountryRequest]) (*connect.Response[v1.GetTakesByCountryResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.GetTakesByCountry is not implemented"))

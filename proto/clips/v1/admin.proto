@@ -2,13 +2,16 @@ syntax = "proto3";
 
 package clips.v1;
 
+import "clips/v1/clips.proto";
 import "google/protobuf/timestamp.proto";
 
 // What became of the clips the clips job posts: a snapshot a day of each post's numbers on each platform, sent by the
-// job's `clips stats` over ssh and read by the backoffice, which makes the table. The rest of the package is what the
-// frontend's generator hands the job (clips.proto), with no service. Not public: some of the numbers are
-// not. No authentication of its own: served on the console listener, and on the admin listener behind its gate.
-// Never the public router.
+// job's `clips stats` over ssh and read by the backoffice, which makes the table. And the players a clip names: the
+// cast of a run, which the job's `clips fetch` makes, and who each post named, which `clips schedule` keeps. The rest
+// of the package is what the frontend's generator hands the job (clips.proto), and what a player reads of the clips
+// that name it (appearances.proto). Not public: some of the numbers are not, and a cast holds account ids. No
+// authentication of its own: served on the console listener, and on the admin listener behind its gate. Never the
+// public router.
 service AdminService {
   // Keeps a snapshot's summary and some of its rows: a snapshot is sent in parts, each with the summary. A row kept
   // again (the same snapshot, post and platform) replaces the one kept, and so does a summary, so a part sent twice
@@ -20,6 +23,15 @@ service AdminService {
 
   // The rows of the snapshots taken in a window, the oldest snapshot first, a page at a time.
   rpc ListRows(ListRowsRequest) returns (ListRowsResponse);
+
+  // Numbers each player who took tiles from another flag in a window, at most 72 hours, and keeps which account each
+  // number is, for 3 days. The answer holds names and numbers, never an account id.
+  rpc MakeCast(MakeCastRequest) returns (MakeCastResponse);
+
+  // Keeps that a post names these players of a cast, so each is told in the game once the post is out. Kept again,
+  // the same post and player is kept once. NotFound for a cast forgotten or never made; InvalidArgument for a number
+  // it does not have.
+  rpc KeepAppearance(KeepAppearanceRequest) returns (KeepAppearanceResponse);
 }
 
 // What a snapshot read and kept: counts and states, never a metric.
@@ -111,4 +123,31 @@ message ListRowsResponse {
   repeated StatsRow rows = 1;
   // Empty on the last page.
   string next_page = 2;
+}
+
+message MakeCastRequest {
+  google.protobuf.Timestamp since = 1;
+  // Unset is now.
+  google.protobuf.Timestamp until = 2;
+}
+
+message MakeCastResponse {
+  Cast cast = 1;
+}
+
+message KeepAppearanceRequest {
+  string cast_id = 1;
+  // By their number in the cast.
+  repeated uint32 fighters = 2;
+  // The Zernio post id.
+  string post_id = 3;
+  // The clip's headline.
+  string title = 4;
+  // Those that took the post.
+  repeated string platforms = 5;
+  google.protobuf.Timestamp scheduled_at = 6;
+}
+
+message KeepAppearanceResponse {
+  uint32 kept = 1;
 }

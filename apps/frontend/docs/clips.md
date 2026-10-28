@@ -13,10 +13,10 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
 17 past every even hour UTC, or by hand with `workflow_dispatch`), so a story reaches the feed 2 to 3 hours after it
 happened rather than 10 to 20 under the two runs a day before (2026-10-24). Four jobs:
 
-1. **fetch**: the backend's `clips fetch -hours 12 -race race.json -season season.json` over SSH, with the deploy's
-   `VPS_*` secrets. The job runs no npm at all, so the key to the VPS is in no job that installs this app's
+1. **fetch**: the backend's `clips fetch -hours 12 -race race.json -season season.json -cast cast.json` over SSH, with
+   the deploy's `VPS_*` secrets. The job runs no npm at all, so the key to the VPS is in no job that installs this app's
    dependencies. The replay, the gamemaster's turn (`season.json`) and the round it debriefs (`race.json`) go on as an
-   artifact; all are public data. A turn or a round that could not be fetched is no file, and the run goes on without
+   artifact; all are public data, the cast's names and numbers too, never an account. A turn or a round that could not be fetched is no file, and the run goes on without
    a round to tell or a country to call up.
 2. **findings** and **choose**: `npm run clip -- --findings findings.json`, then, in a job of its own (it holds
    the Zernio and Anthropic keys, and runs no npm), the backend's `clips choose` reads it and prints the stories to
@@ -37,7 +37,8 @@ happened rather than 10 to 20 under the two runs a day before (2026-10-24). Four
    recorders do not help there: each one draws every frame. Chrome gets a minute to start: 20s failed the run of
    2026-10-26 18:40.
 4. **schedule**: the backend's `clips schedule` sends each clip to the posting service as one post on TikTok and
-   YouTube Shorts, **for 5 minutes ahead, an hour after the last post on each**. There is no review: nobody cancels
+   YouTube Shorts, **for 5 minutes ahead, an hour after the last post on each**, then tells the backend over SSH who
+   each post names, so the game tells them. There is no review: nobody cancels
    clips in the dashboard, so the 4 hours one cost were 4 hours of the story getting old. A clip can still be
    cancelled in the service's dashboard before its time, which stops it on both.
 
@@ -78,6 +79,11 @@ What chooses, when a clip goes out, the client of the service and the run's summ
     (`StoryFacts`, `storyFactsOf`, the numbers `record()` works out, measured once by `measuredOf`).
   - **`names`**, how a clip says each code in the findings ("gb": "the UK"), and **`continents`**, each with its own
     flag when it has one (Europe's).
+  - **`fighters`**, with a cast (`--cast`): the players who took the most, 3 at most (`topFightersOf`,
+    `domain/clip/cast.ts`), each with its number in the cast, its name and the tiles it took from another flag. On each
+    front's flag, its takes on the front's tiles in the front's stretch; on each tour, the flag's on the tour's tiles;
+    on each place, the holder's of the place in the window. **A take is matched by its tile and the stretch, never by
+    its time**: the cast's times are postgres's, the replay's the stream's.
 - **`--story <json>`** is the story to render, a `Pick` (`toldOf`): one front, tour, place or seasonal story of the
   findings by its number, from 1, and for a front what the editor made of it: its `kind` (`attack`, `invasion`,
   `comeback`, `kickout`, `rout`, `battle`), its `attacker`, its `rival` in a battle, whom it took from (`takenFrom`,
@@ -85,7 +91,9 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   strike back together (`team`), and its `headline`. A tour, a place and a seasonal story are the facts' own: the
   flag taking the world, the holder holding its share, the day won. **The page builds the `Story` from it and reads no
   rule**: a pick that names no front, a kind no front tells, no attacker or no place is refused as it is read, and
-  the job checked it against the findings before the render. `--headline` overrides the story's.
+  the job checked it against the findings before the render. `--headline` overrides the story's. Its `fighters` are
+  the players the editor names, by their number in the cast, each a top fighter of a side of the story in the
+  findings; a number the cast does not have fails the render. A seasonal story names nobody.
 - **`--season <path>`** is the gamemaster's turn, a `gamemaster.v1.GetTurnResponse` as `GetTurn` answers it, served
   to the page at `/__clip/season.json`. Its `debrief` is the moment scoring scored last, in the game's words: a day
   (`DayEnded`), a battle (`BattleEnded`, `ends_season` for the finale) or the season's end (`SeasonEnded`, told as
@@ -99,6 +107,10 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   as a day** (`Day.own`): it is numbered apart from the days, so its clip says "wins the battle" ("the final battle"
   for the finale) and calls to play, never "day 1" or "who wins day 2", and nobody is called up after it, since its
   podium scored its times.
+- **`--cast <path>`** is who took which tiles, a `clips.v1.Cast` the backend's `clips fetch` makes for the run,
+  served at `/__clip/cast.json` the same way (`src/clip/cast.ts`, `castOf`): each player with a username who lets the
+  clips show it, under a number of this cast alone (1 took the most), and only its takes from another flag. **No
+  account id is in it**: a run's files are public. With none, nobody is named and every clip is as before.
 - **A story's key says which story it is, the headline never does** (`storyKeyOf`, `domain/clip/story.ts`): the
   flag the clip is about and the continent it is told on, `{flag: "dz", continent: "Africa"}`. **Its angle says what
   the story tells of the flag there**: none for what it did, `holding` for what it holds, `round` for a day it won,
@@ -113,7 +125,9 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   story and shows Palau. The `Clip`'s countries are the same list, with their hashtags.
 - **`clip-<n>.json`** is a `Clip`: its number in the run (`--pick`), its title (the headline), its key, which the job
   keeps with the post, and **the words of its caption that need the story**: its teasers, its countries with their
-  hashtags, its continent's hashtag, and the credit of its music. **The job writes the caption** from them (the
+  hashtags, its continent's hashtag, the credit of its music, and the players its end card names (`fighters`, each
+  with the flag it fought for in the story, and `cast`, the cast's id, empty when it names nobody), which the job
+  keeps so each player is told in the game. **The job writes the caption** from them (the
   backend's [The clips job](../../backend/docs/clips-job.md)): this app has the names, the job has the platform. The
   repo is public and so are a run's logs and artifacts: a clip can be watched there before it is out.
 - **A `Clip` also says what the clip was** (`record`, a `ClipRecord`, written by `clipRecordOf` in
@@ -133,8 +147,8 @@ What chooses, when a clip goes out, the client of the service and the run's summ
     where the story is told (a bomb's cleared tiles too), `storyTilesChanged` (the fighting the camera follows),
     `placeTiles` (the place the headline names), `flagTilesStart` and `flagTilesEnd` (the counter, for the key's
     flag), `landmassesFlipped`, the effects in sight of the story as `--plan` counts its bombs (`bombs`, `spreads`,
-    `enclosures`, from `ReplayBackend.effects`), `screensCrossed`, `tourStops` and `solidity`. One protojson leaves out
-    is its zero.
+    `enclosures`, from `ReplayBackend.effects`), `screensCrossed`, `tourStops`, `solidity`, and in `common` the
+    `fighters` its end card names. One protojson leaves out is its zero.
   - **`storyEndedAt` is when the stretch it plays ends**, the newest moment of the story, as a time (the stretch's
     `until`, so the cutoff for a day or a call-up). The post's `scheduledAt` minus it is how long the story took to
     reach the feed, which is what running every 2 hours set out to cut.
@@ -200,6 +214,13 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   pulled back out stays in sight under it. The call
   shows the flag it asks the viewer to fight for: the country to defend, the flag that strikes back, both sides of a
   battle, or a continent's own flag (Europe's alone, `static/countries/svg/eu.svg`, from the same set as the others).
+- **The end card names the top fighters** the pick names: "TOP FIGHTERS" under the call, then each side's players
+  (`sidesOf`), two sides and 3 a side at most, a row each with the side's flag, the name and the tiles it took in what
+  the clip plays, counted again from the cast on the story's tiles in the stretch the clip is cut to
+  (`namedSidesOf`). Each is under the side it took the most for; one who took nothing for a side there is left out.
+  `--plan` prints them. It fades in once the counter has faded out, half a second into the call, and covers where the
+  counter was, left of the buttons. **A name is the player's, in any script**: one Luckiest Guy cannot draw sets the
+  clip in Rubik Black, as a call-up's words do, and one too long for its row is set smaller (`fit`), never cut.
 
 **`src/domain/clip/` measures and plays; it judges nothing**, pure and under test:
 

@@ -11,6 +11,7 @@ const shown: Shown = {
     look: "dive", since: SINCE, until: SINCE + 2 * 3_600_000 + 15_000,
     tilesChanged: 1_480, storyTilesChanged: 1_210, placeTiles: 6_120, flagTiles: {start: 2_900, end: 3_640},
     landmassesFlipped: 2, bombs: 3, spreads: 41, enclosures: 1, screens: 2.4567, tourStops: 0, solidity: 0.91234, variants: {},
+    fighters: 0,
 }
 
 describe("what a clip was", () => {
@@ -44,6 +45,11 @@ describe("what a clip was", () => {
     it("says when the stretch it plays ends, so the post's time tells how fresh the story was", () => {
         expect(clipRecordOf({...shown, until: Date.parse("2026-10-23T11:42:07.250Z")}).globe?.storyEndedAt?.toDate())
             .toEqual(new Date("2026-10-23T11:42:07.250Z"))
+    })
+
+    it("counts the players its end card names", () => {
+        expect(clipRecordOf({...shown, fighters: 4}).common?.fighters).toBe(4)
+        expect(clipRecordOf(shown).toJson()).not.toHaveProperty("common.fighters")
     })
 
     it("names an unknown commit", () => {

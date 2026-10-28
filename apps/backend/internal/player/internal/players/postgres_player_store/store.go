@@ -114,6 +114,21 @@ func (s *Store) SaveColor(ctx context.Context, account players.AccountID, color 
 	return nil
 }
 
+func (s *Store) SaveShownInClips(ctx context.Context, account players.AccountID, shown bool) error {
+	result, err := s.db.On(ctx).ExecContext(ctx, `UPDATE profiles SET shown_in_clips = $2 WHERE account_id = $1`, uuid.UUID(account), shown)
+	if err != nil {
+		return fmt.Errorf("failed to save whether the clips show the name: %w", err)
+	}
+	saved, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to count the clips choices saved: %w", err)
+	}
+	if saved == 0 {
+		return players.ErrNoProfile
+	}
+	return nil
+}
+
 func (s *Store) GuestCode(ctx context.Context, account players.AccountID) (players.GuestCode, error) {
 	var code string
 	err := s.db.On(ctx).QueryRowContext(ctx, `SELECT code FROM guest_codes WHERE account_id = $1`, uuid.UUID(account)).Scan(&code)

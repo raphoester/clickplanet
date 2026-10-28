@@ -9,13 +9,14 @@ import {
     usernameOf,
 } from "../../backends/player.ts"
 import {AccountState, AccountStore} from "./accountStore.ts"
-import {colorMessageOf, messageOf, providerList, usernameMessageOf} from "./authMessages.ts"
+import {clipsMessageOf, colorMessageOf, messageOf, providerList, usernameMessageOf} from "./authMessages.ts"
 import {factor} from "../../domain/clickPrice.ts"
 import {NAME_COLORS} from "../../domain/authorColor.ts"
 import {authorStyle} from "../chat/authorStyle.ts"
 import ProviderButton from "./ProviderButton.tsx"
 import EmailSignIn from "./EmailSignIn.tsx"
 import ProgressTab from "./ProgressTab.tsx"
+import Switch from "../components/Switch.tsx"
 import {ListenForClicks} from "../viewer/acceptedClicks.ts"
 import "./Account.css"
 
@@ -87,6 +88,8 @@ function AccountSettings({state, store, onDelete, linkedMultiplier}: AccountPane
 
         {linked.length > 0 && <UsernameForm key={state.username ?? ""} state={state} store={store}/>}
         {linked.length > 0 && state.username !== undefined && <ColorPicker name={state.username} state={state} store={store}/>}
+        {linked.length > 0 && state.username !== undefined && state.shownInClips !== undefined
+            && <ClipsSwitch shown={state.shownInClips} state={state} store={store}/>}
 
         {buttons.map((provider) => <ProviderButton key={provider}
                                                    provider={provider}
@@ -211,5 +214,17 @@ function ColorPicker({name, state, store}: {name: string, state: Ready, store: A
         </div>
         <p className="account-name-hint">Everyone sees it in the chat and the player list. Grey until you pick one.</p>
         {state.colorFailure && <p className="account-failure" role="alert">{colorMessageOf(state.colorFailure)}</p>}
+    </div>
+}
+
+function ClipsSwitch({shown, state, store}: {shown: boolean, state: Ready, store: AccountStore}) {
+    return <div className="account-clips" aria-busy={state.savingShown === true}>
+        <div className="panel-box">
+            <Switch label="Show my name in clips"
+                    checked={shown}
+                    disabled={state.busy !== undefined || state.naming === true}
+                    onChange={(on) => void store.setShownInClips(on)}/>
+        </div>
+        {state.shownFailure && <p className="account-failure" role="alert">{clipsMessageOf(state.shownFailure)}</p>}
     </div>
 }

@@ -29,8 +29,14 @@ func findings(t *testing.T) posts.Findings {
 				{Code: "in", Continent: "South Asia", Tiles: 6300, Changed: 3400, HoldersStart: map[string]int{"dz": 2600}, HoldersEnd: map[string]int{"fr": 6100}, Takers: map[string]int{"fr": 3400}},
 			},
 			Flags: []posts.FrontFlag{
-				{Code: "fr", Continent: "Europe", Took: 8700, Lost: 3000, TookFrom: map[string]int{"tr": 5300, "dz": 3400}, Solidity: 0.86},
-				{Code: "tr", Continent: "Middle East", Took: 3000, Lost: 5300, TookFrom: map[string]int{"fr": 3000}, Solidity: 0.9},
+				{
+					Code: "fr", Continent: "Europe", Took: 8700, Lost: 3000, TookFrom: map[string]int{"tr": 5300, "dz": 3400}, Solidity: 0.86,
+					Fighters: []posts.Fighter{{Number: 1, Name: "BraveFox42", Took: 2100}, {Number: 3, Name: "EIRE", Took: 900}},
+				},
+				{
+					Code: "tr", Continent: "Middle East", Took: 3000, Lost: 5300, TookFrom: map[string]int{"fr": 3000}, Solidity: 0.9,
+					Fighters: []posts.Fighter{{Number: 2, Name: "Ankara55", Took: 1200}},
+				},
 				{Code: "dz", Continent: "Africa", Lost: 3400},
 			},
 			Bombs: 3, Score: 3886.5,
@@ -39,6 +45,7 @@ func findings(t *testing.T) posts.Findings {
 			{
 				Flag: "fr", Since: foundAt.Add(-12 * time.Hour), Until: foundAt, Took: 27000, ByContinent: map[string]int{"Europe": 12000, "South Asia": 9000},
 				NextTook: 9000, FlippedByContinent: map[string]int{"South Asia": 6246, "Europe": 800},
+				Fighters: []posts.Fighter{{Number: 1, Name: "BraveFox42", Took: 4000}},
 			},
 			{Flag: "br", Since: foundAt.Add(-12 * time.Hour), Until: foundAt, Took: 3710, ByContinent: map[string]int{"South America": 2425}, NextTook: 3420},
 		},
@@ -176,4 +183,32 @@ func TestWhatAStoryTellsOfIsSaidByItsNumber(t *testing.T) {
 	assert.Equal(t, "tour 1", posts.Story{Tour: 1}.Names())
 	assert.Equal(t, "place 2", posts.Story{Place: 2}.Names())
 	assert.Equal(t, "seasonal 1", posts.Story{Seasonal: 1}.Names())
+}
+
+func TestAStoryNamesOnlyTheFightersOfItsSides(t *testing.T) {
+	found := findings(t)
+
+	_, err := found.Check(posts.Story{
+		Front: 1, Kind: posts.Battle, Attacker: "fr", Rival: "tr", TakenFrom: []string{"tr"}, Countries: []string{"tr"},
+		Fighters: []posts.FighterNumber{1, 3, 2},
+	})
+	require.NoError(t, err)
+	_, err = found.Check(posts.Story{Tour: 1, Fighters: []posts.FighterNumber{1}})
+	require.NoError(t, err)
+
+	for name, story := range map[string]posts.Story{
+		"a fighter of no side": {
+			Front: 1, Kind: posts.Invasion, Attacker: "fr", TakenFrom: []string{"dz"}, Countries: []string{"in"},
+			Fighters: []posts.FighterNumber{2},
+		},
+		"a number twice": {
+			Front: 1, Kind: posts.Invasion, Attacker: "fr", TakenFrom: []string{"dz"}, Countries: []string{"in"},
+			Fighters: []posts.FighterNumber{1, 1},
+		},
+		"a fighter of another tour": {Tour: 2, Fighters: []posts.FighterNumber{1}},
+		"a fighter in a day won":    {Seasonal: 1, Fighters: []posts.FighterNumber{1}},
+	} {
+		_, err := found.Check(story)
+		assert.ErrorIs(t, err, posts.ErrInvalidStory, name)
+	}
 }
