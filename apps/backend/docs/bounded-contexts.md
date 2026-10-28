@@ -6,7 +6,7 @@
 - **`internal/player/`** — what the game keeps about one account: the name it chose, the tiles it took, its daily streak. See [Player](player.md).
 - **`internal/scoring/`** — the points accountant: the books and rounds the gamemaster opens and closes by id, each book's player tallies, and each round's results between countries. It knows no season, day or battle. See [Scoring](scoring.md).
 - **`internal/support/`** — what a player sends the operator: a feature suggestion, a bug report or a report of another player. See [Support](support.md).
-- **`internal/missions/`** — each account's three to five missions of the day, how far it took them, and what each pays once done. See [Missions](missions.md).
+- **`internal/missions/`** — each account's four or five missions of the day, how far it took them, and what each pays once done. See [Missions](missions.md).
 - **`internal/antibot/`** — whether a caller plays by hand: the watchdogs, the jury and the bans. It hears what callers do from planet and asks planet to refuse the ones it bans. See [Anti-bot](antibot.md).
 - **`internal/gamemaster/`** — the game's meta: which rule sets planet, the antibot and scoring play together, and when, on a schedule of entries (a battle tonight, the Final Battle), and when each season, day and battle starts and ends, told to scoring by id. It knows the sets' names, never their values: never a point. See [The gamemaster module](gamemaster.md).
 

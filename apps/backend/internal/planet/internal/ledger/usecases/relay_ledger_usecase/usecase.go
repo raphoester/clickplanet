@@ -93,6 +93,8 @@ func (u *UseCase) factsOf(position ledger.Position, event ledger.Event) []proto.
 		facts = append(facts, u.landedOf(position, told))
 	case ledger.Fortifying:
 		facts = append(facts, fortifiedOf(position, told))
+	case ledger.Shielding:
+		facts = append(facts, shieldPlacedOf(position, told))
 	}
 	return facts
 }
@@ -121,5 +123,16 @@ func fortifiedOf(position ledger.Position, fortifying ledger.Fortifying) *planet
 		FortifiedAt: timestamppb.New(fortifying.At),
 		AccountId:   fortifying.Account,
 		Position:    uint64(position),
+	}
+}
+
+func shieldPlacedOf(position ledger.Position, shielding ledger.Shielding) *planetv1.ShieldPlaced {
+	return &planetv1.ShieldPlaced{
+		AccountId: shielding.Account,
+		TileId:    shielding.Tile,
+		Country:   shielding.Country,
+		Shields:   uint32(shielding.Shields), //nolint:gosec // a tile's shields, bounded by bonuses.shield.perTile.
+		PlacedAt:  timestamppb.New(shielding.At),
+		Position:  uint64(position),
 	}
 }

@@ -22,7 +22,10 @@ var (
 
 var world = missions.World{
 	Territories: []missions.Territory{
-		{Flag: "dz", Tiles: 90_000}, {Flag: "pw", Tiles: 70_000}, {Flag: "us", Tiles: 1_000}, {Flag: "fr", Tiles: 999},
+		{Flag: "dz", Tiles: 90_000, Grounds: []missions.Holding{{Country: "br", Tiles: 4_000}, {Country: "fr", Tiles: 299}}},
+		{Flag: "pw", Tiles: 70_000},
+		{Flag: "us", Tiles: 1_000},
+		{Flag: "fr", Tiles: 999},
 	},
 	CountrySizes: []missions.Holding{
 		{Country: "br", Tiles: 9_000}, {Country: "fr", Tiles: 3_000}, {Country: "is", Tiles: 2_999}, {Country: "va", Tiles: 1},
@@ -38,6 +41,8 @@ func targetOf(order missions.Order) string {
 		return "from " + order.Flag
 	case missions.TakeIn:
 		return "in " + order.Ground
+	case missions.BombIn:
+		return "bomb " + order.Ground
 	}
 	return fmt.Sprintf("%T", order)
 }
@@ -45,9 +50,15 @@ func targetOf(order missions.Order) string {
 func within(t *testing.T, goal, least, most uint32, msg any) {
 	t.Helper()
 
+	between(t, goal, least, most, msg)
+	assert.Zero(t, goal%10, "%v: a goal is a round number", msg)
+}
+
+func between(t *testing.T, goal, least, most uint32, msg any) {
+	t.Helper()
+
 	assert.GreaterOrEqual(t, goal, least, msg)
 	assert.LessOrEqual(t, goal, most, msg)
-	assert.Zero(t, goal%10, "%v: a goal is a round number", msg)
 }
 
 type drawn struct {
@@ -76,7 +87,7 @@ var position uint64
 
 func take(flag, previous, ground string) missions.Take {
 	position++
-	return missions.Take{Account: ada, Flag: flag, Previous: previous, Ground: ground, At: monday, Position: position}
+	return missions.Take{Flag: flag, Previous: previous, Ground: ground, Position: position}
 }
 
 func TestADayEndsAtTheCutoff(t *testing.T) {
@@ -196,19 +207,18 @@ func TestWithNoGroundBigEnoughTheThirdMissionIsForTheFlag(t *testing.T) {
 	within(t, order.Goal, 300, 600, "the ground's goal, for the flag")
 }
 
-func TestADayHasThreeToFiveMissions(t *testing.T) {
+func TestADayHasFourToFiveMissions(t *testing.T) {
 	counts := cpcolls.NewSet[int]()
 	for d := range briefs(30) {
-		assert.GreaterOrEqual(t, len(d.brief), 3, d)
-		assert.LessOrEqual(t, len(d.brief), 5, d)
 		counts.Add(len(d.brief))
 	}
 
-	assert.Equal(t, cpcolls.NewSet(3, 4, 5), counts, "the count changes with the day")
+	assert.Equal(t, cpcolls.NewSet(4, 5), counts, "the count changes with the day")
 }
 
-func TestTheExtraMissionsAreMoreRivalsAndGroundsNeverAimedAtTwice(t *testing.T) {
-	for d := range briefs(30) {
+func TestAfterTheBankTheRivalAndTheGroundComeFeatsOfOtherKindsEachOnce(t *testing.T) {
+	kinds := cpcolls.NewSet[string]()
+	for d := range briefs(60) {
 		targets := cpcolls.NewSet[string]()
 		for _, mission := range d.brief {
 			assert.False(t, targets.Contains(targetOf(mission.Order)), "%s: %s twice", d, targetOf(mission.Order))
@@ -216,22 +226,52 @@ func TestTheExtraMissionsAreMoreRivalsAndGroundsNeverAimedAtTwice(t *testing.T) 
 		}
 		for _, extra := range d.brief[3:] {
 			switch order := extra.Order.(type) {
-			case missions.TakeFrom:
-				within(t, order.Goal, 80, 160, d)
-			case missions.TakeIn:
-				within(t, order.Goal, 300, 600, d)
+			case missions.TakeFromIn:
+				assert.Equal(t, missions.TakeFromIn{Flag: "dz", Ground: "br", Goal: order.Goal}, order, "%s: dz holds 300 tiles in br alone", d)
+				within(t, order.Goal, 40, 80, d)
+			case missions.CatchBoxes:
+				between(t, order.Goal, 3, 6, d)
+			case missions.AnswerQuizzes:
+				between(t, order.Goal, 2, 4, d)
+			case missions.BombIn:
+				assert.Contains(t, []string{"br", "fr"}, order.Ground, "%s: a big ground", d)
+				assert.NotEqual(t, d.flag, order.Ground, d)
+				between(t, order.Goal, 1, 2, d)
+			case missions.ShieldTiles:
+				assert.Equal(t, uint32(10), order.Shields, d)
+				between(t, order.Goal, 1, 3, d)
+			case missions.FortifyTiles:
+				within(t, order.Goal, 20, 60, d)
 			default:
-				assert.Failf(t, "an extra is a rival or a ground", "%s: %T", d, extra.Order)
+				assert.Failf(t, "an extra is a feat", "%s: %T", d, extra.Order)
+			}
+			kinds.Add(fmt.Sprintf("%T", extra.Order))
+		}
+	}
+
+	assert.Equal(t, 6, kinds.Len(), "every kind of feat over 240 briefs: %v", kinds)
+}
+
+func TestARaidIsNeverOnTheFlagItself(t *testing.T) {
+	for d := range briefs(30) {
+		for _, mission := range d.brief {
+			if raid, ok := mission.Order.(missions.TakeFromIn); ok {
+				assert.NotEqual(t, d.flag, raid.Flag, d)
 			}
 		}
 	}
 }
 
-func TestWithNothingMoreToAimAtADayHasThreeMissions(t *testing.T) {
+func TestWithNothingToAimAtADayStillHasItsFeats(t *testing.T) {
 	bare := missions.World{Territories: []missions.Territory{{Flag: "dz", Tiles: 9_000}}}
 
 	for day := range 30 {
-		assert.Len(t, missions.Draw(calendar.DayOf(monday.AddDate(0, 0, day)), ada, "fr", bare).Snapshot(), 3, "day %d", day)
+		brief := missions.Draw(calendar.DayOf(monday.AddDate(0, 0, day)), ada, "fr", bare).Snapshot()
+		assert.GreaterOrEqual(t, len(brief), 4, "day %d", day)
+		for _, extra := range brief[3:] {
+			assert.NotContains(t, []string{"missions.BombIn", "missions.TakeFromIn"}, fmt.Sprintf("%T", extra.Order),
+				"day %d: no ground to bomb, no rival's ground to raid", day)
+		}
 	}
 }
 
@@ -361,13 +401,13 @@ var frBrief = []missions.MissionSnapshot{
 }
 
 func TestATakeCountsForEveryMissionItFits(t *testing.T) {
-	sheet := missions.SheetOf(missions.SheetSnapshot{}).WithTake(take("fr", "dz", "br"), briefOf(t, frBrief...))
+	sheet := missions.SheetOf(missions.SheetSnapshot{}).WithFact(take("fr", "dz", "br"), briefOf(t, frBrief...))
 
 	assert.Equal(t, map[missions.MissionID]uint32{bank: 1, rival: 1, ground: 1}, sheet.Snapshot().Progress)
 }
 
 func TestATakeForAnotherFlagCountsForTheMissionsItFits(t *testing.T) {
-	sheet := missions.SheetOf(missions.SheetSnapshot{}).WithTake(take("de", "dz", "br"), briefOf(t, frBrief...))
+	sheet := missions.SheetOf(missions.SheetSnapshot{}).WithFact(take("de", "dz", "br"), briefOf(t, frBrief...))
 
 	assert.Equal(t, map[missions.MissionID]uint32{rival: 1, ground: 1}, sheet.Snapshot().Progress, "the tiles for France do not")
 }
@@ -375,7 +415,7 @@ func TestATakeForAnotherFlagCountsForTheMissionsItFits(t *testing.T) {
 func TestAMissionCountsNoFurtherThanItsGoal(t *testing.T) {
 	sheet := missions.SheetOf(missions.SheetSnapshot{})
 	for range 5 {
-		sheet = sheet.WithTake(take("fr", "", ""), briefOf(t, frBrief...))
+		sheet = sheet.WithFact(take("fr", "", ""), briefOf(t, frBrief...))
 	}
 
 	assert.Equal(t, uint32(2), sheet.Snapshot().Progress[bank])
@@ -385,34 +425,115 @@ func TestATakeToldTwiceCountsOnce(t *testing.T) {
 	brief := briefOf(t, frBrief...)
 	told := take("fr", "dz", "")
 
-	sheet := missions.SheetOf(missions.SheetSnapshot{}).WithTake(told, brief).WithTake(told, brief)
+	sheet := missions.SheetOf(missions.SheetSnapshot{}).WithFact(told, brief).WithFact(told, brief)
 
 	assert.Equal(t, map[missions.MissionID]uint32{bank: 1, rival: 1}, sheet.Snapshot().Progress)
-	assert.Equal(t, told.Position+1, sheet.Snapshot().TakesBelow)
+	assert.Equal(t, told.Position+1, sheet.Snapshot().Counted.TakesBelow)
 }
 
 func TestATakeBelowTheMarkCountsNothing(t *testing.T) {
-	sheet := missions.SheetOf(missions.SheetSnapshot{TakesBelow: 1_000})
+	sheet := missions.SheetOf(missions.SheetSnapshot{Counted: missions.Counted{TakesBelow: 1_000}})
 
-	sheet = sheet.WithTake(missions.Take{Account: ada, Flag: "fr", At: monday, Position: 999}, briefOf(t, frBrief...))
+	sheet = sheet.WithFact(missions.Take{Flag: "fr", Position: 999}, briefOf(t, frBrief...))
 
 	assert.Empty(t, sheet.Snapshot().Progress)
 }
 
 func TestATakeThatCountsNothingLeavesTheMark(t *testing.T) {
-	sheet := missions.SheetOf(missions.SheetSnapshot{TakesBelow: 5})
+	sheet := missions.SheetOf(missions.SheetSnapshot{Counted: missions.Counted{TakesBelow: 5}})
 
-	sheet = sheet.WithTake(missions.Take{Account: ada, Flag: "de", At: monday, Position: 9}, briefOf(t, frBrief...))
+	sheet = sheet.WithFact(missions.Take{Flag: "de", Position: 9}, briefOf(t, frBrief...))
 
-	assert.Equal(t, uint64(5), sheet.Snapshot().TakesBelow)
+	assert.Equal(t, uint64(5), sheet.Snapshot().Counted.TakesBelow)
 }
 
 func TestAWithTakeLeavesTheSheetItWasCalledOnAlone(t *testing.T) {
 	before := missions.SheetOf(missions.SheetSnapshot{})
 
-	_ = before.WithTake(take("fr", "", ""), briefOf(t, frBrief...))
+	_ = before.WithFact(take("fr", "", ""), briefOf(t, frBrief...))
 
 	assert.Empty(t, before.Snapshot().Progress)
+}
+
+var (
+	raid    = missions.MissionID{15: 4}
+	boxes   = missions.MissionID{15: 5}
+	answers = missions.MissionID{15: 6}
+	bombs   = missions.MissionID{15: 7}
+	walls   = missions.MissionID{15: 8}
+	fortify = missions.MissionID{15: 9}
+)
+
+var featBrief = []missions.MissionSnapshot{
+	{ID: raid, Order: missions.TakeFromIn{Flag: "dz", Ground: "br", Goal: 5}},
+	{ID: boxes, Order: missions.CatchBoxes{Goal: 5}},
+	{ID: answers, Order: missions.AnswerQuizzes{Goal: 5}},
+	{ID: bombs, Order: missions.BombIn{Ground: "br", Goal: 5}},
+	{ID: walls, Order: missions.ShieldTiles{Shields: 10, Goal: 5}},
+	{ID: fortify, Order: missions.FortifyTiles{Goal: 50}},
+}
+
+func TestEachFactCountsOnTheMissionsOfItsKind(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		fact  missions.Fact
+		moved map[missions.MissionID]uint32
+	}{
+		{"a take from dz in br", take("fr", "dz", "br"), map[missions.MissionID]uint32{raid: 1}},
+		{"a take from dz elsewhere", take("fr", "dz", "es"), map[missions.MissionID]uint32{}},
+		{"a box", missions.BoxCaught{At: monday}, map[missions.MissionID]uint32{boxes: 1}},
+		{"a right answer", missions.RightAnswer{At: monday}, map[missions.MissionID]uint32{answers: 1}},
+		{"a bomb on br", missions.BombLanded{Ground: "br", Position: 1}, map[missions.MissionID]uint32{bombs: 1}},
+		{"a bomb in the sea", missions.BombLanded{Position: 1}, map[missions.MissionID]uint32{}},
+		{"the shield that fills a tile", missions.ShieldPlaced{Shields: 10, Position: 1}, map[missions.MissionID]uint32{walls: 1}},
+		{"a shield short of it", missions.ShieldPlaced{Shields: 9, Position: 1}, map[missions.MissionID]uint32{}},
+		{"a fortify of 7 tiles", missions.Fortified{Tiles: 7, Position: 1}, map[missions.MissionID]uint32{fortify: 7}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			sheet := missions.SheetOf(missions.SheetSnapshot{}).WithFact(tc.fact, briefOf(t, featBrief...))
+
+			assert.Equal(t, tc.moved, sheet.Snapshot().Progress)
+		})
+	}
+}
+
+func TestAFortifyCountsItsTilesUpToTheGoal(t *testing.T) {
+	brief := briefOf(t, featBrief...)
+
+	sheet := missions.SheetOf(missions.SheetSnapshot{}).
+		WithFact(missions.Fortified{Tiles: 40, Position: 1}, brief).
+		WithFact(missions.Fortified{Tiles: 40, Position: 2}, brief)
+
+	assert.Equal(t, uint32(50), sheet.Snapshot().Progress[fortify])
+}
+
+func TestEachKindOfFactKeepsItsOwnMark(t *testing.T) {
+	brief := briefOf(t, featBrief...)
+
+	sheet := missions.SheetOf(missions.SheetSnapshot{}).
+		WithFact(missions.Take{Flag: "fr", Previous: "dz", Ground: "br", Position: 9}, brief).
+		WithFact(missions.BombLanded{Ground: "br", Position: 3}, brief).
+		WithFact(missions.ShieldPlaced{Shields: 10, Position: 4}, brief).
+		WithFact(missions.Fortified{Tiles: 1, Position: 5}, brief).
+		WithFact(missions.BoxCaught{At: monday}, brief).
+		WithFact(missions.RightAnswer{At: monday.Add(-time.Hour)}, brief)
+
+	assert.Equal(t, missions.Counted{
+		TakesBelow: 10, BombsBelow: 4, ShieldsBelow: 5, FortifiesBelow: 6, BoxesUntil: monday, AnswersUntil: monday.Add(-time.Hour),
+	}, sheet.Snapshot().Counted, "a bomb below the last take still counts")
+}
+
+func TestABoxOrAnAnswerToldAgainCountsOnce(t *testing.T) {
+	brief := briefOf(t, featBrief...)
+	sheet := missions.SheetOf(missions.SheetSnapshot{})
+
+	for range 2 {
+		sheet = sheet.WithFact(missions.BoxCaught{At: monday.Add(time.Nanosecond)}, brief).WithFact(missions.RightAnswer{At: monday}, brief)
+	}
+	sheet = sheet.WithFact(missions.BoxCaught{At: monday.Add(-time.Second)}, brief)
+
+	assert.Equal(t, map[missions.MissionID]uint32{boxes: 1, answers: 1}, sheet.Snapshot().Progress,
+		"a time at or before the mark was counted, to the microsecond postgres keeps")
 }
 
 func TestEachMissionDoneIsPaidOnce(t *testing.T) {

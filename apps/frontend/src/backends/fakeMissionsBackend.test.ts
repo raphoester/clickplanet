@@ -1,5 +1,6 @@
 import {describe, expect, it, vi} from "vitest"
 import {Allegiance} from "../domain/allegiance.ts"
+import {reachedOf} from "../domain/missions.ts"
 import {AllegianceSource, TileClicker} from "./backend.ts"
 import {FakeMissionsBackend} from "./fakeMissionsBackend.ts"
 
@@ -21,13 +22,13 @@ describe("FakeMissionsBackend", () => {
 
         fake.prime()
         const primed = await fake.missions()
-        expect(primed.missions.map((mission) => mission.order.goal - mission.order.taken)).toEqual([1, 1, 1, 1])
+        expect(primed.missions.map((mission) => mission.order.goal - reachedOf(mission.order))).toEqual([1, 1, 1, 1, 1])
         expect(grant).not.toHaveBeenCalled()
 
         await clicking.clickTile(1, "fr")
         const done = await fake.missions()
 
         expect(done.missions.every((mission) => mission.done && mission.paid)).toBe(true)
-        expect(grant.mock.calls.map(([kind]) => kind)).toEqual(["shields", "spreadClicks", "bomb", "encloseClicks"])
+        expect(grant.mock.calls.map(([kind]) => kind)).toEqual(["shields", "spreadClicks", "bomb", "encloseClicks", "shields"])
     })
 })
