@@ -21,8 +21,8 @@ import (
 const _ = connect.IsAtLeastVersion1_13_0
 
 const (
-	// SeasonServiceName is the fully-qualified name of the SeasonService service.
-	SeasonServiceName = "scoring.v1.SeasonService"
+	// ScoringServiceName is the fully-qualified name of the ScoringService service.
+	ScoringServiceName = "scoring.v1.ScoringService"
 )
 
 // These constants are the fully-qualified names of the RPCs defined in this package. They're
@@ -33,199 +33,207 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// SeasonServiceGetSeasonProcedure is the fully-qualified name of the SeasonService's GetSeason RPC.
-	SeasonServiceGetSeasonProcedure = "/scoring.v1.SeasonService/GetSeason"
-	// SeasonServiceGetStandingsProcedure is the fully-qualified name of the SeasonService's
-	// GetStandings RPC.
-	SeasonServiceGetStandingsProcedure = "/scoring.v1.SeasonService/GetStandings"
-	// SeasonServiceGetMySeasonProcedure is the fully-qualified name of the SeasonService's GetMySeason
+	// ScoringServiceGetBoardProcedure is the fully-qualified name of the ScoringService's GetBoard RPC.
+	ScoringServiceGetBoardProcedure = "/scoring.v1.ScoringService/GetBoard"
+	// ScoringServiceGetMyTallyProcedure is the fully-qualified name of the ScoringService's GetMyTally
 	// RPC.
-	SeasonServiceGetMySeasonProcedure = "/scoring.v1.SeasonService/GetMySeason"
-	// SeasonServiceListenForEventsProcedure is the fully-qualified name of the SeasonService's
+	ScoringServiceGetMyTallyProcedure = "/scoring.v1.ScoringService/GetMyTally"
+	// ScoringServiceGetRoundProcedure is the fully-qualified name of the ScoringService's GetRound RPC.
+	ScoringServiceGetRoundProcedure = "/scoring.v1.ScoringService/GetRound"
+	// ScoringServiceGetScoresProcedure is the fully-qualified name of the ScoringService's GetScores
+	// RPC.
+	ScoringServiceGetScoresProcedure = "/scoring.v1.ScoringService/GetScores"
+	// ScoringServiceListenForEventsProcedure is the fully-qualified name of the ScoringService's
 	// ListenForEvents RPC.
-	SeasonServiceListenForEventsProcedure = "/scoring.v1.SeasonService/ListenForEvents"
-	// SeasonServiceGetRaceProcedure is the fully-qualified name of the SeasonService's GetRace RPC.
-	SeasonServiceGetRaceProcedure = "/scoring.v1.SeasonService/GetRace"
+	ScoringServiceListenForEventsProcedure = "/scoring.v1.ScoringService/ListenForEvents"
 )
 
-// SeasonServiceClient is a client for the scoring.v1.SeasonService service.
-type SeasonServiceClient interface {
-	GetSeason(context.Context, *connect.Request[v1.GetSeasonRequest]) (*connect.Response[v1.GetSeasonResponse], error)
-	GetStandings(context.Context, *connect.Request[v1.GetStandingsRequest]) (*connect.Response[v1.GetStandingsResponse], error)
-	GetMySeason(context.Context, *connect.Request[v1.GetMySeasonRequest]) (*connect.Response[v1.GetMySeasonResponse], error)
-	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest]) (*connect.ServerStreamForClient[v1.SeasonEvent], error)
-	// The race the stream sends, once: for a reader that does not follow it, the clips job.
-	GetRace(context.Context, *connect.Request[v1.GetRaceRequest]) (*connect.Response[v1.GetRaceResponse], error)
+// ScoringServiceClient is a client for the scoring.v1.ScoringService service.
+type ScoringServiceClient interface {
+	// A book's top 10 players, of every flag or of one.
+	GetBoard(context.Context, *connect.Request[v1.GetBoardRequest]) (*connect.Response[v1.GetBoardResponse], error)
+	// The caller's tally in a book.
+	GetMyTally(context.Context, *connect.Request[v1.GetMyTallyRequest]) (*connect.Response[v1.GetMyTallyResponse], error)
+	// A round: its live standings while open, its results once scored.
+	GetRound(context.Context, *connect.Request[v1.GetRoundRequest]) (*connect.Response[v1.GetRoundResponse], error)
+	// A book's countries, by points.
+	GetScores(context.Context, *connect.Request[v1.GetScoresRequest]) (*connect.Response[v1.GetScoresResponse], error)
+	// A book's board and scores, and the rounds asked for, then each change; a heartbeat meanwhile.
+	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest]) (*connect.ServerStreamForClient[v1.ScoringEvent], error)
 }
 
-// NewSeasonServiceClient constructs a client for the scoring.v1.SeasonService service. By default,
-// it uses the Connect protocol with the binary Protobuf Codec, asks for gzipped responses, and
-// sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the connect.WithGRPC()
-// or connect.WithGRPCWeb() options.
+// NewScoringServiceClient constructs a client for the scoring.v1.ScoringService service. By
+// default, it uses the Connect protocol with the binary Protobuf Codec, asks for gzipped responses,
+// and sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the
+// connect.WithGRPC() or connect.WithGRPCWeb() options.
 //
 // The URL supplied here should be the base URL for the Connect or gRPC server (for example,
 // http://api.acme.com or https://acme.com/grpc).
-func NewSeasonServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) SeasonServiceClient {
+func NewScoringServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) ScoringServiceClient {
 	baseURL = strings.TrimRight(baseURL, "/")
-	seasonServiceMethods := v1.File_scoring_v1_scoring_proto.Services().ByName("SeasonService").Methods()
-	return &seasonServiceClient{
-		getSeason: connect.NewClient[v1.GetSeasonRequest, v1.GetSeasonResponse](
+	scoringServiceMethods := v1.File_scoring_v1_scoring_proto.Services().ByName("ScoringService").Methods()
+	return &scoringServiceClient{
+		getBoard: connect.NewClient[v1.GetBoardRequest, v1.GetBoardResponse](
 			httpClient,
-			baseURL+SeasonServiceGetSeasonProcedure,
-			connect.WithSchema(seasonServiceMethods.ByName("GetSeason")),
+			baseURL+ScoringServiceGetBoardProcedure,
+			connect.WithSchema(scoringServiceMethods.ByName("GetBoard")),
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
-		getStandings: connect.NewClient[v1.GetStandingsRequest, v1.GetStandingsResponse](
+		getMyTally: connect.NewClient[v1.GetMyTallyRequest, v1.GetMyTallyResponse](
 			httpClient,
-			baseURL+SeasonServiceGetStandingsProcedure,
-			connect.WithSchema(seasonServiceMethods.ByName("GetStandings")),
+			baseURL+ScoringServiceGetMyTallyProcedure,
+			connect.WithSchema(scoringServiceMethods.ByName("GetMyTally")),
+			connect.WithClientOptions(opts...),
+		),
+		getRound: connect.NewClient[v1.GetRoundRequest, v1.GetRoundResponse](
+			httpClient,
+			baseURL+ScoringServiceGetRoundProcedure,
+			connect.WithSchema(scoringServiceMethods.ByName("GetRound")),
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
-		getMySeason: connect.NewClient[v1.GetMySeasonRequest, v1.GetMySeasonResponse](
+		getScores: connect.NewClient[v1.GetScoresRequest, v1.GetScoresResponse](
 			httpClient,
-			baseURL+SeasonServiceGetMySeasonProcedure,
-			connect.WithSchema(seasonServiceMethods.ByName("GetMySeason")),
-			connect.WithClientOptions(opts...),
-		),
-		listenForEvents: connect.NewClient[v1.ListenForEventsRequest, v1.SeasonEvent](
-			httpClient,
-			baseURL+SeasonServiceListenForEventsProcedure,
-			connect.WithSchema(seasonServiceMethods.ByName("ListenForEvents")),
-			connect.WithClientOptions(opts...),
-		),
-		getRace: connect.NewClient[v1.GetRaceRequest, v1.GetRaceResponse](
-			httpClient,
-			baseURL+SeasonServiceGetRaceProcedure,
-			connect.WithSchema(seasonServiceMethods.ByName("GetRace")),
+			baseURL+ScoringServiceGetScoresProcedure,
+			connect.WithSchema(scoringServiceMethods.ByName("GetScores")),
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
+		listenForEvents: connect.NewClient[v1.ListenForEventsRequest, v1.ScoringEvent](
+			httpClient,
+			baseURL+ScoringServiceListenForEventsProcedure,
+			connect.WithSchema(scoringServiceMethods.ByName("ListenForEvents")),
 			connect.WithClientOptions(opts...),
 		),
 	}
 }
 
-// seasonServiceClient implements SeasonServiceClient.
-type seasonServiceClient struct {
-	getSeason       *connect.Client[v1.GetSeasonRequest, v1.GetSeasonResponse]
-	getStandings    *connect.Client[v1.GetStandingsRequest, v1.GetStandingsResponse]
-	getMySeason     *connect.Client[v1.GetMySeasonRequest, v1.GetMySeasonResponse]
-	listenForEvents *connect.Client[v1.ListenForEventsRequest, v1.SeasonEvent]
-	getRace         *connect.Client[v1.GetRaceRequest, v1.GetRaceResponse]
+// scoringServiceClient implements ScoringServiceClient.
+type scoringServiceClient struct {
+	getBoard        *connect.Client[v1.GetBoardRequest, v1.GetBoardResponse]
+	getMyTally      *connect.Client[v1.GetMyTallyRequest, v1.GetMyTallyResponse]
+	getRound        *connect.Client[v1.GetRoundRequest, v1.GetRoundResponse]
+	getScores       *connect.Client[v1.GetScoresRequest, v1.GetScoresResponse]
+	listenForEvents *connect.Client[v1.ListenForEventsRequest, v1.ScoringEvent]
 }
 
-// GetSeason calls scoring.v1.SeasonService.GetSeason.
-func (c *seasonServiceClient) GetSeason(ctx context.Context, req *connect.Request[v1.GetSeasonRequest]) (*connect.Response[v1.GetSeasonResponse], error) {
-	return c.getSeason.CallUnary(ctx, req)
+// GetBoard calls scoring.v1.ScoringService.GetBoard.
+func (c *scoringServiceClient) GetBoard(ctx context.Context, req *connect.Request[v1.GetBoardRequest]) (*connect.Response[v1.GetBoardResponse], error) {
+	return c.getBoard.CallUnary(ctx, req)
 }
 
-// GetStandings calls scoring.v1.SeasonService.GetStandings.
-func (c *seasonServiceClient) GetStandings(ctx context.Context, req *connect.Request[v1.GetStandingsRequest]) (*connect.Response[v1.GetStandingsResponse], error) {
-	return c.getStandings.CallUnary(ctx, req)
+// GetMyTally calls scoring.v1.ScoringService.GetMyTally.
+func (c *scoringServiceClient) GetMyTally(ctx context.Context, req *connect.Request[v1.GetMyTallyRequest]) (*connect.Response[v1.GetMyTallyResponse], error) {
+	return c.getMyTally.CallUnary(ctx, req)
 }
 
-// GetMySeason calls scoring.v1.SeasonService.GetMySeason.
-func (c *seasonServiceClient) GetMySeason(ctx context.Context, req *connect.Request[v1.GetMySeasonRequest]) (*connect.Response[v1.GetMySeasonResponse], error) {
-	return c.getMySeason.CallUnary(ctx, req)
+// GetRound calls scoring.v1.ScoringService.GetRound.
+func (c *scoringServiceClient) GetRound(ctx context.Context, req *connect.Request[v1.GetRoundRequest]) (*connect.Response[v1.GetRoundResponse], error) {
+	return c.getRound.CallUnary(ctx, req)
 }
 
-// ListenForEvents calls scoring.v1.SeasonService.ListenForEvents.
-func (c *seasonServiceClient) ListenForEvents(ctx context.Context, req *connect.Request[v1.ListenForEventsRequest]) (*connect.ServerStreamForClient[v1.SeasonEvent], error) {
+// GetScores calls scoring.v1.ScoringService.GetScores.
+func (c *scoringServiceClient) GetScores(ctx context.Context, req *connect.Request[v1.GetScoresRequest]) (*connect.Response[v1.GetScoresResponse], error) {
+	return c.getScores.CallUnary(ctx, req)
+}
+
+// ListenForEvents calls scoring.v1.ScoringService.ListenForEvents.
+func (c *scoringServiceClient) ListenForEvents(ctx context.Context, req *connect.Request[v1.ListenForEventsRequest]) (*connect.ServerStreamForClient[v1.ScoringEvent], error) {
 	return c.listenForEvents.CallServerStream(ctx, req)
 }
 
-// GetRace calls scoring.v1.SeasonService.GetRace.
-func (c *seasonServiceClient) GetRace(ctx context.Context, req *connect.Request[v1.GetRaceRequest]) (*connect.Response[v1.GetRaceResponse], error) {
-	return c.getRace.CallUnary(ctx, req)
+// ScoringServiceHandler is an implementation of the scoring.v1.ScoringService service.
+type ScoringServiceHandler interface {
+	// A book's top 10 players, of every flag or of one.
+	GetBoard(context.Context, *connect.Request[v1.GetBoardRequest]) (*connect.Response[v1.GetBoardResponse], error)
+	// The caller's tally in a book.
+	GetMyTally(context.Context, *connect.Request[v1.GetMyTallyRequest]) (*connect.Response[v1.GetMyTallyResponse], error)
+	// A round: its live standings while open, its results once scored.
+	GetRound(context.Context, *connect.Request[v1.GetRoundRequest]) (*connect.Response[v1.GetRoundResponse], error)
+	// A book's countries, by points.
+	GetScores(context.Context, *connect.Request[v1.GetScoresRequest]) (*connect.Response[v1.GetScoresResponse], error)
+	// A book's board and scores, and the rounds asked for, then each change; a heartbeat meanwhile.
+	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest], *connect.ServerStream[v1.ScoringEvent]) error
 }
 
-// SeasonServiceHandler is an implementation of the scoring.v1.SeasonService service.
-type SeasonServiceHandler interface {
-	GetSeason(context.Context, *connect.Request[v1.GetSeasonRequest]) (*connect.Response[v1.GetSeasonResponse], error)
-	GetStandings(context.Context, *connect.Request[v1.GetStandingsRequest]) (*connect.Response[v1.GetStandingsResponse], error)
-	GetMySeason(context.Context, *connect.Request[v1.GetMySeasonRequest]) (*connect.Response[v1.GetMySeasonResponse], error)
-	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest], *connect.ServerStream[v1.SeasonEvent]) error
-	// The race the stream sends, once: for a reader that does not follow it, the clips job.
-	GetRace(context.Context, *connect.Request[v1.GetRaceRequest]) (*connect.Response[v1.GetRaceResponse], error)
-}
-
-// NewSeasonServiceHandler builds an HTTP handler from the service implementation. It returns the
+// NewScoringServiceHandler builds an HTTP handler from the service implementation. It returns the
 // path on which to mount the handler and the handler itself.
 //
 // By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
 // and JSON codecs. They also support gzip compression.
-func NewSeasonServiceHandler(svc SeasonServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
-	seasonServiceMethods := v1.File_scoring_v1_scoring_proto.Services().ByName("SeasonService").Methods()
-	seasonServiceGetSeasonHandler := connect.NewUnaryHandler(
-		SeasonServiceGetSeasonProcedure,
-		svc.GetSeason,
-		connect.WithSchema(seasonServiceMethods.ByName("GetSeason")),
+func NewScoringServiceHandler(svc ScoringServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	scoringServiceMethods := v1.File_scoring_v1_scoring_proto.Services().ByName("ScoringService").Methods()
+	scoringServiceGetBoardHandler := connect.NewUnaryHandler(
+		ScoringServiceGetBoardProcedure,
+		svc.GetBoard,
+		connect.WithSchema(scoringServiceMethods.ByName("GetBoard")),
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
-	seasonServiceGetStandingsHandler := connect.NewUnaryHandler(
-		SeasonServiceGetStandingsProcedure,
-		svc.GetStandings,
-		connect.WithSchema(seasonServiceMethods.ByName("GetStandings")),
+	scoringServiceGetMyTallyHandler := connect.NewUnaryHandler(
+		ScoringServiceGetMyTallyProcedure,
+		svc.GetMyTally,
+		connect.WithSchema(scoringServiceMethods.ByName("GetMyTally")),
+		connect.WithHandlerOptions(opts...),
+	)
+	scoringServiceGetRoundHandler := connect.NewUnaryHandler(
+		ScoringServiceGetRoundProcedure,
+		svc.GetRound,
+		connect.WithSchema(scoringServiceMethods.ByName("GetRound")),
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
-	seasonServiceGetMySeasonHandler := connect.NewUnaryHandler(
-		SeasonServiceGetMySeasonProcedure,
-		svc.GetMySeason,
-		connect.WithSchema(seasonServiceMethods.ByName("GetMySeason")),
+	scoringServiceGetScoresHandler := connect.NewUnaryHandler(
+		ScoringServiceGetScoresProcedure,
+		svc.GetScores,
+		connect.WithSchema(scoringServiceMethods.ByName("GetScores")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
-	seasonServiceListenForEventsHandler := connect.NewServerStreamHandler(
-		SeasonServiceListenForEventsProcedure,
+	scoringServiceListenForEventsHandler := connect.NewServerStreamHandler(
+		ScoringServiceListenForEventsProcedure,
 		svc.ListenForEvents,
-		connect.WithSchema(seasonServiceMethods.ByName("ListenForEvents")),
+		connect.WithSchema(scoringServiceMethods.ByName("ListenForEvents")),
 		connect.WithHandlerOptions(opts...),
 	)
-	seasonServiceGetRaceHandler := connect.NewUnaryHandler(
-		SeasonServiceGetRaceProcedure,
-		svc.GetRace,
-		connect.WithSchema(seasonServiceMethods.ByName("GetRace")),
-		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
-		connect.WithHandlerOptions(opts...),
-	)
-	return "/scoring.v1.SeasonService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return "/scoring.v1.ScoringService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case SeasonServiceGetSeasonProcedure:
-			seasonServiceGetSeasonHandler.ServeHTTP(w, r)
-		case SeasonServiceGetStandingsProcedure:
-			seasonServiceGetStandingsHandler.ServeHTTP(w, r)
-		case SeasonServiceGetMySeasonProcedure:
-			seasonServiceGetMySeasonHandler.ServeHTTP(w, r)
-		case SeasonServiceListenForEventsProcedure:
-			seasonServiceListenForEventsHandler.ServeHTTP(w, r)
-		case SeasonServiceGetRaceProcedure:
-			seasonServiceGetRaceHandler.ServeHTTP(w, r)
+		case ScoringServiceGetBoardProcedure:
+			scoringServiceGetBoardHandler.ServeHTTP(w, r)
+		case ScoringServiceGetMyTallyProcedure:
+			scoringServiceGetMyTallyHandler.ServeHTTP(w, r)
+		case ScoringServiceGetRoundProcedure:
+			scoringServiceGetRoundHandler.ServeHTTP(w, r)
+		case ScoringServiceGetScoresProcedure:
+			scoringServiceGetScoresHandler.ServeHTTP(w, r)
+		case ScoringServiceListenForEventsProcedure:
+			scoringServiceListenForEventsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
 	})
 }
 
-// UnimplementedSeasonServiceHandler returns CodeUnimplemented from all methods.
-type UnimplementedSeasonServiceHandler struct{}
+// UnimplementedScoringServiceHandler returns CodeUnimplemented from all methods.
+type UnimplementedScoringServiceHandler struct{}
 
-func (UnimplementedSeasonServiceHandler) GetSeason(context.Context, *connect.Request[v1.GetSeasonRequest]) (*connect.Response[v1.GetSeasonResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("scoring.v1.SeasonService.GetSeason is not implemented"))
+func (UnimplementedScoringServiceHandler) GetBoard(context.Context, *connect.Request[v1.GetBoardRequest]) (*connect.Response[v1.GetBoardResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("scoring.v1.ScoringService.GetBoard is not implemented"))
 }
 
-func (UnimplementedSeasonServiceHandler) GetStandings(context.Context, *connect.Request[v1.GetStandingsRequest]) (*connect.Response[v1.GetStandingsResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("scoring.v1.SeasonService.GetStandings is not implemented"))
+func (UnimplementedScoringServiceHandler) GetMyTally(context.Context, *connect.Request[v1.GetMyTallyRequest]) (*connect.Response[v1.GetMyTallyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("scoring.v1.ScoringService.GetMyTally is not implemented"))
 }
 
-func (UnimplementedSeasonServiceHandler) GetMySeason(context.Context, *connect.Request[v1.GetMySeasonRequest]) (*connect.Response[v1.GetMySeasonResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("scoring.v1.SeasonService.GetMySeason is not implemented"))
+func (UnimplementedScoringServiceHandler) GetRound(context.Context, *connect.Request[v1.GetRoundRequest]) (*connect.Response[v1.GetRoundResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("scoring.v1.ScoringService.GetRound is not implemented"))
 }
 
-func (UnimplementedSeasonServiceHandler) ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest], *connect.ServerStream[v1.SeasonEvent]) error {
-	return connect.NewError(connect.CodeUnimplemented, errors.New("scoring.v1.SeasonService.ListenForEvents is not implemented"))
+func (UnimplementedScoringServiceHandler) GetScores(context.Context, *connect.Request[v1.GetScoresRequest]) (*connect.Response[v1.GetScoresResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("scoring.v1.ScoringService.GetScores is not implemented"))
 }
 
-func (UnimplementedSeasonServiceHandler) GetRace(context.Context, *connect.Request[v1.GetRaceRequest]) (*connect.Response[v1.GetRaceResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("scoring.v1.SeasonService.GetRace is not implemented"))
+func (UnimplementedScoringServiceHandler) ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest], *connect.ServerStream[v1.ScoringEvent]) error {
+	return connect.NewError(connect.CodeUnimplemented, errors.New("scoring.v1.ScoringService.ListenForEvents is not implemented"))
 }

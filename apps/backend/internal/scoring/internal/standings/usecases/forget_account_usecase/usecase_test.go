@@ -21,13 +21,13 @@ var (
 func TestAForgottenAccountLeavesTheStandingsAndTheOthersStay(t *testing.T) {
 	store := inmemory_contribution_store.New()
 	for _, account := range []standings.AccountID{ada, bob} {
-		require.NoError(t, store.RecordTake(t.Context(), 0, standings.Take{Account: account, Country: "fr", At: time.Now()}))
+		require.NoError(t, store.RecordTake(t.Context(), "season-0", standings.Take{Account: account, Country: "fr", At: time.Now()}))
 	}
 
 	require.NoError(t, forget_account_usecase.New(store).Execute(t.Context(), ada))
 
-	assert.True(t, store.Tally(0, ada).Empty())
-	assert.False(t, store.Tally(0, bob).Empty())
+	assert.True(t, store.Tally("season-0", ada).Empty())
+	assert.False(t, store.Tally("season-0", bob).Empty())
 }
 
 func TestAFailureToForgetIsAnError(t *testing.T) {

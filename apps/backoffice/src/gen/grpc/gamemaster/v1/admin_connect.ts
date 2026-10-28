@@ -3,13 +3,13 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AddEntryRequest, AddEntryResponse, DeleteEntryRequest, DeleteEntryResponse, EditEntryRequest, EditEntryResponse, GetScheduleRequest, GetScheduleResponse } from "./admin_pb.js";
+import { AddEntryRequest, AddEntryResponse, AddSeasonRequest, AddSeasonResponse, DeleteEntryRequest, DeleteEntryResponse, DeleteSeasonRequest, DeleteSeasonResponse, EditEntryRequest, EditEntryResponse, EditSeasonRequest, EditSeasonResponse, GetScheduleRequest, GetScheduleResponse, GetSeasonsRequest, GetSeasonsResponse } from "./admin_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
- * The rule schedule: which rule set planet and the antibot play, and when. No authentication of its own: served on the
- * console listener, and on the admin listener behind its gate. Never the public router. No call changes what plays
- * now: only an entry to come is added, changed or deleted.
+ * The rule schedule: which rule set planet and the antibot play, and when; and the seasons. No authentication of its
+ * own: served on the console listener, and on the admin listener behind its gate. Never the public router. No call
+ * changes what plays now: only an entry to come is added, changed or deleted.
  *
  * @generated from service gamemaster.v1.AdminService
  */
@@ -56,6 +56,52 @@ export const AdminService = {
       name: "DeleteEntry",
       I: DeleteEntryRequest,
       O: DeleteEntryResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Every season, by number. Scoring is told each one's start and end once it starts.
+     *
+     * @generated from rpc gamemaster.v1.AdminService.GetSeasons
+     */
+    getSeasons: {
+      name: "GetSeasons",
+      I: GetSeasonsRequest,
+      O: GetSeasonsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Adds a season after the last one, under the next number: it starts a break after the last one's end, and must
+     * start after now.
+     *
+     * @generated from rpc gamemaster.v1.AdminService.AddSeason
+     */
+    addSeason: {
+      name: "AddSeason",
+      I: AddSeasonRequest,
+      O: AddSeasonResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Changes a season that has not ended; the seasons after it move with it. One that started keeps its break, and its
+     * end moves only to a time after now: FailedPrecondition otherwise.
+     *
+     * @generated from rpc gamemaster.v1.AdminService.EditSeason
+     */
+    editSeason: {
+      name: "EditSeason",
+      I: EditSeasonRequest,
+      O: EditSeasonResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Deletes the last season, when it has not started. FailedPrecondition otherwise.
+     *
+     * @generated from rpc gamemaster.v1.AdminService.DeleteSeason
+     */
+    deleteSeason: {
+      name: "DeleteSeason",
+      I: DeleteSeasonRequest,
+      O: DeleteSeasonResponse,
       kind: MethodKind.Unary,
     },
   }

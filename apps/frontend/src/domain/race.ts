@@ -1,4 +1,4 @@
-import {Race} from "../backends/standings.ts"
+import {Race, Round, Score} from "../backends/standings.ts"
 import {Countries, Country} from "./countries.ts"
 import {LeaderboardEntry} from "./leaderboard.ts"
 
@@ -20,7 +20,7 @@ export function countryLines(
     race: Race | undefined,
     order: CountryOrder,
 ): CountryLine[] {
-    const today = new Map(race?.round?.standings.map((standing) => [standing.countryCode, standing.points]))
+    const today = new Map(scoringNow(race)?.standings.map((standing) => [standing.countryCode, standing.points]))
     const points = new Map(race?.scores.map((score) => [score.countryCode, score.points]))
     const line = (entry: LeaderboardEntry): CountryLine => ({
         ...entry,
@@ -39,4 +39,24 @@ export function countryLines(
     return lines
         .filter((l) => l.tiles > 0 || l.points + l.today > 0)
         .sort((a, b) => b.points - a.points || b.tiles - a.tiles || a.country.code.localeCompare(b.country.code))
+}
+
+// What the board's column scores now: the running battle's round, else today's.
+export function scoringNow(race: Race | undefined): Round | undefined {
+    return race?.battle ?? race?.today
+}
+
+// The rounds still open among those asked for; none until the book's scores arrived.
+export function raceOf(
+    scores: Score[] | undefined,
+    rounds: ReadonlyMap<string, Round>,
+    todayRoundId: string | undefined,
+    battleRoundId: string | undefined,
+): Race | undefined {
+    if (!scores) return undefined
+    const open = (roundId: string | undefined) => {
+        const round = roundId ? rounds.get(roundId) : undefined
+        return round && round.endedAt === 0 ? round : undefined
+    }
+    return {today: open(todayRoundId), battle: open(battleRoundId), scores}
 }

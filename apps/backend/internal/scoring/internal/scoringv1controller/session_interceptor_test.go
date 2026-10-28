@@ -42,9 +42,9 @@ func ask(t *testing.T, procedure string, token string) (string, error) {
 	var account string
 	next := connect.UnaryFunc(func(ctx context.Context, _ connect.AnyRequest) (connect.AnyResponse, error) {
 		account = cpctx.GetAccount(ctx)
-		return connect.NewResponse(&scoringv1.GetMySeasonResponse{}), nil
+		return connect.NewResponse(&scoringv1.GetMyTallyResponse{}), nil
 	})
-	inner := connect.NewRequest(&scoringv1.GetMySeasonRequest{})
+	inner := connect.NewRequest(&scoringv1.GetMyTallyRequest{})
 	if token != "" {
 		inner.Header().Set(cpconnect.SessionHeader, token)
 	}
@@ -55,22 +55,22 @@ func ask(t *testing.T, procedure string, token string) (string, error) {
 	return account, err
 }
 
-func TestMySeasonTakesAnIdentityTokenAndNamesItsAccount(t *testing.T) {
-	account, err := ask(t, scoringv1connect.SeasonServiceGetMySeasonProcedure, "an-identity-token")
+func TestMyTallyTakesAnIdentityTokenAndNamesItsAccount(t *testing.T) {
+	account, err := ask(t, scoringv1connect.ScoringServiceGetMyTallyProcedure, "an-identity-token")
 
 	require.NoError(t, err)
 	assert.Equal(t, holder.String(), account)
 }
 
-func TestMySeasonWithNoTokenIsUnauthenticated(t *testing.T) {
-	_, err := ask(t, scoringv1connect.SeasonServiceGetMySeasonProcedure, "")
+func TestMyTallyWithNoTokenIsUnauthenticated(t *testing.T) {
+	_, err := ask(t, scoringv1connect.ScoringServiceGetMyTallyProcedure, "")
 
 	require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
 	require.ErrorIs(t, err, scoringv1controller.ErrNoSession)
 }
 
-func TestTheStandingsNeedNoToken(t *testing.T) {
-	_, err := ask(t, scoringv1connect.SeasonServiceGetStandingsProcedure, "")
+func TestTheBoardNeedsNoToken(t *testing.T) {
+	_, err := ask(t, scoringv1connect.ScoringServiceGetBoardProcedure, "")
 
 	require.NoError(t, err)
 }

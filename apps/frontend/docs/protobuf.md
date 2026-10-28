@@ -17,7 +17,7 @@ the whole `proto` directory, so a new package needs no config change; run
 - [`player/v1/player.proto`](../../../proto/player/v1/player.proto) — the
   username and who is playing (`PlayerService`)
 - [`scoring/v1/scoring.proto`](../../../proto/scoring/v1/scoring.proto) — the
-  current season (`SeasonService`)
+  books and rounds of points, read by the ids the gamemaster names (`ScoringService`)
 - [`support/v1/support.proto`](../../../proto/support/v1/support.proto) — what a
   player sends the operator (`SupportService`)
 - [`gamemaster/v1/gamemaster.proto`](../../../proto/gamemaster/v1/gamemaster.proto) — the

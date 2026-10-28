@@ -3,64 +3,74 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetMySeasonRequest, GetMySeasonResponse, GetRaceRequest, GetRaceResponse, GetSeasonRequest, GetSeasonResponse, GetStandingsRequest, GetStandingsResponse, ListenForEventsRequest, SeasonEvent } from "./scoring_pb.js";
+import { GetBoardRequest, GetBoardResponse, GetMyTallyRequest, GetMyTallyResponse, GetRoundRequest, GetRoundResponse, GetScoresRequest, GetScoresResponse, ListenForEventsRequest, ScoringEvent } from "./scoring_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
- * @generated from service scoring.v1.SeasonService
+ * The books and their rounds, read by the ids the gamemaster's timeline names. Scoring knows no season, day or battle.
+ *
+ * @generated from service scoring.v1.ScoringService
  */
-export const SeasonService = {
-  typeName: "scoring.v1.SeasonService",
+export const ScoringService = {
+  typeName: "scoring.v1.ScoringService",
   methods: {
     /**
-     * @generated from rpc scoring.v1.SeasonService.GetSeason
+     * A book's top 10 players, of every flag or of one.
+     *
+     * @generated from rpc scoring.v1.ScoringService.GetBoard
      */
-    getSeason: {
-      name: "GetSeason",
-      I: GetSeasonRequest,
-      O: GetSeasonResponse,
+    getBoard: {
+      name: "GetBoard",
+      I: GetBoardRequest,
+      O: GetBoardResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
-     * @generated from rpc scoring.v1.SeasonService.GetStandings
+     * The caller's tally in a book.
+     *
+     * @generated from rpc scoring.v1.ScoringService.GetMyTally
      */
-    getStandings: {
-      name: "GetStandings",
-      I: GetStandingsRequest,
-      O: GetStandingsResponse,
+    getMyTally: {
+      name: "GetMyTally",
+      I: GetMyTallyRequest,
+      O: GetMyTallyResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * A round: its live standings while open, its results once scored.
+     *
+     * @generated from rpc scoring.v1.ScoringService.GetRound
+     */
+    getRound: {
+      name: "GetRound",
+      I: GetRoundRequest,
+      O: GetRoundResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
-     * @generated from rpc scoring.v1.SeasonService.GetMySeason
+     * A book's countries, by points.
+     *
+     * @generated from rpc scoring.v1.ScoringService.GetScores
      */
-    getMySeason: {
-      name: "GetMySeason",
-      I: GetMySeasonRequest,
-      O: GetMySeasonResponse,
+    getScores: {
+      name: "GetScores",
+      I: GetScoresRequest,
+      O: GetScoresResponse,
       kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
-     * @generated from rpc scoring.v1.SeasonService.ListenForEvents
+     * A book's board and scores, and the rounds asked for, then each change; a heartbeat meanwhile.
+     *
+     * @generated from rpc scoring.v1.ScoringService.ListenForEvents
      */
     listenForEvents: {
       name: "ListenForEvents",
       I: ListenForEventsRequest,
-      O: SeasonEvent,
+      O: ScoringEvent,
       kind: MethodKind.ServerStreaming,
-    },
-    /**
-     * The race the stream sends, once: for a reader that does not follow it, the clips job.
-     *
-     * @generated from rpc scoring.v1.SeasonService.GetRace
-     */
-    getRace: {
-      name: "GetRace",
-      I: GetRaceRequest,
-      O: GetRaceResponse,
-      kind: MethodKind.Unary,
-      idempotency: MethodIdempotency.NoSideEffects,
     },
   }
 } as const;

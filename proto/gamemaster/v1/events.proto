@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package gamemaster.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// What the gamemaster tells the other modules, in the game's words, once scoring scored it. The numbers stay
+// scoring's: read them by round_id or book_id (scoring.v1.InternalService).
+
+message DayEnded {
+  uint32 season = 1;
+  // The day's place among the season's days.
+  uint32 day = 2;
+  string round_id = 3;
+  google.protobuf.Timestamp ended_at = 4;
+}
+
+message BattleEnded {
+  uint32 season = 1;
+  // The battle's place among the season's battles.
+  uint32 number = 2;
+  string entry_id = 3;
+  uint32 times = 4;
+  // The battle ran to the season's end: its finale.
+  bool ends_season = 5;
+  string round_id = 6;
+  google.protobuf.Timestamp ended_at = 7;
+}
+
+message SeasonEnded {
+  uint32 season = 1;
+  string book_id = 2;
+  google.protobuf.Timestamp ended_at = 3;
+  // The round that ran to the season's end, which breaks a tie; empty when none did.
+  string finale_round_id = 4;
+  // The battle that ran to the season's end, when the finale was one: it ended with the season, and the season's
+  // debrief replaces its own.
+  BattleEnded finale_battle = 5;
+}

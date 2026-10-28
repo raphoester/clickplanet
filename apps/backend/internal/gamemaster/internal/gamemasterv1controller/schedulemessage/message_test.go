@@ -16,10 +16,11 @@ func TestEveryKindTheWireNamesIsReadAndWrittenBack(t *testing.T) {
 		gamemasterv1.EntryKind_ENTRY_KIND_BATTLE: schedule.Battle,
 		gamemasterv1.EntryKind_ENTRY_KIND_PLAIN:  schedule.Plain,
 	} {
-		draft, err := schedulemessage.DraftOf("rush", wire, "Triple points.", nil, nil, 1)
+		draft, err := schedulemessage.DraftOf("rush", wire, "Triple points.", nil, nil, 1, 3)
 		require.NoError(t, err)
 		assert.Equal(t, kept, draft.Kind)
 		assert.Equal(t, schedule.Description("Triple points."), draft.Description)
+		assert.Equal(t, schedule.Times(3), draft.Times)
 
 		written, err := schedulemessage.KindOf(kept)
 		require.NoError(t, err)

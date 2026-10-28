@@ -2,12 +2,13 @@ syntax = "proto3";
 
 package gamemaster.v1;
 
+import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 import "gamemaster/v1/gamemaster.proto";
 
-// The rule schedule: which rule set planet and the antibot play, and when. No authentication of its own: served on the
-// console listener, and on the admin listener behind its gate. Never the public router. No call changes what plays
-// now: only an entry to come is added, changed or deleted.
+// The rule schedule: which rule set planet and the antibot play, and when; and the seasons. No authentication of its
+// own: served on the console listener, and on the admin listener behind its gate. Never the public router. No call
+// changes what plays now: only an entry to come is added, changed or deleted.
 service AdminService {
   rpc GetSchedule(GetScheduleRequest) returns (GetScheduleResponse);
 
@@ -19,6 +20,20 @@ service AdminService {
 
   // Deletes an entry that has not started. FailedPrecondition once it started.
   rpc DeleteEntry(DeleteEntryRequest) returns (DeleteEntryResponse);
+
+  // Every season, by number. Scoring is told each one's start and end once it starts.
+  rpc GetSeasons(GetSeasonsRequest) returns (GetSeasonsResponse);
+
+  // Adds a season after the last one, under the next number: it starts a break after the last one's end, and must
+  // start after now.
+  rpc AddSeason(AddSeasonRequest) returns (AddSeasonResponse);
+
+  // Changes a season that has not ended; the seasons after it move with it. One that started keeps its break, and its
+  // end moves only to a time after now: FailedPrecondition otherwise.
+  rpc EditSeason(EditSeasonRequest) returns (EditSeasonResponse);
+
+  // Deletes the last season, when it has not started. FailedPrecondition otherwise.
+  rpc DeleteSeason(DeleteSeasonRequest) returns (DeleteSeasonResponse);
 }
 
 message GetScheduleRequest {}
@@ -41,6 +56,8 @@ message Entry {
   EntryKind kind = 7;
   // For the players, in plain text: what the rules of the entry are ("Triple points. A bonus box every minute.").
   string description = 8;
+  // A battle's points' times, 1 to 10: its window is a round in scoring's books. 0 for a plain entry.
+  uint32 times = 9;
 }
 
 // What the schedule plays now: the running entry with the highest priority, else "default".
@@ -63,6 +80,8 @@ message AddEntryRequest {
   EntryKind kind = 5;
   // At most 300 characters: InvalidArgument past that.
   string description = 6;
+  // 1 to 10 for a battle, 0 for a plain entry: InvalidArgument otherwise.
+  uint32 times = 7;
 }
 
 message AddEntryResponse {
@@ -77,6 +96,7 @@ message EditEntryRequest {
   uint32 priority = 5;
   EntryKind kind = 6;
   string description = 7;
+  uint32 times = 8;
 }
 
 message EditEntryResponse {}
@@ -86,3 +106,40 @@ message DeleteEntryRequest {
 }
 
 message DeleteEntryResponse {}
+
+message GetSeasonsRequest {}
+
+message GetSeasonsResponse {
+  repeated ScheduledSeason seasons = 1;
+}
+
+// A season as the operator plans it: its break and its length. Its window follows from the seasons before it.
+message ScheduledSeason {
+  Season season = 1;
+  // The time from the end of the season before to its start, when no season runs. Season 0's counts from its start.
+  google.protobuf.Duration break_before = 2;
+  google.protobuf.Duration length = 3;
+}
+
+message AddSeasonRequest {
+  google.protobuf.Duration break_before = 1;
+  google.protobuf.Duration length = 2;
+}
+
+message AddSeasonResponse {
+  uint32 number = 1;
+}
+
+message EditSeasonRequest {
+  uint32 number = 1;
+  google.protobuf.Duration break_before = 2;
+  google.protobuf.Duration length = 3;
+}
+
+message EditSeasonResponse {}
+
+message DeleteSeasonRequest {
+  uint32 number = 1;
+}
+
+message DeleteSeasonResponse {}

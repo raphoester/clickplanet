@@ -49,6 +49,13 @@ func (r *reader) schedule(battles ...string) {
 	}
 }
 
+func (r *reader) debrief(day uint32) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.now.Debrief = &gamemasterv1.Debrief{Moment: &gamemasterv1.Debrief_Day{Day: &gamemasterv1.DayEnded{Day: day}}}
+}
+
 func (r *reader) fail(err error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -167,6 +174,18 @@ func TestABattleAddedEditedOrDeletedIsSentToEveryStream(t *testing.T) {
 		}
 		assert.Equal(t, battles, sent)
 	}
+}
+
+func TestANewDebriefIsSentToEveryStream(t *testing.T) {
+	feed, reader := newFeed()
+	turns := feed.Subscribe(t.Context())
+	feed.Refresh(t.Context())
+	next(t, turns)
+
+	reader.debrief(24)
+	feed.Refresh(t.Context())
+
+	assert.Equal(t, uint32(24), nextNow(t, turns).GetDebrief().GetDay().GetDay())
 }
 
 func TestATurnThatHoldsIsNotSentAgain(t *testing.T) {

@@ -39,16 +39,16 @@ func TestTheEntryNamedTakesTheValuesAsked(t *testing.T) {
 	useCase := &stubUseCase{}
 
 	_, err := edit_entry_handler.New(useCase).EditEntry(t.Context(), connect.NewRequest(&gamemasterv1.EditEntryRequest{
-		Id: first, RuleSet: "calm", Kind: gamemasterv1.EntryKind_ENTRY_KIND_PLAIN, Description: "A quieter antibot.",
-		StartsAt: timestamppb.New(finale), EndsAt: timestamppb.New(finale.Add(time.Hour)), Priority: 3,
+		Id: first, RuleSet: "rush", Kind: gamemasterv1.EntryKind_ENTRY_KIND_BATTLE, Description: "Double points.",
+		StartsAt: timestamppb.New(finale), EndsAt: timestamppb.New(finale.Add(time.Hour)), Priority: 3, Times: 2,
 	}))
 
 	require.NoError(t, err)
 	assert.Equal(t, []edit{{
 		id: schedule.EntryID(uuid.UUID{15: 1}),
 		draft: schedule.Draft{
-			Set: "calm", Kind: schedule.Plain, Description: "A quieter antibot.", StartsAt: finale, EndsAt: finale.Add(time.Hour),
-			Priority: 3,
+			Set: "rush", Kind: schedule.Battle, Description: "Double points.", StartsAt: finale, EndsAt: finale.Add(time.Hour),
+			Priority: 3, Times: 2,
 		},
 	}}, useCase.asked)
 }

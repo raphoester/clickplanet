@@ -4,27 +4,34 @@
 schedule of rule-set entries, and each entry has a kind (the backend's
 [gamemaster](../../backend/docs/gamemaster.md)). The client never hears a rule set's
 name, only the kind of the entry that plays, from `gamemaster.v1.GamemasterService/ListenForEvents`:
-`battle` or `plain`, since when, when the running entry ends, the entry's id, and the
-battles to come. A battle is the one kind with a look.
+`battle` or `plain`, since when, when the running entry ends, the entry's id, the
+battle's round and times, the battles to come, and the last debrief (a day, a battle
+or a season scoring scored). A battle is the one kind with a look.
 
 ## Reading what plays
 
 - `backends/turn.ts` is the contract: `Turn` (`kind`, `since`, `endsAt`,
-  `description`, `entryId`), `BattleToCome` (`entryId`, `startsAt`, `endsAt`, `description`)
-  and `TurnBackend`, whose `follow` hands on the turn and the battles to come at
-  once, then each change of either. `turnBackend.ts` follows the stream (`openStream`:
+  `description`, `entryId`, `roundId`, `times`), `BattleToCome` (also `times`,
+  `endsSeason`, `roundId`), `Debrief` (`day`, `battle` or `season`, each with its ids
+  and the gamemaster's words: the day's number, the battle's number and times, the
+  season's book and its finale round) and `TurnBackend`, whose `follow` hands on the
+  turn, the battles to come, the seasons (`onSeasons`, see [The season](season.md))
+  and the last debrief (`onDebrief`) at once, then each change of any. `turnBackend.ts` follows the stream (`openStream`:
   heartbeats, reconnects, a page wake); no read polls. A server without the
   gamemaster (`Unimplemented`, `NotFound`) reads as a plain turn with no battle to
-  come, and the stream is not opened again. A turn with no kind, or a kind this build
+  come, no season and no debrief, and the stream is not opened again. A turn with no kind, or a kind this build
   does not know, is refused: the switch names every value. `fakeTurnBackend.ts` is the
-  fake, with `startBattle(entryId, since, endsAt, description)`, `endBattle()`, and
-  `scheduleBattle`, `moveBattle`, `deleteBattle` for the battles to come, which tell of
-  the change at once.
+  fake, with `startBattle(entryId, since, endsAt, description, times)`, `endBattle()`,
+  `endDay()`, `endBattleRound(…)` and `endSeason(finaleRoundId, finaleBattle)` for the debriefs, and
+  `scheduleBattle`, `moveBattle`, `deleteBattle` for the battles to come, and
+  `moveSeasonEnd`, which tell of the change at once. It answers Season 0 as the
+  season that runs (`SEASON_ZERO`, book `season-0`), and today as the gamemaster counts
+  days (day K ends at the K-th 21:00 UTC cutoff after the start).
 - **A battle is its entry's id** (`entryId`, empty when no entry runs): the battle's
-  key, the start moment's "seen" mark, and how a closed round is matched to the
-  battle the page saw. The scoring round of its own repeats the id the gamemaster
-  sent it (the backend's [gamemaster](../../backend/docs/gamemaster.md)). Two battles
-  are never told apart by their times (the owner, 2026-10-27).
+  key and the start moment's "seen" mark. **Its round is `roundId`**, scoring's id for
+  it: the board's battle column reads it, and a debrief is matched to the battle the
+  page saw by it. Two battles are never told apart by their times (the owner,
+  2026-10-27).
 - **`description` is the entry's, the operator's words for the players**, written
   on the backoffice's Rule schedule page (at most 300 characters, the backend's
   rule). Empty when the operator wrote none, or when no entry runs.
@@ -91,29 +98,28 @@ the battle is on. It plays through the announcements queue (below).
 
 **At the end** the mood goes, the halo turns blue again, and one line in the moments
 zone says "The battle is over" (`BattleOver`, `useBattleOver`, 5 s), only when the
-battle ended while the page was open. **When the battle has a round of its own, its
-results follow as the debrief** (below), within the race feed's 10 s: while the race
-still shows that round in progress (`briefAwaited`: `Race.round` is of its own and
-of the battle's entry), the line adds "The results are coming" and stays, with no
-timer, until the race carries the round closed. Then it goes, as the debrief comes.
+battle ended while the page was open. **When the battle has a round, its results
+follow as the debrief** (below): until the gamemaster's last debrief names that round
+(`briefAwaited`, a `BattleEnded` or a `SeasonEnded` whose finale it is), the line adds
+"The results are coming" and stays, with no timer. Then it goes, as the debrief comes.
 
 ## The debrief
 
-**A battle's round of its own closed plays three full screens, one after the other**
-(`BattleDebrief`, rules in `domain/battleBrief.ts`), from the race's `closed` when it
-is `own` (see [The cutoff, revealed](cutoff.md) for when a closed round plays, and
-once per browser). Each has the battle's look: the warning tape along the top of the
+**A battle debriefed plays three full screens, one after the other**
+(`BattleDebrief`, rules in `domain/battleBrief.ts`): the words are the debrief's, the
+numbers its round's, read from scoring's `GetRound` (see [The cutoff,
+revealed](cutoff.md) for when a debrief plays, and once per browser). Each has the battle's look: the warning tape along the top of the
 screen and the rays in `--war`.
 
-- **Which battle**: the round's `entryId` is the battle the page saw in the turn
+- **Which battle**: the round's `roundId` is the battle the page saw in the turn
   (`useSeenBattle` keeps the last one), or the page saw none (it opened after the
-  battle). A round of another entry plays no debrief (`debriefedFor`); the season's
+  battle). Another battle's round plays no debrief (`debriefedFor`); the season's
   results after a finale still play.
 - **The screens** (`debriefScreensOf`), each its own announcement, so each closes on
   its button and the next one starts:
   1. `over` — "Battle finished!", or "Final Battle finished!" for the round that ended
      the season (`battleFinishedLine`), over the swords disc, with the battle's words
-     when the page saw it play (`briefDescriptionOf`, by the entry's id), and the
+     when the page saw it play (`briefDescriptionOf`, by its round), and the
      fanfare.
   2. `points` — "Points won": each country that scored (`pointsRowsOf`, the first
      `POINTS_SHOWN` (10) and the player's under them), its rank, its points before the
@@ -124,9 +130,14 @@ screen and the rays in `--war`.
 - **Each shows its button after `BATTLE_DEBRIEF`** (2.4 s, 2.2 s, 2.2 s): Next while a
   screen follows (`revealFollowed`), "To the globe" on the last. Escape closes it then.
   The tiles each flag took (`takes`) are still on the wire and no longer shown.
-- **When the closed round is also the finale, the season's results follow** as a
-  fourth announcement: the table before and after, then the champion (see
-  [The cutoff, revealed](cutoff.md)).
+- **When the battle ends the season (`endsSeason`), the season's results follow** as
+  a fourth announcement: the table before and after, then the champion (see
+  [The cutoff, revealed](cutoff.md)). The gamemaster tells only its last debrief, and
+  scoring scores the Final Battle and closes the book at one instant: the page may
+  hear `SeasonEnded` alone. So `SeasonEnded` carries the Final Battle's debrief
+  (`finale_battle`) when a battle finished the season, and plays its three screens
+  before the results; with none, only the results play. The screens are keyed by the
+  round, so they never play twice.
 
 ## The announcements queue
 
@@ -146,6 +157,7 @@ The round's "once per browser" and the battle's keep their own rule (`useRoundRe
 
 `startBattle(minutes = 120, description, times = 3)` and `endBattle()` on the console
 (see [Commands](commands.md)): the mood, the halo, the chip, the moment and the
-board's battle column follow at once. `endBattle()` leaves the round of its own in
-progress, so "The results are coming" stays; `closeBattle()` closes it and plays the
-debrief, `closeFinale()` closes it as the Final Battle, and the season's results follow.
+board's battle column follow at once. `endBattle()` leaves the battle's round
+undebriefed, so "The results are coming" stays; `closeBattle()` scores it and the fake
+gamemaster debriefs it, so the debrief plays; `closeFinale()` debriefs it as the Final
+Battle, then the season, and the season's results follow.

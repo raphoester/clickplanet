@@ -1,6 +1,6 @@
 import {ConnectError, Code} from "@connectrpc/connect"
 import {useCallback, useState} from "react"
-import {AntibotAdmin, PlanetAdmin, GamemasterAdmin, ScoringAdmin} from "../clients.ts"
+import {AntibotAdmin, PlanetAdmin, GamemasterAdmin} from "../clients.ts"
 import {ConfirmAction} from "../components/ConfirmAction.tsx"
 import {FailureNotice} from "../components/FailureNotice.tsx"
 import {When} from "../components/When.tsx"
@@ -9,7 +9,7 @@ import {EntryKind} from "../gen/grpc/gamemaster/v1/gamemaster_pb.ts"
 import {wordsOf} from "../refusal.ts"
 import {useCall} from "../useCall.ts"
 import {
-    addEntry, changeable, complete, deleteEntry, Draft, draftOf, editEntry, ended, kinds, lacking, MAX_DESCRIPTION, Modules, playable,
+    addEntry, changeable, complete, deleteEntry, Draft, draftOf, editEntry, ended, kinds, lacking, MAX_DESCRIPTION, MAX_TIMES, Modules, playable,
     questionOf, Row, rowsOf, shortOf, wordOf,
 } from "./schedule.ts"
 
@@ -25,16 +25,15 @@ const refusal = (err: unknown) => {
 // Editing: an entry to come, or undefined for a new one.
 type Editing = {entry: Entry | undefined}
 
-export function SchedulePanel({gamemaster, planet, antibot, scoring}: {
-    gamemaster: GamemasterAdmin, planet: PlanetAdmin, antibot: AntibotAdmin, scoring: ScoringAdmin,
+export function SchedulePanel({gamemaster, planet, antibot}: {
+    gamemaster: GamemasterAdmin, planet: PlanetAdmin, antibot: AntibotAdmin,
 }) {
     const read = useCallback(async (signal: AbortSignal): Promise<Read> => {
-        const [schedule, planetRules, antibotRules, seasonRules] = await Promise.all([
+        const [schedule, planetRules, antibotRules] = await Promise.all([
             gamemaster.getSchedule({}, {signal}), planet.getRules({}, {signal}), antibot.getRules({}, {signal}),
-            scoring.getRules({}, {signal}),
         ])
-        return {schedule, planet: planetRules, antibot: antibotRules, scoring: seasonRules}
-    }, [gamemaster, planet, antibot, scoring])
+        return {schedule, planet: planetRules, antibot: antibotRules}
+    }, [gamemaster, planet, antibot])
     const [state, again] = useCall(read)
     const [editing, setEditing] = useState<Editing | undefined>(undefined)
 
@@ -87,17 +86,13 @@ function Playing({read}: {read: Read}) {
                 {playing?.since !== undefined && <>, since <When at={playing.since}/></>}
             </p>
             <p className="hint">
-                Planet plays <code>{read.planet.playing}</code>, the antibot plays <code>{read.antibot.playing}</code>,
-                scoring plays <code>{read.scoring.playing}</code>.
+                Planet plays <code>{read.planet.playing}</code>, the antibot plays <code>{read.antibot.playing}</code>.
             </p>
             {read.planet.playing !== set && (
                 <p className="action-refused" role="alert">Planet does not play <code>{set}</code>.</p>
             )}
             {read.antibot.playing !== set && (
                 <p className="action-refused" role="alert">The antibot does not play <code>{set}</code>.</p>
-            )}
-            {read.scoring.playing !== set && (
-                <p className="action-refused" role="alert">Scoring does not play <code>{set}</code>.</p>
             )}
         </>
     )
@@ -113,7 +108,7 @@ function Rows({read, gamemaster, onEdit, onDeleted}: {
         <table className="table">
             <caption>Schedule</caption>
             <thead>
-                <tr><th>From</th><th>To</th><th>Set</th><th>Kind</th><th>Description</th><th>Priority</th><th/></tr>
+                <tr><th>From</th><th>To</th><th>Set</th><th>Kind</th><th>Times</th><th>Description</th><th>Priority</th><th/></tr>
             </thead>
             <tbody>
                 {rowsOf(read.schedule).map(row => (
@@ -129,6 +124,7 @@ function Rows({read, gamemaster, onEdit, onDeleted}: {
                             {!ended(row, now) && <Lacking set={row.entry.ruleSet} read={read}/>}
                         </td>
                         <td>{wordOf(row.entry.kind)}</td>
+                        <td>{row.entry.kind === EntryKind.BATTLE && `${row.entry.times}×`}</td>
                         <td title={row.entry.description}>{shortOf(row.entry.description)}</td>
                         <td>{row.entry.priority}</td>
                         <td>{changeable(row, now) && (
@@ -191,6 +187,13 @@ function EntryForm({gamemaster, entry, sets, onCancel, onDone}: {
                         {kinds().map(kind => <option key={kind} value={String(kind)}>{wordOf(kind)}</option>)}
                     </select>
                 </label>
+                {draft.kind === EntryKind.BATTLE && (
+                    <label className="field">
+                        <span className="muted">Times</span>
+                        <input type="number" inputMode="numeric" min={1} max={MAX_TIMES} value={draft.times}
+                            onChange={e => change({times: e.target.value})}/>
+                    </label>
+                )}
                 <label className="field">
                     <span className="muted">Description</span>
                     <textarea rows={2} maxLength={MAX_DESCRIPTION} value={draft.description}

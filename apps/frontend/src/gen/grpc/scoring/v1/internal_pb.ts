@@ -5,74 +5,87 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3 } from "@bufbuild/protobuf";
+import { TablePlace } from "./scoring_pb.js";
 
 /**
- * @generated from message scoring.v1.GetRuleSetNamesRequest
+ * @generated from message scoring.v1.GetTableRequest
  */
-export class GetRuleSetNamesRequest extends Message<GetRuleSetNamesRequest> {
-  constructor(data?: PartialMessage<GetRuleSetNamesRequest>) {
+export class GetTableRequest extends Message<GetTableRequest> {
+  /**
+   * @generated from field: string book_id = 1;
+   */
+  bookId = "";
+
+  constructor(data?: PartialMessage<GetTableRequest>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "scoring.v1.GetRuleSetNamesRequest";
+  static readonly typeName = "scoring.v1.GetTableRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "book_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetRuleSetNamesRequest {
-    return new GetRuleSetNamesRequest().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetTableRequest {
+    return new GetTableRequest().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetRuleSetNamesRequest {
-    return new GetRuleSetNamesRequest().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetTableRequest {
+    return new GetTableRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetRuleSetNamesRequest {
-    return new GetRuleSetNamesRequest().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetTableRequest {
+    return new GetTableRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: GetRuleSetNamesRequest | PlainMessage<GetRuleSetNamesRequest> | undefined, b: GetRuleSetNamesRequest | PlainMessage<GetRuleSetNamesRequest> | undefined): boolean {
-    return proto3.util.equals(GetRuleSetNamesRequest, a, b);
+  static equals(a: GetTableRequest | PlainMessage<GetTableRequest> | undefined, b: GetTableRequest | PlainMessage<GetTableRequest> | undefined): boolean {
+    return proto3.util.equals(GetTableRequest, a, b);
   }
 }
 
 /**
- * The name of every rule set postgres keeps.
+ * The book ranked now: every country with points. Closed once CloseBook was handled.
  *
- * @generated from message scoring.v1.GetRuleSetNamesResponse
+ * @generated from message scoring.v1.GetTableResponse
  */
-export class GetRuleSetNamesResponse extends Message<GetRuleSetNamesResponse> {
+export class GetTableResponse extends Message<GetTableResponse> {
   /**
-   * @generated from field: repeated string names = 1;
+   * @generated from field: repeated scoring.v1.TablePlace table = 1;
    */
-  names: string[] = [];
+  table: TablePlace[] = [];
 
-  constructor(data?: PartialMessage<GetRuleSetNamesResponse>) {
+  /**
+   * @generated from field: bool closed = 2;
+   */
+  closed = false;
+
+  constructor(data?: PartialMessage<GetTableResponse>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "scoring.v1.GetRuleSetNamesResponse";
+  static readonly typeName = "scoring.v1.GetTableResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "names", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 1, name: "table", kind: "message", T: TablePlace, repeated: true },
+    { no: 2, name: "closed", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetRuleSetNamesResponse {
-    return new GetRuleSetNamesResponse().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetTableResponse {
+    return new GetTableResponse().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetRuleSetNamesResponse {
-    return new GetRuleSetNamesResponse().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetTableResponse {
+    return new GetTableResponse().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetRuleSetNamesResponse {
-    return new GetRuleSetNamesResponse().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetTableResponse {
+    return new GetTableResponse().fromJsonString(jsonString, options);
   }
 
-  static equals(a: GetRuleSetNamesResponse | PlainMessage<GetRuleSetNamesResponse> | undefined, b: GetRuleSetNamesResponse | PlainMessage<GetRuleSetNamesResponse> | undefined): boolean {
-    return proto3.util.equals(GetRuleSetNamesResponse, a, b);
+  static equals(a: GetTableResponse | PlainMessage<GetTableResponse> | undefined, b: GetTableResponse | PlainMessage<GetTableResponse> | undefined): boolean {
+    return proto3.util.equals(GetTableResponse, a, b);
   }
 }
 

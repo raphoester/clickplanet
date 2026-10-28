@@ -4,8 +4,8 @@ import {createConnectTransport} from "@connectrpc/connect-web"
 import {Message} from "@bufbuild/protobuf"
 import {ClickService} from "../gen/grpc/planet/v1/planet_connect.ts"
 import {ClickResponse} from "../gen/grpc/planet/v1/planet_pb.ts"
-import {SeasonService} from "../gen/grpc/scoring/v1/scoring_connect.ts"
-import {GetSeasonResponse} from "../gen/grpc/scoring/v1/scoring_pb.ts"
+import {ScoringService} from "../gen/grpc/scoring/v1/scoring_connect.ts"
+import {GetScoresResponse} from "../gen/grpc/scoring/v1/scoring_pb.ts"
 import {openStream, retrying, retryingAtOnce, SILENCE_LIMIT_MS, Wakeups} from "./transport.ts"
 
 type Opened<T> = {
@@ -505,7 +505,7 @@ const answer = (message: Message): Reply => async () => new Response(message.toB
     headers: {"content-type": "application/proto"},
 })
 
-const season = answer(new GetSeasonResponse())
+const scores = answer(new GetScoresResponse())
 
 const clicked = answer(new ClickResponse())
 
@@ -526,7 +526,7 @@ function network(...replies: Reply[]) {
     })
 
     return {
-        seasons: createPromiseClient(SeasonService, transport),
+        scoring: createPromiseClient(ScoringService, transport),
         clicks: createPromiseClient(ClickService, transport),
         sent,
     }
@@ -540,30 +540,30 @@ describe("retrying over connect-web", () => {
     afterEach(() => vi.restoreAllMocks())
 
     it("retries a read whose fetch failed", async () => {
-        const {seasons, sent} = network(failedFetch, season)
+        const {scoring, sent} = network(failedFetch, scores)
 
-        await expect(retrying(() => seasons.getSeason({}), "GetSeason")).resolves.toBeInstanceOf(GetSeasonResponse)
+        await expect(retrying(() => scoring.getScores({}), "GetScores")).resolves.toBeInstanceOf(GetScoresResponse)
         expect(sent).toHaveLength(2)
     })
 
     it("retries a read that timed out", async () => {
-        const {seasons, sent} = network(noAnswer, season)
+        const {scoring, sent} = network(noAnswer, scores)
 
-        await expect(retrying(() => seasons.getSeason({}), "GetSeason")).resolves.toBeInstanceOf(GetSeasonResponse)
+        await expect(retrying(() => scoring.getScores({}), "GetScores")).resolves.toBeInstanceOf(GetScoresResponse)
         expect(sent).toHaveLength(2)
     })
 
     it.each([502, 503, 504])("retries a read the gateway answered %i", async (status) => {
-        const {seasons, sent} = network(gateway(status), season)
+        const {scoring, sent} = network(gateway(status), scores)
 
-        await expect(retrying(() => seasons.getSeason({}), "GetSeason")).resolves.toBeInstanceOf(GetSeasonResponse)
+        await expect(retrying(() => scoring.getScores({}), "GetScores")).resolves.toBeInstanceOf(GetScoresResponse)
         expect(sent).toHaveLength(2)
     })
 
     it("never retries a read the server refused", async () => {
-        const {seasons, sent} = network(refusal("resource_exhausted"), season)
+        const {scoring, sent} = network(refusal("resource_exhausted"), scores)
 
-        await expect(retrying(() => seasons.getSeason({}), "GetSeason"))
+        await expect(retrying(() => scoring.getScores({}), "GetScores"))
             .rejects.toMatchObject({code: Code.ResourceExhausted})
         expect(sent).toHaveLength(1)
     })

@@ -21,26 +21,27 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type GetRuleSetNamesRequest struct {
+type GetTableRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	BookId        string                 `protobuf:"bytes,1,opt,name=book_id,json=bookId,proto3" json:"book_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GetRuleSetNamesRequest) Reset() {
-	*x = GetRuleSetNamesRequest{}
+func (x *GetTableRequest) Reset() {
+	*x = GetTableRequest{}
 	mi := &file_scoring_v1_internal_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetRuleSetNamesRequest) String() string {
+func (x *GetTableRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetRuleSetNamesRequest) ProtoMessage() {}
+func (*GetTableRequest) ProtoMessage() {}
 
-func (x *GetRuleSetNamesRequest) ProtoReflect() protoreflect.Message {
+func (x *GetTableRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_scoring_v1_internal_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -52,33 +53,41 @@ func (x *GetRuleSetNamesRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetRuleSetNamesRequest.ProtoReflect.Descriptor instead.
-func (*GetRuleSetNamesRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetTableRequest.ProtoReflect.Descriptor instead.
+func (*GetTableRequest) Descriptor() ([]byte, []int) {
 	return file_scoring_v1_internal_proto_rawDescGZIP(), []int{0}
 }
 
-// The name of every rule set postgres keeps.
-type GetRuleSetNamesResponse struct {
+func (x *GetTableRequest) GetBookId() string {
+	if x != nil {
+		return x.BookId
+	}
+	return ""
+}
+
+// The book ranked now: every country with points. Closed once CloseBook was handled.
+type GetTableResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Names         []string               `protobuf:"bytes,1,rep,name=names,proto3" json:"names,omitempty"`
+	Table         []*TablePlace          `protobuf:"bytes,1,rep,name=table,proto3" json:"table,omitempty"`
+	Closed        bool                   `protobuf:"varint,2,opt,name=closed,proto3" json:"closed,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GetRuleSetNamesResponse) Reset() {
-	*x = GetRuleSetNamesResponse{}
+func (x *GetTableResponse) Reset() {
+	*x = GetTableResponse{}
 	mi := &file_scoring_v1_internal_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetRuleSetNamesResponse) String() string {
+func (x *GetTableResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetRuleSetNamesResponse) ProtoMessage() {}
+func (*GetTableResponse) ProtoMessage() {}
 
-func (x *GetRuleSetNamesResponse) ProtoReflect() protoreflect.Message {
+func (x *GetTableResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_scoring_v1_internal_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -90,16 +99,23 @@ func (x *GetRuleSetNamesResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetRuleSetNamesResponse.ProtoReflect.Descriptor instead.
-func (*GetRuleSetNamesResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetTableResponse.ProtoReflect.Descriptor instead.
+func (*GetTableResponse) Descriptor() ([]byte, []int) {
 	return file_scoring_v1_internal_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *GetRuleSetNamesResponse) GetNames() []string {
+func (x *GetTableResponse) GetTable() []*TablePlace {
 	if x != nil {
-		return x.Names
+		return x.Table
 	}
 	return nil
+}
+
+func (x *GetTableResponse) GetClosed() bool {
+	if x != nil {
+		return x.Closed
+	}
+	return false
 }
 
 var File_scoring_v1_internal_proto protoreflect.FileDescriptor
@@ -107,12 +123,15 @@ var File_scoring_v1_internal_proto protoreflect.FileDescriptor
 const file_scoring_v1_internal_proto_rawDesc = "" +
 	"\n" +
 	"\x19scoring/v1/internal.proto\x12\n" +
-	"scoring.v1\"\x18\n" +
-	"\x16GetRuleSetNamesRequest\"/\n" +
-	"\x17GetRuleSetNamesResponse\x12\x14\n" +
-	"\x05names\x18\x01 \x03(\tR\x05names2r\n" +
-	"\x0fInternalService\x12_\n" +
-	"\x0fGetRuleSetNames\x12\".scoring.v1.GetRuleSetNamesRequest\x1a#.scoring.v1.GetRuleSetNamesResponse\"\x03\x90\x02\x01B\xbc\x01\n" +
+	"scoring.v1\x1a\x18scoring/v1/scoring.proto\"*\n" +
+	"\x0fGetTableRequest\x12\x17\n" +
+	"\abook_id\x18\x01 \x01(\tR\x06bookId\"X\n" +
+	"\x10GetTableResponse\x12,\n" +
+	"\x05table\x18\x01 \x03(\v2\x16.scoring.v1.TablePlaceR\x05table\x12\x16\n" +
+	"\x06closed\x18\x02 \x01(\bR\x06closed2\xa9\x01\n" +
+	"\x0fInternalService\x12J\n" +
+	"\bGetRound\x12\x1b.scoring.v1.GetRoundRequest\x1a\x1c.scoring.v1.GetRoundResponse\"\x03\x90\x02\x01\x12J\n" +
+	"\bGetTable\x12\x1b.scoring.v1.GetTableRequest\x1a\x1c.scoring.v1.GetTableResponse\"\x03\x90\x02\x01B\xbc\x01\n" +
 	"\x0ecom.scoring.v1B\rInternalProtoP\x01ZRgithub.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1;scoringv1\xa2\x02\x03SXX\xaa\x02\n" +
 	"Scoring.V1\xca\x02\n" +
 	"Scoring\\V1\xe2\x02\x16Scoring\\V1\\GPBMetadata\xea\x02\vScoring::V1b\x06proto3"
@@ -131,17 +150,23 @@ func file_scoring_v1_internal_proto_rawDescGZIP() []byte {
 
 var file_scoring_v1_internal_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_scoring_v1_internal_proto_goTypes = []any{
-	(*GetRuleSetNamesRequest)(nil),  // 0: scoring.v1.GetRuleSetNamesRequest
-	(*GetRuleSetNamesResponse)(nil), // 1: scoring.v1.GetRuleSetNamesResponse
+	(*GetTableRequest)(nil),  // 0: scoring.v1.GetTableRequest
+	(*GetTableResponse)(nil), // 1: scoring.v1.GetTableResponse
+	(*TablePlace)(nil),       // 2: scoring.v1.TablePlace
+	(*GetRoundRequest)(nil),  // 3: scoring.v1.GetRoundRequest
+	(*GetRoundResponse)(nil), // 4: scoring.v1.GetRoundResponse
 }
 var file_scoring_v1_internal_proto_depIdxs = []int32{
-	0, // 0: scoring.v1.InternalService.GetRuleSetNames:input_type -> scoring.v1.GetRuleSetNamesRequest
-	1, // 1: scoring.v1.InternalService.GetRuleSetNames:output_type -> scoring.v1.GetRuleSetNamesResponse
-	1, // [1:2] is the sub-list for method output_type
-	0, // [0:1] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	2, // 0: scoring.v1.GetTableResponse.table:type_name -> scoring.v1.TablePlace
+	3, // 1: scoring.v1.InternalService.GetRound:input_type -> scoring.v1.GetRoundRequest
+	0, // 2: scoring.v1.InternalService.GetTable:input_type -> scoring.v1.GetTableRequest
+	4, // 3: scoring.v1.InternalService.GetRound:output_type -> scoring.v1.GetRoundResponse
+	1, // 4: scoring.v1.InternalService.GetTable:output_type -> scoring.v1.GetTableResponse
+	3, // [3:5] is the sub-list for method output_type
+	1, // [1:3] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for extension type_name
+	1, // [1:1] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_scoring_v1_internal_proto_init() }
@@ -149,6 +174,7 @@ func file_scoring_v1_internal_proto_init() {
 	if File_scoring_v1_internal_proto != nil {
 		return
 	}
+	file_scoring_v1_scoring_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

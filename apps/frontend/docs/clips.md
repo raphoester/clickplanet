@@ -15,8 +15,9 @@ happened rather than 10 to 20 under the two runs a day before (2026-10-24). Four
 
 1. **fetch**: the backend's `clips fetch -hours 12 -race race.json -season season.json` over SSH, with the deploy's
    `VPS_*` secrets. The job runs no npm at all, so the key to the VPS is in no job that installs this app's
-   dependencies. The replay, the season's race and its calendar go on as an artifact; all are public data. A race or
-   a season that could not be fetched is no file, and the run goes on without a day to tell or a country to call up.
+   dependencies. The replay, the gamemaster's turn (`season.json`) and the round it debriefs (`race.json`) go on as an
+   artifact; all are public data. A turn or a round that could not be fetched is no file, and the run goes on without
+   a round to tell or a country to call up.
 2. **findings** and **choose**: `npm run clip -- --findings findings.json`, then, in a job of its own (it holds
    the Zernio and Anthropic keys, and runs no npm), the backend's `clips choose` reads it and prints the stories to
    render, up to 2, and no more than the platforms have left of their day (14 posts in a trailing 24 hours on TikTok, 8
@@ -85,14 +86,19 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   flag taking the world, the holder holding its share, the day won. **The page builds the `Story` from it and reads no
   rule**: a pick that names no front, a kind no front tells, no attacker or no place is refused as it is read, and
   the job checked it against the findings before the render. `--headline` overrides the story's.
-- **`--race <path>`** is the season's race, a `scoring.v1.GetRaceResponse` as the backend's `GetRace` answers it,
-  served to the page at `/__clip/race.json` (`src/clip/race.ts` reads its closed round). With none, that path
-  answers 404, never the app's fallback page, and no day is told. **A battle's round of its own is never told as a
-  day** (`Day.own`): it is numbered apart from the days, so its clip says "wins the battle" ("the final battle" for
-  the finale) and calls to play, never "day 1" or "who wins day 2", and nobody is called up after it, since its
+- **`--season <path>`** is the gamemaster's turn, a `gamemaster.v1.GetTurnResponse` as `GetTurn` answers it, served
+  to the page at `/__clip/season.json`. Its `debrief` is the moment scoring scored last, in the game's words: a day
+  (`DayEnded`), a battle (`BattleEnded`, `ends_season` for the finale) or the season's end (`SeasonEnded`, told as
+  its finale's round, numbered as its `finale_battle` so it keys as that battle does; 0 with none), with the round's id. Its timeline's battle to come that `ends_season` says when
+  the finale starts (`finaleAtOf`). With none, that path answers 404, never the app's fallback page: no round is told
+  and nobody is called up.
+- **`--race <path>`** is that round, a `scoring.v1.GetRoundResponse` as `ScoringService/GetRound` answers it by the
+  debrief's id, served at `/__clip/race.json` the same way: its podium (`standings`), its end, and the season's
+  scores after it (`after`). `src/clip/race.ts` (`dayOf`) makes a `Day` of the two, and none when either is missing
+  or the round is not the one debriefed (`{}`, the job's file when nothing was debriefed). **A battle is never told
+  as a day** (`Day.own`): it is numbered apart from the days, so its clip says "wins the battle" ("the final battle"
+  for the finale) and calls to play, never "day 1" or "who wins day 2", and nobody is called up after it, since its
   podium scored its times.
-- **`--season <path>`** is the season, a `scoring.v1.GetSeasonResponse`, served at `/__clip/season.json` the same
-  way: when its Final Battle starts. With none, nobody is called up.
 - **A story's key says which story it is, the headline never does** (`storyKeyOf`, `domain/clip/story.ts`): the
   flag the clip is about and the continent it is told on, `{flag: "dz", continent: "Africa"}`. **Its angle says what
   the story tells of the flag there**: none for what it did, `holding` for what it holds, `round` for a day it won,
@@ -263,14 +269,14 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   early enough that it does.
 - **A holding's clip plays its flag's fighting for the place**, all over it, with the counter as the flag's share
   of it (`holdingStoryOf`, `inHolding`), and opens on all it holds there.
-- **`round.ts` tells a day of the season** from the race (`--race`): **"FRANCE WINS DAY 5"**, or **"FRANCE WINS THE
+- **`round.ts` tells a day of the season** from the turn and its round (`--season`, `--race`): **"FRANCE WINS DAY 5"**, or **"FRANCE WINS THE
   FINAL BATTLE"**, with where it leaves the winner in the season ("Leads the season with 86 points"). Only the run
   whose window holds the cutoff finds it, and the job tells it once, by its key. It plays the 3 hours before
   the cutoff, the winner's fighting (anyone's when it fought none), opens on all the winner holds, counts its tiles
   (the podium's points say who won: a day is won by the ground held at its cutoff), and ends on the podium, the places that scored with their points, then "WHO WINS DAY 6?". The ending
   lasts 4s instead of 2.5, to read it.
 - **`callup.ts` calls up each country that can still win the season** (`--race` and `--season`), after the day the
-  race closed last, told by the same run as the day: a country contends when winning every day left and the Final
+  gamemaster debriefed last, told by the same run as the day: a country contends when winning every day left and the Final
   Battle, the leader second each time, brings it level. By pure points, 25 countries could still win on day 15, the
   UK 288 points behind; with this rule two did. A leader nobody can catch is no call-up. **It speaks the country's
   language** (`src/clip/callUp.ts`): CLDR's likely language for the country (`Intl.Locale.maximize`), when the clip

@@ -8,20 +8,20 @@ import (
 	"github.com/google/uuid"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/rounds"
+	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/books"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/subscribers"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 )
 
 type UseCase interface {
-	Execute(ctx context.Context, take rounds.Take) error
+	Execute(ctx context.Context, take books.Take) error
 }
 
 func New(useCase UseCase) Subscriber {
 	return Subscriber{useCase: useCase}
 }
 
-// Subscriber counts each tile taken in the rounds of their own, for their numbers.
+// Subscriber counts each tile taken in the rounds, for their numbers.
 type Subscriber struct {
 	useCase UseCase
 }
@@ -49,9 +49,9 @@ func (s Subscriber) Handle(ctx context.Context, event *planetv1.TileTaken) error
 	ctx, cancel := context.WithTimeout(ctx, subscribers.Timeout)
 	defer cancel()
 
-	return s.useCase.Execute(ctx, rounds.Take{ //nolint:wrapcheck // the use case named it.
-		Account:  rounds.AccountID(account),
-		Country:  rounds.Country(event.GetCountry()),
+	return s.useCase.Execute(ctx, books.Take{ //nolint:wrapcheck // the use case named it.
+		Account:  books.AccountID(account),
+		Country:  books.Country(event.GetCountry()),
 		At:       event.GetTakenAt().AsTime(),
 		Position: event.GetPosition(),
 	})

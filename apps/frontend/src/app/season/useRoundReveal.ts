@@ -1,5 +1,5 @@
 import {useCallback, useMemo, useState} from "react"
-import {Race} from "../../backends/standings.ts"
+import {ClosedRound} from "../../backends/standings.ts"
 import {Battle} from "../../domain/battle.ts"
 import {Reveal, REVEAL_SEEN_STORAGE_KEY, revealKeyOf, revealsDue} from "../../domain/roundReveal.ts"
 
@@ -24,10 +24,9 @@ export type RoundRevealState = {
     dismiss: (reveal: Reveal) => void
 }
 
-export function useRoundReveal(race: Race | undefined, battle: Battle | undefined): RoundRevealState {
+export function useRoundReveal(closed: ClosedRound | undefined, battle: Battle | undefined): RoundRevealState {
     const [openedAt] = useState(Date.now)
     const [seen, setSeen] = useState(readSeen)
-    const closed = race?.closed
 
     const dismiss = useCallback((reveal: Reveal) => {
         const key = revealKeyOf(reveal)

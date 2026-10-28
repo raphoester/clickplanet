@@ -239,10 +239,6 @@ player:
   tagSalt: ""
 
 scoring:
-  dailyCutoff: 21h
-  list:
-    - number: 0
-      endsAt: 2026-10-31T23:00:00Z
   database:
     host: localhost
     port: "5432"
@@ -258,6 +254,7 @@ scoring:
     password: ""
 
 gamemaster:
+  dailyCutoff: 21h
   database:
     host: localhost
     port: "5432"

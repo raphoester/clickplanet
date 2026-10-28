@@ -85,12 +85,10 @@ and says what is in it. Read the doc before you change its area.
 
 - [Chat](docs/chat.md) — messages, announcements, mutes, removals, replies, reactions, and what each account saw.
 - [Player](docs/player.md) — names and guest codes, stats, streaks, titles, and who is playing now.
-- [Scoring](docs/scoring.md) — the season calendar and its daily cutoff, its standings, the days and the rounds of
-  their own, each scored from the map at its end, and a season's end.
-- [The season rules](docs/season-rules.md) — how scoring counts points while a set plays: a round of its own and its
-  times, in rule sets in postgres; the entry's window the gamemaster sends.
-- [The gamemaster](docs/gamemaster.md) — which rule sets play together, and when: a schedule by priority that commands
-  planet, the antibot and scoring to play a set; only an entry to come changes.
+- [Scoring](docs/scoring.md) — a points accountant: books and rounds by the ids it is given, opened and closed by the
+  gamemaster's commands, each round scored from the map when it closes; no season, day, battle or clock.
+- [The gamemaster](docs/gamemaster.md) — every moment of the game: the rule schedule that commands planet and the
+  antibot, the seasons, days and battles it opens and closes in scoring's books, and the events in the game's words.
 - [Missions](docs/missions.md) — three to five missions a day per flag, counted from `TileTaken`, paid once done with a
   `GrantCharges` command to planet; why progress is not read from the ledger.
 - [Support](docs/support.md) — suggestions, bug reports and player reports, with their photos and videos.

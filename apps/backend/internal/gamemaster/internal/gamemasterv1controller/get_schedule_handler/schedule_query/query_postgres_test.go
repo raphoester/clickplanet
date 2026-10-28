@@ -43,7 +43,7 @@ func TestEveryEntryIsListedByStartWithWhatPlaysNow(t *testing.T) {
 		},
 		schedule.EntrySnapshot{
 			ID: rush, Set: "rush", Kind: schedule.Battle, Description: "Triple points.", StartsAt: finale, EndsAt: battleEnds,
-			Priority: 1, MadeAt: madeAt,
+			Priority: 1, Times: 3, MadeAt: madeAt,
 		},
 	)
 
@@ -55,6 +55,7 @@ func TestEveryEntryIsListedByStartWithWhatPlaysNow(t *testing.T) {
 			{
 				Id: rush.String(), RuleSet: "rush", Kind: gamemasterv1.EntryKind_ENTRY_KIND_BATTLE, Description: "Triple points.",
 				StartsAt: timestamppb.New(finale), EndsAt: timestamppb.New(battleEnds), Priority: 1, MadeAt: timestamppb.New(madeAt),
+				Times: 3,
 			},
 			{
 				Id: calm.String(), RuleSet: "calm", Kind: gamemasterv1.EntryKind_ENTRY_KIND_PLAIN,
@@ -72,7 +73,9 @@ func TestEveryEntryIsListedByStartWithWhatPlaysNow(t *testing.T) {
 func TestWithNoEntryRunningDefaultPlaysAndNamesNone(t *testing.T) {
 	db := cppg.StartTestServer(t).OpenSchema(t, "gamemaster", migrations.FS)
 	keep(t, postgres_entry_store.New(db),
-		schedule.EntrySnapshot{ID: rush, Set: "rush", Kind: schedule.Battle, StartsAt: finale, EndsAt: battleEnds, Priority: 1, MadeAt: madeAt})
+		schedule.EntrySnapshot{
+			ID: rush, Set: "rush", Kind: schedule.Battle, StartsAt: finale, EndsAt: battleEnds, Priority: 1, Times: 3, MadeAt: madeAt,
+		})
 
 	answer, err := schedule_query.NewPostgresQuery(db, cptime.NewFixedClock(battleEnds.Add(time.Minute))).Schedule(t.Context())
 	require.NoError(t, err)

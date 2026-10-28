@@ -37,7 +37,7 @@ The table holds **personal data** — IPs next to user-authored text — so the 
 
 **The chat also says things on its own**: a line between the messages with no sender, which the client draws
 without a bubble. Five kinds today: `bomb`, every bomb that went off, on land or in the sea, `mute`, every
-mute an operator gave (see [Mutes](#mutes)), `round`, every round of a season that closed, `fortify`, every
+mute an operator gave (see [Mutes](#mutes)), `round`, every day and battle of a season scoring scored, `fortify`, every
 landmass of 50 tiles or more a flag fortified (`{country, ground, landmass, tiles}`: the client names the landmass
 from its own table, `ground` for a country's main one; see [Fortify](fortify.md)), and `champion`, the country that
 won a season.
@@ -65,17 +65,24 @@ won a season.
   position and the ground read off `clicks.Borders`; `bomb_landed_subscriber` turns it into a `Bomb` and
   `announce_usecase` keeps it, then publishes it on `inprocess_feed`. The announcement's time is the event's
   `landed_at`, to the second the ledger keeps. A bomb Redis did not take is a line missed, never a bomb.
-- **How a round gets here**: `scoring` keeps `scoring.v1.RoundClosed` in its outbox with the round's results;
-  `round_closed_subscriber` turns it into a `Round`, payload `{number, finale, podium}`, and `announce_usecase`
-  keeps it. The podium is `announcements.RoundOf`'s rule: the places ranked 3rd or better, ties included. The
-  announcement's time is the round's end, not the minute it closed. **A round of its own** (a battle's,
-  `announcements.OwnRoundOf`) adds `own: true` and its `times` to the payload, and is told under an id of its own
-  (`seasons/<season>/own-rounds/<number>`), since its number counts the rounds of their own and not the days.
-- **How a champion gets here, once**: `scoring` keeps `scoring.v1.SeasonClosed` in its outbox at the season's end,
-  right after the Final Battle's `RoundClosed`; `season_closed_subscriber` keeps the countries ranked 1st (`announcements.ChampionOf`;
-  level on everything, they win together) and `announce_usecase` keeps a `{season, countries}` payload at the
-  season's end. A season nobody scored in announces nothing. Its id is the season's, so a second `SeasonClosed`,
-  from a relay that sent it again or a retried close, shows nothing new.
+- **How a round gets here**: scoring scores a round and tells `scoring.v1.RoundScored`; the gamemaster hears it and
+  tells, in the game's words, `gamemaster.v1.DayEnded` or `BattleEnded`, with the round's id and no numbers.
+  `day_ended_subscriber` (group `chat-announcements-days`) and `battle_ended_subscriber`
+  (`chat-announcements-battles`) name the round, `announcements.DayOf(season, day)` or
+  `announcements.BattleOf(season, number, ends_season, times)`, and `announce_round_usecase` reads its results by
+  id from `scoring.v1.InternalService/GetRound` on the internal listener (`rpc_scoring_results`, one second), places
+  them (`Round.Placed`: the places ranked 3rd or better that scored, ties included) and hands the line to
+  `announce_usecase`. Payload `{number, podium}`; **a battle** adds `own: true`, its `times`, and `finale: true` when
+  it ran to the season's end, and is told under an id of its own (`seasons/<season>/own-rounds/<number>`), since its
+  number counts the season's battles and not the days. The announcement's time is the event's `ended_at`. A round
+  scoring cannot answer for is refused and logged, so the bus delivers it again.
+- **How a champion gets here, once**: scoring closes the season's book and tells `scoring.v1.BookClosed`; the
+  gamemaster tells `gamemaster.v1.SeasonEnded` with the book's id. `season_ended_subscriber`
+  (`chat-announcements-champions`) and `announce_champion_usecase` read the book's table from
+  `InternalService/GetTable` (refused while the book is not closed) and keep the countries ranked 1st
+  (`announcements.ChampionOf`; level on everything, they win together) as a `{season, countries}` payload at the
+  season's end. A season nobody scored in announces nothing. Its id is the season's, so a second `SeasonEnded`
+  shows nothing new.
 - **`GetHistory` returns them beside the messages**, in `announcements`, the newest `historySize` within
   `retention`, bounded apart from the messages so a burst of bombs never pushes one out. The client puts the two
   lists in one by time. **Once the messages fill the window, none is older than the oldest of them**

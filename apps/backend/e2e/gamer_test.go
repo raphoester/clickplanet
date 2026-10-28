@@ -237,12 +237,12 @@ func (p *gamer) missions() []*missionsv1.Mission {
 	return res.Msg.GetMissions()
 }
 
-func (p *gamer) mySeason() *scoringv1.GetMySeasonResponse {
+func (p *gamer) myTally() *scoringv1.GetMyTallyResponse {
 	p.t.Helper()
 
-	req := connect.NewRequest(&scoringv1.GetMySeasonRequest{})
+	req := connect.NewRequest(&scoringv1.GetMyTallyRequest{BookId: p.stack.today(p.t).book})
 	p.send(req.Header())
-	res, err := scoringv1connect.NewSeasonServiceClient(http.DefaultClient, p.stack.baseURL).GetMySeason(p.t.Context(), req)
+	res, err := scoringv1connect.NewScoringServiceClient(http.DefaultClient, p.stack.baseURL).GetMyTally(p.t.Context(), req)
 	require.NoError(p.t, err)
 	return res.Msg
 }

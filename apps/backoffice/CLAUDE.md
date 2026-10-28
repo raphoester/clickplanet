@@ -28,5 +28,5 @@ each line names a doc in [`docs/`](docs) and says what is in it.
 - [The map tools](docs/map-tools.md) — reassign a country, paint random tiles, download a replay.
 - [Clip stats](docs/clip-stats.md) — the daily numbers of the posted clips, and a CSV of them.
 - [Ops](docs/ops.md) — `ReconcileTitles`, after a deploy; Game rules: planet's sets, made and edited; the
-  antibot's rule sets, edited as JSON; scoring's rule sets, a round of its own and its points; the rule schedule: which
-  set plays when, entries to come added and changed.
+  antibot's rule sets, edited as JSON; the rule schedule: which set plays when, a battle's points' times, entries to
+  come added and changed; the seasons: their breaks and lengths, added, moved and deleted.

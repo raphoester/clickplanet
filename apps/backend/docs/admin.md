@@ -75,14 +75,11 @@ rules page calls both.
 
 ## The rule schedule: `gamemaster.v1.AdminService`
 
-`GetSchedule`, `AddEntry`, `EditEntry`, `DeleteEntry`: the entries that decide the rule set planet, the antibot and
-scoring play. Only an entry to come changes. See [The gamemaster module](gamemaster.md). The
-backoffice's Rule schedule page calls all four.
-
-## The season rules: `scoring.v1.AdminService`
-
-`GetRules`, `SaveRuleSet`: how scoring counts points while a set plays, a round of its own and its times, never the
-set that plays now. See [The season rules](season-rules.md). The backoffice's Season rules page calls both.
+`GetSchedule`, `AddEntry`, `EditEntry`, `DeleteEntry`: the entries that decide the rule set planet and the antibot
+play, and the battles scoring is told to score, at their times. Only an entry to come changes. `GetSeasons`,
+`AddSeason`, `EditSeason`, `DeleteSeason`: the seasons, as breaks and lengths. See [The gamemaster
+module](gamemaster.md). The backoffice's Rule schedule and Seasons pages call them. Scoring has no operator calls: it
+keeps no rule.
 
 ## `GetLedger`, `GetTerritories`
 

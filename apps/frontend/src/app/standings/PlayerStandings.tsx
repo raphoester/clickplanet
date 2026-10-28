@@ -1,4 +1,4 @@
-import {MySeason, Standing, StandingsBackend} from "../../backends/standings.ts"
+import {Boards, MySeason, Standing} from "../../backends/standings.ts"
 import {NameColor, PlayerLine} from "../../backends/player.ts"
 import {Countries} from "../../domain/countries.ts"
 import {boardWith} from "../../domain/standings.ts"
@@ -13,7 +13,7 @@ import YourSeason from "./YourSeason.tsx"
 import "./Standings.css"
 
 export type PlayerStandingsProps = {
-    backend: StandingsBackend
+    backend: Boards
     countryCode: string
     label: string
     caller: Caller

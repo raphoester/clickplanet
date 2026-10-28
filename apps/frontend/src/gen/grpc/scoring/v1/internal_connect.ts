@@ -3,22 +3,35 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetRuleSetNamesRequest, GetRuleSetNamesResponse } from "./internal_pb.js";
+import { GetRoundRequest, GetRoundResponse } from "./scoring_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
+import { GetTableRequest, GetTableResponse } from "./internal_pb.js";
 
 /**
+ * What another module reads of scoring's books, by the ids it was given.
+ *
  * @generated from service scoring.v1.InternalService
  */
 export const InternalService = {
   typeName: "scoring.v1.InternalService",
   methods: {
     /**
-     * @generated from rpc scoring.v1.InternalService.GetRuleSetNames
+     * @generated from rpc scoring.v1.InternalService.GetRound
      */
-    getRuleSetNames: {
-      name: "GetRuleSetNames",
-      I: GetRuleSetNamesRequest,
-      O: GetRuleSetNamesResponse,
+    getRound: {
+      name: "GetRound",
+      I: GetRoundRequest,
+      O: GetRoundResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * @generated from rpc scoring.v1.InternalService.GetTable
+     */
+    getTable: {
+      name: "GetTable",
+      I: GetTableRequest,
+      O: GetTableResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
     },

@@ -29,7 +29,7 @@ func TestAMuteIsAKindTheChatKnows(t *testing.T) {
 }
 
 func TestARoundNamesItsPodium(t *testing.T) {
-	round := announcements.RoundOf(0, 5, false, []announcements.Place{
+	round := announcements.DayOf(0, 5).Placed([]announcements.Place{
 		announcements.PlaceOf("fr", 1, 25),
 		announcements.PlaceOf("de", 2, 18),
 		announcements.PlaceOf("es", 3, 15),
@@ -44,22 +44,22 @@ func TestARoundNamesItsPodium(t *testing.T) {
 }
 
 func TestCountriesTiedOnThePodiumAreAllNamed(t *testing.T) {
-	round := announcements.RoundOf(0, 23, true, []announcements.Place{
+	round := announcements.DayOf(0, 23).Placed([]announcements.Place{
 		announcements.PlaceOf("fr", 1, 75),
 		announcements.PlaceOf("de", 2, 54),
 		announcements.PlaceOf("it", 2, 54),
 		announcements.PlaceOf("es", 4, 36),
 	})
 
-	assert.JSONEq(t, `{"number":23,"finale":true,"podium":[
+	assert.JSONEq(t, `{"number":23,"podium":[
 		{"country":"fr","rank":1,"points":75},
 		{"country":"de","rank":2,"points":54},
 		{"country":"it","rank":2,"points":54}
 	]}`, payloadOf(t, round.Announcement))
 }
 
-func TestARoundOfItsOwnSaysItIsAndItsTimes(t *testing.T) {
-	round := announcements.OwnRoundOf(0, 1, true, 3, []announcements.Place{announcements.PlaceOf("fr", 1, 75)})
+func TestABattleSaysItIsARoundOfItsOwnAndItsTimes(t *testing.T) {
+	round := announcements.BattleOf(0, 1, true, 3).Placed([]announcements.Place{announcements.PlaceOf("fr", 1, 75)})
 
 	assert.JSONEq(t, `{"number":1,"finale":true,"own":true,"times":3,"podium":[
 		{"country":"fr","rank":1,"points":75}
@@ -67,7 +67,14 @@ func TestARoundOfItsOwnSaysItIsAndItsTimes(t *testing.T) {
 }
 
 func TestARoundNobodyHeldGroundInHasAnEmptyPodium(t *testing.T) {
-	assert.JSONEq(t, `{"number":1,"podium":[]}`, payloadOf(t, announcements.RoundOf(0, 1, false, nil).Announcement))
+	assert.JSONEq(t, `{"number":1,"podium":[]}`, payloadOf(t, announcements.DayOf(0, 1).Placed(nil).Announcement))
+}
+
+func TestAnEmptyIDIsRefused(t *testing.T) {
+	_, err := announcements.RoundIDOf("")
+	require.ErrorIs(t, err, announcements.ErrNoRound)
+	_, err = announcements.BookIDOf("")
+	require.ErrorIs(t, err, announcements.ErrNoBook)
 }
 
 func TestARoundIsAKindTheChatKnows(t *testing.T) {
@@ -125,9 +132,9 @@ func TestAFactIsAnnouncedUnderAnIDOfItsOwn(t *testing.T) {
 		"bomb 8":        announcements.BombOf(8, "fr", "de", 42, 3).Announcement,
 		"fortify 7":     announcements.FortifyOf(7, "fr", "is", 3, 60).Announcement,
 		"mute 1":        announcements.MutedOf(mutes.MuteID{15: 1}, "guest_a1b2c3", time.Hour).Announcement,
-		"round 5":       announcements.RoundOf(0, 5, false, nil).Announcement,
-		"round 5 of 1":  announcements.RoundOf(1, 5, false, nil).Announcement,
-		"own round 5":   announcements.OwnRoundOf(0, 5, false, 2, nil).Announcement,
+		"day 5":         announcements.DayOf(0, 5).Announcement,
+		"day 5 of 1":    announcements.DayOf(1, 5).Announcement,
+		"battle 5":      announcements.BattleOf(0, 5, false, 2).Announcement,
 		"champion of 0": announcements.ChampionOf(0, nil).Announcement,
 	} {
 		first, err := told(at)

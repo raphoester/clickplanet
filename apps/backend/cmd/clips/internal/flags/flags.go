@@ -20,8 +20,9 @@ const usage = `usage:
   clips stats [-ssh <user@host>] [-since 2026-10-13]
 
 fetch asks the production backend's operator tool for a replay, over ssh: CLICKPLANET_SSH stands in for -ssh, and
-the ledger keeps 72 hours in memory, so a replay cannot reach further back. With -race and -season it asks for the
-season's race and calendar too, and leaves each out with a warning when the backend does not answer it. choose prints
+the ledger keeps 72 hours in memory, so a replay cannot reach further back. With -season it asks for the gamemaster's
+turn too (the timeline, and the last moment scoring scored), and with -race, which needs -season, for that moment's
+round as scoring scored it; it leaves each out with a warning when the backend does not answer it. choose prints
 the stories to render, as a JSON array, each with its number in the run and in an arm of every experiment that runs:
 a day of the season won first, not told yet, then the stories Claude (ANTHROPIC_API_KEY) makes of the generator's
 findings and headlines, each checked against them and against the headlines of the last week. It takes no more than
@@ -60,10 +61,10 @@ type Config struct {
 	Command Command
 
 	ReplayFile string
-	// Empty is no race.
-	RaceFile string
-	// Empty is no season.
-	SeasonFile   string
+	// Empty is no turn.
+	TurnFile string
+	// Empty is no round. A round needs its turn.
+	RoundFile    string
 	FindingsFile string
 	ClipsFolder  string
 	// Empty is the standard output for schedule, and none for choose, whose standard output is the picks.
@@ -100,15 +101,15 @@ func parseFetch(args []string) (Config, error) {
 
 	flags := flag.NewFlagSet(string(Fetch), flag.ContinueOnError)
 	flags.StringVar(&parsed.ReplayFile, "out", "", "the file the replay is written to")
-	flags.StringVar(&parsed.RaceFile, "race", "", "the file the season's race is written to, default none")
-	flags.StringVar(&parsed.SeasonFile, "season", "", "the file the season's calendar is written to, default none")
+	flags.StringVar(&parsed.RoundFile, "race", "", "the file the round the turn debriefs is written to, default none")
+	flags.StringVar(&parsed.TurnFile, "season", "", "the file the gamemaster's turn is written to, default none")
 	flags.StringVar(&parsed.Job.Replay.SSH, "ssh", os.Getenv(HostVariable), "user@host of the machine the backend runs on")
 	hours := flags.Float64("hours", 0, "how long the replay is")
 	until := flags.String("until", "", "when the replay ends, default now")
 	if err := flags.Parse(args); err != nil {
 		return Config{}, misused(err)
 	}
-	if parsed.ReplayFile == "" || parsed.Job.Replay.SSH == "" {
+	if parsed.ReplayFile == "" || parsed.Job.Replay.SSH == "" || (parsed.RoundFile != "" && parsed.TurnFile == "") {
 		return Config{}, misused(ErrArguments)
 	}
 

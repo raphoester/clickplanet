@@ -31,7 +31,7 @@ func (h EditEntryHandler) EditEntry(
 		return nil, schedulemessage.Refusal(err) //nolint:wrapcheck // NotFound.
 	}
 	draft, err := schedulemessage.DraftOf(req.Msg.GetRuleSet(), req.Msg.GetKind(), req.Msg.GetDescription(),
-		req.Msg.GetStartsAt(), req.Msg.GetEndsAt(), req.Msg.GetPriority())
+		req.Msg.GetStartsAt(), req.Msg.GetEndsAt(), req.Msg.GetPriority(), req.Msg.GetTimes())
 	if err != nil {
 		return nil, schedulemessage.Refusal(err) //nolint:wrapcheck // InvalidArgument.
 	}

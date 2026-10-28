@@ -33,14 +33,18 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// InternalServiceGetRuleSetNamesProcedure is the fully-qualified name of the InternalService's
-	// GetRuleSetNames RPC.
-	InternalServiceGetRuleSetNamesProcedure = "/scoring.v1.InternalService/GetRuleSetNames"
+	// InternalServiceGetRoundProcedure is the fully-qualified name of the InternalService's GetRound
+	// RPC.
+	InternalServiceGetRoundProcedure = "/scoring.v1.InternalService/GetRound"
+	// InternalServiceGetTableProcedure is the fully-qualified name of the InternalService's GetTable
+	// RPC.
+	InternalServiceGetTableProcedure = "/scoring.v1.InternalService/GetTable"
 )
 
 // InternalServiceClient is a client for the scoring.v1.InternalService service.
 type InternalServiceClient interface {
-	GetRuleSetNames(context.Context, *connect.Request[v1.GetRuleSetNamesRequest]) (*connect.Response[v1.GetRuleSetNamesResponse], error)
+	GetRound(context.Context, *connect.Request[v1.GetRoundRequest]) (*connect.Response[v1.GetRoundResponse], error)
+	GetTable(context.Context, *connect.Request[v1.GetTableRequest]) (*connect.Response[v1.GetTableResponse], error)
 }
 
 // NewInternalServiceClient constructs a client for the scoring.v1.InternalService service. By
@@ -54,10 +58,17 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 	baseURL = strings.TrimRight(baseURL, "/")
 	internalServiceMethods := v1.File_scoring_v1_internal_proto.Services().ByName("InternalService").Methods()
 	return &internalServiceClient{
-		getRuleSetNames: connect.NewClient[v1.GetRuleSetNamesRequest, v1.GetRuleSetNamesResponse](
+		getRound: connect.NewClient[v1.GetRoundRequest, v1.GetRoundResponse](
 			httpClient,
-			baseURL+InternalServiceGetRuleSetNamesProcedure,
-			connect.WithSchema(internalServiceMethods.ByName("GetRuleSetNames")),
+			baseURL+InternalServiceGetRoundProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("GetRound")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
+		getTable: connect.NewClient[v1.GetTableRequest, v1.GetTableResponse](
+			httpClient,
+			baseURL+InternalServiceGetTableProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("GetTable")),
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
@@ -66,17 +77,24 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 
 // internalServiceClient implements InternalServiceClient.
 type internalServiceClient struct {
-	getRuleSetNames *connect.Client[v1.GetRuleSetNamesRequest, v1.GetRuleSetNamesResponse]
+	getRound *connect.Client[v1.GetRoundRequest, v1.GetRoundResponse]
+	getTable *connect.Client[v1.GetTableRequest, v1.GetTableResponse]
 }
 
-// GetRuleSetNames calls scoring.v1.InternalService.GetRuleSetNames.
-func (c *internalServiceClient) GetRuleSetNames(ctx context.Context, req *connect.Request[v1.GetRuleSetNamesRequest]) (*connect.Response[v1.GetRuleSetNamesResponse], error) {
-	return c.getRuleSetNames.CallUnary(ctx, req)
+// GetRound calls scoring.v1.InternalService.GetRound.
+func (c *internalServiceClient) GetRound(ctx context.Context, req *connect.Request[v1.GetRoundRequest]) (*connect.Response[v1.GetRoundResponse], error) {
+	return c.getRound.CallUnary(ctx, req)
+}
+
+// GetTable calls scoring.v1.InternalService.GetTable.
+func (c *internalServiceClient) GetTable(ctx context.Context, req *connect.Request[v1.GetTableRequest]) (*connect.Response[v1.GetTableResponse], error) {
+	return c.getTable.CallUnary(ctx, req)
 }
 
 // InternalServiceHandler is an implementation of the scoring.v1.InternalService service.
 type InternalServiceHandler interface {
-	GetRuleSetNames(context.Context, *connect.Request[v1.GetRuleSetNamesRequest]) (*connect.Response[v1.GetRuleSetNamesResponse], error)
+	GetRound(context.Context, *connect.Request[v1.GetRoundRequest]) (*connect.Response[v1.GetRoundResponse], error)
+	GetTable(context.Context, *connect.Request[v1.GetTableRequest]) (*connect.Response[v1.GetTableResponse], error)
 }
 
 // NewInternalServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -86,17 +104,26 @@ type InternalServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	internalServiceMethods := v1.File_scoring_v1_internal_proto.Services().ByName("InternalService").Methods()
-	internalServiceGetRuleSetNamesHandler := connect.NewUnaryHandler(
-		InternalServiceGetRuleSetNamesProcedure,
-		svc.GetRuleSetNames,
-		connect.WithSchema(internalServiceMethods.ByName("GetRuleSetNames")),
+	internalServiceGetRoundHandler := connect.NewUnaryHandler(
+		InternalServiceGetRoundProcedure,
+		svc.GetRound,
+		connect.WithSchema(internalServiceMethods.ByName("GetRound")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
+	internalServiceGetTableHandler := connect.NewUnaryHandler(
+		InternalServiceGetTableProcedure,
+		svc.GetTable,
+		connect.WithSchema(internalServiceMethods.ByName("GetTable")),
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
 	return "/scoring.v1.InternalService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case InternalServiceGetRuleSetNamesProcedure:
-			internalServiceGetRuleSetNamesHandler.ServeHTTP(w, r)
+		case InternalServiceGetRoundProcedure:
+			internalServiceGetRoundHandler.ServeHTTP(w, r)
+		case InternalServiceGetTableProcedure:
+			internalServiceGetTableHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -106,6 +133,10 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 // UnimplementedInternalServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedInternalServiceHandler struct{}
 
-func (UnimplementedInternalServiceHandler) GetRuleSetNames(context.Context, *connect.Request[v1.GetRuleSetNamesRequest]) (*connect.Response[v1.GetRuleSetNamesResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("scoring.v1.InternalService.GetRuleSetNames is not implemented"))
+func (UnimplementedInternalServiceHandler) GetRound(context.Context, *connect.Request[v1.GetRoundRequest]) (*connect.Response[v1.GetRoundResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("scoring.v1.InternalService.GetRound is not implemented"))
+}
+
+func (UnimplementedInternalServiceHandler) GetTable(context.Context, *connect.Request[v1.GetTableRequest]) (*connect.Response[v1.GetTableResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("scoring.v1.InternalService.GetTable is not implemented"))
 }

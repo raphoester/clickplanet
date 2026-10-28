@@ -5,46 +5,36 @@ package scoring.v1;
 import "player/v1/color.proto";
 import "player/v1/title.proto";
 
-service SeasonService {
-  rpc GetSeason(GetSeasonRequest) returns (GetSeasonResponse) {
+// The books and their rounds, read by the ids the gamemaster's timeline names. Scoring knows no season, day or battle.
+service ScoringService {
+  // A book's top 10 players, of every flag or of one.
+  rpc GetBoard(GetBoardRequest) returns (GetBoardResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 
-  rpc GetStandings(GetStandingsRequest) returns (GetStandingsResponse) {
+  // The caller's tally in a book.
+  rpc GetMyTally(GetMyTallyRequest) returns (GetMyTallyResponse);
+
+  // A round: its live standings while open, its results once scored.
+  rpc GetRound(GetRoundRequest) returns (GetRoundResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 
-  rpc GetMySeason(GetMySeasonRequest) returns (GetMySeasonResponse);
-
-  rpc ListenForEvents(ListenForEventsRequest) returns (stream SeasonEvent);
-
-  // The race the stream sends, once: for a reader that does not follow it, the clips job.
-  rpc GetRace(GetRaceRequest) returns (GetRaceResponse) {
+  // A book's countries, by points.
+  rpc GetScores(GetScoresRequest) returns (GetScoresResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+
+  // A book's board and scores, and the rounds asked for, then each change; a heartbeat meanwhile.
+  rpc ListenForEvents(ListenForEventsRequest) returns (stream ScoringEvent);
 }
 
-message GetSeasonRequest {}
-
-message GetSeasonResponse {
-  Season season = 1;
+message GetBoardRequest {
+  string book_id = 1;
+  string country_id = 2;
 }
 
-message Season {
-  uint32 number = 1;
-  // The same as last_day_ends_at_unix_ms, for the clients from before it: the Final Battle followed the last day until
-  // it was a schedule entry of the gamemaster.
-  int64 finale_starts_at_unix_ms = 2;
-  int64 ends_at_unix_ms = 3;
-  // When the season's last day ends. Every day ends at this time of day.
-  int64 last_day_ends_at_unix_ms = 4;
-}
-
-message GetStandingsRequest {
-  string country_id = 1;
-}
-
-message GetStandingsResponse {
+message GetBoardResponse {
   repeated Standing standings = 1;
 }
 
@@ -58,11 +48,12 @@ message Standing {
   string account_id = 7;
 }
 
-message GetMySeasonRequest {
-  string country_id = 1;
+message GetMyTallyRequest {
+  string book_id = 1;
+  string country_id = 2;
 }
 
-message GetMySeasonResponse {
+message GetMyTallyResponse {
   string country_id = 1;
   uint64 tiles = 2;
   uint32 global_rank = 3;
@@ -72,72 +63,32 @@ message GetMySeasonResponse {
   uint64 country_tiles = 6;
 }
 
-message ListenForEventsRequest {
-  string country_id = 1;
+message GetRoundRequest {
+  string round_id = 1;
 }
 
-message SeasonEvent {
-  oneof event {
-    Board board = 1;
-    Heartbeat heartbeat = 2;
-    Race race = 3;
-  }
-}
-
-message Board {
-  repeated Standing standings = 1;
-}
-
-message Race {
+// NotFound for a round never opened.
+message GetRoundResponse {
   Round round = 1;
-  repeated Score scores = 2;
-  ClosedRound closed = 3;
 }
 
-message ClosedRound {
-  uint32 season = 1;
-  // A day's place among the season's days; a round of its own's among the season's rounds of their own.
-  uint32 number = 2;
-  int64 ended_at_unix_ms = 3;
-  // The round that ended the season.
-  bool finale = 4;
-  repeated RoundStanding standings = 5;
-  repeated Score before = 6;
-  repeated Score after = 7;
-  // A round of its own: the window of a schedule entry whose set asked for one, not a day.
-  bool own = 8;
-  // How many times a day's points it scored: 1 for a day.
-  uint32 times = 9;
-  // When a round of its own started; 0 for a day.
-  int64 started_at_unix_ms = 10;
-  // The tiles each country's players took during a round of its own, most first; none for a day.
-  repeated RoundTakes takes = 11;
-  // The top 10 signed-in players of a round of its own by the tiles they took during it, each under the flag it took
-  // the most for, named as the boards name them; none for a day.
-  repeated Standing players = 12;
-  // The id of the schedule entry whose window a round of its own is; empty for a day.
-  string entry_id = 13;
-}
-
-// The round in progress that ends first: a day, or a round of its own.
 message Round {
-  // A day's place among the season's days; a round of its own's among the season's rounds of their own.
-  uint32 number = 1;
-  int64 ends_at_unix_ms = 2;
-  // The round that ends the season.
-  bool finale = 3;
-  repeated RoundStanding standings = 4;
-  // A round of its own: the window of a schedule entry whose set asked for one, not a day.
-  bool own = 5;
-  // How many times a day's points it scores: 1 for a day.
-  uint32 times = 6;
-  // The id of the schedule entry whose window a round of its own is; empty for a day.
-  string entry_id = 7;
-}
-
-message RoundTakes {
-  string country_id = 1;
-  uint64 tiles = 2;
+  string round_id = 1;
+  string book_id = 2;
+  uint32 times = 3;
+  int64 started_at_unix_ms = 4;
+  // 0 while it runs.
+  int64 ended_at_unix_ms = 5;
+  // While it runs, each country's share of the map now and the points it would score; once scored, its results.
+  repeated RoundStanding standings = 6;
+  // The tiles each country's players took during the round, most first.
+  repeated RoundTakes takes = 7;
+  // The top 10 signed-in players of the round by the tiles they took during it, each under the flag it took the most
+  // for.
+  repeated Standing players = 8;
+  // The book's scores before and after the round; empty while it runs.
+  repeated Score before = 9;
+  repeated Score after = 10;
 }
 
 message RoundStanding {
@@ -147,6 +98,25 @@ message RoundStanding {
   uint32 points = 4;
 }
 
+message RoundTakes {
+  string country_id = 1;
+  uint64 tiles = 2;
+}
+
+message GetScoresRequest {
+  string book_id = 1;
+}
+
+message GetScoresResponse {
+  Scores scores = 1;
+}
+
+message Scores {
+  string book_id = 1;
+  // Best first, every country with points.
+  repeated Score scores = 2;
+}
+
 message Score {
   uint32 rank = 1;
   string country_id = 2;
@@ -154,10 +124,33 @@ message Score {
   uint32 rounds_won = 4;
 }
 
-message Heartbeat {}
-
-message GetRaceRequest {}
-
-message GetRaceResponse {
-  Race race = 1;
+// A closed book's place: the tiebreak too.
+message TablePlace {
+  string country_id = 1;
+  uint32 rank = 2;
+  uint32 points = 3;
+  uint32 rounds_won = 4;
+  uint32 tiebreak_points = 5;
 }
+
+message ListenForEventsRequest {
+  string book_id = 1;
+  string country_id = 2;
+  repeated string round_ids = 3;
+}
+
+message ScoringEvent {
+  oneof event {
+    Board board = 1;
+    Heartbeat heartbeat = 2;
+    Scores scores = 3;
+    Round round = 4;
+  }
+}
+
+message Board {
+  string book_id = 1;
+  repeated Standing standings = 2;
+}
+
+message Heartbeat {}

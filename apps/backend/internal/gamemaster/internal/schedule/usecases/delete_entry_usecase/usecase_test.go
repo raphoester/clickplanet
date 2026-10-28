@@ -24,7 +24,7 @@ func kept(t *testing.T) *inmemory_entry_store.Store {
 
 	store := inmemory_entry_store.New()
 	entry, err := schedule.NewEntry(first, schedule.Draft{
-		Set: "rush", Kind: schedule.Battle, StartsAt: finale, EndsAt: finale.Add(2 * time.Hour), Priority: 1,
+		Set: "rush", Kind: schedule.Battle, StartsAt: finale, EndsAt: finale.Add(2 * time.Hour), Priority: 1, Times: 3,
 	}, madeAt)
 	require.NoError(t, err)
 	require.NoError(t, store.Save(t.Context(), entry))

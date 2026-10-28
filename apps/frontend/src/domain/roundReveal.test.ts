@@ -20,14 +20,15 @@ const score = (rank: number, countryCode: string, points: number): Score => ({ra
 
 const ENDED_AT = Date.UTC(2026, 9, 16, 21)
 const DAY: ClosedRound = {
+    moment: "day",
     season: 0,
     number: 5,
+    roundId: "season-0/day-5",
     endedAt: ENDED_AT,
     finale: false,
     standings: [result(1, "fr", 25), result(2, "de", 18), result(3, "es", 15), result(4, "it", 12)],
     before: [score(1, "de", 50), score(2, "br", 40), score(3, "fr", 30)],
     after: [score(1, "de", 68), score(2, "fr", 55), score(3, "br", 40), score(4, "es", 15), score(5, "it", 12)],
-    own: false,
     times: 1,
     startedAt: 0,
     entryId: "",
@@ -35,14 +36,15 @@ const DAY: ClosedRound = {
     players: [],
 }
 const BATTLE: ClosedRound = {
-    ...DAY, number: 1, own: true, times: 3, startedAt: ENDED_AT - 7_200_000, entryId: "entry-final",
+    ...DAY, moment: "battle", number: 1, roundId: "entry-final", times: 3, startedAt: ENDED_AT - 7_200_000, entryId: "entry-final",
     players: [{rank: 1, accountId: "account-ana", name: "Ana", color: NameColor.UNSPECIFIED, countryCode: "fr", tiles: 9}],
 }
 const FINAL_BATTLE: ClosedRound = {...BATTLE, finale: true}
+const SEASON: ClosedRound = {...FINAL_BATTLE, moment: "season"}
 
 const kinds = (closed: ClosedRound | undefined, seen: string | null, battle?: Battle) =>
     revealsDue(closed, ENDED_AT + 60_000, seen, battle).map((reveal) => reveal.kind)
-const seenBattle = (entryId: string): Battle => ({entryId, since: BATTLE.startedAt, endsAt: ENDED_AT, description: ""})
+const seenBattle = (entryId: string): Battle => ({entryId, since: BATTLE.startedAt, endsAt: ENDED_AT, description: "", roundId: entryId})
 
 describe("revealsDue", () => {
     it("plays a day closed in the last hours that this browser has not seen", () => {
@@ -71,8 +73,19 @@ describe("revealsDue", () => {
         expect(kinds(FINAL_BATTLE, revealKeyOf({kind: "results", closed: FINAL_BATTLE}))).toEqual([])
     })
 
-    it("tells a day from the round of its own of the same number and end", () => {
-        expect(kinds(BATTLE, revealKeyOf({kind: "round", closed: {...BATTLE, own: false}}))).toEqual(["over", "points", "players"])
+    it("tells a day from the battle of the same number and end", () => {
+        expect(kinds(BATTLE, revealKeyOf({kind: "round", closed: {...BATTLE, moment: "day"}}))).toEqual(["over", "points", "players"])
+    })
+
+    it("plays the season's results, after its Final Battle's debrief when a battle finished it", () => {
+        expect(kinds(SEASON, null)).toEqual(["over", "points", "players", "results"])
+        expect(kinds(SEASON, null, seenBattle("entry-before"))).toEqual(["over", "points", "players", "results"])
+        expect(kinds({...SEASON, entryId: "", number: 0}, null)).toEqual(["results"])
+    })
+
+    it("does not play the Final Battle's screens again when the season's debrief follows its own", () => {
+        expect(kinds(SEASON, revealKeyOf({kind: "players", closed: FINAL_BATTLE}))).toEqual(["results"])
+        expect(kinds(SEASON, revealKeyOf({kind: "results", closed: FINAL_BATTLE}))).toEqual([])
     })
 
     it("does not play a round closed long ago, or no round at all", () => {

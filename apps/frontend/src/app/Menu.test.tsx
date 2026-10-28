@@ -22,7 +22,10 @@ import {AllegianceLockedError} from "../backends/backend.ts"
 
 const france = Countries.get("fr")!
 const RACE: Race = {
-    round: {number: 5, endsAt: 0, finale: false, standings: [{rank: 1, countryCode: "fr", share: 0.5, points: 25}], own: false, times: 1, entryId: ""},
+    today: {
+        roundId: "season-0/day-5", times: 1, startedAt: 0, endedAt: 0,
+        standings: [{rank: 1, countryCode: "fr", share: 0.5, points: 25}], takes: [], players: [], before: [], after: [],
+    },
     scores: [{rank: 1, countryCode: "fr", points: 43, roundsWon: 1}],
 }
 const entry = (code: string, tiles: number) => ({country: Countries.get(code)!, tiles})
@@ -201,7 +204,7 @@ describe("Menu", () => {
         const standings = {
             backend: {
                 listenForStandings: vi.fn(() => () => {}),
-                listenForRace: vi.fn(() => () => {}),
+
                 mySeason: vi.fn(async () => undefined),
             },
             caller: {linked: false},
@@ -239,7 +242,7 @@ describe("Menu", () => {
         const standings = {
             backend: {
                 listenForStandings: vi.fn(() => () => {}),
-                listenForRace: vi.fn(() => () => {}),
+
                 mySeason: vi.fn(async () => undefined),
             },
             caller: {linked: false},

@@ -1,4 +1,4 @@
-import {useEffect, useRef, useState} from 'react';
+import {useEffect, useMemo, useRef, useState} from 'react';
 import {
     AllegianceSource,
     BankFullError,
@@ -71,7 +71,6 @@ import {usePresence} from "../players/usePresence.ts";
 import {useRoster} from "../players/useRoster.ts";
 import SignInPitchModal from "../account/SignInPitchModal.tsx";
 import {LeaderboardEntry, rankOf} from "../../domain/leaderboard.ts";
-import {SeasonBackend} from "../../backends/season.ts";
 import {useSeason} from "../season/useSeason.ts";
 import SeasonChip, {ChampionChip, SeasonDetails} from "../season/SeasonChip.tsx";
 import {useCompact} from "../compact.ts";
@@ -85,11 +84,12 @@ import {unseen} from "../../domain/missions.ts";
 import MissionsDone from "../missions/MissionsDone.tsx";
 import {useSeenMissions} from "../missions/useSeenMissions.ts";
 import {usePaidMissions} from "../missions/usePaidMissions.ts";
-import {StandingsBackend} from "../../backends/standings.ts";
+import {boardsOf, StandingsBackend} from "../../backends/standings.ts";
 import {SupportBackend} from "../../backends/support.ts";
 import {pageContextOf} from "../support/pageContext.ts";
 import {BoardStandings, BoardView} from "../standings/BoardViews.tsx";
 import {useRace} from "../standings/useRace.ts";
+import {useDebriefed} from "../season/useDebriefed.ts";
 import RoundReveal from "../season/RoundReveal.tsx";
 import {useRoundReveal} from "../season/useRoundReveal.ts";
 import {TurnBackend} from "../../backends/turn.ts";
@@ -109,6 +109,7 @@ import {briefDescriptionOf} from "../../domain/battleBrief.ts";
 import {revealFollowed} from "../../domain/roundReveal.ts";
 import {reigningChampionOf} from "../../domain/champion.ts";
 import {countryLines, CountryOrder, shownOrder} from "../../domain/race.ts";
+import {endedBookOf} from "../../domain/debrief.ts";
 import {acceptedClicks} from "./acceptedClicks.ts";
 import "./Viewer.css"
 
@@ -138,7 +139,6 @@ export type ViewerProps = {
     playerInfo?: PlayerInfoBackend
     tileHolders?: TileHolders
     landmasses?: LandmassReader
-    season?: SeasonBackend
     turn?: TurnBackend
     standings?: StandingsBackend
     support?: SupportBackend
@@ -176,23 +176,26 @@ export default function Viewer(props: ViewerProps) {
     const announcements = useAnnouncements()
     const {announce, current} = announcements
     const roster = useRoster(props.presence, (title) => announce({kind: "title", title}))
-    const season = useSeason(props.season)
-    const race = useRace(props.standings)
     const schedule = useSchedule(props.turn)
+    const season = useSeason(schedule.seasons.current)
+    const bookId = schedule.seasons.current?.bookId ?? endedBookOf(schedule.debrief)
+    const dayEndsAt = schedule.seasons.today?.endsAt
     const battle = battleOf(schedule.turn)
+    const race = useRace(props.standings, bookId, schedule.seasons.today?.roundId, battle?.roundId)
+    const closed = useDebriefed(props.standings, schedule.debrief)
     const nextBattle = nextBattleOf(schedule.battles, Date.now())
     useMood(battle ? "battle" : undefined)
     const battleReveal = useBattleReveal(battle)
-    const battleOver = useBattleOver(battle, race)
+    const battleOver = useBattleOver(battle, schedule.debrief)
     const seenBattle = useSeenBattle(battle)
-    const reveal = useRoundReveal(race, seenBattle)
+    const reveal = useRoundReveal(closed, seenBattle)
     useEffect(() => {
         for (const due of reveal.due) announce(due)
     }, [announce, reveal.due])
     useEffect(() => {
         if (battleReveal.battle) announce({kind: "battle", battle: battleReveal.battle})
     }, [announce, battleReveal.battle])
-    const champion = reigningChampionOf(season, race?.closed)
+    const champion = reigningChampionOf(season, closed)
     const [countryOrder, setCountryOrder] = useState<CountryOrder>("season")
     const boardGuide = useBoardGuide()
     const [pitchOpen, setPitchOpen] = useState(false)
@@ -316,8 +319,9 @@ export default function Viewer(props: ViewerProps) {
     const linked = account.kind === 'ready' && account.me.linked.length > 0
     const toll = rules?.toll ?? []
     const held = leaderboard.find((entry) => entry.country.code === countryState.code)?.tiles ?? 0
-    const standings: BoardStandings | undefined = props.standings && {
-        backend: props.standings,
+    const boards = useMemo(() => props.standings && bookId ? boardsOf(props.standings, bookId) : undefined, [props.standings, bookId])
+    const standings: BoardStandings | undefined = boards && {
+        backend: boards,
         caller: {accountId: ownAccountId, username, color, linked},
         listenForClicks: accepted.listenForClicks,
         onSignIn: clickBudget?.linkedMultiplier ? openPitch : undefined,
@@ -404,6 +408,7 @@ export default function Viewer(props: ViewerProps) {
         {ready && !compact && !battle && champion && <ChampionChip champion={champion} compact={false}/>}
         {ready && !compact && !battle && !champion && season && <SeasonChip season={season}
                                                                  nextBattle={nextBattle}
+                                                                 dayEndsAt={dayEndsAt}
                                                                  compact={false}
                                                                  open={seasonOpen}
                                                                  onToggle={() => setSeasonOpen((open) => !open)}/>}
@@ -422,6 +427,7 @@ export default function Viewer(props: ViewerProps) {
                                                 ? <ChampionChip champion={champion} compact/>
                                                 : season && <SeasonChip season={season}
                                                                         nextBattle={nextBattle}
+                                                                        dayEndsAt={dayEndsAt}
                                                                         compact
                                                                         open={sheet === "season"}
                                                                         onToggle={() => toggleSheet("season")}/>}/>}
@@ -477,7 +483,7 @@ export default function Viewer(props: ViewerProps) {
                 <SettingsPlace {...settings}/>
             </Sheet>}
             {sheet === "season" && season && <Sheet title={`Season ${season.number}`} onClose={closeSheet}>
-                <SeasonDetails season={season} nextBattle={nextBattle}/>
+                <SeasonDetails season={season} nextBattle={nextBattle} dayEndsAt={dayEndsAt}/>
             </Sheet>}
             {sheet === "battle" && battle && <Sheet title="Battle" onClose={closeSheet}>
                 <BattleDetails battle={battle} season={season}/>

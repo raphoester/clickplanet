@@ -1,27 +1,30 @@
 # The season
 
-`backends/season.ts` is the contract, `seasonBackend.ts` reads
-`scoring.v1.SeasonService/GetSeason` once per page load (a cached GET), and
-`fakeSeasonBackend.ts` answers Season 0 in fake mode. A 404 reads as no season.
+**The season and its days are the gamemaster's**: `backends/season.ts` is `Season`
+(`number`, `startsAt`, `endsAt`, `bookId`), `Day` (`number`, `startsAt`, `endsAt`,
+`roundId`) and `Seasons` (`current`, `next`, `today`), which the gamemaster's
+`Timeline` carries and `TurnBackend.follow` hands on (`onSeasons`, see
+[Battles](battle.md#reading-what-plays)). An end the operator moves reaches the page
+within a second. A server without the gamemaster reads as no season. **Scoring only
+counts points**, by the ids the gamemaster names: the season's `bookId` and the
+rounds' `roundId` (see [Season standings](season-standings.md)).
+`scoringBackend.ts` makes the `ScoringService` client.
 
 - `domain/seasonClock.ts` — `countdownsOf`, the chip's faces: the time left to
   today's cutoff to the second (`13h 05m 12s`, `52m 10s`), to the next battle's
-  start when one is to come, and to the season's end. **A day ends at the time of day the season's last day ends**
-  (`Season.lastDayEndsAt`, the backend's `rounds.Day`): worked out here from the
-  season, so the chip needs no race. From the last day's end to the season's end
-  there is no day, and one face, the season's; a last day that ends with the
-  season is one face too. After the season, none. `endClock` is the season's
+  start when one is to come, and to the season's end. **Today's end is the
+  gamemaster's**: `Timeline.today.ends_at`, the daily cutoff. With no day
+  running (after the season's last cutoff), or a day that
+  ends with the season, there is one face, the season's. After the season, none. `endClock` is the season's
   countdown unit by unit, for the home page, and `endsLine` its end in the
   player's own time zone ("Sat 31 Oct · 23:00").
 - **The next battle is the schedule's** (see [Battles](battle.md#the-battles-to-come)):
   an operator may move or delete it, and the stream says so within a second.
-  `GetSeason`'s `finale_starts_at` is read only from a server from before
-  `last_day_ends_at`, which sent the same time under it.
-- `domain/champion.ts` — `championOf`, the countries ranked 1st once a finale
-  closed, `reigningChampionOf`, that champion while no newer season is current,
+- `domain/champion.ts` — `championOf`, the countries ranked 1st once the Final
+  Battle or the season was debriefed, `reigningChampionOf`, that champion while no newer season is current,
   and `winsLine`, "Germany wins Season 0", for the reveal, the chip and the chat.
-- `app/season/` — `useSeason`, which drops the season at its end (a page open
-  across it goes back to no season), `SeasonChip`, `ChampionChip`, `SeasonDetails`,
+- `app/season/` — `useSeason`, the timeline's current season, dropped at its end on
+  this clock (a page open across it goes back to no season), `SeasonChip`, `ChampionChip`, `SeasonDetails`,
   `SeasonFacts`, the rows both of them open on, `useRotation`, which turns the
   chip's faces, and `RoundReveal` with `useRoundReveal` (see [The cutoff,
   revealed](cutoff.md)): a day's reveal, and the season's results after the Final
@@ -49,8 +52,8 @@ The faces are hidden from it, and they are not a live region.
 chip is back when the battle ends.
 
 **After the season, the chip is the champion's** (`ChampionChip`): a trophy,
-"Season 0 champion", the flag and the name, from the race's `closed` once it is
-the finale. It replaces the countdown as soon as the finale of the current
+"Season 0 champion", the flag and the name, from the last debrief once it is the
+Final Battle's or the season's (`SeasonEnded`), with the book's table read from scoring. It replaces the countdown as soon as the finale of the current
 season closed, and stays until a newer season is current
 (`reigningChampionOf`). It opens nothing: with no season there are no facts to
 show. Its name is the chat's line, "Germany wins Season 0". On a phone it is the
@@ -75,12 +78,11 @@ more for the winning country's. A battle and what it is worth are the schedule's
 the battle chip says them, in the operator's words, while one plays. Guests get no title, so
 the row says "signed-in".
 
-**The home page counts down to the season's end, and to the next battle.** `src/home.ts` reads the
-season with the same client, and `app/home/season.ts` fills the pill in the hero
+**The home page counts down to the season's end, and to the next battle.** `src/home.ts` follows the
+gamemaster's stream once, and `app/home/season.ts` (`seasonShown`) fills the pill in the hero
 ("Season 0 · ends in") and the `#season` section (when it ends, the countdown,
 the rows of the chip), both `hidden` until a season is known and again once it is
-over. `app/home/battle.ts` follows the gamemaster's stream with the game's own
-client and fills the second pill ("Next battle in", `[data-battle]`), `hidden` while
+over, and follows a moved end. `app/home/battle.ts` (`nextBattleShown`) fills the second pill ("Next battle in", `[data-battle]`), `hidden` while
 no battle is to come; an edit of the schedule moves it at once. The page's text stays in `index.html`; the module only writes the numbers. **It imports no CSS**:
 a stylesheet shared with `play.html` becomes its own file, linked before
 `play-*.css`, and moves the game's cascade. The art's styles are copied into the

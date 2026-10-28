@@ -10,17 +10,17 @@ import (
 )
 
 const (
-	seasonMaxAge    = 60
-	standingsMaxAge = 15
-	// The race changes once a minute, with the snapshot.
-	raceMaxAge = 10
+	boardMaxAge = 15
+	// A round's standings and a book's scores change once a round closes, and as the map moves.
+	roundMaxAge  = 10
+	scoresMaxAge = 10
 )
 
 func NewCacheInterceptor() connect.Interceptor {
 	maxAge := map[string]int{
-		scoringv1connect.SeasonServiceGetSeasonProcedure:    seasonMaxAge,
-		scoringv1connect.SeasonServiceGetStandingsProcedure: standingsMaxAge,
-		scoringv1connect.SeasonServiceGetRaceProcedure:      raceMaxAge,
+		scoringv1connect.ScoringServiceGetBoardProcedure:  boardMaxAge,
+		scoringv1connect.ScoringServiceGetRoundProcedure:  roundMaxAge,
+		scoringv1connect.ScoringServiceGetScoresProcedure: scoresMaxAge,
 	}
 
 	return connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {

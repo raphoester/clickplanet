@@ -2,22 +2,24 @@ package e2e_test
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"log/slog"
 	"net"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"strconv"
 	"sync"
 	"testing"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	gamemasterv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/gamemaster/v1"
+	"github.com/raphoester/clickplanet.lol-backend/generated/proto/gamemaster/v1/gamemasterv1connect"
+	scoringv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1"
+	"github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1/scoringv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat"
@@ -27,7 +29,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconfigs"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
@@ -80,12 +81,12 @@ func startGame(t *testing.T) gameStack {
 
 	playerConfig := player.Config{Database: postgres.ConfigFor("player"), Redis: redis, TagSalt: "pepper"}
 
-	scoringConfig := currentSeason(t, postgres.ConfigFor("scoring"))
-	scoringConfig.Redis = redis
+	scoringConfig := scoring.Config{Database: postgres.ConfigFor("scoring"), Redis: redis}
 
 	missionsConfig := missions.Config{Database: postgres.ConfigFor("missions"), Redis: redis}
 
-	gamemasterConfig := gamemaster.Config{Database: postgres.ConfigFor("gamemaster"), Redis: redis}
+	gamemasterConfig := gamemaster.Config{Database: postgres.ConfigFor("gamemaster"), Redis: redis, DailyCutoff: 21 * time.Hour}
+	seasonRuns(t, gamemasterConfig.Database)
 
 	chatConfig := chat.Config{Database: postgres.ConfigFor("chat"), Redis: redis}
 	chatConfig.RateLimiter.PerSecond = 100
@@ -127,13 +128,15 @@ func startGame(t *testing.T) gameStack {
 
 	waitUntilServed(t, server.BindAddress)
 
-	return gameStack{
+	stack := gameStack{
 		baseURL:    "http://" + server.BindAddress,
 		consoleURL: "http://" + server.ConsoleBindAddress,
 		adminURL:   "http://" + server.AdminBindAddress,
 		fakes:      fakes,
 		postgres:   postgres,
 	}
+	stack.today(t)
+	return stack
 }
 
 // Every test clicks from one address, so the rule set the stack plays lets it: written before planet boots.
@@ -196,22 +199,43 @@ func waitUntilServed(t *testing.T, address string) {
 	require.NoError(t, res.Body.Close())
 }
 
-func currentSeason(t *testing.T, database cppg.Config) scoring.Config {
+// Season 0 runs 30 days more, whatever the day the tests run. The gamemaster tells scoring at boot.
+func seasonRuns(t *testing.T, database cppg.Config) {
 	t.Helper()
 
-	path := filepath.Join(t.TempDir(), "scoring.yaml")
-	require.NoError(t, os.WriteFile(path, fmt.Appendf(nil, `
-scoring:
-  dailyCutoff: 21h
-  list:
-    - number: 0
-      endsAt: %s
-`, time.Now().Add(30*24*time.Hour).UTC().Format(time.RFC3339)), 0o600))
-	var config struct{ Scoring scoring.Config }
-	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile(path)))
-	config.Scoring.Database = database
+	require.NoError(t, gamemaster.Migrate(t.Context(), database))
+	db := cppg.New(database)
+	require.NoError(t, db.ConnectCtx(t.Context()))
+	defer func() { _ = db.Close() }()
+	_, err := db.On(t.Context()).ExecContext(t.Context(),
+		`UPDATE seasons SET length = $1::timestamptz - timestamptz '2026-10-08T00:00:00Z' WHERE number = 0`,
+		time.Now().Add(30*24*time.Hour).UTC())
+	require.NoError(t, err)
+}
 
-	return config.Scoring
+type today struct {
+	book  string
+	round string
+}
+
+// Today is the season's book and today's round, once the gamemaster opened both in scoring: a take counts in a book
+// only once it is open.
+func (s gameStack) today(t *testing.T) today {
+	t.Helper()
+
+	var found today
+	require.EventuallyWithT(t, func(c *assert.CollectT) {
+		turn, err := gamemasterv1connect.NewGamemasterServiceClient(http.DefaultClient, s.baseURL).
+			GetTurn(t.Context(), connect.NewRequest(&gamemasterv1.GetTurnRequest{}))
+		require.NoError(c, err)
+		found = today{book: turn.Msg.GetTimeline().GetCurrent().GetBookId(), round: turn.Msg.GetTimeline().GetToday().GetRoundId()}
+		require.NotEmpty(c, found.book)
+		require.NotEmpty(c, found.round)
+		_, err = scoringv1connect.NewScoringServiceClient(http.DefaultClient, s.baseURL).
+			GetRound(t.Context(), connect.NewRequest(&scoringv1.GetRoundRequest{RoundId: found.round}))
+		require.NoError(c, err)
+	}, 10*time.Second, 50*time.Millisecond, "the gamemaster opens the season's book and today's round in scoring")
+	return found
 }
 
 func (s gameStack) schema(t *testing.T, name string) *cppg.Postgres {

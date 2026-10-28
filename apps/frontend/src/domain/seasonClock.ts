@@ -19,16 +19,15 @@ export type SeasonCountdown = {
 }
 
 // The day's end while a day runs, the next battle's start, then the season's end. None once the season ended.
-export function countdownsOf(season: Season, now: number, battle?: BattleToCome): SeasonCountdown[] {
+export function countdownsOf(season: Season, now: number, battle?: BattleToCome, dayEndsAt?: number): SeasonCountdown[] {
     if (now >= season.endsAt) return []
 
     const ends = {label: "Season ends in", tag: "Season", left: timeLeft(countdownTo(season.endsAt, now))}
     const battles = battle && battle.startsAt > now
         ? [{label: "Next battle in", tag: "Battle", left: timeLeft(countdownTo(battle.startsAt, now))}]
         : []
-    const cutoff = cutoffOf(season, now)
-    if (now >= season.lastDayEndsAt || cutoff === season.endsAt) return [...battles, ends]
-    return [{label: "Today ends in", tag: "Today", left: timeLeft(countdownTo(cutoff, now))}, ...battles, ends]
+    if (dayEndsAt === undefined || dayEndsAt <= now || dayEndsAt >= season.endsAt) return [...battles, ends]
+    return [{label: "Today ends in", tag: "Today", left: timeLeft(countdownTo(dayEndsAt, now))}, ...battles, ends]
 }
 
 export type EndClock = {
@@ -42,12 +41,6 @@ export function endClock(season: Season, now: number): EndClock | undefined {
 
     const countdown = countdownTo(season.endsAt, now)
     return {left: timeLeft(countdown), countdown}
-}
-
-// Every day ends at the time of day of the season's last cutoff.
-function cutoffOf(season: Season, now: number): number {
-    const daysAfter = Math.floor((season.lastDayEndsAt - now - 1) / (DAY * 1000))
-    return season.lastDayEndsAt - daysAfter * DAY * 1000
 }
 
 function countdownTo(at: number, now: number): Countdown {

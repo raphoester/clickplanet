@@ -32,11 +32,15 @@ internal/chat/internal/
       muting_react/                     refuses a muted caller before anything else — Mutes
   announcements/                        Announcement, AnnouncementID, Kind (Kinds, Known: announce_usecase refuses
                                         any other), Bomb, Fortify, Muted, Round and Champion: each builds its
-                                        Announcement, named after the fact it tells; the Storage port and the suite
+                                        Announcement, named after the fact it tells; RoundID and BookID, scoring's
+                                        ids; the Storage port and the suite; FakeResults behind the testing tag
     postgres_announcement_store/        Storage, over chat.announcements
     inmemory_announcement_storage/      Storage in a slice — behind the testing tag, tests only
     usecases/announce_usecase/          keeps an announcement once, publishes it the first time — Appender, Publisher
     usecases/announce_mute_usecase/     names a muted account, announces it as a Muted — Authors, Announcer
+    usecases/announce_round_usecase/    reads a round's results by id, announces its podium — Results, Announcer
+    usecases/announce_champion_usecase/ reads a closed book's table by id, announces its champion — Results, Announcer
+    rpc_scoring_results/                Results, from scoring.v1.InternalService/GetRound and GetTable
   seen/                                 Until (the rule on a mark's time), ErrNoTime, the Storage port: writes only
     postgres_seen_store/                Storage, over chat.seen; what it keeps is tested through history_query
     inmemory_seen_storage/              Storage in a map, and Kept for a test — behind the testing tag, tests only
@@ -77,8 +81,9 @@ internal/chat/internal/
     bomb_landed_subscriber/             planet.v1.BombLanded → announce_usecase, as a Bomb
     fortified_subscriber/               planet.v1.Fortified → announce_usecase, as a Fortify of 50 tiles or more
     account_muted_subscriber/           chat.v1.AccountMuted → announce_mute_usecase
-    round_closed_subscriber/            scoring.v1.RoundClosed → announce_usecase, as a Round
-    season_closed_subscriber/           scoring.v1.SeasonClosed → announce_usecase, as a Champion
+    day_ended_subscriber/               gamemaster.v1.DayEnded → announce_round_usecase, as a DayOf
+    battle_ended_subscriber/            gamemaster.v1.BattleEnded → announce_round_usecase, as a BattleOf
+    season_ended_subscriber/            gamemaster.v1.SeasonEnded → announce_champion_usecase
     account_deleted_subscriber/         auth.v1.AccountDeleted → forget_seen_usecase
     log_subscriber/                     logs an event a subscriber refused (player's, copied)
   migrations/                           the chat schema

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -47,34 +48,61 @@ type Store interface {
 	Save(ctx context.Context, replay Replay) error
 }
 
-// The race the season stream sends: the generator tells the day closed last when it ended in the replay.
-type Race struct {
-	// A scoring.v1.GetRaceResponse in JSON, as the backend answered it.
+// The gamemaster's turn: the generator tells the moment scoring scored last (its debrief) when it ended in the replay,
+// and calls countries up before the season's finale.
+type Turn struct {
+	// A gamemaster.v1.GetTurnResponse in JSON, as the backend answered it.
 	Document []byte
-	// The day closed last as its season and its number, "1.5"; empty when no day closed yet.
-	Closed  string
+	// The debrief's round as its season and its number, "1.5", "1.battle.2" or "1.finale"; empty when none.
+	Debriefed string
+	// The round to read the debrief's numbers by; empty when none.
+	Round   RoundID
 	EndedAt time.Time
+	// When the finale battle to come starts; zero when none is scheduled.
+	FinaleAt time.Time
 }
 
-type RaceSource interface {
-	Race(ctx context.Context) (Race, error)
+type RoundID string
+
+var ErrInvalidRoundID = errors.New("a round id is letters, digits, dashes and slashes")
+
+func RoundIDOf(id string) (RoundID, error) {
+	if id == "" {
+		return "", fmt.Errorf("%w: it is empty", ErrInvalidRoundID)
+	}
+	for _, r := range id {
+		if !strings.ContainsRune(roundIDRunes, r) {
+			return "", fmt.Errorf("%w: %q", ErrInvalidRoundID, id)
+		}
+	}
+	return RoundID(id), nil
 }
 
-type RaceStore interface {
-	SaveRace(ctx context.Context, race Race) error
+const roundIDRunes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-/"
+
+func (r RoundID) String() string { return string(r) }
+
+type TurnSource interface {
+	Turn(ctx context.Context) (Turn, error)
 }
 
-type Season struct {
-	// A scoring.v1.GetSeasonResponse in JSON, as the backend answered it.
+type TurnStore interface {
+	SaveTurn(ctx context.Context, turn Turn) error
+}
+
+// The debrief's round as scoring scored it: its podium and the season's table after it.
+type Round struct {
+	// A scoring.v1.GetRoundResponse in JSON, as the backend answered it; {} when no round was debriefed.
 	Document []byte
-	// Zero when no season is on.
-	FinaleStartsAt time.Time
+	ID       RoundID
 }
 
-type SeasonSource interface {
-	Season(ctx context.Context) (Season, error)
+var NoRound = Round{Document: []byte("{}")}
+
+type RoundSource interface {
+	Round(ctx context.Context, round RoundID) (Round, error)
 }
 
-type SeasonStore interface {
-	SaveSeason(ctx context.Context, season Season) error
+type RoundStore interface {
+	SaveRound(ctx context.Context, round Round) error
 }

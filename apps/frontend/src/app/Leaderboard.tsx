@@ -37,7 +37,7 @@ export default function Leaderboard(props: LeaderboardProps) {
     const titleId = useId()
     const deltas = props.deltas ?? NO_TILE_DELTAS
     const race = props.race
-    const battle = race?.round?.own ? race.round : undefined
+    const battle = race?.battle
     const [leader, ...rest] = countryLines(props.data, race, shownOrder(race, props.order))
     const [shown, setShown] = useState<Shown>()
     const [guiding, setGuiding] = useState(false)

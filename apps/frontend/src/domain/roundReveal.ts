@@ -29,14 +29,25 @@ export function medalOf(rank: number): string {
 }
 
 // round: a day's reveal. over, points, players: a battle's debrief, each a screen of its own. results: the season's
-// table and its champion, after the debrief of the round that ended the season.
+// table and its champion, after the debrief of the battle that ended the season.
 export type Reveal = {kind: "round" | "over" | "points" | "players" | "results", closed: ClosedRound}
 
-// battle is the last one the page saw play: another battle's round of its own plays no debrief.
+// battle is the last one the page saw play: another battle's round plays no debrief.
 export function revealsOf(closed: ClosedRound, battle?: Battle): Reveal[] {
-    if (!closed.own) return [{kind: "round", closed}]
-    const debrief = debriefedFor(closed, battle) ? debriefScreensOf(closed).map((kind) => ({kind, closed})) : []
-    return closed.finale ? [...debrief, {kind: "results", closed}] : debrief
+    switch (closed.moment) {
+        case "day":
+            return [{kind: "round", closed}]
+        case "battle": {
+            const debrief = debriefedFor(closed, battle) ? screensOf(closed) : []
+            return closed.finale ? [...debrief, {kind: "results", closed}] : debrief
+        }
+        case "season":
+            return [...(closed.entryId !== "" ? screensOf(closed) : []), {kind: "results", closed}]
+    }
+}
+
+function screensOf(closed: ClosedRound): Reveal[] {
+    return debriefScreensOf(closed).map((kind) => ({kind, closed}))
 }
 
 // More plays after it: its button goes on rather than back to the globe.
@@ -45,16 +56,18 @@ export function revealFollowed(reveal: Reveal, battle?: Battle): boolean {
     return reveals.findIndex((each) => each.kind === reveal.kind) < reveals.length - 1
 }
 
+// A battle's screens are keyed by its round, so the season's debrief does not play them again.
 export function revealKeyOf(reveal: Reveal): string {
-    const {season, number, endedAt} = reveal.closed
+    const {season, number, endedAt, roundId} = reveal.closed
     switch (reveal.kind) {
         case "round":
             return `${season}:${number}:${endedAt}`
         case "over":
         case "points":
         case "players":
+            return `${season}:battle:${roundId}:${reveal.kind}`
         case "results":
-            return `${season}:own:${number}:${endedAt}:${reveal.kind}`
+            return `${season}:results:${roundId}`
     }
 }
 

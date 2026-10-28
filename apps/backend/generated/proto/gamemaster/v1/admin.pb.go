@@ -9,6 +9,7 @@ package gamemasterv1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	durationpb "google.golang.org/protobuf/types/known/durationpb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
@@ -123,7 +124,9 @@ type Entry struct {
 	// What the entry is to the players: the game client reads it from GamemasterService.GetTurn.
 	Kind EntryKind `protobuf:"varint,7,opt,name=kind,proto3,enum=gamemaster.v1.EntryKind" json:"kind,omitempty"`
 	// For the players, in plain text: what the rules of the entry are ("Triple points. A bonus box every minute.").
-	Description   string `protobuf:"bytes,8,opt,name=description,proto3" json:"description,omitempty"`
+	Description string `protobuf:"bytes,8,opt,name=description,proto3" json:"description,omitempty"`
+	// A battle's points' times, 1 to 10: its window is a round in scoring's books. 0 for a plain entry.
+	Times         uint32 `protobuf:"varint,9,opt,name=times,proto3" json:"times,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -214,6 +217,13 @@ func (x *Entry) GetDescription() string {
 	return ""
 }
 
+func (x *Entry) GetTimes() uint32 {
+	if x != nil {
+		return x.Times
+	}
+	return 0
+}
+
 // What the schedule plays now: the running entry with the highest priority, else "default".
 type Playing struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
@@ -295,7 +305,9 @@ type AddEntryRequest struct {
 	// Battle or plain: unspecified is InvalidArgument.
 	Kind EntryKind `protobuf:"varint,5,opt,name=kind,proto3,enum=gamemaster.v1.EntryKind" json:"kind,omitempty"`
 	// At most 300 characters: InvalidArgument past that.
-	Description   string `protobuf:"bytes,6,opt,name=description,proto3" json:"description,omitempty"`
+	Description string `protobuf:"bytes,6,opt,name=description,proto3" json:"description,omitempty"`
+	// 1 to 10 for a battle, 0 for a plain entry: InvalidArgument otherwise.
+	Times         uint32 `protobuf:"varint,7,opt,name=times,proto3" json:"times,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -372,6 +384,13 @@ func (x *AddEntryRequest) GetDescription() string {
 	return ""
 }
 
+func (x *AddEntryRequest) GetTimes() uint32 {
+	if x != nil {
+		return x.Times
+	}
+	return 0
+}
+
 type AddEntryResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -425,6 +444,7 @@ type EditEntryRequest struct {
 	Priority      uint32                 `protobuf:"varint,5,opt,name=priority,proto3" json:"priority,omitempty"`
 	Kind          EntryKind              `protobuf:"varint,6,opt,name=kind,proto3,enum=gamemaster.v1.EntryKind" json:"kind,omitempty"`
 	Description   string                 `protobuf:"bytes,7,opt,name=description,proto3" json:"description,omitempty"`
+	Times         uint32                 `protobuf:"varint,8,opt,name=times,proto3" json:"times,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -506,6 +526,13 @@ func (x *EditEntryRequest) GetDescription() string {
 		return x.Description
 	}
 	return ""
+}
+
+func (x *EditEntryRequest) GetTimes() uint32 {
+	if x != nil {
+		return x.Times
+	}
+	return 0
 }
 
 type EditEntryResponse struct {
@@ -624,15 +651,429 @@ func (*DeleteEntryResponse) Descriptor() ([]byte, []int) {
 	return file_gamemaster_v1_admin_proto_rawDescGZIP(), []int{9}
 }
 
+type GetSeasonsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetSeasonsRequest) Reset() {
+	*x = GetSeasonsRequest{}
+	mi := &file_gamemaster_v1_admin_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetSeasonsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetSeasonsRequest) ProtoMessage() {}
+
+func (x *GetSeasonsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_gamemaster_v1_admin_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetSeasonsRequest.ProtoReflect.Descriptor instead.
+func (*GetSeasonsRequest) Descriptor() ([]byte, []int) {
+	return file_gamemaster_v1_admin_proto_rawDescGZIP(), []int{10}
+}
+
+type GetSeasonsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Seasons       []*ScheduledSeason     `protobuf:"bytes,1,rep,name=seasons,proto3" json:"seasons,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetSeasonsResponse) Reset() {
+	*x = GetSeasonsResponse{}
+	mi := &file_gamemaster_v1_admin_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetSeasonsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetSeasonsResponse) ProtoMessage() {}
+
+func (x *GetSeasonsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_gamemaster_v1_admin_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetSeasonsResponse.ProtoReflect.Descriptor instead.
+func (*GetSeasonsResponse) Descriptor() ([]byte, []int) {
+	return file_gamemaster_v1_admin_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *GetSeasonsResponse) GetSeasons() []*ScheduledSeason {
+	if x != nil {
+		return x.Seasons
+	}
+	return nil
+}
+
+// A season as the operator plans it: its break and its length. Its window follows from the seasons before it.
+type ScheduledSeason struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Season *Season                `protobuf:"bytes,1,opt,name=season,proto3" json:"season,omitempty"`
+	// The time from the end of the season before to its start, when no season runs. Season 0's counts from its start.
+	BreakBefore   *durationpb.Duration `protobuf:"bytes,2,opt,name=break_before,json=breakBefore,proto3" json:"break_before,omitempty"`
+	Length        *durationpb.Duration `protobuf:"bytes,3,opt,name=length,proto3" json:"length,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ScheduledSeason) Reset() {
+	*x = ScheduledSeason{}
+	mi := &file_gamemaster_v1_admin_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ScheduledSeason) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ScheduledSeason) ProtoMessage() {}
+
+func (x *ScheduledSeason) ProtoReflect() protoreflect.Message {
+	mi := &file_gamemaster_v1_admin_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ScheduledSeason.ProtoReflect.Descriptor instead.
+func (*ScheduledSeason) Descriptor() ([]byte, []int) {
+	return file_gamemaster_v1_admin_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *ScheduledSeason) GetSeason() *Season {
+	if x != nil {
+		return x.Season
+	}
+	return nil
+}
+
+func (x *ScheduledSeason) GetBreakBefore() *durationpb.Duration {
+	if x != nil {
+		return x.BreakBefore
+	}
+	return nil
+}
+
+func (x *ScheduledSeason) GetLength() *durationpb.Duration {
+	if x != nil {
+		return x.Length
+	}
+	return nil
+}
+
+type AddSeasonRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	BreakBefore   *durationpb.Duration   `protobuf:"bytes,1,opt,name=break_before,json=breakBefore,proto3" json:"break_before,omitempty"`
+	Length        *durationpb.Duration   `protobuf:"bytes,2,opt,name=length,proto3" json:"length,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AddSeasonRequest) Reset() {
+	*x = AddSeasonRequest{}
+	mi := &file_gamemaster_v1_admin_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AddSeasonRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AddSeasonRequest) ProtoMessage() {}
+
+func (x *AddSeasonRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_gamemaster_v1_admin_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AddSeasonRequest.ProtoReflect.Descriptor instead.
+func (*AddSeasonRequest) Descriptor() ([]byte, []int) {
+	return file_gamemaster_v1_admin_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *AddSeasonRequest) GetBreakBefore() *durationpb.Duration {
+	if x != nil {
+		return x.BreakBefore
+	}
+	return nil
+}
+
+func (x *AddSeasonRequest) GetLength() *durationpb.Duration {
+	if x != nil {
+		return x.Length
+	}
+	return nil
+}
+
+type AddSeasonResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Number        uint32                 `protobuf:"varint,1,opt,name=number,proto3" json:"number,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AddSeasonResponse) Reset() {
+	*x = AddSeasonResponse{}
+	mi := &file_gamemaster_v1_admin_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AddSeasonResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AddSeasonResponse) ProtoMessage() {}
+
+func (x *AddSeasonResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_gamemaster_v1_admin_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AddSeasonResponse.ProtoReflect.Descriptor instead.
+func (*AddSeasonResponse) Descriptor() ([]byte, []int) {
+	return file_gamemaster_v1_admin_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *AddSeasonResponse) GetNumber() uint32 {
+	if x != nil {
+		return x.Number
+	}
+	return 0
+}
+
+type EditSeasonRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Number        uint32                 `protobuf:"varint,1,opt,name=number,proto3" json:"number,omitempty"`
+	BreakBefore   *durationpb.Duration   `protobuf:"bytes,2,opt,name=break_before,json=breakBefore,proto3" json:"break_before,omitempty"`
+	Length        *durationpb.Duration   `protobuf:"bytes,3,opt,name=length,proto3" json:"length,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EditSeasonRequest) Reset() {
+	*x = EditSeasonRequest{}
+	mi := &file_gamemaster_v1_admin_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EditSeasonRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EditSeasonRequest) ProtoMessage() {}
+
+func (x *EditSeasonRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_gamemaster_v1_admin_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EditSeasonRequest.ProtoReflect.Descriptor instead.
+func (*EditSeasonRequest) Descriptor() ([]byte, []int) {
+	return file_gamemaster_v1_admin_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *EditSeasonRequest) GetNumber() uint32 {
+	if x != nil {
+		return x.Number
+	}
+	return 0
+}
+
+func (x *EditSeasonRequest) GetBreakBefore() *durationpb.Duration {
+	if x != nil {
+		return x.BreakBefore
+	}
+	return nil
+}
+
+func (x *EditSeasonRequest) GetLength() *durationpb.Duration {
+	if x != nil {
+		return x.Length
+	}
+	return nil
+}
+
+type EditSeasonResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EditSeasonResponse) Reset() {
+	*x = EditSeasonResponse{}
+	mi := &file_gamemaster_v1_admin_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EditSeasonResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EditSeasonResponse) ProtoMessage() {}
+
+func (x *EditSeasonResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_gamemaster_v1_admin_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EditSeasonResponse.ProtoReflect.Descriptor instead.
+func (*EditSeasonResponse) Descriptor() ([]byte, []int) {
+	return file_gamemaster_v1_admin_proto_rawDescGZIP(), []int{16}
+}
+
+type DeleteSeasonRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Number        uint32                 `protobuf:"varint,1,opt,name=number,proto3" json:"number,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteSeasonRequest) Reset() {
+	*x = DeleteSeasonRequest{}
+	mi := &file_gamemaster_v1_admin_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteSeasonRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteSeasonRequest) ProtoMessage() {}
+
+func (x *DeleteSeasonRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_gamemaster_v1_admin_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteSeasonRequest.ProtoReflect.Descriptor instead.
+func (*DeleteSeasonRequest) Descriptor() ([]byte, []int) {
+	return file_gamemaster_v1_admin_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *DeleteSeasonRequest) GetNumber() uint32 {
+	if x != nil {
+		return x.Number
+	}
+	return 0
+}
+
+type DeleteSeasonResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteSeasonResponse) Reset() {
+	*x = DeleteSeasonResponse{}
+	mi := &file_gamemaster_v1_admin_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteSeasonResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteSeasonResponse) ProtoMessage() {}
+
+func (x *DeleteSeasonResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_gamemaster_v1_admin_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteSeasonResponse.ProtoReflect.Descriptor instead.
+func (*DeleteSeasonResponse) Descriptor() ([]byte, []int) {
+	return file_gamemaster_v1_admin_proto_rawDescGZIP(), []int{18}
+}
+
 var File_gamemaster_v1_admin_proto protoreflect.FileDescriptor
 
 const file_gamemaster_v1_admin_proto_rawDesc = "" +
 	"\n" +
-	"\x19gamemaster/v1/admin.proto\x12\rgamemaster.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1egamemaster/v1/gamemaster.proto\"\x14\n" +
+	"\x19gamemaster/v1/admin.proto\x12\rgamemaster.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1egamemaster/v1/gamemaster.proto\"\x14\n" +
 	"\x12GetScheduleRequest\"w\n" +
 	"\x13GetScheduleResponse\x12.\n" +
 	"\aentries\x18\x01 \x03(\v2\x14.gamemaster.v1.EntryR\aentries\x120\n" +
-	"\aplaying\x18\x02 \x01(\v2\x16.gamemaster.v1.PlayingR\aplaying\"\xc1\x02\n" +
+	"\aplaying\x18\x02 \x01(\v2\x16.gamemaster.v1.PlayingR\aplaying\"\xd7\x02\n" +
 	"\x05Entry\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
 	"\brule_set\x18\x02 \x01(\tR\aruleSet\x127\n" +
@@ -641,21 +1082,23 @@ const file_gamemaster_v1_admin_proto_rawDesc = "" +
 	"\bpriority\x18\x05 \x01(\rR\bpriority\x123\n" +
 	"\amade_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\x06madeAt\x12,\n" +
 	"\x04kind\x18\a \x01(\x0e2\x18.gamemaster.v1.EntryKindR\x04kind\x12 \n" +
-	"\vdescription\x18\b \x01(\tR\vdescription\"\x9f\x01\n" +
+	"\vdescription\x18\b \x01(\tR\vdescription\x12\x14\n" +
+	"\x05times\x18\t \x01(\rR\x05times\"\x9f\x01\n" +
 	"\aPlaying\x12\x19\n" +
 	"\brule_set\x18\x01 \x01(\tR\aruleSet\x120\n" +
 	"\x05since\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\x12\x19\n" +
 	"\bentry_id\x18\x03 \x01(\tR\aentryId\x12,\n" +
-	"\x04kind\x18\x04 \x01(\x0e2\x18.gamemaster.v1.EntryKindR\x04kind\"\x86\x02\n" +
+	"\x04kind\x18\x04 \x01(\x0e2\x18.gamemaster.v1.EntryKindR\x04kind\"\x9c\x02\n" +
 	"\x0fAddEntryRequest\x12\x19\n" +
 	"\brule_set\x18\x01 \x01(\tR\aruleSet\x127\n" +
 	"\tstarts_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\bstartsAt\x123\n" +
 	"\aends_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x06endsAt\x12\x1a\n" +
 	"\bpriority\x18\x04 \x01(\rR\bpriority\x12,\n" +
 	"\x04kind\x18\x05 \x01(\x0e2\x18.gamemaster.v1.EntryKindR\x04kind\x12 \n" +
-	"\vdescription\x18\x06 \x01(\tR\vdescription\"\"\n" +
+	"\vdescription\x18\x06 \x01(\tR\vdescription\x12\x14\n" +
+	"\x05times\x18\a \x01(\rR\x05times\"\"\n" +
 	"\x10AddEntryResponse\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"\x97\x02\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"\xad\x02\n" +
 	"\x10EditEntryRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
 	"\brule_set\x18\x02 \x01(\tR\aruleSet\x127\n" +
@@ -663,16 +1106,43 @@ const file_gamemaster_v1_admin_proto_rawDesc = "" +
 	"\aends_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x06endsAt\x12\x1a\n" +
 	"\bpriority\x18\x05 \x01(\rR\bpriority\x12,\n" +
 	"\x04kind\x18\x06 \x01(\x0e2\x18.gamemaster.v1.EntryKindR\x04kind\x12 \n" +
-	"\vdescription\x18\a \x01(\tR\vdescription\"\x13\n" +
+	"\vdescription\x18\a \x01(\tR\vdescription\x12\x14\n" +
+	"\x05times\x18\b \x01(\rR\x05times\"\x13\n" +
 	"\x11EditEntryResponse\"$\n" +
 	"\x12DeleteEntryRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"\x15\n" +
-	"\x13DeleteEntryResponse2\xd7\x02\n" +
+	"\x13DeleteEntryResponse\"\x13\n" +
+	"\x11GetSeasonsRequest\"N\n" +
+	"\x12GetSeasonsResponse\x128\n" +
+	"\aseasons\x18\x01 \x03(\v2\x1e.gamemaster.v1.ScheduledSeasonR\aseasons\"\xb1\x01\n" +
+	"\x0fScheduledSeason\x12-\n" +
+	"\x06season\x18\x01 \x01(\v2\x15.gamemaster.v1.SeasonR\x06season\x12<\n" +
+	"\fbreak_before\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\vbreakBefore\x121\n" +
+	"\x06length\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\x06length\"\x83\x01\n" +
+	"\x10AddSeasonRequest\x12<\n" +
+	"\fbreak_before\x18\x01 \x01(\v2\x19.google.protobuf.DurationR\vbreakBefore\x121\n" +
+	"\x06length\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x06length\"+\n" +
+	"\x11AddSeasonResponse\x12\x16\n" +
+	"\x06number\x18\x01 \x01(\rR\x06number\"\x9c\x01\n" +
+	"\x11EditSeasonRequest\x12\x16\n" +
+	"\x06number\x18\x01 \x01(\rR\x06number\x12<\n" +
+	"\fbreak_before\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\vbreakBefore\x121\n" +
+	"\x06length\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\x06length\"\x14\n" +
+	"\x12EditSeasonResponse\"-\n" +
+	"\x13DeleteSeasonRequest\x12\x16\n" +
+	"\x06number\x18\x01 \x01(\rR\x06number\"\x16\n" +
+	"\x14DeleteSeasonResponse2\xa6\x05\n" +
 	"\fAdminService\x12T\n" +
 	"\vGetSchedule\x12!.gamemaster.v1.GetScheduleRequest\x1a\".gamemaster.v1.GetScheduleResponse\x12K\n" +
 	"\bAddEntry\x12\x1e.gamemaster.v1.AddEntryRequest\x1a\x1f.gamemaster.v1.AddEntryResponse\x12N\n" +
 	"\tEditEntry\x12\x1f.gamemaster.v1.EditEntryRequest\x1a .gamemaster.v1.EditEntryResponse\x12T\n" +
-	"\vDeleteEntry\x12!.gamemaster.v1.DeleteEntryRequest\x1a\".gamemaster.v1.DeleteEntryResponseB\xce\x01\n" +
+	"\vDeleteEntry\x12!.gamemaster.v1.DeleteEntryRequest\x1a\".gamemaster.v1.DeleteEntryResponse\x12Q\n" +
+	"\n" +
+	"GetSeasons\x12 .gamemaster.v1.GetSeasonsRequest\x1a!.gamemaster.v1.GetSeasonsResponse\x12N\n" +
+	"\tAddSeason\x12\x1f.gamemaster.v1.AddSeasonRequest\x1a .gamemaster.v1.AddSeasonResponse\x12Q\n" +
+	"\n" +
+	"EditSeason\x12 .gamemaster.v1.EditSeasonRequest\x1a!.gamemaster.v1.EditSeasonResponse\x12W\n" +
+	"\fDeleteSeason\x12\".gamemaster.v1.DeleteSeasonRequest\x1a#.gamemaster.v1.DeleteSeasonResponseB\xce\x01\n" +
 	"\x11com.gamemaster.v1B\n" +
 	"AdminProtoP\x01ZXgithub.com/raphoester/clickplanet.lol-backend/generated/proto/gamemaster/v1;gamemasterv1\xa2\x02\x03GXX\xaa\x02\rGamemaster.V1\xca\x02\rGamemaster\\V1\xe2\x02\x19Gamemaster\\V1\\GPBMetadata\xea\x02\x0eGamemaster::V1b\x06proto3"
 
@@ -688,7 +1158,7 @@ func file_gamemaster_v1_admin_proto_rawDescGZIP() []byte {
 	return file_gamemaster_v1_admin_proto_rawDescData
 }
 
-var file_gamemaster_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_gamemaster_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
 var file_gamemaster_v1_admin_proto_goTypes = []any{
 	(*GetScheduleRequest)(nil),    // 0: gamemaster.v1.GetScheduleRequest
 	(*GetScheduleResponse)(nil),   // 1: gamemaster.v1.GetScheduleResponse
@@ -700,37 +1170,64 @@ var file_gamemaster_v1_admin_proto_goTypes = []any{
 	(*EditEntryResponse)(nil),     // 7: gamemaster.v1.EditEntryResponse
 	(*DeleteEntryRequest)(nil),    // 8: gamemaster.v1.DeleteEntryRequest
 	(*DeleteEntryResponse)(nil),   // 9: gamemaster.v1.DeleteEntryResponse
-	(*timestamppb.Timestamp)(nil), // 10: google.protobuf.Timestamp
-	(EntryKind)(0),                // 11: gamemaster.v1.EntryKind
+	(*GetSeasonsRequest)(nil),     // 10: gamemaster.v1.GetSeasonsRequest
+	(*GetSeasonsResponse)(nil),    // 11: gamemaster.v1.GetSeasonsResponse
+	(*ScheduledSeason)(nil),       // 12: gamemaster.v1.ScheduledSeason
+	(*AddSeasonRequest)(nil),      // 13: gamemaster.v1.AddSeasonRequest
+	(*AddSeasonResponse)(nil),     // 14: gamemaster.v1.AddSeasonResponse
+	(*EditSeasonRequest)(nil),     // 15: gamemaster.v1.EditSeasonRequest
+	(*EditSeasonResponse)(nil),    // 16: gamemaster.v1.EditSeasonResponse
+	(*DeleteSeasonRequest)(nil),   // 17: gamemaster.v1.DeleteSeasonRequest
+	(*DeleteSeasonResponse)(nil),  // 18: gamemaster.v1.DeleteSeasonResponse
+	(*timestamppb.Timestamp)(nil), // 19: google.protobuf.Timestamp
+	(EntryKind)(0),                // 20: gamemaster.v1.EntryKind
+	(*Season)(nil),                // 21: gamemaster.v1.Season
+	(*durationpb.Duration)(nil),   // 22: google.protobuf.Duration
 }
 var file_gamemaster_v1_admin_proto_depIdxs = []int32{
 	2,  // 0: gamemaster.v1.GetScheduleResponse.entries:type_name -> gamemaster.v1.Entry
 	3,  // 1: gamemaster.v1.GetScheduleResponse.playing:type_name -> gamemaster.v1.Playing
-	10, // 2: gamemaster.v1.Entry.starts_at:type_name -> google.protobuf.Timestamp
-	10, // 3: gamemaster.v1.Entry.ends_at:type_name -> google.protobuf.Timestamp
-	10, // 4: gamemaster.v1.Entry.made_at:type_name -> google.protobuf.Timestamp
-	11, // 5: gamemaster.v1.Entry.kind:type_name -> gamemaster.v1.EntryKind
-	10, // 6: gamemaster.v1.Playing.since:type_name -> google.protobuf.Timestamp
-	11, // 7: gamemaster.v1.Playing.kind:type_name -> gamemaster.v1.EntryKind
-	10, // 8: gamemaster.v1.AddEntryRequest.starts_at:type_name -> google.protobuf.Timestamp
-	10, // 9: gamemaster.v1.AddEntryRequest.ends_at:type_name -> google.protobuf.Timestamp
-	11, // 10: gamemaster.v1.AddEntryRequest.kind:type_name -> gamemaster.v1.EntryKind
-	10, // 11: gamemaster.v1.EditEntryRequest.starts_at:type_name -> google.protobuf.Timestamp
-	10, // 12: gamemaster.v1.EditEntryRequest.ends_at:type_name -> google.protobuf.Timestamp
-	11, // 13: gamemaster.v1.EditEntryRequest.kind:type_name -> gamemaster.v1.EntryKind
-	0,  // 14: gamemaster.v1.AdminService.GetSchedule:input_type -> gamemaster.v1.GetScheduleRequest
-	4,  // 15: gamemaster.v1.AdminService.AddEntry:input_type -> gamemaster.v1.AddEntryRequest
-	6,  // 16: gamemaster.v1.AdminService.EditEntry:input_type -> gamemaster.v1.EditEntryRequest
-	8,  // 17: gamemaster.v1.AdminService.DeleteEntry:input_type -> gamemaster.v1.DeleteEntryRequest
-	1,  // 18: gamemaster.v1.AdminService.GetSchedule:output_type -> gamemaster.v1.GetScheduleResponse
-	5,  // 19: gamemaster.v1.AdminService.AddEntry:output_type -> gamemaster.v1.AddEntryResponse
-	7,  // 20: gamemaster.v1.AdminService.EditEntry:output_type -> gamemaster.v1.EditEntryResponse
-	9,  // 21: gamemaster.v1.AdminService.DeleteEntry:output_type -> gamemaster.v1.DeleteEntryResponse
-	18, // [18:22] is the sub-list for method output_type
-	14, // [14:18] is the sub-list for method input_type
-	14, // [14:14] is the sub-list for extension type_name
-	14, // [14:14] is the sub-list for extension extendee
-	0,  // [0:14] is the sub-list for field type_name
+	19, // 2: gamemaster.v1.Entry.starts_at:type_name -> google.protobuf.Timestamp
+	19, // 3: gamemaster.v1.Entry.ends_at:type_name -> google.protobuf.Timestamp
+	19, // 4: gamemaster.v1.Entry.made_at:type_name -> google.protobuf.Timestamp
+	20, // 5: gamemaster.v1.Entry.kind:type_name -> gamemaster.v1.EntryKind
+	19, // 6: gamemaster.v1.Playing.since:type_name -> google.protobuf.Timestamp
+	20, // 7: gamemaster.v1.Playing.kind:type_name -> gamemaster.v1.EntryKind
+	19, // 8: gamemaster.v1.AddEntryRequest.starts_at:type_name -> google.protobuf.Timestamp
+	19, // 9: gamemaster.v1.AddEntryRequest.ends_at:type_name -> google.protobuf.Timestamp
+	20, // 10: gamemaster.v1.AddEntryRequest.kind:type_name -> gamemaster.v1.EntryKind
+	19, // 11: gamemaster.v1.EditEntryRequest.starts_at:type_name -> google.protobuf.Timestamp
+	19, // 12: gamemaster.v1.EditEntryRequest.ends_at:type_name -> google.protobuf.Timestamp
+	20, // 13: gamemaster.v1.EditEntryRequest.kind:type_name -> gamemaster.v1.EntryKind
+	12, // 14: gamemaster.v1.GetSeasonsResponse.seasons:type_name -> gamemaster.v1.ScheduledSeason
+	21, // 15: gamemaster.v1.ScheduledSeason.season:type_name -> gamemaster.v1.Season
+	22, // 16: gamemaster.v1.ScheduledSeason.break_before:type_name -> google.protobuf.Duration
+	22, // 17: gamemaster.v1.ScheduledSeason.length:type_name -> google.protobuf.Duration
+	22, // 18: gamemaster.v1.AddSeasonRequest.break_before:type_name -> google.protobuf.Duration
+	22, // 19: gamemaster.v1.AddSeasonRequest.length:type_name -> google.protobuf.Duration
+	22, // 20: gamemaster.v1.EditSeasonRequest.break_before:type_name -> google.protobuf.Duration
+	22, // 21: gamemaster.v1.EditSeasonRequest.length:type_name -> google.protobuf.Duration
+	0,  // 22: gamemaster.v1.AdminService.GetSchedule:input_type -> gamemaster.v1.GetScheduleRequest
+	4,  // 23: gamemaster.v1.AdminService.AddEntry:input_type -> gamemaster.v1.AddEntryRequest
+	6,  // 24: gamemaster.v1.AdminService.EditEntry:input_type -> gamemaster.v1.EditEntryRequest
+	8,  // 25: gamemaster.v1.AdminService.DeleteEntry:input_type -> gamemaster.v1.DeleteEntryRequest
+	10, // 26: gamemaster.v1.AdminService.GetSeasons:input_type -> gamemaster.v1.GetSeasonsRequest
+	13, // 27: gamemaster.v1.AdminService.AddSeason:input_type -> gamemaster.v1.AddSeasonRequest
+	15, // 28: gamemaster.v1.AdminService.EditSeason:input_type -> gamemaster.v1.EditSeasonRequest
+	17, // 29: gamemaster.v1.AdminService.DeleteSeason:input_type -> gamemaster.v1.DeleteSeasonRequest
+	1,  // 30: gamemaster.v1.AdminService.GetSchedule:output_type -> gamemaster.v1.GetScheduleResponse
+	5,  // 31: gamemaster.v1.AdminService.AddEntry:output_type -> gamemaster.v1.AddEntryResponse
+	7,  // 32: gamemaster.v1.AdminService.EditEntry:output_type -> gamemaster.v1.EditEntryResponse
+	9,  // 33: gamemaster.v1.AdminService.DeleteEntry:output_type -> gamemaster.v1.DeleteEntryResponse
+	11, // 34: gamemaster.v1.AdminService.GetSeasons:output_type -> gamemaster.v1.GetSeasonsResponse
+	14, // 35: gamemaster.v1.AdminService.AddSeason:output_type -> gamemaster.v1.AddSeasonResponse
+	16, // 36: gamemaster.v1.AdminService.EditSeason:output_type -> gamemaster.v1.EditSeasonResponse
+	18, // 37: gamemaster.v1.AdminService.DeleteSeason:output_type -> gamemaster.v1.DeleteSeasonResponse
+	30, // [30:38] is the sub-list for method output_type
+	22, // [22:30] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_gamemaster_v1_admin_proto_init() }
@@ -745,7 +1242,7 @@ func file_gamemaster_v1_admin_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_gamemaster_v1_admin_proto_rawDesc), len(file_gamemaster_v1_admin_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   10,
+			NumMessages:   19,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

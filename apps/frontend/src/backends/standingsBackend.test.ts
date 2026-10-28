@@ -2,21 +2,22 @@ import {afterEach, describe, expect, it, vi} from "vitest"
 import {Code, ConnectError} from "@connectrpc/connect"
 import {
     Board,
-    ClosedRound as ClosedRoundPb,
-    GetMySeasonResponse,
+    GetMyTallyResponse,
+    GetRoundResponse,
+    GetScoresResponse,
     Heartbeat,
-    Race as RacePb,
     Round as RoundPb,
     RoundStanding as RoundStandingPb,
     RoundTakes as RoundTakesPb,
     Score as ScorePb,
-    SeasonEvent,
+    Scores as ScoresPb,
+    ScoringEvent,
     Standing as StandingPb,
 } from "../gen/grpc/scoring/v1/scoring_pb.ts"
 import {Rank as RankPb, Title as TitlePb} from "../gen/grpc/player/v1/title_pb.ts"
 import {NameColor} from "./player.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
-import {Race, Standing} from "./standings.ts"
+import {Round, Score, Standing} from "./standings.ts"
 import {ConnectStandingsBackend} from "./standingsBackend.ts"
 import {NO_TIMEOUT} from "./transport.ts"
 
@@ -47,14 +48,16 @@ const warlordPb = new TitlePb({
 })
 const warlord = {id: "warlord", name: "Warlord", rank: {trackId: "conquest", trackName: "Conquest", number: 3, count: 5}}
 
+const BOOK = "season-0"
+
 afterEach(() => vi.restoreAllMocks())
 
 describe("ConnectStandingsBackend.listenForStandings", () => {
-    const board = (...standings: StandingPb[]) => new SeasonEvent({event: {case: "board", value: new Board({standings})}})
-    const heartbeat = new SeasonEvent({event: {case: "heartbeat", value: new Heartbeat()}})
+    const board = (...standings: StandingPb[]) => new ScoringEvent({event: {case: "board", value: new Board({standings})}})
+    const heartbeat = new ScoringEvent({event: {case: "heartbeat", value: new Heartbeat()}})
 
-    const streaming = (...events: SeasonEvent[]) =>
-        vi.fn<(req: object, options: {signal: AbortSignal, timeoutMs: number, headers?: Headers}) => AsyncIterable<SeasonEvent>>(
+    const streaming = (...events: ScoringEvent[]) =>
+        vi.fn<(req: object, options: {signal: AbortSignal, timeoutMs: number, headers?: Headers}) => AsyncIterable<ScoringEvent>>(
             () => (async function* () {
                 yield* events
                 await new Promise(() => {})
@@ -74,7 +77,7 @@ describe("ConnectStandingsBackend.listenForStandings", () => {
         )
         const seen: unknown[] = []
 
-        const stop = backendWith({listenForEvents}).listenForStandings("", (standings) => seen.push(standings))
+        const stop = backendWith({listenForEvents}).listenForStandings(BOOK, "", (standings) => seen.push(standings))
 
         await vi.waitFor(() => expect(seen).toHaveLength(2))
         expect(seen).toEqual([
@@ -94,7 +97,7 @@ describe("ConnectStandingsBackend.listenForStandings", () => {
         ))
         const seen: Standing[][] = []
 
-        const stop = backendWith({listenForEvents}).listenForStandings("", (standings) => seen.push(standings))
+        const stop = backendWith({listenForEvents}).listenForStandings(BOOK, "", (standings) => seen.push(standings))
 
         await vi.waitFor(() => expect(seen).toHaveLength(1))
         const [ana, kiran] = seen[0]
@@ -107,11 +110,11 @@ describe("ConnectStandingsBackend.listenForStandings", () => {
         const listenForEvents = streaming()
         const session = holding("token-1")
 
-        const stop = backendWith({listenForEvents}, session).listenForStandings("fr", () => {})
+        const stop = backendWith({listenForEvents}, session).listenForStandings(BOOK, "fr", () => {})
 
         await vi.waitFor(() => expect(listenForEvents).toHaveBeenCalled())
         const [req, options] = listenForEvents.mock.calls[0]
-        expect(req).toEqual({countryId: "fr"})
+        expect(req).toEqual({bookId: BOOK, countryId: "fr"})
         expect(options.timeoutMs).toBe(NO_TIMEOUT)
         expect(options.headers?.get(SESSION_HEADER)).toBeUndefined()
         expect(session.held).not.toHaveBeenCalled()
@@ -122,7 +125,7 @@ describe("ConnectStandingsBackend.listenForStandings", () => {
     it("closes the stream when told to stop", async () => {
         const listenForEvents = streaming()
 
-        const stop = backendWith({listenForEvents}).listenForStandings("", () => {})
+        const stop = backendWith({listenForEvents}).listenForStandings(BOOK, "", () => {})
         await vi.waitFor(() => expect(listenForEvents).toHaveBeenCalled())
         stop()
 
@@ -132,177 +135,174 @@ describe("ConnectStandingsBackend.listenForStandings", () => {
 
 describe("ConnectStandingsBackend.mySeason", () => {
     it("reads the caller's main flag, its tiles and the rank among all players, in numbers, as its identity", async () => {
-        const getMySeason = vi.fn(async () => new GetMySeasonResponse({countryId: "fr", tiles: 340n, globalRank: 12}))
+        const getMyTally = vi.fn(async () => new GetMyTallyResponse({countryId: "fr", tiles: 340n, globalRank: 12}))
 
-        expect(await backendWith({getMySeason}).mySeason("")).toEqual({countryCode: "fr", tiles: 340, rank: 12})
-        expect(getMySeason).toHaveBeenCalledWith({countryId: ""}, expect.anything())
-        expect(headersOf(getMySeason).headers.get(SESSION_HEADER)).toBe("token-1")
+        expect(await backendWith({getMyTally}).mySeason(BOOK, "")).toEqual({countryCode: "fr", tiles: 340, rank: 12})
+        expect(getMyTally).toHaveBeenCalledWith({bookId: BOOK, countryId: ""}, expect.anything())
+        expect(headersOf(getMyTally).headers.get(SESSION_HEADER)).toBe("token-1")
     })
 
     it("reads the tiles taken for the country asked and the rank there, whatever the main flag", async () => {
-        const getMySeason = vi.fn(async () => new GetMySeasonResponse({
+        const getMyTally = vi.fn(async () => new GetMyTallyResponse({
             countryId: "bg", tiles: 74n, globalRank: 1, countryTiles: 3n, countryRank: 2,
         }))
 
-        expect(await backendWith({getMySeason}).mySeason("fr")).toEqual({countryCode: "fr", tiles: 3, rank: 2})
-        expect(getMySeason).toHaveBeenCalledWith({countryId: "fr"}, expect.anything())
+        expect(await backendWith({getMyTally}).mySeason(BOOK, "fr")).toEqual({countryCode: "fr", tiles: 3, rank: 2})
+        expect(getMyTally).toHaveBeenCalledWith({bookId: BOOK, countryId: "fr"}, expect.anything())
     })
 
     it("reads the title the caller wears, on any board", async () => {
-        const getMySeason = vi.fn(async () => new GetMySeasonResponse({countryId: "fr", tiles: 340n, globalRank: 12, countryTiles: 3n, countryRank: 3, wornTitle: warlordPb}))
+        const getMyTally = vi.fn(async () => new GetMyTallyResponse({countryId: "fr", tiles: 340n, globalRank: 12, countryTiles: 3n, countryRank: 3, wornTitle: warlordPb}))
 
-        expect((await backendWith({getMySeason}).mySeason(""))?.wornTitle).toEqual(warlord)
-        expect((await backendWith({getMySeason}).mySeason("fr"))?.wornTitle).toEqual(warlord)
+        expect((await backendWith({getMyTally}).mySeason(BOOK, ""))?.wornTitle).toEqual(warlord)
+        expect((await backendWith({getMyTally}).mySeason(BOOK, "fr"))?.wornTitle).toEqual(warlord)
     })
 
     it("reads no flag and no rank where the server answers none", async () => {
-        const getMySeason = vi.fn(async () => new GetMySeasonResponse())
+        const getMyTally = vi.fn(async () => new GetMyTallyResponse())
 
-        expect(await backendWith({getMySeason}).mySeason("")).toEqual({countryCode: undefined, tiles: 0, rank: undefined})
+        expect(await backendWith({getMyTally}).mySeason(BOOK, "")).toEqual({countryCode: undefined, tiles: 0, rank: undefined})
     })
 
     it("reads no tiles and no rank in a country the caller took nothing for", async () => {
-        const getMySeason = vi.fn(async () => new GetMySeasonResponse({countryId: "fr", tiles: 5n, globalRank: 2}))
+        const getMyTally = vi.fn(async () => new GetMyTallyResponse({countryId: "fr", tiles: 5n, globalRank: 2}))
 
-        expect(await backendWith({getMySeason}).mySeason("de")).toEqual({countryCode: "de", tiles: 0, rank: undefined})
+        expect(await backendWith({getMyTally}).mySeason(BOOK, "de")).toEqual({countryCode: "de", tiles: 0, rank: undefined})
     })
 
     it("reads tiles without a rank for a guest", async () => {
-        const getMySeason = vi.fn(async () => new GetMySeasonResponse({countryId: "de", tiles: 7n, countryTiles: 7n}))
+        const getMyTally = vi.fn(async () => new GetMyTallyResponse({countryId: "de", tiles: 7n, countryTiles: 7n}))
 
-        expect(await backendWith({getMySeason}).mySeason("")).toEqual({countryCode: "de", tiles: 7, rank: undefined})
-        expect(await backendWith({getMySeason}).mySeason("de")).toEqual({countryCode: "de", tiles: 7, rank: undefined})
+        expect(await backendWith({getMyTally}).mySeason(BOOK, "")).toEqual({countryCode: "de", tiles: 7, rank: undefined})
+        expect(await backendWith({getMyTally}).mySeason(BOOK, "de")).toEqual({countryCode: "de", tiles: 7, rank: undefined})
     })
 
     it("asks nothing and never mints with no identity to be had", async () => {
-        const getMySeason = vi.fn(async () => new GetMySeasonResponse())
+        const getMyTally = vi.fn(async () => new GetMyTallyResponse())
         const session = holding(undefined)
 
-        expect(await backendWith({getMySeason}, session).mySeason("")).toBeUndefined()
-        expect(getMySeason).not.toHaveBeenCalled()
+        expect(await backendWith({getMyTally}, session).mySeason(BOOK, "")).toBeUndefined()
+        expect(getMyTally).not.toHaveBeenCalled()
         expect(session.token).not.toHaveBeenCalled()
     })
 
     it("knows nothing when the server refuses the token, and keeps it", async () => {
         const session = holding("token-1")
 
-        expect(await backendWith({getMySeason: refusing(Code.Unauthenticated)}, session).mySeason("")).toBeUndefined()
+        expect(await backendWith({getMyTally: refusing(Code.Unauthenticated)}, session).mySeason(BOOK, "")).toBeUndefined()
         expect(session.invalidate).not.toHaveBeenCalled()
         expect(session.token).not.toHaveBeenCalled()
     })
 
     it("knows nothing on a server without standings", async () => {
-        expect(await backendWith({getMySeason: refusing(Code.Unimplemented)}).mySeason("")).toBeUndefined()
+        expect(await backendWith({getMyTally: refusing(Code.Unimplemented)}).mySeason(BOOK, "")).toBeUndefined()
     })
 
     it("passes on a refusal it does not know", async () => {
-        await expect(backendWith({getMySeason: refusing(Code.Internal)}).mySeason("")).rejects.toThrow(ConnectError)
+        await expect(backendWith({getMyTally: refusing(Code.Internal)}).mySeason(BOOK, "")).rejects.toThrow(ConnectError)
     })
 })
 
 describe("ConnectStandingsBackend.listenForRace", () => {
-    const streaming = (...events: SeasonEvent[]) =>
-        vi.fn<(req: object, options: {signal: AbortSignal, timeoutMs: number}) => AsyncIterable<SeasonEvent>>(
+    const streaming = (...events: ScoringEvent[]) =>
+        vi.fn<(req: object, options: {signal: AbortSignal, timeoutMs: number}) => AsyncIterable<ScoringEvent>>(
             () => (async function* () {
                 yield* events
                 await new Promise(() => {})
             })(),
         )
 
-    it("follows the whole map's stream, reads each race in numbers, and skips the boards and the heartbeats", async () => {
+    it("follows the book and the rounds asked for, reads the scores and each round in numbers, and skips the boards", async () => {
         const listenForEvents = streaming(
-            new SeasonEvent({event: {case: "board", value: new Board()}}),
-            new SeasonEvent({event: {case: "heartbeat", value: new Heartbeat()}}),
-            new SeasonEvent({
-                event: {
-                    case: "race", value: new RacePb({
-                        round: new RoundPb({
-                            number: 1,
-                            endsAtUnixMs: 1_792_191_600_000n,
-                            standings: [new RoundStandingPb({rank: 1, countryId: "fr", share: 0.25, points: 75})],
-                            own: true,
-                            times: 3,
-                            entryId: "0192f5a0-7c00-7000-8000-000000000016",
-                        }),
-                        scores: [new ScorePb({rank: 1, countryId: "de", points: 43, roundsWon: 2})],
-                    }),
-                },
-            }),
-            new SeasonEvent({event: {case: "race", value: new RacePb()}}),
+            new ScoringEvent({event: {case: "board", value: new Board()}}),
+            new ScoringEvent({event: {case: "heartbeat", value: new Heartbeat()}}),
+            new ScoringEvent({event: {case: "scores", value: new ScoresPb({
+                bookId: BOOK, scores: [new ScorePb({rank: 1, countryId: "de", points: 43, roundsWon: 2})],
+            })}}),
+            new ScoringEvent({event: {case: "round", value: new RoundPb({
+                roundId: "entry-1",
+                bookId: BOOK,
+                times: 3,
+                startedAtUnixMs: 1_792_184_400_000n,
+                standings: [new RoundStandingPb({rank: 1, countryId: "fr", share: 0.25, points: 75})],
+            })}}),
         )
-        const seen: Race[] = []
+        const scores: Score[][] = []
+        const rounds: Round[] = []
 
-        const stop = backendWith({listenForEvents}).listenForRace((race) => seen.push(race))
+        const stop = backendWith({listenForEvents}).listenForRace(BOOK, ["season-0/day-21", "entry-1"], {
+            onScores: (read) => scores.push(read),
+            onRound: (read) => rounds.push(read),
+        })
 
-        await vi.waitFor(() => expect(seen).toHaveLength(2))
-        expect(listenForEvents).toHaveBeenCalledWith({countryId: ""}, expect.objectContaining({timeoutMs: NO_TIMEOUT}))
-        expect(seen).toEqual([
-            {
-                round: {
-                    number: 1,
-                    endsAt: 1_792_191_600_000,
-                    finale: false,
-                    standings: [{rank: 1, countryCode: "fr", share: 0.25, points: 75}],
-                    own: true,
-                    times: 3,
-                    entryId: "0192f5a0-7c00-7000-8000-000000000016",
-                },
-                scores: [{rank: 1, countryCode: "de", points: 43, roundsWon: 2}],
-                closed: undefined,
-            },
-            {round: undefined, scores: [], closed: undefined},
-        ])
+        await vi.waitFor(() => expect(rounds).toHaveLength(1))
+        expect(listenForEvents).toHaveBeenCalledWith(
+            {bookId: BOOK, countryId: "", roundIds: ["season-0/day-21", "entry-1"]},
+            expect.objectContaining({timeoutMs: NO_TIMEOUT}),
+        )
+        expect(scores).toEqual([[{rank: 1, countryCode: "de", points: 43, roundsWon: 2}]])
+        expect(rounds).toEqual([{
+            roundId: "entry-1",
+            times: 3,
+            startedAt: 1_792_184_400_000,
+            endedAt: 0,
+            standings: [{rank: 1, countryCode: "fr", share: 0.25, points: 75}],
+            takes: [],
+            players: [],
+            before: [],
+            after: [],
+        }])
         stop()
     })
+})
 
-    it("reads the round closed last, its results, its season's table before and after it, and a battle's numbers", async () => {
-        const listenForEvents = streaming(new SeasonEvent({
-            event: {
-                case: "race", value: new RacePb({
-                    closed: new ClosedRoundPb({
-                        season: 0,
-                        number: 1,
-                        endedAtUnixMs: 1_792_105_200_000n,
-                        finale: true,
-                        standings: [new RoundStandingPb({rank: 1, countryId: "fr", share: 0.3, points: 75})],
-                        before: [new ScorePb({rank: 1, countryId: "de", points: 43, roundsWon: 2})],
-                        after: [
-                            new ScorePb({rank: 1, countryId: "fr", points: 93, roundsWon: 2}),
-                            new ScorePb({rank: 2, countryId: "de", points: 43, roundsWon: 2}),
-                        ],
-                        own: true,
-                        times: 3,
-                        startedAtUnixMs: 1_792_098_000_000n,
-                        entryId: "0192f5a0-7c00-7000-8000-000000000031",
-                        takes: [new RoundTakesPb({countryId: "fr", tiles: 4210n}), new RoundTakesPb({countryId: "de", tiles: 3105n})],
-                        players: [new StandingPb({rank: 1, accountId: "account-ana", name: "Ana", countryId: "fr", tiles: 912n})],
-                    }),
-                }),
-            },
-        }))
-        const seen: Race[] = []
+describe("ConnectStandingsBackend.round", () => {
+    it("reads a scored round's results, the book before and after it, and a battle's numbers", async () => {
+        const getRound = vi.fn(async () => new GetRoundResponse({round: new RoundPb({
+            roundId: "entry-31",
+            bookId: BOOK,
+            times: 3,
+            startedAtUnixMs: 1_792_098_000_000n,
+            endedAtUnixMs: 1_792_105_200_000n,
+            standings: [new RoundStandingPb({rank: 1, countryId: "fr", share: 0.3, points: 75})],
+            takes: [new RoundTakesPb({countryId: "fr", tiles: 4210n}), new RoundTakesPb({countryId: "de", tiles: 3105n})],
+            players: [new StandingPb({rank: 1, accountId: "account-ana", name: "Ana", countryId: "fr", tiles: 912n})],
+            before: [new ScorePb({rank: 1, countryId: "de", points: 43, roundsWon: 2})],
+            after: [
+                new ScorePb({rank: 1, countryId: "fr", points: 93, roundsWon: 2}),
+                new ScorePb({rank: 2, countryId: "de", points: 43, roundsWon: 2}),
+            ],
+        })}))
 
-        const stop = backendWith({listenForEvents}).listenForRace((race) => seen.push(race))
-
-        await vi.waitFor(() => expect(seen).toHaveLength(1))
-        expect(seen[0].closed).toEqual({
-            season: 0,
-            number: 1,
+        expect(await backendWith({getRound}).round("entry-31")).toEqual({
+            roundId: "entry-31",
+            times: 3,
+            startedAt: 1_792_098_000_000,
             endedAt: 1_792_105_200_000,
-            finale: true,
             standings: [{rank: 1, countryCode: "fr", share: 0.3, points: 75}],
+            takes: [{countryCode: "fr", tiles: 4210}, {countryCode: "de", tiles: 3105}],
+            players: [{rank: 1, accountId: "account-ana", name: "Ana", color: NameColor.UNSPECIFIED, countryCode: "fr", tiles: 912, wornTitle: undefined}],
             before: [{rank: 1, countryCode: "de", points: 43, roundsWon: 2}],
             after: [
                 {rank: 1, countryCode: "fr", points: 93, roundsWon: 2},
                 {rank: 2, countryCode: "de", points: 43, roundsWon: 2},
             ],
-            own: true,
-            times: 3,
-            startedAt: 1_792_098_000_000,
-            entryId: "0192f5a0-7c00-7000-8000-000000000031",
-            takes: [{countryCode: "fr", tiles: 4210}, {countryCode: "de", tiles: 3105}],
-            players: [{rank: 1, accountId: "account-ana", name: "Ana", color: NameColor.UNSPECIFIED, countryCode: "fr", tiles: 912, wornTitle: undefined}],
         })
-        stop()
+        expect(getRound).toHaveBeenCalledWith({roundId: "entry-31"})
+    })
+
+    it("reads no round for one never opened", async () => {
+        expect(await backendWith({getRound: refusing(Code.NotFound)}).round("entry-9")).toBeUndefined()
+    })
+})
+
+describe("ConnectStandingsBackend.scores", () => {
+    it("reads the book's countries by points", async () => {
+        const getScores = vi.fn(async () => new GetScoresResponse({scores: new ScoresPb({
+            bookId: BOOK, scores: [new ScorePb({rank: 1, countryId: "fr", points: 93, roundsWon: 2})],
+        })}))
+
+        expect(await backendWith({getScores}).scores(BOOK)).toEqual([{rank: 1, countryCode: "fr", points: 93, roundsWon: 2}])
+        expect(getScores).toHaveBeenCalledWith({bookId: BOOK})
     })
 })

@@ -6,12 +6,12 @@ import (
 	"context"
 	"sync"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/calendar"
+	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/books"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/standings"
 )
 
 type key struct {
-	season  calendar.Number
+	book    books.BookID
 	account standings.AccountID
 }
 
@@ -34,23 +34,23 @@ func (s *Store) FailWith(err error) {
 	s.failWith = err
 }
 
-func (s *Store) RecordTake(_ context.Context, season calendar.Number, take standings.Take) error {
+func (s *Store) RecordTake(_ context.Context, book books.BookID, take standings.Take) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if s.failWith != nil {
 		return s.failWith
 	}
-	at := key{season: season, account: take.Account}
+	at := key{book: book, account: take.Account}
 	s.tallies[at] = s.tallies[at].WithTake(take)
 	return nil
 }
 
-func (s *Store) Tally(season calendar.Number, account standings.AccountID) standings.Tally {
+func (s *Store) Tally(book books.BookID, account standings.AccountID) standings.Tally {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	return s.tallies[key{season: season, account: account}]
+	return s.tallies[key{book: book, account: account}]
 }
 
 func (s *Store) DeleteAccount(_ context.Context, account standings.AccountID) error {

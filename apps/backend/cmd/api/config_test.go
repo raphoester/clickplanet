@@ -288,11 +288,6 @@ func TestTheExampleConfigReachesTheScoringBlock(t *testing.T) {
 	var config Config
 	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
 
-	require.Len(t, config.Scoring.Calendar.List, 1)
-	season := config.Scoring.Calendar.List[0]
-	assert.Zero(t, season.Number)
-	assert.True(t, time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC).Equal(season.EndsAt))
-	assert.Equal(t, 21*time.Hour, config.Scoring.Calendar.DailyCutoff)
 	assert.Equal(t, "scoring", config.Scoring.Database.Schema)
 	require.NoError(t, config.Scoring.Database.Validate())
 }
@@ -306,6 +301,7 @@ func TestTheExampleConfigReachesTheGamemasterBlock(t *testing.T) {
 	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
 
 	assert.Equal(t, "gamemaster", config.Gamemaster.Database.Schema)
+	assert.Equal(t, 21*time.Hour, config.Gamemaster.DailyCutoff, "the days end at 21:00 UTC, as the missions turn")
 	require.NoError(t, config.Gamemaster.Validate())
 }
 
@@ -339,20 +335,6 @@ func TestTheExampleConfigReachesTheClipsBlock(t *testing.T) {
 
 func TestTheClipsModuleWithNoDatabaseIsRefused(t *testing.T) {
 	assert.ErrorContains(t, Config{}.Validate(), "clips.database")
-}
-
-func TestSeasonsThatDoNotCountUpAreRefused(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "config.yaml")
-	require.NoError(t, os.WriteFile(path, []byte(`
-scoring:
-  list:
-    - number: 1
-      endsAt: 2026-10-31T23:00:00Z
-`), 0o600))
-
-	var config Config
-	err := cpconfigs.Load(&config, cpconfigs.FromFile(path))
-	require.ErrorContains(t, err, "scoring: list[0].number is 1")
 }
 
 func TestTheExampleConfigReachesTheAttachments(t *testing.T) {

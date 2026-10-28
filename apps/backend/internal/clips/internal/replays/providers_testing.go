@@ -9,13 +9,13 @@ type ScriptedSource struct {
 	replay Replay
 	err    error
 
-	RacesAsked int
-	race       Race
-	raceErr    error
+	TurnsAsked int
+	turn       Turn
+	turnErr    error
 
-	SeasonsAsked int
-	season       Season
-	seasonErr    error
+	RoundsAsked []RoundID
+	round       Round
+	roundErr    error
 }
 
 func NewScriptedSource(replay Replay) *ScriptedSource {
@@ -33,41 +33,41 @@ func (s *ScriptedSource) Replay(_ context.Context, window Window) (Replay, error
 	return s.replay, s.err
 }
 
-var _ RaceSource = (*ScriptedSource)(nil)
+var _ TurnSource = (*ScriptedSource)(nil)
 
-func (s *ScriptedSource) AnswerRace(race Race) {
-	s.race = race
+func (s *ScriptedSource) AnswerTurn(turn Turn) {
+	s.turn = turn
 }
 
-func (s *ScriptedSource) FailRaceWith(err error) {
-	s.raceErr = err
+func (s *ScriptedSource) FailTurnWith(err error) {
+	s.turnErr = err
 }
 
-func (s *ScriptedSource) Race(context.Context) (Race, error) {
-	s.RacesAsked++
-	return s.race, s.raceErr
+func (s *ScriptedSource) Turn(context.Context) (Turn, error) {
+	s.TurnsAsked++
+	return s.turn, s.turnErr
 }
 
-var _ SeasonSource = (*ScriptedSource)(nil)
+var _ RoundSource = (*ScriptedSource)(nil)
 
-func (s *ScriptedSource) AnswerSeason(season Season) {
-	s.season = season
+func (s *ScriptedSource) AnswerRound(round Round) {
+	s.round = round
 }
 
-func (s *ScriptedSource) FailSeasonWith(err error) {
-	s.seasonErr = err
+func (s *ScriptedSource) FailRoundWith(err error) {
+	s.roundErr = err
 }
 
-func (s *ScriptedSource) Season(context.Context) (Season, error) {
-	s.SeasonsAsked++
-	return s.season, s.seasonErr
+func (s *ScriptedSource) Round(_ context.Context, round RoundID) (Round, error) {
+	s.RoundsAsked = append(s.RoundsAsked, round)
+	return s.round, s.roundErr
 }
 
 type MemoryStore struct {
-	Saved        []Replay
-	SavedRaces   []Race
-	SavedSeasons []Season
-	err          error
+	Saved       []Replay
+	SavedTurns  []Turn
+	SavedRounds []Round
+	err         error
 }
 
 var _ Store = (*MemoryStore)(nil)
@@ -84,22 +84,22 @@ func (s *MemoryStore) Save(_ context.Context, replay Replay) error {
 	return nil
 }
 
-var _ RaceStore = (*MemoryStore)(nil)
+var _ TurnStore = (*MemoryStore)(nil)
 
-func (s *MemoryStore) SaveRace(_ context.Context, race Race) error {
+func (s *MemoryStore) SaveTurn(_ context.Context, turn Turn) error {
 	if s.err != nil {
 		return s.err
 	}
-	s.SavedRaces = append(s.SavedRaces, race)
+	s.SavedTurns = append(s.SavedTurns, turn)
 	return nil
 }
 
-var _ SeasonStore = (*MemoryStore)(nil)
+var _ RoundStore = (*MemoryStore)(nil)
 
-func (s *MemoryStore) SaveSeason(_ context.Context, season Season) error {
+func (s *MemoryStore) SaveRound(_ context.Context, round Round) error {
 	if s.err != nil {
 		return s.err
 	}
-	s.SavedSeasons = append(s.SavedSeasons, season)
+	s.SavedRounds = append(s.SavedRounds, round)
 	return nil
 }

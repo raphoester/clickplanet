@@ -19,24 +19,24 @@ func (s Store) Save(_ context.Context, replay replays.Replay) error {
 	return nil
 }
 
-type RaceStore string
+type TurnStore string
 
-var _ replays.RaceStore = RaceStore("")
+var _ replays.TurnStore = TurnStore("")
 
-func (s RaceStore) SaveRace(_ context.Context, race replays.Race) error {
-	if err := os.WriteFile(string(s), race.Document, 0o600); err != nil {
-		return fmt.Errorf("failed to write the race: %w", err)
+func (s TurnStore) SaveTurn(_ context.Context, turn replays.Turn) error {
+	if err := os.WriteFile(string(s), turn.Document, 0o600); err != nil {
+		return fmt.Errorf("failed to write the turn: %w", err)
 	}
 	return nil
 }
 
-type SeasonStore string
+type RoundStore string
 
-var _ replays.SeasonStore = SeasonStore("")
+var _ replays.RoundStore = RoundStore("")
 
-func (s SeasonStore) SaveSeason(_ context.Context, season replays.Season) error {
-	if err := os.WriteFile(string(s), season.Document, 0o600); err != nil {
-		return fmt.Errorf("failed to write the season: %w", err)
+func (s RoundStore) SaveRound(_ context.Context, round replays.Round) error {
+	if err := os.WriteFile(string(s), round.Document, 0o600); err != nil {
+		return fmt.Errorf("failed to write the round: %w", err)
 	}
 	return nil
 }

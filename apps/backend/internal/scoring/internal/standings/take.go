@@ -7,7 +7,6 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/calendar"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
@@ -32,9 +31,4 @@ type Take struct {
 	Country  Country
 	At       time.Time
 	Position uint64
-}
-
-func (t Take) Season(seasons calendar.Calendar) (calendar.Number, bool) {
-	season, ok := seasons.Current(t.At)
-	return season.Number, ok
 }

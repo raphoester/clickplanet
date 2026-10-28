@@ -7,39 +7,29 @@ const HOUR = 60 * MINUTE
 const DAY = 24 * HOUR
 
 const endsAt = Date.UTC(2026, 9, 31, 23)
-const season = {number: 0, lastDayEndsAt: endsAt - 2 * HOUR, endsAt}
-const lastDayEndsAt = season.lastDayEndsAt
+const season = {number: 0, startsAt: Date.UTC(2026, 9, 3), endsAt, bookId: "season-0"}
+const lastDayEndsAt = endsAt - 2 * HOUR
 
-const today = (now: number) => countdownsOf(season, now)[0]
+const day = {number: 21, startsAt: lastDayEndsAt - 4 * DAY, endsAt: lastDayEndsAt - 3 * DAY, roundId: "season-0/day-21"}
 
 describe("countdownsOf", () => {
     it("counts down to today's end and to the season's", () => {
-        expect(countdownsOf(season, lastDayEndsAt - 3 * DAY - (13 * HOUR + 5 * MINUTE + 20 * SECOND))).toEqual([
+        expect(countdownsOf(season, day.endsAt - (13 * HOUR + 5 * MINUTE + 20 * SECOND), undefined, day.endsAt)).toEqual([
             {label: "Today ends in", tag: "Today", left: "13h 05m 20s"},
             {label: "Season ends in", tag: "Season", left: "3d 15h 05m 20s"},
         ])
     })
 
-    it("ends every day at the time of day the last one ends", () => {
-        expect(today(lastDayEndsAt - 3 * DAY - (DAY - SECOND)).left).toBe("23h 59m 59s")
-        expect(today(lastDayEndsAt - 3 * DAY - SECOND).left).toBe("00m 01s")
-        expect(today(lastDayEndsAt - 3 * DAY).left).toBe("1d 00h 00m 00s")
-        expect(today(lastDayEndsAt - 3 * DAY + SECOND).left).toBe("23h 59m 59s")
-    })
-
-    it("counts the season alone from its last day's end to its end", () => {
-        expect(countdownsOf(season, lastDayEndsAt - SECOND).map((c) => c.label)).toEqual(["Today ends in", "Season ends in"])
+    it("counts the season alone with no day running", () => {
         expect(countdownsOf(season, lastDayEndsAt)).toEqual([{label: "Season ends in", tag: "Season", left: "2h 00m 00s"}])
+        expect(countdownsOf(season, lastDayEndsAt, undefined, lastDayEndsAt).map((c) => c.label)).toEqual(["Season ends in"])
         expect(countdownsOf(season, endsAt - (12 * MINUTE + 5 * SECOND))).toEqual([
             {label: "Season ends in", tag: "Season", left: "12m 05s"},
         ])
     })
 
-    it("counts a last day that ends with the season once", () => {
-        const atACutoff = {...season, lastDayEndsAt: endsAt}
-
-        expect(countdownsOf(atACutoff, endsAt - 3 * HOUR)).toEqual([{label: "Season ends in", tag: "Season", left: "3h 00m 00s"}])
-        expect(countdownsOf(atACutoff, endsAt - DAY - HOUR).map((c) => c.label)).toEqual(["Today ends in", "Season ends in"])
+    it("counts a day that ends with the season once", () => {
+        expect(countdownsOf(season, endsAt - 3 * HOUR, undefined, endsAt)).toEqual([{label: "Season ends in", tag: "Season", left: "3h 00m 00s"}])
     })
 
     it("rounds a part second up, so it reads 00m 01s until the end", () => {
@@ -51,10 +41,10 @@ describe("countdownsOf", () => {
         expect(countdownsOf(season, endsAt + DAY)).toEqual([])
     })
 
-    const battle = {entryId: "finale", startsAt: lastDayEndsAt, endsAt, description: "Triple points."}
+    const battle = {entryId: "finale", startsAt: lastDayEndsAt, endsAt, description: "Triple points.", times: 3, endsSeason: true, roundId: "finale"}
 
     it("counts down to the next battle between today's end and the season's", () => {
-        expect(countdownsOf(season, lastDayEndsAt - DAY - 3 * HOUR, battle)).toEqual([
+        expect(countdownsOf(season, lastDayEndsAt - DAY - 3 * HOUR, battle, lastDayEndsAt - DAY)).toEqual([
             {label: "Today ends in", tag: "Today", left: "3h 00m 00s"},
             {label: "Next battle in", tag: "Battle", left: "1d 03h 00m 00s"},
             {label: "Season ends in", tag: "Season", left: "1d 05h 00m 00s"},
@@ -62,8 +52,8 @@ describe("countdownsOf", () => {
     })
 
     it("drops the battle once it starts", () => {
-        expect(countdownsOf(season, battle.startsAt - SECOND, battle).map((c) => c.tag)).toEqual(["Today", "Battle", "Season"])
-        expect(countdownsOf(season, battle.startsAt, battle).map((c) => c.tag)).toEqual(["Season"])
+        expect(countdownsOf(season, battle.startsAt - SECOND, battle, lastDayEndsAt).map((c) => c.tag)).toEqual(["Today", "Battle", "Season"])
+        expect(countdownsOf(season, battle.startsAt, battle, lastDayEndsAt).map((c) => c.tag)).toEqual(["Season"])
     })
 })
 
