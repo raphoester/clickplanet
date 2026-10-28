@@ -4,7 +4,7 @@
 the map moving under it from the first frame, and the link at the end. `npm run clip` makes one from a replay and a
 story: **the generator measures, the editor judges** (2026-10-27). `--findings` writes what the replay holds, every
 front, tour and place with its numbers and nothing decided; a model in the backend's job writes the stories from it;
-`--story` renders one of them, and chooses the camera, the look, the length and the music itself. Each comes with a
+`--story` renders one of them, and chooses the camera's path, the length and the music's start itself. Each comes with a
 `.json` holding what to post with it, as data for the job that posts it (below), and a `.txt` with its teasers, one a
 line, for a person. `--plan` prints what the clip would be and renders nothing, and `--preview 3` renders only the
 first 3 seconds; every choice can be forced (`npm run clip -- --help`).
@@ -56,10 +56,11 @@ What chooses, when a clip goes out, the client of the service and the run's summ
     flag (`captured`: filling empty ground is not war); its countries by tiles changed there, each with its continent,
     its size, who held the most of it when the front opened and when it ended (`holdersStart`, `holdersEnd`) and who
     took the most there (`takers`); its flags by tiles taken and lost, each with what it took, filled, lost, whom it
-    took from and the solidity of what it took (below); the bombs, spreads and enclosures in sight; and the score it
-    was ranked by. So a flag that held most of a country at the start and took more of it is kicking someone out, a
-    flag that held much at the start and little at the end is thrown out, and two flags taking from each other are at
-    war: **the editor reads that, no threshold does.**
+    took from, the solidity of what it took (below) and the tiles of the landmasses whose painted flag switched to it,
+    by continent (`flippedByContinent`, as a tour's below, over the front's cut); the bombs, spreads and enclosures in
+    sight; and the score it was ranked by. So a flag that held most of a country at the start and took more of it is
+    kicking someone out, a flag that held much at the start and little at the end is thrown out, and two flags taking
+    from each other are at war: **the editor reads that, no threshold does.**
   - **`tours`**: each flag taking land across the whole map, in its busiest stretch, with what it took on each
     continent and from whom, what the second flag across the world took in the same stretch, its solidity, and **the
     tiles of the landmasses whose painted flag switched to it, by continent** (`flippedByContinent`, from `flipsOf` and
@@ -68,11 +69,12 @@ What chooses, when a clip goes out, the client of the service and the run's summ
     next, switching landmasses on two continents or more, is taking over the world, which the camera tells as a tour
     (below); the job refuses a tour of a flag that switched none.
   - **`places`**: what the map is at the end: the flag holding the most of the world, of each continent and of each
-    country of 1,000 tiles or more (49 of them), with its share, the next holders and how many tiles of the place
-    changed hands to it or from it in the window, which is what its clip plays; a place where nothing did is left out,
-    since there is nothing to play. **Europe is held without Russia**: Russia's ground is 71% of Natural Earth's
-    Europe, so a flag holding Siberia would "hold Europe"; Russia is a place of its own. A share is of all the place's
-    tiles, empty ones too.
+    country of 1,000 tiles or more (49 of them), with its share, the next holders, how many tiles of the place
+    changed hands to it or from it in the window, which is what its clip plays, and the tiles of the landmasses whose
+    painted flag switched to it in the window, by continent (`flippedByContinent`); a place where nothing changed is
+    left out, since there is nothing to play. **Europe is held without Russia**: Russia's ground is 71% of Natural
+    Earth's Europe, so a flag holding Siberia would "hold Europe"; Russia is a place of its own. A share is of all the
+    place's tiles, empty ones too.
   - **`seasonal`**: a day of the season won and each country called up after it (`round.ts`, `callup.ts`, below),
     told whole by this app, with the title, the key, the countries and the facts their clips would record
     (`StoryFacts`, `storyFactsOf`, the numbers `record()` works out, measured once by `measuredOf`).
@@ -85,9 +87,10 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   strike back together (`team`). A tour, a place and a seasonal story are the facts' own: the flag taking the world,
   the holder holding its share, the day won. **Every story but a seasonal one comes with the editor's words**: its
   `headline`, its `teasers`, its `line` (empty for none), its `call` and the flags it asks to fight for
-  (`callFlags`), and the `anthem` under it (below). **The page builds the `Story` from it and reads no rule**: a pick
-  that names no front, a kind no front tells, no attacker, no place, no headline or no call is refused as it is read,
-  and the job checked it against the findings before the render. `--headline` overrides the story's.
+  (`callFlags`), and the `anthem` under it (below); a front and a place also come with their `look`, `flags` or
+  `dive` (below). **The page builds the `Story` from it and reads no rule**: a pick that names no front, a kind no
+  front tells, no attacker, no place, no headline, no call, or no look for a front or a place, is refused as it is
+  read, and the job checked it against the findings before the render. `--headline` overrides the story's.
 - **`--season <path>`** is the gamemaster's turn, a `gamemaster.v1.GetTurnResponse` as `GetTurn` answers it, served
   to the page at `/__clip/season.json`. Its `debrief` is the moment scoring scored last, in the game's words: a day
   (`DayEnded`), a battle (`BattleEnded`, `ends_season` for the finale) or the season's end (`SeasonEnded`, told as
@@ -234,7 +237,7 @@ What chooses, when a clip goes out, the client of the service and the run's summ
 - **Names are said with their article** where English wants one: "the UK", "the Netherlands", "the Dominican
   Republic". Tags keep them bare.
 - **Every editorial choice is the model's, never a rule here** (2026-10-28): the headline, the teasers, the line
-  under the headline, the call at the end with its flags, and the anthem. Until then each kind of story had its words
+  under the headline, the call at the end with its flags, the anthem, and the look. Until then each kind of story had its words
   and its anthem in code, chosen by branches on the story (its kind, whether the loser was at home, whether two flags
   fought): every rout outside the loser's home could be "GENERATIONAL DOWNFALL OF X", so a YouTube Short of China
   losing Finland was titled "GENERATIONAL DOWNFALL OF CHINA". The editor's instructions say what each was for. Only a
@@ -301,12 +304,15 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   to the globe and back in, which was brutal. It pulls back out to the globe over all of them at the end; 1.2s a
   flight and 2.6s a stop. Up close, a big country's painted flag is blurred: the flag atlas is the game's. The counter
   counts the flag across the world.
-- **`look.ts` picks when the camera comes back out of the tiles.** From far, a landmass's painted flag only
-  changes when its biggest holder does (`flipsOf`, over the borders blob, read 8 times along the changes, so a
-  landmass taken and taken back counts too). A front too wide to frame closer than
-  `TILES_ZOOM` (3) is **flags** when at least 2 landmasses changed their biggest holder and those hold 2,000 tiles
-  or more: a steamroll, which comes back out halfway so its painted flags change on screen. Everything else is a
-  **dive**, which comes back out at the end.
+- **The editor picks when the camera comes back out of the tiles** (the pick's `look`): **flags** comes back out
+  halfway, so the painted flags change on screen, for a steamroll; **dive** comes back out at the end, for a fight
+  seen tile by tile. `--flags` and `--dive` override it. A day won and a call-up, which no editor tells, dive; a tour
+  has no look. **`look.ts` only measures what the editor reads**: from far, a landmass's painted flag only changes
+  when its biggest holder does (`flipsOf`, over the borders blob, read 8 times along the changes, so a landmass taken
+  and taken back counts too), and `flippedTo` keeps the ones that switched to a flag, big enough to read. Until
+  2026-10-28 `lookOf` chose it: **flags** for a front too wide to frame closer than zoom 3 where 2 landmasses or
+  more, 2,000 tiles in all, changed their biggest holder. A rule on two numbers met fronts it was not written for, and
+  the zoom was a judgment too: the overview is never closer than a continent, so any front can pull back to it.
 - **`camera.ts` opens down in the tiles**: the first frame is where the most tiles change hands, past the zoom the
   painted flags are gone at (`tilesZoomOf`), so the fight is seen tile by tile from the first second. Until
   2026-10-28 a clip opened on the map with its painted flags, held 0.3s and dived in 0.7s: a second with nothing

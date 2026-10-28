@@ -56,7 +56,7 @@ func (f FindingsFile) Findings(_ context.Context) (posts.Findings, error) {
 		findings.Places = append(findings.Places, posts.Place{
 			Kind: posts.PlaceKind(place.GetKind()), Code: place.GetCode(), Continent: place.GetContinent(), Tiles: int(place.GetTiles()),
 			Holder: place.GetHolder(), Held: int(place.GetHeld()), Share: place.GetShare(), Rivals: countsOf(place.GetRivals()),
-			Changed: int(place.GetChanged()),
+			Changed: int(place.GetChanged()), FlippedByContinent: countsOf(place.GetFlippedByContinent()),
 		})
 	}
 	for _, seasonal := range written.GetSeasonal() {
@@ -87,7 +87,7 @@ func frontOf(written *clipsv1.Front) posts.Front {
 	for _, flag := range written.GetFlags() {
 		front.Flags = append(front.Flags, posts.FrontFlag{
 			Code: flag.GetCode(), Continent: flag.GetContinent(), Took: int(flag.GetTook()), Filled: int(flag.GetFilled()), Lost: int(flag.GetLost()),
-			TookFrom: countsOf(flag.GetTookFrom()), Solidity: flag.GetSolidity(),
+			TookFrom: countsOf(flag.GetTookFrom()), Solidity: flag.GetSolidity(), FlippedByContinent: countsOf(flag.GetFlippedByContinent()),
 		})
 	}
 	return front
@@ -108,6 +108,7 @@ func StoryJSON(story posts.Story) ([]byte, error) {
 		Kind: string(story.Kind), Attacker: story.Attacker, Rival: story.Rival, TakenFrom: story.TakenFrom,
 		Countries: story.Countries, Continent: story.Continent, Team: story.Team,
 		Headline: story.Headline, Teasers: story.Teasers, Line: story.Line, Call: story.Call, CallFlags: story.CallFlags, Anthem: story.Anthem,
+		Look: string(story.Look),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to write the story: %w", err)
