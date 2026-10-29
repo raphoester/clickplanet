@@ -12,6 +12,7 @@ import (
 
 	missionsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/missions/v1"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/inmemory_mission_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/payroll"
@@ -32,7 +33,7 @@ func (a *accounts) Linked(context.Context, missions.AccountID) (bool, error) {
 }
 
 var (
-	day      = missions.NewCalendar(missions.Config{Cutoff: 21 * time.Hour}).DayOf(time.Date(2026, 10, 26, 12, 0, 0, 0, time.UTC))
+	day      = days.TestingDayAt(time.Date(2026, 10, 26, 12, 0, 0, 0, time.UTC))
 	ada      = missions.AccountID{15: 1}
 	drawn    = missions.Draw(day, ada, "fr", missions.World{Territories: []missions.Territory{{Flag: "dz", Tiles: 9_000}}})
 	bank     = drawn.Snapshot()[0]
@@ -77,7 +78,7 @@ func TestASignedInAccountIsGrantedEachMissionDoneOnce(t *testing.T) {
 
 func TestTheMissionsPaidCountEveryDayOfTheAccount(t *testing.T) {
 	paying, store, outbox := setUp(t, &accounts{linked: true}, bankGoal)
-	yesterday := missions.NewCalendar(missions.Config{Cutoff: 21 * time.Hour}).DayOf(time.Date(2026, 10, 25, 12, 0, 0, 0, time.UTC))
+	yesterday := days.TestingDayAt(time.Date(2026, 10, 25, 12, 0, 0, 0, time.UTC))
 	require.NoError(t, store.ChangeSheet(t.Context(), yesterday, ada, func(missions.Sheet) missions.Sheet {
 		return missions.SheetOf(missions.SheetSnapshot{Paid: cpcolls.NewSet(missions.MissionID{15: 1}, missions.MissionID{15: 2})})
 	}))

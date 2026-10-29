@@ -5,6 +5,7 @@ package inmemory_moment_store
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
@@ -15,7 +16,7 @@ var _ moments.Store = (*Store)(nil)
 func New() *Store {
 	return &Store{
 		rounds: map[moments.RoundID]moments.ScoredRound{}, books: map[moments.BookID]moments.ClosedBook{},
-		opened: cpcolls.NewSet[moments.RoundID](),
+		opened: cpcolls.NewSet[moments.RoundID](), told: map[moments.RoundID]time.Time{},
 	}
 }
 
@@ -24,6 +25,7 @@ type Store struct {
 	rounds   map[moments.RoundID]moments.ScoredRound
 	books    map[moments.BookID]moments.ClosedBook
 	opened   *cpcolls.Set[moments.RoundID]
+	told     map[moments.RoundID]time.Time
 	failWith error
 }
 
@@ -64,6 +66,20 @@ func (s *Store) KeepOpened(_ context.Context, round moments.RoundID) error {
 	}
 	s.opened.Add(round)
 	return nil
+}
+
+func (s *Store) KeepTold(_ context.Context, day moments.ToldDay) (bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.failWith != nil {
+		return false, s.failWith
+	}
+	if told, ok := s.told[day.Round]; ok && told.Equal(day.EndsAt) {
+		return false, nil
+	}
+	s.told[day.Round] = day.EndsAt
+	return true, nil
 }
 
 func (s *Store) Opened(context.Context) ([]moments.RoundID, error) {

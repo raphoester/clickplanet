@@ -124,6 +124,7 @@ The proto sits beside the public one in the module's package (`proto/auth/v1/int
 | `missions-progress` | an account's day keeps the position and index past the last take it counted (`missions.Counted.TakesBelow`, `mission_sheets.counted_takes_below`, `counted_takes_below_index`) |
 | `missions-bombs`, `missions-shields`, `missions-fortifies` | an account's day keeps the position after the last bomb, shield and fortify it counted (`missions.Counted`, `mission_sheets.counted_*_below`) |
 | `missions-boxes`, `missions-answers` | the same with the time of the last box and right answer counted, to the microsecond |
+| `missions-days` | keeps each day by its round's id (`mission_days`): told twice, the same row |
 | `missions-sign-ins` | pays only the missions not paid yet (`mission_payments`) |
 | `planet`'s `planet.v1.GrantCharges` handler | keeps each `grant_id` it applied, in the transaction of the grant (`charge_grants`) |
 | `chat-announcements-*` | an announcement is named after the fact it tells (the bomb's or the fortify's ledger position, the mute's id, the round's season and number, the champion's season) and kept with `AppendOnce`: a second one is neither kept nor shown |
@@ -149,6 +150,7 @@ A fact goes through an outbox when its loss would leave the modules disagreeing 
 - `planet.v1.RefuseCaller` and `AdmitCaller`, from the antibot: a lost one leaves a ban the antibot keeps and planet never refuses, or a lifted one planet keeps refusing. `bans.Banner` records the command in the transaction that changes the ban row, under the ban's lock. At each rule set it takes, the first at boot, the antibot records one again for every running ban (`bans.Book.Restate`), so the bans running at a deploy reach planet's new table too, and a set that stops enforcing admits them.
 - `scoring.v1.RoundScored` and `BookClosed`: the round is scored once and the book closed once, so a lost one is never sent again and the gamemaster never tells that day, battle or season ended. Scoring records each in the transaction that scores the round or closes the book, only when this call did it.
 - `gamemaster.v1.DayEnded`, `BattleEnded` and `SeasonEnded`: the gamemaster records each in the transaction that keeps what it heard from scoring, only when it is new, so the chat announces each podium and champion once.
+- `gamemaster.v1.DayStarted`: the gamemaster records it in the transaction that keeps the day told (`told_days`), only when the day is new or its end moved, so missions keeps each day once.
 - `planet.v1.GrantCharges`, a command: a lost one is a mission paid that planet never granted. `missions`' `payroll` records it with the payment.
 - `missions.v1.MissionsPaid`: it is told with the payment it counts, so it shares the grant's transaction. The relay sends the grants as commands and it as an event (`redis_outbox_sender`), from one outbox.
 - **Not the gamemaster's commands** (`PlayRuleSet`, `ResetMap`, `ScoringCommand`): the clock decides them, not a transaction. The
@@ -214,6 +216,7 @@ The events today:
 | `player.v1.StatsChanged{account_id}` | `player`, `record_stats_usecase` | after each take, message, bomb, fortify, box, right answer or missions paid is counted on the account's stats; a failed write publishes nothing | `player`, which grants the titles the stats now earn |
 | `scoring.v1.RoundScored{round_id, book_id, ended_at, results}` | `scoring`, through its outbox | a round closed: scored from the map then, its points times its times | `gamemaster`, which tells which day or battle it was |
 | `scoring.v1.BookClosed{book_id, ended_at, table}` | `scoring`, through its outbox | a book closed: its table, the champion first | `gamemaster`, which tells which season it was |
+| `gamemaster.v1.DayStarted{season, day, round_id, book_id, starts_at, ends_at}` | `gamemaster`, through its outbox, from `tell_day_usecase` | the day that runs, once as it starts (a boot tells it if it was never told), and again when a moved season end moves its end | `missions`, which keeps it: a fact counts in the day that runs at its time |
 | `gamemaster.v1.DayEnded{season, day, round_id, ended_at}`, `BattleEnded{season, number, entry_id, times, ends_season, round_id, ended_at}`, `SeasonEnded{season, book_id, ended_at, finale_round_id}` | `gamemaster`, through its outbox, once scoring scored it | a day, a battle or a season ended, in the game's words, with the ids to read its numbers by | `chat`, which reads the numbers from scoring and announces the podium or the champion |
 
 Adding a context that callers talk to means a `proto/<name>/v1`, an `internal/<name>/` with a `module.go`, and one line in the slice. Connect derives the route from the proto package, so there is no prefix to allocate and no router to edit.

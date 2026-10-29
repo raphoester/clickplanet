@@ -2,23 +2,29 @@ package record_fact_usecase
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 )
 
+type Calendar interface {
+	DayAt(ctx context.Context, at time.Time) (days.Day, error)
+}
+
 type Briefing interface {
-	Of(ctx context.Context, day missions.Day, account missions.AccountID) (missions.Brief, error)
+	Of(ctx context.Context, day days.Day, account missions.AccountID) (missions.Brief, error)
 }
 
 type Sheets interface {
-	ChangeSheet(ctx context.Context, day missions.Day, account missions.AccountID, change func(missions.Sheet) missions.Sheet) error
+	ChangeSheet(ctx context.Context, day days.Day, account missions.AccountID, change func(missions.Sheet) missions.Sheet) error
 }
 
 type Payroll interface {
-	Pay(ctx context.Context, day missions.Day, account missions.AccountID) error
+	Pay(ctx context.Context, day days.Day, account missions.AccountID) error
 }
 
 type In struct {
@@ -28,13 +34,13 @@ type In struct {
 }
 
 func New(
-	calendar missions.Calendar, briefing Briefing, sheets Sheets, transactioner cpatomic.Transactioner, payroll Payroll,
+	calendar Calendar, briefing Briefing, sheets Sheets, transactioner cpatomic.Transactioner, payroll Payroll,
 ) *UseCase {
 	return &UseCase{calendar: calendar, briefing: briefing, sheets: sheets, transactioner: transactioner, payroll: payroll}
 }
 
 type UseCase struct {
-	calendar      missions.Calendar
+	calendar      Calendar
 	briefing      Briefing
 	sheets        Sheets
 	transactioner cpatomic.Transactioner
@@ -42,7 +48,13 @@ type UseCase struct {
 }
 
 func (u *UseCase) Execute(ctx context.Context, in In) error {
-	day := u.calendar.DayOf(in.At)
+	day, err := u.calendar.DayAt(ctx, in.At)
+	if errors.Is(err, days.ErrNoDay) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("failed to read the day of the fact: %w", err)
+	}
 
 	brief, err := u.briefing.Of(ctx, day, in.Account)
 	if err != nil {
