@@ -14,6 +14,10 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days/postgres_day_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days/usecases/keep_day_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/flagmissions"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/flagmissions/postgres_flag_day_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/flagmissions/usecases/record_flag_take_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/flagmissions/usecases/record_strike_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/payroll"
@@ -31,7 +35,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/account_deleted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/bomb_landed_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/bonus_claimed_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/click_tried_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/day_started_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/flag_tile_taken_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/fortified_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/quiz_answered_subscriber"
@@ -89,8 +95,11 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	calendar := postgres_day_store.New(db)
 	store := postgres_mission_store.New(db)
-	briefing := missions.NewBriefing(store, rpc_planet_world.New(planet), rpc_planet_allegiance.New(planet))
-	pay := payroll.New(store, rpc_auth_accounts.New(auth), cpoutbox.New(db))
+	world, allegiances, outbox := rpc_planet_world.New(planet), rpc_planet_allegiance.New(planet), cpoutbox.New(db)
+	briefing := missions.NewBriefing(store, world, allegiances)
+	pay := payroll.New(store, rpc_auth_accounts.New(auth), outbox)
+	flagDays := postgres_flag_day_store.New(db)
+	flags := flagmissions.NewBriefing(flagDays, calendar, world, allegiances)
 
 	told, err := cpredis.Subscribe(ctx, streams, "missions-days",
 		log_subscriber.New(day_started_subscriber.New(keep_day_usecase.New(calendar)), props.Logger))
@@ -102,6 +111,20 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	if err != nil {
 		closeStores()
 		return err
+	}
+	flagTakes, err := cpredis.Subscribe(ctx, streams, "missions-flag-takes", log_subscriber.New(flag_tile_taken_subscriber.New(
+		record_flag_take_usecase.New(calendar, flags, flagDays, db, outbox),
+	), props.Logger))
+	if err != nil {
+		closeStores()
+		return fmt.Errorf("failed to subscribe to planet.v1.TileTaken for the flags: %w", err)
+	}
+	strikes, err := cpredis.Subscribe(ctx, streams, "missions-flag-strikes", log_subscriber.New(click_tried_subscriber.New(
+		record_strike_usecase.New(calendar, flags, flagDays, db, outbox),
+	), props.Logger))
+	if err != nil {
+		closeStores()
+		return fmt.Errorf("failed to subscribe to planet.v1.ClickTried: %w", err)
 	}
 	deletions, err := cpredis.Subscribe(ctx, streams, "missions-accounts",
 		log_subscriber.New(account_deleted_subscriber.New(forget_account_usecase.New(store)), props.Logger))
@@ -117,11 +140,11 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	}
 
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger, cpredis.CloseAfter(streams, props.Logger,
-		append(facts, told, deletions, signIns, cpoutbox.NewRelay("missions-outbox", db, redis_outbox_sender.New(streams, streams.Commands()), props.Logger))...)))
+		append(facts, told, flagTakes, strikes, deletions, signIns, cpoutbox.NewRelay("missions-outbox", db, redis_outbox_sender.New(streams, streams.Commands()), props.Logger))...)))
 
 	service := missionsv1controller.MissionService{
 		GetMissionsHandler: get_missions_handler.New(
-			get_missions_usecase.New(calendar, clock, store, briefing),
+			get_missions_usecase.New(calendar, clock, store, briefing, flags),
 		),
 	}
 	verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", moduleName)))

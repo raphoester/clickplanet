@@ -64,9 +64,11 @@ type GetMissionsResponse struct {
 	// Deprecated: Marked as deprecated in missions/v1/missions.proto.
 	CountryId string `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
 	// Deprecated: Marked as deprecated in missions/v1/missions.proto.
-	Enlisted      bool       `protobuf:"varint,2,opt,name=enlisted,proto3" json:"enlisted,omitempty"`
-	EndsAtUnixMs  int64      `protobuf:"varint,3,opt,name=ends_at_unix_ms,json=endsAtUnixMs,proto3" json:"ends_at_unix_ms,omitempty"`
-	Missions      []*Mission `protobuf:"bytes,4,rep,name=missions,proto3" json:"missions,omitempty"`
+	Enlisted     bool       `protobuf:"varint,2,opt,name=enlisted,proto3" json:"enlisted,omitempty"`
+	EndsAtUnixMs int64      `protobuf:"varint,3,opt,name=ends_at_unix_ms,json=endsAtUnixMs,proto3" json:"ends_at_unix_ms,omitempty"`
+	Missions     []*Mission `protobuf:"bytes,4,rep,name=missions,proto3" json:"missions,omitempty"`
+	// The day's mission of the flag the caller plays now, the same for each of its players. Unset with no flag.
+	FlagMission   *FlagMission `protobuf:"bytes,5,opt,name=flag_mission,json=flagMission,proto3" json:"flag_mission,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -127,6 +129,13 @@ func (x *GetMissionsResponse) GetEndsAtUnixMs() int64 {
 func (x *GetMissionsResponse) GetMissions() []*Mission {
 	if x != nil {
 		return x.Missions
+	}
+	return nil
+}
+
+func (x *GetMissionsResponse) GetFlagMission() *FlagMission {
+	if x != nil {
+		return x.FlagMission
 	}
 	return nil
 }
@@ -892,6 +901,174 @@ func (x *FortifyTiles) GetFortified() uint32 {
 	return 0
 }
 
+// Done once for the whole flag, it gives the flag `points` in the season. A client skips a kind it does not know.
+type FlagMission struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Id     string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Points uint32                 `protobuf:"varint,2,opt,name=points,proto3" json:"points,omitempty"`
+	Done   bool                   `protobuf:"varint,3,opt,name=done,proto3" json:"done,omitempty"`
+	// Types that are valid to be assigned to Kind:
+	//
+	//	*FlagMission_TakeIn
+	//	*FlagMission_BreakShields
+	Kind          isFlagMission_Kind `protobuf_oneof:"kind"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FlagMission) Reset() {
+	*x = FlagMission{}
+	mi := &file_missions_v1_missions_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FlagMission) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FlagMission) ProtoMessage() {}
+
+func (x *FlagMission) ProtoReflect() protoreflect.Message {
+	mi := &file_missions_v1_missions_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FlagMission.ProtoReflect.Descriptor instead.
+func (*FlagMission) Descriptor() ([]byte, []int) {
+	return file_missions_v1_missions_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *FlagMission) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *FlagMission) GetPoints() uint32 {
+	if x != nil {
+		return x.Points
+	}
+	return 0
+}
+
+func (x *FlagMission) GetDone() bool {
+	if x != nil {
+		return x.Done
+	}
+	return false
+}
+
+func (x *FlagMission) GetKind() isFlagMission_Kind {
+	if x != nil {
+		return x.Kind
+	}
+	return nil
+}
+
+func (x *FlagMission) GetTakeIn() *TakeIn {
+	if x != nil {
+		if x, ok := x.Kind.(*FlagMission_TakeIn); ok {
+			return x.TakeIn
+		}
+	}
+	return nil
+}
+
+func (x *FlagMission) GetBreakShields() *BreakShields {
+	if x != nil {
+		if x, ok := x.Kind.(*FlagMission_BreakShields); ok {
+			return x.BreakShields
+		}
+	}
+	return nil
+}
+
+type isFlagMission_Kind interface {
+	isFlagMission_Kind()
+}
+
+type FlagMission_TakeIn struct {
+	TakeIn *TakeIn `protobuf:"bytes,10,opt,name=take_in,json=takeIn,proto3,oneof"`
+}
+
+type FlagMission_BreakShields struct {
+	BreakShields *BreakShields `protobuf:"bytes,11,opt,name=break_shields,json=breakShields,proto3,oneof"`
+}
+
+func (*FlagMission_TakeIn) isFlagMission_Kind() {}
+
+func (*FlagMission_BreakShields) isFlagMission_Kind() {}
+
+// Break goal shields of country_id.
+type BreakShields struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CountryId     string                 `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	Goal          uint32                 `protobuf:"varint,2,opt,name=goal,proto3" json:"goal,omitempty"`
+	Broken        uint32                 `protobuf:"varint,3,opt,name=broken,proto3" json:"broken,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BreakShields) Reset() {
+	*x = BreakShields{}
+	mi := &file_missions_v1_missions_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BreakShields) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BreakShields) ProtoMessage() {}
+
+func (x *BreakShields) ProtoReflect() protoreflect.Message {
+	mi := &file_missions_v1_missions_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BreakShields.ProtoReflect.Descriptor instead.
+func (*BreakShields) Descriptor() ([]byte, []int) {
+	return file_missions_v1_missions_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *BreakShields) GetCountryId() string {
+	if x != nil {
+		return x.CountryId
+	}
+	return ""
+}
+
+func (x *BreakShields) GetGoal() uint32 {
+	if x != nil {
+		return x.Goal
+	}
+	return 0
+}
+
+func (x *BreakShields) GetBroken() uint32 {
+	if x != nil {
+		return x.Broken
+	}
+	return 0
+}
+
 // A client skips a mission whose reward it does not know.
 type MissionReward struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -905,7 +1082,7 @@ type MissionReward struct {
 
 func (x *MissionReward) Reset() {
 	*x = MissionReward{}
-	mi := &file_missions_v1_missions_proto_msgTypes[12]
+	mi := &file_missions_v1_missions_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -917,7 +1094,7 @@ func (x *MissionReward) String() string {
 func (*MissionReward) ProtoMessage() {}
 
 func (x *MissionReward) ProtoReflect() protoreflect.Message {
-	mi := &file_missions_v1_missions_proto_msgTypes[12]
+	mi := &file_missions_v1_missions_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -930,7 +1107,7 @@ func (x *MissionReward) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MissionReward.ProtoReflect.Descriptor instead.
 func (*MissionReward) Descriptor() ([]byte, []int) {
-	return file_missions_v1_missions_proto_rawDescGZIP(), []int{12}
+	return file_missions_v1_missions_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *MissionReward) GetKind() isMissionReward_Kind {
@@ -969,7 +1146,7 @@ type Charges struct {
 
 func (x *Charges) Reset() {
 	*x = Charges{}
-	mi := &file_missions_v1_missions_proto_msgTypes[13]
+	mi := &file_missions_v1_missions_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -981,7 +1158,7 @@ func (x *Charges) String() string {
 func (*Charges) ProtoMessage() {}
 
 func (x *Charges) ProtoReflect() protoreflect.Message {
-	mi := &file_missions_v1_missions_proto_msgTypes[13]
+	mi := &file_missions_v1_missions_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -994,7 +1171,7 @@ func (x *Charges) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Charges.ProtoReflect.Descriptor instead.
 func (*Charges) Descriptor() ([]byte, []int) {
-	return file_missions_v1_missions_proto_rawDescGZIP(), []int{13}
+	return file_missions_v1_missions_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *Charges) GetKind() v1.BonusKind {
@@ -1016,13 +1193,14 @@ var File_missions_v1_missions_proto protoreflect.FileDescriptor
 const file_missions_v1_missions_proto_rawDesc = "" +
 	"\n" +
 	"\x1amissions/v1/missions.proto\x12\vmissions.v1\x1a\x16planet/v1/planet.proto\"\x14\n" +
-	"\x12GetMissionsRequest\"\xb1\x01\n" +
+	"\x12GetMissionsRequest\"\xee\x01\n" +
 	"\x13GetMissionsResponse\x12!\n" +
 	"\n" +
 	"country_id\x18\x01 \x01(\tB\x02\x18\x01R\tcountryId\x12\x1e\n" +
 	"\benlisted\x18\x02 \x01(\bB\x02\x18\x01R\benlisted\x12%\n" +
 	"\x0fends_at_unix_ms\x18\x03 \x01(\x03R\fendsAtUnixMs\x120\n" +
-	"\bmissions\x18\x04 \x03(\v2\x14.missions.v1.MissionR\bmissions\"\x85\x05\n" +
+	"\bmissions\x18\x04 \x03(\v2\x14.missions.v1.MissionR\bmissions\x12;\n" +
+	"\fflag_mission\x18\x05 \x01(\v2\x18.missions.v1.FlagMissionR\vflagMission\"\x85\x05\n" +
 	"\aMission\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x122\n" +
 	"\x06reward\x18\x02 \x01(\v2\x1a.missions.v1.MissionRewardR\x06reward\x12\x12\n" +
@@ -1081,7 +1259,20 @@ const file_missions_v1_missions_proto_rawDesc = "" +
 	"\bshielded\x18\x03 \x01(\rR\bshielded\"@\n" +
 	"\fFortifyTiles\x12\x12\n" +
 	"\x04goal\x18\x01 \x01(\rR\x04goal\x12\x1c\n" +
-	"\tfortified\x18\x02 \x01(\rR\tfortified\"I\n" +
+	"\tfortified\x18\x02 \x01(\rR\tfortified\"\xc3\x01\n" +
+	"\vFlagMission\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
+	"\x06points\x18\x02 \x01(\rR\x06points\x12\x12\n" +
+	"\x04done\x18\x03 \x01(\bR\x04done\x12.\n" +
+	"\atake_in\x18\n" +
+	" \x01(\v2\x13.missions.v1.TakeInH\x00R\x06takeIn\x12@\n" +
+	"\rbreak_shields\x18\v \x01(\v2\x19.missions.v1.BreakShieldsH\x00R\fbreakShieldsB\x06\n" +
+	"\x04kind\"Y\n" +
+	"\fBreakShields\x12\x1d\n" +
+	"\n" +
+	"country_id\x18\x01 \x01(\tR\tcountryId\x12\x12\n" +
+	"\x04goal\x18\x02 \x01(\rR\x04goal\x12\x16\n" +
+	"\x06broken\x18\x03 \x01(\rR\x06broken\"I\n" +
 	"\rMissionReward\x120\n" +
 	"\acharges\x18\x01 \x01(\v2\x14.missions.v1.ChargesH\x00R\achargesB\x06\n" +
 	"\x04kind\"K\n" +
@@ -1104,7 +1295,7 @@ func file_missions_v1_missions_proto_rawDescGZIP() []byte {
 	return file_missions_v1_missions_proto_rawDescData
 }
 
-var file_missions_v1_missions_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_missions_v1_missions_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_missions_v1_missions_proto_goTypes = []any{
 	(*GetMissionsRequest)(nil),  // 0: missions.v1.GetMissionsRequest
 	(*GetMissionsResponse)(nil), // 1: missions.v1.GetMissionsResponse
@@ -1118,31 +1309,36 @@ var file_missions_v1_missions_proto_goTypes = []any{
 	(*BombIn)(nil),              // 9: missions.v1.BombIn
 	(*ShieldTiles)(nil),         // 10: missions.v1.ShieldTiles
 	(*FortifyTiles)(nil),        // 11: missions.v1.FortifyTiles
-	(*MissionReward)(nil),       // 12: missions.v1.MissionReward
-	(*Charges)(nil),             // 13: missions.v1.Charges
-	(v1.BonusKind)(0),           // 14: planet.v1.BonusKind
+	(*FlagMission)(nil),         // 12: missions.v1.FlagMission
+	(*BreakShields)(nil),        // 13: missions.v1.BreakShields
+	(*MissionReward)(nil),       // 14: missions.v1.MissionReward
+	(*Charges)(nil),             // 15: missions.v1.Charges
+	(v1.BonusKind)(0),           // 16: planet.v1.BonusKind
 }
 var file_missions_v1_missions_proto_depIdxs = []int32{
 	2,  // 0: missions.v1.GetMissionsResponse.missions:type_name -> missions.v1.Mission
-	12, // 1: missions.v1.Mission.reward:type_name -> missions.v1.MissionReward
-	3,  // 2: missions.v1.Mission.take_for:type_name -> missions.v1.TakeFor
-	4,  // 3: missions.v1.Mission.take_from:type_name -> missions.v1.TakeFrom
-	5,  // 4: missions.v1.Mission.take_in:type_name -> missions.v1.TakeIn
-	6,  // 5: missions.v1.Mission.take_from_in:type_name -> missions.v1.TakeFromIn
-	7,  // 6: missions.v1.Mission.catch_boxes:type_name -> missions.v1.CatchBoxes
-	8,  // 7: missions.v1.Mission.answer_quizzes:type_name -> missions.v1.AnswerQuizzes
-	9,  // 8: missions.v1.Mission.bomb_in:type_name -> missions.v1.BombIn
-	10, // 9: missions.v1.Mission.shield_tiles:type_name -> missions.v1.ShieldTiles
-	11, // 10: missions.v1.Mission.fortify_tiles:type_name -> missions.v1.FortifyTiles
-	13, // 11: missions.v1.MissionReward.charges:type_name -> missions.v1.Charges
-	14, // 12: missions.v1.Charges.kind:type_name -> planet.v1.BonusKind
-	0,  // 13: missions.v1.MissionService.GetMissions:input_type -> missions.v1.GetMissionsRequest
-	1,  // 14: missions.v1.MissionService.GetMissions:output_type -> missions.v1.GetMissionsResponse
-	14, // [14:15] is the sub-list for method output_type
-	13, // [13:14] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	12, // 1: missions.v1.GetMissionsResponse.flag_mission:type_name -> missions.v1.FlagMission
+	14, // 2: missions.v1.Mission.reward:type_name -> missions.v1.MissionReward
+	3,  // 3: missions.v1.Mission.take_for:type_name -> missions.v1.TakeFor
+	4,  // 4: missions.v1.Mission.take_from:type_name -> missions.v1.TakeFrom
+	5,  // 5: missions.v1.Mission.take_in:type_name -> missions.v1.TakeIn
+	6,  // 6: missions.v1.Mission.take_from_in:type_name -> missions.v1.TakeFromIn
+	7,  // 7: missions.v1.Mission.catch_boxes:type_name -> missions.v1.CatchBoxes
+	8,  // 8: missions.v1.Mission.answer_quizzes:type_name -> missions.v1.AnswerQuizzes
+	9,  // 9: missions.v1.Mission.bomb_in:type_name -> missions.v1.BombIn
+	10, // 10: missions.v1.Mission.shield_tiles:type_name -> missions.v1.ShieldTiles
+	11, // 11: missions.v1.Mission.fortify_tiles:type_name -> missions.v1.FortifyTiles
+	5,  // 12: missions.v1.FlagMission.take_in:type_name -> missions.v1.TakeIn
+	13, // 13: missions.v1.FlagMission.break_shields:type_name -> missions.v1.BreakShields
+	15, // 14: missions.v1.MissionReward.charges:type_name -> missions.v1.Charges
+	16, // 15: missions.v1.Charges.kind:type_name -> planet.v1.BonusKind
+	0,  // 16: missions.v1.MissionService.GetMissions:input_type -> missions.v1.GetMissionsRequest
+	1,  // 17: missions.v1.MissionService.GetMissions:output_type -> missions.v1.GetMissionsResponse
+	17, // [17:18] is the sub-list for method output_type
+	16, // [16:17] is the sub-list for method input_type
+	16, // [16:16] is the sub-list for extension type_name
+	16, // [16:16] is the sub-list for extension extendee
+	0,  // [0:16] is the sub-list for field type_name
 }
 
 func init() { file_missions_v1_missions_proto_init() }
@@ -1162,6 +1358,10 @@ func file_missions_v1_missions_proto_init() {
 		(*Mission_FortifyTiles)(nil),
 	}
 	file_missions_v1_missions_proto_msgTypes[12].OneofWrappers = []any{
+		(*FlagMission_TakeIn)(nil),
+		(*FlagMission_BreakShields)(nil),
+	}
+	file_missions_v1_missions_proto_msgTypes[14].OneofWrappers = []any{
 		(*MissionReward_Charges)(nil),
 	}
 	type x struct{}
@@ -1170,7 +1370,7 @@ func file_missions_v1_missions_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_missions_v1_missions_proto_rawDesc), len(file_missions_v1_missions_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   14,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -9,6 +9,7 @@ import (
 
 	missionsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/missions/v1"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
+	scoringv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1"
 )
 
 type Sender interface {
@@ -19,7 +20,8 @@ func New(events, commands Sender) Outbox {
 	return Outbox{events: events, commands: commands}
 }
 
-// Outbox is what missions' outbox relay sends with: planet's commands to their handler, missions' events to every listener.
+// Outbox is what missions' outbox relay sends with: planet's and scoring's commands to their handler, missions' events
+// to every listener.
 type Outbox struct {
 	events   Sender
 	commands Sender
@@ -31,7 +33,7 @@ func (o Outbox) Send(ctx context.Context, messages ...proto.Message) error {
 	var events, commands []proto.Message
 	for _, message := range messages {
 		switch message.(type) {
-		case *planetv1.GrantCharges:
+		case *planetv1.GrantCharges, *scoringv1.GrantPoints:
 			commands = append(commands, message)
 		case *missionsv1.MissionsPaid:
 			events = append(events, message)

@@ -1,5 +1,5 @@
 import {useEffect} from "react"
-import {Mission} from "../../backends/missions.ts"
+import {FlagMission, Mission} from "../../backends/missions.ts"
 import {timeLeft} from "../../domain/missions.ts"
 import BonusIcon from "../components/BonusIcon.tsx"
 import {useNow} from "../season/useNow.ts"
@@ -22,14 +22,32 @@ export default function MissionsPlace({state, onSignIn, onSeen}: MissionsPlacePr
 
     if (state.kind === "loading") return <p className="missions-text" role="status">Loading…</p>
     if (state.kind === "failed") return <p className="missions-text" role="alert">Your missions could not be loaded.</p>
-    if (state.day.missions.length === 0) return null
+    if (state.day.missions.length === 0 && !state.day.flagMission) return null
 
     return <div className="missions">
         <p className="missions-left">Ends in {timeLeft(state.day.endsAt, now)}</p>
+        {state.day.flagMission && <FlagMissionRow mission={state.day.flagMission}/>}
         <ol className="missions-list">
             {state.day.missions.map((mission) => <MissionRow key={mission.id} mission={mission} onSignIn={onSignIn}/>)}
         </ol>
     </div>
+}
+
+function FlagMissionRow({mission}: {mission: FlagMission}) {
+    const parts = partsOf(mission.order)
+
+    return <section className={`panel-box mission${mission.done ? " mission--paid" : ""}`}
+                    aria-label="Flag mission">
+        <p className="mission-kicker">Flag mission</p>
+        <div className="mission-head">
+            <span className="mission-order">{parts.line}</span>
+            <span className="mission-reward mission-points">+{mission.points} points</span>
+        </div>
+        <div className="mission-foot">
+            {parts.progress}
+            {mission.done && <span className="chip mission-done">Done</span>}
+        </div>
+    </section>
 }
 
 type MissionRowProps = {

@@ -27,7 +27,7 @@ func (q *PostgresQuery) Scores(ctx context.Context, book books.BookID) (*scoring
 	if err != nil {
 		return nil, err
 	}
-	return &scoringv1.Scores{BookId: string(book), Scores: scoresOf(ledger.table(ledger.rounds))}, nil
+	return &scoringv1.Scores{BookId: string(book), Scores: scoresOf(ledger.book.Table(ledger.rounds, ledger.grants))}, nil
 }
 
 // Live is the scores a stream shows: there are always some.
@@ -36,7 +36,8 @@ func (q *PostgresQuery) Live(ctx context.Context, book books.BookID) (*scoringv1
 	return scores, err == nil, err
 }
 
-// Around is the book's scores before a round that ended at a time, and after it.
+// Around is the book's scores before a round that ended at a time, and after it. Both count the grants made before
+// that time, so they differ by the round alone.
 func (q *PostgresQuery) Around(ctx context.Context, book books.BookID, endedAt time.Time) ([]*scoringv1.Score, []*scoringv1.Score, error) {
 	ledger, err := q.ledger(ctx, book)
 	if err != nil {
@@ -51,7 +52,13 @@ func (q *PostgresQuery) Around(ctx context.Context, book books.BookID, endedAt t
 			after = append(after, round)
 		}
 	}
-	return scoresOf(ledger.table(before)), scoresOf(ledger.table(after)), nil
+	var granted []books.Grant
+	for _, grant := range ledger.grants {
+		if grant.At.Before(endedAt) {
+			granted = append(granted, grant)
+		}
+	}
+	return scoresOf(ledger.book.Table(before, granted)), scoresOf(ledger.book.Table(after, granted)), nil
 }
 
 func (q *PostgresQuery) Table(ctx context.Context, book books.BookID) (*scoringv1.GetTableResponse, error) {
@@ -62,7 +69,7 @@ func (q *PostgresQuery) Table(ctx context.Context, book books.BookID) (*scoringv
 	if !ledger.found {
 		return nil, fmt.Errorf("%w: %q", ErrNoBook, book)
 	}
-	table := ledger.table(ledger.rounds)
+	table := ledger.book.Table(ledger.rounds, ledger.grants)
 	places := make([]*scoringv1.TablePlace, 0, len(table))
 	for _, placed := range table {
 		places = append(places, &scoringv1.TablePlace{
@@ -80,10 +87,7 @@ type ledger struct {
 	found  bool
 	book   books.Book
 	rounds []books.Scored
-}
-
-func (l ledger) table(rounds []books.Scored) []books.Placed {
-	return l.book.Table(rounds)
+	grants []books.Grant
 }
 
 func scoresOf(table []books.Placed) []*scoringv1.Score {
@@ -159,5 +163,37 @@ func (q *PostgresQuery) ledger(ctx context.Context, id books.BookID) (ledger, er
 	if err := rows.Err(); err != nil {
 		return ledger{}, fmt.Errorf("failed to read the book's points: %w", err)
 	}
+	if kept.grants, err = q.grants(ctx, kept.book); err != nil {
+		return ledger{}, err
+	}
 	return kept, nil
+}
+
+func (q *PostgresQuery) grants(ctx context.Context, book books.Book) ([]books.Grant, error) {
+	rows, err := q.db.On(ctx).QueryContext(ctx, `
+		SELECT grant_id, country, points, granted_at FROM grants WHERE granted_at >= $1 ORDER BY granted_at, grant_id
+	`, book.StartsAt)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read the book's grants: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var grants []books.Grant
+	for rows.Next() {
+		var (
+			id, country string
+			points      int64
+			grantedAt   time.Time
+		)
+		if err := rows.Scan(&id, &country, &points, &grantedAt); err != nil {
+			return nil, fmt.Errorf("failed to read a grant: %w", err)
+		}
+		grants = append(grants, books.Grant{
+			ID: books.GrantID(id), Country: books.Country(country), Points: uint32(points), At: grantedAt, //nolint:gosec // CHECK (points > 0), a few at most.
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to read the book's grants: %w", err)
+	}
+	return grants, nil
 }

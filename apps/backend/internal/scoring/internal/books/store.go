@@ -1,6 +1,9 @@
 package books
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 type Books interface {
 	Find(ctx context.Context, id BookID) (Book, bool, error)
@@ -21,6 +24,13 @@ type Rounds interface {
 	Score(ctx context.Context, scored Scored) (bool, error)
 	// ScoredIn is every round of the book scored, in the order they ended.
 	ScoredIn(ctx context.Context, book BookID) ([]Scored, error)
+}
+
+type Grants interface {
+	// Keep answers whether this call kept the grant: one kept before is left as it is.
+	Keep(ctx context.Context, grant Grant) (bool, error)
+	// Since is every grant from a time on, in the order they were granted.
+	Since(ctx context.Context, at time.Time) ([]Grant, error)
 }
 
 // Takes counts the tiles taken during each round, for its numbers.

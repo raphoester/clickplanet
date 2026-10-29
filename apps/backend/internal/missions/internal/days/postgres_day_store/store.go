@@ -22,16 +22,26 @@ type Store struct {
 }
 
 func (s *Store) DayAt(ctx context.Context, at time.Time) (days.Day, error) {
+	return dayOf(s.db.On(ctx).QueryRowContext(ctx, `
+		SELECT day_id, starts_at, ends_at FROM mission_days WHERE starts_at <= $1 AND $1 < ends_at
+	`, at.UTC()))
+}
+
+func (s *Store) DayBefore(ctx context.Context, day days.Day) (days.Day, error) {
+	return dayOf(s.db.On(ctx).QueryRowContext(ctx, `
+		SELECT day_id, starts_at, ends_at FROM mission_days WHERE ends_at = $1
+	`, day.Snapshot().StartsAt))
+}
+
+func dayOf(row *sql.Row) (days.Day, error) {
 	var snapshot days.DaySnapshot
 	var id string
-	err := s.db.On(ctx).QueryRowContext(ctx, `
-		SELECT day_id, starts_at, ends_at FROM mission_days WHERE starts_at <= $1 AND $1 < ends_at
-	`, at.UTC()).Scan(&id, &snapshot.StartsAt, &snapshot.EndsAt)
+	err := row.Scan(&id, &snapshot.StartsAt, &snapshot.EndsAt)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		return days.Day{}, days.ErrNoDay
 	case err != nil:
-		return days.Day{}, fmt.Errorf("failed to read the day at %s: %w", at, err)
+		return days.Day{}, fmt.Errorf("failed to read a day: %w", err)
 	}
 	snapshot.ID = days.DayID(id)
 	return days.DayOf(snapshot) //nolint:wrapcheck // it names the day.

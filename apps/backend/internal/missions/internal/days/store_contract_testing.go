@@ -69,3 +69,16 @@ func (s *StoreContractSuite) TestADayToldAgainKeepsItsNewEnd() {
 	_, err = s.store.DayAt(s.T().Context(), contractAt.Add(2*time.Hour))
 	s.Require().ErrorIs(err, ErrNoDay, "the day was cut")
 }
+
+func (s *StoreContractSuite) TestTheDayBeforeIsTheOneThatEndedAsTheDayStarted() {
+	yesterday, today, tomorrow := TestingDayAt(contractAt.Add(-24*time.Hour)), TestingDayAt(contractAt), TestingDayAt(contractAt.Add(24*time.Hour))
+	for _, day := range []Day{tomorrow, yesterday, today} {
+		s.Require().NoError(s.store.KeepDay(s.T().Context(), day))
+	}
+
+	found, err := s.store.DayBefore(s.T().Context(), today)
+	s.Require().NoError(err)
+	s.Equal(yesterday, found)
+	_, err = s.store.DayBefore(s.T().Context(), yesterday)
+	s.Require().ErrorIs(err, ErrNoDay, "no day was told before it")
+}

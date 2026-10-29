@@ -37,6 +37,18 @@ func (s *Store) DayAt(_ context.Context, at time.Time) (days.Day, error) {
 	return days.Day{}, days.ErrNoDay
 }
 
+func (s *Store) DayBefore(_ context.Context, day days.Day) (days.Day, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for _, told := range s.days {
+		if day.Follows(told) {
+			return told, nil
+		}
+	}
+	return days.Day{}, days.ErrNoDay
+}
+
 func (s *Store) KeepDay(_ context.Context, day days.Day) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

@@ -14,6 +14,7 @@ import (
 	scoringv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/books"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/books/inmemory_book_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/books/inmemory_grant_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/books/inmemory_round_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/books/usecases/close_book_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/books/usecases/close_round_usecase"
@@ -39,15 +40,17 @@ func (s *stubTerritory) Snapshot(context.Context) (books.Snapshot, error) {
 }
 
 type stack struct {
-	handler   scoring_command_handler.Handler
+	handler   scoring_command_handler.Handler[*scoringv1.ScoringCommand]
 	books     *inmemory_book_store.Store
 	rounds    *inmemory_round_store.Store
+	grants    *inmemory_grant_store.Store
 	outbox    *cpatomic.FakeOutbox
 	territory *stubTerritory
 }
 
 func newStack() stack {
-	shelf, rounds, outbox, territory := inmemory_book_store.New(), inmemory_round_store.New(), &cpatomic.FakeOutbox{}, &stubTerritory{}
+	shelf, rounds, grants := inmemory_book_store.New(), inmemory_round_store.New(), inmemory_grant_store.New()
+	outbox, territory := &cpatomic.FakeOutbox{}, &stubTerritory{}
 	logger := slog.New(slog.DiscardHandler)
 	tx := cpatomic.FakeTransactioner{}
 	return stack{
@@ -55,9 +58,9 @@ func newStack() stack {
 			OpenBook:   log_command.New("open_book", open_book_usecase.New(shelf), logger),
 			OpenRound:  log_command.New("open_round", open_round_usecase.New(shelf, rounds), logger),
 			CloseRound: log_command.New("close_round", close_round_usecase.New(tx, territory, rounds, outbox), logger),
-			CloseBook:  log_command.New("close_book", close_book_usecase.New(tx, shelf, rounds, outbox), logger),
+			CloseBook:  log_command.New("close_book", close_book_usecase.New(tx, shelf, rounds, grants, outbox), logger),
 		}), logger)),
-		books: shelf, rounds: rounds, outbox: outbox, territory: territory,
+		books: shelf, rounds: rounds, grants: grants, outbox: outbox, territory: territory,
 	}
 }
 

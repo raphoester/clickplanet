@@ -43,11 +43,24 @@ func TestARoundScoresOneToTenTimes(t *testing.T) {
 	assert.Equal(t, books.Round{ID: "battle", Book: "season-0", Times: 10, StartsAt: utc(31, 21)}, round)
 }
 
+func TestAGrantGivesPointsToACountry(t *testing.T) {
+	for _, grant := range []books.Grant{{Country: "", Points: 1}, {Country: "fr", Points: 0}} {
+		_, err := books.NewGrant("grant", grant.Country, grant.Points, utc(9, 0))
+		require.ErrorIs(t, err, books.ErrEmptyGrant)
+		require.ErrorIs(t, err, books.ErrRefused)
+	}
+	grant, err := books.NewGrant("grant", "fr", 2, utc(9, 0).In(time.FixedZone("CEST", 2*3600)))
+	require.NoError(t, err)
+	assert.Equal(t, books.Grant{ID: "grant", Country: "fr", Points: 2, At: utc(9, 0)}, grant)
+}
+
 func TestAnIDIsOneToSixtyFourCharacters(t *testing.T) {
 	for _, id := range []string{"", strings.Repeat("a", 65)} {
 		_, err := books.ParseBookID(id)
 		require.ErrorIs(t, err, books.ErrInvalidID)
 		_, err = books.ParseRoundID(id)
+		require.ErrorIs(t, err, books.ErrInvalidID)
+		_, err = books.ParseGrantID(id)
 		require.ErrorIs(t, err, books.ErrInvalidID)
 	}
 	id, err := books.ParseRoundID(strings.Repeat("a", 64))

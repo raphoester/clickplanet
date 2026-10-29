@@ -1,10 +1,12 @@
 # Missions (`internal/missions/`)
 
-**Every player has four or five missions a day of its own, and each pays itself once done.** It reads
-planet's facts (`TileTaken`, `BonusClaimed`, `QuizAnswered`, `BombLanded`, `ShieldPlaced`, `Fortified`, `GetTerritories`,
-`GetCountrySizes`, `GetAllegianceOf`), the gamemaster's days (`DayStarted`), and commands planet to grant a reward
-(`planet.v1.GrantCharges`, over Redis), as scoring asks planet what each country holds: planet never imports, calls or
-hears it.
+**Every player has four or five missions a day of its own, and each pays itself once done. Every flag has one more,
+which all its players do together, and which gives the flag season points** (see [The flag's mission](#the-flags-mission)).
+It reads planet's facts (`TileTaken`, `BonusClaimed`, `QuizAnswered`, `BombLanded`, `ShieldPlaced`, `Fortified`,
+`ClickTried`, `GetTerritories`, `GetCountrySizes`, `GetAllegianceOf`), the gamemaster's days (`DayStarted`), and
+commands planet to grant a reward
+(`planet.v1.GrantCharges`) and scoring to grant points (`scoring.v1.GrantPoints`), over Redis, as scoring asks planet
+what each country holds: neither ever imports, calls or hears missions.
 Its public route, `/missions.v1.MissionService/*`, is listed in `deploy/vps/caddy/Caddyfile`, as every service's is.
 
 ```
@@ -27,12 +29,18 @@ internal/missions/internal/
     planetgrant/                    a payment as the planet.v1.GrantCharges command
     redis_outbox_sender/            what the outbox relay sends with: the grants as commands, MissionsPaid as an event
     usecases/record_fact_usecase/  get_missions_usecase/  pay_signed_in_usecase/  forget_account_usecase/
+  flagmissions/                     Take and Strike, Order (TakeIn, BreakShields), MissionID, Day (a flag's day), Done, Draw,
+                                    Briefing; the Store port and its contract suite
+    postgres_flag_day_store/        the Store over missions.flag_days and flag_missions
+    inmemory_flag_day_store/        the same port in a map, behind the testing tag
+    scoringgrant/                   a flag mission done as the scoring.v1.GrantPoints command
+    usecases/record_flag_take_usecase/  record_strike_usecase/
   missionsv1controller/             MissionService (a bag), the session interceptor, the caller, missionmessage
     get_missions_handler/
   subscribers/                      tile_taken_subscriber/  bonus_claimed_subscriber/  quiz_answered_subscriber/
                                     bomb_landed_subscriber/  shield_placed_subscriber/  fortified_subscriber/
-                                    day_started_subscriber/  sign_in_subscriber/  account_deleted_subscriber/
-                                    log_subscriber/
+                                    day_started_subscriber/  flag_tile_taken_subscriber/  click_tried_subscriber/
+                                    sign_in_subscriber/  account_deleted_subscriber/  log_subscriber/
   migrations/
 ```
 
@@ -132,3 +140,42 @@ internal/missions/internal/
     ended unpaid stays unpaid.
   - **`GetMissions` is `Identified`**, and says which missions are paid. `auth.v1.AccountDeleted` deletes the account's
     briefs, sheets, progress and payments (`missions-accounts`).
+
+## The flag's mission
+
+**One mission a day for the whole flag, the same for each of its players: done once, it gives the flag 1 to 3 season
+points.** It is hard on purpose, since every player of the flag counts on it. A new concept with its own lifecycle (a
+day and a flag), so it has its own package and store (`flagmissions`).
+
+- **`Draw(day, flag, world, yesterday)` is the mission**, seeded by the day and the flag: **its points**, 1 to 3, evenly,
+  then **its kind**, evenly between the ones the map allows: `TakeIn{Ground, Goal}`, tiles taken for the flag on a big
+  ground (`World.GroundsOf`, the grounds of the player missions), or `BreakShields{Flag, Goal}`, shields of a rival broken
+  (`World.RivalsOf`, drawn by the ground it holds, so the leaders share the heat). A map with neither gives a day with
+  no mission.
+- **The goal is a share of what the flag did the day before**, so a busy flag gets a big goal and a small one a small
+  one (the user's choice, 2026-10-28): for a ground, of all the tiles its players took (20%, 30% or 40% for 1, 2 or 3
+  points, and at least 300, 450 or 600); for shields, of all the shields they broke (the same shares, at least 100, 150
+  or 200). Rounded down to 10 (`pace`).
+- **A flag's day counts what all its players did** (`Day`): every take for it (`takes`) and every shield it broke
+  (`strikes`), for the next day's goal, and the mission's progress, one counter from 0. **`Briefing.Of(day, flag)`
+  draws once and keeps it**, at the flag's first take, shield broken or read of the day, from the map then and the day
+  before (`days.Store.DayBefore`, the day told that ended as this one started, since the gamemaster chains a season's
+  days); a season's first day has none, so its goal is the least. The store's first `KeepDay` wins. `OfPlayer` is the day of the flag the account plays now
+  (`GetAllegianceOf`), none with no flag.
+- **Counted from two facts, each in its own group**: `TileTaken` (`missions-flag-takes`, `flag_tile_taken_subscriber`,
+  `record_flag_take_usecase`), and `ClickTried` whose outcome is `STRUCK`, a click a shield took
+  (`missions-flag-strikes`, `click_tried_subscriber`, `record_strike_usecase`): `country` is the flag that broke it,
+  `owner` the shield's. **A fact told twice counts once**: a take below the ledger mark (`missions.TakeMark`:
+  `counted_takes_below` and `counted_takes_below_index`, since a spread's takes share one position), and a strike at or
+  before the last time counted (`counted_strikes_until`), since planet tells its callers' facts in the order of their
+  times. `ClickTried` is not in an outbox: a strike Redis lost is a shield short.
+- **The fact that finishes it gives the points, once** (`Day.WithTake`, `WithStrike`, `Done`): in the transaction
+  that counts it, the use case records `scoring.v1.GrantPoints` in missions' outbox (`scoringgrant.Of`): the mission's id
+  as `grant_id`, the flag, the points, and the fact's time as `granted_at`, so scoring counts them in the books open
+  then. `missions-outbox` sends it with the charges.
+- **`GetMissions` answers `flag_mission`**, the mission of the flag the caller plays now: its id, its points, `done`,
+  and its kind (`take_in` with the tiles taken, `break_shields` with the shields broken). None with no flag, or no
+  mission that day.
+- **Kept in `flag_days`** (`day`, the day's id, `flag`, `takes`, `counted_takes_below`, `counted_takes_below_index`, `strikes`,
+  `counted_strikes_until`) and **`flag_missions`** (`mission_id`, `kind` of the enum `flag_mission_kind`, the kind's
+  own fields in `payload`, `points`, `progress`, `done`): a day with no mission has no row there. They name no account, so `AccountDeleted` leaves them.

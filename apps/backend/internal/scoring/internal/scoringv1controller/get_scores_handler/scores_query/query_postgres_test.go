@@ -10,6 +10,7 @@ import (
 	scoringv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/books"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/books/postgres_book_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/books/postgres_grant_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/books/postgres_round_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_scores_handler/scores_query"
@@ -83,6 +84,28 @@ func (s *testSuite) TestTheScoresAroundARoundAreBeforeItAndThroughIt() {
 	s.Empty(before)
 	s.Len(after, 2)
 	s.True(proto.Equal(&scoringv1.Score{Rank: 1, CountryId: "fr", Points: 25, RoundsWon: 1}, after[0]), after[0])
+}
+
+func (s *testSuite) TestTheScoresCountTheBooksGrantsAndAroundARoundTheOnesBeforeItsEnd() {
+	grants := postgres_grant_store.New(s.db)
+	for _, grant := range []books.Grant{
+		{ID: "before the book", Country: "fr", Points: 3, At: utc(7, 0)},
+		{ID: "between the rounds", Country: "de", Points: 2, At: utc(31, 22)},
+	} {
+		_, err := grants.Keep(s.T().Context(), grant)
+		s.Require().NoError(err)
+	}
+
+	scores, err := s.query.Scores(s.T().Context(), seasonZero.ID)
+	s.Require().NoError(err)
+	before, after, err := s.query.Around(s.T().Context(), seasonZero.ID, utc(31, 23))
+	s.Require().NoError(err)
+
+	s.True(proto.Equal(&scoringv1.Scores{BookId: "season-0", Scores: []*scoringv1.Score{
+		{Rank: 1, CountryId: "de", Points: 95, RoundsWon: 1}, {Rank: 2, CountryId: "fr", Points: 79, RoundsWon: 1},
+	}}, scores), scores)
+	s.True(proto.Equal(&scoringv1.Score{Rank: 2, CountryId: "de", Points: 20}, before[1]), before[1])
+	s.True(proto.Equal(&scoringv1.Score{Rank: 1, CountryId: "de", Points: 95, RoundsWon: 1}, after[0]), after[0])
 }
 
 func (s *testSuite) TestTheTableOfAClosedBookCarriesItsTiebreak() {
