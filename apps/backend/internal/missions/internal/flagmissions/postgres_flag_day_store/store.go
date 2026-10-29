@@ -25,7 +25,8 @@ type Store struct {
 var _ flagmissions.Store = (*Store)(nil)
 
 const selectDay = `
-	SELECT day.takes, day.counted_takes_below, day.counted_takes_below_index, day.strikes, day.counted_strikes_until,
+	SELECT day.takes, day.counted_takes_below, day.counted_takes_below_index, day.strikes, day.counted_strikes_below,
+	       day.counted_strikes_below_index,
 	       mission.mission_id, mission.kind::text, mission.payload, mission.points, mission.progress, mission.done
 	FROM flag_days AS day LEFT JOIN flag_missions AS mission USING (day, flag)
 	WHERE day.day = $1 AND day.flag = $2`
@@ -38,14 +39,15 @@ func dayOf(row *sql.Row) (flagmissions.Day, error) {
 	var (
 		snapshot              flagmissions.DaySnapshot
 		takes, below, strikes int64
-		belowIndex            int64
+		belowIndex, struck    int64
+		struckIndex           int64
 		id                    uuid.NullUUID
 		kind                  sql.NullString
 		payload               []byte
 		points, progress      sql.NullInt64
 		done                  sql.NullBool
 	)
-	err := row.Scan(&takes, &below, &belowIndex, &strikes, &snapshot.StrikesUntil, &id, &kind, &payload, &points, &progress, &done)
+	err := row.Scan(&takes, &below, &belowIndex, &strikes, &struck, &struckIndex, &id, &kind, &payload, &points, &progress, &done)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		return flagmissions.Day{}, flagmissions.ErrNoDay
@@ -54,8 +56,8 @@ func dayOf(row *sql.Row) (flagmissions.Day, error) {
 	}
 	//nolint:gosec // CHECK (... >= 0) on each.
 	snapshot.Takes, snapshot.Strikes = uint64(takes), uint64(strikes)
-	snapshot.TakesBelow = missions.TakeMark{Position: uint64(below), Index: uint32(belowIndex)} //nolint:gosec // as above.
-	snapshot.StrikesUntil = snapshot.StrikesUntil.UTC()
+	snapshot.TakesBelow = missions.LedgerMark{Position: uint64(below), Index: uint32(belowIndex)}     //nolint:gosec // as above.
+	snapshot.StrikesBelow = missions.LedgerMark{Position: uint64(struck), Index: uint32(struckIndex)} //nolint:gosec // as above.
 
 	if id.Valid {
 		order, err := orderOf(kind.String, payload)
@@ -76,10 +78,12 @@ func (s *Store) KeepDay(
 	if err := s.db.InTx(ctx, func(ctx context.Context) error {
 		tx := s.db.On(ctx)
 		kept, err := tx.ExecContext(ctx, `
-			INSERT INTO flag_days (day, flag, takes, counted_takes_below, counted_takes_below_index, strikes, counted_strikes_until)
-			VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (day, flag) DO NOTHING
+			INSERT INTO flag_days (day, flag, takes, counted_takes_below, counted_takes_below_index, strikes,
+				counted_strikes_below, counted_strikes_below_index)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (day, flag) DO NOTHING
 		`, day.String(), flag, int64(snapshot.Takes), int64(snapshot.TakesBelow.Position), //nolint:gosec // counts fit in int64.
-			int64(snapshot.TakesBelow.Index), int64(snapshot.Strikes), snapshot.StrikesUntil) //nolint:gosec // as above.
+			int64(snapshot.TakesBelow.Index), int64(snapshot.Strikes), int64(snapshot.StrikesBelow.Position), //nolint:gosec // as above.
+			int64(snapshot.StrikesBelow.Index))
 		if err != nil {
 			return fmt.Errorf("failed to keep %s's day: %w", flag, err)
 		}
@@ -121,13 +125,14 @@ func (s *Store) ChangeDay(
 		before, after := current.Snapshot(), change(current).Snapshot()
 
 		if after.Takes != before.Takes || after.TakesBelow != before.TakesBelow || after.Strikes != before.Strikes ||
-			!after.StrikesUntil.Equal(before.StrikesUntil) {
+			after.StrikesBelow != before.StrikesBelow {
 			if _, err := tx.ExecContext(ctx, `
 				UPDATE flag_days SET takes = $3, counted_takes_below = $4, counted_takes_below_index = $5, strikes = $6,
-					counted_strikes_until = $7
+					counted_strikes_below = $7, counted_strikes_below_index = $8
 				WHERE day = $1 AND flag = $2
 			`, day.String(), flag, int64(after.Takes), int64(after.TakesBelow.Position), //nolint:gosec // counts fit in int64.
-				int64(after.TakesBelow.Index), int64(after.Strikes), after.StrikesUntil); err != nil { //nolint:gosec // as above.
+				int64(after.TakesBelow.Index), int64(after.Strikes), int64(after.StrikesBelow.Position), //nolint:gosec // as above.
+				int64(after.StrikesBelow.Index)); err != nil {
 				return fmt.Errorf("failed to keep what %s did: %w", flag, err)
 			}
 		}

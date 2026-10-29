@@ -119,6 +119,7 @@ func (s *Storage) Clear(_ context.Context, blast clicks.Blast) (clicks.Blast, er
 	owners := make([]string, 0, len(blast.Cleared))
 	var struck []uint32
 	var left []int
+	var struckOwners []string
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -126,6 +127,7 @@ func (s *Storage) Clear(_ context.Context, blast clicks.Blast) (clicks.Blast, er
 	for _, tile := range blast.Cleared {
 		if s.board.shieldsOn(tile) > 0 {
 			struck = append(struck, tile)
+			struckOwners = append(struckOwners, s.board.ownerOf(tile))
 			left = append(left, s.board.strike(tile))
 			continue
 		}
@@ -140,6 +142,7 @@ func (s *Storage) Clear(_ context.Context, blast clicks.Blast) (clicks.Blast, er
 	blast.Owners = owners
 	blast.Struck = struck
 	blast.Left = left
+	blast.StruckOwners = struckOwners
 	s.publishLocked(clicks.Change{Blast: &blast})
 
 	return blast, nil

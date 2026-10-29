@@ -29,8 +29,8 @@ func (p pace) goal(yesterday uint64) uint32 {
 }
 
 var (
-	conquerPaces = [mostPoints]pace{{percent: 20, least: 300}, {percent: 30, least: 450}, {percent: 40, least: 600}}
-	shieldPaces  = [mostPoints]pace{{percent: 20, least: 100}, {percent: 30, least: 150}, {percent: 40, least: 200}}
+	conquerPaces = [mostPoints]pace{{percent: 50, least: 1_000}, {percent: 75, least: 1_500}, {percent: 100, least: 2_000}}
+	shieldPaces  = [mostPoints]pace{{percent: 50, least: 300}, {percent: 75, least: 450}, {percent: 100, least: 600}}
 )
 
 var drawnSpace = uuid.MustParse("466c6167-4d69-4373-8000-696f6e66c167")

@@ -21,6 +21,10 @@ func (e Enclosing) Replay(see func(Taking)) {
 	replayClaims(see, e.Impacts, Taking{Scope: e.Scope, Account: e.Account, Country: e.Country, At: e.At})
 }
 
+func (e Enclosing) Strikes(see func(Strike)) {
+	strikeClaims(see, e.Impacts, Strike{Account: e.Account, Country: e.Country, At: e.At})
+}
+
 func (e Enclosing) Show(see func(Scene)) {
 	showImpacts(see, e.At, e.Country, e.Impacts)
 	see(Scene{At: e.At, Enclosure: bonusAt(e.Tile, e.Country, e.Impacts)})

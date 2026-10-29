@@ -49,6 +49,15 @@ func replayClaims(see func(Taking), impacts []clicks.Impact, by Taking) {
 	}
 }
 
+func strikeClaims(see func(Strike), impacts []clicks.Impact, by Strike) {
+	for _, impact := range impacts {
+		if impact.Outcome == clicks.Shielded {
+			by.Tile, by.Owner = impact.Tile, impact.Owner
+			see(by)
+		}
+	}
+}
+
 func claimsEntry(entry Entry, impacts []clicks.Impact) (Entry, error) {
 	var payload claimsPayload
 	for _, impact := range impacts {

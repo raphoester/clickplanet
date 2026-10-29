@@ -90,6 +90,7 @@ func everyKind() []ledger.Event {
 		}},
 		ledger.Bombing{Scope: "203.0.113.7", Account: ada, At: at, Blast: clicks.Blast{
 			Tile: 9, CountryID: "fr", Cleared: []uint32{10, 9}, Owners: []string{"pl", "de"}, Struck: []uint32{11}, Left: []int{0},
+			StruckOwners: []string{"pl"},
 		}},
 		ledger.Striking{Tile: 11, Scope: "203.0.113.7", Account: ada, Country: "fr", Owner: "de", Shields: 1, At: at},
 		ledger.Shielding{Tile: 12, Scope: "203.0.113.7", Account: ada, Country: "fr", Shields: 3, At: at},

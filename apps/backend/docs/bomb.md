@@ -53,7 +53,8 @@ by the ledger relay once the ledger flushed it, and the chat announces it — se
 [Announcements](chat.md#announcements).
 **And the ledger keeps it**: the drop clears through `ledger.Recording`, so every
 bomb that went off is one event in `planet.ledger_events`, with the flag each tile
-it cleared wore and the shields each tile it struck kept — see [Manual bans](admin.md#manual-bans-findplayers-topplayers-banplayer-unbanplayer-revertplayer-inspectplayer).
+it cleared wore, and the flag and the shields each tile it struck kept (`Blast.StruckOwners`, from 2026-10-29: a bomb
+before has no owner on its strikes), each strike told as `planet.v1.ShieldStruck` — see [Manual bans](admin.md#manual-bans-findplayers-topplayers-banplayer-unbanplayer-revertplayer-inspectplayer).
 **The ban applies**: `refusal_drop_bomb` refuses a refused caller's drop before the
 bomb is spent, with the same `BanRefusal` as a click (see [A ban is told](antibot.md#a-ban-is-told)),
 so the bomb stays in hand. It sits inside the count so the counter can label it.

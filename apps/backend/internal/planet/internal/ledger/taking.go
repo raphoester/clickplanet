@@ -33,6 +33,8 @@ func (t Taking) Replay(see func(Taking)) {
 	see(t)
 }
 
+func (t Taking) Strikes(func(Strike)) {}
+
 func (t Taking) Show(see func(Scene)) {
 	see(Scene{At: t.At, Change: &Change{
 		TileUpdate: clicks.TileUpdate{Tile: t.Tile, Value: t.Country, Previous: t.Previous, Clicked: true},

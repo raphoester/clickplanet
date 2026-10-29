@@ -190,6 +190,7 @@ func TestABombingIsWrittenDownOnTheTileItHit(t *testing.T) {
 	entry, err := ledger.Bombing{Scope: "A", Account: "guest", At: start, Blast: clicks.Blast{
 		Tile: 8, CountryID: "fr", Point: clicks.Vec3{X: 0.6, Z: 0.8}, Radius: 0.032,
 		Cleared: []uint32{7, 8, 9}, Owners: []string{"il", "de", "il"}, Struck: []uint32{10}, Left: []int{0},
+		StruckOwners: []string{"pl"},
 	}}.Entry()
 	require.NoError(t, err)
 
@@ -199,7 +200,7 @@ func TestABombingIsWrittenDownOnTheTileItHit(t *testing.T) {
 		"the tile it hit was emptied")
 	assert.JSONEq(t, `{"flag": "fr", "point": [0.6, 0, 0.8], "radius": 0.032,
 		"cleared": [{"tile": 7, "owner": "il"}, {"tile": 8, "owner": "de"}, {"tile": 9, "owner": "il"}],
-		"struck": [{"tile": 10, "shields": 0}]}`, string(payload))
+		"struck": [{"tile": 10, "owner": "pl", "shields": 0}]}`, string(payload))
 }
 
 func TestASpreadIsWrittenDownOnTheTileClickedWithWhatItTookAndStruck(t *testing.T) {
@@ -247,6 +248,7 @@ func TestEveryKindReadsBackAsItWasWrittenDown(t *testing.T) {
 		ledger.Bombing{Scope: "A", At: start, Blast: clicks.Blast{CountryID: "fr", Point: clicks.Vec3{Y: 1}, Radius: 0.032}},
 		ledger.Bombing{Scope: "A", At: start, Blast: clicks.Blast{
 			Tile: 8, CountryID: "fr", Cleared: []uint32{7}, Owners: []string{"il"}, Struck: []uint32{8, 9}, Left: []int{2, 0},
+			StruckOwners: []string{"de", "pl"},
 		}},
 		ledger.Striking{Tile: 3, Scope: "A", Account: "guest", Country: "fr", Owner: "pl", Shields: 2, At: start},
 		ledger.Spreading{Tile: 1, Scope: "A", Account: "guest", Country: "fr", At: start, Impacts: []clicks.Impact{
@@ -569,6 +571,7 @@ func (s *stubTiles) Clear(_ context.Context, blast clicks.Blast) (clicks.Blast, 
 			s.shields[tile]--
 			cleared.Struck = append(cleared.Struck, tile)
 			cleared.Left = append(cleared.Left, s.shields[tile])
+			cleared.StruckOwners = append(cleared.StruckOwners, s.owners[tile])
 		case s.owners[tile] != "":
 			cleared.Cleared = append(cleared.Cleared, tile)
 			cleared.Owners = append(cleared.Owners, s.owners[tile])
@@ -606,6 +609,7 @@ func TestRecordingNotesABombWithTheFlagEachTileWoreAndTheShieldsEachStruckTileKe
 	assert.Equal(t, map[uint32]string{1: "", 2: "", 4: "pl"}, tiles.owners)
 	assert.Equal(t, []ledger.Event{ledger.Bombing{Scope: "1.2.3.4", Account: "a-guest", At: start, Blast: clicks.Blast{
 		Tile: 2, CountryID: "fr", Cleared: []uint32{1, 2}, Owners: []string{"de", "il"}, Struck: []uint32{4}, Left: []int{1},
+		StruckOwners: []string{"pl"},
 	}}}, written(events))
 	assert.Equal(t, []ledger.Taking{
 		{Tile: 1, Scope: "1.2.3.4", Account: "a-guest", Previous: "de", At: start},

@@ -51,7 +51,7 @@ func TestTheShieldsBrokenFinishTheMissionAndGiveTheFlagItsPointsOnce(t *testing.
 
 	for n := range goal + 1 {
 		require.NoError(t, useCase.Execute(t.Context(), flagmissions.Strike{
-			Flag: "fr", Owner: "dz", At: at.Add(time.Duration(n+1) * time.Millisecond),
+			Flag: "fr", Owner: "dz", Position: uint64(n + 1), At: at.Add(time.Duration(n+1) * time.Millisecond),
 		}))
 	}
 

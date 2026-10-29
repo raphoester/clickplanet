@@ -136,7 +136,7 @@ func (s *StoreContractSuite) TestChangesToASheetAddUp() {
 
 	s.Equal(SheetSnapshot{
 		Progress: map[MissionID]uint32{s.frMission(1, 0): 2, s.frMission(1, 1): 1}, Paid: cpcolls.NewSet[MissionID](),
-		Counted: Counted{TakesBelow: TakeMark{Position: 2, Index: 1}},
+		Counted: Counted{TakesBelow: LedgerMark{Position: 2, Index: 1}},
 	}, s.sheet(contractDay, 1))
 }
 
@@ -144,7 +144,7 @@ func (s *StoreContractSuite) TestTheMarkOfTheLastTakeCountedIsKept() {
 	s.takeFor(contractDay, 1, Take{Flag: "fr", Position: 41})
 	s.takeFor(contractDay, 1, Take{Flag: "fr", Position: 41})
 
-	s.Equal(TakeMark{Position: 41, Index: 1}, s.sheet(contractDay, 1).Counted.TakesBelow)
+	s.Equal(LedgerMark{Position: 41, Index: 1}, s.sheet(contractDay, 1).Counted.TakesBelow)
 	s.Equal(uint32(1), s.sheet(contractDay, 1).Progress[s.frMission(1, 0)], "the second telling counted nothing")
 }
 
@@ -155,13 +155,13 @@ func (s *StoreContractSuite) TestEachTakeOfASpreadIsCountedOnceThoughTheyShareAP
 		}
 	}
 
-	s.Equal(TakeMark{Position: 41, Index: 2}, s.sheet(contractDay, 1).Counted.TakesBelow)
+	s.Equal(LedgerMark{Position: 41, Index: 2}, s.sheet(contractDay, 1).Counted.TakesBelow)
 	s.Equal(uint32(2), s.sheet(contractDay, 1).Progress[s.frMission(1, 0)])
 }
 
 func (s *StoreContractSuite) TestEveryMarkOfWhatWasCountedIsKept() {
 	counted := Counted{
-		TakesBelow: TakeMark{Position: 5, Index: 2}, BombsBelow: 6, ShieldsBelow: 7, FortifiesBelow: 8,
+		TakesBelow: LedgerMark{Position: 5, Index: 2}, BombsBelow: 6, ShieldsBelow: 7, FortifiesBelow: 8,
 		BoxesUntil: contractAt, AnswersUntil: contractAt.Add(time.Microsecond),
 	}
 

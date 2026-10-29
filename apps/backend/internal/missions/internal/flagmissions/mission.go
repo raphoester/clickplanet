@@ -22,11 +22,14 @@ type Take struct {
 	At       time.Time
 }
 
-// A shield of Owner that a click for Flag broke.
+// A shield of Owner that a click, a spread, an enclose or a bomb for Flag broke: Position in the ledger, Index in its
+// event.
 type Strike struct {
-	Flag  string
-	Owner string
-	At    time.Time
+	Flag     string
+	Owner    string
+	Position uint64
+	Index    uint32
+	At       time.Time
 }
 
 // What the whole flag is to do in a day: its own fields, and one progress from 0. A new kind is a new type.

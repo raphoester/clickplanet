@@ -21,6 +21,8 @@ type Blast struct {
 	Struck []uint32
 	// Left[i] is the shields Struck[i] kept: Clear fills it.
 	Left []int
+	// StruckOwners[i] is the flag Struck[i] wore, and kept: Clear fills it.
+	StruckOwners []string
 }
 
 type Change struct {
