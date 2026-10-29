@@ -48,6 +48,19 @@ message ShieldPlaced {
   uint64 position = 6;
 }
 
+// A shield a click, a spread, an enclose or a bomb broke: the tile kept its flag, owner, and lost one shield.
+message ShieldStruck {
+  string account_id = 1;
+  uint32 tile_id = 2;
+  // The flag that struck it.
+  string country = 3;
+  string owner = 4;
+  google.protobuf.Timestamp struck_at = 5;
+  uint64 position = 6;
+  // A spread, an enclose or a bomb is one ledger event, at one position, that may strike several: each has its index.
+  uint32 index = 7;
+}
+
 message BonusClaimed {
   string account_id = 1;
   google.protobuf.Timestamp claimed_at = 2;

@@ -1,8 +1,6 @@
 package flagmissions
 
 import (
-	"time"
-
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 )
 
@@ -12,9 +10,9 @@ type DaySnapshot struct {
 	Progress     uint32
 	Done         bool
 	Takes        uint64
-	TakesBelow   missions.TakeMark
+	TakesBelow   missions.LedgerMark
 	Strikes      uint64
-	StrikesUntil time.Time
+	StrikesBelow missions.LedgerMark
 }
 
 // A flag's day: its mission, and what all its players did, which sizes the next day's goal.
@@ -23,15 +21,15 @@ type Day struct {
 	progress     uint32
 	done         bool
 	takes        uint64
-	takesBelow   missions.TakeMark
+	takesBelow   missions.LedgerMark
 	strikes      uint64
-	strikesUntil time.Time
+	strikesBelow missions.LedgerMark
 }
 
 func DayOf(snapshot DaySnapshot) (Day, error) {
 	day := Day{
 		progress: snapshot.Progress, done: snapshot.Done, takes: snapshot.Takes, takesBelow: snapshot.TakesBelow,
-		strikes: snapshot.Strikes, strikesUntil: snapshot.StrikesUntil,
+		strikes: snapshot.Strikes, strikesBelow: snapshot.StrikesBelow,
 	}
 	if snapshot.Mission != nil {
 		if snapshot.Mission.Order == nil {
@@ -46,7 +44,7 @@ func DayOf(snapshot DaySnapshot) (Day, error) {
 func (d Day) Snapshot() DaySnapshot {
 	snapshot := DaySnapshot{
 		Progress: d.progress, Done: d.done, Takes: d.takes, TakesBelow: d.takesBelow, Strikes: d.strikes,
-		StrikesUntil: d.strikesUntil,
+		StrikesBelow: d.strikesBelow,
 	}
 	if d.mission != nil {
 		mission := *d.mission
@@ -69,21 +67,26 @@ func (d Day) WithTake(take Take) (Day, []Done) {
 	}
 	next := d
 	next.takes++
-	next.takesBelow = missions.TakeMark{Position: take.Position, Index: take.Index + 1}
+	next.takesBelow = missions.LedgerMark{Position: take.Position, Index: take.Index + 1}
 	if next.mission != nil {
 		next.progress = next.mission.Order.advancedByTake(next.progress, take)
 	}
 	return next.finished()
 }
 
-// Strikes come in the order of their times: one at or before the mark was counted already.
+// Strikes come in ledger order, as takes do: one below the mark was counted already. A bomb strikes its own flag's
+// shields too, and they are no shield broken.
 func (d Day) WithStrike(strike Strike) (Day, []Done) {
-	if !strike.At.After(d.strikesUntil) {
+	if strike.Position < d.strikesBelow.Position ||
+		strike.Position == d.strikesBelow.Position && strike.Index < d.strikesBelow.Index {
 		return d, nil
 	}
 	next := d
+	next.strikesBelow = missions.LedgerMark{Position: strike.Position, Index: strike.Index + 1}
+	if strike.Owner == strike.Flag {
+		return next, nil
+	}
 	next.strikes++
-	next.strikesUntil = strike.At
 	if next.mission != nil {
 		next.progress = next.mission.Order.advancedByStrike(next.progress, strike)
 	}

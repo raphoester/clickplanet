@@ -46,7 +46,10 @@ to the jury.
 - **Kept with the tile**: `planet.tiles.shields`, written by the flush that writes
   the owner.
 - **Told to the other modules** as `planet.v1.ShieldPlaced`, with the tile's shields after it, by the ledger relay once
-  the ledger flushed the placement. A strike and a fortify's shields are not told this way.
+  the ledger flushed the placement. A fortify's shields are not told this way.
+- **Every strike is told too**, as `planet.v1.ShieldStruck`, by the ledger relay: the tile, the flag that struck it,
+  the flag whose shield it was (`owner`), its ledger position and its index in its event. A click strikes one; a spread,
+  an enclose and a bomb (`Blast.StruckOwners`) may strike several at one position (`ledger.Event.Strikes`).
 - **`click_usecase.Out.Outcome`** says what the rule did, for the decorators around
   it: `enclose_click` closes a shape only with `Taken`, and `prom_click`
   counts `clicks_shielded_total{country_id}` by the flag clicked. **It never reaches

@@ -1,4 +1,4 @@
-package click_tried_subscriber
+package shield_struck_subscriber
 
 import (
 	"context"
@@ -23,16 +23,12 @@ type Subscriber struct {
 	useCase UseCase
 }
 
-var _ cpredis.Handler[*planetv1.ClickTried] = Subscriber{}
+var _ cpredis.Handler[*planetv1.ShieldStruck] = Subscriber{}
 
-var errNoTime = errors.New("the try has no time")
+var errNoTime = errors.New("the strike has no time")
 
-// Only a click a shield took is a shield broken.
-func (s Subscriber) Handle(ctx context.Context, event *planetv1.ClickTried) error {
-	if event.GetOutcome() != planetv1.ClickOutcome_CLICK_OUTCOME_STRUCK {
-		return nil
-	}
-	if err := event.GetTriedAt().CheckValid(); err != nil {
+func (s Subscriber) Handle(ctx context.Context, event *planetv1.ShieldStruck) error {
+	if err := event.GetStruckAt().CheckValid(); err != nil {
 		return fmt.Errorf("tile %d: %w: %w", event.GetTileId(), errNoTime, err)
 	}
 
@@ -40,6 +36,7 @@ func (s Subscriber) Handle(ctx context.Context, event *planetv1.ClickTried) erro
 	defer cancel()
 
 	return s.useCase.Execute(ctx, flagmissions.Strike{ //nolint:wrapcheck // the use case named it.
-		Flag: event.GetCountry(), Owner: event.GetOwner(), At: event.GetTriedAt().AsTime(),
+		Flag: event.GetCountry(), Owner: event.GetOwner(), Position: event.GetPosition(), Index: event.GetIndex(),
+		At: event.GetStruckAt().AsTime(),
 	})
 }

@@ -93,8 +93,8 @@ func goalOf(order flagmissions.Order) uint32 {
 func TestTheGoalIsAShareOfWhatTheFlagDidYesterdayByItsPoints(t *testing.T) {
 	busy := dayOf(t, flagmissions.DaySnapshot{Takes: 10_005, Strikes: 1_009})
 	want := map[string]map[uint32]uint32{
-		"flagmissions.TakeIn":       {1: 2_000, 2: 3_000, 3: 4_000},
-		"flagmissions.BreakShields": {1: 200, 2: 300, 3: 400},
+		"flagmissions.TakeIn":       {1: 5_000, 2: 7_500, 3: 10_000},
+		"flagmissions.BreakShields": {1: 500, 2: 750, 3: 1_000},
 	}
 
 	for _, status := range drawn(t, 60, "fr", busy) {
@@ -105,8 +105,8 @@ func TestTheGoalIsAShareOfWhatTheFlagDidYesterdayByItsPoints(t *testing.T) {
 
 func TestAFlagThatDidLittleYesterdayHasTheLeastGoal(t *testing.T) {
 	want := map[string]map[uint32]uint32{
-		"flagmissions.TakeIn":       {1: 300, 2: 450, 3: 600},
-		"flagmissions.BreakShields": {1: 100, 2: 150, 3: 200},
+		"flagmissions.TakeIn":       {1: 1_000, 2: 1_500, 3: 2_000},
+		"flagmissions.BreakShields": {1: 300, 2: 450, 3: 600},
 	}
 
 	for _, status := range drawn(t, 60, "fr", dayOf(t, flagmissions.DaySnapshot{Takes: 40, Strikes: 3})) {
@@ -148,8 +148,9 @@ func take(ground string) flagmissions.Take {
 	return flagmissions.Take{Flag: "fr", Ground: ground, At: monday, Position: position}
 }
 
-func strike(owner string, after time.Duration) flagmissions.Strike {
-	return flagmissions.Strike{Flag: "fr", Owner: owner, At: monday.Add(after)}
+func strike(owner string) flagmissions.Strike {
+	position++
+	return flagmissions.Strike{Flag: "fr", Owner: owner, At: monday, Position: position}
 }
 
 func TestEveryTakeCountsForTomorrowAndTheOnesOnTheGroundOnTheMission(t *testing.T) {
@@ -171,7 +172,7 @@ func TestATakeToldTwiceCountsOnce(t *testing.T) {
 
 	assert.Equal(t, uint64(1), day.Snapshot().Takes)
 	assert.Equal(t, uint32(1), day.Snapshot().Progress)
-	assert.Equal(t, missions.TakeMark{Position: told.Position, Index: 1}, day.Snapshot().TakesBelow)
+	assert.Equal(t, missions.LedgerMark{Position: told.Position, Index: 1}, day.Snapshot().TakesBelow)
 }
 
 func TestEachTakeOfASpreadCountsThoughTheyShareAPosition(t *testing.T) {
@@ -202,39 +203,65 @@ func TestTheTakeThatFinishesTheMissionGivesItsPointsOnce(t *testing.T) {
 func TestOnlyTheRivalsShieldsCountAndEachStrikeForTomorrow(t *testing.T) {
 	day := dayOf(t, flagmissions.DaySnapshot{Mission: shields})
 
-	day, _ = day.WithStrike(strike("pw", time.Second))
-	day, _ = day.WithStrike(strike("dz", 2*time.Second))
-	day, done := day.WithStrike(strike("dz", 3*time.Second))
+	day, _ = day.WithStrike(strike("pw"))
+	day, _ = day.WithStrike(strike("dz"))
+	day, done := day.WithStrike(strike("dz"))
 
 	assert.Equal(t, []flagmissions.Done{{Mission: mission, Points: 1}}, done)
 	assert.Equal(t, uint64(3), day.Snapshot().Strikes)
-	assert.Equal(t, monday.Add(3*time.Second), day.Snapshot().StrikesUntil)
+	assert.Equal(t, missions.LedgerMark{Position: position, Index: 1}, day.Snapshot().StrikesBelow)
 }
 
-func TestAStrikeAtOrBeforeTheMarkCountsNothing(t *testing.T) {
-	day := dayOf(t, flagmissions.DaySnapshot{Mission: shields, StrikesUntil: monday})
+func TestAStrikeToldTwiceCountsOnce(t *testing.T) {
+	told := strike("dz")
 
-	day, _ = day.WithStrike(strike("dz", 0))
+	day, _ := dayOf(t, flagmissions.DaySnapshot{Mission: shields}).WithStrike(told)
+	day, _ = day.WithStrike(told)
+
+	assert.Equal(t, uint64(1), day.Snapshot().Strikes)
+	assert.Equal(t, uint32(1), day.Snapshot().Progress)
+}
+
+func TestEachStrikeOfASpreadOrABombCountsThoughTheyShareAPosition(t *testing.T) {
+	first := strike("dz")
+	second := first
+	second.Index = 1
+
+	day, _ := dayOf(t, flagmissions.DaySnapshot{Mission: shields}).WithStrike(first)
+	day, done := day.WithStrike(second)
+	day, _ = day.WithStrike(first)
+
+	assert.Equal(t, uint64(2), day.Snapshot().Strikes)
+	assert.Equal(t, []flagmissions.Done{{Mission: mission, Points: 1}}, done)
+}
+
+func TestABombOnTheFlagsOwnShieldsBreaksNothing(t *testing.T) {
+	own := strike("fr")
+
+	day, _ := dayOf(t, flagmissions.DaySnapshot{Mission: shields}).WithStrike(own)
 
 	assert.Zero(t, day.Snapshot().Strikes)
-	assert.Zero(t, day.Snapshot().Progress)
+	assert.Equal(t, missions.LedgerMark{Position: own.Position, Index: 1}, day.Snapshot().StrikesBelow, "still counted once")
 }
 
 func TestATakeMovesNoShieldsAndAStrikeNoGround(t *testing.T) {
 	onGround, _ := dayOf(t, flagmissions.DaySnapshot{Mission: shields}).WithTake(take("br"))
-	onShields, _ := dayOf(t, flagmissions.DaySnapshot{Mission: conquer}).WithStrike(strike("dz", time.Second))
+	onShields, _ := dayOf(t, flagmissions.DaySnapshot{Mission: conquer}).WithStrike(strike("dz"))
 
 	assert.Zero(t, onGround.Snapshot().Progress)
 	assert.Zero(t, onShields.Snapshot().Progress)
 }
 
 func TestADayWithNoMissionStillCountsForTomorrow(t *testing.T) {
-	day, done := flagmissions.Day{}.WithTake(take("br"))
-	day, _ = day.WithStrike(strike("dz", time.Second))
+	taken, struck := take("br"), strike("dz")
+	day, done := flagmissions.Day{}.WithTake(taken)
+	day, _ = day.WithStrike(struck)
 
 	assert.Empty(t, done)
-	assert.Equal(t, flagmissions.DaySnapshot{Takes: 1, TakesBelow: missions.TakeMark{Position: position, Index: 1}, Strikes: 1, StrikesUntil: monday.Add(time.Second)},
-		day.Snapshot())
+	assert.Equal(t, flagmissions.DaySnapshot{
+		Takes: 1, TakesBelow: missions.LedgerMark{Position: taken.Position, Index: 1},
+		Strikes: 1, StrikesBelow: missions.LedgerMark{Position: struck.Position, Index: 1},
+	}, day.Snapshot())
 }
 
 func TestAMissionWithNoOrderIsRefused(t *testing.T) {

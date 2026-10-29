@@ -350,7 +350,7 @@ func (s *testSuite) TestABombingReadsBackAsTheBombingItWas() {
 	ctx := context.Background()
 	bombing := ledger.Bombing{Scope: "1.2.3.4", Account: guest, At: start, Blast: clicks.Blast{
 		Tile: 7, CountryID: "de", Point: clicks.Vec3{X: 0.6, Z: 0.8}, Radius: 0.032,
-		Cleared: []uint32{3, 7, 9}, Owners: []string{"fr", "il", "fr"}, Struck: []uint32{8}, Left: []int{0},
+		Cleared: []uint32{3, 7, 9}, Owners: []string{"fr", "il", "fr"}, Struck: []uint32{8}, Left: []int{0}, StruckOwners: []string{"de"},
 	}}
 	entry, err := bombing.Entry()
 	s.Require().NoError(err)

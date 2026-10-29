@@ -62,7 +62,7 @@ func TestATakeCountsOnTheMissionsOfItsDay(t *testing.T) {
 	assert.Equal(t, missions.SheetSnapshot{
 		Progress: map[missions.MissionID]uint32{drawn[0].ID: 1, drawn[1].ID: 1, drawn[2].ID: 1},
 		Paid:     cpcolls.NewSet[missions.MissionID](),
-		Counted:  missions.Counted{TakesBelow: missions.TakeMark{Position: 41, Index: 1}},
+		Counted:  missions.Counted{TakesBelow: missions.LedgerMark{Position: 41, Index: 1}},
 	}, sheet.Snapshot(), "with no ground big enough, the third mission is the flag's too")
 }
 

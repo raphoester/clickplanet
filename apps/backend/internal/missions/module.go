@@ -35,13 +35,13 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/account_deleted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/bomb_landed_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/bonus_claimed_subscriber"
-	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/click_tried_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/day_started_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/flag_tile_taken_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/fortified_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/quiz_answered_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/shield_placed_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/shield_struck_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/sign_in_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/tile_taken_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
@@ -119,12 +119,12 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		closeStores()
 		return fmt.Errorf("failed to subscribe to planet.v1.TileTaken for the flags: %w", err)
 	}
-	strikes, err := cpredis.Subscribe(ctx, streams, "missions-flag-strikes", log_subscriber.New(click_tried_subscriber.New(
+	strikes, err := cpredis.Subscribe(ctx, streams, "missions-flag-strikes", log_subscriber.New(shield_struck_subscriber.New(
 		record_strike_usecase.New(calendar, flags, flagDays, db, outbox),
 	), props.Logger))
 	if err != nil {
 		closeStores()
-		return fmt.Errorf("failed to subscribe to planet.v1.ClickTried: %w", err)
+		return fmt.Errorf("failed to subscribe to planet.v1.ShieldStruck: %w", err)
 	}
 	deletions, err := cpredis.Subscribe(ctx, streams, "missions-accounts",
 		log_subscriber.New(account_deleted_subscriber.New(forget_account_usecase.New(store)), props.Logger))

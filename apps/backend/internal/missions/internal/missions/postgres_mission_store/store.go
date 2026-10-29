@@ -99,10 +99,10 @@ func sheetOf(ctx context.Context, db cppg.Querier, day days.Day, account mission
 		return missions.Sheet{}, fmt.Errorf("failed to read the day's last facts: %w", err)
 	}
 	snapshot.Counted = missions.Counted{
-		TakesBelow:     missions.TakeMark{Position: uint64(takes), Index: uint32(takesIndex)}, //nolint:gosec // CHECK (>= 0).
-		BombsBelow:     uint64(bombs),                                                         //nolint:gosec // as above.
-		ShieldsBelow:   uint64(shields),                                                       //nolint:gosec // as above.
-		FortifiesBelow: uint64(fortifies),                                                     //nolint:gosec // as above.
+		TakesBelow:     missions.LedgerMark{Position: uint64(takes), Index: uint32(takesIndex)}, //nolint:gosec // CHECK (>= 0).
+		BombsBelow:     uint64(bombs),                                                           //nolint:gosec // as above.
+		ShieldsBelow:   uint64(shields),                                                         //nolint:gosec // as above.
+		FortifiesBelow: uint64(fortifies),                                                       //nolint:gosec // as above.
 		BoxesUntil:     timeOf(boxes),
 		AnswersUntil:   timeOf(answers),
 	}
