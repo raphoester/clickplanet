@@ -10,6 +10,11 @@ const closed = {moment: "day", season: 0, number: 5, endedAt: 3} as ClosedRound
 const unlock: Announcement = {kind: "title", title}
 const start: Announcement = {kind: "battle", battle}
 const clip: Announcement = {kind: "clip", appearance: {postId: "post-1", title: "FRANCE VS TURKEY", scheduledAt: 4, links: []}}
+const flagMission: Announcement = {
+    kind: "flagMission",
+    mission: {id: "8b4a8dc8", order: {kind: "breakShields", country: "pw", goal: 450, reached: 450}, points: 2, done: true},
+    country: "fr",
+}
 const round: Announcement = {kind: "round", closed}
 const over: Announcement = {kind: "over", closed: {...closed, number: 1, moment: "battle", roundId: "entry-1"}}
 const results: Announcement = {kind: "results", closed: {...closed, number: 1, moment: "battle", roundId: "entry-1"}}
@@ -19,6 +24,7 @@ describe("the announcements", () => {
         expect(announcementKeyOf(unlock)).toBe("title:warlord")
         expect(announcementKeyOf(start)).toBe("battle:entry-1")
         expect(announcementKeyOf(clip)).toBe("clip:post-1")
+        expect(announcementKeyOf(flagMission)).toBe("flagMission:8b4a8dc8")
         expect(announcementKeyOf(round)).toBe("round:0:5:3")
         expect(announcementKeyOf(over)).toBe("over:0:battle:entry-1:over")
         expect(announcementKeyOf(results)).toBe("results:0:results:entry-1")
