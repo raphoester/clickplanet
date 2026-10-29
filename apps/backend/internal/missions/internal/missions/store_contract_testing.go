@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
 
@@ -25,11 +26,10 @@ func (s *StoreContractSuite) SetupTest() {
 }
 
 var (
-	contractCalendar = NewCalendar(Config{Cutoff: 21 * time.Hour})
-	contractAt       = time.Date(2026, 10, 26, 12, 0, 0, 0, time.UTC)
-	contractDay      = contractCalendar.DayOf(contractAt)
-	contractNextDay  = contractCalendar.DayOf(contractAt.AddDate(0, 0, 1))
-	contractWorld    = World{
+	contractAt      = time.Date(2026, 10, 26, 12, 0, 0, 0, time.UTC)
+	contractDay     = days.TestingDayAt(contractAt)
+	contractNextDay = days.TestingDayAt(contractAt.AddDate(0, 0, 1))
+	contractWorld   = World{
 		Territories:  []Territory{{Flag: "dz", Tiles: 9_000}},
 		CountrySizes: []Holding{{Country: "br", Tiles: 9_000}, {Country: "is", Tiles: 1_200}},
 	}
@@ -39,19 +39,19 @@ func (s *StoreContractSuite) account(n byte) AccountID {
 	return AccountID{15: n}
 }
 
-func (s *StoreContractSuite) keep(day Day, account byte, brief Brief) Brief {
+func (s *StoreContractSuite) keep(day days.Day, account byte, brief Brief) Brief {
 	kept, err := s.store.KeepBrief(s.T().Context(), day, s.account(account), brief)
 	s.Require().NoError(err)
 	return kept
 }
 
-func (s *StoreContractSuite) sheet(day Day, account byte) SheetSnapshot {
+func (s *StoreContractSuite) sheet(day days.Day, account byte) SheetSnapshot {
 	sheet, err := s.store.Sheet(s.T().Context(), day, s.account(account))
 	s.Require().NoError(err)
 	return sheet.Snapshot()
 }
 
-func (s *StoreContractSuite) takeFor(day Day, account byte, take Take) {
+func (s *StoreContractSuite) takeFor(day days.Day, account byte, take Take) {
 	if take.Position == 0 {
 		s.position++
 		take.Position = s.position
@@ -65,7 +65,7 @@ func (s *StoreContractSuite) frMission(account byte, n int) MissionID {
 	return Draw(contractDay, s.account(account), "fr", contractWorld).Snapshot()[n].ID
 }
 
-func (s *StoreContractSuite) noBrief(day Day, account byte) {
+func (s *StoreContractSuite) noBrief(day days.Day, account byte) {
 	_, err := s.store.Brief(s.T().Context(), day, s.account(account))
 	s.ErrorIs(err, ErrNoBrief)
 }
@@ -178,7 +178,7 @@ func (s *StoreContractSuite) TestASheetIsKeptByDayAndAccount() {
 	s.Empty(s.sheet(contractNextDay, 1).Progress)
 }
 
-func (s *StoreContractSuite) pay(day Day, account byte, mission MissionID) {
+func (s *StoreContractSuite) pay(day days.Day, account byte, mission MissionID) {
 	s.Require().NoError(s.store.ChangeSheet(s.T().Context(), day, s.account(account), func(sheet Sheet) Sheet {
 		snapshot := sheet.Snapshot()
 		snapshot.Paid.Add(mission)
@@ -205,7 +205,7 @@ func (s *StoreContractSuite) paidInAll(account byte) uint64 {
 func (s *StoreContractSuite) TestTheMissionsPaidAddUpOverEveryDay() {
 	s.Zero(s.paidInAll(1))
 
-	for _, day := range []Day{contractDay, contractNextDay} {
+	for _, day := range []days.Day{contractDay, contractNextDay} {
 		s.takeFor(day, 1, Take{Flag: "fr"})
 	}
 	s.takeFor(contractDay, 2, Take{Flag: "fr"})

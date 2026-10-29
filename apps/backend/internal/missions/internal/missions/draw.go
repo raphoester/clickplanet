@@ -8,6 +8,8 @@ import (
 	"slices"
 
 	"github.com/google/uuid"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days"
 )
 
 type Holding struct {
@@ -69,7 +71,7 @@ var purses = []purse{
 	{kind: RewardEncloseClicks, least: 2, most: 3},
 }
 
-func Draw(day Day, account AccountID, flag string, world World) Brief {
+func Draw(day days.Day, account AccountID, flag string, world World) Brief {
 	seed := fnv.New64a()
 	_, _ = seed.Write([]byte(day.String() + "/" + account.String()))
 	d := draw{flag: flag, random: rand.New(rand.NewPCG(seed.Sum64(), 0))} //nolint:gosec // a draw every player can see, not a secret.
@@ -89,7 +91,7 @@ func Draw(day Day, account AccountID, flag string, world World) Brief {
 
 var drawnSpace = uuid.MustParse("4d697373-696f-4e73-8000-6d697373696f")
 
-func drawnID(day Day, account AccountID, n int) MissionID {
+func drawnID(day days.Day, account AccountID, n int) MissionID {
 	return MissionID(uuid.NewSHA1(drawnSpace, fmt.Appendf(nil, "%s/%s/%d", day, account, n)))
 }
 

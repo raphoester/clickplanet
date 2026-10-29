@@ -6,6 +6,7 @@ import (
 	"context"
 	"sync"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 )
 
@@ -34,7 +35,7 @@ func (s *Store) FailWith(err error) {
 	s.failWith = err
 }
 
-func (s *Store) Brief(_ context.Context, day missions.Day, account missions.AccountID) (missions.Brief, error) {
+func (s *Store) Brief(_ context.Context, day days.Day, account missions.AccountID) (missions.Brief, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -49,7 +50,7 @@ func (s *Store) Brief(_ context.Context, day missions.Day, account missions.Acco
 }
 
 func (s *Store) KeepBrief(
-	_ context.Context, day missions.Day, account missions.AccountID, brief missions.Brief,
+	_ context.Context, day days.Day, account missions.AccountID, brief missions.Brief,
 ) (missions.Brief, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -64,7 +65,7 @@ func (s *Store) KeepBrief(
 	return missions.BriefOf(s.briefs[key]) //nolint:wrapcheck // the domain named it.
 }
 
-func (s *Store) Sheet(_ context.Context, day missions.Day, account missions.AccountID) (missions.Sheet, error) {
+func (s *Store) Sheet(_ context.Context, day days.Day, account missions.AccountID) (missions.Sheet, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -75,7 +76,7 @@ func (s *Store) Sheet(_ context.Context, day missions.Day, account missions.Acco
 }
 
 func (s *Store) ChangeSheet(
-	_ context.Context, day missions.Day, account missions.AccountID, change func(missions.Sheet) missions.Sheet,
+	_ context.Context, day days.Day, account missions.AccountID, change func(missions.Sheet) missions.Sheet,
 ) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

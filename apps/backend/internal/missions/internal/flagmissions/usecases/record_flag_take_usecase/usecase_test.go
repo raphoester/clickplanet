@@ -12,6 +12,8 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	scoringv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days/inmemory_day_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/flagmissions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/flagmissions/inmemory_flag_day_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/flagmissions/usecases/record_flag_take_usecase"
@@ -34,13 +36,13 @@ type noPledges struct{}
 func (noPledges) FlagOf(context.Context, missions.AccountID) (string, error) { return "", nil }
 
 var (
-	calendar = missions.NewCalendar(missions.Config{Cutoff: 21 * time.Hour})
-	at       = time.Date(2026, 10, 28, 12, 0, 0, 0, time.UTC)
+	at    = time.Date(2026, 10, 28, 12, 0, 0, 0, time.UTC)
+	today = days.TestingDayAt(at)
 )
 
-func setUp(planet *countingPlanet) (*record_flag_take_usecase.UseCase, *inmemory_flag_day_store.Store, *cpatomic.FakeOutbox) {
-	store, outbox := inmemory_flag_day_store.New(), &cpatomic.FakeOutbox{}
-	return record_flag_take_usecase.New(calendar, flagmissions.NewBriefing(store, planet, noPledges{}), store,
+func setUp(planet *countingPlanet, told ...days.Day) (*record_flag_take_usecase.UseCase, *inmemory_flag_day_store.Store, *cpatomic.FakeOutbox) {
+	store, outbox, calendar := inmemory_flag_day_store.New(), &cpatomic.FakeOutbox{}, inmemory_day_store.New(append(told, today)...)
+	return record_flag_take_usecase.New(calendar, flagmissions.NewBriefing(store, calendar, planet, noPledges{}), store,
 		cpatomic.FakeTransactioner{}, outbox), store, outbox
 }
 
@@ -55,7 +57,7 @@ func TestATakeCountsOnItsFlagsDayDrawnOnce(t *testing.T) {
 	require.NoError(t, useCase.Execute(t.Context(), take(1)))
 	require.NoError(t, useCase.Execute(t.Context(), take(2)))
 
-	day, err := store.Day(t.Context(), calendar.DayOf(at), "fr")
+	day, err := store.Day(t.Context(), today, "fr")
 	require.NoError(t, err)
 	assert.Equal(t, uint64(2), day.Snapshot().Takes)
 	assert.Equal(t, 1, planet.asked)
@@ -68,7 +70,7 @@ func TestTheTakeThatFinishesTheMissionGivesTheFlagItsPointsOnce(t *testing.T) {
 		ID: mission, Order: flagmissions.TakeIn{Ground: "br", Goal: 2}, Points: 3,
 	}})
 	require.NoError(t, err)
-	_, err = store.KeepDay(t.Context(), calendar.DayOf(at), "fr", almost)
+	_, err = store.KeepDay(t.Context(), today, "fr", almost)
 	require.NoError(t, err)
 
 	require.NoError(t, useCase.Execute(t.Context(), take(1)))
@@ -85,6 +87,51 @@ func TestAMapThatCannotBeReadCountsNothing(t *testing.T) {
 
 	require.Error(t, useCase.Execute(t.Context(), take(1)))
 
-	_, err := store.Day(t.Context(), calendar.DayOf(at), "fr")
+	_, err := store.Day(t.Context(), today, "fr")
 	assert.ErrorIs(t, err, flagmissions.ErrNoDay)
+}
+
+func TestATakeWhenNoDayRunsCountsNothing(t *testing.T) {
+	planet := &countingPlanet{}
+	useCase, store, outbox := setUp(planet)
+	late := take(1)
+	late.At = today.Snapshot().EndsAt
+
+	require.NoError(t, useCase.Execute(t.Context(), late))
+
+	_, err := store.Day(t.Context(), today, "fr")
+	require.ErrorIs(t, err, flagmissions.ErrNoDay)
+	assert.Zero(t, planet.asked)
+	assert.Empty(t, outbox.Recorded())
+}
+
+func TestTheGoalIsDrawnFromWhatTheFlagDidTheDayBefore(t *testing.T) {
+	yesterday := days.TestingDayAt(at.Add(-24 * time.Hour))
+	planet := &countingPlanet{}
+	useCase, store, _ := setUp(planet, yesterday)
+	busy, err := flagmissions.DayOf(flagmissions.DaySnapshot{Takes: 10_005})
+	require.NoError(t, err)
+	_, err = store.KeepDay(t.Context(), yesterday, "fr", busy)
+	require.NoError(t, err)
+
+	require.NoError(t, useCase.Execute(t.Context(), take(1)))
+
+	world, err := planet.World(t.Context())
+	require.NoError(t, err)
+	day, err := store.Day(t.Context(), today, "fr")
+	require.NoError(t, err)
+	assert.Equal(t, flagmissions.Draw(today, "fr", world, busy).Snapshot().Mission, day.Snapshot().Mission)
+}
+
+func TestASeasonsFirstDayHasTheLeastGoal(t *testing.T) {
+	planet := &countingPlanet{}
+	useCase, store, _ := setUp(planet)
+
+	require.NoError(t, useCase.Execute(t.Context(), take(1)))
+
+	world, err := planet.World(t.Context())
+	require.NoError(t, err)
+	day, err := store.Day(t.Context(), today, "fr")
+	require.NoError(t, err)
+	assert.Equal(t, flagmissions.Draw(today, "fr", world, flagmissions.Day{}).Snapshot().Mission, day.Snapshot().Mission)
 }

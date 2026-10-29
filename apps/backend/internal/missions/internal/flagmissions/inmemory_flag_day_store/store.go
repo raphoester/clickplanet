@@ -6,8 +6,8 @@ import (
 	"context"
 	"sync"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/flagmissions"
-	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 )
 
 type key struct {
@@ -34,7 +34,7 @@ func (s *Store) FailWith(err error) {
 	s.failWith = err
 }
 
-func (s *Store) Day(_ context.Context, day missions.Day, flag string) (flagmissions.Day, error) {
+func (s *Store) Day(_ context.Context, day days.Day, flag string) (flagmissions.Day, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -52,7 +52,7 @@ func (s *Store) read(at key) (flagmissions.Day, error) {
 	return flagmissions.DayOf(kept) //nolint:wrapcheck // the domain named it.
 }
 
-func (s *Store) KeepDay(_ context.Context, day missions.Day, flag string, drawn flagmissions.Day) (flagmissions.Day, error) {
+func (s *Store) KeepDay(_ context.Context, day days.Day, flag string, drawn flagmissions.Day) (flagmissions.Day, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -64,7 +64,7 @@ func (s *Store) KeepDay(_ context.Context, day missions.Day, flag string, drawn 
 }
 
 func (s *Store) ChangeDay(
-	_ context.Context, day missions.Day, flag string, change func(flagmissions.Day) flagmissions.Day,
+	_ context.Context, day days.Day, flag string, change func(flagmissions.Day) flagmissions.Day,
 ) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

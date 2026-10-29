@@ -41,6 +41,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/hear_round_usecase/log_hear_round"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/play_scoring_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/play_scoring_usecase/log_play_scoring"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/tell_day_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/tell_day_usecase/log_tell_day"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/postgres_entry_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/redis_rule_set_commands"
@@ -132,6 +134,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		play_scoring_usecase.New(planner, heard, redis_scoring_commands.New(streams.Commands()), clock), props.Logger))
 
 	told := outbox_moment_events.New(cpoutbox.New(db))
+	dayTelling := tell_day_usecase.NewRunner(scheduleCheck, log_tell_day.New(
+		tell_day_usecase.New(planner, heard, told, db, clock), props.Logger))
 	rounds, err := cpredis.Subscribe(ctx, streams, "gamemaster-rounds", round_scored_subscriber.New(
 		log_hear_round.New(hear_round_usecase.New(planner, heard, told, db), props.Logger)))
 	if err != nil {
@@ -150,7 +154,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	turns := turn_query.NewPostgresQuery(db, clock, cutoff)
 	turnFeed := inprocess_turn_feed.New(log_turn_reader.New(turns, props.Logger))
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger, turnFeed, cpredis.CloseAfter(streams, props.Logger,
-		ruleSchedule, resetting, scoringPlay, rounds, books, cpoutbox.NewRelay("gamemaster-outbox", db, streams, props.Logger))))
+		ruleSchedule, resetting, scoringPlay, dayTelling, rounds, books, cpoutbox.NewRelay("gamemaster-outbox", db, streams, props.Logger))))
 
 	admin := gamemasterv1controller.AdminService{
 		GetScheduleHandler: get_schedule_handler.New(schedule_query.NewPostgresQuery(db, clock)),

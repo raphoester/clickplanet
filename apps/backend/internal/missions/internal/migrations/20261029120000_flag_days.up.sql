@@ -1,5 +1,5 @@
 CREATE TABLE flag_days (
-    day                       date        NOT NULL,
+    day                       text        NOT NULL CHECK (day <> ''),
     flag                      text        NOT NULL CHECK (flag <> ''),
     takes                     bigint      NOT NULL CHECK (takes >= 0),
     counted_takes_below       bigint      NOT NULL CHECK (counted_takes_below >= 0),
@@ -12,7 +12,7 @@ CREATE TABLE flag_days (
 CREATE TYPE flag_mission_kind AS ENUM ('take_in', 'break_shields');
 
 CREATE TABLE flag_missions (
-    day        date              NOT NULL,
+    day        text              NOT NULL,
     flag       text              NOT NULL,
     mission_id uuid              NOT NULL UNIQUE,
     kind       flag_mission_kind NOT NULL,

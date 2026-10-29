@@ -13,6 +13,7 @@ import (
 
 	missionsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/missions/v1"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/flagmissions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/usecases/get_missions_usecase"
@@ -36,7 +37,7 @@ var (
 	ada    = missions.AccountID{15: 1}
 	bank   = missions.MissionID{15: 1}
 	ground = missions.MissionID{15: 3}
-	day    = missions.NewCalendar(missions.Config{Cutoff: 21 * time.Hour}).DayOf(time.Date(2026, 10, 26, 12, 0, 0, 0, time.UTC))
+	day    = days.TestingDayAt(time.Date(2026, 10, 26, 12, 0, 0, 0, time.UTC))
 )
 
 func ask(t *testing.T, useCase *stubUseCase) (*missionsv1.GetMissionsResponse, error) {
@@ -148,6 +149,15 @@ func TestAnAnswerBeforeAnyFlagHasNoMissions(t *testing.T) {
 	res, err := ask(t, &stubUseCase{out: get_missions_usecase.Out{Day: day, Sheet: missions.SheetOf(missions.SheetSnapshot{})}})
 
 	require.NoError(t, err)
+	assert.Empty(t, res.GetMissions())
+	assert.Nil(t, res.GetFlagMission())
+}
+
+func TestAnAnswerWhenNoDayRunsHasNoEndAndNoMissions(t *testing.T) {
+	res, err := ask(t, &stubUseCase{out: get_missions_usecase.Out{}})
+
+	require.NoError(t, err)
+	assert.Zero(t, res.GetEndsAtUnixMs())
 	assert.Empty(t, res.GetMissions())
 	assert.Nil(t, res.GetFlagMission())
 }

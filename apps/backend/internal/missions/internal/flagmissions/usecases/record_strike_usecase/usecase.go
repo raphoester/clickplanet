@@ -2,45 +2,57 @@ package record_strike_usecase
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"time"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/flagmissions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/flagmissions/scoringgrant"
-	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 )
 
-type Briefing interface {
-	Of(ctx context.Context, day missions.Day, flag string) (flagmissions.Day, error)
+type Calendar interface {
+	DayAt(ctx context.Context, at time.Time) (days.Day, error)
 }
 
-type Days interface {
-	ChangeDay(ctx context.Context, day missions.Day, flag string, change func(flagmissions.Day) flagmissions.Day) error
+type Briefing interface {
+	Of(ctx context.Context, day days.Day, flag string) (flagmissions.Day, error)
+}
+
+type FlagDays interface {
+	ChangeDay(ctx context.Context, day days.Day, flag string, change func(flagmissions.Day) flagmissions.Day) error
 }
 
 func New(
-	calendar missions.Calendar, briefing Briefing, days Days, transactioner cpatomic.Transactioner, outbox cpatomic.Outbox,
+	calendar Calendar, briefing Briefing, flagDays FlagDays, transactioner cpatomic.Transactioner, outbox cpatomic.Outbox,
 ) *UseCase {
-	return &UseCase{calendar: calendar, briefing: briefing, days: days, transactioner: transactioner, outbox: outbox}
+	return &UseCase{calendar: calendar, briefing: briefing, flagDays: flagDays, transactioner: transactioner, outbox: outbox}
 }
 
 type UseCase struct {
-	calendar      missions.Calendar
+	calendar      Calendar
 	briefing      Briefing
-	days          Days
+	flagDays      FlagDays
 	transactioner cpatomic.Transactioner
 	outbox        cpatomic.Outbox
 }
 
 func (u *UseCase) Execute(ctx context.Context, strike flagmissions.Strike) error {
-	day := u.calendar.DayOf(strike.At)
+	day, err := u.calendar.DayAt(ctx, strike.At)
+	if errors.Is(err, days.ErrNoDay) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("failed to read the day of the shield broken: %w", err)
+	}
 	if _, err := u.briefing.Of(ctx, day, strike.Flag); err != nil {
 		return fmt.Errorf("failed to read %s's mission: %w", strike.Flag, err)
 	}
 
 	return u.transactioner.InTx(ctx, func(ctx context.Context) error {
 		var done []flagmissions.Done
-		if err := u.days.ChangeDay(ctx, day, strike.Flag, func(current flagmissions.Day) flagmissions.Day {
+		if err := u.flagDays.ChangeDay(ctx, day, strike.Flag, func(current flagmissions.Day) flagmissions.Day {
 			next, finished := current.WithStrike(strike)
 			done = finished
 			return next

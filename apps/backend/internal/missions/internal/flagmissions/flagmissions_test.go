@@ -8,15 +8,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/flagmissions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
 
-var (
-	calendar = missions.NewCalendar(missions.Config{Cutoff: 21 * time.Hour})
-	monday   = time.Date(2026, 10, 26, 12, 0, 0, 0, time.UTC)
-)
+var monday = time.Date(2026, 10, 26, 12, 0, 0, 0, time.UTC)
 
 var world = missions.World{
 	Territories:  []missions.Territory{{Flag: "dz", Tiles: 60_000}, {Flag: "pw", Tiles: 30_000}, {Flag: "us", Tiles: 10_000}},
@@ -39,12 +37,12 @@ func statusOf(t *testing.T, day flagmissions.Day) flagmissions.Status {
 	return status
 }
 
-func drawn(t *testing.T, days int, flag string, yesterday flagmissions.Day) []flagmissions.Status {
+func drawn(t *testing.T, count int, flag string, yesterday flagmissions.Day) []flagmissions.Status {
 	t.Helper()
 
-	statuses := make([]flagmissions.Status, 0, days)
-	for n := range days {
-		statuses = append(statuses, statusOf(t, flagmissions.Draw(calendar.DayOf(monday.AddDate(0, 0, n)), flag, world, yesterday)))
+	statuses := make([]flagmissions.Status, 0, count)
+	for n := range count {
+		statuses = append(statuses, statusOf(t, flagmissions.Draw(days.TestingDayAt(monday.AddDate(0, 0, n)), flag, world, yesterday)))
 	}
 	return statuses
 }
@@ -118,20 +116,20 @@ func TestAFlagThatDidLittleYesterdayHasTheLeastGoal(t *testing.T) {
 }
 
 func TestWithNothingToAimAtTheDayHasNoMission(t *testing.T) {
-	_, ok := flagmissions.Draw(calendar.DayOf(monday), "fr", missions.World{}, flagmissions.Day{}).Status()
+	_, ok := flagmissions.Draw(days.TestingDayAt(monday), "fr", missions.World{}, flagmissions.Day{}).Status()
 
 	assert.False(t, ok)
 }
 
 func TestTheSameDayAndFlagDrawTheSameMissionAndEachHasAnIDOfItsOwn(t *testing.T) {
-	day := calendar.DayOf(monday)
+	day := days.TestingDayAt(monday)
 
 	first, again := flagmissions.Draw(day, "fr", world, flagmissions.Day{}), flagmissions.Draw(day, "fr", world, flagmissions.Day{})
 	assert.Equal(t, first.Snapshot(), again.Snapshot())
 	ids := cpcolls.NewSet[flagmissions.MissionID]()
 	for _, flag := range []string{"fr", "de"} {
 		for n := range 2 {
-			ids.Add(statusOf(t, flagmissions.Draw(calendar.DayOf(monday.AddDate(0, 0, n)), flag, world, flagmissions.Day{})).Mission.ID)
+			ids.Add(statusOf(t, flagmissions.Draw(days.TestingDayAt(monday.AddDate(0, 0, n)), flag, world, flagmissions.Day{})).Mission.ID)
 		}
 	}
 	assert.Equal(t, 4, ids.Len())

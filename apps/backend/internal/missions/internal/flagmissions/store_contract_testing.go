@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 )
 
@@ -23,18 +24,17 @@ func (s *StoreContractSuite) SetupTest() {
 }
 
 var (
-	contractCalendar = missions.NewCalendar(missions.Config{Cutoff: 21 * time.Hour})
-	contractAt       = time.Date(2026, 10, 28, 12, 0, 0, 0, time.UTC)
-	contractDay      = contractCalendar.DayOf(contractAt)
+	contractAt  = time.Date(2026, 10, 28, 12, 0, 0, 0, time.UTC)
+	contractDay = days.TestingDayAt(contractAt)
 )
 
-func (s *StoreContractSuite) keep(day missions.Day, flag string, drawn Day) DaySnapshot {
+func (s *StoreContractSuite) keep(day days.Day, flag string, drawn Day) DaySnapshot {
 	kept, err := s.store.KeepDay(s.T().Context(), day, flag, drawn)
 	s.Require().NoError(err)
 	return kept.Snapshot()
 }
 
-func (s *StoreContractSuite) day(day missions.Day, flag string) DaySnapshot {
+func (s *StoreContractSuite) day(day days.Day, flag string) DaySnapshot {
 	read, err := s.store.Day(s.T().Context(), day, flag)
 	s.Require().NoError(err)
 	return read.Snapshot()
@@ -77,7 +77,7 @@ func (s *StoreContractSuite) TestDaysAreKeptByDayAndFlag() {
 
 	_, err := s.store.Day(s.T().Context(), contractDay, "de")
 	s.ErrorIs(err, ErrNoDay)
-	_, err = s.store.Day(s.T().Context(), contractDay.Previous(), "fr")
+	_, err = s.store.Day(s.T().Context(), days.TestingDayAt(contractAt.Add(-24*time.Hour)), "fr")
 	s.ErrorIs(err, ErrNoDay)
 }
 

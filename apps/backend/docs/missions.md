@@ -3,14 +3,20 @@
 **Every player has four or five missions a day of its own, and each pays itself once done. Every flag has one more,
 which all its players do together, and which gives the flag season points** (see [The flag's mission](#the-flags-mission)).
 It reads planet's facts (`TileTaken`, `BonusClaimed`, `QuizAnswered`, `BombLanded`, `ShieldPlaced`, `Fortified`,
-`ClickTried`, `GetTerritories`, `GetCountrySizes`, `GetAllegianceOf`) and commands planet to grant a reward
+`ClickTried`, `GetTerritories`, `GetCountrySizes`, `GetAllegianceOf`), the gamemaster's days (`DayStarted`), and
+commands planet to grant a reward
 (`planet.v1.GrantCharges`) and scoring to grant points (`scoring.v1.GrantPoints`), over Redis, as scoring asks planet
 what each country holds: neither ever imports, calls or hears missions.
 Its public route, `/missions.v1.MissionService/*`, is listed in `deploy/vps/caddy/Caddyfile`, as every service's is.
 
 ```
 internal/missions/internal/
-  missions/                         AccountID, Calendar and Day (the cutoff), Fact (one type per kind) and Counted, MissionID,
+  days/                             DayID, Day (a day the gamemaster told: its round's id, its start and its end), ErrNoDay;
+                                    the Store port and its contract suite, TestingDayAt (season 0's days, for tests)
+    postgres_day_store/             the Store over missions.mission_days
+    inmemory_day_store/             the same port in a map, behind the testing tag
+    usecases/keep_day_usecase/
+  missions/                         AccountID, Fact (one type per kind) and Counted, MissionID,
                                     Order (one type per kind), Mission, Brief, Draw and World, Sheet (an account's day), Briefing;
                                     the Store port and its contract suite
     postgres_mission_store/         the Store over missions.mission_briefs, mission_sheets, mission_progress and mission_payments;
@@ -33,13 +39,22 @@ internal/missions/internal/
     get_missions_handler/
   subscribers/                      tile_taken_subscriber/  bonus_claimed_subscriber/  quiz_answered_subscriber/
                                     bomb_landed_subscriber/  shield_placed_subscriber/  fortified_subscriber/
-                                    flag_tile_taken_subscriber/  click_tried_subscriber/
+                                    day_started_subscriber/  flag_tile_taken_subscriber/  click_tried_subscriber/
                                     sign_in_subscriber/  account_deleted_subscriber/  log_subscriber/
   migrations/
 ```
 
-- **A day ends at `missions.cutoff`** (21:00 UTC in production), the time the daily round closes, and is named by the
-  date it ends on. **The rules are objects**: a `Mission` is an id, an `Order` and a reward, and nothing else.
+- **A day is the gamemaster's**, never a clock of missions' own (the owner, 2026-10-29: two cutoffs that happen to
+  match are brittle). The gamemaster tells each day as it starts, `gamemaster.v1.DayStarted` (`missions-days`,
+  `day_started_subscriber`, `keep_day_usecase`), and missions keeps it in `mission_days` (`day_id`, the round's id such as
+  `season-0/day-22`, `starts_at`, `ends_at`): a day told again, when a moved season end cut it, keeps its new end. **A
+  fact counts in the day told that runs at its time** (`days.Store.DayAt`), and every row names its day by that id.
+  **No day, no missions**: between two seasons and from a season's last cutoff to its end (the Final Battle), a fact
+  counts nothing, `GetMissions` answers no mission and no end, and a sign-in pays nothing (the owner, 2026-10-29).
+  **A fact can come before its day**: the day and the facts come on separate streams, so a take of the first second or
+  so of a day may find no day yet and count nothing (the owner chose it over asking the gamemaster each fact,
+  2026-10-29). Migration `20261029110000_gamemaster_days` named every row kept before by its date as season 0's day.
+  **The rules are objects**: a `Mission` is an id, an `Order` and a reward, and nothing else.
   **An order is one kind of mission**, a type of its own with its own fields: `TakeFor{Flag, Goal}` (tiles for the
   flag), `TakeFrom{Flag, Goal}` (tiles another flag held), `TakeIn{Ground, Goal}` (tiles on a country's land),
   `TakeFromIn{Flag, Ground, Goal}` (tiles another flag held on a country's land), `CatchBoxes{Goal}`,
@@ -100,7 +115,7 @@ internal/missions/internal/
     `missions-shields`, `missions-fortifies`), all through `record_fact_usecase`, up to each goal, in one transaction
     under `pg_advisory_xact_lock` per fact, with nothing written once nothing changed. A wrong answer, and a bomb, a
     shield or a fortify with no account, is dropped by its subscriber. **Not from the ledger**: `ledger_events` has no
-    time index, and an account's takes since the cutoff would read every take it ever made. **A fact told twice counts
+    time index, and an account's takes since the day started would read every take it ever made. **A fact told twice counts
     once**: Redis delivers at least once, and the sheet keeps a mark per kind (`missions.Counted`, the
     `mission_sheets.counted_*` columns): the ledger position after the last bomb, shield and fortify it counted, the
     time of the last box and right answer, so one at or below its mark counts nothing. A take's mark is the position
@@ -144,7 +159,8 @@ day and a flag), so it has its own package and store (`flagmissions`).
 - **A flag's day counts what all its players did** (`Day`): every take for it (`takes`) and every shield it broke
   (`strikes`), for the next day's goal, and the mission's progress, one counter from 0. **`Briefing.Of(day, flag)`
   draws once and keeps it**, at the flag's first take, shield broken or read of the day, from the map then and the day
-  before (`Day.Previous`); the store's first `KeepDay` wins. `OfPlayer` is the day of the flag the account plays now
+  before (`days.Store.DayBefore`, the day told that ended as this one started, since the gamemaster chains a season's
+  days); a season's first day has none, so its goal is the least. The store's first `KeepDay` wins. `OfPlayer` is the day of the flag the account plays now
   (`GetAllegianceOf`), none with no flag.
 - **Counted from two facts, each in its own group**: `TileTaken` (`missions-flag-takes`, `flag_tile_taken_subscriber`,
   `record_flag_take_usecase`), and `ClickTried` whose outcome is `STRUCK`, a click a shield took
@@ -160,6 +176,6 @@ day and a flag), so it has its own package and store (`flagmissions`).
 - **`GetMissions` answers `flag_mission`**, the mission of the flag the caller plays now: its id, its points, `done`,
   and its kind (`take_in` with the tiles taken, `break_shields` with the shields broken). None with no flag, or no
   mission that day.
-- **Kept in `flag_days`** (`day`, `flag`, `takes`, `counted_takes_below`, `counted_takes_below_index`, `strikes`,
+- **Kept in `flag_days`** (`day`, the day's id, `flag`, `takes`, `counted_takes_below`, `counted_takes_below_index`, `strikes`,
   `counted_strikes_until`) and **`flag_missions`** (`mission_id`, `kind` of the enum `flag_mission_kind`, the kind's
   own fields in `payload`, `points`, `progress`, `done`): a day with no mission has no row there. They name no account, so `AccountDeleted` leaves them.

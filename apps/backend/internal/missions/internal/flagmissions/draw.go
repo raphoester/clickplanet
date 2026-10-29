@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 )
 
@@ -36,7 +37,7 @@ var drawnSpace = uuid.MustParse("466c6167-4d69-4373-8000-696f6e66c167")
 
 // One mission for the whole flag: a big ground to take tiles on, or a rival's shields to break, evenly; the more
 // points, the bigger the share of yesterday it asks.
-func Draw(day missions.Day, flag string, world missions.World, yesterday Day) Day {
+func Draw(day days.Day, flag string, world missions.World, yesterday Day) Day {
 	seed := fnv.New64a()
 	_, _ = seed.Write([]byte(day.String() + "/" + flag))
 	random := rand.New(rand.NewPCG(seed.Sum64(), 0)) //nolint:gosec // a draw every player can see, not a secret.

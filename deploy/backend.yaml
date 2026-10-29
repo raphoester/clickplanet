@@ -89,7 +89,6 @@ gamemaster:
     address: redis:6379
 
 missions:
-  cutoff: 21h
   database:
     host: postgres
     port: "5432"

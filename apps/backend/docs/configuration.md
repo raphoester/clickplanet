@@ -116,11 +116,10 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `chat.blockedIPs` — prefixes refused every chat RPC, parsed by `shared/cpipblock` exactly as `vpnBlocklist.allow` is
 - `player.tagSalt` — salts the hash of an address the roster caps its visits with. It is never shown, so empty, which generates one at boot, costs nothing. Production reads it from `CHAT_TAG_SALT`, the chat's old variable
 - `player.database.*` — profiles and stats, same shape as `database`, schema `player`; required. `player.database.password` belongs in the environment
-- `missions.cutoff` — the time of day, in UTC, a mission day ends (production 21h, the daily round's; unset, midnight). From 0 up to 24h, or the boot is refused
 - `missions.database.*` — the briefs, the sheets and the collections, same shape as `database`, schema `missions`; required. `missions.database.password` belongs in the environment
 - `scoring.database.*` — the standings and the rounds, same shape as `database`, schema `scoring`; required. `scoring.database.password` belongs in the environment
 - `gamemaster.dailyCutoff` — the time of day, UTC, every day of a season ends at, as a duration from midnight (`21h`); 0s
-  to under 24h. A day is a round the gamemaster tells scoring to score (see [The gamemaster module](gamemaster.md))
+  to under 24h. A day is a round the gamemaster tells scoring to score, and tells missions as it starts (see [The gamemaster module](gamemaster.md))
 - `gamemaster.database.*` — the rule schedule's entries, the seasons, same shape as `database`, schema `gamemaster`; required. `gamemaster.database.password` belongs in the environment. See [The gamemaster module](gamemaster.md)
 - `support.database.*` — what players send the operator, same shape as `database`, schema `support`; required. `support.database.password` belongs in the environment
 - `clips.database.*` — the daily snapshots of the clips' numbers, the casts and who each post names, same shape as `database`, schema `clips`; required. `clips.database.password` belongs in the environment

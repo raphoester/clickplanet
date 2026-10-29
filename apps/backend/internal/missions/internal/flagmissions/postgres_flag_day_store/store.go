@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/flagmissions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
@@ -27,9 +28,9 @@ const selectDay = `
 	SELECT day.takes, day.counted_takes_below, day.counted_takes_below_index, day.strikes, day.counted_strikes_until,
 	       mission.mission_id, mission.kind::text, mission.payload, mission.points, mission.progress, mission.done
 	FROM flag_days AS day LEFT JOIN flag_missions AS mission USING (day, flag)
-	WHERE day.day = $1::date AND day.flag = $2`
+	WHERE day.day = $1 AND day.flag = $2`
 
-func (s *Store) Day(ctx context.Context, day missions.Day, flag string) (flagmissions.Day, error) {
+func (s *Store) Day(ctx context.Context, day days.Day, flag string) (flagmissions.Day, error) {
 	return dayOf(s.db.On(ctx).QueryRowContext(ctx, selectDay, day.String(), flag))
 }
 
@@ -69,14 +70,14 @@ func dayOf(row *sql.Row) (flagmissions.Day, error) {
 }
 
 func (s *Store) KeepDay(
-	ctx context.Context, day missions.Day, flag string, drawn flagmissions.Day,
+	ctx context.Context, day days.Day, flag string, drawn flagmissions.Day,
 ) (flagmissions.Day, error) {
 	snapshot := drawn.Snapshot()
 	if err := s.db.InTx(ctx, func(ctx context.Context) error {
 		tx := s.db.On(ctx)
 		kept, err := tx.ExecContext(ctx, `
 			INSERT INTO flag_days (day, flag, takes, counted_takes_below, counted_takes_below_index, strikes, counted_strikes_until)
-			VALUES ($1::date, $2, $3, $4, $5, $6, $7) ON CONFLICT (day, flag) DO NOTHING
+			VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (day, flag) DO NOTHING
 		`, day.String(), flag, int64(snapshot.Takes), int64(snapshot.TakesBelow.Position), //nolint:gosec // counts fit in int64.
 			int64(snapshot.TakesBelow.Index), int64(snapshot.Strikes), snapshot.StrikesUntil) //nolint:gosec // as above.
 		if err != nil {
@@ -96,7 +97,7 @@ func (s *Store) KeepDay(
 		}
 		if _, err := tx.ExecContext(ctx, `
 			INSERT INTO flag_missions (day, flag, mission_id, kind, payload, points, progress, done)
-			VALUES ($1::date, $2, $3, $4::flag_mission_kind, $5::jsonb, $6, $7, $8)
+			VALUES ($1, $2, $3, $4::flag_mission_kind, $5::jsonb, $6, $7, $8)
 		`, day.String(), flag, uuid.UUID(snapshot.Mission.ID), kind, payload, int64(snapshot.Mission.Points),
 			int64(snapshot.Progress), snapshot.Done); err != nil {
 			return fmt.Errorf("failed to keep %s's mission: %w", flag, err)
@@ -109,7 +110,7 @@ func (s *Store) KeepDay(
 }
 
 func (s *Store) ChangeDay(
-	ctx context.Context, day missions.Day, flag string, change func(flagmissions.Day) flagmissions.Day,
+	ctx context.Context, day days.Day, flag string, change func(flagmissions.Day) flagmissions.Day,
 ) error {
 	return s.db.InTx(ctx, func(ctx context.Context) error {
 		tx := s.db.On(ctx)
@@ -124,7 +125,7 @@ func (s *Store) ChangeDay(
 			if _, err := tx.ExecContext(ctx, `
 				UPDATE flag_days SET takes = $3, counted_takes_below = $4, counted_takes_below_index = $5, strikes = $6,
 					counted_strikes_until = $7
-				WHERE day = $1::date AND flag = $2
+				WHERE day = $1 AND flag = $2
 			`, day.String(), flag, int64(after.Takes), int64(after.TakesBelow.Position), //nolint:gosec // counts fit in int64.
 				int64(after.TakesBelow.Index), int64(after.Strikes), after.StrikesUntil); err != nil { //nolint:gosec // as above.
 				return fmt.Errorf("failed to keep what %s did: %w", flag, err)
@@ -132,7 +133,7 @@ func (s *Store) ChangeDay(
 		}
 		if after.Mission != nil && (after.Progress != before.Progress || after.Done != before.Done) {
 			if _, err := tx.ExecContext(ctx, `
-				UPDATE flag_missions SET progress = $3, done = $4 WHERE day = $1::date AND flag = $2
+				UPDATE flag_missions SET progress = $3, done = $4 WHERE day = $1 AND flag = $2
 			`, day.String(), flag, int64(after.Progress), after.Done); err != nil {
 				return fmt.Errorf("failed to keep how far %s took its mission: %w", flag, err)
 			}
