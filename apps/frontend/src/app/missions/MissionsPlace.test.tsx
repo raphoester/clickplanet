@@ -44,6 +44,19 @@ describe("MissionsPlace", () => {
         expect(screen.queryByRole("button")).toBeNull()
     })
 
+    it("names both countries of a raid, and counts what a feat asks", () => {
+        render(<MissionsPlace state={day(
+            mission({id: "raid", order: {kind: "takeFromIn", country: "dz", ground: "br", goal: 60, taken: 7}}),
+            mission({id: "bomb", order: {kind: "bombIn", country: "br", goal: 2, reached: 1}}),
+            mission({id: "boxes", order: {kind: "catchBoxes", goal: 4, reached: 3}}),
+        )}/>)
+
+        expect(screen.getByText(/Take 60 tiles from/).textContent).toMatch(/Algeria in .*Brazil/)
+        expect(screen.getByText(/Drop 2 bombs on/).textContent).toContain("Brazil")
+        expect(screen.getByText("Catch 4 boxes")).toBeDefined()
+        expect(screen.getByText("3/4")).toBeDefined()
+    })
+
     it("asks a guest to sign in to get a mission it finished", () => {
         const onSignIn = vi.fn()
         render(<MissionsPlace state={day(mission(doneBank))} onSignIn={onSignIn}/>)

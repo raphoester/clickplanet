@@ -1,6 +1,6 @@
 import {describe, expect, it} from "vitest"
 import {Mission} from "../backends/missions.ts"
-import {awardOf, newlyPaid, orderOf, parseSeenMissions, seenNow, timeLeft, unseen} from "./missions.ts"
+import {awardOf, newlyPaid, orderOf, parseSeenMissions, reachedOf, seenNow, timeLeft, unseen} from "./missions.ts"
 
 const mission = (overrides: Partial<Mission> = {}): Mission => ({
     id: "bank",
@@ -16,6 +16,23 @@ describe("orderOf", () => {
         expect(orderOf({kind: "takeFor", country: "fr", goal: 60, taken: 0})).toBe("Take 60 tiles for")
         expect(orderOf({kind: "takeFrom", country: "dz", goal: 40, taken: 0})).toBe("Take 40 tiles from")
         expect(orderOf({kind: "takeIn", country: "br", goal: 200, taken: 0})).toBe("Take 200 tiles in")
+        expect(orderOf({kind: "takeFromIn", country: "dz", ground: "br", goal: 60, taken: 0})).toBe("Take 60 tiles from")
+    })
+
+    it("says what the other kinds ask, one or many", () => {
+        expect(orderOf({kind: "catchBoxes", goal: 4, reached: 0})).toBe("Catch 4 boxes")
+        expect(orderOf({kind: "answerQuizzes", goal: 1, reached: 0})).toBe("Answer a quiz right")
+        expect(orderOf({kind: "bombIn", country: "br", goal: 1, reached: 0})).toBe("Drop a bomb on")
+        expect(orderOf({kind: "bombIn", country: "br", goal: 2, reached: 0})).toBe("Drop 2 bombs on")
+        expect(orderOf({kind: "shieldTiles", shields: 10, goal: 2, reached: 0})).toBe("Put 10 shields on 2 tiles")
+        expect(orderOf({kind: "fortifyTiles", goal: 40, reached: 0})).toBe("Fortify 40 tiles")
+    })
+})
+
+describe("reachedOf", () => {
+    it("is how far an order went, never past its goal", () => {
+        expect(reachedOf({kind: "takeFromIn", country: "dz", ground: "br", goal: 60, taken: 12})).toBe(12)
+        expect(reachedOf({kind: "catchBoxes", goal: 4, reached: 5})).toBe(4)
     })
 })
 

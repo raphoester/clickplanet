@@ -299,6 +299,75 @@ export class Fortified extends Message<Fortified> {
 }
 
 /**
+ * A shield a player placed, with the tile's shields after it.
+ *
+ * @generated from message planet.v1.ShieldPlaced
+ */
+export class ShieldPlaced extends Message<ShieldPlaced> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  /**
+   * @generated from field: uint32 tile_id = 2;
+   */
+  tileId = 0;
+
+  /**
+   * @generated from field: string country = 3;
+   */
+  country = "";
+
+  /**
+   * @generated from field: uint32 shields = 4;
+   */
+  shields = 0;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp placed_at = 5;
+   */
+  placedAt?: Timestamp;
+
+  /**
+   * @generated from field: uint64 position = 6;
+   */
+  position = protoInt64.zero;
+
+  constructor(data?: PartialMessage<ShieldPlaced>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.ShieldPlaced";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "country", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "shields", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 5, name: "placed_at", kind: "message", T: Timestamp },
+    { no: 6, name: "position", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ShieldPlaced {
+    return new ShieldPlaced().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ShieldPlaced {
+    return new ShieldPlaced().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ShieldPlaced {
+    return new ShieldPlaced().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ShieldPlaced | PlainMessage<ShieldPlaced> | undefined, b: ShieldPlaced | PlainMessage<ShieldPlaced> | undefined): boolean {
+    return proto3.util.equals(ShieldPlaced, a, b);
+  }
+}
+
+/**
  * @generated from message planet.v1.BonusClaimed
  */
 export class BonusClaimed extends Message<BonusClaimed> {

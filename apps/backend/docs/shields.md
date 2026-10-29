@@ -45,6 +45,8 @@ to the jury.
   [A ban is told](antibot.md#a-ban-is-told)). The answer is the charges left.
 - **Kept with the tile**: `planet.tiles.shields`, written by the flush that writes
   the owner.
+- **Told to the other modules** as `planet.v1.ShieldPlaced`, with the tile's shields after it, by the ledger relay once
+  the ledger flushed the placement. A strike and a fortify's shields are not told this way.
 - **`click_usecase.Out.Outcome`** says what the rule did, for the decorators around
   it: `enclose_click` closes a shape only with `Taken`, and `prom_click`
   counts `clicks_shielded_total{country_id}` by the flag clicked. **It never reaches
