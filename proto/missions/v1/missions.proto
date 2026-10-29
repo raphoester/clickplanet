@@ -30,6 +30,12 @@ message Mission {
     TakeFor take_for = 10;
     TakeFrom take_from = 11;
     TakeIn take_in = 12;
+    TakeFromIn take_from_in = 13;
+    CatchBoxes catch_boxes = 14;
+    AnswerQuizzes answer_quizzes = 15;
+    BombIn bomb_in = 16;
+    ShieldTiles shield_tiles = 17;
+    FortifyTiles fortify_tiles = 18;
   }
 }
 
@@ -52,6 +58,46 @@ message TakeIn {
   string country_id = 1;
   uint32 goal = 2;
   uint32 taken = 3;
+}
+
+// Take goal tiles that country_id held on ground_id's land.
+message TakeFromIn {
+  string country_id = 1;
+  string ground_id = 2;
+  uint32 goal = 3;
+  uint32 taken = 4;
+}
+
+// Catch goal boxes.
+message CatchBoxes {
+  uint32 goal = 1;
+  uint32 caught = 2;
+}
+
+// Answer goal quizzes right.
+message AnswerQuizzes {
+  uint32 goal = 1;
+  uint32 answered = 2;
+}
+
+// Drop goal bombs on country_id's land.
+message BombIn {
+  string country_id = 1;
+  uint32 goal = 2;
+  uint32 dropped = 3;
+}
+
+// Bring goal tiles to shields shields each.
+message ShieldTiles {
+  uint32 shields = 1;
+  uint32 goal = 2;
+  uint32 shielded = 3;
+}
+
+// Fortify goal tiles: each landmass made whole counts its tiles.
+message FortifyTiles {
+  uint32 goal = 1;
+  uint32 fortified = 2;
 }
 
 // A client skips a mission whose reward it does not know.

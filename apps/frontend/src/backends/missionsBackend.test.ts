@@ -48,6 +48,31 @@ describe("ConnectMissionsBackend", () => {
         })
     })
 
+    it("reads each kind of mission in its own shape", async () => {
+        const reward = {kind: {case: "charges" as const, value: {kind: BonusKindPb.BOMB, amount: 1}}}
+        const getMissions = vi.fn(async () => new GetMissionsResponsePb({
+            missions: [
+                new MissionPb({id: "raid", reward, kind: {case: "takeFromIn", value: {countryId: "dz", groundId: "br", goal: 60, taken: 7}}}),
+                new MissionPb({id: "bomb", reward, kind: {case: "bombIn", value: {countryId: "br", goal: 2, dropped: 1}}}),
+                new MissionPb({id: "walls", reward, kind: {case: "shieldTiles", value: {shields: 10, goal: 2, shielded: 1}}}),
+                new MissionPb({id: "boxes", reward, kind: {case: "catchBoxes", value: {goal: 4, caught: 3}}}),
+                new MissionPb({id: "quizzes", reward, kind: {case: "answerQuizzes", value: {goal: 3, answered: 2}}}),
+                new MissionPb({id: "fortify", reward, kind: {case: "fortifyTiles", value: {goal: 40, fortified: 9}}}),
+            ],
+        }))
+
+        const day = await backendWith({getMissions}).missions()
+
+        expect(day.missions.map((mission) => mission.order)).toEqual([
+            {kind: "takeFromIn", country: "dz", ground: "br", goal: 60, taken: 7},
+            {kind: "bombIn", country: "br", goal: 2, reached: 1},
+            {kind: "shieldTiles", shields: 10, goal: 2, reached: 1},
+            {kind: "catchBoxes", goal: 4, reached: 3},
+            {kind: "answerQuizzes", goal: 3, reached: 2},
+            {kind: "fortifyTiles", goal: 40, reached: 9},
+        ])
+    })
+
     it("tries once more with a fresh session when the token was refused", async () => {
         const getMissions = vi.fn()
             .mockRejectedValueOnce(new ConnectError("expired", Code.Unauthenticated))

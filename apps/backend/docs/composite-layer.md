@@ -121,7 +121,9 @@ The proto sits beside the public one in the module's package (`proto/auth/v1/int
 | `player-stats-missions` | `missions.v1.MissionsPaid` says how many missions the account was paid in all; the stats keep the highest number heard |
 | `seasons-standings` | the tally keeps the position and index past the last take it counted (`standings.Tally.TakesBelow`: two columns of each contributions row, the highest pair is the tally's) |
 | `seasons-rounds` | each round of its own keeps the position and index past the last take it counted (`rounds.counted_takes_below`, `counted_takes_below_index`), moved in the statement that counts the take |
-| `missions-progress` | an account's day keeps the position and index past the last take it counted (`missions.Sheet`, `mission_sheets.counted_takes_below`, `counted_takes_below_index`) |
+| `missions-progress` | an account's day keeps the position and index past the last take it counted (`missions.Counted.TakesBelow`, `mission_sheets.counted_takes_below`, `counted_takes_below_index`) |
+| `missions-bombs`, `missions-shields`, `missions-fortifies` | an account's day keeps the position after the last bomb, shield and fortify it counted (`missions.Counted`, `mission_sheets.counted_*_below`) |
+| `missions-boxes`, `missions-answers` | the same with the time of the last box and right answer counted, to the microsecond |
 | `missions-sign-ins` | pays only the missions not paid yet (`mission_payments`) |
 | `planet`'s `planet.v1.GrantCharges` handler | keeps each `grant_id` it applied, in the transaction of the grant (`charge_grants`) |
 | `chat-announcements-*` | an announcement is named after the fact it tells (the bomb's or the fortify's ledger position, the mute's id, the round's season and number, the champion's season) and kept with `AppendOnce`: a second one is neither kept nor shown |
@@ -152,7 +154,7 @@ A fact goes through an outbox when its loss would leave the modules disagreeing 
 - **Not the gamemaster's commands** (`PlayRuleSet`, `ResetMap`, `ScoringCommand`): the clock decides them, not a transaction. The
   gamemaster's runners send them with `streams.Commands().Send` and keep what they told only once Redis took it, so a
   refused send is sent again the next second, and each boot sends again what holds (see [The gamemaster](gamemaster.md)).
-- `planet.v1.TileTaken`, `BombLanded` and `Fortified`: **the ledger is their outbox.** `ledger/usecases/relay_ledger_usecase` reads what the ledger flushed past `planet.ledger_relayed`, sends it, then moves the row. A take a hard kill loses before its flush is never told, so the stats and the standings never count what the ledger does not hold; a crash between the send and the move tells the batch again, which the marks make harmless. The migration put the row after the last take the old server had published.
+- `planet.v1.TileTaken`, `BombLanded`, `Fortified` and `ShieldPlaced`: **the ledger is their outbox.** `ledger/usecases/relay_ledger_usecase` reads what the ledger flushed past `planet.ledger_relayed`, sends it, then moves the row. A take a hard kill loses before its flush is never told, so the stats and the standings never count what the ledger does not hold; a crash between the send and the move tells the batch again, which the marks make harmless. The migration put the row after the last take the old server had published.
 
 Not in an outbox, because a loss is harmless or the next event repairs it: `SignedOut` (the roster drops the visit when it expires), `MessageSent`, `BonusClaimed` and `QuizAnswered` (a stat short by one), `AccountMuted` (an announcement missed), `StatsChanged` (the next one grants the title), and planet's facts about callers (`ClickTried` and the rest: a try or a read short, in a watchdog's window). Those go through `facts.Relay`, which sends what `facts.Log` holds every 100ms with `Publish`, in order: a crash loses the last 100ms of them.
 

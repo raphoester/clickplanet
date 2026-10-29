@@ -58,7 +58,7 @@ func (s *StoreContractSuite) takeFor(day Day, account byte, take Take) {
 	}
 	brief := Draw(day, s.account(account), take.Flag, contractWorld)
 	s.Require().NoError(s.store.ChangeSheet(s.T().Context(), day, s.account(account),
-		func(sheet Sheet) Sheet { return sheet.WithTake(take, brief) }))
+		func(sheet Sheet) Sheet { return sheet.WithFact(take, brief) }))
 }
 
 func (s *StoreContractSuite) frMission(account byte, n int) MissionID {
@@ -91,6 +91,12 @@ func (s *StoreContractSuite) TestABriefKeepsAsManyMissionsAsItHas() {
 		TakeIn{Ground: "br", Goal: 12},
 		TakeFor{Flag: "fr", Goal: 13},
 		TakeIn{Ground: "is", Goal: 14},
+		TakeFromIn{Flag: "dz", Ground: "br", Goal: 15},
+		CatchBoxes{Goal: 16},
+		AnswerQuizzes{Goal: 17},
+		BombIn{Ground: "br", Goal: 18},
+		ShieldTiles{Shields: 10, Goal: 19},
+		FortifyTiles{Goal: 20},
 	}
 	snapshots := make([]MissionSnapshot, 0, len(orders))
 	for n, order := range orders {
@@ -125,36 +131,48 @@ func (s *StoreContractSuite) TestASheetNeverChangedIsEmpty() {
 }
 
 func (s *StoreContractSuite) TestChangesToASheetAddUp() {
-	s.takeFor(contractDay, 1, Take{Flag: "fr", Previous: "dz", Ground: "es", At: contractAt})
-	s.takeFor(contractDay, 1, Take{Flag: "fr", Ground: "es", At: contractAt})
+	s.takeFor(contractDay, 1, Take{Flag: "fr", Previous: "dz", Ground: "es"})
+	s.takeFor(contractDay, 1, Take{Flag: "fr", Ground: "es"})
 
 	s.Equal(SheetSnapshot{
 		Progress: map[MissionID]uint32{s.frMission(1, 0): 2, s.frMission(1, 1): 1}, Paid: cpcolls.NewSet[MissionID](),
-		TakesBelow: TakeMark{Position: 2, Index: 1},
+		Counted: Counted{TakesBelow: TakeMark{Position: 2, Index: 1}},
 	}, s.sheet(contractDay, 1))
 }
 
 func (s *StoreContractSuite) TestTheMarkOfTheLastTakeCountedIsKept() {
-	s.takeFor(contractDay, 1, Take{Flag: "fr", At: contractAt, Position: 41})
-	s.takeFor(contractDay, 1, Take{Flag: "fr", At: contractAt, Position: 41})
+	s.takeFor(contractDay, 1, Take{Flag: "fr", Position: 41})
+	s.takeFor(contractDay, 1, Take{Flag: "fr", Position: 41})
 
-	s.Equal(TakeMark{Position: 41, Index: 1}, s.sheet(contractDay, 1).TakesBelow)
+	s.Equal(TakeMark{Position: 41, Index: 1}, s.sheet(contractDay, 1).Counted.TakesBelow)
 	s.Equal(uint32(1), s.sheet(contractDay, 1).Progress[s.frMission(1, 0)], "the second telling counted nothing")
 }
 
 func (s *StoreContractSuite) TestEachTakeOfASpreadIsCountedOnceThoughTheyShareAPosition() {
 	for range 2 {
 		for index := range uint32(2) {
-			s.takeFor(contractDay, 1, Take{Flag: "fr", At: contractAt, Position: 41, Index: index})
+			s.takeFor(contractDay, 1, Take{Flag: "fr", Position: 41, Index: index})
 		}
 	}
 
-	s.Equal(TakeMark{Position: 41, Index: 2}, s.sheet(contractDay, 1).TakesBelow)
+	s.Equal(TakeMark{Position: 41, Index: 2}, s.sheet(contractDay, 1).Counted.TakesBelow)
 	s.Equal(uint32(2), s.sheet(contractDay, 1).Progress[s.frMission(1, 0)])
 }
 
+func (s *StoreContractSuite) TestEveryMarkOfWhatWasCountedIsKept() {
+	counted := Counted{
+		TakesBelow: TakeMark{Position: 5, Index: 2}, BombsBelow: 6, ShieldsBelow: 7, FortifiesBelow: 8,
+		BoxesUntil: contractAt, AnswersUntil: contractAt.Add(time.Microsecond),
+	}
+
+	s.Require().NoError(s.store.ChangeSheet(s.T().Context(), contractDay, s.account(1),
+		func(Sheet) Sheet { return SheetOf(SheetSnapshot{Counted: counted}) }))
+
+	s.Equal(counted, s.sheet(contractDay, 1).Counted)
+}
+
 func (s *StoreContractSuite) TestASheetIsKeptByDayAndAccount() {
-	s.takeFor(contractDay, 1, Take{Flag: "fr", At: contractAt})
+	s.takeFor(contractDay, 1, Take{Flag: "fr"})
 
 	s.Empty(s.sheet(contractDay, 2).Progress)
 	s.Empty(s.sheet(contractNextDay, 1).Progress)
@@ -169,10 +187,10 @@ func (s *StoreContractSuite) pay(day Day, account byte, mission MissionID) {
 }
 
 func (s *StoreContractSuite) TestAPaymentIsKept() {
-	s.takeFor(contractDay, 1, Take{Flag: "fr", At: contractAt})
+	s.takeFor(contractDay, 1, Take{Flag: "fr"})
 
 	s.pay(contractDay, 1, s.frMission(1, 0))
-	s.takeFor(contractDay, 1, Take{Flag: "fr", At: contractAt})
+	s.takeFor(contractDay, 1, Take{Flag: "fr"})
 
 	s.Equal(cpcolls.NewSet(s.frMission(1, 0)), s.sheet(contractDay, 1).Paid)
 	s.Equal(uint32(2), s.sheet(contractDay, 1).Progress[s.frMission(1, 0)], "and the takes after it")
@@ -188,9 +206,9 @@ func (s *StoreContractSuite) TestTheMissionsPaidAddUpOverEveryDay() {
 	s.Zero(s.paidInAll(1))
 
 	for _, day := range []Day{contractDay, contractNextDay} {
-		s.takeFor(day, 1, Take{Flag: "fr", At: contractAt})
+		s.takeFor(day, 1, Take{Flag: "fr"})
 	}
-	s.takeFor(contractDay, 2, Take{Flag: "fr", At: contractAt})
+	s.takeFor(contractDay, 2, Take{Flag: "fr"})
 	s.pay(contractDay, 1, s.frMission(1, 0))
 	s.pay(contractDay, 1, s.frMission(1, 1))
 	s.pay(contractNextDay, 1, Draw(contractNextDay, s.account(1), "fr", contractWorld).Snapshot()[0].ID)
@@ -203,7 +221,7 @@ func (s *StoreContractSuite) TestTheMissionsPaidAddUpOverEveryDay() {
 func (s *StoreContractSuite) TestDeletingAnAccountForgetsItsDays() {
 	for account := range byte(2) {
 		s.keep(contractDay, account+1, Draw(contractDay, s.account(account+1), "fr", contractWorld))
-		s.takeFor(contractDay, account+1, Take{Flag: "fr", At: contractAt})
+		s.takeFor(contractDay, account+1, Take{Flag: "fr"})
 	}
 	s.pay(contractDay, 1, s.frMission(1, 0))
 

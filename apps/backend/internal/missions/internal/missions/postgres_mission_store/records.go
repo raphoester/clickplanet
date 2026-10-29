@@ -26,9 +26,15 @@ type rewardRecord struct {
 }
 
 const (
-	kindTakeFor  = "take_for"
-	kindTakeFrom = "take_from"
-	kindTakeIn   = "take_in"
+	kindTakeFor       = "take_for"
+	kindTakeFrom      = "take_from"
+	kindTakeIn        = "take_in"
+	kindTakeFromIn    = "take_from_in"
+	kindCatchBoxes    = "catch_boxes"
+	kindAnswerQuizzes = "answer_quizzes"
+	kindBombIn        = "bomb_in"
+	kindShieldTiles   = "shield_tiles"
+	kindFortifyTiles  = "fortify_tiles"
 )
 
 type takeForRecord struct {
@@ -46,6 +52,26 @@ type takeInRecord struct {
 	Goal   uint32 `json:"goal"`
 }
 
+type takeFromInRecord struct {
+	Flag   string `json:"flag"`
+	Ground string `json:"ground"`
+	Goal   uint32 `json:"goal"`
+}
+
+type goalRecord struct {
+	Goal uint32 `json:"goal"`
+}
+
+type bombInRecord struct {
+	Ground string `json:"ground"`
+	Goal   uint32 `json:"goal"`
+}
+
+type shieldTilesRecord struct {
+	Shields uint32 `json:"shields"`
+	Goal    uint32 `json:"goal"`
+}
+
 func recordOf(mission missions.MissionSnapshot) (missionRecord, error) {
 	var (
 		kind    string
@@ -58,6 +84,18 @@ func recordOf(mission missions.MissionSnapshot) (missionRecord, error) {
 		kind, payload = kindTakeFrom, takeFromRecord{Flag: order.Flag, Goal: order.Goal}
 	case missions.TakeIn:
 		kind, payload = kindTakeIn, takeInRecord{Ground: order.Ground, Goal: order.Goal}
+	case missions.TakeFromIn:
+		kind, payload = kindTakeFromIn, takeFromInRecord{Flag: order.Flag, Ground: order.Ground, Goal: order.Goal}
+	case missions.CatchBoxes:
+		kind, payload = kindCatchBoxes, goalRecord{Goal: order.Goal}
+	case missions.AnswerQuizzes:
+		kind, payload = kindAnswerQuizzes, goalRecord{Goal: order.Goal}
+	case missions.BombIn:
+		kind, payload = kindBombIn, bombInRecord{Ground: order.Ground, Goal: order.Goal}
+	case missions.ShieldTiles:
+		kind, payload = kindShieldTiles, shieldTilesRecord{Shields: order.Shields, Goal: order.Goal}
+	case missions.FortifyTiles:
+		kind, payload = kindFortifyTiles, goalRecord{Goal: order.Goal}
 	default:
 		return missionRecord{}, fmt.Errorf("%w: %T", ErrUnknownKind, order)
 	}
@@ -97,6 +135,30 @@ func (r missionRecord) order() (missions.Order, error) {
 		var payload takeInRecord
 		err := json.Unmarshal(r.Payload, &payload)
 		return missions.TakeIn{Ground: payload.Ground, Goal: payload.Goal}, decoded(r.Kind, err)
+	case kindTakeFromIn:
+		var payload takeFromInRecord
+		err := json.Unmarshal(r.Payload, &payload)
+		return missions.TakeFromIn{Flag: payload.Flag, Ground: payload.Ground, Goal: payload.Goal}, decoded(r.Kind, err)
+	case kindCatchBoxes:
+		var payload goalRecord
+		err := json.Unmarshal(r.Payload, &payload)
+		return missions.CatchBoxes{Goal: payload.Goal}, decoded(r.Kind, err)
+	case kindAnswerQuizzes:
+		var payload goalRecord
+		err := json.Unmarshal(r.Payload, &payload)
+		return missions.AnswerQuizzes{Goal: payload.Goal}, decoded(r.Kind, err)
+	case kindBombIn:
+		var payload bombInRecord
+		err := json.Unmarshal(r.Payload, &payload)
+		return missions.BombIn{Ground: payload.Ground, Goal: payload.Goal}, decoded(r.Kind, err)
+	case kindShieldTiles:
+		var payload shieldTilesRecord
+		err := json.Unmarshal(r.Payload, &payload)
+		return missions.ShieldTiles{Shields: payload.Shields, Goal: payload.Goal}, decoded(r.Kind, err)
+	case kindFortifyTiles:
+		var payload goalRecord
+		err := json.Unmarshal(r.Payload, &payload)
+		return missions.FortifyTiles{Goal: payload.Goal}, decoded(r.Kind, err)
 	}
 	return nil, fmt.Errorf("%w: %q", ErrUnknownKind, r.Kind)
 }

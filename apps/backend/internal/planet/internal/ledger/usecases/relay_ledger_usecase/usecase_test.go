@@ -76,6 +76,7 @@ func TestEachFactOfTheLedgerIsToldWithItsPositionInOrder(t *testing.T) {
 			Tile: 3, Landmass: 7, Ground: "is", Tiles: 60, Scope: "1.2.3.4", Account: ada, Country: "fr", At: at,
 			Raised: []clicks.TileShields{{Tile: 3, Shields: 1}},
 		},
+		ledger.Shielding{Tile: 3, Scope: "1.2.3.4", Account: ada, Country: "fr", Shields: 2, At: at},
 	)
 	events := &sender{}
 	told := &cursor{}
@@ -83,14 +84,15 @@ func TestEachFactOfTheLedgerIsToldWithItsPositionInOrder(t *testing.T) {
 	n, err := relay_ledger_usecase.New(storage, told, borders{1: "es", 9: "de"}, events).Execute(t.Context())
 	require.NoError(t, err)
 
-	assert.Equal(t, 4, n)
-	assert.Equal(t, ledger.Position(4), told.position)
+	assert.Equal(t, 5, n)
+	assert.Equal(t, ledger.Position(5), told.position)
 	want := []proto.Message{
 		&planetv1.TileTaken{
 			AccountId: ada, TileId: 1, Country: "fr", TakenAt: timestamppb.New(at), Position: 0, Previous: "de", Ground: "es",
 		},
 		&planetv1.BombLanded{Country: "fr", TileId: 9, Ground: "de", Cleared: 2, LandedAt: timestamppb.New(at), AccountId: ada, Position: 2},
 		&planetv1.Fortified{Country: "fr", LandmassId: 7, Tiles: 60, Ground: "is", FortifiedAt: timestamppb.New(at), AccountId: ada, Position: 3},
+		&planetv1.ShieldPlaced{AccountId: ada, TileId: 3, Country: "fr", Shields: 2, PlacedAt: timestamppb.New(at), Position: 4},
 	}
 	require.Len(t, events.sent, len(want), "a take with no account tells nothing, a bomb takes no tile")
 	for i := range want {

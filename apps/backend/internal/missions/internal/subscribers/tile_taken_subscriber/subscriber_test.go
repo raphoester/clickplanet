@@ -11,15 +11,16 @@ import (
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/usecases/record_fact_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/tile_taken_subscriber"
 )
 
 type recordingUseCase struct {
-	takes []missions.Take
+	facts []record_fact_usecase.In
 }
 
-func (u *recordingUseCase) Execute(_ context.Context, take missions.Take) error {
-	u.takes = append(u.takes, take)
+func (u *recordingUseCase) Execute(_ context.Context, in record_fact_usecase.In) error {
+	u.facts = append(u.facts, in)
 	return nil
 }
 
@@ -37,7 +38,9 @@ func TestATakeReachesTheMissionsWithWhoseTileItWasAndWhoseGround(t *testing.T) {
 
 	id, err := missions.AccountIDOf(account)
 	require.NoError(t, err)
-	assert.Equal(t, []missions.Take{{Account: id, Flag: "fr", Previous: "dz", Ground: "br", At: at, Position: 7, Index: 3}}, useCase.takes)
+	assert.Equal(t, []record_fact_usecase.In{{
+		Account: id, At: at, Fact: missions.Take{Flag: "fr", Previous: "dz", Ground: "br", Position: 7, Index: 3},
+	}}, useCase.facts)
 }
 
 func TestAnEventWithNoAccountOrNoTimeIsRefused(t *testing.T) {

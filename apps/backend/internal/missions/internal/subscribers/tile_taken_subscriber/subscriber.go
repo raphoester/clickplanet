@@ -7,12 +7,13 @@ import (
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/usecases/record_fact_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 )
 
 type UseCase interface {
-	Execute(ctx context.Context, take missions.Take) error
+	Execute(ctx context.Context, in record_fact_usecase.In) error
 }
 
 func New(useCase UseCase) Subscriber {
@@ -39,13 +40,12 @@ func (s Subscriber) Handle(ctx context.Context, event *planetv1.TileTaken) error
 	ctx, cancel := context.WithTimeout(ctx, subscribers.Timeout)
 	defer cancel()
 
-	return s.useCase.Execute(ctx, missions.Take{ //nolint:wrapcheck // the use case named it.
-		Account:  account,
-		Flag:     event.GetCountry(),
-		Previous: event.GetPrevious(),
-		Ground:   event.GetGround(),
-		At:       event.GetTakenAt().AsTime(),
-		Position: event.GetPosition(),
-		Index:    event.GetIndex(),
+	return s.useCase.Execute(ctx, record_fact_usecase.In{ //nolint:wrapcheck // the use case named it.
+		Account: account,
+		At:      event.GetTakenAt().AsTime(),
+		Fact: missions.Take{
+			Flag: event.GetCountry(), Previous: event.GetPrevious(), Ground: event.GetGround(),
+			Position: event.GetPosition(), Index: event.GetIndex(),
+		},
 	})
 }

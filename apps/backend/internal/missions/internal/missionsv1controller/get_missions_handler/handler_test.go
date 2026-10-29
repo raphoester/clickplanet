@@ -84,6 +84,49 @@ func TestEachMissionIsAnsweredInItsKindsOwnMessage(t *testing.T) {
 	}, res))
 }
 
+func TestEachKindOfMissionHasItsMessage(t *testing.T) {
+	orders := []missions.Order{
+		missions.TakeFromIn{Flag: "dz", Ground: "br", Goal: 60},
+		missions.CatchBoxes{Goal: 4},
+		missions.AnswerQuizzes{Goal: 3},
+		missions.BombIn{Ground: "br", Goal: 2},
+		missions.ShieldTiles{Shields: 10, Goal: 2},
+		missions.FortifyTiles{Goal: 40},
+	}
+	snapshots := make([]missions.MissionSnapshot, 0, len(orders))
+	progress := map[missions.MissionID]uint32{}
+	for n, order := range orders {
+		id := missions.MissionID{15: byte(n + 1)}
+		snapshots = append(snapshots, missions.MissionSnapshot{ID: id, Order: order, Reward: missions.Reward{Kind: missions.RewardBomb, Amount: 1}})
+		progress[id] = 1
+	}
+	brief, err := missions.BriefOf(snapshots)
+	require.NoError(t, err)
+
+	res, err := ask(t, &stubUseCase{out: get_missions_usecase.Out{
+		Day: day, Brief: brief, Sheet: missions.SheetOf(missions.SheetSnapshot{Progress: progress}),
+	}})
+
+	require.NoError(t, err)
+	answered := res.GetMissions()
+	require.Len(t, answered, len(orders))
+	kinds := []proto.Message{
+		answered[0].GetTakeFromIn(), answered[1].GetCatchBoxes(), answered[2].GetAnswerQuizzes(),
+		answered[3].GetBombIn(), answered[4].GetShieldTiles(), answered[5].GetFortifyTiles(),
+	}
+	want := []proto.Message{
+		&missionsv1.TakeFromIn{CountryId: "dz", GroundId: "br", Goal: 60, Taken: 1},
+		&missionsv1.CatchBoxes{Goal: 4, Caught: 1},
+		&missionsv1.AnswerQuizzes{Goal: 3, Answered: 1},
+		&missionsv1.BombIn{CountryId: "br", Goal: 2, Dropped: 1},
+		&missionsv1.ShieldTiles{Shields: 10, Goal: 2, Shielded: 1},
+		&missionsv1.FortifyTiles{Goal: 40, Fortified: 1},
+	}
+	for n := range want {
+		assert.True(t, proto.Equal(want[n], kinds[n]), "%v", kinds[n])
+	}
+}
+
 func TestAnAnswerBeforeAnyFlagHasNoMissions(t *testing.T) {
 	res, err := ask(t, &stubUseCase{out: get_missions_usecase.Out{Day: day, Sheet: missions.SheetOf(missions.SheetSnapshot{})}})
 

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -86,14 +87,24 @@ func (s *Store) Sheet(ctx context.Context, day missions.Day, account missions.Ac
 func sheetOf(ctx context.Context, db cppg.Querier, day missions.Day, account missions.AccountID) (missions.Sheet, error) {
 	snapshot := missions.SheetSnapshot{Progress: map[missions.MissionID]uint32{}, Paid: cpcolls.NewSet[missions.MissionID]()}
 
-	var below, index int64
+	var (
+		takes, bombs, shields, fortifies, takesIndex int64
+		boxes, answers                               sql.NullTime
+	)
 	err := db.QueryRowContext(ctx, `
-		SELECT counted_takes_below, counted_takes_below_index FROM mission_sheets WHERE day = $1::date AND account_id = $2
-	`, day.String(), uuid.UUID(account)).Scan(&below, &index)
+		SELECT `+countedColumns+` FROM mission_sheets WHERE day = $1::date AND account_id = $2
+	`, day.String(), uuid.UUID(account)).Scan(&takes, &bombs, &shields, &fortifies, &boxes, &answers, &takesIndex)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return missions.Sheet{}, fmt.Errorf("failed to read the day's last take: %w", err)
+		return missions.Sheet{}, fmt.Errorf("failed to read the day's last facts: %w", err)
 	}
-	snapshot.TakesBelow = missions.TakeMark{Position: uint64(below), Index: uint32(index)} //nolint:gosec // CHECK (>= 0).
+	snapshot.Counted = missions.Counted{
+		TakesBelow:     missions.TakeMark{Position: uint64(takes), Index: uint32(takesIndex)}, //nolint:gosec // CHECK (>= 0).
+		BombsBelow:     uint64(bombs),                                                         //nolint:gosec // as above.
+		ShieldsBelow:   uint64(shields),                                                       //nolint:gosec // as above.
+		FortifiesBelow: uint64(fortifies),                                                     //nolint:gosec // as above.
+		BoxesUntil:     timeOf(boxes),
+		AnswersUntil:   timeOf(answers),
+	}
 
 	if err := perMission(ctx, db, `SELECT mission_id, progress FROM mission_progress WHERE day = $1::date AND account_id = $2`,
 		day, account, func(id missions.MissionID, progress uint32) { snapshot.Progress[id] = progress }); err != nil {
@@ -145,14 +156,22 @@ func (s *Store) ChangeSheet(
 		}
 		before, after := current.Snapshot(), change(current).Snapshot()
 
-		if after.TakesBelow != before.TakesBelow {
+		if counted := after.Counted; counted != before.Counted {
 			if _, err := tx.ExecContext(ctx, `
-				INSERT INTO mission_sheets (day, account_id, counted_takes_below, counted_takes_below_index) VALUES ($1::date, $2, $3, $4)
-				ON CONFLICT (day, account_id) DO UPDATE
-				SET counted_takes_below = excluded.counted_takes_below, counted_takes_below_index = excluded.counted_takes_below_index
+				INSERT INTO mission_sheets (day, account_id, `+countedColumns+`) VALUES ($1::date, $2, $3, $4, $5, $6, $7, $8, $9)
+				ON CONFLICT (day, account_id) DO UPDATE SET
+					counted_takes_below = excluded.counted_takes_below,
+					counted_bombs_below = excluded.counted_bombs_below,
+					counted_shields_below = excluded.counted_shields_below,
+					counted_fortifies_below = excluded.counted_fortifies_below,
+					counted_boxes_until = excluded.counted_boxes_until,
+					counted_answers_until = excluded.counted_answers_until,
+					counted_takes_below_index = excluded.counted_takes_below_index
 			`, day.String(), uuid.UUID(account),
-				int64(after.TakesBelow.Position), int64(after.TakesBelow.Index)); err != nil { //nolint:gosec // a ledger position fits in int64.
-				return fmt.Errorf("failed to keep the day's last take: %w", err)
+				int64(counted.TakesBelow.Position), int64(counted.BombsBelow), //nolint:gosec // ledger positions fit in int64.
+				int64(counted.ShieldsBelow), int64(counted.FortifiesBelow), //nolint:gosec // as above.
+				nullableTime(counted.BoxesUntil), nullableTime(counted.AnswersUntil), int64(counted.TakesBelow.Index)); err != nil {
+				return fmt.Errorf("failed to keep the day's last facts: %w", err)
 			}
 		}
 		for id, progress := range after.Progress {
@@ -191,6 +210,20 @@ func (s *Store) PaidInAll(ctx context.Context, account missions.AccountID) (uint
 		return 0, fmt.Errorf("failed to count the account's payments: %w", err)
 	}
 	return uint64(paid), nil //nolint:gosec // a count is never negative.
+}
+
+const countedColumns = `counted_takes_below, counted_bombs_below, counted_shields_below, counted_fortifies_below,
+	counted_boxes_until, counted_answers_until, counted_takes_below_index`
+
+func timeOf(at sql.NullTime) time.Time {
+	if !at.Valid {
+		return time.Time{}
+	}
+	return at.Time.UTC()
+}
+
+func nullableTime(at time.Time) sql.NullTime {
+	return sql.NullTime{Time: at.UTC(), Valid: !at.IsZero()}
 }
 
 func (s *Store) DeleteAccount(ctx context.Context, account missions.AccountID) error {
