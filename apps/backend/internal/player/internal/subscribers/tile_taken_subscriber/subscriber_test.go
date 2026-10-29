@@ -35,6 +35,29 @@ func TestATakeIsCountedAtTheTimeItWasTaken(t *testing.T) {
 	assert.Equal(t, players.DayOf(at), stats.Streak().LastDay())
 }
 
+func TestASpreadCountsEachTileItTookOnce(t *testing.T) {
+	store := inmemory_player_store.New()
+	handler := tile_taken_subscriber.New(record_stats_usecase.New(store, cpredis.NewRecordedEvents()))
+	spread := make([]*planetv1.TileTaken, 0, 7)
+	for index := range uint32(7) {
+		spread = append(spread, &planetv1.TileTaken{
+			AccountId: account, TileId: 40 + index, Country: "fr", TakenAt: timestamppb.New(at), Position: 9, Index: index,
+		})
+	}
+
+	for range 2 {
+		for _, take := range spread {
+			require.NoError(t, handler.Handle(t.Context(), take))
+		}
+	}
+
+	id, err := players.AccountIDOf(account)
+	require.NoError(t, err)
+	stats, err := store.Stats(t.Context(), id)
+	require.NoError(t, err)
+	assert.Equal(t, uint64(7), stats.TilesTaken(), "one ledger event, seven takes, told twice")
+}
+
 func TestAnEventWithNoAccountOrNoTimeIsRefused(t *testing.T) {
 	subscriber := tile_taken_subscriber.New(record_stats_usecase.New(inmemory_player_store.New(), cpredis.NewRecordedEvents()))
 

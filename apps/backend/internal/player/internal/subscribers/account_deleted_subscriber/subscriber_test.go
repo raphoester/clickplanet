@@ -18,7 +18,7 @@ func TestADeletedAccountIsForgotten(t *testing.T) {
 	store := inmemory_player_store.New()
 	account, err := players.AccountIDOf("0b6d4f7e-5d7c-4a36-9a51-3f1f8f0c2a11")
 	require.NoError(t, err)
-	require.NoError(t, store.Record(t.Context(), account, players.TakeAt(0, time.Now())))
+	require.NoError(t, store.Record(t.Context(), account, players.TakeAt(0, 0, time.Now())))
 
 	err = account_deleted_subscriber.New(forget_account_usecase.New(store)).Handle(t.Context(),
 		&authv1.AccountDeleted{AccountId: account.String()})

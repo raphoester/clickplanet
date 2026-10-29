@@ -44,7 +44,8 @@ func (s Subscriber) Handle(ctx context.Context, event *planetv1.TileTaken) error
 		Account: account,
 		At:      event.GetTakenAt().AsTime(),
 		Fact: missions.Take{
-			Flag: event.GetCountry(), Previous: event.GetPrevious(), Ground: event.GetGround(), Position: event.GetPosition(),
+			Flag: event.GetCountry(), Previous: event.GetPrevious(), Ground: event.GetGround(),
+			Position: event.GetPosition(), Index: event.GetIndex(),
 		},
 	})
 }

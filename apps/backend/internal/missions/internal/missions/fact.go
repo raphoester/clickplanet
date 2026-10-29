@@ -8,7 +8,7 @@ type Fact interface {
 }
 
 type Counted struct {
-	TakesBelow     uint64
+	TakesBelow     TakeMark
 	BombsBelow     uint64
 	ShieldsBelow   uint64
 	FortifiesBelow uint64
@@ -21,12 +21,22 @@ type Take struct {
 	Previous string
 	Ground   string
 	Position uint64
+	Index    uint32
+}
+
+// A spread or an enclose is one ledger event that holds several takes: they come in index order.
+type TakeMark struct {
+	Position uint64
+	Index    uint32
 }
 
 func (t Take) counted(marks Counted) (Counted, bool) {
-	var fresh bool
-	marks.TakesBelow, fresh = below(t.Position, marks.TakesBelow)
-	return marks, fresh
+	if t.Position < marks.TakesBelow.Position ||
+		t.Position == marks.TakesBelow.Position && t.Index < marks.TakesBelow.Index {
+		return marks, false
+	}
+	marks.TakesBelow = TakeMark{Position: t.Position, Index: t.Index + 1}
+	return marks, true
 }
 
 // Ground is empty in the sea.

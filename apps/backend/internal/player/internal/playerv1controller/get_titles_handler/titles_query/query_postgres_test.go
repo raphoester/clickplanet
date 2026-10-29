@@ -65,8 +65,8 @@ func progress(dashboard *playerv1.GetTitlesResponse) map[string]uint64 {
 }
 
 func (s *testSuite) TestTheDashboardMeasuresTheStreakAsOfToday() {
-	s.Require().NoError(s.players.Record(s.T().Context(), ada, players.TakeAt(0, monday)))
-	s.Require().NoError(s.players.Record(s.T().Context(), ada, players.TakeAt(1, monday.Add(24*time.Hour))))
+	s.Require().NoError(s.players.Record(s.T().Context(), ada, players.TakeAt(0, 0, monday)))
+	s.Require().NoError(s.players.Record(s.T().Context(), ada, players.TakeAt(1, 0, monday.Add(24*time.Hour))))
 	s.Require().NoError(s.titles.Grant(s.T().Context(), titles.Holdings{ada: {"settler"}}, monday))
 	clock := cptime.NewFixedClock(monday.Add(24 * time.Hour))
 

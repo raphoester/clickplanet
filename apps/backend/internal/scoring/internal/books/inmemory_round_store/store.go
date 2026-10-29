@@ -11,10 +11,15 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/books"
 )
 
+type mark struct {
+	position uint64
+	index    uint32
+}
+
 type kept struct {
 	scored       books.Scored
 	opened       int
-	countedBelow uint64
+	countedBelow mark
 	countries    map[books.Country]uint64
 	players      map[books.AccountID]map[books.Country]uint64
 }
@@ -114,10 +119,11 @@ func (s *Store) Count(_ context.Context, rounds []books.RoundID, take books.Take
 
 	for _, id := range rounds {
 		at, found := s.rounds[id]
-		if !found || take.Position < at.countedBelow {
+		if !found || take.Position < at.countedBelow.position ||
+			take.Position == at.countedBelow.position && take.Index < at.countedBelow.index {
 			continue
 		}
-		at.countedBelow = take.Position + 1
+		at.countedBelow = mark{position: take.Position, index: take.Index + 1}
 		at.countries[take.Country]++
 		if at.players[take.Account] == nil {
 			at.players[take.Account] = map[books.Country]uint64{}

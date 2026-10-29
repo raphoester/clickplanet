@@ -94,8 +94,10 @@ internal/missions/internal/
     shield or a fortify with no account, is dropped by its subscriber. **Not from the ledger**: `ledger_events` has no
     time index, and an account's takes since the cutoff would read every take it ever made. **A fact told twice counts
     once**: Redis delivers at least once, and the sheet keeps a mark per kind (`missions.Counted`, the
-    `mission_sheets.counted_*` columns): the ledger position after the last take, bomb, shield and fortify it counted,
-    and the time of the last box and right answer, so one at or below its mark counts nothing. Each kind has its own
+    `mission_sheets.counted_*` columns): the ledger position after the last bomb, shield and fortify it counted, the
+    time of the last box and right answer, so one at or below its mark counts nothing. A take's mark is the position
+    and index past the last take counted (`missions.TakeMark`: `counted_takes_below`, `counted_takes_below_index`):
+    the takes of a spread or an enclose share one position, and each has its own index. Each kind has its own
     mark because each comes on its own stream, in no order with the others. Two boxes or answers of one account in the
     same microsecond count once.
   - **A mission done is paid at once, with no claim** (`payroll.Pay`, `Sheet.WithPayments`). The take that finishes it

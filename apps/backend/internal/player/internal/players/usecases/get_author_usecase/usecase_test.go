@@ -104,10 +104,10 @@ func TestTheChosenColorIsAnswered(t *testing.T) {
 func TestTheStreakIsReadAsOfToday(t *testing.T) {
 	takes := store(t)
 	require.NoError(t, takes.SaveProfile(t.Context(), players.NewProfile(bob, "Bob", time.Now())))
-	require.NoError(t, takes.Record(t.Context(), ada, players.TakeAt(0, today.AddDate(0, 0, -2))))
-	require.NoError(t, takes.Record(t.Context(), ada, players.TakeAt(1, today.AddDate(0, 0, -1))))
-	require.NoError(t, takes.Record(t.Context(), bob, players.TakeAt(2, today.AddDate(0, 0, -3))))
-	require.NoError(t, takes.Record(t.Context(), bob, players.TakeAt(3, today.AddDate(0, 0, -2))))
+	require.NoError(t, takes.Record(t.Context(), ada, players.TakeAt(0, 0, today.AddDate(0, 0, -2))))
+	require.NoError(t, takes.Record(t.Context(), ada, players.TakeAt(1, 0, today.AddDate(0, 0, -1))))
+	require.NoError(t, takes.Record(t.Context(), bob, players.TakeAt(2, 0, today.AddDate(0, 0, -3))))
+	require.NoError(t, takes.Record(t.Context(), bob, players.TakeAt(3, 0, today.AddDate(0, 0, -2))))
 
 	alive, err := useCase(takes).Execute(t.Context(), ada)
 	require.NoError(t, err)
@@ -120,8 +120,8 @@ func TestTheStreakIsReadAsOfToday(t *testing.T) {
 
 func TestAGuestShowsNoStreak(t *testing.T) {
 	takes := store(t)
-	require.NoError(t, takes.Record(t.Context(), guest, players.TakeAt(4, today.AddDate(0, 0, -1))))
-	require.NoError(t, takes.Record(t.Context(), guest, players.TakeAt(5, today)))
+	require.NoError(t, takes.Record(t.Context(), guest, players.TakeAt(4, 0, today.AddDate(0, 0, -1))))
+	require.NoError(t, takes.Record(t.Context(), guest, players.TakeAt(5, 0, today)))
 
 	author, err := useCase(takes).Execute(t.Context(), guest)
 

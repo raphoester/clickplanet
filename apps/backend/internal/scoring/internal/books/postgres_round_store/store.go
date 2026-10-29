@@ -202,8 +202,8 @@ func (s *Store) Count(ctx context.Context, rounds []books.RoundID, take books.Ta
 	}
 	if _, err := s.db.On(ctx).ExecContext(ctx, `
 		WITH counted AS (
-			UPDATE rounds SET counted_takes_below = $4
-			WHERE round_id = ANY($3) AND counted_takes_below < $4
+			UPDATE rounds SET counted_takes_below = $4, counted_takes_below_index = $5 + 1
+			WHERE round_id = ANY($3) AND (counted_takes_below, counted_takes_below_index) <= ($4, $5)
 			RETURNING round_id
 		), countries AS (
 			INSERT INTO round_takes (round_id, country, tiles)
@@ -214,7 +214,7 @@ func (s *Store) Count(ctx context.Context, rounds []books.RoundID, take books.Ta
 		SELECT round_id, $1, $2, 1 FROM counted
 		ON CONFLICT (round_id, account_id, country) DO UPDATE SET tiles = round_players.tiles + 1
 	`, uuid.UUID(take.Account), string(take.Country), pq.Array(ids),
-		int64(take.Position+1)); err != nil { //nolint:gosec // a ledger position fits in int64.
+		int64(take.Position), int64(take.Index)); err != nil { //nolint:gosec // a ledger position fits in int64.
 		return fmt.Errorf("failed to count the take in its rounds: %w", err)
 	}
 	return nil

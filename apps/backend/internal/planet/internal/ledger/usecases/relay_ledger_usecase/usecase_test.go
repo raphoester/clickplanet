@@ -100,6 +100,39 @@ func TestEachFactOfTheLedgerIsToldWithItsPositionInOrder(t *testing.T) {
 	}
 }
 
+func TestEachTakeOfASpreadIsToldWithItsIndexInTheEvent(t *testing.T) {
+	storage := flushed(t,
+		ledger.Taking{Tile: 1, Scope: "1.2.3.4", Account: ada, Country: "fr", At: at},
+		ledger.Spreading{Tile: 1, Scope: "1.2.3.4", Account: ada, Country: "fr", At: at, Impacts: []clicks.Impact{
+			{Tile: 2, Owner: "de", Outcome: clicks.Taken},
+			{Tile: 3, Outcome: clicks.Taken},
+			{Tile: 4, Owner: "de", Outcome: clicks.Shielded, Shields: 1},
+			{Tile: 5, Outcome: clicks.Taken},
+		}},
+	)
+	events := &sender{}
+
+	_, err := relay_ledger_usecase.New(storage, &cursor{}, borders{}, events).Execute(t.Context())
+	require.NoError(t, err)
+
+	type place struct {
+		tile, index uint32
+		position    uint64
+	}
+	told := make([]place, 0, len(events.sent))
+	for _, fact := range events.sent {
+		taken, ok := fact.(*planetv1.TileTaken)
+		require.True(t, ok)
+		told = append(told, place{tile: taken.GetTileId(), index: taken.GetIndex(), position: taken.GetPosition()})
+	}
+	assert.Equal(t, []place{
+		{tile: 1, index: 0, position: 0},
+		{tile: 2, index: 0, position: 1},
+		{tile: 3, index: 1, position: 1},
+		{tile: 5, index: 2, position: 1},
+	}, told, "the click, then the spread's three takes in one event; a shield struck is no take")
+}
+
 func TestAFailedSendIsToldAgainNextTime(t *testing.T) {
 	storage := flushed(t, ledger.Taking{Tile: 1, Scope: "1.2.3.4", Account: ada, Country: "fr", At: at})
 	events := &sender{fails: 1}

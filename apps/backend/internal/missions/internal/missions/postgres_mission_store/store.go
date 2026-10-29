@@ -88,20 +88,20 @@ func sheetOf(ctx context.Context, db cppg.Querier, day missions.Day, account mis
 	snapshot := missions.SheetSnapshot{Progress: map[missions.MissionID]uint32{}, Paid: cpcolls.NewSet[missions.MissionID]()}
 
 	var (
-		takes, bombs, shields, fortifies int64
-		boxes, answers                   sql.NullTime
+		takes, bombs, shields, fortifies, takesIndex int64
+		boxes, answers                               sql.NullTime
 	)
 	err := db.QueryRowContext(ctx, `
 		SELECT `+countedColumns+` FROM mission_sheets WHERE day = $1::date AND account_id = $2
-	`, day.String(), uuid.UUID(account)).Scan(&takes, &bombs, &shields, &fortifies, &boxes, &answers)
+	`, day.String(), uuid.UUID(account)).Scan(&takes, &bombs, &shields, &fortifies, &boxes, &answers, &takesIndex)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return missions.Sheet{}, fmt.Errorf("failed to read the day's last facts: %w", err)
 	}
 	snapshot.Counted = missions.Counted{
-		TakesBelow:     uint64(takes),     //nolint:gosec // CHECK (counted_takes_below >= 0).
-		BombsBelow:     uint64(bombs),     //nolint:gosec // as above.
-		ShieldsBelow:   uint64(shields),   //nolint:gosec // as above.
-		FortifiesBelow: uint64(fortifies), //nolint:gosec // as above.
+		TakesBelow:     missions.TakeMark{Position: uint64(takes), Index: uint32(takesIndex)}, //nolint:gosec // CHECK (>= 0).
+		BombsBelow:     uint64(bombs),                                                         //nolint:gosec // as above.
+		ShieldsBelow:   uint64(shields),                                                       //nolint:gosec // as above.
+		FortifiesBelow: uint64(fortifies),                                                     //nolint:gosec // as above.
 		BoxesUntil:     timeOf(boxes),
 		AnswersUntil:   timeOf(answers),
 	}
@@ -158,18 +158,19 @@ func (s *Store) ChangeSheet(
 
 		if counted := after.Counted; counted != before.Counted {
 			if _, err := tx.ExecContext(ctx, `
-				INSERT INTO mission_sheets (day, account_id, `+countedColumns+`) VALUES ($1::date, $2, $3, $4, $5, $6, $7, $8)
+				INSERT INTO mission_sheets (day, account_id, `+countedColumns+`) VALUES ($1::date, $2, $3, $4, $5, $6, $7, $8, $9)
 				ON CONFLICT (day, account_id) DO UPDATE SET
 					counted_takes_below = excluded.counted_takes_below,
 					counted_bombs_below = excluded.counted_bombs_below,
 					counted_shields_below = excluded.counted_shields_below,
 					counted_fortifies_below = excluded.counted_fortifies_below,
 					counted_boxes_until = excluded.counted_boxes_until,
-					counted_answers_until = excluded.counted_answers_until
+					counted_answers_until = excluded.counted_answers_until,
+					counted_takes_below_index = excluded.counted_takes_below_index
 			`, day.String(), uuid.UUID(account),
-				int64(counted.TakesBelow), int64(counted.BombsBelow), //nolint:gosec // ledger positions fit in int64.
+				int64(counted.TakesBelow.Position), int64(counted.BombsBelow), //nolint:gosec // ledger positions fit in int64.
 				int64(counted.ShieldsBelow), int64(counted.FortifiesBelow), //nolint:gosec // as above.
-				nullableTime(counted.BoxesUntil), nullableTime(counted.AnswersUntil)); err != nil {
+				nullableTime(counted.BoxesUntil), nullableTime(counted.AnswersUntil), int64(counted.TakesBelow.Index)); err != nil {
 				return fmt.Errorf("failed to keep the day's last facts: %w", err)
 			}
 		}
@@ -212,7 +213,7 @@ func (s *Store) PaidInAll(ctx context.Context, account missions.AccountID) (uint
 }
 
 const countedColumns = `counted_takes_below, counted_bombs_below, counted_shields_below, counted_fortifies_below,
-	counted_boxes_until, counted_answers_until`
+	counted_boxes_until, counted_answers_until, counted_takes_below_index`
 
 func timeOf(at sql.NullTime) time.Time {
 	if !at.Valid {
