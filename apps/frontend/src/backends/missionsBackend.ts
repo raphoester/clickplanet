@@ -78,6 +78,21 @@ function orderOf(kind: MissionPb["kind"]): MissionOrder | undefined {
         case "takeFrom":
         case "takeIn":
             return {kind: kind.case, country: kind.value.countryId, goal: kind.value.goal, taken: kind.value.taken}
+        case "takeFromIn":
+            return {
+                kind: kind.case, country: kind.value.countryId, ground: kind.value.groundId,
+                goal: kind.value.goal, taken: kind.value.taken,
+            }
+        case "bombIn":
+            return {kind: kind.case, country: kind.value.countryId, goal: kind.value.goal, reached: kind.value.dropped}
+        case "shieldTiles":
+            return {kind: kind.case, shields: kind.value.shields, goal: kind.value.goal, reached: kind.value.shielded}
+        case "catchBoxes":
+            return {kind: kind.case, goal: kind.value.goal, reached: kind.value.caught}
+        case "answerQuizzes":
+            return {kind: kind.case, goal: kind.value.goal, reached: kind.value.answered}
+        case "fortifyTiles":
+            return {kind: kind.case, goal: kind.value.goal, reached: kind.value.fortified}
         case undefined:
             return undefined
     }
@@ -93,7 +108,7 @@ function flagOrderOf(kind: FlagMissionPb["kind"]): FlagMissionOrder | undefined 
         case "takeIn":
             return {kind: kind.case, country: kind.value.countryId, goal: kind.value.goal, taken: kind.value.taken}
         case "breakShields":
-            return {kind: kind.case, country: kind.value.countryId, goal: kind.value.goal, broken: kind.value.broken}
+            return {kind: kind.case, country: kind.value.countryId, goal: kind.value.goal, reached: kind.value.broken}
         case undefined:
             return undefined
     }

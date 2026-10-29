@@ -32,7 +32,7 @@ type UseCase struct {
 	outbox        cpatomic.Outbox
 }
 
-func (u *UseCase) Execute(ctx context.Context, take missions.Take) error {
+func (u *UseCase) Execute(ctx context.Context, take flagmissions.Take) error {
 	day := u.calendar.DayOf(take.At)
 	if _, err := u.briefing.Of(ctx, day, take.Flag); err != nil {
 		return fmt.Errorf("failed to read %s's mission: %w", take.Flag, err)

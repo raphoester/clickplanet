@@ -5,19 +5,19 @@ import (
 )
 
 type SheetSnapshot struct {
-	Progress   map[MissionID]uint32
-	Paid       *cpcolls.Set[MissionID]
-	TakesBelow uint64
+	Progress map[MissionID]uint32
+	Paid     *cpcolls.Set[MissionID]
+	Counted  Counted
 }
 
 type Sheet struct {
-	progress   map[MissionID]uint32
-	paid       *cpcolls.Set[MissionID]
-	takesBelow uint64
+	progress map[MissionID]uint32
+	paid     *cpcolls.Set[MissionID]
+	counted  Counted
 }
 
 func SheetOf(snapshot SheetSnapshot) Sheet {
-	sheet := Sheet{progress: map[MissionID]uint32{}, paid: cpcolls.NewSet[MissionID](), takesBelow: snapshot.TakesBelow}
+	sheet := Sheet{progress: map[MissionID]uint32{}, paid: cpcolls.NewSet[MissionID](), counted: snapshot.Counted}
 	for id, progress := range snapshot.Progress {
 		sheet.progress[id] = progress
 	}
@@ -28,24 +28,25 @@ func SheetOf(snapshot SheetSnapshot) Sheet {
 }
 
 func (s Sheet) clone() Sheet {
-	return SheetOf(SheetSnapshot{Progress: s.progress, Paid: s.paid, TakesBelow: s.takesBelow})
+	return SheetOf(SheetSnapshot{Progress: s.progress, Paid: s.paid, Counted: s.counted})
 }
 
 func (s Sheet) Snapshot() SheetSnapshot {
 	copied := s.clone()
-	return SheetSnapshot{Progress: copied.progress, Paid: copied.paid, TakesBelow: copied.takesBelow}
+	return SheetSnapshot{Progress: copied.progress, Paid: copied.paid, Counted: copied.counted}
 }
 
-// A take can be told twice: one below the mark was counted already. Takes come in ledger order.
-func (s Sheet) WithTake(take Take, brief Brief) Sheet {
-	if take.Position < s.takesBelow {
+// A fact that moves no mission leaves the marks, so nothing is written.
+func (s Sheet) WithFact(fact Fact, brief Brief) Sheet {
+	counted, fresh := fact.counted(s.counted)
+	if !fresh {
 		return s
 	}
 
 	next := s.clone()
 	changed := false
 	for _, mission := range brief.missions {
-		if advanced := mission.order.advanced(next.progress[mission.id], take); advanced != next.progress[mission.id] {
+		if advanced := mission.order.advanced(next.progress[mission.id], fact); advanced != next.progress[mission.id] {
 			next.progress[mission.id] = advanced
 			changed = true
 		}
@@ -53,7 +54,7 @@ func (s Sheet) WithTake(take Take, brief Brief) Sheet {
 	if !changed {
 		return s
 	}
-	next.takesBelow = take.Position + 1
+	next.counted = counted
 	return next
 }
 

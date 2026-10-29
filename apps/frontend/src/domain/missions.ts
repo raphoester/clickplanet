@@ -1,18 +1,50 @@
-import {Mission, MissionReward, ShieldOrder, TileOrder} from "../backends/missions.ts"
+import {FlagMissionOrder, Mission, MissionOrder, MissionReward} from "../backends/missions.ts"
 import {BonusReward, BonusRules} from "./bonus.ts"
 
-const PREPOSITIONS: Record<TileOrder["kind"], string> = {
-    takeFor: "for",
-    takeFrom: "from",
-    takeIn: "in",
+// What an order asks, up to the country named after it, if any.
+export function orderOf(order: MissionOrder | FlagMissionOrder): string {
+    switch (order.kind) {
+        case "takeFor":
+            return `Take ${order.goal} tiles for`
+        case "takeFrom":
+        case "takeFromIn":
+            return `Take ${order.goal} tiles from`
+        case "takeIn":
+            return `Take ${order.goal} tiles in`
+        case "bombIn":
+            return `Drop ${counted(order.goal, "a bomb", "bombs")} on`
+        case "shieldTiles":
+            return `Put ${order.shields} shields on ${counted(order.goal, "a tile", "tiles")}`
+        case "catchBoxes":
+            return `Catch ${counted(order.goal, "a box", "boxes")}`
+        case "answerQuizzes":
+            return `Answer ${counted(order.goal, "a quiz", "quizzes")} right`
+        case "fortifyTiles":
+            return `Fortify ${counted(order.goal, "a tile", "tiles")}`
+        case "breakShields":
+            return `Break ${order.goal} shields of`
+    }
 }
 
-export function orderOf(order: TileOrder): string {
-    return `Take ${order.goal} tiles ${PREPOSITIONS[order.kind]}`
+function counted(count: number, one: string, many: string): string {
+    return count === 1 ? one : `${count} ${many}`
 }
 
-export function shieldOrderOf(order: ShieldOrder): string {
-    return `Break ${order.goal} shields of`
+export function reachedOf(order: MissionOrder | FlagMissionOrder): number {
+    switch (order.kind) {
+        case "takeFor":
+        case "takeFrom":
+        case "takeIn":
+        case "takeFromIn":
+            return Math.min(order.taken, order.goal)
+        case "bombIn":
+        case "shieldTiles":
+        case "catchBoxes":
+        case "answerQuizzes":
+        case "fortifyTiles":
+        case "breakShields":
+            return Math.min(order.reached, order.goal)
+    }
 }
 
 export const SEEN_MISSIONS_STORAGE_KEY = "clickplanet-missions-seen"

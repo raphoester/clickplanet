@@ -35,6 +35,30 @@ func Mission(status missions.MissionStatus) (*missionsv1.Mission, error) {
 		encoded.Kind = &missionsv1.Mission_TakeIn{TakeIn: &missionsv1.TakeIn{
 			CountryId: order.Ground, Goal: order.Goal, Taken: status.Progress,
 		}}
+	case missions.TakeFromIn:
+		encoded.Kind = &missionsv1.Mission_TakeFromIn{TakeFromIn: &missionsv1.TakeFromIn{
+			CountryId: order.Flag, GroundId: order.Ground, Goal: order.Goal, Taken: status.Progress,
+		}}
+	case missions.CatchBoxes:
+		encoded.Kind = &missionsv1.Mission_CatchBoxes{CatchBoxes: &missionsv1.CatchBoxes{
+			Goal: order.Goal, Caught: status.Progress,
+		}}
+	case missions.AnswerQuizzes:
+		encoded.Kind = &missionsv1.Mission_AnswerQuizzes{AnswerQuizzes: &missionsv1.AnswerQuizzes{
+			Goal: order.Goal, Answered: status.Progress,
+		}}
+	case missions.BombIn:
+		encoded.Kind = &missionsv1.Mission_BombIn{BombIn: &missionsv1.BombIn{
+			CountryId: order.Ground, Goal: order.Goal, Dropped: status.Progress,
+		}}
+	case missions.ShieldTiles:
+		encoded.Kind = &missionsv1.Mission_ShieldTiles{ShieldTiles: &missionsv1.ShieldTiles{
+			Shields: order.Shields, Goal: order.Goal, Shielded: status.Progress,
+		}}
+	case missions.FortifyTiles:
+		encoded.Kind = &missionsv1.Mission_FortifyTiles{FortifyTiles: &missionsv1.FortifyTiles{
+			Goal: order.Goal, Fortified: status.Progress,
+		}}
 	default:
 		return nil, fmt.Errorf("%w: %T", ErrUnknownKind, order)
 	}

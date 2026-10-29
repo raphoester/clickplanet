@@ -1,7 +1,7 @@
 import {ReactNode} from "react"
-import {FlagMissionOrder, MissionOrder, ShieldOrder, TileOrder} from "../../backends/missions.ts"
+import {FlagMissionOrder, MissionOrder} from "../../backends/missions.ts"
 import {Countries} from "../../domain/countries.ts"
-import {orderOf, shieldOrderOf} from "../../domain/missions.ts"
+import {orderOf, reachedOf} from "../../domain/missions.ts"
 import CountryFlag from "../components/CountryFlag.tsx"
 
 export type OrderParts = {
@@ -10,40 +10,43 @@ export type OrderParts = {
 }
 
 export function partsOf(order: MissionOrder | FlagMissionOrder): OrderParts {
+    return {line: lineOf(order), progress: progressOf(order)}
+}
+
+function lineOf(order: MissionOrder | FlagMissionOrder): ReactNode {
     switch (order.kind) {
         case "takeFor":
         case "takeFrom":
         case "takeIn":
-            return tilePartsOf(order)
+        case "bombIn":
         case "breakShields":
-            return shieldPartsOf(order)
+            return <>{orderOf(order)} {countryOf(order.country)}</>
+        case "takeFromIn":
+            return <>{orderOf(order)} {countryOf(order.country)} in {countryOf(order.ground)}</>
+        case "shieldTiles":
+        case "catchBoxes":
+        case "answerQuizzes":
+        case "fortifyTiles":
+            return orderOf(order)
     }
 }
 
-function tilePartsOf(order: TileOrder): OrderParts {
-    return countedParts(orderOf(order), order.country, order.taken, order.goal)
+function countryOf(code: string): ReactNode {
+    return <><CountryFlag code={code}/> {Countries.get(code)?.name ?? code}</>
 }
 
-function shieldPartsOf(order: ShieldOrder): OrderParts {
-    return countedParts(shieldOrderOf(order), order.country, order.broken, order.goal)
-}
+function progressOf(order: MissionOrder | FlagMissionOrder): ReactNode {
+    const reached = reachedOf(order)
 
-function countedParts(text: string, code: string, count: number, goal: number): OrderParts {
-    const country = Countries.get(code)
-    const reached = Math.min(count, goal)
-
-    return {
-        line: <>{text} <CountryFlag code={code}/> {country?.name ?? code}</>,
-        progress: <>
-            <div className="mission-bar"
-                 role="progressbar"
-                 aria-valuemin={0}
-                 aria-valuemax={goal}
-                 aria-valuenow={reached}
-                 aria-label={text}>
-                <div className="mission-bar-filled" style={{width: `${reached / goal * 100}%`}}/>
-            </div>
-            <span className="mission-count">{reached}/{goal}</span>
-        </>,
-    }
+    return <>
+        <div className="mission-bar"
+             role="progressbar"
+             aria-valuemin={0}
+             aria-valuemax={order.goal}
+             aria-valuenow={reached}
+             aria-label={orderOf(order)}>
+            <div className="mission-bar-filled" style={{width: `${reached / order.goal * 100}%`}}/>
+        </div>
+        <span className="mission-count">{reached}/{order.goal}</span>
+    </>
 }

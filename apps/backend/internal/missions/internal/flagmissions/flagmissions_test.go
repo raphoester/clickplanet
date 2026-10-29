@@ -16,7 +16,6 @@ import (
 var (
 	calendar = missions.NewCalendar(missions.Config{Cutoff: 21 * time.Hour})
 	monday   = time.Date(2026, 10, 26, 12, 0, 0, 0, time.UTC)
-	ada      = missions.AccountID{15: 1}
 )
 
 var world = missions.World{
@@ -146,9 +145,9 @@ var (
 
 var position uint64
 
-func take(ground string) missions.Take {
+func take(ground string) flagmissions.Take {
 	position++
-	return missions.Take{Account: ada, Flag: "fr", Ground: ground, At: monday, Position: position}
+	return flagmissions.Take{Flag: "fr", Ground: ground, At: monday, Position: position}
 }
 
 func strike(owner string, after time.Duration) flagmissions.Strike {

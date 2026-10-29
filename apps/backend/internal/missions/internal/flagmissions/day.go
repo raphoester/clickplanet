@@ -2,8 +2,6 @@ package flagmissions
 
 import (
 	"time"
-
-	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 )
 
 type DaySnapshot struct {
@@ -62,7 +60,7 @@ type Done struct {
 }
 
 // A take can be told twice: one below the mark was counted already. Takes come in ledger order.
-func (d Day) WithTake(take missions.Take) (Day, []Done) {
+func (d Day) WithTake(take Take) (Day, []Done) {
 	if take.Position < d.takesBelow {
 		return d, nil
 	}

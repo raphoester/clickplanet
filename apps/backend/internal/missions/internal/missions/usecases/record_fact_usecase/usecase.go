@@ -1,8 +1,9 @@
-package record_take_usecase
+package record_fact_usecase
 
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
@@ -20,6 +21,12 @@ type Payroll interface {
 	Pay(ctx context.Context, day missions.Day, account missions.AccountID) error
 }
 
+type In struct {
+	Account missions.AccountID
+	At      time.Time
+	Fact    missions.Fact
+}
+
 func New(
 	calendar missions.Calendar, briefing Briefing, sheets Sheets, transactioner cpatomic.Transactioner, payroll Payroll,
 ) *UseCase {
@@ -34,28 +41,28 @@ type UseCase struct {
 	payroll       Payroll
 }
 
-func (u *UseCase) Execute(ctx context.Context, take missions.Take) error {
-	day := u.calendar.DayOf(take.At)
+func (u *UseCase) Execute(ctx context.Context, in In) error {
+	day := u.calendar.DayOf(in.At)
 
-	brief, err := u.briefing.Of(ctx, day, take.Account)
+	brief, err := u.briefing.Of(ctx, day, in.Account)
 	if err != nil {
 		return fmt.Errorf("failed to read the account's missions: %w", err)
 	}
 
 	return u.transactioner.InTx(ctx, func(ctx context.Context) error {
 		finished := false
-		if err := u.sheets.ChangeSheet(ctx, day, take.Account, func(sheet missions.Sheet) missions.Sheet {
-			next := sheet.WithTake(take, brief)
+		if err := u.sheets.ChangeSheet(ctx, day, in.Account, func(sheet missions.Sheet) missions.Sheet {
+			next := sheet.WithFact(in.Fact, brief)
 			_, dueBefore := sheet.WithPayments(brief)
 			_, dueAfter := next.WithPayments(brief)
 			finished = len(dueAfter) > len(dueBefore)
 			return next
 		}); err != nil {
-			return fmt.Errorf("failed to count the take on the day's missions: %w", err)
+			return fmt.Errorf("failed to count the fact on the day's missions: %w", err)
 		}
 		if !finished {
 			return nil
 		}
-		return u.payroll.Pay(ctx, day, take.Account) //nolint:wrapcheck // the payroll named it.
+		return u.payroll.Pay(ctx, day, in.Account) //nolint:wrapcheck // the payroll named it.
 	})
 }

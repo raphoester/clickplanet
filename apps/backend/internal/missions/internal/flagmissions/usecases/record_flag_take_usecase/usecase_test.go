@@ -36,7 +36,6 @@ func (noPledges) FlagOf(context.Context, missions.AccountID) (string, error) { r
 var (
 	calendar = missions.NewCalendar(missions.Config{Cutoff: 21 * time.Hour})
 	at       = time.Date(2026, 10, 28, 12, 0, 0, 0, time.UTC)
-	ada      = missions.AccountID{15: 1}
 )
 
 func setUp(planet *countingPlanet) (*record_flag_take_usecase.UseCase, *inmemory_flag_day_store.Store, *cpatomic.FakeOutbox) {
@@ -45,8 +44,8 @@ func setUp(planet *countingPlanet) (*record_flag_take_usecase.UseCase, *inmemory
 		cpatomic.FakeTransactioner{}, outbox), store, outbox
 }
 
-func take(position uint64) missions.Take {
-	return missions.Take{Account: ada, Flag: "fr", Ground: "br", At: at, Position: position}
+func take(position uint64) flagmissions.Take {
+	return flagmissions.Take{Flag: "fr", Ground: "br", At: at, Position: position}
 }
 
 func TestATakeCountsOnItsFlagsDayDrawnOnce(t *testing.T) {

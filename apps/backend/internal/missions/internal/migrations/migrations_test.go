@@ -11,7 +11,29 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
-const briefsPerAccount = "20261028120000"
+const (
+	briefsPerAccount = "20261028120000"
+	countedFacts     = "20261028200000"
+)
+
+func TestASheetKeptBeforeCountedFactsKeepsItsTakesAndCountedNothingElse(t *testing.T) {
+	db := cppg.StartTestServer(t).OpenSchema(t, "missions", cppg.MigrationsBefore(t, migrations.FS, countedFacts))
+	ada := uuid.UUID{15: 1}
+	_, err := db.On(t.Context()).ExecContext(t.Context(),
+		`INSERT INTO mission_sheets (day, account_id, counted_takes_below) VALUES ('2026-10-28', $1, 7)`, ada)
+	require.NoError(t, err)
+
+	require.NoError(t, db.Migrate(t.Context(), migrations.FS))
+
+	var takes, bombs, shields, fortifies int64
+	var boxed, answered bool
+	require.NoError(t, db.On(t.Context()).QueryRowContext(t.Context(), `
+		SELECT counted_takes_below, counted_bombs_below, counted_shields_below, counted_fortifies_below,
+		       counted_boxes_until IS NOT NULL, counted_answers_until IS NOT NULL
+		FROM mission_sheets WHERE account_id = $1`, ada).Scan(&takes, &bombs, &shields, &fortifies, &boxed, &answered))
+	assert.Equal(t, []int64{7, 0, 0, 0}, []int64{takes, bombs, shields, fortifies})
+	assert.False(t, boxed || answered)
+}
 
 func TestEachSheetKeptBeforeBriefsPerAccountKeepsItsFlagsBrief(t *testing.T) {
 	db := cppg.StartTestServer(t).OpenSchema(t, "missions", cppg.MigrationsBefore(t, migrations.FS, briefsPerAccount))

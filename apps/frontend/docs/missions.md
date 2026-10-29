@@ -1,14 +1,16 @@
 # Missions
 
-Three to five missions a day of the player's own, drawn for the flag it played at its first read: a few
-banks for the flag, tiles from a rival, tiles on a big country's ground, then more rivals and grounds, each
+Four or five missions a day of the player's own, drawn for the flag it played at its first read: a few
+banks for the flag, tiles from a rival, tiles on a big country's ground, then one or two of the other kinds
+(boxes, quizzes, bombs on a country, tiles at 10 shields, tiles fortified, tiles of a rival in a country), each
 for a charge drawn with the day (shields, spread clicks, a bomb or enclosures). The backend's
 [Missions doc](../../backend/docs/missions.md) has the rules; the client only shows them: a mission done pays
 itself, with nothing to press.
 
 - **A place of its own**: the Missions tab (phone) and menu tab (desktop), `app/missions/MissionsPlace.tsx`.
-  Each row is its order's own parts (`partsOf`, one case per kind; a tile order is `orderOf`: "Take 40
-  tiles from", then the flag and the name, and a bar with `taken/goal`), its reward in its bonus color, and
+  Each row is its order's own parts (`partsOf`): its words (`orderOf`, one case per kind: "Take 40 tiles
+  from", "Drop 2 bombs on", "Catch 4 boxes"), then the flag and the name of each country it names, and a bar
+  with how far it went (`reachedOf`) over its goal, its reward in its bonus color, and
   **Done** once the backend says so (`done`: the client does not decide it). A guest sees
   the same rows and **Sign in to get it** on a mission done, which opens the sign-in pitch: its
   pay waits for the sign-in that day. "Ends in" is the day's own end, 21:00 UTC.
@@ -35,8 +37,10 @@ itself, with nothing to press.
   from a command, after the read that says the mission is paid, and no stream says so. The charge's
   own card (`BonusAward`) is for a box or a quiz, not a mission.
 - **A `Mission` is its id, its `order`, its reward, `done` and `paid`.** The order is one shape per kind
-  (`MissionOrder`, `TileOrder` today); `ConnectMissionsBackend` reads the proto's `oneof` and skips a mission whose
-  kind or reward it does not know.
+  (`MissionOrder`: `TileOrder` and `RaidOrder` count `taken`, `BombOrder`, `ShieldOrder` and `CountOrder` count
+  `reached`), and a flag mission's (`FlagMissionOrder`) is a `TileOrder` or a `BreakOrder`, which counts `reached`
+  too; `ConnectMissionsBackend` reads the proto's `oneof` and skips a mission whose kind or reward it does
+  not know.
 - `backends/missions.ts` is the contract, `ConnectMissionsBackend` (`missions.v1.MissionService`) the real one,
   `FakeMissionsBackend` the fake: it draws the day for the flag pledged at its first read (or its first
   take's), with a flag mission to break a rival's shields that this tab's takes stand for, counts every take of this tab, pays each mission done at once, and `finishMissions()` in the console puts

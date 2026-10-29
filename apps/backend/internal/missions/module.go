@@ -27,12 +27,18 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/usecases/forget_account_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/usecases/get_missions_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/usecases/pay_signed_in_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/usecases/record_take_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/usecases/record_fact_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missionsv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missionsv1controller/get_missions_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/account_deleted_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/bomb_landed_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/bonus_claimed_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/click_tried_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/flag_tile_taken_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/fortified_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/log_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/quiz_answered_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/shield_placed_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/sign_in_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/tile_taken_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
@@ -92,13 +98,12 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	flagDays := postgres_flag_day_store.New(db)
 	flags := flagmissions.NewBriefing(flagDays, world, allegiances)
 
-	takes, err := cpredis.Subscribe(ctx, streams, "missions-progress",
-		log_subscriber.New(tile_taken_subscriber.New(record_take_usecase.New(calendar, briefing, store, db, pay)), props.Logger))
+	facts, err := subscribeFacts(ctx, streams, record_fact_usecase.New(calendar, briefing, store, db, pay), props.Logger)
 	if err != nil {
 		closeStores()
-		return fmt.Errorf("failed to subscribe to planet.v1.TileTaken: %w", err)
+		return err
 	}
-	flagTakes, err := cpredis.Subscribe(ctx, streams, "missions-flag-takes", log_subscriber.New(tile_taken_subscriber.New(
+	flagTakes, err := cpredis.Subscribe(ctx, streams, "missions-flag-takes", log_subscriber.New(flag_tile_taken_subscriber.New(
 		record_flag_take_usecase.New(calendar, flags, flagDays, db, outbox),
 	), props.Logger))
 	if err != nil {
@@ -125,8 +130,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to subscribe to auth.v1.SignedIn: %w", err)
 	}
 
-	props.Runners.Add(cppg.CloseAfter(db, props.Logger, cpredis.CloseAfter(streams, props.Logger, takes, flagTakes, strikes, deletions, signIns,
-		cpoutbox.NewRelay("missions-outbox", db, redis_outbox_sender.New(streams, streams.Commands()), props.Logger))))
+	props.Runners.Add(cppg.CloseAfter(db, props.Logger, cpredis.CloseAfter(streams, props.Logger,
+		append(facts, flagTakes, strikes, deletions, signIns, cpoutbox.NewRelay("missions-outbox", db, redis_outbox_sender.New(streams, streams.Commands()), props.Logger))...)))
 
 	service := missionsv1controller.MissionService{
 		GetMissionsHandler: get_missions_handler.New(
@@ -144,6 +149,37 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		slog.String("schema", config.Database.Schema))
 
 	return nil
+}
+
+// Each kind of fact a mission counts, on its own stream. A group keeps its name: a new one reads its stream again.
+func subscribeFacts(
+	ctx context.Context, streams *cpredis.Streams, record *record_fact_usecase.UseCase, logger *slog.Logger,
+) ([]cpbootstrap.Runner, error) {
+	takes, err := cpredis.Subscribe(ctx, streams, "missions-progress", log_subscriber.New(tile_taken_subscriber.New(record), logger))
+	if err != nil {
+		return nil, fmt.Errorf("failed to subscribe to planet.v1.TileTaken: %w", err)
+	}
+	boxes, err := cpredis.Subscribe(ctx, streams, "missions-boxes", log_subscriber.New(bonus_claimed_subscriber.New(record), logger))
+	if err != nil {
+		return nil, fmt.Errorf("failed to subscribe to planet.v1.BonusClaimed: %w", err)
+	}
+	answers, err := cpredis.Subscribe(ctx, streams, "missions-answers", log_subscriber.New(quiz_answered_subscriber.New(record), logger))
+	if err != nil {
+		return nil, fmt.Errorf("failed to subscribe to planet.v1.QuizAnswered: %w", err)
+	}
+	bombs, err := cpredis.Subscribe(ctx, streams, "missions-bombs", log_subscriber.New(bomb_landed_subscriber.New(record), logger))
+	if err != nil {
+		return nil, fmt.Errorf("failed to subscribe to planet.v1.BombLanded: %w", err)
+	}
+	shields, err := cpredis.Subscribe(ctx, streams, "missions-shields", log_subscriber.New(shield_placed_subscriber.New(record), logger))
+	if err != nil {
+		return nil, fmt.Errorf("failed to subscribe to planet.v1.ShieldPlaced: %w", err)
+	}
+	fortifies, err := cpredis.Subscribe(ctx, streams, "missions-fortifies", log_subscriber.New(fortified_subscriber.New(record), logger))
+	if err != nil {
+		return nil, fmt.Errorf("failed to subscribe to planet.v1.Fortified: %w", err)
+	}
+	return []cpbootstrap.Runner{takes, boxes, answers, bombs, shields, fortifies}, nil
 }
 
 type Config struct {

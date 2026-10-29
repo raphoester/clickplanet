@@ -5,8 +5,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-
-	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 )
 
 var ErrNoOrder = errors.New("a flag mission has no order")
@@ -14,6 +12,14 @@ var ErrNoOrder = errors.New("a flag mission has no order")
 type MissionID uuid.UUID
 
 func (id MissionID) String() string { return uuid.UUID(id).String() }
+
+// A tile taken for Flag on Ground, Position in the ledger.
+type Take struct {
+	Flag     string
+	Ground   string
+	Position uint64
+	At       time.Time
+}
 
 // A shield of Owner that a click for Flag broke.
 type Strike struct {
@@ -24,7 +30,7 @@ type Strike struct {
 
 // What the whole flag is to do in a day: its own fields, and one progress from 0. A new kind is a new type.
 type Order interface {
-	advancedByTake(progress uint32, take missions.Take) uint32
+	advancedByTake(progress uint32, take Take) uint32
 	advancedByStrike(progress uint32, strike Strike) uint32
 	done(progress uint32) bool
 }
@@ -35,7 +41,7 @@ type TakeIn struct {
 	Goal   uint32
 }
 
-func (o TakeIn) advancedByTake(progress uint32, take missions.Take) uint32 {
+func (o TakeIn) advancedByTake(progress uint32, take Take) uint32 {
 	return counted(progress, o.Goal, take.Ground == o.Ground)
 }
 func (o TakeIn) advancedByStrike(progress uint32, _ Strike) uint32 { return progress }
@@ -47,7 +53,7 @@ type BreakShields struct {
 	Goal uint32
 }
 
-func (o BreakShields) advancedByTake(progress uint32, _ missions.Take) uint32 { return progress }
+func (o BreakShields) advancedByTake(progress uint32, _ Take) uint32 { return progress }
 func (o BreakShields) advancedByStrike(progress uint32, strike Strike) uint32 {
 	return counted(progress, o.Goal, strike.Owner == o.Flag)
 }

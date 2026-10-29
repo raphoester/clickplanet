@@ -47,7 +47,7 @@ describe("MissionsPlace", () => {
     it("shows the flag's mission above the player's, with the points it gives the flag", () => {
         render(<MissionsPlace state={{kind: "ready", day: {
             ...day(mission({})).day,
-            flagMission: {id: "flag", order: {kind: "breakShields", country: "dz", goal: 300, broken: 120}, points: 2, done: false},
+            flagMission: {id: "flag", order: {kind: "breakShields", country: "dz", goal: 300, reached: 120}, points: 2, done: false},
         }}}/>)
 
         const flag = screen.getByRole("region", {name: "Flag mission"})
@@ -55,6 +55,19 @@ describe("MissionsPlace", () => {
         expect(flag.textContent).toContain("Algeria")
         expect(flag.textContent).toContain("+2 points")
         expect(screen.getByText("120/300")).toBeDefined()
+    })
+
+    it("names both countries of a raid, and counts what a feat asks", () => {
+        render(<MissionsPlace state={day(
+            mission({id: "raid", order: {kind: "takeFromIn", country: "dz", ground: "br", goal: 60, taken: 7}}),
+            mission({id: "bomb", order: {kind: "bombIn", country: "br", goal: 2, reached: 1}}),
+            mission({id: "boxes", order: {kind: "catchBoxes", goal: 4, reached: 3}}),
+        )}/>)
+
+        expect(screen.getByText(/Take 60 tiles from/).textContent).toMatch(/Algeria in .*Brazil/)
+        expect(screen.getByText(/Drop 2 bombs on/).textContent).toContain("Brazil")
+        expect(screen.getByText("Catch 4 boxes")).toBeDefined()
+        expect(screen.getByText("3/4")).toBeDefined()
     })
 
     it("asks a guest to sign in to get a mission it finished", () => {

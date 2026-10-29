@@ -154,6 +154,42 @@ export class Mission extends Message<Mission> {
      */
     value: TakeIn;
     case: "takeIn";
+  } | {
+    /**
+     * @generated from field: missions.v1.TakeFromIn take_from_in = 13;
+     */
+    value: TakeFromIn;
+    case: "takeFromIn";
+  } | {
+    /**
+     * @generated from field: missions.v1.CatchBoxes catch_boxes = 14;
+     */
+    value: CatchBoxes;
+    case: "catchBoxes";
+  } | {
+    /**
+     * @generated from field: missions.v1.AnswerQuizzes answer_quizzes = 15;
+     */
+    value: AnswerQuizzes;
+    case: "answerQuizzes";
+  } | {
+    /**
+     * @generated from field: missions.v1.BombIn bomb_in = 16;
+     */
+    value: BombIn;
+    case: "bombIn";
+  } | {
+    /**
+     * @generated from field: missions.v1.ShieldTiles shield_tiles = 17;
+     */
+    value: ShieldTiles;
+    case: "shieldTiles";
+  } | {
+    /**
+     * @generated from field: missions.v1.FortifyTiles fortify_tiles = 18;
+     */
+    value: FortifyTiles;
+    case: "fortifyTiles";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<Mission>) {
@@ -171,6 +207,12 @@ export class Mission extends Message<Mission> {
     { no: 10, name: "take_for", kind: "message", T: TakeFor, oneof: "kind" },
     { no: 11, name: "take_from", kind: "message", T: TakeFrom, oneof: "kind" },
     { no: 12, name: "take_in", kind: "message", T: TakeIn, oneof: "kind" },
+    { no: 13, name: "take_from_in", kind: "message", T: TakeFromIn, oneof: "kind" },
+    { no: 14, name: "catch_boxes", kind: "message", T: CatchBoxes, oneof: "kind" },
+    { no: 15, name: "answer_quizzes", kind: "message", T: AnswerQuizzes, oneof: "kind" },
+    { no: 16, name: "bomb_in", kind: "message", T: BombIn, oneof: "kind" },
+    { no: 17, name: "shield_tiles", kind: "message", T: ShieldTiles, oneof: "kind" },
+    { no: 18, name: "fortify_tiles", kind: "message", T: FortifyTiles, oneof: "kind" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Mission {
@@ -340,6 +382,300 @@ export class TakeIn extends Message<TakeIn> {
 
   static equals(a: TakeIn | PlainMessage<TakeIn> | undefined, b: TakeIn | PlainMessage<TakeIn> | undefined): boolean {
     return proto3.util.equals(TakeIn, a, b);
+  }
+}
+
+/**
+ * Take goal tiles that country_id held on ground_id's land.
+ *
+ * @generated from message missions.v1.TakeFromIn
+ */
+export class TakeFromIn extends Message<TakeFromIn> {
+  /**
+   * @generated from field: string country_id = 1;
+   */
+  countryId = "";
+
+  /**
+   * @generated from field: string ground_id = 2;
+   */
+  groundId = "";
+
+  /**
+   * @generated from field: uint32 goal = 3;
+   */
+  goal = 0;
+
+  /**
+   * @generated from field: uint32 taken = 4;
+   */
+  taken = 0;
+
+  constructor(data?: PartialMessage<TakeFromIn>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "missions.v1.TakeFromIn";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "ground_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "goal", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 4, name: "taken", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TakeFromIn {
+    return new TakeFromIn().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): TakeFromIn {
+    return new TakeFromIn().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): TakeFromIn {
+    return new TakeFromIn().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: TakeFromIn | PlainMessage<TakeFromIn> | undefined, b: TakeFromIn | PlainMessage<TakeFromIn> | undefined): boolean {
+    return proto3.util.equals(TakeFromIn, a, b);
+  }
+}
+
+/**
+ * Catch goal boxes.
+ *
+ * @generated from message missions.v1.CatchBoxes
+ */
+export class CatchBoxes extends Message<CatchBoxes> {
+  /**
+   * @generated from field: uint32 goal = 1;
+   */
+  goal = 0;
+
+  /**
+   * @generated from field: uint32 caught = 2;
+   */
+  caught = 0;
+
+  constructor(data?: PartialMessage<CatchBoxes>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "missions.v1.CatchBoxes";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "goal", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "caught", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CatchBoxes {
+    return new CatchBoxes().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CatchBoxes {
+    return new CatchBoxes().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CatchBoxes {
+    return new CatchBoxes().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CatchBoxes | PlainMessage<CatchBoxes> | undefined, b: CatchBoxes | PlainMessage<CatchBoxes> | undefined): boolean {
+    return proto3.util.equals(CatchBoxes, a, b);
+  }
+}
+
+/**
+ * Answer goal quizzes right.
+ *
+ * @generated from message missions.v1.AnswerQuizzes
+ */
+export class AnswerQuizzes extends Message<AnswerQuizzes> {
+  /**
+   * @generated from field: uint32 goal = 1;
+   */
+  goal = 0;
+
+  /**
+   * @generated from field: uint32 answered = 2;
+   */
+  answered = 0;
+
+  constructor(data?: PartialMessage<AnswerQuizzes>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "missions.v1.AnswerQuizzes";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "goal", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "answered", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AnswerQuizzes {
+    return new AnswerQuizzes().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AnswerQuizzes {
+    return new AnswerQuizzes().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AnswerQuizzes {
+    return new AnswerQuizzes().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: AnswerQuizzes | PlainMessage<AnswerQuizzes> | undefined, b: AnswerQuizzes | PlainMessage<AnswerQuizzes> | undefined): boolean {
+    return proto3.util.equals(AnswerQuizzes, a, b);
+  }
+}
+
+/**
+ * Drop goal bombs on country_id's land.
+ *
+ * @generated from message missions.v1.BombIn
+ */
+export class BombIn extends Message<BombIn> {
+  /**
+   * @generated from field: string country_id = 1;
+   */
+  countryId = "";
+
+  /**
+   * @generated from field: uint32 goal = 2;
+   */
+  goal = 0;
+
+  /**
+   * @generated from field: uint32 dropped = 3;
+   */
+  dropped = 0;
+
+  constructor(data?: PartialMessage<BombIn>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "missions.v1.BombIn";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "goal", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "dropped", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BombIn {
+    return new BombIn().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BombIn {
+    return new BombIn().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BombIn {
+    return new BombIn().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BombIn | PlainMessage<BombIn> | undefined, b: BombIn | PlainMessage<BombIn> | undefined): boolean {
+    return proto3.util.equals(BombIn, a, b);
+  }
+}
+
+/**
+ * Bring goal tiles to shields shields each.
+ *
+ * @generated from message missions.v1.ShieldTiles
+ */
+export class ShieldTiles extends Message<ShieldTiles> {
+  /**
+   * @generated from field: uint32 shields = 1;
+   */
+  shields = 0;
+
+  /**
+   * @generated from field: uint32 goal = 2;
+   */
+  goal = 0;
+
+  /**
+   * @generated from field: uint32 shielded = 3;
+   */
+  shielded = 0;
+
+  constructor(data?: PartialMessage<ShieldTiles>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "missions.v1.ShieldTiles";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "shields", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "goal", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "shielded", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ShieldTiles {
+    return new ShieldTiles().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ShieldTiles {
+    return new ShieldTiles().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ShieldTiles {
+    return new ShieldTiles().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ShieldTiles | PlainMessage<ShieldTiles> | undefined, b: ShieldTiles | PlainMessage<ShieldTiles> | undefined): boolean {
+    return proto3.util.equals(ShieldTiles, a, b);
+  }
+}
+
+/**
+ * Fortify goal tiles: each landmass made whole counts its tiles.
+ *
+ * @generated from message missions.v1.FortifyTiles
+ */
+export class FortifyTiles extends Message<FortifyTiles> {
+  /**
+   * @generated from field: uint32 goal = 1;
+   */
+  goal = 0;
+
+  /**
+   * @generated from field: uint32 fortified = 2;
+   */
+  fortified = 0;
+
+  constructor(data?: PartialMessage<FortifyTiles>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "missions.v1.FortifyTiles";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "goal", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "fortified", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FortifyTiles {
+    return new FortifyTiles().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): FortifyTiles {
+    return new FortifyTiles().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): FortifyTiles {
+    return new FortifyTiles().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: FortifyTiles | PlainMessage<FortifyTiles> | undefined, b: FortifyTiles | PlainMessage<FortifyTiles> | undefined): boolean {
+    return proto3.util.equals(FortifyTiles, a, b);
   }
 }
 
