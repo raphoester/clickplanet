@@ -26,12 +26,12 @@ func TestEachChangeIsRecordedAndSaysTheStatsChanged(t *testing.T) {
 	events := cpredis.NewRecordedEvents()
 	useCase := record_stats_usecase.New(store, events)
 
-	require.NoError(t, useCase.Execute(t.Context(), record_stats_usecase.In{Account: ada, Change: players.TakeAt(0, at)}))
+	require.NoError(t, useCase.Execute(t.Context(), record_stats_usecase.In{Account: ada, Change: players.TakeAt(0, 0, at)}))
 	require.NoError(t, useCase.Execute(t.Context(), record_stats_usecase.In{Account: ada, Change: players.BombAt(1)}))
 
 	stats, err := store.Stats(t.Context(), ada)
 	require.NoError(t, err)
-	assert.Equal(t, players.NewStats(ada).WithTake(0, at).WithBomb(1), stats)
+	assert.Equal(t, players.NewStats(ada).WithTake(0, 0, at).WithBomb(1), stats)
 	require.Len(t, events.Published(), 2)
 	assert.True(t, proto.Equal(&playerv1.StatsChanged{AccountId: ada.String()}, events.Published()[1]))
 }

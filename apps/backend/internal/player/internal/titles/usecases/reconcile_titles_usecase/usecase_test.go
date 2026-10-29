@@ -47,7 +47,7 @@ func (f fixture) player(t *testing.T, i, tiles int, known players.Account) {
 	t.Helper()
 
 	for range tiles {
-		require.NoError(t, f.stats.Record(t.Context(), account(i), players.TakeAt(*f.taken, now)))
+		require.NoError(t, f.stats.Record(t.Context(), account(i), players.TakeAt(*f.taken, 0, now)))
 		*f.taken++
 	}
 	f.accounts.Create(account(i), known)

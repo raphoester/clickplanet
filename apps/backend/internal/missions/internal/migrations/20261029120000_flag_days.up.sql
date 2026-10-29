@@ -1,10 +1,11 @@
 CREATE TABLE flag_days (
-    day                   date        NOT NULL,
-    flag                  text        NOT NULL CHECK (flag <> ''),
-    takes                 bigint      NOT NULL CHECK (takes >= 0),
-    counted_takes_below   bigint      NOT NULL CHECK (counted_takes_below >= 0),
-    strikes               bigint      NOT NULL CHECK (strikes >= 0),
-    counted_strikes_until timestamptz NOT NULL,
+    day                       date        NOT NULL,
+    flag                      text        NOT NULL CHECK (flag <> ''),
+    takes                     bigint      NOT NULL CHECK (takes >= 0),
+    counted_takes_below       bigint      NOT NULL CHECK (counted_takes_below >= 0),
+    counted_takes_below_index integer     NOT NULL CHECK (counted_takes_below_index >= 0),
+    strikes                   bigint      NOT NULL CHECK (strikes >= 0),
+    counted_strikes_until     timestamptz NOT NULL,
     PRIMARY KEY (day, flag)
 );
 

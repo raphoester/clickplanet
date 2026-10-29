@@ -36,6 +36,7 @@ func (s Subscriber) Handle(ctx context.Context, event *planetv1.TileTaken) error
 	defer cancel()
 
 	return s.useCase.Execute(ctx, flagmissions.Take{ //nolint:wrapcheck // the use case named it.
-		Flag: event.GetCountry(), Ground: event.GetGround(), Position: event.GetPosition(), At: event.GetTakenAt().AsTime(),
+		Flag: event.GetCountry(), Ground: event.GetGround(), Position: event.GetPosition(), Index: event.GetIndex(),
+		At: event.GetTakenAt().AsTime(),
 	})
 }

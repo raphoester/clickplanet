@@ -102,8 +102,10 @@ internal/missions/internal/
     shield or a fortify with no account, is dropped by its subscriber. **Not from the ledger**: `ledger_events` has no
     time index, and an account's takes since the cutoff would read every take it ever made. **A fact told twice counts
     once**: Redis delivers at least once, and the sheet keeps a mark per kind (`missions.Counted`, the
-    `mission_sheets.counted_*` columns): the ledger position after the last take, bomb, shield and fortify it counted,
-    and the time of the last box and right answer, so one at or below its mark counts nothing. Each kind has its own
+    `mission_sheets.counted_*` columns): the ledger position after the last bomb, shield and fortify it counted, the
+    time of the last box and right answer, so one at or below its mark counts nothing. A take's mark is the position
+    and index past the last take counted (`missions.TakeMark`: `counted_takes_below`, `counted_takes_below_index`):
+    the takes of a spread or an enclose share one position, and each has its own index. Each kind has its own
     mark because each comes on its own stream, in no order with the others. Two boxes or answers of one account in the
     same microsecond count once.
   - **A mission done is paid at once, with no claim** (`payroll.Pay`, `Sheet.WithPayments`). The take that finishes it
@@ -145,11 +147,12 @@ day and a flag), so it has its own package and store (`flagmissions`).
   before (`Day.Previous`); the store's first `KeepDay` wins. `OfPlayer` is the day of the flag the account plays now
   (`GetAllegianceOf`), none with no flag.
 - **Counted from two facts, each in its own group**: `TileTaken` (`missions-flag-takes`, `flag_tile_taken_subscriber`,
-  `record_flag_take_usecase`), and `ClickTried` whose outcome is `STRUCK`, a click a shield
-  took (`missions-flag-strikes`, `click_tried_subscriber`, `record_strike_usecase`): `country` is the flag that broke it,
-  `owner` the shield's. **A fact told twice counts once**: a take below the ledger mark (`counted_takes_below`), and a
-  strike at or before the last time counted (`counted_strikes_until`), since planet tells its callers' facts in the
-  order of their times. `ClickTried` is not in an outbox: a strike Redis lost is a shield short.
+  `record_flag_take_usecase`), and `ClickTried` whose outcome is `STRUCK`, a click a shield took
+  (`missions-flag-strikes`, `click_tried_subscriber`, `record_strike_usecase`): `country` is the flag that broke it,
+  `owner` the shield's. **A fact told twice counts once**: a take below the ledger mark (`missions.TakeMark`:
+  `counted_takes_below` and `counted_takes_below_index`, since a spread's takes share one position), and a strike at or
+  before the last time counted (`counted_strikes_until`), since planet tells its callers' facts in the order of their
+  times. `ClickTried` is not in an outbox: a strike Redis lost is a shield short.
 - **The fact that finishes it gives the points, once** (`Day.WithTake`, `WithStrike`, `Done`): in the transaction
   that counts it, the use case records `scoring.v1.GrantPoints` in missions' outbox (`scoringgrant.Of`): the mission's id
   as `grant_id`, the flag, the points, and the fact's time as `granted_at`, so scoring counts them in the books open
@@ -157,6 +160,6 @@ day and a flag), so it has its own package and store (`flagmissions`).
 - **`GetMissions` answers `flag_mission`**, the mission of the flag the caller plays now: its id, its points, `done`,
   and its kind (`take_in` with the tiles taken, `break_shields` with the shields broken). None with no flag, or no
   mission that day.
-- **Kept in `flag_days`** (`day`, `flag`, `takes`, `counted_takes_below`, `strikes`, `counted_strikes_until`) and
-  **`flag_missions`** (`mission_id`, `kind` of the enum `flag_mission_kind`, the kind's own fields in `payload`, `points`,
-  `progress`, `done`): a day with no mission has no row there. They name no account, so `AccountDeleted` leaves them.
+- **Kept in `flag_days`** (`day`, `flag`, `takes`, `counted_takes_below`, `counted_takes_below_index`, `strikes`,
+  `counted_strikes_until`) and **`flag_missions`** (`mission_id`, `kind` of the enum `flag_mission_kind`, the kind's
+  own fields in `payload`, `points`, `progress`, `done`): a day with no mission has no row there. They name no account, so `AccountDeleted` leaves them.

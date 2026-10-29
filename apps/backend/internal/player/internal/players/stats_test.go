@@ -14,7 +14,7 @@ var beforeMidnight = time.Date(2026, 9, 17, 23, 59, 59, 0, time.UTC)
 func taken(at ...time.Time) players.Stats {
 	var stats players.Stats
 	for position, take := range at {
-		stats = stats.WithTake(uint64(position), take)
+		stats = stats.WithTake(uint64(position), 0, take)
 	}
 	return stats
 }
@@ -24,7 +24,7 @@ func TestTheFirstTakeStartsAStreakOfOne(t *testing.T) {
 
 	assert.Equal(t, players.StatsSnapshot{
 		TilesTaken: 1, Streak: players.StreakOf(1, players.DayOf(beforeMidnight)), StreakBest: 1,
-		Counted: players.Counted{TakesBelow: 1},
+		Counted: players.Counted{TakesBelow: players.TakeMark{Position: 0, Index: 1}},
 	}.Restore(), stats)
 }
 
@@ -88,7 +88,7 @@ func TestNoTakeIsNoDay(t *testing.T) {
 func TestAMessageCountsAMessageAndLeavesTheTilesAndTheStreakAlone(t *testing.T) {
 	want := players.StatsSnapshot{
 		TilesTaken: 1, Streak: players.StreakOf(1, players.DayOf(beforeMidnight)), StreakBest: 1, MessagesSent: 2,
-		Counted: players.Counted{TakesBelow: 1, MessagesUntil: beforeMidnight.Add(time.Second)},
+		Counted: players.Counted{TakesBelow: players.TakeMark{Position: 0, Index: 1}, MessagesUntil: beforeMidnight.Add(time.Second)},
 	}.Restore()
 
 	assert.Equal(t, want, taken(beforeMidnight).WithMessage(beforeMidnight).WithMessage(beforeMidnight.Add(time.Second)))
@@ -110,13 +110,25 @@ func TestEachCounterCountsItsOwnActAndLeavesTheStreakAlone(t *testing.T) {
 }
 
 func TestALedgerFactAtOrBeforeTheLastOneCountedIsCountedAlready(t *testing.T) {
-	stats := players.Stats{}.WithTake(7, beforeMidnight).WithTake(7, beforeMidnight).WithTake(3, beforeMidnight).
+	stats := players.Stats{}.WithTake(7, 0, beforeMidnight).WithTake(7, 0, beforeMidnight).WithTake(3, 0, beforeMidnight).
 		WithBomb(7).WithBomb(7).WithFortify(7, 60).WithFortify(7, 60)
 
 	assert.Equal(t, uint64(1), stats.TilesTaken())
 	assert.Equal(t, uint64(1), stats.BombsDropped(), "takes, bombs and fortifies each keep their own mark")
 	assert.Equal(t, uint64(60), stats.TilesFortified())
-	assert.Equal(t, uint64(2), stats.WithTake(8, beforeMidnight).TilesTaken())
+	assert.Equal(t, uint64(2), stats.WithTake(8, 0, beforeMidnight).TilesTaken())
+}
+
+func TestEachTakeOfASpreadCountsOnceThoughTheyShareAPosition(t *testing.T) {
+	stats := players.Stats{}
+	for range 2 {
+		for index := range uint32(7) {
+			stats = stats.WithTake(7, index, beforeMidnight)
+		}
+	}
+
+	assert.Equal(t, uint64(7), stats.TilesTaken())
+	assert.Equal(t, players.TakeMark{Position: 7, Index: 7}, stats.TakeSnapshot().Counted.TakesBelow)
 }
 
 func TestAFactAtOrBeforeTheTimeOfTheLastOneCountedIsCountedAlready(t *testing.T) {

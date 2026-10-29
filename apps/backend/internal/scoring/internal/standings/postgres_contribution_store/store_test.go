@@ -34,7 +34,8 @@ func (s *testSuite) SetupSuite() {
 
 func (s *testSuite) tallyOf(book books.BookID, account standings.AccountID) standings.Tally {
 	rows, err := s.db.On(s.T().Context()).QueryContext(s.T().Context(),
-		`SELECT country, tiles, main, counted_takes_below FROM contributions WHERE book_id = $1 AND account_id = $2`,
+		`SELECT country, tiles, main, counted_takes_below, counted_takes_below_index FROM contributions
+		WHERE book_id = $1 AND account_id = $2 ORDER BY counted_takes_below, counted_takes_below_index`,
 		string(book), uuid.UUID(account))
 	s.Require().NoError(err)
 	defer func() { _ = rows.Close() }()
@@ -46,10 +47,11 @@ func (s *testSuite) tallyOf(book books.BookID, account standings.AccountID) stan
 			tiles   uint64
 			main    bool
 			below   uint64
+			index   uint32
 		)
-		s.Require().NoError(rows.Scan(&country, &tiles, &main, &below))
+		s.Require().NoError(rows.Scan(&country, &tiles, &main, &below, &index))
 		tally.Tiles[standings.Country(country)] = tiles
-		tally.TakesBelow = max(tally.TakesBelow, below)
+		tally.TakesBelow = standings.TakeMark{Position: below, Index: index}
 		if main {
 			tally.Main = standings.Country(country)
 		}

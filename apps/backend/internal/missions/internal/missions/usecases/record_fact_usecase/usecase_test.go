@@ -60,8 +60,27 @@ func TestATakeCountsOnTheMissionsOfItsDay(t *testing.T) {
 	assert.Equal(t, missions.SheetSnapshot{
 		Progress: map[missions.MissionID]uint32{drawn[0].ID: 1, drawn[1].ID: 1, drawn[2].ID: 1},
 		Paid:     cpcolls.NewSet[missions.MissionID](),
-		Counted:  missions.Counted{TakesBelow: 42},
+		Counted:  missions.Counted{TakesBelow: missions.TakeMark{Position: 41, Index: 1}},
 	}, sheet.Snapshot(), "with no ground big enough, the third mission is the flag's too")
+}
+
+func TestASpreadCountsEachTileItTookOnce(t *testing.T) {
+	store := inmemory_mission_store.New()
+	useCase := record_fact_usecase.New(calendar, missions.NewBriefing(store, &countingPlanet{}, pledged("fr")), store,
+		cpatomic.FakeTransactioner{}, &recordingPayroll{})
+
+	for range 2 {
+		for index := range uint32(7) {
+			require.NoError(t, useCase.Execute(t.Context(), record_fact_usecase.In{
+				Account: ada, At: at, Fact: missions.Take{Flag: "fr", Position: 41, Index: index},
+			}))
+		}
+	}
+
+	sheet, err := store.Sheet(t.Context(), calendar.DayOf(at), ada)
+	require.NoError(t, err)
+	drawn := missions.Draw(calendar.DayOf(at), ada, "fr", missions.World{Territories: []missions.Territory{{Flag: "dz", Tiles: 9_000}}}).Snapshot()
+	assert.Equal(t, uint32(7), sheet.Snapshot().Progress[drawn[0].ID], "one ledger event, seven takes, told twice")
 }
 
 func TestAnAccountsMissionsAreDrawnOnceADay(t *testing.T) {

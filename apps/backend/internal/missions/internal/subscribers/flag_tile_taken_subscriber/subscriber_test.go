@@ -29,10 +29,10 @@ func TestATakeCountsForTheFlagItWasTakenFor(t *testing.T) {
 	useCase := &recordingUseCase{}
 
 	require.NoError(t, flag_tile_taken_subscriber.New(useCase).Handle(t.Context(), &planetv1.TileTaken{
-		Country: "fr", Previous: "dz", Ground: "br", Position: 7, TakenAt: timestamppb.New(at),
+		Country: "fr", Previous: "dz", Ground: "br", Position: 7, Index: 2, TakenAt: timestamppb.New(at),
 	}))
 
-	assert.Equal(t, []flagmissions.Take{{Flag: "fr", Ground: "br", Position: 7, At: at}}, useCase.takes)
+	assert.Equal(t, []flagmissions.Take{{Flag: "fr", Ground: "br", Position: 7, Index: 2, At: at}}, useCase.takes)
 }
 
 func TestATakeWithNoTimeIsRefused(t *testing.T) {

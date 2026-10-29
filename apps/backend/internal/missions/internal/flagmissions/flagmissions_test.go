@@ -173,7 +173,20 @@ func TestATakeToldTwiceCountsOnce(t *testing.T) {
 
 	assert.Equal(t, uint64(1), day.Snapshot().Takes)
 	assert.Equal(t, uint32(1), day.Snapshot().Progress)
-	assert.Equal(t, told.Position+1, day.Snapshot().TakesBelow)
+	assert.Equal(t, missions.TakeMark{Position: told.Position, Index: 1}, day.Snapshot().TakesBelow)
+}
+
+func TestEachTakeOfASpreadCountsThoughTheyShareAPosition(t *testing.T) {
+	first := take("br")
+	second := first
+	second.Index = 1
+
+	day, _ := dayOf(t, flagmissions.DaySnapshot{Mission: conquer}).WithTake(first)
+	day, done := day.WithTake(second)
+	day, _ = day.WithTake(first)
+
+	assert.Equal(t, uint64(2), day.Snapshot().Takes)
+	assert.Equal(t, []flagmissions.Done{{Mission: mission, Points: 3}}, done)
 }
 
 func TestTheTakeThatFinishesTheMissionGivesItsPointsOnce(t *testing.T) {
@@ -222,7 +235,7 @@ func TestADayWithNoMissionStillCountsForTomorrow(t *testing.T) {
 	day, _ = day.WithStrike(strike("dz", time.Second))
 
 	assert.Empty(t, done)
-	assert.Equal(t, flagmissions.DaySnapshot{Takes: 1, TakesBelow: position + 1, Strikes: 1, StrikesUntil: monday.Add(time.Second)},
+	assert.Equal(t, flagmissions.DaySnapshot{Takes: 1, TakesBelow: missions.TakeMark{Position: position, Index: 1}, Strikes: 1, StrikesUntil: monday.Add(time.Second)},
 		day.Snapshot())
 }
 

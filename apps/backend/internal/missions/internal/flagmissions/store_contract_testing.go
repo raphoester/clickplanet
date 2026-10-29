@@ -85,7 +85,7 @@ func (s *StoreContractSuite) TestAChangeIsKept() {
 	s.keep(contractDay, "fr", s.drawn(1, TakeIn{Ground: "br", Goal: 300}))
 	changed := DaySnapshot{
 		Mission:  &MissionSnapshot{ID: MissionID{15: 1}, Order: TakeIn{Ground: "br", Goal: 300}, Points: 2},
-		Progress: 300, Done: true, Takes: 1_200, TakesBelow: 99, Strikes: 40, StrikesUntil: contractAt,
+		Progress: 300, Done: true, Takes: 1_200, TakesBelow: missions.TakeMark{Position: 99, Index: 3}, Strikes: 40, StrikesUntil: contractAt,
 	}
 
 	s.Require().NoError(s.store.ChangeDay(s.T().Context(), contractDay, "fr", func(Day) Day {
@@ -101,10 +101,10 @@ func (s *StoreContractSuite) TestAChangeOfADayWithNoMissionKeepsItsCounts() {
 	s.keep(contractDay, "fr", Day{})
 
 	s.Require().NoError(s.store.ChangeDay(s.T().Context(), contractDay, "fr", func(Day) Day {
-		return Day{takes: 7, takesBelow: 8}
+		return Day{takes: 7, takesBelow: missions.TakeMark{Position: 8}}
 	}))
 
-	s.Equal(DaySnapshot{Takes: 7, TakesBelow: 8}, s.day(contractDay, "fr"))
+	s.Equal(DaySnapshot{Takes: 7, TakesBelow: missions.TakeMark{Position: 8}}, s.day(contractDay, "fr"))
 }
 
 func (s *StoreContractSuite) TestADayNeverKeptCannotChange() {

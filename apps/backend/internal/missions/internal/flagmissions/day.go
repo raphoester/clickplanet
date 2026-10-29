@@ -2,6 +2,8 @@ package flagmissions
 
 import (
 	"time"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 )
 
 type DaySnapshot struct {
@@ -10,7 +12,7 @@ type DaySnapshot struct {
 	Progress     uint32
 	Done         bool
 	Takes        uint64
-	TakesBelow   uint64
+	TakesBelow   missions.TakeMark
 	Strikes      uint64
 	StrikesUntil time.Time
 }
@@ -21,7 +23,7 @@ type Day struct {
 	progress     uint32
 	done         bool
 	takes        uint64
-	takesBelow   uint64
+	takesBelow   missions.TakeMark
 	strikes      uint64
 	strikesUntil time.Time
 }
@@ -59,14 +61,15 @@ type Done struct {
 	Points  uint32
 }
 
-// A take can be told twice: one below the mark was counted already. Takes come in ledger order.
+// A take can be told twice: one below the mark was counted already. Takes come in ledger order, and the takes of one
+// spread or enclose, which share a position, in index order.
 func (d Day) WithTake(take Take) (Day, []Done) {
-	if take.Position < d.takesBelow {
+	if take.Position < d.takesBelow.Position || take.Position == d.takesBelow.Position && take.Index < d.takesBelow.Index {
 		return d, nil
 	}
 	next := d
 	next.takes++
-	next.takesBelow = take.Position + 1
+	next.takesBelow = missions.TakeMark{Position: take.Position, Index: take.Index + 1}
 	if next.mission != nil {
 		next.progress = next.mission.Order.advancedByTake(next.progress, take)
 	}

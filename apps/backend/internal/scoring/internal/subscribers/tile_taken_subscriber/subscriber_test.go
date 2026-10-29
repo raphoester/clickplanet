@@ -39,7 +39,29 @@ func TestATakeCountsForItsFlagAtTheTimeItWasTaken(t *testing.T) {
 	require.NoError(t, err)
 	id, err := standings.AccountIDOf(account)
 	require.NoError(t, err)
-	assert.Equal(t, standings.Tally{Main: "fr", Tiles: map[standings.Country]uint64{"fr": 1}, TakesBelow: 10}, store.Tally("season-0", id))
+	assert.Equal(t, standings.Tally{Main: "fr", Tiles: map[standings.Country]uint64{"fr": 1}, TakesBelow: standings.TakeMark{Position: 9, Index: 1}}, store.Tally("season-0", id))
+}
+
+func TestASpreadCountsEachTileItTookOnce(t *testing.T) {
+	store := inmemory_contribution_store.New()
+	handler := subscriber(t, store)
+	spread := make([]*planetv1.TileTaken, 0, 7)
+	for index := range uint32(7) {
+		spread = append(spread, &planetv1.TileTaken{
+			AccountId: account, TileId: 40 + index, Country: "fr", TakenAt: timestamppb.New(seasonZeroEnds.Add(-time.Hour)),
+			Position: 9, Index: index,
+		})
+	}
+
+	for range 2 {
+		for _, take := range spread {
+			require.NoError(t, handler.Handle(t.Context(), take))
+		}
+	}
+
+	id, err := standings.AccountIDOf(account)
+	require.NoError(t, err)
+	assert.Equal(t, uint64(7), store.Tally("season-0", id).Tiles["fr"], "one ledger event, seven takes, told twice")
 }
 
 func TestAnEventWithNoAccountNoCountryOrNoTimeIsRefused(t *testing.T) {

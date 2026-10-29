@@ -46,6 +46,25 @@ func TestATakeDuringARoundCountsForItsFlagAndItsPlayer(t *testing.T) {
 	assert.Len(t, counted.Players, 1)
 }
 
+func TestASpreadCountsEachTileItTookOnce(t *testing.T) {
+	handler, store := subscriber(t)
+	spread := make([]*planetv1.TileTaken, 0, 7)
+	for index := range uint32(7) {
+		spread = append(spread, &planetv1.TileTaken{
+			AccountId: account, TileId: 40 + index, Country: "fr", TakenAt: timestamppb.New(battle.StartsAt.Add(time.Minute)),
+			Position: 9, Index: index,
+		})
+	}
+
+	for range 2 {
+		for _, take := range spread {
+			require.NoError(t, handler.Handle(t.Context(), take))
+		}
+	}
+
+	assert.Equal(t, map[books.Country]uint64{"fr": 7}, store.CountedIn(battle.ID).Countries, "one ledger event, seven takes, told twice")
+}
+
 func TestAnEventWithNoAccountNoCountryOrNoTimeIsRefused(t *testing.T) {
 	handler, _ := subscriber(t)
 	at := timestamppb.New(battle.StartsAt)

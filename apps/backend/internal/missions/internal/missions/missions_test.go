@@ -428,11 +428,24 @@ func TestATakeToldTwiceCountsOnce(t *testing.T) {
 	sheet := missions.SheetOf(missions.SheetSnapshot{}).WithFact(told, brief).WithFact(told, brief)
 
 	assert.Equal(t, map[missions.MissionID]uint32{bank: 1, rival: 1}, sheet.Snapshot().Progress)
-	assert.Equal(t, told.Position+1, sheet.Snapshot().Counted.TakesBelow)
+	assert.Equal(t, missions.TakeMark{Position: told.Position, Index: 1}, sheet.Snapshot().Counted.TakesBelow)
+}
+
+func TestEachTakeOfASpreadCountsOnceThoughTheyShareAPosition(t *testing.T) {
+	brief := briefOf(t, frBrief...)
+	sheet := missions.SheetOf(missions.SheetSnapshot{})
+	for range 2 {
+		for index := range uint32(2) {
+			sheet = sheet.WithFact(missions.Take{Flag: "fr", Position: 7, Index: index}, brief)
+		}
+	}
+
+	assert.Equal(t, uint32(2), sheet.Snapshot().Progress[bank])
+	assert.Equal(t, missions.TakeMark{Position: 7, Index: 2}, sheet.Snapshot().Counted.TakesBelow)
 }
 
 func TestATakeBelowTheMarkCountsNothing(t *testing.T) {
-	sheet := missions.SheetOf(missions.SheetSnapshot{Counted: missions.Counted{TakesBelow: 1_000}})
+	sheet := missions.SheetOf(missions.SheetSnapshot{Counted: missions.Counted{TakesBelow: missions.TakeMark{Position: 1_000}}})
 
 	sheet = sheet.WithFact(missions.Take{Flag: "fr", Position: 999}, briefOf(t, frBrief...))
 
@@ -440,11 +453,11 @@ func TestATakeBelowTheMarkCountsNothing(t *testing.T) {
 }
 
 func TestATakeThatCountsNothingLeavesTheMark(t *testing.T) {
-	sheet := missions.SheetOf(missions.SheetSnapshot{Counted: missions.Counted{TakesBelow: 5}})
+	sheet := missions.SheetOf(missions.SheetSnapshot{Counted: missions.Counted{TakesBelow: missions.TakeMark{Position: 5}}})
 
 	sheet = sheet.WithFact(missions.Take{Flag: "de", Position: 9}, briefOf(t, frBrief...))
 
-	assert.Equal(t, uint64(5), sheet.Snapshot().Counted.TakesBelow)
+	assert.Equal(t, missions.TakeMark{Position: 5}, sheet.Snapshot().Counted.TakesBelow)
 }
 
 func TestAWithFactLeavesTheSheetItWasCalledOnAlone(t *testing.T) {
@@ -519,7 +532,8 @@ func TestEachKindOfFactKeepsItsOwnMark(t *testing.T) {
 		WithFact(missions.RightAnswer{At: monday.Add(-time.Hour)}, brief)
 
 	assert.Equal(t, missions.Counted{
-		TakesBelow: 10, BombsBelow: 4, ShieldsBelow: 5, FortifiesBelow: 6, BoxesUntil: monday, AnswersUntil: monday.Add(-time.Hour),
+		TakesBelow: missions.TakeMark{Position: 9, Index: 1}, BombsBelow: 4, ShieldsBelow: 5, FortifiesBelow: 6,
+		BoxesUntil: monday, AnswersUntil: monday.Add(-time.Hour),
 	}, sheet.Snapshot().Counted, "a bomb below the last take still counts")
 }
 

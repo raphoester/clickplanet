@@ -2,15 +2,15 @@ package standings
 
 import "maps"
 
-// A take can be told twice: one below the mark was counted already. Takes come in ledger order.
+// A take can be told twice: one below the mark was counted already. Takes come in ledger order, then index order.
 type Tally struct {
 	Main       Country
 	Tiles      map[Country]uint64
-	TakesBelow uint64
+	TakesBelow TakeMark
 }
 
 func (t Tally) WithTake(take Take) Tally {
-	if take.Position < t.TakesBelow {
+	if t.TakesBelow.counted(take) {
 		return t
 	}
 
@@ -24,7 +24,7 @@ func (t Tally) WithTake(take Take) Tally {
 	if t.Empty() || tiles[take.Country] > tiles[main] {
 		main = take.Country
 	}
-	return Tally{Main: main, Tiles: tiles, TakesBelow: take.Position + 1}
+	return Tally{Main: main, Tiles: tiles, TakesBelow: takeMarkPast(take)}
 }
 
 func (t Tally) Empty() bool {

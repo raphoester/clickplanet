@@ -24,7 +24,7 @@ type Store struct {
 var _ flagmissions.Store = (*Store)(nil)
 
 const selectDay = `
-	SELECT day.takes, day.counted_takes_below, day.strikes, day.counted_strikes_until,
+	SELECT day.takes, day.counted_takes_below, day.counted_takes_below_index, day.strikes, day.counted_strikes_until,
 	       mission.mission_id, mission.kind::text, mission.payload, mission.points, mission.progress, mission.done
 	FROM flag_days AS day LEFT JOIN flag_missions AS mission USING (day, flag)
 	WHERE day.day = $1::date AND day.flag = $2`
@@ -37,13 +37,14 @@ func dayOf(row *sql.Row) (flagmissions.Day, error) {
 	var (
 		snapshot              flagmissions.DaySnapshot
 		takes, below, strikes int64
+		belowIndex            int64
 		id                    uuid.NullUUID
 		kind                  sql.NullString
 		payload               []byte
 		points, progress      sql.NullInt64
 		done                  sql.NullBool
 	)
-	err := row.Scan(&takes, &below, &strikes, &snapshot.StrikesUntil, &id, &kind, &payload, &points, &progress, &done)
+	err := row.Scan(&takes, &below, &belowIndex, &strikes, &snapshot.StrikesUntil, &id, &kind, &payload, &points, &progress, &done)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		return flagmissions.Day{}, flagmissions.ErrNoDay
@@ -51,7 +52,8 @@ func dayOf(row *sql.Row) (flagmissions.Day, error) {
 		return flagmissions.Day{}, fmt.Errorf("failed to read the flag's day: %w", err)
 	}
 	//nolint:gosec // CHECK (... >= 0) on each.
-	snapshot.Takes, snapshot.TakesBelow, snapshot.Strikes = uint64(takes), uint64(below), uint64(strikes)
+	snapshot.Takes, snapshot.Strikes = uint64(takes), uint64(strikes)
+	snapshot.TakesBelow = missions.TakeMark{Position: uint64(below), Index: uint32(belowIndex)} //nolint:gosec // as above.
 	snapshot.StrikesUntil = snapshot.StrikesUntil.UTC()
 
 	if id.Valid {
@@ -73,10 +75,10 @@ func (s *Store) KeepDay(
 	if err := s.db.InTx(ctx, func(ctx context.Context) error {
 		tx := s.db.On(ctx)
 		kept, err := tx.ExecContext(ctx, `
-			INSERT INTO flag_days (day, flag, takes, counted_takes_below, strikes, counted_strikes_until)
-			VALUES ($1::date, $2, $3, $4, $5, $6) ON CONFLICT (day, flag) DO NOTHING
-		`, day.String(), flag, int64(snapshot.Takes), int64(snapshot.TakesBelow), int64(snapshot.Strikes), //nolint:gosec // counts fit in int64.
-			snapshot.StrikesUntil)
+			INSERT INTO flag_days (day, flag, takes, counted_takes_below, counted_takes_below_index, strikes, counted_strikes_until)
+			VALUES ($1::date, $2, $3, $4, $5, $6, $7) ON CONFLICT (day, flag) DO NOTHING
+		`, day.String(), flag, int64(snapshot.Takes), int64(snapshot.TakesBelow.Position), //nolint:gosec // counts fit in int64.
+			int64(snapshot.TakesBelow.Index), int64(snapshot.Strikes), snapshot.StrikesUntil) //nolint:gosec // as above.
 		if err != nil {
 			return fmt.Errorf("failed to keep %s's day: %w", flag, err)
 		}
@@ -120,10 +122,11 @@ func (s *Store) ChangeDay(
 		if after.Takes != before.Takes || after.TakesBelow != before.TakesBelow || after.Strikes != before.Strikes ||
 			!after.StrikesUntil.Equal(before.StrikesUntil) {
 			if _, err := tx.ExecContext(ctx, `
-				UPDATE flag_days SET takes = $3, counted_takes_below = $4, strikes = $5, counted_strikes_until = $6
+				UPDATE flag_days SET takes = $3, counted_takes_below = $4, counted_takes_below_index = $5, strikes = $6,
+					counted_strikes_until = $7
 				WHERE day = $1::date AND flag = $2
-			`, day.String(), flag, int64(after.Takes), int64(after.TakesBelow), int64(after.Strikes), //nolint:gosec // counts fit in int64.
-				after.StrikesUntil); err != nil {
+			`, day.String(), flag, int64(after.Takes), int64(after.TakesBelow.Position), //nolint:gosec // counts fit in int64.
+				int64(after.TakesBelow.Index), int64(after.Strikes), after.StrikesUntil); err != nil { //nolint:gosec // as above.
 				return fmt.Errorf("failed to keep what %s did: %w", flag, err)
 			}
 		}

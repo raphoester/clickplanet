@@ -33,12 +33,13 @@ func TestATakeReachesTheMissionsWithWhoseTileItWasAndWhoseGround(t *testing.T) {
 
 	require.NoError(t, tile_taken_subscriber.New(useCase).Handle(t.Context(), &planetv1.TileTaken{
 		AccountId: account, TileId: 42, Country: "fr", Previous: "dz", Ground: "br", TakenAt: timestamppb.New(at), Position: 7,
+		Index: 3,
 	}))
 
 	id, err := missions.AccountIDOf(account)
 	require.NoError(t, err)
 	assert.Equal(t, []record_fact_usecase.In{{
-		Account: id, At: at, Fact: missions.Take{Flag: "fr", Previous: "dz", Ground: "br", Position: 7},
+		Account: id, At: at, Fact: missions.Take{Flag: "fr", Previous: "dz", Ground: "br", Position: 7, Index: 3},
 	}}, useCase.facts)
 }
 

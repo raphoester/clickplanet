@@ -13,11 +13,12 @@ type MissionID uuid.UUID
 
 func (id MissionID) String() string { return uuid.UUID(id).String() }
 
-// A tile taken for Flag on Ground, Position in the ledger.
+// A tile taken for Flag on Ground: Position in the ledger, Index in its spread or enclose.
 type Take struct {
 	Flag     string
 	Ground   string
 	Position uint64
+	Index    uint32
 	At       time.Time
 }
 

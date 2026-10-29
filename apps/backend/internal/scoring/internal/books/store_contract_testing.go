@@ -270,6 +270,21 @@ func (s *TakesContractSuite) TestARoundCountsEachTakeOnce() {
 	s.Equal(map[Country]uint64{"fr": 2, "be": 1, "de": 2}, s.CountedIn(contractDay.ID).Countries)
 }
 
+func (s *TakesContractSuite) TestARoundCountsEachTakeOfASpreadOnce() {
+	at := contractBattle.StartsAt
+	spread := []Take{
+		{Account: contractPlayer, Country: "fr", At: at, Position: 4},
+		{Account: contractPlayer, Country: "fr", At: at, Position: 5, Index: 0},
+		{Account: contractPlayer, Country: "fr", At: at, Position: 5, Index: 1},
+		{Account: contractPlayer, Country: "fr", At: at, Position: 5, Index: 2},
+	}
+
+	s.count([]RoundID{contractBattle.ID}, spread...)
+	s.count([]RoundID{contractBattle.ID}, spread...)
+
+	s.Equal(map[Country]uint64{"fr": 4}, s.CountedIn(contractBattle.ID).Countries)
+}
+
 func (s *TakesContractSuite) TestATakeInNoRoundCountsNothing() {
 	s.count(nil, Take{Account: contractPlayer, Country: "fr", At: contractBattle.StartsAt, Position: 1})
 
