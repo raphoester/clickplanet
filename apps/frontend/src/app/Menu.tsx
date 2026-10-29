@@ -18,6 +18,7 @@ import AccountPanel from "./account/AccountPanel.tsx";
 import MissionsPlace, {MissionsPlaceProps} from "./missions/MissionsPlace.tsx";
 import DeleteAccountModal from "./account/DeleteAccountModal.tsx";
 import {PlayerInfoBackend} from "../backends/player.ts";
+import {ClipsNameBackend} from "../backends/clips.ts";
 import {shareStats} from "../domain/shareCard.ts";
 import SharePlace, {SharePlaceProps} from "./share/SharePlace.tsx";
 import {youLabel} from "./youLabel.ts"
@@ -50,6 +51,7 @@ export type YouPlaceProps = {
     linkedMultiplier?: number,
     playerInfo?: PlayerInfoBackend,
     listenForClicks?: ListenForClicks,
+    clips?: ClipsNameBackend,
 }
 
 export type MenuProps = BoardPlaceProps & YouPlaceProps & SettingsPlaceProps & Omit<SharePlaceProps, "stats"> & {
@@ -259,7 +261,7 @@ function rankShown(props: BoardPlaceProps): number | null {
     return rankOf(linesShown(props), props.country)
 }
 
-export function YouPlace({account: store, linkedMultiplier, playerInfo, listenForClicks}: YouPlaceProps) {
+export function YouPlace({account: store, linkedMultiplier, playerInfo, listenForClicks, clips}: YouPlaceProps) {
     const account = useAccount(store)
     const [confirmingDelete, setConfirmingDelete] = useState(false)
 
@@ -276,6 +278,7 @@ export function YouPlace({account: store, linkedMultiplier, playerInfo, listenFo
                       linkedMultiplier={linkedMultiplier}
                       playerInfo={playerInfo}
                       listenForClicks={listenForClicks}
+                      clips={clips}
                       onDelete={() => setConfirmingDelete(true)}/>
 
         {confirmingDelete && <DeleteAccountModal

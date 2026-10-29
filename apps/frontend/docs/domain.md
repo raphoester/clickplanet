@@ -80,4 +80,6 @@
   `tilePositions`, the positions of the ones a landmask keeps. `landmask.ts` — the landmask file,
   `landmaskOf` to make one, and `rebuildTilePositions`, which checks the hash. See [Tile
   positions](tile-positions.md).
+- `clipAppearances.ts` — which clip that names the player to show, when to read again, and the link
+  per platform. See [In a clip](clip-appearances.md).
 - `warnOnce.ts` — for things that would otherwise warn on every frame.

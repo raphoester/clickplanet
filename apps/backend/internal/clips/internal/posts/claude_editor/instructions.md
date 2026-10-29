@@ -35,9 +35,10 @@ the facts hold.
     more of it is kicking someone out; a flag that held much of it at the start and little at the end is thrown out.
   - `flags`: the flags fighting on it, by tiles taken and lost, each with its own `continent`, what it `took` from
     another flag, `filled` off empty ground, `lost`, whom it took from (`tookFrom`), the `solidity` of what it took
-    (from 0, lines or names drawn across someone's land, to 1, land taken whole), and the tiles of the landmasses whose
+    (from 0, lines or names drawn across someone's land, to 1, land taken whole), the tiles of the landmasses whose
     painted flag switched to it on the front, by continent (`flippedByContinent`; a landmass too small to read from far
-    does not count).
+    does not count), and its `fighters`: the players who took the most for it there, each with its `number`, its
+    `name` in the game and what it `took`.
   - `bombs`, `spreads`, `enclosures`: power-ups going off in sight. A bomb is a spectacle.
   - `score`: the generator's measure of how busy it was, tiles taken over the square root of the hours, times the
     countries they were taken in. The order of `fronts` is by it.
@@ -47,11 +48,12 @@ the facts hold.
   from far does not count). A tour's camera stays far out, where a viewer sees only the big painted flag of each
   landmass: a landmass switching to the flag is all it shows, and its stops are framed on the ones that switched. A
   flag far ahead of the next, switching big landmasses on two continents or more, is taking over the world; a flag
-  that switched none is no tour, and is skipped.
+  that switched none is no tour, and is skipped. Its `fighters` are the players who took the most for the flag.
 - `places`: what the map is at the end, the world, each continent and each big country, with its `holder`, how much it
   holds (`held`, `share`), the next holders (`rivals`), how many tiles of the place `changed` hands to the holder or
   from it in the window, which is what its clip plays, and the tiles of the landmasses whose painted flag switched to
-  the holder in the window, by continent (`flippedByContinent`). A flag holding its own country is no news.
+  the holder in the window, by continent (`flippedByContinent`). A flag holding its own country is no news. Its
+  `fighters` are the players who took the most of it for the holder.
 - `recentPosts`: what the account posted in the last 3 days, newest first: the headline, the key (the flag it was
   about, the continent, its angle) and the countries each showed.
 - `shownLately`: how many of the last 6 posts showed each flag, as their subject or as one of their countries.
@@ -201,11 +203,26 @@ of it. The `look` says when the camera comes back out:
 
 A tour has no look: its camera stays out among the painted flags all along.
 
+## The players you name
+
+The clip ends on its top fighters, each side's players with the tiles they took, and the caption names them too. A
+player who sees their name in a clip shares it: that is why they are there. For each story, `fighters` is the
+`number` of each player to name, from the `fighters` of its sides: a front's `attacker`, `rival` and `takenFrom`
+flags, a tour's flag, a place's holder. Up to 3 of a side, the ones who took the most first.
+
+- **A name is not yours to fix**: the players chose them, and anything goes in the game. Leave out a name that would
+  get the post taken down or shame the game: a slur, a sexual or hateful word, an insult, a name mocking a people, a
+  religion or a tragedy, a political or extremist message, a real person's full name, a phone number, an email, a
+  website or a handle (an ad), and any name you are not sure of. A clip with fewer names is fine; a clip with one bad
+  name is not.
+- **No names is fine**: `[]` when no player of the story should be named, and always for a seasonal story.
+- **Never a name in the words you write**: the headline, the teasers, the line and the call are the flags' story.
+
 ## Your answer
 
 `why` first: one or two sentences on why the first stories, for whoever tunes this file. Then `stories`: the ones you
 would tell, best first. For a front: its `front`, `kind`, `attacker`, `rival` (a battle's, else empty), `takenFrom`,
 `countries` or `continent` (the other empty), `team` (a continent's comeback together, else empty). For a tour or a
 place: its `tour` or `place`, the rest of those empty. For every story: `headline`, `teasers`, `line`, `call`,
-`callFlags` and `anthem`. For a front or a place: its `look`, `flags` or `dive`; empty for a tour. Every field is
-present; a number not used is 0.
+`callFlags`, `anthem` and `fighters`. For a front or a place: its `look`, `flags` or `dive`; empty for a tour. Every
+field is present; a number not used is 0.

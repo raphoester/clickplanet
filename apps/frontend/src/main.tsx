@@ -33,6 +33,9 @@ import {AccountStore} from "./app/account/accountStore.ts"
 import {rememberSignIn} from "./app/account/rememberedSignIn.ts"
 import SignInGate from "./app/account/SignInGate.tsx"
 import {callbackOf, CALLBACK_PATH} from "./domain/signInCallback.ts"
+import {ConnectClipsBackend, newClipsServiceClient} from "./backends/clipsBackend.ts"
+import {FakeClipsBackend} from "./backends/fakeClipsBackend.ts"
+import {FakeAccountBackend} from "./backends/fakeAccountBackend.ts"
 import {SHARE_FLAG_PARAM, sharedCountry, withoutSharedFlag} from "./domain/shareCard.ts"
 
 // Strip the OAuth code and state from the URL before anything else can read or leak them.
@@ -68,6 +71,12 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         landmasses: () => borders.then(({assignment, codes}) => ({assignment, count: codes.length})),
     })
     const fakePresence = new FakePresenceBackend()
+    const fakeAccount = new FakeAccountBackend()
+    const account = new AccountStore(fakeAccount, fakeAccount, new NoSession(), {
+        navigate: (url) => window.location.assign(url),
+        remember: rememberSignIn,
+    })
+    const fakeClips = new FakeClipsBackend()
     const fakeMissions = new FakeMissionsBackend((kind) => {
         if (kind === "bomb") fake.grantBomb()
         else fake.grantBonus(kind)
@@ -147,6 +156,15 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
             fakeTurn.endBattle()
             return "the battle is over: closeBattle() or closeFinale() sends its results"
         },
+        signIn: (name = "Nova") => {
+            fakeAccount.signIn(name)
+            void account.load()
+            return `signed in as ${name}: sign out from the Account tab`
+        },
+        giveClip: (headline?: string) => {
+            const clip = fakeClips.giveClip(headline)
+            return `"${clip.title}" names you: signIn() reads it now, or come back to this tab 10 minutes after the last read`
+        },
     })
 
     const fakeChat = new FakeChatBackend()
@@ -163,7 +181,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
 
     root.render(
         <StrictMode>
-            <SignInGate callback={callback}>
+            <SignInGate callback={callback} account={account}>
                 <App
                     sharedCountry={shared}
                     ownershipsGetter={fake}
@@ -187,6 +205,8 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     support={fakeSupport}
                     missions={fakeMissions}
                     chargesRefresher={fake}
+                    account={account}
+                    clips={fakeClips}
                 />
             </SignInGate>
         </StrictMode>,
@@ -199,6 +219,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     const standings = new ConnectStandingsBackend(newScoringServiceClient(config), session)
     const missions = new ConnectMissionsBackend(newMissionServiceClient(config), session)
     const support = new ConnectSupportBackend(newSupportServiceClient(config), session)
+    const clips = new ConnectClipsBackend(newClipsServiceClient(config), session)
     const account = new AccountStore(new ConnectAccountBackend(authClient, attest), player, session, {
         navigate: (url) => window.location.assign(url),
         remember: rememberSignIn,
@@ -231,6 +252,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     support={support}
                     missions={missions}
                     chargesRefresher={backend}
+                    clips={clips}
                 />
             </SignInGate>
         </StrictMode>,

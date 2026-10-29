@@ -31,6 +31,7 @@ export default function App(props: AppProps) {
             support={props.support}
             missions={props.missions}
             chargesRefresher={props.chargesRefresher}
+            clips={props.clips}
         />
     </>
 }

@@ -88,7 +88,9 @@ keeps no rule.
 
 - **`GetLedger(since, until, page)`** is a query (`get_ledger_handler/changes_query`), as `takes_query` is: every
   change the live stream showed in the window, oldest first, and who made it, straight from `planet.ledger_events` in
-  SQL, with no domain type on the way. A take and a strike are the click (`clicked`); the tiles a spread or an
+  SQL, with no domain type on the way: `by` to compare, and `account_id`, empty for a change no account made. **The
+  same handler is planet's `InternalService/GetLedger`**, which the clips module reads for a run's cast (see [The
+  players a clip names](clip-appearances.md)). A take and a strike are the click (`clicked`); the tiles a spread or an
   enclosure took or struck, the tiles a bomb emptied, and a shield placed or raised, are changes of their own,
   unfolded from each kind's payload. A shield a bomb struck is left out: the ledger keeps no owner for it.
   - **A page at a time**: the changes of at most `PageEvents` (20,000) events, about 30,000 changes, with `next_page`

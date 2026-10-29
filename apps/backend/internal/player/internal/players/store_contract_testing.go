@@ -170,14 +170,16 @@ func (s *StoreContractSuite) TestMessagesAndTakesAddUpOnOneAccount() {
 
 func (s *StoreContractSuite) TestEveryCounterReadsBack() {
 	for _, change := range []func(Stats) Stats{
-		BombAt(3), BonusAt(contractAt), RightAnswerAt(contractAt), BombAt(8), FortifyAt(5, 137),
+		BombAt(3), BonusAt(contractAt), RightAnswerAt(contractAt), BombAt(8), FortifyAt(5, 137), MissionsPaid(4),
+		MissionsPaid(2),
 	} {
 		s.record(1, change)
 	}
 
 	s.Equal(StatsSnapshot{
 		Account: AccountID{15: 1}, BombsDropped: 2, TilesFortified: 137, BonusesClaimed: 1, RightAnswers: 1,
-		Counted: Counted{BombsBelow: 9, FortifiesBelow: 6, BonusesUntil: contractAt, AnswersUntil: contractAt},
+		MissionsDone: 4,
+		Counted:      Counted{BombsBelow: 9, FortifiesBelow: 6, BonusesUntil: contractAt, AnswersUntil: contractAt},
 	}, s.stats(1).TakeSnapshot())
 }
 
@@ -185,7 +187,7 @@ func (s *StoreContractSuite) TestAFactToldAgainAfterItWasKeptIsNotCountedAgain()
 	for range 2 {
 		for _, change := range []func(Stats) Stats{
 			TakeAt(4, 0, contractAt), MessageAt(contractAt), BombAt(5), FortifyAt(6, 60), BonusAt(contractAt),
-			RightAnswerAt(contractAt),
+			RightAnswerAt(contractAt), MissionsPaid(3),
 		} {
 			s.record(1, change)
 		}
@@ -193,7 +195,7 @@ func (s *StoreContractSuite) TestAFactToldAgainAfterItWasKeptIsNotCountedAgain()
 
 	s.Equal(StatsSnapshot{
 		Account: AccountID{15: 1}, TilesTaken: 1, Streak: StreakOf(1, DayOf(contractAt)), StreakBest: 1, MessagesSent: 1,
-		BombsDropped: 1, TilesFortified: 60, BonusesClaimed: 1, RightAnswers: 1,
+		BombsDropped: 1, TilesFortified: 60, BonusesClaimed: 1, RightAnswers: 1, MissionsDone: 3,
 		Counted: Counted{
 			TakesBelow: TakeMark{Position: 4, Index: 1}, BombsBelow: 6, FortifiesBelow: 7,
 			MessagesUntil: contractAt, BonusesUntil: contractAt, AnswersUntil: contractAt,

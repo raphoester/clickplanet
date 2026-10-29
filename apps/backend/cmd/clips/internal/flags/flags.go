@@ -13,16 +13,17 @@ import (
 )
 
 const usage = `usage:
-  clips fetch -out <replay.json> [-race <race.json>] [-season <season.json>] [-ssh <user@host>] [-hours 72] [-until <2026-10-12T12:00:00Z>]
+  clips fetch -out <replay.json> [-race <race.json>] [-season <season.json>] [-cast <cast.json>] [-ssh <user@host>] [-hours 72] [-until <2026-10-12T12:00:00Z>]
   clips choose -findings <findings.json> [-count 2] [-platforms tiktok,youtube] [-summary <file>]
   clips edit -findings <findings.json> [-count 2] [-prompt]
-  clips schedule -clips <folder> [-review 0] [-spacing 1h] [-platforms tiktok,youtube] [-sound-country US] [-summary <file>]
+  clips schedule -clips <folder> [-review 0] [-spacing 1h] [-platforms tiktok,youtube] [-sound-country US] [-ssh <user@host>] [-summary <file>]
   clips stats [-ssh <user@host>] [-since 2026-10-13]
 
 fetch asks the production backend's operator tool for a replay, over ssh: CLICKPLANET_SSH stands in for -ssh, and
 the ledger keeps 72 hours in memory, so a replay cannot reach further back. With -season it asks for the gamemaster's
 turn too (the timeline, and the last moment scoring scored), and with -race, which needs -season, for that moment's
-round as scoring scored it; it leaves each out with a warning when the backend does not answer it. choose prints
+round as scoring scored it; with -cast, the players who took tiles in the replay, numbered and named, never an account;
+it leaves each out with a warning when the backend does not answer it. choose prints
 the stories to render, as a JSON array, each with its number in the run and in an arm of every experiment that runs:
 a day of the season won first, not told yet, then the stories Claude (ANTHROPIC_API_KEY) makes of the generator's
 findings and headlines, each checked against them and against the headlines of the last week. It takes no more than
@@ -31,7 +32,8 @@ schedule sends every clip of the folder to the posting service as one post on ev
 room left, as soon as it can with no -review, and never sooner than -spacing after the last post on each; it refuses a
 clip in an arm no experiment has. A clip the experiment "sound" drew for a trending track gets one of the top 20 of
 TikTok's chart of -sound-country that play as long as it in the game's genres, the anthem muted, or goes out with
-its anthem when the chart cannot be read or lists none that fit.
+its anthem when the chart cannot be read or lists none that fit. With -ssh it then tells the backend who each post
+names, so the game tells them; with none it warns.
 stats keeps a snapshot of the numbers of every post of the job scheduled since the
 date, default the last 4 weeks, in the backend's postgres, over ssh as fetch asks: a row for each platform of each
 post. All three need ZERNIO_API_KEY. A model that cannot answer leaves the run its day won alone; -summary adds how
@@ -64,7 +66,9 @@ type Config struct {
 	// Empty is no turn.
 	TurnFile string
 	// Empty is no round. A round needs its turn.
-	RoundFile    string
+	RoundFile string
+	// Empty is no cast.
+	CastFile     string
 	FindingsFile string
 	ClipsFolder  string
 	// Empty is the standard output for schedule, and none for choose, whose standard output is the picks.
@@ -103,6 +107,7 @@ func parseFetch(args []string) (Config, error) {
 	flags.StringVar(&parsed.ReplayFile, "out", "", "the file the replay is written to")
 	flags.StringVar(&parsed.RoundFile, "race", "", "the file the round the turn debriefs is written to, default none")
 	flags.StringVar(&parsed.TurnFile, "season", "", "the file the gamemaster's turn is written to, default none")
+	flags.StringVar(&parsed.CastFile, "cast", "", "the file the replay's cast is written to, default none")
 	flags.StringVar(&parsed.Job.Replay.SSH, "ssh", os.Getenv(HostVariable), "user@host of the machine the backend runs on")
 	hours := flags.Float64("hours", 0, "how long the replay is")
 	until := flags.String("until", "", "when the replay ends, default now")
@@ -172,6 +177,7 @@ func parseSchedule(args []string) (Config, error) {
 	flags.DurationVar(&parsed.Job.Spacing, "spacing", 0, "the least time between two posts on one platform, default 1h")
 	platforms := flags.String("platforms", "", "where each clip goes, default every platform")
 	country := flags.String("sound-country", "", "the country of TikTok's trending chart a trending track is picked from, default US")
+	flags.StringVar(&parsed.Job.Replay.SSH, "ssh", os.Getenv(HostVariable), "user@host of the machine the backend runs on, default none")
 	if err := flags.Parse(args); err != nil {
 		return Config{}, misused(err)
 	}

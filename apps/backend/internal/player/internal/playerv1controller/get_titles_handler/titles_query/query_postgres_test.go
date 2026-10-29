@@ -73,7 +73,7 @@ func (s *testSuite) TestTheDashboardMeasuresTheStreakAsOfToday() {
 	dashboard := s.dashboard(clock)
 	s.Equal("settler", dashboard.GetWorn().GetId())
 	s.Equal(map[string]uint64{
-		"conquest": 2, "devotion": 2, "chatter": 0, "defense": 0, "bombs": 0, "loot": 0, "quiz": 0,
+		"conquest": 2, "devotion": 2, "chatter": 0, "defense": 0, "bombs": 0, "loot": 0, "quiz": 0, "missions": 0,
 	}, progress(dashboard), "the streak on its second day")
 
 	clock.Advance(72 * time.Hour)
@@ -91,7 +91,7 @@ func (s *testSuite) TestTheChatterTrackCountsTheMessagesSent() {
 func (s *testSuite) TestTheBonusTracksCountWhatTheStatsKept() {
 	for _, change := range []func(players.Stats) players.Stats{
 		players.BombAt(0), players.BonusAt(monday), players.BonusAt(monday.Add(time.Second)), players.RightAnswerAt(monday),
-		players.FortifyAt(1, 137),
+		players.FortifyAt(1, 137), players.MissionsPaid(6),
 	} {
 		s.Require().NoError(s.players.Record(s.T().Context(), ada, change))
 	}
@@ -101,6 +101,7 @@ func (s *testSuite) TestTheBonusTracksCountWhatTheStatsKept() {
 	s.Equal(uint64(1), by["bombs"])
 	s.Equal(uint64(2), by["loot"])
 	s.Equal(uint64(1), by["quiz"])
+	s.Equal(uint64(6), by["missions"])
 }
 
 func (s *testSuite) TestAnAccountWithNoStatsStartsEveryTrackAtZero() {
@@ -109,7 +110,7 @@ func (s *testSuite) TestAnAccountWithNoStatsStartsEveryTrackAtZero() {
 	s.Nil(dashboard.GetWorn())
 	s.Empty(dashboard.GetWearable())
 	s.Equal(map[string]uint64{
-		"conquest": 0, "devotion": 0, "chatter": 0, "defense": 0, "bombs": 0, "loot": 0, "quiz": 0,
+		"conquest": 0, "devotion": 0, "chatter": 0, "defense": 0, "bombs": 0, "loot": 0, "quiz": 0, "missions": 0,
 	}, progress(dashboard))
 }
 

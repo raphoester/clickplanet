@@ -183,6 +183,16 @@ func (s *Store) ChangeSheet(
 	})
 }
 
+func (s *Store) PaidInAll(ctx context.Context, account missions.AccountID) (uint64, error) {
+	var paid int64
+	if err := s.db.On(ctx).QueryRowContext(ctx, `
+		SELECT count(*) FROM mission_payments WHERE account_id = $1
+	`, uuid.UUID(account)).Scan(&paid); err != nil {
+		return 0, fmt.Errorf("failed to count the account's payments: %w", err)
+	}
+	return uint64(paid), nil //nolint:gosec // a count is never negative.
+}
+
 func (s *Store) DeleteAccount(ctx context.Context, account missions.AccountID) error {
 	if _, err := s.db.On(ctx).ExecContext(ctx, `DELETE FROM mission_sheets WHERE account_id = $1`, uuid.UUID(account)); err != nil {
 		return fmt.Errorf("failed to forget the account's days: %w", err)

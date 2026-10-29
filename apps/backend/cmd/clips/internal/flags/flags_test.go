@@ -15,7 +15,7 @@ func TestFetchFlagsSayWhichReplayAndWhereItGoes(t *testing.T) {
 	t.Setenv(flags.HostVariable, "")
 
 	parsed, err := flags.Parse([]string{
-		"fetch", "-ssh", "deploy@vps.example", "-out", "replay.json", "-race", "race.json", "-season", "season.json", "-hours", "1.5", "-until", "2026-10-12T12:00:00Z",
+		"fetch", "-ssh", "deploy@vps.example", "-out", "replay.json", "-race", "race.json", "-season", "season.json", "-cast", "cast.json", "-hours", "1.5", "-until", "2026-10-12T12:00:00Z",
 	})
 
 	require.NoError(t, err)
@@ -23,7 +23,7 @@ func TestFetchFlagsSayWhichReplayAndWhereItGoes(t *testing.T) {
 	job.Replay.SSH = "deploy@vps.example"
 	job.Replay.Span = 90 * time.Minute
 	job.Replay.Until = time.Date(2026, 10, 12, 12, 0, 0, 0, time.UTC)
-	assert.Equal(t, flags.Config{Command: flags.Fetch, ReplayFile: "replay.json", TurnFile: "season.json", RoundFile: "race.json", Job: job}, parsed)
+	assert.Equal(t, flags.Config{Command: flags.Fetch, ReplayFile: "replay.json", TurnFile: "season.json", RoundFile: "race.json", CastFile: "cast.json", Job: job}, parsed)
 }
 
 func TestAFetchWithNoRaceOrSeasonFileAsksForNeither(t *testing.T) {
@@ -103,6 +103,18 @@ func TestScheduleFlagsSayWhichClipsWhenAndWhereTheSummaryGoes(t *testing.T) {
 	job.Spacing = 30 * time.Minute
 	job.Zernio.APIKey = "the-key"
 	assert.Equal(t, flags.Config{Command: flags.Schedule, ClipsFolder: "clips", SummaryFile: "summary.md", Job: job}, parsed)
+}
+
+func TestScheduleTellsTheBackendWhoThePostsNameOverTheSSHOfTheFetch(t *testing.T) {
+	t.Setenv(flags.HostVariable, "deploy@vps.example")
+
+	parsed, err := flags.Parse([]string{"schedule", "-clips", "clips"})
+	require.NoError(t, err)
+	assert.Equal(t, "deploy@vps.example", parsed.Job.Replay.SSH)
+
+	parsed, err = flags.Parse([]string{"schedule", "-clips", "clips", "-ssh", "other@vps.example"})
+	require.NoError(t, err)
+	assert.Equal(t, "other@vps.example", parsed.Job.Replay.SSH)
 }
 
 func TestScheduleFlagsSayWhichCountrysChartATrendingTrackIsPickedFrom(t *testing.T) {

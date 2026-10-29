@@ -143,6 +143,7 @@ support:
   redis: {address: localhost:6379}
 clips:
   database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: clips}
+  redis: {address: localhost:6379}
 auth:
   enabled: true
   enforce: true
@@ -330,6 +331,7 @@ func TestTheExampleConfigReachesTheClipsBlock(t *testing.T) {
 	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
 
 	assert.Equal(t, "clips", config.Clips.Database.Schema)
+	assert.Equal(t, "localhost:6379", config.Clips.Redis.Address)
 	require.NoError(t, config.Clips.Validate())
 }
 
@@ -414,7 +416,7 @@ func TestEveryModuleOfProductionTalksToTheSameRedis(t *testing.T) {
 	for name, redis := range map[string]cpredis.Config{
 		"auth": config.Auth.Redis, "chat": config.Chat.Redis, "player": config.Player.Redis,
 		"scoring": config.Scoring.Redis, "support": config.Support.Redis, "missions": config.Missions.Redis,
-		"antiBot": config.AntiBot.Redis, "gamemaster": config.Gamemaster.Redis,
+		"antiBot": config.AntiBot.Redis, "gamemaster": config.Gamemaster.Redis, "clips": config.Clips.Redis,
 	} {
 		assert.Equal(t, config.Planet.Redis, redis, "%s.redis is the planet's block", name)
 	}

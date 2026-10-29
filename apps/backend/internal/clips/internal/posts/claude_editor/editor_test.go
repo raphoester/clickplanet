@@ -30,8 +30,12 @@ var (
 			Fronts: []posts.Front{{
 				Since: at.Add(-5 * time.Hour), Until: at, TilesChanged: 9844, Captured: 9000,
 				Countries: []posts.FrontCountry{{Code: "tr", Continent: "Middle East", Tiles: 2500, Changed: 6000, HoldersStart: map[string]int{"tr": 2000}, HoldersEnd: map[string]int{"fr": 1500}, Takers: map[string]int{"fr": 5000}}},
-				Flags:     []posts.FrontFlag{{Code: "fr", Continent: "Europe", Took: 5000, Lost: 3000, TookFrom: map[string]int{"tr": 5000}, Solidity: 0.86, FlippedByContinent: map[string]int{"Middle East": 2400}}},
-				Bombs:     3, Score: 3886.5,
+				Flags: []posts.FrontFlag{{
+					Code: "fr", Continent: "Europe", Took: 5000, Lost: 3000, TookFrom: map[string]int{"tr": 5000}, Solidity: 0.86,
+					FlippedByContinent: map[string]int{"Middle East": 2400},
+					Fighters:           []posts.Fighter{{Number: 1, Name: "BraveFox42", Took: 812}},
+				}},
+				Bombs: 3, Score: 3886.5,
 			}},
 			Tours:      []posts.Tour{{Flag: "fr", Since: at.Add(-12 * time.Hour), Until: at, Took: 27992, ByContinent: map[string]int{"Europe": 12000}, NextTook: 9000, FlippedByContinent: map[string]int{"South Asia": 6246}}},
 			Places:     []posts.Place{{Kind: posts.ContinentPlace, Continent: "South Asia", Tiles: 9600, Holder: "fr", Held: 6170, Share: 0.643, Changed: 6000, FlippedByContinent: map[string]int{"South Asia": 5200}}},
@@ -95,8 +99,8 @@ func editorOf(t *testing.T, server *httptest.Server) *claude_editor.Editor {
 func TestTheModelsAnswerIsTheEditionAndItsCost(t *testing.T) {
 	api := &fake{status: http.StatusOK, answer: message("end_turn",
 		`{"why":"The war is the day's story.","stories":[`+
-			`{"front":1,"tour":0,"place":0,"kind":"battle","attacker":"fr","rival":"tr","takenFrom":["tr"],"countries":["tr"],"continent":"","team":"","headline":"FRANCE VS TURKEY","teasers":["THE WAR FOR TURKEY"],"line":"The battle for Turkey","call":"PICK A SIDE","callFlags":["fr","tr"],"anthem":"fr","look":"flags"},`+
-			`{"front":0,"tour":1,"place":0,"kind":"","attacker":"","rival":"","takenFrom":[],"countries":[],"continent":"","team":"","headline":"FRANCE IS EVERYWHERE","teasers":["NOBODY CAN STOP FRANCE"],"line":"","call":"FIGHT BACK","callFlags":[],"anthem":"","look":""}]}`)}
+			`{"front":1,"tour":0,"place":0,"kind":"battle","attacker":"fr","rival":"tr","takenFrom":["tr"],"countries":["tr"],"continent":"","team":"","headline":"FRANCE VS TURKEY","teasers":["THE WAR FOR TURKEY"],"line":"The battle for Turkey","call":"PICK A SIDE","callFlags":["fr","tr"],"anthem":"fr","look":"flags","fighters":[2,1]},`+
+			`{"front":0,"tour":1,"place":0,"kind":"","attacker":"","rival":"","takenFrom":[],"countries":[],"continent":"","team":"","headline":"FRANCE IS EVERYWHERE","teasers":["NOBODY CAN STOP FRANCE"],"line":"","call":"FIGHT BACK","callFlags":[],"anthem":"","look":"","fighters":[]}]}`)}
 
 	edition, spend, err := editorOf(t, api.serve(t)).Edit(t.Context(), offer)
 
@@ -105,6 +109,7 @@ func TestTheModelsAnswerIsTheEditionAndItsCost(t *testing.T) {
 		{
 			Front: 1, Kind: posts.Battle, Attacker: "fr", Rival: "tr", TakenFrom: []string{"tr"}, Countries: []string{"tr"}, Headline: "FRANCE VS TURKEY", Teasers: []string{"THE WAR FOR TURKEY"},
 			Line: "The battle for Turkey", Call: "PICK A SIDE", CallFlags: []string{"fr", "tr"}, Anthem: "fr", Look: posts.PaintedFlags,
+			Fighters: []posts.FighterNumber{2, 1},
 		},
 		{
 			Tour: 1, TakenFrom: []string{}, Countries: []string{}, Headline: "FRANCE IS EVERYWHERE", Teasers: []string{"NOBODY CAN STOP FRANCE"},
@@ -135,7 +140,7 @@ func TestTheRequestCachesTheInstructionsAndAsksForTheAnswersShape(t *testing.T) 
 	assert.Equal(t, "json_schema", format["type"])
 	assert.Equal(t, []any{"why", "stories"}, format["schema"].(map[string]any)["required"])
 	story := format["schema"].(map[string]any)["properties"].(map[string]any)["stories"].(map[string]any)["items"].(map[string]any)
-	assert.Equal(t, []any{"front", "tour", "place", "kind", "attacker", "rival", "takenFrom", "countries", "continent", "team", "headline", "teasers", "line", "call", "callFlags", "anthem", "look"}, story["required"])
+	assert.Equal(t, []any{"front", "tour", "place", "kind", "attacker", "rival", "takenFrom", "countries", "continent", "team", "headline", "teasers", "line", "call", "callFlags", "anthem", "look", "fighters"}, story["required"])
 
 	prompt, err := claude_editor.PromptOf(offer)
 	require.NoError(t, err)
@@ -219,6 +224,11 @@ func TestThePromptHoldsTheFindingsNumberedTheStoriesToldFirstAndTheRecentPosts(t
 				TookFrom           map[string]int `json:"tookFrom"`
 				Solidity           float64        `json:"solidity"`
 				FlippedByContinent map[string]int `json:"flippedByContinent"`
+				Fighters           []struct {
+					Number int    `json:"number"`
+					Name   string `json:"name"`
+					Took   int    `json:"took"`
+				} `json:"fighters"`
 			} `json:"flags"`
 		} `json:"fronts"`
 		Tours []struct {
@@ -259,6 +269,9 @@ func TestThePromptHoldsTheFindingsNumberedTheStoriesToldFirstAndTheRecentPosts(t
 	assert.Equal(t, map[string]int{"tr": 5000}, written.Fronts[0].Flags[0].TookFrom)
 	assert.InDelta(t, 0.86, written.Fronts[0].Flags[0].Solidity, 1e-9)
 	assert.Equal(t, map[string]int{"Middle East": 2400}, written.Fronts[0].Flags[0].FlippedByContinent)
+	require.Len(t, written.Fronts[0].Flags[0].Fighters, 1)
+	assert.Equal(t, "BraveFox42", written.Fronts[0].Flags[0].Fighters[0].Name)
+	assert.Equal(t, 812, written.Fronts[0].Flags[0].Fighters[0].Took)
 	assert.Equal(t, 1, written.Tours[0].Tour)
 	assert.Equal(t, 9000, written.Tours[0].NextTook)
 	assert.Equal(t, map[string]int{"South Asia": 6246}, written.Tours[0].FlippedByContinent)

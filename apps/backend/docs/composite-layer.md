@@ -70,6 +70,8 @@ return []bootstrap.Module{
 | `missions` | `planet.v1.InternalService/GetTerritories` and `GetCountrySizes` | what each flag holds and where, and how many tiles of land each country has, once per account and day, to draw its missions | `missions/rpc_planet_world` |
 | `missions` | `planet.v1.InternalService/GetAllegianceOf` | the flag an account pledged, once per account and day, to draw its missions | `missions/rpc_planet_allegiance` |
 | `missions` | `auth.v1.InternalService/GetAccount` | whether an account is signed in, when a take finishes one of its missions | `missions/rpc_auth_accounts` |
+| `clips` | `planet.v1.InternalService/GetLedger` | who took which tile in a run's window, page after page, on each `MakeCast` | `casts/rpc_planet_ledger` |
+| `clips` | `player.v1.InternalService/GetAuthors` | the name each of those accounts may be shown under in the clips, on each `MakeCast` | `casts/rpc_player_names` |
 | `gamemaster` | `planet.v1.InternalService/GetRuleSetNames` and `antibot.v1.InternalService/GetRuleSetNames` | the rule sets each module keeps, on each schedule entry an operator adds or edits | `schedule/rpc_planet_rule_sets`, `schedule/rpc_antibot_rule_sets` |
 | `chat` | `scoring.v1.InternalService/GetRound` and `GetTable` | a round's results or a book's table, by the id a gamemaster event names, to announce a podium or a champion | chat's rpc scoring adapter |
 
@@ -116,6 +118,7 @@ The proto sits beside the public one in the module's package (`proto/auth/v1/int
 |---|---|
 | `player-stats`, `player-stats-bombs`, `player-stats-fortifies` | `planet` tells its map facts in ledger order with their `position`, and each take with its `index` in its event. The stats row keeps a mark past the last take, bomb and fortify it counted (`players.Counted`); one below it was counted already. A take's mark is its position and index (`players.TakeMark`): a spread or an enclose is one ledger event, at one position, that holds several takes |
 | `player-stats-messages`, `player-stats-bonuses`, `player-stats-quizzes` | the same with the time of the last message, box and right answer counted, compared to the microsecond postgres keeps |
+| `player-stats-missions` | `missions.v1.MissionsPaid` says how many missions the account was paid in all; the stats keep the highest number heard |
 | `seasons-standings` | the tally keeps the position and index past the last take it counted (`standings.Tally.TakesBelow`: two columns of each contributions row, the highest pair is the tally's) |
 | `seasons-rounds` | each round of its own keeps the position and index past the last take it counted (`rounds.counted_takes_below`, `counted_takes_below_index`), moved in the statement that counts the take |
 | `missions-progress` | an account's day keeps the position and index past the last take it counted (`missions.Sheet`, `mission_sheets.counted_takes_below`, `counted_takes_below_index`) |
@@ -145,6 +148,7 @@ A fact goes through an outbox when its loss would leave the modules disagreeing 
 - `scoring.v1.RoundScored` and `BookClosed`: the round is scored once and the book closed once, so a lost one is never sent again and the gamemaster never tells that day, battle or season ended. Scoring records each in the transaction that scores the round or closes the book, only when this call did it.
 - `gamemaster.v1.DayEnded`, `BattleEnded` and `SeasonEnded`: the gamemaster records each in the transaction that keeps what it heard from scoring, only when it is new, so the chat announces each podium and champion once.
 - `planet.v1.GrantCharges`, a command: a lost one is a mission paid that planet never granted. `missions`' `payroll` records it with the payment.
+- `missions.v1.MissionsPaid`: it is told with the payment it counts, so it shares the grant's transaction. The relay sends the grants as commands and it as an event (`redis_outbox_sender`), from one outbox.
 - **Not the gamemaster's commands** (`PlayRuleSet`, `ResetMap`, `ScoringCommand`): the clock decides them, not a transaction. The
   gamemaster's runners send them with `streams.Commands().Send` and keep what they told only once Redis took it, so a
   refused send is sent again the next second, and each boot sends again what holds (see [The gamemaster](gamemaster.md)).
@@ -204,7 +208,8 @@ The events today:
 | `auth.v1.SignedOut{account_id}` | `auth`, `sign_out_usecase` and `sign_out_everywhere_usecase` | after the session, or every session, is deleted; a cookie with no session publishes nothing | `player`, which takes the account off the roster |
 | `chat.v1.MessageSent{message_id, account_id, sent_at}` | `chat`, `send_message_usecase/publishing_send_message` | after each message is kept; a refused or failed post publishes nothing | `player`, for the stats |
 | `chat.v1.AccountMuted{account_id, muted_at, duration, mute_id}` | `chat`, `mute_usecase/publishing_mute` | after each mute is kept; a refused or failed mute publishes nothing. Never the network it holds | `chat`, which announces it |
-| `player.v1.StatsChanged{account_id}` | `player`, `record_stats_usecase` | after each take, message, bomb, fortify, box or right answer is counted on the account's stats; a failed write publishes nothing | `player`, which grants the titles the stats now earn |
+| `missions.v1.MissionsPaid{account_id, paid_in_all}` | `missions`, through its outbox, from `payroll` | with each payment of one or more missions: how many the account was paid in all | `player`, for the stats |
+| `player.v1.StatsChanged{account_id}` | `player`, `record_stats_usecase` | after each take, message, bomb, fortify, box, right answer or missions paid is counted on the account's stats; a failed write publishes nothing | `player`, which grants the titles the stats now earn |
 | `scoring.v1.RoundScored{round_id, book_id, ended_at, results}` | `scoring`, through its outbox | a round closed: scored from the map then, its points times its times | `gamemaster`, which tells which day or battle it was |
 | `scoring.v1.BookClosed{book_id, ended_at, table}` | `scoring`, through its outbox | a book closed: its table, the champion first | `gamemaster`, which tells which season it was |
 | `gamemaster.v1.DayEnded{season, day, round_id, ended_at}`, `BattleEnded{season, number, entry_id, times, ends_season, round_id, ended_at}`, `SeasonEnded{season, book_id, ended_at, finale_round_id}` | `gamemaster`, through its outbox, once scoring scored it | a day, a battle or a season ended, in the game's words, with the ids to read its numbers by | `chat`, which reads the numbers from scoring and announces the podium or the champion |

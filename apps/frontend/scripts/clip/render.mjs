@@ -29,6 +29,8 @@ if (!replay || has("help")) {
                       cutoff is in the window
   --season <path>     the season (scoring.v1.GetSeasonResponse): with the race, each country that can still win it is
                       called up to its Final Battle
+  --cast <path>       who took which tiles (clips.v1.Cast): the fighters the story names are on its end card, and the
+                      findings name each front's, tour's and place's top fighters
   --silent            no anthem under the clip, for a sound added where it is posted
   --preview <s>       only the first s seconds of the clip
   --variants <json>   the arm of each experiment the clip is in, as the posting job assigned it: {"length":"short"}.
@@ -78,6 +80,7 @@ const optionalPath = (name) => {
 }
 const racePath = optionalPath("race")
 const seasonPath = optionalPath("season")
+const castPath = optionalPath("cast")
 
 const server = await createServer({
     root: APP,
@@ -92,8 +95,8 @@ const server = await createServer({
                 res.setHeader("Content-Length", statSync(replayPath).size)
                 createReadStream(replayPath).pipe(res)
             })
-            // Answered either way: with no race or no season, a day or a call-up is no story, and the page must not read
-            // the app's fallback page.
+            // Answered either way: with no race or no season, a day or a call-up is no story, with no cast nobody is named,
+            // and the page must not read the app's fallback page.
             const optional = (path) => (_req, res) => {
                 if (path === undefined) {
                     res.statusCode = 404
@@ -106,6 +109,7 @@ const server = await createServer({
             }
             vite.middlewares.use("/__clip/race.json", optional(racePath))
             vite.middlewares.use("/__clip/season.json", optional(seasonPath))
+            vite.middlewares.use("/__clip/cast.json", optional(castPath))
         },
     }],
 })
@@ -259,6 +263,8 @@ async function record(recorders) {
         `  place: ${recording.place}, ${recording.seconds}s`,
         `  look: ${recording.look}`,
         `  music: ${recording.music ? `${recording.music.title}, the anthem of ${recording.music.whose}, from ${recording.music.from.toFixed(1)}s` : "none"}`,
+        ...recording.fighters.length > 0
+            ? [`  fighters: ${recording.fighters.map(({number, name, flag, took}) => `#${number} ${name} for ${flag} (${took} ${took === 1 ? "tile" : "tiles"})`).join(", ")}`] : [],
         ...Object.keys(recording.variants).length > 0
             ? [`  arms: ${Object.entries(recording.variants).map(([name, arm]) => `${name} ${arm}`).join(", ")}`] : [],
     ].join("\n"))

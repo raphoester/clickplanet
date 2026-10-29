@@ -30,10 +30,7 @@ import {Rules as PlanetRules} from "./gen/grpc/planet/v1/rules_pb.ts"
 import {
     FindPlayersRequest,
     FindPlayersResponse,
-    GetLedgerRequest,
-    GetLedgerResponse,
     GetReplayRequest,
-    LedgerChange,
     GetReplayResponse,
     GetRulesRequest,
     GetRulesResponse,
@@ -62,6 +59,7 @@ import {
     TikTokAccount,
 } from "./gen/grpc/clips/v1/admin_pb.ts"
 import {GetTerritoriesRequest, GetTerritoriesResponse, Territory} from "./gen/grpc/planet/v1/internal_pb.ts"
+import {GetLedgerRequest, GetLedgerResponse, LedgerChange} from "./gen/grpc/planet/v1/ledger_pb.ts"
 import {
     AddEntryRequest,
     AddEntryResponse,

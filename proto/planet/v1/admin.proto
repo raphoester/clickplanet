@@ -5,6 +5,7 @@ package planet.v1;
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 import "planet/v1/internal.proto";
+import "planet/v1/ledger.proto";
 import "planet/v1/planet.proto";
 import "planet/v1/rules.proto";
 
@@ -50,30 +51,6 @@ service AdminService {
 
   // Makes a set, or replaces its values. A save of the set that plays now takes over at once.
   rpc SaveRuleSet(SaveRuleSetRequest) returns (SaveRuleSetResponse);
-}
-
-message GetLedgerRequest {
-  google.protobuf.Timestamp since = 1;
-  // Unset is now.
-  google.protobuf.Timestamp until = 2;
-  // The next_page of the page before; empty is the first.
-  string page = 3;
-}
-
-message GetLedgerResponse {
-  // Oldest first: a click that took a tile or struck its shield, a tile a spread, an enclosure or a bomb took or
-  // emptied, a shield placed or raised. A shield a bomb struck is left out: it changed no hands.
-  repeated LedgerChange changes = 1;
-  // Empty on the last page.
-  string next_page = 2;
-}
-
-message LedgerChange {
-  google.protobuf.Timestamp at = 1;
-  // As the live stream sent it.
-  TileUpdate update = 2;
-  // Who made it, to compare and not to read: "account:<id>", or "scope:<address>" for a change with no account.
-  string by = 3;
 }
 
 message GetReplayRequest {

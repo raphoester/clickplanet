@@ -69,6 +69,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/fortified_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/message_sent_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/missions_paid_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/quiz_answered_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/signed_in_account_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/signed_in_subscriber"
@@ -205,6 +206,12 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		closeStores()
 		return fmt.Errorf("failed to subscribe to planet.v1.QuizAnswered: %w", err)
 	}
+	missionsPaid, err := cpredis.Subscribe(ctx, streams, "player-stats-missions",
+		log_subscriber.New(missions_paid_subscriber.New(recordStats), props.Logger))
+	if err != nil {
+		closeStores()
+		return fmt.Errorf("failed to subscribe to missions.v1.MissionsPaid: %w", err)
+	}
 	awards, err := cpredis.Subscribe(ctx, streams, "player-titles",
 		log_subscriber.New(stats_changed_subscriber.New(notifying_award_titles.New(
 			award_titles_usecase.New(store, accounts, titleBook, clock), titleFeed,
@@ -261,8 +268,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	}
 	// Not closers: closers run before the runners stop, and the runners use both.
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger, cpredis.CloseAfter(streams, props.Logger,
-		takes, posts, bombs, fortifies, claims, answers, awards, deletions, forgottenTitles, forgottenChoices, signIns, namings,
-		signOuts, gone)))
+		takes, posts, bombs, fortifies, claims, answers, missionsPaid, awards, deletions, forgottenTitles, forgottenChoices,
+		signIns, namings, signOuts, gone)))
 
 	verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", "player")))
 

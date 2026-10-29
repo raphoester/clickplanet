@@ -5,6 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
+import { Cast } from "./clips_pb.js";
 
 /**
  * What a snapshot read and kept: counts and states, never a metric.
@@ -577,6 +578,200 @@ export class ListRowsResponse extends Message<ListRowsResponse> {
 
   static equals(a: ListRowsResponse | PlainMessage<ListRowsResponse> | undefined, b: ListRowsResponse | PlainMessage<ListRowsResponse> | undefined): boolean {
     return proto3.util.equals(ListRowsResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message clips.v1.MakeCastRequest
+ */
+export class MakeCastRequest extends Message<MakeCastRequest> {
+  /**
+   * @generated from field: google.protobuf.Timestamp since = 1;
+   */
+  since?: Timestamp;
+
+  /**
+   * Unset is now.
+   *
+   * @generated from field: google.protobuf.Timestamp until = 2;
+   */
+  until?: Timestamp;
+
+  constructor(data?: PartialMessage<MakeCastRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "clips.v1.MakeCastRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "since", kind: "message", T: Timestamp },
+    { no: 2, name: "until", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MakeCastRequest {
+    return new MakeCastRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): MakeCastRequest {
+    return new MakeCastRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): MakeCastRequest {
+    return new MakeCastRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: MakeCastRequest | PlainMessage<MakeCastRequest> | undefined, b: MakeCastRequest | PlainMessage<MakeCastRequest> | undefined): boolean {
+    return proto3.util.equals(MakeCastRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message clips.v1.MakeCastResponse
+ */
+export class MakeCastResponse extends Message<MakeCastResponse> {
+  /**
+   * @generated from field: clips.v1.Cast cast = 1;
+   */
+  cast?: Cast;
+
+  constructor(data?: PartialMessage<MakeCastResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "clips.v1.MakeCastResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "cast", kind: "message", T: Cast },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MakeCastResponse {
+    return new MakeCastResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): MakeCastResponse {
+    return new MakeCastResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): MakeCastResponse {
+    return new MakeCastResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: MakeCastResponse | PlainMessage<MakeCastResponse> | undefined, b: MakeCastResponse | PlainMessage<MakeCastResponse> | undefined): boolean {
+    return proto3.util.equals(MakeCastResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message clips.v1.KeepAppearanceRequest
+ */
+export class KeepAppearanceRequest extends Message<KeepAppearanceRequest> {
+  /**
+   * @generated from field: string cast_id = 1;
+   */
+  castId = "";
+
+  /**
+   * By their number in the cast.
+   *
+   * @generated from field: repeated uint32 fighters = 2;
+   */
+  fighters: number[] = [];
+
+  /**
+   * The Zernio post id.
+   *
+   * @generated from field: string post_id = 3;
+   */
+  postId = "";
+
+  /**
+   * The clip's headline.
+   *
+   * @generated from field: string title = 4;
+   */
+  title = "";
+
+  /**
+   * Those that took the post.
+   *
+   * @generated from field: repeated string platforms = 5;
+   */
+  platforms: string[] = [];
+
+  /**
+   * @generated from field: google.protobuf.Timestamp scheduled_at = 6;
+   */
+  scheduledAt?: Timestamp;
+
+  constructor(data?: PartialMessage<KeepAppearanceRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "clips.v1.KeepAppearanceRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "cast_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "fighters", kind: "scalar", T: 13 /* ScalarType.UINT32 */, repeated: true },
+    { no: 3, name: "post_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "title", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "platforms", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 6, name: "scheduled_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): KeepAppearanceRequest {
+    return new KeepAppearanceRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): KeepAppearanceRequest {
+    return new KeepAppearanceRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): KeepAppearanceRequest {
+    return new KeepAppearanceRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: KeepAppearanceRequest | PlainMessage<KeepAppearanceRequest> | undefined, b: KeepAppearanceRequest | PlainMessage<KeepAppearanceRequest> | undefined): boolean {
+    return proto3.util.equals(KeepAppearanceRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message clips.v1.KeepAppearanceResponse
+ */
+export class KeepAppearanceResponse extends Message<KeepAppearanceResponse> {
+  /**
+   * @generated from field: uint32 kept = 1;
+   */
+  kept = 0;
+
+  constructor(data?: PartialMessage<KeepAppearanceResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "clips.v1.KeepAppearanceResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "kept", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): KeepAppearanceResponse {
+    return new KeepAppearanceResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): KeepAppearanceResponse {
+    return new KeepAppearanceResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): KeepAppearanceResponse {
+    return new KeepAppearanceResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: KeepAppearanceResponse | PlainMessage<KeepAppearanceResponse> | undefined, b: KeepAppearanceResponse | PlainMessage<KeepAppearanceResponse> | undefined): boolean {
+    return proto3.util.equals(KeepAppearanceResponse, a, b);
   }
 }
 
