@@ -26,7 +26,7 @@ describe("FlagMissionDone", () => {
     it("cheers the flag, says what it did and the season points it won", () => {
         render(<FlagMissionDone mission={mission} country="fr" play={vi.fn()} onClose={vi.fn()}/>)
 
-        expect(screen.getByRole("dialog", {name: "Bravo! France"})).toBeDefined()
+        expect(screen.getByRole("dialog", {name: "Congratulations! France"})).toBeDefined()
         expect(screen.getByText(/Flag mission done: Break 450 shields of/)).toBeDefined()
         expect(screen.getByText("+2 season points")).toBeDefined()
     })

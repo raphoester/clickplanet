@@ -44,21 +44,18 @@ export default function FlagMissionDone({mission, country, play, onClose}: FlagM
              tabIndex={-1}
              style={timing}>
             <div className="title-reveal-stage">
-                <h2 id={headId} className="title-reveal-head">Bravo!</h2>
-                <div className="title-reveal-medal">
-                    <div className="title-reveal-rays" aria-hidden="true"/>
-                    <div className="title-reveal-wave" aria-hidden="true"/>
-                    <span className="title-reveal-float">
-                        <span className="flag-mission-done-disc"><CountryFlag code={country}/></span>
-                    </span>
+                <h2 id={headId} className="title-reveal-head flag-mission-done-head">Congratulations!</h2>
+                <div className="flag-mission-done-flag">
+                    <div className="title-reveal-rays flag-mission-done-rays" aria-hidden="true"/>
+                    <span className="flag-mission-done-art"><CountryFlag code={country}/></span>
                 </div>
-                <p id={nameId} className="title-reveal-name">{Countries.get(country)?.name ?? country}</p>
-                <p className="title-reveal-rank">Flag mission done: {partsOf(mission.order).line}</p>
-                <p className="title-reveal-rank flag-mission-done-points">
+                <p id={nameId} className="flag-mission-done-country">{Countries.get(country)?.name ?? country}</p>
+                <p className="flag-mission-done-points">
                     +{mission.points} season {mission.points === 1 ? "point" : "points"}
                 </p>
-                <div className="title-reveal-actions">
-                    {ready && <button type="button" className="button" onClick={onClose}>Close</button>}
+                <p className="title-reveal-rank">Flag mission done: {partsOf(mission.order).line}</p>
+                <div className="title-reveal-actions flag-mission-done-actions">
+                    {ready && <button type="button" className="button button-gold" onClick={onClose}>Close</button>}
                 </div>
             </div>
             <div className="title-reveal-flash" aria-hidden="true"/>

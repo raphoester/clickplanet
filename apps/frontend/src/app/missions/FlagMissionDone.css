@@ -1,28 +1,75 @@
-.flag-mission-done {
-    --metal: var(--gold);
+.flag-mission-done-head {
+    max-width: 100%;
+    font-size: clamp(var(--display-l), min(9.5vw, 9vh), var(--display-hero));
+    white-space: normal;
+    text-wrap: balance;
 }
 
-.flag-mission-done-disc {
+.flag-mission-done-flag {
+    position: relative;
     display: flex;
-    align-items: center;
     justify-content: center;
-    width: var(--medal);
-    height: var(--medal);
-    box-sizing: border-box;
-    border: var(--outline) solid var(--ink);
-    border-radius: 50%;
-    font-size: calc(var(--medal) * 0.5);
-    background: var(--gold);
-    box-shadow: var(--drop-l), inset 0 0 0 10px var(--gold-shade), inset 0 0 0 13px var(--ink);
-    animation: title-reveal-spin-in 750ms cubic-bezier(0.3, 0.6, 0.4, 1) calc(var(--impact) - 600ms) both;
+    margin: var(--space-6) 0 var(--space-4);
+}
+
+.flag-mission-done-rays {
+    inset: -90% -60%;
+    z-index: 0;
+}
+
+.flag-mission-done-art {
+    position: relative;
+    z-index: 1;
+    font-size: clamp(96px, 20vh, 150px);
+    line-height: 1;
+    animation: title-reveal-slam 520ms cubic-bezier(0.2, 0.9, 0.3, 1.2) calc(var(--impact) - 200ms) both;
+}
+
+.flag-mission-done-art .country-flag {
+    display: block;
+    margin: 0;
+    filter: drop-shadow(0 4px 0 var(--ink));
+}
+
+.flag-mission-done-country {
+    position: relative;
+    z-index: 1;
+    max-width: 100%;
+    margin: 0;
+    padding-top: 0.1em;
+    font-family: var(--font-display);
+    font-size: clamp(var(--display-l), min(10vw, 8vh), calc(var(--display-hero) * 0.6));
+    line-height: 1;
+    color: var(--text);
+    text-shadow: var(--text-outline-l);
+    overflow-wrap: anywhere;
+    animation: title-reveal-pop 380ms cubic-bezier(0.3, 1.6, 0.5, 1) calc(var(--impact) + 250ms) both;
 }
 
 .flag-mission-done-points {
-    color: var(--gold);
+    position: relative;
+    z-index: 1;
+    margin: var(--space-2) 0 0;
+    font-family: var(--font-display);
+    font-size: var(--display-l);
+    line-height: 1;
+    color: var(--gain);
+    text-shadow: var(--text-outline);
+    animation: title-reveal-pop 380ms cubic-bezier(0.3, 1.8, 0.5, 1) calc(var(--impact) + 400ms) both;
+}
+
+.flag-mission-done-actions {
+    justify-content: center;
+}
+
+.flag-mission-done-actions .button {
+    flex: 0 1 220px;
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .flag-mission-done-disc {
-        animation: title-reveal-appear 400ms ease-out calc(var(--impact) - 300ms) both;
+    .flag-mission-done-art,
+    .flag-mission-done-country,
+    .flag-mission-done-points {
+        animation: title-reveal-appear 300ms ease-out both;
     }
 }

@@ -17,8 +17,8 @@ itself, with nothing to press.
 - **The flag's mission comes first**, in a panel of its own (`FlagMissionRow`): "Flag mission", its order ("Break 300
   shields of", then the flag; or a ground's tiles), its bar, and the season points it gives the flag in gold. The
   whole flag counts on it, and the backend says when it is done. The badge does not count it.
-- **The flag's mission done is cheered full screen**, `FlagMissionDone`: "Bravo!", the flag on a gold medal, its
-  name, the order done and the season points won. Every player of the flag sees it at the read that first says it
+- **The flag's mission done is cheered full screen**, `FlagMissionDone`: "Congratulations!", the flag on the rays as
+  a round's champion is (no medal: medals are titles'), its name, the season points won and the order done. Every player of the flag sees it at the read that first says it
   is done (`useFlagMissionDone`, `newlyDoneFlagMission`: the same mission read not done before; the first read of
   the page tells nothing), so a player who stopped clicking sees it at the next run of clicks. It plays through the
   announcements queue (see [Battles](battle.md#the-announcements-queue)). Until 2026-10-29 nothing said it, and the
