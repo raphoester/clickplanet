@@ -141,7 +141,12 @@ it. It is a war cry, not a report: the counter under it gives the numbers.
   SWALLOWS, VS. Simple words a non-native speaker knows, never "STRIPS", "ROUTS" or "ANNEXES".
 - **The odd pair is the hook.** A flag fighting far from home, a small one beating a big one, two neighbours at war:
   Bulgaria in Argentina, Brittany in Australia, Brazil against Argentina are what a stranger stops for. Put the names
-  that show it at the front.
+  that show it at the front: the flag and the place say it is far from home, never the words.
+- **Only the ground the clip shows.** Never where a flag comes from: its `continent` is for the facts, not the words.
+  On 2026-10-29 "PALAU STORMS EUROPE FROM OCEANIA" played Palau taking Scandinavia, and the owner asked what it even
+  meant: a stranger does not know where Palau is, and the clip never shows Oceania. When the fight is all in one corner
+  of a continent, name the corner people know ("SCANDINAVIA", "THE NORTH OF EUROPE", "THE BALKANS"), not the whole
+  continent: that post's YouTube title, "PALAU TAKES THE NORTH OF EUROPE", said it.
 - **Name the flags and the place as people say them**, from `names`: "THE UK", "THE NETHERLANDS".
 - **True to the story.** Say only what its kind and its facts say. "KICKS OUT" and "WIPES OUT" only for a kickout or
   a rout: Brittany held 71% of Australia when the front opened, so Algeria thrown out of it is a kickout, not an
