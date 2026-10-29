@@ -1,0 +1,28 @@
+.flag-mission-done {
+    --metal: var(--gold);
+}
+
+.flag-mission-done-disc {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--medal);
+    height: var(--medal);
+    box-sizing: border-box;
+    border: var(--outline) solid var(--ink);
+    border-radius: 50%;
+    font-size: calc(var(--medal) * 0.5);
+    background: var(--gold);
+    box-shadow: var(--drop-l), inset 0 0 0 10px var(--gold-shade), inset 0 0 0 13px var(--ink);
+    animation: title-reveal-spin-in 750ms cubic-bezier(0.3, 0.6, 0.4, 1) calc(var(--impact) - 600ms) both;
+}
+
+.flag-mission-done-points {
+    color: var(--gold);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .flag-mission-done-disc {
+        animation: title-reveal-appear 400ms ease-out calc(var(--impact) - 300ms) both;
+    }
+}

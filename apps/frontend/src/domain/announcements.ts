@@ -1,4 +1,5 @@
 import {Appearance} from "../backends/clips.ts"
+import {FlagMission} from "../backends/missions.ts"
 import {PlayerTitle} from "../backends/player.ts"
 import {Battle, battleKeyOf} from "./battle.ts"
 import {Reveal, revealKeyOf} from "./roundReveal.ts"
@@ -7,6 +8,7 @@ export type Announcement =
     | {kind: "title", title: PlayerTitle}
     | {kind: "battle", battle: Battle}
     | {kind: "clip", appearance: Appearance}
+    | {kind: "flagMission", mission: FlagMission, country: string}
     | Reveal
 
 export function announcementKeyOf(announcement: Announcement): string {
@@ -17,6 +19,8 @@ export function announcementKeyOf(announcement: Announcement): string {
             return `battle:${battleKeyOf(announcement.battle)}`
         case "clip":
             return `clip:${announcement.appearance.postId}`
+        case "flagMission":
+            return `flagMission:${announcement.mission.id}`
         case "round":
         case "over":
         case "points":

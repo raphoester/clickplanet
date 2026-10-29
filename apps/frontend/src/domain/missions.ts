@@ -1,4 +1,4 @@
-import {FlagMissionOrder, Mission, MissionOrder, MissionReward} from "../backends/missions.ts"
+import {DayMissions, FlagMission, FlagMissionOrder, Mission, MissionOrder, MissionReward} from "../backends/missions.ts"
 import {BonusReward, BonusRules} from "./bonus.ts"
 
 // What an order asks, up to the country named after it, if any.
@@ -90,6 +90,14 @@ export function parseSeenMissions(raw: string | null): SeenMissions {
 
 export function newlyPaid(before: readonly Mission[], after: readonly Mission[]): Mission[] {
     return after.filter((mission) => mission.paid && before.some((was) => was.id === mission.id && !was.paid))
+}
+
+// The flag's mission, when it was read not done and is done now.
+export function newlyDoneFlagMission(before: DayMissions, after: DayMissions): FlagMission | undefined {
+    const was = before.flagMission
+    const now = after.flagMission
+    if (!was || !now || was.id !== now.id || was.done || !now.done) return undefined
+    return now
 }
 
 export function awardOf(reward: MissionReward, rules: Pick<BonusRules, "blastRadius" | "enclosureMaxTiles">): BonusReward {

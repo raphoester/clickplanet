@@ -1,6 +1,6 @@
 import {describe, expect, it} from "vitest"
-import {Mission} from "../backends/missions.ts"
-import {awardOf, newlyPaid, orderOf, parseSeenMissions, reachedOf, seenNow, timeLeft, unseen} from "./missions.ts"
+import {DayMissions, FlagMission, Mission} from "../backends/missions.ts"
+import {awardOf, newlyDoneFlagMission, newlyPaid, orderOf, parseSeenMissions, reachedOf, seenNow, timeLeft, unseen} from "./missions.ts"
 
 const mission = (overrides: Partial<Mission> = {}): Mission => ({
     id: "bank",
@@ -64,6 +64,30 @@ describe("parseSeenMissions", () => {
     it("reads what was stored, and nothing from what is not", () => {
         expect(parseSeenMissions(JSON.stringify({bank: "paid", rival: "lost", ground: 3}))).toEqual({bank: "paid"})
         for (const raw of [null, "", "{", "[]", "7"]) expect(parseSeenMissions(raw)).toEqual({})
+    })
+})
+
+describe("newlyDoneFlagMission", () => {
+    const flag = (overrides: Partial<FlagMission> = {}): FlagMission => ({
+        id: "flag-22",
+        order: {kind: "breakShields", country: "pw", goal: 450, reached: 449},
+        points: 2,
+        done: false,
+        ...overrides,
+    })
+    const day = (flagMission?: FlagMission): DayMissions => ({endsAt: 0, missions: [], flagMission})
+
+    it("is the flag's mission read not done and done now", () => {
+        const done = flag({done: true})
+
+        expect(newlyDoneFlagMission(day(flag()), day(done))).toBe(done)
+    })
+
+    it("is none when it was done already, is not done yet, or is another day's", () => {
+        expect(newlyDoneFlagMission(day(flag({done: true})), day(flag({done: true})))).toBeUndefined()
+        expect(newlyDoneFlagMission(day(flag()), day(flag()))).toBeUndefined()
+        expect(newlyDoneFlagMission(day(flag()), day(flag({id: "flag-23", done: true})))).toBeUndefined()
+        expect(newlyDoneFlagMission(day(), day(flag({done: true})))).toBeUndefined()
     })
 })
 
