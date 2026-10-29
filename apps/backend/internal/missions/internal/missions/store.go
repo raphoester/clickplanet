@@ -4,17 +4,19 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days"
 )
 
 var ErrNoBrief = errors.New("no brief was drawn for the account that day")
 
 type Store interface {
-	Brief(ctx context.Context, day Day, account AccountID) (Brief, error)
+	Brief(ctx context.Context, day days.Day, account AccountID) (Brief, error)
 	// The first brief kept for the day and the account wins, and is the answer.
-	KeepBrief(ctx context.Context, day Day, account AccountID, brief Brief) (Brief, error)
+	KeepBrief(ctx context.Context, day days.Day, account AccountID, brief Brief) (Brief, error)
 
-	Sheet(ctx context.Context, day Day, account AccountID) (Sheet, error)
-	ChangeSheet(ctx context.Context, day Day, account AccountID, change func(Sheet) Sheet) error
+	Sheet(ctx context.Context, day days.Day, account AccountID) (Sheet, error)
+	ChangeSheet(ctx context.Context, day days.Day, account AccountID, change func(Sheet) Sheet) error
 	PaidInAll(ctx context.Context, account AccountID) (uint64, error)
 
 	DeleteAccount(ctx context.Context, account AccountID) error
@@ -39,7 +41,7 @@ type Briefing struct {
 }
 
 // Drawn once a day, for the flag the account plays then.
-func (b Briefing) Of(ctx context.Context, day Day, account AccountID) (Brief, error) {
+func (b Briefing) Of(ctx context.Context, day days.Day, account AccountID) (Brief, error) {
 	brief, err := b.store.Brief(ctx, day, account)
 	if !errors.Is(err, ErrNoBrief) {
 		return brief, err //nolint:wrapcheck // the store named it.

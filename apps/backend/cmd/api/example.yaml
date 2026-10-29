@@ -270,7 +270,6 @@ gamemaster:
     password: ""
 
 missions:
-  cutoff: 21h
   database:
     host: localhost
     port: "5432"

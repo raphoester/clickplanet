@@ -26,6 +26,8 @@ func DebriefOf(moment moments.Moment) (*gamemasterv1.Debrief, error) {
 // EventOf is a moment as the gamemaster.v1 event the other modules hear.
 func EventOf(moment moments.Moment) (proto.Message, error) {
 	switch told := moment.(type) {
+	case moments.DayStarted:
+		return dayStarted(told), nil
 	case moments.DayEnded:
 		return dayEnded(told), nil
 	case moments.BattleEnded:
@@ -34,6 +36,14 @@ func EventOf(moment moments.Moment) (proto.Message, error) {
 		return seasonEnded(told), nil
 	}
 	return nil, fmt.Errorf("no event tells %T", moment)
+}
+
+func dayStarted(told moments.DayStarted) *gamemasterv1.DayStarted {
+	return &gamemasterv1.DayStarted{
+		Season: uint32(told.Day.Season), Day: uint32(told.Day.Number), RoundId: string(moments.DayRoundOf(told.Day)),
+		BookId: string(moments.BookOf(told.Day.Season)), StartsAt: timestamppb.New(told.Day.StartsAt),
+		EndsAt: timestamppb.New(told.Day.EndsAt),
+	}
 }
 
 func dayEnded(told moments.DayEnded) *gamemasterv1.DayEnded {

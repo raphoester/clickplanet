@@ -4,8 +4,19 @@ package gamemaster.v1;
 
 import "google/protobuf/timestamp.proto";
 
-// What the gamemaster tells the other modules, in the game's words, once scoring scored it. The numbers stay
-// scoring's: read them by round_id or book_id (scoring.v1.InternalService).
+// What the gamemaster tells the other modules, in the game's words: a day as it starts, and each moment once scoring
+// scored it. The numbers stay scoring's: read them by round_id or book_id (scoring.v1.InternalService).
+
+// The day that runs from starts_at to ends_at. Told as it starts, and again when a moved season end moves ends_at.
+message DayStarted {
+  uint32 season = 1;
+  // The day's place among the season's days.
+  uint32 day = 2;
+  string round_id = 3;
+  string book_id = 4;
+  google.protobuf.Timestamp starts_at = 5;
+  google.protobuf.Timestamp ends_at = 6;
+}
 
 message DayEnded {
   uint32 season = 1;

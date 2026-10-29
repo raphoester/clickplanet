@@ -242,7 +242,6 @@ gamemaster:
     password: env://REDIS_PASSWORD
 
 missions:
-  cutoff: 21h
   database:
     host: postgres
     password: env://POSTGRES_PASSWORD

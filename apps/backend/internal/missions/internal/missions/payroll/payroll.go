@@ -8,15 +8,16 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	missionsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/missions/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/planetgrant"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 )
 
 type Store interface {
-	Brief(ctx context.Context, day missions.Day, account missions.AccountID) (missions.Brief, error)
-	Sheet(ctx context.Context, day missions.Day, account missions.AccountID) (missions.Sheet, error)
-	ChangeSheet(ctx context.Context, day missions.Day, account missions.AccountID, change func(missions.Sheet) missions.Sheet) error
+	Brief(ctx context.Context, day days.Day, account missions.AccountID) (missions.Brief, error)
+	Sheet(ctx context.Context, day days.Day, account missions.AccountID) (missions.Sheet, error)
+	ChangeSheet(ctx context.Context, day days.Day, account missions.AccountID, change func(missions.Sheet) missions.Sheet) error
 	PaidInAll(ctx context.Context, account missions.AccountID) (uint64, error)
 }
 
@@ -35,7 +36,7 @@ type Payroll struct {
 }
 
 // Pay runs in a transaction: the grants are recorded with the payments, or neither is.
-func (p Payroll) Pay(ctx context.Context, day missions.Day, account missions.AccountID) error {
+func (p Payroll) Pay(ctx context.Context, day days.Day, account missions.AccountID) error {
 	brief, err := p.store.Brief(ctx, day, account)
 	if errors.Is(err, missions.ErrNoBrief) {
 		return nil

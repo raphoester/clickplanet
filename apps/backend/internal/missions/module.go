@@ -12,6 +12,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/missions/v1/missionsv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days/postgres_day_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days/usecases/keep_day_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/payroll"
@@ -29,6 +31,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/account_deleted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/bomb_landed_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/bonus_claimed_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/day_started_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/fortified_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/quiz_answered_subscriber"
@@ -57,7 +60,6 @@ func NewModule(config Config) cpbootstrap.Module {
 
 func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	clock := cptime.SystemClock{}
-	calendar := missions.NewCalendar(config.Calendar)
 
 	internal, baseURL, err := props.Internal.Dial()
 	if err != nil {
@@ -85,10 +87,17 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		_ = db.Close()
 	}
 
+	calendar := postgres_day_store.New(db)
 	store := postgres_mission_store.New(db)
 	briefing := missions.NewBriefing(store, rpc_planet_world.New(planet), rpc_planet_allegiance.New(planet))
 	pay := payroll.New(store, rpc_auth_accounts.New(auth), cpoutbox.New(db))
 
+	told, err := cpredis.Subscribe(ctx, streams, "missions-days",
+		log_subscriber.New(day_started_subscriber.New(keep_day_usecase.New(calendar)), props.Logger))
+	if err != nil {
+		closeStores()
+		return fmt.Errorf("failed to subscribe to gamemaster.v1.DayStarted: %w", err)
+	}
 	facts, err := subscribeFacts(ctx, streams, record_fact_usecase.New(calendar, briefing, store, db, pay), props.Logger)
 	if err != nil {
 		closeStores()
@@ -108,7 +117,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	}
 
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger, cpredis.CloseAfter(streams, props.Logger,
-		append(facts, deletions, signIns, cpoutbox.NewRelay("missions-outbox", db, redis_outbox_sender.New(streams, streams.Commands()), props.Logger))...)))
+		append(facts, told, deletions, signIns, cpoutbox.NewRelay("missions-outbox", db, redis_outbox_sender.New(streams, streams.Commands()), props.Logger))...)))
 
 	service := missionsv1controller.MissionService{
 		GetMissionsHandler: get_missions_handler.New(
@@ -122,8 +131,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to mount missions.v1.MissionService: %w", err)
 	}
 
-	props.Logger.Info("missions built", slog.Duration("cutoff", config.Calendar.Cutoff),
-		slog.String("schema", config.Database.Schema))
+	props.Logger.Info("missions built", slog.String("schema", config.Database.Schema))
 
 	return nil
 }
@@ -160,15 +168,11 @@ func subscribeFacts(
 }
 
 type Config struct {
-	Calendar missions.Config `koanf:",squash"`
 	Database cppg.Config
 	Redis    cpredis.Config
 }
 
 func (c Config) Validate() error {
-	if err := c.Calendar.Validate(); err != nil {
-		return fmt.Errorf("missions: %w", err)
-	}
 	if err := c.Database.Validate(); err != nil {
 		return fmt.Errorf("missions.database: %w", err)
 	}

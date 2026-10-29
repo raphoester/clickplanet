@@ -14,7 +14,36 @@ import (
 const (
 	briefsPerAccount = "20261028120000"
 	countedFacts     = "20261028200000"
+	gamemasterDays   = "20261029110000"
 )
+
+func TestEachRowKeptBeforeGamemasterDaysNamesItsDayByItsRound(t *testing.T) {
+	db := cppg.StartTestServer(t).OpenSchema(t, "missions", cppg.MigrationsBefore(t, migrations.FS, gamemasterDays))
+	ada, mission := uuid.UUID{15: 1}, uuid.UUID{15: 9}
+	seed := func(query string, args ...any) {
+		_, err := db.On(t.Context()).ExecContext(t.Context(), query, args...)
+		require.NoError(t, err)
+	}
+	seed(`INSERT INTO mission_briefs (day, account_id, missions) VALUES ('2026-10-29', $1, '[]')`, ada)
+	seed(`INSERT INTO mission_sheets (day, account_id, counted_takes_below) VALUES ('2026-10-29', $1, 7)`, ada)
+	seed(`INSERT INTO mission_progress (day, account_id, mission_id, progress) VALUES ('2026-10-29', $1, $2, 3)`, ada, mission)
+	seed(`INSERT INTO mission_payments (day, account_id, mission_id) VALUES ('2026-10-29', $1, $2)`, ada, mission)
+
+	require.NoError(t, db.Migrate(t.Context(), migrations.FS))
+
+	var briefs, sheets, progress, payments string
+	require.NoError(t, db.On(t.Context()).QueryRowContext(t.Context(), `
+		SELECT (SELECT day FROM mission_briefs), (SELECT day FROM mission_sheets), (SELECT day FROM mission_progress),
+		       (SELECT day FROM mission_payments)`).Scan(&briefs, &sheets, &progress, &payments))
+	assert.Equal(t, []string{"season-0/day-22", "season-0/day-22", "season-0/day-22", "season-0/day-22"},
+		[]string{briefs, sheets, progress, payments}, "day 22 of season 0 ended on 29 Oct")
+
+	seed(`DELETE FROM mission_sheets`)
+	var left int
+	require.NoError(t, db.On(t.Context()).QueryRowContext(t.Context(),
+		`SELECT (SELECT count(*) FROM mission_progress) + (SELECT count(*) FROM mission_payments)`).Scan(&left))
+	assert.Zero(t, left, "a sheet's progress and payments still go with it")
+}
 
 func TestASheetKeptBeforeCountedFactsKeepsItsTakesAndCountedNothingElse(t *testing.T) {
 	db := cppg.StartTestServer(t).OpenSchema(t, "missions", cppg.MigrationsBefore(t, migrations.FS, countedFacts))
@@ -50,7 +79,7 @@ func TestEachSheetKeptBeforeBriefsPerAccountKeepsItsFlagsBrief(t *testing.T) {
 
 	var kept string
 	require.NoError(t, db.On(t.Context()).QueryRowContext(t.Context(),
-		`SELECT missions::text FROM mission_briefs WHERE day = '2026-10-28' AND account_id = $1`, ada).Scan(&kept))
+		`SELECT missions::text FROM mission_briefs WHERE day = 'season-0/day-21' AND account_id = $1`, ada).Scan(&kept))
 	assert.JSONEq(t, `[{"id": "fr"}]`, kept)
 	var briefs, progress int
 	require.NoError(t, db.On(t.Context()).QueryRowContext(t.Context(),

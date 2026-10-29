@@ -2,14 +2,19 @@
 
 **Every player has four or five missions a day of its own, and each pays itself once done.** It reads
 planet's facts (`TileTaken`, `BonusClaimed`, `QuizAnswered`, `BombLanded`, `ShieldPlaced`, `Fortified`, `GetTerritories`,
-`GetCountrySizes`, `GetAllegianceOf`) and commands planet to grant a reward
+`GetCountrySizes`, `GetAllegianceOf`), the gamemaster's days (`DayStarted`), and commands planet to grant a reward
 (`planet.v1.GrantCharges`, over Redis), as scoring asks planet what each country holds: planet never imports, calls or
 hears it.
 Its public route, `/missions.v1.MissionService/*`, is listed in `deploy/vps/caddy/Caddyfile`, as every service's is.
 
 ```
 internal/missions/internal/
-  missions/                         AccountID, Calendar and Day (the cutoff), Fact (one type per kind) and Counted, MissionID,
+  days/                             DayID, Day (a day the gamemaster told: its round's id, its start and its end), ErrNoDay;
+                                    the Store port and its contract suite, TestingDayAt (season 0's days, for tests)
+    postgres_day_store/             the Store over missions.mission_days
+    inmemory_day_store/             the same port in a map, behind the testing tag
+    usecases/keep_day_usecase/
+  missions/                         AccountID, Fact (one type per kind) and Counted, MissionID,
                                     Order (one type per kind), Mission, Brief, Draw and World, Sheet (an account's day), Briefing;
                                     the Store port and its contract suite
     postgres_mission_store/         the Store over missions.mission_briefs, mission_sheets, mission_progress and mission_payments;
@@ -26,12 +31,22 @@ internal/missions/internal/
     get_missions_handler/
   subscribers/                      tile_taken_subscriber/  bonus_claimed_subscriber/  quiz_answered_subscriber/
                                     bomb_landed_subscriber/  shield_placed_subscriber/  fortified_subscriber/
-                                    sign_in_subscriber/  account_deleted_subscriber/  log_subscriber/
+                                    day_started_subscriber/  sign_in_subscriber/  account_deleted_subscriber/
+                                    log_subscriber/
   migrations/
 ```
 
-- **A day ends at `missions.cutoff`** (21:00 UTC in production), the time the daily round closes, and is named by the
-  date it ends on. **The rules are objects**: a `Mission` is an id, an `Order` and a reward, and nothing else.
+- **A day is the gamemaster's**, never a clock of missions' own (the owner, 2026-10-29: two cutoffs that happen to
+  match are brittle). The gamemaster tells each day as it starts, `gamemaster.v1.DayStarted` (`missions-days`,
+  `day_started_subscriber`, `keep_day_usecase`), and missions keeps it in `mission_days` (`day_id`, the round's id such as
+  `season-0/day-22`, `starts_at`, `ends_at`): a day told again, when a moved season end cut it, keeps its new end. **A
+  fact counts in the day told that runs at its time** (`days.Store.DayAt`), and every row names its day by that id.
+  **No day, no missions**: between two seasons and from a season's last cutoff to its end (the Final Battle), a fact
+  counts nothing, `GetMissions` answers no mission and no end, and a sign-in pays nothing (the owner, 2026-10-29).
+  **A fact can come before its day**: the day and the facts come on separate streams, so a take of the first second or
+  so of a day may find no day yet and count nothing (the owner chose it over asking the gamemaster each fact,
+  2026-10-29). Migration `20261029110000_gamemaster_days` named every row kept before by its date as season 0's day.
+  **The rules are objects**: a `Mission` is an id, an `Order` and a reward, and nothing else.
   **An order is one kind of mission**, a type of its own with its own fields: `TakeFor{Flag, Goal}` (tiles for the
   flag), `TakeFrom{Flag, Goal}` (tiles another flag held), `TakeIn{Ground, Goal}` (tiles on a country's land),
   `TakeFromIn{Flag, Ground, Goal}` (tiles another flag held on a country's land), `CatchBoxes{Goal}`,
@@ -92,7 +107,7 @@ internal/missions/internal/
     `missions-shields`, `missions-fortifies`), all through `record_fact_usecase`, up to each goal, in one transaction
     under `pg_advisory_xact_lock` per fact, with nothing written once nothing changed. A wrong answer, and a bomb, a
     shield or a fortify with no account, is dropped by its subscriber. **Not from the ledger**: `ledger_events` has no
-    time index, and an account's takes since the cutoff would read every take it ever made. **A fact told twice counts
+    time index, and an account's takes since the day started would read every take it ever made. **A fact told twice counts
     once**: Redis delivers at least once, and the sheet keeps a mark per kind (`missions.Counted`, the
     `mission_sheets.counted_*` columns): the ledger position after the last bomb, shield and fortify it counted, the
     time of the last box and right answer, so one at or below its mark counts nothing. A take's mark is the position

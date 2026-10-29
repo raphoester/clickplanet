@@ -9,6 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days/inmemory_day_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/inmemory_mission_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/usecases/get_missions_usecase"
@@ -34,14 +36,13 @@ func (failingPledges) FlagOf(context.Context, missions.AccountID) (string, error
 }
 
 var (
-	calendar = missions.NewCalendar(missions.Config{Cutoff: 21 * time.Hour})
-	now      = time.Date(2026, 10, 26, 12, 0, 0, 0, time.UTC)
-	ada      = missions.AccountID{15: 1}
+	now = time.Date(2026, 10, 26, 12, 0, 0, 0, time.UTC)
+	ada = missions.AccountID{15: 1}
 )
 
 func setUp(allegiances missions.Allegiances) (*get_missions_usecase.UseCase, *inmemory_mission_store.Store) {
 	store := inmemory_mission_store.New()
-	return get_missions_usecase.New(calendar, cptime.NewFixedClock(now), store,
+	return get_missions_usecase.New(inmemory_day_store.New(days.TestingDayAt(now)), cptime.NewFixedClock(now), store,
 		missions.NewBriefing(store, fixedPlanet{}, allegiances)), store
 }
 
@@ -51,10 +52,10 @@ func TestTheFirstReadDrawsTheDayForThePledgedFlag(t *testing.T) {
 	out, err := useCase.Execute(t.Context(), get_missions_usecase.In{Account: ada})
 
 	require.NoError(t, err)
-	assert.Equal(t, missions.Draw(calendar.DayOf(now), ada, "fr", missions.World{
+	assert.Equal(t, missions.Draw(days.TestingDayAt(now), ada, "fr", missions.World{
 		Territories: []missions.Territory{{Flag: "dz", Tiles: 9_000}},
 	}).Snapshot(), out.Brief.Snapshot())
-	assert.Equal(t, time.Date(2026, 10, 26, 21, 0, 0, 0, time.UTC), out.Day.EndsAt())
+	assert.Equal(t, time.Date(2026, 10, 26, 21, 0, 0, 0, time.UTC), out.Day.Snapshot().EndsAt)
 }
 
 func TestTheDayStaysTheOneDrawnWhateverIsPledgedSince(t *testing.T) {
@@ -63,7 +64,7 @@ func TestTheDayStaysTheOneDrawnWhateverIsPledgedSince(t *testing.T) {
 	first, err := useCase.Execute(t.Context(), get_missions_usecase.In{Account: ada})
 	require.NoError(t, err)
 	bank := first.Brief.Snapshot()[0].ID
-	require.NoError(t, store.ChangeSheet(t.Context(), calendar.DayOf(now), ada, func(missions.Sheet) missions.Sheet {
+	require.NoError(t, store.ChangeSheet(t.Context(), days.TestingDayAt(now), ada, func(missions.Sheet) missions.Sheet {
 		return missions.SheetOf(missions.SheetSnapshot{Progress: map[missions.MissionID]uint32{bank: 7}})
 	}))
 	pledged[ada] = "de"
@@ -90,4 +91,15 @@ func TestAPlanetThatFailsIsAnError(t *testing.T) {
 	_, err := useCase.Execute(t.Context(), get_missions_usecase.In{Account: ada})
 
 	assert.Error(t, err)
+}
+
+func TestNoMissionsWhenNoDayRuns(t *testing.T) {
+	store := inmemory_mission_store.New()
+	useCase := get_missions_usecase.New(inmemory_day_store.New(), cptime.NewFixedClock(now), store,
+		missions.NewBriefing(store, fixedPlanet{}, pledges{ada: "fr"}))
+
+	out, err := useCase.Execute(t.Context(), get_missions_usecase.In{Account: ada})
+
+	require.NoError(t, err)
+	assert.Equal(t, get_missions_usecase.Out{}, out)
 }
