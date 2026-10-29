@@ -1,4 +1,5 @@
 import {describe, expect, it} from "vitest"
+import {Cast, NO_CAST, Take} from "./cast.ts"
 import {TileChange} from "./changes.ts"
 import {frontFactsOf, Ground, holdingStoryOf, placesOf, tourFactsOf} from "./findings.ts"
 import {Point} from "./geometry.ts"
@@ -23,6 +24,10 @@ const pointOf = (tile: number): Point => ({x: Math.cos(tile), y: Math.sin(tile),
 
 const change = (tile: number, from: string | undefined, to: string | undefined, at = 0): TileChange => ({tile, from, to, at})
 
+const take = (fighter: number, flag: string, tile: number): Take => ({at: 0, tile, flag, fighter})
+
+const castOf = (...takes: Take[]): Cast => ({id: "cast-1", names: new Map([[1, "BraveFox42"], [2, "StormWolf"], [3, "Toto"]]), takes})
+
 describe("the facts of a front", () => {
     const opening = new Map<number, string>([[1, "fr"], [2, "fr"], [3, "fr"], [4, "fr"], [7, "de"], [8, "de"], [11, "dz"]])
     const changes = [
@@ -31,8 +36,13 @@ describe("the facts of a front", () => {
         change(5, undefined, "fr"), change(11, "dz", "dz"),
     ]
     const after = new Map<number, string>([[1, "pw"], [2, "pw"], [3, "pw"], [4, "fr"], [5, "fr"], [7, "pw"], [8, "fr"], [9, "pw"], [11, "dz"]])
+    const flips = [
+        {landmass: 1, tiles: 300, holders: ["fr", "pw"], tile: 1},
+        {landmass: 2, tiles: 150, holders: ["de", "fr"], tile: 8},
+        {landmass: 3, tiles: 60, holders: ["de", "pw"], tile: 9},
+    ]
 
-    const facts = frontFactsOf(changes, opening, after, ground, pointOf)
+    const facts = frontFactsOf(changes, opening, after, ground, pointOf, flips, NO_CAST)
 
     it("counts what changed hands and what was taken from another flag", () => {
         expect(facts.tilesChanged).toBe(7)
@@ -58,8 +68,29 @@ describe("the facts of a front", () => {
         ])
     })
 
+    it("sums, for each flag, the tiles of the landmasses whose painted flag switched to it, by continent", () => {
+        // The islet of Germany is too small to read from far.
+        expect(facts.flags.map(({code, flippedByContinent}) => ({code, flippedByContinent}))).toEqual([
+            {code: "pw", flippedByContinent: {Europe: 300}},
+            {code: "fr", flippedByContinent: {Europe: 150}},
+            {code: "de", flippedByContinent: {}},
+        ])
+    })
+
     it("judges nothing: no kind, no attacker, no place", () => {
         expect(Object.keys(facts).sort()).toEqual(["captured", "countries", "flags", "tilesChanged"])
+    })
+
+    it("names each flag's top fighters by what they took for it on the front's tiles", () => {
+        const cast = castOf(take(1, "pw", 1), take(1, "pw", 2), take(2, "pw", 7), take(3, "fr", 8), take(2, "pw", 12), take(3, "pw", 9))
+
+        const fighters = frontFactsOf(changes, opening, after, ground, pointOf, [], cast).flags.map(({code, fighters}) => [code, fighters])
+
+        expect(fighters).toEqual([
+            ["pw", [{number: 1, name: "BraveFox42", took: 2}, {number: 2, name: "StormWolf", took: 1}, {number: 3, name: "Toto", took: 1}]],
+            ["fr", [{number: 3, name: "Toto", took: 1}]],
+            ["de", []],
+        ])
     })
 })
 
@@ -69,7 +100,7 @@ describe("the facts of a tour", () => {
     const continentOf = (tile: number) => REGIONS[GROUND.get(tile) ?? ""]
 
     it("counts what the flag took on each continent and from whom", () => {
-        const facts = tourFactsOf("pw", changes, after, continentOf, pointOf, [])
+        const facts = tourFactsOf("pw", changes, after, continentOf, pointOf, [], NO_CAST)
 
         expect(facts.took).toBe(3)
         expect(facts.byContinent).toEqual({Europe: 2, Africa: 1})
@@ -85,10 +116,18 @@ describe("the facts of a tour", () => {
             {landmass: 4, tiles: 500, holders: ["pw", "de"], tile: 2},
         ]
 
-        const facts = tourFactsOf("pw", changes, after, continentOf, pointOf, flips)
+        const facts = tourFactsOf("pw", changes, after, continentOf, pointOf, flips, NO_CAST)
 
         // The islet in Africa is too small to read.
         expect(facts.flippedByContinent).toEqual({Europe: 440})
+    })
+
+    it("names the flag's top fighters by what they took for it on the tour's tiles", () => {
+        const cast = castOf(take(2, "pw", 1), take(2, "pw", 11), take(1, "pw", 2), take(1, "de", 7), take(3, "pw", 4))
+
+        expect(tourFactsOf("pw", changes, after, continentOf, pointOf, [], cast).fighters).toEqual([
+            {number: 2, name: "StormWolf", took: 2}, {number: 1, name: "BraveFox42", took: 1},
+        ])
     })
 })
 
@@ -103,7 +142,7 @@ describe("the places held", () => {
     it("gives the top holder of the world, each continent and each big country, with its share and its rivals", () => {
         const fought = [change(1, "fr", "pw"), change(2, "fr", "pw"), change(1101, "fr", "dz")]
 
-        const places = placesOf(owners, tiles, groundOf, fought, regionOf)
+        const places = placesOf(owners, tiles, groundOf, fought, regionOf, NO_CAST)
 
         expect(places.map(({kind, code, continent, tiles, holder, held, changed}) => ({kind, code, continent, tiles, holder, held, changed}))).toEqual([
             {kind: "world", code: undefined, continent: undefined, tiles: 1200, holder: "pw", held: 800, changed: 2},
@@ -116,13 +155,26 @@ describe("the places held", () => {
     })
 
     it("leaves out a place nothing changed hands in for its holder: there is nothing to play", () => {
-        const places = placesOf(owners, tiles, groundOf, [change(1, "fr", "pw")], regionOf)
+        const places = placesOf(owners, tiles, groundOf, [change(1, "fr", "pw")], regionOf, NO_CAST)
 
         expect(places.map(({kind, continent}) => `${kind} ${continent ?? ""}`)).toEqual(["world ", "continent Europe", "country Europe"])
     })
 
+    it("names the holder's top fighters by what they took for it of the place", () => {
+        const cast = castOf(take(1, "pw", 1), take(1, "pw", 2), take(2, "pw", 1050), take(3, "dz", 1150), take(3, "fr", 3))
+
+        const places = placesOf(owners, tiles, groundOf, [change(1, "fr", "pw"), change(1101, "fr", "dz")], regionOf, cast)
+
+        expect(places.map(({kind, continent, fighters}) => [kind, continent, fighters.map(({number, took}) => `${number}:${took}`)])).toEqual([
+            ["world", undefined, ["1:2", "2:1"]],
+            ["continent", "Europe", ["1:2", "2:1"]],
+            ["country", "Europe", ["1:2"]],
+            ["continent", "Africa", ["3:1"]],
+        ])
+    })
+
     it("tells a holding from a place: the holder, its share, the next holders as its victims", () => {
-        const [world] = placesOf(owners, tiles, groundOf, [change(1, "fr", "pw")], regionOf)
+        const [world] = placesOf(owners, tiles, groundOf, [change(1, "fr", "pw")], regionOf, NO_CAST)
 
         expect(holdingStoryOf(world)).toEqual({
             kind: "holding", attacker: "pw", rival: undefined, victims: ["fr", "dz"], place: {region: "the world"}, share: 800 / 1200,

@@ -677,7 +677,7 @@ var File_planet_v1_internal_proto protoreflect.FileDescriptor
 
 const file_planet_v1_internal_proto_rawDesc = "" +
 	"\n" +
-	"\x18planet/v1/internal.proto\x12\tplanet.v1\x1a\x16planet/v1/planet.proto\"9\n" +
+	"\x18planet/v1/internal.proto\x12\tplanet.v1\x1a\x16planet/v1/ledger.proto\x1a\x16planet/v1/planet.proto\"9\n" +
 	"\x18GetTakesByCountryRequest\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\"\x89\x01\n" +
@@ -718,8 +718,9 @@ const file_planet_v1_internal_proto_rawDesc = "" +
 	"allegiance\"\x18\n" +
 	"\x16GetRuleSetNamesRequest\"/\n" +
 	"\x17GetRuleSetNamesResponse\x12\x14\n" +
-	"\x05names\x18\x01 \x03(\tR\x05names2\xef\x03\n" +
-	"\x0fInternalService\x12c\n" +
+	"\x05names\x18\x01 \x03(\tR\x05names2\xbc\x04\n" +
+	"\x0fInternalService\x12K\n" +
+	"\tGetLedger\x12\x1b.planet.v1.GetLedgerRequest\x1a\x1c.planet.v1.GetLedgerResponse\"\x03\x90\x02\x01\x12c\n" +
 	"\x11GetTakesByCountry\x12#.planet.v1.GetTakesByCountryRequest\x1a$.planet.v1.GetTakesByCountryResponse\"\x03\x90\x02\x01\x12Z\n" +
 	"\x0eGetTerritories\x12 .planet.v1.GetTerritoriesRequest\x1a!.planet.v1.GetTerritoriesResponse\"\x03\x90\x02\x01\x12]\n" +
 	"\x0fGetCountrySizes\x12!.planet.v1.GetCountrySizesRequest\x1a\".planet.v1.GetCountrySizesResponse\"\x03\x90\x02\x01\x12]\n" +
@@ -757,6 +758,8 @@ var file_planet_v1_internal_proto_goTypes = []any{
 	(*GetRuleSetNamesRequest)(nil),    // 12: planet.v1.GetRuleSetNamesRequest
 	(*GetRuleSetNamesResponse)(nil),   // 13: planet.v1.GetRuleSetNamesResponse
 	(*Allegiance)(nil),                // 14: planet.v1.Allegiance
+	(*GetLedgerRequest)(nil),          // 15: planet.v1.GetLedgerRequest
+	(*GetLedgerResponse)(nil),         // 16: planet.v1.GetLedgerResponse
 }
 var file_planet_v1_internal_proto_depIdxs = []int32{
 	2,  // 0: planet.v1.GetTakesByCountryResponse.taken_for:type_name -> planet.v1.CountryTakes
@@ -765,18 +768,20 @@ var file_planet_v1_internal_proto_depIdxs = []int32{
 	6,  // 3: planet.v1.Territory.grounds:type_name -> planet.v1.Ground
 	9,  // 4: planet.v1.GetCountrySizesResponse.country_sizes:type_name -> planet.v1.CountrySize
 	14, // 5: planet.v1.GetAllegianceOfResponse.allegiance:type_name -> planet.v1.Allegiance
-	0,  // 6: planet.v1.InternalService.GetTakesByCountry:input_type -> planet.v1.GetTakesByCountryRequest
-	3,  // 7: planet.v1.InternalService.GetTerritories:input_type -> planet.v1.GetTerritoriesRequest
-	7,  // 8: planet.v1.InternalService.GetCountrySizes:input_type -> planet.v1.GetCountrySizesRequest
-	10, // 9: planet.v1.InternalService.GetAllegianceOf:input_type -> planet.v1.GetAllegianceOfRequest
-	12, // 10: planet.v1.InternalService.GetRuleSetNames:input_type -> planet.v1.GetRuleSetNamesRequest
-	1,  // 11: planet.v1.InternalService.GetTakesByCountry:output_type -> planet.v1.GetTakesByCountryResponse
-	4,  // 12: planet.v1.InternalService.GetTerritories:output_type -> planet.v1.GetTerritoriesResponse
-	8,  // 13: planet.v1.InternalService.GetCountrySizes:output_type -> planet.v1.GetCountrySizesResponse
-	11, // 14: planet.v1.InternalService.GetAllegianceOf:output_type -> planet.v1.GetAllegianceOfResponse
-	13, // 15: planet.v1.InternalService.GetRuleSetNames:output_type -> planet.v1.GetRuleSetNamesResponse
-	11, // [11:16] is the sub-list for method output_type
-	6,  // [6:11] is the sub-list for method input_type
+	15, // 6: planet.v1.InternalService.GetLedger:input_type -> planet.v1.GetLedgerRequest
+	0,  // 7: planet.v1.InternalService.GetTakesByCountry:input_type -> planet.v1.GetTakesByCountryRequest
+	3,  // 8: planet.v1.InternalService.GetTerritories:input_type -> planet.v1.GetTerritoriesRequest
+	7,  // 9: planet.v1.InternalService.GetCountrySizes:input_type -> planet.v1.GetCountrySizesRequest
+	10, // 10: planet.v1.InternalService.GetAllegianceOf:input_type -> planet.v1.GetAllegianceOfRequest
+	12, // 11: planet.v1.InternalService.GetRuleSetNames:input_type -> planet.v1.GetRuleSetNamesRequest
+	16, // 12: planet.v1.InternalService.GetLedger:output_type -> planet.v1.GetLedgerResponse
+	1,  // 13: planet.v1.InternalService.GetTakesByCountry:output_type -> planet.v1.GetTakesByCountryResponse
+	4,  // 14: planet.v1.InternalService.GetTerritories:output_type -> planet.v1.GetTerritoriesResponse
+	8,  // 15: planet.v1.InternalService.GetCountrySizes:output_type -> planet.v1.GetCountrySizesResponse
+	11, // 16: planet.v1.InternalService.GetAllegianceOf:output_type -> planet.v1.GetAllegianceOfResponse
+	13, // 17: planet.v1.InternalService.GetRuleSetNames:output_type -> planet.v1.GetRuleSetNamesResponse
+	12, // [12:18] is the sub-list for method output_type
+	6,  // [6:12] is the sub-list for method input_type
 	6,  // [6:6] is the sub-list for extension type_name
 	6,  // [6:6] is the sub-list for extension extendee
 	0,  // [0:6] is the sub-list for field type_name
@@ -787,6 +792,7 @@ func file_planet_v1_internal_proto_init() {
 	if File_planet_v1_internal_proto != nil {
 		return
 	}
+	file_planet_v1_ledger_proto_init()
 	file_planet_v1_planet_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{

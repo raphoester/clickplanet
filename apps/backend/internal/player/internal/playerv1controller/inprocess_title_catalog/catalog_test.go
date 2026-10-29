@@ -42,6 +42,7 @@ func TestWornIsTheChoiceOrTheFirstRankShown(t *testing.T) {
 func TestEachTrackIsMeasuredOnTheCareerAndSaysWhatIsHeld(t *testing.T) {
 	tracks := catalog.Tracks([]string{"settler", "talker"}, playerread.Career{
 		TilesTaken: 250, StreakNow: 3, MessagesSent: 120, TilesFortified: 64, BombsDropped: 2, BonusesClaimed: 17, RightAnswers: 5,
+		MissionsDone: 8,
 	})
 
 	progress := map[string]uint64{}
@@ -49,7 +50,7 @@ func TestEachTrackIsMeasuredOnTheCareerAndSaysWhatIsHeld(t *testing.T) {
 		progress[track.GetId()] = track.GetProgress()
 	}
 	assert.Equal(t, map[string]uint64{
-		"conquest": 250, "devotion": 3, "chatter": 120, "defense": 64, "bombs": 2, "loot": 17, "quiz": 5,
+		"conquest": 250, "devotion": 3, "chatter": 120, "defense": 64, "bombs": 2, "loot": 17, "quiz": 5, "missions": 8,
 	}, progress)
 	assert.True(t, tracks[0].GetSteps()[0].GetEarned())
 	assert.False(t, tracks[0].GetSteps()[1].GetEarned(), "a rank is earned once granted, not because the career reached it")

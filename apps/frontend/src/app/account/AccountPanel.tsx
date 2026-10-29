@@ -16,6 +16,8 @@ import {authorStyle} from "../chat/authorStyle.ts"
 import ProviderButton from "./ProviderButton.tsx"
 import EmailSignIn from "./EmailSignIn.tsx"
 import ProgressTab from "./ProgressTab.tsx"
+import ClipsSwitch from "../clips/ClipsSwitch.tsx"
+import {ClipsNameBackend} from "../../backends/clips.ts"
 import {ListenForClicks} from "../viewer/acceptedClicks.ts"
 import "./Account.css"
 
@@ -28,6 +30,7 @@ export type AccountPanelProps = {
     linkedMultiplier?: number
     playerInfo?: PlayerInfoBackend
     listenForClicks?: ListenForClicks
+    clips?: ClipsNameBackend
 }
 
 type Tab = "progress" | "settings"
@@ -70,7 +73,7 @@ export default function AccountPanel(props: AccountPanelProps) {
     </div>
 }
 
-function AccountSettings({state, store, onDelete, linkedMultiplier}: AccountPanelProps) {
+function AccountSettings({state, store, onDelete, linkedMultiplier, clips}: AccountPanelProps) {
     const busy = state.busy !== undefined
     const linked = state.me.linked
     const toLink = state.offered.filter((p) => !linked.includes(p))
@@ -87,6 +90,7 @@ function AccountSettings({state, store, onDelete, linkedMultiplier}: AccountPane
 
         {linked.length > 0 && <UsernameForm key={state.username ?? ""} state={state} store={store}/>}
         {linked.length > 0 && state.username !== undefined && <ColorPicker name={state.username} state={state} store={store}/>}
+        {linked.length > 0 && state.username !== undefined && clips && <ClipsSwitch key={state.accountId} clips={clips}/>}
 
         {buttons.map((provider) => <ProviderButton key={provider}
                                                    provider={provider}

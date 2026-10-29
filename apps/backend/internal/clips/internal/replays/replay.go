@@ -106,3 +106,20 @@ type RoundSource interface {
 type RoundStore interface {
 	SaveRound(ctx context.Context, round Round) error
 }
+
+// The players who took tiles in the replay's window, numbered for this run alone, as the backend made it: names and
+// numbers, never an account. The generator ranks the fighters of each story from it.
+type Cast struct {
+	// A clips.v1.Cast in JSON.
+	Document []byte
+	Fighters int
+	Takes    int
+}
+
+type CastSource interface {
+	Cast(ctx context.Context, window Window) (Cast, error)
+}
+
+type CastStore interface {
+	SaveCast(ctx context.Context, cast Cast) error
+}

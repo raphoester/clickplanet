@@ -40,7 +40,8 @@ type PostgresQuery struct {
 const changes = `
 	SELECT e.position, e.taken_at, COALESCE(c.tile, 0), COALESCE(c.owner, ''), COALESCE(c.previous, ''),
 		COALESCE(c.clicked, false), COALESCE(c.shields, 0),
-		CASE WHEN e.account IS NOT NULL THEN 'account:' || e.account::text ELSE 'scope:' || COALESCE(e.scope, '') END
+		CASE WHEN e.account IS NOT NULL THEN 'account:' || e.account::text ELSE 'scope:' || COALESCE(e.scope, '') END,
+		COALESCE(e.account::text, '')
 	FROM (
 		SELECT position, kind, tile, country, previous, taken_at, payload, account, scope
 		FROM ledger_events
@@ -127,7 +128,7 @@ func (q *PostgresQuery) page(ctx context.Context, since, until time.Time, from i
 			change   = &planetv1.LedgerChange{Update: update}
 		)
 		if err := rows.Scan(&position, &at, &update.TileId, &update.CountryId, &update.PreviousCountryId, &update.Clicked,
-			&update.Shields, &change.By); err != nil {
+			&update.Shields, &change.By, &change.AccountId); err != nil {
 			return nil, fmt.Errorf("failed to read a change of the ledger: %w", err)
 		}
 		if position != last {

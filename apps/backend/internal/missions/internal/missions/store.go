@@ -15,6 +15,7 @@ type Store interface {
 
 	Sheet(ctx context.Context, day Day, account AccountID) (Sheet, error)
 	ChangeSheet(ctx context.Context, day Day, account AccountID, change func(Sheet) Sheet) error
+	PaidInAll(ctx context.Context, account AccountID) (uint64, error)
 
 	DeleteAccount(ctx context.Context, account AccountID) error
 }

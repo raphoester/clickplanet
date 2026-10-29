@@ -28,4 +28,5 @@ type Career struct {
 	TilesFortified uint64
 	BonusesClaimed uint64
 	RightAnswers   uint64
+	MissionsDone   uint64
 }

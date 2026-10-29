@@ -4,7 +4,7 @@
 the map moving under it from the first frame, and the link at the end. `npm run clip` makes one from a replay and a
 story: **the generator measures, the editor judges** (2026-10-27). `--findings` writes what the replay holds, every
 front, tour and place with its numbers and nothing decided; a model in the backend's job writes the stories from it;
-`--story` renders one of them, and chooses the camera, the look, the length and the music itself. Each comes with a
+`--story` renders one of them, and chooses the camera's path, the length and the music's start itself. Each comes with a
 `.json` holding what to post with it, as data for the job that posts it (below), and a `.txt` with its teasers, one a
 line, for a person. `--plan` prints what the clip would be and renders nothing, and `--preview 3` renders only the
 first 3 seconds; every choice can be forced (`npm run clip -- --help`).
@@ -13,10 +13,10 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
 17 past every even hour UTC, or by hand with `workflow_dispatch`), so a story reaches the feed 2 to 3 hours after it
 happened rather than 10 to 20 under the two runs a day before (2026-10-24). Four jobs:
 
-1. **fetch**: the backend's `clips fetch -hours 12 -race race.json -season season.json` over SSH, with the deploy's
-   `VPS_*` secrets. The job runs no npm at all, so the key to the VPS is in no job that installs this app's
+1. **fetch**: the backend's `clips fetch -hours 12 -race race.json -season season.json -cast cast.json` over SSH, with
+   the deploy's `VPS_*` secrets. The job runs no npm at all, so the key to the VPS is in no job that installs this app's
    dependencies. The replay, the gamemaster's turn (`season.json`) and the round it debriefs (`race.json`) go on as an
-   artifact; all are public data. A turn or a round that could not be fetched is no file, and the run goes on without
+   artifact; all are public data, the cast's names and numbers too, never an account. A turn or a round that could not be fetched is no file, and the run goes on without
    a round to tell or a country to call up.
 2. **findings** and **choose**: `npm run clip -- --findings findings.json`, then, in a job of its own (it holds
    the Zernio and Anthropic keys, and runs no npm), the backend's `clips choose` reads it and prints the stories to
@@ -37,7 +37,8 @@ happened rather than 10 to 20 under the two runs a day before (2026-10-24). Four
    recorders do not help there: each one draws every frame. Chrome gets a minute to start: 20s failed the run of
    2026-10-26 18:40.
 4. **schedule**: the backend's `clips schedule` sends each clip to the posting service as one post on TikTok and
-   YouTube Shorts, **for 5 minutes ahead, an hour after the last post on each**. There is no review: nobody cancels
+   YouTube Shorts, **for 5 minutes ahead, an hour after the last post on each**, then tells the backend over SSH who
+   each post names, so the game tells them. There is no review: nobody cancels
    clips in the dashboard, so the 4 hours one cost were 4 hours of the story getting old. A clip can still be
    cancelled in the service's dashboard before its time, which stops it on both.
 
@@ -56,10 +57,11 @@ What chooses, when a clip goes out, the client of the service and the run's summ
     flag (`captured`: filling empty ground is not war); its countries by tiles changed there, each with its continent,
     its size, who held the most of it when the front opened and when it ended (`holdersStart`, `holdersEnd`) and who
     took the most there (`takers`); its flags by tiles taken and lost, each with what it took, filled, lost, whom it
-    took from and the solidity of what it took (below); the bombs, spreads and enclosures in sight; and the score it
-    was ranked by. So a flag that held most of a country at the start and took more of it is kicking someone out, a
-    flag that held much at the start and little at the end is thrown out, and two flags taking from each other are at
-    war: **the editor reads that, no threshold does.**
+    took from, the solidity of what it took (below) and the tiles of the landmasses whose painted flag switched to it,
+    by continent (`flippedByContinent`, as a tour's below, over the front's cut); the bombs, spreads and enclosures in
+    sight; and the score it was ranked by. So a flag that held most of a country at the start and took more of it is
+    kicking someone out, a flag that held much at the start and little at the end is thrown out, and two flags taking
+    from each other are at war: **the editor reads that, no threshold does.**
   - **`tours`**: each flag taking land across the whole map, in its busiest stretch, with what it took on each
     continent and from whom, what the second flag across the world took in the same stretch, its solidity, and **the
     tiles of the landmasses whose painted flag switched to it, by continent** (`flippedByContinent`, from `flipsOf` and
@@ -68,16 +70,22 @@ What chooses, when a clip goes out, the client of the service and the run's summ
     next, switching landmasses on two continents or more, is taking over the world, which the camera tells as a tour
     (below); the job refuses a tour of a flag that switched none.
   - **`places`**: what the map is at the end: the flag holding the most of the world, of each continent and of each
-    country of 1,000 tiles or more (49 of them), with its share, the next holders and how many tiles of the place
-    changed hands to it or from it in the window, which is what its clip plays; a place where nothing did is left out,
-    since there is nothing to play. **Europe is held without Russia**: Russia's ground is 71% of Natural Earth's
-    Europe, so a flag holding Siberia would "hold Europe"; Russia is a place of its own. A share is of all the place's
-    tiles, empty ones too.
+    country of 1,000 tiles or more (49 of them), with its share, the next holders, how many tiles of the place
+    changed hands to it or from it in the window, which is what its clip plays, and the tiles of the landmasses whose
+    painted flag switched to it in the window, by continent (`flippedByContinent`); a place where nothing changed is
+    left out, since there is nothing to play. **Europe is held without Russia**: Russia's ground is 71% of Natural
+    Earth's Europe, so a flag holding Siberia would "hold Europe"; Russia is a place of its own. A share is of all the
+    place's tiles, empty ones too.
   - **`seasonal`**: a day of the season won and each country called up after it (`round.ts`, `callup.ts`, below),
     told whole by this app, with the title, the key, the countries and the facts their clips would record
     (`StoryFacts`, `storyFactsOf`, the numbers `record()` works out, measured once by `measuredOf`).
   - **`names`**, how a clip says each code in the findings ("gb": "the UK"), **`continents`**, each with its own
     flag when it has one (Europe's), and **`anthems`**, the codes a clip has a recording for (below).
+  - **`fighters`**, with a cast (`--cast`): the players who took the most, 3 at most (`topFightersOf`,
+    `domain/clip/cast.ts`), each with its number in the cast, its name and the tiles it took from another flag. On each
+    front's flag, its takes on the front's tiles in the front's stretch; on each tour, the flag's on the tour's tiles;
+    on each place, the holder's of the place in the window. **A take is matched by its tile and the stretch, never by
+    its time**: the cast's times are postgres's, the replay's the stream's.
 - **`--story <json>`** is the story to render, a `Pick` (`toldOf`): one front, tour, place or seasonal story of the
   findings by its number, from 1, and for a front what the editor made of it: its `kind` (`attack`, `invasion`,
   `comeback`, `kickout`, `rout`, `battle`), its `attacker`, its `rival` in a battle, whom it took from (`takenFrom`,
@@ -85,9 +93,12 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   strike back together (`team`). A tour, a place and a seasonal story are the facts' own: the flag taking the world,
   the holder holding its share, the day won. **Every story but a seasonal one comes with the editor's words**: its
   `headline`, its `teasers`, its `line` (empty for none), its `call` and the flags it asks to fight for
-  (`callFlags`), and the `anthem` under it (below). **The page builds the `Story` from it and reads no rule**: a pick
-  that names no front, a kind no front tells, no attacker, no place, no headline or no call is refused as it is read,
-  and the job checked it against the findings before the render. `--headline` overrides the story's.
+  (`callFlags`), and the `anthem` under it (below); a front and a place also come with their `look`, `flags` or
+  `dive` (below). **The page builds the `Story` from it and reads no rule**: a pick that names no front, a kind no
+  front tells, no attacker, no place, no headline, no call, or no look for a front or a place, is refused as it is
+  read, and the job checked it against the findings before the render. `--headline` overrides the story's. Its
+  `fighters` are the players the editor names, by their number in the cast, each a top fighter of a side of the story
+  in the findings; a number the cast does not have fails the render. A seasonal story names nobody.
 - **`--season <path>`** is the gamemaster's turn, a `gamemaster.v1.GetTurnResponse` as `GetTurn` answers it, served
   to the page at `/__clip/season.json`. Its `debrief` is the moment scoring scored last, in the game's words: a day
   (`DayEnded`), a battle (`BattleEnded`, `ends_season` for the finale) or the season's end (`SeasonEnded`, told as
@@ -101,6 +112,10 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   as a day** (`Day.own`): it is numbered apart from the days, so its clip says "wins the battle" ("the final battle"
   for the finale) and calls to play, never "day 1" or "who wins day 2", and nobody is called up after it, since its
   podium scored its times.
+- **`--cast <path>`** is who took which tiles, a `clips.v1.Cast` the backend's `clips fetch` makes for the run,
+  served at `/__clip/cast.json` the same way (`src/clip/cast.ts`, `castOf`): each player with a username who lets the
+  clips show it, under a number of this cast alone (1 took the most), and only its takes from another flag. **No
+  account id is in it**: a run's files are public. With none, nobody is named and every clip is as before.
 - **A story's key says which story it is, the headline never does** (`storyKeyOf`, `domain/clip/story.ts`): the
   flag the clip is about and the continent it is told on, `{flag: "dz", continent: "Africa"}`. **Its angle says what
   the story tells of the flag there**: none for what it did, `holding` for what it holds, `round` for a day it won,
@@ -115,7 +130,9 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   story and shows Palau. The `Clip`'s countries are the same list, with their hashtags.
 - **`clip-<n>.json`** is a `Clip`: its number in the run (`--pick`), its title (the headline), its key, which the job
   keeps with the post, and **the words of its caption that need the story**: its teasers, its countries with their
-  hashtags, its continent's hashtag, and the credit of its music. **The job writes the caption** from them (the
+  hashtags, its continent's hashtag, the credit of its music, and the players its end card names (`fighters`, each
+  with the flag it fought for in the story, and `cast`, the cast's id, empty when it names nobody), which the job
+  keeps so each player is told in the game. **The job writes the caption** from them (the
   backend's [The clips job](../../backend/docs/clips-job.md)): this app has the names, the job has the platform. The
   repo is public and so are a run's logs and artifacts: a clip can be watched there before it is out.
 - **A `Clip` also says what the clip was** (`record`, a `ClipRecord`, written by `clipRecordOf` in
@@ -135,8 +152,8 @@ What chooses, when a clip goes out, the client of the service and the run's summ
     where the story is told (a bomb's cleared tiles too), `storyTilesChanged` (the fighting the camera follows),
     `placeTiles` (the place the headline names), `flagTilesStart` and `flagTilesEnd` (the counter, for the key's
     flag), `landmassesFlipped`, the effects in sight of the story as `--plan` counts its bombs (`bombs`, `spreads`,
-    `enclosures`, from `ReplayBackend.effects`), `screensCrossed`, `tourStops` and `solidity`. One protojson leaves out
-    is its zero.
+    `enclosures`, from `ReplayBackend.effects`), `screensCrossed`, `tourStops`, `solidity`, and in `common` the
+    `fighters` its end card names. One protojson leaves out is its zero.
   - **`storyEndedAt` is when the stretch it plays ends**, the newest moment of the story, as a time (the stretch's
     `until`, so the cutoff for a day or a call-up). The post's `scheduledAt` minus it is how long the story took to
     reach the feed, which is what running every 2 hours set out to cut.
@@ -197,6 +214,13 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   pulled back out stays in sight under it. The call
   shows the flags the editor names it with (`callFlags`): a country's, or a continent's own flag (Europe's alone,
   `static/countries/svg/eu.svg`, from the same set as the others).
+- **The end card names the top fighters** the pick names: "TOP FIGHTERS" under the call, then each side's players
+  (`sidesOf`), two sides and 3 a side at most, a row each with the side's flag, the name and the tiles it took in what
+  the clip plays, counted again from the cast on the story's tiles in the stretch the clip is cut to
+  (`namedSidesOf`). Each is under the side it took the most for; one who took nothing for a side there is left out.
+  `--plan` prints them. It fades in once the counter has faded out, half a second into the call, and covers where the
+  counter was, left of the buttons, in small outlined words and no panel, so the map shows through. **A name is the player's, in any script**: one Luckiest Guy cannot draw sets the
+  clip in Rubik Black, as a call-up's words do, and one too long for its row is set smaller (`fit`), never cut.
 
 **`src/domain/clip/` measures and plays; it judges nothing**, pure and under test:
 
@@ -234,7 +258,7 @@ What chooses, when a clip goes out, the client of the service and the run's summ
 - **Names are said with their article** where English wants one: "the UK", "the Netherlands", "the Dominican
   Republic". Tags keep them bare.
 - **Every editorial choice is the model's, never a rule here** (2026-10-28): the headline, the teasers, the line
-  under the headline, the call at the end with its flags, and the anthem. Until then each kind of story had its words
+  under the headline, the call at the end with its flags, the anthem, and the look. Until then each kind of story had its words
   and its anthem in code, chosen by branches on the story (its kind, whether the loser was at home, whether two flags
   fought): every rout outside the loser's home could be "GENERATIONAL DOWNFALL OF X", so a YouTube Short of China
   losing Finland was titled "GENERATIONAL DOWNFALL OF CHINA". The editor's instructions say what each was for. Only a
@@ -301,12 +325,15 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   to the globe and back in, which was brutal. It pulls back out to the globe over all of them at the end; 1.2s a
   flight and 2.6s a stop. Up close, a big country's painted flag is blurred: the flag atlas is the game's. The counter
   counts the flag across the world.
-- **`look.ts` picks when the camera comes back out of the tiles.** From far, a landmass's painted flag only
-  changes when its biggest holder does (`flipsOf`, over the borders blob, read 8 times along the changes, so a
-  landmass taken and taken back counts too). A front too wide to frame closer than
-  `TILES_ZOOM` (3) is **flags** when at least 2 landmasses changed their biggest holder and those hold 2,000 tiles
-  or more: a steamroll, which comes back out halfway so its painted flags change on screen. Everything else is a
-  **dive**, which comes back out at the end.
+- **The editor picks when the camera comes back out of the tiles** (the pick's `look`): **flags** comes back out
+  halfway, so the painted flags change on screen, for a steamroll; **dive** comes back out at the end, for a fight
+  seen tile by tile. `--flags` and `--dive` override it. A day won and a call-up, which no editor tells, dive; a tour
+  has no look. **`look.ts` only measures what the editor reads**: from far, a landmass's painted flag only changes
+  when its biggest holder does (`flipsOf`, over the borders blob, read 8 times along the changes, so a landmass taken
+  and taken back counts too), and `flippedTo` keeps the ones that switched to a flag, big enough to read. Until
+  2026-10-28 `lookOf` chose it: **flags** for a front too wide to frame closer than zoom 3 where 2 landmasses or
+  more, 2,000 tiles in all, changed their biggest holder. A rule on two numbers met fronts it was not written for, and
+  the zoom was a judgment too: the overview is never closer than a continent, so any front can pull back to it.
 - **`camera.ts` opens down in the tiles**: the first frame is where the most tiles change hands, past the zoom the
   painted flags are gone at (`tilesZoomOf`), so the fight is seen tile by tile from the first second. Until
   2026-10-28 a clip opened on the map with its painted flags, held 0.3s and dived in 0.7s: a second with nothing

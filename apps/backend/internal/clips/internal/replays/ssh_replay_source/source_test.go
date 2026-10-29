@@ -268,3 +268,30 @@ func TestAnAnswerThatIsNotTheRoundAskedIsAnError(t *testing.T) {
 		})
 	}
 }
+
+func TestTheCastIsAskedOfTheOperatorToolAndWrittenAlone(t *testing.T) {
+	fake := ssh(t, `{"cast":{"id":"5f0c2a11-0b6d-4f7e-9a51-3f1f8f0c2a11","fighters":[{"number":1,"name":"BraveFox42"}],`+
+		`"takes":[{"tileId":7,"countryId":"fr","previousCountryId":"de","fighter":1}]},"aFieldOfALaterBackend":true}`, "", 0)
+	source, err := ssh_replay_source.New("deploy@vps.example", fake.client)
+	require.NoError(t, err)
+
+	cast, err := source.Cast(t.Context(), window)
+
+	require.NoError(t, err)
+	assert.Equal(t, "cd /opt/clickplanet/deploy/vps && docker compose exec -T backend wget -qO- --header 'Content-Type: application/json'"+
+		` --post-data '{"since":"2026-10-12T00:17:00Z","until":"2026-10-12T12:17:00.5Z"}'`+
+		" http://127.0.0.1:8081/clips.v1.AdminService/MakeCast", fake.asked(t)[2])
+	assert.JSONEq(t, `{"id":"5f0c2a11-0b6d-4f7e-9a51-3f1f8f0c2a11","fighters":[{"number":1,"name":"BraveFox42"}],`+
+		`"takes":[{"tileId":7,"countryId":"fr","previousCountryId":"de","fighter":1}]}`, string(cast.Document))
+	assert.Equal(t, 1, cast.Fighters)
+	assert.Equal(t, 1, cast.Takes)
+}
+
+func TestACastWithNoIDIsAnError(t *testing.T) {
+	source, err := ssh_replay_source.New("deploy@vps.example", ssh(t, `{}`, "", 0).client)
+	require.NoError(t, err)
+
+	_, err = source.Cast(t.Context(), window)
+
+	assert.ErrorContains(t, err, "no id")
+}

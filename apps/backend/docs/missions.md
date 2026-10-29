@@ -19,6 +19,7 @@ internal/missions/internal/
     rpc_auth_accounts/              whether an account is signed in, from auth.v1.InternalService/GetAccount
     payroll/                        pays each mission done once: the payments and their grants, in one transaction
     planetgrant/                    a payment as the planet.v1.GrantCharges command
+    redis_outbox_sender/            what the outbox relay sends with: the grants as commands, MissionsPaid as an event
     usecases/record_take_usecase/  get_missions_usecase/  pay_signed_in_usecase/  forget_account_usecase/
   flagmissions/                     Strike, Order (TakeIn, BreakShields), MissionID, Day (a flag's day), Done, Draw,
                                     Briefing; the Store port and its contract suite
@@ -88,6 +89,11 @@ internal/missions/internal/
     sends it to planet, which grants it once per `grant_id` (`planetgrant.Of`: the account and the mission, so a
     payment told twice names one grant). **What does not fit the stack is lost**, as planet grants any charge: no
     reply comes back.
+  - **The payment is told too**: with the grants, the payroll records `missions.v1.MissionsPaid`, how many missions the
+    account was paid in all (`Store.PaidInAll`, a count of `mission_payments` under the sheet's lock), these included.
+    `player` keeps it for the Missions title track. A running total, not one event per mission: told twice or late it
+    changes nothing, and the first one brings every payment before it. So one outbox holds a command and an event, and
+    `redis_outbox_sender` sends each on its own kind of stream.
   - **A guest's progress counts and is kept, and its pay waits for sign-in.** `payroll` asks auth whether the account
     is signed in (`rpc_auth_accounts`) only when a take finishes a mission. `auth.v1.SignedIn` (`missions-sign-ins`,
     `pay_signed_in_usecase`) pays the day's missions done, so a guest who signs in that day gets them; a day that

@@ -4,6 +4,7 @@ import (
 	"context"
 	"slices"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -102,7 +103,11 @@ func everyKind() []ledger.Event {
 }
 
 func change(by string, update *planetv1.TileUpdate) *planetv1.LedgerChange {
-	return &planetv1.LedgerChange{At: timestamppb.New(at), Update: update, By: by}
+	account, ok := strings.CutPrefix(by, "account:")
+	if !ok {
+		account = ""
+	}
+	return &planetv1.LedgerChange{At: timestamppb.New(at), Update: update, By: by, AccountId: account}
 }
 
 func (s *testSuite) TestEveryKindGoesOutAsTheStreamShowedItWithWhoMadeIt() {
@@ -204,7 +209,9 @@ func (s *testSuite) TestADeletedAccountsChangesAreItsAddresss() {
 
 	s.Require().NoError(s.store.AnonymizeTakes(s.T().Context(), id))
 
-	s.Equal("scope:203.0.113.7", s.ledger(at, at.Add(time.Minute))[0].GetBy())
+	changes := s.ledger(at, at.Add(time.Minute))
+	s.Equal("scope:203.0.113.7", changes[0].GetBy())
+	s.Empty(changes[0].GetAccountId())
 }
 
 func (s *testSuite) TestAPageEndsOnAWholeEventAndTheNextOneStartsAfterIt() {

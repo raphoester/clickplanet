@@ -2,7 +2,7 @@ import "../tokens.css"
 import "./clip.css"
 import * as THREE from "three"
 import type {JsonValue} from "@bufbuild/protobuf"
-import {Clip} from "../gen/grpc/clips/v1/clips_pb.ts"
+import {Cast as CastWritten, Clip} from "../gen/grpc/clips/v1/clips_pb.ts"
 import {GetReplayResponse} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {GetRoundResponse} from "../gen/grpc/scoring/v1/scoring_pb.ts"
 import {GetTurnResponse} from "../gen/grpc/gamemaster/v1/gamemaster_pb.ts"
@@ -21,12 +21,13 @@ import {HIGHLIGHTS} from "./anthemHighlightsAsset.ts"
 import {CLIP_ANTHEMS} from "./clipAnthemsAsset.ts"
 import {Candidate, candidatesOf, inCandidate, newsSince, Window} from "../domain/clip/window.ts"
 import {Front, frontOf, inSightOf, sameFront, spanOf} from "../domain/clip/front.ts"
-import {frontFactsOf, Ground, holdingStoryOf, inHolding, placesOf, solidityAfter, tourFactsOf} from "../domain/clip/findings.ts"
+import {flippedByContinentOf, frontFactsOf, Ground, holdingStoryOf, inHolding, PlaceFacts, placesOf, solidityAfter, tourFactsOf} from "../domain/clip/findings.ts"
 import {ROUND_PLAY_MS, roundStoryOf} from "../domain/clip/round.ts"
 import {callUpsOf} from "../domain/clip/callup.ts"
-import {fightersOf, inPlace, Story, storyKeyOf, teamFlagOf, THE_WORLD} from "../domain/clip/story.ts"
+import {castWithin, namedSidesOf, NO_CAST} from "../domain/clip/cast.ts"
+import {fightersOf, inPlace, sidesOf, Story, storyKeyOf, teamFlagOf, THE_WORLD} from "../domain/clip/story.ts"
 import {scoreOf} from "../domain/clip/score.ts"
-import {Flip, flippedTo, flipsOf, Look, lookOf} from "../domain/clip/look.ts"
+import {Flip, flippedTo, flipsOf, Look, LOOKS} from "../domain/clip/look.ts"
 import {cameraOf, framingOf, overviewOf, PullBack, screensOf} from "../domain/clip/camera.ts"
 import {paceOf, playedAt, PODIUM_ENDING_SECONDS, timelineFor, timelineOf} from "../domain/clip/pace.ts"
 import {stopsOf, tourOf, tourSecondsOf, Visit} from "../domain/clip/tour.ts"
@@ -34,10 +35,11 @@ import {flagsZoomOf, tilesZoomOf} from "../app/viewer/pointSize.ts"
 import {mulberry32} from "../app/viewer/stars.ts"
 import {installVirtualClock} from "./virtualClock.ts"
 import {createOverlay, hashtagsOf, nameOf, placeName, wordsOf} from "./overlay.ts"
-import {findingsOf, FrontFound, Measured, SeasonalFound, Told, toldOf, TourFound} from "./findings.ts"
+import {findingsOf, FrontFound, Measured, PlaceFound, SeasonalFound, Told, toldOf, TourFound} from "./findings.ts"
 import {clipRecordOf} from "./clipRecord.ts"
 import {Variants, variantsOf} from "./experiments.ts"
 import {dayOf, finaleAtOf} from "./race.ts"
+import {castOf} from "./cast.ts"
 
 export type Recording = {
     pick: number
@@ -55,6 +57,8 @@ export type Recording = {
     line: string
     call: string
     teasers: string[]
+    // The players the end card names, with the flag each fought for and the tiles it took.
+    fighters: {number: number, name: string, flag: string, took: number}[]
     // The arm of each experiment the clip is in.
     variants: Variants
     // What to post with the clip, as a clips.v1.Clip.
@@ -84,6 +88,9 @@ const MARGIN_MS = 30_000
 const DIVE_DEPTH = 1.1
 
 const PULL_BACKS: Record<Look, PullBack> = {dive: "atEnd", flags: "midway"}
+
+// A day won and a call-up are the generator's own, their look as their words: no editor tells them.
+const SEASONAL_LOOK: Look = "dive"
 
 // The flags taking the most across the map in a window that may be on a tour of the world.
 const WORLD_TAKERS = 3
@@ -130,8 +137,11 @@ type Spotted = {scope: string | undefined, candidate: Candidate, inside: TileCha
 
 type SpottedTour = {candidate: Candidate, flag: string, front: Front, score: number, nextTook: number}
 
-// What a clip is made of: the fighting the camera follows, the story told over it, and the replay cut to it.
-type Review = {front: Front, story: Story, score: number, scope: string | undefined, world: boolean, backend: ReplayBackend, solidity: number}
+// What a clip is made of: the fighting the camera follows, the story told over it, the replay cut to it, and when the
+// camera comes back out of the tiles.
+type Review = {
+    front: Front, story: Story, score: number, scope: string | undefined, world: boolean, backend: ReplayBackend, solidity: number, look: Look
+}
 
 const RECORDED: Readonly<Record<string, {url: string, title: string, credit?: string}>> = {...ANTHEMS, ...CLIP_ANTHEMS}
 
@@ -143,7 +153,7 @@ function musicOf(code: string | undefined, seconds: number): Recording["music"] 
 }
 
 function lookParam(): Look | undefined {
-    return (["flags", "dive"] as const).find((look) => params.has(look))
+    return LOOKS.find((look) => params.has(look))
 }
 
 function flipsLine(flips: readonly Flip[]): string {
@@ -185,6 +195,9 @@ async function choose(): Promise<Chosen> {
     const round = race.ok ? GetRoundResponse.fromJson(await race.json(), {ignoreUnknownFields: true}).round : undefined
     const day = dayOf(turn?.debrief, round)
     const finaleAt = finaleAtOf(turn?.timeline)
+    // Who took which tiles, when the run made a cast: without one, a clip names nobody.
+    const roster = await fetch("/__clip/cast.json")
+    const cast = roster.ok ? castOf(CastWritten.fromJson(await roster.json(), {ignoreUnknownFields: true})) : NO_CAST
 
     const focus = countryParam("focus")
     const {positions} = await loadPointGeometryData()
@@ -237,7 +250,10 @@ async function choose(): Promise<Chosen> {
     const fronts = scopes.flatMap(frontsIn).sort((a, b) => b.score - a.score).slice(0, MOST_FRONTS)
     const frontFound = ({scope, candidate, front, score}: Spotted): FrontFound => {
         const backend = cutOf(front, candidate)
-        const facts = frontFactsOf(front.changes, backend.opening, ownersAfter(backend.opening, backend.changes()), ground, pointAt)
+        const changes = backend.changes()
+        const flips = flipsOf(borders.assignment, backend.opening, changes, front.changes.map(({tile}) => tile))
+        const facts = frontFactsOf(front.changes, backend.opening, ownersAfter(backend.opening, changes), ground, pointAt, flips,
+            castWithin(cast, backend.since, backend.until))
         const inSight = inSightOf(front, pointAt, groundAt, scope)
         const effects = backend.effects().filter(({tile}) => inSight(tile))
         return {
@@ -267,7 +283,8 @@ async function choose(): Promise<Chosen> {
         const backend = cutOf(front, candidate)
         const changes = backend.changes()
         const flips = flipsOf(borders.assignment, backend.opening, changes, front.changes.map(({tile}) => tile))
-        const facts = tourFactsOf(flag, front.changes, ownersAfter(backend.opening, changes), continentAt, pointAt, flips)
+        const facts = tourFactsOf(flag, front.changes, ownersAfter(backend.opening, changes), continentAt, pointAt, flips,
+            castWithin(cast, backend.since, backend.until))
         return {since: backend.since, until: backend.until, ...facts, flag, nextTook, bombs: backend.drops().filter(({drop}) => drop.tile !== undefined).length}
     }
     // on: the tiles a visit counts on, when not all of them.
@@ -277,15 +294,22 @@ async function choose(): Promise<Chosen> {
     // What the map is, beside what changed on it: the flag holding the most of each place, as the map stands at the end.
     const window = everything.filter(({at}) => at >= since && at <= until)
     const end = ownersAfter(replay.opening, everything.filter(({at}) => at <= until))
-    const places = focus !== undefined ? [] : placesOf(end, borders.assignment.length, groundAt, window, regionOf)
+    const places = focus !== undefined ? [] : placesOf(end, borders.assignment.length, groundAt, window, regionOf, castWithin(cast, since, until))
     // The clip of a holding plays its flag's fighting for it, all over the place.
-    const holdingReviewOf = (story: Story): Review => {
+    const holdingReviewOf = (story: Story, look: Look): Review => {
         const changes = window.filter(({tile, from, to}) => from !== to && (from === story.attacker || to === story.attacker)
             && inHolding(story.place, groundAt(tile), regionOf))
         const front = {heart: meanOf(changes.map(({tile}) => pointAt(tile))) ?? {x: 0, y: 0, z: 1}, changes}
         const span = spanOf(front, MARGIN_MS)
         const backend = replay.cut(Math.max(since, span.since), Math.min(until, span.until))
-        return {front, story, score: 0, scope: undefined, world: false, backend, solidity: solidityAfter(story.attacker, changes, end, pointAt)}
+        return {front, story, score: 0, scope: undefined, world: false, backend, solidity: solidityAfter(story.attacker, changes, end, pointAt), look}
+    }
+    // A landmass is one country's: the window's flips, read once, are each place's.
+    const flippedInWindow = places.length === 0 ? []
+        : flipsOf(borders.assignment, ownersAfter(replay.opening, everything.filter(({at}) => at < since)), window, window.map(({tile}) => tile))
+    const placeFound = (place: PlaceFacts): PlaceFound => {
+        const flips = flippedInWindow.filter(({tile}) => inHolding(place.place, groundAt(tile), regionOf))
+        return {...place, flippedByContinent: flippedByContinentOf(flips, place.holder, continentAt)}
     }
     // The clip of a day, or of a country called up after it, plays the run-up to its cutoff: its flag's fighting, else
     // everyone's. Nothing changed hands before the cutoff is no clip.
@@ -297,7 +321,7 @@ async function choose(): Promise<Chosen> {
         const changes = own.length > 0 ? own : played
         if (changes.length === 0) return undefined
         const front = {heart: meanOf(changes.map(({tile}) => pointAt(tile))) ?? {x: 0, y: 0, z: 1}, changes}
-        return {front, story, score: 0, scope: undefined, world: false, backend, solidity: 1}
+        return {front, story, score: 0, scope: undefined, world: false, backend, solidity: 1, look: SEASONAL_LOOK}
     }
     const told = focus === undefined ? roundStoryOf(day, since, until) : undefined
     const seasonal = [...told === undefined ? [] : [told], ...focus === undefined ? callUpsOf(day, finaleAt, since, until) : []]
@@ -341,12 +365,16 @@ async function choose(): Promise<Chosen> {
             const facts = toursFound[told.tour - 1]
             if (!found || !facts) throw new Error(`no tour number ${told.tour}: the findings hold ${tours.length}`)
             const story: Story = {kind: "attack", attacker: found.flag, rival: undefined, victims: Object.keys(facts.tookFrom), place: {region: THE_WORLD}}
-            return {front: found.front, story, score: found.score, scope: undefined, world: true, backend: cutOf(found.front, found.candidate), solidity: facts.solidity}
+            // A tour stays out among the painted flags all along: the look is never read.
+            return {
+                front: found.front, story, score: found.score, scope: undefined, world: true, backend: cutOf(found.front, found.candidate),
+                solidity: facts.solidity, look: "flags",
+            }
         }
         if ("place" in told) {
             const found = places[told.place - 1]
             if (!found) throw new Error(`no place number ${told.place}: the findings hold ${places.length}`)
-            return holdingReviewOf(holdingStoryOf(found))
+            return holdingReviewOf(holdingStoryOf(found), told.look)
         }
         if ("seasonal" in told) {
             const found = seasonal[told.seasonal - 1]
@@ -362,17 +390,22 @@ async function choose(): Promise<Chosen> {
         if (!own) throw new Error(`no side of the ${story.kind} of ${nameOf(story.attacker)} fought in ${placeName(story.place)} on front ${told.front}`)
         const backend = cutOf(own, found.candidate)
         const solidity = solidityAfter(story.attacker, own.changes, ownersAfter(backend.opening, backend.changes()), pointAt)
-        return {front: own, story, score: found.score, scope: found.scope, world: false, backend, solidity}
+        return {front: own, story, score: found.score, scope: found.scope, world: false, backend, solidity, look: told.look}
     }
 
     const record = async (): Promise<Recording> => {
         // The arms the job put the clip in, read before anything is built: an arm nobody knows fails the clip.
         const variants = variantsOf(params.get("variants"))
         const pick = numberParam("pick") ?? 1
-        const {told, written} = storyParam()
+        const {told, written, fighters: chosen} = storyParam()
         const picked = reviewOf(told)
         const {front, story, backend, world, solidity} = picked
         const {measured, changes, inArea, placeTiles, sideOf, opening, key, drops} = measuredOf(picked)
+        const touched = front.changes.map(({tile}) => tile)
+        // The players named are counted on what the clip plays: the story's tiles, in the stretch it is cut to.
+        const storyTiles = new Set(touched)
+        const takes = castWithin(cast, backend.since, backend.until).takes.filter(({tile}) => storyTiles.has(tile))
+        const named = namedSidesOf(cast, chosen, takes, sidesOf(story), sideOf)
 
         // A holding's counter is the share of the place its flag holds. A day's counter counts tiles, as any clip's,
         // and the podium says the points.
@@ -385,9 +418,8 @@ async function choose(): Promise<Chosen> {
 
         const points = front.changes.map(({tile}) => pointAt(tile))
         const wide = framingOf(territory.length > 0 ? territory : points, aspect)
-        const touched = front.changes.map(({tile}) => tile)
         const flips = flipsOf(borders.assignment, backend.opening, changes, touched)
-        const look = lookParam() ?? lookOf(flips, wide.zoom)
+        const look = lookParam() ?? picked.look
         const overview = overviewOf(wide)
 
         const close = Math.max(overview.zoom, tilesZoomOf(root.clientHeight) * DIVE_DEPTH)
@@ -423,7 +455,7 @@ async function choose(): Promise<Chosen> {
         backend.listenForBombs((drop) => drop.cleared.forEach((tile) => own(tile, undefined)))
 
         const words = wordsOf(story, written, params.get("headline") ?? undefined)
-        const overlay = createOverlay(root, story, words, opening, ground)
+        const overlay = createOverlay(root, story, words, opening, named, ground)
         // A seasonal story plays its flag's anthem: no editor chose one.
         const music = params.has("silent") ? undefined : musicOf(seasonal ? story.attacker : written?.anthem, timeline.seconds)
         const hashtags = hashtagsOf(story)
@@ -461,6 +493,7 @@ async function choose(): Promise<Chosen> {
 
         await textures()
         await document.fonts.ready
+        overlay.fit()
         for (let i = 0; i < WARM_UP_FRAMES; i++) clock.advance(1000 / fps)
 
         frame = (index) => {
@@ -471,12 +504,14 @@ async function choose(): Promise<Chosen> {
             clock.advance(1000 / fps)
 
             const ending = timeline.seconds - timeline.ending
-            overlay.show({replayAt, played, held, ending: Math.min(1, Math.max(0, (seconds - ending) / 0.5))})
+            overlay.show({replayAt, played, held, ending: seconds - ending})
         }
 
+        const clipFighters = named.flatMap(({flag, fighters}) => fighters.map(({number, name, took}) => ({number, name, flag, took})))
         const clipRecord = clipRecordOf({
             ...measured, story, generator: params.get("commit") ?? "", seconds: timeline.seconds, music,
             look: world ? undefined : look, landmassesFlipped: flips.length, screens, tourStops: stops.length, variants,
+            fighters: clipFighters.length,
         })
 
         return {
@@ -495,11 +530,13 @@ async function choose(): Promise<Chosen> {
             line: words.line ?? "",
             call: words.call,
             teasers: words.teasers,
+            fighters: clipFighters,
             variants,
             clip: new Clip({
                 pick, title: words.headline, key, teasers: words.teasers,
                 countries: hashtags.countries, continentTag: hashtags.continent ?? "", credit: music?.credit ?? "", record: clipRecord,
                 teaserNames: words.teaserNames,
+                cast: clipFighters.length > 0 ? cast.id : "", fighters: clipFighters.map(({number, name, flag}) => ({number, name, flag})),
             }).toJson(),
             music,
         }
@@ -507,7 +544,7 @@ async function choose(): Promise<Chosen> {
 
     return {
         findings: findingsOf({
-            since, until, fronts: fronts.map(frontFound), tours: toursFound, places, seasonal: seasonalFound,
+            since, until, fronts: fronts.map(frontFound), tours: toursFound, places: places.map(placeFound), seasonal: seasonalFound,
             anthems: Object.keys(RECORDED).sort(),
         }).toJson(),
         record,

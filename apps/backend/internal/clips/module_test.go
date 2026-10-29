@@ -18,6 +18,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 )
 
 func listen(t *testing.T) net.Listener {
@@ -29,16 +30,19 @@ func listen(t *testing.T) net.Listener {
 }
 
 func TestTheModuleKeepsAndReadsSnapshotsOnTheConsoleListenerOnceTheServerRuns(t *testing.T) {
-	database := cppg.StartTestServer(t).ConfigFor("clips")
-	public, console := listen(t), listen(t)
+	config := clips.ModuleConfig{Database: cppg.StartTestServer(t).ConfigFor("clips"), Redis: cpredis.StartTestServer(t).Config()}
+	public, console, internal := listen(t), listen(t), listen(t)
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan error, 1)
 	go func() {
 		done <- cpbootstrap.RunOn(ctx, cpbootstrap.Options{
-			Server:  cpbootstrap.ServerConfig{BindAddress: public.Addr().String(), ConsoleBindAddress: console.Addr().String()},
+			Server: cpbootstrap.ServerConfig{
+				BindAddress: public.Addr().String(), ConsoleBindAddress: console.Addr().String(),
+				InternalBindAddress: internal.Addr().String(),
+			},
 			Logger:  slog.New(slog.DiscardHandler),
-			Modules: []cpbootstrap.Module{clips.NewModule(clips.ModuleConfig{Database: database})},
-		}, public, console)
+			Modules: []cpbootstrap.Module{clips.NewModule(config)},
+		}, public, console, internal)
 	}()
 	t.Cleanup(func() {
 		cancel()
@@ -63,8 +67,18 @@ func TestTheModuleKeepsAndReadsSnapshotsOnTheConsoleListenerOnceTheServerRuns(t 
 	require.NoError(t, err)
 	require.Len(t, rows.Msg.GetRows(), 1)
 	assert.JSONEq(t, `{"version":1}`, rows.Msg.GetRows()[0].GetDocument())
+
+	_, err = clipsv1connect.NewClipsServiceClient(http.DefaultClient, "http://"+public.Addr().String()).
+		GetAppearances(t.Context(), connect.NewRequest(&clipsv1.GetAppearancesRequest{}))
+	assert.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err), "the posts that name a player are its own")
 }
 
 func TestAConfigWithNoDatabaseIsRefused(t *testing.T) {
 	assert.ErrorContains(t, clips.ModuleConfig{}.Validate(), "clips.database")
+}
+
+func TestAConfigWithNoRedisIsRefused(t *testing.T) {
+	database := cppg.Config{Host: "localhost", Port: "5432", User: "postgres", DBName: "postgres", SSLMode: "disable", Schema: "clips"}
+
+	assert.ErrorContains(t, clips.ModuleConfig{Database: database}.Validate(), "clips.redis")
 }

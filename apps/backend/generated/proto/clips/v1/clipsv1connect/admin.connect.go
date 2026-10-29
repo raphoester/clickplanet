@@ -41,6 +41,11 @@ const (
 	AdminServiceListSnapshotsProcedure = "/clips.v1.AdminService/ListSnapshots"
 	// AdminServiceListRowsProcedure is the fully-qualified name of the AdminService's ListRows RPC.
 	AdminServiceListRowsProcedure = "/clips.v1.AdminService/ListRows"
+	// AdminServiceMakeCastProcedure is the fully-qualified name of the AdminService's MakeCast RPC.
+	AdminServiceMakeCastProcedure = "/clips.v1.AdminService/MakeCast"
+	// AdminServiceKeepAppearanceProcedure is the fully-qualified name of the AdminService's
+	// KeepAppearance RPC.
+	AdminServiceKeepAppearanceProcedure = "/clips.v1.AdminService/KeepAppearance"
 )
 
 // AdminServiceClient is a client for the clips.v1.AdminService service.
@@ -53,6 +58,13 @@ type AdminServiceClient interface {
 	ListSnapshots(context.Context, *connect.Request[v1.ListSnapshotsRequest]) (*connect.Response[v1.ListSnapshotsResponse], error)
 	// The rows of the snapshots taken in a window, the oldest snapshot first, a page at a time.
 	ListRows(context.Context, *connect.Request[v1.ListRowsRequest]) (*connect.Response[v1.ListRowsResponse], error)
+	// Numbers each player who took tiles from another flag in a window, at most 72 hours, and keeps which account each
+	// number is, for 3 days. The answer holds names and numbers, never an account id.
+	MakeCast(context.Context, *connect.Request[v1.MakeCastRequest]) (*connect.Response[v1.MakeCastResponse], error)
+	// Keeps that a post names these players of a cast, so each is told in the game once the post is out. Kept again,
+	// the same post and player is kept once. NotFound for a cast forgotten or never made; InvalidArgument for a number
+	// it does not have.
+	KeepAppearance(context.Context, *connect.Request[v1.KeepAppearanceRequest]) (*connect.Response[v1.KeepAppearanceResponse], error)
 }
 
 // NewAdminServiceClient constructs a client for the clips.v1.AdminService service. By default, it
@@ -84,14 +96,28 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("ListRows")),
 			connect.WithClientOptions(opts...),
 		),
+		makeCast: connect.NewClient[v1.MakeCastRequest, v1.MakeCastResponse](
+			httpClient,
+			baseURL+AdminServiceMakeCastProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("MakeCast")),
+			connect.WithClientOptions(opts...),
+		),
+		keepAppearance: connect.NewClient[v1.KeepAppearanceRequest, v1.KeepAppearanceResponse](
+			httpClient,
+			baseURL+AdminServiceKeepAppearanceProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("KeepAppearance")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // adminServiceClient implements AdminServiceClient.
 type adminServiceClient struct {
-	keepSnapshot  *connect.Client[v1.KeepSnapshotRequest, v1.KeepSnapshotResponse]
-	listSnapshots *connect.Client[v1.ListSnapshotsRequest, v1.ListSnapshotsResponse]
-	listRows      *connect.Client[v1.ListRowsRequest, v1.ListRowsResponse]
+	keepSnapshot   *connect.Client[v1.KeepSnapshotRequest, v1.KeepSnapshotResponse]
+	listSnapshots  *connect.Client[v1.ListSnapshotsRequest, v1.ListSnapshotsResponse]
+	listRows       *connect.Client[v1.ListRowsRequest, v1.ListRowsResponse]
+	makeCast       *connect.Client[v1.MakeCastRequest, v1.MakeCastResponse]
+	keepAppearance *connect.Client[v1.KeepAppearanceRequest, v1.KeepAppearanceResponse]
 }
 
 // KeepSnapshot calls clips.v1.AdminService.KeepSnapshot.
@@ -109,6 +135,16 @@ func (c *adminServiceClient) ListRows(ctx context.Context, req *connect.Request[
 	return c.listRows.CallUnary(ctx, req)
 }
 
+// MakeCast calls clips.v1.AdminService.MakeCast.
+func (c *adminServiceClient) MakeCast(ctx context.Context, req *connect.Request[v1.MakeCastRequest]) (*connect.Response[v1.MakeCastResponse], error) {
+	return c.makeCast.CallUnary(ctx, req)
+}
+
+// KeepAppearance calls clips.v1.AdminService.KeepAppearance.
+func (c *adminServiceClient) KeepAppearance(ctx context.Context, req *connect.Request[v1.KeepAppearanceRequest]) (*connect.Response[v1.KeepAppearanceResponse], error) {
+	return c.keepAppearance.CallUnary(ctx, req)
+}
+
 // AdminServiceHandler is an implementation of the clips.v1.AdminService service.
 type AdminServiceHandler interface {
 	// Keeps a snapshot's summary and some of its rows: a snapshot is sent in parts, each with the summary. A row kept
@@ -119,6 +155,13 @@ type AdminServiceHandler interface {
 	ListSnapshots(context.Context, *connect.Request[v1.ListSnapshotsRequest]) (*connect.Response[v1.ListSnapshotsResponse], error)
 	// The rows of the snapshots taken in a window, the oldest snapshot first, a page at a time.
 	ListRows(context.Context, *connect.Request[v1.ListRowsRequest]) (*connect.Response[v1.ListRowsResponse], error)
+	// Numbers each player who took tiles from another flag in a window, at most 72 hours, and keeps which account each
+	// number is, for 3 days. The answer holds names and numbers, never an account id.
+	MakeCast(context.Context, *connect.Request[v1.MakeCastRequest]) (*connect.Response[v1.MakeCastResponse], error)
+	// Keeps that a post names these players of a cast, so each is told in the game once the post is out. Kept again,
+	// the same post and player is kept once. NotFound for a cast forgotten or never made; InvalidArgument for a number
+	// it does not have.
+	KeepAppearance(context.Context, *connect.Request[v1.KeepAppearanceRequest]) (*connect.Response[v1.KeepAppearanceResponse], error)
 }
 
 // NewAdminServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -146,6 +189,18 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(adminServiceMethods.ByName("ListRows")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServiceMakeCastHandler := connect.NewUnaryHandler(
+		AdminServiceMakeCastProcedure,
+		svc.MakeCast,
+		connect.WithSchema(adminServiceMethods.ByName("MakeCast")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServiceKeepAppearanceHandler := connect.NewUnaryHandler(
+		AdminServiceKeepAppearanceProcedure,
+		svc.KeepAppearance,
+		connect.WithSchema(adminServiceMethods.ByName("KeepAppearance")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/clips.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AdminServiceKeepSnapshotProcedure:
@@ -154,6 +209,10 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 			adminServiceListSnapshotsHandler.ServeHTTP(w, r)
 		case AdminServiceListRowsProcedure:
 			adminServiceListRowsHandler.ServeHTTP(w, r)
+		case AdminServiceMakeCastProcedure:
+			adminServiceMakeCastHandler.ServeHTTP(w, r)
+		case AdminServiceKeepAppearanceProcedure:
+			adminServiceKeepAppearanceHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -173,4 +232,12 @@ func (UnimplementedAdminServiceHandler) ListSnapshots(context.Context, *connect.
 
 func (UnimplementedAdminServiceHandler) ListRows(context.Context, *connect.Request[v1.ListRowsRequest]) (*connect.Response[v1.ListRowsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("clips.v1.AdminService.ListRows is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) MakeCast(context.Context, *connect.Request[v1.MakeCastRequest]) (*connect.Response[v1.MakeCastResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("clips.v1.AdminService.MakeCast is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) KeepAppearance(context.Context, *connect.Request[v1.KeepAppearanceRequest]) (*connect.Response[v1.KeepAppearanceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("clips.v1.AdminService.KeepAppearance is not implemented"))
 }

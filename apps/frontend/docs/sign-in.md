@@ -118,6 +118,8 @@ keeps the color the server answers, or the old one on a refusal; `GetProfile` an
 both. A color is refused without a username (`FailedPrecondition` → `unnamed`),
 which is why the picker only shows with one. `usePresence` announces again once
 the color held still for a second (`SETTLE_MS`), so the roster line follows.
+Under the color, the same player has the "Show my name in clips" switch, which the clips service keeps, not
+the account (see [In a clip](clip-appearances.md)).
 
 **A signed-in account's panel has two tabs**: Progress, open first (see
 [Titles](titles.md)), and Account, which holds the username, the color, linking
@@ -153,8 +155,10 @@ out everywhere, and delete. The player plays on, and the next click mints a new
 guest. `unauthenticated` on one of these means the account was already gone, and
 is treated as done. Delete sits behind a dialog that lists what goes.
 
-**There is no fake.** `VITE_FAKE_BACKEND` wires no `AccountStore`, so the menu
-offers no sign-in there. To try it locally, run the backend with `auth.enabled`,
+**The fake has no sign-in flow, only a signed-in account.** `VITE_FAKE_BACKEND` wires `AccountStore` over
+`FakeAccountBackend`, which offers no provider, so the menu offers no sign-in there. `signIn("Nova")` on
+the console links it as a finished sign-in would: the You tab, the username, the color and the clips
+switch, and Sign out in the panel undoes it. To try the flow locally, run the backend with `auth.enabled`,
 `auth.turnstile.enabled: false`, `auth.signIn.enabled` and any Google
 `clientId`, and the dev server with Turnstile's always-passing test sitekey:
 

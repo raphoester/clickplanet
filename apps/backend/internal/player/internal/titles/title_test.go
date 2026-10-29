@@ -93,7 +93,7 @@ func TestTheCatalogNamesTheTitlesStatsEarnInItsOrder(t *testing.T) {
 func TestAGuestEarnsNothing(t *testing.T) {
 	guest := titles.CareerOf(players.StatsSnapshot{
 		TilesTaken: 1_000_000, StreakBest: 1_000, MessagesSent: 1_000_000, BombsDropped: 1_000_000,
-		TilesFortified: 1_000_000, BonusesClaimed: 1_000_000, RightAnswers: 1_000_000,
+		TilesFortified: 1_000_000, BonusesClaimed: 1_000_000, RightAnswers: 1_000_000, MissionsDone: 1_000_000,
 	}.Restore(), players.Account{})
 
 	assert.Empty(t, catalog.EarnedBy(guest))

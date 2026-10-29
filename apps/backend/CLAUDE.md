@@ -97,6 +97,8 @@ and says what is in it. Read the doc before you change its area.
   why progress is not read from the ledger.
 - [Support](docs/support.md) — suggestions, bug reports and player reports, with their photos and videos.
 - [Clip stats](docs/clip-stats.md) — where the posted clips' daily numbers are kept, for the backoffice.
+- [The players a clip names](docs/clip-appearances.md) — a run's cast, numbers and names and never an account; who
+  each post names; the opt-out, kept by clips and not by player; the public read the game tells a player from.
 
 ## Operator tools and jobs
 
