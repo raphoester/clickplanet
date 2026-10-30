@@ -45,7 +45,6 @@ export class BorderField {
     constructor(
         private readonly data: BorderData,
         private readonly minimumShare = MINIMUM_SHARE,
-        private readonly contrast = CONTRAST,
         private readonly minimumTiles = MINIMUM_TILES,
         private readonly stretch = true,
         private readonly fit: "cover" | "contain" = "cover",
@@ -59,8 +58,8 @@ export class BorderField {
             this.rows[at] = data.frames[piece * 5]
             this.rows[at + 1] = data.frames[piece * 5 + 1]
             this.rows[at + 2] = data.frames[piece * 5 + 2]
-            this.rows[at + 4] = 0
-            this.rows[at + 5] = 0
+            this.rows[at + 4] = data.frames[piece * 5 + 3]
+            this.rows[at + 5] = data.frames[piece * 5 + 4]
             this.rows[at + 6] = 0
         }
 
@@ -106,7 +105,7 @@ export class BorderField {
         if (changed) this.landmassData.needsUpdate = true
     }
 
-    // Paints each landmass from its row: the flag that leads it, at the share of it that flag holds.
+    // Gives each landmass the flag that leads it, at the share of it that flag holds: fitted to its ground, drawn large.
     setRows(landmasses: Iterable<number>, leaderOf: (landmass: number) => {holder: string, held: number} | undefined) {
         let changed = false
         for (const landmass of landmasses) {
@@ -124,7 +123,7 @@ export class BorderField {
 
         const at = landmass * LANDMASS_TEXELS * 4
         const region = holder === undefined ? undefined : regions.get(holder)
-        const opacity = region === undefined ? 0 : Math.pow(share, this.contrast)
+        const opacity = region === undefined ? 0 : share
 
         if (holder === this.painted[landmass] && Math.abs(opacity - this.rows[at + 12]) < 0.002) {
             return false
@@ -186,8 +185,6 @@ export class BorderField {
 const MINIMUM_TILES = 4
 
 const MINIMUM_SHARE = 0.08
-
-const CONTRAST = 1
 
 const MAX_FLAG_RADIUS = 0.42
 

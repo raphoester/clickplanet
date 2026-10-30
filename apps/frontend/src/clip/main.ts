@@ -469,7 +469,7 @@ async function choose(): Promise<Chosen> {
             bomber: backend,
             container: stage,
             country: Countries.get(story.attacker) ?? {code: story.attacker, name: story.attacker},
-            mapView: "flags",
+            mapView: "split",
             rendering: "sharp",
             director: () => camera(played),
             onLeaderboardChange: () => {},

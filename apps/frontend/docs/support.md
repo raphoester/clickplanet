@@ -47,8 +47,8 @@ the foot of Settings, and a report of another player, from that player's card.
   empty, and makes the box short.
 - **`FeedbackModal` is the one entry for an idea and for a bug**, opened by the
   Feedback tile ("Send feedback" wrapped on a phone 360px wide): `NoteModal`
-  with "It is" before the text, a `radiogroup` of An idea and A bug (`Choices`,
-  which the player report draws its reasons with too). The pick names the box
+  with "It is" before the text, a `radiogroup` of An idea and A bug (`Choices`
+  in `components/`, which the player report and the flags in Settings use too). The pick names the box
   and decides the call: `suggestFeature` or `reportBug`. Send waits for the pick
   and for the text, and the text stays when the pick changes. Two tiles for the
   two calls were one tile too many in a place of eight.

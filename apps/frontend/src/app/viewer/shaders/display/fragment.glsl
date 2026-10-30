@@ -1,7 +1,3 @@
-#ifdef LIT
-#include ../light.glsl;
-#endif
-
 uniform sampler2D atlasTexture;
 uniform vec2 atlasTextureSize;
 uniform sampler2D slotTexture;
@@ -22,10 +18,6 @@ flat in float vSpriteSize;
 flat in float vShield;
 flat in float vPulse;
 flat in float vHighlit;
-#ifdef LIT
-flat in float vShade;
-flat in float vHaze;
-#endif
 
 varying float vHover;
 varying float vGlow;
@@ -35,6 +27,9 @@ varying float vFortify;
 const float KEYLINE_WIDTH = 1.5;
 const float KEYLINE_FEATHER = 0.5;
 const float KEYLINE_MOST = 0.03;
+
+const float SQUARE_UNTIL = 3.0;
+const float ROUND_FROM = 6.0;
 
 const float HIGHLIGHT_LIFT = 0.2;
 const float HIGHLIGHT_FLOOR = 0.35;
@@ -80,7 +75,9 @@ vec4 shielded(vec4 colour, vec2 coordinates) {
 
 void main() {
     vec2 coordinates = gl_PointCoord - vec2(0.5);
-    if (length(coordinates) > 0.5) discard;
+    // A disc a few pixels wide is drawn square: round, the discs left holes between them on the painted flag.
+    float square = 1.0 - smoothstep(SQUARE_UNTIL, ROUND_FROM, vSpriteSize);
+    if (mix(length(coordinates), max(abs(coordinates.x), abs(coordinates.y)), square) > 0.5) discard;
 
     vec4 own = flagPaint < 1.0 ? ownColour() : vec4(0.0);
 
@@ -107,14 +104,10 @@ void main() {
             * (1.0 - smoothstep(0.5 - feather, 0.5 + feather, edge));
         flag = mix(flag, vec3(0.03), keyline * 0.85 * vFlagShare);
 
-        painted = vec4(flag, vFlagShare * (vHover > 0.5 ? 1.0 : 0.94));
+        painted = vec4(flag, vFlagShare);
     }
 
     vec4 colour = mix(own, painted, flagPaint);
-
-#ifdef LIT
-    colour.rgb = lit(colour.rgb, vShade, vHaze);
-#endif
 
     if (vHighlit > 0.5) colour = vec4(mix(colour.rgb, vec3(1.0), HIGHLIGHT_LIFT), max(colour.a, HIGHLIGHT_FLOOR));
 

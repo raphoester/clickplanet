@@ -577,6 +577,7 @@ describe("Menu", () => {
         }
 
         const toggle = (name: string) => screen.getByRole("switch", {name}) as HTMLInputElement
+        const flags = (name: string) => within(screen.getByRole("radiogroup", {name: "Country flags"})).getByRole("radio", {name})
 
         it("has the last tab, after Share", () => {
             withSettings()
@@ -615,21 +616,20 @@ describe("Menu", () => {
             const {user} = withSettings({mapView: "tiles", rendering: "sharp"})
             await user.click(tab("Settings"))
 
-            expect(toggle("Big country flags").checked).toBe(false)
+            expect(flags("Off").getAttribute("aria-checked")).toBe("true")
+            expect(flags("Split").getAttribute("aria-checked")).toBe("false")
             expect(toggle("HD graphics").checked).toBe(true)
         })
 
-        it("turns the big flags off to show every tile, and back on", async () => {
+        it("picks one of the three ways to draw the flags", async () => {
             const {user, onDisplay} = withSettings()
             await user.click(tab("Settings"))
-            await user.click(toggle("Big country flags"))
-            expect(onDisplay).toHaveBeenLastCalledWith({...DEFAULT_DISPLAY_SETTINGS, mapView: "tiles"})
+            expect(flags("Split").getAttribute("aria-checked")).toBe("true")
 
-            cleanup()
-            const again = withSettings({...DEFAULT_DISPLAY_SETTINGS, mapView: "tiles"})
-            await again.user.click(tab("Settings"))
-            await again.user.click(toggle("Big country flags"))
-            expect(again.onDisplay).toHaveBeenLastCalledWith({...DEFAULT_DISPLAY_SETTINGS, mapView: "flags"})
+            for (const [label, mapView] of [["Big", "big"], ["Off", "tiles"], ["Split", "split"]]) {
+                await user.click(flags(label))
+                expect(onDisplay).toHaveBeenLastCalledWith({...DEFAULT_DISPLAY_SETTINGS, mapView})
+            }
         })
 
         it("turns the HD graphics off, keeping the map view", async () => {

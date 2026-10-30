@@ -45,7 +45,7 @@ export class TileField {
         uniforms: {[uniform: string]: THREE.IUniform},
         pickingUniforms: {[uniform: string]: THREE.IUniform},
         data: PointGeometryData,
-        graphics: Pick<Graphics, "tiles" | "compact">,
+        graphics: Pick<Graphics, "compact">,
     ) {
         const {positions, size} = data
         this.size = size
@@ -67,7 +67,7 @@ export class TileField {
 
         this.displayPoints = new THREE.Points(displayGeometry, new THREE.ShaderMaterial({
             transparent: true,
-            defines: {...defines, LIT: graphics.tiles},
+            defines,
             uniforms: this.compact ? {...uniforms, flagRectangles: {value: flagRectangles()}} : uniforms,
             vertexShader: displayVertex,
             fragmentShader: displayFragment,

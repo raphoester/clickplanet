@@ -6,6 +6,8 @@ import {
     decodeBorderLines,
     halfWidthOf,
     limbOf,
+    ORBIT_INK,
+    ORBIT_WIDTH,
     outlineSegments,
     OVER,
     pieceSides,
@@ -108,9 +110,9 @@ describe("outlineSegments", () => {
         const share = nearest(SAMPLES) / SPACING
 
         for (let zoom = MIN_ZOOM; zoom <= MAX_ZOOM; zoom += 0.05) {
-            if (flagPaint(zoom, 900, "flags") > 0) continue
+            if (flagPaint(zoom, 900, "split") > 0) continue
             const clearance = share * tileSpacing(zoom, 900) - WIDTH / 2
-            expect(clearance, `zoom ${zoom}`).toBeGreaterThan(displayPointSize(zoom, 900, "flags") / 2)
+            expect(clearance, `zoom ${zoom}`).toBeGreaterThan(displayPointSize(zoom, 900, "split") / 2)
         }
     })
 
@@ -190,11 +192,11 @@ describe("the handover", () => {
         const {lines, over, under, inkOf} = outline()
 
         for (let zoom = MIN_ZOOM; zoom <= MAX_ZOOM; zoom += 0.05) {
-            lines.update(zoom, 1600, 900, 1, "flags")
+            lines.update(zoom, 1600, 900, 1, "split")
 
-            const painted = flagPaint(zoom, 900, "flags")
-            expect(inkOf(over), `over at zoom ${zoom}`).toBe(painted)
-            expect(inkOf(under) + inkOf(over), `ink at zoom ${zoom}`).toBeGreaterThanOrEqual(1)
+            const painted = flagPaint(zoom, 900, "split")
+            expect(inkOf(over), `over at zoom ${zoom}`).toBe(painted * ORBIT_INK)
+            expect(inkOf(under) + inkOf(over) / ORBIT_INK, `ink at zoom ${zoom}`).toBeGreaterThanOrEqual(1)
         }
 
         lines.dispose()
@@ -204,10 +206,10 @@ describe("the handover", () => {
     it("draws nothing it cannot see", () => {
         const {lines, over, under} = outline()
 
-        lines.update(MIN_ZOOM, 1600, 900, 1, "flags")
+        lines.update(MIN_ZOOM, 1600, 900, 1, "split")
         expect([over.visible, under.visible]).toEqual([true, false])
 
-        lines.update(MAX_ZOOM, 1600, 900, 1, "flags")
+        lines.update(MAX_ZOOM, 1600, 900, 1, "split")
         expect([over.visible, under.visible]).toEqual([false, true])
 
         lines.dispose()
@@ -233,7 +235,7 @@ describe("the handover", () => {
 
     it("measures the line in the drawing buffer's own pixels", () => {
         const {lines, over, under} = outline()
-        lines.update(1, 1600, 900, 1, "flags")
+        lines.update(1, 1600, 900, 1, "split")
 
         for (const pass of [over, under]) {
             const halfViewport = (pass.material as THREE.ShaderMaterial).uniforms.halfViewport.value as THREE.Vector2
@@ -247,13 +249,12 @@ describe("the handover", () => {
         const {lines, over, under, inkOf} = outline()
 
         for (let zoom = MIN_ZOOM; zoom <= MAX_ZOOM; zoom += 0.05) {
-            lines.update(zoom, 3200, 1800, 2, "flags")
-            expect(inkOf(over), `over at zoom ${zoom}`).toBe(flagPaint(zoom, 900, "flags"))
+            lines.update(zoom, 3200, 1800, 2, "split")
+            expect(inkOf(over), `over at zoom ${zoom}`).toBe(flagPaint(zoom, 900, "split") * ORBIT_INK)
         }
 
-        for (const pass of [over, under]) {
-            expect((pass.material as THREE.ShaderMaterial).uniforms.halfWidth.value).toBe(halfWidthOf(2))
-        }
+        expect((over.material as THREE.ShaderMaterial).uniforms.halfWidth.value).toBe(halfWidthOf(2, ORBIT_WIDTH))
+        expect((under.material as THREE.ShaderMaterial).uniforms.halfWidth.value).toBe(halfWidthOf(2))
 
         expect(halfWidthOf(2) - halfWidthOf(1)).toBeCloseTo(WIDTH / 2)
 

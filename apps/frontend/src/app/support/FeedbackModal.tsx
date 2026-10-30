@@ -1,6 +1,6 @@
 import {useState} from "react"
 import {FeedbackBackend, PageContext} from "../../backends/support.ts"
-import Choices, {Choice} from "./Choices.tsx"
+import Choices, {Choice} from "../components/Choices.tsx"
 import NoteModal from "./NoteModal.tsx"
 
 export type FeedbackModalProps = {

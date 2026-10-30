@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import {createAtmosphere} from "./atmosphere.ts";
+import {createAtmosphere, SKY} from "./atmosphere.ts";
 import {layoutViewport} from "./viewport.ts";
 import {createEarth} from "./earth.ts";
 import {type Graphics} from "./graphics.ts";
@@ -19,7 +19,7 @@ export function setupScene(container: HTMLElement, graphics: Graphics) {
     const renderer = new THREE.WebGLRenderer({antialias: graphics.antialias});
     renderer.setPixelRatio(pixelRatio(graphics));
     renderer.setSize(width, height);
-    renderer.setClearColor(0x000000);
+    renderer.setClearColor(SKY);
     container.appendChild(renderer.domElement);
 
     const cleanup = () => {
@@ -71,8 +71,7 @@ export function addDisplayObjects(
 ): THREE.Mesh {
     scene.add(displayPoints);
     scene.add(createEarth(graphics.earth, sphere));
-    if (!graphics.earth) scene.add(new THREE.AmbientLight(0xffffff, 2));
-    const atmosphere = createAtmosphere(graphics.halo);
+    const atmosphere = createAtmosphere();
     scene.add(atmosphere);
     return atmosphere;
 }
