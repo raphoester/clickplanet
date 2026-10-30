@@ -3,7 +3,7 @@ import {createPortal} from "react-dom"
 import {Finale, finaleWhenLine} from "../../domain/battle.ts"
 import {timeLeftTo} from "../../domain/seasonClock.ts"
 import {TITLE_REVEAL} from "../../domain/titleReveal.ts"
-import {SwordsIcon} from "../components/icons.tsx"
+import SwordsArt from "../components/SwordsArt.tsx"
 import {useModalDialog} from "../components/useDialog.ts"
 import {FinaleFacts} from "../season/FinaleFacts.tsx"
 import {useNow} from "../season/useNow.ts"
@@ -51,7 +51,7 @@ export default function FinaleTeaser({finale, play, onClose}: FinaleTeaserProps)
                     <div className="title-reveal-rays" aria-hidden="true"/>
                     <div className="title-reveal-wave" aria-hidden="true"/>
                     <span className="title-reveal-float">
-                        <span className="battle-reveal-disc" aria-hidden="true"><SwordsIcon size={80}/></span>
+                        <span className="battle-reveal-disc" aria-hidden="true"><SwordsArt/></span>
                     </span>
                 </div>
                 <p className="battle-brief-times finale-teaser-left" role="timer">

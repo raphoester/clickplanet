@@ -366,21 +366,9 @@
     fill: var(--cream);
 }
 
-.season-art .finale-art-ink {
-    fill: none;
-    stroke-width: 8;
-}
-
-.season-art .finale-art-blade {
-    fill: none;
-    stroke: var(--cream);
-    stroke-width: 3.5;
-}
-
-.season-art .finale-art-hilt {
-    fill: none;
-    stroke: var(--war);
-    stroke-width: 3.5;
+.season-fact-art .swords-art {
+    width: 28px;
+    height: 28px;
 }
 
 @keyframes season-chip-turn {

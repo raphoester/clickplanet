@@ -2,7 +2,7 @@ import {CSSProperties, useEffect, useId, useRef, useState} from "react"
 import {createPortal} from "react-dom"
 import {Battle, battleEndsLine, battleNameOf} from "../../domain/battle.ts"
 import {TITLE_REVEAL} from "../../domain/titleReveal.ts"
-import {SwordsIcon} from "../components/icons.tsx"
+import SwordsArt from "../components/SwordsArt.tsx"
 import {useModalDialog} from "../components/useDialog.ts"
 import {PlaySound} from "../sound/soundPlayer.ts"
 import "../titles/TitleUnlocked.css"
@@ -46,7 +46,7 @@ export default function BattleReveal({battle, play, onClose}: BattleRevealProps)
                     <div className="title-reveal-rays" aria-hidden="true"/>
                     <div className="title-reveal-wave" aria-hidden="true"/>
                     <span className="title-reveal-float">
-                        <span className="battle-reveal-disc" aria-hidden="true"><SwordsIcon size={110}/></span>
+                        <span className="battle-reveal-disc" aria-hidden="true"><SwordsArt/></span>
                     </span>
                 </div>
                 {battle.description && <p className="title-reveal-rank battle-reveal-text">{battle.description}</p>}
