@@ -348,7 +348,19 @@
 }
 
 .click-budget-frozen {
+    flex: 1 1 auto;
+    min-width: 0;
     color: var(--text);
+}
+
+.click-budget-frozen-links {
+    display: flex;
+    flex-shrink: 0;
+    gap: var(--space-2);
+}
+
+.click-budget-invite .country-flag {
+    margin-right: 0;
 }
 
 .click-budget-frozen-lines {
@@ -365,4 +377,8 @@
     color: var(--text-soft);
     font-size: var(--text-s);
     font-variant-numeric: tabular-nums;
+}
+
+.click-budget-frozen-next [role="timer"] {
+    white-space: nowrap;
 }

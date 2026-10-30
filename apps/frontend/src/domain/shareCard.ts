@@ -53,6 +53,11 @@ export function shareText(stats: ShareStats): string {
     return `${shareHeadline(stats)} ${shareUrl(stats.country.code)}`
 }
 
+export function breakHeadline(country: Country, nextSeason?: number): string {
+    const join = `Play for ${country.name} on ClickPlanet!`
+    return nextSeason === undefined ? join : `Season ${nextSeason} starts on a blank map. ${join}`
+}
+
 export function shareHeadline({country, rank, tiles}: ShareStats): string {
     if (rank === null) return `${country.name} holds nothing on ClickPlanet yet. Come and claim it.`
 

@@ -200,6 +200,9 @@ refused is a bug the player sees.
 - **The click dock says so** (`ClickBudgetMeter`'s `frozen`): "The map is frozen" in
   place of the clicks and the inventory, and "Season N starts in …" when the
   gamemaster's timeline has a next season.
+- **A frozen map is when players have time to bring friends**, so the dock holds the
+  recruit link of the flag played ("Invite", `RecruitButton`, see
+  [Sharing](sharing.md)) and the Discord. On a phone the Discord is its icon alone.
 - **A map reset needs nothing here**: planet cuts every stream and starts a new epoch
   (see the backend's [The map reset](../../backend/docs/map-reset.md)), so the stream
   opens again, the tiles see another start, and the tiles, the holdings and the

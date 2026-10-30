@@ -1,12 +1,17 @@
 import {ReactNode, useEffect, useRef} from 'react'
 import {ClickBudget, nextClickProgress, now, secondsToOneMore, tokensAt} from "../../backends/clickBudget.ts"
 import {factor} from "../../domain/clickPrice.ts"
-import {HourglassIcon, LockIcon, UsersIcon} from "./icons.tsx"
+import {DiscordIcon, HourglassIcon, LockIcon, UsersIcon} from "./icons.tsx"
 import {timeLeftTo} from "../../domain/seasonClock.ts"
 import {useNow} from "../season/useNow.ts"
 import {useEscape} from "./useDialog.ts"
 import {offerText, SHARED_WITH} from "./clickOffer.ts"
 import Bubble from "./Bubble.tsx"
+import CountryFlag from "./CountryFlag.tsx"
+import RecruitButton from "../share/RecruitButton.tsx"
+import {Country} from "../../domain/countries.ts"
+import {breakHeadline} from "../../domain/shareCard.ts"
+import {DISCORD_INVITE} from "../../links.ts"
 import "./ClickBudgetMeter.css"
 
 export type ClickBudgetMeterProps = {
@@ -20,7 +25,7 @@ export type ClickBudgetMeterProps = {
     popover?: ReactNode
     said?: {text: string, id: number}
     // The map takes no play: the dock says so, and when the next season starts when one is planned.
-    frozen?: {nextSeason?: {number: number, startsAt: number}}
+    frozen?: {nextSeason?: {number: number, startsAt: number}, country: Country}
 }
 
 const MAX_PIPS = 12
@@ -120,6 +125,21 @@ export default function ClickBudgetMeter({
             <div ref={root} className="click-budget click-budget-frozen" role="status">
                 <LockIcon/>
                 <FrozenLines nextSeason={frozen.nextSeason}/>
+            </div>
+            <div className="click-budget-frozen-links">
+                <RecruitButton code={frozen.country.code}
+                               text={breakHeadline(frozen.country, frozen.nextSeason?.number)}
+                               className="button button-mini button-secondary click-budget-invite"
+                               icon={<CountryFlag code={frozen.country.code}/>}
+                               label="Invite"/>
+                <a href={DISCORD_INVITE}
+                   target="_blank"
+                   rel="noopener noreferrer"
+                   className="button button-mini click-budget-discord"
+                   aria-label="Discord">
+                    <DiscordIcon size={20}/>
+                    {!compact && <span aria-hidden="true">Discord</span>}
+                </a>
             </div>
         </div>
     }

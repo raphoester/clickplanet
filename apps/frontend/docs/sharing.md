@@ -34,6 +34,9 @@ carries, and a newcomer who opens it plays for that country.
   whole of it where nothing else copies.
 - `useDelivery.ts` is the button's states for this and for the picture's
   buttons: working, done for 2.5s, failed, and a closed sheet is no outcome.
+- **The button is `RecruitButton.tsx`**, so the frozen dock sends the same link
+  (see [A frozen map](backends.md#a-frozen-map)): there it is "Invite" with the
+  flag, and the sentence is `breakHeadline`, the next season on a blank map.
 
 **Its label never changes.** What answers the press is the preview opening.
 Working is said by the tile dimming (`aria-busy`, disabled).
