@@ -1,20 +1,8 @@
 .menu-panel {
-    position: relative;
     display: flex;
     flex-direction: column;
     min-height: 0;
     flex: 1 1 auto;
-}
-
-.menu-panel::after {
-    content: "";
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: 36px;
-    pointer-events: none;
-    background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--panel) 85%, transparent));
 }
 
 .menu-panel-header {
@@ -43,9 +31,6 @@
 .menu-panel-body {
     display: flex;
     flex-direction: column;
-    min-height: 0;
-    flex: 1 1 auto;
-    overflow-y: auto;
     margin-top: var(--space-3);
     padding-right: var(--space-2);
     scrollbar-gutter: stable;

@@ -148,6 +148,7 @@ feature goes in one of them; there is no fifth panel and no new fold.
 - **A place holds one kind of thing, and there is no place for the rest.** A
   "More" drawer was tried: it filled with whatever had no home.
 - **A panel is as tall as what it holds**, up to the screen, and scrolls inside.
+  Its bottom fades only while more is below.
 - **The cards beside the pointer are the one thing outside the zones**: the card
   on who holds a tile, and in orbit the card on a territory. Each is about what is
   under the pointer, and goes when the pointer leaves.

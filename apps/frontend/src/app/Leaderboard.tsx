@@ -8,6 +8,7 @@ import {Figure, FIGURES, GUIDE_MS, TAP_HINT_MS} from "./boardFigures.ts";
 import {DELTA_HOLD_MS, NO_TILE_DELTAS, signed, TileDelta, TileDeltas} from "../domain/tileDeltas.ts";
 import {truncate} from "./truncate.ts";
 import Bubble from "./components/Bubble.tsx";
+import ScrollArea from "./components/ScrollArea.tsx";
 import CountryFlag from "./components/CountryFlag.tsx";
 import {SwordsIcon} from "./components/icons.tsx";
 import RankCoin from "./components/RankCoin.tsx";
@@ -78,7 +79,7 @@ export default function Leaderboard(props: LeaderboardProps) {
                                 anthem={props.anthem}
                                 hint={(figure) => hint(figure, "leader")}/>}
 
-        {rest.length > 0 && <div className="leaderboard-table-container">
+        {rest.length > 0 && <ScrollArea className="leaderboard-table-container">
             <table className="leaderboard-table">
                 <thead>
                 <tr>
@@ -132,7 +133,7 @@ export default function Leaderboard(props: LeaderboardProps) {
                 })}
                 </tbody>
             </table>
-        </div>}
+        </ScrollArea>}
     </section>
 }
 

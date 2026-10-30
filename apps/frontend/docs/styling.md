@@ -36,6 +36,26 @@ overrode the shared mobile size. Anchors styled as buttons (`BuyMeACoffee`, the
 menu's Home link) legitimately need `display: flex` with both axes centred and
 `text-decoration: none` — a `<button>` gets those for free — and nothing more.
 
+## A panel that scrolls
+
+**`components/ScrollArea.tsx` is the one scrolling body of a panel**: `Modal`,
+`MenuPanel`, `Sheet` and the leaderboard's table all use it. It draws a 36px
+fade over its bottom edge **only while more is below**: when everything fits,
+and at the end of the scroll, there is no fade. A body that does not scroll
+(`overflow: hidden`, as in the chat sheet and the share picture) has no fade
+either. So no content pads its bottom to clear the fade, and no panel turns it
+off.
+
+Why: each panel drew its own fade at all times. The last line sat under it, so
+each content added `padding-bottom: 36px` to escape it (the leaderboard in
+#312, the account, players and About panels), and two modals turned it off. A
+panel that missed the padding hid its last line: the sign-in modals' "Privacy
+policy" (Oct 30 2026).
+
+**A modal has `--space-5` on every side**, and its × sits in the corner at that
+distance. Its scrollbar sits in that padding, so the text has as much room on
+the right as on the left. The panel is 376px wide: a 328px column of text.
+
 ## Debugging mobile layout
 
 **Do not check mobile by resizing the browser window.** macOS enforces a minimum

@@ -1,8 +1,3 @@
-/* A form has a field at its bottom edge: the scroll fade would draw over it. */
-.modal-support .modal-scroll::after {
-    display: none;
-}
-
 .support-form {
     display: flex;
     flex-direction: column;

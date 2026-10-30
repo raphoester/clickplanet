@@ -198,8 +198,3 @@
     z-index: 1;
     background-color: var(--panel);
 }
-
-.board-sheet .leaderboard::after {
-    position: sticky;
-    margin-top: -36px;
-}

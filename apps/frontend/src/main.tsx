@@ -69,7 +69,7 @@ const session: SessionProvider = sitekey
 
 const root = createRoot(document.getElementById('root')!)
 
-// Planet hears auth's sign-in over Redis, and its outbox sends once a second.
+// Planet hears player's PlayerCreated over Redis, and player's outbox sends once a second.
 const FAKE_GRANT_LANDS_MS = 1_200
 
 if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {

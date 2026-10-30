@@ -1,28 +1,12 @@
 .leaderboard {
-    position: relative;
     display: flex;
     flex-direction: column;
     min-height: 0;
     flex: 1 1 auto;
 }
 
-.leaderboard::after {
-    content: "";
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: 36px;
-    pointer-events: none;
-    background: linear-gradient(180deg, transparent, var(--panel));
-}
-
 .leaderboard-table-container {
-    min-height: 0;
-    flex: 1 1 auto;
-    overflow-y: auto;
     margin-top: var(--space-2);
-    padding-bottom: 36px;
 }
 
 /* The gap under the line belongs to the head: on the first row it would widen the highlight. */
