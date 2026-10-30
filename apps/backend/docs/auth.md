@@ -14,6 +14,10 @@ internal/auth/internal/
     usecases/create_anonymous_session_usecase/   deprecated: attest, mint with no account
     usecases/sign_out_usecase/  sign_out_everywhere_usecase/  delete_account_usecase/
     usecases/prune_guests_usecase/         deletes idle guests: Executor, Runner, and log_prune_guests
+  arrivals/                                Arrival (Snapshot), Landing, Source, Register, Guests (a guest and its arrival); the Store port — see Arrivals
+    postgres_arrival_store/  inmemory_arrival_store/  uuid_id_provider/
+    usecases/anonymize_arrivals_usecase/   blanks the account of a deleted account's arrival
+  subscribers/                             auth's own AccountDeleted, for the arrivals
   signin/                                  Flow (state, PKCE verifier, nonce, intent), Provider, Providers, Offer, Sealer, the cp_oauth cookie;
                                            Admitter (signs a proven identity in, for both paths); LinkTarget;
                                            Address, Challenge, Challenges, Post, Letter, the cp_email cookie
@@ -47,6 +51,8 @@ internal/auth/internal/
 - **`session.v1.SessionService/CreateSession` is deprecated**, in the proto and in the code. It mints a token with no account for clients that predate accounts, and goes once none calls it. Both paths spend one mint budget, so the old one is not a second allowance.
 - **The cookie is `cp_sid`**: a 32-byte token from `random_token_generator`, `HttpOnly; Secure; SameSite=Lax; Path=/`, host-only on the API's domain. The API and the frontend are the same site, so it is not a third-party cookie. **Only its SHA-256 is stored** (`sessions.token_hash`), so a copy of the table signs nobody in. Caddy redacts `Cookie` and `Set-Cookie` in its logs.
 - **The rules are on `accounts.Session`**: `GuestSession` builds one with a full `guestTTL` (90 days) and `LinkedSession` with a full `linkedTTL` (30 days), `ExpiryError` is `ErrSessionExpired` past it, `Extendable(now, lifetime)` is whether `extendEvery` (24h) has passed since the last extension, `Extended(now, lifetime)` is a copy whose expiry moved by the TTL of its kind, and `Cookie` is its `Set-Cookie`. `Session.Linked` is read by the store (does the account have an identity), never written, so every session of an account extends as a linked one once any browser links it. `create_session_usecase` only orders them: attest, read the cookie, find the session, check it, extend and save it when due — or, when there is no cookie, no such session or an expired one, start and store a guest — then mint.
+- **Every account made keeps how it came** (`arrivals`): the guest in `CreateSession`, and the `Created` outcome of
+  both sign-ins, in the transaction that makes the account. See [Arrivals](arrivals.md).
 - **Only a caller that passed attestation gets an account**, so bots that fail Turnstile make no rows. The mint throttle bounds how many guests one address makes.
 - **A failing database fails the mint.** No fallback to a token with no account: the error net answers `internal`.
 - **Absence is a sentinel, never `nil, nil`**: `ErrNoSessionCookie`, `ErrSessionNotFound` (the port's, for an unknown token hash), `ErrSessionExpired`, and `ErrNoAccount`. `GetMe` answers `me_query.ErrNoAccount` as `Unauthenticated`, creates, extends and saves nothing, and answers `no-store`.

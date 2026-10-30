@@ -78,6 +78,8 @@ and says what is in it. Read the doc before you change its area.
   identity token.
 - [Auth](docs/auth.md) — Turnstile, guest and signed-in accounts (Google, Discord, emailed code), operators,
   sign-out, deletion and pruning.
+- [Arrivals](docs/arrivals.md) — how each new account came: a player's link and its flag, the YouTube link, or
+  unknown; kept by `auth` when it makes the account, anonymized when the account goes; the query that counts them.
 - [Anti-bot](docs/antibot.md) — a module that hears planet's facts about callers, judges them, and asks planet to
   refuse the ones it bans; what survives a restart, and the parts that are easy to get wrong.
 - [The antibot's rules](docs/antibot-rules.md) — every bound is a rule set in postgres, edited from the backoffice;

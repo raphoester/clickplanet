@@ -29,12 +29,6 @@ export function sharedCountry(url: URL): Country | undefined {
     return code ? Countries.get(code.trim().toLowerCase()) : undefined
 }
 
-export function withoutSharedFlag(url: URL): URL {
-    const stripped = new URL(url)
-    stripped.searchParams.delete(SHARE_FLAG_PARAM)
-    return stripped
-}
-
 export function shareLabel(code: string): string {
     return shareUrl(code).replace(/^https?:\/\//, "")
 }

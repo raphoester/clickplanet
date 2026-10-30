@@ -13,12 +13,15 @@ import (
 	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/inmemory_account_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals/inmemory_arrival_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/attestation/open_attester"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/aes_flow_sealer"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/usecases/complete_email_sign_in_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/usecases/start_email_sign_in_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -33,6 +36,7 @@ var (
 type fixture struct {
 	sealer     *aes_flow_sealer.Sealer
 	store      *inmemory_account_store.Store
+	arrivals   *inmemory_arrival_store.Store
 	outbox     *cpatomic.FakeOutbox
 	clock      *cptime.FixedClock
 	seeded     int
@@ -45,7 +49,7 @@ func setUp(t *testing.T) *fixture {
 
 	sealer, err := aes_flow_sealer.New(bytes.Repeat([]byte{1}, 32))
 	require.NoError(t, err)
-	f := &fixture{sealer: sealer, store: inmemory_account_store.New(), outbox: &cpatomic.FakeOutbox{}, clock: cptime.NewFixedClock(start)}
+	f := &fixture{sealer: sealer, store: inmemory_account_store.New(), arrivals: inmemory_arrival_store.New(), outbox: &cpatomic.FakeOutbox{}, clock: cptime.NewFixedClock(start)}
 	post := signin.NewPost(signin.BlockedDomains{}, cpratelimit.New("sends", cpratelimit.Config{Burst: 100, PerSecond: 1}, f.clock), &signin.FakeMailer{})
 	f.start = start_email_sign_in_usecase.New(open_attester.New(), f.store, f.challenges(true), post, f.clock)
 	f.completion = f.useCase(true)
@@ -58,7 +62,8 @@ func (f *fixture) challenges(offered bool) *signin.Challenges {
 }
 
 func (f *fixture) useCase(offered bool) *complete_email_sign_in_usecase.UseCase {
-	admitter := signin.NewAdmitter(cpatomic.FakeTransactioner{}, f.store, f.outbox, &accounts.SequentialIDs{}, &accounts.SequentialTokens{}, lifetime)
+	register := arrivals.NewRegister(f.arrivals, &arrivals.SequentialIDs{}, cpcountries.New())
+	admitter := signin.NewAdmitter(cpatomic.FakeTransactioner{}, f.store, f.outbox, register, &accounts.SequentialIDs{}, &accounts.SequentialTokens{}, lifetime)
 	return complete_email_sign_in_usecase.New(f.challenges(offered), admitter, f.clock)
 }
 
@@ -86,7 +91,9 @@ func (f *fixture) began(t *testing.T, intent accounts.Intent, sessionCookie stri
 func (f *fixture) complete(t *testing.T, cookies string, code string) (*complete_email_sign_in_usecase.Out, error) {
 	t.Helper()
 
-	return f.completion.Execute(t.Context(), complete_email_sign_in_usecase.In{Code: code, CookieHeader: cookies})
+	return f.completion.Execute(t.Context(), complete_email_sign_in_usecase.In{
+		Code: code, CookieHeader: cookies, Landing: arrivals.Landing{Tag: "yt"},
+	})
 }
 
 func cookieValue(t *testing.T, setCookie string) string {
@@ -265,4 +272,16 @@ func TestEmailSignInOffCompletesNothing(t *testing.T) {
 	_, err := f.useCase(false).Execute(t.Context(), complete_email_sign_in_usecase.In{Code: "000001", CookieHeader: cookies})
 
 	assert.ErrorIs(t, err, signin.ErrSignInOff)
+}
+
+func TestAnAccountACodeMakesKeepsWhereTheBrowserCameFrom(t *testing.T) {
+	f := setUp(t)
+
+	out, err := f.complete(t, f.began(t, accounts.IntentSignIn, ""), "000001")
+	require.NoError(t, err)
+
+	require.Equal(t, accounts.Created, out.Outcome())
+	assert.Equal(t, []arrivals.Snapshot{{
+		ID: arrivals.ArrivalID{0: 0xa, 15: 1}, Account: out.Account(), Source: arrivals.SourceYouTube, At: start,
+	}}, f.arrivals.Kept())
 }

@@ -30,6 +30,16 @@ service AuthService {
 
 message CreateSessionRequest {
   string attestation_token = 1;
+
+  Landing landing = 2;
+}
+
+// The query of the browser's first page of the game. Kept only when the call makes an account.
+message Landing {
+  string flag = 1;
+
+  // The ?s= of a link the operator posted: "yt" for YouTube.
+  string tag = 2;
 }
 
 message CreateSessionResponse {
@@ -94,6 +104,8 @@ message StartSignInResponse {
 message CompleteSignInRequest {
   string code = 1;
   string state = 2;
+
+  Landing landing = 3;
 }
 
 enum SignInOutcome {
@@ -131,6 +143,8 @@ message StartEmailSignInResponse {}
 
 message CompleteEmailSignInRequest {
   string code = 1;
+
+  Landing landing = 2;
 }
 
 message CompleteEmailSignInResponse {

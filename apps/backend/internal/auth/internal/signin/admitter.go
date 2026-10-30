@@ -8,6 +8,7 @@ import (
 
 	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 )
 
@@ -19,10 +20,15 @@ type IdentityStore interface {
 	SaveSignIn(ctx context.Context, signIn accounts.SignIn) error
 }
 
+type ArrivalRecorder interface {
+	Record(ctx context.Context, account accounts.AccountID, landing arrivals.Landing, now time.Time) error
+}
+
 type Admitter struct {
 	transactioner cpatomic.Transactioner
 	store         IdentityStore
 	outbox        cpatomic.Outbox
+	arrivals      ArrivalRecorder
 	ids           accounts.IDProvider
 	tokens        accounts.TokenGenerator
 	lifetime      accounts.Lifetime
@@ -32,28 +38,31 @@ func NewAdmitter(
 	transactioner cpatomic.Transactioner,
 	store IdentityStore,
 	outbox cpatomic.Outbox,
+	arrivals ArrivalRecorder,
 	ids accounts.IDProvider,
 	tokens accounts.TokenGenerator,
 	lifetime accounts.Lifetime,
 ) *Admitter {
 	return &Admitter{
-		transactioner: transactioner, store: store, outbox: outbox, ids: ids, tokens: tokens, lifetime: lifetime.WithDefaults(),
+		transactioner: transactioner, store: store, outbox: outbox, arrivals: arrivals, ids: ids, tokens: tokens,
+		lifetime: lifetime.WithDefaults(),
 	}
 }
 
 type Visitor struct {
 	account  *accounts.Account
 	replaces accounts.TokenHash
+	landing  arrivals.Landing
 }
 
 func (v *Visitor) Account() *accounts.Account {
 	return v.account
 }
 
-func (a *Admitter) Visitor(ctx context.Context, cookieHeader string, now time.Time) (*Visitor, error) {
+func (a *Admitter) Visitor(ctx context.Context, cookieHeader string, landing arrivals.Landing, now time.Time) (*Visitor, error) {
 	session, err := accounts.Caller(ctx, a.store, cookieHeader, now)
 	if errors.Is(err, accounts.ErrNoAccount) {
-		return &Visitor{}, nil
+		return &Visitor{landing: landing}, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to find the caller: %w", err)
@@ -61,12 +70,12 @@ func (a *Admitter) Visitor(ctx context.Context, cookieHeader string, now time.Ti
 
 	account, err := a.store.Account(ctx, session.Account())
 	if errors.Is(err, accounts.ErrAccountNotFound) {
-		return &Visitor{replaces: session.TokenHash()}, nil
+		return &Visitor{replaces: session.TokenHash(), landing: landing}, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to find the caller's account: %w", err)
 	}
-	return &Visitor{account: account, replaces: session.TokenHash()}, nil
+	return &Visitor{account: account, replaces: session.TokenHash(), landing: landing}, nil
 }
 
 type Admission struct {
@@ -157,6 +166,11 @@ func (a *Admitter) admit(
 	err = a.transactioner.InTx(ctx, func(ctx context.Context) error {
 		if err := a.store.SaveSignIn(ctx, signIn); err != nil {
 			return fmt.Errorf("failed to save the sign-in: %w", err)
+		}
+		if outcome == accounts.Created {
+			if err := a.arrivals.Record(ctx, account, visitor.landing, now); err != nil {
+				return fmt.Errorf("failed to record the new account's arrival: %w", err)
+			}
 		}
 		if err := a.outbox.Record(ctx, signedIn); err != nil {
 			return fmt.Errorf("failed to record the sign-in: %w", err)

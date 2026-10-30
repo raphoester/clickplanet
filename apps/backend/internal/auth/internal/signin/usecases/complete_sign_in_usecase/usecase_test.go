@@ -15,11 +15,14 @@ import (
 	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/inmemory_account_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals/inmemory_arrival_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/aes_flow_sealer"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/usecases/complete_sign_in_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/usecases/start_sign_in_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -33,6 +36,7 @@ type fixture struct {
 	sealer     *aes_flow_sealer.Sealer
 	google     *signin.FakeProvider
 	store      *inmemory_account_store.Store
+	arrivals   *inmemory_arrival_store.Store
 	outbox     *cpatomic.FakeOutbox
 	clock      *cptime.FixedClock
 	seeded     int
@@ -45,7 +49,7 @@ func setUp(t *testing.T) *fixture {
 
 	sealer, err := aes_flow_sealer.New(bytes.Repeat([]byte{1}, 32))
 	require.NoError(t, err)
-	f := &fixture{sealer: sealer, google: signin.NewFakeProvider(signin.Google), store: inmemory_account_store.New(), outbox: &cpatomic.FakeOutbox{}, clock: cptime.NewFixedClock(start)}
+	f := &fixture{sealer: sealer, google: signin.NewFakeProvider(signin.Google), store: inmemory_account_store.New(), arrivals: inmemory_arrival_store.New(), outbox: &cpatomic.FakeOutbox{}, clock: cptime.NewFixedClock(start)}
 	providers := signin.Providers{signin.Google: f.google}
 	f.start = start_sign_in_usecase.New(providers, f.store, &signin.SequentialSecrets{}, sealer, f.clock)
 	f.completion = complete_sign_in_usecase.New(providers, sealer, f.admitter(), f.clock)
@@ -53,7 +57,8 @@ func setUp(t *testing.T) *fixture {
 }
 
 func (f *fixture) admitter() *signin.Admitter {
-	return signin.NewAdmitter(cpatomic.FakeTransactioner{}, f.store, f.outbox, &accounts.SequentialIDs{}, &accounts.SequentialTokens{}, lifetime)
+	register := arrivals.NewRegister(f.arrivals, &arrivals.SequentialIDs{}, cpcountries.New())
+	return signin.NewAdmitter(cpatomic.FakeTransactioner{}, f.store, f.outbox, register, &accounts.SequentialIDs{}, &accounts.SequentialTokens{}, lifetime)
 }
 
 func (f *fixture) guest(t *testing.T, account byte, token string) {
@@ -95,7 +100,9 @@ func (f *fixture) finish(t *testing.T, intent accounts.Intent, sessionCookie str
 	if sessionCookie != "" {
 		cookies += "; " + sessionCookie
 	}
-	return f.completion.Execute(t.Context(), complete_sign_in_usecase.In{Code: "the-code", State: state, CookieHeader: cookies})
+	return f.completion.Execute(t.Context(), complete_sign_in_usecase.In{
+		Code: "the-code", State: state, CookieHeader: cookies, Landing: arrivals.Landing{Flag: "fr"},
+	})
 }
 
 func (f *fixture) linkedAccount(t *testing.T, account byte, provider string, subject string, token string) {
@@ -388,4 +395,27 @@ func TestSignInOffCompletesNothing(t *testing.T) {
 	_, err := useCase.Execute(t.Context(), complete_sign_in_usecase.In{Code: "the-code", State: "state"})
 
 	assert.ErrorIs(t, err, signin.ErrSignInOff)
+}
+
+func TestAnAccountASignInMakesKeepsWhereTheBrowserCameFrom(t *testing.T) {
+	f := setUp(t)
+
+	out, err := f.complete(t, "")
+	require.NoError(t, err)
+
+	require.Equal(t, accounts.Created, out.Outcome())
+	assert.Equal(t, []arrivals.Snapshot{{
+		ID: arrivals.ArrivalID{0: 0xa, 15: 1}, Account: out.Account(), Source: arrivals.SourceRecruit, Flag: "fr", At: start,
+	}}, f.arrivals.Kept())
+}
+
+func TestASignInToAnAccountThatExistsKeepsNoArrival(t *testing.T) {
+	f := setUp(t)
+	f.guest(t, 1, "guest-token")
+
+	out, err := f.complete(t, "cp_sid=guest-token")
+	require.NoError(t, err)
+
+	require.Equal(t, accounts.Linked, out.Outcome())
+	assert.Empty(t, f.arrivals.Kept(), "the guest's arrival was kept when the guest was made")
 }

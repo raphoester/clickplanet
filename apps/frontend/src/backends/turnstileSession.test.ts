@@ -76,6 +76,17 @@ describe("SessionClient", () => {
         expect(createSession).toHaveBeenCalledWith({attestationToken: "widget-token"})
     })
 
+    it("sends the first page's landing, which the server keeps if the mint makes the account", async () => {
+        const createSession = vi.fn(minting("session-1"))
+
+        const client = new SessionClient(fakeClient(createSession), async () => "widget-token", {
+            now: clock, landing: {flag: "", tag: "yt"},
+        })
+        await client.token()
+
+        expect(createSession).toHaveBeenCalledWith({attestationToken: "widget-token", landing: {flag: "", tag: "yt"}})
+    })
+
     it("mints again once the token is inside the refresh margin", async () => {
         const createSession = vi.fn()
             .mockImplementationOnce(minting("session-1"))

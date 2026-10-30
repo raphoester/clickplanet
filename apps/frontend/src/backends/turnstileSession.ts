@@ -3,6 +3,7 @@ import {createConnectTransport} from "@connectrpc/connect-web"
 import {AuthService} from "../gen/grpc/auth/v1/auth_connect.ts"
 import {SessionProvider, SessionUnavailableError} from "./session.ts"
 import {Config} from "./transport.ts"
+import {Landing} from "../domain/landing.ts"
 
 export function newAuthServiceClient(config: Config): PromiseClient<typeof AuthService> {
     return createPromiseClient(AuthService, createConnectTransport({
@@ -43,6 +44,7 @@ export type SessionClientOptions = {
     refreshMarginMs?: number
     now?: () => number
     store?: TokenStore
+    landing?: Landing
 }
 
 export class SessionClient implements SessionProvider {
@@ -54,6 +56,7 @@ export class SessionClient implements SessionProvider {
     private readonly refreshMarginMs: number
     private readonly now: () => number
     private readonly store: TokenStore
+    private readonly landing?: Landing
 
     constructor(
         private readonly client: PromiseClient<typeof AuthService>,
@@ -63,6 +66,7 @@ export class SessionClient implements SessionProvider {
         this.refreshMarginMs = options.refreshMarginMs ?? REFRESH_MARGIN_MS
         this.now = options.now ?? (() => Date.now())
         this.store = options.store ?? NO_STORE
+        this.landing = options.landing
 
         const kept = this.store.read()
         if (kept && this.now() < kept.expiresAt - this.refreshMarginMs) this.current = kept
@@ -142,7 +146,7 @@ export class SessionClient implements SessionProvider {
     private async createSession(generation: number): Promise<string> {
         try {
             const attestationToken = await this.attest()
-            const res = await this.client.createSession({attestationToken})
+            const res = await this.client.createSession({attestationToken, landing: this.landing})
 
             if (generation === this.generation) {
                 this.current = {

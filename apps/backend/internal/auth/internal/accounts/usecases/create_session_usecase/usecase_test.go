@@ -13,8 +13,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/inmemory_account_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/create_session_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals/inmemory_arrival_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/attestation"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/attestation/open_attester"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -31,6 +35,7 @@ func (refusingAttester) Attest(context.Context, string, string) error {
 
 type fixture struct {
 	sessions *inmemory_account_store.Store
+	arrivals *inmemory_arrival_store.Store
 	signer   *cpsession.Signer
 	verifier *cpsession.Verifier
 	clock    *cptime.FixedClock
@@ -47,6 +52,7 @@ func setUp(t *testing.T) fixture {
 
 	return fixture{
 		sessions: inmemory_account_store.New(),
+		arrivals: inmemory_arrival_store.New(),
 		signer:   signer,
 		verifier: verifier,
 		clock:    cptime.NewFixedClock(start),
@@ -55,8 +61,11 @@ func setUp(t *testing.T) fixture {
 
 func (f fixture) useCase(attester attestation.Attester) *create_session_usecase.UseCase {
 	lifetime := accounts.Lifetime{}.WithDefaults()
+	guests := accounts.NewGuests(f.sessions, &accounts.SequentialIDs{}, &accounts.SequentialTokens{}, lifetime)
 	return create_session_usecase.New(attester, accounts.NewResumer(f.sessions, lifetime),
-		accounts.NewGuests(f.sessions, &accounts.SequentialIDs{}, &accounts.SequentialTokens{}, lifetime), f.signer, f.clock)
+		arrivals.NewGuests(cpatomic.FakeTransactioner{}, guests,
+			arrivals.NewRegister(f.arrivals, &arrivals.SequentialIDs{}, cpcountries.New())),
+		f.signer, f.clock)
 }
 
 func (f fixture) create(t *testing.T, useCase *create_session_usecase.UseCase, cookieHeader string) *create_session_usecase.Out {
@@ -215,4 +224,33 @@ func TestTheTokenSaysWhetherTheAccountSignedInWithAProvider(t *testing.T) {
 			assert.Equal(t, tc.linked, claims.Linked, "a linked account clicks faster, and the token is what planet reads")
 		})
 	}
+}
+
+func TestOnlyTheMintThatStartsAGuestKeepsWhereItCameFrom(t *testing.T) {
+	f := setUp(t)
+	useCase := f.useCase(open_attester.New())
+
+	first, err := useCase.Execute(t.Context(), create_session_usecase.In{
+		AttestationToken: "widget", IP: ip, Landing: arrivals.Landing{Flag: "fr"},
+	})
+	require.NoError(t, err)
+	_, err = useCase.Execute(t.Context(), create_session_usecase.In{
+		AttestationToken: "widget", IP: ip, CookieHeader: "cp_sid=token-1", Landing: arrivals.Landing{Tag: "yt"},
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, []arrivals.Snapshot{{
+		ID: arrivals.ArrivalID{0: 0xa, 15: 1}, Account: f.accountIn(t, first), Source: arrivals.SourceRecruit, Flag: "fr", At: start,
+	}}, f.arrivals.Kept())
+}
+
+func TestARefusedAttestationKeepsNoArrival(t *testing.T) {
+	f := setUp(t)
+
+	_, err := f.useCase(refusingAttester{}).Execute(t.Context(), create_session_usecase.In{
+		AttestationToken: "widget", IP: ip, Landing: arrivals.Landing{Flag: "fr"},
+	})
+
+	require.Error(t, err)
+	assert.Empty(t, f.arrivals.Kept())
 }

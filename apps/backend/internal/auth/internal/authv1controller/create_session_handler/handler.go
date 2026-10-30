@@ -10,6 +10,7 @@ import (
 
 	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/create_session_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/attestation"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
@@ -37,6 +38,7 @@ func (h CreateSessionHandler) CreateSession(
 		AttestationToken: req.Msg.GetAttestationToken(),
 		IP:               cpctx.GetSourceIP(ctx),
 		CookieHeader:     req.Header().Get("Cookie"),
+		Landing:          arrivals.Landing{Flag: req.Msg.GetLanding().GetFlag(), Tag: req.Msg.GetLanding().GetTag()},
 	})
 	if errors.Is(err, attestation.ErrAttestationFailed) {
 		h.logger.Info("refused a session", slog.String("procedure", req.Spec().Procedure), slog.Any("error", err))

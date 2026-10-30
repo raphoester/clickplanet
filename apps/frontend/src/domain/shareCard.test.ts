@@ -12,7 +12,6 @@ import {
     shareText,
     shareUrl,
     statsLine,
-    withoutSharedFlag,
 } from "./shareCard.ts"
 import {Race} from "../backends/standings.ts"
 import {Countries} from "./countries.ts"
@@ -52,11 +51,6 @@ describe("opening a share link", () => {
         for (const path of ["/play", "/play?f=", "/play?f=zz", "/play?c=fr"]) {
             expect(sharedCountry(page(path)), path).toBeUndefined()
         }
-    })
-
-    it("drops the flag from the address and keeps the rest of it", () => {
-        expect(withoutSharedFlag(page("/play?f=fr&gfx=halo#top")).href).toBe("https://clickplanet.lol/play?gfx=halo#top")
-        expect(withoutSharedFlag(page("/play?f=fr")).href).toBe("https://clickplanet.lol/play")
     })
 })
 

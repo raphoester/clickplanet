@@ -32,6 +32,10 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/adminsignin/usecases/complete_admin_sign_in_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/adminsignin/usecases/sign_out_admin_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/adminsignin/usecases/start_admin_sign_in_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals/postgres_arrival_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals/usecases/anonymize_arrivals_usecase"
+	arrival_ids "github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals/uuid_id_provider"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/attestation"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/attestation/open_attester"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/attestation/turnstile"
@@ -75,7 +79,10 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/usecases/complete_sign_in_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/usecases/start_email_sign_in_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/usecases/start_sign_in_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/subscribers/account_deleted_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpoutbox"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
@@ -225,12 +232,22 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, signIns 
 		cpratelimit.Config{Burst: signin.MaxAttempts, PerSecond: 1 / signin.ChallengeTTL.Seconds()}, clock)
 	props.Runners.Add(attemptLimiter)
 	outbox := cpoutbox.New(db)
-	admitter := signin.NewAdmitter(db, store, outbox, uuid_id_provider.Provider{}, random_token_generator.Generator{}, config.Sessions)
+	arrivalStore := postgres_arrival_store.New(db)
+	register := arrivals.NewRegister(arrivalStore, arrival_ids.Provider{}, cpcountries.New())
+	admitter := signin.NewAdmitter(db, store, outbox, register, uuid_id_provider.Provider{}, random_token_generator.Generator{},
+		config.Sessions)
 	challenges := signin.NewChallenges(config.Email.Enabled, random_secret_generator.Generator{}, mail.codes, sealer, attemptLimiter)
 	post := signin.NewPost(blocklist, sendLimiter, mail.mailer)
 
 	resumer := accounts.NewResumer(store, config.Sessions)
-	guests := accounts.NewGuests(store, uuid_id_provider.Provider{}, random_token_generator.Generator{}, config.Sessions)
+	guests := arrivals.NewGuests(db,
+		accounts.NewGuests(store, uuid_id_provider.Provider{}, random_token_generator.Generator{}, config.Sessions), register)
+
+	arrivalDeletions, err := cpredis.Subscribe(ctx, streams, "auth-arrivals-accounts",
+		log_subscriber.New(account_deleted_subscriber.New(anonymize_arrivals_usecase.New(arrivalStore)), props.Logger))
+	if err != nil {
+		return fmt.Errorf("failed to subscribe to auth.v1.AccountDeleted: %w", err)
+	}
 
 	authService := authv1controller.AuthService{
 		CreateSessionHandler: create_session_handler.New(
@@ -262,7 +279,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, signIns 
 	// Not closers: closers run before the outbox's last send.
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger,
 		prune_guests_usecase.NewRunner(config.Prune, log_prune_guests.New(prune_guests_usecase.New(config.Prune, db, store, outbox, clock), props.Logger)),
-		cpredis.CloseAfter(streams, props.Logger, cpoutbox.NewRelay("auth-outbox", db, streams, props.Logger))))
+		cpredis.CloseAfter(streams, props.Logger, cpoutbox.NewRelay("auth-outbox", db, streams, props.Logger), arrivalDeletions)))
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return authv1connect.NewAuthServiceHandler(authService, options...)
 	}, authv1controller.NewRateLimitInterceptor(mintLimiter),
