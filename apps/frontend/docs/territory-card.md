@@ -9,7 +9,7 @@ the globe. A click or a tap flies down to it.
 
 - **Orbit is where the painted flags have the frame to themselves**: a tile of
   `COARSE_FROM` (5px) or less (`inOrbit` in `pointSize.ts`). It is a zoom, not the
-  map view: with "Big country flags" off it starts at the same zoom. Past it the
+  map view: with the flags Off it starts at the same zoom. Past it the
   pointer asks about tiles again, as in [Who holds a tile](tile-holder.md).
 - **A click in orbit flies to the territory and takes no tile**: centred on the
   middle of its extent as the screen sees it, the north up, and as big as fits in

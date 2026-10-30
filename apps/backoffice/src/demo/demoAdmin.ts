@@ -37,6 +37,13 @@ import {
     TopPlayersResponse,
 } from "../gen/grpc/planet/v1/admin_pb.ts"
 import {Rules as PlanetRules} from "../gen/grpc/planet/v1/rules_pb.ts"
+import {
+    CreateVideoUploadRequest,
+    CreateVideoUploadResponse,
+    KeepVideoRequest,
+    KeepVideoResponse,
+    Video,
+} from "../gen/grpc/clips/v1/admin_pb.ts"
 import {AdminGetPlayerRequest, AdminGetPlayerResponse} from "../gen/grpc/player/v1/admin_pb.ts"
 import {Author} from "../gen/grpc/player/v1/internal_pb.ts"
 import {CountryTiles, Stats} from "../gen/grpc/player/v1/player_pb.ts"
@@ -68,6 +75,15 @@ const BANTER = [
     "how do you get the bomb", "this game is so good", "who wants an alliance", "italy and france together",
 ]
 const ABUSE = ["you all suck", "kys noob", "shut up idiot", "go back to your country", "stupid french dogs"]
+const VIDEO_TYPES = ["video/mp4", "video/quicktime", "video/webm"]
+const VIDEOS = [
+    {
+        name: "season-1-final-france", hours: 2, mb: 24.6,
+        caption: "France held the map to the last second. Who takes it in Season 2?\n#clickplanet #map #france",
+    },
+    {name: "season-1-final-algeria", hours: 3, mb: 31.2, caption: "Algeria came back in the last hour.\n#clickplanet #algeria"},
+    {name: "season-1-top-10", hours: 26, mb: 8.4, caption: ""},
+]
 
 // The same numbers on every boot, so a page looks the same after a reload.
 function random(seed: number): () => number {
@@ -89,6 +105,7 @@ export class DemoAdmin extends FakeAdmin {
     accounts: Account[]
     mutedUntil = new Map<string, number>()
     inspections = new Map<string, InspectPlayerResponse>()
+    readonly bucket = new Map<string, Blob>()
 
     constructor() {
         super()
@@ -214,15 +231,60 @@ export class DemoAdmin extends FakeAdmin {
         ]})
         this.antibotRules = new AntibotGetRulesResponse({playing: "calm", sets: ["default", "calm", "frozen", "rush"].map(name =>
             new AntibotRuleSet({name, rules: antibotDefault.rules?.clone()}))})
+
+        // Their files are not in the demo: the page says it cannot play them.
+        this.videos = VIDEOS.map(({name, caption, hours, mb}, n) => new Video({
+            videoId: `demo-video-${n + 1}`, name, caption, contentType: "video/mp4",
+            sizeBytes: BigInt(Math.round(mb * 1024 * 1024)), keptAt: at(NOW - hours * HOUR),
+            viewUrl: `/demo/${name}.mp4`, downloadUrl: `/demo/${name}.mp4`,
+        }))
     }
 
     override answer<T>(method: string, request: unknown, value: T): Promise<T> {
         return new Promise(resolve => setTimeout(resolve, LATENCY_MS)).then(() => super.answer(method, request, value))
     }
 
-    private refuse404<T>(method: string, request: unknown, why: string): Promise<T> {
+    private refuseLater<T>(method: string, request: unknown, why: string, code: Code): Promise<T> {
         this.asked.push({method, request})
-        return new Promise((_, reject) => setTimeout(() => reject(new ConnectError(why, Code.NotFound)), LATENCY_MS))
+        return new Promise((_, reject) => setTimeout(() => reject(new ConnectError(why, code)), LATENCY_MS))
+    }
+
+    // The made-up bucket takes a file in two seconds, a tenth at a time.
+    receive(url: string, file: Blob, onSent: (bytes: number) => void): Promise<void> {
+        const videoId = url.split("/").pop() ?? ""
+        return new Promise(resolve => {
+            let tenths = 0
+            const timer = setInterval(() => {
+                tenths += 1
+                onSent(file.size * tenths / 10)
+                if (tenths < 10) return
+                clearInterval(timer)
+                this.bucket.set(videoId, file)
+                resolve()
+            }, 200)
+        })
+    }
+
+    override createVideoUpload(request: PartialMessage<CreateVideoUploadRequest>): Promise<CreateVideoUploadResponse> {
+        const type = request.contentType ?? ""
+        if (!VIDEO_TYPES.includes(type)) {
+            return this.refuseLater("createVideoUpload", request,
+                `"${type}" is not video/mp4, video/quicktime or video/webm`, Code.InvalidArgument)
+        }
+        return super.createVideoUpload(request)
+    }
+
+    override keepVideo(request: PartialMessage<KeepVideoRequest>): Promise<KeepVideoResponse> {
+        const file = this.bucket.get(request.videoId ?? "")
+        if (file === undefined) {
+            return this.refuseLater("keepVideo", request, "the file is not in the bucket", Code.FailedPrecondition)
+        }
+        const link = URL.createObjectURL(file)
+        this.videos = [new Video({
+            videoId: request.videoId, name: request.name, caption: request.caption, contentType: file.type,
+            sizeBytes: BigInt(file.size), keptAt: at(Date.now()), viewUrl: link, downloadUrl: link,
+        }), ...this.videos]
+        return this.answer("keepVideo", request, new KeepVideoResponse())
     }
 
     override listReports(request: PartialMessage<ListReportsRequest>): Promise<ListReportsResponse> {
@@ -240,7 +302,7 @@ export class DemoAdmin extends FakeAdmin {
 
     override getMessage(request: PartialMessage<GetMessageRequest>): Promise<GetMessageResponse> {
         const kept = this.chat.find(message => message.messageId === request.messageId)
-        if (kept === undefined) return this.refuse404("getMessage", request, "no message kept under this id")
+        if (kept === undefined) return this.refuseLater("getMessage", request, "no message kept under this id", Code.NotFound)
         return this.answer("getMessage", request, new GetMessageResponse({
             messageId: kept.messageId, accountId: kept.accountId, text: kept.text, sentAt: kept.sentAt,
             countryId: kept.countryId, removedAt: kept.removedAt,
@@ -299,7 +361,7 @@ export class DemoAdmin extends FakeAdmin {
 
     override getPlayer(request: PartialMessage<AdminGetPlayerRequest>): Promise<AdminGetPlayerResponse> {
         const account = this.accounts.find(each => each.id === request.accountId)
-        if (account === undefined) return this.refuse404("getPlayer", request, "no such account")
+        if (account === undefined) return this.refuseLater("getPlayer", request, "no such account", Code.NotFound)
         const row = this.players.find(each => each.accountId === account.id)
         const taken = BigInt((row?.takes ?? 0) * 3)
         return this.answer("getPlayer", request, new AdminGetPlayerResponse({
@@ -362,7 +424,7 @@ export class DemoAdmin extends FakeAdmin {
         },
         unbanPlayer: (request: PartialMessage<UnbanPlayerRequest>) => {
             const inspection = this.inspectionOf(request)
-            if (inspection.offence === 0) return this.refuse404<UnbanPlayerResponse>("unbanPlayer", request, "no ban")
+            if (inspection.offence === 0) return this.refuseLater<UnbanPlayerResponse>("unbanPlayer", request, "no ban", Code.NotFound)
             const offence = inspection.offence
             const until = inspection.bannedUntil
             inspection.banned = false

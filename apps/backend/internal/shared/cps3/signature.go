@@ -1,4 +1,4 @@
-package s3_attachment_bucket
+package cps3
 
 import (
 	"crypto/hmac"
@@ -35,8 +35,10 @@ type request struct {
 	path string
 	// Lower-case names. The caller of the link sends each one as it is here, or the bucket refuses it.
 	headers map[string]string
-	at      time.Time
-	ttl     time.Duration
+	// Signed beside the X-Amz parameters, such as response-content-disposition.
+	query map[string]string
+	at    time.Time
+	ttl   time.Duration
 }
 
 func (c credentials) signedQuery(r request) string {
@@ -54,12 +56,19 @@ func (c credentials) signedQuery(r request) string {
 	}
 	signed := strings.Join(names, ";")
 
-	// The bucket reads the parameters sorted by name, and these already are.
-	query := "X-Amz-Algorithm=" + algorithm +
-		"&X-Amz-Credential=" + escaped(c.keyID+"/"+scope) +
-		"&X-Amz-Date=" + at.Format(stampLayout) +
-		"&X-Amz-Expires=" + strconv.Itoa(int(r.ttl/time.Second)) +
-		"&X-Amz-SignedHeaders=" + escaped(signed)
+	params := map[string]string{
+		"X-Amz-Algorithm":     algorithm,
+		"X-Amz-Credential":    c.keyID + "/" + scope,
+		"X-Amz-Date":          at.Format(stampLayout),
+		"X-Amz-Expires":       strconv.Itoa(int(r.ttl / time.Second)),
+		"X-Amz-SignedHeaders": signed,
+	}
+	maps.Copy(params, r.query)
+	pairs := make([]string, 0, len(params))
+	for _, name := range slices.Sorted(maps.Keys(params)) {
+		pairs = append(pairs, escaped(name)+"="+escaped(params[name]))
+	}
+	query := strings.Join(pairs, "&")
 
 	canonical := strings.Join([]string{r.method, r.path, query, sent.String(), signed, unsignedBody}, "\n")
 	digest := sha256.Sum256([]byte(canonical))
@@ -76,6 +85,15 @@ func mac(key []byte, message string) []byte {
 	hash := hmac.New(sha256.New, key)
 	hash.Write([]byte(message))
 	return hash.Sum(nil)
+}
+
+// Each segment escaped, the slashes kept: a key "a/b" is the path "/bucket/a/b".
+func escapedPath(key string) string {
+	segments := strings.Split(key, "/")
+	for i, segment := range segments {
+		segments[i] = escaped(segment)
+	}
+	return strings.Join(segments, "/")
 }
 
 // RFC 3986, as the signature wants it: every byte but a letter, a digit, - . _ and ~.

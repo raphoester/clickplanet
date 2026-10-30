@@ -114,6 +114,8 @@ export function createBonusBox(): BonusBox {
     glow.renderOrder = 1
 
     const group = new THREE.Group()
+    // With the marks over the ground, out of the globe's light.
+    group.renderOrder = 1
     group.add(box)
     group.add(glow)
     group.visible = false

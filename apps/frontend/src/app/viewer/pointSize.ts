@@ -8,7 +8,8 @@ export function tileSpacing(zoom: number, viewportHeight: number): number {
     return zoom * 1.98 * (viewportHeight / 1000)
 }
 
-const SPREAD = 2.3 / 1.5
+// Covers the ground where the lattice is 11% wider than its median, as it is at its 99th percentile.
+const SPREAD = 2.6 / 1.5
 
 const COARSE_FROM = 5
 const COARSE_UNTIL = 8
@@ -54,7 +55,7 @@ export function flagPaint(zoom: number, viewportHeight: number, view: MapView): 
 
 // In orbit a tile is picked as wide as the painted flag's discs, which cover the ground: a gap between two tiles is still the territory.
 export function pickPointSize(zoom: number, viewportHeight: number): number {
-    return inOrbit(zoom, viewportHeight) ? displayPointSize(zoom, viewportHeight, "flags") : tilePointSize(zoom, viewportHeight)
+    return inOrbit(zoom, viewportHeight) ? displayPointSize(zoom, viewportHeight, "split") : tilePointSize(zoom, viewportHeight)
 }
 
 export const MAX_PICK_WINDOW = 257

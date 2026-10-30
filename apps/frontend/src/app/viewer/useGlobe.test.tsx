@@ -32,7 +32,7 @@ function fakeGlobe(): Globe & {
 
 function Harness(props: {country: typeof FRANCE, backends: ReturnType<typeof backends>, onResult: (r: unknown) => void}) {
     const container = useRef<HTMLDivElement>(null)
-    props.onResult(useGlobe({container, ...props.backends, country: props.country, clickHue: undefined, mapView: "flags", halo: "calm", rendering: "sharp"}))
+    props.onResult(useGlobe({container, ...props.backends, country: props.country, clickHue: undefined, mapView: "split", halo: "calm", rendering: "sharp"}))
     return <div ref={container}/>
 }
 
@@ -170,7 +170,7 @@ describe("useGlobe", () => {
 
         function Hued(props: {hue: number | undefined}) {
             const container = useRef<HTMLDivElement>(null)
-            useGlobe({container, ...deps, country: FRANCE, clickHue: props.hue, mapView: "flags", halo: "calm", rendering: "sharp"})
+            useGlobe({container, ...deps, country: FRANCE, clickHue: props.hue, mapView: "split", halo: "calm", rendering: "sharp"})
             return <div ref={container}/>
         }
 
@@ -198,9 +198,9 @@ describe("useGlobe", () => {
         await waitFor(() => expect(globe.setMapView).toHaveBeenCalledWith("tiles"))
         expect(createGlobe.mock.calls[0][0].mapView).toBe("tiles")
 
-        await act(async () => {view.rerender(<Viewed view="flags"/>)})
+        await act(async () => {view.rerender(<Viewed view="split"/>)})
 
-        expect(globe.setMapView).toHaveBeenLastCalledWith("flags")
+        expect(globe.setMapView).toHaveBeenLastCalledWith("split")
         expect(createGlobe).toHaveBeenCalledTimes(1)
     })
 
@@ -210,7 +210,7 @@ describe("useGlobe", () => {
 
         function Rendered(props: {rendering: Rendering}) {
             const container = useRef<HTMLDivElement>(null)
-            useGlobe({container, ...deps, country: FRANCE, clickHue: undefined, mapView: "flags", halo: "calm", rendering: props.rendering})
+            useGlobe({container, ...deps, country: FRANCE, clickHue: undefined, mapView: "split", halo: "calm", rendering: props.rendering})
             return <div ref={container}/>
         }
 
@@ -344,7 +344,7 @@ describe("useGlobe", () => {
         createGlobe.mockResolvedValue(fakeGlobe())
 
         function NoContainer() {
-            useGlobe({container: createRef<HTMLDivElement>(), ...backends(), country: FRANCE, clickHue: undefined, mapView: "flags", halo: "calm", rendering: "sharp"})
+            useGlobe({container: createRef<HTMLDivElement>(), ...backends(), country: FRANCE, clickHue: undefined, mapView: "split", halo: "calm", rendering: "sharp"})
             return null
         }
         render(<NoContainer/>)

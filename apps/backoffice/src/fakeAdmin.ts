@@ -54,13 +54,22 @@ import {
     TopPlayersResponse,
 } from "./gen/grpc/planet/v1/admin_pb.ts"
 import {
+    CreateVideoUploadRequest,
+    CreateVideoUploadResponse,
+    KeepVideoRequest,
+    KeepVideoResponse,
     ListRowsRequest,
     ListRowsResponse,
     ListSnapshotsRequest,
     ListSnapshotsResponse,
+    ListVideosRequest,
+    ListVideosResponse,
+    RemoveVideoRequest,
+    RemoveVideoResponse,
     StatsRow,
     StatsSnapshot,
     TikTokAccount,
+    Video,
 } from "./gen/grpc/clips/v1/admin_pb.ts"
 import {GetTerritoriesRequest, GetTerritoriesResponse, Territory} from "./gen/grpc/planet/v1/internal_pb.ts"
 import {GetLedgerRequest, GetLedgerResponse, LedgerChange} from "./gen/grpc/planet/v1/ledger_pb.ts"
@@ -302,6 +311,15 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
             }),
         }),
     ]]
+    // The videos kept, the newest first, and the upload each link was made for, by video id.
+    videos = [
+        new Video({
+            videoId: "video-1", name: "season-1-france", caption: "France held the map to the end. #clickplanet",
+            contentType: "video/mp4", sizeBytes: 12_582_912n, keptAt: Timestamp.fromDate(AT),
+            viewUrl: "https://bucket.test/video-1/view", downloadUrl: "https://bucket.test/video-1/download",
+        }),
+    ]
+    readonly uploads = new Map<string, PartialMessage<CreateVideoUploadRequest>>()
 
     clients(): Clients {
         return {
@@ -343,6 +361,39 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         const index = request.page ? Number(request.page) : 0
         const next = index + 1 < this.rowPages.length ? String(index + 1) : ""
         return this.answer("listRows", request, new ListRowsResponse({rows: this.rowPages[index] ?? [], nextPage: next}))
+    }
+
+    createVideoUpload(request: PartialMessage<CreateVideoUploadRequest>): Promise<CreateVideoUploadResponse> {
+        const videoId = `upload-${this.uploads.size + 1}`
+        const answer = this.answer("createVideoUpload", request,
+            new CreateVideoUploadResponse({videoId, uploadUrl: `https://bucket.test/${videoId}`}))
+        if (!this.refusals.has("createVideoUpload")) this.uploads.set(videoId, request)
+        return answer
+    }
+
+    // Kept as the server keeps it: listed first. The fake has no bucket, so any link made is kept.
+    keepVideo(request: PartialMessage<KeepVideoRequest>): Promise<KeepVideoResponse> {
+        const answer = this.answer("keepVideo", request, new KeepVideoResponse())
+        const upload = this.uploads.get(request.videoId ?? "")
+        if (!this.refusals.has("keepVideo") && upload !== undefined) {
+            const link = `https://bucket.test/${request.videoId}`
+            this.videos = [new Video({
+                videoId: request.videoId, name: request.name, caption: request.caption, contentType: upload.contentType,
+                sizeBytes: upload.sizeBytes, keptAt: Timestamp.fromDate(AT), viewUrl: `${link}/view`,
+                downloadUrl: `${link}/download`,
+            }), ...this.videos]
+        }
+        return answer
+    }
+
+    listVideos(request: PartialMessage<ListVideosRequest>): Promise<ListVideosResponse> {
+        return this.answer("listVideos", request, new ListVideosResponse({videos: this.videos}))
+    }
+
+    removeVideo(request: PartialMessage<RemoveVideoRequest>): Promise<RemoveVideoResponse> {
+        const answer = this.answer("removeVideo", request, new RemoveVideoResponse())
+        if (!this.refusals.has("removeVideo")) this.videos = this.videos.filter(video => video.videoId !== request.videoId)
+        return answer
     }
 
     getMessage(request: PartialMessage<GetMessageRequest>): Promise<GetMessageResponse> {

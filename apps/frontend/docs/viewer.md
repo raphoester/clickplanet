@@ -21,7 +21,10 @@
   tiles are drawn wider for it, with no gap between them (`pickPointSize`). Picks
   are resolved once per frame, not once per mousemove — each one ends in a
   synchronous GPU read that stalls the pipeline. Its occluder is the earth's own
-  sphere, which it does not dispose.
+  sphere, which it does not dispose. **It clears to black, which is no tile, and
+  hands the canvas its sky colour back after**: `renderer.clear()` takes the last
+  clear colour given to the GPU, and the one given for the picker's target made the
+  sky black on every frame after a pick.
 - `points.ts` / `latticeWorker.ts` / `landmaskAsset.ts` — the tile positions, rebuilt in a worker from
   the landmask, or the coordinates blob when that fails. See [Tile positions](tile-positions.md).
 - `capture.ts` — `readDrawingBuffer`, the frame the player is looking at. **It
@@ -98,11 +101,13 @@
   of a flag. **A click out of view is not played** (`inView`): on the far side
   or off the screen it would cost frames and show nothing. With less motion a
   hit and a placement fade without changing size.
-- `earth.ts` — the opaque sphere under the tiles, in the globe's light with
-  `?gfx=earth`. See [The light](light.md). The sphere comes from `sphere.ts`, built
-  once per globe and shared with the picker.
-- `graphics.ts` — `graphicsOf`, which parts of the sharper, lit globe are on:
+- `earth.ts` — the opaque sphere under the tiles: the photo, a little softened, and the sea's
+  glint with `?gfx=earth`. See [The light](light.md). The sphere comes from
+  `sphere.ts`, built once per globe and shared with the picker.
+- `atmosphere.ts` — the light, the hazy rim and the halo, one pass over the whole
+  frame after the ground. See [The light](light.md).
+- `graphics.ts` — `graphicsOf`, which parts of the sharper globe are on:
   the HD graphics setting, unless the URL names them. See [HD graphics](hd-graphics.md).
-- `shaders/` — GLSL for the display, picking, earth, star, enclosure and glint passes.
-  `light.glsl` is not a pass but the light they share, pulled in with
+- `shaders/` — GLSL for the display, picking, earth, air, star, enclosure and glint passes.
+  `light.glsl` is not a pass but the light's direction the air and the earth share, pulled in with
   `#include ../light.glsl;` (vite-plugin-glsl's own include, not three's).

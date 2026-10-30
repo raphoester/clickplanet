@@ -33,3 +33,7 @@ export const gamemasterAdmin = createPromiseClient(GamemasterAdmin, transport)
 export const supportAdmin = createPromiseClient(SupportAdmin, transport)
 
 export const LONG_CALL_MS = 120_000
+
+export function putFile(url: string, file: Blob, _contentType: string, onSent: (bytes: number) => void): Promise<void> {
+    return admin.receive(url, file, onSent)
+}

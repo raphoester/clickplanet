@@ -59,6 +59,7 @@ describe("who a landmass flies", () => {
         paint(field, {fr: 2, de: 6})
 
         expect(field.holderOf(1)).toBe("de")
+        expect(regionOf(field)).toEqual(Object.values(regions.get("de")!))
         expect(opacityOf(field)).toBeCloseTo(6 / 8)
     })
 
@@ -79,7 +80,7 @@ describe("who a landmass flies", () => {
         paint(field, {})
 
         expect(field.holderOf(1)).toBeUndefined()
-        expect(opacityOf(field)).toBe(0)
+        expect(regionOf(field)).toEqual([0, 0, 0, 0])
     })
 
     it("ignores a landmass the table has no row for", () => {
@@ -91,9 +92,9 @@ describe("who a landmass flies", () => {
     })
 })
 
-describe("what a landmass has to earn before it paints", () => {
-    it("stays bare Earth below the tile floor, however completely it is held", () => {
-        const field = new BorderField(world(3), undefined, undefined, 4)
+describe("what a flag has to earn before it leads a landmass", () => {
+    it("leads nothing below the tile floor, however completely it holds it", () => {
+        const field = new BorderField(world(3), undefined, 4)
 
         paint(field, {fr: 3})
 
@@ -101,26 +102,26 @@ describe("what a landmass has to earn before it paints", () => {
         expect(regionOf(field)).toEqual([0, 0, 0, 0])
     })
 
-    it("stays bare Earth below the share floor, rather than showing a ghost", () => {
+    it("leads nothing below the share floor", () => {
         const field = new BorderField(world(8), 0.5)
 
         paint(field, {fr: 3})
 
         expect(field.holderOf(1)).toBeUndefined()
-        expect(opacityOf(field)).toBe(0)
+        expect(regionOf(field)).toEqual([0, 0, 0, 0])
     })
 
-    it("paints once the leader crosses the floor", () => {
+    it("leads once it crosses the floor", () => {
         const field = new BorderField(world(8), 0.5)
 
         paint(field, {fr: 5})
 
         expect(field.holderOf(1)).toBe("fr")
-        expect(opacityOf(field)).toBeCloseTo(5 / 8)
+        expect(regionOf(field)).toEqual(Object.values(regions.get("fr")!))
     })
 })
 
-describe("opacity", () => {
+describe("the big flag's opacity", () => {
     it("is the leader's share of the landmass", () => {
         for (const [held, total] of [[1, 8], [4, 8], [8, 8], [37, 100]]) {
             const field = new BorderField(world(total))
@@ -137,6 +138,20 @@ describe("opacity", () => {
             const share = held / 100
             expect(opacityOf(field) * 0.94, `holding ${held}%`).toBeGreaterThanOrEqual(share * 0.7)
         }
+    })
+
+    it("is nothing below the share floor", () => {
+        const field = new BorderField(world(8), 0.5)
+        paint(field, {fr: 3})
+        expect(opacityOf(field)).toBe(0)
+    })
+})
+
+describe("the flags that do not lead", () => {
+    it("find each landmass's reach in its row, led or not", () => {
+        const field = new BorderField(world(8))
+
+        expect(Array.from(rows(field).slice(TEXELS * 4 + 4, TEXELS * 4 + 6))).toEqual([0.1, 0.1].map(Math.fround))
     })
 })
 
