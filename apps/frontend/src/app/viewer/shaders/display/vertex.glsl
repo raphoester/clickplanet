@@ -78,7 +78,8 @@ flat out float vSlotted;
 vec2 flagUVof(vec3 ground, vec3 centre, vec3 east, vec3 north, vec2 halfSize, vec2 anchor) {
     vec2 offset = vec2(dot(ground, east), dot(ground, north));
     float reach = length(offset);
-    float angle = acos(clamp(dot(ground, centre), -1.0, 1.0));
+    // Not acos: a pixel from the centre tile, the dot rounds to 1 and the flag's step flickers to nothing.
+    float angle = atan(reach, dot(ground, centre));
     vec2 surface = reach > 1e-6 ? offset / reach * angle : vec2(0.0);
     return surface / halfSize * 0.5 + anchor;
 }
