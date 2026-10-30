@@ -349,7 +349,7 @@ func TestTheExampleConfigReachesTheAttachments(t *testing.T) {
 	assert.Equal(t, 10*time.Minute, attachments.UploadTTL)
 	assert.Equal(t, time.Hour, attachments.LinkTTL)
 	assert.Equal(t, "auto", attachments.Bucket.Region)
-	assert.Equal(t, "clickplanet-support", attachments.Bucket.Name)
+	assert.Equal(t, "clickplanet-media", attachments.Bucket.Name)
 }
 
 func productionConfig(t *testing.T) Config {
@@ -363,7 +363,7 @@ func productionConfig(t *testing.T) Config {
 		t.Setenv(anchor[1], "a-secret")
 	}
 	t.Setenv("SESSION_SECRET", seed)
-	t.Setenv("SUPPORT_BUCKET_SECRET", "the-bucket-secret")
+	t.Setenv("MEDIA_BUCKET_SECRET", "the-bucket-secret")
 	t.Setenv("httpServer.allowedOrigin", "https://clickplanet.lol")
 
 	var config Config
@@ -397,16 +397,16 @@ func TestTheProductionConfigTakesFilesInItsBucketAndNeedsItsSecret(t *testing.T)
 	attachments := config.Support.Attachments
 	assert.True(t, attachments.Enabled)
 	assert.Equal(t, "the-bucket-secret", attachments.Bucket.SecretAccessKey)
-	assert.Equal(t, "9ec4cd4fdf48006b2944c522219f1eea", attachments.Bucket.AccessKeyID)
+	assert.Equal(t, "918067992c114dc8f4fcea4aa7ac7921", attachments.Bucket.AccessKeyID)
 	assert.Equal(t, "https://76f6f3883c3a531ae90d1dc4b96bf810.r2.cloudflarestorage.com", attachments.Bucket.Endpoint)
-	assert.Equal(t, "clickplanet-support", attachments.Bucket.Name)
+	assert.Equal(t, "clickplanet-media", attachments.Bucket.Name)
 	assert.Equal(t, "auto", attachments.Bucket.Region)
 	assert.Equal(t, int64(9<<30), attachments.MaxStoredBytes)
 	require.NoError(t, config.Support.Validate())
 
 	config.Support.Attachments.Bucket.SecretAccessKey = ""
 	require.ErrorContains(t, config.Support.Validate(), "secretAccessKey",
-		"a deploy before SUPPORT_BUCKET_SECRET is set refuses the boot")
+		"a deploy before MEDIA_BUCKET_SECRET is set refuses the boot")
 }
 
 func TestTheProductionVideosShareTheSupportBucketAndItsKey(t *testing.T) {

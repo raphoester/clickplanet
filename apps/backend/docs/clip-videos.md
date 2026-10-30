@@ -40,6 +40,7 @@ internal/clips/internal/
 - **Off** (`clips.videos.enabled: false`), every video call is `FailedPrecondition`, and the bucket block is not read.
 - **Its table** (`clips` schema, migration `20261030120000_videos`): `videos(video_id, name, caption, media_type,
   size_bytes, kept_at)`.
-- **The bucket is the support module's**, through `cps3` (see [Shared](shared.md)), with the same key. The bucket's CORS
-  must let `https://backoffice.clickplanet.lol` `PUT`, and the backoffice's CSP names the bucket's host in
-  `connect-src` (see `deploy/vps/README.md`, "Photos and videos on a note").
+- **One bucket for both modules**, `clickplanet-media` in production, through `cps3` (see [Shared](shared.md)), with
+  the same key: support's files at its root, the videos under `clips/videos/`. Its CORS lets
+  `https://backoffice.clickplanet.lol` `PUT`, and the backoffice's CSP names the bucket's host in `connect-src` (see
+  `deploy/vps/README.md`, "Photos and videos on a note").

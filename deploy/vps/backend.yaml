@@ -282,9 +282,9 @@ support:
     bucket:
       endpoint: https://76f6f3883c3a531ae90d1dc4b96bf810.r2.cloudflarestorage.com
       region: auto
-      name: clickplanet-support
-      accessKeyId: 9ec4cd4fdf48006b2944c522219f1eea
-      secretAccessKey: env://SUPPORT_BUCKET_SECRET
+      name: clickplanet-media
+      accessKeyId: 918067992c114dc8f4fcea4aa7ac7921
+      secretAccessKey: env://MEDIA_BUCKET_SECRET
 
 # The numbers of the clips the clips job posted: `clips stats` sends a snapshot a day over ssh, the backoffice reads them.
 # And who each clip names: `clips fetch` makes a run's cast, `clips schedule` keeps who each post names.
@@ -302,13 +302,14 @@ clips:
   redis:
     address: redis:6379
     password: env://REDIS_PASSWORD
-  # The videos the operator posts by hand: the backoffice's Videos page. Same bucket and key as the support files.
+  # The videos the operator posts by hand: the backoffice's Videos page. Same bucket and key as the support files,
+  # under clips/videos/.
   videos:
     enabled: true
     maxBytes: 524288000
     bucket:
       endpoint: https://76f6f3883c3a531ae90d1dc4b96bf810.r2.cloudflarestorage.com
       region: auto
-      name: clickplanet-support
-      accessKeyId: 9ec4cd4fdf48006b2944c522219f1eea
-      secretAccessKey: env://SUPPORT_BUCKET_SECRET
+      name: clickplanet-media
+      accessKeyId: 918067992c114dc8f4fcea4aa7ac7921
+      secretAccessKey: env://MEDIA_BUCKET_SECRET

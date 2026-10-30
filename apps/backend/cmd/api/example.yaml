@@ -314,7 +314,7 @@ support:
     bucket:
       endpoint: https://ACCOUNT_ID.r2.cloudflarestorage.com
       region: auto
-      name: clickplanet-support
+      name: clickplanet-media
       accessKeyId: ""
       secretAccessKey: ""
 
@@ -335,7 +335,7 @@ clips:
     address: localhost:6379
     password: ""
   # The videos the operator posts by hand, uploaded and downloaded on the backoffice. Off: every video call is refused
-  # and the bucket below is not read. It may be the support module's bucket: the videos are under clips/videos/.
+  # and the bucket below is not read. It is the support module's bucket: the videos are under clips/videos/.
   videos:
     enabled: false
     maxBytes: 524288000
@@ -344,6 +344,6 @@ clips:
     bucket:
       endpoint: https://ACCOUNT_ID.r2.cloudflarestorage.com
       region: auto
-      name: clickplanet-support
+      name: clickplanet-media
       accessKeyId: ""
       secretAccessKey: ""
