@@ -203,7 +203,8 @@ export default function Viewer(props: ViewerProps) {
     const closed = useDebriefed(props.standings, schedule.debrief)
     const nextBattle = nextBattleOf(schedule.battles, Date.now())
     const finale = finaleOf(schedule.battles, schedule.turn, Date.now())
-    const finaleTeaser = useFinaleTeaser(finale, Date.now())
+    const [accepted] = useState(acceptedClicks)
+    const finaleTeaser = useFinaleTeaser(finale, Date.now(), accepted.listenForClicks)
     const mood = moodOf(battle, clickBudget)
     useMood(mood)
     const battleReveal = useBattleReveal(battle)
@@ -239,7 +240,6 @@ export default function Viewer(props: ViewerProps) {
     const [clicksOpen, setClicksOpen] = useState(false)
     const [unread, setUnread] = useState(0)
     const [boardView, setBoardView] = useState<BoardView>("countries")
-    const [accepted] = useState(acceptedClicks)
     const toggleSheet = (name: SheetName) => setSheet((current) => current === name ? undefined : name)
     const closeSheet = () => setSheet(undefined)
 

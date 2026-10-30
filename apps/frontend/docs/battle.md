@@ -63,7 +63,10 @@ listed battle with `endsSeason` that has not ended. The timeline lists only batt
 finale whose start passed stays, live, until its turn arrives.
 
 **The Final Battle is teased once per browser, in the two days before it starts** (`FinaleTeaser`,
-`useFinaleTeaser`, rule `finaleTeaserDue`): a full screen in the start moment's look, with the battle mood and the
+`useFinaleTeaser`, rule `finaleTeaserDue`), **once the page took 30 clicks** (`FINALE_TEASER_AFTER_CLICKS`): a
+newcomer plays before a full screen talks of a battle, and 30 is half the start bank, before it runs dry. A visit
+count would miss most newcomers, who never come back the next day, and a clock would fire on a player still
+reading. It is a full screen in the start moment's look, with the battle mood and the
 tape along the top. "Final Battle" over the swords disc, "Starts in" and its clock to the second, when it plays,
 then the details' rows (`FinaleFacts`) in a box, and "To the globe" once it settled. Close keeps the finale's
 round in `clickplanet-finale-teased`. It plays through the announcements queue (below). A finale that plays is
@@ -181,4 +184,5 @@ board's battle column follow at once. `endBattle()` leaves the battle's round
 undebriefed, so "The results are coming" stays; `closeBattle()` scores it and the fake
 gamemaster debriefs it, so the debrief plays; `closeFinale()` debriefs it as the Final
 Battle, then the season, and the season's results follow. `scheduleFinale(inMinutes, minutes)` plans one: under
-two days away, the chip wears its look and the teaser plays (clear `clickplanet-finale-teased` to see it again).
+two days away, the chip wears its look and the teaser plays after 30 clicks (clear `clickplanet-finale-teased` to see
+it again).
