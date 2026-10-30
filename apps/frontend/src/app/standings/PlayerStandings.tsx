@@ -6,6 +6,7 @@ import {authorStyle} from "../chat/authorStyle.ts"
 import CountryFlag from "../components/CountryFlag.tsx"
 import RankCoin from "../components/RankCoin.tsx"
 import TitleBadge from "../titles/TitleBadge.tsx"
+import {useWordFilter} from "../crazygames/wordFilter.ts"
 import {ListenForClicks} from "../viewer/acceptedClicks.ts"
 import {Caller, useMySeason} from "./useMySeason.ts"
 import {useStandings} from "./useStandings.ts"
@@ -109,6 +110,7 @@ type StandingRowProps = {
 function StandingRow({standing, you, onOpenPlayer}: StandingRowProps) {
     const country = Countries.get(standing.countryCode)
     const style = authorStyle({color: standing.color, guest: false})
+    const name = useWordFilter().masked(standing.name)
 
     return <tr className={you ? "leaderboard-entry leaderboard-entry-player" : "leaderboard-entry"}
                aria-current={you ? "true" : undefined}>
@@ -122,12 +124,12 @@ function StandingRow({standing, you, onOpenPlayer}: StandingRowProps) {
                     ? <button type="button"
                               className="standings-name player-name-button"
                               style={style}
-                              title={standing.name}
+                              title={name}
                               onClick={() => onOpenPlayer(playerOf(standing))}>
-                        {standing.name}
+                        {name}
                     </button>
-                    : <span className="standings-name" style={style} title={standing.name}>
-                        {standing.name}
+                    : <span className="standings-name" style={style} title={name}>
+                        {name}
                     </span>}
                 <TitleBadge title={standing.wornTitle} size={18}/>
             </span>

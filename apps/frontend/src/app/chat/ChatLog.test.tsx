@@ -7,6 +7,8 @@ import {quoteOf} from "../../domain/chatLog.ts"
 import ChatLog from "./ChatLog.tsx"
 import {QUOTE_MAX_LENGTH} from "./QuoteLine.tsx"
 import {NameColor} from "../../backends/player.ts"
+import {wordFilterOf} from "../../domain/wordFilter.ts"
+import {WordFilterContext} from "../crazygames/wordFilter.ts"
 
 afterEach(cleanup)
 
@@ -242,5 +244,20 @@ describe("ChatLog", () => {
 
             expect(screen.queryByRole("button", {name: /^Reply to/})).toBeNull()
         })
+    })
+
+    it("masks the words of the filter in the text, the names and the quotes", () => {
+        const said = {...message("1", "ass", "fr"), text: "fuck that ass"}
+        const reply = {...message("2", "Bo", "de"), text: "no", replyTo: quoteOf(said)}
+        const mute = {kind: "mute" as const, id: "m", announcedAt: Date.UTC(2026, 8, 17, 12), name: "fuck", seconds: 3600}
+        const {container} = render(<WordFilterContext.Provider value={wordFilterOf(["ass", "fuck"])}>
+            <ChatLog loading={false} onReply={vi.fn()} messages={[said, reply]} announcements={[mute]}/>
+        </WordFilterContext.Provider>)
+
+        expect(container.textContent).not.toMatch(/fuck|ass/)
+        expect(container.querySelector(".chat-message-author")?.textContent).toBe("a*s")
+        expect(screen.getByRole("button", {name: "Reply to a*s"})).toBeDefined()
+        expect(container.querySelector(".chat-quote-text")?.textContent).toBe("f**k that a*s")
+        expect(screen.getByText("f**k", {selector: "strong"})).toBeDefined()
     })
 })

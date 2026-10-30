@@ -14,6 +14,7 @@ import TitleBanner from "../titles/TitleBanner.tsx"
 import TitleEmblem from "../titles/TitleEmblem.tsx"
 import {metalOf, OG} from "../titles/titleArt.ts"
 import {truncate} from "../truncate.ts"
+import {useWordFilter} from "../crazygames/wordFilter.ts"
 import PlayerFronts from "./PlayerFronts.tsx"
 import {usePlayerInfo} from "./usePlayerInfo.ts"
 import "./PlayerCard.css"
@@ -34,13 +35,14 @@ export type PlayerCardProps = {
 export default function PlayerCard({player, backend, reporter, onClose}: PlayerCardProps) {
     const [reporting, setReporting] = useState(false)
     const state = usePlayerInfo(backend, player)
+    const words = useWordFilter()
     const country = Countries.get(player.countryCode)?.name ?? player.countryCode
 
     const admin = player.admin || (state.kind === "ready" && state.info.admin)
     const color = state.kind === "ready" ? state.info.color : player.color
     const info = state.kind === "ready" ? state.info : undefined
     const title = <span className="player-card-title" style={authorStyle({...player, color})}>
-        {truncate(player.name, NAME_MAX_LENGTH)}
+        {truncate(words.masked(player.name), NAME_MAX_LENGTH)}
         {admin && <AdminCrown size={20}/>}
         {info?.titles.some((held) => held.id === OG) && <OgStamp/>}
     </span>

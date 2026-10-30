@@ -3,6 +3,7 @@ import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {cleanup, render, screen} from "@testing-library/react"
 import App from "./App.tsx"
 import type {OwnershipsGetter, TileClicker, UpdatesListener} from "../backends/backend.ts"
+import {NO_FILTER} from "../domain/wordFilter.ts"
 
 vi.mock("./viewer/Viewer.tsx", () => ({default: () => <div data-testid="viewer"/>}))
 
@@ -10,6 +11,7 @@ const backends = {
     tileClicker: {} as TileClicker,
     ownershipsGetter: {} as OwnershipsGetter,
     updatesListener: {} as UpdatesListener,
+    words: NO_FILTER,
 }
 
 const modalShown = () => screen.queryByText("Do you like ClickPlanet ?") !== null

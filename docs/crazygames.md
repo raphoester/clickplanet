@@ -18,11 +18,20 @@ frontend build, the same API, the same map and players as clickplanet.lol.
 
 - **Frontend**: the CrazyGames page — CrazyGames' sign-in alone, its settings, the gameplay events, and no link to
   another place to play. No ad, by choice. Online multiplayer: the whole world is one room, always joinable; an
-  invite gives its flag to a player who has none; Invite friends copies CrazyGames' invite link.
+  invite gives its flag to a player who has none; Invite friends copies CrazyGames' invite link. The words of
+  CrazyGames' list are masked in the chat and in player names as the page draws them; the build fetches the list
+  (the frontend's [word filter](../apps/frontend/docs/crazygames.md#the-word-filter)).
 - **Backend**: `CompleteCrazyGamesSignIn` checks the SDK's token against CrazyGames' keys and links the account
   (`auth.crazyGames.gameId`); arrivals are tagged `crazygames`.
 - **Deploy**: `CRAZYGAMES_ORIGIN` in `deploy/vps/env.public` is the second origin Caddy answers CORS for, with
   `X-Account-Session` allowed and exposed; `crazygames.clickplanet.lol` is in `auth.turnstile.hostnames`.
+
+## The chat filter
+
+**CrazyGames requires a chat filter; ClickPlanet's stance is no proactive moderation.** So the filter is the
+CrazyGames page's alone, at display: what is sent and kept, and clickplanet.lol, stay as written. CrazyGames' rule
+says to filter, not where. On a complaint it can still ask for the chat to be off: `disableChat` already turns it off.
+Drawings on the map are not filtered.
 
 ## What the owner sets up
 

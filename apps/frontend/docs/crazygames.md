@@ -28,6 +28,32 @@ says why a host of its own and what the owner sets up.
   (every sound and the anthem silent). `useGameplay` tells `loadingStop` and `gameplayStart` once the globe is on
   screen; the game never pauses, so there is no `gameplayStop`.
 - **No ad.** The owner chose none: no ad call, no ad button, nothing from CrazyGames' ad module.
+- **The words of CrazyGames' list are masked** in the chat and in every player name: see [The word filter](#the-word-filter).
+
+## The word filter
+
+CrazyGames asks every game with a chat for a profanity filter, and gives a list
+([its requirement](https://docs.crazygames.com/requirements/multiplayer/)). **The page masks what it shows; it never
+changes what is sent or kept.** The server, the stored messages and clickplanet.lol see the text as it was written.
+
+- **The list is fetched at build time, never kept in the repo.** `npm run crazygames:words`
+  (`scripts/fetchCrazyGamesWords.mjs`) reads CrazyGames' sheet as CSV, keeps the first column, and writes
+  `public/crazygames/words.txt`, which git ignores. The sheet states no licence, and the repo is public. `npm run build`
+  runs it first, and fails when the sheet does not answer CSV or has fewer than 1,000 words, so a build never ships
+  without the list.
+- **The page loads it before it draws anything** (`crazyGamesWords`, `src/backends/crazyGamesWords.ts`), and only
+  there: clickplanet.lol gets `NO_FILTER`. A list that does not load, or that comes back as the home page (the
+  single-page fallback answers a missing file with it, as 200), is `EVERY_WORD_MASKED`: nothing unfiltered is shown.
+- **Whole words and phrases, any case**, as CrazyGames' sheet asks: "ass" is masked, "assassin" is not
+  (`wordFilterOf`, `src/domain/wordFilter.ts`). A word keeps its first and last letter, and the ones between become
+  `*`: `f**k`, `a*s`; a word of two keeps its first. The punctuation around a word is left out of the match and kept,
+  but an entry with symbols (`a$$`) is matched as it is first. A word inside a link is not masked, since the link is
+  one word.
+- **Every place that shows a message or a player name asks `useWordFilter()`** (`src/app/crazygames/wordFilter.ts`, a
+  context `App` provides): the chat's messages, quotes, peek and toast, the mute line, who reacted, the composer's
+  name, the online list, the player, holder and territory cards, the standings, the battle debrief, the report forms
+  and the account's own name. A new place that shows one does the same. A name CrazyGames gives is a player name like
+  any other.
 
 ## Multiplayer
 
@@ -58,7 +84,8 @@ a guest: no token, a prompt that answers false, the default settings.
 
 ## Trying it
 
-`VITE_CRAZYGAMES=1 VITE_FAKE_BACKEND=1 npm run dev`: the SDK runs in its local mode on `localhost`, with a demo user.
+`npm run crazygames:words` once, then `VITE_CRAZYGAMES=1 VITE_FAKE_BACKEND=1 npm run dev`: the SDK runs in its local
+mode on `localhost`, with a demo user.
 `offerSignIn()` on the console offers sign-in and signs in as that user. The SDK's query parameters change what it
 answers (`?user_response=logged_out`, `?disableChat=true`, `?muteAudio=true`). An invite is
 `/play?czy_invite=true&czy_invite_params=f%3Dbr`, the form of `inviteLink` (a plain `&f=br` is a share link:

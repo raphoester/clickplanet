@@ -21,6 +21,7 @@ import {useChat} from "./useChat.ts";
 import {useChatIdentity} from "./useChatIdentity.ts";
 import {useChatSize} from "./useChatSize.ts";
 import {useSeenMark} from "./useSeenMark.ts";
+import {useWordFilter} from "../crazygames/wordFilter.ts";
 import "./ChatPanel.css"
 
 export type ChatPanelProps = {
@@ -74,6 +75,7 @@ export default function ChatPanel(props: ChatPanelProps) {
     const {accountId, username} = props
     const {messages, announcements, mine, own, displayName, seenAtLoad, status, failure, mutedUntil, send, react} =
         useChat({backend: props.backend, accountId, username})
+    const words = useWordFilter()
     const identity = useChatIdentity()
     const markSeen = useSeenMark(props.backend, seenAtLoad?.kept ? seenAtLoad.until : 0)
     const [seenLater, setSeenLater] = useState(0)
@@ -261,12 +263,12 @@ export default function ChatPanel(props: ChatPanelProps) {
                                key={toast.id}
                                className="chat-toast"
                                style={authorStyle(authorOf(toast))}
-                               aria-label={`Open the chat: ${toast.authorName}, ${toast.text}`}
+                               aria-label={`Open the chat: ${words.masked(toast.authorName)}, ${words.masked(toast.text)}`}
                                onClick={() => setOpen(true)}>
             <span className="chat-toast-author" aria-hidden="true">
-                {truncate(toast.authorName, PEEK_AUTHOR_MAX_LENGTH)}
+                {truncate(words.masked(toast.authorName), PEEK_AUTHOR_MAX_LENGTH)}
             </span>
-            <span className="chat-toast-text" aria-hidden="true">{truncate(toast.text, PEEK_TEXT_MAX_LENGTH)}</span>
+            <span className="chat-toast-text" aria-hidden="true">{truncate(words.masked(toast.text), PEEK_TEXT_MAX_LENGTH)}</span>
         </button> : null
     }
 
@@ -317,9 +319,9 @@ export default function ChatPanel(props: ChatPanelProps) {
                           aria-hidden="true"
                           style={authorStyle(authorOf(latest))}>
                         <span className="chat-peek-author">
-                            {truncate(latest.authorName, PEEK_AUTHOR_MAX_LENGTH)}
+                            {truncate(words.masked(latest.authorName), PEEK_AUTHOR_MAX_LENGTH)}
                         </span>
-                        <span className="chat-peek-text">{latest.text}</span>
+                        <span className="chat-peek-text">{words.masked(latest.text)}</span>
                     </span>}
             </button>}
 

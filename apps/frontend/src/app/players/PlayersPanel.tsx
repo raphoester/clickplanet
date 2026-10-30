@@ -8,6 +8,7 @@ import CountryFlag from "../components/CountryFlag.tsx"
 import StreakFlame from "../components/StreakFlame.tsx"
 import TitleBadge from "../titles/TitleBadge.tsx"
 import {truncate} from "../truncate.ts"
+import {useWordFilter} from "../crazygames/wordFilter.ts"
 import "./Players.css"
 import "./PlayerCard.css"
 
@@ -38,6 +39,7 @@ type PlayersGroupProps = {
 
 function PlayersGroup({title, entries, onOpenPlayer}: PlayersGroupProps) {
     const titleId = useId()
+    const words = useWordFilter()
     return <section className="players-group" aria-labelledby={titleId}>
         <h3 className="menu-section-title players-group-title" id={titleId}>
             {title}
@@ -56,12 +58,12 @@ function PlayersGroup({title, entries, onOpenPlayer}: PlayersGroupProps) {
                 {onOpenPlayer
                     ? <button type="button"
                               className="players-entry-name player-name-button"
-                              title={entry.name}
+                              title={words.masked(entry.name)}
                               onClick={() => onOpenPlayer(entry)}>
-                        {truncate(entry.name, NAME_MAX_LENGTH)}
+                        {truncate(words.masked(entry.name), NAME_MAX_LENGTH)}
                     </button>
-                    : <span className="players-entry-name" title={entry.name}>
-                        {truncate(entry.name, NAME_MAX_LENGTH)}
+                    : <span className="players-entry-name" title={words.masked(entry.name)}>
+                        {truncate(words.masked(entry.name), NAME_MAX_LENGTH)}
                     </span>}
                 {entry.admin && <AdminCrown/>}
                 <TitleBadge title={entry.wornTitle} size={18}/>

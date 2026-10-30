@@ -10,6 +10,7 @@ import PointerCard from "../components/PointerCard.tsx"
 import RankCoin from "../components/RankCoin.tsx"
 import StreakFlame from "../components/StreakFlame.tsx"
 import {truncate} from "../truncate.ts"
+import {useWordFilter} from "../crazygames/wordFilter.ts"
 import {TerritoryShown} from "./useTerritoryCard.ts"
 import {TerritoryPlayers} from "./useTerritoryPlayers.ts"
 import "./TerritoryCard.css"
@@ -104,13 +105,14 @@ export default function TerritoryCard({shown, flag, players, now = Date.now(), o
 }
 
 function PlayerName({line, onOpenPlayer}: {line: PlayerLine, onOpenPlayer?: (player: PlayerLine) => void}) {
+    const shown = useWordFilter().masked(line.name)
     const name = <>
-        <span className="territory-card-player-name-text">{truncate(line.name, NAME_MAX_LENGTH)}</span>
+        <span className="territory-card-player-name-text">{truncate(shown, NAME_MAX_LENGTH)}</span>
         {line.admin && <AdminCrown/>}
         <StreakFlame days={line.streak}/>
     </>
-    if (!onOpenPlayer || line.guest || !line.accountId) return <span className="territory-card-player-name" title={line.name}>{name}</span>
-    return <button type="button" className="territory-card-player-name" title={line.name} onClick={() => onOpenPlayer(line)}>{name}</button>
+    if (!onOpenPlayer || line.guest || !line.accountId) return <span className="territory-card-player-name" title={shown}>{name}</span>
+    return <button type="button" className="territory-card-player-name" title={shown} onClick={() => onOpenPlayer(line)}>{name}</button>
 }
 
 function Flag({code}: {code: string}) {
