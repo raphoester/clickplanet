@@ -1,5 +1,6 @@
-import {useCallback, useState} from "react"
-import {Finale, FINALE_TEASED_STORAGE_KEY, finaleTeaserDue} from "../../domain/battle.ts"
+import {useCallback, useEffect, useState} from "react"
+import {Finale, FINALE_TEASED_STORAGE_KEY, FINALE_TEASER_AFTER_CLICKS, finaleTeaserDue} from "../../domain/battle.ts"
+import {ListenForClicks} from "../viewer/acceptedClicks.ts"
 
 function readSeen(): string | null {
     try {
@@ -22,13 +23,20 @@ export type FinaleTeaserState = {
     dismiss: (finale: Finale) => void
 }
 
-export function useFinaleTeaser(finale: Finale | undefined, now: number): FinaleTeaserState {
+export function useFinaleTeaser(finale: Finale | undefined, now: number, listenForClicks: ListenForClicks): FinaleTeaserState {
     const [seen, setSeen] = useState(readSeen)
+    const [clicks, setClicks] = useState(0)
+    const played = clicks >= FINALE_TEASER_AFTER_CLICKS
+
+    useEffect(() => {
+        if (played) return
+        return listenForClicks(() => setClicks((count) => count + 1))
+    }, [listenForClicks, played])
 
     const dismiss = useCallback((teased: Finale) => {
         writeSeen(teased.roundId)
         setSeen(teased.roundId)
     }, [])
 
-    return {finale: finaleTeaserDue(finale, seen, now) ? finale : undefined, dismiss}
+    return {finale: finaleTeaserDue(finale, seen, now, clicks) ? finale : undefined, dismiss}
 }
