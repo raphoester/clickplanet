@@ -2,9 +2,11 @@ package clips
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"connectrpc.com/connect"
 
@@ -23,15 +25,20 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/casts/usecases/make_cast_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/casts/uuid_id_provider"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/create_video_upload_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/get_appearances_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/get_appearances_handler/appearances_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/keep_appearance_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/keep_snapshot_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/keep_video_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/list_rows_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/list_rows_handler/rows_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/list_snapshots_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/list_snapshots_handler/snapshots_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/list_videos_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/list_videos_handler/videos_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/make_cast_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/remove_video_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/set_name_shown_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/optouts/postgres_optout_store"
@@ -41,9 +48,17 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/stats/snapshots/usecases/keep_snapshot_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/subscribers/account_deleted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/subscribers/log_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/videos"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/videos/postgres_video_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/videos/s3_video_bucket"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/videos/usecases/create_upload_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/videos/usecases/keep_video_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/videos/usecases/remove_video_usecase"
+	video_ids "github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/videos/uuid_id_provider"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cps3"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsessionverifier"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -65,6 +80,14 @@ func NewModule(config ModuleConfig) cpbootstrap.Module {
 
 func build(ctx context.Context, config ModuleConfig, props cpbootstrap.Props) error {
 	clock := cptime.SystemClock{}
+	config = config.withDefaults()
+
+	files, err := cps3.New(config.Videos.bucket(), clock, &http.Client{Timeout: bucketTimeout})
+	if err != nil {
+		return fmt.Errorf("failed to build the bucket of the videos: %w", err)
+	}
+	videoBucket := s3_video_bucket.New(files, config.Videos.lifetimes())
+	videoRules := videos.Rules{MaxBytes: config.Videos.MaxBytes}
 
 	internal, baseURL, err := props.Internal.Dial()
 	if err != nil {
@@ -91,6 +114,7 @@ func build(ctx context.Context, config ModuleConfig, props cpbootstrap.Props) er
 	}
 
 	castStore := postgres_cast_store.New(db)
+	videoStore := postgres_video_store.New(db)
 	appearances := postgres_appearance_store.New(db)
 	optOuts := postgres_optout_store.New(db)
 
@@ -126,6 +150,11 @@ func build(ctx context.Context, config ModuleConfig, props cpbootstrap.Props) er
 			castStore, uuid_id_provider.Provider{}, clock,
 		)),
 		KeepAppearanceHandler: keep_appearance_handler.New(keep_appearance_usecase.New(castStore, appearances, clock)),
+		CreateVideoUploadHandler: create_video_upload_handler.New(
+			create_upload_usecase.New(video_ids.Provider{}, videoRules, videoBucket)),
+		KeepVideoHandler:   keep_video_handler.New(keep_video_usecase.New(videoBucket, videoStore, videoRules, clock)),
+		ListVideosHandler:  list_videos_handler.New(videos_query.NewPostgresQuery(db, videoBucket)),
+		RemoveVideoHandler: remove_video_handler.New(remove_video_usecase.New(videoBucket, videoStore)),
 	}
 	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return clipsv1connect.NewAdminServiceHandler(adminService, options...)
@@ -144,7 +173,7 @@ func build(ctx context.Context, config ModuleConfig, props cpbootstrap.Props) er
 		return fmt.Errorf("failed to mount clips.v1.ClipsService: %w", err)
 	}
 
-	props.Logger.Info("clips built", slog.String("schema", config.Database.Schema))
+	props.Logger.Info("clips built", slog.String("schema", config.Database.Schema), slog.Bool("videos", config.Videos.Enabled))
 	return nil
 }
 
@@ -152,14 +181,74 @@ func build(ctx context.Context, config ModuleConfig, props cpbootstrap.Props) er
 type ModuleConfig struct {
 	Database cppg.Config
 	Redis    cpredis.Config
+	// The videos the operator posts by hand, in the same bucket as the support module's files.
+	Videos VideosConfig
+}
+
+type VideosConfig struct {
+	Enabled  bool
+	MaxBytes int64
+	// The backoffice asks for a link right before it sends the file, and a big file takes a while on a slow line.
+	UploadTTL time.Duration
+	// A page left open on a phone still downloads.
+	LinkTTL time.Duration
+	Bucket  cps3.Config
+}
+
+// Off, the bucket block is not read, and every video call is FailedPrecondition.
+func (c VideosConfig) bucket() cps3.Config {
+	if !c.Enabled {
+		return cps3.Config{}
+	}
+	return c.Bucket
+}
+
+func (c VideosConfig) lifetimes() s3_video_bucket.Lifetimes {
+	return s3_video_bucket.Lifetimes{Upload: c.UploadTTL, View: c.LinkTTL}
+}
+
+const (
+	bucketTimeout = 10 * time.Second
+
+	defaultMaxVideoBytes = 500 << 20
+	defaultUploadTTL     = 30 * time.Minute
+	defaultLinkTTL       = 6 * time.Hour
+
+	// A bucket refuses a link signed for longer.
+	maxLinkTTL = 7 * 24 * time.Hour
+)
+
+func (c ModuleConfig) withDefaults() ModuleConfig {
+	if c.Videos.MaxBytes <= 0 {
+		c.Videos.MaxBytes = defaultMaxVideoBytes
+	}
+	if c.Videos.UploadTTL <= 0 {
+		c.Videos.UploadTTL = defaultUploadTTL
+	}
+	if c.Videos.LinkTTL <= 0 {
+		c.Videos.LinkTTL = defaultLinkTTL
+	}
+	return c
 }
 
 func (c ModuleConfig) Validate() error {
+	var errs []error
 	if err := c.Database.Validate(); err != nil {
-		return fmt.Errorf("clips.database: %w", err)
+		errs = append(errs, fmt.Errorf("clips.database: %w", err))
 	}
 	if err := c.Redis.Validate(); err != nil {
-		return fmt.Errorf("clips.redis: %w", err)
+		errs = append(errs, fmt.Errorf("clips.redis: %w", err))
 	}
-	return nil
+	if !c.Videos.Enabled {
+		return errors.Join(errs...)
+	}
+	if err := c.Videos.Bucket.Validate(); err != nil {
+		errs = append(errs, fmt.Errorf("clips.videos.bucket: %w", err))
+	}
+	for name, ttl := range map[string]time.Duration{"uploadTTL": c.Videos.UploadTTL, "linkTTL": c.Videos.LinkTTL} {
+		if ttl > maxLinkTTL {
+			errs = append(errs, fmt.Errorf("clips.videos.%s is %s, and a bucket takes %s at most", name, ttl, maxLinkTTL))
+		}
+	}
+	return errors.Join(errs...)
 }

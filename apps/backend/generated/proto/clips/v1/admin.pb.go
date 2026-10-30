@@ -924,6 +924,471 @@ func (x *KeepAppearanceResponse) GetKept() uint32 {
 	return 0
 }
 
+type CreateVideoUploadRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ContentType   string                 `protobuf:"bytes,1,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
+	SizeBytes     uint64                 `protobuf:"varint,2,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateVideoUploadRequest) Reset() {
+	*x = CreateVideoUploadRequest{}
+	mi := &file_clips_v1_admin_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateVideoUploadRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateVideoUploadRequest) ProtoMessage() {}
+
+func (x *CreateVideoUploadRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_clips_v1_admin_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateVideoUploadRequest.ProtoReflect.Descriptor instead.
+func (*CreateVideoUploadRequest) Descriptor() ([]byte, []int) {
+	return file_clips_v1_admin_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *CreateVideoUploadRequest) GetContentType() string {
+	if x != nil {
+		return x.ContentType
+	}
+	return ""
+}
+
+func (x *CreateVideoUploadRequest) GetSizeBytes() uint64 {
+	if x != nil {
+		return x.SizeBytes
+	}
+	return 0
+}
+
+type CreateVideoUploadResponse struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	VideoId string                 `protobuf:"bytes,1,opt,name=video_id,json=videoId,proto3" json:"video_id,omitempty"`
+	// A PUT with this content type and this exact size, before it expires.
+	UploadUrl     string `protobuf:"bytes,2,opt,name=upload_url,json=uploadUrl,proto3" json:"upload_url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateVideoUploadResponse) Reset() {
+	*x = CreateVideoUploadResponse{}
+	mi := &file_clips_v1_admin_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateVideoUploadResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateVideoUploadResponse) ProtoMessage() {}
+
+func (x *CreateVideoUploadResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_clips_v1_admin_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateVideoUploadResponse.ProtoReflect.Descriptor instead.
+func (*CreateVideoUploadResponse) Descriptor() ([]byte, []int) {
+	return file_clips_v1_admin_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *CreateVideoUploadResponse) GetVideoId() string {
+	if x != nil {
+		return x.VideoId
+	}
+	return ""
+}
+
+func (x *CreateVideoUploadResponse) GetUploadUrl() string {
+	if x != nil {
+		return x.UploadUrl
+	}
+	return ""
+}
+
+type KeepVideoRequest struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	VideoId string                 `protobuf:"bytes,1,opt,name=video_id,json=videoId,proto3" json:"video_id,omitempty"`
+	Name    string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	// What to post with it, copied by hand.
+	Caption       string `protobuf:"bytes,3,opt,name=caption,proto3" json:"caption,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *KeepVideoRequest) Reset() {
+	*x = KeepVideoRequest{}
+	mi := &file_clips_v1_admin_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *KeepVideoRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*KeepVideoRequest) ProtoMessage() {}
+
+func (x *KeepVideoRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_clips_v1_admin_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use KeepVideoRequest.ProtoReflect.Descriptor instead.
+func (*KeepVideoRequest) Descriptor() ([]byte, []int) {
+	return file_clips_v1_admin_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *KeepVideoRequest) GetVideoId() string {
+	if x != nil {
+		return x.VideoId
+	}
+	return ""
+}
+
+func (x *KeepVideoRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *KeepVideoRequest) GetCaption() string {
+	if x != nil {
+		return x.Caption
+	}
+	return ""
+}
+
+type KeepVideoResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *KeepVideoResponse) Reset() {
+	*x = KeepVideoResponse{}
+	mi := &file_clips_v1_admin_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *KeepVideoResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*KeepVideoResponse) ProtoMessage() {}
+
+func (x *KeepVideoResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_clips_v1_admin_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use KeepVideoResponse.ProtoReflect.Descriptor instead.
+func (*KeepVideoResponse) Descriptor() ([]byte, []int) {
+	return file_clips_v1_admin_proto_rawDescGZIP(), []int{17}
+}
+
+type ListVideosRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListVideosRequest) Reset() {
+	*x = ListVideosRequest{}
+	mi := &file_clips_v1_admin_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListVideosRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListVideosRequest) ProtoMessage() {}
+
+func (x *ListVideosRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_clips_v1_admin_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListVideosRequest.ProtoReflect.Descriptor instead.
+func (*ListVideosRequest) Descriptor() ([]byte, []int) {
+	return file_clips_v1_admin_proto_rawDescGZIP(), []int{18}
+}
+
+type ListVideosResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The newest first.
+	Videos        []*Video `protobuf:"bytes,1,rep,name=videos,proto3" json:"videos,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListVideosResponse) Reset() {
+	*x = ListVideosResponse{}
+	mi := &file_clips_v1_admin_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListVideosResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListVideosResponse) ProtoMessage() {}
+
+func (x *ListVideosResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_clips_v1_admin_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListVideosResponse.ProtoReflect.Descriptor instead.
+func (*ListVideosResponse) Descriptor() ([]byte, []int) {
+	return file_clips_v1_admin_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *ListVideosResponse) GetVideos() []*Video {
+	if x != nil {
+		return x.Videos
+	}
+	return nil
+}
+
+type Video struct {
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	VideoId     string                 `protobuf:"bytes,1,opt,name=video_id,json=videoId,proto3" json:"video_id,omitempty"`
+	Name        string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Caption     string                 `protobuf:"bytes,3,opt,name=caption,proto3" json:"caption,omitempty"`
+	ContentType string                 `protobuf:"bytes,4,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
+	SizeBytes   uint64                 `protobuf:"varint,5,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
+	KeptAt      *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=kept_at,json=keptAt,proto3" json:"kept_at,omitempty"`
+	// Plays in the page.
+	ViewUrl string `protobuf:"bytes,7,opt,name=view_url,json=viewUrl,proto3" json:"view_url,omitempty"`
+	// Saves the file under its name.
+	DownloadUrl   string `protobuf:"bytes,8,opt,name=download_url,json=downloadUrl,proto3" json:"download_url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Video) Reset() {
+	*x = Video{}
+	mi := &file_clips_v1_admin_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Video) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Video) ProtoMessage() {}
+
+func (x *Video) ProtoReflect() protoreflect.Message {
+	mi := &file_clips_v1_admin_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Video.ProtoReflect.Descriptor instead.
+func (*Video) Descriptor() ([]byte, []int) {
+	return file_clips_v1_admin_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *Video) GetVideoId() string {
+	if x != nil {
+		return x.VideoId
+	}
+	return ""
+}
+
+func (x *Video) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *Video) GetCaption() string {
+	if x != nil {
+		return x.Caption
+	}
+	return ""
+}
+
+func (x *Video) GetContentType() string {
+	if x != nil {
+		return x.ContentType
+	}
+	return ""
+}
+
+func (x *Video) GetSizeBytes() uint64 {
+	if x != nil {
+		return x.SizeBytes
+	}
+	return 0
+}
+
+func (x *Video) GetKeptAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.KeptAt
+	}
+	return nil
+}
+
+func (x *Video) GetViewUrl() string {
+	if x != nil {
+		return x.ViewUrl
+	}
+	return ""
+}
+
+func (x *Video) GetDownloadUrl() string {
+	if x != nil {
+		return x.DownloadUrl
+	}
+	return ""
+}
+
+type RemoveVideoRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	VideoId       string                 `protobuf:"bytes,1,opt,name=video_id,json=videoId,proto3" json:"video_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RemoveVideoRequest) Reset() {
+	*x = RemoveVideoRequest{}
+	mi := &file_clips_v1_admin_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveVideoRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveVideoRequest) ProtoMessage() {}
+
+func (x *RemoveVideoRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_clips_v1_admin_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveVideoRequest.ProtoReflect.Descriptor instead.
+func (*RemoveVideoRequest) Descriptor() ([]byte, []int) {
+	return file_clips_v1_admin_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *RemoveVideoRequest) GetVideoId() string {
+	if x != nil {
+		return x.VideoId
+	}
+	return ""
+}
+
+type RemoveVideoResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RemoveVideoResponse) Reset() {
+	*x = RemoveVideoResponse{}
+	mi := &file_clips_v1_admin_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveVideoResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveVideoResponse) ProtoMessage() {}
+
+func (x *RemoveVideoResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_clips_v1_admin_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveVideoResponse.ProtoReflect.Descriptor instead.
+func (*RemoveVideoResponse) Descriptor() ([]byte, []int) {
+	return file_clips_v1_admin_proto_rawDescGZIP(), []int{22}
+}
+
 var File_clips_v1_admin_proto protoreflect.FileDescriptor
 
 const file_clips_v1_admin_proto_rawDesc = "" +
@@ -990,13 +1455,47 @@ const file_clips_v1_admin_proto_rawDesc = "" +
 	"\tplatforms\x18\x05 \x03(\tR\tplatforms\x12=\n" +
 	"\fscheduled_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\vscheduledAt\",\n" +
 	"\x16KeepAppearanceResponse\x12\x12\n" +
-	"\x04kept\x18\x01 \x01(\rR\x04kept2\x8a\x03\n" +
+	"\x04kept\x18\x01 \x01(\rR\x04kept\"\\\n" +
+	"\x18CreateVideoUploadRequest\x12!\n" +
+	"\fcontent_type\x18\x01 \x01(\tR\vcontentType\x12\x1d\n" +
+	"\n" +
+	"size_bytes\x18\x02 \x01(\x04R\tsizeBytes\"U\n" +
+	"\x19CreateVideoUploadResponse\x12\x19\n" +
+	"\bvideo_id\x18\x01 \x01(\tR\avideoId\x12\x1d\n" +
+	"\n" +
+	"upload_url\x18\x02 \x01(\tR\tuploadUrl\"[\n" +
+	"\x10KeepVideoRequest\x12\x19\n" +
+	"\bvideo_id\x18\x01 \x01(\tR\avideoId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x18\n" +
+	"\acaption\x18\x03 \x01(\tR\acaption\"\x13\n" +
+	"\x11KeepVideoResponse\"\x13\n" +
+	"\x11ListVideosRequest\"=\n" +
+	"\x12ListVideosResponse\x12'\n" +
+	"\x06videos\x18\x01 \x03(\v2\x0f.clips.v1.VideoR\x06videos\"\x85\x02\n" +
+	"\x05Video\x12\x19\n" +
+	"\bvideo_id\x18\x01 \x01(\tR\avideoId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x18\n" +
+	"\acaption\x18\x03 \x01(\tR\acaption\x12!\n" +
+	"\fcontent_type\x18\x04 \x01(\tR\vcontentType\x12\x1d\n" +
+	"\n" +
+	"size_bytes\x18\x05 \x01(\x04R\tsizeBytes\x123\n" +
+	"\akept_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\x06keptAt\x12\x19\n" +
+	"\bview_url\x18\a \x01(\tR\aviewUrl\x12!\n" +
+	"\fdownload_url\x18\b \x01(\tR\vdownloadUrl\"/\n" +
+	"\x12RemoveVideoRequest\x12\x19\n" +
+	"\bvideo_id\x18\x01 \x01(\tR\avideoId\"\x15\n" +
+	"\x13RemoveVideoResponse2\xc3\x05\n" +
 	"\fAdminService\x12M\n" +
 	"\fKeepSnapshot\x12\x1d.clips.v1.KeepSnapshotRequest\x1a\x1e.clips.v1.KeepSnapshotResponse\x12P\n" +
 	"\rListSnapshots\x12\x1e.clips.v1.ListSnapshotsRequest\x1a\x1f.clips.v1.ListSnapshotsResponse\x12A\n" +
 	"\bListRows\x12\x19.clips.v1.ListRowsRequest\x1a\x1a.clips.v1.ListRowsResponse\x12A\n" +
 	"\bMakeCast\x12\x19.clips.v1.MakeCastRequest\x1a\x1a.clips.v1.MakeCastResponse\x12S\n" +
-	"\x0eKeepAppearance\x12\x1f.clips.v1.KeepAppearanceRequest\x1a .clips.v1.KeepAppearanceResponseB\xab\x01\n" +
+	"\x0eKeepAppearance\x12\x1f.clips.v1.KeepAppearanceRequest\x1a .clips.v1.KeepAppearanceResponse\x12\\\n" +
+	"\x11CreateVideoUpload\x12\".clips.v1.CreateVideoUploadRequest\x1a#.clips.v1.CreateVideoUploadResponse\x12D\n" +
+	"\tKeepVideo\x12\x1a.clips.v1.KeepVideoRequest\x1a\x1b.clips.v1.KeepVideoResponse\x12G\n" +
+	"\n" +
+	"ListVideos\x12\x1b.clips.v1.ListVideosRequest\x1a\x1c.clips.v1.ListVideosResponse\x12J\n" +
+	"\vRemoveVideo\x12\x1c.clips.v1.RemoveVideoRequest\x1a\x1d.clips.v1.RemoveVideoResponseB\xab\x01\n" +
 	"\fcom.clips.v1B\n" +
 	"AdminProtoP\x01ZNgithub.com/raphoester/clickplanet.lol-backend/generated/proto/clips/v1;clipsv1\xa2\x02\x03CXX\xaa\x02\bClips.V1\xca\x02\bClips\\V1\xe2\x02\x14Clips\\V1\\GPBMetadata\xea\x02\tClips::V1b\x06proto3"
 
@@ -1012,58 +1511,77 @@ func file_clips_v1_admin_proto_rawDescGZIP() []byte {
 	return file_clips_v1_admin_proto_rawDescData
 }
 
-var file_clips_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_clips_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
 var file_clips_v1_admin_proto_goTypes = []any{
-	(*StatsSnapshot)(nil),          // 0: clips.v1.StatsSnapshot
-	(*TikTokAccount)(nil),          // 1: clips.v1.TikTokAccount
-	(*UnreadPost)(nil),             // 2: clips.v1.UnreadPost
-	(*StatsRow)(nil),               // 3: clips.v1.StatsRow
-	(*KeepSnapshotRequest)(nil),    // 4: clips.v1.KeepSnapshotRequest
-	(*KeepSnapshotResponse)(nil),   // 5: clips.v1.KeepSnapshotResponse
-	(*ListSnapshotsRequest)(nil),   // 6: clips.v1.ListSnapshotsRequest
-	(*ListSnapshotsResponse)(nil),  // 7: clips.v1.ListSnapshotsResponse
-	(*ListRowsRequest)(nil),        // 8: clips.v1.ListRowsRequest
-	(*ListRowsResponse)(nil),       // 9: clips.v1.ListRowsResponse
-	(*MakeCastRequest)(nil),        // 10: clips.v1.MakeCastRequest
-	(*MakeCastResponse)(nil),       // 11: clips.v1.MakeCastResponse
-	(*KeepAppearanceRequest)(nil),  // 12: clips.v1.KeepAppearanceRequest
-	(*KeepAppearanceResponse)(nil), // 13: clips.v1.KeepAppearanceResponse
-	(*timestamppb.Timestamp)(nil),  // 14: google.protobuf.Timestamp
-	(*Cast)(nil),                   // 15: clips.v1.Cast
+	(*StatsSnapshot)(nil),             // 0: clips.v1.StatsSnapshot
+	(*TikTokAccount)(nil),             // 1: clips.v1.TikTokAccount
+	(*UnreadPost)(nil),                // 2: clips.v1.UnreadPost
+	(*StatsRow)(nil),                  // 3: clips.v1.StatsRow
+	(*KeepSnapshotRequest)(nil),       // 4: clips.v1.KeepSnapshotRequest
+	(*KeepSnapshotResponse)(nil),      // 5: clips.v1.KeepSnapshotResponse
+	(*ListSnapshotsRequest)(nil),      // 6: clips.v1.ListSnapshotsRequest
+	(*ListSnapshotsResponse)(nil),     // 7: clips.v1.ListSnapshotsResponse
+	(*ListRowsRequest)(nil),           // 8: clips.v1.ListRowsRequest
+	(*ListRowsResponse)(nil),          // 9: clips.v1.ListRowsResponse
+	(*MakeCastRequest)(nil),           // 10: clips.v1.MakeCastRequest
+	(*MakeCastResponse)(nil),          // 11: clips.v1.MakeCastResponse
+	(*KeepAppearanceRequest)(nil),     // 12: clips.v1.KeepAppearanceRequest
+	(*KeepAppearanceResponse)(nil),    // 13: clips.v1.KeepAppearanceResponse
+	(*CreateVideoUploadRequest)(nil),  // 14: clips.v1.CreateVideoUploadRequest
+	(*CreateVideoUploadResponse)(nil), // 15: clips.v1.CreateVideoUploadResponse
+	(*KeepVideoRequest)(nil),          // 16: clips.v1.KeepVideoRequest
+	(*KeepVideoResponse)(nil),         // 17: clips.v1.KeepVideoResponse
+	(*ListVideosRequest)(nil),         // 18: clips.v1.ListVideosRequest
+	(*ListVideosResponse)(nil),        // 19: clips.v1.ListVideosResponse
+	(*Video)(nil),                     // 20: clips.v1.Video
+	(*RemoveVideoRequest)(nil),        // 21: clips.v1.RemoveVideoRequest
+	(*RemoveVideoResponse)(nil),       // 22: clips.v1.RemoveVideoResponse
+	(*timestamppb.Timestamp)(nil),     // 23: google.protobuf.Timestamp
+	(*Cast)(nil),                      // 24: clips.v1.Cast
 }
 var file_clips_v1_admin_proto_depIdxs = []int32{
-	14, // 0: clips.v1.StatsSnapshot.taken_at:type_name -> google.protobuf.Timestamp
-	14, // 1: clips.v1.StatsSnapshot.since:type_name -> google.protobuf.Timestamp
+	23, // 0: clips.v1.StatsSnapshot.taken_at:type_name -> google.protobuf.Timestamp
+	23, // 1: clips.v1.StatsSnapshot.since:type_name -> google.protobuf.Timestamp
 	1,  // 2: clips.v1.StatsSnapshot.tiktok_accounts:type_name -> clips.v1.TikTokAccount
 	2,  // 3: clips.v1.StatsSnapshot.unread:type_name -> clips.v1.UnreadPost
-	14, // 4: clips.v1.StatsRow.taken_at:type_name -> google.protobuf.Timestamp
+	23, // 4: clips.v1.StatsRow.taken_at:type_name -> google.protobuf.Timestamp
 	0,  // 5: clips.v1.KeepSnapshotRequest.snapshot:type_name -> clips.v1.StatsSnapshot
 	3,  // 6: clips.v1.KeepSnapshotRequest.rows:type_name -> clips.v1.StatsRow
-	14, // 7: clips.v1.ListSnapshotsRequest.since:type_name -> google.protobuf.Timestamp
-	14, // 8: clips.v1.ListSnapshotsRequest.until:type_name -> google.protobuf.Timestamp
+	23, // 7: clips.v1.ListSnapshotsRequest.since:type_name -> google.protobuf.Timestamp
+	23, // 8: clips.v1.ListSnapshotsRequest.until:type_name -> google.protobuf.Timestamp
 	0,  // 9: clips.v1.ListSnapshotsResponse.snapshots:type_name -> clips.v1.StatsSnapshot
-	14, // 10: clips.v1.ListRowsRequest.since:type_name -> google.protobuf.Timestamp
-	14, // 11: clips.v1.ListRowsRequest.until:type_name -> google.protobuf.Timestamp
+	23, // 10: clips.v1.ListRowsRequest.since:type_name -> google.protobuf.Timestamp
+	23, // 11: clips.v1.ListRowsRequest.until:type_name -> google.protobuf.Timestamp
 	3,  // 12: clips.v1.ListRowsResponse.rows:type_name -> clips.v1.StatsRow
-	14, // 13: clips.v1.MakeCastRequest.since:type_name -> google.protobuf.Timestamp
-	14, // 14: clips.v1.MakeCastRequest.until:type_name -> google.protobuf.Timestamp
-	15, // 15: clips.v1.MakeCastResponse.cast:type_name -> clips.v1.Cast
-	14, // 16: clips.v1.KeepAppearanceRequest.scheduled_at:type_name -> google.protobuf.Timestamp
-	4,  // 17: clips.v1.AdminService.KeepSnapshot:input_type -> clips.v1.KeepSnapshotRequest
-	6,  // 18: clips.v1.AdminService.ListSnapshots:input_type -> clips.v1.ListSnapshotsRequest
-	8,  // 19: clips.v1.AdminService.ListRows:input_type -> clips.v1.ListRowsRequest
-	10, // 20: clips.v1.AdminService.MakeCast:input_type -> clips.v1.MakeCastRequest
-	12, // 21: clips.v1.AdminService.KeepAppearance:input_type -> clips.v1.KeepAppearanceRequest
-	5,  // 22: clips.v1.AdminService.KeepSnapshot:output_type -> clips.v1.KeepSnapshotResponse
-	7,  // 23: clips.v1.AdminService.ListSnapshots:output_type -> clips.v1.ListSnapshotsResponse
-	9,  // 24: clips.v1.AdminService.ListRows:output_type -> clips.v1.ListRowsResponse
-	11, // 25: clips.v1.AdminService.MakeCast:output_type -> clips.v1.MakeCastResponse
-	13, // 26: clips.v1.AdminService.KeepAppearance:output_type -> clips.v1.KeepAppearanceResponse
-	22, // [22:27] is the sub-list for method output_type
-	17, // [17:22] is the sub-list for method input_type
-	17, // [17:17] is the sub-list for extension type_name
-	17, // [17:17] is the sub-list for extension extendee
-	0,  // [0:17] is the sub-list for field type_name
+	23, // 13: clips.v1.MakeCastRequest.since:type_name -> google.protobuf.Timestamp
+	23, // 14: clips.v1.MakeCastRequest.until:type_name -> google.protobuf.Timestamp
+	24, // 15: clips.v1.MakeCastResponse.cast:type_name -> clips.v1.Cast
+	23, // 16: clips.v1.KeepAppearanceRequest.scheduled_at:type_name -> google.protobuf.Timestamp
+	20, // 17: clips.v1.ListVideosResponse.videos:type_name -> clips.v1.Video
+	23, // 18: clips.v1.Video.kept_at:type_name -> google.protobuf.Timestamp
+	4,  // 19: clips.v1.AdminService.KeepSnapshot:input_type -> clips.v1.KeepSnapshotRequest
+	6,  // 20: clips.v1.AdminService.ListSnapshots:input_type -> clips.v1.ListSnapshotsRequest
+	8,  // 21: clips.v1.AdminService.ListRows:input_type -> clips.v1.ListRowsRequest
+	10, // 22: clips.v1.AdminService.MakeCast:input_type -> clips.v1.MakeCastRequest
+	12, // 23: clips.v1.AdminService.KeepAppearance:input_type -> clips.v1.KeepAppearanceRequest
+	14, // 24: clips.v1.AdminService.CreateVideoUpload:input_type -> clips.v1.CreateVideoUploadRequest
+	16, // 25: clips.v1.AdminService.KeepVideo:input_type -> clips.v1.KeepVideoRequest
+	18, // 26: clips.v1.AdminService.ListVideos:input_type -> clips.v1.ListVideosRequest
+	21, // 27: clips.v1.AdminService.RemoveVideo:input_type -> clips.v1.RemoveVideoRequest
+	5,  // 28: clips.v1.AdminService.KeepSnapshot:output_type -> clips.v1.KeepSnapshotResponse
+	7,  // 29: clips.v1.AdminService.ListSnapshots:output_type -> clips.v1.ListSnapshotsResponse
+	9,  // 30: clips.v1.AdminService.ListRows:output_type -> clips.v1.ListRowsResponse
+	11, // 31: clips.v1.AdminService.MakeCast:output_type -> clips.v1.MakeCastResponse
+	13, // 32: clips.v1.AdminService.KeepAppearance:output_type -> clips.v1.KeepAppearanceResponse
+	15, // 33: clips.v1.AdminService.CreateVideoUpload:output_type -> clips.v1.CreateVideoUploadResponse
+	17, // 34: clips.v1.AdminService.KeepVideo:output_type -> clips.v1.KeepVideoResponse
+	19, // 35: clips.v1.AdminService.ListVideos:output_type -> clips.v1.ListVideosResponse
+	22, // 36: clips.v1.AdminService.RemoveVideo:output_type -> clips.v1.RemoveVideoResponse
+	28, // [28:37] is the sub-list for method output_type
+	19, // [19:28] is the sub-list for method input_type
+	19, // [19:19] is the sub-list for extension type_name
+	19, // [19:19] is the sub-list for extension extendee
+	0,  // [0:19] is the sub-list for field type_name
 }
 
 func init() { file_clips_v1_admin_proto_init() }
@@ -1078,7 +1596,7 @@ func file_clips_v1_admin_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_clips_v1_admin_proto_rawDesc), len(file_clips_v1_admin_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   14,
+			NumMessages:   23,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -1,4 +1,4 @@
-package s3_attachment_bucket
+package cps3
 
 import (
 	"testing"
@@ -43,4 +43,19 @@ func TestTheHeadersALinkSignsAreNamedInOrderAndChangeItsSignature(t *testing.T) 
 func TestOnlyUnreservedCharactersAreLeftAsTheyAre(t *testing.T) {
 	assert.Equal(t, "Az09-._~", escaped("Az09-._~"))
 	assert.Equal(t, "a%2Fb%3Bc%20d%2B%C3%A9", escaped("a/b;c d+é"))
+}
+
+func TestAQueryParameterIsSignedInItsPlaceAmongTheOthers(t *testing.T) {
+	example := credentials{keyID: "a-key", secret: "a-secret", region: "auto"}
+	view := request{
+		method: "GET", host: "bucket.example", path: "/media/clips/videos/a",
+		at: time.Date(2026, 10, 30, 12, 0, 0, 0, time.UTC), ttl: time.Hour,
+	}
+	download := view
+	download.query = map[string]string{"response-content-disposition": `attachment; filename="a.mp4"`}
+
+	query := example.signedQuery(download)
+
+	assert.Contains(t, query, "&X-Amz-SignedHeaders=host&response-content-disposition=attachment%3B%20filename%3D%22a.mp4%22&X-Amz-Signature=")
+	assert.NotEqual(t, example.signedQuery(view), query)
 }

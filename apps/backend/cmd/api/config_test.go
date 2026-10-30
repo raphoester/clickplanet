@@ -409,6 +409,18 @@ func TestTheProductionConfigTakesFilesInItsBucketAndNeedsItsSecret(t *testing.T)
 		"a deploy before SUPPORT_BUCKET_SECRET is set refuses the boot")
 }
 
+func TestTheProductionVideosShareTheSupportBucketAndItsKey(t *testing.T) {
+	config := productionConfig(t)
+
+	videos := config.Clips.Videos
+	assert.True(t, videos.Enabled)
+	assert.Equal(t, config.Support.Attachments.Bucket, videos.Bucket)
+	require.NoError(t, config.Clips.Validate())
+
+	config.Clips.Videos.Bucket.SecretAccessKey = ""
+	require.ErrorContains(t, config.Clips.Validate(), "clips.videos.bucket")
+}
+
 func TestEveryModuleOfProductionTalksToTheSameRedis(t *testing.T) {
 	config := productionConfig(t)
 

@@ -1571,9 +1571,19 @@ To check it: the boot logs `support built ... attachments=true`, the Feedback
 form in Settings shows **Add photos or videos**, and a picture sent from it
 shows under its note in the backoffice.
 
+- **The same bucket holds the clip videos** the operator uploads on the backoffice's Videos page, under
+  `clips/videos/` (`clips.videos` in `backend.yaml`, the same key and secret; see the backend's
+  [Clip videos](../../apps/backend/docs/clip-videos.md)). The backoffice sends them straight to the bucket, so the
+  CORS rule names its origin too. Run it once, before the first upload, or every upload answers a
+  CORS error:
+
+  ```bash
+  printf '%s' '{"rules":[{"allowed":{"origins":["https://clickplanet.lol","https://backoffice.clickplanet.lol"],"methods":["PUT"],"headers":["content-type"]},"maxAgeSeconds":3600}]}' > /tmp/cors.json && npx wrangler r2 bucket cors set clickplanet-support --file /tmp/cors.json
+  ```
+
 - **The backoffice loads each file straight from the bucket**, so its
   Content-Security-Policy (`apps/backoffice/public/_headers`) names the
-  bucket's host in `img-src` and `media-src`. **With another bucket, change it
+  bucket's host in `img-src` and `media-src`, and in `connect-src` for the videos it uploads. **With another bucket, change it
   there too**, or the backoffice shows none of the files.
 
 - **A link is only good for the file it was signed for**: its type and its

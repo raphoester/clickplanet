@@ -1822,3 +1822,125 @@ button.chip:hover {
         gap: 4px;
     }
 }
+
+.videos {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+}
+
+.videos .button {
+    min-height: 44px;
+}
+
+.videos-list {
+    display: grid;
+    gap: 10px;
+}
+
+.video-grid {
+    grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr));
+    align-items: start;
+}
+
+.video, .upload {
+    display: grid;
+    gap: 10px;
+}
+
+.video-name {
+    margin: 0;
+    font-size: 17px;
+    overflow-wrap: anywhere;
+}
+
+.video-facts {
+    margin: 0;
+    font-size: 14px;
+}
+
+.video-player {
+    display: block;
+    width: 100%;
+    max-height: 70vh;
+    background: #000;
+    border-radius: var(--radius);
+}
+
+.video-caption {
+    display: grid;
+    gap: 8px;
+}
+
+.video-caption-text {
+    margin: 0;
+    padding: 8px 10px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+}
+
+.video-buttons, .upload-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: start;
+    gap: 8px;
+}
+
+.video-buttons > *, .upload-buttons > .button {
+    flex: 1 1 8em;
+}
+
+.video-buttons > .confirm {
+    flex-basis: 100%;
+}
+
+.video-buttons .action > .button {
+    width: 100%;
+}
+
+.upload-buttons .action-said {
+    flex: 1 1 100%;
+}
+
+a.button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+}
+
+.file-pick {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    justify-self: start;
+}
+
+.file-pick input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    overflow: hidden;
+}
+
+.file-pick:focus-within {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+.upload-file {
+    overflow-wrap: anywhere;
+}
+
+.upload textarea, .upload input {
+    width: 100%;
+}
+
+.upload progress {
+    width: 100%;
+}
