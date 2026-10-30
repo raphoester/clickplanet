@@ -37,6 +37,8 @@ import {ConnectClipsBackend, newClipsServiceClient} from "./backends/clipsBacken
 import {FakeClipsBackend} from "./backends/fakeClipsBackend.ts"
 import {FakeAccountBackend} from "./backends/fakeAccountBackend.ts"
 import {SHARE_FLAG_PARAM, sharedCountry, withoutSharedFlag} from "./domain/shareCard.ts"
+import {firstLanding, landingOf, SOURCE_TAG_PARAM, withoutLanding} from "./domain/landing.ts"
+import {localLandingStore} from "./backends/landingStore.ts"
 
 // Strip the OAuth code and state from the URL before anything else can read or leak them.
 const callback = callbackOf(new URL(window.location.href))
@@ -44,7 +46,10 @@ if (callback) window.history.replaceState(null, "", CALLBACK_PATH)
 
 const page = new URL(window.location.href)
 const shared = sharedCountry(page)
-if (page.searchParams.has(SHARE_FLAG_PARAM)) window.history.replaceState(null, "", withoutSharedFlag(page))
+const landing = firstLanding(localLandingStore(), landingOf(page, document.referrer))
+if (page.searchParams.has(SHARE_FLAG_PARAM) || page.searchParams.has(SOURCE_TAG_PARAM)) {
+    window.history.replaceState(null, "", withoutLanding(withoutSharedFlag(page)))
+}
 
 const connection = new ConnectionHealth()
 followBrowser(connection, window)
@@ -59,7 +64,7 @@ const sitekey = import.meta.env.VITE_TURNSTILE_SITEKEY
 const authClient = newAuthServiceClient(config)
 const attest = sitekey ? turnstileAttester(sitekey, "session") : async () => ""
 const session: SessionProvider = sitekey
-    ? new SessionClient(authClient, attest, {store: localTokenStore()})
+    ? new SessionClient(authClient, attest, {store: localTokenStore(), landing})
     : new NoSession()
 
 const root = createRoot(document.getElementById('root')!)
@@ -220,7 +225,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     const missions = new ConnectMissionsBackend(newMissionServiceClient(config), session)
     const support = new ConnectSupportBackend(newSupportServiceClient(config), session)
     const clips = new ConnectClipsBackend(newClipsServiceClient(config), session)
-    const account = new AccountStore(new ConnectAccountBackend(authClient, attest), player, session, {
+    const account = new AccountStore(new ConnectAccountBackend(authClient, attest, landing), player, session, {
         navigate: (url) => window.location.assign(url),
         remember: rememberSignIn,
     })

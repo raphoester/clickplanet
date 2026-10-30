@@ -25,8 +25,10 @@ var gameTags = []string{
 }
 
 const (
-	site  = "https://clickplanet.lol"
-	brand = " | CLICKPLANET"
+	site = "https://clickplanet.lol"
+	// ?s=yt is how the game counts the players that came from YouTube.
+	youtubeSite = site + "/?s=yt"
+	brand       = " | CLICKPLANET"
 )
 
 type Dice interface {
@@ -56,7 +58,7 @@ type TikTokWords struct {
 
 // A teaser that says where it happens, the players it names, a call with the site, the music's credit, then the tags.
 func (w wording) tiktok(clip Clip) TikTokWords {
-	lines := append(append([]string{w.teaser + brand}, fightersLine(clip)...), w.callAndCredit(clip)...)
+	lines := append(append([]string{w.teaser + brand}, fightersLine(clip)...), w.callAndCredit(clip, site)...)
 	tags := append(tagsOf(clip), communityTagsOf(clip)...)
 	return TikTokWords{Caption: strings.Join(append(lines, hashtagged(tags)), "\n")}
 }
@@ -73,8 +75,8 @@ func fightersLine(clip Clip) []string {
 	return []string{"⚔️ Top fighters: " + strings.Join(named, ", ")}
 }
 
-func (w wording) callAndCredit(clip Clip) []string {
-	lines := []string{w.call.Words + " 👉 " + site}
+func (w wording) callAndCredit(clip Clip, link string) []string {
+	lines := []string{w.call.Words + " 👉 " + link}
 	if clip.attribution != "" {
 		lines = append(lines, "🎵 "+clip.attribution)
 	}

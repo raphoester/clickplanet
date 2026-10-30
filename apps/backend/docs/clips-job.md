@@ -469,14 +469,16 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
   ```
   ITALY RETAKES ITS LAND FROM PORTUGAL | CLICKPLANET
 
-  Play for free 👉 https://clickplanet.lol
+  Play for free 👉 https://clickplanet.lol/?s=yt
   #clickplanet #rplace #wplace #pixelwar #map #geographygame #conquestgame #videogame #clickergame #viral #europe #italy #portugal
   ```
   The title is the teaser and the brand, 100 characters at most: the teaser alone when both do not fit, cut with
   `…` when it does not either. The description is the call, the music's credit and the hashtags, **60 at most**:
   past that YouTube ignores every hashtag of the video. The tags are the same words with no `#`, the first that fit
   in 500 characters with a comma between two, as YouTube counts them. **No `#Shorts`**: a vertical video of 3
-  minutes or less is a Short by itself. No TikTok community tag either.
+  minutes or less is a Short by itself. No TikTok community tag either. **The link carries `?s=yt`**, so an account
+  made by a browser that came by it is counted as YouTube's (see [Arrivals](arrivals.md)); TikTok's caption link
+  has none, since nobody can click it there.
 - **No review, and nothing sent for a time already past** (2026-10-24). The review was 4 hours to cancel a clip in
   the dashboard before its time, and nobody did, so it is off; `-review` puts it back. **A post goes out 5 minutes
   ahead** (`leastLead`), not now: Zernio publishes a `publishNow` post, and one whose `scheduledFor` is already past,

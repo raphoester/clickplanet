@@ -18,6 +18,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1/authv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/create_session_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/attestation"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/create_session_handler"
@@ -81,7 +82,7 @@ func server(t *testing.T, useCase *stubUseCase, limiter authv1controller.MintLim
 func createSession(t *testing.T, httpServer *httptest.Server) (*connect.Response[authv1.CreateSessionResponse], error) {
 	t.Helper()
 
-	req := connect.NewRequest(&authv1.CreateSessionRequest{AttestationToken: "widget"})
+	req := connect.NewRequest(&authv1.CreateSessionRequest{AttestationToken: "widget", Landing: &authv1.Landing{Tag: "yt", Referrer: "www.google.com"}})
 	req.Header().Set("X-Real-IP", "203.0.113.7")
 	req.Header().Set("Cookie", "theme=dark")
 
@@ -98,7 +99,9 @@ func TestTheCallerReachesTheUseCaseAndGetsItsTokenAndCookie(t *testing.T) {
 	res, err := createSession(t, server(t, useCase, allowAll{}))
 	require.NoError(t, err)
 
-	assert.Equal(t, []create_session_usecase.In{{AttestationToken: "widget", IP: "203.0.113.7", CookieHeader: "theme=dark"}}, useCase.asked)
+	assert.Equal(t, []create_session_usecase.In{{
+		AttestationToken: "widget", IP: "203.0.113.7", CookieHeader: "theme=dark", Landing: arrivals.Landing{Tag: "yt", Referrer: "www.google.com"},
+	}}, useCase.asked)
 	assert.Equal(t, "the-token", res.Msg.GetToken())
 	assert.Equal(t, int64(1_800_000_000_000), res.Msg.GetExpiresAtUnixMs())
 	assert.Equal(t, "cp_sid=token-1; Path=/; HttpOnly", res.Header().Get("Set-Cookie"))
