@@ -287,6 +287,7 @@
 
 .season-chip--final.panel {
     overflow: hidden;
+    padding-top: calc(8px + var(--space-2));
     box-shadow: var(--drop-l), inset 0 2px 0 var(--sheen), 0 0 18px color-mix(in srgb, var(--war) 35%, transparent);
 }
 
@@ -298,6 +299,7 @@
     right: 0;
     height: 6px;
     background: var(--tape);
+    border-bottom: var(--outline-thin) solid var(--ink);
     pointer-events: none;
 }
 
