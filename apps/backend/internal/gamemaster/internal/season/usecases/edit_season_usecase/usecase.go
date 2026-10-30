@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -19,16 +20,17 @@ type Entries interface {
 	Unended(ctx context.Context, at time.Time) ([]schedule.Entry, error)
 }
 
-func New(seasons Seasons, entries Entries, keepers []schedule.Keeper, clock cptime.Clock) *UseCase {
-	return &UseCase{seasons: seasons, entries: entries, keepers: keepers, clock: clock}
+func New(seasons Seasons, entries Entries, keepers []schedule.Keeper, cutoff season.Cutoff, clock cptime.Clock) *UseCase {
+	return &UseCase{seasons: seasons, entries: entries, keepers: keepers, cutoff: cutoff, clock: clock}
 }
 
 // UseCase changes a season that has not ended. Scoring hears of a running one's new end at the next play of the seasons.
-// Its finale names a set every module keeps, and no battle overlaps any finale once the seasons after it moved.
+// Its finale names a set every module keeps, and every battle fits between the days once the seasons after it moved.
 type UseCase struct {
 	seasons Seasons
 	entries Entries
 	keepers []schedule.Keeper
+	cutoff  season.Cutoff
 	clock   cptime.Clock
 }
 
@@ -51,8 +53,8 @@ func (u *UseCase) Execute(ctx context.Context, number season.Number, draft seaso
 	if err != nil {
 		return fmt.Errorf("could not read the schedule: %w", err)
 	}
-	if err := calendar.With(edited).Overlapped(entries...); err != nil {
-		return err //nolint:wrapcheck // the calendar names each battle.
+	if err := moments.NewPlan(calendar.With(edited), u.cutoff, nil, entries...).Clashes(now); err != nil {
+		return err //nolint:wrapcheck // the plan names each battle.
 	}
 	if err := u.seasons.Save(ctx, edited); err != nil {
 		return fmt.Errorf("could not keep season %d: %w", number, err)

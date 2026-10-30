@@ -3,12 +3,19 @@ package moments
 import (
 	"bytes"
 	"cmp"
+	"errors"
 	"fmt"
 	"slices"
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season"
+)
+
+var (
+	ErrOffCutoff = errors.New("a battle starts or ends at the daily cutoff")
+	ErrOverlap   = errors.New("a battle may not overlap another battle or a season's finale")
+	ErrDayTaken  = errors.New("a battle may not take a whole day")
 )
 
 // Battle is a round of a season's book with a battle's look: an entry of kind battle that starts while the season
@@ -32,6 +39,18 @@ func (b Battle) Round() RoundID {
 		return FinaleRoundOf(b.Season)
 	}
 	return BattleRoundOf(b.Entry)
+}
+
+func (b Battle) runs(at time.Time) bool {
+	return !at.Before(b.StartsAt) && at.Before(b.EndsAt)
+}
+
+func (b Battle) String() string {
+	window := fmt.Sprintf("from %s to %s", b.StartsAt.UTC().Format(time.RFC3339), b.EndsAt.UTC().Format(time.RFC3339))
+	if b.EndsSeason {
+		return fmt.Sprintf("season %d's finale, %s", b.Season, window)
+	}
+	return fmt.Sprintf("the battle %s, %s", b.Entry, window)
 }
 
 // Book is a season's book: its days and its battles.
@@ -81,15 +100,19 @@ func (b Book) rounds() []round {
 
 // Plan is every book scoring keeps for the gamemaster: one per season, its days at the daily cutoff and its battles.
 type Plan struct {
-	books []Book
+	books  []Book
+	cutoff season.Cutoff
 }
 
 // A day that opened keeps running to the season's end when the end moves before its cutoff: opened names the rounds
 // the gamemaster opened.
-func NewPlan(calendar season.Calendar, cutoff season.Cutoff, opened []RoundID, entries ...schedule.EntrySnapshot) Plan {
-	battles := slices.DeleteFunc(slices.Clone(entries), func(e schedule.EntrySnapshot) bool {
-		return e.Kind != schedule.Battle || e.Times < 1
-	})
+func NewPlan(calendar season.Calendar, cutoff season.Cutoff, opened []RoundID, entries ...schedule.Entry) Plan {
+	battles := make([]schedule.EntrySnapshot, 0, len(entries))
+	for _, entry := range entries {
+		if snapshot := entry.TakeSnapshot(); snapshot.Kind == schedule.Battle && snapshot.Times >= 1 {
+			battles = append(battles, snapshot)
+		}
+	}
 	slices.SortFunc(battles, func(a, b schedule.EntrySnapshot) int {
 		return cmp.Or(a.StartsAt.Compare(b.StartsAt), a.MadeAt.Compare(b.MadeAt), bytes.Compare(a.ID[:], b.ID[:]))
 	})
@@ -124,9 +147,50 @@ func NewPlan(calendar season.Calendar, cutoff season.Cutoff, opened []RoundID, e
 		for i := range book.Battles {
 			book.Battles[i].Number = uint32(i + 1) //nolint:gosec // a season holds far fewer battles.
 		}
+		for i, day := range book.Days {
+			book.Days[i] = around(day, book.Battles)
+		}
 		books = append(books, book)
 	}
-	return Plan{books: books}
+	return Plan{books: books, cutoff: cutoff}
+}
+
+func around(day season.Day, battles []Battle) season.Day {
+	starts, ends := day.StartsAt, day.EndsAt
+	for _, battle := range battles {
+		if battle.runs(starts) {
+			day.StartsAt = battle.EndsAt
+		}
+		if battle.StartsAt.Before(ends) && !battle.EndsAt.Before(ends) {
+			day.EndsAt = battle.StartsAt
+		}
+	}
+	return day
+}
+
+func (p Plan) Clashes(now time.Time) error {
+	var found []error
+	for _, book := range p.books {
+		for i, battle := range book.Battles {
+			if !battle.EndsAt.After(now) {
+				continue
+			}
+			if !p.cutoff.Is(battle.StartsAt) && !p.cutoff.Is(battle.EndsAt) {
+				found = append(found, fmt.Errorf("%w, %s: %s", ErrOffCutoff, p.cutoff, battle))
+			}
+			for _, other := range book.Battles[i+1:] {
+				if other.StartsAt.Before(battle.EndsAt) && battle.StartsAt.Before(other.EndsAt) {
+					found = append(found, fmt.Errorf("%w: %s, and %s", ErrOverlap, battle, other))
+				}
+			}
+		}
+		for _, day := range book.Days {
+			if day.EndsAt.After(now) && !day.StartsAt.Before(day.EndsAt) {
+				found = append(found, fmt.Errorf("%w: day %d of season %d", ErrDayTaken, day.Number, day.Season))
+			}
+		}
+	}
+	return errors.Join(found...)
 }
 
 // DueAt is every command whose time has come: a book or a round opened while it runs, and closed once it ended, for
@@ -181,6 +245,15 @@ func (p Plan) DayAt(at time.Time) (season.Day, bool) {
 		}
 	}
 	return season.Day{}, false
+}
+
+func (p Plan) DaysOf(number season.Number) []season.Day {
+	for _, book := range p.books {
+		if book.Window.Number == number {
+			return book.Days
+		}
+	}
+	return nil
 }
 
 // BattleOf is the battle of an entry: none for an entry that is no battle, or that starts while no season runs.

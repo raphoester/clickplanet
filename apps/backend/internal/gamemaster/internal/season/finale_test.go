@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -90,20 +89,4 @@ func TestOnceTheFinaleStartedTheSeasonsEndAndItsFinaleStay(t *testing.T) {
 
 	_, err := planned(finaleZero).Edited(0, season.Draft{Length: zero.Length, Finale: rush}, during)
 	require.NoError(t, err, "nothing moves")
-}
-
-func TestNoBattleOverlapsAFinale(t *testing.T) {
-	calendar := planned(finaleZero)
-	battle := func(startsAt, endsAt time.Time) schedule.Entry {
-		return schedule.EntrySnapshot{ID: schedule.EntryID(uuid.UUID{15: 1}), Kind: schedule.Battle, StartsAt: startsAt, EndsAt: endsAt, Times: 3}.Restore()
-	}
-
-	require.ErrorIs(t, calendar.Overlapped(battle(finaleStart, seasonZeroEnds)), season.ErrFinaleOverlap)
-	require.ErrorIs(t, calendar.Overlapped(battle(finaleStart.Add(-time.Hour), finaleStart.Add(time.Second))), season.ErrFinaleOverlap)
-	require.ErrorIs(t, calendar.Overlapped(battle(seasonZeroEnds.Add(-time.Second), seasonZeroEnds.Add(time.Hour))), season.ErrFinaleOverlap)
-	require.NoError(t, calendar.Overlapped(battle(finaleStart.Add(-time.Hour), finaleStart)), "it ends as the finale starts")
-	require.NoError(t, calendar.Overlapped(battle(seasonZeroEnds, seasonZeroEnds.Add(time.Hour))), "it starts as the season ends")
-	require.NoError(t, calendar.Overlapped(schedule.EntrySnapshot{Kind: schedule.Plain, StartsAt: finaleStart, EndsAt: seasonZeroEnds}.Restore()),
-		"the finale plays above a plain entry")
-	require.NoError(t, planned(zero).Overlapped(battle(finaleStart, seasonZeroEnds)), "no finale")
 }

@@ -44,15 +44,11 @@ func (q *PostgresQuery) Now(ctx context.Context) (*gamemasterv1.GetTurnResponse,
 	if err != nil {
 		return nil, err
 	}
-	snapshots := make([]schedule.EntrySnapshot, 0, len(entries))
-	for _, entry := range entries {
-		snapshots = append(snapshots, entry.TakeSnapshot())
-	}
 	opened, err := q.opened(ctx)
 	if err != nil {
 		return nil, err
 	}
-	plan := moments.NewPlan(seasons, q.cutoff, opened, snapshots...)
+	plan := moments.NewPlan(seasons, q.cutoff, opened, entries...)
 	sched := schedule.New(entries...).With(seasons.Finales()...)
 
 	turn, err := turnOf(sched, plan, now)

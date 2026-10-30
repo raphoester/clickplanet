@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/inmemory_entry_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season"
@@ -28,7 +29,7 @@ func editing(seasons *inmemory_season_store.Store, entries *inmemory_entry_store
 		schedule.FakeKeeper{Module: "planet", Sets: []schedule.SetName{"default", "rush"}},
 		schedule.FakeKeeper{Module: "the antibot", Sets: []schedule.SetName{"default"}},
 	}
-	return edit_season_usecase.New(seasons, entries, keepers, cptime.NewFixedClock(at))
+	return edit_season_usecase.New(seasons, entries, keepers, season.Cutoff(21*time.Hour), cptime.NewFixedClock(at))
 }
 
 func TestTheEndOfTheRunningSeasonMoves(t *testing.T) {
@@ -77,10 +78,10 @@ func TestAMovedEndThatPutsTheFinaleOverABattleIsRefused(t *testing.T) {
 	}.Restore()))
 	keepers := []schedule.Keeper{schedule.FakeKeeper{Module: "planet", Sets: []schedule.SetName{"rush"}}}
 
-	err := edit_season_usecase.New(seasons, entries, keepers, cptime.NewFixedClock(now)).
+	err := edit_season_usecase.New(seasons, entries, keepers, season.Cutoff(21*time.Hour), cptime.NewFixedClock(now)).
 		Execute(t.Context(), 0, season.Draft{Length: zero.Length + 24*time.Hour, Finale: rush})
 
-	require.ErrorIs(t, err, season.ErrFinaleOverlap)
+	require.ErrorIs(t, err, moments.ErrOverlap)
 	calendar, err := seasons.Calendar(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, zero.Length, calendar.TakeSnapshot()[0].Length)

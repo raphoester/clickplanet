@@ -57,8 +57,9 @@ const (
 // AdminServiceClient is a client for the gamemaster.v1.AdminService service.
 type AdminServiceClient interface {
 	GetSchedule(context.Context, *connect.Request[v1.GetScheduleRequest]) (*connect.Response[v1.GetScheduleResponse], error)
-	// Adds an entry that starts later. Its set must be one planet and the antibot keep, and a battle may not overlap a
-	// season's finale: FailedPrecondition otherwise.
+	// Adds an entry that starts later. Its set must be one planet and the antibot keep, and a battle must start or end at
+	// the daily cutoff, overlap no other battle nor a season's finale, and leave each day some time: FailedPrecondition
+	// otherwise.
 	AddEntry(context.Context, *connect.Request[v1.AddEntryRequest]) (*connect.Response[v1.AddEntryResponse], error)
 	// Changes an entry that has not started, by the rules of AddEntry. FailedPrecondition once it started.
 	EditEntry(context.Context, *connect.Request[v1.EditEntryRequest]) (*connect.Response[v1.EditEntryResponse], error)
@@ -67,8 +68,8 @@ type AdminServiceClient interface {
 	// Every season, by number. Scoring is told each one's start and end once it starts.
 	GetSeasons(context.Context, *connect.Request[v1.GetSeasonsRequest]) (*connect.Response[v1.GetSeasonsResponse], error)
 	// Adds a season after the last one, under the next number: it starts a break after the last one's end, and must
-	// start after now. Its finale's set must be one planet and the antibot keep, and no battle may overlap the finale:
-	// FailedPrecondition otherwise.
+	// start after now. Its finale's set must be one planet and the antibot keep, and it fits between the days like any
+	// battle of AddEntry: FailedPrecondition otherwise.
 	AddSeason(context.Context, *connect.Request[v1.AddSeasonRequest]) (*connect.Response[v1.AddSeasonResponse], error)
 	// Changes a season that has not ended; the seasons after it move with it. One that started keeps its break, and its
 	// end moves only to a time after now. Once its finale started, its end and its finale stay; a finale that changes or
@@ -195,8 +196,9 @@ func (c *adminServiceClient) DeleteSeason(ctx context.Context, req *connect.Requ
 // AdminServiceHandler is an implementation of the gamemaster.v1.AdminService service.
 type AdminServiceHandler interface {
 	GetSchedule(context.Context, *connect.Request[v1.GetScheduleRequest]) (*connect.Response[v1.GetScheduleResponse], error)
-	// Adds an entry that starts later. Its set must be one planet and the antibot keep, and a battle may not overlap a
-	// season's finale: FailedPrecondition otherwise.
+	// Adds an entry that starts later. Its set must be one planet and the antibot keep, and a battle must start or end at
+	// the daily cutoff, overlap no other battle nor a season's finale, and leave each day some time: FailedPrecondition
+	// otherwise.
 	AddEntry(context.Context, *connect.Request[v1.AddEntryRequest]) (*connect.Response[v1.AddEntryResponse], error)
 	// Changes an entry that has not started, by the rules of AddEntry. FailedPrecondition once it started.
 	EditEntry(context.Context, *connect.Request[v1.EditEntryRequest]) (*connect.Response[v1.EditEntryResponse], error)
@@ -205,8 +207,8 @@ type AdminServiceHandler interface {
 	// Every season, by number. Scoring is told each one's start and end once it starts.
 	GetSeasons(context.Context, *connect.Request[v1.GetSeasonsRequest]) (*connect.Response[v1.GetSeasonsResponse], error)
 	// Adds a season after the last one, under the next number: it starts a break after the last one's end, and must
-	// start after now. Its finale's set must be one planet and the antibot keep, and no battle may overlap the finale:
-	// FailedPrecondition otherwise.
+	// start after now. Its finale's set must be one planet and the antibot keep, and it fits between the days like any
+	// battle of AddEntry: FailedPrecondition otherwise.
 	AddSeason(context.Context, *connect.Request[v1.AddSeasonRequest]) (*connect.Response[v1.AddSeasonResponse], error)
 	// Changes a season that has not ended; the seasons after it move with it. One that started keeps its break, and its
 	// end moves only to a time after now. Once its finale started, its end and its finale stay; a finale that changes or

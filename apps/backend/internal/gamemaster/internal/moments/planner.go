@@ -3,6 +3,7 @@ package moments
 import (
 	"context"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule"
@@ -34,6 +35,10 @@ type Planner struct {
 }
 
 func (p Planner) Plan(ctx context.Context) (Plan, error) {
+	return p.With(ctx)
+}
+
+func (p Planner) With(ctx context.Context, changed ...schedule.Entry) (Plan, error) {
 	calendar, err := p.seasons.Calendar(ctx)
 	if err != nil {
 		return Plan{}, fmt.Errorf("could not read the seasons: %w", err)
@@ -46,9 +51,9 @@ func (p Planner) Plan(ctx context.Context) (Plan, error) {
 	if err != nil {
 		return Plan{}, fmt.Errorf("could not read the rounds opened: %w", err)
 	}
-	snapshots := make([]schedule.EntrySnapshot, 0, len(entries))
-	for _, entry := range entries {
-		snapshots = append(snapshots, entry.TakeSnapshot())
+	for _, entry := range changed {
+		id := entry.TakeSnapshot().ID
+		entries = slices.DeleteFunc(entries, func(kept schedule.Entry) bool { return kept.TakeSnapshot().ID == id })
 	}
-	return NewPlan(calendar, p.cutoff, opened, snapshots...), nil
+	return NewPlan(calendar, p.cutoff, opened, append(entries, changed...)...), nil
 }
