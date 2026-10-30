@@ -1,4 +1,14 @@
-import {AccountBackend, AuthFailure, failureOf, Intent, Me, OAuthProvider, Provider, PROVIDERS} from "../../backends/account.ts"
+import {
+    AccountBackend,
+    AuthFailure,
+    failureOf,
+    Intent,
+    Me,
+    OAuthProvider,
+    Provider,
+    PROVIDERS,
+    SignInOutcome,
+} from "../../backends/account.ts"
 import {
     Fronts,
     NameColor,
@@ -33,6 +43,8 @@ export type AccountState =
         color?: NameColor
         coloring?: true
         colorFailure?: PlayerFailure
+        // This browser's sign-in gave the guest it was on its first identity, which earns a refill.
+        guestLinked?: true
     }
 
 type Ready = Extract<AccountState, {kind: "ready"}>
@@ -123,16 +135,16 @@ export class AccountStore {
         const ready = this.begin("checkCode")
         if (!ready) return
 
+        let outcome: SignInOutcome
         try {
-            await this.backend.completeEmailSignIn(code)
+            outcome = await this.backend.completeEmailSignIn(code)
         } catch (e) {
             const failure = failureOf(e)
             const kept = failure === "wrongCode" || failure === "tooManyTries" || failure === "failed"
             this.refused(ready, "email", failure, kept ? ready.code : undefined)
             return
         }
-        this.session.invalidate()
-        await this.load()
+        await this.signedIn(outcome)
     }
 
     public cancelCode(): void {
@@ -160,9 +172,15 @@ export class AccountStore {
     }
 
     public async completeSignIn(code: string, state: string): Promise<void> {
-        await this.backend.completeSignIn(code, state)
+        await this.signedIn(await this.backend.completeSignIn(code, state))
+    }
+
+    private async signedIn(outcome: SignInOutcome): Promise<void> {
         this.session.invalidate()
         await this.load()
+
+        const ready = this.current
+        if (outcome === "linked" && ready.kind === "ready" && ready.me.linked.length === 1) this.set({...ready, guestLinked: true})
     }
 
     public signOut(): Promise<void> {

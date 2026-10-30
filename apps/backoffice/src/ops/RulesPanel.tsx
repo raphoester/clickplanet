@@ -117,6 +117,13 @@ function SetForm({planet, editing, onCancel, onSaved}: {
                 {GROUPS.map(group => (
                     <fieldset key={group.title} className="rule-group">
                         <legend>{group.title}</legend>
+                        {group.title === "New accounts" && (
+                            <label className="check">
+                                <input type="checkbox" checked={draft.signInRefill}
+                                       onChange={e => change({signInRefill: e.target.checked})}/>
+                                Refill at first sign-in
+                            </label>
+                        )}
                         {group.title === "Quizzes" && (
                             <label className="check">
                                 <input type="checkbox" checked={draft.quiz} onChange={e => change({quiz: e.target.checked})}/>

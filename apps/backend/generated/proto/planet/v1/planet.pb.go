@@ -2400,9 +2400,11 @@ type GetBonusRulesResponse struct {
 	SpreadClicks      uint32                 `protobuf:"varint,3,opt,name=spread_clicks,json=spreadClicks,proto3" json:"spread_clicks,omitempty"`
 	Enclosures        uint32                 `protobuf:"varint,4,opt,name=enclosures,proto3" json:"enclosures,omitempty"`
 	// Rising shares: from `share` of every tile on the map, a country refills `slowdown` times slower.
-	TollSteps     []*TollStep `protobuf:"bytes,6,rep,name=toll_steps,json=tollSteps,proto3" json:"toll_steps,omitempty"`
-	Shields       uint32      `protobuf:"varint,7,opt,name=shields,proto3" json:"shields,omitempty"`
-	TileShields   uint32      `protobuf:"varint,8,opt,name=tile_shields,json=tileShields,proto3" json:"tile_shields,omitempty"`
+	TollSteps   []*TollStep `protobuf:"bytes,6,rep,name=toll_steps,json=tollSteps,proto3" json:"toll_steps,omitempty"`
+	Shields     uint32      `protobuf:"varint,7,opt,name=shields,proto3" json:"shields,omitempty"`
+	TileShields uint32      `protobuf:"varint,8,opt,name=tile_shields,json=tileShields,proto3" json:"tile_shields,omitempty"`
+	// A guest's first sign-in earns a refill.
+	SignInRefill  bool `protobuf:"varint,9,opt,name=sign_in_refill,json=signInRefill,proto3" json:"sign_in_refill,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2484,6 +2486,13 @@ func (x *GetBonusRulesResponse) GetTileShields() uint32 {
 		return x.TileShields
 	}
 	return 0
+}
+
+func (x *GetBonusRulesResponse) GetSignInRefill() bool {
+	if x != nil {
+		return x.SignInRefill
+	}
+	return false
 }
 
 type TollStep struct {
@@ -3953,7 +3962,7 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\x11GetChargesRequest\"F\n" +
 	"\x12GetChargesResponse\x120\n" +
 	"\acharges\x18\x01 \x01(\v2\x16.planet.v1.ChargesHeldR\acharges\"\x16\n" +
-	"\x14GetBonusRulesRequest\"\xb1\x02\n" +
+	"\x14GetBonusRulesRequest\"\xd7\x02\n" +
 	"\x15GetBonusRulesResponse\x12!\n" +
 	"\fblast_radius\x18\x01 \x01(\x01R\vblastRadius\x12.\n" +
 	"\x13enclosure_max_tiles\x18\x02 \x01(\rR\x11enclosureMaxTiles\x12#\n" +
@@ -3964,7 +3973,8 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\n" +
 	"toll_steps\x18\x06 \x03(\v2\x13.planet.v1.TollStepR\ttollSteps\x12\x18\n" +
 	"\ashields\x18\a \x01(\rR\ashields\x12!\n" +
-	"\ftile_shields\x18\b \x01(\rR\vtileShieldsJ\x04\b\x05\x10\x06R\thome_soil\"<\n" +
+	"\ftile_shields\x18\b \x01(\rR\vtileShields\x12$\n" +
+	"\x0esign_in_refill\x18\t \x01(\bR\fsignInRefillJ\x04\b\x05\x10\x06R\thome_soil\"<\n" +
 	"\bTollStep\x12\x14\n" +
 	"\x05share\x18\x01 \x01(\x01R\x05share\x12\x1a\n" +
 	"\bslowdown\x18\x02 \x01(\x01R\bslowdown\"\x8f\x01\n" +

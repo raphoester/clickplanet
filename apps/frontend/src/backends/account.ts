@@ -14,6 +14,8 @@ export const CODE_LENGTH = 6
 
 export type Intent = "signIn" | "link"
 
+export type SignInOutcome = "signedIn" | "linked" | "created"
+
 export type Me = {
     linked: Provider[]
 }
@@ -25,11 +27,11 @@ export interface AccountBackend {
 
     startSignIn(provider: OAuthProvider, intent: Intent): Promise<string>
 
-    completeSignIn(code: string, state: string): Promise<void>
+    completeSignIn(code: string, state: string): Promise<SignInOutcome>
 
     startEmailSignIn(email: string, intent: Intent): Promise<void>
 
-    completeEmailSignIn(code: string): Promise<void>
+    completeEmailSignIn(code: string): Promise<SignInOutcome>
 
     signOut(): Promise<void>
 

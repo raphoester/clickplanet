@@ -7,8 +7,9 @@ import {
     LinkRefusalReason,
     Provider as WireProvider,
     SignInIntent,
+    SignInOutcome as WireOutcome,
 } from "../gen/grpc/auth/v1/auth_pb.ts"
-import {AccountBackend, AuthError, AuthFailure, Intent, Me, OAuthProvider, Provider} from "./account.ts"
+import {AccountBackend, AuthError, AuthFailure, Intent, Me, OAuthProvider, Provider, SignInOutcome} from "./account.ts"
 import {retrying} from "./transport.ts"
 import {Attester} from "./turnstileSession.ts"
 
@@ -24,6 +25,14 @@ function providerOf(wire: WireProvider): Provider | undefined {
 
 function providersOf(wire: WireProvider[]): Provider[] {
     return wire.map(providerOf).filter((p): p is Provider => p !== undefined)
+}
+
+// A server from before outcomes says none: it signed the browser in.
+const OUTCOMES: Record<WireOutcome, SignInOutcome> = {
+    [WireOutcome.UNSPECIFIED]: "signedIn",
+    [WireOutcome.SIGNED_IN]: "signedIn",
+    [WireOutcome.LINKED]: "linked",
+    [WireOutcome.CREATED]: "created",
 }
 
 const INTENTS: Record<Intent, SignInIntent> = {
@@ -97,8 +106,9 @@ export class ConnectAccountBackend implements AccountBackend {
         return res.authorizationUrl
     }
 
-    public async completeSignIn(code: string, state: string): Promise<void> {
-        await mapped(() => this.client.completeSignIn({code, state}))
+    public async completeSignIn(code: string, state: string): Promise<SignInOutcome> {
+        const res = await mapped(() => this.client.completeSignIn({code, state}))
+        return OUTCOMES[res.outcome]
     }
 
     public async startEmailSignIn(email: string, intent: Intent): Promise<void> {
@@ -106,9 +116,10 @@ export class ConnectAccountBackend implements AccountBackend {
             {[Code.ResourceExhausted]: "tooManyCodes"})
     }
 
-    public async completeEmailSignIn(code: string): Promise<void> {
-        await mapped(() => this.client.completeEmailSignIn({code}),
+    public async completeEmailSignIn(code: string): Promise<SignInOutcome> {
+        const res = await mapped(() => this.client.completeEmailSignIn({code}),
             {[Code.InvalidArgument]: "wrongCode", [Code.FailedPrecondition]: "newCode"})
+        return OUTCOMES[res.outcome]
     }
 
     public async signOut(): Promise<void> {

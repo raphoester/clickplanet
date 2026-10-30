@@ -17,7 +17,8 @@ the first box and quiz came 4-8 minutes in, so they never saw one.
 - **Never a refill or a bomb.** `newAccountClicks` exists because one phone made an account a
   minute for a fresh bank; a welcome refill would hand that back, and a bomb would be a free strike
   per account. A spread click still costs a click, and a shield is placed with none, so a
-  player with an empty bank can still use it. **A welcome kind that cannot be
+  player with an empty bank can still use it. A guest gets its one refill when it signs in
+  ([A guest's first sign-in](sign-in-refill.md)): that needs a new identity, not a new account. **A welcome kind that cannot be
   offered** (weight 0 in `bonuses.kinds`, or a full stack) **gives no early offer**: the turn goes
   back to the ordinary window, never to another kind.
 - **Once per account**: `Registry.newcomers` remembers each young account until it is no longer

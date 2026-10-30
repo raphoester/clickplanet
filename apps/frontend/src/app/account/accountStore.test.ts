@@ -21,9 +21,9 @@ function fakeBackend(offered: Provider[] = ["google", "discord"], me: Me = {link
         signInOptions: vi.fn(async () => offered),
         me: vi.fn(async () => me),
         startSignIn: vi.fn(async (provider: Provider) => `https://${provider}.example/authorize`),
-        completeSignIn: vi.fn(async () => undefined),
+        completeSignIn: vi.fn(async () => "signedIn" as const),
         startEmailSignIn: vi.fn(async () => undefined),
-        completeEmailSignIn: vi.fn(async () => undefined),
+        completeEmailSignIn: vi.fn(async () => "signedIn" as const),
         signOut: vi.fn(async () => undefined),
         signOutEverywhere: vi.fn(async () => undefined),
         deleteAccount: vi.fn(async () => undefined),
@@ -274,6 +274,31 @@ describe("AccountStore", () => {
             expect(backend.completeSignIn).toHaveBeenCalledWith("code", "state")
             expect(session.invalidate).toHaveBeenCalledTimes(1)
             expect(store.state()).toMatchObject({kind: "ready", me: {linked: ["google"]}})
+        })
+
+        it("marks the guest it gave a first identity, which earns a refill", async () => {
+            const backend = fakeBackend()
+            backend.completeSignIn.mockResolvedValue("linked")
+            backend.me.mockImplementation(async () => ({linked: ["google"]}))
+            const {store} = setup(backend)
+
+            await store.completeSignIn("code", "state")
+
+            expect(store.state()).toMatchObject({kind: "ready", me: {linked: ["google"]}, guestLinked: true})
+        })
+
+        it("marks no other sign-in: a second provider, an account that was, a new one", async () => {
+            const cases = [["linked", ["google", "discord"]], ["signedIn", ["google"]], ["created", ["google"]]] as const
+            for (const [outcome, linked] of cases) {
+                const backend = fakeBackend()
+                backend.completeSignIn.mockResolvedValue(outcome)
+                backend.me.mockImplementation(async () => ({linked: [...linked]}))
+                const {store} = setup(backend)
+
+                await store.completeSignIn("code", "state")
+
+                expect(store.state(), outcome).not.toHaveProperty("guestLinked")
+            }
         })
 
         it("throws a refusal for the callback page and keeps the token", async () => {
@@ -714,6 +739,19 @@ describe("AccountStore", () => {
             expect(backend.completeEmailSignIn).toHaveBeenCalledWith("123456")
             expect(session.invalidate).toHaveBeenCalled()
             expect(store.state()).toEqual({kind: "ready", offered: ["google", "email"], me: {linked: ["email"]}, accountId: "account-1"})
+        })
+
+        it("marks the guest a right code gave a first identity", async () => {
+            const backend = withEmail()
+            backend.completeEmailSignIn.mockResolvedValue("linked")
+            const {store} = setup(backend)
+            await store.load()
+            await store.sendCode("player@example.com", "signIn")
+            backend.me.mockImplementation(async () => ({linked: ["email"]}))
+
+            await store.checkCode("123456")
+
+            expect(store.state()).toMatchObject({me: {linked: ["email"]}, guestLinked: true})
         })
 
         it("keeps the code step for a wrong code", async () => {

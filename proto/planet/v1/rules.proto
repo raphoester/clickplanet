@@ -52,6 +52,8 @@ message BonusRules {
   ShieldRules shield = 9;
   WelcomeRules welcome = 10;
   QuizRules quiz = 11;
+  // A guest's first sign-in earns a refill, once per account.
+  bool sign_in_refill = 12;
 }
 
 message BoxPace {

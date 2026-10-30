@@ -70,6 +70,9 @@ import TitleUnlocked from "../titles/TitleUnlocked.tsx";
 import {usePresence} from "../players/usePresence.ts";
 import {useRoster} from "../players/useRoster.ts";
 import SignInPitchModal from "../account/SignInPitchModal.tsx";
+import SignInNudgeModal from "../account/SignInNudgeModal.tsx";
+import {useSignInNudge} from "../account/useSignInNudge.ts";
+import {useSignInRefill} from "../account/useSignInRefill.ts";
 import {LeaderboardEntry, rankOf} from "../../domain/leaderboard.ts";
 import {useSeason} from "../season/useSeason.ts";
 import SeasonChip, {ChampionChip, SeasonDetails} from "../season/SeasonChip.tsx";
@@ -316,6 +319,14 @@ export default function Viewer(props: ViewerProps) {
         return true
     })
 
+    const signInRefill = rules?.signInRefill === true
+    const nudge = useSignInNudge(
+        guest && clickBudget?.linkedMultiplier !== undefined && !clickBudget.frozen && !charges.refill && !pitchOpen,
+        refusals, quiz.state.phase !== 'idle')
+    useSignInRefill(account.kind === 'ready' && account.guestLinked === true && signInRefill, charges.refill,
+        () => void props.chargesRefresher?.refreshCharges().catch((e) => console.error("could not read the charges held", e)),
+        () => void spendRefill?.())
+
     const order = shownOrder(race, countryOrder)
     const lines = countryLines(leaderboard, race, order)
     const anthem = useAnthem(status.state === 'ready' ? lines : NO_LEADERBOARD, order, sound.settings)
@@ -524,6 +535,13 @@ export default function Viewer(props: ViewerProps) {
             store={props.account}
             multiplier={clickBudget.linkedMultiplier}
             onClose={() => setPitchOpen(false)}/>}
+
+        {nudge.open && guest && props.account && clickBudget?.linkedMultiplier && <SignInNudgeModal
+            state={account}
+            store={props.account}
+            multiplier={clickBudget.linkedMultiplier}
+            fullBank={signInRefill}
+            onClose={nudge.close}/>}
 
         {tileHolder.holder && <HolderCard key={`holder-${tileHolder.holder.id}`}
                                                               holder={tileHolder.holder}

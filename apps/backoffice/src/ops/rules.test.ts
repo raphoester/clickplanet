@@ -3,7 +3,7 @@ import {describe, expect, it} from "vitest"
 import {RuleSet} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {BoxPace, ClickRules} from "../gen/grpc/planet/v1/rules_pb.ts"
 import {FakeAdmin} from "../fakeAdmin.ts"
-import {boxesOf, clicksOf, complete, copyOf, draftOf, GROUPS, ruleSetOf, saveRuleSet, tempoOf, playOf} from "./rules.ts"
+import {boxesOf, changesOf, clicksOf, complete, copyOf, draftOf, GROUPS, ruleSetOf, saveRuleSet, tempoOf, playOf} from "./rules.ts"
 
 const minutes = (n: number) => new Duration({seconds: BigInt(n * 60)})
 
@@ -42,7 +42,7 @@ describe("the rules", () => {
     })
 
     it("edits every value of a set", () => {
-        const edited = new Set([...GROUPS.flatMap(group => group.fields.map(field => field.path)), "bonuses.quiz.enabled", "toll.steps", "frozen"])
+        const edited = new Set([...GROUPS.flatMap(group => group.fields.map(field => field.path)), "bonuses.quiz.enabled", "bonuses.signInRefill", "toll.steps", "frozen"])
 
         const values = leaves(played().rules!.toJson({emitDefaultValues: true}))
 
@@ -74,6 +74,15 @@ describe("the rules", () => {
         expect(sent?.toll?.steps.at(-1)?.slowdown).toBe(6)
         expect(sent?.bonuses?.quiz?.enabled).toBe(false)
         expect(sent?.bonuses?.shield?.perTile).toBe(12)
+    })
+
+    it("sends the refill at first sign-in switched off, and says it changed", () => {
+        const before = draftOf(played())
+        const after = {...before, signInRefill: false}
+
+        expect(before.signInRefill).toBe(true)
+        expect(ruleSetOf(after).rules?.bonuses?.signInRefill).toBe(false)
+        expect(changesOf(before, after)).toEqual([{label: "Refill at first sign-in", before: "yes", after: "no"}])
     })
 
     it("freezes a set, and says so in the list", () => {

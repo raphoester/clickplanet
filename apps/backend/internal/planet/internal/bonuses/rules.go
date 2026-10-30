@@ -26,6 +26,8 @@ type Rules struct {
 	Welcome WelcomeRules
 
 	Quiz QuizRules
+
+	SignInRefill bool
 }
 
 // A tile keeps its shields in a byte.

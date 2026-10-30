@@ -261,6 +261,13 @@ export class BonusRules extends Message<BonusRules> {
    */
   quiz?: QuizRules;
 
+  /**
+   * A guest's first sign-in earns a refill, once per account.
+   *
+   * @generated from field: bool sign_in_refill = 12;
+   */
+  signInRefill = false;
+
   constructor(data?: PartialMessage<BonusRules>) {
     super();
     proto3.util.initPartial(data, this);
@@ -280,6 +287,7 @@ export class BonusRules extends Message<BonusRules> {
     { no: 9, name: "shield", kind: "message", T: ShieldRules },
     { no: 10, name: "welcome", kind: "message", T: WelcomeRules },
     { no: 11, name: "quiz", kind: "message", T: QuizRules },
+    { no: 12, name: "sign_in_refill", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BonusRules {

@@ -253,13 +253,15 @@ type BonusRules struct {
 	// A box missed brings the next one this soon, once.
 	MissRetry *durationpb.Duration `protobuf:"bytes,4,opt,name=miss_retry,json=missRetry,proto3" json:"miss_retry,omitempty"`
 	// No box or quiz for a caller that has not clicked for this long.
-	ActiveWithin  *durationpb.Duration `protobuf:"bytes,5,opt,name=active_within,json=activeWithin,proto3" json:"active_within,omitempty"`
-	Spread        *SpreadRules         `protobuf:"bytes,6,opt,name=spread,proto3" json:"spread,omitempty"`
-	Bomb          *BombRules           `protobuf:"bytes,7,opt,name=bomb,proto3" json:"bomb,omitempty"`
-	Enclose       *EncloseRules        `protobuf:"bytes,8,opt,name=enclose,proto3" json:"enclose,omitempty"`
-	Shield        *ShieldRules         `protobuf:"bytes,9,opt,name=shield,proto3" json:"shield,omitempty"`
-	Welcome       *WelcomeRules        `protobuf:"bytes,10,opt,name=welcome,proto3" json:"welcome,omitempty"`
-	Quiz          *QuizRules           `protobuf:"bytes,11,opt,name=quiz,proto3" json:"quiz,omitempty"`
+	ActiveWithin *durationpb.Duration `protobuf:"bytes,5,opt,name=active_within,json=activeWithin,proto3" json:"active_within,omitempty"`
+	Spread       *SpreadRules         `protobuf:"bytes,6,opt,name=spread,proto3" json:"spread,omitempty"`
+	Bomb         *BombRules           `protobuf:"bytes,7,opt,name=bomb,proto3" json:"bomb,omitempty"`
+	Enclose      *EncloseRules        `protobuf:"bytes,8,opt,name=enclose,proto3" json:"enclose,omitempty"`
+	Shield       *ShieldRules         `protobuf:"bytes,9,opt,name=shield,proto3" json:"shield,omitempty"`
+	Welcome      *WelcomeRules        `protobuf:"bytes,10,opt,name=welcome,proto3" json:"welcome,omitempty"`
+	Quiz         *QuizRules           `protobuf:"bytes,11,opt,name=quiz,proto3" json:"quiz,omitempty"`
+	// A guest's first sign-in earns a refill, once per account.
+	SignInRefill  bool `protobuf:"varint,12,opt,name=sign_in_refill,json=signInRefill,proto3" json:"sign_in_refill,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -369,6 +371,13 @@ func (x *BonusRules) GetQuiz() *QuizRules {
 		return x.Quiz
 	}
 	return nil
+}
+
+func (x *BonusRules) GetSignInRefill() bool {
+	if x != nil {
+		return x.SignInRefill
+	}
+	return false
 }
 
 type BoxPace struct {
@@ -913,7 +922,7 @@ const file_planet_v1_rules_proto_rawDesc = "" +
 	"\x11linked_multiplier\x18\a \x01(\x01R\x10linkedMultiplier\x12,\n" +
 	"\x12new_account_clicks\x18\b \x01(\x01R\x10newAccountClicks\"6\n" +
 	"\tTollRules\x12)\n" +
-	"\x05steps\x18\x01 \x03(\v2\x13.planet.v1.TollStepR\x05steps\"\xb0\x04\n" +
+	"\x05steps\x18\x01 \x03(\v2\x13.planet.v1.TollStepR\x05steps\"\xd6\x04\n" +
 	"\n" +
 	"BonusRules\x12(\n" +
 	"\x05boxes\x18\x01 \x01(\v2\x12.planet.v1.BoxPaceR\x05boxes\x12,\n" +
@@ -928,7 +937,8 @@ const file_planet_v1_rules_proto_rawDesc = "" +
 	"\x06shield\x18\t \x01(\v2\x16.planet.v1.ShieldRulesR\x06shield\x121\n" +
 	"\awelcome\x18\n" +
 	" \x01(\v2\x17.planet.v1.WelcomeRulesR\awelcome\x12(\n" +
-	"\x04quiz\x18\v \x01(\v2\x14.planet.v1.QuizRulesR\x04quiz\"\xb6\x01\n" +
+	"\x04quiz\x18\v \x01(\v2\x14.planet.v1.QuizRulesR\x04quiz\x12$\n" +
+	"\x0esign_in_refill\x18\f \x01(\bR\fsignInRefill\"\xb6\x01\n" +
 	"\aBoxPace\x12<\n" +
 	"\fmin_interval\x18\x01 \x01(\v2\x19.google.protobuf.DurationR\vminInterval\x12<\n" +
 	"\fmax_interval\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\vmaxInterval\x12/\n" +

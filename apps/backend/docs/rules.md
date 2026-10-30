@@ -52,6 +52,8 @@ the operator's calls carry and the log lines print as it is. `Snapshot.Restore(p
   (30, 5, 20, 10; a tile keeps them in a byte, so 255 at most). See [Shields](shields.md)
 - `bonuses.welcome.within`, `.boxAfter` — how young an account is welcomed, and when its first box comes (10 min,
   1 min); `0s` is off. See [A newcomer's first box and first quiz](welcome-bonus.md)
+- `bonuses.signInRefill` — a guest's first sign-in earns a refill (on). See
+  [A guest's first sign-in earns a refill](sign-in-refill.md)
 - `bonuses.quiz.enabled`, `minInterval`, `maxInterval`, `maxChargesPerHour`, `offerTtl`, `answerWindow`, `missRetry`,
   `leaderBias` — the quizzes (on, 4–8 min, 12, 25 s, 8 s, 2 min, 1). See [Quizzes](quizzes.md)
 - `frozen` — the map takes no play (off). See [A frozen map](#a-frozen-map)

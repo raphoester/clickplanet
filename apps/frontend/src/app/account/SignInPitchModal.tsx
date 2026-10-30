@@ -1,12 +1,9 @@
-import {PROVIDER_NAMES} from "../../backends/account.ts"
 import {GUEST_PREFIX} from "../../backends/chat.ts"
 import {factor} from "../../domain/clickPrice.ts"
 import {MIN_STREAK_SHOWN} from "../../domain/streak.ts"
 import Modal from "../components/Modal.tsx"
 import {AccountState, AccountStore} from "./accountStore.ts"
-import {messageOf} from "./authMessages.ts"
-import ProviderButton from "./ProviderButton.tsx"
-import EmailSignIn from "./EmailSignIn.tsx"
+import SignInButtons from "./SignInButtons.tsx"
 import "./Account.css"
 
 type Ready = Extract<AccountState, {kind: "ready"}>
@@ -48,19 +45,7 @@ export default function SignInPitchModal({state, store, multiplier, onClose}: Si
             </ul>
             <p className="account-text sign-in-pitch-small">It is free. You do not need an account to play.</p>
 
-            {state.offered.filter((p) => p !== "email").map((provider) => <ProviderButton key={provider}
-                                                                                       provider={provider}
-                                                                                       label={`Sign in with ${PROVIDER_NAMES[provider]}`}
-                                                                                       disabled={busy}
-                                                                                       onClick={() => void store.signIn(provider)}/>)}
-
-            {state.offered.includes("email") && <EmailSignIn state={state} store={store} intent="signIn"/>}
-
-            {state.failure && <p className="account-failure" role="alert">{messageOf(state.failure)}</p>}
-
-            <p className="account-legal">
-                <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy policy</a>
-            </p>
+            <SignInButtons state={state} store={store}/>
         </div>
     </Modal>
 }

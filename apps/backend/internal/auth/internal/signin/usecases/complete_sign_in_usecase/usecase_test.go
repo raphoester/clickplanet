@@ -184,7 +184,9 @@ func TestANewIdentityLinksToTheGuestAndReplacesItsSession(t *testing.T) {
 	identity, err := f.store.Identity(t.Context(), signin.Google, "google-user")
 	require.NoError(t, err)
 	assert.Equal(t, accounts.IdentityOf("google", "google-user", accounts.AccountID{15: 7}, "a@example.com", true, start), identity)
-	f.assertPublished(t, &authv1.SignedIn{PreviousAccountId: accounts.AccountID{15: 7}.String(), AccountId: accounts.AccountID{15: 7}.String()})
+	f.assertPublished(t, &authv1.SignedIn{
+		PreviousAccountId: accounts.AccountID{15: 7}.String(), AccountId: accounts.AccountID{15: 7}.String(), GuestLinked: true,
+	})
 }
 
 func TestAKnownIdentitySignsInToItsAccountAndLeavesTheGuestAsItWas(t *testing.T) {
@@ -265,6 +267,7 @@ func TestLinkingANewIdentityLinksItToTheAccountTheBrowserIsOn(t *testing.T) {
 	account, err := f.store.Account(t.Context(), accounts.AccountID{15: 7})
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []string{"discord", "google"}, account.Providers())
+	f.assertPublished(t, &authv1.SignedIn{PreviousAccountId: accounts.AccountID{15: 7}.String(), AccountId: accounts.AccountID{15: 7}.String()})
 }
 
 func TestLinkingAnIdentityTheAccountAlreadyHasKeepsTheBrowserThere(t *testing.T) {

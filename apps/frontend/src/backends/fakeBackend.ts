@@ -97,6 +97,7 @@ const BOT_BOMB_EVERY_MS = 25_000
 
 const BOT_CLICKS_PER_SECOND = 4
 const ENCLOSE_MAX_TILES = 25
+const LINKED_MULTIPLIER = 2
 
 const RULES: BonusRules = {
     blastRadius: BOMB_RADIUS,
@@ -106,6 +107,7 @@ const RULES: BonusRules = {
     shields: SHIELDS,
     tileShields: TILE_SHIELDS,
     toll: TOLL_STEPS,
+    signInRefill: true,
 }
 
 export type FakeBackendOptions = {
@@ -461,6 +463,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
             capacity: CLICK_BURST,
             perSecond: CLICKS_PER_SECOND * this.pace * this.tempo,
             price: this.price(this.budgetCountry),
+            linkedMultiplier: LINKED_MULTIPLIER,
             sharedWith: this.sharedWith,
             frozen: this.frozen,
             readAt: budgetNow(),

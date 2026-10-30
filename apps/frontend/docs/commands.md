@@ -90,7 +90,10 @@ close nothing, for the bubble that says so, and `closeShapes(true)` puts it back
 minutes, as a ban does, and `fakeBackend.ban(0)` lifts it.
 `fakeBackend.setTempo(3)` refills the bank three times as fast, as a rule set
 of the server can, and `fakeBackend.setTempo(1)` puts it back.
-`signIn("Nova")` signs the fake account in, with that username (see [Sign-in](sign-in.md)), and
+`offerSignIn()` offers the fake guest Google, Discord and email, so the sign-in pitch and the nudge show on an
+empty bank (the buttons are refused: the fake has no flow).
+`signIn("Nova")` signs the fake account in, with that username (see [Sign-in](sign-in.md)). From a guest it is a
+first sign-in: the fake grants a refill a second later, and the game spends it. And
 `giveClip("France vs Turkey")` posts a clip that names it: `signIn()` reads it at once, so the notice
 plays (see [In a clip](clip-appearances.md)). `localStorage.removeItem("clickplanet-clips-shown")`
 makes the clips shown new again.

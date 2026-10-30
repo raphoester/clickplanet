@@ -64,6 +64,9 @@ const session: SessionProvider = sitekey
 
 const root = createRoot(document.getElementById('root')!)
 
+// Planet hears auth's sign-in over Redis, and its outbox sends once a second.
+const FAKE_GRANT_LANDS_MS = 1_200
+
 if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     const borders = loadBorders(BORDERS_URL)
     const fake = new FakeBackend(100, {
@@ -156,9 +159,16 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
             fakeTurn.endBattle()
             return "the battle is over: closeBattle() or closeFinale() sends its results"
         },
-        signIn: (name = "Nova") => {
-            fakeAccount.signIn(name)
+        offerSignIn: () => {
+            fakeAccount.offerSignIn()
             void account.load()
+            return "a guest is offered to sign in: run out of clicks, then signIn() finishes a sign-in"
+        },
+        signIn: (name = "Nova") => {
+            void account.completeSignIn(name, "").then(() => {
+                const state = account.state()
+                if (state.kind === "ready" && state.guestLinked) setTimeout(() => fake.grantBonus("refill"), FAKE_GRANT_LANDS_MS)
+            })
             return `signed in as ${name}: sign out from the Account tab`
         },
         giveClip: (headline?: string) => {

@@ -456,6 +456,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                 shields: res.shields,
                 tileShields: res.tileShields,
                 toll: res.tollSteps.map(({share, slowdown}) => ({share, slowdown})),
+                signInRefill: res.signInRefill,
             }
             this.rules = rules
             this.bonusCallbacks.forEach(handlers => handlers.onRules(rules))
@@ -914,7 +915,9 @@ export function chargesOfMessage(held: ChargesHeld | undefined): Charges {
     }
 }
 
-const NO_RULES: BonusRules = {blastRadius: 0, enclosureMaxTiles: 0, spreadClicks: 0, enclosures: 0, shields: 0, tileShields: 0, toll: []}
+const NO_RULES: BonusRules = {
+    blastRadius: 0, enclosureMaxTiles: 0, spreadClicks: 0, enclosures: 0, shields: 0, tileShields: 0, toll: [], signInRefill: false,
+}
 
 function rewardOf(
     kind: BonusKind,

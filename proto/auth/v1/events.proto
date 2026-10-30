@@ -9,6 +9,8 @@ message AccountDeleted {
 message SignedIn {
   string previous_account_id = 1;
   string account_id = 2;
+  // The account was a guest until this sign-in: it linked its first identity.
+  bool guest_linked = 3;
 }
 
 message SignedOut {

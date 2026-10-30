@@ -72,6 +72,9 @@ and `CompleteSignIn` each spend one. `tooManyTries` says to wait a minute.
 5. On success, `AccountStore.completeSignIn` **invalidates the click token** and
    reads the account again, and the gate swaps in the game in place, at `/play`,
    with no reload. The next click mints a token that carries the new account.
+   `CompleteSignIn` answers the outcome (`SignInOutcome`); a `linked` one that
+   leaves the account one provider gave a guest its first identity, and the
+   store marks it `guestLinked` (see [The refill a first sign-in earns](#the-refill-a-first-sign-in-earns)).
 6. On failure the page says why in one line. `retryOf` picks what "Try again"
    does: send the same code again when the server did not use it
    (`tooManyTries`, `failed` — a spent budget is refused before the code is
@@ -150,14 +153,48 @@ typed (digits only), and `cancelCode` goes back to the address.
   `auth.email.delivery: log` (no Cloudflare account needed): the code is in the
   server log.
 
+**A guest out of clicks is asked to sign in** (`SignInNudgeModal`, opened by
+`useSignInNudge` in `Viewer`). Newcomers leave at the tap that finds the bank
+empty, whatever its size (the backend's [A guest's first sign-in](../../backend/docs/sign-in-refill.md)),
+so that tap is the moment. "Out of clicks", then three lines: a full bank now
+(only while the server's `BonusRules.signInRefill` says so), clicks refill
+`linkedMultiplier` times faster, and the land on every device; then the sign-in
+buttons (`SignInButtons`, which `SignInPitchModal` uses too).
+
+- **It opens on a dry tap**: a tap the globe refuses for an empty bank
+  (`refusals` from `useGlobe`), from a guest the server offers sign-in to, with
+  its multiplier, on a map that is not frozen, holding no refill (a refill is a
+  full bank already, and the server gives a guest one at most).
+- **It never covers a quiz.** A young account's first dry click brings its
+  welcome quiz within about a second (the backend's [A newcomer's first quiz](../../backend/docs/welcome-bonus.md)).
+  So the nudge waits `NUDGE_AFTER_MS` (1.5s) after the dry tap, and gives up if a
+  quiz is up then or comes in the wait. The next dry tap after the quiz tries
+  again: the quiz closing is no dry tap, as the bank may have refilled by then.
+- **Once a page.** Closed, it stays closed until the next load. Signed in by
+  email inside it, it closes as the player stops being a guest.
+
+### The refill a first sign-in earns
+
+**The server grants a guest's first sign-in one refill, and the game spends it
+at once** (`useSignInRefill` in `Viewer`), so a guest who signed in at an empty
+bank comes back to a full one. Planet grants it from auth's event a second or
+two after the sign-in, so the hook reads the charges at once, after 2s and after
+5s (`refreshCharges`, the read a paid mission uses), and spends the refill the
+first time one is held (`useRefill`, the slot's own call; nothing on a full
+bank). After `SIGN_IN_REFILL_WAIT_MS` (10s) it stops: a refill held later is the
+player's to spend. It does nothing unless the store marked `guestLinked` and the
+rules say a first sign-in earns one. The refill goes through `UseRefill` with a
+fresh click token, which is linked, so it fills the account's own bank.
+
 **Every way out of an account invalidates the click token too**: sign out, sign
 out everywhere, and delete. The player plays on, and the next click mints a new
 guest. `unauthenticated` on one of these means the account was already gone, and
 is treated as done. Delete sits behind a dialog that lists what goes.
 
 **The fake has no sign-in flow, only a signed-in account.** `VITE_FAKE_BACKEND` wires `AccountStore` over
-`FakeAccountBackend`, which offers no provider, so the menu offers no sign-in there. `signIn("Nova")` on
-the console links it as a finished sign-in would: the You tab, the username, the color and the clips
+`FakeAccountBackend`, which offers no provider until `offerSignIn()` on the console, so the menu offers no
+sign-in there. `signIn("Nova")` on the console links it as a finished sign-in would (`completeSignIn`, with the
+name as the code), and from a guest the fake grants the refill a second later: the You tab, the username, the color and the clips
 switch, and Sign out in the panel undoes it. To try the flow locally, run the backend with `auth.enabled`,
 `auth.turnstile.enabled: false`, `auth.signIn.enabled` and any Google
 `clientId`, and the dev server with Turnstile's always-passing test sitekey:

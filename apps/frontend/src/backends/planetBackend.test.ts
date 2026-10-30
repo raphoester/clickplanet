@@ -1578,10 +1578,10 @@ describe("the rules", () => {
         ({click: vi.fn(), getMap: vi.fn(), getBudget: noBudget(), ...bonusReads(), mapDensity: vi.fn(),
             listenForEvents: noEvents(), ...fields}) as never
 
-    it("reads the toll and the sizes of the charges", async () => {
+    it("reads the toll, the sizes of the charges and the sign-in refill", async () => {
         const getBonusRules = vi.fn().mockResolvedValue(new GetBonusRulesResponse({
             blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, shields: 12, tileShields: 10,
-            tollSteps: [{share: 0.1, slowdown: 1.5}, {share: 0.3, slowdown: 4}],
+            tollSteps: [{share: 0.1, slowdown: 1.5}, {share: 0.3, slowdown: 4}], signInRefill: true,
         }))
         const backend = new PlanetBackend(clientWith({getBonusRules}), 1_000)
 
@@ -1593,7 +1593,7 @@ describe("the rules", () => {
 
         await vi.waitFor(() => expect(seen.at(-1)).toEqual({
             blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, shields: 12, tileShields: 10,
-            toll: [{share: 0.1, slowdown: 1.5}, {share: 0.3, slowdown: 4}],
+            toll: [{share: 0.1, slowdown: 1.5}, {share: 0.3, slowdown: 4}], signInRefill: true,
         }))
         backend.close()
     })

@@ -60,7 +60,9 @@ its size (`5/8`, `2/3`), and a word over the icon says what the slot is doing
 (`On`, `Aim`, `Full`, or `New` for a kind held and never pressed).
 
 - **Refill** fills the bank (`Refiller.useRefill`). **On a full bank it sends
-  nothing** and says "Full": a refill there would be wasted. The
+  nothing** and says "Full": a refill there would be wasted. The refill a
+  guest's first sign-in earns is spent by the game, through the same call (see
+  [Sign-in](sign-in.md#the-refill-a-first-sign-in-earns)). The
   server refuses it too, `FailedPrecondition`, read as `BankFullError`, and spends
   nothing.
 - **Bomb** aims it, or puts it away (`Globe.setArmed`).

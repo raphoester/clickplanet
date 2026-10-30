@@ -150,7 +150,7 @@ func (a *Admitter) admit(
 		signIn = signIn.WithIdentity(accounts.NewIdentity(provider, claim, account, now))
 	}
 
-	signedIn := &authv1.SignedIn{AccountId: account.String()}
+	signedIn := &authv1.SignedIn{AccountId: account.String(), GuestLinked: outcome.LinksAGuest(current)}
 	if current != nil {
 		signedIn.PreviousAccountId = current.ID().String()
 	}
