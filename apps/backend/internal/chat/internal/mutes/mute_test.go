@@ -70,6 +70,18 @@ func TestAMuteEndsAfterItsDuration(t *testing.T) {
 	assert.False(t, mute.ApplicableTo(mutes.NewCaller(bully, "203.0.113.7"), at.Add(time.Hour)))
 }
 
+func TestALiftedMuteEndsWhenItIsLiftedAndKeepsTheRest(t *testing.T) {
+	mute := mutes.NewMute(mutes.MuteID{1}, mutes.NewCaller(bully, "2a01:e0a:1:2::1"), at, 24*time.Hour)
+
+	lifted := mute.Lifted(at.Add(time.Hour))
+
+	assert.Equal(t, mutes.MuteOf(mutes.MuteID{1}, mute.Caller(), at, at.Add(time.Hour)), lifted)
+	assert.False(t, mute.Ended(at.Add(time.Hour)), "the mute it was built from is left as it was")
+	assert.True(t, lifted.Ended(at.Add(time.Hour)))
+	assert.False(t, lifted.ApplicableTo(mutes.NewCaller(newGuest, "2a01:e0a:1:2::9"), at.Add(time.Hour)),
+		"nor its network")
+}
+
 func TestAMuteHoldsAFreshGuestOnTheSameSlash64(t *testing.T) {
 	mute := mutes.NewMute(mutes.MuteID{1}, mutes.NewCaller(bully, "2a01:e0a:1:2::1"), at, time.Hour)
 

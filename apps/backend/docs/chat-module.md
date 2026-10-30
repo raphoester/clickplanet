@@ -46,7 +46,7 @@ internal/chat/internal/
     inmemory_seen_storage/              Storage in a map, and Kept for a test — behind the testing tag, tests only
     usecases/mark_seen_usecase/         keeps until when an account saw the chat — Saver
     usecases/forget_seen_usecase/       deletes an account's mark — Deleter
-  mutes/                                Mute (NewMute, MuteOf, ApplicableTo, Refusal), MuteID, Caller, Scope (ScopeOf),
+  mutes/                                Mute (NewMute, MuteOf, Ended, Lifted, ApplicableTo, Refusal), MuteID, Caller, Scope (ScopeOf),
                                         DurationOf, Book (MuteError), the IDProvider and Storage ports, the suite
     postgres_mute_store/                Storage, over chat.mutes
     inmemory_mute_storage/              Storage in a slice — behind the testing tag, tests only
@@ -54,6 +54,8 @@ internal/chat/internal/
     usecases/mute_usecase/              keeps a mute on the account and its network — Saver, Addresses, IDProvider
       publishing_mute/                  publishes chat.v1.AccountMuted once a mute is kept
       audit_mute/                       logs every mute at Warn
+    usecases/unmute_usecase/            ends now every running mute given to the account — Transactioner, Store
+      audit_unmute/                     logs every unmute at Warn
   removals/                             Removal (NewRemoval, TakeSnapshot), Snapshot, ErrUnknownMessage, the Storage port
     postgres_removal_store/             Storage, over chat.removals
     usecases/remove_message_usecase/    takes a kept message out of what anybody is shown, then tells the streams —
@@ -65,7 +67,9 @@ internal/chat/internal/
     usecases/listen_for_events_usecase/ one client's feed, heartbeat   — UpdatesSubscriber
   chatv1controller/                     ChatService and AdminService (bags), the interceptors
     send_message_handler/  get_history_handler/  listen_for_events_handler/  react_handler/  mark_seen_handler/
-    mute_handler/  remove_message_handler/  get_message_handler/  list_messages_handler/
+    mute_handler/  unmute_handler/  get_mute_handler/  remove_message_handler/  get_message_handler/
+    list_messages_handler/
+    get_mute_handler/mute_query/        PostgresQuery: the mute that holds an account now, by itself or its network
     get_message_handler/message_query/  PostgresQuery: one message as it was sent, removed or not
     list_messages_handler/messages_query/  PostgresQuery: a page of messages as they were sent, before or after a
                                         message's id, named — Authors

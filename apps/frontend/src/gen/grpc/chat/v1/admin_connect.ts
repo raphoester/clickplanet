@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetMessageRequest, GetMessageResponse, ListMessagesRequest, ListMessagesResponse, MuteRequest, MuteResponse, RemoveMessageRequest, RemoveMessageResponse } from "./admin_pb.js";
+import { GetMessageRequest, GetMessageResponse, GetMuteRequest, GetMuteResponse, ListMessagesRequest, ListMessagesResponse, MuteRequest, MuteResponse, RemoveMessageRequest, RemoveMessageResponse, UnmuteRequest, UnmuteResponse } from "./admin_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -21,6 +21,28 @@ export const AdminService = {
       name: "Mute",
       I: MuteRequest,
       O: MuteResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Ends now every mute given to the account, with the network each holds. A mute given to another account on its network still holds it. NotFound when none runs.
+     *
+     * @generated from rpc chat.v1.AdminService.Unmute
+     */
+    unmute: {
+      name: "Unmute",
+      I: UnmuteRequest,
+      O: UnmuteResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * The mute that holds the account now, given to it or to another account on the network it last posted from; the one that ends last. Nothing set when none holds it.
+     *
+     * @generated from rpc chat.v1.AdminService.GetMute
+     */
+    getMute: {
+      name: "GetMute",
+      I: GetMuteRequest,
+      O: GetMuteResponse,
       kind: MethodKind.Unary,
     },
     /**

@@ -1,6 +1,8 @@
+import {Timestamp} from "@bufbuild/protobuf"
 import {Code} from "@connectrpc/connect"
 import {describe, expect, it} from "vitest"
 import {AT, FakeAdmin} from "../fakeAdmin.ts"
+import {GetMuteResponse} from "../gen/grpc/chat/v1/admin_pb.ts"
 import {
     ban,
     DEFAULT_MUTE_SECONDS,
@@ -10,11 +12,13 @@ import {
     inspect,
     LADDER,
     mute,
+    mutingOf,
     NO_GRANT,
     refusalOf,
     revert,
     topPlayers,
     unban,
+    unmute,
 } from "./actions.ts"
 
 const account = {accountId: "account-reported"}
@@ -28,6 +32,39 @@ describe("mute", () => {
         const [request] = admin.askedFor("mute") as {accountId: string, duration: {seconds: bigint}}[]
         expect(request.accountId).toBe("account-reported")
         expect(request.duration.seconds).toBe(3600n)
+    })
+})
+
+describe("unmute", () => {
+    it("lifts the account's mutes and says until when it was muted", async () => {
+        const admin = new FakeAdmin()
+
+        expect(await unmute(admin, "account-reported")).toEqual({until: AT})
+        expect(admin.askedFor("unmute")).toEqual([{accountId: "account-reported"}])
+    })
+
+    it("says a player with no mute of its own", async () => {
+        const admin = new FakeAdmin()
+        admin.refuse("unmute", Code.NotFound)
+
+        const err = await unmute(admin, "account-reported").catch((e: unknown) => e)
+        expect(refusalOf("unmute", err)).toBe("This player has no mute of its own to lift.")
+    })
+})
+
+describe("mutingOf", () => {
+    it("reads no mute as none", async () => {
+        expect(await mutingOf(new FakeAdmin(), "account-reported")).toBeUndefined()
+    })
+
+    it("tells the account's own mute from one on its network", async () => {
+        const admin = new FakeAdmin()
+
+        admin.muting = new GetMuteResponse({mutedUntil: Timestamp.fromDate(AT), mutedAccountId: "account-reported"})
+        expect(await mutingOf(admin, "account-reported")).toEqual({until: AT, byNetwork: false})
+
+        admin.muting = new GetMuteResponse({mutedUntil: Timestamp.fromDate(AT), mutedAccountId: "account-household"})
+        expect(await mutingOf(admin, "account-reported")).toEqual({until: AT, byNetwork: true})
     })
 })
 

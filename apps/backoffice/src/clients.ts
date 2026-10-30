@@ -9,7 +9,7 @@ import {AdminService as GamemasterAdminService} from "./gen/grpc/gamemaster/v1/a
 import {AdminService as SupportAdminService} from "./gen/grpc/support/v1/admin_connect.ts"
 
 // Each page takes the services it calls as these, so a test hands it FakeAdmin (fakeAdmin.ts) instead.
-export type ChatAdmin = Pick<PromiseClient<typeof ChatAdminService>, "getMessage" | "listMessages" | "removeMessage" | "mute">
+export type ChatAdmin = Pick<PromiseClient<typeof ChatAdminService>, "getMessage" | "listMessages" | "removeMessage" | "mute" | "unmute" | "getMute">
 export type AntibotAdmin = PromiseClient<typeof AntibotAdminService>
 // The bans moved to the antibot: planet.v1 keeps the three calls only until this page has called antibot.v1 for a deploy.
 export type PlanetAdmin = Omit<PromiseClient<typeof PlanetAdminService>, "banPlayer" | "unbanPlayer" | "inspectPlayer">

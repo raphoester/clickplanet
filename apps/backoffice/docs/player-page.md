@@ -26,7 +26,9 @@ address>`), so Back goes to the list, as it was.
   soon as it may click, so it is most likely a script. A row with no account is "No account". **Names that cannot be
   read leave the list listed**, every account "Unnamed", with the reason above it.
 - **The player page** (`PlayerView`), top down: its flag and its name (or its address), **where it stands**
-  (`Standing`: banned until when and the offence, the jury's opinion, a pardon), its account and its address with Copy,
+  (`Standing`: banned until when and the offence, the jury's opinion, a pardon, and for an account muted until when,
+  from `chat.v1.AdminService/GetMute`, "by a mute on its network" when another account's mute holds it), its account
+  and its address with Copy,
   the other half opening from there, and its row's numbers; then **the tools**; then its profile and the antibot's
   reading side by side from 1100px; then what it said, folded.
 - **The other half of a player**: the address of an account comes from its row, or else from where the antibot last
@@ -45,13 +47,15 @@ address>`), so Back goes to the list, as it was.
   not asked.
 - **The page inspects on open** (`antibot.v1.AdminService/InspectPlayer`, `readingOf`): the antibot's readings, its
   ban, its pardon and its clicks. The antibot off (its service absent, `unimplemented`) reads as such, not as a
-  failure. A ban or an unban reads it again.
+  failure. A ban or an unban reads it again, and a mute or an unmute reads `GetMute` again.
 - **The ban tools are the antibot's** (`antibot.v1.AdminService`, the `antibot` client), since the antibot became a
   module of its own; `planet.v1` keeps the three calls for a deploy, answered by the antibot, then drops them. A ban
   reaches planet a moment after its answer.
 - **The tools, one at a time behind tabs**, so the page stays short: Ban (`BanPlayer`, the ladder's next step by
   default), Unban (`UnbanPlayer`, which forgets the latest offence and pardons the key, and says until when;
-  `not_found` is no ban left), Revert (`RevertPlayer`, dry run first), and for an account alone Mute (`Mute`) and
+  `not_found` is no ban left), Revert (`RevertPlayer`, dry run first), and for an account alone Mute (`Mute`), Unmute
+  (`Unmute`, which ends every mute given to the account and says until when it was muted; `not_found` is no mute of
+  its own: a mute on its network given to another account is lifted from that account's page) and
   Charges (`GrantCharges`: a refill, a bomb, enclosures, spread clicks, shields; the answer says what the account
   held before and after, since the caps hold). **Max out** sends every charge at the form's ceiling (`MAX_GRANT`) in
   one tap, and the server's caps make it a full inventory.

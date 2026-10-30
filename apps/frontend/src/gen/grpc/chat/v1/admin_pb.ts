@@ -93,6 +93,166 @@ export class MuteResponse extends Message<MuteResponse> {
 }
 
 /**
+ * @generated from message chat.v1.UnmuteRequest
+ */
+export class UnmuteRequest extends Message<UnmuteRequest> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  constructor(data?: PartialMessage<UnmuteRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chat.v1.UnmuteRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UnmuteRequest {
+    return new UnmuteRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UnmuteRequest {
+    return new UnmuteRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UnmuteRequest {
+    return new UnmuteRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: UnmuteRequest | PlainMessage<UnmuteRequest> | undefined, b: UnmuteRequest | PlainMessage<UnmuteRequest> | undefined): boolean {
+    return proto3.util.equals(UnmuteRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message chat.v1.UnmuteResponse
+ */
+export class UnmuteResponse extends Message<UnmuteResponse> {
+  /**
+   * The end of the mute that would have ended last.
+   *
+   * @generated from field: google.protobuf.Timestamp muted_until = 1;
+   */
+  mutedUntil?: Timestamp;
+
+  constructor(data?: PartialMessage<UnmuteResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chat.v1.UnmuteResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "muted_until", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UnmuteResponse {
+    return new UnmuteResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UnmuteResponse {
+    return new UnmuteResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UnmuteResponse {
+    return new UnmuteResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: UnmuteResponse | PlainMessage<UnmuteResponse> | undefined, b: UnmuteResponse | PlainMessage<UnmuteResponse> | undefined): boolean {
+    return proto3.util.equals(UnmuteResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message chat.v1.GetMuteRequest
+ */
+export class GetMuteRequest extends Message<GetMuteRequest> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  constructor(data?: PartialMessage<GetMuteRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chat.v1.GetMuteRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetMuteRequest {
+    return new GetMuteRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetMuteRequest {
+    return new GetMuteRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetMuteRequest {
+    return new GetMuteRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetMuteRequest | PlainMessage<GetMuteRequest> | undefined, b: GetMuteRequest | PlainMessage<GetMuteRequest> | undefined): boolean {
+    return proto3.util.equals(GetMuteRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message chat.v1.GetMuteResponse
+ */
+export class GetMuteResponse extends Message<GetMuteResponse> {
+  /**
+   * Unset when no mute holds the account.
+   *
+   * @generated from field: google.protobuf.Timestamp muted_until = 1;
+   */
+  mutedUntil?: Timestamp;
+
+  /**
+   * The account the mute was given to: the one asked about, or another on its network, whose mute Unmute on this one leaves.
+   *
+   * @generated from field: string muted_account_id = 2;
+   */
+  mutedAccountId = "";
+
+  constructor(data?: PartialMessage<GetMuteResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chat.v1.GetMuteResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "muted_until", kind: "message", T: Timestamp },
+    { no: 2, name: "muted_account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetMuteResponse {
+    return new GetMuteResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetMuteResponse {
+    return new GetMuteResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetMuteResponse {
+    return new GetMuteResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetMuteResponse | PlainMessage<GetMuteResponse> | undefined, b: GetMuteResponse | PlainMessage<GetMuteResponse> | undefined): boolean {
+    return proto3.util.equals(GetMuteResponse, a, b);
+  }
+}
+
+/**
  * @generated from message chat.v1.RemoveMessageRequest
  */
 export class RemoveMessageRequest extends Message<RemoveMessageRequest> {

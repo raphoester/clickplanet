@@ -108,10 +108,40 @@ func (s *StorageContractSuite) TestTheMuteThatEndsLastIsRead() {
 	s.same(long, got)
 }
 
-func (s *StorageContractSuite) TestAnIDIsKeptOnce() {
-	s.save("bully", CallerOf(contractBully, contractHome), time.Hour)
+func (s *StorageContractSuite) TestASaveReplacesTheMuteWithItsID() {
+	mute := s.save("bully", CallerOf(contractBully, contractHome), 24*time.Hour)
+	lifted := mute.Lifted(contractStart.Add(time.Hour))
 
-	s.Error(s.storage.Save(context.Background(), NewMute(contractID("bully"), CallerOf(contractNewGuest, NoScope), contractStart, time.Hour)))
+	s.Require().NoError(s.storage.Save(context.Background(), lifted))
+
+	kept := s.mutesOf(contractBully)
+	s.Require().Len(kept, 1)
+	s.same(lifted, kept[lifted.ID()])
+	_, err := s.read(CallerOf(contractNewGuest, contractHome), contractStart.Add(time.Hour))
+	s.ErrorIs(err, ErrNotMuted, "nor its network")
+}
+
+func (s *StorageContractSuite) TestMutesOfAreTheOnesGivenToTheAccountEndedOrNot() {
+	ended := s.save("ended", CallerOf(contractBully, contractHome), time.Minute)
+	running := s.save("running", CallerOf(contractBully, NoScope), 24*time.Hour)
+	s.save("household", CallerOf(contractNewGuest, contractHome), 24*time.Hour)
+
+	kept := s.mutesOf(contractBully)
+
+	s.Require().Len(kept, 2, "and never another account's on its network")
+	s.same(ended, kept[ended.ID()])
+	s.same(running, kept[running.ID()])
+}
+
+func (s *StorageContractSuite) mutesOf(account messages.AccountID) map[MuteID]Mute {
+	found, err := s.storage.MutesOf(context.Background(), account)
+	s.Require().NoError(err)
+
+	kept := make(map[MuteID]Mute, len(found))
+	for _, mute := range found {
+		kept[mute.ID()] = mute
+	}
+	return kept
 }
 
 func (s *StorageContractSuite) TestDeleteBeforeRemovesTheMutesThatEndedAndCountsThem() {

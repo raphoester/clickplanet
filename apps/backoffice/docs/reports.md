@@ -10,7 +10,7 @@ one or the other below. The report open is in the address bar (`#/reports/report
 - **The report** (`ReportDetail`), top down as it is judged: the reported line quoted large (struck through once
   removed; "This message is no longer kept." past the chat's retention), what the reporter wrote, who reported whom
   (each name opens the player page, each short id has Copy), **where the reported account stands** (`Standing`, from
-  `InspectPlayer` on open: banned until when, the jury's opinion, a pardon), and its other reports, open or closed,
+  `InspectPlayer` on open: banned until when, the jury's opinion, a pardon; and `GetMute`: muted until when), and its other reports, open or closed,
   each one click away.
 - **The verdict** (`VerdictPanel`, `verdict.ts`) is one form under the header: remove the message, mute for, ban for
   (the ladder's next step by default), a comment, and "Close the N other open reports on Ana too" (on by default).

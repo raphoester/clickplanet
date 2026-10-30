@@ -123,8 +123,17 @@ duration)`, on the admin listener (see [Operator tools](admin.md)). A muted call
   is a line missed, never the mute; a failure to name the account is tried again, logged by `log_subscriber`.
 - **`audit_mute` logs every call at Warn** (`admin chat mute`), with the network it holds.
 - **Kept in `chat.mutes`** (`id`, `account_id`, `scope`, `muted_at`, `muted_until`). The network is personal data,
-  so the prune deletes a mute that ended more than `retention` ago. There is no unmute RPC: deleting the rows ends
-  a mute early (`deploy/vps/README.md`).
+  so the prune deletes a mute that ended more than `retention` ago.
+- **`Unmute(account_id)` ends now every mute given to the account**, with the network each holds. `unmute_usecase`
+  reads the account's mutes (`MutesOf`), and saves each that has not `Ended` as `Lifted` now, in one transaction: the
+  row stays, with `muted_until` moved to now, so the prune still takes it. `Save` is an upsert by id. A mute given
+  to another account on the same network still holds it. None running is `NotFound`. The answer is the end the
+  mute that would have ended last had. No announcement and no event: a client tries each post again, so the next
+  one goes through. `audit_unmute` logs every call at Warn (`admin chat unmute`).
+- **`GetMute(account_id)` says whether a mute holds the account now** (`mute_query`): a mute given to it, or to
+  another account on the network it last posted from, the one that ends last, with the account it was given to.
+  Nothing set when none holds it. It reads the latest address, not the request's, so a player that moved network
+  since its last post may read otherwise than its next post is judged.
 - `muting_send_message` and `muting_react` refuse the player, its reaction and a fresh guest on its network;
   `announce_mute_usecase` writes the line.
 

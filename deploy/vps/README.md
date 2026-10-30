@@ -1090,7 +1090,7 @@ backoffice.clickplanet.lol â†’ api.clickplanet.lol/<package>.v1.AdminService/* â
   It asks `auth.v1.AdminService/WhoAmI` first, so a refused page says why:
   not signed in, or not an operator.
 - **Every tool in this section is on the page too**, in its burger menu:
-  Players (find, ban, unban, revert, inspect, mute, grant charges), the Map
+  Players (find, ban, unban, revert, inspect, mute, unmute, grant charges), the Map
   pages (reassign, paint, replay) and the Ops pages (titles, names). Each asks before it changes anything, and a revert, a
   reassign and a paint run their dry run first. The commands below stay for
   scripts on the box.
@@ -1424,10 +1424,19 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
 - `duration` is whole seconds (`"86400s"` is a day). A bad account or duration
   is refused: `server returned error: HTTP/1.1 400`.
 - Every call is logged: `journalctl CONTAINER_NAME=cp-backend | grep "admin chat mute"`.
-- To end a mute early, delete it:
+- To see whether a player is muted, and until when (nothing set when it is not;
+  `mutedAccountId` is another account when its network holds it):
 
 ```bash
-docker compose exec postgres psql -U clickplanet -c "delete from chat.mutes where account_id = '<account_id>'"
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"accountId":"<account_id>"}' http://127.0.0.1:8081/chat.v1.AdminService/GetMute
+```
+
+- To end a mute early, unmute the account it was given to. Every mute given to
+  it ends now, its network's too; `404` is no mute of its own. Logged as
+  `admin chat unmute`:
+
+```bash
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"accountId":"<account_id>"}' http://127.0.0.1:8081/chat.v1.AdminService/Unmute
 ```
 
 ### Read what players sent

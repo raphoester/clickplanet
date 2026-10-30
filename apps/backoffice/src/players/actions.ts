@@ -19,6 +19,9 @@ export const LADDER = 0
 export const LIMITS = [20, 50, 100, 500]
 
 export type Muted = {until: Date}
+export type Unmuted = {until: Date}
+// The mute that holds an account now, or none. `byNetwork`: it was given to another account on its network.
+export type Muting = {until: Date, byNetwork: boolean} | undefined
 export type Banned = {until: Date, offence: number, enforced: boolean}
 export type Unbanned = {offence: number, until: Date | undefined, pardonedUntil: Date | undefined}
 export type Reverted = {touched: number, held: number, restored: number}
@@ -42,6 +45,18 @@ export const MAX_GRANT: Grant = {refill: true, bomb: true, enclosures: MOST, spr
 export async function mute(chat: ChatAdmin, accountId: string, seconds: number): Promise<Muted> {
     const answer = await chat.mute({accountId, duration: new Duration({seconds: BigInt(seconds)})})
     return {until: dateOf(answer.mutedUntil)}
+}
+
+// Ends every mute given to the account. A mute given to another account on its network still holds it.
+export async function unmute(chat: ChatAdmin, accountId: string): Promise<Unmuted> {
+    const answer = await chat.unmute({accountId})
+    return {until: dateOf(answer.mutedUntil)}
+}
+
+export async function mutingOf(chat: ChatAdmin, accountId: string, signal?: AbortSignal): Promise<Muting> {
+    const answer = await chat.getMute({accountId}, {signal})
+    if (answer.mutedUntil === undefined) return undefined
+    return {until: answer.mutedUntil.toDate(), byNetwork: answer.mutedAccountId !== accountId}
 }
 
 export async function ban(antibot: AntibotAdmin, caller: Caller, seconds: number): Promise<Banned> {
@@ -142,13 +157,15 @@ export function bannedWords(banned: Banned): string {
         + (banned.enforced ? "" : " Not enforced: the antibot only watches on this server.")
 }
 
-export type Action = "mute" | "ban" | "unban" | "revert" | "inspect" | "grant" | "list"
+export type Action = "mute" | "unmute" | "ban" | "unban" | "revert" | "inspect" | "grant" | "list"
 
 export const ANTIBOT_OFF = "The antibot is off on this server, so it cannot ban, unban or inspect."
 export const NOT_BANNED = "This player has no ban left to lift."
+export const NOT_MUTED = "This player has no mute of its own to lift."
 
 const MEANINGS: Record<Action, Meanings> = {
     mute: {},
+    unmute: {notFound: NOT_MUTED},
     ban: {unimplemented: ANTIBOT_OFF},
     unban: {notFound: NOT_BANNED, unimplemented: ANTIBOT_OFF},
     revert: {},
