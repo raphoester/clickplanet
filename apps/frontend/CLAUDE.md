@@ -28,6 +28,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 - [Data flow](docs/data-flow.md) — from `createGlobe` to the screen, step by step.
 - [Sessions](docs/sessions.md) — the click token the backend gates `Click` on.
 - [Sign-in](docs/sign-in.md) — optional sign-in with Google, Discord or an emailed code; usernames.
+- [Arrivals](docs/arrivals.md) — the first page's `?s=` and referrer host, kept and sent with the calls that make
+  an account.
 - [The counts are the server's](docs/counts.md) — every count on screen comes from `GetHoldings` and
   `holdings_changed`; one version rule for every tile value; the load and what is read again.
 - [Rolling back a refused click](docs/click-rollback.md) — a click is painted first and undone if the server
@@ -45,8 +47,10 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 - [Support](docs/support.md) — suggestions, bug reports and reports of a player.
 - [Titles](docs/titles.md) — the ranks on each track, the medals, the unlock moment.
 - [Season standings](docs/season-standings.md) — the players' table of the season.
-- [The season](docs/season.md) — the season chip and its clocks, and the home page's countdowns.
-- [Battles](docs/battle.md) — the schedule's stream, the countdown to the next battle or the Final Battle, and the
+- [The season](docs/season.md) — the season chip and its clocks, the Final Battle to come in its look and its
+  details, and the home page's countdowns and Final Battle panel.
+- [Battles](docs/battle.md) — the schedule's stream, the countdown to the next battle or the Final Battle, the
+  Final Battle's one-time teaser, and the
   battle look: the mood, the chip and its clock, the start moment, the debrief's three screens when the gamemaster
   debriefs its round, matched by the round's id, and the announcements queue that shows one full-screen moment at a
   time.

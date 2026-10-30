@@ -48,6 +48,11 @@ press opens the same details as a sheet, with both countdowns at once. The chip'
 name holds both countdowns in full, so a screen reader does not wait for a turn.
 The faces are hidden from it, and they are not a live region.
 
+**Before the Final Battle, the chip wears the battle's colour.** The "Final Battle in" face is in `--war`, on the
+chip and in the sheet's countdowns (`endsSeason` on the face, `season-chip-face--final`). In the two days before its
+start (`finaleNear`, `FINALE_NEAR_MS`), the whole chip has the warning tape along its top and an ember glow
+(`season-chip--final`); on a phone, the glow alone.
+
 **While a battle plays, the chip is the battle's** (`BattleChip`, see
 [Battles](battle.md)): the season's countdowns move into its facts, and the season
 chip is back when the battle ends.
@@ -79,12 +84,31 @@ more for the winning country's. A battle and what it is worth are the schedule's
 the battle chip says them, in the operator's words, while one plays. Guests get no title, so
 the row says "signed-in".
 
+**The Final Battle to come opens the details** (`FinaleDetails`, `app/season/FinaleFacts.tsx`), above the
+season's rows, in the dropdown and the sheet, while the schedule lists the season's finale (`finaleOf`): "The
+Final Battle", when it plays in the player's time, the operator's words, and three rows: "2 hours of war",
+"Points ×3" (from its `times`, left out at ×1), and "The last word" (nothing scores after it, and it crowns the
+champion). Each is the schedule's fact or what is always true of a finale, so no battle is promised. Once it
+plays, the battle chip takes over.
+
 **The home page counts down to the season's end, and to the next battle.** `src/home.ts` follows the
 gamemaster's stream once, and `app/home/season.ts` (`seasonShown`) fills the pill in the hero
 ("Season 0 · ends in") and the `#season` section (when it ends, the countdown,
 the rows of the chip), both `hidden` until a season is known and again once it is
 over, and follows a moved end. `app/home/battle.ts` (`nextBattleShown`) fills the second pill ("Next battle in", or "Final Battle in" for the season's finale, `[data-battle-label]`, `[data-battle]`), `hidden` while
-no battle is to come; an edit of the schedule moves it at once. The page's text stays in `index.html`; the module only writes the numbers. **It imports no CSS**:
+no battle is to come; an edit of the schedule moves it at once. The page's text stays in `index.html`; the module only writes the numbers.
+
+**The home page tells the Final Battle in a panel of its own**, under the season's, in `#season`.
+`app/home/finale.ts` (`finaleShown`) shows it while the season's finale is to come or plays (`finaleOf`, see
+[Battles](battle.md#the-battles-to-come)), and hides it with none: the schedule decides the finale, so the page
+promises none. It writes only the schedule's facts: when it plays in the player's time (`finaleWhenLine`, "Sat 31
+Oct · 21:00 – 23:00"), how long ("2 hours of war", `finaleLengthLine`), its points' times ("Points ×3", the row
+hidden at ×1), and the operator's words in a box (hidden when empty). Its clock counts to the start ("Starts in"),
+then, live (`data-live`), to the end ("Live now · ends in"), and the panel's ember glow pulses. "The last word" says
+what is always true of a finale: nothing scores after it, and the champion is crowned. The panel wears the battle
+mood (`data-mood="battle"` on the panel, see [`DESIGN.md`](../DESIGN.md#moods)) and the warning tape along its top.
+
+**It imports no CSS**:
 a stylesheet shared with `play.html` becomes its own file, linked before
 `play-*.css`, and moves the game's cascade. The art's styles are copied into the
 page's `<style>`, as `.panel` and `.button` are.

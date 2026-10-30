@@ -57,6 +57,18 @@ next battle has `endsSeason`, the countdown says "Final Battle in" (tag "Final")
 battle; the client never guesses it from times. A finale has no entry: its
 `entryId` is empty and its round, `season-N/finale`, is its key (`battleKeyOf`).
 
+**`finaleOf` is the season's finale while it is to come or plays**, for the season chip's details, the teaser
+below and the home page's Final Battle panel (see [The season](season.md)): the turn while it plays, else the
+listed battle with `endsSeason` that has not ended. The timeline lists only battles that have not started, so a
+finale whose start passed stays, live, until its turn arrives.
+
+**The Final Battle is teased once per browser, in the two days before it starts** (`FinaleTeaser`,
+`useFinaleTeaser`, rule `finaleTeaserDue`): a full screen in the start moment's look, with the battle mood and the
+tape along the top. "Final Battle" over the swords disc, "Starts in" and its clock to the second, when it plays,
+then the details' rows (`FinaleFacts`) in a box, and "To the globe" once it settled. Close keeps the finale's
+round in `clickplanet-finale-teased`. It plays through the announcements queue (below). A finale that plays is
+never teased: its start moment says it.
+
 ## The look
 
 **The battle is a mood** (see [`DESIGN.md`](../DESIGN.md#moods)): `useMood` writes
@@ -150,7 +162,7 @@ screen and the rays in `--war`.
 
 **One full-screen moment at a time, in the order they arrive.** `domain/announcements.ts`
 and `app/announcements/useAnnouncements.ts` keep the queue: a title unlocked, a
-battle's start, a day closed (the cutoff's reveal), a battle's three debrief screens,
+battle's start, the Final Battle's teaser, a day closed (the cutoff's reveal), a battle's three debrief screens,
 the season's results, a clip that names the player (see [In a clip](clip-appearances.md)), the flag's mission done
 (see [Missions](missions.md)). `Viewer` announces each as it learns of it, shows the head of the queue once
 the map is loaded, and the next starts when the player closes the current one. An
@@ -168,4 +180,5 @@ The round's "once per browser" and the battle's keep their own rule (`useRoundRe
 board's battle column follow at once. `endBattle()` leaves the battle's round
 undebriefed, so "The results are coming" stays; `closeBattle()` scores it and the fake
 gamemaster debriefs it, so the debrief plays; `closeFinale()` debriefs it as the Final
-Battle, then the season, and the season's results follow.
+Battle, then the season, and the season's results follow. `scheduleFinale(inMinutes, minutes)` plans one: under
+two days away, the chip wears its look and the teaser plays (clear `clickplanet-finale-teased` to see it again).

@@ -7,6 +7,7 @@
 
 .battle-chip.panel {
     overflow: hidden;
+    padding-top: calc(8px + var(--space-2));
     box-shadow: var(--drop-l), inset 0 2px 0 var(--sheen), 0 0 18px color-mix(in srgb, var(--war) 35%, transparent);
     animation: battle-chip-live 2.4s ease-in-out infinite;
 }
@@ -19,6 +20,7 @@
     right: 0;
     height: 6px;
     background: var(--tape);
+    border-bottom: var(--outline-thin) solid var(--ink);
     pointer-events: none;
 }
 
@@ -96,6 +98,40 @@
 
 .battle-reveal-text {
     color: var(--text);
+}
+
+.finale-teaser {
+    --medal: min(170px, 22vh, 44vw);
+}
+
+.finale-teaser::after {
+    content: "";
+    position: fixed;
+    inset: 0 0 auto;
+    height: 8px;
+    background: var(--tape);
+    pointer-events: none;
+}
+
+.finale-teaser-left {
+    margin: 0;
+    font-size: var(--display-m);
+    font-variant-numeric: tabular-nums;
+}
+
+.finale-teaser-facts {
+    position: relative;
+    z-index: 1;
+    width: min(420px, 100%);
+    margin-top: var(--space-4);
+    padding: var(--space-3);
+    box-sizing: border-box;
+    text-align: left;
+    animation: title-reveal-rise 300ms ease-out calc(var(--impact) + 600ms) both;
+}
+
+.finale-teaser-facts .finale-details-words {
+    margin: 0 0 var(--space-3);
 }
 
 .battle-brief {
@@ -340,7 +376,8 @@
     }
 
     .battle-brief-times,
-    .battle-brief-text {
+    .battle-brief-text,
+    .finale-teaser-facts {
         animation: title-reveal-appear 300ms ease-out both;
     }
 

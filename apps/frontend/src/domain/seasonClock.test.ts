@@ -55,7 +55,7 @@ describe("countdownsOf", () => {
     it("names the season's finale the final battle", () => {
         expect(countdownsOf(season, lastDayEndsAt - DAY - 3 * HOUR, battle, lastDayEndsAt - DAY)).toEqual([
             {label: "Today ends in", tag: "Today", left: "3h 00m 00s"},
-            {label: "Final Battle in", tag: "Final", left: "1d 03h 00m 00s"},
+            {label: "Final Battle in", tag: "Final", left: "1d 03h 00m 00s", endsSeason: true},
             {label: "Season ends in", tag: "Season", left: "1d 05h 00m 00s"},
         ])
     })

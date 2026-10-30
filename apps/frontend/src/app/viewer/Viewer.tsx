@@ -96,7 +96,7 @@ import {useDebriefed} from "../season/useDebriefed.ts";
 import RoundReveal from "../season/RoundReveal.tsx";
 import {useRoundReveal} from "../season/useRoundReveal.ts";
 import {TurnBackend} from "../../backends/turn.ts";
-import {battleKeyOf, battleOf, nextBattleOf} from "../../domain/battle.ts";
+import {battleKeyOf, battleOf, finaleOf, nextBattleOf} from "../../domain/battle.ts";
 import {announcementKeyOf} from "../../domain/announcements.ts";
 import {useAnnouncements} from "../announcements/useAnnouncements.ts";
 import {useSchedule} from "../battle/useSchedule.ts";
@@ -107,6 +107,8 @@ import {useBattleOver} from "../battle/useBattleOver.ts";
 import {useSeenBattle} from "../battle/useSeenBattle.ts";
 import BattleChip, {BattleDetails} from "../battle/BattleChip.tsx";
 import BattleReveal from "../battle/BattleReveal.tsx";
+import FinaleTeaser from "../battle/FinaleTeaser.tsx";
+import {useFinaleTeaser} from "../battle/useFinaleTeaser.ts";
 import BattleOver from "../battle/BattleOver.tsx";
 import BattleDebrief from "../battle/BattleDebrief.tsx";
 import {briefDescriptionOf} from "../../domain/battleBrief.ts";
@@ -195,6 +197,8 @@ export default function Viewer(props: ViewerProps) {
     const race = useRace(props.standings, bookId, schedule.seasons.today?.roundId, battle?.roundId)
     const closed = useDebriefed(props.standings, schedule.debrief)
     const nextBattle = nextBattleOf(schedule.battles, Date.now())
+    const finale = finaleOf(schedule.battles, schedule.turn, Date.now())
+    const finaleTeaser = useFinaleTeaser(finale, Date.now())
     const mood = moodOf(battle, clickBudget)
     useMood(mood)
     const battleReveal = useBattleReveal(battle)
@@ -207,6 +211,9 @@ export default function Viewer(props: ViewerProps) {
     useEffect(() => {
         if (battleReveal.battle) announce({kind: "battle", battle: battleReveal.battle})
     }, [announce, battleReveal.battle])
+    useEffect(() => {
+        if (finaleTeaser.finale) announce({kind: "finale", finale: finaleTeaser.finale})
+    }, [announce, finaleTeaser.finale])
     const clipNotice = useClipNotice(props.clips, linked && username !== undefined ? ownAccountId : undefined)
     useEffect(() => {
         if (clipNotice.appearance) announce({kind: "clip", appearance: clipNotice.appearance})
@@ -435,6 +442,7 @@ export default function Viewer(props: ViewerProps) {
         {ready && !compact && !battle && champion && <ChampionChip champion={champion} compact={false}/>}
         {ready && !compact && !battle && !champion && season && <SeasonChip season={season}
                                                                  nextBattle={nextBattle}
+                                                                 finale={finale}
                                                                  dayEndsAt={dayEndsAt}
                                                                  compact={false}
                                                                  open={seasonOpen}
@@ -454,6 +462,7 @@ export default function Viewer(props: ViewerProps) {
                                                 ? <ChampionChip champion={champion} compact/>
                                                 : season && <SeasonChip season={season}
                                                                         nextBattle={nextBattle}
+                                                                        finale={finale}
                                                                         dayEndsAt={dayEndsAt}
                                                                         compact
                                                                         open={sheet === "season"}
@@ -511,7 +520,7 @@ export default function Viewer(props: ViewerProps) {
                 <SettingsPlace {...settings}/>
             </Sheet>}
             {sheet === "season" && season && <Sheet title={`Season ${season.number}`} onClose={closeSheet}>
-                <SeasonDetails season={season} nextBattle={nextBattle} dayEndsAt={dayEndsAt}/>
+                <SeasonDetails season={season} nextBattle={nextBattle} finale={finale} dayEndsAt={dayEndsAt}/>
             </Sheet>}
             {sheet === "battle" && battle && <Sheet title="Battle" onClose={closeSheet}>
                 <BattleDetails battle={battle} season={season}/>
@@ -605,6 +614,14 @@ export default function Viewer(props: ViewerProps) {
                                                               play={sound.play}
                                                               onClose={() => {
                                                                   battleReveal.dismiss()
+                                                                  announcements.dismiss()
+                                                              }}/>}
+
+        {ready && current?.kind === "finale" && <FinaleTeaser key={announcementKeyOf(current)}
+                                                              finale={current.finale}
+                                                              play={sound.play}
+                                                              onClose={() => {
+                                                                  finaleTeaser.dismiss(current.finale)
                                                                   announcements.dismiss()
                                                               }}/>}
 

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/attestation"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -16,7 +17,7 @@ type Resumer interface {
 }
 
 type Guests interface {
-	Start(ctx context.Context, now time.Time) (accounts.Entry, error)
+	Start(ctx context.Context, landing arrivals.Landing, now time.Time) (accounts.Entry, error)
 }
 
 type Minter interface {
@@ -27,6 +28,7 @@ type In struct {
 	AttestationToken string
 	IP               string
 	CookieHeader     string
+	Landing          arrivals.Landing
 }
 
 type Out struct {
@@ -61,7 +63,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (*Out, error) {
 
 	entry, err := u.resumer.Resume(ctx, in.CookieHeader, now)
 	if accounts.Ended(err) {
-		entry, err = u.guests.Start(ctx, now)
+		entry, err = u.guests.Start(ctx, in.Landing, now)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to find the caller's account: %w", err)

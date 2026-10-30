@@ -183,6 +183,11 @@ export class CreateSessionRequest extends Message<CreateSessionRequest> {
    */
   attestationToken = "";
 
+  /**
+   * @generated from field: auth.v1.Landing landing = 2;
+   */
+  landing?: Landing;
+
   constructor(data?: PartialMessage<CreateSessionRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -192,6 +197,7 @@ export class CreateSessionRequest extends Message<CreateSessionRequest> {
   static readonly typeName = "auth.v1.CreateSessionRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "attestation_token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "landing", kind: "message", T: Landing },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CreateSessionRequest {
@@ -208,6 +214,55 @@ export class CreateSessionRequest extends Message<CreateSessionRequest> {
 
   static equals(a: CreateSessionRequest | PlainMessage<CreateSessionRequest> | undefined, b: CreateSessionRequest | PlainMessage<CreateSessionRequest> | undefined): boolean {
     return proto3.util.equals(CreateSessionRequest, a, b);
+  }
+}
+
+/**
+ * What the browser's first page said. Kept only when the call makes an account.
+ *
+ * @generated from message auth.v1.Landing
+ */
+export class Landing extends Message<Landing> {
+  /**
+   * The ?s= of the link: "rc" for a player's, "yt" for YouTube.
+   *
+   * @generated from field: string tag = 1;
+   */
+  tag = "";
+
+  /**
+   * The host alone, never a path or a query.
+   *
+   * @generated from field: string referrer = 2;
+   */
+  referrer = "";
+
+  constructor(data?: PartialMessage<Landing>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.Landing";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "tag", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "referrer", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Landing {
+    return new Landing().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Landing {
+    return new Landing().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Landing {
+    return new Landing().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Landing | PlainMessage<Landing> | undefined, b: Landing | PlainMessage<Landing> | undefined): boolean {
+    return proto3.util.equals(Landing, a, b);
   }
 }
 
@@ -570,6 +625,11 @@ export class CompleteSignInRequest extends Message<CompleteSignInRequest> {
    */
   state = "";
 
+  /**
+   * @generated from field: auth.v1.Landing landing = 3;
+   */
+  landing?: Landing;
+
   constructor(data?: PartialMessage<CompleteSignInRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -580,6 +640,7 @@ export class CompleteSignInRequest extends Message<CompleteSignInRequest> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "code", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "state", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "landing", kind: "message", T: Landing },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CompleteSignInRequest {
@@ -768,6 +829,11 @@ export class CompleteEmailSignInRequest extends Message<CompleteEmailSignInReque
    */
   code = "";
 
+  /**
+   * @generated from field: auth.v1.Landing landing = 2;
+   */
+  landing?: Landing;
+
   constructor(data?: PartialMessage<CompleteEmailSignInRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -777,6 +843,7 @@ export class CompleteEmailSignInRequest extends Message<CompleteEmailSignInReque
   static readonly typeName = "auth.v1.CompleteEmailSignInRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "code", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "landing", kind: "message", T: Landing },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CompleteEmailSignInRequest {

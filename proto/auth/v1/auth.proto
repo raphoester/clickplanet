@@ -30,6 +30,17 @@ service AuthService {
 
 message CreateSessionRequest {
   string attestation_token = 1;
+
+  Landing landing = 2;
+}
+
+// What the browser's first page said. Kept only when the call makes an account.
+message Landing {
+  // The ?s= of the link: "rc" for a player's, "yt" for YouTube.
+  string tag = 1;
+
+  // The host alone, never a path or a query.
+  string referrer = 2;
 }
 
 message CreateSessionResponse {
@@ -94,6 +105,8 @@ message StartSignInResponse {
 message CompleteSignInRequest {
   string code = 1;
   string state = 2;
+
+  Landing landing = 3;
 }
 
 enum SignInOutcome {
@@ -131,6 +144,8 @@ message StartEmailSignInResponse {}
 
 message CompleteEmailSignInRequest {
   string code = 1;
+
+  Landing landing = 2;
 }
 
 message CompleteEmailSignInResponse {

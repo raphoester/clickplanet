@@ -12,6 +12,7 @@ import {
 import {AccountBackend, AuthError, AuthFailure, Intent, Me, OAuthProvider, Provider, SignInOutcome} from "./account.ts"
 import {retrying} from "./transport.ts"
 import {Attester} from "./turnstileSession.ts"
+import {Landing} from "../domain/landing.ts"
 
 const TO_WIRE: Record<Provider, WireProvider> = {
     google: WireProvider.GOOGLE,
@@ -78,7 +79,11 @@ function refusalOf(e: ConnectError, own: Failures): AuthFailure | undefined {
 
 // Only reads are retried: a retried CompleteSignIn would spend a one-time code.
 export class ConnectAccountBackend implements AccountBackend {
-    constructor(private readonly client: PromiseClient<typeof AuthService>, private readonly attest: Attester) {
+    constructor(
+        private readonly client: PromiseClient<typeof AuthService>,
+        private readonly attest: Attester,
+        private readonly landing: Landing,
+    ) {
     }
 
     public async signInOptions(): Promise<Provider[]> {
@@ -107,7 +112,7 @@ export class ConnectAccountBackend implements AccountBackend {
     }
 
     public async completeSignIn(code: string, state: string): Promise<SignInOutcome> {
-        const res = await mapped(() => this.client.completeSignIn({code, state}))
+        const res = await mapped(() => this.client.completeSignIn({code, state, landing: this.landing}))
         return OUTCOMES[res.outcome]
     }
 
@@ -117,7 +122,7 @@ export class ConnectAccountBackend implements AccountBackend {
     }
 
     public async completeEmailSignIn(code: string): Promise<SignInOutcome> {
-        const res = await mapped(() => this.client.completeEmailSignIn({code}),
+        const res = await mapped(() => this.client.completeEmailSignIn({code, landing: this.landing}),
             {[Code.InvalidArgument]: "wrongCode", [Code.FailedPrecondition]: "newCode"})
         return OUTCOMES[res.outcome]
     }

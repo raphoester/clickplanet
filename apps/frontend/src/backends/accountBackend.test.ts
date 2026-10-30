@@ -17,8 +17,10 @@ const refusing = (code: Code) => vi.fn(async () => {
     throw new ConnectError("no", code)
 })
 
+const LANDING = {tag: "rc", referrer: "discord.com"}
+
 function backendWith(methods: Record<string, unknown>, attest = vi.fn(async () => "turnstile-token")) {
-    return new ConnectAccountBackend(methods as never, attest)
+    return new ConnectAccountBackend(methods as never, attest, LANDING)
 }
 
 describe("ConnectAccountBackend", () => {
@@ -201,6 +203,20 @@ describe("ConnectAccountBackend", () => {
     })
 })
 
+describe("the landing", () => {
+    it("goes with both completions, since either can make the account", async () => {
+        const completeSignIn = vi.fn(async () => ({}))
+        const completeEmailSignIn = vi.fn(async () => ({}))
+        const backend = backendWith({completeSignIn, completeEmailSignIn})
+
+        await backend.completeSignIn("code", "state")
+        await backend.completeEmailSignIn("123456")
+
+        expect(completeSignIn).toHaveBeenCalledWith({code: "code", state: "state", landing: LANDING})
+        expect(completeEmailSignIn).toHaveBeenCalledWith({code: "123456", landing: LANDING})
+    })
+})
+
 describe("the auth transport", () => {
     afterEach(() => {
         vi.unstubAllGlobals()
@@ -212,7 +228,7 @@ describe("the auth transport", () => {
         })
         vi.stubGlobal("fetch", fetch)
 
-        await new ConnectAccountBackend(newAuthServiceClient({baseUrl: "https://api.test"}), async () => "").signInOptions()
+        await new ConnectAccountBackend(newAuthServiceClient({baseUrl: "https://api.test"}), async () => "", LANDING).signInOptions()
 
         expect(String((fetch.mock.calls[0] as unknown[])[0])).toBe("https://api.test/auth.v1.AuthService/GetSignInOptions")
         expect(((fetch.mock.calls[0] as unknown[])[1] as RequestInit).credentials).toBe("include")

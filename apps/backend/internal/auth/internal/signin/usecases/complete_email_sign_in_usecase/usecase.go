@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -11,6 +12,7 @@ import (
 type In struct {
 	Code         string
 	CookieHeader string
+	Landing      arrivals.Landing
 }
 
 type Out = signin.Admission
@@ -38,7 +40,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (*Out, error) {
 		return nil, fmt.Errorf("failed to check the code: %w", err)
 	}
 
-	visitor, err := u.admitter.Visitor(ctx, in.CookieHeader, now)
+	visitor, err := u.admitter.Visitor(ctx, in.CookieHeader, in.Landing, now)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find the browser's account: %w", err)
 	}
