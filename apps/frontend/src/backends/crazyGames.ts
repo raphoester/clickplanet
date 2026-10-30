@@ -1,6 +1,9 @@
+import {Country} from "../domain/countries.ts"
+
 // What the page asks CrazyGames, through its SDK. Off CrazyGames there is none.
 export interface CrazyGamesPage {
     user: CrazyGamesUser
+    room: CrazyGamesRoom
 
     settings(): CrazyGamesSettings
 
@@ -19,6 +22,19 @@ export interface CrazyGamesUser {
 
     listenForSignIn(listener: () => void): () => void
 }
+
+// The whole world is one room, always open: friends who join are asked to play for the flag.
+export interface CrazyGamesRoom {
+    report(flag: string): void
+
+    // The invite the page was opened from, then each invite taken while it plays.
+    listenForInvites(listener: (flag: Country) => void): () => void
+
+    inviteLink: InviteLink
+}
+
+// undefined when CrazyGames gives no link.
+export type InviteLink = (flag: string) => Promise<string | undefined>
 
 export type CrazyGamesSettings = {
     chat: boolean

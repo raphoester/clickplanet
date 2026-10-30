@@ -1,10 +1,13 @@
 import {CrazyGamesPage, CrazyGamesSettings, DEFAULT_CRAZYGAMES_SETTINGS} from "./crazyGames.ts"
+import {InviteParams, invitedCountry, inviteParamsOf, WORLD_ROOM} from "../domain/crazyGames.ts"
 
 const SDK_URL = "https://sdk.crazygames.com/crazygames-sdk-v3.js"
 
 type SdkSettings = {disableChat: boolean, muteAudio: boolean}
 
 type SdkError = {code?: string}
+
+type SdkRoom = {roomId: string, isJoinable: boolean, inviteParams: InviteParams}
 
 export type Sdk = {
     init(): Promise<void>
@@ -23,6 +26,11 @@ export type Sdk = {
         loadingStart(): void
         loadingStop(): void
         gameplayStart(): void
+        inviteParams: InviteParams | null
+        updateRoom(room: SdkRoom): void
+        inviteLink(params: InviteParams): string
+        addJoinRoomListener(listener: (params: InviteParams) => void): void
+        removeJoinRoomListener(listener: (params: InviteParams) => void): void
     }
 }
 
@@ -61,6 +69,7 @@ export function connectCrazyGames(load: () => Promise<Sdk> = loadScript): CrazyG
         })
     let current: Sdk | undefined
     void ready.then((sdk) => current = sdk)
+    let openingInviteTold = false
 
     return {
         user: {
@@ -96,6 +105,35 @@ export function connectCrazyGames(load: () => Promise<Sdk> = loadScript): CrazyG
                     current?.user.removeAuthListener(heard)
                 }
             },
+        },
+        room: {
+            report: (flag) => void ready.then((sdk) => {
+                try {
+                    sdk?.game.updateRoom({roomId: WORLD_ROOM, isJoinable: true, inviteParams: inviteParamsOf(flag)})
+                } catch (e) {
+                    console.error("CrazyGames took no room", e)
+                }
+            }),
+            listenForInvites: (listener) => {
+                const heard = (params: InviteParams | null) => {
+                    const country = invitedCountry(params)
+                    if (country) listener(country)
+                }
+                let off = false
+                void ready.then((sdk) => {
+                    if (off || !sdk) return
+                    if (!openingInviteTold) {
+                        openingInviteTold = true
+                        heard(sdk.game.inviteParams)
+                    }
+                    sdk.game.addJoinRoomListener(heard)
+                })
+                return () => {
+                    off = true
+                    current?.game.removeJoinRoomListener(heard)
+                }
+            },
+            inviteLink: async (flag) => (await ready)?.game.inviteLink(inviteParamsOf(flag)),
         },
         settings: () => current ? settingsOf(current.game.settings) : DEFAULT_CRAZYGAMES_SETTINGS,
         listenForSettings: (listener) => {

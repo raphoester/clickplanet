@@ -1,11 +1,16 @@
 import {useEffect, useRef, useState} from "react"
 import {CrazyGamesPage, CrazyGamesSettings, DEFAULT_CRAZYGAMES_SETTINGS} from "../../backends/crazyGames.ts"
+import {Allegiance} from "../../domain/allegiance.ts"
+import {Country} from "../../domain/countries.ts"
 
 export type CrazyGamesView = {
     chat: boolean
     // CrazyGames' mute outranks the player's sound settings.
     silenced: boolean
 }
+
+// CrazyGames refuses a second room report within 250 ms: a flag set back at load is told once, settled.
+export const ROOM_SETTLE_MS = 1_000
 
 export function useCrazyGames(page: CrazyGamesPage | undefined): CrazyGamesView {
     const [settings, setSettings] = useState<CrazyGamesSettings>(() => page?.settings() ?? DEFAULT_CRAZYGAMES_SETTINGS)
@@ -24,4 +29,24 @@ export function useGameplay(page: CrazyGamesPage | undefined, ready: boolean) {
         told.current = true
         page.started()
     }, [page, ready])
+}
+
+export function useRoom(page: CrazyGamesPage | undefined, ready: boolean, flag: string) {
+    useEffect(() => {
+        if (!page || !ready) return
+        const timer = setTimeout(() => page.room.report(flag), ROOM_SETTLE_MS)
+        return () => clearTimeout(timer)
+    }, [page, ready, flag])
+}
+
+export function useInvites(page: CrazyGamesPage | undefined, held: Allegiance | undefined, play: (country: Country) => void) {
+    const holds = useRef(held !== undefined)
+
+    useEffect(() => {
+        holds.current = held !== undefined
+    }, [held])
+
+    useEffect(() => page?.room.listenForInvites((country) => {
+        if (!holds.current) play(country)
+    }), [page, play])
 }

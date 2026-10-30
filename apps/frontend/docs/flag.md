@@ -23,7 +23,8 @@ and so is one from an account that pledged none.
   again when a click goes out under a new token (`followSession`). A refusal carries
   the flag held in its detail, which `PlanetBackend` keeps (`allegianceDetailOf`).
 - **The picked flag is always the held one**, locked or not: `Viewer` sets the
-  country back to it (local storage, a share link, another device). `Viewer`'s
+  country back to it (local storage, a share link, a CrazyGames invite, another
+  device). `Viewer`'s
   `pickCountry` pledges first and sets the country only once the server took it.
 - **The picker says the rule over the list** (`CHANGE_RULE`, "You can change
   country once an hour."), and while the flag is held, when the next change is,
