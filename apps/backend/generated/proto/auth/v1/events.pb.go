@@ -69,8 +69,10 @@ type SignedIn struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
 	PreviousAccountId string                 `protobuf:"bytes,1,opt,name=previous_account_id,json=previousAccountId,proto3" json:"previous_account_id,omitempty"`
 	AccountId         string                 `protobuf:"bytes,2,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// CrazyGames' username; empty for a provider that gives no name to show.
+	IdentityName  string `protobuf:"bytes,3,opt,name=identity_name,json=identityName,proto3" json:"identity_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SignedIn) Reset() {
@@ -113,6 +115,13 @@ func (x *SignedIn) GetPreviousAccountId() string {
 func (x *SignedIn) GetAccountId() string {
 	if x != nil {
 		return x.AccountId
+	}
+	return ""
+}
+
+func (x *SignedIn) GetIdentityName() string {
+	if x != nil {
+		return x.IdentityName
 	}
 	return ""
 }
@@ -168,11 +177,12 @@ const file_auth_v1_events_proto_rawDesc = "" +
 	"\x14auth/v1/events.proto\x12\aauth.v1\"/\n" +
 	"\x0eAccountDeleted\x12\x1d\n" +
 	"\n" +
-	"account_id\x18\x01 \x01(\tR\taccountId\"Y\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\"~\n" +
 	"\bSignedIn\x12.\n" +
 	"\x13previous_account_id\x18\x01 \x01(\tR\x11previousAccountId\x12\x1d\n" +
 	"\n" +
-	"account_id\x18\x02 \x01(\tR\taccountId\"*\n" +
+	"account_id\x18\x02 \x01(\tR\taccountId\x12#\n" +
+	"\ridentity_name\x18\x03 \x01(\tR\fidentityName\"*\n" +
 	"\tSignedOut\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountIdB\xa5\x01\n" +

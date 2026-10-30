@@ -87,7 +87,7 @@ internal/auth/internal/
 - **Off by default** (`auth.signIn.enabled`). Off, `signin.Providers` is empty and both RPCs answer `Unimplemented`, which Connect sends as HTTP 404. A provider is offered once its `clientId` is set. `StartSignIn` and `CompleteSignIn` spend the mint budget: each can cost a round trip to a third party or make an account.
 - **`GetSignInOptions` is how the client knows which buttons to show**: every provider offered, then email when `auth.email.enabled` is on (`signin.Offer`), and an empty list while both are off — never `Unimplemented`, since the question has an answer either way. **It is not throttled and sets no cookie.** A client asks on every page load, and probing with `StartSignIn` instead would spend the mint budget a real sign-in needs and start a flow for nothing. `TestAskingIsNotThrottled` pins it. A server with the whole `auth` module off still 404s it, which the client reads as no provider.
 - **The client mints again after `CompleteSignIn`**, so its click token carries the account. The old token names the old account until it expires (1h).
-- **`CompleteSignIn` publishes `auth.v1.SignedIn`** once the sign-in is saved: the account the browser was on, empty for none, and the one it is on now. A refusal publishes nothing. `player` moves the roster line, since the client holds no token to announce with until its next click.
+- **`CompleteSignIn` publishes `auth.v1.SignedIn`** once the sign-in is saved: the account the browser was on, empty for none, the one it is on now, and the identity's name, empty but for CrazyGames. A refusal publishes nothing. `player` moves the roster line, since the client holds no token to announce with until its next click.
 - `auth.NewModuleWithFakeProviders` (behind the tag) boots the module with `signin.FakeProvider` for every provider: `Grant(code, claim)`, and the fake checks the verifier against the challenge it was shown. The smoke tests in `e2e/` link Google with it.
 
 ## Signing in by email (`internal/auth/internal/signin/`)
@@ -120,6 +120,9 @@ way in there, and signs the player in on its own page: the client sends the toke
   guest keeps its account and earns the first sign-in's refill ([A guest's first sign-in](sign-in-refill.md)). A
   `userId` known already moves the browser to its account (`SignedIn`). Another player on a device whose account
   holds a CrazyGames identity gets an account of its own (`Created`). It spends the mint budget.
+- **The token's `username` is published, not kept**: it is `auth.v1.SignedIn.identity_name` on every CrazyGames
+  sign-in (`Claim.WithName`), and `player` decides if it becomes the account's first name ([Player](player.md)).
+  Google, Discord and email leave it empty: Google's is a person's real name. `profilePictureUrl` is not read.
 - **`crazygames_identity_provider` checks the token itself**, with the standard library: three parts, `alg` RS256 and
   `kid` `ingame-auth` (the legacy key is refused), the RSA PKCS #1 v1.5 signature against the key of that `kid` in
   `https://userportal.crazygames.com/.well-known/jwks.json`, `exp` still ahead, `gameId` the game's, and a `userId`.

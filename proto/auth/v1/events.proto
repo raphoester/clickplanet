@@ -9,6 +9,8 @@ message AccountDeleted {
 message SignedIn {
   string previous_account_id = 1;
   string account_id = 2;
+  // CrazyGames' username; empty for a provider that gives no name to show.
+  string identity_name = 3;
 }
 
 message SignedOut {

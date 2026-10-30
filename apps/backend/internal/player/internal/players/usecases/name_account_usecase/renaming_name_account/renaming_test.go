@@ -39,7 +39,7 @@ func setup() (*inmemory_player_store.Store, *inmemory_visit_storage.Storage, *re
 func TestAGeneratedNameShowsOnTheRosterAtOnce(t *testing.T) {
 	_, visits, useCase := setup()
 
-	_, err := useCase.Execute(t.Context(), ada)
+	_, err := useCase.Execute(t.Context(), ada, "")
 
 	require.NoError(t, err)
 	require.Len(t, visits.Visits(), 1)
@@ -50,7 +50,7 @@ func TestAFailureRenamesNothing(t *testing.T) {
 	store, visits, useCase := setup()
 	store.FailWith(errors.New("postgres is down"))
 
-	_, err := useCase.Execute(t.Context(), ada)
+	_, err := useCase.Execute(t.Context(), ada, "")
 
 	require.Error(t, err)
 	assert.Equal(t, guest, visits.Visits()[0].Author())

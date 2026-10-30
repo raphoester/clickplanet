@@ -44,6 +44,7 @@ type header struct {
 type claims struct {
 	UserID    userID `json:"userId"`
 	GameID    string `json:"gameId"`
+	Username  string `json:"username"`
 	ExpiresAt int64  `json:"exp"`
 }
 
@@ -73,7 +74,7 @@ func (p *Provider) Claim(ctx context.Context, token string) (*accounts.Claim, er
 	if err != nil {
 		return nil, fmt.Errorf("%w: crazygames: %w", signin.ErrProviderRefused, err)
 	}
-	claim := accounts.ClaimOf(string(read.UserID), "", false)
+	claim := accounts.ClaimOf(string(read.UserID), "", false).WithName(read.Username)
 	return &claim, nil
 }
 

@@ -30,7 +30,7 @@ func useCase(store *inmemory_player_store.Store, outbox *cpatomic.FakeOutbox) *n
 func TestANamelessAccountIsGivenAGeneratedNameAndBecomesAPlayer(t *testing.T) {
 	store, outbox := inmemory_player_store.New(), &cpatomic.FakeOutbox{}
 
-	profile, err := useCase(store, outbox).Execute(t.Context(), ada)
+	profile, err := useCase(store, outbox).Execute(t.Context(), ada, "")
 
 	require.NoError(t, err)
 	assert.Equal(t, players.Name("BraveFox42"), profile.TakeSnapshot().Name)
@@ -43,7 +43,7 @@ func TestAnAccountWithANameKeepsItAndIsNoNewPlayer(t *testing.T) {
 	store, outbox := inmemory_player_store.New(), &cpatomic.FakeOutbox{}
 	require.NoError(t, store.SaveProfile(t.Context(), players.NewProfile(ada, "Ada", now)))
 
-	profile, err := useCase(store, outbox).Execute(t.Context(), ada)
+	profile, err := useCase(store, outbox).Execute(t.Context(), ada, "")
 
 	require.NoError(t, err)
 	assert.Equal(t, players.Name("Ada"), profile.TakeSnapshot().Name)
@@ -55,7 +55,7 @@ func TestAFailureToNameIsAnErrorAndRecordsNothing(t *testing.T) {
 	refused := errors.New("postgres is down")
 	store.FailWith(refused)
 
-	_, err := useCase(store, outbox).Execute(t.Context(), ada)
+	_, err := useCase(store, outbox).Execute(t.Context(), ada, "")
 
 	assert.ErrorIs(t, err, refused)
 	assert.Empty(t, outbox.Recorded())
