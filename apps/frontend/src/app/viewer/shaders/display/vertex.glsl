@@ -1,7 +1,3 @@
-#ifdef LIT
-#include ../light.glsl;
-#endif
-
 uniform float pointSize;
 
 uniform sampler2D landmassData;
@@ -72,11 +68,6 @@ flat out float vShield;
 flat out float vPulse;
 flat out float vHighlit;
 
-#ifdef LIT
-flat out float vShade;
-flat out float vHaze;
-#endif
-
 flat out vec2 vFlagUV;
 flat out vec4 vFlagStep;
 flat out vec4 vFlagFrame;
@@ -128,12 +119,6 @@ void main() {
     vShield = shield;
     vPulse = pulse;
     vHighlit = highlight > 0.5 && abs(landmassIndex - highlight) < 0.5 ? 1.0 : 0.0;
-
-#ifdef LIT
-    vec3 normal = normalize(normalMatrix * ground);
-    vShade = shadeOf(normal);
-    vHaze = hazeOf(normal);
-#endif
 
     vFlagFrame = vec4(0.0);
     vFlagUV = vec2(0.0);

@@ -1,7 +1,3 @@
-#ifdef LIT
-#include ../light.glsl;
-#endif
-
 uniform sampler2D atlasTexture;
 uniform vec2 atlasTextureSize;
 uniform sampler2D slotTexture;
@@ -21,10 +17,6 @@ flat in float vSpriteSize;
 flat in float vShield;
 flat in float vPulse;
 flat in float vHighlit;
-#ifdef LIT
-flat in float vShade;
-flat in float vHaze;
-#endif
 
 varying float vHover;
 varying float vGlow;
@@ -115,10 +107,6 @@ void main() {
     }
 
     vec4 colour = mix(own, painted, flagPaint);
-
-#ifdef LIT
-    colour.rgb = lit(colour.rgb, vShade, vHaze);
-#endif
 
     if (vHighlit > 0.5) colour = vec4(mix(colour.rgb, vec3(1.0), HIGHLIGHT_LIFT), max(colour.a, HIGHLIGHT_FLOOR));
 

@@ -34,7 +34,7 @@ function fieldOf(compact: boolean, size = SIZE) {
         positions: new Float32Array(size * 3),
         size,
     }
-    return new TileField({zoom: {value: 1}}, {pointSize: {value: 1}}, data, {tiles: false, compact})
+    return new TileField({zoom: {value: 1}}, {pointSize: {value: 1}}, data, {compact})
 }
 
 const attr = (f: TileField, name: string) =>

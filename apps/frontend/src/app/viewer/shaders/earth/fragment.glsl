@@ -21,7 +21,7 @@ void main() {
     vec3 normal = normalize(vViewNormal);
     vec3 texel = texture2D(map, vUv).rgb;
 
-    vec3 colour = lit(texel, shadeOf(normal), hazeOf(normal));
+    vec3 colour = texel;
 
     float towards = max(dot(normal, normalize(normalize(LIGHT_FROM) + VIEW_DIRECTION)), 0.0);
     float glint = GLINT * pow(towards, GLINT_SHARPNESS) + SHEEN * pow(towards, SHEEN_SHARPNESS);
