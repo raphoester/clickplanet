@@ -37,6 +37,9 @@ carries, and a newcomer who opens it plays for that country.
 - **The button is `RecruitButton.tsx`**, so the frozen dock sends the same link
   (see [A frozen map](backends.md#a-frozen-map)): there it is "Invite" with the
   flag, and the sentence is `breakHeadline`, the next season on a blank map.
+- **On CrazyGames, Invite takes Share's place** (`InviteFriends.tsx`,
+  `InviteButton.tsx`): Share's links lead off CrazyGames. See
+  [CrazyGames](crazygames.md#multiplayer).
 
 **Its label never changes.** What answers the press is the preview opening.
 Working is said by the tile dimming (`aria-busy`, disabled).

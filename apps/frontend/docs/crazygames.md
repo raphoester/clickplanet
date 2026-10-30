@@ -8,8 +8,9 @@ says why a host of its own and what the owner sets up.
 ## What changes there
 
 - **`/play` is the game at once, as a guest.** No donation popup (`DonationModal`), no Buy Me a Coffee, no Share tab,
-  no Invite on a frozen map, and About keeps the community links but not the author's: CrazyGames forbids a
-  link to another place to play, and payments outside its own.
+  no recruit link, and About keeps the community links but not the author's: CrazyGames forbids a link to another
+  place to play, and payments outside its own. The Invite tab and the frozen map's Invite copy CrazyGames' own link
+  instead (see [Multiplayer](#multiplayer)).
 - **The only sign-in is CrazyGames'.** `AccountStore` gets the SDK's user (`crazyGames` option) and then offers
   `crazygames` alone; the site never offers it. The button opens CrazyGames' own prompt (`showAuthPrompt`), never
   on its own, and the empty bank asks nothing (`useSignInNudge` is off): CrazyGames forbids a sign-in that pops up
@@ -28,6 +29,26 @@ says why a host of its own and what the owner sets up.
   screen; the game never pauses, so there is no `gameplayStop`.
 - **No ad.** The owner chose none: no ad call, no ad button, nothing from CrazyGames' ad module.
 
+## Multiplayer
+
+CrazyGames lists the game as online multiplayer, so it must report a room, take invites, and copy an invite link.
+Instant multiplayer needs nothing: there is no lobby, `/play` is the shared world at once.
+
+- **The whole world is one room** (`WORLD_ROOM`, `"world"`), always joinable. `useRoom` reports it with
+  `updateRoom` once the globe is on screen, and again at each change of the flag shown; the invite parameters are
+  that flag, `{f: "fr"}` (`inviteParamsOf`). This drives Join in a friend's list on CrazyGames. The report waits
+  for the flag to hold still for a second (`ROOM_SETTLE_MS`): the SDK refuses a second report within 250 ms, and
+  the flag is often set back at load. The page never calls `leftRoom()`: a player leaves the world only by
+  closing the page.
+- **An invite gives its flag to a player who plays for none** (`useInvites`): the invite the page opened from
+  (`inviteParams`, told once) and each one taken while it plays (`addJoinRoomListener`), with no reload. A
+  player who holds a flag keeps it ([The flag played for](flag.md)): only the flag shown changes, never a
+  pledge. A flag that is not held yet at the invite is set back when the held one loads.
+- **Invite friends** copies `inviteLink({f: <flag shown>})`, a link to the game on CrazyGames (`InviteFriends`,
+  `InviteButton`). The Invite tab of the menu and of the phone's tab bar takes Share's place, and the frozen
+  map's Invite copies the same link. `Menu`, `TabBar` and `ClickBudgetMeter` show it when they get `invite`,
+  which only the CrazyGames page has.
+
 ## The SDK (`src/backends/crazyGamesSdk.ts`)
 
 `connectCrazyGames` loads `https://sdk.crazygames.com/crazygames-sdk-v3.js`, awaits `init()`, and answers at once
@@ -39,4 +60,7 @@ a guest: no token, a prompt that answers false, the default settings.
 
 `VITE_CRAZYGAMES=1 VITE_FAKE_BACKEND=1 npm run dev`: the SDK runs in its local mode on `localhost`, with a demo user.
 `offerSignIn()` on the console offers sign-in and signs in as that user. The SDK's query parameters change what it
-answers (`?user_response=logged_out`, `?disableChat=true`, `?muteAudio=true`).
+answers (`?user_response=logged_out`, `?disableChat=true`, `?muteAudio=true`). An invite is
+`/play?czy_invite=true&czy_invite_params=f%3Dbr`, the form of `inviteLink` (a plain `&f=br` is a share link:
+`main.tsx` removes it before the SDK reads it). The local SDK logs each room report and drops the join listener,
+so an invite taken while playing is only in the tests.

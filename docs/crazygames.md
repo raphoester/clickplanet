@@ -17,7 +17,8 @@ frontend build, the same API, the same map and players as clickplanet.lol.
 ## What each part does
 
 - **Frontend**: the CrazyGames page — CrazyGames' sign-in alone, its settings, the gameplay events, and no link to
-  another place to play. No ad, by choice.
+  another place to play. No ad, by choice. Online multiplayer: the whole world is one room, always joinable; an
+  invite gives its flag to a player who has none; Invite friends copies CrazyGames' invite link.
 - **Backend**: `CompleteCrazyGamesSignIn` checks the SDK's token against CrazyGames' keys and links the account
   (`auth.crazyGames.gameId`); arrivals are tagged `crazygames`.
 - **Deploy**: `CRAZYGAMES_ORIGIN` in `deploy/vps/env.public` is the second origin Caddy answers CORS for, with

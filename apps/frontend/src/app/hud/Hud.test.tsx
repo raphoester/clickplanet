@@ -18,6 +18,15 @@ describe("TabBar", () => {
         expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Board", "Chat", "You", "Share", "Settings"])
     })
 
+    it("invites in place of Share on CrazyGames", () => {
+        const onOpen = vi.fn()
+        render(<TabBar onOpen={onOpen} chat unread={0} invite/>)
+        expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Board", "Chat", "Invite", "Settings"])
+
+        fireEvent.click(screen.getByRole("button", {name: "Invite"}))
+        expect(onOpen).toHaveBeenCalledWith("invite")
+    })
+
     it("names the account Sign in for a guest", () => {
         render(<TabBar onOpen={vi.fn()} chat unread={0} you="guest"/>)
         expect(screen.getByRole("button", {name: "Sign in"})).toBeDefined()
