@@ -98,6 +98,7 @@ type Uniforms = BlastUniforms & FortifyUniforms & {
     highlight: THREE.IUniform<number>
     slotTexture: THREE.IUniform<THREE.Texture | null>
     slotFrames: THREE.IUniform<THREE.Vector4[]>
+    slotRegions: THREE.IUniform<THREE.Vector4[]>
 }
 
 const SHAKE_SECONDS = 0.5
@@ -329,6 +330,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         highlight: {value: 0},
         slotTexture: slots.texture,
         slotFrames: slots.frames,
+        slotRegions: slots.regions,
         ...blastUniforms(prefersReducedMotion()),
         ...fortifyUniforms(),
     };
@@ -345,14 +347,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     const ranking = new SlotRanking()
 
-    const slotFlags = () => {
-        const ranked = ranking.rank(territories.flagNeeds())
-        slots.show(ranked, (code) => {
-            const region = regions.get(code)
-            return region === undefined ? undefined : region.width / region.height
-        })
-        territories.markSlots(ranked)
-    }
+    const slotFlags = () => slots.show(ranking.rank(territories.flagNeeds()), (code) => regions.get(code))
 
     const sphere = innerSphere()
     const picker = new GpuPicker(renderer, field.pickingPoints, sphere);

@@ -81,14 +81,17 @@ keeps its slot while it holds its place; a slot freed by a flag painted nowhere
 any more goes to the next in line, and the weakest holder is evicted only for a
 flag that needs `EVICTION_MARGIN` (1.2×) more, so a tile war over one landmass
 does not redraw the texture every second. The ranking runs on every recount,
-never per frame. **Every landmass a slotted flag leads samples the slot,
-whatever its size**: `BorderField.markSlots` writes the slot into the
-landmass's row, the vertex shader reads that slot's frame from `slotFrames` and
+never per frame. **A slotted flag samples its slot wherever it is painted**,
+whatever the landmass's size and whether it leads it or not: `FlagSlots` keeps
+the atlas rectangle of each slot's flag in `slotRegions`, the vertex shader
+finds the tile's flag among them, reads that slot's frame from `slotFrames` and
 hands the fragment shader the frame to sample, with the same uv and the same
-`textureGrad` footprint as on the atlas. So one flag looks the same on every
-landmass it leads, and a flag beyond the eight stays on the atlas
-everywhere, as does a slotted flag's ground on a landmass it does not lead — one slot for the biggest flag in view was tried first, and a
-sharp Brazil beside a blurred Brazil on Peru looked worse than neither. The SVG
+`textureGrad` footprint as on the atlas. So one flag looks the same everywhere,
+and a flag beyond the eight stays on the atlas everywhere. One slot for the
+biggest flag in view was tried first, and a sharp Brazil beside a blurred Brazil
+on Peru looked worse than neither. The slot was then only for the landmasses a
+flag leads, and that gave the same defect on a contested landmass: a blurred
+Brazil on Argentina, led by Bulgaria. The SVG
 is fetched the first time its flag earns a slot and kept for the session; the
 atlas shows until it is drawn, and a flag whose SVG fails stays on the atlas
 and is not asked for again. Nothing is fetched on a page where no flag is
