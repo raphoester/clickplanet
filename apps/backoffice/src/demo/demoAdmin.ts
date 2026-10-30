@@ -324,7 +324,9 @@ export class DemoAdmin extends FakeAdmin {
 
     override unmute(request: PartialMessage<UnmuteRequest>): Promise<UnmuteResponse> {
         const until = this.mutedUntil.get(request.accountId ?? "")
-        if (until === undefined || until <= Date.now()) return this.refuse404("unmute", request, "no mute applies to this caller")
+        if (until === undefined || until <= Date.now()) {
+            return this.refuseLater("unmute", request, "no mute applies to this caller", Code.NotFound)
+        }
         this.mutedUntil.delete(request.accountId ?? "")
         return this.answer("unmute", request, new UnmuteResponse({mutedUntil: at(until)}))
     }
