@@ -253,7 +253,7 @@ func nextTileUpdate(t *testing.T, updates <-chan *planetv1.TileUpdate) *planetv1
 	}
 }
 
-// A stream opened reads the round that runs now at once.
+// A stream opened reads today's round at once.
 func (s gameStack) roundStandingOf(t *testing.T, country string) *scoringv1.RoundStanding {
 	t.Helper()
 

@@ -279,7 +279,8 @@ and two are never scored at once. Before, a battle ran inside a day and both sco
   at its end starts, and starts when a battle that runs at its start ends. A battle 18:00 to 21:00 scores day K at
   18:00 and itself at 21:00; a battle 21:00 to 23:00 scores day K at 21:00, itself at 23:00, and day K+1 runs from
   23:00 to the next 21:00. So something is scored at every cutoff. `today` is unset while a battle runs, and the
-  `DayEnded`, the debrief and `GetSeasons` tell the day as it is cut.
+  `DayStarted`, the `DayEnded`, the debrief and `GetSeasons` tell the day as it is cut: a battle added or moved during
+  a day moves its end, which `DayStarted` tells again. Missions count nothing while a battle runs: no day, no missions.
 - **`Plan.Clashes(now)`** judges every battle that has not ended, the finale included, and names each one that breaks
   a rule (every reason found by `errors.Is`, `FailedPrecondition`):
   - it starts or ends at the daily cutoff (`ErrOffCutoff`): a battle across a cutoff would score nothing at it;
@@ -442,11 +443,11 @@ edited or deleted sent, a new debrief sent, a turn that holds not sent again, no
 failed read) and `listen_for_events_handler`'s the stream (the turn, the timeline then the debrief first, only the part
 that changed after, the heartbeat, the feed left when the stream closes, a clean end when the feed closes). The runner's
 test pins a send at boot and at each change, none while the turn holds, and a send Redis refused sent again. The smoke
-test `TestABattleOfTheScheduleIsPlayedByPlanetAndTheAntibotAndScoredByScoring` adds a battle entry that ends at the
-next cutoff on the console listener, waits for the modules to play it and scoring to open its round, reads its kind and
-its end on the public listener, and opens the stream, whose first event is it. The suite's season 0 ends at 23:00, so
-its 2 h finale starts at the cutoff, and the other smoke tests read the round that runs now: the battle's while it
-runs.
+test `TestLastABattleOfTheScheduleIsPlayedByPlanetAndTheAntibotAndScoredByScoring` adds a battle entry that ends at
+the next cutoff on the console listener, waits for the modules to play it and scoring to open its round, reads its kind
+and its end on the public listener, and opens the stream, whose first event is it. It runs last, by its name: its
+battle takes the rest of today, and the other smoke tests need a day. The suite's season 0 ends at 23:00, so its 2 h
+finale starts at the cutoff.
 
 ## Before the Final Battle (Sat 31 Oct 2026, 21:00 UTC)
 

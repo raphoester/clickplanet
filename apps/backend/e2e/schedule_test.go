@@ -20,8 +20,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1/scoringv1connect"
 )
 
-// The set the entry plays is each module's default under another name, so the tests after it play as before.
-func (s *testSuite) TestABattleOfTheScheduleIsPlayedByPlanetAndTheAntibotAndScoredByScoring() {
+// It runs last, by its name: the battle takes the rest of today, and the other tests need a day.
+func (s *testSuite) TestLastABattleOfTheScheduleIsPlayedByPlanetAndTheAntibotAndScoredByScoring() {
 	t := s.T()
 	ctx := t.Context()
 	planet := planetv1connect.NewAdminServiceClient(http.DefaultClient, s.game.consoleURL)

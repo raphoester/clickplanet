@@ -218,8 +218,8 @@ type today struct {
 	round string
 }
 
-// Today is the season's book and the round that runs now, today's or a battle's, once the gamemaster opened both in
-// scoring: a take counts in a book only once it is open.
+// Today is the season's book and today's round, once the gamemaster opened both in scoring: a take counts in a book
+// only once it is open.
 func (s gameStack) today(t *testing.T) today {
 	t.Helper()
 
@@ -230,9 +230,6 @@ func (s gameStack) today(t *testing.T) today {
 			GetTurn(t.Context(), connect.NewRequest(&gamemasterv1.GetTurnRequest{}))
 		require.NoError(c, err)
 		found = today{book: turn.Msg.GetTimeline().GetCurrent().GetBookId(), round: turn.Msg.GetTimeline().GetToday().GetRoundId()}
-		if found.round == "" {
-			found.round = turn.Msg.GetTurn().GetRoundId()
-		}
 		require.NotEmpty(c, found.book)
 		require.NotEmpty(c, found.round)
 		_, err = scoringv1connect.NewScoringServiceClient(http.DefaultClient, s.baseURL).
