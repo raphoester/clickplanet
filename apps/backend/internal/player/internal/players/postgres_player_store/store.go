@@ -75,17 +75,13 @@ func (s *Store) SaveProfile(ctx context.Context, profile players.Profile) error 
 	return nil
 }
 
+// A taken name raises no error, so the transaction it runs in, which records the player made, goes on to the next draw.
 func (s *Store) CreateProfile(ctx context.Context, profile players.Profile) error {
 	kept := profile.TakeSnapshot()
 	result, err := s.db.On(ctx).ExecContext(ctx, `
 		INSERT INTO profiles (account_id, name, name_folded, updated_at, name_chosen_at) VALUES ($1, $2, $3, $4, $5)
-		ON CONFLICT (account_id) DO NOTHING
+		ON CONFLICT DO NOTHING
 	`, uuid.UUID(kept.Account), string(kept.Name), kept.Name.Folded(), kept.UpdatedAt.UTC(), nullableTime(kept.ChosenAt))
-
-	var pqErr *pq.Error
-	if errors.As(err, &pqErr) && pqErr.Code == uniqueViolation && pqErr.Constraint == uniqueNameIndex {
-		return players.ErrNameTaken
-	}
 	if err != nil {
 		return fmt.Errorf("failed to create the profile: %w", err)
 	}
@@ -93,10 +89,19 @@ func (s *Store) CreateProfile(ctx context.Context, profile players.Profile) erro
 	if err != nil {
 		return fmt.Errorf("failed to count the profiles created: %w", err)
 	}
-	if created == 0 {
+	if created == 1 {
+		return nil
+	}
+
+	var exists bool
+	if err := s.db.On(ctx).QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM profiles WHERE account_id = $1)`,
+		uuid.UUID(kept.Account)).Scan(&exists); err != nil {
+		return fmt.Errorf("failed to read whether the account has a profile: %w", err)
+	}
+	if exists {
 		return players.ErrProfileExists
 	}
-	return nil
+	return players.ErrNameTaken
 }
 
 func (s *Store) SaveColor(ctx context.Context, account players.AccountID, color players.Color) error {

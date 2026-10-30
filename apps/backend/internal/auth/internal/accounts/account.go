@@ -136,11 +136,6 @@ func OutcomeOf(intent Intent, current *Account, known *Identity, owner *Account,
 	}
 }
 
-// LinksAGuest is whether the outcome gives the account the browser was on its first identity.
-func (o Outcome) LinksAGuest(current *Account) bool {
-	return o == Linked && len(current.identities) == 0
-}
-
 func linkOutcomeOf(current *Account, known *Identity, owner *Account, provider string) (Outcome, error) {
 	switch {
 	case current == nil:

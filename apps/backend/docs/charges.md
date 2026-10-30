@@ -43,8 +43,8 @@ its own.
 - **Another module grants with a command**, `planet.v1.GrantCharges` on `commands:planet.v1.GrantCharges`
   (`commands/apply_grant_handler`, `apply_grant_usecase`): the grant and its `grant_id` (`planet.charge_grants`) are
   kept in one transaction, so a command told twice grants once. It caps at the stack as any grant does, and answers
-  nothing. `missions` pays its rewards this way. A guest's first sign-in is granted its refill through the same
-  `charge_grants`, from auth's event ([A guest's first sign-in](sign-in-refill.md)).
+  nothing. `missions` pays its rewards this way. A new player is granted its refill through the same
+  `charge_grants`, from player's `PlayerCreated` ([A guest's first sign-in](sign-in-refill.md)).
 - **Nothing lapses.** Migration `20260919120000_charges_never_lapse` replaced the
   `*_until` columns with `refill` and `bomb` booleans and an `enclosures` count,
   keeping what was still in time. `bonus.chargeTTL` is gone.

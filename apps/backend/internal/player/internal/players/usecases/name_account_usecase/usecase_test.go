@@ -7,10 +7,13 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 
+	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/inmemory_player_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/name_account_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -19,37 +22,41 @@ var (
 	ada = players.AccountID{15: 1}
 )
 
-func useCase(store *inmemory_player_store.Store) *name_account_usecase.UseCase {
-	return name_account_usecase.New(players.NewGeneratedNames(store, players.NewRepeatedNames("BraveFox42")), store,
-		cptime.NewFixedClock(now))
+func useCase(store *inmemory_player_store.Store, outbox *cpatomic.FakeOutbox) *name_account_usecase.UseCase {
+	return name_account_usecase.New(cpatomic.FakeTransactioner{},
+		players.NewGeneratedNames(store, players.NewRepeatedNames("BraveFox42")), store, outbox, cptime.NewFixedClock(now))
 }
 
-func TestANamelessAccountIsGivenAGeneratedName(t *testing.T) {
-	store := inmemory_player_store.New()
+func TestANamelessAccountIsGivenAGeneratedNameAndBecomesAPlayer(t *testing.T) {
+	store, outbox := inmemory_player_store.New(), &cpatomic.FakeOutbox{}
 
-	profile, err := useCase(store).Execute(t.Context(), ada)
+	profile, err := useCase(store, outbox).Execute(t.Context(), ada)
 
 	require.NoError(t, err)
 	assert.Equal(t, players.Name("BraveFox42"), profile.TakeSnapshot().Name)
 	assert.True(t, now.Equal(profile.TakeSnapshot().UpdatedAt))
+	require.Len(t, outbox.Recorded(), 1)
+	assert.True(t, proto.Equal(&playerv1.PlayerCreated{AccountId: ada.String()}, outbox.Recorded()[0]))
 }
 
-func TestAnAccountWithANameKeepsIt(t *testing.T) {
-	store := inmemory_player_store.New()
+func TestAnAccountWithANameKeepsItAndIsNoNewPlayer(t *testing.T) {
+	store, outbox := inmemory_player_store.New(), &cpatomic.FakeOutbox{}
 	require.NoError(t, store.SaveProfile(t.Context(), players.NewProfile(ada, "Ada", now)))
 
-	profile, err := useCase(store).Execute(t.Context(), ada)
+	profile, err := useCase(store, outbox).Execute(t.Context(), ada)
 
 	require.NoError(t, err)
 	assert.Equal(t, players.Name("Ada"), profile.TakeSnapshot().Name)
+	assert.Empty(t, outbox.Recorded())
 }
 
-func TestAFailureToNameIsAnError(t *testing.T) {
-	store := inmemory_player_store.New()
+func TestAFailureToNameIsAnErrorAndRecordsNothing(t *testing.T) {
+	store, outbox := inmemory_player_store.New(), &cpatomic.FakeOutbox{}
 	refused := errors.New("postgres is down")
 	store.FailWith(refused)
 
-	_, err := useCase(store).Execute(t.Context(), ada)
+	_, err := useCase(store, outbox).Execute(t.Context(), ada)
 
 	assert.ErrorIs(t, err, refused)
+	assert.Empty(t, outbox.Recorded())
 }

@@ -57,13 +57,6 @@ export class SignedIn extends Message<SignedIn> {
    */
   accountId = "";
 
-  /**
-   * The account was a guest until this sign-in: it linked its first identity.
-   *
-   * @generated from field: bool guest_linked = 3;
-   */
-  guestLinked = false;
-
   constructor(data?: PartialMessage<SignedIn>) {
     super();
     proto3.util.initPartial(data, this);
@@ -74,7 +67,6 @@ export class SignedIn extends Message<SignedIn> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "previous_account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "guest_linked", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SignedIn {

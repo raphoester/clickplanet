@@ -35,7 +35,7 @@ internal/planet/internal/
     get_landmass_handler/landmass_query/       ClickService/GetLandmass: the holders from the tiles, the last fortify from ledger_events
     get_holdings_handler/holdings_query/       ClickService/GetHoldings: what each flag holds, from the tile map's tally
   subscribers/                    the edge for events: auth.v1.AccountDeleted → anonymize_takes_usecase,
-                                  auth.v1.SignedIn → grant_sign_in_refill_usecase
+                                  player.v1.PlayerCreated → grant_sign_in_refill_usecase
   commands/                       the edge for commands: planet.v1.GrantCharges → apply_grant_usecase,
                                   planet.v1.RefuseCaller and AdmitCaller → refusals.Book
 ```

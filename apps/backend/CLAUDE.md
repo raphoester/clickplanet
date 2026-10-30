@@ -71,8 +71,8 @@ and says what is in it. Read the doc before you change its area.
   each charge does to a click or to the bucket.
 - [Quizzes](docs/quizzes.md) — the quiz banner, its short clock, and the charge a right answer gives.
 - [A newcomer's first box and first quiz](docs/welcome-bonus.md) — a new account gets both early, once.
-- [A guest's first sign-in earns a refill](docs/sign-in-refill.md) — once per account, from auth's `SignedIn`; why
-  nobody can farm it.
+- [A guest's first sign-in earns a refill](docs/sign-in-refill.md) — once per account, when player makes it a player
+  (`PlayerCreated`); why nobody can farm it.
 
 ## Who a caller is
 

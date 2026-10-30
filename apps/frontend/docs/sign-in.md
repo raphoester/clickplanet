@@ -177,8 +177,8 @@ buttons (`SignInButtons`, which `SignInPitchModal` uses too).
 
 **The server grants a guest's first sign-in one refill, and the game spends it
 at once** (`useSignInRefill` in `Viewer`), so a guest who signed in at an empty
-bank comes back to a full one. Planet grants it from auth's event a second or
-two after the sign-in, so the hook reads the charges at once, after 2s and after
+bank comes back to a full one. Planet grants it a second or two after the
+sign-in, when player has made the account a player, so the hook reads the charges at once, after 2s and after
 5s (`refreshCharges`, the read a paid mission uses), and spends the refill the
 first time one is held (`useRefill`, the slot's own call; nothing on a full
 bank). After `SIGN_IN_REFILL_WAIT_MS` (10s) it stops: a refill held later is the

@@ -26,24 +26,25 @@ func NewGeneratedNames(store ProfileCreator, generator NameGenerator) GeneratedN
 	return GeneratedNames{store: store, generator: generator}
 }
 
-func (g GeneratedNames) Assign(ctx context.Context, account AccountID, at time.Time) error {
+// Assign answers whether it made the profile: false for an account that had one.
+func (g GeneratedNames) Assign(ctx context.Context, account AccountID, at time.Time) (bool, error) {
 	for range maxDraws {
 		name, err := g.generator.NewName()
 		if err != nil {
-			return fmt.Errorf("failed to draw a name: %w", err)
+			return false, fmt.Errorf("failed to draw a name: %w", err)
 		}
 
 		err = g.store.CreateProfile(ctx, NewProfile(account, name, at))
 		if errors.Is(err, ErrProfileExists) {
-			return nil
+			return false, nil
 		}
 		if errors.Is(err, ErrNameTaken) {
 			continue
 		}
 		if err != nil {
-			return fmt.Errorf("failed to save the name: %w", err)
+			return false, fmt.Errorf("failed to save the name: %w", err)
 		}
-		return nil
+		return true, nil
 	}
-	return ErrNoFreeName
+	return false, ErrNoFreeName
 }

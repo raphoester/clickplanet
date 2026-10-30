@@ -187,17 +187,6 @@ func TestANewIdentityLinksToTheAccountTheBrowserIsOn(t *testing.T) {
 	}
 }
 
-func TestOnlyALinkToAnAccountWithNoIdentityLinksAGuest(t *testing.T) {
-	guest := accountOf(account)
-	onDiscord := accountOf(account, identityOf("discord", "d", account))
-
-	assert.True(t, accounts.Linked.LinksAGuest(guest))
-	assert.False(t, accounts.Linked.LinksAGuest(onDiscord), "a second provider")
-	for _, outcome := range []accounts.Outcome{accounts.SignedIn, accounts.Joined, accounts.Created} {
-		assert.False(t, outcome.LinksAGuest(guest), "the browser leaves the guest, or never was one: %d", outcome)
-	}
-}
-
 func TestANewIdentityWithNowhereToGoCreatesAnAccount(t *testing.T) {
 	for name, current := range map[string]*accounts.Account{
 		"no account":    nil,

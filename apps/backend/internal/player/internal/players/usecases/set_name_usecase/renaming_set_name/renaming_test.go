@@ -15,6 +15,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/inmemory_visit_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -40,7 +41,7 @@ func setup() fixture {
 	return fixture{
 		accounts: accounts,
 		visits:   visits,
-		useCase:  renaming_set_name.New(set_name_usecase.New(inmemory_player_store.New(), accounts, clock), visits),
+		useCase:  renaming_set_name.New(set_name_usecase.New(cpatomic.FakeTransactioner{}, inmemory_player_store.New(), accounts, &cpatomic.FakeOutbox{}, clock), visits),
 	}
 }
 

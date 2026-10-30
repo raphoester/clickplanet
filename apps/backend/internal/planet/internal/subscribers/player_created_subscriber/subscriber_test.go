@@ -1,4 +1,4 @@
-package signed_in_subscriber_test
+package player_created_subscriber_test
 
 import (
 	"context"
@@ -8,10 +8,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
+	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/grant_sign_in_refill_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/signed_in_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/player_created_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -34,14 +34,14 @@ const (
 	other = "7c1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f"
 )
 
-func setUp() (signed_in_subscriber.Subscriber, bonuses.Charges) {
+func setUp() (player_created_subscriber.Subscriber, bonuses.Charges) {
 	rules := bonuses.TestRules()
 	rules.SignInRefill = true
 	inForce := func() bonuses.Rules { return rules }
 	charges := bonuses.NewCharges(bonuses.NewMemoryStore(), inForce)
 	useCase := grant_sign_in_refill_usecase.New(cpatomic.FakeTransactioner{}, grants{recorded: cpcolls.NewSet[bonuses.GrantID]()},
 		charges, inForce, cptime.NewFixedClock(time.Date(2026, 10, 30, 12, 0, 0, 0, time.UTC)))
-	return signed_in_subscriber.New(useCase), charges
+	return player_created_subscriber.New(useCase), charges
 }
 
 func refillHeld(t *testing.T, charges bonuses.Charges, account string) bool {
@@ -52,36 +52,19 @@ func refillHeld(t *testing.T, charges bonuses.Charges, account string) bool {
 	return held.Refill
 }
 
-func TestAGuestThatLinksItsFirstIdentityEarnsARefill(t *testing.T) {
+func TestANewPlayerEarnsARefill(t *testing.T) {
 	subscriber, charges := setUp()
 
-	require.NoError(t, subscriber.Handle(t.Context(), &authv1.SignedIn{PreviousAccountId: guest, AccountId: guest, GuestLinked: true}))
+	require.NoError(t, subscriber.Handle(t.Context(), &playerv1.PlayerCreated{AccountId: guest}))
 
 	assert.True(t, refillHeld(t, charges, guest))
-}
-
-func TestEveryOtherSignInEarnsNothing(t *testing.T) {
-	for name, event := range map[string]*authv1.SignedIn{
-		"a second provider":        {PreviousAccountId: guest, AccountId: guest},
-		"into an account that was": {PreviousAccountId: guest, AccountId: other},
-		"a new account":            {AccountId: other},
-		"back in after a sign-out": {PreviousAccountId: other, AccountId: guest},
-	} {
-		t.Run(name, func(t *testing.T) {
-			subscriber, charges := setUp()
-
-			require.NoError(t, subscriber.Handle(t.Context(), event))
-
-			assert.False(t, refillHeld(t, charges, guest))
-			assert.False(t, refillHeld(t, charges, other))
-		})
-	}
+	assert.False(t, refillHeld(t, charges, other))
 }
 
 func TestAnEventThatNamesNoAccountIsRefused(t *testing.T) {
 	subscriber, _ := setUp()
 
-	err := subscriber.Handle(t.Context(), &authv1.SignedIn{AccountId: "nope", GuestLinked: true})
+	err := subscriber.Handle(t.Context(), &playerv1.PlayerCreated{AccountId: "nope"})
 
 	require.ErrorIs(t, err, bonuses.ErrInvalidHolder)
 }

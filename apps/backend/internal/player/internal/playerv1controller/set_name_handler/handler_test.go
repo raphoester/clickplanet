@@ -14,6 +14,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/inmemory_player_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/set_name_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/set_name_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -34,7 +35,7 @@ func handler(t *testing.T) set_name_handler.SetNameHandler {
 		accounts.Link(linked)
 	}
 
-	return set_name_handler.New(set_name_usecase.New(inmemory_player_store.New(), accounts, cptime.NewFixedClock(now)))
+	return set_name_handler.New(set_name_usecase.New(cpatomic.FakeTransactioner{}, inmemory_player_store.New(), accounts, &cpatomic.FakeOutbox{}, cptime.NewFixedClock(now)))
 }
 
 var now = time.Date(2026, 9, 17, 0, 0, 0, 0, time.UTC)

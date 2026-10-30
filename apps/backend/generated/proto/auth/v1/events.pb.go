@@ -69,10 +69,8 @@ type SignedIn struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
 	PreviousAccountId string                 `protobuf:"bytes,1,opt,name=previous_account_id,json=previousAccountId,proto3" json:"previous_account_id,omitempty"`
 	AccountId         string                 `protobuf:"bytes,2,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
-	// The account was a guest until this sign-in: it linked its first identity.
-	GuestLinked   bool `protobuf:"varint,3,opt,name=guest_linked,json=guestLinked,proto3" json:"guest_linked,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *SignedIn) Reset() {
@@ -117,13 +115,6 @@ func (x *SignedIn) GetAccountId() string {
 		return x.AccountId
 	}
 	return ""
-}
-
-func (x *SignedIn) GetGuestLinked() bool {
-	if x != nil {
-		return x.GuestLinked
-	}
-	return false
 }
 
 type SignedOut struct {
@@ -177,12 +168,11 @@ const file_auth_v1_events_proto_rawDesc = "" +
 	"\x14auth/v1/events.proto\x12\aauth.v1\"/\n" +
 	"\x0eAccountDeleted\x12\x1d\n" +
 	"\n" +
-	"account_id\x18\x01 \x01(\tR\taccountId\"|\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\"Y\n" +
 	"\bSignedIn\x12.\n" +
 	"\x13previous_account_id\x18\x01 \x01(\tR\x11previousAccountId\x12\x1d\n" +
 	"\n" +
-	"account_id\x18\x02 \x01(\tR\taccountId\x12!\n" +
-	"\fguest_linked\x18\x03 \x01(\bR\vguestLinked\"*\n" +
+	"account_id\x18\x02 \x01(\tR\taccountId\"*\n" +
 	"\tSignedOut\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountIdB\xa5\x01\n" +

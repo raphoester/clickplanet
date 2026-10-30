@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 
+	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -19,13 +21,17 @@ type Accounts interface {
 }
 
 type UseCase struct {
-	profiles Profiles
-	accounts Accounts
-	clock    cptime.Clock
+	transactioner cpatomic.Transactioner
+	profiles      Profiles
+	accounts      Accounts
+	outbox        cpatomic.Outbox
+	clock         cptime.Clock
 }
 
-func New(profiles Profiles, accounts Accounts, clock cptime.Clock) *UseCase {
-	return &UseCase{profiles: profiles, accounts: accounts, clock: clock}
+func New(
+	transactioner cpatomic.Transactioner, profiles Profiles, accounts Accounts, outbox cpatomic.Outbox, clock cptime.Clock,
+) *UseCase {
+	return &UseCase{transactioner: transactioner, profiles: profiles, accounts: accounts, outbox: outbox, clock: clock}
 }
 
 type In struct {
@@ -48,7 +54,8 @@ func (u *UseCase) Execute(ctx context.Context, in In) (players.Profile, error) {
 	}
 
 	current, err := u.profiles.Profile(ctx, in.Account)
-	if errors.Is(err, players.ErrNoProfile) {
+	made := errors.Is(err, players.ErrNoProfile)
+	if made {
 		current, err = players.Unnamed(in.Account), nil
 	}
 	if err != nil {
@@ -60,7 +67,15 @@ func (u *UseCase) Execute(ctx context.Context, in In) (players.Profile, error) {
 		return players.Profile{}, err //nolint:wrapcheck // the handler maps the domain's refusal.
 	}
 
-	err = u.profiles.SaveProfile(ctx, profile)
+	err = u.transactioner.InTx(ctx, func(ctx context.Context) error {
+		if err := u.profiles.SaveProfile(ctx, profile); err != nil {
+			return err //nolint:wrapcheck // wrapped below, past the sentinel.
+		}
+		if !made {
+			return nil
+		}
+		return u.outbox.Record(ctx, &playerv1.PlayerCreated{AccountId: in.Account.String()}) //nolint:wrapcheck // wrapped below.
+	})
 	if errors.Is(err, players.ErrNameTaken) {
 		return players.Profile{}, err //nolint:wrapcheck // the handler maps the port's sentinel.
 	}
