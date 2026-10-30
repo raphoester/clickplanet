@@ -61,9 +61,12 @@ export function finaleNear(finale: Finale | undefined, now: number): finale is F
     return finale !== undefined && !finale.live && finale.startsAt - now <= FINALE_NEAR_MS
 }
 
-// Once per browser and per finale, in the days before it starts.
-export function finaleTeaserDue(finale: Finale | undefined, seen: string | null, now: number): finale is Finale {
-    return finaleNear(finale, now) && finale.roundId !== seen
+// A newcomer plays before a full screen talks of a battle: half the start bank, before it runs dry.
+export const FINALE_TEASER_AFTER_CLICKS = 30
+
+// Once per browser and per finale, in the days before it starts, once the page took enough clicks.
+export function finaleTeaserDue(finale: Finale | undefined, seen: string | null, now: number, clicks: number): finale is Finale {
+    return finaleNear(finale, now) && finale.roundId !== seen && clicks >= FINALE_TEASER_AFTER_CLICKS
 }
 
 // "Sat 31 Oct · 21:00 – 23:00", in the player's time.
