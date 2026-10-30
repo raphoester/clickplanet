@@ -16,6 +16,7 @@ uniform vec2 atlasTextureSize;
 // Must match SLOT_COUNT in slotRanking.ts.
 #define FLAG_SLOTS 8
 uniform vec4 slotFrames[FLAG_SLOTS];
+uniform vec4 slotRegions[FLAG_SLOTS];
 
 #include ../flagFrame.glsl;
 
@@ -170,8 +171,10 @@ void main() {
 
                 vFlagShare = split ? 1.0 : share * (hover > 0.5 ? 1.0 : 0.94);
 
-                int slot = clamp(int(held.g + 0.5) - 1, 0, FLAG_SLOTS - 1);
-                vec4 slotFrame = leads && held.g > 0.5 ? slotFrames[slot] : vec4(0.0);
+                vec4 slotFrame = vec4(0.0);
+                for (int i = 0; i < FLAG_SLOTS; i++) {
+                    if (all(equal(slotRegions[i], flag))) slotFrame = slotFrames[i];
+                }
                 vSlotted = slotFrame.z > 0.0 ? 1.0 : 0.0;
                 vFlagFrame = vSlotted > 0.5 ? slotFrame : atlasFrameOf(flag);
             }

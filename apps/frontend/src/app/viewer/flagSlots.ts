@@ -1,5 +1,6 @@
 import * as THREE from "three"
 import {SLOT_COUNT, Slots} from "./slotRanking.ts"
+import type {Region} from "./atlas.ts"
 
 export const SLOT_CELL = {width: 768, height: 512} as const
 
@@ -18,25 +19,27 @@ const images = new Map<string, Promise<HTMLImageElement | undefined>>()
 export class FlagSlots {
     readonly texture: THREE.IUniform<THREE.Texture | null> = {value: null}
     readonly frames: THREE.IUniform<THREE.Vector4[]>
+    readonly regions: THREE.IUniform<THREE.Vector4[]>
 
     private canvas: Canvas | undefined
     private readonly wanted: (string | undefined)[]
 
     constructor(private readonly onChange: () => void, count = SLOT_COUNT) {
         this.frames = {value: Array.from({length: count}, () => new THREE.Vector4())}
+        this.regions = {value: Array.from({length: count}, () => new THREE.Vector4())}
         this.wanted = new Array<string | undefined>(count).fill(undefined)
     }
 
-    show(slots: Slots, aspectOf: (code: string) => number | undefined) {
+    show(slots: Slots, regionOf: (code: string) => Region | undefined) {
         slots.forEach((code, slot) => {
             if (code === this.wanted[slot]) return
             this.wanted[slot] = code
             this.empty(slot)
-            const aspect = code === undefined ? undefined : aspectOf(code)
-            if (code === undefined || aspect === undefined) return
+            const region = code === undefined ? undefined : regionOf(code)
+            if (code === undefined || region === undefined) return
             void imageOf(code).then((image) => {
                 if (this.wanted[slot] !== code || image === undefined) return
-                this.draw(slot, image, aspect)
+                this.draw(slot, image, region)
             })
         })
     }
@@ -50,12 +53,14 @@ export class FlagSlots {
         const frame = this.frames.value[slot]
         if (frame.z === 0) return
         frame.set(0, 0, 0, 0)
+        this.regions.value[slot].set(0, 0, 0, 0)
         this.onChange()
     }
 
-    private draw(slot: number, image: HTMLImageElement, aspect: number) {
+    private draw(slot: number, image: HTMLImageElement, region: Region) {
         const {context, texture} = this.canvas ??= createCanvas(this.wanted.length)
         const {canvas} = context
+        const aspect = region.width / region.height
         const cellX = (slot % SLOT_COLUMNS) * SLOT_CELL.width
         const cellY = Math.floor(slot / SLOT_COLUMNS) * SLOT_CELL.height
         const roomWidth = SLOT_CELL.width - 2 * MARGIN
@@ -73,6 +78,7 @@ export class FlagSlots {
         context.drawImage(canvas, cellX, y + height - 1, SLOT_CELL.width, 1, cellX, y + height, SLOT_CELL.width, cellY + SLOT_CELL.height - y - height)
 
         this.frames.value[slot].set(x / canvas.width, 1 - (y + height) / canvas.height, width / canvas.width, height / canvas.height)
+        this.regions.value[slot].set(region.x, region.y, region.width, region.height)
         texture.needsUpdate = true
         this.texture.value = texture
         this.onChange()
