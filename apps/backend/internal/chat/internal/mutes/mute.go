@@ -100,8 +100,14 @@ func (m Mute) Until() time.Time { return m.until }
 
 func (m Mute) Duration() time.Duration { return m.until.Sub(m.at) }
 
+func (m Mute) Ended(at time.Time) bool { return !at.Before(m.until) }
+
+func (m Mute) Lifted(at time.Time) Mute {
+	return Mute{id: m.id, caller: m.caller, at: m.at, until: at}
+}
+
 func (m Mute) ApplicableTo(caller Caller, at time.Time) bool {
-	if !at.Before(m.until) {
+	if m.Ended(at) {
 		return false
 	}
 	if m.caller.account == caller.account {
@@ -127,5 +133,6 @@ func (r Refusal) Until() time.Time { return r.until }
 type Storage interface {
 	Save(ctx context.Context, mute Mute) error
 	Mute(ctx context.Context, caller Caller, at time.Time) (Mute, error)
+	MutesOf(ctx context.Context, account messages.AccountID) ([]Mute, error)
 	DeleteBefore(ctx context.Context, cutoff time.Time) (int64, error)
 }

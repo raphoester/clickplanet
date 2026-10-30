@@ -5,8 +5,9 @@ import {cleanup, fireEvent, render, screen, within} from "@testing-library/react
 import {useState} from "react"
 import {afterEach, describe, expect, it} from "vitest"
 import {AROUND} from "../chat/theirConversations.ts"
+import {timeOf} from "../components/time.ts"
 import {ACCOUNT, AT, FakeAdmin} from "../fakeAdmin.ts"
-import {KeptMessage} from "../gen/grpc/chat/v1/admin_pb.ts"
+import {GetMuteResponse, KeptMessage} from "../gen/grpc/chat/v1/admin_pb.ts"
 import {InspectPlayerResponse} from "../gen/grpc/antibot/v1/admin_pb.ts"
 import {Author} from "../gen/grpc/player/v1/internal_pb.ts"
 import {CountryTiles} from "../gen/grpc/player/v1/player_pb.ts"
@@ -364,5 +365,32 @@ describe("one player", () => {
 
         render(<Page admin={admin} first={address}/>)
         expect(screen.getAllByRole("tab").map(tab => tab.textContent)).toEqual(["Ban", "Unban", "Revert"])
+        expect(screen.queryByText("Not muted")).toBeNull()
+    })
+
+    it("says until when an account is muted, unmutes it, and reads it again", async () => {
+        const admin = new FakeAdmin()
+        admin.muting = new GetMuteResponse({mutedUntil: Timestamp.fromDate(AT), mutedAccountId: ACCOUNT})
+        render(<Page admin={admin} first={account}/>)
+        expect(await screen.findByText(`Muted until ${timeOf(AT)}`)).toBeTruthy()
+
+        tool("Unmute")
+        admin.muting = new GetMuteResponse()
+        confirm("Unmute", "Yes, unmute")
+        expect(await screen.findByText(/^Unmuted\. The mute was until .*\.$/)).toBeTruthy()
+        expect(await screen.findByText("Not muted")).toBeTruthy()
+        expect(admin.askedFor("unmute")).toEqual([{accountId: ACCOUNT}])
+
+        admin.refuse("unmute", Code.NotFound)
+        confirm("Unmute", "Yes, unmute")
+        expect(await screen.findByText("This player has no mute of its own to lift.")).toBeTruthy()
+    })
+
+    it("says when the mute that holds an account was given on its network", async () => {
+        const admin = new FakeAdmin()
+        admin.muting = new GetMuteResponse({mutedUntil: Timestamp.fromDate(AT), mutedAccountId: "account-household"})
+        render(<Page admin={admin} first={account}/>)
+
+        expect(await screen.findByText(`Muted until ${timeOf(AT)}, by a mute on its network`)).toBeTruthy()
     })
 })

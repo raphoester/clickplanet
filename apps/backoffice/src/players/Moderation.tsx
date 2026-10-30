@@ -2,14 +2,14 @@ import {useState} from "react"
 import {AntibotAdmin, ChatAdmin} from "../clients.ts"
 import {ConfirmAction} from "../components/ConfirmAction.tsx"
 import {timeOf} from "../components/time.ts"
-import {ban, bannedWords, DEFAULT_MUTE_SECONDS, LADDER, mute, refusalOf, unban, Unbanned} from "./actions.ts"
+import {ban, bannedWords, DEFAULT_MUTE_SECONDS, LADDER, mute, refusalOf, unban, Unbanned, unmute} from "./actions.ts"
 import {Caller} from "./caller.ts"
 import {BAN_CHOICES, Choice, labelOf, MUTE_CHOICES} from "./durations.ts"
 
-type MuteProps = {chat: ChatAdmin, accountId: string, who: string}
+type MuteProps = {chat: ChatAdmin, accountId: string, who: string, onDone?: () => void}
 
 // A mute is an account's alone: the chat mutes no address.
-export function MuteAction({chat, accountId, who}: MuteProps) {
+export function MuteAction({chat, accountId, who, onDone}: MuteProps) {
     const [muteFor, setMuteFor] = useState(DEFAULT_MUTE_SECONDS)
 
     return (
@@ -21,6 +21,22 @@ export function MuteAction({chat, accountId, who}: MuteProps) {
                 run={() => mute(chat, accountId, muteFor)}
                 said={muted => `Muted until ${timeOf(muted.until)}.`}
                 refusal={err => refusalOf("mute", err)}
+                onDone={onDone}
+            />
+        </div>
+    )
+}
+
+export function UnmuteAction({chat, accountId, who, onDone}: MuteProps) {
+    return (
+        <div className="act">
+            <ConfirmAction
+                label="Unmute"
+                question={`Unmute ${who} in the chat now?`}
+                run={() => unmute(chat, accountId)}
+                said={unmuted => `Unmuted. The mute was until ${timeOf(unmuted.until)}.`}
+                refusal={err => refusalOf("unmute", err)}
+                onDone={onDone}
             />
         </div>
     )

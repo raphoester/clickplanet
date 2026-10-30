@@ -11,7 +11,7 @@ import {Ago, When} from "../components/When.tsx"
 import {GetMessageResponse, KeptMessage} from "../gen/grpc/chat/v1/admin_pb.ts"
 import {Report} from "../gen/grpc/support/v1/admin_pb.ts"
 import {useOpenPlayer} from "../navigation.ts"
-import {readingOf} from "../players/actions.ts"
+import {mutingOf, readingOf} from "../players/actions.ts"
 import {whoOf} from "../players/caller.ts"
 import {Inspection} from "../players/InspectPanel.tsx"
 import {Standing} from "../players/Standing.tsx"
@@ -62,6 +62,11 @@ export function ReportDetail({report, related = [], clients = CLIENTS, onBack, o
         [antibot, accountId],
     )
     const [standing] = useCall(readStanding)
+    const readMuting = useCallback(
+        (signal: AbortSignal) => accountId === "" ? Promise.resolve(undefined) : mutingOf(chat, accountId, signal),
+        [chat, accountId],
+    )
+    const [muting] = useCall(readMuting)
     const kept = message.state === "done" && "kept" in message.value && message.value.kept ? message.value.message : undefined
     const others = related.filter(other => other.decision === undefined)
 
@@ -81,7 +86,7 @@ export function ReportDetail({report, related = [], clients = CLIENTS, onBack, o
                     <Party label="Reported" name={report.reportedName} id={accountId}/>
                     <Party label="By" name={report.reporterName} id={report.reporterAccountId}/>
                 </dl>
-                {accountId !== "" && <div className="standing-line"><Standing reading={standing}/></div>}
+                {accountId !== "" && <div className="standing-line"><Standing reading={standing} muting={muting}/></div>}
                 {related.length > 0 && <Related reports={related} onOpen={onOpen}/>}
                 {report.decision !== undefined && <DecisionLine decision={report.decision}/>}
             </article>

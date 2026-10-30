@@ -3,6 +3,8 @@ import {Code, ConnectError} from "@connectrpc/connect"
 import {
     GetMessageRequest,
     GetMessageResponse,
+    GetMuteRequest,
+    GetMuteResponse,
     KeptMessage,
     KeptQuote,
     ListMessagesRequest,
@@ -11,6 +13,8 @@ import {
     MuteResponse,
     RemoveMessageRequest,
     RemoveMessageResponse,
+    UnmuteRequest,
+    UnmuteResponse,
 } from "./gen/grpc/chat/v1/admin_pb.ts"
 import {
     BanPlayerRequest,
@@ -141,6 +145,8 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
     readonly asked: {method: string, request: unknown}[] = []
     readonly refusals = new Map<string, Code>()
     private readonly holds = new Map<string, Promise<void>>()
+    // What GetMute answers: no mute, unless a test sets one.
+    muting = new GetMuteResponse()
     message = new GetMessageResponse({
         messageId: "message-1", accountId: "account-reported", text: "you all suck",
         sentAt: Timestamp.fromDate(AT), countryId: "fr",
@@ -419,6 +425,14 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
 
     mute(request: PartialMessage<MuteRequest>): Promise<MuteResponse> {
         return this.answer("mute", request, new MuteResponse({mutedUntil: Timestamp.fromDate(AT)}))
+    }
+
+    unmute(request: PartialMessage<UnmuteRequest>): Promise<UnmuteResponse> {
+        return this.answer("unmute", request, new UnmuteResponse({mutedUntil: Timestamp.fromDate(AT)}))
+    }
+
+    getMute(request: PartialMessage<GetMuteRequest>): Promise<GetMuteResponse> {
+        return this.answer("getMute", request, this.muting)
     }
 
     revertPlayer(request: PartialMessage<RevertPlayerRequest>): Promise<RevertPlayerResponse> {

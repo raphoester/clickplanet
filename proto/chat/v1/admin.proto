@@ -9,6 +9,12 @@ import "google/protobuf/timestamp.proto";
 service AdminService {
   rpc Mute(MuteRequest) returns (MuteResponse);
 
+  // Ends now every mute given to the account, with the network each holds. A mute given to another account on its network still holds it. NotFound when none runs.
+  rpc Unmute(UnmuteRequest) returns (UnmuteResponse);
+
+  // The mute that holds the account now, given to it or to another account on the network it last posted from; the one that ends last. Nothing set when none holds it.
+  rpc GetMute(GetMuteRequest) returns (GetMuteResponse);
+
   // Its text and reactions go for everyone, at once, and nobody reacts to it or answers it; it keeps its place, and the row is kept as evidence. NotFound past the retention.
   rpc RemoveMessage(RemoveMessageRequest) returns (RemoveMessageResponse);
 
@@ -27,6 +33,26 @@ message MuteRequest {
 message MuteResponse {
   string scope = 1;
   google.protobuf.Timestamp muted_until = 2;
+}
+
+message UnmuteRequest {
+  string account_id = 1;
+}
+
+message UnmuteResponse {
+  // The end of the mute that would have ended last.
+  google.protobuf.Timestamp muted_until = 1;
+}
+
+message GetMuteRequest {
+  string account_id = 1;
+}
+
+message GetMuteResponse {
+  // Unset when no mute holds the account.
+  google.protobuf.Timestamp muted_until = 1;
+  // The account the mute was given to: the one asked about, or another on its network, whose mute Unmute on this one leaves.
+  string muted_account_id = 2;
 }
 
 message RemoveMessageRequest {

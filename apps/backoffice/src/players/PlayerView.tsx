@@ -9,11 +9,11 @@ import {Ago} from "../components/When.tsx"
 import {Player} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {Opened} from "../navigation.ts"
 import {useCall} from "../useCall.ts"
-import {ANTIBOT_OFF, Profile, profileOf, readingOf} from "./actions.ts"
+import {ANTIBOT_OFF, mutingOf, Profile, profileOf, readingOf} from "./actions.ts"
 import {Caller, idOf, isAccount, whoOf} from "./caller.ts"
 import {GrantPanel} from "./GrantPanel.tsx"
 import {Inspection} from "./InspectPanel.tsx"
-import {BanAction, MuteAction, UnbanAction} from "./Moderation.tsx"
+import {BanAction, MuteAction, UnbanAction, UnmuteAction} from "./Moderation.tsx"
 import {PlayerName} from "./PlayerName.tsx"
 import {PlayerStats} from "./PlayerStats.tsx"
 import {ProfilePanel} from "./ProfilePanel.tsx"
@@ -27,7 +27,7 @@ type Props = {
     onOpen: (opened: Opened) => void
 }
 
-type Tool = "ban" | "unban" | "mute" | "revert" | "charges"
+type Tool = "ban" | "unban" | "mute" | "unmute" | "revert" | "charges"
 
 // One player, by account or by address: who it is and where it stands, the tools that take it, then what the game
 // and the antibot keep about it, and what it said.
@@ -46,6 +46,11 @@ export function PlayerView({clients, opened, onBack, onOpen}: Props) {
 
     const read = useCallback((signal: AbortSignal) => readingOf(clients.antibot, caller, signal), [clients.antibot, caller])
     const [reading, readAgain] = useCall(read)
+    const readMuting = useCallback(
+        (signal: AbortSignal) => isAccount(caller) ? mutingOf(clients.chat, caller.accountId, signal) : Promise.resolve(undefined),
+        [clients.chat, caller],
+    )
+    const [muting, readMutingAgain] = useCall(readMuting)
     const other = otherOf(caller, row, reading.state === "done" && reading.value.on ? reading.value.value.scope : "")
 
     return (
@@ -60,7 +65,7 @@ export function PlayerView({clients, opened, onBack, onOpen}: Props) {
                     </h2>
                     {row?.lastAt !== undefined && <span className="muted">last take <Ago at={row.lastAt}/></span>}
                 </div>
-                <Standing reading={reading}/>
+                <Standing reading={reading} muting={account ? muting : undefined}/>
                 <dl className="people">
                     <div>
                         <dt>{labelOf(caller)}</dt>
@@ -80,7 +85,7 @@ export function PlayerView({clients, opened, onBack, onOpen}: Props) {
                 </dl>
                 {row !== undefined && <PlayerStats player={row}/>}
             </article>
-            <Tools clients={clients} caller={caller} who={who} onBanned={readAgain}/>
+            <Tools clients={clients} caller={caller} who={who} onBanned={readAgain} onMuted={readMutingAgain}/>
             <div className="columns">
                 {account && <ProfilePanel profile={profile} onReload={readProfileAgain}/>}
                 <section className="panel" aria-label="Antibot">
@@ -103,15 +108,15 @@ export function PlayerView({clients, opened, onBack, onOpen}: Props) {
     )
 }
 
-type ToolsProps = {clients: Clients, caller: Caller, who: string, onBanned: () => void}
+type ToolsProps = {clients: Clients, caller: Caller, who: string, onBanned: () => void, onMuted: () => void}
 
 // Every tool on one player, one at a time: the page stays short, and the one in use sits under the player.
-function Tools({clients, caller, who, onBanned}: ToolsProps) {
+function Tools({clients, caller, who, onBanned, onMuted}: ToolsProps) {
     const [tool, setTool] = useState<Tool>("ban")
     const tools: {key: Tool, label: string}[] = [
         {key: "ban", label: "Ban"},
         {key: "unban", label: "Unban"},
-        ...(isAccount(caller) ? [{key: "mute" as const, label: "Mute"}] : []),
+        ...(isAccount(caller) ? [{key: "mute" as const, label: "Mute"}, {key: "unmute" as const, label: "Unmute"}] : []),
         {key: "revert", label: "Revert"},
         ...(isAccount(caller) ? [{key: "charges" as const, label: "Charges"}] : []),
     ]
@@ -142,7 +147,12 @@ function Tools({clients, caller, who, onBanned}: ToolsProps) {
                     </>
                 )}
                 {tool === "unban" && <UnbanAction antibot={clients.antibot} caller={caller} who={who} onDone={onBanned}/>}
-                {tool === "mute" && isAccount(caller) && <MuteAction chat={clients.chat} accountId={caller.accountId} who={who}/>}
+                {tool === "mute" && isAccount(caller) && (
+                    <MuteAction chat={clients.chat} accountId={caller.accountId} who={who} onDone={onMuted}/>
+                )}
+                {tool === "unmute" && isAccount(caller) && (
+                    <UnmuteAction chat={clients.chat} accountId={caller.accountId} who={who} onDone={onMuted}/>
+                )}
                 {tool === "revert" && <RevertPanel planet={clients.planet} caller={caller} who={who}/>}
                 {tool === "charges" && isAccount(caller) && <GrantPanel planet={clients.planet} accountId={caller.accountId} who={who}/>}
             </div>

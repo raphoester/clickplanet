@@ -35,6 +35,10 @@ const (
 const (
 	// AdminServiceMuteProcedure is the fully-qualified name of the AdminService's Mute RPC.
 	AdminServiceMuteProcedure = "/chat.v1.AdminService/Mute"
+	// AdminServiceUnmuteProcedure is the fully-qualified name of the AdminService's Unmute RPC.
+	AdminServiceUnmuteProcedure = "/chat.v1.AdminService/Unmute"
+	// AdminServiceGetMuteProcedure is the fully-qualified name of the AdminService's GetMute RPC.
+	AdminServiceGetMuteProcedure = "/chat.v1.AdminService/GetMute"
 	// AdminServiceRemoveMessageProcedure is the fully-qualified name of the AdminService's
 	// RemoveMessage RPC.
 	AdminServiceRemoveMessageProcedure = "/chat.v1.AdminService/RemoveMessage"
@@ -48,6 +52,10 @@ const (
 // AdminServiceClient is a client for the chat.v1.AdminService service.
 type AdminServiceClient interface {
 	Mute(context.Context, *connect.Request[v1.MuteRequest]) (*connect.Response[v1.MuteResponse], error)
+	// Ends now every mute given to the account, with the network each holds. A mute given to another account on its network still holds it. NotFound when none runs.
+	Unmute(context.Context, *connect.Request[v1.UnmuteRequest]) (*connect.Response[v1.UnmuteResponse], error)
+	// The mute that holds the account now, given to it or to another account on the network it last posted from; the one that ends last. Nothing set when none holds it.
+	GetMute(context.Context, *connect.Request[v1.GetMuteRequest]) (*connect.Response[v1.GetMuteResponse], error)
 	// Its text and reactions go for everyone, at once, and nobody reacts to it or answers it; it keeps its place, and the row is kept as evidence. NotFound past the retention.
 	RemoveMessage(context.Context, *connect.Request[v1.RemoveMessageRequest]) (*connect.Response[v1.RemoveMessageResponse], error)
 	// A message as it was sent, removed or not. NotFound past the retention.
@@ -71,6 +79,18 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			httpClient,
 			baseURL+AdminServiceMuteProcedure,
 			connect.WithSchema(adminServiceMethods.ByName("Mute")),
+			connect.WithClientOptions(opts...),
+		),
+		unmute: connect.NewClient[v1.UnmuteRequest, v1.UnmuteResponse](
+			httpClient,
+			baseURL+AdminServiceUnmuteProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("Unmute")),
+			connect.WithClientOptions(opts...),
+		),
+		getMute: connect.NewClient[v1.GetMuteRequest, v1.GetMuteResponse](
+			httpClient,
+			baseURL+AdminServiceGetMuteProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("GetMute")),
 			connect.WithClientOptions(opts...),
 		),
 		removeMessage: connect.NewClient[v1.RemoveMessageRequest, v1.RemoveMessageResponse](
@@ -97,6 +117,8 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 // adminServiceClient implements AdminServiceClient.
 type adminServiceClient struct {
 	mute          *connect.Client[v1.MuteRequest, v1.MuteResponse]
+	unmute        *connect.Client[v1.UnmuteRequest, v1.UnmuteResponse]
+	getMute       *connect.Client[v1.GetMuteRequest, v1.GetMuteResponse]
 	removeMessage *connect.Client[v1.RemoveMessageRequest, v1.RemoveMessageResponse]
 	getMessage    *connect.Client[v1.GetMessageRequest, v1.GetMessageResponse]
 	listMessages  *connect.Client[v1.ListMessagesRequest, v1.ListMessagesResponse]
@@ -105,6 +127,16 @@ type adminServiceClient struct {
 // Mute calls chat.v1.AdminService.Mute.
 func (c *adminServiceClient) Mute(ctx context.Context, req *connect.Request[v1.MuteRequest]) (*connect.Response[v1.MuteResponse], error) {
 	return c.mute.CallUnary(ctx, req)
+}
+
+// Unmute calls chat.v1.AdminService.Unmute.
+func (c *adminServiceClient) Unmute(ctx context.Context, req *connect.Request[v1.UnmuteRequest]) (*connect.Response[v1.UnmuteResponse], error) {
+	return c.unmute.CallUnary(ctx, req)
+}
+
+// GetMute calls chat.v1.AdminService.GetMute.
+func (c *adminServiceClient) GetMute(ctx context.Context, req *connect.Request[v1.GetMuteRequest]) (*connect.Response[v1.GetMuteResponse], error) {
+	return c.getMute.CallUnary(ctx, req)
 }
 
 // RemoveMessage calls chat.v1.AdminService.RemoveMessage.
@@ -125,6 +157,10 @@ func (c *adminServiceClient) ListMessages(ctx context.Context, req *connect.Requ
 // AdminServiceHandler is an implementation of the chat.v1.AdminService service.
 type AdminServiceHandler interface {
 	Mute(context.Context, *connect.Request[v1.MuteRequest]) (*connect.Response[v1.MuteResponse], error)
+	// Ends now every mute given to the account, with the network each holds. A mute given to another account on its network still holds it. NotFound when none runs.
+	Unmute(context.Context, *connect.Request[v1.UnmuteRequest]) (*connect.Response[v1.UnmuteResponse], error)
+	// The mute that holds the account now, given to it or to another account on the network it last posted from; the one that ends last. Nothing set when none holds it.
+	GetMute(context.Context, *connect.Request[v1.GetMuteRequest]) (*connect.Response[v1.GetMuteResponse], error)
 	// Its text and reactions go for everyone, at once, and nobody reacts to it or answers it; it keeps its place, and the row is kept as evidence. NotFound past the retention.
 	RemoveMessage(context.Context, *connect.Request[v1.RemoveMessageRequest]) (*connect.Response[v1.RemoveMessageResponse], error)
 	// A message as it was sent, removed or not. NotFound past the retention.
@@ -144,6 +180,18 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		AdminServiceMuteProcedure,
 		svc.Mute,
 		connect.WithSchema(adminServiceMethods.ByName("Mute")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServiceUnmuteHandler := connect.NewUnaryHandler(
+		AdminServiceUnmuteProcedure,
+		svc.Unmute,
+		connect.WithSchema(adminServiceMethods.ByName("Unmute")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServiceGetMuteHandler := connect.NewUnaryHandler(
+		AdminServiceGetMuteProcedure,
+		svc.GetMute,
+		connect.WithSchema(adminServiceMethods.ByName("GetMute")),
 		connect.WithHandlerOptions(opts...),
 	)
 	adminServiceRemoveMessageHandler := connect.NewUnaryHandler(
@@ -168,6 +216,10 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		switch r.URL.Path {
 		case AdminServiceMuteProcedure:
 			adminServiceMuteHandler.ServeHTTP(w, r)
+		case AdminServiceUnmuteProcedure:
+			adminServiceUnmuteHandler.ServeHTTP(w, r)
+		case AdminServiceGetMuteProcedure:
+			adminServiceGetMuteHandler.ServeHTTP(w, r)
 		case AdminServiceRemoveMessageProcedure:
 			adminServiceRemoveMessageHandler.ServeHTTP(w, r)
 		case AdminServiceGetMessageProcedure:
@@ -185,6 +237,14 @@ type UnimplementedAdminServiceHandler struct{}
 
 func (UnimplementedAdminServiceHandler) Mute(context.Context, *connect.Request[v1.MuteRequest]) (*connect.Response[v1.MuteResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chat.v1.AdminService.Mute is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) Unmute(context.Context, *connect.Request[v1.UnmuteRequest]) (*connect.Response[v1.UnmuteResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chat.v1.AdminService.Unmute is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) GetMute(context.Context, *connect.Request[v1.GetMuteRequest]) (*connect.Response[v1.GetMuteResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chat.v1.AdminService.GetMute is not implemented"))
 }
 
 func (UnimplementedAdminServiceHandler) RemoveMessage(context.Context, *connect.Request[v1.RemoveMessageRequest]) (*connect.Response[v1.RemoveMessageResponse], error) {

@@ -229,6 +229,8 @@ describe("ReportDetail", () => {
         open(admin)
 
         expect(await screen.findByText("Not banned")).toBeTruthy()
+        expect(await screen.findByText("Not muted")).toBeTruthy()
+        expect(admin.askedFor("getMute")).toEqual([{accountId: "account-reported"}])
         fireEvent.click(screen.getByRole("button", {name: "What the antibot reads"}))
         expect(await screen.findByText(/^42 in /)).toBeTruthy()
         expect(admin.askedFor("inspectPlayer")).toEqual([{accountId: "account-reported"}])

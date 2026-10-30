@@ -14,12 +14,16 @@ import {
 import {
     GetMessageRequest,
     GetMessageResponse,
+    GetMuteRequest,
+    GetMuteResponse,
     KeptMessage,
     KeptQuote,
     MuteRequest,
     MuteResponse,
     RemoveMessageRequest,
     RemoveMessageResponse,
+    UnmuteRequest,
+    UnmuteResponse,
 } from "../gen/grpc/chat/v1/admin_pb.ts"
 import {
     FindPlayersRequest,
@@ -316,6 +320,23 @@ export class DemoAdmin extends FakeAdmin {
         const until = Date.now() + Number(request.duration?.seconds ?? 3600n) * 1000
         this.mutedUntil.set(request.accountId ?? "", until)
         return this.answer("mute", request, new MuteResponse({mutedUntil: at(until)}))
+    }
+
+    override unmute(request: PartialMessage<UnmuteRequest>): Promise<UnmuteResponse> {
+        const until = this.mutedUntil.get(request.accountId ?? "")
+        if (until === undefined || until <= Date.now()) {
+            return this.refuseLater("unmute", request, "no mute applies to this caller", Code.NotFound)
+        }
+        this.mutedUntil.delete(request.accountId ?? "")
+        return this.answer("unmute", request, new UnmuteResponse({mutedUntil: at(until)}))
+    }
+
+    override getMute(request: PartialMessage<GetMuteRequest>): Promise<GetMuteResponse> {
+        const until = this.mutedUntil.get(request.accountId ?? "")
+        const answer = until === undefined || until <= Date.now()
+            ? new GetMuteResponse()
+            : new GetMuteResponse({mutedUntil: at(until), mutedAccountId: request.accountId})
+        return this.answer("getMute", request, answer)
     }
 
     override topPlayers(request: PartialMessage<TopPlayersRequest>): Promise<TopPlayersResponse> {
