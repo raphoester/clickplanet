@@ -1,5 +1,5 @@
 import {ReactNode} from "react"
-import {MissionOrder} from "../../backends/missions.ts"
+import {FlagMissionOrder, MissionOrder} from "../../backends/missions.ts"
 import {Countries} from "../../domain/countries.ts"
 import {orderOf, reachedOf} from "../../domain/missions.ts"
 import CountryFlag from "../components/CountryFlag.tsx"
@@ -9,16 +9,17 @@ export type OrderParts = {
     progress: ReactNode
 }
 
-export function partsOf(order: MissionOrder): OrderParts {
+export function partsOf(order: MissionOrder | FlagMissionOrder): OrderParts {
     return {line: lineOf(order), progress: progressOf(order)}
 }
 
-function lineOf(order: MissionOrder): ReactNode {
+function lineOf(order: MissionOrder | FlagMissionOrder): ReactNode {
     switch (order.kind) {
         case "takeFor":
         case "takeFrom":
         case "takeIn":
         case "bombIn":
+        case "breakShields":
             return <>{orderOf(order)} {countryOf(order.country)}</>
         case "takeFromIn":
             return <>{orderOf(order)} {countryOf(order.country)} in {countryOf(order.ground)}</>
@@ -34,7 +35,7 @@ function countryOf(code: string): ReactNode {
     return <><CountryFlag code={code}/> {Countries.get(code)?.name ?? code}</>
 }
 
-function progressOf(order: MissionOrder): ReactNode {
+function progressOf(order: MissionOrder | FlagMissionOrder): ReactNode {
     const reached = reachedOf(order)
 
     return <>

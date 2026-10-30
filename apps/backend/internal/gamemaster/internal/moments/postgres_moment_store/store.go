@@ -47,6 +47,17 @@ func (s *Store) KeepOpened(ctx context.Context, round moments.RoundID) error {
 	return nil
 }
 
+func (s *Store) KeepTold(ctx context.Context, day moments.ToldDay) (bool, error) {
+	res, err := s.db.On(ctx).ExecContext(ctx, `
+		INSERT INTO told_days (round_id, ends_at) VALUES ($1, $2)
+		ON CONFLICT (round_id) DO UPDATE SET ends_at = excluded.ends_at WHERE told_days.ends_at <> excluded.ends_at
+	`, string(day.Round), day.EndsAt.UTC())
+	if err != nil {
+		return false, fmt.Errorf("failed to keep the day %s told: %w", day.Round, err)
+	}
+	return inserted(res)
+}
+
 func (s *Store) Opened(ctx context.Context) ([]moments.RoundID, error) {
 	rows, err := s.db.On(ctx).QueryContext(ctx, `SELECT round_id FROM opened_rounds`)
 	if err != nil {

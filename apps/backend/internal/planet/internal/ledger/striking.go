@@ -18,11 +18,25 @@ type Striking struct {
 	At      time.Time
 }
 
+// A shield struck: the tile kept its flag, Owner, and lost one shield to a click, a spread, an enclose or a bomb for
+// Country.
+type Strike struct {
+	Tile    uint32
+	Account string
+	Country string
+	Owner   string
+	At      time.Time
+}
+
 type shieldsPayload struct {
 	Shields int `json:"shields"`
 }
 
 func (s Striking) Replay(func(Taking)) {}
+
+func (s Striking) Strikes(see func(Strike)) {
+	see(Strike{Tile: s.Tile, Account: s.Account, Country: s.Country, Owner: s.Owner, At: s.At})
+}
 
 func (s Striking) Show(see func(Scene)) {
 	see(Scene{At: s.At, Change: struck(s.Tile, s.Owner, s.Shields, true)})

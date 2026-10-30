@@ -1,8 +1,8 @@
-import {Mission, MissionOrder, MissionReward} from "../backends/missions.ts"
+import {DayMissions, FlagMission, FlagMissionOrder, Mission, MissionOrder, MissionReward} from "../backends/missions.ts"
 import {BonusReward, BonusRules} from "./bonus.ts"
 
 // What an order asks, up to the country named after it, if any.
-export function orderOf(order: MissionOrder): string {
+export function orderOf(order: MissionOrder | FlagMissionOrder): string {
     switch (order.kind) {
         case "takeFor":
             return `Take ${order.goal} tiles for`
@@ -21,6 +21,8 @@ export function orderOf(order: MissionOrder): string {
             return `Answer ${counted(order.goal, "a quiz", "quizzes")} right`
         case "fortifyTiles":
             return `Fortify ${counted(order.goal, "a tile", "tiles")}`
+        case "breakShields":
+            return `Break ${order.goal} shields of`
     }
 }
 
@@ -28,7 +30,7 @@ function counted(count: number, one: string, many: string): string {
     return count === 1 ? one : `${count} ${many}`
 }
 
-export function reachedOf(order: MissionOrder): number {
+export function reachedOf(order: MissionOrder | FlagMissionOrder): number {
     switch (order.kind) {
         case "takeFor":
         case "takeFrom":
@@ -40,6 +42,7 @@ export function reachedOf(order: MissionOrder): number {
         case "catchBoxes":
         case "answerQuizzes":
         case "fortifyTiles":
+        case "breakShields":
             return Math.min(order.reached, order.goal)
     }
 }
@@ -87,6 +90,14 @@ export function parseSeenMissions(raw: string | null): SeenMissions {
 
 export function newlyPaid(before: readonly Mission[], after: readonly Mission[]): Mission[] {
     return after.filter((mission) => mission.paid && before.some((was) => was.id === mission.id && !was.paid))
+}
+
+// The flag's mission, when it was read not done and is done now.
+export function newlyDoneFlagMission(before: DayMissions, after: DayMissions): FlagMission | undefined {
+    const was = before.flagMission
+    const now = after.flagMission
+    if (!was || !now || was.id !== now.id || was.done || !now.done) return undefined
+    return now
 }
 
 export function awardOf(reward: MissionReward, rules: Pick<BonusRules, "blastRadius" | "enclosureMaxTiles">): BonusReward {

@@ -1,6 +1,7 @@
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {Code, ConnectError} from "@connectrpc/connect"
 import {
+    FlagMission as FlagMissionPb,
     GetMissionsResponse as GetMissionsResponsePb,
     Mission as MissionPb,
 } from "../gen/grpc/missions/v1/missions_pb.ts"
@@ -46,6 +47,20 @@ describe("ConnectMissionsBackend", () => {
                 reward: {kind: "spreadClicks", amount: 4},
             }],
         })
+    })
+
+    it("reads the flag's mission, and skips one whose kind it does not know", async () => {
+        const getMissions = vi.fn()
+            .mockResolvedValueOnce(new GetMissionsResponsePb({flagMission: new FlagMissionPb({
+                id: "f-1", points: 3, done: true, kind: {case: "breakShields", value: {countryId: "dz", goal: 200, broken: 200}},
+            })}))
+            .mockResolvedValueOnce(new GetMissionsResponsePb({flagMission: new FlagMissionPb({id: "f-2", points: 1})}))
+        const backend = backendWith({getMissions})
+
+        expect((await backend.missions()).flagMission).toEqual({
+            id: "f-1", points: 3, done: true, order: {kind: "breakShields", country: "dz", goal: 200, reached: 200},
+        })
+        expect((await backend.missions()).flagMission).toBeUndefined()
     })
 
     it("reads each kind of mission in its own shape", async () => {

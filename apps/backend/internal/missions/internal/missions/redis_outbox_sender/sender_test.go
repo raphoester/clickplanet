@@ -11,6 +11,7 @@ import (
 
 	missionsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/missions/v1"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
+	scoringv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/redis_outbox_sender"
 )
 
@@ -31,14 +32,15 @@ var (
 	grant = &planetv1.GrantCharges{GrantId: "g1", AccountId: "ada"}
 	other = &planetv1.GrantCharges{GrantId: "g2", AccountId: "ada"}
 	paid  = &missionsv1.MissionsPaid{AccountId: "ada", PaidInAll: 2}
+	flag  = &scoringv1.GrantPoints{GrantId: "f1", Country: "fr", Points: 2}
 )
 
-func TestTheGrantsGoToPlanetAndTheMissionsPaidToEveryListener(t *testing.T) {
+func TestTheGrantsGoToTheirHandlersAndTheMissionsPaidToEveryListener(t *testing.T) {
 	events, commands := &sender{}, &sender{}
 
-	require.NoError(t, redis_outbox_sender.New(events, commands).Send(t.Context(), grant, other, paid))
+	require.NoError(t, redis_outbox_sender.New(events, commands).Send(t.Context(), grant, flag, other, paid))
 
-	assert.Equal(t, []proto.Message{grant, other}, commands.sent, "in the order kept")
+	assert.Equal(t, []proto.Message{grant, flag, other}, commands.sent, "in the order kept")
 	assert.Equal(t, []proto.Message{paid}, events.sent)
 }
 

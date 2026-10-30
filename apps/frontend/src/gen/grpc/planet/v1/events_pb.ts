@@ -376,6 +376,85 @@ export class ShieldPlaced extends Message<ShieldPlaced> {
 }
 
 /**
+ * A shield a click, a spread, an enclose or a bomb broke: the tile kept its flag, owner, and lost one shield.
+ *
+ * @generated from message planet.v1.ShieldStruck
+ */
+export class ShieldStruck extends Message<ShieldStruck> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  /**
+   * @generated from field: uint32 tile_id = 2;
+   */
+  tileId = 0;
+
+  /**
+   * The flag that struck it.
+   *
+   * @generated from field: string country = 3;
+   */
+  country = "";
+
+  /**
+   * @generated from field: string owner = 4;
+   */
+  owner = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp struck_at = 5;
+   */
+  struckAt?: Timestamp;
+
+  /**
+   * @generated from field: uint64 position = 6;
+   */
+  position = protoInt64.zero;
+
+  /**
+   * A spread, an enclose or a bomb is one ledger event, at one position, that may strike several: each has its index.
+   *
+   * @generated from field: uint32 index = 7;
+   */
+  index = 0;
+
+  constructor(data?: PartialMessage<ShieldStruck>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.ShieldStruck";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "country", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "owner", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "struck_at", kind: "message", T: Timestamp },
+    { no: 6, name: "position", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+    { no: 7, name: "index", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ShieldStruck {
+    return new ShieldStruck().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ShieldStruck {
+    return new ShieldStruck().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ShieldStruck {
+    return new ShieldStruck().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ShieldStruck | PlainMessage<ShieldStruck> | undefined, b: ShieldStruck | PlainMessage<ShieldStruck> | undefined): boolean {
+    return proto3.util.equals(ShieldStruck, a, b);
+  }
+}
+
+/**
  * @generated from message planet.v1.BonusClaimed
  */
 export class BonusClaimed extends Message<BonusClaimed> {

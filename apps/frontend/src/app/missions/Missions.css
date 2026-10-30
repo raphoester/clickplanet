@@ -34,6 +34,18 @@
     opacity: 0.6;
 }
 
+.mission-kicker {
+    margin: 0;
+    font-size: var(--text-s);
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--gold);
+}
+
+.mission-points {
+    font-size: var(--text-m);
+}
+
 .mission-head,
 .mission-foot {
     display: flex;

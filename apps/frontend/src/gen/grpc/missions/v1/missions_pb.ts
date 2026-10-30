@@ -66,6 +66,13 @@ export class GetMissionsResponse extends Message<GetMissionsResponse> {
    */
   missions: Mission[] = [];
 
+  /**
+   * The day's mission of the flag the caller plays now, the same for each of its players. Unset with no flag.
+   *
+   * @generated from field: missions.v1.FlagMission flag_mission = 5;
+   */
+  flagMission?: FlagMission;
+
   constructor(data?: PartialMessage<GetMissionsResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -78,6 +85,7 @@ export class GetMissionsResponse extends Message<GetMissionsResponse> {
     { no: 2, name: "enlisted", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 3, name: "ends_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
     { no: 4, name: "missions", kind: "message", T: Mission, repeated: true },
+    { no: 5, name: "flag_mission", kind: "message", T: FlagMission },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetMissionsResponse {
@@ -668,6 +676,127 @@ export class FortifyTiles extends Message<FortifyTiles> {
 
   static equals(a: FortifyTiles | PlainMessage<FortifyTiles> | undefined, b: FortifyTiles | PlainMessage<FortifyTiles> | undefined): boolean {
     return proto3.util.equals(FortifyTiles, a, b);
+  }
+}
+
+/**
+ * Done once for the whole flag, it gives the flag `points` in the season. A client skips a kind it does not know.
+ *
+ * @generated from message missions.v1.FlagMission
+ */
+export class FlagMission extends Message<FlagMission> {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id = "";
+
+  /**
+   * @generated from field: uint32 points = 2;
+   */
+  points = 0;
+
+  /**
+   * @generated from field: bool done = 3;
+   */
+  done = false;
+
+  /**
+   * @generated from oneof missions.v1.FlagMission.kind
+   */
+  kind: {
+    /**
+     * @generated from field: missions.v1.TakeIn take_in = 10;
+     */
+    value: TakeIn;
+    case: "takeIn";
+  } | {
+    /**
+     * @generated from field: missions.v1.BreakShields break_shields = 11;
+     */
+    value: BreakShields;
+    case: "breakShields";
+  } | { case: undefined; value?: undefined } = { case: undefined };
+
+  constructor(data?: PartialMessage<FlagMission>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "missions.v1.FlagMission";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "points", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "done", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 10, name: "take_in", kind: "message", T: TakeIn, oneof: "kind" },
+    { no: 11, name: "break_shields", kind: "message", T: BreakShields, oneof: "kind" },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FlagMission {
+    return new FlagMission().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): FlagMission {
+    return new FlagMission().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): FlagMission {
+    return new FlagMission().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: FlagMission | PlainMessage<FlagMission> | undefined, b: FlagMission | PlainMessage<FlagMission> | undefined): boolean {
+    return proto3.util.equals(FlagMission, a, b);
+  }
+}
+
+/**
+ * Break goal shields of country_id.
+ *
+ * @generated from message missions.v1.BreakShields
+ */
+export class BreakShields extends Message<BreakShields> {
+  /**
+   * @generated from field: string country_id = 1;
+   */
+  countryId = "";
+
+  /**
+   * @generated from field: uint32 goal = 2;
+   */
+  goal = 0;
+
+  /**
+   * @generated from field: uint32 broken = 3;
+   */
+  broken = 0;
+
+  constructor(data?: PartialMessage<BreakShields>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "missions.v1.BreakShields";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "goal", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "broken", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BreakShields {
+    return new BreakShields().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BreakShields {
+    return new BreakShields().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BreakShields {
+    return new BreakShields().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BreakShields | PlainMessage<BreakShields> | undefined, b: BreakShields | PlainMessage<BreakShields> | undefined): boolean {
+    return proto3.util.equals(BreakShields, a, b);
   }
 }
 

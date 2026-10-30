@@ -205,7 +205,6 @@ func TestTheExampleConfigReachesTheMissionsBlock(t *testing.T) {
 	var config Config
 	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
 
-	assert.Equal(t, 21*time.Hour, config.Missions.Calendar.Cutoff, "the missions turn when the daily round closes")
 	assert.Equal(t, "missions", config.Missions.Database.Schema)
 	require.NoError(t, config.Missions.Validate())
 }
@@ -302,7 +301,7 @@ func TestTheExampleConfigReachesTheGamemasterBlock(t *testing.T) {
 	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
 
 	assert.Equal(t, "gamemaster", config.Gamemaster.Database.Schema)
-	assert.Equal(t, 21*time.Hour, config.Gamemaster.DailyCutoff, "the days end at 21:00 UTC, as the missions turn")
+	assert.Equal(t, 21*time.Hour, config.Gamemaster.DailyCutoff, "the days end at 21:00 UTC")
 	require.NoError(t, config.Gamemaster.Validate())
 }
 

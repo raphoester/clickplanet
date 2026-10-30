@@ -114,6 +114,8 @@ import {endedBookOf} from "../../domain/debrief.ts";
 import {acceptedClicks} from "./acceptedClicks.ts";
 import {ClipsBackend, ClipsNameBackend} from "../../backends/clips.ts";
 import ClipNotice from "../clips/ClipNotice.tsx";
+import FlagMissionDone from "../missions/FlagMissionDone.tsx";
+import {useFlagMissionDone} from "../missions/useFlagMissionDone.ts";
 import {useClipNotice} from "../clips/useClipNotice.ts";
 import "./Viewer.css"
 
@@ -364,6 +366,9 @@ export default function Viewer(props: ViewerProps) {
         refresh()
         setTimeout(refresh, GRANT_LANDS_MS)
     })
+    useFlagMissionDone(missionsState, (mission) => {
+        if (allegiance) announce({kind: "flagMission", mission, country: allegiance.countryId})
+    })
     const missions: MissionsPlaceProps | undefined = props.missions && {
         state: missionsState,
         onSignIn: guest ? openPitch ?? (() => setSheet("you")) : undefined,
@@ -592,6 +597,12 @@ export default function Viewer(props: ViewerProps) {
                                                               clipNotice.dismiss(current.appearance)
                                                               announcements.dismiss()
                                                           }}/>}
+
+        {ready && current?.kind === "flagMission" && <FlagMissionDone key={announcementKeyOf(current)}
+                                                                      mission={current.mission}
+                                                                      country={current.country}
+                                                                      play={sound.play}
+                                                                      onClose={announcements.dismiss}/>}
 
         {missionsDone && rules && <MissionsDone missions={missionsDone}
                                                 rules={rules}

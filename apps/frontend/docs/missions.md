@@ -14,6 +14,15 @@ itself, with nothing to press.
   **Done** once the backend says so (`done`: the client does not decide it). A guest sees
   the same rows and **Sign in to get it** on a mission done, which opens the sign-in pitch: its
   pay waits for the sign-in that day. "Ends in" is the day's own end, 21:00 UTC.
+- **The flag's mission comes first**, in a panel of its own (`FlagMissionRow`): "Flag mission", its order ("Break 300
+  shields of", then the flag; or a ground's tiles), its bar, and the season points it gives the flag in gold. The
+  whole flag counts on it, and the backend says when it is done. The badge does not count it.
+- **The flag's mission done is cheered full screen**, `FlagMissionDone`: "Congratulations!", the flag on the rays as
+  a round's champion is (no medal: medals are titles'), its name, the season points won and the order done. Every player of the flag sees it at the read that first says it
+  is done (`useFlagMissionDone`, `newlyDoneFlagMission`: the same mission read not done before; the first read of
+  the page tells nothing), so a player who stopped clicking sees it at the next run of clicks. It plays through the
+  announcements queue (see [Battles](battle.md#the-announcements-queue)). Until 2026-10-29 nothing said it, and the
+  owner, who finished France's, could not tell if the points were granted.
 - **`useMissions` lives in `Viewer`, not in the place**, so the badge is right with the tab closed. It reads `GetMissions` at load, on a change of the pledged flag (`useAllegiance`), after
   each run of clicks (`useReadsAfterClicks`) and once more `FOLLOW_UP_MS` (3 s) later, and once the day ends.
   The read after clicks comes 2 s after the last one, and the backend counts a take one to three seconds
@@ -35,9 +44,11 @@ itself, with nothing to press.
   own card (`BonusAward`) is for a box or a quiz, not a mission.
 - **A `Mission` is its id, its `order`, its reward, `done` and `paid`.** The order is one shape per kind
   (`MissionOrder`: `TileOrder` and `RaidOrder` count `taken`, `BombOrder`, `ShieldOrder` and `CountOrder` count
-  `reached`); `ConnectMissionsBackend` reads the proto's `oneof` and skips a mission whose kind or reward it does
+  `reached`), and a flag mission's (`FlagMissionOrder`) is a `TileOrder` or a `BreakOrder`, which counts `reached`
+  too; `ConnectMissionsBackend` reads the proto's `oneof` and skips a mission whose kind or reward it does
   not know.
 - `backends/missions.ts` is the contract, `ConnectMissionsBackend` (`missions.v1.MissionService`) the real one,
   `FakeMissionsBackend` the fake: it draws the day for the flag pledged at its first read (or its first
-  take's), counts every take of this tab, pays each mission done at once, and `finishMissions()` in the console puts
-  every mission one tile from done: the next take finishes and pays them all, as a take does on the server.
+  take's), with a flag mission to break a rival's shields that this tab's takes stand for, counts every take of this tab, pays each mission done at once, and `finishMissions()` in the console puts
+  every mission one tile from done: the next take finishes and pays them all, as a take does on the server, and
+  cheers the flag's. The fake has no missions before the tab's first take: take a tile, then call it.

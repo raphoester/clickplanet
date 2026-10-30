@@ -49,3 +49,12 @@ message CloseBook {
   google.protobuf.Timestamp ends_at = 2;
   string tiebreak_round_id = 3;
 }
+
+// Gives a country points in every book open at granted_at, beside its rounds' points: no round won, no tiebreak. Its
+// own stream. A grant_id told twice is granted once.
+message GrantPoints {
+  string grant_id = 1;
+  string country = 2;
+  uint32 points = 3;
+  google.protobuf.Timestamp granted_at = 4;
+}

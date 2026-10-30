@@ -90,6 +90,19 @@ func (u *UseCase) factsOf(position ledger.Position, event ledger.Event) []proto.
 		})
 		index++
 	})
+	var struck uint32
+	event.Strikes(func(strike ledger.Strike) {
+		facts = append(facts, &planetv1.ShieldStruck{
+			AccountId: strike.Account,
+			TileId:    strike.Tile,
+			Country:   strike.Country,
+			Owner:     strike.Owner,
+			StruckAt:  timestamppb.New(strike.At),
+			Position:  uint64(position),
+			Index:     struck,
+		})
+		struck++
+	})
 
 	switch told := event.(type) {
 	case ledger.Bombing:

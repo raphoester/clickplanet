@@ -31,6 +31,8 @@ func fortifyingOfImpact(by Caller, at time.Time, flag string, fortified *clicks.
 
 func (f Fortifying) Replay(func(Taking)) {}
 
+func (f Fortifying) Strikes(func(Strike)) {}
+
 func (f Fortifying) Show(see func(Scene)) {
 	for _, raised := range f.Raised {
 		see(Scene{At: f.At, Change: &Change{

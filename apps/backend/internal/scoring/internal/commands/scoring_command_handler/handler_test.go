@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	scoringv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1"
@@ -80,6 +81,30 @@ func TestAFailureIsDeliveredAgainAndScoresTheRoundThen(t *testing.T) {
 	stack.territory.err, stack.territory.held = nil, map[books.Country]uint32{"fr": 1}
 	require.NoError(t, stack.handler.Handle(t.Context(), closeRound("season-0/day-1", utc(8, 21))))
 	assert.Len(t, stack.outbox.Recorded(), 1)
+}
+
+func TestABookClosedCountsTheGrantsItHolds(t *testing.T) {
+	stack := newStack()
+	require.NoError(t, stack.handler.Handle(t.Context(), openBook("season-0", utc(8, 0))))
+	require.NoError(t, stack.handler.Handle(t.Context(), openRound("season-0/day-1", "season-0", 1, utc(8, 0))))
+	stack.territory.held = map[books.Country]uint32{"fr": 1}
+	require.NoError(t, stack.handler.Handle(t.Context(), closeRound("season-0/day-1", utc(8, 21))))
+	for _, grant := range []books.Grant{
+		{ID: "before", Country: "fr", Points: 3, At: utc(7, 0)},
+		{ID: "held", Country: "de", Points: 2, At: utc(9, 0)},
+	} {
+		_, err := stack.grants.Keep(t.Context(), grant)
+		require.NoError(t, err)
+	}
+
+	require.NoError(t, stack.handler.Handle(t.Context(), closeBook("season-0", "", utc(31, 23))))
+
+	recorded := stack.outbox.Recorded()
+	require.Len(t, recorded, 2)
+	assert.True(t, proto.Equal(&scoringv1.BookClosed{BookId: "season-0", EndedAt: timestamppb.New(utc(31, 23)), Table: []*scoringv1.Place{
+		{Country: "fr", Rank: 1, Points: 25, RoundsWon: 1},
+		{Country: "de", Rank: 2, Points: 2},
+	}}, recorded[1]), recorded[1])
 }
 
 func TestABookOpenedLaterKeepsItsFirstStart(t *testing.T) {

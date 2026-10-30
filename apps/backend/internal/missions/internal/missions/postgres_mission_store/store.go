@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
@@ -27,10 +28,10 @@ var _ missions.Store = (*Store)(nil)
 
 const sheetLock = 0x6d697373
 
-func (s *Store) Brief(ctx context.Context, day missions.Day, account missions.AccountID) (missions.Brief, error) {
+func (s *Store) Brief(ctx context.Context, day days.Day, account missions.AccountID) (missions.Brief, error) {
 	var kept []byte
 	err := s.db.On(ctx).QueryRowContext(ctx, `
-		SELECT missions FROM mission_briefs WHERE day = $1::date AND account_id = $2
+		SELECT missions FROM mission_briefs WHERE day = $1 AND account_id = $2
 	`, day.String(), uuid.UUID(account)).Scan(&kept)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
@@ -55,7 +56,7 @@ func (s *Store) Brief(ctx context.Context, day missions.Day, account missions.Ac
 }
 
 func (s *Store) KeepBrief(
-	ctx context.Context, day missions.Day, account missions.AccountID, brief missions.Brief,
+	ctx context.Context, day days.Day, account missions.AccountID, brief missions.Brief,
 ) (missions.Brief, error) {
 	drawn := brief.Snapshot()
 	records := make([]missionRecord, 0, len(drawn))
@@ -72,7 +73,7 @@ func (s *Store) KeepBrief(
 	}
 
 	if _, err := s.db.On(ctx).ExecContext(ctx, `
-		INSERT INTO mission_briefs (day, account_id, missions) VALUES ($1::date, $2, $3::jsonb)
+		INSERT INTO mission_briefs (day, account_id, missions) VALUES ($1, $2, $3::jsonb)
 		ON CONFLICT (day, account_id) DO NOTHING
 	`, day.String(), uuid.UUID(account), encoded); err != nil {
 		return missions.Brief{}, fmt.Errorf("failed to keep the day's brief: %w", err)
@@ -80,11 +81,11 @@ func (s *Store) KeepBrief(
 	return s.Brief(ctx, day, account)
 }
 
-func (s *Store) Sheet(ctx context.Context, day missions.Day, account missions.AccountID) (missions.Sheet, error) {
+func (s *Store) Sheet(ctx context.Context, day days.Day, account missions.AccountID) (missions.Sheet, error) {
 	return sheetOf(ctx, s.db.On(ctx), day, account)
 }
 
-func sheetOf(ctx context.Context, db cppg.Querier, day missions.Day, account missions.AccountID) (missions.Sheet, error) {
+func sheetOf(ctx context.Context, db cppg.Querier, day days.Day, account missions.AccountID) (missions.Sheet, error) {
 	snapshot := missions.SheetSnapshot{Progress: map[missions.MissionID]uint32{}, Paid: cpcolls.NewSet[missions.MissionID]()}
 
 	var (
@@ -92,25 +93,25 @@ func sheetOf(ctx context.Context, db cppg.Querier, day missions.Day, account mis
 		boxes, answers                               sql.NullTime
 	)
 	err := db.QueryRowContext(ctx, `
-		SELECT `+countedColumns+` FROM mission_sheets WHERE day = $1::date AND account_id = $2
+		SELECT `+countedColumns+` FROM mission_sheets WHERE day = $1 AND account_id = $2
 	`, day.String(), uuid.UUID(account)).Scan(&takes, &bombs, &shields, &fortifies, &boxes, &answers, &takesIndex)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return missions.Sheet{}, fmt.Errorf("failed to read the day's last facts: %w", err)
 	}
 	snapshot.Counted = missions.Counted{
-		TakesBelow:     missions.TakeMark{Position: uint64(takes), Index: uint32(takesIndex)}, //nolint:gosec // CHECK (>= 0).
-		BombsBelow:     uint64(bombs),                                                         //nolint:gosec // as above.
-		ShieldsBelow:   uint64(shields),                                                       //nolint:gosec // as above.
-		FortifiesBelow: uint64(fortifies),                                                     //nolint:gosec // as above.
+		TakesBelow:     missions.LedgerMark{Position: uint64(takes), Index: uint32(takesIndex)}, //nolint:gosec // CHECK (>= 0).
+		BombsBelow:     uint64(bombs),                                                           //nolint:gosec // as above.
+		ShieldsBelow:   uint64(shields),                                                         //nolint:gosec // as above.
+		FortifiesBelow: uint64(fortifies),                                                       //nolint:gosec // as above.
 		BoxesUntil:     timeOf(boxes),
 		AnswersUntil:   timeOf(answers),
 	}
 
-	if err := perMission(ctx, db, `SELECT mission_id, progress FROM mission_progress WHERE day = $1::date AND account_id = $2`,
+	if err := perMission(ctx, db, `SELECT mission_id, progress FROM mission_progress WHERE day = $1 AND account_id = $2`,
 		day, account, func(id missions.MissionID, progress uint32) { snapshot.Progress[id] = progress }); err != nil {
 		return missions.Sheet{}, fmt.Errorf("failed to read the day's progress: %w", err)
 	}
-	if err := perMission(ctx, db, `SELECT mission_id, 1 FROM mission_payments WHERE day = $1::date AND account_id = $2`,
+	if err := perMission(ctx, db, `SELECT mission_id, 1 FROM mission_payments WHERE day = $1 AND account_id = $2`,
 		day, account, func(id missions.MissionID, _ uint32) { snapshot.Paid.Add(id) }); err != nil {
 		return missions.Sheet{}, fmt.Errorf("failed to read the day's payments: %w", err)
 	}
@@ -119,7 +120,7 @@ func sheetOf(ctx context.Context, db cppg.Querier, day missions.Day, account mis
 }
 
 func perMission(
-	ctx context.Context, db cppg.Querier, query string, day missions.Day, account missions.AccountID,
+	ctx context.Context, db cppg.Querier, query string, day days.Day, account missions.AccountID,
 	see func(missions.MissionID, uint32),
 ) error {
 	rows, err := db.QueryContext(ctx, query, day.String(), uuid.UUID(account))
@@ -142,7 +143,7 @@ func perMission(
 }
 
 func (s *Store) ChangeSheet(
-	ctx context.Context, day missions.Day, account missions.AccountID, change func(missions.Sheet) missions.Sheet,
+	ctx context.Context, day days.Day, account missions.AccountID, change func(missions.Sheet) missions.Sheet,
 ) error {
 	return s.db.InTx(ctx, func(ctx context.Context) error {
 		tx := s.db.On(ctx)
@@ -158,7 +159,7 @@ func (s *Store) ChangeSheet(
 
 		if counted := after.Counted; counted != before.Counted {
 			if _, err := tx.ExecContext(ctx, `
-				INSERT INTO mission_sheets (day, account_id, `+countedColumns+`) VALUES ($1::date, $2, $3, $4, $5, $6, $7, $8, $9)
+				INSERT INTO mission_sheets (day, account_id, `+countedColumns+`) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 				ON CONFLICT (day, account_id) DO UPDATE SET
 					counted_takes_below = excluded.counted_takes_below,
 					counted_bombs_below = excluded.counted_bombs_below,
@@ -179,7 +180,7 @@ func (s *Store) ChangeSheet(
 				continue
 			}
 			if _, err := tx.ExecContext(ctx, `
-				INSERT INTO mission_progress (day, account_id, mission_id, progress) VALUES ($1::date, $2, $3, $4)
+				INSERT INTO mission_progress (day, account_id, mission_id, progress) VALUES ($1, $2, $3, $4)
 				ON CONFLICT (day, account_id, mission_id) DO UPDATE SET progress = excluded.progress
 			`, day.String(), uuid.UUID(account), uuid.UUID(id), int64(progress)); err != nil {
 				return fmt.Errorf("failed to keep the progress of mission %s: %w", id, err)
@@ -193,7 +194,7 @@ func (s *Store) ChangeSheet(
 		})
 		for _, id := range paid {
 			if _, err := tx.ExecContext(ctx, `
-				INSERT INTO mission_payments (day, account_id, mission_id) VALUES ($1::date, $2, $3) ON CONFLICT DO NOTHING
+				INSERT INTO mission_payments (day, account_id, mission_id) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING
 			`, day.String(), uuid.UUID(account), uuid.UUID(id)); err != nil {
 				return fmt.Errorf("failed to keep the payment of mission %s: %w", id, err)
 			}

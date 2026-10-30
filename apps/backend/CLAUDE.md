@@ -87,14 +87,15 @@ and says what is in it. Read the doc before you change its area.
 
 - [Chat](docs/chat.md) — messages, announcements, mutes, removals, replies, reactions, and what each account saw.
 - [Player](docs/player.md) — names and guest codes, stats, streaks, titles, and who is playing now.
-- [Scoring](docs/scoring.md) — a points accountant: books and rounds by the ids it is given, opened and closed by the
-  gamemaster's commands, each round scored from the map when it closes; no season, day, battle or clock.
+- [Scoring](docs/scoring.md) — a points accountant: books, rounds and grants by the ids it is given, opened and closed
+  by the gamemaster's commands, each round scored from the map when it closes; no season, day, battle or clock.
 - [The gamemaster](docs/gamemaster.md) — every moment of the game: the rule schedule that commands planet and the
   antibot, the seasons, days and battles it opens and closes in scoring's books, each season's finale (the Final
-  Battle), the events in the game's words, and the steps before the Final Battle.
-- [Missions](docs/missions.md) — four or five missions a day per player, counted from planet's facts (takes, boxes, right
-  answers, bombs, shields, fortifies), paid once done with a
-  `GrantCharges` command to planet; why progress is not read from the ledger.
+  Battle), the events in the game's words (each day as it starts), and the steps before the Final Battle.
+- [Missions](docs/missions.md) — four or five missions a day per player, in the days the gamemaster tells
+  (`DayStarted`), counted from planet's facts (takes, boxes, right answers, bombs, shields, fortifies), paid once done
+  with a `GrantCharges` command to planet; one flag mission a day per flag, worth season points (`GrantPoints` to
+  scoring); why progress is not read from the ledger.
 - [Support](docs/support.md) — suggestions, bug reports and player reports, with their photos and videos.
 - [Clip stats](docs/clip-stats.md) — where the posted clips' daily numbers are kept, for the backoffice.
 - [The players a clip names](docs/clip-appearances.md) — a run's cast, numbers and names and never an account; who

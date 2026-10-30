@@ -223,6 +223,7 @@ type today struct {
 func (s gameStack) today(t *testing.T) today {
 	t.Helper()
 
+	missionsDB := s.schema(t, "missions")
 	var found today
 	require.EventuallyWithT(t, func(c *assert.CollectT) {
 		turn, err := gamemasterv1connect.NewGamemasterServiceClient(http.DefaultClient, s.baseURL).
@@ -237,7 +238,11 @@ func (s gameStack) today(t *testing.T) today {
 		_, err = scoringv1connect.NewScoringServiceClient(http.DefaultClient, s.baseURL).
 			GetRound(t.Context(), connect.NewRequest(&scoringv1.GetRoundRequest{RoundId: found.round}))
 		require.NoError(c, err)
-	}, 10*time.Second, 50*time.Millisecond, "the gamemaster opens the season's book and today's round in scoring")
+		var told bool
+		require.NoError(c, missionsDB.On(t.Context()).QueryRowContext(t.Context(),
+			`SELECT EXISTS (SELECT 1 FROM mission_days WHERE day_id = $1)`, found.round).Scan(&told))
+		require.True(c, told)
+	}, 10*time.Second, 50*time.Millisecond, "the gamemaster opens the season's book and today's round in scoring, and tells missions the day")
 	return found
 }
 

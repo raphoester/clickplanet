@@ -121,9 +121,9 @@ func TestEachTakeOfASpreadIsToldWithItsIndexInTheEvent(t *testing.T) {
 	}
 	told := make([]place, 0, len(events.sent))
 	for _, fact := range events.sent {
-		taken, ok := fact.(*planetv1.TileTaken)
-		require.True(t, ok)
-		told = append(told, place{tile: taken.GetTileId(), index: taken.GetIndex(), position: taken.GetPosition()})
+		if taken, ok := fact.(*planetv1.TileTaken); ok {
+			told = append(told, place{tile: taken.GetTileId(), index: taken.GetIndex(), position: taken.GetPosition()})
+		}
 	}
 	assert.Equal(t, []place{
 		{tile: 1, index: 0, position: 0},
@@ -131,6 +131,43 @@ func TestEachTakeOfASpreadIsToldWithItsIndexInTheEvent(t *testing.T) {
 		{tile: 3, index: 1, position: 1},
 		{tile: 5, index: 2, position: 1},
 	}, told, "the click, then the spread's three takes in one event; a shield struck is no take")
+}
+
+func TestEachShieldStruckIsToldWithWhoseItWasAndItsIndexInTheEvent(t *testing.T) {
+	storage := flushed(t,
+		ledger.Striking{Tile: 1, Scope: "1.2.3.4", Account: ada, Country: "fr", Owner: "pw", Shields: 3, At: at},
+		ledger.Spreading{Tile: 2, Scope: "1.2.3.4", Account: ada, Country: "fr", At: at, Impacts: []clicks.Impact{
+			{Tile: 2, Owner: "pw", Outcome: clicks.Shielded, Shields: 1},
+			{Tile: 3, Owner: "de", Outcome: clicks.Taken},
+			{Tile: 4, Owner: "dz", Outcome: clicks.Shielded},
+		}},
+		ledger.Bombing{Scope: "1.2.3.4", At: at, Blast: clicks.Blast{
+			Tile: 9, CountryID: "fr", Cleared: []uint32{9}, Owners: []string{"de"},
+			Struck: []uint32{7, 8}, Left: []int{0, 4}, StruckOwners: []string{"pw", "fr"},
+		}},
+	)
+	events := &sender{}
+
+	_, err := relay_ledger_usecase.New(storage, &cursor{}, borders{}, events).Execute(t.Context())
+	require.NoError(t, err)
+
+	var struck []proto.Message
+	for _, fact := range events.sent {
+		if _, ok := fact.(*planetv1.ShieldStruck); ok {
+			struck = append(struck, fact)
+		}
+	}
+	want := []proto.Message{
+		&planetv1.ShieldStruck{AccountId: ada, TileId: 1, Country: "fr", Owner: "pw", StruckAt: timestamppb.New(at), Position: 0},
+		&planetv1.ShieldStruck{AccountId: ada, TileId: 2, Country: "fr", Owner: "pw", StruckAt: timestamppb.New(at), Position: 1},
+		&planetv1.ShieldStruck{AccountId: ada, TileId: 4, Country: "fr", Owner: "dz", StruckAt: timestamppb.New(at), Position: 1, Index: 1},
+		&planetv1.ShieldStruck{TileId: 7, Country: "fr", Owner: "pw", StruckAt: timestamppb.New(at), Position: 2},
+		&planetv1.ShieldStruck{TileId: 8, Country: "fr", Owner: "fr", StruckAt: timestamppb.New(at), Position: 2, Index: 1},
+	}
+	require.Len(t, struck, len(want), "a click, a spread and a bomb each strike, whoever's shield it was")
+	for i := range want {
+		assert.True(t, proto.Equal(want[i], struck[i]), "%v", struck[i])
+	}
 }
 
 func TestAFailedSendIsToldAgainNextTime(t *testing.T) {

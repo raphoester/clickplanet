@@ -7,6 +7,77 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 
 /**
+ * The day that runs from starts_at to ends_at. Told as it starts, and again when a moved season end moves ends_at.
+ *
+ * @generated from message gamemaster.v1.DayStarted
+ */
+export class DayStarted extends Message<DayStarted> {
+  /**
+   * @generated from field: uint32 season = 1;
+   */
+  season = 0;
+
+  /**
+   * The day's place among the season's days.
+   *
+   * @generated from field: uint32 day = 2;
+   */
+  day = 0;
+
+  /**
+   * @generated from field: string round_id = 3;
+   */
+  roundId = "";
+
+  /**
+   * @generated from field: string book_id = 4;
+   */
+  bookId = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp starts_at = 5;
+   */
+  startsAt?: Timestamp;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp ends_at = 6;
+   */
+  endsAt?: Timestamp;
+
+  constructor(data?: PartialMessage<DayStarted>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "gamemaster.v1.DayStarted";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "season", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "day", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "round_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "book_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "starts_at", kind: "message", T: Timestamp },
+    { no: 6, name: "ends_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DayStarted {
+    return new DayStarted().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DayStarted {
+    return new DayStarted().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DayStarted {
+    return new DayStarted().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DayStarted | PlainMessage<DayStarted> | undefined, b: DayStarted | PlainMessage<DayStarted> | undefined): boolean {
+    return proto3.util.equals(DayStarted, a, b);
+  }
+}
+
+/**
  * @generated from message gamemaster.v1.DayEnded
  */
 export class DayEnded extends Message<DayEnded> {

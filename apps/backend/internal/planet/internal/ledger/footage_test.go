@@ -70,7 +70,7 @@ func TestTheOpeningRewindsPastTheEndOfTheWindow(t *testing.T) {
 func TestABombsClearedTilesOpenOnTheirOwnersAndItsStruckTilesWithTheShieldItTook(t *testing.T) {
 	footage := footageOf(start, start.Add(time.Hour), ledger.Bombing{At: start, Blast: clicks.Blast{
 		Tile: 1, CountryID: "fr", Cleared: []uint32{1, 2}, Owners: []string{"de", "pl"},
-		Struck: []uint32{3}, Left: []int{2},
+		Struck: []uint32{3}, Left: []int{2}, StruckOwners: []string{"de"},
 	}})
 
 	now := denseOf("", "", "it")

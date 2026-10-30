@@ -63,7 +63,7 @@ func TestAnInvalidWindowIsTheCallersMistake(t *testing.T) {
 
 func TestEachSceneGoesOutAsTheLiveStreamSentIt(t *testing.T) {
 	blast := clicks.Blast{
-		Tile: 5, CountryID: "fr", Radius: 0.03, Cleared: []uint32{5, 6}, Struck: []uint32{7}, Left: []int{1},
+		Tile: 5, CountryID: "fr", Radius: 0.03, Cleared: []uint32{5, 6}, Struck: []uint32{7}, Left: []int{1}, StruckOwners: []string{"de"},
 		Point: clicks.Vec3{X: 1},
 	}
 	useCase := &stubUseCase{out: replay_usecase.Out{

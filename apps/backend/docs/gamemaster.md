@@ -57,10 +57,10 @@ internal/gamemaster/
                                     Battle, Book (Tiebreak, FinaleBattle), Plan (DueAt, BookAt, DayAt, DaysOf, BattleOf,
                                     FinaleAt, FinalesAfter, RoundEnded, BookClosed, Clashes), Planner (Plan, With),
                                     Command, Action,
-                                    Key, Moment (DayEnded, BattleEnded, SeasonEnded); the Store and Events ports, the store's
-                                    contract suite
+                                    Key, Moment (DayStarted, DayEnded, BattleEnded, SeasonEnded), ToldDay; the Store and
+                                    Events ports, the store's contract suite
       inmemory_moment_store/        the Store in maps, behind the testing tag
-      postgres_moment_store/        the Store over gamemaster.scored_rounds and closed_books
+      postgres_moment_store/        the Store over gamemaster.scored_rounds, closed_books, opened_rounds and told_days
       momentmessage/                DebriefOf and EventOf: a moment in gamemaster.v1's words
       outbox_moment_events/         Events, into the gamemaster outbox
       redis_scoring_commands/       one scoring.v1.ScoringCommand per command, on scoring's command stream
@@ -68,6 +68,8 @@ internal/gamemaster/
       book_closed_subscriber/       hears scoring.v1.BookClosed (gamemaster-books)
       usecases/play_scoring_usecase/ each command whose time has come, once per process; Runner
         log_play_scoring/           logs each command sent, and a failure
+      usecases/tell_day_usecase/    the day that runs, told once and again when its end moved; Runner
+        log_tell_day/               logs each day told, and a failure
       usecases/hear_round_usecase/  keeps a scored round, and records its day's or battle's end once; log_hear_round/
       usecases/hear_book_usecase/   keeps a closed book, and records its season's end once; log_hear_book/
     finalnight/                     a test alone: season 0's last day and its Final Battle, second by second
@@ -327,6 +329,18 @@ once Redis took it.
   before its cutoff**: it is cut at the season's end (`Window.CutDay`), closed just before the book, and no day opens
   after it; it breaks no tie. A running battle entry is cut at the new end the same way, and is no finale. The runner
   keeps each round it opens in `opened_rounds` before it sends the open, so a boot still knows the cut day.
+
+## Telling the days
+
+**The gamemaster tells each day as it starts, so no other module keeps a clock of its own** (the owner, 2026-10-29:
+missions had its own cutoff, which only happened to match `dailyCutoff`). `tell_day_usecase` runs every second
+(`gamemaster-days`): it plans the books, takes the day that runs now (`Plan.DayAt`), and in one transaction keeps it in
+`told_days` (`round_id`, `ends_at`) and, **only when it is new or its end moved**, records
+`gamemaster.v1.DayStarted{season, day, round_id, book_id, starts_at, ends_at}` in the outbox. **Level-triggered**: a
+boot tells the day that runs if it was never told, as the day that ran when the event shipped. **A moved season end that
+cuts the day** tells it again with the new end. No day runs between two seasons, nor from a season's last cutoff to its
+end, so nothing is told then. `log_tell_day` logs each day told at Info (`day told`). Missions hears it (see
+[Missions](missions.md)).
 
 ## Hearing scoring
 

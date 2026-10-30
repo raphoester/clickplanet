@@ -21,6 +21,10 @@ type Rounds interface {
 	ScoredIn(ctx context.Context, book books.BookID) ([]books.Scored, error)
 }
 
+type Grants interface {
+	Since(ctx context.Context, at time.Time) ([]books.Grant, error)
+}
+
 type Command struct {
 	Book     books.BookID
 	EndsAt   time.Time
@@ -31,14 +35,15 @@ type UseCase struct {
 	transactioner cpatomic.Transactioner
 	books         Books
 	rounds        Rounds
+	grants        Grants
 	outbox        cpatomic.Outbox
 }
 
-func New(transactioner cpatomic.Transactioner, books Books, rounds Rounds, outbox cpatomic.Outbox) *UseCase {
-	return &UseCase{transactioner: transactioner, books: books, rounds: rounds, outbox: outbox}
+func New(transactioner cpatomic.Transactioner, books Books, rounds Rounds, grants Grants, outbox cpatomic.Outbox) *UseCase {
+	return &UseCase{transactioner: transactioner, books: books, rounds: rounds, grants: grants, outbox: outbox}
 }
 
-// Execute ranks the book from its rounds scored and closes it, and answers whether it did: a book never opened, or
+// Execute ranks the book from its rounds scored and its grants and closes it, and answers whether it did: a book never opened, or
 // closed before, is not.
 func (u *UseCase) Execute(ctx context.Context, command Command) (bool, error) {
 	book, found, err := u.books.Find(ctx, command.Book)
@@ -49,6 +54,10 @@ func (u *UseCase) Execute(ctx context.Context, command Command) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("failed to read the rounds book %s scored: %w", book.ID, err)
 	}
+	grants, err := u.grants.Since(ctx, book.StartsAt)
+	if err != nil {
+		return false, fmt.Errorf("failed to read the grants of book %s: %w", book.ID, err)
+	}
 
 	closed := book.ClosedAt(command.EndsAt, command.Tiebreak)
 	done := false
@@ -56,7 +65,7 @@ func (u *UseCase) Execute(ctx context.Context, command Command) (bool, error) {
 		if done, err = u.books.Close(ctx, closed); err != nil || !done {
 			return err //nolint:wrapcheck // the store says what failed.
 		}
-		if err := u.outbox.Record(ctx, eventOf(closed, closed.Table(scored))); err != nil {
+		if err := u.outbox.Record(ctx, eventOf(closed, closed.Table(scored, grants))); err != nil {
 			return fmt.Errorf("failed to record book %s closed: %w", book.ID, err)
 		}
 		return nil
