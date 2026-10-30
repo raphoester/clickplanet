@@ -18,7 +18,7 @@ func TestScheduledOfSendsTheSeasonsDays(t *testing.T) {
 		EndsAt:   time.Date(2026, 11, 3, 23, 0, 0, 0, time.UTC),
 	}
 
-	scheduled := seasonmessage.ScheduledOf(season.Snapshot{Number: 1}, window, season.Cutoff(21*time.Hour))
+	scheduled := seasonmessage.ScheduledOf(season.Snapshot{Number: 1}, window, window.Days(season.Cutoff(21*time.Hour)))
 
 	days := scheduled.GetDays()
 	require.Len(t, days, 3)

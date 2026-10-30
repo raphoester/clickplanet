@@ -12,8 +12,9 @@ import "gamemaster/v1/gamemaster.proto";
 service AdminService {
   rpc GetSchedule(GetScheduleRequest) returns (GetScheduleResponse);
 
-  // Adds an entry that starts later. Its set must be one planet and the antibot keep, and a battle may not overlap a
-  // season's finale: FailedPrecondition otherwise.
+  // Adds an entry that starts later. Its set must be one planet and the antibot keep, and a battle must start or end at
+  // the daily cutoff, overlap no other battle nor a season's finale, and leave each day some time: FailedPrecondition
+  // otherwise.
   rpc AddEntry(AddEntryRequest) returns (AddEntryResponse);
 
   // Changes an entry that has not started, by the rules of AddEntry. FailedPrecondition once it started.
@@ -26,8 +27,8 @@ service AdminService {
   rpc GetSeasons(GetSeasonsRequest) returns (GetSeasonsResponse);
 
   // Adds a season after the last one, under the next number: it starts a break after the last one's end, and must
-  // start after now. Its finale's set must be one planet and the antibot keep, and no battle may overlap the finale:
-  // FailedPrecondition otherwise.
+  // start after now. Its finale's set must be one planet and the antibot keep, and it fits between the days like any
+  // battle of AddEntry: FailedPrecondition otherwise.
   rpc AddSeason(AddSeasonRequest) returns (AddSeasonResponse);
 
   // Changes a season that has not ended; the seasons after it move with it. One that started keeps its break, and its

@@ -9,6 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/inmemory_moment_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/inmemory_entry_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/usecases/add_entry_usecase"
@@ -31,7 +33,11 @@ func keepers(planet, antibot []schedule.SetName) []schedule.Keeper {
 }
 
 func adding(store *inmemory_entry_store.Store, keepers []schedule.Keeper) *add_entry_usecase.UseCase {
-	return add_entry_usecase.New(store, inmemory_season_store.New(), keepers, &schedule.FakeIDs{IDs: []schedule.EntryID{first}}, cptime.NewFixedClock(now))
+	return add_entry_usecase.New(store, planned(inmemory_season_store.New(), store), keepers, &schedule.FakeIDs{IDs: []schedule.EntryID{first}}, cptime.NewFixedClock(now))
+}
+
+func planned(seasons *inmemory_season_store.Store, entries *inmemory_entry_store.Store) moments.Planner {
+	return moments.NewPlanner(seasons, entries, inmemory_moment_store.New(), season.Cutoff(21*time.Hour))
 }
 
 var rush = schedule.Draft{
@@ -99,10 +105,10 @@ func TestABattleOverASeasonsFinaleIsRefused(t *testing.T) {
 	}.Restore()))
 	all := keepers([]schedule.SetName{"rush", "calm"}, []schedule.SetName{"rush", "calm"})
 	ids := &schedule.FakeIDs{IDs: []schedule.EntryID{first, schedule.EntryID(uuid.UUID{15: 2})}}
-	useCase := add_entry_usecase.New(store, seasons, all, ids, cptime.NewFixedClock(now))
+	useCase := add_entry_usecase.New(store, planned(seasons, store), all, ids, cptime.NewFixedClock(now))
 
 	_, err := useCase.Execute(t.Context(), rush)
-	require.ErrorIs(t, err, season.ErrFinaleOverlap)
+	require.ErrorIs(t, err, moments.ErrOverlap)
 	_, err = store.Entry(t.Context(), first)
 	require.ErrorIs(t, err, schedule.ErrUnknownEntry)
 

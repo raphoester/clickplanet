@@ -19,14 +19,20 @@ var (
 	finaleAt   = seasonEnds.Add(-2 * time.Hour)
 	rush       = season.Finale{Length: 2 * time.Hour, Set: "rush", Description: "Triple points.", Times: 3}
 	early      = schedule.EntryID(uuid.UUID{15: 1})
+	late       = schedule.EntryID(uuid.UUID{15: 2})
+	last       = schedule.EntryID(uuid.UUID{15: 3})
 )
 
 func calendar(finale season.Finale) season.Calendar {
 	return season.NewCalendar(season.Snapshot{Number: 0, Length: seasonEnds.Sub(season.Origin), Finale: finale}.Restore())
 }
 
-func battle(id schedule.EntryID, startsAt, endsAt time.Time) schedule.EntrySnapshot {
-	return schedule.EntrySnapshot{ID: id, Set: "rush", Kind: schedule.Battle, StartsAt: startsAt, EndsAt: endsAt, Times: 2}
+func battle(id schedule.EntryID, startsAt, endsAt time.Time) schedule.Entry {
+	return schedule.EntrySnapshot{ID: id, Set: "rush", Kind: schedule.Battle, StartsAt: startsAt, EndsAt: endsAt, Times: 2}.Restore()
+}
+
+func at(day, hour int) time.Time {
+	return time.Date(2026, 10, day, hour, 0, 0, 0, time.UTC)
 }
 
 func TestASeasonWithNoFinaleClosesWithNoTiebreak(t *testing.T) {
@@ -97,4 +103,56 @@ func TestTheFinaleFollowsTheSeasonsEnd(t *testing.T) {
 
 	require.True(t, ok)
 	assert.Equal(t, seasonEnds.Add(24*time.Hour), finale.EndsAt)
+}
+
+func TestADayKeepsWhatTheBattlesAtItsStartAndItsEndLeaveIt(t *testing.T) {
+	plan := moments.NewPlan(calendar(rush), cutoff, nil, battle(early, at(30, 18), at(30, 21)), battle(late, at(30, 21), at(30, 23)))
+
+	before, ok := plan.DayAt(at(30, 17))
+	require.True(t, ok)
+	assert.Equal(t, season.Day{Season: 0, Number: 23, StartsAt: at(29, 21), EndsAt: at(30, 18)}, before)
+	_, ok = plan.DayAt(at(30, 18))
+	assert.False(t, ok, "the battle that ends at the cutoff runs")
+	_, ok = plan.DayAt(at(30, 22))
+	assert.False(t, ok, "the battle that starts at the cutoff runs")
+	after, ok := plan.DayAt(at(30, 23))
+	require.True(t, ok)
+	assert.Equal(t, season.Day{Season: 0, Number: 24, StartsAt: at(30, 23), EndsAt: at(31, 21)}, after)
+	assert.Len(t, plan.DaysOf(0), 24)
+	assert.Contains(t, plan.DueAt(at(30, 18)), moments.Command{
+		Action: moments.CloseRound, Book: "season-0", Round: "season-0/day-23", At: at(30, 18),
+	})
+}
+
+func TestBattlesThatFitBetweenTheDaysClashWithNothing(t *testing.T) {
+	plan := moments.NewPlan(calendar(rush), cutoff, nil,
+		battle(early, at(30, 18), at(30, 21)), battle(late, at(30, 21), at(30, 23)), battle(last, at(31, 18), finaleAt),
+		battle(schedule.EntryID(uuid.UUID{15: 4}), seasonEnds, seasonEnds.Add(time.Hour)),
+		schedule.EntrySnapshot{Kind: schedule.Plain, StartsAt: finaleAt, EndsAt: seasonEnds}.Restore(),
+	)
+
+	require.NoError(t, plan.Clashes(at(29, 12)), "a plain entry plays under the finale, and a battle after the season is none")
+	require.NoError(t, moments.NewPlan(calendar(season.Finale{}), cutoff, nil, battle(early, at(28, 14), at(28, 16))).Clashes(at(29, 12)),
+		"a battle that ended is not judged")
+}
+
+func TestABattleThatDoesNotFitBetweenTheDaysClashes(t *testing.T) {
+	for name, c := range map[string]struct {
+		finale  season.Finale
+		battles []schedule.Entry
+		want    error
+	}{
+		"at no cutoff":         {battles: []schedule.Entry{battle(early, at(30, 14), at(30, 16))}, want: moments.ErrOffCutoff},
+		"a finale at none":     {finale: season.Finale{Length: 3 * time.Hour, Set: "rush", Times: 3}, want: moments.ErrOffCutoff},
+		"over the finale":      {finale: rush, battles: []schedule.Entry{battle(early, finaleAt, at(31, 22))}, want: moments.ErrOverlap},
+		"over another battle":  {battles: []schedule.Entry{battle(early, at(30, 18), at(30, 21)), battle(late, at(30, 20), at(30, 21))}, want: moments.ErrOverlap},
+		"over a whole day":     {battles: []schedule.Entry{battle(early, at(29, 21), at(30, 22))}, want: moments.ErrDayTaken},
+		"two over a whole day": {battles: []schedule.Entry{battle(early, at(29, 21), at(30, 9)), battle(late, at(30, 9), at(30, 21))}, want: moments.ErrDayTaken},
+	} {
+		t.Run(name, func(t *testing.T) {
+			err := moments.NewPlan(calendar(c.finale), cutoff, nil, c.battles...).Clashes(at(29, 12))
+
+			require.ErrorIs(t, err, c.want)
+		})
+	}
 }
