@@ -6,6 +6,8 @@ import {
     decodeBorderLines,
     halfWidthOf,
     limbOf,
+    ORBIT_INK,
+    ORBIT_WIDTH,
     outlineSegments,
     OVER,
     pieceSides,
@@ -193,8 +195,8 @@ describe("the handover", () => {
             lines.update(zoom, 1600, 900, 1, "flags")
 
             const painted = flagPaint(zoom, 900, "flags")
-            expect(inkOf(over), `over at zoom ${zoom}`).toBe(painted)
-            expect(inkOf(under) + inkOf(over), `ink at zoom ${zoom}`).toBeGreaterThanOrEqual(1)
+            expect(inkOf(over), `over at zoom ${zoom}`).toBe(painted * ORBIT_INK)
+            expect(inkOf(under) + inkOf(over) / ORBIT_INK, `ink at zoom ${zoom}`).toBeGreaterThanOrEqual(1)
         }
 
         lines.dispose()
@@ -248,12 +250,11 @@ describe("the handover", () => {
 
         for (let zoom = MIN_ZOOM; zoom <= MAX_ZOOM; zoom += 0.05) {
             lines.update(zoom, 3200, 1800, 2, "flags")
-            expect(inkOf(over), `over at zoom ${zoom}`).toBe(flagPaint(zoom, 900, "flags"))
+            expect(inkOf(over), `over at zoom ${zoom}`).toBe(flagPaint(zoom, 900, "flags") * ORBIT_INK)
         }
 
-        for (const pass of [over, under]) {
-            expect((pass.material as THREE.ShaderMaterial).uniforms.halfWidth.value).toBe(halfWidthOf(2))
-        }
+        expect((over.material as THREE.ShaderMaterial).uniforms.halfWidth.value).toBe(halfWidthOf(2, ORBIT_WIDTH))
+        expect((under.material as THREE.ShaderMaterial).uniforms.halfWidth.value).toBe(halfWidthOf(2))
 
         expect(halfWidthOf(2) - halfWidthOf(1)).toBeCloseTo(WIDTH / 2)
 

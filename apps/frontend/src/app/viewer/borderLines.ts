@@ -128,6 +128,8 @@ function spline(
 
 export const WIDTH = 1.3
 
+export const ORBIT_WIDTH = 0.75
+
 export const HIGHLIGHT_WIDTH = 2.6
 
 const FEATHER = 1
@@ -142,6 +144,10 @@ export function limbOf(lift: number): number {
 }
 
 const COLOUR = new THREE.Color(0.25, 0.25, 0.25)
+
+// Over a painted flag the line darkens what is under it rather than drawing grey across it.
+const ORBIT_COLOUR = new THREE.Color(0, 0, 0)
+export const ORBIT_INK = 0.7
 
 const HIGHLIGHT_COLOUR = new THREE.Color(1, 1, 1)
 
@@ -182,10 +188,10 @@ export function createBorderLines(data: BorderLineData): BorderLines {
         const material = new THREE.ShaderMaterial({
             uniforms: {
                 halfViewport: {value: new THREE.Vector2(1, 1)},
-                halfWidth: {value: halfWidthOf(1)},
+                halfWidth: {value: halfWidthOf(1, lift === OVER ? ORBIT_WIDTH : WIDTH)},
                 lift: {value: lift},
                 limb: {value: limbOf(lift)},
-                colour: {value: COLOUR},
+                colour: {value: lift === OVER ? ORBIT_COLOUR : COLOUR},
                 ink: {value: 1},
             },
             vertexShader,
@@ -224,6 +230,8 @@ export function createBorderLines(data: BorderLineData): BorderLines {
     highlight.frustumCulled = false
     highlight.visible = false
 
+    const widthOf = (pass: THREE.Mesh) => pass === highlight ? HIGHLIGHT_WIDTH : pass === over ? ORBIT_WIDTH : WIDTH
+
     const object = new THREE.Group()
     object.add(over, under, highlight)
 
@@ -233,11 +241,11 @@ export function createBorderLines(data: BorderLineData): BorderLines {
             for (const pass of [...passes, highlight]) {
                 const {uniforms} = pass.material as THREE.ShaderMaterial
                 uniforms.halfViewport.value.set(width / 2, height / 2)
-                uniforms.halfWidth.value = halfWidthOf(pixelRatio, pass === highlight ? HIGHLIGHT_WIDTH : WIDTH)
+                uniforms.halfWidth.value = halfWidthOf(pixelRatio, widthOf(pass))
             }
 
             const paint = flagPaint(zoom, height / pixelRatio, view)
-            ;(over.material as THREE.ShaderMaterial).uniforms.ink.value = paint
+            ;(over.material as THREE.ShaderMaterial).uniforms.ink.value = paint * ORBIT_INK
             over.visible = paint > 0
             under.visible = paint < 1
         },
