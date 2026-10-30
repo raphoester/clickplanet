@@ -128,7 +128,7 @@ function spline(
 
 export const WIDTH = 1.3
 
-export const ORBIT_WIDTH = 0.75
+export const ORBIT_WIDTH = 0.25
 
 export const HIGHLIGHT_WIDTH = 2.6
 
