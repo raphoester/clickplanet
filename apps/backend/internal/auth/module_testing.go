@@ -20,17 +20,21 @@ func ClaimOf(subject string, email string, emailVerified bool) Claim {
 
 type FakeMailer = signin.FakeMailer
 
+type FakeTokenProvider = signin.FakeTokenProvider
+
 type FakeProviders struct {
-	Google  *FakeProvider
-	Discord *FakeProvider
-	Mailer  *FakeMailer
+	Google     *FakeProvider
+	Discord    *FakeProvider
+	CrazyGames *FakeTokenProvider
+	Mailer     *FakeMailer
 
 	AdminGoogle *FakeProvider
 }
 
 func NewModuleWithFakeProviders(config Config) (cpbootstrap.Module, FakeProviders) {
 	fakes := FakeProviders{
-		Google: signin.NewFakeProvider(signin.Google), Discord: signin.NewFakeProvider(signin.Discord), Mailer: &FakeMailer{},
+		Google: signin.NewFakeProvider(signin.Google), Discord: signin.NewFakeProvider(signin.Discord),
+		CrazyGames: signin.NewFakeTokenProvider(signin.CrazyGames), Mailer: &FakeMailer{},
 		AdminGoogle: signin.NewFakeProvider(signin.Google),
 	}
 	providers := signin.Providers{signin.Google: fakes.Google, signin.Discord: fakes.Discord}
@@ -42,9 +46,10 @@ func NewModuleWithFakeProviders(config Config) (cpbootstrap.Module, FakeProvider
 			config := config.withDefaults()
 			config.Email.Enabled = true
 			return build(ctx, config, props, signIns{
-				game:  providers,
-				admin: signin.Providers{signin.Google: fakes.AdminGoogle},
-				mail:  mailing{mailer: fakes.Mailer, codes: &signin.SequentialCodes{}},
+				game:   providers,
+				tokens: signin.TokenProviders{signin.CrazyGames: fakes.CrazyGames},
+				admin:  signin.Providers{signin.Google: fakes.AdminGoogle},
+				mail:   mailing{mailer: fakes.Mailer, codes: &signin.SequentialCodes{}},
 			})
 		},
 	}, fakes

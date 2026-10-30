@@ -42,6 +42,10 @@ The switch is gated on `import.meta.env.DEV` as well, because an unset `VITE_*`
 variable is **not** folded away in a build: without the `DEV` check both fakes
 ship in the production bundle.
 
+`VITE_CRAZYGAMES=1` makes the page the CrazyGames page on any host, with the
+SDK's local mode on `localhost` (see [CrazyGames](crazygames.md)). The deployed
+build never sets it: `crazygames.clickplanet.lol` is the same build.
+
 Every tile starts French in the fake, and it keeps shields on its tiles as the
 server does: in its map batches, its tile updates and its bombs' struck tiles.
 

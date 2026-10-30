@@ -5,6 +5,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/admin_complete_sign_in_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/admin_sign_out_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/admin_start_sign_in_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/complete_crazygames_sign_in_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/complete_email_sign_in_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/complete_sign_in_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/create_session_handler"
@@ -32,6 +33,7 @@ type AuthService struct {
 	complete_sign_in_handler.CompleteSignInHandler
 	start_email_sign_in_handler.StartEmailSignInHandler
 	complete_email_sign_in_handler.CompleteEmailSignInHandler
+	complete_crazygames_sign_in_handler.CompleteCrazyGamesSignInHandler
 	sign_out_handler.SignOutHandler
 	sign_out_everywhere_handler.SignOutEverywhereHandler
 	delete_account_handler.DeleteAccountHandler

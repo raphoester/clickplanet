@@ -11,6 +11,7 @@ import SoundSettingsPanel, {SoundSettingsPanelProps} from "../sound/SoundSetting
 import FeedbackModal from "../support/FeedbackModal.tsx";
 import {pageContextOf} from "../support/pageContext.ts";
 import {NO_GRAPHICS} from "../viewer/graphicsReport.ts";
+import {ON_CRAZYGAMES} from "../../platform.ts";
 import "./SettingsPlace.css"
 
 export type SettingsPlaceProps = {
@@ -64,7 +65,7 @@ export default function SettingsPlace({display, sound, support, pageContext = pa
         </div>
 
         {open === "about" && <Modal title="About ClickPlanet"
-                                    footer={<BuyMeACoffee/>}
+                                    footer={ON_CRAZYGAMES ? undefined : <BuyMeACoffee/>}
                                     onClose={close}>
             <About/>
         </Modal>}

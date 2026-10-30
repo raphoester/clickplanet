@@ -4,14 +4,15 @@ import {AuthService} from "../gen/grpc/auth/v1/auth_connect.ts"
 import {SessionProvider, SessionUnavailableError} from "./session.ts"
 import {Config} from "./transport.ts"
 import {Landing} from "../domain/landing.ts"
+import {AccountCarrier, carriedFetch} from "./accountCarrier.ts"
 
-export function newAuthServiceClient(config: Config): PromiseClient<typeof AuthService> {
+export function newAuthServiceClient(config: Config, carrier?: AccountCarrier): PromiseClient<typeof AuthService> {
     return createPromiseClient(AuthService, createConnectTransport({
         baseUrl: config.baseUrl,
         interceptors: config.interceptors,
         useBinaryFormat: true,
         defaultTimeoutMs: config.timeoutMs ?? 5000,
-        fetch: (input, init) => globalThis.fetch(input, {...init, credentials: "include"}),
+        fetch: carrier ? carriedFetch(carrier) : (input, init) => globalThis.fetch(input, {...init, credentials: "include"}),
     }))
 }
 

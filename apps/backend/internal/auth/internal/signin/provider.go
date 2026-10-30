@@ -11,9 +11,10 @@ import (
 )
 
 const (
-	Google  = "google"
-	Discord = "discord"
-	Email   = "email"
+	Google     = "google"
+	Discord    = "discord"
+	Email      = "email"
+	CrazyGames = "crazygames"
 )
 
 var (
@@ -49,17 +50,37 @@ func (p Providers) Provider(name string) (Provider, error) {
 	return provider, nil
 }
 
+// A TokenProvider signed the player in on its own page, and hands the game a token that says who: no redirect.
+type TokenProvider interface {
+	Claim(ctx context.Context, token string) (*accounts.Claim, error)
+}
+
+type TokenProviders map[string]TokenProvider
+
+func (p TokenProviders) Provider(name string) (TokenProvider, error) {
+	if len(p) == 0 {
+		return nil, ErrSignInOff
+	}
+	provider, found := p[name]
+	if !found {
+		return nil, fmt.Errorf("%w: %q", ErrUnknownProvider, name)
+	}
+	return provider, nil
+}
+
 type Offer struct {
 	providers Providers
+	tokens    TokenProviders
 	email     bool
 }
 
-func NewOffer(providers Providers, email bool) Offer {
-	return Offer{providers: providers, email: email}
+func NewOffer(providers Providers, tokens TokenProviders, email bool) Offer {
+	return Offer{providers: providers, tokens: tokens, email: email}
 }
 
 func (o Offer) Names() []string {
-	names := o.providers.Names()
+	names := slices.Concat(o.providers.Names(), slices.Collect(maps.Keys(o.tokens)))
+	slices.Sort(names)
 	if o.email {
 		names = append(names, Email)
 	}

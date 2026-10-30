@@ -31,6 +31,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 - [Sign-in](docs/sign-in.md) — optional sign-in with Google, Discord or an emailed code; usernames.
 - [Arrivals](docs/arrivals.md) — the first page's `?s=` and referrer host, kept and sent with the calls that make
   an account.
+- [CrazyGames](docs/crazygames.md) — the same build on `crazygames.clickplanet.lol`: CrazyGames' sign-in alone, the
+  session in a header, its settings, and no ad.
 - [The counts are the server's](docs/counts.md) — every count on screen comes from `GetHoldings` and
   `holdings_changed`; one version rule for every tile value; the load and what is read again.
 - [Rolling back a refused click](docs/click-rollback.md) — a click is painted first and undone if the server

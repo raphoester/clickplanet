@@ -35,6 +35,15 @@ origin and send `Access-Control-Allow-Credentials: true` — Caddy does in
 production, and a local backend does from `httpServer.allowedOrigin`, which
 must be the dev server's origin (`http://localhost:5173`).
 
+**The CrazyGames page carries the account in a header instead.** It runs in a
+frame on crazygames.com, where the API's cookie is a third-party one: Lax is
+never sent there, and Safari drops even a partitioned one. So
+`newAuthServiceClient` takes an `AccountCarrier` there, and `carriedFetch` sends
+`X-Account-Session` (the session held, `none` before one) with no credentials,
+and keeps the one the server answers in local storage (`localAccountCarrier`,
+key `clickplanet-account`). Unlike the cookie, scripts on that page can read it.
+See the backend's [Auth](../../backend/docs/auth.md#a-page-that-keeps-no-cookie-internalauthinternalsessionheader).
+
 **A held token outlives the page it was minted on.** `localTokenStore` keeps it
 in local storage (`clickplanet-session`) and the client takes it back at
 construction, by the same margin `held` applies to one it minted. Nothing mints

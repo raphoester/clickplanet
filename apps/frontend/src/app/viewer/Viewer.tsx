@@ -122,6 +122,9 @@ import ClipNotice from "../clips/ClipNotice.tsx";
 import FlagMissionDone from "../missions/FlagMissionDone.tsx";
 import {useFlagMissionDone} from "../missions/useFlagMissionDone.ts";
 import {useClipNotice} from "../clips/useClipNotice.ts";
+import {CrazyGamesPage} from "../../backends/crazyGames.ts";
+import {useCrazyGames, useGameplay} from "../crazygames/useCrazyGames.ts";
+import {MUTED_SOUND_SETTINGS} from "../../domain/soundSettings.ts";
 import "./Viewer.css"
 
 const NO_LEADERBOARD: readonly LeaderboardEntry[] = []
@@ -156,6 +159,7 @@ export type ViewerProps = {
     missions?: MissionsBackend
     chargesRefresher?: ChargesRefresher
     clips?: ClipsBackend & ClipsNameBackend
+    crazyGames?: CrazyGamesPage
 }
 
 // Planet grants a mission's reward from a command, after the read that says it is paid.
@@ -175,7 +179,8 @@ export default function Viewer(props: ViewerProps) {
     }
     const clickBudget = useClickBudget(props.clickBudgetSource, countryState.code)
     const connection = useConnection(props.connection)
-    const sound = useSound()
+    const crazyGames = useCrazyGames(props.crazyGames)
+    const sound = useSound(crazyGames.silenced)
     const display = useDisplaySettings()
     const account = useAccount(props.account)
     const username = account.kind === 'ready' ? account.username : undefined
@@ -299,6 +304,8 @@ export default function Viewer(props: ViewerProps) {
         rendering: display.settings.rendering,
     })
 
+    useGameplay(props.crazyGames, status.state === 'ready')
+
     const tileHolder = useTileHolder(props.tileHolders, props.playerInfo, pointing, ownAccountId)
     const territoryCard = useTerritoryCard(pointingTerritory, territoryOf, showTerritory)
     const territoryPlayers = useTerritoryPlayers(props.landmasses, props.playerInfo, territoryCard.shown?.territory.landmass)
@@ -327,8 +334,9 @@ export default function Viewer(props: ViewerProps) {
     })
 
     const signInRefill = rules?.signInRefill === true
+    // CrazyGames forbids a sign-in that pops up or is the main call to action.
     const nudge = useSignInNudge(
-        guest && clickBudget?.linkedMultiplier !== undefined && !clickBudget.frozen && !charges.refill && !pitchOpen,
+        !props.crazyGames && guest && clickBudget?.linkedMultiplier !== undefined && !clickBudget.frozen && !charges.refill && !pitchOpen,
         refusals, quiz.state.phase !== 'idle')
     useSignInRefill(account.kind === 'ready' && account.guestLinked === true && signInRefill, charges.refill,
         () => void props.chargesRefresher?.refreshCharges().catch((e) => console.error("could not read the charges held", e)),
@@ -336,7 +344,7 @@ export default function Viewer(props: ViewerProps) {
 
     const order = shownOrder(race, countryOrder)
     const lines = countryLines(leaderboard, race, order)
-    const anthem = useAnthem(status.state === 'ready' ? lines : NO_LEADERBOARD, order, sound.settings)
+    const anthem = useAnthem(status.state === 'ready' ? lines : NO_LEADERBOARD, order, crazyGames.silenced ? MUTED_SOUND_SETTINGS : sound.settings)
 
     const stats = shareStats(lines, countryState)
     const {shot, taking, take, discard} = useSharePicture(capture, stats)
@@ -490,7 +498,7 @@ export default function Viewer(props: ViewerProps) {
                                                onUsed={bonusGuide.markUsed}/>}
         </ClickBudgetMeter>}
 
-        {ready && <ChatPanel
+        {ready && crazyGames.chat && <ChatPanel
             backend={props.chatBackend}
             country={countryState}
             playSound={sound.play}
@@ -529,7 +537,7 @@ export default function Viewer(props: ViewerProps) {
 
             <TabBar open={sheet}
                     onOpen={toggleSheet}
-                    chat={props.chatBackend !== undefined}
+                    chat={props.chatBackend !== undefined && crazyGames.chat}
                     unread={unread}
                     you={account.kind === 'ready' ? (linked ? "player" : "guest") : undefined}
                     missions={missions ? missionsNews : undefined}/>

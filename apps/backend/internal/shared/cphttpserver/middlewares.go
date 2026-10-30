@@ -24,6 +24,7 @@ var allowedHeaders = strings.Join([]string{
 	"Connect-Protocol-Version",
 	"Connect-Timeout-Ms",
 	cpconnect.SessionHeader,
+	cpconnect.AccountSessionHeader,
 }, ", ")
 
 func NewCorsMiddleware(allowedOrigin string) func(http.Handler) http.Handler {
@@ -33,6 +34,7 @@ func NewCorsMiddleware(allowedOrigin string) func(http.Handler) http.Handler {
 			w.Header().Set("Access-Control-Allow-Credentials", "true")
 			w.Header().Set("Access-Control-Allow-Headers", allowedHeaders)
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+			w.Header().Set("Access-Control-Expose-Headers", cpconnect.AccountSessionHeader)
 			w.Header().Add("Vary", "Origin")
 
 			if r.Method == http.MethodOptions {

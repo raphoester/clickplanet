@@ -19,18 +19,20 @@ type AccountID = accounts.AccountID
 type Source string
 
 const (
-	SourceRecruit Source = "recruit"
-	SourceYouTube Source = "youtube"
-	SourceUnknown Source = "unknown"
+	SourceRecruit    Source = "recruit"
+	SourceYouTube    Source = "youtube"
+	SourceCrazyGames Source = "crazygames"
+	SourceUnknown    Source = "unknown"
 )
 
 func (s Source) known() bool {
-	return s == SourceRecruit || s == SourceYouTube || s == SourceUnknown
+	return s == SourceRecruit || s == SourceYouTube || s == SourceCrazyGames || s == SourceUnknown
 }
 
 const (
-	recruitTag = "rc"
-	youtubeTag = "yt"
+	recruitTag    = "rc"
+	youtubeTag    = "yt"
+	crazyGamesTag = "cg"
 )
 
 // What the browser's first page said, as the client sent it: its ?s= and the host it came from.
@@ -67,6 +69,8 @@ func sourceOf(tag string) Source {
 		return SourceRecruit
 	case youtubeTag:
 		return SourceYouTube
+	case crazyGamesTag:
+		return SourceCrazyGames
 	default:
 		return SourceUnknown
 	}

@@ -18,6 +18,7 @@ const TO_WIRE: Record<Provider, WireProvider> = {
     google: WireProvider.GOOGLE,
     discord: WireProvider.DISCORD,
     email: WireProvider.EMAIL,
+    crazygames: WireProvider.CRAZYGAMES,
 }
 
 function providerOf(wire: WireProvider): Provider | undefined {
@@ -124,6 +125,11 @@ export class ConnectAccountBackend implements AccountBackend {
     public async completeEmailSignIn(code: string): Promise<SignInOutcome> {
         const res = await mapped(() => this.client.completeEmailSignIn({code, landing: this.landing}),
             {[Code.InvalidArgument]: "wrongCode", [Code.FailedPrecondition]: "newCode"})
+        return OUTCOMES[res.outcome]
+    }
+
+    public async completeCrazyGamesSignIn(token: string): Promise<SignInOutcome> {
+        const res = await mapped(() => this.client.completeCrazyGamesSignIn({token, landing: this.landing}))
         return OUTCOMES[res.outcome]
     }
 

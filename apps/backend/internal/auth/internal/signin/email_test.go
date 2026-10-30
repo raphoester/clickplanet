@@ -122,8 +122,12 @@ func TestTheLetterCarriesTheCodeInEveryPart(t *testing.T) {
 func TestTheOfferListsTheProvidersThenEmail(t *testing.T) {
 	providers := signin.Providers{signin.Google: signin.NewFakeProvider(signin.Google), signin.Discord: signin.NewFakeProvider(signin.Discord)}
 
-	assert.Equal(t, []string{"discord", "google", "email"}, signin.NewOffer(providers, true).Names())
-	assert.Equal(t, []string{"discord", "google"}, signin.NewOffer(providers, false).Names())
-	assert.Equal(t, []string{"email"}, signin.NewOffer(signin.Providers{}, true).Names())
-	assert.Empty(t, signin.NewOffer(signin.Providers{}, false).Names())
+	tokens := signin.TokenProviders{signin.CrazyGames: signin.NewFakeTokenProvider(signin.CrazyGames)}
+
+	assert.Equal(t, []string{"discord", "google", "email"}, signin.NewOffer(providers, signin.TokenProviders{}, true).Names())
+	assert.Equal(t, []string{"crazygames", "discord", "google", "email"}, signin.NewOffer(providers, tokens, true).Names())
+	assert.Equal(t, []string{"discord", "google"}, signin.NewOffer(providers, signin.TokenProviders{}, false).Names())
+	assert.Equal(t, []string{"crazygames"}, signin.NewOffer(signin.Providers{}, tokens, false).Names())
+	assert.Equal(t, []string{"email"}, signin.NewOffer(signin.Providers{}, signin.TokenProviders{}, true).Names())
+	assert.Empty(t, signin.NewOffer(signin.Providers{}, signin.TokenProviders{}, false).Names())
 }

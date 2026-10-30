@@ -1,11 +1,12 @@
 import Viewer, {ViewerProps} from "./viewer/Viewer.tsx";
 import DonationModal from "./components/DonationModal.tsx";
+import {ON_CRAZYGAMES} from "../platform.ts";
 
 export type AppProps = ViewerProps
 
 export default function App(props: AppProps) {
     return <>
-        <DonationModal/>
+        {!ON_CRAZYGAMES && <DonationModal/>}
 
         <Viewer
             sharedCountry={props.sharedCountry}
@@ -32,6 +33,7 @@ export default function App(props: AppProps) {
             missions={props.missions}
             chargesRefresher={props.chargesRefresher}
             clips={props.clips}
+            crazyGames={props.crazyGames}
         />
     </>
 }

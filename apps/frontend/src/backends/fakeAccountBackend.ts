@@ -11,7 +11,7 @@ export class FakeAccountBackend implements AccountBackend, PlayerBackend {
     private color = NameColor.UNSPECIFIED
 
     public offerSignIn(): void {
-        this.offered = ["google", "discord", "email"]
+        this.offered = ["google", "discord", "email", "crazygames"]
     }
 
     public async signInOptions(): Promise<Provider[]> {
@@ -39,6 +39,13 @@ export class FakeAccountBackend implements AccountBackend, PlayerBackend {
 
     public async completeEmailSignIn(): Promise<SignInOutcome> {
         throw new AuthError("off")
+    }
+
+    public async completeCrazyGamesSignIn(): Promise<SignInOutcome> {
+        const outcome = this.linked.length === 0 ? "linked" : "signedIn"
+        this.linked = ["crazygames"]
+        this.name ||= "Crazy Nova"
+        return outcome
     }
 
     public async signOut(): Promise<void> {

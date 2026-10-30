@@ -3,6 +3,8 @@
 Optional from end to end: a player who never signs in plays exactly as before,
 on the guest account the mint gives every browser. Signing in with Google,
 Discord or a code sent to an email address keeps that account on every device.
+On the CrazyGames page the only way in is CrazyGames' own, and the page follows
+whoever CrazyGames says is signed in: see [CrazyGames](crazygames.md).
 
 - `backends/account.ts` — the contract: `AccountBackend`, `Provider` (and
   `OAuthProvider`, the ones the page leaves for: every one but `email`), and

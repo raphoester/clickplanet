@@ -12,6 +12,7 @@ import RecruitButton from "../share/RecruitButton.tsx"
 import {Country} from "../../domain/countries.ts"
 import {breakHeadline} from "../../domain/shareCard.ts"
 import {DISCORD_INVITE} from "../../links.ts"
+import {ON_CRAZYGAMES} from "../../platform.ts"
 import "./ClickBudgetMeter.css"
 
 export type ClickBudgetMeterProps = {
@@ -127,11 +128,11 @@ export default function ClickBudgetMeter({
                 <FrozenLines nextSeason={frozen.nextSeason}/>
             </div>
             <div className="click-budget-frozen-links">
-                <RecruitButton code={frozen.country.code}
-                               text={breakHeadline(frozen.country, frozen.nextSeason?.number)}
-                               className="button button-mini button-secondary click-budget-invite"
-                               icon={<CountryFlag code={frozen.country.code}/>}
-                               label="Invite"/>
+                {!ON_CRAZYGAMES && <RecruitButton code={frozen.country.code}
+                                                  text={breakHeadline(frozen.country, frozen.nextSeason?.number)}
+                                                  className="button button-mini button-secondary click-budget-invite"
+                                                  icon={<CountryFlag code={frozen.country.code}/>}
+                                                  label="Invite"/>}
                 <a href={DISCORD_INVITE}
                    target="_blank"
                    rel="noopener noreferrer"

@@ -1,20 +1,21 @@
 # Arrivals (`internal/auth/internal/arrivals/`)
 
-**Every account auth makes keeps how it came: a player's link, the YouTube link, or unknown, and the host the
-browser came from.** The frontend is on Cloudflare Pages, Caddy sees only API calls, Cloudflare's free analytics see
+**Every account auth makes keeps how it came: a player's link, the YouTube link, CrazyGames, or unknown, and the host
+the browser came from.** The frontend is on Cloudflare Pages, Caddy sees only API calls, Cloudflare's free analytics see
 no query string and TikTok sends no referrer. So the server records it when it makes the account, from what the
 browser says its first page was.
 
 - **The browser sends its landing** (`auth.v1.Landing`): the `?s=` of the first page of the site it opened and the
   host of the page before it, kept in local storage from then on (see the frontend's
   [Arrivals](../../frontend/docs/arrivals.md)). It goes with every call that can make an account: `CreateSession`,
-  `CompleteSignIn` and `CompleteEmailSignIn`.
+  `CompleteSignIn`, `CompleteEmailSignIn` and `CompleteCrazyGamesSignIn`.
 - **Only a call that makes an account keeps it.** `arrivals.Guests` starts the guest and records its arrival in one
   transaction, for `CreateSession`; `signin.Admitter` records it in the sign-in's transaction when the outcome is
   `Created`. A resumed session, a sign-in to an account that exists and a link keep nothing: the account's arrival
   was kept when it was made.
-- **`arrivals.NewArrival` decides the source from the tag alone**: `rc` is `recruit`, `yt` is `youtube`, anything
-  else is `unknown`, since anybody can type a tag. **Auth knows no flag**: `?f=` is the game's, and the client keeps
+- **`arrivals.NewArrival` decides the source from the tag alone**: `rc` is `recruit`, `yt` is `youtube`, `cg` is
+  `crazygames`, anything else is `unknown`, since anybody can type a tag. The CrazyGames page sends `cg` on every
+  call, whatever its link said. **Auth knows no flag**: `?f=` is the game's, and the client keeps
   it to itself.
 - **What counts as a recruit**: the first page had `?s=rc`. No recruiter is kept. `shareUrl` in
   `src/domain/shareCard.ts` adds it to every link a player sends: the recruit link (`RecruitLink`), the frozen map's
@@ -30,8 +31,8 @@ browser says its first page was.
 - **The YouTube link** is `https://clickplanet.lol/?s=yt`: the channel page's link, set by hand in YouTube Studio,
   and the description of every clip the clips job posts (`youtubeSite`, see [The clips job](clips-job.md)).
 - **One table, `auth.arrivals`**: `id`, `account_id` (`NULL` once anonymized), `source` (the enum `arrival_source`:
-  `recruit`, `youtube`, `unknown`), `referrer`, `arrived_at`. Migration `20261030120000_arrivals`. Accounts made before
-  it have no row.
+  `recruit`, `youtube`, `unknown`, and `crazygames` since `20261031120000_crazygames`), `referrer`, `arrived_at`.
+  Migration `20261030120000_arrivals`. Accounts made before it have no row.
 - **An arrival outlives its account.** It is its own concept with its own store, not a column of `accounts`: auth
   hears its own `auth.v1.AccountDeleted` (consumer group `auth-arrivals-accounts`), and
   `anonymize_arrivals_usecase` blanks the account (`Arrival.Anonymized`) and keeps the source, the referrer and the
