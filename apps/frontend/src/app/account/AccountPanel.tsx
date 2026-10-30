@@ -13,6 +13,7 @@ import {colorMessageOf, messageOf, providerList, usernameMessageOf} from "./auth
 import {factor} from "../../domain/clickPrice.ts"
 import {NAME_COLORS} from "../../domain/authorColor.ts"
 import {authorStyle} from "../chat/authorStyle.ts"
+import {useWordFilter} from "../crazygames/wordFilter.ts"
 import ProviderButton from "./ProviderButton.tsx"
 import EmailSignIn from "./EmailSignIn.tsx"
 import ProgressTab from "./ProgressTab.tsx"
@@ -38,6 +39,7 @@ type Tab = "progress" | "settings"
 export default function AccountPanel(props: AccountPanelProps) {
     const [tab, setTab] = useState<Tab>("progress")
     const tabsId = useId()
+    const words = useWordFilter()
 
     if (props.state.me.linked.length === 0) return <AccountSettings {...props}/>
 
@@ -54,7 +56,7 @@ export default function AccountPanel(props: AccountPanelProps) {
     const name = props.state.username
     return <div className="account-tabbed">
         {name && <p className="account-who" style={authorStyle({color: props.state.color, guest: false})}>
-            {name}
+            {words.masked(name)}
         </p>}
         <div className="account-tabs" role="tablist" aria-label="Account">
             {tabButton("progress", "Progress")}
@@ -189,6 +191,7 @@ function UsernameForm({state, store}: {state: Ready, store: AccountStore}) {
 
 function ColorPicker({name, state, store}: {name: string, state: Ready, store: AccountStore}) {
     const labelId = useId()
+    const words = useWordFilter()
     const chosen = state.color
     const blocked = state.busy !== undefined || state.naming === true
 
@@ -211,7 +214,7 @@ function ColorPicker({name, state, store}: {name: string, state: Ready, store: A
         <div className="account-name-head">
             <span className="menu-label" id={labelId}>Name color</span>
             <span className="menu-label account-color-preview" style={authorStyle({color: chosen, guest: false})}>
-                {name}
+                {words.masked(name)}
             </span>
         </div>
         <div className="account-color-swatches" role="group" aria-labelledby={labelId}>

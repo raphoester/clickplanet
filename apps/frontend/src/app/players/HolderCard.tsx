@@ -9,6 +9,7 @@ import PointerCard from "../components/PointerCard.tsx"
 import StreakFlame from "../components/StreakFlame.tsx"
 import TitleBadge from "../titles/TitleBadge.tsx"
 import {truncate} from "../truncate.ts"
+import {useWordFilter} from "../crazygames/wordFilter.ts"
 import {HolderShown} from "./useTileHolder.ts"
 import "./HolderCard.css"
 
@@ -26,10 +27,11 @@ export type HolderCardProps = {
 export default function HolderCard({holder, now = Date.now(), onHold, onOpenPlayer, onClose}: HolderCardProps) {
     const {line, playsFor, mine, takenAt, point, touch} = holder
     const country = Countries.get(line.countryCode)?.name ?? line.countryCode
+    const name = useWordFilter().masked(line.name)
 
     return <PointerCard point={point}
                         touch={touch}
-                        label={line.name}
+                        label={name}
                         className="holder-card"
                         style={authorStyle(line)}
                         onHold={onHold}
@@ -38,7 +40,7 @@ export default function HolderCard({holder, now = Date.now(), onHold, onOpenPlay
             {line.wornTitle && <TitleBadge title={line.wornTitle} size={48}/>}
             <div className="holder-card-who">
                 <span className="holder-card-name">
-                    <span className="holder-card-name-text" title={line.name}>{truncate(line.name, NAME_MAX_LENGTH)}</span>
+                    <span className="holder-card-name-text" title={name}>{truncate(name, NAME_MAX_LENGTH)}</span>
                     {line.admin && <AdminCrown/>}
                     <StreakFlame days={line.streak}/>
                 </span>
