@@ -82,8 +82,10 @@ with `sharedCountry`, before the first render, and the game starts on that
 country over the one in storage, then stores it as if it had been picked. An
 unknown code is ignored. The parameter is then taken out of the address bar,
 as the sign-in code is: left there, a reload would undo a flag the player has
-switched since. **An account made by a browser that came by a `?f=` link is
-counted as a recruit for that flag** (see [Arrivals](arrivals.md)).
+switched since. **The link a player sends also carries `?s=rc`**, so an
+account made by a browser that came by it counts as a recruit (see
+[Arrivals](arrivals.md)). The words drawn into the picture leave it out
+(`shareLabel`): longer, they meet the logo on a portrait card.
 
 **The link is drawn into the image**, not only attached to it: a picture is what
 survives being reposted. It is drawn in the text face (`--font-text`, Rubik)

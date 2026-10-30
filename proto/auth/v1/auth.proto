@@ -34,12 +34,13 @@ message CreateSessionRequest {
   Landing landing = 2;
 }
 
-// The query of the browser's first page of the game. Kept only when the call makes an account.
+// What the browser's first page said. Kept only when the call makes an account.
 message Landing {
-  string flag = 1;
+  // The ?s= of the link: "rc" for a player's, "yt" for YouTube.
+  string tag = 1;
 
-  // The ?s= of a link the operator posted: "yt" for YouTube.
-  string tag = 2;
+  // The host alone, never a path or a query.
+  string referrer = 2;
 }
 
 message CreateSessionResponse {

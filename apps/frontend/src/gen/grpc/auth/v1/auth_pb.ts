@@ -218,22 +218,24 @@ export class CreateSessionRequest extends Message<CreateSessionRequest> {
 }
 
 /**
- * The query of the browser's first page of the game. Kept only when the call makes an account.
+ * What the browser's first page said. Kept only when the call makes an account.
  *
  * @generated from message auth.v1.Landing
  */
 export class Landing extends Message<Landing> {
   /**
-   * @generated from field: string flag = 1;
-   */
-  flag = "";
-
-  /**
-   * The ?s= of a link the operator posted: "yt" for YouTube.
+   * The ?s= of the link: "rc" for a player's, "yt" for YouTube.
    *
-   * @generated from field: string tag = 2;
+   * @generated from field: string tag = 1;
    */
   tag = "";
+
+  /**
+   * The host alone, never a path or a query.
+   *
+   * @generated from field: string referrer = 2;
+   */
+  referrer = "";
 
   constructor(data?: PartialMessage<Landing>) {
     super();
@@ -243,8 +245,8 @@ export class Landing extends Message<Landing> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "auth.v1.Landing";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "flag", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "tag", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 1, name: "tag", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "referrer", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Landing {

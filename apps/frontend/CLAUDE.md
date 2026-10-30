@@ -28,8 +28,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 - [Data flow](docs/data-flow.md) — from `createGlobe` to the screen, step by step.
 - [Sessions](docs/sessions.md) — the click token the backend gates `Click` on.
 - [Sign-in](docs/sign-in.md) — optional sign-in with Google, Discord or an emailed code; usernames.
-- [Arrivals](docs/arrivals.md) — the first page's `?f=` and `?s=`, kept and sent with the calls that make an
-  account.
+- [Arrivals](docs/arrivals.md) — the first page's `?s=` and referrer host, kept and sent with the calls that make
+  an account.
 - [The counts are the server's](docs/counts.md) — every count on screen comes from `GetHoldings` and
   `holdings_changed`; one version rule for every tile value; the load and what is read again.
 - [Rolling back a refused click](docs/click-rollback.md) — a click is painted first and undone if the server

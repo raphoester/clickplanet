@@ -1,18 +1,21 @@
 # Arrivals
 
-**The backend keeps how each new account came, and only the browser knows it.** So `main.tsx` reads the query of
-the first page of the game, keeps it, and sends it with every call that can make an account. The backend decides
-what it means: see the backend's [Arrivals](../../backend/docs/arrivals.md).
+**The backend keeps how each new account came, and only the browser knows it.** So the first page of the site
+reads its query and where the player came from, keeps them, and the game sends them with every call that can make
+an account. The backend decides what they mean: see the backend's [Arrivals](../../backend/docs/arrivals.md).
 
-- **The landing is the first page's `?f=` and `?s=`** (`landingOf` in `src/domain/landing.ts`): a flag the game
-  knows (`sharedCountry`, the same read the recruit link switches the flag with) and the tag in lower case. The
-  YouTube link is `https://clickplanet.lol/?s=yt`.
+- **The landing is the first page's `?s=` and the referrer's host** (`landingOf` in `src/domain/landing.ts`). `rc`
+  is a player's link (`shareUrl` adds it), `yt` the YouTube link, `https://clickplanet.lol/?s=yt`. `?f=` is not
+  sent: it picks the flag played, and the backend has no use for it.
+- **Only the host of `document.referrer`**, never its path or query, which can say who the player is. A page of
+  the game's own is no referrer.
 - **It is kept from the first page on** (`firstLanding`, `localLandingStore`, key `clickplanet-landing`), an empty
-  one too, so a later link never takes its place. The account is made at the first click or at a sign-in, often
-  after a reload or the sign-in's round trip to Google, whose callback page has no query of its own.
+  one too, so a later link never takes its place. **The home page keeps it first** (`home.ts`): on `/play`, the
+  referrer of a newcomer is the home page. The account is made at the first click or at a sign-in, often after a
+  reload or the sign-in's round trip to Google.
 - **It goes with `CreateSession`** (`SessionClient`'s `landing` option) **and both sign-in completions**
   (`ConnectAccountBackend`). The server keeps it only when that call makes the account, so sending it on every
   call costs nothing.
-- **Both parameters are taken out of the address bar** (`withoutLanding`) once read: left there, a copied address
-  would make a friend a YouTube arrival, and a reload would undo a flag switched since.
-- **The home page carries the query to `/play`** (see [Pages and routes](routes.md)), so `/?s=yt` reaches the game.
+- **`?s=` is taken out of the address bar** with `?f=` (`withoutLanding`, `withoutSharedFlag`): left there, a
+  copied address would make a friend a YouTube arrival.
+- **The picture's link has no tag** (`shareLabel`): see [Sharing the globe](sharing.md).

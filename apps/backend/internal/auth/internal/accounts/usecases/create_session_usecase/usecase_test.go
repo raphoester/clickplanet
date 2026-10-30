@@ -18,7 +18,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/attestation"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/attestation/open_attester"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -64,7 +63,7 @@ func (f fixture) useCase(attester attestation.Attester) *create_session_usecase.
 	guests := accounts.NewGuests(f.sessions, &accounts.SequentialIDs{}, &accounts.SequentialTokens{}, lifetime)
 	return create_session_usecase.New(attester, accounts.NewResumer(f.sessions, lifetime),
 		arrivals.NewGuests(cpatomic.FakeTransactioner{}, guests,
-			arrivals.NewRegister(f.arrivals, &arrivals.SequentialIDs{}, cpcountries.New())),
+			arrivals.NewRegister(f.arrivals, &arrivals.SequentialIDs{})),
 		f.signer, f.clock)
 }
 
@@ -231,7 +230,7 @@ func TestOnlyTheMintThatStartsAGuestKeepsWhereItCameFrom(t *testing.T) {
 	useCase := f.useCase(open_attester.New())
 
 	first, err := useCase.Execute(t.Context(), create_session_usecase.In{
-		AttestationToken: "widget", IP: ip, Landing: arrivals.Landing{Flag: "fr"},
+		AttestationToken: "widget", IP: ip, Landing: arrivals.Landing{Tag: "rc", Referrer: "discord.com"},
 	})
 	require.NoError(t, err)
 	_, err = useCase.Execute(t.Context(), create_session_usecase.In{
@@ -240,7 +239,7 @@ func TestOnlyTheMintThatStartsAGuestKeepsWhereItCameFrom(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, []arrivals.Snapshot{{
-		ID: arrivals.ArrivalID{0: 0xa, 15: 1}, Account: f.accountIn(t, first), Source: arrivals.SourceRecruit, Flag: "fr", At: start,
+		ID: arrivals.ArrivalID{0: 0xa, 15: 1}, Account: f.accountIn(t, first), Source: arrivals.SourceRecruit, Referrer: "discord.com", At: start,
 	}}, f.arrivals.Kept())
 }
 
@@ -248,7 +247,7 @@ func TestARefusedAttestationKeepsNoArrival(t *testing.T) {
 	f := setUp(t)
 
 	_, err := f.useCase(refusingAttester{}).Execute(t.Context(), create_session_usecase.In{
-		AttestationToken: "widget", IP: ip, Landing: arrivals.Landing{Flag: "fr"},
+		AttestationToken: "widget", IP: ip, Landing: arrivals.Landing{Tag: "rc", Referrer: "discord.com"},
 	})
 
 	require.Error(t, err)

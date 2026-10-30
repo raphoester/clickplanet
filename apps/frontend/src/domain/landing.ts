@@ -1,27 +1,32 @@
-import {SHARE_FLAG_PARAM, sharedCountry} from "./shareCard.ts"
-
 export const SOURCE_TAG_PARAM = "s"
 
-// The query of the first page of the game, for the backend to keep with the account it makes.
+export const RECRUIT_TAG = "rc"
+
+// What the first page said, for the backend to keep with the account it makes.
 export type Landing = {
-    flag: string
     tag: string
+    referrer: string
 }
 
-export function landingOf(url: URL): Landing {
+export function landingOf(url: URL, referrer: string): Landing {
     return {
-        flag: sharedCountry(url)?.code ?? "",
         tag: url.searchParams.get(SOURCE_TAG_PARAM)?.trim().toLowerCase() ?? "",
+        referrer: hostOf(referrer, url.hostname),
     }
 }
 
-export function hasLanding(url: URL): boolean {
-    return url.searchParams.has(SHARE_FLAG_PARAM) || url.searchParams.has(SOURCE_TAG_PARAM)
+// The host alone: the path and the query of the page before may say who the player is.
+function hostOf(referrer: string, own: string): string {
+    try {
+        const host = new URL(referrer).hostname.toLowerCase()
+        return host === own ? "" : host
+    } catch {
+        return ""
+    }
 }
 
 export function withoutLanding(url: URL): URL {
     const stripped = new URL(url)
-    stripped.searchParams.delete(SHARE_FLAG_PARAM)
     stripped.searchParams.delete(SOURCE_TAG_PARAM)
     return stripped
 }

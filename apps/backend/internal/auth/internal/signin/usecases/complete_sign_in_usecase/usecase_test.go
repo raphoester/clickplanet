@@ -22,7 +22,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/usecases/complete_sign_in_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/usecases/start_sign_in_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -57,7 +56,7 @@ func setUp(t *testing.T) *fixture {
 }
 
 func (f *fixture) admitter() *signin.Admitter {
-	register := arrivals.NewRegister(f.arrivals, &arrivals.SequentialIDs{}, cpcountries.New())
+	register := arrivals.NewRegister(f.arrivals, &arrivals.SequentialIDs{})
 	return signin.NewAdmitter(cpatomic.FakeTransactioner{}, f.store, f.outbox, register, &accounts.SequentialIDs{}, &accounts.SequentialTokens{}, lifetime)
 }
 
@@ -101,7 +100,7 @@ func (f *fixture) finish(t *testing.T, intent accounts.Intent, sessionCookie str
 		cookies += "; " + sessionCookie
 	}
 	return f.completion.Execute(t.Context(), complete_sign_in_usecase.In{
-		Code: "the-code", State: state, CookieHeader: cookies, Landing: arrivals.Landing{Flag: "fr"},
+		Code: "the-code", State: state, CookieHeader: cookies, Landing: arrivals.Landing{Tag: "rc", Referrer: "discord.com"},
 	})
 }
 
@@ -405,7 +404,7 @@ func TestAnAccountASignInMakesKeepsWhereTheBrowserCameFrom(t *testing.T) {
 
 	require.Equal(t, accounts.Created, out.Outcome())
 	assert.Equal(t, []arrivals.Snapshot{{
-		ID: arrivals.ArrivalID{0: 0xa, 15: 1}, Account: out.Account(), Source: arrivals.SourceRecruit, Flag: "fr", At: start,
+		ID: arrivals.ArrivalID{0: 0xa, 15: 1}, Account: out.Account(), Source: arrivals.SourceRecruit, Referrer: "discord.com", At: start,
 	}}, f.arrivals.Kept())
 }
 

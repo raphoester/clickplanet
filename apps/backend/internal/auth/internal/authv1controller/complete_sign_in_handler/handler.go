@@ -48,7 +48,7 @@ func (h CompleteSignInHandler) CompleteSignIn(
 		Code:         req.Msg.GetCode(),
 		State:        req.Msg.GetState(),
 		CookieHeader: req.Header().Get("Cookie"),
-		Landing:      arrivals.Landing{Flag: req.Msg.GetLanding().GetFlag(), Tag: req.Msg.GetLanding().GetTag()},
+		Landing:      arrivals.Landing{Tag: req.Msg.GetLanding().GetTag(), Referrer: req.Msg.GetLanding().GetReferrer()},
 	})
 	switch {
 	case errors.Is(err, signin.ErrSignInOff):

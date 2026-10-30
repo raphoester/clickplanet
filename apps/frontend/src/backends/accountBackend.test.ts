@@ -16,7 +16,7 @@ const refusing = (code: Code) => vi.fn(async () => {
     throw new ConnectError("no", code)
 })
 
-const LANDING = {flag: "fr", tag: ""}
+const LANDING = {tag: "rc", referrer: "discord.com"}
 
 function backendWith(methods: Record<string, unknown>, attest = vi.fn(async () => "turnstile-token")) {
     return new ConnectAccountBackend(methods as never, attest, LANDING)

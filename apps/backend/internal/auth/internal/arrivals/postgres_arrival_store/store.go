@@ -27,13 +27,13 @@ func (s *Store) Save(ctx context.Context, saved ...arrivals.Arrival) error {
 		for _, arrival := range saved {
 			kept := arrival.TakeSnapshot()
 			if _, err := tx.ExecContext(ctx, `
-				INSERT INTO arrivals (id, account_id, source, flag, arrived_at)
+				INSERT INTO arrivals (id, account_id, source, referrer, arrived_at)
 				VALUES ($1, $2, $3, $4, $5)
 				ON CONFLICT (id) DO UPDATE SET
-					account_id = EXCLUDED.account_id, source = EXCLUDED.source, flag = EXCLUDED.flag,
+					account_id = EXCLUDED.account_id, source = EXCLUDED.source, referrer = EXCLUDED.referrer,
 					arrived_at = EXCLUDED.arrived_at
 			`,
-				uuid.UUID(kept.ID), holder(kept.Account), string(kept.Source), kept.Flag, kept.At.UTC(),
+				uuid.UUID(kept.ID), holder(kept.Account), string(kept.Source), kept.Referrer, kept.At.UTC(),
 			); err != nil {
 				return fmt.Errorf("failed to upsert an arrival: %w", err)
 			}
@@ -49,7 +49,7 @@ func holder(account arrivals.AccountID) uuid.NullUUID {
 
 func (s *Store) Of(ctx context.Context, account arrivals.AccountID) ([]arrivals.Arrival, error) {
 	rows, err := s.db.On(ctx).QueryContext(ctx, `
-		SELECT id, account_id, source, flag, arrived_at
+		SELECT id, account_id, source, referrer, arrived_at
 		FROM arrivals
 		WHERE account_id = $1
 		ORDER BY arrived_at, id
@@ -62,18 +62,18 @@ func (s *Store) Of(ctx context.Context, account arrivals.AccountID) ([]arrivals.
 	found := []arrivals.Arrival{}
 	for rows.Next() {
 		var (
-			id      uuid.UUID
-			account uuid.NullUUID
-			source  string
-			flag    string
-			at      time.Time
+			id       uuid.UUID
+			account  uuid.NullUUID
+			source   string
+			referrer string
+			at       time.Time
 		)
-		if err := rows.Scan(&id, &account, &source, &flag, &at); err != nil {
+		if err := rows.Scan(&id, &account, &source, &referrer, &at); err != nil {
 			return nil, fmt.Errorf("failed to read an arrival: %w", err)
 		}
 		arrival, err := arrivals.Snapshot{
 			ID: arrivals.ArrivalID(id), Account: arrivals.AccountID(account.UUID), Source: arrivals.Source(source),
-			Flag: flag, At: at.UTC(),
+			Referrer: referrer, At: at.UTC(),
 		}.Restore()
 		if err != nil {
 			return nil, fmt.Errorf("failed to restore the arrival %s: %w", id, err)

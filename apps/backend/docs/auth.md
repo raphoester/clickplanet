@@ -14,7 +14,7 @@ internal/auth/internal/
     usecases/create_anonymous_session_usecase/   deprecated: attest, mint with no account
     usecases/sign_out_usecase/  sign_out_everywhere_usecase/  delete_account_usecase/
     usecases/prune_guests_usecase/         deletes idle guests: Executor, Runner, and log_prune_guests
-  arrivals/                                Arrival (Snapshot), Landing, Source, Register, Guests (a guest and its arrival); the Store port — see Arrivals
+  arrivals/                                Arrival (Snapshot), Landing (tag, referrer), Source, Register, Guests (a guest and its arrival); the Store port — see Arrivals
     postgres_arrival_store/  inmemory_arrival_store/  uuid_id_provider/
     usecases/anonymize_arrivals_usecase/   blanks the account of a deleted account's arrival
   subscribers/                             auth's own AccountDeleted, for the arrivals

@@ -373,12 +373,13 @@ func (x *CreateSessionRequest) GetLanding() *Landing {
 	return nil
 }
 
-// The query of the browser's first page of the game. Kept only when the call makes an account.
+// What the browser's first page said. Kept only when the call makes an account.
 type Landing struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	Flag  string                 `protobuf:"bytes,1,opt,name=flag,proto3" json:"flag,omitempty"`
-	// The ?s= of a link the operator posted: "yt" for YouTube.
-	Tag           string `protobuf:"bytes,2,opt,name=tag,proto3" json:"tag,omitempty"`
+	// The ?s= of the link: "rc" for a player's, "yt" for YouTube.
+	Tag string `protobuf:"bytes,1,opt,name=tag,proto3" json:"tag,omitempty"`
+	// The host alone, never a path or a query.
+	Referrer      string `protobuf:"bytes,2,opt,name=referrer,proto3" json:"referrer,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -413,16 +414,16 @@ func (*Landing) Descriptor() ([]byte, []int) {
 	return file_auth_v1_auth_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *Landing) GetFlag() string {
+func (x *Landing) GetTag() string {
 	if x != nil {
-		return x.Flag
+		return x.Tag
 	}
 	return ""
 }
 
-func (x *Landing) GetTag() string {
+func (x *Landing) GetReferrer() string {
 	if x != nil {
-		return x.Tag
+		return x.Referrer
 	}
 	return ""
 }
@@ -1462,10 +1463,10 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\x12auth/v1/auth.proto\x12\aauth.v1\"o\n" +
 	"\x14CreateSessionRequest\x12+\n" +
 	"\x11attestation_token\x18\x01 \x01(\tR\x10attestationToken\x12*\n" +
-	"\alanding\x18\x02 \x01(\v2\x10.auth.v1.LandingR\alanding\"/\n" +
-	"\aLanding\x12\x12\n" +
-	"\x04flag\x18\x01 \x01(\tR\x04flag\x12\x10\n" +
-	"\x03tag\x18\x02 \x01(\tR\x03tag\"Z\n" +
+	"\alanding\x18\x02 \x01(\v2\x10.auth.v1.LandingR\alanding\"7\n" +
+	"\aLanding\x12\x10\n" +
+	"\x03tag\x18\x01 \x01(\tR\x03tag\x12\x1a\n" +
+	"\breferrer\x18\x02 \x01(\tR\breferrer\"Z\n" +
 	"\x15CreateSessionResponse\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\x12+\n" +
 	"\x12expires_at_unix_ms\x18\x02 \x01(\x03R\x0fexpiresAtUnixMs\"\x16\n" +

@@ -37,23 +37,23 @@ func (s *testSuite) SetupTest() {
 
 func (s *testSuite) kept() []arrivals.Snapshot {
 	rows, err := s.db.On(s.T().Context()).QueryContext(s.T().Context(),
-		`SELECT id, account_id, source, flag, arrived_at FROM arrivals ORDER BY arrived_at, id`)
+		`SELECT id, account_id, source, referrer, arrived_at FROM arrivals ORDER BY arrived_at, id`)
 	s.Require().NoError(err)
 	defer func() { _ = rows.Close() }()
 
 	var kept []arrivals.Snapshot
 	for rows.Next() {
 		var (
-			id      uuid.UUID
-			account uuid.NullUUID
-			source  string
-			flag    string
-			at      time.Time
+			id       uuid.UUID
+			account  uuid.NullUUID
+			source   string
+			referrer string
+			at       time.Time
 		)
-		s.Require().NoError(rows.Scan(&id, &account, &source, &flag, &at))
+		s.Require().NoError(rows.Scan(&id, &account, &source, &referrer, &at))
 		kept = append(kept, arrivals.Snapshot{
 			ID: arrivals.ArrivalID(id), Account: arrivals.AccountID(account.UUID), Source: arrivals.Source(source),
-			Flag: flag, At: at,
+			Referrer: referrer, At: at,
 		})
 	}
 	s.Require().NoError(rows.Err())
@@ -74,7 +74,7 @@ func (s *testSuite) TestAnAnonymizedArrivalIsStoredWithNoAccount() {
 
 func (s *testSuite) TestASourceTheTypeDoesNotHoldIsRefused() {
 	_, err := s.db.On(s.T().Context()).ExecContext(s.T().Context(),
-		`INSERT INTO arrivals (id, source, flag, arrived_at) VALUES ($1, 'tiktok', '', now())`, uuid.UUID{15: 2})
+		`INSERT INTO arrivals (id, source, referrer, arrived_at) VALUES ($1, 'tiktok', '', now())`, uuid.UUID{15: 2})
 
 	s.Error(err)
 }

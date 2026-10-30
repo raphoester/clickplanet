@@ -3,6 +3,7 @@ package arrivals_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -14,7 +15,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals/inmemory_arrival_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 )
 
 var (
@@ -23,40 +23,55 @@ var (
 	id  = arrivals.ArrivalID{15: 9}
 )
 
-func TestTheLandingSaysWhereTheAccountCameFrom(t *testing.T) {
+func TestTheTagSaysWhereTheAccountCameFrom(t *testing.T) {
 	for name, tc := range map[string]struct {
-		landing arrivals.Landing
-		source  arrivals.Source
-		flag    string
+		tag    string
+		source arrivals.Source
 	}{
-		"a shared link":                    {landing: arrivals.Landing{Flag: "fr"}, source: arrivals.SourceRecruit, flag: "fr"},
-		"a shared link typed by hand":      {landing: arrivals.Landing{Flag: " FR "}, source: arrivals.SourceRecruit, flag: "fr"},
-		"the YouTube link":                 {landing: arrivals.Landing{Tag: "yt"}, source: arrivals.SourceYouTube},
-		"a YouTube link that names a flag": {landing: arrivals.Landing{Flag: "de", Tag: "YT"}, source: arrivals.SourceYouTube, flag: "de"},
-		"no query":                         {landing: arrivals.Landing{}, source: arrivals.SourceUnknown},
-		"a flag that is no country":        {landing: arrivals.Landing{Flag: "zz"}, source: arrivals.SourceUnknown},
-		"a tag nobody posted":              {landing: arrivals.Landing{Flag: "it", Tag: "tiktok"}, source: arrivals.SourceRecruit, flag: "it"},
+		"a player's link":     {tag: "rc", source: arrivals.SourceRecruit},
+		"the YouTube link":    {tag: " YT ", source: arrivals.SourceYouTube},
+		"no tag":              {tag: "", source: arrivals.SourceUnknown},
+		"a tag nobody posted": {tag: "tiktok", source: arrivals.SourceUnknown},
 	} {
 		t.Run(name, func(t *testing.T) {
-			arrival, err := arrivals.NewArrival(id, ada, tc.landing, cpcountries.New(), at)
+			arrival, err := arrivals.NewArrival(id, ada, arrivals.Landing{Tag: tc.tag}, at)
 
 			require.NoError(t, err)
-			assert.Equal(t, arrivals.Snapshot{ID: id, Account: ada, Source: tc.source, Flag: tc.flag, At: at}, arrival.TakeSnapshot())
+			assert.Equal(t, arrivals.Snapshot{ID: id, Account: ada, Source: tc.source, At: at}, arrival.TakeSnapshot())
+		})
+	}
+}
+
+func TestOnlyAHostIsKeptOfTheReferrer(t *testing.T) {
+	for referrer, kept := range map[string]string{
+		"www.google.com":                    "www.google.com",
+		"Discord.COM":                       "discord.com",
+		"":                                  "",
+		"https://www.google.com/search?q=a": "",
+		"example.com:8080":                  "",
+		"exämple.com":                       "",
+		strings.Repeat("a", 254):            "",
+	} {
+		t.Run(referrer, func(t *testing.T) {
+			arrival, err := arrivals.NewArrival(id, ada, arrivals.Landing{Referrer: referrer}, at)
+
+			require.NoError(t, err)
+			assert.Equal(t, kept, arrival.TakeSnapshot().Referrer)
 		})
 	}
 }
 
 func TestAnArrivalNeedsAnAccount(t *testing.T) {
-	_, err := arrivals.NewArrival(id, arrivals.AccountID{}, arrivals.Landing{Flag: "fr"}, cpcountries.New(), at)
+	_, err := arrivals.NewArrival(id, arrivals.AccountID{}, arrivals.Landing{Tag: "rc"}, at)
 
 	assert.ErrorIs(t, err, arrivals.ErrInvalidArrival)
 }
 
 func TestAnAnonymizedArrivalKeepsAllButTheAccount(t *testing.T) {
-	arrival, err := arrivals.NewArrival(id, ada, arrivals.Landing{Flag: "fr"}, cpcountries.New(), at)
+	arrival, err := arrivals.NewArrival(id, ada, arrivals.Landing{Tag: "rc", Referrer: "discord.com"}, at)
 	require.NoError(t, err)
 
-	assert.Equal(t, arrivals.Snapshot{ID: id, Source: arrivals.SourceRecruit, Flag: "fr", At: at},
+	assert.Equal(t, arrivals.Snapshot{ID: id, Source: arrivals.SourceRecruit, Referrer: "discord.com", At: at},
 		arrival.Anonymized().TakeSnapshot())
 }
 
@@ -77,12 +92,12 @@ func TestASnapshotRestoresOnlyWhatIsWhole(t *testing.T) {
 
 func TestTheRegisterKeepsTheArrivalOfANewAccount(t *testing.T) {
 	store := inmemory_arrival_store.New()
-	register := arrivals.NewRegister(store, &arrivals.SequentialIDs{}, cpcountries.New())
+	register := arrivals.NewRegister(store, &arrivals.SequentialIDs{})
 
-	require.NoError(t, register.Record(t.Context(), ada, arrivals.Landing{Flag: "pt"}, at))
+	require.NoError(t, register.Record(t.Context(), ada, arrivals.Landing{Tag: "rc"}, at))
 
 	assert.Equal(t, []arrivals.Snapshot{{
-		ID: arrivals.ArrivalID{0: 0xa, 15: 1}, Account: ada, Source: arrivals.SourceRecruit, Flag: "pt", At: at,
+		ID: arrivals.ArrivalID{0: 0xa, 15: 1}, Account: ada, Source: arrivals.SourceRecruit, At: at,
 	}}, store.Kept())
 }
 
@@ -97,7 +112,7 @@ func TestAGuestStartsWithItsArrival(t *testing.T) {
 	lifetime := accounts.Lifetime{}.WithDefaults()
 	guests := arrivals.NewGuests(cpatomic.FakeTransactioner{},
 		accounts.NewGuests(inmemory_account_store.New(), &accounts.SequentialIDs{}, &accounts.SequentialTokens{}, lifetime),
-		arrivals.NewRegister(store, &arrivals.SequentialIDs{}, cpcountries.New()))
+		arrivals.NewRegister(store, &arrivals.SequentialIDs{}))
 
 	entry, err := guests.Start(t.Context(), arrivals.Landing{Tag: "yt"}, at)
 
@@ -110,9 +125,9 @@ func TestAGuestStartsWithItsArrival(t *testing.T) {
 func TestAGuestThatCouldNotStartHasNoArrival(t *testing.T) {
 	store := inmemory_arrival_store.New()
 	guests := arrivals.NewGuests(cpatomic.FakeTransactioner{}, failingGuests{},
-		arrivals.NewRegister(store, &arrivals.SequentialIDs{}, cpcountries.New()))
+		arrivals.NewRegister(store, &arrivals.SequentialIDs{}))
 
-	_, err := guests.Start(t.Context(), arrivals.Landing{Flag: "fr"}, at)
+	_, err := guests.Start(t.Context(), arrivals.Landing{Tag: "rc"}, at)
 
 	require.Error(t, err)
 	assert.Empty(t, store.Kept())
@@ -124,7 +139,7 @@ func TestAnArrivalThatCouldNotBeSavedFailsTheGuest(t *testing.T) {
 	lifetime := accounts.Lifetime{}.WithDefaults()
 	guests := arrivals.NewGuests(cpatomic.FakeTransactioner{},
 		accounts.NewGuests(inmemory_account_store.New(), &accounts.SequentialIDs{}, &accounts.SequentialTokens{}, lifetime),
-		arrivals.NewRegister(store, &arrivals.SequentialIDs{}, cpcountries.New()))
+		arrivals.NewRegister(store, &arrivals.SequentialIDs{}))
 
 	_, err := guests.Start(t.Context(), arrivals.Landing{}, at)
 

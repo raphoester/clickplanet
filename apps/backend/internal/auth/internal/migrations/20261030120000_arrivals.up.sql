@@ -4,7 +4,7 @@ CREATE TABLE arrivals (
     id         uuid           PRIMARY KEY,
     account_id uuid,
     source     arrival_source NOT NULL,
-    flag       text           NOT NULL,
+    referrer   text           NOT NULL,
     arrived_at timestamptz    NOT NULL
 );
 

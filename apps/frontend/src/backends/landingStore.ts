@@ -10,9 +10,9 @@ export function localLandingStore(): LandingStore {
                 if (!kept) return undefined
 
                 const landing = JSON.parse(kept) as Partial<Landing>
-                if (typeof landing.flag !== "string" || typeof landing.tag !== "string") return undefined
+                if (typeof landing.tag !== "string" || typeof landing.referrer !== "string") return undefined
 
-                return {flag: landing.flag, tag: landing.tag}
+                return {tag: landing.tag, referrer: landing.referrer}
             } catch {
                 return undefined
             }

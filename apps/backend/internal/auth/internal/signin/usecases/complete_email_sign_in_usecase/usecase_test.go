@@ -21,7 +21,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/usecases/complete_email_sign_in_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/usecases/start_email_sign_in_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -62,7 +61,7 @@ func (f *fixture) challenges(offered bool) *signin.Challenges {
 }
 
 func (f *fixture) useCase(offered bool) *complete_email_sign_in_usecase.UseCase {
-	register := arrivals.NewRegister(f.arrivals, &arrivals.SequentialIDs{}, cpcountries.New())
+	register := arrivals.NewRegister(f.arrivals, &arrivals.SequentialIDs{})
 	admitter := signin.NewAdmitter(cpatomic.FakeTransactioner{}, f.store, f.outbox, register, &accounts.SequentialIDs{}, &accounts.SequentialTokens{}, lifetime)
 	return complete_email_sign_in_usecase.New(f.challenges(offered), admitter, f.clock)
 }

@@ -44,7 +44,7 @@ func (h CompleteEmailSignInHandler) CompleteEmailSignIn(
 	out, err := h.useCase.Execute(ctx, complete_email_sign_in_usecase.In{
 		Code:         req.Msg.GetCode(),
 		CookieHeader: req.Header().Get("Cookie"),
-		Landing:      arrivals.Landing{Flag: req.Msg.GetLanding().GetFlag(), Tag: req.Msg.GetLanding().GetTag()},
+		Landing:      arrivals.Landing{Tag: req.Msg.GetLanding().GetTag(), Referrer: req.Msg.GetLanding().GetReferrer()},
 	})
 	switch {
 	case errors.Is(err, signin.ErrSignInOff):

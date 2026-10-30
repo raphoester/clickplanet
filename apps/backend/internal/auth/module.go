@@ -82,7 +82,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/subscribers/account_deleted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpoutbox"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
@@ -233,7 +232,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, signIns 
 	props.Runners.Add(attemptLimiter)
 	outbox := cpoutbox.New(db)
 	arrivalStore := postgres_arrival_store.New(db)
-	register := arrivals.NewRegister(arrivalStore, arrival_ids.Provider{}, cpcountries.New())
+	register := arrivals.NewRegister(arrivalStore, arrival_ids.Provider{})
 	admitter := signin.NewAdmitter(db, store, outbox, register, uuid_id_provider.Provider{}, random_token_generator.Generator{},
 		config.Sessions)
 	challenges := signin.NewChallenges(config.Email.Enabled, random_secret_generator.Generator{}, mail.codes, sealer, attemptLimiter)

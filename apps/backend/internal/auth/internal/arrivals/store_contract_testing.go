@@ -66,7 +66,7 @@ func (s *StoreContractSuite) TestNothingIsKeptAtFirst() {
 }
 
 func (s *StoreContractSuite) TestEverySourceIsKeptAsItWas() {
-	recruit := Snapshot{ID: contractID("recruit"), Account: contractAda, Source: SourceRecruit, Flag: "fr", At: contractStart}
+	recruit := Snapshot{ID: contractID("recruit"), Account: contractAda, Source: SourceRecruit, Referrer: "discord.com", At: contractStart}
 	youtube := Snapshot{
 		ID: contractID("youtube"), Account: contractBob, Source: SourceYouTube, At: contractStart.Add(time.Second),
 	}
@@ -78,7 +78,7 @@ func (s *StoreContractSuite) TestEverySourceIsKeptAsItWas() {
 }
 
 func (s *StoreContractSuite) TestAnArrivalSavedAgainReplacesItself() {
-	arrival := Snapshot{ID: contractID("once"), Account: contractAda, Source: SourceRecruit, Flag: "de", At: contractStart}
+	arrival := Snapshot{ID: contractID("once"), Account: contractAda, Source: SourceRecruit, Referrer: "www.google.com", At: contractStart}
 	s.save(arrival)
 
 	anonymized := arrival
@@ -101,7 +101,7 @@ func (s *StoreContractSuite) TestTheArrivalsOfAnAccountAreFoundOldestFirst() {
 }
 
 func (s *StoreContractSuite) TestAnAnonymizedArrivalNamesNobody() {
-	s.save(Snapshot{ID: contractID("gone"), Source: SourceRecruit, Flag: "it", At: contractStart})
+	s.save(Snapshot{ID: contractID("gone"), Source: SourceRecruit, Referrer: "www.reddit.com", At: contractStart})
 
 	found, err := s.store.Of(s.T().Context(), AccountID{})
 

@@ -1,5 +1,5 @@
 import {describe, expect, it, vi} from "vitest"
-import {firstLanding, hasLanding, Landing, landingOf, withoutLanding} from "./landing.ts"
+import {firstLanding, Landing, landingOf, withoutLanding} from "./landing.ts"
 import {shareUrl} from "./shareCard.ts"
 
 function page(path: string): URL {
@@ -17,33 +17,28 @@ function store(kept?: Landing) {
 }
 
 describe("landingOf", () => {
-    it("reads the flag of a recruit link", () => {
-        expect(landingOf(new URL(shareUrl("jp")))).toEqual({flag: "jp", tag: ""})
+    it("reads the tag of a player's link", () => {
+        expect(landingOf(new URL(shareUrl("jp")), "")).toEqual({tag: "rc", referrer: ""})
     })
 
     it("reads the tag of the YouTube link", () => {
-        expect(landingOf(page("/play?s=YT"))).toEqual({flag: "", tag: "yt"})
+        expect(landingOf(page("/play?s=YT"), "")).toEqual({tag: "yt", referrer: ""})
     })
 
-    it("drops a flag that is no country", () => {
-        expect(landingOf(page("/play?f=zz&s=yt"))).toEqual({flag: "", tag: "yt"})
+    it("keeps only the host of the page before", () => {
+        expect(landingOf(page("/"), "https://www.Google.com/search?q=clickplanet")).toEqual({tag: "", referrer: "www.google.com"})
     })
 
-    it("is empty on a page with no query", () => {
-        expect(landingOf(page("/play"))).toEqual({flag: "", tag: ""})
+    it("keeps no referrer for a page of the game's own, or none at all", () => {
+        expect(landingOf(page("/play"), "https://clickplanet.lol/?f=fr").referrer).toBe("")
+        expect(landingOf(page("/play"), "").referrer).toBe("")
     })
 })
 
 describe("withoutLanding", () => {
-    it("takes the flag and the tag out of the address and leaves the rest", () => {
-        expect(withoutLanding(page("/play?f=fr&s=yt&gfx=halo#top")).href).toBe("https://clickplanet.lol/play?gfx=halo#top")
-        expect(withoutLanding(page("/play?f=fr")).href).toBe("https://clickplanet.lol/play")
-    })
-
-    it("is asked for only when there is something to take out", () => {
-        expect(hasLanding(page("/play?s=yt"))).toBe(true)
-        expect(hasLanding(page("/play?f=fr"))).toBe(true)
-        expect(hasLanding(page("/play?gfx=halo"))).toBe(false)
+    it("takes the tag out of the address and leaves the rest", () => {
+        expect(withoutLanding(page("/play?f=fr&s=rc&gfx=halo#top")).href).toBe("https://clickplanet.lol/play?f=fr&gfx=halo#top")
+        expect(withoutLanding(page("/play?s=yt")).href).toBe("https://clickplanet.lol/play")
     })
 })
 
@@ -51,21 +46,21 @@ describe("firstLanding", () => {
     it("keeps the first page's landing", () => {
         const kept = store()
 
-        expect(firstLanding(kept, {flag: "fr", tag: ""})).toEqual({flag: "fr", tag: ""})
-        expect(kept.write).toHaveBeenCalledWith({flag: "fr", tag: ""})
+        expect(firstLanding(kept, {tag: "rc", referrer: ""})).toEqual({tag: "rc", referrer: ""})
+        expect(kept.write).toHaveBeenCalledWith({tag: "rc", referrer: ""})
     })
 
     it("keeps an empty landing too, so a later link does not take its place", () => {
         const kept = store()
-        firstLanding(kept, {flag: "", tag: ""})
+        firstLanding(kept, {tag: "", referrer: ""})
 
-        expect(firstLanding(kept, {flag: "de", tag: ""})).toEqual({flag: "", tag: ""})
+        expect(firstLanding(kept, {tag: "rc", referrer: "discord.com"})).toEqual({tag: "", referrer: ""})
     })
 
     it("answers what was kept and writes nothing", () => {
-        const kept = store({flag: "", tag: "yt"})
+        const kept = store({tag: "yt", referrer: ""})
 
-        expect(firstLanding(kept, {flag: "it", tag: ""})).toEqual({flag: "", tag: "yt"})
+        expect(firstLanding(kept, {tag: "rc", referrer: ""})).toEqual({tag: "yt", referrer: ""})
         expect(kept.write).not.toHaveBeenCalled()
     })
 })

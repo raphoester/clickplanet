@@ -22,12 +22,12 @@ var (
 func TestTheAccountsArrivalKeepsItsSourceAndLosesItsAccount(t *testing.T) {
 	store := inmemory_arrival_store.New()
 	kept := arrivals.Snapshot{ID: arrivals.ArrivalID{15: 2}, Account: bob, Source: arrivals.SourceYouTube, At: at}
-	store.Seed(arrivals.Snapshot{ID: arrivals.ArrivalID{15: 1}, Account: ada, Source: arrivals.SourceRecruit, Flag: "fr", At: at}, kept)
+	store.Seed(arrivals.Snapshot{ID: arrivals.ArrivalID{15: 1}, Account: ada, Source: arrivals.SourceRecruit, Referrer: "discord.com", At: at}, kept)
 
 	require.NoError(t, anonymize_arrivals_usecase.New(store).Execute(t.Context(), ada))
 
 	assert.ElementsMatch(t, []arrivals.Snapshot{
-		{ID: arrivals.ArrivalID{15: 1}, Source: arrivals.SourceRecruit, Flag: "fr", At: at},
+		{ID: arrivals.ArrivalID{15: 1}, Source: arrivals.SourceRecruit, Referrer: "discord.com", At: at},
 		kept,
 	}, store.Kept())
 }

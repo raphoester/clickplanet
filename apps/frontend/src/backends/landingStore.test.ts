@@ -21,13 +21,13 @@ describe("localLandingStore", () => {
         stubStorage()
         const store = localLandingStore()
 
-        store.write({flag: "fr", tag: ""})
+        store.write({tag: "rc", referrer: "discord.com"})
 
-        expect(store.read()).toEqual({flag: "fr", tag: ""})
+        expect(store.read()).toEqual({tag: "rc", referrer: "discord.com"})
     })
 
     it("reads nothing from something that is not a kept landing", () => {
-        stubStorage({[LANDING_STORAGE_KEY]: '{"flag": 5}'})
+        stubStorage({[LANDING_STORAGE_KEY]: '{"tag": 5}'})
 
         expect(localLandingStore().read()).toBeUndefined()
     })
@@ -39,7 +39,7 @@ describe("localLandingStore", () => {
         vi.stubGlobal("window", {localStorage: {getItem: refuse, setItem: refuse}})
         const store = localLandingStore()
 
-        expect(() => store.write({flag: "fr", tag: ""})).not.toThrow()
+        expect(() => store.write({tag: "rc", referrer: "discord.com"})).not.toThrow()
         expect(store.read()).toBeUndefined()
     })
 })

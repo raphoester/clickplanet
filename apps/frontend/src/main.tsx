@@ -36,8 +36,8 @@ import {callbackOf, CALLBACK_PATH} from "./domain/signInCallback.ts"
 import {ConnectClipsBackend, newClipsServiceClient} from "./backends/clipsBackend.ts"
 import {FakeClipsBackend} from "./backends/fakeClipsBackend.ts"
 import {FakeAccountBackend} from "./backends/fakeAccountBackend.ts"
-import {sharedCountry} from "./domain/shareCard.ts"
-import {firstLanding, hasLanding, landingOf, withoutLanding} from "./domain/landing.ts"
+import {SHARE_FLAG_PARAM, sharedCountry, withoutSharedFlag} from "./domain/shareCard.ts"
+import {firstLanding, landingOf, SOURCE_TAG_PARAM, withoutLanding} from "./domain/landing.ts"
 import {localLandingStore} from "./backends/landingStore.ts"
 
 // Strip the OAuth code and state from the URL before anything else can read or leak them.
@@ -46,8 +46,10 @@ if (callback) window.history.replaceState(null, "", CALLBACK_PATH)
 
 const page = new URL(window.location.href)
 const shared = sharedCountry(page)
-const landing = firstLanding(localLandingStore(), landingOf(page))
-if (hasLanding(page)) window.history.replaceState(null, "", withoutLanding(page))
+const landing = firstLanding(localLandingStore(), landingOf(page, document.referrer))
+if (page.searchParams.has(SHARE_FLAG_PARAM) || page.searchParams.has(SOURCE_TAG_PARAM)) {
+    window.history.replaceState(null, "", withoutLanding(withoutSharedFlag(page)))
+}
 
 const connection = new ConnectionHealth()
 followBrowser(connection, window)

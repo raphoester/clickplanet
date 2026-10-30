@@ -80,11 +80,11 @@ describe("SessionClient", () => {
         const createSession = vi.fn(minting("session-1"))
 
         const client = new SessionClient(fakeClient(createSession), async () => "widget-token", {
-            now: clock, landing: {flag: "", tag: "yt"},
+            now: clock, landing: {tag: "yt", referrer: "www.google.com"},
         })
         await client.token()
 
-        expect(createSession).toHaveBeenCalledWith({attestationToken: "widget-token", landing: {flag: "", tag: "yt"}})
+        expect(createSession).toHaveBeenCalledWith({attestationToken: "widget-token", landing: {tag: "yt", referrer: "www.google.com"}})
     })
 
     it("mints again once the token is inside the refresh margin", async () => {

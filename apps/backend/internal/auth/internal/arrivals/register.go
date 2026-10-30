@@ -13,15 +13,14 @@ type Saver interface {
 	Save(ctx context.Context, arrivals ...Arrival) error
 }
 
-func NewRegister(store Saver, ids IDProvider, countries Countries) *Register {
-	return &Register{store: store, ids: ids, countries: countries}
+func NewRegister(store Saver, ids IDProvider) *Register {
+	return &Register{store: store, ids: ids}
 }
 
 // Where an account was made, it is told how the account came.
 type Register struct {
-	store     Saver
-	ids       IDProvider
-	countries Countries
+	store Saver
+	ids   IDProvider
 }
 
 func (r *Register) Record(ctx context.Context, account AccountID, landing Landing, now time.Time) error {
@@ -29,7 +28,7 @@ func (r *Register) Record(ctx context.Context, account AccountID, landing Landin
 	if err != nil {
 		return fmt.Errorf("failed to get an arrival id: %w", err)
 	}
-	arrival, err := NewArrival(id, account, landing, r.countries, now)
+	arrival, err := NewArrival(id, account, landing, now)
 	if err != nil {
 		return err
 	}
