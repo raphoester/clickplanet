@@ -10,7 +10,7 @@ line, for a person. `--plan` prints what the clip would be and renders nothing, 
 first 3 seconds; every choice can be forced (`npm run clip -- --help`).
 
 **Every 2 hours a workflow posts the best ones with no person and no laptop** (`.github/workflows/clips.yml`, at
-17 past every even hour UTC, or by hand with `workflow_dispatch`), so a story reaches the feed 2 to 3 hours after it
+17 past every even hour from 06:00 to 22:00 UTC, or by hand with `workflow_dispatch`), so a story reaches the feed 2 to 3 hours after it
 happened rather than 10 to 20 under the two runs a day before (2026-10-24). Four jobs:
 
 1. **fetch**: the backend's `clips fetch -hours 12 -race race.json -season season.json -cast cast.json` over SSH, with
