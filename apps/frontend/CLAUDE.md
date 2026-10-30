@@ -80,8 +80,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 - [CSS pixels in, drawing-buffer pixels out](docs/pixel-ratio.md) — the pixel ratio, capped at 2.
 - [The light](docs/light.md) — one pass for every player: the season-end clips' light, rim and halo, on a navy
   sky.
-- [The zoomed-out view](docs/zoomed-out-view.md) — each tile's holder, opaque, painted in its landmass's frame when
-  tiles are small.
+- [The zoomed-out view](docs/zoomed-out-view.md) — the flags painted in each landmass's frame when tiles are small:
+  Split, Big or Off.
 - [The globe's texture](docs/globe-texture.md) — the sphere under the tiles, cut from the tile field.
 - [Tile positions](docs/tile-positions.md) — rebuilt in a worker from a 12 KB landmask and checked by a hash;
   the coordinates blob is only the fallback.

@@ -91,23 +91,23 @@ describe("coarseHandover", () => {
 describe("the handover from the painted flag to the tiles", () => {
     it("undoes the widening exactly when the flag stops being painted", () => {
         everyView((zoom, height) => {
-            const widened = displayPointSize(zoom, height, "flags") > tilePointSize(zoom, height) + 1e-9
-            expect(widened, `zoom ${zoom} at ${height}px`).toBe(flagPaint(zoom, height, "flags") > 0)
+            const widened = displayPointSize(zoom, height, "split") > tilePointSize(zoom, height) + 1e-9
+            expect(widened, `zoom ${zoom} at ${height}px`).toBe(flagPaint(zoom, height, "split") > 0)
         })
     })
 
     it("covers the ground whenever the flag alone is on screen", () => {
         everyView((zoom, height) => {
-            if (flagPaint(zoom, height, "flags") < 1) return
+            if (flagPaint(zoom, height, "split") < 1) return
             const spacing = 1.98 * zoom * (height / 1000)
-            expect(displayPointSize(zoom, height, "flags") / spacing, `zoom ${zoom} at ${height}px`)
+            expect(displayPointSize(zoom, height, "split") / spacing, `zoom ${zoom} at ${height}px`)
                 .toBeGreaterThanOrEqual(1.155 * 1.11)
         })
     })
 
     it("never draws a disc smaller than the tile it stands for", () => {
         everyView((zoom, height) => {
-            expect(displayPointSize(zoom, height, "flags"), `zoom ${zoom} at ${height}px`)
+            expect(displayPointSize(zoom, height, "split"), `zoom ${zoom} at ${height}px`)
                 .toBeGreaterThanOrEqual(tilePointSize(zoom, height))
         })
     })
@@ -115,16 +115,16 @@ describe("the handover from the painted flag to the tiles", () => {
     it("hands over while a tile is still too small to read a flag in", () => {
         everyView((zoom, height) => {
             const tile = tilePointSize(zoom, height)
-            if (tile < 5) expect(flagPaint(zoom, height, "flags"), `zoom ${zoom}`).toBe(1)
-            if (tile >= 8) expect(flagPaint(zoom, height, "flags"), `zoom ${zoom}`).toBe(0)
+            if (tile < 5) expect(flagPaint(zoom, height, "split"), `zoom ${zoom}`).toBe(1)
+            if (tile >= 8) expect(flagPaint(zoom, height, "split"), `zoom ${zoom}`).toBe(0)
         })
     })
 
     it("only ever fades one way as you zoom in", () => {
         for (const height of VIEWPORTS) {
             for (let i = 1; i < ZOOMS.length; i++) {
-                expect(flagPaint(ZOOMS[i], height, "flags"), `${ZOOMS[i]} at ${height}px`)
-                    .toBeLessThanOrEqual(flagPaint(ZOOMS[i - 1], height, "flags"))
+                expect(flagPaint(ZOOMS[i], height, "split"), `${ZOOMS[i]} at ${height}px`)
+                    .toBeLessThanOrEqual(flagPaint(ZOOMS[i - 1], height, "split"))
             }
         }
     })
@@ -133,8 +133,8 @@ describe("the handover from the painted flag to the tiles", () => {
 describe("the zoom the tiles take over from", () => {
     it("is where the painted flag is gone", () => {
         for (const height of VIEWPORTS) {
-            expect(flagPaint(tilesZoomOf(height), height, "flags"), `${height}px`).toBeCloseTo(0, 9)
-            expect(flagPaint(tilesZoomOf(height) * 0.95, height, "flags"), `${height}px`).toBeGreaterThan(0)
+            expect(flagPaint(tilesZoomOf(height), height, "split"), `${height}px`).toBeCloseTo(0, 9)
+            expect(flagPaint(tilesZoomOf(height) * 0.95, height, "split"), `${height}px`).toBeGreaterThan(0)
         }
     })
 })
@@ -142,7 +142,7 @@ describe("the zoom the tiles take over from", () => {
 describe("orbit", () => {
     it("is exactly where the painted flags have the frame to themselves", () => {
         everyView((zoom, height) => {
-            expect(inOrbit(zoom, height), `zoom ${zoom} at ${height}px`).toBe(flagPaint(zoom, height, "flags") === 1)
+            expect(inOrbit(zoom, height), `zoom ${zoom} at ${height}px`).toBe(flagPaint(zoom, height, "split") === 1)
         })
     })
 
@@ -167,7 +167,7 @@ describe("a territory flown to", () => {
         for (const height of VIEWPORTS) {
             const {least, most} = flownZoomsOf(height)
             expect(inOrbit(least, height), `${height}px`).toBe(false)
-            expect(flagPaint(least, height, "flags"), `${height}px`).toBeCloseTo(0, 9)
+            expect(flagPaint(least, height, "split"), `${height}px`).toBeCloseTo(0, 9)
             expect(tilePointSize(most, height), `${height}px`).toBeCloseTo(28)
             expect(most, `${height}px`).toBeGreaterThan(least)
         }
@@ -190,8 +190,8 @@ describe("the map that shows every tile", () => {
 
     it("is the same picture as the flags once they have handed over", () => {
         everyView((zoom, height) => {
-            if (flagPaint(zoom, height, "flags") > 0) return
-            expect(displayPointSize(zoom, height, "tiles")).toBe(displayPointSize(zoom, height, "flags"))
+            if (flagPaint(zoom, height, "split") > 0) return
+            expect(displayPointSize(zoom, height, "tiles")).toBe(displayPointSize(zoom, height, "split"))
         })
     })
 })

@@ -1,8 +1,9 @@
 import {useState} from "react";
-import {DisplaySettings} from "../../domain/displaySettings.ts";
+import {DisplaySettings, MapView} from "../../domain/displaySettings.ts";
 import {FeedbackBackend, PageContext} from "../../backends/support.ts";
 import About from "../About.tsx";
 import BuyMeACoffee from "../components/BuyMeACoffee.tsx";
+import Choices, {Choice} from "../components/Choices.tsx";
 import {InfoIcon, MailIcon} from "../components/icons.tsx";
 import Modal from "../components/Modal.tsx";
 import Switch from "../components/Switch.tsx";
@@ -21,16 +22,23 @@ export type SettingsPlaceProps = {
 
 const pageAlone = () => pageContextOf(window, NO_GRAPHICS, false)
 
+const MAP_VIEWS: Choice<MapView>[] = [
+    {value: "big", label: "Big"},
+    {value: "split", label: "Split"},
+    {value: "tiles", label: "Off"},
+]
+
 export default function SettingsPlace({display, sound, support, pageContext = pageAlone}: SettingsPlaceProps) {
     const [open, setOpen] = useState<"feedback" | "about">()
     const close = () => setOpen(undefined)
 
     return <div className="settings">
         {display && <ul className="switch-list panel-box">
-            <li>
-                <Switch label="Big country flags"
-                        checked={display.settings.mapView === "flags"}
-                        onChange={(on) => display.onChange({...display.settings, mapView: on ? "flags" : "tiles"})}/>
+            <li className="settings-choices">
+                <Choices label="Country flags"
+                         options={MAP_VIEWS}
+                         picked={display.settings.mapView}
+                         onPick={(mapView) => display.onChange({...display.settings, mapView})}/>
             </li>
             <li>
                 <Switch label="HD graphics"

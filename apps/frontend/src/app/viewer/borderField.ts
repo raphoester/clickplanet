@@ -105,7 +105,7 @@ export class BorderField {
         if (changed) this.landmassData.needsUpdate = true
     }
 
-    // Gives each landmass the flag that leads it, whose frame is fitted to its ground and may be drawn large.
+    // Gives each landmass the flag that leads it, at the share of it that flag holds: fitted to its ground, drawn large.
     setRows(landmasses: Iterable<number>, leaderOf: (landmass: number) => {holder: string, held: number} | undefined) {
         let changed = false
         for (const landmass of landmasses) {
@@ -123,8 +123,11 @@ export class BorderField {
 
         const at = landmass * LANDMASS_TEXELS * 4
         const region = holder === undefined ? undefined : regions.get(holder)
+        const opacity = region === undefined ? 0 : share
 
-        if (holder === this.painted[landmass]) return false
+        if (holder === this.painted[landmass] && Math.abs(opacity - this.rows[at + 12]) < 0.002) {
+            return false
+        }
         this.painted[landmass] = holder
 
         if (!region) {
@@ -132,6 +135,7 @@ export class BorderField {
             this.rows[at + 9] = 0
             this.rows[at + 10] = 0
             this.rows[at + 11] = 0
+            this.rows[at + 12] = 0
             return true
         }
 
@@ -169,6 +173,7 @@ export class BorderField {
         this.rows[at + 9] = region.y
         this.rows[at + 10] = region.width
         this.rows[at + 11] = region.height
+        this.rows[at + 12] = opacity
         return true
     }
 

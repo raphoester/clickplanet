@@ -91,6 +91,7 @@ type Uniforms = BlastUniforms & FortifyUniforms & {
     pixelsPerRadian: THREE.IUniform<number>
     pixelRatio: THREE.IUniform<number>
     flagPaint: THREE.IUniform
+    splitFlags: THREE.IUniform<number>
     shieldMost: THREE.IUniform<number>
     shieldMarks: THREE.IUniform<THREE.Texture>
     shieldCells: THREE.IUniform<THREE.Vector2>
@@ -321,6 +322,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         pixelsPerRadian: {value: 1},
         pixelRatio: {value: renderer.getPixelRatio()},
         flagPaint: {value: flagPaint(camera.zoom, layoutViewport().height, mapView)},
+        splitFlags: {value: splitFlagsOf(mapView)},
         shieldMost: {value: SHIELD_MOST_UNTIL_READ},
         shieldMarks: {value: drawShieldMarks(SHIELD_MOST_UNTIL_READ, invalidate)},
         shieldCells: {value: shieldCellsOf(SHIELD_MOST_UNTIL_READ)},
@@ -1159,6 +1161,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         setMapView: (view: MapView) => {
             if (view === mapView) return
             mapView = view
+            uniforms.splitFlags.value = splitFlagsOf(view)
             invalidate()
         },
         setHalo: (halo: Halo) => {
@@ -1353,6 +1356,10 @@ function aim(camera: THREE.OrthographicCamera, {direction, zoom}: Shot): boolean
     camera.zoom = zoom
     camera.updateProjectionMatrix()
     return true
+}
+
+function splitFlagsOf(view: MapView): number {
+    return view === "split" ? 1 : 0
 }
 
 function prefersReducedMotion(): boolean {

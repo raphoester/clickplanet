@@ -1,4 +1,5 @@
-import {useId} from "react"
+import {CSSProperties, useId} from "react"
+import "./Choices.css"
 
 export type Choice<Value extends string> = {value: Value, label: string}
 
@@ -9,17 +10,24 @@ export type ChoicesProps<Value extends string> = {
     onPick: (value: Value) => void
 }
 
+// Up to three in a row; four go in two rows of two.
+const MOST_IN_A_ROW = 3
+
 export default function Choices<Value extends string>({label, options, picked, onPick}: ChoicesProps<Value>) {
     const labelId = useId()
+    const columns = options.length <= MOST_IN_A_ROW ? options.length : 2
 
-    return <div className="support-choices">
+    return <div className="choices">
         <span className="menu-label" id={labelId}>{label}</span>
-        <div className="support-choice-options" role="radiogroup" aria-labelledby={labelId}>
+        <div className="choices-options"
+             role="radiogroup"
+             aria-labelledby={labelId}
+             style={{"--choices-columns": columns} as CSSProperties}>
             {options.map((option) => <button key={option.value}
                                              type="button"
                                              role="radio"
                                              aria-checked={option.value === picked}
-                                             className="panel-box support-choice"
+                                             className="panel-box choice"
                                              onClick={() => onPick(option.value)}>
                 {option.label}
             </button>)}

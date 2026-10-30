@@ -18,11 +18,15 @@ country because a flag belongs to a piece of ground — one frame spanning mainl
 France, Corsica, Guiana and Réunion would stretch the tricolour across half the
 planet and paint nothing recognisable anywhere.
 
-**Each tile shows its own holder's flag, painted in its landmass's frame**, with
-distance measured **along the surface**, so it bends with the globe and is
-cropped by its own coastline. A landmass one flag holds whole is one picture; a
-landmass several flags share is that many pieces, each its holder's flag where it
-holds. The flag that leads the landmass gets the frame fitted to it and its slot:
+**The flags are painted in their landmass's frame**, with distance measured
+**along the surface**, so they bend with the globe and are cropped by their own
+coastline. A player picks how, under "Country flags" in Settings (`MapView` in the
+display settings): **Split**, the default, paints each tile in its own holder's
+flag, so a landmass one flag holds whole is one picture and a landmass several
+flags share is that many pieces; **Big** paints the whole landmass in the flag that
+leads it, at its share; **Off** paints nothing (below). The choice reaches the
+running globe through `Globe.setMapView` and the `splitFlags` uniform, so it never
+rebuilds it. The flag that leads the landmass gets the frame fitted to it and its slot:
 `BorderField` writes it from the server's row for the landmass (`setRows`, with
 `Holdings.leaderOf`: see [The counts are the server's](counts.md)) into one row
 per landmass of a `DataTexture` the vertex shader reads. Any other flag covers the
@@ -90,13 +94,19 @@ atlas shows until it is drawn, and a flag whose SVG fails stays on the atlas
 and is not asked for again. Nothing is fetched on a page where no flag is
 painted.
 
-**The painted flag is opaque.** It used to be the leader's flag alone, over the
-whole landmass, at the leader's share of opacity: a contested landmass came out as
-one faded flag over the photo, the ground the others held did not show at all, and
-discs at less than full opacity overlapping each other speckled it. The season-end
-clips paint every point in its own tile's holder's flag, fully opaque, and look much
-better, so the game does the same. Zoomed in, the tiles are still at 0.7 over the
-ground, so a country is a little fainter once its tiles have the frame.
+**Split is opaque.** It is how the season-end clips paint the map, every point in
+its own tile's holder's flag, and they looked much better than Big, where a
+contested landmass comes out as one faded flag over the photo and the ground the
+others hold does not show. Zoomed in, the tiles are still at 0.7 over the ground,
+so a country is a little fainter once its tiles have the frame.
+
+**Big's opacity is the leader's share, and the curve it goes through is not a free
+knob.** Zoomed in, that share is already on screen as the fraction of discs
+wearing the holder's flag, so the tiles show `share * 0.7` of ink no matter what;
+the painted flag shows `share * 0.94`. Bend the curve and the summary becomes
+fainter than the tiles it hands over to, and a country gets *brighter* as you zoom
+into it — measured at 5x for Sudan with the share cubed. `borderField.test.ts`
+pins this.
 
 **One schedule owns the whole handover** — `coarseHandover` in `pointSize.ts`
 drives the flag fading out, the tiles fading in, the disc widening being undone,
@@ -113,14 +123,13 @@ Running them on separate schedules left a band where the flag was painted
 through a lattice with holes in it. `pointSize.test.ts` pins that too, and those
 tests fail if the two are split again.
 
-**A player can turn the painted flags off** — "Big country flags" in
-Settings (`MapView` in the display settings). Players draw pictures with the
-tiles, and the painted flag hides them. With it off
+**A player can turn the painted flags off** — Off under "Country flags".
+Players draw pictures with the tiles, and the painted flag hides them. With it off
 (`MapView` `"tiles"`), the handover in `pointSize.ts` is held at 1 at every zoom, so the
 globe is drawn as it was before #52: each tile its own flag at its own size,
 and the outline always under the tiles. Zoomed out that is the mud described
-above, and that is the price of seeing every tile. The switch reaches the
-running globe through `Globe.setMapView`, so it never rebuilds it.
+above, and that is the price of seeing every tile. It used to be a switch, "Big
+country flags": a setting saved by it as `"flags"` now reads as the default, Split.
 
 `npm run flagFit` decides the rest for the leader's flag: a flag that is only bands can be pulled to
 the country's own shape and still say what it is, while one carrying a device is

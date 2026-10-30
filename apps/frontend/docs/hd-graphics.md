@@ -34,7 +34,7 @@ Words add up (`?gfx=ratio,earth`), and sit beside the rest of the query
 light](light.md).
 
 **Off is the code from before #254, not the new code multiplied by zero.** The
-plain earth is three's basic material; the plain tiles are the old attributes,
+plain earth is the same shader without the glint; the plain tiles are the old attributes,
 with `#ifdef COMPACT` around the new ones.
 
 **The compact tile layout came later and is not part of #254.** It sits behind the

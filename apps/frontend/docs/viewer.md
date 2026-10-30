@@ -98,7 +98,7 @@
   of a flag. **A click out of view is not played** (`inView`): on the far side
   or off the screen it would cost frames and show nothing. With less motion a
   hit and a placement fade without changing size.
-- `earth.ts` — the opaque sphere under the tiles: the photo as it is, and the sea's
+- `earth.ts` — the opaque sphere under the tiles: the photo, a little softened, and the sea's
   glint with `?gfx=earth`. See [The light](light.md). The sphere comes from
   `sphere.ts`, built once per globe and shared with the picker.
 - `atmosphere.ts` — the light, the hazy rim and the halo, one pass over the whole

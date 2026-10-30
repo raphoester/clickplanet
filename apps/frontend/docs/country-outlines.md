@@ -57,7 +57,7 @@ they cover the ground so the painted flag can reach it, and a line underneath
 them would be invisible. So the same outline is drawn just outside the shell as
 well, fading with the painted flag, and the two hand over on the one schedule that
 owns the rest of the handover. **The over pass is thinner and darkens the flag
-under it** (`ORBIT_WIDTH`, 0.75px, black at `ORBIT_INK`, 70%): a red flag gets a
+under it** (`ORBIT_WIDTH`, 0.25px and a pixel of feather, black at `ORBIT_INK`, 70%): a red flag gets a
 dark red edge, as in the season-end clips, where the grey line read as a stroke
 drawn across the map. Neither pass writes depth, so the stretch where they overlap
 — a coast, which has no tiles on the sea side to hide the under pass — comes out a

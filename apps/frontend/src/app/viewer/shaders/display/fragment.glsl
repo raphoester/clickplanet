@@ -12,6 +12,7 @@ flat in vec4 vRegionVector;
 flat in vec2 vFlagUV;
 flat in vec4 vFlagStep;
 flat in vec4 vFlagFrame;
+flat in float vFlagShare;
 flat in float vSlotted;
 flat in float vSpriteSize;
 flat in float vShield;
@@ -101,9 +102,9 @@ void main() {
         float edge = max(abs(uv.x - 0.5), abs(uv.y - 0.5));
         float keyline = smoothstep(inner - feather, inner + feather, edge)
             * (1.0 - smoothstep(0.5 - feather, 0.5 + feather, edge));
-        flag = mix(flag, vec3(0.03), keyline * 0.85);
+        flag = mix(flag, vec3(0.03), keyline * 0.85 * vFlagShare);
 
-        painted = vec4(flag, 1.0);
+        painted = vec4(flag, vFlagShare);
     }
 
     vec4 colour = mix(own, painted, flagPaint);

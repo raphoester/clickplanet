@@ -4,6 +4,8 @@ uniform sampler2D landmassData;
 uniform float landmassCount;
 
 uniform float flagPaint;
+// 1: each tile paints its own holder's flag. 0: the landmass's leader paints all of it, at its share.
+uniform float splitFlags;
 
 uniform float pixelsPerRadian;
 
@@ -71,6 +73,7 @@ flat out float vHighlit;
 flat out vec2 vFlagUV;
 flat out vec4 vFlagStep;
 flat out vec4 vFlagFrame;
+flat out float vFlagShare;
 
 flat out float vSpriteSize;
 flat out float vSlotted;
@@ -124,45 +127,54 @@ void main() {
     vFlagFrame = vec4(0.0);
     vFlagUV = vec2(0.0);
     vFlagStep = vec4(0.0);
+    vFlagShare = 0.0;
     vSlotted = 0.0;
 
-    if (flagPaint > 0.0 && landmassIndex > 0.5 && regionVector.z > 0.0) {
+    bool split = splitFlags > 0.5;
+    if (flagPaint > 0.0 && landmassIndex > 0.5) {
         float row = (landmassIndex + 0.5) / landmassCount;
-        vec4 frame = texture(landmassData, vec2(1.0 / 8.0, row));
-        vec4 axis = texture(landmassData, vec2(3.0 / 8.0, row));
         vec4 region = texture(landmassData, vec2(5.0 / 8.0, row));
         vec4 held = texture(landmassData, vec2(7.0 / 8.0, row));
 
-        // Each tile shows its own holder's flag; only the leader's is fitted to the ground and drawn large.
-        bool leads = all(equal(region, regionVector));
-        vec2 halfSize = leads ? vec2(frame.w, axis.w) : coverOf(axis.xy, regionVector.z / regionVector.w);
-        vec2 anchor = leads ? held.ba : vec2(0.5);
+        vec4 flag = split ? regionVector : region;
+        float share = split ? 1.0 : held.r;
+        // Only the leader's flag is fitted to the ground and drawn large.
+        bool leads = all(equal(region, flag));
 
-        vec3 centre = frame.xyz;
-        vec3 east = normalize(vec3(centre.z, 0.0, -centre.x));
-        if (abs(centre.y) > 0.9999) east = vec3(1.0, 0.0, 0.0);
-        vec3 north = cross(centre, east);
+        if (flag.z > 0.0 && share > 0.0) {
+            vec4 frame = texture(landmassData, vec2(1.0 / 8.0, row));
+            vec4 axis = texture(landmassData, vec2(3.0 / 8.0, row));
+            vec2 halfSize = leads ? vec2(frame.w, axis.w) : coverOf(axis.xy, flag.z / flag.w);
+            vec2 anchor = leads ? held.ba : vec2(0.5);
 
-        if (dot(ground, centre) > 0.0) {
-            vec3 right = normalize(vec3(modelViewMatrix[0][0], modelViewMatrix[1][0], modelViewMatrix[2][0]));
-            vec3 up = normalize(vec3(modelViewMatrix[0][1], modelViewMatrix[1][1], modelViewMatrix[2][1]));
+            vec3 centre = frame.xyz;
+            vec3 east = normalize(vec3(centre.z, 0.0, -centre.x));
+            if (abs(centre.y) > 0.9999) east = vec3(1.0, 0.0, 0.0);
+            vec3 north = cross(centre, east);
 
-            float perPixel = 1.0 / max(pixelsPerRadian, 1.0);
+            if (dot(ground, centre) > 0.0) {
+                vec3 right = normalize(vec3(modelViewMatrix[0][0], modelViewMatrix[1][0], modelViewMatrix[2][0]));
+                vec3 up = normalize(vec3(modelViewMatrix[0][1], modelViewMatrix[1][1], modelViewMatrix[2][1]));
 
-            vec2 uv = flagUVof(ground, centre, east, north, halfSize, anchor);
-            vec3 across = normalize(ground + screenStep(ground, right, perPixel));
-            vec3 upward = normalize(ground + screenStep(ground, up, perPixel));
+                float perPixel = 1.0 / max(pixelsPerRadian, 1.0);
 
-            vFlagUV = uv;
-            vFlagStep = vec4(
-                flagUVof(across, centre, east, north, halfSize, anchor) - uv,
-                flagUVof(upward, centre, east, north, halfSize, anchor) - uv
-            );
+                vec2 uv = flagUVof(ground, centre, east, north, halfSize, anchor);
+                vec3 across = normalize(ground + screenStep(ground, right, perPixel));
+                vec3 upward = normalize(ground + screenStep(ground, up, perPixel));
 
-            int slot = clamp(int(held.g + 0.5) - 1, 0, FLAG_SLOTS - 1);
-            vec4 slotFrame = leads && held.g > 0.5 ? slotFrames[slot] : vec4(0.0);
-            vSlotted = slotFrame.z > 0.0 ? 1.0 : 0.0;
-            vFlagFrame = vSlotted > 0.5 ? slotFrame : atlasFrameOf(regionVector);
+                vFlagUV = uv;
+                vFlagStep = vec4(
+                    flagUVof(across, centre, east, north, halfSize, anchor) - uv,
+                    flagUVof(upward, centre, east, north, halfSize, anchor) - uv
+                );
+
+                vFlagShare = split ? 1.0 : share * (hover > 0.5 ? 1.0 : 0.94);
+
+                int slot = clamp(int(held.g + 0.5) - 1, 0, FLAG_SLOTS - 1);
+                vec4 slotFrame = leads && held.g > 0.5 ? slotFrames[slot] : vec4(0.0);
+                vSlotted = slotFrame.z > 0.0 ? 1.0 : 0.0;
+                vFlagFrame = vSlotted > 0.5 ? slotFrame : atlasFrameOf(flag);
+            }
         }
     }
 

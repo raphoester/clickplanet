@@ -36,11 +36,11 @@ adds a glint, read off the texture: the sea is one deep blue whose blue stands
 clear of its red and green, and no land does that. `light.glsl` holds the light's
 direction, which the pass and the glint share.
 
-**The photo is drawn as it is.** The plain earth is three's basic material with the
-texture marked sRGB, so each pixel comes out as the photo's own colour, and the
-HD earth writes the texel unchanged. It used to be three's standard material under
-an ambient light: the texel read as linear, times 2/π, then encoded to sRGB, which
-lifted the deep blue sea to a pale one.
+**The photo is drawn nearly as it is**: a little less colour (`SATURATION`, 0.75)
+and its darks lifted (`LIFT`, a gamma of 1.25), in the earth's own shader, with or
+without the glint. As it is, the sea was too deep a blue. It used to be three's
+standard material under an ambient light: the texel read as linear, times 2/π, then
+encoded to sRGB, which lifted the deep blue sea to a pale one.
 
 **None of it moves on its own**, so none of it costs a frame: the light turns
 with the camera, and a still globe is still the same picture. See [Drawing only

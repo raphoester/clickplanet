@@ -22,6 +22,7 @@ function world(total: number, spare = 0): BorderData {
 }
 
 const rows = (field: BorderField) => field.landmassData.image.data as unknown as Float32Array
+const opacityOf = (field: BorderField, piece = 1) => rows(field)[piece * TEXELS * 4 + 12]
 const regionOf = (field: BorderField, piece = 1) =>
     Array.from(rows(field).slice(piece * TEXELS * 4 + 8, piece * TEXELS * 4 + 12))
 
@@ -59,6 +60,7 @@ describe("who a landmass flies", () => {
 
         expect(field.holderOf(1)).toBe("de")
         expect(regionOf(field)).toEqual(Object.values(regions.get("de")!))
+        expect(opacityOf(field)).toBeCloseTo(6 / 8)
     })
 
     it("lets go of the tiles nobody holds any more", () => {
@@ -68,6 +70,7 @@ describe("who a landmass flies", () => {
         paint(field, {fr: 1, de: 3})
 
         expect(field.holderOf(1)).toBe("de")
+        expect(opacityOf(field)).toBeCloseTo(3 / 8)
     })
 
     it("is nobody once nobody holds any of it", () => {
@@ -118,6 +121,32 @@ describe("what a flag has to earn before it leads a landmass", () => {
     })
 })
 
+describe("the big flag's opacity", () => {
+    it("is the leader's share of the landmass", () => {
+        for (const [held, total] of [[1, 8], [4, 8], [8, 8], [37, 100]]) {
+            const field = new BorderField(world(total))
+            paint(field, {fr: held})
+            expect(opacityOf(field), `${held}/${total}`).toBeCloseTo(held / total)
+        }
+    })
+
+    it("is never fainter than the tiles the flag hands over to", () => {
+        for (const held of [8, 20, 37, 50, 75, 90, 100]) {
+            const field = new BorderField(world(100))
+            paint(field, {fr: held})
+
+            const share = held / 100
+            expect(opacityOf(field) * 0.94, `holding ${held}%`).toBeGreaterThanOrEqual(share * 0.7)
+        }
+    })
+
+    it("is nothing below the share floor", () => {
+        const field = new BorderField(world(8), 0.5)
+        paint(field, {fr: 3})
+        expect(opacityOf(field)).toBe(0)
+    })
+})
+
 describe("the flags that do not lead", () => {
     it("find each landmass's reach in its row, led or not", () => {
         const field = new BorderField(world(8))
@@ -163,7 +192,6 @@ describe("the landmass table", () => {
 
         const uploaded = field.landmassData.version
         paint(field, {fr: 5})
-        paint(field, {fr: 7, de: 1})
         expect(field.landmassData.version).toBe(uploaded)
 
         paint(field, {de: 5})
