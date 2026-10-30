@@ -16,6 +16,7 @@ export type SeasonCountdown = {
     label: string
     tag: string
     left: string
+    endsSeason?: boolean
 }
 
 // The day's end while a day runs, the next battle's start, then the season's end. None once the season ended.
@@ -25,7 +26,7 @@ export function countdownsOf(season: Season, now: number, battle?: BattleToCome,
     const ends = {label: "Season ends in", tag: "Season", left: timeLeft(countdownTo(season.endsAt, now))}
     const battles = battle && battle.startsAt > now
         ? [battle.endsSeason
-            ? {label: "Final Battle in", tag: "Final", left: timeLeft(countdownTo(battle.startsAt, now))}
+            ? {label: "Final Battle in", tag: "Final", left: timeLeft(countdownTo(battle.startsAt, now)), endsSeason: true}
             : {label: "Next battle in", tag: "Battle", left: timeLeft(countdownTo(battle.startsAt, now))}]
         : []
     if (dayEndsAt === undefined || dayEndsAt <= now || dayEndsAt >= season.endsAt) return [...battles, ends]
@@ -45,7 +46,7 @@ export function endClock(season: Season, now: number): EndClock | undefined {
     return {left: timeLeft(countdown), countdown}
 }
 
-function countdownTo(at: number, now: number): Countdown {
+export function countdownTo(at: number, now: number): Countdown {
     const seconds = Math.ceil((at - now) / 1000)
     return {
         days: Math.floor(seconds / DAY),

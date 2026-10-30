@@ -657,6 +657,90 @@
             line-height: 1.4;
         }
 
+        .finale-battle {
+            position: relative;
+            margin-top: 32px;
+            padding-top: 64px;
+            overflow: hidden;
+            box-shadow: var(--drop-l), inset 0 2px 0 var(--sheen), 0 0 28px color-mix(in srgb, var(--war) 30%, transparent);
+        }
+
+        .finale-battle::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 12px;
+            background: var(--tape);
+            border-bottom: var(--outline-thin) solid var(--ink);
+            pointer-events: none;
+        }
+
+        .finale-battle[data-live] {
+            animation: finale-battle-live 2.4s ease-in-out infinite;
+        }
+
+        .finale-battle .eyebrow, .finale-battle[data-live] .finale-clock-label {
+            color: var(--war);
+        }
+
+        .finale-live, .finale-battle[data-live] .finale-soon {
+            display: none;
+        }
+
+        .finale-battle[data-live] .finale-live {
+            display: inline;
+        }
+
+        .finale-rules {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            max-width: 520px;
+            padding: 14px 18px;
+            background: var(--panel-raised);
+            border: var(--outline-thin) solid var(--ink);
+            border-radius: var(--radius-m);
+            box-shadow: var(--drop-s);
+            font-size: var(--text-l);
+            font-weight: 600;
+            line-height: 1.4;
+        }
+
+        .finale-rules svg {
+            flex-shrink: 0;
+            color: var(--war);
+        }
+
+        .finale-art-glass {
+            fill: var(--cream);
+        }
+
+        .finale-art-ink, .finale-art-blade, .finale-art-hilt {
+            fill: none;
+        }
+
+        .finale-art-ink {
+            stroke-width: 8;
+        }
+
+        .finale-art-blade {
+            stroke: var(--cream);
+            stroke-width: 3.5;
+        }
+
+        .finale-art-hilt {
+            stroke: var(--war);
+            stroke-width: 3.5;
+        }
+
+        @keyframes finale-battle-live {
+            50% {
+                box-shadow: var(--drop-l), inset 0 2px 0 var(--sheen), 0 0 52px color-mix(in srgb, var(--war) 65%, transparent);
+            }
+        }
+
 
         #board {
             padding-top: 0;
@@ -971,6 +1055,10 @@
             .button:active, .button-large:active, .socials .button:active {
                 transform: none;
             }
+
+            .finale-battle[data-live] {
+                animation: none;
+            }
         }
 
         @media only screen and (max-width: 1100px) {
@@ -1174,6 +1262,16 @@
             .finale-panel {
                 gap: 28px;
                 padding: 28px 20px;
+            }
+
+            .finale-battle {
+                margin-top: 24px;
+                padding-top: 40px;
+            }
+
+            .finale-rules {
+                padding: 12px 14px;
+                font-size: var(--text-m);
             }
 
             .finale h2 {
@@ -1490,6 +1588,83 @@
                         <div>
                             <h3>Titles</h3>
                             <p>Every signed-in player gets a title, and one more if their country wins.</p>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+            <div class="panel finale-panel finale-battle" data-mood="battle" data-finale hidden>
+                <div class="finale-text">
+                    <span class="eyebrow">Season <span data-season-number></span> finale</span>
+                    <h2>The Final Battle</h2>
+                    <p class="finale-when" data-finale-when></p>
+                    <p class="finale-pitch">The season ends with one last fight for the whole planet. Rally your
+                        country and hold the most ground at the very end.</p>
+                    <p class="finale-rules" data-finale-rules hidden>
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                             stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M4 4l12 12M20 4L8 16M4 20l4-4M20 20l-4-4M3 13l4 4M21 13l-4 4"/>
+                        </svg>
+                        <span data-finale-words></span>
+                    </p>
+                </div>
+                <div class="finale-clock">
+                    <span class="finale-clock-label">
+                        <span class="finale-soon">Starts in</span>
+                        <span class="finale-live">Live now · ends in</span>
+                    </span>
+                    <ol class="countdown" role="timer">
+                        <li><strong data-finale-days></strong><span>days</span></li>
+                        <li><strong data-finale-hours></strong><span>hours</span></li>
+                        <li><strong data-finale-minutes></strong><span>min</span></li>
+                        <li><strong data-finale-seconds></strong><span>sec</span></li>
+                    </ol>
+                    <a class="button button-action button-large" href="/play">Play now</a>
+                </div>
+                <ul class="finale-facts">
+                    <li class="finale-fact">
+                        <span class="finale-art">
+                            <svg viewBox="0 0 48 48" aria-hidden="true">
+                                <path class="finale-art-glass"
+                                      d="M15 8h18c0 9-7 12-7 16s7 7 7 16H15c0-9 7-12 7-16s-7-7-7-16z"/>
+                                <path class="season-art-gold" d="M18.5 12h11c-1 4-5.5 6-5.5 8c0-2-4.5-4-5.5-8z"/>
+                                <path class="season-art-gold" d="M17 40c1-5 5-7.5 7-7.5s6 2.5 7 7.5z"/>
+                                <rect class="season-art-gold-shade" x="11" y="3" width="26" height="6" rx="2"/>
+                                <rect class="season-art-gold-shade" x="11" y="39" width="26" height="6" rx="2"/>
+                            </svg>
+                        </span>
+                        <div>
+                            <h3><span data-finale-length></span> of war</h3>
+                            <p>The end of the season, with every country fighting at once, live.</p>
+                        </div>
+                    </li>
+                    <li class="finale-fact" data-finale-times-row>
+                        <span class="finale-art">
+                            <svg viewBox="0 0 48 48" aria-hidden="true">
+                                <path class="finale-art-ink" d="M8 8l24 24M40 8L16 32M8 40l8-8M40 40l-8-8M6 26l8 8M42 26l-8 8"/>
+                                <path class="finale-art-blade" d="M8 8l24 24M40 8L16 32"/>
+                                <path class="finale-art-hilt" d="M8 40l8-8M40 40l-8-8M6 26l8 8M42 26l-8 8"/>
+                            </svg>
+                        </span>
+                        <div>
+                            <h3>Points ×<span data-finale-times></span></h3>
+                            <p>The countries holding the most ground when it ends score the points of
+                                <span data-finale-times></span> days.</p>
+                        </div>
+                    </li>
+                    <li class="finale-fact">
+                        <span class="finale-art">
+                            <svg viewBox="0 0 48 48" aria-hidden="true">
+                                <path class="season-art-handle-ink" d="M33 10h6a4 4 0 0 1 0 8h-6M15 10H9a4 4 0 0 0 0 8h6"/>
+                                <path class="season-art-handle" d="M33 10h6a4 4 0 0 1 0 8h-6M15 10H9a4 4 0 0 0 0 8h6"/>
+                                <path class="season-art-gold" d="M14 6h20v10a10 10 0 0 1-20 0z"/>
+                                <path class="season-art-gold-shade" d="M21 27h6v7h-6z"/>
+                                <path class="season-art-gold" d="M15 34h18v7H15z"/>
+                                <path class="season-art-shine" d="M19 9v7"/>
+                            </svg>
+                        </span>
+                        <div>
+                            <h3>The last word</h3>
+                            <p>Nothing scores after it. It closes the season and crowns its champion.</p>
                         </div>
                     </li>
                 </ul>
