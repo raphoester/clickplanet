@@ -18,6 +18,7 @@ import {truncate} from "../truncate.ts";
 import {authorOf, authorStyle, quoteStyle} from "./authorStyle.ts";
 import QuoteLine, {REMOVED_TEXT} from "./QuoteLine.tsx";
 import ReactionBar, {AddReactionButton} from "./ReactionBar.tsx";
+import {useWordFilter} from "../crazygames/wordFilter.ts";
 
 export type ChatLogProps = {
     messages: ChatMessage[]
@@ -216,6 +217,8 @@ type MessageLineProps = {
 function MessageLine({message, previous, flashing, spotlit, picking, pick, jumpTo, ...props}: MessageLineProps) {
     const author = authorOf(message)
     const opens = startsGroup(previous?.kind === "message" ? previous.message : undefined, message)
+    const words = useWordFilter()
+    const name = words.masked(message.authorName)
 
     return <li className={messageClass(flashing, message.id, opens, spotlit)}
                style={authorStyle(author)}
@@ -231,12 +234,12 @@ function MessageLine({message, previous, flashing, spotlit, picking, pick, jumpT
             {props.onOpenPlayer
                 ? <button type="button"
                           className="chat-message-author player-name-button"
-                          title={message.authorName}
+                          title={name}
                           onClick={() => props.onOpenPlayer?.(author)}>
-                    {truncate(message.authorName, AUTHOR_MAX_LENGTH)}
+                    {truncate(name, AUTHOR_MAX_LENGTH)}
                 </button>
                 : <span className="chat-message-author">
-                    {truncate(message.authorName, AUTHOR_MAX_LENGTH)}
+                    {truncate(name, AUTHOR_MAX_LENGTH)}
                 </span>}
             {message.authorAdmin && <AdminCrown size={13}/>}
             <TitleBadge title={message.authorTitle}/>
@@ -254,15 +257,15 @@ function MessageLine({message, previous, flashing, spotlit, picking, pick, jumpT
                 ? <p className="chat-message-text chat-removed">{REMOVED_TEXT}</p>
                 : <p className="chat-message-text">
                     {messageParts(message).map((part, index) => part.kind === "link"
-                        ? <a key={index} href={part.href} target="_blank" rel="noopener noreferrer nofollow ugc">{part.text}</a>
-                        : <Fragment key={index}>{part.text}</Fragment>)}
+                        ? <a key={index} href={part.href} target="_blank" rel="noopener noreferrer nofollow ugc">{words.masked(part.text)}</a>
+                        : <Fragment key={index}>{words.masked(part.text)}</Fragment>)}
                 </p>}
             {props.onReact && <AddReactionButton messageId={message.id}
                                                  picking={picking === message.id}
                                                  setPicking={pick(message.id)}/>}
             {props.onReply && <button type="button"
                                       className="chat-reply-add"
-                                      aria-label={`Reply to ${message.authorName}`}
+                                      aria-label={`Reply to ${name}`}
                                       title="Reply"
                                       onClick={() => props.onReply?.(message)}>
                 <ReplyIcon/>
@@ -273,7 +276,7 @@ function MessageLine({message, previous, flashing, spotlit, picking, pick, jumpT
                 </span>
                 : <button type="button"
                           className="chat-report-add"
-                          aria-label={`Report this message from ${message.authorName}`}
+                          aria-label={`Report this message from ${name}`}
                           title="Report"
                           onClick={() => props.onReport?.(message)}>
                     <ReportIcon/>
@@ -364,10 +367,12 @@ function RoundLine({announcement}: {announcement: RoundAnnouncement}) {
 }
 
 function MuteLine({announcement}: {announcement: MuteAnnouncement}) {
+    const words = useWordFilter()
+
     return <li className="chat-announcement" data-at={announcement.announcedAt}>
         <span className="chat-announcement-icon" aria-hidden="true">🔇</span>
         <span className="chat-announcement-text">
-            <strong>{announcement.name}</strong> {describeMute(announcement.seconds)}
+            <strong>{words.masked(announcement.name)}</strong> {describeMute(announcement.seconds)}
         </span>
         <time className="chat-announcement-time" dateTime={new Date(announcement.announcedAt).toISOString()}>
             {clock.format(announcement.announcedAt)}

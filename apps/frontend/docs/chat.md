@@ -47,6 +47,9 @@ to its newest line while the panel changes size (a `ResizeObserver` in `ChatLog`
 backend**, counted in code points as the server counts runes. It is the
 composer's bound, not a defence — the server sanitizes and rejects on its own.
 
+**On the CrazyGames page the words of CrazyGames' list are masked** in the text, the quotes and every name, as they
+are drawn: see [The word filter](crazygames.md#the-word-filter).
+
 **Message text is rendered as text, never as HTML.** The backend stores it raw
 and says so; React escaping is what makes that safe, so never reach for
 `dangerouslySetInnerHTML` here.

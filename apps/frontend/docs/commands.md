@@ -2,7 +2,7 @@
 
 ```bash
 npm run dev        # Start Vite dev server (binds to 0.0.0.0:5173)
-npm run build      # TypeScript check + Vite bundle → /dist
+npm run build      # CrazyGames' word list, TypeScript check, Vite bundle → /dist
 npm test           # Run the vitest suite once
 npm run test:watch # Re-run affected tests on change
 npm run lint       # ESLint check
@@ -25,6 +25,7 @@ npm run clip:anthems # Vendor the anthems only the clips play (Europe's, Palesti
 npm run clip:highlights # Measure where each anthem a clip plays is worth starting (run by both anthem scripts)
 npm run regions    # Rewrite each country's continent (Asia's part of it) from Natural Earth, for the clips' headlines
 npm run landmassNames # Name every landmass but each country's main one, from Natural Earth (see fortify.md)
+npm run crazygames:words # Fetch CrazyGames' word list into public/crazygames/words.txt (see crazygames.md)
 ```
 
 `.github/workflows/check-frontend.yml` runs lint, build and tests on every PR
@@ -44,7 +45,8 @@ ship in the production bundle.
 
 `VITE_CRAZYGAMES=1` makes the page the CrazyGames page on any host, with the
 SDK's local mode on `localhost` (see [CrazyGames](crazygames.md)). The deployed
-build never sets it: `crazygames.clickplanet.lol` is the same build.
+build never sets it: `crazygames.clickplanet.lol` is the same build. `npm run dev` does not fetch the word list:
+run `npm run crazygames:words` once, or every word on that page is masked.
 
 Every tile starts French in the fake, and it keeps shields on its tiles as the
 server does: in its map batches, its tile updates and its bombs' struck tiles.

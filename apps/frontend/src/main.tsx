@@ -44,6 +44,8 @@ import {connectCrazyGames} from "./backends/crazyGamesSdk.ts"
 import {localAccountCarrier} from "./backends/accountCarrier.ts"
 import {crazyGamesLanding} from "./domain/crazyGames.ts"
 import {CrazyGamesPage} from "./backends/crazyGames.ts"
+import {CRAZYGAMES_WORDS_URL, crazyGamesWords} from "./backends/crazyGamesWords.ts"
+import {NO_FILTER, WordFilter} from "./domain/wordFilter.ts"
 
 // Strip the OAuth code and state from the URL before anything else can read or leak them.
 const callback = callbackOf(new URL(window.location.href))
@@ -52,6 +54,7 @@ if (callback) window.history.replaceState(null, "", CALLBACK_PATH)
 const page = new URL(window.location.href)
 const shared = sharedCountry(page)
 const crazyGames = ON_CRAZYGAMES ? connectCrazyGames() : undefined
+const words: Promise<WordFilter> = ON_CRAZYGAMES ? crazyGamesWords(CRAZYGAMES_WORDS_URL) : Promise.resolve(NO_FILTER)
 const seen = landingOf(page, document.referrer)
 const landing = crazyGames ? crazyGamesLanding(seen) : firstLanding(localLandingStore(), seen)
 if (page.searchParams.has(SHARE_FLAG_PARAM) || page.searchParams.has(SOURCE_TAG_PARAM)) {
@@ -209,7 +212,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         ...fortification, ground: codes[fortification.landmass], tiles: fake.landmassTiles(fortification.landmass),
     })))
 
-    root.render(
+    void words.then((filter) => root.render(
         <StrictMode>
             <SignInGate callback={callback} account={account}>
                 <App
@@ -238,10 +241,11 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     account={account}
                     clips={fakeClips}
                     crazyGames={crazyGames}
+                    words={filter}
                 />
             </SignInGate>
         </StrictMode>,
-    )
+    ))
 } else {
     const backend = new PlanetBackend(newClickServiceClient(config), 100, session)
     const chatBackend = new ChatServiceBackend(newChatServiceClient(config), session, newKeepaliveChatServiceClient(config))
@@ -258,7 +262,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     })
     followCrazyGames(crazyGames, account)
 
-    root.render(
+    void words.then((filter) => root.render(
         <StrictMode>
             <SignInGate callback={callback} account={account}>
                 <App
@@ -287,8 +291,9 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     chargesRefresher={backend}
                     clips={clips}
                     crazyGames={crazyGames}
+                    words={filter}
                 />
             </SignInGate>
         </StrictMode>,
-    )
+    ))
 }

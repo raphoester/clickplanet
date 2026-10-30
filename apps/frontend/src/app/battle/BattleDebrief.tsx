@@ -11,6 +11,7 @@ import SwordsArt from "../components/SwordsArt.tsx"
 import {useModalDialog} from "../components/useDialog.ts"
 import {PlaySound} from "../sound/soundPlayer.ts"
 import TitleBadge from "../titles/TitleBadge.tsx"
+import {useWordFilter} from "../crazygames/wordFilter.ts"
 import "../titles/TitleUnlocked.css"
 import "../season/RoundReveal.css"
 import "./Battle.css"
@@ -103,6 +104,8 @@ function Points({headId, closed, rows}: {headId: string, closed: ClosedRound, ro
 }
 
 function Players({headId, players, accountId}: {headId: string, players: Standing[], accountId?: string}) {
+    const words = useWordFilter()
+
     return <>
         <h2 id={headId} className="title-reveal-head round-reveal-head">Top players</h2>
         <ol className="battle-brief-list" aria-label="Top players">
@@ -118,7 +121,7 @@ function Players({headId, players, accountId}: {headId: string, players: Standin
                     </span>
                     <span className="battle-brief-name battle-brief-player"
                           style={authorStyle({color: player.color, guest: false})}
-                          title={player.name}>{player.name}</span>
+                          title={words.masked(player.name)}>{words.masked(player.name)}</span>
                     <TitleBadge title={player.wornTitle} size={18}/>
                     <span className="battle-brief-tiles">{player.tiles}</span>
                 </li>

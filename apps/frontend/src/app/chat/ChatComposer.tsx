@@ -7,6 +7,7 @@ import {useEscape} from "../components/useDialog.ts";
 import {quoteStyle} from "./authorStyle.ts";
 import QuoteLine from "./QuoteLine.tsx";
 import {ChatSendFailure} from "./useChat.ts";
+import {useWordFilter} from "../crazygames/wordFilter.ts";
 
 export type ChatComposerProps = {
     username?: string
@@ -33,6 +34,7 @@ const FAILURES: Record<ChatSendFailure, string> = {
 export default function ChatComposer(props: ChatComposerProps) {
     const [text, setText] = useState("")
     const box = useRef<HTMLTextAreaElement>(null)
+    const words = useWordFilter()
 
     useLayoutEffect(() => {
         const field = box.current
@@ -90,10 +92,10 @@ export default function ChatComposer(props: ChatComposerProps) {
         <div className="chat-composer-foot">
             {props.username !== undefined
                 ? <span className="menu-label chat-identity" title="Change it in the account menu">
-                    as {props.username}
+                    as {words.masked(props.username)}
                 </span>
                 : <span className="menu-label chat-identity" title="Sign in to pick a username">
-                    as {props.guestName ?? "a guest"}
+                    as {props.guestName === undefined ? "a guest" : words.masked(props.guestName)}
                 </span>}
             {length >= COUNTER_SHOWS_FROM &&
                 <span className={length > MAX_TEXT_LENGTH ? "menu-label chat-counter-over" : "menu-label"}>
