@@ -8,7 +8,8 @@ export function tileSpacing(zoom: number, viewportHeight: number): number {
     return zoom * 1.98 * (viewportHeight / 1000)
 }
 
-const SPREAD = 2.3 / 1.5
+// Covers the ground where the lattice is 11% wider than its median, as it is at its 99th percentile.
+const SPREAD = 2.6 / 1.5
 
 const COARSE_FROM = 5
 const COARSE_UNTIL = 8

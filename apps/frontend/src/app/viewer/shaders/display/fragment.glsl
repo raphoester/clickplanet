@@ -16,7 +16,6 @@ flat in vec4 vRegionVector;
 flat in vec2 vFlagUV;
 flat in vec4 vFlagStep;
 flat in vec4 vFlagFrame;
-flat in float vFlagShare;
 flat in float vSlotted;
 flat in float vSpriteSize;
 flat in float vShield;
@@ -35,6 +34,9 @@ varying float vFortify;
 const float KEYLINE_WIDTH = 1.5;
 const float KEYLINE_FEATHER = 0.5;
 const float KEYLINE_MOST = 0.03;
+
+const float SQUARE_UNTIL = 3.0;
+const float ROUND_FROM = 6.0;
 
 const float HIGHLIGHT_LIFT = 0.2;
 const float HIGHLIGHT_FLOOR = 0.35;
@@ -80,7 +82,9 @@ vec4 shielded(vec4 colour, vec2 coordinates) {
 
 void main() {
     vec2 coordinates = gl_PointCoord - vec2(0.5);
-    if (length(coordinates) > 0.5) discard;
+    // A disc a few pixels wide is drawn square: round, the discs left holes between them on the painted flag.
+    float square = 1.0 - smoothstep(SQUARE_UNTIL, ROUND_FROM, vSpriteSize);
+    if (mix(length(coordinates), max(abs(coordinates.x), abs(coordinates.y)), square) > 0.5) discard;
 
     vec4 own = flagPaint < 1.0 ? ownColour() : vec4(0.0);
 
@@ -105,9 +109,9 @@ void main() {
         float edge = max(abs(uv.x - 0.5), abs(uv.y - 0.5));
         float keyline = smoothstep(inner - feather, inner + feather, edge)
             * (1.0 - smoothstep(0.5 - feather, 0.5 + feather, edge));
-        flag = mix(flag, vec3(0.03), keyline * 0.85 * vFlagShare);
+        flag = mix(flag, vec3(0.03), keyline * 0.85);
 
-        painted = vec4(flag, vFlagShare * (vHover > 0.5 ? 1.0 : 0.94));
+        painted = vec4(flag, 1.0);
     }
 
     vec4 colour = mix(own, painted, flagPaint);

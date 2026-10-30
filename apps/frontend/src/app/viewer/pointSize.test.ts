@@ -101,7 +101,7 @@ describe("the handover from the painted flag to the tiles", () => {
             if (flagPaint(zoom, height, "flags") < 1) return
             const spacing = 1.98 * zoom * (height / 1000)
             expect(displayPointSize(zoom, height, "flags") / spacing, `zoom ${zoom} at ${height}px`)
-                .toBeGreaterThanOrEqual(1.155)
+                .toBeGreaterThanOrEqual(1.155 * 1.11)
         })
     })
 
