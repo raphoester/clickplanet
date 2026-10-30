@@ -54,8 +54,6 @@ the foot of Settings, and a report of another player, from that player's card.
   two calls were one tile too many in a place of eight.
 - **A click beside it does not close it once something is typed**
   (`stayOnBackdropClick`): the ×, Escape and Close still do.
-- **The modal's scroll fade is off** (`.modal-support`): a field sits at the
-  bottom edge of the body, and the fade drew over it.
 - `SettingsPlace` shows Feedback only with a `support` backend wired. It asks
   for `FeedbackBackend` (the two sends and the two contracts of the files), not
   the whole `SupportBackend`.

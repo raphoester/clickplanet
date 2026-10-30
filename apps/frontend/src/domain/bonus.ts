@@ -71,6 +71,7 @@ export type BonusRules = {
     shields: number
     tileShields: number
     toll: readonly TollStep[]
+    signInRefill: boolean
 }
 
 export function describeReward(reward: BonusReward): {

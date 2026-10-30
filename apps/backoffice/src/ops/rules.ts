@@ -98,7 +98,9 @@ const FIELDS = GROUPS.flatMap(group => group.fields)
 export type TollStep = {share: string, slowdown: string}
 
 // A set as the form edits it: every value as typed.
-export type Draft = {name: string, values: Record<string, string>, quiz: boolean, frozen: boolean, toll: TollStep[]}
+export type Draft = {
+    name: string, values: Record<string, string>, quiz: boolean, signInRefill: boolean, frozen: boolean, toll: TollStep[]
+}
 
 export function draftOf(set: RuleSet): Draft {
     const rules = set.rules ?? new Rules()
@@ -108,6 +110,7 @@ export function draftOf(set: RuleSet): Draft {
         name: set.name,
         values: Object.fromEntries(FIELDS.map(field => [field.path, textOf(valueAt(json, field.path))])),
         quiz: rules.bonuses?.quiz?.enabled ?? false,
+        signInRefill: rules.bonuses?.signInRefill ?? false,
         frozen: rules.frozen,
         toll: (rules.toll?.steps ?? []).map(step => ({
             share: String(Number((step.share * 100).toPrecision(12))), slowdown: String(step.slowdown),
@@ -145,6 +148,9 @@ export function changesOf(before: Draft, after: Draft): Change[] {
     const changes: Change[] = []
     if (before.frozen !== after.frozen) changes.push({label: "Frozen", before: yesOf(before.frozen), after: yesOf(after.frozen)})
     if (before.quiz !== after.quiz) changes.push({label: "Quizzes on", before: yesOf(before.quiz), after: yesOf(after.quiz)})
+    if (before.signInRefill !== after.signInRefill) {
+        changes.push({label: "Refill at first sign-in", before: yesOf(before.signInRefill), after: yesOf(after.signInRefill)})
+    }
     for (const group of GROUPS) {
         for (const field of group.fields) {
             if (sameNumber(before.values[field.path], after.values[field.path])) continue
@@ -182,7 +188,7 @@ function yesOf(on: boolean): string {
 }
 
 export function ruleSetOf(draft: Draft): RuleSet {
-    const json: JsonObject = {bonuses: {quiz: {enabled: draft.quiz}}, frozen: draft.frozen}
+    const json: JsonObject = {bonuses: {quiz: {enabled: draft.quiz}, signInRefill: draft.signInRefill}, frozen: draft.frozen}
     for (const field of FIELDS) {
         put(json, field.path, jsonOf(Number(draft.values[field.path]), field))
     }

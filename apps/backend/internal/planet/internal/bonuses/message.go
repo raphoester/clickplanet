@@ -54,6 +54,7 @@ func RulesOf(m *planetv1.BonusRules) Rules {
 			LeaderBias:        quiz.GetLeaderBias(),
 			MaxChargesPerHour: int(quiz.GetMaxChargesPerHour()),
 		},
+		SignInRefill: m.GetSignInRefill(),
 	}
 }
 

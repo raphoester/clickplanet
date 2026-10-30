@@ -1,6 +1,7 @@
 # What a refill does to the bucket
 
-`UseRefill` spends it, through `use_refill_usecase`. **A refill is a full bank
+`UseRefill` spends it, through `use_refill_usecase`. A refill comes from a box, a
+mission, or a guest's first sign-in ([A guest's first sign-in](sign-in-refill.md)). **A refill is a full bank
 the player can spend**: what it gives is what the player lacks of one, its own
 bank's size less the emptiest bucket it spends from (`lack`).
 

@@ -356,6 +356,9 @@ message GetBonusRulesResponse {
   uint32 shields = 7;
 
   uint32 tile_shields = 8;
+
+  // A guest's first sign-in earns a refill.
+  bool sign_in_refill = 9;
 }
 
 message TollStep {

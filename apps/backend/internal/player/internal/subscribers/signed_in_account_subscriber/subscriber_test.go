@@ -12,13 +12,14 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/inmemory_player_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/name_account_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/signed_in_account_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 func subscriber(store *inmemory_player_store.Store) signed_in_account_subscriber.Subscriber {
 	return signed_in_account_subscriber.New(name_account_usecase.New(
-		players.NewGeneratedNames(store, players.NewRepeatedNames("BraveFox42")), store,
-		cptime.NewFixedClock(time.Date(2026, 10, 4, 12, 0, 0, 0, time.UTC)),
+		cpatomic.FakeTransactioner{}, players.NewGeneratedNames(store, players.NewRepeatedNames("BraveFox42")), store,
+		&cpatomic.FakeOutbox{}, cptime.NewFixedClock(time.Date(2026, 10, 4, 12, 0, 0, 0, time.UTC)),
 	))
 }
 

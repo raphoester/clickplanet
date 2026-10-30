@@ -41,6 +41,7 @@ func (h GetBonusRulesHandler) GetBonusRules(
 		TollSteps:         tollStepsOf(h.toll.Steps()),
 		Shields:           uint32(rules.Shield.Held),
 		TileShields:       uint32(rules.Shield.PerTile),
+		SignInRefill:      rules.SignInRefill,
 	}), nil
 }
 

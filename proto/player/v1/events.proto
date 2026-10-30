@@ -5,3 +5,8 @@ package player.v1;
 message StatsChanged {
   string account_id = 1;
 }
+
+// An account became a player: player made its profile, with the name drawn at its first sign-in or the one it chose.
+message PlayerCreated {
+  string account_id = 1;
+}

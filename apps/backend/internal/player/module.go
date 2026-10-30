@@ -92,6 +92,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing/usecases/wear_title_usecase/dressing_wear_title"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpoutbox"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsecrets"
@@ -153,6 +154,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	}
 
 	store := postgres_player_store.New(db)
+	outbox := cpoutbox.New(db)
 
 	accounts := rpc_account_reader.New(auth)
 	titleStore := postgres_title_store.New(db)
@@ -248,7 +250,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	}
 	namings, err := cpredis.Subscribe(ctx, streams, "player-names-sign-ins",
 		log_subscriber.New(signed_in_account_subscriber.New(renaming_name_account.New(
-			name_account_usecase.New(generatedNames, store, clock), visits,
+			name_account_usecase.New(db, generatedNames, store, outbox, clock), visits,
 		)), props.Logger))
 	if err != nil {
 		closeStores()
@@ -269,7 +271,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	// Not closers: closers run before the runners stop, and the runners use both.
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger, cpredis.CloseAfter(streams, props.Logger,
 		takes, posts, bombs, fortifies, claims, answers, missionsPaid, awards, deletions, forgottenTitles, forgottenChoices,
-		signIns, namings, signOuts, gone)))
+		signIns, namings, signOuts, gone, cpoutbox.NewRelay("player-outbox", db, streams, props.Logger))))
 
 	verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", "player")))
 
@@ -277,7 +279,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	playerService := playerv1controller.PlayerService{
 		GetProfileHandler: get_profile_handler.New(profile_query.NewPostgresQuery(db, inprocess_rename_rule.New())),
 		SetNameHandler: set_name_handler.New(
-			renaming_set_name.New(set_name_usecase.New(store, accounts, clock), visits),
+			renaming_set_name.New(set_name_usecase.New(db, store, accounts, outbox, clock), visits),
 		),
 		SetColorHandler: set_color_handler.New(set_color_usecase.New(store)),
 		GetStatsHandler: get_stats_handler.New(stats_query.NewPostgresQuery(db, clock)),

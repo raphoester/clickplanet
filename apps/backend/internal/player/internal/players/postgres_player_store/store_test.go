@@ -1,6 +1,7 @@
 package postgres_player_store_test
 
 import (
+	"context"
 	"strings"
 	"sync"
 	"testing"
@@ -101,4 +102,19 @@ func (s *testSuite) TestFactsEachSubscriberCountsAtOnceAreAllKept() {
 	s.Equal(uint64(20), stats.BombsDropped())
 	s.Equal(uint64(20), stats.TilesFortified())
 	s.Equal(uint64(20), stats.MessagesSent())
+}
+
+func (s *testSuite) TestATakenNameLeavesTheTransactionToDrawAgain() {
+	ctx := s.T().Context()
+	s.Require().NoError(s.store.SaveProfile(ctx, players.NewProfile(players.AccountID{15: 1}, "BraveFox42", at)))
+
+	err := s.db.InTx(ctx, func(ctx context.Context) error {
+		s.Require().ErrorIs(s.store.CreateProfile(ctx, players.NewProfile(players.AccountID{15: 2}, "bravefox42", at)), players.ErrNameTaken)
+		return s.store.CreateProfile(ctx, players.NewProfile(players.AccountID{15: 2}, "SlyOtter17", at))
+	})
+
+	s.Require().NoError(err)
+	profile, err := s.store.Profile(ctx, players.AccountID{15: 2})
+	s.Require().NoError(err)
+	s.Equal(players.Name("SlyOtter17"), profile.TakeSnapshot().Name)
 }

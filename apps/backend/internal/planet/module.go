@@ -29,6 +29,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/get_charges_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/grant_charges_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/grant_charges_usecase/audit_grant_charges"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/grant_sign_in_refill_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/open_quiz_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/place_shield_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/place_shield_usecase/refusal_place_shield"
@@ -136,6 +137,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/usecases/save_rule_set_usecase/audit_save_rule_set"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/account_deleted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/log_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/player_created_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
@@ -234,11 +236,19 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			charges := bonuses.NewCharges(postgres_charge_store.New(db), game)
 
+			grantStore := postgres_grant_store.New(db)
 			grants, err := cpredis.Handle(ctx, streams, log_subscriber.New(apply_grant_handler.New(
-				apply_grant_usecase.New(db, postgres_grant_store.New(db), charges, clock)), props.Logger))
+				apply_grant_usecase.New(db, grantStore, charges, clock)), props.Logger))
 			if err != nil {
 				closeStores()
 				return fmt.Errorf("failed to handle planet.v1.GrantCharges: %w", err)
+			}
+			newPlayers, err := cpredis.Subscribe(ctx, streams, "planet-charges-players",
+				log_subscriber.New(player_created_subscriber.New(
+					grant_sign_in_refill_usecase.New(db, grantStore, charges, game, clock)), props.Logger))
+			if err != nil {
+				closeStores()
+				return fmt.Errorf("failed to subscribe the charges to player.v1.PlayerCreated: %w", err)
 			}
 
 			deletions, err := cpredis.Subscribe(ctx, streams, "planet-ledger-accounts",
@@ -269,7 +279,7 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			// Not closers: closers run before the runners' last flush, and the relays' last send.
 			props.Runners.Add(cppg.CloseAfter(db, props.Logger, tilesStorage, takings,
-				cpredis.CloseAfter(streams, props.Logger, deletions, relay, grants, refused, admitted, chosen, resetting,
+				cpredis.CloseAfter(streams, props.Logger, deletions, relay, grants, newPlayers, refused, admitted, chosen, resetting,
 					facts.NewRelay(told, streams, factsRelayInterval))))
 			props.Runners.Add(ledger.NewRetention(config.Ledger, takings, clock))
 

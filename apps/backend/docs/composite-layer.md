@@ -128,6 +128,7 @@ The proto sits beside the public one in the module's package (`proto/auth/v1/int
 | `missions-flag-takes`, `missions-flag-strikes` | a flag's day keeps the position and index past the last take it counted (`flag_days.counted_takes_below`, `counted_takes_below_index`) and past the last shield broken (`counted_strikes_below`, `counted_strikes_below_index`); the flag's mission is done once (`flag_missions.done`) |
 | `missions-sign-ins` | pays only the missions not paid yet (`mission_payments`) |
 | `planet`'s `planet.v1.GrantCharges` handler | keeps each `grant_id` it applied, in the transaction of the grant (`charge_grants`) |
+| `planet-charges-players` | keeps the account's sign-in grant id (`bonuses.SignInGrantOf`) in `charge_grants`, in the transaction of the grant |
 | `chat-announcements-*` | an announcement is named after the fact it tells (the bomb's or the fortify's ledger position, the mute's id, the round's season and number, the champion's season) and kept with `AppendOnce`: a second one is neither kept nor shown |
 | `player-titles` | grants only what the account does not hold |
 | `player-names-sign-ins` | names only an account that has no name |
@@ -152,6 +153,7 @@ A fact goes through an outbox when its loss would leave the modules disagreeing 
 - `scoring.v1.RoundScored` and `BookClosed`: the round is scored once and the book closed once, so a lost one is never sent again and the gamemaster never tells that day, battle or season ended. Scoring records each in the transaction that scores the round or closes the book, only when this call did it.
 - `gamemaster.v1.DayEnded`, `BattleEnded` and `SeasonEnded`: the gamemaster records each in the transaction that keeps what it heard from scoring, only when it is new, so the chat announces each podium and champion once.
 - `gamemaster.v1.DayStarted`: the gamemaster records it in the transaction that keeps the day told (`told_days`), only when the day is new or its end moved, so missions keeps each day once.
+- `player.v1.PlayerCreated`: a lost one is a new player that never gets its refill, since the profile is made once. `name_account_usecase` and `set_name_usecase` record it in the transaction that makes the profile.
 - `planet.v1.GrantCharges`, a command: a lost one is a mission paid that planet never granted. `missions`' `payroll` records it with the payment.
 - `missions.v1.MissionsPaid`: it is told with the payment it counts, so it shares the grant's transaction. The relay sends the grants as commands and it as an event (`redis_outbox_sender`), from one outbox.
 - **Not the gamemaster's commands** (`PlayRuleSet`, `ResetMap`, `ScoringCommand`): the clock decides them, not a transaction. The
@@ -215,6 +217,7 @@ The events today:
 | `chat.v1.MessageSent{message_id, account_id, sent_at}` | `chat`, `send_message_usecase/publishing_send_message` | after each message is kept; a refused or failed post publishes nothing | `player`, for the stats |
 | `chat.v1.AccountMuted{account_id, muted_at, duration, mute_id}` | `chat`, `mute_usecase/publishing_mute` | after each mute is kept; a refused or failed mute publishes nothing. Never the network it holds | `chat`, which announces it |
 | `missions.v1.MissionsPaid{account_id, paid_in_all}` | `missions`, through its outbox, from `payroll` | with each payment of one or more missions: how many the account was paid in all | `player`, for the stats |
+| `player.v1.PlayerCreated{account_id}` | `player`, through its outbox, from `name_account_usecase` and `set_name_usecase` | with the profile it makes: once per account | `planet`, which grants the new player a refill |
 | `player.v1.StatsChanged{account_id}` | `player`, `record_stats_usecase` | after each take, message, bomb, fortify, box, right answer or missions paid is counted on the account's stats; a failed write publishes nothing | `player`, which grants the titles the stats now earn |
 | `scoring.v1.RoundScored{round_id, book_id, ended_at, results}` | `scoring`, through its outbox | a round closed: scored from the map then, its points times its times | `gamemaster`, which tells which day or battle it was |
 | `scoring.v1.BookClosed{book_id, ended_at, table}` | `scoring`, through its outbox | a book closed: its table, the champion first | `gamemaster`, which tells which season it was |

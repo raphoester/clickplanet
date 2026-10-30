@@ -1956,6 +1956,13 @@ export class GetBonusRulesResponse extends Message<GetBonusRulesResponse> {
    */
   tileShields = 0;
 
+  /**
+   * A guest's first sign-in earns a refill.
+   *
+   * @generated from field: bool sign_in_refill = 9;
+   */
+  signInRefill = false;
+
   constructor(data?: PartialMessage<GetBonusRulesResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1971,6 +1978,7 @@ export class GetBonusRulesResponse extends Message<GetBonusRulesResponse> {
     { no: 6, name: "toll_steps", kind: "message", T: TollStep, repeated: true },
     { no: 7, name: "shields", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 8, name: "tile_shields", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 9, name: "sign_in_refill", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetBonusRulesResponse {

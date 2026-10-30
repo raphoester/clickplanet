@@ -124,6 +124,8 @@ func (s *testSuite) TestAGuestSignsInWithGoogleAndChoosesAName() {
 	me := ada.me()
 	assert.Equal(t, authv1.AccountKind_ACCOUNT_KIND_LINKED, me.GetKind())
 	assert.Equal(t, []authv1.Provider{authv1.Provider_PROVIDER_GOOGLE}, me.GetProviders())
+	assert.Eventually(t, func() bool { return ada.charges().GetRefill() },
+		5*time.Second, 20*time.Millisecond, "player makes the guest a player, and planet grants it a refill")
 	require.Eventually(t, func() bool { return generatedName.MatchString(ada.profile().GetName()) },
 		5*time.Second, 20*time.Millisecond, "player names the account auth signed in")
 	require.NoError(t, ada.setName("Ada_L"), "player asks auth whether the account is linked")

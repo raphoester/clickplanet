@@ -7,6 +7,7 @@ import {
     LinkRefusalReason,
     Provider as WireProvider,
     SignInIntent,
+    SignInOutcome as WireOutcome,
 } from "../gen/grpc/auth/v1/auth_pb.ts"
 import {AuthError} from "./account.ts"
 import {ConnectAccountBackend} from "./accountBackend.ts"
@@ -79,6 +80,24 @@ describe("ConnectAccountBackend", () => {
             })
 
             await expect(backend.completeSignIn("code", "state")).rejects.toMatchObject({failure})
+        }
+    })
+
+    it("says how each sign-in ended, and a server that says nothing signed the browser in", async () => {
+        const cases: [WireOutcome, string][] = [
+            [WireOutcome.LINKED, "linked"],
+            [WireOutcome.SIGNED_IN, "signedIn"],
+            [WireOutcome.CREATED, "created"],
+            [WireOutcome.UNSPECIFIED, "signedIn"],
+        ]
+        for (const [outcome, said] of cases) {
+            const backend = backendWith({
+                completeSignIn: vi.fn(async () => ({outcome})),
+                completeEmailSignIn: vi.fn(async () => ({outcome})),
+            })
+
+            expect(await backend.completeSignIn("code", "state")).toBe(said)
+            expect(await backend.completeEmailSignIn("123456")).toBe(said)
         }
     })
 

@@ -154,8 +154,7 @@ has nowhere else it has to be, so the copy has one fewer way to be misunderstood
 
 **The delivery buttons live in the preview's footer**, so the picture is on
 screen while the player picks what to do with it. `Modal` takes a `className`
-for the panel — `SharePreview.css` widens it past the 360px `Modal.css` sizes a
-column of text to, drops the scroll fade that would veil the bottom of the card,
-and fits the picture to the room between the header and the buttons rather than
-capping it in `vh`, which left a hand's width of empty panel under a portrait
-card on a phone.
+for the panel — `SharePreview.css` widens it past the 376px `Modal.css` sizes a
+column of text to, and fits the picture to the room between the header and the
+buttons rather than capping it in `vh`, which left a hand's width of empty panel
+under a portrait card on a phone.

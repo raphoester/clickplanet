@@ -16,6 +16,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/inmemory_visit_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -31,7 +32,8 @@ func setup() (*inmemory_player_store.Store, *inmemory_visit_storage.Storage, *re
 	visits := inmemory_visit_storage.New(clock)
 	visits.Record(presence.NewVisit(ada, guest, "aaaaaa", "fr", now))
 	names := players.NewGeneratedNames(store, players.NewRepeatedNames("BraveFox42"))
-	return store, visits, renaming_name_account.New(name_account_usecase.New(names, store, clock), visits)
+	return store, visits, renaming_name_account.New(
+		name_account_usecase.New(cpatomic.FakeTransactioner{}, names, store, &cpatomic.FakeOutbox{}, clock), visits)
 }
 
 func TestAGeneratedNameShowsOnTheRosterAtOnce(t *testing.T) {

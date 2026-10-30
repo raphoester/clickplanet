@@ -1,20 +1,21 @@
-import {AccountBackend, AuthError, Me, Provider} from "./account.ts"
+import {AccountBackend, AuthError, Me, Provider, SignInOutcome} from "./account.ts"
 import {FAKE_YOU} from "./fakeAccounts.ts"
 import {ColoredProfile, Fronts, NameColor, PlayerBackend, PlayerError, PlayerTitle, Profile, TitleDashboard} from "./player.ts"
 
-// Offers no provider: the console's signIn() links it, as a finished sign-in would.
+// Offers no provider until offerSignIn(). completeSignIn takes the code for the name to sign in with: the console's
+// signIn() calls it, as the callback page would.
 export class FakeAccountBackend implements AccountBackend, PlayerBackend {
+    private offered: Provider[] = []
     private linked: Provider[] = []
     private name = ""
     private color = NameColor.UNSPECIFIED
 
-    public signIn(name: string): void {
-        this.linked = ["google"]
-        this.name = name
+    public offerSignIn(): void {
+        this.offered = ["google", "discord", "email"]
     }
 
     public async signInOptions(): Promise<Provider[]> {
-        return []
+        return [...this.offered]
     }
 
     public async me(): Promise<Me> {
@@ -25,15 +26,18 @@ export class FakeAccountBackend implements AccountBackend, PlayerBackend {
         throw new AuthError("off")
     }
 
-    public async completeSignIn(): Promise<void> {
-        throw new AuthError("off")
+    public async completeSignIn(name: string): Promise<SignInOutcome> {
+        const outcome = this.linked.length === 0 ? "linked" : "signedIn"
+        this.linked = ["google"]
+        this.name = name
+        return outcome
     }
 
     public async startEmailSignIn(): Promise<void> {
         throw new AuthError("off")
     }
 
-    public async completeEmailSignIn(): Promise<void> {
+    public async completeEmailSignIn(): Promise<SignInOutcome> {
         throw new AuthError("off")
     }
 
