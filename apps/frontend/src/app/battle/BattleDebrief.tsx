@@ -7,6 +7,7 @@ import {battleFinishedLine} from "../../domain/roundReveal.ts"
 import {authorStyle} from "../chat/authorStyle.ts"
 import CountryFlag from "../components/CountryFlag.tsx"
 import {SwordsIcon} from "../components/icons.tsx"
+import SwordsArt from "../components/SwordsArt.tsx"
 import {useModalDialog} from "../components/useDialog.ts"
 import {PlaySound} from "../sound/soundPlayer.ts"
 import TitleBadge from "../titles/TitleBadge.tsx"
@@ -72,7 +73,7 @@ function Over({headId, closed, description}: {headId: string, closed: ClosedRoun
             <div className="title-reveal-rays" aria-hidden="true"/>
             <div className="title-reveal-wave" aria-hidden="true"/>
             <span className="title-reveal-float">
-                <span className="battle-reveal-disc" aria-hidden="true"><SwordsIcon size={110}/></span>
+                <span className="battle-reveal-disc" aria-hidden="true"><SwordsArt/></span>
             </span>
         </div>
         {description && <p className="battle-brief-text">{description}</p>}

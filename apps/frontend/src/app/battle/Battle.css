@@ -96,6 +96,11 @@
     animation: title-reveal-spin-in 750ms cubic-bezier(0.3, 0.6, 0.4, 1) calc(var(--impact) - 600ms) both;
 }
 
+.battle-reveal-disc .swords-art {
+    width: 58%;
+    height: 58%;
+}
+
 .battle-reveal-text {
     color: var(--text);
 }

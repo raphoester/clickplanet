@@ -1,5 +1,6 @@
 import {Finale, finaleLengthLine, finaleWhenLine} from "../../domain/battle.ts"
 import {SwordsIcon} from "../components/icons.tsx"
+import SwordsArt from "../components/SwordsArt.tsx"
 import {Fact, TrophyArt} from "./SeasonFacts.tsx"
 
 // The season's Final Battle, from the schedule: when, how long, what it is worth, and the operator's words.
@@ -21,7 +22,7 @@ export function FinaleFacts({finale}: {finale: Finale}) {
             <Fact art={<HourglassArt/>}
                   name={`${finaleLengthLine(finale)} of war`}
                   text="The end of the season, with every country fighting at once."/>
-            {finale.times > 1 && <Fact art={<SwordsArt/>}
+            {finale.times > 1 && <Fact art={<span className="season-fact-art"><SwordsArt/></span>}
                                        name={`Points ×${finale.times}`}
                                        text={`The countries holding the most ground when it ends score the points of ${finale.times} days.`}/>}
             <Fact art={<TrophyArt/>} name="The last word" text="Nothing scores after it. It crowns the season's champion."/>
@@ -37,16 +38,6 @@ function HourglassArt() {
             <path className="season-art-gold" d="M17 40c1-5 5-7.5 7-7.5s6 2.5 7 7.5z"/>
             <rect className="season-art-gold-shade" x="11" y="3" width="26" height="6" rx="2"/>
             <rect className="season-art-gold-shade" x="11" y="39" width="26" height="6" rx="2"/>
-        </svg>
-    </span>
-}
-
-function SwordsArt() {
-    return <span className="season-fact-art">
-        <svg className="season-art" viewBox="0 0 48 48" aria-hidden="true">
-            <path className="finale-art-ink" d="M8 8l24 24M40 8L16 32M8 40l8-8M40 40l-8-8M6 26l8 8M42 26l-8 8"/>
-            <path className="finale-art-blade" d="M8 8l24 24M40 8L16 32"/>
-            <path className="finale-art-hilt" d="M8 40l8-8M40 40l-8-8M6 26l8 8M42 26l-8 8"/>
         </svg>
     </span>
 }

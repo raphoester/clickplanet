@@ -717,22 +717,30 @@
             fill: var(--cream);
         }
 
-        .finale-art-ink, .finale-art-blade, .finale-art-hilt {
+        .swords-art-blade {
+            fill: var(--cream);
+        }
+
+        .swords-art-ink, .swords-art-grip, .swords-art-guard {
             fill: none;
         }
 
-        .finale-art-ink {
-            stroke-width: 8;
+        .swords-art-ink {
+            stroke-width: 7.5;
         }
 
-        .finale-art-blade {
-            stroke: var(--cream);
+        .swords-art-grip {
+            stroke: var(--gold-shade);
             stroke-width: 3.5;
         }
 
-        .finale-art-hilt {
-            stroke: var(--war);
+        .swords-art-guard {
+            stroke: var(--gold);
             stroke-width: 3.5;
+        }
+
+        .swords-art-pommel {
+            fill: var(--gold);
         }
 
         @keyframes finale-battle-live {
@@ -1491,7 +1499,7 @@
                     <a class="season-pill battle-pill" href="/play" data-battle hidden>
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                              stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M4 4l12 12M20 4L8 16M4 20l4-4M20 20l-4-4M3 13l4 4M21 13l-4 4"/>
+                            <path d="M14.5 17.5L4 7 3 3l4 1 10.5 10.5M13 19l6-6M16 16l4 4M19 21l2-2M12 9l5-5 4-1-1 4-5 5M9 12l-2.5 2.5M12 15l-2.5 2.5M5 13l6 6M8 16l-4 4M3 19l2 2"/>
                         </svg>
                         <span class="season-pill-label" data-battle-label>Next battle in</span>
                         <span class="season-pill-left" role="timer" data-battle-left></span>
@@ -1602,7 +1610,7 @@
                     <p class="finale-rules" data-finale-rules hidden>
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                              stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M4 4l12 12M20 4L8 16M4 20l4-4M20 20l-4-4M3 13l4 4M21 13l-4 4"/>
+                            <path d="M14.5 17.5L4 7 3 3l4 1 10.5 10.5M13 19l6-6M16 16l4 4M19 21l2-2M12 9l5-5 4-1-1 4-5 5M9 12l-2.5 2.5M12 15l-2.5 2.5M5 13l6 6M8 16l-4 4M3 19l2 2"/>
                         </svg>
                         <span data-finale-words></span>
                     </p>
@@ -1640,9 +1648,18 @@
                     <li class="finale-fact" data-finale-times-row>
                         <span class="finale-art">
                             <svg viewBox="0 0 48 48" aria-hidden="true">
-                                <path class="finale-art-ink" d="M8 8l24 24M40 8L16 32M8 40l8-8M40 40l-8-8M6 26l8 8M42 26l-8 8"/>
-                                <path class="finale-art-blade" d="M8 8l24 24M40 8L16 32"/>
-                                <path class="finale-art-hilt" d="M8 40l8-8M40 40l-8-8M6 26l8 8M42 26l-8 8"/>
+                                <g transform="matrix(-1 0 0 1 48 0)">
+                                    <polygon class="swords-art-blade" points="29,35 8,14 6,6 14,8 35,29"/>
+                                    <path class="swords-art-ink" d="M26 38l12-12M32 32l7 7"/>
+                                    <path class="swords-art-grip" d="M32 32l7 7"/>
+                                    <path class="swords-art-guard" d="M26 38l12-12"/>
+                                    <circle class="swords-art-pommel" cx="40" cy="40" r="3.2"/>
+                                </g>
+                                <polygon class="swords-art-blade" points="29,35 8,14 6,6 14,8 35,29"/>
+                                <path class="swords-art-ink" d="M26 38l12-12M32 32l7 7"/>
+                                <path class="swords-art-grip" d="M32 32l7 7"/>
+                                <path class="swords-art-guard" d="M26 38l12-12"/>
+                                <circle class="swords-art-pommel" cx="40" cy="40" r="3.2"/>
                             </svg>
                         </span>
                         <div>
