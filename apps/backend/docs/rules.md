@@ -54,8 +54,6 @@ the operator's calls carry and the log lines print as it is. `Snapshot.Restore(p
   1 min); `0s` is off. See [A newcomer's first box and first quiz](welcome-bonus.md)
 - `bonuses.signInRefill` — a guest's first sign-in earns a refill (on). See
   [A guest's first sign-in earns a refill](sign-in-refill.md)
-- `bonuses.adRefill.enabled`, `.every` — a rewarded ad fills the bank, once per bank in each span (on, 1 h). See
-  [A rewarded ad fills the bank](ad-refill.md)
 - `bonuses.quiz.enabled`, `minInterval`, `maxInterval`, `maxChargesPerHour`, `offerTtl`, `answerWindow`, `missRetry`,
   `leaderBias` — the quizzes (on, 4–8 min, 12, 25 s, 8 s, 2 min, 1). See [Quizzes](quizzes.md)
 - `frozen` — the map takes no play (off). See [A frozen map](#a-frozen-map)
@@ -63,8 +61,8 @@ the operator's calls carry and the log lines print as it is. `Snapshot.Restore(p
 ## A frozen map
 
 **A set with `frozen` takes no play** (`clicks.Freeze`, part `frozen`): while it is in force,
-`planetv1controller.NewFreezeInterceptor` refuses Click, DropBomb, PlaceShield, UseRefill, ClaimAdRefill, ClaimBonus,
-OpenQuiz and AnswerQuiz with `FailedPrecondition` and a `planet.v1.FrozenRefusal` detail (`clicks.ErrFrozen`), before any of them
+`planetv1controller.NewFreezeInterceptor` refuses Click, DropBomb, PlaceShield, UseRefill, ClaimBonus, OpenQuiz and
+AnswerQuiz with `FailedPrecondition` and a `planet.v1.FrozenRefusal` detail (`clicks.ErrFrozen`), before any of them
 spends a click or a charge. The map still loads and streams; tile cards, the board and PledgeAllegiance go on, and so
 do the operator's tools. A freeze is played like any set: the schedule picks it (a plain entry over the break between
 two seasons, see [Before the Final Battle](gamemaster.md#before-the-final-battle-sat-31-oct-2026-2100-utc)), so no
@@ -102,8 +100,7 @@ The readers call it where they use the rules, not when they are built: a set tak
 - `clicks.TollPart` — `clicks.Toll`: the price of each click, and `GetBonusRules.toll_steps`.
 - `bonuses.Part` — the box registry (waits, kinds, flight, miss, activity, welcome, quizzes, the quiz lean),
   `bonuses.Charges` (the stacks), `bonuses.Bombing` (the radius), `enclose_click`, `place_shield_usecase`,
-  `clicks.Claiming` (a tile's most shields, for a fortify), `bonuses.AdRefills` (the span), `claim_ad_refill_usecase`
-  (the switch) and `GetBonusRules`.
+  `clicks.Claiming` (a tile's most shields, for a fortify) and `GetBonusRules`.
 - **`play_rules_usecase` plays when something changes, never on a timer**: at boot and after each save (`Execute`) the
   set the schedule chose last, and `default` until it chose one; then each `planet.v1.PlayRuleSet` the schedule sends (`Play`, from
   `commands/play_rule_set_handler`). A missing or broken set at boot refuses the boot. Each time it reads the set to

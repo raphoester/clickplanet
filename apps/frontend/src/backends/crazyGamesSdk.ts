@@ -1,4 +1,4 @@
-import {AdOutcome, CrazyGamesPage, CrazyGamesSettings, DEFAULT_CRAZYGAMES_SETTINGS} from "./crazyGames.ts"
+import {CrazyGamesPage, CrazyGamesSettings, DEFAULT_CRAZYGAMES_SETTINGS} from "./crazyGames.ts"
 
 const SDK_URL = "https://sdk.crazygames.com/crazygames-sdk-v3.js"
 
@@ -16,14 +16,6 @@ export type Sdk = {
         addAuthListener(listener: (user: unknown) => void): void
         removeAuthListener(listener: (user: unknown) => void): void
     }
-    ad: {
-        requestAd(type: "rewarded", callbacks: {
-            adStarted?: () => void
-            adFinished?: () => void
-            adError?: (error: SdkError) => void
-        }): void
-        hasAdblock(): Promise<boolean>
-    }
     game: {
         settings: SdkSettings
         addSettingsChangeListener(listener: (settings: SdkSettings) => void): void
@@ -31,7 +23,6 @@ export type Sdk = {
         loadingStart(): void
         loadingStop(): void
         gameplayStart(): void
-        gameplayStop(): void
     }
 }
 
@@ -51,11 +42,6 @@ function loadScript(): Promise<Sdk> {
     })
 }
 
-const OUTCOMES: Record<string, AdOutcome> = {
-    adblock: "blocked",
-    adsDisabled: "off",
-}
-
 function settingsOf(sdk: SdkSettings): CrazyGamesSettings {
     return {chat: !sdk.disableChat, audio: !sdk.muteAudio}
 }
@@ -70,7 +56,7 @@ export function connectCrazyGames(load: () => Promise<Sdk> = loadScript): CrazyG
             return sdk
         })
         .catch((e) => {
-            console.error("The CrazyGames SDK is not there: the page plays as a guest, with no ad", e)
+            console.error("The CrazyGames SDK is not there: the page plays as a guest", e)
             return undefined
         })
     let current: Sdk | undefined
@@ -111,26 +97,6 @@ export function connectCrazyGames(load: () => Promise<Sdk> = loadScript): CrazyG
                 }
             },
         },
-        ads: {
-            blocked: async () => {
-                const sdk = await ready
-                if (!sdk) return true
-                try {
-                    return await sdk.ad.hasAdblock()
-                } catch {
-                    return false
-                }
-            },
-            watch: async (onStart) => {
-                const sdk = await ready
-                if (!sdk) return "blocked"
-                return new Promise<AdOutcome>((resolve) => sdk.ad.requestAd("rewarded", {
-                    adStarted: onStart,
-                    adFinished: () => resolve("watched"),
-                    adError: (error) => resolve(OUTCOMES[error?.code ?? ""] ?? "unavailable"),
-                }))
-            },
-        },
         settings: () => current ? settingsOf(current.game.settings) : DEFAULT_CRAZYGAMES_SETTINGS,
         listenForSettings: (listener) => {
             const heard = (settings: SdkSettings) => listener(settingsOf(settings))
@@ -145,7 +111,9 @@ export function connectCrazyGames(load: () => Promise<Sdk> = loadScript): CrazyG
                 current?.game.removeSettingsChangeListener(heard)
             }
         },
-        loaded: () => void ready.then((sdk) => sdk?.game.loadingStop()),
-        playing: (on) => void ready.then((sdk) => on ? sdk?.game.gameplayStart() : sdk?.game.gameplayStop()),
+        started: () => void ready.then((sdk) => {
+            sdk?.game.loadingStop()
+            sdk?.game.gameplayStart()
+        }),
     }
 }

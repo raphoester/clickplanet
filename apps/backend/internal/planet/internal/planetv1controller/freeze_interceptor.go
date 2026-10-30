@@ -17,7 +17,6 @@ var playProcedures = []string{
 	planetv1connect.ClickServiceDropBombProcedure,
 	planetv1connect.ClickServicePlaceShieldProcedure,
 	planetv1connect.ClickServiceUseRefillProcedure,
-	planetv1connect.ClickServiceClaimAdRefillProcedure,
 	planetv1connect.ClickServiceClaimBonusProcedure,
 	planetv1connect.ClickServiceOpenQuizProcedure,
 	planetv1connect.ClickServiceAnswerQuizProcedure,

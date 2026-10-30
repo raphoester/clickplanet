@@ -38,10 +38,7 @@ a set that takes no play, `playOf`), its tempo (`3×`), its clicks (`60 in hand,
 `frozen`: while it plays, planet refuses every click, bomb, shield, refill, box and quiz; see the backend's
 [A frozen map](../../backend/docs/rules.md#a-frozen-map)): Clicks (the tempo with them), Boxes, What a box is (the kinds'
 weights), Charges, New accounts (with "Refill at first sign-in", the set's `bonuses.signInRefill`: see the backend's
-[A guest's first sign-in](../../backend/docs/sign-in-refill.md)), Rewarded ad (with "Refill for a rewarded ad", the
-set's `bonuses.adRefill.enabled`, and its span in seconds: see the backend's
-[A rewarded ad fills the bank](../../backend/docs/ad-refill.md)), Quizzes (with their on switch), and the Toll, whose
-steps are rows to add and remove.
+[A guest's first sign-in](../../backend/docs/sign-in-refill.md)), Quizzes (with their on switch), and the Toll, whose steps are rows to add and remove.
 `GROUPS` names each value by its path in the set's rules (`Rules.toJson`), so the form needs no code per value: a
 duration is typed in seconds, a count is rounded to a whole one, a toll share is typed in percent. Every value has a
 label and a number field, so a value cannot be left out or misspelled; a test (`edits every value of a set`) fails when

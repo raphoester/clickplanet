@@ -201,13 +201,6 @@ export interface Refiller {
     useRefill(countryId: string): Promise<void>
 }
 
-export interface AdRefiller {
-    // When this player's bank may have its next ad refill, in ms since the epoch: now or before is now.
-    adRefillAt(): Promise<number>
-
-    claimAdRefill(countryId: string): Promise<void>
-}
-
 export interface Shielder {
     placeShield(tileId: number, countryId: string): Promise<void>
 }
@@ -236,13 +229,6 @@ export class BankFullError extends Error {
     constructor(options?: ErrorOptions) {
         super("the click bank is already full", options)
         this.name = "BankFullError"
-    }
-}
-
-export class AdRefillTooSoonError extends Error {
-    constructor(readonly availableAt: number, options?: ErrorOptions) {
-        super("this bank had its ad refill", options)
-        this.name = "AdRefillTooSoonError"
     }
 }
 

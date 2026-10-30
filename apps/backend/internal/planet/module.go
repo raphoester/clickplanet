@@ -21,13 +21,11 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/answer_quiz_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/answer_quiz_usecase/prom_answer_quiz"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/apply_grant_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/claim_ad_refill_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/claim_bonus_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/claim_bonus_usecase/prom_claim_bonus"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase/prom_drop_bomb"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase/refusal_drop_bomb"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/get_ad_refill_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/get_charges_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/grant_charges_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/grant_charges_usecase/audit_grant_charges"
@@ -78,12 +76,10 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/answer_quiz_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/claim_ad_refill_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/claim_bonus_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/click_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/drop_bomb_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/find_players_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_ad_refill_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_allegiance_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_allegiance_handler/allegiance_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_allegiance_of_handler"
@@ -291,8 +287,6 @@ func NewModule(config Config) cpbootstrap.Module {
 				func() cpratelimit.Policy { return throttle().Policy(inForce.Since()) }, config.RateLimiter.SweepInterval, clock)
 			props.Runners.Add(limiter)
 			buckets := clicks.NewBuckets(throttle)
-			refilling := clicks.NewRefilling(limiter, buckets)
-			adRefills := bonuses.NewAdRefills(grantStore, game, clock)
 
 			pricer := clicks.NewToll(rules.Reader(inForce, clicks.TollPart), tilesStorage)
 
@@ -446,8 +440,6 @@ func NewModule(config Config) cpbootstrap.Module {
 				refusal_drop_bomb.New(drop_bomb_usecase.New(charges, geography, writer, countries, bombing), refusing),
 				props.Metrics)
 
-			claimAdRefill := claim_ad_refill_usecase.New(db, adRefills, refilling, pricer, game)
-
 			service := planetv1controller.ClickService{
 				ClickHandler:       click_handler.New(clickUseCase),
 				GetBudgetHandler:   get_budget_handler.New(get_budget_usecase.New(limiter, pricer, buckets, freeze)),
@@ -458,9 +450,7 @@ func NewModule(config Config) cpbootstrap.Module {
 					listen_for_events_usecase.New(tilesStorage, props.Server.StreamHeartbeat, registry, inForce, told)),
 				ClaimBonusHandler:    claim_bonus_handler.New(claimBonus),
 				DropBombHandler:      drop_bomb_handler.New(dropBomb),
-				UseRefillHandler:     use_refill_handler.New(use_refill_usecase.New(charges, refilling, pricer)),
-				ClaimAdRefillHandler: claim_ad_refill_handler.New(claimAdRefill),
-				GetAdRefillHandler:   get_ad_refill_handler.New(get_ad_refill_usecase.New(adRefills)),
+				UseRefillHandler:     use_refill_handler.New(use_refill_usecase.New(charges, limiter, pricer, buckets)),
 				GetChargesHandler:    get_charges_handler.New(get_charges_usecase.New(charges)),
 				GetBonusRulesHandler: get_bonus_rules_handler.New(game, bombing, pricer),
 				OpenQuizHandler:      open_quiz_handler.New(openQuiz),

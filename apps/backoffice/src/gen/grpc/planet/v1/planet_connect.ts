@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AnswerQuizRequest, AnswerQuizResponse, ClaimAdRefillRequest, ClaimAdRefillResponse, ClaimBonusRequest, ClaimBonusResponse, ClickRequest, ClickResponse, DropBombRequest, DropBombResponse, GetAdRefillRequest, GetAdRefillResponse, GetAllegianceRequest, GetAllegianceResponse, GetBonusRulesRequest, GetBonusRulesResponse, GetBudgetRequest, GetBudgetResponse, GetChargesRequest, GetChargesResponse, GetFortressesRequest, GetFortressesResponse, GetHoldingsRequest, GetHoldingsResponse, GetLandmassRequest, GetLandmassResponse, GetMapRequest, GetMapResponse, GetTileHolderRequest, GetTileHolderResponse, ListenForEventsRequest, MapDensityRequest, MapDensityResponse, OpenQuizRequest, OpenQuizResponse, PlaceShieldRequest, PlaceShieldResponse, PlanetEvent, PledgeAllegianceRequest, PledgeAllegianceResponse, UseRefillRequest, UseRefillResponse } from "./planet_pb.js";
+import { AnswerQuizRequest, AnswerQuizResponse, ClaimBonusRequest, ClaimBonusResponse, ClickRequest, ClickResponse, DropBombRequest, DropBombResponse, GetAllegianceRequest, GetAllegianceResponse, GetBonusRulesRequest, GetBonusRulesResponse, GetBudgetRequest, GetBudgetResponse, GetChargesRequest, GetChargesResponse, GetFortressesRequest, GetFortressesResponse, GetHoldingsRequest, GetHoldingsResponse, GetLandmassRequest, GetLandmassResponse, GetMapRequest, GetMapResponse, GetTileHolderRequest, GetTileHolderResponse, ListenForEventsRequest, MapDensityRequest, MapDensityResponse, OpenQuizRequest, OpenQuizResponse, PlaceShieldRequest, PlaceShieldResponse, PlanetEvent, PledgeAllegianceRequest, PledgeAllegianceResponse, UseRefillRequest, UseRefillResponse } from "./planet_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -96,28 +96,6 @@ export const ClickService = {
       name: "UseRefill",
       I: UseRefillRequest,
       O: UseRefillResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * A rewarded ad was watched: the bank is filled, once per bank every BonusRules.ad_refill.every.
-     *
-     * @generated from rpc planet.v1.ClickService.ClaimAdRefill
-     */
-    claimAdRefill: {
-      name: "ClaimAdRefill",
-      I: ClaimAdRefillRequest,
-      O: ClaimAdRefillResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Not NO_SIDE_EFFECTS: the answer is about one caller now, and a cached one lies.
-     *
-     * @generated from rpc planet.v1.ClickService.GetAdRefill
-     */
-    getAdRefill: {
-      name: "GetAdRefill",
-      I: GetAdRefillRequest,
-      O: GetAdRefillResponse,
       kind: MethodKind.Unary,
     },
     /**

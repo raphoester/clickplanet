@@ -99,14 +99,13 @@ describe("the game rules page", () => {
         expect(screen.queryByText("It plays now: it takes over at once.")).toBeNull()
     })
 
-    it("switches quizzes and both refills off, and edits the toll", async () => {
+    it("switches quizzes and the sign-in refill off, and edits the toll", async () => {
         const admin = withCalm()
         render(<RulesPanel planet={admin}/>)
 
         fireEvent.click(await screen.findByRole("button", {name: "Edit calm"}))
         fireEvent.click(screen.getByLabelText("Quizzes on"))
         fireEvent.click(screen.getByLabelText("Refill at first sign-in"))
-        fireEvent.click(screen.getByLabelText("Refill for a rewarded ad"))
         fireEvent.click(screen.getByRole("button", {name: "Remove step 1"}))
         fireEvent.click(screen.getByRole("button", {name: "Add a step"}))
         expect((screen.getByRole("button", {name: "Save"}) as HTMLButtonElement).disabled).toBe(true)
@@ -118,7 +117,6 @@ describe("the game rules page", () => {
         await waitFor(() => expect(sent(admin)).toBeDefined())
         expect(sent(admin)?.rules?.bonuses?.quiz?.enabled).toBe(false)
         expect(sent(admin)?.rules?.bonuses?.signInRefill).toBe(false)
-        expect(sent(admin)?.rules?.bonuses?.adRefill?.enabled).toBe(false)
         expect(sent(admin)?.rules?.toll?.steps.map(step => [step.share, step.slowdown])).toEqual([[0.2, 2.5], [0.3, 4], [0.4, 6]])
     })
 

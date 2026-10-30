@@ -73,8 +73,6 @@ and says what is in it. Read the doc before you change its area.
 - [A newcomer's first box and first quiz](docs/welcome-bonus.md) — a new account gets both early, once.
 - [A guest's first sign-in earns a refill](docs/sign-in-refill.md) — once per account, when player makes it a player
   (`PlayerCreated`); why nobody can farm it.
-- [A rewarded ad fills the bank](docs/ad-refill.md) — `ClaimAdRefill` and `GetAdRefill`; the server sees no ad, so one
-  bank per bank each hour, per account and per guest network.
 
 ## Who a caller is
 

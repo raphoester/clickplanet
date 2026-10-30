@@ -61,7 +61,7 @@ func TestNoRefillIsNotFound(t *testing.T) {
 }
 
 func TestAFullBankIsAFailedPrecondition(t *testing.T) {
-	_, err := use(t, &stubUseCase{err: clicks.ErrBankFull})
+	_, err := use(t, &stubUseCase{err: use_refill_usecase.ErrBankFull})
 
 	assert.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
 }

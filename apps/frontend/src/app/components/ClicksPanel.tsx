@@ -4,9 +4,6 @@ import {TollStep, tollRows} from "../../domain/toll.ts"
 import {useNow} from "../season/useNow.ts"
 import {BoltIcon} from "./ClickBudgetMeter.tsx"
 import {offerText, SHARED_WITH} from "./clickOffer.ts"
-import {VideoIcon} from "./icons.tsx"
-import {AdRefillState} from "../crazygames/useAdRefill.ts"
-import {adRefillLine, WATCH_AD} from "../crazygames/adRefillText.ts"
 import "./ClicksPanel.css"
 
 export type ClicksPanelProps = {
@@ -15,10 +12,9 @@ export type ClicksPanelProps = {
     share?: number
     toll: readonly TollStep[]
     onSignIn?: () => void
-    ad?: {state: AdRefillState, onWatch: () => void}
 }
 
-export default function ClicksPanel({budget, countryName, share, toll, onSignIn, ad}: ClicksPanelProps) {
+export default function ClicksPanel({budget, countryName, share, toll, onSignIn}: ClicksPanelProps) {
     useNow()
 
     const price = budget?.price
@@ -26,8 +22,6 @@ export default function ClicksPanel({budget, countryName, share, toll, onSignIn,
     const detail = describePrice(price, countryName)?.detail
     const rows = held === undefined ? [] : tollRows(toll, held)
     const speedUp = onSignIn && budget?.linkedMultiplier
-    const lacking = budget !== undefined && tokensAt(budget, now()) < budget.capacity
-    const watchable = ad && lacking && (ad.state.kind === "ready" || ad.state.kind === "unavailable")
 
     return <div className="clicks-panel">
         {budget && <div className="panel-box clicks-reading">
@@ -61,12 +55,5 @@ export default function ClicksPanel({budget, countryName, share, toll, onSignIn,
             <BoltIcon/>
             <span>{offerText(budget?.sharedWith, speedUp)}</span>
         </button>}
-
-        {watchable
-            ? <button type="button" className="button button-mini button-action clicks-sign-in" onClick={ad.onWatch}>
-                <VideoIcon size={14}/>
-                <span>{WATCH_AD}</span>
-            </button>
-            : ad && (ad.state.kind === "waiting" || ad.state.kind === "blocked") && <p className="clicks-detail">{adRefillLine(ad.state)}</p>}
     </div>
 }

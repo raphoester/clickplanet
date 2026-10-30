@@ -45,8 +45,7 @@ internal/planet/internal/
   port: `Board` (which tile ids exist), `Toll` (what a click costs), `Outcome` and
   `Shielding` (what a click does to a tile and its shields), `Claiming` (a player's
   click written: the strike, then the owner it leaves, as an `Impact`), `Pacing` (how an
-  operator's bulk change is spread out), `Geography` and `Borders`. `Refilling` (a full bank: what a refill and a
-  rewarded ad do to the buckets) reads and fills the click limiter through its port.
+  operator's bulk change is spread out), `Geography` and `Borders`.
 - **`ledger/`** — every act of a player on the map, oldest first. Its root holds `Event` and its kinds (`Taking`, `Striking`, `Spreading`, `Enclosing`, `Bombing`, `Shielding`), `Entry`, `Scene`, `Footage`, `Player`, `Tally`, `Runs`,
   the `Storage` port, `Recording` (the tile writer that records each act) and `Retention`. `FindPlayers`, `TopPlayers` and
   `RevertPlayer` live here: they are one moderation workflow — find, see the refusal, undo. The ban is the antibot's
@@ -72,8 +71,7 @@ internal/planet/internal/
   `bonuses/box_facts`. Planet does not know who listens.
 - **`bonuses/`** — the boxes, their schedule, and the running bonuses they grant.
   Its root also holds the rules a bonus plays by: `Terrain` and `Pocket` (what an
-  enclose closes) and `BombRules` (where a bomb lands and what it clears). `AdRefills` keeps one rewarded ad per bank
-  and span through the grant store.
+  enclose closes) and `BombRules` (where a bomb lands and what it clears).
 
 **A concept's root is its domain.** The use cases under `usecases/` load, call
 the root, and persist; a rule that could be unit-tested without a port belongs
@@ -117,9 +115,7 @@ because it serves every concept over one Connect service. It only maps.
 | `bonuses/usecases/claim_bonus_usecase` | redeems a box | `Registry`, `Charger` |
 | `bonuses/usecases/drop_bomb_usecase` | spends a bomb where it was aimed | `Bombs`, `Map`, `Clearer` |
 | `bonuses/usecases/get_charges_usecase` | what the caller holds | `Charges` |
-| `bonuses/usecases/use_refill_usecase` | fills the caller's bank with its refill | `Refills`, `Refilling`, `Pricer` |
-| `bonuses/usecases/claim_ad_refill_usecase` | fills the caller's bank for a rewarded ad, once per bank and span | `Transactioner`, `AdRefills`, `Refilling`, `Pricer` |
-| `bonuses/usecases/get_ad_refill_usecase` | when the caller's bank may have its next ad refill | `AdRefills` |
+| `bonuses/usecases/use_refill_usecase` | fills the caller's bank with its refill | `Refills`, `Bank`, `Pricer` |
 | `bonuses/usecases/grant_charges_usecase` | the operator gives an account charges | `Charger` |
 | `bonuses/usecases/place_shield_usecase` | spends a shield on a tile of the caller's flag | `Shields`, `Tiles`, `CountryChecker`, `Allegiances` |
 | `rules/usecases/play_rules_usecase` | plays the set postgres keeps, at boot and when it changes; `Plays` | `Sets`, `Rules` |

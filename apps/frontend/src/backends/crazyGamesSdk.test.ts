@@ -1,10 +1,7 @@
 import {describe, expect, it, vi} from "vitest"
 import {connectCrazyGames, Sdk} from "./crazyGamesSdk.ts"
 
-type Callbacks = Parameters<Sdk["ad"]["requestAd"]>[1]
-
 function fakeSdk(overrides: {environment?: Sdk["environment"], token?: () => Promise<string>, prompt?: () => Promise<unknown>} = {}) {
-    let ad: Callbacks = {}
     const authListeners = new Set<(user: unknown) => void>()
     const settingsListeners = new Set<(settings: Sdk["game"]["settings"]) => void>()
     const sdk = {
@@ -17,12 +14,6 @@ function fakeSdk(overrides: {environment?: Sdk["environment"], token?: () => Pro
             addAuthListener: (listener: (user: unknown) => void) => authListeners.add(listener),
             removeAuthListener: (listener: (user: unknown) => void) => authListeners.delete(listener),
         },
-        ad: {
-            requestAd: vi.fn((_type: "rewarded", callbacks: Callbacks) => {
-                ad = callbacks
-            }),
-            hasAdblock: vi.fn(async () => false),
-        },
         game: {
             settings: {disableChat: false, muteAudio: false} as Sdk["game"]["settings"],
             addSettingsChangeListener: (listener: (settings: Sdk["game"]["settings"]) => void) => settingsListeners.add(listener),
@@ -30,12 +21,10 @@ function fakeSdk(overrides: {environment?: Sdk["environment"], token?: () => Pro
             loadingStart: vi.fn(),
             loadingStop: vi.fn(),
             gameplayStart: vi.fn(),
-            gameplayStop: vi.fn(),
         },
     } satisfies Sdk
     return {
         sdk,
-        ad: () => ad,
         signIn: (user: unknown) => authListeners.forEach((listener) => listener(user)),
         change: (settings: Sdk["game"]["settings"]) => settingsListeners.forEach((listener) => listener(settings)),
         authListeners,
@@ -54,7 +43,7 @@ describe("connectCrazyGames", () => {
         expect(await connectCrazyGames(async () => guest.sdk).user.token()).toBeUndefined()
     })
 
-    it("is a guest with no ad when the SDK cannot load, or runs off CrazyGames", async () => {
+    it("is a guest when the SDK cannot load, or runs off CrazyGames", async () => {
         const errors = vi.spyOn(console, "error").mockImplementation(() => undefined)
         for (const page of [
             connectCrazyGames(() => Promise.reject(new Error("blocked"))),
@@ -62,7 +51,6 @@ describe("connectCrazyGames", () => {
         ]) {
             expect(await page.user.token()).toBeUndefined()
             expect(await page.user.prompt()).toBe(false)
-            expect(await page.ads.blocked()).toBe(true)
             expect(page.settings()).toEqual({chat: true, audio: true})
         }
         errors.mockRestore()
@@ -88,27 +76,6 @@ describe("connectCrazyGames", () => {
         expect(fake.authListeners.size).toBe(0)
     })
 
-    it("plays a rewarded ad and says how it ended", async () => {
-        const fake = fakeSdk()
-        const page = connectCrazyGames(async () => fake.sdk)
-        const started = vi.fn()
-
-        const watched = page.ads.watch(started)
-        await settle()
-        fake.ad().adStarted?.()
-        fake.ad().adFinished?.()
-        expect(await watched).toBe("watched")
-        expect(started).toHaveBeenCalledTimes(1)
-
-        for (const [code, outcome] of [["unfilled", "unavailable"], ["adCooldown", "unavailable"], ["other", "unavailable"],
-            ["adblock", "blocked"], ["adsDisabled", "off"]]) {
-            const failed = page.ads.watch(started)
-            await settle()
-            fake.ad().adError?.({code})
-            expect(await failed).toBe(outcome)
-        }
-    })
-
     it("reads the settings, then each change", async () => {
         const fake = fakeSdk()
         fake.sdk.game.settings = {disableChat: true, muteAudio: false}
@@ -124,18 +91,17 @@ describe("connectCrazyGames", () => {
         expect(page.settings()).toEqual({chat: false, audio: true})
     })
 
-    it("tells the loading and the play", async () => {
+    it("tells the loading, then the gameplay once the game starts", async () => {
         const fake = fakeSdk()
         const page = connectCrazyGames(async () => fake.sdk)
+        await settle()
+        expect(fake.sdk.game.loadingStart).toHaveBeenCalledTimes(1)
+        expect(fake.sdk.game.gameplayStart).not.toHaveBeenCalled()
 
-        page.loaded()
-        page.playing(true)
-        page.playing(false)
+        page.started()
         await settle()
 
-        expect(fake.sdk.game.loadingStart).toHaveBeenCalledTimes(1)
         expect(fake.sdk.game.loadingStop).toHaveBeenCalledTimes(1)
         expect(fake.sdk.game.gameplayStart).toHaveBeenCalledTimes(1)
-        expect(fake.sdk.game.gameplayStop).toHaveBeenCalledTimes(1)
     })
 })

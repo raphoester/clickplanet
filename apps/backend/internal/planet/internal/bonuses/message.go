@@ -12,7 +12,7 @@ import (
 var Part = rules.PartOf[Rules]{Key: "bonuses", Read: func(m *planetv1.Rules) Rules { return RulesOf(m.GetBonuses()) }}
 
 func RulesOf(m *planetv1.BonusRules) Rules {
-	kinds, quiz, ad := m.GetKinds(), m.GetQuiz(), m.GetAdRefill()
+	kinds, quiz := m.GetKinds(), m.GetQuiz()
 
 	return Rules{
 		Boxes: Pace{
@@ -55,7 +55,6 @@ func RulesOf(m *planetv1.BonusRules) Rules {
 			MaxChargesPerHour: int(quiz.GetMaxChargesPerHour()),
 		},
 		SignInRefill: m.GetSignInRefill(),
-		AdRefill:     AdRefillRules{Enabled: ad.GetEnabled(), Every: duration(ad.GetEvery())},
 	}
 }
 

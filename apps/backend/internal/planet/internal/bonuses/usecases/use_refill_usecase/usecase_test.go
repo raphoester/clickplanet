@@ -44,7 +44,7 @@ func setup(held bool) fixture {
 	return fixture{
 		refills: refills,
 		limiter: limiter,
-		useCase: use_refill_usecase.New(bonuses.NewCharges(refills, bonuses.TestRules), clicks.NewRefilling(limiter, buckets), onePrice{}),
+		useCase: use_refill_usecase.New(bonuses.NewCharges(refills, bonuses.TestRules), limiter, onePrice{}, buckets),
 	}
 }
 
@@ -82,7 +82,7 @@ func TestAFullBankIsRefusedAndSpendsNothing(t *testing.T) {
 
 	_, err := f.useCase.Execute(played(t), use_refill_usecase.In{CountryID: "fr"})
 
-	require.ErrorIs(t, err, clicks.ErrBankFull)
+	require.ErrorIs(t, err, use_refill_usecase.ErrBankFull)
 	assert.True(t, f.refills.Kept("a-guest").Refill, "a press on a full meter wastes nothing")
 }
 
@@ -146,7 +146,7 @@ func TestAFullBankOnAScopeHoldingABankIsRefused(t *testing.T) {
 
 	_, err := f.useCase.Execute(played(t), use_refill_usecase.In{CountryID: "fr"})
 
-	require.ErrorIs(t, err, clicks.ErrBankFull, "the scope still holds the bank the player can spend")
+	require.ErrorIs(t, err, use_refill_usecase.ErrBankFull, "the scope still holds the bank the player can spend")
 	assert.InDelta(t, 60, f.limiter.Peek(scope).Tokens, 1e-9)
 	assert.True(t, f.refills.Kept("a-guest").Refill)
 }

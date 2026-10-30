@@ -238,7 +238,6 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     account={account}
                     clips={fakeClips}
                     crazyGames={crazyGames}
-                    adRefiller={fake}
                 />
             </SignInGate>
         </StrictMode>,
@@ -288,7 +287,6 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     chargesRefresher={backend}
                     clips={clips}
                     crazyGames={crazyGames}
-                    adRefiller={backend}
                 />
             </SignInGate>
         </StrictMode>,

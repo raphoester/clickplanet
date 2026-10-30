@@ -9,7 +9,7 @@ import {BonusGuide, LEARNING_USES} from "../../domain/bonusGuide.ts"
 afterEach(cleanup)
 beforeEach(() => window.localStorage.clear())
 
-const rules = {blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, shields: 12, tileShields: 10, toll: [], signInRefill: false, adRefill: false}
+const rules = {blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, shields: 12, tileShields: 10, toll: [], signInRefill: false}
 
 function inventory(props: Partial<InventoryProps> = {}) {
     return <Inventory charges={NO_CHARGES}

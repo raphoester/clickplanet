@@ -1,15 +1,13 @@
 // What the page asks CrazyGames, through its SDK. Off CrazyGames there is none.
 export interface CrazyGamesPage {
     user: CrazyGamesUser
-    ads: RewardedAds
 
     settings(): CrazyGamesSettings
 
     listenForSettings(listener: (settings: CrazyGamesSettings) => void): () => void
 
-    loaded(): void
-
-    playing(on: boolean): void
+    // The game is playable: the load is over and the gameplay starts. It never pauses.
+    started(): void
 }
 
 export interface CrazyGamesUser {
@@ -20,16 +18,6 @@ export interface CrazyGamesUser {
     prompt(): Promise<boolean>
 
     listenForSignIn(listener: () => void): () => void
-}
-
-// watched: the ad played to its end. off: no ad in this session at all (the Basic Launch, the kids' site).
-export type AdOutcome = "watched" | "unavailable" | "blocked" | "off"
-
-export interface RewardedAds {
-    blocked(): Promise<boolean>
-
-    // onStart runs when the ad starts playing, not when it is asked for: the game is muted then.
-    watch(onStart: () => void): Promise<AdOutcome>
 }
 
 export type CrazyGamesSettings = {

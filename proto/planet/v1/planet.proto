@@ -28,12 +28,6 @@ service ClickService {
 
   rpc UseRefill(UseRefillRequest) returns (UseRefillResponse);
 
-  // A rewarded ad was watched: the bank is filled, once per bank every BonusRules.ad_refill.every.
-  rpc ClaimAdRefill(ClaimAdRefillRequest) returns (ClaimAdRefillResponse);
-
-  // Not NO_SIDE_EFFECTS: the answer is about one caller now, and a cached one lies.
-  rpc GetAdRefill(GetAdRefillRequest) returns (GetAdRefillResponse);
-
   // Not NO_SIDE_EFFECTS: the answer is about one caller now, and a cached one lies.
   rpc GetCharges(GetChargesRequest) returns (GetChargesResponse);
 
@@ -136,8 +130,8 @@ message ClickResponse {
   ClickBudget budget = 1;
 }
 
-// The detail of the FailedPrecondition that Click, DropBomb, PlaceShield, UseRefill, ClaimAdRefill, ClaimBonus, OpenQuiz
-// and AnswerQuiz answer while the rules in force freeze the map.
+// The detail of the FailedPrecondition that Click, DropBomb, PlaceShield, UseRefill, ClaimBonus, OpenQuiz and AnswerQuiz
+// answer while the rules in force freeze the map.
 message FrozenRefusal {}
 
 // The detail of a PermissionDenied that Click, DropBomb and PlaceShield answer a banned caller.
@@ -365,9 +359,6 @@ message GetBonusRulesResponse {
 
   // A guest's first sign-in earns a refill.
   bool sign_in_refill = 9;
-
-  // A rewarded ad fills the bank: ClaimAdRefill.
-  bool ad_refill = 10;
 }
 
 message TollStep {
@@ -471,26 +462,6 @@ message UseRefillResponse {
   ClickBudget budget = 1;
 
   ChargesHeld charges = 2;
-}
-
-message ClaimAdRefillRequest {
-  string country_id = 1;
-}
-
-message ClaimAdRefillResponse {
-  ClickBudget budget = 1;
-}
-
-message GetAdRefillRequest {}
-
-message GetAdRefillResponse {
-  // When the caller's bank may have its next ad refill; at or before now, it may now.
-  int64 available_at_unix_ms = 1;
-}
-
-// The detail of the FailedPrecondition that ClaimAdRefill answers while the caller's bank had its ad refill.
-message AdRefillRefusal {
-  int64 available_at_unix_ms = 1;
 }
 
 message GlobePoint {

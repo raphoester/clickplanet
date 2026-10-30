@@ -53,12 +53,6 @@ const (
 	ClickServiceDropBombProcedure = "/planet.v1.ClickService/DropBomb"
 	// ClickServiceUseRefillProcedure is the fully-qualified name of the ClickService's UseRefill RPC.
 	ClickServiceUseRefillProcedure = "/planet.v1.ClickService/UseRefill"
-	// ClickServiceClaimAdRefillProcedure is the fully-qualified name of the ClickService's
-	// ClaimAdRefill RPC.
-	ClickServiceClaimAdRefillProcedure = "/planet.v1.ClickService/ClaimAdRefill"
-	// ClickServiceGetAdRefillProcedure is the fully-qualified name of the ClickService's GetAdRefill
-	// RPC.
-	ClickServiceGetAdRefillProcedure = "/planet.v1.ClickService/GetAdRefill"
 	// ClickServiceGetChargesProcedure is the fully-qualified name of the ClickService's GetCharges RPC.
 	ClickServiceGetChargesProcedure = "/planet.v1.ClickService/GetCharges"
 	// ClickServiceGetBonusRulesProcedure is the fully-qualified name of the ClickService's
@@ -100,10 +94,6 @@ type ClickServiceClient interface {
 	ClaimBonus(context.Context, *connect.Request[v1.ClaimBonusRequest]) (*connect.Response[v1.ClaimBonusResponse], error)
 	DropBomb(context.Context, *connect.Request[v1.DropBombRequest]) (*connect.Response[v1.DropBombResponse], error)
 	UseRefill(context.Context, *connect.Request[v1.UseRefillRequest]) (*connect.Response[v1.UseRefillResponse], error)
-	// A rewarded ad was watched: the bank is filled, once per bank every BonusRules.ad_refill.every.
-	ClaimAdRefill(context.Context, *connect.Request[v1.ClaimAdRefillRequest]) (*connect.Response[v1.ClaimAdRefillResponse], error)
-	// Not NO_SIDE_EFFECTS: the answer is about one caller now, and a cached one lies.
-	GetAdRefill(context.Context, *connect.Request[v1.GetAdRefillRequest]) (*connect.Response[v1.GetAdRefillResponse], error)
 	// Not NO_SIDE_EFFECTS: the answer is about one caller now, and a cached one lies.
 	GetCharges(context.Context, *connect.Request[v1.GetChargesRequest]) (*connect.Response[v1.GetChargesResponse], error)
 	GetBonusRules(context.Context, *connect.Request[v1.GetBonusRulesRequest]) (*connect.Response[v1.GetBonusRulesResponse], error)
@@ -188,18 +178,6 @@ func NewClickServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(clickServiceMethods.ByName("UseRefill")),
 			connect.WithClientOptions(opts...),
 		),
-		claimAdRefill: connect.NewClient[v1.ClaimAdRefillRequest, v1.ClaimAdRefillResponse](
-			httpClient,
-			baseURL+ClickServiceClaimAdRefillProcedure,
-			connect.WithSchema(clickServiceMethods.ByName("ClaimAdRefill")),
-			connect.WithClientOptions(opts...),
-		),
-		getAdRefill: connect.NewClient[v1.GetAdRefillRequest, v1.GetAdRefillResponse](
-			httpClient,
-			baseURL+ClickServiceGetAdRefillProcedure,
-			connect.WithSchema(clickServiceMethods.ByName("GetAdRefill")),
-			connect.WithClientOptions(opts...),
-		),
 		getCharges: connect.NewClient[v1.GetChargesRequest, v1.GetChargesResponse](
 			httpClient,
 			baseURL+ClickServiceGetChargesProcedure,
@@ -278,8 +256,6 @@ type clickServiceClient struct {
 	claimBonus       *connect.Client[v1.ClaimBonusRequest, v1.ClaimBonusResponse]
 	dropBomb         *connect.Client[v1.DropBombRequest, v1.DropBombResponse]
 	useRefill        *connect.Client[v1.UseRefillRequest, v1.UseRefillResponse]
-	claimAdRefill    *connect.Client[v1.ClaimAdRefillRequest, v1.ClaimAdRefillResponse]
-	getAdRefill      *connect.Client[v1.GetAdRefillRequest, v1.GetAdRefillResponse]
 	getCharges       *connect.Client[v1.GetChargesRequest, v1.GetChargesResponse]
 	getBonusRules    *connect.Client[v1.GetBonusRulesRequest, v1.GetBonusRulesResponse]
 	openQuiz         *connect.Client[v1.OpenQuizRequest, v1.OpenQuizResponse]
@@ -335,16 +311,6 @@ func (c *clickServiceClient) DropBomb(ctx context.Context, req *connect.Request[
 // UseRefill calls planet.v1.ClickService.UseRefill.
 func (c *clickServiceClient) UseRefill(ctx context.Context, req *connect.Request[v1.UseRefillRequest]) (*connect.Response[v1.UseRefillResponse], error) {
 	return c.useRefill.CallUnary(ctx, req)
-}
-
-// ClaimAdRefill calls planet.v1.ClickService.ClaimAdRefill.
-func (c *clickServiceClient) ClaimAdRefill(ctx context.Context, req *connect.Request[v1.ClaimAdRefillRequest]) (*connect.Response[v1.ClaimAdRefillResponse], error) {
-	return c.claimAdRefill.CallUnary(ctx, req)
-}
-
-// GetAdRefill calls planet.v1.ClickService.GetAdRefill.
-func (c *clickServiceClient) GetAdRefill(ctx context.Context, req *connect.Request[v1.GetAdRefillRequest]) (*connect.Response[v1.GetAdRefillResponse], error) {
-	return c.getAdRefill.CallUnary(ctx, req)
 }
 
 // GetCharges calls planet.v1.ClickService.GetCharges.
@@ -409,10 +375,6 @@ type ClickServiceHandler interface {
 	ClaimBonus(context.Context, *connect.Request[v1.ClaimBonusRequest]) (*connect.Response[v1.ClaimBonusResponse], error)
 	DropBomb(context.Context, *connect.Request[v1.DropBombRequest]) (*connect.Response[v1.DropBombResponse], error)
 	UseRefill(context.Context, *connect.Request[v1.UseRefillRequest]) (*connect.Response[v1.UseRefillResponse], error)
-	// A rewarded ad was watched: the bank is filled, once per bank every BonusRules.ad_refill.every.
-	ClaimAdRefill(context.Context, *connect.Request[v1.ClaimAdRefillRequest]) (*connect.Response[v1.ClaimAdRefillResponse], error)
-	// Not NO_SIDE_EFFECTS: the answer is about one caller now, and a cached one lies.
-	GetAdRefill(context.Context, *connect.Request[v1.GetAdRefillRequest]) (*connect.Response[v1.GetAdRefillResponse], error)
 	// Not NO_SIDE_EFFECTS: the answer is about one caller now, and a cached one lies.
 	GetCharges(context.Context, *connect.Request[v1.GetChargesRequest]) (*connect.Response[v1.GetChargesResponse], error)
 	GetBonusRules(context.Context, *connect.Request[v1.GetBonusRulesRequest]) (*connect.Response[v1.GetBonusRulesResponse], error)
@@ -491,18 +453,6 @@ func NewClickServiceHandler(svc ClickServiceHandler, opts ...connect.HandlerOpti
 		ClickServiceUseRefillProcedure,
 		svc.UseRefill,
 		connect.WithSchema(clickServiceMethods.ByName("UseRefill")),
-		connect.WithHandlerOptions(opts...),
-	)
-	clickServiceClaimAdRefillHandler := connect.NewUnaryHandler(
-		ClickServiceClaimAdRefillProcedure,
-		svc.ClaimAdRefill,
-		connect.WithSchema(clickServiceMethods.ByName("ClaimAdRefill")),
-		connect.WithHandlerOptions(opts...),
-	)
-	clickServiceGetAdRefillHandler := connect.NewUnaryHandler(
-		ClickServiceGetAdRefillProcedure,
-		svc.GetAdRefill,
-		connect.WithSchema(clickServiceMethods.ByName("GetAdRefill")),
 		connect.WithHandlerOptions(opts...),
 	)
 	clickServiceGetChargesHandler := connect.NewUnaryHandler(
@@ -589,10 +539,6 @@ func NewClickServiceHandler(svc ClickServiceHandler, opts ...connect.HandlerOpti
 			clickServiceDropBombHandler.ServeHTTP(w, r)
 		case ClickServiceUseRefillProcedure:
 			clickServiceUseRefillHandler.ServeHTTP(w, r)
-		case ClickServiceClaimAdRefillProcedure:
-			clickServiceClaimAdRefillHandler.ServeHTTP(w, r)
-		case ClickServiceGetAdRefillProcedure:
-			clickServiceGetAdRefillHandler.ServeHTTP(w, r)
 		case ClickServiceGetChargesProcedure:
 			clickServiceGetChargesHandler.ServeHTTP(w, r)
 		case ClickServiceGetBonusRulesProcedure:
@@ -656,14 +602,6 @@ func (UnimplementedClickServiceHandler) DropBomb(context.Context, *connect.Reque
 
 func (UnimplementedClickServiceHandler) UseRefill(context.Context, *connect.Request[v1.UseRefillRequest]) (*connect.Response[v1.UseRefillResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.UseRefill is not implemented"))
-}
-
-func (UnimplementedClickServiceHandler) ClaimAdRefill(context.Context, *connect.Request[v1.ClaimAdRefillRequest]) (*connect.Response[v1.ClaimAdRefillResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.ClaimAdRefill is not implemented"))
-}
-
-func (UnimplementedClickServiceHandler) GetAdRefill(context.Context, *connect.Request[v1.GetAdRefillRequest]) (*connect.Response[v1.GetAdRefillResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.GetAdRefill is not implemented"))
 }
 
 func (UnimplementedClickServiceHandler) GetCharges(context.Context, *connect.Request[v1.GetChargesRequest]) (*connect.Response[v1.GetChargesResponse], error) {

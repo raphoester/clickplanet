@@ -32,13 +32,3 @@ func (s *Store) Record(ctx context.Context, grant bonuses.GrantID, at time.Time)
 	}
 	return rows == 1, nil
 }
-
-func (s *Store) Recorded(ctx context.Context, grant bonuses.GrantID) (bool, error) {
-	var recorded bool
-	if err := s.db.On(ctx).QueryRowContext(ctx, `
-		SELECT EXISTS (SELECT 1 FROM charge_grants WHERE grant_id = $1)
-	`, uuid.UUID(grant)).Scan(&recorded); err != nil {
-		return false, fmt.Errorf("failed to read whether grant %s is recorded: %w", grant, err)
-	}
-	return recorded, nil
-}

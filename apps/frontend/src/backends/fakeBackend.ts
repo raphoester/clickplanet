@@ -1,6 +1,4 @@
 import {
-    AdRefiller,
-    AdRefillTooSoonError,
     AllegianceLockedError,
     AllegianceSource,
     BankFullError,
@@ -101,8 +99,6 @@ const BOT_CLICKS_PER_SECOND = 4
 const ENCLOSE_MAX_TILES = 25
 const LINKED_MULTIPLIER = 2
 
-const FAKE_AD_REFILL_EVERY_MS = 60 * 60_000
-
 const RULES: BonusRules = {
     blastRadius: BOMB_RADIUS,
     enclosureMaxTiles: ENCLOSE_MAX_TILES,
@@ -112,7 +108,6 @@ const RULES: BonusRules = {
     tileShields: TILE_SHIELDS,
     toll: TOLL_STEPS,
     signInRefill: true,
-    adRefill: true,
 }
 
 export type FakeBackendOptions = {
@@ -123,7 +118,7 @@ export type FakeBackendOptions = {
     landmasses: () => Promise<{assignment: Uint16Array, count: number}>
 }
 
-export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller, AdRefiller, Shielder, AllegianceSource, ChargesRefresher, TileHolders, LandmassReader {
+export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller, Shielder, AllegianceSource, ChargesRefresher, TileHolders, LandmassReader {
     private tileBindings: Map<number, string> = new Map()
     private holders: Map<number, TileHolder> = new Map()
     private readonly fortifications = new Map<number, LandmassFortification>()
@@ -158,7 +153,6 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 
     private readonly timers: ReturnType<typeof setInterval>[] = []
     private tokens = CLICK_BURST
-    private adRefilledAt: number | undefined
     private lastRefillMs = Date.now()
     private pace = 1
     private tempo = 1
@@ -349,22 +343,6 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 
         this.tokens = CLICK_BURST
         this.hold({...this.charges, refill: false})
-        this.reportBudget()
-    }
-
-    public async adRefillAt(): Promise<number> {
-        return this.adRefilledAt === undefined ? 0 : this.adRefilledAt + FAKE_AD_REFILL_EVERY_MS
-    }
-
-    public async claimAdRefill(): Promise<void> {
-        const availableAt = await this.adRefillAt()
-        if (availableAt > Date.now()) throw new AdRefillTooSoonError(availableAt)
-
-        this.refill()
-        if (this.tokens >= CLICK_BURST) throw new BankFullError()
-
-        this.tokens = CLICK_BURST
-        this.adRefilledAt = Date.now()
         this.reportBudget()
     }
 

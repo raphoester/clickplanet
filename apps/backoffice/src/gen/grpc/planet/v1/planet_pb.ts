@@ -454,8 +454,8 @@ export class ClickResponse extends Message<ClickResponse> {
 }
 
 /**
- * The detail of the FailedPrecondition that Click, DropBomb, PlaceShield, UseRefill, ClaimAdRefill, ClaimBonus, OpenQuiz
- * and AnswerQuiz answer while the rules in force freeze the map.
+ * The detail of the FailedPrecondition that Click, DropBomb, PlaceShield, UseRefill, ClaimBonus, OpenQuiz and AnswerQuiz
+ * answer while the rules in force freeze the map.
  *
  * @generated from message planet.v1.FrozenRefusal
  */
@@ -1963,13 +1963,6 @@ export class GetBonusRulesResponse extends Message<GetBonusRulesResponse> {
    */
   signInRefill = false;
 
-  /**
-   * A rewarded ad fills the bank: ClaimAdRefill.
-   *
-   * @generated from field: bool ad_refill = 10;
-   */
-  adRefill = false;
-
   constructor(data?: PartialMessage<GetBonusRulesResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1986,7 +1979,6 @@ export class GetBonusRulesResponse extends Message<GetBonusRulesResponse> {
     { no: 7, name: "shields", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 8, name: "tile_shields", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 9, name: "sign_in_refill", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 10, name: "ad_refill", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetBonusRulesResponse {
@@ -2567,189 +2559,6 @@ export class UseRefillResponse extends Message<UseRefillResponse> {
 
   static equals(a: UseRefillResponse | PlainMessage<UseRefillResponse> | undefined, b: UseRefillResponse | PlainMessage<UseRefillResponse> | undefined): boolean {
     return proto3.util.equals(UseRefillResponse, a, b);
-  }
-}
-
-/**
- * @generated from message planet.v1.ClaimAdRefillRequest
- */
-export class ClaimAdRefillRequest extends Message<ClaimAdRefillRequest> {
-  /**
-   * @generated from field: string country_id = 1;
-   */
-  countryId = "";
-
-  constructor(data?: PartialMessage<ClaimAdRefillRequest>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "planet.v1.ClaimAdRefillRequest";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ClaimAdRefillRequest {
-    return new ClaimAdRefillRequest().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ClaimAdRefillRequest {
-    return new ClaimAdRefillRequest().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ClaimAdRefillRequest {
-    return new ClaimAdRefillRequest().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: ClaimAdRefillRequest | PlainMessage<ClaimAdRefillRequest> | undefined, b: ClaimAdRefillRequest | PlainMessage<ClaimAdRefillRequest> | undefined): boolean {
-    return proto3.util.equals(ClaimAdRefillRequest, a, b);
-  }
-}
-
-/**
- * @generated from message planet.v1.ClaimAdRefillResponse
- */
-export class ClaimAdRefillResponse extends Message<ClaimAdRefillResponse> {
-  /**
-   * @generated from field: planet.v1.ClickBudget budget = 1;
-   */
-  budget?: ClickBudget;
-
-  constructor(data?: PartialMessage<ClaimAdRefillResponse>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "planet.v1.ClaimAdRefillResponse";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "budget", kind: "message", T: ClickBudget },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ClaimAdRefillResponse {
-    return new ClaimAdRefillResponse().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ClaimAdRefillResponse {
-    return new ClaimAdRefillResponse().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ClaimAdRefillResponse {
-    return new ClaimAdRefillResponse().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: ClaimAdRefillResponse | PlainMessage<ClaimAdRefillResponse> | undefined, b: ClaimAdRefillResponse | PlainMessage<ClaimAdRefillResponse> | undefined): boolean {
-    return proto3.util.equals(ClaimAdRefillResponse, a, b);
-  }
-}
-
-/**
- * @generated from message planet.v1.GetAdRefillRequest
- */
-export class GetAdRefillRequest extends Message<GetAdRefillRequest> {
-  constructor(data?: PartialMessage<GetAdRefillRequest>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "planet.v1.GetAdRefillRequest";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetAdRefillRequest {
-    return new GetAdRefillRequest().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetAdRefillRequest {
-    return new GetAdRefillRequest().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetAdRefillRequest {
-    return new GetAdRefillRequest().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: GetAdRefillRequest | PlainMessage<GetAdRefillRequest> | undefined, b: GetAdRefillRequest | PlainMessage<GetAdRefillRequest> | undefined): boolean {
-    return proto3.util.equals(GetAdRefillRequest, a, b);
-  }
-}
-
-/**
- * @generated from message planet.v1.GetAdRefillResponse
- */
-export class GetAdRefillResponse extends Message<GetAdRefillResponse> {
-  /**
-   * When the caller's bank may have its next ad refill; at or before now, it may now.
-   *
-   * @generated from field: int64 available_at_unix_ms = 1;
-   */
-  availableAtUnixMs = protoInt64.zero;
-
-  constructor(data?: PartialMessage<GetAdRefillResponse>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "planet.v1.GetAdRefillResponse";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "available_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetAdRefillResponse {
-    return new GetAdRefillResponse().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetAdRefillResponse {
-    return new GetAdRefillResponse().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetAdRefillResponse {
-    return new GetAdRefillResponse().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: GetAdRefillResponse | PlainMessage<GetAdRefillResponse> | undefined, b: GetAdRefillResponse | PlainMessage<GetAdRefillResponse> | undefined): boolean {
-    return proto3.util.equals(GetAdRefillResponse, a, b);
-  }
-}
-
-/**
- * The detail of the FailedPrecondition that ClaimAdRefill answers while the caller's bank had its ad refill.
- *
- * @generated from message planet.v1.AdRefillRefusal
- */
-export class AdRefillRefusal extends Message<AdRefillRefusal> {
-  /**
-   * @generated from field: int64 available_at_unix_ms = 1;
-   */
-  availableAtUnixMs = protoInt64.zero;
-
-  constructor(data?: PartialMessage<AdRefillRefusal>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "planet.v1.AdRefillRefusal";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "available_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AdRefillRefusal {
-    return new AdRefillRefusal().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AdRefillRefusal {
-    return new AdRefillRefusal().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AdRefillRefusal {
-    return new AdRefillRefusal().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: AdRefillRefusal | PlainMessage<AdRefillRefusal> | undefined, b: AdRefillRefusal | PlainMessage<AdRefillRefusal> | undefined): boolean {
-    return proto3.util.equals(AdRefillRefusal, a, b);
   }
 }
 

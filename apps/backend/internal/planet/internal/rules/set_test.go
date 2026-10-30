@@ -102,7 +102,6 @@ func TestASetThatCannotPlayIsRefusedWithTheValueNamed(t *testing.T) {
 		"bonuses.quiz.answerWindow":            func(r *planetv1.Rules) { r.Bonuses.Quiz.AnswerWindow = d(0) },
 		"bonuses.quiz.leaderBias is -1":        func(r *planetv1.Rules) { r.Bonuses.Quiz.LeaderBias = -1 },
 		"bonuses.quiz.leaderBias is NaN":       func(r *planetv1.Rules) { r.Bonuses.Quiz.LeaderBias = math.NaN() },
-		"bonuses.adRefill.every":               func(r *planetv1.Rules) { r.Bonuses.AdRefill.Every = d(0) },
 		"clicks.tempo is 0, and must be above": func(r *planetv1.Rules) { r.Clicks = nil },
 	}
 	for reason, breaks := range broken {

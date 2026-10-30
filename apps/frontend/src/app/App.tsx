@@ -34,7 +34,6 @@ export default function App(props: AppProps) {
             chargesRefresher={props.chargesRefresher}
             clips={props.clips}
             crazyGames={props.crazyGames}
-            adRefiller={props.adRefiller}
         />
     </>
 }

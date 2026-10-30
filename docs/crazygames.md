@@ -16,11 +16,10 @@ frontend build, the same API, the same map and players as clickplanet.lol.
 
 ## What each part does
 
-- **Frontend**: the CrazyGames page — CrazyGames' sign-in alone, its settings, the gameplay events, the rewarded ad at
-  the empty bank, and no link to another place to play.
+- **Frontend**: the CrazyGames page — CrazyGames' sign-in alone, its settings, the gameplay events, and no link to
+  another place to play. No ad, by choice.
 - **Backend**: `CompleteCrazyGamesSignIn` checks the SDK's token against CrazyGames' keys and links the account
-  (`auth.crazyGames.gameId`); arrivals are tagged `crazygames`; `ClaimAdRefill` fills the bank once per bank an hour
-  (the backend's [A rewarded ad fills the bank](../apps/backend/docs/ad-refill.md)).
+  (`auth.crazyGames.gameId`); arrivals are tagged `crazygames`.
 - **Deploy**: `CRAZYGAMES_ORIGIN` in `deploy/vps/env.public` is the second origin Caddy answers CORS for, with
   `X-Account-Session` allowed and exposed; `crazygames.clickplanet.lol` is in `auth.turnstile.hostnames`.
 

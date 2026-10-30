@@ -212,7 +212,7 @@ func refillServer(t *testing.T, change func(*clicks.Throttle), refills *bonuses.
 			ClickHandler:     click_handler.New(throttle_click.New(stubService{}, limiter, onePrice, buckets)),
 			GetBudgetHandler: get_budget_handler.New(get_budget_usecase.New(limiter, onePrice, buckets, thawed)),
 			UseRefillHandler: use_refill_handler.New(use_refill_usecase.New(
-				bonuses.NewCharges(refills, bonuses.TestRules), clicks.NewRefilling(limiter, buckets), onePrice)),
+				bonuses.NewCharges(refills, bonuses.TestRules), limiter, onePrice, buckets)),
 		},
 		connect.WithInterceptors(
 			errorNet(),

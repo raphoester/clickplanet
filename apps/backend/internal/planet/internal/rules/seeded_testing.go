@@ -10,7 +10,7 @@ import (
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 )
 
-// Seeded is the set the migrations keep as default: production's rules on 26 October 2026, and the sign-in and ad refills.
+// Seeded is the set the migrations keep as default: production's rules on 26 October 2026, and the sign-in refill.
 func Seeded() Snapshot {
 	d := durationpb.New
 	return Snapshot{
@@ -41,7 +41,6 @@ func Seeded() Snapshot {
 					LeaderBias: 1, MaxChargesPerHour: 12,
 				},
 				SignInRefill: true,
-				AdRefill:     &planetv1.AdRefillRules{Enabled: true, Every: d(time.Hour)},
 			},
 		},
 	}

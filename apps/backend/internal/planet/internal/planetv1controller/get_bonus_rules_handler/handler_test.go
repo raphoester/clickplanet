@@ -36,7 +36,6 @@ func TestTheRulesAreThoseInForce(t *testing.T) {
 	rules.Shield.Held = 12
 	rules.Shield.PerTile = 20
 	rules.SignInRefill = true
-	rules.AdRefill.Enabled = true
 	got := answered(t, handler)
 
 	assert.InDelta(t, 0.02, got.GetBlastRadius(), 1e-9)
@@ -46,7 +45,6 @@ func TestTheRulesAreThoseInForce(t *testing.T) {
 	assert.Equal(t, uint32(12), got.GetShields())
 	assert.Equal(t, uint32(20), got.GetTileShields())
 	assert.True(t, got.GetSignInRefill())
-	assert.True(t, got.GetAdRefill())
 	assert.Empty(t, got.GetTollSteps())
 }
 

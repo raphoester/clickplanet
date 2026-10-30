@@ -1,6 +1,5 @@
 import {useEffect, useMemo, useRef, useState} from 'react';
 import {
-    AdRefiller,
     AllegianceSource,
     BankFullError,
     Bomber,
@@ -125,8 +124,6 @@ import {useFlagMissionDone} from "../missions/useFlagMissionDone.ts";
 import {useClipNotice} from "../clips/useClipNotice.ts";
 import {CrazyGamesPage} from "../../backends/crazyGames.ts";
 import {useCrazyGames, useGameplay} from "../crazygames/useCrazyGames.ts";
-import {useAdRefill} from "../crazygames/useAdRefill.ts";
-import AdRefillModal from "../crazygames/AdRefillModal.tsx";
 import {MUTED_SOUND_SETTINGS} from "../../domain/soundSettings.ts";
 import "./Viewer.css"
 
@@ -163,7 +160,6 @@ export type ViewerProps = {
     chargesRefresher?: ChargesRefresher
     clips?: ClipsBackend & ClipsNameBackend
     crazyGames?: CrazyGamesPage
-    adRefiller?: AdRefiller
 }
 
 // Planet grants a mission's reward from a command, after the read that says it is paid.
@@ -338,14 +334,9 @@ export default function Viewer(props: ViewerProps) {
     })
 
     const signInRefill = rules?.signInRefill === true
-    const adRefill = useAdRefill(props.crazyGames?.ads, props.adRefiller, rules?.adRefill === true, crazyGames.onAdPlaying)
-    const [adAsked, setAdAsked] = useState(false)
-    const dry = clickBudget !== undefined && !clickBudget.frozen && !charges.refill
-    // The moment the bank runs dry: the site asks a guest to sign in, CrazyGames offers an ad to every player.
+    // CrazyGames forbids a sign-in that pops up or is the main call to action.
     const nudge = useSignInNudge(
-        props.crazyGames
-            ? dry && adRefill.state.kind === "ready"
-            : guest && clickBudget?.linkedMultiplier !== undefined && dry && !pitchOpen,
+        !props.crazyGames && guest && clickBudget?.linkedMultiplier !== undefined && !clickBudget.frozen && !charges.refill && !pitchOpen,
         refusals, quiz.state.phase !== 'idle')
     useSignInRefill(account.kind === 'ready' && account.guestLinked === true && signInRefill, charges.refill,
         () => void props.chargesRefresher?.refreshCharges().catch((e) => console.error("could not read the charges held", e)),
@@ -435,14 +426,7 @@ export default function Viewer(props: ViewerProps) {
                                 countryName={countryState.name}
                                 share={tilesCount > 0 ? held / tilesCount : undefined}
                                 toll={toll}
-                                onSignIn={openPitch}
-                                ad={props.crazyGames && {
-                                    state: adRefill.state,
-                                    onWatch: () => {
-                                        setAdAsked(true)
-                                        adRefill.watch(countryState.code)
-                                    },
-                                }}/>
+                                onSignIn={openPitch}/>
 
     const ready = status.state === 'ready'
 
@@ -569,15 +553,7 @@ export default function Viewer(props: ViewerProps) {
             multiplier={clickBudget.linkedMultiplier}
             onClose={() => setPitchOpen(false)}/>}
 
-        {props.crazyGames && (nudge.open || adAsked) && adRefill.state.kind !== "off" && <AdRefillModal
-            adRefill={adRefill}
-            countryId={countryState.code}
-            onClose={() => {
-                nudge.close()
-                setAdAsked(false)
-            }}/>}
-
-        {!props.crazyGames && nudge.open && guest && props.account && clickBudget?.linkedMultiplier && <SignInNudgeModal
+        {nudge.open && guest && props.account && clickBudget?.linkedMultiplier && <SignInNudgeModal
             state={account}
             store={props.account}
             multiplier={clickBudget.linkedMultiplier}

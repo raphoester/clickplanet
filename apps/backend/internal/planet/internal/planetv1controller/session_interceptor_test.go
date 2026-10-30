@@ -130,7 +130,6 @@ func TestSessionInterceptorWhenEnforcing(t *testing.T) {
 			planetv1connect.ClickServiceClaimBonusProcedure,
 			planetv1connect.ClickServiceDropBombProcedure,
 			planetv1connect.ClickServiceUseRefillProcedure,
-			planetv1connect.ClickServiceClaimAdRefillProcedure,
 			planetv1connect.ClickServiceOpenQuizProcedure,
 			planetv1connect.ClickServiceAnswerQuizProcedure,
 		} {
