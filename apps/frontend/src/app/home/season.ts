@@ -35,6 +35,6 @@ export function seasonShown(root: ParentNode): Shown<Season | undefined> {
     return {show, stop}
 }
 
-function write(root: ParentNode, field: string, text: string) {
+export function write(root: ParentNode, field: string, text: string) {
     for (const element of root.querySelectorAll(`[data-${field}]`)) element.textContent = text
 }

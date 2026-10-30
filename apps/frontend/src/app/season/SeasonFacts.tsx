@@ -11,7 +11,7 @@ export default function SeasonFacts() {
     </ul>
 }
 
-function Fact({art, name, text}: {art: ReactNode, name: string, text: string}) {
+export function Fact({art, name, text}: {art: ReactNode, name: string, text: string}) {
     return <li className="season-fact">
         {art}
         <span className="season-fact-body">
@@ -31,7 +31,7 @@ function GroundArt() {
     </span>
 }
 
-function TrophyArt() {
+export function TrophyArt() {
     return <span className="season-fact-art">
         <svg className="season-art" viewBox="0 0 48 48" aria-hidden="true">
             <path className="season-art-handle-ink" d="M33 10h6a4 4 0 0 1 0 8h-6M15 10H9a4 4 0 0 0 0 8h6"/>

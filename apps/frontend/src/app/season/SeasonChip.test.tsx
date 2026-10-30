@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {act, cleanup, fireEvent, render, screen} from "@testing-library/react"
+import {Finale} from "../../domain/battle.ts"
 import SeasonChip, {ChampionChip, SeasonDetails} from "./SeasonChip.tsx"
 import {TURN_MS} from "./useRotation.ts"
 import {STATUS_BOTTOM} from "../hud/StatusBar.tsx"
@@ -142,6 +143,37 @@ describe("SeasonChip", () => {
         expect(onToggle).toHaveBeenCalledTimes(2)
     })
 
+    describe("before the Final Battle", () => {
+        const startsAt = endsAt - 2 * HOUR
+        const finale: Finale = {roundId: "season-0/finale", startsAt, endsAt, times: 3, description: "A bonus box every minute.", live: false}
+        const nextBattle = {entryId: "", startsAt, endsAt, description: finale.description, times: 3, endsSeason: true, roundId: finale.roundId}
+        const chip = (open = false) => <SeasonChip season={season} dayEndsAt={dayEndsAt()} nextBattle={nextBattle} finale={finale}
+                                                   compact={false} open={open} onToggle={vi.fn()}/>
+
+        it("wears the battle's look in the two days before it, and paints its face", () => {
+            vi.useFakeTimers({now: startsAt - 3 * DAY})
+            const {container} = render(chip())
+            expect(container.querySelector(".season-chip--final")).toBeNull()
+
+            vi.setSystemTime(startsAt - 2 * DAY - SECOND)
+            act(() => vi.advanceTimersByTime(SECOND))
+            expect(container.querySelector(".season-chip--final")).not.toBeNull()
+            expect(container.querySelector(".season-chip-face--final")?.textContent).toBe("Final Battle in2d 00h 00m 00s")
+        })
+
+        it("opens on the Final Battle: when, how long, what it is worth, and the operator's words", () => {
+            vi.useFakeTimers({now: startsAt - DAY})
+            render(chip(true))
+
+            expect(screen.getByText("The Final Battle")).toBeDefined()
+            expect(screen.getByText("A bonus box every minute.")).toBeDefined()
+            expect(screen.getByText("2 hours of war")).toBeDefined()
+            expect(screen.getByText("Points ×3")).toBeDefined()
+            expect(screen.getByText("The countries holding the most ground when it ends score the points of 3 days.")).toBeDefined()
+            expect(screen.getByText("The last word")).toBeDefined()
+        })
+    })
+
     it("is gone once the season is over", () => {
         vi.useFakeTimers({now: endsAt})
         const {container} = render(<SeasonChip season={season} dayEndsAt={dayEndsAt()} compact={false} open={false} onToggle={vi.fn()}/>)
@@ -208,6 +240,17 @@ describe("SeasonDetails", () => {
         turn()
         expect(screen.getByRole("timer", {name: "Today ends in"}).textContent).toBe("21h 59m 54s")
         expect(screen.getByRole("timer", {name: "Season ends in"}).textContent).toBe("26d 23h 59m 54s")
+    })
+
+    it("tells the Final Battle to come, and nothing of it once it plays", () => {
+        vi.useFakeTimers({now: endsAt - DAY})
+        const finale: Finale = {roundId: "season-0/finale", startsAt: endsAt - 2 * HOUR, endsAt, times: 3, description: "", live: false}
+        const {rerender} = render(<SeasonDetails season={season} dayEndsAt={dayEndsAt()} finale={finale}/>)
+        expect(screen.getByText("The Final Battle")).toBeDefined()
+        expect(screen.getByText("Points ×3")).toBeDefined()
+
+        rerender(<SeasonDetails season={season} dayEndsAt={dayEndsAt()} finale={{...finale, live: true}}/>)
+        expect(screen.queryByText("The Final Battle")).toBeNull()
     })
 
     it("counts the season alone once its last day ended", () => {

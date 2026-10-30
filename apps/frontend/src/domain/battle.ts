@@ -33,6 +33,53 @@ export function nextBattleOf(battles: BattleToCome[], now: number): BattleToCome
     return battles.find((battle) => battle.startsAt > now)
 }
 
+export const FINALE_TEASED_STORAGE_KEY = "clickplanet-finale-teased"
+export const FINALE_NEAR_MS = 48 * 60 * 60_000
+
+export type Finale = {
+    roundId: string
+    startsAt: number
+    endsAt: number
+    times: number
+    description: string
+    live: boolean
+}
+
+// The schedule lists the season's finale until it starts, and the turn plays it until it ends.
+export function finaleOf(battles: BattleToCome[], turn: Turn | undefined, now: number): Finale | undefined {
+    if (turn?.kind === "battle" && turn.endsSeason && turn.endsAt !== undefined && turn.endsAt > now) {
+        const {roundId, endsAt, times, description} = turn
+        return {roundId, startsAt: turn.since ?? now, endsAt, times, description, live: true}
+    }
+    const listed = battles.find((battle) => battle.endsSeason && battle.endsAt > now)
+    if (!listed) return undefined
+    const {roundId, startsAt, endsAt, times, description} = listed
+    return {roundId, startsAt, endsAt, times, description, live: startsAt <= now}
+}
+
+export function finaleNear(finale: Finale | undefined, now: number): finale is Finale {
+    return finale !== undefined && !finale.live && finale.startsAt - now <= FINALE_NEAR_MS
+}
+
+// Once per browser and per finale, in the days before it starts.
+export function finaleTeaserDue(finale: Finale | undefined, seen: string | null, now: number): finale is Finale {
+    return finaleNear(finale, now) && finale.roundId !== seen
+}
+
+// "Sat 31 Oct · 21:00 – 23:00", in the player's time.
+export function finaleWhenLine(finale: Finale, timeZone?: string): string {
+    const start = partsOf(finale.startsAt, timeZone)
+    const end = partsOf(finale.endsAt, timeZone)
+    return `${start("weekday")} ${start("day")} ${start("month")} · ${start("hour")}:${start("minute")} – ${end("hour")}:${end("minute")}`
+}
+
+// "2 hours", "1 hour", or "90 minutes" when it is not whole hours.
+export function finaleLengthLine(finale: Finale): string {
+    const minutes = Math.round((finale.endsAt - finale.startsAt) / 60_000)
+    if (minutes % 60 !== 0) return `${minutes} minutes`
+    return minutes === 60 ? "1 hour" : `${minutes / 60} hours`
+}
+
 // A season's finale has no entry: its round names it.
 export function battleKeyOf(battle: Battle): string {
     return battle.entryId || battle.roundId

@@ -7,6 +7,11 @@ import {
     battleKeyOf,
     battleLeft,
     battleOf,
+    finaleLengthLine,
+    finaleNear,
+    finaleOf,
+    finaleTeaserDue,
+    finaleWhenLine,
     nextBattleOf,
 } from "./battle.ts"
 
@@ -42,6 +47,64 @@ describe("nextBattleOf", () => {
     it("is nothing with no battle to come", () => {
         expect(nextBattleOf([], now)).toBeUndefined()
         expect(nextBattleOf([soon], later.startsAt)).toBeUndefined()
+    })
+})
+
+describe("finaleOf", () => {
+    const plain: Turn = {kind: "plain", description: "", entryId: "", roundId: "", times: 0, endsSeason: false}
+    const finale = {entryId: "", startsAt: now + HOUR, endsAt: now + 3 * HOUR, description: "Triple points.", times: 3, endsSeason: true, roundId: "season-0/finale"}
+    const battleBefore = {...finale, entryId: "before", startsAt: now + 10 * MINUTE, endsAt: now + 40 * MINUTE, endsSeason: false, roundId: "before"}
+
+    it("is the season's finale to come, never another battle", () => {
+        expect(finaleOf([battleBefore, finale], plain, now)).toEqual({
+            roundId: "season-0/finale", startsAt: finale.startsAt, endsAt: finale.endsAt, times: 3, description: "Triple points.", live: false,
+        })
+        expect(finaleOf([battleBefore], plain, now)).toBeUndefined()
+    })
+
+    it("is live from its start, before its turn arrives", () => {
+        expect(finaleOf([finale], plain, finale.startsAt)?.live).toBe(true)
+    })
+
+    it("is the turn while the finale plays", () => {
+        const playing: Turn = {...turn, since: finale.startsAt, endsAt: finale.endsAt, entryId: "", roundId: finale.roundId, times: 5, endsSeason: true}
+        expect(finaleOf([], playing, now + 2 * HOUR)).toEqual({
+            roundId: "season-0/finale", startsAt: finale.startsAt, endsAt: finale.endsAt, times: 5, description: "Triple points.", live: true,
+        })
+        expect(finaleOf([], turn, now)).toBeUndefined()
+    })
+
+    it("is nothing once it ended", () => {
+        expect(finaleOf([finale], plain, finale.endsAt)).toBeUndefined()
+    })
+
+    it("says when it plays, in the player's time", () => {
+        const found = finaleOf([finale], plain, now)!
+        expect(finaleWhenLine(found, "UTC")).toBe("Sat 31 Oct · 22:30 – 00:30")
+        expect(finaleWhenLine(found, "Europe/Sofia")).toBe("Sun 1 Nov · 00:30 – 02:30")
+    })
+
+    it("is near in the two days before its start, and no longer once it plays", () => {
+        const at = (startsAt: number) => finaleOf([{...finale, startsAt, endsAt: startsAt + 2 * HOUR}], plain, now)
+        expect(finaleNear(at(now + 48 * HOUR), now)).toBe(true)
+        expect(finaleNear(at(now + 48 * HOUR + SECOND), now)).toBe(false)
+        expect(finaleNear(at(now), now)).toBe(false)
+        expect(finaleNear(undefined, now)).toBe(false)
+    })
+
+    it("is teased once per browser, while it is near", () => {
+        const found = finaleOf([finale], plain, now)
+        expect(finaleTeaserDue(found, null, now)).toBe(true)
+        expect(finaleTeaserDue(found, "season-0/day-23", now)).toBe(true)
+        expect(finaleTeaserDue(found, "season-0/finale", now)).toBe(false)
+        expect(finaleTeaserDue(found, null, now - 48 * HOUR)).toBe(false)
+    })
+
+    it("says how long it lasts", () => {
+        const lasting = (minutes: number) => finaleLengthLine({...finaleOf([finale], plain, now)!, endsAt: finale.startsAt + minutes * MINUTE})
+        expect(lasting(120)).toBe("2 hours")
+        expect(lasting(60)).toBe("1 hour")
+        expect(lasting(90)).toBe("90 minutes")
     })
 })
 

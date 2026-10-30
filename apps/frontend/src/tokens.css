@@ -121,7 +121,7 @@
     --space-6: 32px;
 }
 
-:root[data-mood="battle"] {
+[data-mood="battle"] {
     --panel: #2A2022;
     --panel-raised: #3A2D2F;
     --panel-sunk: #140C0D;

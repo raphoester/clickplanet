@@ -9,6 +9,7 @@ const closed = {moment: "day", season: 0, number: 5, endedAt: 3} as ClosedRound
 
 const unlock: Announcement = {kind: "title", title}
 const start: Announcement = {kind: "battle", battle}
+const teaser: Announcement = {kind: "finale", finale: {roundId: "season-0/finale", startsAt: 5, endsAt: 6, times: 3, description: "", live: false}}
 const clip: Announcement = {kind: "clip", appearance: {postId: "post-1", title: "FRANCE VS TURKEY", scheduledAt: 4, links: []}}
 const flagMission: Announcement = {
     kind: "flagMission",
@@ -23,6 +24,7 @@ describe("the announcements", () => {
     it("are keyed by what they announce", () => {
         expect(announcementKeyOf(unlock)).toBe("title:warlord")
         expect(announcementKeyOf(start)).toBe("battle:entry-1")
+        expect(announcementKeyOf(teaser)).toBe("finale:season-0/finale")
         expect(announcementKeyOf(clip)).toBe("clip:post-1")
         expect(announcementKeyOf(flagMission)).toBe("flagMission:8b4a8dc8")
         expect(announcementKeyOf(round)).toBe("round:0:5:3")

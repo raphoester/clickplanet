@@ -1,4 +1,5 @@
 import {nextBattleShown} from "./app/home/battle.ts"
+import {finaleShown} from "./app/home/finale.ts"
 import {seasonShown} from "./app/home/season.ts"
 import {carryQuery} from "./app/home/playLinks.ts"
 import {battleCommands, FakeTurnBackend} from "./backends/fakeTurnBackend.ts"
@@ -15,7 +16,16 @@ carryQuery(document, location.search)
 
 const season = seasonShown(document)
 const battle = nextBattleShown(document)
-turns.follow({onTurn: () => {}, onBattles: battle.show, onSeasons: ({current}) => season.show(current), onDebrief: () => {}})
+const finale = finaleShown(document)
+turns.follow({
+    onTurn: finale.showTurn,
+    onBattles: (battles) => {
+        battle.show(battles)
+        finale.showBattles(battles)
+    },
+    onSeasons: ({current}) => season.show(current),
+    onDebrief: () => {},
+})
 
 function fakeTurns(): FakeTurnBackend {
     const turns = new FakeTurnBackend()
