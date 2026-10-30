@@ -65,6 +65,47 @@ func (p *FakeProvider) Exchange(_ context.Context, code string, flow *Flow) (*ac
 	return &claim, nil
 }
 
+// A token is good as many times as it is shown, as a real one is until it expires.
+type FakeTokenProvider struct {
+	name string
+
+	mu       sync.Mutex
+	tokens   map[string]accounts.Claim
+	failWith error
+}
+
+var _ TokenProvider = (*FakeTokenProvider)(nil)
+
+func NewFakeTokenProvider(name string) *FakeTokenProvider {
+	return &FakeTokenProvider{name: name, tokens: map[string]accounts.Claim{}}
+}
+
+func (p *FakeTokenProvider) Sign(token string, claim accounts.Claim) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.tokens[token] = claim
+}
+
+func (p *FakeTokenProvider) FailWith(err error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.failWith = err
+}
+
+func (p *FakeTokenProvider) Claim(_ context.Context, token string) (*accounts.Claim, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if p.failWith != nil {
+		return nil, p.failWith
+	}
+	claim, signed := p.tokens[token]
+	if !signed {
+		return nil, fmt.Errorf("%w: %s signed no token %q", ErrProviderRefused, p.name, token)
+	}
+	return &claim, nil
+}
+
 type SequentialSecrets struct {
 	mu   sync.Mutex
 	next int

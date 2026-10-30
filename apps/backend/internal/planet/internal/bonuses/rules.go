@@ -28,6 +28,8 @@ type Rules struct {
 	Quiz QuizRules
 
 	SignInRefill bool
+
+	AdRefill AdRefillRules
 }
 
 // A tile keeps its shields in a byte.
@@ -56,6 +58,7 @@ func (r Rules) Validate() error {
 		rules.NotNegative("welcome.within", r.Welcome.Within),
 		rules.NotNegative("welcome.boxAfter", r.Welcome.BoxAfter),
 		r.Quiz.validate(),
+		rules.Positive("adRefill.every", r.AdRefill.Every),
 	)
 }
 
@@ -124,6 +127,12 @@ type WelcomeRules struct {
 	Within time.Duration
 
 	BoxAfter time.Duration
+}
+
+type AdRefillRules struct {
+	Enabled bool
+
+	Every time.Duration
 }
 
 type QuizRules struct {

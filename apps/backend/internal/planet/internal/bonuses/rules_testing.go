@@ -20,5 +20,6 @@ func TestRules() Rules {
 			MinInterval: 4 * time.Minute, MaxInterval: 8 * time.Minute, MissRetry: 2 * time.Minute,
 			OfferTTL: 25 * time.Second, AnswerWindow: 8 * time.Second, LeaderBias: 1, MaxChargesPerHour: 12,
 		},
+		AdRefill: AdRefillRules{Every: time.Hour},
 	}
 }

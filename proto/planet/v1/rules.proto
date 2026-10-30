@@ -11,8 +11,8 @@ message Rules {
   ClickRules clicks = 1;
   TollRules toll = 2;
   BonusRules bonuses = 3;
-  // The map takes no play: Click, DropBomb, PlaceShield, UseRefill, ClaimBonus, OpenQuiz and AnswerQuiz are refused. The
-  // map still loads and streams.
+  // The map takes no play: Click, DropBomb, PlaceShield, UseRefill, ClaimAdRefill, ClaimBonus, OpenQuiz and AnswerQuiz
+  // are refused. The map still loads and streams.
   bool frozen = 4;
 }
 
@@ -54,6 +54,13 @@ message BonusRules {
   QuizRules quiz = 11;
   // A guest's first sign-in earns a refill, once per account.
   bool sign_in_refill = 12;
+  AdRefillRules ad_refill = 13;
+}
+
+// A rewarded ad fills the bank, once per bank in each span of `every`: an account's, and a guest's network's too.
+message AdRefillRules {
+  bool enabled = 1;
+  google.protobuf.Duration every = 2;
 }
 
 message BoxPace {

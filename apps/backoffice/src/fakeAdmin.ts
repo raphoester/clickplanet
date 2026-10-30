@@ -282,6 +282,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
                 answerWindow: "8s", leaderBias: 1, maxChargesPerHour: 12,
             },
             signInRefill: true,
+            adRefill: {enabled: true, every: "3600s"},
         },
     })})], playing: "default"})
     roster = [

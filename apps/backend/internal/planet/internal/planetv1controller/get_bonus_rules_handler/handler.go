@@ -42,6 +42,7 @@ func (h GetBonusRulesHandler) GetBonusRules(
 		Shields:           uint32(rules.Shield.Held),
 		TileShields:       uint32(rules.Shield.PerTile),
 		SignInRefill:      rules.SignInRefill,
+		AdRefill:          rules.AdRefill.Enabled,
 	}), nil
 }
 

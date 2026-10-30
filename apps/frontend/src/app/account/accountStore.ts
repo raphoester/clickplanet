@@ -1,6 +1,7 @@
 import {
     AccountBackend,
     AuthFailure,
+    ButtonProvider,
     failureOf,
     Intent,
     Me,
@@ -20,6 +21,7 @@ import {
     TitleDashboard,
 } from "../../backends/player.ts"
 import {SessionProvider} from "../../backends/session.ts"
+import {CrazyGamesUser} from "../../backends/crazyGames.ts"
 
 export type AccountAction = "signIn" | "link" | "sendCode" | "checkCode" | "signOut" | "signOutEverywhere" | "deleteAccount"
 
@@ -52,12 +54,15 @@ type Ready = Extract<AccountState, {kind: "ready"}>
 export type AccountStoreOptions = {
     navigate: (url: string) => void
     remember: (provider: OAuthProvider, intent: Intent) => void
+    // On CrazyGames its account is the only way in, and the page plays as whoever CrazyGames says is signed in.
+    crazyGames?: CrazyGamesUser
 }
 
 // Every change of account must invalidate the click token, which names the old account.
 export class AccountStore {
     private current: AccountState = {kind: "loading"}
     private loading?: Promise<void>
+    private following?: Promise<void>
     private generation = 0
     private readonly listeners = new Set<() => void>()
 
@@ -98,8 +103,8 @@ export class AccountStore {
         return this.loading
     }
 
-    public signIn(provider: OAuthProvider): Promise<void> {
-        return this.go("signIn", provider, "signIn")
+    public signIn(provider: ButtonProvider): Promise<void> {
+        return provider === "crazygames" ? this.promptCrazyGames() : this.go("signIn", provider, "signIn")
     }
 
     public link(provider: OAuthProvider): Promise<void> {
@@ -181,6 +186,49 @@ export class AccountStore {
 
         const ready = this.current
         if (outcome === "linked" && ready.kind === "ready" && ready.me.linked.length === 1) this.set({...ready, guestLinked: true})
+    }
+
+    // At every start, and at every sign-in CrazyGames tells: a shared device, or a player signed out there, changes who plays.
+    public followCrazyGames(): Promise<void> {
+        const crazyGames = this.options.crazyGames
+        if (!crazyGames) return Promise.resolve()
+        this.following ??= this.signInAs(crazyGames).finally(() => {
+            this.following = undefined
+        })
+        return this.following
+    }
+
+    private async signInAs(crazyGames: CrazyGamesUser): Promise<void> {
+        const token = await crazyGames.token()
+        if (this.current.kind !== "ready") await this.load()
+        const ready = this.current
+        if (ready.kind !== "ready") return
+
+        if (token === undefined) {
+            if (ready.me.linked.includes("crazygames")) await this.signOut()
+            return
+        }
+        if (!ready.offered.includes("crazygames") || !this.begin("signIn")) return
+
+        let outcome: SignInOutcome
+        try {
+            outcome = await this.backend.completeCrazyGamesSignIn(token)
+        } catch (e) {
+            this.refused(ready, "crazygames", failureOf(e))
+            return
+        }
+        await this.signedIn(outcome)
+    }
+
+    private async promptCrazyGames(): Promise<void> {
+        const crazyGames = this.options.crazyGames
+        if (!crazyGames) return
+        const ready = this.begin("signIn")
+        if (!ready) return
+
+        const signedIn = await crazyGames.prompt()
+        this.settle(ready.offered, ready.me, named(ready))
+        if (signedIn) await this.followCrazyGames()
     }
 
     public signOut(): Promise<void> {
@@ -291,7 +339,7 @@ export class AccountStore {
             failure?: AuthFailure, accountId?: string, username?: string, renamableAt?: number, color?: NameColor, code?: PendingCode
         } = {},
     ) {
-        const ordered = PROVIDERS.filter((p) => offered.includes(p))
+        const ordered = PROVIDERS.filter((p) => offered.includes(p) && (p === "crazygames") === (this.options.crazyGames !== undefined))
         if (ordered.length === 0 && me.linked.length === 0) {
             this.set({kind: "hidden"})
             return

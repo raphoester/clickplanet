@@ -21,6 +21,7 @@ import {PlayerInfoBackend} from "../backends/player.ts";
 import {ClipsNameBackend} from "../backends/clips.ts";
 import {shareStats} from "../domain/shareCard.ts";
 import SharePlace, {SharePlaceProps} from "./share/SharePlace.tsx";
+import {ON_CRAZYGAMES} from "../platform.ts";
 import {youLabel} from "./youLabel.ts"
 import BoardViews, {BoardHeading, BoardStandings} from "./standings/BoardViews.tsx"
 import Sheet from "./hud/Sheet.tsx"
@@ -73,7 +74,7 @@ export default function Menu(props: MenuProps) {
         {id: "board", label: "Board"},
         ...props.missions ? [{id: "missions" as const, label: "Missions", news: props.missionsNews}] : [],
         ...account.kind === "ready" ? [{id: "you" as const, label: youLabel(account.me.linked.length > 0)}] : [],
-        {id: "share", label: "Share"},
+        ...ON_CRAZYGAMES ? [] : [{id: "share" as const, label: "Share"}],
         {id: "settings", label: "Settings"},
     ]
     const shown = tabs.some((t) => t.id === tab) ? tab : "board"

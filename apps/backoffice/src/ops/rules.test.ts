@@ -42,7 +42,7 @@ describe("the rules", () => {
     })
 
     it("edits every value of a set", () => {
-        const edited = new Set([...GROUPS.flatMap(group => group.fields.map(field => field.path)), "bonuses.quiz.enabled", "bonuses.signInRefill", "toll.steps", "frozen"])
+        const edited = new Set([...GROUPS.flatMap(group => group.fields.map(field => field.path)), "bonuses.quiz.enabled", "bonuses.signInRefill", "bonuses.adRefill.enabled", "toll.steps", "frozen"])
 
         const values = leaves(played().rules!.toJson({emitDefaultValues: true}))
 
@@ -83,6 +83,21 @@ describe("the rules", () => {
         expect(before.signInRefill).toBe(true)
         expect(ruleSetOf(after).rules?.bonuses?.signInRefill).toBe(false)
         expect(changesOf(before, after)).toEqual([{label: "Refill at first sign-in", before: "yes", after: "no"}])
+    })
+
+    it("sends the refill for a rewarded ad switched off and its span, and says both changed", () => {
+        const before = draftOf(played())
+        const after = {...before, adRefill: false, values: {...before.values, "bonuses.adRefill.every": "1800"}}
+
+        const sent = ruleSetOf(after).rules?.bonuses?.adRefill
+
+        expect(before.adRefill).toBe(true)
+        expect(sent?.enabled).toBe(false)
+        expect(sent?.every?.seconds).toBe(1800n)
+        expect(changesOf(before, after)).toEqual([
+            {label: "Refill for a rewarded ad", before: "yes", after: "no"},
+            {label: "Rewarded ad · Once every (s)", before: "1 h", after: "30 min"},
+        ])
     })
 
     it("freezes a set, and says so in the list", () => {

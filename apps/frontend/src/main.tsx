@@ -39,6 +39,11 @@ import {FakeAccountBackend} from "./backends/fakeAccountBackend.ts"
 import {SHARE_FLAG_PARAM, sharedCountry, withoutSharedFlag} from "./domain/shareCard.ts"
 import {firstLanding, landingOf, SOURCE_TAG_PARAM, withoutLanding} from "./domain/landing.ts"
 import {localLandingStore} from "./backends/landingStore.ts"
+import {ON_CRAZYGAMES} from "./platform.ts"
+import {connectCrazyGames} from "./backends/crazyGamesSdk.ts"
+import {localAccountCarrier} from "./backends/accountCarrier.ts"
+import {crazyGamesLanding} from "./domain/crazyGames.ts"
+import {CrazyGamesPage} from "./backends/crazyGames.ts"
 
 // Strip the OAuth code and state from the URL before anything else can read or leak them.
 const callback = callbackOf(new URL(window.location.href))
@@ -46,7 +51,9 @@ if (callback) window.history.replaceState(null, "", CALLBACK_PATH)
 
 const page = new URL(window.location.href)
 const shared = sharedCountry(page)
-const landing = firstLanding(localLandingStore(), landingOf(page, document.referrer))
+const crazyGames = ON_CRAZYGAMES ? connectCrazyGames() : undefined
+const seen = landingOf(page, document.referrer)
+const landing = crazyGames ? crazyGamesLanding(seen) : firstLanding(localLandingStore(), seen)
 if (page.searchParams.has(SHARE_FLAG_PARAM) || page.searchParams.has(SOURCE_TAG_PARAM)) {
     window.history.replaceState(null, "", withoutLanding(withoutSharedFlag(page)))
 }
@@ -61,7 +68,7 @@ const config = {
 }
 
 const sitekey = import.meta.env.VITE_TURNSTILE_SITEKEY
-const authClient = newAuthServiceClient(config)
+const authClient = newAuthServiceClient(config, crazyGames && localAccountCarrier())
 const attest = sitekey ? turnstileAttester(sitekey, "session") : async () => ""
 const session: SessionProvider = sitekey
     ? new SessionClient(authClient, attest, {store: localTokenStore(), landing})
@@ -71,6 +78,12 @@ const root = createRoot(document.getElementById('root')!)
 
 // Planet hears player's PlayerCreated over Redis, and player's outbox sends once a second.
 const FAKE_GRANT_LANDS_MS = 1_200
+
+function followCrazyGames(page: CrazyGamesPage | undefined, account: AccountStore) {
+    if (!page) return
+    page.user.listenForSignIn(() => void account.followCrazyGames())
+    void account.followCrazyGames()
+}
 
 if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     const borders = loadBorders(BORDERS_URL)
@@ -83,7 +96,9 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     const account = new AccountStore(fakeAccount, fakeAccount, new NoSession(), {
         navigate: (url) => window.location.assign(url),
         remember: rememberSignIn,
+        crazyGames: crazyGames?.user,
     })
+    followCrazyGames(crazyGames, account)
     const fakeClips = new FakeClipsBackend()
     const fakeMissions = new FakeMissionsBackend((kind) => {
         if (kind === "bomb") fake.grantBomb()
@@ -166,7 +181,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         },
         offerSignIn: () => {
             fakeAccount.offerSignIn()
-            void account.load()
+            void account.load().then(() => account.followCrazyGames())
             return "a guest is offered to sign in: run out of clicks, then signIn() finishes a sign-in"
         },
         signIn: (name = "Nova") => {
@@ -222,6 +237,8 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     chargesRefresher={fake}
                     account={account}
                     clips={fakeClips}
+                    crazyGames={crazyGames}
+                    adRefiller={fake}
                 />
             </SignInGate>
         </StrictMode>,
@@ -238,7 +255,9 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     const account = new AccountStore(new ConnectAccountBackend(authClient, attest, landing), player, session, {
         navigate: (url) => window.location.assign(url),
         remember: rememberSignIn,
+        crazyGames: crazyGames?.user,
     })
+    followCrazyGames(crazyGames, account)
 
     root.render(
         <StrictMode>
@@ -268,6 +287,8 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     missions={missions}
                     chargesRefresher={backend}
                     clips={clips}
+                    crazyGames={crazyGames}
+                    adRefiller={backend}
                 />
             </SignInGate>
         </StrictMode>,

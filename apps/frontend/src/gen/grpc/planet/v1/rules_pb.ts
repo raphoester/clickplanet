@@ -30,8 +30,8 @@ export class Rules extends Message<Rules> {
   bonuses?: BonusRules;
 
   /**
-   * The map takes no play: Click, DropBomb, PlaceShield, UseRefill, ClaimBonus, OpenQuiz and AnswerQuiz are refused. The
-   * map still loads and streams.
+   * The map takes no play: Click, DropBomb, PlaceShield, UseRefill, ClaimAdRefill, ClaimBonus, OpenQuiz and AnswerQuiz
+   * are refused. The map still loads and streams.
    *
    * @generated from field: bool frozen = 4;
    */
@@ -268,6 +268,11 @@ export class BonusRules extends Message<BonusRules> {
    */
   signInRefill = false;
 
+  /**
+   * @generated from field: planet.v1.AdRefillRules ad_refill = 13;
+   */
+  adRefill?: AdRefillRules;
+
   constructor(data?: PartialMessage<BonusRules>) {
     super();
     proto3.util.initPartial(data, this);
@@ -288,6 +293,7 @@ export class BonusRules extends Message<BonusRules> {
     { no: 10, name: "welcome", kind: "message", T: WelcomeRules },
     { no: 11, name: "quiz", kind: "message", T: QuizRules },
     { no: 12, name: "sign_in_refill", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 13, name: "ad_refill", kind: "message", T: AdRefillRules },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BonusRules {
@@ -304,6 +310,51 @@ export class BonusRules extends Message<BonusRules> {
 
   static equals(a: BonusRules | PlainMessage<BonusRules> | undefined, b: BonusRules | PlainMessage<BonusRules> | undefined): boolean {
     return proto3.util.equals(BonusRules, a, b);
+  }
+}
+
+/**
+ * A rewarded ad fills the bank, once per bank in each span of `every`: an account's, and a guest's network's too.
+ *
+ * @generated from message planet.v1.AdRefillRules
+ */
+export class AdRefillRules extends Message<AdRefillRules> {
+  /**
+   * @generated from field: bool enabled = 1;
+   */
+  enabled = false;
+
+  /**
+   * @generated from field: google.protobuf.Duration every = 2;
+   */
+  every?: Duration;
+
+  constructor(data?: PartialMessage<AdRefillRules>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.AdRefillRules";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "enabled", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 2, name: "every", kind: "message", T: Duration },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AdRefillRules {
+    return new AdRefillRules().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AdRefillRules {
+    return new AdRefillRules().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AdRefillRules {
+    return new AdRefillRules().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: AdRefillRules | PlainMessage<AdRefillRules> | undefined, b: AdRefillRules | PlainMessage<AdRefillRules> | undefined): boolean {
+    return proto3.util.equals(AdRefillRules, a, b);
   }
 }
 

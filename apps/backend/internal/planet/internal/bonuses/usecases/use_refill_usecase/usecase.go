@@ -3,28 +3,22 @@ package use_refill_usecase
 import (
 	"context"
 	"errors"
-	"math"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 )
 
-var (
-	ErrNoRefill = errors.New("no refill to use")
-
-	ErrBankFull = errors.New("the click bank is already full")
-)
+var ErrNoRefill = errors.New("no refill to use")
 
 type Refills interface {
 	Spend(ctx context.Context, holder bonuses.Holder, after func(bonuses.Held) (bonuses.Held, bool)) error
 	Held(ctx context.Context, holder bonuses.Holder) (bonuses.Held, error)
 }
 
-type Bank interface {
-	Peek(key cpratelimit.Key) cpratelimit.State
-	Fill(key cpratelimit.Key) (bool, cpratelimit.State)
-	Add(key cpratelimit.Key, n float64)
+type Refilling interface {
+	Full(payer clicks.Payer) bool
+	Refill(payer clicks.Payer)
+	Budget(payer clicks.Payer, price clicks.Price) clicks.Budget
 }
 
 type Pricer interface {
@@ -40,15 +34,14 @@ type Out struct {
 	Held   bonuses.Held
 }
 
-func New(refills Refills, bank Bank, pricer Pricer, buckets clicks.Buckets) *UseCase {
-	return &UseCase{refills: refills, bank: bank, pricer: pricer, buckets: buckets}
+func New(refills Refills, refilling Refilling, pricer Pricer) *UseCase {
+	return &UseCase{refills: refills, refilling: refilling, pricer: pricer}
 }
 
 type UseCase struct {
-	refills Refills
-	bank    Bank
-	pricer  Pricer
-	buckets clicks.Buckets
+	refills   Refills
+	refilling Refilling
+	pricer    Pricer
 }
 
 func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
@@ -58,10 +51,8 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 		return Out{}, ErrNoRefill
 	}
 
-	bank, ceiling := u.buckets.Bank(payer), u.buckets.Ceiling(payer)
-	lack := u.lack(bank, ceiling)
-	if lack <= 0 {
-		return Out{}, ErrBankFull
+	if u.refilling.Full(payer) {
+		return Out{}, clicks.ErrBankFull
 	}
 
 	if err := u.refills.Spend(ctx, holder, bonuses.Held.AfterRefill); err != nil {
@@ -70,38 +61,14 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 		}
 		return Out{}, err
 	}
-	for _, key := range bank {
-		_, _ = u.bank.Fill(key)
-	}
-	for _, key := range ceiling {
-		u.bank.Add(key, lack)
-	}
+	u.refilling.Refill(payer)
 
-	price := u.pricer.Price(in.CountryID)
-	keys := u.buckets.Keys(payer, price)
-	states := make([]cpratelimit.State, len(keys))
-	for i, key := range keys {
-		states[i] = u.bank.Peek(key)
-	}
+	budget := u.refilling.Budget(payer, u.pricer.Price(in.CountryID))
 
 	held, err := u.refills.Held(ctx, holder)
 	if err != nil {
 		return Out{}, err
 	}
 
-	return Out{Budget: u.buckets.BudgetOf(payer, states, price), Held: held}, nil
-}
-
-// lack is how far what the payer can spend is from a full bank: the size of its own, less the emptiest bucket it spends from.
-func (u *UseCase) lack(bank, ceiling []cpratelimit.Key) float64 {
-	size, spendable := math.Inf(1), math.Inf(1)
-	for _, key := range bank {
-		state := u.bank.Peek(key)
-		size, spendable = min(size, float64(state.Capacity)), min(spendable, state.Tokens)
-	}
-	for _, key := range ceiling {
-		spendable = min(spendable, u.bank.Peek(key).Tokens)
-	}
-
-	return size - spendable
+	return Out{Budget: budget, Held: held}, nil
 }

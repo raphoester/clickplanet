@@ -19,3 +19,5 @@ an account. The backend decides what they mean: see the backend's [Arrivals](../
 - **`?s=` is taken out of the address bar** with `?f=` (`withoutLanding`, `withoutSharedFlag`): left there, a
   copied address would make a friend a YouTube arrival.
 - **The picture's link has no tag** (`shareLabel`): see [Sharing the globe](sharing.md).
+- **The CrazyGames page tags every landing `cg`** (`crazyGamesLanding`) and keeps none: its link is not the
+  player's to change, and its storage is its own. See [CrazyGames](crazygames.md).

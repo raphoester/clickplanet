@@ -1,5 +1,6 @@
 import {DISCORD_INVITE, INSTAGRAM_PROFILE, TIKTOK_PROFILE, YOUTUBE_CHANNEL} from "../links.ts"
 import {DiscordIcon, InstagramIcon, TikTokIcon, YouTubeIcon} from "./components/icons.tsx"
+import {ON_CRAZYGAMES} from "../platform.ts"
 import "./About.css"
 
 const FOLLOW = [
@@ -34,15 +35,15 @@ export default function About() {
                      className="about-photo"/>
             </div>
             <h3>Raphaël Oester</h3>
-            <p className="center-align">Freelance developer, open to new opportunities</p>
-            <div className="about-social">
+            {!ON_CRAZYGAMES && <p className="center-align">Freelance developer, open to new opportunities</p>}
+            {!ON_CRAZYGAMES && <div className="about-social">
                 <a className="button button-mini" target="_blank" rel="noopener noreferrer" href="https://www.linkedin.com/in/raphael-oester/"><b>in</b></a>
                 <a className="button button-mini" target="_blank" rel="noopener noreferrer" href="https://x.com/raphael_oester"><b>X</b></a>
                 <a className="button button-mini" target="_blank" rel="noopener noreferrer" href="https://github.com/raphoester"><b>GitHub</b></a>
-            </div>
+            </div>}
         </div>
         <p className="about-legal">
-            <a href="/#home">Home page</a>
+            {!ON_CRAZYGAMES && <a href="/#home">Home page</a>}
             <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy policy</a>
             <a href="/terms" target="_blank" rel="noopener noreferrer">Terms of service</a>
         </p>

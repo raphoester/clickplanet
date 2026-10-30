@@ -576,8 +576,8 @@ func (x *ClickResponse) GetBudget() *ClickBudget {
 	return nil
 }
 
-// The detail of the FailedPrecondition that Click, DropBomb, PlaceShield, UseRefill, ClaimBonus, OpenQuiz and AnswerQuiz
-// answer while the rules in force freeze the map.
+// The detail of the FailedPrecondition that Click, DropBomb, PlaceShield, UseRefill, ClaimAdRefill, ClaimBonus, OpenQuiz
+// and AnswerQuiz answer while the rules in force freeze the map.
 type FrozenRefusal struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -2404,7 +2404,9 @@ type GetBonusRulesResponse struct {
 	Shields     uint32      `protobuf:"varint,7,opt,name=shields,proto3" json:"shields,omitempty"`
 	TileShields uint32      `protobuf:"varint,8,opt,name=tile_shields,json=tileShields,proto3" json:"tile_shields,omitempty"`
 	// A guest's first sign-in earns a refill.
-	SignInRefill  bool `protobuf:"varint,9,opt,name=sign_in_refill,json=signInRefill,proto3" json:"sign_in_refill,omitempty"`
+	SignInRefill bool `protobuf:"varint,9,opt,name=sign_in_refill,json=signInRefill,proto3" json:"sign_in_refill,omitempty"`
+	// A rewarded ad fills the bank: ClaimAdRefill.
+	AdRefill      bool `protobuf:"varint,10,opt,name=ad_refill,json=adRefill,proto3" json:"ad_refill,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2491,6 +2493,13 @@ func (x *GetBonusRulesResponse) GetTileShields() uint32 {
 func (x *GetBonusRulesResponse) GetSignInRefill() bool {
 	if x != nil {
 		return x.SignInRefill
+	}
+	return false
+}
+
+func (x *GetBonusRulesResponse) GetAdRefill() bool {
+	if x != nil {
+		return x.AdRefill
 	}
 	return false
 }
@@ -3183,6 +3192,220 @@ func (x *UseRefillResponse) GetCharges() *ChargesHeld {
 	return nil
 }
 
+type ClaimAdRefillRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CountryId     string                 `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ClaimAdRefillRequest) Reset() {
+	*x = ClaimAdRefillRequest{}
+	mi := &file_planet_v1_planet_proto_msgTypes[54]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ClaimAdRefillRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ClaimAdRefillRequest) ProtoMessage() {}
+
+func (x *ClaimAdRefillRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_planet_proto_msgTypes[54]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ClaimAdRefillRequest.ProtoReflect.Descriptor instead.
+func (*ClaimAdRefillRequest) Descriptor() ([]byte, []int) {
+	return file_planet_v1_planet_proto_rawDescGZIP(), []int{54}
+}
+
+func (x *ClaimAdRefillRequest) GetCountryId() string {
+	if x != nil {
+		return x.CountryId
+	}
+	return ""
+}
+
+type ClaimAdRefillResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Budget        *ClickBudget           `protobuf:"bytes,1,opt,name=budget,proto3" json:"budget,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ClaimAdRefillResponse) Reset() {
+	*x = ClaimAdRefillResponse{}
+	mi := &file_planet_v1_planet_proto_msgTypes[55]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ClaimAdRefillResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ClaimAdRefillResponse) ProtoMessage() {}
+
+func (x *ClaimAdRefillResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_planet_proto_msgTypes[55]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ClaimAdRefillResponse.ProtoReflect.Descriptor instead.
+func (*ClaimAdRefillResponse) Descriptor() ([]byte, []int) {
+	return file_planet_v1_planet_proto_rawDescGZIP(), []int{55}
+}
+
+func (x *ClaimAdRefillResponse) GetBudget() *ClickBudget {
+	if x != nil {
+		return x.Budget
+	}
+	return nil
+}
+
+type GetAdRefillRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAdRefillRequest) Reset() {
+	*x = GetAdRefillRequest{}
+	mi := &file_planet_v1_planet_proto_msgTypes[56]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAdRefillRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAdRefillRequest) ProtoMessage() {}
+
+func (x *GetAdRefillRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_planet_proto_msgTypes[56]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAdRefillRequest.ProtoReflect.Descriptor instead.
+func (*GetAdRefillRequest) Descriptor() ([]byte, []int) {
+	return file_planet_v1_planet_proto_rawDescGZIP(), []int{56}
+}
+
+type GetAdRefillResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// When the caller's bank may have its next ad refill; at or before now, it may now.
+	AvailableAtUnixMs int64 `protobuf:"varint,1,opt,name=available_at_unix_ms,json=availableAtUnixMs,proto3" json:"available_at_unix_ms,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *GetAdRefillResponse) Reset() {
+	*x = GetAdRefillResponse{}
+	mi := &file_planet_v1_planet_proto_msgTypes[57]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAdRefillResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAdRefillResponse) ProtoMessage() {}
+
+func (x *GetAdRefillResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_planet_proto_msgTypes[57]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAdRefillResponse.ProtoReflect.Descriptor instead.
+func (*GetAdRefillResponse) Descriptor() ([]byte, []int) {
+	return file_planet_v1_planet_proto_rawDescGZIP(), []int{57}
+}
+
+func (x *GetAdRefillResponse) GetAvailableAtUnixMs() int64 {
+	if x != nil {
+		return x.AvailableAtUnixMs
+	}
+	return 0
+}
+
+// The detail of the FailedPrecondition that ClaimAdRefill answers while the caller's bank had its ad refill.
+type AdRefillRefusal struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	AvailableAtUnixMs int64                  `protobuf:"varint,1,opt,name=available_at_unix_ms,json=availableAtUnixMs,proto3" json:"available_at_unix_ms,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *AdRefillRefusal) Reset() {
+	*x = AdRefillRefusal{}
+	mi := &file_planet_v1_planet_proto_msgTypes[58]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AdRefillRefusal) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AdRefillRefusal) ProtoMessage() {}
+
+func (x *AdRefillRefusal) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_planet_proto_msgTypes[58]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AdRefillRefusal.ProtoReflect.Descriptor instead.
+func (*AdRefillRefusal) Descriptor() ([]byte, []int) {
+	return file_planet_v1_planet_proto_rawDescGZIP(), []int{58}
+}
+
+func (x *AdRefillRefusal) GetAvailableAtUnixMs() int64 {
+	if x != nil {
+		return x.AvailableAtUnixMs
+	}
+	return 0
+}
+
 type GlobePoint struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	X             float64                `protobuf:"fixed64,1,opt,name=x,proto3" json:"x,omitempty"`
@@ -3194,7 +3417,7 @@ type GlobePoint struct {
 
 func (x *GlobePoint) Reset() {
 	*x = GlobePoint{}
-	mi := &file_planet_v1_planet_proto_msgTypes[54]
+	mi := &file_planet_v1_planet_proto_msgTypes[59]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3206,7 +3429,7 @@ func (x *GlobePoint) String() string {
 func (*GlobePoint) ProtoMessage() {}
 
 func (x *GlobePoint) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_planet_proto_msgTypes[54]
+	mi := &file_planet_v1_planet_proto_msgTypes[59]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3219,7 +3442,7 @@ func (x *GlobePoint) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GlobePoint.ProtoReflect.Descriptor instead.
 func (*GlobePoint) Descriptor() ([]byte, []int) {
-	return file_planet_v1_planet_proto_rawDescGZIP(), []int{54}
+	return file_planet_v1_planet_proto_rawDescGZIP(), []int{59}
 }
 
 func (x *GlobePoint) GetX() float64 {
@@ -3253,7 +3476,7 @@ type DropBombRequest struct {
 
 func (x *DropBombRequest) Reset() {
 	*x = DropBombRequest{}
-	mi := &file_planet_v1_planet_proto_msgTypes[55]
+	mi := &file_planet_v1_planet_proto_msgTypes[60]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3265,7 +3488,7 @@ func (x *DropBombRequest) String() string {
 func (*DropBombRequest) ProtoMessage() {}
 
 func (x *DropBombRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_planet_proto_msgTypes[55]
+	mi := &file_planet_v1_planet_proto_msgTypes[60]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3278,7 +3501,7 @@ func (x *DropBombRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DropBombRequest.ProtoReflect.Descriptor instead.
 func (*DropBombRequest) Descriptor() ([]byte, []int) {
-	return file_planet_v1_planet_proto_rawDescGZIP(), []int{55}
+	return file_planet_v1_planet_proto_rawDescGZIP(), []int{60}
 }
 
 func (x *DropBombRequest) GetTarget() *GlobePoint {
@@ -3303,7 +3526,7 @@ type DropBombResponse struct {
 
 func (x *DropBombResponse) Reset() {
 	*x = DropBombResponse{}
-	mi := &file_planet_v1_planet_proto_msgTypes[56]
+	mi := &file_planet_v1_planet_proto_msgTypes[61]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3315,7 +3538,7 @@ func (x *DropBombResponse) String() string {
 func (*DropBombResponse) ProtoMessage() {}
 
 func (x *DropBombResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_planet_proto_msgTypes[56]
+	mi := &file_planet_v1_planet_proto_msgTypes[61]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3328,7 +3551,7 @@ func (x *DropBombResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DropBombResponse.ProtoReflect.Descriptor instead.
 func (*DropBombResponse) Descriptor() ([]byte, []int) {
-	return file_planet_v1_planet_proto_rawDescGZIP(), []int{56}
+	return file_planet_v1_planet_proto_rawDescGZIP(), []int{61}
 }
 
 type BombDropped struct {
@@ -3349,7 +3572,7 @@ type BombDropped struct {
 
 func (x *BombDropped) Reset() {
 	*x = BombDropped{}
-	mi := &file_planet_v1_planet_proto_msgTypes[57]
+	mi := &file_planet_v1_planet_proto_msgTypes[62]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3361,7 +3584,7 @@ func (x *BombDropped) String() string {
 func (*BombDropped) ProtoMessage() {}
 
 func (x *BombDropped) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_planet_proto_msgTypes[57]
+	mi := &file_planet_v1_planet_proto_msgTypes[62]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3374,7 +3597,7 @@ func (x *BombDropped) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BombDropped.ProtoReflect.Descriptor instead.
 func (*BombDropped) Descriptor() ([]byte, []int) {
-	return file_planet_v1_planet_proto_rawDescGZIP(), []int{57}
+	return file_planet_v1_planet_proto_rawDescGZIP(), []int{62}
 }
 
 func (x *BombDropped) GetTileId() uint32 {
@@ -3447,7 +3670,7 @@ type TilesEnclosed struct {
 
 func (x *TilesEnclosed) Reset() {
 	*x = TilesEnclosed{}
-	mi := &file_planet_v1_planet_proto_msgTypes[58]
+	mi := &file_planet_v1_planet_proto_msgTypes[63]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3459,7 +3682,7 @@ func (x *TilesEnclosed) String() string {
 func (*TilesEnclosed) ProtoMessage() {}
 
 func (x *TilesEnclosed) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_planet_proto_msgTypes[58]
+	mi := &file_planet_v1_planet_proto_msgTypes[63]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3472,7 +3695,7 @@ func (x *TilesEnclosed) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TilesEnclosed.ProtoReflect.Descriptor instead.
 func (*TilesEnclosed) Descriptor() ([]byte, []int) {
-	return file_planet_v1_planet_proto_rawDescGZIP(), []int{58}
+	return file_planet_v1_planet_proto_rawDescGZIP(), []int{63}
 }
 
 func (x *TilesEnclosed) GetCountryId() string {
@@ -3521,7 +3744,7 @@ type TilesSpread struct {
 
 func (x *TilesSpread) Reset() {
 	*x = TilesSpread{}
-	mi := &file_planet_v1_planet_proto_msgTypes[59]
+	mi := &file_planet_v1_planet_proto_msgTypes[64]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3533,7 +3756,7 @@ func (x *TilesSpread) String() string {
 func (*TilesSpread) ProtoMessage() {}
 
 func (x *TilesSpread) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_planet_proto_msgTypes[59]
+	mi := &file_planet_v1_planet_proto_msgTypes[64]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3546,7 +3769,7 @@ func (x *TilesSpread) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TilesSpread.ProtoReflect.Descriptor instead.
 func (*TilesSpread) Descriptor() ([]byte, []int) {
-	return file_planet_v1_planet_proto_rawDescGZIP(), []int{59}
+	return file_planet_v1_planet_proto_rawDescGZIP(), []int{64}
 }
 
 func (x *TilesSpread) GetCountryId() string {
@@ -3580,7 +3803,7 @@ type PlaceShieldRequest struct {
 
 func (x *PlaceShieldRequest) Reset() {
 	*x = PlaceShieldRequest{}
-	mi := &file_planet_v1_planet_proto_msgTypes[60]
+	mi := &file_planet_v1_planet_proto_msgTypes[65]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3592,7 +3815,7 @@ func (x *PlaceShieldRequest) String() string {
 func (*PlaceShieldRequest) ProtoMessage() {}
 
 func (x *PlaceShieldRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_planet_proto_msgTypes[60]
+	mi := &file_planet_v1_planet_proto_msgTypes[65]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3605,7 +3828,7 @@ func (x *PlaceShieldRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlaceShieldRequest.ProtoReflect.Descriptor instead.
 func (*PlaceShieldRequest) Descriptor() ([]byte, []int) {
-	return file_planet_v1_planet_proto_rawDescGZIP(), []int{60}
+	return file_planet_v1_planet_proto_rawDescGZIP(), []int{65}
 }
 
 func (x *PlaceShieldRequest) GetTileId() uint32 {
@@ -3631,7 +3854,7 @@ type PlaceShieldResponse struct {
 
 func (x *PlaceShieldResponse) Reset() {
 	*x = PlaceShieldResponse{}
-	mi := &file_planet_v1_planet_proto_msgTypes[61]
+	mi := &file_planet_v1_planet_proto_msgTypes[66]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3643,7 +3866,7 @@ func (x *PlaceShieldResponse) String() string {
 func (*PlaceShieldResponse) ProtoMessage() {}
 
 func (x *PlaceShieldResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_planet_proto_msgTypes[61]
+	mi := &file_planet_v1_planet_proto_msgTypes[66]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3656,7 +3879,7 @@ func (x *PlaceShieldResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlaceShieldResponse.ProtoReflect.Descriptor instead.
 func (*PlaceShieldResponse) Descriptor() ([]byte, []int) {
-	return file_planet_v1_planet_proto_rawDescGZIP(), []int{61}
+	return file_planet_v1_planet_proto_rawDescGZIP(), []int{66}
 }
 
 func (x *PlaceShieldResponse) GetCharges() *ChargesHeld {
@@ -3676,7 +3899,7 @@ type Heartbeat struct {
 
 func (x *Heartbeat) Reset() {
 	*x = Heartbeat{}
-	mi := &file_planet_v1_planet_proto_msgTypes[62]
+	mi := &file_planet_v1_planet_proto_msgTypes[67]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3688,7 +3911,7 @@ func (x *Heartbeat) String() string {
 func (*Heartbeat) ProtoMessage() {}
 
 func (x *Heartbeat) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_planet_proto_msgTypes[62]
+	mi := &file_planet_v1_planet_proto_msgTypes[67]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3701,7 +3924,7 @@ func (x *Heartbeat) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Heartbeat.ProtoReflect.Descriptor instead.
 func (*Heartbeat) Descriptor() ([]byte, []int) {
-	return file_planet_v1_planet_proto_rawDescGZIP(), []int{62}
+	return file_planet_v1_planet_proto_rawDescGZIP(), []int{67}
 }
 
 func (x *Heartbeat) GetVersion() *MapVersion {
@@ -3727,7 +3950,7 @@ type TileUpdate struct {
 
 func (x *TileUpdate) Reset() {
 	*x = TileUpdate{}
-	mi := &file_planet_v1_planet_proto_msgTypes[63]
+	mi := &file_planet_v1_planet_proto_msgTypes[68]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3739,7 +3962,7 @@ func (x *TileUpdate) String() string {
 func (*TileUpdate) ProtoMessage() {}
 
 func (x *TileUpdate) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_planet_proto_msgTypes[63]
+	mi := &file_planet_v1_planet_proto_msgTypes[68]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3752,7 +3975,7 @@ func (x *TileUpdate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TileUpdate.ProtoReflect.Descriptor instead.
 func (*TileUpdate) Descriptor() ([]byte, []int) {
-	return file_planet_v1_planet_proto_rawDescGZIP(), []int{63}
+	return file_planet_v1_planet_proto_rawDescGZIP(), []int{68}
 }
 
 func (x *TileUpdate) GetTileId() uint32 {
@@ -3962,7 +4185,7 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\x11GetChargesRequest\"F\n" +
 	"\x12GetChargesResponse\x120\n" +
 	"\acharges\x18\x01 \x01(\v2\x16.planet.v1.ChargesHeldR\acharges\"\x16\n" +
-	"\x14GetBonusRulesRequest\"\xd7\x02\n" +
+	"\x14GetBonusRulesRequest\"\xf4\x02\n" +
 	"\x15GetBonusRulesResponse\x12!\n" +
 	"\fblast_radius\x18\x01 \x01(\x01R\vblastRadius\x12.\n" +
 	"\x13enclosure_max_tiles\x18\x02 \x01(\rR\x11enclosureMaxTiles\x12#\n" +
@@ -3974,7 +4197,9 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"toll_steps\x18\x06 \x03(\v2\x13.planet.v1.TollStepR\ttollSteps\x12\x18\n" +
 	"\ashields\x18\a \x01(\rR\ashields\x12!\n" +
 	"\ftile_shields\x18\b \x01(\rR\vtileShields\x12$\n" +
-	"\x0esign_in_refill\x18\t \x01(\bR\fsignInRefillJ\x04\b\x05\x10\x06R\thome_soil\"<\n" +
+	"\x0esign_in_refill\x18\t \x01(\bR\fsignInRefill\x12\x1b\n" +
+	"\tad_refill\x18\n" +
+	" \x01(\bR\badRefillJ\x04\b\x05\x10\x06R\thome_soil\"<\n" +
 	"\bTollStep\x12\x14\n" +
 	"\x05share\x18\x01 \x01(\x01R\x05share\x12\x1a\n" +
 	"\bslowdown\x18\x02 \x01(\x01R\bslowdown\"\x8f\x01\n" +
@@ -4023,7 +4248,17 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"country_id\x18\x01 \x01(\tR\tcountryId\"u\n" +
 	"\x11UseRefillResponse\x12.\n" +
 	"\x06budget\x18\x01 \x01(\v2\x16.planet.v1.ClickBudgetR\x06budget\x120\n" +
-	"\acharges\x18\x02 \x01(\v2\x16.planet.v1.ChargesHeldR\acharges\"6\n" +
+	"\acharges\x18\x02 \x01(\v2\x16.planet.v1.ChargesHeldR\acharges\"5\n" +
+	"\x14ClaimAdRefillRequest\x12\x1d\n" +
+	"\n" +
+	"country_id\x18\x01 \x01(\tR\tcountryId\"G\n" +
+	"\x15ClaimAdRefillResponse\x12.\n" +
+	"\x06budget\x18\x01 \x01(\v2\x16.planet.v1.ClickBudgetR\x06budget\"\x14\n" +
+	"\x12GetAdRefillRequest\"F\n" +
+	"\x13GetAdRefillResponse\x12/\n" +
+	"\x14available_at_unix_ms\x18\x01 \x01(\x03R\x11availableAtUnixMs\"B\n" +
+	"\x0fAdRefillRefusal\x12/\n" +
+	"\x14available_at_unix_ms\x18\x01 \x01(\x03R\x11availableAtUnixMs\"6\n" +
 	"\n" +
 	"GlobePoint\x12\f\n" +
 	"\x01x\x18\x01 \x01(\x01R\x01x\x12\f\n" +
@@ -4085,7 +4320,7 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\x18BONUS_KIND_SPREAD_CLICKS\x10\x02\x12\x13\n" +
 	"\x0fBONUS_KIND_BOMB\x10\x03\x12\x1d\n" +
 	"\x19BONUS_KIND_ENCLOSE_CLICKS\x10\x04\x12\x16\n" +
-	"\x12BONUS_KIND_SHIELDS\x10\x062\xd9\v\n" +
+	"\x12BONUS_KIND_SHIELDS\x10\x062\xfb\f\n" +
 	"\fClickService\x12:\n" +
 	"\x05Click\x12\x17.planet.v1.ClickRequest\x1a\x18.planet.v1.ClickResponse\x12F\n" +
 	"\tGetBudget\x12\x1b.planet.v1.GetBudgetRequest\x1a\x1c.planet.v1.GetBudgetResponse\x12N\n" +
@@ -4097,7 +4332,9 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\n" +
 	"ClaimBonus\x12\x1c.planet.v1.ClaimBonusRequest\x1a\x1d.planet.v1.ClaimBonusResponse\x12C\n" +
 	"\bDropBomb\x12\x1a.planet.v1.DropBombRequest\x1a\x1b.planet.v1.DropBombResponse\x12F\n" +
-	"\tUseRefill\x12\x1b.planet.v1.UseRefillRequest\x1a\x1c.planet.v1.UseRefillResponse\x12I\n" +
+	"\tUseRefill\x12\x1b.planet.v1.UseRefillRequest\x1a\x1c.planet.v1.UseRefillResponse\x12R\n" +
+	"\rClaimAdRefill\x12\x1f.planet.v1.ClaimAdRefillRequest\x1a .planet.v1.ClaimAdRefillResponse\x12L\n" +
+	"\vGetAdRefill\x12\x1d.planet.v1.GetAdRefillRequest\x1a\x1e.planet.v1.GetAdRefillResponse\x12I\n" +
 	"\n" +
 	"GetCharges\x12\x1c.planet.v1.GetChargesRequest\x1a\x1d.planet.v1.GetChargesResponse\x12W\n" +
 	"\rGetBonusRules\x12\x1f.planet.v1.GetBonusRulesRequest\x1a .planet.v1.GetBonusRulesResponse\"\x03\x90\x02\x01\x12C\n" +
@@ -4126,7 +4363,7 @@ func file_planet_v1_planet_proto_rawDescGZIP() []byte {
 }
 
 var file_planet_v1_planet_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_planet_v1_planet_proto_msgTypes = make([]protoimpl.MessageInfo, 64)
+var file_planet_v1_planet_proto_msgTypes = make([]protoimpl.MessageInfo, 69)
 var file_planet_v1_planet_proto_goTypes = []any{
 	(SharedWith)(0),                  // 0: planet.v1.SharedWith
 	(BonusKind)(0),                   // 1: planet.v1.BonusKind
@@ -4184,16 +4421,21 @@ var file_planet_v1_planet_proto_goTypes = []any{
 	(*AnswerQuizResponse)(nil),       // 53: planet.v1.AnswerQuizResponse
 	(*UseRefillRequest)(nil),         // 54: planet.v1.UseRefillRequest
 	(*UseRefillResponse)(nil),        // 55: planet.v1.UseRefillResponse
-	(*GlobePoint)(nil),               // 56: planet.v1.GlobePoint
-	(*DropBombRequest)(nil),          // 57: planet.v1.DropBombRequest
-	(*DropBombResponse)(nil),         // 58: planet.v1.DropBombResponse
-	(*BombDropped)(nil),              // 59: planet.v1.BombDropped
-	(*TilesEnclosed)(nil),            // 60: planet.v1.TilesEnclosed
-	(*TilesSpread)(nil),              // 61: planet.v1.TilesSpread
-	(*PlaceShieldRequest)(nil),       // 62: planet.v1.PlaceShieldRequest
-	(*PlaceShieldResponse)(nil),      // 63: planet.v1.PlaceShieldResponse
-	(*Heartbeat)(nil),                // 64: planet.v1.Heartbeat
-	(*TileUpdate)(nil),               // 65: planet.v1.TileUpdate
+	(*ClaimAdRefillRequest)(nil),     // 56: planet.v1.ClaimAdRefillRequest
+	(*ClaimAdRefillResponse)(nil),    // 57: planet.v1.ClaimAdRefillResponse
+	(*GetAdRefillRequest)(nil),       // 58: planet.v1.GetAdRefillRequest
+	(*GetAdRefillResponse)(nil),      // 59: planet.v1.GetAdRefillResponse
+	(*AdRefillRefusal)(nil),          // 60: planet.v1.AdRefillRefusal
+	(*GlobePoint)(nil),               // 61: planet.v1.GlobePoint
+	(*DropBombRequest)(nil),          // 62: planet.v1.DropBombRequest
+	(*DropBombResponse)(nil),         // 63: planet.v1.DropBombResponse
+	(*BombDropped)(nil),              // 64: planet.v1.BombDropped
+	(*TilesEnclosed)(nil),            // 65: planet.v1.TilesEnclosed
+	(*TilesSpread)(nil),              // 66: planet.v1.TilesSpread
+	(*PlaceShieldRequest)(nil),       // 67: planet.v1.PlaceShieldRequest
+	(*PlaceShieldResponse)(nil),      // 68: planet.v1.PlaceShieldResponse
+	(*Heartbeat)(nil),                // 69: planet.v1.Heartbeat
+	(*TileUpdate)(nil),               // 70: planet.v1.TileUpdate
 }
 var file_planet_v1_planet_proto_depIdxs = []int32{
 	6,  // 0: planet.v1.GetAllegianceResponse.allegiance:type_name -> planet.v1.Allegiance
@@ -4209,13 +4451,13 @@ var file_planet_v1_planet_proto_depIdxs = []int32{
 	18, // 10: planet.v1.HoldingsChanged.version:type_name -> planet.v1.MapVersion
 	21, // 11: planet.v1.HoldingsChanged.countries:type_name -> planet.v1.Holding
 	22, // 12: planet.v1.HoldingsChanged.landmasses:type_name -> planet.v1.LandmassHoldings
-	65, // 13: planet.v1.PlanetEvent.tile_update:type_name -> planet.v1.TileUpdate
-	64, // 14: planet.v1.PlanetEvent.heartbeat:type_name -> planet.v1.Heartbeat
+	70, // 13: planet.v1.PlanetEvent.tile_update:type_name -> planet.v1.TileUpdate
+	69, // 14: planet.v1.PlanetEvent.heartbeat:type_name -> planet.v1.Heartbeat
 	45, // 15: planet.v1.PlanetEvent.bonus_offered:type_name -> planet.v1.BonusOffered
 	46, // 16: planet.v1.PlanetEvent.bonus_taken:type_name -> planet.v1.BonusTaken
-	59, // 17: planet.v1.PlanetEvent.bomb_dropped:type_name -> planet.v1.BombDropped
-	60, // 18: planet.v1.PlanetEvent.tiles_enclosed:type_name -> planet.v1.TilesEnclosed
-	61, // 19: planet.v1.PlanetEvent.tiles_spread:type_name -> planet.v1.TilesSpread
+	64, // 17: planet.v1.PlanetEvent.bomb_dropped:type_name -> planet.v1.BombDropped
+	65, // 18: planet.v1.PlanetEvent.tiles_enclosed:type_name -> planet.v1.TilesEnclosed
+	66, // 19: planet.v1.PlanetEvent.tiles_spread:type_name -> planet.v1.TilesSpread
 	49, // 20: planet.v1.PlanetEvent.quiz_offered:type_name -> planet.v1.QuizOffered
 	38, // 21: planet.v1.PlanetEvent.landmass_fortified:type_name -> planet.v1.LandmassFortified
 	23, // 22: planet.v1.PlanetEvent.holdings_changed:type_name -> planet.v1.HoldingsChanged
@@ -4235,56 +4477,61 @@ var file_planet_v1_planet_proto_depIdxs = []int32{
 	39, // 36: planet.v1.AnswerQuizResponse.charges:type_name -> planet.v1.ChargesHeld
 	7,  // 37: planet.v1.UseRefillResponse.budget:type_name -> planet.v1.ClickBudget
 	39, // 38: planet.v1.UseRefillResponse.charges:type_name -> planet.v1.ChargesHeld
-	56, // 39: planet.v1.DropBombRequest.target:type_name -> planet.v1.GlobePoint
-	56, // 40: planet.v1.BombDropped.point:type_name -> planet.v1.GlobePoint
-	18, // 41: planet.v1.BombDropped.version:type_name -> planet.v1.MapVersion
-	24, // 42: planet.v1.BombDropped.struck:type_name -> planet.v1.TileShields
-	39, // 43: planet.v1.PlaceShieldResponse.charges:type_name -> planet.v1.ChargesHeld
-	18, // 44: planet.v1.Heartbeat.version:type_name -> planet.v1.MapVersion
-	18, // 45: planet.v1.TileUpdate.version:type_name -> planet.v1.MapVersion
-	8,  // 46: planet.v1.ClickService.Click:input_type -> planet.v1.ClickRequest
-	12, // 47: planet.v1.ClickService.GetBudget:input_type -> planet.v1.GetBudgetRequest
-	14, // 48: planet.v1.ClickService.MapDensity:input_type -> planet.v1.MapDensityRequest
-	16, // 49: planet.v1.ClickService.GetMap:input_type -> planet.v1.GetMapRequest
-	19, // 50: planet.v1.ClickService.GetHoldings:input_type -> planet.v1.GetHoldingsRequest
-	25, // 51: planet.v1.ClickService.ListenForEvents:input_type -> planet.v1.ListenForEventsRequest
-	47, // 52: planet.v1.ClickService.ClaimBonus:input_type -> planet.v1.ClaimBonusRequest
-	57, // 53: planet.v1.ClickService.DropBomb:input_type -> planet.v1.DropBombRequest
-	54, // 54: planet.v1.ClickService.UseRefill:input_type -> planet.v1.UseRefillRequest
-	40, // 55: planet.v1.ClickService.GetCharges:input_type -> planet.v1.GetChargesRequest
-	42, // 56: planet.v1.ClickService.GetBonusRules:input_type -> planet.v1.GetBonusRulesRequest
-	50, // 57: planet.v1.ClickService.OpenQuiz:input_type -> planet.v1.OpenQuizRequest
-	52, // 58: planet.v1.ClickService.AnswerQuiz:input_type -> planet.v1.AnswerQuizRequest
-	62, // 59: planet.v1.ClickService.PlaceShield:input_type -> planet.v1.PlaceShieldRequest
-	35, // 60: planet.v1.ClickService.GetFortresses:input_type -> planet.v1.GetFortressesRequest
-	27, // 61: planet.v1.ClickService.GetTileHolder:input_type -> planet.v1.GetTileHolderRequest
-	31, // 62: planet.v1.ClickService.GetLandmass:input_type -> planet.v1.GetLandmassRequest
-	2,  // 63: planet.v1.ClickService.GetAllegiance:input_type -> planet.v1.GetAllegianceRequest
-	4,  // 64: planet.v1.ClickService.PledgeAllegiance:input_type -> planet.v1.PledgeAllegianceRequest
-	9,  // 65: planet.v1.ClickService.Click:output_type -> planet.v1.ClickResponse
-	13, // 66: planet.v1.ClickService.GetBudget:output_type -> planet.v1.GetBudgetResponse
-	15, // 67: planet.v1.ClickService.MapDensity:output_type -> planet.v1.MapDensityResponse
-	17, // 68: planet.v1.ClickService.GetMap:output_type -> planet.v1.GetMapResponse
-	20, // 69: planet.v1.ClickService.GetHoldings:output_type -> planet.v1.GetHoldingsResponse
-	26, // 70: planet.v1.ClickService.ListenForEvents:output_type -> planet.v1.PlanetEvent
-	48, // 71: planet.v1.ClickService.ClaimBonus:output_type -> planet.v1.ClaimBonusResponse
-	58, // 72: planet.v1.ClickService.DropBomb:output_type -> planet.v1.DropBombResponse
-	55, // 73: planet.v1.ClickService.UseRefill:output_type -> planet.v1.UseRefillResponse
-	41, // 74: planet.v1.ClickService.GetCharges:output_type -> planet.v1.GetChargesResponse
-	43, // 75: planet.v1.ClickService.GetBonusRules:output_type -> planet.v1.GetBonusRulesResponse
-	51, // 76: planet.v1.ClickService.OpenQuiz:output_type -> planet.v1.OpenQuizResponse
-	53, // 77: planet.v1.ClickService.AnswerQuiz:output_type -> planet.v1.AnswerQuizResponse
-	63, // 78: planet.v1.ClickService.PlaceShield:output_type -> planet.v1.PlaceShieldResponse
-	36, // 79: planet.v1.ClickService.GetFortresses:output_type -> planet.v1.GetFortressesResponse
-	28, // 80: planet.v1.ClickService.GetTileHolder:output_type -> planet.v1.GetTileHolderResponse
-	32, // 81: planet.v1.ClickService.GetLandmass:output_type -> planet.v1.GetLandmassResponse
-	3,  // 82: planet.v1.ClickService.GetAllegiance:output_type -> planet.v1.GetAllegianceResponse
-	5,  // 83: planet.v1.ClickService.PledgeAllegiance:output_type -> planet.v1.PledgeAllegianceResponse
-	65, // [65:84] is the sub-list for method output_type
-	46, // [46:65] is the sub-list for method input_type
-	46, // [46:46] is the sub-list for extension type_name
-	46, // [46:46] is the sub-list for extension extendee
-	0,  // [0:46] is the sub-list for field type_name
+	7,  // 39: planet.v1.ClaimAdRefillResponse.budget:type_name -> planet.v1.ClickBudget
+	61, // 40: planet.v1.DropBombRequest.target:type_name -> planet.v1.GlobePoint
+	61, // 41: planet.v1.BombDropped.point:type_name -> planet.v1.GlobePoint
+	18, // 42: planet.v1.BombDropped.version:type_name -> planet.v1.MapVersion
+	24, // 43: planet.v1.BombDropped.struck:type_name -> planet.v1.TileShields
+	39, // 44: planet.v1.PlaceShieldResponse.charges:type_name -> planet.v1.ChargesHeld
+	18, // 45: planet.v1.Heartbeat.version:type_name -> planet.v1.MapVersion
+	18, // 46: planet.v1.TileUpdate.version:type_name -> planet.v1.MapVersion
+	8,  // 47: planet.v1.ClickService.Click:input_type -> planet.v1.ClickRequest
+	12, // 48: planet.v1.ClickService.GetBudget:input_type -> planet.v1.GetBudgetRequest
+	14, // 49: planet.v1.ClickService.MapDensity:input_type -> planet.v1.MapDensityRequest
+	16, // 50: planet.v1.ClickService.GetMap:input_type -> planet.v1.GetMapRequest
+	19, // 51: planet.v1.ClickService.GetHoldings:input_type -> planet.v1.GetHoldingsRequest
+	25, // 52: planet.v1.ClickService.ListenForEvents:input_type -> planet.v1.ListenForEventsRequest
+	47, // 53: planet.v1.ClickService.ClaimBonus:input_type -> planet.v1.ClaimBonusRequest
+	62, // 54: planet.v1.ClickService.DropBomb:input_type -> planet.v1.DropBombRequest
+	54, // 55: planet.v1.ClickService.UseRefill:input_type -> planet.v1.UseRefillRequest
+	56, // 56: planet.v1.ClickService.ClaimAdRefill:input_type -> planet.v1.ClaimAdRefillRequest
+	58, // 57: planet.v1.ClickService.GetAdRefill:input_type -> planet.v1.GetAdRefillRequest
+	40, // 58: planet.v1.ClickService.GetCharges:input_type -> planet.v1.GetChargesRequest
+	42, // 59: planet.v1.ClickService.GetBonusRules:input_type -> planet.v1.GetBonusRulesRequest
+	50, // 60: planet.v1.ClickService.OpenQuiz:input_type -> planet.v1.OpenQuizRequest
+	52, // 61: planet.v1.ClickService.AnswerQuiz:input_type -> planet.v1.AnswerQuizRequest
+	67, // 62: planet.v1.ClickService.PlaceShield:input_type -> planet.v1.PlaceShieldRequest
+	35, // 63: planet.v1.ClickService.GetFortresses:input_type -> planet.v1.GetFortressesRequest
+	27, // 64: planet.v1.ClickService.GetTileHolder:input_type -> planet.v1.GetTileHolderRequest
+	31, // 65: planet.v1.ClickService.GetLandmass:input_type -> planet.v1.GetLandmassRequest
+	2,  // 66: planet.v1.ClickService.GetAllegiance:input_type -> planet.v1.GetAllegianceRequest
+	4,  // 67: planet.v1.ClickService.PledgeAllegiance:input_type -> planet.v1.PledgeAllegianceRequest
+	9,  // 68: planet.v1.ClickService.Click:output_type -> planet.v1.ClickResponse
+	13, // 69: planet.v1.ClickService.GetBudget:output_type -> planet.v1.GetBudgetResponse
+	15, // 70: planet.v1.ClickService.MapDensity:output_type -> planet.v1.MapDensityResponse
+	17, // 71: planet.v1.ClickService.GetMap:output_type -> planet.v1.GetMapResponse
+	20, // 72: planet.v1.ClickService.GetHoldings:output_type -> planet.v1.GetHoldingsResponse
+	26, // 73: planet.v1.ClickService.ListenForEvents:output_type -> planet.v1.PlanetEvent
+	48, // 74: planet.v1.ClickService.ClaimBonus:output_type -> planet.v1.ClaimBonusResponse
+	63, // 75: planet.v1.ClickService.DropBomb:output_type -> planet.v1.DropBombResponse
+	55, // 76: planet.v1.ClickService.UseRefill:output_type -> planet.v1.UseRefillResponse
+	57, // 77: planet.v1.ClickService.ClaimAdRefill:output_type -> planet.v1.ClaimAdRefillResponse
+	59, // 78: planet.v1.ClickService.GetAdRefill:output_type -> planet.v1.GetAdRefillResponse
+	41, // 79: planet.v1.ClickService.GetCharges:output_type -> planet.v1.GetChargesResponse
+	43, // 80: planet.v1.ClickService.GetBonusRules:output_type -> planet.v1.GetBonusRulesResponse
+	51, // 81: planet.v1.ClickService.OpenQuiz:output_type -> planet.v1.OpenQuizResponse
+	53, // 82: planet.v1.ClickService.AnswerQuiz:output_type -> planet.v1.AnswerQuizResponse
+	68, // 83: planet.v1.ClickService.PlaceShield:output_type -> planet.v1.PlaceShieldResponse
+	36, // 84: planet.v1.ClickService.GetFortresses:output_type -> planet.v1.GetFortressesResponse
+	28, // 85: planet.v1.ClickService.GetTileHolder:output_type -> planet.v1.GetTileHolderResponse
+	32, // 86: planet.v1.ClickService.GetLandmass:output_type -> planet.v1.GetLandmassResponse
+	3,  // 87: planet.v1.ClickService.GetAllegiance:output_type -> planet.v1.GetAllegianceResponse
+	5,  // 88: planet.v1.ClickService.PledgeAllegiance:output_type -> planet.v1.PledgeAllegianceResponse
+	68, // [68:89] is the sub-list for method output_type
+	47, // [47:68] is the sub-list for method input_type
+	47, // [47:47] is the sub-list for extension type_name
+	47, // [47:47] is the sub-list for extension extendee
+	0,  // [0:47] is the sub-list for field type_name
 }
 
 func init() { file_planet_v1_planet_proto_init() }
@@ -4311,7 +4558,7 @@ func file_planet_v1_planet_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_planet_v1_planet_proto_rawDesc), len(file_planet_v1_planet_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   64,
+			NumMessages:   69,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

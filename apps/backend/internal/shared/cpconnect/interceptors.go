@@ -74,6 +74,9 @@ func NewIPBlockInterceptor(
 
 const SessionHeader = "X-Session-Token"
 
+// The account session of a page that keeps no cookie of the API's: auth reads it and answers it.
+const AccountSessionHeader = "X-Account-Session"
+
 type SessionVerifier interface {
 	Verify(ctx context.Context, token string, ip string, now time.Time) (*cpsession.Claims, error)
 }

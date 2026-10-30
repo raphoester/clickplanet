@@ -15,8 +15,10 @@
 		format filter {
 			wrap json
 			request>headers>X-Session-Token replace REDACTED
+			request>headers>X-Account-Session replace REDACTED
 			request>headers>Cookie replace REDACTED
 			resp_headers>Set-Cookie replace REDACTED
+			resp_headers>X-Account-Session replace REDACTED
 		}
 	}
 }
@@ -33,11 +35,18 @@
 	@admin path_regexp ^/[a-z]+\.v1\.AdminService/
 	@game not path_regexp ^/[a-z]+\.v1\.AdminService/
 
+	# The game framed by CrazyGames runs on a host of its own.
+	map {header.Origin} {game_origin} {
+		{$CRAZYGAMES_ORIGIN} {$CRAZYGAMES_ORIGIN}
+		default {$FRONTEND_ORIGIN}
+	}
+
 	header @game {
-		Access-Control-Allow-Origin "{$FRONTEND_ORIGIN}"
+		Access-Control-Allow-Origin "{game_origin}"
 		Access-Control-Allow-Credentials "true"
 		Access-Control-Allow-Methods "GET, POST, OPTIONS"
-		Access-Control-Allow-Headers "Content-Type, Connect-Protocol-Version, Connect-Timeout-Ms, X-Session-Token"
+		Access-Control-Allow-Headers "Content-Type, Connect-Protocol-Version, Connect-Timeout-Ms, X-Session-Token, X-Account-Session"
+		Access-Control-Expose-Headers "X-Account-Session"
 		Vary "Origin"
 		-Server
 	}
@@ -128,8 +137,10 @@
 		format filter {
 			wrap json
 			request>headers>X-Session-Token replace REDACTED
+			request>headers>X-Account-Session replace REDACTED
 			request>headers>Cookie replace REDACTED
 			resp_headers>Set-Cookie replace REDACTED
+			resp_headers>X-Account-Session replace REDACTED
 		}
 	}
 
@@ -138,8 +149,10 @@
 		format filter {
 			wrap console
 			request>headers>X-Session-Token replace REDACTED
+			request>headers>X-Account-Session replace REDACTED
 			request>headers>Cookie replace REDACTED
 			resp_headers>Set-Cookie replace REDACTED
+			resp_headers>X-Account-Session replace REDACTED
 		}
 	}
 }

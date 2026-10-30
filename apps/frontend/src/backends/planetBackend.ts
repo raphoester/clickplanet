@@ -1,4 +1,6 @@
 import {
+    AdRefiller,
+    AdRefillTooSoonError,
     AllegianceLockedError,
     AllegianceSource,
     BankFullError,
@@ -40,6 +42,7 @@ import {ALL_OFF, BonusReward, BonusRules, Charges, NO_CHARGES, Switches} from ".
 import {QuizOffer, QuizOutcome, QuizQuestion} from "../domain/quiz.ts";
 import {Allegiance} from "../domain/allegiance.ts";
 import {
+    AdRefillRefusal,
     Allegiance as AllegianceMessage,
     BanRefusal,
     BonusKind,
@@ -74,7 +77,7 @@ export function newClickServiceClient(config: Config): PromiseClient<typeof Clic
     }))
 }
 
-export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller, Shielder, AllegianceSource, ChargesRefresher, TileHolders, LandmassReader {
+export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller, AdRefiller, Shielder, AllegianceSource, ChargesRefresher, TileHolders, LandmassReader {
     private pendingUpdates: Update[] = []
     private readonly updateBatchCallbacks = new Map<string, (updates: Update[]) => void>()
     private readonly updateCallbacks = new Map<string, (update: Update) => void>()
@@ -457,6 +460,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                 tileShields: res.tileShields,
                 toll: res.tollSteps.map(({share, slowdown}) => ({share, slowdown})),
                 signInRefill: res.signInRefill,
+                adRefill: res.adRefill,
             }
             this.rules = rules
             this.bonusCallbacks.forEach(handlers => handlers.onRules(rules))
@@ -784,6 +788,42 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         this.holdCharges(chargesOfMessage(res.charges))
     }
 
+    public async adRefillAt(): Promise<number> {
+        const headers = new Headers()
+        const token = await this.session.identity()
+        if (token) headers.set(SESSION_HEADER, token)
+
+        const res = await this.client.getAdRefill({}, {headers})
+        return Number(res.availableAtUnixMs)
+    }
+
+    public async claimAdRefill(countryId: string): Promise<void> {
+        try {
+            await this.adRefill(countryId)
+        } catch (e) {
+            if (!(e instanceof ConnectError) || e.code !== Code.Unauthenticated) throw asAdRefillError(e)
+
+            this.session.invalidate()
+
+            try {
+                await this.adRefill(countryId)
+            } catch (retried) {
+                throw asAdRefillError(retried)
+            }
+        }
+    }
+
+    private async adRefill(countryId: string): Promise<void> {
+        const sessionToken = await this.session.token()
+
+        const headers = new Headers()
+        if (sessionToken) headers.set(SESSION_HEADER, sessionToken)
+
+        const res = await this.client.claimAdRefill({countryId}, {headers})
+        this.followSession(sessionToken)
+        this.anchorBudget(res.budget, countryId)
+    }
+
     public async placeShield(tileId: number, countryId: string): Promise<void> {
         this.holdCharges({...this.charges, shields: Math.max(0, this.charges.shields - 1)})
 
@@ -916,7 +956,7 @@ export function chargesOfMessage(held: ChargesHeld | undefined): Charges {
 }
 
 const NO_RULES: BonusRules = {
-    blastRadius: 0, enclosureMaxTiles: 0, spreadClicks: 0, enclosures: 0, shields: 0, tileShields: 0, toll: [], signInRefill: false,
+    blastRadius: 0, enclosureMaxTiles: 0, spreadClicks: 0, enclosures: 0, shields: 0, tileShields: 0, toll: [], signInRefill: false, adRefill: false,
 }
 
 function rewardOf(
@@ -953,6 +993,15 @@ export function bombOf(event: PlanetEvent): BombDrop | undefined {
         struck: dropped.struck.map(({tileId, shields}) => ({tile: tileId, shields})),
         version: versionOf(dropped.version),
     }
+}
+
+export function asAdRefillError(e: unknown): unknown {
+    if (e instanceof ConnectError && e.code === Code.FailedPrecondition) {
+        const refusal = e.findDetails(AdRefillRefusal)[0]
+        return refusal ? new AdRefillTooSoonError(Number(refusal.availableAtUnixMs), {cause: e}) : new BankFullError({cause: e})
+    }
+
+    return asBonusError(e)
 }
 
 export function asBonusError(e: unknown): unknown {

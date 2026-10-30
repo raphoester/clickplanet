@@ -1,13 +1,16 @@
-export type Provider = "google" | "discord" | "email"
+export type Provider = "google" | "discord" | "email" | "crazygames"
 
-export type OAuthProvider = Exclude<Provider, "email">
+export type OAuthProvider = Exclude<Provider, "email" | "crazygames">
 
-export const PROVIDERS: readonly Provider[] = ["google", "discord", "email"]
+export type ButtonProvider = Exclude<Provider, "email">
+
+export const PROVIDERS: readonly Provider[] = ["google", "discord", "email", "crazygames"]
 
 export const PROVIDER_NAMES: Record<Provider, string> = {
     google: "Google",
     discord: "Discord",
     email: "email",
+    crazygames: "CrazyGames",
 }
 
 export const CODE_LENGTH = 6
@@ -32,6 +35,8 @@ export interface AccountBackend {
     startEmailSignIn(email: string, intent: Intent): Promise<void>
 
     completeEmailSignIn(code: string): Promise<SignInOutcome>
+
+    completeCrazyGamesSignIn(token: string): Promise<SignInOutcome>
 
     signOut(): Promise<void>
 

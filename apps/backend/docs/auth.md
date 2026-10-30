@@ -1,6 +1,6 @@
 # Auth (`internal/auth/`)
 
-**One module admits a caller: Turnstile, then the account its cookie holds, then the click token.** Every clicking browser gets an account, a guest one until it signs in; signing in with Google, Discord or an emailed code links to the same row, so a guest's history needs no merge. Off by default (`auth.enabled`); off, `auth.v1` and `session.v1` 404.
+**One module admits a caller: Turnstile, then the account its cookie holds, then the click token.** Every clicking browser gets an account, a guest one until it signs in; signing in with Google, Discord, an emailed code or a CrazyGames account links to the same row, so a guest's history needs no merge. Off by default (`auth.enabled`); off, `auth.v1` and `session.v1` 404.
 
 It was two modules, `session` and `auth`, for one PR. The mint was auth's only caller, and "not a bot" and "who" are decided on the same request for the same purpose, so the line between them cut through one piece of work.
 
@@ -22,10 +22,12 @@ internal/auth/internal/
                                            Admitter (signs a proven identity in, for both paths); LinkTarget;
                                            Address, Challenge, Challenges, Post, Letter, the cp_email cookie
     google_identity_provider/  discord_identity_provider/  oauth_http/
+    crazygames_identity_provider/          a TokenProvider: the SDK's JWT, checked against CrazyGames' JWKS
     aes_flow_sealer/  random_secret_generator/  random_code_generator/
     cloudflare_mailer/  log_mailer/  embedded_disposable_domains/
     usecases/start_sign_in_usecase/  complete_sign_in_usecase/
     usecases/start_email_sign_in_usecase/  complete_email_sign_in_usecase/
+    usecases/complete_crazygames_sign_in_usecase/
   attestation/                             Attester, ErrAttestationFailed
     turnstile/  turnstile_attester/  open_attester/
   authv1controller/                        AuthService, InternalService and AdminService: one handler package per procedure, authprovider for the enum
@@ -42,6 +44,7 @@ internal/auth/internal/
       usecases/admit_usecase/              the origin, then who calls — and log_admit/, which logs each refusal
     guard/                                 the interceptor: a refusal's code, the operator on the context
       log_calls/                           one line per admitted call
+  sessionheader/                           the cp_sid of a page that keeps no cookie, carried in X-Account-Session
   sessionv1controller/                     deprecated SessionService
     operator_query/                        PostgresQuery: the cookie's live session, its account and whether it operates
     log_refusals/                          logs each caller it refused
@@ -80,7 +83,7 @@ internal/auth/internal/
 - **A link never moves the browser.** A new identity links to the account; one already on this account is `SignedIn` and changes nothing but the session token; one on **another** account is `ErrIdentityLinkedElsewhere`; an account that already has a user of that provider is `ErrProviderAlreadyLinked`. A refusal writes nothing and keeps `cp_sid`: only `cp_oauth` is cleared. The handler answers `AlreadyExists` with a `LinkRefusal` detail, which is what the client matches. Before this, a link to an identity another account used moved the browser to that account, and the two accounts could never be joined. To move an identity, the player signs in with it, deletes that account, then links it — there is no merge.
 - **`accounts.SignIn` is written in one transaction**: the new account if any, the identity if new, the new session, and the deletion of the browser's previous session. The session token changes on every sign-in. Two browsers linking the same new identity at once: the second insert finds it taken (`ErrIdentityTaken`), and the use case runs once more with the identity known — a sign-in moves, a link is refused.
 - **An email is kept only when the provider says it is verified** (`accounts.NewIdentity`, `Claim.VerifiedEmail`), and it is `NULL` otherwise. An unverified address finds no account and is found by none.
-- **`identities.provider` is the type `identity_provider`** (`google`, `discord`, `email`). A new provider is a migration that adds its value, beside its `signin` constant, its `authv1.Provider` and its name in `me_query`; `TestEveryProviderTheProtoNamesIsAnsweredAsTheOneStartSignInNamed` saves each one through the store. Identities linked at the same time are ordered by `provider::text`, the name, in the store and in `GetMe`: without the cast they come in the order the type declares, and the contract suite fails.
+- **`identities.provider` is the type `identity_provider`** (`google`, `discord`, `email`, `crazygames`). A new provider is a migration that adds its value, beside its `signin` constant, its `authv1.Provider` and its name in `me_query`; `TestEveryProviderTheProtoNamesIsAnsweredAsTheOneStartSignInNamed` saves each one through the store. Identities linked at the same time are ordered by `provider::text`, the name, in the store and in `GetMe`: without the cast they come in the order the type declares, and the contract suite fails.
 - **Off by default** (`auth.signIn.enabled`). Off, `signin.Providers` is empty and both RPCs answer `Unimplemented`, which Connect sends as HTTP 404. A provider is offered once its `clientId` is set. `StartSignIn` and `CompleteSignIn` spend the mint budget: each can cost a round trip to a third party or make an account.
 - **`GetSignInOptions` is how the client knows which buttons to show**: every provider offered, then email when `auth.email.enabled` is on (`signin.Offer`), and an empty list while both are off — never `Unimplemented`, since the question has an answer either way. **It is not throttled and sets no cookie.** A client asks on every page load, and probing with `StartSignIn` instead would spend the mint budget a real sign-in needs and start a flow for nothing. `TestAskingIsNotThrottled` pins it. A server with the whole `auth` module off still 404s it, which the client reads as no provider.
 - **The client mints again after `CompleteSignIn`**, so its click token carries the account. The old token names the old account until it expires (1h).
@@ -104,6 +107,48 @@ internal/auth/internal/
 - **An email account is linked**: it is never pruned, it refills at the linked multiplier, and it may pick a username.
 - **`auth.email.delivery` is `cloudflare` or `log`.** `cloudflare_mailer` posts to the REST API with a token that has *Email Sending: Edit* only; a non-2xx, a body that is not JSON, or a permanent bounce of the address is an error, and nothing is set. `log_mailer` writes the letter, code included, to the server log at `WARN` — the local choice, with no account anywhere. The server warns at boot when it is on.
 - `auth.NewModuleWithFakeProviders` turns email on with `signin.FakeMailer` and codes `000001`, `000002`, ….
+
+## Signing in with CrazyGames (`internal/auth/internal/signin/`)
+
+**The game framed by CrazyGames signs in as the CrazyGames account, over one RPC.** CrazyGames forbids every other
+way in there, and signs the player in on its own page: the client sends the token its SDK gives
+(`user.getUserToken({signingKeyType: "IN_GAME_AUTH"})`), and nothing is redirected.
+
+- **`CompleteCrazyGamesSignIn(token, landing)`** checks the token, then signs in through `signin.Admitter`, as the
+  other two paths do, always with the intent sign in. The CrazyGames `userId` is the identity's subject. A token
+  carries no email, so a CrazyGames account never joins another by address. A guest's first sign-in is `Linked`: the
+  guest keeps its account and earns the first sign-in's refill ([A guest's first sign-in](sign-in-refill.md)). A
+  `userId` known already moves the browser to its account (`SignedIn`). Another player on a device whose account
+  holds a CrazyGames identity gets an account of its own (`Created`). It spends the mint budget.
+- **`crazygames_identity_provider` checks the token itself**, with the standard library: three parts, `alg` RS256 and
+  `kid` `ingame-auth` (the legacy key is refused), the RSA PKCS #1 v1.5 signature against the key of that `kid` in
+  `https://userportal.crazygames.com/.well-known/jwks.json`, `exp` still ahead, `gameId` the game's, and a `userId`.
+  Any of these fails as `ErrProviderRefused`, answered `PermissionDenied`; a key set that cannot be fetched is a plain
+  error, answered `internal`, so a player is never told their account is not theirs because CrazyGames was down.
+- **The key set is fetched once and kept** (`KeySet`). A signature that fails fetches it again, at most once a
+  minute, so a key CrazyGames rotates is picked up and a flood of forged tokens costs CrazyGames one request a minute.
+- **`gameId` is required** (`auth.crazyGames.gameId`): every CrazyGames game gets tokens for the same `userId`, so
+  without it the developer of any other game could sign in here as its players. Unset, the provider is not offered.
+- **A `TokenProvider`, beside the OAuth `Provider`s** (`signin.TokenProviders`): `GetSignInOptions` lists both, and
+  the client shows `crazygames` only on the CrazyGames page (the frontend's [CrazyGames](../../frontend/docs/crazygames.md)).
+- **No sign-out there.** CrazyGames forbids one in the game: the client signs the account out when CrazyGames says
+  nobody is signed in, and the page reloads when a player signs out of CrazyGames.
+
+## A page that keeps no cookie (`internal/auth/internal/sessionheader/`)
+
+**The CrazyGames page runs in a frame on crazygames.com, so `cp_sid` is a third-party cookie there.** `SameSite=Lax`
+is never sent in a cross-site frame, and Safari drops even a `Partitioned` cookie. So that page carries the session
+in a header instead, and `sessionheader.Carried` wraps the whole `AuthService`:
+
+- **A request with `X-Account-Session`** has its `Cookie` header replaced by `cp_sid=` the header's value; `none`, or
+  anything that is not a token, is no cookie. The handlers read the cookie as they always do.
+- **Its answer** carries the `cp_sid` the handlers set in `X-Account-Session` instead of `Set-Cookie`: the token, or
+  `none` for a cleared one. No `cp_sid` set, no header. Other cookies pass as they were.
+- **A request without the header is untouched**, so clickplanet.lol keeps its HttpOnly cookie. The CrazyGames page
+  keeps the token in local storage, in reach of its scripts: the price of a cross-site frame.
+- **CORS**: the header is allowed and exposed (`cpconnect.AccountSessionHeader`, `cphttpserver.NewCorsMiddleware`,
+  and the Caddyfile, which also answers the CrazyGames page's origin, `CRAZYGAMES_ORIGIN`). Caddy redacts it in its
+  logs, as it does `Cookie`.
 
 ## Operators
 

@@ -131,6 +131,7 @@ auth:
     hostnames:
       - clickplanet.lol
       - www.clickplanet.lol
+      - crazygames.clickplanet.lol
     action: session
   database:
     host: postgres

@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CompleteEmailSignInRequest, CompleteEmailSignInResponse, CompleteSignInRequest, CompleteSignInResponse, CreateSessionRequest, CreateSessionResponse, DeleteAccountRequest, DeleteAccountResponse, GetMeRequest, GetMeResponse, GetSignInOptionsRequest, GetSignInOptionsResponse, ResumeSessionRequest, ResumeSessionResponse, SignOutEverywhereRequest, SignOutEverywhereResponse, SignOutRequest, SignOutResponse, StartEmailSignInRequest, StartEmailSignInResponse, StartSignInRequest, StartSignInResponse } from "./auth_pb.js";
+import { CompleteCrazyGamesSignInRequest, CompleteCrazyGamesSignInResponse, CompleteEmailSignInRequest, CompleteEmailSignInResponse, CompleteSignInRequest, CompleteSignInResponse, CreateSessionRequest, CreateSessionResponse, DeleteAccountRequest, DeleteAccountResponse, GetMeRequest, GetMeResponse, GetSignInOptionsRequest, GetSignInOptionsResponse, ResumeSessionRequest, ResumeSessionResponse, SignOutEverywhereRequest, SignOutEverywhereResponse, SignOutRequest, SignOutResponse, StartEmailSignInRequest, StartEmailSignInResponse, StartSignInRequest, StartSignInResponse } from "./auth_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -86,6 +86,17 @@ export const AuthService = {
       name: "CompleteEmailSignIn",
       I: CompleteEmailSignInRequest,
       O: CompleteEmailSignInResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * One step: the CrazyGames SDK already signed the player in, and its token says who.
+     *
+     * @generated from rpc auth.v1.AuthService.CompleteCrazyGamesSignIn
+     */
+    completeCrazyGamesSignIn: {
+      name: "CompleteCrazyGamesSignIn",
+      I: CompleteCrazyGamesSignInRequest,
+      O: CompleteCrazyGamesSignInResponse,
       kind: MethodKind.Unary,
     },
     /**

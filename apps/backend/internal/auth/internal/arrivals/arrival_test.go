@@ -30,6 +30,7 @@ func TestTheTagSaysWhereTheAccountCameFrom(t *testing.T) {
 	}{
 		"a player's link":     {tag: "rc", source: arrivals.SourceRecruit},
 		"the YouTube link":    {tag: " YT ", source: arrivals.SourceYouTube},
+		"the CrazyGames page": {tag: "cg", source: arrivals.SourceCrazyGames},
 		"no tag":              {tag: "", source: arrivals.SourceUnknown},
 		"a tag nobody posted": {tag: "tiktok", source: arrivals.SourceUnknown},
 	} {

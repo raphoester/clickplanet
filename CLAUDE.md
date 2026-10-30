@@ -32,3 +32,5 @@ Read the relevant app's `CLAUDE.md` before working inside `apps/` — this file 
 - [Local full stack](docs/local-stack.md) — `deploy/docker-compose.yaml`: backend, frontend and postgres together.
 - [Independence of the apps](docs/app-independence.md) — each app builds from its own directory. No root build
   tooling.
+- [CrazyGames](docs/crazygames.md) — the game framed from `crazygames.clickplanet.lol`: why a host of its own, what
+  each app and the deploy do, and what the owner sets up.

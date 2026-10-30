@@ -78,6 +78,8 @@ function AccountSettings({state, store, onDelete, linkedMultiplier, clips}: Acco
     const linked = state.me.linked
     const toLink = state.offered.filter((p) => !linked.includes(p))
     const buttons = toLink.filter((p) => p !== "email")
+    // CrazyGames signs the player in and out itself.
+    const leavable = linked.length > 0 && !linked.includes("crazygames")
 
     return <div className="account-panel" aria-busy={busy}>
         {linked.length === 0
@@ -96,11 +98,11 @@ function AccountSettings({state, store, onDelete, linkedMultiplier, clips}: Acco
                                                    provider={provider}
                                                    label={`${linked.length === 0 ? "Sign in with" : "Link"} ${PROVIDER_NAMES[provider]}`}
                                                    disabled={busy}
-                                                   onClick={() => void (linked.length === 0 ? store.signIn(provider) : store.link(provider))}/>)}
+                                                   onClick={() => void (linked.length > 0 && provider !== "crazygames" ? store.link(provider) : store.signIn(provider))}/>)}
 
         {toLink.includes("email") && <EmailSignIn state={state} store={store} intent={linked.length === 0 ? "signIn" : "link"}/>}
 
-        {linked.length > 0 && <>
+        {leavable && <>
             <button type="button"
                     className="button account-button"
                     disabled={busy}
@@ -113,6 +115,8 @@ function AccountSettings({state, store, onDelete, linkedMultiplier, clips}: Acco
                     onClick={() => void store.signOutEverywhere()}>
                 Sign out everywhere
             </button>
+        </>}
+        {linked.length > 0 && <>
             <button type="button"
                     className="button account-button account-delete"
                     disabled={busy}

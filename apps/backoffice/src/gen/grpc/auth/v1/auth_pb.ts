@@ -29,6 +29,11 @@ export enum Provider {
    * @generated from enum value: PROVIDER_EMAIL = 3;
    */
   EMAIL = 3,
+
+  /**
+   * @generated from enum value: PROVIDER_CRAZYGAMES = 4;
+   */
+  CRAZYGAMES = 4,
 }
 // Retrieve enum metadata with: proto3.getEnumType(Provider)
 proto3.util.setEnumType(Provider, "auth.v1.Provider", [
@@ -36,6 +41,7 @@ proto3.util.setEnumType(Provider, "auth.v1.Provider", [
   { no: 1, name: "PROVIDER_GOOGLE" },
   { no: 2, name: "PROVIDER_DISCORD" },
   { no: 3, name: "PROVIDER_EMAIL" },
+  { no: 4, name: "PROVIDER_CRAZYGAMES" },
 ]);
 
 /**
@@ -903,6 +909,94 @@ export class CompleteEmailSignInResponse extends Message<CompleteEmailSignInResp
 
   static equals(a: CompleteEmailSignInResponse | PlainMessage<CompleteEmailSignInResponse> | undefined, b: CompleteEmailSignInResponse | PlainMessage<CompleteEmailSignInResponse> | undefined): boolean {
     return proto3.util.equals(CompleteEmailSignInResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message auth.v1.CompleteCrazyGamesSignInRequest
+ */
+export class CompleteCrazyGamesSignInRequest extends Message<CompleteCrazyGamesSignInRequest> {
+  /**
+   * The JWT of the SDK's user.getUserToken({signingKeyType: "IN_GAME_AUTH"}).
+   *
+   * @generated from field: string token = 1;
+   */
+  token = "";
+
+  /**
+   * @generated from field: auth.v1.Landing landing = 2;
+   */
+  landing?: Landing;
+
+  constructor(data?: PartialMessage<CompleteCrazyGamesSignInRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.CompleteCrazyGamesSignInRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "landing", kind: "message", T: Landing },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CompleteCrazyGamesSignInRequest {
+    return new CompleteCrazyGamesSignInRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CompleteCrazyGamesSignInRequest {
+    return new CompleteCrazyGamesSignInRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CompleteCrazyGamesSignInRequest {
+    return new CompleteCrazyGamesSignInRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CompleteCrazyGamesSignInRequest | PlainMessage<CompleteCrazyGamesSignInRequest> | undefined, b: CompleteCrazyGamesSignInRequest | PlainMessage<CompleteCrazyGamesSignInRequest> | undefined): boolean {
+    return proto3.util.equals(CompleteCrazyGamesSignInRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message auth.v1.CompleteCrazyGamesSignInResponse
+ */
+export class CompleteCrazyGamesSignInResponse extends Message<CompleteCrazyGamesSignInResponse> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  /**
+   * @generated from field: auth.v1.SignInOutcome outcome = 2;
+   */
+  outcome = SignInOutcome.UNSPECIFIED;
+
+  constructor(data?: PartialMessage<CompleteCrazyGamesSignInResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.CompleteCrazyGamesSignInResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "outcome", kind: "enum", T: proto3.getEnumType(SignInOutcome) },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CompleteCrazyGamesSignInResponse {
+    return new CompleteCrazyGamesSignInResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CompleteCrazyGamesSignInResponse {
+    return new CompleteCrazyGamesSignInResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CompleteCrazyGamesSignInResponse {
+    return new CompleteCrazyGamesSignInResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CompleteCrazyGamesSignInResponse | PlainMessage<CompleteCrazyGamesSignInResponse> | undefined, b: CompleteCrazyGamesSignInResponse | PlainMessage<CompleteCrazyGamesSignInResponse> | undefined): boolean {
+    return proto3.util.equals(CompleteCrazyGamesSignInResponse, a, b);
   }
 }
 

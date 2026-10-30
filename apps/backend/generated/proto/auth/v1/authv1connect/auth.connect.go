@@ -55,6 +55,9 @@ const (
 	// AuthServiceCompleteEmailSignInProcedure is the fully-qualified name of the AuthService's
 	// CompleteEmailSignIn RPC.
 	AuthServiceCompleteEmailSignInProcedure = "/auth.v1.AuthService/CompleteEmailSignIn"
+	// AuthServiceCompleteCrazyGamesSignInProcedure is the fully-qualified name of the AuthService's
+	// CompleteCrazyGamesSignIn RPC.
+	AuthServiceCompleteCrazyGamesSignInProcedure = "/auth.v1.AuthService/CompleteCrazyGamesSignIn"
 	// AuthServiceSignOutProcedure is the fully-qualified name of the AuthService's SignOut RPC.
 	AuthServiceSignOutProcedure = "/auth.v1.AuthService/SignOut"
 	// AuthServiceSignOutEverywhereProcedure is the fully-qualified name of the AuthService's
@@ -77,6 +80,8 @@ type AuthServiceClient interface {
 	// Answers the same whether or not the address has an account.
 	StartEmailSignIn(context.Context, *connect.Request[v1.StartEmailSignInRequest]) (*connect.Response[v1.StartEmailSignInResponse], error)
 	CompleteEmailSignIn(context.Context, *connect.Request[v1.CompleteEmailSignInRequest]) (*connect.Response[v1.CompleteEmailSignInResponse], error)
+	// One step: the CrazyGames SDK already signed the player in, and its token says who.
+	CompleteCrazyGamesSignIn(context.Context, *connect.Request[v1.CompleteCrazyGamesSignInRequest]) (*connect.Response[v1.CompleteCrazyGamesSignInResponse], error)
 	SignOut(context.Context, *connect.Request[v1.SignOutRequest]) (*connect.Response[v1.SignOutResponse], error)
 	SignOutEverywhere(context.Context, *connect.Request[v1.SignOutEverywhereRequest]) (*connect.Response[v1.SignOutEverywhereResponse], error)
 	DeleteAccount(context.Context, *connect.Request[v1.DeleteAccountRequest]) (*connect.Response[v1.DeleteAccountResponse], error)
@@ -141,6 +146,12 @@ func NewAuthServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(authServiceMethods.ByName("CompleteEmailSignIn")),
 			connect.WithClientOptions(opts...),
 		),
+		completeCrazyGamesSignIn: connect.NewClient[v1.CompleteCrazyGamesSignInRequest, v1.CompleteCrazyGamesSignInResponse](
+			httpClient,
+			baseURL+AuthServiceCompleteCrazyGamesSignInProcedure,
+			connect.WithSchema(authServiceMethods.ByName("CompleteCrazyGamesSignIn")),
+			connect.WithClientOptions(opts...),
+		),
 		signOut: connect.NewClient[v1.SignOutRequest, v1.SignOutResponse](
 			httpClient,
 			baseURL+AuthServiceSignOutProcedure,
@@ -164,17 +175,18 @@ func NewAuthServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 
 // authServiceClient implements AuthServiceClient.
 type authServiceClient struct {
-	createSession       *connect.Client[v1.CreateSessionRequest, v1.CreateSessionResponse]
-	resumeSession       *connect.Client[v1.ResumeSessionRequest, v1.ResumeSessionResponse]
-	getMe               *connect.Client[v1.GetMeRequest, v1.GetMeResponse]
-	getSignInOptions    *connect.Client[v1.GetSignInOptionsRequest, v1.GetSignInOptionsResponse]
-	startSignIn         *connect.Client[v1.StartSignInRequest, v1.StartSignInResponse]
-	completeSignIn      *connect.Client[v1.CompleteSignInRequest, v1.CompleteSignInResponse]
-	startEmailSignIn    *connect.Client[v1.StartEmailSignInRequest, v1.StartEmailSignInResponse]
-	completeEmailSignIn *connect.Client[v1.CompleteEmailSignInRequest, v1.CompleteEmailSignInResponse]
-	signOut             *connect.Client[v1.SignOutRequest, v1.SignOutResponse]
-	signOutEverywhere   *connect.Client[v1.SignOutEverywhereRequest, v1.SignOutEverywhereResponse]
-	deleteAccount       *connect.Client[v1.DeleteAccountRequest, v1.DeleteAccountResponse]
+	createSession            *connect.Client[v1.CreateSessionRequest, v1.CreateSessionResponse]
+	resumeSession            *connect.Client[v1.ResumeSessionRequest, v1.ResumeSessionResponse]
+	getMe                    *connect.Client[v1.GetMeRequest, v1.GetMeResponse]
+	getSignInOptions         *connect.Client[v1.GetSignInOptionsRequest, v1.GetSignInOptionsResponse]
+	startSignIn              *connect.Client[v1.StartSignInRequest, v1.StartSignInResponse]
+	completeSignIn           *connect.Client[v1.CompleteSignInRequest, v1.CompleteSignInResponse]
+	startEmailSignIn         *connect.Client[v1.StartEmailSignInRequest, v1.StartEmailSignInResponse]
+	completeEmailSignIn      *connect.Client[v1.CompleteEmailSignInRequest, v1.CompleteEmailSignInResponse]
+	completeCrazyGamesSignIn *connect.Client[v1.CompleteCrazyGamesSignInRequest, v1.CompleteCrazyGamesSignInResponse]
+	signOut                  *connect.Client[v1.SignOutRequest, v1.SignOutResponse]
+	signOutEverywhere        *connect.Client[v1.SignOutEverywhereRequest, v1.SignOutEverywhereResponse]
+	deleteAccount            *connect.Client[v1.DeleteAccountRequest, v1.DeleteAccountResponse]
 }
 
 // CreateSession calls auth.v1.AuthService.CreateSession.
@@ -217,6 +229,11 @@ func (c *authServiceClient) CompleteEmailSignIn(ctx context.Context, req *connec
 	return c.completeEmailSignIn.CallUnary(ctx, req)
 }
 
+// CompleteCrazyGamesSignIn calls auth.v1.AuthService.CompleteCrazyGamesSignIn.
+func (c *authServiceClient) CompleteCrazyGamesSignIn(ctx context.Context, req *connect.Request[v1.CompleteCrazyGamesSignInRequest]) (*connect.Response[v1.CompleteCrazyGamesSignInResponse], error) {
+	return c.completeCrazyGamesSignIn.CallUnary(ctx, req)
+}
+
 // SignOut calls auth.v1.AuthService.SignOut.
 func (c *authServiceClient) SignOut(ctx context.Context, req *connect.Request[v1.SignOutRequest]) (*connect.Response[v1.SignOutResponse], error) {
 	return c.signOut.CallUnary(ctx, req)
@@ -244,6 +261,8 @@ type AuthServiceHandler interface {
 	// Answers the same whether or not the address has an account.
 	StartEmailSignIn(context.Context, *connect.Request[v1.StartEmailSignInRequest]) (*connect.Response[v1.StartEmailSignInResponse], error)
 	CompleteEmailSignIn(context.Context, *connect.Request[v1.CompleteEmailSignInRequest]) (*connect.Response[v1.CompleteEmailSignInResponse], error)
+	// One step: the CrazyGames SDK already signed the player in, and its token says who.
+	CompleteCrazyGamesSignIn(context.Context, *connect.Request[v1.CompleteCrazyGamesSignInRequest]) (*connect.Response[v1.CompleteCrazyGamesSignInResponse], error)
 	SignOut(context.Context, *connect.Request[v1.SignOutRequest]) (*connect.Response[v1.SignOutResponse], error)
 	SignOutEverywhere(context.Context, *connect.Request[v1.SignOutEverywhereRequest]) (*connect.Response[v1.SignOutEverywhereResponse], error)
 	DeleteAccount(context.Context, *connect.Request[v1.DeleteAccountRequest]) (*connect.Response[v1.DeleteAccountResponse], error)
@@ -304,6 +323,12 @@ func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(authServiceMethods.ByName("CompleteEmailSignIn")),
 		connect.WithHandlerOptions(opts...),
 	)
+	authServiceCompleteCrazyGamesSignInHandler := connect.NewUnaryHandler(
+		AuthServiceCompleteCrazyGamesSignInProcedure,
+		svc.CompleteCrazyGamesSignIn,
+		connect.WithSchema(authServiceMethods.ByName("CompleteCrazyGamesSignIn")),
+		connect.WithHandlerOptions(opts...),
+	)
 	authServiceSignOutHandler := connect.NewUnaryHandler(
 		AuthServiceSignOutProcedure,
 		svc.SignOut,
@@ -340,6 +365,8 @@ func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption
 			authServiceStartEmailSignInHandler.ServeHTTP(w, r)
 		case AuthServiceCompleteEmailSignInProcedure:
 			authServiceCompleteEmailSignInHandler.ServeHTTP(w, r)
+		case AuthServiceCompleteCrazyGamesSignInProcedure:
+			authServiceCompleteCrazyGamesSignInHandler.ServeHTTP(w, r)
 		case AuthServiceSignOutProcedure:
 			authServiceSignOutHandler.ServeHTTP(w, r)
 		case AuthServiceSignOutEverywhereProcedure:
@@ -385,6 +412,10 @@ func (UnimplementedAuthServiceHandler) StartEmailSignIn(context.Context, *connec
 
 func (UnimplementedAuthServiceHandler) CompleteEmailSignIn(context.Context, *connect.Request[v1.CompleteEmailSignInRequest]) (*connect.Response[v1.CompleteEmailSignInResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.AuthService.CompleteEmailSignIn is not implemented"))
+}
+
+func (UnimplementedAuthServiceHandler) CompleteCrazyGamesSignIn(context.Context, *connect.Request[v1.CompleteCrazyGamesSignInRequest]) (*connect.Response[v1.CompleteCrazyGamesSignInResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.AuthService.CompleteCrazyGamesSignIn is not implemented"))
 }
 
 func (UnimplementedAuthServiceHandler) SignOut(context.Context, *connect.Request[v1.SignOutRequest]) (*connect.Response[v1.SignOutResponse], error) {

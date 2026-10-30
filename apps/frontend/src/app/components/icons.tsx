@@ -26,6 +26,13 @@ export function BackIcon({size = 22}: IconProps) {
     </svg>
 }
 
+export function VideoIcon({size = 18}: IconProps) {
+    return <svg {...base(size)}>
+        <rect x="3" y="5" width="18" height="14" rx="3"/>
+        <path d="M10 9.5v5l4.5-2.5z" fill="currentColor"/>
+    </svg>
+}
+
 export function CloseIcon({size = 18}: IconProps) {
     return <svg {...base(size)}>
         <path d="M6 6 18 18"/>

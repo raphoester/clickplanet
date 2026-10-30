@@ -25,6 +25,7 @@ import {
     BonusTaken,
     QuizOffered,
     ChargesHeld,
+    AdRefillRefusal,
     ClickBudget as ClickBudgetMessage,
     GetAllegianceResponse,
     PledgeAllegianceResponse,
@@ -51,7 +52,7 @@ import {
     TilesSpread,
     TileUpdate,
 } from "../gen/grpc/planet/v1/planet_pb.ts"
-import {AllegianceLockedError, BankFullError, BannedError, BonusLostError, FrozenError, ShieldRefusedError, RateLimitedError, VPNBlockedError} from "./backend.ts"
+import {AdRefillTooSoonError, AllegianceLockedError, BankFullError, BannedError, BonusLostError, FrozenError, ShieldRefusedError, RateLimitedError, VPNBlockedError} from "./backend.ts"
 import {SESSION_HEADER, type SessionProvider, SessionUnavailableError} from "./session.ts"
 import type {ClickBudget} from "./clickBudget.ts"
 import type {BonusRules, Charges} from "../domain/bonus.ts"
@@ -1578,10 +1579,10 @@ describe("the rules", () => {
         ({click: vi.fn(), getMap: vi.fn(), getBudget: noBudget(), ...bonusReads(), mapDensity: vi.fn(),
             listenForEvents: noEvents(), ...fields}) as never
 
-    it("reads the toll, the sizes of the charges and the sign-in refill", async () => {
+    it("reads the toll, the sizes of the charges, the sign-in refill and the ad refill", async () => {
         const getBonusRules = vi.fn().mockResolvedValue(new GetBonusRulesResponse({
             blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, shields: 12, tileShields: 10,
-            tollSteps: [{share: 0.1, slowdown: 1.5}, {share: 0.3, slowdown: 4}], signInRefill: true,
+            tollSteps: [{share: 0.1, slowdown: 1.5}, {share: 0.3, slowdown: 4}], signInRefill: true, adRefill: true,
         }))
         const backend = new PlanetBackend(clientWith({getBonusRules}), 1_000)
 
@@ -1593,7 +1594,7 @@ describe("the rules", () => {
 
         await vi.waitFor(() => expect(seen.at(-1)).toEqual({
             blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, shields: 12, tileShields: 10,
-            toll: [{share: 0.1, slowdown: 1.5}, {share: 0.3, slowdown: 4}], signInRefill: true,
+            toll: [{share: 0.1, slowdown: 1.5}, {share: 0.3, slowdown: 4}], signInRefill: true, adRefill: true,
         }))
         backend.close()
     })
@@ -1805,6 +1806,42 @@ describe("the refill", () => {
         await expect(backend.useRefill("fr")).rejects.toBeInstanceOf(BankFullError)
 
         expect(seen.at(-1)?.refill).toBe(true)
+        backend.close()
+    })
+
+    it("fills the meter from the answer of an ad refill, with a click token", async () => {
+        const claimAdRefill = vi.fn().mockResolvedValue({budget: new ClickBudgetMessage({tokens: 60, capacity: 60, refillPerSecond: 0.2})})
+        const backend = new PlanetBackend(clientWith({claimAdRefill}), 1_000, fixedSession("session-1"))
+        const tokens: number[] = []
+        backend.watchClickBudget(b => tokens.push(b.tokens))
+
+        await backend.claimAdRefill("fr")
+
+        expect(claimAdRefill).toHaveBeenCalledWith({countryId: "fr"}, expect.anything())
+        expect((claimAdRefill.mock.calls[0][1].headers as Headers).get(SESSION_HEADER)).toBe("session-1")
+        expect(tokens.at(-1)).toBe(60)
+        backend.close()
+    })
+
+    it("reads a bank that had its ad refill as AdRefillTooSoonError, with when the next one is", async () => {
+        const refused = new ConnectError("too soon", Code.FailedPrecondition)
+        refused.details.push({type: AdRefillRefusal.typeName, value: new AdRefillRefusal({availableAtUnixMs: 1_800_000n}).toBinary()})
+        const backend = new PlanetBackend(clientWith({claimAdRefill: vi.fn().mockRejectedValue(refused)}), 1_000)
+
+        const error = await backend.claimAdRefill("fr").catch((e: unknown) => e)
+
+        expect(error).toBeInstanceOf(AdRefillTooSoonError)
+        expect((error as AdRefillTooSoonError).availableAt).toBe(1_800_000)
+        await expect(new PlanetBackend(clientWith({claimAdRefill: vi.fn().mockRejectedValue(new ConnectError("full", Code.FailedPrecondition))}), 1_000)
+            .claimAdRefill("fr")).rejects.toBeInstanceOf(BankFullError)
+        backend.close()
+    })
+
+    it("reads when the bank may have its next ad refill", async () => {
+        const getAdRefill = vi.fn().mockResolvedValue({availableAtUnixMs: 1_800_000n})
+        const backend = new PlanetBackend(clientWith({getAdRefill}), 1_000)
+
+        expect(await backend.adRefillAt()).toBe(1_800_000)
         backend.close()
     })
 

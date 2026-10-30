@@ -124,6 +124,12 @@ function SetForm({planet, editing, onCancel, onSaved}: {
                                 Refill at first sign-in
                             </label>
                         )}
+                        {group.title === "Rewarded ad" && (
+                            <label className="check">
+                                <input type="checkbox" checked={draft.adRefill} onChange={e => change({adRefill: e.target.checked})}/>
+                                Refill for a rewarded ad
+                            </label>
+                        )}
                         {group.title === "Quizzes" && (
                             <label className="check">
                                 <input type="checkbox" checked={draft.quiz} onChange={e => change({quiz: e.target.checked})}/>

@@ -21,11 +21,11 @@ function readStoredSettings(): string | null {
     }
 }
 
-export function useSound() {
+export function useSound(silenced = false) {
     const [settings, setSettings] = useState<SoundSettings>(() => parseSoundSettings(readStoredSettings(), WHEN_UNSET))
 
     const settingsRef = useRef(settings)
-    settingsRef.current = settings
+    settingsRef.current = silenced ? MUTED_SOUND_SETTINGS : settings
 
     const playerRef = useRef<SoundPlayer | null>(null)
     if (!playerRef.current) {

@@ -663,6 +663,7 @@ describe("Menu", () => {
                 completeSignIn: vi.fn(async () => "signedIn" as const),
                 startEmailSignIn: vi.fn(async () => undefined),
                 completeEmailSignIn: vi.fn(async () => "signedIn" as const),
+                completeCrazyGamesSignIn: vi.fn(async () => "signedIn" as const),
                 signOut: vi.fn(async () => undefined),
                 signOutEverywhere: vi.fn(async () => undefined),
                 deleteAccount: vi.fn(async () => undefined),

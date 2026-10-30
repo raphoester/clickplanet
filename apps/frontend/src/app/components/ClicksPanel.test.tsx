@@ -68,4 +68,28 @@ describe("ClicksPanel", () => {
 
         expect(screen.queryByRole("button")).toBeNull()
     })
+
+    it("offers an ad for a full bank while the bank is not full, on CrazyGames only", () => {
+        const onWatch = vi.fn()
+        render(<ClicksPanel budget={reading()} countryName="France" toll={TOLL} ad={{state: {kind: "ready"}, onWatch}}/>)
+
+        fireEvent.click(screen.getByRole("button", {name: "Watch an ad: full bank"}))
+
+        expect(onWatch).toHaveBeenCalled()
+        cleanup()
+        render(<ClicksPanel budget={reading({tokens: 60})} countryName="France" toll={TOLL} ad={{state: {kind: "ready"}, onWatch}}/>)
+        expect(screen.queryByRole("button", {name: "Watch an ad: full bank"})).toBeNull()
+        cleanup()
+        render(<ClicksPanel budget={reading()} countryName="France" toll={TOLL}/>)
+        expect(screen.queryByRole("button", {name: "Watch an ad: full bank"})).toBeNull()
+    })
+
+    it("says when the next ad refill is, and that an adblocker has none", () => {
+        render(<ClicksPanel budget={reading()} countryName="France" toll={TOLL} ad={{state: {kind: "waiting", until: Date.now() + 60_000}, onWatch: vi.fn()}}/>)
+        expect(screen.getByText(/^Next ad refill at /)).toBeTruthy()
+        cleanup()
+
+        render(<ClicksPanel budget={reading()} countryName="France" toll={TOLL} ad={{state: {kind: "blocked"}, onWatch: vi.fn()}}/>)
+        expect(screen.getByText(/^Ads are blocked/)).toBeTruthy()
+    })
 })
