@@ -1,4 +1,4 @@
-# HD graphics: the sharper, lit globe, and `?gfx=`
+# HD graphics: the sharper globe, and `?gfx=`
 
 The two sections below — the screen's pixel ratio and the light — shipped on in
 #254 and turned the globe **almost white, flickering as it turned**, for players
@@ -22,22 +22,20 @@ query only the parts it names are on, so `?gfx=` alone is the plain globe:
 |---|---|
 | `ratio` | the screen's pixel ratio, capped at 2, instead of 1 |
 | `aa` | `antialias` on the context |
-| `earth` | the earth's own shader, in the light, with the glint |
-| `tiles` | the light on the tiles |
-| `halo` | the light on the halo |
+| `earth` | the earth's own shader, with the sea's glint |
 | `compact` | the tiles' compact layout: 20 bytes a tile on the GPU, not 56 |
-| `light` | `earth`, `tiles` and `halo` |
 | `all` | all of the above: everything HD graphics turns on |
 
-Words add up (`?gfx=ratio,tiles`), and sit beside the rest of the query
-(`?f=fr&gfx=halo`). A word it does not know turns nothing on.
+Words add up (`?gfx=ratio,earth`), and sit beside the rest of the query
+(`?f=fr&gfx=earth`). A word it does not know turns nothing on.
+
+**The light is not a part any more.** It is one pass for every player, and the
+`tiles`, `halo` and `light` words went with the light in each shader. See [The
+light](light.md).
 
 **Off is the code from before #254, not the new code multiplied by zero.** The
-light is compiled out with `#ifdef LIT` (three's `defines`, which leaves out a
-`false` one), so a driver that miscompiles `light.glsl` never sees it; the plain
-earth is three's standard material under the ambient light again; the plain halo
-has its own `colour` uniform; the plain tiles are the old attributes, with
-`#ifdef COMPACT` around the new ones.
+plain earth is three's basic material; the plain tiles are the old attributes,
+with `#ifdef COMPACT` around the new ones.
 
 **The compact tile layout came later and is not part of #254.** It sits behind the
 same setting for the same reason: it reads integer buffers that nothing else in
@@ -47,6 +45,6 @@ arithmetic, which is a multiplication by 1.
 
 **To use it**, send a player who has the bug the links, one per part, and ask
 which come out white: `https://clickplanet.lol/play?gfx=all` first, which must
-show the bug, then `ratio`, `aa`, `earth`, `tiles`, `halo`, `compact`. Ask for
+show the bug, then `ratio`, `aa`, `earth`, `compact`. Ask for
 `chrome://gpu` too: it names the driver. **Once the culprit is fixed, take the
 URL switches out**; the setting stays.

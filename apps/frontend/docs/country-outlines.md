@@ -55,10 +55,13 @@ hides whatever they cover and the line only ever shows in the gaps — which is
 the whole width of it. Zoomed out that gap is gone: the discs are widened until
 they cover the ground so the painted flag can reach it, and a line underneath
 them would be invisible. So the same outline is drawn just outside the shell as
-well, at the painted flag's own opacity, and the two hand over on the one
-schedule that owns the rest of the handover. Neither pass writes depth, and both
-are the same grey, so the stretch where they overlap — a coast, which has no
-tiles on the sea side to hide the under pass — only ever comes out that grey.
+well, fading with the painted flag, and the two hand over on the one schedule that
+owns the rest of the handover. **The over pass is thinner and darkens the flag
+under it** (`ORBIT_WIDTH`, 0.75px, black at `ORBIT_INK`, 70%): a red flag gets a
+dark red edge, as in the season-end clips, where the grey line read as a stroke
+drawn across the map. Neither pass writes depth, so the stretch where they overlap
+— a coast, which has no tiles on the sea side to hide the under pass — comes out a
+little darker during the handover.
 
 `npm run borderLines` writes the geometry, from the coordinates blob and the
 borders blob and nothing else. It rebuilds the whole `IcosahedronGeometry(1, 300)`
