@@ -32,6 +32,15 @@ service AdminService {
   // the same post and player is kept once. NotFound for a cast forgotten or never made; InvalidArgument for a number
   // it does not have.
   rpc KeepAppearance(KeepAppearanceRequest) returns (KeepAppearanceResponse);
+
+  // A link the page sends one video to, straight to the bucket. The video is listed once KeepVideo names it.
+  rpc CreateVideoUpload(CreateVideoUploadRequest) returns (CreateVideoUploadResponse);
+
+  rpc KeepVideo(KeepVideoRequest) returns (KeepVideoResponse);
+
+  rpc ListVideos(ListVideosRequest) returns (ListVideosResponse);
+
+  rpc RemoveVideo(RemoveVideoRequest) returns (RemoveVideoResponse);
 }
 
 // What a snapshot read and kept: counts and states, never a metric.
@@ -151,3 +160,49 @@ message KeepAppearanceRequest {
 message KeepAppearanceResponse {
   uint32 kept = 1;
 }
+
+message CreateVideoUploadRequest {
+  string content_type = 1;
+  uint64 size_bytes = 2;
+}
+
+message CreateVideoUploadResponse {
+  string video_id = 1;
+  // A PUT with this content type and this exact size, before it expires.
+  string upload_url = 2;
+}
+
+message KeepVideoRequest {
+  string video_id = 1;
+  string name = 2;
+  // What to post with it, copied by hand.
+  string caption = 3;
+}
+
+message KeepVideoResponse {}
+
+message ListVideosRequest {}
+
+message ListVideosResponse {
+  // The newest first.
+  repeated Video videos = 1;
+}
+
+message Video {
+  string video_id = 1;
+  string name = 2;
+  string caption = 3;
+  string content_type = 4;
+  uint64 size_bytes = 5;
+  google.protobuf.Timestamp kept_at = 6;
+  // Plays in the page.
+  string view_url = 7;
+  // Saves the file under its name.
+  string download_url = 8;
+}
+
+message RemoveVideoRequest {
+  string video_id = 1;
+}
+
+message RemoveVideoResponse {}

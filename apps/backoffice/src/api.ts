@@ -31,3 +31,24 @@ export const supportAdmin = createPromiseClient(SupportAdmin, transport)
 
 // For the calls that walk the whole map or every player: a revert, a reassign, a paint, a replay, a reconciliation.
 export const LONG_CALL_MS = 120_000
+
+// XMLHttpRequest, not fetch: fetch cannot report how much of an upload is sent.
+export function putFile(url: string, file: Blob, contentType: string, onSent: (bytes: number) => void): Promise<void> {
+    return new Promise((resolve, reject) => {
+        const request = new XMLHttpRequest()
+        request.open("PUT", url)
+        request.setRequestHeader("Content-Type", contentType)
+        request.upload.onprogress = event => onSent(event.loaded)
+        request.onload = () => {
+            if (request.status >= 200 && request.status < 300) resolve()
+            else reject(new Error(`the bucket answered ${request.status}${saidOf(request.responseText)}`))
+        }
+        request.onerror = () => reject(new Error("it did not reach the bucket"))
+        request.send(file)
+    })
+}
+
+function saidOf(answer: string): string {
+    const message = /<Message>([^<]*)<\/Message>/.exec(answer)?.[1]
+    return message === undefined ? "" : `: ${message}`
+}

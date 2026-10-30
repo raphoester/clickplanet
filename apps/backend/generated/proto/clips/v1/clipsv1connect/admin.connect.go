@@ -46,6 +46,16 @@ const (
 	// AdminServiceKeepAppearanceProcedure is the fully-qualified name of the AdminService's
 	// KeepAppearance RPC.
 	AdminServiceKeepAppearanceProcedure = "/clips.v1.AdminService/KeepAppearance"
+	// AdminServiceCreateVideoUploadProcedure is the fully-qualified name of the AdminService's
+	// CreateVideoUpload RPC.
+	AdminServiceCreateVideoUploadProcedure = "/clips.v1.AdminService/CreateVideoUpload"
+	// AdminServiceKeepVideoProcedure is the fully-qualified name of the AdminService's KeepVideo RPC.
+	AdminServiceKeepVideoProcedure = "/clips.v1.AdminService/KeepVideo"
+	// AdminServiceListVideosProcedure is the fully-qualified name of the AdminService's ListVideos RPC.
+	AdminServiceListVideosProcedure = "/clips.v1.AdminService/ListVideos"
+	// AdminServiceRemoveVideoProcedure is the fully-qualified name of the AdminService's RemoveVideo
+	// RPC.
+	AdminServiceRemoveVideoProcedure = "/clips.v1.AdminService/RemoveVideo"
 )
 
 // AdminServiceClient is a client for the clips.v1.AdminService service.
@@ -65,6 +75,11 @@ type AdminServiceClient interface {
 	// the same post and player is kept once. NotFound for a cast forgotten or never made; InvalidArgument for a number
 	// it does not have.
 	KeepAppearance(context.Context, *connect.Request[v1.KeepAppearanceRequest]) (*connect.Response[v1.KeepAppearanceResponse], error)
+	// A link the page sends one video to, straight to the bucket. The video is listed once KeepVideo names it.
+	CreateVideoUpload(context.Context, *connect.Request[v1.CreateVideoUploadRequest]) (*connect.Response[v1.CreateVideoUploadResponse], error)
+	KeepVideo(context.Context, *connect.Request[v1.KeepVideoRequest]) (*connect.Response[v1.KeepVideoResponse], error)
+	ListVideos(context.Context, *connect.Request[v1.ListVideosRequest]) (*connect.Response[v1.ListVideosResponse], error)
+	RemoveVideo(context.Context, *connect.Request[v1.RemoveVideoRequest]) (*connect.Response[v1.RemoveVideoResponse], error)
 }
 
 // NewAdminServiceClient constructs a client for the clips.v1.AdminService service. By default, it
@@ -108,16 +123,44 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("KeepAppearance")),
 			connect.WithClientOptions(opts...),
 		),
+		createVideoUpload: connect.NewClient[v1.CreateVideoUploadRequest, v1.CreateVideoUploadResponse](
+			httpClient,
+			baseURL+AdminServiceCreateVideoUploadProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("CreateVideoUpload")),
+			connect.WithClientOptions(opts...),
+		),
+		keepVideo: connect.NewClient[v1.KeepVideoRequest, v1.KeepVideoResponse](
+			httpClient,
+			baseURL+AdminServiceKeepVideoProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("KeepVideo")),
+			connect.WithClientOptions(opts...),
+		),
+		listVideos: connect.NewClient[v1.ListVideosRequest, v1.ListVideosResponse](
+			httpClient,
+			baseURL+AdminServiceListVideosProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("ListVideos")),
+			connect.WithClientOptions(opts...),
+		),
+		removeVideo: connect.NewClient[v1.RemoveVideoRequest, v1.RemoveVideoResponse](
+			httpClient,
+			baseURL+AdminServiceRemoveVideoProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("RemoveVideo")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // adminServiceClient implements AdminServiceClient.
 type adminServiceClient struct {
-	keepSnapshot   *connect.Client[v1.KeepSnapshotRequest, v1.KeepSnapshotResponse]
-	listSnapshots  *connect.Client[v1.ListSnapshotsRequest, v1.ListSnapshotsResponse]
-	listRows       *connect.Client[v1.ListRowsRequest, v1.ListRowsResponse]
-	makeCast       *connect.Client[v1.MakeCastRequest, v1.MakeCastResponse]
-	keepAppearance *connect.Client[v1.KeepAppearanceRequest, v1.KeepAppearanceResponse]
+	keepSnapshot      *connect.Client[v1.KeepSnapshotRequest, v1.KeepSnapshotResponse]
+	listSnapshots     *connect.Client[v1.ListSnapshotsRequest, v1.ListSnapshotsResponse]
+	listRows          *connect.Client[v1.ListRowsRequest, v1.ListRowsResponse]
+	makeCast          *connect.Client[v1.MakeCastRequest, v1.MakeCastResponse]
+	keepAppearance    *connect.Client[v1.KeepAppearanceRequest, v1.KeepAppearanceResponse]
+	createVideoUpload *connect.Client[v1.CreateVideoUploadRequest, v1.CreateVideoUploadResponse]
+	keepVideo         *connect.Client[v1.KeepVideoRequest, v1.KeepVideoResponse]
+	listVideos        *connect.Client[v1.ListVideosRequest, v1.ListVideosResponse]
+	removeVideo       *connect.Client[v1.RemoveVideoRequest, v1.RemoveVideoResponse]
 }
 
 // KeepSnapshot calls clips.v1.AdminService.KeepSnapshot.
@@ -145,6 +188,26 @@ func (c *adminServiceClient) KeepAppearance(ctx context.Context, req *connect.Re
 	return c.keepAppearance.CallUnary(ctx, req)
 }
 
+// CreateVideoUpload calls clips.v1.AdminService.CreateVideoUpload.
+func (c *adminServiceClient) CreateVideoUpload(ctx context.Context, req *connect.Request[v1.CreateVideoUploadRequest]) (*connect.Response[v1.CreateVideoUploadResponse], error) {
+	return c.createVideoUpload.CallUnary(ctx, req)
+}
+
+// KeepVideo calls clips.v1.AdminService.KeepVideo.
+func (c *adminServiceClient) KeepVideo(ctx context.Context, req *connect.Request[v1.KeepVideoRequest]) (*connect.Response[v1.KeepVideoResponse], error) {
+	return c.keepVideo.CallUnary(ctx, req)
+}
+
+// ListVideos calls clips.v1.AdminService.ListVideos.
+func (c *adminServiceClient) ListVideos(ctx context.Context, req *connect.Request[v1.ListVideosRequest]) (*connect.Response[v1.ListVideosResponse], error) {
+	return c.listVideos.CallUnary(ctx, req)
+}
+
+// RemoveVideo calls clips.v1.AdminService.RemoveVideo.
+func (c *adminServiceClient) RemoveVideo(ctx context.Context, req *connect.Request[v1.RemoveVideoRequest]) (*connect.Response[v1.RemoveVideoResponse], error) {
+	return c.removeVideo.CallUnary(ctx, req)
+}
+
 // AdminServiceHandler is an implementation of the clips.v1.AdminService service.
 type AdminServiceHandler interface {
 	// Keeps a snapshot's summary and some of its rows: a snapshot is sent in parts, each with the summary. A row kept
@@ -162,6 +225,11 @@ type AdminServiceHandler interface {
 	// the same post and player is kept once. NotFound for a cast forgotten or never made; InvalidArgument for a number
 	// it does not have.
 	KeepAppearance(context.Context, *connect.Request[v1.KeepAppearanceRequest]) (*connect.Response[v1.KeepAppearanceResponse], error)
+	// A link the page sends one video to, straight to the bucket. The video is listed once KeepVideo names it.
+	CreateVideoUpload(context.Context, *connect.Request[v1.CreateVideoUploadRequest]) (*connect.Response[v1.CreateVideoUploadResponse], error)
+	KeepVideo(context.Context, *connect.Request[v1.KeepVideoRequest]) (*connect.Response[v1.KeepVideoResponse], error)
+	ListVideos(context.Context, *connect.Request[v1.ListVideosRequest]) (*connect.Response[v1.ListVideosResponse], error)
+	RemoveVideo(context.Context, *connect.Request[v1.RemoveVideoRequest]) (*connect.Response[v1.RemoveVideoResponse], error)
 }
 
 // NewAdminServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -201,6 +269,30 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(adminServiceMethods.ByName("KeepAppearance")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServiceCreateVideoUploadHandler := connect.NewUnaryHandler(
+		AdminServiceCreateVideoUploadProcedure,
+		svc.CreateVideoUpload,
+		connect.WithSchema(adminServiceMethods.ByName("CreateVideoUpload")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServiceKeepVideoHandler := connect.NewUnaryHandler(
+		AdminServiceKeepVideoProcedure,
+		svc.KeepVideo,
+		connect.WithSchema(adminServiceMethods.ByName("KeepVideo")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServiceListVideosHandler := connect.NewUnaryHandler(
+		AdminServiceListVideosProcedure,
+		svc.ListVideos,
+		connect.WithSchema(adminServiceMethods.ByName("ListVideos")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServiceRemoveVideoHandler := connect.NewUnaryHandler(
+		AdminServiceRemoveVideoProcedure,
+		svc.RemoveVideo,
+		connect.WithSchema(adminServiceMethods.ByName("RemoveVideo")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/clips.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AdminServiceKeepSnapshotProcedure:
@@ -213,6 +305,14 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 			adminServiceMakeCastHandler.ServeHTTP(w, r)
 		case AdminServiceKeepAppearanceProcedure:
 			adminServiceKeepAppearanceHandler.ServeHTTP(w, r)
+		case AdminServiceCreateVideoUploadProcedure:
+			adminServiceCreateVideoUploadHandler.ServeHTTP(w, r)
+		case AdminServiceKeepVideoProcedure:
+			adminServiceKeepVideoHandler.ServeHTTP(w, r)
+		case AdminServiceListVideosProcedure:
+			adminServiceListVideosHandler.ServeHTTP(w, r)
+		case AdminServiceRemoveVideoProcedure:
+			adminServiceRemoveVideoHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -240,4 +340,20 @@ func (UnimplementedAdminServiceHandler) MakeCast(context.Context, *connect.Reque
 
 func (UnimplementedAdminServiceHandler) KeepAppearance(context.Context, *connect.Request[v1.KeepAppearanceRequest]) (*connect.Response[v1.KeepAppearanceResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("clips.v1.AdminService.KeepAppearance is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) CreateVideoUpload(context.Context, *connect.Request[v1.CreateVideoUploadRequest]) (*connect.Response[v1.CreateVideoUploadResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("clips.v1.AdminService.CreateVideoUpload is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) KeepVideo(context.Context, *connect.Request[v1.KeepVideoRequest]) (*connect.Response[v1.KeepVideoResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("clips.v1.AdminService.KeepVideo is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) ListVideos(context.Context, *connect.Request[v1.ListVideosRequest]) (*connect.Response[v1.ListVideosResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("clips.v1.AdminService.ListVideos is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) RemoveVideo(context.Context, *connect.Request[v1.RemoveVideoRequest]) (*connect.Response[v1.RemoveVideoResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("clips.v1.AdminService.RemoveVideo is not implemented"))
 }

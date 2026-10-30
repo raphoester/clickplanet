@@ -133,4 +133,8 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `support.attachments.keepUnsent` — how long a file waits for the note that names it before it is deleted (24h); not past `uploadTTL` refuses the boot
 - `support.attachments.uploadTTL`, `support.attachments.linkTTL` — how long an upload link is good for (10m), and a link the operator opens a file with (1h). More than 7 days refuses the boot: no bucket takes it. The server reads a file back over a link of its own, good for a minute
 - `support.attachments.bucket.endpoint`, `region`, `name`, `accessKeyId` — the S3 endpoint (a scheme and a host), the region the links are signed for (`auto` on R2), the bucket, and the key's id, which is in every link and is not a secret. Any of them empty with attachments on refuses the boot
-- `support.attachments.bucket.secretAccessKey` — `env://SUPPORT_BUCKET_SECRET` in `deploy/vps/backend.yaml`; empty with attachments on refuses the boot
+- `support.attachments.bucket.secretAccessKey` — `env://MEDIA_BUCKET_SECRET` in `deploy/vps/backend.yaml`; empty with attachments on refuses the boot
+- `clips.videos.enabled` — off, every video call of `clips.v1.AdminService` is refused and the bucket block is not read (see [Clip videos](clip-videos.md))
+- `clips.videos.maxBytes` — the most bytes of one video (524288000, 500 MiB)
+- `clips.videos.uploadTTL`, `clips.videos.linkTTL` — how long an upload link is good for (30m), and a view or download link (6h). More than 7 days refuses the boot
+- `clips.videos.bucket.*` — the same five keys as `support.attachments.bucket`; production names the same bucket and key. Any of them empty with videos on refuses the boot

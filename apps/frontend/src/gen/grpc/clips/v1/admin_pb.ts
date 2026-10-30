@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
+import { Message, proto3, protoInt64, Timestamp } from "@bufbuild/protobuf";
 import { Cast } from "./clips_pb.js";
 
 /**
@@ -772,6 +772,397 @@ export class KeepAppearanceResponse extends Message<KeepAppearanceResponse> {
 
   static equals(a: KeepAppearanceResponse | PlainMessage<KeepAppearanceResponse> | undefined, b: KeepAppearanceResponse | PlainMessage<KeepAppearanceResponse> | undefined): boolean {
     return proto3.util.equals(KeepAppearanceResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message clips.v1.CreateVideoUploadRequest
+ */
+export class CreateVideoUploadRequest extends Message<CreateVideoUploadRequest> {
+  /**
+   * @generated from field: string content_type = 1;
+   */
+  contentType = "";
+
+  /**
+   * @generated from field: uint64 size_bytes = 2;
+   */
+  sizeBytes = protoInt64.zero;
+
+  constructor(data?: PartialMessage<CreateVideoUploadRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "clips.v1.CreateVideoUploadRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "content_type", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "size_bytes", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CreateVideoUploadRequest {
+    return new CreateVideoUploadRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CreateVideoUploadRequest {
+    return new CreateVideoUploadRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CreateVideoUploadRequest {
+    return new CreateVideoUploadRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CreateVideoUploadRequest | PlainMessage<CreateVideoUploadRequest> | undefined, b: CreateVideoUploadRequest | PlainMessage<CreateVideoUploadRequest> | undefined): boolean {
+    return proto3.util.equals(CreateVideoUploadRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message clips.v1.CreateVideoUploadResponse
+ */
+export class CreateVideoUploadResponse extends Message<CreateVideoUploadResponse> {
+  /**
+   * @generated from field: string video_id = 1;
+   */
+  videoId = "";
+
+  /**
+   * A PUT with this content type and this exact size, before it expires.
+   *
+   * @generated from field: string upload_url = 2;
+   */
+  uploadUrl = "";
+
+  constructor(data?: PartialMessage<CreateVideoUploadResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "clips.v1.CreateVideoUploadResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "video_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "upload_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CreateVideoUploadResponse {
+    return new CreateVideoUploadResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CreateVideoUploadResponse {
+    return new CreateVideoUploadResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CreateVideoUploadResponse {
+    return new CreateVideoUploadResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CreateVideoUploadResponse | PlainMessage<CreateVideoUploadResponse> | undefined, b: CreateVideoUploadResponse | PlainMessage<CreateVideoUploadResponse> | undefined): boolean {
+    return proto3.util.equals(CreateVideoUploadResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message clips.v1.KeepVideoRequest
+ */
+export class KeepVideoRequest extends Message<KeepVideoRequest> {
+  /**
+   * @generated from field: string video_id = 1;
+   */
+  videoId = "";
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name = "";
+
+  /**
+   * What to post with it, copied by hand.
+   *
+   * @generated from field: string caption = 3;
+   */
+  caption = "";
+
+  constructor(data?: PartialMessage<KeepVideoRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "clips.v1.KeepVideoRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "video_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "caption", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): KeepVideoRequest {
+    return new KeepVideoRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): KeepVideoRequest {
+    return new KeepVideoRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): KeepVideoRequest {
+    return new KeepVideoRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: KeepVideoRequest | PlainMessage<KeepVideoRequest> | undefined, b: KeepVideoRequest | PlainMessage<KeepVideoRequest> | undefined): boolean {
+    return proto3.util.equals(KeepVideoRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message clips.v1.KeepVideoResponse
+ */
+export class KeepVideoResponse extends Message<KeepVideoResponse> {
+  constructor(data?: PartialMessage<KeepVideoResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "clips.v1.KeepVideoResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): KeepVideoResponse {
+    return new KeepVideoResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): KeepVideoResponse {
+    return new KeepVideoResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): KeepVideoResponse {
+    return new KeepVideoResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: KeepVideoResponse | PlainMessage<KeepVideoResponse> | undefined, b: KeepVideoResponse | PlainMessage<KeepVideoResponse> | undefined): boolean {
+    return proto3.util.equals(KeepVideoResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message clips.v1.ListVideosRequest
+ */
+export class ListVideosRequest extends Message<ListVideosRequest> {
+  constructor(data?: PartialMessage<ListVideosRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "clips.v1.ListVideosRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListVideosRequest {
+    return new ListVideosRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListVideosRequest {
+    return new ListVideosRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListVideosRequest {
+    return new ListVideosRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListVideosRequest | PlainMessage<ListVideosRequest> | undefined, b: ListVideosRequest | PlainMessage<ListVideosRequest> | undefined): boolean {
+    return proto3.util.equals(ListVideosRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message clips.v1.ListVideosResponse
+ */
+export class ListVideosResponse extends Message<ListVideosResponse> {
+  /**
+   * The newest first.
+   *
+   * @generated from field: repeated clips.v1.Video videos = 1;
+   */
+  videos: Video[] = [];
+
+  constructor(data?: PartialMessage<ListVideosResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "clips.v1.ListVideosResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "videos", kind: "message", T: Video, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListVideosResponse {
+    return new ListVideosResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListVideosResponse {
+    return new ListVideosResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListVideosResponse {
+    return new ListVideosResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListVideosResponse | PlainMessage<ListVideosResponse> | undefined, b: ListVideosResponse | PlainMessage<ListVideosResponse> | undefined): boolean {
+    return proto3.util.equals(ListVideosResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message clips.v1.Video
+ */
+export class Video extends Message<Video> {
+  /**
+   * @generated from field: string video_id = 1;
+   */
+  videoId = "";
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name = "";
+
+  /**
+   * @generated from field: string caption = 3;
+   */
+  caption = "";
+
+  /**
+   * @generated from field: string content_type = 4;
+   */
+  contentType = "";
+
+  /**
+   * @generated from field: uint64 size_bytes = 5;
+   */
+  sizeBytes = protoInt64.zero;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp kept_at = 6;
+   */
+  keptAt?: Timestamp;
+
+  /**
+   * Plays in the page.
+   *
+   * @generated from field: string view_url = 7;
+   */
+  viewUrl = "";
+
+  /**
+   * Saves the file under its name.
+   *
+   * @generated from field: string download_url = 8;
+   */
+  downloadUrl = "";
+
+  constructor(data?: PartialMessage<Video>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "clips.v1.Video";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "video_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "caption", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "content_type", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "size_bytes", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+    { no: 6, name: "kept_at", kind: "message", T: Timestamp },
+    { no: 7, name: "view_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 8, name: "download_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Video {
+    return new Video().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Video {
+    return new Video().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Video {
+    return new Video().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Video | PlainMessage<Video> | undefined, b: Video | PlainMessage<Video> | undefined): boolean {
+    return proto3.util.equals(Video, a, b);
+  }
+}
+
+/**
+ * @generated from message clips.v1.RemoveVideoRequest
+ */
+export class RemoveVideoRequest extends Message<RemoveVideoRequest> {
+  /**
+   * @generated from field: string video_id = 1;
+   */
+  videoId = "";
+
+  constructor(data?: PartialMessage<RemoveVideoRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "clips.v1.RemoveVideoRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "video_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RemoveVideoRequest {
+    return new RemoveVideoRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RemoveVideoRequest {
+    return new RemoveVideoRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RemoveVideoRequest {
+    return new RemoveVideoRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RemoveVideoRequest | PlainMessage<RemoveVideoRequest> | undefined, b: RemoveVideoRequest | PlainMessage<RemoveVideoRequest> | undefined): boolean {
+    return proto3.util.equals(RemoveVideoRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message clips.v1.RemoveVideoResponse
+ */
+export class RemoveVideoResponse extends Message<RemoveVideoResponse> {
+  constructor(data?: PartialMessage<RemoveVideoResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "clips.v1.RemoveVideoResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RemoveVideoResponse {
+    return new RemoveVideoResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RemoveVideoResponse {
+    return new RemoveVideoResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RemoveVideoResponse {
+    return new RemoveVideoResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RemoveVideoResponse | PlainMessage<RemoveVideoResponse> | undefined, b: RemoveVideoResponse | PlainMessage<RemoveVideoResponse> | undefined): boolean {
+    return proto3.util.equals(RemoveVideoResponse, a, b);
   }
 }
 

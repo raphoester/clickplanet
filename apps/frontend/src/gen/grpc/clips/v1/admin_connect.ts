@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { KeepAppearanceRequest, KeepAppearanceResponse, KeepSnapshotRequest, KeepSnapshotResponse, ListRowsRequest, ListRowsResponse, ListSnapshotsRequest, ListSnapshotsResponse, MakeCastRequest, MakeCastResponse } from "./admin_pb.js";
+import { CreateVideoUploadRequest, CreateVideoUploadResponse, KeepAppearanceRequest, KeepAppearanceResponse, KeepSnapshotRequest, KeepSnapshotResponse, KeepVideoRequest, KeepVideoResponse, ListRowsRequest, ListRowsResponse, ListSnapshotsRequest, ListSnapshotsResponse, ListVideosRequest, ListVideosResponse, MakeCastRequest, MakeCastResponse, RemoveVideoRequest, RemoveVideoResponse } from "./admin_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -78,6 +78,44 @@ export const AdminService = {
       name: "KeepAppearance",
       I: KeepAppearanceRequest,
       O: KeepAppearanceResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * A link the page sends one video to, straight to the bucket. The video is listed once KeepVideo names it.
+     *
+     * @generated from rpc clips.v1.AdminService.CreateVideoUpload
+     */
+    createVideoUpload: {
+      name: "CreateVideoUpload",
+      I: CreateVideoUploadRequest,
+      O: CreateVideoUploadResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc clips.v1.AdminService.KeepVideo
+     */
+    keepVideo: {
+      name: "KeepVideo",
+      I: KeepVideoRequest,
+      O: KeepVideoResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc clips.v1.AdminService.ListVideos
+     */
+    listVideos: {
+      name: "ListVideos",
+      I: ListVideosRequest,
+      O: ListVideosResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc clips.v1.AdminService.RemoveVideo
+     */
+    removeVideo: {
+      name: "RemoveVideo",
+      I: RemoveVideoRequest,
+      O: RemoveVideoResponse,
       kind: MethodKind.Unary,
     },
   }

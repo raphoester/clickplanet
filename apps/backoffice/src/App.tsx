@@ -25,6 +25,7 @@ import {NoteList} from "./support/NoteList.tsx"
 import {useCall} from "./useCall.ts"
 import {useRoute} from "./useRoute.ts"
 import {useWide} from "./useWide.ts"
+import {VideosPage} from "./videos/VideosPage.tsx"
 
 export function App({callback}: {callback: Callback | undefined}) {
     const [returning, setReturning] = useState(callback)
@@ -98,6 +99,7 @@ function Console({operator, onSignedOut}: {operator: string, onSignedOut: () => 
                 {page === "paint" && <PaintPanel planet={CLIENTS.planet}/>}
                 {page === "replay" && <ReplayPanel planet={CLIENTS.planet}/>}
                 {page === "clips" && <ClipStatsPage clips={CLIENTS.clips}/>}
+                {page === "videos" && <VideosPage clips={CLIENTS.clips}/>}
                 {page === "titles" && <TitlesPanel player={CLIENTS.player}/>}
                 {page === "rules" && <RulesPanel planet={CLIENTS.planet}/>}
                 {page === "antibotRules" && <AntibotRulesPanel antibot={CLIENTS.antibot}/>}

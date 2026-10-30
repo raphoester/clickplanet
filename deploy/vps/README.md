@@ -1530,50 +1530,55 @@ on a link the backend signs, then sends the note naming them. The backend reads
 each file back from the bucket before it keeps the note, and `ListNotes` gives
 you a link to each.
 
-`backend.yaml` names a Cloudflare R2 bucket: R2 is free up to 10 GB, has no
-charge for downloads, and is on the account that already serves the site. **Any
-S3-compatible bucket works**: for DigitalOcean Spaces ($5 a month for 250 GB),
-change `endpoint` to `https://<region>.digitaloceanspaces.com` and `region` to
+`backend.yaml` names a Cloudflare R2 bucket, `clickplanet-media`: R2 is free up to 10 GB, has no
+charge for downloads, and is on the account that already serves the site. **It holds two modules' files**: the
+support notes' photos and videos at its root, and the clip videos the operator uploads on the backoffice's Videos
+page under `clips/videos/` (`clips.videos` in `backend.yaml`, the same key and secret; see the backend's
+[Clip videos](../../apps/backend/docs/clip-videos.md)). **Any S3-compatible bucket works**: for DigitalOcean Spaces
+($5 a month for 250 GB), change `endpoint` to `https://<region>.digitaloceanspaces.com` and `region` to
 `us-east-1`, and do steps 2 and 3 in its control panel.
 
+The first bucket, `clickplanet-support` (2026-10-14), held the notes' files alone. It was replaced on 2026-10-30 by
+`clickplanet-media`, **without its files**, by choice: a note sent before that shows its files as gone.
+
 1. Turn R2 on for the account in the dashboard (**R2 object storage**), then
-   make the bucket. **Done on 2026-10-14**, in Western Europe:
+   make the bucket. **Done on 2026-10-30**, in Western Europe:
 
    ```bash
-   npx wrangler r2 bucket create clickplanet-support
+   npx wrangler r2 bucket create clickplanet-media --location weur
    ```
 
-2. Let the site upload to it. Without this rule the browser blocks every
-   upload. **Done on 2026-10-14** too:
+2. Let the site and the backoffice upload to it. Without this rule the browser
+   blocks every upload. **Done on 2026-10-30** too:
 
    ```bash
-   printf '%s' '{"rules":[{"allowed":{"origins":["https://clickplanet.lol"],"methods":["PUT"],"headers":["content-type"]},"maxAgeSeconds":3600}]}' > /tmp/cors.json && npx wrangler r2 bucket cors set clickplanet-support --file /tmp/cors.json
+   printf '%s' '{"rules":[{"allowed":{"origins":["https://clickplanet.lol","https://backoffice.clickplanet.lol"],"methods":["PUT"],"headers":["content-type"]},"maxAgeSeconds":3600}]}' > /tmp/cors.json && npx wrangler r2 bucket cors set clickplanet-media --file /tmp/cors.json
    ```
 
 3. In the dashboard, **R2 object storage → Manage API tokens → Create**: an
-   **Object Read & Write** token for the `clickplanet-support` bucket alone. It
+   **Object Read & Write** token for the `clickplanet-media` bucket alone. It
    shows an **Access Key ID** and a **Secret Access Key**, once.
 4. Put the secret in the Actions secrets. `backend.yaml` already names it
-   (`env://SUPPORT_BUCKET_SECRET`):
+   (`env://MEDIA_BUCKET_SECRET`). `gh` asks for it and hides what is pasted, in any shell:
 
    ```bash
-   read -rsp 'Secret Access Key: ' s && echo && printf '%s' "$s" | gh secret set SUPPORT_BUCKET_SECRET --repo raphoester/clickplanet && unset s
+   gh secret set MEDIA_BUCKET_SECRET --repo raphoester/clickplanet
    ```
 
 5. In `backend.yaml`, write the Access Key ID in
-   `support.attachments.bucket.accessKeyId` (it is in every link the page gets,
-   so it is not a secret), set `support.attachments.enabled: true`, and deploy.
+   `support.attachments.bucket.accessKeyId` and `clips.videos.bucket.accessKeyId` (it is in every link the page gets,
+   so it is not a secret), and deploy.
    **An empty key or secret refuses the boot, and the deploy does not check the
    boot**: set the secret before the deploy, or the backend restarts in a loop.
-   With a new token, change both, then deploy. **Done on 2026-10-18.**
+   With a new token, change both, then deploy.
 
-To check it: the boot logs `support built ... attachments=true`, the Feedback
-form in Settings shows **Add photos or videos**, and a picture sent from it
-shows under its note in the backoffice.
+To check it: the boot logs `support built ... attachments=true` and `clips built ... videos=true`, the Feedback
+form in Settings shows **Add photos or videos**, a picture sent from it shows under its note in the backoffice, and a
+video uploaded on the Videos page plays there.
 
 - **The backoffice loads each file straight from the bucket**, so its
   Content-Security-Policy (`apps/backoffice/public/_headers`) names the
-  bucket's host in `img-src` and `media-src`. **With another bucket, change it
+  bucket's host in `img-src` and `media-src`, and in `connect-src` for the videos it uploads. **With another bucket, change it
   there too**, or the backoffice shows none of the files.
 
 - **A link is only good for the file it was signed for**: its type and its

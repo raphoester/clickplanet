@@ -43,4 +43,10 @@ The siteverify client it is fed by is **not** here. `turnstile` sat here on the 
 `ErrNoKey`) and says what a failed call went wrong with, the request left out (`Redacted`): the SDK's error dumps
 the request it failed on, key and all. **It knows no model, no prompt and no timeout**: those are each caller's, set
 per request, so one client serves calls of any length. The clips job's editor is its one caller today.
+`cps3` is an S3-compatible bucket, in production Cloudflare R2: links signed in their query (AWS Signature Version 4,
+no SDK; `signature_test.go` signs the S3 reference's own example), to upload one object of an exact type and size, to
+view it, or to download it under a name (`response-content-disposition`), and a `HEAD` and a `DELETE` of its own. **It
+knows keys, not files**: the support module keeps its notes' files at the root (`s3_attachment_bucket`), the clips
+module its videos under `clips/videos/` (`s3_video_bucket`), each with its own config block, which may name the same
+bucket. Its tests run on a real S3 server, the Versity gateway in a container.
 `cpcolls` holds the collections the standard library does not — today `Set[T]`. **A set is a `*cpcolls.Set`, never a map.** A `map[T]struct{}` or a `map[T]bool` written `m[k] = true` fails `make lint`: a ruleguard rule in `tools/ruleguard/rules.go`, run by gocritic, reports both everywhere but in `cpcolls` itself. A nil `*Set` reads as empty, like a nil map, so a lookup in a map of sets needs no `ok` check.

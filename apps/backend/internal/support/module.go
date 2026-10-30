@@ -17,6 +17,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cps3"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsessionverifier"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/decisions/postgres_decision_store"
@@ -214,7 +215,7 @@ type AttachmentsConfig struct {
 	UploadTTL time.Duration
 	LinkTTL   time.Duration
 
-	Bucket s3_attachment_bucket.Config
+	Bucket cps3.Config
 }
 
 // Off, a note carries no file, and the bucket block is not read.
@@ -225,9 +226,9 @@ func (c AttachmentsConfig) rules() notes.AttachmentRules {
 	return notes.AttachmentRules{MaxPerNote: c.MaxPerNote, MaxBytes: c.MaxBytes}
 }
 
-func (c AttachmentsConfig) bucket() s3_attachment_bucket.Config {
+func (c AttachmentsConfig) bucket() cps3.Config {
 	if !c.Enabled {
-		return s3_attachment_bucket.Config{}
+		return cps3.Config{}
 	}
 	return c.Bucket
 }

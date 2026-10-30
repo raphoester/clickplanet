@@ -31,6 +31,7 @@ each line names a doc in [`docs/`](docs) and says what is in it.
   tool on it.
 - [The map tools](docs/map-tools.md) — reassign a country, paint random tiles, download a replay.
 - [Clip stats](docs/clip-stats.md) — the daily numbers of the posted clips, and a CSV of them.
+- [Videos](docs/videos.md) — the season-end videos: uploaded from the Mac, downloaded with their caption on a phone.
 - [Ops](docs/ops.md) — the Timeline: what the gamemaster does next, drawn from its reads; `ReconcileTitles`, after a
   deploy; Game rules: planet's sets, made and edited; the antibot's rule sets, in a form read off the proto; both show
   what a save changes; the rule schedule: which set plays when, a battle's points' times, entries to come added and
