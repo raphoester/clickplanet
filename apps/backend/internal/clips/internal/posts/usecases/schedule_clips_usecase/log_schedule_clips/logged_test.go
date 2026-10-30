@@ -69,7 +69,7 @@ func TestAHeldClipIsLoggedAsHeldNotAsAFailure(t *testing.T) {
 	logs, err := run(t, stubExecutor{report: posts.Report{{Title: "FRANCE IS ATTACKING EUROPE", Held: true}}})
 
 	require.NoError(t, err)
-	assert.Contains(t, logs, `level=INFO msg="held a clip: every platform has posted its day" clip="FRANCE IS ATTACKING EUROPE"`)
+	assert.Contains(t, logs, `level=INFO msg="held a clip: every platform has posted its day or is out of its hours" clip="FRANCE IS ATTACKING EUROPE"`)
 	assert.NotContains(t, logs, "ERROR")
 }
 

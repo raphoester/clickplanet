@@ -27,12 +27,12 @@ func DraftOf(brk, length *durationpb.Duration, finale *gamemasterv1.SeasonFinale
 }
 
 // ScheduledOf is a season as the operator plans it, with the window the calendar works out and its days.
-func ScheduledOf(planned season.Snapshot, window season.Window, cutoff season.Cutoff) *gamemasterv1.ScheduledSeason {
+func ScheduledOf(planned season.Snapshot, window season.Window, days []season.Day) *gamemasterv1.ScheduledSeason {
 	scheduled := &gamemasterv1.ScheduledSeason{
 		Season: SeasonOf(window), BreakBefore: durationpb.New(planned.Break), Length: durationpb.New(planned.Length),
 		Finale: FinaleOf(planned.Finale),
 	}
-	for _, day := range window.Days(cutoff) {
+	for _, day := range days {
 		scheduled.Days = append(scheduled.Days, DayOf(day))
 	}
 	return scheduled
@@ -79,7 +79,8 @@ func Refusal(err error) error {
 	case errors.Is(err, season.ErrUnknownSeason):
 		return connect.NewError(connect.CodeNotFound, err)
 	case errors.Is(err, season.ErrStarted), errors.Is(err, season.ErrEnded), errors.Is(err, season.ErrNotLast),
-		errors.Is(err, season.ErrFinaleStarted), errors.Is(err, season.ErrFinaleOverlap), errors.Is(err, schedule.ErrUnknownSet):
+		errors.Is(err, season.ErrFinaleStarted), errors.Is(err, schedule.ErrUnknownSet),
+		errors.Is(err, moments.ErrOffCutoff), errors.Is(err, moments.ErrOverlap), errors.Is(err, moments.ErrDayTaken):
 		return connect.NewError(connect.CodeFailedPrecondition, err)
 	}
 	return err

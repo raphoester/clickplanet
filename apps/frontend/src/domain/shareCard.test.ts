@@ -1,5 +1,6 @@
 import {describe, expect, it} from "vitest"
 import {
+    breakHeadline,
     cardLayout,
     cardScale,
     cardSize,
@@ -33,6 +34,16 @@ describe("the share link", () => {
 
     it("names the file after the country, so a folder of them is readable", () => {
         expect(shareFileName("fr")).toBe("clickplanet-fr.png")
+    })
+})
+
+describe("the invite sent while the map is frozen", () => {
+    it("names the next season and the country", () => {
+        expect(breakHeadline(france, 1)).toBe("Season 1 starts on a blank map. Play for France on ClickPlanet!")
+    })
+
+    it("names the country alone when no season is planned", () => {
+        expect(breakHeadline(japan)).toBe("Play for Japan on ClickPlanet!")
     })
 })
 

@@ -26,8 +26,9 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Adds an entry that starts later. Its set must be one planet and the antibot keep, and a battle may not overlap a
-     * season's finale: FailedPrecondition otherwise.
+     * Adds an entry that starts later. Its set must be one planet and the antibot keep, and a battle must start or end at
+     * the daily cutoff, overlap no other battle nor a season's finale, and leave each day some time: FailedPrecondition
+     * otherwise.
      *
      * @generated from rpc gamemaster.v1.AdminService.AddEntry
      */
@@ -72,8 +73,8 @@ export const AdminService = {
     },
     /**
      * Adds a season after the last one, under the next number: it starts a break after the last one's end, and must
-     * start after now. Its finale's set must be one planet and the antibot keep, and no battle may overlap the finale:
-     * FailedPrecondition otherwise.
+     * start after now. Its finale's set must be one planet and the antibot keep, and it fits between the days like any
+     * battle of AddEntry: FailedPrecondition otherwise.
      *
      * @generated from rpc gamemaster.v1.AdminService.AddSeason
      */

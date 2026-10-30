@@ -43,8 +43,8 @@ internal/gamemaster/
       usecases/play_schedule_usecase/ the turn at now, commanded when it changes; Runner
         log_play_schedule/          logs each turn told, and a failure
     season/                         Number, Origin, Draft, Season, Window, Calendar (Added, Edited, Deletable, With,
-                                    Windows, RunningAt, NextAfter, Finales, Overlapped); Finale, Window.FinaleStartsAt;
-                                    Cutoff, DayNumber, Day, Window.Days; the Store port and its contract suite
+                                    Windows, RunningAt, NextAfter, Finales); Finale, Window.FinaleStartsAt;
+                                    Cutoff (Is), DayNumber, Day, Window.Days; the Store port and its contract suite
       inmemory_season_store/        the Store in a map, behind the testing tag
       postgres_season_store/        the Store over gamemaster.seasons and season_finales
       redis_map_commands/           planet.v1.ResetMap, on planet's command stream
@@ -54,8 +54,9 @@ internal/gamemaster/
       usecases/edit_season_usecase/    audit_edit_season/
       usecases/delete_season_usecase/  audit_delete_season/
     moments/                        BookID, RoundID (BookOf, DayRoundOf, FinaleRoundOf, BattleRoundOf, SeasonOf, NamedOf),
-                                    Battle, Book (Tiebreak, FinaleBattle), Plan (DueAt, BookAt, DayAt, BattleOf, FinaleAt,
-                                    FinalesAfter, RoundEnded, BookClosed), Planner, Command, Action,
+                                    Battle, Book (Tiebreak, FinaleBattle), Plan (DueAt, BookAt, DayAt, DaysOf, BattleOf,
+                                    FinaleAt, FinalesAfter, RoundEnded, BookClosed, Clashes), Planner (Plan, With),
+                                    Command, Action,
                                     Key, Moment (DayStarted, DayEnded, BattleEnded, SeasonEnded), ToldDay; the Store and
                                     Events ports, the store's contract suite
       inmemory_moment_store/        the Store in maps, behind the testing tag
@@ -128,9 +129,9 @@ even when it plays the set already playing, so it is commanded again.
   now", no override button, and no call that changes which set plays at once; a save of the set in force changes its
   values at once (see [Rules](rules.md#the-operator)).
 - **An edit keeps the entry's id and its `made_at`**, so it keeps its place in a tie.
-- **A battle may not overlap a season's finale** (`Calendar.Overlapped`, `season.ErrFinaleOverlap`,
-  `FailedPrecondition`): a new or edited entry of kind battle whose window touches a finale's is refused. A plain entry
-  may.
+- **A battle fits between the season's days** (`Plan.Clashes`, `FailedPrecondition`; see [A battle and the
+  days](#a-battle-and-the-days)): a new or edited entry is judged in the plan with it (`Planner.With`), in place of the
+  one kept. A plain entry is never judged, and may overlap anything.
 - **A new or edited entry must name a set planet and the antibot both keep** (`schedule.Playable`): the module asks
   each, in its own words, which sets it keeps (`GetRuleSetNames` on its internal service), and the refusal names each
   module that lacks it (`planet keeps no rule set of this name: "rush"`). **An antibot that is off** serves no route
@@ -248,9 +249,10 @@ times. Now the fact "ends season S" is the season's own.
 - **Its rules** (every reason found by `errors.Is`): a length above none and at most the season's, a set's name, a
   description of at most 300 characters and times 1 to 10 (`ErrInvalidSeason`); **once it started, the season's end
   and the finale stay** (`ErrFinaleStarted`, `FailedPrecondition`); a finale that is added, changed or moved starts
-  after now; **its set is one planet and the antibot keep** (`schedule.Playable`, `FailedPrecondition`); **no battle
-  overlaps it** (`ErrFinaleOverlap`), checked on the season's add and edit against every battle that has not ended, and
-  on every battle added or edited.
+  after now; **its set is one planet and the antibot keep** (`schedule.Playable`, `FailedPrecondition`); **it fits
+  between the days like any battle** (see [A battle and the days](#a-battle-and-the-days)): it starts at the season's
+  last cutoff, or the season ends at a cutoff, and no battle overlaps it. It is judged on the season's add and edit with
+  every battle that has not ended, and on every battle added or edited.
 - **It is a battle on the same path as an entry's** (`moments.Battle` with `EndsSeason`, the zero entry): a round of
   the season's book, `season-N/finale` (`FinaleRoundOf`, read back by `NamedOf`), worth its times, numbered by start
   among the season's battles; its set plays over its window above every entry (see [An entry](#an-entry)). It is in the
@@ -267,6 +269,28 @@ from 0s to under 24h: `season.Cutoff`; 21h in production). **Day K of a season e
 season's start, and starts at the cutoff before it**, or at the season's start for day 1 (`Window.Days`). A day that
 ends exactly at the season's end is its last. **No day runs from the season's last cutoff to its end**: season 0's day
 24 ends 2026-10-31 21:00, and from then to 23:00 only the Final Battle runs.
+
+## A battle and the days
+
+**No two rounds of a book overlap** (the owner, 2026-10-29): a player always knows which one snapshot scores the map,
+and two are never scored at once. Before, a battle ran inside a day and both scored from the map, each at its own end.
+
+- **A battle takes its time from the start or the end of a day** (`moments.NewPlan`): a day ends when a battle that runs
+  at its end starts, and starts when a battle that runs at its start ends. A battle 18:00 to 21:00 scores day K at
+  18:00 and itself at 21:00; a battle 21:00 to 23:00 scores day K at 21:00, itself at 23:00, and day K+1 runs from
+  23:00 to the next 21:00. So something is scored at every cutoff. `today` is unset while a battle runs, and the
+  `DayStarted`, the `DayEnded`, the debrief and `GetSeasons` tell the day as it is cut: a battle added or moved during
+  a day moves its end, which `DayStarted` tells again. Missions count nothing while a battle runs: no day, no missions.
+- **`Plan.Clashes(now)`** judges every battle that has not ended, the finale included, and names each one that breaks
+  a rule (every reason found by `errors.Is`, `FailedPrecondition`):
+  - it starts or ends at the daily cutoff (`ErrOffCutoff`): a battle across a cutoff would score nothing at it;
+  - it overlaps no other battle, nor the finale (`ErrOverlap`);
+  - it leaves each day some time (`ErrDayTaken`): a battle of a day or more, or two that meet inside one day, are
+    refused.
+- **A battle that starts in a break is no round**, so it takes nothing from a day and is not judged. A battle that has
+  ended is not judged either: an entry kept before the rule stays as it was planned.
+- **An entry changes only before it starts**, so every day edge it moves is still to come: scoring hears a day's end
+  only in its `CloseRound`.
 
 ## The ids
 
@@ -382,11 +406,14 @@ an answer read within five seconds of a change may still say the turn before it.
 The rule is pinned by `schedule_test.go` (priorities, ties, the end, since when, two entries of one set, the turn's
 kind, its window, the battles after a time and their order) and `entry_test.go` (only an entry to come changes, every
 reason, a kind nobody knows, a battle's times 1 to 10 and a plain entry's none). `schedule.StoreContractSuite` runs on
-the memory and postgres stores. `finale_test.go` pins the finale's window, its rules, an end that stays once it started, a moved end that moves it, and
-no battle over it. `season`'s tests pin the calendar's rules and the days (season 0's day 1 ends
+the memory and postgres stores. `finale_test.go` pins the finale's window, its rules, an end that stays once it
+started, and a moved end that moves it. `season`'s tests pin the calendar's rules and the days (season 0's day 1 ends
 2026-10-08 21:00, day 24 2026-10-31 21:00, none from 21:00 to 23:00), and `season.StoreContractSuite` runs on both
-stores. `moments`' tests pin the ids read back; `moments.StoreContractSuite` (each round and book kept once) runs on
-both stores.
+stores. `moments`' tests pin the ids read back, a day cut by a battle at its end and one at its start, the battles that
+fit (season 0's Final Battle, battles at a cutoff, a plain entry under the finale, a battle that ended) and each clash;
+`moments.StoreContractSuite` (each round and book kept once) runs on both stores. The entry and season use cases' tests
+pin a battle over the finale refused, a moved battle judged in place of the one kept, and a finale at no cutoff
+refused.
 
 **`finalnight`'s test is the safety net for Sat 31 Oct**: season 0 as the migrations seed it, from the start of day 24
 to after 23:00, second by second through `play_schedule_usecase`, `play_scoring_usecase` and a fake scoring that
@@ -416,9 +443,11 @@ edited or deleted sent, a new debrief sent, a turn that holds not sent again, no
 failed read) and `listen_for_events_handler`'s the stream (the turn, the timeline then the debrief first, only the part
 that changed after, the heartbeat, the feed left when the stream closes, a clean end when the feed closes). The runner's
 test pins a send at boot and at each change, none while the turn holds, and a send Redis refused sent again. The smoke
-test `TestAnEntryOfTheScheduleIsPlayedByPlanetTheAntibotAndSeasons` adds a battle entry on the console listener, waits
-for the modules to play it, reads its kind and its end on the public listener, and opens the stream, whose first event
-is it.
+test `TestLastABattleOfTheScheduleIsPlayedByPlanetAndTheAntibotAndScoredByScoring` adds a battle entry that ends at
+the next cutoff on the console listener, waits for the modules to play it and scoring to open its round, reads its kind
+and its end on the public listener, and opens the stream, whose first event is it. It runs last, by its name: its
+battle takes the rest of today, and the other smoke tests need a day. The suite's season 0 ends at 23:00, so its 2 h
+finale starts at the cutoff.
 
 ## Before the Final Battle (Sat 31 Oct 2026, 21:00 UTC)
 

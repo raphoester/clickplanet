@@ -17,6 +17,15 @@ func (c Cutoff) Check() error {
 	return nil
 }
 
+func (c Cutoff) Is(at time.Time) bool {
+	at = at.UTC()
+	return at.Sub(time.Date(at.Year(), at.Month(), at.Day(), 0, 0, 0, 0, time.UTC)) == time.Duration(c)
+}
+
+func (c Cutoff) String() string {
+	return time.Time{}.Add(time.Duration(c)).Format("15:04") + " UTC"
+}
+
 // DayNumber counts a season's days up from 1.
 type DayNumber uint32
 

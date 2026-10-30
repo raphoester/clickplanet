@@ -61,7 +61,7 @@ func table(page io.Writer, report clips.Report) (bool, error) {
 	rows.WriteString("| Clip | Arms | Platform | Goes out | |\n|---|---|---|---|---|\n")
 	for _, outcome := range report {
 		if outcome.Held {
-			fmt.Fprintf(&rows, "| %s | %s | none | | held: every platform has posted its day |\n",
+			fmt.Fprintf(&rows, "| %s | %s | none | | held: every platform has posted its day or is out of its hours |\n",
 				cell(outcome.Title), armsOf(outcome.Variants))
 			continue
 		}

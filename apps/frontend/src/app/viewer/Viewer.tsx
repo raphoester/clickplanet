@@ -449,7 +449,7 @@ export default function Viewer(props: ViewerProps) {
                                                                         onToggle={() => toggleSheet("season")}/>}/>}
 
         {ready && <ClickBudgetMeter budget={clickBudget}
-                                    frozen={mood === "frozen" ? {nextSeason: schedule.seasons.next} : undefined}
+                                    frozen={mood === "frozen" ? {nextSeason: schedule.seasons.next, country: countryState} : undefined}
                                     refusals={refusals}
                                     said={lockedOut && {text: heldLine(lockedOut.allegiance, Date.now()), id: lockedOut.id}}
                                     onSignIn={openPitch}

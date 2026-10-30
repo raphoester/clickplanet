@@ -112,7 +112,7 @@ var (
 	// best of a run, at Europe's after-school hours. YouTube kept about 1,000 views a clip at 5 to 11 a day.
 	dailyBudget = posts.Budget{
 		posts.TikTok:  {PerDay: 3, Hours: posts.Hours{From: 14, To: 20}, BestOnly: true},
-		posts.YouTube: {PerDay: 12},
+		posts.YouTube: {PerDay: 12, Hours: posts.Hours{From: 7, To: 23}},
 	}
 )
 

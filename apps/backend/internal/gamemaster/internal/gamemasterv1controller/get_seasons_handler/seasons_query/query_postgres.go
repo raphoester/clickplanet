@@ -6,8 +6,11 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
+
 	gamemasterv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/gamemaster/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/gamemasterv1controller/seasonmessage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
@@ -22,18 +25,53 @@ type PostgresQuery struct {
 	cutoff season.Cutoff
 }
 
-// Seasons is every season, by number, as planned and with the window season.Calendar works out.
+// Seasons is every season, by number, as planned, with the window season.Calendar works out and moments.Plan's days.
 func (q *PostgresQuery) Seasons(ctx context.Context) (*gamemasterv1.GetSeasonsResponse, error) {
 	seasons, err := q.calendar(ctx)
 	if err != nil {
 		return nil, err
 	}
+	entries, err := q.entries(ctx)
+	if err != nil {
+		return nil, err
+	}
+	plan := moments.NewPlan(seasons, q.cutoff, nil, entries...)
 	answer := &gamemasterv1.GetSeasonsResponse{}
 	planned := seasons.TakeSnapshot()
 	for i, window := range seasons.Windows() {
-		answer.Seasons = append(answer.Seasons, seasonmessage.ScheduledOf(planned[i], window, q.cutoff))
+		answer.Seasons = append(answer.Seasons, seasonmessage.ScheduledOf(planned[i], window, plan.DaysOf(window.Number)))
 	}
 	return answer, nil
+}
+
+func (q *PostgresQuery) entries(ctx context.Context) ([]schedule.Entry, error) {
+	rows, err := q.db.On(ctx).QueryContext(ctx, `
+		SELECT id, rule_set, kind, description, starts_at, ends_at, priority, times, made_at FROM schedule_entries`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read the schedule: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var entries []schedule.Entry
+	for rows.Next() {
+		var (
+			id                     uuid.UUID
+			set, kind, description string
+			priority, times        int64
+			entry                  schedule.EntrySnapshot
+		)
+		if err := rows.Scan(&id, &set, &kind, &description, &entry.StartsAt, &entry.EndsAt, &priority, &times, &entry.MadeAt); err != nil {
+			return nil, fmt.Errorf("failed to read an entry of the schedule: %w", err)
+		}
+		entry.ID, entry.Set, entry.Kind = schedule.EntryID(id), schedule.SetName(set), schedule.Kind(kind)
+		entry.Description, entry.Priority = schedule.Description(description), schedule.Priority(priority) //nolint:gosec // CHECK (priority >= 0 AND priority <= 4294967295).
+		entry.Times = schedule.Times(times)                                                                //nolint:gosec // CHECK times BETWEEN 0 AND 10.
+		entries = append(entries, entry.Restore())
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to read the schedule: %w", err)
+	}
+	return entries, nil
 }
 
 func (q *PostgresQuery) calendar(ctx context.Context) (season.Calendar, error) {

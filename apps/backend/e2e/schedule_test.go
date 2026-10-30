@@ -20,8 +20,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1/scoringv1connect"
 )
 
-// The set the entry plays is each module's default under another name, so the tests after it play as before.
-func (s *testSuite) TestABattleOfTheScheduleIsPlayedByPlanetAndTheAntibotAndScoredByScoring() {
+// It runs last, by its name: the battle takes the rest of today, and the other tests need a day.
+func (s *testSuite) TestLastABattleOfTheScheduleIsPlayedByPlanetAndTheAntibotAndScoredByScoring() {
 	t := s.T()
 	ctx := t.Context()
 	planet := planetv1connect.NewAdminServiceClient(http.DefaultClient, s.game.consoleURL)
@@ -41,7 +41,11 @@ func (s *testSuite) TestABattleOfTheScheduleIsPlayedByPlanetAndTheAntibotAndScor
 	}))
 	require.NoError(t, err)
 
-	startsAt, endsAt := time.Now().Add(2*time.Second), time.Now().Add(time.Hour)
+	startsAt := time.Now().Add(2 * time.Second)
+	endsAt := startsAt.UTC().Truncate(24 * time.Hour).Add(21 * time.Hour)
+	if !endsAt.After(startsAt) {
+		endsAt = endsAt.Add(24 * time.Hour)
+	}
 	added, err := schedule.AddEntry(ctx, connect.NewRequest(&gamemasterv1.AddEntryRequest{
 		RuleSet: "encore", Kind: gamemasterv1.EntryKind_ENTRY_KIND_BATTLE, Description: "The same rules, once more.",
 		StartsAt: timestamppb.New(startsAt), EndsAt: timestamppb.New(endsAt), Priority: 1, Times: 2,
