@@ -199,7 +199,7 @@ func waitUntilServed(t *testing.T, address string) {
 	require.NoError(t, res.Body.Close())
 }
 
-// Season 0 runs 30 days more, whatever the day the tests run. The gamemaster tells scoring at boot.
+// Season 0 ends 30 days on at 23:00, so its 2 h finale starts at the cutoff. The gamemaster tells scoring at boot.
 func seasonRuns(t *testing.T, database cppg.Config) {
 	t.Helper()
 
@@ -209,7 +209,7 @@ func seasonRuns(t *testing.T, database cppg.Config) {
 	defer func() { _ = db.Close() }()
 	_, err := db.On(t.Context()).ExecContext(t.Context(),
 		`UPDATE seasons SET length = $1::timestamptz - timestamptz '2026-10-08T00:00:00Z' WHERE number = 0`,
-		time.Now().Add(30*24*time.Hour).UTC())
+		time.Now().Add(30*24*time.Hour).UTC().Truncate(24*time.Hour).Add(23*time.Hour))
 	require.NoError(t, err)
 }
 

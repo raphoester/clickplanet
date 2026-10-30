@@ -3,6 +3,19 @@ import {afterEach, describe, expect, it, vi} from 'vitest'
 import {cleanup, fireEvent, render, screen} from '@testing-library/react'
 import ClickBudgetMeter from './ClickBudgetMeter.tsx'
 import {ClickBudget} from "../../backends/clickBudget.ts"
+import {Countries} from "../../domain/countries.ts"
+import {DISCORD_INVITE} from "../../links.ts"
+
+vi.mock("../share/deliverShare.ts", async (original) => ({
+    ...await original<typeof import("../share/deliverShare.ts")>(),
+    linkDeliveryOffered: vi.fn(() => "copy"),
+    deliverLink: vi.fn(),
+}))
+
+const {deliverLink} = await import("../share/deliverShare.ts")
+const deliver = vi.mocked(deliverLink)
+
+const FRANCE = Countries.get("fr")!
 
 afterEach(cleanup)
 
@@ -16,7 +29,7 @@ const tokens = () => meter().style.getPropertyValue("--click-budget-tokens")
 
 describe("ClickBudgetMeter", () => {
     it("says the map is frozen in place of the clicks, and when the next season starts", () => {
-        render(<ClickBudgetMeter budget={reading()} frozen={{nextSeason: {number: 1, startsAt: Date.now() + 2 * 3600_000}}}/>)
+        render(<ClickBudgetMeter budget={reading()} frozen={{nextSeason: {number: 1, startsAt: Date.now() + 2 * 3600_000}, country: FRANCE}}/>)
 
         expect(screen.queryByRole("meter")).toBeNull()
         expect(screen.getByRole("status").textContent).toContain("The map is frozen")
@@ -25,9 +38,26 @@ describe("ClickBudgetMeter", () => {
     })
 
     it("says the map is frozen with no countdown when no season is planned", () => {
-        render(<ClickBudgetMeter budget={reading()} frozen={{}}/>)
+        render(<ClickBudgetMeter budget={reading()} frozen={{country: FRANCE}}/>)
 
         expect(screen.getByRole("status").textContent).toBe("The map is frozen")
+    })
+
+    it("invites friends to the flag played on a frozen map, with the next season in the text", async () => {
+        deliver.mockResolvedValue("copied")
+        render(<ClickBudgetMeter frozen={{nextSeason: {number: 1, startsAt: Date.now() + 3600_000}, country: FRANCE}}/>)
+
+        fireEvent.click(screen.getByRole("button", {name: "Invite"}))
+
+        expect(deliver).toHaveBeenCalledWith("copy", "https://clickplanet.lol/?f=fr",
+            "Season 1 starts on a blank map. Play for France on ClickPlanet!")
+        expect(await screen.findByRole("button", {name: "Copied!"})).toBeTruthy()
+    })
+
+    it("links the Discord on a frozen map", () => {
+        render(<ClickBudgetMeter frozen={{country: FRANCE}} compact/>)
+
+        expect(screen.getByRole("link", {name: "Discord"}).getAttribute("href")).toBe(DISCORD_INVITE)
     })
 
     it("shows nothing against a server that reports no allowance", () => {

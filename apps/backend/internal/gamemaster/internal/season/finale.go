@@ -8,10 +8,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule"
 )
 
-var (
-	ErrFinaleStarted = errors.New("this season's finale has started: its end and its finale stay")
-	ErrFinaleOverlap = errors.New("a battle may not overlap a season's finale")
-)
+var ErrFinaleStarted = errors.New("this season's finale has started: its end and its finale stay")
 
 // Finale is a season's last battle: it ends at the season's end and starts its length before. A season with none has
 // the zero Finale.
@@ -72,23 +69,4 @@ func (c Calendar) Finales() []schedule.Finale {
 		})
 	}
 	return finales
-}
-
-// Overlapped is nil when no battle overlaps a season's finale, and names each that does.
-func (c Calendar) Overlapped(entries ...schedule.Entry) error {
-	var found []error
-	for _, window := range c.Windows() {
-		if !window.Finale.Planned() {
-			continue
-		}
-		for _, kept := range entries {
-			entry := kept.TakeSnapshot()
-			if entry.Kind == schedule.Battle && entry.StartsAt.Before(window.EndsAt) && entry.EndsAt.After(window.FinaleStartsAt()) {
-				found = append(found, fmt.Errorf("%w: the battle %s, from %s to %s, overlaps season %d's, from %s to %s",
-					ErrFinaleOverlap, entry.ID, stamp(entry.StartsAt), stamp(entry.EndsAt), window.Number,
-					stamp(window.FinaleStartsAt()), stamp(window.EndsAt)))
-			}
-		}
-	}
-	return errors.Join(found...)
 }

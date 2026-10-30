@@ -1,6 +1,6 @@
 # The clips job (`internal/clips/`, `cmd/clips`)
 
-**Every 2 hours a workflow makes the best clips of the last 12 hours and posts them on TikTok and YouTube Shorts**
+**Every 2 hours from 06:17 to 22:17 UTC a workflow makes the best clips of the last 12 hours and posts them on TikTok and YouTube Shorts**
 (`.github/workflows/clips.yml`; the frontend's [Clips](../../frontend/docs/clips.md) has the four jobs and how a clip is made). The
 frontend's generator needs a browser, so it stays there. **Everything else is here**: the fetch of the replay,
 which clips, when each goes out, the client of the posting service, the retries and the run's summary. The two
@@ -31,7 +31,7 @@ clips stats [-ssh <user@host>] [-since 2026-10-13]
   since the file is a public artifact. The generator ranks each story's fighters from it. **A turn, a round or a cast
   the backend does not answer is a warning, not a failure**: the run still has its replay, and tells no round, or
   names nobody. No file is written then. The flags keep their names, `-race` and `-season`, for the workflow.
-  **It is cheap enough to run 12 times a day**: on 2026-10-24 the 12 hours of the noon run were 40,820 events, the
+  **It is cheap enough to run 9 times a day**: on 2026-10-24 the 12 hours of the noon run were 40,820 events, the
   three files 0.8 MB zipped, and the whole step, ssh, `go run`'s build and the race and the season included, 17s. The
   ledger answers from memory. 12 hours and not 2: the editor sees a story whole, and reads the last posts to tell it
   once; the generator searches its last 12 hours anyway (`newsSince`).
@@ -52,7 +52,8 @@ clips stats [-ssh <user@host>] [-since 2026-10-13]
 - **`schedule` sends every clip of the folder** (`clip-<n>.json` with its `clip-<n>.mp4` beside it) to the posting
   service, **as one post on every platform that takes it** (`-platforms`, default all: `tiktok,youtube`): room left
   in its day, its hours, and on TikTok the run's best clip alone (below, "`Budget`"), and adds a table to the summary: a row for each clip on each platform, its arms, its time, and
-  whether it is scheduled there, or one row for a clip held because every platform has posted its day. **A clip in an
+  whether it is scheduled there, or one row for a clip held because every platform has posted its day or is out of
+  its hours. **A clip in an
   experiment that does not run, or in an arm it has not, fails the run before anything is posted**
   (`posts.ErrUnknownVariant`): once out, it would be counted in the wrong arm. It exits 1 when a
   platform did not take a clip, when the folder holds none, or when the summary cannot be written. **Platforms are
@@ -299,7 +300,7 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
   at $0.10 and $0.50 a million in and out (5 times both past 100K tokens of prompt, a cache write 1.25 times the
   input, a read 0.1 times) go to the log and the summary (`posts.Spend`, `claude_editor.SpendOf`). The findings are
   bigger than the shortlist was: 30 fronts of 6 countries and 6 flags each is about 10,000 tokens of run against
-  4,300, so a call is about $0.0015 in and, with its thinking, about $0.001 out: 12 runs a day is about $1 a month,
+  4,300, so a call is about $0.0015 in and, with its thinking, about $0.001 out: 9 runs a day is about $0.70 a month,
   where the owner's ceiling for all AI calls is $10.
 - **The instructions are marked for caching** (`cache_control` on the system prompt), as the owner asked. **No run
   reads it back today**: a cache entry lives 5 minutes (an hour at most) and runs are 2 hours apart, so each call
@@ -355,9 +356,12 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
   lead: **2 to 3 hours**, and an hour more for the second clip of a run. Replayed over Oct 14–17, a 12-hour window held 5
   to 11 stories of different keys, so 2 every 2 hours is not short of stories; a quiet run posts nothing.
   - **`Budget` is what each platform takes** (`dailyBudget` in `job.go`, a `posts.Allowance` each). **YouTube: 12
-    posts in a trailing 24 hours, at any hour, every clip of a run.** **TikTok: 3, the best clip of a run alone
-    (`BestOnly`), from 14:00 to 20:00 UTC (`Hours`)**: after school across Europe, 16:00 to 22:00 in Paris in winter,
-    15:00 to 21:00 in London, 17:00 to 23:00 in Istanbul.
+    posts in a trailing 24 hours, from 07:00 to 23:00 UTC (`Hours`), every clip of a run.** **TikTok: 3, the best
+    clip of a run alone (`BestOnly`), from 14:00 to 20:00 UTC**: after school across Europe, 16:00 to 22:00 in Paris
+    in winter, 15:00 to 21:00 in London, 17:00 to 23:00 in Istanbul.
+  - **Why no YouTube post at night** (2026-10-30): until then YouTube took a post at any hour, and many went out
+    between 23:00 and 07:00 UTC, while Europe sleeps. The owner holds that a Short posted then does worse; it is not
+    measured. 07:00 to 23:00 UTC is 08:00 to 00:00 in Paris in winter.
   - **Why 12 on YouTube** (2026-10-28): it was 8 from 2026-10-24, on the belief that a channel uploads about 10 a day.
     YouTube publishes no daily number. The channel took 11 on 2026-10-21 and refused none, and its views per clip
     stayed about 1,000 at 5 to 11 a day (Oct 18–26). At 8, every run past the 8th of a trailing day logged `every
@@ -389,7 +393,9 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
   - **`choose` makes as many clips as the platform with the most room takes** (`Budget.Clips`), so a clip goes to
     every platform that still has room, and a clip nobody has room for is never rendered. A platform that takes the
     best alone takes one. It counts no hours: a clip's time is known once it is rendered, so a run on TikTok alone out
-    of its hours renders a clip and holds it. `schedule` reads the feed
+    of its hours renders a clip and holds it. **No run is started at night** (the workflow's cron, 06:17 to 22:17
+    UTC), as no platform posts then. The run of 06:17 can still be rendered before 07:00, and the second clip of
+    22:17 goes out after 23:00: both are held. `schedule` reads the feed
     again and leaves a full platform out of the post; a clip with no platform left is held (`Report.WithHeld`): in the
     report, not a failure, and its story untold for a later run. Between the two only a post made by hand can fill a day.
   - **A full day says so**: `choose` logs `every platform has posted its day already` rather than that no story was

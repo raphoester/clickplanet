@@ -130,7 +130,7 @@ func TestAClipHeldForAFullDayIsARowOfItsOwnAndStillScheduled(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.True(t, scheduled)
-	assert.Contains(t, out.String(), "| FRANCE IS ATTACKING EUROPE | length short | none | | held: every platform has posted its day |\n")
+	assert.Contains(t, out.String(), "| FRANCE IS ATTACKING EUROPE | length short | none | | held: every platform has posted its day or is out of its hours |\n")
 }
 
 func TestATimeIsSaidInUTCWhateverItsZone(t *testing.T) {

@@ -24,7 +24,7 @@ func (l *Logged) Execute(ctx context.Context) (posts.Report, error) {
 
 	for _, outcome := range report {
 		if outcome.Held {
-			l.logger.Info("held a clip: every platform has posted its day", slog.String("clip", outcome.Title))
+			l.logger.Info("held a clip: every platform has posted its day or is out of its hours", slog.String("clip", outcome.Title))
 			continue
 		}
 		if outcome.Sound != nil {

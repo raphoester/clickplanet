@@ -49,8 +49,9 @@ internal/missions/internal/
   `day_started_subscriber`, `keep_day_usecase`), and missions keeps it in `mission_days` (`day_id`, the round's id such as
   `season-0/day-22`, `starts_at`, `ends_at`): a day told again, when a moved season end cut it, keeps its new end. **A
   fact counts in the day told that runs at its time** (`days.Store.DayAt`), and every row names its day by that id.
-  **No day, no missions**: between two seasons and from a season's last cutoff to its end (the Final Battle), a fact
-  counts nothing, `GetMissions` answers no mission and no end, and a sign-in pays nothing (the owner, 2026-10-29).
+  **No day, no missions**: between two seasons, from a season's last cutoff to its end (the Final Battle), and while
+  any battle runs (a battle takes its time from a day, see [A battle and the days](gamemaster.md#a-battle-and-the-days)),
+  a fact counts nothing, `GetMissions` answers no mission and no end, and a sign-in pays nothing (the owner, 2026-10-29).
   **A fact can come before its day**: the day and the facts come on separate streams, so a take of the first second or
   so of a day may find no day yet and count nothing (the owner chose it over asking the gamemaster each fact,
   2026-10-29). Migration `20261029110000_gamemaster_days` named every row kept before by its date as season 0's day.
