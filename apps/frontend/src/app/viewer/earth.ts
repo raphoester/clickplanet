@@ -6,9 +6,16 @@ import fragmentShader from "./shaders/earth/fragment.glsl"
 
 const textureLoader = new THREE.TextureLoader()
 
+const ANISOTROPY = 8
+
 export function createEarth(lit: boolean, sphere: THREE.BufferGeometry): THREE.Mesh {
     const map = textureLoader.load(EARTH_URL)
-    if (!lit) return new THREE.Mesh(sphere, new THREE.MeshStandardMaterial({map}))
+    map.anisotropy = ANISOTROPY
+    if (!lit) {
+        // Decoded and encoded again on the way out, so each pixel is the photo's own colour.
+        map.colorSpace = THREE.SRGBColorSpace
+        return new THREE.Mesh(sphere, new THREE.MeshBasicMaterial({map}))
+    }
 
     return new THREE.Mesh(
         sphere,
