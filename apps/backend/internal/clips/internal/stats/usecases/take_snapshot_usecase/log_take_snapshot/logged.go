@@ -48,6 +48,14 @@ func (l *Logged) Execute(ctx context.Context) (stats.Report, error) {
 		}
 		l.logger.Log(ctx, level, "youtube gave no retention curve", slog.String("why", reason), slog.Int("videos", count))
 	}
+	for reason, count := range report.RetentionMissing {
+		if strings.HasSuffix(reason, scopeMissing) {
+			reason += ": connect the YouTube account again in Zernio to grant the analytics scope"
+		}
+		l.logger.Warn("a retention curve due was not read, and its row was kept without it",
+			slog.String("why", reason), slog.Int("videos", count))
+	}
+	l.logger.Info("youtube's retention curves", slog.Int("asked", report.RetentionAsked), slog.Int("held", report.Curves))
 	l.logger.Info("took a snapshot of the posts of the job", slog.Int("posts", report.Posts),
 		slog.Int("notOut", report.NotOut), slog.Int("rows", report.RowCount()), slog.Int("syncing", report.Syncing))
 	return report, nil

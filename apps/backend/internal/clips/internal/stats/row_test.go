@@ -43,7 +43,7 @@ func anAnswer() stats.Answer {
 func TestAPostIsARowForEachPlatformItIsOutOnWithItsEntryAndItsMetadataAsTheyCame(t *testing.T) {
 	retention := &stats.Retention{HTTPStatus: 200, Body: json.RawMessage(`{"retentionCurve":[]}`)}
 
-	rows := stats.RowsOf(aPost(), anAnswer(), map[string]*stats.Retention{"abc": retention}, takenAt)
+	rows := stats.RowsOf(aPost(), anAnswer(), map[string]stats.RetentionState{"abc": {Retention: retention, Missing: "quota"}}, takenAt)
 
 	require.Len(t, rows, 2, "a platform it is not out on has nothing to measure")
 	assert.Equal(t, stats.Row{
@@ -53,6 +53,8 @@ func TestAPostIsARowForEachPlatformItIsOutOnWithItsEntryAndItsMetadataAsTheyCame
 	}, rows[0])
 	assert.JSONEq(t, youtubeEntry, string(rows[1].Analytics))
 	assert.Same(t, retention, rows[1].Retention)
+	assert.Equal(t, "quota", rows[1].RetentionMissing)
+	assert.Empty(t, rows[0].RetentionMissing)
 	assert.InDelta(t, 37.27, rows[1].AgeHours, 0.001)
 }
 

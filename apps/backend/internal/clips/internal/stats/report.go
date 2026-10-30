@@ -14,9 +14,11 @@ type Report struct {
 	// Rows of a platform whose numbers the service is still fetching.
 	Syncing int
 	// The YouTube rows with a retention curve, and why the others have none.
-	Curves         int
-	CurvesRefused  map[string]int
-	TikTokAccounts []TikTokLane
+	Curves           int
+	RetentionAsked   int
+	CurvesRefused    map[string]int
+	RetentionMissing map[string]int
+	TikTokAccounts   []TikTokLane
 	// What could not be read, with why: the snapshot of those is lost.
 	Unread []Unread
 }
@@ -54,18 +56,19 @@ func (r Report) RowCount() int {
 }
 
 func ReportOf(accounts Accounts, rows []Row) Report {
-	report := Report{Rows: map[string]int{}, CurvesRefused: map[string]int{}}
+	report := Report{Rows: map[string]int{}, CurvesRefused: map[string]int{}, RetentionMissing: map[string]int{}}
 	for _, row := range rows {
 		report.Rows[row.Platform]++
 		if syncing(row) {
 			report.Syncing++
 		}
-		if row.Retention != nil {
-			if row.Retention.Curve() {
-				report.Curves++
-			} else {
-				report.CurvesRefused[row.Retention.Why()]++
-			}
+		if row.Retention.Curve() {
+			report.Curves++
+		} else if row.RetentionRead() {
+			report.CurvesRefused[row.Retention.Why()]++
+		}
+		if row.RetentionMissing != "" {
+			report.RetentionMissing[row.RetentionMissing]++
 		}
 	}
 	for _, account := range accounts.TikTok {

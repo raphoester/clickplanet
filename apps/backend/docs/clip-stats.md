@@ -11,7 +11,8 @@ postgres store and its use case), `internal/clipsv1controller/` and `internal/mi
 clips' too: `clips.v1.AdminService`, in `proto/clips/v1/admin.proto`, beside the files the generator writes.
 
 **`clips.v1.AdminService` alone, nothing on the public router.** The job reaches it over ssh on the console
-listener, and the backoffice on the admin listener, behind the gate (see [Operator tools](admin.md)).
+listener (`KeepSnapshot`, and `ListSnapshots` then `ListRows` for the curves the last snapshot holds), and the
+backoffice on the admin listener, behind the gate (see [Operator tools](admin.md)).
 
 - **`KeepSnapshot` keeps a part of a snapshot**: its summary (`clips.v1.StatsSnapshot`: when, since when, the counts,
   each TikTok account's lane and the posts lost) and some of its rows, in one transaction. A snapshot is its

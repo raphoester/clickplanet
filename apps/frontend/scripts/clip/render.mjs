@@ -4,6 +4,7 @@ import {availableParallelism, tmpdir} from "node:os"
 import {basename, dirname, join, resolve} from "node:path"
 import {fileURLToPath} from "node:url"
 import {createServer} from "vite"
+import {LAUNCH_TRIES, withRetries} from "./retry.mjs"
 
 const args = process.argv.slice(2)
 const flag = (name, fallback) => {
@@ -147,7 +148,7 @@ async function debuggerUrl(profile) {
     throw new Error("Chrome never exposed a debugging target")
 }
 
-async function openRecorder(speaks) {
+async function startChrome() {
     const profile = mkdtempSync(join(tmpdir(), "clickplanet-clip-"))
     const chrome = spawn(CHROME, [
         ...(has("headed") ? [] : ["--headless=new"]),
@@ -163,10 +164,31 @@ async function openRecorder(speaks) {
         "--disable-backgrounding-occluded-windows",
         "about:blank",
     ], {stdio: "ignore"})
-    launched.push({chrome, profile})
+    const browser = {chrome, profile}
+    launched.push(browser)
 
-    const ws = new WebSocket(await debuggerUrl(profile))
-    await new Promise((r) => ws.addEventListener("open", r, {once: true}))
+    try {
+        const ws = new WebSocket(await debuggerUrl(profile))
+        await new Promise((opened, refused) => {
+            ws.addEventListener("open", opened, {once: true})
+            ws.addEventListener("error", () => refused(new Error("Chrome refused its debugging socket")), {once: true})
+        })
+        return ws
+    } catch (error) {
+        chrome.kill()
+        launched.splice(launched.indexOf(browser), 1)
+        try {
+            rmSync(profile, {recursive: true, force: true, maxRetries: 20, retryDelay: 100})
+        } catch {}
+        throw error
+    }
+}
+
+async function openRecorder(speaks) {
+    const ws = await withRetries(() => startChrome(), {
+        tries: LAUNCH_TRIES,
+        log: (line) => console.error(`Chrome did not start, starting it again: ${line}`),
+    })
 
     let lastId = 0
     const pending = new Map()
