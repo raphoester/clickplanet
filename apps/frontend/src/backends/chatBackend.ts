@@ -282,6 +282,7 @@ export function decodedAnnouncement(announcement: AnnouncementPb): ChatAnnouncem
                 announcedAt: Number(announcement.announcedAtUnixMs),
                 country: values.country,
                 ground: typeof values.ground === "string" && values.ground !== "" ? values.ground : undefined,
+                landmass: typeof values.landmass === "number" && values.landmass > 0 ? values.landmass : undefined,
                 tile: typeof values.tile === "number" && values.tile > 0 ? values.tile : undefined,
                 cleared: typeof values.cleared === "number" ? values.cleared : 0,
             }

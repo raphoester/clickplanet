@@ -31,7 +31,7 @@ func (failingAppender) AppendOnce(context.Context, announcements.Announcement) (
 func bomb(t *testing.T, position uint64, at time.Time) announcements.Announcement {
 	t.Helper()
 
-	announcement, err := announcements.BombOf(position, "fr", "de", 42, 3).Announcement(at)
+	announcement, err := announcements.BombOf(position, "fr", "de", 7, 42, 3).Announcement(at)
 	require.NoError(t, err)
 	return announcement
 }

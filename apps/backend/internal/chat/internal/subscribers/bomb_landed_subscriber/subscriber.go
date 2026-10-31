@@ -32,8 +32,8 @@ func (s Subscriber) Handle(ctx context.Context, event *planetv1.BombLanded) erro
 		return fmt.Errorf("%w: %w", errNoTime, err)
 	}
 
-	announcement, err := announcements.BombOf(event.GetPosition(), event.GetCountry(), event.GetGround(), event.GetTileId(),
-		event.GetCleared()).Announcement(event.GetLandedAt().AsTime())
+	announcement, err := announcements.BombOf(event.GetPosition(), event.GetCountry(), event.GetGround(), event.GetLandmassId(),
+		event.GetTileId(), event.GetCleared()).Announcement(event.GetLandedAt().AsTime())
 	if err != nil {
 		return err //nolint:wrapcheck // Announcement named it.
 	}

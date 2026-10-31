@@ -235,13 +235,14 @@ describe("decodedAnnouncement", () => {
         payload,
     })
 
-    it("reads a bomb on land", () => {
-        expect(decodedAnnouncement(bomb(`{"country":"fr","ground":"de","tile":42,"cleared":3}`))).toEqual({
+    it("reads a bomb on land, with the landmass it hit", () => {
+        expect(decodedAnnouncement(bomb(`{"country":"fr","ground":"au","landmass":420,"tile":42,"cleared":3}`))).toEqual({
             kind: "bomb",
             id: "announcement-1",
             announcedAt: 1_700_000_000_000,
             country: "fr",
-            ground: "de",
+            ground: "au",
+            landmass: 420,
             tile: 42,
             cleared: 3,
         })
@@ -271,6 +272,7 @@ describe("decodedAnnouncement", () => {
             announcedAt: 1_700_000_000_000,
             country: "fr",
             ground: undefined,
+            landmass: undefined,
             tile: undefined,
             cleared: 0,
         })

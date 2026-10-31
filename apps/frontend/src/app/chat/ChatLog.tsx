@@ -382,7 +382,7 @@ function MuteLine({announcement}: {announcement: MuteAnnouncement}) {
 
 function BombLine({announcement}: {announcement: BombAnnouncement}) {
     const bomber = countryName(announcement.country)
-    const ground = announcement.ground === undefined ? undefined : Countries.get(announcement.ground)?.name
+    const ground = announcement.ground === undefined ? undefined : landmassName(announcement.landmass ?? 0, announcement.ground)
 
     return <li className="chat-announcement" data-at={announcement.announcedAt}>
         <span className="chat-announcement-icon" aria-hidden="true">

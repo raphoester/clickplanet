@@ -62,7 +62,8 @@ won a season.
   `history_query`'s `kinds`; the parity test writes every one of `announcements.Kinds` through the store and reads
   it back.
 - **How a bomb gets here**: the ledger relay tells `planet.v1.BombLanded` once the ledger flushed the bomb, with its
-  position and the ground read off `clicks.Borders`; `bomb_landed_subscriber` turns it into a `Bomb` and
+  position and the ground and the landmass read off `clicks.Borders`. The landmass is what the line names: Tasmania's
+  ground is `au`, and the line says "Tasmania". `bomb_landed_subscriber` turns it into a `Bomb` and
   `announce_usecase` keeps it, then publishes it on `inprocess_feed`. The announcement's time is the event's
   `landed_at`, to the second the ledger keeps. A bomb Redis did not take is a line missed, never a bomb.
 - **How a round gets here**: scoring scores a round and tells `scoring.v1.RoundScored`; the gamemaster hears it and

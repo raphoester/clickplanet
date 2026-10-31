@@ -205,6 +205,7 @@ type BombLanded struct {
 	LandedAt      *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=landed_at,json=landedAt,proto3" json:"landed_at,omitempty"`
 	AccountId     string                 `protobuf:"bytes,6,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
 	Position      uint64                 `protobuf:"varint,7,opt,name=position,proto3" json:"position,omitempty"`
+	LandmassId    uint32                 `protobuf:"varint,8,opt,name=landmass_id,json=landmassId,proto3" json:"landmass_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -284,6 +285,13 @@ func (x *BombLanded) GetAccountId() string {
 func (x *BombLanded) GetPosition() uint64 {
 	if x != nil {
 		return x.Position
+	}
+	return 0
+}
+
+func (x *BombLanded) GetLandmassId() uint32 {
+	if x != nil {
+		return x.LandmassId
 	}
 	return 0
 }
@@ -1103,7 +1111,7 @@ const file_planet_v1_events_proto_rawDesc = "" +
 	"\bposition\x18\x05 \x01(\x04R\bposition\x12\x1a\n" +
 	"\bprevious\x18\x06 \x01(\tR\bprevious\x12\x16\n" +
 	"\x06ground\x18\a \x01(\tR\x06ground\x12\x14\n" +
-	"\x05index\x18\b \x01(\rR\x05index\"\xe5\x01\n" +
+	"\x05index\x18\b \x01(\rR\x05index\"\x86\x02\n" +
 	"\n" +
 	"BombLanded\x12\x18\n" +
 	"\acountry\x18\x01 \x01(\tR\acountry\x12\x17\n" +
@@ -1113,7 +1121,9 @@ const file_planet_v1_events_proto_rawDesc = "" +
 	"\tlanded_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\blandedAt\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x06 \x01(\tR\taccountId\x12\x1a\n" +
-	"\bposition\x18\a \x01(\x04R\bposition\"\xee\x01\n" +
+	"\bposition\x18\a \x01(\x04R\bposition\x12\x1f\n" +
+	"\vlandmass_id\x18\b \x01(\rR\n" +
+	"landmassId\"\xee\x01\n" +
 	"\tFortified\x12\x18\n" +
 	"\acountry\x18\x01 \x01(\tR\acountry\x12\x1f\n" +
 	"\vlandmass_id\x18\x02 \x01(\rR\n" +

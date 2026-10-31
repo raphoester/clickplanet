@@ -248,7 +248,10 @@ tiles or more a flag fortified, and `champion`, the country that won a season.
   a new kind first.
 - **The payload is values, the client writes the sentence**: a bomb line is
   `describeBlast`, the same words as `BombNews`, so the chat and the news line
-  never disagree. A mute line is the name and `describeMute` of its seconds
+  never disagree. Both name the landmass with `landmassName`, as a fortify line
+  does, not the country it belongs to: a bomb on Tasmania says "Tasmania", not
+  "Australia". A bomb told before the payload had a `landmass` names the
+  country. A mute line is the name and `describeMute` of its seconds
   (`domain/mute.ts`): "one hour", "90 minutes", "2 days".
 - **Kept apart from the messages** (`useChat`'s `announcements`,
   `addAnnouncements`) and put in one list only to draw (`interleave`, by time).

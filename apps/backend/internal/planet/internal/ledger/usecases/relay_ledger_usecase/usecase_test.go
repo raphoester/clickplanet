@@ -36,7 +36,16 @@ func (c *cursor) SaveRelayed(_ context.Context, position ledger.Position) error 
 
 type borders map[uint32]string
 
+const tasmania clicks.LandmassID = 420
+
 func (b borders) CountryOf(tile uint32) string { return b[tile] }
+
+func (b borders) LandmassOf(tile uint32) clicks.LandmassID {
+	if b[tile] == "" {
+		return clicks.NoLandmass
+	}
+	return tasmania
+}
 
 type sender struct {
 	fails int
@@ -81,7 +90,7 @@ func TestEachFactOfTheLedgerIsToldWithItsPositionInOrder(t *testing.T) {
 	events := &sender{}
 	told := &cursor{}
 
-	n, err := relay_ledger_usecase.New(storage, told, borders{1: "es", 9: "de"}, events).Execute(t.Context())
+	n, err := relay_ledger_usecase.New(storage, told, borders{1: "es", 9: "au"}, events).Execute(t.Context())
 	require.NoError(t, err)
 
 	assert.Equal(t, 5, n)
@@ -90,7 +99,9 @@ func TestEachFactOfTheLedgerIsToldWithItsPositionInOrder(t *testing.T) {
 		&planetv1.TileTaken{
 			AccountId: ada, TileId: 1, Country: "fr", TakenAt: timestamppb.New(at), Position: 0, Previous: "de", Ground: "es",
 		},
-		&planetv1.BombLanded{Country: "fr", TileId: 9, Ground: "de", Cleared: 2, LandedAt: timestamppb.New(at), AccountId: ada, Position: 2},
+		&planetv1.BombLanded{
+			Country: "fr", TileId: 9, Ground: "au", LandmassId: uint32(tasmania), Cleared: 2, LandedAt: timestamppb.New(at), AccountId: ada, Position: 2,
+		},
 		&planetv1.Fortified{Country: "fr", LandmassId: 7, Tiles: 60, Ground: "is", FortifiedAt: timestamppb.New(at), AccountId: ada, Position: 3},
 		&planetv1.ShieldPlaced{AccountId: ada, TileId: 3, Country: "fr", Shields: 2, PlacedAt: timestamppb.New(at), Position: 4},
 	}

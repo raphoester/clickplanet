@@ -45,6 +45,7 @@ export type BombAnnouncement = {
     announcedAt: number
     country: string
     ground?: string
+    landmass?: number
     tile?: number
     cleared: number
 }
