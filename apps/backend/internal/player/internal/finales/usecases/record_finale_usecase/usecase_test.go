@@ -59,7 +59,7 @@ func setUp(t *testing.T) fixture {
 		accounts: titles.NewFakeAccounts(), fights: inmemory_fight_store.New(),
 	}
 	for i, account := range []players.AccountID{ada, bob, carol, guest} {
-		require.NoError(t, f.stats.Record(t.Context(), account, players.TakeAt(uint64(i), 0, end)))
+		require.NoError(t, f.stats.Record(t.Context(), account, players.TakeAt(uint64(i), 0, november)))
 		f.accounts.Create(account, players.AccountOf(account != guest, november))
 	}
 	return f

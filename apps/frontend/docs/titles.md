@@ -9,7 +9,8 @@ is the player's own view.
   Chatter messages, Defense fortified tiles, Bombs bombs dropped, Loot boxes
   caught, Quiz right answers and Missions the missions done; OG stands alone, and so do the season titles
   (Season 0 Gold, Silver and Bronze, drawn as their place number in their metal, and Season 0 Veteran, a star in
-  platinum). A track this build does
+  platinum), and Halloween 2026, a lit jack-o'-lantern in a look of its own: the ribbed pumpkin metal, a
+  night-green center and a green ribbon (`STANDALONE_LOOKS` in `titleArt.ts`). A track this build does
   not know is drawn in Conquest's colors, and its steps as bare numbers. **Only the highest rank of each track is ever shown or worn**, so
   the client never filters: it draws what the server sends, in its order.
 - **Every title is a medal** (`TitleEmblem`): an SVG per id, drawn by the

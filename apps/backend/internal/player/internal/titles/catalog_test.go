@@ -125,6 +125,20 @@ func TestEachSeasonZeroTitleGoesToWhoFoughtItsFinaleForAFlagThatPlacedSo(t *test
 	}
 }
 
+func TestHalloween2026GoesToWhoTookATileOnOctober31UTC(t *testing.T) {
+	played := func(days uint32, lastDay time.Time) titles.Career {
+		return careerOf(players.StatsSnapshot{TilesTaken: 1, Streak: players.StreakOf(days, players.DayOf(lastDay))})
+	}
+
+	assert.True(t, titles.Halloween2026{}.EarnedBy(played(1, time.Date(2026, 10, 31, 0, 0, 0, 0, time.UTC))))
+	assert.True(t, titles.Halloween2026{}.EarnedBy(played(1, time.Date(2026, 10, 31, 23, 59, 59, 0, time.UTC))))
+	assert.True(t, titles.Halloween2026{}.EarnedBy(played(3, time.Date(2026, 11, 2, 9, 0, 0, 0, time.UTC))),
+		"a streak still running since Halloween")
+	assert.False(t, titles.Halloween2026{}.EarnedBy(played(5, time.Date(2026, 10, 30, 23, 0, 0, 0, time.UTC))))
+	assert.False(t, titles.Halloween2026{}.EarnedBy(played(1, time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC))))
+	assert.False(t, titles.Halloween2026{}.EarnedBy(careerOf(players.StatsSnapshot{})))
+}
+
 func TestEachTrackClimbsItsRanksByItsOwnMeasure(t *testing.T) {
 	for _, track := range []titles.Track{
 		titles.Conquest{},

@@ -1,10 +1,14 @@
 import {PlayerTitle, TitleTrack} from "../../backends/player.ts"
 
-export type Metal = "bronze" | "silver" | "gold" | "platinum" | "prism" | "holo"
+export type Metal = "bronze" | "silver" | "gold" | "platinum" | "prism" | "holo" | "pumpkin"
 
 const TRACKS = ["conquest", "chatter", "devotion", "defense", "bombs", "loot", "quiz", "missions"] as const
 
-type Track = typeof TRACKS[number] | "og"
+type Track = typeof TRACKS[number] | "og" | "halloween"
+
+const STANDALONE_LOOKS: Partial<Record<string, Track>> = {
+    halloween_2026: "halloween",
+}
 
 export const METALS: Record<Metal, string> = {
     bronze: "var(--bronze)",
@@ -13,11 +17,13 @@ export const METALS: Record<Metal, string> = {
     platinum: "var(--platinum)",
     prism: "color-mix(in srgb, var(--prism-2) 70%, var(--text))",
     holo: "color-mix(in srgb, var(--holo-1) 50%, var(--holo-2))",
+    pumpkin: "var(--pumpkin)",
 }
 
 export const BANDS: Partial<Record<Metal, readonly string[]>> = {
     prism: ["var(--prism-1)", "var(--prism-2)", "var(--prism-3)", "var(--prism-4)"],
     holo: ["var(--holo-1)", "var(--holo-2)", "var(--holo-3)", "var(--holo-4)"],
+    pumpkin: Array.from({length: 8}, (_, i) => i % 2 === 0 ? "var(--pumpkin)" : "var(--pumpkin-shade)"),
 }
 
 const TITLE_METALS: Partial<Record<string, Metal>> = {
@@ -26,6 +32,7 @@ const TITLE_METALS: Partial<Record<string, Metal>> = {
     season_0_silver: "silver",
     season_0_bronze: "bronze",
     season_0_veteran: "platinum",
+    halloween_2026: "pumpkin",
     settler: "bronze",
     raider: "silver",
     warlord: "gold",
@@ -65,7 +72,7 @@ export function metalOf(title: PlayerTitle): Metal {
 }
 
 function trackOf(title: PlayerTitle): Track {
-    if (!title.rank) return "og"
+    if (!title.rank) return STANDALONE_LOOKS[title.id] ?? "og"
     return TRACKS.find((track) => track === title.rank?.trackId) ?? "conquest"
 }
 

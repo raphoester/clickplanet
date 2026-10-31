@@ -14,6 +14,12 @@ type Title interface {
 	EarnedBy(career Career) bool
 }
 
+// Never revoked: the career may no longer show the moment it marks.
+type Keepsake interface {
+	Title
+	Keepsake()
+}
+
 type IDs []ID
 
 func (i IDs) Without(held IDs) IDs {

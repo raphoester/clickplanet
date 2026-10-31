@@ -71,7 +71,7 @@ system exists to stop.
 | `--streak` | The streak flame |
 | `--war`, `--tape` | A battle: its chip, the warning tape along the dock and the chip, the start moment; the Final Battle to come: its face and tape on the season chip, its teaser, the home page's panel. Nowhere else |
 | `--refill`, `--spread`, `--bomb`, `--enclose`, `--shield` (and `-light`) | A bonus kind: its box, its slot, its reward line |
-| `--bronze` … `--holo-4`, `--conquest` … `--og-enamel` | Medals only (below) |
+| `--bronze` … `--pumpkin-glow`, `--conquest` … `--halloween-enamel` | Medals only (below) |
 
 - **A name's color is only a hue.** `hueOf` reads it off the pick; the saturation
   and the lightness are tokens (`--author-*`), so no pick can be unreadable on a
@@ -121,14 +121,18 @@ system exists to stop.
 Every title is a medal, and the medals obey the same rules as everything else:
 
 - **Flat metal**: bronze, silver, gold, platinum, and prism and holo as four flat
-  bands. One hard light edge at the top left, one hard shadow edge at the bottom
+  bands; pumpkin, for Halloween, is eight bands of orange and its shade, like a
+  pumpkin's ribs. One hard light edge at the top left, one hard shadow edge at the bottom
   right, no gradient.
 - **Ink**: an outline on the ring, the center and the icon, and a hard drop
   under the whole medal.
 - **The track names the center and the ribbon**: Conquest navy and red, Chatter
   teal, Devotion brown and orange, Defense slate and steel, Bombs char and yellow,
-  Loot plum and pink, Quiz green and blue, Missions olive and lime, OG violet.
-- **The icon** is in the metal and `--cream`, outlined in ink.
+  Loot plum and pink, Quiz green and blue, Missions olive and lime, OG violet. A
+  standalone title may have a look of its own: Halloween is a night-green center and
+  a stem-green ribbon.
+- **The icon** is in the metal and `--cream`, outlined in ink. The Halloween
+  pumpkin is the one exception: a green stem and a face lit in `--pumpkin-glow`.
 - **A locked medal** is a grey ring, a sunk center and a padlock.
 
 ## Layout
