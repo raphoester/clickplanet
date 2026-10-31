@@ -563,6 +563,19 @@ describe("Menu", () => {
             expect(screen.getByText("Recruit for France")).toBeDefined()
             expect(screen.getByText("clickplanet.lol/?f=fr")).toBeDefined()
         })
+
+        it("is CrazyGames' invite there, with no link that leads off it", async () => {
+            render(<Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000} onTakePicture={vi.fn()}
+                         invite={vi.fn(async () => undefined)}/>)
+            const user = userEvent.setup()
+
+            expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Board", "Invite", "Settings"])
+            await user.click(tab("Invite"))
+
+            expect(button("Invite friends")).toBeDefined()
+            expect(screen.queryByRole("button", {name: "Take a picture"})).toBeNull()
+            expect(screen.queryByText("clickplanet.lol/?f=fr")).toBeNull()
+        })
     })
 
     describe("the settings", () => {

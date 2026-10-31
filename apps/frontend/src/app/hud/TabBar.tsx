@@ -1,9 +1,8 @@
 import {ReactNode} from "react"
-import {ChatIcon, SettingsIcon, ShareIcon, TargetIcon, TrophyIcon, UserIcon} from "../components/icons.tsx"
-import {ON_CRAZYGAMES} from "../../platform.ts"
+import {ChatIcon, SettingsIcon, ShareIcon, TargetIcon, TrophyIcon, UserIcon, UsersIcon} from "../components/icons.tsx"
 import "./TabBar.css"
 
-export type Tab = "board" | "missions" | "chat" | "you" | "share" | "settings"
+export type Tab = "board" | "missions" | "chat" | "you" | "share" | "invite" | "settings"
 
 const UNREAD_CAP = 99
 
@@ -14,9 +13,10 @@ export type TabBarProps = {
     unread: number
     you?: "guest" | "player"
     missions?: number
+    invite?: boolean
 }
 
-export default function TabBar({open, onOpen, chat, unread, you, missions}: TabBarProps) {
+export default function TabBar({open, onOpen, chat, unread, you, missions, invite}: TabBarProps) {
     const tab = (id: Tab, label: string, icon: ReactNode, extra?: ReactNode, name?: string) =>
         <button type="button"
                 className={open === id ? "tab-bar-tab tab-bar-tab--open" : "tab-bar-tab"}
@@ -40,7 +40,7 @@ export default function TabBar({open, onOpen, chat, unread, you, missions}: TabB
             unread === 0 ? undefined : unread === 1 ? "Chat, 1 new message" : `Chat, ${unread} new messages`)}
         {you && tab("you", you === "guest" ? "Sign in" : "You", <UserIcon/>,
             you === "guest" && <span className="tab-bar-dot" aria-hidden="true"/>)}
-        {!ON_CRAZYGAMES && tab("share", "Share", <ShareIcon size={22}/>)}
+        {invite ? tab("invite", "Invite", <UsersIcon/>) : tab("share", "Share", <ShareIcon size={22}/>)}
         {tab("settings", "Settings", <SettingsIcon/>)}
     </nav>
 }

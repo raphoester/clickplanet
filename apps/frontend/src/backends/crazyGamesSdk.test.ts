@@ -1,9 +1,19 @@
 import {describe, expect, it, vi} from "vitest"
 import {connectCrazyGames, Sdk} from "./crazyGamesSdk.ts"
+import {InviteParams} from "../domain/crazyGames.ts"
+import {Countries} from "../domain/countries.ts"
 
-function fakeSdk(overrides: {environment?: Sdk["environment"], token?: () => Promise<string>, prompt?: () => Promise<unknown>} = {}) {
+type FakeOverrides = {
+    environment?: Sdk["environment"]
+    token?: () => Promise<string>
+    prompt?: () => Promise<unknown>
+    inviteParams?: InviteParams
+}
+
+function fakeSdk(overrides: FakeOverrides = {}) {
     const authListeners = new Set<(user: unknown) => void>()
     const settingsListeners = new Set<(settings: Sdk["game"]["settings"]) => void>()
+    const joinListeners = new Set<(params: InviteParams) => void>()
     const sdk = {
         init: vi.fn(async () => undefined),
         environment: overrides.environment ?? "crazygames",
@@ -21,13 +31,20 @@ function fakeSdk(overrides: {environment?: Sdk["environment"], token?: () => Pro
             loadingStart: vi.fn(),
             loadingStop: vi.fn(),
             gameplayStart: vi.fn(),
+            inviteParams: overrides.inviteParams ?? null,
+            updateRoom: vi.fn(),
+            inviteLink: vi.fn((params: InviteParams) => `https://www.crazygames.com/game/clickplanet?czy_invite=true&f=${params.f}`),
+            addJoinRoomListener: (listener: (params: InviteParams) => void) => joinListeners.add(listener),
+            removeJoinRoomListener: (listener: (params: InviteParams) => void) => joinListeners.delete(listener),
         },
     } satisfies Sdk
     return {
         sdk,
         signIn: (user: unknown) => authListeners.forEach((listener) => listener(user)),
         change: (settings: Sdk["game"]["settings"]) => settingsListeners.forEach((listener) => listener(settings)),
+        join: (params: InviteParams) => joinListeners.forEach((listener) => listener(params)),
         authListeners,
+        joinListeners,
     }
 }
 
@@ -103,5 +120,69 @@ describe("connectCrazyGames", () => {
 
         expect(fake.sdk.game.loadingStop).toHaveBeenCalledTimes(1)
         expect(fake.sdk.game.gameplayStart).toHaveBeenCalledTimes(1)
+    })
+
+    it("reports the one world, open, with the flag played for", async () => {
+        const fake = fakeSdk()
+        connectCrazyGames(async () => fake.sdk).room.report("fr")
+        await settle()
+
+        expect(fake.sdk.game.updateRoom).toHaveBeenCalledWith({roomId: "world", isJoinable: true, inviteParams: {f: "fr"}})
+    })
+
+    it("keeps playing when CrazyGames refuses a room report", async () => {
+        const errors = vi.spyOn(console, "error").mockImplementation(() => undefined)
+        const fake = fakeSdk()
+        fake.sdk.game.updateRoom.mockImplementation(() => {
+            throw {code: "rateLimited"}
+        })
+
+        connectCrazyGames(async () => fake.sdk).room.report("fr")
+        await settle()
+
+        expect(errors).toHaveBeenCalledTimes(1)
+        errors.mockRestore()
+    })
+
+    it("tells the invite the page opened from once, then each invite taken while it plays", async () => {
+        const fake = fakeSdk({inviteParams: {f: "fr", czy_invited_by: "someone"}})
+        const page = connectCrazyGames(async () => fake.sdk)
+        const first = vi.fn()
+        const second = vi.fn()
+
+        const stop = page.room.listenForInvites(first)
+        page.room.listenForInvites(second)
+        await settle()
+        fake.join({f: "de"})
+        fake.join({roomName: "lobby"})
+
+        expect(first.mock.calls).toEqual([[Countries.get("fr")], [Countries.get("de")]])
+        expect(second.mock.calls).toEqual([[Countries.get("de")]])
+
+        stop()
+        expect(fake.joinListeners.size).toBe(1)
+    })
+
+    it("tells the opening invite to the listener that stays after a mount, an unmount and a mount", async () => {
+        const fake = fakeSdk({inviteParams: {f: "fr"}})
+        const page = connectCrazyGames(async () => fake.sdk)
+        const gone = vi.fn()
+        const stays = vi.fn()
+
+        page.room.listenForInvites(gone)()
+        page.room.listenForInvites(stays)
+        await settle()
+
+        expect(gone).not.toHaveBeenCalled()
+        expect(stays).toHaveBeenCalledWith(Countries.get("fr"))
+    })
+
+    it("asks CrazyGames for a link that invites to the flag, and has none off CrazyGames", async () => {
+        const fake = fakeSdk()
+        expect(await connectCrazyGames(async () => fake.sdk).room.inviteLink("fr"))
+            .toBe("https://www.crazygames.com/game/clickplanet?czy_invite=true&f=fr")
+        expect(fake.sdk.game.inviteLink).toHaveBeenCalledWith({f: "fr"})
+
+        expect(await connectCrazyGames(async () => fakeSdk({environment: "disabled"}).sdk).room.inviteLink("fr")).toBeUndefined()
     })
 })

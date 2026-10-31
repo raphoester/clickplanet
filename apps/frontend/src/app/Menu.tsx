@@ -21,7 +21,8 @@ import {PlayerInfoBackend} from "../backends/player.ts";
 import {ClipsNameBackend} from "../backends/clips.ts";
 import {shareStats} from "../domain/shareCard.ts";
 import SharePlace, {SharePlaceProps} from "./share/SharePlace.tsx";
-import {ON_CRAZYGAMES} from "../platform.ts";
+import InviteFriends from "./share/InviteFriends.tsx";
+import {InviteLink} from "../backends/crazyGames.ts";
 import {youLabel} from "./youLabel.ts"
 import BoardViews, {BoardHeading, BoardStandings} from "./standings/BoardViews.tsx"
 import Sheet from "./hud/Sheet.tsx"
@@ -29,7 +30,7 @@ import {ListenForClicks} from "./viewer/acceptedClicks.ts"
 import {useNow} from "./season/useNow.ts"
 import "./Menu.css"
 
-export type MenuTab = "board" | "missions" | "you" | "share" | "settings"
+export type MenuTab = "board" | "missions" | "you" | "share" | "invite" | "settings"
 
 export type BoardPlaceProps = {
     country: Country,
@@ -58,6 +59,7 @@ export type YouPlaceProps = {
 export type MenuProps = BoardPlaceProps & YouPlaceProps & SettingsPlaceProps & Omit<SharePlaceProps, "stats"> & {
     missions?: MissionsPlaceProps,
     missionsNews?: number,
+    invite?: InviteLink,
     tab?: MenuTab,
     onTab?: (tab: MenuTab) => void,
 }
@@ -74,7 +76,7 @@ export default function Menu(props: MenuProps) {
         {id: "board", label: "Board"},
         ...props.missions ? [{id: "missions" as const, label: "Missions", news: props.missionsNews}] : [],
         ...account.kind === "ready" ? [{id: "you" as const, label: youLabel(account.me.linked.length > 0)}] : [],
-        ...ON_CRAZYGAMES ? [] : [{id: "share" as const, label: "Share"}],
+        props.invite ? {id: "invite", label: "Invite"} : {id: "share", label: "Share"},
         {id: "settings", label: "Settings"},
     ]
     const shown = tabs.some((t) => t.id === tab) ? tab : "board"
@@ -127,6 +129,7 @@ export default function Menu(props: MenuProps) {
                     {shown === "share" && <SharePlace stats={shareStats(linesShown(props), props.country)}
                                                       onTakePicture={props.onTakePicture}
                                                       taking={props.taking}/>}
+                    {shown === "invite" && props.invite && <InviteFriends country={props.country} invite={props.invite}/>}
                     {shown === "settings" && <SettingsPlace {...props}/>}
                 </div>
             </>}

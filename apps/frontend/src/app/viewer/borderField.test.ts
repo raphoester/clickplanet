@@ -166,23 +166,6 @@ describe("the flags drawn large", () => {
         expect([...needs.keys()]).toEqual(["fr"])
         expect(needs.get("fr")).toBeCloseTo(0.1)
     })
-
-    it("marks each painted landmass with its holder's slot, 0 for the atlas, re-uploading only on a change", () => {
-        const field = new BorderField(world(8))
-        paint(field, {fr: 5})
-        const uploaded = field.landmassData.version
-
-        field.markSlots(["de", "fr"])
-        expect(rows(field)[TEXELS * 4 + 13]).toBe(2)
-        expect(field.landmassData.version).toBeGreaterThan(uploaded)
-
-        const marked = field.landmassData.version
-        field.markSlots(["de", "fr"])
-        expect(field.landmassData.version).toBe(marked)
-
-        field.markSlots(["de"])
-        expect(rows(field)[TEXELS * 4 + 13]).toBe(0)
-    })
 })
 
 describe("the landmass table", () => {

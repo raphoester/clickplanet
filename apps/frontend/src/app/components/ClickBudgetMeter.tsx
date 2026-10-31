@@ -9,10 +9,11 @@ import {offerText, SHARED_WITH} from "./clickOffer.ts"
 import Bubble from "./Bubble.tsx"
 import CountryFlag from "./CountryFlag.tsx"
 import RecruitButton from "../share/RecruitButton.tsx"
+import InviteButton from "../share/InviteButton.tsx"
 import {Country} from "../../domain/countries.ts"
 import {breakHeadline} from "../../domain/shareCard.ts"
 import {DISCORD_INVITE} from "../../links.ts"
-import {ON_CRAZYGAMES} from "../../platform.ts"
+import {InviteLink} from "../../backends/crazyGames.ts"
 import "./ClickBudgetMeter.css"
 
 export type ClickBudgetMeterProps = {
@@ -27,6 +28,7 @@ export type ClickBudgetMeterProps = {
     said?: {text: string, id: number}
     // The map takes no play: the dock says so, and when the next season starts when one is planned.
     frozen?: {nextSeason?: {number: number, startsAt: number}, country: Country}
+    invite?: InviteLink
 }
 
 const MAX_PIPS = 12
@@ -48,6 +50,7 @@ export default function ClickBudgetMeter({
     popover,
     said,
     frozen,
+    invite,
 }: ClickBudgetMeterProps) {
     const root = useRef<HTMLDivElement>(null)
     const count = useRef<HTMLSpanElement>(null)
@@ -128,11 +131,17 @@ export default function ClickBudgetMeter({
                 <FrozenLines nextSeason={frozen.nextSeason}/>
             </div>
             <div className="click-budget-frozen-links">
-                {!ON_CRAZYGAMES && <RecruitButton code={frozen.country.code}
-                                                  text={breakHeadline(frozen.country, frozen.nextSeason?.number)}
-                                                  className="button button-mini button-secondary click-budget-invite"
-                                                  icon={<CountryFlag code={frozen.country.code}/>}
-                                                  label="Invite"/>}
+                {invite
+                    ? <InviteButton flag={frozen.country.code}
+                                    invite={invite}
+                                    className="button button-mini button-secondary click-budget-invite"
+                                    icon={<CountryFlag code={frozen.country.code}/>}
+                                    label="Invite"/>
+                    : <RecruitButton code={frozen.country.code}
+                                     text={breakHeadline(frozen.country, frozen.nextSeason?.number)}
+                                     className="button button-mini button-secondary click-budget-invite"
+                                     icon={<CountryFlag code={frozen.country.code}/>}
+                                     label="Invite"/>}
                 <a href={DISCORD_INVITE}
                    target="_blank"
                    rel="noopener noreferrer"

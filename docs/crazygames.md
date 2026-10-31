@@ -17,9 +17,10 @@ frontend build, the same API, the same map and players as clickplanet.lol.
 ## What each part does
 
 - **Frontend**: the CrazyGames page — CrazyGames' sign-in alone, its settings, the gameplay events, and no link to
-  another place to play. No ad, by choice. The words of CrazyGames' list are masked in the chat and in player names as
-  the page draws them; the build fetches the list (the frontend's
-  [word filter](../apps/frontend/docs/crazygames.md#the-word-filter)).
+  another place to play. No ad, by choice. Online multiplayer: the whole world is one room, always joinable; an
+  invite gives its flag to a player who has none; Invite friends copies CrazyGames' invite link. The words of
+  CrazyGames' list are masked in the chat and in player names as the page draws them; the build fetches the list
+  (the frontend's [word filter](../apps/frontend/docs/crazygames.md#the-word-filter)).
 - **Backend**: `CompleteCrazyGamesSignIn` checks the SDK's token against CrazyGames' keys and links the account
   (`auth.crazyGames.gameId`); arrivals are tagged `crazygames`. A new player's name is its CrazyGames username, made a
   valid one (`.` becomes `_`, 15 characters at most), or a generated name when that one is refused or taken (the

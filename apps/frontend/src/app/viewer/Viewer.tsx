@@ -123,7 +123,8 @@ import FlagMissionDone from "../missions/FlagMissionDone.tsx";
 import {useFlagMissionDone} from "../missions/useFlagMissionDone.ts";
 import {useClipNotice} from "../clips/useClipNotice.ts";
 import {CrazyGamesPage} from "../../backends/crazyGames.ts";
-import {useCrazyGames, useGameplay} from "../crazygames/useCrazyGames.ts";
+import {useCrazyGames, useGameplay, useInvites, useRoom} from "../crazygames/useCrazyGames.ts";
+import InviteFriends from "../share/InviteFriends.tsx";
 import {MUTED_SOUND_SETTINGS} from "../../domain/soundSettings.ts";
 import "./Viewer.css"
 
@@ -132,7 +133,7 @@ const NO_LEADERBOARD: readonly LeaderboardEntry[] = []
 // After the wave has run over the land.
 const FORTIFY_CARD_DELAY_MS = 1600
 
-type SheetName = "board" | "missions" | "chat" | "you" | "share" | "settings" | "season" | "battle" | "clicks"
+type SheetName = "board" | "missions" | "chat" | "you" | "share" | "invite" | "settings" | "season" | "battle" | "clicks"
 
 export type ViewerProps = {
     sharedCountry?: Country
@@ -173,6 +174,8 @@ export default function Viewer(props: ViewerProps) {
         const held = allegiance && allegiance.countryId !== countryState.code ? Countries.get(allegiance.countryId) : undefined
         if (held) handleSetCountry(held)
     }, [allegiance, countryState.code, handleSetCountry])
+    useInvites(props.crazyGames, allegiance, handleSetCountry)
+    const invite = props.crazyGames?.room.inviteLink
     const pickCountry = async (country: Country) => {
         if (country.code !== countryState.code) await props.allegiance?.pledgeAllegiance(country.code)
         handleSetCountry(country)
@@ -305,6 +308,7 @@ export default function Viewer(props: ViewerProps) {
     })
 
     useGameplay(props.crazyGames, status.state === 'ready')
+    useRoom(props.crazyGames, status.state === 'ready', countryState.code)
 
     const tileHolder = useTileHolder(props.tileHolders, props.playerInfo, pointing, ownAccountId)
     const territoryCard = useTerritoryCard(pointingTerritory, territoryOf, showTerritory)
@@ -439,6 +443,7 @@ export default function Viewer(props: ViewerProps) {
         {ready && !compact && <Menu {...board} {...you} {...share} {...settings}
                                     missions={missions}
                                     missionsNews={missionsNews}
+                                    invite={invite}
                                     tab={menuTab}
                                     onTab={setMenuTab}/>}
 
@@ -478,6 +483,7 @@ export default function Viewer(props: ViewerProps) {
 
         {ready && <ClickBudgetMeter budget={clickBudget}
                                     frozen={mood === "frozen" ? {nextSeason: schedule.seasons.next, country: countryState} : undefined}
+                                    invite={invite}
                                     refusals={refusals}
                                     said={lockedOut && {text: heldLine(lockedOut.allegiance, Date.now()), id: lockedOut.id}}
                                     onSignIn={openPitch}
@@ -524,6 +530,9 @@ export default function Viewer(props: ViewerProps) {
             {sheet === "share" && <Sheet title="Share" onClose={closeSheet}>
                 <SharePlace stats={stats} {...share}/>
             </Sheet>}
+            {sheet === "invite" && invite && <Sheet title="Invite" onClose={closeSheet}>
+                <InviteFriends country={countryState} invite={invite}/>
+            </Sheet>}
             {sheet === "settings" && <Sheet title="Settings" onClose={closeSheet}>
                 <SettingsPlace {...settings}/>
             </Sheet>}
@@ -538,6 +547,7 @@ export default function Viewer(props: ViewerProps) {
             <TabBar open={sheet}
                     onOpen={toggleSheet}
                     chat={props.chatBackend !== undefined && crazyGames.chat}
+                    invite={invite !== undefined}
                     unread={unread}
                     you={account.kind === 'ready' ? (linked ? "player" : "guest") : undefined}
                     missions={missions ? missionsNews : undefined}/>
