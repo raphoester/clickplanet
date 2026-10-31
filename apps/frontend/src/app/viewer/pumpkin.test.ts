@@ -1,6 +1,6 @@
 import * as THREE from "three"
 import {describe, expect, it} from "vitest"
-import {flickerAt, pumpkinGeometry} from "./pumpkin.ts"
+import {flickerAt, pumpkinGeometry, tumbleAt} from "./pumpkin.ts"
 
 function vertexNearest(geometry: THREE.BufferGeometry, u: number, v: number): THREE.Vector3 {
     const uv = geometry.attributes.uv
@@ -39,5 +39,28 @@ describe("flickerAt", () => {
             expect(flicker).toBeGreaterThanOrEqual(0.76)
             expect(flicker).toBeLessThanOrEqual(1)
         }
+    })
+})
+
+describe("tumbleAt", () => {
+    it("turns and rocks on all three axes, and never points its stem down", () => {
+        const up = new THREE.Vector3(0, 1, 0)
+        const front = new THREE.Vector3(0, 0, 1)
+        let lowest = 1
+        let leanX = 0
+        let leanZ = 0
+        let faced = 0
+        for (let frame = 0; frame < 60 * 60; frame++) {
+            const turn = tumbleAt(frame / 60)
+            const stem = up.clone().applyQuaternion(turn)
+            lowest = Math.min(lowest, stem.y)
+            leanX = Math.max(leanX, Math.abs(stem.x))
+            leanZ = Math.max(leanZ, Math.abs(stem.z))
+            if (front.clone().applyQuaternion(turn).z > 0.9) faced++
+        }
+        expect(lowest).toBeGreaterThan(0.4)
+        expect(leanX).toBeGreaterThan(0.3)
+        expect(leanZ).toBeGreaterThan(0.3)
+        expect(faced).toBeGreaterThan(60)
     })
 })

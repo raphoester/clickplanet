@@ -10,8 +10,10 @@ const GROOVE = 0.1
 const SQUASH = 0.78
 const DENT = 0.16
 
-// Radians a second about x, y and z: a tumble, as the box's.
-const SPIN: readonly [number, number, number] = [0.8, 1.1, 0.5]
+const TURN_PER_SECOND = 1.1
+// The most it leans forward and sideways, in radians: together under 90°, so its stem never points down on screen.
+const ROCK_X = 0.5
+const ROCK_Z = 0.4
 
 const CARVING_WIDTH = 512
 const CARVING_HEIGHT = 256
@@ -22,7 +24,7 @@ export type Pumpkin = {
     // What a pointer has to hit: the stem is too thin to aim at.
     readonly body: THREE.Mesh
     setOpacity(opacity: number): void
-    pose(age: number): void
+    pose(age: number, camera: THREE.Camera): void
     dispose(): void
 }
 
@@ -46,6 +48,7 @@ export function createPumpkin(): Pumpkin {
     object.add(body, stem)
 
     const materials = [bodyMaterial, stemMaterial]
+    const tumble = new THREE.Quaternion()
 
     return {
         object,
@@ -53,8 +56,8 @@ export function createPumpkin(): Pumpkin {
         setOpacity: (opacity) => {
             for (const material of materials) material.uniforms.opacity.value = opacity
         },
-        pose: (age) => {
-            object.rotation.set(age * SPIN[0], age * SPIN[1], age * SPIN[2])
+        pose: (age, camera) => {
+            object.quaternion.copy(camera.quaternion).multiply(tumbleAt(age, tumble))
             bodyMaterial.uniforms.flicker.value = flickerAt(age)
         },
         dispose: () => {
@@ -83,6 +86,12 @@ export function pumpkinGeometry(): THREE.BufferGeometry {
     geometry.rotateY(-Math.PI / 2)
     geometry.computeVertexNormals()
     return geometry
+}
+
+// In the camera's frame: a full turn about its stem, and a rock forward and sideways that tilts the stem.
+export function tumbleAt(age: number, into = new THREE.Quaternion()): THREE.Quaternion {
+    const rock = new THREE.Euler(ROCK_X * Math.sin(age * 1.3), age * TURN_PER_SECOND, ROCK_Z * Math.sin(age * 0.9 + 1), "XZY")
+    return into.setFromEuler(rock)
 }
 
 export function flickerAt(seconds: number): number {
